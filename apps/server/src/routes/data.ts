@@ -7,6 +7,9 @@ import type { DB } from '../db.js';
 
 type Q = Record<string, string | undefined>;
 
+/** Escapes LIKE wildcards of user input (use with ESCAPE '\\'). */
+const likeTerm = (s: string) => `%${s.replace(/[\\%_]/g, '\\$&')}%`;
+
 /** Members are shown with their in-game name (falls back to the hub username). */
 const DISPLAY = 'COALESCE(gm.ingame_name, u.username)';
 const MEMBER = (t: string) => `LEFT JOIN group_members gm ON gm.group_id = ${t}.group_id AND gm.user_id = ${t}.user_id`;
@@ -111,11 +114,11 @@ export function dataRoutes(app: FastifyInstance, db: DB) {
 
   app.get<{ Params: { uni: string }; Querystring: Q }>('/api/:uni/players', async (req) => {
     const ctx = ctxOf(req);
-    const q = `%${(req.query.q ?? '').trim()}%`;
+    const q = likeTerm((req.query.q ?? '').trim());
     return db
       .prepare(
         `SELECT p.id, p.ingame_id, p.name, a.name AS ally_name FROM players p LEFT JOIN alliances a ON a.id = p.alliance_id
-         WHERE p.group_id = ? AND (p.name LIKE ? OR p.id IN (SELECT player_id FROM player_aliases WHERE name LIKE ?))
+         WHERE p.group_id = ? AND (p.name LIKE ? ESCAPE '\\' OR p.id IN (SELECT player_id FROM player_aliases WHERE name LIKE ? ESCAPE '\\'))
          ORDER BY p.last_seen DESC LIMIT 50`,
       )
       .all(ctx.groupId, q, q);
@@ -308,8 +311,8 @@ export function dataRoutes(app: FastifyInstance, db: DB) {
     const page = Math.max(1, Number(req.query.page) || 1);
     const order = req.query.sort === 'time' ? 'time DESC' : 'units DESC';
     const q = (req.query.q ?? '').trim();
-    const where = `group_id = ?${q ? ' AND (attackers LIKE ? OR defenders LIKE ?)' : ''}`;
-    const args: unknown[] = [ctx.groupId, ...(q ? [`%${q}%`, `%${q}%`] : [])];
+    const where = `group_id = ?${q ? " AND (attackers LIKE ? ESCAPE '\\' OR defenders LIKE ? ESCAPE '\\')" : ''}`;
+    const args: unknown[] = [ctx.groupId, ...(q ? [likeTerm(q), likeTerm(q)] : [])];
     const total = db.prepare(`SELECT COUNT(*) FROM battle_hall WHERE ${where}`).pluck().get(...args) as number;
     const rows = db
       .prepare(

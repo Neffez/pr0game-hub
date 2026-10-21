@@ -62,13 +62,22 @@ export function parsePage(input: ParseInput): ParseResult {
   return { ...res, lang, source: 'text', warnings };
 }
 
+function queryParam(url: string | undefined, name: string): string | null {
+  if (!url) return null;
+  try {
+    return new URL(url, 'https://pr0game.com/').searchParams.get(name);
+  } catch {
+    return null;
+  }
+}
+
 function parseHtml(html: string, input: ParseInput, warnings: string[]): { pageType: PageType; records: HubRecord[] } {
   const $ = cheerio.load(html);
   const url = input.url ?? undefined;
-  const page = url ? new URL(url, 'https://pr0game.com/').searchParams.get('page')?.toLowerCase() : null;
+  const page = queryParam(url, 'page')?.toLowerCase() ?? null;
 
   if (page === 'raport' || isCombatReportText(htmlToText(html))) {
-    const reportId = url ? new URL(url, 'https://pr0game.com/').searchParams.get('raport') : null;
+    const reportId = queryParam(url, 'raport');
     const r = parseCombatReportText(htmlToText(html), reportId);
     if (r) return { pageType: 'combatReport', records: [r] };
   }

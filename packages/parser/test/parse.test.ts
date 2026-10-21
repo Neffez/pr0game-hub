@@ -290,3 +290,21 @@ describe('points', () => {
     expect(sectionPoints(undefined)).toBeNull();
   });
 });
+
+describe('review fixes', () => {
+  it('does not crash on an invalid url', () => {
+    expect(() => parsePage({ html: '<html><body><p>x</p></body></html>', url: 'http://' })).not.toThrow();
+  });
+
+  it('regenerates the deck when a certain Nothing card is drawn but none is left', () => {
+    const deck = [
+      { type: 'Res' as const, size: 'Small' as const, count: 2 },
+      { type: 'Nothing' as const, size: 'None' as const, count: 1 },
+    ];
+    const ev = (event: DeckEvent['event'], size: DeckEvent['size']): DeckEvent => ({ event, size, depletion: 'none' });
+    // the only Nothing card is gone, so a second Nothing means a new deck (2 Res + 0 Nothing left)
+    const state = computeDeck(deck, [ev('Nothing', 'None'), ev('Nothing', 'None')]);
+    expect(state.resets).toBe(1);
+    expect(state.remainingTotal).toBe(2);
+  });
+});

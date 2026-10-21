@@ -30,6 +30,8 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
     requireAdmin(req);
     const { slug, name, settings, deck } = req.body ?? ({} as never);
     if (!/^[a-z0-9-]{1,16}$/.test(slug ?? '')) throw new HttpError(400, 'Slug: a-z, 0-9, -');
+    if (db.prepare('SELECT 1 FROM universes WHERE slug = ?').get(slug)) throw new HttpError(409, 'Universum existiert bereits');
+    validateSettings(settings);
     db.prepare('INSERT INTO universes (slug, name, settings, deck_config) VALUES (?, ?, ?, ?)').run(
       slug,
       name || slug,
@@ -46,6 +48,7 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
       const { name, settings, deck } = req.body ?? {};
       const cur = db.prepare('SELECT * FROM universes WHERE slug = ?').get(req.params.slug) as { settings: string } | undefined;
       if (!cur) throw new HttpError(404, 'Universum nicht gefunden');
+      validateSettings(settings);
       db.prepare('UPDATE universes SET name = COALESCE(?, name), settings = ? WHERE slug = ?').run(
         name ?? null,
         JSON.stringify({ ...JSON.parse(cur.settings), ...(settings ?? {}) }),
@@ -77,7 +80,10 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
     const user = requireAdmin(req);
     const uni = db.prepare('SELECT id FROM universes WHERE slug = ?').pluck().get(req.body?.universe) as number | undefined;
     if (!uni) throw new HttpError(404, 'Universum nicht gefunden');
-    const id = db.prepare('INSERT INTO groups (universe_id, name) VALUES (?, ?)').run(uni, String(req.body.name ?? '').trim()).lastInsertRowid;
+    const name = String(req.body.name ?? '').trim();
+    if (!name) throw new HttpError(400, 'Name fehlt');
+    if (db.prepare('SELECT 1 FROM groups WHERE universe_id = ? AND name = ?').get(uni, name)) throw new HttpError(409, 'Allianz existiert bereits');
+    const id = db.prepare('INSERT INTO groups (universe_id, name) VALUES (?, ?)').run(uni, name).lastInsertRowid;
     db.prepare("INSERT INTO group_members (group_id, user_id, role) VALUES (?, ?, 'admin')").run(id, user.id);
     return { id: Number(id) };
   });
@@ -100,9 +106,11 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
       requireGroupAdmin(req, groupId);
       const role = req.body?.role;
       if (role && role !== 'member' && role !== 'admin') throw new HttpError(400, 'Rolle ungültig');
-      db.prepare('UPDATE group_members SET role = COALESCE(?, role), ingame_name = COALESCE(?, ingame_name) WHERE group_id = ? AND user_id = ?').run(
+      const hasName = req.body !== undefined && req.body !== null && 'ingameName' in req.body;
+      db.prepare('UPDATE group_members SET role = COALESCE(?, role), ingame_name = CASE WHEN ? THEN ? ELSE ingame_name END WHERE group_id = ? AND user_id = ?').run(
         role ?? null,
-        req.body?.ingameName ?? null,
+        hasName ? 1 : 0,
+        String(req.body?.ingameName ?? '').trim() || null,
         groupId,
         Number(req.params.userId),
       );
@@ -168,7 +176,7 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
       first_seen: number;
       last_seen: number;
     }[];
-    if (both.length !== 2 || from === into) throw new HttpError(400, 'Spieler ungültig');
+    if (!Number.isInteger(from) || !Number.isInteger(into) || both.length !== 2 || from === into) throw new HttpError(400, 'Spieler ungültig');
     const src = both.find((p) => p.id === from)!;
     db.transaction(() => {
       // Scores of the same snapshot: keep the target's.
@@ -218,6 +226,19 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
     const tz = JSON.parse(row.settings).timezone ?? UNIVERSE_DEFAULTS.timezone;
     return { added: backfillActivity(db, groupId, tz) };
   });
+}
+
+function validateSettings(settings: object | undefined) {
+  if (!settings) return;
+  const s = settings as Record<string, unknown>;
+  if (s.timezone !== undefined) {
+    try {
+      new Intl.DateTimeFormat('en-US', { timeZone: String(s.timezone) });
+    } catch {
+      throw new HttpError(400, 'Zeitzone ungültig');
+    }
+  }
+  if (s.gameUrl && !/^https?:\/\//i.test(String(s.gameUrl))) throw new HttpError(400, 'Spiel-URL muss mit http(s):// beginnen');
 }
 
 function validateDeck(deck: unknown) {

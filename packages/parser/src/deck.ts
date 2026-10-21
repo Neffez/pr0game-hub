@@ -109,6 +109,11 @@ export function computeDeck(config: DeckCard[], events: DeckEvent[], opts: DeckO
     const key = cardKey(ev.event, ev.size);
     if (ev.event === 'Nothing') {
       const pd = ev.depletion == null ? unknownChance : DEPLETION_CHANCE[ev.depletion];
+      if (pd <= 0 && (remaining.get(nothingKey) ?? 0) < 0.5) {
+        // certainly a drawn card, but none is left -> the deck was regenerated meanwhile
+        resets++;
+        fresh();
+      }
       const remNothing = remaining.get(nothingKey) ?? 0;
       const q = total() > 0 ? remNothing / total() : 0;
       const pCard = pd <= 0 ? (remNothing > 0 ? 1 : 0) : ((1 - pd) * q) / ((1 - pd) * q + pd);

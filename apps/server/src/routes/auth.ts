@@ -1,14 +1,23 @@
 import type { FastifyInstance } from 'fastify';
-import { createSession, destroySession, hashPassword, HttpError, requireUser, verifyPassword } from '../auth.js';
+import {
+  createSession, destroyOtherSessions, destroySession, hashPassword, HttpError, loginBlocked, loginFailed, loginSucceeded, requireUser,
+  verifyPassword, verifyPasswordOrDummy,
+} from '../auth.js';
 import { now, type DB } from '../db.js';
 
 export function authRoutes(app: FastifyInstance, db: DB) {
   app.post<{ Body: { username: string; password: string } }>('/api/auth/login', async (req, reply) => {
     const { username, password } = req.body ?? ({} as never);
+    const key = `${req.ip}|${String(username ?? '').toLowerCase()}`;
+    if (loginBlocked(key)) throw new HttpError(429, 'Zu viele Fehlversuche, bitte später erneut versuchen');
     const user = db.prepare('SELECT id, password_hash FROM users WHERE username = ?').get(String(username ?? '')) as
       | { id: number; password_hash: string }
       | undefined;
-    if (!user || !verifyPassword(String(password ?? ''), user.password_hash)) throw new HttpError(401, 'Benutzername oder Passwort falsch');
+    if (!verifyPasswordOrDummy(String(password ?? ''), user?.password_hash) || !user) {
+      loginFailed(key);
+      throw new HttpError(401, 'Benutzername oder Passwort falsch');
+    }
+    loginSucceeded(key);
     createSession(db, user.id, reply);
     return { ok: true };
   });
@@ -36,7 +45,8 @@ export function authRoutes(app: FastifyInstance, db: DB) {
     const hash = db.prepare('SELECT password_hash FROM users WHERE id = ?').pluck().get(user.id) as string;
     if (!verifyPassword(String(oldPassword ?? ''), hash)) throw new HttpError(400, 'Altes Passwort falsch');
     if (String(newPassword ?? '').length < 8) throw new HttpError(400, 'Passwort muss mindestens 8 Zeichen haben');
-    db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hashPassword(newPassword), user.id);
+    db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hashPassword(String(newPassword)), user.id);
+    destroyOtherSessions(db, user.id, req);
     return { ok: true };
   });
 

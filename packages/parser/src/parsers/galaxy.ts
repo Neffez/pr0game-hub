@@ -18,9 +18,13 @@ export function parseGalaxyHtml($: CheerioAPI, url?: string): GalaxyRecord | nul
     if (key) [g, s] = [Number(key[1]), Number(key[2])];
   }
   if ((g == null || s == null) && url) {
-    const q = new URL(url, 'https://pr0game.com/').searchParams;
-    g = parseNumber(q.get('galaxy'));
-    s = parseNumber(q.get('system'));
+    try {
+      const q = new URL(url, 'https://pr0game.com/').searchParams;
+      g = parseNumber(q.get('galaxy'));
+      s = parseNumber(q.get('system'));
+    } catch {
+      /* invalid url: no fallback */
+    }
   }
   if (g == null || s == null) return null;
 

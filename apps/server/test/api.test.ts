@@ -314,3 +314,21 @@ describe('api', () => {
     expect((await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', payload: { html: '<p>x</p>' } })).statusCode).toBe(401);
   });
 });
+
+describe('review fixes', () => {
+  it('rate limits failed logins', async () => {
+    let last = 0;
+    for (let i = 0; i < 11; i++) {
+      last = (await app.inject({ method: 'POST', url: '/hub/api/auth/login', payload: { username: 'nobody', password: 'x' } })).statusCode;
+    }
+    expect(last).toBe(429);
+  });
+
+  it('rejects duplicate universes and invalid settings', async () => {
+    const h = { headers: admin };
+    expect((await app.inject({ method: 'POST', url: '/hub/api/admin/universes', payload: { slug: 'u8' }, ...h })).statusCode).toBe(409);
+    expect(
+      (await app.inject({ method: 'POST', url: '/hub/api/admin/universes', payload: { slug: 'u9', settings: { timezone: 'Mars/Base' } }, ...h })).statusCode,
+    ).toBe(400);
+  });
+});
