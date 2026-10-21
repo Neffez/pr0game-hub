@@ -27,6 +27,7 @@ const TYPE_NAMES: Record<string, StatsType> = {
   forschung: 3, research: 3,
   'gebäude': 4, building: 4, buildings: 4,
   verteidigung: 5, defense: 5,
+  ehrenpunkte: 6, honorpoints: 6, 'honor points': 6,
 };
 
 export function isStatsText(text: string): boolean {
@@ -44,7 +45,7 @@ export function parseStatsHtml($: CheerioAPI): StatsRecord | null {
 
   const whoVal = $('select#who option[selected], select[name=who] option[selected]').attr('value');
   const typeVal = $('select#type option[selected], select[name=type] option[selected]').attr('value');
-  const type = typeVal && /^[1-5]$/.test(typeVal) ? (Number(typeVal) as StatsType) : null;
+  const type = typeVal && /^[1-6]$/.test(typeVal) ? (Number(typeVal) as StatsType) : null;
 
   const rows: StatsRow[] = [];
   let who: 'player' | 'alliance' = whoVal === '2' ? 'alliance' : 'player';
@@ -63,6 +64,8 @@ export function parseStatsHtml($: CheerioAPI): StatsRecord | null {
       const idMatch = playerLink.attr('onclick')?.match(/Playercard\((\d+)/);
       const nameCell = tds.eq(1);
       const name = playerLink.text().replace(/ /g, ' ').trim();
+      // honor ranking: "[Title]" in front of the player link
+      const title = normalizeText(nameCell.text()).match(/^\[([^\]]+)\]/)?.[1].trim() ?? null;
       const status: PlayerStatus[] = [];
       nameCell.find('span.galaxy-short').each((_, s) => {
         const cls = ($(s).attr('class') ?? '').split(/\s+/);
@@ -82,6 +85,7 @@ export function parseStatsHtml($: CheerioAPI): StatsRecord | null {
         allyId: allyIdMatch ? Number(allyIdMatch[1]) : null,
         allyName: allyLink.length ? allyLink.text().trim() : null,
         points: parseNumber(tds.eq(4).text()) ?? 0,
+        ...(title ? { title } : {}),
       });
       return;
     }
@@ -99,6 +103,7 @@ export function parseStatsHtml($: CheerioAPI): StatsRecord | null {
         allyId: null,
         allyName: null,
         points: parseNumber(tds.eq(3).text()) ?? 0,
+        members: parseNumber(tds.eq(2).text()),
       });
     }
   });
@@ -138,7 +143,7 @@ export function parseStatsText(text: string): StatsRecord | null {
       if (cells.length < 4) continue;
       rows.push({
         rank, rankChange: null, ingameId: null, name: cells[1].trim(), status: [],
-        allyId: null, allyName: null, points: parseNumber(cells[3]) ?? 0,
+        allyId: null, allyName: null, points: parseNumber(cells[3]) ?? 0, members: parseNumber(cells[2]),
       });
       continue;
     }
@@ -146,11 +151,13 @@ export function parseStatsText(text: string): StatsRecord | null {
     if (points == null) continue;
     // Name cell: "Name i I" - trailing short status letters.
     const middle = cells.slice(1, -1);
-    const { name, status } = splitNameStatus(middle[0] ?? '');
+    const titled = (middle[0] ?? '').trim().match(/^\[([^\]]+)\]\s*(.*)$/);
+    const { name, status } = splitNameStatus(titled ? titled[2] : (middle[0] ?? ''));
     const allyRaw = middle.slice(1).map((c) => c.trim()).filter(Boolean).pop() ?? '-';
     rows.push({
       rank, rankChange: null, ingameId: null, name, status,
       allyId: null, allyName: allyRaw === '-' ? null : allyRaw, points,
+      ...(titled ? { title: titled[1].trim() } : {}),
     });
   }
 
@@ -172,6 +179,6 @@ export function splitNameStatus(cell: string): { name: string; status: PlayerSta
  * "... von Flotte auf den Positionen ..." / "by Fleet in ranks".
  */
 function detectTypeFromText(text: string): StatsType | null {
-  const m = text.match(/(?:\bvon|\bby)\s*\t?\s*(Punkte|Points|Flotte|Fleet|Forschung|Research|Gebäude|Buildings?|Verteidigung|Defense)\b/i);
+  const m = text.match(/(?:\bvon|\bby)\s*\t?\s*(Punkte|Points|Flotte|Fleet|Forschung|Research|Gebäude|Buildings?|Verteidigung|Defense|Ehrenpunkte|Honorpoints|Honor points)\b/i);
   return m ? TYPE_NAMES[m[1].toLowerCase()] ?? null : null;
 }

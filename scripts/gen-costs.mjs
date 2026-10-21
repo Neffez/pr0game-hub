@@ -13,8 +13,9 @@ const start = lines.findIndex((l) => l.startsWith('INSERT INTO `%PREFIX%vars` ('
 const out = {};
 for (const line of lines.slice(start + 1)) {
   // elementID, universe, name, class, ship_type, onPlanetType, onePerPlanet, factor, maxLevel, cost901, cost902, cost903
-  const m = line.match(/^\((\d+), (\d+), '[^']*', (\d+), (?:NULL|'[^']*'), '[^']*', \d+, ([\d.]+), (?:NULL|\d+), (\d+), (\d+), (\d+)/);
-  if (m && m[2] === '0' && Number(m[3]) < 900) out[m[1]] = [Number(m[5]), Number(m[6]), Number(m[7]), Number(m[4])];
+  // Some rows (shield domes, missiles) have NULL as class and the class number one column later: only id and costs matter here.
+  const m = line.match(/^\((\d+), (\d+), '[^']*', (?:NULL|\d+), (?:NULL|\d+|'[^']*'), '[^']*', \d+, ([\d.]+), (?:NULL|\d+), (\d+), (\d+), (\d+)/);
+  if (m && m[2] === '0' && Number(m[1]) < 900) out[m[1]] = [Number(m[4]), Number(m[5]), Number(m[6]), Number(m[3])];
   if (line.trimEnd().endsWith(';')) break;
 }
 writeFileSync(new URL('../packages/parser/src/data/costs.json', import.meta.url), JSON.stringify(out) + '\n');

@@ -28,7 +28,7 @@ export function parseOverviewHtml($: CheerioAPI): OverviewRecord | null {
   const opt = $('#planetSelector option[selected]').first();
   const coords = parseCoords(opt.text());
   if (!coords) return null;
-  const type: PlanetType = /\((Mond|Moon)\)/.test(opt.text()) ? 'moon' : 'planet';
+  const type: PlanetType = /\((Mond|Moon|Insel)\)/.test(opt.text()) ? 'moon' : 'planet';
   const queues: OverviewQueue[] = [];
   const add = (kind: OverviewQueue['kind'], c: Coords, t: PlanetType, text: string, seconds: string | undefined) => {
     const it = item(text);
@@ -60,7 +60,7 @@ export function parseOverviewHtml($: CheerioAPI): OverviewRecord | null {
     const timer = moon.find('.timershort').first();
     if (timer.length) {
       const lines = moon.text().split('\n').map((l) => l.trim()).filter(Boolean);
-      const other: PlanetType = lines.some((l) => /\((Mond|Moon)\)$/.test(l)) ? 'moon' : 'planet';
+      const other: PlanetType = lines.some((l) => /\((Mond|Moon|Insel)\)$/.test(l)) ? 'moon' : 'planet';
       add('building', coords, other, lines.find((l) => /\(\d[\d.,]*\)$/.test(l)) ?? '', timer.attr('data-time'));
     }
   }

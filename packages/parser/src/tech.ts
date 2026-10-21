@@ -28,14 +28,28 @@ export function classOf(id: number): SpyClass {
 
 const norm = (s: string) => s.toLowerCase().replace(/\s+/g, ' ').trim();
 
-/** name (lowercased, both languages) -> element id; class headers (0,100,200,400,900) included. */
+const NAMES = techData as Record<string, Record<string, string>>;
+
+/**
+ * name (lowercased; German, English and the German based pirate language "pi" of the SetSail theme)
+ * -> element id; class headers (0,100,200,400,900) included. The first language wins on equal names.
+ */
 const NAME_TO_ID = new Map<string, number>();
-for (const lang of ['de', 'en'] as const) {
-  for (const [id, name] of Object.entries(TECH_NAMES[lang])) {
+for (const lang of ['de', 'en', 'pi']) {
+  for (const [id, name] of Object.entries(NAMES[lang] ?? {})) {
     const key = norm(name);
     if (!NAME_TO_ID.has(key)) NAME_TO_ID.set(key, Number(id));
   }
 }
+/** English names before the renaming in the game (2026-08), so older pages still parse. */
+const LEGACY_NAMES: Record<string, number> = {
+  'deuterium power plant': 12,
+  'phalanx sensor': 42,
+  'mineral research': 131,
+  'semi-crystals research': 132,
+  'fuel research': 133,
+};
+for (const [name, id] of Object.entries(LEGACY_NAMES)) if (!NAME_TO_ID.has(name)) NAME_TO_ID.set(name, id);
 
 export function idByName(name: string): number | null {
   return NAME_TO_ID.get(norm(name)) ?? null;
@@ -73,10 +87,17 @@ export function storageCapacity(level: number, multiplier = 1): number {
   return Math.floor(2.5 * Math.pow(1.8331954764, level)) * 5000 * multiplier;
 }
 
+/**
+ * Short names of battle reports. A short name that is the full name of another element is skipped:
+ * the pirate language gives the colony ship (208) the short name "Fregatte", the full name of 215.
+ */
 const SHORT_TO_ID = new Map<string, number>();
-for (const key of ['deShort', 'enShort'] as const) {
-  for (const [id, short] of Object.entries((techData as Record<string, Record<string, string>>)[key] ?? {})) {
-    SHORT_TO_ID.set(norm(short), Number(id));
+for (const key of ['deShort', 'enShort', 'piShort']) {
+  for (const [id, short] of Object.entries(NAMES[key] ?? {})) {
+    const k = norm(short);
+    const full = NAME_TO_ID.get(k);
+    if (full != null && full !== Number(id)) continue;
+    if (!SHORT_TO_ID.has(k)) SHORT_TO_ID.set(k, Number(id));
   }
 }
 

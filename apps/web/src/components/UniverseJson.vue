@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
-import { uniApi } from '../api';
-import Hint from '../components/Hint.vue';
+import { selectedGroup, uniApi } from '../api';
+import Hint from './Hint.vue';
 import { useUni } from '../composables';
 import { fmt } from '../format';
 
@@ -11,6 +11,11 @@ interface Summary {
 }
 
 const { uni } = useUni();
+/** The server answers with an attachment, so the browser downloads instead of navigating. */
+function download() {
+  const group = selectedGroup(uni.value);
+  location.href = `${import.meta.env.BASE_URL}api/${uni.value}/universe-json${group ? `?group=${group}` : ''}`;
+}
 const file = ref<File | null>(null);
 const result = ref<Summary | null>(null);
 const error = ref('');
@@ -54,14 +59,14 @@ const LABEL: Record<string, string> = { galaxy_systems: 'Systeme' };
 </script>
 
 <template>
-  <h1>
-    universe.json hochladen
+  <h2>
+    universe.json
     <Hint>
-      <p>Universums-Export im universe.json-Format (wie aus proscript-ui oder dem FF-Hub-Export): Planeten, Monde, Spieler, Allianzen und Status aller Systeme.</p>
-      <p>Jedes System hat einen Zeitstempel. Systeme, die im Hub schon aktueller sind (z. B. aus einer eingefügten Galaxieansicht), werden übersprungen.</p>
-      <p>Die Zeitstempel fließen in die Gala-Aktualität ein.</p>
+      <p>Die universe.json kommt aus der Galaxieansicht im Spiel (JSON-Export).</p>
+      <p><b>Hochladen</b> übernimmt Planeten, Monde, Spieler und Allianzen. Systeme, die im Hub schon aktueller sind, bleiben unverändert.</p>
+      <p><b>Herunterladen</b> erzeugt die Datei aus den Daten des Hubs – sie lässt sich im Spiel in der Galaxieansicht wieder importieren.</p>
     </Hint>
-  </h1>
+  </h2>
 
   <div
     class="card drop"
@@ -75,6 +80,7 @@ const LABEL: Record<string, string> = { galaxy_systems: 'Systeme' };
       <span v-if="file" class="muted small">{{ file.name }} · {{ fmt(file.size / 1024 / 1024, 1) }} MB</span>
       <span class="grow" />
       <button class="primary" :disabled="!file || busy" @click="upload">{{ busy ? 'Importiere …' : 'Importieren' }}</button>
+      <button @click="download">Herunterladen</button>
     </div>
     <p class="muted small" style="margin-bottom: 0">oder Datei hierher ziehen</p>
   </div>

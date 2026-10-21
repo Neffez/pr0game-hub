@@ -1,9 +1,10 @@
 <script setup lang="ts">
+import UniverseJson from '../components/UniverseJson.vue';
 import Hint from '../components/Hint.vue';
 import { computed, ref } from 'vue';
 import { uniApi } from '../api';
 import { useUni } from '../composables';
-import { STATS_TYPES } from '../format';
+import { STATS_CATEGORIES } from '../format';
 
 interface Summary {
   pageType: string;
@@ -125,7 +126,7 @@ function onInput() {
         Statistik-Kategorie
         <select v-model="statsType">
           <option :value="null">automatisch</option>
-          <option v-for="(label, id) in STATS_TYPES" :key="id" :value="Number(id)">{{ label }}</option>
+          <option v-for="(label, id) in STATS_CATEGORIES" :key="id" :value="Number(id)">{{ label }}</option>
         </select>
       </label>
       <span class="grow" />
@@ -159,4 +160,6 @@ function onInput() {
       </tr>
     </table>
   </div>
+
+  <UniverseJson />
 </template>

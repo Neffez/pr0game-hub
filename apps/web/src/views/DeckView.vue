@@ -3,7 +3,7 @@ import Hint from '../components/Hint.vue';
 import { computed, onMounted, ref, watch } from 'vue';
 import { uniApi } from '../api';
 import { useUni } from '../composables';
-import { cardLabel, dateTime, EVENT_LABEL, fmt, SIZE_LABEL } from '../format';
+import { cardLabel, dateTime, DEPLETION_LABEL, fmtCount } from '../format';
 
 const { uni, ctx } = useUni();
 const userId = ref(ctx.value!.me.id);
@@ -38,6 +38,52 @@ async function save() {
   await load();
 }
 
+/** Starts a fresh, full deck now: older expeditions are ignored, manual corrections are cleared. */
+async function resetDeck() {
+  const text =
+    'Expo-Deck zurücksetzen?\n\nDas Deck beginnt ab jetzt neu mit allen Karten. ' +
+    'Bisherige Expeditionen zählen nicht mehr mit, manuelle Korrekturen werden gelöscht.';
+  if (!confirm(text)) return;
+  await uniApi(uni.value, '/deck', {
+    method: 'PUT',
+    body: { startTime: Math.floor(Date.now() / 1000), unknownDepletion: unknownDepletion.value, initialDrawn: {} },
+  });
+  msg.value = 'Deck zurückgesetzt';
+  await load();
+}
+
+// ------------------------------------------------- manually counted events
+const addTime = ref('');
+const addDepletion = ref<string | null>(null);
+const lastAdded = ref<{ id: number; label: string } | null>(null);
+/** Deck cards in deck order (the buttons should not jump around while counting). */
+const deckCards = computed(() => data.value?.state.cards ?? []);
+
+async function addEvent(c: { key: string; type: string; size: string }) {
+  const res = await uniApi(uni.value, '/deck/events', {
+    body: {
+      event: c.type,
+      size: c.size,
+      depletion: c.type === 'Nothing' ? addDepletion.value : null,
+      time: addTime.value ? Math.floor(new Date(addTime.value).getTime() / 1000) : null,
+    },
+  });
+  lastAdded.value = { id: res.id, label: cardLabel(c.key) };
+  await load();
+}
+
+async function removeEvent(id: number) {
+  await uniApi(uni.value, `/deck/events/${id}`, { method: 'DELETE' });
+  if (lastAdded.value?.id === id) lastAdded.value = null;
+  await load();
+}
+
+/** Events before the deck start are not counted: warn when back-dating before it. */
+const beforeStart = computed(() => {
+  const start = data.value?.settings.startTime;
+  return !!(addTime.value && start && new Date(addTime.value).getTime() / 1000 < start);
+});
+
 const cards = computed(() => [...(data.value?.state.cards ?? [])].sort((a: any, b: any) => b.nextProbability - a.nextProbability));
 const progress = computed(() => (data.value ? data.value.state.drawnInDeck / data.value.state.deckSize : 0));
 </script>
@@ -66,9 +112,12 @@ const progress = computed(() => (data.value ? data.value.state.drawnInDeck / dat
   <template v-if="data">
     <div class="card">
       <div class="row">
-        <span>Gezogen im aktuellen Deck: <b>{{ fmt(data.state.drawnInDeck, 1) }}</b> / {{ data.state.deckSize }}</span>
-        <span>Verbleibend: <b>{{ fmt(data.state.remainingTotal, 1) }}</b></span>
+        <span>Gezogen im aktuellen Deck: <b>{{ fmtCount(data.state.drawnInDeck) }}</b> / {{ data.state.deckSize }}</span>
+        <span>Verbleibend: <b>{{ fmtCount(data.state.remainingTotal) }}</b></span>
         <span class="muted">Resets: {{ data.state.resets }} · Expos gezählt: {{ data.state.events }} · unsichere „Nichts“: {{ data.state.uncertainNothing }}</span>
+        <span class="grow" />
+        <span v-if="data.settings.startTime" class="muted small">Deck-Start {{ dateTime(data.settings.startTime) }}</span>
+        <button v-if="isMe" @click="resetDeck">Deck zurücksetzen</button>
       </div>
       <div style="height: 8px; background: var(--surface-2); border-radius: 4px; margin-top: 8px">
         <div :style="{ width: progress * 100 + '%', height: '100%', background: 'var(--accent)', borderRadius: '4px' }" />
@@ -84,9 +133,9 @@ const progress = computed(() => (data.value ? data.value.state.drawnInDeck / dat
           <tr v-for="c in cards" :key="c.key">
             <td>{{ cardLabel(c.key) }}</td>
             <td class="num muted">{{ c.count }}</td>
-            <td class="num"><b>{{ fmt(c.remaining, c.type === 'Nothing' ? 1 : 0) }}</b></td>
-            <td class="num small muted">{{ c.remainingMin !== c.remainingMax ? `${fmt(c.remainingMin)}–${fmt(c.remainingMax)}` : '' }}</td>
-            <td class="num">{{ fmt(c.nextProbability * 100, 2) }} %</td>
+            <td class="num"><b>{{ fmtCount(c.remaining) }}</b></td>
+            <td class="num small muted">{{ c.remainingMin !== c.remainingMax ? `${fmtCount(c.remainingMin)}–${fmtCount(c.remainingMax)}` : '' }}</td>
+            <td class="num">{{ (c.nextProbability * 100).toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) }} %</td>
             <td>
               <div :style="{ width: Math.min(100, c.nextProbability * 300) + '%', height: '6px', background: 'var(--accent)', borderRadius: '3px' }" />
             </td>
@@ -95,13 +144,44 @@ const progress = computed(() => (data.value ? data.value.state.drawnInDeck / dat
       </table>
     </div>
 
-    <div class="card">
-      <h3 style="margin-top: 0">Letzte Expeditionen</h3>
-      <div v-for="(e, i) in data.lastEvents" :key="i" class="small">
-        <span class="muted">{{ dateTime(e.time) }}</span> {{ EVENT_LABEL[e.event] }} {{ SIZE_LABEL[e.size] }}
-        <span v-if="e.event === 'Nothing'" class="faint">(Erschöpfung: {{ e.depletion ?? 'unbekannt' }})</span>
+    <div v-if="isMe" class="card">
+      <h3 style="margin-top: 0">
+        Ereignis nachtragen
+        <Hint>
+          <p>Expeditionsergebnisse von Hand zählen, z. B. wenn der Bericht nicht synchronisiert wurde. Ein Klick zählt eine Karte.</p>
+          <p>Nachgetragene Ereignisse zählen wie synchronisierte (auch in der Expeditions-Auswertung) und lassen sich unter „Expeditionen“ wieder löschen.
+          Den Bericht später zusätzlich einzufügen zählt die Expedition doppelt.</p>
+        </Hint>
+      </h3>
+      <div class="row">
+        <label>
+          Zeitpunkt
+          <Hint>Leer = jetzt.</Hint>
+          <input v-model="addTime" type="datetime-local" />
+        </label>
+        <label>
+          Erschöpfung bei „Nichts“
+          <Hint>Nur mit Sonde in der Flotte bekannt. „Unbekannt“ verwendet die Annahme aus den Einstellungen.</Hint>
+          <select v-model="addDepletion">
+            <option :value="null">unbekannt</option>
+            <option v-for="(label, d) in DEPLETION_LABEL" :key="d" :value="d">{{ label }}</option>
+          </select>
+        </label>
+        <span v-if="beforeStart" class="warn small">⚠ vor dem Deck-Start – zählt nicht mit</span>
+      </div>
+      <div class="add-grid">
+        <button v-for="c in deckCards" :key="c.key" @click="addEvent(c)">+ {{ cardLabel(c.key) }}</button>
+      </div>
+      <div class="row small" style="margin-top: 8px">
+        <template v-if="lastAdded">
+          <span class="ok">Nachgetragen: {{ lastAdded.label }}</span>
+          <a href="#" @click.prevent="removeEvent(lastAdded.id)">rückgängig</a>
+        </template>
+        <span class="grow" />
+        <RouterLink :to="`/${uni}/expeditions`">Alle Expeditionen →</RouterLink>
       </div>
     </div>
+
 
     <div v-if="isMe" class="card">
       <h3 style="margin-top: 0">Einstellungen</h3>
@@ -140,3 +220,8 @@ const progress = computed(() => (data.value ? data.value.state.drawnInDeck / dat
     </div>
   </template>
 </template>
+
+<style scoped>
+.add-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; margin-top: 10px; }
+.add-grid button { margin: 0; text-align: left; }
+</style>

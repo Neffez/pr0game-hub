@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import {
-  createSession, destroyOtherSessions, destroySession, hashPassword, HttpError, loginBlocked, loginFailed, loginSucceeded, requireUser,
+  checkUsername, createSession, destroyOtherSessions, destroySession, hashPassword, HttpError, loginBlocked, loginFailed, loginSucceeded, requireUser,
   verifyPassword, verifyPasswordOrDummy,
 } from '../auth.js';
 import { now, type DB } from '../db.js';
@@ -50,6 +50,15 @@ export function authRoutes(app: FastifyInstance, db: DB) {
     return { ok: true };
   });
 
+  app.post<{ Body: { username: string; password: string } }>('/api/auth/username', async (req) => {
+    const user = requireUser(req);
+    const hash = db.prepare('SELECT password_hash FROM users WHERE id = ?').pluck().get(user.id) as string;
+    if (!verifyPassword(String(req.body?.password ?? ''), hash)) throw new HttpError(400, 'Passwort falsch');
+    const username = checkUsername(db, req.body?.username, user.id);
+    db.prepare('UPDATE users SET username = ? WHERE id = ?').run(username, user.id);
+    return { ok: true, username };
+  });
+
   /** Invite info for the registration form. */
   app.get<{ Params: { token: string } }>('/api/invites/:token', async (req) => {
     const inv = openInvite(db, req.params.token);
@@ -68,11 +77,9 @@ export function authRoutes(app: FastifyInstance, db: DB) {
     let userId = req.user?.id;
     db.transaction(() => {
       if (!userId) {
-        const username = String(req.body?.username ?? '').trim();
+        const username = checkUsername(db, req.body?.username);
         const password = String(req.body?.password ?? '');
-        if (!/^[\w.\- ]{3,32}$/.test(username)) throw new HttpError(400, 'Benutzername: 3–32 Zeichen (Buchstaben, Zahlen, . _ -)');
         if (password.length < 8) throw new HttpError(400, 'Passwort muss mindestens 8 Zeichen haben');
-        if (db.prepare('SELECT 1 FROM users WHERE username = ?').get(username)) throw new HttpError(409, 'Benutzername vergeben');
         userId = Number(
           db.prepare('INSERT INTO users (username, password_hash, is_admin) VALUES (?, ?, 0)').run(username, hashPassword(password)).lastInsertRowid,
         );

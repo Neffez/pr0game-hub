@@ -344,8 +344,8 @@ class Store {
       if (r.who === 'alliance') {
         const allyId = this.alliance(row.ingameId, row.name);
         const res = db
-          .prepare('INSERT OR IGNORE INTO alliance_scores (snapshot_id, alliance_id, rank, rank_change, points) VALUES (?, ?, ?, ?, ?)')
-          .run(snapshotId, allyId, row.rank, row.rankChange, row.points);
+          .prepare('INSERT OR IGNORE INTO alliance_scores (snapshot_id, alliance_id, rank, rank_change, points, members) VALUES (?, ?, ?, ?, ?, ?)')
+          .run(snapshotId, allyId, row.rank, row.rankChange, row.points, row.members ?? null);
         this.count('alliance_scores', res.changes > 0);
         continue;
       }
@@ -355,9 +355,10 @@ class Store {
       this.playerStatus(playerId, row.status, statTime);
       const exists = db.prepare('SELECT 1 FROM player_scores WHERE snapshot_id = ? AND player_id = ?').get(snapshotId, playerId);
       db.prepare(
-        `INSERT INTO player_scores (snapshot_id, player_id, rank, rank_change, points) VALUES (?, ?, ?, ?, ?)
-         ON CONFLICT (snapshot_id, player_id) DO UPDATE SET rank_change = COALESCE(excluded.rank_change, rank_change)`,
-      ).run(snapshotId, playerId, row.rank, row.rankChange, row.points);
+        `INSERT INTO player_scores (snapshot_id, player_id, rank, rank_change, points, title) VALUES (?, ?, ?, ?, ?, ?)
+         ON CONFLICT (snapshot_id, player_id) DO UPDATE SET rank_change = COALESCE(excluded.rank_change, rank_change),
+           title = COALESCE(excluded.title, title)`,
+      ).run(snapshotId, playerId, row.rank, row.rankChange, row.points, row.title ?? null);
       this.count('player_scores', !exists);
       if (!exists && (r.type === 1 || r.type === 2)) this.scoreEvents(playerId, r.type, statTime, row.points, row.status);
     }
@@ -381,6 +382,7 @@ class Store {
     if (r.planetType === 'planet' || r.planetType === 'moon') {
       this.upsertPlanet(r.coords.g, r.coords.s, r.coords.p, {
         name: r.planetType === 'planet' ? r.planetName : null,
+        moonName: r.planetType === 'moon' ? r.planetName : null,
         playerId,
         hasMoon: r.planetType === 'moon' ? 1 : null,
       });
@@ -461,17 +463,21 @@ class Store {
     );
   }
 
-  private upsertPlanet(g: number, s: number, p: number, v: { name: string | null; playerId: number | null; hasMoon: number | null }) {
+  private upsertPlanet(
+    g: number, s: number, p: number,
+    v: { name: string | null; moonName?: string | null; playerId: number | null; hasMoon: number | null },
+  ) {
     this.db
       .prepare(
-        `INSERT INTO planets (group_id, g, s, p, name, player_id, has_moon) VALUES (?, ?, ?, ?, ?, ?, COALESCE(?, 0))
+        `INSERT INTO planets (group_id, g, s, p, name, moon_name, player_id, has_moon) VALUES (?, ?, ?, ?, ?, ?, ?, COALESCE(?, 0))
          ON CONFLICT (group_id, g, s, p) DO UPDATE SET
            name = COALESCE(excluded.name, name),
+           moon_name = COALESCE(excluded.moon_name, moon_name),
            player_id = COALESCE(excluded.player_id, player_id),
            has_moon = MAX(has_moon, excluded.has_moon),
            updated_at = unixepoch()`,
       )
-      .run(this.t.groupId, g, s, p, v.name, v.playerId, v.hasMoon);
+      .run(this.t.groupId, g, s, p, v.name, v.moonName ?? null, v.playerId, v.hasMoon);
   }
 
   private battle(r: BattleRecord) {
@@ -569,13 +575,15 @@ class Store {
         this.playerStatus(playerId, row.status, seenAt);
       }
       db.prepare(
-        `INSERT INTO planets (group_id, g, s, p, name, player_id, has_moon, destroyed, debris, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `INSERT INTO planets (group_id, g, s, p, name, player_id, has_moon, moon_name, destroyed, debris, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT (group_id, g, s, p) DO UPDATE SET
            name = CASE WHEN excluded.name IS NULL AND player_id IS excluded.player_id THEN name ELSE excluded.name END, player_id = excluded.player_id,
+           -- universe.json has no moon names: keep the known one while owner and moon stay the same
+           moon_name = CASE WHEN excluded.has_moon = 1 AND excluded.moon_name IS NULL AND player_id IS excluded.player_id THEN moon_name ELSE excluded.moon_name END,
            has_moon = excluded.has_moon, destroyed = excluded.destroyed, debris = excluded.debris, updated_at = excluded.updated_at`,
       ).run(
-        this.t.groupId, r.g, r.s, row.position, row.planetName || null, playerId, row.moon ? 1 : 0, row.destroyed ? 1 : 0,
-        row.debris ? JSON.stringify(row.debris) : null, seenAt,
+        this.t.groupId, r.g, r.s, row.position, row.planetName || null, playerId, row.moon ? 1 : 0, (row.moon && row.moonName) || null,
+        row.destroyed ? 1 : 0, row.debris ? JSON.stringify(row.debris) : null, seenAt,
       );
       const prev = before.get(row.position);
       const c = { g: r.g, s: r.s, p: row.position };
@@ -621,6 +629,13 @@ class Store {
 
   private empire(r: EmpireRecord) {
     this.linkIngameName(r);
+    // names of the member's own moons (only for positions known from the galaxy)
+    for (const p of r.planets) {
+      if (p.type !== 'moon' || !p.name) continue;
+      this.db
+        .prepare('UPDATE planets SET moon_name = ?, has_moon = 1 WHERE group_id = ? AND g = ? AND s = ? AND p = ?')
+        .run(p.name, this.t.groupId, p.coords.g, p.coords.s, p.coords.p);
+    }
     // page time (server clock) when known: the live view calculates from it
     this.db
       .prepare('INSERT INTO empire_snapshots (group_id, user_id, created_at, data) VALUES (?, ?, ?, ?)')

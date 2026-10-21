@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { computeDeck, DEFAULT_DECK, localToEpoch, parsePage, type DeckEvent } from '../src/index.js';
-import { elementPoints, sectionPoints } from '../src/tech.js';
+import { elementPoints, idByName, idByShortName, sectionPoints } from '../src/tech.js';
 
 const fixture = (name: string) => readFileSync(new URL(`./fixtures/${name}`, import.meta.url), 'utf8');
 
@@ -20,6 +20,42 @@ describe('stats', () => {
       { rank: 2, rankChange: -2, ingameId: 55, name: 'Beta Max', status: ['inactive', 'vacation'], allyId: null, allyName: null, points: 987654 },
       { rank: 3, rankChange: 0, ingameId: 9, name: 'Gamma', status: ['longinactive'], allyId: 12, allyName: 'ABC', points: 5 },
     ]);
+  });
+
+  it('parses the honor points ranking with titles and negative points', () => {
+    const rec = parsePage({ html: fixture('stats-honor.html') }).records[0];
+    if (rec.kind !== 'stats') throw new Error('expected stats');
+    expect(rec).toMatchObject({ who: 'player', type: 6, statTime: '2026-10-21 22:55:25' });
+    expect(rec.rows.map((r) => [r.rank, r.rankChange, r.name, r.title ?? null, r.points])).toEqual([
+      [1, 2, 'Gottkaiser', 'Gott-Imperator', 12345],
+      [2, 0, 'Virus', null, 0],
+      [3, -3, 'reflex', 'Banditen-Imperator', -4200],
+    ]);
+  });
+
+  it('parses alliance stats with member counts', () => {
+    const rec = parsePage({ html: fixture('stats-alliance.html') }).records[0];
+    if (rec.kind !== 'stats') throw new Error('expected stats');
+    expect(rec).toMatchObject({ who: 'alliance', type: 1 });
+    expect(rec.rows).toEqual([
+      expect.objectContaining({ rank: 1, rankChange: 1, ingameId: 14, name: 'F1337erB0yz', members: 12, points: 1234567 }),
+      expect.objectContaining({ rank: 2, rankChange: -1, ingameId: 7, name: 'Sinnlos im Weltraum', members: 3, points: 45000 }),
+    ]);
+  });
+
+  it('parses English stats (date without dot after the day)', () => {
+    const res = parsePage({ html: fixture('stats-en-testserver.html') });
+    const rec = res.records[0];
+    if (rec.kind !== 'stats') throw new Error('expected stats');
+    expect(rec.statTime).toBe('2026-10-21 22:55:25');
+    expect(rec.type).toBe(1);
+    expect(rec.rows.map((r) => [r.ingameId, r.name, r.status])).toEqual([
+      [179, 'reflex', ['longinactive', 'inactive']],
+      [214, 'Gottkaiser', []],
+      [303, 'Virus', ['inactive']],
+      [299, 'test123', ['longinactive', 'inactive']],
+    ]);
+    expect(rec.rows[1]).toMatchObject({ allyId: 14, allyName: 'F1337erB0yz', points: 449037461141982 });
   });
 
   it('parses player stats from plain text by name', () => {
@@ -61,6 +97,25 @@ describe('stats', () => {
 });
 
 describe('messages', () => {
+  it('parses English battle reports (Attack report, Debris field, date without dot)', () => {
+    const res = parsePage({ html: fixture('messages-en-battle.html') });
+    expect(res.records).toHaveLength(1);
+    expect(res.records[0]).toMatchObject({
+      kind: 'battle', msgId: 20720, time: '2026-10-21 23:05:31', reportId: '28ecaab5e83b099afc4d850a44094108',
+      coords: { g: 1, s: 206, p: 9 }, planetType: 'planet', outcome: 'lose', lostAttacker: 5000, lostDefender: 0,
+      loot: { metal: 0, crystal: 0, deuterium: 0 }, debris: { metal: 0, crystal: 2000 },
+    });
+  });
+
+  it('parses English spy report titles (date without dot)', () => {
+    const text = fixture('messages.txt').replace(
+      'Spionagebericht vom Planeten Heimat (Alpha) [1:234:5] am 21. Okt 2026, 12:00:30',
+      'Spy report from planet Heimat (Alpha) [1:234:5] on 21 Oct 2026, 12:00:30',
+    );
+    const spy = parsePage({ text }).records.find((r) => r.kind === 'spy');
+    expect(spy).toMatchObject({ coords: { g: 1, s: 234, p: 5 }, planetType: 'planet', planetName: 'Heimat', reportTime: '2026-10-21 12:00:30' });
+  });
+
   it('parses spy, battle, expeditions and hostile spying from HTML', () => {
     const res = parsePage({ html: fixture('messages.html') });
     expect(res.pageType).toBe('messages');
@@ -162,11 +217,11 @@ describe('galaxy + empire', () => {
     expect(rec).toMatchObject({ g: 1, s: 234 });
     expect(rec.rows).toEqual([
       {
-        position: 5, planetName: 'Heimat', moon: true, destroyed: false, playerId: 1234, playerName: 'Alpha',
+        position: 5, planetName: 'Heimat', moon: true, moonName: 'Luna Prime', destroyed: false, playerId: 1234, playerName: 'Alpha',
         status: ['inactive'], allyId: 77, allyTag: 'DA', debris: { metal: '1.2K', crystal: '300' },
       },
       {
-        position: 7, planetName: '', moon: false, destroyed: true, playerId: null, playerName: null,
+        position: 7, planetName: '', moon: false, moonName: null, destroyed: true, playerId: null, playerName: null,
         status: [], allyId: null, allyTag: null, debris: null,
       },
     ]);
@@ -289,6 +344,14 @@ describe('points', () => {
     expect(sectionPoints({ 1: 2, 204: 10 })).toBeCloseTo(40.1875);
     expect(sectionPoints(undefined)).toBeNull();
   });
+
+  it('knows the costs of shield domes and missiles (rows with NULL class in install.sql)', () => {
+    // small / large shield dome, interceptor and interplanetary missile
+    expect(elementPoints(407, 4)).toBe(80);
+    expect(elementPoints(408, 4)).toBe(400);
+    expect(elementPoints(502, 10)).toBe(100);
+    expect(elementPoints(503, 40)).toBe(1000);
+  });
 });
 
 describe('review fixes', () => {
@@ -306,5 +369,69 @@ describe('review fixes', () => {
     const state = computeDeck(deck, [ev('Nothing', 'None'), ev('Nothing', 'None')]);
     expect(state.resets).toBe(1);
     expect(state.remainingTotal).toBe(2);
+  });
+});
+
+describe('pirate language (SetSail theme)', () => {
+  it('parses the battle report page with pirate ship names', () => {
+    const lines = fixture('pirate-combat-report.txt').split('\n');
+    const html = `<html><body>${lines.map((l) => `<div>${l}</div>`).join('')}</body></html>`;
+    const res = parsePage({ html, url: 'https://pr0game.ddev.site/game.php?page=raport&raport=abc123' });
+    expect(res.pageType).toBe('combatReport');
+    expect(res.records[0]).toMatchObject({
+      reportId: 'abc123', time: '2026-10-22 00:08:11', winner: 'attacker', debris: { metal: 0, crystal: 0 },
+      fleets: [{ side: 'attacker', name: 'Gottkaiser', start: { 210: 5 } }],
+    });
+  });
+
+  it('parses parrot reports (spy reports) of an island (moon)', () => {
+    const spy = parsePage({ text: fixture('pirate-spy-report.txt') }).records[0];
+    expect(spy).toMatchObject({
+      kind: 'spy', planetType: 'moon', planetName: 'Mond', playerName: 'Adman', coords: { g: 1, s: 5, p: 7 },
+      reportTime: '2026-10-22 00:08:17', destroyChance: 0,
+    });
+    if (spy.kind !== 'spy') throw new Error('expected spy');
+    expect(spy.sections[100]).toMatchObject({ 106: 12, 108: 10, 109: 10, 110: 10, 124: 7 });
+    expect(Object.keys(spy.sections[100])).toHaveLength(13);
+  });
+
+  it('parses the empire overview with pirate names, islands as moons', () => {
+    const rec = parsePage({ text: fixture('pirate-empire.txt') }).records[0];
+    if (rec.kind !== 'empire') throw new Error('expected empire');
+    expect(rec.planets).toHaveLength(16);
+    expect(rec.planets.filter((p) => p.type === 'moon').map((p) => p.coords.s)).toEqual([3, 5, 197, 206]);
+    expect(rec.research).toMatchObject({ 106: 46, 199: 8, 131: 27 });
+    const total = (id: number) => rec.planets.reduce((s, p) => s + (p.values[id] ?? 0), 0);
+    expect(total(1)).toBe(457); // Sägewerk = metal mine
+    expect(total(210)).toBe(587295); // Spähpapagei = espionage probe
+    expect(total(215)).toBe(5741617); // Fregatte = battle cruiser
+    expect(total(503)).toBe(40); // Brandbombe = interplanetary missile
+  });
+
+  it('parses battle summaries, hostile parrots and wreck divers in messages', () => {
+    const german = fixture('messages.txt');
+    const battle = german
+      .replace('Trümmerfeld\tMetall: 3.000 Kristall: 1.000', 'Treibgut-Feld\tHolz: 3.000 Gold: 1.000')
+      .replace('Gewinn\tMetall: 600.000 Kristall: 250.000 Deuterium: 5', 'Gewinn\tHolz: 600.000 Gold: 250.000 Rum: 5');
+    expect(battle).toContain('Treibgut-Feld');
+    expect(parsePage({ text: battle }).records.find((r) => r.kind === 'battle')).toMatchObject({
+      loot: { metal: 600000, crystal: 250000, deuterium: 5 }, debris: { metal: 3000, crystal: 1000 },
+    });
+    const hostile = parsePage({
+      html: fixture('messages.html').replace('Feindliche Spionagesonden vom Planeten', 'Feindliche Papageien von der Insel'),
+    }).records.find((r) => r.kind === 'hostileSpy');
+    expect(hostile).toMatchObject({ fromType: 'moon', fromCoords: { g: 2, s: 3, p: 4 } });
+    const recycle = parsePage({
+      text:
+        'Flottenhauptquartier\nRecyclingbericht\n21. Okt 2026, 16:00:00\n' +
+        'Deine Wracktaucher haben an den Koordinaten [2:3:4] 1.000 Holz und 2.000 Gold von insgesamt 5.000 Holz und 6.000 Gold gesammelt.',
+    }).records[0];
+    expect(recycle).toMatchObject({ kind: 'recycle', coords: { g: 2, s: 3, p: 4 }, metal: 1000, crystal: 2000, totalMetal: 5000, totalCrystal: 6000 });
+  });
+
+  it('keeps old English names after the renaming in the game', () => {
+    expect(idByName('Deuterium Power Plant')).toBe(12);
+    expect(idByName('Fusion Power Plant')).toBe(12);
+    expect(idByShortName('Fregatte')).toBe(215);
   });
 });

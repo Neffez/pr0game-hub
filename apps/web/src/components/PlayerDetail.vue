@@ -22,7 +22,7 @@ let chart: Chart | null = null;
 const planetRows = computed(() =>
   (data.value?.planets ?? []).flatMap((p: any) => [
     { ...p, type: 'planet', spy: p.last_spy },
-    ...(p.has_moon ? [{ ...p, type: 'moon', name: null, spy: p.last_spy_moon }] : []),
+    ...(p.has_moon ? [{ ...p, type: 'moon', name: p.moon_name, spy: p.last_spy_moon }] : []),
   ]),
 );
 

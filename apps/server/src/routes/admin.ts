@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { HttpError, randomToken, requireAdmin, requireUser } from '../auth.js';
+import { checkUsername, HttpError, randomToken, requireAdmin, requireUser } from '../auth.js';
 import { UNIVERSE_DEFAULTS } from '../config.js';
 import { toUniverse } from '../context.js';
 import { now, type DB } from '../db.js';
@@ -60,6 +60,17 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
       return { ok: true };
     },
   );
+
+  // ----------------------------------------------------------------- users
+
+  app.put<{ Params: { userId: string }; Body: { username: string } }>('/api/admin/users/:userId', async (req) => {
+    requireAdmin(req);
+    const userId = Number(req.params.userId);
+    if (!db.prepare('SELECT 1 FROM users WHERE id = ?').get(userId)) throw new HttpError(404, 'Benutzer nicht gefunden');
+    const username = checkUsername(db, req.body?.username, userId);
+    db.prepare('UPDATE users SET username = ? WHERE id = ?').run(username, userId);
+    return { ok: true, username };
+  });
 
   // ---------------------------------------------------------------- groups
 

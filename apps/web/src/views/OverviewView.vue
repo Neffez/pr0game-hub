@@ -19,7 +19,7 @@ interface Score {
   rankChange: number | null;
   time: number;
   deltas: Record<string, Delta>;
-  /** FF-Hub style 6 h slots (Δ6h, Δ12h, Δ18h, Δ24h): change within each 6 h stats interval */
+  /** FF-Hub style: change per synced statistics update (newest first), against the update before */
   slots: ({ delta: number; from: number; to: number } | null)[];
 }
 interface Player {
@@ -73,13 +73,21 @@ interface Row {
 }
 
 const WINDOW_LABEL: Record<string, string> = { prev: 'letzter Stand', '6h': '6 h', '12h': '12 h', '18h': '18 h', '24h': '24 h', '48h': '48 h', '7d': '7 Tage' };
-/** Delta columns of the planet view (like FF-Hub). */
+/**
+ * Delta columns of the planet view (like FF-Hub), named after the usual 6 h statistics interval.
+ * Each column is one synced statistics update (newest first) against the update before, whatever the interval.
+ */
 const PLANET_WINDOWS = ['6h', '12h', '18h', '24h'];
-/** 6 h slot of the total points for a planet-view column (Δ6h = newest interval, Δ12h = the one before, …). */
 const slot = (p: { scores: Record<number, Score> }, w: string) => p.scores[1]?.slots?.[PLANET_WINDOWS.indexOf(w)] ?? null;
+/** Synced statistics updates (total points), newest first. */
+const updates = ref<number[]>([]);
 const slotHeader = (w: string) => {
   const i = PLANET_WINDOWS.indexOf(w);
-  return `Punkteveränderung im 6-h-Abschnitt ${i ? `${i * 6}–${(i + 1) * 6} h` : 'der letzten 6 h'} vor dem neuesten Statistik-Stand`;
+  const to = updates.value[i];
+  const from = updates.value[i + 1];
+  return to != null && from != null
+    ? `Punkteveränderung beim Statistik-Update ${dateTime(from)} → ${dateTime(to)}`
+    : `Punkteveränderung beim ${i ? `${i + 1}.-letzten` : 'letzten'} Statistik-Update – dafür fehlt noch ein synchronisierter Stand`;
 };
 const slotTitle = (sl: { from: number; to: number } | null) =>
   sl ? `Veränderung ${dateTime(sl.from)} → ${dateTime(sl.to)}` : 'Statistik-Stand für diesen Abschnitt fehlt';
@@ -116,6 +124,7 @@ async function load() {
     players.value = res.players;
     planets.value = res.planets;
     coverage.value = res.coverage;
+    updates.value = res.updates ?? [];
   } catch (e) {
     error.value = (e as Error).message;
   } finally {
@@ -288,6 +297,8 @@ const latest = computed(() => {
 /** Newest stats time over all categories; older categories are highlighted (not pasted again yet). */
 const newestStat = computed(() => Math.max(0, ...Object.values(latest.value).map((l) => l.time)));
 const outdated = (t: number) => !!latest.value[t] && latest.value[t].time < newestStat.value - 900;
+/** Categories that are older than the newest stand or missing (shown as warnings next to the compact line). */
+const staleTypes = computed(() => (newestStat.value ? [1, 2, 3, 4, 5].filter((t) => !latest.value[t] || outdated(t)) : []));
 /** "12:00" today, otherwise date and time */
 const time = (epoch: number) =>
   new Date(epoch * 1000).toDateString() === new Date().toDateString()
@@ -307,7 +318,7 @@ const history = computed(() => {
     Übersicht
     <Hint>
       <p><b>Planeten</b>: eine Zeile pro bekanntem Planet/Mond (aus Galaxie-Ansichten und Spionageberichten). Spieler ohne bekannte Planeten stehen mit „–“ da.</p>
-      <p><b>Δ-Spalten</b> (wie FF-Hub): Veränderung der Gesamtpunkte je 6-h-Abschnitt. Δ6h = neuester Stand gegenüber dem Stand 6 h davor, Δ12h = der Abschnitt davor (6–12 h), usw. Leer, wenn ein Statistik-Stand fehlt – dafür die Statistik nach jedem Update einfügen.</p>
+      <p><b>Δ-Spalten</b> (wie FF-Hub): Veränderung der Gesamtpunkte je Statistik-Update. Δ6h = neuestes synchronisiertes Update gegenüber dem davor, Δ12h = das Update davor usw. – benannt nach dem üblichen 6-h-Takt, gerechnet wird aber von Update zu Update, egal in welchem Abstand. Den genauen Zeitraum zeigt der Tooltip. Wurde ein Update nicht eingefügt, umfasst die Spalte mehrere Updates – am besten die Statistik nach jedem Update einfügen.</p>
       <p><b>Geb./Flotte/Vert.</b>: Punkte auf diesem Planeten aus dem Imperium (Allianz-Mitglieder) oder der letzten Spionage, je nachdem was neuer ist (Tooltip: Quelle und Spieler gesamt). Rohstoffe aus der letzten Spionage.</p>
       <p><b>Aktionen</b>: Spionieren/Angreifen öffnen die Flottenseite im Spiel mit vorausgefülltem Ziel (Spiel-URL unter Universen eintragen). „Flugzeit berechnen“ öffnet den Flugzeitrechner mit Ziel, deinen Antriebsforschungen (Imperium) und deinem nächstgelegenen Planeten bzw. „Entfernung von“ als Start.</p>
       <p><b>Spielerfilter</b> findet auch frühere Namen.</p>
@@ -330,7 +341,7 @@ const history = computed(() => {
           <option v-for="(l, w) in WINDOW_LABEL" :key="w" :value="w">{{ l }}</option>
         </select>
       </label>
-      <input v-model="filter.text" placeholder="Spieler (auch frühere Namen)" style="width: 190px" />
+      <input v-model="filter.text" placeholder="Spieler" style="width: 190px" />
       <input v-model="filter.ally" placeholder="Allianz" style="width: 110px" />
       <label><input v-model="filter.hideInactive" type="checkbox" /> Inaktive aus</label>
       <label><input v-model="filter.onlyInactive" type="checkbox" /> nur Inaktive</label>
@@ -359,28 +370,35 @@ const history = computed(() => {
         <template v-if="mode === 'planets'">{{ planetSort.sorted.value.length }} Zeilen · </template>{{ filteredPlayers.length }} / {{ players.length }} Spieler
       </span>
     </div>
-    <div class="row small muted" style="margin-top: 8px">
-      <span>Statistik-Stand:</span>
-      <span
-        v-for="t in [1, 2, 3, 4, 5]"
-        :key="t"
-        :class="{ warn: outdated(t) }"
-        :title="outdated(t) ? `Älter als der neueste Stand (${dateTime(newestStat)}): Kategorie ${STATS_TYPES[t]} neu einfügen` : ''"
-      >
-        {{ STATS_TYPES[t] }}
-        <template v-if="latest[t]"><b>{{ time(latest[t].time) }}</b> ({{ latest[t].rows }} Spieler, bis Rang {{ latest[t].max }})</template>
-        <span v-else class="warn">fehlt</span>
+    <div class="row small muted" style="margin-top: 8px; gap: 6px">
+      <span>
+        Statistik <b v-if="newestStat">{{ time(newestStat) }}</b><span v-else class="warn">fehlt</span>
+        <template v-if="history"> · Historie seit {{ dateTime(history) }}</template>
       </span>
-      <span v-if="history">
-        Historie seit {{ dateTime(history) }}
-        <Hint>Kursive Δ-Werte: Der Zeitraum ist noch nicht vollständig abgedeckt, die Veränderung gilt seit dem ältesten vorhandenen Stand.</Hint>
+      <Hint>
+        <table class="cov">
+          <tr v-for="t in [1, 2, 3, 4, 5]" :key="t">
+            <td>{{ STATS_TYPES[t] }}</td>
+            <template v-if="latest[t]">
+              <td :class="{ warn: outdated(t) }">{{ dateTime(latest[t].time) }}</td>
+              <td>{{ latest[t].rows }} Spieler</td>
+              <td>bis Rang {{ latest[t].max }}</td>
+            </template>
+            <td v-else colspan="3" class="warn">fehlt</td>
+          </tr>
+        </table>
+        <p>Je Kategorie der neueste eingefügte Stand. Kategorien, die älter als der neueste Stand sind, bitte im Spiel neu einfügen.</p>
+        <p>Kursive Δ-Werte: Der Zeitraum ist noch nicht vollständig abgedeckt, die Veränderung gilt seit dem ältesten vorhandenen Stand.</p>
+      </Hint>
+      <span v-for="t in staleTypes" :key="t" class="warn" :title="latest[t] ? `Stand ${dateTime(latest[t].time)} – älter als ${dateTime(newestStat)}: neu einfügen` : 'noch nicht eingefügt'">
+        ⚠ {{ STATS_TYPES[t] }} {{ latest[t] ? `älter (${time(latest[t].time)})` : 'fehlt' }}
       </span>
     </div>
   </div>
 
   <div v-if="error" class="error">{{ error }}</div>
   <div v-else-if="!loading && !players.length" class="card muted">
-    Noch keine Statistik vorhanden. Unter <RouterLink :to="`/${uni}/paste`">Einfügen</RouterLink> die Statistikseiten einfügen
+    Noch keine Statistik vorhanden. Unter <RouterLink :to="`/${uni}/paste`">Synchronisieren</RouterLink> die Statistikseiten einfügen
     (am besten jede Kategorie: Punkte, Flotte, Forschung, Gebäude, Verteidigung). Planeten kommen aus Galaxie-Ansichten und Spionageberichten.
   </div>
 
@@ -504,3 +522,8 @@ const history = computed(() => {
     </table>
   </div>
 </template>
+
+<style scoped>
+table.cov { border-collapse: collapse; margin-bottom: 6px; }
+table.cov td { padding: 1px 10px 1px 0; white-space: nowrap; }
+</style>

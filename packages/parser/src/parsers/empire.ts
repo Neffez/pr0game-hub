@@ -113,7 +113,7 @@ function activePlanet($: CheerioAPI): EmpireRecord['active'] {
     const v = parseNumber($(`#max_${key}`).first().text());
     if (v != null) storage[id] = v;
   }
-  return { coords, type: /\((Mond|Moon)\)/.test(opt.text()) ? 'moon' : 'planet', storage };
+  return { coords, type: /\((Mond|Moon|Insel)\)/.test(opt.text()) ? 'moon' : 'planet', storage };
 }
 
 /** Fallback when no planet images are available: a moon base (41) only exists on moons. */

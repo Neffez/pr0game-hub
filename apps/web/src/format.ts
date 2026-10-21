@@ -9,6 +9,9 @@ export const fmtSigned = (n: number | null | undefined) => (n == null ? '–' : 
 export function short(n: number | null | undefined): string {
   if (n == null) return '–';
   const a = Math.abs(n);
+  if (a >= 1e18) return fmt(n / 1e18, 2) + ' Trio';
+  if (a >= 1e15) return fmt(n / 1e15, 2) + ' Brd';
+  if (a >= 1e12) return fmt(n / 1e12, 2) + ' Bio';
   if (a >= 1e9) return fmt(n / 1e9, 2) + ' Mrd';
   if (a >= 1e6) return fmt(n / 1e6, 2) + ' Mio';
   if (a >= 1e4) return fmt(n / 1e3, 1) + 'k';
@@ -35,6 +38,8 @@ export const name = (id: number | string) => techName(id, 'de');
 
 export const STATS_TYPES: Record<number, string> = { 1: 'Gesamt', 2: 'Flotte', 3: 'Forschung', 4: 'Gebäude', 5: 'Verteidigung' };
 export const STATS_SHORT: Record<number, string> = { 1: 'Σ', 2: 'F', 3: 'R', 4: 'B', 5: 'D' };
+/** All ranking categories of the game's statistics page (6 = honor points, not part of the score columns). */
+export const STATS_CATEGORIES: Record<number, string> = { ...STATS_TYPES, 6: 'Ehrenpunkte' };
 
 export const STATUS_LABEL: Record<string, string> = {
   inactive: 'i',
@@ -64,6 +69,12 @@ export const EVENT_LABEL: Record<string, string> = {
   Nothing: 'Nichts',
 };
 export const SIZE_LABEL: Record<string, string> = { Small: 'klein', Medium: 'mittel', Big: 'groß', None: '' };
+/** Depletion of the expedition system (only known with a probe in the fleet). */
+export const DEPLETION_LABEL: Record<string, string> = { none: 'keine', few: 'gering', medium: 'mittel', many: 'stark' };
+
+/** Counts that may be expected values: whole numbers without decimals, otherwise one decimal. */
+export const fmtCount = (n: number | null | undefined) =>
+  n == null ? '–' : Math.abs(n - Math.round(n)) < 0.05 ? fmt(Math.round(n)) : fmt(n, 1);
 
 export const cardLabel = (key: string) => {
   const [type, size] = key.split(':');

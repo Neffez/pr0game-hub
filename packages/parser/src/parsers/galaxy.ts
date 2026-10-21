@@ -48,10 +48,12 @@ export function parseGalaxyHtml($: CheerioAPI, url?: string): GalaxyRecord | nul
     });
     const ally = row.find('a[allyid]').first();
     const planetLink = row.find('.galaxy-planet a').first();
+    const moonImg = row.find('.galaxy-moon img').first();
     rows.push({
       position,
       planetName: destroyed ? '' : planetLink.text().replace(/\s*\((\*|\d+\s*min)\)\s*$/, '').trim(),
-      moon: row.find('.galaxy-moon img').length > 0,
+      moon: moonImg.length > 0,
+      moonName: moonImg.attr('alt')?.trim() || null,
       destroyed,
       playerId: parseNumber(player.attr('playerid')),
       playerName: player.text().trim() || null,

@@ -34,8 +34,8 @@ const MONTHS: Record<string, number> = {
   sep: 9, okt: 10, oct: 10, nov: 11, dez: 12, dec: 12,
 };
 
-/** Game date format `d. M Y, H:i:s` (php_tdformat), month names DE/EN. */
-export const GAME_DATE_RE = /(\d{1,2})\.\s*([A-Za-zäÄ]{3})\s+(\d{4}),?\s+(\d{1,2}):(\d{2}):(\d{2})/;
+/** Game date format (php_tdformat): DE `d. M Y, H:i:s`, EN `j M Y, H:i:s` (no dot after the day). */
+export const GAME_DATE_RE = /\b(\d{1,2})\.?\s*([A-Za-zäÄ]{3})\s+(\d{4}),?\s+(\d{1,2}):(\d{2}):(\d{2})/;
 
 /** Wall-clock time as shown in game: `YYYY-MM-DD HH:MM:SS` (no timezone). */
 export type LocalDateTime = string;
@@ -121,7 +121,8 @@ export function normalizeText(text: string): string {
 }
 
 export function detectLang(text: string): Lang {
-  const de = /(Spionagebericht|Statistiken|Aktualisiert am|Kampfbericht|Expeditionsbericht|Imperiumsübersicht|Sonnensystem|Spieler)/;
+  // German incl. the German based pirate language of the SetSail theme ("Papageienbericht", "Treibgut-Feld", …)
+  const de = /(Spionagebericht|Papageienbericht|Statistiken|Aktualisiert am|Kampfbericht|Expeditionsbericht|Imperiumsübersicht|Sonnensystem|Spieler|Treibgut-Feld|Wahrscheinlichkeit)/;
   const en = /(Intelligence report|Spy report|Statistics|Updated|Fight report|Expedition report|Empire|Solar system|Player)/;
   const d = (text.match(new RegExp(de, 'g')) ?? []).length;
   const e = (text.match(new RegExp(en, 'g')) ?? []).length;

@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { api, session } from '../api';
 
+const route = useRoute();
 const router = useRouter();
 const universes = computed(() => {
   const map = new Map<string, { slug: string; name: string; groups: string[] }>();
@@ -14,8 +15,9 @@ const universes = computed(() => {
   return [...map.values()];
 });
 
+// With a single universe go straight there, unless the list was opened explicitly from the menu (?list).
 onMounted(() => {
-  if (universes.value.length === 1) router.replace(`/${universes.value[0].slug}/overview`);
+  if (universes.value.length === 1 && route.query.list === undefined) router.replace(`/${universes.value[0].slug}/overview`);
 });
 
 async function logout() {
@@ -36,7 +38,7 @@ async function logout() {
       </div>
       <p v-if="!universes.length" class="muted">Du bist noch in keiner Allianz. Ein Admin muss dich einladen.</p>
       <div class="row" style="margin-top: 14px">
-        <RouterLink v-if="session.me?.user?.isAdmin || session.me?.groups.some((g) => g.role === 'admin')" to="/admin">Admin</RouterLink>
+        <RouterLink v-if="session.me?.user?.isAdmin || session.me?.groups.some((g) => g.role === 'admin')" to="/admin">Admin-Panel</RouterLink>
         <RouterLink to="/account">Konto</RouterLink>
         <a href="#" @click.prevent="logout">Abmelden</a>
       </div>
