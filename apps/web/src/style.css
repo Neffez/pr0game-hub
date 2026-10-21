@@ -35,9 +35,11 @@ h3 { font-size: 14px; margin: 14px 0 6px; color: var(--muted); }
 .sidebar .brand { font-weight: 700; font-size: 16px; padding: 0 8px 10px; }
 .sidebar .brand span { color: var(--accent); }
 .sidebar nav a {
-  display: block; padding: 6px 10px; border-radius: 6px; color: var(--text); margin: 1px 0;
+  display: flex; align-items: center; gap: 9px; padding: 6px 10px; border-radius: 6px; color: var(--text); margin: 1px 0;
 }
 .sidebar nav a:hover { background: var(--surface-2); text-decoration: none; }
+.sidebar nav .nav-icon { flex-shrink: 0; color: var(--muted); }
+.sidebar nav a:hover .nav-icon, .sidebar nav a.router-link-active .nav-icon { color: inherit; }
 .sidebar nav a.router-link-active { background: var(--accent-soft); color: var(--accent); }
 .sidebar .section { color: var(--faint); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; padding: 12px 10px 4px; }
 .sidebar select { width: 100%; margin: 4px 0; }

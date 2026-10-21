@@ -324,6 +324,139 @@ describe('review fixes', () => {
     expect(last).toBe(429);
   });
 
+  it('ingests English stats (date without dot, huge points)', async () => {
+    const groupX = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', headers: admin, payload: { universe: 'u8', name: 'English' } })).json().id;
+    const headers = { ...admin, 'x-hub-group': String(groupX) };
+    const res = await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { html: fixture('stats-en-testserver.html') } });
+    expect(res.json().warnings).toEqual([]);
+    expect(res.json().counts.player_scores).toEqual({ new: 4, duplicate: 0 });
+    const ov = (await app.inject({ method: 'GET', url: '/hub/api/u8/overview', headers })).json();
+    expect(ov.players.find((p: any) => p.name === 'Gottkaiser')).toMatchObject({ ingame_id: 214 });
+    expect(ov.players.find((p: any) => p.name === 'reflex').scores['1'].points).toBeGreaterThan(1.8e18);
+    // statistics page: latest snapshot of the category in game order
+    const stats = (await app.inject({ method: 'GET', url: '/hub/api/u8/stats?who=player&type=1', headers })).json();
+    expect(stats.rows.map((r: any) => [r.rank, r.name])).toEqual([[1, 'reflex'], [2, 'Gottkaiser'], [11, 'Virus'], [88, 'test123']]);
+    expect(stats.rows[1]).toMatchObject({ ally_name: 'F1337erB0yz', points: 449037461141982, status: [] });
+    expect(stats.categories).toEqual([{ who: 'player', type: 1, stat_time: stats.statTime, pages: [0] }]);
+    const empty = (await app.inject({ method: 'GET', url: '/hub/api/u8/stats?who=alliance&type=2', headers })).json();
+    expect(empty).toMatchObject({ statTime: null, rows: [] });
+  });
+
+  it('serves the statistics page: honor points, alliances, changes and own reference', async () => {
+    const groupX = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', headers: admin, payload: { universe: 'u8', name: 'Stats' } })).json().id;
+    const headers = { ...admin, 'x-hub-group': String(groupX) };
+    const ingest = async (html: string) => (await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { html } })).json();
+    // the admin plays "Gottkaiser" in this alliance
+    await app.inject({ method: 'PUT', url: `/hub/api/admin/groups/${groupX}/members/1`, headers: admin, payload: { ingameName: 'Gottkaiser' } });
+
+    expect((await ingest(fixture('stats-honor.html'))).warnings).toEqual([]);
+    const honor = (await app.inject({ method: 'GET', url: '/hub/api/u8/stats?who=player&type=6', headers })).json();
+    expect(honor.rows.map((r: any) => [r.rank, r.rank_change, r.name, r.title, r.points])).toEqual([
+      [1, 2, 'Gottkaiser', 'Gott-Imperator', 12345],
+      [2, 0, 'Virus', null, 0],
+      [3, -3, 'reflex', 'Banditen-Imperator', -4200],
+    ]);
+    expect(honor.rows[0]).toMatchObject({ own: true, ownAlly: true, member: 1 });
+
+    // total points twice: change against the previous stand, all categories per player
+    const en = fixture('stats-en-testserver.html');
+    await ingest(en.replace('22:55:25', '16:55:25').replace('449.037.461.141.982', '449.037.461.000.000'));
+    await ingest(en);
+    const total = (await app.inject({ method: 'GET', url: '/hub/api/u8/stats?who=player&type=1', headers })).json();
+    const gk = total.rows.find((r: any) => r.name === 'Gottkaiser');
+    expect(gk).toMatchObject({ delta: 141982, prev_rank: 2, scores: { 1: 449037461141982 } });
+    expect(total.me).toMatchObject({ points: { 1: 449037461141982 } });
+    expect(total.prevTime).toBeLessThan(total.statTime);
+    expect(total.categories.find((c: any) => c.type === 1)).toMatchObject({ who: 'player', pages: [0] });
+
+    expect((await ingest(fixture('stats-alliance.html'))).warnings).toEqual([]);
+    const allys = (await app.inject({ method: 'GET', url: '/hub/api/u8/stats?who=alliance&type=1', headers })).json();
+    expect(allys.rows.map((r: any) => [r.rank, r.name, r.members, r.points, r.own])).toEqual([
+      [1, 'F1337erB0yz', 12, 1234567, true],
+      [2, 'Sinnlos im Weltraum', 3, 45000, false],
+    ]);
+  });
+
+  it('counts manually added expedition events in the deck', async () => {
+    const groupX = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', headers: admin, payload: { universe: 'u8', name: 'Deck' } })).json().id;
+    const headers = { ...admin, 'x-hub-group': String(groupX) };
+    const add = (payload: object) => app.inject({ method: 'POST', url: '/hub/api/u8/deck/events', headers, payload });
+    const deck = async () => (await app.inject({ method: 'GET', url: '/hub/api/u8/deck', headers })).json();
+
+    const first = await add({ event: 'Res', size: 'Small' });
+    expect(first.statusCode).toBe(200);
+    expect((await add({ event: 'Nothing', size: 'None', depletion: 'few' })).statusCode).toBe(200);
+    expect((await add({ event: 'Res', size: 'Huge' })).statusCode).toBe(400);
+    expect((await add({ event: 'Res', size: 'Small', depletion: 'few' })).statusCode).toBe(400);
+
+    let d = await deck();
+    expect(d.state.events).toBe(2);
+    expect(d.state.cards.find((c: any) => c.key.includes('Res') && c.key.includes('Small')).remaining).toBe(328);
+    expect(d.lastEvents[0]).toMatchObject({ event: 'Nothing', depletion: 'few', manual: 1 });
+
+    // only manual entries of the own deck can be removed
+    const synced = db.prepare("INSERT INTO expeditions (group_id, user_id, dedupe_key, time, event, size) VALUES (?, 1, 'm1', 1, 'Res', 'Small')").run(groupX).lastInsertRowid;
+    expect((await app.inject({ method: 'DELETE', url: `/hub/api/u8/deck/events/${synced}`, headers })).statusCode).toBe(404);
+    expect((await app.inject({ method: 'DELETE', url: `/hub/api/u8/deck/events/${first.json().id}`, headers })).statusCode).toBe(200);
+    d = await deck();
+    expect(d.state.events).toBe(2); // the synced one + the manual "Nothing"
+  });
+
+  it('keeps moon names from the galaxy view', async () => {
+    const groupX = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', headers: admin, payload: { universe: 'u8', name: 'Moons' } })).json().id;
+    const headers = { ...admin, 'x-hub-group': String(groupX) };
+    await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { html: fixture('galaxy.html') } });
+    const moonOf = async () => (await app.inject({ method: 'GET', url: '/hub/api/u8/browse/1/234', headers })).json().rows.find((r: any) => r.p === 5);
+    expect(await moonOf()).toMatchObject({ has_moon: 1, moon_name: 'Luna Prime' });
+    // a newer universe.json (no moon names) keeps the known name
+    const newer = fixture('universe.json').replaceAll('"timepoint": 1792569600000', '"timepoint": 4102444800000');
+    await app.inject({ method: 'POST', url: '/hub/api/u8/universe-json', headers, payload: { text: newer } });
+    expect(await moonOf()).toMatchObject({ has_moon: 1, moon_name: 'Luna Prime' });
+    const alpha = db.prepare('SELECT id FROM players WHERE group_id = ? AND ingame_id = 1234').pluck().get(groupX);
+    const detail = (await app.inject({ method: 'GET', url: `/hub/api/u8/players/${alpha}`, headers })).json();
+    expect(detail.planets.find((p: any) => p.p === 5).moon_name).toBe('Luna Prime');
+  });
+
+  it('exports universe.json in pr0game format', async () => {
+    const groupX = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', headers: admin, payload: { universe: 'u8', name: 'Export' } })).json().id;
+    const headers = { ...admin, 'x-hub-group': String(groupX) };
+    await app.inject({ method: 'POST', url: '/hub/api/u8/universe-json', headers, payload: { text: fixture('universe.json') } });
+    const res = await app.inject({ method: 'GET', url: `/hub/api/u8/universe-json?group=${groupX}`, headers: admin });
+    expect(res.headers['content-disposition']).toContain('universe.json');
+    const [universe, players, allies] = res.json();
+    const original = JSON.parse(fixture('universe.json'))[0];
+    expect(Object.keys(universe)).toEqual(['1:234', '1:235']);
+    expect(Object.keys(universe['1:234'])).toEqual([...Array.from({ length: 15 }, (_, i) => String(i + 1)), 'timepoint']);
+    expect(universe['1:234'].timepoint).toBe(original['1:234'].timepoint);
+    expect(universe['1:234']['5']).toEqual(original['1:234']['5']);
+    expect(universe['1:234']['7']).toMatchObject({ playerid: 55, name: 'Beta Max', allianceid: -1, alliancename: '-', special: 'uIi' });
+    expect(universe['1:234']['6']).toBeNull();
+    expect(universe['1:235']['3']).toMatchObject({ playerid: 99, name: '-', allianceid: 88, special: 'un' });
+    expect(players['1234']).toEqual({ name: 'Alpha', timepoint: 1792569600000 });
+    expect(allies['-1'].name).toBe('-');
+    // Round trip: importing the export into another group gives the same file.
+    const groupD = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', headers: admin, payload: { universe: 'u8', name: 'Export-Import' } })).json().id;
+    await app.inject({ method: 'POST', url: '/hub/api/u8/universe-json', headers: { ...admin, 'x-hub-group': String(groupD) }, payload: { text: res.body } });
+    expect((await app.inject({ method: 'GET', url: `/hub/api/u8/universe-json?group=${groupD}`, headers: admin })).body).toBe(res.body);
+  });
+
+  it('renames users', async () => {
+    const carol = Number(db.prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)').run('carol', hashPassword('carolpass')).lastInsertRowid);
+    const c = await login('carol', 'carolpass');
+    const rename = (payload: object) => app.inject({ method: 'POST', url: '/hub/api/auth/username', headers: c, payload });
+    expect((await rename({ username: 'caroline', password: 'wrong' })).statusCode).toBe(400);
+    expect((await rename({ username: 'ADMIN', password: 'carolpass' })).statusCode).toBe(409);
+    expect((await rename({ username: 'x', password: 'carolpass' })).statusCode).toBe(400);
+    expect((await rename({ username: 'caroline', password: 'carolpass' })).statusCode).toBe(200);
+    expect((await app.inject({ method: 'GET', url: '/hub/api/auth/me', headers: c })).json().user.username).toBe('caroline');
+
+    const byAdmin = (headers: object, username: string) =>
+      app.inject({ method: 'PUT', url: `/hub/api/admin/users/${carol}`, headers, payload: { username } });
+    expect((await byAdmin(c, 'carl')).statusCode).toBe(403);
+    expect((await byAdmin(admin, 'carl')).statusCode).toBe(200);
+    await login('carl', 'carolpass');
+  });
+
   it('rejects duplicate universes and invalid settings', async () => {
     const h = { headers: admin };
     expect((await app.inject({ method: 'POST', url: '/hub/api/admin/universes', payload: { slug: 'u8' }, ...h })).statusCode).toBe(409);

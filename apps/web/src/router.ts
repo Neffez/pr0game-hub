@@ -15,9 +15,10 @@ export const router = createRouter({
       children: [
         { path: '', redirect: (to) => `/${to.params.uni}/overview` },
         { path: 'paste', component: () => import('./views/PasteView.vue') },
-        { path: 'universe-json', component: () => import('./views/UniverseJsonView.vue') },
+        { path: 'universe-json', redirect: (to) => `/${to.params.uni}/paste` },
         { path: 'overview', component: () => import('./views/OverviewView.vue') },
         { path: 'imperium', component: () => import('./views/ImperiumView.vue') },
+        { path: 'stats', component: () => import('./views/StatsView.vue') },
         { path: 'browse', component: () => import('./views/UniverseBrowserView.vue') },
         { path: 'activity', component: () => import('./views/ActivityView.vue') },
         { path: 'battle-hall', component: () => import('./views/BattleHallView.vue') },

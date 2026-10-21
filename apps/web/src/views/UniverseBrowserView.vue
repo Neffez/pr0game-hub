@@ -20,6 +20,7 @@ interface Row {
   p: number;
   name: string | null;
   has_moon: number;
+  moon_name: string | null;
   destroyed: number;
   debris: { metal: string; crystal: string } | null;
   updated_at: number;
@@ -255,7 +256,7 @@ const debrisText = (d: Row['debris']) => (d ? `M ${d.metal} · K ${d.crystal}` :
             </td>
             <td>
               <template v-if="row?.has_moon">
-                <PlanetActions :g="g" :s="s" :p="p" type="moon" label="☾ Mond" />
+                <PlanetActions :g="g" :s="s" :p="p" type="moon" :label="`☾ ${row.moon_name || 'Mond'}`" />
               </template>
             </td>
             <td class="small" :class="{ warn: row?.debris }">{{ debrisText(row?.debris ?? null) }}</td>

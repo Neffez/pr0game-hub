@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import NavIcon from '../components/NavIcon.vue';
 import PlayerDialog from '../components/PlayerDialog.vue';
 import { computed, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
@@ -35,24 +36,26 @@ function changeGroup() {
 watch(uni, load, { immediate: true });
 
 const links = [
-  { to: 'paste', label: '📋 Einfügen' },
-  { to: 'universe-json', label: '📂 universe.json' },
-  { to: 'overview', label: 'Übersicht' },
-  { to: 'imperium', label: 'Imperium' },
-  { to: 'browse', label: 'Galaxie-Browser' },
-  { to: 'activity', label: 'Aktivitätslog' },
-  { to: 'battle-hall', label: 'Battle Hall' },
+  { to: 'paste', label: 'Synchronisieren', icon: 'sync' },
+  { section: 'Start' },
+  { to: 'overview', label: 'Übersicht', icon: 'overview' },
+  { to: 'imperium', label: 'Mein Imperium', icon: 'imperium' },
+  { to: 'stats', label: 'Statistik', icon: 'stats' },
+  { section: 'Aufklärung' },
+  { to: 'browse', label: 'Galaxie', icon: 'galaxy' },
+  { to: 'spy', label: 'Spionageberichte', icon: 'spy' },
+  { to: 'hostile', label: 'Fremdspionage', icon: 'hostile' },
+  { to: 'activity', label: 'Aktivität', icon: 'activity' },
+  { to: 'galaxy', label: 'Gala-Aktualität', icon: 'freshness' },
   { section: 'Allianz' },
-  { to: 'planets', label: 'Planeten' },
-  { to: 'fleet', label: 'Flotten' },
-  { to: 'research', label: 'Forschung' },
-  { to: 'spy', label: 'Spionage-Verlauf' },
-  { to: 'galaxy', label: 'Gala-Aktualität' },
-  { to: 'hostile', label: 'Fremdspionage' },
-  { to: 'raids', label: 'Raids' },
-  { to: 'expeditions', label: 'Expeditionen' },
-  { section: 'Eigene' },
-  { to: 'deck', label: 'Expo-Deck' },
+  { to: 'planets', label: 'Planeten', icon: 'planets' },
+  { to: 'fleet', label: 'Flotten', icon: 'fleet' },
+  { to: 'research', label: 'Forschung', icon: 'research' },
+  { section: 'Kämpfe & Expos' },
+  { to: 'raids', label: 'Raids', icon: 'raids' },
+  { to: 'battle-hall', label: 'Battle Hall', icon: 'battleHall' },
+  { to: 'expeditions', label: 'Expeditionen', icon: 'expeditions' },
+  { to: 'deck', label: 'Expo-Deck', icon: 'deck' },
 ];
 </script>
 
@@ -68,12 +71,12 @@ const links = [
       <nav>
         <template v-for="l in links" :key="l.to ?? l.section">
           <div v-if="l.section" class="section">{{ l.section }}</div>
-          <RouterLink v-else :to="`/${uni}/${l.to}`">{{ l.label }}</RouterLink>
+          <RouterLink v-else :to="`/${uni}/${l.to}`"><NavIcon :name="l.icon!" />{{ l.label }}</RouterLink>
         </template>
         <div class="section">Konto</div>
-        <RouterLink to="/">Universen</RouterLink>
-        <RouterLink v-if="session.me?.user?.isAdmin || ctx?.group.role === 'admin'" to="/admin">Admin</RouterLink>
-        <RouterLink to="/account">{{ session.me?.user?.username }}</RouterLink>
+        <RouterLink :to="{ path: '/', query: { list: null } }"><NavIcon name="universes" />Universen</RouterLink>
+        <RouterLink v-if="session.me?.user?.isAdmin || ctx?.group.role === 'admin'" to="/admin"><NavIcon name="admin" />Admin-Panel</RouterLink>
+        <RouterLink to="/account"><NavIcon name="user" />Benutzer</RouterLink>
       </nav>
     </aside>
     <main class="main">

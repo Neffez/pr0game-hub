@@ -28,7 +28,7 @@ import {
 
 /** sys_mess_spy_report_details_{1,3,4} DE/EN */
 const SPY_TITLE_RE =
-  /(?:Spionagebericht (vom Planeten|vom Mond|von)|Spy report from (planet|moon)?)\s*(.*?)\s*\(([^()]*)\)\s*\[(\d+):(\d+):(\d+)\]\s*(?:am|on)\s*(\d{1,2}\.\s*\S{3}\s+\d{4},?\s+\d{1,2}:\d{2}:\d{2})/;
+  /(?:Spionagebericht (vom Planeten|vom Mond|von)|Spy report from (planet|moon)?)\s*(.*?)\s*\(([^()]*)\)\s*\[(\d+):(\d+):(\d+)\]\s*(?:am|on)\s*(\d{1,2}\.?\s*\S{3}\s+\d{4},?\s+\d{1,2}:\d{2}:\d{2})/;
 
 function spyTitle(text: string) {
   const m = text.match(SPY_TITLE_RE);
@@ -114,11 +114,12 @@ function parseSpyBody(body: string): Pick<SpyReportRecord, 'sections' | 'destroy
 
 // --------------------------------------------------------------- battle reports
 
-const BATTLE_TITLE_RE = /(?:Kampfbericht|Fight report)\s*\[(\d+):(\d+):(\d+)\]\s*\((P|T|M|D|Pb)\)/;
+/** sys_mess_attack_report / sys_debris: DE 'Kampfbericht' / 'Trümmerfeld', EN 'Attack report' / 'Debris field'. */
+const BATTLE_TITLE_RE = /(?:Kampfbericht|Attack report|Fight report)\s*\[(\d+):(\d+):(\d+)\]\s*\((P|T|M|D|Pb)\)/;
 const BATTLE_LOSSES_RE = /(?:Angreifer|Attacker)\s*:\s*([\d.,]+)\s*(?:Verteidiger|Defender)\s*:\s*([\d.,]+)/;
 const BATTLE_LOOT_RE =
   /(?:Gewinn|Profit)\s*(?:Metall|Metal)\s*:\s*([\d.,]+)\s*(?:Kristall|Crystal)\s*:\s*([\d.,]+)\s*(?:Deuterium)\s*:\s*([\d.,]+)/;
-const BATTLE_DEBRIS_RE = /(?:Trümmerfeld|Rubblefield)\s*(?:Metall|Metal)\s*:\s*([\d.,]+)\s*(?:Kristall|Crystal)\s*:\s*([\d.,]+)/;
+const BATTLE_DEBRIS_RE = /(?:Trümmerfeld|Debris field|Rubblefield)\s*(?:Metall|Metal)\s*:\s*([\d.,]+)\s*(?:Kristall|Crystal)\s*:\s*([\d.,]+)/;
 
 function parseBattleText(
   text: string,

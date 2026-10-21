@@ -1,5 +1,6 @@
 import { computeDeck, type DeckEvent, type EmpireRecord } from '@pr0hub/core';
 import { classOf, sectionPoints } from '@pr0hub/core/tech';
+import { randomUUID } from 'node:crypto';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { HttpError } from '../auth.js';
 import { groupContext, type GroupContext } from '../context.js';
@@ -112,6 +113,114 @@ export function dataRoutes(app: FastifyInstance, db: DB) {
 
   // -------------------------------------------------------------- players
 
+  /**
+   * Latest synced statistics page like in the game (one category = who + type at its newest stat time),
+   * enriched like the FF-Hub: points of all categories, known planets, change since the previous
+   * synced stand and the viewer's own values as reference. Several pastes of the same stat time
+   * (rank ranges 1-100, 101-200 …) add up to one snapshot.
+   */
+  app.get<{ Params: { uni: string }; Querystring: Q }>('/api/:uni/stats', async (req) => {
+    const ctx = ctxOf(req);
+    const who = req.query.who === 'alliance' ? 'alliance' : 'player';
+    const type = [1, 2, 3, 4, 5, 6].includes(Number(req.query.type)) ? Number(req.query.type) : 1;
+    const scoreTable = (w: string) => (w === 'player' ? 'player_scores' : 'alliance_scores');
+
+    // per category: newest stand and which pages of 100 ranks it contains (sync overview)
+    const categories = (
+      db
+        .prepare('SELECT id, who, type, MAX(stat_time) AS stat_time FROM stat_snapshots WHERE group_id = ? GROUP BY who, type')
+        .all(ctx.groupId) as { id: number; who: string; type: number; stat_time: number }[]
+    ).map((c) => ({
+      who: c.who,
+      type: c.type,
+      stat_time: c.stat_time,
+      pages: db.prepare(`SELECT DISTINCT (rank - 1) / 100 FROM ${scoreTable(c.who)} WHERE snapshot_id = ? ORDER BY 1`).pluck().all(c.id) as number[],
+    }));
+
+    const snaps = db
+      .prepare('SELECT id, stat_time FROM stat_snapshots WHERE group_id = ? AND who = ? AND type = ? ORDER BY stat_time DESC LIMIT 2')
+      .all(ctx.groupId, who, type) as { id: number; stat_time: number }[];
+    const [snap, prevSnap] = snaps;
+
+    // the viewer's own player (in-game name of the membership) and its alliance
+    const me = db
+      .prepare(
+        `SELECT p.id, p.alliance_id FROM group_members gm JOIN players p ON p.group_id = gm.group_id AND p.name = gm.ingame_name COLLATE NOCASE
+         WHERE gm.group_id = ? AND gm.user_id = ?`,
+      )
+      .get(ctx.groupId, ctx.user.id) as { id: number; alliance_id: number | null } | undefined;
+    /** newest points per category (1-5) of the given players */
+    const latestPoints = (ids: number[]) => {
+      const out = new Map<number, Record<number, number>>();
+      if (!ids.length) return out;
+      const rows = db
+        .prepare(
+          `SELECT ps.player_id, st.type, ps.points, MAX(st.stat_time) AS t FROM player_scores ps JOIN stat_snapshots st ON st.id = ps.snapshot_id
+           WHERE st.group_id = ? AND st.who = 'player' AND st.type BETWEEN 1 AND 5 AND ps.player_id IN (${ids.map(() => '?').join(',')})
+           GROUP BY ps.player_id, st.type`,
+        )
+        .all(ctx.groupId, ...ids) as { player_id: number; type: number; points: number }[];
+      for (const r of rows) out.set(r.player_id, { ...out.get(r.player_id), [r.type]: r.points });
+      return out;
+    };
+    const mine = me ? (latestPoints([me.id]).get(me.id) ?? {}) : {};
+    const base = { who, type, categories, me: me ? { id: me.id, allyId: me.alliance_id, points: mine } : null };
+    if (!snap) return { ...base, statTime: null, prevTime: null, rows: [] };
+
+    if (who === 'alliance') {
+      const prev = new Map(
+        prevSnap
+          ? (db.prepare('SELECT alliance_id, rank, points FROM alliance_scores WHERE snapshot_id = ?').all(prevSnap.id) as any[]).map((r) => [r.alliance_id, r])
+          : [],
+      );
+      const rows = (
+        db
+          .prepare(
+            `SELECT s.rank, s.rank_change, s.points, s.members, a.id, a.name, a.tag
+             FROM alliance_scores s JOIN alliances a ON a.id = s.alliance_id WHERE s.snapshot_id = ? ORDER BY s.rank`,
+          )
+          .all(snap.id) as any[]
+      ).map((r) => ({
+        ...r,
+        own: me?.alliance_id === r.id,
+        prev_rank: prev.get(r.id)?.rank ?? null,
+        delta: prev.has(r.id) ? r.points - prev.get(r.id).points : null,
+      }));
+      return { ...base, statTime: snap.stat_time, prevTime: prevSnap?.stat_time ?? null, rows };
+    }
+
+    const rows = db
+      .prepare(
+        `SELECT ps.rank, ps.rank_change, ps.points, ps.title, p.id, p.name, p.status, a.id AS ally_id, a.name AS ally_name, a.tag AS ally_tag,
+           EXISTS (SELECT 1 FROM group_members gm WHERE gm.group_id = p.group_id AND gm.ingame_name = p.name COLLATE NOCASE) AS member,
+           (SELECT COUNT(*) FROM planets pl WHERE pl.player_id = p.id AND pl.destroyed = 0) AS planet_count,
+           (SELECT pl.g || ':' || pl.s || ':' || pl.p FROM planets pl WHERE pl.player_id = p.id AND pl.destroyed = 0 ORDER BY pl.id LIMIT 1) AS first_planet
+         FROM player_scores ps JOIN players p ON p.id = ps.player_id LEFT JOIN alliances a ON a.id = p.alliance_id
+         WHERE ps.snapshot_id = ? ORDER BY ps.rank`,
+      )
+      .all(snap.id) as any[];
+    const prev = new Map(
+      prevSnap
+        ? (db.prepare('SELECT player_id, rank, points FROM player_scores WHERE snapshot_id = ?').all(prevSnap.id) as any[]).map((r) => [r.player_id, r])
+        : [],
+    );
+    const points = latestPoints(rows.map((r) => r.id));
+    return {
+      ...base,
+      statTime: snap.stat_time,
+      prevTime: prevSnap?.stat_time ?? null,
+      rows: rows.map((r) => ({
+        ...r,
+        status: JSON.parse(r.status || '[]'),
+        own: r.id === me?.id,
+        ownAlly: !!me?.alliance_id && r.ally_id === me.alliance_id,
+        prev_rank: prev.get(r.id)?.rank ?? null,
+        delta: prev.has(r.id) ? r.points - prev.get(r.id).points : null,
+        scores: points.get(r.id) ?? {},
+      })),
+    };
+  });
+
   app.get<{ Params: { uni: string }; Querystring: Q }>('/api/:uni/players', async (req) => {
     const ctx = ctxOf(req);
     const q = likeTerm((req.query.q ?? '').trim());
@@ -143,7 +252,7 @@ export function dataRoutes(app: FastifyInstance, db: DB) {
       .all(id);
     const planets = db
       .prepare(
-        `SELECT pl.g, pl.s, pl.p, pl.name, pl.has_moon, pl.updated_at,
+        `SELECT pl.g, pl.s, pl.p, pl.name, pl.has_moon, pl.moon_name, pl.updated_at,
            (SELECT MAX(report_time) FROM spy_reports sr WHERE sr.group_id = pl.group_id AND sr.g = pl.g AND sr.s = pl.s AND sr.p = pl.p
               AND sr.planet_type = 'planet') AS last_spy,
            (SELECT MAX(report_time) FROM spy_reports sr WHERE sr.group_id = pl.group_id AND sr.g = pl.g AND sr.s = pl.s AND sr.p = pl.p
@@ -262,7 +371,7 @@ export function dataRoutes(app: FastifyInstance, db: DB) {
       .get(ctx.groupId, g, s);
     const rows = db
       .prepare(
-        `SELECT pl.p, pl.name, pl.has_moon, pl.destroyed, pl.debris, pl.updated_at,
+        `SELECT pl.p, pl.name, pl.has_moon, pl.moon_name, pl.destroyed, pl.debris, pl.updated_at,
            p.id AS player_id, p.ingame_id, p.name AS player_name, p.status, p.note, a.id AS ally_id, a.name AS ally_name, a.tag AS ally_tag,
            (SELECT ps.points FROM player_scores ps JOIN stat_snapshots st ON st.id = ps.snapshot_id
               WHERE ps.player_id = p.id AND st.type = 1 ORDER BY st.stat_time DESC LIMIT 1) AS points,
@@ -465,10 +574,11 @@ export function dataRoutes(app: FastifyInstance, db: DB) {
     };
     const events = db
       .prepare(
-        `SELECT event, size, depletion, time FROM expeditions WHERE group_id = ? AND user_id = ? AND (? IS NULL OR COALESCE(time, created_at) >= ?)
+        `SELECT id, event, size, depletion, COALESCE(time, created_at) AS time, dedupe_key LIKE 'manual:%' AS manual FROM expeditions
+         WHERE group_id = ? AND user_id = ? AND (? IS NULL OR COALESCE(time, created_at) >= ?)
          ORDER BY COALESCE(time, created_at), id`,
       )
-      .all(ctx.groupId, userId, settings.start_time, settings.start_time) as (DeckEvent & { time: number })[];
+      .all(ctx.groupId, userId, settings.start_time, settings.start_time) as (DeckEvent & { id: number; time: number; manual: number })[];
     const state = computeDeck(ctx.universe.deck, events, {
       unknownDepletionChance: settings.unknown_depletion,
       initialDrawn: JSON.parse(settings.initial_drawn),
@@ -500,6 +610,40 @@ export function dataRoutes(app: FastifyInstance, db: DB) {
       return { ok: true };
     },
   );
+
+  /**
+   * Manually counted expedition result (e.g. a report that was not synced). Stored like a synced
+   * expedition (dedupe key "manual:…"), so it counts in the deck and in the expedition statistics.
+   */
+  app.post<{ Params: { uni: string }; Body: { event?: string; size?: string; depletion?: string | null; time?: number | null } }>(
+    '/api/:uni/deck/events',
+    async (req) => {
+      const ctx = ctxOf(req);
+      const { event, size, depletion, time } = req.body ?? {};
+      if (!ctx.universe.deck.some((c) => c.type === event && c.size === size)) throw new HttpError(400, 'Karte gibt es im Deck nicht');
+      if (depletion != null && (event !== 'Nothing' || !['none', 'few', 'medium', 'many'].includes(depletion))) {
+        throw new HttpError(400, 'Erschöpfung ungültig');
+      }
+      const at = time == null ? Math.floor(Date.now() / 1000) : Number(time);
+      if (!Number.isInteger(at) || at <= 0) throw new HttpError(400, 'Zeit ungültig');
+      const id = db
+        .prepare(
+          `INSERT INTO expeditions (group_id, user_id, dedupe_key, time, event, size, depletion) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        )
+        .run(ctx.groupId, ctx.user.id, `manual:${randomUUID()}`, at, event, size, depletion ?? null).lastInsertRowid;
+      return { id: Number(id) };
+    },
+  );
+
+  /** Removes a manually counted expedition result (own entries only). */
+  app.delete<{ Params: { uni: string; id: string } }>('/api/:uni/deck/events/:id', async (req) => {
+    const ctx = ctxOf(req);
+    const res = db
+      .prepare("DELETE FROM expeditions WHERE id = ? AND group_id = ? AND user_id = ? AND dedupe_key LIKE 'manual:%'")
+      .run(Number(req.params.id), ctx.groupId, ctx.user.id);
+    if (!res.changes) throw new HttpError(404, 'Manuelles Ereignis nicht gefunden');
+    return { ok: true };
+  });
 
   // ------------------------------------------------------------ imperium
 
@@ -619,11 +763,11 @@ function planetRows(db: DB, ctx: GroupContext) {
   };
 
   const planets = db
-    .prepare('SELECT g, s, p, name, player_id, has_moon FROM planets WHERE group_id = ? AND destroyed = 0 AND player_id IS NOT NULL')
+    .prepare('SELECT g, s, p, name, player_id, has_moon, moon_name FROM planets WHERE group_id = ? AND destroyed = 0 AND player_id IS NOT NULL')
     .all(ctx.groupId) as any[];
   for (const pl of planets) {
     add(pl.g, pl.s, pl.p, 'planet', pl.name, pl.player_id);
-    if (pl.has_moon) add(pl.g, pl.s, pl.p, 'moon', null, pl.player_id);
+    if (pl.has_moon) add(pl.g, pl.s, pl.p, 'moon', pl.moon_name, pl.player_id);
   }
 
   const reports = db

@@ -1,7 +1,7 @@
 import type { GalaxyRecord, GalaxyRow, PlayerStatus } from '../types.js';
 
 /**
- * universe.json (universe export as used by proscript-ui / FF-Hub `export_galaxy_json.php`):
+ * universe.json (pr0game galaxy view JSON export, scripts/game/galaxy.js `export_json`):
  * `[galaxy, players, alliances]` with galaxy = { "G:S": { "1".."15": null | slot, timepoint: ms } }.
  */
 interface Slot {

@@ -5,6 +5,7 @@ import { config } from '../config.js';
 import { groupContext } from '../context.js';
 import type { DB } from '../db.js';
 import { ingest } from '../ingest.js';
+import { buildUniverseJson } from '../universeJson.js';
 
 interface IngestBody {
   html?: string | null;
@@ -43,4 +44,13 @@ export function ingestRoutes(app: FastifyInstance, db: DB) {
       );
     },
   );
+
+  /** universe.json download, built from the hub's galaxy data in pr0game's own export format. */
+  app.get<{ Params: { uni: string } }>('/api/:uni/universe-json', async (req, reply) => {
+    const ctx = groupContext(db, req, req.params.uni);
+    return reply
+      .header('content-type', 'application/json; charset=utf-8')
+      .header('content-disposition', 'attachment; filename="universe.json"')
+      .send(buildUniverseJson(db, ctx.groupId, ctx.universe.settings.positions));
+  });
 }

@@ -22,6 +22,42 @@ describe('stats', () => {
     ]);
   });
 
+  it('parses the honor points ranking with titles and negative points', () => {
+    const rec = parsePage({ html: fixture('stats-honor.html') }).records[0];
+    if (rec.kind !== 'stats') throw new Error('expected stats');
+    expect(rec).toMatchObject({ who: 'player', type: 6, statTime: '2026-10-21 22:55:25' });
+    expect(rec.rows.map((r) => [r.rank, r.rankChange, r.name, r.title ?? null, r.points])).toEqual([
+      [1, 2, 'Gottkaiser', 'Gott-Imperator', 12345],
+      [2, 0, 'Virus', null, 0],
+      [3, -3, 'reflex', 'Banditen-Imperator', -4200],
+    ]);
+  });
+
+  it('parses alliance stats with member counts', () => {
+    const rec = parsePage({ html: fixture('stats-alliance.html') }).records[0];
+    if (rec.kind !== 'stats') throw new Error('expected stats');
+    expect(rec).toMatchObject({ who: 'alliance', type: 1 });
+    expect(rec.rows).toEqual([
+      expect.objectContaining({ rank: 1, rankChange: 1, ingameId: 14, name: 'F1337erB0yz', members: 12, points: 1234567 }),
+      expect.objectContaining({ rank: 2, rankChange: -1, ingameId: 7, name: 'Sinnlos im Weltraum', members: 3, points: 45000 }),
+    ]);
+  });
+
+  it('parses English stats (date without dot after the day)', () => {
+    const res = parsePage({ html: fixture('stats-en-testserver.html') });
+    const rec = res.records[0];
+    if (rec.kind !== 'stats') throw new Error('expected stats');
+    expect(rec.statTime).toBe('2026-10-21 22:55:25');
+    expect(rec.type).toBe(1);
+    expect(rec.rows.map((r) => [r.ingameId, r.name, r.status])).toEqual([
+      [179, 'reflex', ['longinactive', 'inactive']],
+      [214, 'Gottkaiser', []],
+      [303, 'Virus', ['inactive']],
+      [299, 'test123', ['longinactive', 'inactive']],
+    ]);
+    expect(rec.rows[1]).toMatchObject({ allyId: 14, allyName: 'F1337erB0yz', points: 449037461141982 });
+  });
+
   it('parses player stats from plain text by name', () => {
     const res = parsePage({ text: fixture('stats-player.txt') });
     const rec = res.records[0];
@@ -61,6 +97,25 @@ describe('stats', () => {
 });
 
 describe('messages', () => {
+  it('parses English battle reports (Attack report, Debris field, date without dot)', () => {
+    const res = parsePage({ html: fixture('messages-en-battle.html') });
+    expect(res.records).toHaveLength(1);
+    expect(res.records[0]).toMatchObject({
+      kind: 'battle', msgId: 20720, time: '2026-10-21 23:05:31', reportId: '28ecaab5e83b099afc4d850a44094108',
+      coords: { g: 1, s: 206, p: 9 }, planetType: 'planet', outcome: 'lose', lostAttacker: 5000, lostDefender: 0,
+      loot: { metal: 0, crystal: 0, deuterium: 0 }, debris: { metal: 0, crystal: 2000 },
+    });
+  });
+
+  it('parses English spy report titles (date without dot)', () => {
+    const text = fixture('messages.txt').replace(
+      'Spionagebericht vom Planeten Heimat (Alpha) [1:234:5] am 21. Okt 2026, 12:00:30',
+      'Spy report from planet Heimat (Alpha) [1:234:5] on 21 Oct 2026, 12:00:30',
+    );
+    const spy = parsePage({ text }).records.find((r) => r.kind === 'spy');
+    expect(spy).toMatchObject({ coords: { g: 1, s: 234, p: 5 }, planetType: 'planet', planetName: 'Heimat', reportTime: '2026-10-21 12:00:30' });
+  });
+
   it('parses spy, battle, expeditions and hostile spying from HTML', () => {
     const res = parsePage({ html: fixture('messages.html') });
     expect(res.pageType).toBe('messages');
@@ -162,11 +217,11 @@ describe('galaxy + empire', () => {
     expect(rec).toMatchObject({ g: 1, s: 234 });
     expect(rec.rows).toEqual([
       {
-        position: 5, planetName: 'Heimat', moon: true, destroyed: false, playerId: 1234, playerName: 'Alpha',
+        position: 5, planetName: 'Heimat', moon: true, moonName: 'Luna Prime', destroyed: false, playerId: 1234, playerName: 'Alpha',
         status: ['inactive'], allyId: 77, allyTag: 'DA', debris: { metal: '1.2K', crystal: '300' },
       },
       {
-        position: 7, planetName: '', moon: false, destroyed: true, playerId: null, playerName: null,
+        position: 7, planetName: '', moon: false, moonName: null, destroyed: true, playerId: null, playerName: null,
         status: [], allyId: null, allyTag: null, debris: null,
       },
     ]);

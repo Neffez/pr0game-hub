@@ -2,14 +2,15 @@ import type { Coords, Lang, LocalDateTime } from './util.js';
 
 export type PlanetType = 'planet' | 'moon';
 
-/** 1 total, 2 fleet, 3 research, 4 buildings, 5 defense (game `type` parameter). */
-export type StatsType = 1 | 2 | 3 | 4 | 5;
+/** 1 total, 2 fleet, 3 research, 4 buildings, 5 defense, 6 honor points (game `type` parameter). */
+export type StatsType = 1 | 2 | 3 | 4 | 5 | 6;
 export const STATS_TYPES: Record<StatsType, string> = {
   1: 'total',
   2: 'fleet',
   3: 'research',
   4: 'buildings',
   5: 'defense',
+  6: 'honor',
 };
 
 /** Normalized status flags (language independent). */
@@ -24,7 +25,12 @@ export interface StatsRow {
   status: PlayerStatus[];
   allyId: number | null;
   allyName: string | null;
+  /** may be negative for honor points */
   points: number;
+  /** honor title shown in front of the name in the honor points ranking (e.g. "Groß-Imperator") */
+  title?: string | null;
+  /** alliance ranking: number of members */
+  members?: number | null;
 }
 
 export interface StatsRecord {
@@ -113,6 +119,8 @@ export interface GalaxyRow {
   position: number;
   planetName: string;
   moon: boolean;
+  /** moon name (alt text of the moon image in the galaxy HTML) */
+  moonName?: string | null;
   destroyed: boolean;
   playerId: number | null;
   playerName: string | null;

@@ -110,6 +110,14 @@ export function requireAdmin(req: FastifyRequest): SessionUser {
   return user;
 }
 
+/** Validates a username and checks that no other user has it (case-insensitive). */
+export function checkUsername(db: DB, raw: unknown, exceptUserId = 0): string {
+  const username = String(raw ?? '').trim();
+  if (!/^[\w.\- ]{3,32}$/.test(username)) throw new HttpError(400, 'Benutzername: 3–32 Zeichen (Buchstaben, Zahlen, . _ -)');
+  if (db.prepare('SELECT 1 FROM users WHERE username = ? AND id != ?').get(username, exceptUserId)) throw new HttpError(409, 'Benutzername vergeben');
+  return username;
+}
+
 /** Creates the bootstrap admin on first start when configured and no user exists yet. */
 export function bootstrapAdmin(db: DB, log: { info: (msg: string) => void }) {
   const { username, password } = config.adminBootstrap;

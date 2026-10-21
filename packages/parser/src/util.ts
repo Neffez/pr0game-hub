@@ -34,8 +34,8 @@ const MONTHS: Record<string, number> = {
   sep: 9, okt: 10, oct: 10, nov: 11, dez: 12, dec: 12,
 };
 
-/** Game date format `d. M Y, H:i:s` (php_tdformat), month names DE/EN. */
-export const GAME_DATE_RE = /(\d{1,2})\.\s*([A-Za-zäÄ]{3})\s+(\d{4}),?\s+(\d{1,2}):(\d{2}):(\d{2})/;
+/** Game date format (php_tdformat): DE `d. M Y, H:i:s`, EN `j M Y, H:i:s` (no dot after the day). */
+export const GAME_DATE_RE = /\b(\d{1,2})\.?\s*([A-Za-zäÄ]{3})\s+(\d{4}),?\s+(\d{1,2}):(\d{2}):(\d{2})/;
 
 /** Wall-clock time as shown in game: `YYYY-MM-DD HH:MM:SS` (no timezone). */
 export type LocalDateTime = string;

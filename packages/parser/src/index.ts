@@ -84,7 +84,12 @@ function parseHtml(html: string, input: ParseInput, warnings: string[]): { pageT
   if (page === 'battlehall' || isBattleHallHtml($)) {
     return { pageType: 'battleHall', records: [parseBattleHallHtml($)] };
   }
-  if (page === 'statistics' || (!page && $('a[onclick*="Dialog.Playercard"]').length > 0 && $('.galaxy-grid-row').length === 0 && !isMessagesHtml($) && !isOverviewHtml($))) {
+  // The ranking form (who/type selects) only exists on the statistics page; alliance rankings have no player links.
+  const statsForm = $('select#who').length > 0 && $('select#type').length > 0;
+  if (
+    page === 'statistics' ||
+    (!page && (statsForm || $('a[onclick*="Dialog.Playercard"]').length > 0) && $('.galaxy-grid-row').length === 0 && !isMessagesHtml($) && !isOverviewHtml($))
+  ) {
     const r = parseStatsHtml($);
     if (r) {
       if (r.type == null) {

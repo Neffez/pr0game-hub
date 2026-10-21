@@ -380,7 +380,7 @@ const history = computed(() => {
 
   <div v-if="error" class="error">{{ error }}</div>
   <div v-else-if="!loading && !players.length" class="card muted">
-    Noch keine Statistik vorhanden. Unter <RouterLink :to="`/${uni}/paste`">Einfügen</RouterLink> die Statistikseiten einfügen
+    Noch keine Statistik vorhanden. Unter <RouterLink :to="`/${uni}/paste`">Synchronisieren</RouterLink> die Statistikseiten einfügen
     (am besten jede Kategorie: Punkte, Flotte, Forschung, Gebäude, Verteidigung). Planeten kommen aus Galaxie-Ansichten und Spionageberichten.
   </div>
 
