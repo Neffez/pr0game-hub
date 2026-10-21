@@ -1,0 +1,44 @@
+Spying department
+Intelligence report
+22. Okt 2026, 00:08:17
+Papageienbericht von der Insel Mond (Adman) [1:5:7] am 22. Okt 2026, 00:08:17
+Rohstoffe
+
+Schiffe
+
+Verteidigungsanlagen
+
+Gebäude
+
+Forschungen
+Papageiendressur
+12
+Admiralitätswissen
+10
+Kanonentechnik
+10
+Holzbeschaffenheit
+10
+Schiffsbauwesen
+10
+Nahrungsverwertung
+12
+Strömungskunde
+6
+Ruderwerk
+7
+Segelkunde
+6
+Stromlinienforschung
+5
+Brandmunition
+12
+Schießpulvertechnik
+4
+Kolonisierungskunde
+7
+
+Angreifen
+Die Wahrscheinlichkeit für Absturz der Papageien beträgt: 0 %
+Simulieren
+Simulieren (TrashSim)

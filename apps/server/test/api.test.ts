@@ -62,7 +62,7 @@ describe('api', () => {
     expect(alpha.scores[2].deltas['6h']).toMatchObject({ delta: 234567, partial: false });
     // Only 6h of history: the 24h delta falls back to the oldest snapshot.
     expect(alpha.scores[2].deltas['24h']).toMatchObject({ delta: 234567, partial: true });
-    // FF-Hub style slots: newest 6 h interval, the one before is unknown (no 00:00 stand)
+    // FF-Hub style slots per statistics update: newest update against the one before; no older update yet
     expect(alpha.scores[2].slots[0]).toMatchObject({ delta: 234567 });
     expect(alpha.scores[2].slots[1]).toBeNull();
   });
@@ -375,6 +375,20 @@ describe('review fixes', () => {
       [1, 'F1337erB0yz', 12, 1234567, true],
       [2, 'Sinnlos im Weltraum', 3, 45000, false],
     ]);
+  });
+
+  it('shows the change per statistics update, whatever the update interval', async () => {
+    const groupX = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', headers: admin, payload: { universe: 'u8', name: 'Hourly' } })).json().id;
+    const headers = { ...admin, 'x-hub-group': String(groupX) };
+    const en = fixture('stats-en-testserver.html');
+    // two updates only 1 h apart (test server), the older one with fewer points
+    await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { html: en.replace('22:55:25', '21:55:25').replace('267.637.157', '267.000.000') } });
+    await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { html: en } });
+    const ov = (await app.inject({ method: 'GET', url: '/hub/api/u8/overview', headers })).json();
+    expect(ov.updates).toHaveLength(2);
+    const virus = ov.players.find((p: any) => p.name === 'Virus');
+    expect(virus.scores[1].slots[0]).toMatchObject({ delta: 637157, from: ov.updates[1], to: ov.updates[0] });
+    expect(virus.scores[1].slots[1]).toBeNull();
   });
 
   it('counts manually added expedition events in the deck', async () => {

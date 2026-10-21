@@ -1,0 +1,23 @@
+Folgende Flotten stehen sich gegenüber am 22. Okt 2026, 00:08:11 (0.0031 s)
+Angreifer Gottkaiser ([1:5:9] (M))
+Bewaff. 570% - Holzbeschaff. 560% - Schiffsbauw. 570%
+Typ
+Spähpapagei
+Anzahl
+5
+Bewaff.
+0
+Holzbeschaff.
+0
+Schiffsbauw.
+2.850
+Der Angreifer hat die Schlacht gewonnen!
+Er erbeutet 0 Holz, 0 Gold und 0 Rum
+
+Der Angreifer hat insgesamt 0 Units verloren
+Der Verteidiger hat insgesamt 0 Units verloren
+In diesem Treibgut-Feld liegen nun 0 Holz und 0 Gold.
+
+Die Chance einer Inselentstehung beträgt: 0 %
+
+Ehrenpunkte:

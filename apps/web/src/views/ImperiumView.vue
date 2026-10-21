@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { storageCapacity } from '@pr0hub/core/tech';
+import { classOf, elementPoints, storageCapacity } from '@pr0hub/core/tech';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { uniApi } from '../api';
 import Hint from '../components/Hint.vue';
 import { useStored, useUni } from '../composables';
-import { abbr, ago, dateTime, fmt, name, short } from '../format';
+import { abbr, ago, dateTime, fmt, fmtSigned, name, short } from '../format';
 
 /**
  * Live view of a member's own planets (like the FF-Hub overview): resources are projected from the
@@ -41,12 +41,17 @@ interface Data {
     time: number;
     data: {
       planets: EmpirePlanet[];
+      research?: Record<string, number>;
       researchQueue?: { id: number; level: number; coords: C3 | null } | null;
       flying?: Record<string, number>;
       active?: { coords: C3; type: 'planet' | 'moon'; storage: Record<string, number> } | null;
     };
   } | null;
   overview: { time: number; data: { queues: Queue[] } } | null;
+  /** the member's player with the latest synced statistics per category (1 total … 5 defense) */
+  player: { id: number; name: string; stats: Record<number, { points: number; rank: number; time: number }> } | null;
+  /** ships on the planets (points) in the first empire page after the last fleet statistics update */
+  fleetBase: { time: number; points: number } | null;
 }
 
 const RES = [901, 902, 903] as const;
@@ -179,6 +184,58 @@ const totals = computed(() =>
 const flying = computed(() => empire.value?.data.flying ?? {});
 const missingPerHour = computed(() => rows.value.some((r) => r.p.type === 'planet' && !r.p.perHour));
 const hasLiveData = computed(() => rows.value.some((r) => r.p.resources));
+// ---------------------------------------------------------------- live points
+/**
+ * Points like the game's statistics, from the last empire page (buildings, ships, defense per planet,
+ * research account wide) plus builds and research finished since then (overview queues).
+ * Fleets in flight are not on the empire page: the fleet is the statistics value plus the change of
+ * the ships on the planets since the first empire page after that update.
+ */
+const levelPoints = (id: number, level: number) => elementPoints(id, level) - elementPoints(id, level - 1);
+const livePoints = computed(() => {
+  const e = empire.value;
+  if (!e) return null;
+  const sum: Record<number, number> = { 0: 0, 100: 0, 200: 0, 400: 0 };
+  for (const p of e.data.planets) {
+    for (const [id, n] of Object.entries(p.values)) {
+      const cls = classOf(Number(id));
+      if (cls !== 100 && cls in sum) sum[cls] += elementPoints(id, n);
+    }
+  }
+  for (const [id, n] of Object.entries(e.data.research ?? {})) sum[100] += elementPoints(id, n);
+  const planetFleet = sum[200];
+  // builds and research that finished since the empire page
+  const finished: string[] = [];
+  if (overview.value && overview.value.time >= e.time - 60) {
+    for (const q of overview.value.data.queues) {
+      if (endOf(q) > now.value || q.kind === 'shipyard') continue;
+      if (q.kind === 'research') {
+        if ((e.data.research?.[q.id] ?? 0) >= q.level) continue;
+        sum[100] += levelPoints(q.id, q.level);
+      } else {
+        const p = e.data.planets.find((x) => same(x.coords, q.coords) && x.type === q.type);
+        const cur = p?.values[q.id] ?? 0;
+        if (q.destroy ? cur <= q.level : cur >= q.level) continue;
+        sum[0] += q.destroy ? -levelPoints(q.id, q.level + 1) : levelPoints(q.id, q.level);
+      }
+      finished.push(`${name(q.id)} ${q.level}`);
+    }
+  }
+  const stats = data.value?.player?.stats ?? {};
+  const base = data.value?.fleetBase;
+  const fleetFromStats = !!(stats[2] && base);
+  const fleet = fleetFromStats ? stats[2].points + (planetFleet - base!.points) : planetFleet;
+  const cats = [
+    { type: 4, label: 'Gebäude', live: sum[0] },
+    { type: 3, label: 'Forschung', live: sum[100] },
+    { type: 2, label: 'Flotte', live: fleet },
+    { type: 5, label: 'Verteidigung', live: sum[400] },
+  ].map((c) => ({ ...c, live: Math.round(c.live), stat: stats[c.type]?.points ?? null }));
+  const total = cats.reduce((s, c) => s + c.live, 0);
+  return { cats, total, stat: stats[1]?.points ?? null, rank: stats[1]?.rank ?? null, statTime: stats[1]?.time ?? null, fleetFromStats, finished };
+});
+const deltaClass = (d: number | null) => (d == null || d === 0 ? 'faint' : d > 0 ? 'pos' : 'neg');
+
 const memberName = (id: number | null) => ctx.value!.members.find((m) => m.id === id)?.name ?? '';
 </script>
 
@@ -215,7 +272,60 @@ const memberName = (id: number | null) => ctx.value!.members.find((m) => m.id ==
     Das letzte Imperium enthält keine Rohstoffe (älterer Stand oder Plaintext). Imperium bitte als HTML/Seitenquelltext erneut einfügen.
   </div>
 
-  <div v-else-if="empire" class="table-wrap">
+  <div v-if="!error && empire && livePoints" class="card live-points">
+    <div class="row">
+      <h3 style="margin: 0">
+        Live-Punkte
+        <Hint>
+          <p>Punkte wie in der Statistik des Spiels, berechnet aus dem zuletzt synchronisierten Imperium: Gebäude, Schiffe und Verteidigung auf den Planeten und Monden, dazu die Forschung. Gebäude und Forschung, die laut synchronisierter Übersicht inzwischen fertig sind, zählen live dazu.</p>
+          <p><b>Δ</b> = Live-Punkte gegenüber dem letzten synchronisierten Statistik-Update, also der erwartete Zuwachs oder Verlust beim nächsten Update.</p>
+          <p><b>Flotte</b>: Flotten im Flug stehen nicht im Imperium. Deshalb gilt der Statistikwert plus die Veränderung der Schiffe auf den Planeten seit dem ersten Imperium nach dem Update. Ohne so ein Imperium zählen nur die Schiffe auf den Planeten.</p>
+          <p>Schiffe und Verteidigung aus der Werft zählen erst mit dem nächsten Imperium-Sync.</p>
+        </Hint>
+      </h3>
+      <span v-if="livePoints.stat != null">
+        Punkte <b>{{ fmt(livePoints.stat) }}</b><span v-if="livePoints.rank" class="muted"> (Platz {{ livePoints.rank }})</span>
+      </span>
+      <span>
+        Live <b>{{ fmt(livePoints.total) }}</b>
+        <span v-if="livePoints.stat != null" :class="deltaClass(livePoints.total - livePoints.stat)">({{ fmtSigned(livePoints.total - livePoints.stat) }})</span>
+      </span>
+      <span class="grow" />
+      <span class="muted small">
+        <template v-if="livePoints.statTime">Statistik {{ dateTime(livePoints.statTime) }}</template>
+      </span>
+    </div>
+    <p v-if="!data?.player" class="warn small" style="margin: 8px 0 0">
+      Kein Statistik-Vergleich: Für {{ memberName(userId) }} ist kein Ingame-Name hinterlegt (Admin-Panel → Mitglieder) oder der Spieler ist in keiner synchronisierten Statistik.
+    </p>
+    <table class="data" style="width: auto; margin-top: 8px">
+      <thead>
+        <tr><th>Kategorie</th><th class="num">Statistik</th><th class="num">Live</th><th class="num">Δ</th></tr>
+      </thead>
+      <tbody>
+        <tr v-for="c in livePoints.cats" :key="c.type">
+          <td>
+            {{ c.label }}
+            <span v-if="c.type === 2 && !livePoints.fleetFromStats" class="warn small" title="Ohne Flotten im Flug: kein Imperium nach dem letzten Flotten-Update synchronisiert">⚠ ohne Flotten im Flug</span>
+          </td>
+          <td class="num">{{ c.stat == null ? '–' : fmt(c.stat) }}</td>
+          <td class="num">{{ fmt(c.live) }}</td>
+          <td class="num" :class="deltaClass(c.stat == null ? null : c.live - c.stat)">{{ c.stat == null ? '' : fmtSigned(c.live - c.stat) }}</td>
+        </tr>
+        <tr style="font-weight: 600">
+          <td>Gesamt</td>
+          <td class="num">{{ livePoints.stat == null ? '–' : fmt(livePoints.stat) }}</td>
+          <td class="num">{{ fmt(livePoints.total) }}</td>
+          <td class="num" :class="deltaClass(livePoints.stat == null ? null : livePoints.total - livePoints.stat)">
+            {{ livePoints.stat == null ? '' : fmtSigned(livePoints.total - livePoints.stat) }}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+    <p v-if="livePoints.finished.length" class="muted small" style="margin: 6px 0 0">Seit dem Imperium fertig: {{ livePoints.finished.join(', ') }}</p>
+  </div>
+
+  <div v-if="!error && empire && hasLiveData" class="table-wrap">
     <table class="data">
       <thead>
         <tr>

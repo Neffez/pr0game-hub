@@ -1,5 +1,5 @@
 import { computeDeck, type DeckEvent, type EmpireRecord } from '@pr0hub/core';
-import { classOf, sectionPoints } from '@pr0hub/core/tech';
+import { classOf, elementPoints, sectionPoints } from '@pr0hub/core/tech';
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { HttpError } from '../auth.js';
@@ -61,7 +61,13 @@ export function dataRoutes(app: FastifyInstance, db: DB) {
     const ctx = ctxOf(req);
 
     const players = new Map<number, any>();
+    /** synced statistics updates per type, newest first */
+    const updates: Record<number, number[]> = {};
     for (const type of TYPES) {
+      updates[type] = db
+        .prepare("SELECT stat_time FROM stat_snapshots WHERE group_id = ? AND who = 'player' AND type = ? ORDER BY stat_time DESC LIMIT 5")
+        .pluck()
+        .all(ctx.groupId, type) as number[];
       const rows = db
         .prepare(
           `SELECT ps.player_id, ps.points, ps.rank, ps.rank_change, s.stat_time
@@ -81,11 +87,12 @@ export function dataRoutes(app: FastifyInstance, db: DB) {
           if (partial) ref = history[history.length - 1];
           if (ref) deltas[win] = { delta: cur.points - ref.points, since: ref.stat_time, partial };
         }
-        // FF-Hub style 6 h slots: Δ6h = newest stand − 6 h before, Δ12h = the slot before that, …
-        const at = (t: number) => history.find((h) => Math.abs(h.stat_time - t) <= 3600);
-        const slots = [1, 2, 3, 4].map((k) => {
-          const to = k === 1 ? cur : at(cur.stat_time - (k - 1) * 6 * 3600);
-          const from = at(cur.stat_time - k * 6 * 3600);
+        // FF-Hub style: change per statistics update, whatever the update interval of the universe.
+        // Slot k = synced update k (newest first) against the synced update before it, the same for every player.
+        const at = (t: number | undefined) => (t == null ? undefined : history.find((h) => h.stat_time === t));
+        const slots = [0, 1, 2, 3].map((k) => {
+          const to = at(updates[type][k]);
+          const from = at(updates[type][k + 1]);
           return to && from ? { delta: to.points - from.points, from: from.stat_time, to: to.stat_time } : null;
         });
         const entry = players.get(playerId) ?? { scores: {} };
@@ -108,7 +115,7 @@ export function dataRoutes(app: FastifyInstance, db: DB) {
       .filter((p) => players.has(p.id))
       .map((p) => ({ ...p, status: JSON.parse(p.status), aliases: JSON.parse(p.aliases), scores: players.get(p.id).scores }));
 
-    return { players: result, planets: planetRows(db, ctx), coverage: coverage(db, ctx) };
+    return { players: result, planets: planetRows(db, ctx), coverage: coverage(db, ctx), updates: updates[1] };
   });
 
   // -------------------------------------------------------------- players
@@ -660,10 +667,37 @@ export function dataRoutes(app: FastifyInstance, db: DB) {
     const overview = db
       .prepare('SELECT page_time AS time, data FROM overview_snapshots WHERE group_id = ? AND user_id = ? ORDER BY page_time DESC, id DESC LIMIT 1')
       .get(ctx.groupId, userId) as { time: number; data: string } | undefined;
+    // the member's player (in-game name) and the latest synced statistics per category, for the live points
+    const player = db
+      .prepare(
+        `SELECT p.id, p.name FROM group_members gm JOIN players p ON p.group_id = gm.group_id AND p.name = gm.ingame_name COLLATE NOCASE
+         WHERE gm.group_id = ? AND gm.user_id = ?`,
+      )
+      .get(ctx.groupId, userId) as { id: number; name: string } | undefined;
+    const stats = player
+      ? (db
+          .prepare(
+            `SELECT st.type, ps.points, ps.rank, MAX(st.stat_time) AS time FROM player_scores ps JOIN stat_snapshots st ON st.id = ps.snapshot_id
+             WHERE st.group_id = ? AND st.who = 'player' AND st.type BETWEEN 1 AND 5 AND ps.player_id = ? GROUP BY st.type`,
+          )
+          .all(ctx.groupId, player.id) as { type: number; points: number; rank: number; time: number }[])
+      : [];
+    // Fleets in flight are missing on the empire page but count in the statistics: the live fleet is the
+    // stats value plus the change of the ships on the planets since the first empire page after that update.
+    const fleetTime = stats.find((s) => s.type === 2)?.time;
+    const fleetBase = fleetTime
+      ? (db
+          .prepare('SELECT created_at AS time, data FROM empire_snapshots WHERE group_id = ? AND user_id = ? AND created_at >= ? ORDER BY created_at, id LIMIT 1')
+          .get(ctx.groupId, userId, fleetTime) as { time: number; data: string } | undefined)
+      : undefined;
+    const planetFleet = (e: EmpireRecord) =>
+      e.planets.reduce((sum, pl) => sum + Object.entries(pl.values).reduce((s2, [id, n]) => s2 + (classOf(Number(id)) === 200 ? elementPoints(id, n) : 0), 0), 0);
     return {
       userId,
       empire: empire ? { time: empire.time, data: withMoonTypes(JSON.parse(empire.data) as EmpireRecord) } : null,
       overview: overview ? { time: overview.time, data: JSON.parse(overview.data) } : null,
+      player: player ? { ...player, stats: Object.fromEntries(stats.map((s) => [s.type, s])) } : null,
+      fleetBase: fleetBase ? { time: fleetBase.time, points: planetFleet(JSON.parse(fleetBase.data) as EmpireRecord) } : null,
     };
   });
 

@@ -26,16 +26,16 @@ import {
 
 // ---------------------------------------------------------------- spy reports
 
-/** sys_mess_spy_report_details_{1,3,4} DE/EN */
+/** sys_mess_spy_report_details_{1,3,4} DE/EN, pirate language (SetSail): "Papageienbericht vom Hafen / von der Insel" */
 const SPY_TITLE_RE =
-  /(?:Spionagebericht (vom Planeten|vom Mond|von)|Spy report from (planet|moon)?)\s*(.*?)\s*\(([^()]*)\)\s*\[(\d+):(\d+):(\d+)\]\s*(?:am|on)\s*(\d{1,2}\.?\s*\S{3}\s+\d{4},?\s+\d{1,2}:\d{2}:\d{2})/;
+  /(?:(?:Spionagebericht|Papageienbericht) (vom Planeten|vom Mond|vom Hafen|von der Insel|von)|Spy report from (planet|moon)?)\s*(.*?)\s*\(([^()]*)\)\s*\[(\d+):(\d+):(\d+)\]\s*(?:am|on)\s*(\d{1,2}\.?\s*\S{3}\s+\d{4},?\s+\d{1,2}:\d{2}:\d{2})/;
 
 function spyTitle(text: string) {
   const m = text.match(SPY_TITLE_RE);
   if (!m) return null;
   const typeWord = (m[1] ?? m[2] ?? '').toLowerCase();
   return {
-    planetType: (typeWord.includes('mond') || typeWord.includes('moon') ? 'moon' : 'planet') as PlanetType,
+    planetType: (/mond|moon|insel/.test(typeWord) ? 'moon' : 'planet') as PlanetType,
     planetName: m[3].trim(),
     playerName: m[4].trim(),
     coords: { g: Number(m[5]), s: Number(m[6]), p: Number(m[7]) },
@@ -45,8 +45,8 @@ function spyTitle(text: string) {
   };
 }
 
-const DESTROY_CHANCE_RE = /(?:Zerstörung der Spionagesonde beträgt|discovery chance was)\s*:?\s*(\d+)\s*%/;
-const DESTROYED_RE = /(Deine Spionagesonden wurden zerstört|Your spy probes were destroyed)/;
+const DESTROY_CHANCE_RE = /(?:Zerstörung der Spionagesonde beträgt|Absturz der Papageien beträgt|discovery chance was)\s*:?\s*(\d+)\s*%/;
+const DESTROYED_RE = /(Deine Spionagesonden wurden zerstört|Deine Papageien sind abgestürzt|Your spy probes were destroyed)/;
 
 export function parseSpyHtml($: CheerioAPI, el: Element, msgId: number | null): SpyReportRecord | null {
   const root = $(el);
@@ -117,9 +117,11 @@ function parseSpyBody(body: string): Pick<SpyReportRecord, 'sections' | 'destroy
 /** sys_mess_attack_report / sys_debris: DE 'Kampfbericht' / 'Trümmerfeld', EN 'Attack report' / 'Debris field'. */
 const BATTLE_TITLE_RE = /(?:Kampfbericht|Attack report|Fight report)\s*\[(\d+):(\d+):(\d+)\]\s*\((P|T|M|D|Pb)\)/;
 const BATTLE_LOSSES_RE = /(?:Angreifer|Attacker)\s*:\s*([\d.,]+)\s*(?:Verteidiger|Defender)\s*:\s*([\d.,]+)/;
+/** Resource names: metal/crystal/deuterium, in the pirate language wood/gold/rum. */
 const BATTLE_LOOT_RE =
-  /(?:Gewinn|Profit)\s*(?:Metall|Metal)\s*:\s*([\d.,]+)\s*(?:Kristall|Crystal)\s*:\s*([\d.,]+)\s*(?:Deuterium)\s*:\s*([\d.,]+)/;
-const BATTLE_DEBRIS_RE = /(?:Trümmerfeld|Debris field|Rubblefield)\s*(?:Metall|Metal)\s*:\s*([\d.,]+)\s*(?:Kristall|Crystal)\s*:\s*([\d.,]+)/;
+  /(?:Gewinn|Profit)\s*(?:Metall|Metal|Holz)\s*:\s*([\d.,]+)\s*(?:Kristall|Crystal|Gold)\s*:\s*([\d.,]+)\s*(?:Deuterium|Rum)\s*:\s*([\d.,]+)/;
+const BATTLE_DEBRIS_RE =
+  /(?:Trümmerfeld|Treibgut-Feld|Debris field|Rubblefield)\s*(?:Metall|Metal|Holz)\s*:\s*([\d.,]+)\s*(?:Kristall|Crystal|Gold)\s*:\s*([\d.,]+)/;
 
 function parseBattleText(
   text: string,
@@ -263,7 +265,7 @@ function parseExpeditionText(text: string, msgId: number | null, time: LocalDate
 // --------------------------------------------------------------- hostile spying
 
 const HOSTILE_RE =
-  /(?:Feindliche Spionagesonden (vom Planeten|vom Mond)|Enemy spy probes from (planet|moon))\s*(.*?)\s*\(([^()]*)\)\s*\[(\d+):(\d+):(\d+)\]\s*(?:wurde in der Nähe von|have been sighted near)\s*(.*?)\s*\((\w+)\)\s*\[(\d+):(\d+):(\d+)\]/;
+  /(?:Feindliche (?:Spionagesonden|Papageien) (vom Planeten|vom Mond|vom Hafen|von der Insel)|Enemy spy probes from (planet|moon))\s*(.*?)\s*\(([^()]*)\)\s*\[(\d+):(\d+):(\d+)\]\s*(?:wurde in der Nähe von|have been sighted near)\s*(.*?)\s*\((\w+)\)\s*\[(\d+):(\d+):(\d+)\]/;
 
 function parseHostileText(text: string, msgId: number | null, time: LocalDateTime | null): HostileSpyRecord | null {
   const m = text.replace(/\s+/g, ' ').match(HOSTILE_RE);
@@ -273,7 +275,7 @@ function parseHostileText(text: string, msgId: number | null, time: LocalDateTim
     kind: 'hostileSpy',
     msgId,
     time,
-    fromType: fromWord.includes('mond') || fromWord.includes('moon') ? 'moon' : 'planet',
+    fromType: /mond|moon|insel/.test(fromWord) ? 'moon' : 'planet',
     fromPlanetName: m[3].trim(),
     fromPlayerName: m[4].trim(),
     fromCoords: { g: Number(m[5]), s: Number(m[6]), p: Number(m[7]) },
@@ -285,12 +287,12 @@ function parseHostileText(text: string, msgId: number | null, time: LocalDateTim
 
 // ------------------------------------------------------------ recycling reports
 
-/** sys_recy_gotten (DE/EN); the coordinates are a link, resource names are words. */
+/** sys_recy_gotten (DE/EN, pirate language: "Wracktaucher"); the coordinates are a link, resource names are words. */
 const RECYCLE_DE_RE =
-  /Deine Recycler haben an den Koordinaten.*?\[(\d+):(\d+):(\d+)\]\s*([\d.,]+)\s*\S+\s+und\s+([\d.,]+)\s*\S+\s+von insgesamt\s+([\d.,]+)\s*\S+\s+und\s+([\d.,]+)\s*\S+\s+gesammelt/;
+  /Deine (?:Recycler|Wracktaucher) haben an den Koordinaten.*?\[(\d+):(\d+):(\d+)\]\s*([\d.,]+)\s*\S+\s+und\s+([\d.,]+)\s*\S+\s+von insgesamt\s+([\d.,]+)\s*\S+\s+und\s+([\d.,]+)\s*\S+\s+gesammelt/;
 const RECYCLE_EN_RE =
   /Your recyclers have collected\s+([\d.,]+)\s*\S+\s+and\s+([\d.,]+)\s*\S+\s+from a total of\s+([\d.,]+)\s*\S+\s+and\s+([\d.,]+)\s*\S+\s+at coordinates.*?\[(\d+):(\d+):(\d+)\]/;
-const RECYCLE_START_RE = /(?:Deine Recycler haben an den Koordinaten|Your recyclers have collected)/;
+const RECYCLE_START_RE = /(?:Deine (?:Recycler|Wracktaucher) haben an den Koordinaten|Your recyclers have collected)/;
 
 function parseRecycleText(text: string, msgId: number | null, time: LocalDateTime | null): RecycleRecord | null {
   const flat = text.replace(/\s+/g, ' ');

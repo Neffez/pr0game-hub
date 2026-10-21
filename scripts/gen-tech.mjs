@@ -10,7 +10,7 @@ if (!langDir) {
 }
 
 const out = {};
-for (const lang of ['de', 'en']) {
+for (const lang of ['de', 'en', 'pi']) {
   const lines = readFileSync(join(langDir, lang, 'TECH.yaml'), 'utf8').split(/\r?\n/);
   // "tech:" = full names, "shortNames:" = abbreviations used in battle reports
   const block = (key) => {
@@ -26,4 +26,4 @@ for (const lang of ['de', 'en']) {
   out[`${lang}Short`] = block('shortNames:');
 }
 writeFileSync(new URL('../packages/parser/src/data/tech.json', import.meta.url), JSON.stringify(out, null, 2) + '\n');
-console.log(`de: ${Object.keys(out.de).length}, en: ${Object.keys(out.en).length}`);
+console.log(`de: ${Object.keys(out.de).length}, en: ${Object.keys(out.en).length}, pi: ${Object.keys(out.pi).length}`);
