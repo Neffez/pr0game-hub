@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { selectedGroup, uniApi } from '../api';
 import Hint from './Hint.vue';
 import { useUni } from '../composables';
@@ -10,6 +11,7 @@ interface Summary {
   warnings: string[];
 }
 
+const { t, te } = useI18n();
 const { uni } = useUni();
 /** The server answers with an attachment, so the browser downloads instead of navigating. */
 function download() {
@@ -45,7 +47,7 @@ async function upload() {
     try {
       text = JSON.stringify(JSON.parse(text));
     } catch {
-      throw new Error('Die Datei ist kein gültiges JSON.');
+      throw new Error(t('universeJson.invalidJson'));
     }
     result.value = await uniApi(uni.value, '/universe-json', { body: { text } });
   } catch (e) {
@@ -55,16 +57,16 @@ async function upload() {
   }
 }
 
-const LABEL: Record<string, string> = { galaxy_systems: 'Systeme' };
+const label = (k: string) => (k === 'galaxy_systems' ? t('universeJson.systems') : k);
 </script>
 
 <template>
   <h2>
     universe.json
     <Hint>
-      <p>Die universe.json kommt aus der Galaxieansicht im Spiel (JSON-Export).</p>
-      <p><b>Hochladen</b> übernimmt Planeten, Monde, Spieler und Allianzen. Systeme, die im Hub schon aktueller sind, bleiben unverändert.</p>
-      <p><b>Herunterladen</b> erzeugt die Datei aus den Daten des Hubs – sie lässt sich im Spiel in der Galaxieansicht wieder importieren.</p>
+      <p>{{ t('universeJson.hintSource') }}</p>
+      <p><b>{{ t('universeJson.upload') }}</b> {{ t('universeJson.hintUpload') }}</p>
+      <p><b>{{ t('universeJson.download') }}</b> {{ t('universeJson.hintDownload') }}</p>
     </Hint>
   </h2>
 
@@ -79,19 +81,19 @@ const LABEL: Record<string, string> = { galaxy_systems: 'Systeme' };
       <input type="file" accept=".json,application/json" @change="pick" />
       <span v-if="file" class="muted small">{{ file.name }} · {{ fmt(file.size / 1024 / 1024, 1) }} MB</span>
       <span class="grow" />
-      <button class="primary" :disabled="!file || busy" @click="upload">{{ busy ? 'Importiere …' : 'Importieren' }}</button>
-      <button @click="download">Herunterladen</button>
+      <button class="primary" :disabled="!file || busy" @click="upload">{{ busy ? t('universeJson.importing') : t('universeJson.import') }}</button>
+      <button @click="download">{{ t('universeJson.download') }}</button>
     </div>
-    <p class="muted small" style="margin-bottom: 0">oder Datei hierher ziehen</p>
+    <p class="muted small" style="margin-bottom: 0">{{ t('universeJson.drop') }}</p>
   </div>
 
   <div v-if="error" class="error">{{ error }}</div>
   <div v-if="result" class="card">
-    <h2 style="margin-top: 0" class="ok">Importiert</h2>
+    <h2 style="margin-top: 0" class="ok">{{ t('universeJson.imported') }}</h2>
     <p v-for="(c, k) in result.counts" :key="k">
-      {{ LABEL[k] ?? k }}: <b>{{ fmt(c.new) }}</b> aktualisiert<template v-if="c.duplicate">, {{ fmt(c.duplicate) }} übersprungen (im Hub schon aktueller)</template>
+      {{ label(k) }}: <b>{{ fmt(c.new) }}</b> {{ t('universeJson.updated') }}<template v-if="c.duplicate">, {{ t('universeJson.skipped', { n: fmt(c.duplicate) }) }}</template>
     </p>
-    <p v-for="w in result.warnings" :key="w" class="warn">⚠ {{ w }}</p>
+    <p v-for="w in result.warnings" :key="w" class="warn">⚠ {{ te(`paste.warnings.${w}`) ? t(`paste.warnings.${w}`) : w }}</p>
   </div>
 </template>
 

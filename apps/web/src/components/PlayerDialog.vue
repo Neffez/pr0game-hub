@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { usePlayerDialog, useUni } from '../composables';
 import PlayerDetail from './PlayerDetail.vue';
 
 /** Player details as a dialog above the current page (opened by PlayerLink). */
+const { t } = useI18n();
 const { id, close } = usePlayerDialog();
 const { uni } = useUni();
 
@@ -22,8 +24,8 @@ onBeforeUnmount(() => (document.body.style.overflow = ''));
     <div v-if="id != null" class="modal-backdrop" @click.self="close">
       <div class="modal" role="dialog" aria-modal="true">
         <div class="modal-tools">
-          <RouterLink :to="`/${uni}/player/${id}`" class="small" title="Als eigene Seite öffnen">Seite öffnen ↗</RouterLink>
-          <button class="modal-close" title="Schließen (Esc)" @click="close">✕</button>
+          <RouterLink :to="`/${uni}/player/${id}`" class="small" :title="t('playerDialog.openPageTitle')">{{ t('playerDialog.openPage') }} ↗</RouterLink>
+          <button class="modal-close" :title="t('playerDialog.close')" @click="close">✕</button>
         </div>
         <PlayerDetail :id="id" />
       </div>

@@ -249,7 +249,7 @@ export function dataRoutes(app: FastifyInstance, db: DB) {
          FROM players p LEFT JOIN alliances a ON a.id = p.alliance_id WHERE p.id = ? AND p.group_id = ?`,
       )
       .get(id, ctx.groupId) as any;
-    if (!player) throw new HttpError(404, 'Spieler nicht gefunden');
+    if (!player) throw new HttpError(404, 'player_not_found', 'Player not found');
 
     const history = db
       .prepare(
@@ -446,7 +446,7 @@ export function dataRoutes(app: FastifyInstance, db: DB) {
   app.get<{ Params: { uni: string; id: string } }>('/api/:uni/combat-reports/:id', async (req) => {
     const ctx = ctxOf(req);
     const r = db.prepare('SELECT * FROM combat_reports WHERE group_id = ? AND report_id = ?').get(ctx.groupId, req.params.id) as any;
-    if (!r) throw new HttpError(404, 'Bericht nicht archiviert');
+    if (!r) throw new HttpError(404, 'report_not_archived', 'Report not archived');
     const hall = db.prepare('SELECT units, attackers, defenders FROM battle_hall WHERE group_id = ? AND report_id = ?').get(ctx.groupId, req.params.id) as any;
     return {
       ...r,
@@ -572,7 +572,7 @@ export function dataRoutes(app: FastifyInstance, db: DB) {
     const ctx = ctxOf(req);
     const userId = Number(req.query.user ?? ctx.user.id);
     if (!db.prepare('SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?').get(ctx.groupId, userId)) {
-      throw new HttpError(404, 'Mitglied nicht gefunden');
+      throw new HttpError(404, 'member_not_found', 'Member not found');
     }
     const settings = (db.prepare('SELECT * FROM deck_settings WHERE group_id = ? AND user_id = ?').get(ctx.groupId, userId) as any) ?? {
       start_time: null,
@@ -627,12 +627,12 @@ export function dataRoutes(app: FastifyInstance, db: DB) {
     async (req) => {
       const ctx = ctxOf(req);
       const { event, size, depletion, time } = req.body ?? {};
-      if (!ctx.universe.deck.some((c) => c.type === event && c.size === size)) throw new HttpError(400, 'Karte gibt es im Deck nicht');
+      if (!ctx.universe.deck.some((c) => c.type === event && c.size === size)) throw new HttpError(400, 'card_not_in_deck', 'Card is not part of the deck');
       if (depletion != null && (event !== 'Nothing' || !['none', 'few', 'medium', 'many'].includes(depletion))) {
-        throw new HttpError(400, 'Erschöpfung ungültig');
+        throw new HttpError(400, 'depletion_invalid', 'Invalid depletion');
       }
       const at = time == null ? Math.floor(Date.now() / 1000) : Number(time);
-      if (!Number.isInteger(at) || at <= 0) throw new HttpError(400, 'Zeit ungültig');
+      if (!Number.isInteger(at) || at <= 0) throw new HttpError(400, 'time_invalid', 'Invalid time');
       const id = db
         .prepare(
           `INSERT INTO expeditions (group_id, user_id, dedupe_key, time, event, size, depletion) VALUES (?, ?, ?, ?, ?, ?, ?)`,
@@ -648,7 +648,7 @@ export function dataRoutes(app: FastifyInstance, db: DB) {
     const res = db
       .prepare("DELETE FROM expeditions WHERE id = ? AND group_id = ? AND user_id = ? AND dedupe_key LIKE 'manual:%'")
       .run(Number(req.params.id), ctx.groupId, ctx.user.id);
-    if (!res.changes) throw new HttpError(404, 'Manuelles Ereignis nicht gefunden');
+    if (!res.changes) throw new HttpError(404, 'manual_event_not_found', 'Manual event not found');
     return { ok: true };
   });
 
@@ -659,7 +659,7 @@ export function dataRoutes(app: FastifyInstance, db: DB) {
     const ctx = ctxOf(req);
     const userId = Number(req.query.user ?? ctx.user.id);
     if (!db.prepare('SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?').get(ctx.groupId, userId)) {
-      throw new HttpError(404, 'Mitglied nicht gefunden');
+      throw new HttpError(404, 'member_not_found', 'Member not found');
     }
     const empire = db
       .prepare('SELECT created_at AS time, data FROM empire_snapshots WHERE group_id = ? AND user_id = ? ORDER BY created_at DESC, id DESC LIMIT 1')

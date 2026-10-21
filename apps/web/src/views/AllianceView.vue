@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { classOf, elementPoints } from '@pr0hub/core/tech';
 import { computed, onMounted, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import { uniApi } from '../api';
 import Hint from '../components/Hint.vue';
@@ -30,6 +31,7 @@ interface Row {
   points: number;
 }
 
+const { t } = useI18n();
 const route = useRoute();
 const page = computed(() => route.meta.page as Page);
 const { uni } = useUni();
@@ -121,44 +123,41 @@ const total = computed(() => {
   return { values, points: rows.value.reduce((s, r) => s + r.points, 0) };
 });
 
-const TITLE: Record<Page, string> = { planets: 'Planeten', fleet: 'Flotten', research: 'Forschung' };
 </script>
 
 <template>
   <h1>
-    {{ TITLE[page] }}
+    {{ t(`nav.${page}`) }}
     <Hint>
-      <p>Aus der zuletzt eingefügten Imperium-Seite jedes Allianz-Mitglieds im Hub. Jedes Mitglied fügt dafür seine eigene Imperium-Seite ein.</p>
-      <p v-if="page === 'planets'">Eine Zeile pro Planet/Mond mit Gebäudestufen. Punkte = Gebäudepunkte des Planeten.</p>
-      <p v-else-if="page === 'fleet'">Schiffe bzw. Verteidigung summiert über alle Planeten und Monde. Fliegende Flotten zeigt die Imperium-Seite nicht.</p>
-      <p v-else>Forschungsstufen je Mitglied. Punkte = Forschungspunkte.</p>
-      <p>Spaltenköpfe sind abgekürzt, der volle Name steht im Tooltip. Farben: rot = niedrig, grün = Höchstwert der Spalte.</p>
+      <p>{{ t('alliance.hint') }}</p>
+      <p>{{ t(`alliance.hint_${page}`) }}</p>
+      <p>{{ t('alliance.hintColumns') }}</p>
     </Hint>
   </h1>
 
   <div class="card row small">
     <div v-if="page === 'fleet'" class="tabs" style="margin: 0">
-      <button :class="{ active: fleetTab === 'ships' }" @click="fleetTab = 'ships'">Schiffe</button>
-      <button :class="{ active: fleetTab === 'defense' }" @click="fleetTab = 'defense'">Verteidigung</button>
+      <button :class="{ active: fleetTab === 'ships' }" @click="fleetTab = 'ships'">{{ name(200) }}</button>
+      <button :class="{ active: fleetTab === 'defense' }" @click="fleetTab = 'defense'">{{ t('game.sections.400') }}</button>
     </div>
     <span v-for="m in withData" :key="m.user_id" class="muted" :title="dateTime(m.created_at)">{{ memberName(m) }}: {{ ago(m.created_at) }}</span>
-    <span v-if="missing.length" class="warn">Imperium fehlt: {{ missing.map(memberName).join(', ') }}</span>
+    <span v-if="missing.length" class="warn">{{ t('alliance.missing', { names: missing.map(memberName).join(', ') }) }}</span>
   </div>
 
   <div v-if="error" class="error">{{ error }}</div>
-  <div v-else-if="!withData.length" class="card muted">Noch keine Imperium-Seiten eingefügt.</div>
+  <div v-else-if="!withData.length" class="card muted">{{ t('alliance.empty') }}</div>
 
   <div v-else class="table-wrap">
     <table class="data">
       <thead>
         <tr>
           <template v-if="page === 'planets'">
-            <th class="sortable" @click="sortBy('coords')">Koord.{{ indicator('coords') }}</th>
-            <th class="sortable" @click="sortBy('name')">Planet{{ indicator('name') }}</th>
-            <th class="sortable" @click="sortBy('member')">Spieler{{ indicator('member') }}</th>
+            <th class="sortable" @click="sortBy('coords')">{{ t('common.coords') }}{{ indicator('coords') }}</th>
+            <th class="sortable" @click="sortBy('name')">{{ t('common.planet') }}{{ indicator('name') }}</th>
+            <th class="sortable" @click="sortBy('member')">{{ t('common.player') }}{{ indicator('member') }}</th>
           </template>
-          <th v-else class="sortable" @click="sortBy('name')">Spieler{{ indicator('name') }}</th>
-          <th class="sortable num" @click="sortBy('points')">Punkte{{ indicator('points') }}</th>
+          <th v-else class="sortable" @click="sortBy('name')">{{ t('common.player') }}{{ indicator('name') }}</th>
+          <th class="sortable num" @click="sortBy('points')">{{ t('expeditions.points') }}{{ indicator('points') }}</th>
           <th v-for="id in ids" :key="id" class="sortable num" :title="name(id)" @click="sortBy(String(id))">{{ abbr(id) }}{{ indicator(String(id)) }}</th>
         </tr>
       </thead>
@@ -167,7 +166,7 @@ const TITLE: Record<Page, string> = { planets: 'Planeten', fleet: 'Flotten', res
           <template v-if="page === 'planets'">
             <td class="mono small">{{ r.coords!.g }}:{{ r.coords!.s }}:{{ r.coords!.p }}</td>
             <td>
-              <span v-if="r.type === 'moon'" class="moon-tag" title="Mond">☾ Mond</span>
+              <span v-if="r.type === 'moon'" class="moon-tag" :title="t('common.moon')">☾ {{ t('common.moon') }}</span>
               {{ r.label }}
             </td>
             <td class="muted">{{ memberName(r.member) }}</td>
@@ -177,7 +176,7 @@ const TITLE: Record<Page, string> = { planets: 'Planeten', fleet: 'Flotten', res
           <td v-for="id in ids" :key="id" class="num" :style="{ color: scaleColor(r.values[id], max[id]) }">{{ r.values[id] ? fmt(r.values[id]) : '' }}</td>
         </tr>
         <tr v-if="total" style="font-weight: 600">
-          <td>Gesamt</td>
+          <td>{{ t('common.total') }}</td>
           <td class="num">{{ fmt(total.points) }}</td>
           <td v-for="id in ids" :key="id" class="num">{{ total.values[id] ? fmt(total.values[id]) : '' }}</td>
         </tr>

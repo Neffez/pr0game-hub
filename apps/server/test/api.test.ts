@@ -471,6 +471,20 @@ describe('review fixes', () => {
     await login('carl', 'carolpass');
   });
 
+  it('stores the UI language per user', async () => {
+    db.prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)').run('dave', hashPassword('davepass1'));
+    const d = await login('dave', 'davepass1');
+    const me = async () => (await app.inject({ method: 'GET', url: '/hub/api/auth/me', headers: d })).json().user.lang;
+    expect(await me()).toBe('de');
+    const setLang = (lang: string) => app.inject({ method: 'POST', url: '/hub/api/auth/lang', headers: d, payload: { lang } });
+    expect((await setLang('en')).statusCode).toBe(200);
+    expect(await me()).toBe('en');
+    const bad = await setLang('fr');
+    expect(bad.statusCode).toBe(400);
+    expect(bad.json()).toEqual({ error: 'Invalid language', code: 'lang_invalid' });
+    expect(await me()).toBe('en');
+  });
+
   it('rejects duplicate universes and invalid settings', async () => {
     const h = { headers: admin };
     expect((await app.inject({ method: 'POST', url: '/hub/api/admin/universes', payload: { slug: 'u8' }, ...h })).statusCode).toBe(409);

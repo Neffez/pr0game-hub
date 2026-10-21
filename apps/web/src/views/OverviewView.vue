@@ -2,11 +2,13 @@
 import PlayerLink from '../components/PlayerLink.vue';
 import Hint from '../components/Hint.vue';
 import { computed, onMounted, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
 import PlanetActions from '../components/PlanetActions.vue';
 import StatusBadges from '../components/StatusBadges.vue';
 import { useSort, useStored, useUni } from '../composables';
-import { ago, dateTime, distance, fmt, fmtSigned, short, STATS_SHORT, STATS_TYPES } from '../format';
+import { ago, dateTime, distance, fmt, fmtSigned, name, short, STATS_SHORT, STATS_TYPES } from '../format';
+import { intlLocale } from '../i18n';
 
 interface Delta {
   delta: number;
@@ -72,7 +74,10 @@ interface Row {
   dist: number | null;
 }
 
-const WINDOW_LABEL: Record<string, string> = { prev: 'letzter Stand', '6h': '6 h', '12h': '12 h', '18h': '18 h', '24h': '24 h', '48h': '48 h', '7d': '7 Tage' };
+const { t } = useI18n();
+/** Delta windows of the player view (server keys) */
+const WINDOWS = ['prev', '6h', '12h', '18h', '24h', '48h', '7d'];
+const windowLabel = (w: string) => (w === 'prev' ? t('overview.prevStand') : w === '7d' ? t('time.days', { n: 7 }) : w.replace('h', ' h'));
 /**
  * Delta columns of the planet view (like FF-Hub), named after the usual 6 h statistics interval.
  * Each column is one synced statistics update (newest first) against the update before, whatever the interval.
@@ -86,11 +91,11 @@ const slotHeader = (w: string) => {
   const to = updates.value[i];
   const from = updates.value[i + 1];
   return to != null && from != null
-    ? `Punkteveränderung beim Statistik-Update ${dateTime(from)} → ${dateTime(to)}`
-    : `Punkteveränderung beim ${i ? `${i + 1}.-letzten` : 'letzten'} Statistik-Update – dafür fehlt noch ein synchronisierter Stand`;
+    ? t('overview.slotHeader', { from: dateTime(from), to: dateTime(to) })
+    : t('overview.slotHeaderMissing', { n: i + 1 }, i + 1);
 };
 const slotTitle = (sl: { from: number; to: number } | null) =>
-  sl ? `Veränderung ${dateTime(sl.from)} → ${dateTime(sl.to)}` : 'Statistik-Stand für diesen Abschnitt fehlt';
+  sl ? t('overview.slotTitle', { from: dateTime(sl.from), to: dateTime(sl.to) }) : t('overview.slotMissing');
 
 const { uni, ctx } = useUni();
 const mode = useStored<'planets' | 'players'>('overview.mode', 'planets');
@@ -192,8 +197,8 @@ function pts(r: Row, field: 'building' | 'fleet' | 'defense') {
   const spy = r.planet?.spy;
   const own = r.planet?.own;
   const spyTime = spy?.[`${field}Time`];
-  if (own && own[field] != null && (spyTime == null || own.time >= spyTime)) return { value: own[field], title: `Imperium vom ${dateTime(own.time)}` };
-  if (spy?.[field] != null) return { value: spy[field]!, title: `Spionage vom ${dateTime(spyTime)}` };
+  if (own && own[field] != null && (spyTime == null || own.time >= spyTime)) return { value: own[field], title: t('overview.fromEmpire', { time: dateTime(own.time) }) };
+  if (spy?.[field] != null) return { value: spy[field]!, title: t('overview.fromSpy', { time: dateTime(spyTime) }) };
   return { value: null, title: '' };
 }
 
@@ -203,7 +208,7 @@ const resSum = (r: Row) => (r.planet?.spy?.res ? [901, 902, 903].reduce((s, id) 
 const planetSort = useSort(
   planetRows,
   (r, key) => {
-    const [kind, t] = key.split(':');
+    const [kind, arg] = key.split(':');
     const spy = r.planet?.spy;
     switch (kind) {
       case 'name':
@@ -215,9 +220,9 @@ const planetSort = useSort(
       case 'dist':
         return r.dist == null ? null : -r.dist;
       case 'p':
-        return r.player.scores[Number(t)]?.points ?? null;
+        return r.player.scores[Number(arg)]?.points ?? null;
       case 'd':
-        return slot(r.player, t)?.delta ?? null;
+        return slot(r.player, arg)?.delta ?? null;
       case 'building':
         return pts(r, 'building').value;
       case 'fleet':
@@ -229,7 +234,7 @@ const planetSort = useSort(
       case 'spy':
         return spy?.time ?? null;
       case 'res':
-        return t ? resOf(r, Number(t)) : resSum(r);
+        return arg ? resOf(r, Number(arg)) : resSum(r);
     }
     return null;
   },
@@ -239,11 +244,11 @@ const planetSort = useSort(
 const playerSort = useSort(
   filteredPlayers,
   (r, key) => {
-    const [kind, t] = key.split(':');
+    const [kind, arg] = key.split(':');
     if (kind === 'name') return r.name.toLowerCase();
     if (kind === 'ally') return (r.ally_tag ?? r.ally_name ?? '').toLowerCase() || null;
-    if (kind === 'p') return r.scores[Number(t)]?.points ?? null;
-    if (kind === 'd') return delta(r, Number(t))?.delta ?? null;
+    if (kind === 'p') return r.scores[Number(arg)]?.points ?? null;
+    if (kind === 'd') return delta(r, Number(arg))?.delta ?? null;
     if (kind === 'rank') return r.scores[1] ? -r.scores[1].rank : null;
     return null;
   },
@@ -258,13 +263,13 @@ function deltaStyle(points: number | undefined, d: Delta | undefined) {
   return { color: d.delta > 0 ? `rgba(63,185,80,${alpha})` : `rgba(248,81,73,${alpha})`, fontStyle: d.partial ? 'italic' : undefined };
 }
 const deltaTitle = (d: Delta | undefined, w: string) =>
-  d ? `${d.partial ? `Noch keine ${WINDOW_LABEL[w]} Historie – ` : ''}seit ${dateTime(d.since)}` : 'keine ältere Statistik';
+  d ? (d.partial ? t('overview.deltaPartial', { window: windowLabel(w) }) : '') + t('overview.since', { time: dateTime(d.since) }) : t('overview.noOlderStats');
 
 const gameUrl = computed(() => ctx.value?.universe.settings.gameUrl?.replace(/\/?$/, '/') ?? '');
 const hasGameUrl = computed(() => !!ctx.value?.universe.settings.gameUrl);
 const galaxyLink = (pl: PlanetRow) => `${gameUrl.value}game.php?page=galaxy&galaxy=${pl.g}&system=${pl.s}`;
 const spyLink = (pl: PlanetRow) => ({ path: `/${uni.value}/spy`, query: { c: `${pl.g}:${pl.s}:${pl.p}`, type: pl.type } });
-const age = (t: number | undefined) => (t ? `Stand ${dateTime(t)}` : '');
+const age = (epoch: number | undefined) => (epoch ? t('stats.asOf', { time: dateTime(epoch) }) : '');
 const num = (n: number | null | undefined) => (n == null ? '' : fmt(n));
 const shortOrEmpty = (n: number | null | undefined) => (n == null ? '' : short(n));
 
@@ -296,13 +301,13 @@ const latest = computed(() => {
 });
 /** Newest stats time over all categories; older categories are highlighted (not pasted again yet). */
 const newestStat = computed(() => Math.max(0, ...Object.values(latest.value).map((l) => l.time)));
-const outdated = (t: number) => !!latest.value[t] && latest.value[t].time < newestStat.value - 900;
+const outdated = (type: number) => !!latest.value[type] && latest.value[type].time < newestStat.value - 900;
 /** Categories that are older than the newest stand or missing (shown as warnings next to the compact line). */
-const staleTypes = computed(() => (newestStat.value ? [1, 2, 3, 4, 5].filter((t) => !latest.value[t] || outdated(t)) : []));
+const staleTypes = computed(() => (newestStat.value ? [1, 2, 3, 4, 5].filter((type) => !latest.value[type] || outdated(type)) : []));
 /** "12:00" today, otherwise date and time */
 const time = (epoch: number) =>
   new Date(epoch * 1000).toDateString() === new Date().toDateString()
-    ? new Date(epoch * 1000).toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
+    ? new Date(epoch * 1000).toLocaleTimeString(intlLocale(), { hour: '2-digit', minute: '2-digit' })
     : dateTime(epoch);
 
 /** How far back the total points history reaches (oldest reference over all players). */
@@ -315,91 +320,95 @@ const history = computed(() => {
 
 <template>
   <h1>
-    Übersicht
+    {{ t('nav.overview') }}
     <Hint>
-      <p><b>Planeten</b>: eine Zeile pro bekanntem Planet/Mond (aus Galaxie-Ansichten und Spionageberichten). Spieler ohne bekannte Planeten stehen mit „–“ da.</p>
-      <p><b>Δ-Spalten</b> (wie FF-Hub): Veränderung der Gesamtpunkte je Statistik-Update. Δ6h = neuestes synchronisiertes Update gegenüber dem davor, Δ12h = das Update davor usw. – benannt nach dem üblichen 6-h-Takt, gerechnet wird aber von Update zu Update, egal in welchem Abstand. Den genauen Zeitraum zeigt der Tooltip. Wurde ein Update nicht eingefügt, umfasst die Spalte mehrere Updates – am besten die Statistik nach jedem Update einfügen.</p>
-      <p><b>Geb./Flotte/Vert.</b>: Punkte auf diesem Planeten aus dem Imperium (Allianz-Mitglieder) oder der letzten Spionage, je nachdem was neuer ist (Tooltip: Quelle und Spieler gesamt). Rohstoffe aus der letzten Spionage.</p>
-      <p><b>Aktionen</b>: Spionieren/Angreifen öffnen die Flottenseite im Spiel mit vorausgefülltem Ziel (Spiel-URL unter Universen eintragen). „Flugzeit berechnen“ öffnet den Flugzeitrechner mit Ziel, deinen Antriebsforschungen (Imperium) und deinem nächstgelegenen Planeten bzw. „Entfernung von“ als Start.</p>
-      <p><b>Spielerfilter</b> findet auch frühere Namen.</p>
-      <p><b>Spieler</b>: alle Kategorien mit wählbarem Zeitraum.</p>
+      <p>{{ t('overview.hint1') }}</p>
+      <p>{{ t('overview.hint2') }}</p>
+      <p>{{ t('overview.hint3') }}</p>
+      <p>{{ t('overview.hint4') }}</p>
+      <p>{{ t('overview.hint5') }}</p>
+      <p>{{ t('overview.hint6') }}</p>
     </Hint>
-    <Hint v-if="players.length && !history" warn>
-      Für Punkteveränderungen braucht es mindestens zwei Statistik-Stände: Statistik nach dem nächsten Update erneut einfügen.
-    </Hint>
+    <Hint v-if="players.length && !history" warn>{{ t('overview.needTwoStands') }}</Hint>
   </h1>
 
   <div class="card">
     <div class="row">
       <div class="tabs" style="margin: 0">
-        <button :class="{ active: mode === 'planets' }" @click="mode = 'planets'">Planeten</button>
-        <button :class="{ active: mode === 'players' }" @click="mode = 'players'">Spieler</button>
+        <button :class="{ active: mode === 'planets' }" @click="mode = 'planets'">{{ t('player.planets') }}</button>
+        <button :class="{ active: mode === 'players' }" @click="mode = 'players'">{{ t('stats.players') }}</button>
       </div>
       <label v-if="mode === 'players'">
-        Δ-Zeitraum
+        {{ t('overview.deltaWindow') }}
         <select v-model="win">
-          <option v-for="(l, w) in WINDOW_LABEL" :key="w" :value="w">{{ l }}</option>
+          <option v-for="w in WINDOWS" :key="w" :value="w">{{ windowLabel(w) }}</option>
         </select>
       </label>
-      <input v-model="filter.text" placeholder="Spieler" style="width: 190px" />
-      <input v-model="filter.ally" placeholder="Allianz" style="width: 110px" />
-      <label><input v-model="filter.hideInactive" type="checkbox" /> Inaktive aus</label>
-      <label><input v-model="filter.onlyInactive" type="checkbox" /> nur Inaktive</label>
-      <label><input v-model="filter.hideVacation" type="checkbox" /> U-Mode aus</label>
-      <label>Punkte <input v-model.number="filter.minPoints" type="number" placeholder="min" /> – <input v-model.number="filter.maxPoints" type="number" placeholder="max" /></label>
+      <input v-model="filter.text" :placeholder="t('common.player')" style="width: 190px" />
+      <input v-model="filter.ally" :placeholder="t('common.alliance')" style="width: 110px" />
+      <label><input v-model="filter.hideInactive" type="checkbox" /> {{ t('overview.hideInactive') }}</label>
+      <label><input v-model="filter.onlyInactive" type="checkbox" /> {{ t('overview.onlyInactive') }}</label>
+      <label><input v-model="filter.hideVacation" type="checkbox" /> {{ t('overview.hideVacation') }}</label>
+      <label>{{ t('expeditions.points') }} <input v-model.number="filter.minPoints" type="number" placeholder="min" /> – <input v-model.number="filter.maxPoints" type="number" placeholder="max" /></label>
       <label>
         Δ
         <select v-model.number="filter.deltaType">
-          <option v-for="(l, t) in STATS_TYPES" :key="t" :value="Number(t)">{{ l }}</option>
+          <option v-for="(l, type) in STATS_TYPES" :key="type" :value="Number(type)">{{ l }}</option>
         </select>
         <select v-if="mode === 'planets'" v-model="win">
-          <option v-for="(l, w) in WINDOW_LABEL" :key="w" :value="w">{{ l }}</option>
+          <option v-for="w in WINDOWS" :key="w" :value="w">{{ windowLabel(w) }}</option>
         </select>
         ≥ <input v-model.number="filter.minDelta" type="number" />
       </label>
     </div>
     <div class="row" style="margin-top: 8px">
       <template v-if="mode === 'planets'">
-        <label>Galaxie <input v-model.number="filter.galaxy" type="number" min="1" style="width: 60px" /></label>
-        <label>Entfernung von <input v-model="filter.from" placeholder="1:100:8" style="width: 90px" /></label>
-        <label><input v-model="filter.onlySpied" type="checkbox" /> nur spioniert</label>
-        <label><input v-model="filter.hideMoons" type="checkbox" /> Monde aus</label>
+        <label>{{ t('nav.galaxy') }} <input v-model.number="filter.galaxy" type="number" min="1" style="width: 60px" /></label>
+        <label>{{ t('overview.distanceFrom') }} <input v-model="filter.from" placeholder="1:100:8" style="width: 90px" /></label>
+        <label><input v-model="filter.onlySpied" type="checkbox" /> {{ t('overview.onlySpied') }}</label>
+        <label><input v-model="filter.hideMoons" type="checkbox" /> {{ t('overview.hideMoons') }}</label>
       </template>
       <span class="grow" />
       <span class="muted small">
-        <template v-if="mode === 'planets'">{{ planetSort.sorted.value.length }} Zeilen · </template>{{ filteredPlayers.length }} / {{ players.length }} Spieler
+        <template v-if="mode === 'planets'">{{ t('overview.rows', { n: planetSort.sorted.value.length }) }} · </template>{{ t('overview.playerCount', { n: filteredPlayers.length, total: players.length }) }}
       </span>
     </div>
     <div class="row small muted" style="margin-top: 8px; gap: 6px">
       <span>
-        Statistik <b v-if="newestStat">{{ time(newestStat) }}</b><span v-else class="warn">fehlt</span>
-        <template v-if="history"> · Historie seit {{ dateTime(history) }}</template>
+        {{ t('nav.stats') }} <b v-if="newestStat">{{ time(newestStat) }}</b><span v-else class="warn">{{ t('overview.missing') }}</span>
+        <template v-if="history"> · {{ t('overview.historySince', { time: dateTime(history) }) }}</template>
       </span>
       <Hint>
         <table class="cov">
-          <tr v-for="t in [1, 2, 3, 4, 5]" :key="t">
-            <td>{{ STATS_TYPES[t] }}</td>
-            <template v-if="latest[t]">
-              <td :class="{ warn: outdated(t) }">{{ dateTime(latest[t].time) }}</td>
-              <td>{{ latest[t].rows }} Spieler</td>
-              <td>bis Rang {{ latest[t].max }}</td>
+          <tr v-for="type in [1, 2, 3, 4, 5]" :key="type">
+            <td>{{ STATS_TYPES[type] }}</td>
+            <template v-if="latest[type]">
+              <td :class="{ warn: outdated(type) }">{{ dateTime(latest[type].time) }}</td>
+              <td>{{ t('overview.coveragePlayers', { n: latest[type].rows }) }}</td>
+              <td>{{ t('overview.coverageRank', { n: latest[type].max }) }}</td>
             </template>
-            <td v-else colspan="3" class="warn">fehlt</td>
+            <td v-else colspan="3" class="warn">{{ t('overview.missing') }}</td>
           </tr>
         </table>
-        <p>Je Kategorie der neueste eingefügte Stand. Kategorien, die älter als der neueste Stand sind, bitte im Spiel neu einfügen.</p>
-        <p>Kursive Δ-Werte: Der Zeitraum ist noch nicht vollständig abgedeckt, die Veränderung gilt seit dem ältesten vorhandenen Stand.</p>
+        <p>{{ t('overview.coverageHint1') }}</p>
+        <p>{{ t('overview.coverageHint2') }}</p>
       </Hint>
-      <span v-for="t in staleTypes" :key="t" class="warn" :title="latest[t] ? `Stand ${dateTime(latest[t].time)} – älter als ${dateTime(newestStat)}: neu einfügen` : 'noch nicht eingefügt'">
-        ⚠ {{ STATS_TYPES[t] }} {{ latest[t] ? `älter (${time(latest[t].time)})` : 'fehlt' }}
+      <span
+        v-for="type in staleTypes"
+        :key="type"
+        class="warn"
+        :title="latest[type] ? t('overview.staleTitle', { time: dateTime(latest[type].time), newest: dateTime(newestStat) }) : t('overview.notPasted')"
+      >
+        ⚠ {{ STATS_TYPES[type] }} {{ latest[type] ? t('overview.older', { time: time(latest[type].time) }) : t('overview.missing') }}
       </span>
     </div>
   </div>
 
   <div v-if="error" class="error">{{ error }}</div>
   <div v-else-if="!loading && !players.length" class="card muted">
-    Noch keine Statistik vorhanden. Unter <RouterLink :to="`/${uni}/paste`">Synchronisieren</RouterLink> die Statistikseiten einfügen
-    (am besten jede Kategorie: Punkte, Flotte, Forschung, Gebäude, Verteidigung). Planeten kommen aus Galaxie-Ansichten und Spionageberichten.
+    <i18n-t keypath="overview.empty">
+      <template #sync><RouterLink :to="`/${uni}/paste`">{{ t('nav.sync') }}</RouterLink></template>
+    </i18n-t>
   </div>
 
   <!-- Planet view (like the FF-Hub overview) -->
@@ -408,25 +417,25 @@ const history = computed(() => {
       <thead>
         <tr>
           <th class="num">#</th>
-          <th class="sortable" @click="planetSort.sortBy('ally')">Ally{{ planetSort.indicator('ally') }}</th>
-          <th class="sortable" @click="planetSort.sortBy('name')">Spieler{{ planetSort.indicator('name') }}</th>
-          <th class="sortable" @click="planetSort.sortBy('coords')">Koord.{{ planetSort.indicator('coords') }}</th>
+          <th class="sortable" @click="planetSort.sortBy('ally')">{{ t('overview.ally') }}{{ planetSort.indicator('ally') }}</th>
+          <th class="sortable" @click="planetSort.sortBy('name')">{{ t('common.player') }}{{ planetSort.indicator('name') }}</th>
+          <th class="sortable" @click="planetSort.sortBy('coords')">{{ t('common.coords') }}{{ planetSort.indicator('coords') }}</th>
           <th />
-          <th v-if="origin" class="sortable num" @click="planetSort.sortBy('dist')">Entf.{{ planetSort.indicator('dist') }}</th>
-          <th class="sortable num" title="Gesamtpunkte" @click="planetSort.sortBy('p:1')">Punkte{{ planetSort.indicator('p:1') }}</th>
+          <th v-if="origin" class="sortable num" @click="planetSort.sortBy('dist')">{{ t('overview.dist') }}{{ planetSort.indicator('dist') }}</th>
+          <th class="sortable num" :title="STATS_TYPES[1]" @click="planetSort.sortBy('p:1')">{{ t('expeditions.points') }}{{ planetSort.indicator('p:1') }}</th>
           <th v-for="w in PLANET_WINDOWS" :key="w" class="sortable num" :title="slotHeader(w)" @click="planetSort.sortBy('d:' + w)">
             Δ{{ w }}{{ planetSort.indicator('d:' + w) }}
           </th>
-          <th class="sortable num" title="Gebäudepunkte des Planeten (eigenes Imperium oder letzte Spionage)" @click="planetSort.sortBy('building')">Geb.{{ planetSort.indicator('building') }}</th>
-          <th class="sortable num" title="Forschungspunkte des Spielers" @click="planetSort.sortBy('p:3')">Forsch.{{ planetSort.indicator('p:3') }}</th>
-          <th class="sortable num" title="Flottenpunkte auf dem Planeten (eigenes Imperium oder letzte Spionage)" @click="planetSort.sortBy('fleet')">Flotte{{ planetSort.indicator('fleet') }}</th>
-          <th class="sortable num" title="Verteidigungspunkte des Planeten (eigenes Imperium oder letzte Spionage)" @click="planetSort.sortBy('defense')">Vert.{{ planetSort.indicator('defense') }}</th>
-          <th class="sortable" title="Letzter Kampfbericht" @click="planetSort.sortBy('battle')">Angriff{{ planetSort.indicator('battle') }}</th>
-          <th class="sortable" title="Letzte Spionage" @click="planetSort.sortBy('spy')">Spio{{ planetSort.indicator('spy') }}</th>
-          <th class="sortable num" title="Metall (letzte Spionage)" @click="planetSort.sortBy('res:901')">MET{{ planetSort.indicator('res:901') }}</th>
-          <th class="sortable num" title="Kristall (letzte Spionage)" @click="planetSort.sortBy('res:902')">KRI{{ planetSort.indicator('res:902') }}</th>
-          <th class="sortable num" title="Deuterium (letzte Spionage)" @click="planetSort.sortBy('res:903')">DEU{{ planetSort.indicator('res:903') }}</th>
-          <th class="sortable num" title="Summe Rohstoffe" @click="planetSort.sortBy('res')">Σ{{ planetSort.indicator('res') }}</th>
+          <th class="sortable num" :title="t('overview.buildingTitle')" @click="planetSort.sortBy('building')">{{ t('stats.col.4') }}{{ planetSort.indicator('building') }}</th>
+          <th class="sortable num" :title="t('overview.researchTitle')" @click="planetSort.sortBy('p:3')">{{ t('stats.col.3') }}{{ planetSort.indicator('p:3') }}</th>
+          <th class="sortable num" :title="t('overview.fleetTitle')" @click="planetSort.sortBy('fleet')">{{ t('stats.col.2') }}{{ planetSort.indicator('fleet') }}</th>
+          <th class="sortable num" :title="t('overview.defenseTitle')" @click="planetSort.sortBy('defense')">{{ t('stats.col.5') }}{{ planetSort.indicator('defense') }}</th>
+          <th class="sortable" :title="t('overview.battleTitle')" @click="planetSort.sortBy('battle')">{{ t('overview.battle') }}{{ planetSort.indicator('battle') }}</th>
+          <th class="sortable" :title="t('overview.spyTitle')" @click="planetSort.sortBy('spy')">{{ t('player.sourceSpyShort') }}{{ planetSort.indicator('spy') }}</th>
+          <th class="sortable num" :title="t('overview.resTitle', { res: name(901) })" @click="planetSort.sortBy('res:901')">{{ t('overview.resShort.901') }}{{ planetSort.indicator('res:901') }}</th>
+          <th class="sortable num" :title="t('overview.resTitle', { res: name(902) })" @click="planetSort.sortBy('res:902')">{{ t('overview.resShort.902') }}{{ planetSort.indicator('res:902') }}</th>
+          <th class="sortable num" :title="t('overview.resTitle', { res: name(903) })" @click="planetSort.sortBy('res:903')">{{ t('overview.resShort.903') }}{{ planetSort.indicator('res:903') }}</th>
+          <th class="sortable num" :title="t('overview.resSum')" @click="planetSort.sortBy('res')">Σ{{ planetSort.indicator('res') }}</th>
         </tr>
       </thead>
       <tbody>
@@ -434,9 +443,9 @@ const history = computed(() => {
           <td class="num faint">{{ i + 1 }}</td>
           <td class="muted" style="max-width: 120px; overflow: hidden; text-overflow: ellipsis" :title="r.player.ally_name ?? ''">{{ r.player.ally_tag ?? r.player.ally_name ?? '' }}</td>
           <td>
-            <span v-if="freshInactive(r.player) != null" class="badge" style="color: var(--neg)" title="inaktiv seit">{{ freshInactive(r.player) }}h</span>
+            <span v-if="freshInactive(r.player) != null" class="badge" style="color: var(--neg)" :title="t('overview.inactiveSince')">{{ freshInactive(r.player) }}h</span>
             <PlayerLink :id="r.player.id" :name="r.player.name" />
-            <span v-if="matchedAlias(r.player)" class="faint small"> (früher {{ matchedAlias(r.player) }})</span>
+            <span v-if="matchedAlias(r.player)" class="faint small"> ({{ t('player.aliases', { names: matchedAlias(r.player) }) }})</span>
             <StatusBadges :status="r.player.status" />
             <span v-if="r.player.note" class="faint small" :title="r.player.note"> ✎</span>
           </td>
@@ -444,13 +453,13 @@ const history = computed(() => {
             <template v-if="r.planet">
               <a v-if="hasGameUrl" :href="galaxyLink(r.planet)" target="_blank" rel="noopener" :title="r.planet.name ?? ''">{{ r.planet.g }}:{{ r.planet.s }}:{{ r.planet.p }}</a>
               <span v-else :title="r.planet.name ?? ''">{{ r.planet.g }}:{{ r.planet.s }}:{{ r.planet.p }}</span>
-              <span v-if="r.planet.type === 'moon'" class="moon-tag" style="margin: 0 0 0 4px">☾ Mond</span>
+              <span v-if="r.planet.type === 'moon'" class="moon-tag" style="margin: 0 0 0 4px">☾ {{ t('common.moon') }}</span>
             </template>
-            <span v-else class="faint" title="Keine Planeten bekannt (Galaxie einfügen)">–</span>
+            <span v-else class="faint" :title="t('overview.noPlanets')">–</span>
           </td>
           <td><PlanetActions v-if="r.planet" :g="r.planet.g" :s="r.planet.s" :p="r.planet.p" :type="r.planet.type" :from="origin" /></td>
           <td v-if="origin" class="num">{{ num(r.dist) }}</td>
-          <td class="num" :title="r.player.scores[1] ? `Rang ${r.player.scores[1].rank} · Stand ${dateTime(r.player.scores[1].time)}` : ''">
+          <td class="num" :title="r.player.scores[1] ? `${t('stats.rank')} ${r.player.scores[1].rank} · ${t('stats.asOf', { time: dateTime(r.player.scores[1].time) })}` : ''">
             {{ shortOrEmpty(r.player.scores[1]?.points) }}
           </td>
           <td
@@ -462,18 +471,18 @@ const history = computed(() => {
           >
             {{ slot(r.player, w) ? fmtSigned(slot(r.player, w)!.delta) : '' }}
           </td>
-          <td class="num" :title="`Spieler gesamt: ${fmt(r.player.scores[4]?.points)} · ${pts(r, 'building').title}`">{{ num(pts(r, 'building').value) }}</td>
+          <td class="num" :title="`${t('overview.playerTotal', { n: fmt(r.player.scores[4]?.points) })} · ${pts(r, 'building').title}`">{{ num(pts(r, 'building').value) }}</td>
           <td class="num">{{ num(r.player.scores[3]?.points) }}</td>
-          <td class="num" :title="`Spieler gesamt: ${fmt(r.player.scores[2]?.points)} · ${pts(r, 'fleet').title}`">{{ num(pts(r, 'fleet').value) }}</td>
-          <td class="num" :title="`Spieler gesamt: ${fmt(r.player.scores[5]?.points)} · ${pts(r, 'defense').title}`">{{ num(pts(r, 'defense').value) }}</td>
+          <td class="num" :title="`${t('overview.playerTotal', { n: fmt(r.player.scores[2]?.points) })} · ${pts(r, 'fleet').title}`">{{ num(pts(r, 'fleet').value) }}</td>
+          <td class="num" :title="`${t('overview.playerTotal', { n: fmt(r.player.scores[5]?.points) })} · ${pts(r, 'defense').title}`">{{ num(pts(r, 'defense').value) }}</td>
           <td class="small muted" :title="dateTime(r.planet?.last_battle)">{{ r.planet?.last_battle ? ago(r.planet.last_battle) : '' }}</td>
           <td class="small">
-            <RouterLink v-if="r.planet?.spy" :to="spyLink(r.planet)" :title="`${r.planet.spy.count} Berichte · ${dateTime(r.planet.spy.time)}`">{{ ago(r.planet.spy.time) }}</RouterLink>
+            <RouterLink v-if="r.planet?.spy" :to="spyLink(r.planet)" :title="`${t('spy.reports', r.planet.spy.count)} · ${dateTime(r.planet.spy.time)}`">{{ ago(r.planet.spy.time) }}</RouterLink>
           </td>
           <td class="num" :title="age(r.planet?.spy?.resTime)">{{ shortOrEmpty(resOf(r, 901)) }}</td>
           <td class="num" :title="age(r.planet?.spy?.resTime)">{{ shortOrEmpty(resOf(r, 902)) }}</td>
           <td class="num" :title="age(r.planet?.spy?.resTime)">{{ shortOrEmpty(resOf(r, 903)) }}</td>
-          <td class="num" :title="resSum(r) == null ? '' : `${Math.ceil(resSum(r)! / 2 / 5000)} kleine / ${Math.ceil(resSum(r)! / 2 / 25000)} große Transporter für die Hälfte`">
+          <td class="num" :title="resSum(r) == null ? '' : t('overview.cargoHalf', { small: Math.ceil(resSum(r)! / 2 / 5000), large: Math.ceil(resSum(r)! / 2 / 25000) })">
             {{ shortOrEmpty(resSum(r)) }}
           </td>
         </tr>
@@ -487,11 +496,11 @@ const history = computed(() => {
       <thead>
         <tr>
           <th class="sortable num" @click="playerSort.sortBy('rank')">#{{ playerSort.indicator('rank') }}</th>
-          <th class="sortable" @click="playerSort.sortBy('name')">Spieler{{ playerSort.indicator('name') }}</th>
-          <th class="sortable" @click="playerSort.sortBy('ally')">Allianz{{ playerSort.indicator('ally') }}</th>
-          <template v-for="t in [1, 4, 3, 2, 5]" :key="t">
-            <th class="sortable num" :title="STATS_TYPES[t]" @click="playerSort.sortBy('p:' + t)">{{ STATS_SHORT[t] }}{{ playerSort.indicator('p:' + t) }}</th>
-            <th class="sortable num" :title="`Δ ${STATS_TYPES[t]} (${WINDOW_LABEL[win]})`" @click="playerSort.sortBy('d:' + t)">Δ{{ playerSort.indicator('d:' + t) }}</th>
+          <th class="sortable" @click="playerSort.sortBy('name')">{{ t('common.player') }}{{ playerSort.indicator('name') }}</th>
+          <th class="sortable" @click="playerSort.sortBy('ally')">{{ t('common.alliance') }}{{ playerSort.indicator('ally') }}</th>
+          <template v-for="type in [1, 4, 3, 2, 5]" :key="type">
+            <th class="sortable num" :title="STATS_TYPES[type]" @click="playerSort.sortBy('p:' + type)">{{ STATS_SHORT[type] }}{{ playerSort.indicator('p:' + type) }}</th>
+            <th class="sortable num" :title="`Δ ${STATS_TYPES[type]} (${windowLabel(win)})`" @click="playerSort.sortBy('d:' + type)">Δ{{ playerSort.indicator('d:' + type) }}</th>
           </template>
         </tr>
       </thead>
@@ -504,17 +513,17 @@ const history = computed(() => {
             </span>
           </td>
           <td>
-            <span v-if="freshInactive(r) != null" class="badge" style="color: var(--neg)" title="inaktiv seit">{{ freshInactive(r) }}h</span>
+            <span v-if="freshInactive(r) != null" class="badge" style="color: var(--neg)" :title="t('overview.inactiveSince')">{{ freshInactive(r) }}h</span>
             <PlayerLink :id="r.id" :name="r.name" />
-            <span v-if="matchedAlias(r)" class="faint small"> (früher {{ matchedAlias(r) }})</span>
+            <span v-if="matchedAlias(r)" class="faint small"> ({{ t('player.aliases', { names: matchedAlias(r) }) }})</span>
             <StatusBadges :status="r.status" />
             <span v-if="r.note" class="faint small" :title="r.note"> ✎</span>
           </td>
           <td class="muted">{{ r.ally_tag ?? r.ally_name ?? '' }}</td>
-          <template v-for="t in [1, 4, 3, 2, 5]" :key="t">
-            <td class="num" :title="r.scores[t] ? `${fmt(r.scores[t].points)} · Stand ${dateTime(r.scores[t].time)}` : ''">{{ short(r.scores[t]?.points) }}</td>
-            <td class="num" :style="deltaStyle(r.scores[t]?.points, delta(r, t))" :title="deltaTitle(delta(r, t), win)">
-              {{ delta(r, t) ? fmtSigned(delta(r, t)!.delta) : '' }}
+          <template v-for="type in [1, 4, 3, 2, 5]" :key="type">
+            <td class="num" :title="r.scores[type] ? `${fmt(r.scores[type].points)} · ${t('stats.asOf', { time: dateTime(r.scores[type].time) })}` : ''">{{ short(r.scores[type]?.points) }}</td>
+            <td class="num" :style="deltaStyle(r.scores[type]?.points, delta(r, type))" :title="deltaTitle(delta(r, type), win)">
+              {{ delta(r, type) ? fmtSigned(delta(r, type)!.delta) : '' }}
             </td>
           </template>
         </tr>

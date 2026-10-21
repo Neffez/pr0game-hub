@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { fmt, fmtSigned, name, SECTIONS, timeWithAge } from '../format';
 
 export interface SpyReport {
@@ -12,6 +13,7 @@ export interface SpyReport {
 }
 
 const props = defineProps<{ reports: SpyReport[]; gameUrl?: string }>();
+const { t } = useI18n();
 
 /**
  * Per section: rows (newest first) with values and the change against the previous
@@ -48,24 +50,24 @@ function simLink(r: SpyReport) {
 </script>
 
 <template>
-  <div v-if="!reports.length" class="muted">Keine Spionageberichte.</div>
+  <div v-if="!reports.length" class="muted">{{ t('spyHistory.none') }}</div>
   <template v-else>
     <p class="small muted">
-      Neuester Bericht: {{ timeWithAge(reports[0].report_time) }}
-      <template v-if="reports[0].reporter"> von {{ reports[0].reporter }}</template>
-      <template v-if="gameUrl"> · <a :href="simLink(reports[0])" target="_blank" rel="noopener">Simulator</a></template>
+      {{ t('spyHistory.latest', { time: timeWithAge(reports[0].report_time) }) }}
+      <template v-if="reports[0].reporter"> {{ t('common.from') }} {{ reports[0].reporter }}</template>
+      <template v-if="gameUrl"> · <a :href="simLink(reports[0])" target="_blank" rel="noopener">{{ t('spyHistory.simulator') }}</a></template>
     </p>
-    <div v-for="t in tables" :key="t.cls" class="table-wrap" style="margin-bottom: 10px; max-height: none">
+    <div v-for="tbl in tables" :key="tbl.cls" class="table-wrap" style="margin-bottom: 10px; max-height: none">
       <table class="data">
         <thead>
           <tr>
-            <th>{{ t.label }}</th>
-            <th>von</th>
-            <th v-for="id in t.columns" :key="id" class="num" :title="name(id)">{{ name(id) }}</th>
+            <th>{{ tbl.label }}</th>
+            <th>{{ t('common.from') }}</th>
+            <th v-for="id in tbl.columns" :key="id" class="num" :title="name(id)">{{ name(id) }}</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="row in t.rows" :key="row.report.id">
+          <tr v-for="row in tbl.rows" :key="row.report.id">
             <td class="small mono">{{ timeWithAge(row.report.report_time) }}</td>
             <td class="small muted">{{ row.report.reporter ?? '–' }}</td>
             <td v-for="(x, i) in row.values" :key="i" class="num" :class="{ faint: !x.v }">

@@ -1,9 +1,10 @@
 import { reactive } from 'vue';
+import { i18n, setLocale, t } from './i18n';
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, '') + '/api';
 
 export interface Me {
-  user: { id: number; username: string; isAdmin: boolean } | null;
+  user: { id: number; username: string; isAdmin: boolean; lang: string } | null;
   groups: { id: number; name: string; role: string; universe: string; universe_name: string }[];
 }
 
@@ -31,9 +32,15 @@ export function selectGroup(uni: string, id: number) {
 }
 
 export class ApiError extends Error {
-  constructor(public status: number, message: string) {
+  constructor(public status: number, message: string, public code?: string) {
     super(message);
   }
+}
+
+/** Server errors carry a stable `code`; translated when known, otherwise the server's (English) message. */
+function errorMessage(data: { error?: string; code?: string } | null, fallback: string) {
+  const key = `errors.${data?.code}`;
+  return data?.code && i18n.global.te(key) ? t(key) : (data?.error ?? fallback);
 }
 
 export async function api<T = any>(path: string, opts: { method?: string; body?: unknown; uni?: string } = {}): Promise<T> {
@@ -50,7 +57,7 @@ export async function api<T = any>(path: string, opts: { method?: string; body?:
     credentials: 'same-origin',
   });
   const data = res.headers.get('content-type')?.includes('json') ? await res.json() : null;
-  if (!res.ok) throw new ApiError(res.status, data?.error ?? res.statusText);
+  if (!res.ok) throw new ApiError(res.status, errorMessage(data, res.statusText), data?.code);
   return data as T;
 }
 
@@ -61,5 +68,6 @@ export const uniApi = <T = any>(uni: string, path: string, opts: { method?: stri
 export async function loadMe() {
   session.me = await api<Me>('/auth/me');
   session.loaded = true;
+  if (session.me.user) setLocale(session.me.user.lang);
   return session.me;
 }

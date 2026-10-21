@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import Hint from '../components/Hint.vue';
 import { computed, onMounted, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
 import RangePicker from '../components/RangePicker.vue';
 import { useStored, useUni } from '../composables';
-import { coords, dateTime, fmt, short } from '../format';
+import { coords, dateTime, fmt, name, short } from '../format';
 
+const { t, te } = useI18n();
 const { uni, ctx } = useUni();
 const days = useStored('raids.days', 7);
 /** null = whole alliance, otherwise one member */
@@ -53,19 +55,16 @@ const browseLink = (r: any) => ({ path: `/${uni.value}/browse`, query: { g: r.g,
 
 <template>
   <h1>
-    Raids
-    <Hint>
-      Kampfberichte aus den eingefügten Nachrichten aller Allianz-Mitglieder, wahlweise nur für ein Mitglied. Kämpfe auf eigenen Planeten (laut
-      Imperium) zählen als Verteidigung und nicht in die Beute. Darunter das Recycling aus den Recyclerberichten (Transport-Nachrichten).
-    </Hint>
+    {{ t('nav.raids') }}
+    <Hint>{{ t('raids.hint') }}</Hint>
   </h1>
   <div class="card row">
     <RangePicker v-model="days" />
     <label>
-      Spieler
+      {{ t('common.player') }}
       <select v-model="member">
-        <option :value="null">ganze Allianz</option>
-        <option :value="ctx!.me.id">nur meine</option>
+        <option :value="null">{{ t('raids.wholeAlliance') }}</option>
+        <option :value="ctx!.me.id">{{ t('raids.onlyMine') }}</option>
         <option v-for="m in ctx!.members.filter((x) => x.id !== ctx!.me.id)" :key="m.id" :value="m.id">{{ m.name }}</option>
       </select>
     </label>
@@ -74,11 +73,11 @@ const browseLink = (r: any) => ({ path: `/${uni.value}/browse`, query: { g: r.g,
     <div class="table-wrap" style="max-height: none; margin-bottom: 14px">
       <table class="data">
         <thead>
-          <tr><th>Spieler</th><th class="num">Raids</th><th class="num">Metall</th><th class="num">Kristall</th><th class="num">Deut</th><th class="num">Summe</th><th class="num">Ø/Raid</th><th class="num">Verluste</th><th class="num">TF</th></tr>
+          <tr><th>{{ t('common.player') }}</th><th class="num">{{ t('nav.raids') }}</th><th class="num">{{ name(901) }}</th><th class="num">{{ name(902) }}</th><th class="num">{{ t('game.deutShort') }}</th><th class="num">{{ t('common.total') }}</th><th class="num">{{ t('raids.perRaid') }}</th><th class="num">{{ t('raids.losses') }}</th><th class="num">{{ t('game.debrisShort') }}</th></tr>
         </thead>
         <tbody>
           <tr v-for="u in perUser" :key="u.username">
-            <td>{{ u.username }}<span v-if="u.userId === ctx!.me.id" class="faint small"> (du)</span></td>
+            <td>{{ u.username }}<span v-if="u.userId === ctx!.me.id" class="faint small"> {{ t('raids.you') }}</span></td>
             <td class="num">{{ u.raids }}</td>
             <td class="num">{{ short(u.metal) }}</td>
             <td class="num">{{ short(u.crystal) }}</td>
@@ -89,7 +88,7 @@ const browseLink = (r: any) => ({ path: `/${uni.value}/browse`, query: { g: r.g,
             <td class="num">{{ short(u.debris) }}</td>
           </tr>
           <tr v-if="perUser.length > 1" style="font-weight: 600">
-            <td>Allianz gesamt</td>
+            <td>{{ t('raids.allianceTotal') }}</td>
             <td class="num">{{ sum.raids }}</td>
             <td class="num">{{ short(sum.metal) }}</td>
             <td class="num">{{ short(sum.crystal) }}</td>
@@ -99,16 +98,16 @@ const browseLink = (r: any) => ({ path: `/${uni.value}/browse`, query: { g: r.g,
             <td class="num neg">{{ short(sum.lost) }}</td>
             <td class="num">{{ short(sum.debris) }}</td>
           </tr>
-          <tr v-if="!perUser.length"><td colspan="9" class="muted">Keine Raids im Zeitraum.</td></tr>
+          <tr v-if="!perUser.length"><td colspan="9" class="muted">{{ t('raids.noRaids') }}</td></tr>
         </tbody>
       </table>
     </div>
 
-    <h2>Berichte</h2>
+    <h2>{{ t('raids.reports') }}</h2>
     <div class="table-wrap">
       <table class="data">
         <thead>
-          <tr><th>Zeit</th><th>Spieler</th><th>Ziel</th><th></th><th class="num">Beute</th><th class="num">Verl. Angr.</th><th class="num">Verl. Vert.</th><th class="num">TF</th></tr>
+          <tr><th>{{ t('common.time') }}</th><th>{{ t('common.player') }}</th><th>{{ t('hostile.target') }}</th><th></th><th class="num">{{ t('raids.loot') }}</th><th class="num">{{ t('raids.lostAttacker') }}</th><th class="num">{{ t('raids.lostDefender') }}</th><th class="num">{{ t('game.debrisShort') }}</th></tr>
         </thead>
         <tbody>
           <tr v-for="r in reports" :key="r.id" :class="{ dim: r.defense }">
@@ -118,8 +117,8 @@ const browseLink = (r: any) => ({ path: `/${uni.value}/browse`, query: { g: r.g,
               <RouterLink :to="{ path: `/${uni}/spy`, query: { c: `${r.g}:${r.s}:${r.p}`, type: r.planet_type } }">{{ coords(r.g, r.s, r.p) }}</RouterLink>
             </td>
             <td class="small">
-              <span v-if="r.defense" class="muted">Verteidigung</span>
-              <span v-else-if="r.outcome" :class="r.outcome === 'win' ? 'pos' : r.outcome === 'lose' ? 'neg' : 'muted'">{{ r.outcome }}</span>
+              <span v-if="r.defense" class="muted">{{ t('raids.defense') }}</span>
+              <span v-else-if="r.outcome" :class="r.outcome === 'win' ? 'pos' : r.outcome === 'lose' ? 'neg' : 'muted'">{{ te(`raids.outcome.${r.outcome}`) ? t(`raids.outcome.${r.outcome}`) : r.outcome }}</span>
             </td>
             <td class="num">{{ fmt(r.loot_metal + r.loot_crystal + r.loot_deuterium) }}</td>
             <td class="num">{{ fmt(r.lost_attacker) }}</td>
@@ -131,17 +130,17 @@ const browseLink = (r: any) => ({ path: `/${uni.value}/browse`, query: { g: r.g,
     </div>
 
     <h2>
-      Recycling
-      <Hint>Recyclerberichte aus den Transport-Nachrichten: eingesammeltes Trümmerfeld je Mitglied. „Rest im TF“ ist, was nach dem Einsammeln noch übrig war.</Hint>
+      {{ t('raids.recycling') }}
+      <Hint>{{ t('raids.recyclingHint') }}</Hint>
     </h2>
     <div class="table-wrap" style="max-height: none; margin-bottom: 14px">
       <table class="data">
         <thead>
-          <tr><th>Spieler</th><th class="num">Einsätze</th><th class="num">Metall</th><th class="num">Kristall</th><th class="num">Summe</th><th class="num">Ø/Einsatz</th><th class="num">Rest im TF</th></tr>
+          <tr><th>{{ t('common.player') }}</th><th class="num">{{ t('raids.runs') }}</th><th class="num">{{ name(901) }}</th><th class="num">{{ name(902) }}</th><th class="num">{{ t('common.total') }}</th><th class="num">{{ t('raids.perRun') }}</th><th class="num">{{ t('raids.leftInDebris') }}</th></tr>
         </thead>
         <tbody>
           <tr v-for="u in recyclers" :key="u.username">
-            <td>{{ u.username }}<span v-if="u.userId === ctx!.me.id" class="faint small"> (du)</span></td>
+            <td>{{ u.username }}<span v-if="u.userId === ctx!.me.id" class="faint small"> {{ t('raids.you') }}</span></td>
             <td class="num">{{ u.runs }}</td>
             <td class="num">{{ short(u.metal) }}</td>
             <td class="num">{{ short(u.crystal) }}</td>
@@ -150,7 +149,7 @@ const browseLink = (r: any) => ({ path: `/${uni.value}/browse`, query: { g: r.g,
             <td class="num muted">{{ short(u.left) }}</td>
           </tr>
           <tr v-if="recyclers.length > 1" style="font-weight: 600">
-            <td>Allianz gesamt</td>
+            <td>{{ t('raids.allianceTotal') }}</td>
             <td class="num">{{ recycleSum.runs }}</td>
             <td class="num">{{ short(recycleSum.metal) }}</td>
             <td class="num">{{ short(recycleSum.crystal) }}</td>
@@ -158,7 +157,7 @@ const browseLink = (r: any) => ({ path: `/${uni.value}/browse`, query: { g: r.g,
             <td class="num">{{ recycleSum.runs ? short((recycleSum.metal + recycleSum.crystal) / recycleSum.runs) : '' }}</td>
             <td class="num muted">{{ short(recycleSum.left) }}</td>
           </tr>
-          <tr v-if="!recyclers.length"><td colspan="7" class="muted">Keine Recyclerberichte im Zeitraum.</td></tr>
+          <tr v-if="!recyclers.length"><td colspan="7" class="muted">{{ t('raids.noRecycling') }}</td></tr>
         </tbody>
       </table>
     </div>
@@ -166,13 +165,13 @@ const browseLink = (r: any) => ({ path: `/${uni.value}/browse`, query: { g: r.g,
     <div v-if="recycling.length" class="table-wrap">
       <table class="data">
         <thead>
-          <tr><th>Zeit</th><th>Spieler</th><th>Trümmerfeld</th><th class="num">Metall</th><th class="num">Kristall</th><th class="num">TF vorher</th><th class="num">Rest</th></tr>
+          <tr><th>{{ t('common.time') }}</th><th>{{ t('common.player') }}</th><th>{{ t('combat.debris') }}</th><th class="num">{{ name(901) }}</th><th class="num">{{ name(902) }}</th><th class="num">{{ t('raids.debrisBefore') }}</th><th class="num">{{ t('raids.rest') }}</th></tr>
         </thead>
         <tbody>
           <tr v-for="r in recycling" :key="r.id">
             <td class="small">{{ dateTime(r.time ?? r.created_at) }}</td>
             <td>{{ r.username }}</td>
-            <td class="mono"><RouterLink :to="browseLink(r)" title="Im Galaxie-Browser anzeigen">{{ coords(r.g, r.s, r.p) }}</RouterLink></td>
+            <td class="mono"><RouterLink :to="browseLink(r)" :title="t('activity.showInBrowser')">{{ coords(r.g, r.s, r.p) }}</RouterLink></td>
             <td class="num">{{ fmt(r.metal) }}</td>
             <td class="num">{{ fmt(r.crystal) }}</td>
             <td class="num muted">{{ fmt(r.total_metal + r.total_crystal) }}</td>

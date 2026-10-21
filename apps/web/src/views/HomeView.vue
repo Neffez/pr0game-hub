@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import { api, session } from '../api';
 
+const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
 const universes = computed(() => {
@@ -30,17 +32,17 @@ async function logout() {
   <div class="center-box">
     <div class="card">
       <h1>pr0game <span style="color: var(--accent)">Hub</span></h1>
-      <p class="muted">Angemeldet als {{ session.me?.user?.username }}</p>
+      <p class="muted">{{ t('common.loggedInAs', { name: session.me?.user?.username }) }}</p>
       <div v-for="u in universes" :key="u.slug" style="margin: 8px 0">
         <RouterLink :to="`/${u.slug}/overview`">{{ u.name }}</RouterLink>
         <span class="muted small"> – {{ u.groups.join(', ') }}</span>
-        <RouterLink v-if="session.me?.user?.isAdmin" :to="{ path: '/admin', query: { uni: u.slug } }" class="small"> · Einstellungen</RouterLink>
+        <RouterLink v-if="session.me?.user?.isAdmin" :to="{ path: '/admin', query: { uni: u.slug } }" class="small"> · {{ t('home.settings') }}</RouterLink>
       </div>
-      <p v-if="!universes.length" class="muted">Du bist noch in keiner Allianz. Ein Admin muss dich einladen.</p>
+      <p v-if="!universes.length" class="muted">{{ t('home.noGroup') }}</p>
       <div class="row" style="margin-top: 14px">
-        <RouterLink v-if="session.me?.user?.isAdmin || session.me?.groups.some((g) => g.role === 'admin')" to="/admin">Admin-Panel</RouterLink>
-        <RouterLink to="/account">Konto</RouterLink>
-        <a href="#" @click.prevent="logout">Abmelden</a>
+        <RouterLink v-if="session.me?.user?.isAdmin || session.me?.groups.some((g) => g.role === 'admin')" to="/admin">{{ t('nav.admin') }}</RouterLink>
+        <RouterLink to="/account">{{ t('home.account') }}</RouterLink>
+        <a href="#" @click.prevent="logout">{{ t('home.logout') }}</a>
       </div>
     </div>
   </div>

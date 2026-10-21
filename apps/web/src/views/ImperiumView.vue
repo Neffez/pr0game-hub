@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { classOf, elementPoints, storageCapacity } from '@pr0hub/core/tech';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
 import Hint from '../components/Hint.vue';
 import { useStored, useUni } from '../composables';
-import { abbr, ago, dateTime, fmt, fmtSigned, name, short } from '../format';
+import { abbr, ago, dateTime, fmt, fmtSigned, name, short, STATS_TYPES } from '../format';
 
 /**
  * Live view of a member's own planets (like the FF-Hub overview): resources are projected from the
@@ -57,6 +58,7 @@ interface Data {
 const RES = [901, 902, 903] as const;
 const STORE: Record<number, number> = { 901: 22, 902: 23, 903: 24 };
 
+const { t } = useI18n();
 const { uni, ctx } = useUni();
 const userId = useStored<number | null>('imperium.user', null);
 const data = ref<Data | null>(null);
@@ -120,7 +122,7 @@ function resClass(v: { value: number; cap: number }) {
 
 /** "1d 02:03:04" / "02:03:04" */
 function countdown(sec: number) {
-  if (sec <= 0) return 'fertig';
+  if (sec <= 0) return t('imperium.done');
   const d = Math.floor(sec / 86400);
   const h = Math.floor((sec % 86400) / 3600);
   const m = Math.floor((sec % 3600) / 60);
@@ -139,7 +141,7 @@ const endOf = (q: Queue) => overview.value!.time + q.seconds;
 
 function building(p: EmpirePlanet) {
   const q = queueOf('building', p);
-  if (q) return { label: `${name(q.id)}${q.destroy ? ' abreißen' : ''} ${q.level}`, left: endOf(q) - now.value };
+  if (q) return { label: `${name(q.id)}${q.destroy ? ' ' + t('imperium.demolish') : ''} ${q.level}`, left: endOf(q) - now.value };
   if (p.building && !overviewCurrent.value) return { label: `${name(p.building.id)} ${p.building.level}`, left: null };
   return null;
 }
@@ -226,10 +228,10 @@ const livePoints = computed(() => {
   const fleetFromStats = !!(stats[2] && base);
   const fleet = fleetFromStats ? stats[2].points + (planetFleet - base!.points) : planetFleet;
   const cats = [
-    { type: 4, label: 'Gebäude', live: sum[0] },
-    { type: 3, label: 'Forschung', live: sum[100] },
-    { type: 2, label: 'Flotte', live: fleet },
-    { type: 5, label: 'Verteidigung', live: sum[400] },
+    { type: 4, live: sum[0] },
+    { type: 3, live: sum[100] },
+    { type: 2, live: fleet },
+    { type: 5, live: sum[400] },
   ].map((c) => ({ ...c, live: Math.round(c.live), stat: stats[c.type]?.points ?? null }));
   const total = cats.reduce((s, c) => s + c.live, 0);
   return { cats, total, stat: stats[1]?.points ?? null, rank: stats[1]?.rank ?? null, statTime: stats[1]?.time ?? null, fleetFromStats, finished };
@@ -241,79 +243,79 @@ const memberName = (id: number | null) => ctx.value!.members.find((m) => m.id ==
 
 <template>
   <h1>
-    Imperium
+    {{ t('imperium.title') }}
     <Hint>
-      <p>Live-Stand der eigenen Planeten aus dem zuletzt synchronisierten <b>Imperium</b> (Rohstoffe, Produktion, Speicher, Energie) und der zuletzt synchronisierten <b>Übersicht</b> im Spiel (Restzeiten von Gebäude, Forschung und Werft).</p>
-      <p>Rohstoffe wachsen mit der Produktion pro Stunde bis zum Speicherlimit. Fertige Gebäude ändern Produktion und Speicher erst mit dem nächsten Imperium-Sync.</p>
-      <p>Im Spiel im Imperium „Anzeigen: Produktion /h“ aktivieren, sonst fehlt die Produktion. Die Übersicht bitte als Seitenquelltext einfügen (oder per Skript), damit die Restzeiten enthalten sind.</p>
+      <p>{{ t('imperium.hint1') }}</p>
+      <p>{{ t('imperium.hint2') }}</p>
+      <p>{{ t('imperium.hint3') }}</p>
     </Hint>
   </h1>
 
   <div class="card row small">
     <label>
-      Spieler
+      {{ t('common.player') }}
       <select v-model="userId">
         <option v-for="m in ctx!.members" :key="m.id" :value="m.id">{{ m.name }}</option>
       </select>
     </label>
     <span class="muted">
-      Imperium: <template v-if="empire">{{ dateTime(empire.time) }} ({{ ago(empire.time) }})</template><span v-else class="warn">fehlt</span>
+      {{ t('imperium.title') }}: <template v-if="empire">{{ dateTime(empire.time) }} ({{ ago(empire.time) }})</template><span v-else class="warn">{{ t('overview.missing') }}</span>
     </span>
     <span class="muted">
-      Übersicht: <template v-if="overview">{{ dateTime(overview.time) }} ({{ ago(overview.time) }})</template><span v-else class="warn">fehlt (keine Restzeiten)</span>
+      {{ t('nav.overview') }}: <template v-if="overview">{{ dateTime(overview.time) }} ({{ ago(overview.time) }})</template><span v-else class="warn">{{ t('imperium.overviewMissing') }}</span>
     </span>
-    <span v-if="storageFactor !== 1" class="faint" title="Speicherfaktor des Universums, aus der Rohstoffleiste abgeleitet">Speicher ×{{ fmt(storageFactor, 1) }}</span>
-    <span v-if="missingPerHour" class="warn">Produktion/h fehlt: im Imperium „Anzeigen: Produktion /h“ aktivieren und neu synchronisieren.</span>
+    <span v-if="storageFactor !== 1" class="faint" :title="t('imperium.storageTitle')">{{ t('imperium.storage') }} ×{{ fmt(storageFactor, 1) }}</span>
+    <span v-if="missingPerHour" class="warn">{{ t('imperium.perHourMissing') }}</span>
   </div>
 
   <div v-if="error" class="error">{{ error }}</div>
-  <div v-else-if="data && !empire" class="card muted">{{ memberName(userId) }} hat noch kein Imperium eingefügt.</div>
+  <div v-else-if="data && !empire" class="card muted">{{ t('imperium.noEmpire', { name: memberName(userId) }) }}</div>
   <div v-else-if="data && !hasLiveData" class="card muted">
-    Das letzte Imperium enthält keine Rohstoffe (älterer Stand oder Plaintext). Imperium bitte als HTML/Seitenquelltext erneut einfügen.
+    {{ t('imperium.noResources') }}
   </div>
 
   <div v-if="!error && empire && livePoints" class="card live-points">
     <div class="row">
       <h3 style="margin: 0">
-        Live-Punkte
+        {{ t('imperium.livePoints') }}
         <Hint>
-          <p>Punkte wie in der Statistik des Spiels, berechnet aus dem zuletzt synchronisierten Imperium: Gebäude, Schiffe und Verteidigung auf den Planeten und Monden, dazu die Forschung. Gebäude und Forschung, die laut synchronisierter Übersicht inzwischen fertig sind, zählen live dazu.</p>
-          <p><b>Δ</b> = Live-Punkte gegenüber dem letzten synchronisierten Statistik-Update, also der erwartete Zuwachs oder Verlust beim nächsten Update.</p>
-          <p><b>Flotte</b>: Flotten im Flug stehen nicht im Imperium. Deshalb gilt der Statistikwert plus die Veränderung der Schiffe auf den Planeten seit dem ersten Imperium nach dem Update. Ohne so ein Imperium zählen nur die Schiffe auf den Planeten.</p>
-          <p>Schiffe und Verteidigung aus der Werft zählen erst mit dem nächsten Imperium-Sync.</p>
+          <p>{{ t('imperium.liveHint1') }}</p>
+          <p>{{ t('imperium.liveHint2') }}</p>
+          <p>{{ t('imperium.liveHint3') }}</p>
+          <p>{{ t('imperium.liveHint4') }}</p>
         </Hint>
       </h3>
       <span v-if="livePoints.stat != null">
-        Punkte <b>{{ fmt(livePoints.stat) }}</b><span v-if="livePoints.rank" class="muted"> (Platz {{ livePoints.rank }})</span>
+        {{ t('expeditions.points') }} <b>{{ fmt(livePoints.stat) }}</b><span v-if="livePoints.rank" class="muted"> ({{ t('stats.rank') }} {{ livePoints.rank }})</span>
       </span>
       <span>
-        Live <b>{{ fmt(livePoints.total) }}</b>
+        {{ t('imperium.live') }} <b>{{ fmt(livePoints.total) }}</b>
         <span v-if="livePoints.stat != null" :class="deltaClass(livePoints.total - livePoints.stat)">({{ fmtSigned(livePoints.total - livePoints.stat) }})</span>
       </span>
       <span class="grow" />
       <span class="muted small">
-        <template v-if="livePoints.statTime">Statistik {{ dateTime(livePoints.statTime) }}</template>
+        <template v-if="livePoints.statTime">{{ t('nav.stats') }} {{ dateTime(livePoints.statTime) }}</template>
       </span>
     </div>
     <p v-if="!data?.player" class="warn small" style="margin: 8px 0 0">
-      Kein Statistik-Vergleich: Für {{ memberName(userId) }} ist kein Ingame-Name hinterlegt (Admin-Panel → Mitglieder) oder der Spieler ist in keiner synchronisierten Statistik.
+      {{ t('imperium.noStats', { name: memberName(userId) }) }}
     </p>
     <table class="data" style="width: auto; margin-top: 8px">
       <thead>
-        <tr><th>Kategorie</th><th class="num">Statistik</th><th class="num">Live</th><th class="num">Δ</th></tr>
+        <tr><th>{{ t('imperium.category') }}</th><th class="num">{{ t('nav.stats') }}</th><th class="num">{{ t('imperium.live') }}</th><th class="num">Δ</th></tr>
       </thead>
       <tbody>
         <tr v-for="c in livePoints.cats" :key="c.type">
           <td>
-            {{ c.label }}
-            <span v-if="c.type === 2 && !livePoints.fleetFromStats" class="warn small" title="Ohne Flotten im Flug: kein Imperium nach dem letzten Flotten-Update synchronisiert">⚠ ohne Flotten im Flug</span>
+            {{ STATS_TYPES[c.type] }}
+            <span v-if="c.type === 2 && !livePoints.fleetFromStats" class="warn small" :title="t('imperium.noFlyingTitle')">⚠ {{ t('imperium.noFlying') }}</span>
           </td>
           <td class="num">{{ c.stat == null ? '–' : fmt(c.stat) }}</td>
           <td class="num">{{ fmt(c.live) }}</td>
           <td class="num" :class="deltaClass(c.stat == null ? null : c.live - c.stat)">{{ c.stat == null ? '' : fmtSigned(c.live - c.stat) }}</td>
         </tr>
         <tr style="font-weight: 600">
-          <td>Gesamt</td>
+          <td>{{ t('common.total') }}</td>
           <td class="num">{{ livePoints.stat == null ? '–' : fmt(livePoints.stat) }}</td>
           <td class="num">{{ fmt(livePoints.total) }}</td>
           <td class="num" :class="deltaClass(livePoints.stat == null ? null : livePoints.total - livePoints.stat)">
@@ -322,35 +324,35 @@ const memberName = (id: number | null) => ctx.value!.members.find((m) => m.id ==
         </tr>
       </tbody>
     </table>
-    <p v-if="livePoints.finished.length" class="muted small" style="margin: 6px 0 0">Seit dem Imperium fertig: {{ livePoints.finished.join(', ') }}</p>
+    <p v-if="livePoints.finished.length" class="muted small" style="margin: 6px 0 0">{{ t('imperium.finished', { list: livePoints.finished.join(', ') }) }}</p>
   </div>
 
   <div v-if="!error && empire && hasLiveData" class="table-wrap">
     <table class="data">
       <thead>
         <tr>
-          <th>Planet</th>
-          <th>Gebäude</th>
-          <th>Forschung</th>
-          <th>Hangar</th>
-          <th class="num">Metall</th>
-          <th class="num">Kristall</th>
-          <th class="num">Deuterium</th>
-          <th class="num">Energie</th>
+          <th>{{ t('common.planet') }}</th>
+          <th>{{ name(0) }}</th>
+          <th>{{ t('player.research') }}</th>
+          <th>{{ t('imperium.hangar') }}</th>
+          <th class="num">{{ name(901) }}</th>
+          <th class="num">{{ name(902) }}</th>
+          <th class="num">{{ name(903) }}</th>
+          <th class="num">{{ name(911) }}</th>
         </tr>
       </thead>
       <tbody>
         <tr v-for="r in rows" :key="r.key" :class="{ moon: r.p.type === 'moon' }">
           <td>
             <span class="mono small">{{ r.p.coords.g }}:{{ r.p.coords.s }}:{{ r.p.coords.p }}</span>
-            <span v-if="r.p.type === 'moon'" class="moon-tag" style="margin-left: 4px">☾ Mond</span>
+            <span v-if="r.p.type === 'moon'" class="moon-tag" style="margin-left: 4px">☾ {{ t('common.moon') }}</span>
             {{ r.p.name }}
           </td>
           <td class="small">
             <template v-if="r.building">
               {{ r.building.label }}
               <span v-if="r.building.left != null" class="mono" :class="r.building.left <= 0 ? 'pos' : 'muted'">{{ countdown(r.building.left) }}</span>
-              <span v-else class="faint" title="Restzeit unbekannt: Übersicht im Spiel synchronisieren">?</span>
+              <span v-else class="faint" :title="t('imperium.leftUnknown')">?</span>
             </template>
             <span v-else class="faint">–</span>
           </td>
@@ -358,14 +360,14 @@ const memberName = (id: number | null) => ctx.value!.members.find((m) => m.id ==
             <template v-if="r.research">
               {{ r.research.label }}
               <span v-if="r.research.left != null" class="mono" :class="r.research.left <= 0 ? 'pos' : 'muted'">{{ countdown(r.research.left) }}</span>
-              <span v-else class="faint" title="Restzeit unbekannt: Übersicht im Spiel synchronisieren">?</span>
+              <span v-else class="faint" :title="t('imperium.leftUnknown')">?</span>
             </template>
             <span v-else class="faint">–</span>
           </td>
           <td class="small" :title="r.shipyard?.title">
             <template v-if="r.shipyard">
               {{ r.shipyard.label }}
-              <span v-if="r.shipyard.left != null" class="mono muted" title="aktueller Auftrag">{{ countdown(r.shipyard.left) }}</span>
+              <span v-if="r.shipyard.left != null" class="mono muted" :title="t('imperium.currentJob')">{{ countdown(r.shipyard.left) }}</span>
             </template>
             <span v-else class="faint">–</span>
           </td>
@@ -374,25 +376,25 @@ const memberName = (id: number | null) => ctx.value!.members.find((m) => m.id ==
             :key="i"
             class="num"
             :class="resClass(v)"
-            :title="`${fmt(v.value)} / ${fmt(v.cap)}${v.perHour ? ` · +${fmt(v.perHour)}/h` : ''}${v.fullIn != null ? ` · voll in ${countdown(v.fullIn)}` : ''}`"
+            :title="`${fmt(v.value)} / ${fmt(v.cap)}${v.perHour ? ` · +${fmt(v.perHour)}/h` : ''}${v.fullIn != null ? ` · ${t('imperium.fullIn', { time: countdown(v.fullIn) })}` : ''}`"
           >
             {{ short(v.value) }} <span class="faint">/ {{ short(v.cap) }}</span>
           </td>
           <td class="num" :class="{ neg: (r.energy ?? 0) < 0 }">{{ r.energy == null ? '' : fmt(r.energy) }}</td>
         </tr>
         <tr v-if="Object.keys(flying).length">
-          <td class="muted">Flotten (unterwegs)</td>
+          <td class="muted">{{ t('imperium.flying') }}</td>
           <td /><td /><td />
           <td v-for="id in RES" :key="id" class="num muted">{{ flying[id] ? short(flying[id]) : '0' }}</td>
           <td />
         </tr>
         <tr style="font-weight: 600">
-          <td>Summe</td>
+          <td>{{ t('common.total') }}</td>
           <td colspan="3" class="small muted">
-            <template v-if="research && !research.coords">Forschung: {{ research.label }} {{ research.left != null ? countdown(research.left) : '' }}</template>
+            <template v-if="research && !research.coords">{{ t('player.research') }}: {{ research.label }} {{ research.left != null ? countdown(research.left) : '' }}</template>
           </td>
-          <td v-for="(t, i) in totals" :key="i" class="num" :title="`+${fmt(t.perHour)}/h`">
-            {{ short(t.value + (flying[RES[i]] ?? 0)) }} <span class="faint">/ {{ short(t.cap) }}</span>
+          <td v-for="(sum, i) in totals" :key="i" class="num" :title="`+${fmt(sum.perHour)}/h`">
+            {{ short(sum.value + (flying[RES[i]] ?? 0)) }} <span class="faint">/ {{ short(sum.cap) }}</span>
           </td>
           <td />
         </tr>

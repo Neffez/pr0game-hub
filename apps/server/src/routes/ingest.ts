@@ -20,7 +20,7 @@ export function ingestRoutes(app: FastifyInstance, db: DB) {
   app.post<{ Params: { uni: string }; Body: IngestBody }>('/api/:uni/ingest', async (req) => {
     const ctx = groupContext(db, req, req.params.uni);
     const body = req.body ?? {};
-    if (!body.html && !body.text) throw new HttpError(400, 'Nichts eingefügt');
+    if (!body.html && !body.text) throw new HttpError(400, 'nothing_pasted', 'Nothing pasted');
     return ingest(
       db,
       { groupId: ctx.groupId, userId: ctx.user.id, timezone: ctx.universe.settings.timezone },
@@ -36,7 +36,7 @@ export function ingestRoutes(app: FastifyInstance, db: DB) {
     async (req) => {
       const ctx = groupContext(db, req, req.params.uni);
       const text = req.body?.text;
-      if (!text || !looksLikeUniverseJson(text)) throw new HttpError(400, 'Keine gültige universe.json');
+      if (!text || !looksLikeUniverseJson(text)) throw new HttpError(400, 'universe_json_invalid', 'Not a valid universe.json');
       return ingest(
         db,
         { groupId: ctx.groupId, userId: ctx.user.id, timezone: ctx.universe.settings.timezone },

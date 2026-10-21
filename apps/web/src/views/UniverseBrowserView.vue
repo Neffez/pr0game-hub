@@ -1,13 +1,15 @@
 <script setup lang="ts">
 import PlayerLink from '../components/PlayerLink.vue';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import { uniApi } from '../api';
 import Hint from '../components/Hint.vue';
 import PlanetActions from '../components/PlanetActions.vue';
 import StatusBadges from '../components/StatusBadges.vue';
 import { useStored, useUni } from '../composables';
-import { ago, dateTime, fmt, freshnessColor, short, timeWithAge } from '../format';
+import { ago, dateTime, fmt, freshnessColor, name, short, timeWithAge } from '../format';
+import GalaxyFreshness from '../components/GalaxyFreshness.vue';
 
 /** Galaxy view like in the game, from the synced galaxy data (no activity, no deuterium). */
 /** Last spy report of a planet/moon: time and the resources it showed. */
@@ -38,6 +40,7 @@ interface Row {
   own: boolean;
 }
 
+const { t } = useI18n();
 const { uni, ctx } = useUni();
 const route = useRoute();
 const router = useRouter();
@@ -102,6 +105,12 @@ function step(ds: number, dg = 0) {
     s.value = next;
   }
 }
+/** System picked in the freshness heat map below: show it and scroll back up. */
+function showSystem(pos: { g: number; s: number }) {
+  g.value = pos.g;
+  s.value = pos.s;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
 function goTo() {
   const m = jump.value.match(/(\d+)\D+(\d+)/);
   if (!m) return;
@@ -112,8 +121,8 @@ function goTo() {
 
 /** ←/→ system, ↑/↓ galaxy, Bild↑/↓ 10 systems; ignored while typing. */
 function onKey(e: KeyboardEvent) {
-  const t = e.target as HTMLElement;
-  if (t && ['INPUT', 'SELECT', 'TEXTAREA'].includes(t.tagName)) return;
+  const el = e.target as HTMLElement;
+  if (el && ['INPUT', 'SELECT', 'TEXTAREA'].includes(el.tagName)) return;
   // keys belong to the player dialog while it is open
   if (route.query.player) return;
   const map: Record<string, [number, number]> = {
@@ -164,16 +173,16 @@ function rangeSegments(ph: Phalanx) {
   if (ph.range * 2 >= n) return [seg(1, n)];
   return ph.from <= ph.to ? [seg(ph.from, ph.to)] : [seg(ph.from, n), seg(1, ph.to)];
 }
-const debrisText = (d: Row['debris']) => (d ? `M ${d.metal} · K ${d.crystal}` : '');
+const debrisText = (d: Row['debris']) => (d ? `${t('browse.metalShort')} ${d.metal} · ${t('browse.crystalShort')} ${d.crystal}` : '');
 </script>
 
 <template>
   <h1>
-    Galaxie-Browser
+    {{ t('browse.title') }}
     <Hint>
-      <p>Galaxieansicht wie im Spiel, aus den synchronisierten Galaxie-Daten (eingefügte Galaxieansichten, universe.json) – ohne Aktivität und ohne Deuterium.</p>
-      <p>Planet- und Mondnamen öffnen das Aktionsmenü. „Letzte Spio“ und die Rohstoffspalten zeigen den letzten Spionagebericht, bei Planet und Mond untereinander (☾ = Mond). Klick auf die Zeit öffnet den Spionage-Verlauf.</p>
-      <p>Tastatur: ←/→ System, ↑/↓ Galaxie, Bild↑/↓ 10 Systeme. Die Leiste zeigt alle Systeme der Galaxie: Farbe = Aktualität, Höhe = Anzahl Planeten, Punkt = Planet der Allianz.</p>
+      <p>{{ t('browse.hint1') }}</p>
+      <p>{{ t('browse.hint2') }}</p>
+      <p>{{ t('browse.hint3') }}</p>
     </Hint>
   </h1>
 
@@ -183,25 +192,25 @@ const debrisText = (d: Row['debris']) => (d ? `M ${d.metal} · K ${d.crystal}` :
         <button v-for="n in settings.galaxies" :key="n" :class="{ active: g === n }" @click="g = n">G{{ n }}</button>
       </div>
       <span class="grow" />
-      <button title="10 Systeme zurück (Bild↓)" @click="step(-10)">«</button>
-      <button title="Vorheriges System (←)" @click="step(-1)">‹</button>
+      <button :title="t('browse.back10')" @click="step(-10)">«</button>
+      <button :title="t('browse.prev')" @click="step(-1)">‹</button>
       <label class="mono">
         {{ g }}:<input v-model.number="s" type="number" min="1" :max="settings.systems" style="width: 70px" @change="s = clamp(s, settings.systems)" />
       </label>
-      <button title="Nächstes System (→)" @click="step(1)">›</button>
-      <button title="10 Systeme vor (Bild↑)" @click="step(10)">»</button>
+      <button :title="t('browse.next')" @click="step(1)">›</button>
+      <button :title="t('browse.forward10')" @click="step(10)">»</button>
       <form class="row" style="gap: 4px" @submit.prevent="goTo">
-        <input v-model="jump" placeholder="Springe zu g:s" style="width: 120px" />
+        <input v-model="jump" :placeholder="t('browse.jump')" style="width: 120px" />
       </form>
     </div>
 
-    <div class="strip" :title="`Galaxie ${g}`">
+    <div class="strip" :title="`${t('nav.galaxy')} ${g}`">
       <div
         v-for="c in stripCells"
         :key="c.s"
         class="strip-cell"
         :class="{ current: c.s === s }"
-        :title="`${g}:${c.s} · ${c.planets} Planeten · ${c.age == null ? 'nie gesehen' : 'gesehen vor ' + ago(now - c.age)}${c.own ? ' · Allianz' : ''}`"
+        :title="`${g}:${c.s} · ${t('browse.planets', { n: c.planets })} · ${c.age == null ? t('browse.neverSeen') : t('browse.seenAgo', { ago: ago(now - c.age) })}${c.own ? ' · ' + t('common.alliance') : ''}`"
         @click="s = c.s"
       >
         <div class="bar" :style="{ height: `${Math.min(100, 15 + c.planets * 6)}%`, background: freshnessColor(c.age) }" />
@@ -213,31 +222,31 @@ const debrisText = (d: Row['debris']) => (d ? `M ${d.metal} · K ${d.crystal}` :
   <div v-if="error" class="error">{{ error }}</div>
   <div v-else-if="system" class="card" style="padding: 0">
     <div class="row system-head">
-      <b>Sonnensystem {{ g }}:{{ s }}</b>
-      <span class="muted small">{{ occupied }} / {{ settings.positions }} belegt</span>
+      <b>{{ t('browse.system', { g, s }) }}</b>
+      <span class="muted small">{{ t('browse.occupied', { n: occupied, total: settings.positions }) }}</span>
       <span v-if="system.view" class="small" :style="{ color: freshnessColor(now - system.view.seen_at) }">
-        gesehen {{ dateTime(system.view.seen_at) }} ({{ ago(system.view.seen_at) }}) von {{ system.view.username }}
+        {{ t('browse.seenBy', { time: dateTime(system.view.seen_at), ago: ago(system.view.seen_at), name: system.view.username }) }}
       </span>
-      <span v-else class="small warn">noch nie synchronisiert</span>
+      <span v-else class="small warn">{{ t('browse.neverSynced') }}</span>
       <span class="grow" />
-      <a v-if="gameUrl" class="small" :href="`${gameUrl}game.php?page=galaxy&galaxy=${g}&system=${s}`" target="_blank" rel="noopener">im Spiel öffnen</a>
+      <a v-if="gameUrl" class="small" :href="`${gameUrl}game.php?page=galaxy&galaxy=${g}&system=${s}`" target="_blank" rel="noopener">{{ t('combat.openInGame') }}</a>
     </div>
     <div class="table-wrap" style="max-height: none; border: 0; border-radius: 0">
       <table class="data">
         <thead>
           <tr>
-            <th class="num">Pos</th>
-            <th>Planet</th>
-            <th>Mond</th>
-            <th>Trümmerfeld</th>
-            <th>Spieler</th>
-            <th class="num">Punkte</th>
-            <th>Allianz</th>
-            <th>Letzte Spio</th>
-            <th class="num">Metall</th>
-            <th class="num">Kristall</th>
-            <th class="num">Deuterium</th>
-            <th>Angriff</th>
+            <th class="num">{{ t('browse.pos') }}</th>
+            <th>{{ t('common.planet') }}</th>
+            <th>{{ t('common.moon') }}</th>
+            <th>{{ t('combat.debris') }}</th>
+            <th>{{ t('common.player') }}</th>
+            <th class="num">{{ t('expeditions.points') }}</th>
+            <th>{{ t('common.alliance') }}</th>
+            <th>{{ t('browse.lastSpy') }}</th>
+            <th class="num">{{ name(901) }}</th>
+            <th class="num">{{ name(902) }}</th>
+            <th class="num">{{ name(903) }}</th>
+            <th>{{ t('overview.battle') }}</th>
           </tr>
         </thead>
         <tbody>
@@ -249,14 +258,14 @@ const debrisText = (d: Row['debris']) => (d ? `M ${d.metal} · K ${d.crystal}` :
             <td class="num faint">{{ p }}</td>
             <td>
               <template v-if="row?.player_id">
-                <PlanetActions :g="g" :s="s" :p="p" type="planet" :label="row.name || 'Planet'" />
+                <PlanetActions :g="g" :s="s" :p="p" type="planet" :label="row.name || t('common.planet')" />
               </template>
-              <span v-else-if="row?.destroyed" class="faint">zerstörter Planet</span>
+              <span v-else-if="row?.destroyed" class="faint">{{ t('browse.destroyed') }}</span>
               <span v-else class="faint">–</span>
             </td>
             <td>
               <template v-if="row?.has_moon">
-                <PlanetActions :g="g" :s="s" :p="p" type="moon" :label="`☾ ${row.moon_name || 'Mond'}`" />
+                <PlanetActions :g="g" :s="s" :p="p" type="moon" :label="`☾ ${row.moon_name || t('common.moon')}`" />
               </template>
             </td>
             <td class="small" :class="{ warn: row?.debris }">{{ debrisText(row?.debris ?? null) }}</td>
@@ -267,15 +276,15 @@ const debrisText = (d: Row['debris']) => (d ? `M ${d.metal} · K ${d.crystal}` :
                 <span v-if="row.note" class="faint small" :title="row.note"> ✎</span>
               </template>
             </td>
-            <td class="num" :title="row?.rank ? `Rang ${row.rank}` : ''">{{ row?.points != null ? short(row.points) : '' }}<span v-if="row?.rank" class="faint small"> #{{ fmt(row.rank) }}</span></td>
+            <td class="num" :title="row?.rank ? `${t('stats.rank')} ${row.rank}` : ''">{{ row?.points != null ? short(row.points) : '' }}<span v-if="row?.rank" class="faint small"> #{{ fmt(row.rank) }}</span></td>
             <td class="muted" :title="row?.ally_name ?? ''">{{ row?.ally_tag ?? row?.ally_name ?? '' }}</td>
             <td class="small">
-              <RouterLink v-for="sp in spies(row)" :key="sp.type" class="spy-line mono" :to="spyLink(p, sp.type)" :title="sp.type === 'moon' ? 'Mond' : 'Planet'">
+              <RouterLink v-for="sp in spies(row)" :key="sp.type" class="spy-line mono" :to="spyLink(p, sp.type)" :title="sp.type === 'moon' ? t('common.moon') : t('common.planet')">
                 <span v-if="sp.type === 'moon'" class="moon-mark">☾</span>{{ timeWithAge(sp.spy.time) }}
               </RouterLink>
             </td>
             <td v-for="id in [901, 902, 903]" :key="id" class="num">
-              <div v-for="sp in spies(row)" :key="sp.type" class="spy-line" :title="sp.spy.resTime ? `Stand ${dateTime(sp.spy.resTime)}` : ''">
+              <div v-for="sp in spies(row)" :key="sp.type" class="spy-line" :title="sp.spy.resTime ? t('stats.asOf', { time: dateTime(sp.spy.resTime) }) : ''">
                 {{ sp.spy.res ? short(sp.spy.res[id] ?? 0) : '–' }}
               </div>
             </td>
@@ -288,34 +297,36 @@ const debrisText = (d: Row['debris']) => (d ? `M ${d.metal} · K ${d.crystal}` :
 
   <div v-if="system" class="card phalanx">
     <h3>
-      Phalanx-Sicht auf {{ g }}:{{ s }}
+      {{ t('browse.phalanxTitle', { g, s }) }}
       <Hint>
-        <p>Monde mit Sensorphalanx, deren Reichweite dieses System erreicht: (Stufe² − 1) Systeme in beide Richtungen.</p>
-        <p>Die Stufe stammt aus dem neuesten Mond-Spionagebericht mit sichtbaren Gebäuden oder aus dem Imperium der Allianz-Mitglieder. Monde ohne solche Daten sind unbekannt.</p>
+        <p>{{ t('browse.phalanxHint1') }}</p>
+        <p>{{ t('browse.phalanxHint2') }}</p>
       </Hint>
-      <span class="muted small" style="font-weight: 400">{{ system.phalanx.length }} bekannt</span>
+      <span class="muted small" style="font-weight: 400">{{ t('browse.known', { n: system.phalanx.length }) }}</span>
     </h3>
-    <p v-if="!system.phalanx.length" class="muted small" style="margin: 0">Keine bekannte Phalanx erreicht dieses System.</p>
+    <p v-if="!system.phalanx.length" class="muted small" style="margin: 0">{{ t('browse.noPhalanx') }}</p>
     <div v-for="ph in system.phalanx" :key="`${ph.s}:${ph.p}`" class="ph-row" :class="{ own: ph.own }">
       <div class="ph-who">
         <PlayerLink v-if="ph.player?.id" :id="ph.player.id" :name="ph.player.name" />
-        <span v-else>{{ ph.player?.name ?? 'unbekannt' }}</span>
+        <span v-else>{{ ph.player?.name ?? t('common.unknown') }}</span>
         <span v-if="ph.player?.ally" class="muted small"> [{{ ph.player.ally }}]</span>
-        <span v-if="ph.own" class="badge" style="color: var(--accent)">Allianz</span>
+        <span v-if="ph.own" class="badge" style="color: var(--accent)">{{ t('common.alliance') }}</span>
       </div>
-      <a class="mono small" href="#" title="System anzeigen" @click.prevent="s = ph.s">☾ {{ ph.g }}:{{ ph.s }}:{{ ph.p }}</a>
-      <span class="small">Stufe <b>{{ ph.level }}</b></span>
-      <span class="mono small" :title="`Reichweite ±${ph.range} Systeme, Abstand ${ph.distance}`">{{ ph.g }}:{{ ph.from }} – {{ ph.g }}:{{ ph.to }}</span>
-      <div class="ph-bar" :title="`Reichweite ${ph.g}:${ph.from} – ${ph.g}:${ph.to}`">
+      <a class="mono small" href="#" :title="t('browse.showSystem')" @click.prevent="s = ph.s">☾ {{ ph.g }}:{{ ph.s }}:{{ ph.p }}</a>
+      <span class="small">{{ t('player.level') }} <b>{{ ph.level }}</b></span>
+      <span class="mono small" :title="t('browse.rangeTitle', { range: ph.range, distance: ph.distance })">{{ ph.g }}:{{ ph.from }} – {{ ph.g }}:{{ ph.to }}</span>
+      <div class="ph-bar" :title="t('browse.range', { from: `${ph.g}:${ph.from}`, to: `${ph.g}:${ph.to}` })">
         <div v-for="(seg, i) in rangeSegments(ph)" :key="i" class="ph-range" :style="{ left: seg.left + '%', width: seg.width + '%' }" />
         <div class="ph-moon" :style="{ left: ((ph.s - 0.5) / settings.systems) * 100 + '%' }" />
         <div class="ph-here" :style="{ left: ((s - 0.5) / settings.systems) * 100 + '%' }" />
       </div>
       <span class="small" :style="{ color: freshnessColor(now - ph.time) }" :title="dateTime(ph.time)">
-        {{ ph.source === 'spy' ? 'Spionage' : 'Imperium' }} vor {{ ago(ph.time) }}
+        {{ t('player.sourceAgo', { source: ph.source === 'spy' ? t('player.sourceSpy') : t('player.sourceEmpire'), ago: ago(ph.time) }) }}
       </span>
     </div>
   </div>
+
+  <GalaxyFreshness :current="{ g, s }" @select="showSystem" />
 </template>
 
 <style scoped>

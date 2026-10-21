@@ -31,11 +31,14 @@ export interface IngestSummary {
   pageType: ParseResult['pageType'];
   source: ParseResult['source'];
   lang: ParseResult['lang'];
+  /** stable codes, translated by the web app */
   warnings: string[];
   counts: Record<string, { new: number; duplicate: number }>;
-  /** short description for the preview, per record */
-  preview: string[];
+  /** short description for the preview, per record (formatted by the web app) */
+  preview: PreviewItem[];
 }
+
+export type PreviewItem = { kind: HubRecord['kind'] } & Record<string, string | number | boolean | null>;
 
 export function ingest(
   db: DB,
@@ -157,31 +160,32 @@ export function backfillActivity(db: DB, groupId: number, timezone: string): num
   return (db.prepare('SELECT COUNT(*) FROM activity_log WHERE group_id = ?').pluck().get(groupId) as number) - before;
 }
 
-function describe(r: HubRecord): string {
+/** Preview entry per record: kind plus the values the web app shows (texts are translated there). */
+function describe(r: HubRecord): PreviewItem {
   const c = (x: { g: number; s: number; p: number }) => `[${x.g}:${x.s}:${x.p}]`;
   switch (r.kind) {
     case 'stats':
-      return `Statistik (${r.who === 'player' ? 'Spieler' : 'Allianz'}, Typ ${r.type ?? '?'}) – ${r.rows.length} Zeilen, Stand ${r.statTime ?? '?'}`;
+      return { kind: r.kind, who: r.who, type: r.type ?? null, rows: r.rows.length, time: r.statTime };
     case 'spy':
-      return `Spionagebericht ${c(r.coords)}${r.planetType === 'moon' ? ' Mond' : ''} ${r.playerName} – ${r.reportTime}`;
+      return { kind: r.kind, coords: c(r.coords), moon: r.planetType === 'moon', player: r.playerName, time: r.reportTime };
     case 'battle':
-      return `Kampfbericht ${c(r.coords)} – Beute ${r.loot.metal + r.loot.crystal + r.loot.deuterium}`;
+      return { kind: r.kind, coords: c(r.coords), loot: r.loot.metal + r.loot.crystal + r.loot.deuterium };
     case 'expedition':
-      return `Expedition ${r.event} ${r.size}${r.depletion ? ` (${r.depletion})` : ''} – ${r.time ?? '?'}`;
+      return { kind: r.kind, event: r.event, size: r.size, depletion: r.depletion ?? null, time: r.time };
     case 'hostileSpy':
-      return `Fremdspionage von ${r.fromPlayerName} ${c(r.fromCoords)} auf ${c(r.targetCoords)}`;
+      return { kind: r.kind, from: r.fromPlayerName, fromCoords: c(r.fromCoords), target: c(r.targetCoords) };
     case 'galaxy':
-      return `Galaxie ${r.g}:${r.s} – ${r.rows.length} Planeten`;
+      return { kind: r.kind, system: `${r.g}:${r.s}`, planets: r.rows.length };
     case 'empire':
-      return `Imperium – ${r.planets.length} Planeten`;
+      return { kind: r.kind, planets: r.planets.length };
     case 'overview':
-      return `Übersicht – ${r.queues.length} laufende Aufträge`;
+      return { kind: r.kind, queues: r.queues.length };
     case 'combatReport':
-      return `Kampfbericht ${r.fleets.map((f) => f.name).join(', ')}`;
+      return { kind: r.kind, names: r.fleets.map((f) => f.name).join(', ') };
     case 'battleHall':
-      return `Battle Hall – ${r.entries.length} Kampfberichte`;
+      return { kind: r.kind, entries: r.entries.length };
     case 'recycle':
-      return `Recyclerbericht ${c(r.coords)} – ${r.metal + r.crystal} gesammelt`;
+      return { kind: r.kind, coords: c(r.coords), amount: r.metal + r.crystal };
   }
 }
 
@@ -329,7 +333,7 @@ class Store {
 
   private stats(r: StatsRecord) {
     if (!r.type || !r.statTime) {
-      this.summary.warnings.push('Statistik ohne Kategorie oder Datum wurde nicht gespeichert.');
+      this.summary.warnings.push('stats_not_saved');
       return;
     }
     const db = this.db;
@@ -711,7 +715,7 @@ class Store {
   /** Pasted/synced report page: archived like the crawler does (needs the report id from the URL). */
   private combatReport(r: CombatReportRecord) {
     if (!r.reportId) {
-      this.summary.warnings.push('Kampfbericht ohne Bericht-ID (URL) – nicht archiviert.');
+      this.summary.warnings.push('battle_report_no_id');
       return;
     }
     this.count('combat_reports', storeCombatReport(this.db, this.t.groupId, r, this.epoch(r.time)));

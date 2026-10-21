@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useUni } from '../composables';
 import { coords, distance, flightCalcLink, type Coords3 } from '../format';
 
 /** Action menu for a planet/moon: links into the game, the flight calculator and the spy history. */
 const props = defineProps<{ g: number; s: number; p: number; type: 'planet' | 'moon'; from?: Coords3 | null; label?: string }>();
 
+const { t } = useI18n();
 const { ctx, uni } = useUni();
 const open = ref(false);
 const menuStyle = ref<Record<string, string>>({});
@@ -33,16 +35,16 @@ const fleet = (mission: number) =>
 const items = computed(() => {
   const list: { label: string; href?: string; to?: object; hint?: string }[] = [];
   if (gameUrl.value) {
-    list.push({ label: 'Spionieren', href: fleet(6), hint: 'Flottenseite im Spiel' });
-    list.push({ label: 'Angreifen', href: fleet(1), hint: 'Flottenseite im Spiel' });
+    list.push({ label: t('actions.spy'), href: fleet(6), hint: t('actions.fleetPage') });
+    list.push({ label: t('actions.attack'), href: fleet(1), hint: t('actions.fleetPage') });
   }
   list.push({
-    label: 'Flugzeit berechnen',
+    label: t('actions.flightTime'),
     href: flightCalcLink(settings.value, start.value?.c ?? null, target.value, ctx.value?.own?.research),
-    hint: start.value ? `von ${start.value.label}` : 'Startplanet: Imperium einfügen',
+    hint: start.value ? t('actions.flightFrom', { from: start.value.label }) : t('actions.flightNoStart'),
   });
-  if (gameUrl.value) list.push({ label: 'Galaxie öffnen', href: `${gameUrl.value}game.php?page=galaxy&galaxy=${props.g}&system=${props.s}`, hint: 'im Spiel' });
-  list.push({ label: 'Spionage-Verlauf', to: { path: `/${uni.value}/spy`, query: { c: `${props.g}:${props.s}:${props.p}`, type: props.type } } });
+  if (gameUrl.value) list.push({ label: t('actions.galaxy'), href: `${gameUrl.value}game.php?page=galaxy&galaxy=${props.g}&system=${props.s}`, hint: t('actions.inGame') });
+  list.push({ label: t('actions.spyHistory'), to: { path: `/${uni.value}/spy`, query: { c: `${props.g}:${props.s}:${props.p}`, type: props.type } } });
   return list;
 });
 
@@ -72,7 +74,7 @@ onBeforeUnmount(close);
 </script>
 
 <template>
-  <button ref="button" class="actions-btn" :class="{ active: open }" title="Aktionen" @click.stop="toggle">{{ label ?? 'Aktionen' }} ▾</button>
+  <button ref="button" class="actions-btn" :class="{ active: open }" :title="t('common.actions')" @click.stop="toggle">{{ label ?? t('common.actions') }} ▾</button>
   <Teleport to="body">
     <div v-if="open" class="actions-menu" :style="menuStyle" @click.stop>
       <template v-for="it in items" :key="it.label">

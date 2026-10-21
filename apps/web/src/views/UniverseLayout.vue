@@ -2,10 +2,12 @@
 import NavIcon from '../components/NavIcon.vue';
 import PlayerDialog from '../components/PlayerDialog.vue';
 import { computed, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import { selectGroup, selectedGroup, session, uniApi } from '../api';
 import { provideUni, type UniContext } from '../composables';
 
+const { t } = useI18n();
 const route = useRoute();
 const uni = computed(() => String(route.params.uni));
 const ctx = ref<UniContext | null>(null);
@@ -35,27 +37,27 @@ function changeGroup() {
 
 watch(uni, load, { immediate: true });
 
+/** Sidebar: `label`/`section` are message keys below nav.* */
 const links = [
-  { to: 'paste', label: 'Synchronisieren', icon: 'sync' },
-  { section: 'Start' },
-  { to: 'overview', label: 'Übersicht', icon: 'overview' },
-  { to: 'imperium', label: 'Mein Imperium', icon: 'imperium' },
-  { to: 'stats', label: 'Statistik', icon: 'stats' },
-  { section: 'Aufklärung' },
-  { to: 'browse', label: 'Galaxie', icon: 'galaxy' },
-  { to: 'spy', label: 'Spionageberichte', icon: 'spy' },
-  { to: 'hostile', label: 'Fremdspionage', icon: 'hostile' },
-  { to: 'activity', label: 'Aktivität', icon: 'activity' },
-  { to: 'galaxy', label: 'Gala-Aktualität', icon: 'freshness' },
-  { section: 'Allianz' },
-  { to: 'planets', label: 'Planeten', icon: 'planets' },
-  { to: 'fleet', label: 'Flotten', icon: 'fleet' },
-  { to: 'research', label: 'Forschung', icon: 'research' },
-  { section: 'Kämpfe & Expos' },
-  { to: 'raids', label: 'Raids', icon: 'raids' },
-  { to: 'battle-hall', label: 'Battle Hall', icon: 'battleHall' },
-  { to: 'expeditions', label: 'Expeditionen', icon: 'expeditions' },
-  { to: 'deck', label: 'Expo-Deck', icon: 'deck' },
+  { to: 'paste', label: 'sync', icon: 'sync' },
+  { section: 'start' },
+  { to: 'overview', label: 'overview', icon: 'overview' },
+  { to: 'imperium', label: 'imperium', icon: 'imperium' },
+  { to: 'stats', label: 'stats', icon: 'stats' },
+  { section: 'recon' },
+  { to: 'browse', label: 'galaxy', icon: 'galaxy' },
+  { to: 'spy', label: 'spy', icon: 'spy' },
+  { to: 'hostile', label: 'hostile', icon: 'hostile' },
+  { to: 'activity', label: 'activity', icon: 'activity' },
+  { section: 'alliance' },
+  { to: 'planets', label: 'planets', icon: 'planets' },
+  { to: 'fleet', label: 'fleet', icon: 'fleet' },
+  { to: 'research', label: 'research', icon: 'research' },
+  { section: 'combat' },
+  { to: 'raids', label: 'raids', icon: 'raids' },
+  { to: 'battle-hall', label: 'battleHall', icon: 'battleHall' },
+  { to: 'expeditions', label: 'expeditions', icon: 'expeditions' },
+  { to: 'deck', label: 'deck', icon: 'deck' },
 ];
 </script>
 
@@ -67,16 +69,16 @@ const links = [
       <select v-if="groups.length > 1" v-model="group" @change="changeGroup">
         <option v-for="g in groups" :key="g.id" :value="g.id">{{ g.name }}</option>
       </select>
-      <div v-else-if="ctx" class="muted small" style="padding: 0 10px">Allianz: {{ ctx.group.name }}</div>
+      <div v-else-if="ctx" class="muted small" style="padding: 0 10px">{{ t('nav.allianceName', { name: ctx.group.name }) }}</div>
       <nav>
         <template v-for="l in links" :key="l.to ?? l.section">
-          <div v-if="l.section" class="section">{{ l.section }}</div>
-          <RouterLink v-else :to="`/${uni}/${l.to}`"><NavIcon :name="l.icon!" />{{ l.label }}</RouterLink>
+          <div v-if="l.section" class="section">{{ t(`nav.${l.section}`) }}</div>
+          <RouterLink v-else :to="`/${uni}/${l.to}`"><NavIcon :name="l.icon!" />{{ t(`nav.${l.label}`) }}</RouterLink>
         </template>
-        <div class="section">Konto</div>
-        <RouterLink :to="{ path: '/', query: { list: null } }"><NavIcon name="universes" />Universen</RouterLink>
-        <RouterLink v-if="session.me?.user?.isAdmin || ctx?.group.role === 'admin'" to="/admin"><NavIcon name="admin" />Admin-Panel</RouterLink>
-        <RouterLink to="/account"><NavIcon name="user" />Benutzer</RouterLink>
+        <div class="section">{{ t('nav.account') }}</div>
+        <RouterLink :to="{ path: '/', query: { list: null } }"><NavIcon name="universes" />{{ t('nav.universes') }}</RouterLink>
+        <RouterLink v-if="session.me?.user?.isAdmin || ctx?.group.role === 'admin'" to="/admin"><NavIcon name="admin" />{{ t('nav.admin') }}</RouterLink>
+        <RouterLink to="/account"><NavIcon name="user" />{{ t('nav.user') }}</RouterLink>
       </nav>
     </aside>
     <main class="main">

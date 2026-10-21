@@ -34,7 +34,7 @@ export function toUniverse(row: UniverseRow): Universe {
 
 export function getUniverse(db: DB, slug: string): Universe {
   const row = db.prepare('SELECT * FROM universes WHERE slug = ?').get(slug) as UniverseRow | undefined;
-  if (!row) throw new HttpError(404, 'Universum nicht gefunden');
+  if (!row) throw new HttpError(404, 'universe_not_found', 'Universe not found');
   return toUniverse(row);
 }
 
@@ -59,6 +59,6 @@ export function resolveGroup(db: DB, user: SessionUser, universe: Universe, want
     )
     .all(universe.id, user.id) as { id: number; name: string; role: 'member' | 'admin' }[];
   const row = wanted ? rows.find((r) => r.id === wanted) : rows[0];
-  if (!row) throw new HttpError(403, 'Keine Allianz in diesem Universum');
+  if (!row) throw new HttpError(403, 'no_group', 'No alliance in this universe');
   return { user, universe, groupId: row.id, groupName: row.name, role: row.role };
 }

@@ -28,7 +28,8 @@ export const router = createRouter({
         { path: 'planets', component: () => import('./views/AllianceView.vue'), meta: { page: 'planets' } },
         { path: 'fleet', component: () => import('./views/AllianceView.vue'), meta: { page: 'fleet' } },
         { path: 'research', component: () => import('./views/AllianceView.vue'), meta: { page: 'research' } },
-        { path: 'galaxy', component: () => import('./views/GalaxyView.vue') },
+        // freshness heat map is part of the galaxy page now
+        { path: 'galaxy', redirect: (to) => `/${to.params.uni}/browse` },
         { path: 'raids', component: () => import('./views/RaidsView.vue') },
         { path: 'expeditions', component: () => import('./views/ExpeditionsView.vue') },
         { path: 'deck', component: () => import('./views/DeckView.vue') },

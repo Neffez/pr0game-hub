@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
 import Hint from '../components/Hint.vue';
 import { useStored, useUni } from '../composables';
@@ -18,6 +19,7 @@ interface Entry {
   report_status: string | null;
 }
 
+const { t } = useI18n();
 const { uni, ctx } = useUni();
 const sort = useStored<'units' | 'time'>('battleHall.sort', 'units');
 const q = ref('');
@@ -52,35 +54,35 @@ const rank = (i: number) => (page.value - 1) * 100 + i + 1;
 
 <template>
   <h1>
-    Battle Hall
+    {{ t('nav.battleHall') }}
     <Hint>
-      <p>Archiv der Hall of Fame aus dem Spiel. Das Spiel zeigt nur die Top 100 – hier bleibt jeder einmal synchronisierte Kampfbericht dauerhaft erhalten.</p>
-      <p>Synchronisieren: im Spiel „Battle Hall“ öffnen (Zeitfenster alle, Tag, Woche oder Monat) und die Seite einfügen bzw. per Skript senden. Am besten regelmäßig das Zeitfenster „Tag“.</p>
-      <p>Grün = Gewinner, Rot = Verlierer, ohne Farbe = Unentschieden.</p>
-      <p>Neue Berichte werden im Hintergrund von der öffentlichen Berichtsseite archiviert („lokal“), da das Spiel kleine Berichte nach einiger Zeit löscht. Gespeichert werden nur Teilnehmer, Flotten vorher/nachher, Ausgang, Verluste und Trümmerfeld.</p>
+      <p>{{ t('battleHall.hint1') }}</p>
+      <p>{{ t('battleHall.hint2') }}</p>
+      <p>{{ t('battleHall.hint3') }}</p>
+      <p>{{ t('battleHall.hint4') }}</p>
     </Hint>
   </h1>
 
   <div class="card row">
     <div class="tabs" style="margin: 0">
-      <button :class="{ active: sort === 'units' }" @click="sort = 'units'">nach Units</button>
-      <button :class="{ active: sort === 'time' }" @click="sort = 'time'">nach Datum</button>
+      <button :class="{ active: sort === 'units' }" @click="sort = 'units'">{{ t('battleHall.byUnits') }}</button>
+      <button :class="{ active: sort === 'time' }" @click="sort = 'time'">{{ t('battleHall.byDate') }}</button>
     </div>
-    <input v-model="q" placeholder="Spieler" style="width: 160px" />
+    <input v-model="q" :placeholder="t('common.player')" style="width: 160px" />
     <span class="grow" />
-    <span v-if="data" class="muted small">{{ fmt(data.total) }} Kampfberichte</span>
+    <span v-if="data" class="muted small">{{ t('battleHall.count', { n: fmt(data.total) }, data.total) }}</span>
   </div>
 
   <div v-if="error" class="error">{{ error }}</div>
   <div v-else-if="data && !data.entries.length" class="card muted">
-    Noch keine Kampfberichte. Im Spiel die Battle Hall öffnen und einfügen bzw. synchronisieren.
+    {{ t('battleHall.empty') }}
   </div>
 
   <template v-else-if="data">
     <div class="table-wrap">
       <table class="data">
         <thead>
-          <tr><th class="num">#</th><th>Angreifer</th><th /><th>Verteidiger</th><th>Datum</th><th class="num">Units</th><th /></tr>
+          <tr><th class="num">#</th><th>{{ t('combat.attacker') }}</th><th /><th>{{ t('combat.defender') }}</th><th>{{ t('battleHall.date') }}</th><th class="num">{{ t('combat.units') }}</th><th /></tr>
         </thead>
         <tbody>
           <tr v-for="(e, i) in data.entries" :key="e.id">
@@ -91,10 +93,10 @@ const rank = (i: number) => (page.value - 1) * 100 + i + 1;
             <td class="small">{{ dateTime(e.time) }}</td>
             <td class="num" :title="fmt(e.units)">{{ short(e.units) }}</td>
             <td class="small nowrap">
-              <a v-if="gameUrl" :href="reportLink(e)" target="_blank" rel="noopener" title="Bericht im Spiel">Spiel</a>
-              <template v-if="e.archived"> · <RouterLink :to="`/${uni}/battle-hall/${e.report_id}`" title="Lokal archivierter Bericht">lokal</RouterLink></template>
-              <span v-else-if="e.report_status === 'gone'" class="faint" title="Vom Spiel bereits gelöscht"> · gelöscht</span>
-              <span v-else class="faint" title="Wird im Hintergrund archiviert"> · ausstehend</span>
+              <a v-if="gameUrl" :href="reportLink(e)" target="_blank" rel="noopener" :title="t('battleHall.reportInGame')">{{ t('battleHall.game') }}</a>
+              <template v-if="e.archived"> · <RouterLink :to="`/${uni}/battle-hall/${e.report_id}`" :title="t('battleHall.localTitle')">{{ t('battleHall.local') }}</RouterLink></template>
+              <span v-else-if="e.report_status === 'gone'" class="faint" :title="t('battleHall.goneTitle')"> · {{ t('battleHall.gone') }}</span>
+              <span v-else class="faint" :title="t('battleHall.pendingTitle')"> · {{ t('battleHall.pending') }}</span>
             </td>
           </tr>
         </tbody>
@@ -103,7 +105,7 @@ const rank = (i: number) => (page.value - 1) * 100 + i + 1;
     <div v-if="data.pages > 1" class="row pager">
       <button :disabled="page <= 1" @click="page = 1">«</button>
       <button :disabled="page <= 1" @click="page--">‹</button>
-      <span class="small">Seite {{ page }} / {{ data.pages }}</span>
+      <span class="small">{{ t('battleHall.page', { page, pages: data.pages }) }}</span>
       <button :disabled="page >= data.pages" @click="page++">›</button>
       <button :disabled="page >= data.pages" @click="page = data.pages">»</button>
     </div>
