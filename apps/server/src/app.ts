@@ -32,11 +32,11 @@ export function buildApp(db: DB, opts: { logger?: boolean } = {}): FastifyInstan
   });
 
   app.setErrorHandler((err, req, reply) => {
-    if (err instanceof HttpError) return reply.code(err.statusCode).send({ error: err.message });
+    if (err instanceof HttpError) return reply.code(err.statusCode).send({ error: err.message, code: err.code });
     const status = (err as { statusCode?: number }).statusCode;
     if (status && status < 500) return reply.code(status).send({ error: (err as Error).message });
     req.log.error(err);
-    return reply.code(500).send({ error: 'Interner Fehler' });
+    return reply.code(500).send({ error: 'Internal error', code: 'internal' });
   });
 
   app.register(

@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import Hint from '../components/Hint.vue';
 import { computed, onMounted, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
 import RangePicker from '../components/RangePicker.vue';
 import { useStored, useUni } from '../composables';
 import { elementPoints } from '@pr0hub/core/tech';
-import { cardLabel, coords, dateTime, DEPLETION_LABEL, EVENT_LABEL, fmt, name, short, SIZE_LABEL } from '../format';
+import { cardLabel, coords, dateTime, DEPLETION_LABEL, fmt, name, short } from '../format';
 
+const { t } = useI18n();
 const { uni, ctx } = useUni();
 /** Default like the FF-Hub: the last 24 hours. */
 const days = useStored('expos.range', 1);
@@ -39,7 +41,7 @@ const columns = computed(() => {
   const add = (into: Record<string, number>, from: Record<string, number>) => {
     for (const [k, n] of Object.entries(from)) into[k] = (into[k] ?? 0) + n;
   };
-  const total = { userId: -1, username: 'Allianz gesamt', total: 0, events: {}, resources: {}, ships: {} };
+  const total = { userId: -1, username: t('raids.allianceTotal'), total: 0, events: {}, resources: {}, ships: {} };
   for (const u of list) {
     total.total += u.total;
     add(total.events, u.events);
@@ -52,12 +54,12 @@ const list = computed(() => (data.value?.list ?? []).filter((e: any) => member.v
 const isManual = (e: any) => String(e.dedupe_key).startsWith('manual:');
 /** Own manually counted entries (Expo-Deck) can be removed again. */
 async function removeManual(e: any) {
-  if (!confirm(`Nachgetragenes Ereignis „${EVENT_LABEL[e.event]} ${SIZE_LABEL[e.size]}“ vom ${dateTime(e.time)} löschen?`)) return;
+  if (!confirm(t('expeditions.deleteConfirm', { event: cardLabel(`${e.event}:${e.size}`), time: dateTime(e.time) }))) return;
   await uniApi(uni.value, `/deck/events/${e.id}`, { method: 'DELETE' });
   await load();
 }
 // ------------------------------------------- FF-Hub style table: one row per member
-const RANGE_LABEL: Record<number, string> = { 1: 'letzte 24 h', 3: 'letzte 3 Tage', 7: 'letzte 7 Tage', 30: 'letzte 30 Tage', 3650: 'gesamte Zeit' };
+const rangeLabel = (d: number) => (d === 1 ? t('expeditions.last24h') : d >= 3650 ? t('expeditions.allTime') : t('expeditions.lastDays', { n: d }));
 interface Yield { userId: number; name: string; count: number; metal: number; crystal: number; deut: number; shipPoints: number; points: number }
 const shipPoints = (ships: Record<string, number>) => Object.entries(ships).reduce((sum, [id, n]) => sum + elementPoints(id, n), 0);
 const yields = computed<Yield[]>(() => {
@@ -75,7 +77,7 @@ const yields = computed<Yield[]>(() => {
 });
 const yieldTotal = computed(() =>
   yields.value.reduce(
-    (t, y) => ({ count: t.count + y.count, metal: t.metal + y.metal, crystal: t.crystal + y.crystal, deut: t.deut + y.deut, shipPoints: t.shipPoints + y.shipPoints, points: t.points + y.points }),
+    (s, y) => ({ count: s.count + y.count, metal: s.metal + y.metal, crystal: s.crystal + y.crystal, deut: s.deut + y.deut, shipPoints: s.shipPoints + y.shipPoints, points: s.points + y.points }),
     { count: 0, metal: 0, crystal: 0, deut: 0, shipPoints: 0, points: 0 },
   ),
 );
@@ -86,45 +88,43 @@ const sumRes = (u: any) => Object.values(u.resources as Record<string, number>).
 
 <template>
   <h1>
-    Expeditionen
+    {{ t('nav.expeditions') }}
     <Hint>
-      <p>Expeditionsberichte aus den eingefügten Nachrichten aller Allianz-Mitglieder (und im Expo-Deck nachgetragene Ereignisse).</p>
-      <p><b>Erträge</b> wie im FF-Hub: je Mitglied Anzahl Expos und gefundene Rohstoffe im Zeitraum. <b>Punkte</b> = Rohstoffe / 1000 plus der
-      Punktwert gefundener Schiffe.</p>
-      <p><b>Verteilung</b> je Ereignis im Vergleich zum Deck (Erwartung = Kartenanteil): grün deutlich häufiger, rot deutlich seltener als erwartet.
-      Die Spieler-Auswahl gilt für Verteilung und Liste.</p>
+      <p>{{ t('expeditions.hint1') }}</p>
+      <p>{{ t('expeditions.hint2') }}</p>
+      <p>{{ t('expeditions.hint3') }}</p>
     </Hint>
   </h1>
   <div class="card row">
     <RangePicker v-model="days" />
     <label>
-      Spieler
+      {{ t('common.player') }}
       <select v-model="member">
-        <option :value="null">ganze Allianz</option>
-        <option :value="ctx!.me.id">nur meine</option>
+        <option :value="null">{{ t('raids.wholeAlliance') }}</option>
+        <option :value="ctx!.me.id">{{ t('raids.onlyMine') }}</option>
         <option v-for="m in ctx!.members.filter((x) => x.id !== ctx!.me.id)" :key="m.id" :value="m.id">{{ m.name }}</option>
       </select>
     </label>
   </div>
   <template v-if="data">
-    <h2>Erträge ({{ RANGE_LABEL[days] ?? `${days} Tage` }})</h2>
+    <h2>{{ t('expeditions.yields') }} ({{ rangeLabel(days) }})</h2>
     <div class="table-wrap" style="max-height: none; margin-bottom: 14px">
       <table class="data yields">
         <thead>
           <tr>
-            <th>Spieler</th>
-            <th class="num">Expos</th>
-            <th class="num">Metall</th>
-            <th class="num">Kristall</th>
-            <th class="num">Deuterium</th>
-            <th class="num" title="Punktwert der gefundenen Schiffe">Schiffe</th>
-            <th class="num" title="Rohstoffe / 1000 + Punktwert der Schiffe">Punkte</th>
-            <th class="num" title="Punkte pro Expo">Ø / Expo</th>
+            <th>{{ t('common.player') }}</th>
+            <th class="num">{{ t('expeditions.expos') }}</th>
+            <th class="num">{{ name(901) }}</th>
+            <th class="num">{{ name(902) }}</th>
+            <th class="num">{{ name(903) }}</th>
+            <th class="num" :title="t('expeditions.shipsTitle')">{{ t('game.events.Ships') }}</th>
+            <th class="num" :title="t('expeditions.pointsTitle')">{{ t('expeditions.points') }}</th>
+            <th class="num" :title="t('expeditions.perExpoTitle')">{{ t('expeditions.perExpo') }}</th>
           </tr>
         </thead>
         <tbody>
           <tr v-for="y in yields" :key="y.userId" :class="{ mine: y.userId === ctx!.me.id, dim: !y.count }">
-            <td><a href="#" class="plain" title="Verteilung und Liste nur für diesen Spieler" @click.prevent="member = y.userId">{{ y.name }}</a></td>
+            <td><a href="#" class="plain" :title="t('expeditions.onlyThisPlayer')" @click.prevent="member = y.userId">{{ y.name }}</a></td>
             <td class="num">{{ fmt(y.count) }}</td>
             <td class="num" :class="posClass(y.metal)">{{ fmt(y.metal) }}</td>
             <td class="num" :class="posClass(y.crystal)">{{ fmt(y.crystal) }}</td>
@@ -136,7 +136,7 @@ const sumRes = (u: any) => Object.values(u.resources as Record<string, number>).
         </tbody>
         <tfoot v-if="yields.length > 1">
           <tr>
-            <th>Allianz gesamt</th>
+            <th>{{ t('raids.allianceTotal') }}</th>
             <th class="num">{{ fmt(yieldTotal.count) }}</th>
             <th class="num">{{ fmt(yieldTotal.metal) }}</th>
             <th class="num">{{ fmt(yieldTotal.crystal) }}</th>
@@ -148,17 +148,17 @@ const sumRes = (u: any) => Object.values(u.resources as Record<string, number>).
         </tfoot>
       </table>
     </div>
-    <h2>Verteilung</h2>
+    <h2>{{ t('expeditions.distribution') }}</h2>
   </template>
-  <div v-if="data && !columns.length" class="card muted">Keine Expeditionen im Zeitraum.</div>
+  <div v-if="data && !columns.length" class="card muted">{{ t('expeditions.empty') }}</div>
   <template v-if="data && columns.length">
     <div class="table-wrap" style="max-height: none; margin-bottom: 14px">
       <table class="data">
         <thead>
           <tr>
-            <th>Ereignis</th>
-            <th class="num">Deck %</th>
-            <th v-for="u in columns" :key="u.username" class="num">{{ u.username }}<span v-if="u.userId === ctx!.me.id" class="faint small"> (du)</span></th>
+            <th>{{ t('expeditions.event') }}</th>
+            <th class="num">{{ t('expeditions.deckPct') }}</th>
+            <th v-for="u in columns" :key="u.username" class="num">{{ u.username }}<span v-if="u.userId === ctx!.me.id" class="faint small"> {{ t('raids.you') }}</span></th>
           </tr>
         </thead>
         <tbody>
@@ -170,19 +170,19 @@ const sumRes = (u: any) => Object.values(u.resources as Record<string, number>).
             </td>
           </tr>
           <tr>
-            <td><b>Gesamt</b></td>
+            <td><b>{{ t('common.total') }}</b></td>
             <td />
             <td v-for="u in columns" :key="u.username" class="num"><b>{{ u.total }}</b></td>
           </tr>
           <tr>
-            <td>Ressourcen</td>
+            <td>{{ t('game.events.Res') }}</td>
             <td />
             <td v-for="u in columns" :key="u.username" class="num" :title="Object.entries(u.resources).map(([id, n]) => `${name(id)}: ${fmt(n as number)}`).join('\n')">
               {{ short(sumRes(u)) }}
             </td>
           </tr>
           <tr>
-            <td>Schiffe</td>
+            <td>{{ t('game.events.Ships') }}</td>
             <td />
             <td v-for="u in columns" :key="u.username" class="num small">
               <div v-for="(n, id) in u.ships" :key="id">{{ name(id) }}: {{ fmt(n) }}</div>
@@ -192,18 +192,18 @@ const sumRes = (u: any) => Object.values(u.resources as Record<string, number>).
       </table>
     </div>
 
-    <h2>Letzte Expeditionen</h2>
+    <h2>{{ t('expeditions.recent') }}</h2>
     <div class="table-wrap">
       <table class="data">
-        <thead><tr><th>Zeit</th><th>Spieler</th><th>Ziel</th><th>Ereignis</th><th>Erschöpfung</th><th>Fund</th><th /></tr></thead>
+        <thead><tr><th>{{ t('common.time') }}</th><th>{{ t('common.player') }}</th><th>{{ t('hostile.target') }}</th><th>{{ t('expeditions.event') }}</th><th>{{ t('expeditions.depletion') }}</th><th>{{ t('expeditions.found') }}</th><th /></tr></thead>
         <tbody>
           <tr v-for="e in list" :key="e.id">
             <td class="small">{{ dateTime(e.time) }}</td>
             <td>{{ e.username }}</td>
             <td class="mono">{{ e.g ? coords(e.g, e.s, e.p) : '' }}</td>
             <td>
-              {{ EVENT_LABEL[e.event] }} {{ SIZE_LABEL[e.size] }}<span v-if="e.factor" class="faint"> ×{{ e.factor }}</span>
-              <span v-if="isManual(e)" class="badge" title="Im Expo-Deck von Hand nachgetragen">manuell</span>
+              {{ cardLabel(`${e.event}:${e.size}`) }}<span v-if="e.factor" class="faint"> ×{{ e.factor }}</span>
+              <span v-if="isManual(e)" class="badge" :title="t('expeditions.manualTitle')">{{ t('expeditions.manual') }}</span>
             </td>
             <td class="small muted">{{ e.depletion ? DEPLETION_LABEL[e.depletion] ?? e.depletion : '?' }}</td>
             <td class="small">
@@ -211,7 +211,7 @@ const sumRes = (u: any) => Object.values(u.resources as Record<string, number>).
               <span v-for="(n, id) in e.found_ships" :key="'s' + id">{{ name(id) }} {{ fmt(n) }} </span>
             </td>
             <td>
-              <button v-if="isManual(e) && e.user_id === ctx!.me.id" class="small" title="Nachgetragenes Ereignis löschen" @click="removeManual(e)">Löschen</button>
+              <button v-if="isManual(e) && e.user_id === ctx!.me.id" class="small" :title="t('expeditions.deleteTitle')" @click="removeManual(e)">{{ t('common.delete') }}</button>
             </td>
           </tr>
         </tbody>

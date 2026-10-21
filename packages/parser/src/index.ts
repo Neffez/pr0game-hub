@@ -55,7 +55,7 @@ export function parsePage(input: ParseInput): ParseResult {
     if (res.records.length || !text) {
       return { ...res, lang, source: 'html', warnings };
     }
-    warnings.push('HTML enthielt keine erkennbaren Daten, Plaintext wird verwendet.');
+    warnings.push('html_no_data');
   }
 
   const res = parseText(plain, input, warnings);
@@ -94,7 +94,7 @@ function parseHtml(html: string, input: ParseInput, warnings: string[]): { pageT
     if (r) {
       if (r.type == null) {
         if (input.statsType) r.type = input.statsType;
-        else warnings.push('Statistik-Kategorie nicht erkannt – bitte auswählen.');
+        else warnings.push('stats_category_unknown');
       }
       return { pageType: 'stats', records: [r] };
     }
@@ -102,7 +102,7 @@ function parseHtml(html: string, input: ParseInput, warnings: string[]): { pageT
   if (page === 'galaxy' || isGalaxyHtml($)) {
     const r = parseGalaxyHtml($, url);
     if (r) return { pageType: 'galaxy', records: [r] };
-    warnings.push('Galaxie erkannt, aber Galaxie/System fehlen.');
+    warnings.push('galaxy_position_missing');
   }
   if (page === 'empire' || isEmpireHtml($)) {
     const r = parseEmpireHtml($);
@@ -124,9 +124,9 @@ function parseText(text: string, input: ParseInput, warnings: string[]): { pageT
     if (r) {
       if (r.type == null) {
         if (input.statsType) r.type = input.statsType;
-        else warnings.push('Statistik-Kategorie nicht erkannt – bitte auswählen.');
+        else warnings.push('stats_category_unknown');
       }
-      if (r.who === 'player') warnings.push('Plaintext: Spieler werden über den Namen zugeordnet (keine IDs).');
+      if (r.who === 'player') warnings.push('plaintext_players_by_name');
       return { pageType: 'stats', records: [r] };
     }
   }
@@ -137,7 +137,7 @@ function parseText(text: string, input: ParseInput, warnings: string[]): { pageT
   const msgs = parseMessagesText(text);
   if (msgs.length) return { pageType: 'messages', records: msgs };
   if (/(Sonnensystem|Solar system)/.test(text)) {
-    warnings.push('Galaxieansicht bitte als HTML/Quelltext einfügen (Plaintext enthält keine Koordinaten).');
+    warnings.push('galaxy_needs_html');
   }
   return { pageType: 'unknown', records: [] };
 }

@@ -9,6 +9,8 @@ export interface SessionUser {
   id: number;
   username: string;
   isAdmin: boolean;
+  /** UI language of the hub (de/en) */
+  lang: string;
 }
 
 declare module 'fastify' {
@@ -86,35 +88,39 @@ export function loadSessionUser(db: DB, req: FastifyRequest): SessionUser | null
   if (!token) return null;
   const row = db
     .prepare(
-      `SELECT u.id, u.username, u.is_admin FROM sessions s JOIN users u ON u.id = s.user_id
+      `SELECT u.id, u.username, u.is_admin, u.lang FROM sessions s JOIN users u ON u.id = s.user_id
        WHERE s.token_hash = ? AND s.expires_at > ?`,
     )
-    .get(sha256(token), now()) as { id: number; username: string; is_admin: number } | undefined;
-  return row ? { id: row.id, username: row.username, isAdmin: !!row.is_admin } : null;
+    .get(sha256(token), now()) as { id: number; username: string; is_admin: number; lang: string } | undefined;
+  return row ? { id: row.id, username: row.username, isAdmin: !!row.is_admin, lang: row.lang } : null;
 }
 
+/**
+ * Answered as `{ error, code }`: `code` is a stable key the web app translates,
+ * `message` the English fallback (also what ends up in logs).
+ */
 export class HttpError extends Error {
-  constructor(public statusCode: number, message: string) {
+  constructor(public statusCode: number, public code: string, message: string) {
     super(message);
   }
 }
 
 export function requireUser(req: FastifyRequest): SessionUser {
-  if (!req.user) throw new HttpError(401, 'Nicht angemeldet');
+  if (!req.user) throw new HttpError(401, 'not_logged_in', 'Not logged in');
   return req.user;
 }
 
 export function requireAdmin(req: FastifyRequest): SessionUser {
   const user = requireUser(req);
-  if (!user.isAdmin) throw new HttpError(403, 'Nur für Admins');
+  if (!user.isAdmin) throw new HttpError(403, 'admin_only', 'Admins only');
   return user;
 }
 
 /** Validates a username and checks that no other user has it (case-insensitive). */
 export function checkUsername(db: DB, raw: unknown, exceptUserId = 0): string {
   const username = String(raw ?? '').trim();
-  if (!/^[\w.\- ]{3,32}$/.test(username)) throw new HttpError(400, 'Benutzername: 3–32 Zeichen (Buchstaben, Zahlen, . _ -)');
-  if (db.prepare('SELECT 1 FROM users WHERE username = ? AND id != ?').get(username, exceptUserId)) throw new HttpError(409, 'Benutzername vergeben');
+  if (!/^[\w.\- ]{3,32}$/.test(username)) throw new HttpError(400, 'username_invalid', 'Username: 3–32 characters (letters, digits, . _ -)');
+  if (db.prepare('SELECT 1 FROM users WHERE username = ? AND id != ?').get(username, exceptUserId)) throw new HttpError(409, 'username_taken', 'Username already taken');
   return username;
 }
 

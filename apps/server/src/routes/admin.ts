@@ -15,7 +15,7 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
 
   const requireGroupAdmin = (req: Parameters<typeof requireUser>[0], groupId: number) => {
     const user = requireUser(req);
-    if (!user.isAdmin && !isGroupAdmin(user.id, groupId)) throw new HttpError(403, 'Nur für Allianz-Admins');
+    if (!user.isAdmin && !isGroupAdmin(user.id, groupId)) throw new HttpError(403, 'group_admin_only', 'Alliance admins only');
     return user;
   };
 
@@ -29,8 +29,8 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
   app.post<{ Body: { slug: string; name: string; settings?: object; deck?: unknown } }>('/api/admin/universes', async (req) => {
     requireAdmin(req);
     const { slug, name, settings, deck } = req.body ?? ({} as never);
-    if (!/^[a-z0-9-]{1,16}$/.test(slug ?? '')) throw new HttpError(400, 'Slug: a-z, 0-9, -');
-    if (db.prepare('SELECT 1 FROM universes WHERE slug = ?').get(slug)) throw new HttpError(409, 'Universum existiert bereits');
+    if (!/^[a-z0-9-]{1,16}$/.test(slug ?? '')) throw new HttpError(400, 'slug_invalid', 'Slug: a-z, 0-9, -');
+    if (db.prepare('SELECT 1 FROM universes WHERE slug = ?').get(slug)) throw new HttpError(409, 'universe_exists', 'Universe already exists');
     validateSettings(settings);
     db.prepare('INSERT INTO universes (slug, name, settings, deck_config) VALUES (?, ?, ?, ?)').run(
       slug,
@@ -47,7 +47,7 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
       requireAdmin(req);
       const { name, settings, deck } = req.body ?? {};
       const cur = db.prepare('SELECT * FROM universes WHERE slug = ?').get(req.params.slug) as { settings: string } | undefined;
-      if (!cur) throw new HttpError(404, 'Universum nicht gefunden');
+      if (!cur) throw new HttpError(404, 'universe_not_found', 'Universe not found');
       validateSettings(settings);
       db.prepare('UPDATE universes SET name = COALESCE(?, name), settings = ? WHERE slug = ?').run(
         name ?? null,
@@ -66,7 +66,7 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
   app.put<{ Params: { userId: string }; Body: { username: string } }>('/api/admin/users/:userId', async (req) => {
     requireAdmin(req);
     const userId = Number(req.params.userId);
-    if (!db.prepare('SELECT 1 FROM users WHERE id = ?').get(userId)) throw new HttpError(404, 'Benutzer nicht gefunden');
+    if (!db.prepare('SELECT 1 FROM users WHERE id = ?').get(userId)) throw new HttpError(404, 'user_not_found', 'User not found');
     const username = checkUsername(db, req.body?.username, userId);
     db.prepare('UPDATE users SET username = ? WHERE id = ?').run(username, userId);
     return { ok: true, username };
@@ -90,10 +90,10 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
   app.post<{ Body: { universe: string; name: string } }>('/api/admin/groups', async (req) => {
     const user = requireAdmin(req);
     const uni = db.prepare('SELECT id FROM universes WHERE slug = ?').pluck().get(req.body?.universe) as number | undefined;
-    if (!uni) throw new HttpError(404, 'Universum nicht gefunden');
+    if (!uni) throw new HttpError(404, 'universe_not_found', 'Universe not found');
     const name = String(req.body.name ?? '').trim();
-    if (!name) throw new HttpError(400, 'Name fehlt');
-    if (db.prepare('SELECT 1 FROM groups WHERE universe_id = ? AND name = ?').get(uni, name)) throw new HttpError(409, 'Allianz existiert bereits');
+    if (!name) throw new HttpError(400, 'name_missing', 'Name missing');
+    if (db.prepare('SELECT 1 FROM groups WHERE universe_id = ? AND name = ?').get(uni, name)) throw new HttpError(409, 'group_exists', 'Alliance already exists');
     const id = db.prepare('INSERT INTO groups (universe_id, name) VALUES (?, ?)').run(uni, name).lastInsertRowid;
     db.prepare("INSERT INTO group_members (group_id, user_id, role) VALUES (?, ?, 'admin')").run(id, user.id);
     return { id: Number(id) };
@@ -116,7 +116,7 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
       const groupId = Number(req.params.id);
       requireGroupAdmin(req, groupId);
       const role = req.body?.role;
-      if (role && role !== 'member' && role !== 'admin') throw new HttpError(400, 'Rolle ungültig');
+      if (role && role !== 'member' && role !== 'admin') throw new HttpError(400, 'role_invalid', 'Invalid role');
       const hasName = req.body !== undefined && req.body !== null && 'ingameName' in req.body;
       db.prepare('UPDATE group_members SET role = COALESCE(?, role), ingame_name = CASE WHEN ? THEN ? ELSE ingame_name END WHERE group_id = ? AND user_id = ?').run(
         role ?? null,
@@ -167,7 +167,7 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
 
   app.delete<{ Params: { token: string } }>('/api/admin/invites/:token', async (req) => {
     const inv = db.prepare('SELECT group_id FROM invites WHERE token = ?').get(req.params.token) as { group_id: number } | undefined;
-    if (!inv) throw new HttpError(404, 'Einladung nicht gefunden');
+    if (!inv) throw new HttpError(404, 'invite_not_found', 'Invite not found');
     requireGroupAdmin(req, inv.group_id);
     db.prepare('DELETE FROM invites WHERE token = ? AND used_at IS NULL').run(req.params.token);
     return { ok: true };
@@ -187,7 +187,7 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
       first_seen: number;
       last_seen: number;
     }[];
-    if (!Number.isInteger(from) || !Number.isInteger(into) || both.length !== 2 || from === into) throw new HttpError(400, 'Spieler ungültig');
+    if (!Number.isInteger(from) || !Number.isInteger(into) || both.length !== 2 || from === into) throw new HttpError(400, 'players_invalid', 'Invalid players');
     const src = both.find((p) => p.id === from)!;
     db.transaction(() => {
       // Scores of the same snapshot: keep the target's.
@@ -220,7 +220,7 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
     const row = db
       .prepare('SELECT r.group_id, u.settings FROM raw_ingests r JOIN groups g ON g.id = r.group_id JOIN universes u ON u.id = g.universe_id WHERE r.id = ?')
       .get(Number(req.params.id)) as { group_id: number; settings: string } | undefined;
-    if (!row) throw new HttpError(404, 'Nicht gefunden');
+    if (!row) throw new HttpError(404, 'not_found', 'Not found');
     requireGroupAdmin(req, row.group_id);
     const tz = JSON.parse(row.settings).timezone ?? UNIVERSE_DEFAULTS.timezone;
     return reparse(db, Number(req.params.id), tz);
@@ -233,7 +233,7 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
     const row = db.prepare('SELECT u.settings FROM groups g JOIN universes u ON u.id = g.universe_id WHERE g.id = ?').get(groupId) as
       | { settings: string }
       | undefined;
-    if (!row) throw new HttpError(404, 'Nicht gefunden');
+    if (!row) throw new HttpError(404, 'not_found', 'Not found');
     const tz = JSON.parse(row.settings).timezone ?? UNIVERSE_DEFAULTS.timezone;
     return { added: backfillActivity(db, groupId, tz) };
   });
@@ -246,18 +246,18 @@ function validateSettings(settings: object | undefined) {
     try {
       new Intl.DateTimeFormat('en-US', { timeZone: String(s.timezone) });
     } catch {
-      throw new HttpError(400, 'Zeitzone ungültig');
+      throw new HttpError(400, 'timezone_invalid', 'Invalid time zone');
     }
   }
-  if (s.gameUrl && !/^https?:\/\//i.test(String(s.gameUrl))) throw new HttpError(400, 'Spiel-URL muss mit http(s):// beginnen');
+  if (s.gameUrl && !/^https?:\/\//i.test(String(s.gameUrl))) throw new HttpError(400, 'game_url_invalid', 'Game URL must start with http(s)://');
 }
 
 function validateDeck(deck: unknown) {
-  if (!Array.isArray(deck)) throw new HttpError(400, 'Deck muss ein Array sein');
+  if (!Array.isArray(deck)) throw new HttpError(400, 'deck_not_array', 'Deck must be an array');
   return deck.map((c) => {
     const { type, size, count } = c as Record<string, unknown>;
     if (typeof type !== 'string' || typeof size !== 'string' || !Number.isInteger(count) || (count as number) < 0) {
-      throw new HttpError(400, 'Deck-Eintrag ungültig: {type, size, count}');
+      throw new HttpError(400, 'deck_entry_invalid', 'Invalid deck entry: {type, size, count}');
     }
     return { type, size, count };
   });

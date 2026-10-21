@@ -9,13 +9,13 @@ export function authRoutes(app: FastifyInstance, db: DB) {
   app.post<{ Body: { username: string; password: string } }>('/api/auth/login', async (req, reply) => {
     const { username, password } = req.body ?? ({} as never);
     const key = `${req.ip}|${String(username ?? '').toLowerCase()}`;
-    if (loginBlocked(key)) throw new HttpError(429, 'Zu viele Fehlversuche, bitte später erneut versuchen');
+    if (loginBlocked(key)) throw new HttpError(429, 'too_many_attempts', 'Too many failed attempts, please try again later');
     const user = db.prepare('SELECT id, password_hash FROM users WHERE username = ?').get(String(username ?? '')) as
       | { id: number; password_hash: string }
       | undefined;
     if (!verifyPasswordOrDummy(String(password ?? ''), user?.password_hash) || !user) {
       loginFailed(key);
-      throw new HttpError(401, 'Benutzername oder Passwort falsch');
+      throw new HttpError(401, 'login_failed', 'Wrong username or password');
     }
     loginSucceeded(key);
     createSession(db, user.id, reply);
@@ -43,8 +43,8 @@ export function authRoutes(app: FastifyInstance, db: DB) {
     const user = requireUser(req);
     const { oldPassword, newPassword } = req.body ?? ({} as never);
     const hash = db.prepare('SELECT password_hash FROM users WHERE id = ?').pluck().get(user.id) as string;
-    if (!verifyPassword(String(oldPassword ?? ''), hash)) throw new HttpError(400, 'Altes Passwort falsch');
-    if (String(newPassword ?? '').length < 8) throw new HttpError(400, 'Passwort muss mindestens 8 Zeichen haben');
+    if (!verifyPassword(String(oldPassword ?? ''), hash)) throw new HttpError(400, 'old_password_wrong', 'Old password wrong');
+    if (String(newPassword ?? '').length < 8) throw new HttpError(400, 'password_too_short', 'Password must have at least 8 characters');
     db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hashPassword(String(newPassword)), user.id);
     destroyOtherSessions(db, user.id, req);
     return { ok: true };
@@ -53,10 +53,18 @@ export function authRoutes(app: FastifyInstance, db: DB) {
   app.post<{ Body: { username: string; password: string } }>('/api/auth/username', async (req) => {
     const user = requireUser(req);
     const hash = db.prepare('SELECT password_hash FROM users WHERE id = ?').pluck().get(user.id) as string;
-    if (!verifyPassword(String(req.body?.password ?? ''), hash)) throw new HttpError(400, 'Passwort falsch');
+    if (!verifyPassword(String(req.body?.password ?? ''), hash)) throw new HttpError(400, 'password_wrong', 'Wrong password');
     const username = checkUsername(db, req.body?.username, user.id);
     db.prepare('UPDATE users SET username = ? WHERE id = ?').run(username, user.id);
     return { ok: true, username };
+  });
+
+  app.post<{ Body: { lang: string } }>('/api/auth/lang', async (req) => {
+    const user = requireUser(req);
+    const lang = String(req.body?.lang ?? '');
+    if (lang !== 'de' && lang !== 'en') throw new HttpError(400, 'lang_invalid', 'Invalid language');
+    db.prepare('UPDATE users SET lang = ? WHERE id = ?').run(lang, user.id);
+    return { ok: true, lang };
   });
 
   /** Invite info for the registration form. */
@@ -72,16 +80,18 @@ export function authRoutes(app: FastifyInstance, db: DB) {
    * Accepts an invite: creates an account (username + password) or, when logged in,
    * adds the current account to the invite's group.
    */
-  app.post<{ Params: { token: string }; Body: { username?: string; password?: string } }>('/api/invites/:token/accept', async (req, reply) => {
+  app.post<{ Params: { token: string }; Body: { username?: string; password?: string; lang?: string } }>('/api/invites/:token/accept', async (req, reply) => {
     const inv = openInvite(db, req.params.token);
     let userId = req.user?.id;
     db.transaction(() => {
       if (!userId) {
         const username = checkUsername(db, req.body?.username);
         const password = String(req.body?.password ?? '');
-        if (password.length < 8) throw new HttpError(400, 'Passwort muss mindestens 8 Zeichen haben');
+        if (password.length < 8) throw new HttpError(400, 'password_too_short', 'Password must have at least 8 characters');
         userId = Number(
-          db.prepare('INSERT INTO users (username, password_hash, is_admin) VALUES (?, ?, 0)').run(username, hashPassword(password)).lastInsertRowid,
+          db
+            .prepare('INSERT INTO users (username, password_hash, is_admin, lang) VALUES (?, ?, 0, ?)')
+            .run(username, hashPassword(password), req.body?.lang === 'en' ? 'en' : 'de').lastInsertRowid,
         );
       }
       if (inv.group_id) {
@@ -98,6 +108,6 @@ type InviteRow = { token: string; group_id: number | null; role: string; expires
 
 function openInvite(db: DB, token: string): InviteRow {
   const inv = db.prepare('SELECT * FROM invites WHERE token = ?').get(token) as InviteRow | undefined;
-  if (!inv || inv.used_at || inv.expires_at < now()) throw new HttpError(404, 'Einladung ungültig oder abgelaufen');
+  if (!inv || inv.used_at || inv.expires_at < now()) throw new HttpError(404, 'invite_invalid', 'Invite invalid or expired');
   return inv;
 }

@@ -1,10 +1,15 @@
 <script setup lang="ts">
-import Hint from '../components/Hint.vue';
+import Hint from './Hint.vue';
 import { computed, onMounted, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
 import { useUni } from '../composables';
 import { ago, dateTime, freshnessColor } from '../format';
 
+/** Heat map of when each system was last synced (bottom of the galaxy page); a click shows the system. */
+const props = defineProps<{ current?: { g: number; s: number } }>();
+const emit = defineEmits<{ select: [pos: { g: number; s: number }] }>();
+const { t } = useI18n();
 const { uni, ctx } = useUni();
 const views = ref<{ g: number; s: number; seen_at: number; username: string | null }[]>([]);
 /** systems per heatmap row */
@@ -43,16 +48,16 @@ const stats = computed(() => {
 </script>
 
 <template>
-  <h1>Gala-Aktualität <Hint>Wann welches System zuletzt als Galaxieansicht eingefügt wurde.</Hint></h1>
+  <h2>{{ t('nav.freshness') }} <Hint>{{ t('freshness.hint') }} {{ t('freshness.clickHint') }}</Hint></h2>
   <div class="card">
-    <p class="muted small" style="margin-top: 0">{{ stats.seen }} / {{ stats.total }} Systeme bekannt, {{ stats.day }} in den letzten 24 h.</p>
+    <p class="muted small" style="margin-top: 0">{{ t('freshness.known', { seen: stats.seen, total: stats.total, day: stats.day }) }}</p>
     <div class="row small">
       <span><span class="sw" style="background: #2ea043" /> &lt; 6 h</span>
       <span><span class="sw" style="background: #3fb95099" /> &lt; 24 h</span>
       <span><span class="sw" style="background: #d2992299" /> &lt; 3 d</span>
       <span><span class="sw" style="background: #f8514966" /> &lt; 7 d</span>
-      <span><span class="sw" style="background: #f8514933" /> älter</span>
-      <span><span class="sw" style="background: var(--surface-2)" /> nie</span>
+      <span><span class="sw" style="background: #f8514933" /> {{ t('freshness.older') }}</span>
+      <span><span class="sw" style="background: var(--surface-2)" /> {{ t('freshness.never') }}</span>
     </div>
   </div>
   <div class="card" style="overflow-x: auto">
@@ -62,8 +67,10 @@ const stats = computed(() => {
         v-for="c in r.cells"
         :key="c.s"
         class="hm-cell"
+        :class="{ cur: props.current?.g === r.g && props.current?.s === c.s }"
         :style="{ background: color(c.age) }"
-        :title="`${r.g}:${c.s} – ${c.v ? `${dateTime(c.v.seen_at)} (${ago(c.v.seen_at)}) von ${c.v.username ?? '?'}` : 'nie'}`"
+        @click="emit('select', { g: r.g, s: c.s })"
+        :title="`${r.g}:${c.s} – ${c.v ? `${dateTime(c.v.seen_at)} (${ago(c.v.seen_at)}) ${t('common.from')} ${c.v.username ?? '?'}` : t('freshness.never')}`"
       />
     </div>
   </div>
@@ -72,6 +79,8 @@ const stats = computed(() => {
 <style scoped>
 .hm-row { display: flex; align-items: center; gap: 2px; margin-bottom: 2px; }
 .hm-label { width: 60px; font-size: 11px; color: var(--faint); flex-shrink: 0; }
-.hm-cell { width: 14px; height: 14px; border-radius: 2px; flex-shrink: 0; }
+.hm-cell { width: 14px; height: 14px; border-radius: 2px; flex-shrink: 0; cursor: pointer; }
+.hm-cell:hover { outline: 1px solid var(--text); }
+.hm-cell.cur { outline: 2px solid var(--accent); outline-offset: 1px; }
 .sw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; vertical-align: middle; }
 </style>

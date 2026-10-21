@@ -3,9 +3,10 @@ import Hint from '../components/Hint.vue';
 import PlayerLink from '../components/PlayerLink.vue';
 import StatusBadges from '../components/StatusBadges.vue';
 import { computed, onMounted, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
 import { useStored, useUni } from '../composables';
-import { dateTime, fmt, fmtSigned, short, STATS_CATEGORIES } from '../format';
+import { dateTime, fmt, fmtSigned, short, STATS_CATEGORIES, STATS_TYPES } from '../format';
 
 interface Category { who: string; type: number; stat_time: number; pages: number[] }
 interface Row {
@@ -40,6 +41,7 @@ interface Stats {
   rows: Row[];
 }
 
+const { t } = useI18n();
 const { uni } = useUni();
 const who = useStored<'player' | 'alliance'>('stats.who', 'player');
 const type = useStored('stats.type', 1);
@@ -58,13 +60,13 @@ onMounted(load);
 watch([who, type], load);
 
 // ------------------------------------------------------------ sync overview
-const categoryOf = (t: number) => data.value?.categories.find((c) => c.who === who.value && c.type === t) ?? null;
+const categoryOf = (cat: number) => data.value?.categories.find((c) => c.who === who.value && c.type === cat) ?? null;
 /** Pages of 100 ranks to show per category: up to the highest page synced in any category. */
 const pageCount = computed(() => Math.max(1, ...(data.value?.categories ?? []).filter((c) => c.who === who.value).flatMap((c) => c.pages.map((p) => p + 1))));
-const pageTitle = (t: number, p: number) => {
-  const c = categoryOf(t);
-  const range = `Plätze ${p * 100 + 1}–${p * 100 + 100}`;
-  return c?.pages.includes(p) ? `${range}: im Stand vom ${dateTime(c.stat_time)}` : `${range}: nicht im neuesten Stand – Seite im Spiel einfügen`;
+const pageTitle = (cat: number, p: number) => {
+  const c = categoryOf(cat);
+  const range = t('stats.ranks', { from: p * 100 + 1, to: p * 100 + 100 });
+  return c?.pages.includes(p) ? t('stats.pageIncluded', { range, time: dateTime(c.stat_time) }) : t('stats.pageMissing', { range });
 };
 
 // ------------------------------------------------------------------ colours
@@ -98,50 +100,46 @@ function rankMove(r: Row): { n: number; game: boolean } | null {
   return null;
 }
 
-const SCORE_COLS = [
-  { t: 4, label: 'Geb.', title: 'Gebäude' },
-  { t: 3, label: 'Forsch.', title: 'Forschung' },
-  { t: 2, label: 'Flotte', title: 'Flotte' },
-  { t: 5, label: 'Vert.', title: 'Verteidigung' },
-] as const;
+/** Score columns (stat type; header stats.col.<type>, full name as tooltip) */
+const SCORE_COLS = [4, 3, 2, 5] as const;
 </script>
 
 <template>
   <h1>
-    Statistik
+    {{ t('nav.stats') }}
     <Hint>
-      <p>Der zuletzt synchronisierte Stand der Statistik aus dem Spiel – je Kategorie die neueste eingefügte Statistikseite, so wie das Spiel sie gezeigt hat. Mehrere Seiten desselben Stands (Plätze 1–100, 101–200 …) werden zusammengeführt.</p>
-      <p><b>Leiste unter den Kategorien</b>: je Block 100 Plätze, grün = im neuesten Stand enthalten, rot = fehlt.</p>
-      <p><b>±</b>: Auf- und Abstieg laut Spiel (seit der letzten Statistik-Aktualisierung im Spiel). Grau = selbst berechnet aus dem vorherigen synchronisierten Stand, wenn das Spiel keinen Wert liefert (Text-Einfügen). <b>Δ</b>: Punkte seit dem vorherigen synchronisierten Stand.</p>
-      <p><b>Geb./Forsch./Flotte/Vert.</b>: jeweils neuester synchronisierter Stand der Kategorie, <b>F+V</b> = Flotte + Verteidigung. Farbe wie im FF-Hub: je näher am eigenen Wert (oder darüber), desto kräftiger.</p>
-      <p><b>Koords</b>: zuerst bekannter Planet des Spielers, dahinter die Anzahl weiterer bekannter Planeten. Status und Allianz sind der aktuelle Stand im Hub.</p>
+      <p>{{ t('stats.hint1') }}</p>
+      <p>{{ t('stats.hint2') }}</p>
+      <p>{{ t('stats.hint3') }}</p>
+      <p>{{ t('stats.hint4') }}</p>
+      <p>{{ t('stats.hint5') }}</p>
     </Hint>
   </h1>
 
   <div class="card">
     <div class="row">
       <div class="seg">
-        <button :class="{ active: who === 'player' }" @click="who = 'player'">Spieler</button>
-        <button :class="{ active: who === 'alliance' }" @click="who = 'alliance'">Allianzen</button>
+        <button :class="{ active: who === 'player' }" @click="who = 'player'">{{ t('stats.players') }}</button>
+        <button :class="{ active: who === 'alliance' }" @click="who = 'alliance'">{{ t('stats.alliances') }}</button>
       </div>
       <span class="grow" />
       <span v-if="data?.statTime" class="muted small">
-        Stand {{ dateTime(data.statTime) }} · {{ data.rows.length }} Plätze
-        <template v-if="data.prevTime"> · Δ seit {{ dateTime(data.prevTime) }}</template>
+        {{ t('stats.asOf', { time: dateTime(data.statTime) }) }} · {{ t('stats.rankCount', { n: data.rows.length }) }}
+        <template v-if="data.prevTime"> · {{ t('stats.deltaSince', { time: dateTime(data.prevTime) }) }}</template>
       </span>
     </div>
     <div class="cats">
       <button
-        v-for="(label, t) in STATS_CATEGORIES"
-        :key="t"
+        v-for="(label, cat) in STATS_CATEGORIES"
+        :key="cat"
         class="cat"
-        :class="{ active: type === Number(t), empty: data && !categoryOf(Number(t)) }"
-        :title="categoryOf(Number(t)) ? `Stand ${dateTime(categoryOf(Number(t))!.stat_time)}` : 'noch nicht synchronisiert'"
-        @click="type = Number(t)"
+        :class="{ active: type === Number(cat), empty: data && !categoryOf(Number(cat)) }"
+        :title="categoryOf(Number(cat)) ? t('stats.asOf', { time: dateTime(categoryOf(Number(cat))!.stat_time) }) : t('stats.notSynced')"
+        @click="type = Number(cat)"
       >
         <span>{{ label }}</span>
         <span class="pages">
-          <i v-for="p in pageCount" :key="p" :class="{ ok: categoryOf(Number(t))?.pages.includes(p - 1) }" :title="pageTitle(Number(t), p - 1)" />
+          <i v-for="p in pageCount" :key="p" :class="{ ok: categoryOf(Number(cat))?.pages.includes(p - 1) }" :title="pageTitle(Number(cat), p - 1)" />
         </span>
       </button>
     </div>
@@ -149,22 +147,22 @@ const SCORE_COLS = [
 
   <div v-if="error" class="error">{{ error }}</div>
   <p v-else-if="data && !data.rows.length" class="muted">
-    Für {{ who === 'player' ? 'Spieler' : 'Allianzen' }} · {{ STATS_CATEGORIES[type] }} wurde noch keine Statistik synchronisiert.
+    {{ t('stats.empty', { who: who === 'player' ? t('stats.players') : t('stats.alliances'), category: STATS_CATEGORIES[type] }) }}
   </p>
 
   <div v-else-if="data" class="table-wrap">
     <table v-if="who === 'player'" class="data stats">
       <thead>
         <tr>
-          <th class="num">Platz</th>
-          <th class="num" title="Auf-/Abstieg">±</th>
-          <th>Spieler</th>
-          <th>Allianz</th>
+          <th class="num">{{ t('stats.rank') }}</th>
+          <th class="num" :title="t('stats.moveTitle')">±</th>
+          <th>{{ t('common.player') }}</th>
+          <th>{{ t('common.alliance') }}</th>
           <th class="num">{{ STATS_CATEGORIES[type] }}</th>
-          <th class="num" title="Punkte seit dem vorherigen synchronisierten Stand">Δ</th>
-          <th>Koords</th>
-          <th v-for="c in SCORE_COLS" :key="c.t" class="num" :class="{ cur: type === c.t }" :title="c.title">{{ c.label }}</th>
-          <th class="num" title="Flotte + Verteidigung">F+V</th>
+          <th class="num" :title="t('stats.deltaTitle')">Δ</th>
+          <th>{{ t('common.coords') }}</th>
+          <th v-for="c in SCORE_COLS" :key="c" class="num" :class="{ cur: type === c }" :title="STATS_TYPES[c]">{{ t(`stats.col.${c}`) }}</th>
+          <th class="num" :title="t('stats.fleetDefTitle')">{{ t('stats.fleetDef') }}</th>
         </tr>
       </thead>
       <tbody>
@@ -172,7 +170,7 @@ const SCORE_COLS = [
           <td class="num">{{ fmt(r.rank) }}</td>
           <td class="num small">
             <template v-for="m in [rankMove(r)]" :key="0">
-              <span v-if="m" :class="[m.n > 0 ? 'pos' : 'neg', { calc: !m.game }]" :title="m.game ? 'laut Spiel' : `seit dem vorherigen Stand (Platz ${r.prev_rank})`">
+              <span v-if="m" :class="[m.n > 0 ? 'pos' : 'neg', { calc: !m.game }]" :title="m.game ? t('stats.moveGame') : t('stats.moveCalc', { rank: r.prev_rank })">
                 {{ m.n > 0 ? '▲' : '▼' }}{{ Math.abs(m.n) }}
               </span>
               <span v-else class="faint">·</span>
@@ -195,13 +193,13 @@ const SCORE_COLS = [
           </td>
           <td
             v-for="c in SCORE_COLS"
-            :key="c.t"
+            :key="c"
             class="num"
-            :class="{ cur: type === c.t }"
-            :style="tone(r.scores?.[c.t], mine[c.t], COLORS[c.t])"
-            :title="r.scores?.[c.t] != null ? fmt(r.scores[c.t]) : 'nicht synchronisiert'"
+            :class="{ cur: type === c }"
+            :style="tone(r.scores?.[c], mine[c], COLORS[c])"
+            :title="r.scores?.[c] != null ? fmt(r.scores[c]) : t('stats.notSynced')"
           >
-            {{ r.scores?.[c.t] != null ? short(r.scores[c.t]) : '' }}
+            {{ r.scores?.[c] != null ? short(r.scores[c]) : '' }}
           </td>
           <td class="num" :style="tone(fleetDef(r.scores), fleetDef(mine), COLORS.fd)" :title="fleetDef(r.scores) != null ? fmt(fleetDef(r.scores)) : ''">
             {{ fleetDef(r.scores) != null ? short(fleetDef(r.scores)) : '' }}
@@ -213,13 +211,13 @@ const SCORE_COLS = [
     <table v-else class="data stats">
       <thead>
         <tr>
-          <th class="num">Platz</th>
-          <th class="num" title="Auf-/Abstieg">±</th>
-          <th>Allianz</th>
-          <th class="num">Mitglieder</th>
+          <th class="num">{{ t('stats.rank') }}</th>
+          <th class="num" :title="t('stats.moveTitle')">±</th>
+          <th>{{ t('common.alliance') }}</th>
+          <th class="num">{{ t('stats.members') }}</th>
           <th class="num">{{ STATS_CATEGORIES[type] }}</th>
-          <th class="num">pro Mitglied</th>
-          <th class="num" title="Punkte seit dem vorherigen synchronisierten Stand">Δ</th>
+          <th class="num">{{ t('stats.perMember') }}</th>
+          <th class="num" :title="t('stats.deltaTitle')">Δ</th>
         </tr>
       </thead>
       <tbody>

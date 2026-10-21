@@ -254,5 +254,6 @@ export interface ParseResult {
   lang: Lang;
   source: 'html' | 'text' | 'json';
   records: HubRecord[];
+  /** stable codes, translated by the web app (e.g. `stats_category_unknown`) */
   warnings: string[];
 }

@@ -1,32 +1,39 @@
 import { techName } from '@pr0hub/core/tech';
+import { currentLang, intlLocale, t } from './i18n';
 
 export const fmt = (n: number | null | undefined, digits = 0) =>
-  n == null || Number.isNaN(n) ? '–' : n.toLocaleString('de-DE', { maximumFractionDigits: digits, minimumFractionDigits: digits });
+  n == null || Number.isNaN(n) ? '–' : n.toLocaleString(intlLocale(), { maximumFractionDigits: digits, minimumFractionDigits: digits });
 
 export const fmtSigned = (n: number | null | undefined) => (n == null ? '–' : (n > 0 ? '+' : '') + fmt(n));
 
-/** 1.234.567 -> 1,23 Mio */
+/** Suffixes per power of thousand (from 10^6), English like the game's LANG.cfg. */
+const SHORT_SUFFIX = {
+  de: [' Mio', ' Mrd', ' Bio', ' Brd', ' Trio'],
+  en: ['M', 'B', 'T', 'Q', 'Q+'],
+};
+
+/** 1.234.567 -> 1,23 Mio (en: 1.23M) */
 export function short(n: number | null | undefined): string {
   if (n == null) return '–';
   const a = Math.abs(n);
-  if (a >= 1e18) return fmt(n / 1e18, 2) + ' Trio';
-  if (a >= 1e15) return fmt(n / 1e15, 2) + ' Brd';
-  if (a >= 1e12) return fmt(n / 1e12, 2) + ' Bio';
-  if (a >= 1e9) return fmt(n / 1e9, 2) + ' Mrd';
-  if (a >= 1e6) return fmt(n / 1e6, 2) + ' Mio';
-  if (a >= 1e4) return fmt(n / 1e3, 1) + 'k';
+  const suffix = SHORT_SUFFIX[currentLang()];
+  for (let i = suffix.length - 1; i >= 0; i--) {
+    const unit = 10 ** (6 + 3 * i);
+    if (a >= unit) return fmt(n / unit, 2) + suffix[i];
+  }
+  if (a >= 1e4) return fmt(n / 1e3, 1) + (currentLang() === 'en' ? 'K' : 'k');
   return fmt(n);
 }
 
 export function dateTime(epoch: number | null | undefined): string {
   if (!epoch) return '–';
-  return new Date(epoch * 1000).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
+  return new Date(epoch * 1000).toLocaleString(intlLocale(), { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 
 export function ago(epoch: number | null | undefined): string {
   if (!epoch) return '–';
   const s = Math.floor(Date.now() / 1000) - epoch;
-  if (s < 0) return 'gleich';
+  if (s < 0) return t('time.soon');
   if (s < 3600) return `${Math.max(1, Math.floor(s / 60))} min`;
   if (s < 86400 * 2) return `${Math.floor(s / 3600)} h`;
   return `${Math.floor(s / 86400)} d`;
@@ -34,51 +41,50 @@ export function ago(epoch: number | null | undefined): string {
 
 export const coords = (g: number, s: number, p: number) => `[${g}:${s}:${p}]`;
 
-export const name = (id: number | string) => techName(id, 'de');
+/** Element name in the current language (names as in the game, generated into tech.json). */
+export const name = (id: number | string) => techName(id, currentLang());
 
-export const STATS_TYPES: Record<number, string> = { 1: 'Gesamt', 2: 'Flotte', 3: 'Forschung', 4: 'Gebäude', 5: 'Verteidigung' };
-export const STATS_SHORT: Record<number, string> = { 1: 'Σ', 2: 'F', 3: 'R', 4: 'B', 5: 'D' };
+/**
+ * Label table whose values are looked up in the current language on access, so `LABEL[key]`
+ * call sites stay as they are and re-render on a language switch.
+ */
+function translated<K extends string | number>(prefix: string, keys: readonly K[]): Record<K, string> {
+  const o = {} as Record<K, string>;
+  for (const k of keys) Object.defineProperty(o, k, { enumerable: true, get: () => t(`${prefix}.${k}`) });
+  return o;
+}
+
+export const STATS_TYPES: Record<number, string> = translated('game.stats', [1, 2, 3, 4, 5]);
+export const STATS_SHORT: Record<number, string> = translated('game.statsShort', [1, 2, 3, 4, 5]);
 /** All ranking categories of the game's statistics page (6 = honor points, not part of the score columns). */
-export const STATS_CATEGORIES: Record<number, string> = { ...STATS_TYPES, 6: 'Ehrenpunkte' };
+export const STATS_CATEGORIES: Record<number, string> = translated('game.stats', [1, 2, 3, 4, 5, 6]);
 
-export const STATUS_LABEL: Record<string, string> = {
-  inactive: 'i',
-  longinactive: 'I',
-  vacation: 'u',
-  banned: 'g',
-  noob: 'n',
-  strong: 's',
-};
+/** Galaxy status letters as in the game (gl_short_*). */
+export const STATUS_LABEL: Record<string, string> = translated('game.status', ['inactive', 'longinactive', 'vacation', 'banned', 'noob', 'strong']);
+export const STATUS_TITLE: Record<string, string> = translated('game.statusTitle', ['inactive', 'longinactive', 'vacation', 'banned', 'noob', 'strong']);
 
-export const SECTIONS: { cls: number; label: string }[] = [
-  { cls: 900, label: 'Rohstoffe' },
-  { cls: 200, label: 'Flotte' },
-  { cls: 400, label: 'Verteidigung' },
-  { cls: 100, label: 'Forschung' },
-  { cls: 0, label: 'Gebäude' },
-];
+const SECTION_LABEL: Record<number, string> = translated('game.sections', [900, 200, 400, 100, 0]);
+export const SECTIONS: { cls: number; label: string }[] = [900, 200, 400, 100, 0].map((cls) => ({
+  cls,
+  get label() {
+    return SECTION_LABEL[cls];
+  },
+}));
 
-export const EVENT_LABEL: Record<string, string> = {
-  Res: 'Ressourcen',
-  Ships: 'Schiffe',
-  Pirates: 'Piraten',
-  Aliens: 'Aliens',
-  Fast: 'Schnell',
-  Slow: 'Langsam',
-  BlackHole: 'Schwarzes Loch',
-  Nothing: 'Nichts',
-};
-export const SIZE_LABEL: Record<string, string> = { Small: 'klein', Medium: 'mittel', Big: 'groß', None: '' };
+export const EVENT_LABEL: Record<string, string> = translated('game.events', ['Res', 'Ships', 'Pirates', 'Aliens', 'Fast', 'Slow', 'BlackHole', 'Nothing']);
+export const SIZE_LABEL: Record<string, string> = translated('game.sizes', ['Small', 'Medium', 'Big']);
 /** Depletion of the expedition system (only known with a probe in the fleet). */
-export const DEPLETION_LABEL: Record<string, string> = { none: 'keine', few: 'gering', medium: 'mittel', many: 'stark' };
+export const DEPLETION_LABEL: Record<string, string> = translated('game.depletion', ['none', 'few', 'medium', 'many']);
 
 /** Counts that may be expected values: whole numbers without decimals, otherwise one decimal. */
 export const fmtCount = (n: number | null | undefined) =>
   n == null ? '–' : Math.abs(n - Math.round(n)) < 0.05 ? fmt(Math.round(n)) : fmt(n, 1);
 
+/** "Piraten groß" / "Large Pirates" (word order per language). */
 export const cardLabel = (key: string) => {
   const [type, size] = key.split(':');
-  return `${EVENT_LABEL[type] ?? type}${size && size !== 'None' ? ' ' + SIZE_LABEL[size] : ''}`;
+  const event = EVENT_LABEL[type] ?? type;
+  return size && size !== 'None' ? t('game.card', { event, size: SIZE_LABEL[size] ?? size }) : event;
 };
 
 export interface UniverseSettings {
@@ -125,17 +131,28 @@ export function duration(sec: number): string {
   return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
-/** Short column labels for element tables (full name as tooltip). */
-const ABBR: Record<number, string> = {
-  1: 'MM', 2: 'KM', 3: 'DS', 4: 'SKW', 6: 'TD', 12: 'FKW', 14: 'RF', 15: 'NF', 21: 'WE', 22: 'MSp', 23: 'KSp', 24: 'DTk',
-  31: 'FL', 33: 'TF', 34: 'AD', 35: 'RD', 41: 'MB', 42: 'PH', 43: 'ST', 44: 'RS',
-  106: 'Spio', 108: 'Comp', 109: 'Waff', 110: 'Schi', 111: 'Panz', 113: 'Ener', 114: 'Hyp', 115: 'Verb', 117: 'Imp', 118: 'HRA',
-  120: 'Las', 121: 'Ion', 122: 'Plas', 123: 'IFN', 124: 'Astro', 131: 'PM-M', 132: 'PM-K', 133: 'PM-D', 134: 'TE', 199: 'Grav',
-  202: 'KT', 203: 'GT', 204: 'LJ', 205: 'SJ', 206: 'Xer', 207: 'SS', 208: 'Kolo', 209: 'Rec', 210: 'Spy', 211: 'B', 212: 'Sat',
-  213: 'Zerri', 214: 'RIP', 215: 'SXer', 222: 'HXer', 225: 'ST', 227: 'ORec', 231: 'Beh', 232: 'VT',
-  401: 'RW', 402: 'LL', 403: 'SL', 404: 'Gauß', 405: 'Ion', 406: 'Plas', 407: 'kSK', 408: 'gSK', 502: 'AR', 503: 'IPR',
+/** Short column labels for element tables (full name as tooltip). English ones follow the game's English names. */
+const ABBR: Record<'de' | 'en', Record<number, string>> = {
+  de: {
+    1: 'MM', 2: 'KM', 3: 'DS', 4: 'SKW', 6: 'TD', 12: 'FKW', 14: 'RF', 15: 'NF', 21: 'WE', 22: 'MSp', 23: 'KSp', 24: 'DTk',
+    31: 'FL', 33: 'TF', 34: 'AD', 35: 'RD', 41: 'MB', 42: 'PH', 43: 'ST', 44: 'RS',
+    106: 'Spio', 108: 'Comp', 109: 'Waff', 110: 'Schi', 111: 'Panz', 113: 'Ener', 114: 'Hyp', 115: 'Verb', 117: 'Imp', 118: 'HRA',
+    120: 'Las', 121: 'Ion', 122: 'Plas', 123: 'IFN', 124: 'Astro', 131: 'PM-M', 132: 'PM-K', 133: 'PM-D', 134: 'TE', 199: 'Grav',
+    202: 'KT', 203: 'GT', 204: 'LJ', 205: 'SJ', 206: 'Xer', 207: 'SS', 208: 'Kolo', 209: 'Rec', 210: 'Spy', 211: 'B', 212: 'Sat',
+    213: 'Zerri', 214: 'RIP', 215: 'SXer', 222: 'HXer', 225: 'ST', 227: 'ORec', 231: 'Beh', 232: 'VT',
+    401: 'RW', 402: 'LL', 403: 'SL', 404: 'Gauß', 405: 'Ion', 406: 'Plas', 407: 'kSK', 408: 'gSK', 502: 'AR', 503: 'IPR',
+  },
+  en: {
+    1: 'MM', 2: 'CM', 3: 'DR', 4: 'SPP', 6: 'Uni', 12: 'FPP', 14: 'RF', 15: 'NF', 21: 'SY', 22: 'MSt', 23: 'CSt', 24: 'DSt',
+    31: 'Lab', 33: 'TF', 34: 'AD', 35: 'RD', 41: 'MB', 42: 'PH', 43: 'JG', 44: 'MS',
+    106: 'Spy', 108: 'Comp', 109: 'Weap', 110: 'Shld', 111: 'Arm', 113: 'Ener', 114: 'Hyp', 115: 'Comb', 117: 'Imp', 118: 'HE',
+    120: 'Las', 121: 'Ion', 122: 'Plas', 123: 'IRN', 124: 'Astro', 131: 'MP', 132: 'CP', 133: 'DP', 134: 'FE', 199: 'Grav',
+    202: 'LC', 203: 'HC', 204: 'LF', 205: 'HF', 206: 'Cr', 207: 'BS', 208: 'Col', 209: 'Rec', 210: 'Probe', 211: 'Bomb', 212: 'Sat',
+    213: 'Dest', 214: 'RIP', 215: 'BC', 222: 'HCr', 225: 'ST', 227: 'ORec', 231: 'Beh', 232: 'VT',
+    401: 'ML', 402: 'LL', 403: 'HL', 404: 'Gauss', 405: 'Ion', 406: 'Plas', 407: 'SSD', 408: 'LSD', 502: 'ABM', 503: 'IPM',
+  },
 };
-export const abbr = (id: number) => ABBR[id] ?? name(id);
+export const abbr = (id: number) => ABBR[currentLang()][id] ?? name(id);
 
 /** Colour from red (low) to green (column maximum), like the FF-Hub tables. */
 export function scaleColor(value: number | null | undefined, max: number) {
@@ -146,11 +163,11 @@ export function scaleColor(value: number | null | undefined, max: number) {
 /** "21.10.26, 12:00:30 (5 h)": exact time to the second plus elapsed hours. */
 export function timeWithAge(epoch: number | null | undefined): string {
   if (!epoch) return '–';
-  const t = new Date(epoch * 1000).toLocaleString('de-DE', {
+  const time = new Date(epoch * 1000).toLocaleString(intlLocale(), {
     day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit',
   });
   const s = Math.max(0, Math.floor(Date.now() / 1000) - epoch);
-  return `${t} (${s < 3600 ? `${Math.floor(s / 60)} min` : `${Math.floor(s / 3600)} h`})`;
+  return `${time} (${s < 3600 ? `${Math.floor(s / 60)} min` : `${Math.floor(s / 3600)} h`})`;
 }
 
 export type Coords3 = [number, number, number];
