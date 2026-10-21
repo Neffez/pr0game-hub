@@ -78,7 +78,7 @@ export function ingest(
 /** Re-runs the parser over a stored raw ingest (after parser fixes). Idempotent like a normal ingest. */
 export function reparse(db: DB, rawId: number, timezone: string): IngestSummary {
   const row = db.prepare('SELECT * FROM raw_ingests WHERE id = ?').get(rawId) as
-    | { group_id: number; user_id: number; url: string | null; html_gz: Buffer | null; text_gz: Buffer | null }
+    | { group_id: number; user_id: number | null; url: string | null; html_gz: Buffer | null; text_gz: Buffer | null }
     | undefined;
   if (!row) throw new Error('raw ingest not found');
   const parsed = parsePage({
@@ -89,7 +89,12 @@ export function reparse(db: DB, rawId: number, timezone: string): IngestSummary 
   const summary: IngestSummary = {
     pageType: parsed.pageType, source: parsed.source, lang: parsed.lang, warnings: parsed.warnings, counts: {}, preview: [],
   };
-  const store = new Store(db, { groupId: row.group_id, userId: row.user_id, timezone }, summary);
+  // the uploader may be deleted meanwhile: attribute to a remaining member of the group
+  const userId =
+    row.user_id ??
+    (db.prepare("SELECT user_id FROM group_members WHERE group_id = ? ORDER BY role = 'admin' DESC, joined_at LIMIT 1").pluck().get(row.group_id) as number | undefined);
+  if (!userId) throw new Error('group has no members');
+  const store = new Store(db, { groupId: row.group_id, userId, timezone }, summary);
   db.transaction(() => parsed.records.forEach((r) => store.record(r)))();
   return summary;
 }

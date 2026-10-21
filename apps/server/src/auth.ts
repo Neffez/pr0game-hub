@@ -31,12 +31,33 @@ export function verifyPassword(password: string, stored: string): boolean {
   return timingSafeEqual(expected, actual);
 }
 
+/** Hash verified for unknown users so that login timing does not reveal which usernames exist. */
+const DUMMY_HASH = hashPassword(randomBytes(16).toString('hex'));
+export const verifyPasswordOrDummy = (password: string, stored: string | undefined) =>
+  verifyPassword(password, stored ?? DUMMY_HASH) && stored !== undefined;
+
+/** In-memory brute-force limit: max `limit` failed logins per key within `windowSec`. */
+const failures = new Map<string, { n: number; reset: number }>();
+export function loginBlocked(key: string, limit = 10): boolean {
+  const e = failures.get(key);
+  if (e && e.reset <= now()) failures.delete(key);
+  return (failures.get(key)?.n ?? 0) >= limit;
+}
+export function loginFailed(key: string, windowSec = 900) {
+  const e = failures.get(key);
+  if (!e || e.reset <= now()) failures.set(key, { n: 1, reset: now() + windowSec });
+  else e.n++;
+  if (failures.size > 10000) for (const [k, v] of failures) if (v.reset <= now()) failures.delete(k);
+}
+export const loginSucceeded = (key: string) => void failures.delete(key);
+
 export const randomToken = (bytes = 32) => randomBytes(bytes).toString('base64url');
 const sha256 = (s: string) => createHash('sha256').update(s).digest('hex');
 
 export function createSession(db: DB, userId: number, reply: FastifyReply) {
   const token = randomToken();
   const expires = now() + config.sessionDays * 86400;
+  db.prepare('DELETE FROM sessions WHERE expires_at <= ?').run(now());
   db.prepare('INSERT INTO sessions (token_hash, user_id, expires_at) VALUES (?, ?, ?)').run(sha256(token), userId, expires);
   db.prepare('UPDATE users SET last_login_at = ? WHERE id = ?').run(now(), userId);
   reply.setCookie(SESSION_COOKIE, token, {
@@ -52,6 +73,12 @@ export function destroySession(db: DB, req: FastifyRequest, reply: FastifyReply)
   const token = req.cookies[SESSION_COOKIE];
   if (token) db.prepare('DELETE FROM sessions WHERE token_hash = ?').run(sha256(token));
   reply.clearCookie(SESSION_COOKIE, { path: config.basePath || '/' });
+}
+
+/** Ends all sessions of a user except the one of the current request. */
+export function destroyOtherSessions(db: DB, userId: number, req: FastifyRequest) {
+  const token = req.cookies[SESSION_COOKIE];
+  db.prepare('DELETE FROM sessions WHERE user_id = ? AND token_hash != ?').run(userId, token ? sha256(token) : '');
 }
 
 export function loadSessionUser(db: DB, req: FastifyRequest): SessionUser | null {
