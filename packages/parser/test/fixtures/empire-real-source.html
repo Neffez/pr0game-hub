@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="de" class="no-js">
+<head>
+  <title>Imperium - Universe 7 - pr0game</title>
+  <script type="text/javascript">
+    var queryString    = "page=Empire";
+    var serverTimeDelta = new Date(2026, 9, 21, 13, 43, 45).getTime() - Date.now();
+  </script>
+</head>
+<body id="Empire" class="full">
+<div class="wrapper">
+    <header>
+<div class="planetSelectorWrapper">
+    <select id="planetSelector">
+        <option value="1008434" selected="selected">Ares [1:100:12]</option>
+<option value="1011019">Osirious (Mond) [1:100:12]</option>
+    </select>
+</div>
+<div class="no-mobile">
+    <div class="res_current" data-ticker="current_metal" data-real="338566">338.566</div>
+    <div class="res_max colorPositive" id="max_metal" data-real="4325000">4.325.000</div>
+    <div class="res_max colorPositive" id="max_crystal" data-real="2350000">2.350.000</div>
+    <div class="res_max colorPositive" id="max_deuterium" data-real="2350000">2.350.000</div>
+    <div class="res_max colorPositive" id="max_energy" data-real="35">1.200</div>
+</div>
+    </header>
+    <content>
+  <table>
+    <tbody>
+    <tr>
+      <th colspan="5">Imperiumsübersicht</th>
+    </tr>
+    <th colspan="5">
+      <span onclick="toggle_rows('chart')"><span id="chart-toggle">▲</span> Statistik</span>
+    </th>
+    <tr> <!-- Diagram -->
+      <td colspan="100">
+        <div class="chart empire-chart empire-chart--points" style="height: 300px;">
+          <canvas id="playerChart"></canvas>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td style="width:100px">Planet (7 / 7)</td>
+      <td style="width:100px;font-size: 50px;">&Sigma;</td>
+                  <td style="width:100px">
+            <a href="game.php?page=overview&amp;cp=1008434">
+                                                <img class="inline-block" width="80" height="80" border="0" src="./styles/theme/community/planeten/dschjungelplanet06.jpg">
+                                                                                          </a>
+          </td>
+                  <td style="width:100px">
+            <a href="game.php?page=overview&amp;cp=1011019">
+                                                <img class="inline-block" width="80" height="80" border="0" src="./styles/theme/community/planeten/mond09.jpg">
+                                                                                          </a>
+          </td>
+                  <td style="width:100px">
+            <a href="game.php?page=overview&amp;cp=1010555">
+                                                <img class="inline-block" width="80" height="80" border="0" src="./styles/theme/community/planeten/wasserplanet05.jpg">
+                                                                                          </a>
+          </td>
+            </tr>
+    <tr>
+      <td>Name</td>
+      <td>Total</td>
+                  <td>Ares</td>
+                  <td>Osirious</td>
+                  <td>Hephaistos</td>
+            </tr>
+    <tr>
+      <td>Koordinaten</td>
+      <td>-</td>
+                  <td><a href="game.php?page=galaxy&amp;galaxy=1&amp;system=100">[1:100:12]</a></td>
+                  <td><a href="game.php?page=galaxy&amp;galaxy=1&amp;system=100">[1:100:12]</a></td>
+                  <td><a href="game.php?page=galaxy&amp;galaxy=3&amp;system=200">[3:200:1]</a></td>
+            </tr>
+    <tr>
+      <td>Felder</td>
+      <td>-</td>
+                  <td>168 / 208</td>
+                  <td>16 / 16</td>
+                  <td>129 / 133</td>
+            </tr>
+    <tr>
+      <td>Temperatur</td>
+      <td>-</td>
+                  <td>42 °C</td>
+                  <td>3 °C</td>
+                  <td>-123 °C</td>
+            </tr>
+    <tr>
+      <td>Punkte</td>
+      <td>479.376</td>
+                  <td>93.053</td>
+                  <td>11.131</td>
+                  <td>84.931</td>
+            </tr>
+          <tr class="ressources" data-info="r_901">
+        <td><a href='#' onclick='return Dialog.info(901);' class='tooltip'
+               data-tooltip-content="<table><tr><th>Metall</th></tr></table>">Metall</a>
+        </td>
+        <td>
+          24.555.699
+                                    <br><span class="colorPositive">
+                242.662 /h
+              </span>
+                                      <br><span class="colorNeutral">✈ 2.396.674</span>
+                              </td>
+                  <td>
+            338.566
+                                                            <br><span                       class="colorPositive"
+                    >
+                    38.369 /h
+                  </span>
+                                                                  </td>
+                  <td>
+            134.160
+                                                              </td>
+                  <td>
+            93.633
+                                                              </td>
+              </tr>
+          <tr class="ressources" data-info="r_911">
+        <td><a href='#' onclick='return Dialog.info(911);' class='tooltip'>Energie</a></td>
+        <td>44</td>
+                  <td>35</td>
+                  <td>0</td>
+                  <td>9</td>
+              </tr>
+          <tr class="buildings" data-info="b_1">
+        <td><a href='#' onclick='return Dialog.info(1)' class='tooltip'
+               data-tooltip-content="<table><tr><th>Metallmine</th></tr></table>">Metallmine</a>
+        </td>
+        <td>24,6</td>
+                  <td>
+            <span class="">25</span>
+                          <span class="colorNeutral"> ⬆ 26</span>
+                      </td>
+                  <td>
+            <span class="">0</span>
+                      </td>
+                  <td>
+            <span class="">25</span>
+                      </td>
+              </tr>
+          <tr class="buildings" data-info="b_22">
+        <td><a href='#' onclick='return Dialog.info(22)' class='tooltip'>Metallspeicher</a></td>
+        <td>4,3</td>
+                  <td><span class="">7</span></td>
+                  <td><span class="">0</span></td>
+                  <td><span class="">6</span></td>
+              </tr>
+          <tr class="buildings" data-info="b_41">
+        <td><a href='#' onclick='return Dialog.info(41)' class='tooltip'
+               data-tooltip-content="<table><tr><th>Mondbasis</th></tr></table>">Mondbasis</a>
+        </td>
+        <td>5,0</td>
+                  <td>
+            <span class="">0</span>
+                      </td>
+                  <td>
+            <span class="">5</span>
+                      </td>
+                  <td>
+            <span class="">0</span>
+                      </td>
+              </tr>
+        <tr>
+      <th colspan="5" onclick="toggle_rows('technology')"><span id="technology-toggle">▲</span> Forschungen</th>
+    </tr>
+          <tr class="technology" data-info="t_110">
+        <td><a href='#' onclick='return Dialog.info(110)' class='tooltip'
+               data-tooltip-content="<table><tr><th>Schildtechnik</th></tr></table>">Schildtechnik</a>
+        </td>
+        <td>
+          13
+          <span class="colorNeutral"> ⬆ 14</span>        </td>
+                              <td>
+              <span class="">13</span>
+              <span class="colorNeutral"> ⬆ 14</span>            </td>
+                                        <td>-</td>
+                                        <td>
+              <span class="">13</span>
+                          </td>
+                        </tr>
+        <tr>
+      <th colspan="5" onclick="toggle_rows('ships')"><span id="ships-toggle">▲</span> Schiffe</th>
+    </tr>
+          <tr class="ships" data-info="f_203">
+        <td><a href='#' onclick='return Dialog.info(203)' class='tooltip'
+               data-tooltip-content="<table><tr><th>Großer Transporter</th></tr></table>">Großer Transporter</a>
+        </td>
+        <td>
+          2.070
+                                <span class="colorNeutral"><br>✈ 214</span>
+                  </td>
+                  <td>
+            <span class="">0</span>
+                                  </td>
+                  <td>
+            <span class="">538</span>
+                                      <span class="colorNeutral"><br>✈ 41</span>
+                      </td>
+                  <td>
+            <span class="">13</span>
+                                  </td>
+              </tr>
+          <tr class="ships" data-info="f_215">
+        <td><a href='#' onclick='return Dialog.info(215)' class='tooltip'
+               data-tooltip-content="<table><tr><th>Schlachtkreuzer</th></tr></table>">Schlachtkreuzer</a>
+        </td>
+        <td>
+          4.340
+                      <span class="colorNeutral"> ⬆ 63</span>
+                            </td>
+                  <td>
+            <span class="">38</span>
+                          <span class="colorNeutral"> ⬆ 63</span>
+                                  </td>
+                  <td>
+            <span class="">326</span>
+                                  </td>
+                  <td>
+            <span class="">0</span>
+                                  </td>
+              </tr>
+        <tr>
+      <th colspan="5" onclick="toggle_rows('defenses')"><span id="defenses-toggle">▲</span> Verteidigung</th>
+    </tr>
+          <tr class="defenses" data-info="d_401">
+        <td><a href='#' onclick='return Dialog.info(401)' class='tooltip'
+               data-tooltip-content="<table><tr><th>Raketenwerfer</th></tr></table>">Raketenwerfer</a>
+        </td>
+        <td>
+          56
+                  </td>
+                  <td>
+            <span class="">0</span>
+                      </td>
+                  <td>
+            <span class="">0</span>
+                      </td>
+                  <td>
+            <span class="">36</span>
+                      </td>
+              </tr>
+          <tr class="missile" data-info="d_502">
+        <td><a href='#' onclick='return Dialog.info(502)' class='tooltip'
+               data-tooltip-content="<table><tr><th>Abfangrakete</th></tr></table>">Abfangrakete</a>
+        </td>
+        <td>
+          0
+                            </td>
+                  <td>
+            <span class="">0</span>
+                                  </td>
+                  <td>
+            <span class="">0</span>
+                                  </td>
+                  <td>
+            <span class="">0</span>
+                                  </td>
+              </tr>
+        </tbody>
+  </table>
+    </content>
+</div>
+</body>
+</html>

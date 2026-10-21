@@ -1,0 +1,48 @@
+Spionageberichte
+Spionageabteilung
+Spionagebericht
+21. Okt 2026, 12:00:00
+Spionagebericht vom Planeten Heimat (Alpha) [1:234:5] am 21. Okt 2026, 12:00:30
+Rohstoffe
+Metall	1.234.567	Kristall	500.000
+Deuterium	10	Energie	-50
+Schiffe
+Kleiner Transporter	15 (+ 3)
+Leichter Jäger	2
+Verteidigungsanlagen
+Gebäude
+Metallmine	22	Kristallmine	18
+Angreifen
+Die Wahrscheinlichkeit der Zerstörung der Spionagesonde beträgt: 3 %
+Kampfberichte
+Flottenhauptquartier
+Kampfbericht
+21. Okt 2026, 13:10:00
+Kampfbericht [1:234:5] (P)
+Verluste	Angreifer: 0 Verteidiger: 12.000
+Gewinn	Metall: 600.000 Kristall: 250.000 Deuterium: 5
+Trümmerfeld	Metall: 3.000 Kristall: 1.000
+Expeditionberichte
+Flottenhauptquartier
+Expeditionsbericht
+21. Okt 2026, 14:00:00
+Expeditionsbericht der Flotte von Heimat [1:200:4] bei [1:200:16]:
+Deine Expedition fand Schiffe.
+Es wurden folgende Schiffe gefunden:
+Kleiner Transporter: 12
+Leichter Jäger: 3
+Logbuch Nachtrag: bla
+Kleine Schiffsfunde
+Expeditionberichte
+Flottenhauptquartier
+Expeditionsbericht
+21. Okt 2026, 15:00:00
+Expeditionsbericht der Flotte von Heimat [1:200:4] bei [1:200:16]:
+Nichts passiert.
+Leere Expeditionen
+Transporte
+Flottenkommando
+Recyclerbericht
+21. Okt 2026, 16:00:00
+Deine Recycler haben an den Koordinaten [1:234:5] 80.000 Metall und 25.000 Kristall von insgesamt 3.000.000 Metall und 1.000.000 Kristall gesammelt.
+Es werden 116.000 Recycler für das Trümmerfeld benötigt.

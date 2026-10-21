@@ -1,0 +1,64 @@
+[
+  {
+    "1:234": {
+      "1": null,
+      "5": {
+        "planetname": "Heimat",
+        "hasmoon": true,
+        "playerid": 1234,
+        "name": "Alpha",
+        "allianceid": 77,
+        "alliancename": "Die Allianz",
+        "special": ""
+      },
+      "7": {
+        "planetname": "",
+        "hasmoon": false,
+        "playerid": 55,
+        "name": "Beta Max",
+        "allianceid": -1,
+        "alliancename": "-",
+        "special": "uIi"
+      },
+      "timepoint": 1792569600000
+    },
+    "1:235": {
+      "1": null,
+      "timepoint": 1792483200000,
+      "3": {
+        "planetname": "-",
+        "hasmoon": false,
+        "playerid": 99,
+        "name": "-",
+        "allianceid": 88,
+        "alliancename": "-",
+        "special": "un"
+      },
+      "4": {
+        "planetname": "-",
+        "hasmoon": false,
+        "playerid": 1234,
+        "name": "-",
+        "allianceid": 77,
+        "alliancename": "-",
+        "special": ""
+      }
+    }
+  },
+  {
+    "1234": {
+      "name": "Alpha",
+      "timepoint": 1792569600000
+    }
+  },
+  {
+    "77": {
+      "name": "Die Allianz",
+      "timepoint": 1792569600000
+    },
+    "88": {
+      "name": "Unbekannt",
+      "timepoint": 1792569600000
+    }
+  }
+]

@@ -1,0 +1,316 @@
+import { readFileSync } from 'node:fs';
+import { beforeAll, describe, expect, it } from 'vitest';
+
+process.env.WEB_DIR = '/nonexistent';
+
+const { buildApp } = await import('../src/app.js');
+const { openDb } = await import('../src/db.js');
+const { hashPassword } = await import('../src/auth.js');
+
+const fixture = (name: string) =>
+  readFileSync(new URL(`../../../packages/parser/test/fixtures/${name}`, import.meta.url), 'utf8');
+
+const db = openDb(':memory:');
+const app = buildApp(db, { logger: false });
+
+async function login(username: string, password: string) {
+  const res = await app.inject({ method: 'POST', url: '/hub/api/auth/login', payload: { username, password } });
+  expect(res.statusCode).toBe(200);
+  const cookie = res.cookies.find((c) => c.name === 'hub_session')!;
+  return { cookie: `hub_session=${cookie.value}` };
+}
+
+let admin: { cookie: string };
+let groupA: number;
+let groupB: number;
+
+beforeAll(async () => {
+  await app.ready();
+  db.prepare('INSERT INTO users (username, password_hash, is_admin) VALUES (?, ?, 1)').run('admin', hashPassword('adminpass'));
+  admin = await login('admin', 'adminpass');
+  const h = { headers: admin };
+  expect((await app.inject({ method: 'POST', url: '/hub/api/admin/universes', payload: { slug: 'u8', name: 'Universum 8' }, ...h })).statusCode).toBe(200);
+  groupA = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', payload: { universe: 'u8', name: 'A' }, ...h })).json().id;
+  groupB = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', payload: { universe: 'u8', name: 'B' }, ...h })).json().id;
+});
+
+describe('api', () => {
+  it('rejects unauthenticated access', async () => {
+    const res = await app.inject({ method: 'GET', url: '/hub/api/u8/overview' });
+    expect(res.statusCode).toBe(401);
+  });
+
+  it('ingests stats and computes deltas', async () => {
+    const headers = { ...admin, 'x-hub-group': String(groupA) };
+    const html = fixture('stats-player.html');
+    // Older snapshot (type 2, 6h earlier) with lower points via text edit of the fixture.
+    const older = html.replace('12:00:03', '06:00:03').replace('1.234.567', '1.000.000');
+    let res = await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { html: older } });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().counts.player_scores).toEqual({ new: 3, duplicate: 0 });
+    res = await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { html } });
+    expect(res.json().counts.player_scores).toEqual({ new: 3, duplicate: 0 });
+    // Same paste again -> duplicates only.
+    res = await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { html } });
+    expect(res.json().counts.player_scores).toEqual({ new: 0, duplicate: 3 });
+
+    const ov = (await app.inject({ method: 'GET', url: '/hub/api/u8/overview', headers })).json();
+    const alpha = ov.players.find((p: any) => p.name === 'Alpha');
+    expect(alpha.ingame_id).toBe(1234);
+    expect(alpha.ally_name).toBe('Die Allianz');
+    expect(alpha.scores[2]).toMatchObject({ points: 1234567, rankChange: 3 });
+    expect(alpha.scores[2].deltas['6h']).toMatchObject({ delta: 234567, partial: false });
+    // Only 6h of history: the 24h delta falls back to the oldest snapshot.
+    expect(alpha.scores[2].deltas['24h']).toMatchObject({ delta: 234567, partial: true });
+    // FF-Hub style slots: newest 6 h interval, the one before is unknown (no 00:00 stand)
+    expect(alpha.scores[2].slots[0]).toMatchObject({ delta: 234567 });
+    expect(alpha.scores[2].slots[1]).toBeNull();
+  });
+
+  it('matches plain-text players by name to existing ids', async () => {
+    const headers = { ...admin, 'x-hub-group': String(groupA) };
+    const res = await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { text: fixture('stats-player.txt') } });
+    expect(res.json().counts.player_scores.new).toBe(3);
+    const players = db.prepare('SELECT COUNT(*) FROM players WHERE group_id = ?').pluck().get(groupA);
+    expect(players).toBe(3);
+  });
+
+  it('ingests messages and serves spy history, expeditions and deck', async () => {
+    const headers = { ...admin, 'x-hub-group': String(groupA) };
+    const res = await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { html: fixture('messages.html') } });
+    expect(res.json().counts).toMatchObject({
+      spy_reports: { new: 1 }, battle_reports: { new: 1 }, expeditions: { new: 3 }, hostile_spying: { new: 1 }, recycle_reports: { new: 1 },
+    });
+    const spy = (await app.inject({ method: 'GET', url: '/hub/api/u8/spy/1/234/5', headers })).json();
+    expect(spy.total).toBe(1);
+    expect(spy.reports[0].sections['900']['901']).toBe(1234567);
+
+    const deck = (await app.inject({ method: 'GET', url: '/hub/api/u8/deck', headers })).json();
+    expect(deck.state.drawnInDeck).toBe(3);
+
+    const raids = (await app.inject({ method: 'GET', url: '/hub/api/u8/raids', headers })).json();
+    expect(raids.perUser[0]).toMatchObject({ raids: 1, metal: 600000 });
+    expect(raids.recyclePerUser[0]).toMatchObject({ runs: 1, metal: 80000, crystal: 25000, left: 3895000 });
+    const activity = (await app.inject({ method: 'GET', url: '/hub/api/u8/activity?kinds=debris_shrunk', headers })).json();
+    expect(activity.entries[0].data).toMatchObject({ metal: 2920000, crystal: 975000, collected: { metal: 80000, crystal: 25000 }, by: 'admin' });
+
+    const ov = (await app.inject({ method: 'GET', url: '/hub/api/u8/overview', headers })).json();
+    const planet = ov.planets.find((p: any) => p.g === 1 && p.s === 234 && p.p === 5);
+    expect(planet).toMatchObject({ type: 'planet', name: 'Heimat' });
+    // 15 small cargos at 4000 resources each
+    expect(planet.spy).toMatchObject({ res: { 901: 1234567 }, fleet: 60, defense: 0 });
+  });
+
+  it('imports universe.json without overwriting fresher views', async () => {
+    const headers = { ...admin, 'x-hub-group': String(groupA) };
+    const text = fixture('universe.json');
+    let res = await app.inject({ method: 'POST', url: '/hub/api/u8/universe-json', headers, payload: { text } });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().counts.galaxy_systems).toEqual({ new: 2, duplicate: 0 });
+    const planet = db.prepare('SELECT * FROM planets WHERE group_id = ? AND g = 1 AND s = 234 AND p = 5').get(groupA) as any;
+    expect(planet).toMatchObject({ name: 'Heimat', has_moon: 1 });
+    // An older export is skipped
+    res = await app.inject({ method: 'POST', url: '/hub/api/u8/universe-json', headers, payload: { text: text.replaceAll('"timepoint": 1792', '"timepoint": 1791') } });
+    expect(res.json().counts.galaxy_systems).toEqual({ new: 0, duplicate: 2 });
+    // Names from an export older than the stats don't rename the player, they become aliases.
+    await app.inject({ method: 'POST', url: '/hub/api/u8/universe-json', headers, payload: { text: text.replaceAll('"Alpha"', '"AltAlpha"').replaceAll('"timepoint": 1792569600000', '"timepoint": 1792570000000') } });
+    const alpha = db.prepare('SELECT id, name FROM players WHERE group_id = ? AND ingame_id = 1234').get(groupA) as any;
+    expect(alpha.name).toBe('Alpha');
+    expect(db.prepare('SELECT name FROM player_aliases WHERE player_id = ?').pluck().all(alpha.id)).toContain('AltAlpha');
+    // universe browser: system view and the per-galaxy navigation strip
+    const sys = (await app.inject({ method: 'GET', url: '/hub/api/u8/browse/1/234', headers })).json();
+    expect(sys.view.seen_at).toBe(1792570000);
+    expect(sys.rows.find((r: any) => r.p === 5)).toMatchObject({ name: 'Heimat', has_moon: 1, player_name: 'Alpha', ally_name: 'Die Allianz' });
+    const strip = (await app.inject({ method: 'GET', url: '/hub/api/u8/browse/1', headers })).json();
+    expect(strip.planets['234']).toBe(2);
+    expect(strip.seen['235']).toBe(1792483200);
+    res = await app.inject({ method: 'POST', url: '/hub/api/u8/universe-json', headers, payload: { text: '{}' } });
+    expect(res.statusCode).toBe(400);
+  });
+
+  it('serves the latest empire and overview page for the live imperium view', async () => {
+    const headers = { ...admin, 'x-hub-group': String(groupA) };
+    for (const f of ['empire-real-source.html', 'overview.html']) {
+      const res = await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { text: fixture(f) } });
+      expect(res.statusCode).toBe(200);
+    }
+    const im = (await app.inject({ method: 'GET', url: '/hub/api/u8/imperium', headers })).json();
+    // page times (Berlin) become the snapshot times
+    expect(im.empire.time).toBe(Date.UTC(2026, 9, 21, 11, 43, 45) / 1000);
+    expect(im.empire.data.planets[0].perHour).toEqual({ 901: 38369 });
+    expect(im.overview.time).toBe(Date.UTC(2026, 9, 21, 12, 0, 0) / 1000);
+    expect(im.overview.data.queues).toHaveLength(5);
+  });
+
+  it('lists phalanxes that reach a system', async () => {
+    const headers = { ...admin, 'x-hub-group': String(groupA) };
+    const empire = { kind: 'empire', research: {}, planets: [
+      { name: 'Mondi', coords: { g: 1, s: 200, p: 4 }, type: 'moon', values: { 41: 4, 42: 3 } },
+    ] };
+    db.prepare('INSERT INTO empire_snapshots (group_id, user_id, created_at, data) VALUES (?, 1, ?, ?)').run(groupA, 1893456000, JSON.stringify(empire));
+    // level 3: (9 - 1) = 8 systems in both directions
+    const near = (await app.inject({ method: 'GET', url: '/hub/api/u8/browse/1/208', headers })).json();
+    expect(near.phalanx).toEqual([expect.objectContaining({ s: 200, p: 4, level: 3, range: 8, from: 192, to: 208, source: 'empire', own: true })]);
+    const far = (await app.inject({ method: 'GET', url: '/hub/api/u8/browse/1/209', headers })).json();
+    expect(far.phalanx).toEqual([]);
+  });
+
+  it('shows known research and moon phalanx levels on the player page', async () => {
+    const headers = { ...admin, 'x-hub-group': String(groupA) };
+    const alpha = db.prepare('SELECT id FROM players WHERE group_id = ? AND ingame_id = 1234').get(groupA) as { id: number };
+    const insert = db.prepare(
+      `INSERT INTO spy_reports (group_id, user_id, g, s, p, planet_type, player_name, player_id, report_time, sections) VALUES (?, 1, 1, 234, 5, ?, 'Alpha', ?, ?, ?)`,
+    );
+    insert.run(groupA, 'planet', alpha.id, 1792500000, JSON.stringify({ 900: {}, 100: { 109: 12, 118: 7 } }));
+    insert.run(groupA, 'moon', alpha.id, 1792510000, JSON.stringify({ 900: {}, 0: { 41: 3, 42: 4 } }));
+    const res = (await app.inject({ method: 'GET', url: `/hub/api/u8/players/${alpha.id}`, headers })).json();
+    expect(res.research).toEqual({ values: { 109: 12, 118: 7 }, time: 1792500000, source: 'spy' });
+    expect(res.phalanx['1:234:5']).toEqual({ level: 4, time: 1792510000, source: 'spy' });
+  });
+
+  it('writes the activity log while syncing', async () => {
+    const groupC = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', payload: { universe: 'u8', name: 'C' }, headers: admin })).json().id;
+    const headers = { ...admin, 'x-hub-group': String(groupC) };
+    const ingest = async (payload: object) => {
+      const res = await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload });
+      expect(res.statusCode).toBe(200);
+    };
+
+    // galaxy: system known without the planet, then with planet + moon
+    const galaxy = fixture('galaxy.html');
+    await ingest({ html: galaxy.replace(/<div class="galaxy-grid-row even" data-info="p_5">[\s\S]*?(?=<div class="galaxy-grid-row empty odd" data-info="p_7">)/, '') });
+    await ingest({ html: galaxy });
+
+    // total points: same for 6 h (no growth), then a loss
+    const stats = (time: string, points: string) =>
+      fixture('stats-player.html')
+        .replace('12:00:03', time)
+        .replace('1.234.567', points)
+        .replace('<option value="1">Punkte</option><option value="2" selected="selected">Flotte</option>', '<option value="1" selected="selected">Punkte</option><option value="2">Flotte</option>');
+    await ingest({ html: stats('00:00:03', '1.000.000') });
+    await ingest({ html: stats('06:00:03', '1.000.000') });
+    await ingest({ html: stats('12:00:03', '900.000') });
+
+    // phalanx: first seen with level 2, later level 4
+    const spyMoon = (time: string, level: number) =>
+      `<div id="message_9${level}" class="message-item"><div class="message-date">21. Okt 2026, ${time}</div><div class="message-content"><div class="spyRaport">` +
+      `<div class="spyRaportHead"><a>Spionagebericht vom Mond Mondi (Alpha) [1:234:5] am 21. Okt 2026, ${time}</a></div>` +
+      `<div class="spyRaportContainer"><div class="spyRaportContainerHead spyRaportContainerHeadClass0">Gebäude</div>` +
+      `<div class="spyRaportContainerRow"><div class="spyRaportContainerCell">Sensorphalanx</div><div class="spyRaportContainerCell" data-info="0_42">${level}</div></div></div>` +
+      `</div></div></div>`;
+    await ingest({ html: spyMoon('08:00:00', 2) });
+    await ingest({ html: spyMoon('09:00:00', 4) });
+
+    // debris: grown, then reduced, then gone
+    await ingest({ html: galaxy.replace('1.2K', '2.5K') });
+    await ingest({ html: galaxy.replace('1.2K', '900') });
+    await ingest({ html: galaxy.replace('1.2K / 300', '') });
+
+    const log = (await app.inject({ method: 'GET', url: '/hub/api/u8/activity', headers })).json();
+    const kinds = log.entries.map((e: any) => [e.kind, e.player_name, e.data.hours ?? e.data.level ?? e.data.delta ?? null]);
+    expect(kinds).toEqual(
+      expect.arrayContaining([
+        ['planet_new', 'Alpha', null],
+        ['moon_new', 'Alpha', null],
+        ['no_growth', 'Alpha', 6],
+        ['no_growth', 'Alpha', 12],
+        ['points_loss', 'Alpha', -100000],
+        ['phalanx_new', 'Alpha', 2],
+        ['phalanx_up', 'Alpha', 4],
+      ]),
+    );
+    const debris = log.entries.filter((e: any) => e.kind.startsWith('debris_')).map((e: any) => [e.kind, e.data.metal ?? null]).reverse();
+    expect(debris).toEqual([
+      ['debris_new', 1200],
+      ['debris_grown', 2500],
+      ['debris_shrunk', 900],
+      ['debris_cleared', null],
+    ]);
+    expect(log.counts.no_growth).toBe(2);
+    // filter by kind
+    const only = (await app.inject({ method: 'GET', url: '/hub/api/u8/activity?kinds=phalanx_new,phalanx_up', headers })).json();
+    expect(only.entries.map((e: any) => e.kind).sort()).toEqual(['phalanx_new', 'phalanx_up']);
+
+    // backfill recreates the stats/spy based entries (galaxy changes can't be replayed)
+    db.prepare("DELETE FROM activity_log WHERE group_id = ? AND kind NOT IN ('planet_new', 'moon_new', 'debris_new')").run(groupC);
+    const res = await app.inject({ method: 'POST', url: `/hub/api/admin/groups/${groupC}/activity/backfill`, headers: admin, payload: {} });
+    expect(res.json().added).toBe(5);
+    const again = await app.inject({ method: 'POST', url: `/hub/api/admin/groups/${groupC}/activity/backfill`, headers: admin, payload: {} });
+    expect(again.json().added).toBe(0);
+  });
+
+  it('archives battle hall reports and pages through them', async () => {
+    const headers = { ...admin, 'x-hub-group': String(groupA) };
+    let res = await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { text: fixture('battlehall.html') } });
+    expect(res.json().counts.battle_hall).toEqual({ new: 4, duplicate: 0 });
+    res = await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { text: fixture('battlehall.html') } });
+    expect(res.json().counts.battle_hall).toEqual({ new: 0, duplicate: 4 });
+    const hall = (await app.inject({ method: 'GET', url: '/hub/api/u8/battle-hall', headers })).json();
+    expect(hall).toMatchObject({ total: 4, pages: 1 });
+    expect(hall.entries.map((e: any) => e.units)).toEqual([1075302000, 276316000, 260583000, 25541000]);
+    const anda = (await app.inject({ method: 'GET', url: '/hub/api/u8/battle-hall?q=Anda&sort=time', headers })).json();
+    expect(anda.entries.map((e: any) => e.report_id.slice(0, 4))).toEqual(['778f', '4a2c']);
+  });
+
+  it('archives battle reports with the background worker', async () => {
+    const headers = { ...admin, 'x-hub-group': String(groupA) };
+    const { step } = await import('../src/crawler.js');
+    const log = { info: () => {}, warn: () => {} };
+    await app.inject({ method: 'PUT', url: '/hub/api/admin/universes/u8', headers: admin, payload: { settings: { gameUrl: 'https://pr0game.com/uni8/' } } });
+    const urls: string[] = [];
+    const fetcher = (async (url: string) => {
+      urls.push(url);
+      return { text: async () => (url.includes('93a44dd0') ? fixture('raport-public.html') : 'Invalid Battle Report ID') };
+    }) as unknown as typeof fetch;
+    // newest hall entry first (20 Oct), then the others are already deleted in the game
+    expect(await step(db, log, fetcher)).toBe(true);
+    expect(urls[0]).toBe('https://pr0game.com/uni8/game.php?page=raport&raport=93a44dd012ff05992739d1afd749df1d');
+    for (let i = 0; i < 3; i++) await step(db, log, fetcher);
+    expect(await step(db, log, fetcher)).toBe(false);
+
+    const report = (await app.inject({ method: 'GET', url: '/hub/api/u8/combat-reports/93a44dd012ff05992739d1afd749df1d', headers })).json();
+    expect(report).toMatchObject({ winner: 'attacker', lost_attacker: 3280000, debris_metal: 3560500, units: 25541000 });
+    expect(report.fleets[0]).toMatchObject({ side: 'attacker', name: 'pUsteblUme' });
+    expect(report.fleets[0].ships).toContainEqual({ id: 207, before: 6445, after: 6402 });
+    const hall = (await app.inject({ method: 'GET', url: '/hub/api/u8/battle-hall', headers })).json();
+    expect(hall.entries.map((e: any) => [e.report_id.slice(0, 4), e.archived, e.report_status])).toEqual([
+      ['1528', 0, 'gone'], ['4a2c', 0, 'gone'], ['778f', 0, 'gone'], ['93a4', 1, 'archived'],
+    ]);
+  });
+
+  it('keeps groups isolated', async () => {
+    const headers = { ...admin, 'x-hub-group': String(groupB) };
+    const ov = (await app.inject({ method: 'GET', url: '/hub/api/u8/overview', headers })).json();
+    expect(ov.players).toEqual([]);
+    const spy = (await app.inject({ method: 'GET', url: '/hub/api/u8/spy/1/234/5', headers })).json();
+    expect(spy.total).toBe(0);
+  });
+
+  it('invites a member who only sees their group', async () => {
+    const inv = (await app.inject({ method: 'POST', url: `/hub/api/admin/groups/${groupB}/invites`, headers: admin, payload: {} })).json();
+    const res = await app.inject({ method: 'POST', url: `/hub/api/invites/${inv.token}/accept`, payload: { username: 'bob', password: 'bobpass12' } });
+    expect(res.statusCode).toBe(200);
+    const bob = await login('bob', 'bobpass12');
+    const forbidden = await app.inject({ method: 'GET', url: '/hub/api/u8/overview', headers: { ...bob, 'x-hub-group': String(groupA) } });
+    expect(forbidden.statusCode).toBe(403);
+    const ok = await app.inject({ method: 'GET', url: '/hub/api/u8/context', headers: bob });
+    expect(ok.json().group.id).toBe(groupB);
+    // Invite is single use.
+    const again = await app.inject({ method: 'POST', url: `/hub/api/invites/${inv.token}/accept`, payload: { username: 'eve', password: 'evepass12' } });
+    expect(again.statusCode).toBe(404);
+  });
+
+  it('ingests a galaxy view and needs a session', async () => {
+    const ok = await app.inject({
+      method: 'POST',
+      url: '/hub/api/u8/ingest',
+      headers: { ...admin, 'x-hub-group': String(groupA) },
+      payload: { html: fixture('galaxy.html') },
+    });
+    expect(ok.statusCode).toBe(200);
+    expect(ok.json().pageType).toBe('galaxy');
+    const views = (await app.inject({ method: 'GET', url: '/hub/api/u8/galaxy-views', headers: { ...admin, 'x-hub-group': String(groupA) } })).json();
+    expect(views).toHaveLength(2); // 1:234 again (newer than the universe.json) and 1:235 from the universe.json
+    expect((await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', payload: { html: '<p>x</p>' } })).statusCode).toBe(401);
+  });
+});

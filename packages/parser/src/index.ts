@@ -1,0 +1,129 @@
+import * as cheerio from 'cheerio';
+import { isEmpireHtml, isEmpireText, parseEmpireHtml, parseEmpireText } from './parsers/empire.js';
+import { isGalaxyHtml, parseGalaxyHtml } from './parsers/galaxy.js';
+import { looksLikeUniverseJson, parseUniverseJson } from './parsers/universeJson.js';
+import { isMessagesHtml, parseMessagesHtml, parseMessagesText } from './parsers/messages.js';
+import { isOverviewHtml, parseOverviewHtml } from './parsers/overview.js';
+import { isBattleHallHtml, parseBattleHallHtml } from './parsers/battleHall.js';
+import { isCombatReportText, parseCombatReportText } from './parsers/combatReport.js';
+import { isStatsText, parseStatsHtml, parseStatsText } from './parsers/stats.js';
+import type { HubRecord, PageType, ParseResult, StatsType } from './types.js';
+import { detectLang, htmlToText, normalizeText } from './util.js';
+
+export * from './types.js';
+export * from './util.js';
+export * from './tech.js';
+export * from './deck.js';
+export { looksLikeUniverseJson } from './parsers/universeJson.js';
+
+export interface ParseInput {
+  /** text/html from the clipboard, a saved page or the page source */
+  html?: string | null;
+  /** text/plain from the clipboard */
+  text?: string | null;
+  /** game URL when known (battle report crawler) */
+  url?: string | null;
+  /** user override for the stats category when it can't be detected */
+  statsType?: StatsType | null;
+}
+
+/** Page source pasted into the text field is treated as HTML. */
+function looksLikeHtml(s: string): boolean {
+  return /<(html|body|div|table|tr)[\s>]/i.test(s.slice(0, 20000));
+}
+
+export function parsePage(input: ParseInput): ParseResult {
+  let html = input.html?.trim() || null;
+  let text = input.text?.trim() || null;
+  if (text && looksLikeUniverseJson(text)) {
+    const records = parseUniverseJson(text);
+    if (records) return { pageType: 'galaxy', lang: 'de', source: 'json', records, warnings: [] };
+  }
+  // Page source pasted as text. Copying from Chrome's view-source also puts the
+  // *rendered source view* on the clipboard as text/html - the plain text is the real page then.
+  if (text && looksLikeHtml(text)) {
+    html = text;
+    text = null;
+  }
+
+  const warnings: string[] = [];
+  const plain = normalizeText(text ?? (html ? htmlToText(html) : ''));
+  const lang = detectLang(plain);
+
+  if (html) {
+    const res = parseHtml(html, input, warnings);
+    if (res.records.length || !text) {
+      return { ...res, lang, source: 'html', warnings };
+    }
+    warnings.push('HTML enthielt keine erkennbaren Daten, Plaintext wird verwendet.');
+  }
+
+  const res = parseText(plain, input, warnings);
+  return { ...res, lang, source: 'text', warnings };
+}
+
+function parseHtml(html: string, input: ParseInput, warnings: string[]): { pageType: PageType; records: HubRecord[] } {
+  const $ = cheerio.load(html);
+  const url = input.url ?? undefined;
+  const page = url ? new URL(url, 'https://pr0game.com/').searchParams.get('page')?.toLowerCase() : null;
+
+  if (page === 'raport' || isCombatReportText(htmlToText(html))) {
+    const reportId = url ? new URL(url, 'https://pr0game.com/').searchParams.get('raport') : null;
+    const r = parseCombatReportText(htmlToText(html), reportId);
+    if (r) return { pageType: 'combatReport', records: [r] };
+  }
+  if (page === 'battlehall' || isBattleHallHtml($)) {
+    return { pageType: 'battleHall', records: [parseBattleHallHtml($)] };
+  }
+  if (page === 'statistics' || (!page && $('a[onclick*="Dialog.Playercard"]').length > 0 && $('.galaxy-grid-row').length === 0 && !isMessagesHtml($) && !isOverviewHtml($))) {
+    const r = parseStatsHtml($);
+    if (r) {
+      if (r.type == null) {
+        if (input.statsType) r.type = input.statsType;
+        else warnings.push('Statistik-Kategorie nicht erkannt – bitte auswählen.');
+      }
+      return { pageType: 'stats', records: [r] };
+    }
+  }
+  if (page === 'galaxy' || isGalaxyHtml($)) {
+    const r = parseGalaxyHtml($, url);
+    if (r) return { pageType: 'galaxy', records: [r] };
+    warnings.push('Galaxie erkannt, aber Galaxie/System fehlen.');
+  }
+  if (page === 'empire' || isEmpireHtml($)) {
+    const r = parseEmpireHtml($);
+    if (r) return { pageType: 'empire', records: [r] };
+  }
+  if (page === 'overview' || isOverviewHtml($)) {
+    const r = parseOverviewHtml($);
+    if (r) return { pageType: 'overview', records: [r] };
+  }
+  if (page === 'messages' || isMessagesHtml($)) {
+    return { pageType: 'messages', records: parseMessagesHtml($) };
+  }
+  return { pageType: 'unknown', records: [] };
+}
+
+function parseText(text: string, input: ParseInput, warnings: string[]): { pageType: PageType; records: HubRecord[] } {
+  if (isStatsText(text)) {
+    const r = parseStatsText(text);
+    if (r) {
+      if (r.type == null) {
+        if (input.statsType) r.type = input.statsType;
+        else warnings.push('Statistik-Kategorie nicht erkannt – bitte auswählen.');
+      }
+      if (r.who === 'player') warnings.push('Plaintext: Spieler werden über den Namen zugeordnet (keine IDs).');
+      return { pageType: 'stats', records: [r] };
+    }
+  }
+  if (isEmpireText(text)) {
+    const r = parseEmpireText(text);
+    if (r) return { pageType: 'empire', records: [r] };
+  }
+  const msgs = parseMessagesText(text);
+  if (msgs.length) return { pageType: 'messages', records: msgs };
+  if (/(Sonnensystem|Solar system)/.test(text)) {
+    warnings.push('Galaxieansicht bitte als HTML/Quelltext einfügen (Plaintext enthält keine Koordinaten).');
+  }
+  return { pageType: 'unknown', records: [] };
+}

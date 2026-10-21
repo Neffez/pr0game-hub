@@ -1,0 +1,123 @@
+:root {
+  --bg: #0d1117;
+  --surface: #151b23;
+  --surface-2: #1c2430;
+  --border: #283241;
+  --border-strong: #3a4657;
+  --text: #e6edf3;
+  --muted: #8b98a9;
+  --faint: #5d6a7b;
+  --accent: #f2683c;
+  --accent-soft: rgba(242, 104, 60, 0.14);
+  --pos: #3fb950;
+  --neg: #f85149;
+  --warn: #d29922;
+  --info: #58a6ff;
+  --radius: 10px;
+  --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 var(--sans); }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+h1 { font-size: 20px; margin: 0 0 12px; }
+h2 { font-size: 16px; margin: 20px 0 8px; }
+h3 { font-size: 14px; margin: 14px 0 6px; color: var(--muted); }
+
+.layout { display: flex; min-height: 100vh; }
+.sidebar {
+  width: 210px; flex-shrink: 0; background: var(--surface); border-right: 1px solid var(--border);
+  padding: 14px 10px; position: sticky; top: 0; height: 100vh; overflow-y: auto;
+}
+.sidebar .brand { font-weight: 700; font-size: 16px; padding: 0 8px 10px; }
+.sidebar .brand span { color: var(--accent); }
+.sidebar nav a {
+  display: block; padding: 6px 10px; border-radius: 6px; color: var(--text); margin: 1px 0;
+}
+.sidebar nav a:hover { background: var(--surface-2); text-decoration: none; }
+.sidebar nav a.router-link-active { background: var(--accent-soft); color: var(--accent); }
+.sidebar .section { color: var(--faint); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; padding: 12px 10px 4px; }
+.sidebar select { width: 100%; margin: 4px 0; }
+.main { flex: 1; min-width: 0; padding: 18px 22px 60px; }
+
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; margin-bottom: 14px; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.grow { flex: 1; }
+.muted { color: var(--muted); }
+.faint { color: var(--faint); }
+.pos { color: var(--pos); }
+.neg { color: var(--neg); }
+.warn { color: var(--warn); }
+.mono { font-family: var(--mono); }
+.right { text-align: right; }
+.small { font-size: 12px; }
+.error { color: var(--neg); margin: 8px 0; }
+.ok { color: var(--pos); }
+
+input, select, textarea, button {
+  font: inherit; color: var(--text); background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: 6px; padding: 5px 8px;
+}
+input:focus, select:focus, textarea:focus { outline: 1px solid var(--accent); border-color: var(--accent); }
+button { cursor: pointer; background: var(--surface-2); }
+button:hover { border-color: var(--border-strong); }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+button.primary:hover { filter: brightness(1.08); }
+button:disabled { opacity: .5; cursor: default; }
+input[type=number] { width: 90px; }
+label { color: var(--muted); font-size: 12px; }
+label > input, label > select { margin-left: 4px; }
+
+table.data { border-collapse: collapse; width: 100%; font-size: 13px; }
+table.data th, table.data td { padding: 4px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+table.data th { text-align: left; color: var(--muted); font-weight: 600; position: sticky; top: 0; background: var(--surface); z-index: 1; }
+table.data th.sortable { cursor: pointer; user-select: none; }
+table.data th.sortable:hover { color: var(--text); }
+table.data td.num, table.data th.num { text-align: right; font-family: var(--mono); font-size: 12px; }
+table.data tr:hover td { background: var(--surface-2); }
+table.data tr.dim td { opacity: .55; }
+.table-wrap { overflow-x: auto; max-height: 75vh; overflow-y: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+
+.badge { display: inline-block; padding: 0 5px; border-radius: 4px; font-size: 11px; font-weight: 600; background: var(--surface-2); color: var(--muted); margin-left: 3px; }
+.badge.inactive, .badge.longinactive { color: var(--faint); }
+.badge.vacation { color: var(--info); }
+.badge.noob { color: var(--pos); }
+.badge.strong { color: var(--neg); }
+.badge.banned { color: var(--warn); }
+
+.tabs { display: flex; gap: 4px; margin-bottom: 12px; }
+.tabs button.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+
+.center-box { max-width: 380px; margin: 12vh auto; }
+.center-box input { width: 100%; margin: 4px 0 10px; }
+
+@media (max-width: 800px) {
+  .layout { flex-direction: column; }
+  .sidebar { width: 100%; height: auto; position: static; }
+  .sidebar nav { display: flex; flex-wrap: wrap; gap: 2px; }
+  .main { padding: 12px 16px 40px; }
+}
+
+.hint {
+  position: relative; display: inline-flex; align-items: center; justify-content: center; vertical-align: middle;
+  width: 16px; height: 16px; margin-left: 6px; border: 1px solid var(--border); border-radius: 50%;
+  font: 600 11px/1 var(--mono); color: var(--muted); cursor: help; outline: none;
+}
+.hint:hover, .hint:focus { color: var(--text); border-color: var(--muted); }
+.hint.warn { color: var(--warn); border-color: var(--warn); }
+.hint-body {
+  display: none; position: absolute; top: calc(100% + 6px); left: -10px; z-index: 30;
+  width: max-content; max-width: min(440px, 80vw); padding: 8px 10px;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: 0 6px 20px rgba(0, 0, 0, .35);
+  font: 400 12px/1.5 system-ui, sans-serif; color: var(--text); text-align: left; white-space: normal; letter-spacing: normal; text-transform: none;
+}
+.hint:hover .hint-body, .hint:focus .hint-body { display: block; }
+.hint-body p { margin: 0 0 6px; }
+.hint-body p:last-child { margin-bottom: 0; }
+
+/* Moon rows (share the coordinates of their planet) */
+table.data tr.moon td { background: color-mix(in srgb, var(--info) 7%, transparent); }
+.moon-tag { display: inline-block; padding: 0 5px; margin-right: 4px; border-radius: 4px; font-size: 11px; font-weight: 600; color: var(--info); background: color-mix(in srgb, var(--info) 15%, transparent); }

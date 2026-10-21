@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<!--[if (gt IE 9)|!(IE)]><!-->
+<html lang="de" class="no-js">
+<!--<![endif]-->
+<head>
+  <title>Statistik - Universe 7 - pr0game</title>
+  <script type="text/javascript">
+    var queryString    = "page=statistics";
+  </script>
+</head>
+<body id="statistics" class="full">
+<div class="wrapper">
+    <header>
+        <div class="fixed">
+<div class="planetImage no-mobile">
+   <div>Imperator</div>
+   <div><a href="game.php?page=settings"><b>Rudolf</b></div>
+</div>
+<div class="planetSelectorWrapper">
+    <select id="planetSelector">
+        <option value="1008948">Fortuna [1:100:9]</option>
+<option value="1009729" selected="selected">Tzeentch [2:100:15]</option>
+    </select>
+</div>
+<div id="resources_mobile">
+        <div id="resource_mobile">
+        <a href="#" onclick="return Dialog.info(901);">
+            <div class="no-mobile">Metall</div>
+            <div class="no-mobile"><div class="res_current" data-ticker="current_metal" data-real="256667">256.667</div></div>
+        </a>
+    </div>
+</div>
+        </div>
+    </header>
+    <menu>
+        <div class="fixed">
+            <ul id="menu">
+  <li><a href="game.php?page=statistics">Statistik</a></li>
+  <li><a href="game.php?page=messages">Nachrichten</a></li>
+</ul>
+        </div>
+    </menu>
+    <content>
+        <form name="stats" id="stats" method="post" action="">
+    <table class="table519">
+        <tr>
+            <th>Statistiken (Aktualisiert am: 21. Okt 2026, 06:00:01)</th>
+        </tr>
+        <tr>
+            <td>
+                <label for="who">Anzeigen</label> <select name="who" id="who" onchange="$('#stats').submit();"><option value="1" selected="selected">Spieler</option>
+<option value="2">Allianz</option>
+</select>
+                <label for="type">von</label> <select name="type" id="type" onchange="$('#stats').submit();"><option value="1" selected="selected">Punkte</option>
+<option value="2">Flotte</option>
+<option value="3">Forschung</option>
+<option value="4">Gebäude</option>
+<option value="5">Verteidigung</option>
+<option value="6">Ehrenpunkte</option>
+</select>
+                <label for="range">auf den Positionen</label> <select name="range" id="range" onchange="$('#stats').submit();"><option value="1" selected="selected">1-100</option>
+<option value="101">101-200</option>
+</select>
+            </td>
+        </tr>
+    </table>
+</form>
+<table class="table519">
+    <tr>
+    <th style="width:60px;">Rank</th>
+    <th>Spieler</th>
+    <th>&nbsp;</th>
+    <th>Allianz</th>
+    <th>Punkte</th>
+</tr>
+<tr>
+    <td><a class="tooltip" data-tooltip-content="<span style='color:#87CEEB'>*</span>">1</a></td>
+    <td>
+                <a href="#" onclick="return Dialog.Playercard(1003081, 'CVXII');"><span class=" galaxy-friend">CVXII&nbsp;</span></a>
+
+
+        </td>
+    <td><a href="#" onclick="return Dialog.PM(1003081);"><img src="./styles/theme/community/img/m.gif" title="Private Nachricht" alt="Private Nachricht"></a></td>
+    <td><a href="game.php?page=alliance&amp;mode=info&amp;id=871"><span class="galaxy-alliance-member galaxy-alliance">Sinnlos im Weltraum</span></a></td>
+    <td>2.373.597</td>
+</tr>
+<tr>
+    <td><a class="tooltip" data-tooltip-content="<span style='color:#87CEEB'>*</span>">2</a></td>
+    <td>
+                <a href="#" onclick="return Dialog.Playercard(1002915, 'Steveboo');"><span class="">Steveboo&nbsp;</span></a>
+
+        <a style="color:orange" class="tooltip" data-tooltip-content="<table width='100%'><tr><th colspan='2' style='text-align:center;'>Diplomat</th></tr><tr><td class='transparent'>Frostige Fergeltung</td></tr></table>"><i class="fas fa-handshake"></i></a>
+        </td>
+    <td><a href="#" onclick="return Dialog.PM(1002915);"><img src="./styles/theme/community/img/m.gif" title="Private Nachricht" alt="Private Nachricht"></a></td>
+    <td><a href="game.php?page=alliance&amp;mode=info&amp;id=874"><span class=" galaxy-alliance">Frostige Fergeltung</span></a></td>
+    <td>2.211.502</td>
+</tr>
+<tr>
+    <td><a class="tooltip" data-tooltip-content="<span style='color:#87CEEB'>*</span>">7</a></td>
+    <td>
+                <a href="#" onclick="return Dialog.Playercard(1002848, 'Rudolf');" class='colorPositive'><span class="">Rudolf&nbsp;</span></a>
+
+
+        </td>
+    <td></td>
+    <td><a href="game.php?page=alliance&amp;mode=info&amp;id=871"><span class="galaxy-alliance-member galaxy-alliance">Sinnlos im Weltraum</span></a></td>
+    <td>1.360.721</td>
+</tr>
+<tr>
+    <td><a class="tooltip" data-tooltip-content="<span style='color:green'>+1</span>">8</a></td>
+    <td>
+                <a href="#" onclick="return Dialog.Playercard(1002937, 'Ballermann');"><span class=" galaxy-friend">Ballermann&nbsp;</span></a>
+
+
+        </td>
+    <td><a href="#" onclick="return Dialog.PM(1002937);"><img src="./styles/theme/community/img/m.gif" title="Private Nachricht" alt="Private Nachricht"></a></td>
+    <td><a href="game.php?page=alliance&amp;mode=info&amp;id=871"><span class="galaxy-alliance-member galaxy-alliance">Sinnlos im Weltraum</span></a></td>
+    <td>1.343.039</td>
+</tr>
+<tr>
+    <td><a class="tooltip" data-tooltip-content="<span class='colorNegative'>--1</span>">9</a></td>
+    <td>
+                <a href="#" onclick="return Dialog.Playercard(1002862, 'B0b');"><span class=" galaxy-friend">B0b&nbsp;</span></a>
+
+
+        </td>
+    <td><a href="#" onclick="return Dialog.PM(1002862);"><img src="./styles/theme/community/img/m.gif" title="Private Nachricht" alt="Private Nachricht"></a></td>
+    <td><a href="game.php?page=alliance&amp;mode=info&amp;id=871"><span class="galaxy-alliance-member galaxy-alliance">Sinnlos im Weltraum</span></a></td>
+    <td>1.342.228</td>
+</tr>
+<tr>
+    <td><a class="tooltip" data-tooltip-content="<span style='color:#87CEEB'>*</span>">26</a></td>
+    <td>
+                <a href="#" onclick="return Dialog.Playercard(1003352, 'Über mir stinken alle');"><span class="">Über mir stinken alle&nbsp;</span></a>
+
+
+        <span class="galaxy-short-vacation galaxy-short">u</span>&nbsp;<span class="galaxy-short-inactive galaxy-short">i</span></td>
+    <td><a href="#" onclick="return Dialog.PM(1003352);"><img src="./styles/theme/community/img/m.gif" title="Private Nachricht" alt="Private Nachricht"></a></td>
+    <td><a href="game.php?page=alliance&amp;mode=info&amp;id=861"><span class=" galaxy-alliance">Hailiger Graal</span></a></td>
+    <td>904.919</td>
+</tr>
+<tr>
+    <td><a class="tooltip" data-tooltip-content="<span style='color:#87CEEB'>*</span>">98</a></td>
+    <td>
+                <a href="#" onclick="return Dialog.Playercard(1003172, 'guest');"><span class="">guest&nbsp;</span></a>
+
+
+        <span class="galaxy-short-vacation galaxy-short">u</span>&nbsp;<span class="galaxy-short-inactive galaxy-short">i</span>&nbsp;<span class="galaxy-short-noob galaxy-short">n</span></td>
+    <td><a href="#" onclick="return Dialog.PM(1003172);"><img src="./styles/theme/community/img/m.gif" title="Private Nachricht" alt="Private Nachricht"></a></td>
+    <td>-</td>
+    <td>252.824</td>
+</tr>
+</table>
+        <table class="hack"></table>
+    </content>
+</div>
+</body>
+</html>

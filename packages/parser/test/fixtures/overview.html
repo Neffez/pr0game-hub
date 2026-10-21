@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <script type="text/javascript">
+    var serverTimeDelta = new Date(2026, 9, 21, 14, 0, 0).getTime() - Date.now();
+  </script>
+</head>
+<body id="overview">
+<div class="planetSelectorWrapper">
+  <select id="planetSelector">
+    <option value="1">Ares [1:100:12]</option>
+    <option value="2">Osirious (Mond) [1:100:12]</option>
+    <option value="3" selected="selected">Quetzalcoatl [2:2:15]</option>
+    <option value="4">Hephaistos [3:200:1]</option>
+  </select>
+</div>
+<div class="infos">
+  <div class="planeto">Übersicht</div>
+  <div class="moon">
+    <a href="game.php?page=overview&amp;cp=5&amp;re=0" title="Mondi"><img class="inline" src="./styles/theme/community/planeten/mond03.jpg" alt="Mondi (Mond)"></a>
+    <br>
+    Mondi (Mond)
+    <br>
+    Mondbasis (6)
+    <br>
+    <div class="timershort" data-umode="0" data-time="3600" style="color:#7F7F7F;">1h</div>
+  </div>
+  <div class="planeth">
+    <img style="float: left;" src="./styles/theme/community/planeten/eisplanet01.jpg" height="200" width="200" alt="Quetzalcoatl">
+    Quetzalcoatl
+    <br>
+    <a href="game.php?page=buildings">Gebäude:</a> Solarkraftwerk (27)
+    <br>
+    <div class="timer" data-umode="0" data-time="25444">7h 4m 4s</div>
+    <a href="game.php?page=research">Forschung:</a> Schildtechnik (14)
+    <br>
+    <div class="timer" data-umode="0" data-time="9364">2h 36m 4s</div>
+    <a href="game.php?page=shipyard&amp;mode=fleet">Schiffswerft: Frei</a>
+    <br>
+  </div>
+</div>
+<div class="infos">
+  <div class="planeto">Planeten</div>
+  <div class="planetl">
+    <a href="game.php?page=overview&amp;cp=1" title="Ares"><img src="./styles/theme/community/planeten/dschjungelplanet06.jpg" alt="Ares"></a>
+    <br>
+    Ares
+    <br>
+    [1:100:12]
+    <br>
+    Metallmine Abreißen (24)
+    <br>
+    <div class="timershort" data-umode="0" data-time="120" style="color:#7F7F7F;">2m</div>
+  </div>
+  <div class="planetl">
+    <a href="game.php?page=overview&amp;cp=2" title="Osirious"><img src="./styles/theme/community/planeten/mond09.jpg" alt="Osirious"></a>
+    <br>
+    Osirious
+    <br>
+    [1:100:12]
+    <br>
+    Sprungtor (2)
+    <br>
+    <div class="timershort" data-umode="0" data-time="500" style="color:#7F7F7F;">8m</div>
+  </div>
+  <div class="planetl">
+    <a href="game.php?page=overview&amp;cp=4" title="Hephaistos"><img src="./styles/theme/community/planeten/wasserplanet05.jpg" alt="Hephaistos"></a>
+    <br>
+    Hephaistos
+    <br>
+    [3:200:1]
+    <br>
+    Frei
+  </div>
+</div>
+</body>
+</html>

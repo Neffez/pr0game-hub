@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<!--[if lt IE 7 ]> <html lang="en" class="no-js ie6"> <![endif]-->
+<!--[if IE 7 ]>    <html lang="en" class="no-js ie7"> <![endif]-->
+<!--[if IE 8 ]>    <html lang="en" class="no-js ie8"> <![endif]-->
+<!--[if IE 9 ]>    <html lang="en" class="no-js ie9"> <![endif]-->
+<!--[if (gt IE 9)|!(IE)]><!-->
+<html lang="en" class="no-js">
+<!--<![endif]-->
+<style>
+  .colorPositive {
+    color:#00ff00
+  }
+
+  .colorNegative {
+    color:#ff0000 !important;
+  }
+
+  .colorNeutral {
+    color:#ffd600
+  }
+</style>
+
+<head>
+  <title>Attack report - Universe 7 - pr0game</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8">
+  <script type="text/javascript" src="./scripts/base/tailwind.js"></script>
+  <style type="text/tailwindcss">
+    @theme {
+      --breakpoint-xs: 30rem;
+    }
+  </style>
+  <link rel="stylesheet" type="text/css" href="./styles/resource/css/base/boilerplate.css?v=7bee0b0">
+  <link rel="stylesheet" type="text/css" href="./styles/resource/css/ingame/main.css?v=7bee0b0">
+  <link rel="stylesheet" type="text/css" href="./styles/resource/css/base/jquery.css">
+  <link rel="stylesheet" type="text/css" href="./styles/resource/css/base/jquery.fancybox.css">
+  <link rel="stylesheet" type="text/css" href="./styles/resource/css/base/validationEngine.jquery.css">
+  <link rel="stylesheet" type="text/css" href="./styles/theme/nova/formate.css?v=7bee0b0">
+  <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.0.12/css/all.css">
+  <link rel="shortcut icon" href="./favicon.ico" type="image/x-icon">
+
+  <script type="text/javascript">
+    var ServerTimezoneOffset = -7200;
+    var serverTimeDelta = new Date(2026, 9, 21, 16, 26, 34).getTime() - Date.now();
+    Object.defineProperty(window, 'serverTime', {
+      get: function () {
+        return new Date(Date.now() + serverTimeDelta);
+      }
+    });
+    var startTime = serverTime.getTime();
+    var Gamename = document.title;
+    var Ready		= "Ready";
+    var Skin		= "./styles/theme/nova/";
+    var Lang		= "en";
+    var head_info	= "Info";
+    var auth		= 0;
+    var days 		= ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"]
+    var months 		= ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"] ;
+    const localtimezonestring="UTC"
+    var tdformat	= "[M] [D] [d] [H]:[i]:[s]";
+    var queryString	= "page=raport";
+    var isPlayerCardActive	= "true";
+    var decimalSeparator = 1;
+    var userLang = "en";
+    var numberSuffixes = ["","K","M","B","T","Q","Q+","S","S+","O","N"];
+  </script>
+  
+
+  <script type="text/javascript" src="./scripts/base/jquery.js"></script>
+  <script type="text/javascript" src="./scripts/base/jquery.ui.js"></script>
+  <script type="text/javascript" src="./scripts/base/jquery.cookie.js"></script>
+  <script type="text/javascript" src="./scripts/base/jquery.fancybox.js"></script>
+  <script type="text/javascript" src="./scripts/base/jquery.validationEngine.js"></script>
+  <script type="text/javascript" src="./scripts/l18n/validationEngine/jquery.validationEngine-en.js"></script>
+  <script type="text/javascript" src="./scripts/base/tooltip.js?v=7bee0b0"></script>
+  <script type="text/javascript" src="./scripts/game/base.js?v=7bee0b0"></script>
+  <script type="text/javascript" src="./scripts/game/voting-refresh.js?v=7bee0b0"></script>
+    
+    <script>
+      $(function() {
+        $("#gl1").on('click', function() {
+          $(".planetb").hide();
+          $(".planetb1").show();
+          $("#gl2, #gl3").removeClass("selected");
+
+          $(this).addClass("selected");
+        });
+      });
+      $(function() {
+        $("#gl2").on('click', function() {
+          $(".planetb1").toggle();
+          $(".planetb").show();
+          $("#gl1, #gl3").removeClass("selected");
+
+          $(this).addClass("selected");
+        });
+      });
+      $(function() {
+        $("#gl3").on('click', function() {
+          $(".planetb").show();
+          $(".planetb1").show();
+          $("#gl2, #gl1").removeClass("selected");
+
+          $(this).addClass("selected");
+        });
+      });
+
+      $(function() {
+        $("#0h").on('click', function() {
+          for (i = 1; i <= 99; i++)
+            $("#h" + i).hide();
+          $("#0s").show();
+          $("#0h").hide();
+
+        });
+      });
+
+      $(function() {
+        $("#0s").on('click', function() {
+          for (i = 1; i <= 99; i++)
+            $("#h" + i).show();
+          $("#0h").show();
+          $("#0s").hide();
+
+        });
+      });
+
+      $(function() {
+        $("#100h").on('click', function() {
+          for (i = 101; i <= 199; i++)
+            $("#h" + i).hide();
+          $("#100s").show();
+          $("#100h").hide();
+
+        });
+      });
+
+      $(function() {
+        $("#100s").on('click', function() {
+          for (i = 101; i <= 199; i++)
+            $("#h" + i).show();
+          $("#100h").show();
+          $("#100s").hide();
+
+        });
+      });
+
+      $(function() {
+
+        $("#200h").on('click', function() {
+          for (i = 201; i <= 299; i++)
+            $("#h" + i).hide();
+          $("#200s").show();
+          $("#200h").hide();
+
+        });
+      });
+      $(function() {
+
+        $("#200s").on('click', function() {
+          for (i = 201; i <= 299; i++)
+            $("#h" + i).show();
+          $("#200s").hide();
+          $("#200h").show();
+
+        });
+      });
+      $(function() {
+
+        $("#400h").on('click', function() {
+          for (i = 401; i <= 499; i++)
+            $("#h" + i).hide();
+          $("#400s").show();
+          $("#400h").hide();
+
+        });
+      });
+      $(function() {
+
+        $("#400s").on('click', function() {
+          for (i = 401; i <= 499; i++)
+            $("#h" + i).show();
+          $("#400s").hide();
+          $("#400h").show();
+
+        });
+      });
+      $(function() {
+
+        $("#500h").on('click', function() {
+          for (i = 501; i <= 599; i++)
+            $("#h" + i).hide();
+          $("#500s").show();
+          $("#500h").hide();
+
+        });
+      });
+      $(function() {
+
+        $("#500s").on('click', function() {
+          for (i = 501; i <= 599; i++)
+            $("#h" + i).show();
+          $("#500s").hide();
+          $("#500h").show();
+
+        });
+      });
+      $(function() {
+
+        $("#600h").on('click', function() {
+          for (i = 601; i <= 699; i++)
+            $("#h" + i).hide();
+          $("#600s").show();
+          $("#600h").hide();
+
+        });
+      });
+      $(function() {
+
+        $("#600s").on('click', function() {
+          for (i = 601; i <= 699; i++)
+            $("#h" + i).show();
+          $("#600s").hide();
+          $("#600h").show();
+
+        });
+      });
+    </script>
+  
+<style>
+  .scrollable-content {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .round-container {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    min-width: min-content;
+  }
+
+  .round-container > div[data-side] {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 1rem;
+  }
+  
+  /* ===== Battle Statistics Styles ===== */
+  .battle-stats-container {
+    max-width: 900px;
+    margin: 1.5rem auto;
+    text-align: left;
+  }
+  .battle-stats-container:empty {
+    display: none;
+  }
+
+  /* Round Tabs */
+  .stats-round-tabs {
+    display: flex;
+    justify-content: center;
+    gap: 4px;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+  }
+  .stats-round-tab {
+    padding: 6px 16px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 4px 4px 0 0;
+    color: #aaa;
+    cursor: pointer;
+    font-size: 13px;
+    transition: all 0.15s;
+  }
+  .stats-round-tab:hover {
+    background: rgba(255,255,255,0.10);
+    color: #ddd;
+  }
+  .stats-round-tab.active {
+    background: rgba(255,255,255,0.12);
+    color: #fff;
+    border-bottom-color: transparent;
+    font-weight: 600;
+  }
+
+  /* Side titles */
+  .stats-side {
+    margin-bottom: 1rem;
+  }
+  .stats-side-title {
+    font-size: 15px;
+    font-weight: 700;
+    padding: 6px 12px;
+    margin-bottom: 4px;
+    border-radius: 3px;
+    text-align: center;
+  }
+  .stats-attacker .stats-side-title {
+    background: rgba(231, 76, 60, 0.15);
+    color: #e74c3c;
+    border-left: 3px solid #e74c3c;
+  }
+  .stats-defender .stats-side-title {
+    background: rgba(52, 152, 219, 0.15);
+    color: #3498db;
+    border-left: 3px solid #3498db;
+  }
+
+  /* Accordion */
+  .stats-accordion {
+    margin-bottom: 2px;
+  }
+  .stats-accordion-btn {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 7px 12px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    border-radius: 3px;
+    color: #ccc;
+    cursor: pointer;
+    font-size: 13px;
+    text-align: left;
+    transition: background 0.15s;
+  }
+  .stats-accordion-btn:hover {
+    background: rgba(255,255,255,0.08);
+    color: #fff;
+  }
+  .stats-acc-icon {
+    margin-right: 8px;
+    font-size: 14px;
+  }
+  .stats-acc-label {
+    flex: 1;
+    font-weight: 500;
+  }
+  .stats-acc-arrow {
+    font-size: 12px;
+    color: #888;
+    transition: transform 0.15s;
+  }
+  .stats-accordion-body {
+    padding: 8px 4px;
+    border: 1px solid rgba(255,255,255,0.06);
+    border-top: none;
+    border-radius: 0 0 3px 3px;
+    background: rgba(0,0,0,0.15);
+  }
+
+  /* Stat Tables */
+  .stat-table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .stat-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    white-space: nowrap;
+  }
+  .stat-table th,
+  .stat-table td {
+    padding: 4px 8px;
+    text-align: center;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .stat-cell-header {
+    font-weight: 600;
+    color: #aaa;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    border-bottom: 2px solid rgba(255,255,255,0.1) !important;
+  }
+  .stat-cell-source {
+    text-align: left;
+    font-weight: 500;
+    color: #ddd;
+    white-space: nowrap;
+  }
+  .stat-cell-has-value {
+    color: #f0f0f0;
+    background: rgba(255,255,255,0.03);
+  }
+  .stat-cell-value {
+    color: #888;
+  }
+  .stat-zero {
+    color: #444;
+  }
+  .stat-cell-total {
+    font-weight: 600;
+    color: #f1c40f;
+    border-left: 1px solid rgba(255,255,255,0.08);
+  }
+  .stat-cell-total-label {
+    font-weight: 700;
+    color: #f1c40f;
+  }
+  .stat-cell-grand-total {
+    font-weight: 700;
+    color: #f39c12;
+    background: rgba(243,156,18,0.08);
+    border-left: 1px solid rgba(255,255,255,0.08);
+  }
+  .stat-row-total td {
+    border-top: 2px solid rgba(255,255,255,0.1);
+  }
+  .stat-table tr:hover td {
+    background: rgba(255,255,255,0.04);
+  }
+
+  /* Fleet/Player sub-accordion */
+  .stats-fleet-accordion {
+    margin: 2px 0 2px 16px;
+  }
+  .stats-fleet-btn {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 5px 10px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 3px;
+    color: #bbb;
+    cursor: pointer;
+    font-size: 12px;
+    text-align: left;
+    transition: background 0.15s;
+  }
+  .stats-fleet-btn:hover {
+    background: rgba(255,255,255,0.07);
+    color: #eee;
+  }
+  .stats-fleet-btn .stats-acc-icon {
+    font-size: 12px;
+  }
+  .stats-fleet-btn .stats-acc-label {
+    flex: 1;
+    font-weight: 400;
+  }
+  .stats-fleet-body {
+    padding: 6px 4px;
+    border: 1px solid rgba(255,255,255,0.04);
+    border-top: none;
+    border-radius: 0 0 3px 3px;
+    background: rgba(0,0,0,0.10);
+    margin-left: 0;
+  }
+  .stats-fleet-total .stats-fleet-btn {
+    border-top: 1px solid rgba(255,255,255,0.10);
+  }
+  .stats-fleet-btn-total .stats-acc-label {
+    font-weight: 600;
+    color: #f1c40f;
+  }
+
+  /* Target fleet sub-accordion (nested inside source fleet) */
+  .stats-target-accordion {
+    margin: 2px 0 2px 16px;
+  }
+  .stats-target-btn .stats-acc-label {
+    font-weight: 400;
+    font-style: italic;
+    color: #9ab;
+  }
+  .stats-target-btn:hover .stats-acc-label {
+    color: #cde;
+  }
+  .stats-target-info {
+    padding: 4px 10px;
+    font-size: 12px;
+    font-style: italic;
+    color: #9ab;
+    margin-bottom: 4px;
+  }
+
+  /* Responsive */
+  @media (max-width: 600px) {
+    .stats-round-tabs { gap: 2px; }
+    .stats-round-tab { padding: 4px 10px; font-size: 12px; }
+    .stat-table { font-size: 11px; }
+    .stat-table th, .stat-table td { padding: 3px 4px; }
+    .stats-fleet-accordion { margin-left: 8px; }
+    .stats-target-accordion { margin-left: 8px; }
+  }
+</style>
+
+  <script type="text/javascript">
+    $(window).scroll(function() {
+      // affix
+      windowHeight = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
+      lastScroll = window.pageYOffset || document.documentElement.scrollTop || document.body.scrollTop;
+
+      // menu
+      if (document.getElementsByTagName("menu").length > 0) {
+        elementHeight = document.getElementsByTagName("menu")[0].getElementsByClassName("fixed")[0].clientHeight;
+        element = document.getElementsByTagName("menu")[0].getElementsByClassName("fixed")[0];
+        if (elementHeight > windowHeight - 100) {
+          a = 100 - lastScroll;
+          b = windowHeight - elementHeight;
+          scrollTo = Math.max(a, b);
+          element.style.top = scrollTo + 'px';
+        }
+      }
+    });
+    $(function() {
+      
+    });
+  </script>
+</head>
+
+<body id="raport" class="popup">
+<div id="tooltip" class="tip"></div>
+<div id="content">          <table>
+        <tr>
+          <td class="transparent" style="width:40%;font-size:22px;font-weight:bold;padding:10px 0 30px;color:colorPositive">pUsteblUme</td>
+          <td class="transparent" style="font-size:22px;font-weight:bold;padding:10px 0 30px;">VS</td>
+          <td class="transparent" style="width:40%;font-size:22px;font-weight:bold;padding:10px 0 30px;color:colorNegative">Arys</td>
+        </tr>
+      </table>
+      <div style="width:100%;text-align:center">
+    <div class="text-center mb-2">
+      The following fleets face each other on:  20 Oct 2026, 10:29:25 (0.0802 s)    </div>
+    <div id="arrow-stat-selector"></div>
+                
+      <div class="scrollable-content">
+        <div class="round-container" data-round="0">
+          <div class="flex justify-center mb-4" data-side="attacker" data-round="0">
+                                                          <div class="fleet-box mx-4 p-4 bg-[#0d1014f2] box-content" data-fleetid="16373157" data-side="attacker" data-round="0">
+                <div class="mb-2">
+                    Attacker pUsteblUme ([XX:XX:XX])                                    </div>
+                  
+                <div class="flex justify-center">
+                  <div
+                          class="ships-grid inline-grid gap-x-3 gap-y-2 items-center"
+                          style="grid-template-columns: max-content repeat(2, max-content);"
+                  >
+                                          <div class="font-medium whitespace-nowrap">Type</div>
+                                              <div class="ship-box text-center font-medium whitespace-nowrap" data-shipid="207" data-fleetid="16373157" data-side="attacker" data-round="0">
+                            Battleship
+                        </div>
+                                              <div class="ship-box text-center font-medium whitespace-nowrap" data-shipid="215" data-fleetid="16373157" data-side="attacker" data-round="0">
+                            Battle Cruiser
+                        </div>
+                      
+                                          <div class="whitespace-nowrap">Amount<br></div>
+                                              <div class="text-center whitespace-nowrap" data-ship="207">
+
+                          <div class="row-span-2 flex items-center justify-center">
+                              6,445
+                          </div>
+
+                                                                            </div>
+
+                                              <div class="text-center whitespace-nowrap" data-ship="215">
+
+                          <div class="row-span-2 flex items-center justify-center">
+                              2,245
+                          </div>
+
+                                                                            </div>
+
+                      
+                                        </div>
+                </div>
+
+              </div>
+                      </div>
+          <div class="flex justify-center mb-4" data-side="defender" data-round="0">
+                                                          <div class="fleet-box mx-4 p-4 bg-[#0d1014f2] box-content" data-fleetid="0" data-side="defender" data-round="0">
+                <div class="mb-2">
+                    Defender Arys ([XX:XX:XX])                                    </div>
+                  
+                <div class="flex justify-center">
+                  <div
+                          class="ships-grid inline-grid gap-x-3 gap-y-2 items-center"
+                          style="grid-template-columns: max-content repeat(10, max-content);"
+                  >
+                                          <div class="font-medium whitespace-nowrap">Type</div>
+                                              <div class="ship-box text-center font-medium whitespace-nowrap" data-shipid="203" data-fleetid="0" data-side="attacker" data-round="0">
+                            Heavy Cargo
+                        </div>
+                                              <div class="ship-box text-center font-medium whitespace-nowrap" data-shipid="207" data-fleetid="0" data-side="attacker" data-round="0">
+                            Battleship
+                        </div>
+                                              <div class="ship-box text-center font-medium whitespace-nowrap" data-shipid="401" data-fleetid="0" data-side="attacker" data-round="0">
+                            Missile Launcher
+                        </div>
+                                              <div class="ship-box text-center font-medium whitespace-nowrap" data-shipid="402" data-fleetid="0" data-side="attacker" data-round="0">
+                            Light Laser Turret
+                        </div>
+                                              <div class="ship-box text-center font-medium whitespace-nowrap" data-shipid="403" data-fleetid="0" data-side="attacker" data-round="0">
+                            Heavy Laser Turret
+                        </div>
+                                              <div class="ship-box text-center font-medium whitespace-nowrap" data-shipid="404" data-fleetid="0" data-side="attacker" data-round="0">
+                            Gauss Cannon
+                        </div>
+                                              <div class="ship-box text-center font-medium whitespace-nowrap" data-shipid="405" data-fleetid="0" data-side="attacker" data-round="0">
+                            Ion Cannon
+                        </div>
+                                              <div class="ship-box text-center font-medium whitespace-nowrap" data-shipid="406" data-fleetid="0" data-side="attacker" data-round="0">
+                            Plasma Cannon
+                        </div>
+                                              <div class="ship-box text-center font-medium whitespace-nowrap" data-shipid="407" data-fleetid="0" data-side="attacker" data-round="0">
+                            Small Shield Dome
+                        </div>
+                                              <div class="ship-box text-center font-medium whitespace-nowrap" data-shipid="408" data-fleetid="0" data-side="attacker" data-round="0">
+                            Large Shield Dome
+                        </div>
+                      
+                                          <div class="whitespace-nowrap">Amount<br></div>
+                                              <div class="text-center whitespace-nowrap" data-ship="203">
+
+                          <div class="row-span-2 flex items-center justify-center">
+                              42
+                          </div>
+
+                                                                                </div>
+
+                                              <div class="text-center whitespace-nowrap" data-ship="207">
+
+                          <div class="row-span-2 flex items-center justify-center">
+                              20
+                          </div>
+
+                                                                                </div>
+
+                                              <div class="text-center whitespace-nowrap" data-ship="401">
+
+                          <div class="row-span-2 flex items-center justify-center">
+                              607
+                          </div>
+
+                                                                                </div>
+
+                                              <div class="text-center whitespace-nowrap" data-ship="402">
+
+                          <div class="row-span-2 flex items-center justify-center">
+                              1,695
+                          </div>
+
+                                                                                </div>
+
+                                              <div class="text-center whitespace-nowrap" data-ship="403">
+
+                          <div class="row-span-2 flex items-center justify-center">
+                              438
+                          </div>
+
+                                                                                </div>
+
+                                              <div class="text-center whitespace-nowrap" data-ship="404">
+
+                          <div class="row-span-2 flex items-center justify-center">
+                              123
+                          </div>
+
+                                                                                </div>
+
+                                              <div class="text-center whitespace-nowrap" data-ship="405">
+
+                          <div class="row-span-2 flex items-center justify-center">
+                              78
+                          </div>
+
+                                                                                </div>
+
+                                              <div class="text-center whitespace-nowrap" data-ship="406">
+
+                          <div class="row-span-2 flex items-center justify-center">
+                              74
+                          </div>
+
+                                                                                </div>
+
+                                              <div class="text-center whitespace-nowrap" data-ship="407">
+
+                          <div class="row-span-2 flex items-center justify-center">
+                              1
+                          </div>
+
+                                                                                </div>
+
+                                              <div class="text-center whitespace-nowrap" data-ship="408">
+
+                          <div class="row-span-2 flex items-center justify-center">
+                              1
+                          </div>
+
+                                                                                </div>
+
+                      
+                                        </div>
+                </div>
+
+              </div>
+                      </div>
+                </div>      </div>
+                  <div class="text-center mb-2">
+            The attacking fleet fires with a power of 19,284,960 at the defender. The shields of the defender absorb 445,120 damage points.
+          <br>
+            The defending fleet fires with a power of 1,582,046 at the attacker. The shields of the attacker absorb 816,783 damage points.
+          <br>
+          <hr>
+        </div>
+                                  
+      <div class="scrollable-content">
+        <div class="round-container" data-round="2">
+          <div class="flex justify-center mb-4" data-side="attacker" data-round="2">
+                                                          <div class="fleet-box mx-4 p-4 bg-[#0d1014f2] box-content" data-fleetid="16373157" data-side="attacker" data-round="2">
+                <div class="mb-2">
+                    Attacker pUsteblUme ([XX:XX:XX])                                    </div>
+                  
+                <div class="flex justify-center">
+                  <div
+                          class="ships-grid inline-grid gap-x-3 gap-y-2 items-center"
+                          style="grid-template-columns: max-content repeat(2, max-content);"
+                  >
+                                          <div class="font-medium whitespace-nowrap">Type</div>
+                                              <div class="ship-box text-center font-medium whitespace-nowrap" data-shipid="207" data-fleetid="16373157" data-side="attacker" data-round="2">
+                            Battleship
+                        </div>
+                                              <div class="ship-box text-center font-medium whitespace-nowrap" data-shipid="215" data-fleetid="16373157" data-side="attacker" data-round="2">
+                            Battle Cruiser
+                        </div>
+                      
+                                          <div class="whitespace-nowrap">Amount<br></div>
+                                              <div class="text-center whitespace-nowrap" data-ship="207">
+
+                          <div class="flex items-end justify-center">
+                              6,402
+                          </div>
+
+                                                      <div class="text-[#ee4d2e]">
+
+                              (-18 / -43)
+                            </div>
+                                                                            </div>
+
+                                              <div class="text-center whitespace-nowrap" data-ship="215">
+
+                          <div class="flex items-end justify-center">
+                              2,235
+                          </div>
+
+                                                      <div class="text-[#ee4d2e]">
+
+                              (-6 / -10)
+                            </div>
+                                                                            </div>
+
+                      
+                                        </div>
+                </div>
+
+              </div>
+                      </div>
+          <div class="flex justify-center mb-4" data-side="defender" data-round="2">
+                                                          <div class="fleet-box mx-4 p-4 bg-[#0d1014f2] box-content" data-fleetid="0" data-side="defender" data-round="2">
+                <div class="mb-2">
+                    Defender Arys ([XX:XX:XX])                                    </div>
+                  
+                <div class="flex justify-center">
+                  <div
+                          class="ships-grid inline-grid gap-x-3 gap-y-2 items-center"
+                          style="grid-template-columns: max-content repeat(10, max-content);"
+                  >
+                                          <div class="font-medium whitespace-nowrap">Type</div>
+                                              <div class="ship-box text-center font-medium whitespace-nowrap" data-shipid="203" data-fleetid="0" data-side="attacker" data-round="2">
+                            Heavy Cargo
+                        </div>
+                                              <div class="ship-box text-center font-medium whitespace-nowrap" data-shipid="207" data-fleetid="0" data-side="attacker" data-round="2">
+                            Battleship
+                        </div>
+                                              <div class="ship-box text-center font-medium whitespace-nowrap" data-shipid="401" data-fleetid="0" data-side="attacker" data-round="2">
+                            Missile Launcher
+                        </div>
+                                              <div class="ship-box text-center font-medium whitespace-nowrap" data-shipid="402" data-fleetid="0" data-side="attacker" data-round="2">
+                            Light Laser Turret
+                        </div>
+                                              <div class="ship-box text-center font-medium whitespace-nowrap" data-shipid="403" data-fleetid="0" data-side="attacker" data-round="2">
+                            Heavy Laser Turret
+                        </div>
+                                              <div class="ship-box text-center font-medium whitespace-nowrap" data-shipid="404" data-fleetid="0" data-side="attacker" data-round="2">
+                            Gauss Cannon
+                        </div>
+                                              <div class="ship-box text-center font-medium whitespace-nowrap" data-shipid="405" data-fleetid="0" data-side="attacker" data-round="2">
+                            Ion Cannon
+                        </div>
+                                              <div class="ship-box text-center font-medium whitespace-nowrap" data-shipid="406" data-fleetid="0" data-side="attacker" data-round="2">
+                            Plasma Cannon
+                        </div>
+                                              <div class="ship-box text-center font-medium whitespace-nowrap" data-shipid="407" data-fleetid="0" data-side="attacker" data-round="2">
+                            Small Shield Dome
+                        </div>
+                                              <div class="ship-box text-center font-medium whitespace-nowrap" data-shipid="408" data-fleetid="0" data-side="attacker" data-round="2">
+                            Large Shield Dome
+                        </div>
+                      
+                                          <div class="whitespace-nowrap">Amount<br></div>
+                                              <div class="text-center whitespace-nowrap" data-ship="203">
+
+                          <div class="flex items-end justify-center">
+                              0
+                          </div>
+
+                                                          <div class="text-[#ee4d2e]">
+                                (-4 / -42)
+                              </div>
+                                                                                </div>
+
+                                              <div class="text-center whitespace-nowrap" data-ship="207">
+
+                          <div class="flex items-end justify-center">
+                              0
+                          </div>
+
+                                                          <div class="text-[#ee4d2e]">
+                                (-11 / -20)
+                              </div>
+                                                                                </div>
+
+                                              <div class="text-center whitespace-nowrap" data-ship="401">
+
+                          <div class="flex items-end justify-center">
+                              0
+                          </div>
+
+                                                          <div class="text-[#ee4d2e]">
+                                (-37 / -607)
+                              </div>
+                                                                                </div>
+
+                                              <div class="text-center whitespace-nowrap" data-ship="402">
+
+                          <div class="flex items-end justify-center">
+                              0
+                          </div>
+
+                                                          <div class="text-[#ee4d2e]">
+                                (-94 / -1,695)
+                              </div>
+                                                                                </div>
+
+                                              <div class="text-center whitespace-nowrap" data-ship="403">
+
+                          <div class="flex items-end justify-center">
+                              0
+                          </div>
+
+                                                          <div class="text-[#ee4d2e]">
+                                (-47 / -438)
+                              </div>
+                                                                                </div>
+
+                                              <div class="text-center whitespace-nowrap" data-ship="404">
+
+                          <div class="flex items-end justify-center">
+                              0
+                          </div>
+
+                                                          <div class="text-[#ee4d2e]">
+                                (-91 / -123)
+                              </div>
+                                                                                </div>
+
+                                              <div class="text-center whitespace-nowrap" data-ship="405">
+
+                          <div class="flex items-end justify-center">
+                              0
+                          </div>
+
+                                                          <div class="text-[#ee4d2e]">
+                                (-22 / -78)
+                              </div>
+                                                                                </div>
+
+                                              <div class="text-center whitespace-nowrap" data-ship="406">
+
+                          <div class="flex items-end justify-center">
+                              0
+                          </div>
+
+                                                          <div class="text-[#ee4d2e]">
+                                (-74 / -74)
+                              </div>
+                                                                                </div>
+
+                                              <div class="text-center whitespace-nowrap" data-ship="407">
+
+                          <div class="flex items-end justify-center">
+                              0
+                          </div>
+
+                                                          <div class="text-[#ee4d2e]">
+                                (-1 / -1)
+                              </div>
+                                                                                </div>
+
+                                              <div class="text-center whitespace-nowrap" data-ship="408">
+
+                          <div class="flex items-end justify-center">
+                              0
+                          </div>
+
+                                                          <div class="text-[#ee4d2e]">
+                                (-1 / -1)
+                              </div>
+                                                                                </div>
+
+                      
+                                        </div>
+                </div>
+
+              </div>
+                      </div>
+                </div>      </div>
+    
+        <div id="battle-statistics" class="battle-stats-container"></div>
+    
+    <div class="text-center mb-2">
+              The attacker has won the battle!
+        <br>
+        They loot 252,190 Metal, 376,570 Crystal and 225,792 Deuterium            <br><br>
+      The attacker's losses: 3,280,000 units<br>
+      The defender's losses: 22,261,000 units<br>
+      At the coordinates are now: 3,560,500 Metal and 1,890,000 Crystal debris.<br><br>
+                          Moon Chance:  40 %        <br>
+                        The enormous amounts of free metal and crystal attract each other and form a satellite around the planet!
+                
+                Required for recycling debris: 273 Recycler.
+        <br>
+      
+      
+
+              <br>
+          Some of the defender's destroyed ships form a wreck field in the planet's orbit for a few days.
+          </div>
+    <div class="text-center">
+
+      
+      
+              <br>
+        <table class="auto">
+          <tr>
+            <td>
+              <table>
+                <tr>
+                  <th colspan="2" class="transparent">Honorpoints:</th>
+                </tr>
+                                      <tr>
+                      <td class="transparent">pUsteblUme</td>
+                      <td class="transparent">-4100</td>
+                    </tr>
+                                                        <tr>
+                      <td class="transparent">Arys</td>
+                      <td class="transparent">0</td>
+                    </tr>
+                                </table>
+            </td>
+          </tr>
+        </table>
+          </div>
+  </div>
+</div>

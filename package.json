@@ -1,0 +1,15 @@
+{
+  "name": "pr0game-hub",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.33.0",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "dev": "pnpm -r --parallel --filter ./apps/* dev",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck",
+    "gen:tech": "node scripts/gen-tech.mjs ../pr0game/language",
+    "gen:costs": "node scripts/gen-costs.mjs ../pr0game/install/install.sql"
+  }
+}
