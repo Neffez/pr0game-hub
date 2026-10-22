@@ -1,69 +1,79 @@
 # pr0game Hub
 
-Externe Auswertung für pr0game auf Basis **manuell kopierter Seiten**: Seite öffnen, `Strg+A`, `Strg+C`, im Hub einfügen.
-Die Daten werden pro Universum und Gruppe (Allianz) gesammelt und sind nur für Mitglieder der Gruppe sichtbar.
+External analysis tool for [pr0game](https://codeberg.org/pr0game/pr0game) based on **manually copied pages**: open a page in the game,
+`Ctrl+A`, `Ctrl+C`, paste it into the hub. Data is collected per universe and group (alliance) and is only visible to members of that group.
 
 ## Features
 
-- **Einfügen**: Plaintext, HTML aus der Zwischenablage, Seitenquelltext (`Strg+U`) oder gespeicherte Seite. Vor dem Speichern gibt es eine Vorschau.
-  - Statistik (Spieler/Allianz, alle Kategorien)
-  - Nachrichten: Spionage-, Kampf- und Expeditionsberichte, Spionage-Aktivität
-  - Galaxie, Imperium
-- **Übersicht**: Punkte je Kategorie mit Δ über 6h/12h/24h/48h/7d, Rangveränderung, Status, Filter
-- **Spieler-Detail**: Punkteverlauf (Chart), Planeten, Status-Historie, Notiz
-- **Spionage-Verlauf** mit Diff-Ansicht pro Koordinate
-- **Planetenliste** mit Entfernung/Flugzeit und letztem Spionagestand
-- **Gala-Aktualität** (Heatmap)
-- **Raids**, **Expeditionen**, **Expo-Deck** (Kartenzählen), **Allianz-Übersicht** (Imperium), **Fremdspionage**
-- **Admin**: Universen (Größe, Distanzfaktoren, Flottengeschwindigkeit, Zeitzone, Deck), Gruppen, Einladungslinks, Ingest-Log mit Reparse, Spieler-Merge
+- **Sync**: plain text, HTML from the clipboard, page source (`Ctrl+U`) or a saved page, with a preview before saving.
+  - Statistics (players/alliances, all categories incl. honor points)
+  - Messages: spy, battle, expedition and recycling reports, hostile spying
+  - Galaxy, empire, game overview (build queues), battle hall
+  - universe.json import and export
+- **Overview**: points per category with deltas per statistics update, rank changes, status, filters
+- **My empire**: live points from the latest empire page plus finished builds and research
+- **Statistics**: rankings with rank moves, change since the previous update and sync coverage
+- **Player details**: points history (chart), planets, status history, notes
+- **Galaxy browser** with phalanx coverage and a freshness heat map
+- **Spy history** with a diff per coordinate, **hostile spying**, **activity log**
+- **Alliance**: planets, fleets and research of all members
+- **Raids** (incl. recycling), **expeditions**, **expedition deck** (card counting), **battle hall** archive
+- **Admin**: universes (size, distance factors, fleet speed, time zone, deck), groups, invite links, ingest log with reparse, player merge
+- German and English UI, per user; mobile layout with a bottom tab bar and quick sync from the clipboard
 
-Spieler-IDs, Allianz-IDs und Rangveränderungen gibt es nur in HTML/Quelltext. Bei reinem Plaintext werden Spieler über den Namen zugeordnet.
+Player IDs, alliance IDs and rank changes are only available in HTML/page source. With plain text, players are matched by name.
 
-## Aufbau
+## Structure
 
 ```
-packages/parser   @pr0hub/core – Parser (cheerio), Deck-Rechnung, Tech-Namen (DE/EN)
-apps/server       Fastify + SQLite (better-sqlite3), Auth, Ingest, APIs, liefert die SPA aus
-apps/web          Vue 3 SPA (Basis /hub/)
+packages/parser   @pr0hub/core – parser (cheerio), deck calculation, element names (DE/EN)
+apps/server       Fastify + SQLite (better-sqlite3), auth, ingest, APIs, serves the SPA
+apps/web          Vue 3 SPA (base path /hub/)
 ```
 
-## Entwicklung
+## Development
 
 ```bash
 pnpm install
 pnpm --filter @pr0hub/core build
 pnpm test
 
-# Server (Port 3000) + Vite (Port 5173, Proxy auf /hub/api)
+# server (port 3000) + Vite (port 5173, proxies /hub/api)
 ADMIN_BOOTSTRAP_USER=admin ADMIN_BOOTSTRAP_PASSWORD=changeme pnpm --filter @pr0hub/server dev
 pnpm --filter @pr0hub/web dev
 # -> http://localhost:5173/hub/
 ```
 
-Element-Namen neu erzeugen (aus dem pr0game-Repo daneben): `pnpm gen:tech`.
+Element names and costs are generated from the game source ([codeberg.org/pr0game/pr0game](https://codeberg.org/pr0game/pr0game))
+checked out next to this repository: `pnpm gen:tech` and `pnpm gen:costs`.
 
-Erster Start: Mit dem Bootstrap-Admin anmelden und unter **Admin** ein Universum (z. B. `u8`) sowie eine Gruppe anlegen. Danach Einladungslinks erzeugen.
+First start: log in with the bootstrap admin and create a universe (e.g. `u8`) and a group under **Admin**, then create invite links.
 
-## Konfiguration (env)
+Changes are recorded in [CHANGELOG.md](CHANGELOG.md).
+
+## Configuration (env)
 
 | Variable | Default | |
 |---|---|---|
 | `PORT` | `3000` | |
-| `BASE_PATH` | `/hub` | Pfadpräfix hinter dem Proxy |
-| `DATA_DIR` | `./data` (Docker: `/data`) | SQLite-Datenbank `hub.db` |
-| `ADMIN_BOOTSTRAP_USER` / `ADMIN_BOOTSTRAP_PASSWORD` | – | legt den ersten Admin an, solange noch kein Benutzer existiert |
+| `BASE_PATH` | `/hub` | path prefix behind the proxy |
+| `DATA_DIR` | `./data` (Docker: `/data`) | SQLite database `hub.db` |
+| `ADMIN_BOOTSTRAP_USER` / `ADMIN_BOOTSTRAP_PASSWORD` | – | creates the first admin while no user exists |
 | `SECURE_COOKIES` | `true` in production | |
 | `SESSION_DAYS` | `30` | |
 | `BODY_LIMIT_MB` | `8` | |
+| `CRAWLER_ENABLED` | `true` | background archiving of public battle reports |
+| `CRAWLER_INTERVAL_MS` | `5000` | |
+| `CRAWLER_GIVE_UP_HOURS` | `6` | pause the crawler after the game was unreachable this long |
 
 ## Deployment
 
-Docker-Image (`Dockerfile`, Port 3000, Volume `/data`), konfiguriert über die Umgebungsvariablen oben.
+Docker image (`Dockerfile`, port 3000, volume `/data`), configured with the environment variables above.
 
-CI (`.github/workflows/ci.yml`): Typecheck, Tests und Build bei jedem Push und Pull Request. Nach grünen Tests auf `main`
-bekommt optional ein Deployment-Repo einen `repository_dispatch` (Secrets `DISPATCH_REPO` = `owner/name` und
-`DISPATCH_TOKEN` = Token mit Schreibrecht auf dessen Inhalte); ohne die Secrets entfällt der Schritt.
+CI (`.github/workflows/ci.yml`): typecheck, tests and build on every push and pull request. After green tests on `main` it can
+send a `repository_dispatch` to a deployment repository (secrets `DISPATCH_REPO` = `owner/name` and `DISPATCH_TOKEN` = a token
+with write access to its contents); without the secrets this step is skipped.
 
-## Lizenz
+## License
 
-MIT, siehe [LICENSE](LICENSE).
+MIT, see [LICENSE](LICENSE).
