@@ -23,26 +23,52 @@ External analysis tool for [pr0game](https://codeberg.org/pr0game/pr0game) based
 
 Player IDs, alliance IDs and rank changes are only available in HTML/page source. With plain text, players are matched by name.
 
+## Tech stack
+
+| Area | Technology |
+|---|---|
+| Language | TypeScript (strict) throughout, ES modules |
+| Runtime / tooling | Node.js 22, pnpm workspaces (monorepo) |
+| Parser | [cheerio](https://cheerio.js.org/) for HTML, own plain-text parsers; game element names and costs generated from the game source |
+| Server | [Fastify 5](https://fastify.dev/) with `@fastify/cookie` and `@fastify/static`; [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) (SQLite) with numbered SQL migrations; session cookies, scrypt password hashes |
+| Web app | [Vue 3](https://vuejs.org/) (Composition API, `<script setup>`), [Vue Router 4](https://router.vuejs.org/), [vue-i18n](https://vue-i18n.intlify.dev/) (German/English), [Chart.js](https://www.chartjs.org/); plain CSS with custom properties, no UI framework |
+| Build | [Vite 5](https://vitejs.dev/) and `vue-tsc` for the web app, `tsc` for parser and server, `tsx` for the server in development |
+| Tests | [Vitest](https://vitest.dev/): parser tests against saved game pages (`packages/parser/test/fixtures`), API tests with Fastify's `inject` against an in-memory database |
+| Delivery | Multi-stage Docker image (`node:22-bookworm-slim`), the server serves the built SPA; GitHub Actions for typecheck, tests and build |
+
 ## Structure
 
 ```
-packages/parser   @pr0hub/core – parser (cheerio), deck calculation, element names (DE/EN)
-apps/server       Fastify + SQLite (better-sqlite3), auth, ingest, APIs, serves the SPA
+packages/parser   @pr0hub/core – page parsers, deck calculation, element data (DE/EN)
+apps/server       Fastify + SQLite: auth, ingest, data APIs, battle report crawler; serves the SPA
 apps/web          Vue 3 SPA (base path /hub/)
+scripts           generators for the element data (gen:tech, gen:costs)
 ```
 
 ## Development
 
+Requires Node.js 22 and pnpm (`corepack enable`).
+
 ```bash
 pnpm install
-pnpm --filter @pr0hub/core build
-pnpm test
+pnpm --filter @pr0hub/core build   # web and server import the built parser package
 
 # server (port 3000) + Vite (port 5173, proxies /hub/api)
 ADMIN_BOOTSTRAP_USER=admin ADMIN_BOOTSTRAP_PASSWORD=changeme pnpm --filter @pr0hub/server dev
 pnpm --filter @pr0hub/web dev
 # -> http://localhost:5173/hub/
 ```
+
+```bash
+pnpm typecheck   # tsc / vue-tsc in all packages
+pnpm test        # vitest in parser and server
+pnpm build       # parser, server and web app
+```
+
+- New game pages are supported by adding a parser in `packages/parser/src/parsers/` and a fixture with a test.
+- Schema changes go into a new numbered file in `apps/server/migrations/`; migrations run on startup.
+- Every game-data query goes through the group context (`apps/server/src/context.ts`), so data never leaves its group.
+- UI texts live in `apps/web/src/locales/` (`de.ts`, `en.ts`); the mobile layout starts below 800 px.
 
 Element names and costs are generated from the game source ([codeberg.org/pr0game/pr0game](https://codeberg.org/pr0game/pr0game))
 checked out next to this repository: `pnpm gen:tech` and `pnpm gen:costs`.

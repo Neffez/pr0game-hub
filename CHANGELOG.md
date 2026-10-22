@@ -4,6 +4,7 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-22
 
+- Docs: README gets a tech stack overview and more development notes (commands, parsers, migrations, group context, locales).
 - Docs: personal rules (such as the commit author) move from `CLAUDE.md` to a gitignored `CLAUDE.local.md`.
 - Docs: README in English with an updated feature list and a link to the pr0game source on Codeberg; this changelog; `CLAUDE.md` with the repository rules.
 - Add the MIT license.
