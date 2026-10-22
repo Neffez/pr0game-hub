@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
 import Hint from '../components/Hint.vue';
 import PlayerLink from '../components/PlayerLink.vue';
 import RangePicker from '../components/RangePicker.vue';
 import StatusBadges from '../components/StatusBadges.vue';
-import { useStored, useUni } from '../composables';
+import { useLoader, useStored, useUni } from '../composables';
 import { coords, dateTime, fmt, fmtSigned, name, short } from '../format';
 import { intlLocale } from '../i18n';
 
@@ -50,18 +50,9 @@ const days = useStored('activity.days', 3);
 /** hidden kinds (per viewer) */
 const hidden = useStored<string[]>('activity.hidden', []);
 const minHours = useStored('activity.minHours', 6);
-const data = ref<{ counts: Record<string, number>; entries: Entry[] } | null>(null);
-const error = ref('');
-
-async function load() {
-  error.value = '';
-  try {
-    const from = Math.floor(Date.now() / 1000) - days.value * 86400;
-    data.value = await uniApi(uni.value, `/activity?from=${from}`);
-  } catch (e) {
-    error.value = (e as Error).message;
-  }
-}
+const { data, error, load } = useLoader(() =>
+  uniApi<{ counts: Record<string, number>; entries: Entry[] }>(uni.value, `/activity?from=${Math.floor(Date.now() / 1000) - days.value * 86400}`),
+);
 onMounted(load);
 watch(days, load);
 

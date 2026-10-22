@@ -16,7 +16,11 @@ const views = ref<{ g: number; s: number; seen_at: number; username: string | nu
 const PER_ROW = 50;
 
 onMounted(async () => {
-  views.value = await uniApi(uni.value, '/galaxy-views');
+  try {
+    views.value = await uniApi(uni.value, '/galaxy-views');
+  } catch {
+    /* only a heat map: the page shows the error of its own data */
+  }
 });
 
 const map = computed(() => new Map(views.value.map((v) => [`${v.g}:${v.s}`, v])));

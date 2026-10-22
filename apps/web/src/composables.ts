@@ -56,6 +56,31 @@ export function useSort<T>(rows: Ref<T[]>, get: (row: T, key: string) => unknown
   return { sorted, sortBy, indicator, key, descending };
 }
 
+/**
+ * Loads a view's data. Only the answer to the newest request is applied (with fast navigation an older answer
+ * could arrive last and win), and a failure ends up in `error` instead of an unhandled rejection.
+ * `load()` returns the data, or undefined if the request failed or a newer one was started.
+ */
+export function useLoader<T>(fetch: () => Promise<T>) {
+  const data = ref<T | null>(null) as Ref<T | null>;
+  const error = ref('');
+  let latest = 0;
+  async function load(): Promise<T | undefined> {
+    const id = ++latest;
+    try {
+      const res = await fetch();
+      if (id !== latest) return undefined;
+      data.value = res;
+      error.value = '';
+      return res;
+    } catch (e) {
+      if (id === latest) error.value = (e as Error).message;
+      return undefined;
+    }
+  }
+  return { data, error, load };
+}
+
 /** Per-viewer remembered setting (localStorage, falls back to memory). */
 export function useStored<T>(name: string, initial: T): Ref<T> {
   let start = initial;

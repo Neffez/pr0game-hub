@@ -4,7 +4,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
 import Hint from '../components/Hint.vue';
-import { useMobile, useStored, useUni } from '../composables';
+import { useLoader, useMobile, useStored, useUni } from '../composables';
 import { abbr, ago, dateTime, fmt, fmtSigned, name, short, STATS_TYPES } from '../format';
 
 /**
@@ -64,20 +64,13 @@ const { t } = useI18n();
 const { uni, ctx } = useUni();
 const mobile = useMobile();
 const userId = useStored<number | null>('imperium.user', null);
-const data = ref<Data | null>(null);
-const error = ref('');
+const { data, error, load } = useLoader(() => {
+  if (!ctx.value!.members.some((m) => m.id === userId.value)) userId.value = ctx.value!.me.id;
+  return uniApi<Data>(uni.value, `/imperium?user=${userId.value}`);
+});
 const now = ref(Math.floor(Date.now() / 1000));
 let timer: ReturnType<typeof setInterval> | undefined;
 
-async function load() {
-  error.value = '';
-  try {
-    if (!ctx.value!.members.some((m) => m.id === userId.value)) userId.value = ctx.value!.me.id;
-    data.value = await uniApi(uni.value, `/imperium?user=${userId.value}`);
-  } catch (e) {
-    error.value = (e as Error).message;
-  }
-}
 onMounted(() => {
   load();
   timer = setInterval(() => (now.value = Math.floor(Date.now() / 1000)), 1000);

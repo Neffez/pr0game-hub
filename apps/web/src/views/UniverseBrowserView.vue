@@ -7,7 +7,7 @@ import { uniApi } from '../api';
 import Hint from '../components/Hint.vue';
 import PlanetActions from '../components/PlanetActions.vue';
 import StatusBadges from '../components/StatusBadges.vue';
-import { useMobile, useStored, useUni } from '../composables';
+import { useLoader, useMobile, useStored, useUni } from '../composables';
 import { ago, dateTime, fmt, freshnessColor, name, short, timeWithAge } from '../format';
 import GalaxyFreshness from '../components/GalaxyFreshness.vue';
 
@@ -68,23 +68,18 @@ interface Phalanx {
   player: { id: number | null; name: string; ally: string | null } | null;
 }
 
-const system = ref<{ view: { seen_at: number; username: string } | null; rows: Row[]; phalanx: Phalanx[] } | null>(null);
-const strip = ref<{ planets: Record<string, number>; seen: Record<string, number>; own: number[] } | null>(null);
-const error = ref('');
 const now = Math.floor(Date.now() / 1000);
 
-async function loadSystem() {
-  error.value = '';
+const { data: system, error, load: fetchSystem } = useLoader(() =>
+  uniApi<{ view: { seen_at: number; username: string } | null; rows: Row[]; phalanx: Phalanx[] }>(uni.value, `/browse/${g.value}/${s.value}`),
+);
+const { data: strip, load: loadStrip } = useLoader(() =>
+  uniApi<{ planets: Record<string, number>; seen: Record<string, number>; own: number[] }>(uni.value, `/browse/${g.value}`),
+);
+function loadSystem() {
   last.value = { g: g.value, s: s.value };
   router.replace({ query: { ...route.query, g: g.value, s: s.value } });
-  try {
-    system.value = await uniApi(uni.value, `/browse/${g.value}/${s.value}`);
-  } catch (e) {
-    error.value = (e as Error).message;
-  }
-}
-async function loadStrip() {
-  strip.value = await uniApi(uni.value, `/browse/${g.value}`);
+  return fetchSystem();
 }
 onMounted(() => {
   loadSystem();

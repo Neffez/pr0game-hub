@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import Hint from '../components/Hint.vue';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
 import RangePicker from '../components/RangePicker.vue';
-import { useStored, useUni, vStack } from '../composables';
+import { useLoader, useStored, useUni, vStack } from '../composables';
 import { elementPoints } from '@pr0hub/core/tech';
 import { cardLabel, coords, dateTime, DEPLETION_LABEL, fmt, name, short } from '../format';
 
@@ -14,12 +14,8 @@ const { uni, ctx } = useUni();
 const days = useStored('expos.range', 1);
 /** null = whole alliance, otherwise one member */
 const member = useStored<number | null>('expos.member', null);
-const data = ref<any>(null);
 
-async function load() {
-  const from = Math.floor(Date.now() / 1000) - days.value * 86400;
-  data.value = await uniApi(uni.value, `/expeditions?from=${from}`);
-}
+const { data, error, load } = useLoader<any>(() => uniApi(uni.value, `/expeditions?from=${Math.floor(Date.now() / 1000) - days.value * 86400}`));
 onMounted(load);
 watch(days, load);
 
@@ -106,6 +102,7 @@ const sumRes = (u: any) => Object.values(u.resources as Record<string, number>).
       </select>
     </label>
   </div>
+  <div v-if="error" class="error">{{ error }}</div>
   <template v-if="data">
     <h2>{{ t('expeditions.yields') }} ({{ rangeLabel(days) }})</h2>
     <div class="table-wrap" style="max-height: none; margin-bottom: 14px">

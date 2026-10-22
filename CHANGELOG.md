@@ -4,6 +4,12 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-22
 
+- Fast navigation shows the data that was asked for last: stepping through the galaxy, switching the member in the
+  imperium or deck, the category in the statistics, the player in the details or the universe no longer lets an older,
+  slower answer overwrite the current one. Loading errors in the deck, expeditions, raids, hostile spying and the
+  galaxy page are shown instead of failing silently.
+  - Developers: `useLoader(fetch)` (`composables.ts`) gives `data`, `error` and `load()` and applies only the newest
+    answer.
 - Battle reports, expeditions, recycling and hostile spying synced once as HTML and once as text are stored once:
   the sync recognizes the copy by its content (two messages with different message ids still count twice, e.g.
   expeditions with the same result in the same second) and fills in the message/report id the text lacks. Migration

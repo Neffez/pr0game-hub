@@ -5,7 +5,7 @@ import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
 import PlanetActions from '../components/PlanetActions.vue';
 import StatusBadges from '../components/StatusBadges.vue';
-import { useUni, vStack } from '../composables';
+import { useLoader, useUni, vStack } from '../composables';
 import { ago, coords, dateTime, fmt, freshnessColor, name, phalanxRange, STATS_TYPES } from '../format';
 import { intlLocale } from '../i18n';
 
@@ -15,8 +15,6 @@ const { t, locale } = useI18n();
 const { uni, ctx } = useUni();
 /** Player details (chart, note, planets, status history): page and dialog. */
 const props = defineProps<{ id: number }>();
-const data = ref<any>(null);
-const error = ref('');
 const note = ref('');
 const canvas = ref<HTMLCanvasElement | null>(null);
 let chart: Chart | null = null;
@@ -31,16 +29,13 @@ const planetRows = computed(() =>
 
 const COLORS: Record<number, string> = { 1: '#f2683c', 2: '#58a6ff', 3: '#a371f7', 4: '#3fb950', 5: '#d29922' };
 
+const { data, error, load: fetchPlayer } = useLoader<any>(() => uniApi(uni.value, `/players/${props.id}`));
 async function load() {
-  error.value = '';
-  try {
-    data.value = await uniApi(uni.value, `/players/${props.id}`);
-    note.value = data.value.player.note ?? '';
-    await nextTick();
-    draw();
-  } catch (e) {
-    error.value = (e as Error).message;
-  }
+  const d = await fetchPlayer();
+  if (!d) return;
+  note.value = d.player.note ?? '';
+  await nextTick();
+  draw();
 }
 
 function draw() {

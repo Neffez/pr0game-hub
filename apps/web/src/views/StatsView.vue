@@ -2,10 +2,10 @@
 import Hint from '../components/Hint.vue';
 import PlayerLink from '../components/PlayerLink.vue';
 import StatusBadges from '../components/StatusBadges.vue';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
-import { useStored, useUni, vStack } from '../composables';
+import { useLoader, useStored, useUni, vStack } from '../composables';
 import { dateTime, fmt, fmtSigned, short, STATS_CATEGORIES, STATS_TYPES } from '../format';
 
 interface Category { who: string; type: number; stat_time: number; pages: number[] }
@@ -45,17 +45,7 @@ const { t } = useI18n();
 const { uni } = useUni();
 const who = useStored<'player' | 'alliance'>('stats.who', 'player');
 const type = useStored('stats.type', 1);
-const data = ref<Stats | null>(null);
-const error = ref('');
-
-async function load() {
-  error.value = '';
-  try {
-    data.value = await uniApi(uni.value, `/stats?who=${who.value}&type=${type.value}`);
-  } catch (e) {
-    error.value = (e as Error).message;
-  }
-}
+const { data, error, load } = useLoader(() => uniApi<Stats>(uni.value, `/stats?who=${who.value}&type=${type.value}`));
 onMounted(load);
 watch([who, type], load);
 

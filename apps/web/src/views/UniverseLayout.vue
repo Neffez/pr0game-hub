@@ -6,27 +6,21 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import { selectGroup, selectedGroup, session, uniApi } from '../api';
-import { provideUni, useScrollLock, type UniContext } from '../composables';
+import { provideUni, useLoader, useScrollLock, type UniContext } from '../composables';
 
 const { t } = useI18n();
 const route = useRoute();
 const uni = computed(() => String(route.params.uni));
-const ctx = ref<UniContext | null>(null);
-const error = ref('');
+const { data: ctx, error, load: fetchContext } = useLoader(() => uniApi<UniContext>(uni.value, '/context'));
 const groups = computed(() => session.me?.groups.filter((g) => g.universe === uni.value) ?? []);
 const group = ref<number | null>(null);
 const reloadKey = ref(0);
 
 provideUni(ctx);
 
-async function load() {
-  error.value = '';
-  try {
-    group.value = selectedGroup(uni.value);
-    ctx.value = await uniApi(uni.value, '/context');
-  } catch (e) {
-    error.value = (e as Error).message;
-  }
+function load() {
+  group.value = selectedGroup(uni.value);
+  return fetchContext();
 }
 
 function changeGroup() {

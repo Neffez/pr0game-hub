@@ -3,13 +3,12 @@ import Hint from '../components/Hint.vue';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
-import { useUni, vStack } from '../composables';
+import { useLoader, useUni, vStack } from '../composables';
 import { cardLabel, dateTime, DEPLETION_LABEL, fmt, fmtCount } from '../format';
 
 const { t } = useI18n();
 const { uni, ctx } = useUni();
 const userId = ref(ctx.value!.me.id);
-const data = ref<any>(null);
 const startLocal = ref('');
 const unknownDepletion = ref(0);
 const initialDrawn = ref<Record<string, number>>({});
@@ -17,9 +16,11 @@ const msg = ref('');
 
 const isMe = computed(() => userId.value === ctx.value!.me.id);
 
+const { data, error, load: fetchDeck } = useLoader<any>(() => uniApi(uni.value, `/deck?user=${userId.value}`));
 async function load() {
-  data.value = await uniApi(uni.value, `/deck?user=${userId.value}`);
-  const s = data.value.settings;
+  const d = await fetchDeck();
+  if (!d) return;
+  const s = d.settings;
   startLocal.value = s.startTime ? new Date(s.startTime * 1000 - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16) : '';
   unknownDepletion.value = s.unknownDepletion;
   initialDrawn.value = { ...s.initialDrawn };
@@ -106,6 +107,7 @@ const progress = computed(() => (data.value ? data.value.state.drawnInDeck / dat
     </div>
   </div>
 
+  <div v-if="error" class="error">{{ error }}</div>
   <template v-if="data">
     <div class="card">
       <div class="row">

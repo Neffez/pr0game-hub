@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import PlayerLink from '../components/PlayerLink.vue';
 import Hint from '../components/Hint.vue';
-import { onMounted, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import { uniApi } from '../api';
 import SpyHistory, { type SpyReport } from '../components/SpyHistory.vue';
-import { useMobile, useUni } from '../composables';
+import { useLoader, useMobile, useUni } from '../composables';
 import { coords, fmt, name, short, timeWithAge } from '../format';
 
 const { t } = useI18n();
@@ -17,27 +17,16 @@ const router = useRouter();
 const target = ref(String(route.query.c ?? ''));
 const type = ref(route.query.type === 'moon' ? 'moon' : 'planet');
 const limit = ref(20);
-const reports = ref<SpyReport[]>([]);
-const total = ref(0);
 const recent = ref<any[]>([]);
-const error = ref('');
 
-async function load() {
-  error.value = '';
+const { data, error, load } = useLoader(async () => {
   const m = target.value.match(/(\d+)\D+(\d+)\D+(\d+)/);
-  if (!m) {
-    reports.value = [];
-    return;
-  }
+  if (!m) return null;
   router.replace({ query: { ...route.query, c: `${m[1]}:${m[2]}:${m[3]}`, type: type.value } });
-  try {
-    const res = await uniApi(uni.value, `/spy/${m[1]}/${m[2]}/${m[3]}?type=${type.value}&limit=${limit.value}`);
-    reports.value = res.reports;
-    total.value = res.total;
-  } catch (e) {
-    error.value = (e as Error).message;
-  }
-}
+  return uniApi<{ reports: SpyReport[]; total: number }>(uni.value, `/spy/${m[1]}/${m[2]}/${m[3]}?type=${type.value}&limit=${limit.value}`);
+});
+const reports = computed(() => data.value?.reports ?? []);
+const total = computed(() => data.value?.total ?? 0);
 
 function open(r: any) {
   target.value = `${r.g}:${r.s}:${r.p}`;
@@ -46,8 +35,12 @@ function open(r: any) {
 }
 
 onMounted(async () => {
-  recent.value = await uniApi(uni.value, '/spy-reports?limit=50');
   if (target.value) load();
+  try {
+    recent.value = await uniApi(uni.value, '/spy-reports?limit=50');
+  } catch (e) {
+    error.value = (e as Error).message;
+  }
 });
 watch([type, limit], load);
 

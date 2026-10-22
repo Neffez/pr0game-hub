@@ -1,21 +1,17 @@
 <script setup lang="ts">
 import Hint from '../components/Hint.vue';
-import { onMounted, ref, watch } from 'vue';
+import { onMounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
 import RangePicker from '../components/RangePicker.vue';
-import { useStored, useUni, vStack } from '../composables';
+import { useLoader, useStored, useUni, vStack } from '../composables';
 import { ago, coords, dateTime } from '../format';
 
 const { t } = useI18n();
 const { uni } = useUni();
 const days = useStored('hostile.days', 7);
-const data = ref<any>(null);
 
-async function load() {
-  const from = Math.floor(Date.now() / 1000) - days.value * 86400;
-  data.value = await uniApi(uni.value, `/hostile?from=${from}`);
-}
+const { data, error, load } = useLoader<any>(() => uniApi(uni.value, `/hostile?from=${Math.floor(Date.now() / 1000) - days.value * 86400}`));
 onMounted(load);
 watch(days, load);
 </script>
@@ -25,6 +21,7 @@ watch(days, load);
   <div class="card row">
     <RangePicker v-model="days" />
   </div>
+  <div v-if="error" class="error">{{ error }}</div>
   <template v-if="data">
     <h2>{{ t('hostile.whoSpies') }}</h2>
     <div class="table-wrap" style="max-height: 40vh; margin-bottom: 14px">
