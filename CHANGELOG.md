@@ -4,6 +4,14 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- `@pr0hub/flight`: rules for the raid planner.
+  - `planAttack`: launch time per fleet for a target time, lead (earliest launch or chosen), late fleets and the
+    resulting ACS arrival when they push it back, ACS limits (16 fleets, 5 players), return per fleet. Checked against
+    a step-by-step simulation of the game's sending and `setACSTime`.
+  - `retimeCandidates`: per speed step of a hostile fleet the possible launch, whether it fits the departure window
+    (exact for a single attack, one-sided in an ACS), the return after impact (also after ACS delays) and the return
+    range after a recall.
+
 - Hostile attacks in the fleet movements: the game writes an attack or ACS attack on a member without player name
   ("Eine Flotten(…)"), so it counted as a foreign fleet; it is now hostile (empire view in red, notifications).
   - ACS: the further fleets of an ACS (lines without time in copied text, own spans in the page source) were dropped;

@@ -1,8 +1,8 @@
 # Feature request: raid planner (attack plans and retime)
 
 Status: in progress. Done: flight library `@pr0hub/flight`, flight calculator as `apps/tools`, fleet movements parser
-incl. hostile attacks and ACS grouping. Next: ACS and timing rules in `@pr0hub/flight`, then the attack plans (see
-"Order").
+incl. hostile attacks and ACS grouping, ACS and timing rules (`planAttack`, `retimeCandidates`). Next: the attack
+plans (see "Order").
 
 The raid planner plans own attacks, solo or as ACS, and lands them at the right second. A plan starts empty or from a
 pasted hostile attack ("retime": land on the enemy origin right after the enemy fleet is back).
@@ -211,7 +211,10 @@ The parser `packages/parser/src/parsers/fleets.ts` (stored in `fleet_snapshots`)
 ## Order
 
 1. Parser gaps (hostile classification, ACS member lines): done; check against further real pastes when available.
-2. ACS and timing rules as one module in `@pr0hub/flight` (lead, resulting arrival, delays, returns, recall), tested.
+2. ACS and timing rules in `@pr0hub/flight`: done. `planAttack` (launch per fleet, lead, resulting arrival with delays,
+   late fleets, limits, returns; checked against a step-by-step simulation of the game's sending) and
+   `retimeCandidates` (per speed step: launch range, departure window, first seen arrival, return after impact and
+   after a recall; random real flights always lie in their candidate's range).
 3. Attack plans from scratch: migration, endpoints, rights, live updates, claims, UI.
 4. Hostile fleets list and "Retime planen": enemy fleet, candidates, windows, drive levels, target time mode `enemy`.
 5. Simulator links, phalanx source.
