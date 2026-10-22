@@ -31,6 +31,7 @@ const PAGES: [string, string][] = [
   ['alliance_scores', 'stats'],
   ['empire', 'imperium'],
   ['overview', 'imperium'],
+  ['fleets', 'imperium'],
 ];
 
 function describe(e: DataEvent): Toast | null {

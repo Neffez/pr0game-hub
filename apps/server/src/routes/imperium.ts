@@ -97,9 +97,11 @@ export function imperiumRoutes(app: FastifyInstance, db: DB) {
     const rows = db
       .prepare('SELECT u.id AS user_id, u.username, m.ingame_name FROM group_members m JOIN users u ON u.id = m.user_id WHERE m.group_id = ? ORDER BY u.username')
       .all(ctx.groupId) as { user_id: number; username: string; ingame_name: string | null }[];
+    const fleets = db.prepare('SELECT page_time AS time, data FROM fleet_snapshots WHERE group_id = ? AND user_id = ? ORDER BY page_time DESC, id DESC LIMIT 1');
     return rows.map((r) => {
       const e = latestEmpire(db, ctx, r.user_id);
-      return { ...r, created_at: e?.time ?? null, data: e?.rec ?? null };
+      const f = fleets.get(ctx.groupId, r.user_id) as { time: number; data: string } | undefined;
+      return { ...r, created_at: e?.time ?? null, data: e?.rec ?? null, fleets: f ? { time: f.time, data: JSON.parse(f.data) } : null };
     });
   });
 }

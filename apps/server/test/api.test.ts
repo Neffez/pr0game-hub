@@ -159,6 +159,8 @@ describe('api', () => {
     // without a page time the arrival is the shown clock (00:18:43 Berlin) on the day it is due
     expect((im.fleets.data[0].arrival - 1792707523) % 86400).toBe(0);
     expect(db.prepare('SELECT COUNT(*) FROM fleet_snapshots WHERE group_id = ?').pluck().get(groupA)).toBe(1);
+    const alliance = (await app.inject({ method: 'GET', url: '/hub/api/u8/alliance', headers })).json();
+    expect(alliance.find((m: any) => m.user_id === im.userId).fleets.data).toHaveLength(1);
   });
 
   it('lists phalanxes that reach a system', async () => {

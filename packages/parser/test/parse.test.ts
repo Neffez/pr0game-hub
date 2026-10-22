@@ -414,6 +414,15 @@ describe('fleet movements', () => {
     expect(rec.fleets[2].ships).toEqual({ 204: 3418, 205: 44, 207: 1463, 209: 131, 215: 4397, 227: 1698 });
   });
 
+  it('joins clock and timer copied onto lines of their own, also next to the clipboard HTML', () => {
+    const [clock, rest] = lines[0].trim().split(' | ');
+    const text = [clock, '|', rest.replace(' Eine', '\nEine')].join('\n');
+    const html = `<li><span class="statictimer">${clock}</span> | <span class="fleets">17m 27s</span> <span>Eine deiner Flotten</span></li>`;
+    const res = parsePage({ html, text });
+    expect(res).toMatchObject({ pageType: 'fleets', source: 'text' });
+    expect((res.records[0] as any).fleets[0]).toMatchObject({ mission: 1, phase: 'return', seconds: 17 * 60 + 27, clock: '00:18:43' });
+  });
+
   it('adds the fleets of a copied overview page, an empty list only when it was shown', () => {
     const page = (events: string[], button = 'Ausblenden') =>
       ['Planet Ares (Rudolf)', 'Serverzeit : Okt Fr 23 00:01:53', `Ereignisse ${button}`, ...events, 'Übersicht', 'Ares', 'Gebäude: Frei', 'Position: [1:100:12]'].join('\n');

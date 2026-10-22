@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Fleet movements in the alliance: the fleet page lists the fleets in flight of all members (next arrival first,
+  with the member and when they last synced), above the ship table.
+  - Syncing fleet movements now updates open empire and alliance pages live and shows a hint to the others.
+  - Copied event lines are also read when the clock and the timer end up on lines of their own.
+
 - Raid planner plan (`FEATURE_REQUEST_RETIME.md`): ACS planning merged with the retime plan (shared flight math, live
   updates via SSE, target claims, "counter-attack as ACS"), ACS rules from the game source (no delay limit, fleet and
   participant limits), and the gaps of the new fleet movements parser for hostile ACS attacks.

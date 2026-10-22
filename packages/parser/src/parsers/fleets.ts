@@ -84,11 +84,18 @@ export function parseFleetSentence(text: string, seconds: number, clock: string 
   };
 }
 
-/** Copied text: one line per event ("HH:MM:SS | remaining sentence"). */
+/** Copied text: one line per event ("HH:MM:SS | remaining sentence"); clock and timer may sit on lines of their own. */
 export function parseFleetLines(text: string): FleetMovement[] {
   const out: FleetMovement[] = [];
-  for (const line of text.split('\n')) {
-    const m = line.trim().match(LINE_RE);
+  let prefix = '';
+  for (const raw of text.split('\n')) {
+    const line = `${prefix} ${raw.trim()}`.trim();
+    if (/^[\d:|\sWdhms]+$/.test(line) && /\d/.test(line)) {
+      prefix = line;
+      continue;
+    }
+    prefix = '';
+    const m = line.match(LINE_RE);
     const secs = m ? parseDuration(m[2]) : null;
     const f = m && secs != null ? parseFleetSentence(m[3], secs, m[1]?.padStart(8, '0') ?? null) : null;
     if (f) out.push(f);

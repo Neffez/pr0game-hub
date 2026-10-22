@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { classOf, elementPoints } from '@pr0hub/core/tech';
-import { computed, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import { uniApi } from '../api';
+import FleetList, { type Fleet } from '../components/FleetList.vue';
 import Hint from '../components/Hint.vue';
 import { useMobile, useSort, useUni } from '../composables';
 import { tables, useLiveReload } from '../live';
@@ -21,6 +22,8 @@ interface Member {
     research: Record<string, number>;
     planets: { name: string; coords: { g: number; s: number; p: number }; type: 'planet' | 'moon'; values: Record<string, number> }[];
   } | null;
+  /** fleet movements of the member's latest synced overview */
+  fleets: { time: number; data: Fleet[] } | null;
 }
 interface Row {
   key: string;
@@ -48,12 +51,27 @@ async function load() {
     error.value = (e as Error).message;
   }
 }
-onMounted(load);
-useLiveReload(load, tables('empire'));
+const now = ref(Math.floor(Date.now() / 1000));
+let timer: ReturnType<typeof setInterval> | undefined;
+onMounted(() => {
+  load();
+  timer = setInterval(() => (now.value = Math.floor(Date.now() / 1000)), 1000);
+});
+onBeforeUnmount(() => clearInterval(timer));
+useLiveReload(load, tables('empire', 'fleets'));
 
 const withData = computed(() => members.value.filter((m) => m.data));
 const missing = computed(() => members.value.filter((m) => !m.data));
 const memberName = (m: Member) => m.ingame_name || m.username;
+
+/** Fleets of all members still in flight, next arrival first. */
+const flights = computed(() =>
+  members.value
+    .flatMap((m) => (m.fleets?.data ?? []).map((f) => ({ ...f, member: memberName(m) })))
+    .filter((f) => f.arrival > now.value)
+    .sort((a, b) => a.arrival - b.arrival),
+);
+const withFleets = computed(() => members.value.filter((m) => m.fleets));
 
 const inCategory = (id: number) => {
   const cls = classOf(id);
@@ -159,6 +177,18 @@ const total = computed(() => {
     </div>
     <span v-for="m in withData" :key="m.user_id" class="muted" :title="dateTime(m.created_at)">{{ memberName(m) }}: {{ ago(m.created_at) }}</span>
     <span v-if="missing.length" class="warn">{{ t('alliance.missing', { names: missing.map(memberName).join(', ') }) }}</span>
+  </div>
+
+  <div v-if="page === 'fleet' && !error && withFleets.length" class="card">
+    <h3 style="margin: 0 0 6px">
+      {{ t('imperium.fleets') }}
+      <Hint><p>{{ t('alliance.fleetsHint') }}</p></Hint>
+      <span class="muted small" style="font-weight: normal">
+        <span v-for="m in withFleets" :key="m.user_id" :title="dateTime(m.fleets!.time)"> · {{ memberName(m) }}: {{ ago(m.fleets!.time) }}</span>
+      </span>
+    </h3>
+    <p v-if="!flights.length" class="muted small" style="margin: 0">{{ t('imperium.fleetsNone') }}</p>
+    <FleetList v-else :fleets="flights" :now="now" />
   </div>
 
   <div v-if="error" class="error">{{ error }}</div>

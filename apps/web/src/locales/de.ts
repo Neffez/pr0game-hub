@@ -364,7 +364,8 @@ const de = {
   alliance: {
     hint: 'Aus der zuletzt eingefügten Imperium-Seite jedes Allianz-Mitglieds im Hub. Jedes Mitglied fügt dafür seine eigene Imperium-Seite ein.',
     hint_planets: 'Eine Zeile pro Planet/Mond mit Gebäudestufen. Punkte = Gebäudepunkte des Planeten.',
-    hint_fleet: 'Schiffe bzw. Verteidigung summiert über alle Planeten und Monde. Fliegende Flotten zeigt die Imperium-Seite nicht.',
+    hint_fleet: 'Schiffe bzw. Verteidigung summiert über alle Planeten und Monde. Fliegende Flotten stehen in den Flottenbewegungen darüber (aus der synchronisierten Übersicht).',
+    fleetsHint: 'Flotten im Flug aller Mitglieder aus ihrer zuletzt synchronisierten Übersicht (oder den eingefügten Ereignis-Zeilen), nächste Ankunft zuerst. Dahinter: wann jedes Mitglied seine Flotten zuletzt synchronisiert hat.',
     hint_research: 'Forschungsstufen je Mitglied. Punkte = Forschungspunkte.',
     hintColumns: 'Spaltenköpfe sind abgekürzt, der volle Name steht im Tooltip. Farben: rot = niedrig, grün = Höchstwert der Spalte.',
     missing: 'Imperium fehlt: {names}',
@@ -722,6 +723,7 @@ const de = {
       alliance_scores: 'Statistik',
       empire: 'Imperium',
       overview: 'Imperium',
+      fleets: 'Flottenbewegungen',
     },
   },
   languages: {

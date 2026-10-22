@@ -3,6 +3,7 @@ import { classOf, elementPoints, METAL, RESOURCES, STORAGE, storageCapacity } fr
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
+import FleetList, { type Fleet } from '../components/FleetList.vue';
 import Hint from '../components/Hint.vue';
 import { useLoader, useMobile, useStored, useUni } from '../composables';
 import { tables, useLiveReload } from '../live';
@@ -37,23 +38,6 @@ interface Queue {
   level: number;
   destroy: boolean;
   seconds: number;
-}
-interface FleetBody {
-  coords: C3;
-  type: 'planet' | 'moon' | 'debris' | null;
-  name: string | null;
-}
-/** fleet of the overview's event list (server: FleetMovement plus the arrival) */
-interface Fleet {
-  owner: 'own' | 'hostile' | 'foreign';
-  player: string | null;
-  missionName: string;
-  phase: 'out' | 'return' | 'hold';
-  from: FleetBody;
-  to: FleetBody | null;
-  ships: Record<string, number>;
-  resources: Record<string, number> | null;
-  arrival: number;
 }
 interface Data {
   empire: {
@@ -107,13 +91,6 @@ const fleets = computed(() => data.value?.fleets ?? null);
 /** fleets still in flight, next arrival first; arrived ones only count */
 const flights = computed(() => (fleets.value?.data ?? []).filter((f) => f.arrival > now.value).sort((a, b) => a.arrival - b.arrival));
 const arrived = computed(() => (fleets.value?.data.length ?? 0) - flights.value.length);
-const body = (b: FleetBody) => `${b.name ? b.name + ' ' : ''}${b.type === 'moon' ? '☾ ' : ''}[${b.coords.g}:${b.coords.s}:${b.coords.p}]`;
-const shipList = (ships: Record<string, number>) =>
-  Object.entries(ships)
-    .map(([id, n]) => `${fmt(n)} ${name(id)}`)
-    .join(', ');
-const cargo = (res: Record<string, number> | null) =>
-  res && RES.some((id) => res[id]) ? RES.filter((id) => res[id]).map((id) => `${short(res[id])} ${abbr(id)}`).join(' · ') : '';
 const same = (a: C3, b: C3) => a.g === b.g && a.s === b.s && a.p === b.p;
 
 /**
@@ -426,21 +403,7 @@ const memberName = (id: number | null) => ctx.value!.members.find((m) => m.id ==
       <span v-if="arrived" class="muted small" style="font-weight: normal"> · {{ t('imperium.fleetsArrived', { n: arrived }) }}</span>
     </h3>
     <p v-if="!flights.length" class="muted small" style="margin: 0">{{ t('imperium.fleetsNone') }}</p>
-    <ul v-else class="fleet-list">
-      <li v-for="(f, i) in flights" :key="i" :class="{ hostile: f.owner === 'hostile' }">
-        <span class="mono" :title="dateTime(f.arrival)">{{ countdown(f.arrival - now) }}</span>
-        <span>
-          <b>{{ f.missionName }}</b>
-          <span v-if="f.owner !== 'own'" class="small" :class="f.owner === 'hostile' ? 'neg' : 'muted'">
-            ({{ t(`imperium.${f.owner}`) }}<template v-if="f.player">: {{ f.player }}</template>)
-          </span>
-          {{ body(f.from) }} {{ t(`imperium.phase.${f.phase}`) }} <template v-if="f.to">{{ body(f.to) }}</template>
-          <span v-if="shipList(f.ships) || cargo(f.resources)" class="small muted fleet-detail">
-            {{ shipList(f.ships) }}<template v-if="cargo(f.resources)"> · {{ t('imperium.cargo') }} {{ cargo(f.resources) }}</template>
-          </span>
-        </span>
-      </li>
-    </ul>
+    <FleetList v-else :fleets="flights" :now="now" />
   </div>
 
   <!-- mobile: totals first, then one card per planet (moons below their planet) -->
@@ -599,10 +562,4 @@ const memberName = (id: number | null) => ctx.value!.members.find((m) => m.id ==
 .bar > div { height: 100%; background: var(--info); }
 .bar > div.warn { background: var(--warn); }
 .bar > div.neg { background: var(--neg); }
-/* fleet movements: countdown, then mission, route and ships */
-.fleet-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; }
-.fleet-list li { display: contents; }
-.fleet-list li > span:last-child { min-width: 0; overflow-wrap: anywhere; }
-.fleet-list li.hostile > span { color: var(--neg); }
-.fleet-detail { display: block; }
 </style>

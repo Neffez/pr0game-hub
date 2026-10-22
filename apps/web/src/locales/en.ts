@@ -363,7 +363,8 @@ const en: typeof de = {
   alliance: {
     hint: "From the latest empire page of every alliance member in the hub. Every member pastes their own empire page for this.",
     hint_planets: 'One row per planet/moon with building levels. Points = building points of the planet.',
-    hint_fleet: 'Ships or defense summed over all planets and moons. The empire page does not show fleets in flight.',
+    hint_fleet: 'Ships or defense summed over all planets and moons. Fleets in flight are listed in the fleet movements above (from the synced overview).',
+    fleetsHint: 'Fleets in flight of all members from their latest synced overview (or the pasted event lines), next arrival first. Behind it: when each member last synced their fleets.',
     hint_research: 'Research levels per member. Points = research points.',
     hintColumns: 'Column headers are abbreviated, the full name is in the tooltip. Colours: red = low, green = column maximum.',
     missing: 'Empire missing: {names}',
@@ -720,6 +721,7 @@ const en: typeof de = {
       alliance_scores: 'statistics',
       empire: 'empire',
       overview: 'empire',
+      fleets: 'fleet movements',
     },
   },
   languages: {
