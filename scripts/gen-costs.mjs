@@ -27,5 +27,10 @@ const extra = {
   232: [0, 9000000, 0, 1], // Void Titan
 };
 for (const [id, c] of Object.entries(extra)) out[id] ??= c;
+// Costs changed in the running game, install.sql still has the old values.
+const changed = {
+  205: [6500, 3500, 0, 1], // Schwerer Jäger (install.sql: 6000/4000)
+};
+Object.assign(out, changed);
 writeFileSync(new URL('../packages/parser/src/data/costs.json', import.meta.url), JSON.stringify(out) + '\n');
 console.log(`${Object.keys(out).length} elements`);

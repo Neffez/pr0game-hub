@@ -52,6 +52,7 @@ describe('ship speed', () => {
     expect(shipSpeed(209, { combustion: 10, impulse: 16, hyperspace: 14 })).toBe(4000);
     expect(shipSpeed(209, { combustion: 10, impulse: 17, hyperspace: 14 })).toBe(4000 * (1 + 0.2 * 17));
     expect(shipSpeed(209, { combustion: 10, impulse: 17, hyperspace: 15 })).toBeCloseTo(6000 * (1 + 0.3 * 15));
+    expect(shipSpeed(222, { combustion: 10, impulse: 10, hyperspace: 10 })).toBe(7500 * 4);
     expect(shipSpeed(999, noDrives)).toBe(0);
   });
 

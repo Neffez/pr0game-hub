@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-22
 
+- Ship data from universe 7: the Schwerer Kreuzer (hyperspace drive, speed 7,500, 500 deuterium) is part of the
+  flight library, and the Schwerer Jäger costs 6,500 metal / 3,500 crystal as in the game (install.sql still has
+  6,000 / 4,000; the points stay the same).
+
 - Comments: the alliance discusses a player (player details) or a planet/moon (spy history, also without spy
   reports) in a thread, oldest first. Members edit and delete their own comments, alliance admins can delete any.
   - Planets and moons with comments show "💬 n" next to their action menu (galaxy, player details, overview, targets),
