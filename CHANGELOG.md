@@ -4,6 +4,17 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-22
 
+- Overview galaxy filter is a selection of the universe's galaxies and hidden in universes with a single galaxy;
+  a stored galaxy that does not exist in the universe no longer hides all planets.
+- The overview table is always shown, like in the FF-Hub: every known player (also only from galaxy views or spy
+  reports) is listed with the latest points available, missing statistics just leave their columns empty.
+- Overview Δ columns follow the 6 h statistics grid like the FF-Hub: each column is one section (0, 6, 12, 18 o'clock)
+  back from the newest synced update. A missed update no longer shifts the older columns; the change across the gap
+  shows in the newer column and the spanned column stays empty. Updates off the grid (test server) count for the
+  section they fall into.
+- Empire live points show the catch-up bonus: the value from the synced game overview next to a live value computed
+  from the live points against the player with the most weighted points (buildings ×1, research ×0.8, fleet ×0.6),
+  like the game's formula. The overview parser now reads the bonus line.
 - Docs: `CONTRIBUTING.md` (pull request workflow, guidelines) and `CODEOWNERS` requiring the maintainer's review.
 - Docs: README gets a tech stack overview and more development notes (commands, parsers, migrations, group context, locales).
 - Docs: personal rules (such as the commit author) move from `CLAUDE.md` to a gitignored `CLAUDE.local.md`.

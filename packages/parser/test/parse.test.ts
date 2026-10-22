@@ -296,6 +296,7 @@ describe('overview', () => {
       { kind: 'building', coords: c(1, 100, 12), type: 'planet', id: 1, level: 24, destroy: true, seconds: 120 },
       { kind: 'building', coords: c(1, 100, 12), type: 'moon', id: 43, level: 2, destroy: false, seconds: 500 },
     ]);
+    expect(rec.catchUp).toBe(12.34);
   });
 });
 

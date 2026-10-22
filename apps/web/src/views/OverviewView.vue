@@ -79,20 +79,17 @@ const { t } = useI18n();
 const WINDOWS = ['prev', '6h', '12h', '18h', '24h', '48h', '7d'];
 const windowLabel = (w: string) => (w === 'prev' ? t('overview.prevStand') : w === '7d' ? t('time.days', { n: 7 }) : w.replace('h', ' h'));
 /**
- * Delta columns of the planet view (like FF-Hub), named after the usual 6 h statistics interval.
- * Each column is one synced statistics update (newest first) against the update before, whatever the interval.
+ * Delta columns of the planet view (like FF-Hub): 6 h sections back from the newest synced statistics update.
+ * A gap in the synced updates is shown in the newest section it covers, the sections in between stay empty.
  */
 const PLANET_WINDOWS = ['6h', '12h', '18h', '24h'];
 const slot = (p: { scores: Record<number, Score> }, w: string) => p.scores[1]?.slots?.[PLANET_WINDOWS.indexOf(w)] ?? null;
-/** Synced statistics updates (total points), newest first. */
-const updates = ref<number[]>([]);
+/** 6 h sections of the Δ columns (total points), newest first; null without synced updates at both ends. */
+const sections = ref<({ from: number; to: number } | null)[]>([]);
 const slotHeader = (w: string) => {
   const i = PLANET_WINDOWS.indexOf(w);
-  const to = updates.value[i];
-  const from = updates.value[i + 1];
-  return to != null && from != null
-    ? t('overview.slotHeader', { from: dateTime(from), to: dateTime(to) })
-    : t('overview.slotHeaderMissing', { n: i + 1 }, i + 1);
+  const sec = sections.value[i];
+  return sec ? t('overview.slotHeader', { from: dateTime(sec.from), to: dateTime(sec.to) }) : t('overview.slotHeaderMissing', { n: i + 1 });
 };
 const slotTitle = (sl: { from: number; to: number } | null) =>
   sl ? t('overview.slotTitle', { from: dateTime(sl.from), to: dateTime(sl.to) }) : t('overview.slotMissing');
@@ -129,7 +126,7 @@ async function load() {
     players.value = res.players;
     planets.value = res.planets;
     coverage.value = res.coverage;
-    updates.value = res.updates ?? [];
+    sections.value = res.slots ?? [];
   } catch (e) {
     error.value = (e as Error).message;
   } finally {
@@ -164,6 +161,16 @@ function playerMatches(p: Player) {
 
 const filteredPlayers = computed(() => players.value.filter(playerMatches));
 
+/** Galaxies of the universe; a stored galaxy filter outside of them (other universe) is ignored. */
+const galaxies = computed(() => ctx.value!.universe.settings.galaxies ?? 1);
+const galaxy = computed({
+  get: () => {
+    const g = filter.value.galaxy;
+    return g != null && g >= 1 && g <= galaxies.value ? g : null;
+  },
+  set: (g: number | null) => (filter.value.galaxy = g),
+});
+
 /** Planet view: one row per known planet/moon, players without known planets get a single row without coordinates. */
 const planetRows = computed<Row[]>(() => {
   const f = filter.value;
@@ -178,11 +185,11 @@ const planetRows = computed<Row[]>(() => {
   for (const player of filteredPlayers.value) {
     const list = byPlayer.get(player.id);
     if (!list) {
-      if (!f.galaxy && !f.onlySpied) rows.push({ key: `p${player.id}`, player, planet: null, dist: null });
+      if (!galaxy.value && !f.onlySpied) rows.push({ key: `p${player.id}`, player, planet: null, dist: null });
       continue;
     }
     for (const planet of list) {
-      if (f.galaxy && planet.g !== f.galaxy) continue;
+      if (galaxy.value && planet.g !== galaxy.value) continue;
       if (f.onlySpied && !planet.spy) continue;
       if (f.hideMoons && planet.type === 'moon') continue;
       const dist = origin.value ? distance(u, origin.value, [planet.g, planet.s, planet.p]) : null;
@@ -363,7 +370,13 @@ const history = computed(() => {
     </div>
     <div class="row" style="margin-top: 8px">
       <template v-if="mode === 'planets'">
-        <label>{{ t('nav.galaxy') }} <input v-model.number="filter.galaxy" type="number" min="1" style="width: 60px" /></label>
+        <label v-if="galaxies > 1">
+          {{ t('nav.galaxy') }}
+          <select v-model="galaxy">
+            <option :value="null">{{ t('common.all') }}</option>
+            <option v-for="g in galaxies" :key="g" :value="g">{{ g }}</option>
+          </select>
+        </label>
         <label>{{ t('overview.distanceFrom') }} <input v-model="filter.from" placeholder="1:100:8" style="width: 90px" /></label>
         <label><input v-model="filter.onlySpied" type="checkbox" /> {{ t('overview.onlySpied') }}</label>
         <label><input v-model="filter.hideMoons" type="checkbox" /> {{ t('overview.hideMoons') }}</label>

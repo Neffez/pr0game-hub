@@ -26,6 +26,39 @@ const WINDOWS: Record<string, number> = {
   '7d': 7 * 86400,
 };
 const TOLERANCE = 900;
+
+/** Statistics interval of pr0game (0, 6, 12 and 18 o'clock) and the number of Δ columns in the planet view. */
+const SLOT = 6 * 3600;
+const SLOTS = 4;
+/** An update up to 90 min newer than a grid point still counts for it (daylight saving time, slow updates). */
+const SLOT_TOLERANCE = 90 * 60;
+
+/**
+ * FF-Hub style Δ columns: 6 h sections back from the newest synced update. A section shows the change from
+ * the update at its start to the update at its end. If updates are missing, the change since the next older
+ * synced update goes into the newest section it covers and the sections in between stay empty
+ * (synced 18:00 and 06:00, missed 12:00: section 1 = 06:00 → 18:00, section 2 empty).
+ */
+export function statSlots(updates: number[]): ({ from: number; to: number } | null)[] {
+  const slots: ({ from: number; to: number } | null)[] = Array(SLOTS).fill(null);
+  if (!updates.length) return slots;
+  const newest = Math.max(...updates);
+  // Each update belongs to the grid point at or before it (with tolerance), so off-grid updates (test server)
+  // still count; per grid point the update closest to it (servers that update more often have several).
+  const atPoint = new Map<number, number>();
+  for (const t of updates) {
+    const k = Math.floor((newest - t + SLOT_TOLERANCE) / SLOT);
+    const off = Math.abs(newest - k * SLOT - t);
+    if (k > SLOTS) continue;
+    const prev = atPoint.get(k);
+    if (prev == null || off < Math.abs(newest - k * SLOT - prev)) atPoint.set(k, t);
+  }
+  const points = [...atPoint.keys()].sort((a, b) => a - b);
+  for (let i = 0; i + 1 < points.length; i++) {
+    slots[points[i]] = { from: atPoint.get(points[i + 1])!, to: atPoint.get(points[i])! };
+  }
+  return slots;
+}
 const TYPES = [1, 2, 3, 4, 5] as const;
 
 export function dataRoutes(app: FastifyInstance, db: DB) {
@@ -61,13 +94,18 @@ export function dataRoutes(app: FastifyInstance, db: DB) {
     const ctx = ctxOf(req);
 
     const players = new Map<number, any>();
-    /** synced statistics updates per type, newest first */
-    const updates: Record<number, number[]> = {};
+    /** Δ column sections per type (synced updates on the 6 h grid) */
+    const sections: Record<number, ReturnType<typeof statSlots>> = {};
     for (const type of TYPES) {
-      updates[type] = db
-        .prepare("SELECT stat_time FROM stat_snapshots WHERE group_id = ? AND who = 'player' AND type = ? ORDER BY stat_time DESC LIMIT 5")
-        .pluck()
-        .all(ctx.groupId, type) as number[];
+      sections[type] = statSlots(
+        db
+          .prepare(
+            `SELECT stat_time FROM stat_snapshots WHERE group_id = ? AND who = 'player' AND type = ?
+             AND stat_time >= (SELECT MAX(stat_time) FROM stat_snapshots WHERE group_id = ? AND who = 'player' AND type = ?) - ?`,
+          )
+          .pluck()
+          .all(ctx.groupId, type, ctx.groupId, type, (SLOTS + 1) * SLOT - SLOT_TOLERANCE) as number[],
+      );
       const rows = db
         .prepare(
           `SELECT ps.player_id, ps.points, ps.rank, ps.rank_change, s.stat_time
@@ -87,12 +125,11 @@ export function dataRoutes(app: FastifyInstance, db: DB) {
           if (partial) ref = history[history.length - 1];
           if (ref) deltas[win] = { delta: cur.points - ref.points, since: ref.stat_time, partial };
         }
-        // FF-Hub style: change per statistics update, whatever the update interval of the universe.
-        // Slot k = synced update k (newest first) against the synced update before it, the same for every player.
-        const at = (t: number | undefined) => (t == null ? undefined : history.find((h) => h.stat_time === t));
-        const slots = [0, 1, 2, 3].map((k) => {
-          const to = at(updates[type][k]);
-          const from = at(updates[type][k + 1]);
+        // FF-Hub style 6 h sections, the same for every player (see statSlots)
+        const at = (t: number) => history.find((h) => h.stat_time === t);
+        const slots = sections[type].map((sec) => {
+          const to = sec && at(sec.to);
+          const from = sec && at(sec.from);
           return to && from ? { delta: to.points - from.points, from: from.stat_time, to: to.stat_time } : null;
         });
         const entry = players.get(playerId) ?? { scores: {} };
@@ -111,11 +148,10 @@ export function dataRoutes(app: FastifyInstance, db: DB) {
       )
       .all(ctx.groupId) as any[];
 
-    const result = info
-      .filter((p) => players.has(p.id))
-      .map((p) => ({ ...p, status: JSON.parse(p.status), aliases: JSON.parse(p.aliases), scores: players.get(p.id).scores }));
+    // every known player (also from galaxy views and spy reports), with the latest synced points they have, if any
+    const result = info.map((p) => ({ ...p, status: JSON.parse(p.status), aliases: JSON.parse(p.aliases), scores: players.get(p.id)?.scores ?? {} }));
 
-    return { players: result, planets: planetRows(db, ctx), coverage: coverage(db, ctx), updates: updates[1] };
+    return { players: result, planets: planetRows(db, ctx), coverage: coverage(db, ctx), slots: sections[1] };
   });
 
   // -------------------------------------------------------------- players
@@ -690,6 +726,18 @@ export function dataRoutes(app: FastifyInstance, db: DB) {
           .prepare('SELECT created_at AS time, data FROM empire_snapshots WHERE group_id = ? AND user_id = ? AND created_at >= ? ORDER BY created_at, id LIMIT 1')
           .get(ctx.groupId, userId, fleetTime) as { time: number; data: string } | undefined)
       : undefined;
+    // catch-up bonus: the game compares buildings ×1 + research ×0.8 + fleet ×0.6 with the best player of the universe
+    const leader = db
+      .prepare(
+        `WITH latest AS (SELECT type, MAX(stat_time) AS t FROM stat_snapshots WHERE group_id = ? AND who = 'player' AND type IN (2, 3, 4) GROUP BY type)
+         SELECT p.name, SUM(CASE st.type WHEN 4 THEN ps.points END) AS buildings, SUM(CASE st.type WHEN 3 THEN ps.points END) AS research,
+                SUM(CASE st.type WHEN 2 THEN ps.points END) AS fleet,
+                SUM(ps.points * CASE st.type WHEN 4 THEN 1 WHEN 3 THEN 0.8 ELSE 0.6 END) AS weighted
+         FROM stat_snapshots st JOIN latest l ON l.type = st.type AND l.t = st.stat_time
+         JOIN player_scores ps ON ps.snapshot_id = st.id JOIN players p ON p.id = ps.player_id
+         WHERE st.group_id = ? AND st.who = 'player' GROUP BY ps.player_id ORDER BY weighted DESC LIMIT 1`,
+      )
+      .get(ctx.groupId, ctx.groupId) as { name: string; buildings: number | null; research: number | null; fleet: number | null; weighted: number } | undefined;
     const planetFleet = (e: EmpireRecord) =>
       e.planets.reduce((sum, pl) => sum + Object.entries(pl.values).reduce((s2, [id, n]) => s2 + (classOf(Number(id)) === 200 ? elementPoints(id, n) : 0), 0), 0);
     return {
@@ -698,6 +746,7 @@ export function dataRoutes(app: FastifyInstance, db: DB) {
       overview: overview ? { time: overview.time, data: JSON.parse(overview.data) } : null,
       player: player ? { ...player, stats: Object.fromEntries(stats.map((s) => [s.type, s])) } : null,
       fleetBase: fleetBase ? { time: fleetBase.time, points: planetFleet(JSON.parse(fleetBase.data) as EmpireRecord) } : null,
+      leader: leader ?? null,
     };
   });
 

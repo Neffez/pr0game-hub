@@ -6,6 +6,7 @@ process.env.WEB_DIR = '/nonexistent';
 const { buildApp } = await import('../src/app.js');
 const { openDb } = await import('../src/db.js');
 const { hashPassword } = await import('../src/auth.js');
+const { statSlots } = await import('../src/routes/data.js');
 
 const fixture = (name: string) =>
   readFileSync(new URL(`../../../packages/parser/test/fixtures/${name}`, import.meta.url), 'utf8');
@@ -384,18 +385,48 @@ describe('review fixes', () => {
     ]);
   });
 
-  it('shows the change per statistics update, whatever the update interval', async () => {
-    const groupX = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', headers: admin, payload: { universe: 'u8', name: 'Hourly' } })).json().id;
+  it('puts the Δ columns on the 6 h statistics grid, a missed update leaves its column empty', async () => {
+    const groupX = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', headers: admin, payload: { universe: 'u8', name: 'Grid' } })).json().id;
     const headers = { ...admin, 'x-hub-group': String(groupX) };
     const en = fixture('stats-en-testserver.html');
-    // two updates only 1 h apart (test server), the older one with fewer points
-    await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { html: en.replace('22:55:25', '21:55:25').replace('267.637.157', '267.000.000') } });
+    // updates at 22:55 (newest), 10:55 and 04:55; the one at 16:55 was not synced
+    const at = (time: string, points: string) => en.replace('22:55:25', time).replace('267.637.157', points);
+    await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { html: at('04:55:25', '266.000.000') } });
+    await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { html: at('10:55:25', '267.000.000') } });
     await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { html: en } });
     const ov = (await app.inject({ method: 'GET', url: '/hub/api/u8/overview', headers })).json();
-    expect(ov.updates).toHaveLength(2);
     const virus = ov.players.find((p: any) => p.name === 'Virus');
-    expect(virus.scores[1].slots[0]).toMatchObject({ delta: 637157, from: ov.updates[1], to: ov.updates[0] });
-    expect(virus.scores[1].slots[1]).toBeNull();
+    const [s0, s1, s2, s3] = virus.scores[1].slots;
+    expect(s0).toMatchObject({ delta: 637157, ...ov.slots[0] });
+    expect(s0.to - s0.from).toBe(12 * 3600);
+    expect(s1).toBeNull();
+    expect(s2).toMatchObject({ delta: 1000000 });
+    expect(s2.to - s2.from).toBe(6 * 3600);
+    expect(s3).toBeNull();
+    expect(ov.slots[1]).toBeNull();
+  });
+
+  it('lists known players in the overview even without synced statistics', async () => {
+    const groupX = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', headers: admin, payload: { universe: 'u8', name: 'No stats' } })).json().id;
+    const headers = { ...admin, 'x-hub-group': String(groupX) };
+    await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { html: fixture('galaxy.html') } });
+    const ov = (await app.inject({ method: 'GET', url: '/hub/api/u8/overview', headers })).json();
+    expect(ov.players.length).toBeGreaterThan(0);
+    expect(ov.players.every((p: any) => Object.keys(p.scores).length === 0)).toBe(true);
+    expect(ov.planets.length).toBeGreaterThan(0);
+  });
+
+  it('maps statistics updates onto the 6 h grid', () => {
+    const h = 3600;
+    const t0 = 1_800_000_000;
+    // consecutive updates
+    expect(statSlots([t0, t0 - 6 * h, t0 - 12 * h]).map((s) => s && (s.to - s.from) / h)).toEqual([6, 6, null, null]);
+    // more frequent updates (test server): the one closest to each grid point counts
+    expect(statSlots([t0, t0 - h, t0 - 5 * h, t0 - 6 * h - 60])[0]).toEqual({ from: t0 - 6 * h - 60, to: t0 });
+    // off the grid (test server): 14.5 h back belongs to the 12 h point, the change goes into the first column
+    expect(statSlots([t0, t0 - 14.5 * h])).toEqual([{ from: t0 - 14.5 * h, to: t0 }, null, null, null]);
+    // gap of more than the four columns: nothing to show
+    expect(statSlots([t0, t0 - 30 * h])).toEqual([null, null, null, null]);
   });
 
   it('counts manually added expedition events in the deck', async () => {

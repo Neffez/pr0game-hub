@@ -194,6 +194,8 @@ export interface OverviewRecord {
   pageTime: string | null;
   current: { coords: Coords; type: PlanetType } | null;
   queues: OverviewQueue[];
+  /** catch-up bonus in percent (cost and build time reduction), null if the universe has none */
+  catchUp: number | null;
 }
 
 export interface BattleHallEntry {

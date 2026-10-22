@@ -48,11 +48,13 @@ interface Data {
       active?: { coords: C3; type: 'planet' | 'moon'; storage: Record<string, number> } | null;
     };
   } | null;
-  overview: { time: number; data: { queues: Queue[] } } | null;
+  overview: { time: number; data: { queues: Queue[]; catchUp?: number | null } } | null;
   /** the member's player with the latest synced statistics per category (1 total … 5 defense) */
   player: { id: number; name: string; stats: Record<number, { points: number; rank: number; time: number }> } | null;
   /** ships on the planets (points) in the first empire page after the last fleet statistics update */
   fleetBase: { time: number; points: number } | null;
+  /** player with the most catch-up points (buildings ×1, research ×0.8, fleet ×0.6) in the latest statistics */
+  leader: { name: string; weighted: number } | null;
 }
 
 const RES = [901, 902, 903] as const;
@@ -236,6 +238,38 @@ const livePoints = computed(() => {
   const total = cats.reduce((s, c) => s + c.live, 0);
   return { cats, total, stat: stats[1]?.points ?? null, rank: stats[1]?.rank ?? null, statTime: stats[1]?.time ?? null, fleetFromStats, finished };
 });
+
+/**
+ * Catch-up bonus (cost and build time reduction in percent) like the game's PlayerUtil::getCatchUpFactor:
+ * factor 10 × 0.9747^(% of the leader's points), at least 1, mapped linearly onto 0 … maximum bonus.
+ */
+const CATCH_UP_WEIGHT: Record<number, number> = { 4: 1, 3: 0.8, 2: 0.6 };
+const catchUpRaw = (own: number, leader: number) => Math.max(1, 10 * 0.9747 ** ((Math.max(own, 1) / Math.max(leader, 1)) * 100));
+const catchUp = computed(() => {
+  const current = overview.value?.data.catchUp ?? null;
+  const lp = livePoints.value;
+  if (current == null || !lp) return null;
+  const leader = data.value?.leader ?? null;
+  const weighted = (points: (type: number) => number | null) => {
+    let sum = 0;
+    for (const [type, w] of Object.entries(CATCH_UP_WEIGHT)) {
+      const v = points(Number(type));
+      if (v == null) return null;
+      sum += v * w;
+    }
+    return sum;
+  };
+  const statOwn = weighted((type) => lp.cats.find((c) => c.type === type)!.stat);
+  const liveOwn = weighted((type) => lp.cats.find((c) => c.type === type)!.live)!;
+  // maximum bonus of the universe (setting, default 50 %): derived from the overview value when it shows the current statistics
+  let max = 50;
+  if (leader && statOwn != null && current > 0 && lp.statTime && overview.value!.time >= lp.statTime) {
+    const raw = catchUpRaw(statOwn, leader.weighted);
+    if (raw > 1.1) max = Math.min(100, Math.round((current * 9) / (raw - 1)));
+  }
+  const live = leader ? Math.round(((max / 9) * (catchUpRaw(liveOwn, leader.weighted) - 1)) * 100) / 100 : null;
+  return { current, live, max, leader };
+});
 const deltaClass = (d: number | null) => (d == null || d === 0 ? 'faint' : d > 0 ? 'pos' : 'neg');
 
 const memberName = (id: number | null) => ctx.value!.members.find((m) => m.id === id)?.name ?? '';
@@ -324,6 +358,20 @@ const memberName = (id: number | null) => ctx.value!.members.find((m) => m.id ==
         </tr>
       </tbody>
     </table>
+    <p v-if="catchUp" class="small" style="margin: 6px 0 0">
+      {{ t('imperium.catchUp') }}
+      <Hint>
+        <p>{{ t('imperium.catchUpHint1') }}</p>
+        <p>{{ t('imperium.catchUpHint2', { max: catchUp.max }) }}</p>
+      </Hint>:
+      {{ t('nav.overview') }} <b>{{ fmt(catchUp.current, 2) }} %</b>
+      <template v-if="catchUp.live != null">
+        · {{ t('imperium.live') }} <b>{{ fmt(catchUp.live, 2) }} %</b>
+        <span :class="deltaClass(catchUp.live - catchUp.current)">({{ catchUp.live - catchUp.current > 0 ? '+' : '' }}{{ fmt(catchUp.live - catchUp.current, 2) }})</span>
+        <span class="muted"> · {{ t('imperium.catchUpLeader', { name: catchUp.leader!.name }) }}</span>
+      </template>
+      <span v-else class="muted"> · {{ t('imperium.catchUpNoLeader') }}</span>
+    </p>
     <p v-if="livePoints.finished.length" class="muted small" style="margin: 6px 0 0">{{ t('imperium.finished', { list: livePoints.finished.join(', ') }) }}</p>
   </div>
 

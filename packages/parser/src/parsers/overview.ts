@@ -24,6 +24,12 @@ const KIND: [RegExp, OverviewQueue['kind']][] = [
   [/page=shipyard/, 'shipyard'],
 ];
 
+/** Catch-up bonus line under the points: "Kosten- und Bauzeit-Bonus: 12.34 %" (only when the universe has it). */
+function catchUp($: CheerioAPI): number | null {
+  const m = $('.infos').text().match(/(?:Bauzeit-Bonus|construction time bonus)\s*:\s*(\d+(?:[.,]\d+)?)\s*%/i);
+  return m ? Number(m[1].replace(',', '.')) : null;
+}
+
 export function parseOverviewHtml($: CheerioAPI): OverviewRecord | null {
   const opt = $('#planetSelector option[selected]').first();
   const coords = parseCoords(opt.text());
@@ -76,5 +82,5 @@ export function parseOverviewHtml($: CheerioAPI): OverviewRecord | null {
     add('building', c, t, line ?? '', timer.attr('data-time'));
   });
 
-  return { kind: 'overview', pageTime: pageTime($), current: { coords, type }, queues };
+  return { kind: 'overview', pageTime: pageTime($), current: { coords, type }, queues, catchUp: catchUp($) };
 }
