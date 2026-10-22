@@ -366,8 +366,13 @@ const latest = computed(() => {
 /** Newest stats time over all categories; older categories are highlighted (not pasted again yet). */
 const newestStat = computed(() => Math.max(0, ...Object.values(latest.value).map((l) => l.time)));
 const outdated = (type: number) => !!latest.value[type] && latest.value[type].time < newestStat.value - 900;
-/** Categories that are older than the newest stand or missing (shown as warnings next to the compact line). */
-const staleTypes = computed(() => (newestStat.value ? [1, 2, 3, 4, 5].filter((type) => !latest.value[type] || outdated(type)) : []));
+/**
+ * Categories that are older than the newest stand or missing (shown as warnings next to the compact line). The planet
+ * view only needs the total points (points and Δ columns), the player view shows the Δ of every category.
+ */
+const staleTypes = computed(() =>
+  newestStat.value ? (mode.value === 'planets' ? [1] : [1, 2, 3, 4, 5]).filter((type) => !latest.value[type] || outdated(type)) : [],
+);
 /** "12:00" today, otherwise date and time */
 const time = (epoch: number) =>
   new Date(epoch * 1000).toDateString() === new Date().toDateString()
