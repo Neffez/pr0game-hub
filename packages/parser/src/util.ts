@@ -1,4 +1,3 @@
-import * as cheerio from 'cheerio';
 import type { AnyNode, Element } from 'domhandler';
 
 export type Lang = 'de' | 'en';
@@ -110,11 +109,6 @@ export function nodeToText(nodes: AnyNode | AnyNode[]): string {
   };
   for (const n of Array.isArray(nodes) ? nodes : [nodes]) walk(n);
   return out;
-}
-
-export function htmlToText(html: string): string {
-  const $ = cheerio.load(html);
-  return normalizeText(nodeToText($.root().children().toArray()));
 }
 
 /** Normalizes line endings and nbsp, trims each line, drops empty lines. */

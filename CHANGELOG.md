@@ -4,6 +4,7 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-22
 
+- Sync: a pasted HTML page is loaded and turned into text once instead of up to four times.
 - Galaxy browser, overview, raids and player details read the members' empire pages once per request instead of up
   to three times.
 - Battle report archive: a report in the hall of several alliances of the same universe is fetched from the game once

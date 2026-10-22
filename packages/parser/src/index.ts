@@ -8,7 +8,7 @@ import { isBattleHallHtml, parseBattleHallHtml } from './parsers/battleHall.js';
 import { isCombatReportText, parseCombatReportText } from './parsers/combatReport.js';
 import { isStatsText, parseStatsHtml, parseStatsText } from './parsers/stats.js';
 import type { HubRecord, PageType, ParseResult, StatsType } from './types.js';
-import { detectLang, htmlToText, normalizeText } from './util.js';
+import { detectLang, nodeToText, normalizeText } from './util.js';
 
 export * from './types.js';
 export * from './util.js';
@@ -49,11 +49,14 @@ export function parsePage(input: ParseInput): ParseResult {
   }
 
   const warnings: string[] = [];
-  const plain = normalizeText(text ?? (html ? htmlToText(html) : ''));
+  // the document is loaded once and shared by the parsers (they only change clones)
+  const $ = html ? cheerio.load(html) : null;
+  const htmlText = $ ? normalizeText(nodeToText($.root().children().toArray())) : '';
+  const plain = normalizeText(text ?? htmlText);
   const lang = detectLang(plain);
 
-  if (html) {
-    const res = parseHtml(html, input, warnings);
+  if ($) {
+    const res = parseHtml($, htmlText, input, warnings);
     if (res.records.length || !text) {
       return { ...res, lang, source: 'html', warnings };
     }
@@ -73,14 +76,13 @@ function queryParam(url: string | undefined, name: string): string | null {
   }
 }
 
-function parseHtml(html: string, input: ParseInput, warnings: string[]): { pageType: PageType; records: HubRecord[] } {
-  const $ = cheerio.load(html);
+function parseHtml($: cheerio.CheerioAPI, htmlText: string, input: ParseInput, warnings: string[]): { pageType: PageType; records: HubRecord[] } {
   const url = input.url ?? undefined;
   const page = queryParam(url, 'page')?.toLowerCase() ?? null;
 
-  if (page === 'raport' || isCombatReportText(htmlToText(html))) {
+  if (page === 'raport' || isCombatReportText(htmlText)) {
     const reportId = queryParam(url, 'raport');
-    const r = parseCombatReportText(htmlToText(html), reportId);
+    const r = parseCombatReportText(htmlText, reportId);
     if (r) return { pageType: 'combatReport', records: [r] };
   }
   if (page === 'battlehall' || isBattleHallHtml($)) {
