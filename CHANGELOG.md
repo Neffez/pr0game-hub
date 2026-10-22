@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Raid planner plan (`FEATURE_REQUEST_RETIME.md`) rebuilt around one attack plan for solo and ACS attacks, started
+  from scratch or from a parsed hostile attack (retime), with data model, target time modes, lead and ACS rules, live
+  updates, one menu item and the implementation order.
+
 - Notifications: a bell next to the hub name (top bar on mobile) with the number of unseen notifications; it opens a
   list of what the alliance should notice. First kind: hostile fleets heading for a member (member, target, arrival
   with countdown, attacker and ships), taken from the synced fleet movements; a click leads to the fleet movements.
