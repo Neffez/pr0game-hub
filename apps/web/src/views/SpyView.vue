@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import CommentThread from '../components/CommentThread.vue';
 import PlanetActions from '../components/PlanetActions.vue';
 import PlayerLink from '../components/PlayerLink.vue';
 import Hint from '../components/Hint.vue';
@@ -28,10 +29,10 @@ const { data, error, load } = useLoader(async () => {
   return uniApi<{ reports: SpyReport[]; total: number }>(uni.value, `/spy/${m[1]}/${m[2]}/${m[3]}?type=${type.value}&limit=${limit.value}`);
 });
 const reports = computed(() => data.value?.reports ?? []);
-/** Shown target, for its action menu (claiming). */
+/** Shown target (after loading), for its action menu and comments. */
 const shown = computed(() => {
   const m = target.value.match(/(\d+)\D+(\d+)\D+(\d+)/);
-  return m && reports.value.length ? { g: Number(m[1]), s: Number(m[2]), p: Number(m[3]) } : null;
+  return m && data.value ? { g: Number(m[1]), s: Number(m[2]), p: Number(m[3]) } : null;
 });
 const total = computed(() => data.value?.total ?? 0);
 
@@ -87,6 +88,11 @@ const res = (r: any, id: number) => r.sections['900']?.[id] ?? 0;
   </div>
 
   <SpyHistory v-if="reports.length" :reports="reports" :game-url="ctx!.universe.settings.gameUrl" />
+
+  <div v-if="shown" class="card">
+    <h3 style="margin-top: 0">{{ t('comments.title') }} {{ coords(shown.g, shown.s, shown.p) }}{{ type === 'moon' ? ' ☾' : '' }}</h3>
+    <CommentThread :g="shown.g" :s="shown.s" :p="shown.p" :type="type === 'moon' ? 'moon' : 'planet'" />
+  </div>
 
   <h2>{{ t('spy.recent') }}</h2>
   <div v-if="mobile" class="m-list">

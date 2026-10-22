@@ -4,6 +4,16 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-22
 
+- Comments: the alliance discusses a player (player details) or a planet/moon (spy history, also without spy
+  reports) in a thread, oldest first. Members edit and delete their own comments, alliance admins can delete any.
+  - Planets and moons with comments show "💬 n" next to their action menu (galaxy, player details, overview, targets),
+    linked to the thread; the menu entry reads "Spy history & comments (n)".
+  - New comments appear live and as a hint ("X commented on 1:234:5"), linked to the thread. The single player
+    note stays as it is.
+  - Merging players moves their comments along.
+  - Server: `GET`/`POST /api/:uni/comments`, `GET /api/:uni/comments/counts`, `PUT`/`DELETE /api/:uni/comments/:id`;
+    migration `019` adds `comments`.
+
 - Flight library `@pr0hub/flight` (first step of the raid planner, see `FEATURE_REQUEST_RETIME.md`):
   - Distance, ship speed with the drive switch per research level, slowest ship, flight duration, deuterium, launch /
     arrival / return times (also for delayed ACS) and recall, ported from the game's `FleetFunctions` and second-exact

@@ -114,6 +114,7 @@ const de = {
     galaxy: 'Galaxie öffnen',
     inGame: 'im Spiel',
     spyHistory: 'Spionage-Verlauf',
+    spyHistoryComments: 'Spionage-Verlauf & Kommentare ({n})',
   },
   spyHistory: {
     none: 'Keine Spionageberichte.',
@@ -657,6 +658,14 @@ const de = {
     page: 'Seite',
     result: 'Ergebnis',
   },
+  comments: {
+    title: 'Kommentare der Allianz',
+    none: 'Noch keine Kommentare.',
+    edited: 'bearbeitet',
+    placeholder: 'Kommentar schreiben …',
+    post: 'Kommentieren',
+    count: '{n} Kommentar | {n} Kommentare',
+  },
   claims: {
     you: 'du',
     by: '{name}: {kind}, noch {left}',
@@ -684,6 +693,8 @@ const de = {
     viewing: 'Schaut gerade hier: {names}',
   },
   live: {
+    commentPlayer: '{name} hat {player} kommentiert',
+    commentPlanet: '{name} hat {coords} kommentiert',
     synced: '{name} hat synchronisiert: {what}',
     systems: 'Galaxie {systems}',
     close: 'Schließen',
@@ -729,6 +740,10 @@ const de = {
     claim_duration_invalid: 'Dauer: 1 Minute bis 24 Stunden',
     coords_invalid: 'Ungültige Koordinaten',
     note_too_long: 'Notiz zu lang',
+    comment_empty: 'Kommentar ist leer',
+    comment_too_long: 'Kommentar zu lang (max. 2000 Zeichen)',
+    comment_not_found: 'Kommentar nicht gefunden',
+    comment_not_yours: 'Kommentar eines anderen Mitglieds',
     time_invalid: 'Zeit ungültig',
     note_invalid: 'Notiz ungültig oder zu lang',
     deck_settings_invalid: 'Deck-Einstellungen ungültig',

@@ -56,6 +56,21 @@ function describe(e: DataEvent): Toast | null {
   return { id: ++nextId, text: t('live.synced', { name, what: parts.join(', ') }), to };
 }
 
+function describeComment(e: DataEvent): Toast | null {
+  const c = e.comment;
+  if (!c) return null;
+  const name = ctx.value?.members.find((m) => m.id === e.userId)?.name ?? '?';
+  if (c.player) {
+    return { id: ++nextId, text: t('live.commentPlayer', { name, player: c.playerName ?? '?' }), to: { query: { player: String(c.player) } } };
+  }
+  const [g, s, p] = (c.coords ?? '').split(':');
+  return {
+    id: ++nextId,
+    text: t('live.commentPlanet', { name, coords: `${c.coords}${c.moon ? ' ☾' : ''}` }),
+    to: { path: `/${uni.value}/spy`, query: { c: `${g}:${s}:${p}`, type: c.moon ? 'moon' : 'planet' } },
+  };
+}
+
 function dismiss(id: number) {
   toasts.value = toasts.value.filter((x) => x.id !== id);
 }
@@ -63,7 +78,7 @@ function dismiss(id: number) {
 useLive((e) => {
   // own pastes are shown by the sync page itself
   if (!liveHints.value || e.type !== 'data' || !e.userId || e.userId === ctx.value?.me.id) return;
-  const toast = describe(e);
+  const toast = e.comment ? describeComment(e) : describe(e);
   if (!toast) return;
   toasts.value = [...toasts.value.slice(-2), toast];
   const timer = setTimeout(() => {

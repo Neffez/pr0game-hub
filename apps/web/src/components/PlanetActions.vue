@@ -3,6 +3,7 @@ import { computed, onBeforeUnmount, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
 import { CLAIM_KINDS, CLAIM_MINUTES, claimOf, loadClaims, remaining } from '../claims';
+import { planetComments } from '../comments';
 import { useUni } from '../composables';
 import { coords, distance, flightCalcLink, type Coords3 } from '../format';
 
@@ -47,13 +48,18 @@ const items = computed(() => {
     hint: start.value ? t('actions.flightFrom', { from: start.value.label }) : t('actions.flightNoStart'),
   });
   if (gameUrl.value) list.push({ label: t('actions.galaxy'), href: `${gameUrl.value}game.php?page=galaxy&galaxy=${props.g}&system=${props.s}`, hint: t('actions.inGame') });
-  list.push({ label: t('actions.spyHistory'), to: { path: `/${uni.value}/spy`, query: { c: `${props.g}:${props.s}:${props.p}`, type: props.type } } });
+  const comments = planetComments(props.g, props.s, props.p, props.type);
+  list.push({
+    label: comments ? t('actions.spyHistoryComments', { n: comments }) : t('actions.spyHistory'),
+    to: { path: `/${uni.value}/spy`, query: { c: `${props.g}:${props.s}:${props.p}`, type: props.type } },
+  });
   return list;
 });
 
 /** Claim of this target (by anyone in the alliance); shown on the button and managed in the menu. */
 const claim = computed(() => claimOf(props.g, props.s, props.p, props.type));
 const mine = computed(() => claim.value?.user_id === ctx.value?.me.id);
+const commentCount = computed(() => planetComments(props.g, props.s, props.p, props.type));
 const isAdmin = computed(() => ctx.value?.group.role === 'admin' || ctx.value?.me.isAdmin);
 const kind = ref<(typeof CLAIM_KINDS)[number]>('farm');
 const minutes = ref(120);
@@ -116,6 +122,13 @@ onBeforeUnmount(close);
     :title="t('claims.by', { name: claim.member, kind: t(`claims.kinds.${claim.kind}`), left: remaining(claim) }) + (claim.note ? ` – ${claim.note}` : '')"
     >🎯 {{ mine ? t('claims.you') : claim.member }}</span
   >
+  <RouterLink
+    v-if="commentCount"
+    class="comment-flag"
+    :to="{ path: `/${uni}/spy`, query: { c: `${g}:${s}:${p}`, type } }"
+    :title="t('comments.count', { n: commentCount }, commentCount)"
+    >💬 {{ commentCount }}</RouterLink
+  >
   <button ref="button" class="actions-btn" :class="{ active: open }" :title="t('common.actions')" @click.stop="toggle">{{ label ?? t('common.actions') }} ▾</button>
   <Teleport to="body">
     <div v-if="open" ref="menu" class="actions-menu" :style="menuStyle" @click.stop>
@@ -169,6 +182,7 @@ onBeforeUnmount(close);
 .hint-text { display: block; font-size: 11px; color: var(--muted); }
 .claim-flag { margin-right: 4px; font-size: 11px; color: var(--warn); white-space: nowrap; }
 .claim-flag.mine { color: var(--pos); }
+.comment-flag { margin-right: 4px; font-size: 11px; color: var(--info); white-space: nowrap; }
 .claim-box { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; padding: 8px 10px 6px; border-top: 1px solid var(--border); }
 .claim-row { display: flex; gap: 6px; }
 .claim-row > * { flex: 1; min-width: 0; }

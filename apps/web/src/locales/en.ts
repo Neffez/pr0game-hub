@@ -113,6 +113,7 @@ const en: typeof de = {
     galaxy: 'Open galaxy',
     inGame: 'in the game',
     spyHistory: 'Spy history',
+    spyHistoryComments: 'Spy history & comments ({n})',
   },
   spyHistory: {
     none: 'No spy reports.',
@@ -655,6 +656,14 @@ const en: typeof de = {
     page: 'Page',
     result: 'Result',
   },
+  comments: {
+    title: 'Alliance comments',
+    none: 'No comments yet.',
+    edited: 'edited',
+    placeholder: 'Write a comment …',
+    post: 'Comment',
+    count: '{n} comment | {n} comments',
+  },
   claims: {
     you: 'you',
     by: '{name}: {kind}, {left} left',
@@ -682,6 +691,8 @@ const en: typeof de = {
     viewing: 'Looking at this right now: {names}',
   },
   live: {
+    commentPlayer: '{name} commented on {player}',
+    commentPlanet: '{name} commented on {coords}',
     synced: '{name} synced: {what}',
     systems: 'galaxy {systems}',
     close: 'Close',
@@ -726,6 +737,10 @@ const en: typeof de = {
     claim_duration_invalid: 'Duration: 1 minute to 24 hours',
     coords_invalid: 'Invalid coordinates',
     note_too_long: 'Note too long',
+    comment_empty: 'Comment is empty',
+    comment_too_long: 'Comment too long (max. 2000 characters)',
+    comment_not_found: 'Comment not found',
+    comment_not_yours: 'Comment of another member',
     time_invalid: 'Invalid time',
     note_invalid: 'Note invalid or too long',
     deck_settings_invalid: 'Invalid deck settings',

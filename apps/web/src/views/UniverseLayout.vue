@@ -10,6 +10,7 @@ import { useRoute } from 'vue-router';
 import { selectGroup, selectedGroup, session, uniApi } from '../api';
 import { provideUni, useLoader, useScrollLock, type UniContext } from '../composables';
 import { clearClaims, loadClaims } from '../claims';
+import { clearCommentCounts, loadCommentCounts } from '../comments';
 import { startLive, stopLive, tables, useLiveReload, useWhereabouts } from '../live';
 
 const { t } = useI18n();
@@ -27,9 +28,12 @@ function load() {
   startLive(uni.value, group.value);
   clearClaims();
   loadClaims(uni.value);
+  clearCommentCounts();
+  loadCommentCounts(uni.value);
   return fetchContext();
 }
 useLiveReload(() => loadClaims(uni.value), tables('target_claims'));
+useLiveReload(() => loadCommentCounts(uni.value), tables('comments'), 300);
 onBeforeUnmount(stopLive);
 // own research and planets for flight times come from the own empire page
 useLiveReload(fetchContext, (e) => tables('empire')(e) && e.userId === ctx.value?.me.id);

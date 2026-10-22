@@ -14,6 +14,8 @@ External analysis tool for [pr0game](https://codeberg.org/pr0game/pr0game) based
 - **My empire**: live points from the latest empire page plus finished builds and research
 - **Statistics**: rankings with rank moves, change since the previous update and sync coverage
 - **Player details**: points history (chart), planets, status history, notes
+- **Comments**: the alliance discusses a player or a planet/moon in a thread (player details, spy history), with a
+  💬 count next to the planet
 - **Galaxy browser** with phalanx coverage and a freshness heat map
 - **Spy history** with a diff per coordinate, **hostile spying**, **activity log**
 - **Alliance**: planets, fleets and research of all members

@@ -203,7 +203,7 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
     db.transaction(() => {
       // Scores of the same snapshot: keep the target's.
       db.prepare('UPDATE OR IGNORE player_scores SET player_id = ? WHERE player_id = ?').run(into, from);
-      for (const table of ['spy_reports', 'planets']) db.prepare(`UPDATE ${table} SET player_id = ? WHERE player_id = ?`).run(into, from);
+      for (const table of ['spy_reports', 'planets', 'comments']) db.prepare(`UPDATE ${table} SET player_id = ? WHERE player_id = ?`).run(into, from);
       db.prepare('UPDATE OR IGNORE player_aliases SET player_id = ? WHERE player_id = ?').run(into, from);
       for (const table of ['player_status_log', 'activity_log']) db.prepare(`UPDATE ${table} SET player_id = ? WHERE player_id = ?`).run(into, from);
       db.prepare('INSERT OR REPLACE INTO player_aliases (player_id, name, seen_until) VALUES (?, ?, ?)').run(into, src.name, src.last_seen);
@@ -211,7 +211,7 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
       db.prepare('UPDATE players SET ingame_id = COALESCE(ingame_id, ?), first_seen = MIN(first_seen, ?) WHERE id = ?').run(src.ingame_id, src.first_seen, into);
       db.prepare('DELETE FROM players WHERE id = ?').run(from);
     })();
-    events.publish(groupId, { type: 'data', tables: ['players'] });
+    events.publish(groupId, { type: 'data', tables: ['players', 'comments'] });
     return { ok: true };
   });
 

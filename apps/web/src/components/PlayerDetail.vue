@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import CommentThread from './CommentThread.vue';
 import PresenceBadge from './PresenceBadge.vue';
 import { Chart, registerables } from 'chart.js';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
@@ -178,6 +179,11 @@ onBeforeUnmount(() => chart?.destroy());
         <input v-model="note" class="grow" />
         <button @click="saveNote">{{ t('common.save') }}</button>
       </div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top: 0">{{ t('comments.title') }}</h3>
+      <CommentThread :player="data.player.id" />
     </div>
 
     <h2>{{ t('player.planets') }}</h2>
