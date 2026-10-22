@@ -28,7 +28,7 @@ export function imperiumRoutes(app: FastifyInstance, db: DB) {
     const stats = player
       ? Object.entries(latestScores(db, ctx.groupId, [player.id]).get(player.id) ?? {}).map(([type, s]) => ({ type: Number(type), ...s }))
       : [];
-    // Fleets in flight are missing on the empire page but count in the statistics: the live fleet is the
+    // Older empire pages (without ✈ ships) miss the fleets in flight that count in the statistics: the live fleet is the
     // stats fleet plus the change of the ships on the planets since the first empire page after that update.
     // The anchor is the newest fleet or total statistics update with an empire page synced after it (the total is
     // synced far more often; its fleet is the total minus the other points of that empire page). Updates synced
@@ -60,7 +60,7 @@ export function imperiumRoutes(app: FastifyInstance, db: DB) {
          WHERE st.group_id = ? AND st.who = 'player' GROUP BY ps.player_id ORDER BY weighted DESC LIMIT 1`,
       )
       .get(ctx.groupId, ctx.groupId) as { name: string; buildings: number | null; research: number | null; fleet: number | null; weighted: number } | undefined;
-    // ship points on the planets and all other points (buildings, defense, research) of an empire page
+    // ship points (on the planets and in flight) and all other points (buildings, defense, research) of an empire page
     const empirePoints = (e: EmpireRecord) => {
       let fleet = 0;
       let other = 0;
@@ -71,6 +71,7 @@ export function imperiumRoutes(app: FastifyInstance, db: DB) {
           else if (cls === CLASS_BUILDINGS || cls === CLASS_DEFENSE) other += elementPoints(id, n);
         }
       }
+      for (const [id, n] of Object.entries(e.flyingShips ?? {})) fleet += elementPoints(id, n);
       for (const [id, n] of Object.entries(e.research ?? {})) other += elementPoints(id, n);
       return { fleet, other };
     };

@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-22
 
+- Imperium live points: ships in flight count in the fleet. The empire page now shows them (✈ in the total column);
+  the parser reads them and the live fleet adds them directly instead of estimating from the last statistics update,
+  which went wrong when the fleet had been at home at that update and is flying now. Older synced pages keep the estimate.
+
 - Overview: clearing the points or point delta filter now really turns it off. A cleared number field was kept as an
   empty string, counted as 0 and (being stored) kept hiding players after a reload, e.g. everyone without a delta.
 

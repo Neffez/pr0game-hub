@@ -52,6 +52,7 @@ export function parseEmpireHtml($: CheerioAPI): EmpireRecord | null {
 
   const research: Record<number, number> = {};
   const flying: Record<number, number> = {};
+  const flyingShips: Record<number, number> = {};
   let researchQueue: EmpireRecord['researchQueue'] = null;
   $('tr[data-info]').each((_, tr) => {
     const m = ($(tr).attr('data-info') ?? '').match(/^([rbtfd])_(\d+)$/);
@@ -62,9 +63,18 @@ export function parseEmpireHtml($: CheerioAPI): EmpireRecord | null {
       const t = $(td as never).find('span').filter((_, sp) => $(sp).text().includes('⬆')).first().text();
       return t ? parseNumber(t.replace('⬆', '')) : null;
     };
+    // the total cell (Σ) of resources and ships shows the amount on fleets in flight
+    const inFlight = () => {
+      const t = $(cells[1]).find('span').filter((_, sp) => $(sp).text().includes('✈')).first().text();
+      return t ? parseNumber(t.replace('✈', '')) ?? 0 : null;
+    };
+    if (m[1] === 'f') {
+      const n = inFlight();
+      if (n) flyingShips[id] = n;
+    }
     if (m[1] === 'r') {
-      const total = $(cells[1]).find('span').filter((_, sp) => $(sp).text().includes('✈')).first().text();
-      if (total) flying[id] = parseNumber(total.replace('✈', '')) ?? 0;
+      const total = inFlight();
+      if (total != null) flying[id] = total;
       cells.slice(2).forEach((td, i) => {
         if (!planets[i]) return;
         (planets[i].resources ??= {})[id] = parseNumber(firstSpanOrText($, td)) ?? 0;
@@ -92,7 +102,7 @@ export function parseEmpireHtml($: CheerioAPI): EmpireRecord | null {
     });
   });
   markMoonsByBase(planets);
-  return { kind: 'empire', planets, research, researchQueue, flying, pageTime: pageTime($), active: activePlanet($) };
+  return { kind: 'empire', planets, research, researchQueue, flying, flyingShips, pageTime: pageTime($), active: activePlanet($) };
 }
 
 /** Server time rendered into the page header: `new Date(2026, 9, 21, 13, 43, 45)` (month 0-based). */

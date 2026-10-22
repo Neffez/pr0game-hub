@@ -170,6 +170,8 @@ export interface EmpireRecord {
   researchQueue?: { id: number; level: number; coords: Coords | null } | null;
   /** resources on fleets in flight (✈), 901-903 */
   flying?: Record<number, number>;
+  /** ships on fleets in flight (✈): element -> amount (missing in records parsed before it was read) */
+  flyingShips?: Record<number, number>;
   /** server time of the page (local game time) */
   pageTime?: string | null;
   /** planet selected in the game header with its storage capacity (resource bar) */

@@ -46,6 +46,7 @@ interface Data {
       research?: Record<string, number>;
       researchQueue?: { id: number; level: number; coords: C3 | null } | null;
       flying?: Record<string, number>;
+      flyingShips?: Record<string, number>;
       active?: { coords: C3; type: 'planet' | 'moon'; storage: Record<string, number> } | null;
     };
   } | null;
@@ -192,8 +193,9 @@ const hasLiveData = computed(() => rows.value.some((r) => r.p.resources));
 /**
  * Points like the game's statistics, from the last empire page (buildings, ships, defense per planet,
  * research account wide) plus builds and research finished since then (overview queues).
- * Fleets in flight are not on the empire page: the fleet is the statistics value plus the change of
- * the ships on the planets since the first empire page after that update.
+ * The empire page shows the ships in flight (✈) in the total column; for older synced pages without them
+ * the fleet is the statistics value plus the change of the ships on the planets since the first empire
+ * page after that update.
  */
 const levelPoints = (id: number, level: number) => elementPoints(id, level) - elementPoints(id, level - 1);
 const livePoints = computed(() => {
@@ -227,8 +229,11 @@ const livePoints = computed(() => {
   }
   const stats = data.value?.player?.stats ?? {};
   const base = data.value?.fleetBase;
-  const fleetFromStats = !!base;
-  const fleet = base ? base.stat + (planetFleet - base.points) : planetFleet;
+  const flyingShips = e.data.flyingShips;
+  const fleetFromStats = !!flyingShips || !!base;
+  let fleet = planetFleet;
+  if (flyingShips) for (const [id, n] of Object.entries(flyingShips)) fleet += elementPoints(id, n);
+  else if (base) fleet = base.stat + (planetFleet - base.points);
   const cats = [
     { type: 4, live: sum[0] },
     { type: 3, live: sum[100] },

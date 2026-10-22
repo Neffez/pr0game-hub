@@ -305,6 +305,7 @@ describe('galaxy + empire', () => {
     expect(moon.building).toBeUndefined();
     expect(rec.researchQueue).toEqual({ id: 110, level: 14, coords: { g: 1, s: 100, p: 12 } });
     expect(rec.flying).toEqual({ 901: 2396674 });
+    expect(rec.flyingShips).toEqual({ 203: 214 });
     expect(rec.pageTime).toBe('2026-10-21 13:43:45');
     expect(rec.active).toEqual({ coords: { g: 1, s: 100, p: 12 }, type: 'planet', storage: { 901: 4325000, 902: 2350000, 903: 2350000 } });
   });
