@@ -75,7 +75,7 @@ checked out next to this repository: `pnpm gen:tech` and `pnpm gen:costs`.
 
 First start: log in with the bootstrap admin and create a universe (e.g. `u8`) and a group under **Admin**, then create invite links.
 
-Changes are recorded in [CHANGELOG.md](CHANGELOG.md).
+Changes are recorded in [CHANGELOG.md](CHANGELOG.md). Contributions are welcome, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Configuration (env)
 
