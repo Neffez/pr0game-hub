@@ -333,9 +333,10 @@ export function dataRoutes(app: FastifyInstance, db: DB) {
     const spyReports = db
       .prepare(
         `SELECT id, g, s, p, planet_type, planet_name, report_time, sections FROM spy_reports
-         WHERE group_id = ? AND (player_id = ? OR player_name = ? COLLATE NOCASE) ORDER BY report_time DESC LIMIT 30`,
+         -- by id (players belong to one group) or by the name in the report
+         WHERE id IN (SELECT id FROM spy_reports WHERE player_id = ? UNION SELECT id FROM spy_reports WHERE group_id = ? AND player_name = ? COLLATE NOCASE) ORDER BY report_time DESC LIMIT 30`,
       )
-      .all(ctx.groupId, id, player.name)
+      .all(id, ctx.groupId, player.name)
       .map(parseSections);
     const statusLog = db.prepare('SELECT status, seen_at FROM player_status_log WHERE player_id = ? ORDER BY seen_at DESC LIMIT 50').all(id);
     const aliases = db.prepare('SELECT name, seen_until FROM player_aliases WHERE player_id = ? ORDER BY seen_until DESC').all(id);
@@ -1091,9 +1092,10 @@ function playerIntel(db: DB, ctx: GroupContext, playerId: number, name: string, 
   const reports = db
     .prepare(
       `SELECT g, s, p, planet_type, report_time, sections FROM spy_reports
-       WHERE group_id = ? AND (player_id = ? OR player_name = ? COLLATE NOCASE) ORDER BY report_time DESC`,
+       -- by id (players belong to one group) or by the name in the report
+       WHERE id IN (SELECT id FROM spy_reports WHERE player_id = ? UNION SELECT id FROM spy_reports WHERE group_id = ? AND player_name = ? COLLATE NOCASE) ORDER BY report_time DESC`,
     )
-    .all(ctx.groupId, playerId, name) as { g: number; s: number; p: number; planet_type: string; report_time: number; sections: string }[];
+    .all(playerId, ctx.groupId, name) as { g: number; s: number; p: number; planet_type: string; report_time: number; sections: string }[];
   for (const r of reports) {
     const sections = JSON.parse(r.sections) as Record<string, Record<string, number>>;
     if (!research && sections['100']) research = { values: sections['100'], time: r.report_time, source: 'spy' };

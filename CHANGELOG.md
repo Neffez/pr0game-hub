@@ -7,7 +7,8 @@ Every commit adds its changes here, newest first, grouped by date.
 - Faster queries: "inactive since" in the overview no longer compares every status entry with every other, raids,
   recycling and expeditions use an index for their time range (migration `015`), and the session is only loaded for
   API requests, not for the static files.
-- A player's spy reports are also found when the name in the report differs in upper/lower case.
+- A player's spy reports are also found when the name in the report differs in upper/lower case, and are looked up
+  through indexes instead of scanning all reports of the alliance.
 - Sync: a pasted HTML page is loaded and turned into text once instead of up to four times.
 - Galaxy browser, overview, raids and player details read the members' empire pages once per request instead of up
   to three times.
