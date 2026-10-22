@@ -4,11 +4,13 @@ import Hint from '../components/Hint.vue';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
-import { api, loadMe, session } from '../api';
+import { api, loadMe, selectedGroup, session } from '../api';
 import { dateTime } from '../format';
 
 const { t } = useI18n();
 const route = useRoute();
+/** set when opened inside a universe (sidebar stays, its alliance is preselected) */
+const uni = route.params.uni ? String(route.params.uni) : null;
 const isAdmin = computed(() => !!session.me?.user?.isAdmin);
 const error = ref('');
 const msg = ref('');
@@ -45,7 +47,10 @@ async function run(fn: () => Promise<unknown>, ok = '') {
 async function loadAll() {
   universes.value = await api('/universes');
   groups.value = await api('/admin/groups');
-  if (!groupId.value && groups.value.length) groupId.value = groups.value[0].id;
+  if (!groupId.value && groups.value.length) {
+    const own = uni && selectedGroup(uni);
+    groupId.value = groups.value.some((g) => g.id === own) ? own : groups.value[0].id;
+  }
 }
 
 async function loadGroup() {
@@ -166,8 +171,8 @@ const doMerge = () => run(async () => {
 </script>
 
 <template>
-  <div class="main" style="max-width: 1100px; margin: 0 auto">
-    <p><RouterLink to="/">{{ t('common.back') }}</RouterLink></p>
+  <div :class="{ main: !uni }" style="max-width: 1100px" :style="{ margin: uni ? undefined : '0 auto' }">
+    <p v-if="!uni"><RouterLink to="/">{{ t('common.back') }}</RouterLink></p>
     <h1>{{ t('admin.title') }}</h1>
     <div v-if="error" class="error">{{ error }}</div>
     <div v-if="msg" class="ok">{{ msg }}</div>

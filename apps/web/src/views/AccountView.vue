@@ -1,10 +1,13 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRoute } from 'vue-router';
 import { api, loadMe, session } from '../api';
 import { currentLang, LANGS, setLocale, type Lang } from '../i18n';
 
 const { t } = useI18n();
+/** opened inside a universe: the sidebar stays, no back link */
+const inUni = !!useRoute().params.uni;
 const newUsername = ref(session.me?.user?.username ?? '');
 const usernamePassword = ref('');
 const oldPassword = ref('');
@@ -46,8 +49,8 @@ const saveLang = () =>
 </script>
 
 <template>
-  <div class="center-box card">
-    <p><RouterLink to="/">{{ t('common.back') }}</RouterLink></p>
+  <div class="card" :class="inUni ? 'account-box' : 'center-box'">
+    <p v-if="!inUni"><RouterLink to="/">{{ t('common.back') }}</RouterLink></p>
     <h1>{{ t('account.title', { name: session.me?.user?.username }) }}</h1>
     <h2>{{ t('account.language') }}</h2>
     <select v-model="lang" @change="saveLang">

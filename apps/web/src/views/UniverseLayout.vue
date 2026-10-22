@@ -80,7 +80,7 @@ function onTouchEnd(e: TouchEvent) {
 /** Page title in the mobile top bar. */
 const pageTitle = computed(() => {
   const page = route.path.split('/')[2];
-  const l = links.find((x) => x.to === page);
+  const l = [...links, { to: 'admin', label: 'admin' }, { to: 'account', label: 'user' }].find((x) => x.to === page);
   return l ? t(`nav.${l.label}`) : (ctx.value?.universe.name ?? uni.value);
 });
 
@@ -122,8 +122,8 @@ const tabs = [
         </template>
         <div class="section">{{ t('nav.account') }}</div>
         <RouterLink :to="{ path: '/', query: { list: null } }"><NavIcon name="universes" />{{ t('nav.universes') }}</RouterLink>
-        <RouterLink v-if="session.me?.user?.isAdmin || ctx?.group.role === 'admin'" to="/admin"><NavIcon name="admin" />{{ t('nav.admin') }}</RouterLink>
-        <RouterLink to="/account"><NavIcon name="user" />{{ t('nav.user') }}</RouterLink>
+        <RouterLink v-if="session.me?.user?.isAdmin || ctx?.group.role === 'admin'" :to="`/${uni}/admin`"><NavIcon name="admin" />{{ t('nav.admin') }}</RouterLink>
+        <RouterLink :to="`/${uni}/account`"><NavIcon name="user" />{{ t('nav.user') }}</RouterLink>
       </nav>
     </aside>
     <main class="main">

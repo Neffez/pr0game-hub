@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-22
 
+- Admin and user settings open inside the universe from its sidebar (`/<uni>/admin`, `/<uni>/account`): the menu stays,
+  there is no back link, and the admin page preselects the universe's current alliance. From the start page they
+  still open as standalone pages.
 - Empire, live points: the header no longer repeats the Δ in parentheses behind the live points (it is in the table).
   A category whose statistics come from an older update than the total points shows that date, with a tooltip
   explaining why its Δ differs from the total's (the total is synced more often and already contains the changes).
