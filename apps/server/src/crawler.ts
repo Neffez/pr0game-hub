@@ -69,19 +69,26 @@ export async function step(db: DB, log: Log, fetcher = fetch): Promise<'done' | 
     .prepare(
       `SELECT h.group_id, h.report_id, h.time, u.id AS universe, u.settings FROM battle_hall h
        JOIN groups g ON g.id = h.group_id JOIN universes u ON u.id = g.universe_id
-       WHERE (h.report_status IS NULL OR h.report_status = 'no_game_url') AND h.report_tries < ?
+       WHERE h.report_status IS NULL AND h.report_tries < ${MAX_TRIES}
          AND COALESCE(json_extract(u.settings, '$.gameUrl'), '') != ''
          AND u.id NOT IN (SELECT value FROM json_each(?))
          AND NOT EXISTS (SELECT 1 FROM combat_reports c WHERE c.group_id = h.group_id AND c.report_id = h.report_id)
        ORDER BY h.time DESC LIMIT 1`,
     )
-    .get(MAX_TRIES, JSON.stringify(paused)) as { group_id: number; report_id: string; time: number | null; universe: number; settings: string } | undefined;
+    .get(JSON.stringify(paused)) as { group_id: number; report_id: string; time: number | null; universe: number; settings: string } | undefined;
   if (!job) return 'idle';
   const gameUrl = String(JSON.parse(job.settings).gameUrl).replace(/\/?$/, '/');
-  const mark = (status: string | null) =>
-    db
-      .prepare('UPDATE battle_hall SET report_status = ?, report_tries = report_tries + 1 WHERE group_id = ? AND report_id = ?')
-      .run(status, job.group_id, job.report_id);
+  // the same report in the hall of several alliances of the universe: fetched once, stored for each
+  const halls = db
+    .prepare('SELECT h.group_id, h.time FROM battle_hall h JOIN groups g ON g.id = h.group_id WHERE g.universe_id = ? AND h.report_id = ?')
+    .all(job.universe, job.report_id) as { group_id: number; time: number | null }[];
+  const mark = (status: string | null) => {
+    for (const h of halls) {
+      db.prepare('UPDATE battle_hall SET report_status = ?, report_tries = report_tries + 1 WHERE group_id = ? AND report_id = ?').run(
+        status, h.group_id, job.report_id,
+      );
+    }
+  };
   const url = `${gameUrl}game.php?page=raport&raport=${job.report_id}`;
   const transient = (reason: string) => {
     pause(job.universe, reason, log);
@@ -101,7 +108,9 @@ export async function step(db: DB, log: Log, fetcher = fetch): Promise<'done' | 
   const parsed = parsePage({ html, url }).records[0] as CombatReportRecord | undefined;
   if (parsed?.kind === 'combatReport') {
     // the hall time is the local game time; the public page shows UTC
-    storeCombatReport(db, job.group_id, parsed, job.time);
+    db.transaction(() => {
+      for (const h of halls) storeCombatReport(db, h.group_id, parsed, h.time);
+    })();
     log.info({ report: job.report_id }, 'battle report archived');
     return done();
   }

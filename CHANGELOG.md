@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-22
 
+- Battle report archive: a report in the hall of several alliances of the same universe is fetched from the game once
+  and archived for each of them. The search for the next report uses an index instead of scanning the whole hall
+  every few seconds. Migration `014` turns the old status "no game URL" into pending.
 - An older spy report synced later no longer changes the planet: owner, name and moon only follow a report that is
   newer than the system's galaxy view and the other reports of the position. Spy reports also find the player by a
   former name.

@@ -235,7 +235,7 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
         `SELECT
            SUM(CASE WHEN report_status = 'archived' THEN 1 ELSE 0 END) AS archived,
            SUM(CASE WHEN report_status = 'gone' THEN 1 ELSE 0 END) AS gone,
-           SUM(CASE WHEN (report_status IS NULL OR report_status = 'no_game_url') AND report_tries < 3 THEN 1 ELSE 0 END) AS pending,
+           SUM(CASE WHEN report_status IS NULL AND report_tries < 3 THEN 1 ELSE 0 END) AS pending,
            SUM(CASE WHEN report_status IS NULL AND report_tries >= 3 THEN 1 ELSE 0 END) AS failed
          FROM battle_hall`,
       )

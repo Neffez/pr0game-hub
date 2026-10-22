@@ -276,11 +276,18 @@ describe('api', () => {
     expect(crawlerState.get(1)?.lastError).toBe('no report page (maintenance?)');
     crawlerState.clear();
     expect(db.prepare("SELECT MAX(report_tries) FROM battle_hall WHERE group_id = ?").pluck().get(groupA)).toBe(0);
+    // the same report in the hall of another alliance of the universe is fetched once
+    db.prepare(
+      `INSERT INTO battle_hall (group_id, report_id, time, attackers, defenders, winner, units)
+       SELECT ?, report_id, time, attackers, defenders, winner, units FROM battle_hall WHERE group_id = ? AND report_id LIKE '93a4%'`,
+    ).run(groupB, groupA);
 
     expect(await step(db, log, fetcher)).toBe('done');
     expect(urls[0]).toBe('https://pr0game.com/uni8/game.php?page=raport&raport=93a44dd012ff05992739d1afd749df1d');
     for (let i = 0; i < 3; i++) await step(db, log, fetcher);
     expect(await step(db, log, fetcher)).toBe('idle');
+    expect(urls.filter((u) => u.includes('93a44dd0'))).toHaveLength(1);
+    expect(db.prepare('SELECT group_id FROM combat_reports ORDER BY group_id').pluck().all()).toEqual([groupA, groupB]);
 
     const report = (await app.inject({ method: 'GET', url: '/hub/api/u8/combat-reports/93a44dd012ff05992739d1afd749df1d', headers })).json();
     expect(report).toMatchObject({ winner: 'attacker', lost_attacker: 3280000, debris_metal: 3560500, units: 25541000 });
