@@ -4,6 +4,8 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-22
 
+- Imperium: the live points table no longer runs past the screen edge on mobile; the "without fleets in flight" note
+  wraps and the table scrolls inside its card if needed.
 - Sync: the galaxy view can be pasted as copied text. The copy has no galaxy/system, so the sync form asks for
   them ("1:234") and counts the system up after saving, for the next system. Players are matched by name; the same
   input also completes copied galaxy HTML without its form.

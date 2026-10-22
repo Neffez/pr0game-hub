@@ -334,13 +334,14 @@ const memberName = (id: number | null) => ctx.value!.members.find((m) => m.id ==
     <p v-if="!data?.player" class="warn small" style="margin: 8px 0 0">
       {{ t('imperium.noStats', { name: memberName(userId) }) }}
     </p>
-    <table class="data" style="width: auto; margin-top: 8px">
+    <div class="scroll-x" style="margin-top: 8px">
+    <table class="data" style="width: auto">
       <thead>
         <tr><th>{{ t('imperium.category') }}</th><th class="num">{{ t('nav.stats') }}</th><th class="num">{{ t('imperium.live') }}</th><th class="num">Δ</th></tr>
       </thead>
       <tbody>
         <tr v-for="c in livePoints.cats" :key="c.type">
-          <td>
+          <td style="white-space: normal">
             {{ STATS_TYPES[c.type] }}
             <span v-if="c.type === 2 && !livePoints.fleetFromStats" class="warn small" :title="t('imperium.noFlyingTitle')">⚠ {{ t('imperium.noFlying') }}</span>
           </td>
@@ -358,6 +359,7 @@ const memberName = (id: number | null) => ctx.value!.members.find((m) => m.id ==
         </tr>
       </tbody>
     </table>
+    </div>
     <p v-if="catchUp" class="small" style="margin: 6px 0 0">
       {{ t('imperium.catchUp') }}
       <Hint>
