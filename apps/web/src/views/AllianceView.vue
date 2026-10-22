@@ -64,9 +64,11 @@ const withData = computed(() => members.value.filter((m) => m.data));
 const missing = computed(() => members.value.filter((m) => !m.data));
 const memberName = (m: Member) => m.ingame_name || m.username;
 
-/** Fleets of all members still in flight, next arrival first. */
+/** Fleets of all members (or the chosen one) still in flight, next arrival first. */
+const fleetMember = ref<number | null>(null);
 const flights = computed(() =>
   members.value
+    .filter((m) => fleetMember.value == null || m.user_id === fleetMember.value)
     .flatMap((m) => (m.fleets?.data ?? []).map((f) => ({ ...f, member: memberName(m) })))
     .filter((f) => f.arrival > now.value)
     .sort((a, b) => a.arrival - b.arrival),
@@ -183,10 +185,14 @@ const total = computed(() => {
     <h3 style="margin: 0 0 6px">
       {{ t('imperium.fleets') }}
       <Hint><p>{{ t('alliance.fleetsHint') }}</p></Hint>
-      <span class="muted small" style="font-weight: normal">
-        <span v-for="m in withFleets" :key="m.user_id" :title="dateTime(m.fleets!.time)"> · {{ memberName(m) }}: {{ ago(m.fleets!.time) }}</span>
-      </span>
     </h3>
+    <div class="row small" style="margin-bottom: 8px">
+      <select v-if="withFleets.length > 1" v-model="fleetMember">
+        <option :value="null">{{ t('imperium.allMembers') }}</option>
+        <option v-for="m in withFleets" :key="m.user_id" :value="m.user_id">{{ memberName(m) }}</option>
+      </select>
+      <span v-for="m in withFleets" :key="m.user_id" class="muted" :title="dateTime(m.fleets!.time)">{{ memberName(m) }}: {{ ago(m.fleets!.time) }}</span>
+    </div>
     <p v-if="!flights.length" class="muted small" style="margin: 0">{{ t('imperium.fleetsNone') }}</p>
     <FleetList v-else :fleets="flights" :now="now" />
   </div>

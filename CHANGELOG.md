@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Fleet movements laid out as a table (cards on mobile): arrival time with seconds, remaining time, member, mission,
+  start, target, ships (short names, full list as tooltip) and cargo. Missions in the game's colours (own, foreign,
+  return), hostile fleets highlighted; the alliance list can be filtered by member.
+
 - Fleet movements in the alliance: the fleet page lists the fleets in flight of all members (next arrival first,
   with the member and when they last synced), above the ship table.
   - Syncing fleet movements now updates open empire and alliance pages live and shows a hint to the others.

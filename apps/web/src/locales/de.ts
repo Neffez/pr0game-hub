@@ -562,6 +562,13 @@ const de = {
     hostile: 'feindlich',
     foreign: 'fremd',
     phase: { out: '→', return: '↩ Rückkehr', hold: '⏸ hält' },
+    arrival: 'Ankunft',
+    remaining: 'Restzeit',
+    mission: 'Mission',
+    from: 'Start',
+    to: 'Ziel',
+    ships: 'Schiffe',
+    allMembers: 'alle Mitglieder',
     cargo: 'Ladung',
   },
   browse: {

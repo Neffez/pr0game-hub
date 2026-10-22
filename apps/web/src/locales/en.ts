@@ -560,6 +560,13 @@ const en: typeof de = {
     hostile: 'hostile',
     foreign: 'foreign',
     phase: { out: '→', return: '↩ return', hold: '⏸ holding' },
+    arrival: 'Arrival',
+    remaining: 'Remaining',
+    mission: 'Mission',
+    from: 'From',
+    to: 'To',
+    ships: 'Ships',
+    allMembers: 'all members',
     cargo: 'Cargo',
   },
   browse: {
