@@ -18,5 +18,14 @@ for (const line of lines.slice(start + 1)) {
   if (m && m[2] === '0' && Number(m[1]) < 900) out[m[1]] = [Number(m[4]), Number(m[5]), Number(m[6]), Number(m[3])];
   if (line.trimEnd().endsWith(';')) break;
 }
+// Ships added to the game later are missing in install.sql: costs from the game's info pages.
+const extra = {
+  222: [30000, 12000, 5000, 1], // Schwerer Kreuzer
+  225: [7500, 2500, 0, 1], // Sturmtransporter
+  227: [26000, 14000, 5000, 1], // Optimierter Recycler
+  231: [500000, 400000, 100000, 1], // Behemoth
+  232: [0, 9000000, 0, 1], // Void Titan
+};
+for (const [id, c] of Object.entries(extra)) out[id] ??= c;
 writeFileSync(new URL('../packages/parser/src/data/costs.json', import.meta.url), JSON.stringify(out) + '\n');
 console.log(`${Object.keys(out).length} elements`);

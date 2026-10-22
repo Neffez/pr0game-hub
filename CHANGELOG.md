@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-22
 
+- Points of the newer ships: Schwerer Kreuzer, Sturmtransporter, Optimierter Recycler, Behemoth and Void Titan had no
+  costs (they are missing in the game's install.sql) and counted 0 points, e.g. in the live points, spy reports and
+  fleet values. Their costs are now part of the element data (kept by `pnpm gen:costs`).
+
 - Target claims: a member claims a planet or moon for 30 minutes up to 24 hours (farming, attack or espionage, with
   an optional note) in its action menu, so nobody of the alliance farms or attacks it twice.
   - The claim shows as "🎯 name" next to the target's action menu everywhere (galaxy, player details, overview,
