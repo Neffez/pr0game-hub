@@ -338,6 +338,13 @@ describe('review fixes', () => {
     expect(last).toBe(429);
   });
 
+  it('rate limits failed logins per IP across usernames', async () => {
+    const attempt = async (username: string) =>
+      (await app.inject({ method: 'POST', url: '/hub/api/auth/login', remoteAddress: '10.0.0.9', payload: { username, password: 'x' } })).statusCode;
+    for (let i = 0; i < 30; i++) expect(await attempt(`user${i}`)).toBe(401);
+    expect(await attempt('another')).toBe(429);
+  });
+
   it('ingests English stats (date without dot, huge points)', async () => {
     const groupX = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', headers: admin, payload: { universe: 'u8', name: 'English' } })).json().id;
     const headers = { ...admin, 'x-hub-group': String(groupX) };

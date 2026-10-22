@@ -1,4 +1,5 @@
-import { createHash, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
+import { createHash, randomBytes, scrypt, scryptSync, timingSafeEqual } from 'node:crypto';
+import { promisify } from 'node:util';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { config } from './config.js';
 import { now, type DB } from './db.js';
@@ -25,20 +26,26 @@ export function hashPassword(password: string): string {
   return `scrypt$${salt.toString('base64')}$${hash.toString('base64')}`;
 }
 
-export function verifyPassword(password: string, stored: string): boolean {
+const scryptAsync = promisify(scrypt) as (password: string, salt: Buffer, keylen: number) => Promise<Buffer>;
+
+/** Asynchronous (thread pool): login attempts must not block the server for the tens of ms scrypt takes. */
+export async function verifyPassword(password: string, stored: string): Promise<boolean> {
   const [scheme, saltB64, hashB64] = stored.split('$');
   if (scheme !== 'scrypt' || !saltB64 || !hashB64) return false;
   const expected = Buffer.from(hashB64, 'base64');
-  const actual = scryptSync(password, Buffer.from(saltB64, 'base64'), expected.length);
+  const actual = await scryptAsync(password, Buffer.from(saltB64, 'base64'), expected.length);
   return timingSafeEqual(expected, actual);
 }
 
 /** Hash verified for unknown users so that login timing does not reveal which usernames exist. */
 const DUMMY_HASH = hashPassword(randomBytes(16).toString('hex'));
-export const verifyPasswordOrDummy = (password: string, stored: string | undefined) =>
-  verifyPassword(password, stored ?? DUMMY_HASH) && stored !== undefined;
+export const verifyPasswordOrDummy = async (password: string, stored: string | undefined) =>
+  (await verifyPassword(password, stored ?? DUMMY_HASH)) && stored !== undefined;
 
-/** In-memory brute-force limit: max `limit` failed logins per key within `windowSec`. */
+/**
+ * In-memory brute-force limit: max `limit` failed logins per key within `windowSec`. Logins count per IP and
+ * username and, with a higher limit, per IP alone (rotating usernames).
+ */
 const failures = new Map<string, { n: number; reset: number }>();
 export function loginBlocked(key: string, limit = 10): boolean {
   const e = failures.get(key);

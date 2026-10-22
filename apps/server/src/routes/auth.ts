@@ -5,16 +5,21 @@ import {
 } from '../auth.js';
 import { now, type DB } from '../db.js';
 
+/** Failed logins per IP (any username) within the window; the per-username limit is 10. */
+const IP_LIMIT = 30;
+
 export function authRoutes(app: FastifyInstance, db: DB) {
   app.post<{ Body: { username: string; password: string } }>('/api/auth/login', async (req, reply) => {
     const { username, password } = req.body ?? ({} as never);
     const key = `${req.ip}|${String(username ?? '').toLowerCase()}`;
-    if (loginBlocked(key)) throw new HttpError(429, 'too_many_attempts', 'Too many failed attempts, please try again later');
+    const ipKey = `${req.ip}|`;
+    if (loginBlocked(key) || loginBlocked(ipKey, IP_LIMIT)) throw new HttpError(429, 'too_many_attempts', 'Too many failed attempts, please try again later');
     const user = db.prepare('SELECT id, password_hash FROM users WHERE username = ?').get(String(username ?? '')) as
       | { id: number; password_hash: string }
       | undefined;
-    if (!verifyPasswordOrDummy(String(password ?? ''), user?.password_hash) || !user) {
+    if (!(await verifyPasswordOrDummy(String(password ?? ''), user?.password_hash)) || !user) {
       loginFailed(key);
+      loginFailed(ipKey);
       throw new HttpError(401, 'login_failed', 'Wrong username or password');
     }
     loginSucceeded(key);
@@ -43,7 +48,7 @@ export function authRoutes(app: FastifyInstance, db: DB) {
     const user = requireUser(req);
     const { oldPassword, newPassword } = req.body ?? ({} as never);
     const hash = db.prepare('SELECT password_hash FROM users WHERE id = ?').pluck().get(user.id) as string;
-    if (!verifyPassword(String(oldPassword ?? ''), hash)) throw new HttpError(400, 'old_password_wrong', 'Old password wrong');
+    if (!(await verifyPassword(String(oldPassword ?? ''), hash))) throw new HttpError(400, 'old_password_wrong', 'Old password wrong');
     if (String(newPassword ?? '').length < 8) throw new HttpError(400, 'password_too_short', 'Password must have at least 8 characters');
     db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hashPassword(String(newPassword)), user.id);
     destroyOtherSessions(db, user.id, req);
@@ -53,7 +58,7 @@ export function authRoutes(app: FastifyInstance, db: DB) {
   app.post<{ Body: { username: string; password: string } }>('/api/auth/username', async (req) => {
     const user = requireUser(req);
     const hash = db.prepare('SELECT password_hash FROM users WHERE id = ?').pluck().get(user.id) as string;
-    if (!verifyPassword(String(req.body?.password ?? ''), hash)) throw new HttpError(400, 'password_wrong', 'Wrong password');
+    if (!(await verifyPassword(String(req.body?.password ?? ''), hash))) throw new HttpError(400, 'password_wrong', 'Wrong password');
     const username = checkUsername(db, req.body?.username, user.id);
     db.prepare('UPDATE users SET username = ? WHERE id = ?').run(username, user.id);
     return { ok: true, username };

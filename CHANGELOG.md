@@ -4,6 +4,8 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-22
 
+- Login hardening: failed logins are also limited per IP (30 per 15 minutes, across all usernames), and passwords are
+  checked asynchronously, so many login attempts no longer block the server.
 - Pasted pages (raw data for reparsing) are deleted after 14 days (`RAW_RETENTION_DAYS`); uploaded universe.json files
   are no longer stored at all, only their result in the sync log. Synced data and statistics stay. The admin's sync
   log offers "Reparse" only for entries that still have their page.
