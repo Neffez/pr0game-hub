@@ -275,6 +275,16 @@ describe('api', () => {
     expect(await step(db, log, maintenance)).toBe('transient');
     expect(crawlerState.get(1)?.lastError).toBe('no report page (maintenance?)');
     crawlerState.clear();
+    // attacker shot down in the first round: no report in the game, final instead of pausing
+    const lostContact = (async () => ({
+      ok: true,
+      text: async () => '<title>Info - Universum 8</title> Contact with the attacking fleet was lost (i.e. it was shot down in the first round).',
+    })) as unknown as typeof fetch;
+    expect(await step(db, log, lostContact)).toBe('done');
+    expect(crawlerState.size).toBe(0);
+    const lost = db.prepare("SELECT report_id FROM battle_hall WHERE group_id = ? AND report_status = 'lost'").pluck().all(groupA) as string[];
+    expect(lost).toHaveLength(1);
+    db.prepare('UPDATE battle_hall SET report_status = NULL, report_tries = 0 WHERE group_id = ?').run(groupA);
     expect(db.prepare("SELECT MAX(report_tries) FROM battle_hall WHERE group_id = ?").pluck().get(groupA)).toBe(0);
     // the same report in the hall of another alliance of the universe is fetched once
     db.prepare(

@@ -39,7 +39,8 @@ function pause(universe: number, reason: string, log: Log) {
 
 /**
  * Background worker: archives battle hall reports from the public report pages, one request at a
- * time (config.crawler.intervalMs apart). Reports the game already deleted are marked "gone".
+ * time (config.crawler.intervalMs apart). Reports the game already deleted are marked "gone", reports
+ * of attackers shot down in the first round (the game shows no report) "lost".
  */
 export function startCrawler(db: DB, log: Log) {
   if (!config.crawler.enabled) return () => {};
@@ -116,6 +117,11 @@ export async function step(db: DB, log: Log, fetcher = fetch): Promise<'done' | 
   }
   if (/Invalid Battle Report ID|Ungültige Kampfbericht ID/i.test(html)) {
     mark('gone');
+    return done();
+  }
+  // the attacker was shot down in the first round: the game shows no report, only this notice
+  if (/Contact with the attacking fleet was lost|Kontakt zur angreifenden Flotte/i.test(html)) {
+    mark('lost');
     return done();
   }
   // a report page that can't be read costs a try; anything else (maintenance page, login, …) pauses

@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-22
 
+- Battle report archive: reports of attackers shot down in the first round (the game shows "Contact with the attacking
+  fleet was lost" instead of a report) are marked "no report" in the battle hall and the admin counts; before, the
+  worker took this page for maintenance and paused the whole universe again and again.
 - Developers: player status parsing is shared: `statusFromSpans` reads the status spans of statistics and galaxy
   pages, `UNIVERSE_JSON_STATUS` (`@pr0hub/core`) is the one table of universe.json status letters for import and
   export, and the activity mark behind planet names is one regular expression.

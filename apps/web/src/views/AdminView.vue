@@ -329,7 +329,7 @@ const doMerge = () => run(async () => {
         <h2>{{ t('admin.crawler') }} <Hint>{{ t('admin.crawlerHint') }}</Hint></h2>
         <div class="card row">
           <span>{{ crawler.enabled ? t('admin.crawlerRunning') : t('admin.crawlerOff') }}</span>
-          <span class="muted small">{{ t('admin.crawlerState', { archived: crawler.archived ?? 0, pending: crawler.pending ?? 0, failed: crawler.failed ?? 0, gone: crawler.gone ?? 0 }) }}</span>
+          <span class="muted small">{{ t('admin.crawlerState', { archived: crawler.archived ?? 0, pending: crawler.pending ?? 0, failed: crawler.failed ?? 0, gone: crawler.gone ?? 0, lost: crawler.lost ?? 0 }) }}</span>
           <span class="grow" />
           <button @click="retryCrawler">{{ t('admin.crawlerRetry') }}</button>
         </div>

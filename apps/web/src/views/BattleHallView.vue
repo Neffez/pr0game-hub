@@ -88,6 +88,7 @@ const rank = (i: number) => (page.value - 1) * 100 + i + 1;
               <a v-if="gameUrl" :href="reportLink(e)" target="_blank" rel="noopener" :title="t('battleHall.reportInGame')">{{ t('battleHall.game') }}</a>
               <template v-if="e.archived"> · <RouterLink :to="`/${uni}/battle-hall/${e.report_id}`" :title="t('battleHall.localTitle')">{{ t('battleHall.local') }}</RouterLink></template>
               <span v-else-if="e.report_status === 'gone'" class="faint" :title="t('battleHall.goneTitle')"> · {{ t('battleHall.gone') }}</span>
+              <span v-else-if="e.report_status === 'lost'" class="faint" :title="t('battleHall.lostTitle')"> · {{ t('battleHall.lost') }}</span>
               <span v-else class="faint" :title="t('battleHall.pendingTitle')"> · {{ t('battleHall.pending') }}</span>
             </td>
           </tr>
