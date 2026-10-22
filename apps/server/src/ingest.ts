@@ -22,6 +22,9 @@ import { gunzipSync, gzipSync } from 'node:zlib';
 import { config } from './config.js';
 import { now, type DB } from './db.js';
 
+/** Empire pages are kept a week (besides the newest), see `empire()`. */
+const EMPIRE_KEEP = 7 * 86400;
+
 export interface IngestTarget {
   groupId: number;
   userId: number;
@@ -684,6 +687,14 @@ class Store {
     this.db
       .prepare('INSERT INTO empire_snapshots (group_id, user_id, created_at, data) VALUES (?, ?, ?, ?)')
       .run(this.t.groupId, this.t.userId, this.epoch(r.pageTime ?? null) ?? now(), JSON.stringify(r));
+    // Only the newest page is shown; the live fleet in the imperium also needs the first page after the last fleet
+    // statistics update, which the last week covers. Older pages are never read.
+    this.db
+      .prepare(
+        `DELETE FROM empire_snapshots WHERE group_id = ? AND user_id = ? AND created_at < ?
+         AND id <> (SELECT id FROM empire_snapshots WHERE group_id = ? AND user_id = ? ORDER BY created_at DESC, id DESC LIMIT 1)`,
+      )
+      .run(this.t.groupId, this.t.userId, now() - EMPIRE_KEEP, this.t.groupId, this.t.userId);
     this.count('empire', true);
   }
 
@@ -770,6 +781,13 @@ class Store {
     this.db
       .prepare('INSERT INTO overview_snapshots (group_id, user_id, page_time, data) VALUES (?, ?, ?, ?)')
       .run(this.t.groupId, this.t.userId, this.epoch(r.pageTime) ?? now(), JSON.stringify(r));
+    // only the newest overview page is ever read (live view)
+    this.db
+      .prepare(
+        `DELETE FROM overview_snapshots WHERE group_id = ? AND user_id = ?
+         AND id <> (SELECT id FROM overview_snapshots WHERE group_id = ? AND user_id = ? ORDER BY page_time DESC, id DESC LIMIT 1)`,
+      )
+      .run(this.t.groupId, this.t.userId, this.t.groupId, this.t.userId);
     this.count('overview', true);
   }
 }

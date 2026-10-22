@@ -599,6 +599,24 @@ describe('review fixes', () => {
     expect(raw).toEqual([{ page_type: 'galaxy', html: 0, text: 0 }, { page_type: 'galaxy', html: 1, text: 0 }]);
   });
 
+  it('keeps the newest overview page and the empire pages of the last week', async () => {
+    const groupX = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', headers: admin, payload: { universe: 'u8', name: 'Snapshots' } })).json().id;
+    const headers = { ...admin, 'x-hub-group': String(groupX) };
+    const day = Math.floor(Date.now() / 1000) - 86400;
+    for (const t of [1000, day]) {
+      db.prepare("INSERT INTO empire_snapshots (group_id, user_id, created_at, data) VALUES (?, 1, ?, '{}')").run(groupX, t);
+      db.prepare("INSERT INTO overview_snapshots (group_id, user_id, page_time, data) VALUES (?, 1, ?, '{}')").run(groupX, t);
+    }
+    for (const f of ['empire-real-source.html', 'overview.html']) {
+      await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { text: fixture(f) } });
+    }
+    const empire = db.prepare('SELECT created_at FROM empire_snapshots WHERE group_id = ?').pluck().all(groupX) as number[];
+    expect(empire).not.toContain(1000);
+    expect(empire).toContain(day);
+    const overview = db.prepare('SELECT page_time FROM overview_snapshots WHERE group_id = ?').pluck().all(groupX) as number[];
+    expect(overview).toEqual([Math.max(day, Date.UTC(2026, 9, 21, 12, 0, 0) / 1000)]);
+  });
+
   it('keeps the activity log of merged players', async () => {
     const groupX = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', headers: admin, payload: { universe: 'u8', name: 'Merge' } })).json().id;
     const add = (name: string) => Number(db.prepare('INSERT INTO players (group_id, name) VALUES (?, ?)').run(groupX, name).lastInsertRowid);

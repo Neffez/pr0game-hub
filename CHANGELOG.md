@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-22
 
+- Synced game overview pages keep only the newest per member, empire pages the newest plus those of the last 7 days
+  (the live fleet in the imperium needs the first empire page after the last fleet statistics update). Older pages
+  were never read; migration `012` removes the ones stored so far.
 - Login hardening: failed logins are also limited per IP (30 per 15 minutes, across all usernames), and passwords are
   checked asynchronously, so many login attempts no longer block the server.
 - Pasted pages (raw data for reparsing) are deleted after 14 days (`RAW_RETENTION_DAYS`); uploaded universe.json files
