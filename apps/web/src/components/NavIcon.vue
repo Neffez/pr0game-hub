@@ -42,6 +42,8 @@ const ICONS: Record<string, string[]> = {
     'M10.5 21h3',
     'M13.5 10a1.5 1.5 0 1 1-3 0a1.5 1.5 0 1 1 3 0',
   ],
+  // bell (notifications)
+  bell: ['M6 16.5V11a6 6 0 0 1 12 0v5.5l1.8 1.8H4.2z', 'M10 21a2.2 2.2 0 0 0 4 0'],
   // flask
   research: ['M9 3h6', 'M10 3v6l-5.6 9.6A1.6 1.6 0 0 0 5.8 21h12.4a1.6 1.6 0 0 0 1.4-2.4L14 9V3', 'M7 15h10'],
   // crosshair

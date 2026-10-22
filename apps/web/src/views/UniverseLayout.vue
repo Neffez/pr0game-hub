@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import LiveToasts from '../components/LiveToasts.vue';
 import NavIcon from '../components/NavIcon.vue';
+import NotificationBell from '../components/NotificationBell.vue';
 import PresenceList from '../components/PresenceList.vue';
 import PlayerDialog from '../components/PlayerDialog.vue';
 import SyncSheet from '../components/SyncSheet.vue';
@@ -11,6 +12,7 @@ import { selectGroup, selectedGroup, session, uniApi } from '../api';
 import { provideUni, useLoader, useScrollLock, type UniContext } from '../composables';
 import { clearClaims, loadClaims } from '../claims';
 import { clearCommentCounts, loadCommentCounts } from '../comments';
+import { attacks, clearNotifications, loadNotifications } from '../notifications';
 import { startLive, stopLive, tables, useLiveReload, useWhereabouts } from '../live';
 
 const { t } = useI18n();
@@ -30,10 +32,13 @@ function load() {
   loadClaims(uni.value);
   clearCommentCounts();
   loadCommentCounts(uni.value);
+  clearNotifications();
+  loadNotifications(uni.value);
   return fetchContext();
 }
 useLiveReload(() => loadClaims(uni.value), tables('target_claims'));
 useLiveReload(() => loadCommentCounts(uni.value), tables('comments'), 300);
+useLiveReload(() => loadNotifications(uni.value), tables('fleets'), 300);
 onBeforeUnmount(stopLive);
 // own research and planets for flight times come from the own empire page
 useLiveReload(fetchContext, (e) => tables('empire')(e) && e.userId === ctx.value?.me.id);
@@ -137,6 +142,7 @@ const tabs = [
     <header class="topbar">
       <span class="brand">pr0game <span>Hub</span></span>
       <span class="topbar-title">{{ pageTitle }}</span>
+      <NotificationBell v-if="ctx" />
     </header>
     <div v-if="navOpen" class="nav-backdrop" @click="navOpen = false" />
     <aside
@@ -148,6 +154,7 @@ const tabs = [
     >
       <div class="brand">
         pr0game <span>Hub</span>
+        <NotificationBell v-if="ctx" class="sidebar-bell" />
         <button class="nav-close" :title="t('nav.closeMenu')" :aria-label="t('nav.closeMenu')" @click="navOpen = false">✕</button>
       </div>
       <div class="section">{{ ctx?.universe.name ?? uni }}</div>
@@ -158,7 +165,10 @@ const tabs = [
       <nav>
         <template v-for="l in links" :key="l.to ?? l.section">
           <div v-if="l.section" class="section">{{ t(`nav.${l.section}`) }}</div>
-          <RouterLink v-else :to="`/${uni}/${l.to}`"><NavIcon :name="l.icon!" />{{ t(`nav.${l.label}`) }}</RouterLink>
+          <RouterLink v-else :to="`/${uni}/${l.to}`">
+            <NavIcon :name="l.icon!" />{{ t(`nav.${l.label}`) }}
+            <span v-if="l.to === 'fleet' && attacks" class="nav-alarm" :title="t('notify.attacks', { n: attacks }, attacks)">⚔ {{ attacks }}</span>
+          </RouterLink>
         </template>
         <div class="section">{{ t('nav.account') }}</div>
         <RouterLink :to="{ path: '/', query: { list: null } }"><NavIcon name="universes" />{{ t('nav.universes') }}</RouterLink>

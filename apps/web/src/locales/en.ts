@@ -796,6 +796,13 @@ const en: typeof de = {
     deck_entry_invalid: "Invalid deck entry: {'{'}type, size, count{'}'}",
     lang_invalid: 'Invalid language',
   },
+  notify: {
+    title: 'Notifications',
+    none: 'No current notifications.',
+    attack: 'Attack on {member}',
+    attacks: '{n} hostile fleet approaching | {n} hostile fleets approaching',
+    from: 'from',
+  },
   game: {
     missions: {
       1: 'Attack', 2: 'ACS attack', 3: 'Transport', 4: 'Deploy', 5: 'Hold', 6: 'Espionage', 7: 'Colonize',

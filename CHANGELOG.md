@@ -4,6 +4,13 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Notifications: a bell next to the hub name (top bar on mobile) with the number of unseen notifications; it opens a
+  list of what the alliance should notice. First kind: hostile fleets heading for a member (member, target, arrival
+  with countdown, attacker and ships), taken from the synced fleet movements; a click leads to the fleet movements.
+  - While hostile fleets are on their way the bell turns red and the "Fleet" menu entry shows "⚔ n".
+  - Seen notifications are remembered per browser; arrived fleets drop out by themselves, new ones appear live.
+  - Server: `GET /api/:uni/notifications` (respects each member's fleet sharing).
+
 - Alliance pages (planets, fleet, research) also show members who don't sync their empire page, from the spy reports
   of the other members: per planet/moon each section (buildings, ships, defense) from the newest report showing it,
   research from the newest report with research; marked "spy" with the report time.

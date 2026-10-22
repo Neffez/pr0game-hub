@@ -800,6 +800,13 @@ const de = {
     lang_invalid: 'Sprache ungültig',
   },
   /** Game terms (pr0game/language/de) */
+  notify: {
+    title: 'Benachrichtigungen',
+    none: 'Keine aktuellen Benachrichtigungen.',
+    attack: 'Angriff auf {member}',
+    attacks: '{n} feindliche Flotte im Anflug | {n} feindliche Flotten im Anflug',
+    from: 'von',
+  },
   game: {
     missions: {
       1: 'Angreifen', 2: 'Verbandsangriff', 3: 'Transport', 4: 'Stationieren', 5: 'Halten', 6: 'Spionage', 7: 'Kolonisieren',

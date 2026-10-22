@@ -33,7 +33,10 @@ h3 { font-size: 14px; margin: 14px 0 6px; color: var(--muted); }
   padding: 14px 10px; position: sticky; top: 0; height: 100vh; overflow-y: auto;
 }
 .sidebar .brand { font-weight: 700; font-size: 16px; padding: 0 8px 10px; }
-.sidebar .brand span { color: var(--accent); }
+.sidebar .brand > span:first-child { color: var(--accent); }
+.sidebar .brand { display: flex; align-items: center; gap: 6px; }
+.sidebar .brand .sidebar-bell { margin-left: auto; }
+.sidebar nav a .nav-alarm { margin-left: auto; padding: 0 6px; border-radius: 8px; font-size: 11px; font-weight: 700; color: #fff; background: var(--neg); }
 .sidebar nav a {
   display: flex; align-items: center; gap: 9px; padding: 6px 10px; border-radius: 6px; color: var(--text); margin: 1px 0;
 }
@@ -124,6 +127,7 @@ table.data tr.dim td { opacity: .55; }
   }
   .sidebar.open { transform: none; visibility: visible; transition: transform .2s ease; box-shadow: 8px 0 30px rgba(0, 0, 0, .5); }
   .sidebar .brand { display: flex; align-items: center; }
+  .sidebar .brand .sidebar-bell { display: none; }
   .nav-close { display: block; margin-left: auto; padding: 4px 11px; }
   .sidebar nav a { padding: 11px 12px; }
   .nav-backdrop { display: block; position: fixed; inset: 0; z-index: 35; background: rgba(0, 0, 0, .55); }
