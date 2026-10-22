@@ -13,6 +13,8 @@ export const config = {
   sessionDays: Number(env.SESSION_DAYS ?? 30),
   secureCookies: (env.SECURE_COOKIES ?? (env.NODE_ENV === 'production' ? 'true' : 'false')) === 'true',
   bodyLimit: Number(env.BODY_LIMIT_MB ?? 8) * 1024 * 1024,
+  /** Pasted pages are kept this long for reparsing after parser fixes; the synced data itself stays. */
+  rawRetentionDays: Number(env.RAW_RETENTION_DAYS ?? 14),
   adminBootstrap: {
     username: env.ADMIN_BOOTSTRAP_USER ?? '',
     password: env.ADMIN_BOOTSTRAP_PASSWORD ?? '',

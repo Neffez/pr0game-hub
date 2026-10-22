@@ -88,6 +88,7 @@ Changes are recorded in [CHANGELOG.md](CHANGELOG.md). Contributions are welcome,
 | `SECURE_COOKIES` | `true` in production | |
 | `SESSION_DAYS` | `30` | |
 | `BODY_LIMIT_MB` | `8` | |
+| `RAW_RETENTION_DAYS` | `14` | pasted pages are kept this long for reparsing (universe.json uploads are not kept) |
 | `CRAWLER_ENABLED` | `true` | background archiving of public battle reports |
 | `CRAWLER_INTERVAL_MS` | `5000` | |
 | `CRAWLER_GIVE_UP_HOURS` | `6` | pause the crawler after the game was unreachable this long |

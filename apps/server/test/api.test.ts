@@ -582,6 +582,16 @@ describe('review fixes', () => {
     expect(keys).toHaveLength(2 * (before[1] as number));
   });
 
+  it('keeps pasted pages for a while, universe.json uploads not at all', async () => {
+    const groupX = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', headers: admin, payload: { universe: 'u8', name: 'Raw' } })).json().id;
+    const headers = { ...admin, 'x-hub-group': String(groupX) };
+    db.prepare("INSERT INTO raw_ingests (group_id, source, page_type, text_gz, created_at) VALUES (?, 'paste', 'stats', x'00', 1)").run(groupX);
+    await app.inject({ method: 'POST', url: '/hub/api/u8/universe-json', headers, payload: { text: fixture('universe.json') } });
+    await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { html: fixture('galaxy.html') } });
+    const raw = db.prepare('SELECT page_type, html_gz IS NOT NULL AS html, text_gz IS NOT NULL AS text FROM raw_ingests WHERE group_id = ? ORDER BY id').all(groupX);
+    expect(raw).toEqual([{ page_type: 'galaxy', html: 0, text: 0 }, { page_type: 'galaxy', html: 1, text: 0 }]);
+  });
+
   it('keeps the activity log of merged players', async () => {
     const groupX = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', headers: admin, payload: { universe: 'u8', name: 'Merge' } })).json().id;
     const add = (name: string) => Number(db.prepare('INSERT INTO players (group_id, name) VALUES (?, ?)').run(groupX, name).lastInsertRowid);

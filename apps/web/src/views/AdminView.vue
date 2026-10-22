@@ -370,7 +370,7 @@ const doMerge = () => run(async () => {
                 <span v-for="(c, k) in i.summary?.counts" :key="k">{{ k }}: {{ c.new }}/{{ c.duplicate }} </span>
                 <span v-for="w in i.summary?.warnings" :key="w" class="warn">⚠ {{ w }} </span>
               </td>
-              <td><button @click="reparse(i.id)">Reparse</button></td>
+              <td><button v-if="i.html_size || i.text_size" @click="reparse(i.id)">Reparse</button></td>
             </tr>
           </tbody>
         </table>

@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-22
 
+- Pasted pages (raw data for reparsing) are deleted after 14 days (`RAW_RETENTION_DAYS`); uploaded universe.json files
+  are no longer stored at all, only their result in the sync log. Synced data and statistics stay. The admin's sync
+  log offers "Reparse" only for entries that still have their page.
 - Fast navigation shows the data that was asked for last: stepping through the galaxy, switching the member in the
   imperium or deck, the category in the statistics, the player in the details or the universe no longer lets an older,
   slower answer overwrite the current one. Loading errors in the deck, expeditions, raids, hostile spying and the

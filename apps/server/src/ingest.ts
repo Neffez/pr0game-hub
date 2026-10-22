@@ -19,6 +19,7 @@ import {
   type StatsRecord,
 } from '@pr0hub/core';
 import { gunzipSync, gzipSync } from 'node:zlib';
+import { config } from './config.js';
 import { now, type DB } from './db.js';
 
 export interface IngestTarget {
@@ -59,8 +60,11 @@ export function ingest(
   if (opts.dryRun) return summary;
 
   const store = new Store(db, target, summary);
+  // universe.json (several MB) isn't kept: a download builds it again from the hub's data
+  const keep = parsed.source !== 'json';
   db.transaction(() => {
     for (const rec of parsed.records) store.record(rec);
+    db.prepare('DELETE FROM raw_ingests WHERE group_id = ? AND created_at < ?').run(target.groupId, now() - config.rawRetentionDays * 86400);
     db.prepare(
       `INSERT INTO raw_ingests (group_id, user_id, source, page_type, url, html_gz, text_gz, summary)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -70,8 +74,8 @@ export function ingest(
       input.source,
       parsed.pageType,
       input.url ?? null,
-      input.html ? gzipSync(input.html) : null,
-      input.text ? gzipSync(input.text) : null,
+      keep && input.html ? gzipSync(input.html) : null,
+      keep && input.text ? gzipSync(input.text) : null,
       JSON.stringify({ counts: summary.counts, warnings: summary.warnings }),
     );
   })();
