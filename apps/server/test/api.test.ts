@@ -617,6 +617,31 @@ describe('review fixes', () => {
     expect(overview).toEqual([Math.max(day, Date.UTC(2026, 9, 21, 12, 0, 0) / 1000)]);
   });
 
+  it('replaces placeholder names of players only known by id', async () => {
+    const groupX = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', headers: admin, payload: { universe: 'u8', name: 'Placeholder' } })).json().id;
+    const headers = { ...admin, 'x-hub-group': String(groupX) };
+    await app.inject({ method: 'POST', url: '/hub/api/u8/universe-json', headers, payload: { text: fixture('universe.json').replaceAll('"Alpha"', '"-"') } });
+    const alpha = () => db.prepare('SELECT id, name FROM players WHERE group_id = ? AND ingame_id = 1234').get(groupX) as any;
+    expect(alpha().name).toBe('Spieler #1234');
+    // statistics older than the universe.json still bring the real name
+    const stats = fixture('stats-player.html').replace('21. Okt 2026, 12:00:03', '1. Okt 2026, 12:00:03');
+    await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { html: stats } });
+    expect(alpha().name).toBe('Alpha');
+    expect(db.prepare('SELECT name FROM player_aliases WHERE player_id = ?').pluck().all(alpha().id)).toEqual([]);
+    // the export leaves the placeholder out
+    const json = (await app.inject({ method: 'GET', url: '/hub/api/u8/universe-json', headers })).body;
+    expect(json).toContain('"Alpha"');
+
+    // stored before: the migration restores the real name
+    const id = Number(db.prepare("INSERT INTO players (group_id, ingame_id, name) VALUES (?, 77, 'Spieler #77')").run(groupX).lastInsertRowid);
+    db.prepare("INSERT INTO player_aliases (player_id, name, seen_until) VALUES (?, 'Old', 1), (?, 'Real', 2)").run(id, id);
+    const other = Number(db.prepare("INSERT INTO players (group_id, ingame_id, name) VALUES (?, 78, 'Real78')").run(groupX).lastInsertRowid);
+    db.prepare("INSERT INTO player_aliases (player_id, name, seen_until) VALUES (?, 'Spieler #78', 1)").run(other);
+    db.exec(readFileSync(new URL('../migrations/013_placeholder_names.sql', import.meta.url), 'utf8'));
+    expect(db.prepare('SELECT name FROM players WHERE id = ?').pluck().get(id)).toBe('Real');
+    expect(db.prepare('SELECT name FROM player_aliases WHERE player_id IN (?, ?)').pluck().all(id, other)).toEqual(['Old']);
+  });
+
   it('keeps the activity log of merged players', async () => {
     const groupX = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', headers: admin, payload: { universe: 'u8', name: 'Merge' } })).json().id;
     const add = (name: string) => Number(db.prepare('INSERT INTO players (group_id, name) VALUES (?, ?)').run(groupX, name).lastInsertRowid);

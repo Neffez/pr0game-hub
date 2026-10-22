@@ -1,4 +1,5 @@
 import type { DB } from './db.js';
+import { placeholderAlliance, placeholderPlayer } from './ingest.js';
 
 /**
  * Builds a universe.json exactly like pr0game's own galaxy export (scripts/game/galaxy.js `export_json`):
@@ -70,9 +71,9 @@ export function buildUniverseJson(db: DB, groupId: number, positions: number): s
         continue;
       }
       // placeholder of a player only known by id (see Ingester.playerById) -> "-" like unknown names in the export
-      const name = r.player_name === `Spieler #${r.player_id}` ? '-' : r.player_name;
+      const name = r.player_name === placeholderPlayer(r.player_id) ? '-' : r.player_name;
       const allianceid = r.ally_id ?? -1;
-      const alliancename = r.ally_id != null ? (r.ally_name ?? '-') : '-';
+      const alliancename = r.ally_id != null && r.ally_name !== placeholderAlliance(r.ally_id) ? (r.ally_name ?? '-') : '-';
       system[pos] = {
         planetname: r.name ?? '-',
         hasmoon: !!r.has_moon,

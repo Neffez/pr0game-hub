@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-22
 
+- Players only known by id from a universe.json ("Spieler #123") get their real name with the next statistics or
+  galaxy paste, also from older data, and the placeholder no longer shows up as a former name or in the search.
+  Migration `013` fixes players stored before; the universe.json download leaves placeholder alliance names out too.
 - Synced game overview pages keep only the newest per member, empire pages the newest plus those of the last 7 days
   (the live fleet in the imperium needs the first empire page after the last fleet statistics update). Older pages
   were never read; migration `012` removes the ones stored so far.

@@ -22,6 +22,13 @@ import { gunzipSync, gzipSync } from 'node:zlib';
 import { config } from './config.js';
 import { now, type DB } from './db.js';
 
+/**
+ * Names of players/alliances only known by id (universe.json without names). Replaced by the real name once
+ * known, never kept as a former name.
+ */
+export const placeholderPlayer = (ingameId: number) => `Spieler #${ingameId}`;
+export const placeholderAlliance = (ingameId: number) => `Allianz #${ingameId}`;
+
 /** Empire pages are kept a week (besides the newest), see `empire()`. */
 const EMPIRE_KEEP = 7 * 86400;
 
@@ -263,7 +270,7 @@ class Store {
       db
         .prepare('INSERT INTO alliances (group_id, ingame_id, name, tag) VALUES (?, ?, ?, ?)')
         // only the id known (e.g. universe.json with "-"): the name follows with the next stats/galaxy paste
-        .run(this.t.groupId, ingameId, name ?? tag ?? `Allianz #${ingameId}`, tag).lastInsertRowid,
+        .run(this.t.groupId, ingameId, name ?? tag ?? placeholderAlliance(ingameId!), tag).lastInsertRowid,
     );
   }
 
@@ -296,7 +303,10 @@ class Store {
         .get(g, name) as Row | undefined;
     }
     if (row) {
-      if (ingameId && row.name !== name) {
+      if (ingameId && row.name !== name && row.name === placeholderPlayer(ingameId)) {
+        db.prepare('UPDATE players SET name = ? WHERE id = ?').run(name, row.id);
+        db.prepare('DELETE FROM player_aliases WHERE player_id = ? AND name = ?').run(row.id, name);
+      } else if (ingameId && row.name !== name) {
         if (seenAt >= row.last_seen) {
           // newer data: renamed, keep the old name as alias
           db.prepare('INSERT OR REPLACE INTO player_aliases (player_id, name, seen_until) VALUES (?, ?, ?)').run(row.id, row.name, seenAt);
@@ -324,7 +334,7 @@ class Store {
   /** Player known only by id (universe.json without name): existing player, otherwise a placeholder name. */
   private playerById(ingameId: number, seenAt: number): number {
     const id = this.db.prepare('SELECT id FROM players WHERE group_id = ? AND ingame_id = ?').pluck().get(this.t.groupId, ingameId) as number | undefined;
-    return id ?? this.player(ingameId, `Spieler #${ingameId}`, seenAt);
+    return id ?? this.player(ingameId, placeholderPlayer(ingameId), seenAt);
   }
 
   private playerStatus(playerId: number, status: string[], seenAt: number) {
