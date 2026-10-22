@@ -6,7 +6,7 @@ process.env.WEB_DIR = '/nonexistent';
 const { buildApp } = await import('../src/app.js');
 const { openDb } = await import('../src/db.js');
 const { hashPassword } = await import('../src/auth.js');
-const { statSlots } = await import('../src/domain/stats.js');
+const { scoreEntry, statSlots } = await import('../src/domain/stats.js');
 
 const fixture = (name: string) =>
   readFileSync(new URL(`../../../packages/parser/test/fixtures/${name}`, import.meta.url), 'utf8');
@@ -472,6 +472,20 @@ describe('review fixes', () => {
     expect(statSlots([t0, t0 - 14.5 * h])).toEqual([{ from: t0 - 14.5 * h, to: t0 }, null, null, null]);
     // gap of more than the four columns: nothing to show
     expect(statSlots([t0, t0 - 30 * h])).toEqual([null, null, null, null]);
+  });
+
+  it('computes the Δ values of a player from the score history', () => {
+    const h = 3600;
+    const t0 = 1_800_000_000;
+    const row = (points: number, back: number) => ({ points, rank: 1, rank_change: null, stat_time: t0 - back * h });
+    const history = [row(130, 0), row(120, 6), row(100, 12)];
+    const e = scoreEntry(history, statSlots(history.map((r) => r.stat_time)));
+    expect(e).toMatchObject({ points: 130, time: t0 });
+    expect(e.deltas['6h']).toEqual({ delta: 10, since: t0 - 6 * h, partial: false });
+    expect(e.deltas['12h']).toEqual({ delta: 30, since: t0 - 12 * h, partial: false });
+    // not enough history: compared with the oldest score
+    expect(e.deltas['24h']).toEqual({ delta: 30, since: t0 - 12 * h, partial: true });
+    expect(e.slots.map((s) => s?.delta ?? null)).toEqual([10, 20, null, null]);
   });
 
   it('counts manually added expedition events in the deck', async () => {

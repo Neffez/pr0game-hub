@@ -44,3 +44,6 @@ function ownCoords(db: DB, ctx: GroupContext): Map<number, Set<string>> {
     latestEmpires(db, ctx).map((e) => [e.userId, new Set(e.rec.planets.map((p) => `${p.coords.g}:${p.coords.s}:${p.coords.p}`))]),
   );
 }
+
+/** Newest empire page of one member (from `latestEmpires`), null without one. */
+export const latestEmpire = (db: DB, ctx: GroupContext, userId: number) => latestEmpires(db, ctx).find((e) => e.userId === userId) ?? null;

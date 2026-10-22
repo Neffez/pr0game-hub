@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-22
 
+- Developers: the overview's Δ calculation is a pure function (`scoreEntry` in `domain/stats.ts`, with a unit test),
+  and context, imperium and alliance read a member's newest empire page through `latestEmpire` (`repo/empire.ts`)
+  instead of their own queries.
 - The own player of an alliance member is found the same way everywhere (own row and alliance in the statistics,
   imperium, own planets in the overview, comparison in the player details): the owner of a planet on the member's
   newest empire page, otherwise the player with their in-game name (also a former name), without one their hub

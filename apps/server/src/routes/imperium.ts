@@ -3,7 +3,7 @@ import { CLASS_BUILDINGS, CLASS_DEFENSE, CLASS_FLEET, classOf, elementPoints } f
 import type { FastifyInstance } from 'fastify';
 import { HttpError } from '../auth.js';
 import type { DB } from '../db.js';
-import { withMoonTypes } from '../repo/empire.js';
+import { latestEmpire } from '../repo/empire.js';
 import { memberPlayer } from '../repo/members.js';
 import { latestScores } from '../repo/stats.js';
 import { contextOf, type Q } from './util.js';
@@ -18,9 +18,7 @@ export function imperiumRoutes(app: FastifyInstance, db: DB) {
     if (!db.prepare('SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?').get(ctx.groupId, userId)) {
       throw new HttpError(404, 'member_not_found', 'Member not found');
     }
-    const empire = db
-      .prepare('SELECT created_at AS time, data FROM empire_snapshots WHERE group_id = ? AND user_id = ? ORDER BY created_at DESC, id DESC LIMIT 1')
-      .get(ctx.groupId, userId) as { time: number; data: string } | undefined;
+    const empire = latestEmpire(db, ctx, userId);
     const overview = db
       .prepare('SELECT page_time AS time, data FROM overview_snapshots WHERE group_id = ? AND user_id = ? ORDER BY page_time DESC, id DESC LIMIT 1')
       .get(ctx.groupId, userId) as { time: number; data: string } | undefined;
@@ -73,7 +71,7 @@ export function imperiumRoutes(app: FastifyInstance, db: DB) {
     const anchorFleet = !anchor || !basePoints ? null : anchor.type === 2 ? anchor.points : anchor.points - basePoints.other;
     return {
       userId,
-      empire: empire ? { time: empire.time, data: withMoonTypes(JSON.parse(empire.data) as EmpireRecord) } : null,
+      empire: empire ? { time: empire.time, data: empire.rec } : null,
       overview: overview ? { time: overview.time, data: JSON.parse(overview.data) } : null,
       player: player ? { ...player, stats: Object.fromEntries(stats.map((s) => [s.type, s])) } : null,
       fleetBase: fleetBase && basePoints && anchorFleet != null ? { time: fleetBase.time, points: basePoints.fleet, stat: anchorFleet } : null,
@@ -84,13 +82,11 @@ export function imperiumRoutes(app: FastifyInstance, db: DB) {
   app.get<{ Params: { uni: string } }>('/api/:uni/alliance', async (req) => {
     const ctx = ctxOf(req);
     const rows = db
-      .prepare(
-        `SELECT u.id AS user_id, u.username, m.ingame_name, e.created_at, e.data
-         FROM group_members m JOIN users u ON u.id = m.user_id
-         LEFT JOIN empire_snapshots e ON e.id = (SELECT id FROM empire_snapshots x WHERE x.group_id = m.group_id AND x.user_id = m.user_id ORDER BY created_at DESC, id DESC LIMIT 1)
-         WHERE m.group_id = ? ORDER BY u.username`,
-      )
-      .all(ctx.groupId) as any[];
-    return rows.map((r) => ({ ...r, data: r.data ? withMoonTypes(JSON.parse(r.data) as EmpireRecord) : null }));
+      .prepare('SELECT u.id AS user_id, u.username, m.ingame_name FROM group_members m JOIN users u ON u.id = m.user_id WHERE m.group_id = ? ORDER BY u.username')
+      .all(ctx.groupId) as { user_id: number; username: string; ingame_name: string | null }[];
+    return rows.map((r) => {
+      const e = latestEmpire(db, ctx, r.user_id);
+      return { ...r, created_at: e?.time ?? null, data: e?.rec ?? null };
+    });
   });
 }

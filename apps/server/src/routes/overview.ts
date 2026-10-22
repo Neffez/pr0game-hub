@@ -1,10 +1,9 @@
-import type { EmpireRecord } from '@pr0hub/core';
 import { CLASS_BUILDINGS, CLASS_DEFENSE, CLASS_FLEET, CLASS_RESOURCES, classOf, sectionPoints } from '@pr0hub/core/tech';
 import type { FastifyInstance } from 'fastify';
 import type { GroupContext } from '../context.js';
 import type { DB } from '../db.js';
-import { SLOT, SLOT_TOLERANCE, SLOTS, statSlots, TOLERANCE, TYPES, WINDOWS } from '../domain/stats.js';
-import { latestEmpires, withMoonTypes } from '../repo/empire.js';
+import { scoreEntry, SLOT, SLOT_TOLERANCE, SLOTS, statSlots, TOLERANCE, TYPES, WINDOWS, type ScoreRow } from '../domain/stats.js';
+import { latestEmpire, latestEmpires } from '../repo/empire.js';
 import { memberPlayers } from '../repo/members.js';
 import { contextOf, groupBy } from './util.js';
 
@@ -20,17 +19,15 @@ export function overviewRoutes(app: FastifyInstance, db: DB) {
       )
       .all(ctx.groupId);
     // own research + planets (latest empire page) for flight time links
-    const empire = db
-      .prepare('SELECT data, created_at FROM empire_snapshots WHERE group_id = ? AND user_id = ? ORDER BY created_at DESC, id DESC LIMIT 1')
-      .get(ctx.groupId, ctx.user.id) as { data: string; created_at: number } | undefined;
-    const rec = empire ? withMoonTypes(JSON.parse(empire.data) as EmpireRecord) : null;
+    const empire = latestEmpire(db, ctx, ctx.user.id);
+    const rec = empire?.rec;
     return {
       universe: ctx.universe,
       group: { id: ctx.groupId, name: ctx.groupName, role: ctx.role },
       members,
       me: ctx.user,
       own: rec
-        ? { time: empire!.created_at, research: rec.research, planets: rec.planets.map((p) => ({ name: p.name, coords: p.coords, type: p.type })) }
+        ? { time: empire!.time, research: rec.research, planets: rec.planets.map((p) => ({ name: p.name, coords: p.coords, type: p.type })) }
         : null,
     };
   });
@@ -72,29 +69,10 @@ export function overviewRoutes(app: FastifyInstance, db: DB) {
              WHERE s.group_id = ? AND s.who = 'player' AND s.type = ? AND s.stat_time < ? GROUP BY ps.player_id)
            ORDER BY player_id, stat_time DESC`,
         )
-        .all(ctx.groupId, type, since, ctx.groupId, type, since) as {
-        player_id: number; points: number; rank: number; rank_change: number | null; stat_time: number;
-      }[];
+        .all(ctx.groupId, type, since, ctx.groupId, type, since) as (ScoreRow & { player_id: number })[];
       for (const [playerId, history] of groupBy(rows, (r) => r.player_id)) {
-        const cur = history[0];
-        const deltas: Record<string, { delta: number; since: number; partial: boolean }> = {};
-        for (const [win, secs] of Object.entries(WINDOWS)) {
-          const back = secs === 0 ? 1 : secs - TOLERANCE;
-          let ref = history.find((r) => r.stat_time <= cur.stat_time - back);
-          // Not enough history yet: compare with the oldest snapshot, marked as partial.
-          const partial = !ref && history.length > 1;
-          if (partial) ref = history[history.length - 1];
-          if (ref) deltas[win] = { delta: cur.points - ref.points, since: ref.stat_time, partial };
-        }
-        // FF-Hub style 6 h sections, the same for every player (see statSlots)
-        const at = (t: number) => history.find((h) => h.stat_time === t);
-        const slots = sections[type].map((sec) => {
-          const to = sec && at(sec.to);
-          const from = sec && at(sec.from);
-          return to && from ? { delta: to.points - from.points, from: from.stat_time, to: to.stat_time } : null;
-        });
         const entry = players.get(playerId) ?? { scores: {} };
-        entry.scores[type] = { points: cur.points, rank: cur.rank, rankChange: cur.rank_change, time: cur.stat_time, deltas, slots };
+        entry.scores[type] = scoreEntry(history, sections[type]);
         players.set(playerId, entry);
       }
     }
