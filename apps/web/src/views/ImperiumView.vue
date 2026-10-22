@@ -4,7 +4,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
 import Hint from '../components/Hint.vue';
-import { useStored, useUni } from '../composables';
+import { useMobile, useStored, useUni } from '../composables';
 import { abbr, ago, dateTime, fmt, fmtSigned, name, short, STATS_TYPES } from '../format';
 
 /**
@@ -62,6 +62,7 @@ const STORE: Record<number, number> = { 901: 22, 902: 23, 903: 24 };
 
 const { t } = useI18n();
 const { uni, ctx } = useUni();
+const mobile = useMobile();
 const userId = useStored<number | null>('imperium.user', null);
 const data = ref<Data | null>(null);
 const error = ref('');
@@ -121,6 +122,8 @@ function resClass(v: { value: number; cap: number }) {
   if (v.value >= v.cap * 0.9) return 'warn';
   return '';
 }
+/** fill level of the storage bar on mobile cards, in percent */
+const fill = (v: { value: number; cap: number }) => (v.cap > 0 ? Math.min(100, (v.value / v.cap) * 100) : 0);
 
 /** "1d 02:03:04" / "02:03:04" */
 function countdown(sec: number) {
@@ -377,7 +380,72 @@ const memberName = (id: number | null) => ctx.value!.members.find((m) => m.id ==
     <p v-if="livePoints.finished.length" class="muted small" style="margin: 6px 0 0">{{ t('imperium.finished', { list: livePoints.finished.join(', ') }) }}</p>
   </div>
 
-  <div v-if="!error && empire && hasLiveData" class="table-wrap">
+  <!-- mobile: totals first, then one card per planet (moons below their planet) -->
+  <template v-if="!error && empire && hasLiveData && mobile">
+    <div class="card emp-card">
+      <div class="emp-head">
+        <b>{{ t('common.total') }}</b>
+        <span v-if="research && !research.coords" class="small muted">
+          {{ t('player.research') }}: {{ research.label }} <span class="mono">{{ research.left != null ? countdown(research.left) : '' }}</span>
+        </span>
+      </div>
+      <div class="emp-res">
+        <div v-for="(sum, i) in totals" :key="i">
+          <div class="small muted">{{ name(RES[i]) }}</div>
+          <div class="num">{{ short(sum.value + (flying[RES[i]] ?? 0)) }}</div>
+          <div class="num faint">/ {{ short(sum.cap) }}</div>
+          <div class="bar"><div :class="resClass(sum)" :style="{ width: fill(sum) + '%' }" /></div>
+          <div class="small faint">+{{ short(sum.perHour) }}/h</div>
+          <div v-if="flying[RES[i]]" class="small muted">✈ {{ short(flying[RES[i]]) }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div v-for="r in rows" :key="r.key" class="card emp-card" :class="{ moon: r.p.type === 'moon' }">
+      <div class="emp-head">
+        <span class="mono small">{{ r.p.coords.g }}:{{ r.p.coords.s }}:{{ r.p.coords.p }}</span>
+        <span v-if="r.p.type === 'moon'" class="moon-tag">☾ {{ t('common.moon') }}</span>
+        <b class="emp-name">{{ r.p.name }}</b>
+        <span v-if="r.energy != null" class="small" :class="r.energy < 0 ? 'neg' : 'muted'">⚡ {{ fmt(r.energy) }}</span>
+      </div>
+      <div class="emp-queues small">
+        <span class="muted">{{ name(0) }}</span>
+        <span>
+          <template v-if="r.building">{{ r.building.label }}</template>
+          <span v-else class="faint">–</span>
+        </span>
+        <span v-if="r.building?.left != null" class="mono" :class="r.building.left <= 0 ? 'pos' : 'muted'">{{ countdown(r.building.left) }}</span>
+        <span v-else-if="r.building" class="faint" :title="t('imperium.leftUnknown')">?</span>
+        <span v-else />
+        <template v-if="r.research">
+          <span class="muted">{{ t('player.research') }}</span>
+          <span>{{ r.research.label }}</span>
+          <span v-if="r.research.left != null" class="mono" :class="r.research.left <= 0 ? 'pos' : 'muted'">{{ countdown(r.research.left) }}</span>
+          <span v-else class="faint" :title="t('imperium.leftUnknown')">?</span>
+        </template>
+        <template v-if="r.shipyard">
+          <span class="muted">{{ t('imperium.hangar') }}</span>
+          <span>{{ r.shipyard.label }}</span>
+          <span class="mono muted">{{ r.shipyard.left != null ? countdown(r.shipyard.left) : '' }}</span>
+        </template>
+      </div>
+      <div class="emp-res">
+        <div v-for="(v, i) in r.res" :key="i">
+          <div class="small muted">{{ name(RES[i]) }}</div>
+          <div class="num" :class="resClass(v)">{{ short(v.value) }}</div>
+          <div class="num faint">/ {{ short(v.cap) }}</div>
+          <div class="bar"><div :class="resClass(v)" :style="{ width: fill(v) + '%' }" /></div>
+          <div class="small faint">
+            <template v-if="v.value >= v.cap">{{ t('imperium.full') }}</template>
+            <template v-else-if="v.fullIn != null">{{ t('imperium.fullIn', { time: countdown(v.fullIn) }) }}</template>
+            <template v-else-if="v.perHour">{{ v.perHour > 0 ? '+' : '' }}{{ short(v.perHour) }}/h</template>
+          </div>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <div v-else-if="!error && empire && hasLiveData" class="table-wrap">
     <table class="data">
       <thead>
         <tr>
@@ -452,3 +520,20 @@ const memberName = (id: number | null) => ctx.value!.members.find((m) => m.id ==
     </table>
   </div>
 </template>
+
+<style scoped>
+/* mobile planet cards */
+.emp-card { display: flex; flex-direction: column; gap: 10px; padding: 12px; margin-bottom: 10px; }
+.emp-card.moon { border-left: 3px solid var(--info); background: color-mix(in srgb, var(--info) 7%, var(--surface)); }
+.emp-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.emp-head .moon-tag { margin: 0; }
+.emp-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.emp-queues { display: grid; grid-template-columns: auto 1fr auto; gap: 3px 10px; align-items: baseline; }
+.emp-queues > span:nth-child(3n + 2) { min-width: 0; overflow-wrap: anywhere; }
+.emp-res { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.emp-res .num { font-family: var(--mono); font-size: 12px; overflow-wrap: anywhere; }
+.bar { height: 4px; margin: 3px 0 2px; border-radius: 2px; background: var(--surface-2); overflow: hidden; }
+.bar > div { height: 100%; background: var(--info); }
+.bar > div.warn { background: var(--warn); }
+.bar > div.neg { background: var(--neg); }
+</style>

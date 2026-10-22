@@ -4,6 +4,22 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-22
 
+- The remaining wide tables become cards on mobile: statistics, battle hall, raids, expeditions, expedition deck,
+  hostile activity, the planets in the player details and the admin tables. Each row shows its title (e.g. player or
+  time and target) and below it "label … value" pairs in two columns.
+  - Developers: `v-stack` (`composables.ts`) on a `table.data` copies the column headers into the cells; `v-stack="n"`
+    puts the first n cells into the title line, `m-wide` cells take a whole line and `m-hide` cells are left out.
+- Planets, fleet and research on mobile show one card per planet or member with the levels/counts as a grid
+  (fleets with full names in two columns) and a sort selection instead of the wide tables.
+- Spy reports on mobile: the recent reports are a two-line list, the spy history shows one block per report with
+  name and value (and the change) per entry, like the report in the game; also in the player details.
+- Overview on mobile shows a two-line list instead of the wide tables: player, alliance, coordinates and actions,
+  below them points, Δ6h, spy age and resource sum plus the value the list is sorted by. Sorting is a selection
+  above the list, tapping the values shows all of them. The player view shows the five categories with their Δ,
+  and the filters beyond the player search fold away behind a "Filters" button. The desktop tables are unchanged.
+- Imperium on mobile shows cards instead of the wide planet table: totals first, then one card per planet (moons
+  marked blue), with the queues and their countdowns as lines and each resource as value and storage with a fill
+  bar and "full in …" instead of a tooltip. The desktop table is unchanged.
 - Imperium: the live points table no longer runs past the screen edge on mobile; the "without fleets in flight" note
   wraps and the table scrolls inside its card if needed.
 - Sync: the galaxy view can be pasted as copied text. The copy has no galaxy/system, so the sync form asks for

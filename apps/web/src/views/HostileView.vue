@@ -4,7 +4,7 @@ import { onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
 import RangePicker from '../components/RangePicker.vue';
-import { useStored, useUni } from '../composables';
+import { useStored, useUni, vStack } from '../composables';
 import { ago, coords, dateTime } from '../format';
 
 const { t } = useI18n();
@@ -28,7 +28,7 @@ watch(days, load);
   <template v-if="data">
     <h2>{{ t('hostile.whoSpies') }}</h2>
     <div class="table-wrap" style="max-height: 40vh; margin-bottom: 14px">
-      <table class="data">
+      <table v-stack class="data">
         <thead><tr><th>{{ t('common.player') }}</th><th class="num">{{ t('hostile.count') }}</th><th class="num">{{ t('hostile.victims') }}</th><th>{{ t('hostile.last') }}</th></tr></thead>
         <tbody>
           <tr v-for="s in data.bySpy" :key="s.from_player">
@@ -42,7 +42,7 @@ watch(days, load);
     </div>
     <h2>{{ t('hostile.history') }}</h2>
     <div class="table-wrap">
-      <table class="data">
+      <table v-stack class="data">
         <thead><tr><th>{{ t('common.time') }}</th><th>{{ t('hostile.spy') }}</th><th>{{ t('common.from') }}</th><th>{{ t('hostile.target') }}</th><th>{{ t('hostile.member') }}</th></tr></thead>
         <tbody>
           <tr v-for="h in data.list" :key="h.id">

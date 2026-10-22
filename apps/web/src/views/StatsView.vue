@@ -5,7 +5,7 @@ import StatusBadges from '../components/StatusBadges.vue';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
-import { useStored, useUni } from '../composables';
+import { useStored, useUni, vStack } from '../composables';
 import { dateTime, fmt, fmtSigned, short, STATS_CATEGORIES, STATS_TYPES } from '../format';
 
 interface Category { who: string; type: number; stat_time: number; pages: number[] }
@@ -151,7 +151,7 @@ const SCORE_COLS = [4, 3, 2, 5] as const;
   </p>
 
   <div v-else-if="data" class="table-wrap">
-    <table v-if="who === 'player'" class="data stats">
+    <table v-if="who === 'player'" v-stack="4" class="data stats">
       <thead>
         <tr>
           <th class="num">{{ t('stats.rank') }}</th>
@@ -185,7 +185,7 @@ const SCORE_COLS = [4, 3, 2, 5] as const;
             <span v-if="r.ally_id" :class="{ ally: r.ownAlly }">{{ r.ally_name ?? '' }}<span v-if="r.ally_tag" class="muted"> [{{ r.ally_tag }}]</span></span>
             <span v-else class="faint">–</span>
           </td>
-          <td class="num strong" :style="pointsStyle(r)" :title="fmt(r.points)">{{ fmt(r.points) }}</td>
+          <td class="num strong m-wide" :style="pointsStyle(r)" :title="fmt(r.points)">{{ fmt(r.points) }}</td>
           <td class="num small" :class="r.delta ? (r.delta > 0 ? 'pos' : 'neg') : 'faint'">{{ r.delta == null ? '' : r.delta ? fmtSigned(r.delta) : '±0' }}</td>
           <td class="mono small">
             <template v-if="r.first_planet">{{ r.first_planet }}<span v-if="(r.planet_count ?? 0) > 1" class="faint"> +{{ r.planet_count! - 1 }}</span></template>
@@ -208,7 +208,7 @@ const SCORE_COLS = [4, 3, 2, 5] as const;
       </tbody>
     </table>
 
-    <table v-else class="data stats">
+    <table v-else v-stack="3" class="data stats">
       <thead>
         <tr>
           <th class="num">{{ t('stats.rank') }}</th>

@@ -3,7 +3,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
 import Hint from '../components/Hint.vue';
-import { useStored, useUni } from '../composables';
+import { useStored, useUni, vStack } from '../composables';
 import { dateTime, fmt, short } from '../format';
 
 /** Archive of the game's battle hall (the game itself only lists the top 100). */
@@ -80,7 +80,7 @@ const rank = (i: number) => (page.value - 1) * 100 + i + 1;
 
   <template v-else-if="data">
     <div class="table-wrap">
-      <table class="data">
+      <table v-stack="4" class="data">
         <thead>
           <tr><th class="num">#</th><th>{{ t('combat.attacker') }}</th><th /><th>{{ t('combat.defender') }}</th><th>{{ t('battleHall.date') }}</th><th class="num">{{ t('combat.units') }}</th><th /></tr>
         </thead>

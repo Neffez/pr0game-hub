@@ -6,7 +6,7 @@ import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
 import PlanetActions from '../components/PlanetActions.vue';
 import StatusBadges from '../components/StatusBadges.vue';
-import { useSort, useStored, useUni } from '../composables';
+import { useMobile, useSort, useStored, useUni } from '../composables';
 import { ago, dateTime, distance, fmt, fmtSigned, name, short, STATS_SHORT, STATS_TYPES } from '../format';
 import { intlLocale } from '../i18n';
 
@@ -95,6 +95,7 @@ const slotTitle = (sl: { from: number; to: number } | null) =>
   sl ? t('overview.slotTitle', { from: dateTime(sl.from), to: dateTime(sl.to) }) : t('overview.slotMissing');
 
 const { uni, ctx } = useUni();
+const mobile = useMobile();
 const mode = useStored<'planets' | 'players'>('overview.mode', 'planets');
 const win = useStored('overview.window', '24h');
 const filter = useStored('overview.filter', {
@@ -280,6 +281,62 @@ const age = (epoch: number | undefined) => (epoch ? t('stats.asOf', { time: date
 const num = (n: number | null | undefined) => (n == null ? '' : fmt(n));
 const shortOrEmpty = (n: number | null | undefined) => (n == null ? '' : short(n));
 
+// ---------------------------------------------------------------- mobile list
+/** Signed short number for the narrow mobile columns. */
+const shortSigned = (n: number) => (n > 0 ? '+' : '') + short(n);
+interface Metric<T> {
+  key: string;
+  label: string;
+  cell: (r: T) => { text: string; title?: string; style?: Record<string, string | undefined> };
+}
+/** Values of a planet row as label/value pairs (mobile list); keys match the planet sort keys. */
+const planetMetrics = computed<Metric<Row>[]>(() => [
+  ...(origin.value ? [{ key: 'dist', label: t('overview.dist'), cell: (r: Row) => ({ text: num(r.dist) }) }] : []),
+  { key: 'p:1', label: t('expeditions.points'), cell: (r) => ({ text: shortOrEmpty(r.player.scores[1]?.points) }) },
+  ...PLANET_WINDOWS.map((w) => ({
+    key: 'd:' + w,
+    label: 'Δ' + w,
+    cell: (r: Row) => {
+      const sl = slot(r.player, w);
+      return { text: sl ? shortSigned(sl.delta) : '', title: slotTitle(sl), style: deltaStyle(r.player.scores[1]?.points, sl ? { ...sl, since: 0, partial: false } : undefined) };
+    },
+  })),
+  { key: 'building', label: t('stats.col.4'), cell: (r) => ({ text: shortOrEmpty(pts(r, 'building').value), title: pts(r, 'building').title }) },
+  { key: 'p:3', label: t('stats.col.3'), cell: (r) => ({ text: shortOrEmpty(r.player.scores[3]?.points) }) },
+  { key: 'fleet', label: t('stats.col.2'), cell: (r) => ({ text: shortOrEmpty(pts(r, 'fleet').value), title: pts(r, 'fleet').title }) },
+  { key: 'defense', label: t('stats.col.5'), cell: (r) => ({ text: shortOrEmpty(pts(r, 'defense').value), title: pts(r, 'defense').title }) },
+  { key: 'battle', label: t('overview.battle'), cell: (r) => ({ text: r.planet?.last_battle ? ago(r.planet.last_battle) : '' }) },
+  { key: 'spy', label: t('player.sourceSpyShort'), cell: (r) => ({ text: r.planet?.spy ? ago(r.planet.spy.time) : '' }) },
+  ...[901, 902, 903].map((id) => ({ key: 'res:' + id, label: t(`overview.resShort.${id}`), cell: (r: Row) => ({ text: shortOrEmpty(resOf(r, id)) }) })),
+  { key: 'res', label: 'Σ', cell: (r) => ({ text: shortOrEmpty(resSum(r)) }) },
+]);
+/** Sort options of the mobile planet list (no clickable column headers there). */
+const planetSortOptions = computed(() => [
+  ...planetMetrics.value.map((m) => ({ key: m.key, label: m.key.startsWith('res:') ? `${t('player.sourceSpyShort')} ${name(Number(m.key.slice(4)))}` : m.key === 'res' ? t('overview.resSum') : m.label })),
+  { key: 'name', label: t('common.player') },
+  { key: 'ally', label: t('overview.ally') },
+  { key: 'coords', label: t('common.coords') },
+]);
+/** Always on the second line of a planet entry, plus the metric the list is sorted by. */
+const PLANET_CHIPS = ['p:1', 'd:6h', 'spy', 'res'];
+const planetChips = computed(() => {
+  const keys = planetMetrics.value.some((m) => m.key === planetSort.key.value) && !PLANET_CHIPS.includes(planetSort.key.value) ? [planetSort.key.value, ...PLANET_CHIPS] : PLANET_CHIPS;
+  return keys.map((k) => planetMetrics.value.find((m) => m.key === k)!).filter(Boolean);
+});
+const playerSortOptions = computed(() => [
+  { key: 'rank', label: t('stats.rank') },
+  { key: 'name', label: t('common.player') },
+  { key: 'ally', label: t('common.alliance') },
+  ...[1, 4, 3, 2, 5].flatMap((type) => [
+    { key: 'p:' + type, label: STATS_TYPES[type] },
+    { key: 'd:' + type, label: `Δ ${STATS_TYPES[type]}` },
+  ]),
+]);
+const activeSort = computed(() => (mode.value === 'planets' ? planetSort : playerSort));
+const expanded = ref(new Set<string>());
+const toggle = (key: string) => (expanded.value.has(key) ? expanded.value.delete(key) : expanded.value.add(key));
+const filtersOpen = ref(false);
+
 /** Former name matching the name filter (the player is listed because of it). */
 function matchedAlias(p: Player) {
   const text = filter.value.text.trim().toLowerCase();
@@ -339,25 +396,26 @@ const history = computed(() => {
     <Hint v-if="players.length && !history" warn>{{ t('overview.needTwoStands') }}</Hint>
   </h1>
 
-  <div class="card">
+  <div class="card" :class="{ collapsed: mobile && !filtersOpen }">
     <div class="row">
       <div class="tabs" style="margin: 0">
         <button :class="{ active: mode === 'planets' }" @click="mode = 'planets'">{{ t('player.planets') }}</button>
         <button :class="{ active: mode === 'players' }" @click="mode = 'players'">{{ t('stats.players') }}</button>
       </div>
-      <label v-if="mode === 'players'">
+      <label v-if="mode === 'players'" class="more">
         {{ t('overview.deltaWindow') }}
         <select v-model="win">
           <option v-for="w in WINDOWS" :key="w" :value="w">{{ windowLabel(w) }}</option>
         </select>
       </label>
       <input v-model="filter.text" :placeholder="t('common.player')" style="width: 190px" />
-      <input v-model="filter.ally" :placeholder="t('common.alliance')" style="width: 110px" />
-      <label><input v-model="filter.hideInactive" type="checkbox" /> {{ t('overview.hideInactive') }}</label>
-      <label><input v-model="filter.onlyInactive" type="checkbox" /> {{ t('overview.onlyInactive') }}</label>
-      <label><input v-model="filter.hideVacation" type="checkbox" /> {{ t('overview.hideVacation') }}</label>
-      <label>{{ t('expeditions.points') }} <input v-model.number="filter.minPoints" type="number" placeholder="min" /> – <input v-model.number="filter.maxPoints" type="number" placeholder="max" /></label>
-      <label>
+      <button v-if="mobile" :class="{ active: filtersOpen }" @click="filtersOpen = !filtersOpen">{{ t('overview.filters') }} {{ filtersOpen ? '▴' : '▾' }}</button>
+      <input v-model="filter.ally" class="more" :placeholder="t('common.alliance')" style="width: 110px" />
+      <label class="more"><input v-model="filter.hideInactive" type="checkbox" /> {{ t('overview.hideInactive') }}</label>
+      <label class="more"><input v-model="filter.onlyInactive" type="checkbox" /> {{ t('overview.onlyInactive') }}</label>
+      <label class="more"><input v-model="filter.hideVacation" type="checkbox" /> {{ t('overview.hideVacation') }}</label>
+      <label class="more">{{ t('expeditions.points') }} <input v-model.number="filter.minPoints" type="number" placeholder="min" /> – <input v-model.number="filter.maxPoints" type="number" placeholder="max" /></label>
+      <label class="more">
         Δ
         <select v-model.number="filter.deltaType">
           <option v-for="(l, type) in STATS_TYPES" :key="type" :value="Number(type)">{{ l }}</option>
@@ -370,16 +428,16 @@ const history = computed(() => {
     </div>
     <div class="row" style="margin-top: 8px">
       <template v-if="mode === 'planets'">
-        <label v-if="galaxies > 1">
+        <label v-if="galaxies > 1" class="more">
           {{ t('nav.galaxy') }}
           <select v-model="galaxy">
             <option :value="null">{{ t('common.all') }}</option>
             <option v-for="g in galaxies" :key="g" :value="g">{{ g }}</option>
           </select>
         </label>
-        <label>{{ t('overview.distanceFrom') }} <input v-model="filter.from" placeholder="1:100:8" style="width: 90px" /></label>
-        <label><input v-model="filter.onlySpied" type="checkbox" /> {{ t('overview.onlySpied') }}</label>
-        <label><input v-model="filter.hideMoons" type="checkbox" /> {{ t('overview.hideMoons') }}</label>
+        <label class="more">{{ t('overview.distanceFrom') }} <input v-model="filter.from" placeholder="1:100:8" style="width: 90px" /></label>
+        <label class="more"><input v-model="filter.onlySpied" type="checkbox" /> {{ t('overview.onlySpied') }}</label>
+        <label class="more"><input v-model="filter.hideMoons" type="checkbox" /> {{ t('overview.hideMoons') }}</label>
       </template>
       <span class="grow" />
       <span class="muted small">
@@ -423,6 +481,85 @@ const history = computed(() => {
       <template #sync><RouterLink :to="`/${uni}/paste`">{{ t('nav.sync') }}</RouterLink></template>
     </i18n-t>
   </div>
+
+  <!-- Mobile: two-line list with sort selection, tap the values to see all of them -->
+  <template v-else-if="mobile">
+    <div class="row small m-sort">
+      <label>
+        {{ t('overview.sort') }}
+        <select v-if="mode === 'planets'" :value="planetSort.key.value" style="max-width: 55vw" @change="planetSort.sortBy(($event.target as HTMLSelectElement).value)">
+          <option v-for="o in planetSortOptions" :key="o.key" :value="o.key">{{ o.label }}</option>
+        </select>
+        <select v-else :value="playerSort.key.value" style="max-width: 55vw" @change="playerSort.sortBy(($event.target as HTMLSelectElement).value)">
+          <option v-for="o in playerSortOptions" :key="o.key" :value="o.key">{{ o.label }}</option>
+        </select>
+      </label>
+      <button :title="t('overview.sortDir')" @click="activeSort.descending.value = !activeSort.descending.value">{{ activeSort.descending.value ? '▾' : '▴' }}</button>
+    </div>
+
+    <div v-if="mode === 'planets'" class="m-list">
+      <div v-for="(r, i) in planetSort.sorted.value" :key="r.key" class="m-item" :class="{ dim: r.player.status.includes('vacation'), moon: r.planet?.type === 'moon' }">
+        <div class="m-line">
+          <span class="faint small">{{ i + 1 }}</span>
+          <span v-if="freshInactive(r.player) != null" class="badge" style="color: var(--neg)" :title="t('overview.inactiveSince')">{{ freshInactive(r.player) }}h</span>
+          <PlayerLink :id="r.player.id" :name="r.player.name" />
+          <span v-if="matchedAlias(r.player)" class="faint small">({{ t('player.aliases', { names: matchedAlias(r.player) }) }})</span>
+          <StatusBadges :status="r.player.status" />
+          <span v-if="r.player.note" class="faint small" :title="r.player.note">✎</span>
+          <span v-if="r.player.ally_tag ?? r.player.ally_name" class="muted small">[{{ r.player.ally_tag ?? r.player.ally_name }}]</span>
+          <span class="grow" />
+          <template v-if="r.planet">
+            <span class="mono small">
+              <a v-if="hasGameUrl" :href="galaxyLink(r.planet)" target="_blank" rel="noopener">{{ r.planet.g }}:{{ r.planet.s }}:{{ r.planet.p }}</a>
+              <template v-else>{{ r.planet.g }}:{{ r.planet.s }}:{{ r.planet.p }}</template>
+            </span>
+            <span v-if="r.planet.type === 'moon'" class="moon-tag" style="margin: 0">☾</span>
+            <PlanetActions :g="r.planet.g" :s="r.planet.s" :p="r.planet.p" :type="r.planet.type" :from="origin" />
+          </template>
+          <span v-else class="faint small" :title="t('overview.noPlanets')">–</span>
+        </div>
+        <button class="m-chips" :aria-expanded="expanded.has(r.key)" :title="t('overview.details')" @click="toggle(r.key)">
+          <span v-for="m in planetChips" :key="m.key" class="m-chip" :class="{ sorted: m.key === planetSort.key.value }">
+            <span class="faint">{{ m.label }}</span> <span :style="m.cell(r).style">{{ m.cell(r).text || '–' }}</span>
+          </span>
+          <span class="m-toggle faint">{{ expanded.has(r.key) ? '▴' : '▾' }}</span>
+        </button>
+        <div v-if="expanded.has(r.key)" class="m-grid small">
+          <div v-for="m in planetMetrics" :key="m.key" :class="{ sorted: m.key === planetSort.key.value }">
+            <span class="faint">{{ m.label }}</span>
+            <RouterLink v-if="m.key === 'spy' && r.planet?.spy" :to="spyLink(r.planet)">{{ m.cell(r).text }}</RouterLink>
+            <span v-else :style="m.cell(r).style" :title="m.cell(r).title">{{ m.cell(r).text || '–' }}</span>
+          </div>
+          <div v-if="r.planet?.name"><span class="faint">{{ t('common.planet') }}</span> <span>{{ r.planet.name }}</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div v-else class="m-list">
+      <div v-for="r in playerSort.sorted.value" :key="r.id" class="m-item" :class="{ dim: r.status.includes('vacation') }">
+        <div class="m-line">
+          <span class="small muted">
+            #{{ r.scores[1]?.rank ?? '–' }}
+            <span v-if="r.scores[1]?.rankChange" :class="r.scores[1].rankChange > 0 ? 'pos' : 'neg'">{{ r.scores[1].rankChange > 0 ? '▲' : '▼' }}{{ Math.abs(r.scores[1].rankChange) }}</span>
+          </span>
+          <span v-if="freshInactive(r) != null" class="badge" style="color: var(--neg)" :title="t('overview.inactiveSince')">{{ freshInactive(r) }}h</span>
+          <PlayerLink :id="r.id" :name="r.name" />
+          <span v-if="matchedAlias(r)" class="faint small">({{ t('player.aliases', { names: matchedAlias(r) }) }})</span>
+          <StatusBadges :status="r.status" />
+          <span v-if="r.note" class="faint small" :title="r.note">✎</span>
+          <span class="grow" />
+          <span class="muted small">{{ r.ally_tag ?? r.ally_name ?? '' }}</span>
+        </div>
+        <div class="m-cats small">
+          <div v-for="type in [1, 4, 3, 2, 5]" :key="type" :class="{ sorted: playerSort.key.value === 'p:' + type || playerSort.key.value === 'd:' + type }">
+            <span class="faint">{{ STATS_SHORT[type] }}</span>
+            <span>{{ short(r.scores[type]?.points) }}</span>
+            <span :style="deltaStyle(r.scores[type]?.points, delta(r, type))">{{ delta(r, type)?.delta ? shortSigned(delta(r, type)!.delta) : '' }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </template>
 
   <!-- Planet view (like the FF-Hub overview) -->
   <div v-else-if="mode === 'planets'" class="table-wrap">
@@ -548,4 +685,26 @@ const history = computed(() => {
 <style scoped>
 table.cov { border-collapse: collapse; margin-bottom: 6px; }
 table.cov td { padding: 1px 10px 1px 0; white-space: nowrap; }
+
+/* mobile: filters beyond the player search fold away */
+.collapsed .more { display: none; }
+.m-sort { margin-bottom: 8px; }
+.m-list { border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); overflow: hidden; }
+.m-item { padding: 8px 12px; border-bottom: 1px solid var(--border); }
+.m-item:last-child { border-bottom: 0; }
+.m-item.dim > * { opacity: .55; }
+.m-item.moon { background: color-mix(in srgb, var(--info) 7%, transparent); }
+.m-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; min-width: 0; }
+.m-chips {
+  position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 2px 12px; width: 100%; min-height: 0; margin-top: 4px; padding: 2px 18px 2px 0;
+  border: 0; border-radius: 0; background: none; color: var(--text); font: 12px var(--mono); text-align: left;
+}
+.m-chip { white-space: nowrap; }
+.m-toggle { position: absolute; top: 2px; right: 0; }
+.sorted { font-weight: 700; }
+.sorted .faint { color: var(--accent); }
+.m-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px 10px; margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--border); font-family: var(--mono); }
+.m-grid > div { display: flex; flex-direction: column; min-width: 0; overflow-wrap: anywhere; }
+.m-cats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px 10px; margin-top: 4px; font-family: var(--mono); }
+.m-cats > div { display: flex; flex-direction: column; min-width: 0; overflow-wrap: anywhere; }
 </style>

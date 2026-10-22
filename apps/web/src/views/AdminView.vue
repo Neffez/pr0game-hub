@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { vStack } from '../composables';
 import Hint from '../components/Hint.vue';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -175,7 +176,7 @@ const doMerge = () => run(async () => {
       <h2>{{ t('nav.universes') }}</h2>
       <div class="card">
         <div class="scroll-x">
-        <table class="data">
+        <table v-stack class="data">
           <tr><th>Slug</th><th>{{ t('common.name') }}</th><th>{{ t('admin.gameUrl') }}</th><th>{{ t('admin.size') }}</th><th>{{ t('admin.timezone') }}</th><th /></tr>
           <tr v-for="u in universes" :key="u.slug">
             <td class="mono">{{ u.slug }}</td>
@@ -279,7 +280,7 @@ const doMerge = () => run(async () => {
     <template v-if="group">
       <h2>{{ t('admin.members', { name: group.name }) }}</h2>
       <div class="table-wrap" style="max-height: none">
-        <table class="data">
+        <table v-stack class="data">
           <thead><tr><th>{{ t('nav.user') }}</th><th>{{ t('admin.role') }}</th><th>{{ t('admin.ingameName') }}</th><th>{{ t('admin.joined') }}</th><th>{{ t('admin.login') }}</th><th /></tr></thead>
           <tbody>
             <tr v-for="m in members" :key="m.id">
@@ -310,7 +311,7 @@ const doMerge = () => run(async () => {
           <button class="primary" @click="createInvite">{{ t('admin.createInvite') }}</button>
         </div>
         <div class="scroll-x">
-        <table class="data" style="margin-top: 10px">
+        <table v-stack class="data" style="margin-top: 10px">
           <tr v-for="i in invites" :key="i.token">
             <td class="mono small">
               <a v-if="!i.used_at" href="#" @click.prevent="copy(inviteUrl(i.token))">{{ inviteUrl(i.token) }}</a>
@@ -358,7 +359,7 @@ const doMerge = () => run(async () => {
 
       <h2>{{ t('admin.ingests') }}</h2>
       <div class="table-wrap">
-        <table class="data">
+        <table v-stack="2" class="data">
           <thead><tr><th>{{ t('common.time') }}</th><th>{{ t('nav.user') }}</th><th>{{ t('admin.source') }}</th><th>{{ t('admin.page') }}</th><th>{{ t('admin.result') }}</th><th /></tr></thead>
           <tbody>
             <tr v-for="i in ingests" :key="i.id">

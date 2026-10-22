@@ -5,7 +5,7 @@ import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import { uniApi } from '../api';
 import Hint from '../components/Hint.vue';
-import { useSort, useUni } from '../composables';
+import { useMobile, useSort, useUni } from '../composables';
 import { abbr, ago, dateTime, fmt, name, scaleColor } from '../format';
 
 /** Alliance pages from the members' empire pages: planets (buildings), fleets and research, like FF-Hub. */
@@ -35,6 +35,7 @@ const { t } = useI18n();
 const route = useRoute();
 const page = computed(() => route.meta.page as Page);
 const { uni } = useUni();
+const mobile = useMobile();
 const members = ref<Member[]>([]);
 const error = ref('');
 const fleetTab = ref<'ships' | 'defense'>('ships');
@@ -94,7 +95,7 @@ const ids = computed(() => {
   return [...set].sort((a, b) => a - b);
 });
 
-const { sorted, sortBy, indicator } = useSort(
+const { sorted, sortBy, indicator, key: sortKey, descending } = useSort(
   rows,
   (r, key) => {
     if (key === 'name') return r.label.toLowerCase();
@@ -114,6 +115,19 @@ const max = computed(() => {
   }
   return m;
 });
+
+/** Sort options of the mobile cards (no clickable column headers there). */
+const sortOptions = computed(() => [
+  ...(page.value === 'planets'
+    ? [
+        { key: 'coords', label: t('common.coords') },
+        { key: 'name', label: t('common.planet') },
+        { key: 'member', label: t('common.player') },
+      ]
+    : [{ key: 'name', label: t('common.player') }]),
+  { key: 'points', label: t('expeditions.points') },
+  ...ids.value.map((id) => ({ key: String(id), label: name(id) })),
+]);
 
 /** Sum row for fleets (the alliance's total fleet). */
 const total = computed(() => {
@@ -146,6 +160,37 @@ const total = computed(() => {
 
   <div v-if="error" class="error">{{ error }}</div>
   <div v-else-if="!withData.length" class="card muted">{{ t('alliance.empty') }}</div>
+
+  <!-- mobile: one card per planet/member with the levels as a grid -->
+  <template v-else-if="mobile">
+    <div class="row small" style="margin-bottom: 8px">
+      <label>
+        {{ t('overview.sort') }}
+        <select :value="sortKey" style="max-width: 55vw" @change="sortBy(($event.target as HTMLSelectElement).value)">
+          <option v-for="o in sortOptions" :key="o.key" :value="o.key">{{ o.label }}</option>
+        </select>
+      </label>
+      <button :title="t('overview.sortDir')" @click="descending = !descending">{{ descending ? '▾' : '▴' }}</button>
+    </div>
+    <div v-for="r in [...sorted, ...(total ? [{ key: 'total', label: t('common.total'), ...total }] : [])]" :key="r.key" class="card al-card" :class="{ moon: 'type' in r && r.type === 'moon' }">
+      <div class="al-head">
+        <template v-if="'coords' in r && r.coords">
+          <span class="mono small">{{ r.coords.g }}:{{ r.coords.s }}:{{ r.coords.p }}</span>
+          <span v-if="r.type === 'moon'" class="moon-tag" style="margin: 0">☾ {{ t('common.moon') }}</span>
+        </template>
+        <b class="al-name">{{ r.label }}</b>
+        <span v-if="page === 'planets' && 'member' in r" class="muted small">{{ memberName(r.member) }}</span>
+        <span class="mono small" :class="{ sorted: sortKey === 'points' }" :style="{ color: r.key === 'total' ? undefined : scaleColor(r.points, max.points) }">{{ fmt(r.points) }}</span>
+      </div>
+      <!-- fleets have large counts: two wide columns with full names -->
+      <div class="al-grid small" :class="{ wide: page === 'fleet' }">
+        <div v-for="id in ids.filter((id) => r.values[id])" :key="id" :title="name(id)" :class="{ sorted: sortKey === String(id) }">
+          <span class="faint">{{ page === 'fleet' ? name(id) : abbr(id) }}</span>
+          <span class="mono" :style="{ color: r.key === 'total' ? undefined : scaleColor(r.values[id], max[id]) }">{{ fmt(r.values[id]) }}</span>
+        </div>
+      </div>
+    </div>
+  </template>
 
   <div v-else class="table-wrap">
     <table class="data">
@@ -184,3 +229,16 @@ const total = computed(() => {
     </table>
   </div>
 </template>
+
+<style scoped>
+.al-card { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; margin-bottom: 8px; }
+.al-card.moon { border-left: 3px solid var(--info); background: color-mix(in srgb, var(--info) 7%, var(--surface)); }
+.al-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.al-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.al-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 4px 10px; }
+.al-grid.wide { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 14px; }
+.al-grid > div { display: flex; justify-content: space-between; gap: 4px; min-width: 0; }
+.al-grid .faint { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sorted { font-weight: 700; }
+.sorted .faint { color: var(--accent); }
+</style>

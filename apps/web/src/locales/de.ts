@@ -451,6 +451,10 @@ const de = {
     perMember: 'pro Mitglied',
   },
   overview: {
+    sort: 'Sortierung',
+    sortDir: 'Richtung umkehren',
+    filters: 'Filter',
+    details: 'Alle Werte',
     hint1: 'Planeten: eine Zeile pro bekanntem Planet/Mond (aus Galaxie-Ansichten und Spionageberichten). Spieler ohne bekannte Planeten stehen mit „–“ da.',
     hint2: 'Δ-Spalten (wie FF-Hub): Veränderung der Gesamtpunkte je 6-h-Statistik-Abschnitt (Updates um 0, 6, 12 und 18 Uhr). Δ6h = vom vorletzten zum neuesten Update, Δ12h = der Abschnitt davor usw. Fehlt ein synchronisiertes Update, steht die Veränderung über die Lücke in der neueren Spalte und die überbrückte Spalte bleibt leer (z. B. 6 und 18 Uhr synchronisiert, 12 Uhr vergessen: Δ6h = 6 → 18 Uhr, Δ12h leer). Den genauen Zeitraum zeigt der Tooltip – am besten die Statistik nach jedem Update einfügen.',
     hint3: 'Geb./Flotte/Vert.: Punkte auf diesem Planeten aus dem Imperium (Allianz-Mitglieder) oder der letzten Spionage, je nachdem was neuer ist (Tooltip: Quelle und Spieler gesamt). Rohstoffe aus der letzten Spionage.',
@@ -537,6 +541,7 @@ const de = {
     leftUnknown: 'Restzeit unbekannt: Übersicht im Spiel synchronisieren',
     currentJob: 'aktueller Auftrag',
     fullIn: 'voll in {time}',
+    full: 'voll',
     flying: 'Flotten (unterwegs)',
   },
   browse: {

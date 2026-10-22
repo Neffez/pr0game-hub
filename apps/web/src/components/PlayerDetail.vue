@@ -5,7 +5,7 @@ import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
 import PlanetActions from '../components/PlanetActions.vue';
 import StatusBadges from '../components/StatusBadges.vue';
-import { useUni } from '../composables';
+import { useUni, vStack } from '../composables';
 import { ago, coords, dateTime, fmt, freshnessColor, name, phalanxRange, STATS_TYPES } from '../format';
 import { intlLocale } from '../i18n';
 
@@ -177,7 +177,7 @@ onBeforeUnmount(() => chart?.destroy());
 
     <h2>{{ t('player.planets') }}</h2>
     <div class="table-wrap" style="max-height: none">
-      <table class="data">
+      <table v-stack="3" class="data">
         <thead><tr><th>{{ t('common.coords') }}</th><th>{{ t('common.name') }}</th><th /><th>{{ t('player.phalanx') }}</th><th>{{ t('player.lastSpy') }}</th><th>{{ t('player.galaxySeen') }}</th></tr></thead>
         <tbody>
           <tr v-for="p in planetRows" :key="`${p.g}:${p.s}:${p.p}:${p.type}`" :class="{ moon: p.type === 'moon' }">

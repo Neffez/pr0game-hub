@@ -154,6 +154,29 @@ table.data tr.dim td { opacity: .55; }
   /* tables scroll with the page instead of in a nested 75vh box */
   .table-wrap { max-height: none; }
 
+  /* tables with v-stack: every row becomes a card with "label … value" pairs, the first cells form the title line */
+  table.data.stack, table.data.stack > tbody, table.data.stack > tfoot { display: block; width: 100%; }
+  table.data.stack > thead, table.data.stack tr.m-header { display: none; }
+  table.data.stack tr { display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px 14px; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+  table.data.stack tr:last-child { border-bottom: 0; }
+  table.data.stack > tfoot tr { border-top: 2px solid var(--border-strong); }
+  table.data.stack tr::before { content: ''; order: 1; flex-basis: 100%; }
+  table.data.stack td, table.data.stack tfoot th {
+    order: 2; display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: baseline; gap: 0 6px; flex: 1 1 calc(50% - 14px); min-width: 0;
+    padding: 0; border: 0; background: none !important; text-align: right; white-space: normal; overflow-wrap: break-word; position: static;
+  }
+  /* the label pushes the value to the right; a value too long for the line moves below the label instead of breaking */
+  table.data.stack td::before, table.data.stack tfoot th::before { content: attr(data-label); margin-right: auto; color: var(--faint); font: 400 12px var(--sans); text-align: left; }
+  table.data.stack .m-head { order: 0; display: block; flex: 0 1 auto; text-align: left; font-weight: 600; }
+  table.data.stack .m-head::before, table.data.stack [data-label='']::before { content: none; }
+  table.data.stack [data-label=''] { justify-content: flex-end; }
+  table.data.stack td:empty, table.data.stack .m-hide { display: none; }
+  table.data.stack td.m-wide { flex-basis: 100%; }
+  table.data.stack input, table.data.stack select { max-width: 100%; min-width: 0; }
+  table.data.stack tr.mine { background: var(--accent-soft); }
+  table.data.stack tr.moon { background: color-mix(in srgb, var(--info) 7%, transparent); }
+  table.data.stack tr.dim > * { opacity: .55; }
+
   /* tabs scroll horizontally instead of squeezing */
   .tabs { overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; max-width: 100%; }
   .tabs::-webkit-scrollbar { display: none; }

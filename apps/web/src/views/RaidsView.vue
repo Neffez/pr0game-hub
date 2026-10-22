@@ -4,7 +4,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
 import RangePicker from '../components/RangePicker.vue';
-import { useStored, useUni } from '../composables';
+import { useStored, useUni, vStack } from '../composables';
 import { coords, dateTime, fmt, name, short } from '../format';
 
 const { t, te } = useI18n();
@@ -71,7 +71,7 @@ const browseLink = (r: any) => ({ path: `/${uni.value}/browse`, query: { g: r.g,
   </div>
   <template v-if="data">
     <div class="table-wrap" style="max-height: none; margin-bottom: 14px">
-      <table class="data">
+      <table v-stack class="data">
         <thead>
           <tr><th>{{ t('common.player') }}</th><th class="num">{{ t('nav.raids') }}</th><th class="num">{{ name(901) }}</th><th class="num">{{ name(902) }}</th><th class="num">{{ t('game.deutShort') }}</th><th class="num">{{ t('common.total') }}</th><th class="num">{{ t('raids.perRaid') }}</th><th class="num">{{ t('raids.losses') }}</th><th class="num">{{ t('game.debrisShort') }}</th></tr>
         </thead>
@@ -105,7 +105,7 @@ const browseLink = (r: any) => ({ path: `/${uni.value}/browse`, query: { g: r.g,
 
     <h2>{{ t('raids.reports') }}</h2>
     <div class="table-wrap">
-      <table class="data">
+      <table v-stack="3" class="data">
         <thead>
           <tr><th>{{ t('common.time') }}</th><th>{{ t('common.player') }}</th><th>{{ t('hostile.target') }}</th><th></th><th class="num">{{ t('raids.loot') }}</th><th class="num">{{ t('raids.lostAttacker') }}</th><th class="num">{{ t('raids.lostDefender') }}</th><th class="num">{{ t('game.debrisShort') }}</th></tr>
         </thead>
@@ -134,7 +134,7 @@ const browseLink = (r: any) => ({ path: `/${uni.value}/browse`, query: { g: r.g,
       <Hint>{{ t('raids.recyclingHint') }}</Hint>
     </h2>
     <div class="table-wrap" style="max-height: none; margin-bottom: 14px">
-      <table class="data">
+      <table v-stack class="data">
         <thead>
           <tr><th>{{ t('common.player') }}</th><th class="num">{{ t('raids.runs') }}</th><th class="num">{{ name(901) }}</th><th class="num">{{ name(902) }}</th><th class="num">{{ t('common.total') }}</th><th class="num">{{ t('raids.perRun') }}</th><th class="num">{{ t('raids.leftInDebris') }}</th></tr>
         </thead>
@@ -163,7 +163,7 @@ const browseLink = (r: any) => ({ path: `/${uni.value}/browse`, query: { g: r.g,
     </div>
 
     <div v-if="recycling.length" class="table-wrap">
-      <table class="data">
+      <table v-stack="3" class="data">
         <thead>
           <tr><th>{{ t('common.time') }}</th><th>{{ t('common.player') }}</th><th>{{ t('combat.debris') }}</th><th class="num">{{ name(901) }}</th><th class="num">{{ name(902) }}</th><th class="num">{{ t('raids.debrisBefore') }}</th><th class="num">{{ t('raids.rest') }}</th></tr>
         </thead>

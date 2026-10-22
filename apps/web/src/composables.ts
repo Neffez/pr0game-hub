@@ -1,4 +1,4 @@
-import { computed, inject, onBeforeUnmount, provide, ref, watch, type InjectionKey, type Ref } from 'vue';
+import { computed, inject, onBeforeUnmount, provide, ref, watch, type Directive, type InjectionKey, type Ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import type { UniverseSettings } from './format';
 
@@ -124,3 +124,34 @@ export function useMediaQuery(query: string): Ref<boolean> {
 
 /** Same breakpoint as the mobile layout in style.css. */
 export const useMobile = () => useMediaQuery('(max-width: 800px)');
+
+/**
+ * `v-stack` / `v-stack="n"` on a `table.data`: on mobile (style.css) every row becomes a card. The column
+ * headers are copied into the cells as labels; the first n cells of a row (default 1) form its title line.
+ * Cells with the class `m-hide` are left out on mobile, `m-wide` cells take a whole line (long values).
+ */
+function stackLabels(table: HTMLTableElement, heads = 1) {
+  table.classList.add('stack');
+  const rows = [...table.rows];
+  const header = rows.find((r) => r.parentElement?.tagName !== 'TFOOT' && r.cells.length && [...r.cells].every((c) => c.tagName === 'TH'));
+  const labels: string[] = [];
+  for (const c of header?.cells ?? []) {
+    labels.push((c.textContent ?? '').replace(/[▾▴]/g, '').trim());
+    for (let i = 1; i < c.colSpan; i++) labels.push('');
+  }
+  header?.classList.add('m-header');
+  for (const row of rows) {
+    if (row === header) continue;
+    let col = 0;
+    [...row.cells].forEach((cell, i) => {
+      cell.dataset.label = labels[col] ?? '';
+      // cells without a column header (actions, outcome, links) join the title line
+      cell.classList.toggle('m-head', i < heads || !cell.dataset.label);
+      col += cell.colSpan;
+    });
+  }
+}
+export const vStack: Directive<HTMLTableElement, number | undefined> = {
+  mounted: (el, binding) => stackLabels(el, binding.value),
+  updated: (el, binding) => stackLabels(el, binding.value),
+};

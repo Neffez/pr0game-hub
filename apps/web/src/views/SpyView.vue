@@ -6,11 +6,12 @@ import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import { uniApi } from '../api';
 import SpyHistory, { type SpyReport } from '../components/SpyHistory.vue';
-import { useUni } from '../composables';
-import { coords, fmt, name, timeWithAge } from '../format';
+import { useMobile, useUni } from '../composables';
+import { coords, fmt, name, short, timeWithAge } from '../format';
 
 const { t } = useI18n();
 const { uni, ctx } = useUni();
+const mobile = useMobile();
 const route = useRoute();
 const router = useRouter();
 const target = ref(String(route.query.c ?? ''));
@@ -80,7 +81,25 @@ const res = (r: any, id: number) => r.sections['900']?.[id] ?? 0;
   <SpyHistory v-if="reports.length" :reports="reports" :game-url="ctx!.universe.settings.gameUrl" />
 
   <h2>{{ t('spy.recent') }}</h2>
-  <div class="table-wrap">
+  <div v-if="mobile" class="m-list">
+    <div v-for="r in recent" :key="r.id" class="m-item" role="button" tabindex="0" @click="open(r)" @keydown.enter="open(r)">
+      <span class="m-line">
+        <span class="mono">{{ coords(r.g, r.s, r.p) }}</span>
+        <span v-if="r.planet_type === 'moon'" class="moon-tag" style="margin: 0">☾</span>
+        <PlayerLink v-if="r.player_id" :id="r.player_id" :name="r.player_name" @click.stop />
+        <span v-else>{{ r.player_name }}</span>
+        <span class="muted small al-ellipsis">{{ r.planet_name }}</span>
+      </span>
+      <span class="m-line small">
+        <span class="mono"><span class="faint">{{ t('overview.resShort.901') }}</span> {{ short(res(r, 901)) }}</span>
+        <span class="mono"><span class="faint">{{ t('overview.resShort.902') }}</span> {{ short(res(r, 902)) }}</span>
+        <span class="mono"><span class="faint">{{ t('overview.resShort.903') }}</span> {{ short(res(r, 903)) }}</span>
+        <span class="grow" />
+        <span class="faint">{{ timeWithAge(r.report_time) }}<template v-if="r.reporter"> · {{ r.reporter }}</template></span>
+      </span>
+    </div>
+  </div>
+  <div v-else class="table-wrap">
     <table class="data">
       <thead>
         <tr><th>{{ t('common.time') }}</th><th>{{ t('common.coords') }}</th><th>{{ t('common.player') }}</th><th>{{ t('common.planet') }}</th><th class="num">{{ name(901) }}</th><th class="num">{{ name(902) }}</th><th class="num">{{ t('game.deutShort') }}</th><th>{{ t('common.from') }}</th></tr>
@@ -103,3 +122,15 @@ const res = (r: any, id: number) => r.sections['900']?.[id] ?? 0;
     </table>
   </div>
 </template>
+
+<style scoped>
+/* mobile list of recent reports */
+.m-list { border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); overflow: hidden; }
+.m-item {
+  display: flex; flex-direction: column; gap: 4px; width: 100%; min-height: 0; padding: 8px 12px;
+  border-bottom: 1px solid var(--border); cursor: pointer;
+}
+.m-item:last-child { border-bottom: 0; }
+.m-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; min-width: 0; }
+.al-ellipsis { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+</style>

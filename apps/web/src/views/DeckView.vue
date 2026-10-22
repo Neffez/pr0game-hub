@@ -3,7 +3,7 @@ import Hint from '../components/Hint.vue';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
-import { useUni } from '../composables';
+import { useUni, vStack } from '../composables';
 import { cardLabel, dateTime, DEPLETION_LABEL, fmt, fmtCount } from '../format';
 
 const { t } = useI18n();
@@ -122,7 +122,7 @@ const progress = computed(() => (data.value ? data.value.state.drawnInDeck / dat
     </div>
 
     <div class="table-wrap" style="max-height: none; margin-bottom: 14px">
-      <table class="data">
+      <table v-stack class="data">
         <thead>
           <tr><th>{{ t('deck.card') }}</th><th class="num">{{ t('deck.inDeck') }}</th><th class="num">{{ t('combat.left') }}</th><th class="num">{{ t('deck.minMax') }}</th><th class="num">{{ t('deck.nextCard') }}</th><th style="width: 30%"></th></tr>
         </thead>
@@ -133,7 +133,7 @@ const progress = computed(() => (data.value ? data.value.state.drawnInDeck / dat
             <td class="num"><b>{{ fmtCount(c.remaining) }}</b></td>
             <td class="num small muted">{{ c.remainingMin !== c.remainingMax ? `${fmtCount(c.remainingMin)}–${fmtCount(c.remainingMax)}` : '' }}</td>
             <td class="num">{{ fmt(c.nextProbability * 100, 2) }} %</td>
-            <td>
+            <td class="m-hide">
               <div :style="{ width: Math.min(100, c.nextProbability * 300) + '%', height: '6px', background: 'var(--accent)', borderRadius: '3px' }" />
             </td>
           </tr>

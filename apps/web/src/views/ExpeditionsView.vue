@@ -4,7 +4,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
 import RangePicker from '../components/RangePicker.vue';
-import { useStored, useUni } from '../composables';
+import { useStored, useUni, vStack } from '../composables';
 import { elementPoints } from '@pr0hub/core/tech';
 import { cardLabel, coords, dateTime, DEPLETION_LABEL, fmt, name, short } from '../format';
 
@@ -109,7 +109,7 @@ const sumRes = (u: any) => Object.values(u.resources as Record<string, number>).
   <template v-if="data">
     <h2>{{ t('expeditions.yields') }} ({{ rangeLabel(days) }})</h2>
     <div class="table-wrap" style="max-height: none; margin-bottom: 14px">
-      <table class="data yields">
+      <table v-stack class="data yields">
         <thead>
           <tr>
             <th>{{ t('common.player') }}</th>
@@ -153,7 +153,7 @@ const sumRes = (u: any) => Object.values(u.resources as Record<string, number>).
   <div v-if="data && !columns.length" class="card muted">{{ t('expeditions.empty') }}</div>
   <template v-if="data && columns.length">
     <div class="table-wrap" style="max-height: none; margin-bottom: 14px">
-      <table class="data">
+      <table v-stack class="data">
         <thead>
           <tr>
             <th>{{ t('expeditions.event') }}</th>
@@ -194,7 +194,7 @@ const sumRes = (u: any) => Object.values(u.resources as Record<string, number>).
 
     <h2>{{ t('expeditions.recent') }}</h2>
     <div class="table-wrap">
-      <table class="data">
+      <table v-stack="3" class="data">
         <thead><tr><th>{{ t('common.time') }}</th><th>{{ t('common.player') }}</th><th>{{ t('hostile.target') }}</th><th>{{ t('expeditions.event') }}</th><th>{{ t('expeditions.depletion') }}</th><th>{{ t('expeditions.found') }}</th><th /></tr></thead>
         <tbody>
           <tr v-for="e in list" :key="e.id">

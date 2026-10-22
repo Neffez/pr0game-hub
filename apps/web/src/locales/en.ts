@@ -449,6 +449,10 @@ const en: typeof de = {
     perMember: 'per member',
   },
   overview: {
+    sort: 'Sort by',
+    sortDir: 'Reverse order',
+    filters: 'Filters',
+    details: 'All values',
     hint1: 'Planets: one row per known planet/moon (from galaxy views and spy reports). Players without known planets are listed with "–".',
     hint2: 'Δ columns (like the FF-Hub): change of the total points per 6 h statistics section (updates at 0, 6, 12 and 18 o’clock). Δ6h = second newest to newest update, Δ12h = the section before etc. If a synced update is missing, the change across the gap is shown in the newer column and the column it spans stays empty (e.g. 6 and 18 o’clock synced, 12 o’clock missed: Δ6h = 6 → 18 o’clock, Δ12h empty). The tooltip shows the exact period – best paste the statistics after every update.',
     hint3: 'Bldg./Fleet/Def.: points on this planet from the empire page (alliance members) or the latest spy report, whichever is newer (tooltip: source and player total). Resources from the latest spy report.',
@@ -535,6 +539,7 @@ const en: typeof de = {
     leftUnknown: 'Remaining time unknown: sync the overview from the game',
     currentJob: 'current job',
     fullIn: 'full in {time}',
+    full: 'full',
     flying: 'Fleets (in flight)',
   },
   browse: {
