@@ -54,7 +54,8 @@ function left(sec: number) {
       <NavIcon name="bell" />
       <span v-if="unseen || attacks" class="bell-count">{{ unseen || attacks }}</span>
     </button>
-    <template v-if="open">
+    <!-- in the body: above everything of the page (the sidebar's stacking context would keep it below the content) -->
+    <Teleport v-if="open" to="body">
       <div class="bell-backdrop" @click="open = false" />
       <div class="bell-panel card" role="dialog" :aria-label="t('notify.title')">
         <div class="row" style="margin-bottom: 6px">
@@ -76,7 +77,7 @@ function left(sec: number) {
           <span v-if="Object.keys(n.fleet.ships).length" class="small muted" :title="shipsTitle(n.fleet.ships)">{{ ships(n.fleet.ships) }}</span>
         </button>
       </div>
-    </template>
+    </Teleport>
   </span>
 </template>
 

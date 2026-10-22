@@ -104,7 +104,7 @@ const en: typeof de = {
     liveHints: 'Show when other members sync something',
     fleetShare: 'Share fleet movements',
     fleetShareEnabled: 'Share my fleet movements with the alliance',
-    fleetShareHint: 'Applies to all alliances in the hub and at once, also to fleets already synced. You always see all of yours in the empire view. Returning fleets count as their mission.',
+    fleetShareHint: 'Applies to all alliances in the hub and at once, also to fleets already synced. You always see all of yours in the empire view. Returning fleets count as their mission. Fleets of others heading for you (e.g. attacks) are always visible to the alliance.',
     fleetShareSaved: 'Sharing saved.',
   },
   actions: {
@@ -564,7 +564,7 @@ const en: typeof de = {
     fleetsNone: 'No fleets in flight.',
     fleetsArrived: '{n} arrived since',
     fleetsMissing: 'missing',
-    fleetsPrivate: 'not shared',
+    fleetsPrivate: 'own fleets not shared',
     hostile: 'hostile',
     foreign: 'foreign',
     phase: { out: '→', return: '↩ return', hold: '⏸ holding' },

@@ -4,6 +4,12 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Fleet sharing covers the member's own fleets only: fleets of others heading for them (incoming attacks, spying)
+  are always visible to the alliance, also when the member shares nothing ("own fleets not shared").
+- Notifications: no alarm for "attacks" by players of the own alliance (hub members and everyone in their in-game
+  alliances, by name or planet), e.g. moon attempts or shooting debris for saving; they stay in the fleet movements.
+- Notification list opens above the page content (the ⓘ hint icons covered it).
+
 - Raid planner plan (`FEATURE_REQUEST_RETIME.md`) rebuilt around one attack plan for solo and ACS attacks, started
   from scratch or from a parsed hostile attack (retime), with data model, target time modes, lead and ACS rules, live
   updates, one menu item and the implementation order.

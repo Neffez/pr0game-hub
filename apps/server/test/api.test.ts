@@ -175,7 +175,7 @@ describe('api', () => {
     const seen = async (h: object) => {
       const im = (await app.inject({ method: 'GET', url: `/hub/api/u8/imperium?user=${adminId}`, headers: h })).json();
       const al = (await app.inject({ method: 'GET', url: '/hub/api/u8/alliance', headers: h })).json();
-      return { im: im.fleets?.data.map((f: any) => f.mission) ?? null, private: im.fleetsPrivate, al: al.find((m: any) => m.user_id === adminId).fleets };
+      return { im: im.fleets?.data.map((f: any) => f.mission) ?? null, private: im.fleets?.private, al: al.find((m: any) => m.user_id === adminId).fleets };
     };
     expect((await app.inject({ method: 'GET', url: '/hub/api/auth/fleet-share', headers: admin })).json()).toEqual({ enabled: true, hidden: [] });
     expect((await seen(other)).im).toEqual([1, 4, 4]);
@@ -188,7 +188,7 @@ describe('api', () => {
     expect((await seen(headers)).im).toEqual([1, 4, 4]);
 
     res = await app.inject({ method: 'POST', url: '/hub/api/auth/fleet-share', headers: admin, payload: { enabled: false, hidden: [] } });
-    expect(await seen(other)).toEqual({ im: null, private: true, al: null });
+    expect(await seen(other)).toMatchObject({ im: [], private: true, al: { data: [], private: true } });
     expect((await seen(headers)).im).toEqual([1, 4, 4]);
     await app.inject({ method: 'POST', url: '/hub/api/auth/fleet-share', headers: admin, payload: { enabled: true, hidden: [] } });
   });
@@ -204,6 +204,19 @@ describe('api', () => {
     expect(list).toHaveLength(1);
     expect(list[0]).toMatchObject({ kind: 'attack', member: 'admin', fleet: { owner: 'hostile', player: 'Mallory', ships: { 207: 5 } } });
     expect(list[0].time - Math.floor(Date.now() / 1000)).toBeGreaterThan(7000);
+
+    // sharing covers the member's own fleets only: incoming attacks stay visible
+    await app.inject({ method: 'POST', url: '/hub/api/auth/fleet-share', headers: admin, payload: { enabled: false, hidden: [] } });
+    const erinHeaders = { ...(await login('erin', 'erinpass1')), 'x-hub-group': String(groupA) };
+    let seen = (await app.inject({ method: 'GET', url: '/hub/api/u8/notifications', headers: erinHeaders })).json();
+    expect(seen.map((n: any) => n.fleet.player)).toEqual(['Mallory']);
+    await app.inject({ method: 'POST', url: '/hub/api/auth/fleet-share', headers: admin, payload: { enabled: true, hidden: [] } });
+
+    // a fleet of an alliance member (moon attempt, debris for saving) raises no alarm
+    db.prepare("UPDATE group_members SET ingame_name = 'Mallory' WHERE group_id = ? AND user_id = (SELECT id FROM users WHERE username = 'erin')").run(groupA);
+    seen = (await app.inject({ method: 'GET', url: '/hub/api/u8/notifications', headers })).json();
+    expect(seen).toEqual([]);
+    db.prepare("UPDATE group_members SET ingame_name = NULL WHERE group_id = ? AND user_id = (SELECT id FROM users WHERE username = 'erin')").run(groupA);
   });
 
   it('lists phalanxes that reach a system', async () => {

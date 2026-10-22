@@ -84,8 +84,7 @@ export function imperiumRoutes(app: FastifyInstance, db: DB) {
       userId,
       empire: empire ? { time: empire.time, data: empire.rec } : null,
       overview: overview ? { time: overview.time, data: JSON.parse(overview.data) } : null,
-      fleets: fleets === 'private' ? null : fleets,
-      fleetsPrivate: fleets === 'private',
+      fleets,
       player: player ? { ...player, stats: Object.fromEntries(stats.map((s) => [s.type, s])) } : null,
       fleetBase: fleetBase && basePoints && anchorFleet != null ? { time: fleetBase.time, points: basePoints.fleet, stat: anchorFleet } : null,
       leader: leader ?? null,
@@ -113,7 +112,7 @@ export function imperiumRoutes(app: FastifyInstance, db: DB) {
       const spy = !e && playerId ? spyEmpire(db, ctx, playerId, playerName.get(playerId) as string) : null;
       return {
         key: `u${r.user_id}`, ...r, player_id: playerId, source: e ? 'empire' : spy ? 'spy' : null,
-        created_at: e?.time ?? spy?.time ?? null, data: e?.rec ?? spy ?? null, fleets: f === 'private' ? null : f,
+        created_at: e?.time ?? spy?.time ?? null, data: e?.rec ?? spy ?? null, fleets: f,
       };
     });
     const memberIds = new Set(players.values());

@@ -19,16 +19,20 @@ export function fleetShare(db: DB, userId: number): FleetShare {
 export type StoredFleet = FleetMovement & { arrival: number };
 
 /**
- * Newest fleet movements of a member as another member may see them: all for the member themself, else filtered by
- * the member's sharing setting (`private` when they share none). Applies to the stored list, so a change counts at once.
+ * Newest fleet movements of a member as another member may see them: all for the member themself, else their own
+ * fleets filtered by their sharing setting (`private`: they share none of them). Fleets of others heading for the member
+ * (incoming attacks, spying, friendly holds) are always shared. Applies when served, so a change counts at once.
  */
-export function sharedFleets(db: DB, groupId: number, ownerId: number, viewerId: number): { time: number; data: StoredFleet[] } | 'private' | null {
+export function sharedFleets(
+  db: DB, groupId: number, ownerId: number, viewerId: number,
+): { time: number; data: StoredFleet[]; private: boolean } | null {
   const row = db
     .prepare('SELECT page_time AS time, data FROM fleet_snapshots WHERE group_id = ? AND user_id = ? ORDER BY page_time DESC, id DESC LIMIT 1')
     .get(groupId, ownerId) as { time: number; data: string } | undefined;
-  const share = ownerId === viewerId ? null : fleetShare(db, ownerId);
-  if (share && !share.enabled) return 'private';
   if (!row) return null;
   const data = JSON.parse(row.data) as StoredFleet[];
-  return { time: row.time, data: share ? data.filter((f) => f.mission == null || !share.hidden.includes(f.mission)) : data };
+  const share = ownerId === viewerId ? null : fleetShare(db, ownerId);
+  if (!share) return { time: row.time, data, private: false };
+  const shown = (f: StoredFleet) => f.owner !== 'own' || (share.enabled && (f.mission == null || !share.hidden.includes(f.mission)));
+  return { time: row.time, data: data.filter(shown), private: !share.enabled };
 }

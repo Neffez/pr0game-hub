@@ -105,7 +105,7 @@ const de = {
     liveHints: 'Einblenden, wenn andere Mitglieder etwas synchronisieren',
     fleetShare: 'Flottenbewegungen teilen',
     fleetShareEnabled: 'Meine Flottenbewegungen mit der Allianz teilen',
-    fleetShareHint: 'Gilt für alle Allianzen im Hub und sofort, auch für bereits synchronisierte Flotten. Du selbst siehst im Imperium immer alle. Rückkehrende Flotten zählen zu ihrer Mission.',
+    fleetShareHint: 'Gilt für alle Allianzen im Hub und sofort, auch für bereits synchronisierte Flotten. Du selbst siehst im Imperium immer alle. Rückkehrende Flotten zählen zu ihrer Mission. Fremde Flotten, die auf dich zufliegen (z. B. Angriffe), sieht die Allianz immer.',
     fleetShareSaved: 'Freigabe gespeichert.',
   },
   actions: {
@@ -566,7 +566,7 @@ const de = {
     fleetsNone: 'Keine Flotten unterwegs.',
     fleetsArrived: '{n} seitdem angekommen',
     fleetsMissing: 'fehlen',
-    fleetsPrivate: 'nicht geteilt',
+    fleetsPrivate: 'eigene Flotten nicht geteilt',
     hostile: 'feindlich',
     foreign: 'fremd',
     phase: { out: '→', return: '↩ Rückkehr', hold: '⏸ hält' },
