@@ -38,13 +38,14 @@ Player IDs, alliance IDs and rank changes are only available in HTML/page source
 | Server | [Fastify 5](https://fastify.dev/) with `@fastify/cookie` and `@fastify/static`; [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) (SQLite) with numbered SQL migrations; session cookies, scrypt password hashes |
 | Web app | [Vue 3](https://vuejs.org/) (Composition API, `<script setup>`), [Vue Router 4](https://router.vuejs.org/), [vue-i18n](https://vue-i18n.intlify.dev/) (German/English), [Chart.js](https://www.chartjs.org/); plain CSS with custom properties, no UI framework |
 | Build | [Vite 5](https://vitejs.dev/) and `vue-tsc` for the web app, `tsc` for parser and server, `tsx` for the server in development |
-| Tests | [Vitest](https://vitest.dev/): parser tests against saved game pages (`packages/parser/test/fixtures`), API tests with Fastify's `inject` against an in-memory database, web unit tests for formatting and composables |
+| Tests | [Vitest](https://vitest.dev/): parser tests against saved game pages (`packages/parser/test/fixtures`), flight math tests, API tests with Fastify's `inject` against an in-memory database, web unit tests for formatting and composables |
 | Delivery | Multi-stage Docker image (`node:22-bookworm-slim`), the server serves the built SPA; GitHub Actions for typecheck, tests and build |
 
 ## Structure
 
 ```
 packages/parser   @pr0hub/core – page parsers, deck calculation, element data (DE/EN)
+packages/flight   @pr0hub/flight – flight times, recall and fuel like the game's FleetFunctions
 apps/server       Fastify + SQLite: auth, ingest, data APIs, battle report crawler; serves the SPA
 apps/web          Vue 3 SPA (base path /hub/)
 scripts           generators for the element data (gen:tech, gen:costs)
@@ -56,7 +57,7 @@ Requires Node.js 22 and pnpm (`corepack enable`).
 
 ```bash
 pnpm install
-pnpm --filter @pr0hub/core build   # web and server import the built parser package
+pnpm --filter "./packages/*" build   # web and server import the built packages
 
 # server (port 3000) + Vite (port 5173, proxies /hub/api)
 ADMIN_BOOTSTRAP_USER=admin ADMIN_BOOTSTRAP_PASSWORD=changeme pnpm --filter @pr0hub/server dev

@@ -1,4 +1,5 @@
 import { techName } from '@pr0hub/core/tech';
+import type { Coords } from '@pr0hub/flight';
 import { currentLang, intlLocale, t } from './i18n';
 
 /** Intl formatters per locale and options: toLocaleString creates one per call, tables format thousands of values. */
@@ -116,25 +117,7 @@ export interface UniverseSettings {
   gameUrl: string;
 }
 
-/** FleetFunctions::getTargetDistance */
-export function distance(u: UniverseSettings, a: [number, number, number], b: [number, number, number]): number {
-  const wrap = (x: number, y: number, max: number, circular: boolean) => {
-    const d = Math.abs(x - y);
-    if (!circular || d < Math.ceil(max / 2)) return d;
-    return Math.floor(max / 2) - (d - Math.ceil(max / 2));
-  };
-  if (a[0] !== b[0]) return wrap(a[0], b[0], u.galaxies, u.circularGalaxies) * u.galaxyDistanceFactor;
-  if (a[1] !== b[1]) return wrap(a[1], b[1], u.systems, u.circularSystems) * u.systemDistanceFactor + u.systemDistance;
-  if (a[2] !== b[2]) return Math.abs(a[2] - b[2]) * u.planetDistanceFactor + u.planetDistance;
-  return 5;
-}
-
-/** FleetFunctions::getMissionDuration (seconds, 100% speed). */
-export function flightTime(u: UniverseSettings, dist: number, shipSpeed: number, speedPercent = 100): number {
-  if (!shipSpeed) return 0;
-  const gameSpeed = u.fleetSpeed / 2500;
-  return Math.floor(((3500 / (speedPercent / 10)) * Math.sqrt((dist * 10) / shipSpeed) + 10) / gameSpeed);
-}
+export { distance } from '@pr0hub/flight';
 
 export function duration(sec: number): string {
   if (!sec) return '–';
@@ -183,7 +166,7 @@ export function timeWithAge(epoch: number | null | undefined): string {
   return `${time} (${s < 3600 ? `${Math.floor(s / 60)} min` : `${Math.floor(s / 3600)} h`})`;
 }
 
-export type Coords3 = [number, number, number];
+export type Coords3 = Coords;
 
 /** Default location of the flight calculator (pr0game-tools); override per universe with `flightCalculatorUrl`. */
 const FLIGHT_CALCULATOR_URL = 'https://pr0game.neffez.dev/flight-calculator/';

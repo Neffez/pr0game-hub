@@ -17,8 +17,8 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      # web and server import the built core package
-      - run: pnpm --filter @pr0hub/core build
+      # web and server import the built packages
+      - run: pnpm --filter "./packages/*" build
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build

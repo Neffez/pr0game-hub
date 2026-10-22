@@ -4,6 +4,15 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-22
 
+- Flight library `@pr0hub/flight` (first step of the raid planner, see `FEATURE_REQUEST_RETIME.md`):
+  - Distance, ship speed with the drive switch per research level, slowest ship, flight duration, deuterium, launch /
+    arrival / return times (also for delayed ACS) and recall, ported from the game's `FleetFunctions` and second-exact
+    with the standalone flight calculator.
+  - The hub's distance (best start planet in the planet menu, overview) now comes from the library; the unused
+    `flightTime()` helper is gone.
+  - Developers: build all packages with `pnpm --filter "./packages/*" build` (CI and Docker image do the same).
+- Retime feature request: decisions, overview text format and the verified return/recall rules for ACS delays.
+
 - Points of the newer ships: Schwerer Kreuzer, Sturmtransporter, Optimierter Recycler, Behemoth and Void Titan had no
   costs (they are missing in the game's install.sql) and counted 0 points, e.g. in the live points, spy reports and
   fleet values. Their costs are now part of the element data (kept by `pnpm gen:costs`).
