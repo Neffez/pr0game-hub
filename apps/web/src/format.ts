@@ -1,8 +1,19 @@
 import { techName } from '@pr0hub/core/tech';
 import { currentLang, intlLocale, t } from './i18n';
 
+/** Intl formatters per locale and options: toLocaleString creates one per call, tables format thousands of values. */
+const formats = new Map<string, Intl.NumberFormat | Intl.DateTimeFormat>();
+function cached<T extends Intl.NumberFormat | Intl.DateTimeFormat>(key: string, create: (locale: string) => T): T {
+  const k = `${intlLocale()}|${key}`;
+  let f = formats.get(k) as T | undefined;
+  if (!f) formats.set(k, (f = create(intlLocale())));
+  return f;
+}
+
 export const fmt = (n: number | null | undefined, digits = 0) =>
-  n == null || Number.isNaN(n) ? '–' : n.toLocaleString(intlLocale(), { maximumFractionDigits: digits, minimumFractionDigits: digits });
+  n == null || Number.isNaN(n)
+    ? '–'
+    : cached(`n${digits}`, (l) => new Intl.NumberFormat(l, { maximumFractionDigits: digits, minimumFractionDigits: digits })).format(n);
 
 export const fmtSigned = (n: number | null | undefined) => (n == null ? '–' : (n > 0 ? '+' : '') + fmt(n));
 
@@ -27,7 +38,9 @@ export function short(n: number | null | undefined): string {
 
 export function dateTime(epoch: number | null | undefined): string {
   if (!epoch) return '–';
-  return new Date(epoch * 1000).toLocaleString(intlLocale(), { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
+  return cached('dt', (l) => new Intl.DateTimeFormat(l, { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })).format(
+    epoch * 1000,
+  );
 }
 
 export function ago(epoch: number | null | undefined): string {
@@ -163,9 +176,9 @@ export function scaleColor(value: number | null | undefined, max: number) {
 /** "21.10.26, 12:00:30 (5 h)": exact time to the second plus elapsed hours. */
 export function timeWithAge(epoch: number | null | undefined): string {
   if (!epoch) return '–';
-  const time = new Date(epoch * 1000).toLocaleString(intlLocale(), {
+  const time = cached('dts', (l) => new Intl.DateTimeFormat(l, {
     day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit',
-  });
+  })).format(epoch * 1000);
   const s = Math.max(0, Math.floor(Date.now() / 1000) - epoch);
   return `${time} (${s < 3600 ? `${Math.floor(s / 60)} min` : `${Math.floor(s / 3600)} h`})`;
 }

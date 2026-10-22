@@ -4,6 +4,8 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-22
 
+- Large tables render faster: number and date formatters are created once per language instead of for every value,
+  and sorting the overview by building, fleet or defense points no longer builds the tooltip texts for each comparison.
 - Faster queries: "inactive since" in the overview no longer compares every status entry with every other, raids,
   recycling and expeditions use an index for their time range (migration `015`), and the session is only loaded for
   API requests, not for the static files.

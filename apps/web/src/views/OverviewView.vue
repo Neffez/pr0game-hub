@@ -201,13 +201,20 @@ const planetRows = computed<Row[]>(() => {
 });
 
 /** Planet points from the newer source: own empire page or the last spy report containing the section. */
-function pts(r: Row, field: 'building' | 'fleet' | 'defense') {
+function ptsSource(r: Row, field: 'building' | 'fleet' | 'defense') {
   const spy = r.planet?.spy;
   const own = r.planet?.own;
   const spyTime = spy?.[`${field}Time`];
-  if (own && own[field] != null && (spyTime == null || own.time >= spyTime)) return { value: own[field], title: t('overview.fromEmpire', { time: dateTime(own.time) }) };
-  if (spy?.[field] != null) return { value: spy[field]!, title: t('overview.fromSpy', { time: dateTime(spyTime) }) };
-  return { value: null, title: '' };
+  if (own && own[field] != null && (spyTime == null || own.time >= spyTime)) return { value: own[field], time: own.time, empire: true };
+  if (spy?.[field] != null) return { value: spy[field]!, time: spyTime, empire: false };
+  return null;
+}
+/** Value and tooltip; sorting only needs the value (`ptsSource`). */
+function pts(r: Row, field: 'building' | 'fleet' | 'defense') {
+  const src = ptsSource(r, field);
+  return src
+    ? { value: src.value, title: t(src.empire ? 'overview.fromEmpire' : 'overview.fromSpy', { time: dateTime(src.time) }) }
+    : { value: null, title: '' };
 }
 
 const resOf = (r: Row, id: number) => r.planet?.spy?.res?.[id] ?? null;
@@ -232,11 +239,9 @@ const planetSort = useSort(
       case 'd':
         return slot(r.player, arg)?.delta ?? null;
       case 'building':
-        return pts(r, 'building').value;
       case 'fleet':
-        return pts(r, 'fleet').value;
       case 'defense':
-        return pts(r, 'defense').value;
+        return ptsSource(r, kind)?.value ?? null;
       case 'battle':
         return r.planet?.last_battle ?? null;
       case 'spy':
