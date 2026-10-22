@@ -484,8 +484,38 @@ class Store {
       .run(this.t.groupId, g, s, p, v.name, v.moonName ?? null, v.playerId, v.hasMoon);
   }
 
+  /**
+   * The same message synced once as HTML (with message id) and once as text (without) has different dedupe
+   * keys: finds the stored row with the same content instead. Rows with different message ids stay apart
+   * (two expeditions with the same result in the same second). Fills in what the stored row lacks.
+   */
+  private sameContent(table: string, content: Record<string, unknown>, msgId: number | null, fill: Record<string, unknown> = {}) {
+    const cols = Object.keys(content);
+    const id = this.db
+      .prepare(
+        `SELECT id FROM ${table} WHERE group_id = ? AND ${cols.map((c) => `${c} IS ?`).join(' AND ')}
+         AND (msg_id IS NULL OR ? IS NULL OR msg_id = ?) AND dedupe_key NOT LIKE 'manual:%' LIMIT 1`,
+      )
+      .pluck()
+      .get(this.t.groupId, ...Object.values(content), msgId, msgId) as number | undefined;
+    if (id == null) return false;
+    const set = { msg_id: msgId, ...fill };
+    this.db
+      .prepare(`UPDATE ${table} SET ${Object.keys(set).map((c) => `${c} = COALESCE(${c}, ?)`).join(', ')} WHERE id = ?`)
+      .run(...Object.values(set), id);
+    return true;
+  }
+
   private battle(r: BattleRecord) {
     const time = this.epoch(r.time);
+    const content = {
+      user_id: this.t.userId, time, g: r.coords.g, s: r.coords.s, p: r.coords.p, planet_type: r.planetType,
+      lost_attacker: r.lostAttacker, lost_defender: r.lostDefender, loot_metal: r.loot.metal, loot_crystal: r.loot.crystal,
+      loot_deuterium: r.loot.deuterium, debris_metal: r.debris.metal, debris_crystal: r.debris.crystal,
+    };
+    if (this.sameContent('battle_reports', content, r.msgId, { report_id: r.reportId, outcome: r.outcome })) {
+      return this.count('battle_reports', false);
+    }
     const key =
       r.reportId ??
       (r.msgId ? `m${r.msgId}` : `h${fnv1a(JSON.stringify([r.time, r.coords, r.lostAttacker, r.lostDefender, r.loot, r.debris]))}`);
@@ -504,6 +534,11 @@ class Store {
 
   private expedition(r: ExpeditionRecord) {
     const time = this.epoch(r.time);
+    const content = {
+      user_id: this.t.userId, time, g: r.coords?.g ?? null, s: r.coords?.s ?? null, p: r.coords?.p ?? null, event: r.event, size: r.size,
+      factor: r.factor, found_resources: JSON.stringify(r.foundResources), found_ships: JSON.stringify(r.foundShips),
+    };
+    if (this.sameContent('expeditions', content, r.msgId, { depletion: r.depletion })) return this.count('expeditions', false);
     const key = r.msgId
       ? `m${r.msgId}`
       : `h${fnv1a(JSON.stringify([r.time, r.coords, r.event, r.size, r.factor, r.foundResources, r.foundShips]))}`;
@@ -521,6 +556,11 @@ class Store {
 
   private hostile(r: HostileSpyRecord) {
     const time = this.epoch(r.time);
+    const content = {
+      time, from_player: r.fromPlayerName, from_g: r.fromCoords.g, from_s: r.fromCoords.s, from_p: r.fromCoords.p,
+      target_g: r.targetCoords.g, target_s: r.targetCoords.s, target_p: r.targetCoords.p,
+    };
+    if (this.sameContent('hostile_spying', content, r.msgId)) return this.count('hostile_spying', false);
     const key = r.msgId ? `m${r.msgId}` : `h${fnv1a(JSON.stringify([r.time, r.fromCoords, r.targetCoords, r.fromPlayerName]))}`;
     const res = this.db
       .prepare(
@@ -659,6 +699,11 @@ class Store {
   private recycle(r: RecycleRecord) {
     const key = r.msgId ? `m${r.msgId}` : `r${fnv1a(JSON.stringify([r.time, r.coords, r.metal, r.crystal, r.totalMetal, r.totalCrystal]))}`;
     const time = this.epoch(r.time);
+    const content = {
+      user_id: this.t.userId, time, g: r.coords.g, s: r.coords.s, p: r.coords.p,
+      metal: r.metal, crystal: r.crystal, total_metal: r.totalMetal, total_crystal: r.totalCrystal,
+    };
+    if (this.sameContent('recycle_reports', content, r.msgId)) return this.count('recycle_reports', false);
     const res = this.db
       .prepare(
         `INSERT OR IGNORE INTO recycle_reports (group_id, user_id, dedupe_key, msg_id, time, g, s, p, metal, crystal, total_metal, total_crystal)

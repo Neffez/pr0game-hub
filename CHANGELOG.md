@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-22
 
+- Battle reports, expeditions, recycling and hostile spying synced once as HTML and once as text are stored once:
+  the sync recognizes the copy by its content (two messages with different message ids still count twice, e.g.
+  expeditions with the same result in the same second) and fills in the message/report id the text lacks. Migration
+  `011` removes such copies stored before, so the expedition deck and raid totals no longer count them twice.
 - The overview loads faster and no longer slows down as the round goes on: it reads only the last week of statistics
   (plus each player's newest score before it) instead of the whole history, and per position only the newest spy
   report per section instead of all reports. Players without statistics in the last week keep their latest points

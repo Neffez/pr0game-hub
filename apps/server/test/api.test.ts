@@ -544,6 +544,44 @@ describe('review fixes', () => {
     expect(await me()).toBe('en');
   });
 
+  it('stores a message synced as HTML and as text once', async () => {
+    const groupX = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', headers: admin, payload: { universe: 'u8', name: 'Dedupe' } })).json().id;
+    const headers = { ...admin, 'x-hub-group': String(groupX) };
+    const ingest = async () => (await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { html: fixture('messages.html') } })).json();
+    await ingest();
+    const tables = ['battle_reports', 'expeditions', 'hostile_spying', 'recycle_reports'];
+    const rows = () => tables.map((t) => db.prepare(`SELECT COUNT(*) FROM ${t} WHERE group_id = ?`).pluck().get(groupX));
+    const before = rows();
+    // as if synced from text: no message/report id, content hash as key
+    for (const t of tables) db.prepare(`UPDATE ${t} SET msg_id = NULL, dedupe_key = 'h' || id WHERE group_id = ?`).run(groupX);
+    db.prepare("UPDATE battle_reports SET report_id = NULL, outcome = NULL WHERE group_id = ?").run(groupX);
+    const res = await ingest();
+    expect(res.counts).toMatchObject({
+      battle_reports: { new: 0 }, expeditions: { new: 0 }, hostile_spying: { new: 0 }, recycle_reports: { new: 0 },
+    });
+    expect(rows()).toEqual(before);
+    const battle = db.prepare('SELECT msg_id, report_id, outcome FROM battle_reports WHERE group_id = ?').get(groupX) as any;
+    expect(battle.msg_id).not.toBeNull();
+    expect(battle.report_id).not.toBeNull();
+    expect(battle.outcome).not.toBeNull();
+
+    // copies from text stored before (no message id): the migration removes them
+    const copy = (key: string, msgId: number | null) =>
+      db.prepare(
+        `INSERT INTO expeditions (group_id, user_id, dedupe_key, msg_id, time, g, s, p, event, size, factor, depletion, found_resources, found_ships)
+         SELECT group_id, user_id, ? || id, ?, time, g, s, p, event, size, factor, depletion, found_resources, found_ships FROM expeditions
+         WHERE group_id = ? AND dedupe_key NOT LIKE 'copy%' AND dedupe_key NOT LIKE 'twin%'`,
+      ).run(key, msgId, groupX);
+    copy('copy', null);
+    // an expedition with the same result but its own message id stays
+    copy('twin', 999999);
+    db.exec(readFileSync(new URL('../migrations/011_dedupe_html_text.sql', import.meta.url), 'utf8'));
+    const keys = db.prepare('SELECT dedupe_key FROM expeditions WHERE group_id = ?').pluck().all(groupX) as string[];
+    expect(keys.filter((k) => k.startsWith('copy'))).toEqual([]);
+    expect(keys.filter((k) => k.startsWith('twin'))).toHaveLength(before[1] as number);
+    expect(keys).toHaveLength(2 * (before[1] as number));
+  });
+
   it('keeps the activity log of merged players', async () => {
     const groupX = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', headers: admin, payload: { universe: 'u8', name: 'Merge' } })).json().id;
     const add = (name: string) => Number(db.prepare('INSERT INTO players (group_id, name) VALUES (?, ?)').run(groupX, name).lastInsertRowid);
