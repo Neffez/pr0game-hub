@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { RESOURCES } from '@pr0hub/core/tech';
 import PlayerLink from '../components/PlayerLink.vue';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -384,7 +385,7 @@ function onStripUp() {
                 <span v-if="sp.type === 'moon'" class="moon-mark">☾</span>{{ timeWithAge(sp.spy.time) }}
               </RouterLink>
             </td>
-            <td v-for="id in [901, 902, 903]" :key="id" class="num">
+            <td v-for="id in RESOURCES" :key="id" class="num">
               <div v-for="sp in spies(row)" :key="sp.type" class="spy-line" :title="sp.spy.resTime ? t('stats.asOf', { time: dateTime(sp.spy.resTime) }) : ''">
                 {{ sp.spy.res ? short(sp.spy.res[id] ?? 0) : '–' }}
               </div>

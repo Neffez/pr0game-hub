@@ -5,7 +5,7 @@ import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
 import RangePicker from '../components/RangePicker.vue';
 import { useLoader, useStored, useUni, vStack } from '../composables';
-import { elementPoints } from '@pr0hub/core/tech';
+import { CRYSTAL, DEUTERIUM, elementPoints, METAL } from '@pr0hub/core/tech';
 import { cardLabel, coords, dateTime, DEPLETION_LABEL, fmt, name, short } from '../format';
 
 const { t } = useI18n();
@@ -63,9 +63,9 @@ const yields = computed<Yield[]>(() => {
   return ctx
     .value!.members.map((m) => {
       const u = byUser.get(m.id);
-      const metal = u?.resources['901'] ?? 0;
-      const crystal = u?.resources['902'] ?? 0;
-      const deut = u?.resources['903'] ?? 0;
+      const metal = u?.resources[METAL] ?? 0;
+      const crystal = u?.resources[CRYSTAL] ?? 0;
+      const deut = u?.resources[DEUTERIUM] ?? 0;
       const sp = u ? shipPoints(u.ships) : 0;
       return { userId: m.id, name: m.name, count: u?.total ?? 0, metal, crystal, deut, shipPoints: sp, points: (metal + crystal + deut) / 1000 + sp };
     })

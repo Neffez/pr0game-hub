@@ -14,6 +14,12 @@ export type SpyClass = (typeof SPY_CLASSES)[number];
 /** Element ids the hub looks at directly. */
 export const MOON_BASE = 41;
 export const PHALANX = 42;
+export const METAL = 901;
+export const CRYSTAL = 902;
+export const DEUTERIUM = 903;
+export const RESOURCES = [METAL, CRYSTAL, DEUTERIUM] as const;
+/** Storage building per resource. */
+export const STORAGE: Record<number, number> = { [METAL]: 22, [CRYSTAL]: 23, [DEUTERIUM]: 24 };
 
 export const TECH_NAMES: Record<Lang, Record<string, string>> = techData;
 

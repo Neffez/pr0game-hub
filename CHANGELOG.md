@@ -4,6 +4,8 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-22
 
+- Developers: `@pr0hub/core/tech` exports `METAL`, `CRYSTAL`, `DEUTERIUM`, `RESOURCES` and `STORAGE` (storage building
+  per resource); the web app uses them instead of the ids 901–903 in its calculations and resource lists.
 - Developers: empire pages stored before moon detection get their planet types once (migration `016`) instead of
   on every read; `withMoonTypes` is gone. The parser marks moons by `MOON_BASE` from `@pr0hub/core/tech`.
 - Empire, live points: the fleet keeps counting fleets in flight right after a statistics sync. It is based on the

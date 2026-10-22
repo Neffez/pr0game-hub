@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { classOf, elementPoints, storageCapacity } from '@pr0hub/core/tech';
+import { classOf, elementPoints, METAL, RESOURCES, STORAGE, storageCapacity } from '@pr0hub/core/tech';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
@@ -60,8 +60,7 @@ interface Data {
   leader: { name: string; weighted: number } | null;
 }
 
-const RES = [901, 902, 903] as const;
-const STORE: Record<number, number> = { 901: 22, 902: 23, 903: 24 };
+const RES = RESOURCES;
 
 const { t } = useI18n();
 const { uni, ctx } = useUni();
@@ -92,9 +91,9 @@ const same = (a: C3, b: C3) => a.g === b.g && a.s === b.s && a.p === b.p;
 const storageFactor = computed(() => {
   const active = empire.value?.data.active;
   const planet = active && empire.value!.data.planets.find((p) => same(p.coords, active.coords) && p.type === active.type);
-  if (planet && active.storage[901]) {
-    const base = storageCapacity(planet.values[STORE[901]] ?? 0);
-    if (base) return active.storage[901] / base;
+  if (planet && active.storage[METAL]) {
+    const base = storageCapacity(planet.values[STORAGE[METAL]] ?? 0);
+    if (base) return active.storage[METAL] / base;
   }
   return (ctx.value!.universe.settings as { storageMultiplier?: number }).storageMultiplier ?? 1;
 });
@@ -102,7 +101,7 @@ const storageFactor = computed(() => {
 /** Live amount: production since the page time, never above the storage (but full storages stay as they are). */
 function live(p: EmpirePlanet, id: number) {
   const start = p.resources?.[id] ?? 0;
-  const cap = storageCapacity(p.values[STORE[id]] ?? 0, storageFactor.value);
+  const cap = storageCapacity(p.values[STORAGE[id]] ?? 0, storageFactor.value);
   const perHour = p.perHour?.[id] ?? 0;
   const elapsed = Math.max(0, now.value - empire.value!.time);
   let value = start;

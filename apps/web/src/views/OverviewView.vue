@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { RESOURCES } from '@pr0hub/core/tech';
 import PlayerLink from '../components/PlayerLink.vue';
 import Hint from '../components/Hint.vue';
 import { computed, onMounted, ref } from 'vue';
@@ -218,7 +219,7 @@ function pts(r: Row, field: 'building' | 'fleet' | 'defense') {
 }
 
 const resOf = (r: Row, id: number) => r.planet?.spy?.res?.[id] ?? null;
-const resSum = (r: Row) => (r.planet?.spy?.res ? [901, 902, 903].reduce((s, id) => s + (resOf(r, id) ?? 0), 0) : null);
+const resSum = (r: Row) => (r.planet?.spy?.res ? RESOURCES.reduce<number>((s, id) => s + (resOf(r, id) ?? 0), 0) : null);
 
 const planetSort = useSort(
   planetRows,
@@ -316,7 +317,7 @@ const planetMetrics = computed<Metric<Row>[]>(() => [
   { key: 'defense', label: t('stats.col.5'), cell: (r) => ({ text: shortOrEmpty(pts(r, 'defense').value), title: pts(r, 'defense').title }) },
   { key: 'battle', label: t('overview.battle'), cell: (r) => ({ text: r.planet?.last_battle ? ago(r.planet.last_battle) : '' }) },
   { key: 'spy', label: t('player.sourceSpyShort'), cell: (r) => ({ text: r.planet?.spy ? ago(r.planet.spy.time) : '' }) },
-  ...[901, 902, 903].map((id) => ({ key: 'res:' + id, label: t(`overview.resShort.${id}`), cell: (r: Row) => ({ text: shortOrEmpty(resOf(r, id)) }) })),
+  ...RESOURCES.map((id) => ({ key: 'res:' + id, label: t(`overview.resShort.${id}`), cell: (r: Row) => ({ text: shortOrEmpty(resOf(r, id)) }) })),
   { key: 'res', label: 'Σ', cell: (r) => ({ text: shortOrEmpty(resSum(r)) }) },
 ]);
 /** Sort options of the mobile planet list (no clickable column headers there). */
