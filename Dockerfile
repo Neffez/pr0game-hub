@@ -6,14 +6,21 @@ COPY packages/parser/package.json packages/parser/
 COPY packages/flight/package.json packages/flight/
 COPY apps/server/package.json apps/server/
 COPY apps/web/package.json apps/web/
+COPY apps/tools/package.json apps/tools/
 RUN pnpm install --frozen-lockfile
 COPY packages packages
 COPY apps apps
 RUN pnpm --filter "./packages/*" build \
  && pnpm --filter @pr0hub/web build \
+ && pnpm --filter @pr0hub/tools build \
  && pnpm --filter @pr0hub/server build \
  && pnpm --filter @pr0hub/server deploy --legacy --prod /out
 
+# Static pr0game tools (flight calculator): `docker build --target tools`.
+FROM nginx:1.27-alpine AS tools
+COPY --from=build /app/apps/tools/dist /usr/share/nginx/html
+
+# Hub (default target, last stage).
 FROM node:22-bookworm-slim
 WORKDIR /app
 COPY --from=build /out ./

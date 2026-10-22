@@ -4,6 +4,14 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-22
 
+- Flight calculator moved into this repository as `apps/tools` (static pages: tools index and
+  `flight-calculator/`), now calculating with `@pr0hub/flight`:
+  - Same results as before (30,000 random cases compared, incl. custom ships, sphere universes, recalls and ACS
+    delays); new: the Heavy Cruiser in the ship list.
+  - `@pr0hub/flight` takes custom ship catalogs and sphere layouts ("all galaxies/systems equally far").
+  - Tests: the former in-page self-test as unit tests plus a page smoke test (share link -> ships, speeds, results).
+  - Docker: `docker build --target tools` builds an nginx image with the tools; the hub image stays the default target.
+
 - Live updates also after saving a player note (the ✎ in the overview, the note in open player details unless it is
   being typed there) and after adding or deleting an expedition result by hand in the deck; before, only syncs,
   claims and comments were pushed.

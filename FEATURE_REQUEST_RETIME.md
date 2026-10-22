@@ -1,6 +1,7 @@
 # Feature request: retime calculation
 
-Status: in progress. Done: flight library `@pr0hub/flight` (plan steps 2 and 3). Next: parser, candidates, UI.
+Status: in progress. Done: flight library `@pr0hub/flight` (plan steps 2 and 3), flight calculator moved to
+`apps/tools`. Next: parser, candidates, UI.
 
 ## Request (from a player)
 
@@ -185,7 +186,7 @@ Today the flight math exists three times:
 
 | Where | What | Notes |
 | --- | --- | --- |
-| pr0game-tools (private deployment repository) | Standalone calculator (`pr0game.neffez.dev/flight-calculator/`), ~118 KB single HTML file | Newest version: calculation tabs, retime, recall. |
+| `apps/tools/flight-calculator` (moved from the private deployment repository) | Standalone calculator (`pr0game.neffez.dev/flight-calculator/`) | Calculation in `src/core.ts` on `@pr0hub/flight`; 30,000 random cases equal to the former single-file version. |
 | `Neffez/pr0game`, branch `feature/flight-calculator` | In-game page (PHP + plain ES5 JS) | Contribution to the game itself; must stay dependency-free. |
 | This repo, `apps/web/src/format.ts` | `distance()`, `flightTime()`, `flightCalcLink()` | Simplified (no drive switch, no minimum time); the link duplicates the calculator's hash contract. |
 
@@ -213,6 +214,6 @@ not touch game pages.
 1. **Test data**: still needed: the full Ctrl+A copy (with server clock line) of an overview with an attack, a foreign
    espionage probe, the English version of the texts, and a copied phalanx result (incl. a return flight).
 2. **Phalanx in the hub data**: is the phalanx window copyable as one text (popup), and does it show the ships?
-3. **Ship 222 (Schwerer Kreuzer)**: base speed, drive levels and consumption per drive (not in `install.sql`,
-   not in the calculator either). Needed for the sample ACS above.
-4. **Calculator as `apps/tools`**: port the standalone page onto `@pr0hub/flight` (next step after the library).
+3. **Hosting of `apps/tools`**: the private deployment repository should build `docker build --target tools` and
+   serve it instead of its `pr0game-tools` folder.
+4. **In-game calculator** (`Neffez/pr0game`): still lacks ship 222 (hyperspace, 7,500, 500 deuterium).

@@ -42,6 +42,17 @@ describe('distance', () => {
     expect(distance({ ...uni, circularSystems: true }, [1, 1, 1], [1, 400, 1])).toBe(95 + 2700);
     expect(distance(uni, [1, 1, 1], [1, 400, 1])).toBe(399 * 95 + 2700);
   });
+
+  it('keeps every galaxy and system equally far in a sphere', () => {
+    const sphere = { ...uni, sphereGalaxies: true, sphereSystems: true };
+    expect(distance(sphere, [1, 1, 1], [5, 1, 1])).toBe(20000);
+    expect(distance(sphere, [1, 1, 1], [1, 300, 1])).toBe(95 + 2700);
+  });
+
+  it('accepts custom ships', () => {
+    const catalog = { c1: { speed: [8000, 0, 0], tech: [1, 0, 0], consumption: [5, 0, 0] } as const };
+    expect(shipSpeed('c1', noDrives, { ...catalog })).toBe(8000);
+  });
 });
 
 describe('ship speed', () => {
@@ -57,7 +68,7 @@ describe('ship speed', () => {
   });
 
   it('finds the slowest ship of a fleet', () => {
-    expect(slowestShip({ 202: 5, 203: 1, 210: 0 }, noDrives)).toEqual({ id: 202, speed: 5000 });
+    expect(slowestShip({ 202: 5, 203: 1, 210: 0 }, noDrives)).toEqual({ id: '202', speed: 5000 });
     expect(slowestShip({ 210: 0 }, noDrives)).toBeNull();
   });
 

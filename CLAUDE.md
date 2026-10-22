@@ -33,4 +33,6 @@ pnpm build
 - `packages/flight` (`@pr0hub/flight`): flight math ported from the game's `FleetFunctions` (distance, ship speed,
   duration, consumption, recall); must stay second-exact with the game and the flight calculator.
 - `apps/server`: Fastify + SQLite; migrations in `migrations/` (numbered SQL files); every game-data query goes through `groupContext` so data stays within its group.
+- `apps/tools`: static tools (Vite, no framework): `index.html` and `flight-calculator/` (UI in `main.js`, calculation
+  in `src/core.ts` on top of `@pr0hub/flight`); Docker target `tools`.
 - `apps/web`: Vue 3 SPA; the mobile layout starts below 800 px (`useMobile` in `composables.ts`, same breakpoint in `style.css`).

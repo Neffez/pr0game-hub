@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Flight Calculator · pr0game</title>
+<meta name="description" content="Flight time, timing, retime and recall calculator for pr0game – second-accurate, exactly like the server.">
+<meta name="theme-color" content="#0d1117">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%230d1117'/%3E%3Cpath d='M9 22l4-1 9-9a3 3 0 00-4-4l-9 9-1 4z' fill='%23f2683c'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0d1117;
+  --bg-glow: rgba(242, 104, 60, 0.08);
+  --surface: #151b23;
+  --surface-2: #1c2430;
+  --border: #283241;
+  --border-strong: #3a4657;
+  --text: #e6edf3;
+  --muted: #8b98a9;
+  --faint: #5d6a7b;
+  --accent: #f2683c;
+  --accent-soft: rgba(242, 104, 60, 0.14);
+  --accent-text: #ff8a5c;
+  --out: #f2683c;
+  --stay: #e5b33a;
+  --back: #3fb8af;
+  --danger: #f2555a;
+  --ok: #4cc38a;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+  --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f4f5f7;
+    --bg-glow: rgba(242, 104, 60, 0.07);
+    --surface: #ffffff;
+    --surface-2: #f1f3f6;
+    --border: #e1e5eb;
+    --border-strong: #c9d0da;
+    --text: #18202b;
+    --muted: #5f6b7b;
+    --faint: #98a2b0;
+    --accent: #e4572a;
+    --accent-soft: rgba(228, 87, 42, 0.1);
+    --accent-text: #c9471c;
+    --back: #1e9a91;
+    --stay: #c99412;
+    --shadow: 0 10px 30px rgba(20, 30, 50, 0.08);
+    color-scheme: light;
+  }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+[hidden] { display: none !important; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--text);
+  background:
+    radial-gradient(1100px 500px at 85% -10%, var(--bg-glow), transparent 70%),
+    var(--bg);
+  min-height: 100vh;
+  padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px);
+  -webkit-font-smoothing: antialiased;
+}
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.mono, .t, .kpi-value, td, .clock, input.coord { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+.wrap { max-width: 1240px; margin: 0 auto; padding: 0 20px 96px; }
+
+/* Header */
+.top {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 18px 0 14px; flex-wrap: wrap;
+}
+.brand { display: flex; align-items: center; gap: 12px; text-decoration: none; color: inherit; }
+.brand-logo {
+  width: 38px; height: 38px; border-radius: 10px; display: grid; place-items: center;
+  background: var(--accent-soft); color: var(--accent);
+}
+.brand strong { display: block; font-size: 17px; font-weight: 700; letter-spacing: -0.01em; }
+.brand span { display: block; font-size: 12px; color: var(--muted); }
+.top-actions { display: flex; align-items: center; gap: 8px; }
+.clock {
+  font-size: 13px; color: var(--muted); padding: 7px 10px; border-radius: var(--radius-sm);
+  background: var(--surface); border: 1px solid var(--border);
+}
+.uni-chip {
+  display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted);
+  padding: 7px 10px; border-radius: var(--radius-sm); background: var(--surface);
+  border: 1px solid var(--border); transition: border-color .15s, color .15s;
+}
+.uni-chip:hover { border-color: var(--border-strong); color: var(--text); }
+.icon-btn {
+  width: 36px; height: 36px; display: grid; place-items: center; border-radius: var(--radius-sm);
+  background: var(--surface); border: 1px solid var(--border); color: var(--muted);
+  transition: border-color .15s, color .15s, transform .3s;
+}
+.icon-btn:hover { color: var(--text); border-color: var(--border-strong); }
+#settingsBtn:hover svg { transform: rotate(45deg); }
+#settingsBtn svg { transition: transform .3s; }
+
+/* Mode tabs */
+.modes {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 4px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+}
+.modes button {
+  border: 0; background: transparent; padding: 10px 8px; border-radius: var(--radius-sm);
+  color: var(--muted); font-weight: 600; display: flex; flex-direction: column; align-items: center; gap: 1px;
+  transition: background .15s, color .15s;
+}
+.modes button small { font-weight: 400; font-size: 11.5px; color: var(--faint); }
+.modes button:hover { color: var(--text); background: var(--surface-2); }
+.modes button[aria-selected="true"] { background: var(--accent-soft); color: var(--accent-text); }
+.modes button[aria-selected="true"] small { color: var(--accent-text); opacity: .8; }
+.modes { margin-bottom: 18px; }
+
+/* Info tooltips */
+.tip {
+  display: inline-grid; place-items: center; flex: none; width: 16px; height: 16px; padding: 0;
+  border-radius: 50%; border: 1px solid var(--border-strong); background: transparent; color: var(--faint);
+  font: 600 10px/1 var(--sans); text-transform: none; letter-spacing: 0; vertical-align: middle;
+  transition: color .15s, border-color .15s;
+}
+.tip::before { content: 'i'; }
+.tip:hover, .tip:focus-visible, .tip[aria-expanded="true"] { color: var(--text); border-color: var(--muted); }
+.tip-bubble {
+  position: fixed; z-index: 100; max-width: min(320px, calc(100vw - 16px)); padding: 9px 11px;
+  border-radius: var(--radius-sm); background: var(--text); color: var(--bg); box-shadow: var(--shadow);
+  font: 400 12.5px/1.45 var(--sans); text-transform: none; letter-spacing: 0; white-space: pre-line; pointer-events: none;
+}
+.label-row { display: flex; align-items: center; gap: 6px; }
+
+/* Layout */
+.layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+@media (min-width: 1000px) {
+  .layout { grid-template-columns: minmax(380px, 440px) minmax(0, 1fr); align-items: start; }
+  .col-results { position: sticky; top: 16px; }
+}
+.col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+
+.card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 16px;
+}
+.card-title {
+  display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 12px;
+}
+.card-meta { font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--faint); font-size: 12.5px; }
+.card-title .spacer { flex: 1; }
+details.card > summary { list-style: none; cursor: pointer; margin-bottom: 0; }
+details.card > summary::-webkit-details-marker { display: none; }
+details.card > summary::after {
+  content: ''; margin-left: auto; width: 8px; height: 8px; border-right: 2px solid var(--faint);
+  border-bottom: 2px solid var(--faint); transform: rotate(45deg); transition: transform .2s;
+}
+details.card[open] > summary { margin-bottom: 12px; }
+details.card[open] > summary::after { transform: rotate(-135deg); }
+
+/* Fields */
+.field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.field > label, .field-label { font-size: 12px; color: var(--muted); font-weight: 500; }
+.input, .field input, .field select {
+  width: 100%; background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 9px 11px; outline: none;
+  transition: border-color .15s, background .15s;
+}
+.field input:hover, .field select:hover { border-color: var(--border-strong); }
+.field input:focus, .field select:focus { border-color: var(--accent); background: var(--surface); }
+.field input:disabled { opacity: .7; cursor: not-allowed; }
+.field input.invalid { border-color: var(--danger); }
+input[type=number] { -moz-appearance: textfield; }
+input[type=number]::-webkit-inner-spin-button { opacity: .4; }
+.hint { font-size: 12px; color: var(--faint); }
+.hint b { color: var(--muted); font-weight: 500; }
+.hint.err { color: var(--danger); }
+
+.route { display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: end; }
+input.coord { font-size: 15px; letter-spacing: .02em; }
+.swap {
+  width: 38px; height: 40px; border-radius: var(--radius-sm); border: 1px solid var(--border);
+  background: var(--surface-2); color: var(--muted); display: grid; place-items: center;
+  transition: color .15s, border-color .15s;
+}
+.swap:hover { color: var(--accent); border-color: var(--accent); }
+
+.seg {
+  display: flex; flex-wrap: wrap; gap: 4px; padding: 3px; border-radius: var(--radius-sm);
+  background: var(--surface-2); border: 1px solid var(--border);
+}
+.seg button {
+  flex: 1 1 auto; border: 0; background: transparent; padding: 7px 10px; border-radius: 6px;
+  color: var(--muted); font-weight: 500; font-size: 13px; white-space: nowrap;
+  transition: background .15s, color .15s;
+}
+.seg button:hover { color: var(--text); }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.25); }
+.seg-speed button { font-family: var(--mono); padding: 7px 4px; min-width: 42px; }
+.seg-speed button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.chip {
+  border: 1px solid var(--border); background: transparent; color: var(--muted);
+  padding: 5px 10px; border-radius: 999px; font-size: 12.5px; font-family: var(--mono);
+  transition: all .15s;
+}
+.chip:hover { border-color: var(--border-strong); color: var(--text); }
+.chip[aria-pressed="true"] { border-color: var(--stay); color: var(--stay); background: rgba(229,179,58,.1); }
+
+.stack { display: flex; flex-direction: column; gap: 12px; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+/* Time field */
+.tf-row { display: flex; gap: 6px; }
+.tf-row input { flex: 1; font-family: var(--mono); }
+.btn {
+  border: 1px solid var(--border); background: var(--surface-2); color: var(--text);
+  padding: 8px 12px; border-radius: var(--radius-sm); font-weight: 500; font-size: 13px;
+  white-space: nowrap; transition: border-color .15s, background .15s;
+}
+.btn:hover { border-color: var(--border-strong); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.primary:hover { filter: brightness(1.08); }
+.btn.ghost { background: transparent; }
+.switch { display: inline-flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted); cursor: pointer; user-select: none; }
+.switch input { position: absolute; opacity: 0; pointer-events: none; }
+.switch .track {
+  width: 32px; height: 18px; border-radius: 999px; background: var(--border-strong); position: relative; transition: background .15s;
+}
+.switch .track::after {
+  content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%;
+  background: #fff; transition: transform .15s;
+}
+.switch input:checked + .track { background: var(--accent); }
+.switch input:checked + .track::after { transform: translateX(14px); }
+.switch input:focus-visible + .track { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tf-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+
+/* Ships */
+.ships { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.ship {
+  display: grid; grid-template-columns: minmax(0, 1fr) 78px; align-items: center; gap: 6px;
+  padding: 7px 7px 7px 10px; border-radius: var(--radius-sm); background: var(--surface-2);
+  border: 1px solid transparent; transition: border-color .15s;
+}
+.ship.has { border-color: var(--border-strong); }
+.ship.slowest { border-color: var(--accent); }
+.ship-name { min-width: 0; }
+.ship-name strong { display: block; font-size: 13px; font-weight: 600; line-height: 1.25; overflow-wrap: anywhere; }
+.ship-name span { display: block; font-size: 11.5px; color: var(--faint); font-family: var(--mono); }
+.ship.slowest .ship-name span { color: var(--accent-text); }
+.ship input {
+  width: 100%; text-align: right; font-family: var(--mono); background: var(--surface);
+  border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; outline: none;
+}
+.ship input:focus { border-color: var(--accent); }
+.link-btn {
+  border: 0; background: none; color: var(--accent-text); font-size: 12.5px; font-weight: 500; padding: 2px 0;
+  text-transform: none; letter-spacing: 0;
+}
+.link-btn:hover { text-decoration: underline; }
+.tech-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.tech-grid input { font-family: var(--mono); }
+
+/* Results */
+.speed-row { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+.hero { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.kpi {
+  padding: 12px 14px; border-radius: var(--radius-sm); background: var(--surface-2);
+  display: flex; flex-direction: column; gap: 2px; min-width: 0;
+}
+.kpi-label { font-size: 12px; color: var(--muted); }
+.kpi-value { font-size: 17px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kpi-sub { font-size: 12px; color: var(--faint); font-family: var(--mono); }
+.kpi.big { grid-column: span 2; background: var(--accent-soft); }
+.kpi.big .kpi-value { font-size: 30px; color: var(--accent-text); letter-spacing: -0.01em; }
+.kpi.big .kpi-sub { color: var(--muted); }
+.kpi.big.ret { background: rgba(63,184,175,.12); }
+.kpi.big.ret .kpi-value { color: var(--back); }
+.kpi .neg { color: var(--danger); }
+.kpi .pos { color: var(--ok); }
+.kpi-value.na { font-family: var(--sans); font-size: 15px; color: var(--muted); white-space: normal; }
+.kpi.big .kpi-value.na { font-size: 16px; color: var(--muted); }
+@media (max-width: 520px) { .kpi.big { grid-column: 1 / -1; } }
+
+.tl { margin: 18px 0 6px; }
+.tl-bar { position: relative; display: flex; height: 10px; border-radius: 999px; overflow: visible; background: var(--surface-2); }
+.tl-seg { height: 100%; min-width: 2px; }
+.tl-seg:first-child { border-radius: 999px 0 0 999px; }
+.tl-seg:last-of-type { border-radius: 0 999px 999px 0; }
+.tl-seg.out { background: var(--out); }
+.tl-seg.stay { background: var(--stay); }
+.tl-seg.back { background: var(--back); }
+.tl-mark { position: absolute; top: -5px; width: 0; height: 20px; }
+.tl-mark i { position: absolute; left: -1px; top: 0; width: 2px; height: 20px; background: var(--text); border-radius: 2px; }
+.tl-mark em {
+  position: absolute; top: -20px; left: 50%; transform: translateX(-50%); font-style: normal;
+  font-size: 11px; color: var(--text); white-space: nowrap; background: var(--surface); padding: 0 4px; border-radius: 4px;
+}
+.tl-mark.recall i { background: var(--danger); }
+.tl-mark.recall em { color: var(--danger); }
+.tl-legend { display: flex; justify-content: space-between; gap: 8px; margin-top: 8px; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
+.tl-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.tl-legend i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+.table-wrap { overflow-x: auto; margin-top: 16px; border: 1px solid var(--border); border-radius: var(--radius-sm); }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th {
+  text-align: right; font-weight: 500; color: var(--muted); font-size: 12px; padding: 9px 12px;
+  background: var(--surface-2); white-space: nowrap; font-family: var(--sans);
+}
+td { text-align: right; padding: 8px 12px; border-top: 1px solid var(--border); white-space: nowrap; }
+th:first-child, td:first-child { text-align: left; }
+tbody tr { cursor: pointer; transition: background .1s; }
+tbody tr:hover { background: var(--surface-2); }
+tbody tr.sel { background: var(--accent-soft); }
+tbody tr.sel td:first-child { color: var(--accent-text); font-weight: 600; box-shadow: inset 3px 0 0 var(--accent); }
+tbody tr.past td { color: var(--faint); }
+tbody tr.past .t { text-decoration: line-through; text-decoration-color: var(--faint); }
+td .muted { color: var(--faint); font-family: var(--sans); font-size: 12px; }
+td .neg { color: var(--danger); }
+td .pos { color: var(--ok); }
+.t { cursor: copy; border-radius: 4px; padding: 1px 3px; margin: -1px -3px; transition: background .1s; }
+.t:hover { background: var(--border); }
+.t sup { font-size: 9.5px; color: var(--stay); margin-left: 2px; }
+
+.empty { text-align: center; padding: 40px 16px; color: var(--muted); }
+.empty svg { color: var(--faint); margin-bottom: 8px; }
+.result-foot { margin-top: 12px; }
+
+.konter-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.konter-grid .wide { grid-column: 1 / -1; }
+.konter-techs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.konter-info { margin-top: 14px; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--surface-2); font-size: 13px; color: var(--muted); }
+.konter-info strong { color: var(--text); font-family: var(--mono); }
+
+/* Dialog */
+dialog {
+  margin: auto; border: 1px solid var(--border); border-radius: 16px; padding: 0;
+  background: var(--surface); color: var(--text); width: min(640px, calc(100vw - 24px));
+  max-height: min(88vh, 900px); box-shadow: var(--shadow);
+}
+dialog::backdrop { background: rgba(5, 8, 12, .6); backdrop-filter: blur(3px); }
+dialog[open] { animation: pop .18s ease-out; }
+@keyframes pop { from { opacity: 0; transform: translateY(8px) scale(.98); } }
+.dlg { display: flex; flex-direction: column; max-height: inherit; }
+.dlg-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px; border-bottom: 1px solid var(--border); }
+.dlg-head h2 { font-size: 17px; font-weight: 700; }
+.dlg-head p { font-size: 12.5px; color: var(--muted); }
+.dlg-body { padding: 16px 18px; overflow-y: auto; display: flex; flex-direction: column; gap: 18px; }
+.dlg-body fieldset { border: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
+.dlg-body legend { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 10px; }
+.dlg-body .field input { font-family: var(--mono); }
+.dlg-foot { display: flex; justify-content: space-between; gap: 8px; padding: 14px 18px; border-top: 1px solid var(--border); }
+.clock-compare { grid-column: 1 / -1; font-size: 12.5px; color: var(--muted); }
+.dlg-body fieldset.cships { display: block; }
+.cship { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px; margin-bottom: 10px; }
+.cship-head { display: flex; gap: 8px; margin-bottom: 8px; }
+.cship-head input { flex: 1; min-width: 0; }
+.cship .table-wrap { margin-top: 0; }
+.cship-table th, .cship-table td { padding: 5px 8px; }
+.cship-table tbody tr { cursor: default; }
+.cship-table tbody tr:hover { background: none; }
+.cship-table input {
+  width: 100%; min-width: 72px; text-align: right; font-family: var(--mono); background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; outline: none;
+}
+.cship-table input:focus { border-color: var(--accent); }
+.cships legend { display: flex; }
+.clock-compare strong { font-family: var(--mono); color: var(--text); font-weight: 500; }
+
+/* Toast + mobile bar */
+.toast {
+  position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); transform: translate(-50%, 20px);
+  background: var(--text); color: var(--bg); padding: 9px 14px; border-radius: 999px; font-size: 13px; font-weight: 500;
+  opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 50; white-space: nowrap;
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+/* Calculation tabs */
+.calc-tabs {
+  display: flex; align-items: stretch; gap: 6px; margin-bottom: 10px; overflow-x: auto;
+  scrollbar-width: thin; padding-bottom: 2px;
+}
+.ctab {
+  position: relative; display: flex; align-items: center; flex: none; max-width: 220px;
+  border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface);
+  transition: border-color .15s, background .15s;
+}
+.ctab:hover { border-color: var(--border-strong); }
+.ctab.active { border-color: var(--accent); background: var(--accent-soft); }
+.ctab-main {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 1px; min-width: 0;
+  border: 0; background: transparent; padding: 6px 4px 6px 10px; text-align: left;
+}
+.ctab-name { font-size: 12.5px; font-weight: 600; max-width: 170px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ctab.active .ctab-name { color: var(--accent-text); }
+.ctab-sum { font-size: 11.5px; font-family: var(--mono); color: var(--muted); white-space: nowrap; }
+.ctab-sum.past { color: var(--danger); }
+.ctab-rename {
+  width: 150px; font-size: 12.5px; font-weight: 600; padding: 2px 4px; border-radius: 4px;
+  border: 1px solid var(--accent); background: var(--surface); outline: none;
+}
+.ctab-close {
+  border: 0; background: transparent; color: var(--faint); width: 26px; align-self: stretch;
+  display: grid; place-items: center; border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+.ctab-close:hover { color: var(--danger); }
+.ctab-add {
+  flex: none; width: 38px; border: 1px dashed var(--border-strong); border-radius: var(--radius-sm);
+  background: transparent; color: var(--muted); font-size: 18px; line-height: 1;
+}
+.ctab-add:hover { color: var(--accent); border-color: var(--accent); }
+.toast.action { pointer-events: auto; cursor: pointer; }
+.toast.action b { color: var(--accent); margin-left: 8px; }
+.mbar {
+  position: fixed; left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom, 0px)); z-index: 40;
+  display: none; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 12px 14px; border-radius: 14px; border: 1px solid var(--border-strong);
+  background: var(--surface); box-shadow: var(--shadow); font-family: var(--mono); font-size: 13px; text-align: left;
+}
+.mbar b { color: var(--accent-text); font-weight: 600; }
+.mbar span:last-child { color: var(--muted); font-family: var(--sans); font-size: 12px; }
+@media (max-width: 999px) { .mbar.on { display: flex; } }
+
+.foot { margin-top: 28px; color: var(--faint); font-size: 12px; text-align: center; }
+.foot a { color: var(--muted); }
+
+@media (max-width: 640px) {
+  .wrap { padding: 0 14px 96px; }
+  .modes button small { display: none; }
+  .modes button { padding: 9px 4px; font-size: 13px; }
+  .uni-chip span { display: none; }
+  .ships { grid-template-columns: minmax(0, 1fr); }
+  .ship { grid-template-columns: 1fr 110px; }
+  .clock { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="/" title="All pr0game tools">
+      <div class="brand-logo" aria-hidden="true">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>
+      </div>
+      <div><strong>Flight Calculator</strong><span>pr0game tools · second-accurate, just like the server</span></div>
+    </a>
+    <div class="top-actions">
+      <span class="clock" id="clock" title="Current time (including the clock offset from the settings)"></span>
+      <button class="uni-chip" id="uniChip" type="button" title="Universe settings">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/></svg>
+        <span id="uniSummary"></span>
+      </button>
+      <button class="icon-btn" id="shareBtn" type="button" title="Copy a link with all inputs" aria-label="Copy link">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+      </button>
+      <button class="icon-btn" id="settingsBtn" type="button" title="Universe settings" aria-label="Universe settings">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="calc-tabs" id="calcTabs" role="tablist" aria-label="Calculations"></div>
+  <nav class="modes" role="tablist" aria-label="Calculator mode">
+    <button role="tab" data-mode="flight">Flight time<small>departure → arrival</small></button>
+    <button role="tab" data-mode="timing">Timing<small>arrival → departure</small></button>
+    <button role="tab" data-mode="retime">Retime<small>when is the enemy back?</small></button>
+    <button role="tab" data-mode="abort">Recall<small>fleet save &amp; recall</small></button>
+  </nav>
+
+  <main class="layout">
+    <div class="col col-inputs">
+      <section class="card" aria-labelledby="routeTitle">
+        <h2 class="card-title" id="routeTitle">Route <span class="spacer"></span><span class="card-meta mono" id="distMeta"></span></h2>
+        <div class="route">
+          <div class="field">
+            <label for="startIn" id="startLbl">Start</label>
+            <input id="startIn" class="coord" type="text" inputmode="numeric" autocomplete="off" placeholder="1:234:5">
+          </div>
+          <button class="swap" id="swapBtn" type="button" title="Swap start and target" aria-label="Swap start and target">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3l4 4-4 4"/><path d="M3 7h18"/><path d="M7 21l-4-4 4-4"/><path d="M21 17H3"/></svg>
+          </button>
+          <div class="field">
+            <label for="targetIn" id="targetLbl">Target</label>
+            <input id="targetIn" class="coord" type="text" inputmode="numeric" autocomplete="off" placeholder="1:234:5">
+          </div>
+        </div>
+        <p class="hint err" id="routeErr" hidden></p>
+        <div class="field" style="margin-top:14px">
+          <div class="label-row"><span class="field-label">Mission</span><button type="button" class="tip" id="missionTip" aria-label="Info" data-tip=""></button></div>
+          <div class="seg" id="missionSeg">
+            <button type="button" data-mission="none" title="Attack, transport, deploy, espionage …">No hold</button>
+            <button type="button" data-mission="hold">Hold</button>
+            <button type="button" data-mission="expo">Expedition</button>
+            <button type="button" data-mission="trade">Trade</button>
+          </div>
+        </div>
+        <div class="chips" id="stayChips"></div>
+        <p class="hint" id="stayHint" hidden></p>
+      </section>
+
+      <section class="card" aria-labelledby="timeTitle">
+        <h2 class="card-title"><span id="timeTitle">Time</span><button type="button" class="tip" id="modeTip" aria-label="Info" data-tip=""></button></h2>
+        <div class="stack">
+          <div data-for="flight"><div class="tf" data-key="dep" data-live="depLive" data-label="Departure"></div></div>
+          <div data-for="timing"><div class="tf" data-key="arr" data-label="Desired arrival at target"></div></div>
+          <div data-for="retime" class="stack">
+            <div class="tf" data-key="enemyArr" data-label="Arrival of the enemy fleet"></div>
+            <div class="label-row"><label class="switch"><input type="checkbox" id="enemyDelayed"><span class="track"></span>Attack was delayed (ACS)</label><button type="button" class="tip" aria-label="Info" data-tip="A delay (a slower fleet joining the ACS) shifts impact and return, but not the launch – the fleet started earlier than the shown arrival suggests. Enter the arrival you saw first as the original arrival."></button></div>
+            <div id="origWrap"><div class="tf" data-key="enemyOrigArr" data-label="Original arrival (first seen, before any delay)"></div></div>
+            <div class="field">
+              <div class="label-row"><span class="field-label">Outcome</span><button type="button" class="tip" aria-label="Info" data-tip="Impact: the return is impact + flight time, even if the attack was delayed.
+
+Recalled: the fleet flies back as long as it already flew (recall − launch). With a delay this can be longer than if it had hit."></button></div>
+              <div class="seg" id="outcomeSeg">
+                <button type="button" data-outcome="impact">Impact</button>
+                <button type="button" data-outcome="recall">Recalled</button>
+              </div>
+            </div>
+            <div id="enemyRecallWrap"><div class="tf" data-key="enemyRecall" data-label="Recalled at (fleet turned around)"></div></div>
+            <p class="hint err" id="retimeHint" hidden></p>
+          </div>
+          <div data-for="abort" class="stack">
+            <div class="tf" data-key="abDep" data-live="abDepLive" data-label="Fleet departure"></div>
+            <div class="field">
+              <span class="field-label">I know …</span>
+              <div class="seg" id="abortKindSeg">
+                <button type="button" data-kind="home">the desired return</button>
+                <button type="button" data-kind="at">the recall time</button>
+              </div>
+            </div>
+            <div data-kind-for="home"><div class="tf" data-key="home" data-label="Be back at"></div></div>
+            <div data-kind-for="at"><div class="tf" data-key="recall" data-live="recallLive" data-label="Recall at"></div></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="fleetTitle">
+        <h2 class="card-title"><span id="fleetTitle">Fleet</span><span class="card-meta mono" id="fleetMeta"></span><span class="spacer"></span><button type="button" class="link-btn" id="clearShips">Clear</button></h2>
+        <div class="ships" id="shipGrid"></div>
+      </section>
+
+      <details class="card" id="techCard" open>
+        <summary class="card-title"><span id="techTitle">Research</span><span class="card-meta mono" id="techMeta"></span></summary>
+        <div class="tech-grid">
+          <div class="field"><label for="tc-combustion">Combustion</label><input id="tc-combustion" data-tech="combustion" type="number" min="0" max="50" inputmode="numeric"></div>
+          <div class="field"><label for="tc-impulse">Impulse</label><input id="tc-impulse" data-tech="impulse" type="number" min="0" max="50" inputmode="numeric"></div>
+          <div class="field"><label for="tc-hyperspace">Hyperspace</label><input id="tc-hyperspace" data-tech="hyperspace" type="number" min="0" max="50" inputmode="numeric"></div>
+          <div class="field"><label for="tc-fuelEfficiency">Fuel Efficiency</label><input id="tc-fuelEfficiency" data-tech="fuelEfficiency" type="number" min="0" max="50" inputmode="numeric"></div>
+          <div class="field"><label for="tc-expedition">Astrophysics</label><input id="tc-expedition" data-tech="expedition" type="number" min="0" max="50" inputmode="numeric"></div>
+        </div>
+      </details>
+    </div>
+
+    <div class="col col-results">
+      <section class="card" id="results" aria-live="off">
+        <div class="speed-row">
+          <div class="label-row"><span class="field-label" id="speedLbl">Speed</span><button type="button" class="tip" aria-label="Info" data-tip="Click a time to copy it. Click a table row to pick that speed. A small +1 / −1 next to a time means another day."></button></div>
+          <div class="seg seg-speed" id="speedSeg" role="group" aria-labelledby="speedLbl"></div>
+        </div>
+        <div class="empty" id="empty" hidden>
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3 7h7l-5.5 4.5L18 21l-6-4-6 4 1.5-7.5L2 9h7z"/></svg>
+          <p>Enter at least one ship.</p>
+        </div>
+        <div id="resultBody">
+          <div class="hero" id="hero"></div>
+          <div class="tl" id="timeline"></div>
+          <div class="table-wrap"><table id="table"><thead></thead><tbody></tbody></table></div>
+        </div>
+      </section>
+
+      <section class="card" id="konterCard" data-for="retime" aria-labelledby="konterTitle">
+        <h2 class="card-title" id="konterTitle">Counter-attack <button type="button" class="tip" aria-label="Info" data-tip="Send times for your own fleet so it lands on the enemy home planet right after the enemy fleet returns (plus the buffer). Only the slowest ship matters for the flight time."></button></h2>
+        <div class="konter-grid">
+          <div class="field">
+            <label for="kStart">Your start planet</label>
+            <input id="kStart" class="coord" type="text" inputmode="numeric" autocomplete="off">
+          </div>
+          <div class="field">
+            <label for="kOffset">Buffer after their return (s)</label>
+            <input id="kOffset" type="number" min="0" step="1" inputmode="numeric">
+          </div>
+          <div class="field wide">
+            <label for="kShip">Slowest ship in your fleet</label>
+            <select id="kShip"></select>
+          </div>
+          <div class="konter-techs wide">
+            <div class="field"><label for="kc">Combustion</label><input id="kc" data-ktech="combustion" type="number" min="0" inputmode="numeric"></div>
+            <div class="field"><label for="ki">Impulse</label><input id="ki" data-ktech="impulse" type="number" min="0" inputmode="numeric"></div>
+            <div class="field"><label for="kh">Hyperspace</label><input id="kh" data-ktech="hyperspace" type="number" min="0" inputmode="numeric"></div>
+          </div>
+        </div>
+        <div class="konter-info" id="konterInfo"></div>
+        <div class="table-wrap"><table id="konterTable"><thead></thead><tbody></tbody></table></div>
+      </section>
+    </div>
+  </main>
+
+  <p class="foot">Formulas ported from pr0game <span class="mono">FleetFunctions</span> · timestamps are floored like on the server · all inputs stay in your browser</p>
+</div>
+
+<button class="mbar" id="mbar" type="button"></button>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<dialog id="settings" aria-labelledby="settingsTitle">
+  <form method="dialog" class="dlg">
+    <div class="dlg-head">
+      <div><h2 id="settingsTitle">Universe settings</h2><p>Stored locally in your browser.</p></div>
+      <button class="icon-btn" value="close" aria-label="Close">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="dlg-body" id="uniFields"></div>
+    <div class="dlg-foot">
+      <button type="button" class="btn ghost" id="uniReset">Defaults</button>
+      <button class="btn primary" value="close">Done</button>
+    </div>
+  </form>
+</dialog>
+<script type="module" src="./main.js"></script>
+</body>
+</html>

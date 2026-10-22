@@ -14,8 +14,11 @@ const ship = (speed: ShipDrives['speed'], tech: ShipDrives['tech'], consumption:
   consumption,
 });
 
+/** Ship id -> drive data; custom ships (flight calculator) may use string ids. */
+export type ShipCatalog = Record<string, ShipDrives>;
+
 /** Ships 202-215 from install.sql; 222-232 are not in install.sql, values from the in-game ship info. */
-export const SHIPS: Record<number, ShipDrives> = {
+export const SHIPS: ShipCatalog = {
   202: ship([5000, 10000, 0], [1, 5, 0], [10, 20, 0]),
   203: ship([7500, 0, 0], [1, 0, 0], [50, 0, 0]),
   204: ship([12500, 0, 0], [1, 0, 0], [20, 0, 0]),

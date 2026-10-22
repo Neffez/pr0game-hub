@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>pr0game tools</title>
+<meta name="description" content="Tools for pr0game – flight times, timing, retime and more.">
+<meta name="theme-color" content="#0d1117">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%230d1117'/%3E%3Cpath d='M9 22l4-1 9-9a3 3 0 00-4-4l-9 9-1 4z' fill='%23f2683c'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0d1117;
+  --bg-glow: rgba(242, 104, 60, 0.08);
+  --surface: #151b23;
+  --surface-2: #1c2430;
+  --border: #283241;
+  --border-strong: #3a4657;
+  --text: #e6edf3;
+  --muted: #8b98a9;
+  --faint: #5d6a7b;
+  --accent: #f2683c;
+  --accent-soft: rgba(242, 104, 60, 0.14);
+  --accent-text: #ff8a5c;
+  --radius: 12px;
+  --shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
+  --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #f4f5f7;
+    --bg-glow: rgba(242, 104, 60, 0.07);
+    --surface: #ffffff;
+    --surface-2: #f1f3f6;
+    --border: #e1e5eb;
+    --border-strong: #c9d0da;
+    --text: #18202b;
+    --muted: #5f6b7b;
+    --faint: #98a2b0;
+    --accent: #e4572a;
+    --accent-soft: rgba(228, 87, 42, 0.1);
+    --accent-text: #c9471c;
+    --shadow: 0 10px 30px rgba(20, 30, 50, 0.08);
+    color-scheme: light;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--text);
+  background:
+    radial-gradient(1100px 500px at 85% -10%, var(--bg-glow), transparent 70%),
+    var(--bg);
+  min-height: 100vh;
+  padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px);
+  -webkit-font-smoothing: antialiased;
+}
+.wrap { max-width: 960px; margin: 0 auto; padding: 0 20px 64px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+header { padding: 56px 0 36px; }
+.brand-logo {
+  width: 48px; height: 48px; border-radius: 12px; display: grid; place-items: center;
+  background: var(--accent-soft); color: var(--accent); margin-bottom: 20px;
+}
+h1 { font-size: clamp(28px, 5vw, 40px); font-weight: 700; letter-spacing: -0.02em; line-height: 1.1; }
+header p { margin-top: 10px; color: var(--muted); max-width: 52ch; }
+
+.tools { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 16px; }
+.tool {
+  display: flex; flex-direction: column; gap: 10px; padding: 22px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  color: inherit; text-decoration: none;
+  transition: border-color .15s, transform .15s, box-shadow .15s;
+}
+a.tool:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: var(--shadow); }
+.tool-icon {
+  width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center;
+  background: var(--accent-soft); color: var(--accent);
+}
+.tool h2 { font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
+.tool p { color: var(--muted); font-size: 14px; flex: 1; }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tags span {
+  font-size: 11.5px; font-family: var(--mono); color: var(--muted);
+  border: 1px solid var(--border); border-radius: 999px; padding: 2px 9px;
+}
+.go { color: var(--accent-text); font-weight: 600; font-size: 14px; }
+.tool.soon { border-style: dashed; background: transparent; }
+.tool.soon .tool-icon { background: var(--surface-2); color: var(--faint); }
+.tool.soon h2 { color: var(--muted); }
+
+footer { margin-top: 48px; color: var(--faint); font-size: 12.5px; text-align: center; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { transition: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand-logo" aria-hidden="true">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+    </div>
+    <h1>pr0game tools</h1>
+    <p>Small helpers for pr0game.</p>
+  </header>
+
+  <main class="tools">
+    <a class="tool" href="/flight-calculator/">
+      <div class="tool-icon" aria-hidden="true">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>
+      </div>
+      <h2>Flight Calculator</h2>
+      <p>Second-accurate flight times, send timing, enemy retime with delay and recall, fleet save and counter-attacks.</p>
+      <div class="tags"><span>flight time</span><span>timing</span><span>retime</span><span>recall</span></div>
+      <span class="go">Open →</span>
+    </a>
+
+    <a class="tool" href="/hub/">
+      <div class="tool-icon" aria-hidden="true">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>
+      </div>
+      <h2>Hub</h2>
+      <p>Paste stats, spy reports, expeditions and galaxy pages: point changes, spy history, raid and expo stats, deck counting. Login required, data is shared within your alliance.</p>
+      <div class="tags"><span>stats</span><span>spy reports</span><span>expeditions</span><span>alliance</span></div>
+      <span class="go">Open →</span>
+    </a>
+
+    <div class="tool soon">
+      <div class="tool-icon" aria-hidden="true">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+      </div>
+      <h2>More to come</h2>
+      <p>Further tools will show up here.</p>
+    </div>
+  </main>
+
+  <footer>pr0game tools</footer>
+</div>
+</body>
+</html>

@@ -50,6 +50,7 @@ packages/parser   @pr0hub/core – page parsers, deck calculation, element data 
 packages/flight   @pr0hub/flight – flight times, recall and fuel like the game's FleetFunctions
 apps/server       Fastify + SQLite: auth, ingest, data APIs, battle report crawler; serves the SPA
 apps/web          Vue 3 SPA (base path /hub/)
+apps/tools        static pr0game tools next to the hub: tools index and the flight calculator
 scripts           generators for the element data (gen:tech, gen:costs)
 ```
 
@@ -65,12 +66,16 @@ pnpm --filter "./packages/*" build   # web and server import the built packages
 ADMIN_BOOTSTRAP_USER=admin ADMIN_BOOTSTRAP_PASSWORD=changeme pnpm --filter @pr0hub/server dev
 pnpm --filter @pr0hub/web dev
 # -> http://localhost:5173/hub/
+
+# tools (flight calculator), no server needed
+pnpm --filter @pr0hub/tools dev
+# -> http://localhost:5174/flight-calculator/
 ```
 
 ```bash
 pnpm typecheck   # tsc / vue-tsc in all packages
-pnpm test        # vitest in parser, server and web
-pnpm build       # parser, server and web app
+pnpm test        # vitest in all packages
+pnpm build       # all packages and apps
 ```
 
 - New game pages are supported by adding a parser in `packages/parser/src/parsers/` and a fixture with a test.
@@ -104,6 +109,9 @@ Changes are recorded in [CHANGELOG.md](CHANGELOG.md). Contributions are welcome,
 ## Deployment
 
 Docker image (`Dockerfile`, port 3000, volume `/data`), configured with the environment variables above.
+
+The static tools are a second target of the same Dockerfile: `docker build --target tools .` gives an nginx image
+with the tools index at `/` and the flight calculator at `/flight-calculator/` (the hub links there).
 
 Live updates use Server-Sent Events (`GET /hub/api/:uni/events`): a reverse proxy in front of the hub must not buffer
 that response (the hub sends `X-Accel-Buffering: no` for nginx) and should allow idle connections longer than the
