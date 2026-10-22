@@ -64,6 +64,7 @@ const en: typeof de = {
     allianceName: 'Alliance: {name}',
     more: 'More',
     syncShort: 'Sync',
+    imperiumShort: 'Empire',
     menu: 'Menu',
     closeMenu: 'Close menu',
     quickSync: 'Quick sync',

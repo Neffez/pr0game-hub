@@ -65,6 +65,7 @@ const de = {
     allianceName: 'Allianz: {name}',
     more: 'Mehr',
     syncShort: 'Sync',
+    imperiumShort: 'Imperium',
     menu: 'Menü',
     closeMenu: 'Menü schließen',
     quickSync: 'Schnell synchronisieren',

@@ -93,8 +93,8 @@ const pageTitle = computed(() => {
 /** Bottom tab bar: frequent pages around the sync button in the middle. */
 const tabs = [
   { to: 'overview', label: 'overview', icon: 'overview' },
-  { to: 'browse', label: 'galaxy', icon: 'galaxy' },
-  { to: 'spy', label: 'spy', icon: 'spy' },
+  { to: 'imperium', label: 'imperiumShort', icon: 'imperium' },
+  { to: 'activity', label: 'activity', icon: 'activity' },
 ];
 </script>
 
