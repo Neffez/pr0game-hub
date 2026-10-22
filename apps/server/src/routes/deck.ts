@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import { HttpError } from '../auth.js';
 import type { DB } from '../db.js';
+import { events } from '../events.js';
 import { contextOf, type Q } from './util.js';
 
 export function deckRoutes(app: FastifyInstance, db: DB) {
@@ -87,6 +88,7 @@ export function deckRoutes(app: FastifyInstance, db: DB) {
           `INSERT INTO expeditions (group_id, user_id, dedupe_key, time, event, size, depletion) VALUES (?, ?, ?, ?, ?, ?, ?)`,
         )
         .run(ctx.groupId, ctx.user.id, `manual:${randomUUID()}`, at, event, size, depletion ?? null).lastInsertRowid;
+      events.publish(ctx.groupId, { type: 'data', tables: ['expeditions'], userId: ctx.user.id });
       return { id: Number(id) };
     },
   );
@@ -98,6 +100,7 @@ export function deckRoutes(app: FastifyInstance, db: DB) {
       .prepare("DELETE FROM expeditions WHERE id = ? AND group_id = ? AND user_id = ? AND dedupe_key LIKE 'manual:%'")
       .run(Number(req.params.id), ctx.groupId, ctx.user.id);
     if (!res.changes) throw new HttpError(404, 'manual_event_not_found', 'Manual event not found');
+    events.publish(ctx.groupId, { type: 'data', tables: ['expeditions'], userId: ctx.user.id });
     return { ok: true };
   });
 }

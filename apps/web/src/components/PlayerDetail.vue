@@ -19,6 +19,8 @@ const { uni, ctx } = useUni();
 /** Player details (chart, note, planets, status history): page and dialog. */
 const props = defineProps<{ id: number }>();
 const note = ref('');
+/** note as stored: a field still showing it takes over changes of other members */
+let savedNote = '';
 const canvas = ref<HTMLCanvasElement | null>(null);
 let chart: Chart | null = null;
 
@@ -36,7 +38,7 @@ const { data, error, load: fetchPlayer } = useLoader<any>(() => uniApi(uni.value
 async function load() {
   const d = await fetchPlayer();
   if (!d) return;
-  note.value = d.player.note ?? '';
+  note.value = savedNote = d.player.note ?? '';
   await nextTick();
   draw();
 }
@@ -98,6 +100,7 @@ function draw() {
 
 async function saveNote() {
   await uniApi(uni.value, `/players/${props.id}/note`, { method: 'PUT', body: { note: note.value } });
+  savedNote = note.value;
 }
 
 /** Research groups shown on the player page (combat, drives, others). */
@@ -117,10 +120,11 @@ const latest = computed(() => {
 
 onMounted(load);
 watch(() => props.id, load);
-// live data: chart and lists again, a note being typed stays
+// live data: chart and lists again, the note too unless it is being typed
 useLiveReload(async () => {
   const d = await fetchPlayer();
   if (!d) return;
+  if (note.value === savedNote) note.value = savedNote = d.player.note ?? '';
   await nextTick();
   draw();
 }, tables('player_scores', 'spy_reports', 'galaxy_systems', 'battle_reports', 'players'));

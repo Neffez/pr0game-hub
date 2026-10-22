@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-22
 
+- Live updates also after saving a player note (the ✎ in the overview, the note in open player details unless it is
+  being typed there) and after adding or deleting an expedition result by hand in the deck; before, only syncs,
+  claims and comments were pushed.
+
 - Ship data from universe 7: the Schwerer Kreuzer (hyperspace drive, speed 7,500, 500 deuterium) is part of the
   flight library, and the Schwerer Jäger costs 6,500 metal / 3,500 crystal as in the game (install.sql still has
   6,000 / 4,000; the points stay the same).

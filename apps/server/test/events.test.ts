@@ -120,6 +120,10 @@ describe('live events', () => {
     await ingest(fixture('stats-player.html'));
     expect((await a.nextOf('data')).tables).toEqual(['player_scores']);
     await ingest(fixture('stats-player.html'));
+    // other changes than syncs: player notes
+    const player = db.prepare('SELECT id FROM players WHERE group_id = ? LIMIT 1').pluck().get(groupA);
+    await app.inject({ method: 'PUT', url: `/hub/api/u8/players/${player}/note`, headers: { cookie, 'x-hub-group': String(groupA) }, payload: { note: 'farm' } });
+    expect((await a.nextOf('data')).tables).toEqual(['players']);
     await new Promise((r) => setTimeout(r, 100));
     expect(a.received.filter((e) => e.type === 'data')).toEqual([]);
     expect(b.received.filter((e) => e.type === 'data')).toEqual([]);

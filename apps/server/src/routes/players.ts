@@ -3,6 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import { HttpError } from '../auth.js';
 import type { GroupContext } from '../context.js';
 import type { DB } from '../db.js';
+import { events } from '../events.js';
 import { latestEmpires } from '../repo/empire.js';
 import { memberPlayer, memberPlayers } from '../repo/members.js';
 import { latestScores } from '../repo/stats.js';
@@ -182,7 +183,8 @@ export function playersRoutes(app: FastifyInstance, db: DB) {
     const ctx = ctxOf(req);
     const note = req.body?.note ?? null;
     if (note !== null && (typeof note !== 'string' || note.length > NOTE_MAX)) throw new HttpError(400, 'note_invalid', 'Invalid note');
-    db.prepare('UPDATE players SET note = ? WHERE id = ? AND group_id = ?').run(note || null, Number(req.params.id), ctx.groupId);
+    const res = db.prepare('UPDATE players SET note = ? WHERE id = ? AND group_id = ?').run(note || null, Number(req.params.id), ctx.groupId);
+    if (res.changes) events.publish(ctx.groupId, { type: 'data', tables: ['players'], userId: ctx.user.id });
     return { ok: true };
   });
 }
