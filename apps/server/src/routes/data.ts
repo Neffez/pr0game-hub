@@ -8,6 +8,15 @@ import type { DB } from '../db.js';
 
 type Q = Record<string, string | undefined>;
 
+/** Integer query parameter within [min, max]; missing or invalid values give the default. */
+const clampInt = (v: string | undefined, def: number, min: number, max: number) => {
+  const n = Math.trunc(Number(v ?? def));
+  return Number.isFinite(n) ? Math.min(Math.max(n, min), max) : def;
+};
+
+/** Longest player note in characters. */
+const NOTE_MAX = 5000;
+
 /** Escapes LIKE wildcards of user input (use with ESCAPE '\\'). */
 const likeTerm = (s: string) => `%${s.replace(/[\\%_]/g, '\\$&')}%`;
 
@@ -333,7 +342,9 @@ export function dataRoutes(app: FastifyInstance, db: DB) {
 
   app.put<{ Params: { uni: string; id: string }; Body: { note: string | null } }>('/api/:uni/players/:id/note', async (req) => {
     const ctx = ctxOf(req);
-    db.prepare('UPDATE players SET note = ? WHERE id = ? AND group_id = ?').run(req.body?.note || null, Number(req.params.id), ctx.groupId);
+    const note = req.body?.note ?? null;
+    if (note !== null && (typeof note !== 'string' || note.length > NOTE_MAX)) throw new HttpError(400, 'note_invalid', 'Invalid note');
+    db.prepare('UPDATE players SET note = ? WHERE id = ? AND group_id = ?').run(note || null, Number(req.params.id), ctx.groupId);
     return { ok: true };
   });
 
@@ -342,7 +353,7 @@ export function dataRoutes(app: FastifyInstance, db: DB) {
   app.get<{ Params: { uni: string; g: string; s: string; p: string }; Querystring: Q }>('/api/:uni/spy/:g/:s/:p', async (req) => {
     const ctx = ctxOf(req);
     const type = req.query.type === 'moon' ? 'moon' : 'planet';
-    const limit = Math.min(Number(req.query.limit ?? 20) || 20, 500);
+    const limit = clampInt(req.query.limit, 20, 1, 500);
     const reports = db
       .prepare(
         `SELECT sr.id, sr.planet_name, sr.player_name, sr.player_id, sr.report_time, sr.sections, sr.destroy_chance, ${DISPLAY} AS reporter
@@ -367,7 +378,7 @@ export function dataRoutes(app: FastifyInstance, db: DB) {
            ${DISPLAY} AS reporter
          FROM spy_reports sr LEFT JOIN users u ON u.id = sr.user_id ${MEMBER('sr')} WHERE sr.group_id = ? ORDER BY sr.report_time DESC LIMIT ?`,
       )
-      .all(ctx.groupId, Math.min(Number(req.query.limit ?? 100) || 100, 1000))
+      .all(ctx.groupId, clampInt(req.query.limit, 100, 1, 1000))
       .map(parseSections);
   });
 
@@ -535,16 +546,16 @@ export function dataRoutes(app: FastifyInstance, db: DB) {
       .all(ctx.groupId, from, to, ctx.universe.settings.positions) as any[];
     const raids = rows.map((r) => ({ ...r, defense: own.get(r.user_id)?.has(`${r.g}:${r.s}:${r.p}`) ?? false }));
 
-    const perUser = new Map<string, any>();
+    const perUser = new Map<number | null, any>();
     for (const r of raids.filter((x) => !x.defense)) {
-      const e = perUser.get(r.username) ?? { userId: r.user_id, username: r.username, raids: 0, metal: 0, crystal: 0, deuterium: 0, lost: 0, debris: 0 };
+      const e = perUser.get(r.user_id) ?? { userId: r.user_id, username: r.username, raids: 0, metal: 0, crystal: 0, deuterium: 0, lost: 0, debris: 0 };
       e.raids++;
       e.metal += r.loot_metal;
       e.crystal += r.loot_crystal;
       e.deuterium += r.loot_deuterium;
       e.lost += r.lost_attacker;
       e.debris += r.debris_metal + r.debris_crystal;
-      perUser.set(r.username, e);
+      perUser.set(r.user_id, e);
     }
     const recycling = db
       .prepare(
@@ -552,14 +563,14 @@ export function dataRoutes(app: FastifyInstance, db: DB) {
          WHERE r.group_id = ? AND COALESCE(r.time, r.created_at) BETWEEN ? AND ? ORDER BY COALESCE(r.time, r.created_at) DESC`,
       )
       .all(ctx.groupId, from, to) as any[];
-    const recyclePerUser = new Map<string, any>();
+    const recyclePerUser = new Map<number | null, any>();
     for (const r of recycling) {
-      const e = recyclePerUser.get(r.username) ?? { userId: r.user_id, username: r.username, runs: 0, metal: 0, crystal: 0, left: 0 };
+      const e = recyclePerUser.get(r.user_id) ?? { userId: r.user_id, username: r.username, runs: 0, metal: 0, crystal: 0, left: 0 };
       e.runs++;
       e.metal += r.metal;
       e.crystal += r.crystal;
       e.left += Math.max(0, r.total_metal - r.metal) + Math.max(0, r.total_crystal - r.crystal);
-      recyclePerUser.set(r.username, e);
+      recyclePerUser.set(r.user_id, e);
     }
     return {
       from, to, perUser: [...perUser.values()], reports: raids.slice(0, 500),
@@ -579,15 +590,15 @@ export function dataRoutes(app: FastifyInstance, db: DB) {
       )
       .all(ctx.groupId, from, to) as any[];
 
-    const perUser = new Map<string, any>();
+    const perUser = new Map<number | null, any>();
     for (const r of rows) {
-      const e = perUser.get(r.username) ?? { userId: r.user_id, username: r.username, total: 0, events: {}, resources: {}, ships: {} };
+      const e = perUser.get(r.user_id) ?? { userId: r.user_id, username: r.username, total: 0, events: {}, resources: {}, ships: {} };
       e.total++;
       const key = r.size === 'None' ? r.event : `${r.event}:${r.size}`;
       e.events[key] = (e.events[key] ?? 0) + 1;
       for (const [id, n] of Object.entries(JSON.parse(r.found_resources) as Record<string, number>)) e.resources[id] = (e.resources[id] ?? 0) + n;
       for (const [id, n] of Object.entries(JSON.parse(r.found_ships) as Record<string, number>)) e.ships[id] = (e.ships[id] ?? 0) + n;
-      perUser.set(r.username, e);
+      perUser.set(r.user_id, e);
     }
     const expected = Object.fromEntries(
       ctx.universe.deck.map((c) => [c.size === 'None' ? c.type : `${c.type}:${c.size}`, c.count]),
@@ -639,6 +650,15 @@ export function dataRoutes(app: FastifyInstance, db: DB) {
     async (req) => {
       const ctx = ctxOf(req);
       const b = req.body ?? {};
+      const startTime = b.startTime ?? null;
+      if (startTime !== null && !(Number.isInteger(startTime) && startTime > 0)) throw new HttpError(400, 'time_invalid', 'Invalid time');
+      const drawn = b.initialDrawn ?? {};
+      const valid =
+        typeof drawn === 'object' &&
+        !Array.isArray(drawn) &&
+        Object.keys(drawn).length <= 100 &&
+        Object.values(drawn).every((n) => Number.isInteger(n) && n >= 0 && n <= 10000);
+      if (!valid) throw new HttpError(400, 'deck_settings_invalid', 'Invalid deck settings');
       db.prepare(
         `INSERT INTO deck_settings (group_id, user_id, start_time, initial_drawn, unknown_depletion) VALUES (?, ?, ?, ?, ?)
          ON CONFLICT (group_id, user_id) DO UPDATE SET start_time = excluded.start_time, initial_drawn = excluded.initial_drawn,
@@ -646,9 +666,9 @@ export function dataRoutes(app: FastifyInstance, db: DB) {
       ).run(
         ctx.groupId,
         ctx.user.id,
-        b.startTime ?? null,
-        JSON.stringify(b.initialDrawn ?? {}),
-        Math.min(Math.max(Number(b.unknownDepletion ?? 0), 0), 1),
+        startTime,
+        JSON.stringify(drawn),
+        Math.min(Math.max(Number(b.unknownDepletion ?? 0), 0), 1) || 0,
       );
       return { ok: true };
     },
@@ -773,13 +793,13 @@ export function dataRoutes(app: FastifyInstance, db: DB) {
     const list = db
       .prepare(
         `SELECT h.*, ${DISPLAY} AS username FROM hostile_spying h LEFT JOIN users u ON u.id = h.user_id ${MEMBER('h')}
-         WHERE h.group_id = ? AND COALESCE(h.time, 0) BETWEEN ? AND ? ORDER BY h.time DESC LIMIT 1000`,
+         WHERE h.group_id = ? AND (h.time IS NULL OR h.time BETWEEN ? AND ?) ORDER BY h.time DESC LIMIT 1000`,
       )
       .all(ctx.groupId, from, to);
     const bySpy = db
       .prepare(
         `SELECT from_player, COUNT(*) AS count, MAX(time) AS last, COUNT(DISTINCT user_id) AS victims
-         FROM hostile_spying WHERE group_id = ? AND COALESCE(time, 0) BETWEEN ? AND ? GROUP BY from_player ORDER BY count DESC`,
+         FROM hostile_spying WHERE group_id = ? AND (time IS NULL OR time BETWEEN ? AND ?) GROUP BY from_player ORDER BY count DESC`,
       )
       .all(ctx.groupId, from, to);
     return { from, to, list, bySpy };

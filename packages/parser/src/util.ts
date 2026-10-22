@@ -63,11 +63,19 @@ export function localToEpoch(local: LocalDateTime, timeZone = 'Europe/Berlin'): 
   return Math.round(guess / 1000);
 }
 
+/** Formatters per time zone; creating one is expensive and this runs per message. */
+const zoneFormats = new Map<string, Intl.DateTimeFormat>();
+
 function zoneOffsetMs(utcMs: number, timeZone: string): number {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit',
-    hour: '2-digit', minute: '2-digit', second: '2-digit',
-  }).formatToParts(new Date(utcMs));
+  let format = zoneFormats.get(timeZone);
+  if (!format) {
+    format = new Intl.DateTimeFormat('en-US', {
+      timeZone, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit',
+    });
+    zoneFormats.set(timeZone, format);
+  }
+  const parts = format.formatToParts(new Date(utcMs));
   const get = (t: string) => Number(parts.find((p) => p.type === t)?.value);
   const zoned = Date.UTC(get('year'), get('month') - 1, get('day'), get('hour'), get('minute'), get('second'));
   return zoned - utcMs;

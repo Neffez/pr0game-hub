@@ -529,6 +529,52 @@ describe('review fixes', () => {
     expect(await me()).toBe('en');
   });
 
+  it('keeps the activity log of merged players', async () => {
+    const groupX = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', headers: admin, payload: { universe: 'u8', name: 'Merge' } })).json().id;
+    const add = (name: string) => Number(db.prepare('INSERT INTO players (group_id, name) VALUES (?, ?)').run(groupX, name).lastInsertRowid);
+    const [from, into] = [add('Old'), add('New')];
+    db.prepare("INSERT INTO activity_log (group_id, time, kind, player_id, dedupe_key) VALUES (?, 1, 'planet_new', ?, 'merge')").run(groupX, from);
+    const res = await app.inject({ method: 'POST', url: `/hub/api/admin/groups/${groupX}/players/merge`, headers: admin, payload: { from, into } });
+    expect(res.statusCode).toBe(200);
+    expect(db.prepare("SELECT player_id FROM activity_log WHERE dedupe_key = 'merge'").pluck().get()).toBe(into);
+  });
+
+  it('clamps limits and validates notes and deck settings', async () => {
+    const headers = { ...admin, 'x-hub-group': String(groupA) };
+    for (let i = 0; i < 2; i++) {
+      db.prepare("INSERT INTO spy_reports (group_id, g, s, p, planet_type, report_time, player_name, sections) VALUES (?, 9, 9, 9, 'planet', ?, 'X', '{}')").run(groupA, 1000 + i);
+    }
+    const spy = (await app.inject({ method: 'GET', url: '/hub/api/u8/spy/9/9/9?limit=-1', headers })).json();
+    expect(spy).toMatchObject({ total: 2 });
+    expect(spy.reports).toHaveLength(1);
+
+    const player = db.prepare('SELECT id FROM players WHERE group_id = ? LIMIT 1').pluck().get(groupA);
+    const note = (payload: object) => app.inject({ method: 'PUT', url: `/hub/api/u8/players/${player}/note`, headers, payload });
+    expect((await note({ note: { x: 1 } })).statusCode).toBe(400);
+    expect((await note({ note: 'x'.repeat(5001) })).statusCode).toBe(400);
+    expect((await note({ note: 'farm' })).statusCode).toBe(200);
+
+    const deck = (payload: object) => app.inject({ method: 'PUT', url: '/hub/api/u8/deck', headers, payload });
+    expect((await deck({ startTime: 'yesterday' })).statusCode).toBe(400);
+    expect((await deck({ initialDrawn: { 'Nothing:normal': -1 } })).statusCode).toBe(400);
+    expect((await deck({ startTime: 1000, initialDrawn: { 'Nothing:normal': 2 } })).statusCode).toBe(200);
+  });
+
+  it('keeps the last admin of an alliance', async () => {
+    const groupX = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', headers: admin, payload: { universe: 'u8', name: 'Admins' } })).json().id;
+    const inv = (await app.inject({ method: 'POST', url: `/hub/api/admin/groups/${groupX}/invites`, headers: admin, payload: { role: 'admin' } })).json();
+    await app.inject({ method: 'POST', url: `/hub/api/invites/${inv.token}/accept`, payload: { username: 'carol', password: 'carolpass' } });
+    const carol = await login('carol', 'carolpass');
+    const id = db.prepare("SELECT id FROM users WHERE username = 'carol'").pluck().get();
+    const url = `/hub/api/admin/groups/${groupX}/members/${id}`;
+    // the creator leaves, carol is the only admin
+    await app.inject({ method: 'DELETE', url: `/hub/api/admin/groups/${groupX}/members/1`, headers: admin });
+    expect((await app.inject({ method: 'PUT', url, headers: carol, payload: { role: 'member' } })).json().code).toBe('last_admin');
+    expect((await app.inject({ method: 'DELETE', url, headers: carol })).json().code).toBe('last_admin');
+    // the global admin may
+    expect((await app.inject({ method: 'PUT', url, headers: admin, payload: { role: 'member' } })).statusCode).toBe(200);
+  });
+
   it('rejects duplicate universes and invalid settings', async () => {
     const h = { headers: admin };
     expect((await app.inject({ method: 'POST', url: '/hub/api/admin/universes', payload: { slug: 'u8' }, ...h })).statusCode).toBe(409);

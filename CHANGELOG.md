@@ -4,6 +4,22 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-22
 
+- Overview: the planet view only warns about outdated total points; older fleet, research, building or defense
+  statistics are still marked in the coverage tooltip, and the player view still warns about every category.
+- Fixes from the code review:
+  - A stored alliance the user is no longer a member of (removed, deleted, other account in the same browser) no
+    longer locks the universe; the hub falls back to the first alliance.
+  - Merging players keeps their activity log entries.
+  - Raids, recycling and expeditions are summed per member instead of per display name (members with the same name
+    or deleted users no longer fall together).
+  - Hostile spying without a parsed time is listed again.
+  - Alliance admins can't remove or demote the last admin of their alliance.
+  - Player notes (max. 5000 characters) and deck settings are validated; negative limits no longer lift the limit of
+    the spy report lists.
+  - The planet action menu no longer leaves its listeners behind when closed right after opening.
+  - Faster sync: SQL statements are compiled once and reused (a universe.json import prepared them per planet),
+    time zone formatters are cached, and a galaxy view reads the system's planets once.
+  - Developers: migration `010` drops two indexes that duplicated the tables' `UNIQUE` constraints.
 - The battle report archive pauses per universe: a universe whose game is unreachable (e.g. maintenance) no longer
   blocks the others. The admin page lists each paused or stopped universe with its error.
 - The remaining wide tables become cards on mobile: statistics, battle hall, raids, expeditions, expedition deck,

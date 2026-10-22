@@ -552,17 +552,13 @@ class Store {
 
     // Planets/moons are only news when the system was known before (a first sync would report everything).
     const before = new Map(
-      (db.prepare('SELECT p, player_id, has_moon, debris FROM planets WHERE group_id = ? AND g = ? AND s = ?').all(this.t.groupId, r.g, r.s) as {
-        p: number; player_id: number | null; has_moon: number; debris: string | null;
+      (db.prepare('SELECT id, p, player_id, has_moon, debris FROM planets WHERE group_id = ? AND g = ? AND s = ?').all(this.t.groupId, r.g, r.s) as {
+        id: number; p: number; player_id: number | null; has_moon: number; debris: string | null;
       }[]).map((x) => [x.p, x]),
     );
     const positions = new Set(r.rows.map((row) => row.position));
     // Positions not listed anymore are empty now.
-    const existing = db.prepare('SELECT id, p FROM planets WHERE group_id = ? AND g = ? AND s = ?').all(this.t.groupId, r.g, r.s) as {
-      id: number;
-      p: number;
-    }[];
-    for (const e of existing) {
+    for (const e of before.values()) {
       if (!positions.has(e.p)) db.prepare('DELETE FROM planets WHERE id = ?').run(e.id);
     }
     for (const row of r.rows) {
@@ -662,17 +658,17 @@ class Store {
 
   private recycle(r: RecycleRecord) {
     const key = r.msgId ? `m${r.msgId}` : `r${fnv1a(JSON.stringify([r.time, r.coords, r.metal, r.crystal, r.totalMetal, r.totalCrystal]))}`;
+    const time = this.epoch(r.time);
     const res = this.db
       .prepare(
         `INSERT OR IGNORE INTO recycle_reports (group_id, user_id, dedupe_key, msg_id, time, g, s, p, metal, crystal, total_metal, total_crystal)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
-        this.t.groupId, this.t.userId, key, r.msgId, this.epoch(r.time), r.coords.g, r.coords.s, r.coords.p,
+        this.t.groupId, this.t.userId, key, r.msgId, time, r.coords.g, r.coords.s, r.coords.p,
         r.metal, r.crystal, r.totalMetal, r.totalCrystal,
       );
     this.count('recycle_reports', res.changes > 0);
-    const time = this.epoch(r.time);
     if (!res.changes || !time) return;
     this.recycleEvent(r, time, this.t.userId, key);
   }

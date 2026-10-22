@@ -58,11 +58,10 @@ function toggle() {
     ...(below ? { top: `${r.bottom + 4}px` } : { bottom: `${window.innerHeight - r.top + 4}px` }),
   };
   open.value = true;
-  setTimeout(() => {
-    document.addEventListener('click', close);
-    window.addEventListener('scroll', close, true);
-    window.addEventListener('resize', close);
-  });
+  // the opening click stops at the button (@click.stop), so it doesn't reach this listener
+  document.addEventListener('click', close);
+  window.addEventListener('scroll', close, true);
+  window.addEventListener('resize', close);
 }
 function close() {
   open.value = false;

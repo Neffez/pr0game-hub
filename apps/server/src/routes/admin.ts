@@ -20,6 +20,13 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
     return user;
   };
 
+  /** Alliance admins can't remove or demote the last admin of their alliance (that's left to the global admin). */
+  const keepLastAdmin = (user: { isAdmin: boolean }, groupId: number, userId: number) => {
+    if (user.isAdmin) return;
+    const admins = db.prepare("SELECT user_id FROM group_members WHERE group_id = ? AND role = 'admin'").pluck().all(groupId) as number[];
+    if (admins.length === 1 && admins[0] === userId) throw new HttpError(400, 'last_admin', 'The alliance needs at least one admin');
+  };
+
   // ------------------------------------------------------------- universes
 
   app.get('/api/universes', async (req) => {
@@ -115,9 +122,10 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
     '/api/admin/groups/:id/members/:userId',
     async (req) => {
       const groupId = Number(req.params.id);
-      requireGroupAdmin(req, groupId);
+      const user = requireGroupAdmin(req, groupId);
       const role = req.body?.role;
       if (role && role !== 'member' && role !== 'admin') throw new HttpError(400, 'role_invalid', 'Invalid role');
+      if (role === 'member') keepLastAdmin(user, groupId, Number(req.params.userId));
       const hasName = req.body !== undefined && req.body !== null && 'ingameName' in req.body;
       db.prepare('UPDATE group_members SET role = COALESCE(?, role), ingame_name = CASE WHEN ? THEN ? ELSE ingame_name END WHERE group_id = ? AND user_id = ?').run(
         role ?? null,
@@ -132,7 +140,8 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
 
   app.delete<{ Params: { id: string; userId: string } }>('/api/admin/groups/:id/members/:userId', async (req) => {
     const groupId = Number(req.params.id);
-    requireGroupAdmin(req, groupId);
+    const user = requireGroupAdmin(req, groupId);
+    keepLastAdmin(user, groupId, Number(req.params.userId));
     db.prepare('DELETE FROM group_members WHERE group_id = ? AND user_id = ?').run(groupId, Number(req.params.userId));
     return { ok: true };
   });
@@ -195,7 +204,7 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
       db.prepare('UPDATE OR IGNORE player_scores SET player_id = ? WHERE player_id = ?').run(into, from);
       for (const table of ['spy_reports', 'planets']) db.prepare(`UPDATE ${table} SET player_id = ? WHERE player_id = ?`).run(into, from);
       db.prepare('UPDATE OR IGNORE player_aliases SET player_id = ? WHERE player_id = ?').run(into, from);
-      db.prepare('UPDATE player_status_log SET player_id = ? WHERE player_id = ?').run(into, from);
+      for (const table of ['player_status_log', 'activity_log']) db.prepare(`UPDATE ${table} SET player_id = ? WHERE player_id = ?`).run(into, from);
       db.prepare('INSERT OR REPLACE INTO player_aliases (player_id, name, seen_until) VALUES (?, ?, ?)').run(into, src.name, src.last_seen);
       if (src.ingame_id) db.prepare('UPDATE players SET ingame_id = NULL WHERE id = ?').run(from);
       db.prepare('UPDATE players SET ingame_id = COALESCE(ingame_id, ?), first_seen = MIN(first_seen, ?) WHERE id = ?').run(src.ingame_id, src.first_seen, into);

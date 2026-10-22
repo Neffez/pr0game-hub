@@ -12,15 +12,19 @@ export const session = reactive<{ me: Me | null; loaded: boolean }>({ me: null, 
 
 const GROUP_KEY = 'hub.group.';
 
-/** Selected group per universe (per-viewer convenience). */
+/**
+ * Selected group per universe (per-viewer convenience). A stored group the user is no
+ * longer a member of (removed, deleted, other account) falls back to the first one.
+ */
 export function selectedGroup(uni: string): number | null {
+  const groups = session.me?.groups.filter((g) => g.universe === uni) ?? [];
   try {
-    const v = localStorage.getItem(GROUP_KEY + uni);
-    if (v) return Number(v);
+    const v = Number(localStorage.getItem(GROUP_KEY + uni));
+    if (groups.some((g) => g.id === v)) return v;
   } catch {
     /* storage unavailable */
   }
-  return session.me?.groups.find((g) => g.universe === uni)?.id ?? null;
+  return groups[0]?.id ?? null;
 }
 
 export function selectGroup(uni: string, id: number) {

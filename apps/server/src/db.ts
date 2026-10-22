@@ -14,7 +14,32 @@ export function openDb(file: string): DB {
   db.pragma('foreign_keys = ON');
   db.pragma('busy_timeout = 5000');
   migrate(db);
+  cacheStatements(db);
   return db;
+}
+
+/** Upper bound of cached statements (SQL with generated `IN (?, …)` lists varies with the input). */
+const STATEMENT_CACHE = 1000;
+
+/**
+ * better-sqlite3 compiles the SQL on every `prepare()`, and the code prepares inline, also in loops
+ * (per planet of a universe.json). Caches statements by their SQL instead. A cached statement is
+ * handed out with `pluck` reset, since `.pluck()` changes the statement itself.
+ */
+function cacheStatements(db: DB) {
+  const cache = new Map<string, Database.Statement>();
+  const prepare = db.prepare.bind(db);
+  db.prepare = ((sql: string) => {
+    let stmt = cache.get(sql);
+    if (stmt) {
+      if (stmt.reader) stmt.pluck(false);
+      return stmt;
+    }
+    stmt = prepare(sql);
+    if (cache.size >= STATEMENT_CACHE) cache.clear();
+    cache.set(sql, stmt);
+    return stmt;
+  }) as DB['prepare'];
 }
 
 function migrate(db: DB) {
