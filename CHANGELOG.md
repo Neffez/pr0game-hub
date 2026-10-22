@@ -4,6 +4,8 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Alliance fleet page: fleet movements in a tab of their own, first in the order fleet movements, ships, defense.
+
 - Fleet sharing in the account settings: each user decides whether the other members see their fleet movements and
   which missions (attack, transport, deploy, expedition …); all are shared by default.
   - Applies at once and to fleets already synced (filtered when served, not when stored); the own empire view always

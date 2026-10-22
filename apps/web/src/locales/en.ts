@@ -367,12 +367,13 @@ const en: typeof de = {
   alliance: {
     hint: "From the latest empire page of every alliance member in the hub. Every member pastes their own empire page for this.",
     hint_planets: 'One row per planet/moon with building levels. Points = building points of the planet.',
-    hint_fleet: 'Ships or defense summed over all planets and moons. Fleets in flight are listed in the fleet movements above (from the synced overview).',
+    hint_fleet: 'Fleet movements: fleets in flight from the synced overview. Ships or defense: summed over all planets and moons from the empire page.',
     fleetsHint: 'Fleets in flight of all members from their latest synced overview (or the pasted event lines), next arrival first. Behind it: when each member last synced their fleets.',
     hint_research: 'Research levels per member. Points = research points.',
     hintColumns: 'Column headers are abbreviated, the full name is in the tooltip. Colours: red = low, green = column maximum.',
     missing: 'Empire missing: {names}',
     empty: 'No empire pages pasted yet.',
+    fleetsEmpty: 'No fleet movements synced yet (or no member shares them). Paste the game overview or only its event lines.',
   },
   paste: {
     title: 'Paste page',

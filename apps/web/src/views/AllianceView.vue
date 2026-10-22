@@ -42,7 +42,9 @@ const { uni } = useUni();
 const mobile = useMobile();
 const members = ref<Member[]>([]);
 const error = ref('');
-const fleetTab = ref<'ships' | 'defense'>('ships');
+const fleetTab = ref<'movements' | 'ships' | 'defense'>('movements');
+/** fleet page, tab with the fleet movements instead of the empire tables */
+const movements = computed(() => page.value === 'fleet' && fleetTab.value === 'movements');
 
 async function load() {
   try {
@@ -174,30 +176,31 @@ const total = computed(() => {
 
   <div class="card row small">
     <div v-if="page === 'fleet'" class="tabs" style="margin: 0">
+      <button :class="{ active: fleetTab === 'movements' }" @click="fleetTab = 'movements'">{{ t('imperium.fleets') }}</button>
       <button :class="{ active: fleetTab === 'ships' }" @click="fleetTab = 'ships'">{{ name(200) }}</button>
       <button :class="{ active: fleetTab === 'defense' }" @click="fleetTab = 'defense'">{{ t('game.sections.400') }}</button>
     </div>
-    <span v-for="m in withData" :key="m.user_id" class="muted" :title="dateTime(m.created_at)">{{ memberName(m) }}: {{ ago(m.created_at) }}</span>
-    <span v-if="missing.length" class="warn">{{ t('alliance.missing', { names: missing.map(memberName).join(', ') }) }}</span>
-  </div>
-
-  <div v-if="page === 'fleet' && !error && withFleets.length" class="card">
-    <h3 style="margin: 0 0 6px">
-      {{ t('imperium.fleets') }}
-      <Hint><p>{{ t('alliance.fleetsHint') }}</p></Hint>
-    </h3>
-    <div class="row small" style="margin-bottom: 8px">
+    <!-- movements: when each member last synced their fleets, else their empire page -->
+    <template v-if="movements">
       <select v-if="withFleets.length > 1" v-model="fleetMember">
         <option :value="null">{{ t('imperium.allMembers') }}</option>
         <option v-for="m in withFleets" :key="m.user_id" :value="m.user_id">{{ memberName(m) }}</option>
       </select>
       <span v-for="m in withFleets" :key="m.user_id" class="muted" :title="dateTime(m.fleets!.time)">{{ memberName(m) }}: {{ ago(m.fleets!.time) }}</span>
-    </div>
-    <p v-if="!flights.length" class="muted small" style="margin: 0">{{ t('imperium.fleetsNone') }}</p>
-    <FleetList v-else :fleets="flights" :now="now" />
+      <Hint><p>{{ t('alliance.fleetsHint') }}</p></Hint>
+    </template>
+    <template v-else>
+      <span v-for="m in withData" :key="m.user_id" class="muted" :title="dateTime(m.created_at)">{{ memberName(m) }}: {{ ago(m.created_at) }}</span>
+      <span v-if="missing.length" class="warn">{{ t('alliance.missing', { names: missing.map(memberName).join(', ') }) }}</span>
+    </template>
   </div>
 
   <div v-if="error" class="error">{{ error }}</div>
+  <div v-else-if="movements" class="card">
+    <p v-if="!withFleets.length" class="muted small" style="margin: 0">{{ t('alliance.fleetsEmpty') }}</p>
+    <p v-else-if="!flights.length" class="muted small" style="margin: 0">{{ t('imperium.fleetsNone') }}</p>
+    <FleetList v-else :fleets="flights" :now="now" />
+  </div>
   <div v-else-if="!withData.length" class="card muted">{{ t('alliance.empty') }}</div>
 
   <!-- mobile: one card per planet/member with the levels as a grid -->
