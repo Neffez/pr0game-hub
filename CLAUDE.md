@@ -15,7 +15,7 @@ Guidance for Claude Code in this repository. See `README.md` for features, setup
   only builds the Docker image and sends the `repository_dispatch` from CI.
 - **Language.** Code, comments, commit messages, README and changelog in English. UI texts live in
   `apps/web/src/locales/de.ts` and `en.ts`; always update both.
-- **Commit author** is `Neffez <mail@neffez.dev>` (set in the repository's git config).
+- **Personal rules** of a contributor go into `CLAUDE.local.md` (gitignored, loaded in addition to this file).
 
 ## Commands
 
