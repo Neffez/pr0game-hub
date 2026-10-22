@@ -1,7 +1,7 @@
 import { parsePage, type CombatReportRecord } from '@pr0hub/core';
 import { config } from './config.js';
 import type { DB } from './db.js';
-import { storeCombatReport } from './ingest.js';
+import { storeCombatReport } from './store.js';
 
 type Log = { info: (o: object, m: string) => void; warn: (o: object, m: string) => void };
 

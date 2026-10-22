@@ -1,6 +1,6 @@
 import { UNIVERSE_JSON_STATUS } from '@pr0hub/core';
 import type { DB } from './db.js';
-import { placeholderAlliance, placeholderPlayer } from './ingest.js';
+import { placeholderAlliance, placeholderPlayer } from './repo/players.js';
 
 /**
  * Builds a universe.json exactly like pr0game's own galaxy export (scripts/game/galaxy.js `export_json`):

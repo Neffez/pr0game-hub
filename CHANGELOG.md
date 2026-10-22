@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-22
 
+- Developers: the sync is split up: `ingest.ts` (entry points: ingest, reparse, activity backfill), `store.ts`
+  (writes the parsed records) and `repo/players.ts` (`Players`: finding and creating players and alliances by id or
+  current/former name, shared with the routes).
 - Battle report archive: reports of attackers shot down in the first round (the game shows "Contact with the attacking
   fleet was lost" instead of a report) are marked "no report" in the battle hall and the admin counts; before, the
   worker took this page for maintenance and paused the whole universe again and again.
