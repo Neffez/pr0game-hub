@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { computeDeck, DEFAULT_DECK, localToEpoch, parsePage, type DeckEvent } from '../src/index.js';
+import { computeDeck, DEFAULT_DECK, localToEpoch, nearestClock, parsePage, type DeckEvent } from '../src/index.js';
 import { elementPoints, idByName, idByShortName, sectionPoints } from '../src/tech.js';
 
 const fixture = (name: string) => readFileSync(new URL(`./fixtures/${name}`, import.meta.url), 'utf8');
@@ -382,6 +382,69 @@ describe('overview', () => {
       { kind: 'building', coords: c(2, 2, 15), type: 'moon', id: 41, level: 6, destroy: false, seconds: 3600 },
     ]);
     expect(rec.catchUp).toBeNull();
+  });
+});
+
+describe('fleet movements', () => {
+  const c = (g: number, s: number, p: number) => ({ g, s, p });
+  const lines = [
+    ' 00:18:43 | 17m 27s Eine deiner Flotten (1 Leichter Jäger) kehrt vom Mond 1 129 11 [1:129:11] zurück zum Planet Ares [1:100:12]. Mission: Angreifen',
+    '02:33:25 | 02h 32m 09s Eine deiner Flotten (7 Großer Transporter; 68 Leichter Jäger; 4 Schlachtschiff; 2 Schlachtkreuzer) vom Planet Domestos [3:100:15] erreicht den Planet Quetzalcoatl [2:2:15]. Mission: Stationieren (Rohstoffe: 0 Metall; 0 Kristall; 180719 Deuterium)',
+    '08:30:47 | 08h 29m 31s Eine deiner Flotten (3418 Leichter Jäger; 44 Schwerer Jäger; 1463 Schlachtschiff; 131 Recycler; 4397 Schlachtkreuzer; 1698 Optimierter Recycler) vom Mond Whorus [2:100:15] erreicht den Planet Quetzalcoatl [2:2:15]. Mission: Stationieren',
+  ];
+
+  it('parses copied event lines on their own', () => {
+    const res = parsePage({ text: lines.join('\n') });
+    expect(res).toMatchObject({ pageType: 'fleets', source: 'text' });
+    const rec = res.records[0] as any;
+    expect(rec.pageTime).toBeNull();
+    expect(rec.fleets).toEqual([
+      {
+        owner: 'own', player: null, mission: 1, missionName: 'Angreifen', phase: 'return',
+        from: { coords: c(1, 129, 11), type: 'moon', name: '1 129 11' }, to: { coords: c(1, 100, 12), type: 'planet', name: 'Ares' },
+        ships: { 204: 1 }, resources: null, seconds: 17 * 60 + 27, clock: '00:18:43',
+      },
+      {
+        owner: 'own', player: null, mission: 4, missionName: 'Stationieren', phase: 'out',
+        from: { coords: c(3, 100, 15), type: 'planet', name: 'Domestos' }, to: { coords: c(2, 2, 15), type: 'planet', name: 'Quetzalcoatl' },
+        ships: { 203: 7, 204: 68, 207: 4, 215: 2 }, resources: { 901: 0, 902: 0, 903: 180719 }, seconds: 9129, clock: '02:33:25',
+      },
+      expect.objectContaining({ from: expect.objectContaining({ type: 'moon', name: 'Whorus' }), resources: null, seconds: 30571 }),
+    ]);
+    expect(rec.fleets[2].ships).toEqual({ 204: 3418, 205: 44, 207: 1463, 209: 131, 215: 4397, 227: 1698 });
+  });
+
+  it('adds the fleets of a copied overview page, an empty list only when it was shown', () => {
+    const page = (events: string[], button = 'Ausblenden') =>
+      ['Planet Ares (Rudolf)', 'Serverzeit : Okt Fr 23 00:01:53', `Ereignisse ${button}`, ...events, 'Übersicht', 'Ares', 'Gebäude: Frei', 'Position: [1:100:12]'].join('\n');
+    const res = parsePage({ text: page(lines) });
+    expect(res.pageType).toBe('overview');
+    expect(res.records.map((r) => r.kind)).toEqual(['overview', 'fleets']);
+    expect((res.records[1] as any).pageTime).toMatch(/-10-23 00:01:53$/);
+    expect((res.records[1] as any).fleets).toHaveLength(3);
+    expect(parsePage({ text: page([]) }).records[1]).toMatchObject({ kind: 'fleets', fleets: [] });
+    expect(parsePage({ text: page([], 'Einblenden') }).records.map((r) => r.kind)).toEqual(['overview']);
+  });
+
+  it('parses the event list of the overview page source with exact remaining seconds', () => {
+    const res = parsePage({ text: fixture('overview-fleets.html') });
+    expect(res.pageType).toBe('overview');
+    const rec = res.records.find((r) => r.kind === 'fleets') as any;
+    expect(rec.pageTime).toBe('2026-10-23 00:02:02');
+    expect(rec.fleets.map((f: any) => [f.mission, f.phase, f.seconds, f.from.name, f.to.name])).toEqual([
+      [1, 'return', 1001, '1 129 11', 'Ares'],
+      [4, 'out', 9083, 'Domestos', 'Quetzalcoatl'],
+      [4, 'out', 30525, 'Whorus', 'Quetzalcoatl'],
+    ]);
+    expect(rec.fleets[1]).toMatchObject({ ships: { 203: 7, 204: 68, 207: 4, 215: 2 }, resources: { 903: 180719 }, clock: null });
+  });
+
+  it('places the arrival clock next to the estimated arrival', () => {
+    const at = localToEpoch('2026-10-23 00:18:43');
+    expect(nearestClock(at + 95, '00:18:43')).toBe(at);
+    expect(nearestClock(at - 600, '00:18:43')).toBe(at);
+    const late = localToEpoch('2026-10-22 23:59:30');
+    expect(nearestClock(late + 60, '23:59:30')).toBe(late);
   });
 });
 

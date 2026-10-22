@@ -200,6 +200,45 @@ export interface OverviewRecord {
   catchUp: number | null;
 }
 
+/** Start or target of a fleet movement; `type` null for a plain position (expedition, colonization). */
+export interface FleetBody {
+  coords: Coords;
+  type: PlanetType | 'debris' | null;
+  name: string | null;
+}
+
+/** One event of the overview's fleet list. */
+export interface FleetMovement {
+  /** own fleet, hostile fleet heading for one of the own planets, or another (peaceful/ACS) fleet */
+  owner: 'own' | 'hostile' | 'foreign';
+  /** owner of a foreign fleet when the text names it */
+  player: string | null;
+  /** game mission id (1 attack, 3 transport, 4 deploy, 15 expedition …), null if unknown */
+  mission: number | null;
+  /** mission as shown in the game */
+  missionName: string;
+  /** flying to the target, flying back, or holding at the target (expedition, ACS defend) */
+  phase: 'out' | 'return' | 'hold';
+  /** where the fleet comes from and where this flight ends (a returning fleet flies from its target home) */
+  from: FleetBody;
+  to: FleetBody | null;
+  /** element id -> amount (empty when the game doesn't show them, e.g. hostile fleets) */
+  ships: Record<number, number>;
+  /** cargo 901-903 when shown */
+  resources: Record<number, number> | null;
+  /** remaining seconds at page time */
+  seconds: number;
+  /** arrival as shown in the copied text ("HH:MM:SS", game time), refines `seconds` */
+  clock: string | null;
+}
+
+/** Fleet movements of the game overview ("Ereignisse"), also when only that list was copied. */
+export interface FleetsRecord {
+  kind: 'fleets';
+  pageTime: string | null;
+  fleets: FleetMovement[];
+}
+
 export interface BattleHallEntry {
   reportId: string;
   rank: number;
@@ -248,10 +287,11 @@ export type HubRecord =
   | GalaxyRecord
   | EmpireRecord
   | OverviewRecord
+  | FleetsRecord
   | BattleHallRecord
   | CombatReportRecord;
 
-export type PageType = 'stats' | 'messages' | 'galaxy' | 'empire' | 'overview' | 'battleHall' | 'combatReport' | 'unknown';
+export type PageType = 'stats' | 'messages' | 'galaxy' | 'empire' | 'overview' | 'fleets' | 'battleHall' | 'combatReport' | 'unknown';
 
 export interface ParseResult {
   pageType: PageType;

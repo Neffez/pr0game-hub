@@ -170,6 +170,8 @@ function describe(r: HubRecord): PreviewItem {
       return { kind: r.kind, planets: r.planets.length };
     case 'overview':
       return { kind: r.kind, queues: r.queues.length };
+    case 'fleets':
+      return { kind: r.kind, fleets: r.fleets.length, hostile: r.fleets.filter((f) => f.owner === 'hostile').length };
     case 'combatReport':
       return { kind: r.kind, names: r.fleets.map((f) => f.name).join(', ') };
     case 'battleHall':

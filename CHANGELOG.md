@@ -2,6 +2,16 @@
 
 Every commit adds its changes here, newest first, grouped by date.
 
+## 2026-10-23
+
+- Fleet movements: the events of the game overview are synced with the whole overview page (text or page source) or on
+  their own (select and copy only the event lines). The empire view shows the member's fleets in flight with a
+  countdown, mission, route, ships and cargo; hostile fleets in red, arrived fleets drop out by themselves.
+  - Arrivals: page time plus remaining seconds (page source: matches the game's arrival timestamp to the second);
+    copied lines use the shown arrival clock, so a late paste doesn't shift them.
+  - A copied overview with the events shown ("Ausblenden") and none listed clears the list; hidden events keep it.
+  - Server: table `fleet_snapshots` (newest per member), `fleets` in `GET /api/:uni/imperium`, page type `fleets`.
+
 ## 2026-10-22
 
 - Flight calculator moved into this repository as `apps/tools` (static pages: tools index and

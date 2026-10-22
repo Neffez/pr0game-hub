@@ -62,6 +62,20 @@ export function localToEpoch(local: LocalDateTime, timeZone = 'Europe/Berlin'): 
   return Math.round(guess / 1000);
 }
 
+/**
+ * Instant closest to `approx` (unix seconds) whose wall-clock time in the zone is `clock` ("HH:MM:SS"),
+ * e.g. the arrival clock of a fleet next to its rounded or delayed remaining time.
+ */
+export function nearestClock(approx: number, clock: string, timeZone = 'Europe/Berlin'): number {
+  const [h, m, s] = clock.split(':').map(Number);
+  const local = approx * 1000 + zoneOffsetMs(approx * 1000, timeZone);
+  const shown = Math.floor(local / 1000) % 86400;
+  let diff = h * 3600 + m * 60 + s - shown;
+  if (diff > 43200) diff -= 86400;
+  if (diff <= -43200) diff += 86400;
+  return approx + diff;
+}
+
 /** Formatters per time zone; creating one is expensive and this runs per message. */
 const zoneFormats = new Map<string, Intl.DateTimeFormat>();
 

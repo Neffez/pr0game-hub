@@ -38,6 +38,23 @@ interface Queue {
   destroy: boolean;
   seconds: number;
 }
+interface FleetBody {
+  coords: C3;
+  type: 'planet' | 'moon' | 'debris' | null;
+  name: string | null;
+}
+/** fleet of the overview's event list (server: FleetMovement plus the arrival) */
+interface Fleet {
+  owner: 'own' | 'hostile' | 'foreign';
+  player: string | null;
+  missionName: string;
+  phase: 'out' | 'return' | 'hold';
+  from: FleetBody;
+  to: FleetBody | null;
+  ships: Record<string, number>;
+  resources: Record<string, number> | null;
+  arrival: number;
+}
 interface Data {
   empire: {
     time: number;
@@ -51,6 +68,7 @@ interface Data {
     };
   } | null;
   overview: { time: number; data: { queues: Queue[]; catchUp?: number | null } } | null;
+  fleets: { time: number; data: Fleet[] } | null;
   /** the member's player with the latest synced statistics per category (1 total … 5 defense) */
   player: { id: number; name: string; stats: Record<number, { points: number; rank: number; time: number }> } | null;
   /**
@@ -81,10 +99,21 @@ onMounted(() => {
 });
 onBeforeUnmount(() => clearInterval(timer));
 watch(userId, load);
-useLiveReload(load, tables('empire', 'overview', 'player_scores'));
+useLiveReload(load, tables('empire', 'overview', 'fleets', 'player_scores'));
 
 const empire = computed(() => data.value?.empire ?? null);
 const overview = computed(() => data.value?.overview ?? null);
+const fleets = computed(() => data.value?.fleets ?? null);
+/** fleets still in flight, next arrival first; arrived ones only count */
+const flights = computed(() => (fleets.value?.data ?? []).filter((f) => f.arrival > now.value).sort((a, b) => a.arrival - b.arrival));
+const arrived = computed(() => (fleets.value?.data.length ?? 0) - flights.value.length);
+const body = (b: FleetBody) => `${b.name ? b.name + ' ' : ''}${b.type === 'moon' ? '☾ ' : ''}[${b.coords.g}:${b.coords.s}:${b.coords.p}]`;
+const shipList = (ships: Record<string, number>) =>
+  Object.entries(ships)
+    .map(([id, n]) => `${fmt(n)} ${name(id)}`)
+    .join(', ');
+const cargo = (res: Record<string, number> | null) =>
+  res && RES.some((id) => res[id]) ? RES.filter((id) => res[id]).map((id) => `${short(res[id])} ${abbr(id)}`).join(' · ') : '';
 const same = (a: C3, b: C3) => a.g === b.g && a.s === b.s && a.p === b.p;
 
 /**
@@ -305,6 +334,9 @@ const memberName = (id: number | null) => ctx.value!.members.find((m) => m.id ==
     <span class="muted">
       {{ t('nav.overview') }}: <template v-if="overview">{{ dateTime(overview.time) }} ({{ ago(overview.time) }})</template><span v-else class="warn">{{ t('imperium.overviewMissing') }}</span>
     </span>
+    <span class="muted">
+      {{ t('imperium.fleets') }}: <template v-if="fleets">{{ dateTime(fleets.time) }} ({{ ago(fleets.time) }})</template><span v-else class="warn">{{ t('imperium.fleetsMissing') }}</span>
+    </span>
     <span v-if="storageFactor !== 1" class="faint" :title="t('imperium.storageTitle')">{{ t('imperium.storage') }} ×{{ fmt(storageFactor, 1) }}</span>
     <span v-if="missingPerHour" class="warn">{{ t('imperium.perHourMissing') }}</span>
   </div>
@@ -385,6 +417,30 @@ const memberName = (id: number | null) => ctx.value!.members.find((m) => m.id ==
       <span v-else class="muted"> · {{ t('imperium.catchUpNoLeader') }}</span>
     </p>
     <p v-if="livePoints.finished.length" class="muted small" style="margin: 6px 0 0">{{ t('imperium.finished', { list: livePoints.finished.join(', ') }) }}</p>
+  </div>
+
+  <div v-if="!error && fleets" class="card">
+    <h3 style="margin: 0 0 6px">
+      {{ t('imperium.fleets') }}
+      <Hint><p>{{ t('imperium.fleetsHint') }}</p></Hint>
+      <span v-if="arrived" class="muted small" style="font-weight: normal"> · {{ t('imperium.fleetsArrived', { n: arrived }) }}</span>
+    </h3>
+    <p v-if="!flights.length" class="muted small" style="margin: 0">{{ t('imperium.fleetsNone') }}</p>
+    <ul v-else class="fleet-list">
+      <li v-for="(f, i) in flights" :key="i" :class="{ hostile: f.owner === 'hostile' }">
+        <span class="mono" :title="dateTime(f.arrival)">{{ countdown(f.arrival - now) }}</span>
+        <span>
+          <b>{{ f.missionName }}</b>
+          <span v-if="f.owner !== 'own'" class="small" :class="f.owner === 'hostile' ? 'neg' : 'muted'">
+            ({{ t(`imperium.${f.owner}`) }}<template v-if="f.player">: {{ f.player }}</template>)
+          </span>
+          {{ body(f.from) }} {{ t(`imperium.phase.${f.phase}`) }} <template v-if="f.to">{{ body(f.to) }}</template>
+          <span v-if="shipList(f.ships) || cargo(f.resources)" class="small muted fleet-detail">
+            {{ shipList(f.ships) }}<template v-if="cargo(f.resources)"> · {{ t('imperium.cargo') }} {{ cargo(f.resources) }}</template>
+          </span>
+        </span>
+      </li>
+    </ul>
   </div>
 
   <!-- mobile: totals first, then one card per planet (moons below their planet) -->
@@ -543,4 +599,10 @@ const memberName = (id: number | null) => ctx.value!.members.find((m) => m.id ==
 .bar > div { height: 100%; background: var(--info); }
 .bar > div.warn { background: var(--warn); }
 .bar > div.neg { background: var(--neg); }
+/* fleet movements: countdown, then mission, route and ships */
+.fleet-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; }
+.fleet-list li { display: contents; }
+.fleet-list li > span:last-child { min-width: 0; overflow-wrap: anywhere; }
+.fleet-list li.hostile > span { color: var(--neg); }
+.fleet-detail { display: block; }
 </style>

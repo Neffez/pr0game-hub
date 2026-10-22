@@ -143,6 +143,24 @@ describe('api', () => {
     expect(im.overview.data.queues).toHaveLength(5);
   });
 
+  it('keeps the newest fleet movements of the overview or pasted on their own', async () => {
+    const headers = { ...admin, 'x-hub-group': String(groupA) };
+    let res = await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { text: fixture('overview-fleets.html') } });
+    expect(res.json().counts.fleets).toEqual({ new: 1, duplicate: 0 });
+    let im = (await app.inject({ method: 'GET', url: '/hub/api/u8/imperium', headers })).json();
+    // page time + remaining seconds = the game's arrival timestamp (data-fleet-end-time)
+    expect(im.fleets.data.map((f: any) => f.arrival)).toEqual([1792707523, 1792715605, 1792737047]);
+
+    const line = '00:18:43 | 17m 27s Eine deiner Flotten (1 Leichter Jäger) kehrt vom Mond X [1:129:11] zurück zum Planet Ares [1:100:12]. Mission: Angreifen';
+    res = await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { text: line } });
+    expect(res.json()).toMatchObject({ pageType: 'fleets', preview: [{ kind: 'fleets', fleets: 1, hostile: 0 }] });
+    im = (await app.inject({ method: 'GET', url: '/hub/api/u8/imperium', headers })).json();
+    expect(im.fleets.data).toHaveLength(1);
+    // without a page time the arrival is the shown clock (00:18:43 Berlin) on the day it is due
+    expect((im.fleets.data[0].arrival - 1792707523) % 86400).toBe(0);
+    expect(db.prepare('SELECT COUNT(*) FROM fleet_snapshots WHERE group_id = ?').pluck().get(groupA)).toBe(1);
+  });
+
   it('lists phalanxes that reach a system', async () => {
     const headers = { ...admin, 'x-hub-group': String(groupA) };
     const empire = { kind: 'empire', research: {}, planets: [

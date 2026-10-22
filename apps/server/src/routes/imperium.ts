@@ -22,6 +22,9 @@ export function imperiumRoutes(app: FastifyInstance, db: DB) {
     const overview = db
       .prepare('SELECT page_time AS time, data FROM overview_snapshots WHERE group_id = ? AND user_id = ? ORDER BY page_time DESC, id DESC LIMIT 1')
       .get(ctx.groupId, userId) as { time: number; data: string } | undefined;
+    const fleets = db
+      .prepare('SELECT page_time AS time, data FROM fleet_snapshots WHERE group_id = ? AND user_id = ? ORDER BY page_time DESC, id DESC LIMIT 1')
+      .get(ctx.groupId, userId) as { time: number; data: string } | undefined;
     // the member's player and the latest synced statistics per category, for the live points
     const playerId = memberPlayer(db, ctx, userId);
     const player = playerId ? (db.prepare('SELECT id, name FROM players WHERE id = ?').get(playerId) as { id: number; name: string }) : undefined;
@@ -82,6 +85,7 @@ export function imperiumRoutes(app: FastifyInstance, db: DB) {
       userId,
       empire: empire ? { time: empire.time, data: empire.rec } : null,
       overview: overview ? { time: overview.time, data: JSON.parse(overview.data) } : null,
+      fleets: fleets ? { time: fleets.time, data: JSON.parse(fleets.data) } : null,
       player: player ? { ...player, stats: Object.fromEntries(stats.map((s) => [s.type, s])) } : null,
       fleetBase: fleetBase && basePoints && anchorFleet != null ? { time: fleetBase.time, points: basePoints.fleet, stat: anchorFleet } : null,
       leader: leader ?? null,

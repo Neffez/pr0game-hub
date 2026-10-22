@@ -3,6 +3,7 @@ import { isEmpireHtml, isEmpireText, parseEmpireHtml, parseEmpireText } from './
 import { isGalaxyHtml, isGalaxyText, parseGalaxyHtml, parseGalaxyText, parseSystem } from './parsers/galaxy.js';
 import { looksLikeUniverseJson, parseUniverseJson } from './parsers/universeJson.js';
 import { isMessagesHtml, parseMessagesHtml, parseMessagesText } from './parsers/messages.js';
+import { isFleetsText, parseFleetsHtml, parseFleetsText } from './parsers/fleets.js';
 import { isOverviewHtml, isOverviewText, parseOverviewHtml, parseOverviewText } from './parsers/overview.js';
 import { isBattleHallHtml, parseBattleHallHtml } from './parsers/battleHall.js';
 import { isCombatReportText, parseCombatReportText } from './parsers/combatReport.js';
@@ -114,7 +115,8 @@ function parseHtml($: cheerio.CheerioAPI, htmlText: string, input: ParseInput, w
   }
   if (page === 'overview' || isOverviewHtml($)) {
     const r = parseOverviewHtml($);
-    if (r) return { pageType: 'overview', records: [r] };
+    const fleets = parseFleetsHtml($);
+    if (r) return { pageType: 'overview', records: fleets ? [r, fleets] : [r] };
   }
   if (page === 'messages' || isMessagesHtml($)) {
     return { pageType: 'messages', records: parseMessagesHtml($) };
@@ -140,7 +142,11 @@ function parseText(text: string, input: ParseInput, warnings: string[]): { pageT
   }
   if (isOverviewText(text)) {
     const r = parseOverviewText(text);
-    if (r) return { pageType: 'overview', records: [r] };
+    const fleets = parseFleetsText(text, true);
+    if (r) return { pageType: 'overview', records: fleets ? [r, fleets] : [r] };
+  }
+  if (isFleetsText(text)) {
+    return { pageType: 'fleets', records: [parseFleetsText(text)!] };
   }
   const msgs = parseMessagesText(text);
   if (msgs.length) return { pageType: 'messages', records: msgs };
