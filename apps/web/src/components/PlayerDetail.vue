@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import PresenceBadge from './PresenceBadge.vue';
 import { Chart, registerables } from 'chart.js';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -134,6 +135,7 @@ onBeforeUnmount(() => chart?.destroy());
       {{ data.player.name }}
       <StatusBadges :status="data.player.status" />
       <span v-if="data.player.ally_name" class="muted"> [{{ data.player.ally_tag ?? data.player.ally_name }}]</span>
+      <PresenceBadge :player="data.player.id" />
     </h1>
     <p class="muted small">
       <template v-if="data.player.ingame_id">ID {{ data.player.ingame_id }} · </template>

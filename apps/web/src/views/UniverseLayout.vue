@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import LiveToasts from '../components/LiveToasts.vue';
 import NavIcon from '../components/NavIcon.vue';
+import PresenceList from '../components/PresenceList.vue';
 import PlayerDialog from '../components/PlayerDialog.vue';
 import SyncSheet from '../components/SyncSheet.vue';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
@@ -8,7 +9,7 @@ import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import { selectGroup, selectedGroup, session, uniApi } from '../api';
 import { provideUni, useLoader, useScrollLock, type UniContext } from '../composables';
-import { startLive, stopLive, tables, useLiveReload } from '../live';
+import { startLive, stopLive, tables, useLiveReload, useWhereabouts } from '../live';
 
 const { t } = useI18n();
 const route = useRoute();
@@ -61,6 +62,30 @@ const links = [
   { to: 'expeditions', label: 'expeditions', icon: 'expeditions' },
   { to: 'deck', label: 'deck', icon: 'deck' },
 ];
+
+/** Tell the other members where this tab is: page, galaxy system, player (page or dialog). */
+const num = (v: unknown) => (v != null && Number(v) > 0 ? Number(v) : undefined);
+const reportWhereabouts = useWhereabouts(
+  () => uni.value,
+  () => {
+    const [, , page, id] = route.path.split('/');
+    const browse = page === 'browse';
+    return {
+      page: page ?? null,
+      g: browse ? num(route.query.g) : undefined,
+      s: browse ? num(route.query.s) : undefined,
+      player: num(route.query.player) ?? (page === 'player' ? num(id) : undefined),
+    };
+  },
+);
+watch(() => route.fullPath, () => reportWhereabouts(), { immediate: true });
+watch(group, () => reportWhereabouts(true));
+
+/** Sidebar label of a page (message key below nav.*). */
+const pageLabel = (page: string | null) => {
+  const l = [...links, { to: 'admin', label: 'admin' }, { to: 'account', label: 'user' }, { to: 'player', label: 'player' }].find((x) => x.to === page);
+  return l?.label ? t(`nav.${l.label}`) : '';
+};
 
 /** Mobile: sidebar as flyout drawer ("More" in the tab bar), sync as bottom sheet. */
 const navOpen = ref(false);
@@ -121,6 +146,7 @@ const tabs = [
         <option v-for="g in groups" :key="g.id" :value="g.id">{{ g.name }}</option>
       </select>
       <div v-else-if="ctx" class="muted small" style="padding: 0 10px">{{ t('nav.allianceName', { name: ctx.group.name }) }}</div>
+      <PresenceList v-if="ctx" :page-label="pageLabel" @navigate="navOpen = false" />
       <nav>
         <template v-for="l in links" :key="l.to ?? l.section">
           <div v-if="l.section" class="section">{{ t(`nav.${l.section}`) }}</div>

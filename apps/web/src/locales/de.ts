@@ -67,6 +67,7 @@ const de = {
     syncShort: 'Sync',
     imperiumShort: 'Imperium',
     menu: 'Menü',
+    player: 'Spieler',
     closeMenu: 'Menü schließen',
     quickSync: 'Schnell synchronisieren',
     openSyncPage: 'Zur Sync-Seite',
@@ -654,6 +655,14 @@ const de = {
     source: 'Quelle',
     page: 'Seite',
     result: 'Ergebnis',
+  },
+  presence: {
+    online: '{n} online',
+    offline: '{n} offline',
+    active: 'aktiv',
+    away: 'im Hintergrund',
+    lastSeen: 'vor {ago}',
+    viewing: 'Schaut gerade hier: {names}',
   },
   live: {
     synced: '{name} hat synchronisiert: {what}',

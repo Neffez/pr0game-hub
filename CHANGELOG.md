@@ -4,6 +4,13 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-22
 
+- Presence: the sidebar lists the alliance members who have the hub open, with the page, galaxy system or player
+  they are looking at (linked) and a dot for active/in the background; the others below with "last online". The
+  galaxy browser and the player page show "👁 name" when another member looks at the same system or player.
+  - Server: `GET`/`POST /api/:uni/presence`, `presence` live events; migration `017` adds
+    `group_members.last_seen_at`, written when a member's last connection ends.
+  - Shutting the server down also closes the sockets of open live streams.
+
 - Live updates: data a member syncs appears in the open hub tabs of the alliance without F5. The server pushes a short
   "what changed" event per group (Server-Sent Events, `GET /api/:uni/events`); the pages load their data again,
   debounced, and a hidden tab only once it is shown again.

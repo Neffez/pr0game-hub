@@ -18,7 +18,25 @@ export interface DataEvent {
   systems?: string[];
 }
 
-export type LiveEvent = DataEvent;
+/** Where a member is in the hub (sent by their open tab). */
+export interface Whereabouts {
+  /** page below the universe, e.g. `browse`, `overview` */
+  page: string | null;
+  g?: number;
+  s?: number;
+  /** player shown in the player page or dialog */
+  player?: number;
+  /** false while the tab is in the background */
+  active: boolean;
+}
+
+/** Members with an open hub tab: sent in full whenever someone comes, goes or moves. */
+export interface PresenceEvent {
+  type: 'presence';
+  members: ({ userId: number } & Whereabouts)[];
+}
+
+export type LiveEvent = DataEvent | PresenceEvent;
 
 export interface LiveClient {
   userId: number;
@@ -30,15 +48,44 @@ const MAX_SYSTEMS = 50;
 
 export class EventBus {
   private groups = new Map<number, Set<LiveClient>>();
+  /** last whereabouts per group and user; only users with a connection count as online */
+  private whereabouts = new Map<number, Map<number, Whereabouts>>();
 
-  subscribe(groupId: number, client: LiveClient): () => void {
+  /** `onLeave`: the user's last connection to the group ended (they went offline). */
+  subscribe(groupId: number, client: LiveClient, onLeave?: () => void): () => void {
     let set = this.groups.get(groupId);
     if (!set) this.groups.set(groupId, (set = new Set()));
+    const arrives = !this.connections(groupId, client.userId);
     set.add(client);
+    if (arrives) this.publishPresence(groupId);
     return () => {
-      set.delete(client);
+      if (!set.delete(client)) return;
       if (!set.size) this.groups.delete(groupId);
+      if (this.connections(groupId, client.userId)) return;
+      this.whereabouts.get(groupId)?.delete(client.userId);
+      onLeave?.();
+      this.publishPresence(groupId);
     };
+  }
+
+  /** A member's tab reports where it is. */
+  setWhereabouts(groupId: number, userId: number, w: Whereabouts) {
+    let map = this.whereabouts.get(groupId);
+    if (!map) this.whereabouts.set(groupId, (map = new Map()));
+    const before = JSON.stringify(map.get(userId) ?? null);
+    map.set(userId, w);
+    if (before !== JSON.stringify(w) && this.connections(groupId, userId)) this.publishPresence(groupId);
+  }
+
+  /** Online members of a group with their whereabouts (unknown until their tab reports). */
+  presence(groupId: number): PresenceEvent['members'] {
+    const users = new Set([...(this.groups.get(groupId) ?? [])].map((c) => c.userId));
+    const map = this.whereabouts.get(groupId);
+    return [...users].map((userId) => ({ userId, ...(map?.get(userId) ?? { page: null, active: true }) }));
+  }
+
+  private publishPresence(groupId: number) {
+    this.publish(groupId, { type: 'presence', members: this.presence(groupId) });
   }
 
   publish(groupId: number, event: LiveEvent) {

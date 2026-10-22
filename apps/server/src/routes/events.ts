@@ -1,8 +1,8 @@
 import type { FastifyInstance } from 'fastify';
 import { HttpError, loadSessionUser } from '../auth.js';
 import { groupContext, resolveGroup } from '../context.js';
-import type { DB } from '../db.js';
-import { events } from '../events.js';
+import { now, type DB } from '../db.js';
+import { events, type Whereabouts } from '../events.js';
 
 /** Comment line that keeps proxies from closing an idle stream; also when session and membership are checked again. */
 export const HEARTBEAT_MS = 25_000;
@@ -10,10 +10,10 @@ export const HEARTBEAT_MS = 25_000;
 const MAX_CONNECTIONS = 10;
 
 export function eventRoutes(app: FastifyInstance, db: DB) {
-  const open = new Set<() => void>();
+  const open = new Set<(closing?: boolean) => void>();
   // hijacked streams never finish on their own: end them before the server waits for its connections
   app.addHook('preClose', async () => {
-    for (const end of [...open]) end();
+    for (const end of [...open]) end(true);
   });
 
   /** Server-Sent Events of the group (see events.ts). EventSource can't send headers: the group comes as `?group=`. */
@@ -23,6 +23,8 @@ export function eventRoutes(app: FastifyInstance, db: DB) {
 
     reply.hijack();
     const res = reply.raw;
+    // kept: an ended response lets go of its socket
+    const socket = res.socket;
     res.writeHead(200, {
       'content-type': 'text/event-stream; charset=utf-8',
       'cache-control': 'no-cache, no-transform',
@@ -31,10 +33,11 @@ export function eventRoutes(app: FastifyInstance, db: DB) {
     });
     res.write('retry: 5000\n\n');
 
-    const unsubscribe = events.subscribe(ctx.groupId, {
-      userId: ctx.user.id,
-      send: (event) => res.write(`data: ${JSON.stringify(event)}\n\n`),
-    });
+    const unsubscribe = events.subscribe(
+      ctx.groupId,
+      { userId: ctx.user.id, send: (event) => res.write(`data: ${JSON.stringify(event)}\n\n`) },
+      () => db.prepare('UPDATE group_members SET last_seen_at = ? WHERE group_id = ? AND user_id = ?').run(now(), ctx.groupId, ctx.user.id),
+    );
     // logged out or removed from the group while the tab stays open: the stream ends
     const timer = setInterval(() => {
       const user = loadSessionUser(db, req);
@@ -47,14 +50,37 @@ export function eventRoutes(app: FastifyInstance, db: DB) {
       res.write(': ping\n\n');
     }, HEARTBEAT_MS);
 
-    function end() {
+    function end(closing = false) {
       if (!open.delete(end)) return;
       clearInterval(timer);
       unsubscribe();
       res.end();
+      // server shutdown: the connection itself too, the client would keep it open
+      if (closing) socket?.destroy();
     }
     open.add(end);
     // the response's close (not the request's: that one fires once the request is read)
     res.on('close', end);
+  });
+
+  /** Online members and where they are (afterwards kept up to date by `presence` events). */
+  app.get<{ Params: { uni: string } }>('/api/:uni/presence', async (req) => {
+    const ctx = groupContext(db, req, req.params.uni);
+    return events.presence(ctx.groupId);
+  });
+
+  /** The tab of the current user reports its page (and the shown system or player). */
+  app.post<{ Params: { uni: string }; Body: Partial<Whereabouts> }>('/api/:uni/presence', async (req) => {
+    const ctx = groupContext(db, req, req.params.uni);
+    const b = req.body ?? {};
+    const id = (v: unknown) => (Number.isInteger(v) && (v as number) > 0 && (v as number) < 1e9 ? (v as number) : undefined);
+    events.setWhereabouts(ctx.groupId, ctx.user.id, {
+      page: typeof b.page === 'string' && /^[a-z-]{1,32}$/.test(b.page) ? b.page : null,
+      ...(id(b.g) && { g: id(b.g) }),
+      ...(id(b.s) && { s: id(b.s) }),
+      ...(id(b.player) && { player: id(b.player) }),
+      active: b.active !== false,
+    });
+    return { ok: true };
   });
 }

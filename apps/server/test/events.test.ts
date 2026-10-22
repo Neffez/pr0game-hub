@@ -20,9 +20,9 @@ let groupA = 0;
 let groupB = 0;
 
 /** Live stream of a group: collected events, `next()` waits for the next one. */
-async function stream(group: number) {
+async function stream(group: number, as = cookie) {
   const ctrl = new AbortController();
-  const res = await fetch(`${base}/hub/api/u8/events?group=${group}`, { headers: { cookie }, signal: ctrl.signal });
+  const res = await fetch(`${base}/hub/api/u8/events?group=${group}`, { headers: { cookie: as }, signal: ctrl.signal });
   const received: any[] = [];
   const waiting: ((e: any) => void)[] = [];
   (async () => {
@@ -47,9 +47,23 @@ async function stream(group: number) {
       /* aborted */
     }
   })();
+  const next = (ms = 2000): Promise<any> =>
+    received.length
+      ? Promise.resolve(received.shift())
+      : new Promise((resolve, reject) => {
+          const timer = setTimeout(() => reject(new Error('no event')), ms);
+          waiting.push((e) => (clearTimeout(timer), resolve(e)));
+        });
   return {
     res,
     received,
+    /** next event of a type (others are skipped) */
+    nextOf: async (type: string) => {
+      for (;;) {
+        const e = await next();
+        if (e.type === type) return e;
+      }
+    },
     next: (ms = 2000) =>
       received.length
         ? Promise.resolve(received.shift())
@@ -73,7 +87,12 @@ beforeAll(async () => {
   groupB = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', payload: { universe: 'u8', name: 'B' }, ...h })).json().id;
 });
 
-afterAll(() => app.close());
+// fetch keeps a spare connection open that never sends a request: closing would wait for it
+afterAll(async () => {
+  const closing = app.close();
+  app.server.closeAllConnections();
+  await closing;
+});
 
 describe('live events', () => {
   it('needs a session and a group membership', async () => {
@@ -90,7 +109,7 @@ describe('live events', () => {
     const ingest = (html: string) =>
       app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers: { cookie, 'x-hub-group': String(groupA) }, payload: { html } });
     await ingest(fixture('galaxy.html'));
-    const event = await a.next();
+    const event = await a.nextOf('data');
     expect(event).toMatchObject({ type: 'data', tables: ['galaxy_systems'], systems: ['1:234'], counts: { galaxy_systems: 1 } });
     expect(event.userId).toBeGreaterThan(0);
 
@@ -99,13 +118,44 @@ describe('live events', () => {
       method: 'POST', url: '/hub/api/u8/ingest', headers: { cookie, 'x-hub-group': String(groupA) }, payload: { html: fixture('stats-player.html'), dryRun: true },
     });
     await ingest(fixture('stats-player.html'));
-    expect((await a.next()).tables).toEqual(['player_scores']);
+    expect((await a.nextOf('data')).tables).toEqual(['player_scores']);
     await ingest(fixture('stats-player.html'));
     await new Promise((r) => setTimeout(r, 100));
-    expect(a.received).toEqual([]);
-    expect(b.received).toEqual([]);
+    expect(a.received.filter((e) => e.type === 'data')).toEqual([]);
+    expect(b.received.filter((e) => e.type === 'data')).toEqual([]);
     a.close();
     b.close();
+  });
+
+  it('shows who is online and where, and when a member was last online', async () => {
+    db.prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)').run('carol', hashPassword('carolpass'));
+    const carolId = db.prepare("SELECT id FROM users WHERE username = 'carol'").pluck().get() as number;
+    db.prepare('INSERT INTO group_members (group_id, user_id) VALUES (?, ?)').run(groupA, carolId);
+    const login = await app.inject({ method: 'POST', url: '/hub/api/auth/login', payload: { username: 'carol', password: 'carolpass' } });
+    const carol = `hub_session=${login.cookies.find((c) => c.name === 'hub_session')!.value}`;
+
+    const a = await stream(groupA);
+    const online = async () => (await a.nextOf('presence')).members.map((m: any) => m.userId).sort();
+    const adminId = (await online())[0];
+    const c = await stream(groupA, carol);
+    expect(await online()).toEqual([adminId, carolId].sort());
+
+    await app.inject({
+      method: 'POST', url: '/hub/api/u8/presence', headers: { cookie: carol, 'x-hub-group': String(groupA) },
+      payload: { page: 'browse', g: 1, s: 234, player: 'x', active: false },
+    });
+    const moved = (await a.nextOf('presence')).members.find((m: any) => m.userId === carolId);
+    expect(moved).toEqual({ userId: carolId, page: 'browse', g: 1, s: 234, active: false });
+    const list = await app.inject({ method: 'GET', url: '/hub/api/u8/presence', headers: { cookie, 'x-hub-group': String(groupA) } });
+    expect(list.json()).toHaveLength(2);
+    // another group doesn't learn about it
+    expect((await app.inject({ method: 'GET', url: '/hub/api/u8/presence', headers: { cookie, 'x-hub-group': String(groupB) } })).json()).toEqual([]);
+
+    c.close();
+    expect(await online()).toEqual([adminId]);
+    const ctx = (await app.inject({ method: 'GET', url: '/hub/api/u8/context', headers: { cookie, 'x-hub-group': String(groupA) } })).json();
+    expect(ctx.members.find((m: any) => m.id === carolId).last_seen_at).toBeGreaterThan(0);
+    a.close();
   });
 
   it('lists synced systems only up to a limit', () => {
@@ -116,6 +166,6 @@ describe('live events', () => {
     bus.publishIngest(1, 1, { galaxy_systems: { new: 51 } }, many);
     bus.publishIngest(1, 1, { galaxy_systems: { new: 1 } }, null);
     bus.publishIngest(1, 1, { spy_reports: { new: 0 } }, []);
-    expect(got.map((e) => e.systems)).toEqual([undefined, undefined]);
+    expect(got.filter((e) => e.type === 'data').map((e) => e.systems)).toEqual([undefined, undefined]);
   });
 });

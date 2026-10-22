@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import PresenceBadge from '../components/PresenceBadge.vue';
 import { RESOURCES } from '@pr0hub/core/tech';
 import PlayerLink from '../components/PlayerLink.vue';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
@@ -70,7 +71,8 @@ interface Phalanx {
   player: { id: number | null; name: string; ally: string | null } | null;
 }
 
-const now = Math.floor(Date.now() / 1000);
+/** reference time of the ages shown (the data's load time) */
+const now = ref(Math.floor(Date.now() / 1000));
 
 const { data: system, error, load: fetchSystem } = useLoader(() =>
   uniApi<{ view: { seen_at: number; username: string } | null; rows: Row[]; phalanx: Phalanx[] }>(uni.value, `/browse/${g.value}/${s.value}`),
@@ -79,6 +81,7 @@ const { data: strip, load: loadStrip } = useLoader(() =>
   uniApi<{ planets: Record<string, number>; seen: Record<string, number>; own: number[] }>(uni.value, `/browse/${g.value}`),
 );
 function loadSystem() {
+  now.value = Math.floor(Date.now() / 1000);
   last.value = { g: g.value, s: s.value };
   router.replace({ query: { ...route.query, g: g.value, s: s.value } });
   return fetchSystem();
@@ -157,7 +160,7 @@ const stripCells = computed(() =>
     return {
       s: sys,
       planets: strip.value?.planets[sys] ?? 0,
-      age: seen ? now - seen : null,
+      age: seen ? now.value - seen : null,
       own: strip.value?.own.includes(sys) ?? false,
     };
   }),
@@ -308,6 +311,7 @@ function onStripUp() {
         {{ t('browse.seenBy', { time: dateTime(system.view.seen_at), ago: ago(system.view.seen_at), name: system.view.username }) }}
       </span>
       <span v-else class="small warn">{{ t('browse.neverSynced') }}</span>
+      <PresenceBadge :g="g" :s="s" />
       <span class="grow" />
       <a v-if="gameUrl" class="small" :href="`${gameUrl}game.php?page=galaxy&galaxy=${g}&system=${s}`" target="_blank" rel="noopener">{{ t('combat.openInGame') }}</a>
     </div>

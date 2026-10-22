@@ -66,6 +66,7 @@ const en: typeof de = {
     syncShort: 'Sync',
     imperiumShort: 'Empire',
     menu: 'Menu',
+    player: 'Player',
     closeMenu: 'Close menu',
     quickSync: 'Quick sync',
     openSyncPage: 'Open sync page',
@@ -652,6 +653,14 @@ const en: typeof de = {
     source: 'Source',
     page: 'Page',
     result: 'Result',
+  },
+  presence: {
+    online: '{n} online',
+    offline: '{n} offline',
+    active: 'active',
+    away: 'in the background',
+    lastSeen: '{ago} ago',
+    viewing: 'Looking at this right now: {names}',
   },
   live: {
     synced: '{name} synced: {what}',

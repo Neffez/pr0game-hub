@@ -1,4 +1,5 @@
-import { onBeforeUnmount } from 'vue';
+import { onBeforeUnmount, ref } from 'vue';
+import { uniApi } from './api';
 import { useStored } from './composables';
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, '') + '/api';
@@ -12,8 +13,18 @@ export interface DataEvent {
   systems?: string[];
 }
 
+/** Where a member is in the hub (server: `Whereabouts`). */
+export interface Whereabouts {
+  page: string | null;
+  g?: number;
+  s?: number;
+  player?: number;
+  active: boolean;
+}
+export type PresenceMember = { userId: number } & Whereabouts;
+
 /** `resync`: the connection was interrupted, events may have been missed (views reload). */
-export type LiveEvent = DataEvent | { type: 'resync' };
+export type LiveEvent = DataEvent | { type: 'presence'; members: PresenceMember[] } | { type: 'resync' };
 
 type Handler = (e: LiveEvent) => void;
 
@@ -22,9 +33,25 @@ export const liveHints = useStored('live.hints', true);
 
 const handlers = new Set<Handler>();
 let stopCurrent: (() => void) | null = null;
+let currentUni = '';
+
+/** Members of the group with the hub open, and where they are. */
+export const presence = ref<PresenceMember[]>([]);
 
 export function dispatch(e: LiveEvent) {
+  if (e.type === 'presence') presence.value = e.members;
+  // the server forgot this browser while it was disconnected
+  if (e.type === 'resync' && currentUni) loadPresence(currentUni);
   for (const h of [...handlers]) h(e);
+}
+
+/** Current presence list; afterwards the events keep it up to date. */
+async function loadPresence(uni: string) {
+  try {
+    presence.value = await uniApi<PresenceMember[]>(uni, '/presence');
+  } catch {
+    /* shown again with the next presence event */
+  }
 }
 
 /**
@@ -34,6 +61,9 @@ export function dispatch(e: LiveEvent) {
  */
 export function startLive(uni: string, group: number | null) {
   stopLive();
+  presence.value = [];
+  currentUni = uni;
+  loadPresence(uni);
   const key = `hub.live.${uni}.${group ?? ''}`;
   const url = `${BASE}/${uni}/events${group ? `?group=${group}` : ''}`;
   const channel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel(key) : null;
@@ -85,6 +115,36 @@ export function startLive(uni: string, group: number | null) {
 export function stopLive() {
   stopCurrent?.();
   stopCurrent = null;
+  currentUni = '';
+}
+
+/**
+ * Reports where this tab is (page, shown system or player) while the layout is mounted: on navigation, when the
+ * tab goes to the background or comes back, and after a reconnect. A tab in the background only reports that.
+ */
+export function useWhereabouts(uni: () => string, where: () => Omit<Whereabouts, 'active'>) {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let last = '';
+  const report = (force = false) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      const body: Whereabouts = { ...where(), active: !document.hidden };
+      const key = JSON.stringify(body);
+      if (!force && key === last) return;
+      last = key;
+      uniApi(uni(), '/presence', { body }).catch(() => (last = ''));
+    }, 500);
+  };
+  const onVisibility = () => report();
+  document.addEventListener('visibilitychange', onVisibility);
+  useLive((e) => {
+    if (e.type === 'resync' && !document.hidden) report(true);
+  });
+  onBeforeUnmount(() => {
+    clearTimeout(timer);
+    document.removeEventListener('visibilitychange', onVisibility);
+  });
+  return report;
 }
 
 /** Live events while the calling component is mounted. */
@@ -117,7 +177,7 @@ export function useLiveReload(load: () => unknown, match: (e: DataEvent) => bool
     load();
   };
   useLive((e) => {
-    if (e.type !== 'resync' && !match(e)) return;
+    if (!(e.type === 'resync' || (e.type === 'data' && match(e)))) return;
     clearTimeout(timer);
     timer = setTimeout(run, delay);
   });

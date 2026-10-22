@@ -20,7 +20,8 @@ External analysis tool for [pr0game](https://codeberg.org/pr0game/pr0game) based
 - **Raids** (incl. recycling), **expeditions**, **expedition deck** (card counting), **battle hall** archive
 - **Admin**: universes (size, distance factors, fleet speed, time zone, deck), groups, invite links, ingest log with reparse, player merge
 - **Live**: what a member syncs shows up in the open hub tabs of the alliance without reloading, with a short hint
-  who synced what (can be turned off in the account settings)
+  who synced what (can be turned off in the account settings); who of the alliance is online and where (page, galaxy
+  system, player), and when the others were last online
 - German and English UI, per user; mobile layout with a bottom tab bar and quick sync from the clipboard
 
 Player IDs, alliance IDs and rank changes are only available in HTML/page source. With plain text, players are matched by name.
