@@ -4,6 +4,14 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-22
 
+- Empire live points:
+  - The live fleet is anchored on the newest fleet or total statistics update. The total is synced far more often
+    than the fleet category; its fleet is the total minus the other points of the first empire page after it. Before,
+    ships built between an old fleet update and the next empire page were missing, so the live sum could fall below
+    the statistics.
+  - Live catch-up bonus: the maximum bonus (100 − the universe's `catchup_percent`) is at least the overview value
+    when it cannot be derived, instead of falling back to 50 %. Universes with a higher maximum showed about half the
+    real bonus.
 - Developers: the server routes are split by topic (`routes/overview.ts`, `players.ts`, `spy.ts`, `galaxy.ts`,
   `reports.ts`, `deck.ts`, `imperium.ts`, shared helpers in `routes/util.ts`); statistics windows and the 6 h grid
   live in `domain/stats.ts`, the phalanx range in `domain/phalanx.ts` and the members' newest empire pages in

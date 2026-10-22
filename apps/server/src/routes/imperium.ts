@@ -1,5 +1,5 @@
 import type { EmpireRecord } from '@pr0hub/core';
-import { classOf, elementPoints } from '@pr0hub/core/tech';
+import { CLASS_BUILDINGS, CLASS_DEFENSE, CLASS_FLEET, classOf, elementPoints } from '@pr0hub/core/tech';
 import type { FastifyInstance } from 'fastify';
 import { HttpError } from '../auth.js';
 import type { DB } from '../db.js';
@@ -38,12 +38,16 @@ export function imperiumRoutes(app: FastifyInstance, db: DB) {
           .all(ctx.groupId, player.id) as { type: number; points: number; rank: number; time: number }[])
       : [];
     // Fleets in flight are missing on the empire page but count in the statistics: the live fleet is the
-    // stats value plus the change of the ships on the planets since the first empire page after that update.
-    const fleetTime = stats.find((s) => s.type === 2)?.time;
-    const fleetBase = fleetTime
+    // stats fleet plus the change of the ships on the planets since the first empire page after that update.
+    // The anchor is the newest of the fleet and the total statistics (the total is synced far more often; its
+    // fleet is the total minus the other points of that empire page), so ships built in between are not lost.
+    const fleetStat = stats.find((s) => s.type === 2);
+    const totalStat = stats.find((s) => s.type === 1);
+    const anchor = fleetStat && (!totalStat || fleetStat.time >= totalStat.time) ? fleetStat : totalStat;
+    const fleetBase = anchor
       ? (db
           .prepare('SELECT created_at AS time, data FROM empire_snapshots WHERE group_id = ? AND user_id = ? AND created_at >= ? ORDER BY created_at, id LIMIT 1')
-          .get(ctx.groupId, userId, fleetTime) as { time: number; data: string } | undefined)
+          .get(ctx.groupId, userId, anchor.time) as { time: number; data: string } | undefined)
       : undefined;
     // catch-up bonus: the game compares buildings ×1 + research ×0.8 + fleet ×0.6 with the best player of the universe
     const leader = db
@@ -57,14 +61,29 @@ export function imperiumRoutes(app: FastifyInstance, db: DB) {
          WHERE st.group_id = ? AND st.who = 'player' GROUP BY ps.player_id ORDER BY weighted DESC LIMIT 1`,
       )
       .get(ctx.groupId, ctx.groupId) as { name: string; buildings: number | null; research: number | null; fleet: number | null; weighted: number } | undefined;
-    const planetFleet = (e: EmpireRecord) =>
-      e.planets.reduce((sum, pl) => sum + Object.entries(pl.values).reduce((s2, [id, n]) => s2 + (classOf(Number(id)) === 200 ? elementPoints(id, n) : 0), 0), 0);
+    // ship points on the planets and all other points (buildings, defense, research) of an empire page
+    const empirePoints = (e: EmpireRecord) => {
+      let fleet = 0;
+      let other = 0;
+      for (const pl of e.planets) {
+        for (const [id, n] of Object.entries(pl.values)) {
+          const cls = classOf(Number(id));
+          if (cls === CLASS_FLEET) fleet += elementPoints(id, n);
+          else if (cls === CLASS_BUILDINGS || cls === CLASS_DEFENSE) other += elementPoints(id, n);
+        }
+      }
+      for (const [id, n] of Object.entries(e.research ?? {})) other += elementPoints(id, n);
+      return { fleet, other };
+    };
+    const basePoints = fleetBase && empirePoints(JSON.parse(fleetBase.data) as EmpireRecord);
+    // the stats fleet at the anchor update
+    const anchorFleet = !anchor || !basePoints ? null : anchor.type === 2 ? anchor.points : anchor.points - basePoints.other;
     return {
       userId,
       empire: empire ? { time: empire.time, data: withMoonTypes(JSON.parse(empire.data) as EmpireRecord) } : null,
       overview: overview ? { time: overview.time, data: JSON.parse(overview.data) } : null,
       player: player ? { ...player, stats: Object.fromEntries(stats.map((s) => [s.type, s])) } : null,
-      fleetBase: fleetBase ? { time: fleetBase.time, points: planetFleet(JSON.parse(fleetBase.data) as EmpireRecord) } : null,
+      fleetBase: fleetBase && basePoints && anchorFleet != null ? { time: fleetBase.time, points: basePoints.fleet, stat: anchorFleet } : null,
       leader: leader ?? null,
     };
   });

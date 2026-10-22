@@ -51,8 +51,11 @@ interface Data {
   overview: { time: number; data: { queues: Queue[]; catchUp?: number | null } } | null;
   /** the member's player with the latest synced statistics per category (1 total … 5 defense) */
   player: { id: number; name: string; stats: Record<number, { points: number; rank: number; time: number }> } | null;
-  /** ships on the planets (points) in the first empire page after the last fleet statistics update */
-  fleetBase: { time: number; points: number } | null;
+  /**
+   * ships on the planets (points) in the first empire page after the newest fleet or total statistics update,
+   * and the statistics fleet of that update (for the total: total minus the other points of that empire page)
+   */
+  fleetBase: { time: number; points: number; stat: number } | null;
   /** player with the most catch-up points (buildings ×1, research ×0.8, fleet ×0.6) in the latest statistics */
   leader: { name: string; weighted: number } | null;
 }
@@ -223,8 +226,8 @@ const livePoints = computed(() => {
   }
   const stats = data.value?.player?.stats ?? {};
   const base = data.value?.fleetBase;
-  const fleetFromStats = !!(stats[2] && base);
-  const fleet = fleetFromStats ? stats[2].points + (planetFleet - base!.points) : planetFleet;
+  const fleetFromStats = !!base;
+  const fleet = base ? base.stat + (planetFleet - base.points) : planetFleet;
   const cats = [
     { type: 4, live: sum[0] },
     { type: 3, live: sum[100] },
@@ -238,6 +241,7 @@ const livePoints = computed(() => {
 /**
  * Catch-up bonus (cost and build time reduction in percent) like the game's PlayerUtil::getCatchUpFactor:
  * factor 10 × 0.9747^(% of the leader's points), at least 1, mapped linearly onto 0 … maximum bonus.
+ * The maximum bonus is 100 − the universe's catchup_percent setting (default 50), a whole number.
  */
 const CATCH_UP_WEIGHT: Record<number, number> = { 4: 1, 3: 0.8, 2: 0.6 };
 const catchUpRaw = (own: number, leader: number) => Math.max(1, 10 * 0.9747 ** ((Math.max(own, 1) / Math.max(leader, 1)) * 100));
@@ -257,8 +261,9 @@ const catchUp = computed(() => {
   };
   const statOwn = weighted((type) => lp.cats.find((c) => c.type === type)!.stat);
   const liveOwn = weighted((type) => lp.cats.find((c) => c.type === type)!.live)!;
-  // maximum bonus of the universe (setting, default 50 %): derived from the overview value when it shows the current statistics
-  let max = 50;
+  // maximum bonus of the universe (default 50 %): derived from the overview value when it shows the current
+  // statistics, else at least the overview value (the raw factor is at most 10)
+  let max = Math.max(50, Math.ceil(current - 1e-9));
   if (leader && statOwn != null && current > 0 && lp.statTime && overview.value!.time >= lp.statTime) {
     const raw = catchUpRaw(statOwn, leader.weighted);
     if (raw > 1.1) max = Math.min(100, Math.round((current * 9) / (raw - 1)));
