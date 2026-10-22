@@ -103,6 +103,10 @@ const de = {
     languageChanged: 'Sprache geändert.',
     hints: 'Hinweise',
     liveHints: 'Einblenden, wenn andere Mitglieder etwas synchronisieren',
+    fleetShare: 'Flottenbewegungen teilen',
+    fleetShareEnabled: 'Meine Flottenbewegungen mit der Allianz teilen',
+    fleetShareHint: 'Gilt für alle Allianzen im Hub und sofort, auch für bereits synchronisierte Flotten. Du selbst siehst im Imperium immer alle. Rückkehrende Flotten zählen zu ihrer Mission.',
+    fleetShareSaved: 'Freigabe gespeichert.',
   },
   actions: {
     spy: 'Spionieren',
@@ -559,6 +563,7 @@ const de = {
     fleetsNone: 'Keine Flotten unterwegs.',
     fleetsArrived: '{n} seitdem angekommen',
     fleetsMissing: 'fehlen',
+    fleetsPrivate: 'nicht geteilt',
     hostile: 'feindlich',
     foreign: 'fremd',
     phase: { out: '→', return: '↩ Rückkehr', hold: '⏸ hält' },
@@ -793,6 +798,10 @@ const de = {
   },
   /** Game terms (pr0game/language/de) */
   game: {
+    missions: {
+      1: 'Angreifen', 2: 'Verbandsangriff', 3: 'Transport', 4: 'Stationieren', 5: 'Halten', 6: 'Spionage', 7: 'Kolonisieren',
+      8: 'Abbauen', 9: 'Zerstören', 10: 'Raketenangriff', 15: 'Expedition',
+    },
     stats: { 1: 'Gesamt', 2: 'Flotte', 3: 'Forschung', 4: 'Gebäude', 5: 'Verteidigung', 6: 'Ehrenpunkte' },
     statsShort: { 1: 'Σ', 2: 'F', 3: 'R', 4: 'B', 5: 'D' },
     status: { inactive: 'i', longinactive: 'I', vacation: 'u', banned: 'g', noob: 'n', strong: 's' },

@@ -102,6 +102,10 @@ const en: typeof de = {
     languageChanged: 'Language changed.',
     hints: 'Hints',
     liveHints: 'Show when other members sync something',
+    fleetShare: 'Share fleet movements',
+    fleetShareEnabled: 'Share my fleet movements with the alliance',
+    fleetShareHint: 'Applies to all alliances in the hub and at once, also to fleets already synced. You always see all of yours in the empire view. Returning fleets count as their mission.',
+    fleetShareSaved: 'Sharing saved.',
   },
   actions: {
     spy: 'Spy',
@@ -557,6 +561,7 @@ const en: typeof de = {
     fleetsNone: 'No fleets in flight.',
     fleetsArrived: '{n} arrived since',
     fleetsMissing: 'missing',
+    fleetsPrivate: 'not shared',
     hostile: 'hostile',
     foreign: 'foreign',
     phase: { out: '→', return: '↩ return', hold: '⏸ holding' },
@@ -789,6 +794,10 @@ const en: typeof de = {
     lang_invalid: 'Invalid language',
   },
   game: {
+    missions: {
+      1: 'Attack', 2: 'ACS attack', 3: 'Transport', 4: 'Deploy', 5: 'Hold', 6: 'Espionage', 7: 'Colonize',
+      8: 'Recycle', 9: 'Destroy', 10: 'Missile attack', 15: 'Expedition',
+    },
     stats: { 1: 'Total', 2: 'Fleet', 3: 'Research', 4: 'Buildings', 5: 'Defense', 6: 'Honor points' },
     statsShort: { 1: 'Σ', 2: 'F', 3: 'R', 4: 'B', 5: 'D' },
     status: { inactive: 'i', longinactive: 'I', vacation: 'VM', banned: 'B', noob: 'N', strong: 'S' },

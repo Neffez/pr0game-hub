@@ -4,6 +4,8 @@ import {
   verifyPassword, verifyPasswordOrDummy,
 } from '../auth.js';
 import { now, type DB } from '../db.js';
+import { events } from '../events.js';
+import { fleetShare, SHARE_MISSIONS } from '../repo/fleets.js';
 
 /** Failed logins per IP (any username) within the window; the per-username limit is 10. */
 const IP_LIMIT = 30;
@@ -70,6 +72,21 @@ export function authRoutes(app: FastifyInstance, db: DB) {
     if (lang !== 'de' && lang !== 'en') throw new HttpError(400, 'lang_invalid', 'Invalid language');
     db.prepare('UPDATE users SET lang = ? WHERE id = ?').run(lang, user.id);
     return { ok: true, lang };
+  });
+
+  /** Which fleet movements the user shares with the other members of their groups. */
+  app.get('/api/auth/fleet-share', async (req) => fleetShare(db, requireUser(req).id));
+
+  app.post<{ Body: { enabled?: boolean; hidden?: number[] } }>('/api/auth/fleet-share', async (req) => {
+    const user = requireUser(req);
+    const hidden = Array.isArray(req.body?.hidden) ? [...new Set(req.body.hidden.map(Number))].filter((m) => SHARE_MISSIONS.includes(m)).sort((a, b) => a - b) : [];
+    const share = { enabled: req.body?.enabled !== false, hidden };
+    db.prepare('UPDATE users SET fleet_share = ? WHERE id = ?').run(JSON.stringify(share), user.id);
+    // the others see more or fewer fleets now
+    for (const g of db.prepare('SELECT group_id FROM group_members WHERE user_id = ?').pluck().all(user.id) as number[]) {
+      events.publish(g, { type: 'data', tables: ['fleets'], userId: user.id });
+    }
+    return share;
   });
 
   /** Invite info for the registration form. */

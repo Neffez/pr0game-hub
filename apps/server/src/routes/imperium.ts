@@ -4,6 +4,7 @@ import type { FastifyInstance } from 'fastify';
 import { HttpError } from '../auth.js';
 import type { DB } from '../db.js';
 import { latestEmpire } from '../repo/empire.js';
+import { sharedFleets } from '../repo/fleets.js';
 import { memberPlayer } from '../repo/members.js';
 import { latestScores } from '../repo/stats.js';
 import { contextOf, type Q } from './util.js';
@@ -22,9 +23,7 @@ export function imperiumRoutes(app: FastifyInstance, db: DB) {
     const overview = db
       .prepare('SELECT page_time AS time, data FROM overview_snapshots WHERE group_id = ? AND user_id = ? ORDER BY page_time DESC, id DESC LIMIT 1')
       .get(ctx.groupId, userId) as { time: number; data: string } | undefined;
-    const fleets = db
-      .prepare('SELECT page_time AS time, data FROM fleet_snapshots WHERE group_id = ? AND user_id = ? ORDER BY page_time DESC, id DESC LIMIT 1')
-      .get(ctx.groupId, userId) as { time: number; data: string } | undefined;
+    const fleets = sharedFleets(db, ctx.groupId, userId, ctx.user.id);
     // the member's player and the latest synced statistics per category, for the live points
     const playerId = memberPlayer(db, ctx, userId);
     const player = playerId ? (db.prepare('SELECT id, name FROM players WHERE id = ?').get(playerId) as { id: number; name: string }) : undefined;
@@ -85,7 +84,8 @@ export function imperiumRoutes(app: FastifyInstance, db: DB) {
       userId,
       empire: empire ? { time: empire.time, data: empire.rec } : null,
       overview: overview ? { time: overview.time, data: JSON.parse(overview.data) } : null,
-      fleets: fleets ? { time: fleets.time, data: JSON.parse(fleets.data) } : null,
+      fleets: fleets === 'private' ? null : fleets,
+      fleetsPrivate: fleets === 'private',
       player: player ? { ...player, stats: Object.fromEntries(stats.map((s) => [s.type, s])) } : null,
       fleetBase: fleetBase && basePoints && anchorFleet != null ? { time: fleetBase.time, points: basePoints.fleet, stat: anchorFleet } : null,
       leader: leader ?? null,
@@ -97,11 +97,10 @@ export function imperiumRoutes(app: FastifyInstance, db: DB) {
     const rows = db
       .prepare('SELECT u.id AS user_id, u.username, m.ingame_name FROM group_members m JOIN users u ON u.id = m.user_id WHERE m.group_id = ? ORDER BY u.username')
       .all(ctx.groupId) as { user_id: number; username: string; ingame_name: string | null }[];
-    const fleets = db.prepare('SELECT page_time AS time, data FROM fleet_snapshots WHERE group_id = ? AND user_id = ? ORDER BY page_time DESC, id DESC LIMIT 1');
     return rows.map((r) => {
       const e = latestEmpire(db, ctx, r.user_id);
-      const f = fleets.get(ctx.groupId, r.user_id) as { time: number; data: string } | undefined;
-      return { ...r, created_at: e?.time ?? null, data: e?.rec ?? null, fleets: f ? { time: f.time, data: JSON.parse(f.data) } : null };
+      const f = sharedFleets(db, ctx.groupId, r.user_id, ctx.user.id);
+      return { ...r, created_at: e?.time ?? null, data: e?.rec ?? null, fleets: f === 'private' ? null : f };
     });
   });
 }

@@ -163,6 +163,36 @@ describe('api', () => {
     expect(alliance.find((m: any) => m.user_id === im.userId).fleets.data).toHaveLength(1);
   });
 
+  it('shares fleet movements with the other members as the owner chose', async () => {
+    const headers = { ...admin, 'x-hub-group': String(groupA) };
+    // the list pasted in the test before is newer than this page
+    db.prepare('DELETE FROM fleet_snapshots WHERE group_id = ?').run(groupA);
+    await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { text: fixture('overview-fleets.html') } });
+    const erin = Number(db.prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)').run('erin', hashPassword('erinpass1')).lastInsertRowid);
+    db.prepare("INSERT INTO group_members (group_id, user_id, role) VALUES (?, ?, 'member')").run(groupA, erin);
+    const other = { ...(await login('erin', 'erinpass1')), 'x-hub-group': String(groupA) };
+    const adminId = db.prepare("SELECT id FROM users WHERE username = 'admin'").pluck().get() as number;
+    const seen = async (h: object) => {
+      const im = (await app.inject({ method: 'GET', url: `/hub/api/u8/imperium?user=${adminId}`, headers: h })).json();
+      const al = (await app.inject({ method: 'GET', url: '/hub/api/u8/alliance', headers: h })).json();
+      return { im: im.fleets?.data.map((f: any) => f.mission) ?? null, private: im.fleetsPrivate, al: al.find((m: any) => m.user_id === adminId).fleets };
+    };
+    expect((await app.inject({ method: 'GET', url: '/hub/api/auth/fleet-share', headers: admin })).json()).toEqual({ enabled: true, hidden: [] });
+    expect((await seen(other)).im).toEqual([1, 4, 4]);
+
+    // deploys hidden: the others don't see them, the owner still does
+    let res = await app.inject({ method: 'POST', url: '/hub/api/auth/fleet-share', headers: admin, payload: { enabled: true, hidden: [4, 4, 99] } });
+    expect(res.json()).toEqual({ enabled: true, hidden: [4] });
+    expect((await seen(other)).im).toEqual([1]);
+    expect((await seen(other)).al.data).toHaveLength(1);
+    expect((await seen(headers)).im).toEqual([1, 4, 4]);
+
+    res = await app.inject({ method: 'POST', url: '/hub/api/auth/fleet-share', headers: admin, payload: { enabled: false, hidden: [] } });
+    expect(await seen(other)).toEqual({ im: null, private: true, al: null });
+    expect((await seen(headers)).im).toEqual([1, 4, 4]);
+    await app.inject({ method: 'POST', url: '/hub/api/auth/fleet-share', headers: admin, payload: { enabled: true, hidden: [] } });
+  });
+
   it('lists phalanxes that reach a system', async () => {
     const headers = { ...admin, 'x-hub-group': String(groupA) };
     const empire = { kind: 'empire', research: {}, planets: [

@@ -53,6 +53,8 @@ interface Data {
   } | null;
   overview: { time: number; data: { queues: Queue[]; catchUp?: number | null } } | null;
   fleets: { time: number; data: Fleet[] } | null;
+  /** the member shares no fleet movements */
+  fleetsPrivate?: boolean;
   /** the member's player with the latest synced statistics per category (1 total … 5 defense) */
   player: { id: number; name: string; stats: Record<number, { points: number; rank: number; time: number }> } | null;
   /**
@@ -312,7 +314,7 @@ const memberName = (id: number | null) => ctx.value!.members.find((m) => m.id ==
       {{ t('nav.overview') }}: <template v-if="overview">{{ dateTime(overview.time) }} ({{ ago(overview.time) }})</template><span v-else class="warn">{{ t('imperium.overviewMissing') }}</span>
     </span>
     <span class="muted">
-      {{ t('imperium.fleets') }}: <template v-if="fleets">{{ dateTime(fleets.time) }} ({{ ago(fleets.time) }})</template><span v-else class="warn">{{ t('imperium.fleetsMissing') }}</span>
+      {{ t('imperium.fleets') }}: <template v-if="fleets">{{ dateTime(fleets.time) }} ({{ ago(fleets.time) }})</template><span v-else-if="data?.fleetsPrivate" class="faint">{{ t('imperium.fleetsPrivate') }}</span><span v-else class="warn">{{ t('imperium.fleetsMissing') }}</span>
     </span>
     <span v-if="storageFactor !== 1" class="faint" :title="t('imperium.storageTitle')">{{ t('imperium.storage') }} ×{{ fmt(storageFactor, 1) }}</span>
     <span v-if="missingPerHour" class="warn">{{ t('imperium.perHourMissing') }}</span>

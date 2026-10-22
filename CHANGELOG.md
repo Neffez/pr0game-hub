@@ -4,6 +4,12 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Fleet sharing in the account settings: each user decides whether the other members see their fleet movements and
+  which missions (attack, transport, deploy, expedition …); all are shared by default.
+  - Applies at once and to fleets already synced (filtered when served, not when stored); the own empire view always
+    shows everything. A member who shares nothing shows "not shared" instead of "missing".
+  - Server: `GET`/`POST /api/auth/fleet-share`, column `users.fleet_share`; a change updates open pages live.
+
 - Fleet movements laid out as a table (cards on mobile): arrival time with seconds, remaining time, member, mission,
   start, target, ships (short names, full list as tooltip) and cargo. Missions in the game's colours (own, foreign,
   return), hostile fleets highlighted; the alliance list can be filtered by member.

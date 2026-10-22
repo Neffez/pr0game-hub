@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import { api, loadMe, session } from '../api';
@@ -40,6 +40,26 @@ const savePassword = () =>
     oldPassword.value = newPassword.value = '';
   }, () => t('account.passwordChanged'));
 
+/** Fleet movements shared with the other members (game mission ids, as the server's SHARE_MISSIONS). */
+const MISSIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15];
+const share = ref<{ enabled: boolean; hidden: number[] } | null>(null);
+onMounted(async () => {
+  try {
+    share.value = await api('/auth/fleet-share');
+  } catch (e) {
+    error.value = (e as Error).message;
+  }
+});
+function toggleMission(id: number) {
+  const s = share.value!;
+  s.hidden = s.hidden.includes(id) ? s.hidden.filter((m) => m !== id) : [...s.hidden, id];
+  saveShare();
+}
+const saveShare = () =>
+  run(async () => {
+    share.value = await api('/auth/fleet-share', { body: share.value });
+  }, () => t('account.fleetShareSaved'));
+
 // switch right away, then store it on the account (applies on other devices after the next login/reload)
 const saveLang = () =>
   run(async () => {
@@ -60,6 +80,17 @@ const saveLang = () =>
     <p class="muted small">{{ t('account.languageHint') }}</p>
     <h2>{{ t('account.hints') }}</h2>
     <label><input v-model="liveHints" type="checkbox" /> {{ t('account.liveHints') }}</label>
+    <template v-if="share">
+      <h2>{{ t('account.fleetShare') }}</h2>
+      <label><input v-model="share.enabled" type="checkbox" @change="saveShare" /> {{ t('account.fleetShareEnabled') }}</label>
+      <div class="share-missions" :class="{ off: !share.enabled }">
+        <label v-for="id in MISSIONS" :key="id">
+          <input type="checkbox" :checked="!share.hidden.includes(id)" :disabled="!share.enabled" @change="toggleMission(id)" />
+          {{ t(`game.missions.${id}`) }}
+        </label>
+      </div>
+      <p class="muted small">{{ t('account.fleetShareHint') }}</p>
+    </template>
     <h2>{{ t('common.username') }}</h2>
     <form @submit.prevent="saveUsername">
       <label>{{ t('account.newUsername') }}</label>
@@ -80,3 +111,8 @@ const saveLang = () =>
     <div v-if="error" class="error">{{ error }}</div>
   </div>
 </template>
+
+<style scoped>
+.share-missions { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 2px 12px; margin-top: 6px; }
+.share-missions.off { opacity: 0.5; }
+</style>
