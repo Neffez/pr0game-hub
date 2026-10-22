@@ -373,7 +373,7 @@ const de = {
     statsCategory: 'Statistik-Kategorie',
     auto: 'automatisch',
     clear: 'Leeren',
-    previewButton: 'Vorschau',
+    previewTitle: 'Vorschau',
     detected: 'Seite: {page} · Quelle: {source} · Sprache: {lang}',
     more: '{n} weitere',
     noData: 'Keine Daten erkannt.',

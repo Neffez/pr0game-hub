@@ -372,7 +372,7 @@ const en: typeof de = {
     statsCategory: 'Statistics category',
     auto: 'automatic',
     clear: 'Clear',
-    previewButton: 'Preview',
+    previewTitle: 'Preview',
     detected: 'Page: {page} · source: {source} · language: {lang}',
     more: '{n} more',
     noData: 'No data detected.',

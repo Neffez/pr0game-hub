@@ -109,6 +109,7 @@ async function onFile(e: Event) {
 }
 
 function clear() {
+  clearTimeout(typing);
   html.value = null;
   text.value = '';
   preview.value = saved.value = null;
@@ -116,9 +117,17 @@ function clear() {
   error.value = '';
 }
 
+/** Counts runs: a preview that arrives after newer input is dropped. */
+let runs = 0;
+
 async function run(dryRun: boolean) {
+  clearTimeout(typing);
   error.value = '';
-  if (!html.value && !text.value.trim()) return;
+  if (!html.value && !text.value.trim()) {
+    busy.value = false;
+    return;
+  }
+  const current = ++runs;
   busy.value = true;
   try {
     const body = {
@@ -128,6 +137,7 @@ async function run(dryRun: boolean) {
       dryRun,
     };
     const res = await uniApi<Summary>(uni.value, '/ingest', { body });
+    if (current !== runs) return;
     if (dryRun) {
       preview.value = res;
       saved.value = null;
@@ -138,16 +148,20 @@ async function run(dryRun: boolean) {
       text.value = '';
     }
   } catch (e) {
-    error.value = (e as Error).message;
+    if (current === runs) error.value = (e as Error).message;
   } finally {
-    busy.value = false;
+    if (current === runs) busy.value = false;
   }
 }
 
-/** Typing/pasting into the field without clipboard HTML (e.g. page source) clears stale HTML. */
+/** Typing/pasting into the field without clipboard HTML (e.g. page source) clears stale HTML; the preview follows after a pause. */
+let typing: ReturnType<typeof setTimeout> | undefined;
 function onInput() {
   html.value = null;
   preview.value = null;
+  ++runs;
+  clearTimeout(typing);
+  typing = setTimeout(() => run(true), 500);
 }
 
 /** Series mode (sheet): straight on to the next page after saving. */
@@ -180,14 +194,13 @@ function next() {
       </label>
       <span class="grow" />
       <button @click="clear">{{ t('paste.clear') }}</button>
-      <button :disabled="busy" @click="run(true)">{{ t('paste.previewButton') }}</button>
       <button class="primary" :disabled="busy || !preview || !preview.preview.length || (needsType && !statsType)" @click="run(false)">{{ t('common.save') }}</button>
     </div>
     <div v-if="error" class="error">{{ error }}</div>
   </div>
 
   <div v-if="preview" class="card">
-    <h2 style="margin-top: 0">{{ t('paste.previewButton') }}</h2>
+    <h2 style="margin-top: 0">{{ t('paste.previewTitle') }}</h2>
     <p class="muted small">{{ t('paste.detected', { page: preview.pageType, source: preview.source, lang: preview.lang }) }}</p>
     <p v-for="w in preview.warnings" :key="w" class="warn">⚠ {{ label('paste.warnings', w) }}</p>
     <ul v-if="preview.preview.length">

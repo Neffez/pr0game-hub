@@ -4,6 +4,8 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-22
 
+- Sync: the preview button is gone; the preview also follows typed or edited text automatically (after a short pause),
+  as it already did for pasting and file uploads.
 - Overview galaxy filter is a selection of the universe's galaxies and hidden in universes with a single galaxy;
   a stored galaxy that does not exist in the universe no longer hides all planets.
 - The overview table is always shown, like in the FF-Hub: every known player (also only from galaxy views or spy
