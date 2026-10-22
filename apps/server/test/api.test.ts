@@ -672,6 +672,23 @@ describe('review fixes', () => {
     expect(planet()).toEqual({ name: 'Heimat', player_id: alpha });
   });
 
+  it('shows since when a player is inactive', async () => {
+    const groupX = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', headers: admin, payload: { universe: 'u8', name: 'Inactive' } })).json().id;
+    const headers = { ...admin, 'x-hub-group': String(groupX) };
+    const id = Number(db.prepare("INSERT INTO players (group_id, name) VALUES (?, 'Sleepy')").run(groupX).lastInsertRowid);
+    const log = db.prepare('INSERT INTO player_status_log (player_id, status, seen_at) VALUES (?, ?, ?)');
+    const since = async () => (await app.inject({ method: 'GET', url: '/hub/api/u8/overview', headers })).json().players.find((p: any) => p.id === id).inactive_since;
+    log.run(id, '["inactive"]', 100);
+    log.run(id, '["inactive"]', 200);
+    expect(await since()).toBe(100);
+    // active again, then inactive anew: counts from the new start
+    log.run(id, '[]', 300);
+    expect(await since()).toBeNull();
+    log.run(id, '["inactive"]', 400);
+    log.run(id, '["inactive","longinactive"]', 500);
+    expect(await since()).toBe(400);
+  });
+
   it('keeps the activity log of merged players', async () => {
     const groupX = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', headers: admin, payload: { universe: 'u8', name: 'Merge' } })).json().id;
     const add = (name: string) => Number(db.prepare('INSERT INTO players (group_id, name) VALUES (?, ?)').run(groupX, name).lastInsertRowid);

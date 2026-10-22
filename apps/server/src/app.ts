@@ -27,9 +27,6 @@ export function buildApp(db: DB, opts: { logger?: boolean } = {}): FastifyInstan
 
   app.register(fastifyCookie);
   app.decorateRequest('user', null);
-  app.addHook('onRequest', async (req) => {
-    req.user = loadSessionUser(db, req);
-  });
 
   app.setErrorHandler((err, req, reply) => {
     if (err instanceof HttpError) return reply.code(err.statusCode).send({ error: err.message, code: err.code });
@@ -41,6 +38,10 @@ export function buildApp(db: DB, opts: { logger?: boolean } = {}): FastifyInstan
 
   app.register(
     async (scope) => {
+      // only API requests need the session (not the static files)
+      scope.addHook('onRequest', async (req) => {
+        req.user = loadSessionUser(db, req);
+      });
       scope.get('/api/health', async () => ({ ok: true }));
       authRoutes(scope, db);
       adminRoutes(scope, db);

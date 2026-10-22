@@ -167,8 +167,10 @@ export function dataRoutes(app: FastifyInstance, db: DB) {
       .prepare(
         `SELECT p.id, p.ingame_id, p.name, p.status, p.note, p.last_seen, a.id AS ally_id, a.name AS ally_name, a.tag AS ally_tag,
            (SELECT json_group_array(name) FROM player_aliases x WHERE x.player_id = p.id) AS aliases,
+           -- first inactive entry since the last active one
            (SELECT MIN(seen_at) FROM player_status_log l WHERE l.player_id = p.id AND l.status LIKE '%inactive%'
-              AND NOT EXISTS (SELECT 1 FROM player_status_log l2 WHERE l2.player_id = p.id AND l2.seen_at > l.seen_at AND l2.status NOT LIKE '%inactive%')) AS inactive_since
+              AND l.seen_at >= COALESCE((SELECT MAX(seen_at) FROM player_status_log l2 WHERE l2.player_id = p.id AND l2.status NOT LIKE '%inactive%'), 0)
+           ) AS inactive_since
          FROM players p LEFT JOIN alliances a ON a.id = p.alliance_id WHERE p.group_id = ?`,
       )
       .all(ctx.groupId) as any[];
@@ -331,7 +333,7 @@ export function dataRoutes(app: FastifyInstance, db: DB) {
     const spyReports = db
       .prepare(
         `SELECT id, g, s, p, planet_type, planet_name, report_time, sections FROM spy_reports
-         WHERE group_id = ? AND (player_id = ? OR player_name = ?) ORDER BY report_time DESC LIMIT 30`,
+         WHERE group_id = ? AND (player_id = ? OR player_name = ? COLLATE NOCASE) ORDER BY report_time DESC LIMIT 30`,
       )
       .all(ctx.groupId, id, player.name)
       .map(parseSections);
@@ -1089,7 +1091,7 @@ function playerIntel(db: DB, ctx: GroupContext, playerId: number, name: string, 
   const reports = db
     .prepare(
       `SELECT g, s, p, planet_type, report_time, sections FROM spy_reports
-       WHERE group_id = ? AND (player_id = ? OR player_name = ?) ORDER BY report_time DESC`,
+       WHERE group_id = ? AND (player_id = ? OR player_name = ? COLLATE NOCASE) ORDER BY report_time DESC`,
     )
     .all(ctx.groupId, playerId, name) as { g: number; s: number; p: number; planet_type: string; report_time: number; sections: string }[];
   for (const r of reports) {
