@@ -52,7 +52,7 @@ interface Data {
   /** the member's player with the latest synced statistics per category (1 total … 5 defense) */
   player: { id: number; name: string; stats: Record<number, { points: number; rank: number; time: number }> } | null;
   /**
-   * ships on the planets (points) in the first empire page after the newest fleet or total statistics update,
+   * ships on the planets (points) in the first empire page after the newest fleet or total statistics update that has one,
    * and the statistics fleet of that update (for the total: total minus the other points of that empire page)
    */
   fleetBase: { time: number; points: number; stat: number } | null;
@@ -343,7 +343,7 @@ const memberName = (id: number | null) => ctx.value!.members.find((m) => m.id ==
         <tr v-for="c in livePoints.cats" :key="c.type">
           <td style="white-space: normal">
             {{ STATS_TYPES[c.type] }}
-            <span v-if="c.type === 2 && !livePoints.fleetFromStats" class="warn small" :title="t('imperium.noFlyingTitle')">⚠ {{ t('imperium.noFlying') }}</span>
+            <span v-if="c.type === 2 && !livePoints.fleetFromStats" class="warn small" :title="t('imperium.noFlyingTitle')">⚠</span>
             <!-- the total is synced more often: a category from an older update has a different Δ base -->
             <span v-if="c.statTime && livePoints.statTime && c.statTime < livePoints.statTime" class="muted small" :title="t('imperium.statOlderTitle')">
               {{ t('imperium.statOlder', { time: dateTime(c.statTime) }) }}

@@ -30,11 +30,19 @@ export function imperiumRoutes(app: FastifyInstance, db: DB) {
       : [];
     // Fleets in flight are missing on the empire page but count in the statistics: the live fleet is the
     // stats fleet plus the change of the ships on the planets since the first empire page after that update.
-    // The anchor is the newest of the fleet and the total statistics (the total is synced far more often; its
-    // fleet is the total minus the other points of that empire page), so ships built in between are not lost.
-    const fleetStat = stats.find((s) => s.type === 2);
-    const totalStat = stats.find((s) => s.type === 1);
-    const anchor = fleetStat && (!totalStat || fleetStat.time >= totalStat.time) ? fleetStat : totalStat;
+    // The anchor is the newest fleet or total statistics update with an empire page synced after it (the total is
+    // synced far more often; its fleet is the total minus the other points of that empire page). Updates synced
+    // after the newest empire page are skipped, so a fresh statistics sync does not drop the fleets in flight.
+    const anchor = player
+      ? (db
+          .prepare(
+            `SELECT st.type, ps.points, st.stat_time AS time FROM player_scores ps JOIN stat_snapshots st ON st.id = ps.snapshot_id
+             WHERE st.group_id = ? AND st.who = 'player' AND st.type IN (1, 2) AND ps.player_id = ?
+               AND st.stat_time <= (SELECT MAX(created_at) FROM empire_snapshots WHERE group_id = ? AND user_id = ?)
+             ORDER BY st.stat_time DESC, st.type DESC LIMIT 1`,
+          )
+          .get(ctx.groupId, player.id, ctx.groupId, userId) as { type: number; points: number; time: number } | undefined)
+      : undefined;
     const fleetBase = anchor
       ? (db
           .prepare('SELECT created_at AS time, data FROM empire_snapshots WHERE group_id = ? AND user_id = ? AND created_at >= ? ORDER BY created_at, id LIMIT 1')

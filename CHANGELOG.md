@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-22
 
+- Empire, live points: the fleet keeps counting fleets in flight right after a statistics sync. It is based on the
+  newest fleet or total statistics update that has an empire page synced after it, instead of only the newest update
+  (which dropped back to the ships on the planets until the next empire sync). The remaining warning, when no such
+  pair exists, is just a ⚠ with a tooltip.
 - Overview: the filters at the top have their spacing back, and on mobile the lists also render more rows while
   scrolling when the filters are folded away (the end-of-list marker shared a class name with the filters).
 - Overview: the planet and player lists render 150 rows at first and the next ones while scrolling (no pages, the
