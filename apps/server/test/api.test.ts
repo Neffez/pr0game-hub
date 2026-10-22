@@ -741,5 +741,9 @@ describe('review fixes', () => {
     expect(
       (await app.inject({ method: 'POST', url: '/hub/api/admin/universes', payload: { slug: 'u9', settings: { timezone: 'Mars/Base' } }, ...h })).statusCode,
     ).toBe(400);
+    for (const settings of [{ systems: 'many' }, { galaxies: 0 }, { positions: 1.5 }, { circularSystems: 'yes' }, { systemDistanceFactor: -1 }]) {
+      const res = await app.inject({ method: 'POST', url: '/hub/api/admin/universes', payload: { slug: 'u9', settings }, ...h });
+      expect(res.json().code).toBe('setting_invalid');
+    }
   });
 });

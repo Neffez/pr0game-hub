@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-22
 
+- Admin: universe settings are validated: sizes (galaxies, systems, positions, fleet speed) must be whole numbers ≥ 1,
+  distance factors numbers ≥ 0 and the circular options yes/no, so a typo no longer breaks distance, flight time and
+  phalanx calculations.
 - Large tables render faster: number and date formatters are created once per language instead of for every value,
   and sorting the overview by building, fleet or defense points no longer builds the tooltip texts for each comparison.
 - Faster queries: "inactive since" in the overview no longer compares every status entry with every other, raids,

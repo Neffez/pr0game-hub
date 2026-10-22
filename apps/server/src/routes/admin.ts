@@ -284,6 +284,17 @@ function validateSettings(settings: object | undefined) {
     }
   }
   if (s.gameUrl && !/^https?:\/\//i.test(String(s.gameUrl))) throw new HttpError(400, 'game_url_invalid', 'Game URL must start with http(s)://');
+  // sizes and distance factors feed the distance, flight time and phalanx calculations
+  const defaults: Record<string, unknown> = { ...UNIVERSE_DEFAULTS, phalanxRangeFactor: 1 };
+  for (const [key, value] of Object.entries(s)) {
+    let valid = true;
+    if (typeof defaults[key] === 'boolean') valid = typeof value === 'boolean';
+    else if (typeof defaults[key] === 'number') {
+      valid = typeof value === 'number' && Number.isFinite(value) && value >= 0;
+      if (['galaxies', 'systems', 'positions', 'fleetSpeed'].includes(key)) valid &&= Number.isInteger(value) && (value as number) >= 1;
+    }
+    if (!valid) throw new HttpError(400, 'setting_invalid', `Invalid setting: ${key}`);
+  }
 }
 
 function validateDeck(deck: unknown) {

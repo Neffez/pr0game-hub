@@ -690,6 +690,7 @@ const en: typeof de = {
     not_found: 'Not found',
     timezone_invalid: 'Invalid time zone',
     game_url_invalid: 'Game URL must start with http(s)://',
+    setting_invalid: 'Invalid setting (numbers ≥ 0, sizes whole numbers ≥ 1)',
     deck_not_array: 'Deck must be an array',
     deck_entry_invalid: "Invalid deck entry: {'{'}type, size, count{'}'}",
     lang_invalid: 'Invalid language',

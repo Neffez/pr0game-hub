@@ -693,6 +693,7 @@ const de = {
     not_found: 'Nicht gefunden',
     timezone_invalid: 'Zeitzone ungültig',
     game_url_invalid: 'Spiel-URL muss mit http(s):// beginnen',
+    setting_invalid: 'Ungültige Einstellung (Zahlen ≥ 0, Größen ganzzahlig ≥ 1)',
     deck_not_array: 'Deck muss ein Array sein',
     deck_entry_invalid: "Deck-Eintrag ungültig: {'{'}type, size, count{'}'}",
     lang_invalid: 'Sprache ungültig',
