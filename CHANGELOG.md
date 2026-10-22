@@ -4,6 +4,8 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-22
 
+- Galaxy browser, overview, raids and player details read the members' empire pages once per request instead of up
+  to three times.
 - Battle report archive: a report in the hall of several alliances of the same universe is fetched from the game once
   and archived for each of them. The search for the next report uses an index instead of scanning the whole hall
   every few seconds. Migration `014` turns the old status "no game URL" into pending.

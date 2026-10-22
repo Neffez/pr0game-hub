@@ -834,15 +834,29 @@ function range(q: Q) {
 
 /** Own planet coordinates per user from their latest empire snapshot (to tell raids from defenses). */
 function ownCoords(db: DB, ctx: GroupContext): Map<number, Set<string>> {
-  const rows = db
-    .prepare(
-      `SELECT e.user_id, e.data FROM empire_snapshots e WHERE e.group_id = ? AND e.id = (
-         SELECT id FROM empire_snapshots x WHERE x.group_id = e.group_id AND x.user_id = e.user_id ORDER BY created_at DESC, id DESC LIMIT 1)`,
-    )
-    .all(ctx.groupId) as { user_id: number; data: string }[];
   return new Map(
-    rows.map((r) => [r.user_id, new Set((JSON.parse(r.data) as EmpireRecord).planets.map((p) => `${p.coords.g}:${p.coords.s}:${p.coords.p}`))]),
+    latestEmpires(db, ctx).map((e) => [e.userId, new Set(e.rec.planets.map((p) => `${p.coords.g}:${p.coords.s}:${p.coords.p}`))]),
   );
+}
+
+type LatestEmpire = { userId: number; time: number; rec: EmpireRecord };
+const empireCache = new WeakMap<GroupContext, LatestEmpire[]>();
+
+/** Newest empire page of every member, loaded and parsed once per request (the context is per request). */
+function latestEmpires(db: DB, ctx: GroupContext): LatestEmpire[] {
+  let list = empireCache.get(ctx);
+  if (!list) {
+    const rows = db
+      .prepare(
+        `SELECT user_id, created_at, data FROM (SELECT user_id, created_at, data,
+           ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY created_at DESC, id DESC) AS n FROM empire_snapshots WHERE group_id = ?)
+         WHERE n = 1`,
+      )
+      .all(ctx.groupId) as { user_id: number; created_at: number; data: string }[];
+    list = rows.map((r) => ({ userId: r.user_id, time: r.created_at, rec: withMoonTypes(JSON.parse(r.data) as EmpireRecord) }));
+    empireCache.set(ctx, list);
+  }
+  return list;
 }
 
 /** Latest snapshots per type with covered rank range, so the UI can show which pages are missing. */
@@ -920,23 +934,22 @@ function planetRows(db: DB, ctx: GroupContext) {
   }
 
   // Own alliance: points per planet from the members' latest empire pages (like FF-Hub).
-  const empires = db
-    .prepare(
-      `SELECT e.created_at, e.data, m.ingame_name, u.username FROM empire_snapshots e
-       JOIN group_members m ON m.group_id = e.group_id AND m.user_id = e.user_id JOIN users u ON u.id = e.user_id
-       WHERE e.group_id = ? AND e.id = (SELECT id FROM empire_snapshots x WHERE x.group_id = e.group_id AND x.user_id = e.user_id
-         ORDER BY created_at DESC, id DESC LIMIT 1)`,
-    )
-    .all(ctx.groupId) as { created_at: number; data: string; ingame_name: string | null; username: string }[];
-  for (const e of empires) {
-    const rec = withMoonTypes(JSON.parse(e.data) as EmpireRecord);
-    const playerId = empirePlayer(db, ctx, rec, [e.ingame_name, e.username]);
+  const members = new Map(
+    (db
+      .prepare('SELECT m.user_id, m.ingame_name, u.username FROM group_members m JOIN users u ON u.id = m.user_id WHERE m.group_id = ?')
+      .all(ctx.groupId) as { user_id: number; ingame_name: string | null; username: string }[]).map((m) => [m.user_id, m]),
+  );
+  for (const { userId, time, rec } of latestEmpires(db, ctx)) {
+    const m = members.get(userId);
+    // former members' pages stay, but they're no longer the own alliance
+    if (!m) continue;
+    const playerId = empirePlayer(db, ctx, rec, [m.ingame_name, m.username]);
     for (const pl of rec.planets) {
       const row = add(pl.coords.g, pl.coords.s, pl.coords.p, pl.type, pl.name, playerId);
       row.player_id ??= playerId;
       if (!row.name) row.name = pl.name;
       const part = (cls: number) => Object.fromEntries(Object.entries(pl.values).filter(([id]) => classOf(Number(id)) === cls));
-      row.own = { time: e.created_at, building: sectionPoints(part(0)), fleet: sectionPoints(part(200)), defense: sectionPoints(part(400)) };
+      row.own = { time, building: sectionPoints(part(0)), fleet: sectionPoints(part(200)), defense: sectionPoints(part(400)) };
     }
   }
 
@@ -1013,19 +1026,13 @@ function phalanxCoverage(db: DB, ctx: GroupContext, g: number, s: number) {
     moons.set(key, { s: r.s, p: r.p, level: buildings['42'] ?? 0, time: r.report_time, source: 'spy', playerId: r.player_id, playerName: r.player_name });
   }
 
-  const empires = db
-    .prepare(
-      `SELECT e.created_at, e.data FROM empire_snapshots e WHERE e.group_id = ? AND e.id = (
-         SELECT id FROM empire_snapshots x WHERE x.group_id = e.group_id AND x.user_id = e.user_id ORDER BY created_at DESC, id DESC LIMIT 1)`,
-    )
-    .all(ctx.groupId) as { created_at: number; data: string }[];
-  for (const e of empires) {
-    for (const pl of withMoonTypes(JSON.parse(e.data) as EmpireRecord).planets) {
+  for (const e of latestEmpires(db, ctx)) {
+    for (const pl of e.rec.planets) {
       if (pl.type !== 'moon' || pl.coords.g !== g) continue;
       const key = `${pl.coords.s}:${pl.coords.p}`;
       const cur = moons.get(key);
-      if (cur && cur.time > e.created_at) continue;
-      moons.set(key, { s: pl.coords.s, p: pl.coords.p, level: pl.values[42] ?? 0, time: e.created_at, source: 'empire', playerId: cur?.playerId ?? null, playerName: cur?.playerName ?? null });
+      if (cur && cur.time > e.time) continue;
+      moons.set(key, { s: pl.coords.s, p: pl.coords.p, level: pl.values[42] ?? 0, time: e.time, source: 'empire', playerId: cur?.playerId ?? null, playerName: cur?.playerName ?? null });
     }
   }
 
@@ -1096,17 +1103,13 @@ function playerIntel(db: DB, ctx: GroupContext, playerId: number, name: string, 
 
   // alliance member: their own empire page knows it exactly
   const coords = new Set(planets.map((p) => `${p.g}:${p.s}:${p.p}`));
-  for (const [userId, set] of ownCoords(db, ctx)) {
-    if (![...set].some((c) => coords.has(c))) continue;
-    const e = db
-      .prepare('SELECT created_at, data FROM empire_snapshots WHERE group_id = ? AND user_id = ? ORDER BY created_at DESC, id DESC LIMIT 1')
-      .get(ctx.groupId, userId) as { created_at: number; data: string };
-    const rec = withMoonTypes(JSON.parse(e.data) as EmpireRecord);
-    if (!research || research.time <= e.created_at) research = { values: rec.research, time: e.created_at, source: 'empire' };
+  for (const { time, rec } of latestEmpires(db, ctx)) {
+    if (!rec.planets.some((p) => coords.has(`${p.coords.g}:${p.coords.s}:${p.coords.p}`))) continue;
+    if (!research || research.time <= time) research = { values: rec.research, time, source: 'empire' };
     for (const pl of rec.planets) {
       const key = `${pl.coords.g}:${pl.coords.s}:${pl.coords.p}`;
-      if (pl.type === 'moon' && (!phalanx[key] || phalanx[key].time <= e.created_at)) {
-        phalanx[key] = { level: pl.values[42] ?? 0, time: e.created_at, source: 'empire' };
+      if (pl.type === 'moon' && (!phalanx[key] || phalanx[key].time <= time)) {
+        phalanx[key] = { level: pl.values[42] ?? 0, time, source: 'empire' };
       }
     }
   }
