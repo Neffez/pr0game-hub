@@ -33,6 +33,15 @@ const BODY_RE = new RegExp(
 const LINE_RE = /^(?:(\d{1,2}:\d{2}:\d{2})\s*\|\s*)?((?:\d+\s*[Wdhms]\s*)+)(\S.*Mission\s*:.*)$/;
 const EVENTS_HEAD_RE = /^(?:Ereignisse|Events)\s+(Ausblenden|Einblenden|Hide|Show)$/im;
 
+/**
+ * Owner from the game's sentence templates (INGAME.yaml cff_mission_*): "Eine deiner …" is own, "Eine feindliche …"
+ * (spying, destroying, …) hostile. An attack or ACS attack of someone else on the viewer reads "Eine Flotten(…)"
+ * without player name (cff_mission_acs with ov_fleet); one on another player, e.g. a friendly ACS, "Eine
+ * Verbandsflotte(…)" (cff_acs_fleet).
+ */
+const OWN_RE = /^(?:Eine deiner|One of your)\b/i;
+const HOSTILE_RE = /^(?:Eine feindliche|A hostile)\b|^(?:Eine|A)\s+(?:Flotten|Fleets)\s*\(/i;
+
 function body(kind: string, name: string, coords: string): FleetBody {
   const type = /^(?:Mond|Moon)$/i.test(kind) ? 'moon' : /^(?:Trümmerfeld|Debris)/i.test(kind) ? 'debris' : /^Position$/i.test(kind) ? null : 'planet';
   return { coords: parseCoords(coords)!, type, name: name.trim() || null };
@@ -57,8 +66,8 @@ export function parseFleetSentence(text: string, seconds: number, clock: string 
   const bodies = [...s.matchAll(BODY_RE)].map((m) => body(m[1], m[2], m[0].slice(m[0].lastIndexOf('['))));
   const missionName = s.match(/Mission\s*:\s*([^(]+?)\s*(?:\(|$)/i)?.[1]?.replace(/\.$/, '').trim() ?? '';
   if (!bodies.length || !missionName) return null;
-  const owner: FleetMovement['owner'] = /^(?:Eine deiner|One of your)/i.test(s) ? 'own' : /feindlich|hostile/i.test(s) ? 'hostile' : 'foreign';
-  const ships = s.match(/^[^(]*?Flotten?\s*\(([^)]*)\)/i)?.[1] ?? s.match(/^[^(]*?fleets?\s*\(([^)]*)\)/i)?.[1] ?? '';
+  const owner: FleetMovement['owner'] = OWN_RE.test(s) ? 'own' : HOSTILE_RE.test(s) ? 'hostile' : 'foreign';
+  const ships = s.match(/^[^(]*?(?:Flotten?|Fleets?(?: in ACS)?)\s*\(([^)]*)\)/i)?.[1] ?? '';
   const res = s.match(/(?:Rohstoffe|Resources)\s*:\s*([^)]*)/i)?.[1];
   const resources: Record<number, number> = {};
   if (res) {
@@ -71,7 +80,7 @@ export function parseFleetSentence(text: string, seconds: number, clock: string 
     hint.returning || /\b(?:kehrt|zurück|returns?|returning)\b/i.test(s) ? 'return' : /\b(?:im Orbit|hält|holds?|orbit)\b/i.test(s) ? 'hold' : 'out';
   return {
     owner,
-    player: s.match(/(?:des Spielers|vom Spieler|of player|from player)\s+(.+?)\s+(?:vom|von|from)\s/i)?.[1] ?? null,
+    player: s.match(/(?:des Spielers|vom Spieler|of player|from player)\s+(.+?)(?:\s+\[(?:PN|PM)\])?\s+(?:vom|von|from)\s/i)?.[1] ?? null,
     mission: hint.mission ?? MISSIONS.find(([re]) => re.test(missionName))?.[1] ?? null,
     missionName,
     phase,
@@ -81,24 +90,46 @@ export function parseFleetSentence(text: string, seconds: number, clock: string 
     resources: res ? resources : null,
     seconds,
     clock,
+    acs: null,
   };
 }
 
-/** Copied text: one line per event ("HH:MM:SS | remaining sentence"); clock and timer may sit on lines of their own. */
+/**
+ * Copied text: one line per event ("HH:MM:SS | remaining sentence"); clock and timer may sit on lines of their own.
+ * An ACS is one event: its further fleets follow on lines without time and share the timer of the first (the lead).
+ */
 export function parseFleetLines(text: string): FleetMovement[] {
   const out: FleetMovement[] = [];
   let prefix = '';
+  /** last event with a timer, for the ACS fleets below it */
+  let event: { index: number; seconds: number; clock: string | null } | null = null;
+  let acs = 0;
   for (const raw of text.split('\n')) {
     const line = `${prefix} ${raw.trim()}`.trim();
+    if (!line) continue;
     if (/^[\d:|\sWdhms]+$/.test(line) && /\d/.test(line)) {
       prefix = line;
       continue;
     }
     prefix = '';
     const m = line.match(LINE_RE);
-    const secs = m ? parseDuration(m[2]) : null;
-    const f = m && secs != null ? parseFleetSentence(m[3], secs, m[1]?.padStart(8, '0') ?? null) : null;
-    if (f) out.push(f);
+    if (m) {
+      const secs = parseDuration(m[2]);
+      const clock = m[1]?.padStart(8, '0') ?? null;
+      const f = secs != null ? parseFleetSentence(m[3], secs, clock) : null;
+      event = f ? { index: out.length, seconds: f.seconds, clock } : null;
+      if (f) out.push(f);
+      continue;
+    }
+    const member = event && /Mission\s*:/i.test(line) ? parseFleetSentence(line, event.seconds, event.clock) : null;
+    if (!event || !member) {
+      event = null;
+      continue;
+    }
+    const lead = out[event.index];
+    lead.acs ??= acs++;
+    member.acs = lead.acs;
+    out.push(member);
   }
   return out;
 }
@@ -118,24 +149,37 @@ export function parseFleetsText(text: string, overview = false): FleetsRecord | 
   return { kind: 'fleets', pageTime: parseServerClock(text), fleets };
 }
 
-/** Page source: `.fleets` timers with the remaining seconds and the mission colour class of the event. */
+/**
+ * Page source: `.fleets` timers with the remaining seconds; every fleet sentence sits in a span with the mission colour
+ * class. An ACS is one event with one span per fleet.
+ */
 export function parseFleetsHtml($: CheerioAPI): FleetsRecord | null {
   const list = $('#hidden-div2');
   const timers = $('span.fleets[data-fleet-time]');
   if (!list.length && !timers.length) return null;
   const fleets: FleetMovement[] = [];
+  let acs = 0;
   timers.each((_, el) => {
     const timer = $(el);
-    const li = timer.closest('li').clone();
     const seconds = Number(timer.attr('data-fleet-time'));
-    const cls = li.find('[class*="colorMission"]').first().attr('class') ?? '';
-    const m = cls.match(/colorMission(\d+|Return)(?:Own|Foreign|friend)/i);
+    if (!Number.isFinite(seconds)) return;
+    const li = timer.closest('li').clone();
     li.find('.statictimer, .fleets').remove();
-    const text = li.text().replace(/^\s*\|/, '');
-    const f = Number.isFinite(seconds)
-      ? parseFleetSentence(text, seconds, null, { mission: m && /^\d+$/.test(m[1]) ? Number(m[1]) : null, returning: m?.[1] === 'Return' })
-      : null;
-    if (f) fleets.push(f);
+    const spans = li.find('[class*="colorMission"]').toArray();
+    const parts = spans.length
+      ? spans.map((s) => ({ text: $(s).text(), cls: $(s).attr('class') ?? '' }))
+      : [{ text: li.text().replace(/^\s*\|/, ''), cls: '' }];
+    const event = parts
+      .map(({ text, cls }) => {
+        const m = cls.match(/colorMission(\d+|Return)(?:Own|Foreign|friend)/i);
+        return parseFleetSentence(text, seconds, null, { mission: m && /^\d+$/.test(m[1]) ? Number(m[1]) : null, returning: m?.[1] === 'Return' });
+      })
+      .filter((f): f is FleetMovement => !!f);
+    if (event.length > 1) {
+      const n = acs++;
+      for (const f of event) f.acs = n;
+    }
+    fleets.push(...event);
   });
   return { kind: 'fleets', pageTime: pageTime($), fleets };
 }

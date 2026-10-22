@@ -402,12 +402,12 @@ describe('fleet movements', () => {
       {
         owner: 'own', player: null, mission: 1, missionName: 'Angreifen', phase: 'return',
         from: { coords: c(1, 129, 11), type: 'moon', name: '1 129 11' }, to: { coords: c(1, 100, 12), type: 'planet', name: 'Ares' },
-        ships: { 204: 1 }, resources: null, seconds: 17 * 60 + 27, clock: '00:18:43',
+        ships: { 204: 1 }, resources: null, seconds: 17 * 60 + 27, clock: '00:18:43', acs: null,
       },
       {
         owner: 'own', player: null, mission: 4, missionName: 'Stationieren', phase: 'out',
         from: { coords: c(3, 100, 15), type: 'planet', name: 'Domestos' }, to: { coords: c(2, 2, 15), type: 'planet', name: 'Quetzalcoatl' },
-        ships: { 203: 7, 204: 68, 207: 4, 215: 2 }, resources: { 901: 0, 902: 0, 903: 180719 }, seconds: 9129, clock: '02:33:25',
+        ships: { 203: 7, 204: 68, 207: 4, 215: 2 }, resources: { 901: 0, 902: 0, 903: 180719 }, seconds: 9129, clock: '02:33:25', acs: null,
       },
       expect.objectContaining({ from: expect.objectContaining({ type: 'moon', name: 'Whorus' }), resources: null, seconds: 30571 }),
     ]);
@@ -446,6 +446,75 @@ describe('fleet movements', () => {
       [4, 'out', 30525, 'Whorus', 'Quetzalcoatl'],
     ]);
     expect(rec.fleets[1]).toMatchObject({ ships: { 203: 7, 204: 68, 207: 4, 215: 2 }, resources: { 903: 180719 }, clock: null });
+  });
+
+  // A hostile ACS attack as copied by a member: the game writes attacks on the viewer without player name
+  // ("Eine Flotten(…)") and the further ACS fleets below the lead without time.
+  const acsText = [
+    '13:14:00 | 27m 10s Eine Flotten(1 Spionagesonde) vom Mond Mond [1:41:1] erreicht den Planet Immer Online [3:115:8]. Mission: Angreifen',
+    '',
+    'Eine Flotten(1773 Schlachtschiff; 2 Schlachtkreuzer) vom Mond Mond [1:41:1] erreicht den Planet Immer Online [3:115:8]. Mission: Verbandsangriff',
+    '',
+    'Eine Flotten(1322 Schwerer Kreuzer) vom Mond Mond [1:41:1] erreicht den Planet Immer Online [3:115:8]. Mission: Verbandsangriff',
+    '13:14:48 | 27m 58s Eine friedliche Flotten(1193 Zerstörer; 7 Behemoth) vom Spieler Lologolo [PN] vom Mond Ratatoskr [3:193:15] erreicht den Planet Immer Online [3:115:8]. Mission: Halten',
+    '13:20:00 | 33m 10s Eine feindliche Flotten(5 Spionagesonde) vom Spieler Späher [PN] vom Planet Nest [2:7:3] erreicht den Planet Immer Online [3:115:8]. Mission: Spionieren',
+    '13:30:00 | 43m 10s Eine Flotten(10 Leichter Jäger) vom Planet Solo [4:4:4] erreicht den Planet Immer Online [3:115:8]. Mission: Angreifen',
+  ];
+
+  it('marks attacks on the viewer as hostile and keeps the fleets of an ACS together', () => {
+    const rec = parsePage({ text: acsText.join('\n') }).records[0] as any;
+    expect(rec.fleets.map((f: any) => [f.owner, f.mission, f.seconds, f.clock, f.acs, f.player])).toEqual([
+      ['hostile', 1, 1630, '13:14:00', 0, null],
+      ['hostile', 2, 1630, '13:14:00', 0, null],
+      ['hostile', 2, 1630, '13:14:00', 0, null],
+      ['foreign', 5, 1678, '13:14:48', null, 'Lologolo'],
+      ['hostile', 6, 1990, '13:20:00', null, 'Späher'],
+      ['hostile', 1, 2590, '13:30:00', null, null],
+    ]);
+    expect(rec.fleets[1]).toMatchObject({
+      ships: { 207: 1773, 215: 2 }, from: { coords: c(1, 41, 1), type: 'moon' }, to: { coords: c(3, 115, 8), type: 'planet' },
+    });
+    expect(rec.fleets[2].ships).toEqual({ 222: 1322 });
+  });
+
+  it('does not join sentences after other lines to the event before', () => {
+    const text = [acsText[0], 'Übersicht', acsText[2]].join('\n');
+    expect((parsePage({ text }).records[0] as any).fleets).toHaveLength(1);
+  });
+
+  it('reads the English templates, and an ACS on someone else as foreign', () => {
+    const text = [
+      '13:14:00 | 27m 10s A Fleets(1 Spy Probe) from Moon Mond [1:41:1] reached the Planet Home [3:115:8]. Mission: Attack',
+      'A Fleets(100 Battleship) from Moon Mond [1:41:1] reached the Planet Home [3:115:8]. Mission: ACS Attack',
+      '13:20:00 | 33m 10s One of your Fleets (5 Light Fighter) from Planet Home [3:115:8] reached the Planet Target [5:5:5]. Mission: ACS Attack',
+      'A Fleet in ACS(7 Light Fighter) from Planet Friend [3:116:1] reached the Planet Target [5:5:5]. Mission: ACS Attack',
+    ].join('\n');
+    const rec = parsePage({ text }).records[0] as any;
+    expect(rec.fleets.map((f: any) => [f.owner, f.mission, f.acs, f.ships])).toEqual([
+      ['hostile', 1, 0, { 210: 1 }],
+      ['hostile', 2, 0, { 207: 100 }],
+      ['own', 2, 1, { 204: 5 }],
+      ['foreign', 2, 1, { 204: 7 }],
+    ]);
+  });
+
+  it('splits an ACS event of the page source into its fleets', () => {
+    const sentence = (cls: string, ships: string, mission: string) =>
+      `<span class="${cls}">Eine <a href="#" class="tooltip attack">Flotten</a><span class="textForBlind"> (${ships})</span> vom Mond Mond ` +
+      `<a href="#">[1:41:1]</a> erreicht den Planet Immer Online <a href="#">[3:115:8]</a>. Mission: <a href="#">${mission}</a></span>`;
+    const event = `<li>
+      <span data-time="1792707523" class="statictimer"></span> |
+      <span class="fleets" data-fleet-end-time="1792707523" data-fleet-time="1630">27m 10s</span>
+      <td>${sentence('colorMission1Foreign', '1 Spionagesonde', 'Angreifen')}<br><br>${sentence('colorMission2Foreign', '1322 Schwerer Kreuzer', 'Verbandsangriff')}</td>
+    </li>`;
+    const page = fixture('overview-fleets.html');
+    const start = page.indexOf('id="hidden-div2">') + 'id="hidden-div2">'.length;
+    const html = page.slice(0, start) + event + page.slice(page.indexOf('</ul>', start));
+    const rec = parsePage({ html }).records.find((r) => r.kind === 'fleets') as any;
+    expect(rec.fleets.map((f: any) => [f.owner, f.mission, f.seconds, f.acs, f.ships])).toEqual([
+      ['hostile', 1, 1630, 0, { 210: 1 }],
+      ['hostile', 2, 1630, 0, { 222: 1322 }],
+    ]);
   });
 
   it('places the arrival clock next to the estimated arrival', () => {

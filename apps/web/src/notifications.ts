@@ -10,7 +10,10 @@ export interface Notification {
   userId: number;
   member: string;
   time: number;
+  /** for an ACS: the lead fleet with the ships of all its fleets */
   fleet: Fleet;
+  /** number of fleets of an ACS, 1 for a single fleet */
+  fleets: number;
 }
 
 const list = ref<Notification[]>([]);

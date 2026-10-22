@@ -202,8 +202,20 @@ describe('api', () => {
     await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { text } });
     const list = (await app.inject({ method: 'GET', url: '/hub/api/u8/notifications', headers })).json();
     expect(list).toHaveLength(1);
-    expect(list[0]).toMatchObject({ kind: 'attack', member: 'admin', fleet: { owner: 'hostile', player: 'Mallory', ships: { 207: 5 } } });
+    expect(list[0]).toMatchObject({ kind: 'attack', member: 'admin', fleet: { owner: 'hostile', player: 'Mallory', ships: { 207: 5 } }, fleets: 1 });
     expect(list[0].time - Math.floor(Date.now() / 1000)).toBeGreaterThan(7000);
+
+    // an ACS attack (written without player, its further fleets without time) is one notification with all ships
+    const acs = [
+      '3h 0m 0s Eine Flotten(1 Spionagesonde) vom Mond Mond [1:41:1] erreicht den Planet Ares [1:100:12]. Mission: Angreifen',
+      'Eine Flotten(1773 Schlachtschiff; 2 Schlachtkreuzer) vom Mond Mond [1:41:1] erreicht den Planet Ares [1:100:12]. Mission: Verbandsangriff',
+      'Eine Flotten(1322 Schwerer Kreuzer) vom Mond Mond [1:41:1] erreicht den Planet Ares [1:100:12]. Mission: Verbandsangriff',
+    ];
+    await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { text: [text, ...acs].join('\n') } });
+    const both = (await app.inject({ method: 'GET', url: '/hub/api/u8/notifications', headers })).json();
+    expect(both).toHaveLength(2);
+    expect(both[1]).toMatchObject({ fleets: 3, fleet: { mission: 1, from: { coords: { g: 1, s: 41, p: 1 } }, ships: { 207: 1773, 210: 1, 215: 2, 222: 1322 } } });
+    await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { text } });
 
     // sharing covers the member's own fleets only: incoming attacks stay visible
     await app.inject({ method: 'POST', url: '/hub/api/auth/fleet-share', headers: admin, payload: { enabled: false, hidden: [] } });

@@ -805,6 +805,7 @@ const de = {
     none: 'Keine aktuellen Benachrichtigungen.',
     attack: 'Angriff auf {member}',
     attacks: '{n} feindliche Flotte im Anflug | {n} feindliche Flotten im Anflug',
+    acs: 'Verbandsangriff ({n} Flotten)',
     from: 'von',
   },
   game: {

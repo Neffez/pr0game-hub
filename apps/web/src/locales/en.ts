@@ -801,6 +801,7 @@ const en: typeof de = {
     none: 'No current notifications.',
     attack: 'Attack on {member}',
     attacks: '{n} hostile fleet approaching | {n} hostile fleets approaching',
+    acs: 'ACS attack ({n} fleets)',
     from: 'from',
   },
   game: {

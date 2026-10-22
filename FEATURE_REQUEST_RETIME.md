@@ -1,7 +1,8 @@
 # Feature request: raid planner (attack plans and retime)
 
 Status: in progress. Done: flight library `@pr0hub/flight`, flight calculator as `apps/tools`, fleet movements parser
-(`8e47c56`, with gaps for hostile ACS attacks). Next: parser gaps, then the attack plans (see "Order").
+incl. hostile attacks and ACS grouping. Next: ACS and timing rules in `@pr0hub/flight`, then the attack plans (see
+"Order").
 
 The raid planner plans own attacks, solo or as ACS, and lands them at the right second. A plan starts empty or from a
 pasted hostile attack ("retime": land on the enemy origin right after the enemy fleet is back).
@@ -46,6 +47,8 @@ Answered by the requester on 2026-10-22/23.
 | Computation | In the hub with `@pr0hub/flight`; link into the flight calculator as an extra. |
 | Shared code | Flight library in this repository, the standalone calculator lives in `apps/tools`. |
 | Retention | Hostile fleets disappear after their latest possible return; plans stay (past ones in their own list). |
+| ACS limits | `max_fleets_per_acs` = 16, `max_participants_per_acs` = 5 (lead + 4), as defaults in the universe settings. |
+| Enemy inputs | All participants of a plan may change drive levels, windows and the chosen candidate. |
 
 ## Data model
 
@@ -62,7 +65,8 @@ One migration (next free number; 020 is `fleet_snapshots`), all rows per group (
   departure window, recall window and whether the lead or one member was recalled, chosen speed candidate. Newer
   pastes of the same fleet (same origin, target, mission, ships) update the arrival as seen.
 
-Rights: the creator or an admin edits plan and enemy fleet, every participant their own row (as in the ACS plan).
+Rights: the creator or an admin edits the plan (target, target time, note, status), every participant their own row;
+all participants may change the enemy fleet inputs (drive levels, windows, candidate).
 
 ## Target time
 
@@ -160,13 +164,18 @@ Eine Flotten(1322 Schwerer Kreuzer) vom Mond Mond [1:41:1] erreicht den Planet I
 - Friendly fleets: `Eine friedliche Flotten(...) vom Spieler <name> [PN] vom ...`, ignored.
 - Missions: `Angreifen` (ACS lead or single attack), `Verbandsangriff` (ACS member), `Spionage` for probes.
 
-The parser `packages/parser/src/parsers/fleets.ts` (since `8e47c56`, stored in `fleet_snapshots`) reads the events,
-but with the sample above:
+The parser `packages/parser/src/parsers/fleets.ts` (stored in `fleet_snapshots`) follows the game's templates
+(`FlyingFleetsTable::getEventData`, `INGAME.yaml` `cff_mission_*`):
 
-- the hostile attack comes out as `owner: 'foreign'` (no "feindlich" in the copied text). Rule: not own, not
-  peaceful, mission attack/ACS attack/espionage/destroy/missile towards an own body -> `hostile`;
-- ACS member lines without the `HH:MM:SS | countdown` prefix are dropped (4 of 5 fleets). They take the arrival of the
-  line above and form a group with it.
+- `own`: "Eine deiner …" / "One of your …".
+- `hostile`: "Eine feindliche … vom Spieler …" / "A hostile … from player …" (spying, destroying, …), and an attack or
+  ACS attack on the viewer, which the game writes without player name: "Eine Flotten(…)" / "A Fleets(…)".
+- `foreign`: peaceful fleets, and ACS fleets attacking someone else ("Eine Verbandsflotte(…)" / "A Fleet in ACS(…)").
+- ACS: one event with one timer; the game joins the fleets' sentences with `<br><br>`. In copied text the further
+  fleets follow on lines without time, in the page source each fleet has its own `colorMission…` span. All fleets
+  of an ACS share the number `acs` (the first is the lead), and the arrival of the lead.
+- The player name drops the trailing PM link (`[PN]` / `[PM]`).
+- Notifications show an ACS as one entry with the ships of all its fleets.
 
 ## Server, live updates, claims
 
@@ -201,7 +210,7 @@ but with the sample above:
 
 ## Order
 
-1. Parser gaps (hostile classification, ACS member lines) with tests from real pastes.
+1. Parser gaps (hostile classification, ACS member lines): done; check against further real pastes when available.
 2. ACS and timing rules as one module in `@pr0hub/flight` (lead, resulting arrival, delays, returns, recall), tested.
 3. Attack plans from scratch: migration, endpoints, rights, live updates, claims, UI.
 4. Hostile fleets list and "Retime planen": enemy fleet, candidates, windows, drive levels, target time mode `enemy`.
@@ -212,6 +221,4 @@ but with the sample above:
 1. **Test data**: the full Ctrl+A copy of an overview with an attack (with server clock line), a hostile espionage
    probe, the English texts, and a copied phalanx result (incl. a return flight).
 2. **Phalanx**: is the phalanx window copyable as one text, and does it show the ships?
-3. **ACS limits**: values of `max_fleets_per_acs` and `max_participants_per_acs` in the universes used.
-4. **Enemy fleet inputs**: may participants change drive levels and windows of the enemy fleet, or only creator and
-   admins?
+3. **English texts**: the English templates are taken from the game's language files, not yet from a real paste.

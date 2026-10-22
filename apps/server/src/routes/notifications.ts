@@ -15,7 +15,10 @@ export interface Notification {
   member: string;
   /** when it happens (arrival of the fleet) */
   time: number;
+  /** for an ACS: the lead fleet with the ships of all its fleets */
   fleet: StoredFleet;
+  /** number of fleets of an ACS, 1 for a single fleet */
+  fleets: number;
 }
 
 /**
@@ -58,10 +61,22 @@ export function notificationRoutes(app: FastifyInstance, db: DB) {
     for (const m of members) {
       const fleets = sharedFleets(db, ctx.groupId, m.user_id, ctx.user.id);
       if (!fleets) continue;
+      const acs = new Map<number, Notification>();
       for (const f of fleets.data) {
         if (f.owner !== 'hostile' || f.arrival <= t || friendly(f)) continue;
+        const lead = f.acs != null ? acs.get(f.acs) : undefined;
+        if (lead) {
+          lead.fleets++;
+          for (const [id, n] of Object.entries(f.ships)) lead.fleet.ships[Number(id)] = (lead.fleet.ships[Number(id)] ?? 0) + n;
+          continue;
+        }
         const c = f.from.coords;
-        list.push({ id: `attack:${m.user_id}:${f.arrival}:${c.g}:${c.s}:${c.p}`, kind: 'attack', userId: m.user_id, member: m.name, time: f.arrival, fleet: f });
+        const n: Notification = {
+          id: `attack:${m.user_id}:${f.arrival}:${c.g}:${c.s}:${c.p}`, kind: 'attack', userId: m.user_id, member: m.name, time: f.arrival,
+          fleet: { ...f, ships: { ...f.ships } }, fleets: 1,
+        };
+        if (f.acs != null) acs.set(f.acs, n);
+        list.push(n);
       }
     }
     return list.sort((a, b) => a.time - b.time);

@@ -209,7 +209,10 @@ export interface FleetBody {
 
 /** One event of the overview's fleet list. */
 export interface FleetMovement {
-  /** own fleet, hostile fleet heading for one of the own planets, or another (peaceful/ACS) fleet */
+  /**
+   * own fleet, hostile fleet heading for one of the own planets (attack, ACS attack, spying, …), or another fleet
+   * (peaceful, or an ACS fleet attacking someone else)
+   */
   owner: 'own' | 'hostile' | 'foreign';
   /** owner of a foreign fleet when the text names it */
   player: string | null;
@@ -222,7 +225,7 @@ export interface FleetMovement {
   /** where the fleet comes from and where this flight ends (a returning fleet flies from its target home) */
   from: FleetBody;
   to: FleetBody | null;
-  /** element id -> amount (empty when the game doesn't show them, e.g. hostile fleets) */
+  /** element id -> amount (empty when the game doesn't show them) */
   ships: Record<number, number>;
   /** cargo 901-903 when shown */
   resources: Record<number, number> | null;
@@ -230,6 +233,11 @@ export interface FleetMovement {
   seconds: number;
   /** arrival as shown in the copied text ("HH:MM:SS", game time), refines `seconds` */
   clock: string | null;
+  /**
+   * ACS: the fleets of one ACS share one event (one timer) in the game; they get the same number here, the first one
+   * is the lead (mission attack). null for a fleet on its own.
+   */
+  acs: number | null;
 }
 
 /** Fleet movements of the game overview ("Ereignisse"), also when only that list was copied. */

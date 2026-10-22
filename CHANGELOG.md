@@ -4,6 +4,14 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Hostile attacks in the fleet movements: the game writes an attack or ACS attack on a member without player name
+  ("Eine Flotten(…)"), so it counted as a foreign fleet; it is now hostile (empire view in red, notifications).
+  - ACS: the further fleets of an ACS (lines without time in copied text, own spans in the page source) were dropped;
+    they are kept with the lead's arrival and share the new field `acs` (first fleet = lead).
+  - Notifications show an ACS as one entry ("Verbandsangriff (n Flotten)") with the ships of all its fleets.
+  - The player name of foreign fleets no longer ends in the PM link "[PN]".
+  - Rules from the game's templates (`FlyingFleetsTable`, `INGAME.yaml`), English templates included.
+
 - Fleet sharing covers the member's own fleets only: fleets of others heading for them (incoming attacks, spying)
   are always visible to the alliance, also when the member shares nothing ("own fleets not shared").
 - Notifications: no alarm for "attacks" by players of the own alliance (hub members and everyone in their in-game

@@ -65,7 +65,7 @@ function left(sec: number) {
         </div>
         <p v-if="!notifications.length" class="muted small" style="margin: 0">{{ t('notify.none') }}</p>
         <button v-for="n in notifications" :key="n.id" class="bell-item" @click="show">
-          <span class="neg"><b>⚔ {{ t('notify.attack', { member: n.member }) }}</b> · {{ n.fleet.missionName }}</span>
+          <span class="neg"><b>⚔ {{ t('notify.attack', { member: n.member }) }}</b> · {{ n.fleets > 1 ? t('notify.acs', { n: n.fleets }) : n.fleet.missionName }}</span>
           <span class="small">
             {{ n.fleet.to ? at(n.fleet.to) : '' }} ·
             <span class="mono">{{ clock(n.time) }}</span>
