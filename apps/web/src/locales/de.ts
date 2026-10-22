@@ -533,6 +533,8 @@ const de = {
     category: 'Kategorie',
     noFlying: 'ohne Flotten im Flug',
     noFlyingTitle: 'Ohne Flotten im Flug: kein Imperium nach dem letzten Flotten- oder Gesamt-Statistik-Update synchronisiert',
+    statOlder: 'Statistik vom {time}',
+    statOlderTitle: 'Diese Kategorie stammt aus einem älteren Statistik-Update als die Gesamtpunkte (die öfter synchronisiert werden). Ihr Δ bezieht sich auf dieses ältere Update; Änderungen dazwischen stecken schon in der Summe.',
     finished: 'Seit dem Imperium fertig: {list}',
     catchUp: 'Aufhol-Bonus',
     catchUpHint1: 'Kosten- und Bauzeit-Bonus der Aufholmechanik: Übersicht = Wert der zuletzt synchronisierten Übersicht, Live = mit den Live-Punkten gegen den Spieler mit den meisten gewichteten Punkten (Gebäude ×1, Forschung ×0,8, Flotte ×0,6, ohne Verteidigung) aus der letzten Statistik gerechnet.',

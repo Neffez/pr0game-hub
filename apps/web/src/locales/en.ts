@@ -531,6 +531,8 @@ const en: typeof de = {
     category: 'Category',
     noFlying: 'without fleets in flight',
     noFlyingTitle: 'Without fleets in flight: no empire page synced after the last fleet or total statistics update',
+    statOlder: 'statistics of {time}',
+    statOlderTitle: 'This category is from an older statistics update than the total points (which are synced more often). Its Δ refers to that older update; changes in between are already in the total.',
     finished: 'Finished since the empire page: {list}',
     catchUp: 'Catch-up bonus',
     catchUpHint1: 'Cost and build time bonus of the catch-up mechanic: overview = value of the last synced overview page, live = computed from the live points against the player with the most weighted points (buildings ×1, research ×0.8, fleet ×0.6, no defense) in the latest statistics.',

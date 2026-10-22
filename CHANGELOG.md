@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-22
 
+- Empire, live points: the header no longer repeats the Δ in parentheses behind the live points (it is in the table).
+  A category whose statistics come from an older update than the total points shows that date, with a tooltip
+  explaining why its Δ differs from the total's (the total is synced more often and already contains the changes).
 - Developers: the overview's Δ calculation is a pure function (`scoreEntry` in `domain/stats.ts`, with a unit test),
   and context, imperium and alliance read a member's newest empire page through `latestEmpire` (`repo/empire.ts`)
   instead of their own queries.

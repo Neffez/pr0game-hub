@@ -233,7 +233,7 @@ const livePoints = computed(() => {
     { type: 3, live: sum[100] },
     { type: 2, live: fleet },
     { type: 5, live: sum[400] },
-  ].map((c) => ({ ...c, live: Math.round(c.live), stat: stats[c.type]?.points ?? null }));
+  ].map((c) => ({ ...c, live: Math.round(c.live), stat: stats[c.type]?.points ?? null, statTime: stats[c.type]?.time ?? null }));
   const total = cats.reduce((s, c) => s + c.live, 0);
   return { cats, total, stat: stats[1]?.points ?? null, rank: stats[1]?.rank ?? null, statTime: stats[1]?.time ?? null, fleetFromStats, finished };
 });
@@ -325,7 +325,6 @@ const memberName = (id: number | null) => ctx.value!.members.find((m) => m.id ==
       </span>
       <span>
         {{ t('imperium.live') }} <b>{{ fmt(livePoints.total) }}</b>
-        <span v-if="livePoints.stat != null" :class="deltaClass(livePoints.total - livePoints.stat)">({{ fmtSigned(livePoints.total - livePoints.stat) }})</span>
       </span>
       <span class="grow" />
       <span class="muted small">
@@ -345,8 +344,12 @@ const memberName = (id: number | null) => ctx.value!.members.find((m) => m.id ==
           <td style="white-space: normal">
             {{ STATS_TYPES[c.type] }}
             <span v-if="c.type === 2 && !livePoints.fleetFromStats" class="warn small" :title="t('imperium.noFlyingTitle')">⚠ {{ t('imperium.noFlying') }}</span>
+            <!-- the total is synced more often: a category from an older update has a different Δ base -->
+            <span v-if="c.statTime && livePoints.statTime && c.statTime < livePoints.statTime" class="muted small" :title="t('imperium.statOlderTitle')">
+              {{ t('imperium.statOlder', { time: dateTime(c.statTime) }) }}
+            </span>
           </td>
-          <td class="num">{{ c.stat == null ? '–' : fmt(c.stat) }}</td>
+          <td class="num" :title="c.statTime ? dateTime(c.statTime) : undefined">{{ c.stat == null ? '–' : fmt(c.stat) }}</td>
           <td class="num">{{ fmt(c.live) }}</td>
           <td class="num" :class="deltaClass(c.stat == null ? null : c.live - c.stat)">{{ c.stat == null ? '' : fmtSigned(c.live - c.stat) }}</td>
         </tr>
