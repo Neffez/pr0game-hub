@@ -146,7 +146,6 @@ const tabs = [
         <option v-for="g in groups" :key="g.id" :value="g.id">{{ g.name }}</option>
       </select>
       <div v-else-if="ctx" class="muted small" style="padding: 0 10px">{{ t('nav.allianceName', { name: ctx.group.name }) }}</div>
-      <PresenceList v-if="ctx" :page-label="pageLabel" @navigate="navOpen = false" />
       <nav>
         <template v-for="l in links" :key="l.to ?? l.section">
           <div v-if="l.section" class="section">{{ t(`nav.${l.section}`) }}</div>
@@ -157,6 +156,7 @@ const tabs = [
         <RouterLink v-if="session.me?.user?.isAdmin || ctx?.group.role === 'admin'" :to="`/${uni}/admin`"><NavIcon name="admin" />{{ t('nav.admin') }}</RouterLink>
         <RouterLink :to="`/${uni}/account`"><NavIcon name="user" />{{ t('nav.user') }}</RouterLink>
       </nav>
+      <PresenceList v-if="ctx" :page-label="pageLabel" @navigate="navOpen = false" />
     </aside>
     <main class="main">
       <div v-if="error" class="error">{{ error }}</div>
