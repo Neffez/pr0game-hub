@@ -4,6 +4,16 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-22
 
+- Target claims: a member claims a planet or moon for 30 minutes up to 24 hours (farming, attack or espionage, with
+  an optional note) in its action menu, so nobody of the alliance farms or attacks it twice.
+  - The claim shows as "🎯 name" next to the target's action menu everywhere (galaxy, player details, overview,
+    spy reports, now with an action menu too); the menu shows who claimed it, for what and how long, and lets the
+    member extend or release it. Claims run out by themselves; alliance admins can take a claim over.
+  - New page "Targets" (section Combat) with all active claims, the own ones first.
+  - Updated live in all open tabs; on a phone the action menu stays open while typing the note.
+  - Server: `GET`/`POST /api/:uni/claims`, `PUT`/`DELETE /api/:uni/claims/:id`; migration `018` adds
+    `target_claims`.
+
 - Imperium live points: ships in flight count in the fleet. The empire page now shows them (✈ in the total column);
   the parser reads them and the live fleet adds them directly instead of estimating from the last statistics update,
   which went wrong when the fleet had been at home at that update and is flying now. Older synced pages keep the estimate.

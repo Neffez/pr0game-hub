@@ -17,6 +17,8 @@ External analysis tool for [pr0game](https://codeberg.org/pr0game/pr0game) based
 - **Galaxy browser** with phalanx coverage and a freshness heat map
 - **Spy history** with a diff per coordinate, **hostile spying**, **activity log**
 - **Alliance**: planets, fleets and research of all members
+- **Targets**: members claim a planet or moon for a while (farming, attack, espionage) so nobody hits it twice;
+  the claim shows next to the target everywhere and runs out by itself
 - **Raids** (incl. recycling), **expeditions**, **expedition deck** (card counting), **battle hall** archive
 - **Admin**: universes (size, distance factors, fleet speed, time zone, deck), groups, invite links, ingest log with reparse, player merge
 - **Live**: what a member syncs shows up in the open hub tabs of the alliance without reloading, with a short hint

@@ -46,6 +46,8 @@ const ICONS: Record<string, string[]> = {
   research: ['M9 3h6', 'M10 3v6l-5.6 9.6A1.6 1.6 0 0 0 5.8 21h12.4a1.6 1.6 0 0 0 1.4-2.4L14 9V3', 'M7 15h10'],
   // crosshair
   raids: ['M20 12a8 8 0 1 1-16 0a8 8 0 1 1 16 0', 'M12 2v5', 'M12 17v5', 'M2 12h5', 'M17 12h5', 'M12 12v.01'],
+  // flag planted on a target (claimed targets)
+  targets: ['M5 21V4', 'M5 4h12l-2.5 4 2.5 4H5'],
   // trophy
   battleHall: ['M8 3.5h8V9a4 4 0 0 1-8 0z', 'M8 5.5H5v1a3 3 0 0 0 3 3', 'M16 5.5h3v1a3 3 0 0 1-3 3', 'M12 13v4', 'M8.5 21l1-4h5l1 4z'],
   // compass

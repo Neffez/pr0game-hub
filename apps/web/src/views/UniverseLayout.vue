@@ -9,6 +9,7 @@ import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import { selectGroup, selectedGroup, session, uniApi } from '../api';
 import { provideUni, useLoader, useScrollLock, type UniContext } from '../composables';
+import { clearClaims, loadClaims } from '../claims';
 import { startLive, stopLive, tables, useLiveReload, useWhereabouts } from '../live';
 
 const { t } = useI18n();
@@ -24,8 +25,11 @@ provideUni(ctx);
 function load() {
   group.value = selectedGroup(uni.value);
   startLive(uni.value, group.value);
+  clearClaims();
+  loadClaims(uni.value);
   return fetchContext();
 }
+useLiveReload(() => loadClaims(uni.value), tables('target_claims'));
 onBeforeUnmount(stopLive);
 // own research and planets for flight times come from the own empire page
 useLiveReload(fetchContext, (e) => tables('empire')(e) && e.userId === ctx.value?.me.id);
@@ -57,6 +61,7 @@ const links = [
   { to: 'fleet', label: 'fleet', icon: 'fleet' },
   { to: 'research', label: 'research', icon: 'research' },
   { section: 'combat' },
+  { to: 'targets', label: 'targets', icon: 'targets' },
   { to: 'raids', label: 'raids', icon: 'raids' },
   { to: 'battle-hall', label: 'battleHall', icon: 'battleHall' },
   { to: 'expeditions', label: 'expeditions', icon: 'expeditions' },

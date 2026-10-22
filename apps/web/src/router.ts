@@ -31,6 +31,7 @@ export const router = createRouter({
         // freshness heat map is part of the galaxy page now
         { path: 'galaxy', redirect: (to) => `/${to.params.uni}/browse` },
         { path: 'raids', component: () => import('./views/RaidsView.vue') },
+        { path: 'targets', component: () => import('./views/TargetsView.vue') },
         { path: 'expeditions', component: () => import('./views/ExpeditionsView.vue') },
         { path: 'deck', component: () => import('./views/DeckView.vue') },
         { path: 'alliance', redirect: (to) => `/${to.params.uni}/planets` },
