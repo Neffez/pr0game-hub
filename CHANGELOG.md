@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Raid planner plan (`FEATURE_REQUEST_RETIME.md`): ACS planning merged with the retime plan (shared flight math, live
+  updates via SSE, target claims, "counter-attack as ACS"), ACS rules from the game source (no delay limit, fleet and
+  participant limits), and the gaps of the new fleet movements parser for hostile ACS attacks.
+
 - Fleet movements: the events of the game overview are synced with the whole overview page (text or page source) or on
   their own (select and copy only the event lines). The empire view shows the member's fleets in flight with a
   countdown, mission, route, ships and cargo; hostile fleets in red, arrived fleets drop out by themselves.

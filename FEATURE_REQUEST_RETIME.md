@@ -1,7 +1,11 @@
 # Feature request: retime calculation
 
 Status: in progress. Done: flight library `@pr0hub/flight` (plan steps 2 and 3), flight calculator moved to
-`apps/tools`. Next: parser, candidates, UI.
+`apps/tools`, fleet movements parser (`8e47c56`, with gaps, see step 1). Next: parser gaps, candidates, UI.
+
+Scope: the raid planner has two parts, **retime** (when is a hostile fleet back home, counter-attack) and
+**ACS planning** (own attacks of several members, from a separate plan, see "ACS planning" below). Both share the
+flight library, the live updates and the target claims.
 
 ## Request (from a player)
 
@@ -75,7 +79,7 @@ Answered by the requester on 2026-10-22.
 | Visibility | Stored per group; everyone in the group sees the retimes. |
 | Computation | The hub computes and filters the candidates; link into the flight calculator (`mode=retime`) as an extra. |
 | Shared code | Confirmed: shared flight library in this repo, the standalone calculator moves here (see below). |
-| UI location | Menu item "Raids" is renamed to "Raid-Statistiken" / "Raid statistics"; a new item "Raid-Planer" / "Raid planner" goes above it. |
+| UI location | Menu item "Raids" is renamed to "Raid-Statistiken" / "Raid statistics"; a new item "Raid-Planer" / "Raid planner" goes above it, with the tabs "Retime" and "Verbandsangriff" / "ACS attack" (proposed, see open questions). |
 | Retention | A fleet event disappears after its latest possible return. |
 
 ## Overview text format (sample from the requester, older data)
@@ -143,15 +147,19 @@ Terms per fleet: `duration` = pure one-way flight time (own slowest ship, own sp
 
 ## Plan
 
-1. **Parser**
-   - Overview text and HTML: fleet events with mission, origin coords + name, target coords, absolute arrival time,
-     ships and amounts, owner/direction (only foreign fleets are kept).
+1. **Parser** (`packages/parser/src/parsers/fleets.ts`, exists since `8e47c56`: `FleetMovement` with owner, mission,
+   phase, from/to, ships, seconds and clock). Gaps for the retime, found with the sample above:
+   - A hostile attack in copied text comes out as `owner: 'foreign'`: the text has no "feindlich", only "Eine Flotten(...)"
+     without "friedliche"/"deiner". Rule: not own, not peaceful, mission attack/ACS attack/espionage/destroy/missile
+     towards an own body -> `hostile`.
+   - ACS member lines have no `HH:MM:SS | countdown` prefix and are dropped (4 of 5 fleets of the sample). They belong
+     to the arrival of the line above (same seconds and clock); keep them, and mark the group (same arrival + target).
    - Phalanx result (copied text of the phalanx window): same fields; outbound and return flights. For a return flight
      the phalanx shows the landing at home directly, so it is the retime itself, no computation needed.
    - Tests with real pasted texts.
 2. **Ship data** (done): base speed, drive per tech level and consumption per ship in `packages/flight/src/ships.ts`.
    A hand-kept table like in the calculator, because ships 222-232 are not in the game's `install.sql`.
-   Ship 222 (Schwerer Kreuzer) is still missing, its drive values are needed.
+   Ship 222 (Schwerer Kreuzer) from the in-game ship info of universe 7.
 3. **Flight math** (done): `@pr0hub/flight` with distance, ship speed with drive switch, slowest ship, duration
    (floor, minimum 5 s), consumption, timestamps (from launch, from arrival, delayed), recall and recall time.
    Replaces `distance()` / `flightTime()` in `apps/web/src/format.ts`. Unit tests ported from the calculator's
@@ -170,15 +178,66 @@ Terms per fleet: `duration` = pure one-way flight time (own slowest ship, own sp
      recalled ("still there at 14:20, gone at 14:25") and whether the lead (whole ACS) or one member was recalled.
      Return = `2 * recall - arrival + duration + delay` per speed candidate (lead's values for the whole ACS); shown as
      a range from the recall and departure windows, or as a lower bound without a departure window.
-5. **Server**: migration for fleet events per group (`groupContext`): origin, target, ships, arrival, mission, recall
-   window, departure window, drive overrides, who pasted it and when. Duplicate pastes of the same fleet are merged
-   (same origin, target, ships; a later paste with a moved arrival updates the event). An event is removed after its
-   latest possible return.
+5. **Server**: the hostile fleets come from the members' `fleet_snapshots` (migration 020, newest overview per member),
+   no separate paste. A new table `retime_fleets` (own migration) keeps what members add per hostile fleet: first seen
+   arrival (delay detection), departure window, recall window, drive overrides, who changed it and when; keyed by
+   group, origin, target, mission and ships, so the same fleet seen by several members is one row. Rows are removed
+   after the latest possible return. Changes are pushed live (see "Shared foundations").
 6. **UI**: new view "Raid-Planer" (route e.g. `/raid-planner`) above the renamed "Raid-Statistiken" (`raids` route
    and `RaidsView.vue` keep their names, only the label changes). Paste box (overview or phalanx) -> list of foreign
    fleets of the group -> per fleet the candidate table with departure window, recall window, drive levels (prefilled, date of the data, warning after 3 days) and the link
    into the flight calculator. Locales in `de.ts` and `en.ts`, mobile layout below 800 px.
 7. Changelog entry, `pnpm typecheck`, `pnpm test`.
+
+## ACS planning (from a separate plan, merged here)
+
+Own ACS attacks of several members, planned together in the hub.
+
+- **Database** (own migration; 020 is taken by `fleet_snapshots`):
+  - plans: target, planned arrival, note, status (planning, launched, done, cancelled), creator;
+  - participants: start planet, ships, speed, launch time, actual arrival, status (invited, ready, launched,
+    withdrawn).
+- **Server**: endpoints to create, change and delete plans and the own participation. Only the creator or an admin
+  edits the plan, every participant their own row. A new plan claims the target as "attack" (`target_claims`,
+  migration 018) for the planned time.
+- **Web**: tab "Verbandsangriff" in the raid planner with list and detail view; "Verbandsangriff planen" in the
+  action menu of a target.
+  - Per participant: start planet and ships prefilled from the own empire page; flight time and launch time from
+    `@pr0hub/flight` (drives from the own research), countdown to the launch.
+  - Late participants are marked (`now + duration > planned arrival`).
+  - Buttons "TrashSim" and "Simulator im Spiel": ships and research of all participants and the newest spy report of
+    the target via URL (links only, nothing runs on game pages). No own battle simulator.
+- **Tests**: server tests for plans and rights, web tests for the simulator links.
+
+ACS rules from the game source (`ShowFleetStep3Page`, `FleetFunctions::setACSTime`), checked for this plan:
+
+- **No limit on the delay** (unlike OGame's 30 %): a fleet that would arrive later than the ACS time pushes the whole
+  ACS back by the difference (arrival and return of all members), a faster one waits for the ACS time. The planner
+  therefore shows the resulting arrival `max(planned arrival, latest participant's earliest arrival)` and who causes
+  the delay, instead of only "too late".
+- **Limits** `max_fleets_per_acs` and `max_participants_per_acs` (game config, per universe): a fleet beyond them is
+  silently sent as a normal attack (mission 1, no group) and arrives on its own. The planner warns when a plan
+  exceeds them; both values go into the universe settings.
+- **Returns**: every participant lands back at `arrival + own duration` (pure flight time, no delay); recalling the
+  lead fleet recalls the whole ACS with one return time from the lead's launch (see timing rules). The planner can
+  show each participant's return for fleet saving.
+
+## Shared foundations of retime and ACS planning
+
+- **Flight math**: `@pr0hub/flight` for both (durations, launch from arrival, delays, recalls). The ACS rules above and
+  the timing rules are one module there, with tests, so retime and ACS planning cannot disagree.
+- **Live collaboration via SSE**: the existing `EventBus` (`apps/server/src/events.ts`). Changes to plans,
+  participations and retime inputs send a `DataEvent` with the table names (e.g. `acs_plans`, `retime_fleets`); the
+  open tabs load the data again through the normal endpoints, so no game data travels past `groupContext`. A new
+  fleet snapshot (overview paste) already arrives as a data event and refreshes the hostile fleets.
+- **Target claims**: an ACS plan claims its target as "attack"; the retime counter-attack can claim the enemy origin.
+- **Bridge retime -> ACS**: from a retime candidate "Konter als Verbandsangriff planen" creates an ACS plan with the
+  enemy origin as target and the chosen return plus buffer as planned arrival; the participants then get their send
+  times there.
+- **Universe settings**: fleet speed and layout exist; ACS limits are new.
+
+Suggested order: parser gaps -> retime candidates (web only, no table) -> ACS plans with live updates -> retime inputs
+shared (`retime_fleets`) -> bridge retime -> ACS.
 
 ## Proposal: shared flight library, calculator in this repo
 
@@ -214,6 +273,6 @@ not touch game pages.
 1. **Test data**: still needed: the full Ctrl+A copy (with server clock line) of an overview with an attack, a foreign
    espionage probe, the English version of the texts, and a copied phalanx result (incl. a return flight).
 2. **Phalanx in the hub data**: is the phalanx window copyable as one text (popup), and does it show the ships?
-3. **Hosting of `apps/tools`**: the private deployment repository should build `docker build --target tools` and
-   serve it instead of its `pr0game-tools` folder.
-4. **In-game calculator** (`Neffez/pr0game`): still lacks ship 222 (hyperspace, 7,500, 500 deuterium).
+3. **Raid planner layout**: one menu item "Raid-Planer" with the tabs "Retime" and "Verbandsangriff", or two menu
+   items (the separate plan had its own page "Verbandsangriff")?
+4. **ACS limits**: values of `max_fleets_per_acs` and `max_participants_per_acs` in the universes used.
