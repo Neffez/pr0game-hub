@@ -1,5 +1,5 @@
 import { computeDeck, type DeckEvent, type EmpireRecord } from '@pr0hub/core';
-import { classOf, elementPoints, sectionPoints } from '@pr0hub/core/tech';
+import { CLASS_BUILDINGS, CLASS_DEFENSE, CLASS_FLEET, CLASS_RESOURCES, classOf, elementPoints, sectionPoints } from '@pr0hub/core/tech';
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { HttpError } from '../auth.js';
@@ -106,23 +106,39 @@ export function dataRoutes(app: FastifyInstance, db: DB) {
     /** Δ column sections per type (synced updates on the 6 h grid) */
     const sections: Record<number, ReturnType<typeof statSlots>> = {};
     for (const type of TYPES) {
+      const newest = db
+        .prepare("SELECT MAX(stat_time) FROM stat_snapshots WHERE group_id = ? AND who = 'player' AND type = ?")
+        .pluck()
+        .get(ctx.groupId, type) as number | null;
+      if (newest == null) {
+        sections[type] = statSlots([]);
+        continue;
+      }
       sections[type] = statSlots(
         db
-          .prepare(
-            `SELECT stat_time FROM stat_snapshots WHERE group_id = ? AND who = 'player' AND type = ?
-             AND stat_time >= (SELECT MAX(stat_time) FROM stat_snapshots WHERE group_id = ? AND who = 'player' AND type = ?) - ?`,
-          )
+          .prepare("SELECT stat_time FROM stat_snapshots WHERE group_id = ? AND who = 'player' AND type = ? AND stat_time >= ?")
           .pluck()
-          .all(ctx.groupId, type, ctx.groupId, type, (SLOTS + 1) * SLOT - SLOT_TOLERANCE) as number[],
+          .all(ctx.groupId, type, newest - ((SLOTS + 1) * SLOT - SLOT_TOLERANCE)) as number[],
       );
+      // Only the history the widest Δ window needs, plus each player's newest score before it: that is the
+      // reference when nothing newer is old enough, and the current score of players missing from recent updates.
+      const since = newest - WINDOWS['7d'] - TOLERANCE;
       const rows = db
         .prepare(
           `SELECT ps.player_id, ps.points, ps.rank, ps.rank_change, s.stat_time
            FROM player_scores ps JOIN stat_snapshots s ON s.id = ps.snapshot_id
-           WHERE s.group_id = ? AND s.who = 'player' AND s.type = ?
-           ORDER BY ps.player_id, s.stat_time DESC`,
+           WHERE s.group_id = ? AND s.who = 'player' AND s.type = ? AND s.stat_time >= ?
+           UNION ALL
+           SELECT player_id, points, rank, rank_change, stat_time FROM (
+             -- SQLite takes the bare columns from the row with the MAX()
+             SELECT ps.player_id, ps.points, ps.rank, ps.rank_change, MAX(s.stat_time) AS stat_time
+             FROM player_scores ps JOIN stat_snapshots s ON s.id = ps.snapshot_id
+             WHERE s.group_id = ? AND s.who = 'player' AND s.type = ? AND s.stat_time < ? GROUP BY ps.player_id)
+           ORDER BY player_id, stat_time DESC`,
         )
-        .all(ctx.groupId, type) as { player_id: number; points: number; rank: number; rank_change: number | null; stat_time: number }[];
+        .all(ctx.groupId, type, since, ctx.groupId, type, since) as {
+        player_id: number; points: number; rank: number; rank_change: number | null; stat_time: number;
+      }[];
       for (const [playerId, history] of groupBy(rows, (r) => r.player_id)) {
         const cur = history[0];
         const deltas: Record<string, { delta: number; since: number; partial: boolean }> = {};
@@ -873,26 +889,34 @@ function planetRows(db: DB, ctx: GroupContext) {
     if (pl.has_moon) add(pl.g, pl.s, pl.p, 'moon', pl.moon_name, pl.player_id);
   }
 
-  const reports = db
+  // Newest spy report per position, and per section the newest report that has it (SQLite takes the bare
+  // columns from the row with the MAX()).
+  const latest = db
     .prepare(
-      `SELECT g, s, p, planet_type, planet_name, player_id, report_time, sections FROM spy_reports
-       WHERE group_id = ? AND p <= ? ORDER BY g, s, p, planet_type, report_time DESC`,
+      `SELECT g, s, p, planet_type, planet_name, player_id, MAX(report_time) AS report_time, COUNT(*) AS count FROM spy_reports
+       WHERE group_id = ? AND p <= ? GROUP BY g, s, p, planet_type`,
     )
     .all(ctx.groupId, ctx.universe.settings.positions) as any[];
-  for (const [, list] of groupBy(reports, (r) => key(r.g, r.s, r.p, r.planet_type))) {
-    const latest = list[0];
-    const row = add(latest.g, latest.s, latest.p, latest.planet_type, latest.planet_name, latest.player_id);
-    if (!row.player_id) row.player_id = latest.player_id;
-    if (latest.planet_type === 'moon' && latest.planet_name) row.name = latest.planet_name;
-    const spy: any = { time: latest.report_time, count: list.length };
-    for (const [cls, field] of [['900', 'res'], ['0', 'building'], ['200', 'fleet'], ['400', 'defense']] as const) {
-      const r = list.find((x) => x.sections.includes(`"${cls}":`));
-      if (!r) continue;
-      const values = JSON.parse(r.sections)[cls];
-      spy[field] = cls === '900' ? values : sectionPoints(values);
+  for (const r of latest) {
+    const row = add(r.g, r.s, r.p, r.planet_type, r.planet_name, r.player_id);
+    if (!row.player_id) row.player_id = r.player_id;
+    if (r.planet_type === 'moon' && r.planet_name) row.name = r.planet_name;
+    row.spy = { time: r.report_time, count: r.count };
+  }
+  for (const [cls, field] of [[CLASS_RESOURCES, 'res'], [CLASS_BUILDINGS, 'building'], [CLASS_FLEET, 'fleet'], [CLASS_DEFENSE, 'defense']] as const) {
+    const path = `$."${cls}"`;
+    const sections = db
+      .prepare(
+        `SELECT g, s, p, planet_type, json_extract(sections, ?) AS v, MAX(report_time) AS report_time FROM spy_reports
+         WHERE group_id = ? AND p <= ? AND json_extract(sections, ?) IS NOT NULL GROUP BY g, s, p, planet_type`,
+      )
+      .all(path, ctx.groupId, ctx.universe.settings.positions, path) as any[];
+    for (const r of sections) {
+      const spy = rows.get(key(r.g, r.s, r.p, r.planet_type)).spy;
+      const values = JSON.parse(r.v);
+      spy[field] = cls === CLASS_RESOURCES ? values : sectionPoints(values);
       spy[field + 'Time'] = r.report_time;
     }
-    row.spy = spy;
   }
 
   // Own alliance: points per planet from the members' latest empire pages (like FF-Hub).

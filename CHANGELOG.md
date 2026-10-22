@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-22
 
+- The overview loads faster and no longer slows down as the round goes on: it reads only the last week of statistics
+  (plus each player's newest score before it) instead of the whole history, and per position only the newest spy
+  report per section instead of all reports. Players without statistics in the last week keep their latest points
+  but get no Δ values.
 - Overview: the planet view only warns about outdated total points; older fleet, research, building or defense
   statistics are still marked in the coverage tooltip, and the player view still warns about every category.
 - Fixes from the code review:

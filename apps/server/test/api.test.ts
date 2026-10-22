@@ -412,6 +412,21 @@ describe('review fixes', () => {
     expect(ov.slots[1]).toBeNull();
   });
 
+  it('finds Δ references older than the loaded week of statistics', async () => {
+    const groupX = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', headers: admin, payload: { universe: 'u8', name: 'Week' } })).json().id;
+    const headers = { ...admin, 'x-hub-group': String(groupX) };
+    const html = fixture('stats-player.html');
+    const at = (time: string, points: string) => html.replace('21. Okt 2026, 12:00:03', time).replace('1.234.567', points);
+    await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { html: at('12. Okt 2026, 12:00:03', '1.000.000') } });
+    await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { html: at('21. Okt 2026, 06:00:03', '1.200.000') } });
+    await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { html } });
+    const ov = (await app.inject({ method: 'GET', url: '/hub/api/u8/overview', headers })).json();
+    const { deltas } = ov.players.find((p: any) => p.name === 'Alpha').scores[2];
+    expect(deltas['6h']).toMatchObject({ delta: 34567, partial: false });
+    expect(deltas['48h']).toMatchObject({ delta: 234567, partial: false });
+    expect(deltas['7d']).toMatchObject({ delta: 234567, partial: false });
+  });
+
   it('lists known players in the overview even without synced statistics', async () => {
     const groupX = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', headers: admin, payload: { universe: 'u8', name: 'No stats' } })).json().id;
     const headers = { ...admin, 'x-hub-group': String(groupX) };
