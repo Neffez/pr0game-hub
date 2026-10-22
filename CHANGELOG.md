@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-22
 
+- An older spy report synced later no longer changes the planet: owner, name and moon only follow a report that is
+  newer than the system's galaxy view and the other reports of the position. Spy reports also find the player by a
+  former name.
 - Players only known by id from a universe.json ("Spieler #123") get their real name with the next statistics or
   galaxy paste, also from older data, and the placeholder no longer shows up as a former name or in the search.
   Migration `013` fixes players stored before; the universe.json download leaves placeholder alliance names out too.

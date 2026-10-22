@@ -642,6 +642,29 @@ describe('review fixes', () => {
     expect(db.prepare('SELECT name FROM player_aliases WHERE player_id IN (?, ?)').pluck().all(id, other)).toEqual(['Old']);
   });
 
+  it('keeps a position seen later from older spy reports', async () => {
+    const groupX = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', headers: admin, payload: { universe: 'u8', name: 'Old spy' } })).json().id;
+    const headers = { ...admin, 'x-hub-group': String(groupX) };
+    const add = (name: string) => Number(db.prepare('INSERT INTO players (group_id, name) VALUES (?, ?)').run(groupX, name).lastInsertRowid);
+    const [alpha, owner] = [add('Former'), add('Owner')];
+    // "Alpha" of the report is a former name
+    db.prepare("INSERT INTO player_aliases (player_id, name, seen_until) VALUES (?, 'Alpha', 1)").run(alpha);
+    const ingest = () => app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { html: fixture('messages.html') } });
+    const planet = () => db.prepare('SELECT name, player_id FROM planets WHERE group_id = ? AND g = 1 AND s = 234 AND p = 5').get(groupX) as any;
+
+    db.prepare("INSERT INTO planets (group_id, g, s, p, name, player_id) VALUES (?, 1, 234, 5, 'New', ?)").run(groupX, owner);
+    db.prepare('INSERT INTO galaxy_views (group_id, g, s, seen_at) VALUES (?, 1, 234, ?)').run(groupX, Math.floor(Date.now() / 1000));
+    await ingest();
+    expect(planet()).toEqual({ name: 'New', player_id: owner });
+    expect(db.prepare('SELECT player_id FROM spy_reports WHERE group_id = ?').pluck().get(groupX)).toBe(alpha);
+
+    // without a newer view the report is the newest state
+    db.prepare('DELETE FROM galaxy_views WHERE group_id = ?').run(groupX);
+    db.prepare('DELETE FROM spy_reports WHERE group_id = ?').run(groupX);
+    await ingest();
+    expect(planet()).toEqual({ name: 'Heimat', player_id: alpha });
+  });
+
   it('keeps the activity log of merged players', async () => {
     const groupX = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', headers: admin, payload: { universe: 'u8', name: 'Merge' } })).json().id;
     const add = (name: string) => Number(db.prepare('INSERT INTO players (group_id, name) VALUES (?, ?)').run(groupX, name).lastInsertRowid);

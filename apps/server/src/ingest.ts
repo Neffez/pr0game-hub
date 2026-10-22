@@ -400,7 +400,7 @@ class Store {
       );
     this.count('spy_reports', res.changes > 0);
     if (res.changes > 0 && r.planetType === 'moon' && r.sections[0]) this.phalanxEvent(r, time, playerId);
-    if (r.planetType === 'planet' || r.planetType === 'moon') {
+    if ((r.planetType === 'planet' || r.planetType === 'moon') && this.newestAt(r.coords, time)) {
       this.upsertPlanet(r.coords.g, r.coords.s, r.coords.p, {
         name: r.planetType === 'planet' ? r.planetName : null,
         moonName: r.planetType === 'moon' ? r.planetName : null,
@@ -475,13 +475,37 @@ class Store {
       .run(this.t.groupId, time, kind, coords?.g ?? null, coords?.s ?? null, coords?.p ?? null, planetType, playerId, JSON.stringify(data), key);
   }
 
+  /** Current or former name (like `player()`), without creating a player. */
   private findPlayerByName(name: string): number | null {
+    const db = this.db;
     return (
-      (this.db
+      (db
         .prepare('SELECT id FROM players WHERE group_id = ? AND name = ? COLLATE NOCASE ORDER BY last_seen DESC')
         .pluck()
-        .get(this.t.groupId, name) as number | undefined) ?? null
+        .get(this.t.groupId, name) as number | undefined) ??
+      (db
+        .prepare(
+          `SELECT p.id FROM player_aliases a JOIN players p ON p.id = a.player_id
+           WHERE p.group_id = ? AND a.name = ? COLLATE NOCASE ORDER BY a.seen_until DESC`,
+        )
+        .pluck()
+        .get(this.t.groupId, name) as number | undefined) ??
+      null
     );
+  }
+
+  /**
+   * Whether a report of `time` is the newest known state of the position: neither the system's galaxy view nor
+   * another spy report is newer. An older report pasted later must not bring back a former owner or a destroyed moon.
+   */
+  private newestAt(c: { g: number; s: number; p: number }, time: number): boolean {
+    const seen = this.db.prepare('SELECT seen_at FROM galaxy_views WHERE group_id = ? AND g = ? AND s = ?').pluck().get(this.t.groupId, c.g, c.s) as
+      | number
+      | undefined;
+    if (seen != null && seen >= time) return false;
+    return !this.db
+      .prepare('SELECT 1 FROM spy_reports WHERE group_id = ? AND g = ? AND s = ? AND p = ? AND report_time > ?')
+      .get(this.t.groupId, c.g, c.s, c.p, time);
   }
 
   private upsertPlanet(
