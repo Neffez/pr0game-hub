@@ -1,9 +1,9 @@
 import * as cheerio from 'cheerio';
 import { isEmpireHtml, isEmpireText, parseEmpireHtml, parseEmpireText } from './parsers/empire.js';
-import { isGalaxyHtml, parseGalaxyHtml } from './parsers/galaxy.js';
+import { isGalaxyHtml, isGalaxyText, parseGalaxyHtml, parseGalaxyText, parseSystem } from './parsers/galaxy.js';
 import { looksLikeUniverseJson, parseUniverseJson } from './parsers/universeJson.js';
 import { isMessagesHtml, parseMessagesHtml, parseMessagesText } from './parsers/messages.js';
-import { isOverviewHtml, parseOverviewHtml } from './parsers/overview.js';
+import { isOverviewHtml, isOverviewText, parseOverviewHtml, parseOverviewText } from './parsers/overview.js';
 import { isBattleHallHtml, parseBattleHallHtml } from './parsers/battleHall.js';
 import { isCombatReportText, parseCombatReportText } from './parsers/combatReport.js';
 import { isStatsText, parseStatsHtml, parseStatsText } from './parsers/stats.js';
@@ -25,6 +25,8 @@ export interface ParseInput {
   url?: string | null;
   /** user override for the stats category when it can't be detected */
   statsType?: StatsType | null;
+  /** user input "g:s" for a galaxy view whose galaxy/system are not part of the copy */
+  system?: string | null;
 }
 
 /** Page source pasted into the text field is treated as HTML. */
@@ -100,7 +102,7 @@ function parseHtml(html: string, input: ParseInput, warnings: string[]): { pageT
     }
   }
   if (page === 'galaxy' || isGalaxyHtml($)) {
-    const r = parseGalaxyHtml($, url);
+    const r = parseGalaxyHtml($, url, parseSystem(input.system));
     if (r) return { pageType: 'galaxy', records: [r] };
     warnings.push('galaxy_position_missing');
   }
@@ -134,8 +136,19 @@ function parseText(text: string, input: ParseInput, warnings: string[]): { pageT
     const r = parseEmpireText(text);
     if (r) return { pageType: 'empire', records: [r] };
   }
+  if (isOverviewText(text)) {
+    const r = parseOverviewText(text);
+    if (r) return { pageType: 'overview', records: [r] };
+  }
   const msgs = parseMessagesText(text);
   if (msgs.length) return { pageType: 'messages', records: msgs };
+  if (isGalaxyText(text)) {
+    const system = parseSystem(input.system);
+    const r = system ? parseGalaxyText(text, system) : null;
+    if (r) return { pageType: 'galaxy', records: [r] };
+    warnings.push('galaxy_position_missing');
+    return { pageType: 'galaxy', records: [] };
+  }
   if (/(Sonnensystem|Solar system)/.test(text)) {
     warnings.push('galaxy_needs_html');
   }

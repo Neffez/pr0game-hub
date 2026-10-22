@@ -227,6 +227,46 @@ describe('galaxy + empire', () => {
     ]);
   });
 
+  it('parses copied galaxy text with the system typed by the user', () => {
+    const res = parsePage({ text: fixture('galaxy.txt'), system: '1:3' });
+    expect(res).toMatchObject({ pageType: 'galaxy', source: 'text', warnings: [] });
+    const rec = res.records[0] as any;
+    expect(rec).toMatchObject({ g: 1, s: 3 });
+    const row = (position: number, planetName: string, moonName: string | null, playerName: string, status: string[], debris: [string, string] | null, allyTag: string | null = null) => ({
+      position, planetName, moon: moonName != null, moonName, destroyed: false, playerId: null, playerName, status,
+      allyId: null, allyTag, debris: debris && { metal: debris[0], crystal: debris[1] },
+    });
+    const ii = ['longinactive', 'inactive'];
+    expect(rec.rows).toEqual([
+      row(1, '5', 'Mond', 'Anda', ii, ['148K', '444K']),
+      row(2, 'Mondspender', 'MV4U', 'Gottkaiser', [], ['133.504M', '106.906M'], '1337'),
+      row(4, '4', 'Mond', 'Anda', ii, ['135K', '405K']),
+      row(5, '3', 'Mond', 'Anda', ii, ['181K', '543K']),
+      row(6, '1', 'Mond', 'Anda', ii, ['1,7B', '1,3B']),
+      row(7, 'Kolonie', null, '123', ii, null),
+      row(8, 'TestColony1', 'Mond', 'TestUser2', ii, ['478K', '365K']),
+      row(9, 'Kolonie', null, 'ConsulVega', ii, null),
+      row(11, '2', 'Mond', 'Anda', ii, ['134K', '402K']),
+      row(12, 'Hauptplanet', null, 'paul', ii, null),
+      row(13, 'Kolonie', null, 'Pseudoephedrin', [], null),
+    ]);
+  });
+
+  it('asks for galaxy:system when copied galaxy text has none', () => {
+    const res = parsePage({ text: fixture('galaxy.txt') });
+    expect(res).toMatchObject({ pageType: 'galaxy', records: [], warnings: ['galaxy_position_missing'] });
+  });
+
+  it('takes destroyed planets and debris-only positions from galaxy text', () => {
+    const text = ['Spieler (Status) [Allianz]', 'Aktion', '1', '2', 'Planet zerstört', '3 K / 1 K', '3', '0 / 5 K', '4', '5'].join('\n');
+    const rec = parsePage({ text, system: '[2:15]' }).records[0] as any;
+    expect(rec).toMatchObject({ g: 2, s: 15 });
+    expect(rec.rows).toMatchObject([
+      { position: 2, destroyed: true, playerName: null, debris: { metal: '3K', crystal: '1K' } },
+      { position: 3, destroyed: false, playerName: null, debris: { metal: '0', crystal: '5K' } },
+    ]);
+  });
+
   it('parses universe.json exports', () => {
     const res = parsePage({ text: fixture('universe.json') });
     expect(res).toMatchObject({ pageType: 'galaxy', source: 'json' });
@@ -297,6 +337,50 @@ describe('overview', () => {
       { kind: 'building', coords: c(1, 100, 12), type: 'moon', id: 43, level: 2, destroy: false, seconds: 500 },
     ]);
     expect(rec.catchUp).toBe(12.34);
+  });
+
+  it('parses the copied overview text of a selected moon', () => {
+    const res = parsePage({ text: fixture('overview-moon.txt') });
+    expect(res).toMatchObject({ pageType: 'overview', source: 'text' });
+    const rec = res.records[0] as any;
+    expect(rec.pageTime).toMatch(/^\d{4}-10-22 17:29:38$/);
+    expect(rec.current).toEqual({ coords: { g: 1, s: 5, p: 9 }, type: 'moon' });
+    expect(rec.queues).toEqual([
+      { kind: 'shipyard', coords: { g: 1, s: 5, p: 9 }, type: 'moon', id: 215, level: 938820, destroy: false, seconds: ((10 * 24 + 20) * 60 + 46) * 60 + 59 },
+    ]);
+    expect(rec.catchUp).toBe(89.95);
+  });
+
+  it('parses running queues from copied overview text of a planet', () => {
+    const text = [
+      'Serverzeit : Okt Do 22 17:29:38',
+      'Punkte 1.234.567 (Platz 42 von 300)',
+      'Übersicht',
+      'Mondi (Mond)', 'Mondi (Mond)', 'Mondbasis (6)', '1h',
+      'Quetzalcoatl', 'Quetzalcoatl',
+      'Gebäude: Solarkraftwerk (27)', '7h 4m 4s',
+      'Forschung: Schildtechnik (14)', '2h 36m 4s',
+      'Schiffswerft: Frei',
+      'Durchmesser: 12.800 km (100 / 163 Felder)',
+      'Position: [2:2:15]',
+      'Planeten und Monde',
+      'Ares', 'Ares', '[1:100:12]', 'Metallmine Abreißen (24)', '2m',
+      'Osirious', 'Osirious', '[1:100:12]', 'Sprungtor (2)', '8m',
+      'Mondi', 'Mondi', '[2:2:15]', 'Mondbasis (6)', '1h',
+      'Hephaistos', 'Hephaistos', '[3:200:1]', 'Frei',
+    ].join('\n');
+    const rec = parsePage({ text }).records[0] as any;
+    expect(rec.current).toEqual({ coords: { g: 2, s: 2, p: 15 }, type: 'planet' });
+    const c = (g: number, s: number, p: number) => ({ g, s, p });
+    expect(rec.queues).toEqual([
+      { kind: 'building', coords: c(2, 2, 15), type: 'moon', id: 41, level: 6, destroy: false, seconds: 3600 },
+      { kind: 'building', coords: c(2, 2, 15), type: 'planet', id: 4, level: 27, destroy: false, seconds: 25444 },
+      { kind: 'research', coords: c(2, 2, 15), type: 'planet', id: 110, level: 14, destroy: false, seconds: 9364 },
+      { kind: 'building', coords: c(1, 100, 12), type: 'planet', id: 1, level: 24, destroy: true, seconds: 120 },
+      { kind: 'building', coords: c(1, 100, 12), type: 'moon', id: 43, level: 2, destroy: false, seconds: 480 },
+      { kind: 'building', coords: c(2, 2, 15), type: 'moon', id: 41, level: 6, destroy: false, seconds: 3600 },
+    ]);
+    expect(rec.catchUp).toBeNull();
   });
 });
 

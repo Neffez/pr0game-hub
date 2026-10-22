@@ -23,6 +23,8 @@ const { uni } = useUni();
 const html = ref<string | null>(null);
 const text = ref('');
 const statsType = ref<number | null>(null);
+/** "g:s" for a copied galaxy view (the copy has no galaxy/system); kept and counted up after saving */
+const system = ref('');
 const preview = ref<Summary | null>(null);
 const saved = ref<Summary | null>(null);
 const error = ref('');
@@ -58,6 +60,15 @@ function previewText(p: Summary['preview'][number]) {
 }
 
 const needsType = computed(() => preview.value?.warnings.includes('stats_category_unknown') ?? false);
+const needsSystem = computed(
+  () => !!preview.value && (preview.value.warnings.includes('galaxy_position_missing') || (preview.value.pageType === 'galaxy' && !!system.value)),
+);
+
+/** Next system after saving a galaxy view, for the next copy. */
+function nextSystem() {
+  const m = system.value.trim().match(/^(\d+)\s*:\s*(\d+)/);
+  if (m) system.value = `${m[1]}:${Number(m[2]) + 1}`;
+}
 
 function onPaste(e: ClipboardEvent) {
   e.preventDefault();
@@ -134,6 +145,7 @@ async function run(dryRun: boolean) {
       html: html.value,
       text: html.value && text.value.startsWith(FILE_MARK) ? null : text.value,
       statsType: statsType.value,
+      system: system.value.trim() || null,
       dryRun,
     };
     const res = await uniApi<Summary>(uni.value, '/ingest', { body });
@@ -143,6 +155,7 @@ async function run(dryRun: boolean) {
       saved.value = null;
     } else {
       saved.value = res;
+      if (res.pageType === 'galaxy' && system.value) nextSystem();
       preview.value = null;
       html.value = null;
       text.value = '';
@@ -159,6 +172,11 @@ let typing: ReturnType<typeof setTimeout> | undefined;
 function onInput() {
   html.value = null;
   preview.value = null;
+  refresh();
+}
+
+/** New preview after a pause (typing, galaxy:system input; the latter keeps the old preview and its field). */
+function refresh() {
   ++runs;
   clearTimeout(typing);
   typing = setTimeout(() => run(true), 500);
@@ -191,6 +209,10 @@ function next() {
           <option :value="null">{{ t('paste.auto') }}</option>
           <option v-for="(label, id) in STATS_CATEGORIES" :key="id" :value="Number(id)">{{ label }}</option>
         </select>
+      </label>
+      <label v-if="needsSystem">
+        {{ t('paste.system') }}
+        <input v-model="system" inputmode="numeric" placeholder="1:234" size="7" @input="refresh" />
       </label>
       <span class="grow" />
       <button @click="clear">{{ t('paste.clear') }}</button>

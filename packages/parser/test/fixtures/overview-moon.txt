@@ -1,0 +1,77 @@
+
+Imperator
+Gottkaiser
+Übersicht
+
+
+Metall
+9.800.230.391.264
+50.000
+Kristall
+6.953.172.323.671
+50.000
+Deuterium
+8.652.751.899.356
+50.000
+Energie
+0 / 0
+
+
+    Übersicht
+    Imperium
+    Gebäude
+    Schiffswerft
+    Verteidigung
+    Reparaturdock
+    Forschung
+    Galaxie
+    Flotte
+    Nachrichten
+    Statistik
+    Battle Hall
+    Logout
+
+Mond Mond Mond Mond Mond (Gottkaiser)
+Serverzeit : Okt Do 22 17:29:38
+Admins(Online):  • Ticketbot •
+
+Punkte 449.049.041.919.089 (Platz 2 von 90)
+Kosten- und Bauzeit-Bonus: 89.95 %
+
+Bitte beachtet die [Regeln]
+Ereignisse Ausblenden
+
+
+Übersicht
+Schmausor (Planet)
+Schmausor (Planet)
+Frei
+Mond Mond Mond Mond
+Mond Mond Mond Mond
+Gebäude: Frei
+Forschung: Frei
+Schiffswerft: Schlachtkreuzer (938820)
+1W 3d 20h 46m 59s
+Reparaturdock: Frei
+
+Durchmesser: 17.888 km (35 / 49 Felder)
+Temperatur: 0°C
+Position: [1:5:9]
+
+Planeten und Monde
+Mondspender
+Mondspender
+[1:3:2]
+Frei
+MV4U
+MV4U
+[1:3:2]
+Frei
+Schmausor
+Schmausor
+[1:5:9]
+Frei
+Mond Mond Mond Mond
+Mond Mond Mond Mond
+[1:206:10]
+Frei

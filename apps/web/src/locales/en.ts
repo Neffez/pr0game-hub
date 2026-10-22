@@ -370,6 +370,7 @@ const en: typeof de = {
     htmlDetected: 'HTML detected ({kb} KB)',
     file: 'File',
     statsCategory: 'Statistics category',
+    system: 'Galaxy:system',
     auto: 'automatic',
     clear: 'Clear',
     previewTitle: 'Preview',
@@ -387,7 +388,7 @@ const en: typeof de = {
     warnings: {
       html_no_data: 'The HTML contained no recognizable data, using the plain text.',
       stats_category_unknown: 'Statistics category not detected – please select it.',
-      galaxy_position_missing: 'Galaxy detected, but galaxy/system are missing.',
+      galaxy_position_missing: 'Galaxy detected, but galaxy/system are missing: please enter them as galaxy:system (e.g. 1:234).',
       plaintext_players_by_name: 'Plain text: players are matched by name (no IDs).',
       galaxy_needs_html: 'Please paste the galaxy view as HTML/page source (plain text has no coordinates).',
       stats_not_saved: 'Statistics without category or date were not saved.',

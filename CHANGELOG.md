@@ -4,6 +4,12 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-22
 
+- Sync: the galaxy view can be pasted as copied text. The copy has no galaxy/system, so the sync form asks for
+  them ("1:234") and counts the system up after saving, for the next system. Players are matched by name; the same
+  input also completes copied galaxy HTML without its form.
+- Sync: the game overview can be pasted as copied text (no HTML needed, e.g. on mobile browsers); queues, the
+  current planet or moon, the server time and the catch-up bonus are read from the text. Remaining times of the
+  other planets are rounded as shown in game.
 - Sync: the preview button is gone; the preview also follows typed or edited text automatically (after a short pause),
   as it already did for pasting and file uploads.
 - Overview galaxy filter is a selection of the universe's galaxies and hidden in universes with a single galaxy;

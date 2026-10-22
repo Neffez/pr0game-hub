@@ -5,7 +5,7 @@ import { nodeToText, normalizeText, parseGameDate, parseNumber } from '../util.j
 const STATUS_CLASSES: PlayerStatus[] = ['inactive', 'longinactive', 'vacation', 'banned', 'noob', 'strong'];
 
 /** Short status letters (gl_short_*) DE + EN. Case matters (i vs I). */
-const STATUS_LETTERS: Record<string, PlayerStatus> = {
+export const STATUS_LETTERS: Record<string, PlayerStatus> = {
   i: 'inactive',
   I: 'longinactive',
   u: 'vacation',

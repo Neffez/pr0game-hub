@@ -10,6 +10,8 @@ interface IngestBody {
   html?: string | null;
   text?: string | null;
   statsType?: StatsType | null;
+  /** "g:s" for a galaxy view copied without its galaxy/system inputs */
+  system?: string | null;
   dryRun?: boolean;
 }
 
@@ -22,7 +24,7 @@ export function ingestRoutes(app: FastifyInstance, db: DB) {
     return ingest(
       db,
       { groupId: ctx.groupId, userId: ctx.user.id, timezone: ctx.universe.settings.timezone },
-      { html: body.html, text: body.text, statsType: body.statsType, source: 'paste' },
+      { html: body.html, text: body.text, statsType: body.statsType, system: body.system, source: 'paste' },
       { dryRun: !!body.dryRun },
     );
   });

@@ -1,0 +1,104 @@
+Imperator
+Gottkaiser
+Übersicht
+
+Metall
+9.800.230.391.264
+50.000
+Energie
+0 / 0
+
+
+    Übersicht
+    Galaxie
+    Flotte
+    Logout
+
+Serverzeit : Okt Do 22 17:33:10
+Galaxy
+
+
+System
+
+Pos
+Planet
+Mond
+Trümmerfeld
+Spieler (Status) [Allianz]
+Aktion
+1
+5
+Mond
+148 K / 444 K
+Anda
+(I i)
+2
+Mondspender (17 min)
+MV4U
+133.504 M / 106.906 M
+Gottkaiser
+[1337]
+-
+3
+4
+4
+Mond
+135 K / 405 K
+Anda
+(I i)
+5
+3
+Mond
+181 K / 543 K
+Anda
+(I i)
+6
+1
+Mond
+1,7 B / 1,3 B
+Anda
+(I i)
+7
+Kolonie
+123
+(I i)
+8
+TestColony1
+Mond
+478 K / 365 K
+TestUser2
+(I i)
+9
+Kolonie
+ConsulVega
+(I i)
+10
+11
+2
+Mond
+134 K / 402 K
+Anda
+(I i)
+12
+Hauptplanet
+paul
+(I i)
+13
+Kolonie
+Pseudoephedrin
+14
+15
+16
+Die unendlichen Weiten des Universums
+17
+Handelszone
+(11 Planeten besiedelt)
+Legende
+0 Interplanetarraketen
+0/28 Flottenslots
+587.230 Spionagesonden
+7.368.317 Recycler
+JSON exportieren
+CSV exportieren
+Daten zurücksetzen
+JSON importieren:

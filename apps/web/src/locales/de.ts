@@ -371,6 +371,7 @@ const de = {
     htmlDetected: 'HTML erkannt ({kb} KB)',
     file: 'Datei',
     statsCategory: 'Statistik-Kategorie',
+    system: 'Galaxie:System',
     auto: 'automatisch',
     clear: 'Leeren',
     previewTitle: 'Vorschau',
@@ -389,7 +390,7 @@ const de = {
     warnings: {
       html_no_data: 'HTML enthielt keine erkennbaren Daten, Plaintext wird verwendet.',
       stats_category_unknown: 'Statistik-Kategorie nicht erkannt – bitte auswählen.',
-      galaxy_position_missing: 'Galaxie erkannt, aber Galaxie/System fehlen.',
+      galaxy_position_missing: 'Galaxie erkannt, aber Galaxie/System fehlen: bitte als Galaxie:System eintragen (z. B. 1:234).',
       plaintext_players_by_name: 'Plaintext: Spieler werden über den Namen zugeordnet (keine IDs).',
       galaxy_needs_html: 'Galaxieansicht bitte als HTML/Quelltext einfügen (Plaintext enthält keine Koordinaten).',
       stats_not_saved: 'Statistik ohne Kategorie oder Datum wurde nicht gespeichert.',
