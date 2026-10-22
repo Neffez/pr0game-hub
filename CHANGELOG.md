@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-22
 
+- Developers: the web app has unit tests (`apps/web/test`, Vitest in Node with a minimal `document`/`localStorage`
+  stand-in): number and date formatting per language, `useSort`, `useLoader` (only the newest answer applies),
+  `useProgressive` and the alliance fallback of `selectedGroup`.
 - Developers: `@pr0hub/core/tech` exports `METAL`, `CRYSTAL`, `DEUTERIUM`, `RESOURCES` and `STORAGE` (storage building
   per resource); the web app uses them instead of the ids 901–903 in its calculations and resource lists.
 - Developers: empire pages stored before moon detection get their planet types once (migration `016`) instead of

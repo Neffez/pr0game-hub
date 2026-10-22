@@ -33,7 +33,7 @@ Player IDs, alliance IDs and rank changes are only available in HTML/page source
 | Server | [Fastify 5](https://fastify.dev/) with `@fastify/cookie` and `@fastify/static`; [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) (SQLite) with numbered SQL migrations; session cookies, scrypt password hashes |
 | Web app | [Vue 3](https://vuejs.org/) (Composition API, `<script setup>`), [Vue Router 4](https://router.vuejs.org/), [vue-i18n](https://vue-i18n.intlify.dev/) (German/English), [Chart.js](https://www.chartjs.org/); plain CSS with custom properties, no UI framework |
 | Build | [Vite 5](https://vitejs.dev/) and `vue-tsc` for the web app, `tsc` for parser and server, `tsx` for the server in development |
-| Tests | [Vitest](https://vitest.dev/): parser tests against saved game pages (`packages/parser/test/fixtures`), API tests with Fastify's `inject` against an in-memory database |
+| Tests | [Vitest](https://vitest.dev/): parser tests against saved game pages (`packages/parser/test/fixtures`), API tests with Fastify's `inject` against an in-memory database, web unit tests for formatting and composables |
 | Delivery | Multi-stage Docker image (`node:22-bookworm-slim`), the server serves the built SPA; GitHub Actions for typecheck, tests and build |
 
 ## Structure
@@ -61,7 +61,7 @@ pnpm --filter @pr0hub/web dev
 
 ```bash
 pnpm typecheck   # tsc / vue-tsc in all packages
-pnpm test        # vitest in parser and server
+pnpm test        # vitest in parser, server and web
 pnpm build       # parser, server and web app
 ```
 
