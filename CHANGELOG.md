@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-22
 
+- Developers: spy report sections are recognized with `json_extract` instead of a text search, element ids and
+  sections use the constants of `@pr0hub/core/tech` (new: `MOON_BASE`, `PHALANX`), and the battle hall query is
+  written with its table alias instead of rewriting the SQL with a regular expression (which contained control
+  characters and never matched).
 - Admin: universe settings are validated: sizes (galaxies, systems, positions, fleet speed) must be whole numbers ≥ 1,
   distance factors numbers ≥ 0 and the circular options yes/no, so a typo no longer breaks distance, flight time and
   phalanx calculations.

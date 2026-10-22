@@ -11,6 +11,10 @@ export const CLASS_RESEARCH = 100;
 export const SPY_CLASSES = [CLASS_RESOURCES, CLASS_FLEET, CLASS_DEFENSE, CLASS_BUILDINGS, CLASS_RESEARCH] as const;
 export type SpyClass = (typeof SPY_CLASSES)[number];
 
+/** Element ids the hub looks at directly. */
+export const MOON_BASE = 41;
+export const PHALANX = 42;
+
 export const TECH_NAMES: Record<Lang, Record<string, string>> = techData;
 
 export function techName(id: number | string, lang: Lang = 'de'): string {

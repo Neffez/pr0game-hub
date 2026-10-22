@@ -1,5 +1,7 @@
 import { computeDeck, type DeckEvent, type EmpireRecord } from '@pr0hub/core';
-import { CLASS_BUILDINGS, CLASS_DEFENSE, CLASS_FLEET, CLASS_RESOURCES, classOf, elementPoints, sectionPoints } from '@pr0hub/core/tech';
+import {
+  CLASS_BUILDINGS, CLASS_DEFENSE, CLASS_FLEET, CLASS_RESEARCH, CLASS_RESOURCES, classOf, elementPoints, MOON_BASE, PHALANX, sectionPoints,
+} from '@pr0hub/core/tech';
 import { randomUUID } from 'node:crypto';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import { HttpError } from '../auth.js';
@@ -468,7 +470,7 @@ export function dataRoutes(app: FastifyInstance, db: DB) {
       const key = `${rep.p}:${rep.planet_type}`;
       const cur = spy.get(key) ?? { time: rep.report_time, res: null, resTime: null };
       if (!cur.res) {
-        const res = (JSON.parse(rep.sections) as Record<string, Record<string, number>>)['900'];
+        const res = (JSON.parse(rep.sections) as Record<string, Record<string, number>>)[CLASS_RESOURCES];
         if (res) Object.assign(cur, { res, resTime: rep.report_time });
       }
       spy.set(key, cur);
@@ -493,13 +495,13 @@ export function dataRoutes(app: FastifyInstance, db: DB) {
     const page = Math.max(1, Number(req.query.page) || 1);
     const order = req.query.sort === 'time' ? 'time DESC' : 'units DESC';
     const q = (req.query.q ?? '').trim();
-    const where = `group_id = ?${q ? " AND (attackers LIKE ? ESCAPE '\\' OR defenders LIKE ? ESCAPE '\\')" : ''}`;
+    const where = `h.group_id = ?${q ? " AND (h.attackers LIKE ? ESCAPE '\\' OR h.defenders LIKE ? ESCAPE '\\')" : ''}`;
     const args: unknown[] = [ctx.groupId, ...(q ? [likeTerm(q), likeTerm(q)] : [])];
-    const total = db.prepare(`SELECT COUNT(*) FROM battle_hall WHERE ${where}`).pluck().get(...args) as number;
+    const total = db.prepare(`SELECT COUNT(*) FROM battle_hall h WHERE ${where}`).pluck().get(...args) as number;
     const rows = db
       .prepare(
         `SELECT h.*, EXISTS (SELECT 1 FROM combat_reports c WHERE c.group_id = h.group_id AND c.report_id = h.report_id) AS archived
-         FROM battle_hall h WHERE ${where.replace(/(group_id|attackers|defenders)/g, 'h.$1')} ORDER BY h.${order}, h.id LIMIT 100 OFFSET ?`,
+         FROM battle_hall h WHERE ${where} ORDER BY h.${order}, h.id LIMIT 100 OFFSET ?`,
       )
       .all(...args, (page - 1) * 100) as any[];
     return {
@@ -976,7 +978,7 @@ function withMoonTypes(rec: EmpireRecord): EmpireRecord {
   const seen = new Set<string>();
   for (const p of rec.planets) {
     const key = `${p.coords.g}:${p.coords.s}:${p.coords.p}`;
-    if (!p.type) p.type = seen.has(key) || (p.values[41] ?? 0) > 0 ? 'moon' : 'planet';
+    if (!p.type) p.type = seen.has(key) || (p.values[MOON_BASE] ?? 0) > 0 ? 'moon' : 'planet';
     seen.add(key);
   }
   return rec;
@@ -1023,10 +1025,10 @@ function phalanxCoverage(db: DB, ctx: GroupContext, g: number, s: number) {
   for (const r of reports) {
     const key = `${r.s}:${r.p}`;
     if (moons.has(key)) continue;
-    const buildings = (JSON.parse(r.sections) as Record<string, Record<string, number>>)['0'];
+    const buildings = (JSON.parse(r.sections) as Record<string, Record<string, number>>)[CLASS_BUILDINGS];
     // only reports that show the buildings tell the phalanx level
     if (!buildings) continue;
-    moons.set(key, { s: r.s, p: r.p, level: buildings['42'] ?? 0, time: r.report_time, source: 'spy', playerId: r.player_id, playerName: r.player_name });
+    moons.set(key, { s: r.s, p: r.p, level: buildings[PHALANX] ?? 0, time: r.report_time, source: 'spy', playerId: r.player_id, playerName: r.player_name });
   }
 
   for (const e of latestEmpires(db, ctx)) {
@@ -1035,7 +1037,7 @@ function phalanxCoverage(db: DB, ctx: GroupContext, g: number, s: number) {
       const key = `${pl.coords.s}:${pl.coords.p}`;
       const cur = moons.get(key);
       if (cur && cur.time > e.time) continue;
-      moons.set(key, { s: pl.coords.s, p: pl.coords.p, level: pl.values[42] ?? 0, time: e.time, source: 'empire', playerId: cur?.playerId ?? null, playerName: cur?.playerName ?? null });
+      moons.set(key, { s: pl.coords.s, p: pl.coords.p, level: pl.values[PHALANX] ?? 0, time: e.time, source: 'empire', playerId: cur?.playerId ?? null, playerName: cur?.playerName ?? null });
     }
   }
 
@@ -1098,10 +1100,10 @@ function playerIntel(db: DB, ctx: GroupContext, playerId: number, name: string, 
     .all(playerId, ctx.groupId, name) as { g: number; s: number; p: number; planet_type: string; report_time: number; sections: string }[];
   for (const r of reports) {
     const sections = JSON.parse(r.sections) as Record<string, Record<string, number>>;
-    if (!research && sections['100']) research = { values: sections['100'], time: r.report_time, source: 'spy' };
+    if (!research && sections[CLASS_RESEARCH]) research = { values: sections[CLASS_RESEARCH], time: r.report_time, source: 'spy' };
     const key = `${r.g}:${r.s}:${r.p}`;
-    if (r.planet_type === 'moon' && sections['0'] && !phalanx[key]) {
-      phalanx[key] = { level: sections['0']['42'] ?? 0, time: r.report_time, source: 'spy' };
+    if (r.planet_type === 'moon' && sections[CLASS_BUILDINGS] && !phalanx[key]) {
+      phalanx[key] = { level: sections[CLASS_BUILDINGS][PHALANX] ?? 0, time: r.report_time, source: 'spy' };
     }
   }
 
@@ -1113,7 +1115,7 @@ function playerIntel(db: DB, ctx: GroupContext, playerId: number, name: string, 
     for (const pl of rec.planets) {
       const key = `${pl.coords.g}:${pl.coords.s}:${pl.coords.p}`;
       if (pl.type === 'moon' && (!phalanx[key] || phalanx[key].time <= time)) {
-        phalanx[key] = { level: pl.values[42] ?? 0, time, source: 'empire' };
+        phalanx[key] = { level: pl.values[PHALANX] ?? 0, time, source: 'empire' };
       }
     }
   }

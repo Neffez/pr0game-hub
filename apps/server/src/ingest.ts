@@ -18,6 +18,7 @@ import {
   type SpyReportRecord,
   type StatsRecord,
 } from '@pr0hub/core';
+import { CLASS_BUILDINGS, PHALANX } from '@pr0hub/core/tech';
 import { gunzipSync, gzipSync } from 'node:zlib';
 import { config } from './config.js';
 import { now, type DB } from './db.js';
@@ -141,7 +142,7 @@ export function backfillActivity(db: DB, groupId: number, timezone: string): num
     const moons = db
       .prepare(
         `SELECT g, s, p, player_id, report_time, sections FROM spy_reports
-         WHERE group_id = ? AND planet_type = 'moon' AND sections LIKE '%"0":%' ORDER BY report_time`,
+         WHERE group_id = ? AND planet_type = 'moon' AND json_extract(sections, '$."0"') IS NOT NULL ORDER BY report_time`,
       )
       .all(groupId) as { g: number; s: number; p: number; player_id: number | null; report_time: number; sections: string }[];
     for (const m of moons) {
@@ -447,15 +448,15 @@ class Store {
 
   /** New or upgraded sensor phalanx compared to the previous moon report that showed the buildings. */
   phalanxEvent(r: SpyReportRecord, time: number, playerId: number | null) {
-    const level = r.sections[0]?.[42] ?? 0;
+    const level = r.sections[CLASS_BUILDINGS]?.[PHALANX] ?? 0;
     const prev = this.db
       .prepare(
         `SELECT sections FROM spy_reports WHERE group_id = ? AND g = ? AND s = ? AND p = ? AND planet_type = 'moon' AND report_time < ?
-           AND sections LIKE '%"0":%' ORDER BY report_time DESC LIMIT 1`,
+           AND json_extract(sections, '$."0"') IS NOT NULL ORDER BY report_time DESC LIMIT 1`,
       )
       .pluck()
       .get(this.t.groupId, r.coords.g, r.coords.s, r.coords.p, time) as string | undefined;
-    const before = prev ? ((JSON.parse(prev) as Record<string, Record<string, number>>)['0']?.['42'] ?? 0) : null;
+    const before = prev ? ((JSON.parse(prev) as Record<string, Record<string, number>>)[CLASS_BUILDINGS]?.[PHALANX] ?? 0) : null;
     if (level > 0 && !before) {
       this.log('phalanx_new', time, r.coords, 'moon', playerId, { level, known: before != null });
     } else if (before != null && level > before) {
