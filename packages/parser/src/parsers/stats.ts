@@ -1,8 +1,21 @@
-import type { CheerioAPI } from 'cheerio';
+import type { Cheerio, CheerioAPI } from 'cheerio';
+import type { AnyNode } from 'domhandler';
 import type { PlayerStatus, StatsRecord, StatsRow, StatsType } from '../types.js';
 import { nodeToText, normalizeText, parseGameDate, parseNumber } from '../util.js';
 
 const STATUS_CLASSES: PlayerStatus[] = ['inactive', 'longinactive', 'vacation', 'banned', 'noob', 'strong'];
+
+/** Status from the `galaxy-short-*` classes of the status spans below `el` (statistics and galaxy pages). */
+export function statusFromSpans($: CheerioAPI, el: Cheerio<AnyNode>): PlayerStatus[] {
+  const status: PlayerStatus[] = [];
+  el.find('span.galaxy-short').each((_, s) => {
+    for (const c of ($(s).attr('class') ?? '').split(/\s+/)) {
+      const st = c.replace('galaxy-short-', '') as PlayerStatus;
+      if (c.startsWith('galaxy-short-') && STATUS_CLASSES.includes(st)) status.push(st);
+    }
+  });
+  return status;
+}
 
 /** Short status letters (gl_short_*) DE + EN. Case matters (i vs I). */
 export const STATUS_LETTERS: Record<string, PlayerStatus> = {
@@ -66,14 +79,7 @@ export function parseStatsHtml($: CheerioAPI): StatsRecord | null {
       const name = playerLink.text().replace(/ /g, ' ').trim();
       // honor ranking: "[Title]" in front of the player link
       const title = normalizeText(nameCell.text()).match(/^\[([^\]]+)\]/)?.[1].trim() ?? null;
-      const status: PlayerStatus[] = [];
-      nameCell.find('span.galaxy-short').each((_, s) => {
-        const cls = ($(s).attr('class') ?? '').split(/\s+/);
-        for (const c of cls) {
-          const st = c.replace('galaxy-short-', '') as PlayerStatus;
-          if (c.startsWith('galaxy-short-') && STATUS_CLASSES.includes(st)) status.push(st);
-        }
-      });
+      const status = statusFromSpans($, nameCell);
       const allyLink = tds.eq(3).find('a[href*="mode=info"]').first();
       const allyIdMatch = allyLink.attr('href')?.match(/[?&;]id=(\d+)/);
       rows.push({

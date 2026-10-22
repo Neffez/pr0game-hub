@@ -2,9 +2,10 @@ import type { Cheerio, CheerioAPI } from 'cheerio';
 import type { AnyNode } from 'domhandler';
 import type { GalaxyRecord, GalaxyRow, PlayerStatus } from '../types.js';
 import { parseNumber } from '../util.js';
-import { STATUS_LETTERS } from './stats.js';
+import { STATUS_LETTERS, statusFromSpans } from './stats.js';
 
-const STATUS_CLASSES: PlayerStatus[] = ['inactive', 'longinactive', 'vacation', 'banned', 'noob', 'strong'];
+/** Activity mark behind the planet name: "(*)" or "(15 min)". */
+const ACTIVITY_RE = /\s*\((\*|\d+\s*min)\)\s*$/;
 
 export function isGalaxyHtml($: CheerioAPI): boolean {
   return $('.galaxy-grid-row[data-info^="p_"]').length > 0;
@@ -41,19 +42,13 @@ export function parseGalaxyHtml($: CheerioAPI, url?: string, system?: { g: numbe
       if (debris) rows.push(emptyRow(position, debris));
       return;
     }
-    const status: PlayerStatus[] = [];
-    row.find('span.galaxy-short').each((_, sp) => {
-      for (const c of ($(sp).attr('class') ?? '').split(/\s+/)) {
-        const st = c.replace('galaxy-short-', '') as PlayerStatus;
-        if (c.startsWith('galaxy-short-') && STATUS_CLASSES.includes(st)) status.push(st);
-      }
-    });
+    const status = statusFromSpans($, row);
     const ally = row.find('a[allyid]').first();
     const planetLink = row.find('.galaxy-planet a').first();
     const moonImg = row.find('.galaxy-moon img').first();
     rows.push({
       position,
-      planetName: destroyed ? '' : planetLink.text().replace(/\s*\((\*|\d+\s*min)\)\s*$/, '').trim(),
+      planetName: destroyed ? '' : planetLink.text().replace(ACTIVITY_RE, '').trim(),
       moon: moonImg.length > 0,
       moonName: moonImg.attr('alt')?.trim() || null,
       destroyed,
@@ -135,7 +130,7 @@ export function parseGalaxyText(text: string, system: { g: number; s: number }):
     const moonName = rest.length >= 3 ? rest[1] : null;
     rows.push({
       position,
-      planetName: rest[0].replace(/\s*\((\*|\d+\s*min)\)\s*$/, '').trim(),
+      planetName: rest[0].replace(ACTIVITY_RE, '').trim(),
       moon: moonName != null,
       moonName,
       destroyed: false,

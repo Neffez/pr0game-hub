@@ -1,3 +1,4 @@
+import { UNIVERSE_JSON_STATUS } from '@pr0hub/core';
 import type { DB } from './db.js';
 import { placeholderAlliance, placeholderPlayer } from './ingest.js';
 
@@ -18,21 +19,11 @@ interface Slot {
 }
 type Named = Record<string, { name: string; timepoint: number }>;
 
-/** ShortStatus letters in the order of pr0game's userStatus(). */
-const SHORT: [string, string][] = [
-  ['banned', 'g'],
-  ['vacation', 'u'],
-  ['longinactive', 'I'],
-  ['inactive', 'i'],
-  ['noob', 'n'],
-  ['strong', 's'],
-];
-
 function special(statusJson: string): string {
   const status = new Set(JSON.parse(statusJson || '[]') as string[]);
   // pr0game flags a long inactive player as inactive too ("Ii"); the hub stores only "longinactive".
   if (status.has('longinactive')) status.add('inactive');
-  return SHORT.filter(([s]) => status.has(s)).map(([, c]) => c).join('');
+  return UNIVERSE_JSON_STATUS.filter(([s]) => status.has(s)).map(([, c]) => c).join('');
 }
 
 export function buildUniverseJson(db: DB, groupId: number, positions: number): string {

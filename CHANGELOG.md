@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-22
 
+- Developers: player status parsing is shared: `statusFromSpans` reads the status spans of statistics and galaxy
+  pages, `UNIVERSE_JSON_STATUS` (`@pr0hub/core`) is the one table of universe.json status letters for import and
+  export, and the activity mark behind planet names is one regular expression.
 - Developers: spy report sections are recognized with `json_extract` instead of a text search, element ids and
   sections use the constants of `@pr0hub/core/tech` (new: `MOON_BASE`, `PHALANX`), and the battle hall query is
   written with its table alias instead of rewriting the SQL with a regular expression (which contained control

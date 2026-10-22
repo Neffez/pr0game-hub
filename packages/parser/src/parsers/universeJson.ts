@@ -14,7 +14,17 @@ interface Slot {
   special?: string;
 }
 
-const SPECIAL: Record<string, PlayerStatus> = { u: 'vacation', I: 'longinactive', i: 'inactive', g: 'banned', b: 'banned', n: 'noob', s: 'strong' };
+/** Status letters of the universe.json `special` field in the order of pr0game's userStatus() (import and export). */
+export const UNIVERSE_JSON_STATUS: [PlayerStatus, string][] = [
+  ['banned', 'g'],
+  ['vacation', 'u'],
+  ['longinactive', 'I'],
+  ['inactive', 'i'],
+  ['noob', 'n'],
+  ['strong', 's'],
+];
+// "b" for banned in older exports
+const SPECIAL: Record<string, PlayerStatus> = { ...Object.fromEntries(UNIVERSE_JSON_STATUS.map(([s, c]) => [c, s])), b: 'banned' };
 
 /** Cheap check before JSON.parse of a possibly large paste. */
 export function looksLikeUniverseJson(text: string): boolean {
