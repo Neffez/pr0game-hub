@@ -1,5 +1,5 @@
 import type { CheerioAPI } from 'cheerio';
-import { CLASS_RESEARCH, CLASS_RESOURCES, classOf, idByName } from '../tech.js';
+import { CLASS_RESEARCH, CLASS_RESOURCES, classOf, idByName, MOON_BASE } from '../tech.js';
 import type { EmpirePlanet, EmpireRecord } from '../types.js';
 import { COORDS_RE, parseCoords, parseNumber } from '../util.js';
 
@@ -118,7 +118,7 @@ function activePlanet($: CheerioAPI): EmpireRecord['active'] {
 
 /** Fallback when no planet images are available: a moon base (41) only exists on moons. */
 function markMoonsByBase(planets: EmpirePlanet[]) {
-  for (const p of planets) if ((p.values[41] ?? 0) > 0) p.type = 'moon';
+  for (const p of planets) if ((p.values[MOON_BASE] ?? 0) > 0) p.type = 'moon';
 }
 
 /** Cells contain the value plus optional "⬆ queue" / "✈ flying" spans; the value is the first span or leading text. */

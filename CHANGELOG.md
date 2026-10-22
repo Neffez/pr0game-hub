@@ -4,6 +4,8 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-22
 
+- Developers: empire pages stored before moon detection get their planet types once (migration `016`) instead of
+  on every read; `withMoonTypes` is gone. The parser marks moons by `MOON_BASE` from `@pr0hub/core/tech`.
 - Empire, live points: the fleet keeps counting fleets in flight right after a statistics sync. It is based on the
   newest fleet or total statistics update that has an empire page synced after it, instead of only the newest update
   (which dropped back to the ships on the planets until the next empire sync). The remaining warning, when no such

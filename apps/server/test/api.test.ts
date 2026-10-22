@@ -733,6 +733,22 @@ describe('review fixes', () => {
     expect(ov.planets.find((p: any) => p.g === 2 && p.s === 3 && p.p === 4)).toMatchObject({ player_id: owner, own: { time: 1000 } });
   });
 
+  it('adds the planet type to empire pages stored before moon detection', async () => {
+    const groupX = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', headers: admin, payload: { universe: 'u8', name: 'Moon types' } })).json().id;
+    const c = { g: 1, s: 2, p: 3 };
+    const empire = { kind: 'empire', research: {}, planets: [
+      { name: 'Home', coords: c, values: {} },
+      { name: 'Moon', coords: c, values: {} },
+      { name: 'Base', coords: { g: 1, s: 5, p: 6 }, values: { 41: 1 } },
+      { name: 'Typed', coords: { g: 1, s: 7, p: 8 }, type: 'planet', values: {} },
+    ] };
+    const id = Number(db.prepare('INSERT INTO empire_snapshots (group_id, user_id, created_at, data) VALUES (?, 1, 1, ?)').run(groupX, JSON.stringify(empire)).lastInsertRowid);
+    db.exec(readFileSync(new URL('../migrations/016_empire_moon_types.sql', import.meta.url), 'utf8'));
+    const data = JSON.parse(db.prepare('SELECT data FROM empire_snapshots WHERE id = ?').pluck().get(id) as string);
+    expect(data.planets.map((p: any) => [p.name, p.type])).toEqual([['Home', 'planet'], ['Moon', 'moon'], ['Base', 'moon'], ['Typed', 'planet']]);
+    expect(data.planets[2].values).toEqual({ 41: 1 });
+  });
+
   it('keeps the activity log of merged players', async () => {
     const groupX = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', headers: admin, payload: { universe: 'u8', name: 'Merge' } })).json().id;
     const add = (name: string) => Number(db.prepare('INSERT INTO players (group_id, name) VALUES (?, ?)').run(groupX, name).lastInsertRowid);
