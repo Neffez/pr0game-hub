@@ -4,6 +4,8 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-22
 
+- Overview: the filters at the top have their spacing back, and on mobile the lists also render more rows while
+  scrolling when the filters are folded away (the end-of-list marker shared a class name with the filters).
 - Overview: the planet and player lists render 150 rows at first and the next ones while scrolling (no pages, the
   row count stays the full one). Opening, sorting and filtering large lists only cost the rendered rows; sorting or
   filtering starts the table at the top again. On mobile the browser also skips layout and painting of cards out of

@@ -548,7 +548,7 @@ const history = computed(() => {
         </div>
       </div>
     </div>
-    <div v-if="mode === 'planets' && planetsMore" ref="planetSentinel" class="more" />
+    <div v-if="mode === 'planets' && planetsMore" ref="planetSentinel" class="list-end" />
 
     <div v-else class="m-list">
       <div v-for="r in playersShown" :key="r.id" class="m-item" :class="{ dim: r.status.includes('vacation') }">
@@ -574,7 +574,7 @@ const history = computed(() => {
         </div>
       </div>
     </div>
-    <div v-if="mode !== 'planets' && playersMore" ref="playerSentinel" class="more" />
+    <div v-if="mode !== 'planets' && playersMore" ref="playerSentinel" class="list-end" />
   </template>
 
   <!-- Planet view (like the FF-Hub overview) -->
@@ -654,7 +654,7 @@ const history = computed(() => {
         </tr>
       </tbody>
     </table>
-    <div v-if="planetsMore" ref="planetSentinel" class="more" />
+    <div v-if="planetsMore" ref="planetSentinel" class="list-end" />
   </div>
 
   <!-- Player view: all categories with the selected window -->
@@ -696,7 +696,7 @@ const history = computed(() => {
         </tr>
       </tbody>
     </table>
-    <div v-if="playersMore" ref="playerSentinel" class="more" />
+    <div v-if="playersMore" ref="playerSentinel" class="list-end" />
   </div>
 </template>
 
@@ -712,7 +712,7 @@ table.cov td { padding: 1px 10px 1px 0; white-space: nowrap; }
 /* the browser skips layout and painting of cards out of sight (auto: remembers their last height) */
 .m-list .m-item { content-visibility: auto; contain-intrinsic-size: auto 64px; }
 /* end of a list that renders more rows when it comes into sight */
-.more { height: 1px; }
+.list-end { height: 1px; }
 .m-item:last-child { border-bottom: 0; }
 .m-item.dim > * { opacity: .55; }
 .m-item.moon { background: color-mix(in srgb, var(--info) 7%, transparent); }
