@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-22
 
+- Developers: the server routes are split by topic (`routes/overview.ts`, `players.ts`, `spy.ts`, `galaxy.ts`,
+  `reports.ts`, `deck.ts`, `imperium.ts`, shared helpers in `routes/util.ts`); statistics windows and the 6 h grid
+  live in `domain/stats.ts`, the phalanx range in `domain/phalanx.ts` and the members' newest empire pages in
+  `repo/empire.ts`.
 - Developers: the sync is split up: `ingest.ts` (entry points: ingest, reparse, activity backfill), `store.ts`
   (writes the parsed records) and `repo/players.ts` (`Players`: finding and creating players and alliances by id or
   current/former name, shared with the routes).

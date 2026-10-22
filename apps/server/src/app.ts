@@ -7,8 +7,14 @@ import { config } from './config.js';
 import type { DB } from './db.js';
 import { adminRoutes } from './routes/admin.js';
 import { authRoutes } from './routes/auth.js';
-import { dataRoutes } from './routes/data.js';
+import { deckRoutes } from './routes/deck.js';
+import { galaxyRoutes } from './routes/galaxy.js';
+import { imperiumRoutes } from './routes/imperium.js';
 import { ingestRoutes } from './routes/ingest.js';
+import { overviewRoutes } from './routes/overview.js';
+import { playersRoutes } from './routes/players.js';
+import { reportsRoutes } from './routes/reports.js';
+import { spyRoutes } from './routes/spy.js';
 
 export function buildApp(db: DB, opts: { logger?: boolean } = {}): FastifyInstance {
   const app = Fastify({
@@ -46,7 +52,7 @@ export function buildApp(db: DB, opts: { logger?: boolean } = {}): FastifyInstan
       authRoutes(scope, db);
       adminRoutes(scope, db);
       ingestRoutes(scope, db);
-      dataRoutes(scope, db);
+      for (const routes of [overviewRoutes, playersRoutes, spyRoutes, galaxyRoutes, reportsRoutes, deckRoutes, imperiumRoutes]) routes(scope, db);
     },
     { prefix: config.basePath },
   );
