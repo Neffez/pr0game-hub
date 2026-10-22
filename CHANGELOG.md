@@ -4,6 +4,13 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Alliance pages (planets, fleet, research) also show members who don't sync their empire page, from the spy reports
+  of the other members: per planet/moon each section (buildings, ships, defense) from the newest report showing it,
+  research from the newest report with research; marked "spy" with the report time.
+  - Also covers players of the members' in-game alliance who are not in the hub; positions now owned by someone else
+    or destroyed are left out. New spy reports update open alliance pages live.
+  - The overview already combined spy reports and empire pages (newer one wins) and needs no change.
+
 - Alliance fleet page: fleet movements in a tab of their own, first in the order fleet movements, ships, defense.
 
 - Fleet sharing in the account settings: each user decides whether the other members see their fleet movements and

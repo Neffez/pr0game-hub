@@ -14,13 +14,18 @@ import { abbr, ago, dateTime, fmt, name, scaleColor } from '../format';
 type Page = 'planets' | 'fleet' | 'research';
 
 interface Member {
-  user_id: number;
+  key: string;
+  /** null for players of the in-game alliance who are not in the hub */
+  user_id: number | null;
   username: string;
   ingame_name: string | null;
+  /** empire page of the member or put together from spy reports (planets and research then have their own report time) */
+  source: 'empire' | 'spy' | null;
   created_at: number | null;
   data: {
     research: Record<string, number>;
-    planets: { name: string; coords: { g: number; s: number; p: number }; type: 'planet' | 'moon'; values: Record<string, number> }[];
+    researchTime?: number | null;
+    planets: { name: string; coords: { g: number; s: number; p: number }; type: 'planet' | 'moon'; values: Record<string, number>; time?: number }[];
   } | null;
   /** fleet movements of the member's latest synced overview */
   fleets: { time: number; data: Fleet[] } | null;
@@ -33,6 +38,8 @@ interface Row {
   type?: 'planet' | 'moon';
   values: Record<number, number>;
   points: number;
+  /** report time when the row comes from spy reports */
+  spy?: number | null;
 }
 
 const { t } = useI18n();
@@ -60,7 +67,7 @@ onMounted(() => {
   timer = setInterval(() => (now.value = Math.floor(Date.now() / 1000)), 1000);
 });
 onBeforeUnmount(() => clearInterval(timer));
-useLiveReload(load, tables('empire', 'fleets'));
+useLiveReload(load, tables('empire', 'fleets', 'spy_reports'));
 
 const withData = computed(() => members.value.filter((m) => m.data));
 const missing = computed(() => members.value.filter((m) => !m.data));
@@ -90,24 +97,30 @@ const rows = computed<Row[]>(() => {
   if (page.value === 'planets') {
     return withData.value.flatMap((m) =>
       m.data!.planets.map((p) => ({
-        key: `${m.user_id}:${p.coords.g}:${p.coords.s}:${p.coords.p}:${p.type}`,
+        key: `${m.key}:${p.coords.g}:${p.coords.s}:${p.coords.p}:${p.type}`,
         member: m,
         label: p.name,
         coords: p.coords,
         type: p.type,
         values: p.values,
         points: points(p.values),
+        spy: m.source === 'spy' ? p.time : null,
       })),
     );
   }
   if (page.value === 'research') {
-    return withData.value.map((m) => ({ key: String(m.user_id), member: m, label: memberName(m), values: m.data!.research, points: points(m.data!.research) }));
+    return withData.value
+      .filter((m) => m.source !== 'spy' || m.data!.researchTime)
+      .map((m) => ({
+        key: m.key, member: m, label: memberName(m), values: m.data!.research, points: points(m.data!.research),
+        spy: m.source === 'spy' ? m.data!.researchTime : null,
+      }));
   }
   // fleet/defense: summed over all planets and moons of a member
   return withData.value.map((m) => {
     const values: Record<number, number> = {};
     for (const p of m.data!.planets) for (const [id, n] of Object.entries(p.values)) values[Number(id)] = (values[Number(id)] ?? 0) + n;
-    return { key: String(m.user_id), member: m, label: memberName(m), values, points: points(values) };
+    return { key: m.key, member: m, label: memberName(m), values, points: points(values), spy: m.source === 'spy' ? m.created_at : null };
   });
 });
 
@@ -184,13 +197,15 @@ const total = computed(() => {
     <template v-if="movements">
       <select v-if="withFleets.length > 1" v-model="fleetMember">
         <option :value="null">{{ t('imperium.allMembers') }}</option>
-        <option v-for="m in withFleets" :key="m.user_id" :value="m.user_id">{{ memberName(m) }}</option>
+        <option v-for="m in withFleets" :key="m.key" :value="m.user_id">{{ memberName(m) }}</option>
       </select>
-      <span v-for="m in withFleets" :key="m.user_id" class="muted" :title="dateTime(m.fleets!.time)">{{ memberName(m) }}: {{ ago(m.fleets!.time) }}</span>
+      <span v-for="m in withFleets" :key="m.key" class="muted" :title="dateTime(m.fleets!.time)">{{ memberName(m) }}: {{ ago(m.fleets!.time) }}</span>
       <Hint><p>{{ t('alliance.fleetsHint') }}</p></Hint>
     </template>
     <template v-else>
-      <span v-for="m in withData" :key="m.user_id" class="muted" :title="dateTime(m.created_at)">{{ memberName(m) }}: {{ ago(m.created_at) }}</span>
+      <span v-for="m in withData" :key="m.key" class="muted" :title="dateTime(m.created_at)">
+        {{ memberName(m) }}: {{ ago(m.created_at) }}<template v-if="m.source === 'spy'"> ({{ t('alliance.spy') }})</template>
+      </span>
       <span v-if="missing.length" class="warn">{{ t('alliance.missing', { names: missing.map(memberName).join(', ') }) }}</span>
     </template>
   </div>
@@ -221,6 +236,7 @@ const total = computed(() => {
           <span v-if="r.type === 'moon'" class="moon-tag" style="margin: 0">☾ {{ t('common.moon') }}</span>
         </template>
         <b class="al-name">{{ r.label }}</b>
+        <span v-if="'spy' in r && r.spy" class="spy-tag" :title="t('alliance.spyTitle', { time: dateTime(r.spy) })">{{ t('alliance.spy') }}</span>
         <span v-if="page === 'planets' && 'member' in r" class="muted small">{{ memberName(r.member) }}</span>
         <span class="mono small" :class="{ sorted: sortKey === 'points' }" :style="{ color: r.key === 'total' ? undefined : scaleColor(r.points, max.points) }">{{ fmt(r.points) }}</span>
       </div>
@@ -255,10 +271,14 @@ const total = computed(() => {
             <td>
               <span v-if="r.type === 'moon'" class="moon-tag" :title="t('common.moon')">☾ {{ t('common.moon') }}</span>
               {{ r.label }}
+              <span v-if="r.spy" class="spy-tag" :title="t('alliance.spyTitle', { time: dateTime(r.spy) })">{{ t('alliance.spy') }}</span>
             </td>
             <td class="muted">{{ memberName(r.member) }}</td>
           </template>
-          <td v-else>{{ r.label }}</td>
+          <td v-else>
+            {{ r.label }}
+            <span v-if="r.spy" class="spy-tag" :title="t('alliance.spyTitle', { time: dateTime(r.spy) })">{{ t('alliance.spy') }}</span>
+          </td>
           <td class="num" :style="{ color: scaleColor(r.points, max.points) }">{{ fmt(r.points) }}</td>
           <td v-for="id in ids" :key="id" class="num" :style="{ color: scaleColor(r.values[id], max[id]) }">{{ r.values[id] ? fmt(r.values[id]) : '' }}</td>
         </tr>
@@ -282,5 +302,6 @@ const total = computed(() => {
 .al-grid > div { display: flex; justify-content: space-between; gap: 4px; min-width: 0; }
 .al-grid .faint { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sorted { font-weight: 700; }
+.spy-tag { display: inline-block; padding: 0 5px; margin-left: 4px; border-radius: 4px; font-size: 11px; font-weight: 600; color: var(--warn); background: color-mix(in srgb, var(--warn) 15%, transparent); }
 .sorted .faint { color: var(--accent); }
 </style>

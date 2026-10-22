@@ -3,9 +3,9 @@ import { CLASS_BUILDINGS, CLASS_DEFENSE, CLASS_FLEET, classOf, elementPoints } f
 import type { FastifyInstance } from 'fastify';
 import { HttpError } from '../auth.js';
 import type { DB } from '../db.js';
-import { latestEmpire } from '../repo/empire.js';
+import { latestEmpire, spyEmpire, type SpyEmpire } from '../repo/empire.js';
 import { sharedFleets } from '../repo/fleets.js';
-import { memberPlayer } from '../repo/members.js';
+import { memberPlayer, memberPlayers } from '../repo/members.js';
 import { latestScores } from '../repo/stats.js';
 import { contextOf, type Q } from './util.js';
 
@@ -92,15 +92,47 @@ export function imperiumRoutes(app: FastifyInstance, db: DB) {
     };
   });
 
+  /**
+   * Empire data of the alliance: every member's newest empire page, put together from the spy reports for members
+   * without one and for players of the members' in-game alliances who are not in the hub.
+   */
   app.get<{ Params: { uni: string } }>('/api/:uni/alliance', async (req) => {
     const ctx = ctxOf(req);
     const rows = db
       .prepare('SELECT u.id AS user_id, u.username, m.ingame_name FROM group_members m JOIN users u ON u.id = m.user_id WHERE m.group_id = ? ORDER BY u.username')
       .all(ctx.groupId) as { user_id: number; username: string; ingame_name: string | null }[];
-    return rows.map((r) => {
+    const players = memberPlayers(db, ctx);
+    const playerName = db.prepare('SELECT name FROM players WHERE id = ?').pluck();
+    const members: {
+      key: string; user_id: number | null; username: string; ingame_name: string | null; player_id: number | null;
+      source: 'empire' | 'spy' | null; created_at: number | null; data: EmpireRecord | SpyEmpire | null; fleets: ReturnType<typeof sharedFleets>;
+    }[] = rows.map((r) => {
       const e = latestEmpire(db, ctx, r.user_id);
       const f = sharedFleets(db, ctx.groupId, r.user_id, ctx.user.id);
-      return { ...r, created_at: e?.time ?? null, data: e?.rec ?? null, fleets: f === 'private' ? null : f };
+      const playerId = players.get(r.user_id) ?? null;
+      const spy = !e && playerId ? spyEmpire(db, ctx, playerId, playerName.get(playerId) as string) : null;
+      return {
+        key: `u${r.user_id}`, ...r, player_id: playerId, source: e ? 'empire' : spy ? 'spy' : null,
+        created_at: e?.time ?? spy?.time ?? null, data: e?.rec ?? spy ?? null, fleets: f === 'private' ? null : f,
+      };
     });
+    const memberIds = new Set(players.values());
+    const mates = db
+      .prepare(
+        `SELECT p.id, p.name FROM players p WHERE p.group_id = ? AND p.alliance_id IN
+           (SELECT alliance_id FROM players WHERE id IN (SELECT value FROM json_each(?)) AND alliance_id IS NOT NULL)
+         ORDER BY p.name COLLATE NOCASE`,
+      )
+      .all(ctx.groupId, JSON.stringify([...memberIds].filter((id) => id != null))) as { id: number; name: string }[];
+    for (const p of mates) {
+      if (memberIds.has(p.id)) continue;
+      const spy = spyEmpire(db, ctx, p.id, p.name);
+      if (!spy) continue;
+      members.push({
+        key: `p${p.id}`, user_id: null, username: p.name, ingame_name: null, player_id: p.id, source: 'spy',
+        created_at: spy.time, data: spy, fleets: null,
+      });
+    }
+    return members;
   });
 }

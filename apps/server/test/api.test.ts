@@ -193,6 +193,19 @@ describe('api', () => {
     await app.inject({ method: 'POST', url: '/hub/api/auth/fleet-share', headers: admin, payload: { enabled: true, hidden: [] } });
   });
 
+  it('notifies the group of hostile fleets heading for a member', async () => {
+    const headers = { ...admin, 'x-hub-group': String(groupA) };
+    const text = [
+      '2h 0m 0s Eine feindliche Flotte (5 Schlachtschiff) des Spielers Mallory vom Planet Böse [4:20:6] erreicht den Planet Ares [1:100:12]. Mission: Angreifen',
+      '1h 0m 0s Eine deiner Flotten (1 Leichter Jäger) vom Planet Ares [1:100:12] erreicht den Planet X [1:129:11]. Mission: Angreifen',
+    ].join('\n');
+    await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { text } });
+    const list = (await app.inject({ method: 'GET', url: '/hub/api/u8/notifications', headers })).json();
+    expect(list).toHaveLength(1);
+    expect(list[0]).toMatchObject({ kind: 'attack', member: 'admin', fleet: { owner: 'hostile', player: 'Mallory', ships: { 207: 5 } } });
+    expect(list[0].time - Math.floor(Date.now() / 1000)).toBeGreaterThan(7000);
+  });
+
   it('lists phalanxes that reach a system', async () => {
     const headers = { ...admin, 'x-hub-group': String(groupA) };
     const empire = { kind: 'empire', research: {}, planets: [
@@ -217,6 +230,44 @@ describe('api', () => {
     const res = (await app.inject({ method: 'GET', url: `/hub/api/u8/players/${alpha.id}`, headers })).json();
     expect(res.research).toEqual({ values: { 109: 12, 118: 7 }, time: 1792500000, source: 'spy' });
     expect(res.phalanx['1:234:5']).toEqual({ level: 4, time: 1792510000, source: 'spy' });
+  });
+
+  it('fills the alliance pages from spy reports for members without an empire page', async () => {
+    const groupD = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', payload: { universe: 'u8', name: 'D' }, headers: admin })).json().id;
+    const headers = { ...admin, 'x-hub-group': String(groupD) };
+    const ally = Number(db.prepare("INSERT INTO alliances (group_id, name, tag) VALUES (?, 'Wir', 'WIR')").run(groupD).lastInsertRowid);
+    const player = db.prepare('INSERT INTO players (group_id, name, alliance_id, first_seen, last_seen) VALUES (?, ?, ?, 0, 0)');
+    // the admin plays "admin" (hub username), Bob is in the same in-game alliance but not in the hub
+    const own = Number(player.run(groupD, 'admin', ally).lastInsertRowid);
+    const bob = Number(player.run(groupD, 'Bob', ally).lastInsertRowid);
+    const carl = Number(player.run(groupD, 'Carl', null).lastInsertRowid);
+    db.prepare('INSERT INTO planets (group_id, g, s, p, name, player_id) VALUES (?, 2, 10, 4, ?, ?)').run(groupD, 'Taken', carl);
+    const spy = db.prepare(
+      'INSERT INTO spy_reports (group_id, user_id, g, s, p, planet_type, planet_name, player_name, player_id, report_time, sections) VALUES (?, 1, 2, 10, ?, ?, ?, ?, ?, ?, ?)',
+    );
+    spy.run(groupD, 3, 'planet', 'Bobs Welt', 'Bob', bob, 1000, JSON.stringify({ 900: {}, 200: { 202: 5 }, 400: { 401: 10 }, 0: { 1: 20 }, 100: { 106: 8 } }));
+    // newer report with fleets only: the buildings stay from the older one
+    spy.run(groupD, 3, 'planet', 'Bobs Welt', 'Bob', bob, 2000, JSON.stringify({ 900: {}, 200: { 202: 7 } }));
+    spy.run(groupD, 3, 'moon', 'Mond', 'Bob', bob, 1500, JSON.stringify({ 900: {}, 0: { 41: 2 } }));
+    // only resources: no row; an old report of a planet now owned by Carl: left out
+    spy.run(groupD, 5, 'planet', 'Leer', 'Bob', bob, 1800, JSON.stringify({ 900: { 901: 1 } }));
+    spy.run(groupD, 4, 'planet', 'Taken', 'Bob', bob, 900, JSON.stringify({ 900: {}, 0: { 1: 3 } }));
+
+    let al = (await app.inject({ method: 'GET', url: '/hub/api/u8/alliance', headers })).json();
+    expect(al.find((m: any) => m.player_id === own)).toMatchObject({ source: null, data: null });
+    const b = al.find((m: any) => m.player_id === bob);
+    expect(b).toMatchObject({ key: `p${bob}`, user_id: null, username: 'Bob', source: 'spy', created_at: 2000, fleets: null });
+    expect(b.data.research).toEqual({ 106: 8 });
+    expect(b.data.planets).toEqual([
+      { name: 'Bobs Welt', coords: { g: 2, s: 10, p: 3 }, type: 'planet', values: { 202: 7, 401: 10, 1: 20 }, time: 2000 },
+      { name: 'Mond', coords: { g: 2, s: 10, p: 3 }, type: 'moon', values: { 41: 2 }, time: 1500 },
+    ]);
+
+    // the own player is spied as well: the member gets the spy data until they sync their empire page
+    spy.run(groupD, 8, 'planet', 'Heim', 'admin', own, 1700, JSON.stringify({ 900: {}, 0: { 1: 9 } }));
+    al = (await app.inject({ method: 'GET', url: '/hub/api/u8/alliance', headers })).json();
+    expect(al.find((m: any) => m.player_id === own)).toMatchObject({ source: 'spy', created_at: 1700 });
+    expect(al.filter((m: any) => m.player_id === own)).toHaveLength(1);
   });
 
   it('writes the activity log while syncing', async () => {
