@@ -657,6 +657,7 @@ const de = {
     result: 'Ergebnis',
   },
   presence: {
+    you: 'du',
     online: '{n} online',
     offline: '{n} offline',
     active: 'aktiv',

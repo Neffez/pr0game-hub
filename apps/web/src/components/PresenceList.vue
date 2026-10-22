@@ -11,11 +11,14 @@ const emit = defineEmits<{ navigate: [] }>();
 const { t } = useI18n();
 const { ctx, uni } = useUni();
 
+/** Online members, the viewer first (always online here, even before their own connection is reported). */
 const online = computed(() => {
   const byId = new Map(presence.value.map((p) => [p.userId, p]));
+  const me = ctx.value?.me.id;
   return (ctx.value?.members ?? [])
-    .filter((m) => m.id !== ctx.value?.me.id && byId.has(m.id))
-    .map((m) => ({ ...m, at: byId.get(m.id)! }));
+    .filter((m) => m.id === me || byId.has(m.id))
+    .map((m) => ({ ...m, me: m.id === me, at: byId.get(m.id) ?? { userId: m.id, page: null, active: true } }))
+    .sort((a, b) => Number(b.me) - Number(a.me));
 });
 const offline = computed(() => {
   const ids = new Set(presence.value.map((p) => p.userId));
@@ -42,8 +45,8 @@ function where(p: PresenceMember) {
     <div class="section">{{ t('presence.online', { n: online.length }) }}</div>
     <div v-for="m in online" :key="m.id" class="member">
       <span class="dot" :class="{ away: !m.at.active }" :title="m.at.active ? t('presence.active') : t('presence.away')" />
-      <span class="name">{{ m.name }}</span>
-      <RouterLink v-if="where(m.at)" class="where" :to="where(m.at)!.to" @click="emit('navigate')">{{ where(m.at)!.text }}</RouterLink>
+      <span class="name">{{ m.name }}<span v-if="m.me" class="muted"> ({{ t('presence.you') }})</span></span>
+      <RouterLink v-if="!m.me && where(m.at)" class="where" :to="where(m.at)!.to" @click="emit('navigate')">{{ where(m.at)!.text }}</RouterLink>
     </div>
     <details v-if="offline.length" class="offline">
       <summary class="muted small">{{ t('presence.offline', { n: offline.length }) }}</summary>

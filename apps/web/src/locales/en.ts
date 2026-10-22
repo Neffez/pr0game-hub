@@ -655,6 +655,7 @@ const en: typeof de = {
     result: 'Result',
   },
   presence: {
+    you: 'you',
     online: '{n} online',
     offline: '{n} offline',
     active: 'active',
