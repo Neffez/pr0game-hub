@@ -3,8 +3,10 @@ import type { FastifyInstance } from 'fastify';
 import { HttpError } from '../auth.js';
 import type { GroupContext } from '../context.js';
 import type { DB } from '../db.js';
-import { latestEmpires, ownCoords } from '../repo/empire.js';
-import { clampInt, contextOf, likeTerm, parseSections, type Q } from './util.js';
+import { latestEmpires } from '../repo/empire.js';
+import { memberPlayer, memberPlayers } from '../repo/members.js';
+import { latestScores } from '../repo/stats.js';
+import { contextOf, likeTerm, parseSections, type Q } from './util.js';
 
 export function playersRoutes(app: FastifyInstance, db: DB) {
   const ctxOf = contextOf(db);
@@ -38,27 +40,18 @@ export function playersRoutes(app: FastifyInstance, db: DB) {
       .all(ctx.groupId, who, type) as { id: number; stat_time: number }[];
     const [snap, prevSnap] = snaps;
 
-    // the viewer's own player (in-game name of the membership) and its alliance
-    const me = db
-      .prepare(
-        `SELECT p.id, p.alliance_id FROM group_members gm JOIN players p ON p.group_id = gm.group_id AND p.name = gm.ingame_name COLLATE NOCASE
-         WHERE gm.group_id = ? AND gm.user_id = ?`,
-      )
-      .get(ctx.groupId, ctx.user.id) as { id: number; alliance_id: number | null } | undefined;
+    // the viewer's own player and its alliance; players of all members are marked
+    const members = memberPlayers(db, ctx);
+    const meId = members.get(ctx.user.id) ?? null;
+    const me = meId
+      ? { id: meId, alliance_id: db.prepare('SELECT alliance_id FROM players WHERE id = ?').pluck().get(meId) as number | null }
+      : undefined;
+    const memberIds = new Set([...members.values()].filter((id) => id != null));
     /** newest points per category (1-5) of the given players */
-    const latestPoints = (ids: number[]) => {
-      const out = new Map<number, Record<number, number>>();
-      if (!ids.length) return out;
-      const rows = db
-        .prepare(
-          `SELECT ps.player_id, st.type, ps.points, MAX(st.stat_time) AS t FROM player_scores ps JOIN stat_snapshots st ON st.id = ps.snapshot_id
-           WHERE st.group_id = ? AND st.who = 'player' AND st.type BETWEEN 1 AND 5 AND ps.player_id IN (${ids.map(() => '?').join(',')})
-           GROUP BY ps.player_id, st.type`,
-        )
-        .all(ctx.groupId, ...ids) as { player_id: number; type: number; points: number }[];
-      for (const r of rows) out.set(r.player_id, { ...out.get(r.player_id), [r.type]: r.points });
-      return out;
-    };
+    const latestPoints = (ids: number[]) =>
+      new Map(
+        [...latestScores(db, ctx.groupId, ids)].map(([id, scores]) => [id, Object.fromEntries(Object.entries(scores).map(([t, s]) => [t, s.points]))]),
+      );
     const mine = me ? (latestPoints([me.id]).get(me.id) ?? {}) : {};
     const base = { who, type, categories, me: me ? { id: me.id, allyId: me.alliance_id, points: mine } : null };
     if (!snap) return { ...base, statTime: null, prevTime: null, rows: [] };
@@ -88,7 +81,6 @@ export function playersRoutes(app: FastifyInstance, db: DB) {
     const rows = db
       .prepare(
         `SELECT ps.rank, ps.rank_change, ps.points, ps.title, p.id, p.name, p.status, a.id AS ally_id, a.name AS ally_name, a.tag AS ally_tag,
-           EXISTS (SELECT 1 FROM group_members gm WHERE gm.group_id = p.group_id AND gm.ingame_name = p.name COLLATE NOCASE) AS member,
            (SELECT COUNT(*) FROM planets pl WHERE pl.player_id = p.id AND pl.destroyed = 0) AS planet_count,
            (SELECT pl.g || ':' || pl.s || ':' || pl.p FROM planets pl WHERE pl.player_id = p.id AND pl.destroyed = 0 ORDER BY pl.id LIMIT 1) AS first_planet
          FROM player_scores ps JOIN players p ON p.id = ps.player_id LEFT JOIN alliances a ON a.id = p.alliance_id
@@ -108,6 +100,7 @@ export function playersRoutes(app: FastifyInstance, db: DB) {
       rows: rows.map((r) => ({
         ...r,
         status: JSON.parse(r.status || '[]'),
+        member: memberIds.has(r.id) ? 1 : 0,
         own: r.id === me?.id,
         ownAlly: !!me?.alliance_id && r.ally_id === me.alliance_id,
         prev_rank: prev.get(r.id)?.rank ?? null,
@@ -169,7 +162,7 @@ export function playersRoutes(app: FastifyInstance, db: DB) {
     const intel = playerIntel(db, ctx, id, player.name, planets as { g: number; s: number; p: number }[]);
 
     // own total and fleet points for comparison in the chart
-    const ownId = ownPlayerId(db, ctx);
+    const ownId = memberPlayer(db, ctx, ctx.user.id);
     const ownHistory =
       ownId && ownId !== id
         ? db
@@ -196,21 +189,6 @@ export function playersRoutes(app: FastifyInstance, db: DB) {
 
 /** Longest player note in characters. */
 const NOTE_MAX = 5000;
-
-/** Hub player of the current user: owner of their empire planets, otherwise by in-game name. */
-function ownPlayerId(db: DB, ctx: GroupContext): number | null {
-  const coords = ownCoords(db, ctx).get(ctx.user.id);
-  for (const c of coords ?? []) {
-    const [g, s, p] = c.split(':').map(Number);
-    const id = db.prepare('SELECT player_id FROM planets WHERE group_id = ? AND g = ? AND s = ? AND p = ? AND player_id IS NOT NULL').pluck().get(ctx.groupId, g, s, p) as
-      | number
-      | undefined;
-    if (id) return id;
-  }
-  const name = db.prepare('SELECT ingame_name FROM group_members WHERE group_id = ? AND user_id = ?').pluck().get(ctx.groupId, ctx.user.id) as string | null;
-  if (!name) return null;
-  return (db.prepare('SELECT id FROM players WHERE group_id = ? AND name = ? COLLATE NOCASE').pluck().get(ctx.groupId, name) as number | undefined) ?? null;
-}
 
 /**
  * What is known about a player beyond the stats: research levels and phalanx levels of the moons,

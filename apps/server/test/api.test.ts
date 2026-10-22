@@ -699,6 +699,26 @@ describe('review fixes', () => {
     expect(await since()).toBe(400);
   });
 
+  it('finds a member’s player the same way in every view', async () => {
+    const groupX = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', headers: admin, payload: { universe: 'u8', name: 'Members' } })).json().id;
+    const headers = { ...admin, 'x-hub-group': String(groupX) };
+    // no in-game name set: the owner of a planet on the member's empire page is their player
+    const owner = Number(db.prepare("INSERT INTO players (group_id, name) VALUES (?, 'Owner')").run(groupX).lastInsertRowid);
+    db.prepare("INSERT INTO planets (group_id, g, s, p, name, player_id) VALUES (?, 2, 3, 4, 'Home', ?)").run(groupX, owner);
+    const empire = { kind: 'empire', research: {}, planets: [{ name: 'Home', coords: { g: 2, s: 3, p: 4 }, type: 'planet', values: {} }] };
+    db.prepare('INSERT INTO empire_snapshots (group_id, user_id, created_at, data) VALUES (?, 1, ?, ?)').run(groupX, 1000, JSON.stringify(empire));
+    const snap = Number(db.prepare("INSERT INTO stat_snapshots (group_id, who, type, stat_time) VALUES (?, 'player', 1, 2000)").run(groupX).lastInsertRowid);
+    db.prepare('INSERT INTO player_scores (snapshot_id, player_id, rank, points) VALUES (?, ?, 1, 500)').run(snap, owner);
+
+    const stats = (await app.inject({ method: 'GET', url: '/hub/api/u8/stats?who=player&type=1', headers })).json();
+    expect(stats.me).toMatchObject({ id: owner, points: { 1: 500 } });
+    expect(stats.rows[0]).toMatchObject({ name: 'Owner', own: true, member: 1 });
+    const imperium = (await app.inject({ method: 'GET', url: '/hub/api/u8/imperium', headers })).json();
+    expect(imperium.player).toMatchObject({ id: owner, name: 'Owner', stats: { 1: { points: 500, rank: 1, time: 2000 } } });
+    const ov = (await app.inject({ method: 'GET', url: '/hub/api/u8/overview', headers })).json();
+    expect(ov.planets.find((p: any) => p.g === 2 && p.s === 3 && p.p === 4)).toMatchObject({ player_id: owner, own: { time: 1000 } });
+  });
+
   it('keeps the activity log of merged players', async () => {
     const groupX = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', headers: admin, payload: { universe: 'u8', name: 'Merge' } })).json().id;
     const add = (name: string) => Number(db.prepare('INSERT INTO players (group_id, name) VALUES (?, ?)').run(groupX, name).lastInsertRowid);

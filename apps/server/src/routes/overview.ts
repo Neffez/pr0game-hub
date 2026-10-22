@@ -5,6 +5,7 @@ import type { GroupContext } from '../context.js';
 import type { DB } from '../db.js';
 import { SLOT, SLOT_TOLERANCE, SLOTS, statSlots, TOLERANCE, TYPES, WINDOWS } from '../domain/stats.js';
 import { latestEmpires, withMoonTypes } from '../repo/empire.js';
+import { memberPlayers } from '../repo/members.js';
 import { contextOf, groupBy } from './util.js';
 
 export function overviewRoutes(app: FastifyInstance, db: DB) {
@@ -181,16 +182,11 @@ function planetRows(db: DB, ctx: GroupContext) {
   }
 
   // Own alliance: points per planet from the members' latest empire pages (like FF-Hub).
-  const members = new Map(
-    (db
-      .prepare('SELECT m.user_id, m.ingame_name, u.username FROM group_members m JOIN users u ON u.id = m.user_id WHERE m.group_id = ?')
-      .all(ctx.groupId) as { user_id: number; ingame_name: string | null; username: string }[]).map((m) => [m.user_id, m]),
-  );
+  const members = memberPlayers(db, ctx);
   for (const { userId, time, rec } of latestEmpires(db, ctx)) {
-    const m = members.get(userId);
     // former members' pages stay, but they're no longer the own alliance
-    if (!m) continue;
-    const playerId = empirePlayer(db, ctx, rec, [m.ingame_name, m.username]);
+    if (!members.has(userId)) continue;
+    const playerId = members.get(userId) ?? null;
     for (const pl of rec.planets) {
       const row = add(pl.coords.g, pl.coords.s, pl.coords.p, pl.type, pl.name, playerId);
       row.player_id ??= playerId;
@@ -210,21 +206,4 @@ function planetRows(db: DB, ctx: GroupContext) {
     if (row) row.last_battle = b.last;
   }
   return [...rows.values()].filter((r) => r.player_id != null);
-}
-
-/** Hub player of an alliance member: owner of one of their planets (galaxy), otherwise by in-game name / username. */
-function empirePlayer(db: DB, ctx: GroupContext, rec: EmpireRecord, names: (string | null)[]): number | null {
-  for (const p of rec.planets) {
-    const id = db
-      .prepare('SELECT player_id FROM planets WHERE group_id = ? AND g = ? AND s = ? AND p = ? AND player_id IS NOT NULL')
-      .pluck()
-      .get(ctx.groupId, p.coords.g, p.coords.s, p.coords.p) as number | undefined;
-    if (id) return id;
-  }
-  for (const name of names) {
-    if (!name) continue;
-    const id = db.prepare('SELECT id FROM players WHERE group_id = ? AND name = ? COLLATE NOCASE').pluck().get(ctx.groupId, name) as number | undefined;
-    if (id) return id;
-  }
-  return null;
 }

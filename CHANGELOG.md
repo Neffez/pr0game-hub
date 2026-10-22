@@ -4,6 +4,12 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-22
 
+- The own player of an alliance member is found the same way everywhere (own row and alliance in the statistics,
+  imperium, own planets in the overview, comparison in the player details): the owner of a planet on the member's
+  newest empire page, otherwise the player with their in-game name (also a former name), without one their hub
+  username. Before, statistics and imperium only looked at the in-game name.
+  - Developers: `memberPlayers`/`memberPlayer` (`repo/members.ts`) and `latestScores` (`repo/stats.ts`, newest score
+    per player and category) replace four and three separate lookups.
 - Empire live points:
   - The live fleet is anchored on the newest fleet or total statistics update. The total is synced far more often
     than the fleet category; its fleet is the total minus the other points of the first empire page after it. Before,

@@ -4,6 +4,7 @@ import type { GroupContext } from '../context.js';
 import type { DB } from '../db.js';
 import { phalanxRange } from '../domain/phalanx.js';
 import { latestEmpires, ownCoords } from '../repo/empire.js';
+import { latestScores } from '../repo/stats.js';
 import { contextOf, DISPLAY, MEMBER } from './util.js';
 
 export function galaxyRoutes(app: FastifyInstance, db: DB) {
@@ -50,16 +51,20 @@ export function galaxyRoutes(app: FastifyInstance, db: DB) {
       .prepare(
         `SELECT pl.p, pl.name, pl.has_moon, pl.moon_name, pl.destroyed, pl.debris, pl.updated_at,
            p.id AS player_id, p.ingame_id, p.name AS player_name, p.status, p.note, a.id AS ally_id, a.name AS ally_name, a.tag AS ally_tag,
-           (SELECT ps.points FROM player_scores ps JOIN stat_snapshots st ON st.id = ps.snapshot_id
-              WHERE ps.player_id = p.id AND st.type = 1 ORDER BY st.stat_time DESC LIMIT 1) AS points,
-           (SELECT ps.rank FROM player_scores ps JOIN stat_snapshots st ON st.id = ps.snapshot_id
-              WHERE ps.player_id = p.id AND st.type = 1 ORDER BY st.stat_time DESC LIMIT 1) AS rank,
            (SELECT MAX(COALESCE(time, created_at)) FROM battle_reports b WHERE b.group_id = pl.group_id AND b.g = pl.g AND b.s = pl.s AND b.p = pl.p) AS last_battle
          FROM planets pl LEFT JOIN players p ON p.id = pl.player_id LEFT JOIN alliances a ON a.id = p.alliance_id
          WHERE pl.group_id = ? AND pl.g = ? AND pl.s = ? ORDER BY pl.p`,
       )
-      .all(ctx.groupId, g, s)
-      .map((r: any) => ({ ...r, status: r.status ? JSON.parse(r.status) : [], debris: r.debris ? JSON.parse(r.debris) : null }));
+      .all(ctx.groupId, g, s) as any[];
+    // newest total points and rank of the players in the system
+    const scores = latestScores(db, ctx.groupId, [...new Set(rows.map((r) => r.player_id).filter((id) => id != null))], [1]);
+    const system = rows.map((r) => ({
+      ...r,
+      points: scores.get(r.player_id)?.[1]?.points ?? null,
+      rank: scores.get(r.player_id)?.[1]?.rank ?? null,
+      status: r.status ? JSON.parse(r.status) : [],
+      debris: r.debris ? JSON.parse(r.debris) : null,
+    }));
     // planets of alliance members (latest empire pages)
     const own = new Set([...ownCoords(db, ctx).values()].flatMap((set) => [...set]));
 
@@ -80,7 +85,7 @@ export function galaxyRoutes(app: FastifyInstance, db: DB) {
     return {
       view: view ?? null,
       phalanx: phalanxCoverage(db, ctx, g, s),
-      rows: rows.map((r) => ({
+      rows: system.map((r) => ({
         ...r,
         own: own.has(`${g}:${s}:${r.p}`),
         spy_planet: spy.get(`${r.p}:planet`) ?? null,

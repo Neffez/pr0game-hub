@@ -4,6 +4,8 @@ import type { FastifyInstance } from 'fastify';
 import { HttpError } from '../auth.js';
 import type { DB } from '../db.js';
 import { withMoonTypes } from '../repo/empire.js';
+import { memberPlayer } from '../repo/members.js';
+import { latestScores } from '../repo/stats.js';
 import { contextOf, type Q } from './util.js';
 
 export function imperiumRoutes(app: FastifyInstance, db: DB) {
@@ -22,20 +24,11 @@ export function imperiumRoutes(app: FastifyInstance, db: DB) {
     const overview = db
       .prepare('SELECT page_time AS time, data FROM overview_snapshots WHERE group_id = ? AND user_id = ? ORDER BY page_time DESC, id DESC LIMIT 1')
       .get(ctx.groupId, userId) as { time: number; data: string } | undefined;
-    // the member's player (in-game name) and the latest synced statistics per category, for the live points
-    const player = db
-      .prepare(
-        `SELECT p.id, p.name FROM group_members gm JOIN players p ON p.group_id = gm.group_id AND p.name = gm.ingame_name COLLATE NOCASE
-         WHERE gm.group_id = ? AND gm.user_id = ?`,
-      )
-      .get(ctx.groupId, userId) as { id: number; name: string } | undefined;
+    // the member's player and the latest synced statistics per category, for the live points
+    const playerId = memberPlayer(db, ctx, userId);
+    const player = playerId ? (db.prepare('SELECT id, name FROM players WHERE id = ?').get(playerId) as { id: number; name: string }) : undefined;
     const stats = player
-      ? (db
-          .prepare(
-            `SELECT st.type, ps.points, ps.rank, MAX(st.stat_time) AS time FROM player_scores ps JOIN stat_snapshots st ON st.id = ps.snapshot_id
-             WHERE st.group_id = ? AND st.who = 'player' AND st.type BETWEEN 1 AND 5 AND ps.player_id = ? GROUP BY st.type`,
-          )
-          .all(ctx.groupId, player.id) as { type: number; points: number; rank: number; time: number }[])
+      ? Object.entries(latestScores(db, ctx.groupId, [player.id]).get(player.id) ?? {}).map(([type, s]) => ({ type: Number(type), ...s }))
       : [];
     // Fleets in flight are missing on the empire page but count in the statistics: the live fleet is the
     // stats fleet plus the change of the ships on the planets since the first empire page after that update.
