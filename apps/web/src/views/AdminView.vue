@@ -174,6 +174,7 @@ const doMerge = () => run(async () => {
     <template v-if="isAdmin">
       <h2>{{ t('nav.universes') }}</h2>
       <div class="card">
+        <div class="scroll-x">
         <table class="data">
           <tr><th>Slug</th><th>{{ t('common.name') }}</th><th>{{ t('admin.gameUrl') }}</th><th>{{ t('admin.size') }}</th><th>{{ t('admin.timezone') }}</th><th /></tr>
           <tr v-for="u in universes" :key="u.slug">
@@ -185,6 +186,7 @@ const doMerge = () => run(async () => {
             <td><button @click="startEdit(u)">{{ t('admin.edit') }}</button></td>
           </tr>
         </table>
+        </div>
         <form class="row" style="margin-top: 10px" @submit.prevent="createUni">
           <input v-model="newUni.slug" :placeholder="t('admin.slugPlaceholder')" style="width: 120px" />
           <input v-model="newUni.name" :placeholder="t('common.name')" />
@@ -234,6 +236,7 @@ const doMerge = () => run(async () => {
             {{ t('nav.deck') }}
             <Hint>{{ t('admin.deckHint') }}</Hint>
           </h4>
+          <div class="scroll-x">
           <table class="data" style="width: auto">
             <thead><tr><th>{{ t('expeditions.event') }}</th><th>{{ t('admin.cardSize') }}</th><th>{{ t('admin.count') }}</th></tr></thead>
             <tbody>
@@ -245,6 +248,7 @@ const doMerge = () => run(async () => {
             </tbody>
             <tfoot><tr><th colspan="2">{{ t('common.total') }}</th><th>{{ deckTotal }}</th></tr></tfoot>
           </table>
+          </div>
           <button style="margin: 6px 0 12px" @click="resetDeck">{{ t('admin.restoreDeck') }}</button>
           <div>
             <button class="primary" @click="saveUni">{{ t('common.save') }}</button>
@@ -305,6 +309,7 @@ const doMerge = () => run(async () => {
           </select>
           <button class="primary" @click="createInvite">{{ t('admin.createInvite') }}</button>
         </div>
+        <div class="scroll-x">
         <table class="data" style="margin-top: 10px">
           <tr v-for="i in invites" :key="i.token">
             <td class="mono small">
@@ -316,6 +321,7 @@ const doMerge = () => run(async () => {
             <td><button v-if="!i.used_at" @click="deleteInvite(i.token)">{{ t('common.delete') }}</button></td>
           </tr>
         </table>
+        </div>
       </div>
 
       <template v-if="crawler">

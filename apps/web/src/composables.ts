@@ -1,4 +1,4 @@
-import { computed, inject, provide, ref, watch, type InjectionKey, type Ref } from 'vue';
+import { computed, inject, onBeforeUnmount, provide, ref, watch, type InjectionKey, type Ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import type { UniverseSettings } from './format';
 
@@ -95,3 +95,32 @@ export function usePlayerDialog() {
   };
   return { id, open, close };
 }
+
+/** Open overlays (dialog, drawer, sheet) that block page scrolling; the body scrolls again once all are closed. */
+let scrollLocks = 0;
+
+/** No page scrolling behind an overlay while `active` is true. */
+export function useScrollLock(active: Ref<boolean>) {
+  let held = false;
+  const set = (on: boolean) => {
+    if (on === held) return;
+    held = on;
+    scrollLocks += on ? 1 : -1;
+    document.body.style.overflow = scrollLocks > 0 ? 'hidden' : '';
+  };
+  watch(active, set, { immediate: true });
+  onBeforeUnmount(() => set(false));
+}
+
+/** Reactive media query, e.g. the mobile layout breakpoint. */
+export function useMediaQuery(query: string): Ref<boolean> {
+  const mq = window.matchMedia(query);
+  const matches = ref(mq.matches);
+  const update = () => (matches.value = mq.matches);
+  mq.addEventListener('change', update);
+  onBeforeUnmount(() => mq.removeEventListener('change', update));
+  return matches;
+}
+
+/** Same breakpoint as the mobile layout in style.css. */
+export const useMobile = () => useMediaQuery('(max-width: 800px)');

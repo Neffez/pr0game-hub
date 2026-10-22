@@ -63,6 +63,13 @@ const de = {
     admin: 'Admin-Panel',
     user: 'Benutzer',
     allianceName: 'Allianz: {name}',
+    more: 'Mehr',
+    syncShort: 'Sync',
+    menu: 'Menü',
+    closeMenu: 'Menü schließen',
+    quickSync: 'Schnell synchronisieren',
+    openSyncPage: 'Zur Sync-Seite',
+    close: 'Schließen',
   },
   login: {
     submit: 'Anmelden',
@@ -372,6 +379,9 @@ const de = {
     data: 'Daten',
     new: 'neu',
     known: 'bekannt',
+    fromClipboard: 'Aus Zwischenablage einfügen',
+    clipboardEmpty: 'Die Zwischenablage ist leer.',
+    clipboardDenied: 'Kein Zugriff auf die Zwischenablage – bitte ins Textfeld einfügen.',
     /** parser/ingest warning codes */
     warnings: {
       html_no_data: 'HTML enthielt keine erkennbaren Daten, Plaintext wird verwendet.',
@@ -542,6 +552,7 @@ const de = {
     destroyed: 'zerstörter Planet',
     metalShort: 'M',
     crystalShort: 'K',
+    deutShort: 'D',
     phalanxTitle: 'Phalanx-Sicht auf {g}:{s}',
     phalanxHint1: 'Monde mit Sensorphalanx, deren Reichweite dieses System erreicht: (Stufe² − 1) Systeme in beide Richtungen.',
     phalanxHint2: 'Die Stufe stammt aus dem neuesten Mond-Spionagebericht mit sichtbaren Gebäuden oder aus dem Imperium der Allianz-Mitglieder. Monde ohne solche Daten sind unbekannt.',
@@ -550,6 +561,9 @@ const de = {
     showSystem: 'System anzeigen',
     rangeTitle: 'Reichweite ±{range} Systeme, Abstand {distance}',
     range: 'Reichweite {from} – {to}',
+    emptyRange: '{from}–{to} leer',
+    empty: 'leer',
+    swipeHint: 'Wischen: System wechseln',
   },
   admin: {
     title: 'Admin',

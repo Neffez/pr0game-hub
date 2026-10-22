@@ -7,7 +7,7 @@ import { uniApi } from '../api';
 import Hint from '../components/Hint.vue';
 import PlanetActions from '../components/PlanetActions.vue';
 import StatusBadges from '../components/StatusBadges.vue';
-import { useStored, useUni } from '../composables';
+import { useMobile, useStored, useUni } from '../composables';
 import { ago, dateTime, fmt, freshnessColor, name, short, timeWithAge } from '../format';
 import GalaxyFreshness from '../components/GalaxyFreshness.vue';
 
@@ -174,6 +174,60 @@ function rangeSegments(ph: Phalanx) {
   return ph.from <= ph.to ? [seg(ph.from, ph.to)] : [seg(ph.from, n), seg(1, ph.to)];
 }
 const debrisText = (d: Row['debris']) => (d ? `${t('browse.metalShort')} ${d.metal} · ${t('browse.crystalShort')} ${d.crystal}` : '');
+
+/** Mobile: positions as cards instead of the wide table, a step bar at the bottom, swipe to change the system. */
+const mobile = useMobile();
+type MobileItem = { kind: 'row'; p: number; row: Row } | { kind: 'empty'; from: number; to: number };
+/** Occupied positions (and debris/destroyed ones), consecutive empty positions merged into one line. */
+const mobileItems = computed(() => {
+  const out: MobileItem[] = [];
+  for (const { p, row } of positions.value) {
+    if (row && (row.player_id || row.debris || row.destroyed)) out.push({ kind: 'row', p, row });
+    else {
+      const prev = out[out.length - 1];
+      if (prev?.kind === 'empty') prev.to = p;
+      else out.push({ kind: 'empty', from: p, to: p });
+    }
+  }
+  return out;
+});
+const spyRes = (sp: Spy) =>
+  sp.res
+    ? `${t('browse.metalShort')} ${short(sp.res[901] ?? 0)} · ${t('browse.crystalShort')} ${short(sp.res[902] ?? 0)} · ${t('browse.deutShort')} ${short(sp.res[903] ?? 0)}`
+    : '';
+
+let swipe: { x: number; y: number } | null = null;
+function onSwipeStart(e: TouchEvent) {
+  swipe = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+}
+function onSwipeEnd(e: TouchEvent) {
+  if (!swipe) return;
+  const dx = e.changedTouches[0].clientX - swipe.x;
+  const dy = e.changedTouches[0].clientY - swipe.y;
+  swipe = null;
+  // mostly horizontal, so vertical scrolling never changes the system
+  if (Math.abs(dx) > 60 && Math.abs(dx) > 2 * Math.abs(dy)) step(dx < 0 ? 1 : -1);
+}
+
+/** Strip as a scrubber: drag across it (finger or mouse), the system is shown on release. */
+const stripEl = ref<HTMLElement | null>(null);
+const scrub = ref<number | null>(null);
+const scrubCell = computed(() => (scrub.value != null ? stripCells.value[scrub.value - 1] : null));
+function stripSystem(e: PointerEvent) {
+  const r = stripEl.value!.getBoundingClientRect();
+  return clamp(Math.ceil(((e.clientX - r.left) / r.width) * settings.value.systems), settings.value.systems);
+}
+function onStripDown(e: PointerEvent) {
+  stripEl.value!.setPointerCapture(e.pointerId);
+  scrub.value = stripSystem(e);
+}
+function onStripMove(e: PointerEvent) {
+  if (scrub.value != null) scrub.value = stripSystem(e);
+}
+function onStripUp() {
+  if (scrub.value != null) s.value = scrub.value;
+  scrub.value = null;
+}
 </script>
 
 <template>
@@ -187,7 +241,15 @@ const debrisText = (d: Row['debris']) => (d ? `${t('browse.metalShort')} ${d.met
   </h1>
 
   <div class="card">
-    <div class="row">
+    <div v-if="mobile" class="row">
+      <select v-model.number="g" :aria-label="t('nav.galaxy')">
+        <option v-for="n in settings.galaxies" :key="n" :value="n">G{{ n }}</option>
+      </select>
+      <form class="grow" @submit.prevent="goTo">
+        <input v-model="jump" :placeholder="t('browse.jump')" style="width: 100%" />
+      </form>
+    </div>
+    <div v-else class="row">
       <div class="tabs" style="margin: 0">
         <button v-for="n in settings.galaxies" :key="n" :class="{ active: g === n }" @click="g = n">G{{ n }}</button>
       </div>
@@ -204,14 +266,25 @@ const debrisText = (d: Row['debris']) => (d ? `${t('browse.metalShort')} ${d.met
       </form>
     </div>
 
-    <div class="strip" :title="`${t('nav.galaxy')} ${g}`">
+    <div
+      ref="stripEl"
+      class="strip"
+      :title="`${t('nav.galaxy')} ${g}`"
+      @pointerdown="onStripDown"
+      @pointermove="onStripMove"
+      @pointerup="onStripUp"
+      @pointercancel="scrub = null"
+    >
+      <div v-if="scrubCell" class="scrub-bubble small" :style="{ left: `${((scrubCell.s - 0.5) / settings.systems) * 100}%` }">
+        <b class="mono">{{ g }}:{{ scrubCell.s }}</b> · {{ t('browse.planets', { n: scrubCell.planets }) }} ·
+        {{ scrubCell.age == null ? t('browse.neverSeen') : ago(now - scrubCell.age) }}
+      </div>
       <div
         v-for="c in stripCells"
         :key="c.s"
         class="strip-cell"
-        :class="{ current: c.s === s }"
+        :class="{ current: c.s === (scrub ?? s) }"
         :title="`${g}:${c.s} · ${t('browse.planets', { n: c.planets })} · ${c.age == null ? t('browse.neverSeen') : t('browse.seenAgo', { ago: ago(now - c.age) })}${c.own ? ' · ' + t('common.alliance') : ''}`"
-        @click="s = c.s"
       >
         <div class="bar" :style="{ height: `${Math.min(100, 15 + c.planets * 6)}%`, background: freshnessColor(c.age) }" />
         <div v-if="c.own" class="own-dot" />
@@ -231,7 +304,40 @@ const debrisText = (d: Row['debris']) => (d ? `${t('browse.metalShort')} ${d.met
       <span class="grow" />
       <a v-if="gameUrl" class="small" :href="`${gameUrl}game.php?page=galaxy&galaxy=${g}&system=${s}`" target="_blank" rel="noopener">{{ t('combat.openInGame') }}</a>
     </div>
-    <div class="table-wrap" style="max-height: none; border: 0; border-radius: 0">
+    <div v-if="mobile" class="pos-list" @touchstart.passive="onSwipeStart" @touchend="onSwipeEnd">
+      <template v-for="it in mobileItems" :key="it.kind === 'row' ? it.p : `e${it.from}`">
+        <div v-if="it.kind === 'empty'" class="pos-empty faint small">
+          <span class="pos-n mono">{{ it.from }}</span>{{ it.from === it.to ? t('browse.empty') : t('browse.emptyRange', { from: it.from, to: it.to }) }}
+        </div>
+        <div v-else class="pos-card" :class="{ own: it.row.own, dim: it.row.status.includes('vacation') || inactive(it.row) }">
+          <span class="pos-n mono faint">{{ it.p }}</span>
+          <div class="pos-body">
+            <div v-if="it.row.player_id" class="pos-line">
+              <PlayerLink :id="it.row.player_id" :name="it.row.player_name ?? ''" />
+              <StatusBadges :status="it.row.status" />
+              <span v-if="it.row.note" class="faint small" :title="it.row.note">✎</span>
+              <span v-if="it.row.ally_tag ?? it.row.ally_name" class="muted small">[{{ it.row.ally_tag ?? it.row.ally_name }}]</span>
+              <span class="grow" />
+              <span v-if="it.row.points != null" class="mono small">{{ short(it.row.points) }}<span v-if="it.row.rank" class="faint"> #{{ fmt(it.row.rank) }}</span></span>
+            </div>
+            <div class="pos-line">
+              <PlanetActions v-if="it.row.player_id" :g="g" :s="s" :p="it.p" type="planet" :label="it.row.name || t('common.planet')" />
+              <span v-else-if="it.row.destroyed" class="faint small">{{ t('browse.destroyed') }}</span>
+              <PlanetActions v-if="it.row.has_moon" :g="g" :s="s" :p="it.p" type="moon" :label="`☾ ${it.row.moon_name || t('common.moon')}`" />
+              <span v-if="it.row.debris" class="small warn">{{ t('combat.debris') }} {{ debrisText(it.row.debris) }}</span>
+              <span class="grow" />
+              <span v-if="it.row.last_battle" class="small muted" :title="dateTime(it.row.last_battle)">⚔ {{ ago(it.row.last_battle) }}</span>
+            </div>
+            <RouterLink v-for="sp in spies(it.row)" :key="sp.type" class="pos-spy small" :to="spyLink(it.p, sp.type)">
+              <span v-if="sp.type === 'moon'" class="moon-mark">☾</span>
+              <span class="muted">{{ t('browse.lastSpy') }} {{ ago(sp.spy.time) }}</span>
+              <span v-if="sp.spy.res" class="mono"> · {{ spyRes(sp.spy) }}</span>
+            </RouterLink>
+          </div>
+        </div>
+      </template>
+    </div>
+    <div v-else class="table-wrap" style="max-height: none; border: 0; border-radius: 0">
       <table class="data">
         <thead>
           <tr>
@@ -295,7 +401,8 @@ const debrisText = (d: Row['debris']) => (d ? `${t('browse.metalShort')} ${d.met
     </div>
   </div>
 
-  <div v-if="system" class="card phalanx">
+  <component :is="mobile ? 'details' : 'div'" v-if="system" class="card phalanx">
+    <component :is="mobile ? 'summary' : 'div'">
     <h3>
       {{ t('browse.phalanxTitle', { g, s }) }}
       <Hint>
@@ -304,6 +411,7 @@ const debrisText = (d: Row['debris']) => (d ? `${t('browse.metalShort')} ${d.met
       </Hint>
       <span class="muted small" style="font-weight: 400">{{ t('browse.known', { n: system.phalanx.length }) }}</span>
     </h3>
+    </component>
     <p v-if="!system.phalanx.length" class="muted small" style="margin: 0">{{ t('browse.noPhalanx') }}</p>
     <div v-for="ph in system.phalanx" :key="`${ph.s}:${ph.p}`" class="ph-row" :class="{ own: ph.own }">
       <div class="ph-who">
@@ -324,9 +432,22 @@ const debrisText = (d: Row['debris']) => (d ? `${t('browse.metalShort')} ${d.met
         {{ t('player.sourceAgo', { source: ph.source === 'spy' ? t('player.sourceSpy') : t('player.sourceEmpire'), ago: ago(ph.time) }) }}
       </span>
     </div>
-  </div>
+  </component>
 
   <GalaxyFreshness :current="{ g, s }" @select="showSystem" />
+
+  <template v-if="mobile">
+    <div class="stepper-space" />
+    <div class="stepper">
+      <button :aria-label="t('browse.back10')" @click="step(-10)">«</button>
+      <button :aria-label="t('browse.prev')" @click="step(-1)">‹</button>
+      <label class="mono">
+        {{ g }}:<input v-model.number="s" type="number" inputmode="numeric" min="1" :max="settings.systems" @change="s = clamp(s, settings.systems)" />
+      </label>
+      <button :aria-label="t('browse.next')" @click="step(1)">›</button>
+      <button :aria-label="t('browse.forward10')" @click="step(10)">»</button>
+    </div>
+  </template>
 </template>
 
 <style scoped>
@@ -341,7 +462,11 @@ const debrisText = (d: Row['debris']) => (d ? `${t('browse.metalShort')} ${d.met
 @media (max-width: 900px) {
   .ph-row { grid-template-columns: 1fr 1fr; }
 }
-.strip { display: flex; align-items: flex-end; gap: 0; height: 46px; margin-top: 12px; cursor: pointer; }
+.strip { position: relative; display: flex; align-items: flex-end; gap: 0; height: 46px; margin-top: 12px; cursor: pointer; touch-action: none; user-select: none; }
+.scrub-bubble {
+  position: absolute; bottom: calc(100% + 6px); transform: translateX(-50%); z-index: 5; padding: 4px 8px; white-space: nowrap; pointer-events: none;
+  background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: 6px; box-shadow: 0 4px 14px rgba(0, 0, 0, .4);
+}
 .strip-cell { position: relative; flex: 1; height: 100%; display: flex; align-items: flex-end; border-radius: 2px; }
 .strip-cell:hover { background: var(--surface-2); }
 .strip-cell.current { background: var(--accent-soft); outline: 1px solid var(--accent); }
@@ -352,4 +477,29 @@ tr.own td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
 tr.empty td { color: var(--faint); }
 .spy-line { display: block; line-height: 1.5; }
 .moon-mark { color: var(--info); margin-right: 4px; }
+
+/* mobile position cards */
+.pos-list { touch-action: pan-y; }
+.pos-card { display: flex; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+.pos-card.own { box-shadow: inset 3px 0 0 var(--accent); }
+.pos-card.dim .pos-body { opacity: .55; }
+.pos-empty { display: flex; gap: 10px; padding: 6px 12px; border-bottom: 1px solid var(--border); }
+.pos-n { width: 20px; flex-shrink: 0; text-align: right; }
+.pos-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.pos-line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+.pos-spy { display: block; color: var(--text); }
+.phalanx summary { list-style: none; cursor: pointer; }
+.phalanx summary::-webkit-details-marker { display: none; }
+.phalanx summary h3::before { content: '▸'; color: var(--faint); }
+.phalanx[open] summary h3::before { content: '▾'; }
+details.phalanx:not([open]) h3 { margin: 0; }
+/* step bar above the tab bar */
+.stepper-space { height: 56px; }
+.stepper {
+  position: fixed; left: 0; right: 0; bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom)); z-index: 25;
+  display: flex; align-items: center; justify-content: center; gap: 8px; padding: 8px 12px;
+  background: var(--surface); border-top: 1px solid var(--border);
+}
+.stepper button { min-width: 48px; min-height: 40px; font-size: 18px; }
+.stepper input { width: 72px; text-align: center; }
 </style>

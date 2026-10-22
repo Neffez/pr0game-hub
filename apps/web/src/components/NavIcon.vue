@@ -60,6 +60,8 @@ const ICONS: Record<string, string[]> = {
     'M4 12h2', 'M10 12h10', 'M10 12a2 2 0 1 1-4 0a2 2 0 1 1 4 0',
     'M4 18h10', 'M18 18h2', 'M18 18a2 2 0 1 1-4 0a2 2 0 1 1 4 0',
   ],
+  // three lines (menu)
+  menu: ['M4 6h16', 'M4 12h16', 'M4 18h16'],
   // person
   user: ['M16 8a4 4 0 1 1-8 0a4 4 0 1 1 8 0', 'M4.5 21a7.5 7.5 0 0 1 15 0'],
 };

@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import NavIcon from '../components/NavIcon.vue';
 import PlayerDialog from '../components/PlayerDialog.vue';
-import { computed, ref, watch } from 'vue';
+import SyncSheet from '../components/SyncSheet.vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import { selectGroup, selectedGroup, session, uniApi } from '../api';
-import { provideUni, type UniContext } from '../composables';
+import { provideUni, useScrollLock, type UniContext } from '../composables';
 
 const { t } = useI18n();
 const route = useRoute();
@@ -29,6 +30,7 @@ async function load() {
 }
 
 function changeGroup() {
+  navOpen.value = false;
   if (group.value) selectGroup(uni.value, group.value);
   ctx.value = null;
   reloadKey.value++;
@@ -59,12 +61,61 @@ const links = [
   { to: 'expeditions', label: 'expeditions', icon: 'expeditions' },
   { to: 'deck', label: 'deck', icon: 'deck' },
 ];
+
+/** Mobile: sidebar as flyout drawer ("More" in the tab bar), sync as bottom sheet. */
+const navOpen = ref(false);
+const syncOpen = ref(false);
+useScrollLock(navOpen);
+watch(() => route.path, () => {
+  navOpen.value = false;
+  syncOpen.value = false;
+});
+function onKey(e: KeyboardEvent) {
+  if (navOpen.value && e.key === 'Escape') navOpen.value = false;
+}
+onMounted(() => window.addEventListener('keydown', onKey));
+onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
+
+/** Swipe the open drawer to the left to close it. */
+let touchX: number | null = null;
+function onTouchEnd(e: TouchEvent) {
+  if (touchX != null && touchX - e.changedTouches[0].clientX > 60) navOpen.value = false;
+  touchX = null;
+}
+
+/** Page title in the mobile top bar. */
+const pageTitle = computed(() => {
+  const page = route.path.split('/')[2];
+  const l = links.find((x) => x.to === page);
+  return l ? t(`nav.${l.label}`) : (ctx.value?.universe.name ?? uni.value);
+});
+
+/** Bottom tab bar: frequent pages around the sync button in the middle. */
+const tabs = [
+  { to: 'overview', label: 'overview', icon: 'overview' },
+  { to: 'browse', label: 'galaxy', icon: 'galaxy' },
+  { to: 'spy', label: 'spy', icon: 'spy' },
+];
 </script>
 
 <template>
   <div class="layout">
-    <aside class="sidebar">
-      <div class="brand">pr0game <span>Hub</span></div>
+    <header class="topbar">
+      <span class="brand">pr0game <span>Hub</span></span>
+      <span class="topbar-title">{{ pageTitle }}</span>
+    </header>
+    <div v-if="navOpen" class="nav-backdrop" @click="navOpen = false" />
+    <aside
+      id="sidebar"
+      class="sidebar"
+      :class="{ open: navOpen }"
+      @touchstart.passive="touchX = $event.touches[0].clientX"
+      @touchend="onTouchEnd"
+    >
+      <div class="brand">
+        pr0game <span>Hub</span>
+        <button class="nav-close" :title="t('nav.closeMenu')" :aria-label="t('nav.closeMenu')" @click="navOpen = false">✕</button>
+      </div>
       <div class="section">{{ ctx?.universe.name ?? uni }}</div>
       <select v-if="groups.length > 1" v-model="group" @change="changeGroup">
         <option v-for="g in groups" :key="g.id" :value="g.id">{{ g.name }}</option>
@@ -86,7 +137,18 @@ const links = [
       <template v-else-if="ctx">
         <RouterView :key="reloadKey" />
         <PlayerDialog />
+        <SyncSheet v-model="syncOpen" />
       </template>
     </main>
+    <nav class="tabbar" :aria-label="t('nav.menu')">
+      <RouterLink v-for="tb in tabs.slice(0, 2)" :key="tb.to" :to="`/${uni}/${tb.to}`"><NavIcon :name="tb.icon" />{{ t(`nav.${tb.label}`) }}</RouterLink>
+      <button class="tab-sync" :class="{ active: syncOpen }" :aria-label="t('nav.quickSync')" @click="syncOpen = !syncOpen">
+        <span class="sync-dot"><NavIcon name="sync" /></span>{{ t('nav.syncShort') }}
+      </button>
+      <RouterLink v-for="tb in tabs.slice(2)" :key="tb.to" :to="`/${uni}/${tb.to}`"><NavIcon :name="tb.icon" />{{ t(`nav.${tb.label}`) }}</RouterLink>
+      <button :class="{ active: navOpen }" aria-controls="sidebar" :aria-expanded="navOpen" @click="navOpen = !navOpen">
+        <NavIcon name="menu" />{{ t('nav.more') }}
+      </button>
+    </nav>
   </div>
 </template>

@@ -96,11 +96,72 @@ table.data tr.dim td { opacity: .55; }
 .center-box { max-width: 380px; margin: 12vh auto; }
 .center-box input { width: 100%; margin: 4px 0 10px; }
 
+/* Mobile chrome (top bar, bottom tab bar, drawer close button): hidden on desktop */
+.topbar, .tabbar, .nav-close, .nav-backdrop { display: none; }
+:root { --topbar-h: 0px; --tabbar-h: 0px; }
+
 @media (max-width: 800px) {
+  :root { --topbar-h: 48px; --tabbar-h: 58px; }
   .layout { flex-direction: column; }
-  .sidebar { width: 100%; height: auto; position: static; }
-  .sidebar nav { display: flex; flex-wrap: wrap; gap: 2px; }
-  .main { padding: 12px 16px 40px; }
+  .main { padding: 12px 12px calc(var(--tabbar-h) + 28px + env(safe-area-inset-bottom)); }
+  h1 { font-size: 18px; }
+
+  .topbar {
+    display: flex; align-items: center; gap: 12px; position: sticky; top: 0; z-index: 20;
+    height: calc(var(--topbar-h) + env(safe-area-inset-top)); padding: env(safe-area-inset-top) 12px 0;
+    background: var(--surface); border-bottom: 1px solid var(--border);
+  }
+  .topbar .brand { font-weight: 700; white-space: nowrap; }
+  .topbar .brand span { color: var(--accent); }
+  .topbar-title { flex: 1; min-width: 0; text-align: right; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* sidebar becomes a flyout drawer from the left */
+  .sidebar {
+    position: fixed; inset: 0 auto 0 0; z-index: 36; width: min(290px, 86vw); height: 100dvh;
+    padding: calc(14px + env(safe-area-inset-top)) 10px calc(14px + env(safe-area-inset-bottom));
+    transform: translateX(-100%); transition: transform .2s ease, visibility 0s .2s; overscroll-behavior: contain; visibility: hidden;
+  }
+  .sidebar.open { transform: none; visibility: visible; transition: transform .2s ease; box-shadow: 8px 0 30px rgba(0, 0, 0, .5); }
+  .sidebar .brand { display: flex; align-items: center; }
+  .nav-close { display: block; margin-left: auto; padding: 4px 11px; }
+  .sidebar nav a { padding: 11px 12px; }
+  .nav-backdrop { display: block; position: fixed; inset: 0; z-index: 35; background: rgba(0, 0, 0, .55); }
+
+  .tabbar {
+    display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 30;
+    height: calc(var(--tabbar-h) + env(safe-area-inset-bottom)); padding-bottom: env(safe-area-inset-bottom);
+    background: var(--surface); border-top: 1px solid var(--border);
+  }
+  .tabbar > a, .tabbar > button {
+    flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+    padding: 0; border: 0; border-radius: 0; background: none; color: var(--muted); font-size: 11px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .tabbar > a:hover { text-decoration: none; }
+  .tabbar .nav-icon { width: 22px; height: 22px; }
+  .tabbar > a.router-link-active, .tabbar > button.active { color: var(--accent); }
+  .tabbar .sync-dot {
+    display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; margin-top: -18px;
+    border-radius: 50%; background: var(--accent); color: #fff; box-shadow: 0 4px 14px rgba(242, 104, 60, .4);
+  }
+  .tabbar .sync-dot .nav-icon { width: 24px; height: 24px; }
+  .tabbar .tab-sync { color: var(--text); }
+
+  /* touch targets; 16px inputs keep iOS from zooming in on focus */
+  input, select, textarea { font-size: 16px; }
+  button { min-height: 34px; }
+
+  /* tables scroll with the page instead of in a nested 75vh box */
+  .table-wrap { max-height: none; }
+
+  /* tabs scroll horizontally instead of squeezing */
+  .tabs { overflow-x: auto; flex-wrap: nowrap; scrollbar-width: none; max-width: 100%; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tabs button { flex-shrink: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar { transition: none; }
 }
 
 .hint {
@@ -123,3 +184,12 @@ table.data tr.dim td { opacity: .55; }
 /* Moon rows (share the coordinates of their planet) */
 table.data tr.moon td { background: color-mix(in srgb, var(--info) 7%, transparent); }
 .moon-tag { display: inline-block; padding: 0 5px; margin-right: 4px; border-radius: 4px; font-size: 11px; font-weight: 600; color: var(--info); background: color-mix(in srgb, var(--info) 15%, transparent); }
+
+/* Touch: tooltip as a sheet above the tab bar instead of hanging off the screen edge */
+@media (hover: none) and (max-width: 800px) {
+  .hint-body {
+    position: fixed; top: auto; left: 12px; right: 12px; bottom: calc(var(--tabbar-h) + 12px + env(safe-area-inset-bottom));
+    max-width: none; width: auto; z-index: 60; font-size: 13px;
+  }
+}
+.scroll-x { overflow-x: auto; }

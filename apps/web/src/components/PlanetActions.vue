@@ -97,4 +97,9 @@ onBeforeUnmount(close);
 .actions-menu a { display: block; padding: 6px 10px; border-radius: 6px; color: var(--text); font-size: 13px; }
 .actions-menu a:hover { background: var(--accent-soft); text-decoration: none; }
 .hint-text { display: block; font-size: 11px; color: var(--muted); }
+@media (max-width: 800px) {
+  .actions-btn { padding: 4px 10px; }
+  .actions-menu { min-width: min(240px, calc(100vw - 16px)); }
+  .actions-menu a { padding: 11px 12px; font-size: 14px; }
+}
 </style>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { usePlayerDialog, useUni } from '../composables';
+import { usePlayerDialog, useScrollLock, useUni } from '../composables';
 import PlayerDetail from './PlayerDetail.vue';
 
 /** Player details as a dialog above the current page (opened by PlayerLink). */
@@ -15,8 +15,7 @@ function onKey(e: KeyboardEvent) {
 onMounted(() => window.addEventListener('keydown', onKey));
 onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 // no page scrolling behind the dialog
-watch(id, (v) => (document.body.style.overflow = v != null ? 'hidden' : ''), { immediate: true });
-onBeforeUnmount(() => (document.body.style.overflow = ''));
+useScrollLock(computed(() => id.value != null));
 </script>
 
 <template>
@@ -47,6 +46,10 @@ onBeforeUnmount(() => (document.body.style.overflow = ''));
 .modal :deep(h1) { padding-right: 170px; }
 @media (max-width: 600px) {
   .modal-backdrop { padding: 0; }
-  .modal { min-height: 100%; border-radius: 0; border: 0; }
+  .modal { min-height: 100%; border-radius: 0; border: 0; padding: 12px 12px 24px; padding-top: max(12px, env(safe-area-inset-top)); }
+  /* tools in their own row above the title instead of overlapping it */
+  .modal-tools { position: static; justify-content: flex-end; margin-bottom: 8px; }
+  .modal :deep(h1) { padding-right: 0; }
+  .modal-close { padding: 6px 12px; }
 }
 </style>
