@@ -381,6 +381,8 @@ const en: typeof de = {
     known: 'known',
     fromClipboard: 'Paste from clipboard',
     clipboardEmpty: 'The clipboard is empty.',
+    nextFromClipboard: 'Next: paste from clipboard',
+    next: 'Paste next page',
     clipboardDenied: 'No clipboard access – please paste into the text field.',
     warnings: {
       html_no_data: 'The HTML contained no recognizable data, using the plain text.',

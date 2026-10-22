@@ -15,7 +15,7 @@ interface Summary {
   preview: ({ kind: string } & Record<string, any>)[];
 }
 
-/** Paste a game page and save it (sync page; `compact` = quick sync sheet on mobile, with clipboard button). */
+/** Paste a game page and save it (sync page; `compact` = quick sync sheet on mobile, with clipboard button and series mode). */
 defineProps<{ compact?: boolean }>();
 
 const { t, te } = useI18n();
@@ -149,10 +149,16 @@ function onInput() {
   html.value = null;
   preview.value = null;
 }
+
+/** Series mode (sheet): straight on to the next page after saving. */
+function next() {
+  clear();
+  if (canReadClipboard) pasteClipboard();
+}
 </script>
 
 <template>
-  <div class="card">
+  <div v-if="!(compact && saved)" class="card">
     <button v-if="compact && canReadClipboard" class="primary paste-btn" :disabled="busy" @click="pasteClipboard">{{ t('paste.fromClipboard') }}</button>
     <textarea
       v-model="text"
@@ -202,9 +208,13 @@ function onInput() {
         <td class="num">{{ c.duplicate }}</td>
       </tr>
     </table>
+    <div v-if="compact" class="row" style="margin-top: 12px">
+      <button class="primary grow next-btn" @click="next">{{ canReadClipboard ? t('paste.nextFromClipboard') : t('paste.next') }}</button>
+    </div>
   </div>
 </template>
 
 <style scoped>
 .paste-btn { width: 100%; padding: 12px; margin-bottom: 8px; font-size: 16px; }
+.next-btn { padding: 12px; font-size: 16px; }
 </style>

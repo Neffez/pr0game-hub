@@ -382,6 +382,8 @@ const de = {
     known: 'bekannt',
     fromClipboard: 'Aus Zwischenablage einfügen',
     clipboardEmpty: 'Die Zwischenablage ist leer.',
+    nextFromClipboard: 'Weiter: Seite aus Zwischenablage',
+    next: 'Nächste Seite einfügen',
     clipboardDenied: 'Kein Zugriff auf die Zwischenablage – bitte ins Textfeld einfügen.',
     /** parser/ingest warning codes */
     warnings: {
