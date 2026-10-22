@@ -4,6 +4,7 @@ import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
 import { useUni } from '../composables';
+import { tables, useLiveReload } from '../live';
 import { ago, dateTime, freshnessColor } from '../format';
 
 /** Heat map of when each system was last synced (bottom of the galaxy page); a click shows the system. */
@@ -15,20 +16,23 @@ const views = ref<{ g: number; s: number; seen_at: number; username: string | nu
 /** systems per heatmap row */
 const PER_ROW = 50;
 
-onMounted(async () => {
+const now = ref(Math.floor(Date.now() / 1000));
+async function load() {
   try {
     views.value = await uniApi(uni.value, '/galaxy-views');
+    now.value = Math.floor(Date.now() / 1000);
   } catch {
     /* only a heat map: the page shows the error of its own data */
   }
-});
+}
+onMounted(load);
+useLiveReload(load, tables('galaxy_systems'));
 
 const map = computed(() => new Map(views.value.map((v) => [`${v.g}:${v.s}`, v])));
 const settings = computed(() => ctx.value!.universe.settings);
 
 const color = freshnessColor;
 
-const now = Math.floor(Date.now() / 1000);
 const rows = computed(() => {
   const out: { g: number; start: number; cells: { s: number; v: any; age: number | null }[] }[] = [];
   for (let g = 1; g <= settings.value.galaxies; g++) {
@@ -36,7 +40,7 @@ const rows = computed(() => {
       const cells = [];
       for (let s = start; s < start + PER_ROW && s <= settings.value.systems; s++) {
         const v = map.value.get(`${g}:${s}`);
-        cells.push({ s, v, age: v ? now - v.seen_at : null });
+        cells.push({ s, v, age: v ? now.value - v.seen_at : null });
       }
       out.push({ g, start, cells });
     }
@@ -46,7 +50,7 @@ const rows = computed(() => {
 
 const stats = computed(() => {
   const total = settings.value.galaxies * settings.value.systems;
-  const day = views.value.filter((v) => now - v.seen_at < 86400).length;
+  const day = views.value.filter((v) => now.value - v.seen_at < 86400).length;
   return { total, seen: views.value.length, day };
 });
 </script>

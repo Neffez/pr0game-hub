@@ -1,4 +1,4 @@
-import { computed, inject, nextTick, onBeforeUnmount, provide, ref, watch, type Directive, type InjectionKey, type Ref } from 'vue';
+import { computed, inject, nextTick, onBeforeUnmount, provide, ref, watch, type Directive, type InjectionKey, type Ref, type WatchSource } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import type { UniverseSettings } from './format';
 
@@ -59,15 +59,16 @@ export function useSort<T>(rows: Ref<T[]>, get: (row: T, key: string) => unknown
 /**
  * Renders a long list in steps: the first `step` items, the next ones when the `sentinel` element (placed after the
  * list) comes near the visible area: the scroll box of a `.table-wrap` around it, otherwise the window. Starts over
- * when the list changes (sorting, filters), so these only cost the rendered rows.
+ * when the list changes (sorting, filters), so these only cost the rendered rows. With `resetOn` only when that
+ * changes: a list reloaded with live data keeps the rows shown and the scroll position.
  */
-export function useProgressive<T>(list: Ref<T[]>, step = 150) {
+export function useProgressive<T>(list: Ref<T[]>, step = 150, resetOn?: WatchSource) {
   const count = ref(step);
   const shown = computed(() => list.value.slice(0, count.value));
   const more = computed(() => count.value < list.value.length);
   const sentinel = ref<HTMLElement | null>(null);
   let box: Element | null = null;
-  watch(list, () => {
+  watch(resetOn ?? list, () => {
     count.value = step;
     // a table scrolled down would load the next rows right away; the new order starts at the top anyway
     if (box) box.scrollTop = 0;

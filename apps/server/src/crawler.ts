@@ -1,6 +1,7 @@
 import { parsePage, type CombatReportRecord } from '@pr0hub/core';
 import { config } from './config.js';
 import type { DB } from './db.js';
+import { events } from './events.js';
 import { storeCombatReport } from './store.js';
 
 type Log = { info: (o: object, m: string) => void; warn: (o: object, m: string) => void };
@@ -109,9 +110,8 @@ export async function step(db: DB, log: Log, fetcher = fetch): Promise<'done' | 
   const parsed = parsePage({ html, url }).records[0] as CombatReportRecord | undefined;
   if (parsed?.kind === 'combatReport') {
     // the hall time is the local game time; the public page shows UTC
-    db.transaction(() => {
-      for (const h of halls) storeCombatReport(db, h.group_id, parsed, h.time);
-    })();
+    const stored = db.transaction(() => halls.filter((h) => storeCombatReport(db, h.group_id, parsed, h.time)))();
+    for (const h of stored) events.publish(h.group_id, { type: 'data', tables: ['combat_reports'] });
     log.info({ report: job.report_id }, 'battle report archived');
     return done();
   }

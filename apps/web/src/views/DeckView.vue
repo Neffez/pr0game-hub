@@ -4,6 +4,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
 import { useLoader, useUni, vStack } from '../composables';
+import { tables, useLiveReload } from '../live';
 import { cardLabel, dateTime, DEPLETION_LABEL, fmt, fmtCount } from '../format';
 
 const { t } = useI18n();
@@ -26,6 +27,8 @@ async function load() {
   initialDrawn.value = { ...s.initialDrawn };
 }
 onMounted(load);
+// new expeditions: the drawn cards change, the settings being edited stay
+useLiveReload(fetchDeck, tables('expeditions'));
 watch(userId, load);
 
 async function save() {

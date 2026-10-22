@@ -4,6 +4,19 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-22
 
+- Live updates: data a member syncs appears in the open hub tabs of the alliance without F5. The server pushes a short
+  "what changed" event per group (Server-Sent Events, `GET /api/:uni/events`); the pages load their data again,
+  debounced, and a hidden tab only once it is shown again.
+  - Galaxy browser: only when the shown system or galaxy was synced; overview, statistics, player details, spy
+    history, activity, raids, expeditions, deck, hostile spying, battle hall, empire and alliance pages when their
+    data changed. Lists keep their scroll position, a player note being typed and the deck settings stay.
+  - A hint shows who synced what (e.g. "X synced: galaxy 3:120, 4 spy reports"), linked to the page; it can be turned
+    off in the account settings.
+  - All tabs of a browser share one connection. Events never carry game data, every member loads it through the
+    normal group-scoped endpoints; logged out or removed members' streams end at the next heartbeat.
+  - Developers: `events.ts` (server, `EventBus`), `live.ts` (web, `useLive`/`useLiveReload`); `useProgressive` takes
+    an optional `resetOn` source.
+
 - Developers: the web app has unit tests (`apps/web/test`, Vitest in Node with a minimal `document`/`localStorage`
   stand-in): number and date formatting per language, `useSort`, `useLoader` (only the newest answer applies),
   `useProgressive` and the alliance fallback of `selectedGroup`.

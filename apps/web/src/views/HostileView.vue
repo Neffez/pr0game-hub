@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
 import RangePicker from '../components/RangePicker.vue';
 import { useLoader, useStored, useUni, vStack } from '../composables';
+import { tables, useLiveReload } from '../live';
 import { ago, coords, dateTime } from '../format';
 
 const { t } = useI18n();
@@ -13,6 +14,7 @@ const days = useStored('hostile.days', 7);
 
 const { data, error, load } = useLoader<any>(() => uniApi(uni.value, `/hostile?from=${Math.floor(Date.now() / 1000) - days.value * 86400}`));
 onMounted(load);
+useLiveReload(load, tables('hostile_spying'));
 watch(days, load);
 </script>
 

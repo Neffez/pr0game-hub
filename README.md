@@ -19,6 +19,8 @@ External analysis tool for [pr0game](https://codeberg.org/pr0game/pr0game) based
 - **Alliance**: planets, fleets and research of all members
 - **Raids** (incl. recycling), **expeditions**, **expedition deck** (card counting), **battle hall** archive
 - **Admin**: universes (size, distance factors, fleet speed, time zone, deck), groups, invite links, ingest log with reparse, player merge
+- **Live**: what a member syncs shows up in the open hub tabs of the alliance without reloading, with a short hint
+  who synced what (can be turned off in the account settings)
 - German and English UI, per user; mobile layout with a bottom tab bar and quick sync from the clipboard
 
 Player IDs, alliance IDs and rank changes are only available in HTML/page source. With plain text, players are matched by name.
@@ -96,6 +98,10 @@ Changes are recorded in [CHANGELOG.md](CHANGELOG.md). Contributions are welcome,
 ## Deployment
 
 Docker image (`Dockerfile`, port 3000, volume `/data`), configured with the environment variables above.
+
+Live updates use Server-Sent Events (`GET /hub/api/:uni/events`): a reverse proxy in front of the hub must not buffer
+that response (the hub sends `X-Accel-Buffering: no` for nginx) and should allow idle connections longer than the
+25 s heartbeat.
 
 CI (`.github/workflows/ci.yml`): typecheck, tests and build on every push and pull request. After green tests on `main` it can
 send a `repository_dispatch` to a deployment repository (secrets `DISPATCH_REPO` = `owner/name` and `DISPATCH_TOKEN` = a token

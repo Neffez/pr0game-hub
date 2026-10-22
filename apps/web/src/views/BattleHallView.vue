@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
 import Hint from '../components/Hint.vue';
 import { useLoader, useStored, useUni, vStack } from '../composables';
+import { tables, useLiveReload } from '../live';
 import { dateTime, fmt, short } from '../format';
 
 /** Archive of the game's battle hall (the game itself only lists the top 100). */
@@ -30,6 +31,7 @@ const { data, error, load } = useLoader(() => {
   return uniApi<{ total: number; page: number; pages: number; entries: Entry[] }>(uni.value, `/battle-hall?${params}`);
 });
 onMounted(load);
+useLiveReload(load, tables('battle_hall', 'combat_reports'));
 watch(page, load);
 watch(sort, () => (page.value === 1 ? load() : (page.value = 1)));
 let timer: ReturnType<typeof setTimeout> | undefined;

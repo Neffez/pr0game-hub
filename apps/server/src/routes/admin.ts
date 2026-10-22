@@ -4,6 +4,7 @@ import { config, UNIVERSE_DEFAULTS } from '../config.js';
 import { toUniverse } from '../context.js';
 import { now, type DB } from '../db.js';
 import { crawlerState, resumeCrawler } from '../crawler.js';
+import { events } from '../events.js';
 import { backfillActivity, reparse } from '../ingest.js';
 
 /**
@@ -210,6 +211,7 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
       db.prepare('UPDATE players SET ingame_id = COALESCE(ingame_id, ?), first_seen = MIN(first_seen, ?) WHERE id = ?').run(src.ingame_id, src.first_seen, into);
       db.prepare('DELETE FROM players WHERE id = ?').run(from);
     })();
+    events.publish(groupId, { type: 'data', tables: ['players'] });
     return { ok: true };
   });
 
@@ -270,7 +272,9 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
       | undefined;
     if (!row) throw new HttpError(404, 'not_found', 'Not found');
     const tz = JSON.parse(row.settings).timezone ?? UNIVERSE_DEFAULTS.timezone;
-    return { added: backfillActivity(db, groupId, tz) };
+    const added = backfillActivity(db, groupId, tz);
+    if (added) events.publish(groupId, { type: 'data', tables: ['activity_log'] });
+    return { added };
   });
 }
 

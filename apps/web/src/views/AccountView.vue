@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import { api, loadMe, session } from '../api';
 import { currentLang, LANGS, setLocale, type Lang } from '../i18n';
+import { liveHints } from '../live';
 
 const { t } = useI18n();
 /** opened inside a universe: the sidebar stays, no back link */
@@ -57,6 +58,8 @@ const saveLang = () =>
       <option v-for="l in LANGS" :key="l" :value="l">{{ t(`languages.${l}`) }}</option>
     </select>
     <p class="muted small">{{ t('account.languageHint') }}</p>
+    <h2>{{ t('account.hints') }}</h2>
+    <label><input v-model="liveHints" type="checkbox" /> {{ t('account.liveHints') }}</label>
     <h2>{{ t('common.username') }}</h2>
     <form @submit.prevent="saveUsername">
       <label>{{ t('account.newUsername') }}</label>

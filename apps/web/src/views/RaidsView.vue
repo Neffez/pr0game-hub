@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
 import RangePicker from '../components/RangePicker.vue';
 import { useLoader, useStored, useUni, vStack } from '../composables';
+import { tables, useLiveReload } from '../live';
 import { coords, dateTime, fmt, name, short } from '../format';
 
 const { t, te } = useI18n();
@@ -15,6 +16,7 @@ const member = useStored<number | null>('raids.member', null);
 
 const { data, error, load } = useLoader<any>(() => uniApi(uni.value, `/raids?from=${Math.floor(Date.now() / 1000) - days.value * 86400}`));
 onMounted(load);
+useLiveReload(load, tables('battle_reports', 'recycle_reports'));
 watch(days, load);
 
 const total = (u: any) => u.metal + u.crystal + u.deuterium;

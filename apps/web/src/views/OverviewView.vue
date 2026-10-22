@@ -8,6 +8,7 @@ import { uniApi } from '../api';
 import PlanetActions from '../components/PlanetActions.vue';
 import StatusBadges from '../components/StatusBadges.vue';
 import { useMobile, useProgressive, useSort, useStored, useUni } from '../composables';
+import { tables, useLiveReload } from '../live';
 import { ago, dateTime, distance, fmt, fmtSigned, name, short, STATS_SHORT, STATS_TYPES } from '../format';
 import { intlLocale } from '../i18n';
 
@@ -136,6 +137,8 @@ async function load() {
   }
 }
 onMounted(load);
+// the heaviest page: waits a little longer for further syncs
+useLiveReload(load, tables('player_scores', 'alliance_scores', 'galaxy_systems', 'spy_reports', 'players'), 3000);
 
 const inactive = (p: Player) => p.status.includes('inactive') || p.status.includes('longinactive');
 const delta = (p: Player, type: number, w = win.value) => p.scores[type]?.deltas[w];
@@ -270,8 +273,14 @@ const playerSort = useSort(
 );
 
 /** Long lists render in steps while scrolling (sorting and filtering then only touch the rendered rows). */
-const { shown: planetsShown, more: planetsMore, sentinel: planetSentinel } = useProgressive(planetSort.sorted);
-const { shown: playersShown, more: playersMore, sentinel: playerSentinel } = useProgressive(playerSort.sorted);
+// start over when sorting or filters change, not when live data arrives
+const listState = () => [mode.value, win.value, JSON.stringify(filter.value)];
+const { shown: planetsShown, more: planetsMore, sentinel: planetSentinel } = useProgressive(planetSort.sorted, 150, () => [
+  planetSort.key.value, planetSort.descending.value, ...listState(),
+]);
+const { shown: playersShown, more: playersMore, sentinel: playerSentinel } = useProgressive(playerSort.sorted, 150, () => [
+  playerSort.key.value, playerSort.descending.value, ...listState(),
+]);
 
 /** Delta colour: intensity relative to the player's points; partial deltas (too little history) are italic. */
 function deltaStyle(points: number | undefined, d: Delta | undefined) {

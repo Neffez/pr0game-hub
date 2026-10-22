@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import LiveToasts from '../components/LiveToasts.vue';
 import NavIcon from '../components/NavIcon.vue';
 import PlayerDialog from '../components/PlayerDialog.vue';
 import SyncSheet from '../components/SyncSheet.vue';
@@ -7,6 +8,7 @@ import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import { selectGroup, selectedGroup, session, uniApi } from '../api';
 import { provideUni, useLoader, useScrollLock, type UniContext } from '../composables';
+import { startLive, stopLive, tables, useLiveReload } from '../live';
 
 const { t } = useI18n();
 const route = useRoute();
@@ -20,8 +22,12 @@ provideUni(ctx);
 
 function load() {
   group.value = selectedGroup(uni.value);
+  startLive(uni.value, group.value);
   return fetchContext();
 }
+onBeforeUnmount(stopLive);
+// own research and planets for flight times come from the own empire page
+useLiveReload(fetchContext, (e) => tables('empire')(e) && e.userId === ctx.value?.me.id);
 
 function changeGroup() {
   navOpen.value = false;
@@ -132,6 +138,7 @@ const tabs = [
         <RouterView :key="reloadKey" />
         <PlayerDialog />
         <SyncSheet v-model="syncOpen" />
+        <LiveToasts />
       </template>
     </main>
     <nav class="tabbar" :aria-label="t('nav.menu')">

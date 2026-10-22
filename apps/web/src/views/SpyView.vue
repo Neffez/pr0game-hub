@@ -7,6 +7,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { uniApi } from '../api';
 import SpyHistory, { type SpyReport } from '../components/SpyHistory.vue';
 import { useLoader, useMobile, useUni } from '../composables';
+import { tables, useLiveReload } from '../live';
 import { coords, fmt, name, short, timeWithAge } from '../format';
 
 const { t } = useI18n();
@@ -34,14 +35,21 @@ function open(r: any) {
   load();
 }
 
-onMounted(async () => {
-  if (target.value) load();
+async function loadRecent() {
   try {
     recent.value = await uniApi(uni.value, '/spy-reports?limit=50');
   } catch (e) {
     error.value = (e as Error).message;
   }
+}
+onMounted(() => {
+  if (target.value) load();
+  loadRecent();
 });
+useLiveReload(() => {
+  if (target.value) load();
+  loadRecent();
+}, tables('spy_reports'));
 watch([type, limit], load);
 
 const res = (r: any, id: number) => r.sections['900']?.[id] ?? 0;

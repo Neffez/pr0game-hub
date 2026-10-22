@@ -6,6 +6,7 @@ import { computed, onMounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
 import { useLoader, useStored, useUni, vStack } from '../composables';
+import { tables, useLiveReload } from '../live';
 import { dateTime, fmt, fmtSigned, short, STATS_CATEGORIES, STATS_TYPES } from '../format';
 
 interface Category { who: string; type: number; stat_time: number; pages: number[] }
@@ -47,6 +48,7 @@ const who = useStored<'player' | 'alliance'>('stats.who', 'player');
 const type = useStored('stats.type', 1);
 const { data, error, load } = useLoader(() => uniApi<Stats>(uni.value, `/stats?who=${who.value}&type=${type.value}`));
 onMounted(load);
+useLiveReload(load, tables('player_scores', 'alliance_scores', 'players'));
 watch([who, type], load);
 
 // ------------------------------------------------------------ sync overview

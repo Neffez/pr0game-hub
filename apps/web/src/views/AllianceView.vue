@@ -6,6 +6,7 @@ import { useRoute } from 'vue-router';
 import { uniApi } from '../api';
 import Hint from '../components/Hint.vue';
 import { useMobile, useSort, useUni } from '../composables';
+import { tables, useLiveReload } from '../live';
 import { abbr, ago, dateTime, fmt, name, scaleColor } from '../format';
 
 /** Alliance pages from the members' empire pages: planets (buildings), fleets and research, like FF-Hub. */
@@ -40,13 +41,15 @@ const members = ref<Member[]>([]);
 const error = ref('');
 const fleetTab = ref<'ships' | 'defense'>('ships');
 
-onMounted(async () => {
+async function load() {
   try {
     members.value = await uniApi(uni.value, '/alliance');
   } catch (e) {
     error.value = (e as Error).message;
   }
-});
+}
+onMounted(load);
+useLiveReload(load, tables('empire'));
 
 const withData = computed(() => members.value.filter((m) => m.data));
 const missing = computed(() => members.value.filter((m) => !m.data));

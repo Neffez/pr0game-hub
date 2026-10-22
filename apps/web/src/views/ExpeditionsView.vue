@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
 import RangePicker from '../components/RangePicker.vue';
 import { useLoader, useStored, useUni, vStack } from '../composables';
+import { tables, useLiveReload } from '../live';
 import { CRYSTAL, DEUTERIUM, elementPoints, METAL } from '@pr0hub/core/tech';
 import { cardLabel, coords, dateTime, DEPLETION_LABEL, fmt, name, short } from '../format';
 
@@ -17,6 +18,7 @@ const member = useStored<number | null>('expos.member', null);
 
 const { data, error, load } = useLoader<any>(() => uniApi(uni.value, `/expeditions?from=${Math.floor(Date.now() / 1000) - days.value * 86400}`));
 onMounted(load);
+useLiveReload(load, tables('expeditions'));
 watch(days, load);
 
 const keys = computed(() => Object.keys(data.value?.expected ?? {}));

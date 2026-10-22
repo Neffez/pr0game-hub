@@ -7,6 +7,7 @@ import PlayerLink from '../components/PlayerLink.vue';
 import RangePicker from '../components/RangePicker.vue';
 import StatusBadges from '../components/StatusBadges.vue';
 import { useLoader, useStored, useUni } from '../composables';
+import { tables, useLiveReload } from '../live';
 import { coords, dateTime, fmt, fmtSigned, name, short } from '../format';
 import { intlLocale } from '../i18n';
 
@@ -54,6 +55,7 @@ const { data, error, load } = useLoader(() =>
   uniApi<{ counts: Record<string, number>; entries: Entry[] }>(uni.value, `/activity?from=${Math.floor(Date.now() / 1000) - days.value * 86400}`),
 );
 onMounted(load);
+useLiveReload(load, tables('activity_log', 'player_scores', 'spy_reports', 'galaxy_systems'));
 watch(days, load);
 
 function toggle(kind: string) {

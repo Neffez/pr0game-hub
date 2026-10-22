@@ -9,6 +9,7 @@ import Hint from '../components/Hint.vue';
 import PlanetActions from '../components/PlanetActions.vue';
 import StatusBadges from '../components/StatusBadges.vue';
 import { useLoader, useMobile, useStored, useUni } from '../composables';
+import { tables, useLiveReload, type DataEvent } from '../live';
 import { ago, dateTime, fmt, freshnessColor, name, short, timeWithAge } from '../format';
 import GalaxyFreshness from '../components/GalaxyFreshness.vue';
 
@@ -88,6 +89,16 @@ onMounted(() => {
 });
 watch([g, s], loadSystem);
 watch(g, loadStrip);
+/** A live event synced galaxy `gal` (system `sys`); events without a list of systems may have synced anything. */
+function syncedIn(e: DataEvent, gal: number, sys?: number) {
+  if (!tables('galaxy_systems')(e)) return false;
+  return !e.systems || e.systems.some((x) => {
+    const [eg, es] = x.split(':').map(Number);
+    return eg === gal && (sys == null || es === sys);
+  });
+}
+useLiveReload(fetchSystem, (e) => syncedIn(e, g.value, s.value) || tables('spy_reports', 'players', 'empire')(e));
+useLiveReload(loadStrip, (e) => syncedIn(e, g.value));
 
 /** Step through systems/galaxies, wrapping around like circular universes do. */
 function step(ds: number, dg = 0) {

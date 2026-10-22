@@ -6,6 +6,7 @@ import { uniApi } from '../api';
 import PlanetActions from '../components/PlanetActions.vue';
 import StatusBadges from '../components/StatusBadges.vue';
 import { useLoader, useUni, vStack } from '../composables';
+import { tables, useLiveReload } from '../live';
 import { ago, coords, dateTime, fmt, freshnessColor, name, phalanxRange, STATS_TYPES } from '../format';
 import { intlLocale } from '../i18n';
 
@@ -114,6 +115,13 @@ const latest = computed(() => {
 
 onMounted(load);
 watch(() => props.id, load);
+// live data: chart and lists again, a note being typed stays
+useLiveReload(async () => {
+  const d = await fetchPlayer();
+  if (!d) return;
+  await nextTick();
+  draw();
+}, tables('player_scores', 'spy_reports', 'galaxy_systems', 'battle_reports', 'players'));
 // legend, axis titles and dates are drawn into the canvas
 watch(locale, draw);
 onBeforeUnmount(() => chart?.destroy());

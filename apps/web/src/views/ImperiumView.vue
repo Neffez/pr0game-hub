@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
 import Hint from '../components/Hint.vue';
 import { useLoader, useMobile, useStored, useUni } from '../composables';
+import { tables, useLiveReload } from '../live';
 import { abbr, ago, dateTime, fmt, fmtSigned, name, short, STATS_TYPES } from '../format';
 
 /**
@@ -79,6 +80,7 @@ onMounted(() => {
 });
 onBeforeUnmount(() => clearInterval(timer));
 watch(userId, load);
+useLiveReload(load, tables('empire', 'overview', 'player_scores'));
 
 const empire = computed(() => data.value?.empire ?? null);
 const overview = computed(() => data.value?.overview ?? null);

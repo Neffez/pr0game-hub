@@ -2,6 +2,7 @@ import { parsePage, type HubRecord, type ParseInput, type ParseResult, type SpyR
 import { gunzipSync, gzipSync } from 'node:zlib';
 import { config } from './config.js';
 import { now, type DB } from './db.js';
+import { events } from './events.js';
 import { Store } from './store.js';
 
 export interface IngestTarget {
@@ -61,6 +62,8 @@ export function ingest(
       JSON.stringify({ counts: summary.counts, warnings: summary.warnings }),
     );
   })();
+  const systems = parsed.records.flatMap((r) => (r.kind === 'galaxy' ? [`${r.g}:${r.s}`] : []));
+  events.publishIngest(target.groupId, target.userId, summary.counts, systems);
   return summary;
 }
 
@@ -85,6 +88,7 @@ export function reparse(db: DB, rawId: number, timezone: string): IngestSummary 
   if (!userId) throw new Error('group has no members');
   const store = new Store(db, { groupId: row.group_id, userId, timezone }, summary);
   db.transaction(() => parsed.records.forEach((r) => store.record(r)))();
+  events.publishIngest(row.group_id, undefined, summary.counts, null);
   return summary;
 }
 
