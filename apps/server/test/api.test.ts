@@ -255,7 +255,7 @@ describe('api', () => {
 
   it('archives battle reports with the background worker', async () => {
     const headers = { ...admin, 'x-hub-group': String(groupA) };
-    const { step } = await import('../src/crawler.js');
+    const { step, crawlerState } = await import('../src/crawler.js');
     const log = { info: () => {}, warn: () => {} };
     await app.inject({ method: 'PUT', url: '/hub/api/admin/universes/u8', headers: admin, payload: { settings: { gameUrl: 'https://pr0game.com/uni8/' } } });
     const urls: string[] = [];
@@ -268,7 +268,13 @@ describe('api', () => {
     const down = (async () => { throw new Error('ECONNREFUSED'); }) as unknown as typeof fetch;
     const maintenance = (async () => ({ ok: true, text: async () => '<title>Wartung</title>' })) as unknown as typeof fetch;
     expect(await step(db, log, down)).toBe('transient');
+    // the universe is paused now and skipped; other universes would keep going
+    expect(crawlerState.get(1)).toMatchObject({ failures: 1, lastError: 'ECONNREFUSED', stopped: false });
+    expect(await step(db, log, fetcher)).toBe('idle');
+    crawlerState.clear();
     expect(await step(db, log, maintenance)).toBe('transient');
+    expect(crawlerState.get(1)?.lastError).toBe('no report page (maintenance?)');
+    crawlerState.clear();
     expect(db.prepare("SELECT MAX(report_tries) FROM battle_hall WHERE group_id = ?").pluck().get(groupA)).toBe(0);
 
     expect(await step(db, log, fetcher)).toBe('done');

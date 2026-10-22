@@ -328,17 +328,16 @@ const doMerge = () => run(async () => {
       <template v-if="crawler">
         <h2>{{ t('admin.crawler') }} <Hint>{{ t('admin.crawlerHint') }}</Hint></h2>
         <div class="card row">
-          <span :class="{ warn: crawler.stopped || crawler.nextAttempt > Date.now() }">
-            {{
-              !crawler.enabled ? t('admin.crawlerOff')
-              : crawler.stopped ? t('admin.crawlerStopped', { time: dateTime(crawler.failingSince / 1000), error: crawler.lastError })
-              : crawler.nextAttempt > Date.now() ? t('admin.crawlerPaused', { time: dateTime(crawler.nextAttempt / 1000), error: crawler.lastError })
-              : t('admin.crawlerRunning')
-            }}
-          </span>
+          <span>{{ crawler.enabled ? t('admin.crawlerRunning') : t('admin.crawlerOff') }}</span>
           <span class="muted small">{{ t('admin.crawlerState', { archived: crawler.archived ?? 0, pending: crawler.pending ?? 0, failed: crawler.failed ?? 0, gone: crawler.gone ?? 0 }) }}</span>
           <span class="grow" />
           <button @click="retryCrawler">{{ t('admin.crawlerRetry') }}</button>
+        </div>
+        <div v-for="u in crawler.universes.filter((u: any) => u.stopped || u.nextAttempt > Date.now())" :key="u.universe" class="card warn small">
+          {{
+            u.stopped ? t('admin.crawlerStopped', { universe: u.universe, time: dateTime(u.failingSince / 1000), error: u.lastError })
+            : t('admin.crawlerPaused', { universe: u.universe, time: dateTime(u.nextAttempt / 1000), error: u.lastError })
+          }}
         </div>
       </template>
 

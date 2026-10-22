@@ -4,6 +4,8 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-22
 
+- The battle report archive pauses per universe: a universe whose game is unreachable (e.g. maintenance) no longer
+  blocks the others. The admin page lists each paused or stopped universe with its error.
 - The remaining wide tables become cards on mobile: statistics, battle hall, raids, expeditions, expedition deck,
   hostile activity, the planets in the player details and the admin tables. Each row shows its title (e.g. player or
   time and target) and below it "label … value" pairs in two columns.

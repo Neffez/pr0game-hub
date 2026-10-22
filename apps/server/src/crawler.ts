@@ -9,23 +9,32 @@ type Log = { info: (o: object, m: string) => void; warn: (o: object, m: string) 
 const BACKOFF_MIN = [1, 2, 5, 15, 30, 60];
 const MAX_TRIES = 3;
 
+type UniverseState = { failures: number; failingSince: number; nextAttempt: number; stopped: boolean; lastError: string };
+
 /**
- * Worker state (in memory, a restart resumes): while the game is unreachable the worker pauses
- * with growing delays instead of spending the reports' tries, and stops after
- * config.crawler.giveUpHours. The admin "retry" resumes it.
+ * Worker state per universe (in memory, a restart resumes): while a universe's game is unreachable
+ * the worker pauses it with growing delays instead of spending the reports' tries, and stops it after
+ * config.crawler.giveUpHours; the other universes keep going. The admin "retry" resumes all.
  */
-export const crawlerState = {
-  failures: 0,
-  failingSince: null as number | null,
-  nextAttempt: 0,
-  stopped: false,
-  lastError: null as string | null,
-};
+export const crawlerState = new Map<number, UniverseState>();
 
 export function resumeCrawler(db: DB) {
-  Object.assign(crawlerState, { failures: 0, failingSince: null, nextAttempt: 0, stopped: false, lastError: null });
+  crawlerState.clear();
   // failed reports get new tries; deleted ones ("gone") stay deleted
   return db.prepare('UPDATE battle_hall SET report_tries = 0 WHERE report_status IS NULL AND report_tries >= ?').run(MAX_TRIES).changes;
+}
+
+function pause(universe: number, reason: string, log: Log) {
+  const now = Date.now();
+  const s = crawlerState.get(universe) ?? { failures: 0, failingSince: now, nextAttempt: 0, stopped: false, lastError: '' };
+  s.nextAttempt = now + BACKOFF_MIN[Math.min(s.failures, BACKOFF_MIN.length - 1)] * 60_000;
+  s.failures++;
+  s.lastError = reason;
+  if (now - s.failingSince > config.crawler.giveUpHours * 3600_000) {
+    s.stopped = true;
+    log.warn({ universe, since: new Date(s.failingSince).toISOString() }, 'battle report crawler stopped for universe: game unreachable');
+  }
+  crawlerState.set(universe, s);
 }
 
 /**
@@ -36,22 +45,10 @@ export function startCrawler(db: DB, log: Log) {
   if (!config.crawler.enabled) return () => {};
   let busy = false;
   const timer = setInterval(async () => {
-    if (busy || crawlerState.stopped || Date.now() < crawlerState.nextAttempt) return;
+    if (busy) return;
     busy = true;
     try {
-      const result = await step(db, log);
-      if (result === 'transient') {
-        const now = Date.now();
-        crawlerState.failingSince ??= now;
-        crawlerState.nextAttempt = now + BACKOFF_MIN[Math.min(crawlerState.failures, BACKOFF_MIN.length - 1)] * 60_000;
-        crawlerState.failures++;
-        if (now - crawlerState.failingSince > config.crawler.giveUpHours * 3600_000) {
-          crawlerState.stopped = true;
-          log.warn({ since: new Date(crawlerState.failingSince).toISOString() }, 'battle report crawler stopped: game unreachable');
-        }
-      } else {
-        Object.assign(crawlerState, { failures: 0, failingSince: null, nextAttempt: 0, lastError: null });
-      }
+      await step(db, log);
     } finally {
       busy = false;
     }
@@ -59,20 +56,26 @@ export function startCrawler(db: DB, log: Log) {
   return () => clearInterval(timer);
 }
 
-/** One report: 'done' (archived/deleted/failed attempt), 'idle' (nothing to do) or 'transient' (game unreachable). */
+/**
+ * One report: 'done' (archived/deleted/failed attempt), 'idle' (nothing to do) or 'transient'
+ * (game unreachable, its universe is paused).
+ */
 export async function step(db: DB, log: Log, fetcher = fetch): Promise<'done' | 'idle' | 'transient'> {
   // newest first: small reports of today are the ones the game deletes soonest;
-  // universes without game URL are skipped until it is set
+  // universes without game URL are skipped until it is set, paused ones until their next attempt
+  const now = Date.now();
+  const paused = [...crawlerState].filter(([, s]) => s.stopped || s.nextAttempt > now).map(([id]) => id);
   const job = db
     .prepare(
-      `SELECT h.group_id, h.report_id, h.time, u.settings FROM battle_hall h
+      `SELECT h.group_id, h.report_id, h.time, u.id AS universe, u.settings FROM battle_hall h
        JOIN groups g ON g.id = h.group_id JOIN universes u ON u.id = g.universe_id
        WHERE (h.report_status IS NULL OR h.report_status = 'no_game_url') AND h.report_tries < ?
          AND COALESCE(json_extract(u.settings, '$.gameUrl'), '') != ''
+         AND u.id NOT IN (SELECT value FROM json_each(?))
          AND NOT EXISTS (SELECT 1 FROM combat_reports c WHERE c.group_id = h.group_id AND c.report_id = h.report_id)
        ORDER BY h.time DESC LIMIT 1`,
     )
-    .get(MAX_TRIES) as { group_id: number; report_id: string; time: number | null; settings: string } | undefined;
+    .get(MAX_TRIES, JSON.stringify(paused)) as { group_id: number; report_id: string; time: number | null; universe: number; settings: string } | undefined;
   if (!job) return 'idle';
   const gameUrl = String(JSON.parse(job.settings).gameUrl).replace(/\/?$/, '/');
   const mark = (status: string | null) =>
@@ -81,8 +84,8 @@ export async function step(db: DB, log: Log, fetcher = fetch): Promise<'done' | 
       .run(status, job.group_id, job.report_id);
   const url = `${gameUrl}game.php?page=raport&raport=${job.report_id}`;
   const transient = (reason: string) => {
-    crawlerState.lastError = reason;
-    log.warn({ report: job.report_id, reason }, 'battle report fetch failed, pausing');
+    pause(job.universe, reason, log);
+    log.warn({ universe: job.universe, report: job.report_id, reason }, 'battle report fetch failed, pausing universe');
     return 'transient' as const;
   };
   let html: string;
@@ -93,21 +96,23 @@ export async function step(db: DB, log: Log, fetcher = fetch): Promise<'done' | 
   } catch (e) {
     return transient((e as Error).message);
   }
+  // the game answered with a report page: its universe is reachable again
+  const done = () => (crawlerState.delete(job.universe), 'done' as const);
   const parsed = parsePage({ html, url }).records[0] as CombatReportRecord | undefined;
   if (parsed?.kind === 'combatReport') {
     // the hall time is the local game time; the public page shows UTC
     storeCombatReport(db, job.group_id, parsed, job.time);
     log.info({ report: job.report_id }, 'battle report archived');
-    return 'done';
+    return done();
   }
   if (/Invalid Battle Report ID|Ungültige Kampfbericht ID/i.test(html)) {
     mark('gone');
-    return 'done';
+    return done();
   }
   // a report page that can't be read costs a try; anything else (maintenance page, login, …) pauses
   if (/<title>[^<]*(report|Kampfbericht)/i.test(html)) {
     mark(null);
-    return 'done';
+    return done();
   }
   return transient('no report page (maintenance?)');
 }

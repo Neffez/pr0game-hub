@@ -231,7 +231,9 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
          FROM battle_hall`,
       )
       .get();
-    return { enabled: config.crawler.enabled, ...crawlerState, ...(counts as object) };
+    const name = db.prepare('SELECT name FROM universes WHERE id = ?').pluck();
+    const universes = [...crawlerState].map(([id, s]) => ({ universe: name.get(id) ?? String(id), ...s }));
+    return { enabled: config.crawler.enabled, universes, ...(counts as object) };
   });
 
   app.post('/api/admin/crawler/retry', async (req) => {
