@@ -1,8 +1,9 @@
 import type { FastifyInstance } from 'fastify';
 import { checkUsername, HttpError, randomToken, requireAdmin, requireUser } from '../auth.js';
-import { UNIVERSE_DEFAULTS } from '../config.js';
+import { config, UNIVERSE_DEFAULTS } from '../config.js';
 import { toUniverse } from '../context.js';
 import { now, type DB } from '../db.js';
+import { crawlerState, resumeCrawler } from '../crawler.js';
 import { backfillActivity, reparse } from '../ingest.js';
 
 /**
@@ -214,6 +215,28 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
       )
       .all(groupId)
       .map((r: any) => ({ ...r, summary: r.summary ? JSON.parse(r.summary) : null }));
+  });
+
+  // ------------------------------------------------- battle report crawler
+
+  app.get('/api/admin/crawler', async (req) => {
+    requireAdmin(req);
+    const counts = db
+      .prepare(
+        `SELECT
+           SUM(CASE WHEN report_status = 'archived' THEN 1 ELSE 0 END) AS archived,
+           SUM(CASE WHEN report_status = 'gone' THEN 1 ELSE 0 END) AS gone,
+           SUM(CASE WHEN (report_status IS NULL OR report_status = 'no_game_url') AND report_tries < 3 THEN 1 ELSE 0 END) AS pending,
+           SUM(CASE WHEN report_status IS NULL AND report_tries >= 3 THEN 1 ELSE 0 END) AS failed
+         FROM battle_hall`,
+      )
+      .get();
+    return { enabled: config.crawler.enabled, ...crawlerState, ...(counts as object) };
+  });
+
+  app.post('/api/admin/crawler/retry', async (req) => {
+    requireAdmin(req);
+    return { reset: resumeCrawler(db) };
   });
 
   app.post<{ Params: { id: string } }>('/api/admin/ingests/:id/reparse', async (req) => {

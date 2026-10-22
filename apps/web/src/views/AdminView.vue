@@ -141,6 +141,18 @@ const reparse = (id: number) => run(async () => {
   const res = await api(`/admin/ingests/${id}/reparse`, { body: {} });
   msg.value = 'Reparse: ' + JSON.stringify(res.counts);
 });
+/** battle report crawler status (global admins) */
+const crawler = ref<any>(null);
+const loadCrawler = async () => {
+  if (isAdmin.value) crawler.value = await api('/admin/crawler');
+};
+onMounted(() => run(loadCrawler));
+const retryCrawler = () =>
+  run(async () => {
+    const res = await api('/admin/crawler/retry', { body: {} });
+    await loadCrawler();
+    msg.value = t('admin.crawlerRetried', { n: res.reset });
+  });
 const backfill = () =>
   run(async () => {
     const res = await api(`/admin/groups/${groupId.value}/activity/backfill`, { body: {} });
@@ -305,6 +317,23 @@ const doMerge = () => run(async () => {
           </tr>
         </table>
       </div>
+
+      <template v-if="crawler">
+        <h2>{{ t('admin.crawler') }} <Hint>{{ t('admin.crawlerHint') }}</Hint></h2>
+        <div class="card row">
+          <span :class="{ warn: crawler.stopped || crawler.nextAttempt > Date.now() }">
+            {{
+              !crawler.enabled ? t('admin.crawlerOff')
+              : crawler.stopped ? t('admin.crawlerStopped', { time: dateTime(crawler.failingSince / 1000), error: crawler.lastError })
+              : crawler.nextAttempt > Date.now() ? t('admin.crawlerPaused', { time: dateTime(crawler.nextAttempt / 1000), error: crawler.lastError })
+              : t('admin.crawlerRunning')
+            }}
+          </span>
+          <span class="muted small">{{ t('admin.crawlerState', { archived: crawler.archived ?? 0, pending: crawler.pending ?? 0, failed: crawler.failed ?? 0, gone: crawler.gone ?? 0 }) }}</span>
+          <span class="grow" />
+          <button @click="retryCrawler">{{ t('admin.crawlerRetry') }}</button>
+        </div>
+      </template>
 
       <h2>
         {{ t('admin.backfill') }}

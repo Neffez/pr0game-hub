@@ -260,13 +260,20 @@ describe('api', () => {
     const urls: string[] = [];
     const fetcher = (async (url: string) => {
       urls.push(url);
-      return { text: async () => (url.includes('93a44dd0') ? fixture('raport-public.html') : 'Invalid Battle Report ID') };
+      return { ok: true, text: async () => (url.includes('93a44dd0') ? fixture('raport-public.html') : 'Invalid Battle Report ID') };
     }) as unknown as typeof fetch;
     // newest hall entry first (20 Oct), then the others are already deleted in the game
-    expect(await step(db, log, fetcher)).toBe(true);
+    // game unreachable / maintenance page: pause without spending the report's tries
+    const down = (async () => { throw new Error('ECONNREFUSED'); }) as unknown as typeof fetch;
+    const maintenance = (async () => ({ ok: true, text: async () => '<title>Wartung</title>' })) as unknown as typeof fetch;
+    expect(await step(db, log, down)).toBe('transient');
+    expect(await step(db, log, maintenance)).toBe('transient');
+    expect(db.prepare("SELECT MAX(report_tries) FROM battle_hall WHERE group_id = ?").pluck().get(groupA)).toBe(0);
+
+    expect(await step(db, log, fetcher)).toBe('done');
     expect(urls[0]).toBe('https://pr0game.com/uni8/game.php?page=raport&raport=93a44dd012ff05992739d1afd749df1d');
     for (let i = 0; i < 3; i++) await step(db, log, fetcher);
-    expect(await step(db, log, fetcher)).toBe(false);
+    expect(await step(db, log, fetcher)).toBe('idle');
 
     const report = (await app.inject({ method: 'GET', url: '/hub/api/u8/combat-reports/93a44dd012ff05992739d1afd749df1d', headers })).json();
     expect(report).toMatchObject({ winner: 'attacker', lost_attacker: 3280000, debris_metal: 3560500, units: 25541000 });

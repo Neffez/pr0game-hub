@@ -21,6 +21,8 @@ export const config = {
   crawler: {
     enabled: (env.CRAWLER_ENABLED ?? 'true') !== 'false',
     intervalMs: Number(env.CRAWLER_INTERVAL_MS ?? 5000),
+    // stop after the game was unreachable this long (resume with the admin button)
+    giveUpHours: Number(env.CRAWLER_GIVE_UP_HOURS ?? 6),
   },
 };
 
