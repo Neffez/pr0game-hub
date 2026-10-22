@@ -22,3 +22,18 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
+
+  # Deployment lives in a private repository: after green tests on main it gets a
+  # repository_dispatch (target repo and token are secrets, so forks skip this).
+  notify:
+    needs: test
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger deployment
+        env:
+          GH_TOKEN: ${{ secrets.DISPATCH_TOKEN }}
+          REPO: ${{ secrets.DISPATCH_REPO }}
+        run: |
+          if [ -z "$REPO" ] || [ -z "$GH_TOKEN" ]; then echo "No deployment target configured."; exit 0; fi
+          gh api "repos/$REPO/dispatches" -f event_type=pr0game-hub -f "client_payload[sha]=$GITHUB_SHA"

@@ -60,4 +60,6 @@ Erster Start: Mit dem Bootstrap-Admin anmelden und unter **Admin** ein Universum
 
 Docker-Image (`Dockerfile`, Port 3000, Volume `/data`), konfiguriert über die Umgebungsvariablen oben.
 
-CI (`.github/workflows/ci.yml`): Typecheck, Tests und Build bei jedem Push und Pull Request.
+CI (`.github/workflows/ci.yml`): Typecheck, Tests und Build bei jedem Push und Pull Request. Nach grünen Tests auf `main`
+bekommt optional ein Deployment-Repo einen `repository_dispatch` (Secrets `DISPATCH_REPO` = `owner/name` und
+`DISPATCH_TOKEN` = Token mit Schreibrecht auf dessen Inhalte); ohne die Secrets entfällt der Schritt.
