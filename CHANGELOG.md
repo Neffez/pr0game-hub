@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-22
 
+- Overview: clearing the points or point delta filter now really turns it off. A cleared number field was kept as an
+  empty string, counted as 0 and (being stored) kept hiding players after a reload, e.g. everyone without a delta.
+
 - Presence: the sidebar lists the alliance members who have the hub open, with the page, galaxy system or player
   they are looking at (linked) and a dot for active/in the background; the others below with "last online". The
   galaxy browser and the player page show "👁 name" when another member looks at the same system or player.

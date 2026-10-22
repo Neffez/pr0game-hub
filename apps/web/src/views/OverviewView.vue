@@ -148,8 +148,14 @@ const origin = computed<[number, number, number] | null>(() => {
   return m ? [Number(m[1]), Number(m[2]), Number(m[3])] : null;
 });
 
+/** A cleared number input leaves '' (v-model.number), which must not count as a bound. */
+const bound = (v: number | string | null) => (typeof v === 'number' && !Number.isNaN(v) ? v : null);
+
 function playerMatches(p: Player) {
   const f = filter.value;
+  const minPoints = bound(f.minPoints);
+  const maxPoints = bound(f.maxPoints);
+  const minDelta = bound(f.minDelta);
   const text = f.text.trim().toLowerCase();
   const ally = f.ally.trim().toLowerCase();
   if (text && !p.name.toLowerCase().includes(text) && !p.aliases.some((a) => a.toLowerCase().includes(text))) return false;
@@ -158,9 +164,9 @@ function playerMatches(p: Player) {
   if (f.onlyInactive && !inactive(p)) return false;
   if (f.hideVacation && p.status.includes('vacation')) return false;
   const total = p.scores[1]?.points ?? 0;
-  if (f.minPoints != null && total < f.minPoints) return false;
-  if (f.maxPoints != null && total > f.maxPoints) return false;
-  if (f.minDelta != null && (delta(p, f.deltaType)?.delta ?? -Infinity) < f.minDelta) return false;
+  if (minPoints != null && total < minPoints) return false;
+  if (maxPoints != null && total > maxPoints) return false;
+  if (minDelta != null && (delta(p, f.deltaType)?.delta ?? -Infinity) < minDelta) return false;
   return true;
 }
 
