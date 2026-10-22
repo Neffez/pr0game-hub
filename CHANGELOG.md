@@ -4,6 +4,12 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-22
 
+- Overview: the planet and player lists render 150 rows at first and the next ones while scrolling (no pages, the
+  row count stays the full one). Opening, sorting and filtering large lists only cost the rendered rows; sorting or
+  filtering starts the table at the top again. On mobile the browser also skips layout and painting of cards out of
+  sight.
+  - Developers: `useProgressive(list)` (`composables.ts`) returns the rendered part and a sentinel ref for the end of
+    the list.
 - Admin and user settings open inside the universe from its sidebar (`/<uni>/admin`, `/<uni>/account`): the menu stays,
   there is no back link, and the admin page preselects the universe's current alliance. From the start page they
   still open as standalone pages.

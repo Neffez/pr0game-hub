@@ -1,4 +1,4 @@
-import { computed, inject, onBeforeUnmount, provide, ref, watch, type Directive, type InjectionKey, type Ref } from 'vue';
+import { computed, inject, nextTick, onBeforeUnmount, provide, ref, watch, type Directive, type InjectionKey, type Ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import type { UniverseSettings } from './format';
 
@@ -54,6 +54,43 @@ export function useSort<T>(rows: Ref<T[]>, get: (row: T, key: string) => unknown
   };
   const indicator = (k: string) => (key.value === k ? (descending.value ? ' ▾' : ' ▴') : '');
   return { sorted, sortBy, indicator, key, descending };
+}
+
+/**
+ * Renders a long list in steps: the first `step` items, the next ones when the `sentinel` element (placed after the
+ * list) comes near the visible area: the scroll box of a `.table-wrap` around it, otherwise the window. Starts over
+ * when the list changes (sorting, filters), so these only cost the rendered rows.
+ */
+export function useProgressive<T>(list: Ref<T[]>, step = 150) {
+  const count = ref(step);
+  const shown = computed(() => list.value.slice(0, count.value));
+  const more = computed(() => count.value < list.value.length);
+  const sentinel = ref<HTMLElement | null>(null);
+  let box: Element | null = null;
+  watch(list, () => {
+    count.value = step;
+    // a table scrolled down would load the next rows right away; the new order starts at the top anyway
+    if (box) box.scrollTop = 0;
+  });
+  watch(sentinel, (el, _, onCleanup) => {
+    if (!el) return;
+    box = el.closest('.table-wrap');
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((e) => e.isIntersecting)) return;
+        count.value += step;
+        // still in sight after rendering (tall screen, fast scrolling): observing again reports it once more
+        nextTick(() => {
+          observer.unobserve(el);
+          observer.observe(el);
+        });
+      },
+      { root: box, rootMargin: '600px' },
+    );
+    observer.observe(el);
+    onCleanup(() => observer.disconnect());
+  });
+  return { shown, more, sentinel };
 }
 
 /**

@@ -6,7 +6,7 @@ import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
 import PlanetActions from '../components/PlanetActions.vue';
 import StatusBadges from '../components/StatusBadges.vue';
-import { useMobile, useSort, useStored, useUni } from '../composables';
+import { useMobile, useProgressive, useSort, useStored, useUni } from '../composables';
 import { ago, dateTime, distance, fmt, fmtSigned, name, short, STATS_SHORT, STATS_TYPES } from '../format';
 import { intlLocale } from '../i18n';
 
@@ -268,6 +268,10 @@ const playerSort = useSort(
   'p:1',
 );
 
+/** Long lists render in steps while scrolling (sorting and filtering then only touch the rendered rows). */
+const { shown: planetsShown, more: planetsMore, sentinel: planetSentinel } = useProgressive(planetSort.sorted);
+const { shown: playersShown, more: playersMore, sentinel: playerSentinel } = useProgressive(playerSort.sorted);
+
 /** Delta colour: intensity relative to the player's points; partial deltas (too little history) are italic. */
 function deltaStyle(points: number | undefined, d: Delta | undefined) {
   if (!d || d.delta === 0) return {};
@@ -508,7 +512,7 @@ const history = computed(() => {
     </div>
 
     <div v-if="mode === 'planets'" class="m-list">
-      <div v-for="(r, i) in planetSort.sorted.value" :key="r.key" class="m-item" :class="{ dim: r.player.status.includes('vacation'), moon: r.planet?.type === 'moon' }">
+      <div v-for="(r, i) in planetsShown" :key="r.key" class="m-item" :class="{ dim: r.player.status.includes('vacation'), moon: r.planet?.type === 'moon' }">
         <div class="m-line">
           <span class="faint small">{{ i + 1 }}</span>
           <span v-if="freshInactive(r.player) != null" class="badge" style="color: var(--neg)" :title="t('overview.inactiveSince')">{{ freshInactive(r.player) }}h</span>
@@ -544,9 +548,10 @@ const history = computed(() => {
         </div>
       </div>
     </div>
+    <div v-if="mode === 'planets' && planetsMore" ref="planetSentinel" class="more" />
 
     <div v-else class="m-list">
-      <div v-for="r in playerSort.sorted.value" :key="r.id" class="m-item" :class="{ dim: r.status.includes('vacation') }">
+      <div v-for="r in playersShown" :key="r.id" class="m-item" :class="{ dim: r.status.includes('vacation') }">
         <div class="m-line">
           <span class="small muted">
             #{{ r.scores[1]?.rank ?? '–' }}
@@ -569,6 +574,7 @@ const history = computed(() => {
         </div>
       </div>
     </div>
+    <div v-if="mode !== 'planets' && playersMore" ref="playerSentinel" class="more" />
   </template>
 
   <!-- Planet view (like the FF-Hub overview) -->
@@ -599,7 +605,7 @@ const history = computed(() => {
         </tr>
       </thead>
       <tbody>
-        <tr v-for="(r, i) in planetSort.sorted.value" :key="r.key" :class="{ dim: r.player.status.includes('vacation'), moon: r.planet?.type === 'moon' }">
+        <tr v-for="(r, i) in planetsShown" :key="r.key" :class="{ dim: r.player.status.includes('vacation'), moon: r.planet?.type === 'moon' }">
           <td class="num faint">{{ i + 1 }}</td>
           <td class="muted" style="max-width: 120px; overflow: hidden; text-overflow: ellipsis" :title="r.player.ally_name ?? ''">{{ r.player.ally_tag ?? r.player.ally_name ?? '' }}</td>
           <td>
@@ -648,6 +654,7 @@ const history = computed(() => {
         </tr>
       </tbody>
     </table>
+    <div v-if="planetsMore" ref="planetSentinel" class="more" />
   </div>
 
   <!-- Player view: all categories with the selected window -->
@@ -665,7 +672,7 @@ const history = computed(() => {
         </tr>
       </thead>
       <tbody>
-        <tr v-for="r in playerSort.sorted.value" :key="r.id" :class="{ dim: r.status.includes('vacation') }">
+        <tr v-for="r in playersShown" :key="r.id" :class="{ dim: r.status.includes('vacation') }">
           <td class="num">
             {{ r.scores[1]?.rank ?? '–' }}
             <span v-if="r.scores[1]?.rankChange" :class="r.scores[1].rankChange > 0 ? 'pos' : 'neg'" class="small">
@@ -689,6 +696,7 @@ const history = computed(() => {
         </tr>
       </tbody>
     </table>
+    <div v-if="playersMore" ref="playerSentinel" class="more" />
   </div>
 </template>
 
@@ -701,6 +709,10 @@ table.cov td { padding: 1px 10px 1px 0; white-space: nowrap; }
 .m-sort { margin-bottom: 8px; }
 .m-list { border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); overflow: hidden; }
 .m-item { padding: 8px 12px; border-bottom: 1px solid var(--border); }
+/* the browser skips layout and painting of cards out of sight (auto: remembers their last height) */
+.m-list .m-item { content-visibility: auto; contain-intrinsic-size: auto 64px; }
+/* end of a list that renders more rows when it comes into sight */
+.more { height: 1px; }
 .m-item:last-child { border-bottom: 0; }
 .m-item.dim > * { opacity: .55; }
 .m-item.moon { background: color-mix(in srgb, var(--info) 7%, transparent); }
