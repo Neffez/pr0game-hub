@@ -25,8 +25,8 @@ export const CHANGELOG: ChangelogDay[] = [
       },
       {
         kind: 'fix',
-        de: 'Seiten aus einem anderen Universum werden beim Synchronisieren abgelehnt, statt im falschen Universum zu landen. Beim Wechsel des Universums kann nichts mehr im vorherigen gespeichert werden.',
-        en: 'Pages from another universe are rejected when syncing instead of ending up in the wrong universe. Switching universes can no longer save anything into the previous one.',
+        de: 'Seiten aus einem anderen Universum werden beim Synchronisieren abgelehnt, statt im falschen Universum zu landen – auch als reiner Text: Der Hub vergleicht Statistik und Galaxie mit den bekannten Spielern und Planeten. Beim Wechsel des Universums kann nichts mehr im vorherigen gespeichert werden.',
+        en: 'Pages from another universe are rejected when syncing instead of ending up in the wrong universe, plain text included: the hub compares statistics and galaxy views with the known players and planets. Switching universes can no longer save anything into the previous one.',
       },
       {
         kind: 'new',

@@ -1084,3 +1084,52 @@ describe('admin cleanup of statistics snapshots', () => {
     expect((await app.inject({ method: 'POST', url, headers: admin, payload: { snapshots: [] } })).statusCode).toBe(400);
   });
 });
+
+describe('plausibility of pasted pages', () => {
+  it('tells statistics and galaxy views of another universe by their content', async () => {
+    const { foreignRecords } = await import('../src/plausibility.js');
+    const groupP = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', payload: { universe: 'u8', name: 'Plausibility' }, headers: admin })).json().id;
+    const add = db.prepare('INSERT INTO players (group_id, name) VALUES (?, ?)');
+    const ids = Array.from({ length: 60 }, (_, i) => Number(add.run(groupP, `Own${i}`).lastInsertRowid));
+    const planet = db.prepare('INSERT INTO planets (group_id, g, s, p, name, player_id) VALUES (?, 1, 1, ?, ?, ?)');
+    for (let p = 1; p <= 10; p++) planet.run(groupP, p, 'Kolonie', ids[p]);
+
+    const stats = (names: string[]) => ({
+      kind: 'stats' as const, who: 'player' as const, type: 1 as const, statTime: null,
+      rows: names.map((name, i) => ({ rank: i + 1, rankChange: null, ingameId: null, name, status: [], allyId: null, allyName: null, points: 1 })),
+    });
+    const own = Array.from({ length: 30 }, (_, i) => `Own${i}`);
+    const foreign = Array.from({ length: 30 }, (_, i) => `Fremd${i}`);
+    expect(foreignRecords(db, groupP, [stats(own)])).toBe(false);
+    // some newcomers are fine, a page of strangers is not
+    expect(foreignRecords(db, groupP, [stats([...own.slice(0, 15), ...foreign.slice(0, 15)])])).toBe(false);
+    expect(foreignRecords(db, groupP, [stats(foreign)])).toBe(true);
+    // a group that knows few players judges nothing
+    expect(foreignRecords(db, groupA, [stats(foreign)])).toBe(false);
+
+    const galaxy = (owner: (p: number) => string) => ({
+      kind: 'galaxy' as const, g: 1, s: 1,
+      rows: Array.from({ length: 10 }, (_, i) => ({
+        position: i + 1, planetName: 'X', moon: false, destroyed: false, playerId: null, playerName: owner(i + 1),
+        status: [], allyId: null, allyTag: null, debris: null,
+      })),
+    });
+    expect(foreignRecords(db, groupP, [galaxy((p) => `Own${p}`)])).toBe(false);
+    expect(foreignRecords(db, groupP, [galaxy((p) => (p <= 3 ? `Fremd${p}` : `Own${p}`))])).toBe(false);
+    expect(foreignRecords(db, groupP, [galaxy((p) => `Fremd${p}`)])).toBe(true);
+
+    // a pasted page of strangers is refused, also as preview, before anything is stored
+    const head = fixture('stats-player.txt').split('\n').slice(0, 3).join('\n');
+    const page = (names: string[]) => [head, ...names.map((n, i) => `${i + 1}\t${n}\t\t-\t${1000 - i}`)].join('\n');
+    const headers = { ...admin, 'x-hub-group': String(groupP) };
+    for (const dryRun of [true, false]) {
+      const res = await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { text: page(foreign), dryRun } });
+      expect(res.json()).toMatchObject({ code: 'wrong_universe' });
+    }
+    expect(db.prepare('SELECT COUNT(*) FROM stat_snapshots WHERE group_id = ?').pluck().get(groupP)).toBe(0);
+    expect(db.prepare("SELECT COUNT(*) FROM players WHERE group_id = ? AND name LIKE 'Fremd%'").pluck().get(groupP)).toBe(0);
+    // the same page with own players is stored
+    const ok = await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { text: page(own) } });
+    expect(ok.json().counts.player_scores.new).toBe(30);
+  });
+});

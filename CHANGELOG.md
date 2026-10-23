@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Pasted pages are also checked against the universe's own data, plain text included: statistics pages whose
+  players (or alliances) are mostly unknown to the group, or galaxy views showing mostly other owners on known
+  planets, are refused as `wrong_universe` (preview included). Groups that know few players and short pages are
+  not judged.
 - Admin panel: "Remove statistics snapshots" lists a group's snapshots (time, ranking, rows, top names) and deletes
   the chosen ones after a preview, with their score events, the players nothing else refers to and alliances left
   without players or scores; players with other data are kept and listed. Meant for statistics pasted into the

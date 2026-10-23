@@ -1,8 +1,10 @@
 import { parsePage, type HubRecord, type ParseInput, type ParseResult, type SpyReportRecord } from '@pr0hub/core';
 import { gunzipSync, gzipSync } from 'node:zlib';
+import { HttpError } from './auth.js';
 import { config } from './config.js';
 import { now, type DB } from './db.js';
 import { events } from './events.js';
+import { foreignRecords } from './plausibility.js';
 import { messageShare } from './repo/messages.js';
 import { Store } from './store.js';
 
@@ -32,6 +34,9 @@ export function ingest(
   opts: { dryRun?: boolean } = {},
 ): IngestSummary {
   const parsed = parsePage(input);
+  if (foreignRecords(db, target.groupId, parsed.records)) {
+    throw new HttpError(400, 'wrong_universe', 'The pasted page does not match the data of this universe');
+  }
   const summary: IngestSummary = {
     pageType: parsed.pageType,
     source: parsed.source,
