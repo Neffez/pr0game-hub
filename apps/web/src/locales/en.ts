@@ -773,6 +773,7 @@ const en: typeof de = {
     count: '{n} comment | {n} comments',
   },
   retime: {
+    hint: "Per speed the table shows when the enemy fleet launched and when it lands back home (after the impact or after a recall). Launch window, drives and recall narrow it down; the chosen row plus the buffer is the plan's target time. A later paste with a moved arrival (delay) updates everything.",
     attacks: 'Hostile attacks',
     plan: 'Plan retime',
     planned: 'Retime planned',
@@ -827,6 +828,10 @@ const en: typeof de = {
     lands: 'Hold fleets land at {t} ({offset})',
   },
   plans: {
+    collapse: 'Collapse',
+    expand: 'Expand',
+    fleetCount: 'no fleets | 1 fleet | {n} fleets',
+    myLaunch: 'Your launch',
     hint: 'Own attacks, solo or as ACS. A plan can start with a player and a rough date (a day, around an hour); coordinates and the exact impact are added once known. The hub computes launch times, lead and delays from start planet, ships, speed and the drives of the latest empire page. Everyone sees changes at once.',
     new: 'Plan attack',
     create: 'Create plan',

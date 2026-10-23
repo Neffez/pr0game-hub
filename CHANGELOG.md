@@ -4,6 +4,15 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Raid planner overview:
+  - Plans collapse to a summary line (target time with countdown, number of fleets, the viewer's own next launch or
+    "too late"); the choice is kept per plan in the browser (`raidPlanner.open.<uni>`), by default current plans are
+    open while there are at most two, past ones closed; new plans open.
+  - Explanations moved into info icons: hold rule, phalanx, creating a plan, rough times and missing coordinates,
+    adding ships, coordinates later; the retime panel explains its table.
+  - Mobile: in the fleet cards the launch comes right below the member and takes the whole line, ships too; panel
+    labels sit above their inputs, the time window inputs share a line, the candidates table is denser.
+
 - Roles: alliance admins are labelled "Allianz-Admin"/"Alliance admin", and the online list colours names by role
   (global admin light blue, alliance admin green; `/api/:uni/context` members carry `global_admin`). Technical
   administration is global admins only: sync history (list, reparse, undo), player merge and activity backfill now

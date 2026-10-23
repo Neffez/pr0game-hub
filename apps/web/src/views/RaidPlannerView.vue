@@ -127,6 +127,33 @@ const views = computed(() => new Map(plans.value.map((p) => [p.id, computePlan(s
 const current = computed(() => plans.value.filter((p) => isCurrent(p, now.value)));
 const past = computed(() => plans.value.filter((p) => !isCurrent(p, now.value)).reverse());
 
+// ---- collapsing ----
+/** Opened and closed plans of this viewer (browser storage, per universe); a plan without a choice follows `isOpen`. */
+const OPEN_KEY = `raidPlanner.open.${uni.value}`;
+const openState = reactive<Record<number, boolean>>(readOpen());
+function readOpen(): Record<number, boolean> {
+  try {
+    return JSON.parse(localStorage.getItem(OPEN_KEY) ?? '{}');
+  } catch {
+    return {};
+  }
+}
+watch(openState, (v) => {
+  try {
+    localStorage.setItem(OPEN_KEY, JSON.stringify(v));
+  } catch {
+    /* kept for this page only */
+  }
+});
+/** Current plans are open while there are at most two, past ones closed. */
+const isOpen = (p: AttackPlan) => openState[p.id] ?? (isCurrent(p, now.value) && current.value.length <= 2);
+const toggle = (p: AttackPlan) => (openState[p.id] = !isOpen(p));
+/** The viewer's next own launch in a plan (not launched yet), for the closed plan's summary. */
+const myLaunch = (p: AttackPlan) =>
+  views.value.get(p.id)?.fleets.find((x) => x.fleet.user_id === me.value && x.plan && !x.fleet.seen && x.fleet.status !== 'launched' && x.plan.launch > now.value)?.plan
+    ?.launch ?? null;
+const flying = (p: AttackPlan) => p.fleets.filter((f) => f.status !== 'withdrawn').length;
+
 // ---- times ----
 const fmtDate = (epoch: number, opts: Intl.DateTimeFormatOptions) => new Date(epoch * 1000).toLocaleString(intlLocale(), opts);
 const DAY: Intl.DateTimeFormatOptions = { weekday: 'short', day: '2-digit', month: '2-digit' };
@@ -170,6 +197,7 @@ async function create() {
   if (!body) return void (error.value = t('plans.formInvalid'));
   const ok = await run(async () => {
     const res = await uniApi<{ id: number; claimedBy: string | null }>(uni.value, '/plans', { body });
+    openState[res.id] = true;
     info.value = res.claimedBy ? t('plans.claimedBy', { name: res.claimedBy }) : '';
   });
   if (!ok) return;
@@ -188,6 +216,7 @@ async function planRetime(a: HostileAttack) {
   const target = (a.home ?? (full ? candidateHome(full) : a.arrival + 3600)) + DEFAULT_BUFFER;
   await run(async () => {
     const res = await uniApi<{ id: number; claimedBy: string | null }>(uni.value, '/plans/retime', { body: { key: a.key, follow, target_time: target, buffer: DEFAULT_BUFFER } });
+    openState[res.id] = true;
     info.value = res.claimedBy ? t('plans.claimedBy', { name: res.claimedBy }) : '';
   });
   loadClaims(uni.value);
@@ -204,7 +233,10 @@ async function sendPhalanx() {
 
 /** Hold on the attacked planet: the fleets land 1 s before the impact (changeable in the plan). */
 async function planHold(a: HostileAttack) {
-  await run(() => uniApi(uni.value, '/plans/hold', { body: { key: a.key } }));
+  await run(async () => {
+    const res = await uniApi<{ id: number }>(uni.value, '/plans/hold', { body: { key: a.key } });
+    openState[res.id] = true;
+  });
 }
 const attackShips = (a: HostileAttack) =>
   a.fleets.length > 1 ? t('notify.acs', { n: a.fleets.length }) : (a.fleets[0]?.mission != null ? t(`game.missions.${a.fleets[0].mission}`) : '');
@@ -364,7 +396,7 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
     <div class="row">
       <button class="primary" :disabled="!phalanx.text.trim()" @click="sendPhalanx">{{ t('phalanx.apply') }}</button>
       <button @click="phalanx.open = false">{{ t('plans.cancelForm') }}</button>
-      <span class="muted small">{{ t('phalanx.hint') }}</span>
+      <Hint>{{ t('phalanx.hint') }}</Hint>
     </div>
   </div>
 
@@ -374,7 +406,7 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
     <div class="row">
       <button class="primary" @click="create">{{ t('plans.create') }}</button>
       <button @click="form.open = false">{{ t('plans.cancelForm') }}</button>
-      <span class="muted small">{{ t('plans.createHint') }}</span>
+      <Hint>{{ t('plans.createHint') }}</Hint>
     </div>
   </div>
 
@@ -405,6 +437,7 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
     <h2 v-if="i === 1 && list.length">{{ t('plans.past') }}</h2>
     <div v-for="p in list" :key="p.id" class="card plan" :class="{ closed: closed(p) }">
       <div class="row plan-head">
+        <button class="toggle" :aria-expanded="isOpen(p)" :title="isOpen(p) ? t('plans.collapse') : t('plans.expand')" @click="toggle(p)">{{ isOpen(p) ? '▾' : '▸' }}</button>
         <template v-if="hasCoords(p)">
           <span v-if="p.planet_type === 'moon'" class="moon-tag">{{ t('plans.moon') }}</span>
           <strong class="mono">{{ coords(p.g!, p.s!, p.p!) }}</strong>
@@ -421,11 +454,25 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
         <span class="badge">{{ t(`plans.status.${p.status}`) }}</span>
       </div>
 
+      <div v-if="!isOpen(p)" class="summary small" @click="toggle(p)">
+        <span class="time">
+          <b class="mono">{{ targetText(p) }}</b>
+          <Countdown v-if="p.time_precision !== 'day'" class="muted" :to="p.target_time" />
+        </span>
+        <span>{{ t('plans.fleetCount', { n: flying(p) }, flying(p)) }}</span>
+        <span v-if="myLaunch(p) && exact(p)" class="time">
+          {{ t('plans.myLaunch') }} <b class="mono">{{ clock(myLaunch(p)!) }}</b> <Countdown class="muted" :to="myLaunch(p)!" />
+        </span>
+        <span v-if="views.get(p.id)?.fleets.some((x) => x.plan?.late && !x.fleet.seen && x.fleet.status !== 'launched')" class="neg">{{ t('plans.late') }}</span>
+      </div>
+
+      <template v-if="isOpen(p)">
       <div class="times">
         <span class="time">
           <span class="lbl">{{ t('plans.targetTime') }}</span>
           <b class="mono">{{ targetText(p) }}</b>
           <Countdown v-if="p.time_precision !== 'day'" class="muted small" :to="p.target_time" />
+          <Hint v-if="!exact(p)">{{ hasCoords(p) ? t('plans.roughTime') : t('plans.noCoordsHint') }}</Hint>
         </span>
         <span v-if="exact(p) && views.get(p.id)?.acs?.delay" class="time warn">
           <span class="lbl">⚠ {{ t('plans.arrival') }}</span>
@@ -446,7 +493,6 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
         <span v-if="views.get(p.id)!.acs!.tooManyFleets" class="warn"> ⚠ {{ t('plans.tooManyFleets') }}</span>
         <span v-if="views.get(p.id)!.acs!.tooManyPlayers" class="warn"> ⚠ {{ t('plans.tooManyPlayers') }}</span>
       </div>
-      <div v-if="!exact(p)" class="muted small">{{ hasCoords(p) ? t('plans.roughTime') : t('plans.noCoordsHint') }}</div>
 
       <div v-if="coordsEdit[p.id] && !hasCoords(p)" class="edit-box">
         <PlanTargetForm v-model="coordsEdit[p.id]" coords-only />
@@ -486,7 +532,7 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
                 <span v-if="x.duration != null && oldDrives(x.fleet)" class="warn small" :title="t('plans.drivesOld')"> ⚠</span>
               </td>
               <td class="mono">{{ x.fleet.g != null ? coords(x.fleet.g, x.fleet.s!, x.fleet.p!) : '–' }}<span v-if="x.fleet.planet_type === 'moon'" class="muted"> ☾</span></td>
-              <td class="small">{{ shipList(x.fleet.ships) }}</td>
+              <td class="small m-wide">{{ shipList(x.fleet.ships) }}</td>
               <td>
                 <select
                   v-if="canEditFleet(p, x.fleet) && !closed(p)"
@@ -500,7 +546,7 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
                 <span v-else>{{ x.fleet.speed }} %</span>
               </td>
               <td class="mono">{{ x.duration != null ? duration(Math.floor(x.duration)) : '–' }}</td>
-              <td>
+              <td class="c-launch m-wide">
                 <template v-if="x.fleet.seen">
                   <span class="mono">{{ clock(x.fleet.seen.arrival) }}</span>
                   <div class="small" :class="exact(p) && x.fleet.seen.arrival !== p.target_time ? 'warn' : 'pos'">
@@ -590,7 +636,7 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
               <option v-for="id in otherShips" :key="`o${id}`" :value="`free:${id}`">{{ name(id) }}</option>
             </optgroup>
           </select>
-          <span class="muted small">{{ t('plans.pickHint') }}</span>
+          <Hint>{{ t('plans.pickHint') }}</Hint>
         </div>
         <div class="row">
           <button class="primary" @click="saveFleet">{{ t('plans.save') }}</button>
@@ -614,6 +660,7 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
         <span class="grow" />
         <button class="danger" @click="removePlan(p)">{{ t('plans.delete') }}</button>
       </div>
+      </template>
     </div>
   </template>
 </template>
@@ -624,6 +671,8 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
 .attack { gap: 6px 12px; padding: 4px 0; border-top: 1px solid var(--border); }
 .plan.closed { opacity: .7; }
 .plan-head { gap: 6px; }
+.plan-head .toggle { padding: 0 6px; border: 0; background: none; color: var(--muted); font-size: 14px; cursor: pointer; }
+.summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; padding-left: 26px; cursor: pointer; }
 .plan-form { display: flex; flex-direction: column; gap: 10px; }
 .plan-form h3 { margin: 0; }
 .phalanx-form { display: flex; flex-direction: column; gap: 8px; }
@@ -646,4 +695,14 @@ td.actions .calc { margin-right: 6px; }
 button.danger { color: var(--neg); }
 .badge.mission-hold { color: var(--pos); }
 button.link { padding: 0; border: 0; background: none; cursor: pointer; text-decoration: underline dotted; }
+
+@media (max-width: 800px) {
+  .summary { padding-left: 0; }
+  /* fleet cards: the launch right below the member, before start, ships and speed */
+  td.c-launch { order: 1; justify-content: flex-start; text-align: left; }
+  td.c-launch::before { margin-right: 8px; }
+  .edit-box, .fleet-form { padding: 8px; }
+  .ship-name { flex: 1 1 100%; min-width: 0; }
+  .plan-actions button, .plan-actions select { flex: 1 1 auto; }
+}
 </style>

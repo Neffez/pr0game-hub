@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Hint from './Hint.vue';
 import { onBeforeUnmount, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
@@ -98,7 +99,7 @@ function pickBody(e: Event) {
         <option value="">{{ t('plans.knownBodies') }} …</option>
         <option v-for="b in bodies" :key="b.key" :value="b.key">{{ b.label }}</option>
       </select>
-      <span v-if="!draft.target" class="muted small">{{ t('plans.coordsLater') }}</span>
+      <Hint v-if="!draft.target">{{ t('plans.coordsLater') }}</Hint>
     </div>
     <div v-if="!coordsOnly" class="field">
       <span class="lbl">{{ t('plans.targetTime') }}</span>

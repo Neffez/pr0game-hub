@@ -775,6 +775,7 @@ const de = {
     count: '{n} Kommentar | {n} Kommentare',
   },
   retime: {
+    hint: 'Je Geschwindigkeit zeigt die Tabelle, wann die Gegnerflotte gestartet ist und wann sie wieder zu Hause landet (nach dem Einschlag oder nach einem Rückruf). Startfenster, Antriebe und Rückruf grenzen die Möglichkeiten ein; die gewählte Zeile plus Puffer ist die Zielzeit des Plans. Ein späterer Paste mit verschobener Ankunft (Verzögerung) aktualisiert alles.',
     attacks: 'Feindliche Angriffe',
     plan: 'Retime planen',
     planned: 'Retime geplant',
@@ -829,6 +830,10 @@ const de = {
     lands: 'Halteflotten landen um {t} ({offset})',
   },
   plans: {
+    collapse: 'Einklappen',
+    expand: 'Aufklappen',
+    fleetCount: 'keine Flotten | 1 Flotte | {n} Flotten',
+    myLaunch: 'Dein Start',
     hint: 'Eigene Angriffe, solo oder als Verband. Ein Plan kann mit einem Spieler und einem ungefähren Termin (Tag, ca. Uhrzeit) beginnen; Koordinaten und die genaue Einschlagszeit kommen dazu, sobald sie feststehen. Startzeiten, Anführer und Verzögerungen rechnet der Hub aus Startplanet, Schiffen, Geschwindigkeit und den Antrieben der letzten Imperium-Seite. Alle sehen Änderungen sofort.',
     new: 'Angriff planen',
     create: 'Plan anlegen',

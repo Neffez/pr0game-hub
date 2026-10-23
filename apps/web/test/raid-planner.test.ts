@@ -99,6 +99,8 @@ const settle = async () => {
 describe('raid planner page', () => {
   beforeAll(async () => {
     setLocale('de');
+    // four current plans are closed by default: open them for the checks below (the collapsing has its own test)
+    localStorage.setItem('raidPlanner.open.u8', JSON.stringify({ 7: true, 8: true, 9: true, 10: true }));
     vi.stubGlobal('confirm', () => true);
     vi.stubGlobal('fetch', async (url: string) => {
       const body = url.includes('/imperium') ? empire : url.includes('/hostile-attacks') ? attacks : url.includes('/plans') ? plans : [];
@@ -150,6 +152,24 @@ describe('raid planner page', () => {
     await new Promise((r) => setTimeout(r, 2200));
     expect(countdown()).not.toBe(before);
     expect(pageUpdates).toBe(0);
+  });
+
+  it('collapses a plan to a summary line and opens it again', async () => {
+    const plan = root.querySelector('.plan')!;
+    const toggle = plan.querySelector<HTMLButtonElement>('.plan-head .toggle')!;
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    toggle.click();
+    await settle();
+    expect(plan.querySelector('tbody')).toBeNull();
+    const summary = plan.querySelector('.summary')!;
+    expect(summary.textContent).toContain('3 Flotten');
+    // Carol's own fleet can no longer make it: the summary warns instead of showing her launch
+    expect(summary.textContent).toContain('zu spät');
+    expect(summary.textContent).not.toContain('Dein Start');
+    expect(JSON.parse(localStorage.getItem('raidPlanner.open.u8')!)[7]).toBe(false);
+    (summary as HTMLElement).click();
+    await settle();
+    expect(plan.querySelector('tbody')).not.toBeNull();
   });
 
   it('opens the form prefilled from the action menu link', () => {

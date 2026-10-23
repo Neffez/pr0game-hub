@@ -2,8 +2,8 @@
 
 Status (2026-10-23): usable. Attack plans (solo, ACS, against a player with rough times) and retime on hostile
 attacks are live in the raid planner, with hold plans, phalanx results, recall detection, launched fleets from the
-own overview, flight calculator and combat simulator links. Open: the plan on mobile, test data, phalanx pastes in
-the sync (see "Still open").
+own overview, flight calculator and combat simulator links. Open: phalanx pastes in the sync, test data (see "Still
+open").
 
 The raid planner plans own attacks, solo or as ACS, and lands them at the right second. A plan starts empty or from a
 pasted hostile attack ("retime": land on the enemy origin right after the enemy fleet is back).
@@ -229,7 +229,7 @@ The parser `packages/parser/src/parsers/fleets.ts` (stored in `fleet_snapshots`)
 - Menu "Raid-Planer" above "Raid-Statistiken" (formerly "Raids") with the number of current plans: grey in planning,
   green running (plan or a fleet launched); "Angriff planen" in the action menu of a planet/moon.
 - Top: hostile attacks on members with countdown, origin and owner, "Retime planen" (or "Retime geplant").
-- Plans (current, past): target (player and/or coordinates), time by precision with countdown, delay and limit
+- Plans (current, past), collapsible to a summary line (kept per plan in the browser): target (player and/or coordinates), time by precision with countdown, delay and limit
   warnings, lead; retime panel for plans with an enemy fleet; fleets table with start, ships, speed, flight time,
   launch with countdown and flags, return, status; own fleet form; invitations; status buttons; edit target and time.
 - Tests: server (`test/plans.test.ts`), web (`test/plans.test.ts`, page smoke test `test/raid-planner.test.ts` in
@@ -255,10 +255,9 @@ The parser `packages/parser/src/parsers/fleets.ts` (stored in `fleet_snapshots`)
 
 ## Still open
 
-1. **Plan on mobile**: a plan looks cluttered on a phone (feedback from the browser check); to be tidied up.
-2. **Phalanx pastes in the sync**: a phalanx copied into the sync instead of "Phalanx einfügen" would be read as the
+1. **Phalanx pastes in the sync**: a phalanx copied into the sync instead of "Phalanx einfügen" would be read as the
    member's own fleet list ("Eine deiner Flotten"); detect it (e.g. by the phalanx window's text) and refuse it there.
-3. **Test data** (later): the full Ctrl+A copy of an overview with an attack (with server clock line), the English
+2. **Test data** (later): the full Ctrl+A copy of an overview with an attack (with server clock line), the English
    texts (taken from the game's language files so far), a copied phalanx result, an own ACS fleet in the overview.
-4. **Other universes**: TrashSim's ship columns and the ship table follow universe 7; a universe with other ships would
+3. **Other universes**: TrashSim's ship columns and the ship table follow universe 7; a universe with other ships would
    need its own list.

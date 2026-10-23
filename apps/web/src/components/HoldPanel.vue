@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Hint from './Hint.vue';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
@@ -41,7 +42,7 @@ async function save() {
 <template>
   <div class="hold">
     <div class="head">
-      <b>{{ t('hold.title') }}</b>
+      <b>{{ t('hold.title') }} <Hint>{{ t('hold.hint') }}</Hint></b>
       <span>{{ t('retime.onMember', { member: enemy.member ?? coords(enemy.to.g, enemy.to.s, enemy.to.p) }) }}</span>
       <span class="mono">{{ coords(enemy.from.g, enemy.from.s, enemy.from.p) }} → {{ coords(enemy.to.g, enemy.to.s, enemy.to.p) }}</span>
       <span>{{ t('retime.impact') }} <b class="mono">{{ clock(enemy.arrival) }}</b></span>
@@ -52,7 +53,6 @@ async function save() {
       <input v-model.number="offset" type="number" min="-3600" max="3600" step="1" :disabled="!editable" @input="dirty = true" /> s
       <span class="small" :class="rating === 'safe' ? 'pos' : 'warn'">{{ t(`hold.rating.${rating}`) }}</span>
     </div>
-    <p class="muted small">{{ t('hold.hint') }}</p>
     <div class="row">
       <span class="small">{{ t('hold.lands', { t: clock(enemy.arrival + offset), offset: signed(offset) }) }}</span>
       <template v-if="editable">
@@ -70,5 +70,7 @@ async function save() {
 .field { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .lbl { min-width: 110px; color: var(--muted); font-size: 12px; }
 .field input[type='number'] { width: 80px; }
-.hold p { margin: 0; }
+@media (max-width: 800px) {
+  .lbl { flex-basis: 100%; }
+}
 </style>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Hint from './Hint.vue';
 import { computed, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
@@ -138,7 +139,7 @@ async function save() {
 <template>
   <div class="retime">
     <div class="head">
-      <b>{{ t('retime.enemy') }}</b>
+      <b>{{ t('retime.enemy') }} <Hint>{{ t('retime.hint') }}</Hint></b>
       <span>{{ t('retime.onMember', { member: enemy.member ?? coords(enemy.to.g, enemy.to.s, enemy.to.p) }) }}</span>
       <span class="mono">{{ coords(enemy.from.g, enemy.from.s, enemy.from.p) }} → {{ coords(enemy.to.g, enemy.to.s, enemy.to.p) }}</span>
       <span>{{ t('retime.impact') }} <b class="mono">{{ clock(enemy.arrival) }}</b></span>
@@ -243,5 +244,12 @@ async function save() {
 .lbl { min-width: 110px; color: var(--muted); font-size: 12px; }
 .field input[type='number'] { width: 64px; }
 .cands tr.impossible td { color: var(--faint); }
+@media (max-width: 800px) {
+  /* label above its inputs, the two window ends share the line */
+  .lbl { flex-basis: 100%; }
+  .field input[type='datetime-local'] { flex: 1 1 140px; min-width: 0; }
+  .cands { font-size: 12px; }
+  .cands th, .cands td { padding: 4px 6px; }
+}
 .cands tr.picked td { background: var(--accent-soft); }
 </style>

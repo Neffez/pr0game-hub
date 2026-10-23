@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Raid-Planer: Pläne lassen sich einklappen (mit Kurzzeile: Zielzeit, Flotten, dein Start), Erklärungen stehen jetzt hinter i-Symbolen, und auf dem Handy ist ein Plan aufgeräumter (Startzeit gleich unter dem Mitglied).',
+        en: 'Raid planner: plans can be collapsed (with a summary: target time, fleets, your launch), explanations sit behind info icons, and a plan is tidier on the phone (launch right below the member).',
+      },
+      {
+        kind: 'new',
         de: 'Rollen: Allianz-Admins heißen jetzt auch so. In der Online-Liste erscheinen globale Admins hellblau und Allianz-Admins grün. Sync-Historie, Spieler zusammenführen und Aktivitätslog nachfüllen gibt es nur noch für globale Admins; Allianz-Admins verwalten ihre Allianz, Mitglieder und Einladungen.',
         en: 'Roles: alliance admins are now called that. In the online list global admins show in light blue and alliance admins in green. Sync history, merging players and backfilling the activity log are left to global admins; alliance admins manage their alliance, members and invites.',
       },
