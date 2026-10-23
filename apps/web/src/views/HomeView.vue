@@ -3,6 +3,7 @@ import { computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { api, session } from '../api';
+import { disablePush } from '../push';
 
 const { t } = useI18n();
 const route = useRoute();
@@ -23,6 +24,8 @@ onMounted(() => {
 });
 
 async function logout() {
+  // the next user of this browser must not get this user's notifications
+  await disablePush().catch(() => {});
   await api('/auth/logout', { body: {} });
   location.href = import.meta.env.BASE_URL + 'login';
 }

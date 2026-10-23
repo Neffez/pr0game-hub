@@ -2,6 +2,7 @@ import fastifyCookie from '@fastify/cookie';
 import fastifyStatic from '@fastify/static';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { existsSync } from 'node:fs';
+import { relative, sep } from 'node:path';
 import { bootstrapAdmin, HttpError, loadRequestUser } from './auth.js';
 import { catalogRoutes } from './routes/catalog.js';
 import { openapiRoutes } from './routes/openapi.js';
@@ -13,6 +14,9 @@ import { claimsRoutes } from './routes/claims.js';
 import { plansRoutes } from './routes/plans.js';
 import { commentsRoutes } from './routes/comments.js';
 import { notificationRoutes } from './routes/notifications.js';
+import { pushRoutes } from './routes/push.js';
+import { events } from './events.js';
+import { PushService, type PushOptions } from './push.js';
 import { deckRoutes } from './routes/deck.js';
 import { eventRoutes } from './routes/events.js';
 import { galaxyRoutes } from './routes/galaxy.js';
@@ -24,7 +28,14 @@ import { playersRoutes } from './routes/players.js';
 import { reportsRoutes } from './routes/reports.js';
 import { spyRoutes } from './routes/spy.js';
 
-export function buildApp(db: DB, opts: { logger?: boolean } = {}): FastifyInstance {
+declare module 'fastify' {
+  interface FastifyInstance {
+    /** web push of the notifications (main.ts starts its launch reminders) */
+    push: PushService;
+  }
+}
+
+export function buildApp(db: DB, opts: { logger?: boolean; push?: PushOptions } = {}): FastifyInstance {
   const app = Fastify({
     bodyLimit: config.bodyLimit,
     trustProxy: true,
@@ -40,6 +51,13 @@ export function buildApp(db: DB, opts: { logger?: boolean } = {}): FastifyInstan
   });
 
   app.register(fastifyCookie);
+  const push = new PushService(db, events, { log: app.log, ...opts.push });
+  app.decorate('push', push);
+  const stopListening = push.listen();
+  app.addHook('onClose', async () => {
+    stopListening();
+    push.close();
+  });
   app.decorateRequest('user', null);
   app.decorateRequest('authSource', null);
 
@@ -76,6 +94,7 @@ export function buildApp(db: DB, opts: { logger?: boolean } = {}): FastifyInstan
       plansRoutes(scope, db);
       commentsRoutes(scope, db);
       notificationRoutes(scope, db);
+      pushRoutes(scope, db, push);
       for (const routes of [overviewRoutes, playersRoutes, spyRoutes, galaxyRoutes, reportsRoutes, deckRoutes, imperiumRoutes, messageRoutes]) routes(scope, db);
     },
     { prefix: config.basePath },
@@ -88,9 +107,11 @@ export function buildApp(db: DB, opts: { logger?: boolean } = {}): FastifyInstan
       prefix: config.basePath + '/',
       wildcard: false,
       index: ['index.html'],
-      // Hashed assets may be cached forever, index.html must always be revalidated after a deploy.
+      // Hashed assets may be cached forever; files with fixed names (index.html, the service worker, the manifest,
+      // icons) must be revalidated after a deploy. Without `cacheControl: false` the plugin overwrites the header.
+      cacheControl: false,
       setHeaders: (res, filePath) => {
-        res.setHeader('Cache-Control', filePath.endsWith('.html') ? 'no-cache' : 'public, max-age=31536000, immutable');
+        res.setHeader('Cache-Control', relative(config.webDir, filePath).startsWith('assets' + sep) ? 'public, max-age=31536000, immutable' : 'no-cache');
       },
     });
   }

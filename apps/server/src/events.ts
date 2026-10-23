@@ -56,6 +56,7 @@ export class EventBus {
   /** last whereabouts per group and user; only users with a connection count as online */
   private whereabouts = new Map<number, Map<number, Whereabouts>>();
   private presenceFilter: PresenceFilter | null = null;
+  private listeners = new Set<(groupId: number, event: LiveEvent) => void>();
 
   /** Per-viewer filtering for presence events (e.g. hidden online status). */
   setPresenceFilter(filter: PresenceFilter | null) {
@@ -113,6 +114,13 @@ export class EventBus {
 
   publish(groupId: number, event: LiveEvent) {
     for (const client of this.groups.get(groupId) ?? []) client.send(event);
+    for (const listener of this.listeners) listener(groupId, event);
+  }
+
+  /** Every published event of every group, also without open connections (push notifications); returns the unsubscribe. */
+  onPublish(listener: (groupId: number, event: LiveEvent) => void): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
   }
 
   /** Open connections of a user in a group. */

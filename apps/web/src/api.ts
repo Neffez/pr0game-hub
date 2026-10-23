@@ -76,6 +76,8 @@ export async function loadMe() {
   if (session.me.user) {
     setLocale(session.me.user.lang);
     setDateFormat(session.me.user.dateFormat);
+    const id = session.me.user.id;
+    import('./push').then((push) => push.checkPushOwner(id)).catch(() => {});
   }
   return session.me;
 }

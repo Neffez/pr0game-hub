@@ -4,6 +4,27 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- **Push notifications (Web Push).** Members get the bell's notifications on their devices even with the hub
+  closed; the browser asks for permission only when switched on under Account.
+  - Server: `push.ts` sends with VAPID (`web-push`); the key pair is created on the first start and stored in the
+    database (migration `035`), push is on once `PUSH_CONTACT` (`mailto:` or `https:`) is set. Data events of a group
+    (`fleets`, `attack_plans`, `comments`, `group_members`, debounced 2 s) deliver for that group, a 30 s ticker
+    delivers launch reminders. Every member gets what the bell lists for them (same group context and fleet sharing),
+    filtered by their settings, each notification once (`push_sent`); comments and invitations are not pushed while
+    the member has a hub tab of the group in front. Subscriptions the push service no longer knows are removed.
+  - API: `GET /api/push/key`, `POST`/`DELETE /api/push/subscriptions`, `POST /api/push/test`,
+    `GET`/`POST /api/auth/push-settings` (per kind: attacks on me, on other members, invitations, comments, launch
+    reminders with a lead time of 1–30 minutes).
+  - Web app: service worker `sw.js` (push and click only, no caching), web app manifest and icons (iOS needs the hub
+    on the home screen), push section under Account, the subscription is removed before logging out, `?group=` in a
+    link selects the alliance.
+- **Bell: comments and launches.** New kinds `comment` (comments of others in a thread you wrote in, since your last
+  comment there, for 48 hours) and `launch` (your fleets of a plan to the second launching within the next hour, with
+  countdown). The logic moved to `repo/notifications.ts`; drive lookup, launch detection and hold tracking of the raid
+  planner to `repo/plans.ts`.
+- Fix: static files got `Cache-Control: public, max-age=0` because `@fastify/static` overwrote the header; hashed
+  assets are now cached for a year, everything else (index, service worker, manifest, icons) is revalidated.
+
 - Raid planner plan (`FEATURE_REQUEST_RETIME.md`): planning for others (fleets of other members, spy-report fleet
   data, drives by hand, invitations by everyone) under "Built", browser checks and new known limits under "Still open".
 

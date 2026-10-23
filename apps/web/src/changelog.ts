@@ -20,6 +20,16 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Push-Benachrichtigungen: Der Hub meldet Angriffe, Einladungen, neue Kommentare und deine Starttermine auch, wenn er nicht offen ist – am PC und auf dem Handy. Einschalten und auswählen, was gemeldet wird, unter Konto.',
+        en: 'Push notifications: the hub tells you about attacks, invitations, new comments and your launch times even when it is not open, on your computer and your phone. Switch it on and choose what to get under Account.',
+      },
+      {
+        kind: 'new',
+        de: 'Glocke: zeigt jetzt auch neue Kommentare in Threads, in denen du geschrieben hast, und erinnert eine Stunde vorher an den Start deiner Flotten im Raid-Planer.',
+        en: 'Bell: now also shows new comments in threads you wrote in, and reminds you an hour ahead of launching your fleets in the raid planner.',
+      },
+      {
+        kind: 'new',
         de: 'Raid-Planer: Antriebe lassen sich pro Flotte von Hand eintragen. Ohne Imperium-Seite kommen Planeten, Schiffe und Antriebe eines Mitglieds jetzt aus den Spionageberichten. Einladen kann jetzt jeder, die Glocke zeigt, wer eingeladen hat.',
         en: 'Raid planner: drives can be entered per fleet by hand. Without an empire page, a member\'s planets, ships and drives now come from the spy reports. Anyone can now invite, and the bell shows who sent the invitation.',
       },

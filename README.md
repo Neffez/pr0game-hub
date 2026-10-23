@@ -29,7 +29,9 @@ External analysis tool for [pr0game](https://codeberg.org/pr0game/pr0game) based
   member fleet, live for the whole alliance; the target is claimed as "attack"
 - **Raid statistics** (incl. recycling), **expeditions**, **expedition deck** (card counting), **battle hall** archive
 - **Admin**: universes (size, distance factors, fleet speed, time zone, deck), groups, members (including placeholders by in-game name with claim links), ingest log with reparse, player merge
-- **Notifications**: bell with hostile fleets heading for members (from the synced fleet movements)
+- **Notifications**: bell with hostile fleets heading for members (from the synced fleet movements), raid planner
+  invitations, new comments in your threads and your launch times; also as **push notifications** on desktop and phone
+  (switched on per device under Account, each kind can be chosen)
 - **Live**: what a member syncs shows up in the open hub tabs of the alliance without reloading, with a short hint
   who synced what (can be turned off in the account settings); who of the alliance is online and where (page, galaxy
   system, player), and when the others were last online
@@ -118,6 +120,7 @@ Changes are recorded in [CHANGELOG.md](CHANGELOG.md). Contributions are welcome,
 | `CRAWLER_ENABLED` | `true` | background archiving of public battle reports |
 | `CRAWLER_INTERVAL_MS` | `5000` | |
 | `CRAWLER_GIVE_UP_HOURS` | `6` | pause the crawler after the game was unreachable this long |
+| `PUSH_CONTACT` | – | contact for the push services (`mailto:…` or `https://…`); push notifications are off without it. The VAPID keys are created on the first start and kept in the database |
 
 ## Deployment
 
@@ -125,6 +128,8 @@ Docker image (`Dockerfile`, port 3000, volume `/data`), configured with the envi
 
 The static tools are a second target of the same Dockerfile: `docker build --target tools .` gives an nginx image
 with the tools index at `/` and the flight calculator at `/flight-calculator/` (the hub links there).
+
+Push notifications need outbound HTTPS from the hub to the browsers' push services (Google, Mozilla, Apple, Microsoft).
 
 Live updates use Server-Sent Events (`GET /hub/api/:uni/events`): a reverse proxy in front of the hub must not buffer
 that response (the hub sends `X-Accel-Buffering: no` for nginx) and should allow idle connections longer than the
