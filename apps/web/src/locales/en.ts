@@ -479,6 +479,7 @@ const en: typeof de = {
     next: 'Paste next page',
     clipboardDenied: 'No clipboard access – please paste into the text field.',
     warnings: {
+      phalanx_use_raid_planner: 'Phalanx detected: not stored. Please paste it in the raid planner via "Paste phalanx".',
       html_no_data: 'The HTML contained no recognizable data, using the plain text.',
       stats_category_unknown: 'Statistics category not detected – please select it.',
       galaxy_position_missing: 'Galaxy detected, but galaxy/system are missing: please enter them as galaxy:system (e.g. 1:234).',

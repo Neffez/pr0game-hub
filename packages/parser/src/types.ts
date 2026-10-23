@@ -325,7 +325,7 @@ export type HubRecord =
   | BattleHallRecord
   | CombatReportRecord;
 
-export type PageType = 'stats' | 'messages' | 'galaxy' | 'empire' | 'overview' | 'fleets' | 'battleHall' | 'combatReport' | 'unknown';
+export type PageType = 'stats' | 'messages' | 'galaxy' | 'empire' | 'overview' | 'fleets' | 'phalanx' | 'battleHall' | 'combatReport' | 'unknown';
 
 export interface ParseResult {
   pageType: PageType;

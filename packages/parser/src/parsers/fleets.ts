@@ -30,7 +30,10 @@ const BODY_RE = new RegExp(
   String.raw`(Planeten|Planet|Mond|Moon|Trümmerfeld|Debris field|Position)\s+([^\[]*?)\s*` + COORDS_RE.source,
   'gi',
 );
-const LINE_RE = /^(?:(\d{1,2}:\d{2}:\d{2})\s*\|\s*)?((?:\d+\s*[Wdhms]\s*)+)(\S.*Mission\s*:.*)$/;
+/** "13:14:00 | 27m 10s <sentence>" (overview), "21:25:37  03h 14m 57s <sentence>" (phalanx: tabs, no bar) */
+const LINE_RE = /^(?:(\d{1,2}:\d{2}:\d{2})\s*(?:\|\s*|\s+))?((?:\d+\s*[Wdhms]\s*)+)(\S.*Mission\s*:.*)$/;
+/** Head of a copied phalanx (INGAME.yaml px_scan_position): "Scan Position [3:4:1] (Kolonie)" */
+const PHALANX_RE = /^\s*(?:Scan Position|Investigate position)\s*\[(\d+):(\d+):(\d+)\]/im;
 const EVENTS_HEAD_RE = /^(?:Ereignisse|Events)\s+(Ausblenden|Einblenden|Hide|Show)$/im;
 
 /**
@@ -132,6 +135,20 @@ export function parseFleetLines(text: string): FleetMovement[] {
     out.push(member);
   }
   return out;
+}
+
+/**
+ * A copied phalanx result: the movements at the scanned planet, the scanned player's fleets written as "yours". It
+ * must not be stored as the member's own fleet list; the raid planner takes it ("Phalanx einfügen").
+ */
+export function isPhalanxText(text: string): boolean {
+  return PHALANX_RE.test(text);
+}
+
+/** Position of the scanned planet in a phalanx text. */
+export function phalanxPosition(text: string): { g: number; s: number; p: number } | null {
+  const m = text.match(PHALANX_RE);
+  return m ? { g: Number(m[1]), s: Number(m[2]), p: Number(m[3]) } : null;
 }
 
 export function isFleetsText(text: string): boolean {

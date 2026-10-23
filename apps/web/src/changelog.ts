@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-10-23',
     items: [
       {
+        kind: 'fix',
+        de: 'Phalanx: Kopierte Phalanx-Ergebnisse werden jetzt richtig gelesen. Im normalen Sync werden sie nicht mehr als eigene Flotten gespeichert, sondern mit Hinweis auf „Phalanx einfügen“ im Raid-Planer abgewiesen.',
+        en: 'Phalanx: copied phalanx results are now read correctly. The normal sync no longer stores them as your own fleets but points to "Paste phalanx" in the raid planner.',
+      },
+      {
         kind: 'new',
         de: 'Unter Konto kannst du persönliche API-Tokens anlegen (nur Lesen) mit denselben Allianz-Daten wie in der Oberfläche. OpenAPI-Beschreibung unter /hub/api/openapi.json.',
         en: 'Under Account you can create personal read-only API tokens with the same alliance data as the web app. OpenAPI description at /hub/api/openapi.json.',

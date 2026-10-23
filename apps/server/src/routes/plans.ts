@@ -3,7 +3,7 @@ import { HttpError } from '../auth.js';
 import type { GroupContext } from '../context.js';
 import { now, type DB } from '../db.js';
 import { events } from '../events.js';
-import { localToEpoch, nearestClock, parseFleetsText } from '@pr0hub/core';
+import { isPhalanxText, localToEpoch, nearestClock, parseFleetsText } from '@pr0hub/core';
 import { CLASS_RESEARCH } from '@pr0hub/core/tech';
 import { latestEmpires } from '../repo/empire.js';
 import { sharedFleets, type StoredFleet } from '../repo/fleets.js';
@@ -512,7 +512,10 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
   app.post<{ Params: { uni: string }; Body: { text?: string } }>('/api/:uni/phalanx', async (req) => {
     const ctx = ctxOf(req);
     const tz = ctx.universe.settings.timezone;
-    const rec = parseFleetsText(String(req.body?.text ?? ''));
+    const text = String(req.body?.text ?? '');
+    // an own overview here would list the member's own attacks as hostile ones
+    if (!isPhalanxText(text)) throw new HttpError(400, 'phalanx_not_phalanx', 'Not a phalanx result (no "Scan Position" line)');
+    const rec = parseFleetsText(text);
     if (!rec?.fleets.length) throw new HttpError(400, 'phalanx_empty', 'No fleet movements in the text');
     const pageTime = (rec.pageTime ? localToEpoch(rec.pageTime, tz) : null) ?? now();
     const fleets = rec.fleets.map((f) => ({ ...f, arrival: f.clock ? nearestClock(pageTime + f.seconds, f.clock, tz) : pageTime + f.seconds }));

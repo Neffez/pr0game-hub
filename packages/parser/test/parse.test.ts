@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { computeDeck, DEFAULT_DECK, localToEpoch, nearestClock, parsePage, type DeckEvent } from '../src/index.js';
+import { computeDeck, DEFAULT_DECK, isPhalanxText, localToEpoch, nearestClock, parseFleetsText, parsePage, phalanxPosition, type DeckEvent } from '../src/index.js';
 import { elementPoints, idByName, idByShortName, sectionPoints } from '../src/tech.js';
 
 const fixture = (name: string) => readFileSync(new URL(`./fixtures/${name}`, import.meta.url), 'utf8');
@@ -456,6 +456,28 @@ describe('fleet movements', () => {
     '02:33:25 | 02h 32m 09s Eine deiner Flotten (7 Großer Transporter; 68 Leichter Jäger; 4 Schlachtschiff; 2 Schlachtkreuzer) vom Planet Domestos [3:100:15] erreicht den Planet Quetzalcoatl [2:2:15]. Mission: Stationieren (Rohstoffe: 0 Metall; 0 Kristall; 180719 Deuterium)',
     '08:30:47 | 08h 29m 31s Eine deiner Flotten (3418 Leichter Jäger; 44 Schwerer Jäger; 1463 Schlachtschiff; 131 Recycler; 4397 Schlachtkreuzer; 1698 Optimierter Recycler) vom Mond Whorus [2:100:15] erreicht den Planet Quetzalcoatl [2:2:15]. Mission: Stationieren',
   ];
+
+  it('reads a copied phalanx, which the sync does not store as own fleets', () => {
+    const text = [
+      'Serverzeit : Okt Fr 23 18:10:40',
+      'Scan Position [3:4:1] (Kolonie)',
+      'Momentane Flottenbewegungen',
+      '21:25:37\t03h 14m 57s\tEine deiner Flotten (208 Kleiner Transporter; 705 Großer Transporter; 539 Sturmtransporter) vom Mond ἰός [2:154:12] erreicht den Planet Kolonie [3:4:1]. Mission: Transport',
+      '00:58:47     06h 48m 07s     Eine deiner Flotten (208 Kleiner Transporter; 705 Großer Transporter; 539 Sturmtransporter) kehrt vom Planet Kolonie [3:4:1] zurück zum Mond ἰός [2:154:12]. Mission: Transport',
+    ].join('\n');
+    expect(isPhalanxText(text)).toBe(true);
+    expect(phalanxPosition(text)).toEqual(c(3, 4, 1));
+    expect(isPhalanxText(lines.join('\n'))).toBe(false);
+    const res = parsePage({ text });
+    expect(res).toMatchObject({ pageType: 'phalanx', records: [], warnings: ['phalanx_use_raid_planner'] });
+    const rec = parseFleetsText(text)!;
+    expect(rec.pageTime).toMatch(/-10-23 18:10:40$/);
+    expect(rec.fleets.map((f) => [f.owner, f.mission, f.phase, f.clock, f.seconds, f.from.coords, f.to?.coords])).toEqual([
+      ['own', 3, 'out', '21:25:37', 3 * 3600 + 14 * 60 + 57, c(2, 154, 12), c(3, 4, 1)],
+      ['own', 3, 'return', '00:58:47', 6 * 3600 + 48 * 60 + 7, c(3, 4, 1), c(2, 154, 12)],
+    ]);
+    expect(rec.fleets[0].ships).toEqual({ 202: 208, 203: 705, 225: 539 });
+  });
 
   it('parses copied event lines on their own', () => {
     const res = parsePage({ text: lines.join('\n') });

@@ -4,7 +4,7 @@ Status (2026-10-23): done and in use, the requester checks it in the browser (de
 attack plans (solo, ACS, against a player with rough times), retime and hold on hostile attacks from the members'
 overviews and from phalanx results, recall detection, launched fleets from the own overview, flight calculator and
 combat simulator links (game simulator and TrashSim with all plan fleets), collapsible plans, plan counts in the menu.
-Open: refusing phalanx pastes in the sync, real test data, other universes' ship lists (see "Still open").
+Open: more real test data, other universes' ship lists (see "Still open").
 
 The raid planner plans own fleets, solo or as ACS, landing at the right second. A plan starts empty, from a hostile
 attack as a retime (land on the enemy origin right after the enemy fleet is back) or as a hold (land on the attacked
@@ -137,7 +137,8 @@ From the game source (`ShowFleetStep3Page`, `FleetFunctions::setACSTime`), built
 - **Drives** of the owner (owner by the origin's galaxy data) from the newest spy report with research, editable.
 - **Delay**: a newer overview paste of the same attack with a later arrival updates it; the first seen arrival stays,
   the panel shows the delay.
-- **Phalanx as a source** ("Phalanx einfügen", `POST /api/:uni/phalanx`, `phalanx_snapshots`, kept a day): in phalanx
+- **Phalanx as a source** ("Phalanx einfügen", `POST /api/:uni/phalanx`, only texts with the phalanx head,
+  `phalanx_snapshots`, kept a day; the sync refuses phalanx texts, see "Sources"): in phalanx
   mode (`FlyingFleetsTable::getFleets`) the game lists fleets starting from the scanned planet (planets only, not
   moons) or heading for it, and returns only of the scanned player's own fleets, written as "yours". Attacks on the
   scanned planet ("Eine Flotten(…) … erreicht den Planet <scanned>") join the hostile attacks with their arrival; the
@@ -219,6 +220,20 @@ The parser `packages/parser/src/parsers/fleets.ts` (stored in `fleet_snapshots`)
   fleets follow on lines without time, in the page source each fleet has its own `colorMission…` span. All fleets
   of an ACS share the number `acs` (the first is the lead), and the arrival of the lead.
 - The player name drops the trailing PM link (`[PN]` / `[PM]`).
+- Phalanx copy (sample from the requester, 2026-10-23): server clock, the head "Scan Position [g:s:p] (<name>)"
+  (`px_scan_position`; English "Investigate position") and "Momentane Flottenbewegungen" ("Fleet in movement"), then
+  one line per event with clock, countdown and sentence separated by tabs, without the bar of the overview:
+
+  ```text
+  Serverzeit : Okt Fr 23 18:10:40
+  Scan Position [3:4:1] (Kolonie)
+  Momentane Flottenbewegungen
+  21:25:37     03h 14m 57s     Eine deiner Flotten (208 Kleiner Transporter; 705 Großer Transporter; 539 Sturmtransporter) vom Mond ἰός [2:154:12] erreicht den Planet Kolonie [3:4:1]. Mission: Transport
+  00:58:47     06h 48m 07s     Eine deiner Flotten (208 Kleiner Transporter; 705 Großer Transporter; 539 Sturmtransporter) kehrt vom Planet Kolonie [3:4:1] zurück zum Mond ἰός [2:154:12]. Mission: Transport
+  ```
+
+  The scanned player's fleets read "Eine deiner Flotten"; the head tells a phalanx from an own overview
+  (`isPhalanxText`). The sync refuses it (page type `phalanx`, warning `phalanx_use_raid_planner`).
 - Notifications show an ACS as one entry with the ships of all its fleets.
 
 ## Server, live updates, claims (as built)
@@ -278,12 +293,9 @@ The parser `packages/parser/src/parsers/fleets.ts` (stored in `fleet_snapshots`)
 
 ## Still open
 
-1. **Phalanx pastes in the sync**: a phalanx copied into the sync instead of "Phalanx einfügen" would be read as the
-   member's own fleet list ("Eine deiner Flotten"). Needs a real copied phalanx text to tell the two apart (e.g. by
-   the phalanx window's heading) and refuse it in the sync.
-2. **Test data** (later, from the requester): the full Ctrl+A copy of an overview with an attack (with server clock
-   line), the English texts (taken from the game's language files so far), a copied phalanx result, an own ACS fleet
-   in the overview (launched detection with an ACS member's mission).
-3. **Other universes**: TrashSim's ship columns and the ship table follow universe 7; a universe with other ships would
+1. **Test data** (later, from the requester): the full Ctrl+A copy of an overview with an attack (with server clock
+   line), the English texts (taken from the game's language files so far), a phalanx showing an attack on the scanned
+   planet, an own ACS fleet in the overview (launched detection with an ACS member's mission).
+2. **Other universes**: TrashSim's ship columns and the ship table follow universe 7; a universe with other ships would
    need its own list (only if such a universe is used).
-4. **Mobile**: tidied up once; further changes on feedback from the requester's browser checks.
+3. **Mobile**: tidied up once; further changes on feedback from the requester's browser checks.

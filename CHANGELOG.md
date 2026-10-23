@@ -4,6 +4,12 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Phalanx texts (from a real copy): fleet lines are read without the bar between clock and countdown (the phalanx
+  separates them with tabs), so "Phalanx einfügen" finds its attacks. A phalanx is recognised by its head
+  ("Scan Position [g:s:p]" / "Investigate position", `isPhalanxText`, `phalanxPosition`): the sync no longer stores it
+  as the member's own fleet list (page type `phalanx`, warning `phalanx_use_raid_planner`), and the raid planner
+  accepts only phalanx texts (`phalanx_not_phalanx`), so an own overview cannot list the member's attacks as hostile.
+
 - Raid planner plan (`FEATURE_REQUEST_RETIME.md`) brought up to date: three ways into a plan (from scratch, retime,
   hold), data model with migrations 028/029, phalanx as a source, endpoints, claims, UI, and the remaining open items.
 

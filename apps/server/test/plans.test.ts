@@ -265,13 +265,23 @@ describe('attack plans', () => {
     const victim = Number(db.prepare("INSERT INTO players (group_id, ingame_id, name) VALUES (?, 4715, 'Opfer')").run(groupA).lastInsertRowid);
     db.prepare("INSERT INTO planets (group_id, g, s, p, name, player_id) VALUES (?, 5, 50, 5, 'Gescannt', ?)").run(groupA, victim);
     const phalanx = [
+      'Scan Position [5:50:5] (Gescannt)',
+      'Momentane Flottenbewegungen',
       // an attack on the scanned planet (the game names no player)
       '1h 0m 0s Eine Flotten(40 Schwerer Jäger) vom Mond Mond [1:41:1] erreicht den Planet Gescannt [5:50:5]. Mission: Angreifen',
       // the scanned player attacks someone from this planet; the phalanx also shows the return
       '2h 0m 0s Eine deiner Flotten (12 Kreuzer) vom Planet Gescannt [5:50:5] erreicht den Planet Ziel [5:60:6]. Mission: Angreifen',
       '4h 0m 0s Eine deiner Flotten (12 Kreuzer) kehrt vom Planet Ziel [5:60:6] zurück zum Planet Gescannt [5:50:5]. Mission: Angreifen',
     ].join('\n');
-    expect((await call('POST', '/phalanx', dave, { text: 'nichts' })).json().code).toBe('phalanx_empty');
+    expect((await call('POST', '/phalanx', dave, { text: 'nichts' })).json().code).toBe('phalanx_not_phalanx');
+    expect((await call('POST', '/phalanx', dave, { text: 'Scan Position [5:50:5] (Gescannt)' })).json().code).toBe('phalanx_empty');
+    // the own overview is no phalanx: its attacks would show up as hostile ones
+    expect((await call('POST', '/phalanx', dave, { text: phalanx.split('\n').slice(2).join('\n') })).json().code).toBe('phalanx_not_phalanx');
+    // in the sync a phalanx is not stored as the member's own fleets
+    const before = db.prepare('SELECT COUNT(*) FROM fleet_snapshots').pluck().get();
+    const synced = (await call('POST', '/ingest', dave, { text: phalanx })).json();
+    expect(synced.warnings).toContain('phalanx_use_raid_planner');
+    expect(db.prepare('SELECT COUNT(*) FROM fleet_snapshots').pluck().get()).toBe(before);
     expect((await call('POST', '/phalanx', dave, { text: phalanx })).json()).toEqual({ attacks: 2 });
     const list = (await call('GET', '/hostile-attacks', carol)).json().filter((x: any) => x.source === 'phalanx');
     const onScanned = list.find((x: any) => x.to.g === 5 && x.to.s === 50)!;

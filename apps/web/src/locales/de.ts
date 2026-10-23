@@ -481,6 +481,7 @@ const de = {
     clipboardDenied: 'Kein Zugriff auf die Zwischenablage – bitte ins Textfeld einfügen.',
     /** parser/ingest warning codes */
     warnings: {
+      phalanx_use_raid_planner: 'Phalanx erkannt: nicht gespeichert. Bitte im Raid-Planer über „Phalanx einfügen“ einfügen.',
       html_no_data: 'HTML enthielt keine erkennbaren Daten, Plaintext wird verwendet.',
       stats_category_unknown: 'Statistik-Kategorie nicht erkannt – bitte auswählen.',
       galaxy_position_missing: 'Galaxie erkannt, aber Galaxie/System fehlen: bitte als Galaxie:System eintragen (z. B. 1:234).',

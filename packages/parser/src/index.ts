@@ -3,7 +3,7 @@ import { isEmpireHtml, isEmpireText, parseEmpireHtml, parseEmpireText } from './
 import { isGalaxyHtml, isGalaxyText, parseGalaxyHtml, parseGalaxyText, parseSystem } from './parsers/galaxy.js';
 import { looksLikeUniverseJson, parseUniverseJson } from './parsers/universeJson.js';
 import { isMessagesHtml, parseMessagesHtml, parseMessagesText } from './parsers/messages.js';
-import { isFleetsText, parseFleetsHtml, parseFleetsText } from './parsers/fleets.js';
+import { isFleetsText, isPhalanxText, parseFleetsHtml, parseFleetsText } from './parsers/fleets.js';
 import { isOverviewHtml, isOverviewText, parseOverviewHtml, parseOverviewText } from './parsers/overview.js';
 import { isBattleHallHtml, parseBattleHallHtml } from './parsers/battleHall.js';
 import { isCombatReportText, parseCombatReportText } from './parsers/combatReport.js';
@@ -16,7 +16,7 @@ export * from './util.js';
 export * from './tech.js';
 export * from './deck.js';
 export { looksLikeUniverseJson, UNIVERSE_JSON_STATUS } from './parsers/universeJson.js';
-export { parseFleetsText } from './parsers/fleets.js';
+export { isPhalanxText, parseFleetsText, phalanxPosition } from './parsers/fleets.js';
 
 export interface ParseInput {
   /** text/html from the clipboard, a saved page or the page source */
@@ -126,6 +126,11 @@ function parseHtml($: cheerio.CheerioAPI, htmlText: string, input: ParseInput, w
 }
 
 function parseText(text: string, input: ParseInput, warnings: string[]): { pageType: PageType; records: HubRecord[] } {
+  // a phalanx lists the scanned player's fleets as "yours": never the member's own fleet list
+  if (isPhalanxText(text)) {
+    warnings.push('phalanx_use_raid_planner');
+    return { pageType: 'phalanx', records: [] };
+  }
   if (isStatsText(text)) {
     const r = parseStatsText(text);
     if (r) {
