@@ -131,6 +131,13 @@ export interface PlayerMessageRecord {
   subject: string;
   /** plain text, line breaks kept */
   body: string;
+  /**
+   * Conversation in the mailbox of the one who copied it (`u_<id of its first message>`), from the reply link; the other
+   * side's copy has another id. HTML only.
+   */
+  thread: string | null;
+  /** in-game id of the conversation partner of the one who copied it (reply link), also on their own sent messages */
+  partnerId: number | null;
 }
 
 export interface GalaxyRow {

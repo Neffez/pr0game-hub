@@ -21,6 +21,12 @@ export interface StoredMessage {
   own_shared: boolean;
   /** the alliance sees it (the viewer's copy or another member's) */
   shared: boolean;
+  /** members who synced it (user ids, visible copies) */
+  owners: number[];
+  /** "userId:thread" of the visible copies with a known conversation */
+  threads: string[];
+  /** "userId:in-game id" of the conversation partner per visible copy, when known */
+  partners: string[];
 }
 
 /** A copy is shared by its message choice, else by its member's account setting. */
@@ -36,19 +42,27 @@ export function visibleMessages(db: DB, groupId: number, viewerId: number, limit
     .prepare(
       `SELECT MIN(pm.id) AS id, pm.time, pm.from_name, pm.from_coords, pm.recipients, pm.subject, pm.body,
          json_group_array(DISTINCT COALESCE(gm.ingame_name, u.username)) AS synced_by,
-         MAX(pm.user_id = ?) AS own, MAX(pm.user_id = ? AND ${SHARED}) AS own_shared, MAX(${SHARED}) AS shared
+         MAX(pm.user_id = ?) AS own, MAX(pm.user_id = ? AND ${SHARED}) AS own_shared, MAX(${SHARED}) AS shared,
+         json_group_array(DISTINCT pm.user_id) AS owners,
+         json_group_array(DISTINCT pm.user_id || ':' || pm.thread) AS threads,
+         json_group_array(DISTINCT pm.user_id || ':' || pm.partner_ingame_id) AS partners
        FROM player_messages pm JOIN users u ON u.id = pm.user_id
        JOIN group_members gm ON gm.group_id = pm.group_id AND gm.user_id = pm.user_id
        WHERE pm.group_id = ? AND (pm.user_id = ? OR ${SHARED})
        GROUP BY pm.dedupe_key ORDER BY pm.time DESC, id DESC LIMIT ?`,
     )
-    .all(viewerId, viewerId, groupId, viewerId, limit) as (Omit<StoredMessage, 'recipients' | 'synced_by' | 'own' | 'own_shared' | 'shared'> & {
+    .all(viewerId, viewerId, groupId, viewerId, limit) as (Omit<StoredMessage, 'recipients' | 'synced_by' | 'own' | 'own_shared' | 'shared' | 'owners' | 'threads' | 'partners'> & {
     recipients: string;
     synced_by: string;
     own: number;
     own_shared: number;
     shared: number;
+    owners: string;
+    threads: string;
+    partners: string;
   })[];
+  // NULL parts make the whole "user:value" NULL
+  const list = (json: string) => (JSON.parse(json) as (string | null)[]).filter((x): x is string => !!x);
   return rows.map((r) => ({
     ...r,
     recipients: JSON.parse(r.recipients),
@@ -56,6 +70,9 @@ export function visibleMessages(db: DB, groupId: number, viewerId: number, limit
     own: !!r.own,
     own_shared: !!r.own_shared,
     shared: !!r.shared,
+    owners: JSON.parse(r.owners),
+    threads: list(r.threads),
+    partners: list(r.partners),
   }));
 }
 

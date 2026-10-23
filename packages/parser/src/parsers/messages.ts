@@ -351,6 +351,9 @@ function parsePlayerMessageHtml($: CheerioAPI, item: Element, msgId: number | nu
   const receiver = root.find('.message-receiver').first();
   const from = party(root.find('.message-from').first().text());
   if (!receiver.length || !from) return null;
+  // reply link: Dialog.PM([partner id], Message.CreateAnswer('Re: …'), '', 'u_<thread>')
+  const reply = root.find('a[onclick*="Dialog.PM"]').first().attr('onclick') ?? '';
+  const group = root.closest('.message-group').attr('id')?.match(/^group_(u_\d+)_\d+$/)?.[1];
   return {
     kind: 'playerMessage',
     msgId,
@@ -359,6 +362,8 @@ function parsePlayerMessageHtml($: CheerioAPI, item: Element, msgId: number | nu
     to: parties(normalizeText(receiver.text()).replace(RECEIVER_RE, '$1')),
     subject: normalizeText(root.find('.message-subject').first().text()),
     body: messageBody(nodeToText(root.find('.message-content').first().toArray())),
+    thread: reply.match(/'(u_\d+)'\s*\)/)?.[1] ?? group ?? null,
+    partnerId: Number(reply.match(/Dialog\.PM\(\s*\[\s*(\d+)/)?.[1]) || null,
   };
 }
 
@@ -404,6 +409,8 @@ function parsePlayerMessagesText(text: string): { records: PlayerMessageRecord[]
       to: parties(receivers),
       subject: lines[d - 1],
       body: messageBody(lines.slice(first, end).join('\n')),
+      thread: null,
+      partnerId: null,
     });
     ranges.push([starts[d - 2], end < lines.length ? starts[end] : text.length]);
   });

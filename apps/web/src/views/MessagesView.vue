@@ -4,57 +4,55 @@ import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import { uniApi } from '../api';
 import Hint from '../components/Hint.vue';
-import { useLoader, useProgressive, useSort, useUni } from '../composables';
+import PlayerMessage from '../components/PlayerMessage.vue';
+import { useLoader, useProgressive, useSort, useStored, useUni } from '../composables';
 import { dateTime } from '../format';
 import { tables, useLiveReload } from '../live';
-
-interface Party {
-  name: string;
-  coords: string | null;
-  /** player of the own alliance */
-  ally: boolean;
-}
-interface Message {
-  id: number;
-  time: number;
-  from_name: string;
-  from_coords: string | null;
-  from_ally: boolean;
-  recipients: Party[];
-  subject: string;
-  body: string;
-  synced_by: string[];
-  /** synced by the user: they choose whether the alliance sees their copy */
-  own: boolean;
-  own_shared: boolean;
-  /** the alliance sees it (the user's copy or another member's) */
-  shared: boolean;
-}
+import type { Conversation, MessageParty, PlayerMessage as Message } from '../messages';
 
 const { t } = useI18n();
 const { uni } = useUni();
 
-const { data, error, load } = useLoader<{ share: boolean; messages: Message[] }>(() => uniApi(uni.value, '/messages'));
+const { data, error, load } = useLoader<{ share: boolean; messages: Message[]; conversations: Conversation[] }>(() =>
+  uniApi(uni.value, '/messages'),
+);
 onMounted(load);
 useLiveReload(load, tables('player_messages'));
 
+/** single messages or conversations (all messages with the same partner) */
+const mode = useStored<'conversations' | 'single'>('messages.mode', 'conversations');
+
 const route = useRoute();
 const router = useRouter();
-/** `?with=Name` (player page, also former names; a click on a name): messages from or to that player */
-const partner = computed(() => [route.query.with ?? []].flat().filter((n): n is string => !!n));
-const showPartner = (name: string) => router.replace({ query: { ...route.query, with: name } });
-const clearPartner = () => router.replace({ query: { ...route.query, with: undefined } });
+/**
+ * Partner filter: `?partner=<hub player id>` and/or `?with=Name` (player page, also former names; a click on a name):
+ * messages from or to that player.
+ */
+const partnerId = computed(() => Number(route.query.partner) || null);
+const partnerNames = computed(() => [route.query.with ?? []].flat().filter((n): n is string => !!n));
+const isPartner = (p: MessageParty) => (!!partnerId.value && p.player === partnerId.value) || partnerNames.value.includes(p.name);
+const partnerLabel = computed(() => {
+  if (partnerId.value) {
+    const p = data.value?.conversations.flatMap((c) => c.parties).find((x) => x.player === partnerId.value);
+    if (p) return p.name;
+  }
+  return partnerNames.value[0] ?? null;
+});
+const showPartner = (p: MessageParty) =>
+  router.replace({ query: { ...route.query, partner: p.player ? String(p.player) : undefined, with: p.player ? undefined : p.name } });
+const clearPartner = () => router.replace({ query: { ...route.query, partner: undefined, with: undefined } });
+
 const sender = ref('');
 const recipient = ref('');
 const all = computed(() => data.value?.messages ?? []);
 const names = (list: string[]) => [...new Set(list)].sort((a, b) => a.localeCompare(b));
-const senders = computed(() => names(all.value.map((m) => m.from_name)));
+const senders = computed(() => names(all.value.map((m) => m.from.name)));
 const recipients = computed(() => names(all.value.flatMap((m) => m.recipients.map((r) => r.name))));
 const filtered = computed(() =>
   all.value.filter(
     (m) =>
-      (!partner.value.length || partner.value.includes(m.from_name) || m.recipients.some((r) => partner.value.includes(r.name))) &&
-      (!sender.value || m.from_name === sender.value) && (!recipient.value || m.recipients.some((r) => r.name === recipient.value)),
+      (!partnerLabel.value || isPartner(m.from) || m.recipients.some(isPartner)) &&
+      (!sender.value || m.from.name === sender.value) && (!recipient.value || m.recipients.some((r) => r.name === recipient.value)),
   ),
 );
 
@@ -67,7 +65,7 @@ const sort = useSort(
   (m, k) => {
     switch (k) {
       case 'from':
-        return m.from_name.toLowerCase();
+        return m.from.name.toLowerCase();
       case 'to':
         return m.recipients.map((r) => r.name).join(', ').toLowerCase();
       case 'subject':
@@ -79,6 +77,43 @@ const sort = useSort(
   'time',
 );
 const { shown, more, sentinel } = useProgressive(sort.sorted, 100);
+
+// ------------------------------------------------------------ conversations
+
+/** Conversations with at least one message passing the filters, with those messages oldest first (chat order). */
+const convs = computed(() => {
+  const byConv = new Map<string, Message[]>();
+  for (const m of filtered.value) {
+    const list = byConv.get(m.conversation) ?? [];
+    list.push(m);
+    byConv.set(m.conversation, list);
+  }
+  const dir = sort.descending.value ? -1 : 1;
+  return (data.value?.conversations ?? [])
+    .filter((c) => byConv.has(c.id))
+    .map((c) => {
+      const messages = byConv.get(c.id)!.sort((a, b) => a.time - b.time || a.id - b.id);
+      return { ...c, messages, latest: messages[messages.length - 1] };
+    })
+    .sort((a, b) => (a.latest.time - b.latest.time) * dir);
+});
+const { shown: convsShown, more: convsMore, sentinel: convSentinel } = useProgressive(convs, 50);
+
+/** Who the conversation is with: everyone but the user; without the user (shared by others) everyone, members first. */
+const title = (c: Conversation) => {
+  const others = c.parties.filter((p) => !p.self);
+  return others.length < c.parties.length ? others : [...c.parties].sort((a, b) => Number(b.member) - Number(a.member));
+};
+const open = ref(new Set<string>());
+const isOpen = (id: string) => open.value.has(id) || convs.value.length === 1;
+function toggle(id: string) {
+  const s = new Set(open.value);
+  if (!s.delete(id)) s.add(id);
+  open.value = s;
+}
+const preview = (m: Message) => m.body.split('\n')[0];
+
+// ------------------------------------------------------------ sharing
 
 /** Shares the user's copy of a message with the alliance or not. */
 const busy = ref<number | null>(null);
@@ -103,10 +138,16 @@ async function toggleShare(m: Message) {
   <h1>{{ t('nav.messages') }} <Hint>{{ t('messages.hint') }}</Hint></h1>
   <div class="card filters">
     <div class="row">
-      <span v-if="partner.length" class="chip">
-        {{ t('messages.with', { name: partner[0] }) }}
+      <div class="tabs" style="margin: 0">
+        <button :class="{ active: mode === 'conversations' }" @click="mode = 'conversations'">{{ t('messages.modeConversations') }}</button>
+        <button :class="{ active: mode === 'single' }" @click="mode = 'single'">{{ t('messages.modeSingle') }}</button>
+      </div>
+      <span v-if="partnerLabel" class="chip">
+        {{ t('messages.with', { name: partnerLabel }) }}
         <button :title="t('messages.clear')" :aria-label="t('messages.clear')" @click="clearPartner">✕</button>
       </span>
+    </div>
+    <div class="row">
       <label>
         {{ t('messages.sender') }}
         <select v-model="sender">
@@ -121,22 +162,24 @@ async function toggleShare(m: Message) {
           <option v-for="n in recipients" :key="n" :value="n">{{ n }}</option>
         </select>
       </label>
-      <label>
+      <label v-if="mode === 'single'">
         {{ t('messages.sortBy') }}
         <select :value="sort.key.value" @change="sort.key.value = ($event.target as HTMLSelectElement).value">
           <option v-for="k in SORT_KEYS" :key="k" :value="k">{{ t(sortLabel[k]) }}</option>
         </select>
       </label>
+      <span v-else class="small muted">{{ t('messages.sortLast') }}</span>
       <button
-          :title="t(sort.descending.value ? 'messages.desc' : 'messages.asc')"
-          :aria-label="t(sort.descending.value ? 'messages.desc' : 'messages.asc')"
-          @click="sort.descending.value = !sort.descending.value"
-        >
-          {{ sort.descending.value ? '▾' : '▴' }}
+        :title="t(sort.descending.value ? 'messages.desc' : 'messages.asc')"
+        :aria-label="t(sort.descending.value ? 'messages.desc' : 'messages.asc')"
+        @click="sort.descending.value = !sort.descending.value"
+      >
+        {{ sort.descending.value ? '▾' : '▴' }}
       </button>
     </div>
     <div v-if="data" class="row small muted">
-      <span>{{ t('messages.count', { shown: filtered.length, total: all.length }) }}</span>
+      <span v-if="mode === 'single'">{{ t('messages.count', { shown: filtered.length, total: all.length }) }}</span>
+      <span v-else>{{ t('messages.conversationCount', { n: convs.length }, convs.length) }}</span>
       <span class="legend"><i class="dot ally" /> {{ t('messages.legendAlly') }} <i class="dot other" /> {{ t('messages.legendOther') }}</span>
       <span>
         {{ data.share ? t('messages.sharing') : t('messages.private') }}
@@ -146,36 +189,32 @@ async function toggleShare(m: Message) {
   </div>
   <div v-if="error || shareError" class="error">{{ error || shareError }}</div>
   <p v-if="data && !all.length" class="muted">{{ t('messages.empty') }}</p>
-  <div v-else-if="data" class="messages">
-    <article v-for="m in shown" :key="m.id" class="msg" :class="m.from_ally ? 'ally' : 'other'">
-      <header>
-        <div class="parties">
-          <a href="#" class="party" :class="m.from_ally ? 'ally' : 'other'" @click.prevent="showPartner(m.from_name)">
-            {{ m.from_name }}<span v-if="m.from_coords" class="coords"> [{{ m.from_coords }}]</span>
-          </a>
-          <span class="arrow" aria-hidden="true">→</span>
-          <template v-for="(r, i) in m.recipients" :key="r.name">
-            <span v-if="i" class="faint">,</span>
-            <a href="#" class="party" :class="r.ally ? 'ally' : 'other'" @click.prevent="showPartner(r.name)">
-              {{ r.name }}<span v-if="r.coords" class="coords"> [{{ r.coords }}]</span>
-            </a>
-          </template>
-        </div>
-        <time class="small muted">{{ dateTime(m.time) }}</time>
-      </header>
-      <div class="subject">{{ m.subject }}</div>
-      <div class="body">{{ m.body }}</div>
-      <footer class="small">
-        <span class="faint">{{ t('messages.syncedBy') }}: {{ m.synced_by.join(', ') }}</span>
-        <span class="visibility" :class="{ on: m.shared }">
-          {{ m.shared ? (m.own && !m.own_shared ? t('messages.visibleOthers') : t('messages.visibleAlliance')) : t('messages.visiblePrivate') }}
-        </span>
-        <button v-if="m.own && !(m.shared && !m.own_shared)" class="share" :disabled="busy === m.id" @click="toggleShare(m)">
-          {{ m.own_shared ? t('messages.unshare') : t('messages.share') }}
-        </button>
-      </footer>
-    </article>
+
+  <div v-else-if="data && mode === 'single'" class="list">
+    <PlayerMessage v-for="m in shown" :key="m.id" :m="m" :busy="busy === m.id" @share="toggleShare" @partner="showPartner" />
     <div v-if="more" ref="sentinel" class="list-end" />
+  </div>
+
+  <div v-else-if="data" class="list">
+    <section v-for="c in convsShown" :key="c.id" class="conv" :class="{ open: isOpen(c.id) }">
+      <button class="conv-head" :aria-expanded="isOpen(c.id)" @click="toggle(c.id)">
+        <span class="conv-title">
+          <template v-for="(p, i) in title(c)" :key="p.name">
+            <span v-if="i" class="faint">{{ c.parties.some((x) => x.self) ? ', ' : ' ↔ ' }}</span>
+            <span class="party" :class="p.ally ? 'ally' : 'other'">{{ p.name }}</span>
+          </template>
+          <span class="badge">{{ c.messages.length }}</span>
+        </span>
+        <time class="small muted">{{ dateTime(c.latest.time) }}</time>
+        <span class="conv-preview small muted">
+          <b>{{ c.latest.from.name }}:</b> {{ c.latest.subject }} – {{ preview(c.latest) }}
+        </span>
+      </button>
+      <div v-if="isOpen(c.id)" class="chat">
+        <PlayerMessage v-for="m in c.messages" :key="m.id" :m="m" chat :busy="busy === m.id" @share="toggleShare" @partner="showPartner" />
+      </div>
+    </section>
+    <div v-if="convsMore" ref="convSentinel" class="list-end" />
   </div>
 </template>
 
@@ -187,31 +226,25 @@ async function toggleShare(m: Message) {
 .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-left: 4px; }
 .dot.ally { background: var(--info); }
 .dot.other { background: var(--warn); }
-
-.messages { display: flex; flex-direction: column; gap: 10px; }
-.msg {
-  background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--warn);
-  border-radius: var(--radius); padding: 10px 14px; text-align: left;
-}
-.msg.ally { border-left-color: var(--info); }
-.msg header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 12px; }
-.parties { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 6px; min-width: 0; }
-.party { font-weight: 600; overflow-wrap: anywhere; }
-.party.ally { color: var(--info); }
-.party.other { color: var(--warn); }
-.coords { font-weight: 400; font-family: var(--mono); font-size: 12px; color: var(--muted); }
-.arrow { color: var(--faint); }
-.subject { margin-top: 4px; font-weight: 600; }
-.body { margin-top: 4px; white-space: pre-wrap; overflow-wrap: anywhere; max-width: 80ch; }
-.msg footer { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--border); }
-.visibility { color: var(--muted); }
-.visibility.on { color: var(--pos); }
-.share { margin-left: auto; }
+.list { display: flex; flex-direction: column; gap: 10px; }
 .list-end { height: 1px; }
 
+.conv { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+.conv.open { border-color: var(--border-strong); }
+.conv-head {
+  display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; width: 100%; padding: 10px 14px;
+  background: none; border: 0; border-radius: var(--radius); text-align: left; color: inherit; font: inherit;
+}
+.conv-title { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 4px; font-weight: 600; min-width: 0; }
+.conv-title .badge { margin-left: 6px; }
+.party { overflow-wrap: anywhere; }
+.party.ally { color: var(--info); }
+.party.other { color: var(--warn); }
+.conv-preview { grid-column: 1 / -1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat { display: flex; flex-direction: column; gap: 8px; padding: 4px 14px 14px; border-top: 1px solid var(--border); padding-top: 12px; }
+
 @media (max-width: 800px) {
-  .msg { padding: 10px 12px; }
-  .msg header time { width: 100%; }
-  .share { margin-left: 0; width: 100%; }
+  .conv-head { padding: 10px 12px; }
+  .chat { padding: 10px 8px 12px; }
 }
 </style>

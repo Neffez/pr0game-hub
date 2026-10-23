@@ -290,8 +290,38 @@ describe('api', () => {
     // players of the own alliance are marked
     db.prepare("UPDATE group_members SET ingame_name = 'Admin' WHERE group_id = ? AND user_id = 1").run(groupA);
     const marked = (await list(headers)).messages.find((m: any) => m.body === 'Hi');
-    expect([marked.from_ally, marked.recipients.map((r: any) => r.ally)]).toEqual([true, [false]]);
+    expect([marked.from.ally, marked.recipients.map((r: any) => r.ally)]).toEqual([true, [false]]);
     db.prepare('UPDATE group_members SET ingame_name = NULL WHERE group_id = ? AND user_id = 1').run(groupA);
+  });
+
+  it('groups player messages into conversations per partner', async () => {
+    const headers = { ...admin, 'x-hub-group': String(groupA) };
+    const pm = (id: number, from: string, to: string, date: string, body: string, thread: string, partner = 4711) =>
+      `<div class="message-group" id="group_${thread}_1"><div id="message_${id}" class="message-item">
+       <div class="message-actions"><a href="#" onclick="return Dialog.PM([${partner}], Message.CreateAnswer('Re: x'), '', '${thread}');"></a></div>
+       <div class="message-details"><div class="message-from">${from}</div><div class="message-subject">Re: x</div>
+       <div class="message-date">${date}</div><div class="message-receiver">An:&nbsp; ${to};</div></div>
+       <div class="message-content">${body}</div></div></div>`;
+    db.prepare("INSERT INTO players (group_id, ingame_id, name) VALUES (?, 4711, 'Trudy')").run(groupA);
+    const html = [
+      // two game threads with Trudy; the admin was called "Oldname" before (same main planet)
+      pm(31, 'Trudy [5:5:5]', 'Oldname [1:100:12]', '10. Okt 2026, 10:00:00', 'eins', 'u_31'),
+      pm(32, 'Oldname [1:100:12]', 'Trudy [5:5:5]', '10. Okt 2026, 10:05:00', 'zwei', 'u_31'),
+      pm(40, 'Admin [1:100:12]', 'Trudy [5:5:5]', '11. Okt 2026, 09:00:00', 'neuer Verlauf', 'u_40'),
+      pm(50, 'Victor [6:6:6]', 'Admin [1:100:12]', '12. Okt 2026, 09:00:00', 'jemand anderes', 'u_50', 4712),
+    ].join('');
+    await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { html } });
+    const res = (await app.inject({ method: 'GET', url: '/hub/api/u8/messages', headers })).json();
+    const conv = (body: string) => res.messages.find((m: any) => m.body === body).conversation;
+    expect(new Set(['eins', 'zwei', 'neuer Verlauf'].map(conv)).size).toBe(1);
+    expect(conv('jemand anderes')).not.toBe(conv('eins'));
+    const trudy = res.conversations.find((c: any) => c.id === conv('eins'));
+    expect(trudy).toMatchObject({ count: 3 });
+    // the admin is one person under both names (newest name), Trudy is known as a hub player
+    expect(trudy.parties.map((p: any) => [p.name, p.self, p.player != null]).sort()).toEqual([['Admin', true, false], ['Trudy', false, true]]);
+    expect(res.messages.filter((m: any) => m.conversation === trudy.id).map((m: any) => [m.body, m.out])).toEqual([
+      ['neuer Verlauf', true], ['zwei', true], ['eins', false],
+    ]);
   });
 
   it('lists phalanxes that reach a system', async () => {

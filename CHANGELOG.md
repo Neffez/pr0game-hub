@@ -4,6 +4,15 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- In-game messages grouped into conversations: all messages with the same partner in one card (partner, number of
+  messages, last message), opened as a chat with the user's (or the members') messages on the right. Switch between
+  "Conversations" and "Single" on the page.
+  - The parser reads the game's thread id and the partner's in-game id from the reply link (HTML only); a later HTML
+    copy of a message first pasted as text adds them.
+  - Partners are recognised across renames and several game threads: by name, main planet, hub player (current and
+    former names) and thread; for the members also by their account.
+  - The link on the player page and a click on a name filter by the hub player instead of the name only.
+
 - Account settings: explanations moved into info tooltips next to each setting; the page now uses the full width
   with cards (general, sharing, username, password) in two columns, one column on mobile.
 - In-game messages as cards instead of a table: sender → recipients and time on top, then subject and text (left

@@ -467,13 +467,22 @@ export class Store {
     const to = r.to.map((p) => ({ name: p.name, coords: coords(p.coords) }));
     // whitespace differs between an HTML and a plain text copy
     const key = fnv1a(JSON.stringify([time, r.from.name, to.map((p) => p.name), r.subject, r.body.replace(/\s+/g, ' ')]));
-    const res = this.db
+    const exists = this.db
+      .prepare('SELECT 1 FROM player_messages WHERE group_id = ? AND user_id = ? AND dedupe_key = ?')
+      .get(this.t.groupId, this.t.userId, key);
+    // a later HTML copy of a message first pasted as text adds what only the HTML has
+    this.db
       .prepare(
-        `INSERT OR IGNORE INTO player_messages (group_id, user_id, dedupe_key, msg_id, time, from_name, from_coords, recipients, subject, body)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO player_messages (group_id, user_id, dedupe_key, msg_id, time, from_name, from_coords, recipients, subject, body, thread, partner_ingame_id)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT (group_id, user_id, dedupe_key) DO UPDATE SET msg_id = COALESCE(msg_id, excluded.msg_id),
+           thread = COALESCE(thread, excluded.thread), partner_ingame_id = COALESCE(partner_ingame_id, excluded.partner_ingame_id)`,
       )
-      .run(this.t.groupId, this.t.userId, key, r.msgId, time, r.from.name, coords(r.from.coords), JSON.stringify(to), r.subject, r.body);
-    this.count('player_messages', res.changes > 0);
+      .run(
+        this.t.groupId, this.t.userId, key, r.msgId, time, r.from.name, coords(r.from.coords), JSON.stringify(to), r.subject, r.body,
+        r.thread, r.partnerId,
+      );
+    this.count('player_messages', !exists);
   }
 
   private recycle(r: RecycleRecord) {

@@ -18,8 +18,8 @@ External analysis tool for [pr0game](https://codeberg.org/pr0game/pr0game) based
   💬 count next to the planet
 - **Galaxy browser** with phalanx coverage and a freshness heat map
 - **Spy history** with a diff per coordinate, **hostile spying**, **activity log**
-- **In-game messages**: synced player messages, sortable and filterable by sender and recipient; private unless the
-  member shares them in the account settings
+- **In-game messages**: synced player messages as conversations per partner (chat view) or single, sortable and
+  filterable by sender and recipient; private unless the member shares them (account setting or per message)
 - **Alliance**: planets, fleets, fleet movements and research of all members (each member chooses which fleet
   missions they share)
 - **Targets**: members claim a planet or moon for a while (farming, attack, espionage) so nobody hits it twice;

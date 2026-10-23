@@ -147,7 +147,7 @@ onBeforeUnmount(() => chart?.destroy());
       {{ t('player.lastSeen', { time: dateTime(data.player.last_seen) }) }}
       <template v-if="data.aliases.length"> · {{ t('player.aliases', { names: data.aliases.map((a: any) => a.name).join(', ') }) }}</template>
       ·
-      <RouterLink :to="{ path: `/${uni}/messages`, query: { with: [data.player.name, ...data.aliases.map((a: any) => a.name)] } }">
+      <RouterLink :to="{ path: `/${uni}/messages`, query: { partner: String(data.player.id), with: [data.player.name, ...data.aliases.map((a: any) => a.name)] } }">
         {{ t('player.messages') }}
       </RouterLink>
     </p>

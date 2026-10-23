@@ -180,7 +180,7 @@ describe('messages', () => {
       {
         kind: 'playerMessage', msgId: 3, time: '2026-10-22 21:51:10',
         from: { name: 'Bob', coords: { g: 1, s: 158, p: 7 } }, to: [{ name: 'Alice', coords: { g: 1, s: 100, p: 12 } }],
-        subject: 'Re: Kein Betreff', body: 'Erste Zeile\nzweite Zeile\n\nnach Leerzeile <b>',
+        subject: 'Re: Kein Betreff', body: 'Erste Zeile\nzweite Zeile\n\nnach Leerzeile <b>', thread: 'u_1', partnerId: 1003464,
       },
       {
         kind: 'playerMessage', msgId: 2, time: '2026-10-21 16:13:22',
@@ -188,10 +188,12 @@ describe('messages', () => {
         to: [{ name: 'Bob', coords: { g: 1, s: 158, p: 7 } }, { name: 'Carol', coords: { g: 2, s: 3, p: 4 } }],
         subject: 'Kein Betreff',
         body: 'Feindliche Spionagesonden vom Mond M (Carol) [3:112:1] wurde in der Nähe von Heim (P) [3:100:15] gesichtet.',
+        thread: 'u_1', partnerId: 1003464,
       },
       {
         kind: 'playerMessage', msgId: 1, time: '2026-10-16 14:40:29', from: { name: 'Alice', coords: null },
         to: [{ name: 'Bob', coords: { g: 1, s: 82, p: 4 } }], subject: 'AKS Einladung', body: 'Der Spieler Alice lädt dich zu einem AKS ein.',
+        thread: 'u_1', partnerId: 1003464,
       },
     ]);
   });
