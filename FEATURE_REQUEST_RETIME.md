@@ -1,8 +1,8 @@
 # Feature request: raid planner (attack plans and retime)
 
 Status (2026-10-23): usable. Attack plans (solo, ACS, against a player with rough times) and retime on hostile
-attacks are live in the raid planner, with recall detection, launched fleets from the own overview and flight
-calculator links. Open: simulator links, phalanx source, ACS limits per universe, browser check, test data (see
+attacks are live in the raid planner, with recall detection, launched fleets from the own overview, flight
+calculator and combat simulator links. Open: phalanx source, ACS limits per universe, browser check, test data (see
 "Still open").
 
 The raid planner plans own attacks, solo or as ACS, and lands them at the right second. A plan starts empty or from a
@@ -100,7 +100,11 @@ From the game source (`ShowFleetStep3Page`, `FleetFunctions::setACSTime`), built
   "launched" and carries `seen` (real arrival, paste time; as the fleet sharing setting lets the viewer see it); the
   table shows the real arrival against the target time.
 - **Flight calculator** per fleet of an exact plan ("timing" mode: start, ships, speed, drives, target time).
-- **Simulator links** ("TrashSim", "Simulator im Spiel"): not built yet.
+- **Simulator links** ("Simulator im Spiel", "TrashSim"): both take only the target's values as `im[ID]=amount`
+  (resources, ships, defense, buildings, research), like the game's "simulate" button:
+  `<game URL>game.php?page=battleSimulator&im[…]` and `<game URL>battlesim.html?&im[…]`. The plan carries the target's
+  newest spy report (`spy`; research missing in it from the owner's newest report with research). The own fleets are
+  entered in the simulator by hand (no known URL parameters for the attackers).
 
 ## Enemy fleet analysis (retime, as built)
 
@@ -218,17 +222,18 @@ The parser `packages/parser/src/parsers/fleets.ts` (stored in `fleet_snapshots`)
    planet or all own ships.
 5. **Retime** (027): hostile attacks list, retime plans, shared enemy inputs, delays from new pastes.
 6. **Follow-ups**: recall detection from the overview pastes, launched fleets from the own overview with the real
-   arrival, flight calculator links from fleets and the retime panel.
+   arrival, flight calculator links from fleets and the retime panel, combat simulator links with the target's spy
+   report.
 
 ## Still open
 
-1. **Simulator links**: "TrashSim" and "Simulator im Spiel" with ships and research of all participants and the newest
-   spy report of the target, via URL only (check the parameters both simulators accept).
-2. **Phalanx as source**: a phalanx result of a returning fleet gives the landing at home directly (target time without
+1. **Phalanx as source**: a phalanx result of a returning fleet gives the landing at home directly (target time without
    candidates). Needs a copied phalanx text (also: is the window copyable as one text, does it show the ships?).
-3. **ACS limits per universe**: the 16 / 5 are constants; move them into the universe settings if universes differ.
-4. **Check in a real browser**, also the mobile layout (not possible here: headless Chrome does not run on this
+2. **ACS limits per universe**: the 16 / 5 are constants; move them into the universe settings if universes differ.
+3. **Check in a real browser**, also the mobile layout (not possible here: headless Chrome does not run on this
    machine); so far only the happy-dom smoke tests.
+4. **Simulator with attackers**: if TrashSim or the game simulator accept the attacking fleets and their research
+   via URL, fill in the plan's fleets too.
 5. **Test data**: the full Ctrl+A copy of an overview with an attack (with server clock line), the English texts
    (taken from the game's language files so far), a copied phalanx result, an own ACS fleet in the overview (to check
    the launched detection with an ACS member's mission).

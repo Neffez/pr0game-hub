@@ -872,6 +872,8 @@ const en: typeof de = {
     calcTitle: 'In the flight calculator: launch times per speed for this target time',
     seen: 'launched per overview (arrival)',
     onTime: 'on time',
+    simGame: 'Simulator in the game',
+    simTitle: 'With the newest spy report of the target ({time}); enter your own fleets in the simulator',
     confirmRemoveFleet: 'Remove the fleet of {member}?',
     noEmpire: 'No empire page synced: start planet and ships are missing.',
     invite: 'Invite',

@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Raid-Planer: Links zum Simulator im Spiel und zu TrashSim mit dem neuesten Spionagebericht des Ziels. Auch der Spionage-Verlauf verlinkt jetzt TrashSim.',
+        en: "Raid planner: links to the simulator in the game and to TrashSim with the target's newest spy report. The spy history now links TrashSim too.",
+      },
+      {
+        kind: 'new',
         de: 'Raid-Planer: Taucht deine Flotte in deiner eingefügten Übersicht auf dem Weg zum Ziel auf, gilt sie als gestartet, und die Tabelle zeigt ihre echte Ankunft im Vergleich zur Zielzeit.',
         en: 'Raid planner: once your pasted overview shows your fleet on its way to the target, it counts as launched, and the table shows its real arrival against the target time.',
       },

@@ -57,6 +57,8 @@ export interface AttackPlan {
   fleets: PlanFleet[];
   /** retime: the hostile fleet the plan answers */
   enemy: PlanEnemy | null;
+  /** newest spy report of the target (values by element id) for the combat simulators */
+  spy: { time: number; values: Record<string, number> } | null;
 }
 
 export interface Body {

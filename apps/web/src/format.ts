@@ -212,6 +212,18 @@ export function flightCalcLink(
   return `${base}#${p.toString()}`;
 }
 
+/**
+ * Combat simulators of the game with a spy report's values (`im[ID]=amount`, as the game's "simulate" button):
+ * the simulator in the game and TrashSim (`battlesim.html` of the universe).
+ */
+export function simLinks(gameUrl: string, values: Record<string, number>): { game: string; trash: string } {
+  const base = gameUrl.replace(/\/?$/, '/');
+  const params = Object.entries(values)
+    .map(([id, v]) => `im[${id}]=${v}`)
+    .join('&');
+  return { game: `${base}game.php?page=battleSimulator&${params}`, trash: `${base}battlesim.html?&${params}` };
+}
+
 /** Colour for how old a galaxy view is (Gala-Aktualität, universe browser). */
 export function freshnessColor(age: number | null) {
   if (age == null) return 'var(--surface-2)';

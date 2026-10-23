@@ -874,6 +874,8 @@ const de = {
     calcTitle: 'Im Flugzeitrechner: Abflugzeiten je Geschwindigkeit für diese Zielzeit',
     seen: 'gestartet laut Übersicht (Ankunft)',
     onTime: 'pünktlich',
+    simGame: 'Simulator im Spiel',
+    simTitle: 'Mit dem neuesten Spionagebericht des Ziels ({time}); eigene Flotten im Simulator eintragen',
     confirmRemoveFleet: 'Flotte von {member} entfernen?',
     noEmpire: 'Keine Imperium-Seite gesynct: Startplanet und Schiffe fehlen.',
     invite: 'Einladen',

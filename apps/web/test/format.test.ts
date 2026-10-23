@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { dateTime, fmt, fmtSigned, short } from '../src/format';
+import { dateTime, fmt, fmtSigned, short, simLinks } from '../src/format';
 import { setLocale } from '../src/i18n';
 
 describe('format', () => {
@@ -37,5 +37,11 @@ describe('format', () => {
     setLocale('en');
     expect(dateTime(t)).toMatch(/^21\/10\/26/);
     expect(dateTime(null)).toBe('–');
+  });
+
+  it('links the combat simulators with a spy report like the game', () => {
+    const links = simLinks('https://pr0game.com/uni7', { 901: 2023509, 202: 136, 115: 10 });
+    expect(links.game).toBe('https://pr0game.com/uni7/game.php?page=battleSimulator&im[115]=10&im[202]=136&im[901]=2023509');
+    expect(links.trash).toBe('https://pr0game.com/uni7/battlesim.html?&im[115]=10&im[202]=136&im[901]=2023509');
   });
 });

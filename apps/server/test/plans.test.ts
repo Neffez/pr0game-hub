@@ -215,6 +215,20 @@ describe('attack plans', () => {
     await call('DELETE', `/plans/${created.id}`, dave);
   });
 
+  it('carries the newest spy report of the target for the simulators, research from an older report', async () => {
+    const owner = Number(db.prepare("INSERT INTO players (group_id, ingame_id, name) VALUES (?, 4713, 'Ziel')").run(groupA).lastInsertRowid);
+    const spy = db.prepare(
+      "INSERT INTO spy_reports (group_id, g, s, p, planet_type, player_name, player_id, report_time, sections) VALUES (?, 4, 4, 4, ?, 'Ziel', ?, ?, ?)",
+    );
+    spy.run(groupA, 'planet', owner, 1000, JSON.stringify({ 900: { 901: 1 }, 100: { 115: 9 } }));
+    spy.run(groupA, 'moon', owner, 2000, JSON.stringify({ 100: { 115: 10, 117: 8 } }));
+    spy.run(groupA, 'planet', owner, 3000, JSON.stringify({ 900: { 901: 500 }, 200: { 204: 7 } }));
+    const id = (await call('POST', '/plans', carol, { g: 4, s: 4, p: 4, target_time: soon() })).json().id;
+    const plan = (await call('GET', '/plans', dave)).json().find((p: any) => p.id === id);
+    expect(plan.spy).toEqual({ time: 3000, values: { 901: 500, 204: 7, 115: 10, 117: 8 } });
+    await call('DELETE', `/plans/${id}`, carol);
+  });
+
   it("marks a fleet as launched when the member's own overview shows it towards the target", async () => {
     const target = Math.floor(Date.now() / 1000) + 7200;
     const id = (await call('POST', '/plans', carol, { g: 3, s: 115, p: 8, type: 'moon', target_time: target })).json().id;

@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Combat simulator links: plans with coordinates link the simulator in the game and TrashSim (`battlesim.html` of the
+  universe) with the target's newest spy report (`spy` on plans; research missing in it from the owner's newest report
+  with research); the spy history links TrashSim next to the game simulator (`simLinks` in `format.ts`).
+
 - Raid planner:
   - Fleets in flight: when a member's newest overview shows an own attack (attack, ACS attack, destroy) from a plan
     fleet's start to the plan's target, landing around the plan's time, the fleet is marked launched and the table

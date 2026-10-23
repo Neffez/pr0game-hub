@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useMobile } from '../composables';
-import { fmt, fmtSigned, name, SECTIONS, timeWithAge } from '../format';
+import { fmt, fmtSigned, name, SECTIONS, simLinks, timeWithAge } from '../format';
 
 export interface SpyReport {
   id: number;
@@ -41,14 +41,8 @@ const tables = computed(() =>
   }).filter((t) => t.rows.length),
 );
 
-/** Combat simulator link (game simulator, `im[ID]=amount`). */
-function simLink(r: SpyReport) {
-  const params = Object.values(r.sections)
-    .flatMap((sec) => Object.entries(sec))
-    .map(([id, v]) => `im[${id}]=${v}`)
-    .join('&');
-  return `${props.gameUrl!.replace(/\/?$/, '/')}game.php?page=battleSimulator&${params}`;
-}
+/** Combat simulator links (in the game, TrashSim) with all values of a report. */
+const sims = (r: SpyReport) => simLinks(props.gameUrl!, Object.assign({}, ...Object.values(r.sections)));
 </script>
 
 <template>
@@ -57,7 +51,10 @@ function simLink(r: SpyReport) {
     <p class="small muted">
       {{ t('spyHistory.latest', { time: timeWithAge(reports[0].report_time) }) }}
       <template v-if="reports[0].reporter"> {{ t('common.from') }} {{ reports[0].reporter }}</template>
-      <template v-if="gameUrl"> · <a :href="simLink(reports[0])" target="_blank" rel="noopener">{{ t('spyHistory.simulator') }}</a></template>
+      <template v-if="gameUrl">
+        · <a :href="sims(reports[0]).game" target="_blank" rel="noopener">{{ t('spyHistory.simulator') }}</a>
+        · <a :href="sims(reports[0]).trash" target="_blank" rel="noopener">TrashSim</a>
+      </template>
     </p>
     <!-- mobile: per section one block per report, values as name/value list -->
     <template v-if="mobile">

@@ -3,6 +3,7 @@ import { HttpError } from '../auth.js';
 import type { GroupContext } from '../context.js';
 import { now, type DB } from '../db.js';
 import { events } from '../events.js';
+import { CLASS_RESEARCH } from '@pr0hub/core/tech';
 import { latestEmpires } from '../repo/empire.js';
 import { sharedFleets, type StoredFleet } from '../repo/fleets.js';
 import { attackKey, hostileAttacks, recallWindow, type Body, type EnemyFleet } from '../repo/hostile.js';
@@ -251,14 +252,45 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
     }
     const enemies = new Map(enemiesOf(ctx, plans.map((p) => p.id)).map((e) => [e.plan_id, e]));
     const launched = launchedOf(ctx, plans as unknown as LaunchPlan[], fleets);
+    const spies = new Map(plans.map((p) => [p.id, targetSpy(ctx, p as unknown as SpyPlan)]));
     return plans.map((p) => ({
       ...p,
       fleets: fleets
         .filter((f) => f.plan_id === p.id)
         .map(({ plan_id, ships, ...f }) => ({ ...f, ships: JSON.parse(ships), drives: drives.get(f.user_id) ?? null, seen: launched.get(f.id) ?? null })),
       enemy: enemies.has(p.id) ? enemyOut(enemies.get(p.id)!) : null,
+      spy: spies.get(p.id) ?? null,
     }));
   });
+
+  type SpyPlan = Pick<PlanRow, 'g' | 's' | 'p' | 'planet_type' | 'player_id'>;
+  /**
+   * Newest spy report of a plan's target for the combat simulators: all its values (resources, ships, defense,
+   * buildings, research) by element id; research missing in it comes from the owner's newest report showing research.
+   */
+  function targetSpy(ctx: GroupContext, p: SpyPlan): { time: number; values: Record<string, number> } | null {
+    if (p.g == null) return null;
+    const row = db
+      .prepare(
+        `SELECT report_time, sections, player_id FROM spy_reports WHERE group_id = ? AND g = ? AND s = ? AND p = ? AND planet_type = ?
+         ORDER BY report_time DESC LIMIT 1`,
+      )
+      .get(ctx.groupId, p.g, p.s, p.p, p.planet_type) as { report_time: number; sections: string; player_id: number | null } | undefined;
+    if (!row) return null;
+    const sections = JSON.parse(row.sections) as Record<string, Record<string, number>>;
+    const owner = row.player_id ?? p.player_id;
+    if (!sections[CLASS_RESEARCH] && owner != null) {
+      const older = db
+        .prepare(
+          `SELECT sections FROM spy_reports WHERE group_id = ? AND player_id = ? AND json_extract(sections, '$."${CLASS_RESEARCH}"') IS NOT NULL
+           ORDER BY report_time DESC LIMIT 1`,
+        )
+        .pluck()
+        .get(ctx.groupId, owner) as string | undefined;
+      if (older) sections[CLASS_RESEARCH] = (JSON.parse(older) as Record<string, Record<string, number>>)[CLASS_RESEARCH];
+    }
+    return { time: row.report_time, values: Object.assign({}, ...Object.values(sections)) };
+  }
 
   type LaunchPlan = Pick<PlanRow, 'id' | 'g' | 's' | 'p' | 'planet_type' | 'target_time' | 'status'> & { time_precision: string };
   type LaunchFleet = { id: number; plan_id: number; user_id: number; g: number | null; s: number | null; p: number | null; planet_type: string | null; status: string };
