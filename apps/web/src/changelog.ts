@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Raid-Planer: Antriebe lassen sich pro Flotte von Hand eintragen. Ohne Imperium-Seite kommen Planeten, Schiffe und Antriebe eines Mitglieds jetzt aus den Spionageberichten. Einladen kann jetzt jeder, die Glocke zeigt, wer eingeladen hat.',
+        en: 'Raid planner: drives can be entered per fleet by hand. Without an empire page, a member\'s planets, ships and drives now come from the spy reports. Anyone can now invite, and the bell shows who sent the invitation.',
+      },
+      {
+        kind: 'new',
         de: 'Raid-Planer: Wer eine Flotte im Plan hat, kann jetzt auch die Flotten der anderen eintragen und ändern, etwa für Mitglieder, die gerade nicht da sind oder kein Konto haben. Ohne Imperium-Seite lässt sich der Startplanet von Hand eingeben.',
         en: "Raid planner: anyone with a fleet in a plan can now enter and change the other fleets too, e.g. for members who are away or have no account. Without an empire page the start planet can be typed in.",
       },

@@ -3,7 +3,7 @@ import type { GroupContext } from '../context.js';
 import { now, type DB } from '../db.js';
 import { sharedFleets, type StoredFleet } from '../repo/fleets.js';
 import { alliance } from '../repo/members.js';
-import { contextOf, DISPLAY, MEMBER } from './util.js';
+import { contextOf, DISPLAY } from './util.js';
 
 /**
  * Something the members should notice: hostile fleets heading for a member (attack, spying, …) from outside the
@@ -28,7 +28,7 @@ export interface AttackNotification extends Base {
   fleets: number;
 }
 
-/** The viewer is invited to a plan (`userId`/`member`: the plan's creator). */
+/** The viewer is invited to a plan (`userId`/`member`: who invited, for older invitations the plan's creator). */
 export interface InviteNotification extends Base {
   kind: 'invite';
   plan: {
@@ -81,18 +81,19 @@ export function notificationRoutes(app: FastifyInstance, db: DB) {
         list.push(n);
       }
     }
-    // the viewer's invitations: one per plan, also with several invited fleets
+    // the viewer's invitations: one per plan (the newest when invited several times), from whoever invited
     const invites = db
       .prepare(
-        `SELECT DISTINCT a.id, a.user_id, ${DISPLAY} AS creator, a.g, a.s, a.p, a.planet_type, a.mission, a.target_time, a.time_precision
+        `SELECT a.id, u.id AS user_id, ${DISPLAY} AS inviter, a.g, a.s, a.p, a.planet_type, a.mission, a.target_time, a.time_precision, MAX(f.id) AS newest
          FROM attack_plan_fleets f JOIN attack_plans a ON a.id = f.plan_id
-         JOIN users u ON u.id = a.user_id ${MEMBER('a')}
+         JOIN users u ON u.id = COALESCE(f.invited_by, a.user_id) LEFT JOIN group_members gm ON gm.group_id = a.group_id AND gm.user_id = u.id
          WHERE a.group_id = ? AND f.user_id = ? AND f.status = 'invited' AND a.status = 'planning'
-           AND a.target_time + CASE a.time_precision WHEN 'day' THEN ${PRECISION_SPAN.day} WHEN 'hour' THEN ${PRECISION_SPAN.hour} ELSE 0 END > ?`,
+           AND a.target_time + CASE a.time_precision WHEN 'day' THEN ${PRECISION_SPAN.day} WHEN 'hour' THEN ${PRECISION_SPAN.hour} ELSE 0 END > ?
+         GROUP BY a.id`,
       )
-      .all(ctx.groupId, ctx.user.id, t) as (InviteNotification['plan'] & { user_id: number; creator: string; target_time: number })[];
-    for (const { user_id, creator, target_time, ...plan } of invites) {
-      list.push({ id: `invite:${plan.id}`, kind: 'invite', userId: user_id, member: creator, time: target_time, plan });
+      .all(ctx.groupId, ctx.user.id, t) as (InviteNotification['plan'] & { user_id: number; inviter: string; target_time: number; newest: number })[];
+    for (const { user_id, inviter, target_time, newest: _, ...plan } of invites) {
+      list.push({ id: `invite:${plan.id}`, kind: 'invite', userId: user_id, member: inviter, time: target_time, plan });
     }
     return list.sort((a, b) => a.time - b.time);
   });

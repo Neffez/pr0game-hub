@@ -26,8 +26,8 @@ export interface PlanFleet {
   speed: number;
   status: 'invited' | 'ready' | 'launched' | 'withdrawn';
   updated_at: number;
-  /** drive research of the member's latest empire page */
-  drives: { time: number; research: Record<string, number> } | null;
+  /** research for flight times and the simulator: the member's latest empire page, else spy reports; drives also by hand (the newest counts) */
+  drives: { time: number; research: Record<string, number>; source: 'empire' | 'spy' | 'manual' } | null;
   /** the member's newest overview shows this fleet in flight to the target: real arrival, time of that paste */
   seen: { arrival: number; time: number } | null;
 }

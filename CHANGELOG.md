@@ -4,6 +4,16 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- **Raid planner: fleets of members without an empire page, invitations by everyone.**
+  - Drive levels per plan fleet by hand (`attack_plan_fleets.drives`/`drives_time`, migration `034`, `drives` in the
+    fleet `PUT`, `null` drops them). A fleet's research comes from the member's empire page, without one from the
+    newest spy report of their player showing research; levels by hand count until a newer page or report arrives.
+    `GET /plans` returns the source (`empire`, `spy`, `manual`) with the drives.
+  - `GET /imperium` returns `spy`: the empire put together from the spy reports when the member has no empire page.
+    The fleet form offers those planets and ships, any ship by hand, and "other coordinates" for a typed start.
+  - Every member may invite others to a plan (was: creator and admins); the bell names who invited
+    (`attack_plan_fleets.invited_by`).
+
 - **Raid planner: participants edit every fleet of a plan.** Every member with a fleet in a plan may now change the
   other fleets (start, ships, speed, status), so a plan can be completed for members who are away or are placeholders
   without an account; removing a fleet stays with its member, the creator and admins. The fleet form loads the

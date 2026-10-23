@@ -83,11 +83,16 @@ All rows per group (`groupContext`).
   lead fleet (`attackKey`).
 - **phalanx_snapshots** (029): pasted phalanx results (fleets with arrival, who pasted, page time), kept a day.
 
-Rights: creator or group admin edit the plan (target, time, note, status, invitations, deletion); every participant
-(also only invited) may fill in or change the coordinates alone (the claim stays with the creator); every participant
-every fleet of the plan (start, ships, speed, status; to plan for members who are away or placeholders without an
-account; the fleet form uses the empire page of the fleet's member, without one the start is typed in), removing a
-fleet only its member, the creator or admins; every participant (and the creator/admins) the enemy inputs.
+Rights: creator or group admin edit the plan (target, time, note, status, deletion); every member may invite
+(the bell names who invited); every participant (also only invited) may fill in or change the coordinates alone (the
+claim stays with the creator); every participant every fleet of the plan (start, ships, speed, status, drives; to plan
+for members who are away or placeholders without an account), removing a fleet only its member, the creator or
+admins; every participant (and the creator/admins) the enemy inputs.
+
+Fleet data of a member: planets and ships from their empire page, without one from the spy reports of their player
+(`spyEmpire`; more ships and other coordinates by hand). Drives (and the combat research for the simulator) the same
+way; drive levels entered by hand per fleet (`attack_plan_fleets.drives`, migration 034) count until a newer empire
+page or spy report with research arrives.
 
 ## Target time
 

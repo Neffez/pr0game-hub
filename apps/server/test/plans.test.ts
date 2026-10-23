@@ -80,14 +80,17 @@ describe('attack plans', () => {
     // Dave has no fleet in the plan yet: Carol's fleet is not his to change
     expect((await call('PUT', `/plans/${plan.id}/fleets/${own.json().id}`, dave, { speed: 50 })).json().code).toBe('plan_fleet_not_yours');
     expect((await call('POST', `/plans/${plan.id}/fleets`, dave, { g: 1, s: 42, p: 7, ships: { 204: 100 } })).statusCode).toBe(200);
-    // Dave cannot invite others, Carol (creator) can
-    expect((await call('POST', `/plans/${plan.id}/fleets`, dave, { user_id: carolId })).json().code).toBe('plan_not_yours');
+    // every member may invite, only members of the group
+    expect((await call('POST', `/plans/${plan.id}/fleets`, dave, { user_id: 99999 })).json().code).toBe('member_not_found');
+    expect((await call('POST', `/plans/${plan.id}/fleets`, dave, { user_id: carolId })).statusCode).toBe(200);
     expect((await call('POST', `/plans/${plan.id}/fleets`, carol, { user_id: daveId })).statusCode).toBe(200);
-    // the invitation rings Dave's bell, not Carol's
+    // the invitations ring the invited member's bell, naming who invited
     expect((await call('GET', '/notifications', dave)).json()).toEqual([
       expect.objectContaining({ id: `invite:${plan.id}`, kind: 'invite', userId: carolId, member: 'Carol', time: plan.target_time, plan: expect.objectContaining({ id: plan.id, g: 1, s: 41, p: 1, planet_type: 'moon', mission: 'attack' }) }),
     ]);
-    expect((await call('GET', '/notifications', carol)).json()).toEqual([]);
+    expect((await call('GET', '/notifications', carol)).json()).toEqual([expect.objectContaining({ id: `invite:${plan.id}`, userId: daveId, member: 'Dave' })]);
+    const carolInvite = (await call('GET', '/plans', carol)).json()[0].fleets.find((f: any) => f.member === 'Carol' && f.status === 'invited');
+    expect((await call('DELETE', `/plans/${plan.id}/fleets/${carolInvite.id}`, carol)).statusCode).toBe(200);
 
     const fleets = (await call('GET', '/plans', dave)).json()[0].fleets;
     expect(fleets.map((f: any) => [f.member, f.status, f.speed, f.ships])).toEqual([
@@ -107,6 +110,37 @@ describe('attack plans', () => {
     expect((await call('DELETE', `/plans/${plan.id}/fleets/${fleets[2].id}`, dave)).statusCode).toBe(200);
     const after = (await call('GET', '/plans', carol)).json()[0].fleets;
     expect(after.map((f: any) => [f.member, f.speed, f.ships])).toEqual([['Carol', 90, { 207: 1773, 215: 2 }], ['Dave', 50, { 204: 120 }]]);
+  });
+
+  it("takes a member's drives from the spy reports without an empire page, or by hand; the newest counts", async () => {
+    const plan = (await call('GET', '/plans', carol)).json()[0];
+    const daveFleet = () => (call('GET', '/plans', carol) as Promise<any>).then((r) => r.json()[0].fleets.find((f: any) => f.member === 'Dave'));
+    expect((await daveFleet()).drives).toBeNull();
+    // a spy report of Dave's player (by name) with research
+    const t0 = Math.floor(Date.now() / 1000) - 3600;
+    const playerId = db.prepare("INSERT INTO players (group_id, name) VALUES (?, 'Dave')").run(groupA).lastInsertRowid;
+    const spy = db.prepare('INSERT INTO spy_reports (group_id, g, s, p, planet_type, player_name, player_id, report_time, sections) VALUES (?, 1, 42, 7, ?, ?, ?, ?, ?)');
+    spy.run(groupA, 'planet', 'Dave', playerId, t0, JSON.stringify({ 100: { 115: 7, 117: 5, 118: 3, 109: 4 }, 200: { 204: 300 } }));
+    expect((await daveFleet()).drives).toEqual({ time: t0, source: 'spy', research: { 115: 7, 117: 5, 118: 3, 134: 0, 109: 4, 110: 0, 111: 0 } });
+    // the fleet form gets the planets and ships from the same reports
+    const imp = (await call('GET', `/imperium?user=${daveId}`, carol)).json();
+    expect(imp.empire).toBeNull();
+    expect(imp.spy).toMatchObject({ researchTime: t0, planets: [{ coords: { g: 1, s: 42, p: 7 }, type: 'planet', values: { 204: 300 } }] });
+
+    // by hand: only drives, any participant; the other research stays from the report
+    const f = await daveFleet();
+    expect((await call('PUT', `/plans/${plan.id}/fleets/${f.id}`, carol, { drives: { 115: 8, 109: 1 } })).json().code).toBe('plan_drives_invalid');
+    expect((await call('PUT', `/plans/${plan.id}/fleets/${f.id}`, carol, { drives: { 117: 100 } })).json().code).toBe('plan_drives_invalid');
+    expect((await call('PUT', `/plans/${plan.id}/fleets/${f.id}`, carol, { drives: { 115: 8, 117: 6, 118: 4 } })).statusCode).toBe(200);
+    expect((await daveFleet()).drives).toMatchObject({ source: 'manual', research: { 115: 8, 117: 6, 118: 4, 109: 4 } });
+    // a newer report wins over the levels by hand
+    spy.run(groupA, 'moon', 'Dave', playerId, Math.floor(Date.now() / 1000) + 60, JSON.stringify({ 100: { 115: 9, 117: 6, 118: 5 } }));
+    expect((await daveFleet()).drives).toMatchObject({ source: 'spy', research: { 115: 9, 117: 6, 118: 5 } });
+    // null drops the levels by hand
+    expect((await call('PUT', `/plans/${plan.id}/fleets/${f.id}`, dave, { drives: null })).statusCode).toBe(200);
+    expect(db.prepare('SELECT drives, drives_time FROM attack_plan_fleets WHERE id = ?').get(f.id)).toEqual({ drives: null, drives_time: null });
+    db.prepare('DELETE FROM spy_reports WHERE player_id = ?').run(playerId);
+    db.prepare('DELETE FROM players WHERE id = ?').run(playerId);
   });
 
   it('validates the input', async () => {

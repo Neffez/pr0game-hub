@@ -5,7 +5,8 @@ import { now, type DB } from '../db.js';
 import { events } from '../events.js';
 import { isPhalanxText, localToEpoch, nearestClock, parseFleetsText } from '@pr0hub/core';
 import { CLASS_RESEARCH } from '@pr0hub/core/tech';
-import { latestEmpires } from '../repo/empire.js';
+import { latestEmpires, spyEmpire } from '../repo/empire.js';
+import { memberPlayers } from '../repo/members.js';
 import { sharedFleets, type StoredFleet } from '../repo/fleets.js';
 import { attackKey, hostileAttacks, PHALANX_KEEP, recallWindow, type Body, type EnemyFleet, type HostileAttack } from '../repo/hostile.js';
 import { contextOf, DISPLAY, MEMBER } from './util.js';
@@ -23,6 +24,8 @@ const KEEP_SECONDS = 7 * 86400;
 const CLAIM_AFTER = 600;
 /** Research ids of the plan fleets: drives and fuel efficiency (flight times), weapons, shields, armour (simulator). */
 const RESEARCH_IDS = [115, 117, 118, 134, 109, 110, 111];
+/** Drive research a plan fleet may get by hand (combustion, impulse, hyperspace). */
+const DRIVE_IDS = [115, 117, 118];
 /** Missions of an own fleet that count as launched for a plan: attack, ACS attack, destroy; hold for hold plans. */
 const LAUNCH_MISSIONS = [1, 2, 9];
 const HOLD_MISSION = 5;
@@ -53,6 +56,8 @@ interface FleetBody {
   ships?: Record<string, unknown>;
   speed?: number;
   status?: string;
+  /** drive levels by hand (115, 117, 118), null = from the empire page or spy reports again */
+  drives?: Record<string, unknown> | null;
 }
 
 interface PlanRow {
@@ -257,17 +262,35 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
     if (!plans.length) return [];
     const fleets = db
       .prepare(
-        `SELECT f.id, f.plan_id, f.user_id, ${DISPLAY} AS member, f.g, f.s, f.p, f.planet_type, f.ships, f.speed, f.status, f.updated_at
+        `SELECT f.id, f.plan_id, f.user_id, ${DISPLAY} AS member, f.g, f.s, f.p, f.planet_type, f.ships, f.speed, f.status, f.updated_at,
+           f.drives AS manual, f.drives_time
          FROM attack_plan_fleets f JOIN attack_plans a ON a.id = f.plan_id
          JOIN users u ON u.id = f.user_id LEFT JOIN group_members gm ON gm.group_id = a.group_id AND gm.user_id = f.user_id
          WHERE f.plan_id IN (SELECT value FROM json_each(?)) ORDER BY f.id`,
       )
-      .all(JSON.stringify(plans.map((p) => p.id))) as (LaunchFleet & Record<string, unknown> & { ships: string })[];
-    // research from the members' latest empire pages (drives for every fleet's flight time, combat techs for the simulator)
-    const drives = new Map<number, { time: number; research: Record<number, number> }>();
-    for (const e of latestEmpires(db, ctx)) {
-      drives.set(e.userId, { time: e.time, research: Object.fromEntries(RESEARCH_IDS.map((id) => [id, e.rec.research[id] ?? 0])) });
-    }
+      .all(JSON.stringify(plans.map((p) => p.id))) as (LaunchFleet & Record<string, unknown> & { ships: string; manual: string | null; drives_time: number | null })[];
+    // research from the members' latest empire pages (drives for every fleet's flight time, combat techs for the simulator),
+    // without one from the newest spy report showing the member's research
+    type Drives = { time: number; research: Record<number, number>; source: 'empire' | 'spy' | 'manual' };
+    const pick = (research: Record<string, number>) => Object.fromEntries(RESEARCH_IDS.map((id) => [id, research[id] ?? 0]));
+    const drives = new Map<number, Drives | null>();
+    for (const e of latestEmpires(db, ctx)) drives.set(e.userId, { time: e.time, research: pick(e.rec.research), source: 'empire' });
+    const players = memberPlayers(db, ctx);
+    const playerName = db.prepare('SELECT name FROM players WHERE id = ?').pluck();
+    const drivesOf = (userId: number): Drives | null => {
+      if (!drives.has(userId)) {
+        const playerId = players.get(userId);
+        const spy = playerId ? spyEmpire(db, ctx, playerId, playerName.get(playerId) as string) : null;
+        drives.set(userId, spy?.researchTime != null ? { time: spy.researchTime, research: pick(spy.research), source: 'spy' } : null);
+      }
+      return drives.get(userId)!;
+    };
+    /** Drives entered by hand count when newer than the member's empire page or spy report. */
+    const fleetDrives = (f: { user_id: number; manual: string | null; drives_time: number | null }): Drives | null => {
+      const base = drivesOf(f.user_id);
+      if (f.manual == null || (base && base.time > f.drives_time!)) return base;
+      return { time: f.drives_time!, research: { ...(base?.research ?? pick({})), ...(JSON.parse(f.manual) as Record<number, number>) }, source: 'manual' };
+    };
     const enemies = new Map(enemiesOf(ctx, plans.map((p) => p.id)).map((e) => [e.plan_id, e]));
     // a hold follows the impact (also after a delay of the enemy)
     for (const p of plans as unknown as (PlanRow & Record<string, unknown>)[]) {
@@ -282,7 +305,12 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
       ...p,
       fleets: fleets
         .filter((f) => f.plan_id === p.id)
-        .map(({ plan_id, ships, ...f }) => ({ ...f, ships: JSON.parse(ships), drives: drives.get(f.user_id) ?? null, seen: launched.get(f.id) ?? null })),
+        .map(({ plan_id, ships, manual, drives_time, ...f }) => ({
+          ...f,
+          ships: JSON.parse(ships),
+          drives: fleetDrives({ user_id: f.user_id, manual, drives_time }),
+          seen: launched.get(f.id) ?? null,
+        })),
       enemy: enemies.has(p.id) ? enemyOut(enemies.get(p.id)!) : null,
       spy: spies.get(p.id) ?? null,
     }));
@@ -701,23 +729,34 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
       if (!FLEET_STATUSES.includes(String(b.status))) throw new HttpError(400, 'plan_status_invalid', 'Invalid status');
       set.status = b.status;
     }
+    if (b.drives !== undefined) {
+      if (b.drives === null) Object.assign(set, { drives: null, drives_time: null });
+      else {
+        if (typeof b.drives !== 'object' || Array.isArray(b.drives)) throw new HttpError(400, 'plan_drives_invalid', 'Invalid drive levels');
+        const levels: Record<number, number> = {};
+        for (const [id, v] of Object.entries(b.drives)) {
+          if (!DRIVE_IDS.includes(Number(id)) || !Number.isInteger(v) || (v as number) < 0 || (v as number) > 99) {
+            throw new HttpError(400, 'plan_drives_invalid', 'Invalid drive levels');
+          }
+          levels[Number(id)] = v as number;
+        }
+        Object.assign(set, { drives: JSON.stringify(levels), drives_time: now() });
+      }
+    }
     return set;
   }
 
-  /** Adds a fleet: the own one, or (creator/admin) an invitation for another member. */
+  /** Adds a fleet: the own one, or an invitation for another member (by any member). */
   app.post<{ Params: { uni: string; id: string }; Body: FleetBody }>('/api/:uni/plans/:id/fleets', async (req) => {
     const ctx = ctxOf(req);
     const plan = planOf(ctx, Number(req.params.id));
     const b = req.body ?? {};
     const userId = b.user_id ?? ctx.user.id;
-    if (userId !== ctx.user.id) {
-      if (plan.user_id !== ctx.user.id && !isAdmin(ctx)) throw new HttpError(403, 'plan_not_yours', 'Only the creator or an admin can invite');
-      if (!isMember(ctx, userId)) throw new HttpError(404, 'member_not_found', 'Member not found');
-    }
+    if (userId !== ctx.user.id && !isMember(ctx, userId)) throw new HttpError(404, 'member_not_found', 'Member not found');
     if (plan.status === 'cancelled' || plan.status === 'done') throw new HttpError(409, 'plan_closed', 'The plan is closed');
     const count = db.prepare('SELECT COUNT(*) FROM attack_plan_fleets WHERE plan_id = ?').pluck().get(plan.id) as number;
     if (count >= MAX_FLEETS) throw new HttpError(409, 'plan_full', 'Too many fleets in this plan');
-    const set = { status: userId === ctx.user.id ? 'ready' : 'invited', ...fleetValues(ctx, b) };
+    const set = { ...(userId === ctx.user.id ? { status: 'ready' } : { status: 'invited', invited_by: ctx.user.id }), ...fleetValues(ctx, b) };
     const cols = Object.keys(set);
     const id = db
       .prepare(`INSERT INTO attack_plan_fleets (plan_id, user_id, ${cols.join(', ')}) VALUES (?, ?, ${cols.map(() => '?').join(', ')})`)

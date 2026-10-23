@@ -151,6 +151,10 @@ components:
       properties:
         userId: { type: integer }
         empire: { type: object, nullable: true }
+        spy:
+          type: object
+          nullable: true
+          description: Without an empire page, the empire put together from the spy reports of the member's player (planets with buildings, fleet and defense per newest report; research with `researchTime`).
         overview: { type: object, nullable: true }
         fleets: { type: array, items: { type: object }, nullable: true }
         fleetHistory: { type: array, items: { type: object } }

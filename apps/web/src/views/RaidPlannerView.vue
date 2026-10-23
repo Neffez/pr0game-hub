@@ -293,6 +293,8 @@ function removePlan(p: AttackPlan) {
 }
 
 // ---- fleets ----
+/** Drive research of a fleet, also by hand: combustion, impulse, hyperspace. */
+const DRIVE_IDS = [115, 117, 118];
 interface OwnPlanet {
   name: string;
   coords: { g: number; s: number; p: number };
@@ -303,16 +305,26 @@ interface OwnEmpire {
   planets: OwnPlanet[];
   /** ships on fleets in flight (✈) */
   flyingShips?: Record<string, number>;
+  /** where the planets come from: the member's empire page or the spy reports of their player */
+  source?: 'empire' | 'spy';
+  time?: number;
 }
-/** Latest empire pages of the members whose fleets are edited, by user id (no planets without one). */
+/** Latest empire pages of the members whose fleets are edited, by user id; without one put together from spy reports. */
 const empires = reactive<Record<number, OwnEmpire>>({});
 const ownEmpire = computed(() => empires[fleetForm.userId] ?? null);
 const ownPlanets = computed(() => ownEmpire.value?.planets ?? null);
 async function loadEmpire(userId: number) {
   if (empires[userId]) return;
   try {
-    const r = await uniApi<{ empire: { data: OwnEmpire } | null }>(uni.value, `/imperium?user=${userId}`);
-    empires[userId] = r.empire?.data ?? { planets: [] };
+    const r = await uniApi<{ empire: { time: number; data: OwnEmpire } | null; spy: (OwnEmpire & { time: number }) | null }>(
+      uni.value,
+      `/imperium?user=${userId}`,
+    );
+    empires[userId] = r.empire
+      ? { ...r.empire.data, source: 'empire', time: r.empire.time }
+      : r.spy
+        ? { planets: r.spy.planets, source: 'spy', time: r.spy.time }
+        : { planets: [] };
   } catch {
     empires[userId] = { planets: [] };
   }
@@ -330,8 +342,9 @@ const owned = computed(() => {
 const planetKey = (c: { g: number; s: number; p: number }, type: string | null) => `${c.g}:${c.s}:${c.p}:${type ?? 'planet'}`;
 
 /**
- * `from`: where a ship's maximum comes from, the start planet or all ships of the member. Without an empire page the
- * start is typed in (`manual` g:s:p, `moon`).
+ * `from`: where a ship's maximum comes from, the start planet or all ships of the member. A start not in the list
+ * (`start` = 'manual', or no planets at all) is typed in (`manual` g:s:p, `moon`). `drives`: the levels shown, sent
+ * only when changed by hand (`drivesChanged`); `drivesReset` drops the levels by hand.
  */
 const fleetForm = reactive({
   planId: 0,
@@ -341,6 +354,11 @@ const fleetForm = reactive({
   start: '',
   manual: '',
   moon: false,
+  drives: {} as Record<number, number>,
+  drivesSource: null as 'empire' | 'spy' | 'manual' | null,
+  drivesTime: null as number | null,
+  drivesChanged: false,
+  drivesReset: false,
   ships: {} as Record<number, number>,
   from: {} as Record<number, 'start' | 'all'>,
   speed: 100,
@@ -356,6 +374,11 @@ function openFleet(p: AttackPlan, f?: PlanFleet) {
     start: f && f.g != null ? planetKey({ g: f.g, s: f.s!, p: f.p! }, f.planet_type) : '',
     manual: f && f.g != null ? `${f.g}:${f.s}:${f.p}` : '',
     moon: f?.planet_type === 'moon',
+    drives: Object.fromEntries(DRIVE_IDS.map((id) => [id, Number(f?.drives?.research[id] ?? 0)])),
+    drivesSource: f?.drives?.source ?? null,
+    drivesTime: f?.drives?.time ?? null,
+    drivesChanged: false,
+    drivesReset: false,
     ships: Object.fromEntries(Object.entries(f?.ships ?? {}).map(([id, n]) => [Number(id), n])),
     speed: f?.speed ?? 100,
     from: {},
@@ -373,8 +396,24 @@ const added = (id: number) => fleetForm.ships[id] != null;
 /** Ships to add: those on the start planet, and all own ones (also those still to be moved there). */
 const startShips = computed(() => FLEET_SHIPS.filter((id) => !added(id) && onStart(id) > 0));
 const ownShips = computed(() => FLEET_SHIPS.filter((id) => !added(id) && (owned.value[id] ?? 0) > 0));
-/** Without an empire page any ship can be entered by hand. */
-const otherShips = computed(() => (ownEmpire.value?.planets.length ? [] : FLEET_SHIPS.filter((id) => !added(id))));
+/** Without an empire page (also with spy reports, which may miss planets) any ship can be entered by hand. */
+const otherShips = computed(() => (ownEmpire.value?.source === 'empire' ? [] : FLEET_SHIPS.filter((id) => !added(id))));
+/** The start is typed in: no planets known, "other coordinates" picked, or a saved start not among the planets. */
+const typedStart = computed(
+  () =>
+    !ownPlanets.value?.length ||
+    fleetForm.start === 'manual' ||
+    (!!fleetForm.start && !ownPlanets.value.some((pl) => planetKey(pl.coords, pl.type) === fleetForm.start)),
+);
+const changeDrives = () => Object.assign(fleetForm, { drivesChanged: true, drivesReset: false });
+const resetDrives = () => Object.assign(fleetForm, { drivesChanged: false, drivesReset: true });
+/** Where the drive levels in the form come from. */
+const drivesInfo = computed(() => {
+  if (fleetForm.drivesChanged) return t('plans.drivesSource.manual');
+  if (fleetForm.drivesReset) return t('plans.drivesResetPending');
+  if (!fleetForm.drivesSource) return t('plans.drivesSource.none');
+  return `${t(`plans.drivesSource.${fleetForm.drivesSource}`)}${fleetForm.drivesTime ? ` · ${numDate(new Date(fleetForm.drivesTime * 1000))}` : ''}`;
+});
 /** Picking a ship adds all of them (start planet or all own ones); the amount stays editable. */
 function pickShip(e: Event) {
   const el = e.target as HTMLSelectElement;
@@ -398,13 +437,14 @@ function manualStart(): { g: number; s: number; p: number; type: string } | null
 }
 async function saveFleet() {
   const [g, s, p, type] = fleetForm.start.split(':');
-  const manual = ownPlanets.value?.length ? null : manualStart();
+  const manual = typedStart.value ? manualStart() : null;
   if (manual === undefined) {
     error.value = t('plans.startInvalid');
     return;
   }
   const body = {
-    ...(manual ?? (fleetForm.start ? { g: Number(g), s: Number(s), p: Number(p), type } : {})),
+    ...(manual ?? (fleetForm.start && !typedStart.value ? { g: Number(g), s: Number(s), p: Number(p), type } : {})),
+    ...(fleetForm.drivesReset ? { drives: null } : fleetForm.drivesChanged ? { drives: fleetForm.drives } : {}),
     ships: Object.fromEntries(Object.entries(fleetForm.ships).filter(([, n]) => n > 0)),
     speed: fleetForm.speed,
     ...(fleetForm.fleetId ? {} : { status: 'ready' }),
@@ -647,22 +687,23 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
       <div v-if="fleetForm.planId === p.id" class="fleet-form">
         <h4 v-if="fleetForm.member">{{ t('plans.fleetOf', { member: fleetForm.member }) }}</h4>
         <div class="row">
-          <template v-if="ownPlanets && !ownPlanets.length">
-            <label>
-              {{ t('plans.start') }}
-              <input v-model="fleetForm.manual" class="mono" placeholder="1:41:1" size="10" />
-            </label>
-            <label><input v-model="fleetForm.moon" type="checkbox" /> {{ t('plans.moon') }}</label>
-          </template>
-          <label v-else>
+          <label v-if="ownPlanets?.length">
             {{ t('plans.start') }}
             <select v-model="fleetForm.start">
               <option value="">–</option>
-              <option v-for="pl in ownPlanets ?? []" :key="planetKey(pl.coords, pl.type)" :value="planetKey(pl.coords, pl.type)">
+              <option v-for="pl in ownPlanets" :key="planetKey(pl.coords, pl.type)" :value="planetKey(pl.coords, pl.type)">
                 {{ pl.name }} {{ coords(pl.coords.g, pl.coords.s, pl.coords.p) }}{{ pl.type === 'moon' ? ' ☾' : '' }}
               </option>
+              <option value="manual">{{ t('plans.otherStart') }} …</option>
             </select>
           </label>
+          <template v-if="ownPlanets && typedStart">
+            <label>
+              {{ ownPlanets.length ? t('plans.startCoords') : t('plans.start') }}
+              <input v-model="fleetForm.manual" class="mono start-input" placeholder="1:41:1" size="10" />
+            </label>
+            <label><input v-model="fleetForm.moon" type="checkbox" /> {{ t('plans.moon') }}</label>
+          </template>
           <label>
             {{ t('plans.speed') }}
             <select v-model.number="fleetForm.speed">
@@ -670,6 +711,17 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
             </select>
           </label>
           <span v-if="ownPlanets && !ownPlanets.length" class="muted small">{{ t('plans.noEmpire') }}</span>
+          <span v-else-if="ownEmpire?.source === 'spy'" class="muted small">{{ t('plans.fromSpy', { time: numDate(new Date(ownEmpire.time! * 1000)) }) }}</span>
+        </div>
+        <div class="row drives">
+          <span>{{ t('plans.drives') }}</span>
+          <label v-for="id in DRIVE_IDS" :key="id" :title="t(`retime.drive${id}`)">
+            {{ abbr(id) }}
+            <input v-model.number="fleetForm.drives[id]" type="number" min="0" max="99" :aria-label="t(`retime.drive${id}`)" @input="changeDrives" />
+          </label>
+          <span class="muted small">{{ drivesInfo }}</span>
+          <button v-if="fleetForm.drivesSource === 'manual' && !fleetForm.drivesReset" @click="resetDrives">{{ t('plans.drivesReset') }}</button>
+          <Hint>{{ t('plans.drivesHint') }}</Hint>
         </div>
         <div v-for="(n, id) in fleetForm.ships" :key="id" class="ship-row">
           <span class="ship-name" :title="name(Number(id))">{{ name(Number(id)) }}</span>
@@ -704,11 +756,11 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
 
       <div v-if="!closed(p)" class="row plan-actions">
         <button v-if="fleetForm.planId !== p.id" @click="openFleet(p)">{{ t('plans.addFleet') }}</button>
+        <select v-model.number="invitee[p.id]" :aria-label="t('plans.invite')" @change="invite(p)">
+          <option :value="0">{{ t('plans.invite') }} …</option>
+          <option v-for="m in ctx?.members.filter((m) => m.id !== me) ?? []" :key="m.id" :value="m.id">{{ m.name }}</option>
+        </select>
         <template v-if="canEdit(p)">
-          <select v-model.number="invitee[p.id]" :aria-label="t('plans.invite')" @change="invite(p)">
-            <option :value="0">{{ t('plans.invite') }} …</option>
-            <option v-for="m in ctx?.members.filter((m) => m.id !== me) ?? []" :key="m.id" :value="m.id">{{ m.name }}</option>
-          </select>
           <button v-if="!editing[p.id]" @click="startEdit(p)">{{ t('plans.editPlan') }}</button>
         </template>
       </div>
@@ -745,6 +797,8 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
 .ship-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .ship-name { min-width: 150px; }
 .ship-row input { width: 110px; }
+.drives { gap: 6px; }
+.drives input { width: 52px; }
 .plan-actions { gap: 6px; }
 tr.mine td:first-child { font-weight: 600; }
 td.actions { white-space: nowrap; }

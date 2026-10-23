@@ -12,7 +12,10 @@ import { contextOf, type Q } from './util.js';
 export function imperiumRoutes(app: FastifyInstance, db: DB) {
   const ctxOf = contextOf(db);
 
-  /** Latest own empire + game overview page of a member, for the live view. */
+  /**
+   * Latest own empire + game overview page of a member, for the live view; without an empire page the empire put
+   * together from the spy reports of the member's player (`spy`).
+   */
   app.get<{ Params: { uni: string }; Querystring: Q }>('/api/:uni/imperium', async (req) => {
     const ctx = ctxOf(req);
     const userId = Number(req.query.user ?? ctx.user.id);
@@ -27,6 +30,7 @@ export function imperiumRoutes(app: FastifyInstance, db: DB) {
     // the member's player and the latest synced statistics per category, for the live points
     const playerId = memberPlayer(db, ctx, userId);
     const player = playerId ? (db.prepare('SELECT id, name FROM players WHERE id = ?').get(playerId) as { id: number; name: string }) : undefined;
+    const spy = !empire && player ? spyEmpire(db, ctx, player.id, player.name) : null;
     const stats = player
       ? Object.entries(latestScores(db, ctx.groupId, [player.id]).get(player.id) ?? {}).map(([type, s]) => ({ type: Number(type), ...s }))
       : [];
@@ -83,6 +87,7 @@ export function imperiumRoutes(app: FastifyInstance, db: DB) {
     return {
       userId,
       empire: empire ? { time: empire.time, data: empire.rec } : null,
+      spy,
       overview: overview ? { time: overview.time, data: JSON.parse(overview.data) } : null,
       fleets,
       fleetHistory: fleetHistory(db, ctx.groupId, userId, ctx.user.id, now() - FLEET_HISTORY),

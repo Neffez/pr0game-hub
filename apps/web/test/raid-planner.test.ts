@@ -334,12 +334,56 @@ describe('raid planner page', () => {
     const moon = form.querySelector<HTMLInputElement>('input[type="checkbox"]')!;
     moon.checked = true;
     moon.dispatchEvent(new Event('change'));
+    // drives unknown: entered by hand
+    expect(form.querySelector('.drives')!.textContent).toContain('unbekannt');
+    const drives = [...form.querySelectorAll<HTMLInputElement>('.drives input')];
+    expect(drives.map((i) => i.value)).toEqual(['0', '0', '0']);
+    drives[1].value = '6';
+    drives[1].dispatchEvent(new Event('input'));
     await settle();
+    expect(form.querySelector('.drives')!.textContent).toContain('von Hand');
     [...form.querySelectorAll('button')].find((b) => b.textContent === 'Speichern')!.click();
     await settle();
     const put = calls.find((c) => c.init?.method === 'PUT')!;
     expect(put.url).toContain('/plans/7/fleets/3');
-    expect(JSON.parse(put.init!.body as string)).toMatchObject({ g: 2, s: 50, p: 4, type: 'moon' });
+    expect(JSON.parse(put.init!.body as string)).toMatchObject({ g: 2, s: 50, p: 4, type: 'moon', drives: { 115: 0, 117: 6, 118: 0 } });
+    vi.stubGlobal('fetch', fetchMock);
+  });
+
+  it('offers the planets from the spy reports without an empire page, and other coordinates', async () => {
+    const calls: { url: string; init?: RequestInit }[] = [];
+    const fetchMock = globalThis.fetch;
+    const spy = { time: 1893456000, research: {}, researchTime: null, planets: [{ name: 'Basis', coords: { g: 1, s: 42, p: 7 }, type: 'planet', values: { 204: 300 }, time: 1893456000 }] };
+    vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
+      calls.push({ url, init });
+      if (url.includes('/imperium?user=2')) return new Response(JSON.stringify({ empire: null, spy }), { headers: { 'content-type': 'application/json' } });
+      return fetchMock(url, init);
+    });
+    const dave = [...root.querySelectorAll('.plan')][0].querySelectorAll('tbody tr')[1];
+    [...dave.querySelectorAll('button')].find((b) => b.textContent === 'Bearbeiten')!.click();
+    await settle();
+    const form = root.querySelector('.fleet-form')!;
+    expect(form.textContent).toContain('aus Spionageberichten');
+    const start = form.querySelector<HTMLSelectElement>('select')!;
+    expect([...start.options].map((o) => o.textContent!.trim())).toEqual(['–', 'Basis [1:42:7]', 'Andere Koordinaten …']);
+    expect(start.value).toBe('1:42:7:planet');
+    expect(form.querySelector('.start-input')).toBeNull();
+    // ships the reports miss can be added by hand
+    const groups = [...form.querySelectorAll('optgroup')].map((g) => g.label);
+    expect(groups).toContain('Schiffe (keine Imperium-Seite)');
+    start.value = 'manual';
+    start.dispatchEvent(new Event('change'));
+    await settle();
+    const manual = form.querySelector<HTMLInputElement>('.start-input')!;
+    expect(manual.value).toBe('1:42:7');
+    manual.value = '1:42:9';
+    manual.dispatchEvent(new Event('input'));
+    await settle();
+    [...form.querySelectorAll('button')].find((b) => b.textContent === 'Speichern')!.click();
+    await settle();
+    const body = JSON.parse(calls.find((c) => c.init?.method === 'PUT')!.init!.body as string);
+    expect(body).toMatchObject({ g: 1, s: 42, p: 9, type: 'planet' });
+    expect(body.drives).toBeUndefined();
     vi.stubGlobal('fetch', fetchMock);
   });
 });
