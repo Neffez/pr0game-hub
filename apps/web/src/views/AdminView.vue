@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useMobile, useSort, vStack } from '../composables';
+import CopyField from '../components/CopyField.vue';
 import Hint from '../components/Hint.vue';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -29,9 +30,7 @@ const groups = ref<any[]>([]);
 const newGroup = ref({ universe: '', name: '' });
 const groupId = ref<number | null>(null);
 const members = ref<any[]>([]);
-const invites = ref<any[]>([]);
 const ingests = ref<any[]>([]);
-const inviteRole = ref('member');
 const newMemberName = ref('');
 const merge = ref({ from: null as number | null, into: null as number | null });
 const group = computed(() => groups.value.find((g) => g.id === groupId.value));
@@ -60,9 +59,8 @@ async function loadAll() {
 
 async function loadGroup() {
   if (!groupId.value) return;
-  [members.value, invites.value, ingests.value] = await Promise.all([
+  [members.value, ingests.value] = await Promise.all([
     api(`/admin/groups/${groupId.value}/members`),
-    api(`/admin/groups/${groupId.value}/invites`),
     // sync history is technical administration: global admins only
     isAdmin.value ? api(`/admin/groups/${groupId.value}/ingests`) : [],
   ]);
@@ -131,12 +129,6 @@ const memberSort = useSort(
   false,
 );
 
-const createInvite = () =>
-  run(async () => {
-    await api(`/admin/groups/${groupId.value}/invites`, { body: { role: inviteRole.value } });
-    await loadGroup();
-  });
-
 const inviteUrl = (token: string) => `${location.origin}${import.meta.env.BASE_URL}invite/${token}`;
 const copy = (text: string) => navigator.clipboard?.writeText(text).then(() => (msg.value = t('admin.linkCopied')));
 
@@ -176,10 +168,6 @@ const removeMember = (m: any) => {
     await loadGroup();
   });
 };
-const deleteInvite = (token: string) => run(async () => {
-  await api(`/admin/invites/${token}`, { method: 'DELETE' });
-  await loadGroup();
-});
 const reparse = (id: number) => run(async () => {
   const res = await api(`/admin/ingests/${id}/reparse`, { body: {} });
   msg.value = 'Reparse: ' + JSON.stringify(res.counts);
@@ -376,6 +364,7 @@ const doMerge = () => run(async () => {
               <th class="sortable" @click="memberSort.sortBy('ingame')">{{ t('admin.ingameName') }}{{ memberSort.indicator('ingame') }}</th>
               <th class="sortable" @click="memberSort.sortBy('joined')">{{ t('admin.joined') }}{{ memberSort.indicator('joined') }}</th>
               <th class="sortable" @click="memberSort.sortBy('login')">{{ t('admin.login') }}{{ memberSort.indicator('login') }}</th>
+              <th class="invite-col">{{ t('admin.memberInvite') }}</th>
               <th />
             </tr>
           </thead>
@@ -388,7 +377,8 @@ const doMerge = () => run(async () => {
               </td>
               <td v-else>{{ m.username }}</td>
               <td>
-                <select :value="m.role" :disabled="m.owner" @change="setRole(m, ($event.target as HTMLSelectElement).value)">
+                <span v-if="m.global_admin">{{ t('admin.hubAdmin') }}</span>
+                <select v-else :value="m.role" :disabled="m.owner" @change="setRole(m, ($event.target as HTMLSelectElement).value)">
                   <option value="member">{{ t('admin.roles.member') }}</option>
                   <option value="admin">{{ t('admin.roles.admin') }}</option>
                 </select>
@@ -396,44 +386,20 @@ const doMerge = () => run(async () => {
               <td><input v-model="m.ingame_name" style="width: 140px" @change="setIngame(m)" /></td>
               <td class="small">{{ dateTime(m.joined_at) }}</td>
               <td class="small">{{ m.account ? dateTime(m.last_login_at) : '–' }}</td>
-              <td class="small">
+              <td class="invite-col">
                 <template v-if="!m.account">
-                  <button v-if="m.invite" type="button" @click="copy(inviteUrl(m.invite))">{{ t('admin.copyInvite') }}</button>
-                  <button v-else type="button" @click="memberInvite(m)">{{ t('admin.memberInvite') }}</button>
+                  <CopyField v-if="m.invite" :value="inviteUrl(m.invite)" @copied="msg = t('admin.linkCopied')" />
+                  <button v-else type="button" class="small" @click="memberInvite(m)">{{ t('admin.memberInvite') }}</button>
                 </template>
+                <span v-else class="faint small">–</span>
+              </td>
+              <td>
                 <button v-if="m.id !== me && !m.owner" @click="removeMember(m)">{{ t('admin.remove') }}</button>
                 <span v-else-if="m.owner" class="faint small">{{ t('admin.owner') }}</span>
               </td>
             </tr>
           </tbody>
         </table>
-      </div>
-
-      <h2>{{ t('admin.invites') }}</h2>
-      <div class="card">
-        <div class="row">
-          <select v-model="inviteRole">
-            <option value="member">{{ t('admin.roles.member') }}</option>
-            <option value="admin">{{ t('admin.roles.admin') }}</option>
-          </select>
-          <button class="primary" @click="createInvite">{{ t('admin.createInvite') }}</button>
-        </div>
-        <div class="scroll-x">
-        <table v-stack class="data" style="margin-top: 10px">
-          <tr v-for="i in invites" :key="i.token">
-            <td class="mono small">
-              <a v-if="!i.used_at" href="#" @click.prevent="copy(inviteUrl(i.token))">{{ inviteUrl(i.token) }}</a>
-              <span v-else class="faint">{{ i.token.slice(0, 8) }}…</span>
-            </td>
-            <td class="small">
-              {{ t(`admin.roles.${i.role}`) }}
-              <span v-if="i.for_member" class="muted">{{ t('admin.forMember', { name: i.for_member }) }}</span>
-            </td>
-            <td class="small">{{ i.used_at ? t('admin.usedBy', { name: i.used_by }) : t('admin.validUntil', { time: dateTime(i.expires_at) }) }}</td>
-            <td><button v-if="!i.used_at" @click="deleteInvite(i.token)">{{ t('common.delete') }}</button></td>
-          </tr>
-        </table>
-        </div>
       </div>
 
       <template v-if="crawler">
@@ -529,6 +495,7 @@ const doMerge = () => run(async () => {
 </template>
 
 <style scoped>
+:deep(td.invite-col), :deep(th.invite-col) { white-space: normal; width: 280px; max-width: 360px; }
 .actions { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: nowrap; }
 table.ingests td.content { white-space: normal; min-width: 220px; }
 @media (max-width: 799px) {

@@ -20,6 +20,16 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Unter Konto kannst du den Online-Status abschalten: Du erscheinst dann für andere als offline.',
+        en: 'Under Account you can turn off your online status: you then appear offline to others.',
+      },
+      {
+        kind: 'fix',
+        de: 'Administration: Claim-Links nur noch in der Mitglieder-Tabelle (beim Anlegen automatisch). Allgemeine Einladungslinks entfallen. Globale Admins heißen „Admin“; die Allianz-Rolle wählst du nur zwischen Mitglied und Allianz-Admin.',
+        en: 'Administration: claim links only in the members table (created when you add someone). Generic invite links are gone. Global admins show as "Admin"; alliance role is member or alliance admin only.',
+      },
+      {
+        kind: 'new',
         de: 'Allianz-Admins können Mitglieder per Ingame-Namen anlegen, auch ohne Hub-Konto. Ein Claim-Link lässt sie sich später registrieren oder ein bestehendes Konto übernimmt den Eintrag.',
         en: 'Alliance admins can add members by in-game name even without a hub account. A claim link lets them register later, or an existing account can take over the entry.',
       },

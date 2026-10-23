@@ -46,13 +46,25 @@ const MISSIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15];
 const share = ref<{ enabled: boolean; hidden: number[]; history: boolean } | null>(null);
 /** Player messages shared with the other members (off: only the user sees them). */
 const messageShare = ref<{ enabled: boolean } | null>(null);
+const showOnline = ref<{ enabled: boolean } | null>(null);
 onMounted(async () => {
   try {
-    [share.value, messageShare.value] = await Promise.all([api('/auth/fleet-share'), api('/auth/message-share')]);
+    const [fleetShare, messages, online] = await Promise.all([
+      api('/auth/fleet-share'),
+      api('/auth/message-share'),
+      api('/auth/show-online'),
+    ]);
+    share.value = fleetShare;
+    messageShare.value = messages;
+    showOnline.value = online;
   } catch (e) {
     error.value = (e as Error).message;
   }
 });
+const saveShowOnline = () =>
+  run(async () => {
+    showOnline.value = await api('/auth/show-online', { body: showOnline.value });
+  }, () => t('account.showOnlineSaved'));
 function toggleMission(id: number) {
   const s = share.value!;
   s.hidden = s.hidden.includes(id) ? s.hidden.filter((m) => m !== id) : [...s.hidden, id];
@@ -94,6 +106,10 @@ const saveLang = () =>
         <div class="field">
           <span class="field-label">{{ t('account.hints') }}</span>
           <label class="check"><input v-model="liveHints" type="checkbox" /> {{ t('account.liveHints') }}</label>
+        </div>
+        <div v-if="showOnline" class="field">
+          <span class="field-label">{{ t('account.showOnline') }} <Hint>{{ t('account.showOnlineHint') }}</Hint></span>
+          <label class="check"><input v-model="showOnline.enabled" type="checkbox" @change="saveShowOnline" /> {{ t('account.showOnlineEnabled') }}</label>
         </div>
       </section>
       <section v-if="share || messageShare" class="card">

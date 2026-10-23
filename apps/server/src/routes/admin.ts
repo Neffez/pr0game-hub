@@ -37,6 +37,23 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
     return hash === '';
   };
 
+  /** Open claim invite for a placeholder member of the group (replaces any previous unused one). */
+  const createClaimInvite = (groupId: number, targetUserId: number, createdBy: number) => {
+    const role =
+      (db.prepare('SELECT role FROM group_members WHERE group_id = ? AND user_id = ?').pluck().get(groupId, targetUserId) as string | undefined) ?? 'member';
+    db.prepare('DELETE FROM invites WHERE user_id = ? AND used_at IS NULL').run(targetUserId);
+    const token = randomToken(24);
+    db.prepare('INSERT INTO invites (token, group_id, role, created_by, expires_at, user_id) VALUES (?, ?, ?, ?, ?, ?)').run(
+      token,
+      groupId,
+      role,
+      createdBy,
+      now() + 30 * 86400,
+      targetUserId,
+    );
+    return token;
+  };
+
   const usernameFromName = (name: string) => {
     let base = name.replace(/[^\w.\- ]/g, '_').replace(/\s+/g, ' ').trim();
     if (base.length < 3) base = base.padEnd(3, '_');
@@ -137,18 +154,18 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
     const t = now();
     return db
       .prepare(
-        `SELECT u.id, u.username, m.role, m.ingame_name, m.joined_at, u.last_login_at,
+        `SELECT u.id, u.username, m.role, m.ingame_name, m.joined_at, u.last_login_at, u.is_admin AS global_admin,
            (u.password_hash <> '') AS account,
            (SELECT token FROM invites WHERE user_id = u.id AND used_at IS NULL AND expires_at > ? LIMIT 1) AS invite
          FROM group_members m JOIN users u ON u.id = m.user_id WHERE m.group_id = ? ORDER BY u.username`,
       )
       .all(t, groupId)
-      .map((m: any) => ({ ...m, account: !!m.account, owner: m.id === owner() }));
+      .map((m: any) => ({ ...m, account: !!m.account, global_admin: !!m.global_admin, owner: m.id === owner() }));
   });
 
   app.post<{ Params: { id: string }; Body: { name?: string } }>('/api/admin/groups/:id/members', async (req) => {
     const groupId = Number(req.params.id);
-    requireGroupAdmin(req, groupId);
+    const user = requireGroupAdmin(req, groupId);
     const name = String(req.body?.name ?? '').trim();
     if (!name) throw new HttpError(400, 'name_missing', 'Name missing');
     if (db.prepare('SELECT 1 FROM group_members WHERE group_id = ? AND ingame_name = ?').get(groupId, name)) {
@@ -159,8 +176,9 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
       db.prepare('INSERT INTO users (username, password_hash, is_admin) VALUES (?, ?, 0)').run(username, '').lastInsertRowid,
     );
     db.prepare("INSERT INTO group_members (group_id, user_id, role, ingame_name) VALUES (?, ?, 'member', ?)").run(groupId, userId, name);
+    const token = createClaimInvite(groupId, userId, user.id);
     events.publish(groupId, { type: 'data', tables: ['group_members'] });
-    return { id: userId };
+    return { id: userId, token };
   });
 
   app.put<{ Params: { id: string }; Body: { name?: string } }>('/api/admin/groups/:id', async (req) => {
@@ -223,64 +241,11 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
     const groupId = Number(req.params.id);
     const user = requireGroupAdmin(req, groupId);
     const target = Number(req.params.userId);
-    const row = db
-      .prepare('SELECT m.ingame_name FROM group_members m JOIN users u ON u.id = m.user_id WHERE m.group_id = ? AND m.user_id = ?')
-      .get(groupId, target) as { ingame_name: string | null } | undefined;
-    if (!row) throw new HttpError(404, 'member_not_found', 'Member not found');
+    if (!db.prepare('SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?').get(groupId, target)) {
+      throw new HttpError(404, 'member_not_found', 'Member not found');
+    }
     if (!isPlaceholder(target)) throw new HttpError(400, 'not_placeholder', 'Only members without an account can get a claim invite');
-    db.prepare('DELETE FROM invites WHERE user_id = ? AND used_at IS NULL').run(target);
-    const token = randomToken(24);
-    db.prepare('INSERT INTO invites (token, group_id, role, created_by, expires_at, user_id) VALUES (?, ?, ?, ?, ?, ?)').run(
-      token,
-      groupId,
-      'member',
-      user.id,
-      now() + 30 * 86400,
-      target,
-    );
-    return { token };
-  });
-
-  // --------------------------------------------------------------- invites
-
-  app.get<{ Params: { id: string } }>('/api/admin/groups/:id/invites', async (req) => {
-    const groupId = Number(req.params.id);
-    requireGroupAdmin(req, groupId);
-    return db
-      .prepare(
-        `SELECT i.token, i.role, i.created_at, i.expires_at, i.used_at, u.username AS used_by,
-           COALESCE(gm.ingame_name, pu.username) AS for_member
-         FROM invites i
-         LEFT JOIN users u ON u.id = i.used_by
-         LEFT JOIN users pu ON pu.id = i.user_id
-         LEFT JOIN group_members gm ON gm.group_id = i.group_id AND gm.user_id = i.user_id
-         WHERE i.group_id = ? ORDER BY i.created_at DESC LIMIT 50`,
-      )
-      .all(groupId);
-  });
-
-  app.post<{ Params: { id: string }; Body: { role?: string; days?: number } }>('/api/admin/groups/:id/invites', async (req) => {
-    const groupId = Number(req.params.id);
-    const user = requireGroupAdmin(req, groupId);
-    const role = req.body?.role === 'admin' ? 'admin' : 'member';
-    const days = Math.min(Math.max(Number(req.body?.days ?? 7), 1), 90);
-    const token = randomToken(24);
-    db.prepare('INSERT INTO invites (token, group_id, role, created_by, expires_at) VALUES (?, ?, ?, ?, ?)').run(
-      token,
-      groupId,
-      role,
-      user.id,
-      now() + days * 86400,
-    );
-    return { token };
-  });
-
-  app.delete<{ Params: { token: string } }>('/api/admin/invites/:token', async (req) => {
-    const inv = db.prepare('SELECT group_id FROM invites WHERE token = ?').get(req.params.token) as { group_id: number } | undefined;
-    if (!inv) throw new HttpError(404, 'invite_not_found', 'Invite not found');
-    requireGroupAdmin(req, inv.group_id);
-    db.prepare('DELETE FROM invites WHERE token = ? AND used_at IS NULL').run(req.params.token);
-    return { ok: true };
+    return { token: createClaimInvite(groupId, target, user.id) };
   });
 
   // ------------------------------------------------- players / data hygiene

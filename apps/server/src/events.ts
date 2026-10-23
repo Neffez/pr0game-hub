@@ -42,16 +42,25 @@ export type LiveEvent = DataEvent | PresenceEvent;
 
 export interface LiveClient {
   userId: number;
+  isAdmin: boolean;
   send(event: LiveEvent): void;
 }
 
 /** Galaxy systems listed one by one up to this count; above it the event says "all". */
 const MAX_SYSTEMS = 50;
 
+export type PresenceFilter = (viewer: Pick<LiveClient, 'userId' | 'isAdmin'>, members: PresenceEvent['members']) => PresenceEvent['members'];
+
 export class EventBus {
   private groups = new Map<number, Set<LiveClient>>();
   /** last whereabouts per group and user; only users with a connection count as online */
   private whereabouts = new Map<number, Map<number, Whereabouts>>();
+  private presenceFilter: PresenceFilter | null = null;
+
+  /** Per-viewer filtering for presence events (e.g. hidden online status). */
+  setPresenceFilter(filter: PresenceFilter | null) {
+    this.presenceFilter = filter;
+  }
 
   /** `onLeave`: the user's last connection to the group ended (they went offline). */
   subscribe(groupId: number, client: LiveClient, onLeave?: () => void): () => void {
@@ -79,6 +88,11 @@ export class EventBus {
     if (before !== JSON.stringify(w) && this.connections(groupId, userId)) this.publishPresence(groupId);
   }
 
+  /** Push an updated presence list to all open connections of a group. */
+  refreshPresence(groupId: number) {
+    this.publishPresence(groupId);
+  }
+
   /** Online members of a group with their whereabouts (unknown until their tab reports). */
   presence(groupId: number): PresenceEvent['members'] {
     const users = new Set([...(this.groups.get(groupId) ?? [])].map((c) => c.userId));
@@ -87,7 +101,14 @@ export class EventBus {
   }
 
   private publishPresence(groupId: number) {
-    this.publish(groupId, { type: 'presence', members: this.presence(groupId) });
+    const members = this.presence(groupId);
+    if (!this.presenceFilter) {
+      this.publish(groupId, { type: 'presence', members });
+      return;
+    }
+    for (const client of this.groups.get(groupId) ?? []) {
+      client.send({ type: 'presence', members: this.presenceFilter(client, members) });
+    }
   }
 
   publish(groupId: number, event: LiveEvent) {

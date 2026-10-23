@@ -3,6 +3,7 @@ import { HttpError, loadSessionUser } from '../auth.js';
 import { groupContext, resolveGroup } from '../context.js';
 import { now, type DB } from '../db.js';
 import { events, type Whereabouts } from '../events.js';
+import { presenceForViewer } from '../repo/presence.js';
 
 /** Comment line that keeps proxies from closing an idle stream; also when session and membership are checked again. */
 export const HEARTBEAT_MS = 25_000;
@@ -10,6 +11,9 @@ export const HEARTBEAT_MS = 25_000;
 const MAX_CONNECTIONS = 10;
 
 export function eventRoutes(app: FastifyInstance, db: DB) {
+  events.setPresenceFilter((viewer, members) =>
+    presenceForViewer(db, { id: viewer.userId, isAdmin: viewer.isAdmin }, members),
+  );
   const open = new Set<(closing?: boolean) => void>();
   // hijacked streams never finish on their own: end them before the server waits for its connections
   app.addHook('preClose', async () => {
@@ -35,7 +39,7 @@ export function eventRoutes(app: FastifyInstance, db: DB) {
 
     const unsubscribe = events.subscribe(
       ctx.groupId,
-      { userId: ctx.user.id, send: (event) => res.write(`data: ${JSON.stringify(event)}\n\n`) },
+      { userId: ctx.user.id, isAdmin: ctx.user.isAdmin, send: (event) => res.write(`data: ${JSON.stringify(event)}\n\n`) },
       () => db.prepare('UPDATE group_members SET last_seen_at = ? WHERE group_id = ? AND user_id = ?').run(now(), ctx.groupId, ctx.user.id),
     );
     // logged out or removed from the group while the tab stays open: the stream ends
@@ -66,7 +70,7 @@ export function eventRoutes(app: FastifyInstance, db: DB) {
   /** Online members and where they are (afterwards kept up to date by `presence` events). */
   app.get<{ Params: { uni: string } }>('/api/:uni/presence', async (req) => {
     const ctx = groupContext(db, req, req.params.uni);
-    return events.presence(ctx.groupId);
+    return presenceForViewer(db, ctx.user, events.presence(ctx.groupId));
   });
 
   /** The tab of the current user reports its page (and the shown system or player). */

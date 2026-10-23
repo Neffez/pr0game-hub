@@ -4,9 +4,15 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Account setting **Show online status** (on by default): when turned off, other members see the user as offline in
+  the presence list and “viewing …” badges. Server filters presence per viewer (`users.show_online`, migration `031`;
+  `GET`/`POST /api/auth/show-online`).
+
 - Alliance members without a hub account: alliance admins add them by in-game name (placeholder user, no login).
   A claim invite link sets username and password on the placeholder or merges it into an existing account (raid plans,
   claims and other data follow). Migration `030` adds `invites.user_id`; removing a placeholder deletes the user row.
+  Claim links are created only for these members (on add, shown in the members table); generic alliance invite links
+  are removed.
 
 - Raid planner overview:
   - Plans collapse to a summary line (target time with countdown, number of fleets, the viewer's own next launch or

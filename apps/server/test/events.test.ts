@@ -162,10 +162,48 @@ describe('live events', () => {
     a.close();
   });
 
+  it('hides online status from other members when disabled', async () => {
+    if (!db.prepare("SELECT 1 FROM users WHERE username = 'carol'").get()) {
+      db.prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)').run('carol', hashPassword('carolpass'));
+      const carolId = db.prepare("SELECT id FROM users WHERE username = 'carol'").pluck().get() as number;
+      db.prepare('INSERT INTO group_members (group_id, user_id) VALUES (?, ?)').run(groupA, carolId);
+    }
+    db.prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)').run('dave', hashPassword('davepass'));
+    const daveId = db.prepare("SELECT id FROM users WHERE username = 'dave'").pluck().get() as number;
+    db.prepare('INSERT INTO group_members (group_id, user_id) VALUES (?, ?)').run(groupA, daveId);
+    const daveLogin = await app.inject({ method: 'POST', url: '/hub/api/auth/login', payload: { username: 'dave', password: 'davepass' } });
+    const dave = { cookie: `hub_session=${daveLogin.cookies.find((c) => c.name === 'hub_session')!.value}`, 'x-hub-group': String(groupA) };
+
+    const carolLogin = await app.inject({ method: 'POST', url: '/hub/api/auth/login', payload: { username: 'carol', password: 'carolpass' } });
+    const carol = { cookie: `hub_session=${carolLogin.cookies.find((c) => c.name === 'hub_session')!.value}`, 'x-hub-group': String(groupA) };
+    const carolId = db.prepare("SELECT id FROM users WHERE username = 'carol'").pluck().get() as number;
+
+    const daveStream = await stream(groupA, dave.cookie);
+    const carolStream = await stream(groupA, carol.cookie);
+    await daveStream.nextOf('presence');
+    await carolStream.nextOf('presence');
+
+    await app.inject({
+      method: 'POST', url: '/hub/api/auth/show-online', headers: carol,
+      payload: { enabled: false },
+    });
+    const daveList = (await app.inject({ method: 'GET', url: '/hub/api/u8/presence', headers: dave })).json();
+    expect(daveList.map((m: any) => m.userId)).not.toContain(carolId);
+
+    const carolList = (await app.inject({ method: 'GET', url: '/hub/api/u8/presence', headers: carol })).json();
+    expect(carolList.map((m: any) => m.userId)).toContain(carolId);
+
+    const adminList = (await app.inject({ method: 'GET', url: '/hub/api/u8/presence', headers: { cookie, 'x-hub-group': String(groupA) } })).json();
+    expect(adminList.map((m: any) => m.userId)).toContain(carolId);
+
+    daveStream.close();
+    carolStream.close();
+  });
+
   it('lists synced systems only up to a limit', () => {
     const bus = new EventBus();
     const got: any[] = [];
-    bus.subscribe(1, { userId: 1, send: (e) => got.push(e) });
+    bus.subscribe(1, { userId: 1, isAdmin: false, send: (e) => got.push(e) });
     const many = Array.from({ length: 51 }, (_, i) => `1:${i + 1}`);
     bus.publishIngest(1, 1, { galaxy_systems: { new: 51 } }, many);
     bus.publishIngest(1, 1, { galaxy_systems: { new: 1 } }, null);

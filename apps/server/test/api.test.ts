@@ -208,6 +208,7 @@ describe('api', () => {
       return { im: im.fleets?.data.map((f: any) => f.mission) ?? null, private: im.fleets?.private, al: al.find((m: any) => m.user_id === adminId).fleets };
     };
     expect((await app.inject({ method: 'GET', url: '/hub/api/auth/fleet-share', headers: admin })).json()).toEqual({ enabled: true, hidden: [], history: true });
+    expect((await app.inject({ method: 'GET', url: '/hub/api/auth/show-online', headers: admin })).json()).toEqual({ enabled: true });
     expect((await seen(other)).im).toEqual([1, 4, 4]);
 
     // deploys hidden: the others don't see them, the owner still does
@@ -596,7 +597,9 @@ describe('api', () => {
   });
 
   it('invites a member who only sees their group', async () => {
-    const inv = (await app.inject({ method: 'POST', url: `/hub/api/admin/groups/${groupB}/invites`, headers: admin, payload: {} })).json();
+    const inv = (
+      await app.inject({ method: 'POST', url: `/hub/api/admin/groups/${groupB}/members`, headers: admin, payload: { name: 'Bob' } })
+    ).json();
     const res = await app.inject({ method: 'POST', url: `/hub/api/invites/${inv.token}/accept`, payload: { username: 'bob', password: 'bobpass12' } });
     expect(res.statusCode).toBe(200);
     const bob = await login('bob', 'bobpass12');
@@ -629,10 +632,11 @@ describe('api', () => {
     const member1 = await login('member1', 'member1pass');
     expect((await app.inject({ method: 'POST', url: `${ga}/members`, headers: member1, payload: { name: 'Other' } })).json().code).toBe('group_admin_only');
 
-    const claimTok = (await app.inject({ method: 'POST', url: `${ga}/members/${phId}/invite`, headers: admin })).json().token;
+    expect(add.json().token).toBeTruthy();
+    expect(ph.invite).toBe(add.json().token);
     const accept = await app.inject({
       method: 'POST',
-      url: `/hub/api/invites/${claimTok}/accept`,
+      url: `/hub/api/invites/${add.json().token}/accept`,
       payload: { username: 'phantom', password: 'phantompass' },
     });
     expect(accept.statusCode).toBe(200);
@@ -1134,7 +1138,10 @@ describe('review fixes', () => {
 
   it('keeps the last admin of an alliance', async () => {
     const groupX = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', headers: admin, payload: { universe: 'u8', name: 'Admins' } })).json().id;
-    const inv = (await app.inject({ method: 'POST', url: `/hub/api/admin/groups/${groupX}/invites`, headers: admin, payload: { role: 'admin' } })).json();
+    const gx = `/hub/api/admin/groups/${groupX}`;
+    const carolPh = (await app.inject({ method: 'POST', url: `${gx}/members`, headers: admin, payload: { name: 'Carol' } })).json();
+    await app.inject({ method: 'PUT', url: `${gx}/members/${carolPh.id}`, headers: admin, payload: { role: 'admin' } });
+    const inv = (await app.inject({ method: 'POST', url: `${gx}/members/${carolPh.id}/invite`, headers: admin })).json();
     await app.inject({ method: 'POST', url: `/hub/api/invites/${inv.token}/accept`, payload: { username: 'carol', password: 'carolpass' } });
     const carol = await login('carol', 'carolpass');
     const id = db.prepare("SELECT id FROM users WHERE username = 'carol'").pluck().get();
