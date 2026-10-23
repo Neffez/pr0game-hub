@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Overview on narrow screens: a Mobile/Desktop switch next to the heading shows the wide desktop tables instead of
+  the compact list; remembered per device (`overview.desktopView`), not shown on wide screens.
+
 - Discord alliance channel: meant for a channel only the alliance's members can see (admin hint says so); the
   misleading note about fleet sharing is gone, the channel gets what every member sees in the hub.
 

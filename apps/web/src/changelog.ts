@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Übersicht auf dem Handy: Oben kannst du zwischen der mobilen Liste und der Desktop-Ansicht mit den breiten Tabellen wechseln. Die Wahl merkt sich das Gerät.',
+        en: 'Overview on your phone: at the top you can switch between the mobile list and the desktop view with the wide tables. Your device remembers the choice.',
+      },
+      {
+        kind: 'new',
         de: 'Discord-Benachrichtigungen: Unter Konto kannst du einen eigenen Discord-Webhook eintragen und wählen, was dort ankommt. Allianz-Admins können zusätzlich einen Allianz-Kanal einrichten, der Angriffe auf Mitglieder, neue Raid-Pläne und Starttermine meldet und Betroffene erwähnt.',
         en: 'Discord notifications: under Account you can add your own Discord webhook and choose what arrives there. Alliance admins can also set up an alliance channel that reports attacks on members, new raid plans and launch times and mentions those affected.',
       },

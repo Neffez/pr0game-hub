@@ -600,6 +600,9 @@ const de = {
     perMember: 'pro Mitglied',
   },
   overview: {
+    layoutMobile: 'Mobil',
+    layoutDesktop: 'Desktop',
+    layoutTitle: 'Ansicht der Übersicht auf diesem Gerät: kompakte Liste oder die breiten Tabellen wie am PC',
     sort: 'Sortierung',
     sortDir: 'Richtung umkehren',
     filters: 'Filter',
