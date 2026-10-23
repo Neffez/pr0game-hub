@@ -16,12 +16,12 @@ export interface ChangelogDay {
 
 export const CHANGELOG: ChangelogDay[] = [
   {
-    date: '2026-10-23',
-    items: [
+    date: '2026-10-23',
+    items: [
       {
         kind: 'new',
         de: 'Retime: Der Puffer nach der Rückkehr des Gegners steht standardmäßig auf 1 Sekunde, und der Hub zeigt, wie gut der Retime ist (bis 1 s gut, 2–3 s schlecht, ab 4 s sehr schlecht).',
-        en: 'Retime: the buffer after the enemy's return defaults to 1 second, and the hub shows how good the retime is (up to 1 s good, 2-3 s poor, from 4 s very poor).',
+        en: "Retime: the buffer after the enemy's return defaults to 1 second, and the hub shows how good the retime is (up to 1 s good, 2-3 s poor, from 4 s very poor).",
       },
       {
         kind: 'new',
