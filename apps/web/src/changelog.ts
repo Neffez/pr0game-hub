@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-10-23',
     items: [
       {
+        kind: 'fix',
+        de: 'Auch Imperium-Seiten aus einem anderen Universum werden jetzt erkannt und abgelehnt. Admins können falsch synchronisierte Imperium-Seiten wieder entfernen.',
+        en: 'Empire pages from another universe are now recognised and rejected too. Admins can remove wrongly synced empire pages again.',
+      },
+      {
         kind: 'new',
         de: 'Admin: Statistik-Stände, die im falschen Universum gelandet sind, lassen sich nach einer Vorschau samt der dadurch angelegten Spieler wieder entfernen.',
         en: 'Admin: statistics that ended up in the wrong universe can be removed again after a preview, together with the players they brought in.',

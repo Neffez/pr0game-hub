@@ -1078,6 +1078,18 @@ describe('admin cleanup of statistics snapshots', () => {
     expect(
       db.prepare('SELECT COUNT(*) FROM alliances a WHERE group_id = ? AND NOT EXISTS (SELECT 1 FROM players p WHERE p.alliance_id = a.id)').pluck().get(groupC),
     ).toBe(0);
+    // empire pages: listed with their planets, removed only within the group
+    const page = (g: number) => JSON.stringify({ kind: 'empire', research: {}, planets: [{ name: 'P', coords: { g, s: 1, p: 1 }, type: 'planet', values: {} }] });
+    const ins = db.prepare('INSERT INTO empire_snapshots (group_id, user_id, created_at, data) VALUES (?, 1, ?, ?)');
+    ins.run(groupC, 100, page(1));
+    ins.run(groupC, 200, page(4));
+    const pages = (await app.inject({ method: 'GET', url: `/hub/api/admin/groups/${groupC}/empires`, headers: admin })).json();
+    expect(pages.map((e: any) => [e.created_at, e.planets])).toEqual([[200, ['4:1:1']], [100, ['1:1:1']]]);
+    const del = (id: number, group = groupC) => app.inject({ method: 'POST', url: `/hub/api/admin/groups/${group}/empires/delete`, headers: admin, payload: { empires: [id] } });
+    expect((await del(pages[0].id, groupA)).json().deleted).toBe(0);
+    expect((await del(pages[0].id)).json().deleted).toBe(1);
+    expect(db.prepare('SELECT created_at FROM empire_snapshots WHERE group_id = ?').pluck().all(groupC)).toEqual([100]);
+
     // snapshots of another group are not touched
     const other = (await app.inject({ method: 'POST', url, headers: admin, payload: { snapshots: [snaps[0].id + 1000] } })).json();
     expect(other.snapshots).toBe(0);
@@ -1100,12 +1112,12 @@ describe('plausibility of pasted pages', () => {
     });
     const own = Array.from({ length: 30 }, (_, i) => `Own${i}`);
     const foreign = Array.from({ length: 30 }, (_, i) => `Fremd${i}`);
-    expect(foreignRecords(db, groupP, [stats(own)])).toBe(false);
+    expect(foreignRecords(db, { groupId: groupP, userId: 1 }, [stats(own)])).toBe(false);
     // some newcomers are fine, a page of strangers is not
-    expect(foreignRecords(db, groupP, [stats([...own.slice(0, 15), ...foreign.slice(0, 15)])])).toBe(false);
-    expect(foreignRecords(db, groupP, [stats(foreign)])).toBe(true);
+    expect(foreignRecords(db, { groupId: groupP, userId: 1 }, [stats([...own.slice(0, 15), ...foreign.slice(0, 15)])])).toBe(false);
+    expect(foreignRecords(db, { groupId: groupP, userId: 1 }, [stats(foreign)])).toBe(true);
     // a group that knows few players judges nothing
-    expect(foreignRecords(db, groupA, [stats(foreign)])).toBe(false);
+    expect(foreignRecords(db, { groupId: groupA, userId: 1 }, [stats(foreign)])).toBe(false);
 
     const galaxy = (owner: (p: number) => string) => ({
       kind: 'galaxy' as const, g: 1, s: 1,
@@ -1114,9 +1126,22 @@ describe('plausibility of pasted pages', () => {
         status: [], allyId: null, allyTag: null, debris: null,
       })),
     });
-    expect(foreignRecords(db, groupP, [galaxy((p) => `Own${p}`)])).toBe(false);
-    expect(foreignRecords(db, groupP, [galaxy((p) => (p <= 3 ? `Fremd${p}` : `Own${p}`))])).toBe(false);
-    expect(foreignRecords(db, groupP, [galaxy((p) => `Fremd${p}`)])).toBe(true);
+    expect(foreignRecords(db, { groupId: groupP, userId: 1 }, [galaxy((p) => `Own${p}`)])).toBe(false);
+    expect(foreignRecords(db, { groupId: groupP, userId: 1 }, [galaxy((p) => (p <= 3 ? `Fremd${p}` : `Own${p}`))])).toBe(false);
+    expect(foreignRecords(db, { groupId: groupP, userId: 1 }, [galaxy((p) => `Fremd${p}`)])).toBe(true);
+
+    // empire pages: planets of several other players, or none of the member's known planets
+    const me = { groupId: groupP, userId: 1 };
+    const empire = (...coords: [number, number, number][]) => ({
+      kind: 'empire' as const, research: {},
+      planets: coords.map(([g, s, p]) => ({ name: 'P', coords: { g, s, p }, type: 'planet' as const, values: {} })),
+    });
+    expect(foreignRecords(db, me, [empire([1, 1, 1], [1, 1, 2])])).toBe(true);
+    expect(foreignRecords(db, me, [empire([1, 1, 1], [4, 4, 4])])).toBe(false);
+    db.prepare('INSERT INTO empire_snapshots (group_id, user_id, created_at, data) VALUES (?, 1, 1, ?)').run(groupP, JSON.stringify(empire([2, 2, 2])));
+    expect(foreignRecords(db, me, [empire([3, 3, 3])])).toBe(true);
+    expect(foreignRecords(db, me, [empire([2, 2, 2], [3, 3, 3])])).toBe(false);
+    db.prepare('DELETE FROM empire_snapshots WHERE group_id = ?').run(groupP);
 
     // a pasted page of strangers is refused, also as preview, before anything is stored
     const head = fixture('stats-player.txt').split('\n').slice(0, 3).join('\n');

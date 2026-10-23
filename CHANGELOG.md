@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Empire pages of another universe are refused as `wrong_universe`: their planets belong to several other players in
+  the galaxy data, or they share no planet with the member's stored empire pages. The admin panel lists the
+  members' stored empire pages with their planets and deletes chosen ones (the imperium falls back to the newest
+  remaining page).
 - Pasted pages are also checked against the universe's own data, plain text included: statistics pages whose
   players (or alliances) are mostly unknown to the group, or galaxy views showing mostly other owners on known
   planets, are refused as `wrong_universe` (preview included). Groups that know few players and short pages are

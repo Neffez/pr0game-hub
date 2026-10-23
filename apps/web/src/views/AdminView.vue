@@ -30,6 +30,8 @@ const members = ref<any[]>([]);
 const invites = ref<any[]>([]);
 const ingests = ref<any[]>([]);
 const snapshots = ref<any[]>([]);
+const empires = ref<any[]>([]);
+const pickedEmpires = ref<number[]>([]);
 const inviteRole = ref('member');
 const merge = ref({ from: null as number | null, into: null as number | null });
 const group = computed(() => groups.value.find((g) => g.id === groupId.value));
@@ -56,13 +58,15 @@ async function loadAll() {
 
 async function loadGroup() {
   if (!groupId.value) return;
-  [members.value, invites.value, ingests.value, snapshots.value] = await Promise.all([
+  [members.value, invites.value, ingests.value, snapshots.value, empires.value] = await Promise.all([
     api(`/admin/groups/${groupId.value}/members`),
     api(`/admin/groups/${groupId.value}/invites`),
     api(`/admin/groups/${groupId.value}/ingests`),
     api(`/admin/groups/${groupId.value}/snapshots`),
+    api(`/admin/groups/${groupId.value}/empires`),
   ]);
   picked.value = [];
+  pickedEmpires.value = [];
   cleanup.value = null;
 }
 
@@ -184,6 +188,13 @@ const runCleanup = () =>
     const res = await cleanupFor(false);
     await loadGroup();
     msg.value = t('admin.cleanupDone', { snapshots: res.snapshots, players: res.players.length, alliances: res.alliances.length });
+  });
+const deleteEmpires = () =>
+  run(async () => {
+    if (!confirm(t('admin.empiresConfirm', { n: pickedEmpires.value.length }))) return;
+    const res = await api(`/admin/groups/${groupId.value}/empires/delete`, { body: { empires: pickedEmpires.value } });
+    await loadGroup();
+    msg.value = t('admin.empiresDone', { n: res.deleted });
   });
 const doMerge = () => run(async () => {
   await api(`/admin/groups/${groupId.value}/players/merge`, { body: merge.value });
@@ -411,6 +422,24 @@ const doMerge = () => run(async () => {
           <p v-if="cleanup.alliances.length" class="small"><b>{{ t('admin.cleanupAlliances') }} ({{ cleanup.alliances.length }}):</b> {{ cleanup.alliances.join(', ') }}</p>
           <p v-if="cleanup.kept.length" class="small warn"><b>{{ t('admin.cleanupKept') }} ({{ cleanup.kept.length }}):</b> {{ cleanup.kept.join(', ') }}</p>
         </template>
+      </div>
+
+      <h2>{{ t('admin.empires') }} <Hint>{{ t('admin.empiresHint') }}</Hint></h2>
+      <div class="table-wrap">
+        <table v-stack="2" class="data">
+          <thead><tr><th /><th>{{ t('common.time') }}</th><th>{{ t('nav.user') }}</th><th>{{ t('admin.empiresPlanets') }}</th></tr></thead>
+          <tbody>
+            <tr v-for="e in empires" :key="e.id">
+              <td><input v-model="pickedEmpires" type="checkbox" :value="e.id" /></td>
+              <td class="small">{{ dateTime(e.created_at) }}</td>
+              <td>{{ e.username }}</td>
+              <td class="small">{{ e.planets.join(', ') }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card row">
+        <button :disabled="!pickedEmpires.length" style="color: var(--neg)" @click="deleteEmpires">{{ t('admin.empiresDelete') }}</button>
       </div>
 
       <h2>{{ t('admin.ingests') }}</h2>

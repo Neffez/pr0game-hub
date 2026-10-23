@@ -6,7 +6,7 @@ import { now, type DB } from '../db.js';
 import { crawlerState, resumeCrawler } from '../crawler.js';
 import { events } from '../events.js';
 import { backfillActivity, reparse } from '../ingest.js';
-import { cleanupSnapshots, listSnapshots } from '../repo/cleanup.js';
+import { cleanupSnapshots, listEmpires, listSnapshots } from '../repo/cleanup.js';
 
 /**
  * Global admins manage universes, groups and invites. Group admins may invite
@@ -245,6 +245,26 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
     const res = cleanupSnapshots(db, groupId, ids as number[], !!req.body.dryRun);
     if (!req.body.dryRun) events.publish(groupId, { type: 'data', tables: ['player_scores', 'alliance_scores', 'players', 'activity_log'] });
     return res;
+  });
+
+  /** Members' stored empire pages, to remove one from another universe. */
+  app.get<{ Params: { id: string } }>('/api/admin/groups/:id/empires', async (req) => {
+    const groupId = Number(req.params.id);
+    requireGroupAdmin(req, groupId);
+    return listEmpires(db, groupId);
+  });
+
+  /** Removes empire pages; the imperium falls back to the member's newest remaining page. */
+  app.post<{ Params: { id: string }; Body: { empires?: unknown } }>('/api/admin/groups/:id/empires/delete', async (req) => {
+    const groupId = Number(req.params.id);
+    requireGroupAdmin(req, groupId);
+    const ids = req.body?.empires;
+    if (!Array.isArray(ids) || !ids.length || !ids.every(Number.isInteger)) throw new HttpError(400, 'empires_invalid', 'No empire pages selected');
+    const deleted = db
+      .prepare('DELETE FROM empire_snapshots WHERE group_id = ? AND id IN (SELECT value FROM json_each(?))')
+      .run(groupId, JSON.stringify(ids)).changes;
+    if (deleted) events.publish(groupId, { type: 'data', tables: ['empire'] });
+    return { deleted };
   });
 
   // ------------------------------------------------- battle report crawler

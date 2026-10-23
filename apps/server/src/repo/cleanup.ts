@@ -114,3 +114,17 @@ export function cleanupSnapshots(db: DB, groupId: number, snapshotIds: number[],
   }
   return result;
 }
+
+/** Stored empire pages of a group's members, newest first, with their planets to tell a foreign page apart. */
+export function listEmpires(db: DB, groupId: number) {
+  const rows = db
+    .prepare(
+      `SELECT e.id, e.user_id, u.username, e.created_at, e.data FROM empire_snapshots e LEFT JOIN users u ON u.id = e.user_id
+       WHERE e.group_id = ? ORDER BY e.created_at DESC, e.id DESC`,
+    )
+    .all(groupId) as { id: number; user_id: number; username: string | null; created_at: number; data: string }[];
+  return rows.map(({ data, ...r }) => {
+    const planets = (JSON.parse(data).planets ?? []) as { coords: { g: number; s: number; p: number }; type: string }[];
+    return { ...r, planets: planets.filter((p) => p.type === 'planet').map((p) => `${p.coords.g}:${p.coords.s}:${p.coords.p}`) };
+  });
+}

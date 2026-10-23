@@ -34,7 +34,7 @@ export function ingest(
   opts: { dryRun?: boolean } = {},
 ): IngestSummary {
   const parsed = parsePage(input);
-  if (foreignRecords(db, target.groupId, parsed.records)) {
+  if (foreignRecords(db, target, parsed.records)) {
     throw new HttpError(400, 'wrong_universe', 'The pasted page does not match the data of this universe');
   }
   const summary: IngestSummary = {
