@@ -14,9 +14,11 @@ import { claimsRoutes } from './routes/claims.js';
 import { plansRoutes } from './routes/plans.js';
 import { commentsRoutes } from './routes/comments.js';
 import { notificationRoutes } from './routes/notifications.js';
+import { discordRoutes } from './routes/discord.js';
 import { pushRoutes } from './routes/push.js';
 import { events } from './events.js';
 import { PushService, type PushOptions } from './push.js';
+import { DiscordService, type DiscordOptions } from './discord.js';
 import { deckRoutes } from './routes/deck.js';
 import { eventRoutes } from './routes/events.js';
 import { galaxyRoutes } from './routes/galaxy.js';
@@ -32,10 +34,12 @@ declare module 'fastify' {
   interface FastifyInstance {
     /** web push of the notifications (main.ts starts its launch reminders) */
     push: PushService;
+    /** Discord webhooks of users and groups (main.ts starts its launch reminders) */
+    discord: DiscordService;
   }
 }
 
-export function buildApp(db: DB, opts: { logger?: boolean; push?: PushOptions } = {}): FastifyInstance {
+export function buildApp(db: DB, opts: { logger?: boolean; push?: PushOptions; discord?: DiscordOptions } = {}): FastifyInstance {
   const app = Fastify({
     bodyLimit: config.bodyLimit,
     trustProxy: true,
@@ -53,10 +57,13 @@ export function buildApp(db: DB, opts: { logger?: boolean; push?: PushOptions } 
   app.register(fastifyCookie);
   const push = new PushService(db, events, { log: app.log, ...opts.push });
   app.decorate('push', push);
-  const stopListening = push.listen();
+  const discord = new DiscordService(db, events, { log: app.log, ...opts.discord });
+  app.decorate('discord', discord);
+  const stopListening = [push.listen(), discord.listen()];
   app.addHook('onClose', async () => {
-    stopListening();
+    for (const stop of stopListening) stop();
     push.close();
+    discord.close();
   });
   app.decorateRequest('user', null);
   app.decorateRequest('authSource', null);
@@ -95,6 +102,7 @@ export function buildApp(db: DB, opts: { logger?: boolean; push?: PushOptions } 
       commentsRoutes(scope, db);
       notificationRoutes(scope, db);
       pushRoutes(scope, db, push);
+      discordRoutes(scope, db, discord);
       for (const routes of [overviewRoutes, playersRoutes, spyRoutes, galaxyRoutes, reportsRoutes, deckRoutes, imperiumRoutes, messageRoutes]) routes(scope, db);
     },
     { prefix: config.basePath },

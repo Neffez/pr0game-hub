@@ -37,6 +37,19 @@ const group = computed(() => groups.value.find((g) => g.id === groupId.value));
 const groupName = ref('');
 watch(group, (g) => (groupName.value = g?.name ?? ''), { immediate: true });
 
+/** The alliance's Discord channel (server: discord.ts): only the webhook's start comes back. */
+interface ChannelPrefs {
+  attacks: boolean;
+  plans: boolean;
+  launch: boolean;
+  leadMinutes: number;
+  lang: 'de' | 'en';
+}
+const CHANNEL_KINDS = ['attacks', 'plans', 'launch'] as const;
+const LEAD_MINUTES = [1, 2, 5, 10, 15, 30];
+const discord = ref<{ webhook: string | null; prefs: ChannelPrefs } | null>(null);
+const discordWebhook = ref('');
+
 /** `ok`: message key shown on success */
 async function run(fn: () => Promise<unknown>, ok = '') {
   error.value = msg.value = '';
@@ -59,11 +72,13 @@ async function loadAll() {
 
 async function loadGroup() {
   if (!groupId.value) return;
-  [members.value, ingests.value] = await Promise.all([
+  [members.value, ingests.value, discord.value] = await Promise.all([
     api(`/admin/groups/${groupId.value}/members`),
     // sync history is technical administration: global admins only
     isAdmin.value ? api(`/admin/groups/${groupId.value}/ingests`) : [],
+    api(`/admin/groups/${groupId.value}/discord`),
   ]);
+  discordWebhook.value = '';
   undo.value = null;
 }
 
@@ -121,6 +136,13 @@ const renameGroup = () =>
     await loadAll();
     await loadMe();
   }, 'admin.groupRenamed');
+
+const saveDiscord = (body: Record<string, unknown>, ok: string) =>
+  run(async () => {
+    discord.value = await api(`/admin/groups/${groupId.value}/discord`, { method: 'PUT', body });
+    discordWebhook.value = '';
+  }, ok);
+const sendTestDiscord = () => run(() => api(`/admin/groups/${groupId.value}/discord/test`, { method: 'POST' }), 'account.discordTestSent');
 
 const memberSort = useSort(
   members,
@@ -349,6 +371,40 @@ const doMerge = () => run(async () => {
     </div>
 
     <template v-if="group">
+      <h2>{{ t('admin.discord') }} <Hint>{{ t('admin.discordHint') }}</Hint></h2>
+      <div v-if="discord" class="card discord">
+        <p v-if="discord.webhook" class="muted small">{{ t('account.discordWebhookSet', { hint: discord.webhook }) }}</p>
+        <form class="row" @submit.prevent="saveDiscord({ webhook: discordWebhook.trim() }, 'account.discordSaved')">
+          <input v-model="discordWebhook" type="password" autocomplete="off" placeholder="https://discord.com/api/webhooks/…" style="flex: 1; min-width: 200px" />
+          <button type="submit" class="primary" :disabled="!discordWebhook.trim()">{{ t('common.save') }}</button>
+          <Hint>{{ t('account.discordWebhookHint') }}</Hint>
+        </form>
+        <template v-if="discord.webhook">
+          <div class="row" style="margin-top: 6px">
+            <button type="button" @click="sendTestDiscord">{{ t('account.pushTest') }}</button>
+            <button type="button" class="danger" @click="saveDiscord({ webhook: null }, 'account.discordRemoved')">{{ t('account.discordRemove') }}</button>
+          </div>
+          <label v-for="k in CHANNEL_KINDS" :key="k" class="check">
+            <input v-model="discord.prefs[k]" type="checkbox" @change="saveDiscord({ prefs: discord.prefs }, 'account.pushSaved')" /> {{ t(`admin.discordKind.${k}`) }}
+          </label>
+          <div class="row">
+            <label :class="{ off: !discord.prefs.launch }">
+              {{ t('account.pushLead') }}
+              <select v-model.number="discord.prefs.leadMinutes" :disabled="!discord.prefs.launch" @change="saveDiscord({ prefs: discord.prefs }, 'account.pushSaved')">
+                <option v-for="m in LEAD_MINUTES" :key="m" :value="m">{{ t('account.pushLeadMinutes', { n: m }) }}</option>
+              </select>
+            </label>
+            <label>
+              {{ t('admin.discordLang') }}
+              <select v-model="discord.prefs.lang" @change="saveDiscord({ prefs: discord.prefs }, 'account.pushSaved')">
+                <option value="de">Deutsch</option>
+                <option value="en">English</option>
+              </select>
+            </label>
+          </div>
+        </template>
+        <p class="muted small">{{ t('admin.discordMentions') }}</p>
+      </div>
       <h2>{{ t('admin.members', { name: group.name }) }}</h2>
       <form class="row card" style="margin-bottom: 10px" @submit.prevent="addMember">
         <input v-model="newMemberName" :placeholder="t('admin.ingameName')" style="flex: 1; min-width: 140px" />
@@ -504,6 +560,9 @@ const doMerge = () => run(async () => {
 </template>
 
 <style scoped>
+.discord .check { display: flex; gap: 8px; align-items: center; margin: 6px 0; }
+.discord .off { opacity: 0.5; }
+.discord label + label { margin-left: 12px; }
 :deep(td.invite-col), :deep(th.invite-col) { white-space: normal; width: 280px; max-width: 360px; }
 .invite-row { display: flex; align-items: stretch; gap: 4px; }
 .invite-row .copy-field { flex: 1; min-width: 0; }

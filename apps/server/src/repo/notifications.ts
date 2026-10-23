@@ -1,5 +1,6 @@
 import { distance, drivesFromResearch, flightDuration, launchFor, slowestShip } from '@pr0hub/flight';
-import type { GroupContext } from '../context.js';
+import type { SessionUser } from '../auth.js';
+import type { GroupContext, Universe } from '../context.js';
 import type { DB } from '../db.js';
 import { sharedFleets, type StoredFleet } from './fleets.js';
 import { alliance } from './members.js';
@@ -56,12 +57,23 @@ export interface LaunchNotification extends Base {
   from: { g: number; s: number; p: number; type: 'planet' | 'moon' };
 }
 
+/** A member created a plan (channel only, not on the bell; `userId`/`member`: the creator, `time`: its creation). */
+export interface PlanNotification extends Base {
+  kind: 'plan';
+  plan: InviteNotification['plan'] & { target_time: number };
+}
+
+/** What a group's Discord channel gets: attacks on members, new plans and the members' launches. */
+export type ChannelNotification = AttackNotification | PlanNotification | LaunchNotification;
+
 /** How long a plan's target time lasts by its precision. */
 const PRECISION_SPAN = { day: 86400, hour: 3600, exact: 0 };
 /** New comments are listed this long. */
 export const COMMENT_KEEP = 48 * 3600;
 /** A launch is listed this long before it. */
 export const LAUNCH_AHEAD = 3600;
+/** New plans are posted to the channel this long after their creation. */
+export const PLAN_KEEP = 3600;
 const EXCERPT = 80;
 
 const DISPLAY = 'COALESCE(gm.ingame_name, u.username)';
@@ -76,6 +88,40 @@ function friends(db: DB, ctx: GroupContext) {
 /** Current notifications of the group for the viewer (`ctx.user`) at `t`, the next first; members' fleets as they share them. */
 export function notificationsFor(db: DB, ctx: GroupContext, t: number): Notification[] {
   return [...attacks(db, ctx, t), ...invites(db, ctx, t), ...comments(db, ctx, t), ...launches(db, ctx, t)].sort((a, b) => a.time - b.time);
+}
+
+/**
+ * Current notifications of the group's channel at `t`, the next first: attacks on members seen as by a non-member (the
+ * members' fleet sharing applies, incoming fleets are always shared), plans created within `PLAN_KEEP` and the
+ * launches of all members' plan fleets.
+ */
+export function channelNotificationsFor(db: DB, universe: Universe, groupId: number, t: number): ChannelNotification[] {
+  const group = db.prepare('SELECT name FROM groups WHERE id = ?').pluck().get(groupId) as string | undefined;
+  if (group == null) return [];
+  const ctxOf = (user: SessionUser): GroupContext => ({ user, universe, groupId, groupName: group, role: 'member' });
+  const channel = ctxOf({ id: 0, username: '', isAdmin: false, lang: 'de', dateFormat: 'auto' });
+  const launching = db
+    .prepare(
+      `SELECT DISTINCT u.id, u.username, u.lang, u.date_format FROM attack_plan_fleets f JOIN attack_plans a ON a.id = f.plan_id
+       JOIN users u ON u.id = f.user_id JOIN group_members m ON m.group_id = a.group_id AND m.user_id = u.id
+       WHERE a.group_id = ? AND f.status IN ('invited', 'ready') AND a.status IN ('planning', 'launched') AND a.time_precision = 'exact' AND a.target_time > ?`,
+    )
+    .all(groupId, t) as { id: number; username: string; lang: string; date_format: string }[];
+  const own = launching.flatMap((u) => launches(db, ctxOf({ id: u.id, username: u.username, isAdmin: false, lang: u.lang, dateFormat: u.date_format }), t));
+  return [...attacks(db, channel, t), ...plans(db, groupId, t), ...own].sort((a, b) => a.time - b.time);
+}
+
+/** Plans of the group created within `PLAN_KEEP` that are still being planned. */
+function plans(db: DB, groupId: number, t: number): PlanNotification[] {
+  const rows = db
+    .prepare(
+      `SELECT a.id, a.user_id, ${DISPLAY} AS creator, a.g, a.s, a.p, a.planet_type, a.mission, a.target_time, a.time_precision, a.created_at
+       FROM attack_plans a JOIN users u ON u.id = a.user_id LEFT JOIN group_members gm ON gm.group_id = a.group_id AND gm.user_id = u.id
+       WHERE a.group_id = ? AND a.status = 'planning' AND a.created_at > ?
+         AND a.target_time + CASE a.time_precision WHEN 'day' THEN ${PRECISION_SPAN.day} WHEN 'hour' THEN ${PRECISION_SPAN.hour} ELSE 0 END > ?`,
+    )
+    .all(groupId, t - PLAN_KEEP, t) as (PlanNotification['plan'] & { user_id: number; creator: string; created_at: number })[];
+  return rows.map(({ user_id, creator, created_at, ...plan }) => ({ id: `plan:${plan.id}`, kind: 'plan', userId: user_id, member: creator, time: created_at, plan }));
 }
 
 function attacks(db: DB, ctx: GroupContext, t: number): AttackNotification[] {

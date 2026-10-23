@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Discord-Benachrichtigungen: Unter Konto kannst du einen eigenen Discord-Webhook eintragen und wählen, was dort ankommt. Allianz-Admins können zusätzlich einen Allianz-Kanal einrichten, der Angriffe auf Mitglieder, neue Raid-Pläne und Starttermine meldet und Betroffene erwähnt.',
+        en: 'Discord notifications: under Account you can add your own Discord webhook and choose what arrives there. Alliance admins can also set up an alliance channel that reports attacks on members, new raid plans and launch times and mentions those affected.',
+      },
+      {
+        kind: 'new',
         de: 'Push-Benachrichtigungen: Der Hub meldet Angriffe, Einladungen, neue Kommentare und deine Starttermine auch, wenn er nicht offen ist – am PC und auf dem Handy. Einschalten und auswählen, was gemeldet wird, unter Konto.',
         en: 'Push notifications: the hub tells you about attacks, invitations, new comments and your launch times even when it is not open, on your computer and your phone. Switch it on and choose what to get under Account.',
       },

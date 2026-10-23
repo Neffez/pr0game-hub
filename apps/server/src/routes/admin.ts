@@ -12,15 +12,16 @@ import { undoIngest } from '../repo/cleanup.js';
  * Global admins manage universes, groups and the technical side (syncs, player merges, activity backfill, crawler).
  * Group admins only manage their own group: name, members and invites.
  */
-export function adminRoutes(app: FastifyInstance, db: DB) {
-  const isGroupAdmin = (userId: number, groupId: number) =>
-    !!db.prepare("SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ? AND role = 'admin'").get(groupId, userId);
+/** The user of the request when they are a global admin or an admin of the group. */
+export function requireGroupAdminOf(db: DB, req: Parameters<typeof requireUser>[0], groupId: number) {
+  const user = requireUser(req);
+  const isGroupAdmin = !!db.prepare("SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ? AND role = 'admin'").get(groupId, user.id);
+  if (!user.isAdmin && !isGroupAdmin) throw new HttpError(403, 'group_admin_only', 'Alliance admins only');
+  return user;
+}
 
-  const requireGroupAdmin = (req: Parameters<typeof requireUser>[0], groupId: number) => {
-    const user = requireUser(req);
-    if (!user.isAdmin && !isGroupAdmin(user.id, groupId)) throw new HttpError(403, 'group_admin_only', 'Alliance admins only');
-    return user;
-  };
+export function adminRoutes(app: FastifyInstance, db: DB) {
+  const requireGroupAdmin = (req: Parameters<typeof requireUser>[0], groupId: number) => requireGroupAdminOf(db, req, groupId);
 
   /** Alliance admins can't remove or demote the last admin of their alliance (that's left to the global admin). */
   const keepLastAdmin = (user: { isAdmin: boolean }, groupId: number, userId: number) => {

@@ -24,6 +24,7 @@ tags:
   - name: Intelligence
   - name: Combat
   - name: Social
+  - name: Admin
 components:
   securitySchemes:
     bearerAuth:
@@ -62,6 +63,27 @@ components:
         comments: { type: boolean, description: New comments in threads the caller wrote in (default on) }
         launch: { type: boolean, description: Launch reminders of the caller's plan fleets (default on) }
         leadMinutes: { type: integer, enum: [1, 2, 5, 10, 15, 30], description: Launch reminder this many minutes ahead (default 5) }
+    DiscordSettings:
+      type: object
+      required: [webhook, userId, prefs]
+      properties:
+        webhook: { type: [string, 'null'], description: 'Start of the caller''s webhook URL (the URL itself is never returned), null when none is set' }
+        userId: { type: [string, 'null'], description: Caller's Discord user id, mentioned in their alliance's Discord channel }
+        prefs: { $ref: '#/components/schemas/PushSettings' }
+    DiscordChannelSettings:
+      type: object
+      required: [webhook, prefs]
+      properties:
+        webhook: { type: [string, 'null'], description: 'Start of the channel''s webhook URL (the URL itself is never returned), null when none is set' }
+        prefs: { $ref: '#/components/schemas/DiscordChannelPrefs' }
+    DiscordChannelPrefs:
+      type: object
+      properties:
+        attacks: { type: boolean, description: Hostile fleets heading for members (default on) }
+        plans: { type: boolean, description: New raid planner plans (default on) }
+        launch: { type: boolean, description: Launch reminders of the members' plan fleets (default on) }
+        leadMinutes: { type: integer, enum: [1, 2, 5, 10, 15, 30], description: Launch reminder this many minutes ahead (default 5) }
+        lang: { type: string, enum: [de, en], description: Language of the channel's messages (default de) }
     Error:
       type: object
       required: [error, code]
@@ -388,6 +410,146 @@ paths:
                   devices: { type: integer, description: Browsers the push services accepted it for }
         '409':
           description: Push is not set up on this hub (`push_disabled`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /api/auth/discord:
+    get:
+      tags: [Auth]
+      operationId: getDiscordSettings
+      description: |
+        The caller's own Discord webhook (only its start), their Discord user id and which notifications are posted to
+        the webhook (the same kinds as push, set separately).
+      responses:
+        '200':
+          description: Current settings
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DiscordSettings' }
+    post:
+      tags: [Auth]
+      operationId: setDiscordSettings
+      security: [{ sessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Fields to change; missing ones stay as they are
+              properties:
+                webhook: { type: [string, 'null'], description: 'Discord webhook URL (`https://discord.com/api/webhooks/…`); null or empty removes it' }
+                userId: { type: [string, 'null'], description: Discord user id (17 to 20 digits); null or empty removes it }
+                prefs: { $ref: '#/components/schemas/PushSettings' }
+      responses:
+        '200':
+          description: Stored settings
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DiscordSettings' }
+        '400':
+          description: Invalid webhook, user id or settings (`discord_webhook_invalid`, `discord_user_id_invalid`, `discord_settings_invalid`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /api/auth/discord/test:
+    post:
+      tags: [Auth]
+      operationId: sendTestDiscord
+      description: Posts a test message to the caller's own Discord webhook.
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200':
+          description: Discord took the message
+          content:
+            application/json:
+              schema: { type: object, properties: { ok: { type: boolean } } }
+        '409':
+          description: No webhook set (`discord_not_configured`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '502':
+          description: Discord refused the message (`discord_send_failed`); a webhook Discord no longer knows is removed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /api/admin/groups/{id}/discord:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer }, description: Alliance group id }
+    get:
+      tags: [Admin]
+      operationId: getGroupDiscord
+      description: The alliance's Discord channel webhook (only its start) and what is posted there; alliance admins.
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200':
+          description: Current settings
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DiscordChannelSettings' }
+        '403':
+          description: Not an admin of the alliance (`group_admin_only`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+    put:
+      tags: [Admin]
+      operationId: setGroupDiscord
+      description: Sets the channel webhook and what is posted there; alliance admins.
+      security: [{ sessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Fields to change; missing ones stay as they are
+              properties:
+                webhook: { type: [string, 'null'], description: Discord webhook URL; null or empty removes it }
+                prefs: { $ref: '#/components/schemas/DiscordChannelPrefs' }
+      responses:
+        '200':
+          description: Stored settings
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/DiscordChannelSettings' }
+        '400':
+          description: Invalid webhook or settings (`discord_webhook_invalid`, `discord_settings_invalid`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '403':
+          description: Not an admin of the alliance (`group_admin_only`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /api/admin/groups/{id}/discord/test:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer }, description: Alliance group id }
+    post:
+      tags: [Admin]
+      operationId: sendTestGroupDiscord
+      description: Posts a test message to the alliance's Discord channel; alliance admins.
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200':
+          description: Discord took the message
+          content:
+            application/json:
+              schema: { type: object, properties: { ok: { type: boolean } } }
+        '403':
+          description: Not an admin of the alliance (`group_admin_only`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '409':
+          description: No webhook set (`discord_not_configured`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '502':
+          description: Discord refused the message (`discord_send_failed`)
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
