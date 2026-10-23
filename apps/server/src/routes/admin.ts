@@ -9,8 +9,8 @@ import { aboutRecords, backfillActivity, parseRaw, reparse, type RawIngest } fro
 import { undoIngest } from '../repo/cleanup.js';
 
 /**
- * Global admins manage universes, groups and invites. Group admins may invite
- * into and manage their own group.
+ * Global admins manage universes, groups and the technical side (syncs, player merges, activity backfill, crawler).
+ * Group admins only manage their own group: name, members and invites.
  */
 export function adminRoutes(app: FastifyInstance, db: DB) {
   const isGroupAdmin = (userId: number, groupId: number) =>
@@ -214,7 +214,7 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
   /** Merges `from` into `into` (rename that couldn't be matched by id). */
   app.post<{ Params: { id: string }; Body: { from: number; into: number } }>('/api/admin/groups/:id/players/merge', async (req) => {
     const groupId = Number(req.params.id);
-    requireGroupAdmin(req, groupId);
+    requireAdmin(req);
     const { from, into } = req.body ?? ({} as never);
     const both = db.prepare('SELECT id, name, ingame_id, first_seen, last_seen FROM players WHERE group_id = ? AND id IN (?, ?)').all(groupId, from, into) as {
       id: number;
@@ -242,7 +242,7 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
 
   app.get<{ Params: { id: string } }>('/api/admin/groups/:id/ingests', async (req) => {
     const groupId = Number(req.params.id);
-    requireGroupAdmin(req, groupId);
+    requireAdmin(req);
     const rows = db
       .prepare(
         `SELECT r.id, r.source, r.page_type, r.url, r.summary, r.created_at, u.username,
@@ -293,20 +293,20 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
   });
 
   app.post<{ Params: { id: string } }>('/api/admin/ingests/:id/reparse', async (req) => {
+    requireAdmin(req);
     const row = db
       .prepare('SELECT r.group_id, u.settings FROM raw_ingests r JOIN groups g ON g.id = r.group_id JOIN universes u ON u.id = g.universe_id WHERE r.id = ?')
       .get(Number(req.params.id)) as { group_id: number; settings: string } | undefined;
     if (!row) throw new HttpError(404, 'not_found', 'Not found');
-    requireGroupAdmin(req, row.group_id);
     const tz = JSON.parse(row.settings).timezone ?? UNIVERSE_DEFAULTS.timezone;
     return reparse(db, Number(req.params.id), tz);
   });
 
   /** Takes a sync back (e.g. a page of another universe); `dryRun` returns the same summary without changes. */
   app.post<{ Params: { id: string }; Body: { dryRun?: boolean } }>('/api/admin/ingests/:id/delete', async (req) => {
+    requireAdmin(req);
     const groupId = db.prepare('SELECT group_id FROM raw_ingests WHERE id = ?').pluck().get(Number(req.params.id)) as number | undefined;
     if (!groupId) throw new HttpError(404, 'not_found', 'Not found');
-    requireGroupAdmin(req, groupId);
     const dryRun = !!req.body?.dryRun;
     const res = undoIngest(db, Number(req.params.id), dryRun);
     if (!dryRun) {
@@ -321,7 +321,7 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
   /** Fills the activity log from already stored stats and spy reports. */
   app.post<{ Params: { id: string } }>('/api/admin/groups/:id/activity/backfill', async (req) => {
     const groupId = Number(req.params.id);
-    requireGroupAdmin(req, groupId);
+    requireAdmin(req);
     const row = db.prepare('SELECT u.settings FROM groups g JOIN universes u ON u.id = g.universe_id WHERE g.id = ?').get(groupId) as
       | { settings: string }
       | undefined;

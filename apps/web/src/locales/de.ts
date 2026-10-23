@@ -91,7 +91,7 @@ const de = {
   },
   home: {
     settings: 'Einstellungen',
-    noGroup: 'Du bist noch in keiner Allianz. Ein Admin muss dich einladen.',
+    noGroup: 'Du bist noch in keiner Allianz. Ein Allianz-Admin muss dich einladen.',
     account: 'Konto',
     logout: 'Abmelden',
   },
@@ -711,7 +711,7 @@ const de = {
     owner: 'Hub-Inhaber',
     members: 'Mitglieder – {name}',
     role: 'Rolle',
-    roles: { member: 'Mitglied', admin: 'Admin' },
+    roles: { member: 'Mitglied', admin: 'Allianz-Admin' },
     ingameName: 'Ingame-Name',
     joined: 'Beigetreten',
     login: 'Login',
@@ -940,6 +940,7 @@ const de = {
     away: 'im Hintergrund',
     lastSeen: 'vor {ago}',
     viewing: 'Schaut gerade hier: {names}',
+    globalAdmin: 'Globaler Admin',
   },
   live: {
     commentPlayer: '{name} hat {player} kommentiert',
@@ -971,7 +972,7 @@ const de = {
   errors: {
     internal: 'Interner Fehler',
     not_logged_in: 'Nicht angemeldet',
-    admin_only: 'Nur für Admins',
+    admin_only: 'Nur für globale Admins',
     group_admin_only: 'Nur für Allianz-Admins',
     username_invalid: 'Benutzername: 3–32 Zeichen (Buchstaben, Zahlen, . _ -)',
     username_taken: 'Benutzername vergeben',

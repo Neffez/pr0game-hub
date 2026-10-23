@@ -14,7 +14,7 @@ export function overviewRoutes(app: FastifyInstance, db: DB) {
     const ctx = ctxOf(req);
     const members = db
       .prepare(
-        `SELECT u.id, u.username, COALESCE(m.ingame_name, u.username) AS name, m.role, m.ingame_name, m.last_seen_at
+        `SELECT u.id, u.username, COALESCE(m.ingame_name, u.username) AS name, m.role, u.is_admin AS global_admin, m.ingame_name, m.last_seen_at
          FROM group_members m JOIN users u ON u.id = m.user_id WHERE m.group_id = ? ORDER BY name COLLATE NOCASE`,
       )
       .all(ctx.groupId);

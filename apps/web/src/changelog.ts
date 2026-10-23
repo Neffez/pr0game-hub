@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Rollen: Allianz-Admins heißen jetzt auch so. In der Online-Liste erscheinen globale Admins hellblau und Allianz-Admins grün. Sync-Historie, Spieler zusammenführen und Aktivitätslog nachfüllen gibt es nur noch für globale Admins; Allianz-Admins verwalten ihre Allianz, Mitglieder und Einladungen.',
+        en: 'Roles: alliance admins are now called that. In the online list global admins show in light blue and alliance admins in green. Sync history, merging players and backfilling the activity log are left to global admins; alliance admins manage their alliance, members and invites.',
+      },
+      {
+        kind: 'new',
         de: 'Raid-Planer: Neben „Retime planen“ gibt es bei feindlichen Angriffen „Halten planen“. Die Halteflotten landen standardmäßig 1 Sekunde vor dem Einschlag, jede für sich, und die Zeit folgt einer Verzögerung des Gegners.',
         en: 'Raid planner: next to "Plan retime", hostile attacks now offer "Plan hold". Hold fleets land 1 second before the impact by default, each on its own, and the time follows a delay of the enemy.',
       },

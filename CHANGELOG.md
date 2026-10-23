@@ -4,6 +4,12 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Roles: alliance admins are labelled "Allianz-Admin"/"Alliance admin", and the online list colours names by role
+  (global admin light blue, alliance admin green; `/api/:uni/context` members carry `global_admin`). Technical
+  administration is global admins only: sync history (list, reparse, undo), player merge and activity backfill now
+  answer `admin_only` to alliance admins, and the admin panel hides these sections for them. Alliance admins keep
+  managing their alliance (name, members, invites) and other members' claims, comments and raid plans.
+
 - Tests: the empire page smoke test waits until the initial loads have rendered before it counts page renders
   (it failed under load in the full parallel run).
 

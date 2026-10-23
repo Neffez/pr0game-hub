@@ -90,7 +90,7 @@ const en: typeof de = {
   },
   home: {
     settings: 'Settings',
-    noGroup: 'You are not in an alliance yet. An admin has to invite you.',
+    noGroup: 'You are not in an alliance yet. An alliance admin has to invite you.',
     account: 'Account',
     logout: 'Log out',
   },
@@ -709,7 +709,7 @@ const en: typeof de = {
     owner: 'Hub owner',
     members: 'Members – {name}',
     role: 'Role',
-    roles: { member: 'Member', admin: 'Admin' },
+    roles: { member: 'Member', admin: 'Alliance admin' },
     ingameName: 'In-game name',
     joined: 'Joined',
     login: 'Login',
@@ -938,6 +938,7 @@ const en: typeof de = {
     away: 'in the background',
     lastSeen: '{ago} ago',
     viewing: 'Looking at this right now: {names}',
+    globalAdmin: 'Global admin',
   },
   live: {
     commentPlayer: '{name} commented on {player}',
@@ -968,7 +969,7 @@ const en: typeof de = {
   errors: {
     internal: 'Internal error',
     not_logged_in: 'Not logged in',
-    admin_only: 'Admins only',
+    admin_only: 'Global admins only',
     group_admin_only: 'Alliance admins only',
     username_invalid: 'Username: 3–32 characters (letters, digits, . _ -)',
     username_taken: 'Username already taken',

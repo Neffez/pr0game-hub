@@ -62,7 +62,8 @@ async function loadGroup() {
   [members.value, invites.value, ingests.value] = await Promise.all([
     api(`/admin/groups/${groupId.value}/members`),
     api(`/admin/groups/${groupId.value}/invites`),
-    api(`/admin/groups/${groupId.value}/ingests`),
+    // sync history is technical administration: global admins only
+    isAdmin.value ? api(`/admin/groups/${groupId.value}/ingests`) : [],
   ]);
   undo.value = null;
 }
@@ -418,6 +419,7 @@ const doMerge = () => run(async () => {
         </div>
       </template>
 
+      <template v-if="isAdmin">
       <h2>
         {{ t('admin.backfill') }}
         <Hint>{{ t('admin.backfillHint') }}</Hint>
@@ -488,6 +490,7 @@ const doMerge = () => run(async () => {
           </tbody>
         </table>
       </div>
+      </template>
     </template>
   </div>
 </template>

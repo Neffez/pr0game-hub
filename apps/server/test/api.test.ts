@@ -1075,6 +1075,18 @@ describe('review fixes', () => {
     expect((await app.inject({ method: 'DELETE', url, headers: carol })).json().code).toBe('remove_self');
     const members = (await app.inject({ method: 'GET', url: `/hub/api/admin/groups/${groupX}/members`, headers: carol })).json();
     expect(members.map((m: any) => [m.username, m.owner])).toEqual([['admin', true], ['carol', false]]);
+    // technical administration stays with the global admin
+    const raw = db.prepare("INSERT INTO raw_ingests (group_id, source, page_type, created_at) VALUES (?, 'paste', 'stats', 1)").run(groupX).lastInsertRowid;
+    for (const [method, path] of [
+      ['GET', `groups/${groupX}/ingests`],
+      ['POST', `groups/${groupX}/players/merge`],
+      ['POST', `groups/${groupX}/activity/backfill`],
+      ['POST', `ingests/${raw}/reparse`],
+      ['POST', `ingests/${raw}/delete`],
+    ] as const) {
+      const res = await app.inject({ method, url: `/hub/api/admin/${path}`, headers: carol, payload: method === 'POST' ? {} : undefined });
+      expect(res.json().code, path).toBe('admin_only');
+    }
     // the owner left (e.g. before this rule), carol is the only admin
     db.prepare('DELETE FROM group_members WHERE group_id = ? AND user_id = 1').run(groupX);
     expect((await app.inject({ method: 'PUT', url, headers: carol, payload: { role: 'member' } })).json().code).toBe('last_admin');

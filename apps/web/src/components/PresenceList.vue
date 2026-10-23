@@ -27,6 +27,11 @@ const offline = computed(() => {
     .sort((a, b) => (b.last_seen_at ?? 0) - (a.last_seen_at ?? 0));
 });
 
+/** Name colour by role: global admin light blue, alliance admin green, members plain. */
+const roleClass = (m: { role: string; global_admin: number }) => (m.global_admin ? 'global-admin' : m.role === 'admin' ? 'group-admin' : '');
+const roleTitle = (m: { role: string; global_admin: number }) =>
+  m.global_admin ? t('presence.globalAdmin') : m.role === 'admin' ? t('admin.roles.admin') : undefined;
+
 /** Where a member is, as text and link to the same place. */
 function where(p: PresenceMember) {
   if (!p.page) return null;
@@ -45,14 +50,14 @@ function where(p: PresenceMember) {
     <div class="section">{{ t('presence.online', { n: online.length }) }}</div>
     <div v-for="m in online" :key="m.id" class="member">
       <span class="dot" :class="{ away: !m.at.active }" :title="m.at.active ? t('presence.active') : t('presence.away')" />
-      <span class="name">{{ m.name }}<span v-if="m.me" class="muted"> ({{ t('presence.you') }})</span></span>
+      <span class="name" :class="roleClass(m)" :title="roleTitle(m)">{{ m.name }}<span v-if="m.me" class="muted"> ({{ t('presence.you') }})</span></span>
       <RouterLink v-if="!m.me && where(m.at)" class="where" :to="where(m.at)!.to" @click="emit('navigate')">{{ where(m.at)!.text }}</RouterLink>
     </div>
     <details v-if="offline.length" class="offline">
       <summary class="muted small">{{ t('presence.offline', { n: offline.length }) }}</summary>
       <div v-for="m in offline" :key="m.id" class="member muted">
         <span class="dot off" />
-        <span class="name">{{ m.name }}</span>
+        <span class="name" :class="roleClass(m)" :title="roleTitle(m)">{{ m.name }}</span>
         <span class="where">{{ m.last_seen_at ? t('presence.lastSeen', { ago: ago(m.last_seen_at) }) : '' }}</span>
       </div>
     </details>
@@ -63,6 +68,8 @@ function where(p: PresenceMember) {
 .presence { padding: 0 0 4px; }
 .member { display: flex; align-items: center; gap: 6px; padding: 2px 10px; font-size: 12px; min-width: 0; }
 .name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.name.group-admin { color: var(--pos); }
+.name.global-admin { color: var(--info); }
 .where { margin-left: auto; color: var(--muted); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 a.where:hover { color: var(--accent); }
 .dot { flex-shrink: 0; width: 7px; height: 7px; border-radius: 50%; background: var(--pos); }
