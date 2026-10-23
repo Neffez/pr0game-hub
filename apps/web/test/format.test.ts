@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { dateTime, fmt, fmtSigned, short, simLinks } from '../src/format';
+import { dateTime, fmt, fmtSigned, short, simLinks, trashSimExport } from '../src/format';
 import { setLocale } from '../src/i18n';
 
 describe('format', () => {
@@ -55,6 +55,19 @@ describe('format', () => {
         + '&battleinput[0][0][109]=12&battleinput[0][0][110]=11&battleinput[0][0][111]=13&battleinput[0][0][207]=1773&battleinput[0][0][215]=2'
         + '&battleinput[1][0][109]=0&battleinput[1][0][110]=0&battleinput[1][0][111]=0&battleinput[1][0][204]=100&im[901]=5',
     );
-    expect(links.trash).toBe('https://pr0game.com/uni7/battlesim.html?&im[901]=5');
+    expect(links.trash).toMatch(/^https:\/\/pr0game\.com\/uni7\/battlesim\.html\?sim=[\w+$-]+$/);
+  });
+
+  it('writes the TrashSim export string like TrashSim itself', () => {
+    // spy report and attacker of a real TrashSim export (uni 7)
+    const spy = {
+      901: 2023509, 902: 3670693, 903: 2828917, 202: 136, 203: 1216, 204: 9208, 205: 55, 206: 7077, 207: 1060, 209: 400, 210: 354, 215: 1007,
+      222: 122, 225: 57, 227: 303, 14: 2, 21: 1, 41: 1, 106: 9, 108: 11, 109: 10, 110: 11, 111: 12, 113: 10, 114: 8, 115: 10, 117: 10, 118: 7,
+      120: 12, 121: 7, 122: 4, 124: 11, 131: 9, 132: 9, 133: 9, 134: 15,
+    };
+    const attacker = { ships: { 204: 11, 215: 3000 }, research: { 109: 13, 110: 14, 111: 14, 115: 9, 117: 9, 118: 9, 134: 13 } };
+    expect(trashSimExport(spy, null, [attacker])).toBe(
+      'EwBmGYFYQTgAnANgOwkTcdgA4cwIzJzQBQIc5+m+ALHLXPE-ZuW-SO1x97-fhUF9u4TsIokBlSgPzAOCovkhDB+TqvbrxlJPWD5EjUNmIrUyJWnY0NUOt21Lg8yEVGtNX3iSA',
+    );
   });
 });

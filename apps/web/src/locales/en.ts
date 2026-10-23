@@ -874,7 +874,7 @@ const en: typeof de = {
     onTime: 'on time',
     simGame: 'Simulator in the game',
     simGameTitle: 'With the newest spy report of the target ({time}) and all fleets of the plan (one slot per fleet, with weapons, shields and armour from the empire page)',
-    simTrashTitle: 'With the newest spy report of the target ({time}); enter your own fleets in TrashSim',
+    simTrashTitle: 'With the newest spy report of the target ({time}) and all fleets of the plan (with research, start and speed)',
     confirmRemoveFleet: 'Remove the fleet of {member}?',
     noEmpire: 'No empire page synced: start planet and ships are missing.',
     invite: 'Invite',

@@ -101,15 +101,18 @@ async function run(fn: () => Promise<unknown>) {
 
 const settings = computed(() => ctx.value!.universe.settings);
 /**
- * Combat simulators with the target's newest spy report (needs the game URL of the universe); the game simulator also
- * gets the plan's fleets (not withdrawn, with ships) with the combat research of their member's empire page.
+ * Combat simulators with the target's newest spy report (needs the game URL of the universe) and the plan's fleets
+ * (not withdrawn, with ships) with the research of their member's empire page.
  */
 const sims = (p: AttackPlan) =>
   settings.value.gameUrl && p.spy
     ? simLinks(
         settings.value.gameUrl,
         p.spy.values,
-        p.fleets.filter((f) => f.status !== 'withdrawn' && Object.values(f.ships).some((n) => n > 0)).map((f) => ({ ships: f.ships, research: f.drives?.research ?? {} })),
+        p.fleets
+          .filter((f) => f.status !== 'withdrawn' && Object.values(f.ships).some((n) => n > 0))
+          .map((f) => ({ ships: f.ships, research: f.drives?.research ?? {}, from: f.g != null ? [f.g, f.s!, f.p!] : null, speed: f.speed })),
+        hasCoords(p) ? [p.g!, p.s!, p.p!] : null,
       )
     : null;
 const me = computed(() => ctx.value?.me.id);

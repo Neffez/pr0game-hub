@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Raid-Planer: Auch TrashSim bekommt jetzt alle Flotten des Plans mit (mit Forschung, Start und Geschwindigkeit).',
+        en: 'Raid planner: TrashSim now also gets all fleets of the plan (with research, start and speed).',
+      },
+      {
+        kind: 'new',
         de: 'Raid-Planer: Der Simulator im Spiel bekommt jetzt auch alle Flotten des Plans mit (je Flotte ein Slot, mit Waffen, Schild und Panzerung).',
         en: 'Raid planner: the simulator in the game now also gets all fleets of the plan (one slot per fleet, with weapons, shields and armour).',
       },

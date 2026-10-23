@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Raid planner: the TrashSim link carries the plan's fleets too, as TrashSim's own export string (`sim=`, LZString via
+  the new web dependency `lz-string`): target resources, one row per fleet with research, start and speed, the
+  defender with the spy report's ships, solar satellites and defense (`trashSimExport` in `format.ts`, checked against
+  a real TrashSim export).
+
 - Raid planner: the link to the simulator in the game also carries the plan's fleets, one ACS slot per fleet with
   ships and weapons/shields/armour from the member's empire page (`slots`, `battleinput[slot][0][ID]`); plan fleets
   now carry research 109-111 too. TrashSim still gets the target alone (it takes attackers only from its compressed

@@ -105,8 +105,13 @@ From the game source (`ShowFleetStep3Page`, `FleetFunctions::setACSTime`), built
   `<game URL>game.php?page=battleSimulator&im[…]` and `<game URL>battlesim.html?&im[…]`. The plan carries the target's
   newest spy report (`spy`; research missing in it from the owner's newest report with research). The game simulator
   also takes the attackers (`ShowBattleSimulatorPage::show`): `slots=N` and `battleinput[slot][0][ID]` per fleet
-  (ships, 109-111 from the member's empire page). TrashSim (`import_export.js`) takes attackers only from `sim=`, an
-  LZString-compressed export text whose rows depend on its ship id lists, and then ignores `im[]`; not used.
+  (ships, 109-111 from the member's empire page). TrashSim (`import_export.js`) takes attackers only from `sim=`, its
+  LZString-compressed export text, and then ignores `im[]`; the hub writes that text (`trashSimExport`): a line
+  `metal crystal deuterium plunder(50)`, per attacker `0 id 109 110 111 115 117 118 134 g s p speed` + 9 recycler
+  fields + ships, the defender `1 0 …` + space dock + ships, 212 and 401-408. Ship columns: the flying ships in id order
+  (`ShowTrashsimPage`, `SHIPS` of `@pr0hub/flight`, matches universe 7). Checked against a real export. Note: the
+  importer in the game source reads the defender's ships from the space dock column on (one column off); TrashSim's
+  own exports are affected the same way.
 
 ## Enemy fleet analysis (retime, as built)
 
@@ -234,9 +239,9 @@ The parser `packages/parser/src/parsers/fleets.ts` (stored in `fleet_snapshots`)
 2. **ACS limits per universe**: the 16 / 5 are constants; move them into the universe settings if universes differ.
 3. **Check in a real browser**, also the mobile layout (not possible here: headless Chrome does not run on this
    machine); so far only the happy-dom smoke tests.
-4. **TrashSim with attackers**: build its `sim=` export string (resources line, one row per fleet with techs, origin
-   and ships in the order of its `atackids`/`defids`) if needed; its importer is fragile, so only with a test against
-   the deployed `battlesim.html`.
+4. **TrashSim import**: check in the browser that a raid planner link loads attackers and defender correctly (the
+   importer in the game source looks one column off for the defender); universes with other ships than universe 7
+   would need their own ship column list.
 5. **Test data**: the full Ctrl+A copy of an overview with an attack (with server clock line), the English texts
    (taken from the game's language files so far), a copied phalanx result, an own ACS fleet in the overview (to check
    the launched detection with an ACS member's mission).

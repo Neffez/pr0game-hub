@@ -13,6 +13,7 @@
     "@pr0hub/core": "workspace:*",
     "@pr0hub/flight": "workspace:*",
     "chart.js": "^4.4.6",
+    "lz-string": "1.5.0",
     "vue": "^3.5.12",
     "vue-i18n": "^11.4.16",
     "vue-router": "^4.4.5"

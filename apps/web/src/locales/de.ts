@@ -876,7 +876,7 @@ const de = {
     onTime: 'pünktlich',
     simGame: 'Simulator im Spiel',
     simGameTitle: 'Mit dem neuesten Spionagebericht des Ziels ({time}) und allen Flotten des Plans (je Flotte ein Slot, mit Waffen, Schild und Panzerung aus dem Imperium)',
-    simTrashTitle: 'Mit dem neuesten Spionagebericht des Ziels ({time}); eigene Flotten in TrashSim eintragen',
+    simTrashTitle: 'Mit dem neuesten Spionagebericht des Ziels ({time}) und allen Flotten des Plans (mit Forschung, Start und Geschwindigkeit)',
     confirmRemoveFleet: 'Flotte von {member} entfernen?',
     noEmpire: 'Keine Imperium-Seite gesynct: Startplanet und Schiffe fehlen.',
     invite: 'Einladen',

@@ -1,5 +1,6 @@
 import { techName } from '@pr0hub/core/tech';
-import type { Coords } from '@pr0hub/flight';
+import { SHIPS, type Coords } from '@pr0hub/flight';
+import { compressToEncodedURIComponent } from 'lz-string';
 import { currentLang, intlLocale, t } from './i18n';
 
 /** Intl formatters per locale and options: toLocaleString creates one per call, tables format thousands of values. */
@@ -214,18 +215,47 @@ export function flightCalcLink(
 
 /** Weapons, shields and armour: the research the combat simulators take per attacker. */
 const COMBAT_TECHS = [109, 110, 111];
+/** Research columns of a TrashSim export row: weapons, shields, armour, the three drives, fuel efficiency. */
+const TRASH_TECHS = [109, 110, 111, 115, 117, 118, 134];
+/**
+ * TrashSim's ship columns: the game's flying ships in id order (`ShowTrashsimPage`, all ships but the solar
+ * satellite), on the defender's row followed by the solar satellite and the defense 401-408.
+ */
+const TRASH_SHIPS = Object.keys(SHIPS).map(Number).sort((a, b) => a - b);
+const TRASH_DEFENSE = [212, 401, 402, 403, 404, 405, 406, 407, 408];
+
+/** Attacking fleet for the simulators: ships, research (by id), and for TrashSim its start and speed percent. */
+export interface SimFleet {
+  ships: Record<string, number>;
+  research: Record<string, number>;
+  from?: Coords3 | null;
+  speed?: number;
+}
+
+/**
+ * TrashSim's export text (`get_exportstring` in its `import_export.js`), LZString-packed for its `sim=` parameter: a
+ * line with the target's resources and the plunder percent, then one row per fleet (0 attacker, 1 defender: id,
+ * research, origin, speed, recycler fields, ships; the defender also space dock and defense).
+ */
+export function trashSimExport(values: Record<string, number>, target: Coords3 | null, attackers: SimFleet[]): string {
+  const row = (side: number, id: number, research: Record<string, number>, from: Coords3 | null | undefined, speed: number) => [
+    side, id, ...TRASH_TECHS.map((t) => research[t] ?? 0), ...(from ?? [0, 0, 0]), speed, 0, 0, 0, 0, 100, 0, 0, 0, 0,
+  ];
+  const lines = [
+    [values[901] ?? 0, values[902] ?? 0, values[903] ?? 0, 50],
+    ...attackers.map((a, i) => [...row(0, i, a.research, a.from, a.speed ?? 100), ...TRASH_SHIPS.map((id) => a.ships[id] ?? 0)]),
+    [...row(1, 0, values, target, 100), 0, ...[...TRASH_SHIPS, ...TRASH_DEFENSE].map((id) => values[id] ?? 0)],
+  ];
+  return compressToEncodedURIComponent(lines.map((l) => l.join(' ') + '\n').join(''));
+}
 
 /**
  * Combat simulators of the game with a spy report's values (`im[ID]=amount`, as the game's "simulate" button):
- * the simulator in the game and TrashSim (`battlesim.html` of the universe). `attackers` (ships and research per fleet)
- * fill the game simulator's ACS slots (`slots`, `battleinput[slot][0][ID]`); TrashSim takes attackers only from its own
- * export string, so it gets the target alone.
+ * the simulator in the game and TrashSim (`battlesim.html` of the universe). `attackers` fill the game simulator's ACS
+ * slots (`slots`, `battleinput[slot][0][ID]`) and TrashSim, which takes them only with the whole setup as its export
+ * string (`sim=`, its `im[]` values are ignored then).
  */
-export function simLinks(
-  gameUrl: string,
-  values: Record<string, number>,
-  attackers: { ships: Record<string, number>; research: Record<string, number> }[] = [],
-): { game: string; trash: string } {
+export function simLinks(gameUrl: string, values: Record<string, number>, attackers: SimFleet[] = [], target: Coords3 | null = null): { game: string; trash: string } {
   const base = gameUrl.replace(/\/?$/, '/');
   const params = Object.entries(values)
     .map(([id, v]) => `im[${id}]=${v}`)
@@ -239,7 +269,10 @@ export function simLinks(
     ].join('&'),
   );
   const fleets = attackers.length ? `slots=${attackers.length}&${slots.join('&')}&` : '';
-  return { game: `${base}game.php?page=battleSimulator&${fleets}${params}`, trash: `${base}battlesim.html?&${params}` };
+  return {
+    game: `${base}game.php?page=battleSimulator&${fleets}${params}`,
+    trash: attackers.length ? `${base}battlesim.html?sim=${trashSimExport(values, target, attackers)}` : `${base}battlesim.html?&${params}`,
+  };
 }
 
 /** Colour for how old a galaxy view is (Gala-Aktualität, universe browser). */
