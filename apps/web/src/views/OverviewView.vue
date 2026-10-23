@@ -97,7 +97,10 @@ const slotTitle = (sl: { from: number; to: number } | null) =>
   sl ? t('overview.slotTitle', { from: dateTime(sl.from), to: dateTime(sl.to) }) : t('overview.slotMissing');
 
 const { uni, ctx } = useUni();
-const mobile = useMobile();
+/** Narrow screen; there the overview can still be switched to the desktop tables (remembered per device). */
+const narrow = useMobile();
+const desktopView = useStored('overview.desktopView', false);
+const mobile = computed(() => narrow.value && !desktopView.value);
 const mode = useStored<'planets' | 'players'>('overview.mode', 'planets');
 const win = useStored('overview.window', '24h');
 const filter = useStored('overview.filter', {
@@ -413,7 +416,7 @@ const history = computed(() => {
 </script>
 
 <template>
-  <h1>
+  <h1 class="row" style="gap: 6px">
     {{ t('nav.overview') }}
     <Hint>
       <p>{{ t('overview.hint1') }}</p>
@@ -424,6 +427,13 @@ const history = computed(() => {
       <p>{{ t('overview.hint6') }}</p>
     </Hint>
     <Hint v-if="players.length && !history" warn>{{ t('overview.needTwoStands') }}</Hint>
+    <template v-if="narrow">
+      <span class="grow" />
+      <div class="tabs small" style="margin: 0; font-weight: 400" :title="t('overview.layoutTitle')">
+        <button :class="{ active: !desktopView }" @click="desktopView = false">{{ t('overview.layoutMobile') }}</button>
+        <button :class="{ active: desktopView }" @click="desktopView = true">{{ t('overview.layoutDesktop') }}</button>
+      </div>
+    </template>
   </h1>
 
   <div class="card" :class="{ collapsed: mobile && !filtersOpen }">

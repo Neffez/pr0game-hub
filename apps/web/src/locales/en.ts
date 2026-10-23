@@ -598,6 +598,9 @@ const en: typeof de = {
     perMember: 'per member',
   },
   overview: {
+    layoutMobile: 'Mobile',
+    layoutDesktop: 'Desktop',
+    layoutTitle: 'Overview layout on this device: compact list or the wide tables as on a computer',
     sort: 'Sort by',
     sortDir: 'Reverse order',
     filters: 'Filters',
