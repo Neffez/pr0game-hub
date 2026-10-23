@@ -1,4 +1,4 @@
-import type { EmpireRecord, GalaxyRecord, HubRecord, StatsRecord } from '@pr0hub/core';
+import type { EmpireRecord, GalaxyRecord, HubRecord, OverviewRecord, SpyReportRecord, StatsRecord } from '@pr0hub/core';
 import type { DB } from './db.js';
 import { Players } from './repo/players.js';
 
@@ -7,6 +7,7 @@ const MIN_KNOWN = 50;
 const MIN_ROWS = 20;
 const MIN_ALLIANCES = 10;
 const MIN_PLANETS = 5;
+const MIN_REPORTS = 2;
 /** share of a statistics page the group must know, share of compared planets with another owner */
 const MIN_KNOWN_SHARE = 0.3;
 const MAX_OTHER_OWNER = 0.7;
@@ -14,12 +15,14 @@ const MAX_OTHER_OWNER = 0.7;
 /**
  * Whether parsed pages contradict what the group already knows about its universe, i.e. come from another
  * universe: a statistics page names mostly players (or alliances) the group has never seen, galaxy views show
- * mostly other owners on planets the group knows, an empire page shows planets of several other players or none of
- * the member's planets from their earlier pages. Works for plain text too, unlike the markers of the HTML.
+ * mostly other owners on planets the group knows, spy reports mostly other players than the known owners, an empire
+ * page shows planets of several other players or none of the member's planets from their earlier pages, an overview
+ * page a planet of another player. Works for plain text too, unlike the markers of the HTML.
  */
 export function foreignRecords(db: DB, target: { groupId: number; userId: number }, records: HubRecord[]): boolean {
   const { groupId } = target;
   if (records.some((r) => r.kind === 'empire' && foreignEmpire(db, target, r))) return true;
+  if (records.some((r) => r.kind === 'overview' && foreignOverview(db, target, r))) return true;
   const players = new Players(db, groupId);
   const stats = records.filter((r): r is StatsRecord => r.kind === 'stats');
   for (const r of stats) {
@@ -51,7 +54,41 @@ export function foreignRecords(db: DB, target: { groupId: number; userId: number
       if (players.byName(row.playerName) !== known) other++;
     }
   }
-  return compared >= MIN_PLANETS && other / compared > MAX_OTHER_OWNER;
+  if (compared >= MIN_PLANETS && other / compared > MAX_OTHER_OWNER) return true;
+
+  // spy reports name the planet's owner
+  compared = 0;
+  other = 0;
+  for (const r of records.filter((x): x is SpyReportRecord => x.kind === 'spy')) {
+    if (!r.playerName) continue;
+    const known = owner.get(groupId, r.coords.g, r.coords.s, r.coords.p) as number | undefined;
+    if (known == null) continue;
+    compared++;
+    if (players.byName(r.playerName) !== known) other++;
+  }
+  return compared >= MIN_REPORTS && other / compared > MAX_OTHER_OWNER;
+}
+
+/**
+ * An overview page of another universe: its planet is none of the member's stored empire planets and belongs to
+ * another player than those in the galaxy data. A new colony (not on an empire page yet) without owner data passes.
+ */
+function foreignOverview(db: DB, target: { groupId: number; userId: number }, r: OverviewRecord): boolean {
+  if (!r.current) return false;
+  const planets = storedPlanets(db, target);
+  const c = r.current.coords;
+  if (!planets.length || planets.some((p) => p.g === c.g && p.s === c.s && p.p === c.p)) return false;
+  const owner = db.prepare('SELECT player_id FROM planets WHERE group_id = ? AND g = ? AND s = ? AND p = ? AND player_id IS NOT NULL').pluck();
+  const at = owner.get(target.groupId, c.g, c.s, c.p) as number | undefined;
+  if (at == null) return false;
+  const own = new Set(planets.map((p) => owner.get(target.groupId, p.g, p.s, p.p) as number | undefined).filter((id) => id != null));
+  return own.size > 0 && !own.has(at);
+}
+
+/** Planets on the member's stored empire pages. */
+function storedPlanets(db: DB, target: { groupId: number; userId: number }) {
+  const stored = db.prepare('SELECT data FROM empire_snapshots WHERE group_id = ? AND user_id = ?').pluck().all(target.groupId, target.userId) as string[];
+  return stored.flatMap((d) => ((JSON.parse(d) as Partial<EmpireRecord>).planets ?? []).map((p) => p.coords));
 }
 
 /**
@@ -71,9 +108,8 @@ function foreignEmpire(db: DB, target: { groupId: number; userId: number }, r: E
   const known = [...owners.values()].reduce((a, b) => a + b, 0);
   if (known >= 2 && Math.max(...owners.values()) <= known / 2) return true;
 
-  const stored = db.prepare('SELECT data FROM empire_snapshots WHERE group_id = ? AND user_id = ?').pluck().all(target.groupId, target.userId) as string[];
   const key = (c: { g: number; s: number; p: number }) => `${c.g}:${c.s}:${c.p}`;
-  const before = new Set(stored.flatMap((d) => ((JSON.parse(d) as Partial<EmpireRecord>).planets ?? []).map((p) => key(p.coords))));
+  const before = new Set(storedPlanets(db, target).map(key));
   return before.size > 0 && !planets.some((p) => before.has(key(p.coords)));
 }
 

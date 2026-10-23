@@ -6,7 +6,7 @@ import { now, type DB } from '../db.js';
 import { crawlerState, resumeCrawler } from '../crawler.js';
 import { events } from '../events.js';
 import { backfillActivity, reparse } from '../ingest.js';
-import { cleanupSnapshots, listEmpires, listSnapshots } from '../repo/cleanup.js';
+import { undoIngest } from '../repo/cleanup.js';
 
 /**
  * Global admins manage universes, groups and invites. Group admins may invite
@@ -229,44 +229,6 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
       .map((r: any) => ({ ...r, summary: r.summary ? JSON.parse(r.summary) : null }));
   });
 
-  /** Statistics snapshots of a group, to find and remove ones from another universe. */
-  app.get<{ Params: { id: string } }>('/api/admin/groups/:id/snapshots', async (req) => {
-    const groupId = Number(req.params.id);
-    requireGroupAdmin(req, groupId);
-    return listSnapshots(db, groupId);
-  });
-
-  /** Removes snapshots and the players/alliances only they brought in; `dryRun` returns the same summary without changes. */
-  app.post<{ Params: { id: string }; Body: { snapshots?: unknown; dryRun?: boolean } }>('/api/admin/groups/:id/snapshots/cleanup', async (req) => {
-    const groupId = Number(req.params.id);
-    requireGroupAdmin(req, groupId);
-    const ids = req.body?.snapshots;
-    if (!Array.isArray(ids) || !ids.length || !ids.every(Number.isInteger)) throw new HttpError(400, 'snapshots_invalid', 'No snapshots selected');
-    const res = cleanupSnapshots(db, groupId, ids as number[], !!req.body.dryRun);
-    if (!req.body.dryRun) events.publish(groupId, { type: 'data', tables: ['player_scores', 'alliance_scores', 'players', 'activity_log'] });
-    return res;
-  });
-
-  /** Members' stored empire pages, to remove one from another universe. */
-  app.get<{ Params: { id: string } }>('/api/admin/groups/:id/empires', async (req) => {
-    const groupId = Number(req.params.id);
-    requireGroupAdmin(req, groupId);
-    return listEmpires(db, groupId);
-  });
-
-  /** Removes empire pages; the imperium falls back to the member's newest remaining page. */
-  app.post<{ Params: { id: string }; Body: { empires?: unknown } }>('/api/admin/groups/:id/empires/delete', async (req) => {
-    const groupId = Number(req.params.id);
-    requireGroupAdmin(req, groupId);
-    const ids = req.body?.empires;
-    if (!Array.isArray(ids) || !ids.length || !ids.every(Number.isInteger)) throw new HttpError(400, 'empires_invalid', 'No empire pages selected');
-    const deleted = db
-      .prepare('DELETE FROM empire_snapshots WHERE group_id = ? AND id IN (SELECT value FROM json_each(?))')
-      .run(groupId, JSON.stringify(ids)).changes;
-    if (deleted) events.publish(groupId, { type: 'data', tables: ['empire'] });
-    return { deleted };
-  });
-
   // ------------------------------------------------- battle report crawler
 
   app.get('/api/admin/crawler', async (req) => {
@@ -300,6 +262,22 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
     requireGroupAdmin(req, row.group_id);
     const tz = JSON.parse(row.settings).timezone ?? UNIVERSE_DEFAULTS.timezone;
     return reparse(db, Number(req.params.id), tz);
+  });
+
+  /** Takes a sync back (e.g. a page of another universe); `dryRun` returns the same summary without changes. */
+  app.post<{ Params: { id: string }; Body: { dryRun?: boolean } }>('/api/admin/ingests/:id/delete', async (req) => {
+    const groupId = db.prepare('SELECT group_id FROM raw_ingests WHERE id = ?').pluck().get(Number(req.params.id)) as number | undefined;
+    if (!groupId) throw new HttpError(404, 'not_found', 'Not found');
+    requireGroupAdmin(req, groupId);
+    const dryRun = !!req.body?.dryRun;
+    const res = undoIngest(db, Number(req.params.id), dryRun);
+    if (!dryRun) {
+      events.publish(groupId, {
+        type: 'data',
+        tables: ['player_scores', 'alliance_scores', 'players', 'activity_log', 'empire', 'overview', 'fleets', 'spy_reports'],
+      });
+    }
+    return res;
   });
 
   /** Fills the activity log from already stored stats and spy reports. */

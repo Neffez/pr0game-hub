@@ -1046,54 +1046,51 @@ describe('universe check on paste', () => {
   });
 });
 
-describe('admin cleanup of statistics snapshots', () => {
-  it('removes snapshots and the players only they brought in, after a dry run', async () => {
+describe('admin: taking a sync back', () => {
+  it('removes what a sync stored, after a dry run', async () => {
     const groupC = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', payload: { universe: 'u8', name: 'Cleanup' }, headers: admin })).json().id;
     // a player of this universe with a planet: stays, only loses the foreign scores
     const own = Number(db.prepare('INSERT INTO players (group_id, name) VALUES (?, ?)').run(groupC, 'Alpha').lastInsertRowid);
     db.prepare('INSERT INTO planets (group_id, g, s, p, name, player_id) VALUES (?, 1, 1, 1, ?, ?)').run(groupC, 'Heimat', own);
     const headers = { ...admin, 'x-hub-group': String(groupC) };
-    expect((await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { html: fixture('stats-player.html') } })).statusCode).toBe(200);
     const players = () => db.prepare('SELECT name FROM players WHERE group_id = ? ORDER BY name').pluck().all(groupC) as string[];
+    const counts = () =>
+      ['stat_snapshots', 'empire_snapshots', 'overview_snapshots', 'raw_ingests'].map((t) => db.prepare(`SELECT COUNT(*) FROM ${t} WHERE group_id = ?`).pluck().get(groupC));
+    for (const f of ['stats-player.html', 'empire-real-source.html', 'overview.html']) {
+      expect((await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { html: fixture(f) } })).statusCode).toBe(200);
+    }
     const before = players();
     expect(before.length).toBeGreaterThan(1);
+    expect(counts()).toEqual([1, 1, 1, 3]);
 
-    const snaps = (await app.inject({ method: 'GET', url: `/hub/api/admin/groups/${groupC}/snapshots`, headers: admin })).json();
-    expect(snaps).toHaveLength(1);
-    expect(snaps[0]).toMatchObject({ who: 'player', rows: before.length });
-    expect(snaps[0].top[0]).toBe('Alpha');
+    const ingests = (await app.inject({ method: 'GET', url: `/hub/api/admin/groups/${groupC}/ingests`, headers: admin })).json();
+    const id = (page: string) => ingests.find((i: any) => i.page_type === page).id;
+    const undo = (raw: number, dryRun = false) => app.inject({ method: 'POST', url: `/hub/api/admin/ingests/${raw}/delete`, headers: admin, payload: { dryRun } });
 
-    const url = `/hub/api/admin/groups/${groupC}/snapshots/cleanup`;
-    const preview = (await app.inject({ method: 'POST', url, headers: admin, payload: { snapshots: [snaps[0].id], dryRun: true } })).json();
-    expect(preview).toMatchObject({ snapshots: 1, scores: before.length, kept: ['Alpha'] });
+    const preview = (await undo(id('stats'), true)).json();
+    expect(preview).toMatchObject({ snapshots: 1, scores: before.length, kept: ['Alpha'], empires: 0, skipped: [] });
     expect(preview.players.sort()).toEqual(before.filter((n) => n !== 'Alpha'));
     expect(players()).toEqual(before);
-    expect(db.prepare('SELECT COUNT(*) FROM stat_snapshots WHERE group_id = ?').pluck().get(groupC)).toBe(1);
+    expect(counts()).toEqual([1, 1, 1, 3]);
 
-    const res = (await app.inject({ method: 'POST', url, headers: admin, payload: { snapshots: [snaps[0].id] } })).json();
-    expect(res).toEqual(preview);
+    expect((await undo(id('stats'))).json()).toEqual(preview);
     expect(players()).toEqual(['Alpha']);
-    expect(db.prepare('SELECT COUNT(*) FROM stat_snapshots WHERE group_id = ?').pluck().get(groupC)).toBe(0);
     // alliances stay only as long as a remaining player belongs to them
     expect(
       db.prepare('SELECT COUNT(*) FROM alliances a WHERE group_id = ? AND NOT EXISTS (SELECT 1 FROM players p WHERE p.alliance_id = a.id)').pluck().get(groupC),
     ).toBe(0);
-    // empire pages: listed with their planets, removed only within the group
-    const page = (g: number) => JSON.stringify({ kind: 'empire', research: {}, planets: [{ name: 'P', coords: { g, s: 1, p: 1 }, type: 'planet', values: {} }] });
-    const ins = db.prepare('INSERT INTO empire_snapshots (group_id, user_id, created_at, data) VALUES (?, 1, ?, ?)');
-    ins.run(groupC, 100, page(1));
-    ins.run(groupC, 200, page(4));
-    const pages = (await app.inject({ method: 'GET', url: `/hub/api/admin/groups/${groupC}/empires`, headers: admin })).json();
-    expect(pages.map((e: any) => [e.created_at, e.planets])).toEqual([[200, ['4:1:1']], [100, ['1:1:1']]]);
-    const del = (id: number, group = groupC) => app.inject({ method: 'POST', url: `/hub/api/admin/groups/${group}/empires/delete`, headers: admin, payload: { empires: [id] } });
-    expect((await del(pages[0].id, groupA)).json().deleted).toBe(0);
-    expect((await del(pages[0].id)).json().deleted).toBe(1);
-    expect(db.prepare('SELECT created_at FROM empire_snapshots WHERE group_id = ?').pluck().all(groupC)).toEqual([100]);
+    expect(counts()).toEqual([0, 1, 1, 2]);
 
-    // snapshots of another group are not touched
-    const other = (await app.inject({ method: 'POST', url, headers: admin, payload: { snapshots: [snaps[0].id + 1000] } })).json();
-    expect(other.snapshots).toBe(0);
-    expect((await app.inject({ method: 'POST', url, headers: admin, payload: { snapshots: [] } })).statusCode).toBe(400);
+    expect((await undo(id('empire'))).json()).toMatchObject({ empires: 1, snapshots: 0 });
+    expect((await undo(id('overview'))).json()).toMatchObject({ overviews: 1 });
+    expect(counts()).toEqual([0, 0, 0, 0]);
+    expect((await undo(id('overview'))).statusCode).toBe(404);
+
+    // a galaxy view can't be taken back (only the newest state is stored): said so, the sync entry still goes
+    await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { html: fixture('galaxy.html') } });
+    const galaxy = (await app.inject({ method: 'GET', url: `/hub/api/admin/groups/${groupC}/ingests`, headers: admin })).json()[0];
+    expect((await undo(galaxy.id, true)).json().skipped).toEqual(['galaxy']);
+    expect((await undo(999999)).statusCode).toBe(404);
   });
 });
 
@@ -1142,6 +1139,23 @@ describe('plausibility of pasted pages', () => {
     expect(foreignRecords(db, me, [empire([3, 3, 3])])).toBe(true);
     expect(foreignRecords(db, me, [empire([2, 2, 2], [3, 3, 3])])).toBe(false);
     db.prepare('DELETE FROM empire_snapshots WHERE group_id = ?').run(groupP);
+
+    // overview: a planet of another player than the member's (new colonies without owner data pass)
+    db.prepare('INSERT INTO empire_snapshots (group_id, user_id, created_at, data) VALUES (?, 1, 1, ?)').run(groupP, JSON.stringify(empire([1, 1, 3])));
+    const overview = (g: number, s: number, p: number) => ({ kind: 'overview' as const, pageTime: null, current: { coords: { g, s, p }, type: 'planet' as const }, queues: [], catchUp: null });
+    expect(foreignRecords(db, me, [overview(1, 1, 3)])).toBe(false);
+    expect(foreignRecords(db, me, [overview(9, 9, 9)])).toBe(false);
+    expect(foreignRecords(db, me, [overview(1, 1, 5)])).toBe(true);
+    db.prepare('DELETE FROM empire_snapshots WHERE group_id = ?').run(groupP);
+
+    // spy reports: mostly other players than the known owners
+    const spy = (p: number, playerName: string) => ({
+      kind: 'spy' as const, msgId: null, coords: { g: 1, s: 1, p }, planetType: 'planet' as const, planetName: 'X', playerName,
+      reportTime: null, sections: {}, destroyChance: null, probesDestroyed: false,
+    });
+    expect(foreignRecords(db, me, [spy(1, 'Own1'), spy(2, 'Own2')])).toBe(false);
+    expect(foreignRecords(db, me, [spy(1, 'Fremd1')])).toBe(false);
+    expect(foreignRecords(db, me, [spy(1, 'Fremd1'), spy(2, 'Fremd2')])).toBe(true);
 
     // a pasted page of strangers is refused, also as preview, before anything is stored
     const head = fixture('stats-player.txt').split('\n').slice(0, 3).join('\n');

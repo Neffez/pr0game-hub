@@ -5,7 +5,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import { api, loadMe, selectedGroup, session } from '../api';
-import { dateTime, STATS_CATEGORIES } from '../format';
+import { dateTime } from '../format';
 
 const { t } = useI18n();
 const route = useRoute();
@@ -29,9 +29,6 @@ const groupId = ref<number | null>(null);
 const members = ref<any[]>([]);
 const invites = ref<any[]>([]);
 const ingests = ref<any[]>([]);
-const snapshots = ref<any[]>([]);
-const empires = ref<any[]>([]);
-const pickedEmpires = ref<number[]>([]);
 const inviteRole = ref('member');
 const merge = ref({ from: null as number | null, into: null as number | null });
 const group = computed(() => groups.value.find((g) => g.id === groupId.value));
@@ -58,16 +55,12 @@ async function loadAll() {
 
 async function loadGroup() {
   if (!groupId.value) return;
-  [members.value, invites.value, ingests.value, snapshots.value, empires.value] = await Promise.all([
+  [members.value, invites.value, ingests.value] = await Promise.all([
     api(`/admin/groups/${groupId.value}/members`),
     api(`/admin/groups/${groupId.value}/invites`),
     api(`/admin/groups/${groupId.value}/ingests`),
-    api(`/admin/groups/${groupId.value}/snapshots`),
-    api(`/admin/groups/${groupId.value}/empires`),
   ]);
-  picked.value = [];
-  pickedEmpires.value = [];
-  cleanup.value = null;
+  undo.value = null;
 }
 
 onMounted(() =>
@@ -172,30 +165,21 @@ const backfill = () =>
     const res = await api(`/admin/groups/${groupId.value}/activity/backfill`, { body: {} });
     msg.value = t('admin.backfillDone', { n: res.added });
   });
-/** statistics snapshots chosen for removal and the dry run's result for exactly that choice */
-const picked = ref<number[]>([]);
-const cleanup = ref<{ ids: string; snapshots: number; scores: number; activity: number; players: string[]; alliances: string[]; kept: string[] } | null>(null);
-const cleanupFor = (dryRun: boolean) => api(`/admin/groups/${groupId.value}/snapshots/cleanup`, { body: { snapshots: picked.value, dryRun } });
-watch(picked, () => (cleanup.value = null));
-const previewCleanup = () =>
+/** dry run of taking a sync back, shown under its row until confirmed */
+type Undo = {
+  id: number; snapshots: number; scores: number; activity: number; players: string[]; alliances: string[]; kept: string[];
+  empires: number; overviews: number; fleets: number; spyReports: number; skipped: string[];
+};
+const undo = ref<Undo | null>(null);
+const previewUndo = (id: number) =>
   run(async () => {
-    cleanup.value = { ...(await cleanupFor(true)), ids: picked.value.join() };
+    undo.value = { ...(await api<Omit<Undo, 'id'>>(`/admin/ingests/${id}/delete`, { body: { dryRun: true } })), id };
   });
-const runCleanup = () =>
+const runUndo = () =>
   run(async () => {
-    const c = cleanup.value!;
-    if (!confirm(t('admin.cleanupConfirm', { n: c.snapshots, players: c.players.length }))) return;
-    const res = await cleanupFor(false);
+    await api(`/admin/ingests/${undo.value!.id}/delete`, { body: {} });
     await loadGroup();
-    msg.value = t('admin.cleanupDone', { snapshots: res.snapshots, players: res.players.length, alliances: res.alliances.length });
-  });
-const deleteEmpires = () =>
-  run(async () => {
-    if (!confirm(t('admin.empiresConfirm', { n: pickedEmpires.value.length }))) return;
-    const res = await api(`/admin/groups/${groupId.value}/empires/delete`, { body: { empires: pickedEmpires.value } });
-    await loadGroup();
-    msg.value = t('admin.empiresDone', { n: res.deleted });
-  });
+  }, 'admin.undoDone');
 const doMerge = () => run(async () => {
   await api(`/admin/groups/${groupId.value}/players/merge`, { body: merge.value });
   merge.value = { from: null, into: null };
@@ -393,71 +377,42 @@ const doMerge = () => run(async () => {
         <button :disabled="!merge.from || !merge.into" @click="doMerge">{{ t('admin.mergeButton') }}</button>
       </div>
 
-      <h2>{{ t('admin.cleanup') }} <Hint>{{ t('admin.cleanupHint') }}</Hint></h2>
-      <div class="table-wrap">
-        <table v-stack="2" class="data">
-          <thead>
-            <tr><th /><th>{{ t('common.time') }}</th><th>{{ t('admin.cleanupWho') }}</th><th class="num">{{ t('admin.cleanupRows') }}</th><th>{{ t('admin.cleanupTop') }}</th><th>{{ t('admin.ingests') }}</th></tr>
-          </thead>
-          <tbody>
-            <tr v-for="s in snapshots" :key="s.id">
-              <td><input v-model="picked" type="checkbox" :value="s.id" /></td>
-              <td class="small">{{ dateTime(s.stat_time) }}</td>
-              <td class="small">{{ t(`admin.who_${s.who}`) }} · {{ STATS_CATEGORIES[s.type] }}</td>
-              <td class="num">{{ s.rows }}</td>
-              <td class="small">{{ s.top.join(', ') }}</td>
-              <td class="small muted">{{ dateTime(s.created_at) }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <div class="card">
-        <div class="row">
-          <button :disabled="!picked.length" @click="previewCleanup">{{ t('admin.cleanupPreview') }}</button>
-          <button v-if="cleanup && cleanup.ids === picked.join()" style="color: var(--neg)" @click="runCleanup">{{ t('admin.cleanupRun') }}</button>
-        </div>
-        <template v-if="cleanup">
-          <p class="small">{{ t('admin.cleanupResult', cleanup) }}</p>
-          <p v-if="cleanup.players.length" class="small"><b>{{ t('admin.cleanupPlayers') }} ({{ cleanup.players.length }}):</b> {{ cleanup.players.join(', ') }}</p>
-          <p v-if="cleanup.alliances.length" class="small"><b>{{ t('admin.cleanupAlliances') }} ({{ cleanup.alliances.length }}):</b> {{ cleanup.alliances.join(', ') }}</p>
-          <p v-if="cleanup.kept.length" class="small warn"><b>{{ t('admin.cleanupKept') }} ({{ cleanup.kept.length }}):</b> {{ cleanup.kept.join(', ') }}</p>
-        </template>
-      </div>
-
-      <h2>{{ t('admin.empires') }} <Hint>{{ t('admin.empiresHint') }}</Hint></h2>
-      <div class="table-wrap">
-        <table v-stack="2" class="data">
-          <thead><tr><th /><th>{{ t('common.time') }}</th><th>{{ t('nav.user') }}</th><th>{{ t('admin.empiresPlanets') }}</th></tr></thead>
-          <tbody>
-            <tr v-for="e in empires" :key="e.id">
-              <td><input v-model="pickedEmpires" type="checkbox" :value="e.id" /></td>
-              <td class="small">{{ dateTime(e.created_at) }}</td>
-              <td>{{ e.username }}</td>
-              <td class="small">{{ e.planets.join(', ') }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <div class="card row">
-        <button :disabled="!pickedEmpires.length" style="color: var(--neg)" @click="deleteEmpires">{{ t('admin.empiresDelete') }}</button>
-      </div>
-
-      <h2>{{ t('admin.ingests') }}</h2>
+      <h2>{{ t('admin.ingests') }} <Hint>{{ t('admin.ingestsHint') }}</Hint></h2>
       <div class="table-wrap">
         <table v-stack="2" class="data">
           <thead><tr><th>{{ t('common.time') }}</th><th>{{ t('nav.user') }}</th><th>{{ t('admin.source') }}</th><th>{{ t('admin.page') }}</th><th>{{ t('admin.result') }}</th><th /></tr></thead>
           <tbody>
-            <tr v-for="i in ingests" :key="i.id">
-              <td class="small">{{ dateTime(i.created_at) }}</td>
-              <td>{{ i.username }}</td>
-              <td class="small">{{ i.source }}</td>
-              <td class="small">{{ i.page_type }}</td>
-              <td class="small muted">
-                <span v-for="(c, k) in i.summary?.counts" :key="k">{{ k }}: {{ c.new }}/{{ c.duplicate }} </span>
-                <span v-for="w in i.summary?.warnings" :key="w" class="warn">⚠ {{ w }} </span>
-              </td>
-              <td><button v-if="i.html_size || i.text_size" @click="reparse(i.id)">Reparse</button></td>
-            </tr>
+            <template v-for="i in ingests" :key="i.id">
+              <tr>
+                <td class="small">{{ dateTime(i.created_at) }}</td>
+                <td>{{ i.username }}</td>
+                <td class="small">{{ i.source }}</td>
+                <td class="small">{{ i.page_type }}</td>
+                <td class="small muted">
+                  <span v-for="(c, k) in i.summary?.counts" :key="k">{{ k }}: {{ c.new }}/{{ c.duplicate }} </span>
+                  <span v-for="w in i.summary?.warnings" :key="w" class="warn">⚠ {{ w }} </span>
+                </td>
+                <td class="row">
+                  <template v-if="i.html_size || i.text_size">
+                    <button @click="reparse(i.id)">Reparse</button>
+                    <button style="color: var(--neg)" @click="previewUndo(i.id)">{{ t('admin.undo') }}</button>
+                  </template>
+                </td>
+              </tr>
+              <tr v-if="undo && undo.id === i.id">
+                <td colspan="6" class="small" style="white-space: normal">
+                  <p>{{ t('admin.undoPreview', undo) }}</p>
+                  <p v-if="undo.players.length"><b>{{ t('admin.undoPlayers') }} ({{ undo.players.length }}):</b> {{ undo.players.join(', ') }}</p>
+                  <p v-if="undo.alliances.length"><b>{{ t('admin.undoAlliances') }} ({{ undo.alliances.length }}):</b> {{ undo.alliances.join(', ') }}</p>
+                  <p v-if="undo.kept.length" class="warn"><b>{{ t('admin.undoKept') }} ({{ undo.kept.length }}):</b> {{ undo.kept.join(', ') }}</p>
+                  <p v-if="undo.skipped.length" class="warn">{{ t('admin.undoSkipped', { kinds: undo.skipped.join(', ') }) }}</p>
+                  <div class="row">
+                    <button style="color: var(--neg)" @click="runUndo">{{ t('admin.undoRun') }}</button>
+                    <button @click="undo = null">{{ t('common.cancel') }}</button>
+                  </div>
+                </td>
+              </tr>
+            </template>
           </tbody>
         </table>
       </div>

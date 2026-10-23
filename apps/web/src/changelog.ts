@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-10-23',
     items: [
       {
+        kind: 'fix',
+        de: 'Spionageberichte und Übersichtsseiten aus einem anderen Universum werden ebenfalls erkannt und abgelehnt. Admins sehen jede Synchronisation in einer Liste und können sie nach einer Vorschau neu einlesen oder samt ihrer Daten löschen.',
+        en: 'Spy reports and overview pages from another universe are recognised and rejected too. Admins see every sync in one list and can read it again or delete it with its data after a preview.',
+      },
+      {
         kind: 'new',
         de: 'Raid-Planer: Ein Plan kann mit einem Spieler und einem ungefähren Termin beginnen (nur Tag oder ca. Uhrzeit); Koordinaten (aus den bekannten Planeten des Spielers) und die genaue Einschlagszeit trägst du nach, sobald sie feststehen. Beim Hinzufügen der eigenen Flotte zeigt die Auswahl nur Schiffe, die auf dem Startplanet stehen, und „max“ übernimmt alle eines Typs.',
         en: 'Raid planner: a plan can start with a player and a rough date (just the day or around a time); add the coordinates (from the player\'s known planets) and the exact impact once they are known. When adding your fleet, the list only shows ships on the start planet, and "max" takes all of a type.',

@@ -4,6 +4,13 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Universe check for spy reports and overview pages: spy reports naming mostly other players than the known owners
+  and an overview page on a planet of another player than the member's are refused as `wrong_universe`.
+- Admin panel: one sync table ("Synchronisationen") with Reparse and Delete per sync replaces the separate
+  statistics and empire cleanup sections. Delete parses the stored page again and, after a preview, removes what it
+  stored: statistics snapshots (score rows, score events, players nothing else refers to, alliances left without
+  reference), empire, overview and fleet pages, spy reports, and the sync entry itself. Galaxy views are reported as
+  not removable.
 - Raid planner: plans against a player with coordinates and exact time following later.
   - Target: a player (search, `player_id`) and/or coordinates; coordinates can be added or changed later, picked from
     the player's known planets and moons. The "attack" claim is made once coordinates are known and moves with them.

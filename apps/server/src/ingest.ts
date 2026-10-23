@@ -90,17 +90,28 @@ export function foreignUniverse(html: string | null | undefined, gameUrl: string
   return null;
 }
 
-/** Re-runs the parser over a stored raw ingest (after parser fixes). Idempotent like a normal ingest. */
-export function reparse(db: DB, rawId: number, timezone: string): IngestSummary {
-  const row = db.prepare('SELECT * FROM raw_ingests WHERE id = ?').get(rawId) as
-    | { group_id: number; user_id: number | null; url: string | null; html_gz: Buffer | null; text_gz: Buffer | null }
-    | undefined;
-  if (!row) throw new Error('raw ingest not found');
-  const parsed = parsePage({
+export interface RawIngest {
+  group_id: number;
+  user_id: number | null;
+  url: string | null;
+  html_gz: Buffer | null;
+  text_gz: Buffer | null;
+}
+
+/** Parses a stored sync again. */
+export function parseRaw(row: RawIngest): ParseResult {
+  return parsePage({
     html: row.html_gz ? gunzipSync(row.html_gz).toString('utf8') : null,
     text: row.text_gz ? gunzipSync(row.text_gz).toString('utf8') : null,
     url: row.url,
   });
+}
+
+/** Re-runs the parser over a stored raw ingest (after parser fixes). Idempotent like a normal ingest. */
+export function reparse(db: DB, rawId: number, timezone: string): IngestSummary {
+  const row = db.prepare('SELECT * FROM raw_ingests WHERE id = ?').get(rawId) as RawIngest | undefined;
+  if (!row) throw new Error('raw ingest not found');
+  const parsed = parseRaw(row);
   const summary: IngestSummary = {
     pageType: parsed.pageType, source: parsed.source, lang: parsed.lang, warnings: parsed.warnings, counts: {}, preview: [],
   };
