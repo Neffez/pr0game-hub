@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Countdown from '../components/Countdown.vue';
 import Hint from '../components/Hint.vue';
 import PlanetActions from '../components/PlanetActions.vue';
 import PlanTargetForm from '../components/PlanTargetForm.vue';
@@ -20,6 +21,7 @@ import {
   FLEET_SHIPS,
   FLEET_STATUSES,
   isCurrent,
+  latestTime,
   newDraft,
   PLAN_STATUSES,
   SPEEDS,
@@ -35,9 +37,26 @@ const route = useRoute();
 const router = useRouter();
 
 const nowSec = () => Math.floor(Date.now() / 1000);
+/**
+ * Time for the plan state (late, delays, current or past). It only moves when something changes: at the next launch,
+ * target time or end of a plan, at least every minute. Countdowns tick on their own (Countdown), so the page is not
+ * rendered again every second (that reset open dropdowns).
+ */
 const now = ref(nowSec());
-const ticker = setInterval(() => (now.value = nowSec()), 1000);
-onBeforeUnmount(() => clearInterval(ticker));
+let stepTimer: ReturnType<typeof setTimeout> | undefined;
+function scheduleStep() {
+  clearTimeout(stepTimer);
+  const t0 = nowSec();
+  const next = Math.min(
+    t0 + 60,
+    ...plans.value.flatMap((p) => [p.target_time, latestTime(p) + 3601, ...(views.value.get(p.id)?.fleets.map((x) => x.plan?.launch ?? Infinity) ?? [])]).filter((x) => x > t0),
+  );
+  stepTimer = setTimeout(() => {
+    now.value = nowSec();
+    scheduleStep();
+  }, (next - t0) * 1000 + 50);
+}
+onBeforeUnmount(() => clearTimeout(stepTimer));
 
 const plans = ref<AttackPlan[]>([]);
 const loaded = ref(false);
@@ -45,10 +64,12 @@ const error = ref('');
 async function load() {
   try {
     plans.value = await uniApi<AttackPlan[]>(uni.value, '/plans');
+    now.value = nowSec();
   } catch (e) {
     error.value = (e as Error).message;
   }
   loaded.value = true;
+  scheduleStep();
 }
 onMounted(load);
 useLiveReload(load, tables('attack_plans'), 300);
@@ -89,12 +110,6 @@ function targetText(p: AttackPlan) {
 }
 const clock = (epoch: number) => fmtDate(epoch, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 const shortClock = (epoch: number) => fmtDate(epoch, { hour: '2-digit', minute: '2-digit' });
-/** Countdown "in 1:02:03" / "vor 5:00"; for days "in 2 Tagen". */
-function until(epoch: number) {
-  const s = epoch - now.value;
-  if (Math.abs(s) >= 2 * 86400) return t(s >= 0 ? 'plans.inDays' : 'plans.agoDays', { n: Math.floor(Math.abs(s) / 86400) });
-  return s >= 0 ? t('plans.in', { t: duration(s) || '0:00:00' }) : t('plans.ago', { t: duration(-s) });
-}
 
 const shipList = (ships: Record<string, number>) =>
   Object.entries(ships)
@@ -297,7 +312,7 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
         <span class="time">
           <span class="lbl">{{ t('plans.targetTime') }}</span>
           <b class="mono">{{ targetText(p) }}</b>
-          <span v-if="p.time_precision !== 'day'" class="muted small">{{ until(p.target_time) }}</span>
+          <Countdown v-if="p.time_precision !== 'day'" class="muted small" :to="p.target_time" />
         </span>
         <span v-if="exact(p) && views.get(p.id)?.acs?.delay" class="time warn">
           <span class="lbl">⚠ {{ t('plans.arrival') }}</span>
@@ -352,7 +367,7 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
                 <template v-if="x.plan && exact(p)">
                   <span class="time">
                     <span class="mono" :class="{ neg: x.plan.late }">{{ clock(x.plan.launch) }}</span>
-                    <span class="muted small">{{ until(x.plan.launch) }}</span>
+                    <Countdown class="muted small" :to="x.plan.launch" />
                   </span>
                   <div class="small flags">
                     <span v-if="x.plan.late" class="neg">{{ t('plans.late') }}</span>

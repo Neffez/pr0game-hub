@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-10-23',
     items: [
       {
+        kind: 'fix',
+        de: 'Raid-Planer: In den Auswahllisten sprang die Markierung jede Sekunde nach oben, solange die Liste offen war.',
+        en: 'Raid planner: in the drop-down lists the highlight jumped back to the top every second while the list was open.',
+      },
+      {
         kind: 'new',
         de: 'Admin: Die Liste der Synchronisationen zeigt wieder, was jeweils synchronisiert wurde, etwa die Top-Spieler einer Statistik oder die Planeten eines Imperiums.',
         en: 'Admin: the list of syncs shows again what each one contained, e.g. the top players of a statistics page or the planets of an empire page.',

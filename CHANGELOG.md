@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Raid planner: open drop-down lists no longer lose their highlight every second. The page rendered again with every
+  tick of the countdowns; countdowns are now their own component on one shared second clock, and the plan state
+  (late, delays, current or past) only moves at the next launch, target time or end of a plan, at least every minute.
+  A test counts the page's renders.
+
 - Admin sync table: a "Content" column describes each sync per record kind with a few names or coordinates (top
   players of a statistics page with ranking and category, planet names of an empire page, systems, spy report
   targets …). Stored with the sync; syncs from before get it once from their stored page when listed.

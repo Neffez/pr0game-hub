@@ -7,7 +7,7 @@ import { i18n, setLocale } from '../src/i18n';
 import RaidPlannerView from '../src/views/RaidPlannerView.vue';
 
 // Smoke test of the raid planner page: real components, texts and router; the API answers from fixtures.
-const target = 2_000_000_000;
+const target = Math.floor(Date.now() / 1000) + 3600;
 const plans = [
   {
     id: 7, user_id: 1, creator: 'Carol', g: 1, s: 41, p: 1, planet_type: 'moon', target_time: target, time_precision: 'exact', note: 'Konter', status: 'planning',
@@ -51,6 +51,8 @@ const ctx: UniContext = {
 };
 
 let root: HTMLElement;
+/** renders of the page component itself (not of its countdowns) */
+let pageUpdates = 0;
 const settle = async () => {
   for (let i = 0; i < 5; i++) {
     await new Promise((r) => setTimeout(r, 0));
@@ -76,10 +78,25 @@ describe('raid planner page', () => {
     });
     root = document.createElement('div');
     document.body.append(root);
-    createApp(Shell).use(router).use(i18n).mount(root);
+    const app = createApp(Shell).use(router).use(i18n);
+    app.mixin({
+      updated(this: { $: { type: { __name?: string } } }) {
+        if (this.$.type.__name === 'RaidPlannerView') pageUpdates++;
+      },
+    });
+    app.mount(root);
     await settle();
   });
   afterAll(() => vi.unstubAllGlobals());
+
+  it('only updates the countdowns every second, not the page (open dropdowns keep their highlight)', async () => {
+    const countdown = () => root.querySelector('.plan .time .muted')!.textContent;
+    const before = countdown();
+    pageUpdates = 0;
+    await new Promise((r) => setTimeout(r, 2200));
+    expect(countdown()).not.toBe(before);
+    expect(pageUpdates).toBe(0);
+  });
 
   it('opens the form prefilled from the action menu link', () => {
     expect(root.querySelector<HTMLInputElement>('.plan-form input.mono')!.value).toBe('3:115:8');
