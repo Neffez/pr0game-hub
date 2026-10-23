@@ -9,7 +9,9 @@ import type {
   ExpoSize,
   HostileSpyRecord,
   HubRecord,
+  MessageParty,
   PlanetType,
+  PlayerMessageRecord,
   RecycleRecord,
   SpyReportRecord,
 } from '../types.js';
@@ -314,6 +316,100 @@ function parseRecycleText(text: string, msgId: number | null, time: LocalDateTim
   return null;
 }
 
+// -------------------------------------------------------------- player messages
+
+/** "Name [g:s:p]", or only the name (e.g. ACS invitations). */
+function party(raw: string | undefined): MessageParty | null {
+  const s = (raw ?? '').replace(/\s+/g, ' ').trim();
+  if (!s) return null;
+  const m = s.match(/^(.*?)\s*\[(\d+):(\d+):(\d+)\]$/);
+  return m ? { name: m[1], coords: { g: Number(m[2]), s: Number(m[3]), p: Number(m[4]) } } : { name: s, coords: null };
+}
+
+/** Recipient line of a player message: "An: Name [1:2:3]; Other [4:5:6];" (EN "To:"). */
+const RECEIVER_RE = /^\s*(?:An|To)\s*:\s*(.*)$/s;
+
+function parties(raw: string): MessageParty[] {
+  return raw.split(';').map(party).filter((p): p is MessageParty => !!p);
+}
+
+/** Message text: lines trimmed, runs of empty lines collapsed to one. */
+function messageBody(text: string): string {
+  return text
+    .replace(/\r\n?/g, '\n')
+    .replace(/\u00a0/g, ' ')
+    .split('\n')
+    .map((l) => l.replace(/[ \t]+/g, ' ').trim())
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+/** Only player messages list their recipients (`.message-receiver`). */
+function parsePlayerMessageHtml($: CheerioAPI, item: Element, msgId: number | null, time: LocalDateTime | null): PlayerMessageRecord | null {
+  const root = $(item);
+  const receiver = root.find('.message-receiver').first();
+  const from = party(root.find('.message-from').first().text());
+  if (!receiver.length || !from) return null;
+  return {
+    kind: 'playerMessage',
+    msgId,
+    time,
+    from,
+    to: parties(normalizeText(receiver.text()).replace(RECEIVER_RE, '$1')),
+    subject: normalizeText(root.find('.message-subject').first().text()),
+    body: messageBody(nodeToText(root.find('.message-content').first().toArray())),
+  };
+}
+
+/** A line holding only a message date; in a plain text copy each message starts with category, sender, subject, date. */
+const DATE_LINE_RE = /^\d{1,2}\.?\s*[A-Za-zäÄ]{3}\s+\d{4},?\s+\d{1,2}:\d{2}:\d{2}$/;
+/** Page parts after the last message: buttons like "[Nur Favoriten anzeigen]" and the page links. */
+const FOOTER_RE = /^(\[[^\]\d:]{6,}\]|(Seite|Page)\s*:)/;
+
+/**
+ * Player messages in a plain text copy: a date line followed by the recipient line. Also returns the text range of
+ * each message, so the report parsers skip it (players paste reports into their messages).
+ */
+function parsePlayerMessagesText(text: string): { records: PlayerMessageRecord[]; ranges: [number, number][] } {
+  const lines = text.split('\n');
+  const starts: number[] = [];
+  let pos = 0;
+  for (const l of lines) {
+    starts.push(pos);
+    pos += l.length + 1;
+  }
+  const dates = lines.flatMap((l, i) => (DATE_LINE_RE.test(l) ? [i] : []));
+  const records: PlayerMessageRecord[] = [];
+  const ranges: [number, number][] = [];
+  dates.forEach((d, k) => {
+    const to = lines[d + 1]?.match(RECEIVER_RE);
+    const from = party(lines[d - 2]);
+    if (!to || !from || d < 2) return;
+    let first = d + 2;
+    let receivers = to[1];
+    if (!receivers.trim() && first < lines.length) receivers = lines[first++];
+    // the next message's category, sender and subject precede its date
+    const last = k + 1 === dates.length;
+    let end = Math.max(first, last ? lines.length : dates[k + 1] - 3);
+    if (last) {
+      const footer = lines.slice(first, end).findIndex((l) => FOOTER_RE.test(l));
+      if (footer >= 0) end = first + footer;
+    }
+    records.push({
+      kind: 'playerMessage',
+      msgId: null,
+      time: parseGameDate(lines[d]),
+      from,
+      to: parties(receivers),
+      subject: lines[d - 1],
+      body: messageBody(lines.slice(first, end).join('\n')),
+    });
+    ranges.push([starts[d - 2], end < lines.length ? starts[end] : text.length]);
+  });
+  return { records, ranges };
+}
+
 // ---------------------------------------------------------------- page entries
 
 export function isMessagesHtml($: CheerioAPI): boolean {
@@ -341,6 +437,13 @@ export function parseMessagesHtml($: CheerioAPI): HubRecord[] {
     const msgId = Number(($(item).attr('id') ?? '').replace('message_', '')) || null;
     const time = parseGameDate($(item).find('.message-date').first().text());
     const content = $(item).find('.message-content').first();
+
+    // before the reports: players paste reports into their messages
+    const pm = parsePlayerMessageHtml($, item, msgId, time);
+    if (pm) {
+      records.push(pm);
+      return;
+    }
 
     const text = normalizeText(nodeToText(content.toArray()));
     // Expedition fights embed a battle summary, so check expeditions first.
@@ -389,9 +492,11 @@ type Anchor = { index: number; kind: 'spy' | 'battle' | 'expedition' | 'hostile'
  * found by their content anchors; the message date preceding an anchor is used as time.
  */
 export function parseMessagesText(text: string): HubRecord[] {
+  const pms = parsePlayerMessagesText(text);
+  const inMessage = (i: number) => pms.ranges.some(([a, b]) => i >= a && i < b);
   const anchors: Anchor[] = [];
   const scan = (re: RegExp, kind: Anchor['kind']) => {
-    for (const m of text.matchAll(new RegExp(re.source, 'g'))) anchors.push({ index: m.index ?? 0, kind });
+    for (const m of text.matchAll(new RegExp(re.source, 'g'))) if (!inMessage(m.index ?? 0)) anchors.push({ index: m.index ?? 0, kind });
   };
   scan(SPY_TITLE_RE, 'spy');
   scan(BATTLE_TITLE_RE, 'battle');
@@ -405,7 +510,7 @@ export function parseMessagesText(text: string): HubRecord[] {
   }
 
   // Collapsed spy reports show the title twice (collapsed title + hidden content) - dedupe below by key.
-  const records: HubRecord[] = [];
+  const records: HubRecord[] = [...pms.records];
   const seenSpy = new Set<string>();
   anchors.forEach((a, i) => {
     const end = anchors[i + 1]?.index ?? text.length;

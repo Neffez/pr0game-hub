@@ -231,6 +231,45 @@ describe('api', () => {
     db.prepare("UPDATE group_members SET ingame_name = NULL WHERE group_id = ? AND user_id = (SELECT id FROM users WHERE username = 'erin')").run(groupA);
   });
 
+  it('keeps player messages private unless the member shares them', async () => {
+    const headers = { ...admin, 'x-hub-group': String(groupA) };
+    const erin = { ...(await login('erin', 'erinpass1')), 'x-hub-group': String(groupA) };
+    const pm = (id: number, from: string, to: string, date: string, body: string) =>
+      `<div id="message_${id}" class="message-item"><div class="message-details"><div class="message-from">${from}</div>
+       <div class="message-subject">Kein Betreff</div><div class="message-date">${date}</div>
+       <div class="message-receiver">An:&nbsp; ${to};</div></div><div class="message-content">${body}</div></div>`;
+    const list = async (h: object) => (await app.inject({ method: 'GET', url: '/hub/api/u8/messages', headers: h })).json();
+
+    let res = await app.inject({
+      method: 'POST', url: '/hub/api/u8/ingest', headers,
+      payload: { html: pm(11, 'Mallory [4:20:6]', 'Admin [1:100:12]', '22. Okt 2026, 21:51:10', 'Hallo <br>\nWelt') + pm(10, 'Admin [1:100:12]', 'Mallory [4:20:6]', '21. Okt 2026, 16:00:00', 'Hi') },
+    });
+    expect(res.json().counts.player_messages).toEqual({ new: 2, duplicate: 0 });
+    const own = await list(headers);
+    expect(own.share).toBe(false);
+    expect(own.messages.map((m: any) => [m.from_name, m.recipients, m.body])).toEqual([
+      ['Mallory', [{ name: 'Admin', coords: '1:100:12' }], 'Hallo\nWelt'],
+      ['Admin', [{ name: 'Mallory', coords: '4:20:6' }], 'Hi'],
+    ]);
+    expect((await list(erin)).messages).toEqual([]);
+
+    // shared: the others see them; the recipient's copy of the same message (other id) is listed once
+    expect((await app.inject({ method: 'POST', url: '/hub/api/auth/message-share', headers: admin, payload: { enabled: true } })).json()).toEqual({ enabled: true });
+    await app.inject({
+      method: 'POST', url: '/hub/api/u8/ingest', headers: erin,
+      payload: { html: pm(99, 'Admin [1:100:12]', 'Mallory [4:20:6]', '21. Okt 2026, 16:00:00', 'Hi') + pm(98, 'Erin', 'Mallory [4:20:6]', '20. Okt 2026, 10:00:00', 'privat') },
+    });
+    const shared = await list(erin);
+    expect(shared.messages.map((m: any) => [m.body, m.synced_by.sort()])).toEqual([['Hallo\nWelt', ['admin']], ['Hi', ['admin', 'erin']], ['privat', ['erin']]]);
+    // erin shares nothing: the admin sees none of erin's own messages
+    expect((await list(headers)).messages.map((m: any) => [m.body, m.synced_by])).toEqual([['Hallo\nWelt', ['admin']], ['Hi', ['admin']]]);
+    // other groups never see them
+    expect((await list({ ...admin, 'x-hub-group': String(groupB) })).messages).toEqual([]);
+
+    await app.inject({ method: 'POST', url: '/hub/api/auth/message-share', headers: admin, payload: { enabled: false } });
+    expect((await list(erin)).messages.map((m: any) => m.body)).toEqual(['Hi', 'privat']);
+  });
+
   it('lists phalanxes that reach a system', async () => {
     const headers = { ...admin, 'x-hub-group': String(groupA) };
     const empire = { kind: 'empire', research: {}, planets: [

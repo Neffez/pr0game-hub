@@ -54,6 +54,8 @@ const ICONS: Record<string, string[]> = {
   battleHall: ['M8 3.5h8V9a4 4 0 0 1-8 0z', 'M8 5.5H5v1a3 3 0 0 0 3 3', 'M16 5.5h3v1a3 3 0 0 1-3 3', 'M12 13v4', 'M8.5 21l1-4h5l1 4z'],
   // compass
   expeditions: ['M21 12a9 9 0 1 1-18 0a9 9 0 1 1 18 0', 'M15.5 8.5l-2 5-5 2 2-5z'],
+  // envelope
+  messages: ['M3.5 6.5h17v11h-17z', 'M3.5 6.5 12 13l8.5-6.5'],
   // two cards
   deck: ['M8.5 3h9.5a2 2 0 0 1 2 2v12', 'M4 7a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z'],
   // four tiles

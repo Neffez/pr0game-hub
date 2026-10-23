@@ -153,6 +153,68 @@ describe('messages', () => {
     });
   });
 
+  it('parses player messages from HTML, also when they quote a report', () => {
+    const item = (id: number, from: string, subject: string, date: string, to: string, body: string) => `
+      <div id="message_${id}" class="message-item">
+        <div class="message-actions"><span>Spieler Nachrichten</span><a href="#" onclick="return Dialog.PM([1003464], Message.CreateAnswer('${subject}'), '', 'u_1');"></a></div>
+        <div class="message-details" id="msgdetails_${id}">
+          <div class="message-from">${from}</div><div class="message-subject">${subject}</div><div class="message-date">${date}</div>
+          <div class="message-break"></div>
+          <div class="message-receiver">An:&nbsp;
+            ${to}
+          </div>
+        </div>
+        <div class="message-content" id="msgcontent_${id}">
+          ${body}
+        </div>
+      </div>`;
+    const html = `<div class="messages-container"><div class="message-group">
+      ${item(3, 'Bob [1:158:7]', 'Re: Kein Betreff', '22. Okt 2026, 21:51:10', 'Alice [1:100:12];', 'Erste Zeile <br>\nzweite Zeile<br>\n<br>\n<br>\nnach Leerzeile &lt;b&gt;')}
+      ${item(2, 'Alice [1:100:12]', 'Kein Betreff', '21. Okt 2026, 16:13:22', 'Bob [1:158:7]; Carol [2:3:4];',
+        'Feindliche Spionagesonden vom Mond M (Carol) [3:112:1] wurde in der Nähe von Heim (P) [3:100:15] gesichtet.')}
+      ${item(1, 'Alice', 'AKS Einladung', '16. Okt 2026, 14:40:29', 'Bob [1:82:4];', 'Der Spieler Alice lädt dich zu einem AKS ein.')}
+    </div></div>`;
+    const res = parsePage({ html, url: 'game.php?page=messages&category=1' });
+    expect(res.pageType).toBe('messages');
+    expect(res.records).toEqual([
+      {
+        kind: 'playerMessage', msgId: 3, time: '2026-10-22 21:51:10',
+        from: { name: 'Bob', coords: { g: 1, s: 158, p: 7 } }, to: [{ name: 'Alice', coords: { g: 1, s: 100, p: 12 } }],
+        subject: 'Re: Kein Betreff', body: 'Erste Zeile\nzweite Zeile\n\nnach Leerzeile <b>',
+      },
+      {
+        kind: 'playerMessage', msgId: 2, time: '2026-10-21 16:13:22',
+        from: { name: 'Alice', coords: { g: 1, s: 100, p: 12 } },
+        to: [{ name: 'Bob', coords: { g: 1, s: 158, p: 7 } }, { name: 'Carol', coords: { g: 2, s: 3, p: 4 } }],
+        subject: 'Kein Betreff',
+        body: 'Feindliche Spionagesonden vom Mond M (Carol) [3:112:1] wurde in der Nähe von Heim (P) [3:100:15] gesichtet.',
+      },
+      {
+        kind: 'playerMessage', msgId: 1, time: '2026-10-16 14:40:29', from: { name: 'Alice', coords: null },
+        to: [{ name: 'Bob', coords: { g: 1, s: 82, p: 4 } }], subject: 'AKS Einladung', body: 'Der Spieler Alice lädt dich zu einem AKS ein.',
+      },
+    ]);
+  });
+
+  it('parses player messages from plain text', () => {
+    const text = [
+      'Spieler Nachrichten', '0/72',
+      'Spieler Nachrichten', 'Bob [1:158:7]', 'Re: Kein Betreff', '22. Okt 2026, 21:51:10', 'An: Alice [1:100:12];', 'Erste Zeile', 'zweite Zeile',
+      'Spieler Nachrichten', 'Alice [1:100:12]', 'Kein Betreff', '21. Okt 2026, 16:13:22', 'An: Bob [1:158:7];',
+      'Feindliche Spionagesonden vom Mond M (Carol) [3:112:1] wurde in der Nähe von Heim (P) [3:100:15] gesichtet.',
+      'Spionageberichte', 'Spionageabteilung', 'Spionagebericht', '21. Okt 2026, 12:00:00',
+      'Spionagebericht vom Planeten Heimat (Alpha) [1:234:5] am 21. Okt 2026, 12:00:30', 'Rohstoffe', 'Metall\t1.234.567',
+      'Spieler Nachrichten', 'Alice', 'AKS Einladung', '16. Okt 2026, 14:40:29', 'An:', 'Bob [1:82:4];', 'Der Spieler Alice lädt dich zu einem AKS ein.',
+      '[Nur Favoriten anzeigen]', 'Seite: [1] [2] »',
+    ].join('\n');
+    const res = parsePage({ text });
+    expect(res.records.map((r) => r.kind)).toEqual(['playerMessage', 'playerMessage', 'playerMessage', 'spy']);
+    const [a, b, c] = res.records as any[];
+    expect(a).toMatchObject({ time: '2026-10-22 21:51:10', from: { name: 'Bob' }, to: [{ name: 'Alice' }], subject: 'Re: Kein Betreff', body: 'Erste Zeile\nzweite Zeile' });
+    expect(b.body).toMatch(/^Feindliche Spionagesonden.*gesichtet\.$/);
+    expect(c).toMatchObject({ from: { name: 'Alice', coords: null }, to: [{ name: 'Bob', coords: { g: 1, s: 82, p: 4 } }], body: 'Der Spieler Alice lädt dich zu einem AKS ein.' });
+  });
+
   it('parses messages from plain text', () => {
     const res = parsePage({ text: fixture('messages.txt') });
     const [spy, battle, ships, nothing] = res.records as any[];

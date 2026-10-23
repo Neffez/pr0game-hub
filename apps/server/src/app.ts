@@ -15,6 +15,7 @@ import { eventRoutes } from './routes/events.js';
 import { galaxyRoutes } from './routes/galaxy.js';
 import { imperiumRoutes } from './routes/imperium.js';
 import { ingestRoutes } from './routes/ingest.js';
+import { messageRoutes } from './routes/messages.js';
 import { overviewRoutes } from './routes/overview.js';
 import { playersRoutes } from './routes/players.js';
 import { reportsRoutes } from './routes/reports.js';
@@ -60,7 +61,7 @@ export function buildApp(db: DB, opts: { logger?: boolean } = {}): FastifyInstan
       claimsRoutes(scope, db);
       commentsRoutes(scope, db);
       notificationRoutes(scope, db);
-      for (const routes of [overviewRoutes, playersRoutes, spyRoutes, galaxyRoutes, reportsRoutes, deckRoutes, imperiumRoutes]) routes(scope, db);
+      for (const routes of [overviewRoutes, playersRoutes, spyRoutes, galaxyRoutes, reportsRoutes, deckRoutes, imperiumRoutes, messageRoutes]) routes(scope, db);
     },
     { prefix: config.basePath },
   );

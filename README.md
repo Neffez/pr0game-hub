@@ -7,7 +7,7 @@ External analysis tool for [pr0game](https://codeberg.org/pr0game/pr0game) based
 
 - **Sync**: plain text, HTML from the clipboard, page source (`Ctrl+U`) or a saved page, with a preview before saving.
   - Statistics (players/alliances, all categories incl. honor points)
-  - Messages: spy, battle, expedition and recycling reports, hostile spying
+  - Messages: spy, battle, expedition and recycling reports, hostile spying, player messages
   - Galaxy, empire, game overview (build queues, fleet movements), fleet movements on their own, battle hall
   - universe.json import and export
 - **Overview**: points per category with deltas per statistics update, rank changes, status, filters
@@ -18,6 +18,8 @@ External analysis tool for [pr0game](https://codeberg.org/pr0game/pr0game) based
   💬 count next to the planet
 - **Galaxy browser** with phalanx coverage and a freshness heat map
 - **Spy history** with a diff per coordinate, **hostile spying**, **activity log**
+- **In-game messages**: synced player messages, sortable and filterable by sender and recipient; private unless the
+  member shares them in the account settings
 - **Alliance**: planets, fleets, fleet movements and research of all members (each member chooses which fleet
   missions they share)
 - **Targets**: members claim a planet or moon for a while (farming, attack, espionage) so nobody hits it twice;

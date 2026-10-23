@@ -43,9 +43,11 @@ const savePassword = () =>
 /** Fleet movements shared with the other members (game mission ids, as the server's SHARE_MISSIONS). */
 const MISSIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15];
 const share = ref<{ enabled: boolean; hidden: number[] } | null>(null);
+/** Player messages shared with the other members (off: only the user sees them). */
+const messageShare = ref<{ enabled: boolean } | null>(null);
 onMounted(async () => {
   try {
-    share.value = await api('/auth/fleet-share');
+    [share.value, messageShare.value] = await Promise.all([api('/auth/fleet-share'), api('/auth/message-share')]);
   } catch (e) {
     error.value = (e as Error).message;
   }
@@ -58,6 +60,10 @@ function toggleMission(id: number) {
 const saveShare = () =>
   run(async () => {
     share.value = await api('/auth/fleet-share', { body: share.value });
+  }, () => t('account.fleetShareSaved'));
+const saveMessageShare = () =>
+  run(async () => {
+    messageShare.value = await api('/auth/message-share', { body: messageShare.value });
   }, () => t('account.fleetShareSaved'));
 
 // switch right away, then store it on the account (applies on other devices after the next login/reload)
@@ -90,6 +96,11 @@ const saveLang = () =>
         </label>
       </div>
       <p class="muted small">{{ t('account.fleetShareHint') }}</p>
+    </template>
+    <template v-if="messageShare">
+      <h2>{{ t('account.messageShare') }}</h2>
+      <label><input v-model="messageShare.enabled" type="checkbox" @change="saveMessageShare" /> {{ t('account.messageShareEnabled') }}</label>
+      <p class="muted small">{{ t('account.messageShareHint') }}</p>
     </template>
     <h2>{{ t('common.username') }}</h2>
     <form @submit.prevent="saveUsername">

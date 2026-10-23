@@ -65,6 +65,7 @@ const links = [
   { to: 'spy', label: 'spy', icon: 'spy' },
   { to: 'hostile', label: 'hostile', icon: 'hostile' },
   { to: 'activity', label: 'activity', icon: 'activity' },
+  { to: 'messages', label: 'messages', icon: 'messages' },
   { section: 'alliance' },
   { to: 'planets', label: 'planets', icon: 'planets' },
   { to: 'fleet', label: 'fleet', icon: 'fleet' },

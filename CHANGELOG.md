@@ -4,6 +4,16 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- In-game messages: player messages ("Spieler Nachrichten") can be synced like the reports, by HTML, page source or
+  plain text, and are listed on the new page "In-game messages" (newest first, sortable, filter by sender and
+  recipient).
+  - New account setting "Share in-game messages", off by default: then only the member sees their messages; others
+    who share theirs are visible to everyone in the alliance. Applies at once, also to messages already synced.
+  - A message synced by both sender and recipient (the game keeps one copy each) is listed once, with who synced it.
+  - Reports quoted in a player message (e.g. a pasted "Feindliche Spionagesonden …") no longer count as reports.
+  - Others get no live hint about new messages of a member who doesn't share them; a reparse never assigns them to
+    another member.
+
 - Overview Δ columns: a statistics update off the 6 h grid (e.g. 21:20 before 00:00) is no longer dropped when
   a closer update takes its grid point; it becomes the start of the section, so the change shows up.
 - `@pr0hub/flight`: rules for the raid planner.

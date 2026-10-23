@@ -3,6 +3,7 @@ import { gunzipSync, gzipSync } from 'node:zlib';
 import { config } from './config.js';
 import { now, type DB } from './db.js';
 import { events } from './events.js';
+import { messageShare } from './repo/messages.js';
 import { Store } from './store.js';
 
 export interface IngestTarget {
@@ -63,7 +64,7 @@ export function ingest(
     );
   })();
   const systems = parsed.records.flatMap((r) => (r.kind === 'galaxy' ? [`${r.g}:${r.s}`] : []));
-  events.publishIngest(target.groupId, target.userId, summary.counts, systems);
+  events.publishIngest(target.groupId, target.userId, publicCounts(db, target.userId, summary.counts), systems);
   return summary;
 }
 
@@ -87,9 +88,18 @@ export function reparse(db: DB, rawId: number, timezone: string): IngestSummary 
     (db.prepare("SELECT user_id FROM group_members WHERE group_id = ? ORDER BY role = 'admin' DESC, joined_at LIMIT 1").pluck().get(row.group_id) as number | undefined);
   if (!userId) throw new Error('group has no members');
   const store = new Store(db, { groupId: row.group_id, userId, timezone }, summary);
-  db.transaction(() => parsed.records.forEach((r) => store.record(r)))();
-  events.publishIngest(row.group_id, undefined, summary.counts, null);
+  // player messages are private: never attributed to someone else
+  const records = parsed.records.filter((r) => r.kind !== 'playerMessage' || row.user_id);
+  db.transaction(() => records.forEach((r) => store.record(r)))();
+  events.publishIngest(row.group_id, undefined, publicCounts(db, userId, summary.counts), null);
   return summary;
+}
+
+/** Counts for the live event: the other members only learn of new player messages when the member shares them. */
+function publicCounts(db: DB, userId: number, counts: IngestSummary['counts']): IngestSummary['counts'] {
+  if (!counts.player_messages || messageShare(db, userId)) return counts;
+  const { player_messages: _, ...rest } = counts;
+  return rest;
 }
 
 /**
@@ -178,5 +188,7 @@ function describe(r: HubRecord): PreviewItem {
       return { kind: r.kind, entries: r.entries.length };
     case 'recycle':
       return { kind: r.kind, coords: c(r.coords), amount: r.metal + r.crystal };
+    case 'playerMessage':
+      return { kind: r.kind, from: r.from.name, to: r.to.map((p) => p.name).join(', '), subject: r.subject, time: r.time };
   }
 }

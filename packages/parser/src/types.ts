@@ -115,6 +115,24 @@ export interface RecycleRecord {
   totalCrystal: number;
 }
 
+/** Sender or recipient of a player message: name, plus the main planet when the game shows it. */
+export interface MessageParty {
+  name: string;
+  coords: Coords | null;
+}
+
+/** Message between players ("Spieler Nachrichten"), received or sent; the game keeps a copy for both sides. */
+export interface PlayerMessageRecord {
+  kind: 'playerMessage';
+  msgId: number | null;
+  time: LocalDateTime | null;
+  from: MessageParty;
+  to: MessageParty[];
+  subject: string;
+  /** plain text, line breaks kept */
+  body: string;
+}
+
 export interface GalaxyRow {
   position: number;
   planetName: string;
@@ -292,6 +310,7 @@ export type HubRecord =
   | ExpeditionRecord
   | HostileSpyRecord
   | RecycleRecord
+  | PlayerMessageRecord
   | GalaxyRecord
   | EmpireRecord
   | OverviewRecord

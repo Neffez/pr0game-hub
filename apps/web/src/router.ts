@@ -36,6 +36,7 @@ export const router = createRouter({
         { path: 'deck', component: () => import('./views/DeckView.vue') },
         { path: 'alliance', redirect: (to) => `/${to.params.uni}/planets` },
         { path: 'hostile', component: () => import('./views/HostileView.vue') },
+        { path: 'messages', component: () => import('./views/MessagesView.vue') },
         // also top level (start page); inside a universe they keep the sidebar
         { path: 'admin', component: () => import('./views/AdminView.vue') },
         { path: 'account', component: () => import('./views/AccountView.vue') },

@@ -13,6 +13,7 @@ import {
   type HostileSpyRecord,
   type HubRecord,
   type OverviewRecord,
+  type PlayerMessageRecord,
   type RecycleRecord,
   type SpyReportRecord,
   type StatsRecord,
@@ -69,6 +70,8 @@ export class Store {
         return this.fleets(r);
       case 'recycle':
         return this.recycle(r);
+      case 'playerMessage':
+        return this.playerMessage(r);
       case 'battleHall':
         return this.battleHall(r);
       case 'combatReport':
@@ -454,6 +457,23 @@ export class Store {
       this.db.prepare('UPDATE group_members SET ingame_name = ? WHERE group_id = ? AND user_id = ?').run(name, this.t.groupId, this.t.userId);
       return;
     }
+  }
+
+  /** Kept per member (visibility follows their sharing setting); the key is the same for the sender's and the recipient's copy. */
+  private playerMessage(r: PlayerMessageRecord) {
+    const time = this.epoch(r.time);
+    if (!time) return;
+    const coords = (c: { g: number; s: number; p: number } | null) => (c ? `${c.g}:${c.s}:${c.p}` : null);
+    const to = r.to.map((p) => ({ name: p.name, coords: coords(p.coords) }));
+    // whitespace differs between an HTML and a plain text copy
+    const key = fnv1a(JSON.stringify([time, r.from.name, to.map((p) => p.name), r.subject, r.body.replace(/\s+/g, ' ')]));
+    const res = this.db
+      .prepare(
+        `INSERT OR IGNORE INTO player_messages (group_id, user_id, dedupe_key, msg_id, time, from_name, from_coords, recipients, subject, body)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(this.t.groupId, this.t.userId, key, r.msgId, time, r.from.name, coords(r.from.coords), JSON.stringify(to), r.subject, r.body);
+    this.count('player_messages', res.changes > 0);
   }
 
   private recycle(r: RecycleRecord) {
