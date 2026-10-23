@@ -282,6 +282,9 @@ async function saveFleet() {
   const path = `/plans/${fleetForm.planId}/fleets${fleetForm.fleetId ? `/${fleetForm.fleetId}` : ''}`;
   if (await run(() => uniApi(uni.value, path, { method: fleetForm.fleetId ? 'PUT' : 'POST', body }))) fleetForm.planId = 0;
 }
+/** Speed right in the table: try speeds without opening the fleet form. */
+const setFleetSpeed = (p: AttackPlan, f: PlanFleet, speed: number) =>
+  run(() => uniApi(uni.value, `/plans/${p.id}/fleets/${f.id}`, { method: 'PUT', body: { speed } }));
 const setFleetStatus = (p: AttackPlan, f: PlanFleet, status: string) =>
   run(() => uniApi(uni.value, `/plans/${p.id}/fleets/${f.id}`, { method: 'PUT', body: { status } }));
 function removeFleet(p: AttackPlan, f: PlanFleet) {
@@ -406,7 +409,18 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
               </td>
               <td class="mono">{{ x.fleet.g != null ? coords(x.fleet.g, x.fleet.s!, x.fleet.p!) : '–' }}<span v-if="x.fleet.planet_type === 'moon'" class="muted"> ☾</span></td>
               <td class="small">{{ shipList(x.fleet.ships) }}</td>
-              <td>{{ x.fleet.speed }} %</td>
+              <td>
+                <select
+                  v-if="canEditFleet(p, x.fleet) && !closed(p)"
+                  class="speed"
+                  :value="x.fleet.speed"
+                  :aria-label="t('plans.speed')"
+                  @change="setFleetSpeed(p, x.fleet, Number(($event.target as HTMLSelectElement).value))"
+                >
+                  <option v-for="v in SPEEDS" :key="v" :value="v">{{ v }} %</option>
+                </select>
+                <span v-else>{{ x.fleet.speed }} %</span>
+              </td>
               <td class="mono">{{ x.duration != null ? duration(Math.floor(x.duration)) : '–' }}</td>
               <td>
                 <template v-if="x.plan && exact(p)">

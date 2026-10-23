@@ -103,6 +103,24 @@ describe('raid planner page', () => {
   });
   afterAll(() => vi.unstubAllGlobals());
 
+  it('changes the speed of a fleet right in the table', async () => {
+    const calls: { url: string; init?: RequestInit }[] = [];
+    const fetchMock = globalThis.fetch;
+    vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
+      calls.push({ url, init });
+      return fetchMock(url, init);
+    });
+    const select = root.querySelector<HTMLSelectElement>('.plan tbody tr select.speed')!;
+    expect(select.value).toBe('90');
+    select.value = '60';
+    select.dispatchEvent(new Event('change'));
+    await settle();
+    const put = calls.find((c) => c.init?.method === 'PUT')!;
+    expect(put.url).toMatch(/\/plans\/7\/fleets\/1$/);
+    expect(JSON.parse(String(put.init!.body))).toEqual({ speed: 60 });
+    vi.stubGlobal('fetch', fetchMock);
+  });
+
   it('only updates the countdowns every second, not the page (open dropdowns keep their highlight)', async () => {
     const countdown = () => root.querySelector('.plan .time .muted')!.textContent;
     const before = countdown();

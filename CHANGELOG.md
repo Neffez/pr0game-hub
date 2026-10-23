@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Raid planner: the speed of a fleet is a drop-down right in the fleets table (like the status), saved at once, so
+  speeds can be tried without opening the fleet form.
+
 - Fleet movements and times:
   - The owner of a foreign or hostile fleet's start comes from the galaxy data when the game names none (attacks):
     served fleets carry `fromPlayer` (`withOrigins` in `repo/fleets.ts`); the fleet list links the player, the bell
