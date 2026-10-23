@@ -3,8 +3,10 @@
 Status (2026-10-23): done and in use, the requester checks it in the browser (desktop and mobile) as they play. Built:
 attack plans (solo, ACS, against a player with rough times), retime and hold on hostile attacks from the members'
 overviews and from phalanx results, recall detection, launched fleets from the own overview, flight calculator and
-combat simulator links (game simulator and TrashSim with all plan fleets), collapsible plans, plan counts in the menu.
-Open: more real test data, other universes' ship lists (see "Still open").
+combat simulator links (game simulator and TrashSim with all plan fleets), collapsible plans, plan counts in the menu;
+phalanx texts are read from a real copy and refused in the sync; invitations show in the notification bell; date
+fields use a date picker on desktop with the account's date format. Nothing is waiting to be built; open are real test
+data from the requester, feedback from their browser checks and a few known limits (see "Still open").
 
 The raid planner plans own fleets, solo or as ACS, landing at the right second. A plan starts empty, from a hostile
 attack as a retime (land on the enemy origin right after the enemy fleet is back) or as a hold (land on the attacked
@@ -268,6 +270,10 @@ The parser `packages/parser/src/parsers/fleets.ts` (stored in `fleet_snapshots`)
   (drop-down), flight time, launch with countdown and flags (or the real arrival once launched), return, status,
   flight calculator link; own fleet form; invitations; status buttons; edit target and time.
 - Explanations behind info icons (`Hint`); on mobile the fleets are cards with the launch right below the member.
+- Invitations: an open invitation shows in the invited member's notification bell (kind `invite`, calm blue badge,
+  one per plan in planning until its target time); a click opens the plan (`?plan=<id>`, opened and scrolled to).
+- Date and time fields (plan target, retime windows) use a date picker on desktop (`DateTimeInput`), native inputs
+  below 800 px; shown dates follow the account's date format.
 - Tests: server (`test/plans.test.ts`), web (`test/plans.test.ts`, `test/format.test.ts` for the simulator links,
   page smoke test `test/raid-planner.test.ts` in happy-dom).
 
@@ -290,12 +296,28 @@ The parser `packages/parser/src/parsers/fleets.ts` (stored in `fleet_snapshots`)
 7. **Hold and phalanx** (028, 029): hold plans on hostile attacks, phalanx results as a source of attacks.
 8. **Overview**: plan counts in the menu, collapsible plans, hints as info icons, mobile fleet cards; participants fill
    in open coordinates.
+9. **Phalanx texts**: lines with tabs instead of the bar (from a real copy), phalanx head detection; the sync refuses
+   phalanx texts, the raid planner accepts only them.
+10. **Invitations and dates** (built in parallel): invitations in the notification bell, date picker on desktop and
+    the date format as an account setting (migration 033).
 
 ## Still open
 
-1. **Test data** (later, from the requester): the full Ctrl+A copy of an overview with an attack (with server clock
-   line), the English texts (taken from the game's language files so far), a phalanx showing an attack on the scanned
-   planet, an own ACS fleet in the overview (launched detection with an ACS member's mission).
-2. **Other universes**: TrashSim's ship columns and the ship table follow universe 7; a universe with other ships would
+### Waiting for input from the requester
+
+1. **Test data** (whenever available): the full Ctrl+A copy of an overview with an attack (with server clock line), a
+   phalanx showing an attack on the scanned planet, an own ACS fleet in the overview (launched detection with an ACS
+   member's mission 2), the English texts (taken from the game's language files so far).
+2. **Browser checks**: desktop and mobile are checked as the requester plays; the plan on mobile was tidied up once,
+   further changes on feedback.
+
+### Known limits (no work planned)
+
+3. **Other universes**: TrashSim's ship columns and the ship table follow universe 7; a universe with other ships would
    need its own list (only if such a universe is used).
-3. **Mobile**: tidied up once; further changes on feedback from the requester's browser checks.
+4. **Phalanx-only attacks** have no member: no recall detection (it needs a member's overview pastes).
+5. **Phalanx reach** is the game's: planets only, so attacks from moons never show their return; it follows from the
+   speed candidates.
+6. **Hold plans** show no return home (it depends on the hold time).
+7. **TrashSim's importer** (game source) reads the defender one column off; checked in the browser: loads correctly
+   with the deployed version.

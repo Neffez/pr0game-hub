@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Raid planner plan (`FEATURE_REQUEST_RETIME.md`): status, phalanx texts, invitations in the bell and the date picker
+  under "Built", open items split into input from the requester and known limits.
+
 - **Date and time fields** on desktop use a date picker (`@vuepic/vue-datepicker`, new `DateTimeInput` component)
   instead of the native inputs, whose format followed the browser locale (e.g. mm/dd/yyyy). Below 800 px the native
   inputs stay (system pickers). Same string values as before, so the plan/retime/deck conversions are unchanged.
