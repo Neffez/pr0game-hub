@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-10-23',
     items: [
       {
+        kind: 'new',
+        de: 'Admin: Statistik-Stände, die im falschen Universum gelandet sind, lassen sich nach einer Vorschau samt der dadurch angelegten Spieler wieder entfernen.',
+        en: 'Admin: statistics that ended up in the wrong universe can be removed again after a preview, together with the players they brought in.',
+      },
+      {
         kind: 'fix',
         de: 'Seiten aus einem anderen Universum werden beim Synchronisieren abgelehnt, statt im falschen Universum zu landen. Beim Wechsel des Universums kann nichts mehr im vorherigen gespeichert werden.',
         en: 'Pages from another universe are rejected when syncing instead of ending up in the wrong universe. Switching universes can no longer save anything into the previous one.',

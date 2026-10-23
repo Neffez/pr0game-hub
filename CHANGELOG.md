@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Admin panel: "Remove statistics snapshots" lists a group's snapshots (time, ranking, rows, top names) and deletes
+  the chosen ones after a preview, with their score events, the players nothing else refers to and alliances left
+  without players or scores; players with other data are kept and listed. Meant for statistics pasted into the
+  wrong universe.
 - Pages pasted into the wrong universe are rejected: the paste's game links (absolute in browser clipboard HTML) or
   the "Universe N" page title must match the universe's game URL (error `wrong_universe`). Switching universes in
   the web app drops the previous universe's context at once, so views and the sync panel can no longer send to the

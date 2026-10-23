@@ -5,7 +5,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import { api, loadMe, selectedGroup, session } from '../api';
-import { dateTime } from '../format';
+import { dateTime, STATS_CATEGORIES } from '../format';
 
 const { t } = useI18n();
 const route = useRoute();
@@ -29,6 +29,7 @@ const groupId = ref<number | null>(null);
 const members = ref<any[]>([]);
 const invites = ref<any[]>([]);
 const ingests = ref<any[]>([]);
+const snapshots = ref<any[]>([]);
 const inviteRole = ref('member');
 const merge = ref({ from: null as number | null, into: null as number | null });
 const group = computed(() => groups.value.find((g) => g.id === groupId.value));
@@ -55,11 +56,14 @@ async function loadAll() {
 
 async function loadGroup() {
   if (!groupId.value) return;
-  [members.value, invites.value, ingests.value] = await Promise.all([
+  [members.value, invites.value, ingests.value, snapshots.value] = await Promise.all([
     api(`/admin/groups/${groupId.value}/members`),
     api(`/admin/groups/${groupId.value}/invites`),
     api(`/admin/groups/${groupId.value}/ingests`),
+    api(`/admin/groups/${groupId.value}/snapshots`),
   ]);
+  picked.value = [];
+  cleanup.value = null;
 }
 
 onMounted(() =>
@@ -163,6 +167,23 @@ const backfill = () =>
   run(async () => {
     const res = await api(`/admin/groups/${groupId.value}/activity/backfill`, { body: {} });
     msg.value = t('admin.backfillDone', { n: res.added });
+  });
+/** statistics snapshots chosen for removal and the dry run's result for exactly that choice */
+const picked = ref<number[]>([]);
+const cleanup = ref<{ ids: string; snapshots: number; scores: number; activity: number; players: string[]; alliances: string[]; kept: string[] } | null>(null);
+const cleanupFor = (dryRun: boolean) => api(`/admin/groups/${groupId.value}/snapshots/cleanup`, { body: { snapshots: picked.value, dryRun } });
+watch(picked, () => (cleanup.value = null));
+const previewCleanup = () =>
+  run(async () => {
+    cleanup.value = { ...(await cleanupFor(true)), ids: picked.value.join() };
+  });
+const runCleanup = () =>
+  run(async () => {
+    const c = cleanup.value!;
+    if (!confirm(t('admin.cleanupConfirm', { n: c.snapshots, players: c.players.length }))) return;
+    const res = await cleanupFor(false);
+    await loadGroup();
+    msg.value = t('admin.cleanupDone', { snapshots: res.snapshots, players: res.players.length, alliances: res.alliances.length });
   });
 const doMerge = () => run(async () => {
   await api(`/admin/groups/${groupId.value}/players/merge`, { body: merge.value });
@@ -359,6 +380,37 @@ const doMerge = () => run(async () => {
         <label>{{ t('common.from') }} <input v-model.number="merge.from" type="number" /></label>
         <label>{{ t('admin.into') }} <input v-model.number="merge.into" type="number" /></label>
         <button :disabled="!merge.from || !merge.into" @click="doMerge">{{ t('admin.mergeButton') }}</button>
+      </div>
+
+      <h2>{{ t('admin.cleanup') }} <Hint>{{ t('admin.cleanupHint') }}</Hint></h2>
+      <div class="table-wrap">
+        <table v-stack="2" class="data">
+          <thead>
+            <tr><th /><th>{{ t('common.time') }}</th><th>{{ t('admin.cleanupWho') }}</th><th class="num">{{ t('admin.cleanupRows') }}</th><th>{{ t('admin.cleanupTop') }}</th><th>{{ t('admin.ingests') }}</th></tr>
+          </thead>
+          <tbody>
+            <tr v-for="s in snapshots" :key="s.id">
+              <td><input v-model="picked" type="checkbox" :value="s.id" /></td>
+              <td class="small">{{ dateTime(s.stat_time) }}</td>
+              <td class="small">{{ t(`admin.who_${s.who}`) }} · {{ STATS_CATEGORIES[s.type] }}</td>
+              <td class="num">{{ s.rows }}</td>
+              <td class="small">{{ s.top.join(', ') }}</td>
+              <td class="small muted">{{ dateTime(s.created_at) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card">
+        <div class="row">
+          <button :disabled="!picked.length" @click="previewCleanup">{{ t('admin.cleanupPreview') }}</button>
+          <button v-if="cleanup && cleanup.ids === picked.join()" style="color: var(--neg)" @click="runCleanup">{{ t('admin.cleanupRun') }}</button>
+        </div>
+        <template v-if="cleanup">
+          <p class="small">{{ t('admin.cleanupResult', cleanup) }}</p>
+          <p v-if="cleanup.players.length" class="small"><b>{{ t('admin.cleanupPlayers') }} ({{ cleanup.players.length }}):</b> {{ cleanup.players.join(', ') }}</p>
+          <p v-if="cleanup.alliances.length" class="small"><b>{{ t('admin.cleanupAlliances') }} ({{ cleanup.alliances.length }}):</b> {{ cleanup.alliances.join(', ') }}</p>
+          <p v-if="cleanup.kept.length" class="small warn"><b>{{ t('admin.cleanupKept') }} ({{ cleanup.kept.length }}):</b> {{ cleanup.kept.join(', ') }}</p>
+        </template>
       </div>
 
       <h2>{{ t('admin.ingests') }}</h2>

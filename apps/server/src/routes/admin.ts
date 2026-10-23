@@ -6,6 +6,7 @@ import { now, type DB } from '../db.js';
 import { crawlerState, resumeCrawler } from '../crawler.js';
 import { events } from '../events.js';
 import { backfillActivity, reparse } from '../ingest.js';
+import { cleanupSnapshots, listSnapshots } from '../repo/cleanup.js';
 
 /**
  * Global admins manage universes, groups and invites. Group admins may invite
@@ -226,6 +227,24 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
       )
       .all(groupId)
       .map((r: any) => ({ ...r, summary: r.summary ? JSON.parse(r.summary) : null }));
+  });
+
+  /** Statistics snapshots of a group, to find and remove ones from another universe. */
+  app.get<{ Params: { id: string } }>('/api/admin/groups/:id/snapshots', async (req) => {
+    const groupId = Number(req.params.id);
+    requireGroupAdmin(req, groupId);
+    return listSnapshots(db, groupId);
+  });
+
+  /** Removes snapshots and the players/alliances only they brought in; `dryRun` returns the same summary without changes. */
+  app.post<{ Params: { id: string }; Body: { snapshots?: unknown; dryRun?: boolean } }>('/api/admin/groups/:id/snapshots/cleanup', async (req) => {
+    const groupId = Number(req.params.id);
+    requireGroupAdmin(req, groupId);
+    const ids = req.body?.snapshots;
+    if (!Array.isArray(ids) || !ids.length || !ids.every(Number.isInteger)) throw new HttpError(400, 'snapshots_invalid', 'No snapshots selected');
+    const res = cleanupSnapshots(db, groupId, ids as number[], !!req.body.dryRun);
+    if (!req.body.dryRun) events.publish(groupId, { type: 'data', tables: ['player_scores', 'alliance_scores', 'players', 'activity_log'] });
+    return res;
   });
 
   // ------------------------------------------------- battle report crawler

@@ -1045,3 +1045,42 @@ describe('universe check on paste', () => {
     expect(foreignUniverse(link('https://test.pr0game.com/'), '')).toBeNull();
   });
 });
+
+describe('admin cleanup of statistics snapshots', () => {
+  it('removes snapshots and the players only they brought in, after a dry run', async () => {
+    const groupC = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', payload: { universe: 'u8', name: 'Cleanup' }, headers: admin })).json().id;
+    // a player of this universe with a planet: stays, only loses the foreign scores
+    const own = Number(db.prepare('INSERT INTO players (group_id, name) VALUES (?, ?)').run(groupC, 'Alpha').lastInsertRowid);
+    db.prepare('INSERT INTO planets (group_id, g, s, p, name, player_id) VALUES (?, 1, 1, 1, ?, ?)').run(groupC, 'Heimat', own);
+    const headers = { ...admin, 'x-hub-group': String(groupC) };
+    expect((await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { html: fixture('stats-player.html') } })).statusCode).toBe(200);
+    const players = () => db.prepare('SELECT name FROM players WHERE group_id = ? ORDER BY name').pluck().all(groupC) as string[];
+    const before = players();
+    expect(before.length).toBeGreaterThan(1);
+
+    const snaps = (await app.inject({ method: 'GET', url: `/hub/api/admin/groups/${groupC}/snapshots`, headers: admin })).json();
+    expect(snaps).toHaveLength(1);
+    expect(snaps[0]).toMatchObject({ who: 'player', rows: before.length });
+    expect(snaps[0].top[0]).toBe('Alpha');
+
+    const url = `/hub/api/admin/groups/${groupC}/snapshots/cleanup`;
+    const preview = (await app.inject({ method: 'POST', url, headers: admin, payload: { snapshots: [snaps[0].id], dryRun: true } })).json();
+    expect(preview).toMatchObject({ snapshots: 1, scores: before.length, kept: ['Alpha'] });
+    expect(preview.players.sort()).toEqual(before.filter((n) => n !== 'Alpha'));
+    expect(players()).toEqual(before);
+    expect(db.prepare('SELECT COUNT(*) FROM stat_snapshots WHERE group_id = ?').pluck().get(groupC)).toBe(1);
+
+    const res = (await app.inject({ method: 'POST', url, headers: admin, payload: { snapshots: [snaps[0].id] } })).json();
+    expect(res).toEqual(preview);
+    expect(players()).toEqual(['Alpha']);
+    expect(db.prepare('SELECT COUNT(*) FROM stat_snapshots WHERE group_id = ?').pluck().get(groupC)).toBe(0);
+    // alliances stay only as long as a remaining player belongs to them
+    expect(
+      db.prepare('SELECT COUNT(*) FROM alliances a WHERE group_id = ? AND NOT EXISTS (SELECT 1 FROM players p WHERE p.alliance_id = a.id)').pluck().get(groupC),
+    ).toBe(0);
+    // snapshots of another group are not touched
+    const other = (await app.inject({ method: 'POST', url, headers: admin, payload: { snapshots: [snaps[0].id + 1000] } })).json();
+    expect(other.snapshots).toBe(0);
+    expect((await app.inject({ method: 'POST', url, headers: admin, payload: { snapshots: [] } })).statusCode).toBe(400);
+  });
+});
