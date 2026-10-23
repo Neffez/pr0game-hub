@@ -32,6 +32,7 @@ const members = ref<any[]>([]);
 const invites = ref<any[]>([]);
 const ingests = ref<any[]>([]);
 const inviteRole = ref('member');
+const newMemberName = ref('');
 const merge = ref({ from: null as number | null, into: null as number | null });
 const group = computed(() => groups.value.find((g) => g.id === groupId.value));
 const groupName = ref('');
@@ -152,8 +153,24 @@ const renameUser = (m: any) => run(async () => {
   }
   if (m.id === session.me?.user?.id) await loadMe();
 }, 'account.usernameChanged');
+const addMember = () =>
+  run(async () => {
+    await api(`/admin/groups/${groupId.value}/members`, { body: { name: newMemberName.value } });
+    newMemberName.value = '';
+    await loadGroup();
+  }, 'deck.saved');
+
+const memberInvite = (m: any) =>
+  run(async () => {
+    const res = await api<{ token: string }>(`/admin/groups/${groupId.value}/members/${m.id}/invite`, { body: {} });
+    copy(inviteUrl(res.token));
+    await loadGroup();
+  });
+
 const removeMember = (m: any) => {
-  if (!confirm(t('admin.removeConfirm', { name: m.username }))) return;
+  const key = m.account ? 'admin.removeConfirm' : 'admin.removePlaceholderConfirm';
+  const name = m.ingame_name || m.username;
+  if (!confirm(t(key, { name }))) return;
   run(async () => {
     await api(`/admin/groups/${groupId.value}/members/${m.id}`, { method: 'DELETE' });
     await loadGroup();
@@ -345,6 +362,11 @@ const doMerge = () => run(async () => {
 
     <template v-if="group">
       <h2>{{ t('admin.members', { name: group.name }) }}</h2>
+      <form class="row card" style="margin-bottom: 10px" @submit.prevent="addMember">
+        <input v-model="newMemberName" :placeholder="t('admin.ingameName')" style="flex: 1; min-width: 140px" />
+        <button class="primary" type="submit" :disabled="!newMemberName.trim()">{{ t('admin.addMember') }}</button>
+        <Hint>{{ t('admin.addMemberHint') }}</Hint>
+      </form>
       <div class="table-wrap" style="max-height: none">
         <table v-stack class="data">
           <thead>
@@ -359,7 +381,11 @@ const doMerge = () => run(async () => {
           </thead>
           <tbody>
             <tr v-for="m in memberSort.sorted.value" :key="m.id">
-              <td v-if="isAdmin"><input v-model="m.username" style="width: 140px" @change="renameUser(m)" /></td>
+              <td v-if="isAdmin && m.account"><input v-model="m.username" style="width: 140px" @change="renameUser(m)" /></td>
+              <td v-else-if="!m.account">
+                {{ m.ingame_name || m.username }}
+                <span class="badge faint">{{ t('admin.noAccount') }}</span>
+              </td>
               <td v-else>{{ m.username }}</td>
               <td>
                 <select :value="m.role" :disabled="m.owner" @change="setRole(m, ($event.target as HTMLSelectElement).value)">
@@ -369,8 +395,12 @@ const doMerge = () => run(async () => {
               </td>
               <td><input v-model="m.ingame_name" style="width: 140px" @change="setIngame(m)" /></td>
               <td class="small">{{ dateTime(m.joined_at) }}</td>
-              <td class="small">{{ dateTime(m.last_login_at) }}</td>
-              <td>
+              <td class="small">{{ m.account ? dateTime(m.last_login_at) : '–' }}</td>
+              <td class="small">
+                <template v-if="!m.account">
+                  <button v-if="m.invite" type="button" @click="copy(inviteUrl(m.invite))">{{ t('admin.copyInvite') }}</button>
+                  <button v-else type="button" @click="memberInvite(m)">{{ t('admin.memberInvite') }}</button>
+                </template>
                 <button v-if="m.id !== me && !m.owner" @click="removeMember(m)">{{ t('admin.remove') }}</button>
                 <span v-else-if="m.owner" class="faint small">{{ t('admin.owner') }}</span>
               </td>
@@ -395,7 +425,10 @@ const doMerge = () => run(async () => {
               <a v-if="!i.used_at" href="#" @click.prevent="copy(inviteUrl(i.token))">{{ inviteUrl(i.token) }}</a>
               <span v-else class="faint">{{ i.token.slice(0, 8) }}…</span>
             </td>
-            <td class="small">{{ t(`admin.roles.${i.role}`) }}</td>
+            <td class="small">
+              {{ t(`admin.roles.${i.role}`) }}
+              <span v-if="i.for_member" class="muted">{{ t('admin.forMember', { name: i.for_member }) }}</span>
+            </td>
             <td class="small">{{ i.used_at ? t('admin.usedBy', { name: i.used_by }) : t('admin.validUntil', { time: dateTime(i.expires_at) }) }}</td>
             <td><button v-if="!i.used_at" @click="deleteInvite(i.token)">{{ t('common.delete') }}</button></td>
           </tr>

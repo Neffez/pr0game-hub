@@ -609,6 +609,78 @@ describe('api', () => {
     expect(again.statusCode).toBe(404);
   });
 
+  it('adds placeholder members and claim invites', async () => {
+    const ga = `/hub/api/admin/groups/${groupA}`;
+    const headers = { ...admin, 'x-hub-group': String(groupA) };
+    const add = await app.inject({ method: 'POST', url: `${ga}/members`, headers: admin, payload: { name: 'Phantom Pilot' } });
+    expect(add.statusCode).toBe(200);
+    const phId = add.json().id;
+    let members = (await app.inject({ method: 'GET', url: `${ga}/members`, headers: admin })).json();
+    const ph = members.find((m: { id: number }) => m.id === phId);
+    expect(ph).toMatchObject({ account: false, ingame_name: 'Phantom Pilot' });
+    const alliance = (await app.inject({ method: 'GET', url: '/hub/api/u8/alliance', headers })).json();
+    expect(alliance.some((m: { user_id: number }) => m.user_id === phId)).toBe(true);
+    const badLogin = await app.inject({ method: 'POST', url: '/hub/api/auth/login', payload: { username: ph.username, password: 'anypass12' } });
+    expect(badLogin.statusCode).toBe(401);
+    expect((await app.inject({ method: 'POST', url: `${ga}/members`, headers: admin, payload: { name: 'Phantom Pilot' } })).json().code).toBe('member_exists');
+    db.prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)').run('member1', hashPassword('member1pass'));
+    const member1Id = db.prepare("SELECT id FROM users WHERE username = 'member1'").pluck().get();
+    db.prepare("INSERT INTO group_members (group_id, user_id, role) VALUES (?, ?, 'member')").run(groupA, member1Id);
+    const member1 = await login('member1', 'member1pass');
+    expect((await app.inject({ method: 'POST', url: `${ga}/members`, headers: member1, payload: { name: 'Other' } })).json().code).toBe('group_admin_only');
+
+    const claimTok = (await app.inject({ method: 'POST', url: `${ga}/members/${phId}/invite`, headers: admin })).json().token;
+    const accept = await app.inject({
+      method: 'POST',
+      url: `/hub/api/invites/${claimTok}/accept`,
+      payload: { username: 'phantom', password: 'phantompass' },
+    });
+    expect(accept.statusCode).toBe(200);
+    expect(db.prepare('SELECT id FROM users WHERE username = ?').pluck().get('phantom')).toBe(phId);
+    const phantom = await login('phantom', 'phantompass');
+    expect((await app.inject({ method: 'GET', url: '/hub/api/u8/context', headers: phantom })).json().group.id).toBe(groupA);
+
+    const ph2 = (await app.inject({ method: 'POST', url: `${ga}/members`, headers: admin, payload: { name: 'Merge Me' } })).json().id;
+    db.prepare('INSERT INTO target_claims (group_id, user_id, g, s, p, planet_type, kind, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').run(
+      groupA,
+      ph2,
+      1,
+      1,
+      1,
+      'planet',
+      'farm',
+      Math.floor(Date.now() / 1000) + 3600,
+    );
+    const planId = (
+      await app.inject({
+        method: 'POST',
+        url: '/hub/api/u8/plans',
+        headers,
+        payload: { g: 1, s: 41, p: 1, type: 'moon', target_time: Math.floor(Date.now() / 1000) + 86400 },
+      })
+    ).json().id;
+    await app.inject({ method: 'POST', url: `/hub/api/u8/plans/${planId}/fleets`, headers, payload: { user_id: ph2 } });
+    const mergeInv = (await app.inject({ method: 'POST', url: `${ga}/members/${ph2}/invite`, headers: admin })).json().token;
+    expect(
+      (
+        await app.inject({
+          method: 'POST',
+          url: `/hub/api/invites/${mergeInv}/accept`,
+          headers: phantom,
+          payload: {},
+        })
+      ).statusCode,
+    ).toBe(200);
+    expect(db.prepare('SELECT 1 FROM users WHERE id = ?').get(ph2)).toBeUndefined();
+    expect(db.prepare('SELECT user_id FROM target_claims WHERE group_id = ? AND g = 1 AND s = 1 AND p = 1').pluck().get(groupA)).toBe(phId);
+    const fleets = (await app.inject({ method: 'GET', url: '/hub/api/u8/plans', headers: phantom })).json().find((p: { id: number }) => p.id === planId).fleets;
+    expect(fleets.some((f: { user_id: number }) => f.user_id === phId)).toBe(true);
+
+    const ph3 = (await app.inject({ method: 'POST', url: `${ga}/members`, headers: admin, payload: { name: 'Gone' } })).json().id;
+    expect((await app.inject({ method: 'DELETE', url: `${ga}/members/${ph3}`, headers: admin })).statusCode).toBe(200);
+    expect(db.prepare('SELECT 1 FROM users WHERE id = ?').get(ph3)).toBeUndefined();
+  });
+
   it('ingests a galaxy view and needs a session', async () => {
     const ok = await app.inject({
       method: 'POST',

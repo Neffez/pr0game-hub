@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Allianz-Admins können Mitglieder per Ingame-Namen anlegen, auch ohne Hub-Konto. Ein Claim-Link lässt sie sich später registrieren oder ein bestehendes Konto übernimmt den Eintrag.',
+        en: 'Alliance admins can add members by in-game name even without a hub account. A claim link lets them register later, or an existing account can take over the entry.',
+      },
+      {
+        kind: 'new',
         de: 'Raid-Planer: Pläne lassen sich einklappen (mit Kurzzeile: Zielzeit, Flotten, dein Start), Erklärungen stehen jetzt hinter i-Symbolen, und auf dem Handy ist ein Plan aufgeräumter (Startzeit gleich unter dem Mitglied).',
         en: 'Raid planner: plans can be collapsed (with a summary: target time, fleets, your launch), explanations sit behind info icons, and a plan is tidier on the phone (launch right below the member).',
       },

@@ -58,3 +58,44 @@ export function alliance(db: DB, ctx: GroupContext): { names: Set<string>; coord
 }
 
 export const memberPlayer = (db: DB, ctx: GroupContext, userId: number) => memberPlayers(db, ctx).get(userId) ?? null;
+
+function userReferences(db: DB): { table: string; column: string }[] {
+  const tables = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'").pluck().all() as string[];
+  return tables.flatMap((t) =>
+    (db.pragma(`foreign_key_list(${JSON.stringify(t)})`) as { table: string; from: string }[])
+      .filter((fk) => fk.table === 'users')
+      .map((fk) => ({ table: t, column: fk.from })),
+  );
+}
+
+/** Moves all rows referencing `from` to `into`, then deletes the placeholder user. */
+export function mergeUser(db: DB, from: number, into: number) {
+  if (from === into) return;
+  db.transaction(() => {
+    for (const { table, column } of userReferences(db)) {
+      db.prepare(`UPDATE OR IGNORE ${table} SET ${column} = ? WHERE ${column} = ?`).run(into, from);
+    }
+    for (const row of db
+      .prepare('SELECT group_id, role, ingame_name FROM group_members WHERE user_id = ?')
+      .all(from) as { group_id: number; role: string; ingame_name: string | null }[]) {
+      const existing = db
+        .prepare('SELECT role, ingame_name FROM group_members WHERE group_id = ? AND user_id = ?')
+        .get(row.group_id, into) as { role: string; ingame_name: string | null } | undefined;
+      if (existing) {
+        db.prepare('UPDATE group_members SET ingame_name = COALESCE(ingame_name, ?) WHERE group_id = ? AND user_id = ?').run(
+          row.ingame_name,
+          row.group_id,
+          into,
+        );
+      } else {
+        db.prepare('INSERT INTO group_members (group_id, user_id, role, ingame_name) VALUES (?, ?, ?, ?)').run(
+          row.group_id,
+          into,
+          row.role,
+          row.ingame_name,
+        );
+      }
+    }
+    db.prepare('DELETE FROM users WHERE id = ?').run(from);
+  })();
+}

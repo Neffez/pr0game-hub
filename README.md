@@ -28,7 +28,7 @@ External analysis tool for [pr0game](https://codeberg.org/pr0game/pr0game) based
   candidates per speed with departure and recall windows): launch times, lead, delays and ACS limits per
   member fleet, live for the whole alliance; the target is claimed as "attack"
 - **Raid statistics** (incl. recycling), **expeditions**, **expedition deck** (card counting), **battle hall** archive
-- **Admin**: universes (size, distance factors, fleet speed, time zone, deck), groups, invite links, ingest log with reparse, player merge
+- **Admin**: universes (size, distance factors, fleet speed, time zone, deck), groups, members (including placeholders by in-game name and claim invite links), invite links, ingest log with reparse, player merge
 - **Notifications**: bell with hostile fleets heading for members (from the synced fleet movements)
 - **Live**: what a member syncs shows up in the open hub tabs of the alliance without reloading, with a short hint
   who synced what (can be turned off in the account settings); who of the alliance is online and where (page, galaxy
@@ -93,7 +93,7 @@ pnpm build       # all packages and apps
 Element names and costs are generated from the game source ([codeberg.org/pr0game/pr0game](https://codeberg.org/pr0game/pr0game))
 checked out next to this repository: `pnpm gen:tech` and `pnpm gen:costs`.
 
-First start: log in with the bootstrap admin and create a universe (e.g. `u8`) and a group under **Admin**, then create invite links.
+First start: log in with the bootstrap admin and create a universe (e.g. `u8`) and a group under **Admin**, then add members or create invite links.
 
 Changes are recorded in [CHANGELOG.md](CHANGELOG.md). Contributions are welcome, see [CONTRIBUTING.md](CONTRIBUTING.md).
 

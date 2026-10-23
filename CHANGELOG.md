@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Alliance members without a hub account: alliance admins add them by in-game name (placeholder user, no login).
+  A claim invite link sets username and password on the placeholder or merges it into an existing account (raid plans,
+  claims and other data follow). Migration `030` adds `invites.user_id`; removing a placeholder deletes the user row.
+
 - Raid planner overview:
   - Plans collapse to a summary line (target time with countdown, number of fleets, the viewer's own next launch or
     "too late"); the choice is kept per plan in the browser (`raidPlanner.open.<uni>`), by default current plans are

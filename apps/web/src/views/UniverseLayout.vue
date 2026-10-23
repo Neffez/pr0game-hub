@@ -59,7 +59,7 @@ const planCount = computed(() => planCounts(plans.value, minute.value));
 useLiveReload(loadPlans, tables('attack_plans', 'fleets'), 300);
 onBeforeUnmount(stopLive);
 // own research and planets for flight times come from the own empire page
-useLiveReload(fetchContext, (e) => tables('empire')(e) && e.userId === ctx.value?.me.id);
+useLiveReload(fetchContext, (e) => (tables('empire')(e) && e.userId === ctx.value?.me.id) || tables('group_members')(e));
 
 function changeGroup() {
   navOpen.value = false;

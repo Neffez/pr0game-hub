@@ -65,7 +65,7 @@ async function load() {
 }
 const now = useClock();
 onMounted(load);
-useLiveReload(load, tables('empire', 'fleets', 'spy_reports'));
+useLiveReload(load, tables('empire', 'fleets', 'spy_reports', 'group_members'));
 
 const withData = computed(() => members.value.filter((m) => m.data));
 const missing = computed(() => members.value.filter((m) => !m.data));

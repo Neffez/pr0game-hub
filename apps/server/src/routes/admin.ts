@@ -32,6 +32,25 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
   /** The first global admin (who set the hub up) can't be removed from or demoted in an alliance by anyone. */
   const owner = () => db.prepare('SELECT id FROM users WHERE is_admin = 1 ORDER BY id LIMIT 1').pluck().get() as number | undefined;
 
+  const isPlaceholder = (userId: number) => {
+    const hash = db.prepare('SELECT password_hash FROM users WHERE id = ?').pluck().get(userId) as string | undefined;
+    return hash === '';
+  };
+
+  const usernameFromName = (name: string) => {
+    let base = name.replace(/[^\w.\- ]/g, '_').replace(/\s+/g, ' ').trim();
+    if (base.length < 3) base = base.padEnd(3, '_');
+    if (base.length > 32) base = base.slice(0, 32);
+    if (!db.prepare('SELECT 1 FROM users WHERE username = ?').get(base)) return checkUsername(db, base);
+    for (let n = 2; n < 1000; n++) {
+      const suffix = `-${n}`;
+      const trimmed = base.length + suffix.length > 32 ? base.slice(0, 32 - suffix.length) : base;
+      const candidate = trimmed + suffix;
+      if (!db.prepare('SELECT 1 FROM users WHERE username = ?').get(candidate)) return checkUsername(db, candidate);
+    }
+    throw new HttpError(409, 'username_taken', 'Username already taken');
+  };
+
   // ------------------------------------------------------------- universes
 
   app.get('/api/universes', async (req) => {
@@ -115,13 +134,33 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
   app.get<{ Params: { id: string } }>('/api/admin/groups/:id/members', async (req) => {
     const groupId = Number(req.params.id);
     requireGroupAdmin(req, groupId);
+    const t = now();
     return db
       .prepare(
-        `SELECT u.id, u.username, m.role, m.ingame_name, m.joined_at, u.last_login_at
+        `SELECT u.id, u.username, m.role, m.ingame_name, m.joined_at, u.last_login_at,
+           (u.password_hash <> '') AS account,
+           (SELECT token FROM invites WHERE user_id = u.id AND used_at IS NULL AND expires_at > ? LIMIT 1) AS invite
          FROM group_members m JOIN users u ON u.id = m.user_id WHERE m.group_id = ? ORDER BY u.username`,
       )
-      .all(groupId)
-      .map((m: any) => ({ ...m, owner: m.id === owner() }));
+      .all(t, groupId)
+      .map((m: any) => ({ ...m, account: !!m.account, owner: m.id === owner() }));
+  });
+
+  app.post<{ Params: { id: string }; Body: { name?: string } }>('/api/admin/groups/:id/members', async (req) => {
+    const groupId = Number(req.params.id);
+    requireGroupAdmin(req, groupId);
+    const name = String(req.body?.name ?? '').trim();
+    if (!name) throw new HttpError(400, 'name_missing', 'Name missing');
+    if (db.prepare('SELECT 1 FROM group_members WHERE group_id = ? AND ingame_name = ?').get(groupId, name)) {
+      throw new HttpError(409, 'member_exists', 'A member with this in-game name already exists');
+    }
+    const username = usernameFromName(name);
+    const userId = Number(
+      db.prepare('INSERT INTO users (username, password_hash, is_admin) VALUES (?, ?, 0)').run(username, '').lastInsertRowid,
+    );
+    db.prepare("INSERT INTO group_members (group_id, user_id, role, ingame_name) VALUES (?, ?, 'member', ?)").run(groupId, userId, name);
+    events.publish(groupId, { type: 'data', tables: ['group_members'] });
+    return { id: userId };
   });
 
   app.put<{ Params: { id: string }; Body: { name?: string } }>('/api/admin/groups/:id', async (req) => {
@@ -168,8 +207,38 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
     if (target === user.id) throw new HttpError(400, 'remove_self', 'You cannot remove yourself');
     if (target === owner()) throw new HttpError(400, 'owner_protected', 'The hub owner cannot be removed');
     keepLastAdmin(user, groupId, target);
-    db.prepare('DELETE FROM group_members WHERE group_id = ? AND user_id = ?').run(groupId, target);
+    if (!db.prepare('SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?').get(groupId, target)) {
+      throw new HttpError(404, 'member_not_found', 'Member not found');
+    }
+    if (isPlaceholder(target)) {
+      db.prepare('DELETE FROM users WHERE id = ?').run(target);
+    } else {
+      db.prepare('DELETE FROM group_members WHERE group_id = ? AND user_id = ?').run(groupId, target);
+    }
+    events.publish(groupId, { type: 'data', tables: ['group_members'] });
     return { ok: true };
+  });
+
+  app.post<{ Params: { id: string; userId: string } }>('/api/admin/groups/:id/members/:userId/invite', async (req) => {
+    const groupId = Number(req.params.id);
+    const user = requireGroupAdmin(req, groupId);
+    const target = Number(req.params.userId);
+    const row = db
+      .prepare('SELECT m.ingame_name FROM group_members m JOIN users u ON u.id = m.user_id WHERE m.group_id = ? AND m.user_id = ?')
+      .get(groupId, target) as { ingame_name: string | null } | undefined;
+    if (!row) throw new HttpError(404, 'member_not_found', 'Member not found');
+    if (!isPlaceholder(target)) throw new HttpError(400, 'not_placeholder', 'Only members without an account can get a claim invite');
+    db.prepare('DELETE FROM invites WHERE user_id = ? AND used_at IS NULL').run(target);
+    const token = randomToken(24);
+    db.prepare('INSERT INTO invites (token, group_id, role, created_by, expires_at, user_id) VALUES (?, ?, ?, ?, ?, ?)').run(
+      token,
+      groupId,
+      'member',
+      user.id,
+      now() + 30 * 86400,
+      target,
+    );
+    return { token };
   });
 
   // --------------------------------------------------------------- invites
@@ -179,8 +248,13 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
     requireGroupAdmin(req, groupId);
     return db
       .prepare(
-        `SELECT i.token, i.role, i.created_at, i.expires_at, i.used_at, u.username AS used_by
-         FROM invites i LEFT JOIN users u ON u.id = i.used_by WHERE i.group_id = ? ORDER BY i.created_at DESC LIMIT 50`,
+        `SELECT i.token, i.role, i.created_at, i.expires_at, i.used_at, u.username AS used_by,
+           COALESCE(gm.ingame_name, pu.username) AS for_member
+         FROM invites i
+         LEFT JOIN users u ON u.id = i.used_by
+         LEFT JOIN users pu ON pu.id = i.user_id
+         LEFT JOIN group_members gm ON gm.group_id = i.group_id AND gm.user_id = i.user_id
+         WHERE i.group_id = ? ORDER BY i.created_at DESC LIMIT 50`,
       )
       .all(groupId);
   });

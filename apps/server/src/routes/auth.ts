@@ -7,6 +7,7 @@ import { now, type DB } from '../db.js';
 import { events } from '../events.js';
 import { fleetShare, SHARE_MISSIONS } from '../repo/fleets.js';
 import { messageShare } from '../repo/messages.js';
+import { mergeUser } from '../repo/members.js';
 
 /** Failed logins per IP (any username) within the window; the per-username limit is 10. */
 const IP_LIMIT = 30;
@@ -109,7 +110,14 @@ export function authRoutes(app: FastifyInstance, db: DB) {
     const group = inv.group_id
       ? db.prepare('SELECT g.name, u.name AS universe FROM groups g JOIN universes u ON u.id = g.universe_id WHERE g.id = ?').get(inv.group_id)
       : null;
-    return { group, role: inv.role, expiresAt: inv.expires_at };
+    let member: { name: string } | undefined;
+    if (inv.user_id) {
+      const row = db
+        .prepare('SELECT ingame_name FROM group_members WHERE group_id = ? AND user_id = ?')
+        .get(inv.group_id, inv.user_id) as { ingame_name: string | null } | undefined;
+      if (row?.ingame_name) member = { name: row.ingame_name };
+    }
+    return { group, role: inv.role, expiresAt: inv.expires_at, member };
   });
 
   /**
@@ -119,28 +127,51 @@ export function authRoutes(app: FastifyInstance, db: DB) {
   app.post<{ Params: { token: string }; Body: { username?: string; password?: string; lang?: string } }>('/api/invites/:token/accept', async (req, reply) => {
     const inv = openInvite(db, req.params.token);
     let userId = req.user?.id;
+    let newSession = false;
     db.transaction(() => {
-      if (!userId) {
-        const username = checkUsername(db, req.body?.username);
-        const password = String(req.body?.password ?? '');
-        if (password.length < 8) throw new HttpError(400, 'password_too_short', 'Password must have at least 8 characters');
-        userId = Number(
-          db
-            .prepare('INSERT INTO users (username, password_hash, is_admin, lang) VALUES (?, ?, 0, ?)')
-            .run(username, hashPassword(password), req.body?.lang === 'en' ? 'en' : 'de').lastInsertRowid,
-        );
-      }
-      if (inv.group_id) {
-        db.prepare('INSERT OR IGNORE INTO group_members (group_id, user_id, role) VALUES (?, ?, ?)').run(inv.group_id, userId, inv.role);
+      if (inv.user_id) {
+        const hash = db.prepare('SELECT password_hash FROM users WHERE id = ?').pluck().get(inv.user_id) as string | undefined;
+        if (hash === undefined || hash !== '') throw new HttpError(404, 'invite_invalid', 'Invite invalid or expired');
+        if (userId) {
+          mergeUser(db, inv.user_id, userId);
+        } else {
+          const username = checkUsername(db, req.body?.username, inv.user_id);
+          const password = String(req.body?.password ?? '');
+          if (password.length < 8) throw new HttpError(400, 'password_too_short', 'Password must have at least 8 characters');
+          db.prepare('UPDATE users SET username = ?, password_hash = ?, lang = ? WHERE id = ?').run(
+            username,
+            hashPassword(password),
+            req.body?.lang === 'en' ? 'en' : 'de',
+            inv.user_id,
+          );
+          userId = inv.user_id;
+          newSession = true;
+        }
+      } else {
+        if (!userId) {
+          const username = checkUsername(db, req.body?.username);
+          const password = String(req.body?.password ?? '');
+          if (password.length < 8) throw new HttpError(400, 'password_too_short', 'Password must have at least 8 characters');
+          userId = Number(
+            db
+              .prepare('INSERT INTO users (username, password_hash, is_admin, lang) VALUES (?, ?, 0, ?)')
+              .run(username, hashPassword(password), req.body?.lang === 'en' ? 'en' : 'de').lastInsertRowid,
+          );
+          newSession = true;
+        }
+        if (inv.group_id) {
+          db.prepare('INSERT OR IGNORE INTO group_members (group_id, user_id, role) VALUES (?, ?, ?)').run(inv.group_id, userId, inv.role);
+        }
       }
       db.prepare('UPDATE invites SET used_by = ?, used_at = ? WHERE token = ?').run(userId, now(), inv.token);
     })();
-    if (!req.user) createSession(db, userId!, reply);
+    if (newSession) createSession(db, userId!, reply);
+    if (inv.group_id) events.publish(inv.group_id, { type: 'data', tables: ['group_members'] });
     return { ok: true };
   });
 }
 
-type InviteRow = { token: string; group_id: number | null; role: string; expires_at: number; used_at: number | null };
+type InviteRow = { token: string; group_id: number | null; role: string; expires_at: number; used_at: number | null; user_id: number | null };
 
 function openInvite(db: DB, token: string): InviteRow {
   const inv = db.prepare('SELECT * FROM invites WHERE token = ?').get(token) as InviteRow | undefined;
