@@ -97,17 +97,24 @@ export interface PlanEnemy {
   buffer: number;
   /** hold plans: seconds from the impact the hold fleets land */
   hold_offset: number;
-  /** landing of the followed fleet back home as a pasted phalanx showed it (then the retime lands after it) */
+  /** landing back home as a pasted phalanx showed it (then the retime lands after it) */
   phalanx: { home: number; time: number | null } | null;
   updated_at: number;
   updated_by: string | null;
 }
 
-/** Hostile attack on a member from the overview pastes (server: repo/hostile.ts). */
+/** Hostile attack on a member from the overview pastes, or seen in a phalanx (server: repo/hostile.ts). */
 export interface HostileAttack {
   key: string;
-  memberId: number;
-  member: string;
+  /** member it heads for; null when only seen in a phalanx */
+  memberId: number | null;
+  /** that member, or the attacked player by the galaxy data */
+  member: string | null;
+  source: 'overview' | 'phalanx';
+  /** member who pasted the phalanx */
+  reporter: string | null;
+  /** landing back home when the phalanx shows the return (the scanned player's own attack) */
+  home: number | null;
   seen: number;
   arrival: number;
   from: Body;

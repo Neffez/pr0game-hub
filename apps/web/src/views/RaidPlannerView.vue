@@ -184,13 +184,24 @@ async function planRetime(a: HostileAttack) {
   const follow = mainFleet(a.fleets);
   const input = { ...a, follow, first_seen: a.arrival, drives: a.drives?.research ?? {}, departure: null, recall: null, recall_lead: true };
   const full = enemyCandidates(settings.value, input)[0];
-  const target = (full ? candidateHome(full) : a.arrival + 3600) + DEFAULT_BUFFER;
+  // a phalanx showing the return gives the landing home directly
+  const target = (a.home ?? (full ? candidateHome(full) : a.arrival + 3600)) + DEFAULT_BUFFER;
   await run(async () => {
     const res = await uniApi<{ id: number; claimedBy: string | null }>(uni.value, '/plans/retime', { body: { key: a.key, follow, target_time: target, buffer: DEFAULT_BUFFER } });
     info.value = res.claimedBy ? t('plans.claimedBy', { name: res.claimedBy }) : '';
   });
   loadClaims(uni.value);
 }
+/** Phalanx result (copied like the overview): its attacks join the list above. */
+const phalanx = reactive({ open: false, text: '' });
+async function sendPhalanx() {
+  await run(async () => {
+    const res = await uniApi<{ attacks: number }>(uni.value, '/phalanx', { body: { text: phalanx.text } });
+    info.value = t('phalanx.found', { n: res.attacks }, res.attacks);
+    Object.assign(phalanx, { open: false, text: '' });
+  });
+}
+
 /** Hold on the attacked planet: the fleets land 1 s before the impact (changeable in the plan). */
 async function planHold(a: HostileAttack) {
   await run(() => uniApi(uni.value, '/plans/hold', { body: { key: a.key } }));
@@ -343,9 +354,19 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
   </h1>
   <div class="row" style="margin-bottom: 12px">
     <button class="primary" @click="openForm()">{{ t('plans.new') }}</button>
+    <button @click="phalanx.open = !phalanx.open">{{ t('phalanx.paste') }}</button>
     <span v-if="info" class="warn small">{{ info }}</span>
   </div>
   <div v-if="error" class="error">{{ error }}</div>
+
+  <div v-if="phalanx.open" class="card phalanx-form">
+    <textarea v-model="phalanx.text" rows="4" :placeholder="t('phalanx.placeholder')" />
+    <div class="row">
+      <button class="primary" :disabled="!phalanx.text.trim()" @click="sendPhalanx">{{ t('phalanx.apply') }}</button>
+      <button @click="phalanx.open = false">{{ t('plans.cancelForm') }}</button>
+      <span class="muted small">{{ t('phalanx.hint') }}</span>
+    </div>
+  </div>
 
   <div v-if="form.open" class="card plan-form">
     <h3>{{ t('plans.new') }}</h3>
@@ -360,9 +381,11 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
   <div v-if="attacks.length" class="card attacks">
     <h3>{{ t('retime.attacks') }}</h3>
     <div v-for="a in attacks" :key="a.key" class="row attack">
-      <span class="neg">⚔ {{ t('notify.attack', { member: a.member }) }}</span>
+      <span class="neg">⚔ {{ t('notify.attack', { member: a.member ?? coords(a.to.g, a.to.s, a.to.p) }) }}</span>
+      <span v-if="a.source === 'phalanx'" class="badge" :title="t('phalanx.byTitle', { name: a.reporter ?? '?' })">{{ t('phalanx.badge') }}</span>
       <span class="mono">{{ coords(a.to.g, a.to.s, a.to.p) }}</span>
       <span class="time"><b class="mono">{{ clock(a.arrival) }}</b> <Countdown class="muted small" :to="a.arrival" /></span>
+      <span v-if="a.home" class="small">{{ t('phalanx.home', { t: clock(a.home) }) }}</span>
       <span class="small">{{ attackShips(a) }}</span>
       <span class="small">
         {{ t('notify.from') }} <PlayerLink v-if="a.player" :id="a.player.id" :name="a.player.name" />
@@ -603,6 +626,8 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
 .plan-head { gap: 6px; }
 .plan-form { display: flex; flex-direction: column; gap: 10px; }
 .plan-form h3 { margin: 0; }
+.phalanx-form { display: flex; flex-direction: column; gap: 8px; }
+.phalanx-form textarea { width: 100%; font-size: 12px; }
 /* times: label, value and countdown with fixed gaps, wrapping as a whole */
 .times { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 20px; }
 .time { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }

@@ -65,21 +65,11 @@ const input = computed(() => ({
 }));
 const candidates = computed(() => enemyCandidates(ctx.value!.universe.settings, input.value));
 const chosen = computed(() => candidates.value.find((c) => c.percent === draft.percent) ?? null);
-/** Landing back home: from a pasted phalanx, else the chosen candidate. */
+/** Landing back home: shown by a phalanx, else the chosen candidate. */
 const home = computed(() => enemy.value.phalanx?.home ?? (chosen.value ? candidateHome(chosen.value) : null));
 const targetTime = computed(() => (home.value != null ? home.value + draft.buffer : null));
 
-/** Phalanx result of the origin, copied like the overview: the server finds the followed fleet flying home. */
-const phalanxText = ref('');
-async function sendPhalanx() {
-  try {
-    await uniApi(uni.value, `/plans/${props.plan.id}/phalanx`, { body: { text: phalanxText.value } });
-    phalanxText.value = '';
-    emit('saved');
-  } catch (e) {
-    emit('error', (e as Error).message);
-  }
-}
+/** Back to the speed candidates. */
 async function dropPhalanx() {
   try {
     await uniApi(uni.value, `/plans/${props.plan.id}/phalanx`, { method: 'DELETE' });
@@ -149,7 +139,7 @@ async function save() {
   <div class="retime">
     <div class="head">
       <b>{{ t('retime.enemy') }}</b>
-      <span>{{ t('retime.onMember', { member: enemy.member ?? '?' }) }}</span>
+      <span>{{ t('retime.onMember', { member: enemy.member ?? coords(enemy.to.g, enemy.to.s, enemy.to.p) }) }}</span>
       <span class="mono">{{ coords(enemy.from.g, enemy.from.s, enemy.from.p) }} → {{ coords(enemy.to.g, enemy.to.s, enemy.to.p) }}</span>
       <span>{{ t('retime.impact') }} <b class="mono">{{ clock(enemy.arrival) }}</b></span>
       <span v-if="delay > 0" class="warn small">{{ t('retime.delayed', { t: duration(delay), first: clock(enemy.first_seen) }) }}</span>
@@ -191,18 +181,11 @@ async function save() {
         <span class="warn small">{{ t('retime.recallSeen', { member: enemy.member ?? '?', from: clock(recallSeen.from), to: clock(recallSeen.to) }) }}</span>
         <button v-if="editable" @click="applyRecallSeen">{{ t('retime.recallApply') }}</button>
       </span>
-      <span class="field">
+      <span v-if="enemy.phalanx" class="field">
         <span class="lbl">{{ t('retime.phalanx') }}</span>
-        <template v-if="enemy.phalanx">
-          <span class="pos small">{{ t('retime.phalanxHome', { t: clock(enemy.phalanx.home) }) }}</span>
-          <span v-if="enemy.phalanx.time" class="muted small">{{ t('retime.phalanxPasted', { t: clock(enemy.phalanx.time) }) }}</span>
-          <button v-if="editable" @click="dropPhalanx">{{ t('retime.phalanxDrop') }}</button>
-        </template>
-        <template v-else-if="editable">
-          <textarea v-model="phalanxText" class="phalanx" rows="2" :placeholder="t('retime.phalanxPlaceholder')" />
-          <button :disabled="!phalanxText.trim()" @click="sendPhalanx">{{ t('retime.phalanxApply') }}</button>
-        </template>
-        <span v-else class="muted small">–</span>
+        <span class="pos small">{{ t('retime.phalanxHome', { t: clock(enemy.phalanx.home) }) }}</span>
+        <span v-if="enemy.phalanx.time" class="muted small">{{ t('retime.phalanxPasted', { t: clock(enemy.phalanx.time) }) }}</span>
+        <button v-if="editable" @click="dropPhalanx">{{ t('retime.phalanxDrop') }}</button>
       </span>
       <span class="field">
         <span class="lbl">{{ t('retime.buffer') }}</span>
@@ -259,7 +242,6 @@ async function save() {
 .field { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .lbl { min-width: 110px; color: var(--muted); font-size: 12px; }
 .field input[type='number'] { width: 64px; }
-.phalanx { flex: 1; min-width: 200px; font-size: 12px; }
 .cands tr.impossible td { color: var(--faint); }
 .cands tr.picked td { background: var(--accent-soft); }
 </style>

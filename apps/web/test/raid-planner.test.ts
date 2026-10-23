@@ -54,7 +54,11 @@ const plans = [
 ];
 const attacks = [
   { key: 'k1', memberId: 2, member: 'Dave', seen: 0, arrival: target + 300, from: { g: 2, s: 5, p: 5, type: 'planet' }, to: { g: 1, s: 42, p: 7, type: 'planet' },
-    fleets: [{ mission: 1, ships: { 206: 40 } }], player: null, drives: null, until: target + 9999, planId: null, holdPlanId: 10 },
+    fleets: [{ mission: 1, ships: { 206: 40 } }], player: null, drives: null, until: target + 9999, planId: null, holdPlanId: 10,
+    source: 'overview', reporter: null, home: null },
+  { key: 'k2', memberId: null, member: 'Opfer', seen: 0, arrival: target + 600, from: { g: 5, s: 50, p: 5, type: 'planet' }, to: { g: 5, s: 60, p: 6, type: 'planet' },
+    fleets: [{ mission: 1, ships: { 206: 12 } }], player: null, drives: null, until: target + 9999, planId: null, holdPlanId: null,
+    source: 'phalanx', reporter: 'Dave', home: target + 1800 },
 ];
 const empire = {
   empire: {
@@ -217,8 +221,18 @@ describe('raid planner page', () => {
     expect(plan.textContent).not.toContain('Anführer');
     expect(plan.querySelectorAll('tbody tr')).toHaveLength(2);
     expect([...plan.querySelectorAll('tbody tr')].every((r) => /\d\d:\d\d:\d\d/.test(r.textContent!))).toBe(true);
-    // the retime panel takes a phalanx result
-    expect(root.querySelector('.retime textarea.phalanx')).not.toBeNull();
+  });
+
+  it('takes attacks from a pasted phalanx, with the return when the phalanx shows it', async () => {
+    const row = [...root.querySelectorAll('.attacks .attack')].find((r) => r.textContent!.includes('Opfer'))!;
+    expect(row.querySelector('.badge')!.textContent).toBe('Phalanx');
+    expect(row.textContent).toMatch(/Rückkehr \d\d:\d\d:\d\d/);
+    [...root.querySelectorAll('button')].find((b) => b.textContent === 'Phalanx einfügen')!.click();
+    await settle();
+    expect(root.querySelector('.phalanx-form textarea')).not.toBeNull();
+    [...root.querySelectorAll('.phalanx-form button')].find((b) => b.textContent === 'Abbrechen')!.click();
+    await settle();
+    expect(root.querySelector('.phalanx-form')).toBeNull();
   });
 
   it('offers the recall seen in the overview pastes and links into the flight calculator', async () => {

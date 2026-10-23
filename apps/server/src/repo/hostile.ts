@@ -21,12 +21,19 @@ export interface EnemyFleet {
   ships: Record<number, number>;
 }
 
-/** A hostile attack (single fleet or ACS) heading for a member, from the members' overview pastes. */
+/** A hostile attack (single fleet or ACS), from the members' overview pastes or a phalanx result. */
 export interface HostileAttack {
   /** stable while the attack lasts: route and the lead fleet's ships */
   key: string;
-  memberId: number;
-  member: string;
+  /** member it heads for (overview); null when only seen in a phalanx */
+  memberId: number | null;
+  /** that member, or the attacked player by the galaxy data (phalanx) */
+  member: string | null;
+  source: 'overview' | 'phalanx';
+  /** member who pasted the phalanx */
+  reporter: string | null;
+  /** landing back home when a phalanx of the attacker's planet shows the return */
+  home: number | null;
   /** page time of the overview it was seen on */
   seen: number;
   arrival: number;
@@ -50,11 +57,17 @@ export const shipsKey = (ships: Record<number, number>) =>
 export const attackKey = (from: Body, to: Body, lead: Record<number, number>) =>
   `${from.g}:${from.s}:${from.p}:${from.type}>${to.g}:${to.s}:${to.p}:${to.type}|${shipsKey(lead)}`;
 
-/** Hostile attacks worth a retime in one fleet list: ACS fleets as one group, the lead first. */
-function attackGroups(data: StoredFleet[]): { key: string; from: Body; to: Body; fleets: StoredFleet[] }[] {
+type AttackGroup = { key: string; from: Body; to: Body; fleets: StoredFleet[] };
+const sameBody = (b: StoredFleet['from'] | null, c: Body) => !!b && b.coords.g === c.g && b.coords.s === c.s && b.coords.p === c.p && b.type === c.type;
+
+/**
+ * Attacks worth a retime in one fleet list (`owners`: hostile ones on the viewer, in a phalanx also the scanned
+ * player's own ones): ACS fleets as one group, the lead first.
+ */
+function attackGroups(data: StoredFleet[], owners: StoredFleet['owner'][]): AttackGroup[] {
   const groups = new Map<string, StoredFleet[]>();
   data.forEach((f, i) => {
-    if (f.owner !== 'hostile' || f.phase !== 'out' || f.mission == null || !RETIME_MISSIONS.includes(f.mission)) return;
+    if (!owners.includes(f.owner) || f.phase !== 'out' || f.mission == null || !RETIME_MISSIONS.includes(f.mission)) return;
     if (!f.to || (f.from.type !== 'planet' && f.from.type !== 'moon') || (f.to.type !== 'planet' && f.to.type !== 'moon')) return;
     const id = f.acs != null ? `acs${f.acs}` : `f${i}`;
     groups.set(id, [...(groups.get(id) ?? []), f]);
@@ -67,40 +80,74 @@ function attackGroups(data: StoredFleet[]): { key: string; from: Body; to: Body;
   });
 }
 
+/** Phalanx results are listed for a day. */
+export const PHALANX_KEEP = 86400;
+
 /**
  * Hostile attacks on the members, from the newest fleet snapshot of every member (incoming fleets are always shared),
- * ACS fleets as one attack. Listed until their latest possible return; the same attack seen twice counts once.
+ * and from the phalanx results of the last day pasted into the raid planner (attacks on the scanned planet, and the
+ * scanned player's own attacks from it, with their return when the phalanx shows it). ACS fleets as one attack.
+ * Listed until their latest possible return; the same attack seen twice counts once, with the newest arrival.
  */
 export function hostileAttacks(db: DB, ctx: GroupContext): HostileAttack[] {
   const u = ctx.universe.settings;
   const t = now();
+  const byKey = new Map<string, HostileAttack>();
+  const add = (g: AttackGroup, seen: number, who: Pick<HostileAttack, 'memberId' | 'member' | 'source' | 'reporter'>, home: number | null) => {
+    const lead = g.fleets[0];
+    const dist = distance(u, [g.from.g, g.from.s, g.from.p], [g.to.g, g.to.s, g.to.p]);
+    const longest = Math.max(...g.fleets.map((f) => flightDuration(u, dist, slowestShip(f.ships, NO_DRIVES)?.speed ?? 0, 10)));
+    const until = home ?? Math.floor(lead.arrival + longest);
+    if (until < t) return;
+    const known = byKey.get(g.key);
+    if (known) {
+      // the same attack again (another member, a phalanx): the newest arrival and fleets count
+      if (seen > known.seen) Object.assign(known, { seen, arrival: lead.arrival, until, fleets: g.fleets.map((f) => ({ mission: f.mission, ships: f.ships })) });
+      known.home ??= home;
+      return;
+    }
+    byKey.set(g.key, {
+      key: g.key, ...who, seen, arrival: lead.arrival, from: g.from, to: g.to,
+      fleets: g.fleets.map((f) => ({ mission: f.mission, ships: f.ships })), player: null, drives: null, until, home,
+    });
+  };
+
   const members = db
     .prepare('SELECT m.user_id, COALESCE(m.ingame_name, u.username) AS name FROM group_members m JOIN users u ON u.id = m.user_id WHERE m.group_id = ?')
     .all(ctx.groupId) as { user_id: number; name: string }[];
-  const byKey = new Map<string, HostileAttack>();
   for (const m of members) {
     const snap = sharedFleets(db, ctx.groupId, m.user_id, ctx.user.id);
     if (!snap) continue;
-    for (const { key, from, to, fleets: list } of attackGroups(snap.data)) {
-      const lead = list[0];
-      const dist = distance(u, [from.g, from.s, from.p], [to.g, to.s, to.p]);
-      const longest = Math.max(...list.map((f) => flightDuration(u, dist, slowestShip(f.ships, NO_DRIVES)?.speed ?? 0, 10)));
-      const until = Math.floor(lead.arrival + longest);
-      if (until < t) continue;
-      const seen = byKey.get(key);
-      if (seen && seen.seen >= snap.time) continue;
-      byKey.set(key, {
-        key, memberId: m.user_id, member: m.name, seen: snap.time, arrival: lead.arrival, from, to,
-        fleets: list.map((f) => ({ mission: f.mission, ships: f.ships })), player: null, drives: null, until,
-      });
+    for (const g of attackGroups(snap.data, ['hostile'])) add(g, snap.time, { memberId: m.user_id, member: m.name, source: 'overview', reporter: null }, null);
+  }
+
+  const pastes = db
+    .prepare(
+      `SELECT p.page_time AS time, p.data, COALESCE(gm.ingame_name, u.username) AS reporter FROM phalanx_snapshots p
+       LEFT JOIN users u ON u.id = p.user_id LEFT JOIN group_members gm ON gm.group_id = p.group_id AND gm.user_id = p.user_id
+       WHERE p.group_id = ? AND p.page_time > ? ORDER BY p.page_time, p.id`,
+    )
+    .all(ctx.groupId, t - PHALANX_KEEP) as { time: number; data: string; reporter: string | null }[];
+  for (const paste of pastes) {
+    const data = JSON.parse(paste.data) as StoredFleet[];
+    for (const g of attackGroups(data, ['hostile', 'own'])) {
+      // the scanned player's own attack: the phalanx also shows its return home
+      const lead = g.fleets[0];
+      const back = lead.owner === 'own'
+        ? data.find((f) => f.phase === 'return' && sameBody(f.from, g.to) && sameBody(f.to, g.from) && shipsKey(f.ships) === shipsKey(lead.ships))
+        : undefined;
+      add(g, paste.time, { memberId: null, member: null, source: 'phalanx', reporter: paste.reporter }, back?.arrival ?? null);
     }
   }
+
   const owner = db.prepare(
     'SELECT pr.id, pr.name FROM planets pl JOIN players pr ON pr.id = pl.player_id WHERE pl.group_id = ? AND pl.g = ? AND pl.s = ? AND pl.p = ?',
   );
   const list = [...byKey.values()].sort((a, b) => a.arrival - b.arrival);
   for (const a of list) {
     a.player = (owner.get(ctx.groupId, a.from.g, a.from.s, a.from.p) as { id: number; name: string } | undefined) ?? null;
+    // seen in a phalanx only: the attacked player from the galaxy data
+    a.member ??= (owner.get(ctx.groupId, a.to.g, a.to.s, a.to.p) as { name: string } | undefined)?.name ?? null;
     const spy = a.player ? spyEmpire(db, ctx, a.player.id, a.player.name) : null;
     if (spy?.researchTime) {
       a.drives = { research: Object.fromEntries(DRIVE_IDS.map((id) => [id, spy.research[id] ?? 0])), time: spy.researchTime };
@@ -120,7 +167,7 @@ export function recallWindow(db: DB, groupId: number, memberId: number, key: str
   let last: { time: number; arrival: number } | null = null;
   let gone: number | null = null;
   for (const row of rows) {
-    const attack = attackGroups(JSON.parse(row.data) as StoredFleet[]).find((a) => a.key === key);
+    const attack = attackGroups(JSON.parse(row.data) as StoredFleet[], ['hostile']).find((a) => a.key === key);
     if (attack) {
       last = { time: row.time, arrival: attack.fleets[0].arrival };
       gone = null;

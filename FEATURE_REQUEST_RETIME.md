@@ -50,7 +50,7 @@ Answered by the requester on 2026-10-22/23.
 | Retention | Hostile fleets disappear after their latest possible return; plans stay (past ones in their own list). |
 | ACS limits | `max_fleets_per_acs` = 16, `max_participants_per_acs` = 5 (lead + 4), the same in every universe (`ACS_LIMITS` in `@pr0hub/flight`). |
 | Hold | Next to a retime, a hostile attack can get a hold plan: own fleets hold on the attacked planet, at the latest 1 s before the impact. Holds cannot be delayed; holding a few seconds late (if the enemy delays) does not show in the enemy's last scan. |
-| Phalanx | The phalanx shows the fleets like the overview and can be copied the same way. |
+| Phalanx | The phalanx shows the fleets like the overview and can be copied the same way. It shows the movements at the scanned planet: an attack on it with its arrival, but not the attacker's return to their own planet; that return is computed like any retime. |
 | Target and time | A plan names a player and/or coordinates (coordinates may follow); the time is a day, around an hour or the exact impact. |
 | Own ships | Picked from the start planet or from all own ships (planets, moons, in flight), added with the maximum, editable. |
 | Enemy inputs | All participants of a plan may change drive levels, windows and the chosen candidate. |
@@ -126,11 +126,13 @@ From the game source (`ShowFleetStep3Page`, `FleetFunctions::setACSTime`), built
 - **Drives** of the owner (owner by the origin's galaxy data) from the newest spy report with research, editable.
 - **Delay**: a newer overview paste of the same attack with a later arrival updates it; the first seen arrival stays,
   the panel shows the delay.
-- **Phalanx**: a pasted phalanx of the origin gives the landing home directly (`POST /plans/:id/phalanx`). In phalanx
-  mode the game writes the phalanxed player's fleets as their own (`FlyingFleetsTable`, owner = scanned player):
-  "Eine deiner Flotten (…) kehrt vom <attacked planet> zurück zum <origin>". The fleet on that route with the followed
-  fleet's ships counts (else the latest); arrival from page clock and countdown like the overview. The retime's target
-  time is then that landing plus the buffer, without a candidate.
+- **Phalanx as a source** ("Phalanx einfügen", `POST /api/:uni/phalanx`, `phalanx_snapshots`, kept a day): in phalanx
+  mode (`FlyingFleetsTable::getFleets`) the game lists fleets starting from the scanned planet (planets only, not
+  moons) or heading for it, and returns only of the scanned player's own fleets, written as "yours". Attacks on the
+  scanned planet ("Eine Flotten(…) … erreicht den Planet <scanned>") join the hostile attacks with their arrival; the
+  return is computed from the candidates like any retime. The scanned player's own attacks from the planet come with
+  their return ("Eine deiner Flotten … kehrt vom <target> zurück zum <scanned>"), which a retime then takes directly
+  (`home`, stored as `phalanx_home`). Such attacks name no member (`memberId` null): no recall detection.
 - **Recall**: entered as a window. When the attack vanished from the attacked member's overview before its arrival,
   the panel suggests the window from the last paste with it to the first paste without it (`recallWindow`,
   `recall_seen`); one click takes it over (as a recall of the lead).
@@ -249,12 +251,12 @@ The parser `packages/parser/src/parsers/fleets.ts` (stored in `fleet_snapshots`)
 6. **Follow-ups**: recall detection from the overview pastes, launched fleets from the own overview with the real
    arrival, flight calculator links from fleets and the retime panel, combat simulator links with the target's spy
    report.
-7. **Hold and phalanx** (028): hold plans on hostile attacks, phalanx results for retimes.
+7. **Hold and phalanx** (028, 029): hold plans on hostile attacks, phalanx results as a source of attacks.
 
 ## Still open
 
 1. **Plan on mobile**: a plan looks cluttered on a phone (feedback from the browser check); to be tidied up.
-2. **Phalanx pastes in the sync**: a phalanx copied into the sync instead of a plan's phalanx field would be read as the
+2. **Phalanx pastes in the sync**: a phalanx copied into the sync instead of "Phalanx einfügen" would be read as the
    member's own fleet list ("Eine deiner Flotten"); detect it (e.g. by the phalanx window's text) and refuse it there.
 3. **Test data** (later): the full Ctrl+A copy of an overview with an attack (with server clock line), the English
    texts (taken from the game's language files so far), a copied phalanx result, an own ACS fleet in the overview.

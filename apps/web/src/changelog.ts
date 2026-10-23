@@ -25,8 +25,8 @@ export const CHANGELOG: ChangelogDay[] = [
       },
       {
         kind: 'new',
-        de: 'Retime: Ein eingefügtes Phalanx-Ergebnis vom Ursprung des Angreifers liefert die Landung zu Hause direkt, die Zielzeit ergibt sich dann daraus.',
-        en: "Retime: a pasted phalanx result of the attacker's origin gives the landing home directly, and the target time follows from it.",
+        de: 'Raid-Planer: „Phalanx einfügen“ übernimmt die Angriffe aus einem Phalanx-Ergebnis in die Liste der feindlichen Angriffe, darauf lassen sich Retime oder Halten planen. Zeigt die Phalanx die Rückkehr (der gescannte Spieler greift selbst an), gilt sie direkt.',
+        en: 'Raid planner: "Paste phalanx" takes the attacks of a phalanx result into the list of hostile attacks, to plan a retime or a hold on them. If the phalanx shows the return (the scanned player attacks), it counts directly.',
       },
       {
         kind: 'new',

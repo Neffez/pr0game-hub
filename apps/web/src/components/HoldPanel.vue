@@ -42,7 +42,7 @@ async function save() {
   <div class="hold">
     <div class="head">
       <b>{{ t('hold.title') }}</b>
-      <span>{{ t('retime.onMember', { member: enemy.member ?? '?' }) }}</span>
+      <span>{{ t('retime.onMember', { member: enemy.member ?? coords(enemy.to.g, enemy.to.s, enemy.to.p) }) }}</span>
       <span class="mono">{{ coords(enemy.from.g, enemy.from.s, enemy.from.p) }} → {{ coords(enemy.to.g, enemy.to.s, enemy.to.p) }}</span>
       <span>{{ t('retime.impact') }} <b class="mono">{{ clock(enemy.arrival) }}</b></span>
       <span v-if="delay > 0" class="warn small">{{ t('retime.delayed', { t: duration(delay), first: clock(enemy.first_seen) }) }}</span>

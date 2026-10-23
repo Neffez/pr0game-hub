@@ -213,21 +213,6 @@ describe('attack plans', () => {
     expect(plan.enemy.recall).toBeNull();
     db.prepare('DELETE FROM fleet_snapshots WHERE page_time = ?').run(later);
 
-    // a phalanx of the origin shows the fleets flying home ("yours" for the phalanxed player): the followed one counts
-    const phalanx = [
-      '3h 0m 0s Eine deiner Flotten (1 Spionagesonde) kehrt vom Planet Ares [1:100:12] zurück zum Mond Mond [1:41:1]. Mission: Angreifen',
-      '5h 0m 0s Eine deiner Flotten (1773 Schlachtschiff; 2 Schlachtkreuzer) kehrt vom Planet Ares [1:100:12] zurück zum Mond Mond [1:41:1]. Mission: Angreifen',
-      '1h 0m 0s Eine deiner Flotten (5 Leichter Jäger) kehrt vom Planet Woanders [2:2:2] zurück zum Mond Mond [1:41:1]. Mission: Angreifen',
-    ].join('\n');
-    expect((await call('POST', `/plans/${created.id}/phalanx`, carol, { text: 'nichts' })).json().code).toBe('phalanx_not_found');
-    const home = (await call('POST', `/plans/${created.id}/phalanx`, carol, { text: phalanx })).json().home;
-    expect(Math.abs(home - (Math.floor(Date.now() / 1000) + 5 * 3600))).toBeLessThanOrEqual(2);
-    plan = (await call('GET', '/plans', dave)).json().find((p: any) => p.id === created.id);
-    expect(plan.enemy.phalanx.home).toBe(home);
-    expect(plan.target_time).toBe(home + 3);
-    await call('DELETE', `/plans/${created.id}/phalanx`, carol);
-    plan = (await call('GET', '/plans', dave)).json().find((p: any) => p.id === created.id);
-    expect(plan.enemy.phalanx).toBeNull();
     await call('DELETE', `/plans/${created.id}`, dave);
   });
 
@@ -274,6 +259,36 @@ describe('attack plans', () => {
     expect(Math.abs(plan.fleets[0].seen.arrival - (target - 60))).toBeLessThanOrEqual(2);
     expect(plan.fleets[1].seen).toBeNull();
     await call('DELETE', `/plans/${id}`, carol);
+  });
+
+  it('lists attacks from a pasted phalanx: on the scanned planet without, the scanned player\'s own with the return', async () => {
+    const victim = Number(db.prepare("INSERT INTO players (group_id, ingame_id, name) VALUES (?, 4715, 'Opfer')").run(groupA).lastInsertRowid);
+    db.prepare("INSERT INTO planets (group_id, g, s, p, name, player_id) VALUES (?, 5, 50, 5, 'Gescannt', ?)").run(groupA, victim);
+    const phalanx = [
+      // an attack on the scanned planet (the game names no player)
+      '1h 0m 0s Eine Flotten(40 Schwerer Jäger) vom Mond Mond [1:41:1] erreicht den Planet Gescannt [5:50:5]. Mission: Angreifen',
+      // the scanned player attacks someone from this planet; the phalanx also shows the return
+      '2h 0m 0s Eine deiner Flotten (12 Kreuzer) vom Planet Gescannt [5:50:5] erreicht den Planet Ziel [5:60:6]. Mission: Angreifen',
+      '4h 0m 0s Eine deiner Flotten (12 Kreuzer) kehrt vom Planet Ziel [5:60:6] zurück zum Planet Gescannt [5:50:5]. Mission: Angreifen',
+    ].join('\n');
+    expect((await call('POST', '/phalanx', dave, { text: 'nichts' })).json().code).toBe('phalanx_empty');
+    expect((await call('POST', '/phalanx', dave, { text: phalanx })).json()).toEqual({ attacks: 2 });
+    const list = (await call('GET', '/hostile-attacks', carol)).json().filter((x: any) => x.source === 'phalanx');
+    const onScanned = list.find((x: any) => x.to.g === 5 && x.to.s === 50)!;
+    expect(onScanned).toMatchObject({ memberId: null, member: 'Opfer', reporter: 'Dave', home: null, fleets: [{ mission: 1, ships: { 205: 40 } }] });
+    const own = list.find((x: any) => x.from.g === 5 && x.from.s === 50)!;
+    const t0 = Math.floor(Date.now() / 1000);
+    expect(Math.abs(own.home - (t0 + 4 * 3600))).toBeLessThanOrEqual(2);
+
+    // a retime on the scanned player's own attack lands its buffer after the return shown
+    const r = (await call('POST', '/plans/retime', carol, { key: own.key, target_time: t0 + 99999 })).json();
+    const plan = (await call('GET', '/plans', carol)).json().find((p: any) => p.id === r.id);
+    expect(plan.target_time).toBe(own.home + 1);
+    expect(plan.enemy).toMatchObject({ member_id: null, phalanx: { home: own.home } });
+    await call('DELETE', `/plans/${r.id}/phalanx`, carol);
+    expect((await call('GET', '/plans', carol)).json().find((p: any) => p.id === r.id).enemy.phalanx).toBeNull();
+    await call('DELETE', `/plans/${r.id}`, carol);
+    db.prepare('DELETE FROM phalanx_snapshots').run();
   });
 
   it('plans a hold on the attacked planet that follows the impact, without claim', async () => {

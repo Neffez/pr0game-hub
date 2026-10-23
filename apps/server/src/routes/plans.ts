@@ -7,7 +7,7 @@ import { localToEpoch, nearestClock, parseFleetsText } from '@pr0hub/core';
 import { CLASS_RESEARCH } from '@pr0hub/core/tech';
 import { latestEmpires } from '../repo/empire.js';
 import { sharedFleets, type StoredFleet } from '../repo/fleets.js';
-import { attackKey, hostileAttacks, recallWindow, shipsKey, type Body, type EnemyFleet, type HostileAttack } from '../repo/hostile.js';
+import { attackKey, hostileAttacks, PHALANX_KEEP, recallWindow, type Body, type EnemyFleet, type HostileAttack } from '../repo/hostile.js';
 import { contextOf, DISPLAY, MEMBER } from './util.js';
 
 const STATUSES = ['planning', 'launched', 'done', 'cancelled'];
@@ -438,10 +438,11 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
       const b = req.body ?? {};
       const attack = hostileAttacks(db, ctx).find((a) => a.key === b.key);
       if (!attack) throw new HttpError(404, 'attack_not_found', 'Hostile attack not found (arrived or not pasted)');
-      const targetTime = timeOf(b.target_time);
       const follow = followOf(b.follow ?? 0, attack.fleets.length);
       // a good retime lands right after the return: 0-1 s
       const buffer = bufferOf(b.buffer ?? 1);
+      // the return shown by a phalanx counts directly
+      const targetTime = attack.home != null ? attack.home + buffer : timeOf(b.target_time);
       return db.transaction(() => {
         const id = planFromAttack(ctx, attack, 'attack', attack.from, attack.player?.id ?? null, targetTime, { follow, buffer });
         const claimedBy = claim(ctx, id, attack.from, targetTime);
@@ -479,12 +480,12 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
     );
     db.prepare(
       `INSERT INTO attack_plan_enemy (plan_id, member_id, from_g, from_s, from_p, from_type, to_g, to_s, to_p, to_type, fleets, follow,
-         arrival, first_seen, drives, drives_source, drives_time, buffer, hold_offset, updated_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+         arrival, first_seen, drives, drives_source, drives_time, buffer, hold_offset, phalanx_home, phalanx_time, updated_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(
       id, attack.memberId, attack.from.g, attack.from.s, attack.from.p, attack.from.type, attack.to.g, attack.to.s, attack.to.p, attack.to.type,
       JSON.stringify(attack.fleets), o.follow, attack.arrival, attack.arrival, JSON.stringify(attack.drives?.research ?? {}),
-      attack.drives ? 'spy' : null, attack.drives?.time ?? null, o.buffer, HOLD_OFFSET, ctx.user.id,
+      attack.drives ? 'spy' : null, attack.drives?.time ?? null, o.buffer, HOLD_OFFSET, attack.home, attack.home != null ? attack.seen : null, ctx.user.id,
     );
     return id;
   }
@@ -504,36 +505,25 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
   }
 
   /**
-   * Phalanx result of the enemy's origin (copied like the overview): the followed fleet's landing back home. The game
-   * writes the phalanxed player's fleets as "yours" ("Eine deiner Flotten … kehrt vom … zurück zum …"); the fleet
-   * returning from the attacked planet to the origin with the followed fleet's ships counts, else the latest one on
-   * that route. A retime then lands its buffer after it.
+   * Phalanx result pasted into the raid planner (copied like the overview): its attacks join the hostile attacks
+   * (`hostileAttacks`). The game writes the scanned player's fleets as "yours": their own attacks from the planet come
+   * with the return home; attacks on the planet only with their arrival, the return follows from the speed candidates.
    */
-  app.post<{ Params: { uni: string; id: string }; Body: { text?: string } }>('/api/:uni/plans/:id/phalanx', async (req) => {
+  app.post<{ Params: { uni: string }; Body: { text?: string } }>('/api/:uni/phalanx', async (req) => {
     const ctx = ctxOf(req);
-    const { plan, enemy: e } = enemyOfPlan(ctx, Number(req.params.id));
     const tz = ctx.universe.settings.timezone;
     const rec = parseFleetsText(String(req.body?.text ?? ''));
-    const pageTime = (rec?.pageTime ? localToEpoch(rec.pageTime, tz) : null) ?? now();
-    const at = (b: { coords: { g: number; s: number; p: number }; type: string | null } | null, g: number, s: number, p: number, type: string) =>
-      !!b && b.coords.g === g && b.coords.s === s && b.coords.p === p && b.type === type;
-    const back = (rec?.fleets ?? [])
-      .filter((f) => f.phase === 'return' && at(f.to, e.from_g, e.from_s, e.from_p, e.from_type) && at(f.from, e.to_g, e.to_s, e.to_p, e.to_type))
-      .map((f) => ({ ships: f.ships, home: f.clock ? nearestClock(pageTime + f.seconds, f.clock, tz) : pageTime + f.seconds }));
-    if (!back.length) throw new HttpError(400, 'phalanx_not_found', 'No fleet of this attack returning home in the text');
-    const followed = shipsKey((JSON.parse(e.fleets) as EnemyFleet[])[e.follow]?.ships ?? {});
-    const hit = back.find((b) => shipsKey(b.ships) === followed) ?? back.reduce((a, b) => (b.home > a.home ? b : a));
-    db.transaction(() => {
-      db.prepare('UPDATE attack_plan_enemy SET phalanx_home = ?, phalanx_time = ?, updated_at = ?, updated_by = ? WHERE plan_id = ?').run(
-        hit.home, now(), now(), ctx.user.id, plan.id,
-      );
-      if (plan.mission !== 'hold') setTargetTime(plan, hit.home + e.buffer);
-    })();
-    events.publish(ctx.groupId, { type: 'data', tables: ['attack_plans'], userId: ctx.user.id });
-    return { home: hit.home };
+    if (!rec?.fleets.length) throw new HttpError(400, 'phalanx_empty', 'No fleet movements in the text');
+    const pageTime = (rec.pageTime ? localToEpoch(rec.pageTime, tz) : null) ?? now();
+    const fleets = rec.fleets.map((f) => ({ ...f, arrival: f.clock ? nearestClock(pageTime + f.seconds, f.clock, tz) : pageTime + f.seconds }));
+    db.prepare('INSERT INTO phalanx_snapshots (group_id, user_id, page_time, data) VALUES (?, ?, ?, ?)').run(ctx.groupId, ctx.user.id, pageTime, JSON.stringify(fleets));
+    db.prepare('DELETE FROM phalanx_snapshots WHERE group_id = ? AND page_time < ?').run(ctx.groupId, now() - PHALANX_KEEP);
+    events.publish(ctx.groupId, { type: 'data', tables: ['fleets'], userId: ctx.user.id });
+    const keys = new Set(hostileAttacks(db, ctx).filter((x) => x.source === 'phalanx').map((x) => x.key));
+    return { attacks: keys.size };
   });
 
-  /** Drops the phalanx result: the speed candidates count again. */
+  /** Drops the landing home from a phalanx: the speed candidates count again. */
   app.delete<{ Params: { uni: string; id: string } }>('/api/:uni/plans/:id/phalanx', async (req) => {
     const ctx = ctxOf(req);
     const { plan } = enemyOfPlan(ctx, Number(req.params.id));

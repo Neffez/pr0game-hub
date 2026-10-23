@@ -4,6 +4,14 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Raid planner, phalanx as a source of attacks (replaces the phalanx field of the retime panel): a phalanx shows the
+  fleets starting from or heading for the scanned planet, returns only of the scanned player's own fleets
+  (`FlyingFleetsTable` in phalanx mode). "Phalanx einfügen" on the raid planner (`POST /api/:uni/phalanx`, migration
+  `029` `phalanx_snapshots`, kept a day) adds its attacks to the hostile attacks list (`source` `phalanx`, the
+  attacked player from the galaxy data, the member who pasted it): attacks on the scanned planet with their arrival
+  (the retime computes the return as usual), the scanned player's own attacks from it with the return shown, which a
+  retime then takes directly (`home`). `POST /api/:uni/plans/:id/phalanx` is gone; `DELETE` drops a taken-over return.
+
 - Raid planner, hold and phalanx:
   - Hold plans: next to "Retime planen" every hostile attack offers "Halten planen" (`POST /api/:uni/plans/hold`): a
     plan on the attacked planet (`mission` `hold`, migration `028`, no claim) whose fleets land on their own
