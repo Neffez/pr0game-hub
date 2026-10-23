@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Push notification texts: the English texts are typed against the German ones (a missing text fails the typecheck);
+  `CLAUDE.md` notes that these texts live in the server's `push.ts`, not in the web app's locales.
+
 - **Push notifications (Web Push).** Members get the bell's notifications on their devices even with the hub
   closed; the browser asks for permission only when switched on under Account.
   - Server: `push.ts` sends with VAPID (`web-push`); the key pair is created on the first start and stored in the

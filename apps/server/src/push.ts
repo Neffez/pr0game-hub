@@ -251,42 +251,43 @@ function wanted(n: Notification, prefs: PushPrefs, userId: number, t: number): b
   }
 }
 
-const TEXT = {
-  de: {
-    attack: (m: string) => `⚔ Angriff auf ${m}`,
-    acs: (n: number) => `Verbandsangriff (${n} Flotten)`,
-    from: 'von',
-    invite: (m: string) => `✉ Einladung von ${m}`,
-    raid: 'Raid-Planer',
-    hold: 'Halten',
-    around: (t: string) => `gegen ${t}`,
-    unknown: 'Ziel noch offen',
-    comment: (m: string, on: string) => `💬 ${m} zu ${on}`,
-    more: (n: number) => `(${n} neue)`,
-    launch: (min: number) => `🚀 Start in ${min} Min`,
-    launchBody: (from: string, to: string, at: string) => `${from} → ${to} · Start ${at}`,
-    missions: { 1: 'Angreifen', 2: 'Verbandsangriff', 6: 'Spionage', 9: 'Zerstören', 10: 'Raketenangriff' } as Record<number, string>,
-    hostile: 'Feindliche Flotte',
-    test: { title: 'pr0game Hub', body: 'Push-Benachrichtigungen funktionieren auf diesem Gerät.' },
-  },
-  en: {
-    attack: (m: string) => `⚔ Attack on ${m}`,
-    acs: (n: number) => `ACS attack (${n} fleets)`,
-    from: 'from',
-    invite: (m: string) => `✉ Invitation from ${m}`,
-    raid: 'Raid planner',
-    hold: 'Hold',
-    around: (t: string) => `around ${t}`,
-    unknown: 'target still open',
-    comment: (m: string, on: string) => `💬 ${m} on ${on}`,
-    more: (n: number) => `(${n} new)`,
-    launch: (min: number) => `🚀 Launch in ${min} min`,
-    launchBody: (from: string, to: string, at: string) => `${from} → ${to} · launch ${at}`,
-    missions: { 1: 'Attack', 2: 'ACS attack', 6: 'Espionage', 9: 'Destroy', 10: 'Missile attack' } as Record<number, string>,
-    hostile: 'Hostile fleet',
-    test: { title: 'pr0game Hub', body: 'Push notifications work on this device.' },
-  },
+/** Texts of the push notifications (the server builds them, so they live here, not in the web app's locales). */
+const DE = {
+  attack: (m: string) => `⚔ Angriff auf ${m}`,
+  acs: (n: number) => `Verbandsangriff (${n} Flotten)`,
+  from: 'von',
+  invite: (m: string) => `✉ Einladung von ${m}`,
+  raid: 'Raid-Planer',
+  hold: 'Halten',
+  around: (t: string) => `gegen ${t}`,
+  unknown: 'Ziel noch offen',
+  comment: (m: string, on: string) => `💬 ${m} zu ${on}`,
+  more: (n: number) => `(${n} neue)`,
+  launch: (min: number) => `🚀 Start in ${min} Min`,
+  launchBody: (from: string, to: string, at: string) => `${from} → ${to} · Start ${at}`,
+  missions: { 1: 'Angreifen', 2: 'Verbandsangriff', 6: 'Spionage', 9: 'Zerstören', 10: 'Raketenangriff' } as Record<number, string>,
+  hostile: 'Feindliche Flotte',
+  test: { title: 'pr0game Hub', body: 'Push-Benachrichtigungen funktionieren auf diesem Gerät.' },
 };
+/** Same keys as German: a missing text fails the typecheck. */
+const EN: typeof DE = {
+  attack: (m: string) => `⚔ Attack on ${m}`,
+  acs: (n: number) => `ACS attack (${n} fleets)`,
+  from: 'from',
+  invite: (m: string) => `✉ Invitation from ${m}`,
+  raid: 'Raid planner',
+  hold: 'Hold',
+  around: (t: string) => `around ${t}`,
+  unknown: 'target still open',
+  comment: (m: string, on: string) => `💬 ${m} on ${on}`,
+  more: (n: number) => `(${n} new)`,
+  launch: (min: number) => `🚀 Launch in ${min} min`,
+  launchBody: (from: string, to: string, at: string) => `${from} → ${to} · launch ${at}`,
+  missions: { 1: 'Attack', 2: 'ACS attack', 6: 'Espionage', 9: 'Destroy', 10: 'Missile attack' } as Record<number, string>,
+  hostile: 'Hostile fleet',
+  test: { title: 'pr0game Hub', body: 'Push notifications work on this device.' },
+};
+const TEXT = { de: DE, en: EN };
 export type PushLang = keyof typeof TEXT;
 
 export const testPayload = (lang: PushLang): PushPayload => ({ ...TEXT[lang].test, url: `${config.basePath}/account`, tag: 'test' });
