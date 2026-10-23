@@ -35,3 +35,17 @@ export function upcoming<T>(list: Ref<T[]>, time: (x: T) => number, clock: Reado
     return list.value.filter((_, i) => k[i] === '1');
   });
 }
+
+/**
+ * Items of `list` whose time has passed within the last `window` seconds, newest first. Changes only when an item
+ * comes due or once a minute (dropping the ones that got too old), not on every tick.
+ */
+export function past<T>(list: Ref<T[]>, time: (x: T) => number, clock: Readonly<Ref<number>>, window: number) {
+  const key = computed(() => list.value.map((x) => (time(x) <= clock.value ? 1 : 0)).join(''));
+  const minute = computed(() => Math.floor(clock.value / 60));
+  return computed(() => {
+    const k = key.value;
+    const cutoff = minute.value * 60 - window;
+    return list.value.filter((x, i) => k[i] === '1' && time(x) >= cutoff).sort((a, b) => time(b) - time(a));
+  });
+}

@@ -4,8 +4,8 @@ import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import { uniApi } from '../api';
-import { upcoming, useClock } from '../clock';
-import FleetList, { type Fleet } from '../components/FleetList.vue';
+import { past, upcoming, useClock } from '../clock';
+import FleetList, { FLEET_HISTORY, type Fleet } from '../components/FleetList.vue';
 import Hint from '../components/Hint.vue';
 import { useMobile, useSort, useUni } from '../composables';
 import { tables, useLiveReload } from '../live';
@@ -30,6 +30,8 @@ interface Member {
   } | null;
   /** fleet movements of the member's latest synced overview */
   fleets: { time: number; data: Fleet[] } | null;
+  /** fleets of the member's older lists that arrived in the last 12 hours, as far as they share them */
+  fleetHistory?: Fleet[];
 }
 interface Row {
   key: string;
@@ -78,6 +80,17 @@ const allFlights = computed(() =>
     .sort((a, b) => a.arrival - b.arrival),
 );
 const flights = upcoming(allFlights, (f) => f.arrival, now);
+/** past fleet movements of the last 12 hours, newest first: the older lists plus the arrived fleets of the newest */
+const history = past(
+  computed(() =>
+    members.value
+      .filter((m) => fleetMember.value == null || m.user_id === fleetMember.value)
+      .flatMap((m) => [...(m.fleetHistory ?? []), ...(m.fleets?.data ?? [])].map((f) => ({ ...f, member: memberName(m) }))),
+  ),
+  (f) => f.arrival,
+  now,
+  FLEET_HISTORY,
+);
 const withFleets = computed(() => members.value.filter((m) => m.fleets));
 
 const inCategory = (id: number) => {
@@ -211,6 +224,10 @@ const total = computed(() => {
     <p v-if="!withFleets.length" class="muted small" style="margin: 0">{{ t('alliance.fleetsEmpty') }}</p>
     <p v-else-if="!flights.length" class="muted small" style="margin: 0">{{ t('imperium.fleetsNone') }}</p>
     <FleetList v-else :fleets="flights" />
+    <details v-if="history.length" class="fl-history">
+      <summary class="muted small">{{ t('imperium.fleetHistory', { n: history.length }) }}</summary>
+      <FleetList :fleets="history" past />
+    </details>
   </div>
   <div v-else-if="!withData.length" class="card muted">{{ t('alliance.empty') }}</div>
 

@@ -78,10 +78,10 @@ export function authRoutes(app: FastifyInstance, db: DB) {
   /** Which fleet movements the user shares with the other members of their groups. */
   app.get('/api/auth/fleet-share', async (req) => fleetShare(db, requireUser(req).id));
 
-  app.post<{ Body: { enabled?: boolean; hidden?: number[] } }>('/api/auth/fleet-share', async (req) => {
+  app.post<{ Body: { enabled?: boolean; hidden?: number[]; history?: boolean } }>('/api/auth/fleet-share', async (req) => {
     const user = requireUser(req);
     const hidden = Array.isArray(req.body?.hidden) ? [...new Set(req.body.hidden.map(Number))].filter((m) => SHARE_MISSIONS.includes(m)).sort((a, b) => a - b) : [];
-    const share = { enabled: req.body?.enabled !== false, hidden };
+    const share = { enabled: req.body?.enabled !== false, hidden, history: req.body?.history !== false };
     db.prepare('UPDATE users SET fleet_share = ? WHERE id = ?').run(JSON.stringify(share), user.id);
     // the others see more or fewer fleets now
     for (const g of db.prepare('SELECT group_id FROM group_members WHERE user_id = ?').pluck().all(user.id) as number[]) {

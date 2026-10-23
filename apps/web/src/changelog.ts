@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Allianz: Unter den Flottenbewegungen gibt es jetzt ebenfalls den aufklappbaren Verlauf der letzten 12 Stunden. In den Kontoeinstellungen lässt sich unter „Flottenbewegungen teilen“ abschalten, dass die anderen deine Historie sehen.',
+        en: 'Alliance: the fleet movements now also have the collapsible history of the last 12 hours. Under "Share fleet movements" in the account settings you can stop the others from seeing your history.',
+      },
+      {
+        kind: 'new',
         de: 'Raid-Planer – Retime: Feindliche Angriffe auf Mitglieder stehen oben im Raid-Planer. „Retime planen“ legt einen Plan auf den Herkunftsplaneten an; für jede Geschwindigkeit zeigt der Hub, wann die Gegnerflotte wieder zu Hause ist. Abflug- und Rückrufzeitraum, Antriebe und Puffer grenzen das ein, alle Teilnehmer können sie ändern. Die gewählte Rückkehr plus Puffer wird die Zielzeit, die Startzeiten folgen.',
         en: 'Raid planner – retime: hostile attacks on members are listed on top of the raid planner. "Plan retime" creates a plan on the origin; for every speed the hub shows when the enemy fleet is back home. Departure and recall window, drives and buffer narrow it down, every participant can change them. The chosen return plus the buffer becomes the target time, and the launch times follow.',
       },

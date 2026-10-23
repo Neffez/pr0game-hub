@@ -43,7 +43,7 @@ const savePassword = () =>
 
 /** Fleet movements shared with the other members (game mission ids, as the server's SHARE_MISSIONS). */
 const MISSIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15];
-const share = ref<{ enabled: boolean; hidden: number[] } | null>(null);
+const share = ref<{ enabled: boolean; hidden: number[]; history: boolean } | null>(null);
 /** Player messages shared with the other members (off: only the user sees them). */
 const messageShare = ref<{ enabled: boolean } | null>(null);
 onMounted(async () => {
@@ -101,6 +101,9 @@ const saveLang = () =>
         <div v-if="share" class="field">
           <span class="field-label">{{ t('account.fleetShare') }} <Hint>{{ t('account.fleetShareHint') }}</Hint></span>
           <label class="check"><input v-model="share.enabled" type="checkbox" @change="saveShare" /> {{ t('account.fleetShareEnabled') }}</label>
+          <label class="check" :class="{ off: !share.enabled }">
+            <input v-model="share.history" type="checkbox" :disabled="!share.enabled" @change="saveShare" /> {{ t('account.fleetShareHistory') }}
+          </label>
           <div class="share-missions" :class="{ off: !share.enabled }">
             <label v-for="id in MISSIONS" :key="id" class="check">
               <input type="checkbox" :checked="!share.hidden.includes(id)" :disabled="!share.enabled" @change="toggleMission(id)" />
@@ -144,7 +147,7 @@ const saveLang = () =>
 .field-label { display: block; margin-bottom: 6px; font-weight: 600; }
 .check { display: flex; gap: 8px; align-items: center; }
 .share-missions { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 2px 12px; margin: 8px 0 0 24px; }
-.share-missions.off { opacity: 0.5; }
+.share-missions.off, .check.off { opacity: 0.5; }
 .stack { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
 .stack label { display: flex; flex-direction: column; gap: 4px; width: 100%; }
 .stack input { width: 100%; }

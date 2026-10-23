@@ -114,6 +114,7 @@ const en: typeof de = {
     liveHints: 'Show when other members sync something',
     fleetShare: 'Share fleet movements',
     fleetShareEnabled: 'Share my fleet movements with the alliance',
+    fleetShareHistory: 'Share history (arrived fleets of the last 12 hours)',
     fleetShareHint: 'Applies to all alliances in the hub and at once, also to fleets already synced. You always see all of yours in the empire view. Returning fleets count as their mission. Fleets of others heading for you (e.g. attacks) are always visible to the alliance.',
     fleetShareSaved: 'Sharing saved.',
     messageShare: 'Share in-game messages',

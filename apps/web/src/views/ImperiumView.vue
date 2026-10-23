@@ -3,8 +3,8 @@ import { classOf, elementPoints, METAL, RESOURCES, STORAGE, storageCapacity } fr
 import { computed, onMounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
-import { upcoming, useClock } from '../clock';
-import FleetList, { type Fleet } from '../components/FleetList.vue';
+import { past, upcoming, useClock } from '../clock';
+import FleetList, { FLEET_HISTORY, type Fleet } from '../components/FleetList.vue';
 import Hint from '../components/Hint.vue';
 import Ticker from '../components/Ticker.vue';
 import { useLoader, useMobile, useStored, useUni } from '../composables';
@@ -92,17 +92,8 @@ const fleets = computed(() => data.value?.fleets ?? null);
 /** fleets still in flight, next arrival first; arrived ones only count */
 const flights = upcoming(computed(() => [...(fleets.value?.data ?? [])].sort((a, b) => a.arrival - b.arrival)), (f) => f.arrival, now);
 const arrived = computed(() => (fleets.value?.data.length ?? 0) - flights.value.length);
-const HISTORY = 12 * 3600;
-/** changes once a minute, so the history drops what is older than 12 hours without rendering every second */
-const minute = computed(() => Math.floor(now.value / 60));
 /** past fleet movements of the last 12 hours, newest first: the older lists plus the arrived fleets of the newest */
-const history = computed(() => {
-  const cutoff = minute.value * 60 - HISTORY;
-  const live = new Set(flights.value);
-  return [...(data.value?.fleetHistory ?? []), ...(fleets.value?.data ?? []).filter((f) => !live.has(f))]
-    .filter((f) => f.arrival >= cutoff)
-    .sort((a, b) => b.arrival - a.arrival);
-});
+const history = past(computed(() => [...(data.value?.fleetHistory ?? []), ...(fleets.value?.data ?? [])]), (f) => f.arrival, now, FLEET_HISTORY);
 const same = (a: C3, b: C3) => a.g === b.g && a.s === b.s && a.p === b.p;
 
 /**
@@ -593,8 +584,6 @@ const memberName = (id: number | null) => ctx.value!.members.find((m) => m.id ==
 </template>
 
 <style scoped>
-.fl-history { margin-top: 10px; }
-.fl-history summary { cursor: pointer; margin-bottom: 6px; }
 /* mobile planet cards */
 .emp-card { display: flex; flex-direction: column; gap: 10px; padding: 12px; margin-bottom: 10px; }
 .emp-card.moon { border-left: 3px solid var(--info); background: color-mix(in srgb, var(--info) 7%, var(--surface)); }

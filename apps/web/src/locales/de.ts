@@ -115,6 +115,7 @@ const de = {
     liveHints: 'Einblenden, wenn andere Mitglieder etwas synchronisieren',
     fleetShare: 'Flottenbewegungen teilen',
     fleetShareEnabled: 'Meine Flottenbewegungen mit der Allianz teilen',
+    fleetShareHistory: 'Historie teilen (angekommene Flotten der letzten 12 Stunden)',
     fleetShareHint: 'Gilt für alle Allianzen im Hub und sofort, auch für bereits synchronisierte Flotten. Du selbst siehst im Imperium immer alle. Rückkehrende Flotten zählen zu ihrer Mission. Fremde Flotten, die auf dich zufliegen (z. B. Angriffe), sieht die Allianz immer.',
     fleetShareSaved: 'Freigabe gespeichert.',
     messageShare: 'Ingame-Nachrichten teilen',

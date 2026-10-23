@@ -4,7 +4,7 @@ import type { FastifyInstance } from 'fastify';
 import { HttpError } from '../auth.js';
 import { now, type DB } from '../db.js';
 import { latestEmpire, spyEmpire, type SpyEmpire } from '../repo/empire.js';
-import { FLEET_HISTORY, fleetHistory, sharedFleets } from '../repo/fleets.js';
+import { FLEET_HISTORY, fleetHistory, sharedFleets, type StoredFleet } from '../repo/fleets.js';
 import { memberPlayer, memberPlayers } from '../repo/members.js';
 import { latestScores } from '../repo/stats.js';
 import { contextOf, type Q } from './util.js';
@@ -106,14 +106,16 @@ export function imperiumRoutes(app: FastifyInstance, db: DB) {
     const members: {
       key: string; user_id: number | null; username: string; ingame_name: string | null; player_id: number | null;
       source: 'empire' | 'spy' | null; created_at: number | null; data: EmpireRecord | SpyEmpire | null; fleets: ReturnType<typeof sharedFleets>;
+      fleetHistory: StoredFleet[];
     }[] = rows.map((r) => {
       const e = latestEmpire(db, ctx, r.user_id);
       const f = sharedFleets(db, ctx.groupId, r.user_id, ctx.user.id);
+      const history = f ? fleetHistory(db, ctx.groupId, r.user_id, ctx.user.id, now() - FLEET_HISTORY) : [];
       const playerId = players.get(r.user_id) ?? null;
       const spy = !e && playerId ? spyEmpire(db, ctx, playerId, playerName.get(playerId) as string) : null;
       return {
         key: `u${r.user_id}`, ...r, player_id: playerId, source: e ? 'empire' : spy ? 'spy' : null,
-        created_at: e?.time ?? spy?.time ?? null, data: e?.rec ?? spy ?? null, fleets: f,
+        created_at: e?.time ?? spy?.time ?? null, data: e?.rec ?? spy ?? null, fleets: f, fleetHistory: history,
       };
     });
     const memberIds = new Set(players.values());
@@ -130,7 +132,7 @@ export function imperiumRoutes(app: FastifyInstance, db: DB) {
       if (!spy) continue;
       members.push({
         key: `p${p.id}`, user_id: null, username: p.name, ingame_name: null, player_id: p.id, source: 'spy',
-        created_at: spy.time, data: spy, fleets: null,
+        created_at: spy.time, data: spy, fleets: null, fleetHistory: [],
       });
     }
     return members;

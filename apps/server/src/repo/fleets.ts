@@ -8,12 +8,14 @@ export interface FleetShare {
   enabled: boolean;
   /** mission ids not shared */
   hidden: number[];
+  /** the own fleets also in the history of past movements */
+  history: boolean;
 }
 
 export function fleetShare(db: DB, userId: number): FleetShare {
   const raw = db.prepare('SELECT fleet_share FROM users WHERE id = ?').pluck().get(userId) as string | null | undefined;
   const s = raw ? (JSON.parse(raw) as Partial<FleetShare>) : {};
-  return { enabled: s.enabled ?? true, hidden: s.hidden ?? [] };
+  return { enabled: s.enabled ?? true, hidden: s.hidden ?? [], history: s.history ?? true };
 }
 
 export type StoredFleet = FleetMovement & { arrival: number };
@@ -21,11 +23,12 @@ export type StoredFleet = FleetMovement & { arrival: number };
 /** How long fleet lists are kept for the history of past movements (seconds). */
 export const FLEET_HISTORY = 12 * 3600;
 
-/** Filter for the fleets of `ownerId` that `viewerId` may see; null: all of them. */
-function shareFilter(db: DB, ownerId: number, viewerId: number) {
+/** Filter for the fleets of `ownerId` that `viewerId` may see (in the history: `past`); null: all of them. */
+function shareFilter(db: DB, ownerId: number, viewerId: number, past = false) {
   if (ownerId === viewerId) return null;
   const share = fleetShare(db, ownerId);
-  return { private: !share.enabled, shown: (f: StoredFleet) => f.owner !== 'own' || (share.enabled && (f.mission == null || !share.hidden.includes(f.mission))) };
+  const own = share.enabled && (!past || share.history);
+  return { private: !share.enabled, shown: (f: StoredFleet) => f.owner !== 'own' || (own && (f.mission == null || !share.hidden.includes(f.mission))) };
 }
 
 /**
@@ -47,7 +50,8 @@ export function sharedFleets(
 }
 
 /**
- * Past fleet movements of a member from their older fleet lists (shared like `sharedFleets`), oldest first, arrived
+ * Past fleet movements of a member from their older fleet lists (shared like `sharedFleets`, their own fleets only when
+ * they share the history too), oldest first, arrived
  * after `since`. Each list stands for the fleets arriving until the next one was synced: a fleet missing from the next
  * list although it was due later was recalled and is left out. The arrived fleets of the newest list are not included.
  */
@@ -55,7 +59,7 @@ export function fleetHistory(db: DB, groupId: number, ownerId: number, viewerId:
   const rows = db
     .prepare('SELECT page_time AS time, data FROM fleet_snapshots WHERE group_id = ? AND user_id = ? ORDER BY page_time, id')
     .all(groupId, ownerId) as { time: number; data: string }[];
-  const share = shareFilter(db, ownerId, viewerId);
+  const share = shareFilter(db, ownerId, viewerId, true);
   const past: StoredFleet[] = [];
   for (let i = 0; i < rows.length - 1; i++) {
     const until = rows[i + 1].time;

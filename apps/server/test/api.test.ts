@@ -207,12 +207,12 @@ describe('api', () => {
       const al = (await app.inject({ method: 'GET', url: '/hub/api/u8/alliance', headers: h })).json();
       return { im: im.fleets?.data.map((f: any) => f.mission) ?? null, private: im.fleets?.private, al: al.find((m: any) => m.user_id === adminId).fleets };
     };
-    expect((await app.inject({ method: 'GET', url: '/hub/api/auth/fleet-share', headers: admin })).json()).toEqual({ enabled: true, hidden: [] });
+    expect((await app.inject({ method: 'GET', url: '/hub/api/auth/fleet-share', headers: admin })).json()).toEqual({ enabled: true, hidden: [], history: true });
     expect((await seen(other)).im).toEqual([1, 4, 4]);
 
     // deploys hidden: the others don't see them, the owner still does
     let res = await app.inject({ method: 'POST', url: '/hub/api/auth/fleet-share', headers: admin, payload: { enabled: true, hidden: [4, 4, 99] } });
-    expect(res.json()).toEqual({ enabled: true, hidden: [4] });
+    expect(res.json()).toEqual({ enabled: true, hidden: [4], history: true });
     expect((await seen(other)).im).toEqual([1]);
     expect((await seen(other)).al.data).toHaveLength(1);
     expect((await seen(headers)).im).toEqual([1, 4, 4]);
@@ -220,6 +220,33 @@ describe('api', () => {
     res = await app.inject({ method: 'POST', url: '/hub/api/auth/fleet-share', headers: admin, payload: { enabled: false, hidden: [] } });
     expect(await seen(other)).toMatchObject({ im: [], private: true, al: { data: [], private: true } });
     expect((await seen(headers)).im).toEqual([1, 4, 4]);
+    await app.inject({ method: 'POST', url: '/hub/api/auth/fleet-share', headers: admin, payload: { enabled: true, hidden: [] } });
+  });
+
+  it('shares the fleet history unless the owner turned it off', async () => {
+    const headers = { ...admin, 'x-hub-group': String(groupA) };
+    const other = { ...(await login('erin', 'erinpass1')), 'x-hub-group': String(groupA) };
+    const adminId = db.prepare("SELECT id FROM users WHERE username = 'admin'").pluck().get() as number;
+    db.prepare('DELETE FROM fleet_snapshots WHERE group_id = ?').run(groupA);
+    const t = Math.floor(Date.now() / 1000);
+    const fleet = (owner: string, mission: number, arrival: number) => ({
+      owner, player: null, mission, missionName: 'x', phase: 'out', ships: { 202: 1 }, resources: null, arrival,
+      from: { coords: { g: 1, s: 1, p: 1 }, type: 'planet', name: null }, to: { coords: { g: 1, s: 1, p: 2 }, type: 'planet', name: null },
+    });
+    const insert = db.prepare('INSERT INTO fleet_snapshots (group_id, user_id, page_time, data) VALUES (?, ?, ?, ?)');
+    insert.run(groupA, adminId, t - 3600, JSON.stringify([fleet('own', 3, t - 1800), fleet('hostile', 1, t - 1200)]));
+    insert.run(groupA, adminId, t - 600, '[]');
+    const seen = async (h: object) => {
+      const al = (await app.inject({ method: 'GET', url: '/hub/api/u8/alliance', headers: h })).json();
+      return al.find((m: any) => m.user_id === adminId).fleetHistory.map((f: any) => f.mission);
+    };
+    expect(await seen(other)).toEqual([3, 1]);
+
+    // without the history the others still see the hostile fleets that headed for the owner
+    const res = await app.inject({ method: 'POST', url: '/hub/api/auth/fleet-share', headers: admin, payload: { enabled: true, hidden: [], history: false } });
+    expect(res.json()).toEqual({ enabled: true, hidden: [], history: false });
+    expect(await seen(other)).toEqual([1]);
+    expect(await seen(headers)).toEqual([3, 1]);
     await app.inject({ method: 'POST', url: '/hub/api/auth/fleet-share', headers: admin, payload: { enabled: true, hidden: [] } });
   });
 

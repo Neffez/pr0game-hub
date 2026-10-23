@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Fleet history in the alliance view too (all members or the chosen one, newest first), below the fleets in flight.
+  New sharing option "Share history" (`history` in the fleet share setting, on by default): off hides the member's
+  own fleets from the others' history, fleets that headed for them stay visible. The clock helper `past` lists
+  items due within a time window and changes only when one comes due or once a minute.
 - Empire view: the fleet history lists the most recent arrival first.
 - Raid planner, retime: hostile attacks on members are listed on top of the page (from the members' newest overview
   pastes; an ACS as one attack; until their latest possible return), each with "Retime planen".

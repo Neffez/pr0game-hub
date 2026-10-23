@@ -1,3 +1,8 @@
+<script lang="ts">
+/** How long the server keeps past fleet movements (seconds), the history below the fleets in flight. */
+export const FLEET_HISTORY = 12 * 3600;
+</script>
+
 <script setup lang="ts">
 import { RESOURCES } from '@pr0hub/core/tech';
 import { useI18n } from 'vue-i18n';
