@@ -4,6 +4,15 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Fleet movements and times:
+  - The owner of a foreign or hostile fleet's start comes from the galaxy data when the game names none (attacks):
+    served fleets carry `fromPlayer` (`withOrigins` in `repo/fleets.ts`); the fleet list links the player, the bell
+    names them.
+  - Fleet list: an ACS is one row "Verbandsangriff (n Flotten)" with the ships of all its fleets, opening to the single
+    fleets; ship amounts in full numbers (cargo stays short).
+  - Times always in 24 hours, also in English (`hourCycle: 'h23'` wherever hours are formatted); the raid planner's
+    attack list used the browser's default format.
+
 - Raid planner plan (`FEATURE_REQUEST_RETIME.md`) brought up to date: data model, target time, ACS rules, retime,
   server and UI as built, and the open items (simulator links, phalanx, recall detection, ACS limits per universe,
   calculator link, launched fleets from the own overview, a check in a real browser, test data).

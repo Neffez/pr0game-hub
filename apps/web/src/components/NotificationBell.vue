@@ -33,7 +33,7 @@ const shipsTitle = (s: Record<string, number>) =>
   Object.entries(s)
     .map(([id, n]) => `${fmt(n)} ${name(id)}`)
     .join('\n');
-const clock = (epoch: number) => new Date(epoch * 1000).toLocaleTimeString(locale.value, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+const clock = (epoch: number) => new Date(epoch * 1000).toLocaleTimeString(locale.value, { hour: '2-digit', hourCycle: 'h23', minute: '2-digit', second: '2-digit' });
 function left(sec: number) {
   const h = Math.floor(sec / 3600);
   const m = Math.floor((sec % 3600) / 60);
@@ -73,7 +73,7 @@ function left(sec: number) {
             <Ticker v-slot="{ now }"><span class="mono muted"> ({{ left(Math.max(0, n.time - now)) }})</span></Ticker>
           </span>
           <span class="small muted">
-            {{ t('notify.from') }} <template v-if="n.fleet.player">{{ n.fleet.player }} </template>{{ at(n.fleet.from) }}
+            {{ t('notify.from') }} <template v-if="n.fleet.player ?? n.fleet.fromPlayer">{{ n.fleet.player ?? n.fleet.fromPlayer!.name }} </template>{{ at(n.fleet.from) }}
           </span>
           <span v-if="Object.keys(n.fleet.ships).length" class="small muted" :title="shipsTitle(n.fleet.ships)">{{ ships(n.fleet.ships) }}</span>
         </button>

@@ -18,7 +18,18 @@ export function fleetShare(db: DB, userId: number): FleetShare {
   return { enabled: s.enabled ?? true, hidden: s.hidden ?? [], history: s.history ?? true };
 }
 
-export type StoredFleet = FleetMovement & { arrival: number };
+/** `fromPlayer`: owner of the start of a foreign or hostile fleet by the galaxy data (the game names none on attacks). */
+export type StoredFleet = FleetMovement & { arrival: number; fromPlayer?: { id: number; name: string } | null };
+
+/** Adds the owner of the start (galaxy data) to the fleets of others. */
+export function withOrigins(db: DB, groupId: number, fleets: StoredFleet[]): StoredFleet[] {
+  const owner = db.prepare(
+    'SELECT pr.id, pr.name FROM planets pl JOIN players pr ON pr.id = pl.player_id WHERE pl.group_id = ? AND pl.g = ? AND pl.s = ? AND pl.p = ?',
+  );
+  return fleets.map((f) =>
+    f.owner === 'own' ? f : { ...f, fromPlayer: (owner.get(groupId, f.from.coords.g, f.from.coords.s, f.from.coords.p) as { id: number; name: string } | undefined) ?? null },
+  );
+}
 
 /** How long fleet lists are kept for the history of past movements (seconds). */
 export const FLEET_HISTORY = 12 * 3600;
@@ -43,7 +54,7 @@ export function sharedFleets(
     .prepare('SELECT page_time AS time, data FROM fleet_snapshots WHERE group_id = ? AND user_id = ? ORDER BY page_time DESC, id DESC LIMIT 1')
     .get(groupId, ownerId) as { time: number; data: string } | undefined;
   if (!row) return null;
-  const data = JSON.parse(row.data) as StoredFleet[];
+  const data = withOrigins(db, groupId, JSON.parse(row.data) as StoredFleet[]);
   const share = shareFilter(db, ownerId, viewerId);
   if (!share) return { time: row.time, data, private: false };
   return { time: row.time, data: data.filter(share.shown), private: share.private };
@@ -67,5 +78,5 @@ export function fleetHistory(db: DB, groupId: number, ownerId: number, viewerId:
       if (f.arrival > rows[i].time && f.arrival <= until && f.arrival >= since && (!share || share.shown(f))) past.push(f);
     }
   }
-  return past.sort((a, b) => a.arrival - b.arrival);
+  return withOrigins(db, groupId, past.sort((a, b) => a.arrival - b.arrival));
 }

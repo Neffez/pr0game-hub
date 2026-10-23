@@ -115,11 +115,11 @@ const DAY: Intl.DateTimeFormatOptions = { weekday: 'short', day: '2-digit', mont
 /** Target time as precise as it is known: the day, around an hour, or to the second. */
 function targetText(p: AttackPlan) {
   if (p.time_precision === 'day') return fmtDate(p.target_time, DAY);
-  if (p.time_precision === 'hour') return t('plans.around', { t: fmtDate(p.target_time, { ...DAY, hour: '2-digit', minute: '2-digit' }) });
-  return fmtDate(p.target_time, { ...DAY, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  if (p.time_precision === 'hour') return t('plans.around', { t: fmtDate(p.target_time, { ...DAY, hour: '2-digit', hourCycle: 'h23', minute: '2-digit' }) });
+  return fmtDate(p.target_time, { ...DAY, hour: '2-digit', hourCycle: 'h23', minute: '2-digit', second: '2-digit' });
 }
-const clock = (epoch: number) => fmtDate(epoch, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-const shortClock = (epoch: number) => fmtDate(epoch, { hour: '2-digit', minute: '2-digit' });
+const clock = (epoch: number) => fmtDate(epoch, { hour: '2-digit', hourCycle: 'h23', minute: '2-digit', second: '2-digit' });
+const shortClock = (epoch: number) => fmtDate(epoch, { hour: '2-digit', hourCycle: 'h23', minute: '2-digit' });
 
 const shipList = (ships: Record<string, number>) =>
   Object.entries(ships)
@@ -322,7 +322,7 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
     <div v-for="a in attacks" :key="a.key" class="row attack">
       <span class="neg">⚔ {{ t('notify.attack', { member: a.member }) }}</span>
       <span class="mono">{{ coords(a.to.g, a.to.s, a.to.p) }}</span>
-      <span class="time"><b class="mono">{{ new Date(a.arrival * 1000).toLocaleTimeString() }}</b> <Countdown class="muted small" :to="a.arrival" /></span>
+      <span class="time"><b class="mono">{{ clock(a.arrival) }}</b> <Countdown class="muted small" :to="a.arrival" /></span>
       <span class="small">{{ attackShips(a) }}</span>
       <span class="small">
         {{ t('notify.from') }} <PlayerLink v-if="a.player" :id="a.player.id" :name="a.player.name" />

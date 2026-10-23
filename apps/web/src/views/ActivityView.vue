@@ -77,7 +77,7 @@ const days_ = computed(() => {
   return out;
 });
 
-const time = (epoch: number) => new Date(epoch * 1000).toLocaleTimeString(intlLocale(), { hour: '2-digit', minute: '2-digit' });
+const time = (epoch: number) => new Date(epoch * 1000).toLocaleTimeString(intlLocale(), { hour: '2-digit', hourCycle: 'h23', minute: '2-digit' });
 const browse = (e: Entry) => ({ path: `/${uni.value}/browse`, query: { g: e.g, s: e.s } });
 
 const res = (d: Record<string, any>) => `${name(901)} ${short(d.metal)} · ${name(902)} ${short(d.crystal)}`;

@@ -67,7 +67,7 @@ const candidates = computed(() => enemyCandidates(ctx.value!.universe.settings, 
 const chosen = computed(() => candidates.value.find((c) => c.percent === draft.percent) ?? null);
 const targetTime = computed(() => (chosen.value ? candidateHome(chosen.value) + draft.buffer : null));
 
-const clock = (epoch: number) => new Date(epoch * 1000).toLocaleTimeString(intlLocale(), { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+const clock = (epoch: number) => new Date(epoch * 1000).toLocaleTimeString(intlLocale(), { hour: '2-digit', hourCycle: 'h23', minute: '2-digit', second: '2-digit' });
 const ships = (s: Record<string, number>) =>
   Object.entries(s)
     .map(([id, n]) => `${fmt(n)} ${abbr(Number(id))}`)

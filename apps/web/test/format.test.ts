@@ -5,6 +5,12 @@ import { setLocale } from '../src/i18n';
 describe('format', () => {
   beforeEach(() => setLocale('de'));
 
+  it('shows times in 24 hours, also in English', () => {
+    setLocale('en');
+    expect(dateTime(Date.UTC(2026, 9, 23, 15, 20) / 1000)).not.toMatch(/AM|PM/);
+    expect(dateTime(Date.UTC(2026, 9, 23, 15, 20) / 1000)).toMatch(/[0-2][0-9]:20/);
+  });
+
   it('formats numbers per language', () => {
     expect(fmt(1234567)).toBe('1.234.567');
     expect(fmt(1.5, 2)).toBe('1,50');

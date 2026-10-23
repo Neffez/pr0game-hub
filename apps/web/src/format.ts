@@ -39,7 +39,7 @@ export function short(n: number | null | undefined): string {
 
 export function dateTime(epoch: number | null | undefined): string {
   if (!epoch) return '–';
-  return cached('dt', (l) => new Intl.DateTimeFormat(l, { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })).format(
+  return cached('dt', (l) => new Intl.DateTimeFormat(l, { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', hourCycle: 'h23', minute: '2-digit' })).format(
     epoch * 1000,
   );
 }
@@ -160,7 +160,7 @@ export function scaleColor(value: number | null | undefined, max: number) {
 export function timeWithAge(epoch: number | null | undefined): string {
   if (!epoch) return '–';
   const time = cached('dts', (l) => new Intl.DateTimeFormat(l, {
-    day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit',
+    day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', hourCycle: 'h23', minute: '2-digit', second: '2-digit',
   })).format(epoch * 1000);
   const s = Math.max(0, Math.floor(Date.now() / 1000) - epoch);
   return `${time} (${s < 3600 ? `${Math.floor(s / 60)} min` : `${Math.floor(s / 3600)} h`})`;

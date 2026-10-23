@@ -16,8 +16,13 @@ export interface ChangelogDay {
 
 export const CHANGELOG: ChangelogDay[] = [
   {
-    date: '2026-10-23',
-    items: [
+    date: '2026-10-23',
+    items: [
+      {
+        kind: 'fix',
+        de: 'Flotten: Bei feindlichen Angriffen steht jetzt der Spieler dabei (aus der Galaxie, das Spiel nennt ihn nicht), ein Verbandsangriff ist in der Flottenliste eine aufklappbare Zeile mit allen Schiffen, Schiffszahlen stehen voll aus. Uhrzeiten überall im 24-Stunden-Format.',
+        en: 'Fleets: hostile attacks now show the player (from the galaxy data, the game names none), an ACS attack is one row in the fleet list that opens to its fleets, with all ships, and ship amounts are shown in full. Times everywhere in 24 hours.',
+      },
       {
         kind: 'new',
         de: 'Allianz: Unter den Flottenbewegungen gibt es jetzt ebenfalls den aufklappbaren Verlauf der letzten 12 Stunden. In den Kontoeinstellungen lässt sich unter „Flottenbewegungen teilen“ abschalten, dass die anderen deine Historie sehen.',

@@ -165,7 +165,12 @@ describe('attack plans', () => {
       `${h}h 0m 0s Eine Flotten(1 Spionagesonde) vom Mond Mond [1:41:1] erreicht den Planet Ares [1:100:12]. Mission: Angreifen`,
       'Eine Flotten(1773 Schlachtschiff; 2 Schlachtkreuzer) vom Mond Mond [1:41:1] erreicht den Planet Ares [1:100:12]. Mission: Verbandsangriff',
     ].join('\n');
+    const owner = Number(db.prepare("INSERT INTO players (group_id, ingame_id, name) VALUES (?, 4712, 'Angreifer')").run(groupA).lastInsertRowid);
+    db.prepare("INSERT INTO planets (group_id, g, s, p, name, player_id, has_moon) VALUES (?, 1, 41, 1, 'Basis', ?, 1)").run(groupA, owner);
     expect((await call('POST', '/ingest', carol, { text: acs(3) })).statusCode).toBe(200);
+    // the game names no player on attacks: the owner of the start comes from the galaxy data
+    const bell = (await call('GET', '/notifications', dave)).json();
+    expect(bell[0].fleet.fromPlayer).toEqual({ id: owner, name: 'Angreifer' });
     const attacks = (await call('GET', '/hostile-attacks', dave)).json();
     expect(attacks).toHaveLength(1);
     expect(attacks[0]).toMatchObject({

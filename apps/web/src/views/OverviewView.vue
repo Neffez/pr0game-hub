@@ -401,7 +401,7 @@ const staleTypes = computed(() =>
 /** "12:00" today, otherwise date and time */
 const time = (epoch: number) =>
   new Date(epoch * 1000).toDateString() === new Date().toDateString()
-    ? new Date(epoch * 1000).toLocaleTimeString(intlLocale(), { hour: '2-digit', minute: '2-digit' })
+    ? new Date(epoch * 1000).toLocaleTimeString(intlLocale(), { hour: '2-digit', hourCycle: 'h23', minute: '2-digit' })
     : dateTime(epoch);
 
 /** How far back the total points history reaches (oldest reference over all players). */
