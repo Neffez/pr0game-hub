@@ -5,7 +5,7 @@ import { toUniverse } from '../context.js';
 import { now, type DB } from '../db.js';
 import { crawlerState, resumeCrawler } from '../crawler.js';
 import { events } from '../events.js';
-import { backfillActivity, reparse } from '../ingest.js';
+import { aboutRecords, backfillActivity, parseRaw, reparse, type RawIngest } from '../ingest.js';
 import { undoIngest } from '../repo/cleanup.js';
 
 /**
@@ -219,14 +219,28 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
   app.get<{ Params: { id: string } }>('/api/admin/groups/:id/ingests', async (req) => {
     const groupId = Number(req.params.id);
     requireGroupAdmin(req, groupId);
-    return db
+    const rows = db
       .prepare(
         `SELECT r.id, r.source, r.page_type, r.url, r.summary, r.created_at, u.username,
            length(r.html_gz) AS html_size, length(r.text_gz) AS text_size
          FROM raw_ingests r LEFT JOIN users u ON u.id = r.user_id WHERE r.group_id = ? ORDER BY r.id DESC LIMIT 200`,
       )
-      .all(groupId)
-      .map((r: any) => ({ ...r, summary: r.summary ? JSON.parse(r.summary) : null }));
+      .all(groupId) as { id: number; summary: string | null; html_size: number | null; text_size: number | null }[];
+    // syncs stored before the content description: described once from their page, then kept
+    const raw = db.prepare('SELECT group_id, user_id, url, html_gz, text_gz FROM raw_ingests WHERE id = ?');
+    const save = db.prepare('UPDATE raw_ingests SET summary = ? WHERE id = ?');
+    return rows.map((r) => {
+      const summary = r.summary ? JSON.parse(r.summary) : {};
+      if (!summary.about && (r.html_size || r.text_size)) {
+        try {
+          summary.about = aboutRecords(parseRaw(raw.get(r.id) as RawIngest).records);
+        } catch {
+          summary.about = [];
+        }
+        save.run(JSON.stringify(summary), r.id);
+      }
+      return { ...r, summary };
+    });
   });
 
   // ------------------------------------------------- battle report crawler

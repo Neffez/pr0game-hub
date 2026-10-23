@@ -65,7 +65,7 @@ export function ingest(
       input.url ?? null,
       keep && input.html ? gzipSync(input.html) : null,
       keep && input.text ? gzipSync(input.text) : null,
-      JSON.stringify({ counts: summary.counts, warnings: summary.warnings }),
+      JSON.stringify({ counts: summary.counts, warnings: summary.warnings, about: aboutRecords(parsed.records) }),
     );
   })();
   const systems = parsed.records.flatMap((r) => (r.kind === 'galaxy' ? [`${r.g}:${r.s}`] : []));
@@ -191,6 +191,71 @@ export function backfillActivity(db: DB, groupId: number, timezone: string): num
     for (const d of debris) store.debrisSeen({ g: d.g, s: d.s, p: d.p }, d.seen_at, d.player_id, JSON.parse(d.debris));
   })();
   return (db.prepare('SELECT COUNT(*) FROM activity_log WHERE group_id = ?').pluck().get(groupId) as number) - before;
+}
+
+/** What a sync contained, per record kind, for the admin's list of syncs (names and coordinates, not translated). */
+export interface About {
+  kind: HubRecord['kind'];
+  count: number;
+  /** a few names/coordinates to recognise the page by */
+  sample: string[];
+  /** statistics: ranking and category */
+  who?: 'player' | 'alliance';
+  type?: number | null;
+}
+
+const SAMPLE = 4;
+
+export function aboutRecords(records: HubRecord[]): About[] {
+  const c = (x: { g: number; s: number; p: number }) => `${x.g}:${x.s}:${x.p}`;
+  const kinds = new Map<HubRecord['kind'], About>();
+  for (const r of records) {
+    let about = kinds.get(r.kind);
+    if (!about) kinds.set(r.kind, (about = { kind: r.kind, count: 0, sample: [] }));
+    about.count++;
+    const add = (...items: string[]) => {
+      for (const item of items) if (about!.sample.length < SAMPLE && !about!.sample.includes(item)) about!.sample.push(item);
+    };
+    switch (r.kind) {
+      case 'stats':
+        about.who = r.who;
+        about.type = r.type;
+        add(...r.rows.slice(0, SAMPLE).map((x) => x.name));
+        break;
+      case 'empire':
+        add(...r.planets.filter((p) => p.type === 'planet').map((p) => `${p.name} ${c(p.coords)}`));
+        break;
+      case 'galaxy':
+        add(`${r.g}:${r.s}`);
+        break;
+      case 'spy':
+        add(`${r.playerName} ${c(r.coords)}`);
+        break;
+      case 'hostileSpy':
+        add(`${r.fromPlayerName} → ${c(r.targetCoords)}`);
+        break;
+      case 'playerMessage':
+        add(r.from.name);
+        break;
+      case 'overview':
+        if (r.current) add(c(r.current.coords));
+        break;
+      case 'battle':
+      case 'recycle':
+        add(c(r.coords));
+        break;
+      case 'battleHall':
+        add(...r.entries.flatMap((e) => e.attackers));
+        break;
+      case 'combatReport':
+        add(...r.fleets.map((f) => f.name));
+        break;
+      case 'fleets':
+        add(...r.fleets.filter((f) => f.owner === 'own').map((f) => c(f.from.coords)));
+        break;
+    }
+  }
+  return [...kinds.values()];
 }
 
 /** Preview entry per record: kind plus the values the web app shows (texts are translated there). */

@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Admin sync table: a "Content" column describes each sync per record kind with a few names or coordinates (top
+  players of a statistics page with ranking and category, planet names of an empire page, systems, spy report
+  targets …). Stored with the sync; syncs from before get it once from their stored page when listed.
 - Universe check for the remaining page types, collected over all records of a paste: hostile espionage (spying
   player at known coordinates, target must be an own planet), own fleets (start/home must be own planets), player
   messages (one of the member's planets among sender and recipients; names are not compared because of renames),

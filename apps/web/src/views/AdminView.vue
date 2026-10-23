@@ -5,7 +5,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import { api, loadMe, selectedGroup, session } from '../api';
-import { dateTime } from '../format';
+import { dateTime, STATS_CATEGORIES } from '../format';
 
 const { t } = useI18n();
 const route = useRoute();
@@ -165,6 +165,16 @@ const backfill = () =>
     const res = await api(`/admin/groups/${groupId.value}/activity/backfill`, { body: {} });
     msg.value = t('admin.backfillDone', { n: res.added });
   });
+/** content of a sync per record kind: "Statistik Spieler · Punkte (100): A, B, C" */
+type About = { kind: string; count: number; sample: string[]; who?: string; type?: number | null };
+const aboutText = (a: About) => {
+  const kind = a.kind === 'stats'
+    ? [t(`admin.about.stats_${a.who}`), a.type ? STATS_CATEGORIES[a.type] : null].filter(Boolean).join(' · ')
+    : t(`admin.about.${a.kind}`);
+  const more = a.count > 1 && a.kind !== 'stats' ? ` (${a.count})` : '';
+  return `${kind}${more}${a.sample.length ? ': ' + a.sample.join(', ') : ''}`;
+};
+
 /** dry run of taking a sync back, shown under its row until confirmed */
 type Undo = {
   id: number; snapshots: number; scores: number; activity: number; players: string[]; alliances: string[]; kept: string[];
@@ -380,14 +390,17 @@ const doMerge = () => run(async () => {
       <h2>{{ t('admin.ingests') }} <Hint>{{ t('admin.ingestsHint') }}</Hint></h2>
       <div class="table-wrap">
         <table v-stack="2" class="data">
-          <thead><tr><th>{{ t('common.time') }}</th><th>{{ t('nav.user') }}</th><th>{{ t('admin.source') }}</th><th>{{ t('admin.page') }}</th><th>{{ t('admin.result') }}</th><th /></tr></thead>
+          <thead><tr><th>{{ t('common.time') }}</th><th>{{ t('nav.user') }}</th><th>{{ t('admin.source') }}</th><th>{{ t('admin.content') }}</th><th>{{ t('admin.result') }}</th><th /></tr></thead>
           <tbody>
             <template v-for="i in ingests" :key="i.id">
               <tr>
                 <td class="small">{{ dateTime(i.created_at) }}</td>
                 <td>{{ i.username }}</td>
                 <td class="small">{{ i.source }}</td>
-                <td class="small">{{ i.page_type }}</td>
+                <td class="small" style="white-space: normal; min-width: 220px">
+                  <div v-for="a in i.summary?.about ?? []" :key="a.kind">{{ aboutText(a) }}</div>
+                  <span v-if="!i.summary?.about?.length" class="muted">{{ i.page_type }}</span>
+                </td>
                 <td class="small muted">
                   <span v-for="(c, k) in i.summary?.counts" :key="k">{{ k }}: {{ c.new }}/{{ c.duplicate }} </span>
                   <span v-for="w in i.summary?.warnings" :key="w" class="warn">⚠ {{ w }} </span>

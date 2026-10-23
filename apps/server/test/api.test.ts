@@ -1213,3 +1213,22 @@ describe('plausibility of pasted pages', () => {
     expect(ok.json().counts.player_scores.new).toBe(30);
   });
 });
+
+describe('admin: content of syncs', () => {
+  it('describes what each sync contained, also for syncs stored before', async () => {
+    const groupD = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', payload: { universe: 'u8', name: 'About' }, headers: admin })).json().id;
+    const headers = { ...admin, 'x-hub-group': String(groupD) };
+    for (const f of ['stats-player.html', 'empire-real-source.html']) {
+      await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { html: fixture(f) } });
+    }
+    // a sync from before the description: built from its page when listed, then stored
+    const old = db.prepare('SELECT id FROM raw_ingests WHERE group_id = ? AND page_type = ?').pluck().get(groupD, 'stats') as number;
+    db.prepare(`UPDATE raw_ingests SET summary = json_remove(summary, '$.about') WHERE id = ?`).run(old);
+    const list = (await app.inject({ method: 'GET', url: `/hub/api/admin/groups/${groupD}/ingests`, headers: admin })).json();
+    const about = (page: string) => list.find((i: any) => i.page_type === page).summary.about;
+    expect(about('stats')).toEqual([{ kind: 'stats', count: 1, who: 'player', type: 2, sample: ['Alpha', 'Beta Max', 'Gamma'] }]);
+    expect(about('empire')[0]).toMatchObject({ kind: 'empire', count: 1 });
+    expect(about('empire')[0].sample[0]).toMatch(/ \d+:\d+:\d+$/);
+    expect(JSON.parse(db.prepare('SELECT summary FROM raw_ingests WHERE id = ?').pluck().get(old) as string).about).toHaveLength(1);
+  });
+});
