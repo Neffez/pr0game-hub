@@ -77,7 +77,7 @@ own fleets; every participant (and the creator/admins) the enemy inputs.
   coordinates and an exact time; "around an hour" shows approximate launches.
 - **Retime**: the chosen speed candidate's return home (after impact, or the earliest return after a recall) plus the
   buffer. The client derives it and saves it with the enemy inputs; every participant's launch time follows. Without
-  a chosen candidate the plan keeps the return at full speed plus 5 s it started with.
+  a chosen candidate the plan keeps the return at full speed plus 1 s it started with (default buffer 1 s: 0-1 s is a good retime, 2-3 s poor, from 4 s very poor).
 - The claim follows the target time (until 10 minutes after it) and the coordinates.
 
 ## Participants and ACS rules

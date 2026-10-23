@@ -324,7 +324,8 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
       if (!attack) throw new HttpError(404, 'attack_not_found', 'Hostile attack not found (arrived or not pasted)');
       const targetTime = timeOf(b.target_time);
       const follow = followOf(b.follow ?? 0, attack.fleets.length);
-      const buffer = bufferOf(b.buffer ?? 5);
+      // a good retime lands right after the return: 0-1 s
+      const buffer = bufferOf(b.buffer ?? 1);
       return db.transaction(() => {
         const id = Number(
           db

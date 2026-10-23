@@ -23,6 +23,7 @@ import {
   FLEET_STATUSES,
   isCurrent,
   candidateHome,
+  DEFAULT_BUFFER,
   enemyCandidates,
   latestTime,
   mainFleet,
@@ -159,14 +160,14 @@ async function create() {
 }
 
 // ---- retime ----
-/** Starts a retime plan on a hostile attack: follows the main fleet, target time first its return at full speed. */
+/** Starts a retime plan on a hostile attack: follows the main fleet, target time first its return at full speed plus 1 s. */
 async function planRetime(a: HostileAttack) {
   const follow = mainFleet(a.fleets);
   const input = { ...a, follow, first_seen: a.arrival, drives: a.drives?.research ?? {}, departure: null, recall: null, recall_lead: true };
   const full = enemyCandidates(settings.value, input)[0];
-  const target = (full ? candidateHome(full) : a.arrival + 3600) + 5;
+  const target = (full ? candidateHome(full) : a.arrival + 3600) + DEFAULT_BUFFER;
   await run(async () => {
-    const res = await uniApi<{ id: number; claimedBy: string | null }>(uni.value, '/plans/retime', { body: { key: a.key, follow, target_time: target, buffer: 5 } });
+    const res = await uniApi<{ id: number; claimedBy: string | null }>(uni.value, '/plans/retime', { body: { key: a.key, follow, target_time: target, buffer: DEFAULT_BUFFER } });
     info.value = res.claimedBy ? t('plans.claimedBy', { name: res.claimedBy }) : '';
   });
   loadClaims(uni.value);

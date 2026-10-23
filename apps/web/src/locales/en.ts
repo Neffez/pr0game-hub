@@ -789,6 +789,7 @@ const en: typeof de = {
     recall: 'Recalled between',
     recallLead: 'Lead recalled (whole ACS)',
     buffer: 'Buffer after return',
+    bufferRating: { good: 'good retime', poor: 'poor retime', bad: 'very poor retime' },
     launch: 'Enemy launch',
     home: 'Back home',
     target: 'Target time of the plan: {t}',

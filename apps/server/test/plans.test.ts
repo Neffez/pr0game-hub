@@ -184,7 +184,7 @@ describe('attack plans', () => {
     expect((await call('GET', '/hostile-attacks', carol)).json()[0].planId).toBe(created.id);
     let plan = (await call('GET', '/plans', carol)).json().find((p: any) => p.id === created.id);
     expect(plan).toMatchObject({ g: 1, s: 41, p: 1, planet_type: 'moon', time_precision: 'exact', creator: 'Dave', claim_user_id: daveId });
-    expect(plan.enemy).toMatchObject({ member: 'Carol', follow: 1, buffer: 5, percent: null, first_seen: attacks[0].arrival, arrival: attacks[0].arrival, recall: null });
+    expect(plan.enemy).toMatchObject({ member: 'Carol', follow: 1, buffer: 1, percent: null, first_seen: attacks[0].arrival, arrival: attacks[0].arrival, recall: null });
 
     // a participant changes the inputs and the derived target time; someone outside the plan may not
     await call('POST', `/plans/${created.id}/fleets`, carol, { ships: { 204: 5 } });

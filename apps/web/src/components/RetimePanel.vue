@@ -5,7 +5,7 @@ import { uniApi } from '../api';
 import { useUni } from '../composables';
 import { abbr, coords, duration, fmt } from '../format';
 import { intlLocale } from '../i18n';
-import { candidateHome, DRIVES_MAX_AGE, enemyCandidates, fromLocalInput, toLocalInput, type AttackPlan, type PlanEnemy } from '../plans';
+import { bufferRating, candidateHome, DEFAULT_BUFFER, DRIVES_MAX_AGE, enemyCandidates, fromLocalInput, toLocalInput, type AttackPlan, type PlanEnemy } from '../plans';
 
 /**
  * Retime analysis of a plan's hostile fleet: speed candidates of its return home, narrowed by departure window,
@@ -29,7 +29,7 @@ const draft = reactive({
   recTo: '',
   recallLead: true,
   percent: null as number | null,
-  buffer: 5,
+  buffer: DEFAULT_BUFFER,
 });
 const dirty = ref(false);
 function reset() {
@@ -146,6 +146,9 @@ async function save() {
       <span class="field">
         <span class="lbl">{{ t('retime.buffer') }}</span>
         <input v-model.number="draft.buffer" type="number" min="0" max="3600" :disabled="!editable" @input="touch" /> s
+        <span class="small" :class="{ pos: bufferRating(draft.buffer) === 'good', warn: bufferRating(draft.buffer) === 'poor', neg: bufferRating(draft.buffer) === 'bad' }">
+          {{ t(`retime.bufferRating.${bufferRating(draft.buffer)}`) }}
+        </span>
       </span>
     </div>
 

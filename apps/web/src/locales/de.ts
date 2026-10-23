@@ -791,6 +791,7 @@ const de = {
     recall: 'Rückruf zwischen',
     recallLead: 'Anführer zurückgerufen (ganzer Verband)',
     buffer: 'Puffer nach Rückkehr',
+    bufferRating: { good: 'guter Retime', poor: 'schlechter Retime', bad: 'sehr schlechter Retime' },
     launch: 'Abflug Gegner',
     home: 'Zurück zu Hause',
     target: 'Zielzeit des Plans: {t}',

@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Raid planner, retime: the default buffer after the enemy's return is 1 s instead of 5 s; the panel rates the buffer
+  (up to 1 s good, 2-3 s poor, from 4 s very poor). Existing plans keep their buffer.
+
 - Raid planner: the speed of a fleet is a drop-down right in the fleets table (like the status), saved at once, so
   speeds can be tried without opening the fleet form.
 

@@ -131,6 +131,12 @@ export function enemyCandidates(u: UniverseSettings, e: EnemyInput): RetimeCandi
   });
 }
 
+/** Seconds after the enemy's return the own fleets land by default (0-1 s is a good retime). */
+export const DEFAULT_BUFFER = 1;
+
+/** How good a retime buffer is: up to 1 s good, 2-3 s poor, from 4 s very poor. */
+export const bufferRating = (seconds: number) => (seconds <= 1 ? 'good' : seconds <= 3 ? 'poor' : 'bad');
+
 /** Landing back home of a candidate: after the impact, or the earliest return after the recall. */
 export const candidateHome = (c: RetimeCandidate) => (c.recallHome ? c.recallHome.from : c.home);
 
