@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Pages with timers no longer render completely every second: empire and alliance view tick only their resources,
+  countdowns and fleet timers (`<Ticker>` and `<Countdown>` share one second clock in `clock.ts`); arrived fleets,
+  finished queues, expired notifications and claims change their lists only when something actually runs out
+  (`upcoming`). Before, open selects, tooltips and text selections on these pages were reset every second.
+  Test for the empire page.
 - Admin panel:
   - Sync table restructured: sortable by time, member and content (sort control on mobile), Reparse and Delete side
     by side, one line per result count ("1 new · 0 duplicate"), source column dropped (uploads say "universe.json"

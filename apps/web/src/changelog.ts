@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-10-23',
     items: [
       {
+        kind: 'fix',
+        de: 'Imperium und Allianz: Die Seiten wurden jede Sekunde komplett neu aufgebaut, wodurch offene Auswahllisten, Tooltips und markierter Text flackerten oder verschwanden. Jetzt laufen nur noch die Ressourcen und Countdowns selbst weiter.',
+        en: 'Empire and alliance: the pages were rebuilt completely every second, so open drop-downs, tooltips and selected text flickered or got lost. Now only the resources and countdowns themselves keep ticking.',
+      },
+      {
         kind: 'new',
         de: 'Admin: Allianzen lassen sich umbenennen, Mitglieder- und Synchronisationsliste sind sortierbar und auf dem Handy besser lesbar. Niemand kann sich selbst oder den Hub-Inhaber aus einer Allianz entfernen.',
         en: 'Admin: alliances can be renamed, the member and sync lists are sortable and easier to read on phones. Nobody can remove themselves or the hub owner from an alliance.',

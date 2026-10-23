@@ -3,9 +3,10 @@ import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { useUni } from '../composables';
-import { attacks, markSeen, notifications, notifyClock, unseen } from '../notifications';
+import { attacks, markSeen, notifications, unseen } from '../notifications';
 import { abbr, fmt, name } from '../format';
 import NavIcon from './NavIcon.vue';
+import Ticker from './Ticker.vue';
 
 /** Bell with the number of unseen notifications; the list opens below it. */
 const { t, locale } = useI18n();
@@ -69,7 +70,7 @@ function left(sec: number) {
           <span class="small">
             {{ n.fleet.to ? at(n.fleet.to) : '' }} ·
             <span class="mono">{{ clock(n.time) }}</span>
-            <span class="mono muted"> ({{ left(n.time - notifyClock) }})</span>
+            <Ticker v-slot="{ now }"><span class="mono muted"> ({{ left(Math.max(0, n.time - now)) }})</span></Ticker>
           </span>
           <span class="small muted">
             {{ t('notify.from') }} <template v-if="n.fleet.player">{{ n.fleet.player }} </template>{{ at(n.fleet.from) }}

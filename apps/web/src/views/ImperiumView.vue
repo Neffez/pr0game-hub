@@ -1,10 +1,12 @@
 <script setup lang="ts">
 import { classOf, elementPoints, METAL, RESOURCES, STORAGE, storageCapacity } from '@pr0hub/core/tech';
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
+import { upcoming, useClock } from '../clock';
 import FleetList, { type Fleet } from '../components/FleetList.vue';
 import Hint from '../components/Hint.vue';
+import Ticker from '../components/Ticker.vue';
 import { useLoader, useMobile, useStored, useUni } from '../composables';
 import { tables, useLiveReload } from '../live';
 import { abbr, ago, dateTime, fmt, fmtSigned, name, short, STATS_TYPES } from '../format';
@@ -12,7 +14,8 @@ import { abbr, ago, dateTime, fmt, fmtSigned, name, short, STATS_TYPES } from '.
 /**
  * Live view of a member's own planets (like the FF-Hub overview): resources are projected from the
  * last empire page with its production per hour (capped at the storage), queues count down from
- * the last game overview page.
+ * the last game overview page. The page itself reads the clock only in computeds that rarely change; the ticking
+ * values (resources, countdowns) are rendered in `<Ticker>`s, so the page is not rendered again every second.
  */
 interface C3 {
   g: number;
@@ -75,14 +78,9 @@ const { data, error, load } = useLoader(() => {
   if (!ctx.value!.members.some((m) => m.id === userId.value)) userId.value = ctx.value!.me.id;
   return uniApi<Data>(uni.value, `/imperium?user=${userId.value}`);
 });
-const now = ref(Math.floor(Date.now() / 1000));
-let timer: ReturnType<typeof setInterval> | undefined;
+const now = useClock();
 
-onMounted(() => {
-  load();
-  timer = setInterval(() => (now.value = Math.floor(Date.now() / 1000)), 1000);
-});
-onBeforeUnmount(() => clearInterval(timer));
+onMounted(load);
 watch(userId, load);
 useLiveReload(load, tables('empire', 'overview', 'fleets', 'player_scores'));
 
@@ -90,7 +88,7 @@ const empire = computed(() => data.value?.empire ?? null);
 const overview = computed(() => data.value?.overview ?? null);
 const fleets = computed(() => data.value?.fleets ?? null);
 /** fleets still in flight, next arrival first; arrived ones only count */
-const flights = computed(() => (fleets.value?.data ?? []).filter((f) => f.arrival > now.value).sort((a, b) => a.arrival - b.arrival));
+const flights = upcoming(computed(() => [...(fleets.value?.data ?? [])].sort((a, b) => a.arrival - b.arrival)), (f) => f.arrival, now);
 const arrived = computed(() => (fleets.value?.data.length ?? 0) - flights.value.length);
 const same = (a: C3, b: C3) => a.g === b.g && a.s === b.s && a.p === b.p;
 
@@ -109,11 +107,11 @@ const storageFactor = computed(() => {
 });
 
 /** Live amount: production since the page time, never above the storage (but full storages stay as they are). */
-function live(p: EmpirePlanet, id: number) {
+function live(p: EmpirePlanet, id: number, now: number) {
   const start = p.resources?.[id] ?? 0;
   const cap = storageCapacity(p.values[STORAGE[id]] ?? 0, storageFactor.value);
   const perHour = p.perHour?.[id] ?? 0;
-  const elapsed = Math.max(0, now.value - empire.value!.time);
+  const elapsed = Math.max(0, now - empire.value!.time);
   let value = start;
   // consumption (e.g. fusion plant) also empties full storages, production stops at the limit
   if (perHour < 0) value = Math.max(0, start + (perHour * elapsed) / 3600);
@@ -149,10 +147,11 @@ function queueOf(kind: Queue['kind'], p: EmpirePlanet) {
 }
 const endOf = (q: Queue) => overview.value!.time + q.seconds;
 
+/** `end`: when the queue finishes (epoch), null when unknown */
 function building(p: EmpirePlanet) {
   const q = queueOf('building', p);
-  if (q) return { label: `${name(q.id)}${q.destroy ? ' ' + t('imperium.demolish') : ''} ${q.level}`, left: endOf(q) - now.value };
-  if (p.building && !overviewCurrent.value) return { label: `${name(p.building.id)} ${p.building.level}`, left: null };
+  if (q) return { label: `${name(q.id)}${q.destroy ? ' ' + t('imperium.demolish') : ''} ${q.level}`, end: endOf(q) };
+  if (p.building && !overviewCurrent.value) return { label: `${name(p.building.id)} ${p.building.level}`, end: null };
   return null;
 }
 
@@ -161,9 +160,9 @@ const research = computed(() => {
   const q = overview.value?.data.queues.find((x) => x.kind === 'research') ?? null;
   const marker = empire.value?.data.researchQueue ?? null;
   if (q && (!marker || marker.id === q.id || overviewCurrent.value)) {
-    return { label: `${name(q.id)} ${q.level}`, left: endOf(q) - now.value, coords: marker?.id === q.id ? marker.coords : q.coords };
+    return { label: `${name(q.id)} ${q.level}`, end: endOf(q), coords: marker?.id === q.id ? marker.coords : q.coords };
   }
-  if (marker) return { label: `${name(marker.id)} ${marker.level}`, left: null, coords: marker.coords };
+  if (marker) return { label: `${name(marker.id)} ${marker.level}`, end: null, coords: marker.coords };
   return null;
 });
 
@@ -171,14 +170,13 @@ function shipyard(p: EmpirePlanet) {
   const q = queueOf('shipyard', p);
   const list = Object.entries(p.shipyard ?? {}).map(([id, n]) => `${fmt(n)}× ${abbr(Number(id))}`);
   if (!q && !list.length) return null;
-  return { label: list.join(', ') || `${fmt(q!.level)}× ${abbr(q!.id)}`, title: Object.keys(p.shipyard ?? {}).map((id) => name(id)).join(', '), left: q ? endOf(q) - now.value : null };
+  return { label: list.join(', ') || `${fmt(q!.level)}× ${abbr(q!.id)}`, title: Object.keys(p.shipyard ?? {}).map((id) => name(id)).join(', '), end: q ? endOf(q) : null };
 }
 
 const rows = computed(() =>
   (empire.value?.data.planets ?? []).map((p) => ({
     p,
     key: `${p.coords.g}:${p.coords.s}:${p.coords.p}:${p.type}`,
-    res: RES.map((id) => live(p, id)),
     energy: p.resources?.[911] ?? null,
     building: building(p),
     research: research.value?.coords && same(research.value.coords, p.coords) && p.type === 'planet' ? research.value : null,
@@ -186,13 +184,16 @@ const rows = computed(() =>
   })),
 );
 
-const totals = computed(() =>
-  RES.map((_, i) => ({
-    value: rows.value.reduce((s, r) => s + r.res[i].value, 0),
-    cap: rows.value.reduce((s, r) => s + r.res[i].cap, 0),
-    perHour: rows.value.reduce((s, r) => s + r.res[i].perHour, 0),
-  })),
-);
+/** live resources of a planet at `now` (rendered in a `<Ticker>`) */
+const resOf = (p: EmpirePlanet, now: number) => RES.map((id) => live(p, id, now));
+function totalsAt(now: number) {
+  const res = rows.value.map((r) => resOf(r.p, now));
+  return RES.map((_, i) => ({
+    value: res.reduce((s, r) => s + r[i].value, 0),
+    cap: res.reduce((s, r) => s + r[i].cap, 0),
+    perHour: res.reduce((s, r) => s + r[i].perHour, 0),
+  }));
+}
 const flying = computed(() => empire.value?.data.flying ?? {});
 const missingPerHour = computed(() => rows.value.some((r) => r.p.type === 'planet' && !r.p.perHour));
 const hasLiveData = computed(() => rows.value.some((r) => r.p.resources));
@@ -205,6 +206,8 @@ const hasLiveData = computed(() => rows.value.some((r) => r.p.resources));
  * page after that update.
  */
 const levelPoints = (id: number, level: number) => elementPoints(id, level) - elementPoints(id, level - 1);
+/** which overview queues have finished, as a key: only changes when one finishes */
+const finishedKey = computed(() => (overview.value?.data.queues ?? []).map((q) => (endOf(q) <= now.value ? 1 : 0)).join(''));
 const livePoints = computed(() => {
   const e = empire.value;
   if (!e) return null;
@@ -220,8 +223,9 @@ const livePoints = computed(() => {
   // builds and research that finished since the empire page
   const finished: string[] = [];
   if (overview.value && overview.value.time >= e.time - 60) {
-    for (const q of overview.value.data.queues) {
-      if (endOf(q) > now.value || q.kind === 'shipyard') continue;
+    const done = finishedKey.value;
+    for (const [i, q] of overview.value.data.queues.entries()) {
+      if (done[i] !== '1' || q.kind === 'shipyard') continue;
       if (q.kind === 'research') {
         if ((e.data.research?.[q.id] ?? 0) >= q.level) continue;
         sum[100] += levelPoints(q.id, q.level);
@@ -404,7 +408,7 @@ const memberName = (id: number | null) => ctx.value!.members.find((m) => m.id ==
       <span v-if="arrived" class="muted small" style="font-weight: normal"> · {{ t('imperium.fleetsArrived', { n: arrived }) }}</span>
     </h3>
     <p v-if="!flights.length" class="muted small" style="margin: 0">{{ t('imperium.fleetsNone') }}</p>
-    <FleetList v-else :fleets="flights" :now="now" />
+    <FleetList v-else :fleets="flights" />
   </div>
 
   <!-- mobile: totals first, then one card per planet (moons below their planet) -->
@@ -413,11 +417,13 @@ const memberName = (id: number | null) => ctx.value!.members.find((m) => m.id ==
       <div class="emp-head">
         <b>{{ t('common.total') }}</b>
         <span v-if="research && !research.coords" class="small muted">
-          {{ t('player.research') }}: {{ research.label }} <span class="mono">{{ research.left != null ? countdown(research.left) : '' }}</span>
+          {{ t('player.research') }}: {{ research.label }}
+          <Ticker v-if="research.end != null" v-slot="{ now: n }"><span class="mono">{{ countdown(research.end - n) }}</span></Ticker>
         </span>
       </div>
+      <Ticker v-slot="{ now: n }">
       <div class="emp-res">
-        <div v-for="(sum, i) in totals" :key="i">
+        <div v-for="(sum, i) in totalsAt(n)" :key="i">
           <div class="small muted">{{ name(RES[i]) }}</div>
           <div class="num">{{ short(sum.value + (flying[RES[i]] ?? 0)) }}</div>
           <div class="num faint">/ {{ short(sum.cap) }}</div>
@@ -426,6 +432,7 @@ const memberName = (id: number | null) => ctx.value!.members.find((m) => m.id ==
           <div v-if="flying[RES[i]]" class="small muted">✈ {{ short(flying[RES[i]]) }}</div>
         </div>
       </div>
+      </Ticker>
     </div>
 
     <div v-for="r in rows" :key="r.key" class="card emp-card" :class="{ moon: r.p.type === 'moon' }">
@@ -441,23 +448,29 @@ const memberName = (id: number | null) => ctx.value!.members.find((m) => m.id ==
           <template v-if="r.building">{{ r.building.label }}</template>
           <span v-else class="faint">–</span>
         </span>
-        <span v-if="r.building?.left != null" class="mono" :class="r.building.left <= 0 ? 'pos' : 'muted'">{{ countdown(r.building.left) }}</span>
+        <Ticker v-if="r.building?.end != null" v-slot="{ now: n }">
+          <span class="mono" :class="r.building.end - n <= 0 ? 'pos' : 'muted'">{{ countdown(r.building.end - n) }}</span>
+        </Ticker>
         <span v-else-if="r.building" class="faint" :title="t('imperium.leftUnknown')">?</span>
         <span v-else />
         <template v-if="r.research">
           <span class="muted">{{ t('player.research') }}</span>
           <span>{{ r.research.label }}</span>
-          <span v-if="r.research.left != null" class="mono" :class="r.research.left <= 0 ? 'pos' : 'muted'">{{ countdown(r.research.left) }}</span>
+          <Ticker v-if="r.research.end != null" v-slot="{ now: n }">
+            <span class="mono" :class="r.research.end - n <= 0 ? 'pos' : 'muted'">{{ countdown(r.research.end - n) }}</span>
+          </Ticker>
           <span v-else class="faint" :title="t('imperium.leftUnknown')">?</span>
         </template>
         <template v-if="r.shipyard">
           <span class="muted">{{ t('imperium.hangar') }}</span>
           <span>{{ r.shipyard.label }}</span>
-          <span class="mono muted">{{ r.shipyard.left != null ? countdown(r.shipyard.left) : '' }}</span>
+          <Ticker v-if="r.shipyard.end != null" v-slot="{ now: n }"><span class="mono muted">{{ countdown(r.shipyard.end - n) }}</span></Ticker>
+          <span v-else />
         </template>
       </div>
+      <Ticker v-slot="{ now: n }">
       <div class="emp-res">
-        <div v-for="(v, i) in r.res" :key="i">
+        <div v-for="(v, i) in resOf(r.p, n)" :key="i">
           <div class="small muted">{{ name(RES[i]) }}</div>
           <div class="num" :class="resClass(v)">{{ short(v.value) }}</div>
           <div class="num faint">/ {{ short(v.cap) }}</div>
@@ -469,6 +482,7 @@ const memberName = (id: number | null) => ctx.value!.members.find((m) => m.id ==
           </div>
         </div>
       </div>
+      </Ticker>
     </div>
   </template>
 
@@ -496,7 +510,9 @@ const memberName = (id: number | null) => ctx.value!.members.find((m) => m.id ==
           <td class="small">
             <template v-if="r.building">
               {{ r.building.label }}
-              <span v-if="r.building.left != null" class="mono" :class="r.building.left <= 0 ? 'pos' : 'muted'">{{ countdown(r.building.left) }}</span>
+              <Ticker v-if="r.building.end != null" v-slot="{ now: n }">
+                <span class="mono" :class="r.building.end - n <= 0 ? 'pos' : 'muted'">{{ countdown(r.building.end - n) }}</span>
+              </Ticker>
               <span v-else class="faint" :title="t('imperium.leftUnknown')">?</span>
             </template>
             <span v-else class="faint">–</span>
@@ -504,7 +520,9 @@ const memberName = (id: number | null) => ctx.value!.members.find((m) => m.id ==
           <td class="small">
             <template v-if="r.research">
               {{ r.research.label }}
-              <span v-if="r.research.left != null" class="mono" :class="r.research.left <= 0 ? 'pos' : 'muted'">{{ countdown(r.research.left) }}</span>
+              <Ticker v-if="r.research.end != null" v-slot="{ now: n }">
+                <span class="mono" :class="r.research.end - n <= 0 ? 'pos' : 'muted'">{{ countdown(r.research.end - n) }}</span>
+              </Ticker>
               <span v-else class="faint" :title="t('imperium.leftUnknown')">?</span>
             </template>
             <span v-else class="faint">–</span>
@@ -512,19 +530,23 @@ const memberName = (id: number | null) => ctx.value!.members.find((m) => m.id ==
           <td class="small" :title="r.shipyard?.title">
             <template v-if="r.shipyard">
               {{ r.shipyard.label }}
-              <span v-if="r.shipyard.left != null" class="mono muted" :title="t('imperium.currentJob')">{{ countdown(r.shipyard.left) }}</span>
+              <Ticker v-if="r.shipyard.end != null" v-slot="{ now: n }">
+                <span class="mono muted" :title="t('imperium.currentJob')">{{ countdown(r.shipyard.end - n) }}</span>
+              </Ticker>
             </template>
             <span v-else class="faint">–</span>
           </td>
-          <td
-            v-for="(v, i) in r.res"
-            :key="i"
-            class="num"
-            :class="resClass(v)"
-            :title="`${fmt(v.value)} / ${fmt(v.cap)}${v.perHour ? ` · +${fmt(v.perHour)}/h` : ''}${v.fullIn != null ? ` · ${t('imperium.fullIn', { time: countdown(v.fullIn) })}` : ''}`"
-          >
-            {{ short(v.value) }} <span class="faint">/ {{ short(v.cap) }}</span>
-          </td>
+          <Ticker v-slot="{ now: n }">
+            <td
+              v-for="(v, i) in resOf(r.p, n)"
+              :key="i"
+              class="num"
+              :class="resClass(v)"
+              :title="`${fmt(v.value)} / ${fmt(v.cap)}${v.perHour ? ` · +${fmt(v.perHour)}/h` : ''}${v.fullIn != null ? ` · ${t('imperium.fullIn', { time: countdown(v.fullIn) })}` : ''}`"
+            >
+              {{ short(v.value) }} <span class="faint">/ {{ short(v.cap) }}</span>
+            </td>
+          </Ticker>
           <td class="num" :class="{ neg: (r.energy ?? 0) < 0 }">{{ r.energy == null ? '' : fmt(r.energy) }}</td>
         </tr>
         <tr v-if="Object.keys(flying).length">
@@ -536,11 +558,16 @@ const memberName = (id: number | null) => ctx.value!.members.find((m) => m.id ==
         <tr style="font-weight: 600">
           <td>{{ t('common.total') }}</td>
           <td colspan="3" class="small muted">
-            <template v-if="research && !research.coords">{{ t('player.research') }}: {{ research.label }} {{ research.left != null ? countdown(research.left) : '' }}</template>
+            <template v-if="research && !research.coords">
+              {{ t('player.research') }}: {{ research.label }}
+              <Ticker v-if="research.end != null" v-slot="{ now: n }">{{ countdown(research.end - n) }}</Ticker>
+            </template>
           </td>
-          <td v-for="(sum, i) in totals" :key="i" class="num" :title="`+${fmt(sum.perHour)}/h`">
-            {{ short(sum.value + (flying[RES[i]] ?? 0)) }} <span class="faint">/ {{ short(sum.cap) }}</span>
-          </td>
+          <Ticker v-slot="{ now: n }">
+            <td v-for="(sum, i) in totalsAt(n)" :key="i" class="num" :title="`+${fmt(sum.perHour)}/h`">
+              {{ short(sum.value + (flying[RES[i]] ?? 0)) }} <span class="faint">/ {{ short(sum.cap) }}</span>
+            </td>
+          </Ticker>
           <td />
         </tr>
       </tbody>

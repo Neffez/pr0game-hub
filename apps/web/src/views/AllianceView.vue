@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { classOf, elementPoints } from '@pr0hub/core/tech';
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import { uniApi } from '../api';
+import { upcoming, useClock } from '../clock';
 import FleetList, { type Fleet } from '../components/FleetList.vue';
 import Hint from '../components/Hint.vue';
 import { useMobile, useSort, useUni } from '../composables';
@@ -60,13 +61,8 @@ async function load() {
     error.value = (e as Error).message;
   }
 }
-const now = ref(Math.floor(Date.now() / 1000));
-let timer: ReturnType<typeof setInterval> | undefined;
-onMounted(() => {
-  load();
-  timer = setInterval(() => (now.value = Math.floor(Date.now() / 1000)), 1000);
-});
-onBeforeUnmount(() => clearInterval(timer));
+const now = useClock();
+onMounted(load);
 useLiveReload(load, tables('empire', 'fleets', 'spy_reports'));
 
 const withData = computed(() => members.value.filter((m) => m.data));
@@ -75,13 +71,13 @@ const memberName = (m: Member) => m.ingame_name || m.username;
 
 /** Fleets of all members (or the chosen one) still in flight, next arrival first. */
 const fleetMember = ref<number | null>(null);
-const flights = computed(() =>
+const allFlights = computed(() =>
   members.value
     .filter((m) => fleetMember.value == null || m.user_id === fleetMember.value)
     .flatMap((m) => (m.fleets?.data ?? []).map((f) => ({ ...f, member: memberName(m) })))
-    .filter((f) => f.arrival > now.value)
     .sort((a, b) => a.arrival - b.arrival),
 );
+const flights = upcoming(allFlights, (f) => f.arrival, now);
 const withFleets = computed(() => members.value.filter((m) => m.fleets));
 
 const inCategory = (id: number) => {
@@ -214,7 +210,7 @@ const total = computed(() => {
   <div v-else-if="movements" class="card">
     <p v-if="!withFleets.length" class="muted small" style="margin: 0">{{ t('alliance.fleetsEmpty') }}</p>
     <p v-else-if="!flights.length" class="muted small" style="margin: 0">{{ t('imperium.fleetsNone') }}</p>
-    <FleetList v-else :fleets="flights" :now="now" />
+    <FleetList v-else :fleets="flights" />
   </div>
   <div v-else-if="!withData.length" class="card muted">{{ t('alliance.empty') }}</div>
 

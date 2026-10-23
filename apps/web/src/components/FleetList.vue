@@ -3,6 +3,7 @@ import { RESOURCES } from '@pr0hub/core/tech';
 import { useI18n } from 'vue-i18n';
 import { useMobile } from '../composables';
 import { abbr, fmt, name, short } from '../format';
+import Ticker from './Ticker.vue';
 
 /** Fleet movements of the game overview, next arrival first (empire view, alliance fleets). */
 export interface FleetBody {
@@ -27,7 +28,6 @@ export interface Fleet {
 defineProps<{
   /** fleets in flight, sorted; `member` names the owner in the alliance list */
   fleets: (Fleet & { member?: string })[];
-  now: number;
 }>();
 
 const { t, locale } = useI18n();
@@ -73,7 +73,7 @@ function clock(epoch: number) {
     <div v-for="(f, i) in fleets" :key="i" class="fl-card" :class="{ hostile: f.owner === 'hostile' }" :style="{ '--mc': color(f) }">
       <div class="fl-head">
         <span class="mono fl-clock">{{ clock(f.arrival) }}</span>
-        <span class="mono muted">{{ countdown(f.arrival - now) }}</span>
+        <Ticker v-slot="{ now }"><span class="mono muted">{{ countdown(f.arrival - now) }}</span></Ticker>
         <span class="grow" />
         <b v-if="f.member" class="fl-member">{{ f.member }}</b>
       </div>
@@ -114,7 +114,7 @@ function clock(epoch: number) {
       <tbody>
         <tr v-for="(f, i) in fleets" :key="i" :class="{ hostile: f.owner === 'hostile' }" :style="{ '--mc': color(f) }">
           <td class="mono fl-clock">{{ clock(f.arrival) }}</td>
-          <td class="mono muted">{{ countdown(f.arrival - now) }}</td>
+          <td class="mono muted"><Ticker v-slot="{ now }">{{ countdown(f.arrival - now) }}</Ticker></td>
           <td v-if="fleets.some((x) => x.member)"><b class="fl-member">{{ f.member }}</b></td>
           <td>
             <span class="fl-mission">{{ f.missionName }}</span>

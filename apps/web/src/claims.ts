@@ -1,5 +1,6 @@
-import { computed, ref } from 'vue';
+import { ref } from 'vue';
 import { uniApi } from './api';
+import { upcoming } from './clock';
 
 /** Target a member claimed for a while (server: routes/claims.ts). */
 export interface Claim {
@@ -29,7 +30,7 @@ export const clock = ref(Math.floor(Date.now() / 1000));
 let ticker: ReturnType<typeof setInterval> | undefined;
 
 /** Active claims of the group (loaded by the layout, kept up to date by live events). */
-export const activeClaims = computed(() => claims.value.filter((c) => c.expires_at > clock.value));
+export const activeClaims = upcoming(claims, (c) => c.expires_at, clock);
 
 export async function loadClaims(uni: string) {
   ticker ??= setInterval(() => (clock.value = Math.floor(Date.now() / 1000)), 15_000);

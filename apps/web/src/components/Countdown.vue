@@ -1,24 +1,7 @@
-<script lang="ts">
-import { ref } from 'vue';
-
-/** One shared second clock for all countdowns; runs while at least one is shown. */
-const tick = ref(Math.floor(Date.now() / 1000));
-let users = 0;
-let timer: ReturnType<typeof setInterval> | undefined;
-function start() {
-  if (users++ === 0) {
-    tick.value = Math.floor(Date.now() / 1000);
-    timer = setInterval(() => (tick.value = Math.floor(Date.now() / 1000)), 1000);
-  }
-}
-function stop() {
-  if (--users === 0) clearInterval(timer);
-}
-</script>
-
 <script setup lang="ts">
-import { computed, onBeforeUnmount } from 'vue';
+import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useClock } from '../clock';
 import { duration } from '../format';
 
 /**
@@ -27,8 +10,7 @@ import { duration } from '../format';
  */
 const props = defineProps<{ to: number }>();
 const { t } = useI18n();
-start();
-onBeforeUnmount(stop);
+const tick = useClock();
 
 const text = computed(() => {
   const s = props.to - tick.value;
