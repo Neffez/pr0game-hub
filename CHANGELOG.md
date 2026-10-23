@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Tests: the empire page smoke test waits until the initial loads have rendered before it counts page renders
+  (it failed under load in the full parallel run).
+
 - Raid planner, phalanx as a source of attacks (replaces the phalanx field of the retime panel): a phalanx shows the
   fleets starting from or heading for the scanned planet, returns only of the scanned player's own fleets
   (`FlyingFleetsTable` in phalanx mode). "Phalanx einfügen" on the raid planner (`POST /api/:uni/phalanx`, migration

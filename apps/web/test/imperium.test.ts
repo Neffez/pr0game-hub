@@ -96,6 +96,12 @@ describe('empire page', () => {
     const before = texts();
     expect(before.metal).toMatch(/^106\.\d{3} \//);
     expect(before.building).toMatch(/^00:5\d:\d\d$/);
+    // under load the initial loads may still render: count from the moment the page is quiet
+    for (let n = -1; n !== pageUpdates; ) {
+      n = pageUpdates;
+      await new Promise((r) => setTimeout(r, 100));
+      await settle();
+    }
     pageUpdates = 0;
     await new Promise((r) => setTimeout(r, 2200));
     const after = texts();
