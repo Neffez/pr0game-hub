@@ -21,6 +21,7 @@ import {
 import { CLASS_BUILDINGS, PHALANX } from '@pr0hub/core/tech';
 import { now, type DB } from './db.js';
 import type { IngestSummary, IngestTarget } from './ingest.js';
+import { FLEET_HISTORY } from './repo/fleets.js';
 import { Players } from './repo/players.js';
 
 /** Empire pages are kept a week (besides the newest), see `empire()`. */
@@ -565,7 +566,10 @@ export class Store {
     this.count('overview', true);
   }
 
-  /** Newest fleet list of the member; arrivals from the remaining time, set to the shown clock when copied as text. */
+  /**
+   * Fleet list of the member; arrivals from the remaining time, set to the shown clock when copied as text. The lists of
+   * the last 12 hours are kept for the history, and the newest one before that (it holds the fleets arriving after it).
+   */
   private fleets(r: FleetsRecord) {
     const pageTime = this.epoch(r.pageTime) ?? now();
     const fleets = r.fleets.map((f) => {
@@ -575,12 +579,13 @@ export class Store {
     this.db
       .prepare('INSERT INTO fleet_snapshots (group_id, user_id, page_time, data) VALUES (?, ?, ?, ?)')
       .run(this.t.groupId, this.t.userId, pageTime, JSON.stringify(fleets));
+    const cutoff = now() - FLEET_HISTORY;
     this.db
       .prepare(
-        `DELETE FROM fleet_snapshots WHERE group_id = ? AND user_id = ?
-         AND id <> (SELECT id FROM fleet_snapshots WHERE group_id = ? AND user_id = ? ORDER BY page_time DESC, id DESC LIMIT 1)`,
+        `DELETE FROM fleet_snapshots WHERE group_id = ? AND user_id = ? AND page_time < ?
+         AND id <> (SELECT id FROM fleet_snapshots WHERE group_id = ? AND user_id = ? AND page_time < ? ORDER BY page_time DESC, id DESC LIMIT 1)`,
       )
-      .run(this.t.groupId, this.t.userId, this.t.groupId, this.t.userId);
+      .run(this.t.groupId, this.t.userId, cutoff, this.t.groupId, this.t.userId, cutoff);
     this.count('fleets', true);
   }
 }

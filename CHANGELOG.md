@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Empire view: collapsible history of past fleet movements (last 12 hours, oldest first) below the fleets in flight.
+  Fleet lists are no longer pruned to the newest per member but kept for 12 hours (plus the newest older one);
+  each list contributes the fleets arriving until the next list was synced, so recalled fleets are left out.
+  The history follows the member's fleet sharing setting. Test for history and retention.
 - Pages with timers no longer render completely every second: empire and alliance view tick only their resources,
   countdowns and fleet timers (`<Ticker>` and `<Countdown>` share one second clock in `clock.ts`); arrived fleets,
   finished queues, expired notifications and claims change their lists only when something actually runs out

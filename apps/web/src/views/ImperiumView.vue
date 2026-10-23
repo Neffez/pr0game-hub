@@ -57,6 +57,8 @@ interface Data {
   overview: { time: number; data: { queues: Queue[]; catchUp?: number | null } } | null;
   /** `private`: the member shares none of their own fleets (fleets heading for them are still listed) */
   fleets: { time: number; data: Fleet[]; private?: boolean } | null;
+  /** fleets of the older lists that arrived in the last 12 hours, oldest first (shared like `fleets`) */
+  fleetHistory: Fleet[];
   /** the member's player with the latest synced statistics per category (1 total … 5 defense) */
   player: { id: number; name: string; stats: Record<number, { points: number; rank: number; time: number }> } | null;
   /**
@@ -90,6 +92,17 @@ const fleets = computed(() => data.value?.fleets ?? null);
 /** fleets still in flight, next arrival first; arrived ones only count */
 const flights = upcoming(computed(() => [...(fleets.value?.data ?? [])].sort((a, b) => a.arrival - b.arrival)), (f) => f.arrival, now);
 const arrived = computed(() => (fleets.value?.data.length ?? 0) - flights.value.length);
+const HISTORY = 12 * 3600;
+/** changes once a minute, so the history drops what is older than 12 hours without rendering every second */
+const minute = computed(() => Math.floor(now.value / 60));
+/** past fleet movements of the last 12 hours, oldest first: the older lists plus the arrived fleets of the newest */
+const history = computed(() => {
+  const cutoff = minute.value * 60 - HISTORY;
+  const live = new Set(flights.value);
+  return [...(data.value?.fleetHistory ?? []), ...(fleets.value?.data ?? []).filter((f) => !live.has(f))]
+    .filter((f) => f.arrival >= cutoff)
+    .sort((a, b) => a.arrival - b.arrival);
+});
 const same = (a: C3, b: C3) => a.g === b.g && a.s === b.s && a.p === b.p;
 
 /**
@@ -409,6 +422,10 @@ const memberName = (id: number | null) => ctx.value!.members.find((m) => m.id ==
     </h3>
     <p v-if="!flights.length" class="muted small" style="margin: 0">{{ t('imperium.fleetsNone') }}</p>
     <FleetList v-else :fleets="flights" />
+    <details v-if="history.length" class="fl-history">
+      <summary class="muted small">{{ t('imperium.fleetHistory', { n: history.length }) }}</summary>
+      <FleetList :fleets="history" past />
+    </details>
   </div>
 
   <!-- mobile: totals first, then one card per planet (moons below their planet) -->
@@ -576,6 +593,8 @@ const memberName = (id: number | null) => ctx.value!.members.find((m) => m.id ==
 </template>
 
 <style scoped>
+.fl-history { margin-top: 10px; }
+.fl-history summary { cursor: pointer; margin-bottom: 6px; }
 /* mobile planet cards */
 .emp-card { display: flex; flex-direction: column; gap: 10px; padding: 12px; margin-bottom: 10px; }
 .emp-card.moon { border-left: 3px solid var(--info); background: color-mix(in srgb, var(--info) 7%, var(--surface)); }

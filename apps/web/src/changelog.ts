@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-10-23',
     items: [
       {
+        kind: 'new',
+        de: 'Imperium: Unter den Flottenbewegungen gibt es einen aufklappbaren Verlauf mit den Flotten der letzten 12 Stunden, die schon angekommen sind.',
+        en: 'Empire: below the fleet movements there is a collapsible history of the fleets that arrived in the last 12 hours.',
+      },
+      {
         kind: 'fix',
         de: 'Imperium und Allianz: Die Seiten wurden jede Sekunde komplett neu aufgebaut, wodurch offene Auswahllisten, Tooltips und markierter Text flackerten oder verschwanden. Jetzt laufen nur noch die Ressourcen und Countdowns selbst weiter.',
         en: 'Empire and alliance: the pages were rebuilt completely every second, so open drop-downs, tooltips and selected text flickered or got lost. Now only the resources and countdowns themselves keep ticking.',

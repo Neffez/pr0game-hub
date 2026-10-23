@@ -28,6 +28,8 @@ export interface Fleet {
 defineProps<{
   /** fleets in flight, sorted; `member` names the owner in the alliance list */
   fleets: (Fleet & { member?: string })[];
+  /** arrived fleets (history): time since the arrival instead of the remaining time */
+  past?: boolean;
 }>();
 
 const { t, locale } = useI18n();
@@ -73,7 +75,7 @@ function clock(epoch: number) {
     <div v-for="(f, i) in fleets" :key="i" class="fl-card" :class="{ hostile: f.owner === 'hostile' }" :style="{ '--mc': color(f) }">
       <div class="fl-head">
         <span class="mono fl-clock">{{ clock(f.arrival) }}</span>
-        <Ticker v-slot="{ now }"><span class="mono muted">{{ countdown(f.arrival - now) }}</span></Ticker>
+        <Ticker v-slot="{ now }"><span class="mono muted">{{ past ? t('imperium.since', { time: countdown(now - f.arrival) }) : countdown(f.arrival - now) }}</span></Ticker>
         <span class="grow" />
         <b v-if="f.member" class="fl-member">{{ f.member }}</b>
       </div>
@@ -102,7 +104,7 @@ function clock(epoch: number) {
       <thead>
         <tr>
           <th>{{ t('imperium.arrival') }}</th>
-          <th>{{ t('imperium.remaining') }}</th>
+          <th>{{ t(past ? 'imperium.ago' : 'imperium.remaining') }}</th>
           <th v-if="fleets.some((f) => f.member)">{{ t('common.player') }}</th>
           <th>{{ t('imperium.mission') }}</th>
           <th>{{ t('imperium.from') }}</th>
@@ -114,7 +116,7 @@ function clock(epoch: number) {
       <tbody>
         <tr v-for="(f, i) in fleets" :key="i" :class="{ hostile: f.owner === 'hostile' }" :style="{ '--mc': color(f) }">
           <td class="mono fl-clock">{{ clock(f.arrival) }}</td>
-          <td class="mono muted"><Ticker v-slot="{ now }">{{ countdown(f.arrival - now) }}</Ticker></td>
+          <td class="mono muted"><Ticker v-slot="{ now }">{{ countdown(past ? now - f.arrival : f.arrival - now) }}</Ticker></td>
           <td v-if="fleets.some((x) => x.member)"><b class="fl-member">{{ f.member }}</b></td>
           <td>
             <span class="fl-mission">{{ f.missionName }}</span>

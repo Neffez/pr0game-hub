@@ -158,9 +158,39 @@ describe('api', () => {
     expect(im.fleets.data).toHaveLength(1);
     // without a page time the arrival is the shown clock (00:18:43 Berlin) on the day it is due
     expect((im.fleets.data[0].arrival - 1792707523) % 86400).toBe(0);
-    expect(db.prepare('SELECT COUNT(*) FROM fleet_snapshots WHERE group_id = ?').pluck().get(groupA)).toBe(1);
+    // the overview page is older than 12 hours but kept: it holds the fleets arriving until the pasted list
+    expect(db.prepare('SELECT COUNT(*) FROM fleet_snapshots WHERE group_id = ?').pluck().get(groupA)).toBe(2);
     const alliance = (await app.inject({ method: 'GET', url: '/hub/api/u8/alliance', headers })).json();
     expect(alliance.find((m: any) => m.user_id === im.userId).fleets.data).toHaveLength(1);
+  });
+
+  it('keeps the fleet movements of the last 12 hours as history', async () => {
+    const headers = { ...admin, 'x-hub-group': String(groupA) };
+    const adminId = db.prepare("SELECT id FROM users WHERE username = 'admin'").pluck().get() as number;
+    db.prepare('DELETE FROM fleet_snapshots WHERE group_id = ?').run(groupA);
+    const t = Math.floor(Date.now() / 1000);
+    const fleet = (mission: number, arrival: number) => ({
+      owner: 'own', player: null, mission, missionName: 'x', phase: 'out', ships: { 202: 1 }, resources: null, arrival,
+      from: { coords: { g: 1, s: 1, p: 1 }, type: 'planet', name: null }, to: { coords: { g: 1, s: 1, p: 2 }, type: 'planet', name: null },
+    });
+    const insert = db.prepare('INSERT INTO fleet_snapshots (group_id, user_id, page_time, data) VALUES (?, ?, ?, ?)');
+    // 1: arrived 13 h ago (too old); 3: recalled, missing from the next list although due later
+    insert.run(groupA, adminId, t - 15 * 3600, JSON.stringify([fleet(1, t - 13 * 3600), fleet(2, t - 11 * 3600)]));
+    insert.run(groupA, adminId, t - 2 * 3600, JSON.stringify([fleet(3, t - 900), fleet(4, t - 3600)]));
+    insert.run(groupA, adminId, t - 1200, JSON.stringify([fleet(6, t - 600), fleet(7, t + 600)]));
+    const im = (await app.inject({ method: 'GET', url: '/hub/api/u8/imperium', headers })).json();
+    expect(im.fleetHistory.map((f: any) => f.mission)).toEqual([2, 4]);
+
+    // a new list drops the ones older than 12 hours except the newest of them
+    const line = '1h 0m 0s Eine deiner Flotten (1 Leichter Jäger) vom Planet Ares [1:100:12] erreicht den Planet X [1:129:11]. Mission: Angreifen';
+    await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { text: line } });
+    expect(db.prepare('SELECT COUNT(*) FROM fleet_snapshots WHERE group_id = ?').pluck().get(groupA)).toBe(4);
+    insert.run(groupA, adminId, t - 16 * 3600, '[]');
+    await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { text: line.replace('1 Leichter', '2 Leichter') } });
+    expect(db.prepare('SELECT COUNT(*) FROM fleet_snapshots WHERE group_id = ?').pluck().get(groupA)).toBe(5);
+    expect(db.prepare('SELECT MIN(page_time) FROM fleet_snapshots WHERE group_id = ?').pluck().get(groupA)).toBe(t - 15 * 3600);
+    const after = (await app.inject({ method: 'GET', url: '/hub/api/u8/imperium', headers })).json();
+    expect(after.fleetHistory.map((f: any) => f.mission)).toEqual([2, 4, 6]);
   });
 
   it('shares fleet movements with the other members as the owner chose', async () => {

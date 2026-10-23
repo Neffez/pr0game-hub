@@ -2,9 +2,9 @@ import type { EmpireRecord } from '@pr0hub/core';
 import { CLASS_BUILDINGS, CLASS_DEFENSE, CLASS_FLEET, classOf, elementPoints } from '@pr0hub/core/tech';
 import type { FastifyInstance } from 'fastify';
 import { HttpError } from '../auth.js';
-import type { DB } from '../db.js';
+import { now, type DB } from '../db.js';
 import { latestEmpire, spyEmpire, type SpyEmpire } from '../repo/empire.js';
-import { sharedFleets } from '../repo/fleets.js';
+import { FLEET_HISTORY, fleetHistory, sharedFleets } from '../repo/fleets.js';
 import { memberPlayer, memberPlayers } from '../repo/members.js';
 import { latestScores } from '../repo/stats.js';
 import { contextOf, type Q } from './util.js';
@@ -85,6 +85,7 @@ export function imperiumRoutes(app: FastifyInstance, db: DB) {
       empire: empire ? { time: empire.time, data: empire.rec } : null,
       overview: overview ? { time: overview.time, data: JSON.parse(overview.data) } : null,
       fleets,
+      fleetHistory: fleetHistory(db, ctx.groupId, userId, ctx.user.id, now() - FLEET_HISTORY),
       player: player ? { ...player, stats: Object.fromEntries(stats.map((s) => [s.type, s])) } : null,
       fleetBase: fleetBase && basePoints && anchorFleet != null ? { time: fleetBase.time, points: basePoints.fleet, stat: anchorFleet } : null,
       leader: leader ?? null,
