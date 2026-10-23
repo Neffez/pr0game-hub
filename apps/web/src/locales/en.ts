@@ -856,6 +856,7 @@ const en: typeof de = {
     no_group: 'No alliance in this universe',
     nothing_pasted: 'Nothing pasted',
     universe_json_invalid: 'Not a valid universe.json',
+    wrong_universe: 'The pasted page is from another universe. Please sync it in the matching universe.',
     player_not_found: 'Player not found',
     report_not_archived: 'Report not archived',
     member_not_found: 'Member not found',

@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Pages pasted into the wrong universe are rejected: the paste's game links (absolute in browser clipboard HTML) or
+  the "Universe N" page title must match the universe's game URL (error `wrong_universe`). Switching universes in
+  the web app drops the previous universe's context at once, so views and the sync panel can no longer send to the
+  universe left behind while the new one loads.
 - Raid planner (menu "Raid-Planer" above "Raids", now "Raid-Statistiken"): attack plans of one or more members on one
   target and target time, solo or ACS.
   - Per fleet: start planet and ships prefilled from the own empire page, speed, flight time, launch time with

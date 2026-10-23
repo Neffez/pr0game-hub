@@ -859,6 +859,7 @@ const de = {
     no_group: 'Keine Allianz in diesem Universum',
     nothing_pasted: 'Nichts eingefügt',
     universe_json_invalid: 'Keine gültige universe.json',
+    wrong_universe: 'Die eingefügte Seite stammt aus einem anderen Universum. Bitte im passenden Universum synchronisieren.',
     player_not_found: 'Spieler nicht gefunden',
     report_not_archived: 'Bericht nicht archiviert',
     member_not_found: 'Mitglied nicht gefunden',

@@ -68,6 +68,23 @@ export function ingest(
   return summary;
 }
 
+/**
+ * Whether pasted HTML visibly comes from another universe than the one it is saved to: browsers copy game links as
+ * absolute URLs ("https://pr0game.com/uni7/game.php?page=…"), page sources carry "Universe 7" in their title. Without
+ * a game URL in the universe settings or any such marker in the paste, nothing can be told (null).
+ */
+export function foreignUniverse(html: string | null | undefined, gameUrl: string): string | null {
+  if (!html || !gameUrl) return null;
+  const strip = (url: string) => url.toLowerCase().replace(/^https?:\/\//, '').replace(/\/?$/, '/');
+  const base = strip(gameUrl);
+  const bases = new Set([...html.matchAll(/https?:\/\/[^\s"'<>]+?\/game\.php/gi)].map((m) => strip(m[0].slice(0, -'game.php'.length))));
+  if (bases.size && !bases.has(base)) return [...bases][0];
+  const title = /<title>[^<]*Univers(?:e|um)\s+(\d+)/i.exec(html)?.[1];
+  const own = /\/uni(\d+)\/$/.exec(base)?.[1];
+  if (title && own && title !== own) return `Universe ${title}`;
+  return null;
+}
+
 /** Re-runs the parser over a stored raw ingest (after parser fixes). Idempotent like a normal ingest. */
 export function reparse(db: DB, rawId: number, timezone: string): IngestSummary {
   const row = db.prepare('SELECT * FROM raw_ingests WHERE id = ?').get(rawId) as

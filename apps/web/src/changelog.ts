@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-10-23',
     items: [
       {
+        kind: 'fix',
+        de: 'Seiten aus einem anderen Universum werden beim Synchronisieren abgelehnt, statt im falschen Universum zu landen. Beim Wechsel des Universums kann nichts mehr im vorherigen gespeichert werden.',
+        en: 'Pages from another universe are rejected when syncing instead of ending up in the wrong universe. Switching universes can no longer save anything into the previous one.',
+      },
+      {
         kind: 'new',
         de: 'Raid-Planer: Eigene Angriffe solo oder als Verband planen, die auf die Sekunde landen. Jedes Mitglied trägt seine Flotte ein (Startplanet und Schiffe aus der eigenen Imperium-Seite), der Hub zeigt Startzeiten mit Countdown, den Anführer, Verzögerungen und die Verbandsgrenzen; alle sehen Änderungen sofort. Im Aktionen-Menü eines Ziels: „Angriff planen“. „Raids“ heißt jetzt „Raid-Statistiken“.',
         en: 'Raid planner: plan own attacks, solo or as ACS, that land at the second. Every member adds their fleet (start planet and ships from their empire page); the hub shows launch times with countdown, the lead, delays and the ACS limits, and everyone sees changes at once. In the action menu of a target: "Plan attack". "Raids" is now called "Raid statistics".',

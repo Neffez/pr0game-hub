@@ -3,7 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import { HttpError } from '../auth.js';
 import { groupContext } from '../context.js';
 import type { DB } from '../db.js';
-import { ingest } from '../ingest.js';
+import { foreignUniverse, ingest } from '../ingest.js';
 import { buildUniverseJson } from '../universeJson.js';
 
 interface IngestBody {
@@ -21,6 +21,9 @@ export function ingestRoutes(app: FastifyInstance, db: DB) {
     const ctx = groupContext(db, req, req.params.uni);
     const body = req.body ?? {};
     if (!body.html && !body.text) throw new HttpError(400, 'nothing_pasted', 'Nothing pasted');
+    if (foreignUniverse(body.html, ctx.universe.settings.gameUrl)) {
+      throw new HttpError(400, 'wrong_universe', `The pasted page is from another universe than ${ctx.universe.name}`);
+    }
     return ingest(
       db,
       { groupId: ctx.groupId, userId: ctx.user.id, timezone: ctx.universe.settings.timezone },

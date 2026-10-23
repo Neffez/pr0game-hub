@@ -51,7 +51,14 @@ function changeGroup() {
   load();
 }
 
-watch(uni, load, { immediate: true });
+// the previous universe's context must never outlive the switch: views and the sync panel would act on it
+watch(uni, (_, before) => {
+  if (before !== undefined) {
+    ctx.value = null;
+    reloadKey.value++;
+  }
+  load();
+}, { immediate: true });
 
 /** Sidebar: `label`/`section` are message keys below nav.* */
 const links = [

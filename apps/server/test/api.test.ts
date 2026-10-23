@@ -526,6 +526,8 @@ describe('api', () => {
     expect(hall.entries.map((e: any) => [e.report_id.slice(0, 4), e.archived, e.report_status])).toEqual([
       ['1528', 0, 'gone'], ['4a2c', 0, 'gone'], ['778f', 0, 'gone'], ['93a4', 1, 'archived'],
     ]);
+    // later tests paste pages of other universes (U7, test server) into u8
+    await app.inject({ method: 'PUT', url: '/hub/api/admin/universes/u8', headers: admin, payload: { settings: { gameUrl: '' } } });
   });
 
   it('keeps groups isolated', async () => {
@@ -1026,5 +1028,20 @@ describe('review fixes', () => {
       const res = await app.inject({ method: 'POST', url: '/hub/api/admin/universes', payload: { slug: 'u9', settings }, ...h });
       expect(res.json().code).toBe('setting_invalid');
     }
+  });
+});
+
+describe('universe check on paste', () => {
+  it('tells pasted pages of another universe apart', async () => {
+    const { foreignUniverse } = await import('../src/ingest.js');
+    const link = (base: string) => `<a href="${base}game.php?page=statistics">x</a>`;
+    expect(foreignUniverse(link('https://pr0game.com/uni7/'), 'https://pr0game.com/uni7/')).toBeNull();
+    expect(foreignUniverse(link('http://pr0game.com/uni7/'), 'https://pr0game.com/uni7')).toBeNull();
+    expect(foreignUniverse(link('https://test.pr0game.com/'), 'https://pr0game.com/uni7/')).not.toBeNull();
+    expect(foreignUniverse(fixture('stats-real-source.html'), 'https://pr0game.com/uni7/')).toBeNull();
+    expect(foreignUniverse(fixture('stats-real-source.html'), 'https://pr0game.com/uni8/')).not.toBeNull();
+    // no marker or no game URL: nothing to tell
+    expect(foreignUniverse('<table></table>', 'https://pr0game.com/uni7/')).toBeNull();
+    expect(foreignUniverse(link('https://test.pr0game.com/'), '')).toBeNull();
   });
 });
