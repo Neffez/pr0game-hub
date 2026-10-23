@@ -42,7 +42,8 @@ export interface HostileAttack {
   until: number;
 }
 
-const shipsKey = (ships: Record<number, number>) =>
+/** Ships as a comparable key (amounts above zero, by id). */
+export const shipsKey = (ships: Record<number, number>) =>
   JSON.stringify(Object.entries(ships).filter(([, n]) => n > 0).sort(([a], [b]) => Number(a) - Number(b)));
 
 /** Same attack across pastes and members: route and the ships of the lead fleet (the arrival may move by delays). */

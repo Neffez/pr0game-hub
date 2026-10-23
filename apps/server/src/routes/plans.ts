@@ -3,10 +3,11 @@ import { HttpError } from '../auth.js';
 import type { GroupContext } from '../context.js';
 import { now, type DB } from '../db.js';
 import { events } from '../events.js';
+import { localToEpoch, nearestClock, parseFleetsText } from '@pr0hub/core';
 import { CLASS_RESEARCH } from '@pr0hub/core/tech';
 import { latestEmpires } from '../repo/empire.js';
 import { sharedFleets, type StoredFleet } from '../repo/fleets.js';
-import { attackKey, hostileAttacks, recallWindow, type Body, type EnemyFleet } from '../repo/hostile.js';
+import { attackKey, hostileAttacks, recallWindow, shipsKey, type Body, type EnemyFleet, type HostileAttack } from '../repo/hostile.js';
 import { contextOf, DISPLAY, MEMBER } from './util.js';
 
 const STATUSES = ['planning', 'launched', 'done', 'cancelled'];
@@ -22,8 +23,11 @@ const KEEP_SECONDS = 7 * 86400;
 const CLAIM_AFTER = 600;
 /** Research ids of the plan fleets: drives and fuel efficiency (flight times), weapons, shields, armour (simulator). */
 const RESEARCH_IDS = [115, 117, 118, 134, 109, 110, 111];
-/** Missions of an own fleet that count as launched for a plan: attack, ACS attack, destroy. */
+/** Missions of an own fleet that count as launched for a plan: attack, ACS attack, destroy; hold for hold plans. */
 const LAUNCH_MISSIONS = [1, 2, 9];
+const HOLD_MISSION = 5;
+/** Hold fleets land by default 1 s before the impact (a hold must be there before the fight). */
+const HOLD_OFFSET = -1;
 /** An own fleet in flight counts for a plan when it lands from an hour before its time until an hour after its end. */
 const LAUNCH_SLACK = 3600;
 
@@ -62,6 +66,7 @@ interface PlanRow {
   target_time: number;
   status: string;
   claim_id: number | null;
+  mission: 'attack' | 'hold';
 }
 
 interface EnemyBody {
@@ -77,6 +82,8 @@ interface EnemyBody {
   buffer?: number;
   /** plan target time derived by the client (return of the chosen candidate plus the buffer) */
   target_time?: number;
+  /** hold plans: seconds from the impact the fleets land */
+  hold_offset?: number;
 }
 
 interface EnemyRow {
@@ -109,6 +116,9 @@ interface EnemyRow {
   updated_by: string | null;
   /** recall window suggested by the overview pastes (the attack vanished before its arrival) */
   recall_seen?: { from: number; to: number } | null;
+  hold_offset: number;
+  phalanx_home: number | null;
+  phalanx_time: number | null;
 }
 
 interface FleetRow {
@@ -231,7 +241,7 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
     const plans = db
       .prepare(
         `SELECT a.id, a.user_id, ${DISPLAY} AS creator, a.g, a.s, a.p, a.planet_type, a.target_time, a.time_precision, a.note, a.status,
-           a.created_at, a.updated_at, c.user_id AS claim_user_id, COALESCE(a.player_id, pl.player_id) AS player_id, pr.name AS player_name,
+           a.mission, a.created_at, a.updated_at, c.user_id AS claim_user_id, COALESCE(a.player_id, pl.player_id) AS player_id, pr.name AS player_name,
            CASE WHEN a.planet_type = 'moon' THEN pl.moon_name ELSE pl.name END AS planet_name
          FROM attack_plans a
          JOIN users u ON u.id = a.user_id ${MEMBER('a')}
@@ -256,8 +266,15 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
       drives.set(e.userId, { time: e.time, research: Object.fromEntries(RESEARCH_IDS.map((id) => [id, e.rec.research[id] ?? 0])) });
     }
     const enemies = new Map(enemiesOf(ctx, plans.map((p) => p.id)).map((e) => [e.plan_id, e]));
+    // a hold follows the impact (also after a delay of the enemy)
+    for (const p of plans as unknown as (PlanRow & Record<string, unknown>)[]) {
+      const e = enemies.get(p.id);
+      if (p.mission !== 'hold' || !e || p.target_time === e.arrival + e.hold_offset) continue;
+      p.target_time = e.arrival + e.hold_offset;
+      db.prepare('UPDATE attack_plans SET target_time = ? WHERE id = ?').run(p.target_time, p.id);
+    }
     const launched = launchedOf(ctx, plans as unknown as LaunchPlan[], fleets);
-    const spies = new Map(plans.map((p) => [p.id, targetSpy(ctx, p as unknown as SpyPlan)]));
+    const spies = new Map(plans.map((p) => [p.id, p.mission === 'hold' ? null : targetSpy(ctx, p as unknown as SpyPlan)]));
     return plans.map((p) => ({
       ...p,
       fleets: fleets
@@ -297,10 +314,10 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
     return { time: row.report_time, values: Object.assign({}, ...Object.values(sections)) };
   }
 
-  type LaunchPlan = Pick<PlanRow, 'id' | 'g' | 's' | 'p' | 'planet_type' | 'target_time' | 'status'> & { time_precision: string };
+  type LaunchPlan = Pick<PlanRow, 'id' | 'g' | 's' | 'p' | 'planet_type' | 'target_time' | 'status' | 'mission'> & { time_precision: string };
   type LaunchFleet = { id: number; plan_id: number; user_id: number; g: number | null; s: number | null; p: number | null; planet_type: string | null; status: string };
   /**
-   * Plan fleets the member's newest overview shows in flight: an own attack from the fleet's start to the plan's target,
+   * Plan fleets the member's newest overview shows in flight: an own attack (hold plans: hold) from the fleet's start to the plan's target,
    * landing around the plan's time (as the viewer may see it, `sharedFleets`). Returns the real arrival and the paste
    * time per plan fleet; an invited or ready fleet becomes launched.
    */
@@ -311,6 +328,7 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
       !!b && b.coords.g === g && b.coords.s === s && b.coords.p === p && b.type === type;
     for (const plan of plans) {
       if (plan.g == null || (plan.status !== 'planning' && plan.status !== 'launched')) continue;
+      const missions = plan.mission === 'hold' ? [HOLD_MISSION] : LAUNCH_MISSIONS;
       const from = plan.target_time - LAUNCH_SLACK;
       const to = plan.target_time + (plan.time_precision === 'day' ? 86400 : plan.time_precision === 'hour' ? 3600 : 0) + LAUNCH_SLACK;
       for (const f of fleets) {
@@ -323,7 +341,7 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
         if (!snap) continue;
         let best = -1;
         snap.data.forEach((m, i) => {
-          if (m.owner !== 'own' || m.phase !== 'out' || m.mission == null || !LAUNCH_MISSIONS.includes(m.mission) || snap.used.has(i)) return;
+          if (m.owner !== 'own' || m.phase !== 'out' || m.mission == null || !missions.includes(m.mission) || snap.used.has(i)) return;
           if (!same(m.to, plan.g!, plan.s!, plan.p!, plan.planet_type) || !same(m.from, f.g!, f.s!, f.p!, f.planet_type ?? 'planet')) return;
           if (m.arrival < from || m.arrival > to) return;
           if (best < 0 || Math.abs(m.arrival - plan.target_time) < Math.abs(snap.data[best].arrival - plan.target_time)) best = i;
@@ -386,6 +404,8 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
     recall: e.recall_from != null && e.recall_to != null ? { from: e.recall_from, to: e.recall_to } : null,
     recall_lead: !!e.recall_lead,
     recall_seen: e.recall_seen ?? null,
+    hold_offset: e.hold_offset,
+    phalanx: e.phalanx_home != null ? { home: e.phalanx_home, time: e.phalanx_time } : null,
     percent: e.percent,
     buffer: e.buffer,
     updated_at: e.updated_at,
@@ -397,12 +417,14 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
     const ctx = ctxOf(req);
     const rows = db
       .prepare(
-        `SELECT e.plan_id, e.from_g, e.from_s, e.from_p, e.from_type, e.to_g, e.to_s, e.to_p, e.to_type, e.fleets FROM attack_plan_enemy e
+        `SELECT e.plan_id, e.from_g, e.from_s, e.from_p, e.from_type, e.to_g, e.to_s, e.to_p, e.to_type, e.fleets, a.mission FROM attack_plan_enemy e
          JOIN attack_plans a ON a.id = e.plan_id WHERE a.group_id = ? AND a.status <> 'cancelled'`,
       )
-      .all(ctx.groupId) as EnemyRow[];
-    const planOfKey = new Map(rows.map((e) => [attackKey(fromOf(e), toOf(e), (JSON.parse(e.fleets) as EnemyFleet[])[0]?.ships ?? {}), e.plan_id]));
-    return hostileAttacks(db, ctx).map((a) => ({ ...a, planId: planOfKey.get(a.key) ?? null }));
+      .all(ctx.groupId) as (EnemyRow & { mission: string })[];
+    const keyOf = (e: EnemyRow) => attackKey(fromOf(e), toOf(e), (JSON.parse(e.fleets) as EnemyFleet[])[0]?.ships ?? {});
+    const retimes = new Map(rows.filter((e) => e.mission !== 'hold').map((e) => [keyOf(e), e.plan_id]));
+    const holds = new Map(rows.filter((e) => e.mission === 'hold').map((e) => [keyOf(e), e.plan_id]));
+    return hostileAttacks(db, ctx).map((a) => ({ ...a, planId: retimes.get(a.key) ?? null, holdPlanId: holds.get(a.key) ?? null }));
   });
 
   /**
@@ -421,29 +443,104 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
       // a good retime lands right after the return: 0-1 s
       const buffer = bufferOf(b.buffer ?? 1);
       return db.transaction(() => {
-        const id = Number(
-          db
-            .prepare(
-              `INSERT INTO attack_plans (group_id, user_id, player_id, g, s, p, planet_type, target_time, time_precision)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'exact')`,
-            )
-            .run(ctx.groupId, ctx.user.id, attack.player?.id ?? null, attack.from.g, attack.from.s, attack.from.p, attack.from.type, targetTime).lastInsertRowid,
-        );
-        db.prepare(
-          `INSERT INTO attack_plan_enemy (plan_id, member_id, from_g, from_s, from_p, from_type, to_g, to_s, to_p, to_type, fleets, follow,
-             arrival, first_seen, drives, drives_source, drives_time, buffer, updated_by)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        ).run(
-          id, attack.memberId, attack.from.g, attack.from.s, attack.from.p, attack.from.type, attack.to.g, attack.to.s, attack.to.p, attack.to.type,
-          JSON.stringify(attack.fleets), follow, attack.arrival, attack.arrival, JSON.stringify(attack.drives?.research ?? {}),
-          attack.drives ? 'spy' : null, attack.drives?.time ?? null, buffer, ctx.user.id,
-        );
+        const id = planFromAttack(ctx, attack, 'attack', attack.from, attack.player?.id ?? null, targetTime, { follow, buffer });
         const claimedBy = claim(ctx, id, attack.from, targetTime);
         events.publish(ctx.groupId, { type: 'data', tables: ['attack_plans', 'target_claims'], userId: ctx.user.id });
         return { id, claimedBy };
       })();
     },
   );
+
+  /**
+   * Hold plan for a hostile attack: own fleets hold on the attacked planet, each landing on its own `hold_offset`
+   * seconds from the impact (default 1 s before it). The target is a member's planet: no claim.
+   */
+  app.post<{ Params: { uni: string }; Body: { key?: string } }>('/api/:uni/plans/hold', async (req) => {
+    const ctx = ctxOf(req);
+    const attack = hostileAttacks(db, ctx).find((a) => a.key === req.body?.key);
+    if (!attack) throw new HttpError(404, 'attack_not_found', 'Hostile attack not found (arrived or not pasted)');
+    const id = db.transaction(() => planFromAttack(ctx, attack, 'hold', attack.to, null, attack.arrival + HOLD_OFFSET, { follow: 0, buffer: 1 }))();
+    events.publish(ctx.groupId, { type: 'data', tables: ['attack_plans'], userId: ctx.user.id });
+    return { id };
+  });
+
+  /** New plan on `target` answering a hostile attack, which is kept with it (`attack_plan_enemy`). */
+  function planFromAttack(
+    ctx: GroupContext, attack: HostileAttack, mission: 'attack' | 'hold', target: Body, playerId: number | null, targetTime: number,
+    o: { follow: number; buffer: number },
+  ): number {
+    const id = Number(
+      db
+        .prepare(
+          `INSERT INTO attack_plans (group_id, user_id, player_id, g, s, p, planet_type, target_time, time_precision, mission)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'exact', ?)`,
+        )
+        .run(ctx.groupId, ctx.user.id, playerId, target.g, target.s, target.p, target.type, targetTime, mission).lastInsertRowid,
+    );
+    db.prepare(
+      `INSERT INTO attack_plan_enemy (plan_id, member_id, from_g, from_s, from_p, from_type, to_g, to_s, to_p, to_type, fleets, follow,
+         arrival, first_seen, drives, drives_source, drives_time, buffer, hold_offset, updated_by)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      id, attack.memberId, attack.from.g, attack.from.s, attack.from.p, attack.from.type, attack.to.g, attack.to.s, attack.to.p, attack.to.type,
+      JSON.stringify(attack.fleets), o.follow, attack.arrival, attack.arrival, JSON.stringify(attack.drives?.research ?? {}),
+      attack.drives ? 'spy' : null, attack.drives?.time ?? null, o.buffer, HOLD_OFFSET, ctx.user.id,
+    );
+    return id;
+  }
+
+  /** Creator, admins and every member with a fleet in the plan may change the enemy side of a plan. */
+  function enemyOfPlan(ctx: GroupContext, planId: number) {
+    const plan = planOf(ctx, planId);
+    if (plan.user_id !== ctx.user.id && !isAdmin(ctx) && !isParticipant(ctx, plan.id)) throw new HttpError(403, 'plan_not_yours', 'Only participants can change the enemy fleet');
+    const enemy = db.prepare('SELECT * FROM attack_plan_enemy WHERE plan_id = ?').get(plan.id) as EnemyRow | undefined;
+    if (!enemy) throw new HttpError(404, 'plan_enemy_not_found', 'The plan has no enemy fleet');
+    return { plan, enemy };
+  }
+  /** New target time of a plan (exact), the claim follows. */
+  function setTargetTime(plan: PlanRow, targetTime: number) {
+    db.prepare("UPDATE attack_plans SET target_time = ?, time_precision = 'exact', updated_at = ? WHERE id = ?").run(targetTime, now(), plan.id);
+    if (plan.claim_id) db.prepare('UPDATE target_claims SET expires_at = ? WHERE id = ? AND released_at IS NULL').run(targetTime + CLAIM_AFTER, plan.claim_id);
+  }
+
+  /**
+   * Phalanx result of the enemy's origin (copied like the overview): the followed fleet's landing back home. The game
+   * writes the phalanxed player's fleets as "yours" ("Eine deiner Flotten … kehrt vom … zurück zum …"); the fleet
+   * returning from the attacked planet to the origin with the followed fleet's ships counts, else the latest one on
+   * that route. A retime then lands its buffer after it.
+   */
+  app.post<{ Params: { uni: string; id: string }; Body: { text?: string } }>('/api/:uni/plans/:id/phalanx', async (req) => {
+    const ctx = ctxOf(req);
+    const { plan, enemy: e } = enemyOfPlan(ctx, Number(req.params.id));
+    const tz = ctx.universe.settings.timezone;
+    const rec = parseFleetsText(String(req.body?.text ?? ''));
+    const pageTime = (rec?.pageTime ? localToEpoch(rec.pageTime, tz) : null) ?? now();
+    const at = (b: { coords: { g: number; s: number; p: number }; type: string | null } | null, g: number, s: number, p: number, type: string) =>
+      !!b && b.coords.g === g && b.coords.s === s && b.coords.p === p && b.type === type;
+    const back = (rec?.fleets ?? [])
+      .filter((f) => f.phase === 'return' && at(f.to, e.from_g, e.from_s, e.from_p, e.from_type) && at(f.from, e.to_g, e.to_s, e.to_p, e.to_type))
+      .map((f) => ({ ships: f.ships, home: f.clock ? nearestClock(pageTime + f.seconds, f.clock, tz) : pageTime + f.seconds }));
+    if (!back.length) throw new HttpError(400, 'phalanx_not_found', 'No fleet of this attack returning home in the text');
+    const followed = shipsKey((JSON.parse(e.fleets) as EnemyFleet[])[e.follow]?.ships ?? {});
+    const hit = back.find((b) => shipsKey(b.ships) === followed) ?? back.reduce((a, b) => (b.home > a.home ? b : a));
+    db.transaction(() => {
+      db.prepare('UPDATE attack_plan_enemy SET phalanx_home = ?, phalanx_time = ?, updated_at = ?, updated_by = ? WHERE plan_id = ?').run(
+        hit.home, now(), now(), ctx.user.id, plan.id,
+      );
+      if (plan.mission !== 'hold') setTargetTime(plan, hit.home + e.buffer);
+    })();
+    events.publish(ctx.groupId, { type: 'data', tables: ['attack_plans'], userId: ctx.user.id });
+    return { home: hit.home };
+  });
+
+  /** Drops the phalanx result: the speed candidates count again. */
+  app.delete<{ Params: { uni: string; id: string } }>('/api/:uni/plans/:id/phalanx', async (req) => {
+    const ctx = ctxOf(req);
+    const { plan } = enemyOfPlan(ctx, Number(req.params.id));
+    db.prepare('UPDATE attack_plan_enemy SET phalanx_home = NULL, phalanx_time = NULL, updated_at = ?, updated_by = ? WHERE plan_id = ?').run(now(), ctx.user.id, plan.id);
+    events.publish(ctx.groupId, { type: 'data', tables: ['attack_plans'], userId: ctx.user.id });
+    return { ok: true };
+  });
 
   const followOf = (v: unknown, count: number) => {
     if (!Number.isInteger(v) || (v as number) < 0 || (v as number) >= count) throw new HttpError(400, 'plan_enemy_invalid', 'Invalid fleet');
@@ -463,15 +560,13 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
   }
 
   /**
-   * Inputs on the enemy fleet (followed fleet, drives, departure and recall window, candidate, buffer) and the
-   * target time derived from them: creator, admins and every member with a fleet in the plan.
+   * Inputs on the enemy fleet (followed fleet, drives, departure and recall window, candidate, buffer; hold offset)
+   * and the target time derived from them (a hold's from the impact): creator, admins and every member with a fleet in
+   * the plan.
    */
   app.put<{ Params: { uni: string; id: string }; Body: EnemyBody }>('/api/:uni/plans/:id/enemy', async (req) => {
     const ctx = ctxOf(req);
-    const plan = planOf(ctx, Number(req.params.id));
-    if (plan.user_id !== ctx.user.id && !isAdmin(ctx) && !isParticipant(ctx, plan.id)) throw new HttpError(403, 'plan_not_yours', 'Only participants can change the enemy fleet');
-    const enemy = db.prepare('SELECT fleets FROM attack_plan_enemy WHERE plan_id = ?').get(plan.id) as { fleets: string } | undefined;
-    if (!enemy) throw new HttpError(404, 'plan_enemy_not_found', 'The plan has no enemy fleet');
+    const { plan, enemy } = enemyOfPlan(ctx, Number(req.params.id));
     const b = req.body ?? {};
     const set: Record<string, unknown> = {};
     if (b.follow !== undefined) set.follow = followOf(b.follow, (JSON.parse(enemy.fleets) as unknown[]).length);
@@ -493,16 +588,20 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
       set.percent = v;
     }
     if (b.buffer !== undefined) set.buffer = bufferOf(b.buffer);
-    const targetTime = b.target_time !== undefined ? timeOf(b.target_time) : null;
+    if (b.hold_offset !== undefined) {
+      const v = b.hold_offset;
+      if (!Number.isInteger(v) || v < -3600 || v > 3600) throw new HttpError(400, 'plan_enemy_invalid', 'Hold offset: -3600 to 3600 seconds');
+      set.hold_offset = v;
+    }
+    const targetTime =
+      plan.mission === 'hold' ? enemy.arrival + ((set.hold_offset as number | undefined) ?? enemy.hold_offset)
+      : b.target_time !== undefined ? timeOf(b.target_time) : null;
     db.transaction(() => {
       const cols = Object.keys(set);
       db.prepare(`UPDATE attack_plan_enemy SET ${[...cols.map((k) => `${k} = ?`), 'updated_at = ?', 'updated_by = ?'].join(', ')} WHERE plan_id = ?`).run(
         ...Object.values(set), now(), ctx.user.id, plan.id,
       );
-      if (targetTime != null) {
-        db.prepare("UPDATE attack_plans SET target_time = ?, time_precision = 'exact', updated_at = ? WHERE id = ?").run(targetTime, now(), plan.id);
-        if (plan.claim_id) db.prepare('UPDATE target_claims SET expires_at = ? WHERE id = ? AND released_at IS NULL').run(targetTime + CLAIM_AFTER, plan.claim_id);
-      }
+      if (targetTime != null) setTargetTime(plan, targetTime);
     })();
     events.publish(ctx.groupId, { type: 'data', tables: ['attack_plans'], userId: ctx.user.id });
     return { ok: true };

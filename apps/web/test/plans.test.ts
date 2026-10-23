@@ -1,7 +1,7 @@
 import { distance, flightDuration, shipSpeed } from '@pr0hub/flight';
 import { describe, expect, it } from 'vitest';
 import type { UniverseSettings } from '../src/format';
-import { computePlan, draftBody, draftOf, enemyCalcLink, fleetCalcLink, fromLocalInput, planCounts, isCurrent, newDraft, parseTarget, toLocalInput, type AttackPlan, type PlanEnemy, type PlanFleet } from '../src/plans';
+import { computePlan, draftBody, draftOf, enemyCalcLink, fleetCalcLink, fromLocalInput, holdRating, planCounts, isCurrent, newDraft, parseTarget, toLocalInput, type AttackPlan, type PlanEnemy, type PlanFleet } from '../src/plans';
 
 const u: UniverseSettings = {
   galaxies: 9, systems: 400, positions: 15, circularGalaxies: true, circularSystems: true,
@@ -15,7 +15,7 @@ const fleet = (id: number, userId: number, start: [number, number, number] | nul
 });
 const plan = (fleets: PlanFleet[]): AttackPlan => ({
   id: 1, user_id: 1, creator: 'm1', g: 1, s: 41, p: 1, planet_type: 'moon', target_time: 2_000_000_000, time_precision: 'exact', note: null, status: 'planning',
-  created_at: 0, updated_at: 0, claim_user_id: 1, player_id: null, player_name: null, planet_name: null, fleets,
+  mission: 'attack', created_at: 0, updated_at: 0, claim_user_id: 1, player_id: null, player_name: null, planet_name: null, fleets,
 });
 
 describe('attack plans in the web app', () => {
@@ -65,6 +65,17 @@ describe('attack plans in the web app', () => {
     expect(isCurrent({ ...plan([]), status: 'done' }, 0)).toBe(false);
   });
 
+  it('lets every fleet of a hold land on its own, without ACS or delays', () => {
+    const view = computePlan(u, { ...plan([fleet(1, 1, [1, 40, 5], { 204: 10 }), fleet(2, 2, [2, 100, 3], { 207: 5 }, 50)]), mission: 'hold' }, 2_000_000_000 - 60);
+    expect(view.acs).toBeNull();
+    const d1 = flightDuration(u, distance(u, [1, 40, 5], [1, 41, 1]), shipSpeed(204, { combustion: 10, impulse: 8, hyperspace: 6 }), 100);
+    expect(view.fleets[0].plan).toMatchObject({ launch: 2_000_000_000 - Math.floor(d1), delays: false, beforeLead: false, outside: false });
+    // the slow fleet can no longer make it: it is late, but pushes nothing back
+    expect(view.fleets[1].plan).toMatchObject({ late: true, delays: false });
+    expect(holdRating(-1)).toBe('safe');
+    expect(holdRating(0)).toBe('late');
+  });
+
   it('counts current plans for the menu: in planning and running', () => {
     const launched = { ...fleet(2, 2, [1, 40, 5], { 204: 1 }), status: 'launched' as const };
     const plans = [
@@ -89,7 +100,7 @@ describe('attack plans in the web app', () => {
     const enemy: PlanEnemy = {
       member_id: 1, member: 'm1', from: { g: 1, s: 41, p: 1, type: 'moon' }, to: { g: 3, s: 115, p: 8, type: 'planet' },
       fleets: [{ mission: 1, ships: { 210: 1 } }, { mission: 2, ships: { 207: 1773 } }], follow: 1, arrival: 2_000_000_100, first_seen: 2_000_000_000,
-      drives: { 115: 12, 117: 11, 118: 9 }, drives_source: 'spy', drives_time: 0, departure: null, recall: null, recall_lead: true, recall_seen: null, percent: 80, buffer: 1,
+      drives: { 115: 12, 117: 11, 118: 9 }, drives_source: 'spy', drives_time: 0, departure: null, recall: null, recall_lead: true, recall_seen: null, percent: 80, buffer: 1, hold_offset: -1, phalanx: null,
       updated_at: 0, updated_by: null,
     };
     expect(hash(enemyCalcLink(u, enemy, own))).toMatchObject({

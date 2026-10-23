@@ -33,13 +33,28 @@ const plans = [
       fleets: [{ mission: 1, ships: { 210: 1 } }, { mission: 2, ships: { 207: 1773, 215: 2 } }], follow: 1,
       arrival: target, first_seen: target - 600, drives: { 115: 10, 117: 8, 118: 6 }, drives_source: 'spy', drives_time: Math.floor(Date.now() / 1000),
       departure: null, recall: null, recall_lead: true, recall_seen: { from: target - 3000, to: target - 2400 }, percent: null, buffer: 5,
-      updated_at: 0, updated_by: null,
+      hold_offset: -1, phalanx: null, updated_at: 0, updated_by: null,
+    },
+  },
+  {
+    id: 10, user_id: 1, creator: 'Carol', g: 1, s: 100, p: 12, planet_type: 'planet', target_time: target + 299, time_precision: 'exact', note: null,
+    status: 'planning', mission: 'hold', created_at: 0, updated_at: 0, claim_user_id: null, player_id: null, player_name: null, planet_name: 'Ares',
+    fleets: [
+      { id: 11, user_id: 1, member: 'Carol', g: 1, s: 40, p: 5, planet_type: 'planet', ships: { 204: 10 }, speed: 100, status: 'ready', updated_at: 0,
+        drives: { time: Math.floor(Date.now() / 1000), research: { 115: 10 } }, seen: null },
+      { id: 12, user_id: 2, member: 'Dave', g: 2, s: 100, p: 3, planet_type: 'planet', ships: { 207: 10 }, speed: 100, status: 'ready', updated_at: 0,
+        drives: { time: Math.floor(Date.now() / 1000), research: { 118: 6 } }, seen: null },
+    ],
+    enemy: {
+      member_id: 1, member: 'Carol', from: { g: 2, s: 5, p: 5, type: 'planet' }, to: { g: 1, s: 100, p: 12, type: 'planet' },
+      fleets: [{ mission: 1, ships: { 206: 40 } }], follow: 0, arrival: target + 300, first_seen: target + 300, drives: {}, drives_source: null, drives_time: null,
+      departure: null, recall: null, recall_lead: true, recall_seen: null, percent: null, buffer: 1, hold_offset: -1, phalanx: null, updated_at: 0, updated_by: null,
     },
   },
 ];
 const attacks = [
   { key: 'k1', memberId: 2, member: 'Dave', seen: 0, arrival: target + 300, from: { g: 2, s: 5, p: 5, type: 'planet' }, to: { g: 1, s: 42, p: 7, type: 'planet' },
-    fleets: [{ mission: 1, ships: { 206: 40 } }], player: null, drives: null, until: target + 9999, planId: null },
+    fleets: [{ mission: 1, ships: { 206: 40 } }], player: null, drives: null, until: target + 9999, planId: null, holdPlanId: 10 },
 ];
 const empire = {
   empire: {
@@ -190,6 +205,20 @@ describe('raid planner page', () => {
     await settle();
     expect(panel.textContent).toMatch(/Zielzeit des Plans: \d\d:\d\d:\d\d/);
     expect(panel.querySelector<HTMLButtonElement>('button.primary')!.disabled).toBe(false);
+  });
+
+  it('plans holds next to retimes: every fleet lands on its own 1 s before the impact', () => {
+    expect(root.querySelector('.attacks')!.textContent).toContain('Halten geplant');
+    const plan = [...root.querySelectorAll('.plan')].find((p) => p.querySelector('div.hold'))!;
+    expect(plan.querySelector('.badge.mission-hold')!.textContent).toBe('Halten');
+    expect(plan.querySelector('div.hold')!.textContent).toContain('rechtzeitig vor dem Einschlag');
+    expect(plan.querySelector('div.hold')!.textContent).toContain('(−1 s)');
+    // no ACS: no lead, both launch times shown
+    expect(plan.textContent).not.toContain('Anführer');
+    expect(plan.querySelectorAll('tbody tr')).toHaveLength(2);
+    expect([...plan.querySelectorAll('tbody tr')].every((r) => /\d\d:\d\d:\d\d/.test(r.textContent!))).toBe(true);
+    // the retime panel takes a phalanx result
+    expect(root.querySelector('.retime textarea.phalanx')).not.toBeNull();
   });
 
   it('offers the recall seen in the overview pastes and links into the flight calculator', async () => {

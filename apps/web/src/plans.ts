@@ -47,6 +47,8 @@ export interface AttackPlan {
   time_precision: Precision;
   note: string | null;
   status: 'planning' | 'launched' | 'done' | 'cancelled';
+  /** attack (solo, ACS, retime) or hold on a member's planet against a hostile attack */
+  mission: 'attack' | 'hold';
   created_at: number;
   updated_at: number;
   /** member holding the plan's target claim (null: none, e.g. claimed by someone else) */
@@ -93,6 +95,10 @@ export interface PlanEnemy {
   recall_seen: { from: number; to: number } | null;
   percent: number | null;
   buffer: number;
+  /** hold plans: seconds from the impact the hold fleets land */
+  hold_offset: number;
+  /** landing of the followed fleet back home as a pasted phalanx showed it (then the retime lands after it) */
+  phalanx: { home: number; time: number | null } | null;
   updated_at: number;
   updated_by: string | null;
 }
@@ -110,7 +116,9 @@ export interface HostileAttack {
   player: { id: number; name: string } | null;
   drives: { research: Record<string, number>; time: number | null } | null;
   until: number;
+  /** retime and hold plan answering it */
   planId: number | null;
+  holdPlanId: number | null;
 }
 
 /** Inputs of the enemy analysis (plan enemy or form values). */
@@ -185,6 +193,9 @@ export const bufferRating = (seconds: number) => (seconds <= 1 ? 'good' : second
 /** Landing back home of a candidate: after the impact, or the earliest return after the recall. */
 export const candidateHome = (c: RetimeCandidate) => (c.recallHome ? c.recallHome.from : c.home);
 
+/** A hold must be there before the fight: at least 1 s before the impact; later only pays off if the enemy delays. */
+export const holdRating = (offset: number) => (offset <= -1 ? 'safe' : 'late');
+
 /** Fleet of an attack to follow by default: the one with the most ships (the main fleet, not the lead's probe). */
 export const mainFleet = (fleets: EnemyFleet[]) =>
   fleets.reduce((best, f, i) => (Object.values(f.ships).reduce((a, n) => a + n, 0) > Object.values(fleets[best].ships).reduce((a, n) => a + n, 0) ? i : best), 0);
@@ -222,6 +233,16 @@ export function computePlan(u: UniverseSettings, plan: AttackPlan, now: number):
     if (!slowest) return { fleet: f, duration: null };
     return { fleet: f, duration: flightDuration(u, distance(u, [f.g, f.s, f.p], target), slowest.speed, f.speed) };
   });
+  // holds cannot be delayed and form no ACS: every fleet lands on its own
+  if (plan.mission === 'hold') {
+    return {
+      acs: null,
+      fleets: flights.map((x) => ({
+        ...x,
+        plan: x.duration == null ? null : { ...planAttack(plan.target_time, [{ id: String(x.fleet.id), player: String(x.fleet.user_id), duration: x.duration }], now).fleets[0], delays: false },
+      })),
+    };
+  }
   const flying = flights.filter((x): x is { fleet: PlanFleet; duration: number } => x.duration != null);
   const acs = flying.length
     ? planAttack(plan.target_time, flying.map((x) => ({ id: String(x.fleet.id), player: String(x.fleet.user_id), duration: x.duration })), now)

@@ -20,6 +20,16 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Raid-Planer: Neben „Retime planen“ gibt es bei feindlichen Angriffen „Halten planen“. Die Halteflotten landen standardmäßig 1 Sekunde vor dem Einschlag, jede für sich, und die Zeit folgt einer Verzögerung des Gegners.',
+        en: 'Raid planner: next to "Plan retime", hostile attacks now offer "Plan hold". Hold fleets land 1 second before the impact by default, each on its own, and the time follows a delay of the enemy.',
+      },
+      {
+        kind: 'new',
+        de: 'Retime: Ein eingefügtes Phalanx-Ergebnis vom Ursprung des Angreifers liefert die Landung zu Hause direkt, die Zielzeit ergibt sich dann daraus.',
+        en: "Retime: a pasted phalanx result of the attacker's origin gives the landing home directly, and the target time follows from it.",
+      },
+      {
+        kind: 'new',
         de: 'Menü: Beim Raid-Planer steht, wie viele Pläne gerade in Planung (grau) und gestartet (grün) sind.',
         en: 'Menu: the raid planner shows how many plans are being planned (grey) and launched (green).',
       },

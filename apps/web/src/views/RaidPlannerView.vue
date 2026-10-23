@@ -4,6 +4,7 @@ import Hint from '../components/Hint.vue';
 import PlanetActions from '../components/PlanetActions.vue';
 import PlanTargetForm from '../components/PlanTargetForm.vue';
 import PlayerLink from '../components/PlayerLink.vue';
+import HoldPanel from '../components/HoldPanel.vue';
 import RetimePanel from '../components/RetimePanel.vue';
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -190,6 +191,10 @@ async function planRetime(a: HostileAttack) {
   });
   loadClaims(uni.value);
 }
+/** Hold on the attacked planet: the fleets land 1 s before the impact (changeable in the plan). */
+async function planHold(a: HostileAttack) {
+  await run(() => uniApi(uni.value, '/plans/hold', { body: { key: a.key } }));
+}
 const attackShips = (a: HostileAttack) =>
   a.fleets.length > 1 ? t('notify.acs', { n: a.fleets.length }) : (a.fleets[0]?.mission != null ? t(`game.missions.${a.fleets[0].mission}`) : '');
 const canEditEnemy = (p: AttackPlan) => canEdit(p) || p.fleets.some((f) => f.user_id === me.value);
@@ -366,6 +371,8 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
       <span class="grow" />
       <span v-if="a.planId" class="muted small">{{ t('retime.planned') }}</span>
       <button v-else class="primary" @click="planRetime(a)">{{ t('retime.plan') }}</button>
+      <span v-if="a.holdPlanId" class="muted small">{{ t('hold.planned') }}</span>
+      <button v-else @click="planHold(a)">{{ t('hold.plan') }}</button>
     </div>
   </div>
 
@@ -387,6 +394,7 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
         <PlayerLink v-if="p.player_id" :id="p.player_id" :name="p.player_name ?? '?'" />
         <PlanetActions v-if="hasCoords(p)" :g="p.g!" :s="p.s!" :p="p.p!" :type="p.planet_type" />
         <span class="grow" />
+        <span v-if="p.mission === 'hold'" class="badge mission-hold">{{ t('hold.badge') }}</span>
         <span class="badge">{{ t(`plans.status.${p.status}`) }}</span>
       </div>
 
@@ -408,7 +416,8 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
         </span>
       </div>
       <div v-if="p.note && !editing[p.id]" class="small">{{ p.note }}</div>
-      <RetimePanel v-if="p.enemy" :plan="p" :editable="canEditEnemy(p) && !closed(p)" @saved="load" @error="(m) => (error = m)" />
+      <HoldPanel v-if="p.enemy && p.mission === 'hold'" :plan="p" :editable="canEditEnemy(p) && !closed(p)" @saved="load" @error="(m) => (error = m)" />
+      <RetimePanel v-else-if="p.enemy" :plan="p" :editable="canEditEnemy(p) && !closed(p)" @saved="load" @error="(m) => (error = m)" />
       <div v-if="views.get(p.id)?.acs" class="small">
         <template v-if="views.get(p.id)!.acs!.fleets.length > 1">{{ t('plans.lead', { name: leadName(p) }) }}</template>
         <span v-if="views.get(p.id)!.acs!.tooManyFleets" class="warn"> ⚠ {{ t('plans.tooManyFleets') }}</span>
@@ -450,7 +459,7 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
             <tr v-for="x in views.get(p.id)!.fleets" :key="x.fleet.id" :class="{ mine: x.fleet.user_id === me }">
               <td>
                 {{ x.fleet.member }}
-                <span v-if="x.plan && views.get(p.id)!.acs!.lead === x.plan.id && views.get(p.id)!.acs!.fleets.length > 1" class="badge">{{ t('plans.leadShort') }}</span>
+                <span v-if="x.plan && views.get(p.id)!.acs?.lead === x.plan.id && (views.get(p.id)!.acs?.fleets.length ?? 0) > 1" class="badge">{{ t('plans.leadShort') }}</span>
                 <span v-if="x.duration != null && oldDrives(x.fleet)" class="warn small" :title="t('plans.drivesOld')"> ⚠</span>
               </td>
               <td class="mono">{{ x.fleet.g != null ? coords(x.fleet.g, x.fleet.s!, x.fleet.p!) : '–' }}<span v-if="x.fleet.planet_type === 'moon'" class="muted"> ☾</span></td>
@@ -491,7 +500,7 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
                 <span v-else-if="x.duration == null" class="muted small">{{ hasCoords(p) ? t('plans.incomplete') : '–' }}</span>
                 <span v-else class="muted small">–</span>
               </td>
-              <td class="mono">{{ x.plan && exact(p) ? clock(x.plan.home) : '–' }}</td>
+              <td class="mono">{{ x.plan && exact(p) && p.mission !== 'hold' ? clock(x.plan.home) : '–' }}</td>
               <td>
                 <select
                   v-if="canEditFleet(p, x.fleet) && !closed(p)"
@@ -610,5 +619,6 @@ td.actions { white-space: nowrap; }
 td.actions button { padding: 1px 8px; }
 td.actions .calc { margin-right: 6px; }
 button.danger { color: var(--neg); }
+.badge.mission-hold { color: var(--pos); }
 button.link { padding: 0; border: 0; background: none; cursor: pointer; text-decoration: underline dotted; }
 </style>

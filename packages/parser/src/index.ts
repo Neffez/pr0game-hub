@@ -16,6 +16,7 @@ export * from './util.js';
 export * from './tech.js';
 export * from './deck.js';
 export { looksLikeUniverseJson, UNIVERSE_JSON_STATUS } from './parsers/universeJson.js';
+export { parseFleetsText } from './parsers/fleets.js';
 
 export interface ParseInput {
   /** text/html from the clipboard, a saved page or the page source */

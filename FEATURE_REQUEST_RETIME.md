@@ -1,9 +1,9 @@
 # Feature request: raid planner (attack plans and retime)
 
 Status (2026-10-23): usable. Attack plans (solo, ACS, against a player with rough times) and retime on hostile
-attacks are live in the raid planner, with recall detection, launched fleets from the own overview, flight
-calculator and combat simulator links. Open: phalanx source, ACS limits per universe, browser check, test data (see
-"Still open").
+attacks are live in the raid planner, with hold plans, phalanx results, recall detection, launched fleets from the
+own overview, flight calculator and combat simulator links. Open: the plan on mobile, test data, phalanx pastes in
+the sync (see "Still open").
 
 The raid planner plans own attacks, solo or as ACS, and lands them at the right second. A plan starts empty or from a
 pasted hostile attack ("retime": land on the enemy origin right after the enemy fleet is back).
@@ -48,7 +48,9 @@ Answered by the requester on 2026-10-22/23.
 | Computation | In the hub with `@pr0hub/flight`; link into the flight calculator as an extra. |
 | Shared code | Flight library in this repository, the standalone calculator lives in `apps/tools`. |
 | Retention | Hostile fleets disappear after their latest possible return; plans stay (past ones in their own list). |
-| ACS limits | `max_fleets_per_acs` = 16, `max_participants_per_acs` = 5 (lead + 4); for now constants (`ACS_LIMITS` in `@pr0hub/flight`). |
+| ACS limits | `max_fleets_per_acs` = 16, `max_participants_per_acs` = 5 (lead + 4), the same in every universe (`ACS_LIMITS` in `@pr0hub/flight`). |
+| Hold | Next to a retime, a hostile attack can get a hold plan: own fleets hold on the attacked planet, at the latest 1 s before the impact. Holds cannot be delayed; holding a few seconds late (if the enemy delays) does not show in the enemy's last scan. |
+| Phalanx | The phalanx shows the fleets like the overview and can be copied the same way. |
 | Target and time | A plan names a player and/or coordinates (coordinates may follow); the time is a day, around an hour or the exact impact. |
 | Own ships | Picked from the start planet or from all own ships (planets, moons, in flight), added with the maximum, editable. |
 | Enemy inputs | All participants of a plan may change drive levels, windows and the chosen candidate. |
@@ -124,11 +126,25 @@ From the game source (`ShowFleetStep3Page`, `FleetFunctions::setACSTime`), built
 - **Drives** of the owner (owner by the origin's galaxy data) from the newest spy report with research, editable.
 - **Delay**: a newer overview paste of the same attack with a later arrival updates it; the first seen arrival stays,
   the panel shows the delay.
+- **Phalanx**: a pasted phalanx of the origin gives the landing home directly (`POST /plans/:id/phalanx`). In phalanx
+  mode the game writes the phalanxed player's fleets as their own (`FlyingFleetsTable`, owner = scanned player):
+  "Eine deiner Flotten (…) kehrt vom <attacked planet> zurück zum <origin>". The fleet on that route with the followed
+  fleet's ships counts (else the latest); arrival from page clock and countdown like the overview. The retime's target
+  time is then that landing plus the buffer, without a candidate.
 - **Recall**: entered as a window. When the attack vanished from the attacked member's overview before its arrival,
   the panel suggests the window from the last paste with it to the first paste without it (`recallWindow`,
   `recall_seen`); one click takes it over (as a recall of the lead).
 - **Flight calculator**: link in "retime" mode with the followed fleet, drives, arrival (and the first seen one),
   recall, chosen speed, and the viewer's own fleet in the plan as the counter (start, slowest ship, drives, buffer).
+
+## Hold plans (as built)
+
+- "Halten planen" on a hostile attack (`POST /api/:uni/plans/hold`): plan with `mission` `hold` on the attacked
+  planet, the enemy fleet kept like a retime's, no claim (it is a member's planet), no simulator links.
+- Target time = impact + `hold_offset` (default -1 s, editable by every participant in the hold panel); it follows
+  the impact when a newer paste shows a delay. Rating: up to -1 s in time, from 0 s only if the enemy delays.
+- Every fleet lands on its own (no ACS, no lead, no delay of others); a fleet that cannot make it is late. Return
+  home is not shown (it depends on the hold time). Own hold fleets (mission 5) towards the planet count as launched.
 
 ## Timing rules
 
@@ -233,17 +249,14 @@ The parser `packages/parser/src/parsers/fleets.ts` (stored in `fleet_snapshots`)
 6. **Follow-ups**: recall detection from the overview pastes, launched fleets from the own overview with the real
    arrival, flight calculator links from fleets and the retime panel, combat simulator links with the target's spy
    report.
+7. **Hold and phalanx** (028): hold plans on hostile attacks, phalanx results for retimes.
 
 ## Still open
 
-1. **Phalanx as source**: a phalanx result of a returning fleet gives the landing at home directly (target time without
-   candidates). Needs a copied phalanx text (also: is the window copyable as one text, does it show the ships?).
-2. **ACS limits per universe**: the 16 / 5 are constants; move them into the universe settings if universes differ.
-3. **Check in a real browser**, also the mobile layout (not possible here: headless Chrome does not run on this
-   machine); so far only the happy-dom smoke tests.
-4. **TrashSim import**: check in the browser that a raid planner link loads attackers and defender correctly (the
-   importer in the game source looks one column off for the defender); universes with other ships than universe 7
-   would need their own ship column list.
-5. **Test data**: the full Ctrl+A copy of an overview with an attack (with server clock line), the English texts
-   (taken from the game's language files so far), a copied phalanx result, an own ACS fleet in the overview (to check
-   the launched detection with an ACS member's mission).
+1. **Plan on mobile**: a plan looks cluttered on a phone (feedback from the browser check); to be tidied up.
+2. **Phalanx pastes in the sync**: a phalanx copied into the sync instead of a plan's phalanx field would be read as the
+   member's own fleet list ("Eine deiner Flotten"); detect it (e.g. by the phalanx window's text) and refuse it there.
+3. **Test data** (later): the full Ctrl+A copy of an overview with an attack (with server clock line), the English
+   texts (taken from the game's language files so far), a copied phalanx result, an own ACS fleet in the overview.
+4. **Other universes**: TrashSim's ship columns and the ship table follow universe 7; a universe with other ships would
+   need its own list.

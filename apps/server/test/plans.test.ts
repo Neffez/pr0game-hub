@@ -212,6 +212,22 @@ describe('attack plans', () => {
     expect(plan.enemy.recall_seen.from).toBeLessThan(later);
     expect(plan.enemy.recall).toBeNull();
     db.prepare('DELETE FROM fleet_snapshots WHERE page_time = ?').run(later);
+
+    // a phalanx of the origin shows the fleets flying home ("yours" for the phalanxed player): the followed one counts
+    const phalanx = [
+      '3h 0m 0s Eine deiner Flotten (1 Spionagesonde) kehrt vom Planet Ares [1:100:12] zurück zum Mond Mond [1:41:1]. Mission: Angreifen',
+      '5h 0m 0s Eine deiner Flotten (1773 Schlachtschiff; 2 Schlachtkreuzer) kehrt vom Planet Ares [1:100:12] zurück zum Mond Mond [1:41:1]. Mission: Angreifen',
+      '1h 0m 0s Eine deiner Flotten (5 Leichter Jäger) kehrt vom Planet Woanders [2:2:2] zurück zum Mond Mond [1:41:1]. Mission: Angreifen',
+    ].join('\n');
+    expect((await call('POST', `/plans/${created.id}/phalanx`, carol, { text: 'nichts' })).json().code).toBe('phalanx_not_found');
+    const home = (await call('POST', `/plans/${created.id}/phalanx`, carol, { text: phalanx })).json().home;
+    expect(Math.abs(home - (Math.floor(Date.now() / 1000) + 5 * 3600))).toBeLessThanOrEqual(2);
+    plan = (await call('GET', '/plans', dave)).json().find((p: any) => p.id === created.id);
+    expect(plan.enemy.phalanx.home).toBe(home);
+    expect(plan.target_time).toBe(home + 3);
+    await call('DELETE', `/plans/${created.id}/phalanx`, carol);
+    plan = (await call('GET', '/plans', dave)).json().find((p: any) => p.id === created.id);
+    expect(plan.enemy.phalanx).toBeNull();
     await call('DELETE', `/plans/${created.id}`, dave);
   });
 
@@ -258,6 +274,35 @@ describe('attack plans', () => {
     expect(Math.abs(plan.fleets[0].seen.arrival - (target - 60))).toBeLessThanOrEqual(2);
     expect(plan.fleets[1].seen).toBeNull();
     await call('DELETE', `/plans/${id}`, carol);
+  });
+
+  it('plans a hold on the attacked planet that follows the impact, without claim', async () => {
+    const attack = (m: number) => `2h ${m}m 0s Eine Flotten(5 Schlachtschiff) vom Planet Feind [2:2:2] erreicht den Planet Ares [1:100:12]. Mission: Angreifen`;
+    await call('POST', '/ingest', carol, { text: attack(0) });
+    const a = (await call('GET', '/hostile-attacks', dave)).json().find((x: any) => x.from.g === 2);
+    const { id } = (await call('POST', '/plans/hold', dave, { key: a.key })).json();
+    expect((await call('GET', '/hostile-attacks', dave)).json().find((x: any) => x.key === a.key)).toMatchObject({ planId: null, holdPlanId: id });
+    let plan = (await call('GET', '/plans', carol)).json().find((p: any) => p.id === id);
+    expect(plan).toMatchObject({ mission: 'hold', g: 1, s: 100, p: 12, planet_type: 'planet', target_time: a.arrival - 1, claim_user_id: null, spy: null });
+    expect(plan.enemy.hold_offset).toBe(-1);
+
+    // the attacked member joins and holds 3 s late (in case the enemy delays); others outside the plan may not
+    expect((await call('PUT', `/plans/${id}/enemy`, carol, { hold_offset: 3 })).json().code).toBe('plan_not_yours');
+    await call('POST', `/plans/${id}/fleets`, carol, { g: 1, s: 40, p: 5, type: 'planet', ships: { 204: 5 } });
+    expect((await call('PUT', `/plans/${id}/enemy`, carol, { hold_offset: 99999 })).json().code).toBe('plan_enemy_invalid');
+    expect((await call('PUT', `/plans/${id}/enemy`, carol, { hold_offset: 3 })).statusCode).toBe(200);
+    plan = (await call('GET', '/plans', carol)).json().find((p: any) => p.id === id);
+    expect(plan.target_time).toBe(a.arrival + 3);
+
+    // the enemy delays by 10 minutes: the hold follows; the own hold fleet in the overview counts as launched
+    const own = '2h 10m 3s Eine deiner Flotten (5 Leichter Jäger) vom Planet Heim [1:40:5] erreicht den Planet Ares [1:100:12]. Mission: Halten';
+    await call('POST', '/ingest', carol, { text: [attack(10), own].join('\n') });
+    plan = (await call('GET', '/plans', carol)).json().find((p: any) => p.id === id);
+    expect(plan.enemy.arrival - plan.enemy.first_seen).toBeGreaterThan(590);
+    expect(plan.target_time).toBe(plan.enemy.arrival + 3);
+    expect(plan.fleets[0]).toMatchObject({ status: 'launched' });
+    expect((await call('GET', '/claims', carol)).json()).toEqual([]);
+    await call('DELETE', `/plans/${id}`, dave);
   });
 
   it('lists plans up to a week after their target time', async () => {

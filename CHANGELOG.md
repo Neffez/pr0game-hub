@@ -4,6 +4,17 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Raid planner, hold and phalanx:
+  - Hold plans: next to "Retime planen" every hostile attack offers "Halten planen" (`POST /api/:uni/plans/hold`): a
+    plan on the attacked planet (`mission` `hold`, migration `028`, no claim) whose fleets land on their own
+    `hold_offset` seconds from the impact (default -1 s; later only works if the enemy delays). The target time
+    follows the impact, also after a delay; holds form no ACS and cannot be delayed (`computePlan`), own hold fleets
+    in the overview (mission 5) count as launched. The hostile attack list carries `holdPlanId`.
+  - Phalanx: the retime panel takes a pasted phalanx of the origin (`POST`/`DELETE /api/:uni/plans/:id/phalanx`); the
+    game writes the phalanxed player's fleets as "yours", the one returning from the attacked planet with the
+    followed fleet's ships (else the latest on that route) gives the landing home, and the retime lands its buffer
+    after it (`phalanx` on the plan enemy). `parseFleetsText` is exported from `@pr0hub/core`.
+
 - Menu: the raid planner shows the number of current plans, grey for those in planning and green for running ones
   (plan launched or a fleet launched); the layout loads the plans and reloads them on plan and fleet changes
   (`planCounts` in `plans.ts`).
