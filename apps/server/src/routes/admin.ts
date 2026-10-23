@@ -244,7 +244,6 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
     if (!db.prepare('SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?').get(groupId, target)) {
       throw new HttpError(404, 'member_not_found', 'Member not found');
     }
-    if (!isPlaceholder(target)) throw new HttpError(400, 'not_placeholder', 'Only members without an account can get a claim invite');
     return { token: createClaimInvite(groupId, target, user.id) };
   });
 

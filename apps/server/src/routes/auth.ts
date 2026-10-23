@@ -125,13 +125,21 @@ export function authRoutes(app: FastifyInstance, db: DB) {
       ? db.prepare('SELECT g.name, u.name AS universe FROM groups g JOIN universes u ON u.id = g.universe_id WHERE g.id = ?').get(inv.group_id)
       : null;
     let member: { name: string } | undefined;
+    let recovery = false;
+    let username: string | undefined;
     if (inv.user_id) {
+      const user = db.prepare('SELECT username, password_hash FROM users WHERE id = ?').get(inv.user_id) as
+        | { username: string; password_hash: string }
+        | undefined;
+      if (!user) throw new HttpError(404, 'invite_invalid', 'Invite invalid or expired');
+      recovery = user.password_hash !== '';
+      username = user.username;
       const row = db
         .prepare('SELECT ingame_name FROM group_members WHERE group_id = ? AND user_id = ?')
         .get(inv.group_id, inv.user_id) as { ingame_name: string | null } | undefined;
       if (row?.ingame_name) member = { name: row.ingame_name };
     }
-    return { group, role: inv.role, expiresAt: inv.expires_at, member };
+    return { group, role: inv.role, expiresAt: inv.expires_at, member, recovery, username };
   });
 
   /**
@@ -145,21 +153,32 @@ export function authRoutes(app: FastifyInstance, db: DB) {
     db.transaction(() => {
       if (inv.user_id) {
         const hash = db.prepare('SELECT password_hash FROM users WHERE id = ?').pluck().get(inv.user_id) as string | undefined;
-        if (hash === undefined || hash !== '') throw new HttpError(404, 'invite_invalid', 'Invite invalid or expired');
-        if (userId) {
-          mergeUser(db, inv.user_id, userId);
+        if (hash === undefined) throw new HttpError(404, 'invite_invalid', 'Invite invalid or expired');
+        if (hash === '') {
+          if (userId) {
+            mergeUser(db, inv.user_id, userId);
+          } else {
+            const username = checkUsername(db, req.body?.username, inv.user_id);
+            const password = String(req.body?.password ?? '');
+            if (password.length < 8) throw new HttpError(400, 'password_too_short', 'Password must have at least 8 characters');
+            db.prepare('UPDATE users SET username = ?, password_hash = ?, lang = ? WHERE id = ?').run(
+              username,
+              hashPassword(password),
+              req.body?.lang === 'en' ? 'en' : 'de',
+              inv.user_id,
+            );
+            userId = inv.user_id;
+            newSession = true;
+          }
         } else {
-          const username = checkUsername(db, req.body?.username, inv.user_id);
+          if (userId && userId !== inv.user_id) {
+            throw new HttpError(403, 'invite_wrong_account', 'Log out and open the link again, or use the account this link is for');
+          }
           const password = String(req.body?.password ?? '');
           if (password.length < 8) throw new HttpError(400, 'password_too_short', 'Password must have at least 8 characters');
-          db.prepare('UPDATE users SET username = ?, password_hash = ?, lang = ? WHERE id = ?').run(
-            username,
-            hashPassword(password),
-            req.body?.lang === 'en' ? 'en' : 'de',
-            inv.user_id,
-          );
+          db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hashPassword(password), inv.user_id);
           userId = inv.user_id;
-          newSession = true;
+          if (!req.user?.id) newSession = true;
         }
       } else {
         if (!userId) {

@@ -387,11 +387,20 @@ const doMerge = () => run(async () => {
               <td class="small">{{ dateTime(m.joined_at) }}</td>
               <td class="small">{{ m.account ? dateTime(m.last_login_at) : '–' }}</td>
               <td class="invite-col">
-                <template v-if="!m.account">
-                  <CopyField v-if="m.invite" :value="inviteUrl(m.invite)" @copied="msg = t('admin.linkCopied')" />
-                  <button v-else type="button" class="small" @click="memberInvite(m)">{{ t('admin.memberInvite') }}</button>
-                </template>
-                <span v-else class="faint small">–</span>
+                <div v-if="m.invite" class="invite-row">
+                  <CopyField :value="inviteUrl(m.invite)" @copied="msg = t('admin.linkCopied')" />
+                  <button type="button" class="small invite-renew" :title="t('admin.renewInvite')" @click="memberInvite(m)">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                      <path d="M20 11a8 8 0 0 0-14.3-4.9L4 8" />
+                      <path d="M4 4v4h4" />
+                      <path d="M4 13a8 8 0 0 0 14.3 4.9L20 16" />
+                      <path d="M20 20v-4h-4" />
+                    </svg>
+                  </button>
+                </div>
+                <button v-else type="button" class="small" @click="memberInvite(m)">{{
+                  m.account ? t('admin.passwordInvite') : t('admin.memberInvite')
+                }}</button>
               </td>
               <td>
                 <button v-if="m.id !== me && !m.owner" @click="removeMember(m)">{{ t('admin.remove') }}</button>
@@ -496,6 +505,9 @@ const doMerge = () => run(async () => {
 
 <style scoped>
 :deep(td.invite-col), :deep(th.invite-col) { white-space: normal; width: 280px; max-width: 360px; }
+.invite-row { display: flex; align-items: stretch; gap: 4px; }
+.invite-row .copy-field { flex: 1; min-width: 0; }
+.invite-renew { flex-shrink: 0; width: 34px; padding: 0; }
 .actions { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: nowrap; }
 table.ingests td.content { white-space: normal; min-width: 220px; }
 @media (max-width: 799px) {

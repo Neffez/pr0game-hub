@@ -685,6 +685,28 @@ describe('api', () => {
     expect(db.prepare('SELECT 1 FROM users WHERE id = ?').get(ph3)).toBeUndefined();
   });
 
+  it('password recovery invite for members with an account', async () => {
+    const ga = `/hub/api/admin/groups/${groupA}`;
+    db.prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)').run('forgotten', hashPassword('oldpass12'));
+    const uid = db.prepare("SELECT id FROM users WHERE username = 'forgotten'").pluck().get() as number;
+    db.prepare("INSERT INTO group_members (group_id, user_id, role, ingame_name) VALUES (?, ?, 'member', 'Forgotten')").run(groupA, uid);
+    const token = (await app.inject({ method: 'POST', url: `${ga}/members/${uid}/invite`, headers: admin })).json().token;
+    const info = (await app.inject({ method: 'GET', url: `/hub/api/invites/${token}` })).json();
+    expect(info.recovery).toBe(true);
+    expect(info.username).toBe('forgotten');
+    const wrong = await app.inject({
+      method: 'POST',
+      url: `/hub/api/invites/${token}/accept`,
+      headers: admin,
+      payload: { password: 'newpass12' },
+    });
+    expect(wrong.statusCode).toBe(403);
+    const accept = await app.inject({ method: 'POST', url: `/hub/api/invites/${token}/accept`, payload: { password: 'newpass12' } });
+    expect(accept.statusCode).toBe(200);
+    expect((await app.inject({ method: 'POST', url: '/hub/api/auth/login', payload: { username: 'forgotten', password: 'oldpass12' } })).statusCode).toBe(401);
+    expect((await app.inject({ method: 'POST', url: '/hub/api/auth/login', payload: { username: 'forgotten', password: 'newpass12' } })).statusCode).toBe(200);
+  });
+
   it('ingests a galaxy view and needs a session', async () => {
     const ok = await app.inject({
       method: 'POST',

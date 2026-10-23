@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { api, loadMe, session } from '../api';
@@ -9,15 +9,25 @@ const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
 const token = String(route.params.token);
-const info = ref<{ group: { name: string; universe: string } | null; role: string; member?: { name: string } } | null>(null);
+const info = ref<{
+  group: { name: string; universe: string } | null;
+  role: string;
+  member?: { name: string };
+  recovery?: boolean;
+  username?: string;
+} | null>(null);
 const username = ref('');
 const password = ref('');
 const error = ref('');
 
+const wrongAccount = computed(
+  () => !!info.value?.recovery && !!session.me?.user && session.me.user.username !== info.value?.username,
+);
+
 onMounted(async () => {
   try {
     info.value = await api(`/invites/${token}`);
-    if (info.value?.member?.name && !session.me?.user) username.value = info.value.member.name;
+    if (info.value?.member?.name && !info.value.recovery && !session.me?.user) username.value = info.value.member.name;
   } catch (e) {
     error.value = (e as Error).message;
   }
@@ -26,7 +36,15 @@ onMounted(async () => {
 async function accept() {
   error.value = '';
   try {
-    await api(`/invites/${token}/accept`, { body: session.me?.user ? {} : { username: username.value, password: password.value, lang: currentLang() } });
+    const recovery = !!info.value?.recovery;
+    const body = session.me?.user
+      ? recovery
+        ? { password: password.value }
+        : {}
+      : recovery
+        ? { password: password.value, lang: currentLang() }
+        : { username: username.value, password: password.value, lang: currentLang() };
+    await api(`/invites/${token}/accept`, { body });
     await loadMe();
     router.replace('/');
   } catch (e) {
@@ -37,9 +55,15 @@ async function accept() {
 
 <template>
   <div class="center-box card">
-    <h1>{{ t('invite.title') }}</h1>
+    <h1>{{ info?.recovery ? t('invite.recoverTitle') : t('invite.title') }}</h1>
     <template v-if="info">
-      <i18n-t v-if="info.member" keypath="invite.claim" tag="p">
+      <i18n-t v-if="info.recovery" keypath="invite.recover" tag="p">
+        <template #user><b>{{ info.username }}</b></template>
+        <template #name><b>{{ info.member?.name ?? info.username }}</b></template>
+        <template #group><b>{{ info.group?.name }}</b></template>
+        <template #universe>{{ info.group?.universe }}</template>
+      </i18n-t>
+      <i18n-t v-else-if="info.member" keypath="invite.claim" tag="p">
         <template #name><b>{{ info.member.name }}</b></template>
         <template #group><b>{{ info.group?.name }}</b></template>
         <template #universe>{{ info.group?.universe }}</template>
@@ -49,7 +73,14 @@ async function accept() {
         <template #universe>{{ info.group?.universe }}</template>
       </i18n-t>
       <form @submit.prevent="accept">
-        <template v-if="!session.me?.user">
+        <template v-if="info.recovery">
+          <p v-if="wrongAccount" class="warn">{{ t('invite.recoverWrongUser', { user: session.me!.user!.username }) }}</p>
+          <template v-else>
+            <label>{{ t('invite.passwordHint') }}</label>
+            <input v-model="password" type="password" autocomplete="new-password" />
+          </template>
+        </template>
+        <template v-else-if="!session.me?.user">
           <label>{{ t('common.username') }}</label>
           <input v-model="username" autocomplete="username" />
           <label>{{ t('invite.passwordHint') }}</label>
@@ -60,7 +91,9 @@ async function accept() {
             ? t('invite.claimMerge', { user: session.me.user.username, name: info.member.name })
             : t('invite.addToAccount', { name: session.me.user.username })
         }}</p>
-        <button class="primary" type="submit">{{ t('invite.join') }}</button>
+        <button class="primary" type="submit" :disabled="wrongAccount">{{
+          info.recovery ? t('invite.resetPassword') : t('invite.join')
+        }}</button>
       </form>
     </template>
     <div v-if="error" class="error">{{ error }}</div>

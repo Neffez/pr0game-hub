@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Allianz-Admins können für Mitglieder mit Konto einen Passwort-Link erzeugen (in der Mitglieder-Tabelle). Damit lässt sich ein neues Passwort setzen, wenn das alte vergessen ist.',
+        en: 'Alliance admins can create a password link for members who already have an account (in the members table). It lets them set a new password when the old one was forgotten.',
+      },
+      {
+        kind: 'new',
         de: 'Unter Konto kannst du den Online-Status abschalten: Du erscheinst dann für andere als offline.',
         en: 'Under Account you can turn off your online status: you then appear offline to others.',
       },

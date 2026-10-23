@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Alliance admins can create a **password recovery link** for members who already have a hub account (same table as
+  claim links; the invite page asks for a new password only). Unused links can be renewed with the refresh control next
+  to the copy field.
+
 - Account setting **Show online status** (on by default): when turned off, other members see the user as offline in
   the presence list and “viewing …” badges. Server filters presence per viewer (`users.show_online`, migration `031`;
   `GET`/`POST /api/auth/show-online`).
