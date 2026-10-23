@@ -4,6 +4,15 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- **Date and time fields** on desktop use a date picker (`@vuepic/vue-datepicker`, new `DateTimeInput` component)
+  instead of the native inputs, whose format followed the browser locale (e.g. mm/dd/yyyy). Below 800 px the native
+  inputs stay (system pickers). Same string values as before, so the plan/retime/deck conversions are unchanged.
+  - New account setting **Date format**, stored on the account like the language (`users.date_format`, migration
+    `033`, `POST /api/auth/date-format`): automatic by language (de `DD.MM.YYYY`, en `DD/MM/YYYY`), or fixed
+    `DD.MM.YYYY`, `DD/MM/YYYY`, `YYYY-MM-DD`.
+  - Shown dates follow it too: `dateTime()`, raid planner target times, activity day headers, the retime drive date
+    and the player chart axis (`numDate`, `clockTime`, `weekday` in `format.ts`).
+
 - Raid planner invitations show up in the notification bell of the invited member (kind `invite` in
   `GET /api/:uni/notifications`, one per plan while it is in planning and its target time has not passed). They count
   as unseen but are calmer than attacks (blue badge, no red bell); a click opens the plan in the raid planner

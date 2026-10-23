@@ -946,7 +946,7 @@ describe('review fixes', () => {
     await login('carl', 'carolpass');
   });
 
-  it('stores the UI language per user', async () => {
+  it('stores the UI language and date format per user', async () => {
     db.prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)').run('dave', hashPassword('davepass1'));
     const d = await login('dave', 'davepass1');
     const me = async () => (await app.inject({ method: 'GET', url: '/hub/api/auth/me', headers: d })).json().user.lang;
@@ -958,6 +958,14 @@ describe('review fixes', () => {
     expect(bad.statusCode).toBe(400);
     expect(bad.json()).toEqual({ error: 'Invalid language', code: 'lang_invalid' });
     expect(await me()).toBe('en');
+
+    const format = async () => (await app.inject({ method: 'GET', url: '/hub/api/auth/me', headers: d })).json().user.dateFormat;
+    expect(await format()).toBe('auto');
+    const setFormat = (dateFormat: string) => app.inject({ method: 'POST', url: '/hub/api/auth/date-format', headers: d, payload: { dateFormat } });
+    expect((await setFormat('ymd')).statusCode).toBe(200);
+    expect(await format()).toBe('ymd');
+    expect((await setFormat('mdy')).json()).toEqual({ error: 'Invalid date format', code: 'date_format_invalid' });
+    expect(await format()).toBe('ymd');
   });
 
   it('stores a message synced as HTML and as text once', async () => {

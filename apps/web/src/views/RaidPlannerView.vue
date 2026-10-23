@@ -12,7 +12,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { uniApi } from '../api';
 import { loadClaims } from '../claims';
 import { useUni, vStack } from '../composables';
-import { abbr, coords, duration, fmt, name, simLinks, timeWithAge } from '../format';
+import { abbr, clockTime, coords, duration, fmt, name, numDate, simLinks, timeWithAge, weekday } from '../format';
 import { intlLocale } from '../i18n';
 import { tables, useLiveReload } from '../live';
 import {
@@ -169,12 +169,13 @@ const flying = (p: AttackPlan) => p.fleets.filter((f) => f.status !== 'withdrawn
 
 // ---- times ----
 const fmtDate = (epoch: number, opts: Intl.DateTimeFormatOptions) => new Date(epoch * 1000).toLocaleString(intlLocale(), opts);
-const DAY: Intl.DateTimeFormatOptions = { weekday: 'short', day: '2-digit', month: '2-digit' };
 /** Target time as precise as it is known: the day, around an hour, or to the second. */
 function targetText(p: AttackPlan) {
-  if (p.time_precision === 'day') return fmtDate(p.target_time, DAY);
-  if (p.time_precision === 'hour') return t('plans.around', { t: fmtDate(p.target_time, { ...DAY, hour: '2-digit', hourCycle: 'h23', minute: '2-digit' }) });
-  return fmtDate(p.target_time, { ...DAY, hour: '2-digit', hourCycle: 'h23', minute: '2-digit', second: '2-digit' });
+  const d = new Date(p.target_time * 1000);
+  const day = `${weekday(d)} ${numDate(d, 'none')}`;
+  if (p.time_precision === 'day') return day;
+  if (p.time_precision === 'hour') return t('plans.around', { t: `${day}, ${clockTime(d)}` });
+  return `${day}, ${clockTime(d, true)}`;
 }
 const clock = (epoch: number) => fmtDate(epoch, { hour: '2-digit', hourCycle: 'h23', minute: '2-digit', second: '2-digit' });
 /** Real arrival against the target time: "on time", "+3 s", "−1:05". */

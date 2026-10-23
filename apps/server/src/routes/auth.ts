@@ -98,6 +98,14 @@ export function authRoutes(app: FastifyInstance, db: DB) {
     return { ok: true, lang };
   });
 
+  app.post<{ Body: { dateFormat: string } }>('/api/auth/date-format', async (req) => {
+    const user = requireUser(req);
+    const dateFormat = String(req.body?.dateFormat ?? '');
+    if (!['auto', 'dmy.', 'dmy/', 'ymd'].includes(dateFormat)) throw new HttpError(400, 'date_format_invalid', 'Invalid date format');
+    db.prepare('UPDATE users SET date_format = ? WHERE id = ?').run(dateFormat, user.id);
+    return { ok: true, dateFormat };
+  });
+
   /** Which fleet movements the user shares with the other members of their groups. */
   app.get('/api/auth/fleet-share', async (req) => fleetShare(db, requireUser(req).id));
 

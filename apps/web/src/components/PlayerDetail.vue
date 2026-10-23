@@ -9,8 +9,7 @@ import PlanetActions from '../components/PlanetActions.vue';
 import StatusBadges from '../components/StatusBadges.vue';
 import { useLoader, useUni, vStack } from '../composables';
 import { tables, useLiveReload } from '../live';
-import { ago, coords, dateTime, fmt, freshnessColor, name, phalanxRange, STATS_TYPES } from '../format';
-import { intlLocale } from '../i18n';
+import { ago, coords, dateTime, fmt, freshnessColor, name, numDate, phalanxRange, STATS_TYPES } from '../format';
 
 Chart.register(...registerables);
 
@@ -84,7 +83,7 @@ function draw() {
       scales: {
         x: {
           type: 'linear',
-          ticks: { color: '#8b98a9', callback: (v) => new Date(Number(v)).toLocaleDateString(intlLocale(), { day: '2-digit', month: '2-digit' }) },
+          ticks: { color: '#8b98a9', callback: (v) => numDate(new Date(Number(v)), 'none') },
           grid: { color: '#283241' },
         },
         y: { position: 'left', ticks: { color: '#8b98a9' }, grid: { color: '#283241' }, title: { display: true, text: STATS_TYPES[1], color: '#8b98a9' } },

@@ -1,10 +1,11 @@
 <script setup lang="ts">
+import DateTimeInput from './DateTimeInput.vue';
 import Hint from './Hint.vue';
 import { computed, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
 import { useUni } from '../composables';
-import { abbr, coords, duration, fmt } from '../format';
+import { abbr, coords, duration, fmt, numDate } from '../format';
 import { intlLocale } from '../i18n';
 import { bufferRating, candidateHome, DEFAULT_BUFFER, DRIVES_MAX_AGE, enemyCalcLink, enemyCandidates, fromLocalInput, toLocalInput, type AttackPlan, type PlanEnemy } from '../plans';
 
@@ -161,20 +162,20 @@ async function save() {
           {{ abbr(id) }} <input v-model.number="draft.drives[id]" type="number" min="0" max="99" :disabled="!editable" @input="touch" />
         </label>
         <span class="small" :class="drivesOld ? 'warn' : 'muted'">
-          {{ enemy.drives_time ? t(`retime.source.${enemy.drives_source ?? 'spy'}`, { date: new Date(enemy.drives_time * 1000).toLocaleDateString(intlLocale()) }) : t('retime.drivesUnknown') }}
+          {{ enemy.drives_time ? t(`retime.source.${enemy.drives_source ?? 'spy'}`, { date: numDate(new Date(enemy.drives_time * 1000)) }) : t('retime.drivesUnknown') }}
         </span>
       </span>
       <span class="field">
         <span class="lbl">{{ t('retime.departure') }}</span>
-        <input v-model="draft.depFrom" type="datetime-local" step="1" :disabled="!editable" @input="touch" />
+        <DateTimeInput v-model="draft.depFrom" precision="second" :disabled="!editable" @input="touch" />
         –
-        <input v-model="draft.depTo" type="datetime-local" step="1" :disabled="!editable" @input="touch" />
+        <DateTimeInput v-model="draft.depTo" precision="second" :disabled="!editable" @input="touch" />
       </span>
       <span class="field">
         <span class="lbl">{{ t('retime.recall') }}</span>
-        <input v-model="draft.recFrom" type="datetime-local" step="1" :disabled="!editable" @input="touch" />
+        <DateTimeInput v-model="draft.recFrom" precision="second" :disabled="!editable" @input="touch" />
         –
-        <input v-model="draft.recTo" type="datetime-local" step="1" :disabled="!editable" @input="touch" />
+        <DateTimeInput v-model="draft.recTo" precision="second" :disabled="!editable" @input="touch" />
         <label v-if="enemy.fleets.length > 1"><input v-model="draft.recallLead" type="checkbox" :disabled="!editable" @change="touch" /> {{ t('retime.recallLead') }}</label>
       </span>
       <span v-if="recallSeen" class="field">

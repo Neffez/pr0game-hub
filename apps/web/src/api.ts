@@ -1,10 +1,11 @@
 import { reactive } from 'vue';
+import { setDateFormat } from './format';
 import { i18n, setLocale, t } from './i18n';
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, '') + '/api';
 
 export interface Me {
-  user: { id: number; username: string; isAdmin: boolean; lang: string } | null;
+  user: { id: number; username: string; isAdmin: boolean; lang: string; dateFormat: string } | null;
   groups: { id: number; name: string; role: string; universe: string; universe_name: string }[];
 }
 
@@ -72,6 +73,9 @@ export const uniApi = <T = any>(uni: string, path: string, opts: { method?: stri
 export async function loadMe() {
   session.me = await api<Me>('/auth/me');
   session.loaded = true;
-  if (session.me.user) setLocale(session.me.user.lang);
+  if (session.me.user) {
+    setLocale(session.me.user.lang);
+    setDateFormat(session.me.user.dateFormat);
+  }
   return session.me;
 }

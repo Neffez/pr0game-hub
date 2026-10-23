@@ -8,7 +8,7 @@ import RangePicker from '../components/RangePicker.vue';
 import StatusBadges from '../components/StatusBadges.vue';
 import { useLoader, useStored, useUni } from '../composables';
 import { tables, useLiveReload } from '../live';
-import { coords, dateTime, fmt, fmtSigned, name, short } from '../format';
+import { coords, dateTime, fmt, fmtSigned, name, numDate, short, weekday } from '../format';
 import { intlLocale } from '../i18n';
 
 /** Noteworthy changes detected while syncing, newest first, filterable by kind. */
@@ -70,7 +70,8 @@ const entries = computed(() =>
 const days_ = computed(() => {
   const out: { day: string; entries: Entry[] }[] = [];
   for (const e of entries.value) {
-    const day = new Date(e.time * 1000).toLocaleDateString(intlLocale(), { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
+    const d = new Date(e.time * 1000);
+    const day = `${weekday(d, 'long')}, ${numDate(d)}`;
     if (out.at(-1)?.day !== day) out.push({ day, entries: [] });
     out.at(-1)!.entries.push(e);
   }

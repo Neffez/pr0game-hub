@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DateTimeInput from './DateTimeInput.vue';
 import Hint from './Hint.vue';
 import { onBeforeUnmount, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -106,8 +107,8 @@ function pickBody(e: Event) {
       <select v-model="draft.precision" :aria-label="t('plans.precision')">
         <option v-for="p in PRECISIONS" :key="p" :value="p">{{ t(`plans.precisions.${p}`) }}</option>
       </select>
-      <input v-if="draft.precision === 'day'" v-model="draft.date" type="date" />
-      <input v-else v-model="draft.time" type="datetime-local" :step="draft.precision === 'exact' ? 1 : 60" />
+      <DateTimeInput v-if="draft.precision === 'day'" v-model="draft.date" precision="day" />
+      <DateTimeInput v-else v-model="draft.time" :precision="draft.precision === 'exact' ? 'second' : 'minute'" />
     </div>
     <div v-if="!coordsOnly" class="field">
       <span class="lbl">{{ t('plans.note') }}</span>

@@ -12,6 +12,8 @@ export interface SessionUser {
   isAdmin: boolean;
   /** UI language of the hub (de/en) */
   lang: string;
+  /** date format of the hub (auto: by language, dmy. / dmy/ / ymd) */
+  dateFormat: string;
 }
 
 export type AuthSource = 'cookie' | 'token' | null;
@@ -97,8 +99,10 @@ export function destroyOtherSessions(db: DB, userId: number, req: FastifyRequest
   db.prepare('DELETE FROM sessions WHERE user_id = ? AND token_hash != ?').run(userId, token ? sha256(token) : '');
 }
 
-function sessionUser(row: { id: number; username: string; is_admin: number; lang: string }): SessionUser {
-  return { id: row.id, username: row.username, isAdmin: !!row.is_admin, lang: row.lang };
+type UserRow = { id: number; username: string; is_admin: number; lang: string; date_format: string };
+
+function sessionUser(row: UserRow): SessionUser {
+  return { id: row.id, username: row.username, isAdmin: !!row.is_admin, lang: row.lang, dateFormat: row.date_format };
 }
 
 export function loadSessionUser(db: DB, req: FastifyRequest): SessionUser | null {
@@ -106,10 +110,10 @@ export function loadSessionUser(db: DB, req: FastifyRequest): SessionUser | null
   if (!token) return null;
   const row = db
     .prepare(
-      `SELECT u.id, u.username, u.is_admin, u.lang FROM sessions s JOIN users u ON u.id = s.user_id
+      `SELECT u.id, u.username, u.is_admin, u.lang, u.date_format FROM sessions s JOIN users u ON u.id = s.user_id
        WHERE s.token_hash = ? AND s.expires_at > ?`,
     )
-    .get(sha256(token), now()) as { id: number; username: string; is_admin: number; lang: string } | undefined;
+    .get(sha256(token), now()) as UserRow | undefined;
   return row ? sessionUser(row) : null;
 }
 
@@ -121,10 +125,10 @@ function loadBearerUser(db: DB, req: FastifyRequest): SessionUser | null {
   const hash = sha256(token);
   const row = db
     .prepare(
-      `SELECT u.id, u.username, u.is_admin, u.lang, t.id AS token_id FROM api_tokens t JOIN users u ON u.id = t.user_id
+      `SELECT u.id, u.username, u.is_admin, u.lang, u.date_format, t.id AS token_id FROM api_tokens t JOIN users u ON u.id = t.user_id
        WHERE t.token_hash = ?`,
     )
-    .get(hash) as { id: number; username: string; is_admin: number; lang: string; token_id: number } | undefined;
+    .get(hash) as (UserRow & { token_id: number }) | undefined;
   if (!row) return null;
   const t = now();
   const last = tokenLastUsed.get(hash) ?? 0;

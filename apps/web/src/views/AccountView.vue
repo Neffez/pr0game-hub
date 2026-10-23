@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import { api, loadMe, session } from '../api';
 import Hint from '../components/Hint.vue';
+import { DATE_FORMATS, dateFormat, setDateFormat, type DateFormat } from '../format';
 import { currentLang, LANGS, setLocale, type Lang } from '../i18n';
 import { liveHints } from '../live';
 
@@ -137,6 +138,15 @@ const saveLang = () =>
     await api('/auth/lang', { body: { lang: lang.value } });
     if (session.me?.user) session.me.user.lang = lang.value;
   }, () => t('account.languageChanged'));
+
+// same as the language: applies right away, stored on the account
+const format = ref<DateFormat>(dateFormat.value);
+const saveDateFormat = () =>
+  run(async () => {
+    setDateFormat(format.value);
+    await api('/auth/date-format', { body: { dateFormat: format.value } });
+    if (session.me?.user) session.me.user.dateFormat = format.value;
+  }, () => t('account.dateFormatChanged'));
 </script>
 
 <template>
@@ -152,6 +162,12 @@ const saveLang = () =>
           <span class="field-label">{{ t('account.language') }} <Hint>{{ t('account.languageHint') }}</Hint></span>
           <select v-model="lang" @change="saveLang">
             <option v-for="l in LANGS" :key="l" :value="l">{{ t(`languages.${l}`) }}</option>
+          </select>
+        </div>
+        <div class="field">
+          <span class="field-label">{{ t('account.dateFormat') }} <Hint>{{ t('account.dateFormatHint') }}</Hint></span>
+          <select v-model="format" @change="saveDateFormat">
+            <option v-for="f in DATE_FORMATS" :key="f" :value="f">{{ t(`account.dateFormats.${f}`) }}</option>
           </select>
         </div>
         <div class="field">

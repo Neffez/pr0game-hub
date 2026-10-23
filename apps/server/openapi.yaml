@@ -66,6 +66,10 @@ components:
         username: { type: string }
         isAdmin: { type: boolean }
         lang: { type: string, enum: [de, en] }
+        dateFormat:
+          type: string
+          enum: [auto, dmy., dmy/, ymd]
+          description: Date format of the hub; `auto` follows `lang` (de DD.MM.YYYY, en DD/MM/YYYY)
     GroupMembership:
       type: object
       properties:
@@ -210,6 +214,35 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Me' }
+  /api/auth/date-format:
+    post:
+      tags: [Auth]
+      operationId: setDateFormat
+      security: [{ sessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [dateFormat]
+              properties:
+                dateFormat: { type: string, enum: [auto, dmy., dmy/, ymd] }
+      responses:
+        '200':
+          description: Stored on the account
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  dateFormat: { type: string }
+        '400':
+          description: Unknown date format (`date_format_invalid`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
   /api/auth/tokens:
     get:
       tags: [Auth]

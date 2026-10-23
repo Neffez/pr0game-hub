@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Schönere Datums- und Zeitfelder am Desktop, im Format des Hubs statt des Browsers (z. B. 23.10.2026 statt 10/23/2026). Unter Konto lässt sich das Datumsformat wählen; am Handy bleiben die gewohnten Felder des Geräts.',
+        en: "Nicer date and time fields on desktop, in the hub's format instead of the browser's (e.g. 23/10/2026 instead of 10/23/2026). The date format can be chosen under Account; on mobile the device's usual fields stay.",
+      },
+      {
+        kind: 'new',
         de: 'Einladungen im Raid-Planer erscheinen jetzt in der Glocke (blau, weniger dringend als Angriffe). Ein Klick öffnet den Plan.',
         en: 'Raid planner invitations now show up in the bell (blue, less urgent than attacks). A click opens the plan.',
       },

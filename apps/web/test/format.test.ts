@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { dateTime, fmt, fmtSigned, short, simLinks, trashSimExport } from '../src/format';
+import { dateFormat, datePattern, dateTime, fmt, numDate, fmtSigned, short, simLinks, trashSimExport } from '../src/format';
 import { setLocale } from '../src/i18n';
 
 describe('format', () => {
@@ -9,6 +9,24 @@ describe('format', () => {
     setLocale('en');
     expect(dateTime(Date.UTC(2026, 9, 23, 15, 20) / 1000)).not.toMatch(/AM|PM/);
     expect(dateTime(Date.UTC(2026, 9, 23, 15, 20) / 1000)).toMatch(/[0-2][0-9]:20/);
+  });
+
+  it('formats dates per language or the chosen date format', () => {
+    const d = new Date(2026, 9, 3, 9, 5, 7);
+    const epoch = d.getTime() / 1000;
+    dateFormat.value = 'auto';
+    expect(dateTime(epoch)).toBe('03.10.26, 09:05');
+    expect(numDate(d, 'none')).toBe('03.10.');
+    setLocale('en');
+    expect(dateTime(epoch)).toBe('03/10/26, 09:05');
+    expect(datePattern()).toBe('dd/MM/yyyy');
+    dateFormat.value = 'ymd';
+    expect(dateTime(epoch)).toBe('2026-10-03, 09:05');
+    expect(numDate(d, 'none')).toBe('10-03');
+    dateFormat.value = 'dmy.';
+    expect(numDate(d)).toBe('03.10.2026');
+    expect(datePattern()).toBe('dd.MM.yyyy');
+    dateFormat.value = 'auto';
   });
 
   it('formats numbers per language', () => {

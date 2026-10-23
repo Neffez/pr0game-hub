@@ -263,8 +263,10 @@ describe('raid planner page', () => {
     const apply = [...panel.querySelectorAll('button')].find((b) => b.textContent === 'Als Rückruf übernehmen')!;
     apply.click();
     await settle();
-    const [from, to] = [...panel.querySelectorAll<HTMLInputElement>('input[type=datetime-local]')].slice(2).map((i) => i.value);
-    expect([from, to]).toEqual([toLocalInput(target - 3000), toLocalInput(target - 2400)]);
+    // desktop: the date picker shows the hub's date format (de: 23.10.2026 19:12:22)
+    const [from, to] = [...panel.querySelectorAll<HTMLInputElement>('.dt-input input')].slice(2).map((i) => i.value);
+    const shown = (epoch: number) => toLocalInput(epoch).replace(/^(\d+)-(\d+)-(\d+)T/, '$3.$2.$1 ');
+    expect([from, to]).toEqual([shown(target - 3000), shown(target - 2400)]);
     expect(panel.textContent).not.toContain('wohl zurückgerufen');
     expect(panel.querySelector<HTMLAnchorElement>('a[href*="flight-calculator"]')!.href).toContain('eout=recall');
     // every fleet of an exact plan with a start links its launch times

@@ -1,6 +1,7 @@
 import { techName } from '@pr0hub/core/tech';
 import { SHIPS, type Coords } from '@pr0hub/flight';
 import { compressToEncodedURIComponent } from 'lz-string';
+import { ref } from 'vue';
 import { currentLang, intlLocale, t } from './i18n';
 
 /** Intl formatters per locale and options: toLocaleString creates one per call, tables format thousands of values. */
@@ -38,11 +39,48 @@ export function short(n: number | null | undefined): string {
   return fmt(n);
 }
 
+/** Order and separator of numeric dates; `auto` follows the language (de 23.10.2026, en 23/10/2026). */
+export const DATE_FORMATS = ['auto', 'dmy.', 'dmy/', 'ymd'] as const;
+export type DateFormat = (typeof DATE_FORMATS)[number];
+/** account setting of the viewer (set by loadMe and the account page) */
+export const dateFormat = ref<DateFormat>('auto');
+export function setDateFormat(value: unknown) {
+  dateFormat.value = (DATE_FORMATS as readonly unknown[]).includes(value) ? (value as DateFormat) : 'auto';
+}
+
+const effectiveFormat = (): Exclude<DateFormat, 'auto'> =>
+  dateFormat.value !== 'auto' ? dateFormat.value : currentLang() === 'de' ? 'dmy.' : 'dmy/';
+
+/** date-fns pattern of the date part (date picker), e.g. dd.MM.yyyy */
+export const datePattern = () => ({ 'dmy.': 'dd.MM.yyyy', 'dmy/': 'dd/MM/yyyy', ymd: 'yyyy-MM-dd' })[effectiveFormat()];
+
+const pad = (n: number) => String(n).padStart(2, '0');
+
+/**
+ * Numeric date in the chosen format: `year` full (23.10.2026), short (23.10.26) or without (23.10.).
+ * ISO always keeps the full year.
+ */
+export function numDate(d: Date, year: 'full' | 'short' | 'none' = 'full'): string {
+  const f = effectiveFormat();
+  const dd = pad(d.getDate());
+  const mm = pad(d.getMonth() + 1);
+  if (f === 'ymd') return year === 'none' ? `${mm}-${dd}` : `${d.getFullYear()}-${mm}-${dd}`;
+  const sep = f === 'dmy.' ? '.' : '/';
+  if (year === 'none') return f === 'dmy.' ? `${dd}.${mm}.` : `${dd}/${mm}`;
+  return `${dd}${sep}${mm}${sep}${year === 'short' ? pad(d.getFullYear() % 100) : d.getFullYear()}`;
+}
+
+/** 14:05 or 14:05:09 (24 h, browser time) */
+export const clockTime = (d: Date, seconds = false) => `${pad(d.getHours())}:${pad(d.getMinutes())}${seconds ? `:${pad(d.getSeconds())}` : ''}`;
+
+/** Weekday name in the current language, `short` (Fr.) or `long` (Freitag). */
+export const weekday = (d: Date, style: 'short' | 'long' = 'short') =>
+  cached(`wd${style}`, (l) => new Intl.DateTimeFormat(l, { weekday: style })).format(d);
+
 export function dateTime(epoch: number | null | undefined): string {
   if (!epoch) return '–';
-  return cached('dt', (l) => new Intl.DateTimeFormat(l, { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', hourCycle: 'h23', minute: '2-digit' })).format(
-    epoch * 1000,
-  );
+  const d = new Date(epoch * 1000);
+  return `${numDate(d, 'short')}, ${clockTime(d)}`;
 }
 
 export function ago(epoch: number | null | undefined): string {

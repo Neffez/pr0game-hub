@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import DateTimeInput from '../components/DateTimeInput.vue';
 import Hint from '../components/Hint.vue';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -158,7 +159,7 @@ const progress = computed(() => (data.value ? data.value.state.drawnInDeck / dat
         <label>
           {{ t('deck.when') }}
           <Hint>{{ t('deck.whenHint') }}</Hint>
-          <input v-model="addTime" type="datetime-local" />
+          <DateTimeInput v-model="addTime" />
         </label>
         <label>
           {{ t('deck.depletion') }}
@@ -190,7 +191,7 @@ const progress = computed(() => (data.value ? data.value.state.drawnInDeck / dat
         <label>
           {{ t('deck.start') }}
           <Hint>{{ t('deck.startHint') }}</Hint>
-          <input v-model="startLocal" type="datetime-local" />
+          <DateTimeInput v-model="startLocal" />
         </label>
         <label>
           {{ t('deck.assumption') }}
