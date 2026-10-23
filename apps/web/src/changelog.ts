@@ -25,8 +25,8 @@ export const CHANGELOG: ChangelogDay[] = [
       },
       {
         kind: 'fix',
-        de: 'Spionageberichte und Übersichtsseiten aus einem anderen Universum werden ebenfalls erkannt und abgelehnt. Admins sehen jede Synchronisation in einer Liste und können sie nach einer Vorschau neu einlesen oder samt ihrer Daten löschen.',
-        en: 'Spy reports and overview pages from another universe are recognised and rejected too. Admins see every sync in one list and can read it again or delete it with its data after a preview.',
+        de: 'Auch Spionageberichte, Spionage-Warnungen, Nachrichten, Flottenbewegungen, Übersicht, Ruhmeshalle und Kampfberichte aus einem anderen Universum werden erkannt und abgelehnt. Admins sehen jede Synchronisation in einer Liste und können sie nach einer Vorschau neu einlesen oder samt ihrer Daten löschen.',
+        en: 'Spy reports, espionage warnings, messages, fleet movements, overview, battle hall and combat reports from another universe are recognised and rejected too. Admins see every sync in one list and can read it again or delete it with its data after a preview.',
       },
       {
         kind: 'new',

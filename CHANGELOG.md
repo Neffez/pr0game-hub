@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Universe check for the remaining page types, collected over all records of a paste: hostile espionage (spying
+  player at known coordinates, target must be an own planet), own fleets (start/home must be own planets), player
+  messages (one of the member's planets among sender and recipients; names are not compared because of renames),
+  battle hall of a day/week/month, combat reports and other fleets' players (mostly unknown names). Battle,
+  expedition and recycling reports name no players and pass on their own.
 - Raid planner, own fleet: the ship list has two groups, ships on the start planet and all own ships (all planets and
   moons plus ships in flight from the empire page), so ships still to be moved to the start can be planned too.
   Picking a ship adds it at once with the maximum of its group; the amount stays editable and "max" restores it.

@@ -1157,6 +1157,47 @@ describe('plausibility of pasted pages', () => {
     expect(foreignRecords(db, me, [spy(1, 'Fremd1')])).toBe(false);
     expect(foreignRecords(db, me, [spy(1, 'Fremd1'), spy(2, 'Fremd2')])).toBe(true);
 
+    // pages about the member's own planets (the member is Own3 on 1:1:3)
+    db.prepare('INSERT INTO empire_snapshots (group_id, user_id, created_at, data) VALUES (?, 1, 1, ?)').run(groupP, JSON.stringify(empire([1, 1, 3])));
+    const at = (p: number) => ({ g: 1, s: 1, p });
+    const hostile = (target: number, from: number, name: string) => ({
+      kind: 'hostileSpy' as const, msgId: null, time: null, fromPlanetName: 'X', fromPlayerName: name, fromCoords: at(from), fromType: 'planet' as const,
+      targetPlanetName: 'Y', targetCoords: at(target), targetType: 'planet' as const,
+    });
+    expect(foreignRecords(db, me, [hostile(3, 4, 'Own4')])).toBe(false);
+    expect(foreignRecords(db, me, [hostile(5, 4, 'Own4')])).toBe(true);
+    const fleet = (from: number) => ({
+      owner: 'own' as const, player: null, mission: 1, missionName: 'Angreifen', phase: 'out' as const,
+      from: { coords: at(from), type: 'planet' as const, name: null }, to: { coords: at(7), type: 'planet' as const, name: null },
+      ships: {}, resources: null, seconds: 60,
+    });
+    expect(foreignRecords(db, me, [{ kind: 'fleets', pageTime: null, fleets: [fleet(3)] }])).toBe(false);
+    expect(foreignRecords(db, me, [{ kind: 'fleets', pageTime: null, fleets: [fleet(6)] }])).toBe(true);
+    // player messages: one of the member's planets among sender and recipients, names are not compared (renames)
+    const message = (from: number, to: number) => ({
+      kind: 'playerMessage' as const, msgId: null, time: null, subject: 's', body: 'b', thread: null, partnerId: null,
+      from: { name: 'Altname', coords: at(from) }, to: [{ name: 'Wer', coords: at(to) }],
+    });
+    expect(foreignRecords(db, me, [message(3, 4), message(5, 3)])).toBe(false);
+    expect(foreignRecords(db, me, [message(4, 5), message(6, 7)])).toBe(true);
+    expect(foreignRecords(db, me, [message(4, 5)])).toBe(false);
+    db.prepare('DELETE FROM empire_snapshots WHERE group_id = ?').run(groupP);
+
+    // battle hall (not the all-time list) and combat reports: names the group mostly doesn't know
+    const hall = (timeframe: number, names: string[]) => ({
+      kind: 'battleHall' as const, timeframe,
+      entries: names.map((n, i) => ({ reportId: String(i), rank: i + 1, attackers: [n], defenders: [], winner: null, time: null, units: 1 })),
+    });
+    expect(foreignRecords(db, me, [hall(2, own.slice(0, 8))])).toBe(false);
+    expect(foreignRecords(db, me, [hall(2, foreign.slice(0, 8))])).toBe(true);
+    expect(foreignRecords(db, me, [hall(0, foreign.slice(0, 8))])).toBe(false);
+    const report = (names: string[]) => ({
+      kind: 'combatReport' as const, reportId: null, time: null, winner: 'draw' as const, rounds: 6, lost: { attacker: 0, defender: 0 }, debris: { metal: 0, crystal: 0 },
+      fleets: names.map((name) => ({ side: 'attacker' as const, name, start: {}, end: {} })),
+    });
+    expect(foreignRecords(db, me, [report(foreign.slice(0, 2))])).toBe(false);
+    expect(foreignRecords(db, me, [report(foreign.slice(0, 6))])).toBe(true);
+
     // a pasted page of strangers is refused, also as preview, before anything is stored
     const head = fixture('stats-player.txt').split('\n').slice(0, 3).join('\n');
     const page = (names: string[]) => [head, ...names.map((n, i) => `${i + 1}\t${n}\t\t-\t${1000 - i}`)].join('\n');
