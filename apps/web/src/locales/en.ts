@@ -122,7 +122,7 @@ const en: typeof de = {
     liveHints: 'Show when other members sync something',
     showOnline: 'Online status',
     showOnlineEnabled: 'Show my online status to the alliance',
-    showOnlineHint: 'Off: you appear offline to others (online list, “viewing …”). Global admins still see your real status. You still see yourself as usual.',
+    showOnlineHint: 'Off: you appear offline to others (online list, “viewing …”). You still see yourself as usual.',
     showOnlineSaved: 'Online status saved.',
     fleetShare: 'Share fleet movements',
     fleetShareEnabled: 'Share my fleet movements with the alliance',

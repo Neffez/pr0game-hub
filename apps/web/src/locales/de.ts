@@ -123,7 +123,7 @@ const de = {
     liveHints: 'Einblenden, wenn andere Mitglieder etwas synchronisieren',
     showOnline: 'Online-Status',
     showOnlineEnabled: 'Meinen Online-Status in der Allianz anzeigen',
-    showOnlineHint: 'Aus: Du erscheinst anderen als offline (Online-Liste, „schaut gerade …“). Globale Admins sehen deinen echten Status weiterhin. Du siehst dich selbst wie gewohnt.',
+    showOnlineHint: 'Aus: Du erscheinst anderen als offline (Online-Liste, „schaut gerade …“). Du siehst dich selbst wie gewohnt.',
     showOnlineSaved: 'Online-Status gespeichert.',
     fleetShare: 'Flottenbewegungen teilen',
     fleetShareEnabled: 'Meine Flottenbewegungen mit der Allianz teilen',
