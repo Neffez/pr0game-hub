@@ -25,6 +25,7 @@ import {
   candidateHome,
   DEFAULT_BUFFER,
   enemyCandidates,
+  fleetCalcLink,
   latestTime,
   mainFleet,
   newDraft,
@@ -120,6 +121,8 @@ function targetText(p: AttackPlan) {
   return fmtDate(p.target_time, { ...DAY, hour: '2-digit', hourCycle: 'h23', minute: '2-digit', second: '2-digit' });
 }
 const clock = (epoch: number) => fmtDate(epoch, { hour: '2-digit', hourCycle: 'h23', minute: '2-digit', second: '2-digit' });
+/** Real arrival against the target time: "on time", "+3 s", "−1:05". */
+const offset = (d: number) => (d === 0 ? t('plans.onTime') : `${d > 0 ? '+' : '−'}${Math.abs(d) < 60 ? `${Math.abs(d)} s` : duration(Math.abs(d))}`);
 const shortClock = (epoch: number) => fmtDate(epoch, { hour: '2-digit', hourCycle: 'h23', minute: '2-digit' });
 
 const shipList = (ships: Record<string, number>) =>
@@ -424,7 +427,13 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
               </td>
               <td class="mono">{{ x.duration != null ? duration(Math.floor(x.duration)) : '–' }}</td>
               <td>
-                <template v-if="x.plan && exact(p)">
+                <template v-if="x.fleet.seen">
+                  <span class="mono">{{ clock(x.fleet.seen.arrival) }}</span>
+                  <div class="small" :class="exact(p) && x.fleet.seen.arrival !== p.target_time ? 'warn' : 'pos'">
+                    {{ t('plans.seen') }}<template v-if="exact(p)"> · {{ offset(x.fleet.seen.arrival - p.target_time) }}</template>
+                  </div>
+                </template>
+                <template v-else-if="x.plan && exact(p)">
                   <span class="time">
                     <span class="mono" :class="{ neg: x.plan.late }">{{ clock(x.plan.launch) }}</span>
                     <Countdown class="muted small" :to="x.plan.launch" />
@@ -453,6 +462,7 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
                 <span v-else>{{ t(`plans.fleetStatuses.${x.fleet.status}`) }}</span>
               </td>
               <td class="actions">
+                <a v-if="x.duration != null && exact(p)" class="calc" :href="fleetCalcLink(settings, p, x.fleet)!" target="_blank" rel="noopener" :title="t('plans.calcTitle')">↗</a>
                 <template v-if="canEditFleet(p, x.fleet) && !closed(p)">
                   <button v-if="x.fleet.user_id === me" @click="openFleet(p, x.fleet)">{{ t('plans.edit') }}</button>
                   <button :title="t('plans.removeFleet')" @click="removeFleet(p, x.fleet)">✕</button>
@@ -556,5 +566,6 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
 tr.mine td:first-child { font-weight: 600; }
 td.actions { white-space: nowrap; }
 td.actions button { padding: 1px 8px; }
+td.actions .calc { margin-right: 6px; }
 button.danger { color: var(--neg); }
 </style>

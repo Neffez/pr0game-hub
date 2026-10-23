@@ -11,7 +11,7 @@ import {
   type FleetPlan,
   type RetimeCandidate,
 } from '@pr0hub/flight';
-import type { UniverseSettings } from './format';
+import { flightCalcLink, type UniverseSettings } from './format';
 
 /** Fleet of an attack plan (server: routes/plans.ts). */
 export interface PlanFleet {
@@ -28,6 +28,8 @@ export interface PlanFleet {
   updated_at: number;
   /** drive research of the member's latest empire page */
   drives: { time: number; research: Record<string, number> } | null;
+  /** the member's newest overview shows this fleet in flight to the target: real arrival, time of that paste */
+  seen: { arrival: number; time: number } | null;
 }
 
 /** Own attack of one or more members on one target at one time (server: routes/plans.ts). */
@@ -85,6 +87,8 @@ export interface PlanEnemy {
   departure: { from: number; to: number } | null;
   recall: { from: number; to: number } | null;
   recall_lead: boolean;
+  /** the attack vanished from the member's overview between these pastes, before it arrived: likely recalled */
+  recall_seen: { from: number; to: number } | null;
   percent: number | null;
   buffer: number;
   updated_at: number;
@@ -129,6 +133,45 @@ export function enemyCandidates(u: UniverseSettings, e: EnemyInput): RetimeCandi
     departure: e.departure,
     recall: e.recall,
   });
+}
+
+const shipsParam = (ships: Record<string, number>) =>
+  Object.entries(ships)
+    .filter(([, n]) => n > 0)
+    .map(([id, n]) => `${id}:${n}`)
+    .join(',');
+
+/** Flight calculator ("timing" mode) for a fleet of a plan: its start, ships, speed and drives, landing at the target time. */
+export function fleetCalcLink(u: UniverseSettings, plan: AttackPlan, f: PlanFleet): string | null {
+  if (plan.g == null || f.g == null) return null;
+  return flightCalcLink(u, [f.g, f.s!, f.p!], [plan.g, plan.s!, plan.p!], f.drives?.research ?? {}, {
+    m: 'timing',
+    arr: plan.target_time,
+    ships: shipsParam(f.ships),
+    spd: f.speed / 10,
+  });
+}
+
+/**
+ * Flight calculator ("retime" mode) for the enemy fleet of a plan: followed fleet, drives, arrival (and the first seen
+ * one after a delay), recall and chosen speed; `own` (a fleet of the viewer) fills the counter-attack with start, slowest
+ * ship, drives and the buffer.
+ */
+export function enemyCalcLink(u: UniverseSettings, e: EnemyInput & Pick<PlanEnemy, 'percent' | 'buffer'>, own?: PlanFleet): string {
+  const fleet = e.fleets[e.recall && e.recall_lead ? 0 : e.follow] ?? e.fleets[0];
+  const extra: Record<string, string | number> = { m: 'retime', ships: shipsParam(fleet?.ships ?? {}), ea: e.arrival };
+  if (e.percent) extra.spd = e.percent / 10;
+  if (e.first_seen !== e.arrival) extra.eo = e.first_seen;
+  extra.eout = e.recall ? 'recall' : 'impact';
+  if (e.recall) extra.er = e.recall.from;
+  if (own?.g != null) {
+    const research = own.drives?.research ?? {};
+    const slowest = slowestShip(own.ships, drivesFromResearch(research));
+    extra.ks = `${own.g}:${own.s}:${own.p}`;
+    if (slowest) extra.kship = slowest.id;
+    Object.assign(extra, { kc: research[115] ?? 0, ki: research[117] ?? 0, kh: research[118] ?? 0, ko: e.buffer });
+  }
+  return flightCalcLink(u, [e.from.g, e.from.s, e.from.p], [e.to.g, e.to.s, e.to.p], e.drives, extra);
 }
 
 /** Seconds after the enemy's return the own fleets land by default (0-1 s is a good retime). */

@@ -4,6 +4,17 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Raid planner:
+  - Fleets in flight: when a member's newest overview shows an own attack (attack, ACS attack, destroy) from a plan
+    fleet's start to the plan's target, landing around the plan's time, the fleet is marked launched and the table
+    shows its real arrival against the target time (`seen` on plan fleets, as the fleet sharing setting allows).
+  - Recall detection: a retime attack that vanished from the attacked member's overview before its arrival suggests
+    a recall window (last paste with it .. first paste without it, `recall_seen` on the plan enemy, `recallWindow` in
+    `repo/hostile.ts`); one click takes it over.
+  - Links into the flight calculator: every fleet of an exact plan ("timing" mode: start, ships, speed, drives, target
+    time) and the retime panel ("retime" mode: followed enemy fleet, drives, arrival and delay, recall, chosen speed,
+    the viewer's own fleet as the counter with the buffer). `flightCalcLink` takes extra share-link keys.
+
 - Raid planner, retime: the default buffer after the enemy's return is 1 s instead of 5 s; the panel rates the buffer
   (up to 1 s good, 2-3 s poor, from 4 s very poor). Existing plans keep their buffer.
 

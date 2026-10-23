@@ -4,7 +4,8 @@ import type { GroupContext } from '../context.js';
 import { now, type DB } from '../db.js';
 import { events } from '../events.js';
 import { latestEmpires } from '../repo/empire.js';
-import { attackKey, hostileAttacks, type Body, type EnemyFleet } from '../repo/hostile.js';
+import { sharedFleets, type StoredFleet } from '../repo/fleets.js';
+import { attackKey, hostileAttacks, recallWindow, type Body, type EnemyFleet } from '../repo/hostile.js';
 import { contextOf, DISPLAY, MEMBER } from './util.js';
 
 const STATUSES = ['planning', 'launched', 'done', 'cancelled'];
@@ -18,6 +19,10 @@ const KEEP_SECONDS = 7 * 86400;
 const CLAIM_AFTER = 600;
 /** Research ids the flight times need: drives and fuel efficiency. */
 const DRIVE_IDS = [115, 117, 118, 134];
+/** Missions of an own fleet that count as launched for a plan: attack, ACS attack, destroy. */
+const LAUNCH_MISSIONS = [1, 2, 9];
+/** An own fleet in flight counts for a plan when it lands from an hour before its time until an hour after its end. */
+const LAUNCH_SLACK = 3600;
 
 interface PlanBody {
   /** coordinates: all three, or null for "not known yet" */
@@ -99,6 +104,8 @@ interface EnemyRow {
   buffer: number;
   updated_at: number;
   updated_by: string | null;
+  /** recall window suggested by the overview pastes (the attack vanished before its arrival) */
+  recall_seen?: { from: number; to: number } | null;
 }
 
 interface FleetRow {
@@ -236,23 +243,70 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
          JOIN users u ON u.id = f.user_id LEFT JOIN group_members gm ON gm.group_id = a.group_id AND gm.user_id = f.user_id
          WHERE f.plan_id IN (SELECT value FROM json_each(?)) ORDER BY f.id`,
       )
-      .all(JSON.stringify(plans.map((p) => p.id))) as (Record<string, unknown> & { plan_id: number; user_id: number; ships: string })[];
+      .all(JSON.stringify(plans.map((p) => p.id))) as (LaunchFleet & Record<string, unknown> & { ships: string })[];
     // drive levels from the members' latest empire pages (needed for every fleet's flight time)
     const drives = new Map<number, { time: number; research: Record<number, number> }>();
     for (const e of latestEmpires(db, ctx)) {
       drives.set(e.userId, { time: e.time, research: Object.fromEntries(DRIVE_IDS.map((id) => [id, e.rec.research[id] ?? 0])) });
     }
     const enemies = new Map(enemiesOf(ctx, plans.map((p) => p.id)).map((e) => [e.plan_id, e]));
+    const launched = launchedOf(ctx, plans as unknown as LaunchPlan[], fleets);
     return plans.map((p) => ({
       ...p,
       fleets: fleets
         .filter((f) => f.plan_id === p.id)
-        .map(({ plan_id, ships, ...f }) => ({ ...f, ships: JSON.parse(ships), drives: drives.get(f.user_id) ?? null })),
+        .map(({ plan_id, ships, ...f }) => ({ ...f, ships: JSON.parse(ships), drives: drives.get(f.user_id) ?? null, seen: launched.get(f.id) ?? null })),
       enemy: enemies.has(p.id) ? enemyOut(enemies.get(p.id)!) : null,
     }));
   });
 
-  /** Enemy fleets of plans; a newer overview paste of the same attack updates the arrival as seen (ACS delays). */
+  type LaunchPlan = Pick<PlanRow, 'id' | 'g' | 's' | 'p' | 'planet_type' | 'target_time' | 'status'> & { time_precision: string };
+  type LaunchFleet = { id: number; plan_id: number; user_id: number; g: number | null; s: number | null; p: number | null; planet_type: string | null; status: string };
+  /**
+   * Plan fleets the member's newest overview shows in flight: an own attack from the fleet's start to the plan's target,
+   * landing around the plan's time (as the viewer may see it, `sharedFleets`). Returns the real arrival and the paste
+   * time per plan fleet; an invited or ready fleet becomes launched.
+   */
+  function launchedOf(ctx: GroupContext, plans: LaunchPlan[], fleets: LaunchFleet[]): Map<number, { arrival: number; time: number }> {
+    const out = new Map<number, { arrival: number; time: number }>();
+    const snaps = new Map<number, { time: number; data: StoredFleet[]; used: Set<number> } | null>();
+    const same = (b: StoredFleet['from'] | null, g: number, s: number, p: number, type: string) =>
+      !!b && b.coords.g === g && b.coords.s === s && b.coords.p === p && b.type === type;
+    for (const plan of plans) {
+      if (plan.g == null || (plan.status !== 'planning' && plan.status !== 'launched')) continue;
+      const from = plan.target_time - LAUNCH_SLACK;
+      const to = plan.target_time + (plan.time_precision === 'day' ? 86400 : plan.time_precision === 'hour' ? 3600 : 0) + LAUNCH_SLACK;
+      for (const f of fleets) {
+        if (f.plan_id !== plan.id || f.g == null || f.status === 'withdrawn') continue;
+        if (!snaps.has(f.user_id)) {
+          const snap = sharedFleets(db, ctx.groupId, f.user_id, ctx.user.id);
+          snaps.set(f.user_id, snap ? { time: snap.time, data: snap.data, used: new Set() } : null);
+        }
+        const snap = snaps.get(f.user_id);
+        if (!snap) continue;
+        let best = -1;
+        snap.data.forEach((m, i) => {
+          if (m.owner !== 'own' || m.phase !== 'out' || m.mission == null || !LAUNCH_MISSIONS.includes(m.mission) || snap.used.has(i)) return;
+          if (!same(m.to, plan.g!, plan.s!, plan.p!, plan.planet_type) || !same(m.from, f.g!, f.s!, f.p!, f.planet_type ?? 'planet')) return;
+          if (m.arrival < from || m.arrival > to) return;
+          if (best < 0 || Math.abs(m.arrival - plan.target_time) < Math.abs(snap.data[best].arrival - plan.target_time)) best = i;
+        });
+        if (best < 0) continue;
+        snap.used.add(best);
+        out.set(f.id, { arrival: snap.data[best].arrival, time: snap.time });
+        if (f.status === 'invited' || f.status === 'ready') {
+          db.prepare("UPDATE attack_plan_fleets SET status = 'launched' WHERE id = ?").run(f.id);
+          f.status = 'launched';
+        }
+      }
+    }
+    return out;
+  }
+
+  /**
+   * Enemy fleets of plans; a newer overview paste of the same attack updates the arrival as seen (ACS delays), and an
+   * attack that vanished from the attacked member's overview before it arrived suggests a recall window.
+   */
   function enemiesOf(ctx: GroupContext, planIds: number[]): EnemyRow[] {
     const rows = db
       .prepare(
@@ -267,11 +321,13 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
     const seen = new Map(hostileAttacks(db, ctx).map((a) => [a.key, a]));
     for (const e of rows) {
       const fleets = JSON.parse(e.fleets) as EnemyFleet[];
-      const latest = seen.get(attackKey(fromOf(e), toOf(e), fleets[0]?.ships ?? {}));
+      const key = attackKey(fromOf(e), toOf(e), fleets[0]?.ships ?? {});
+      const latest = seen.get(key);
       if (latest && latest.arrival !== e.arrival) {
         db.prepare('UPDATE attack_plan_enemy SET arrival = ? WHERE plan_id = ?').run(latest.arrival, e.plan_id);
         e.arrival = latest.arrival;
       }
+      e.recall_seen = !latest && e.member_id != null ? recallWindow(db, ctx.groupId, e.member_id, key) : null;
     }
     return rows;
   }
@@ -292,6 +348,7 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
     departure: e.departure_from != null && e.departure_to != null ? { from: e.departure_from, to: e.departure_to } : null,
     recall: e.recall_from != null && e.recall_to != null ? { from: e.recall_from, to: e.recall_to } : null,
     recall_lead: !!e.recall_lead,
+    recall_seen: e.recall_seen ?? null,
     percent: e.percent,
     buffer: e.buffer,
     updated_at: e.updated_at,

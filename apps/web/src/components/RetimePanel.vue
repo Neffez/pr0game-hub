@@ -5,7 +5,7 @@ import { uniApi } from '../api';
 import { useUni } from '../composables';
 import { abbr, coords, duration, fmt } from '../format';
 import { intlLocale } from '../i18n';
-import { bufferRating, candidateHome, DEFAULT_BUFFER, DRIVES_MAX_AGE, enemyCandidates, fromLocalInput, toLocalInput, type AttackPlan, type PlanEnemy } from '../plans';
+import { bufferRating, candidateHome, DEFAULT_BUFFER, DRIVES_MAX_AGE, enemyCalcLink, enemyCandidates, fromLocalInput, toLocalInput, type AttackPlan, type PlanEnemy } from '../plans';
 
 /**
  * Retime analysis of a plan's hostile fleet: speed candidates of its return home, narrowed by departure window,
@@ -67,6 +67,26 @@ const candidates = computed(() => enemyCandidates(ctx.value!.universe.settings, 
 const chosen = computed(() => candidates.value.find((c) => c.percent === draft.percent) ?? null);
 const targetTime = computed(() => (chosen.value ? candidateHome(chosen.value) + draft.buffer : null));
 
+/** Flight calculator with the current inputs; the viewer's own fleet in the plan (with a start) as the counter. */
+const calcLink = computed(() =>
+  enemyCalcLink(
+    ctx.value!.universe.settings,
+    { ...input.value, percent: draft.percent, buffer: draft.buffer },
+    props.plan.fleets.find((f) => f.user_id === ctx.value?.me.id && f.g != null && f.status !== 'withdrawn'),
+  ),
+);
+
+/** Recall window from the overview pastes, offered while the form shows another one. */
+const recallSeen = computed(() => {
+  const r = enemy.value.recall_seen;
+  return r && (draft.recFrom !== toLocalInput(r.from) || draft.recTo !== toLocalInput(r.to)) ? r : null;
+});
+function applyRecallSeen() {
+  const r = enemy.value.recall_seen!;
+  Object.assign(draft, { recFrom: toLocalInput(r.from), recTo: toLocalInput(r.to), recallLead: true });
+  touch();
+}
+
 const clock = (epoch: number) => new Date(epoch * 1000).toLocaleTimeString(intlLocale(), { hour: '2-digit', hourCycle: 'h23', minute: '2-digit', second: '2-digit' });
 const ships = (s: Record<string, number>) =>
   Object.entries(s)
@@ -111,6 +131,7 @@ async function save() {
       <span class="mono">{{ coords(enemy.from.g, enemy.from.s, enemy.from.p) }} → {{ coords(enemy.to.g, enemy.to.s, enemy.to.p) }}</span>
       <span>{{ t('retime.impact') }} <b class="mono">{{ clock(enemy.arrival) }}</b></span>
       <span v-if="delay > 0" class="warn small">{{ t('retime.delayed', { t: duration(delay), first: clock(enemy.first_seen) }) }}</span>
+      <a class="small" :href="calcLink" target="_blank" rel="noopener" :title="t('retime.calcTitle')">{{ t('retime.calc') }} ↗</a>
     </div>
 
     <div class="fleets">
@@ -142,6 +163,11 @@ async function save() {
         –
         <input v-model="draft.recTo" type="datetime-local" step="1" :disabled="!editable" @input="touch" />
         <label v-if="enemy.fleets.length > 1"><input v-model="draft.recallLead" type="checkbox" :disabled="!editable" @change="touch" /> {{ t('retime.recallLead') }}</label>
+      </span>
+      <span v-if="recallSeen" class="field">
+        <span class="lbl" />
+        <span class="warn small">{{ t('retime.recallSeen', { member: enemy.member ?? '?', from: clock(recallSeen.from), to: clock(recallSeen.to) }) }}</span>
+        <button v-if="editable" @click="applyRecallSeen">{{ t('retime.recallApply') }}</button>
       </span>
       <span class="field">
         <span class="lbl">{{ t('retime.buffer') }}</span>

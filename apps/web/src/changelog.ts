@@ -20,6 +20,21 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Raid-Planer: Taucht deine Flotte in deiner eingefügten Übersicht auf dem Weg zum Ziel auf, gilt sie als gestartet, und die Tabelle zeigt ihre echte Ankunft im Vergleich zur Zielzeit.',
+        en: 'Raid planner: once your pasted overview shows your fleet on its way to the target, it counts as launched, and the table shows its real arrival against the target time.',
+      },
+      {
+        kind: 'new',
+        de: 'Retime: Verschwindet ein Angriff vor dem Einschlag aus der Übersicht des Angegriffenen, schlägt der Hub das Zeitfenster als Rückruf vor (ein Klick übernimmt es).',
+        en: "Retime: when an attack vanishes from the attacked member's overview before the impact, the hub suggests that time window as a recall (one click takes it over).",
+      },
+      {
+        kind: 'new',
+        de: 'Raid-Planer: Flotten und das Retime-Panel öffnen sich mit allen Werten im Flugzeitrechner.',
+        en: 'Raid planner: fleets and the retime panel open in the flight calculator with all their values.',
+      },
+      {
+        kind: 'new',
         de: 'Retime: Der Puffer nach der Rückkehr des Gegners steht standardmäßig auf 1 Sekunde, und der Hub zeigt, wie gut der Retime ist (bis 1 s gut, 2–3 s schlecht, ab 4 s sehr schlecht).',
         en: "Retime: the buffer after the enemy's return defaults to 1 second, and the hub shows how good the retime is (up to 1 s good, 2-3 s poor, from 4 s very poor).",
       },

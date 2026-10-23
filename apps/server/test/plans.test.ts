@@ -201,7 +201,34 @@ describe('attack plans', () => {
     await call('POST', '/ingest', carol, { text: acs(4) });
     plan = (await call('GET', '/plans', dave)).json().find((p: any) => p.id === created.id);
     expect(plan.enemy.arrival - plan.enemy.first_seen).toBeGreaterThan(3500);
+    expect(plan.enemy.recall_seen).toBeNull();
+
+    // the attack vanished from a newer overview before it arrived: recalled in between
+    const later = Math.floor(Date.now() / 1000) + 60;
+    db.prepare("INSERT INTO fleet_snapshots (group_id, user_id, page_time, data) VALUES (?, ?, ?, '[]')").run(groupA, carolId, later);
+    expect((await call('GET', '/hostile-attacks', dave)).json()).toEqual([]);
+    plan = (await call('GET', '/plans', dave)).json().find((p: any) => p.id === created.id);
+    expect(plan.enemy.recall_seen.to).toBe(later);
+    expect(plan.enemy.recall_seen.from).toBeLessThan(later);
+    expect(plan.enemy.recall).toBeNull();
+    db.prepare('DELETE FROM fleet_snapshots WHERE page_time = ?').run(later);
     await call('DELETE', `/plans/${created.id}`, dave);
+  });
+
+  it("marks a fleet as launched when the member's own overview shows it towards the target", async () => {
+    const target = Math.floor(Date.now() / 1000) + 7200;
+    const id = (await call('POST', '/plans', carol, { g: 3, s: 115, p: 8, type: 'moon', target_time: target })).json().id;
+    await call('POST', `/plans/${id}/fleets`, carol, { g: 1, s: 40, p: 5, type: 'planet', ships: { 204: 5 } });
+    await call('POST', `/plans/${id}/fleets`, dave, { g: 1, s: 42, p: 7, type: 'planet', ships: { 207: 3 } });
+    const fleet = (from: string, h: number, m: number) =>
+      `${h}h ${m}m 0s Eine deiner Flotten (5 Leichter Jäger) vom Planet Heim [${from}] erreicht den Mond Ziel [3:115:8]. Mission: Angreifen`;
+    // another start, and one far off the plan's time, do not count
+    await call('POST', '/ingest', carol, { text: [fleet('1:40:6', 2, 0), fleet('1:40:5', 5, 0), fleet('1:40:5', 1, 59)].join('\n') });
+    const plan = (await call('GET', '/plans', dave)).json().find((p: any) => p.id === id);
+    expect(plan.fleets.map((f: any) => f.status)).toEqual(['launched', 'ready']);
+    expect(Math.abs(plan.fleets[0].seen.arrival - (target - 60))).toBeLessThanOrEqual(2);
+    expect(plan.fleets[1].seen).toBeNull();
+    await call('DELETE', `/plans/${id}`, carol);
   });
 
   it('lists plans up to a week after their target time', async () => {

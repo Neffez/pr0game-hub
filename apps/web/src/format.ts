@@ -173,9 +173,16 @@ const FLIGHT_CALCULATOR_URL = 'https://pr0game.neffez.dev/flight-calculator/';
 
 /**
  * Link into the flight calculator: start/target, drive research and the universe layout are
- * passed via its share-link hash (sg/ss/sp, tg/ts/tp, c/i/h/fe/ex, mg/ms/…).
+ * passed via its share-link hash (sg/ss/sp, tg/ts/tp, c/i/h/fe/ex, mg/ms/…); `extra` adds further keys of the
+ * share link (mode, ships, times, see `applyHash` in the calculator).
  */
-export function flightCalcLink(u: UniverseSettings, from: Coords3 | null, to: Coords3, research: Record<string, number> = {}): string {
+export function flightCalcLink(
+  u: UniverseSettings,
+  from: Coords3 | null,
+  to: Coords3,
+  research: Record<string, number> = {},
+  extra: Record<string, string | number> = {},
+): string {
   const p = new URLSearchParams();
   if (from) {
     p.set('sg', String(from[0]));
@@ -200,6 +207,7 @@ export function flightCalcLink(u: UniverseSettings, from: Coords3 | null, to: Co
   p.set('pdf', String(u.planetDistanceFactor));
   p.set('pd', String(u.planetDistance));
   p.set('gs', String(u.fleetSpeed / 2500));
+  for (const [key, value] of Object.entries(extra)) p.set(key, String(value));
   const base = (u as UniverseSettings & { flightCalculatorUrl?: string }).flightCalculatorUrl || FLIGHT_CALCULATOR_URL;
   return `${base}#${p.toString()}`;
 }

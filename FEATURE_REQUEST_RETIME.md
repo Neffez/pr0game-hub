@@ -1,7 +1,9 @@
 # Feature request: raid planner (attack plans and retime)
 
 Status (2026-10-23): usable. Attack plans (solo, ACS, against a player with rough times) and retime on hostile
-attacks are live in the raid planner. Open: simulator links, phalanx source, a few follow-ups (see "Still open").
+attacks are live in the raid planner, with recall detection, launched fleets from the own overview and flight
+calculator links. Open: simulator links, phalanx source, ACS limits per universe, browser check, test data (see
+"Still open").
 
 The raid planner plans own attacks, solo or as ACS, and lands them at the right second. A plan starts empty or from a
 pasted hostile attack ("retime": land on the enemy origin right after the enemy fleet is back).
@@ -93,6 +95,11 @@ From the game source (`ShowFleetStep3Page`, `FleetFunctions::setACSTime`), built
 - **Limits** 16 fleets / 5 players: fleets beyond them (in launch order) are marked "outside the ACS" (the game sends
   them as a normal attack without notice).
 - **Returns** per fleet after the resulting arrival.
+- **Launched**: when the member's newest overview shows an own attack (missions 1, 2, 9) from the fleet's start to
+  the plan's target, landing from an hour before the target time until an hour after its end, the fleet becomes
+  "launched" and carries `seen` (real arrival, paste time; as the fleet sharing setting lets the viewer see it); the
+  table shows the real arrival against the target time.
+- **Flight calculator** per fleet of an exact plan ("timing" mode: start, ships, speed, drives, target time).
 - **Simulator links** ("TrashSim", "Simulator im Spiel"): not built yet.
 
 ## Enemy fleet analysis (retime, as built)
@@ -105,7 +112,11 @@ From the game source (`ShowFleetStep3Page`, `FleetFunctions::setACSTime`), built
 - **Drives** of the owner (owner by the origin's galaxy data) from the newest spy report with research, editable.
 - **Delay**: a newer overview paste of the same attack with a later arrival updates it; the first seen arrival stays,
   the panel shows the delay.
-- **Recall**: entered by hand as a window (no automatic detection yet).
+- **Recall**: entered as a window. When the attack vanished from the attacked member's overview before its arrival,
+  the panel suggests the window from the last paste with it to the first paste without it (`recallWindow`,
+  `recall_seen`); one click takes it over (as a recall of the lead).
+- **Flight calculator**: link in "retime" mode with the followed fleet, drives, arrival (and the first seen one),
+  recall, chosen speed, and the viewer's own fleet in the plan as the counter (start, slowest ship, drives, buffer).
 
 ## Timing rules
 
@@ -206,6 +217,8 @@ The parser `packages/parser/src/parsers/fleets.ts` (stored in `fleet_snapshots`)
 4. **Attack plans** (025, 026): solo/ACS, against a player with rough times, coordinates later, ships from the start
    planet or all own ships.
 5. **Retime** (027): hostile attacks list, retime plans, shared enemy inputs, delays from new pastes.
+6. **Follow-ups**: recall detection from the overview pastes, launched fleets from the own overview with the real
+   arrival, flight calculator links from fleets and the retime panel.
 
 ## Still open
 
@@ -213,13 +226,9 @@ The parser `packages/parser/src/parsers/fleets.ts` (stored in `fleet_snapshots`)
    spy report of the target, via URL only (check the parameters both simulators accept).
 2. **Phalanx as source**: a phalanx result of a returning fleet gives the landing at home directly (target time without
    candidates). Needs a copied phalanx text (also: is the window copyable as one text, does it show the ships?).
-3. **Recall detection**: when an attack vanishes from a newer overview paste before its arrival, suggest the recall
-   window (last paste with the fleet .. first paste without it) instead of entering it by hand.
-4. **ACS limits per universe**: the 16 / 5 are constants; move them into the universe settings if universes differ.
-5. **Flight calculator link** from a plan or retime panel (share link with route, ships, drives, `mode=retime`).
-6. **Launched fleets**: mark a fleet as launched from the member's own overview paste (own ACS fleet towards the target)
-   instead of by hand, and compare the real arrival with the plan.
-7. **Check in a real browser**, also the mobile layout (not possible here: headless Chrome does not run on this
+3. **ACS limits per universe**: the 16 / 5 are constants; move them into the universe settings if universes differ.
+4. **Check in a real browser**, also the mobile layout (not possible here: headless Chrome does not run on this
    machine); so far only the happy-dom smoke tests.
-8. **Test data**: the full Ctrl+A copy of an overview with an attack (with server clock line), the English texts
-   (taken from the game's language files so far), a copied phalanx result.
+5. **Test data**: the full Ctrl+A copy of an overview with an attack (with server clock line), the English texts
+   (taken from the game's language files so far), a copied phalanx result, an own ACS fleet in the overview (to check
+   the launched detection with an ACS member's mission).

@@ -1,7 +1,7 @@
 import { distance, flightDuration, shipSpeed } from '@pr0hub/flight';
 import { describe, expect, it } from 'vitest';
 import type { UniverseSettings } from '../src/format';
-import { computePlan, draftBody, draftOf, fromLocalInput, isCurrent, newDraft, parseTarget, toLocalInput, type AttackPlan, type PlanFleet } from '../src/plans';
+import { computePlan, draftBody, draftOf, enemyCalcLink, fleetCalcLink, fromLocalInput, isCurrent, newDraft, parseTarget, toLocalInput, type AttackPlan, type PlanEnemy, type PlanFleet } from '../src/plans';
 
 const u: UniverseSettings = {
   galaxies: 9, systems: 400, positions: 15, circularGalaxies: true, circularSystems: true,
@@ -11,7 +11,7 @@ const u: UniverseSettings = {
 const research = { 115: 10, 117: 8, 118: 6, 134: 0 };
 const fleet = (id: number, userId: number, start: [number, number, number] | null, ships: Record<string, number>, speed = 100): PlanFleet => ({
   id, user_id: userId, member: `m${userId}`, g: start?.[0] ?? null, s: start?.[1] ?? null, p: start?.[2] ?? null, planet_type: start ? 'planet' : null,
-  ships, speed, status: start ? 'ready' : 'invited', updated_at: 0, drives: { time: 0, research },
+  ships, speed, status: start ? 'ready' : 'invited', updated_at: 0, drives: { time: 0, research }, seen: null,
 });
 const plan = (fleets: PlanFleet[]): AttackPlan => ({
   id: 1, user_id: 1, creator: 'm1', g: 1, s: 41, p: 1, planet_type: 'moon', target_time: 2_000_000_000, time_precision: 'exact', note: null, status: 'planning',
@@ -63,5 +63,30 @@ describe('attack plans in the web app', () => {
     expect(fromLocalInput(toLocalInput(2_000_000_123))).toBe(2_000_000_123);
     expect(isCurrent(plan([]), 2_000_000_000 + 3599)).toBe(true);
     expect(isCurrent({ ...plan([]), status: 'done' }, 0)).toBe(false);
+  });
+
+  it('links fleets and the enemy fleet into the flight calculator', () => {
+    const hash = (link: string) => Object.fromEntries(new URLSearchParams(link.split('#')[1]));
+    const own = fleet(1, 1, [1, 40, 5], { 204: 10, 202: 3 }, 70);
+    expect(hash(fleetCalcLink(u, plan([own]), own)!)).toMatchObject({
+      m: 'timing', arr: '2000000000', sg: '1', ss: '40', sp: '5', tg: '1', ts: '41', tp: '1', ships: '202:3,204:10', spd: '7', c: '10', i: '8', h: '6',
+    });
+    expect(fleetCalcLink(u, plan([own]), fleet(2, 2, null, {}))).toBeNull();
+
+    const enemy: PlanEnemy = {
+      member_id: 1, member: 'm1', from: { g: 1, s: 41, p: 1, type: 'moon' }, to: { g: 3, s: 115, p: 8, type: 'planet' },
+      fleets: [{ mission: 1, ships: { 210: 1 } }, { mission: 2, ships: { 207: 1773 } }], follow: 1, arrival: 2_000_000_100, first_seen: 2_000_000_000,
+      drives: { 115: 12, 117: 11, 118: 9 }, drives_source: 'spy', drives_time: 0, departure: null, recall: null, recall_lead: true, recall_seen: null, percent: 80, buffer: 1,
+      updated_at: 0, updated_by: null,
+    };
+    expect(hash(enemyCalcLink(u, enemy, own))).toMatchObject({
+      m: 'retime', sg: '1', ss: '41', sp: '1', tg: '3', ts: '115', tp: '8', ships: '207:1773', c: '12', i: '11', h: '9', spd: '8',
+      ea: '2000000100', eo: '2000000000', eout: 'impact', ks: '1:40:5', kship: '204', kc: '10', ki: '8', kh: '6', ko: '1',
+    });
+    // a recall of the lead: the whole ACS comes back with the lead
+    const recalled = hash(enemyCalcLink(u, { ...enemy, first_seen: enemy.arrival, recall: { from: 1_999_999_000, to: 1_999_999_500 } }));
+    expect(recalled).toMatchObject({ ships: '210:1', eout: 'recall', er: '1999999000' });
+    expect(recalled.eo).toBeUndefined();
+    expect(recalled.ks).toBeUndefined();
   });
 });

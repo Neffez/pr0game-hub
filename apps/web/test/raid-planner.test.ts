@@ -4,6 +4,7 @@ import { createApp, defineComponent, h, nextTick, ref } from 'vue';
 import { createMemoryHistory, createRouter } from 'vue-router';
 import { provideUni, type UniContext } from '../src/composables';
 import { i18n, setLocale } from '../src/i18n';
+import { toLocalInput } from '../src/plans';
 import RaidPlannerView from '../src/views/RaidPlannerView.vue';
 
 // Smoke test of the raid planner page: real components, texts and router; the API answers from fixtures.
@@ -14,9 +15,10 @@ const plans = [
     created_at: 0, updated_at: 0, claim_user_id: 1, player_id: 5, player_name: 'Gegner', planet_name: 'Mond',
     fleets: [
       { id: 1, user_id: 1, member: 'Carol', g: 1, s: 40, p: 5, planet_type: 'planet', ships: { 207: 1773, 215: 2 }, speed: 90, status: 'ready', updated_at: 0,
-        drives: { time: Math.floor(Date.now() / 1000), research: { 115: 10, 117: 8, 118: 6, 134: 0 } } },
-      { id: 2, user_id: 2, member: 'Dave', g: 1, s: 42, p: 7, planet_type: 'planet', ships: { 204: 100 }, speed: 100, status: 'ready', updated_at: 0, drives: null },
-      { id: 3, user_id: 3, member: 'Erin', g: null, s: null, p: null, planet_type: null, ships: {}, speed: 100, status: 'invited', updated_at: 0, drives: null },
+        drives: { time: Math.floor(Date.now() / 1000), research: { 115: 10, 117: 8, 118: 6, 134: 0 } }, seen: null },
+      { id: 2, user_id: 2, member: 'Dave', g: 1, s: 42, p: 7, planet_type: 'planet', ships: { 204: 100 }, speed: 100, status: 'launched', updated_at: 0, drives: null,
+        seen: { arrival: target + 3, time: 0 } },
+      { id: 3, user_id: 3, member: 'Erin', g: null, s: null, p: null, planet_type: null, ships: {}, speed: 100, status: 'invited', updated_at: 0, drives: null, seen: null },
     ],
   },
   {
@@ -30,7 +32,8 @@ const plans = [
       member_id: 2, member: 'Dave', from: { g: 1, s: 41, p: 1, type: 'moon' }, to: { g: 1, s: 100, p: 12, type: 'planet' },
       fleets: [{ mission: 1, ships: { 210: 1 } }, { mission: 2, ships: { 207: 1773, 215: 2 } }], follow: 1,
       arrival: target, first_seen: target - 600, drives: { 115: 10, 117: 8, 118: 6 }, drives_source: 'spy', drives_time: Math.floor(Date.now() / 1000),
-      departure: null, recall: null, recall_lead: true, percent: null, buffer: 5, updated_at: 0, updated_by: null,
+      departure: null, recall: null, recall_lead: true, recall_seen: { from: target - 3000, to: target - 2400 }, percent: null, buffer: 5,
+      updated_at: 0, updated_by: null,
     },
   },
 ];
@@ -148,6 +151,9 @@ describe('raid planner page', () => {
     // launch times as clocks, Dave's drives unknown
     expect(rows[0].textContent).toMatch(/\d\d:\d\d:\d\d/);
     expect(rows[1].querySelector('.warn')).not.toBeNull();
+    // Dave's fleet is in flight per his overview: real arrival against the target time
+    expect(rows[1].textContent).toContain('gestartet laut Übersicht');
+    expect(rows[1].textContent).toContain('+3 s');
   });
 
   it('shows a plan against a player without coordinates and with a rough time', () => {
@@ -171,6 +177,22 @@ describe('raid planner page', () => {
     await settle();
     expect(panel.textContent).toMatch(/Zielzeit des Plans: \d\d:\d\d:\d\d/);
     expect(panel.querySelector<HTMLButtonElement>('button.primary')!.disabled).toBe(false);
+  });
+
+  it('offers the recall seen in the overview pastes and links into the flight calculator', async () => {
+    const panel = root.querySelector('.retime')!;
+    expect(panel.textContent).toContain('wohl zurückgerufen');
+    const link = panel.querySelector<HTMLAnchorElement>('a[href*="flight-calculator"]')!;
+    expect(link.href).toContain('m=retime');
+    const apply = [...panel.querySelectorAll('button')].find((b) => b.textContent === 'Als Rückruf übernehmen')!;
+    apply.click();
+    await settle();
+    const [from, to] = [...panel.querySelectorAll<HTMLInputElement>('input[type=datetime-local]')].slice(2).map((i) => i.value);
+    expect([from, to]).toEqual([toLocalInput(target - 3000), toLocalInput(target - 2400)]);
+    expect(panel.textContent).not.toContain('wohl zurückgerufen');
+    expect(panel.querySelector<HTMLAnchorElement>('a[href*="flight-calculator"]')!.href).toContain('eout=recall');
+    // every fleet of an exact plan with a start links its launch times
+    expect(root.querySelector('.plan tbody tr a.calc')!.getAttribute('href')).toContain('m=timing');
   });
 
   it('adds ships from the start planet or from all own ones, each with its maximum', async () => {
