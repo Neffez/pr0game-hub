@@ -18,8 +18,8 @@ const MAX_FLEETS = 32;
 const KEEP_SECONDS = 7 * 86400;
 /** The target claim lasts until a few minutes after the target time. */
 const CLAIM_AFTER = 600;
-/** Research ids the flight times need: drives and fuel efficiency. */
-const DRIVE_IDS = [115, 117, 118, 134];
+/** Research ids of the plan fleets: drives and fuel efficiency (flight times), weapons, shields, armour (simulator). */
+const RESEARCH_IDS = [115, 117, 118, 134, 109, 110, 111];
 /** Missions of an own fleet that count as launched for a plan: attack, ACS attack, destroy. */
 const LAUNCH_MISSIONS = [1, 2, 9];
 /** An own fleet in flight counts for a plan when it lands from an hour before its time until an hour after its end. */
@@ -245,10 +245,10 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
          WHERE f.plan_id IN (SELECT value FROM json_each(?)) ORDER BY f.id`,
       )
       .all(JSON.stringify(plans.map((p) => p.id))) as (LaunchFleet & Record<string, unknown> & { ships: string })[];
-    // drive levels from the members' latest empire pages (needed for every fleet's flight time)
+    // research from the members' latest empire pages (drives for every fleet's flight time, combat techs for the simulator)
     const drives = new Map<number, { time: number; research: Record<number, number> }>();
     for (const e of latestEmpires(db, ctx)) {
-      drives.set(e.userId, { time: e.time, research: Object.fromEntries(DRIVE_IDS.map((id) => [id, e.rec.research[id] ?? 0])) });
+      drives.set(e.userId, { time: e.time, research: Object.fromEntries(RESEARCH_IDS.map((id) => [id, e.rec.research[id] ?? 0])) });
     }
     const enemies = new Map(enemiesOf(ctx, plans.map((p) => p.id)).map((e) => [e.plan_id, e]));
     const launched = launchedOf(ctx, plans as unknown as LaunchPlan[], fleets);

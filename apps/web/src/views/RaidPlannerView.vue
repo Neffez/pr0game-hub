@@ -100,8 +100,18 @@ async function run(fn: () => Promise<unknown>) {
 }
 
 const settings = computed(() => ctx.value!.universe.settings);
-/** Combat simulators with the target's newest spy report (needs the game URL of the universe). */
-const sims = (p: AttackPlan) => (settings.value.gameUrl && p.spy ? simLinks(settings.value.gameUrl, p.spy.values) : null);
+/**
+ * Combat simulators with the target's newest spy report (needs the game URL of the universe); the game simulator also
+ * gets the plan's fleets (not withdrawn, with ships) with the combat research of their member's empire page.
+ */
+const sims = (p: AttackPlan) =>
+  settings.value.gameUrl && p.spy
+    ? simLinks(
+        settings.value.gameUrl,
+        p.spy.values,
+        p.fleets.filter((f) => f.status !== 'withdrawn' && Object.values(f.ships).some((n) => n > 0)).map((f) => ({ ships: f.ships, research: f.drives?.research ?? {} })),
+      )
+    : null;
 const me = computed(() => ctx.value?.me.id);
 const isAdmin = computed(() => ctx.value?.group.role === 'admin' || !!ctx.value?.me.isAdmin);
 const canEdit = (p: AttackPlan) => p.user_id === me.value || isAdmin.value;
@@ -373,9 +383,9 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
           <span class="small">{{ t('plans.delayedBy', { t: duration(views.get(p.id)!.acs!.delay) }) }}</span>
         </span>
         <span class="muted small">{{ t('plans.by', { name: p.creator }) }}</span>
-        <span v-if="sims(p)" class="small sims" :title="t('plans.simTitle', { time: timeWithAge(p.spy!.time) })">
-          <a :href="sims(p)!.game" target="_blank" rel="noopener">{{ t('plans.simGame') }}</a>
-          · <a :href="sims(p)!.trash" target="_blank" rel="noopener">TrashSim</a>
+        <span v-if="sims(p)" class="small sims">
+          <a :href="sims(p)!.game" target="_blank" rel="noopener" :title="t('plans.simGameTitle', { time: timeWithAge(p.spy!.time) })">{{ t('plans.simGame') }}</a>
+          · <a :href="sims(p)!.trash" target="_blank" rel="noopener" :title="t('plans.simTrashTitle', { time: timeWithAge(p.spy!.time) })">TrashSim</a>
         </span>
       </div>
       <div v-if="p.note && !editing[p.id]" class="small">{{ p.note }}</div>

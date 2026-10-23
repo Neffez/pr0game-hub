@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Raid planner: the link to the simulator in the game also carries the plan's fleets, one ACS slot per fleet with
+  ships and weapons/shields/armour from the member's empire page (`slots`, `battleinput[slot][0][ID]`); plan fleets
+  now carry research 109-111 too. TrashSim still gets the target alone (it takes attackers only from its compressed
+  export string `sim=`, which replaces the `im[]` values).
+
 - Combat simulator links: plans with coordinates link the simulator in the game and TrashSim (`battlesim.html` of the
   universe) with the target's newest spy report (`spy` on plans; research missing in it from the owner's newest report
   with research); the spy history links TrashSim next to the game simulator (`simLinks` in `format.ts`).

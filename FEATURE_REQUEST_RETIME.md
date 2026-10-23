@@ -103,8 +103,10 @@ From the game source (`ShowFleetStep3Page`, `FleetFunctions::setACSTime`), built
 - **Simulator links** ("Simulator im Spiel", "TrashSim"): both take only the target's values as `im[ID]=amount`
   (resources, ships, defense, buildings, research), like the game's "simulate" button:
   `<game URL>game.php?page=battleSimulator&im[…]` and `<game URL>battlesim.html?&im[…]`. The plan carries the target's
-  newest spy report (`spy`; research missing in it from the owner's newest report with research). The own fleets are
-  entered in the simulator by hand (no known URL parameters for the attackers).
+  newest spy report (`spy`; research missing in it from the owner's newest report with research). The game simulator
+  also takes the attackers (`ShowBattleSimulatorPage::show`): `slots=N` and `battleinput[slot][0][ID]` per fleet
+  (ships, 109-111 from the member's empire page). TrashSim (`import_export.js`) takes attackers only from `sim=`, an
+  LZString-compressed export text whose rows depend on its ship id lists, and then ignores `im[]`; not used.
 
 ## Enemy fleet analysis (retime, as built)
 
@@ -232,8 +234,9 @@ The parser `packages/parser/src/parsers/fleets.ts` (stored in `fleet_snapshots`)
 2. **ACS limits per universe**: the 16 / 5 are constants; move them into the universe settings if universes differ.
 3. **Check in a real browser**, also the mobile layout (not possible here: headless Chrome does not run on this
    machine); so far only the happy-dom smoke tests.
-4. **Simulator with attackers**: if TrashSim or the game simulator accept the attacking fleets and their research
-   via URL, fill in the plan's fleets too.
+4. **TrashSim with attackers**: build its `sim=` export string (resources line, one row per fleet with techs, origin
+   and ships in the order of its `atackids`/`defids`) if needed; its importer is fragile, so only with a test against
+   the deployed `battlesim.html`.
 5. **Test data**: the full Ctrl+A copy of an overview with an attack (with server clock line), the English texts
    (taken from the game's language files so far), a copied phalanx result, an own ACS fleet in the overview (to check
    the launched detection with an ACS member's mission).

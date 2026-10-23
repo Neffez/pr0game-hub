@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Raid-Planer: Der Simulator im Spiel bekommt jetzt auch alle Flotten des Plans mit (je Flotte ein Slot, mit Waffen, Schild und Panzerung).',
+        en: 'Raid planner: the simulator in the game now also gets all fleets of the plan (one slot per fleet, with weapons, shields and armour).',
+      },
+      {
+        kind: 'new',
         de: 'Raid-Planer: Links zum Simulator im Spiel und zu TrashSim mit dem neuesten Spionagebericht des Ziels. Auch der Spionage-Verlauf verlinkt jetzt TrashSim.',
         en: "Raid planner: links to the simulator in the game and to TrashSim with the target's newest spy report. The spy history now links TrashSim too.",
       },

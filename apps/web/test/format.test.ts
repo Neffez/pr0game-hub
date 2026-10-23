@@ -44,4 +44,17 @@ describe('format', () => {
     expect(links.game).toBe('https://pr0game.com/uni7/game.php?page=battleSimulator&im[115]=10&im[202]=136&im[901]=2023509');
     expect(links.trash).toBe('https://pr0game.com/uni7/battlesim.html?&im[115]=10&im[202]=136&im[901]=2023509');
   });
+
+  it("fills the game simulator's ACS slots with the attacking fleets", () => {
+    const links = simLinks('https://pr0game.com/uni7/', { 901: 5 }, [
+      { ships: { 207: 1773, 215: 2 }, research: { 109: 12, 110: 11, 111: 13, 115: 10 } },
+      { ships: { 204: 100, 202: 0 }, research: {} },
+    ]);
+    expect(links.game).toBe(
+      'https://pr0game.com/uni7/game.php?page=battleSimulator&slots=2'
+        + '&battleinput[0][0][109]=12&battleinput[0][0][110]=11&battleinput[0][0][111]=13&battleinput[0][0][207]=1773&battleinput[0][0][215]=2'
+        + '&battleinput[1][0][109]=0&battleinput[1][0][110]=0&battleinput[1][0][111]=0&battleinput[1][0][204]=100&im[901]=5',
+    );
+    expect(links.trash).toBe('https://pr0game.com/uni7/battlesim.html?&im[901]=5');
+  });
 });

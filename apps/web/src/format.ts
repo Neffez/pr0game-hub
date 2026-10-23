@@ -212,16 +212,34 @@ export function flightCalcLink(
   return `${base}#${p.toString()}`;
 }
 
+/** Weapons, shields and armour: the research the combat simulators take per attacker. */
+const COMBAT_TECHS = [109, 110, 111];
+
 /**
  * Combat simulators of the game with a spy report's values (`im[ID]=amount`, as the game's "simulate" button):
- * the simulator in the game and TrashSim (`battlesim.html` of the universe).
+ * the simulator in the game and TrashSim (`battlesim.html` of the universe). `attackers` (ships and research per fleet)
+ * fill the game simulator's ACS slots (`slots`, `battleinput[slot][0][ID]`); TrashSim takes attackers only from its own
+ * export string, so it gets the target alone.
  */
-export function simLinks(gameUrl: string, values: Record<string, number>): { game: string; trash: string } {
+export function simLinks(
+  gameUrl: string,
+  values: Record<string, number>,
+  attackers: { ships: Record<string, number>; research: Record<string, number> }[] = [],
+): { game: string; trash: string } {
   const base = gameUrl.replace(/\/?$/, '/');
   const params = Object.entries(values)
     .map(([id, v]) => `im[${id}]=${v}`)
     .join('&');
-  return { game: `${base}game.php?page=battleSimulator&${params}`, trash: `${base}battlesim.html?&${params}` };
+  const slots = attackers.map((a, i) =>
+    [
+      ...COMBAT_TECHS.map((id) => `battleinput[${i}][0][${id}]=${a.research[id] ?? 0}`),
+      ...Object.entries(a.ships)
+        .filter(([, n]) => n > 0)
+        .map(([id, n]) => `battleinput[${i}][0][${id}]=${n}`),
+    ].join('&'),
+  );
+  const fleets = attackers.length ? `slots=${attackers.length}&${slots.join('&')}&` : '';
+  return { game: `${base}game.php?page=battleSimulator&${fleets}${params}`, trash: `${base}battlesim.html?&${params}` };
 }
 
 /** Colour for how old a galaxy view is (Gala-Aktualität, universe browser). */
