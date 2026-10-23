@@ -164,6 +164,19 @@ describe('raid planner page', () => {
     expect(text).toContain('Ohne Koordinaten gibt es noch keine Flugzeiten.');
   });
 
+  it('fills in open coordinates right from the plan', async () => {
+    const plan = root.querySelectorAll('.plan')[1];
+    plan.querySelector<HTMLButtonElement>('button.link')!.click();
+    await settle();
+    const form = plan.querySelector('.edit-box')!;
+    // only the target: no player search, time or note
+    expect(form.querySelectorAll('.field')).toHaveLength(1);
+    expect(form.querySelector('input.mono')).not.toBeNull();
+    [...form.querySelectorAll('button')].find((b) => b.textContent === 'Abbrechen')!.click();
+    await settle();
+    expect(plan.querySelector('.edit-box')).toBeNull();
+  });
+
   it('lists hostile attacks and shows the retime candidates of a plan', async () => {
     const list = root.querySelector('.attacks')!;
     expect(list.textContent).toContain('Angriff auf Dave');

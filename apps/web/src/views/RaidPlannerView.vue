@@ -207,6 +207,19 @@ async function savePlan(p: AttackPlan) {
   if (ok) delete editing[p.id];
   loadClaims(uni.value);
 }
+/** Open coordinates: the creator, admins and every participant (also only invited) fill them in. */
+const canSetCoords = (p: AttackPlan) => !closed(p) && (canEdit(p) || p.fleets.some((f) => f.user_id === me.value));
+const coordsEdit = reactive<Record<number, PlanDraft>>({});
+async function saveCoords(p: AttackPlan) {
+  const body = draftBody(coordsEdit[p.id]);
+  if (!body || body.g == null) return void (error.value = t('plans.coordsInvalid'));
+  const ok = await run(async () => {
+    const res = await uniApi<{ claimedBy: string | null }>(uni.value, `/plans/${p.id}`, { method: 'PUT', body: { g: body.g, s: body.s, p: body.p, type: body.type } });
+    info.value = res.claimedBy ? t('plans.claimedBy', { name: res.claimedBy }) : '';
+  });
+  if (ok) delete coordsEdit[p.id];
+  loadClaims(uni.value);
+}
 const setStatus = (p: AttackPlan, status: string) =>
   run(() => uniApi(uni.value, `/plans/${p.id}`, { method: 'PUT', body: { status } })).then(() => loadClaims(uni.value));
 function removePlan(p: AttackPlan) {
@@ -367,6 +380,9 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
           <strong class="mono">{{ coords(p.g!, p.s!, p.p!) }}</strong>
           <span v-if="p.planet_name" class="muted">{{ p.planet_name }}</span>
         </template>
+        <button v-else-if="canSetCoords(p) && !coordsEdit[p.id]" class="link warn small" :title="t('plans.setCoordsTitle')" @click="coordsEdit[p.id] = draftOf(p)">
+          {{ t('plans.coordsMissing') }} ✎
+        </button>
         <span v-else class="warn small">{{ t('plans.coordsMissing') }}</span>
         <PlayerLink v-if="p.player_id" :id="p.player_id" :name="p.player_name ?? '?'" />
         <PlanetActions v-if="hasCoords(p)" :g="p.g!" :s="p.s!" :p="p.p!" :type="p.planet_type" />
@@ -400,6 +416,13 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
       </div>
       <div v-if="!exact(p)" class="muted small">{{ hasCoords(p) ? t('plans.roughTime') : t('plans.noCoordsHint') }}</div>
 
+      <div v-if="coordsEdit[p.id] && !hasCoords(p)" class="edit-box">
+        <PlanTargetForm v-model="coordsEdit[p.id]" coords-only />
+        <div class="row">
+          <button class="primary" @click="saveCoords(p)">{{ t('plans.save') }}</button>
+          <button @click="delete coordsEdit[p.id]">{{ t('plans.cancelForm') }}</button>
+        </div>
+      </div>
       <div v-if="editing[p.id]" class="edit-box">
         <PlanTargetForm v-model="editing[p.id]" />
         <div class="row">
@@ -587,4 +610,5 @@ td.actions { white-space: nowrap; }
 td.actions button { padding: 1px 8px; }
 td.actions .calc { margin-right: 6px; }
 button.danger { color: var(--neg); }
+button.link { padding: 0; border: 0; background: none; cursor: pointer; text-decoration: underline dotted; }
 </style>

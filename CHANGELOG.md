@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Raid planner: "Coordinates not known yet" is clickable for the creator, admins and every participant (also only
+  invited) and opens a form with the target alone; participants may change a plan's coordinates and type
+  (`PUT /api/:uni/plans/:id` with only `g`/`s`/`p`/`type`), the attack claim is then held by the plan's creator.
+  The plan's edit button reads "Ziel/Zeit ändern" / "Change target/time".
+
 - Raid planner: the TrashSim link carries the plan's fleets too, as TrashSim's own export string (`sim=`, LZString via
   the new web dependency `lz-string`): target resources, one row per fleet with research, start and speed, the
   defender with the spy report's ships, solar satellites and defense (`trashSimExport` in `format.ts`, checked against

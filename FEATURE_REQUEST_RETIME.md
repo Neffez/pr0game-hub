@@ -70,7 +70,8 @@ All rows per group (`groupContext`).
   recall window, `recall_lead`, chosen speed `percent`, `buffer`, who changed it last. The attack is recognised again
   by its route and the ships of the lead fleet (`attackKey`).
 
-Rights: creator or group admin edit the plan (target, time, note, status, invitations, deletion); every member their
+Rights: creator or group admin edit the plan (target, time, note, status, invitations, deletion); every participant
+(also only invited) may fill in or change the coordinates alone (the claim stays with the creator); every member their
 own fleets; every participant (and the creator/admins) the enemy inputs.
 
 ## Target time

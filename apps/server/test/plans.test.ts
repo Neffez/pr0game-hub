@@ -215,6 +215,21 @@ describe('attack plans', () => {
     await call('DELETE', `/plans/${created.id}`, dave);
   });
 
+  it('lets participants, also only invited ones, fill in open coordinates; the claim stays with the creator', async () => {
+    const player = Number(db.prepare("INSERT INTO players (group_id, ingame_id, name) VALUES (?, 4714, 'Offen')").run(groupA).lastInsertRowid);
+    const id = (await call('POST', '/plans', carol, { player_id: player, target_time: soon() })).json().id;
+    // not in the plan yet
+    expect((await call('PUT', `/plans/${id}`, dave, { g: 3, s: 195, p: 8 })).json().code).toBe('plan_not_yours');
+    await call('POST', `/plans/${id}/fleets`, carol, { user_id: daveId });
+    // invited: the coordinates, nothing else
+    expect((await call('PUT', `/plans/${id}`, dave, { g: 3, s: 195, p: 8, note: 'x' })).json().code).toBe('plan_not_yours');
+    expect((await call('PUT', `/plans/${id}`, dave, { target_time: soon() + 60 })).json().code).toBe('plan_not_yours');
+    expect((await call('PUT', `/plans/${id}`, dave, { g: 3, s: 195, p: 8, type: 'moon' })).statusCode).toBe(200);
+    const plan = (await call('GET', '/plans', carol)).json().find((p: any) => p.id === id);
+    expect(plan).toMatchObject({ g: 3, s: 195, p: 8, planet_type: 'moon', claim_user_id: carolId });
+    await call('DELETE', `/plans/${id}`, carol);
+  });
+
   it('carries the newest spy report of the target for the simulators, research from an older report', async () => {
     const owner = Number(db.prepare("INSERT INTO players (group_id, ingame_id, name) VALUES (?, 4713, 'Ziel')").run(groupA).lastInsertRowid);
     const spy = db.prepare(

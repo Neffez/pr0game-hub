@@ -10,6 +10,8 @@ import { attackKey, hostileAttacks, recallWindow, type Body, type EnemyFleet } f
 import { contextOf, DISPLAY, MEMBER } from './util.js';
 
 const STATUSES = ['planning', 'launched', 'done', 'cancelled'];
+/** Plan fields a participant may change: the target coordinates. */
+const COORD_KEYS = ['g', 's', 'p', 'type'];
 const PRECISIONS = ['day', 'hour', 'exact'];
 const FLEET_STATUSES = ['invited', 'ready', 'launched', 'withdrawn'];
 /** Fleet rows per plan (the game takes 16 fleets per ACS; more are planned as separate attacks). */
@@ -179,6 +181,9 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
     if (plan.user_id !== ctx.user.id && !isAdmin(ctx)) throw new HttpError(403, 'plan_not_yours', 'Only the creator or an admin can change the plan');
     return plan;
   }
+  /** Member with a fleet row in the plan (also only invited or withdrawn). */
+  const isParticipant = (ctx: GroupContext, planId: number) =>
+    !!db.prepare('SELECT 1 FROM attack_plan_fleets WHERE plan_id = ? AND user_id = ?').get(planId, ctx.user.id);
   /** A fleet row: its member, the plan's creator or a group admin. */
   function editableFleet(ctx: GroupContext, planId: number, fleetId: number) {
     const plan = planOf(ctx, planId);
@@ -193,10 +198,10 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
     !!db.prepare('SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?').get(ctx.groupId, userId);
 
   /**
-   * Claims the target as "attack" for the plan, unless another member holds it (then the plan has no claim). An own
-   * claim of the target is replaced.
+   * Claims the target as "attack" for the plan in the name of `userId` (default: the acting member), unless another
+   * member holds it (then the plan has no claim). An own claim of the target is replaced.
    */
-  function claim(ctx: GroupContext, planId: number, t: { g: number; s: number; p: number; type: string }, targetTime: number) {
+  function claim(ctx: GroupContext, planId: number, t: { g: number; s: number; p: number; type: string }, targetTime: number, userId = ctx.user.id) {
     const time = now();
     const held = db
       .prepare(
@@ -204,14 +209,14 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
          WHERE c.group_id = ? AND c.g = ? AND c.s = ? AND c.p = ? AND c.planet_type = ? AND c.released_at IS NULL AND c.expires_at > ?`,
       )
       .get(ctx.groupId, t.g, t.s, t.p, t.type, time) as { id: number; user_id: number; member: string } | undefined;
-    if (held && held.user_id !== ctx.user.id) return held.member;
+    if (held && held.user_id !== userId) return held.member;
     if (held) db.prepare('UPDATE target_claims SET released_at = ? WHERE id = ?').run(time, held.id);
     const id = db
       .prepare(
         `INSERT INTO target_claims (group_id, user_id, g, s, p, planet_type, kind, note, created_at, expires_at)
          VALUES (?, ?, ?, ?, ?, ?, 'attack', ?, ?, ?)`,
       )
-      .run(ctx.groupId, ctx.user.id, t.g, t.s, t.p, t.type, `Raid-Planer #${planId}`, time, Math.max(time + 60, targetTime + CLAIM_AFTER)).lastInsertRowid;
+      .run(ctx.groupId, userId, t.g, t.s, t.p, t.type, `Raid-Planer #${planId}`, time, Math.max(time + 60, targetTime + CLAIM_AFTER)).lastInsertRowid;
     db.prepare('UPDATE attack_plans SET claim_id = ? WHERE id = ?').run(Number(id), planId);
     return null;
   }
@@ -464,8 +469,7 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
   app.put<{ Params: { uni: string; id: string }; Body: EnemyBody }>('/api/:uni/plans/:id/enemy', async (req) => {
     const ctx = ctxOf(req);
     const plan = planOf(ctx, Number(req.params.id));
-    const participant = !!db.prepare('SELECT 1 FROM attack_plan_fleets WHERE plan_id = ? AND user_id = ?').get(plan.id, ctx.user.id);
-    if (plan.user_id !== ctx.user.id && !isAdmin(ctx) && !participant) throw new HttpError(403, 'plan_not_yours', 'Only participants can change the enemy fleet');
+    if (plan.user_id !== ctx.user.id && !isAdmin(ctx) && !isParticipant(ctx, plan.id)) throw new HttpError(403, 'plan_not_yours', 'Only participants can change the enemy fleet');
     const enemy = db.prepare('SELECT fleets FROM attack_plan_enemy WHERE plan_id = ?').get(plan.id) as { fleets: string } | undefined;
     if (!enemy) throw new HttpError(404, 'plan_enemy_not_found', 'The plan has no enemy fleet');
     const b = req.body ?? {};
@@ -531,13 +535,18 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
   });
 
   /**
-   * Target (player, coordinates added or changed later), time, note and status; creator or admin. New coordinates move
-   * the claim to them; cancelling or finishing releases it.
+   * Target (player, coordinates added or changed later), time, note and status; creator or admin. Participants (also
+   * only invited) may set the coordinates alone. New coordinates move the claim to them, held by the creator;
+   * cancelling or finishing releases it.
    */
   app.put<{ Params: { uni: string; id: string }; Body: PlanBody }>('/api/:uni/plans/:id', async (req) => {
     const ctx = ctxOf(req);
-    const plan = editablePlan(ctx, Number(req.params.id));
     const b = req.body ?? {};
+    const plan = planOf(ctx, Number(req.params.id));
+    if (plan.user_id !== ctx.user.id && !isAdmin(ctx)) {
+      const coordsOnly = Object.keys(b).every((k) => COORD_KEYS.includes(k));
+      if (!coordsOnly || !isParticipant(ctx, plan.id)) throw new HttpError(403, 'plan_not_yours', 'Only the creator or an admin can change the plan');
+    }
     const set: Record<string, unknown> = {};
     const coordsGiven = b.g !== undefined || b.s !== undefined || b.p !== undefined;
     if (coordsGiven) {
@@ -565,7 +574,7 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
       if (next.status === 'cancelled' || next.status === 'done' || (moved && plan.claim_id)) releaseClaim(plan);
       const open = next.status === 'planning' || next.status === 'launched';
       if (open && next.g != null && (moved || !plan.claim_id)) {
-        claimedBy = claim(ctx, plan.id, { g: next.g, s: next.s!, p: next.p!, type: next.planet_type }, next.target_time);
+        claimedBy = claim(ctx, plan.id, { g: next.g, s: next.s!, p: next.p!, type: next.planet_type }, next.target_time, plan.user_id);
       } else if (open && set.target_time && plan.claim_id) {
         db.prepare('UPDATE target_claims SET expires_at = ? WHERE id = ? AND released_at IS NULL').run((set.target_time as number) + CLAIM_AFTER, plan.claim_id);
       }

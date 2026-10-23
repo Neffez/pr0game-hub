@@ -11,6 +11,8 @@ import { PRECISIONS, type PlanDraft } from '../plans';
  * player's known planets and moons), and the time as a day, around an hour, or to the second.
  */
 const draft = defineModel<PlanDraft>({ required: true });
+/** only the coordinates (participants fill in a target that was still open) */
+defineProps<{ coordsOnly?: boolean }>();
 const { t } = useI18n();
 const { uni } = useUni();
 
@@ -73,7 +75,7 @@ function pickBody(e: Event) {
 
 <template>
   <div class="target-form">
-    <div class="field">
+    <div v-if="!coordsOnly" class="field">
       <span class="lbl">{{ t('plans.player') }}</span>
       <span v-if="draft.player" class="chip">
         {{ draft.player.name }} <button :title="t('plans.clear')" @click="draft.player = null">✕</button>
@@ -98,7 +100,7 @@ function pickBody(e: Event) {
       </select>
       <span v-if="!draft.target" class="muted small">{{ t('plans.coordsLater') }}</span>
     </div>
-    <div class="field">
+    <div v-if="!coordsOnly" class="field">
       <span class="lbl">{{ t('plans.targetTime') }}</span>
       <select v-model="draft.precision" :aria-label="t('plans.precision')">
         <option v-for="p in PRECISIONS" :key="p" :value="p">{{ t(`plans.precisions.${p}`) }}</option>
@@ -106,7 +108,7 @@ function pickBody(e: Event) {
       <input v-if="draft.precision === 'day'" v-model="draft.date" type="date" />
       <input v-else v-model="draft.time" type="datetime-local" :step="draft.precision === 'exact' ? 1 : 60" />
     </div>
-    <div class="field">
+    <div v-if="!coordsOnly" class="field">
       <span class="lbl">{{ t('plans.note') }}</span>
       <input v-model="draft.note" class="grow" maxlength="500" />
     </div>
