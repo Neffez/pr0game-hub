@@ -19,6 +19,8 @@ export const config = {
     username: env.ADMIN_BOOTSTRAP_USER ?? '',
     password: env.ADMIN_BOOTSTRAP_PASSWORD ?? '',
   },
+  /** Web push: contact of the hub's operator for the push services (`mailto:` or `https:`); without it push is off. */
+  pushContact: env.PUSH_CONTACT ?? '',
   /** Background archiving of battle hall reports from the public report pages. */
   crawler: {
     enabled: (env.CRAWLER_ENABLED ?? 'true') !== 'false',

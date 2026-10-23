@@ -7,6 +7,7 @@ import Hint from '../components/Hint.vue';
 import { DATE_FORMATS, dateFormat, setDateFormat, type DateFormat } from '../format';
 import { currentLang, LANGS, setLocale, type Lang } from '../i18n';
 import { liveHints } from '../live';
+import { disablePush, enablePush, loadPushStatus, pushStatus, testPush } from '../push';
 
 const { t } = useI18n();
 /** opened inside a universe: the sidebar stays, no back link */
@@ -48,6 +49,46 @@ const share = ref<{ enabled: boolean; hidden: number[]; history: boolean } | nul
 /** Player messages shared with the other members (off: only the user sees them). */
 const messageShare = ref<{ enabled: boolean } | null>(null);
 const showOnline = ref<{ enabled: boolean } | null>(null);
+
+/** Which notifications are pushed (all devices of the user, server: push.ts); this browser is switched on separately. */
+interface PushPrefs {
+  attackSelf: boolean;
+  attackOthers: boolean;
+  invites: boolean;
+  comments: boolean;
+  launch: boolean;
+  leadMinutes: number;
+}
+const PUSH_KINDS = ['attackSelf', 'attackOthers', 'invites', 'comments', 'launch'] as const;
+const LEAD_MINUTES = [1, 2, 5, 10, 15, 30];
+const pushPrefs = ref<PushPrefs | null>(null);
+const pushBusy = ref(false);
+const savePushPrefs = () =>
+  run(async () => {
+    pushPrefs.value = await api('/auth/push-settings', { body: pushPrefs.value });
+  }, () => t('account.pushSaved'));
+async function togglePush() {
+  pushBusy.value = true;
+  try {
+    await run(async () => {
+      if (pushStatus.value === 'on') return await disablePush();
+      let status;
+      try {
+        status = await enablePush();
+      } catch (e) {
+        throw new Error(t('account.pushSubscribeFailed', { error: (e as Error).message }));
+      }
+      if (status === 'denied') throw new Error(t('account.pushDeniedHint'));
+    }, () => t(pushStatus.value === 'on' ? 'account.pushEnabledMsg' : 'account.pushDisabledMsg'));
+  } finally {
+    pushBusy.value = false;
+  }
+}
+const sendTestPush = () =>
+  run(async () => {
+    const devices = await testPush();
+    if (!devices) throw new Error(t('account.pushTestNone'));
+  }, () => t('account.pushTestSent'));
 
 const apiBase = import.meta.env.BASE_URL.replace(/\/$/, '') + '/api';
 const openapiUrl = `${apiBase}/openapi.json`;
@@ -100,12 +141,15 @@ function formatTokenTime(sec: number | null) {
 
 onMounted(async () => {
   try {
-    const [fleetShare, messages, online] = await Promise.all([
+    const [fleetShare, messages, online, prefs] = await Promise.all([
       api('/auth/fleet-share'),
       api('/auth/message-share'),
       api('/auth/show-online'),
+      api<PushPrefs>('/auth/push-settings'),
       loadApiTokens(),
+      loadPushStatus(),
     ]);
+    pushPrefs.value = prefs;
     share.value = fleetShare;
     messageShare.value = messages;
     showOnline.value = online;
@@ -178,6 +222,33 @@ const saveDateFormat = () =>
           <span class="field-label">{{ t('account.showOnline') }} <Hint>{{ t('account.showOnlineHint') }}</Hint></span>
           <label class="check"><input v-model="showOnline.enabled" type="checkbox" @change="saveShowOnline" /> {{ t('account.showOnlineEnabled') }}</label>
         </div>
+      </section>
+      <section class="card">
+        <h2>{{ t('account.push') }} <Hint>{{ t('account.pushHint') }}</Hint></h2>
+        <div class="field">
+          <span class="field-label">{{ t('account.pushDevice') }}</span>
+          <p class="muted small push-status">{{ t(`account.pushStatus.${pushStatus}`) }}</p>
+          <div v-if="pushStatus === 'on' || pushStatus === 'off'" class="row">
+            <button type="button" :class="{ primary: pushStatus === 'off' }" :disabled="pushBusy" @click="togglePush">
+              {{ pushStatus === 'on' ? t('account.pushDisable') : t('account.pushEnable') }}
+            </button>
+            <button v-if="pushStatus === 'on'" type="button" @click="sendTestPush">{{ t('account.pushTest') }}</button>
+          </div>
+        </div>
+        <div v-if="pushPrefs && pushStatus !== 'disabled'" class="field">
+          <span class="field-label">{{ t('account.pushKinds') }} <Hint>{{ t('account.pushKindsHint') }}</Hint></span>
+          <label v-for="k in PUSH_KINDS" :key="k" class="check">
+            <input v-model="pushPrefs[k]" type="checkbox" @change="savePushPrefs" /> {{ t(`account.pushKind.${k}`) }}
+          </label>
+          <label class="push-lead" :class="{ off: !pushPrefs.launch }">
+            {{ t('account.pushLead') }}
+            <select v-model.number="pushPrefs.leadMinutes" :disabled="!pushPrefs.launch" @change="savePushPrefs">
+              <option v-for="m in LEAD_MINUTES" :key="m" :value="m">{{ t('account.pushLeadMinutes', { n: m }) }}</option>
+            </select>
+          </label>
+        </div>
+        <p class="muted small">{{ t('account.pushPasted') }}</p>
+        <p class="muted small">{{ t('account.pushIos') }}</p>
       </section>
       <section v-if="share || messageShare" class="card">
         <h2>{{ t('account.sharing') }}</h2>
@@ -268,7 +339,9 @@ const saveDateFormat = () =>
 .field-label { display: block; margin-bottom: 6px; font-weight: 600; }
 .check { display: flex; gap: 8px; align-items: center; }
 .share-missions { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 2px 12px; margin: 8px 0 0 24px; }
-.share-missions.off, .check.off { opacity: 0.5; }
+.share-missions.off, .check.off, .push-lead.off { opacity: 0.5; }
+.push-lead { display: flex; gap: 8px; align-items: center; margin: 4px 0 0 24px; }
+.push-status { margin: 0 0 6px; }
 .stack { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
 .stack label { display: flex; flex-direction: column; gap: 4px; width: 100%; }
 .stack input { width: 100%; }

@@ -53,6 +53,15 @@ components:
       schema: { type: integer }
       description: Alliance group id (alternative to `X-Hub-Group`, required for SSE)
   schemas:
+    PushSettings:
+      type: object
+      properties:
+        attackSelf: { type: boolean, description: Hostile fleets heading for the caller (default on) }
+        attackOthers: { type: boolean, description: Hostile fleets heading for other members (default off) }
+        invites: { type: boolean, description: Invitations to raid planner plans (default on) }
+        comments: { type: boolean, description: New comments in threads the caller wrote in (default on) }
+        launch: { type: boolean, description: Launch reminders of the caller's plan fleets (default on) }
+        leadMinutes: { type: integer, enum: [1, 2, 5, 10, 15, 30], description: Launch reminder this many minutes ahead (default 5) }
     Error:
       type: object
       required: [error, code]
@@ -244,6 +253,141 @@ paths:
                   dateFormat: { type: string }
         '400':
           description: Unknown date format (`date_format_invalid`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /api/auth/push-settings:
+    get:
+      tags: [Auth]
+      operationId: getPushSettings
+      description: Which notifications are pushed to the caller's devices (the bell lists all of them).
+      responses:
+        '200':
+          description: Current settings
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PushSettings' }
+    post:
+      tags: [Auth]
+      operationId: setPushSettings
+      security: [{ sessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf: [{ $ref: '#/components/schemas/PushSettings' }]
+              description: Fields to change; missing ones stay as they are
+      responses:
+        '200':
+          description: Stored settings
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PushSettings' }
+        '400':
+          description: Lead time not one of the allowed values (`push_settings_invalid`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /api/push/key:
+    get:
+      tags: [Auth]
+      operationId: getPushKey
+      description: Whether web push is set up on this hub (`PUSH_CONTACT`), and the VAPID public key browsers subscribe with.
+      responses:
+        '200':
+          description: VAPID key and status
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [enabled, publicKey]
+                properties:
+                  enabled: { type: boolean }
+                  publicKey: { type: [string, 'null'], description: Base64url (uncompressed P-256 point) }
+  /api/push/subscriptions:
+    post:
+      tags: [Auth]
+      operationId: addPushSubscription
+      description: |
+        Registers a browser for push notifications of the caller (the browser's `PushSubscription.toJSON()`). An
+        endpoint registered by another user before moves to the caller; at most 10 browsers per user (the oldest goes).
+      security: [{ sessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [endpoint, keys]
+              properties:
+                endpoint: { type: string, format: uri, description: HTTPS URL of the browser's push service }
+                keys:
+                  type: object
+                  required: [p256dh, auth]
+                  properties:
+                    p256dh: { type: string }
+                    auth: { type: string }
+      responses:
+        '200':
+          description: Registered
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+        '400':
+          description: Invalid endpoint or keys (`push_endpoint_invalid`, `push_keys_invalid`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '409':
+          description: Push is not set up on this hub (`push_disabled`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+    delete:
+      tags: [Auth]
+      operationId: removePushSubscription
+      description: Unregisters a browser of the caller (switched off, or before logging out).
+      security: [{ sessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [endpoint]
+              properties:
+                endpoint: { type: string, format: uri }
+      responses:
+        '200':
+          description: Unregistered (or not registered)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  removed: { type: integer, description: 0 when the browser was not registered for the caller }
+  /api/push/test:
+    post:
+      tags: [Auth]
+      operationId: sendTestPush
+      description: Sends a test notification to all browsers of the caller.
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200':
+          description: Sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  devices: { type: integer, description: Browsers the push services accepted it for }
+        '409':
+          description: Push is not set up on this hub (`push_disabled`)
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
@@ -775,9 +919,13 @@ paths:
       operationId: getNotifications
       description: |
         Current notifications, earliest first: `attack` (hostile fleets heading for a member, from the members' shared
-        fleet lists; `fleet`, `fleets`) and `invite` (the caller's open invitations to a raid planner plan in planning;
-        `plan`, `member` is the plan's creator, `time` its target time, valid until the end of its day or hour by
-        `plan.time_precision`).
+        fleet lists; `fleet`, `fleets`), `invite` (the caller's open invitations to a raid planner plan in planning;
+        `plan`, `member` is who invited, `time` its target time, valid until the end of its day or hour by
+        `plan.time_precision`), `comment` (comments of others of the last 48 hours in a thread the caller wrote in, after
+        the caller's last comment there, one entry per thread; `thread`, `excerpt`, `count`, `member`/`userId` the newest
+        author, `time` the newest comment) and `launch` (a fleet of the caller in a plan with an exact target time,
+        invited or ready, that launches within the next hour; `plan`, `from`, `time` the launch). Push notifications send
+        the same entries (see `/api/push/subscriptions`).
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
@@ -793,15 +941,15 @@ paths:
                   required: [id, kind, userId, member, time]
                   properties:
                     id: { type: string, description: Stable while the event lasts }
-                    kind: { type: string, enum: [attack, invite] }
-                    userId: { type: integer, description: 'attack: the attacked member; invite: the plan creator' }
+                    kind: { type: string, enum: [attack, invite, comment, launch] }
+                    userId: { type: integer, description: 'attack: the attacked member; invite: who invited; comment: the newest author; launch: the caller' }
                     member: { type: string }
-                    time: { type: integer, description: Unix seconds (arrival or plan target time) }
+                    time: { type: integer, description: Unix seconds (arrival, plan target time, newest comment or launch) }
                     fleet: { type: object, description: 'attack only: the fleet (for an ACS the lead fleet with all ships)' }
                     fleets: { type: integer, description: 'attack only: number of fleets of an ACS' }
                     plan:
                       type: object
-                      description: invite only
+                      description: 'invite and launch (launch: `time_precision` is always exact and missing; `target_time` instead)'
                       properties:
                         id: { type: integer }
                         g: { type: [integer, 'null'] }
@@ -810,6 +958,33 @@ paths:
                         planet_type: { type: string, enum: [planet, moon] }
                         mission: { type: string, enum: [attack, hold] }
                         time_precision: { type: string, enum: [day, hour, exact] }
+                        target_time: { type: integer }
+                    thread:
+                      description: 'comment only: a player, or a planet/moon with its owner'
+                      oneOf:
+                        - type: object
+                          required: [player, name]
+                          properties:
+                            player: { type: integer }
+                            name: { type: string }
+                        - type: object
+                          required: [g, s, p, type]
+                          properties:
+                            g: { type: integer }
+                            s: { type: integer }
+                            p: { type: integer }
+                            type: { type: string, enum: [planet, moon] }
+                            owner: { type: [string, 'null'] }
+                    excerpt: { type: string, description: 'comment only: the newest comment, shortened' }
+                    count: { type: integer, description: 'comment only: new comments in the thread' }
+                    from:
+                      type: object
+                      description: 'launch only: start planet or moon of the fleet'
+                      properties:
+                        g: { type: integer }
+                        s: { type: integer }
+                        p: { type: integer }
+                        type: { type: string, enum: [planet, moon] }
   /api/{uni}/presence:
     get:
       tags: [Social]

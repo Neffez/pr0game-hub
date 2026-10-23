@@ -7,7 +7,7 @@ import PlayerDialog from '../components/PlayerDialog.vue';
 import SyncSheet from '../components/SyncSheet.vue';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { selectGroup, selectedGroup, session, uniApi } from '../api';
 import { provideUni, useLoader, useScrollLock, type UniContext } from '../composables';
 import { clearClaims, loadClaims } from '../claims';
@@ -18,6 +18,7 @@ import { startLive, stopLive, tables, useLiveReload, useWhereabouts } from '../l
 
 const { t } = useI18n();
 const route = useRoute();
+const router = useRouter();
 const uni = computed(() => String(route.params.uni));
 const { data: ctx, error, load: fetchContext } = useLoader(() => uniApi<UniContext>(uni.value, '/context'));
 const groups = computed(() => session.me?.groups.filter((g) => g.universe === uni.value) ?? []);
@@ -27,6 +28,13 @@ const reloadKey = ref(0);
 provideUni(ctx);
 
 function load() {
+  // a link with the group (push notification) opens that alliance
+  const wanted = Number(route.query.group);
+  if (wanted) {
+    if (groups.value.some((g) => g.id === wanted)) selectGroup(uni.value, wanted);
+    // once: a later switch of the group must not be undone by it
+    router.replace({ query: { ...route.query, group: undefined } });
+  }
   group.value = selectedGroup(uni.value);
   startLive(uni.value, group.value);
   clearClaims();
@@ -41,7 +49,10 @@ function load() {
 }
 useLiveReload(() => loadClaims(uni.value), tables('target_claims'));
 useLiveReload(() => loadCommentCounts(uni.value), tables('comments'), 300);
-useLiveReload(() => loadNotifications(uni.value), tables('fleets', 'attack_plans'), 300);
+useLiveReload(() => loadNotifications(uni.value), tables('fleets', 'attack_plans', 'comments'), 300);
+// launches come up by the clock (an hour ahead), without any data event
+const notifyTimer = setInterval(() => !document.hidden && loadNotifications(uni.value), 5 * 60_000);
+onBeforeUnmount(() => clearInterval(notifyTimer));
 
 /** Raid planner in the menu: current plans in planning (grey) and running (green); recounted every minute. */
 const plans = ref<AttackPlan[]>([]);

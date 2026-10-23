@@ -5,10 +5,8 @@ import { now, type DB } from '../db.js';
 import { events } from '../events.js';
 import { isPhalanxText, localToEpoch, nearestClock, parseFleetsText } from '@pr0hub/core';
 import { CLASS_RESEARCH } from '@pr0hub/core/tech';
-import { latestEmpires, spyEmpire } from '../repo/empire.js';
-import { memberPlayers } from '../repo/members.js';
-import { sharedFleets, type StoredFleet } from '../repo/fleets.js';
-import { attackKey, hostileAttacks, PHALANX_KEEP, recallWindow, type Body, type EnemyFleet, type HostileAttack } from '../repo/hostile.js';
+import { attackKey, hostileAttacks, PHALANX_KEEP, type Body, type EnemyFleet, type HostileAttack } from '../repo/hostile.js';
+import { enemiesOf, followHolds, fromOf, launchedOf, planDrives, toOf, type EnemyRow, type LaunchFleet, type LaunchPlan, type PlanRow } from '../repo/plans.js';
 import { contextOf, DISPLAY, MEMBER } from './util.js';
 
 const STATUSES = ['planning', 'launched', 'done', 'cancelled'];
@@ -22,18 +20,10 @@ const MAX_FLEETS = 32;
 const KEEP_SECONDS = 7 * 86400;
 /** The target claim lasts until a few minutes after the target time. */
 const CLAIM_AFTER = 600;
-/** Research ids of the plan fleets: drives and fuel efficiency (flight times), weapons, shields, armour (simulator). */
-const RESEARCH_IDS = [115, 117, 118, 134, 109, 110, 111];
 /** Drive research a plan fleet may get by hand (combustion, impulse, hyperspace). */
 const DRIVE_IDS = [115, 117, 118];
-/** Missions of an own fleet that count as launched for a plan: attack, ACS attack, destroy; hold for hold plans. */
-const LAUNCH_MISSIONS = [1, 2, 9];
-const HOLD_MISSION = 5;
 /** Hold fleets land by default 1 s before the impact (a hold must be there before the fight). */
 const HOLD_OFFSET = -1;
-/** An own fleet in flight counts for a plan when it lands from an hour before its time until an hour after its end. */
-const LAUNCH_SLACK = 3600;
-
 interface PlanBody {
   /** coordinates: all three, or null for "not known yet" */
   g?: number | null;
@@ -60,20 +50,6 @@ interface FleetBody {
   drives?: Record<string, unknown> | null;
 }
 
-interface PlanRow {
-  id: number;
-  user_id: number;
-  player_id: number | null;
-  g: number | null;
-  s: number | null;
-  p: number | null;
-  planet_type: 'planet' | 'moon';
-  target_time: number;
-  status: string;
-  claim_id: number | null;
-  mission: 'attack' | 'hold';
-}
-
 interface EnemyBody {
   follow?: number;
   /** owner's drive research by id (115, 117, 118) */
@@ -89,41 +65,6 @@ interface EnemyBody {
   target_time?: number;
   /** hold plans: seconds from the impact the fleets land */
   hold_offset?: number;
-}
-
-interface EnemyRow {
-  plan_id: number;
-  member_id: number | null;
-  member: string | null;
-  from_g: number;
-  from_s: number;
-  from_p: number;
-  from_type: Body['type'];
-  to_g: number;
-  to_s: number;
-  to_p: number;
-  to_type: Body['type'];
-  fleets: string;
-  follow: number;
-  arrival: number;
-  first_seen: number;
-  drives: string;
-  drives_source: string | null;
-  drives_time: number | null;
-  departure_from: number | null;
-  departure_to: number | null;
-  recall_from: number | null;
-  recall_to: number | null;
-  recall_lead: number;
-  percent: number | null;
-  buffer: number;
-  updated_at: number;
-  updated_by: string | null;
-  /** recall window suggested by the overview pastes (the attack vanished before its arrival) */
-  recall_seen?: { from: number; to: number } | null;
-  hold_offset: number;
-  phalanx_home: number | null;
-  phalanx_time: number | null;
 }
 
 interface FleetRow {
@@ -269,37 +210,10 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
          WHERE f.plan_id IN (SELECT value FROM json_each(?)) ORDER BY f.id`,
       )
       .all(JSON.stringify(plans.map((p) => p.id))) as (LaunchFleet & Record<string, unknown> & { ships: string; manual: string | null; drives_time: number | null })[];
-    // research from the members' latest empire pages (drives for every fleet's flight time, combat techs for the simulator),
-    // without one from the newest spy report showing the member's research
-    type Drives = { time: number; research: Record<number, number>; source: 'empire' | 'spy' | 'manual' };
-    const pick = (research: Record<string, number>) => Object.fromEntries(RESEARCH_IDS.map((id) => [id, research[id] ?? 0]));
-    const drives = new Map<number, Drives | null>();
-    for (const e of latestEmpires(db, ctx)) drives.set(e.userId, { time: e.time, research: pick(e.rec.research), source: 'empire' });
-    const players = memberPlayers(db, ctx);
-    const playerName = db.prepare('SELECT name FROM players WHERE id = ?').pluck();
-    const drivesOf = (userId: number): Drives | null => {
-      if (!drives.has(userId)) {
-        const playerId = players.get(userId);
-        const spy = playerId ? spyEmpire(db, ctx, playerId, playerName.get(playerId) as string) : null;
-        drives.set(userId, spy?.researchTime != null ? { time: spy.researchTime, research: pick(spy.research), source: 'spy' } : null);
-      }
-      return drives.get(userId)!;
-    };
-    /** Drives entered by hand count when newer than the member's empire page or spy report. */
-    const fleetDrives = (f: { user_id: number; manual: string | null; drives_time: number | null }): Drives | null => {
-      const base = drivesOf(f.user_id);
-      if (f.manual == null || (base && base.time > f.drives_time!)) return base;
-      return { time: f.drives_time!, research: { ...(base?.research ?? pick({})), ...(JSON.parse(f.manual) as Record<number, number>) }, source: 'manual' };
-    };
-    const enemies = new Map(enemiesOf(ctx, plans.map((p) => p.id)).map((e) => [e.plan_id, e]));
-    // a hold follows the impact (also after a delay of the enemy)
-    for (const p of plans as unknown as (PlanRow & Record<string, unknown>)[]) {
-      const e = enemies.get(p.id);
-      if (p.mission !== 'hold' || !e || p.target_time === e.arrival + e.hold_offset) continue;
-      p.target_time = e.arrival + e.hold_offset;
-      db.prepare('UPDATE attack_plans SET target_time = ? WHERE id = ?').run(p.target_time, p.id);
-    }
-    const launched = launchedOf(ctx, plans as unknown as LaunchPlan[], fleets);
+    const fleetDrives = planDrives(db, ctx);
+    const enemies = new Map(enemiesOf(db, ctx, plans.map((p) => p.id)).map((e) => [e.plan_id, e]));
+    followHolds(db, plans as unknown as PlanRow[], enemies);
+    const launched = launchedOf(db, ctx, plans as unknown as LaunchPlan[], fleets);
     const spies = new Map(plans.map((p) => [p.id, p.mission === 'hold' ? null : targetSpy(ctx, p as unknown as SpyPlan)]));
     return plans.map((p) => ({
       ...p,
@@ -345,80 +259,6 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
     return { time: row.report_time, values: Object.assign({}, ...Object.values(sections)) };
   }
 
-  type LaunchPlan = Pick<PlanRow, 'id' | 'g' | 's' | 'p' | 'planet_type' | 'target_time' | 'status' | 'mission'> & { time_precision: string };
-  type LaunchFleet = { id: number; plan_id: number; user_id: number; g: number | null; s: number | null; p: number | null; planet_type: string | null; status: string };
-  /**
-   * Plan fleets the member's newest overview shows in flight: an own attack (hold plans: hold) from the fleet's start to the plan's target,
-   * landing around the plan's time (as the viewer may see it, `sharedFleets`). Returns the real arrival and the paste
-   * time per plan fleet; an invited or ready fleet becomes launched.
-   */
-  function launchedOf(ctx: GroupContext, plans: LaunchPlan[], fleets: LaunchFleet[]): Map<number, { arrival: number; time: number }> {
-    const out = new Map<number, { arrival: number; time: number }>();
-    const snaps = new Map<number, { time: number; data: StoredFleet[]; used: Set<number> } | null>();
-    const same = (b: StoredFleet['from'] | null, g: number, s: number, p: number, type: string) =>
-      !!b && b.coords.g === g && b.coords.s === s && b.coords.p === p && b.type === type;
-    for (const plan of plans) {
-      if (plan.g == null || (plan.status !== 'planning' && plan.status !== 'launched')) continue;
-      const missions = plan.mission === 'hold' ? [HOLD_MISSION] : LAUNCH_MISSIONS;
-      const from = plan.target_time - LAUNCH_SLACK;
-      const to = plan.target_time + (plan.time_precision === 'day' ? 86400 : plan.time_precision === 'hour' ? 3600 : 0) + LAUNCH_SLACK;
-      for (const f of fleets) {
-        if (f.plan_id !== plan.id || f.g == null || f.status === 'withdrawn') continue;
-        if (!snaps.has(f.user_id)) {
-          const snap = sharedFleets(db, ctx.groupId, f.user_id, ctx.user.id);
-          snaps.set(f.user_id, snap ? { time: snap.time, data: snap.data, used: new Set() } : null);
-        }
-        const snap = snaps.get(f.user_id);
-        if (!snap) continue;
-        let best = -1;
-        snap.data.forEach((m, i) => {
-          if (m.owner !== 'own' || m.phase !== 'out' || m.mission == null || !missions.includes(m.mission) || snap.used.has(i)) return;
-          if (!same(m.to, plan.g!, plan.s!, plan.p!, plan.planet_type) || !same(m.from, f.g!, f.s!, f.p!, f.planet_type ?? 'planet')) return;
-          if (m.arrival < from || m.arrival > to) return;
-          if (best < 0 || Math.abs(m.arrival - plan.target_time) < Math.abs(snap.data[best].arrival - plan.target_time)) best = i;
-        });
-        if (best < 0) continue;
-        snap.used.add(best);
-        out.set(f.id, { arrival: snap.data[best].arrival, time: snap.time });
-        if (f.status === 'invited' || f.status === 'ready') {
-          db.prepare("UPDATE attack_plan_fleets SET status = 'launched' WHERE id = ?").run(f.id);
-          f.status = 'launched';
-        }
-      }
-    }
-    return out;
-  }
-
-  /**
-   * Enemy fleets of plans; a newer overview paste of the same attack updates the arrival as seen (ACS delays), and an
-   * attack that vanished from the attacked member's overview before it arrived suggests a recall window.
-   */
-  function enemiesOf(ctx: GroupContext, planIds: number[]): EnemyRow[] {
-    const rows = db
-      .prepare(
-        `SELECT e.*, COALESCE(gm.ingame_name, mu.username) AS member, COALESCE(gb.ingame_name, bu.username) AS updated_by
-         FROM attack_plan_enemy e JOIN attack_plans a ON a.id = e.plan_id
-         LEFT JOIN users mu ON mu.id = e.member_id LEFT JOIN group_members gm ON gm.group_id = a.group_id AND gm.user_id = e.member_id
-         LEFT JOIN users bu ON bu.id = e.updated_by LEFT JOIN group_members gb ON gb.group_id = a.group_id AND gb.user_id = e.updated_by
-         WHERE e.plan_id IN (SELECT value FROM json_each(?))`,
-      )
-      .all(JSON.stringify(planIds)) as EnemyRow[];
-    if (!rows.length) return rows;
-    const seen = new Map(hostileAttacks(db, ctx).map((a) => [a.key, a]));
-    for (const e of rows) {
-      const fleets = JSON.parse(e.fleets) as EnemyFleet[];
-      const key = attackKey(fromOf(e), toOf(e), fleets[0]?.ships ?? {});
-      const latest = seen.get(key);
-      if (latest && latest.arrival !== e.arrival) {
-        db.prepare('UPDATE attack_plan_enemy SET arrival = ? WHERE plan_id = ?').run(latest.arrival, e.plan_id);
-        e.arrival = latest.arrival;
-      }
-      e.recall_seen = !latest && e.member_id != null ? recallWindow(db, ctx.groupId, e.member_id, key) : null;
-    }
-    return rows;
-  }
-  const fromOf = (e: EnemyRow): Body => ({ g: e.from_g, s: e.from_s, p: e.from_p, type: e.from_type });
-  const toOf = (e: EnemyRow): Body => ({ g: e.to_g, s: e.to_s, p: e.to_p, type: e.to_type });
   const enemyOut = (e: EnemyRow) => ({
     member_id: e.member_id,
     member: e.member,

@@ -4,8 +4,11 @@ import { nowSec, upcoming } from './clock';
 import type { Fleet } from './components/FleetList.vue';
 import { useStored } from './composables';
 
-/** Something the members should notice (server: routes/notifications.ts): hostile fleets on a member, raid planner invitations. */
-export type Notification = AttackNotification | InviteNotification;
+/**
+ * Something the members should notice (server: repo/notifications.ts): hostile fleets on a member, raid planner
+ * invitations, new comments in the viewer's threads, the launch of the viewer's plan fleets.
+ */
+export type Notification = AttackNotification | InviteNotification | CommentNotification | LaunchNotification;
 
 interface Base {
   id: string;
@@ -31,9 +34,25 @@ export interface InviteNotification extends Base {
   };
 }
 
-/** An invitation lasts until the end of the plan's day or hour. */
+/** New comments of others in a thread the viewer wrote in (`member`: the newest author). */
+export interface CommentNotification extends Base {
+  kind: 'comment';
+  thread: { player: number; name: string } | { g: number; s: number; p: number; type: 'planet' | 'moon'; owner: string | null };
+  excerpt: string;
+  count: number;
+}
+
+/** A fleet of the viewer in a plan has to launch at `time`. */
+export interface LaunchNotification extends Base {
+  kind: 'launch';
+  plan: { id: number; g: number; s: number; p: number; planet_type: 'planet' | 'moon'; mission: 'attack' | 'hold'; target_time: number };
+  from: { g: number; s: number; p: number; type: 'planet' | 'moon' };
+}
+
+/** An invitation lasts until the end of the plan's day or hour, new comments two days. */
 const SPAN = { day: 86400, hour: 3600, exact: 0 };
-const until = (n: Notification) => (n.kind === 'invite' ? n.time + SPAN[n.plan.time_precision] : n.time);
+const COMMENT_SPAN = 48 * 3600;
+const until = (n: Notification) => (n.kind === 'invite' ? n.time + SPAN[n.plan.time_precision] : n.kind === 'comment' ? n.time + COMMENT_SPAN : n.time);
 
 const list = ref<Notification[]>([]);
 /** Seconds now, ticking: arrived fleets drop out without a reload. */

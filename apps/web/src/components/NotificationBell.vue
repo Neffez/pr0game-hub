@@ -3,7 +3,7 @@ import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { useUni } from '../composables';
-import { attacks, markSeen, notifications, unseen, type Notification } from '../notifications';
+import { attacks, markSeen, notifications, unseen, type CommentNotification, type Notification } from '../notifications';
 import { abbr, fmt, name } from '../format';
 import NavIcon from './NavIcon.vue';
 import Ticker from './Ticker.vue';
@@ -20,8 +20,26 @@ function toggle() {
 }
 function show(n: Notification) {
   open.value = false;
-  router.push(n.kind === 'invite' ? { path: `/${uni.value}/raid-planner`, query: { plan: n.plan.id } } : `/${uni.value}/fleet`);
+  router.push(target(n));
 }
+function target(n: Notification) {
+  switch (n.kind) {
+    case 'invite':
+    case 'launch':
+      return { path: `/${uni.value}/raid-planner`, query: { plan: n.plan.id } };
+    case 'comment':
+      return 'player' in n.thread
+        ? `/${uni.value}/player/${n.thread.player}`
+        : { path: `/${uni.value}/spy`, query: { c: `${n.thread.g}:${n.thread.s}:${n.thread.p}`, type: n.thread.type } };
+    default:
+      return `/${uni.value}/fleet`;
+  }
+}
+const threadOf = (n: CommentNotification) =>
+  'player' in n.thread
+    ? n.thread.name
+    : `${n.thread.owner ? n.thread.owner + ' ' : ''}${n.thread.type === 'moon' ? '☾ ' : ''}[${n.thread.g}:${n.thread.s}:${n.thread.p}]`;
+const coords = (b: { g: number; s: number; p: number }, moon: boolean) => `${moon ? '☾ ' : ''}[${b.g}:${b.s}:${b.p}]`;
 
 const at = (b: { coords: { g: number; s: number; p: number }; type: string | null; name: string | null }) =>
   `${b.name ? b.name + ' ' : ''}${b.type === 'moon' ? '☾ ' : ''}[${b.coords.g}:${b.coords.s}:${b.coords.p}]`;
@@ -83,6 +101,18 @@ function left(sec: number) {
               <Ticker v-if="n.plan.time_precision === 'exact'" v-slot="{ now }"><span class="mono muted"> ({{ left(Math.max(0, n.time - now)) }})</span></Ticker>
             </span>
           </button>
+          <button v-else-if="n.kind === 'launch'" class="bell-item launch" @click="show(n)">
+            <span><b>🚀 {{ t('notify.launch') }}</b> · {{ n.plan.mission === 'hold' ? t('hold.badge') : t('notify.raid') }}</span>
+            <span class="small">
+              {{ coords(n.from, n.from.type === 'moon') }} → {{ coords(n.plan, n.plan.planet_type === 'moon') }} ·
+              <span class="mono">{{ clock(n.time) }}</span>
+              <Ticker v-slot="{ now }"><span class="mono muted"> ({{ left(Math.max(0, n.time - now)) }})</span></Ticker>
+            </span>
+          </button>
+          <button v-else-if="n.kind === 'comment'" class="bell-item comment" @click="show(n)">
+            <span><b>💬 {{ t('notify.comment', { member: n.member, on: threadOf(n) }) }}</b><template v-if="n.count > 1"> · {{ t('notify.comments', { n: n.count }) }}</template></span>
+            <span class="small muted">{{ n.excerpt }}</span>
+          </button>
           <button v-else class="bell-item" @click="show(n)">
             <span class="neg"><b>⚔ {{ t('notify.attack', { member: n.member }) }}</b> · {{ n.fleets > 1 ? t('notify.acs', { n: n.fleets }) : n.fleet.missionName }}</span>
             <span class="small">
@@ -124,6 +154,10 @@ function left(sec: number) {
 .bell-item:hover { background: color-mix(in srgb, var(--neg) 18%, var(--surface-2)); }
 .bell-item.invite { background: var(--surface-2); border-left-color: var(--info); }
 .bell-item.invite:hover { background: color-mix(in srgb, var(--info) 12%, var(--surface-2)); }
+.bell-item.comment { background: var(--surface-2); border-left-color: var(--muted); }
+.bell-item.comment:hover { background: color-mix(in srgb, var(--muted) 12%, var(--surface-2)); }
+.bell-item.launch { background: var(--surface-2); border-left-color: var(--warn); }
+.bell-item.launch:hover { background: color-mix(in srgb, var(--warn) 12%, var(--surface-2)); }
 @media (max-width: 800px) {
   .bell-panel { top: calc(var(--topbar-h) + env(safe-area-inset-top) + 6px); left: 16px; right: 16px; width: auto; }
 }

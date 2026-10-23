@@ -18,7 +18,9 @@ Guidance for Claude Code in this repository. See `README.md` for features, setup
 - **No deployment details.** Server setup, hosts and SSH belong to the private deployment repository. This repository
   only builds the Docker image and sends the `repository_dispatch` from CI.
 - **Language.** Code, comments, commit messages, README and changelog in English. UI texts live in
-  `apps/web/src/locales/de.ts` and `en.ts`; always update both.
+  `apps/web/src/locales/de.ts` and `en.ts`; always update both. Texts of push notifications are built by the server and
+  live in `apps/server/src/push.ts` (German and English; English is typed against German, so a missing text fails the
+  typecheck).
 - **OpenAPI with API changes.** The public contract is [`apps/server/openapi.yaml`](apps/server/openapi.yaml)
   (served as `/api/openapi.json` and `.yaml`). Any commit that adds, removes or changes HTTP API behavior—paths,
   methods, auth, query/header parameters, or response shape—must update that file in the same commit so it stays

@@ -8,9 +8,11 @@ const db = openDb(join(config.dataDir, 'hub.db'));
 const app = buildApp(db);
 
 const stopCrawler = startCrawler(db, app.log);
+const stopReminders = app.push.start();
 
 const shutdown = async () => {
   stopCrawler();
+  stopReminders();
   await app.close();
   db.close();
   process.exit(0);
