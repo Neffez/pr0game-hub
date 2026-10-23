@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-10-23',
     items: [
       {
+        kind: 'new',
+        de: 'Raid-Planer: Die Geschwindigkeit einer Flotte lässt sich direkt in der Tabelle umstellen, ohne „Bearbeiten“.',
+        en: 'Raid planner: the speed of a fleet can be changed right in the table, without "Edit".',
+      },
+      {
         kind: 'fix',
         de: 'Flotten: Bei feindlichen Angriffen steht jetzt der Spieler dabei (aus der Galaxie, das Spiel nennt ihn nicht), ein Verbandsangriff ist in der Flottenliste eine aufklappbare Zeile mit allen Schiffen, Schiffszahlen stehen voll aus. Uhrzeiten überall im 24-Stunden-Format.',
         en: 'Fleets: hostile attacks now show the player (from the galaxy data, the game names none), an ACS attack is one row in the fleet list that opens to its fleets, with all ships, and ship amounts are shown in full. Times everywhere in 24 hours.',
