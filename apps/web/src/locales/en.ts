@@ -749,14 +749,14 @@ const en: typeof de = {
   },
   admin: {
     discord: 'Discord channel',
-    discordHint: 'The hub posts attacks on members, new raid plans and launch times to a Discord channel of the alliance. Create the webhook in Discord: Server Settings → Integrations → Webhooks.',
+    discordHint: 'The hub posts attacks on members, new raid plans and launch times to a Discord channel of the alliance. Meant for a channel only alliance members can see. Create the webhook in Discord: Server Settings → Integrations → Webhooks.',
     discordKind: {
       attacks: 'Attacks on members',
       plans: 'New raid planner plans',
       launch: 'Reminder of the members\' launch times',
     },
     discordLang: 'Language',
-    discordMentions: 'Members who entered their Discord user ID in their account are mentioned when they are attacked and before their launch. Own fleets only show as the members share them.',
+    discordMentions: 'Members who entered their Discord user ID in their account are mentioned when they are attacked and before their launch.',
     title: 'Admin',
     universeCreated: 'Universe created',
     deckRestored: 'Default deck restored',

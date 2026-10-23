@@ -91,9 +91,9 @@ export function notificationsFor(db: DB, ctx: GroupContext, t: number): Notifica
 }
 
 /**
- * Current notifications of the group's channel at `t`, the next first: attacks on members seen as by a non-member (the
- * members' fleet sharing applies, incoming fleets are always shared), plans created within `PLAN_KEEP` and the
- * launches of all members' plan fleets.
+ * Current notifications of the group's channel at `t`, the next first: attacks on members (hostile fleets are shared
+ * with every member), plans created within `PLAN_KEEP` and the launches of all members' plan fleets. The channel is
+ * the alliance's own: only members read it, so it gets what every member sees in the hub.
  */
 export function channelNotificationsFor(db: DB, universe: Universe, groupId: number, t: number): ChannelNotification[] {
   const group = db.prepare('SELECT name FROM groups WHERE id = ?').pluck().get(groupId) as string | undefined;

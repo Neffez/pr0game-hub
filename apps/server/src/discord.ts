@@ -10,7 +10,8 @@ import { channelNotificationsFor, notificationsFor, type ChannelNotification, ty
 
 /**
  * Discord: the bell's notifications sent to a user's own webhook (settings like push, see push.ts), and attacks on
- * members, new plans and launch reminders to the group's channel webhook, mentioning members who gave their Discord id.
+ * members, new plans and launch reminders to the group's channel webhook (a channel of the alliance's members only),
+ * mentioning members who gave their Discord id.
  * Same delivery as push: after data events of a group (debounced) and on a ticker, each notification once per webhook.
  */
 

@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Discord alliance channel: meant for a channel only the alliance's members can see (admin hint says so); the
+  misleading note about fleet sharing is gone, the channel gets what every member sees in the hub.
+
 - **Discord notifications** via webhooks (no bot): a personal webhook per user and a channel webhook per alliance.
   - Personal: the bell's notifications like push, with their own settings (`users.discord_prefs`, same kinds and lead
     time); set under Account together with an optional Discord user ID used for mentions in the alliance channel.

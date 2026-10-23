@@ -751,14 +751,14 @@ const de = {
   },
   admin: {
     discord: 'Discord-Kanal',
-    discordHint: 'Der Hub postet Angriffe auf Mitglieder, neue Raid-Pläne und Starttermine in einen Discord-Kanal der Allianz. Webhook in Discord anlegen: Servereinstellungen → Integrationen → Webhooks.',
+    discordHint: 'Der Hub postet Angriffe auf Mitglieder, neue Raid-Pläne und Starttermine in einen Discord-Kanal der Allianz. Gedacht für einen Kanal, den nur Allianzmitglieder sehen. Webhook in Discord anlegen: Servereinstellungen → Integrationen → Webhooks.',
     discordKind: {
       attacks: 'Angriffe auf Mitglieder',
       plans: 'Neue Pläne im Raid-Planer',
       launch: 'Erinnerung an die Starttermine der Mitglieder',
     },
     discordLang: 'Sprache',
-    discordMentions: 'Mitglieder, die im Account ihre Discord-User-ID hinterlegt haben, werden bei Angriffen auf sie und vor ihrem Start erwähnt. Eigene Flotten erscheinen nur so, wie die Mitglieder sie teilen.',
+    discordMentions: 'Mitglieder, die im Account ihre Discord-User-ID hinterlegt haben, werden bei Angriffen auf sie und vor ihrem Start erwähnt.',
     title: 'Admin',
     universeCreated: 'Universum angelegt',
     deckRestored: 'Standard-Deck wiederhergestellt',
