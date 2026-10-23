@@ -4,6 +4,8 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Player details: link "In-game messages" opens the conversations with that player (sent by or to them, former
+  names included); the filter shows on the messages page and can be removed there.
 - In-game messages: player messages ("Spieler Nachrichten") can be synced like the reports, by HTML, page source or
   plain text, and are listed on the new page "In-game messages" (newest first, sortable, filter by sender and
   recipient).

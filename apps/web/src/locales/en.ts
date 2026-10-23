@@ -170,6 +170,7 @@ const en: typeof de = {
     phalanxRange: '(±{n} systems)',
     noMoonReport: 'No moon report with visible buildings',
     statusLog: 'Status history',
+    messages: 'In-game messages',
     active: 'active',
   },
   freshness: {
@@ -188,6 +189,8 @@ const en: typeof de = {
     recipient: 'Recipient',
     subject: 'Subject',
     syncedBy: 'Synced by',
+    with: 'Conversation with {name}',
+    clear: 'Remove filter',
     count: '{shown} of {total} messages',
     empty: 'No messages yet.',
   },

@@ -146,6 +146,10 @@ onBeforeUnmount(() => chart?.destroy());
       <template v-if="data.player.ingame_id">ID {{ data.player.ingame_id }} · </template>
       {{ t('player.lastSeen', { time: dateTime(data.player.last_seen) }) }}
       <template v-if="data.aliases.length"> · {{ t('player.aliases', { names: data.aliases.map((a: any) => a.name).join(', ') }) }}</template>
+      ·
+      <RouterLink :to="{ path: `/${uni}/messages`, query: { with: [data.player.name, ...data.aliases.map((a: any) => a.name)] } }">
+        {{ t('player.messages') }}
+      </RouterLink>
     </p>
 
     <div class="card">

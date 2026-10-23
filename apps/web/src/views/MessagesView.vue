@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRoute, useRouter } from 'vue-router';
 import { uniApi } from '../api';
 import Hint from '../components/Hint.vue';
 import { useLoader, useProgressive, useSort, useUni, vStack } from '../composables';
@@ -29,6 +30,11 @@ const { data, error, load } = useLoader<{ share: boolean; messages: Message[] }>
 onMounted(load);
 useLiveReload(load, tables('player_messages'));
 
+const route = useRoute();
+const router = useRouter();
+/** `?with=Name` (from the player page, also former names): messages from or to that player */
+const partner = computed(() => [route.query.with ?? []].flat().filter((n): n is string => !!n));
+const clearPartner = () => router.replace({ query: { ...route.query, with: undefined } });
 const sender = ref('');
 const recipient = ref('');
 const all = computed(() => data.value?.messages ?? []);
@@ -36,7 +42,11 @@ const names = (list: string[]) => [...new Set(list)].sort((a, b) => a.localeComp
 const senders = computed(() => names(all.value.map((m) => m.from_name)));
 const recipients = computed(() => names(all.value.flatMap((m) => m.recipients.map((r) => r.name))));
 const filtered = computed(() =>
-  all.value.filter((m) => (!sender.value || m.from_name === sender.value) && (!recipient.value || m.recipients.some((r) => r.name === recipient.value))),
+  all.value.filter(
+    (m) =>
+      (!partner.value.length || partner.value.includes(m.from_name) || m.recipients.some((r) => partner.value.includes(r.name))) &&
+      (!sender.value || m.from_name === sender.value) && (!recipient.value || m.recipients.some((r) => r.name === recipient.value)),
+  ),
 );
 
 const party = (name: string, coords: string | null) => (coords ? `${name} [${coords}]` : name);
@@ -64,6 +74,10 @@ const { shown, more, sentinel } = useProgressive(sort.sorted, 100);
 <template>
   <h1>{{ t('nav.messages') }} <Hint>{{ t('messages.hint') }}</Hint></h1>
   <div class="card row">
+    <span v-if="partner.length" class="chip">
+      {{ t('messages.with', { name: partner[0] }) }}
+      <button :title="t('messages.clear')" :aria-label="t('messages.clear')" @click="clearPartner">✕</button>
+    </span>
     <label>
       {{ t('messages.sender') }}
       <select v-model="sender">
@@ -115,6 +129,8 @@ const { shown, more, sentinel } = useProgressive(sort.sorted, 100);
 </template>
 
 <style scoped>
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border: 1px solid var(--border); border-radius: 12px; }
+.chip button { background: none; border: 0; padding: 0; color: var(--muted, inherit); cursor: pointer; }
 .nowrap { white-space: nowrap; }
 .list-end { height: 1px; }
 .subject { font-weight: 600; }

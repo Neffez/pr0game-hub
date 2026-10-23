@@ -171,6 +171,7 @@ const de = {
     phalanxRange: '(±{n} Systeme)',
     noMoonReport: 'Kein Mondbericht mit sichtbaren Gebäuden',
     statusLog: 'Status-Verlauf',
+    messages: 'Ingame-Nachrichten',
     active: 'aktiv',
   },
   freshness: {
@@ -189,6 +190,8 @@ const de = {
     recipient: 'Empfänger',
     subject: 'Betreff',
     syncedBy: 'Synchronisiert von',
+    with: 'Konversation mit {name}',
+    clear: 'Filter entfernen',
     count: '{shown} von {total} Nachrichten',
     empty: 'Noch keine Nachrichten.',
   },
