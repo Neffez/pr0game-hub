@@ -77,6 +77,8 @@ describe('attack plans', () => {
     const plan = (await call('GET', '/plans', carol)).json()[0];
     const own = await call('POST', `/plans/${plan.id}/fleets`, carol, { g: 1, s: 40, p: 5, type: 'planet', ships: { 207: 1773, 215: 2, 202: 0 }, speed: 90 });
     expect(own.statusCode).toBe(200);
+    // Dave has no fleet in the plan yet: Carol's fleet is not his to change
+    expect((await call('PUT', `/plans/${plan.id}/fleets/${own.json().id}`, dave, { speed: 50 })).json().code).toBe('plan_fleet_not_yours');
     expect((await call('POST', `/plans/${plan.id}/fleets`, dave, { g: 1, s: 42, p: 7, ships: { 204: 100 } })).statusCode).toBe(200);
     // Dave cannot invite others, Carol (creator) can
     expect((await call('POST', `/plans/${plan.id}/fleets`, dave, { user_id: carolId })).json().code).toBe('plan_not_yours');
@@ -96,9 +98,10 @@ describe('attack plans', () => {
     expect(fleets[0]).toMatchObject({ g: 1, s: 40, p: 5, planet_type: 'planet', drives: { time: 1893456000, research: { 115: 10, 117: 8, 118: 6, 134: 0 } } });
     expect(fleets[1].drives).toBeNull();
 
-    // Dave changes his own fleet, not Carol's; Carol as creator may change Dave's
+    // Dave changes his own fleet and, as a participant, also Carol's (but cannot remove it); Carol as creator may change Dave's
     expect((await call('PUT', `/plans/${plan.id}/fleets/${fleets[1].id}`, dave, { speed: 50, ships: { 204: 120 } })).statusCode).toBe(200);
-    expect((await call('PUT', `/plans/${plan.id}/fleets/${fleets[0].id}`, dave, { speed: 50 })).json().code).toBe('plan_fleet_not_yours');
+    expect((await call('PUT', `/plans/${plan.id}/fleets/${fleets[0].id}`, dave, { speed: 90, ships: { 207: 1773, 215: 2 } })).statusCode).toBe(200);
+    expect((await call('DELETE', `/plans/${plan.id}/fleets/${fleets[0].id}`, dave)).json().code).toBe('plan_fleet_not_yours');
     expect((await call('PUT', `/plans/${plan.id}/fleets/${fleets[2].id}`, carol, { status: 'withdrawn' })).statusCode).toBe(200);
     expect((await call('GET', '/notifications', dave)).json()).toEqual([]);
     expect((await call('DELETE', `/plans/${plan.id}/fleets/${fleets[2].id}`, dave)).statusCode).toBe(200);

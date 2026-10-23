@@ -84,8 +84,10 @@ All rows per group (`groupContext`).
 - **phalanx_snapshots** (029): pasted phalanx results (fleets with arrival, who pasted, page time), kept a day.
 
 Rights: creator or group admin edit the plan (target, time, note, status, invitations, deletion); every participant
-(also only invited) may fill in or change the coordinates alone (the claim stays with the creator); every member their
-own fleets; every participant (and the creator/admins) the enemy inputs.
+(also only invited) may fill in or change the coordinates alone (the claim stays with the creator); every participant
+every fleet of the plan (start, ships, speed, status; to plan for members who are away or placeholders without an
+account; the fleet form uses the empire page of the fleet's member, without one the start is typed in), removing a
+fleet only its member, the creator or admins; every participant (and the creator/admins) the enemy inputs.
 
 ## Target time
 

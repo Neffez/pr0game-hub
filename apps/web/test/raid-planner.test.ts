@@ -286,7 +286,7 @@ describe('raid planner page', () => {
     const groups = () => [...pick().querySelectorAll('optgroup')].map((g) => [g.label, [...g.querySelectorAll('option')].map((o) => o.textContent)]);
     expect(groups()).toEqual([
       ['Am Startplanet Ares', ['Leichter Jäger (50)', 'Schlachtschiff (3)']],
-      ['Alle eigenen Schiffe (Planeten, Monde, im Flug)', ['Leichter Jäger (50)', 'Schlachtschiff (5)', 'Schlachtkreuzer (7)']],
+      ['Alle Schiffe (Planeten, Monde, im Flug)', ['Leichter Jäger (50)', 'Schlachtschiff (5)', 'Schlachtkreuzer (7)']],
     ]);
     const choose = async (value: string) => {
       pick().value = value;
@@ -312,5 +312,34 @@ describe('raid planner page', () => {
     [...rows[0].querySelectorAll('button')].find((b) => b.textContent!.trim() === 'max')!.click();
     await settle();
     expect(root.querySelector<HTMLInputElement>('.ship-row input')!.value).toBe('3');
+  });
+
+  it("edits another member's fleet from that member's empire page, the start typed in without one", async () => {
+    const calls: { url: string; init?: RequestInit }[] = [];
+    const fetchMock = globalThis.fetch;
+    vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
+      calls.push({ url, init });
+      if (url.includes('/imperium?user=3')) return new Response(JSON.stringify({ empire: null }), { headers: { 'content-type': 'application/json' } });
+      return fetchMock(url, init);
+    });
+    const erin = [...root.querySelectorAll('.plan tbody tr')].find((r) => r.textContent!.includes('Erin'))!;
+    [...erin.querySelectorAll('button')].find((b) => b.textContent === 'Bearbeiten')!.click();
+    await settle();
+    expect(calls.map((c) => c.url)).toContainEqual(expect.stringContaining('/imperium?user=3'));
+    const form = root.querySelector('.fleet-form')!;
+    expect(form.querySelector('h4')!.textContent).toBe('Flotte von Erin');
+    const manual = form.querySelector<HTMLInputElement>('input.mono')!;
+    manual.value = '2:50:4';
+    manual.dispatchEvent(new Event('input'));
+    const moon = form.querySelector<HTMLInputElement>('input[type="checkbox"]')!;
+    moon.checked = true;
+    moon.dispatchEvent(new Event('change'));
+    await settle();
+    [...form.querySelectorAll('button')].find((b) => b.textContent === 'Speichern')!.click();
+    await settle();
+    const put = calls.find((c) => c.init?.method === 'PUT')!;
+    expect(put.url).toContain('/plans/7/fleets/3');
+    expect(JSON.parse(put.init!.body as string)).toMatchObject({ g: 2, s: 50, p: 4, type: 'moon' });
+    vi.stubGlobal('fetch', fetchMock);
   });
 });

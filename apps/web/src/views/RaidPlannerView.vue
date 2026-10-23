@@ -119,7 +119,10 @@ const sims = (p: AttackPlan) =>
 const me = computed(() => ctx.value?.me.id);
 const isAdmin = computed(() => ctx.value?.group.role === 'admin' || !!ctx.value?.me.isAdmin);
 const canEdit = (p: AttackPlan) => p.user_id === me.value || isAdmin.value;
-const canEditFleet = (p: AttackPlan, f: PlanFleet) => f.user_id === me.value || canEdit(p);
+/** Every participant may change any fleet of the plan (members away or without an account); removing stays with the member. */
+const isParticipant = (p: AttackPlan) => p.fleets.some((f) => f.user_id === me.value);
+const canEditFleet = (p: AttackPlan, f: PlanFleet) => f.user_id === me.value || canEdit(p) || isParticipant(p);
+const canRemoveFleet = (p: AttackPlan, f: PlanFleet) => f.user_id === me.value || canEdit(p);
 const closed = (p: AttackPlan) => p.status === 'done' || p.status === 'cancelled';
 const hasCoords = (p: AttackPlan) => p.g != null;
 
@@ -254,7 +257,7 @@ async function planHold(a: HostileAttack) {
 }
 const attackShips = (a: HostileAttack) =>
   a.fleets.length > 1 ? t('notify.acs', { n: a.fleets.length }) : (a.fleets[0]?.mission != null ? t(`game.missions.${a.fleets[0].mission}`) : '');
-const canEditEnemy = (p: AttackPlan) => canEdit(p) || p.fleets.some((f) => f.user_id === me.value);
+const canEditEnemy = (p: AttackPlan) => canEdit(p) || isParticipant(p);
 
 // ---- plan editing (creator, admins) ----
 const editing = reactive<Record<number, PlanDraft>>({});
@@ -270,7 +273,7 @@ async function savePlan(p: AttackPlan) {
   loadClaims(uni.value);
 }
 /** Open coordinates: the creator, admins and every participant (also only invited) fill them in. */
-const canSetCoords = (p: AttackPlan) => !closed(p) && (canEdit(p) || p.fleets.some((f) => f.user_id === me.value));
+const canSetCoords = (p: AttackPlan) => !closed(p) && (canEdit(p) || isParticipant(p));
 const coordsEdit = reactive<Record<number, PlanDraft>>({});
 async function saveCoords(p: AttackPlan) {
   const body = draftBody(coordsEdit[p.id]);
@@ -301,18 +304,20 @@ interface OwnEmpire {
   /** ships on fleets in flight (✈) */
   flyingShips?: Record<string, number>;
 }
-const ownEmpire = ref<OwnEmpire | null>(null);
+/** Latest empire pages of the members whose fleets are edited, by user id (no planets without one). */
+const empires = reactive<Record<number, OwnEmpire>>({});
+const ownEmpire = computed(() => empires[fleetForm.userId] ?? null);
 const ownPlanets = computed(() => ownEmpire.value?.planets ?? null);
-async function loadOwnPlanets() {
-  if (ownEmpire.value) return;
+async function loadEmpire(userId: number) {
+  if (empires[userId]) return;
   try {
-    const r = await uniApi<{ empire: { data: OwnEmpire } | null }>(uni.value, '/imperium');
-    ownEmpire.value = r.empire?.data ?? { planets: [] };
+    const r = await uniApi<{ empire: { data: OwnEmpire } | null }>(uni.value, `/imperium?user=${userId}`);
+    empires[userId] = r.empire?.data ?? { planets: [] };
   } catch {
-    ownEmpire.value = { planets: [] };
+    empires[userId] = { planets: [] };
   }
 }
-/** All own ships: on all planets and moons plus in flight (empire page). */
+/** All ships of the fleet's member: on all planets and moons plus in flight (empire page). */
 const owned = computed(() => {
   const out: Record<number, number> = {};
   const add = (values: Record<string, number>) => {
@@ -324,14 +329,33 @@ const owned = computed(() => {
 });
 const planetKey = (c: { g: number; s: number; p: number }, type: string | null) => `${c.g}:${c.s}:${c.p}:${type ?? 'planet'}`;
 
-/** `from`: where a ship's maximum comes from, the start planet or all own ships. */
-const fleetForm = reactive({ planId: 0, fleetId: 0, start: '', ships: {} as Record<number, number>, from: {} as Record<number, 'start' | 'all'>, speed: 100 });
+/**
+ * `from`: where a ship's maximum comes from, the start planet or all ships of the member. Without an empire page the
+ * start is typed in (`manual` g:s:p, `moon`).
+ */
+const fleetForm = reactive({
+  planId: 0,
+  fleetId: 0,
+  userId: 0,
+  member: '',
+  start: '',
+  manual: '',
+  moon: false,
+  ships: {} as Record<number, number>,
+  from: {} as Record<number, 'start' | 'all'>,
+  speed: 100,
+});
 function openFleet(p: AttackPlan, f?: PlanFleet) {
-  loadOwnPlanets();
+  const userId = f?.user_id ?? me.value!;
+  loadEmpire(userId);
   Object.assign(fleetForm, {
     planId: p.id,
     fleetId: f?.id ?? 0,
+    userId,
+    member: f && f.user_id !== me.value ? f.member : '',
     start: f && f.g != null ? planetKey({ g: f.g, s: f.s!, p: f.p! }, f.planet_type) : '',
+    manual: f && f.g != null ? `${f.g}:${f.s}:${f.p}` : '',
+    moon: f?.planet_type === 'moon',
     ships: Object.fromEntries(Object.entries(f?.ships ?? {}).map(([id, n]) => [Number(id), n])),
     speed: f?.speed ?? 100,
     from: {},
@@ -365,10 +389,22 @@ function removeShip(id: number) {
   delete fleetForm.ships[id];
   delete fleetForm.from[id];
 }
+/** Start typed in: g:s:p, null when empty, undefined when invalid. */
+function manualStart(): { g: number; s: number; p: number; type: string } | null | undefined {
+  const text = fleetForm.manual.trim();
+  if (!text) return null;
+  const m = /^(\d+):(\d+):(\d+)$/.exec(text);
+  return m ? { g: Number(m[1]), s: Number(m[2]), p: Number(m[3]), type: fleetForm.moon ? 'moon' : 'planet' } : undefined;
+}
 async function saveFleet() {
   const [g, s, p, type] = fleetForm.start.split(':');
+  const manual = ownPlanets.value?.length ? null : manualStart();
+  if (manual === undefined) {
+    error.value = t('plans.startInvalid');
+    return;
+  }
   const body = {
-    ...(fleetForm.start ? { g: Number(g), s: Number(s), p: Number(p), type } : {}),
+    ...(manual ?? (fleetForm.start ? { g: Number(g), s: Number(s), p: Number(p), type } : {})),
     ships: Object.fromEntries(Object.entries(fleetForm.ships).filter(([, n]) => n > 0)),
     speed: fleetForm.speed,
     ...(fleetForm.fleetId ? {} : { status: 'ready' }),
@@ -598,8 +634,8 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
               <td class="actions">
                 <a v-if="x.duration != null && exact(p)" class="calc" :href="fleetCalcLink(settings, p, x.fleet)!" target="_blank" rel="noopener" :title="t('plans.calcTitle')">↗</a>
                 <template v-if="canEditFleet(p, x.fleet) && !closed(p)">
-                  <button v-if="x.fleet.user_id === me" @click="openFleet(p, x.fleet)">{{ t('plans.edit') }}</button>
-                  <button :title="t('plans.removeFleet')" @click="removeFleet(p, x.fleet)">✕</button>
+                  <button @click="openFleet(p, x.fleet)">{{ t('plans.edit') }}</button>
+                  <button v-if="canRemoveFleet(p, x.fleet)" :title="t('plans.removeFleet')" @click="removeFleet(p, x.fleet)">✕</button>
                 </template>
               </td>
             </tr>
@@ -609,8 +645,16 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
       <p v-else class="muted small">{{ t('plans.noFleets') }}</p>
 
       <div v-if="fleetForm.planId === p.id" class="fleet-form">
+        <h4 v-if="fleetForm.member">{{ t('plans.fleetOf', { member: fleetForm.member }) }}</h4>
         <div class="row">
-          <label>
+          <template v-if="ownPlanets && !ownPlanets.length">
+            <label>
+              {{ t('plans.start') }}
+              <input v-model="fleetForm.manual" class="mono" placeholder="1:41:1" size="10" />
+            </label>
+            <label><input v-model="fleetForm.moon" type="checkbox" /> {{ t('plans.moon') }}</label>
+          </template>
+          <label v-else>
             {{ t('plans.start') }}
             <select v-model="fleetForm.start">
               <option value="">–</option>

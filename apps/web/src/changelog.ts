@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Raid-Planer: Wer eine Flotte im Plan hat, kann jetzt auch die Flotten der anderen eintragen und ändern, etwa für Mitglieder, die gerade nicht da sind oder kein Konto haben. Ohne Imperium-Seite lässt sich der Startplanet von Hand eingeben.',
+        en: "Raid planner: anyone with a fleet in a plan can now enter and change the other fleets too, e.g. for members who are away or have no account. Without an empire page the start planet can be typed in.",
+      },
+      {
+        kind: 'new',
         de: 'Schönere Datums- und Zeitfelder am Desktop, im Format des Hubs statt des Browsers (z. B. 23.10.2026 statt 10/23/2026). Unter Konto lässt sich das Datumsformat wählen; am Handy bleiben die gewohnten Felder des Geräts.',
         en: "Nicer date and time fields on desktop, in the hub's format instead of the browser's (e.g. 23/10/2026 instead of 10/23/2026). The date format can be chosen under Account; on mobile the device's usual fields stay.",
       },

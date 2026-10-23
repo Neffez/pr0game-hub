@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- **Raid planner: participants edit every fleet of a plan.** Every member with a fleet in a plan may now change the
+  other fleets (start, ships, speed, status), so a plan can be completed for members who are away or are placeholders
+  without an account; removing a fleet stays with its member, the creator and admins. The fleet form loads the
+  empire page of the fleet's member (`/imperium?user=`); without one the start planet is typed in as `g:s:p`.
+
 - Raid planner plan (`FEATURE_REQUEST_RETIME.md`): status, phalanx texts, invitations in the bell and the date picker
   under "Built", open items split into input from the requester and known limits.
 

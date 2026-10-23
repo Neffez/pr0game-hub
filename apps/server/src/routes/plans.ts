@@ -194,13 +194,16 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
   /** Member with a fleet row in the plan (also only invited or withdrawn). */
   const isParticipant = (ctx: GroupContext, planId: number) =>
     !!db.prepare('SELECT 1 FROM attack_plan_fleets WHERE plan_id = ? AND user_id = ?').get(planId, ctx.user.id);
-  /** A fleet row: its member, the plan's creator or a group admin. */
-  function editableFleet(ctx: GroupContext, planId: number, fleetId: number) {
+  /**
+   * A fleet row: its member, the plan's creator or a group admin; with `participants` also every member with a fleet in
+   * the plan (to plan for members who are away or have no account).
+   */
+  function editableFleet(ctx: GroupContext, planId: number, fleetId: number, participants = false) {
     const plan = planOf(ctx, planId);
     const fleet = db.prepare('SELECT * FROM attack_plan_fleets WHERE id = ? AND plan_id = ?').get(fleetId, plan.id) as FleetRow | undefined;
     if (!fleet) throw new HttpError(404, 'plan_fleet_not_found', 'Fleet not found');
-    if (fleet.user_id !== ctx.user.id && plan.user_id !== ctx.user.id && !isAdmin(ctx)) {
-      throw new HttpError(403, 'plan_fleet_not_yours', 'Only the member, the creator or an admin can change this fleet');
+    if (fleet.user_id !== ctx.user.id && plan.user_id !== ctx.user.id && !isAdmin(ctx) && !(participants && isParticipant(ctx, plan.id))) {
+      throw new HttpError(403, 'plan_fleet_not_yours', participants ? 'Only participants of the plan can change this fleet' : 'Only the member, the creator or an admin can remove this fleet');
     }
     return { plan, fleet };
   }
@@ -725,7 +728,7 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
 
   app.put<{ Params: { uni: string; id: string; fleet: string }; Body: FleetBody }>('/api/:uni/plans/:id/fleets/:fleet', async (req) => {
     const ctx = ctxOf(req);
-    const { fleet } = editableFleet(ctx, Number(req.params.id), Number(req.params.fleet));
+    const { fleet } = editableFleet(ctx, Number(req.params.id), Number(req.params.fleet), true);
     const set = fleetValues(ctx, req.body ?? {});
     const cols = Object.keys(set);
     if (cols.length) {
