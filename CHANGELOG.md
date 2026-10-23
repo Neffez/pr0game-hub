@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Raid planner, own fleet: the ship list has two groups, ships on the start planet and all own ships (all planets and
+  moons plus ships in flight from the empire page), so ships still to be moved to the start can be planned too.
+  Picking a ship adds it at once with the maximum of its group; the amount stays editable and "max" restores it.
+  Without an empire page every ship can be entered by hand.
+
 - Universe check for spy reports and overview pages: spy reports naming mostly other players than the known owners
   and an overview page on a planet of another player than the member's are refused as `wrong_universe`.
 - Admin panel: one sync table ("Synchronisationen") with Reparse and Delete per sync replaces the separate

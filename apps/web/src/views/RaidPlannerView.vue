@@ -160,19 +160,36 @@ interface OwnPlanet {
   type: 'planet' | 'moon';
   values: Record<string, number>;
 }
-const ownPlanets = ref<OwnPlanet[] | null>(null);
+interface OwnEmpire {
+  planets: OwnPlanet[];
+  /** ships on fleets in flight (✈) */
+  flyingShips?: Record<string, number>;
+}
+const ownEmpire = ref<OwnEmpire | null>(null);
+const ownPlanets = computed(() => ownEmpire.value?.planets ?? null);
 async function loadOwnPlanets() {
-  if (ownPlanets.value) return;
+  if (ownEmpire.value) return;
   try {
-    const r = await uniApi<{ empire: { data: { planets: OwnPlanet[] } } | null }>(uni.value, '/imperium');
-    ownPlanets.value = r.empire?.data.planets ?? [];
+    const r = await uniApi<{ empire: { data: OwnEmpire } | null }>(uni.value, '/imperium');
+    ownEmpire.value = r.empire?.data ?? { planets: [] };
   } catch {
-    ownPlanets.value = [];
+    ownEmpire.value = { planets: [] };
   }
 }
+/** All own ships: on all planets and moons plus in flight (empire page). */
+const owned = computed(() => {
+  const out: Record<number, number> = {};
+  const add = (values: Record<string, number>) => {
+    for (const id of FLEET_SHIPS) if (values[id]) out[id] = (out[id] ?? 0) + values[id];
+  };
+  for (const pl of ownEmpire.value?.planets ?? []) add(pl.values);
+  add(ownEmpire.value?.flyingShips ?? {});
+  return out;
+});
 const planetKey = (c: { g: number; s: number; p: number }, type: string | null) => `${c.g}:${c.s}:${c.p}:${type ?? 'planet'}`;
 
-const fleetForm = reactive({ planId: 0, fleetId: 0, start: '', ships: {} as Record<number, number>, speed: 100, pick: 0 });
+/** `from`: where a ship's maximum comes from, the start planet or all own ships. */
+const fleetForm = reactive({ planId: 0, fleetId: 0, start: '', ships: {} as Record<number, number>, from: {} as Record<number, 'start' | 'all'>, speed: 100 });
 function openFleet(p: AttackPlan, f?: PlanFleet) {
   loadOwnPlanets();
   Object.assign(fleetForm, {
@@ -181,23 +198,37 @@ function openFleet(p: AttackPlan, f?: PlanFleet) {
     start: f && f.g != null ? planetKey({ g: f.g, s: f.s!, p: f.p! }, f.planet_type) : '',
     ships: Object.fromEntries(Object.entries(f?.ships ?? {}).map(([id, n]) => [Number(id), n])),
     speed: f?.speed ?? 100,
-    pick: 0,
+    from: {},
   });
 }
 const startPlanet = computed(() => ownPlanets.value?.find((x) => planetKey(x.coords, x.type) === fleetForm.start) ?? null);
-/** Ships on the start planet (empire page); null when unknown (no start or no empire page). */
-const available = (id: number): number | null => (startPlanet.value ? (startPlanet.value.values[id] ?? 0) : null);
-/** Ships to add: those on the start planet not added yet (all ships when the planet is unknown). */
-const pickable = computed(() =>
-  FLEET_SHIPS.filter((id) => fleetForm.ships[id] == null && (startPlanet.value ? (startPlanet.value.values[id] ?? 0) > 0 : true)),
-);
-function addShip(max: boolean) {
-  const id = fleetForm.pick;
-  if (!id) return;
-  fleetForm.ships[id] = max ? (available(id) ?? 0) : 0;
-  fleetForm.pick = 0;
+const onStart = (id: number) => startPlanet.value?.values[id] ?? 0;
+/** Maximum of an added ship: on the start planet or all own ones, as picked (for saved fleets: start first). */
+function cap(id: number): number | null {
+  const from = fleetForm.from[id] ?? (onStart(id) > 0 ? 'start' : 'all');
+  const n = from === 'start' ? onStart(id) : (owned.value[id] ?? 0);
+  return n > 0 || from === 'start' ? n : null;
 }
-const removeShip = (id: number) => delete fleetForm.ships[id];
+const added = (id: number) => fleetForm.ships[id] != null;
+/** Ships to add: those on the start planet, and all own ones (also those still to be moved there). */
+const startShips = computed(() => FLEET_SHIPS.filter((id) => !added(id) && onStart(id) > 0));
+const ownShips = computed(() => FLEET_SHIPS.filter((id) => !added(id) && (owned.value[id] ?? 0) > 0));
+/** Without an empire page any ship can be entered by hand. */
+const otherShips = computed(() => (ownEmpire.value?.planets.length ? [] : FLEET_SHIPS.filter((id) => !added(id))));
+/** Picking a ship adds all of them (start planet or all own ones); the amount stays editable. */
+function pickShip(e: Event) {
+  const el = e.target as HTMLSelectElement;
+  const [from, raw] = el.value.split(':');
+  el.value = '';
+  const id = Number(raw);
+  if (!id) return;
+  if (from === 'start' || from === 'all') fleetForm.from[id] = from;
+  fleetForm.ships[id] = from === 'start' ? onStart(id) : from === 'all' ? (owned.value[id] ?? 0) : 0;
+}
+function removeShip(id: number) {
+  delete fleetForm.ships[id];
+  delete fleetForm.from[id];
+}
 async function saveFleet() {
   const [g, s, p, type] = fleetForm.start.split(':');
   const body = {
@@ -380,21 +411,27 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
         <div v-for="(n, id) in fleetForm.ships" :key="id" class="ship-row">
           <span class="ship-name" :title="name(Number(id))">{{ name(Number(id)) }}</span>
           <input v-model.number="fleetForm.ships[Number(id)]" type="number" min="0" />
-          <button v-if="available(Number(id)) != null" :title="t('plans.maxTitle')" @click="fleetForm.ships[Number(id)] = available(Number(id))!">
-            {{ t('plans.max') }}
-          </button>
-          <span v-if="available(Number(id)) != null" class="muted small">/ {{ fmt(available(Number(id))!) }}</span>
-          <span v-if="available(Number(id)) != null && n > available(Number(id))!" class="warn small">{{ t('plans.moreThanAvailable') }}</span>
+          <template v-if="cap(Number(id)) != null">
+            <button :title="t('plans.maxTitle')" @click="fleetForm.ships[Number(id)] = cap(Number(id))!">{{ t('plans.max') }}</button>
+            <span class="muted small">/ {{ fmt(cap(Number(id))!) }} {{ fleetForm.from[Number(id)] === 'all' || onStart(Number(id)) === 0 ? t('plans.fromAll') : t('plans.fromStart') }}</span>
+            <span v-if="n > cap(Number(id))!" class="warn small">{{ t('plans.moreThanAvailable') }}</span>
+          </template>
           <button :title="t('plans.removeShip')" @click="removeShip(Number(id))">✕</button>
         </div>
         <div class="row">
-          <select v-model.number="fleetForm.pick" :aria-label="t('plans.addShip')">
-            <option :value="0">{{ t('plans.addShip') }} …</option>
-            <option v-for="id in pickable" :key="id" :value="id">{{ name(id) }}{{ available(id) != null ? ` (${fmt(available(id)!)})` : '' }}</option>
+          <select :aria-label="t('plans.addShip')" @change="pickShip">
+            <option value="">{{ t('plans.addShip') }} …</option>
+            <optgroup v-if="startShips.length" :label="t('plans.groupStart', { name: startPlanet!.name })">
+              <option v-for="id in startShips" :key="`s${id}`" :value="`start:${id}`">{{ name(id) }} ({{ fmt(onStart(id)) }})</option>
+            </optgroup>
+            <optgroup v-if="ownShips.length" :label="t('plans.groupAll')">
+              <option v-for="id in ownShips" :key="`a${id}`" :value="`all:${id}`">{{ name(id) }} ({{ fmt(owned[id]) }})</option>
+            </optgroup>
+            <optgroup v-if="otherShips.length" :label="t('plans.groupOther')">
+              <option v-for="id in otherShips" :key="`o${id}`" :value="`free:${id}`">{{ name(id) }}</option>
+            </optgroup>
           </select>
-          <button :disabled="!fleetForm.pick" @click="addShip(false)">{{ t('plans.add') }}</button>
-          <button v-if="startPlanet" :disabled="!fleetForm.pick" :title="t('plans.maxTitle')" @click="addShip(true)">{{ t('plans.max') }}</button>
-          <span v-if="startPlanet && !pickable.length && !Object.keys(fleetForm.ships).length" class="muted small">{{ t('plans.noShips') }}</span>
+          <span class="muted small">{{ t('plans.pickHint') }}</span>
         </div>
         <div class="row">
           <button class="primary" @click="saveFleet">{{ t('plans.save') }}</button>

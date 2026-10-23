@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-10-23',
     items: [
       {
+        kind: 'new',
+        de: 'Raid-Planer: Schiffe für die eigene Flotte kommen vom Startplanet oder aus allen eigenen Schiffen (auch solche, die du erst noch dorthin verlegst) und werden gleich mit der Höchstzahl eingetragen; die Zahl lässt sich ändern.',
+        en: 'Raid planner: ships for your fleet come from the start planet or from all your ships (also those you still have to move there) and are added with the maximum right away; the amount can be changed.',
+      },
+      {
         kind: 'fix',
         de: 'Spionageberichte und Übersichtsseiten aus einem anderen Universum werden ebenfalls erkannt und abgelehnt. Admins sehen jede Synchronisation in einer Liste und können sie nach einer Vorschau neu einlesen oder samt ihrer Daten löschen.',
         en: 'Spy reports and overview pages from another universe are recognised and rejected too. Admins see every sync in one list and can read it again or delete it with its data after a preview.',

@@ -24,7 +24,18 @@ const plans = [
     status: 'planning', created_at: 0, updated_at: 0, claim_user_id: null, player_id: 6, player_name: 'Zweiter', planet_name: null, fleets: [],
   },
 ];
-const empire = { empire: { time: 0, data: { planets: [{ name: 'Ares', coords: { g: 1, s: 100, p: 12 }, type: 'planet', values: { 204: 50, 207: 3, 1: 30 } }] } } };
+const empire = {
+  empire: {
+    time: 0,
+    data: {
+      planets: [
+        { name: 'Ares', coords: { g: 1, s: 100, p: 12 }, type: 'planet', values: { 204: 50, 207: 3, 1: 30 } },
+        { name: 'Whorus', coords: { g: 2, s: 100, p: 15 }, type: 'moon', values: { 215: 7 } },
+      ],
+      flyingShips: { 207: 2 },
+    },
+  },
+};
 const ctx: UniContext = {
   universe: {
     id: 1, slug: 'u8', name: 'U8', deck: [],
@@ -98,26 +109,44 @@ describe('raid planner page', () => {
     expect(text).toContain('Ohne Koordinaten gibt es noch keine Flugzeiten.');
   });
 
-  it('offers only the ships on the start planet and adds all of a type with "max"', async () => {
+  it('adds ships from the start planet or from all own ones, each with its maximum', async () => {
     const add = [...root.querySelectorAll('button')].find((b) => b.textContent === 'Eigene Flotte hinzufügen')!;
     add.click();
     await settle();
-    const select = root.querySelector<HTMLSelectElement>('.fleet-form select')!;
-    select.value = '1:100:12:planet';
-    select.dispatchEvent(new Event('change'));
+    const start = root.querySelector<HTMLSelectElement>('.fleet-form select')!;
+    start.value = '1:100:12:planet';
+    start.dispatchEvent(new Event('change'));
     await settle();
-    // nothing added yet; the list holds the ships on Ares with their amounts
     expect(root.querySelectorAll('.ship-row')).toHaveLength(0);
-    const pick = root.querySelectorAll<HTMLSelectElement>('.fleet-form select')[2];
-    expect([...pick.options].map((o) => o.textContent)).toEqual(['Schiff …', 'Leichter Jäger (50)', 'Schlachtschiff (3)']);
-    pick.value = '207';
-    pick.dispatchEvent(new Event('change'));
+    const pick = () => root.querySelectorAll<HTMLSelectElement>('.fleet-form select')[2];
+    const groups = () => [...pick().querySelectorAll('optgroup')].map((g) => [g.label, [...g.querySelectorAll('option')].map((o) => o.textContent)]);
+    expect(groups()).toEqual([
+      ['Am Startplanet Ares', ['Leichter Jäger (50)', 'Schlachtschiff (3)']],
+      ['Alle eigenen Schiffe (Planeten, Monde, im Flug)', ['Leichter Jäger (50)', 'Schlachtschiff (5)', 'Schlachtkreuzer (7)']],
+    ]);
+    const choose = async (value: string) => {
+      pick().value = value;
+      pick().dispatchEvent(new Event('change'));
+      await settle();
+    };
+    // battlecruisers still to be moved to the start: all own ones
+    await choose('all:215');
+    await choose('start:207');
+    const rows = [...root.querySelectorAll('.ship-row')];
+    expect(rows.map((r) => [r.querySelector('.ship-name')!.textContent, r.querySelector('input')!.value])).toEqual([
+      ['Schlachtschiff', '3'],
+      ['Schlachtkreuzer', '7'],
+    ]);
+    expect(rows[0].textContent).toContain('am Startplanet');
+    expect(rows[1].textContent).toContain('gesamt');
+    expect(groups().map((g) => g[1])).toEqual([['Leichter Jäger (50)'], ['Leichter Jäger (50)']]);
+    // the amount stays editable, "max" restores it
+    const input = rows[0].querySelector('input')!;
+    input.value = '1';
+    input.dispatchEvent(new Event('input'));
     await settle();
-    [...root.querySelectorAll<HTMLButtonElement>('.fleet-form button')].find((b) => b.textContent!.trim() === 'max')!.click();
+    [...rows[0].querySelectorAll('button')].find((b) => b.textContent!.trim() === 'max')!.click();
     await settle();
-    const row = root.querySelector('.ship-row')!;
-    expect(row.textContent).toContain('Schlachtschiff');
-    expect(row.querySelector<HTMLInputElement>('input')!.value).toBe('3');
-    expect([...pick.options].map((o) => o.textContent)).toEqual(['Schiff …', 'Leichter Jäger (50)']);
+    expect(root.querySelector<HTMLInputElement>('.ship-row input')!.value).toBe('3');
   });
 });
