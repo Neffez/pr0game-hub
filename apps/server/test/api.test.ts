@@ -596,6 +596,8 @@ describe('review fixes', () => {
     expect(statSlots([t0, t0 - h, t0 - 5 * h, t0 - 6 * h - 60])[0]).toEqual({ from: t0 - 6 * h - 60, to: t0 });
     // off the grid (test server): 14.5 h back belongs to the 12 h point, the change goes into the first column
     expect(statSlots([t0, t0 - 14.5 * h])).toEqual([{ from: t0 - 14.5 * h, to: t0 }, null, null, null]);
+    // off the grid within the same section (synced 21:20 and 00:00): the older one is the start
+    expect(statSlots([t0, t0 - 2 * h - 40 * 60])).toEqual([{ from: t0 - 2 * h - 40 * 60, to: t0 }, null, null, null]);
     // gap of more than the four columns: nothing to show
     expect(statSlots([t0, t0 - 30 * h])).toEqual([null, null, null, null]);
   });

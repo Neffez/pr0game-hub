@@ -4,6 +4,8 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Overview Δ columns: a statistics update off the 6 h grid (e.g. 21:20 before 00:00) is no longer dropped when
+  a closer update takes its grid point; it becomes the start of the section, so the change shows up.
 - `@pr0hub/flight`: rules for the raid planner.
   - `planAttack`: launch time per fleet for a target time, lead (earliest launch or chosen), late fleets and the
     resulting ACS arrival when they push it back, ACS limits (16 fleets, 5 players), return per fleet. Checked against

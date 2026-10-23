@@ -32,16 +32,23 @@ export function statSlots(updates: number[]): ({ from: number; to: number } | nu
   // Each update belongs to the grid point at or before it (with tolerance), so off-grid updates (test server)
   // still count; per grid point the update closest to it (servers that update more often have several).
   const atPoint = new Map<number, number>();
+  const inRange: number[] = [];
   for (const t of updates) {
     const k = Math.floor((newest - t + SLOT_TOLERANCE) / SLOT);
     const off = Math.abs(newest - k * SLOT - t);
     if (k > SLOTS) continue;
+    inRange.push(t);
     const prev = atPoint.get(k);
     if (prev == null || off < Math.abs(newest - k * SLOT - prev)) atPoint.set(k, t);
   }
   const points = [...atPoint.keys()].sort((a, b) => a - b);
-  for (let i = 0; i + 1 < points.length; i++) {
-    slots[points[i]] = { from: atPoint.get(points[i + 1])!, to: atPoint.get(points[i])! };
+  for (let i = 0; i < points.length; i++) {
+    const to = atPoint.get(points[i])!;
+    // No older grid point: an off-grid update that lost its grid point to a closer one is the start
+    // (synced 21:20 and 00:00: section 1 = 21:20 → 00:00).
+    const older = inRange.filter((t) => t < to);
+    const from = i + 1 < points.length ? atPoint.get(points[i + 1])! : older.length ? Math.max(...older) : null;
+    if (from != null) slots[points[i]] = { from, to };
   }
   return slots;
 }
