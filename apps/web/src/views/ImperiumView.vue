@@ -95,13 +95,13 @@ const arrived = computed(() => (fleets.value?.data.length ?? 0) - flights.value.
 const HISTORY = 12 * 3600;
 /** changes once a minute, so the history drops what is older than 12 hours without rendering every second */
 const minute = computed(() => Math.floor(now.value / 60));
-/** past fleet movements of the last 12 hours, oldest first: the older lists plus the arrived fleets of the newest */
+/** past fleet movements of the last 12 hours, newest first: the older lists plus the arrived fleets of the newest */
 const history = computed(() => {
   const cutoff = minute.value * 60 - HISTORY;
   const live = new Set(flights.value);
   return [...(data.value?.fleetHistory ?? []), ...(fleets.value?.data ?? []).filter((f) => !live.has(f))]
     .filter((f) => f.arrival >= cutoff)
-    .sort((a, b) => a.arrival - b.arrival);
+    .sort((a, b) => b.arrival - a.arrival);
 });
 const same = (a: C3, b: C3) => a.g === b.g && a.s === b.s && a.p === b.p;
 

@@ -4,6 +4,7 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Empire view: the fleet history lists the most recent arrival first.
 - Raid planner, retime: hostile attacks on members are listed on top of the page (from the members' newest overview
   pastes; an ACS as one attack; until their latest possible return), each with "Retime planen".
   - A retime plan targets the attack's origin and keeps the enemy fleet: which fleet of an ACS to follow (default the
