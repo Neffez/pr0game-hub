@@ -2,7 +2,9 @@ import fastifyCookie from '@fastify/cookie';
 import fastifyStatic from '@fastify/static';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { existsSync } from 'node:fs';
-import { bootstrapAdmin, HttpError, loadSessionUser } from './auth.js';
+import { bootstrapAdmin, HttpError, loadRequestUser } from './auth.js';
+import { catalogRoutes } from './routes/catalog.js';
+import { openapiRoutes } from './routes/openapi.js';
 import { config } from './config.js';
 import type { DB } from './db.js';
 import { adminRoutes } from './routes/admin.js';
@@ -39,6 +41,7 @@ export function buildApp(db: DB, opts: { logger?: boolean } = {}): FastifyInstan
 
   app.register(fastifyCookie);
   app.decorateRequest('user', null);
+  app.decorateRequest('authSource', null);
 
   app.setErrorHandler((err, req, reply) => {
     if (err instanceof HttpError) return reply.code(err.statusCode).send({ error: err.message, code: err.code });
@@ -52,9 +55,19 @@ export function buildApp(db: DB, opts: { logger?: boolean } = {}): FastifyInstan
     async (scope) => {
       // only API requests need the session (not the static files)
       scope.addHook('onRequest', async (req) => {
-        req.user = loadSessionUser(db, req);
+        const auth = loadRequestUser(db, req);
+        req.user = auth.user;
+        req.authSource = auth.authSource;
+      });
+      scope.addHook('preHandler', async (req) => {
+        if (req.authSource !== 'token') return;
+        const m = req.method;
+        if (m === 'GET' || m === 'HEAD' || m === 'OPTIONS') return;
+        throw new HttpError(403, 'read_only_token', 'API tokens are read-only');
       });
       scope.get('/api/health', async () => ({ ok: true }));
+      openapiRoutes(scope);
+      catalogRoutes(scope);
       authRoutes(scope, db);
       adminRoutes(scope, db);
       ingestRoutes(scope, db);

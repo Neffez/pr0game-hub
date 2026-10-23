@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Unter Konto kannst du persönliche API-Tokens anlegen (nur Lesen) mit denselben Allianz-Daten wie in der Oberfläche. OpenAPI-Beschreibung unter /hub/api/openapi.json.',
+        en: 'Under Account you can create personal read-only API tokens with the same alliance data as the web app. OpenAPI description at /hub/api/openapi.json.',
+      },
+      {
+        kind: 'new',
         de: 'Allianz-Admins können für Mitglieder mit Konto einen Passwort-Link erzeugen (in der Mitglieder-Tabelle). Damit lässt sich ein neues Passwort setzen, wenn das alte vergessen ist.',
         en: 'Alliance admins can create a password link for members who already have an account (in the members table). It lets them set a new password when the old one was forgotten.',
       },

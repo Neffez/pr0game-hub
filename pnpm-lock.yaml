@@ -28,6 +28,9 @@ importers:
       fastify:
         specifier: ^5.1.0
         version: 5.12.7
+      yaml:
+        specifier: ^2.6.1
+        version: 2.9.1
     devDependencies:
       '@types/better-sqlite3':
         specifier: ^7.6.11
@@ -1483,6 +1486,11 @@ packages:
   wrappy@1.0.2:
     resolution: {integrity: sha512-l4Sp/DRseor9wL6EvV2+TuQn63dMkPjZ/sp9XkghTEbV9KlPS1xUsZ3u7/IQO4wxtcFB4bgpQPRcR3QCvezPcQ==}
 
+  yaml@2.9.1:
+    resolution: {integrity: sha512-3NxN8+78OdzbT7C/WjGsyfPAtJaN3FNDsWxv7Y7mcDsT/oOmgW8BpyQQFFBnvZE3j9Y2Sdz1ULFLezL7Eb2yFw==}
+    engines: {node: '>= 14.6'}
+    hasBin: true
+
 snapshots:
 
   '@babel/helper-string-parser@7.29.7': {}
@@ -2724,3 +2732,5 @@ snapshots:
       stackback: 0.0.2
 
   wrappy@1.0.2: {}
+
+  yaml@2.9.1: {}

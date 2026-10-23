@@ -1,0 +1,775 @@
+openapi: 3.1.0
+info:
+  title: pr0game Hub API
+  version: 1.0.0
+  description: |
+    JSON API for alliance data synced into the hub. Read-only personal access tokens (`hubpat_…`) use the same
+    endpoints as the web app for GET requests. Create tokens under **Account** in the hub (session cookie required).
+
+    **Group scope:** For universe routes, send `X-Hub-Group` with the alliance group id, or `group` as a query parameter.
+    If omitted, the first group you belong to in that universe is used.
+
+    **Privacy:** Fleet movements and in-game messages from other members respect their sharing settings; your own data
+    is always complete for you.
+servers:
+  - url: /hub
+    description: Default base path (override with the `BASE_PATH` env variable)
+security:
+  - bearerAuth: []
+tags:
+  - name: Meta
+  - name: Auth
+  - name: Catalog
+  - name: Universe
+  - name: Intelligence
+  - name: Combat
+  - name: Social
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Personal read-only token from Account → API tokens
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: hub_session
+      description: Browser session after login (required to create or revoke API tokens)
+  parameters:
+    Uni:
+      name: uni
+      in: path
+      required: true
+      schema: { type: string }
+      description: Universe slug (e.g. `u8`)
+    HubGroupHeader:
+      name: X-Hub-Group
+      in: header
+      schema: { type: integer }
+      description: Alliance group id (see `GET /api/auth/me`)
+    HubGroupQuery:
+      name: group
+      in: query
+      schema: { type: integer }
+      description: Alliance group id (alternative to `X-Hub-Group`, required for SSE)
+  schemas:
+    Error:
+      type: object
+      required: [error, code]
+      properties:
+        error: { type: string, description: English message }
+        code: { type: string, description: Stable key for clients }
+    User:
+      type: object
+      properties:
+        id: { type: integer }
+        username: { type: string }
+        isAdmin: { type: boolean }
+        lang: { type: string, enum: [de, en] }
+    GroupMembership:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        role: { type: string, enum: [member, admin] }
+        universe: { type: string }
+        universe_name: { type: string }
+    Me:
+      type: object
+      properties:
+        user: { oneOf: [{ $ref: '#/components/schemas/User' }, { type: 'null' }] }
+        groups:
+          type: array
+          items: { $ref: '#/components/schemas/GroupMembership' }
+    ApiTokenMeta:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        prefix: { type: string }
+        createdAt: { type: integer, description: Unix seconds }
+        lastUsedAt: { type: integer, nullable: true }
+    ApiTokenCreated:
+      allOf:
+        - { $ref: '#/components/schemas/ApiTokenMeta' }
+        - type: object
+          required: [token]
+          properties:
+            token: { type: string, description: Shown once; store securely }
+    Catalog:
+      type: object
+      properties:
+        names:
+          type: object
+          additionalProperties:
+            type: object
+            additionalProperties: { type: string }
+          description: Language → element id → name
+        costs:
+          type: object
+          additionalProperties:
+            type: array
+            items: { type: number }
+            minItems: 4
+            maxItems: 4
+          description: Element id → [metal, crystal, deuterium, factor]
+        classes:
+          type: object
+          properties:
+            buildings: { type: integer }
+            research: { type: integer }
+            fleet: { type: integer }
+            defense: { type: integer }
+            resources: { type: integer }
+    Context:
+      type: object
+      description: Universe and alliance context for the selected group
+      properties:
+        universe: { type: object }
+        group:
+          type: object
+          properties:
+            id: { type: integer }
+            name: { type: string }
+            role: { type: string }
+        members: { type: array, items: { type: object } }
+        me: { $ref: '#/components/schemas/User' }
+        own: { type: object, nullable: true }
+    Overview:
+      type: object
+      properties:
+        players: { type: array, items: { type: object } }
+        planets: { type: array, items: { type: object } }
+        coverage: { type: array, items: { type: object } }
+        slots: { type: object }
+    Imperium:
+      type: object
+      properties:
+        userId: { type: integer }
+        empire: { type: object, nullable: true }
+        overview: { type: object, nullable: true }
+        fleets: { type: array, items: { type: object }, nullable: true }
+        fleetHistory: { type: array, items: { type: object } }
+        player: { type: object, nullable: true }
+        fleetBase: { type: object, nullable: true }
+        leader: { type: object, nullable: true }
+    AllianceMember:
+      type: object
+      properties:
+        key: { type: string }
+        user_id: { type: integer, nullable: true }
+        username: { type: string }
+        ingame_name: { type: string, nullable: true }
+        player_id: { type: integer, nullable: true }
+        source: { type: string, enum: [empire, spy], nullable: true }
+        created_at: { type: integer, nullable: true }
+        data: { type: object, nullable: true }
+        fleets: { type: array, items: { type: object }, nullable: true }
+        fleetHistory: { type: array, items: { type: object } }
+paths:
+  /api/health:
+    get:
+      tags: [Meta]
+      operationId: health
+      security: []
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, const: true }
+  /api/openapi.json:
+    get:
+      tags: [Meta]
+      operationId: openApiJson
+      security: []
+      responses:
+        '200':
+          description: This specification as JSON
+  /api/openapi.yaml:
+    get:
+      tags: [Meta]
+      operationId: openApiYaml
+      security: []
+      responses:
+        '200':
+          description: This specification as YAML
+          content:
+            text/yaml:
+              schema: { type: string }
+  /api/auth/me:
+    get:
+      tags: [Auth]
+      operationId: getMe
+      responses:
+        '200':
+          description: Current user and group memberships
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Me' }
+  /api/auth/tokens:
+    get:
+      tags: [Auth]
+      operationId: listApiTokens
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200':
+          description: Personal API tokens (no secrets)
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ApiTokenMeta' }
+        '401':
+          description: Not logged in
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+    post:
+      tags: [Auth]
+      operationId: createApiToken
+      security: [{ sessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, minLength: 1, maxLength: 64 }
+      responses:
+        '200':
+          description: Token created (secret shown once)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ApiTokenCreated' }
+  /api/auth/tokens/{id}:
+    delete:
+      tags: [Auth]
+      operationId: revokeApiToken
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Revoked
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+  /api/catalog:
+    get:
+      tags: [Catalog]
+      operationId: getCatalog
+      responses:
+        '200':
+          description: Element names and costs (not player data)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Catalog' }
+        '401':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /api/universes:
+    get:
+      tags: [Universe]
+      operationId: listUniverses
+      responses:
+        '200':
+          description: Universes the user can access
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { type: object }
+  /api/{uni}/context:
+    get:
+      tags: [Universe]
+      operationId: getContext
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Context' }
+  /api/{uni}/overview:
+    get:
+      tags: [Universe]
+      operationId: getOverview
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Overview' }
+  /api/{uni}/stats:
+    get:
+      tags: [Universe]
+      operationId: getStats
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+        - name: who
+          in: query
+          schema: { type: string, enum: [player, alliance] }
+        - name: type
+          in: query
+          schema: { type: integer }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+  /api/{uni}/players:
+    get:
+      tags: [Universe]
+      operationId: searchPlayers
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+        - name: q
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { type: object }
+  /api/{uni}/players/{id}:
+    get:
+      tags: [Universe]
+      operationId: getPlayer
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+  /api/{uni}/imperium:
+    get:
+      tags: [Universe]
+      operationId: getImperium
+      description: Latest empire, overview, fleets and live points for a member (`user` query = member user id, default self).
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+        - name: user
+          in: query
+          schema: { type: integer }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Imperium' }
+  /api/{uni}/alliance:
+    get:
+      tags: [Universe]
+      operationId: getAlliance
+      description: Combined empire/spy data and shared fleets for all members (respects fleet sharing).
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/AllianceMember' }
+  /api/{uni}/galaxy-views:
+    get:
+      tags: [Intelligence]
+      operationId: getGalaxyViews
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: array, items: { type: object } }
+  /api/{uni}/browse/{g}:
+    get:
+      tags: [Intelligence]
+      operationId: browseGalaxy
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+        - name: g
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+  /api/{uni}/browse/{g}/{s}:
+    get:
+      tags: [Intelligence]
+      operationId: browseSystem
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+        - name: g
+          in: path
+          required: true
+          schema: { type: integer }
+        - name: s
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+  /api/{uni}/spy/{g}/{s}/{p}:
+    get:
+      tags: [Intelligence]
+      operationId: getSpyAtCoords
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+        - name: g
+          in: path
+          required: true
+          schema: { type: integer }
+        - name: s
+          in: path
+          required: true
+          schema: { type: integer }
+        - name: p
+          in: path
+          required: true
+          schema: { type: integer }
+        - name: type
+          in: query
+          schema: { type: string, enum: [planet, moon] }
+        - name: limit
+          in: query
+          schema: { type: integer }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  reports: { type: array, items: { type: object } }
+                  total: { type: integer }
+  /api/{uni}/spy-reports:
+    get:
+      tags: [Intelligence]
+      operationId: listSpyReports
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+        - name: limit
+          in: query
+          schema: { type: integer }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: array, items: { type: object } }
+  /api/{uni}/activity:
+    get:
+      tags: [Intelligence]
+      operationId: getActivity
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+        - name: from
+          in: query
+          schema: { type: integer }
+        - name: to
+          in: query
+          schema: { type: integer }
+        - name: kinds
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: array, items: { type: object } }
+  /api/{uni}/hostile:
+    get:
+      tags: [Intelligence]
+      operationId: getHostileSpy
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+        - name: from
+          in: query
+          schema: { type: integer }
+        - name: to
+          in: query
+          schema: { type: integer }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: array, items: { type: object } }
+  /api/{uni}/hostile-attacks:
+    get:
+      tags: [Combat]
+      operationId: getHostileAttacks
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: array, items: { type: object } }
+  /api/{uni}/battle-hall:
+    get:
+      tags: [Combat]
+      operationId: getBattleHall
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+        - name: page
+          in: query
+          schema: { type: integer }
+        - name: sort
+          in: query
+          schema: { type: string }
+        - name: q
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+  /api/{uni}/combat-reports/{id}:
+    get:
+      tags: [Combat]
+      operationId: getCombatReport
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+  /api/{uni}/raids:
+    get:
+      tags: [Combat]
+      operationId: getRaids
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+        - name: from
+          in: query
+          schema: { type: integer }
+        - name: to
+          in: query
+          schema: { type: integer }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+  /api/{uni}/expeditions:
+    get:
+      tags: [Combat]
+      operationId: getExpeditions
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+        - name: from
+          in: query
+          schema: { type: integer }
+        - name: to
+          in: query
+          schema: { type: integer }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+  /api/{uni}/deck:
+    get:
+      tags: [Combat]
+      operationId: getDeck
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+        - name: user
+          in: query
+          schema: { type: integer }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+  /api/{uni}/plans:
+    get:
+      tags: [Combat]
+      operationId: getPlans
+      description: Raid planner plans including fleets, enemy retime data and phalanx snapshots.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: array, items: { type: object } }
+  /api/{uni}/claims:
+    get:
+      tags: [Social]
+      operationId: getClaims
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: array, items: { type: object } }
+  /api/{uni}/comments:
+    get:
+      tags: [Social]
+      operationId: getComments
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+        - name: player
+          in: query
+          schema: { type: integer }
+        - name: c
+          in: query
+          schema: { type: string }
+        - name: type
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: array, items: { type: object } }
+  /api/{uni}/comments/counts:
+    get:
+      tags: [Social]
+      operationId: getCommentCounts
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+  /api/{uni}/messages:
+    get:
+      tags: [Social]
+      operationId: getMessages
+      description: Synced in-game messages (respects per-user and per-message sharing).
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+        - name: limit
+          in: query
+          schema: { type: integer }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+  /api/{uni}/notifications:
+    get:
+      tags: [Social]
+      operationId: getNotifications
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: array, items: { type: object } }
+  /api/{uni}/presence:
+    get:
+      tags: [Social]
+      operationId: getPresence
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: array, items: { type: object } }
+  /api/{uni}/events:
+    get:
+      tags: [Social]
+      operationId: subscribeEvents
+      description: Server-Sent Events stream (use `group` query; EventSource cannot send headers).
+      security: [{ bearerAuth: [] }, { sessionCookie: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      responses:
+        '200':
+          description: text/event-stream
+          content:
+            text/event-stream:
+              schema: { type: string }

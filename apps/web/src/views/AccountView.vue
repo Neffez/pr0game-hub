@@ -47,12 +47,63 @@ const share = ref<{ enabled: boolean; hidden: number[]; history: boolean } | nul
 /** Player messages shared with the other members (off: only the user sees them). */
 const messageShare = ref<{ enabled: boolean } | null>(null);
 const showOnline = ref<{ enabled: boolean } | null>(null);
+
+const apiBase = import.meta.env.BASE_URL.replace(/\/$/, '') + '/api';
+const openapiUrl = `${apiBase}/openapi.json`;
+const apiOrigin = typeof window !== 'undefined' ? window.location.origin : '';
+interface ApiTokenRow {
+  id: number;
+  name: string;
+  prefix: string;
+  createdAt: number;
+  lastUsedAt: number | null;
+}
+const apiTokens = ref<ApiTokenRow[]>([]);
+const newTokenName = ref('');
+const revealedToken = ref<string | null>(null);
+
+async function loadApiTokens() {
+  apiTokens.value = await api<ApiTokenRow[]>('/auth/tokens');
+}
+
+async function createApiToken() {
+  await run(async () => {
+    const created = await api<{ token: string }>('/auth/tokens', { body: { name: newTokenName.value || t('account.apiTokenDefaultName') } });
+    revealedToken.value = created.token;
+    newTokenName.value = '';
+    await loadApiTokens();
+  }, () => t('account.apiTokenCreatedMsg'));
+}
+
+async function revokeApiToken(id: number) {
+  await run(async () => {
+    await api(`/auth/tokens/${id}`, { method: 'DELETE' });
+    await loadApiTokens();
+  }, () => t('account.apiTokenRevoked'));
+}
+
+async function copyRevealedToken() {
+  if (!revealedToken.value) return;
+  try {
+    await navigator.clipboard.writeText(revealedToken.value);
+    msg.value = t('account.apiTokenCopied');
+  } catch {
+    error.value = t('account.apiTokenCopyFailed');
+  }
+}
+
+function formatTokenTime(sec: number | null) {
+  if (sec == null) return '—';
+  return new Date(sec * 1000).toLocaleString();
+}
+
 onMounted(async () => {
   try {
     const [fleetShare, messages, online] = await Promise.all([
       api('/auth/fleet-share'),
       api('/auth/message-share'),
       api('/auth/show-online'),
+      loadApiTokens(),
     ]);
     share.value = fleetShare;
     messageShare.value = messages;
@@ -148,6 +199,44 @@ const saveLang = () =>
           <button class="primary">{{ t('common.change') }}</button>
         </form>
       </section>
+      <section class="card api-tokens">
+        <h2>{{ t('account.apiTokens') }} <Hint>{{ t('account.apiTokensHint') }}</Hint></h2>
+        <p class="api-doc"><a :href="openapiUrl" target="_blank" rel="noopener">{{ t('account.apiOpenApi') }}</a></p>
+        <div v-if="revealedToken" class="token-reveal">
+          <p>{{ t('account.apiTokenReveal') }}</p>
+          <code class="token-value">{{ revealedToken }}</code>
+          <div class="token-actions">
+            <button type="button" class="primary" @click="copyRevealedToken">{{ t('account.apiTokenCopy') }}</button>
+            <button type="button" @click="revealedToken = null">{{ t('account.apiTokenDismiss') }}</button>
+          </div>
+        </div>
+        <form class="stack token-create" @submit.prevent="createApiToken">
+          <label>{{ t('account.apiTokenName') }} <input v-model="newTokenName" maxlength="64" :placeholder="t('account.apiTokenDefaultName')" /></label>
+          <button class="primary">{{ t('account.apiTokenCreate') }}</button>
+        </form>
+        <table v-if="apiTokens.length" class="token-table">
+          <thead>
+            <tr>
+              <th>{{ t('account.apiTokenName') }}</th>
+              <th>{{ t('account.apiTokenPrefix') }}</th>
+              <th>{{ t('account.apiTokenCreatedAt') }}</th>
+              <th>{{ t('account.apiTokenLastUsed') }}</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="tok in apiTokens" :key="tok.id">
+              <td>{{ tok.name }}</td>
+              <td><code>{{ tok.prefix }}…</code></td>
+              <td>{{ formatTokenTime(tok.createdAt) }}</td>
+              <td>{{ formatTokenTime(tok.lastUsedAt) }}</td>
+              <td><button type="button" class="danger" @click="revokeApiToken(tok.id)">{{ t('account.apiTokenRevoke') }}</button></td>
+            </tr>
+          </tbody>
+        </table>
+        <p v-else class="muted">{{ t('account.apiTokenNone') }}</p>
+        <pre class="curl-hint">{{ t('account.apiCurlHint', { url: `${apiOrigin}${apiBase}`, group: session.me?.groups[0]?.id ?? 1 }) }}</pre>
+      </section>
     </div>
   </div>
 </template>
@@ -167,6 +256,32 @@ const saveLang = () =>
 .stack { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
 .stack label { display: flex; flex-direction: column; gap: 4px; width: 100%; }
 .stack input { width: 100%; }
+.api-doc { margin: 0 0 12px; }
+.token-reveal {
+  margin: 0 0 14px;
+  padding: 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+}
+.token-value { display: block; word-break: break-all; margin: 8px 0; font-family: var(--mono); }
+.token-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.token-table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 0.92rem; }
+.token-table th, .token-table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border, #ddd); }
+.curl-hint {
+  margin-top: 14px;
+  padding: 10px;
+  font-size: 12px;
+  font-family: var(--mono);
+  color: var(--text);
+  overflow-x: auto;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  white-space: pre-wrap;
+}
+.muted { opacity: 0.75; margin: 8px 0 0; }
 @media (max-width: 800px) {
   .account-grid { grid-template-columns: 1fr; }
 }

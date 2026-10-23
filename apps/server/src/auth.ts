@@ -14,11 +14,18 @@ export interface SessionUser {
   lang: string;
 }
 
+export type AuthSource = 'cookie' | 'token' | null;
+
 declare module 'fastify' {
   interface FastifyRequest {
     user: SessionUser | null;
+    authSource: AuthSource;
   }
 }
+
+export const API_TOKEN_PREFIX = 'hubpat_';
+const MAX_API_TOKENS = 10;
+const tokenLastUsed = new Map<string, number>();
 
 export function hashPassword(password: string): string {
   const salt = randomBytes(16);
@@ -90,6 +97,10 @@ export function destroyOtherSessions(db: DB, userId: number, req: FastifyRequest
   db.prepare('DELETE FROM sessions WHERE user_id = ? AND token_hash != ?').run(userId, token ? sha256(token) : '');
 }
 
+function sessionUser(row: { id: number; username: string; is_admin: number; lang: string }): SessionUser {
+  return { id: row.id, username: row.username, isAdmin: !!row.is_admin, lang: row.lang };
+}
+
 export function loadSessionUser(db: DB, req: FastifyRequest): SessionUser | null {
   const token = req.cookies[SESSION_COOKIE];
   if (!token) return null;
@@ -99,7 +110,62 @@ export function loadSessionUser(db: DB, req: FastifyRequest): SessionUser | null
        WHERE s.token_hash = ? AND s.expires_at > ?`,
     )
     .get(sha256(token), now()) as { id: number; username: string; is_admin: number; lang: string } | undefined;
-  return row ? { id: row.id, username: row.username, isAdmin: !!row.is_admin, lang: row.lang } : null;
+  return row ? sessionUser(row) : null;
+}
+
+function loadBearerUser(db: DB, req: FastifyRequest): SessionUser | null {
+  const header = req.headers.authorization;
+  if (!header?.startsWith('Bearer ')) return null;
+  const token = header.slice(7).trim();
+  if (!token.startsWith(API_TOKEN_PREFIX)) return null;
+  const hash = sha256(token);
+  const row = db
+    .prepare(
+      `SELECT u.id, u.username, u.is_admin, u.lang, t.id AS token_id FROM api_tokens t JOIN users u ON u.id = t.user_id
+       WHERE t.token_hash = ?`,
+    )
+    .get(hash) as { id: number; username: string; is_admin: number; lang: string; token_id: number } | undefined;
+  if (!row) return null;
+  const t = now();
+  const last = tokenLastUsed.get(hash) ?? 0;
+  if (t - last >= 60) {
+    tokenLastUsed.set(hash, t);
+    db.prepare('UPDATE api_tokens SET last_used_at = ? WHERE id = ?').run(t, row.token_id);
+    if (tokenLastUsed.size > 10000) {
+      for (const [k, v] of tokenLastUsed) if (t - v > 3600) tokenLastUsed.delete(k);
+    }
+  }
+  return sessionUser(row);
+}
+
+/** Resolves the hub user from a Bearer API token or the session cookie. */
+export function loadRequestUser(db: DB, req: FastifyRequest): { user: SessionUser | null; authSource: AuthSource } {
+  const bearer = loadBearerUser(db, req);
+  if (bearer) return { user: bearer, authSource: 'token' };
+  const cookie = loadSessionUser(db, req);
+  return { user: cookie, authSource: cookie ? 'cookie' : null };
+}
+
+/** Token management and other browser-only actions need a session cookie, not a Bearer token. */
+export function requireCookieSession(req: FastifyRequest): SessionUser {
+  const user = requireUser(req);
+  if (req.authSource === 'token') throw new HttpError(403, 'session_required', 'Use the web app to manage account settings');
+  return user;
+}
+
+export function createApiToken(db: DB, userId: number, name: string): { id: number; name: string; prefix: string; token: string; createdAt: number } {
+  const trimmed = name.trim();
+  if (trimmed.length < 1 || trimmed.length > 64) throw new HttpError(400, 'token_name_invalid', 'Token name: 1–64 characters');
+  const count = db.prepare('SELECT COUNT(*) FROM api_tokens WHERE user_id = ?').pluck().get(userId) as number;
+  if (count >= MAX_API_TOKENS) throw new HttpError(400, 'token_limit', 'At most 10 API tokens per account');
+  const token = API_TOKEN_PREFIX + randomToken(32);
+  const prefix = token.slice(0, API_TOKEN_PREFIX.length + 8);
+  const createdAt = now();
+  const id = Number(
+    db.prepare('INSERT INTO api_tokens (user_id, name, token_hash, prefix, created_at) VALUES (?, ?, ?, ?, ?)').run(userId, trimmed, sha256(token), prefix, createdAt)
+      .lastInsertRowid,
+  );
+  return { id, name: trimmed, prefix, token, createdAt };
 }
 
 /**

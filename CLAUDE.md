@@ -19,6 +19,10 @@ Guidance for Claude Code in this repository. See `README.md` for features, setup
   only builds the Docker image and sends the `repository_dispatch` from CI.
 - **Language.** Code, comments, commit messages, README and changelog in English. UI texts live in
   `apps/web/src/locales/de.ts` and `en.ts`; always update both.
+- **OpenAPI with API changes.** The public contract is [`apps/server/openapi.yaml`](apps/server/openapi.yaml)
+  (served as `/api/openapi.json` and `.yaml`). Any commit that adds, removes or changes HTTP API behavior—paths,
+  methods, auth, query/header parameters, or response shape—must update that file in the same commit so it stays
+  accurate (paths, `operationId`s, security, and schemas for affected operations; descriptions in English).
 - **Personal rules** of a contributor go into `CLAUDE.local.md` (gitignored, loaded in addition to this file).
 
 ## Commands
@@ -37,7 +41,7 @@ pnpm build
 - `packages/flight` (`@pr0hub/flight`): flight math ported from the game's `FleetFunctions` (distance, ship speed,
   duration, consumption, recall), ACS planning (`acs.ts`) and retime candidates (`retime.ts`); must stay second-exact
   with the game and the flight calculator.
-- `apps/server`: Fastify + SQLite; migrations in `migrations/` (numbered SQL files); every game-data query goes through `groupContext` so data stays within its group.
+- `apps/server`: Fastify + SQLite; migrations in `migrations/` (numbered SQL files); every game-data query goes through `groupContext` so data stays within its group; OpenAPI spec in `openapi.yaml`.
 - `apps/tools`: static tools (Vite, no framework): `index.html` and `flight-calculator/` (UI in `main.js`, calculation
   in `src/core.ts` on top of `@pr0hub/flight`); Docker target `tools`.
 - `apps/web`: Vue 3 SPA; the mobile layout starts below 800 px (`useMobile` in `composables.ts`, same breakpoint in `style.css`).

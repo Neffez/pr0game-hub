@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import {
-  checkUsername, createSession, destroyOtherSessions, destroySession, hashPassword, HttpError, loginBlocked, loginFailed, loginSucceeded, requireUser,
-  verifyPassword, verifyPasswordOrDummy,
+  checkUsername, createApiToken, createSession, destroyOtherSessions, destroySession, hashPassword, HttpError, loginBlocked, loginFailed, loginSucceeded,
+  requireCookieSession, requireUser, verifyPassword, verifyPasswordOrDummy,
 } from '../auth.js';
 import { now, type DB } from '../db.js';
 import { events } from '../events.js';
@@ -34,6 +34,27 @@ export function authRoutes(app: FastifyInstance, db: DB) {
 
   app.post('/api/auth/logout', async (req, reply) => {
     destroySession(db, req, reply);
+    return { ok: true };
+  });
+
+  app.get('/api/auth/tokens', async (req) => {
+    const user = requireCookieSession(req);
+    return db
+      .prepare('SELECT id, name, prefix, created_at AS createdAt, last_used_at AS lastUsedAt FROM api_tokens WHERE user_id = ? ORDER BY created_at DESC')
+      .all(user.id);
+  });
+
+  app.post<{ Body: { name?: string } }>('/api/auth/tokens', async (req) => {
+    const user = requireCookieSession(req);
+    return createApiToken(db, user.id, String(req.body?.name ?? 'API'));
+  });
+
+  app.delete<{ Params: { id: string } }>('/api/auth/tokens/:id', async (req) => {
+    const user = requireCookieSession(req);
+    const id = Number(req.params.id);
+    const row = db.prepare('SELECT id FROM api_tokens WHERE id = ? AND user_id = ?').get(id, user.id);
+    if (!row) throw new HttpError(404, 'token_not_found', 'Token not found');
+    db.prepare('DELETE FROM api_tokens WHERE id = ?').run(id);
     return { ok: true };
   });
 

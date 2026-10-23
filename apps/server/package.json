@@ -16,7 +16,8 @@
     "@pr0hub/core": "workspace:*",
     "@pr0hub/flight": "workspace:*",
     "better-sqlite3": "^11.5.0",
-    "fastify": "^5.1.0"
+    "fastify": "^5.1.0",
+    "yaml": "^2.6.1"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.11",
@@ -27,6 +28,7 @@
   },
   "files": [
     "dist",
-    "migrations"
+    "migrations",
+    "openapi.yaml"
   ]
 }

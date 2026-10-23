@@ -95,6 +95,12 @@ checked out next to this repository: `pnpm gen:tech` and `pnpm gen:costs`.
 
 First start: log in with the bootstrap admin and create a universe (e.g. `u8`) and a group under **Admin**, then add members (claim links appear in the members table).
 
+## API (read-only tokens)
+
+The hub exposes the same JSON the web app uses under `{BASE_PATH}/api` (default `/hub/api`). Under **Account** you can create personal **read-only** API tokens (`hubpat_…`). Send `Authorization: Bearer …` and, for universe routes, the alliance group id as `X-Hub-Group` (or `group` query parameter).
+
+OpenAPI 3.1: `GET /hub/api/openapi.json` (also `.yaml`). Token management requires a browser session cookie; data endpoints accept Bearer tokens for GET requests only.
+
 Changes are recorded in [CHANGELOG.md](CHANGELOG.md). Contributions are welcome, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Configuration (env)

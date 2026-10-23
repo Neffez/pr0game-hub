@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- **Read-only API tokens** under Account: personal `hubpat_…` tokens (GET only, same group scoping and privacy as the
+  web app). OpenAPI 3.1 at `/api/openapi.json` and `/api/openapi.yaml`; `GET /api/catalog` exposes element names and
+  costs. Migration `032_api_tokens`. Document OpenAPI upkeep in `CLAUDE.md`.
+
 - Alliance admins can create a **password recovery link** for members who already have a hub account (same table as
   claim links; the invite page asks for a new password only). Unused links can be renewed with the refresh control next
   to the copy field.
