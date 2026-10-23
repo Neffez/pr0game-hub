@@ -4,6 +4,7 @@ import type { GroupContext } from '../context.js';
 import { now, type DB } from '../db.js';
 import { events } from '../events.js';
 import { latestEmpires } from '../repo/empire.js';
+import { attackKey, hostileAttacks, type Body, type EnemyFleet } from '../repo/hostile.js';
 import { contextOf, DISPLAY, MEMBER } from './util.js';
 
 const STATUSES = ['planning', 'launched', 'done', 'cancelled'];
@@ -53,6 +54,51 @@ interface PlanRow {
   target_time: number;
   status: string;
   claim_id: number | null;
+}
+
+interface EnemyBody {
+  follow?: number;
+  /** owner's drive research by id (115, 117, 118) */
+  drives?: Record<string, unknown>;
+  departure_from?: number | null;
+  departure_to?: number | null;
+  recall_from?: number | null;
+  recall_to?: number | null;
+  recall_lead?: boolean;
+  percent?: number | null;
+  buffer?: number;
+  /** plan target time derived by the client (return of the chosen candidate plus the buffer) */
+  target_time?: number;
+}
+
+interface EnemyRow {
+  plan_id: number;
+  member_id: number | null;
+  member: string | null;
+  from_g: number;
+  from_s: number;
+  from_p: number;
+  from_type: Body['type'];
+  to_g: number;
+  to_s: number;
+  to_p: number;
+  to_type: Body['type'];
+  fleets: string;
+  follow: number;
+  arrival: number;
+  first_seen: number;
+  drives: string;
+  drives_source: string | null;
+  drives_time: number | null;
+  departure_from: number | null;
+  departure_to: number | null;
+  recall_from: number | null;
+  recall_to: number | null;
+  recall_lead: number;
+  percent: number | null;
+  buffer: number;
+  updated_at: number;
+  updated_by: string | null;
 }
 
 interface FleetRow {
@@ -196,12 +242,176 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
     for (const e of latestEmpires(db, ctx)) {
       drives.set(e.userId, { time: e.time, research: Object.fromEntries(DRIVE_IDS.map((id) => [id, e.rec.research[id] ?? 0])) });
     }
+    const enemies = new Map(enemiesOf(ctx, plans.map((p) => p.id)).map((e) => [e.plan_id, e]));
     return plans.map((p) => ({
       ...p,
       fleets: fleets
         .filter((f) => f.plan_id === p.id)
         .map(({ plan_id, ships, ...f }) => ({ ...f, ships: JSON.parse(ships), drives: drives.get(f.user_id) ?? null })),
+      enemy: enemies.has(p.id) ? enemyOut(enemies.get(p.id)!) : null,
     }));
+  });
+
+  /** Enemy fleets of plans; a newer overview paste of the same attack updates the arrival as seen (ACS delays). */
+  function enemiesOf(ctx: GroupContext, planIds: number[]): EnemyRow[] {
+    const rows = db
+      .prepare(
+        `SELECT e.*, COALESCE(gm.ingame_name, mu.username) AS member, COALESCE(gb.ingame_name, bu.username) AS updated_by
+         FROM attack_plan_enemy e JOIN attack_plans a ON a.id = e.plan_id
+         LEFT JOIN users mu ON mu.id = e.member_id LEFT JOIN group_members gm ON gm.group_id = a.group_id AND gm.user_id = e.member_id
+         LEFT JOIN users bu ON bu.id = e.updated_by LEFT JOIN group_members gb ON gb.group_id = a.group_id AND gb.user_id = e.updated_by
+         WHERE e.plan_id IN (SELECT value FROM json_each(?))`,
+      )
+      .all(JSON.stringify(planIds)) as EnemyRow[];
+    if (!rows.length) return rows;
+    const seen = new Map(hostileAttacks(db, ctx).map((a) => [a.key, a]));
+    for (const e of rows) {
+      const fleets = JSON.parse(e.fleets) as EnemyFleet[];
+      const latest = seen.get(attackKey(fromOf(e), toOf(e), fleets[0]?.ships ?? {}));
+      if (latest && latest.arrival !== e.arrival) {
+        db.prepare('UPDATE attack_plan_enemy SET arrival = ? WHERE plan_id = ?').run(latest.arrival, e.plan_id);
+        e.arrival = latest.arrival;
+      }
+    }
+    return rows;
+  }
+  const fromOf = (e: EnemyRow): Body => ({ g: e.from_g, s: e.from_s, p: e.from_p, type: e.from_type });
+  const toOf = (e: EnemyRow): Body => ({ g: e.to_g, s: e.to_s, p: e.to_p, type: e.to_type });
+  const enemyOut = (e: EnemyRow) => ({
+    member_id: e.member_id,
+    member: e.member,
+    from: fromOf(e),
+    to: toOf(e),
+    fleets: JSON.parse(e.fleets) as EnemyFleet[],
+    follow: e.follow,
+    arrival: e.arrival,
+    first_seen: e.first_seen,
+    drives: JSON.parse(e.drives) as Record<string, number>,
+    drives_source: e.drives_source,
+    drives_time: e.drives_time,
+    departure: e.departure_from != null && e.departure_to != null ? { from: e.departure_from, to: e.departure_to } : null,
+    recall: e.recall_from != null && e.recall_to != null ? { from: e.recall_from, to: e.recall_to } : null,
+    recall_lead: !!e.recall_lead,
+    percent: e.percent,
+    buffer: e.buffer,
+    updated_at: e.updated_at,
+    updated_by: e.updated_by,
+  });
+
+  /** Hostile attacks on members (overview pastes), with the plan answering each, if any. */
+  app.get<{ Params: { uni: string } }>('/api/:uni/hostile-attacks', async (req) => {
+    const ctx = ctxOf(req);
+    const rows = db
+      .prepare(
+        `SELECT e.plan_id, e.from_g, e.from_s, e.from_p, e.from_type, e.to_g, e.to_s, e.to_p, e.to_type, e.fleets FROM attack_plan_enemy e
+         JOIN attack_plans a ON a.id = e.plan_id WHERE a.group_id = ? AND a.status <> 'cancelled'`,
+      )
+      .all(ctx.groupId) as EnemyRow[];
+    const planOfKey = new Map(rows.map((e) => [attackKey(fromOf(e), toOf(e), (JSON.parse(e.fleets) as EnemyFleet[])[0]?.ships ?? {}), e.plan_id]));
+    return hostileAttacks(db, ctx).map((a) => ({ ...a, planId: planOfKey.get(a.key) ?? null }));
+  });
+
+  /**
+   * Retime plan for a hostile attack: target is the attack's origin, the enemy fleet is kept with the plan. The
+   * client sends the target time it derived (return at full speed plus the buffer, until a candidate is chosen).
+   */
+  app.post<{ Params: { uni: string }; Body: { key?: string; follow?: number; target_time?: number; buffer?: number } }>(
+    '/api/:uni/plans/retime',
+    async (req) => {
+      const ctx = ctxOf(req);
+      const b = req.body ?? {};
+      const attack = hostileAttacks(db, ctx).find((a) => a.key === b.key);
+      if (!attack) throw new HttpError(404, 'attack_not_found', 'Hostile attack not found (arrived or not pasted)');
+      const targetTime = timeOf(b.target_time);
+      const follow = followOf(b.follow ?? 0, attack.fleets.length);
+      const buffer = bufferOf(b.buffer ?? 5);
+      return db.transaction(() => {
+        const id = Number(
+          db
+            .prepare(
+              `INSERT INTO attack_plans (group_id, user_id, player_id, g, s, p, planet_type, target_time, time_precision)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'exact')`,
+            )
+            .run(ctx.groupId, ctx.user.id, attack.player?.id ?? null, attack.from.g, attack.from.s, attack.from.p, attack.from.type, targetTime).lastInsertRowid,
+        );
+        db.prepare(
+          `INSERT INTO attack_plan_enemy (plan_id, member_id, from_g, from_s, from_p, from_type, to_g, to_s, to_p, to_type, fleets, follow,
+             arrival, first_seen, drives, drives_source, drives_time, buffer, updated_by)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ).run(
+          id, attack.memberId, attack.from.g, attack.from.s, attack.from.p, attack.from.type, attack.to.g, attack.to.s, attack.to.p, attack.to.type,
+          JSON.stringify(attack.fleets), follow, attack.arrival, attack.arrival, JSON.stringify(attack.drives?.research ?? {}),
+          attack.drives ? 'spy' : null, attack.drives?.time ?? null, buffer, ctx.user.id,
+        );
+        const claimedBy = claim(ctx, id, attack.from, targetTime);
+        events.publish(ctx.groupId, { type: 'data', tables: ['attack_plans', 'target_claims'], userId: ctx.user.id });
+        return { id, claimedBy };
+      })();
+    },
+  );
+
+  const followOf = (v: unknown, count: number) => {
+    if (!Number.isInteger(v) || (v as number) < 0 || (v as number) >= count) throw new HttpError(400, 'plan_enemy_invalid', 'Invalid fleet');
+    return v as number;
+  };
+  const bufferOf = (v: unknown) => {
+    if (!Number.isInteger(v) || (v as number) < 0 || (v as number) > 3600) throw new HttpError(400, 'plan_enemy_invalid', 'Buffer: 0 to 3600 seconds');
+    return v as number;
+  };
+  /** Both ends or none of a time window. */
+  function windowOf(from: unknown, to: unknown) {
+    if (from == null && to == null) return [null, null];
+    const a = timeOf(from);
+    const b = timeOf(to);
+    if (b < a) throw new HttpError(400, 'plan_enemy_invalid', 'Window ends before it starts');
+    return [a, b];
+  }
+
+  /**
+   * Inputs on the enemy fleet (followed fleet, drives, departure and recall window, candidate, buffer) and the
+   * target time derived from them: creator, admins and every member with a fleet in the plan.
+   */
+  app.put<{ Params: { uni: string; id: string }; Body: EnemyBody }>('/api/:uni/plans/:id/enemy', async (req) => {
+    const ctx = ctxOf(req);
+    const plan = planOf(ctx, Number(req.params.id));
+    const participant = !!db.prepare('SELECT 1 FROM attack_plan_fleets WHERE plan_id = ? AND user_id = ?').get(plan.id, ctx.user.id);
+    if (plan.user_id !== ctx.user.id && !isAdmin(ctx) && !participant) throw new HttpError(403, 'plan_not_yours', 'Only participants can change the enemy fleet');
+    const enemy = db.prepare('SELECT fleets FROM attack_plan_enemy WHERE plan_id = ?').get(plan.id) as { fleets: string } | undefined;
+    if (!enemy) throw new HttpError(404, 'plan_enemy_not_found', 'The plan has no enemy fleet');
+    const b = req.body ?? {};
+    const set: Record<string, unknown> = {};
+    if (b.follow !== undefined) set.follow = followOf(b.follow, (JSON.parse(enemy.fleets) as unknown[]).length);
+    if (b.drives !== undefined) {
+      const drives: Record<number, number> = {};
+      for (const id of [115, 117, 118]) {
+        const v = b.drives?.[id];
+        if (!Number.isInteger(v) || (v as number) < 0 || (v as number) > 99) throw new HttpError(400, 'plan_enemy_invalid', 'Invalid drive level');
+        drives[id] = v as number;
+      }
+      Object.assign(set, { drives: JSON.stringify(drives), drives_source: 'manual', drives_time: now() });
+    }
+    if (b.departure_from !== undefined || b.departure_to !== undefined) [set.departure_from, set.departure_to] = windowOf(b.departure_from, b.departure_to);
+    if (b.recall_from !== undefined || b.recall_to !== undefined) [set.recall_from, set.recall_to] = windowOf(b.recall_from, b.recall_to);
+    if (b.recall_lead !== undefined) set.recall_lead = b.recall_lead ? 1 : 0;
+    if (b.percent !== undefined) {
+      const v = b.percent;
+      if (v != null && (!Number.isInteger(v) || v < 10 || v > 100 || v % 10)) throw new HttpError(400, 'plan_speed_invalid', 'Speed: 10 to 100 %');
+      set.percent = v;
+    }
+    if (b.buffer !== undefined) set.buffer = bufferOf(b.buffer);
+    const targetTime = b.target_time !== undefined ? timeOf(b.target_time) : null;
+    db.transaction(() => {
+      const cols = Object.keys(set);
+      db.prepare(`UPDATE attack_plan_enemy SET ${[...cols.map((k) => `${k} = ?`), 'updated_at = ?', 'updated_by = ?'].join(', ')} WHERE plan_id = ?`).run(
+        ...Object.values(set), now(), ctx.user.id, plan.id,
+      );
+      if (targetTime != null) {
+        db.prepare("UPDATE attack_plans SET target_time = ?, time_precision = 'exact', updated_at = ? WHERE id = ?").run(targetTime, now(), plan.id);
+        if (plan.claim_id) db.prepare('UPDATE target_claims SET expires_at = ? WHERE id = ? AND released_at IS NULL').run(targetTime + CLAIM_AFTER, plan.claim_id);
+      }
+    })();
+    events.publish(ctx.groupId, { type: 'data', tables: ['attack_plans'], userId: ctx.user.id });
+    return { ok: true };
   });
 
   app.post<{ Params: { uni: string }; Body: PlanBody }>('/api/:uni/plans', async (req) => {

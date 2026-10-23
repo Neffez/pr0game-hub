@@ -23,6 +23,20 @@ const plans = [
     id: 8, user_id: 1, creator: 'Carol', g: null, s: null, p: null, planet_type: 'planet', target_time: target + 86400, time_precision: 'hour', note: null,
     status: 'planning', created_at: 0, updated_at: 0, claim_user_id: null, player_id: 6, player_name: 'Zweiter', planet_name: null, fleets: [],
   },
+  {
+    id: 9, user_id: 1, creator: 'Carol', g: 1, s: 41, p: 1, planet_type: 'moon', target_time: target + 7200, time_precision: 'exact', note: null,
+    status: 'planning', created_at: 0, updated_at: 0, claim_user_id: 1, player_id: 5, player_name: 'Gegner', planet_name: 'Mond', fleets: [],
+    enemy: {
+      member_id: 2, member: 'Dave', from: { g: 1, s: 41, p: 1, type: 'moon' }, to: { g: 1, s: 100, p: 12, type: 'planet' },
+      fleets: [{ mission: 1, ships: { 210: 1 } }, { mission: 2, ships: { 207: 1773, 215: 2 } }], follow: 1,
+      arrival: target, first_seen: target - 600, drives: { 115: 10, 117: 8, 118: 6 }, drives_source: 'spy', drives_time: Math.floor(Date.now() / 1000),
+      departure: null, recall: null, recall_lead: true, percent: null, buffer: 5, updated_at: 0, updated_by: null,
+    },
+  },
+];
+const attacks = [
+  { key: 'k1', memberId: 2, member: 'Dave', seen: 0, arrival: target + 300, from: { g: 2, s: 5, p: 5, type: 'planet' }, to: { g: 1, s: 42, p: 7, type: 'planet' },
+    fleets: [{ mission: 1, ships: { 206: 40 } }], player: null, drives: null, until: target + 9999, planId: null },
 ];
 const empire = {
   empire: {
@@ -65,7 +79,7 @@ describe('raid planner page', () => {
     setLocale('de');
     vi.stubGlobal('confirm', () => true);
     vi.stubGlobal('fetch', async (url: string) => {
-      const body = url.includes('/imperium') ? empire : url.includes('/plans') ? plans : [];
+      const body = url.includes('/imperium') ? empire : url.includes('/hostile-attacks') ? attacks : url.includes('/plans') ? plans : [];
       return new Response(JSON.stringify(body), { headers: { 'content-type': 'application/json' } });
     });
     const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/:uni/:page', component: { render: () => null } }] });
@@ -111,7 +125,7 @@ describe('raid planner page', () => {
     expect(text).toContain('Anführer: Dave');
     expect(text).toContain('1.773 SS');
     expect(text).toContain('Start und Schiffe fehlen');
-    const rows = root.querySelectorAll('.plan tbody tr');
+    const rows = root.querySelector('.plan')!.querySelectorAll('tbody tr');
     expect(rows).toHaveLength(3);
     // launch times as clocks, Dave's drives unknown
     expect(rows[0].textContent).toMatch(/\d\d:\d\d:\d\d/);
@@ -124,6 +138,21 @@ describe('raid planner page', () => {
     expect(text).toContain('Zweiter');
     expect(text).toContain('ca.');
     expect(text).toContain('Ohne Koordinaten gibt es noch keine Flugzeiten.');
+  });
+
+  it('lists hostile attacks and shows the retime candidates of a plan', async () => {
+    const list = root.querySelector('.attacks')!;
+    expect(list.textContent).toContain('Angriff auf Dave');
+    expect(list.textContent).toContain('Retime planen');
+    const panel = root.querySelector('.retime')!;
+    expect(panel.textContent).toContain('verzögert um 0:10:00');
+    expect(panel.querySelectorAll('.cands tbody tr')).toHaveLength(10);
+    expect(panel.textContent).toContain('Geschwindigkeit wählen');
+    const radio = panel.querySelectorAll<HTMLInputElement>('.cands input[type=radio]')[3];
+    radio.click();
+    await settle();
+    expect(panel.textContent).toMatch(/Zielzeit des Plans: \d\d:\d\d:\d\d/);
+    expect(panel.querySelector<HTMLButtonElement>('button.primary')!.disabled).toBe(false);
   });
 
   it('adds ships from the start planet or from all own ones, each with its maximum', async () => {

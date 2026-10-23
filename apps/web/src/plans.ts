@@ -3,11 +3,13 @@ import {
   drivesFromResearch,
   flightDuration,
   planAttack,
+  retimeCandidates,
   SHIPS,
   slowestShip,
   type AcsPlan,
   type Coords,
   type FleetPlan,
+  type RetimeCandidate,
 } from '@pr0hub/flight';
 import type { UniverseSettings } from './format';
 
@@ -51,7 +53,90 @@ export interface AttackPlan {
   player_name: string | null;
   planet_name: string | null;
   fleets: PlanFleet[];
+  /** retime: the hostile fleet the plan answers */
+  enemy: PlanEnemy | null;
 }
+
+export interface Body {
+  g: number;
+  s: number;
+  p: number;
+  type: 'planet' | 'moon';
+}
+export interface EnemyFleet {
+  mission: number | null;
+  ships: Record<string, number>;
+}
+
+/** Hostile fleet of a retime plan (server: routes/plans.ts); its inputs are shared by all participants. */
+export interface PlanEnemy {
+  member_id: number | null;
+  member: string | null;
+  from: Body;
+  to: Body;
+  /** the lead first */
+  fleets: EnemyFleet[];
+  follow: number;
+  arrival: number;
+  first_seen: number;
+  drives: Record<string, number>;
+  drives_source: 'spy' | 'manual' | null;
+  drives_time: number | null;
+  departure: { from: number; to: number } | null;
+  recall: { from: number; to: number } | null;
+  recall_lead: boolean;
+  percent: number | null;
+  buffer: number;
+  updated_at: number;
+  updated_by: string | null;
+}
+
+/** Hostile attack on a member from the overview pastes (server: repo/hostile.ts). */
+export interface HostileAttack {
+  key: string;
+  memberId: number;
+  member: string;
+  seen: number;
+  arrival: number;
+  from: Body;
+  to: Body;
+  fleets: EnemyFleet[];
+  player: { id: number; name: string } | null;
+  drives: { research: Record<string, number>; time: number | null } | null;
+  until: number;
+  planId: number | null;
+}
+
+/** Inputs of the enemy analysis (plan enemy or form values). */
+export type EnemyInput = Pick<PlanEnemy, 'from' | 'to' | 'fleets' | 'follow' | 'arrival' | 'first_seen' | 'drives' | 'departure' | 'recall' | 'recall_lead'>;
+
+/**
+ * Speed candidates of the followed enemy fleet. After a recall of the ACS lead all fleets come back with the lead,
+ * so the lead's candidates count then.
+ */
+export function enemyCandidates(u: UniverseSettings, e: EnemyInput): RetimeCandidate[] {
+  const index = e.recall && e.recall_lead ? 0 : e.follow;
+  const fleet = e.fleets[index] ?? e.fleets[0];
+  if (!fleet) return [];
+  return retimeCandidates(u, {
+    from: [e.from.g, e.from.s, e.from.p],
+    to: [e.to.g, e.to.s, e.to.p],
+    ships: fleet.ships,
+    drives: drivesFromResearch(e.drives),
+    arrival: e.arrival,
+    firstSeen: e.first_seen,
+    acs: e.fleets.length > 1,
+    departure: e.departure,
+    recall: e.recall,
+  });
+}
+
+/** Landing back home of a candidate: after the impact, or the earliest return after the recall. */
+export const candidateHome = (c: RetimeCandidate) => (c.recallHome ? c.recallHome.from : c.home);
+
+/** Fleet of an attack to follow by default: the one with the most ships (the main fleet, not the lead's probe). */
+export const mainFleet = (fleets: EnemyFleet[]) =>
+  fleets.reduce((best, f, i) => (Object.values(f.ships).reduce((a, n) => a + n, 0) > Object.values(fleets[best].ships).reduce((a, n) => a + n, 0) ? i : best), 0);
 
 export const PLAN_STATUSES = ['planning', 'launched', 'done', 'cancelled'] as const;
 export const PRECISIONS = ['day', 'hour', 'exact'] as const;

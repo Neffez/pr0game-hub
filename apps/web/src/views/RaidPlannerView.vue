@@ -4,6 +4,7 @@ import Hint from '../components/Hint.vue';
 import PlanetActions from '../components/PlanetActions.vue';
 import PlanTargetForm from '../components/PlanTargetForm.vue';
 import PlayerLink from '../components/PlayerLink.vue';
+import RetimePanel from '../components/RetimePanel.vue';
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
@@ -21,11 +22,15 @@ import {
   FLEET_SHIPS,
   FLEET_STATUSES,
   isCurrent,
+  candidateHome,
+  enemyCandidates,
   latestTime,
+  mainFleet,
   newDraft,
   PLAN_STATUSES,
   SPEEDS,
   type AttackPlan,
+  type HostileAttack,
   type PlanDraft,
   type PlanFleet,
 } from '../plans';
@@ -59,11 +64,16 @@ function scheduleStep() {
 onBeforeUnmount(() => clearTimeout(stepTimer));
 
 const plans = ref<AttackPlan[]>([]);
+/** hostile attacks on members (overview pastes), to plan a retime on */
+const attacks = ref<HostileAttack[]>([]);
 const loaded = ref(false);
 const error = ref('');
 async function load() {
   try {
-    plans.value = await uniApi<AttackPlan[]>(uni.value, '/plans');
+    [plans.value, attacks.value] = await Promise.all([
+      uniApi<AttackPlan[]>(uni.value, '/plans'),
+      uniApi<HostileAttack[]>(uni.value, '/hostile-attacks'),
+    ]);
     now.value = nowSec();
   } catch (e) {
     error.value = (e as Error).message;
@@ -72,7 +82,7 @@ async function load() {
   scheduleStep();
 }
 onMounted(load);
-useLiveReload(load, tables('attack_plans'), 300);
+useLiveReload(load, tables('attack_plans', 'fleets'), 300);
 
 /** Runs a change; errors show above the list, the live event reloads the plans (and here at once). */
 async function run(fn: () => Promise<unknown>) {
@@ -147,6 +157,23 @@ async function create() {
   if (route.query.new) router.replace({ query: {} });
   loadClaims(uni.value);
 }
+
+// ---- retime ----
+/** Starts a retime plan on a hostile attack: follows the main fleet, target time first its return at full speed. */
+async function planRetime(a: HostileAttack) {
+  const follow = mainFleet(a.fleets);
+  const input = { ...a, follow, first_seen: a.arrival, drives: a.drives?.research ?? {}, departure: null, recall: null, recall_lead: true };
+  const full = enemyCandidates(settings.value, input)[0];
+  const target = (full ? candidateHome(full) : a.arrival + 3600) + 5;
+  await run(async () => {
+    const res = await uniApi<{ id: number; claimedBy: string | null }>(uni.value, '/plans/retime', { body: { key: a.key, follow, target_time: target, buffer: 5 } });
+    info.value = res.claimedBy ? t('plans.claimedBy', { name: res.claimedBy }) : '';
+  });
+  loadClaims(uni.value);
+}
+const attackShips = (a: HostileAttack) =>
+  a.fleets.length > 1 ? t('notify.acs', { n: a.fleets.length }) : (a.fleets[0]?.mission != null ? t(`game.missions.${a.fleets[0].mission}`) : '');
+const canEditEnemy = (p: AttackPlan) => canEdit(p) || p.fleets.some((f) => f.user_id === me.value);
 
 // ---- plan editing (creator, admins) ----
 const editing = reactive<Record<number, PlanDraft>>({});
@@ -290,6 +317,23 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
     </div>
   </div>
 
+  <div v-if="attacks.length" class="card attacks">
+    <h3>{{ t('retime.attacks') }}</h3>
+    <div v-for="a in attacks" :key="a.key" class="row attack">
+      <span class="neg">⚔ {{ t('notify.attack', { member: a.member }) }}</span>
+      <span class="mono">{{ coords(a.to.g, a.to.s, a.to.p) }}</span>
+      <span class="time"><b class="mono">{{ new Date(a.arrival * 1000).toLocaleTimeString() }}</b> <Countdown class="muted small" :to="a.arrival" /></span>
+      <span class="small">{{ attackShips(a) }}</span>
+      <span class="small">
+        {{ t('notify.from') }} <PlayerLink v-if="a.player" :id="a.player.id" :name="a.player.name" />
+        <span class="mono">{{ coords(a.from.g, a.from.s, a.from.p) }}</span><span v-if="a.from.type === 'moon'" class="muted"> ☾</span>
+      </span>
+      <span class="grow" />
+      <span v-if="a.planId" class="muted small">{{ t('retime.planned') }}</span>
+      <button v-else class="primary" @click="planRetime(a)">{{ t('retime.plan') }}</button>
+    </div>
+  </div>
+
   <div v-if="loaded && !current.length && !form.open" class="card muted">{{ t('plans.none') }}</div>
 
   <template v-for="(list, i) in [current, past]" :key="i">
@@ -322,6 +366,7 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
         <span class="muted small">{{ t('plans.by', { name: p.creator }) }}</span>
       </div>
       <div v-if="p.note && !editing[p.id]" class="small">{{ p.note }}</div>
+      <RetimePanel v-if="p.enemy" :plan="p" :editable="canEditEnemy(p) && !closed(p)" @saved="load" @error="(m) => (error = m)" />
       <div v-if="views.get(p.id)?.acs" class="small">
         <template v-if="views.get(p.id)!.acs!.fleets.length > 1">{{ t('plans.lead', { name: leadName(p) }) }}</template>
         <span v-if="views.get(p.id)!.acs!.tooManyFleets" class="warn"> ⚠ {{ t('plans.tooManyFleets') }}</span>
@@ -476,6 +521,8 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
 
 <style scoped>
 .plan { display: flex; flex-direction: column; gap: 8px; }
+.attacks h3 { margin: 0 0 6px; }
+.attack { gap: 6px 12px; padding: 4px 0; border-top: 1px solid var(--border); }
 .plan.closed { opacity: .7; }
 .plan-head { gap: 6px; }
 .plan-form { display: flex; flex-direction: column; gap: 10px; }

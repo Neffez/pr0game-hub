@@ -1,8 +1,8 @@
 # Feature request: raid planner (attack plans and retime)
 
-Status: in progress. Done: flight library `@pr0hub/flight`, flight calculator as `apps/tools`, fleet movements parser
-incl. hostile attacks and ACS grouping, ACS and timing rules (`planAttack`, `retimeCandidates`), attack plans from
-scratch (raid planner page). Next: hostile fleets list and "Retime planen" (see "Order").
+Status: in progress. Done: flight library, flight calculator (`apps/tools`), fleet movements parser, ACS and
+timing rules, attack plans (also against a player with rough times), retime on hostile attacks. Next: simulator
+links, phalanx source.
 
 The raid planner plans own attacks, solo or as ACS, and lands them at the right second. A plan starts empty or from a
 pasted hostile attack ("retime": land on the enemy origin right after the enemy fleet is back).
@@ -218,7 +218,11 @@ The parser `packages/parser/src/parsers/fleets.ts` (stored in `fleet_snapshots`)
 3. Attack plans from scratch: done. Migration 025 (`attack_plans`, `attack_plan_fleets`; the enemy fleet table comes
    with step 4), `routes/plans.ts` (rights, claim as "attack" until 10 minutes after the target time, live event
    `attack_plans`), page "Raid-Planer" with "Angriff planen" in the action menu.
-4. Hostile fleets list and "Retime planen": enemy fleet, candidates, windows, drive levels, target time mode `enemy`.
+4. Hostile fleets list and "Retime planen": done. `GET /api/:uni/hostile-attacks` (members' newest overview pastes, ACS
+   as one attack, owner by the galaxy data, drives from the newest spy report with research, listed until the latest
+   possible return), `POST /api/:uni/plans/retime`, `PUT /api/:uni/plans/:id/enemy` (all participants); migration
+   027 `attack_plan_enemy`; a newer paste of the same attack moves its arrival (delay). The page lists the attacks and
+   shows per retime plan the candidates; the chosen one plus the buffer becomes the target time.
 5. Simulator links, phalanx source.
 
 ## Still open

@@ -4,6 +4,17 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Raid planner, retime: hostile attacks on members are listed on top of the page (from the members' newest overview
+  pastes; an ACS as one attack; until their latest possible return), each with "Retime planen".
+  - A retime plan targets the attack's origin and keeps the enemy fleet: which fleet of an ACS to follow (default the
+    one with the most ships), the owner's drives (newest spy report with research, or by hand; flagged after 3 days),
+    departure and recall window (lead or single fleet recalled) and a buffer.
+  - Per speed step the panel shows the enemy's launch (range in an ACS) and return home (after impact or a recall,
+    `retimeCandidates`); the chosen candidate plus the buffer becomes the plan's target time, so all launch times
+    follow. Every participant may change the inputs; a newer paste of the same attack updates its arrival (delays).
+  - Server: `GET /api/:uni/hostile-attacks`, `POST /api/:uni/plans/retime`, `PUT /api/:uni/plans/:id/enemy`, plans
+    carry `enemy`; migration `027` adds `attack_plan_enemy`; the server uses `@pr0hub/flight` now.
+
 - Empire view: collapsible history of past fleet movements (last 12 hours, oldest first) below the fleets in flight.
   Fleet lists are no longer pruned to the newest per member but kept for 12 hours (plus the newest older one);
   each list contributes the fleets arriving until the next list was synced, so recalled fleets are left out.

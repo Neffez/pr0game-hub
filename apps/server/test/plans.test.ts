@@ -160,6 +160,45 @@ describe('attack plans', () => {
     expect((await call('GET', '/claims', carol)).json()).toEqual([]);
   });
 
+  it('lists hostile attacks and plans a retime on them, with shared enemy inputs and delays from new pastes', async () => {
+    const acs = (h: number) => [
+      `${h}h 0m 0s Eine Flotten(1 Spionagesonde) vom Mond Mond [1:41:1] erreicht den Planet Ares [1:100:12]. Mission: Angreifen`,
+      'Eine Flotten(1773 Schlachtschiff; 2 Schlachtkreuzer) vom Mond Mond [1:41:1] erreicht den Planet Ares [1:100:12]. Mission: Verbandsangriff',
+    ].join('\n');
+    expect((await call('POST', '/ingest', carol, { text: acs(3) })).statusCode).toBe(200);
+    const attacks = (await call('GET', '/hostile-attacks', dave)).json();
+    expect(attacks).toHaveLength(1);
+    expect(attacks[0]).toMatchObject({
+      member: 'Carol', from: { g: 1, s: 41, p: 1, type: 'moon' }, to: { g: 1, s: 100, p: 12, type: 'planet' }, planId: null,
+      fleets: [{ mission: 1, ships: { 210: 1 } }, { mission: 2, ships: { 207: 1773, 215: 2 } }],
+    });
+    expect(attacks[0].arrival - Math.floor(Date.now() / 1000)).toBeGreaterThan(3 * 3600 - 60);
+
+    expect((await call('POST', '/plans/retime', dave, { key: 'nope', target_time: soon() })).json().code).toBe('attack_not_found');
+    const created = (await call('POST', '/plans/retime', dave, { key: attacks[0].key, follow: 1, target_time: attacks[0].arrival + 7200 })).json();
+    expect((await call('GET', '/hostile-attacks', carol)).json()[0].planId).toBe(created.id);
+    let plan = (await call('GET', '/plans', carol)).json().find((p: any) => p.id === created.id);
+    expect(plan).toMatchObject({ g: 1, s: 41, p: 1, planet_type: 'moon', time_precision: 'exact', creator: 'Dave', claim_user_id: daveId });
+    expect(plan.enemy).toMatchObject({ member: 'Carol', follow: 1, buffer: 5, percent: null, first_seen: attacks[0].arrival, arrival: attacks[0].arrival, recall: null });
+
+    // a participant changes the inputs and the derived target time; someone outside the plan may not
+    await call('POST', `/plans/${created.id}/fleets`, carol, { ships: { 204: 5 } });
+    const dep = Math.floor(Date.now() / 1000) - 600;
+    const body = { drives: { 115: 10, 117: 8, 118: 7 }, departure_from: dep, departure_to: dep + 300, percent: 70, buffer: 3, target_time: attacks[0].arrival + 5000 };
+    expect((await call('PUT', `/plans/${created.id}/enemy`, carol, body)).statusCode).toBe(200);
+    expect((await call('PUT', `/plans/${created.id}/enemy`, carol, { percent: 75 })).json().code).toBe('plan_speed_invalid');
+    expect((await call('PUT', `/plans/${created.id}/enemy`, carol, { departure_from: dep })).json().code).toBe('plan_time_invalid');
+    plan = (await call('GET', '/plans', dave)).json().find((p: any) => p.id === created.id);
+    expect(plan.target_time).toBe(attacks[0].arrival + 5000);
+    expect(plan.enemy).toMatchObject({ drives: { 115: 10, 117: 8, 118: 7 }, drives_source: 'manual', departure: { from: dep, to: dep + 300 }, percent: 70, buffer: 3, updated_by: 'Carol' });
+
+    // the ACS was delayed: the new paste moves the arrival, the first seen one stays
+    await call('POST', '/ingest', carol, { text: acs(4) });
+    plan = (await call('GET', '/plans', dave)).json().find((p: any) => p.id === created.id);
+    expect(plan.enemy.arrival - plan.enemy.first_seen).toBeGreaterThan(3500);
+    await call('DELETE', `/plans/${created.id}`, dave);
+  });
+
   it('lists plans up to a week after their target time', async () => {
     const id = (await call('POST', '/plans', carol, { g: 2, s: 2, p: 2, target_time: soon() })).json().id;
     db.prepare('UPDATE attack_plans SET target_time = ? WHERE id = ?').run(Math.floor(Date.now() / 1000) - 6 * 86400, id);
