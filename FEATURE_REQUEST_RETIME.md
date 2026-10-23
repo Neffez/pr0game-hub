@@ -1,8 +1,7 @@
 # Feature request: raid planner (attack plans and retime)
 
-Status: in progress. Done: flight library, flight calculator (`apps/tools`), fleet movements parser, ACS and
-timing rules, attack plans (also against a player with rough times), retime on hostile attacks. Next: simulator
-links, phalanx source.
+Status (2026-10-23): usable. Attack plans (solo, ACS, against a player with rough times) and retime on hostile
+attacks are live in the raid planner. Open: simulator links, phalanx source, a few follow-ups (see "Still open").
 
 The raid planner plans own attacks, solo or as ACS, and lands them at the right second. A plan starts empty or from a
 pasted hostile attack ("retime": land on the enemy origin right after the enemy fleet is back).
@@ -37,7 +36,7 @@ Answered by the requester on 2026-10-22/23.
 | --- | --- |
 | Menu | One menu item "Raid-Planer" / "Raid planner" above "Raids", which is renamed to "Raid-Statistiken" / "Raid statistics" (`raids` route and `RaidsView.vue` keep their names). No tabs: hostile fleets on top, plans below. |
 | Plan model | One attack plan for solo and ACS, started from scratch or from a parsed hostile attack. |
-| Hostile fleets | Attacks (single and ACS) and espionage on own planets from the overview, later also phalanx results. No own fleets, no friendly hold. |
+| Hostile fleets | Attacks (single and ACS) and destroy missions on members from the overview, later also phalanx results. Espionage is shown in the notifications, not as a retime target. No own fleets, no friendly hold. |
 | Ships | The copied overview text contains ship types and amounts, so the slowest ship is known. |
 | Arrival | The overview shows countdown and absolute arrival time; the absolute time is used. |
 | Speed steps | 10-100 % in steps of 10. |
@@ -47,73 +46,66 @@ Answered by the requester on 2026-10-22/23.
 | Computation | In the hub with `@pr0hub/flight`; link into the flight calculator as an extra. |
 | Shared code | Flight library in this repository, the standalone calculator lives in `apps/tools`. |
 | Retention | Hostile fleets disappear after their latest possible return; plans stay (past ones in their own list). |
-| ACS limits | `max_fleets_per_acs` = 16, `max_participants_per_acs` = 5 (lead + 4), as defaults in the universe settings. |
+| ACS limits | `max_fleets_per_acs` = 16, `max_participants_per_acs` = 5 (lead + 4); for now constants (`ACS_LIMITS` in `@pr0hub/flight`). |
+| Target and time | A plan names a player and/or coordinates (coordinates may follow); the time is a day, around an hour or the exact impact. |
+| Own ships | Picked from the start planet or from all own ships (planets, moons, in flight), added with the maximum, editable. |
 | Enemy inputs | All participants of a plan may change drive levels, windows and the chosen candidate. |
 
-## Data model
+## Data model (as built)
 
-One migration (next free number; 020 is `fleet_snapshots`), all rows per group (`groupContext`).
+All rows per group (`groupContext`).
 
-- **attack_plans**: target (g, s, p, planet/moon), target time mode (`fixed` or `enemy`), target time (fixed mode),
-  buffer in seconds (enemy mode), note, status (planning, launched, done, cancelled), creator, created/updated.
-- **attack_plan_participants**: member, start planet/moon, ships, speed percent, status (invited, ready, launched,
-  withdrawn), actual arrival (when launched, from the member's overview paste or by hand). Launch time and arrival
-  are computed, not stored.
-- **attack_plan_enemy** (0 or 1 per plan): the enemy fleet as seen when the plan was created, copied from the snapshot
-  so the plan outlives it: origin (= plan target), target, mission, ships, arrival as seen, first seen arrival
-  (delay detection), the other fleets of its ACS (each with ships), owner drive levels and their source/date,
-  departure window, recall window and whether the lead or one member was recalled, chosen speed candidate. Newer
-  pastes of the same fleet (same origin, target, mission, ships) update the arrival as seen.
+- **attack_plans** (migration 025, rebuilt in 026): creator, target player (`player_id`, optional) and coordinates
+  (optional until known, planet/moon), `target_time` with `time_precision` (`day`, `hour`, `exact`), note, status
+  (planning, launched, done, cancelled), `claim_id` (the "attack" claim made for the plan). A plan needs a player or
+  coordinates.
+- **attack_plan_fleets** (025): one row per fleet (a member may send several): member, start planet/moon (empty while
+  only invited), ships, speed percent, status (invited, ready, launched, withdrawn). Launch time, arrival and return
+  are computed (`planAttack`), not stored.
+- **attack_plan_enemy** (027, 0 or 1 per plan): the hostile attack the plan answers, copied when the plan was made:
+  member it headed for, origin (= plan target) and target, its fleets (lead first, mission and ships), the followed
+  fleet, arrival as last seen and as first seen, owner's drives with source (`spy`/`manual`) and date, departure and
+  recall window, `recall_lead`, chosen speed `percent`, `buffer`, who changed it last. The attack is recognised again
+  by its route and the ships of the lead fleet (`attackKey`).
 
-Rights: the creator or an admin edits the plan (target, target time, note, status), every participant their own row;
-all participants may change the enemy fleet inputs (drive levels, windows, candidate).
+Rights: creator or group admin edit the plan (target, time, note, status, invitations, deletion); every member their
+own fleets; every participant (and the creator/admins) the enemy inputs.
 
 ## Target time
 
-- **Fixed**: a time typed in (or picked in the calculator).
-- **Enemy**: return of the enemy fleet for the chosen speed candidate plus the buffer. When someone changes the drive
-  levels, the departure or recall window or picks another candidate, the target time and every participant's launch
-  time move live. When the candidates still spread (several speeds possible), the plan shows the spread and the
-  chosen one; when the enemy fleet was recalled, the target time becomes the recall return (a range) and the plan
-  shows a warning.
-- The window is short: the counter must land after the return but before the enemy can send the fleet away again.
-  The buffer is part of the plan, and a participant who delays the ACS beyond it is flagged at once.
+- **By hand**: the day, around an hour, or the exact impact. Launch times, lead and the delay/limit warnings need
+  coordinates and an exact time; "around an hour" shows approximate launches.
+- **Retime**: the chosen speed candidate's return home (after impact, or the earliest return after a recall) plus the
+  buffer. The client derives it and saves it with the enemy inputs; every participant's launch time follows. Without
+  a chosen candidate the plan keeps the return at full speed plus 5 s it started with.
+- The claim follows the target time (until 10 minutes after it) and the coordinates.
 
 ## Participants and ACS rules
 
-From the game source (`ShowFleetStep3Page`, `FleetFunctions::setACSTime`):
+From the game source (`ShowFleetStep3Page`, `FleetFunctions::setACSTime`), built as `planAttack`:
 
-- **Launch time** per participant = target time - own duration (`@pr0hub/flight`: distance, slowest ship, drives from
-  the member's research, speed percent), with a countdown. Start planet and ships come prefilled from the member's
-  empire page.
-- **Lead**: the ACS lead sends an attack and creates the ACS in the game; the others can only join after that. The
-  lead is therefore the participant with the earliest launch; anyone who would have to launch before the lead is
-  flagged.
-- **No limit on the delay** (unlike OGame's 30 %): a fleet that would arrive later than the ACS time pushes the whole
-  ACS back by the difference (arrival and return of all members); a faster fleet waits. The plan shows the resulting
-  arrival `max(target time, latest participant's earliest arrival)` and who causes the delay, instead of only
-  "too late".
-- **Limits** `max_fleets_per_acs` and `max_participants_per_acs` (game config, per universe): a fleet beyond them is
-  sent as a normal attack (mission 1, no group) without notice and arrives on its own. The plan warns; both values
-  go into the universe settings.
-- **Returns**: every participant lands back at `arrival + own duration`; recalling the lead recalls the whole ACS with
-  one return computed from the lead's launch. The plan shows each participant's return (fleet save).
-- **Simulator links**: "TrashSim" and "Simulator im Spiel" with ships and research of all participants and the
-  newest spy report of the target, via URL only (nothing runs on game pages). No own battle simulator.
+- **Launch time** per fleet = target time - own duration (distance, slowest ship, drives from the member's newest
+  empire page, speed percent), with a countdown; drives unknown or older than 3 days are flagged.
+- **Lead**: the fleet with the earliest launch (it sends the attack and creates the ACS); anyone who would have to
+  launch before the lead is flagged.
+- **No limit on the delay** (unlike OGame's 30 %): a late fleet pushes the whole ACS back; the plan shows the resulting
+  arrival and which fleet causes it.
+- **Limits** 16 fleets / 5 players: fleets beyond them (in launch order) are marked "outside the ACS" (the game sends
+  them as a normal attack without notice).
+- **Returns** per fleet after the resulting arrival.
+- **Simulator links** ("TrashSim", "Simulator im Spiel"): not built yet.
 
-## Enemy fleet analysis (retime)
+## Enemy fleet analysis (retime, as built)
 
-- **Candidates**: ships are known, so one candidate per speed step (10 rows): outbound duration, launch, return.
-- **Departure window** ("not on the overview at 14:05, there at 14:12") filters the candidates; for a single attack
-  both ways, for ACS members one-sided (see timing rules).
-- **Drive levels** of the owner (owner looked up by origin coords in the galaxy data), prefilled, editable.
-- **ACS of the enemy**: each enemy fleet has its own return; a plan follows one of them (usually the one that matters
-  for the counter: the biggest or the slowest), the others are shown.
-- **Delay**: a newer paste with a later arrival than first seen records the delay; the launch stays where it was.
-- **Recall**: the fleet vanished before arrival -> recall window and lead/member; return = `2 * recall - arrival +
-  duration + delay` per candidate, a range from the windows, or a lower bound without a departure window.
-- **Phalanx** (later): a phalanx result of a returning fleet shows the landing at home directly; that is the target
-  time itself.
+- **Candidates** (`retimeCandidates`): one per speed step: duration, enemy launch (exact for a single attack, an upper
+  bound / range in an ACS), return home after impact or after a recall (range); candidates that don't fit the windows
+  are greyed out and cannot be picked.
+- **Followed fleet**: in an ACS the one with the most ships by default (not the lead's probe); after a recall of the
+  lead the lead's candidates count for all fleets.
+- **Drives** of the owner (owner by the origin's galaxy data) from the newest spy report with research, editable.
+- **Delay**: a newer overview paste of the same attack with a later arrival updates it; the first seen arrival stays,
+  the panel shows the delay.
+- **Recall**: entered by hand as a window (no automatic detection yet).
 
 ## Timing rules
 
@@ -177,57 +169,57 @@ The parser `packages/parser/src/parsers/fleets.ts` (stored in `fleet_snapshots`)
 - The player name drops the trailing PM link (`[PN]` / `[PM]`).
 - Notifications show an ACS as one entry with the ships of all its fleets.
 
-## Server, live updates, claims
+## Server, live updates, claims (as built)
 
-- Endpoints to create, change and delete plans, the enemy fleet and the own participation (rights above).
-- **Live via SSE**: the existing `EventBus` (`apps/server/src/events.ts`). Every change sends a `DataEvent` with the
-  table names (`attack_plans`, ...); the open tabs load the data again through the normal endpoints, so no game data
-  travels past `groupContext`. A new overview paste (fleet snapshot) already arrives as a data event and refreshes the
-  hostile fleets and the arrivals of enemy fleets in plans.
-- **Claims**: a plan claims its target as "attack" (`target_claims`, migration 018) until the target time.
-- Hostile fleets list: from the newest `fleet_snapshots` of all members, merged when several members see the same
-  fleet, gone after the latest possible return.
+- `routes/plans.ts`: `GET`/`POST /api/:uni/plans`, `PUT`/`DELETE /api/:uni/plans/:id`, `POST /api/:uni/plans/:id/fleets`,
+  `PUT`/`DELETE /api/:uni/plans/:id/fleets/:fleet`, `GET /api/:uni/hostile-attacks`, `POST /api/:uni/plans/retime`,
+  `PUT /api/:uni/plans/:id/enemy`.
+- `repo/hostile.ts`: hostile attacks from the newest `fleet_snapshots` of all members (incoming fleets are always
+  shared), missions attack, ACS attack and destroy, an ACS as one attack, the same attack seen twice once; listed until
+  the latest possible return (10 % without drive research).
+- **Live via SSE**: every change publishes a `DataEvent` (`attack_plans`, with claims also `target_claims`); the page
+  reloads on it and on new fleet pastes (`fleets`). Countdowns tick on their own (`Countdown`, `clock.ts`), the plan
+  state only at launches, target times and plan ends, so open drop-downs are not reset.
+- **Claims**: "attack" claim on the target once coordinates are known, until 10 minutes after the target time; moved
+  with new coordinates, released on cancel, done or delete.
 
-## UI
+## UI (as built)
 
-- Menu "Raid-Planer" above "Raid-Statistiken".
-- Top: hostile fleets of the group (enemy ACS grouped), each with "Retime planen".
-- Below: plans (current, past), button "Angriff planen"; detail view with target, target time (fixed or from the enemy
-  fleet with its candidate table, windows and drive levels), participants with launch countdown, lead, delay and
-  limit warnings, returns, simulator links, link into the flight calculator.
-- "Angriff planen" also in the action menu of a planet/moon.
-- Locales in `de.ts` and `en.ts`, mobile layout below 800 px.
+- Menu "Raid-Planer" above "Raid-Statistiken" (formerly "Raids"); "Angriff planen" in the action menu of a planet/moon.
+- Top: hostile attacks on members with countdown, origin and owner, "Retime planen" (or "Retime geplant").
+- Plans (current, past): target (player and/or coordinates), time by precision with countdown, delay and limit
+  warnings, lead; retime panel for plans with an enemy fleet; fleets table with start, ships, speed, flight time,
+  launch with countdown and flags, return, status; own fleet form; invitations; status buttons; edit target and time.
+- Tests: server (`test/plans.test.ts`), web (`test/plans.test.ts`, page smoke test `test/raid-planner.test.ts` in
+  happy-dom).
 
-## Built so far
+## Built
 
-- **`@pr0hub/flight`** (`packages/flight`): distance (linear, ring, sphere), ship speed with drive switch, slowest
-  ship, duration, consumption, timestamps (from launch, from arrival, delayed), recall and recall time; custom ship
-  catalogs. Ship table incl. 222-232 (not in `install.sql`; 222 from universe 7). Checked against the former
-  standalone calculator on 20,000 + 30,000 random cases.
-- **Flight calculator** in `apps/tools` (tools index + `flight-calculator/`), calculating with `@pr0hub/flight`;
-  Docker target `tools`, deployed from this repository. The hub's `distance()` comes from the library.
-- **Fleet movements parser** and `fleet_snapshots` (`8e47c56`), gaps above.
-
-## Order
-
-1. Parser gaps (hostile classification, ACS member lines): done; check against further real pastes when available.
-2. ACS and timing rules in `@pr0hub/flight`: done. `planAttack` (launch per fleet, lead, resulting arrival with delays,
-   late fleets, limits, returns; checked against a step-by-step simulation of the game's sending) and
-   `retimeCandidates` (per speed step: launch range, departure window, first seen arrival, return after impact and
-   after a recall; random real flights always lie in their candidate's range).
-3. Attack plans from scratch: done. Migration 025 (`attack_plans`, `attack_plan_fleets`; the enemy fleet table comes
-   with step 4), `routes/plans.ts` (rights, claim as "attack" until 10 minutes after the target time, live event
-   `attack_plans`), page "Raid-Planer" with "Angriff planen" in the action menu.
-4. Hostile fleets list and "Retime planen": done. `GET /api/:uni/hostile-attacks` (members' newest overview pastes, ACS
-   as one attack, owner by the galaxy data, drives from the newest spy report with research, listed until the latest
-   possible return), `POST /api/:uni/plans/retime`, `PUT /api/:uni/plans/:id/enemy` (all participants); migration
-   027 `attack_plan_enemy`; a newer paste of the same attack moves its arrival (delay). The page lists the attacks and
-   shows per retime plan the candidates; the chosen one plus the buffer becomes the target time.
-5. Simulator links, phalanx source.
+1. **`@pr0hub/flight`** (`packages/flight`): distance (linear, ring, sphere), ship speed with drive switch, slowest
+   ship, duration, consumption, timestamps (from launch, from arrival, delayed), recall and recall time, custom ship
+   catalogs, `planAttack`, `retimeCandidates`. Ship table incl. 222-232 (222 from universe 7). Checked against the
+   former standalone calculator (20,000 + 30,000 random cases), a step-by-step simulation of the game's ACS sending,
+   and random real flights for the retime ranges.
+2. **Flight calculator** in `apps/tools`, Docker target `tools`, deployed from this repository.
+3. **Fleet movements parser**: hostile attacks without player name and ACS fleets grouped (`acs`), from the game's
+   templates; notifications show an ACS as one entry.
+4. **Attack plans** (025, 026): solo/ACS, against a player with rough times, coordinates later, ships from the start
+   planet or all own ships.
+5. **Retime** (027): hostile attacks list, retime plans, shared enemy inputs, delays from new pastes.
 
 ## Still open
 
-1. **Test data**: the full Ctrl+A copy of an overview with an attack (with server clock line), a hostile espionage
-   probe, the English texts, and a copied phalanx result (incl. a return flight).
-2. **Phalanx**: is the phalanx window copyable as one text, and does it show the ships?
-3. **English texts**: the English templates are taken from the game's language files, not yet from a real paste.
+1. **Simulator links**: "TrashSim" and "Simulator im Spiel" with ships and research of all participants and the newest
+   spy report of the target, via URL only (check the parameters both simulators accept).
+2. **Phalanx as source**: a phalanx result of a returning fleet gives the landing at home directly (target time without
+   candidates). Needs a copied phalanx text (also: is the window copyable as one text, does it show the ships?).
+3. **Recall detection**: when an attack vanishes from a newer overview paste before its arrival, suggest the recall
+   window (last paste with the fleet .. first paste without it) instead of entering it by hand.
+4. **ACS limits per universe**: the 16 / 5 are constants; move them into the universe settings if universes differ.
+5. **Flight calculator link** from a plan or retime panel (share link with route, ships, drives, `mode=retime`).
+6. **Launched fleets**: mark a fleet as launched from the member's own overview paste (own ACS fleet towards the target)
+   instead of by hand, and compare the real arrival with the plan.
+7. **Check in a real browser**, also the mobile layout (not possible here: headless Chrome does not run on this
+   machine); so far only the happy-dom smoke tests.
+8. **Test data**: the full Ctrl+A copy of an overview with an attack (with server clock line), the English texts
+   (taken from the game's language files so far), a copied phalanx result.

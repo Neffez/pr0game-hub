@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Raid planner plan (`FEATURE_REQUEST_RETIME.md`) brought up to date: data model, target time, ACS rules, retime,
+  server and UI as built, and the open items (simulator links, phalanx, recall detection, ACS limits per universe,
+  calculator link, launched fleets from the own overview, a check in a real browser, test data).
+
 - Fleet history in the alliance view too (all members or the chosen one, newest first), below the fleets in flight.
   New sharing option "Share history" (`history` in the fleet share setting, on by default): off hides the member's
   own fleets from the others' history, fleets that headed for them stay visible. The clock helper `past` lists
