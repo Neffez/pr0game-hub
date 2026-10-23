@@ -102,6 +102,8 @@ const de = {
     language: 'Sprache',
     languageHint: 'Spielbegriffe wie im Spiel in der gewählten Sprache.',
     languageChanged: 'Sprache geändert.',
+    general: 'Allgemein',
+    sharing: 'Freigaben',
     hints: 'Hinweise',
     liveHints: 'Einblenden, wenn andere Mitglieder etwas synchronisieren',
     fleetShare: 'Flottenbewegungen teilen',

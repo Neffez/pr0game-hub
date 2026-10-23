@@ -4,6 +4,8 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Account settings: explanations moved into info tooltips next to each setting; the page now uses the full width
+  with cards (general, sharing, username, password) in two columns, one column on mobile.
 - In-game messages as cards instead of a table: sender → recipients and time on top, then subject and text (left
   aligned, also on mobile), below who synced it and who sees it; sorting by a selection with direction.
   - Colours: players of the own alliance (members and their in-game alliances) blue, other players orange, also as

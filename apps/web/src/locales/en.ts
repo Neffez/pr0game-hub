@@ -101,6 +101,8 @@ const en: typeof de = {
     language: 'Language',
     languageHint: 'Game terms as in the game in the selected language.',
     languageChanged: 'Language changed.',
+    general: 'General',
+    sharing: 'Sharing',
     hints: 'Hints',
     liveHints: 'Show when other members sync something',
     fleetShare: 'Share fleet movements',

@@ -97,8 +97,7 @@ table.data tr.dim td { opacity: .55; }
 .tabs button.active { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
 
 .center-box { max-width: 380px; margin: 12vh auto; }
-.center-box input, .account-box input { width: 100%; margin: 4px 0 10px; }
-.account-box { max-width: 380px; }
+.center-box input { width: 100%; margin: 4px 0 10px; }
 
 /* Mobile chrome (top bar, bottom tab bar, drawer close button): hidden on desktop */
 .topbar, .tabbar, .nav-close, .nav-backdrop { display: none; }

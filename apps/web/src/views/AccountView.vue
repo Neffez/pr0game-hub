@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import { api, loadMe, session } from '../api';
+import Hint from '../components/Hint.vue';
 import { currentLang, LANGS, setLocale, type Lang } from '../i18n';
 import { liveHints } from '../live';
 
@@ -76,54 +77,78 @@ const saveLang = () =>
 </script>
 
 <template>
-  <div class="card" :class="inUni ? 'account-box' : 'center-box'">
+  <div class="account" :class="{ standalone: !inUni }">
     <p v-if="!inUni"><RouterLink to="/">{{ t('common.back') }}</RouterLink></p>
     <h1>{{ t('account.title', { name: session.me?.user?.username }) }}</h1>
-    <h2>{{ t('account.language') }}</h2>
-    <select v-model="lang" @change="saveLang">
-      <option v-for="l in LANGS" :key="l" :value="l">{{ t(`languages.${l}`) }}</option>
-    </select>
-    <p class="muted small">{{ t('account.languageHint') }}</p>
-    <h2>{{ t('account.hints') }}</h2>
-    <label><input v-model="liveHints" type="checkbox" /> {{ t('account.liveHints') }}</label>
-    <template v-if="share">
-      <h2>{{ t('account.fleetShare') }}</h2>
-      <label><input v-model="share.enabled" type="checkbox" @change="saveShare" /> {{ t('account.fleetShareEnabled') }}</label>
-      <div class="share-missions" :class="{ off: !share.enabled }">
-        <label v-for="id in MISSIONS" :key="id">
-          <input type="checkbox" :checked="!share.hidden.includes(id)" :disabled="!share.enabled" @change="toggleMission(id)" />
-          {{ t(`game.missions.${id}`) }}
-        </label>
-      </div>
-      <p class="muted small">{{ t('account.fleetShareHint') }}</p>
-    </template>
-    <template v-if="messageShare">
-      <h2>{{ t('account.messageShare') }}</h2>
-      <label><input v-model="messageShare.enabled" type="checkbox" @change="saveMessageShare" /> {{ t('account.messageShareEnabled') }}</label>
-      <p class="muted small">{{ t('account.messageShareHint') }}</p>
-    </template>
-    <h2>{{ t('common.username') }}</h2>
-    <form @submit.prevent="saveUsername">
-      <label>{{ t('account.newUsername') }}</label>
-      <input v-model="newUsername" autocomplete="username" />
-      <label>{{ t('common.password') }}</label>
-      <input v-model="usernamePassword" type="password" autocomplete="current-password" />
-      <button class="primary">{{ t('common.change') }}</button>
-    </form>
-    <h2>{{ t('common.password') }}</h2>
-    <form @submit.prevent="savePassword">
-      <label>{{ t('account.oldPassword') }}</label>
-      <input v-model="oldPassword" type="password" autocomplete="current-password" />
-      <label>{{ t('account.newPassword') }}</label>
-      <input v-model="newPassword" type="password" autocomplete="new-password" />
-      <button class="primary">{{ t('common.change') }}</button>
-    </form>
-    <div v-if="msg" class="ok">{{ msg }}</div>
-    <div v-if="error" class="error">{{ error }}</div>
+    <div v-if="msg" class="ok status">{{ msg }}</div>
+    <div v-if="error" class="error status">{{ error }}</div>
+    <div class="account-grid">
+      <section class="card">
+        <h2>{{ t('account.general') }}</h2>
+        <div class="field">
+          <span class="field-label">{{ t('account.language') }} <Hint>{{ t('account.languageHint') }}</Hint></span>
+          <select v-model="lang" @change="saveLang">
+            <option v-for="l in LANGS" :key="l" :value="l">{{ t(`languages.${l}`) }}</option>
+          </select>
+        </div>
+        <div class="field">
+          <span class="field-label">{{ t('account.hints') }}</span>
+          <label class="check"><input v-model="liveHints" type="checkbox" /> {{ t('account.liveHints') }}</label>
+        </div>
+      </section>
+      <section v-if="share || messageShare" class="card">
+        <h2>{{ t('account.sharing') }}</h2>
+        <div v-if="share" class="field">
+          <span class="field-label">{{ t('account.fleetShare') }} <Hint>{{ t('account.fleetShareHint') }}</Hint></span>
+          <label class="check"><input v-model="share.enabled" type="checkbox" @change="saveShare" /> {{ t('account.fleetShareEnabled') }}</label>
+          <div class="share-missions" :class="{ off: !share.enabled }">
+            <label v-for="id in MISSIONS" :key="id" class="check">
+              <input type="checkbox" :checked="!share.hidden.includes(id)" :disabled="!share.enabled" @change="toggleMission(id)" />
+              {{ t(`game.missions.${id}`) }}
+            </label>
+          </div>
+        </div>
+        <div v-if="messageShare" class="field">
+          <span class="field-label">{{ t('account.messageShare') }} <Hint>{{ t('account.messageShareHint') }}</Hint></span>
+          <label class="check"><input v-model="messageShare.enabled" type="checkbox" @change="saveMessageShare" /> {{ t('account.messageShareEnabled') }}</label>
+        </div>
+      </section>
+      <section class="card">
+        <h2>{{ t('common.username') }}</h2>
+        <form class="stack" @submit.prevent="saveUsername">
+          <label>{{ t('account.newUsername') }} <input v-model="newUsername" autocomplete="username" /></label>
+          <label>{{ t('common.password') }} <input v-model="usernamePassword" type="password" autocomplete="current-password" /></label>
+          <button class="primary">{{ t('common.change') }}</button>
+        </form>
+      </section>
+      <section class="card">
+        <h2>{{ t('common.password') }}</h2>
+        <form class="stack" @submit.prevent="savePassword">
+          <label>{{ t('account.oldPassword') }} <input v-model="oldPassword" type="password" autocomplete="current-password" /></label>
+          <label>{{ t('account.newPassword') }} <input v-model="newPassword" type="password" autocomplete="new-password" /></label>
+          <button class="primary">{{ t('common.change') }}</button>
+        </form>
+      </section>
+    </div>
   </div>
 </template>
 
 <style scoped>
-.share-missions { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 2px 12px; margin-top: 6px; }
+.account { max-width: 1000px; }
+.account.standalone { margin: 6vh auto; padding: 0 16px; }
+.status { margin: 0 0 10px; }
+.account-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 14px; align-items: start; }
+.account-grid .card { margin: 0; }
+.card h2 { margin-top: 0; }
+.field + .field { margin-top: 16px; }
+.field-label { display: block; margin-bottom: 6px; font-weight: 600; }
+.check { display: flex; gap: 8px; align-items: center; }
+.share-missions { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 2px 12px; margin: 8px 0 0 24px; }
 .share-missions.off { opacity: 0.5; }
+.stack { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+.stack label { display: flex; flex-direction: column; gap: 4px; width: 100%; }
+.stack input { width: 100%; }
+@media (max-width: 800px) {
+  .account-grid { grid-template-columns: 1fr; }
+}
 </style>
