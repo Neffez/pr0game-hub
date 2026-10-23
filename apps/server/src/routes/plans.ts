@@ -7,6 +7,7 @@ import { latestEmpires } from '../repo/empire.js';
 import { contextOf, DISPLAY, MEMBER } from './util.js';
 
 const STATUSES = ['planning', 'launched', 'done', 'cancelled'];
+const PRECISIONS = ['day', 'hour', 'exact'];
 const FLEET_STATUSES = ['invited', 'ready', 'launched', 'withdrawn'];
 /** Fleet rows per plan (the game takes 16 fleets per ACS; more are planned as separate attacks). */
 const MAX_FLEETS = 32;
@@ -18,11 +19,14 @@ const CLAIM_AFTER = 600;
 const DRIVE_IDS = [115, 117, 118, 134];
 
 interface PlanBody {
-  g?: number;
-  s?: number;
-  p?: number;
+  /** coordinates: all three, or null for "not known yet" */
+  g?: number | null;
+  s?: number | null;
+  p?: number | null;
   type?: string;
+  player_id?: number | null;
   target_time?: number;
+  time_precision?: string;
   note?: string | null;
   status?: string;
 }
@@ -41,9 +45,10 @@ interface FleetBody {
 interface PlanRow {
   id: number;
   user_id: number;
-  g: number;
-  s: number;
-  p: number;
+  player_id: number | null;
+  g: number | null;
+  s: number | null;
+  p: number | null;
   planet_type: 'planet' | 'moon';
   target_time: number;
   status: string;
@@ -89,6 +94,21 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
     }
     return out;
   }
+  /** Target coordinates: all three given, or none (null/missing: not known yet). */
+  function targetOf(ctx: GroupContext, b: PlanBody) {
+    if (b.g == null && b.s == null && b.p == null) return null;
+    return coordsOf(ctx, b);
+  }
+  const playerOf = (ctx: GroupContext, v: unknown) => {
+    if (v == null) return null;
+    if (!db.prepare('SELECT 1 FROM players WHERE id = ? AND group_id = ?').get(v, ctx.groupId)) throw new HttpError(404, 'player_not_found', 'Player not found');
+    return v as number;
+  };
+  const precisionOf = (v: unknown) => {
+    if (v == null) return 'exact';
+    if (!PRECISIONS.includes(String(v))) throw new HttpError(400, 'plan_time_invalid', 'Invalid time precision');
+    return String(v);
+  };
   const speedOf = (v: unknown) => {
     if (!Number.isInteger(v) || (v as number) < 10 || (v as number) > 100 || (v as number) % 10) throw new HttpError(400, 'plan_speed_invalid', 'Speed: 10 to 100 %');
     return v as number;
@@ -143,6 +163,7 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
   }
   const releaseClaim = (plan: PlanRow) => {
     if (plan.claim_id) db.prepare('UPDATE target_claims SET released_at = ? WHERE id = ? AND released_at IS NULL').run(now(), plan.claim_id);
+    db.prepare('UPDATE attack_plans SET claim_id = NULL WHERE id = ?').run(plan.id);
   };
 
   /** Plans of the group up to a week after their target time, with fleets and the members' drive levels. */
@@ -150,13 +171,14 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
     const ctx = ctxOf(req);
     const plans = db
       .prepare(
-        `SELECT a.id, a.user_id, ${DISPLAY} AS creator, a.g, a.s, a.p, a.planet_type, a.target_time, a.note, a.status, a.created_at, a.updated_at,
-           c.user_id AS claim_user_id, pl.player_id, pr.name AS player_name, CASE WHEN a.planet_type = 'moon' THEN pl.moon_name ELSE pl.name END AS planet_name
+        `SELECT a.id, a.user_id, ${DISPLAY} AS creator, a.g, a.s, a.p, a.planet_type, a.target_time, a.time_precision, a.note, a.status,
+           a.created_at, a.updated_at, c.user_id AS claim_user_id, COALESCE(a.player_id, pl.player_id) AS player_id, pr.name AS player_name,
+           CASE WHEN a.planet_type = 'moon' THEN pl.moon_name ELSE pl.name END AS planet_name
          FROM attack_plans a
          JOIN users u ON u.id = a.user_id ${MEMBER('a')}
          LEFT JOIN target_claims c ON c.id = a.claim_id AND c.released_at IS NULL AND c.expires_at > ?
          LEFT JOIN planets pl ON pl.group_id = a.group_id AND pl.g = a.g AND pl.s = a.s AND pl.p = a.p
-         LEFT JOIN players pr ON pr.id = pl.player_id
+         LEFT JOIN players pr ON pr.id = COALESCE(a.player_id, pl.player_id)
          WHERE a.group_id = ? AND a.target_time > ? ORDER BY a.target_time`,
       )
       .all(now(), ctx.groupId, now() - KEEP_SECONDS) as (Record<string, unknown> & { id: number })[];
@@ -185,46 +207,71 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
   app.post<{ Params: { uni: string }; Body: PlanBody }>('/api/:uni/plans', async (req) => {
     const ctx = ctxOf(req);
     const b = req.body ?? {};
-    const c = coordsOf(ctx, b);
+    const c = targetOf(ctx, b);
+    const playerId = playerOf(ctx, b.player_id);
+    if (!c && playerId == null) throw new HttpError(400, 'plan_target_missing', 'Target player or coordinates needed');
     const type = b.type === 'moon' ? 'moon' : 'planet';
     const targetTime = timeOf(b.target_time);
+    const precision = precisionOf(b.time_precision);
     const note = noteOf(b.note);
     return db.transaction(() => {
       const id = Number(
         db
-          .prepare('INSERT INTO attack_plans (group_id, user_id, g, s, p, planet_type, target_time, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
-          .run(ctx.groupId, ctx.user.id, c.g, c.s, c.p, type, targetTime, note).lastInsertRowid,
+          .prepare(
+            `INSERT INTO attack_plans (group_id, user_id, player_id, g, s, p, planet_type, target_time, time_precision, note)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          )
+          .run(ctx.groupId, ctx.user.id, playerId, c?.g ?? null, c?.s ?? null, c?.p ?? null, type, targetTime, precision, note).lastInsertRowid,
       );
-      const claimedBy = claim(ctx, id, { ...c, type }, targetTime);
+      // claimed once the coordinates are known
+      const claimedBy = c ? claim(ctx, id, { ...c, type }, targetTime) : null;
       events.publish(ctx.groupId, { type: 'data', tables: ['attack_plans', 'target_claims'], userId: ctx.user.id });
       return { id, claimedBy };
     })();
   });
 
-  /** Target time, note and status; creator or admin. Cancelling or finishing releases the claim. */
+  /**
+   * Target (player, coordinates added or changed later), time, note and status; creator or admin. New coordinates move
+   * the claim to them; cancelling or finishing releases it.
+   */
   app.put<{ Params: { uni: string; id: string }; Body: PlanBody }>('/api/:uni/plans/:id', async (req) => {
     const ctx = ctxOf(req);
     const plan = editablePlan(ctx, Number(req.params.id));
     const b = req.body ?? {};
     const set: Record<string, unknown> = {};
+    const coordsGiven = b.g !== undefined || b.s !== undefined || b.p !== undefined;
+    if (coordsGiven) {
+      const c = targetOf(ctx, b);
+      Object.assign(set, { g: c?.g ?? null, s: c?.s ?? null, p: c?.p ?? null });
+    }
+    if (b.type !== undefined) set.planet_type = b.type === 'moon' ? 'moon' : 'planet';
+    if (b.player_id !== undefined) set.player_id = playerOf(ctx, b.player_id);
     if (b.target_time !== undefined) set.target_time = timeOf(b.target_time);
+    if (b.time_precision !== undefined) set.time_precision = precisionOf(b.time_precision);
     if (b.note !== undefined) set.note = noteOf(b.note);
     if (b.status !== undefined) {
       if (!STATUSES.includes(String(b.status))) throw new HttpError(400, 'plan_status_invalid', 'Invalid status');
       set.status = b.status;
     }
+    const next = { ...plan, ...set } as PlanRow & { status: string };
+    if (next.g == null && next.player_id == null) throw new HttpError(400, 'plan_target_missing', 'Target player or coordinates needed');
+    let claimedBy: string | null = null;
     db.transaction(() => {
       const cols = Object.keys(set);
       if (cols.length) {
         db.prepare(`UPDATE attack_plans SET ${cols.map((k) => `${k} = ?`).join(', ')}, updated_at = ? WHERE id = ?`).run(...Object.values(set), now(), plan.id);
       }
-      if (set.status === 'cancelled' || set.status === 'done') releaseClaim(plan);
-      else if (set.target_time && plan.claim_id) {
+      const moved = next.g !== plan.g || next.s !== plan.s || next.p !== plan.p || next.planet_type !== plan.planet_type;
+      if (next.status === 'cancelled' || next.status === 'done' || (moved && plan.claim_id)) releaseClaim(plan);
+      const open = next.status === 'planning' || next.status === 'launched';
+      if (open && next.g != null && (moved || !plan.claim_id)) {
+        claimedBy = claim(ctx, plan.id, { g: next.g, s: next.s!, p: next.p!, type: next.planet_type }, next.target_time);
+      } else if (open && set.target_time && plan.claim_id) {
         db.prepare('UPDATE target_claims SET expires_at = ? WHERE id = ? AND released_at IS NULL').run((set.target_time as number) + CLAIM_AFTER, plan.claim_id);
       }
     })();
     events.publish(ctx.groupId, { type: 'data', tables: ['attack_plans', 'target_claims'], userId: ctx.user.id });
-    return { ok: true };
+    return { ok: true, claimedBy };
   });
 
   app.delete<{ Params: { uni: string; id: string } }>('/api/:uni/plans/:id', async (req) => {

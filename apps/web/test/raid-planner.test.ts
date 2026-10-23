@@ -10,7 +10,7 @@ import RaidPlannerView from '../src/views/RaidPlannerView.vue';
 const target = 2_000_000_000;
 const plans = [
   {
-    id: 7, user_id: 1, creator: 'Carol', g: 1, s: 41, p: 1, planet_type: 'moon', target_time: target, note: 'Konter', status: 'planning',
+    id: 7, user_id: 1, creator: 'Carol', g: 1, s: 41, p: 1, planet_type: 'moon', target_time: target, time_precision: 'exact', note: 'Konter', status: 'planning',
     created_at: 0, updated_at: 0, claim_user_id: 1, player_id: 5, player_name: 'Gegner', planet_name: 'Mond',
     fleets: [
       { id: 1, user_id: 1, member: 'Carol', g: 1, s: 40, p: 5, planet_type: 'planet', ships: { 207: 1773, 215: 2 }, speed: 90, status: 'ready', updated_at: 0,
@@ -18,6 +18,10 @@ const plans = [
       { id: 2, user_id: 2, member: 'Dave', g: 1, s: 42, p: 7, planet_type: 'planet', ships: { 204: 100 }, speed: 100, status: 'ready', updated_at: 0, drives: null },
       { id: 3, user_id: 3, member: 'Erin', g: null, s: null, p: null, planet_type: null, ships: {}, speed: 100, status: 'invited', updated_at: 0, drives: null },
     ],
+  },
+  {
+    id: 8, user_id: 1, creator: 'Carol', g: null, s: null, p: null, planet_type: 'planet', target_time: target + 86400, time_precision: 'hour', note: null,
+    status: 'planning', created_at: 0, updated_at: 0, claim_user_id: null, player_id: 6, player_name: 'Zweiter', planet_name: null, fleets: [],
   },
 ];
 const empire = { empire: { time: 0, data: { planets: [{ name: 'Ares', coords: { g: 1, s: 100, p: 12 }, type: 'planet', values: { 204: 50, 207: 3, 1: 30 } }] } } };
@@ -67,8 +71,7 @@ describe('raid planner page', () => {
   afterAll(() => vi.unstubAllGlobals());
 
   it('opens the form prefilled from the action menu link', () => {
-    const inputs = [...root.querySelectorAll<HTMLInputElement>('.plan-form input')];
-    expect(inputs[0].value).toBe('3:115:8');
+    expect(root.querySelector<HTMLInputElement>('.plan-form input.mono')!.value).toBe('3:115:8');
     expect(root.querySelector<HTMLSelectElement>('.plan-form select')!.value).toBe('moon');
   });
 
@@ -87,7 +90,15 @@ describe('raid planner page', () => {
     expect(rows[1].querySelector('.warn')).not.toBeNull();
   });
 
-  it('prefills an own fleet from the empire page', async () => {
+  it('shows a plan against a player without coordinates and with a rough time', () => {
+    const text = root.querySelectorAll('.plan')[1].textContent!;
+    expect(text).toContain('Koordinaten noch offen');
+    expect(text).toContain('Zweiter');
+    expect(text).toContain('ca.');
+    expect(text).toContain('Ohne Koordinaten gibt es noch keine Flugzeiten.');
+  });
+
+  it('offers only the ships on the start planet and adds all of a type with "max"', async () => {
     const add = [...root.querySelectorAll('button')].find((b) => b.textContent === 'Eigene Flotte hinzufügen')!;
     add.click();
     await settle();
@@ -95,7 +106,18 @@ describe('raid planner page', () => {
     select.value = '1:100:12:planet';
     select.dispatchEvent(new Event('change'));
     await settle();
-    const ships = [...root.querySelectorAll<HTMLInputElement>('.ship-grid input')].map((i) => i.value);
-    expect(ships).toEqual(['50', '3']);
+    // nothing added yet; the list holds the ships on Ares with their amounts
+    expect(root.querySelectorAll('.ship-row')).toHaveLength(0);
+    const pick = root.querySelectorAll<HTMLSelectElement>('.fleet-form select')[2];
+    expect([...pick.options].map((o) => o.textContent)).toEqual(['Schiff …', 'Leichter Jäger (50)', 'Schlachtschiff (3)']);
+    pick.value = '207';
+    pick.dispatchEvent(new Event('change'));
+    await settle();
+    [...root.querySelectorAll<HTMLButtonElement>('.fleet-form button')].find((b) => b.textContent!.trim() === 'max')!.click();
+    await settle();
+    const row = root.querySelector('.ship-row')!;
+    expect(row.textContent).toContain('Schlachtschiff');
+    expect(row.querySelector<HTMLInputElement>('input')!.value).toBe('3');
+    expect([...pick.options].map((o) => o.textContent)).toEqual(['Schiff …', 'Leichter Jäger (50)']);
   });
 });

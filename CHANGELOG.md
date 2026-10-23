@@ -4,6 +4,17 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Raid planner: plans against a player with coordinates and exact time following later.
+  - Target: a player (search, `player_id`) and/or coordinates; coordinates can be added or changed later, picked from
+    the player's known planets and moons. The "attack" claim is made once coordinates are known and moves with them.
+  - Target time with a precision: day, around an hour, or the exact impact. Launch times, lead and delay warnings need
+    coordinates and an exact time; around an hour shows approximate launches.
+  - Own fleet: the ship list only offers ships on the chosen start planet (empire page) with their amount, "max" adds
+    all of a type, amounts stay editable; the start no longer fills in every ship.
+  - Times (target time, countdown, delayed arrival, launch) laid out with fixed gaps instead of relying on spaces.
+  - Server: `POST`/`PUT /api/:uni/plans` take `player_id`, `time_precision` and null coordinates; migration `026`
+    rebuilds `attack_plans` (coordinates nullable, `player_id`, `time_precision`).
+
 - Empire pages of another universe are refused as `wrong_universe`: their planets belong to several other players in
   the galaxy data, or they share no planet with the member's stored empire pages. The admin panel lists the
   members' stored empire pages with their planets and deletes chosen ones (the imperium falls back to the newest

@@ -132,6 +132,34 @@ describe('attack plans', () => {
     expect((await call('GET', '/plans', carol)).json()).toEqual([]);
   });
 
+  it('plans against a player first, claims once the coordinates are known and moves the claim with them', async () => {
+    const player = Number(db.prepare("INSERT INTO players (group_id, ingame_id, name) VALUES (?, 4711, 'Gegner')").run(groupA).lastInsertRowid);
+    expect((await call('POST', '/plans', carol, { target_time: soon() })).json().code).toBe('plan_target_missing');
+    expect((await call('POST', '/plans', carol, { player_id: 999999, target_time: soon() })).json().code).toBe('player_not_found');
+    expect((await call('POST', '/plans', carol, { player_id: player, target_time: soon(), time_precision: 'week' })).json().code).toBe('plan_time_invalid');
+
+    const day = Math.floor(Date.now() / 1000 / 86400 + 1) * 86400;
+    const id = (await call('POST', '/plans', carol, { player_id: player, target_time: day, time_precision: 'day' })).json().id;
+    let plan = (await call('GET', '/plans', dave)).json().find((p: any) => p.id === id);
+    expect(plan).toMatchObject({ g: null, s: null, p: null, player_id: player, player_name: 'Gegner', time_precision: 'day', claim_user_id: null });
+    expect((await call('GET', '/claims', carol)).json()).toEqual([]);
+
+    // coordinates and the exact impact become known
+    const exact = day + 14 * 3600 + 5;
+    expect((await call('PUT', `/plans/${id}`, carol, { g: 3, s: 115, p: 8, type: 'moon', target_time: exact, time_precision: 'exact' })).statusCode).toBe(200);
+    plan = (await call('GET', '/plans', dave)).json().find((p: any) => p.id === id);
+    expect(plan).toMatchObject({ g: 3, s: 115, p: 8, planet_type: 'moon', time_precision: 'exact', target_time: exact, claim_user_id: carolId });
+    expect((await call('GET', '/claims', carol)).json().map((c: any) => [c.g, c.s, c.p, c.planet_type])).toEqual([[3, 115, 8, 'moon']]);
+
+    // other coordinates: the claim moves; removing the player keeps the plan, it has coordinates
+    expect((await call('PUT', `/plans/${id}`, carol, { g: 3, s: 115, p: 9, type: 'planet', player_id: null })).statusCode).toBe(200);
+    expect((await call('GET', '/claims', carol)).json().map((c: any) => [c.g, c.s, c.p, c.planet_type])).toEqual([[3, 115, 9, 'planet']]);
+    // without coordinates and player there is no target
+    expect((await call('PUT', `/plans/${id}`, carol, { g: null, s: null, p: null })).json().code).toBe('plan_target_missing');
+    await call('DELETE', `/plans/${id}`, carol);
+    expect((await call('GET', '/claims', carol)).json()).toEqual([]);
+  });
+
   it('lists plans up to a week after their target time', async () => {
     const id = (await call('POST', '/plans', carol, { g: 2, s: 2, p: 2, target_time: soon() })).json().id;
     db.prepare('UPDATE attack_plans SET target_time = ? WHERE id = ?').run(Math.floor(Date.now() / 1000) - 6 * 86400, id);

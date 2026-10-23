@@ -1,7 +1,7 @@
 import { distance, flightDuration, shipSpeed } from '@pr0hub/flight';
 import { describe, expect, it } from 'vitest';
 import type { UniverseSettings } from '../src/format';
-import { computePlan, fromLocalInput, isCurrent, parseTarget, toLocalInput, type AttackPlan, type PlanFleet } from '../src/plans';
+import { computePlan, draftBody, draftOf, fromLocalInput, isCurrent, newDraft, parseTarget, toLocalInput, type AttackPlan, type PlanFleet } from '../src/plans';
 
 const u: UniverseSettings = {
   galaxies: 9, systems: 400, positions: 15, circularGalaxies: true, circularSystems: true,
@@ -14,7 +14,7 @@ const fleet = (id: number, userId: number, start: [number, number, number] | nul
   ships, speed, status: start ? 'ready' : 'invited', updated_at: 0, drives: { time: 0, research },
 });
 const plan = (fleets: PlanFleet[]): AttackPlan => ({
-  id: 1, user_id: 1, creator: 'm1', g: 1, s: 41, p: 1, planet_type: 'moon', target_time: 2_000_000_000, note: null, status: 'planning',
+  id: 1, user_id: 1, creator: 'm1', g: 1, s: 41, p: 1, planet_type: 'moon', target_time: 2_000_000_000, time_precision: 'exact', note: null, status: 'planning',
   created_at: 0, updated_at: 0, claim_user_id: 1, player_id: null, player_name: null, planet_name: null, fleets,
 });
 
@@ -34,6 +34,26 @@ describe('attack plans in the web app', () => {
     const view = computePlan(u, plan([fleet(1, 1, [1, 40, 5], { 204: 10 })]), 2_000_000_000 - 10);
     expect(view.acs!.delay).toBeGreaterThan(0);
     expect(view.fleets[0].plan).toMatchObject({ late: true, delays: true });
+  });
+
+  it('has no flights without coordinates', () => {
+    const view = computePlan(u, { ...plan([fleet(1, 1, [1, 40, 5], { 204: 10 })]), g: null, s: null, p: null }, 0);
+    expect(view).toMatchObject({ acs: null, fleets: [{ duration: null, plan: null }] });
+  });
+
+  it('turns a draft into the request: player or coordinates, time per precision', () => {
+    const d = newDraft(2_000_000_000);
+    expect(draftBody(d)).toBeNull();
+    d.player = { id: 5, name: 'Gegner' };
+    expect(draftBody(d)).toMatchObject({ g: null, player_id: 5, time_precision: 'exact', target_time: 2_000_003_600 });
+    d.precision = 'day';
+    d.date = '2033-05-18';
+    expect(draftBody(d)!.target_time).toBe(fromLocalInput('2033-05-18T00:00:00'));
+    d.target = '[3:115:8]';
+    expect(draftBody(d)).toMatchObject({ g: 3, s: 115, p: 8 });
+    d.target = 'irgendwo';
+    expect(draftBody(d)).toBeNull();
+    expect(draftOf(plan([]))).toMatchObject({ target: '1:41:1', type: 'moon', precision: 'exact', player: null });
   });
 
   it('parses targets and converts the time input', () => {

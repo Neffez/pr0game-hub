@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import Hint from '../components/Hint.vue';
 import PlanetActions from '../components/PlanetActions.vue';
+import PlanTargetForm from '../components/PlanTargetForm.vue';
 import PlayerLink from '../components/PlayerLink.vue';
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -13,16 +14,17 @@ import { intlLocale } from '../i18n';
 import { tables, useLiveReload } from '../live';
 import {
   computePlan,
+  draftBody,
+  draftOf,
   DRIVES_MAX_AGE,
   FLEET_SHIPS,
   FLEET_STATUSES,
-  fromLocalInput,
   isCurrent,
-  parseTarget,
+  newDraft,
   PLAN_STATUSES,
   SPEEDS,
-  toLocalInput,
   type AttackPlan,
+  type PlanDraft,
   type PlanFleet,
 } from '../plans';
 
@@ -57,8 +59,10 @@ async function run(fn: () => Promise<unknown>) {
   try {
     await fn();
     await load();
+    return true;
   } catch (e) {
     error.value = (e as Error).message;
+    return false;
   }
 }
 
@@ -68,37 +72,46 @@ const isAdmin = computed(() => ctx.value?.group.role === 'admin' || !!ctx.value?
 const canEdit = (p: AttackPlan) => p.user_id === me.value || isAdmin.value;
 const canEditFleet = (p: AttackPlan, f: PlanFleet) => f.user_id === me.value || canEdit(p);
 const closed = (p: AttackPlan) => p.status === 'done' || p.status === 'cancelled';
+const hasCoords = (p: AttackPlan) => p.g != null;
 
 const views = computed(() => new Map(plans.value.map((p) => [p.id, computePlan(settings.value, p, now.value)])));
 const current = computed(() => plans.value.filter((p) => isCurrent(p, now.value)));
 const past = computed(() => plans.value.filter((p) => !isCurrent(p, now.value)).reverse());
 
-const pad = (n: number) => String(n).padStart(2, '0');
-/** Date and time to the second, browser time like the rest of the hub. */
-const when = (epoch: number) =>
-  new Date(epoch * 1000).toLocaleString(intlLocale(), { weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
-const clock = (epoch: number) => {
-  const d = new Date(epoch * 1000);
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-};
-/** Countdown "in 1:02:03" / "vor 5:00". */
-const until = (epoch: number) => {
+// ---- times ----
+const fmtDate = (epoch: number, opts: Intl.DateTimeFormatOptions) => new Date(epoch * 1000).toLocaleString(intlLocale(), opts);
+const DAY: Intl.DateTimeFormatOptions = { weekday: 'short', day: '2-digit', month: '2-digit' };
+/** Target time as precise as it is known: the day, around an hour, or to the second. */
+function targetText(p: AttackPlan) {
+  if (p.time_precision === 'day') return fmtDate(p.target_time, DAY);
+  if (p.time_precision === 'hour') return t('plans.around', { t: fmtDate(p.target_time, { ...DAY, hour: '2-digit', minute: '2-digit' }) });
+  return fmtDate(p.target_time, { ...DAY, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+const clock = (epoch: number) => fmtDate(epoch, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+const shortClock = (epoch: number) => fmtDate(epoch, { hour: '2-digit', minute: '2-digit' });
+/** Countdown "in 1:02:03" / "vor 5:00"; for days "in 2 Tagen". */
+function until(epoch: number) {
   const s = epoch - now.value;
+  if (Math.abs(s) >= 2 * 86400) return t(s >= 0 ? 'plans.inDays' : 'plans.agoDays', { n: Math.floor(Math.abs(s) / 86400) });
   return s >= 0 ? t('plans.in', { t: duration(s) || '0:00:00' }) : t('plans.ago', { t: duration(-s) });
-};
+}
+
 const shipList = (ships: Record<string, number>) =>
   Object.entries(ships)
     .map(([id, n]) => `${fmt(n)} ${abbr(Number(id))}`)
     .join(', ') || '–';
 /** Member sending the lead fleet of the ACS. */
 const leadName = (p: AttackPlan) => p.fleets.find((f) => String(f.id) === views.value.get(p.id)?.acs?.lead)?.member ?? '?';
-const target = (p: AttackPlan) => coords(p.g, p.s, p.p);
+const targetLabel = (p: AttackPlan) => (p.g != null ? coords(p.g, p.s!, p.p!) : (p.player_name ?? '?'));
+/** Exact launch times and warnings only make sense with coordinates and an exact target time. */
+const exact = (p: AttackPlan) => hasCoords(p) && p.time_precision === 'exact';
 
 // ---- new plan ----
-const form = reactive({ open: false, target: '', type: 'planet' as 'planet' | 'moon', time: '', note: '' });
+const form = reactive({ open: false, draft: newDraft(nowSec()) });
 const info = ref('');
-function openForm(raw = '', type: 'planet' | 'moon' = 'planet') {
-  Object.assign(form, { open: true, target: raw, type, time: toLocalInput(nowSec() + 3600), note: '' });
+function openForm(target = '', type: 'planet' | 'moon' = 'planet') {
+  form.draft = newDraft(nowSec(), target, type);
+  form.open = true;
 }
 watch(
   () => route.query.new,
@@ -108,38 +121,35 @@ watch(
   { immediate: true },
 );
 async function create() {
-  const c = parseTarget(form.target);
-  const time = fromLocalInput(form.time);
-  if (!c || !time) {
-    error.value = t('plans.formInvalid');
-    return;
-  }
-  await run(async () => {
-    const res = await uniApi<{ id: number; claimedBy: string | null }>(uni.value, '/plans', {
-      body: { g: c[0], s: c[1], p: c[2], type: form.type, target_time: time, note: form.note },
-    });
+  const body = draftBody(form.draft);
+  if (!body) return void (error.value = t('plans.formInvalid'));
+  const ok = await run(async () => {
+    const res = await uniApi<{ id: number; claimedBy: string | null }>(uni.value, '/plans', { body });
     info.value = res.claimedBy ? t('plans.claimedBy', { name: res.claimedBy }) : '';
-    form.open = false;
-    if (route.query.new) router.replace({ query: {} });
-    loadClaims(uni.value);
   });
+  if (!ok) return;
+  form.open = false;
+  if (route.query.new) router.replace({ query: {} });
+  loadClaims(uni.value);
 }
 
 // ---- plan editing (creator, admins) ----
-const editing = reactive<Record<number, { time: string; note: string }>>({});
-const startEdit = (p: AttackPlan) => (editing[p.id] = { time: toLocalInput(p.target_time), note: p.note ?? '' });
+const editing = reactive<Record<number, PlanDraft>>({});
+const startEdit = (p: AttackPlan) => (editing[p.id] = draftOf(p));
 async function savePlan(p: AttackPlan) {
-  const e = editing[p.id];
-  const time = fromLocalInput(e.time);
-  if (!time) return void (error.value = t('plans.formInvalid'));
-  await run(() => uniApi(uni.value, `/plans/${p.id}`, { method: 'PUT', body: { target_time: time, note: e.note } }));
-  delete editing[p.id];
+  const body = draftBody(editing[p.id]);
+  if (!body) return void (error.value = t('plans.formInvalid'));
+  const ok = await run(async () => {
+    const res = await uniApi<{ claimedBy: string | null }>(uni.value, `/plans/${p.id}`, { method: 'PUT', body });
+    info.value = res.claimedBy ? t('plans.claimedBy', { name: res.claimedBy }) : '';
+  });
+  if (ok) delete editing[p.id];
   loadClaims(uni.value);
 }
 const setStatus = (p: AttackPlan, status: string) =>
   run(() => uniApi(uni.value, `/plans/${p.id}`, { method: 'PUT', body: { status } })).then(() => loadClaims(uni.value));
 function removePlan(p: AttackPlan) {
-  if (!confirm(t('plans.confirmDelete', { target: target(p) }))) return;
+  if (!confirm(t('plans.confirmDelete', { target: targetLabel(p) }))) return;
   run(() => uniApi(uni.value, `/plans/${p.id}`, { method: 'DELETE' })).then(() => loadClaims(uni.value));
 }
 
@@ -162,7 +172,7 @@ async function loadOwnPlanets() {
 }
 const planetKey = (c: { g: number; s: number; p: number }, type: string | null) => `${c.g}:${c.s}:${c.p}:${type ?? 'planet'}`;
 
-const fleetForm = reactive({ planId: 0, fleetId: 0, start: '', ships: {} as Record<number, number>, speed: 100 });
+const fleetForm = reactive({ planId: 0, fleetId: 0, start: '', ships: {} as Record<number, number>, speed: 100, pick: 0 });
 function openFleet(p: AttackPlan, f?: PlanFleet) {
   loadOwnPlanets();
   Object.assign(fleetForm, {
@@ -171,24 +181,23 @@ function openFleet(p: AttackPlan, f?: PlanFleet) {
     start: f && f.g != null ? planetKey({ g: f.g, s: f.s!, p: f.p! }, f.planet_type) : '',
     ships: Object.fromEntries(Object.entries(f?.ships ?? {}).map(([id, n]) => [Number(id), n])),
     speed: f?.speed ?? 100,
+    pick: 0,
   });
 }
-/** Picking a start fills in the ships on it (empire page); amounts stay editable. */
-function pickStart() {
-  const pl = ownPlanets.value?.find((x) => planetKey(x.coords, x.type) === fleetForm.start);
-  if (!pl) return;
-  fleetForm.ships = Object.fromEntries(FLEET_SHIPS.filter((id) => (pl.values[id] ?? 0) > 0).map((id) => [id, pl.values[id]]));
+const startPlanet = computed(() => ownPlanets.value?.find((x) => planetKey(x.coords, x.type) === fleetForm.start) ?? null);
+/** Ships on the start planet (empire page); null when unknown (no start or no empire page). */
+const available = (id: number): number | null => (startPlanet.value ? (startPlanet.value.values[id] ?? 0) : null);
+/** Ships to add: those on the start planet not added yet (all ships when the planet is unknown). */
+const pickable = computed(() =>
+  FLEET_SHIPS.filter((id) => fleetForm.ships[id] == null && (startPlanet.value ? (startPlanet.value.values[id] ?? 0) > 0 : true)),
+);
+function addShip(max: boolean) {
+  const id = fleetForm.pick;
+  if (!id) return;
+  fleetForm.ships[id] = max ? (available(id) ?? 0) : 0;
+  fleetForm.pick = 0;
 }
-/** Ships offered in the form: those of the start planet and those already entered. */
-const formShips = computed(() => {
-  const pl = ownPlanets.value?.find((x) => planetKey(x.coords, x.type) === fleetForm.start);
-  return FLEET_SHIPS.filter((id) => (pl?.values[id] ?? 0) > 0 || fleetForm.ships[id] != null);
-});
-const extraShip = ref(0);
-function addShip() {
-  if (extraShip.value) fleetForm.ships[extraShip.value] ??= 0;
-  extraShip.value = 0;
-}
+const removeShip = (id: number) => delete fleetForm.ships[id];
 async function saveFleet() {
   const [g, s, p, type] = fleetForm.start.split(':');
   const body = {
@@ -198,8 +207,7 @@ async function saveFleet() {
     ...(fleetForm.fleetId ? {} : { status: 'ready' }),
   };
   const path = `/plans/${fleetForm.planId}/fleets${fleetForm.fleetId ? `/${fleetForm.fleetId}` : ''}`;
-  await run(() => uniApi(uni.value, path, { method: fleetForm.fleetId ? 'PUT' : 'POST', body }));
-  fleetForm.planId = 0;
+  if (await run(() => uniApi(uni.value, path, { method: fleetForm.fleetId ? 'PUT' : 'POST', body }))) fleetForm.planId = 0;
 }
 const setFleetStatus = (p: AttackPlan, f: PlanFleet, status: string) =>
   run(() => uniApi(uni.value, `/plans/${p.id}/fleets/${f.id}`, { method: 'PUT', body: { status } }));
@@ -228,18 +236,8 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
 
   <div v-if="form.open" class="card plan-form">
     <h3>{{ t('plans.new') }}</h3>
+    <PlanTargetForm v-model="form.draft" />
     <div class="row">
-      <label>{{ t('plans.target') }} <input v-model="form.target" class="mono" placeholder="1:41:1" size="10" /></label>
-      <label>
-        <select v-model="form.type">
-          <option value="planet">{{ t('plans.planet') }}</option>
-          <option value="moon">{{ t('plans.moon') }}</option>
-        </select>
-      </label>
-      <label>{{ t('plans.targetTime') }} <input v-model="form.time" type="datetime-local" step="1" /></label>
-      <input v-model="form.note" class="grow" maxlength="500" :placeholder="t('plans.note')" />
-    </div>
-    <div class="row" style="margin-top: 8px">
       <button class="primary" @click="create">{{ t('plans.create') }}</button>
       <button @click="form.open = false">{{ t('plans.cancelForm') }}</button>
       <span class="muted small">{{ t('plans.createHint') }}</span>
@@ -252,22 +250,28 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
     <h2 v-if="i === 1 && list.length">{{ t('plans.past') }}</h2>
     <div v-for="p in list" :key="p.id" class="card plan" :class="{ closed: closed(p) }">
       <div class="row plan-head">
-        <span v-if="p.planet_type === 'moon'" class="moon-tag">{{ t('plans.moon') }}</span>
-        <strong class="mono">{{ target(p) }}</strong>
-        <span class="muted">{{ p.planet_name ?? '' }}</span>
+        <template v-if="hasCoords(p)">
+          <span v-if="p.planet_type === 'moon'" class="moon-tag">{{ t('plans.moon') }}</span>
+          <strong class="mono">{{ coords(p.g!, p.s!, p.p!) }}</strong>
+          <span v-if="p.planet_name" class="muted">{{ p.planet_name }}</span>
+        </template>
+        <span v-else class="warn small">{{ t('plans.coordsMissing') }}</span>
         <PlayerLink v-if="p.player_id" :id="p.player_id" :name="p.player_name ?? '?'" />
-        <PlanetActions :g="p.g" :s="p.s" :p="p.p" :type="p.planet_type" />
+        <PlanetActions v-if="hasCoords(p)" :g="p.g!" :s="p.s!" :p="p.p!" :type="p.planet_type" />
         <span class="grow" />
         <span class="badge">{{ t(`plans.status.${p.status}`) }}</span>
       </div>
 
-      <div class="row plan-time">
-        <span>
-          {{ t('plans.targetTime') }}: <b class="mono">{{ when(p.target_time) }}</b>
-          <span class="muted small"> {{ until(p.target_time) }}</span>
+      <div class="times">
+        <span class="time">
+          <span class="lbl">{{ t('plans.targetTime') }}</span>
+          <b class="mono">{{ targetText(p) }}</b>
+          <span v-if="p.time_precision !== 'day'" class="muted small">{{ until(p.target_time) }}</span>
         </span>
-        <span v-if="views.get(p.id)?.acs?.delay" class="warn">
-          ⚠ {{ t('plans.delayed', { t: duration(views.get(p.id)!.acs!.delay), at: clock(views.get(p.id)!.acs!.arrival) }) }}
+        <span v-if="exact(p) && views.get(p.id)?.acs?.delay" class="time warn">
+          <span class="lbl">⚠ {{ t('plans.arrival') }}</span>
+          <b class="mono">{{ clock(views.get(p.id)!.acs!.arrival) }}</b>
+          <span class="small">{{ t('plans.delayedBy', { t: duration(views.get(p.id)!.acs!.delay) }) }}</span>
         </span>
         <span class="muted small">{{ t('plans.by', { name: p.creator }) }}</span>
       </div>
@@ -277,15 +281,17 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
         <span v-if="views.get(p.id)!.acs!.tooManyFleets" class="warn"> ⚠ {{ t('plans.tooManyFleets') }}</span>
         <span v-if="views.get(p.id)!.acs!.tooManyPlayers" class="warn"> ⚠ {{ t('plans.tooManyPlayers') }}</span>
       </div>
+      <div v-if="!exact(p)" class="muted small">{{ hasCoords(p) ? t('plans.roughTime') : t('plans.noCoordsHint') }}</div>
 
-      <div v-if="editing[p.id]" class="row edit-row">
-        <label>{{ t('plans.targetTime') }} <input v-model="editing[p.id].time" type="datetime-local" step="1" /></label>
-        <input v-model="editing[p.id].note" class="grow" maxlength="500" :placeholder="t('plans.note')" />
-        <button class="primary" @click="savePlan(p)">{{ t('plans.save') }}</button>
-        <button @click="delete editing[p.id]">{{ t('plans.cancelForm') }}</button>
+      <div v-if="editing[p.id]" class="edit-box">
+        <PlanTargetForm v-model="editing[p.id]" />
+        <div class="row">
+          <button class="primary" @click="savePlan(p)">{{ t('plans.save') }}</button>
+          <button @click="delete editing[p.id]">{{ t('plans.cancelForm') }}</button>
+        </div>
       </div>
 
-      <div class="table-wrap">
+      <div v-if="p.fleets.length" class="table-wrap">
         <table v-stack class="data">
           <thead>
             <tr>
@@ -312,19 +318,23 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
               <td>{{ x.fleet.speed }} %</td>
               <td class="mono">{{ x.duration != null ? duration(Math.floor(x.duration)) : '–' }}</td>
               <td>
-                <template v-if="x.plan">
-                  <span class="mono" :class="{ neg: x.plan.late }">{{ clock(x.plan.launch) }}</span>
-                  <span class="muted small"> {{ until(x.plan.launch) }}</span>
-                  <div class="small">
-                    <span v-if="x.plan.late" class="neg">{{ t('plans.late') }} </span>
-                    <span v-if="x.plan.delays" class="warn">{{ t('plans.delays') }} </span>
-                    <span v-if="x.plan.beforeLead" class="warn">{{ t('plans.beforeLead') }} </span>
-                    <span v-if="x.plan.outside" class="warn">{{ t('plans.outside') }} </span>
+                <template v-if="x.plan && exact(p)">
+                  <span class="time">
+                    <span class="mono" :class="{ neg: x.plan.late }">{{ clock(x.plan.launch) }}</span>
+                    <span class="muted small">{{ until(x.plan.launch) }}</span>
+                  </span>
+                  <div class="small flags">
+                    <span v-if="x.plan.late" class="neg">{{ t('plans.late') }}</span>
+                    <span v-if="x.plan.delays" class="warn">{{ t('plans.delays') }}</span>
+                    <span v-if="x.plan.beforeLead" class="warn">{{ t('plans.beforeLead') }}</span>
+                    <span v-if="x.plan.outside" class="warn">{{ t('plans.outside') }}</span>
                   </div>
                 </template>
-                <span v-else class="muted small">{{ t('plans.incomplete') }}</span>
+                <span v-else-if="x.plan && p.time_precision === 'hour'" class="mono">{{ t('plans.around', { t: shortClock(x.plan.launch) }) }}</span>
+                <span v-else-if="x.duration == null" class="muted small">{{ hasCoords(p) ? t('plans.incomplete') : '–' }}</span>
+                <span v-else class="muted small">–</span>
               </td>
-              <td class="mono">{{ x.plan ? clock(x.plan.home) : '–' }}</td>
+              <td class="mono">{{ x.plan && exact(p) ? clock(x.plan.home) : '–' }}</td>
               <td>
                 <select
                   v-if="canEditFleet(p, x.fleet) && !closed(p)"
@@ -346,13 +356,13 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
           </tbody>
         </table>
       </div>
-      <p v-if="!p.fleets.length" class="muted small">{{ t('plans.noFleets') }}</p>
+      <p v-else class="muted small">{{ t('plans.noFleets') }}</p>
 
       <div v-if="fleetForm.planId === p.id" class="fleet-form">
         <div class="row">
           <label>
             {{ t('plans.start') }}
-            <select v-model="fleetForm.start" @change="pickStart">
+            <select v-model="fleetForm.start">
               <option value="">–</option>
               <option v-for="pl in ownPlanets ?? []" :key="planetKey(pl.coords, pl.type)" :value="planetKey(pl.coords, pl.type)">
                 {{ pl.name }} {{ coords(pl.coords.g, pl.coords.s, pl.coords.p) }}{{ pl.type === 'moon' ? ' ☾' : '' }}
@@ -367,17 +377,24 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
           </label>
           <span v-if="ownPlanets && !ownPlanets.length" class="muted small">{{ t('plans.noEmpire') }}</span>
         </div>
-        <div class="ship-grid">
-          <label v-for="id in formShips" :key="id" :title="name(id)">
-            {{ abbr(id) }} <input v-model.number="fleetForm.ships[id]" type="number" min="0" />
-          </label>
-          <span class="row">
-            <select v-model.number="extraShip" :aria-label="t('plans.addShip')">
-              <option :value="0">+ {{ t('plans.addShip') }}</option>
-              <option v-for="id in FLEET_SHIPS.filter((x) => !formShips.includes(x))" :key="id" :value="id">{{ name(id) }}</option>
-            </select>
-            <button v-if="extraShip" @click="addShip">{{ t('plans.add') }}</button>
-          </span>
+        <div v-for="(n, id) in fleetForm.ships" :key="id" class="ship-row">
+          <span class="ship-name" :title="name(Number(id))">{{ name(Number(id)) }}</span>
+          <input v-model.number="fleetForm.ships[Number(id)]" type="number" min="0" />
+          <button v-if="available(Number(id)) != null" :title="t('plans.maxTitle')" @click="fleetForm.ships[Number(id)] = available(Number(id))!">
+            {{ t('plans.max') }}
+          </button>
+          <span v-if="available(Number(id)) != null" class="muted small">/ {{ fmt(available(Number(id))!) }}</span>
+          <span v-if="available(Number(id)) != null && n > available(Number(id))!" class="warn small">{{ t('plans.moreThanAvailable') }}</span>
+          <button :title="t('plans.removeShip')" @click="removeShip(Number(id))">✕</button>
+        </div>
+        <div class="row">
+          <select v-model.number="fleetForm.pick" :aria-label="t('plans.addShip')">
+            <option :value="0">{{ t('plans.addShip') }} …</option>
+            <option v-for="id in pickable" :key="id" :value="id">{{ name(id) }}{{ available(id) != null ? ` (${fmt(available(id)!)})` : '' }}</option>
+          </select>
+          <button :disabled="!fleetForm.pick" @click="addShip(false)">{{ t('plans.add') }}</button>
+          <button v-if="startPlanet" :disabled="!fleetForm.pick" :title="t('plans.maxTitle')" @click="addShip(true)">{{ t('plans.max') }}</button>
+          <span v-if="startPlanet && !pickable.length && !Object.keys(fleetForm.ships).length" class="muted small">{{ t('plans.noShips') }}</span>
         </div>
         <div class="row">
           <button class="primary" @click="saveFleet">{{ t('plans.save') }}</button>
@@ -409,12 +426,18 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
 .plan { display: flex; flex-direction: column; gap: 8px; }
 .plan.closed { opacity: .7; }
 .plan-head { gap: 6px; }
-.plan-time { gap: 14px; }
-.plan-form h3 { margin: 0 0 8px; }
-.edit-row, .fleet-form { padding: 8px; border: 1px solid var(--border); border-radius: var(--radius); }
-.fleet-form { display: flex; flex-direction: column; gap: 8px; }
-.ship-grid { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; }
-.ship-grid input { width: 90px; }
+.plan-form { display: flex; flex-direction: column; gap: 10px; }
+.plan-form h3 { margin: 0; }
+/* times: label, value and countdown with fixed gaps, wrapping as a whole */
+.times { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 20px; }
+.time { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
+.time .lbl { color: var(--muted); font-size: 12px; }
+.time.warn .lbl, .time.warn b { color: var(--warn); }
+.flags { display: flex; flex-wrap: wrap; gap: 2px 8px; }
+.edit-box, .fleet-form { display: flex; flex-direction: column; gap: 8px; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius); }
+.ship-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.ship-name { min-width: 150px; }
+.ship-row input { width: 110px; }
 .plan-actions { gap: 6px; }
 tr.mine td:first-child { font-weight: 600; }
 td.actions { white-space: nowrap; }

@@ -33,11 +33,14 @@ export interface AttackPlan {
   id: number;
   user_id: number;
   creator: string;
-  g: number;
-  s: number;
-  p: number;
+  /** target coordinates, null until known (the plan then names a player) */
+  g: number | null;
+  s: number | null;
+  p: number | null;
   planet_type: 'planet' | 'moon';
+  /** with `time_precision` day: start of that day; hour: around that time; exact: impact to the second */
   target_time: number;
+  time_precision: Precision;
   note: string | null;
   status: 'planning' | 'launched' | 'done' | 'cancelled';
   created_at: number;
@@ -51,6 +54,8 @@ export interface AttackPlan {
 }
 
 export const PLAN_STATUSES = ['planning', 'launched', 'done', 'cancelled'] as const;
+export const PRECISIONS = ['day', 'hour', 'exact'] as const;
+export type Precision = (typeof PRECISIONS)[number];
 export const FLEET_STATUSES = ['invited', 'ready', 'launched', 'withdrawn'] as const;
 export const SPEEDS = [100, 90, 80, 70, 60, 50, 40, 30, 20, 10];
 /** Ships that can fly (drive data in @pr0hub/flight), in game order. */
@@ -73,9 +78,9 @@ export interface PlanView {
 
 /** Flight times, launches, lead and delays of a plan at `now`. */
 export function computePlan(u: UniverseSettings, plan: AttackPlan, now: number): PlanView {
-  const target: Coords = [plan.g, plan.s, plan.p];
+  const target: Coords | null = plan.g != null && plan.s != null && plan.p != null ? [plan.g, plan.s, plan.p] : null;
   const flights = plan.fleets.map((f): { fleet: PlanFleet; duration: number | null } => {
-    if (f.g == null || f.s == null || f.p == null || f.status === 'withdrawn') return { fleet: f, duration: null };
+    if (!target || f.g == null || f.s == null || f.p == null || f.status === 'withdrawn') return { fleet: f, duration: null };
     const drives = drivesFromResearch(f.drives?.research ?? {});
     const slowest = slowestShip(f.ships, drives);
     if (!slowest) return { fleet: f, duration: null };
@@ -91,8 +96,12 @@ export function computePlan(u: UniverseSettings, plan: AttackPlan, now: number):
   };
 }
 
+/** End of the time a plan may land in: the day, around the hour, or the second. */
+export const latestTime = (p: Pick<AttackPlan, 'target_time' | 'time_precision'>) =>
+  p.target_time + (p.time_precision === 'day' ? 86400 : p.time_precision === 'hour' ? 3600 : 0);
+
 /** Plans still ahead or flying (shown first), the rest as past ones. */
-export const isCurrent = (p: AttackPlan, now: number) => (p.status === 'planning' || p.status === 'launched') && p.target_time > now - 3600;
+export const isCurrent = (p: AttackPlan, now: number) => (p.status === 'planning' || p.status === 'launched') && latestTime(p) > now - 3600;
 
 /** "1:41:1" / "[1:41:1]" -> coordinates. */
 export function parseTarget(raw: string): Coords | null {
@@ -106,7 +115,61 @@ export function toLocalInput(epoch: number): string {
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
+/** Value of an `<input type="date">` <-> start of that day (browser time). */
+export const toDateInput = (epoch: number) => toLocalInput(epoch).slice(0, 10);
+export const fromDateInput = (value: string) => fromLocalInput(`${value}T00:00:00`);
+
 export function fromLocalInput(value: string): number | null {
   const t = new Date(value).getTime();
   return Number.isFinite(t) ? Math.floor(t / 1000) : null;
+}
+
+/** Form values of a plan's target and time (new plan, or editing one). */
+export interface PlanDraft {
+  player: { id: number; name: string } | null;
+  /** "g:s:p", empty while unknown */
+  target: string;
+  type: 'planet' | 'moon';
+  precision: Precision;
+  /** `<input type="date">` value (precision day) */
+  date: string;
+  /** `<input type="datetime-local">` value (hour, exact) */
+  time: string;
+  note: string;
+}
+
+export function newDraft(now: number, target = '', type: 'planet' | 'moon' = 'planet'): PlanDraft {
+  return { player: null, target, type, precision: 'exact', date: toDateInput(now + 86400), time: toLocalInput(now + 3600), note: '' };
+}
+
+export function draftOf(p: AttackPlan): PlanDraft {
+  return {
+    player: p.player_id ? { id: p.player_id, name: p.player_name ?? '?' } : null,
+    target: p.g != null ? `${p.g}:${p.s}:${p.p}` : '',
+    type: p.planet_type,
+    precision: p.time_precision,
+    date: toDateInput(p.target_time),
+    time: toLocalInput(p.target_time),
+    note: p.note ?? '',
+  };
+}
+
+/** Request body of a draft; null when the target (player or coordinates) or the time is missing or invalid. */
+export function draftBody(d: PlanDraft) {
+  const raw = d.target.trim();
+  const c = raw ? parseTarget(raw) : null;
+  if (raw && !c) return null;
+  if (!c && !d.player) return null;
+  const time = d.precision === 'day' ? fromDateInput(d.date) : fromLocalInput(d.time);
+  if (!time) return null;
+  return {
+    g: c?.[0] ?? null,
+    s: c?.[1] ?? null,
+    p: c?.[2] ?? null,
+    type: d.type,
+    player_id: d.player?.id ?? null,
+    target_time: time,
+    time_precision: d.precision,
+    note: d.note,
+  };
 }
