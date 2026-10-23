@@ -9,10 +9,12 @@ const app = buildApp(db);
 
 const stopCrawler = startCrawler(db, app.log);
 const stopReminders = app.push.start();
+const stopDiscordReminders = app.discord.start();
 
 const shutdown = async () => {
   stopCrawler();
   stopReminders();
+  stopDiscordReminders();
   await app.close();
   db.close();
   process.exit(0);

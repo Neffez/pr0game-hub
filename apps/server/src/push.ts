@@ -2,10 +2,11 @@ import type { FastifyBaseLogger } from 'fastify';
 import webpush from 'web-push';
 import type { SessionUser } from './auth.js';
 import { config } from './config.js';
-import { resolveGroup, toUniverse } from './context.js';
+import { resolveGroup } from './context.js';
 import { now, type DB } from './db.js';
 import type { EventBus } from './events.js';
-import { notificationsFor, type Notification } from './repo/notifications.js';
+import { GroupDebounce, groupUniverse, SENT_KEEP, TICK_AHEAD, TICK_MS } from './notify.js';
+import { notificationsFor, type ChannelNotification, type Notification } from './repo/notifications.js';
 
 /**
  * Web push: the notifications of the bell (repo/notifications.ts) sent to the members' browsers and phones, each once.
@@ -14,7 +15,7 @@ import { notificationsFor, type Notification } from './repo/notifications.js';
  * sharing apply), filtered by their settings. The push services only see the encrypted payload.
  */
 
-/** Which notifications a user wants pushed (all of their devices); the bell lists everything. */
+/** Which notifications a user wants pushed (all of their devices) or sent to Discord; the bell lists everything. */
 export interface PushPrefs {
   /** hostile fleets heading for the user */
   attackSelf: boolean;
@@ -31,8 +32,9 @@ export const PUSH_DEFAULTS: PushPrefs = { attackSelf: true, attackOthers: false,
 export const LEAD_MINUTES = [1, 2, 5, 10, 15, 30];
 const FLAGS = ['attackSelf', 'attackOthers', 'invites', 'comments', 'launch'] as const;
 
-export function pushPrefs(db: DB, userId: number): PushPrefs {
-  const raw = db.prepare('SELECT push_prefs FROM users WHERE id = ?').pluck().get(userId) as string | null | undefined;
+/** The user's settings for push (`push_prefs`) or for their Discord webhook (`discord_prefs`). */
+export function pushPrefs(db: DB, userId: number, column: 'push_prefs' | 'discord_prefs' = 'push_prefs'): PushPrefs {
+  const raw = db.prepare(`SELECT ${column} FROM users WHERE id = ?`).pluck().get(userId) as string | null | undefined;
   return { ...PUSH_DEFAULTS, ...(raw ? (JSON.parse(raw) as Partial<PushPrefs>) : {}) };
 }
 
@@ -79,17 +81,6 @@ const webPushSender: PushSender = async (target, payload, opts) => {
   return res.statusCode;
 };
 
-/** Pushed notification ids are kept this long (longer than any notification lasts). */
-const SENT_KEEP = 7 * 86400;
-/** Data events of a group are bundled this long (a paste of many pages, several members at once). */
-const DEBOUNCE_MS = 2000;
-/** Launch reminders are checked this often. */
-const TICK_MS = 30_000;
-/** Ticks look at plans landing within this time. */
-const TICK_AHEAD = 48 * 3600;
-/** Data events that may bring a notification. */
-const TABLES = ['fleets', 'attack_plans', 'comments', 'group_members'];
-
 type Subscription = { id: number; endpoint: string; p256dh: string; auth: string };
 
 export interface PushOptions {
@@ -103,7 +94,7 @@ export class PushService {
   readonly enabled: boolean;
   private vapid: Vapid | null = null;
   private sender: PushSender;
-  private timers = new Map<number, ReturnType<typeof setTimeout>>();
+  private debounce: GroupDebounce;
   private log: PushOptions['log'];
 
   constructor(
@@ -116,6 +107,7 @@ export class PushService {
     this.sender = opts.sender ?? webPushSender;
     this.log = opts.log;
     if (this.enabled) this.vapid = { subject: contact, ...this.keys() };
+    this.debounce = new GroupDebounce((groupId) => this.deliver(groupId).catch((err) => this.log?.warn({ err, groupId }, 'push delivery failed')));
   }
 
   /** The server's VAPID key pair, created on the first start. */
@@ -134,17 +126,7 @@ export class PushService {
   /** Delivers after data events of a group (debounced); returns the unsubscribe. */
   listen(): () => void {
     if (!this.enabled) return () => {};
-    return this.bus.onPublish((groupId, e) => {
-      if (e.type !== 'data' || !e.tables.some((t) => TABLES.includes(t))) return;
-      clearTimeout(this.timers.get(groupId));
-      this.timers.set(
-        groupId,
-        setTimeout(() => {
-          this.timers.delete(groupId);
-          this.deliver(groupId).catch((err) => this.log?.warn({ err, groupId }, 'push delivery failed'));
-        }, DEBOUNCE_MS),
-      );
-    });
+    return this.debounce.listen(this.bus);
   }
 
   /** Launch reminders: checks the groups with plan fleets of push users ahead; returns the stop. */
@@ -170,8 +152,7 @@ export class PushService {
 
   /** Stops pending deliveries (app close). */
   close() {
-    for (const timer of this.timers.values()) clearTimeout(timer);
-    this.timers.clear();
+    this.debounce.close();
   }
 
   /**
@@ -180,11 +161,8 @@ export class PushService {
    */
   async deliver(groupId: number, t = now()) {
     if (!this.enabled) return;
-    const group = this.db
-      .prepare('SELECT u.id, u.slug, u.name, u.settings, u.deck_config FROM groups g JOIN universes u ON u.id = g.universe_id WHERE g.id = ?')
-      .get(groupId) as Parameters<typeof toUniverse>[0] | undefined;
-    if (!group) return;
-    const universe = toUniverse(group);
+    const universe = groupUniverse(this.db, groupId);
+    if (!universe) return;
     const users = this.db
       .prepare(
         `SELECT u.id, u.username, u.is_admin, u.lang, u.date_format FROM group_members m JOIN users u ON u.id = m.user_id
@@ -238,7 +216,7 @@ export class PushService {
 }
 
 /** Whether the user wants this notification pushed now (launch reminders from their lead time on). */
-function wanted(n: Notification, prefs: PushPrefs, userId: number, t: number): boolean {
+export function wanted(n: Notification, prefs: PushPrefs, userId: number, t: number): boolean {
   switch (n.kind) {
     case 'attack':
       return n.userId === userId ? prefs.attackSelf : prefs.attackOthers;
@@ -265,9 +243,12 @@ const DE = {
   more: (n: number) => `(${n} neue)`,
   launch: (min: number) => `🚀 Start in ${min} Min`,
   launchBody: (from: string, to: string, at: string) => `${from} → ${to} · Start ${at}`,
+  launchOf: (m: string, min: number) => `🚀 ${m}: Start in ${min} Min`,
+  plan: (m: string) => `📋 Neuer Plan von ${m}`,
   missions: { 1: 'Angreifen', 2: 'Verbandsangriff', 6: 'Spionage', 9: 'Zerstören', 10: 'Raketenangriff' } as Record<number, string>,
   hostile: 'Feindliche Flotte',
   test: { title: 'pr0game Hub', body: 'Push-Benachrichtigungen funktionieren auf diesem Gerät.' },
+  discordTest: { title: 'pr0game Hub', body: 'Discord-Benachrichtigungen kommen hier an.' },
 };
 /** Same keys as German: a missing text fails the typecheck. */
 const EN: typeof DE = {
@@ -283,25 +264,42 @@ const EN: typeof DE = {
   more: (n: number) => `(${n} new)`,
   launch: (min: number) => `🚀 Launch in ${min} min`,
   launchBody: (from: string, to: string, at: string) => `${from} → ${to} · launch ${at}`,
+  launchOf: (m: string, min: number) => `🚀 ${m}: launch in ${min} min`,
+  plan: (m: string) => `📋 New plan by ${m}`,
   missions: { 1: 'Attack', 2: 'ACS attack', 6: 'Espionage', 9: 'Destroy', 10: 'Missile attack' } as Record<number, string>,
   hostile: 'Hostile fleet',
   test: { title: 'pr0game Hub', body: 'Push notifications work on this device.' },
+  discordTest: { title: 'pr0game Hub', body: 'Discord notifications arrive here.' },
 };
 const TEXT = { de: DE, en: EN };
 export type PushLang = keyof typeof TEXT;
 
-export const testPayload = (lang: PushLang): PushPayload => ({ ...TEXT[lang].test, url: `${config.basePath}/account`, tag: 'test' });
+export const testPayload = (lang: PushLang, kind: 'test' | 'discordTest' = 'test'): PushPayload => ({ ...TEXT[lang][kind], url: `${config.basePath}/account`, tag: 'test' });
 
 const coords = (g: number, s: number, p: number, moon: boolean) => `${moon ? '☾ ' : ''}[${g}:${s}:${p}]`;
 
-/** Title, text and target of a notification in the user's language, times in the universe's time zone. */
-export function payloadOf(n: Notification, lang: PushLang, uni: string, timeZone: string, groupId: number, t = now()): PushPayload {
+/**
+ * Title, text and target of a notification in the user's language, times in the universe's time zone. `channel`: for
+ * a group's channel (launches name the member).
+ */
+export function payloadOf(n: Notification | ChannelNotification, lang: PushLang, uni: string, timeZone: string, groupId: number, t = now(), channel = false): PushPayload {
   const L = TEXT[lang];
   const clock = (epoch: number, opts: Intl.DateTimeFormatOptions = { hour: '2-digit', minute: '2-digit', second: '2-digit' }) =>
     new Intl.DateTimeFormat(lang, { timeZone, hourCycle: 'h23', ...opts }).format(new Date(epoch * 1000));
   const link = (path: string, query: Record<string, string | number> = {}) =>
     `${config.basePath}/${uni}/${path}?${new URLSearchParams({ ...Object.fromEntries(Object.entries(query).map(([k, v]) => [k, String(v)])), group: String(groupId) })}`;
   const base = { tag: n.id };
+  const day = { weekday: 'short', day: '2-digit', month: '2-digit' } as const;
+  const planLine = (p: { g: number | null; s: number | null; p: number | null; planet_type: 'planet' | 'moon'; mission: 'attack' | 'hold'; time_precision: 'day' | 'hour' | 'exact' }, time: number) => {
+    const when =
+      p.time_precision === 'day'
+        ? clock(time, day)
+        : p.time_precision === 'hour'
+          ? L.around(clock(time, { ...day, hour: '2-digit', minute: '2-digit' }))
+          : clock(time, { ...day, hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const target = p.g != null ? coords(p.g, p.s!, p.p!, p.planet_type === 'moon') : L.unknown;
+    return [p.mission === 'hold' ? L.hold : L.raid, target, when].join(' · ');
+  };
   switch (n.kind) {
     case 'attack': {
       const f = n.fleet;
@@ -312,17 +310,10 @@ export function payloadOf(n: Notification, lang: PushLang, uni: string, timeZone
       return { ...base, title: L.attack(n.member), body: [clock(n.time), to, what, from].filter(Boolean).join(' · '), url: link('fleet') };
     }
     case 'invite': {
-      const p = n.plan;
-      const day = { weekday: 'short', day: '2-digit', month: '2-digit' } as const;
-      const when =
-        p.time_precision === 'day'
-          ? clock(n.time, day)
-          : p.time_precision === 'hour'
-            ? L.around(clock(n.time, { ...day, hour: '2-digit', minute: '2-digit' }))
-            : clock(n.time, { ...day, hour: '2-digit', minute: '2-digit', second: '2-digit' });
-      const target = p.g != null ? coords(p.g, p.s!, p.p!, p.planet_type === 'moon') : L.unknown;
-      return { ...base, title: L.invite(n.member), body: [p.mission === 'hold' ? L.hold : L.raid, target, when].join(' · '), url: link('raid-planner', { plan: p.id }) };
+      return { ...base, title: L.invite(n.member), body: planLine(n.plan, n.time), url: link('raid-planner', { plan: n.plan.id }) };
     }
+    case 'plan':
+      return { ...base, title: L.plan(n.member), body: planLine(n.plan, n.plan.target_time), url: link('raid-planner', { plan: n.plan.id }) };
     case 'comment': {
       const th = n.thread;
       const on = 'player' in th ? th.name : `${th.owner ? th.owner + ' ' : ''}${coords(th.g, th.s, th.p, th.type === 'moon')}`;
@@ -333,7 +324,7 @@ export function payloadOf(n: Notification, lang: PushLang, uni: string, timeZone
       const p = n.plan;
       const min = Math.max(1, Math.round((n.time - t) / 60));
       const body = L.launchBody(coords(n.from.g, n.from.s, n.from.p, n.from.type === 'moon'), coords(p.g, p.s, p.p, p.planet_type === 'moon'), clock(n.time));
-      return { ...base, title: L.launch(min), body, url: link('raid-planner', { plan: p.id }) };
+      return { ...base, title: channel ? L.launchOf(n.member, min) : L.launch(min), body, url: link('raid-planner', { plan: p.id }) };
     }
   }
 }

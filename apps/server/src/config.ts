@@ -21,6 +21,8 @@ export const config = {
   },
   /** Web push: contact of the hub's operator for the push services (`mailto:` or `https:`); without it push is off. */
   pushContact: env.PUSH_CONTACT ?? '',
+  /** Public origin of the hub (e.g. https://hub.example.org) for links in Discord messages; without it they have none. */
+  publicUrl: (env.PUBLIC_URL ?? '').replace(/\/+$/, ''),
   /** Background archiving of battle hall reports from the public report pages. */
   crawler: {
     enabled: (env.CRAWLER_ENABLED ?? 'true') !== 'false',

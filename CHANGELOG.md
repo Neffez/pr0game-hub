@@ -4,6 +4,24 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Discord alliance channel: meant for a channel only the alliance's members can see (admin hint says so); the
+  misleading note about fleet sharing is gone, the channel gets what every member sees in the hub.
+
+- **Discord notifications** via webhooks (no bot): a personal webhook per user and a channel webhook per alliance.
+  - Personal: the bell's notifications like push, with their own settings (`users.discord_prefs`, same kinds and lead
+    time); set under Account together with an optional Discord user ID used for mentions in the alliance channel.
+  - Channel: alliance admins set the webhook, the kinds (attacks on members, new raid planner plans, the members'
+    launch reminders), lead time and language on the admin page. Attacks are seen as by a non-member, so the members'
+    fleet sharing applies; the attacked or launching member is mentioned (`allowed_mentions` limited to that user).
+  - Server: `DiscordService` (`discord.ts`) delivers like push (debounced data events, 30 s ticker), each
+    notification once per webhook (`discord_sent`, migration `036`), up to 10 embeds per message, waits once for a
+    short rate limit and removes webhooks Discord answers 401/404 for. Only `discord.com` webhook URLs are accepted
+    and the API only returns their start. New `PUBLIC_URL` gives the messages links to the hub.
+  - API: `GET/POST /api/auth/discord`, `POST /api/auth/discord/test`, `GET/PUT /api/admin/groups/{id}/discord`,
+    `POST /api/admin/groups/{id}/discord/test` (OpenAPI updated).
+  - Refactor: debounce, ticker constants and the group's universe lookup shared by push and Discord (`notify.ts`);
+    the alliance admin check of the admin routes is exported for reuse.
+
 - Push notification texts: the English texts are typed against the German ones (a missing text fails the typecheck);
   `CLAUDE.md` notes that these texts live in the server's `push.ts`, not in the web app's locales.
 

@@ -90,6 +90,28 @@ const sendTestPush = () =>
     if (!devices) throw new Error(t('account.pushTestNone'));
   }, () => t('account.pushTestSent'));
 
+/** The user's own Discord webhook (server: discord.ts): only its start comes back, settings separate from push. */
+interface DiscordSettings {
+  webhook: string | null;
+  userId: string | null;
+  prefs: PushPrefs;
+}
+const discord = ref<DiscordSettings | null>(null);
+const discordWebhook = ref('');
+const discordUserId = ref('');
+async function saveDiscord(body: Record<string, unknown>, ok: string) {
+  await run(async () => {
+    discord.value = await api<DiscordSettings>('/auth/discord', { body });
+    discordWebhook.value = '';
+    discordUserId.value = discord.value.userId ?? '';
+  }, () => t(ok));
+}
+const saveDiscordWebhook = () => saveDiscord({ webhook: discordWebhook.value.trim() }, 'account.discordSaved');
+const removeDiscordWebhook = () => saveDiscord({ webhook: null }, 'account.discordRemoved');
+const saveDiscordUserId = () => saveDiscord({ userId: discordUserId.value.trim() || null }, 'account.discordSaved');
+const saveDiscordPrefs = () => saveDiscord({ prefs: discord.value!.prefs }, 'account.pushSaved');
+const sendTestDiscord = () => run(() => api('/auth/discord/test', { method: 'POST' }), () => t('account.discordTestSent'));
+
 const apiBase = import.meta.env.BASE_URL.replace(/\/$/, '') + '/api';
 const openapiUrl = `${apiBase}/openapi.json`;
 const apiOrigin = typeof window !== 'undefined' ? window.location.origin : '';
@@ -141,15 +163,18 @@ function formatTokenTime(sec: number | null) {
 
 onMounted(async () => {
   try {
-    const [fleetShare, messages, online, prefs] = await Promise.all([
+    const [fleetShare, messages, online, prefs, discordSettings] = await Promise.all([
       api('/auth/fleet-share'),
       api('/auth/message-share'),
       api('/auth/show-online'),
       api<PushPrefs>('/auth/push-settings'),
+      api<DiscordSettings>('/auth/discord'),
       loadApiTokens(),
       loadPushStatus(),
     ]);
     pushPrefs.value = prefs;
+    discord.value = discordSettings;
+    discordUserId.value = discordSettings.userId ?? '';
     share.value = fleetShare;
     messageShare.value = messages;
     showOnline.value = online;
@@ -249,6 +274,40 @@ const saveDateFormat = () =>
         </div>
         <p class="muted small">{{ t('account.pushPasted') }}</p>
         <p class="muted small">{{ t('account.pushIos') }}</p>
+      </section>
+      <section v-if="discord" class="card">
+        <h2>{{ t('account.discord') }} <Hint>{{ t('account.discordHint') }}</Hint></h2>
+        <div class="field">
+          <span class="field-label">{{ t('account.discordWebhook') }} <Hint>{{ t('account.discordWebhookHint') }}</Hint></span>
+          <p v-if="discord.webhook" class="muted small push-status">{{ t('account.discordWebhookSet', { hint: discord.webhook }) }}</p>
+          <form class="row" @submit.prevent="saveDiscordWebhook">
+            <input v-model="discordWebhook" type="password" autocomplete="off" placeholder="https://discord.com/api/webhooks/…" />
+            <button type="submit" class="primary" :disabled="!discordWebhook.trim()">{{ t('common.save') }}</button>
+          </form>
+          <div v-if="discord.webhook" class="row">
+            <button type="button" @click="sendTestDiscord">{{ t('account.pushTest') }}</button>
+            <button type="button" class="danger" @click="removeDiscordWebhook">{{ t('account.discordRemove') }}</button>
+          </div>
+        </div>
+        <div v-if="discord.webhook" class="field">
+          <span class="field-label">{{ t('account.pushKinds') }}</span>
+          <label v-for="k in PUSH_KINDS" :key="k" class="check">
+            <input v-model="discord.prefs[k]" type="checkbox" @change="saveDiscordPrefs" /> {{ t(`account.pushKind.${k}`) }}
+          </label>
+          <label class="push-lead" :class="{ off: !discord.prefs.launch }">
+            {{ t('account.pushLead') }}
+            <select v-model.number="discord.prefs.leadMinutes" :disabled="!discord.prefs.launch" @change="saveDiscordPrefs">
+              <option v-for="m in LEAD_MINUTES" :key="m" :value="m">{{ t('account.pushLeadMinutes', { n: m }) }}</option>
+            </select>
+          </label>
+        </div>
+        <div class="field">
+          <span class="field-label">{{ t('account.discordUserId') }} <Hint>{{ t('account.discordUserIdHint') }}</Hint></span>
+          <form class="row" @submit.prevent="saveDiscordUserId">
+            <input v-model="discordUserId" inputmode="numeric" autocomplete="off" placeholder="123456789012345678" />
+            <button type="submit">{{ t('common.save') }}</button>
+          </form>
+        </div>
       </section>
       <section v-if="share || messageShare" class="card">
         <h2>{{ t('account.sharing') }}</h2>

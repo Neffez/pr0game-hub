@@ -31,7 +31,9 @@ External analysis tool for [pr0game](https://codeberg.org/pr0game/pr0game) based
 - **Admin**: universes (size, distance factors, fleet speed, time zone, deck), groups, members (including placeholders by in-game name with claim links), ingest log with reparse, player merge
 - **Notifications**: bell with hostile fleets heading for members (from the synced fleet movements), raid planner
   invitations, new comments in your threads and your launch times; also as **push notifications** on desktop and phone
-  (switched on per device under Account, each kind can be chosen)
+  (switched on per device under Account, each kind can be chosen) and to **Discord**: a personal webhook per user
+  (own settings) and an alliance channel set by the alliance admins (attacks on members, new raid plans, launch
+  reminders, members mentioned by their Discord user ID)
 - **Live**: what a member syncs shows up in the open hub tabs of the alliance without reloading, with a short hint
   who synced what (can be turned off in the account settings); who of the alliance is online and where (page, galaxy
   system, player), and when the others were last online
@@ -120,6 +122,7 @@ Changes are recorded in [CHANGELOG.md](CHANGELOG.md). Contributions are welcome,
 | `CRAWLER_ENABLED` | `true` | background archiving of public battle reports |
 | `CRAWLER_INTERVAL_MS` | `5000` | |
 | `CRAWLER_GIVE_UP_HOURS` | `6` | pause the crawler after the game was unreachable this long |
+| `PUBLIC_URL` | – | public origin of the hub (e.g. `https://hub.example.org`); Discord messages link to the hub's pages only when it is set |
 | `PUSH_CONTACT` | – | contact for the push services (`mailto:…` or `https://…`); push notifications are off without it. The VAPID keys are created on the first start and kept in the database |
 
 ## Deployment
@@ -129,7 +132,8 @@ Docker image (`Dockerfile`, port 3000, volume `/data`), configured with the envi
 The static tools are a second target of the same Dockerfile: `docker build --target tools .` gives an nginx image
 with the tools index at `/` and the flight calculator at `/flight-calculator/` (the hub links there).
 
-Push notifications need outbound HTTPS from the hub to the browsers' push services (Google, Mozilla, Apple, Microsoft).
+Push notifications need outbound HTTPS from the hub to the browsers' push services (Google, Mozilla, Apple, Microsoft),
+Discord notifications to `discord.com`.
 
 Live updates use Server-Sent Events (`GET /hub/api/:uni/events`): a reverse proxy in front of the hub must not buffer
 that response (the hub sends `X-Accel-Buffering: no` for nginx) and should allow idle connections longer than the
