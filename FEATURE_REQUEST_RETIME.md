@@ -5,8 +5,10 @@ attack plans (solo, ACS, against a player with rough times), retime and hold on 
 overviews and from phalanx results, recall detection, launched fleets from the own overview, flight calculator and
 combat simulator links (game simulator and TrashSim with all plan fleets), collapsible plans, plan counts in the menu;
 phalanx texts are read from a real copy and refused in the sync; invitations show in the notification bell; date
-fields use a date picker on desktop with the account's date format. Nothing is waiting to be built; open are real test
-data from the requester, feedback from their browser checks and a few known limits (see "Still open").
+fields use a date picker on desktop with the account's date format; every participant edits every fleet, everyone
+invites, fleets of members without an empire page come from spy reports or by hand (drives too). Nothing is waiting to
+be built; open are real test data from the requester, feedback from their browser checks and a few known limits (see
+"Still open").
 
 The raid planner plans own fleets, solo or as ACS, landing at the right second. A plan starts empty, from a hostile
 attack as a retime (land on the enemy origin right after the enemy fleet is back) or as a hold (land on the attacked
@@ -59,6 +61,7 @@ Answered by the requester on 2026-10-22/23.
 | Phalanx | The phalanx shows the fleets like the overview and can be copied the same way. It shows the movements at the scanned planet: an attack on it with its arrival, but not the attacker's return to their own planet; that return is computed like any retime. |
 | Target and time | A plan names a player and/or coordinates (coordinates may follow); the time is a day, around an hour or the exact impact. |
 | Own ships | Picked from the start planet or from all own ships (planets, moons, in flight), added with the maximum, editable. |
+| Fleets of others | Every participant edits every fleet of the plan (members away, placeholders without an account), with that member's empire page or, without one, their spy reports; drives can be entered by hand. Everyone may invite. |
 | Enemy inputs | All participants of a plan may change drive levels, windows and the chosen candidate. |
 
 ## Data model (as built)
@@ -71,7 +74,8 @@ All rows per group (`groupContext`).
   coordinates.
 - **attack_plan_fleets** (025): one row per fleet (a member may send several): member, start planet/moon (empty while
   only invited), ships, speed percent, status (invited, ready, launched, withdrawn). Launch time, arrival and return
-  are computed (`planAttack`), not stored.
+  are computed (`planAttack`), not stored. Since 034 drive levels by hand (`drives`, `drives_time`) and who invited
+  (`invited_by`, null = the creator).
 - **attack_plans.mission** (028): `attack` (solo, ACS, retime) or `hold` (on a member's planet against a hostile
   attack; no claim).
 - **attack_plan_enemy** (027, 0 or 1 per plan): the hostile attack the plan answers, copied when the plan was made:
@@ -109,8 +113,9 @@ page or spy report with research arrives.
 
 From the game source (`ShowFleetStep3Page`, `FleetFunctions::setACSTime`), built as `planAttack`:
 
-- **Launch time** per fleet = target time - own duration (distance, slowest ship, drives from the member's newest
-  empire page, speed percent), with a countdown; drives unknown or older than 3 days are flagged.
+- **Launch time** per fleet = target time - own duration (distance, slowest ship, drives, speed percent), with a
+  countdown. Drives: the newest of the member's empire page, the newest spy report of their player showing research,
+  and the levels entered by hand for the fleet; unknown or older than 3 days are flagged.
 - **Lead**: the fleet with the earliest launch (it sends the attack and creates the ACS); anyone who would have to
   launch before the lead is flagged.
 - **No limit on the delay** (unlike OGame's 30 %): a late fleet pushes the whole ACS back; the plan shows the resulting
@@ -275,7 +280,9 @@ The parser `packages/parser/src/parsers/fleets.ts` (stored in `fleet_snapshots`)
   coordinates clickable for all participants), time by precision with countdown, delay and limit warnings, lead,
   simulator links; retime panel or hold panel for plans with an enemy fleet; fleets table with start, ships, speed
   (drop-down), flight time, launch with countdown and flags (or the real arrival once launched), return, status,
-  flight calculator link; own fleet form; invitations; status buttons; edit target and time.
+  flight calculator link; fleet form (own fleet, or any fleet of the plan for participants: "Flotte von …", planets
+  and ships of that member's empire page or spy reports, "other coordinates" for a typed start, drives with their
+  source and "automatic again"); invitations for everyone; status buttons; edit target and time.
 - Explanations behind info icons (`Hint`); on mobile the fleets are cards with the launch right below the member.
 - Invitations: an open invitation shows in the invited member's notification bell (kind `invite`, calm blue badge,
   one per plan in planning until its target time); a click opens the plan (`?plan=<id>`, opened and scrolled to).
@@ -307,6 +314,9 @@ The parser `packages/parser/src/parsers/fleets.ts` (stored in `fleet_snapshots`)
    phalanx texts, the raid planner accepts only them.
 10. **Invitations and dates** (built in parallel): invitations in the notification bell, date picker on desktop and
     the date format as an account setting (migration 033).
+11. **Planning for others** (034): every participant edits every fleet (removing stays with the member, the creator
+    and admins), everyone invites (the bell names who invited); fleet data of members without an empire page from
+    their spy reports (`spy` in `GET /imperium`), drive levels by hand per fleet.
 
 ## Still open
 
@@ -316,7 +326,8 @@ The parser `packages/parser/src/parsers/fleets.ts` (stored in `fleet_snapshots`)
    phalanx showing an attack on the scanned planet, an own ACS fleet in the overview (launched detection with an ACS
    member's mission 2), the English texts (taken from the game's language files so far).
 2. **Browser checks**: desktop and mobile are checked as the requester plays; the plan on mobile was tidied up once,
-   further changes on feedback.
+   further changes on feedback. Not yet checked: editing other members' fleets, the drives row and the spy-report
+   planets in the fleet form (the form got wider: drives row, coordinates field).
 
 ### Known limits (no work planned)
 
@@ -328,3 +339,12 @@ The parser `packages/parser/src/parsers/fleets.ts` (stored in `fleet_snapshots`)
 6. **Hold plans** show no return home (it depends on the hold time).
 7. **TrashSim's importer** (game source) reads the defender one column off; checked in the browser: loads correctly
    with the deployed version.
+8. **Spy reports of members** are found through the member's player: their empire planets, else the in-game name of
+   the membership (or the user name). A placeholder with a wrong or missing in-game name gets no spy data; then
+   start, ships and drives are entered by hand.
+9. **Spy-report empires are incomplete**: only spied planets and moons, no fleets in flight, each section as old as
+   its report; the form shows the date and allows any ship by hand, the ship maximums may be too low.
+10. **By hand only the drives**: the combat research for the simulator links (109-111) comes from the empire page or a
+    spy report only.
+11. **Levels by hand are replaced silently** by a newer empire page or spy report with research (by design: the
+    newest data counts); the form then shows the new source.

@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Raid planner plan (`FEATURE_REQUEST_RETIME.md`): planning for others (fleets of other members, spy-report fleet
+  data, drives by hand, invitations by everyone) under "Built", browser checks and new known limits under "Still open".
+
 - **Raid planner: fleets of members without an empire page, invitations by everyone.**
   - Drive levels per plan fleet by hand (`attack_plan_fleets.drives`/`drives_time`, migration `034`, `drives` in the
     fleet `PUT`, `null` drops them). A fleet's research comes from the member's empire page, without one from the
