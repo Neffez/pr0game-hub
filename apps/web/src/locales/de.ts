@@ -37,6 +37,8 @@ const de = {
     everything: 'alles',
   },
   nav: {
+    plansPlanning: '{n} Raid-Plan in Planung | {n} Raid-Pläne in Planung',
+    plansRunning: '{n} Raid-Plan gestartet | {n} Raid-Pläne gestartet',
     sync: 'Synchronisieren',
     start: 'Start',
     overview: 'Übersicht',

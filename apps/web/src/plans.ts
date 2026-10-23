@@ -239,6 +239,16 @@ export const latestTime = (p: Pick<AttackPlan, 'target_time' | 'time_precision'>
 /** Plans still ahead or flying (shown first), the rest as past ones. */
 export const isCurrent = (p: AttackPlan, now: number) => (p.status === 'planning' || p.status === 'launched') && latestTime(p) > now - 3600;
 
+/** Plans in a fleet's flight: the plan is set to launched or a fleet was launched (by hand or seen in the overview). */
+export const isRunning = (p: AttackPlan) => p.status === 'launched' || p.fleets.some((f) => f.status === 'launched');
+
+/** Current plans for the menu: still being planned, and running ones. */
+export function planCounts(plans: AttackPlan[], now: number): { planning: number; running: number } {
+  const current = plans.filter((p) => isCurrent(p, now));
+  const running = current.filter(isRunning).length;
+  return { planning: current.length - running, running };
+}
+
 /** "1:41:1" / "[1:41:1]" -> coordinates. */
 export function parseTarget(raw: string): Coords | null {
   const m = raw.match(/(\d+)\D+(\d+)\D+(\d+)/);

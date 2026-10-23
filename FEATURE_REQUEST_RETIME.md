@@ -208,7 +208,8 @@ The parser `packages/parser/src/parsers/fleets.ts` (stored in `fleet_snapshots`)
 
 ## UI (as built)
 
-- Menu "Raid-Planer" above "Raid-Statistiken" (formerly "Raids"); "Angriff planen" in the action menu of a planet/moon.
+- Menu "Raid-Planer" above "Raid-Statistiken" (formerly "Raids") with the number of current plans: grey in planning,
+  green running (plan or a fleet launched); "Angriff planen" in the action menu of a planet/moon.
 - Top: hostile attacks on members with countdown, origin and owner, "Retime planen" (or "Retime geplant").
 - Plans (current, past): target (player and/or coordinates), time by precision with countdown, delay and limit
   warnings, lead; retime panel for plans with an enemy fleet; fleets table with start, ships, speed, flight time,

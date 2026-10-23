@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Menü: Beim Raid-Planer steht, wie viele Pläne gerade in Planung (grau) und gestartet (grün) sind.',
+        en: 'Menu: the raid planner shows how many plans are being planned (grey) and launched (green).',
+      },
+      {
+        kind: 'new',
         de: 'Raid-Planer: Sind die Koordinaten eines Plans noch offen, können Ersteller und alle Teilnehmer (auch eingeladene) sie mit einem Klick auf „Koordinaten noch offen“ eintragen.',
         en: 'Raid planner: when a plan\'s coordinates are still open, the creator and every participant (also invited ones) can fill them in with a click on "Coordinates not known yet".',
       },

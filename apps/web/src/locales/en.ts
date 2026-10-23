@@ -36,6 +36,8 @@ const en: typeof de = {
     everything: 'all',
   },
   nav: {
+    plansPlanning: '{n} raid plan being planned | {n} raid plans being planned',
+    plansRunning: '{n} raid plan launched | {n} raid plans launched',
     sync: 'Synchronize',
     start: 'Start',
     overview: 'Overview',

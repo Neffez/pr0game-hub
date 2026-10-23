@@ -1,7 +1,7 @@
 import { distance, flightDuration, shipSpeed } from '@pr0hub/flight';
 import { describe, expect, it } from 'vitest';
 import type { UniverseSettings } from '../src/format';
-import { computePlan, draftBody, draftOf, enemyCalcLink, fleetCalcLink, fromLocalInput, isCurrent, newDraft, parseTarget, toLocalInput, type AttackPlan, type PlanEnemy, type PlanFleet } from '../src/plans';
+import { computePlan, draftBody, draftOf, enemyCalcLink, fleetCalcLink, fromLocalInput, planCounts, isCurrent, newDraft, parseTarget, toLocalInput, type AttackPlan, type PlanEnemy, type PlanFleet } from '../src/plans';
 
 const u: UniverseSettings = {
   galaxies: 9, systems: 400, positions: 15, circularGalaxies: true, circularSystems: true,
@@ -63,6 +63,19 @@ describe('attack plans in the web app', () => {
     expect(fromLocalInput(toLocalInput(2_000_000_123))).toBe(2_000_000_123);
     expect(isCurrent(plan([]), 2_000_000_000 + 3599)).toBe(true);
     expect(isCurrent({ ...plan([]), status: 'done' }, 0)).toBe(false);
+  });
+
+  it('counts current plans for the menu: in planning and running', () => {
+    const launched = { ...fleet(2, 2, [1, 40, 5], { 204: 1 }), status: 'launched' as const };
+    const plans = [
+      plan([]),
+      { ...plan([]), id: 2, status: 'launched' as const },
+      { ...plan([fleet(1, 1, [1, 40, 5], { 204: 1 }), launched]), id: 3 },
+      { ...plan([]), id: 4, status: 'done' as const },
+      { ...plan([]), id: 5, target_time: 1_000_000_000 },
+    ];
+    expect(planCounts(plans, 2_000_000_000 - 60)).toEqual({ planning: 1, running: 2 });
+    expect(planCounts([], 0)).toEqual({ planning: 0, running: 0 });
   });
 
   it('links fleets and the enemy fleet into the flight calculator', () => {

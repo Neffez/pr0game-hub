@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Menu: the raid planner shows the number of current plans, grey for those in planning and green for running ones
+  (plan launched or a fleet launched); the layout loads the plans and reloads them on plan and fleet changes
+  (`planCounts` in `plans.ts`).
+
 - Raid planner: "Coordinates not known yet" is clickable for the creator, admins and every participant (also only
   invited) and opens a form with the target alone; participants may change a plan's coordinates and type
   (`PUT /api/:uni/plans/:id` with only `g`/`s`/`p`/`type`), the attack claim is then held by the plan's creator.

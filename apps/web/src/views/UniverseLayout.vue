@@ -13,6 +13,7 @@ import { provideUni, useLoader, useScrollLock, type UniContext } from '../compos
 import { clearClaims, loadClaims } from '../claims';
 import { clearCommentCounts, loadCommentCounts } from '../comments';
 import { attacks, clearNotifications, loadNotifications } from '../notifications';
+import { planCounts, type AttackPlan } from '../plans';
 import { startLive, stopLive, tables, useLiveReload, useWhereabouts } from '../live';
 
 const { t } = useI18n();
@@ -34,11 +35,28 @@ function load() {
   loadCommentCounts(uni.value);
   clearNotifications();
   loadNotifications(uni.value);
+  plans.value = [];
+  loadPlans();
   return fetchContext();
 }
 useLiveReload(() => loadClaims(uni.value), tables('target_claims'));
 useLiveReload(() => loadCommentCounts(uni.value), tables('comments'), 300);
 useLiveReload(() => loadNotifications(uni.value), tables('fleets'), 300);
+
+/** Raid planner in the menu: current plans in planning (grey) and running (green); recounted every minute. */
+const plans = ref<AttackPlan[]>([]);
+const minute = ref(Math.floor(Date.now() / 1000));
+const minuteTimer = setInterval(() => (minute.value = Math.floor(Date.now() / 1000)), 60_000);
+onBeforeUnmount(() => clearInterval(minuteTimer));
+async function loadPlans() {
+  try {
+    plans.value = await uniApi<AttackPlan[]>(uni.value, '/plans');
+  } catch {
+    /* kept until the next reload */
+  }
+}
+const planCount = computed(() => planCounts(plans.value, minute.value));
+useLiveReload(loadPlans, tables('attack_plans', 'fleets'), 300);
 onBeforeUnmount(stopLive);
 // own research and planets for flight times come from the own empire page
 useLiveReload(fetchContext, (e) => tables('empire')(e) && e.userId === ctx.value?.me.id);
@@ -177,6 +195,10 @@ const tabs = [
           <RouterLink v-else :to="`/${uni}/${l.to}`">
             <NavIcon :name="l.icon!" />{{ t(`nav.${l.label}`) }}
             <span v-if="l.to === 'fleet' && attacks" class="nav-alarm" :title="t('notify.attacks', { n: attacks }, attacks)">⚔ {{ attacks }}</span>
+            <span v-if="l.to === 'raid-planner' && (planCount.planning || planCount.running)" class="nav-badges">
+              <span v-if="planCount.planning" class="nav-count" :title="t('nav.plansPlanning', { n: planCount.planning }, planCount.planning)">{{ planCount.planning }}</span>
+              <span v-if="planCount.running" class="nav-count running" :title="t('nav.plansRunning', { n: planCount.running }, planCount.running)">{{ planCount.running }}</span>
+            </span>
           </RouterLink>
         </template>
         <div class="section">{{ t('nav.account') }}</div>
