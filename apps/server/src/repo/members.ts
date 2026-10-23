@@ -33,4 +33,28 @@ export function memberPlayers(db: DB, ctx: GroupContext): Map<number, number | n
   return map;
 }
 
+/**
+ * Players of the own alliance: the members' players (and in-game names) and everyone in their in-game alliances, by
+ * name (lower case) and planet ("g:s:p", incl. the members' own planets from their empire pages).
+ */
+export function alliance(db: DB, ctx: GroupContext): { names: Set<string>; coords: Set<string> } {
+  const players = [...memberPlayers(db, ctx).values()].filter((id): id is number => id != null);
+  const ids = players.length
+    ? (db
+        .prepare(
+          `SELECT id FROM players WHERE group_id = ? AND (id IN (SELECT value FROM json_each(?))
+             OR alliance_id IN (SELECT alliance_id FROM players WHERE id IN (SELECT value FROM json_each(?)) AND alliance_id IS NOT NULL))`,
+        )
+        .pluck()
+        .all(ctx.groupId, JSON.stringify(players), JSON.stringify(players)) as number[])
+    : [];
+  const list = JSON.stringify(ids);
+  const names = db.prepare('SELECT name FROM players WHERE id IN (SELECT value FROM json_each(?))').pluck().all(list) as string[];
+  names.push(...(db.prepare('SELECT ingame_name FROM group_members WHERE group_id = ? AND ingame_name IS NOT NULL').pluck().all(ctx.groupId) as string[]));
+  const coords = db.prepare('SELECT g, s, p FROM planets WHERE group_id = ? AND player_id IN (SELECT value FROM json_each(?))').all(ctx.groupId, list) as
+    { g: number; s: number; p: number }[];
+  for (const e of latestEmpires(db, ctx)) coords.push(...e.rec.planets.map((pl) => pl.coords));
+  return { names: new Set(names.map((n) => n.toLowerCase())), coords: new Set(coords.map((c) => `${c.g}:${c.s}:${c.p}`)) };
+}
+
 export const memberPlayer = (db: DB, ctx: GroupContext, userId: number) => memberPlayers(db, ctx).get(userId) ?? null;

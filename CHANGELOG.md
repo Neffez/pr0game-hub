@@ -4,6 +4,13 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- In-game messages as cards instead of a table: sender → recipients and time on top, then subject and text (left
+  aligned, also on mobile), below who synced it and who sees it; sorting by a selection with direction.
+  - Colours: players of the own alliance (members and their in-game alliances) blue, other players orange, also as
+    the card's edge by sender. A click on a name shows the conversation with that player.
+  - Button per own message "Share with alliance" / "Don't share with alliance"; the choice beats the account
+    setting for that message (`POST /api/:uni/messages/:id/share`).
+
 - Player details: link "In-game messages" opens the conversations with that player (sent by or to them, former
   names included); the filter shows on the messages page and can be removed there.
 - In-game messages: player messages ("Spieler Nachrichten") can be synced like the reports, by HTML, page source or

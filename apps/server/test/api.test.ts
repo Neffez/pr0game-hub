@@ -247,7 +247,7 @@ describe('api', () => {
     expect(res.json().counts.player_messages).toEqual({ new: 2, duplicate: 0 });
     const own = await list(headers);
     expect(own.share).toBe(false);
-    expect(own.messages.map((m: any) => [m.from_name, m.recipients, m.body])).toEqual([
+    expect(own.messages.map((m: any) => [m.from_name, m.recipients.map(({ name, coords }: any) => ({ name, coords })), m.body])).toEqual([
       ['Mallory', [{ name: 'Admin', coords: '1:100:12' }], 'Hallo\nWelt'],
       ['Admin', [{ name: 'Mallory', coords: '4:20:6' }], 'Hi'],
     ]);
@@ -268,6 +268,30 @@ describe('api', () => {
 
     await app.inject({ method: 'POST', url: '/hub/api/auth/message-share', headers: admin, payload: { enabled: false } });
     expect((await list(erin)).messages.map((m: any) => m.body)).toEqual(['Hi', 'privat']);
+
+    // single messages: shared or not against the account setting, only the own copy
+    const mine = (await list(headers)).messages;
+    expect(mine.map((m: any) => [m.body, m.own, m.own_shared, m.shared])).toEqual([['Hallo\nWelt', true, false, false], ['Hi', true, false, false]]);
+    const share = (id: number, shared: boolean, h: object = headers) =>
+      app.inject({ method: 'POST', url: `/hub/api/u8/messages/${id}/share`, headers: h, payload: { shared } });
+    expect((await share(mine[0].id, true)).json()).toEqual({ shared: true });
+    expect((await list(erin)).messages.map((m: any) => m.body)).toEqual(['Hallo\nWelt', 'Hi', 'privat']);
+    // erin has no copy of it
+    expect((await share(mine[0].id, false, erin)).statusCode).toBe(404);
+    // the id of another member's copy finds the own copy of the same message
+    const hi = (await list(erin)).messages.find((m: any) => m.body === 'Hi');
+    expect((await share(hi.id, true)).statusCode).toBe(200);
+    await app.inject({ method: 'POST', url: '/hub/api/auth/message-share', headers: admin, payload: { enabled: true } });
+    expect((await share(mine[0].id, false)).statusCode).toBe(200);
+    expect((await list(erin)).messages.map((m: any) => m.body)).toEqual(['Hi', 'privat']);
+    expect((await list(headers)).messages[0]).toMatchObject({ body: 'Hallo\nWelt', own_shared: false, shared: false });
+    await app.inject({ method: 'POST', url: '/hub/api/auth/message-share', headers: admin, payload: { enabled: false } });
+
+    // players of the own alliance are marked
+    db.prepare("UPDATE group_members SET ingame_name = 'Admin' WHERE group_id = ? AND user_id = 1").run(groupA);
+    const marked = (await list(headers)).messages.find((m: any) => m.body === 'Hi');
+    expect([marked.from_ally, marked.recipients.map((r: any) => r.ally)]).toEqual([true, [false]]);
+    db.prepare('UPDATE group_members SET ingame_name = NULL WHERE group_id = ? AND user_id = 1').run(groupA);
   });
 
   it('lists phalanxes that reach a system', async () => {
