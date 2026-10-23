@@ -4,6 +4,20 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Raid planner (menu "Raid-Planer" above "Raids", now "Raid-Statistiken"): attack plans of one or more members on one
+  target and target time, solo or ACS.
+  - Per fleet: start planet and ships prefilled from the own empire page, speed, flight time, launch time with
+    countdown and return; lead, late fleets and the resulting ACS delay, ACS limits (`planAttack` of `@pr0hub/flight`
+    with the members' drive research; drives unknown or older than 3 days are flagged).
+  - Rights: the creator or a group admin edits the plan (time, note, status, invitations), every member their own
+    fleets. A new plan claims the target as "attack" until 10 minutes after the target time; cancelling or finishing
+    releases it. "Angriff planen" in the action menu opens the form with the target filled in.
+  - Live for the whole alliance (`DataEvent` `attack_plans`); plans stay listed a week after their target time.
+  - Server: `GET`/`POST /api/:uni/plans`, `PUT`/`DELETE /api/:uni/plans/:id`, `POST /api/:uni/plans/:id/fleets`,
+    `PUT`/`DELETE /api/:uni/plans/:id/fleets/:fleet`; migration `025` adds `attack_plans` and `attack_plan_fleets`.
+  - Web tests can render components (happy-dom, Vue plugin in the Vitest config); the raid planner page has a smoke
+    test.
+
 - New page "What's new" (Account section of the sidebar and the start page): new features and fixes per day in plain
   words, in German and English, from `apps/web/src/changelog.ts`; filled in back to the first version. `CLAUDE.md`
   now requires an entry there with every user-facing `CHANGELOG.md` entry.

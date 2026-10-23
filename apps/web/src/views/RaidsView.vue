@@ -72,7 +72,7 @@ const browseLink = (r: any) => ({ path: `/${uni.value}/browse`, query: { g: r.g,
     <div class="table-wrap" style="max-height: none; margin-bottom: 14px">
       <table v-stack class="data">
         <thead>
-          <tr><th>{{ t('common.player') }}</th><th class="num">{{ t('nav.raids') }}</th><th class="num">{{ name(901) }}</th><th class="num">{{ name(902) }}</th><th class="num">{{ t('game.deutShort') }}</th><th class="num">{{ t('common.total') }}</th><th class="num">{{ t('raids.perRaid') }}</th><th class="num">{{ t('raids.losses') }}</th><th class="num">{{ t('game.debrisShort') }}</th></tr>
+          <tr><th>{{ t('common.player') }}</th><th class="num">{{ t('raids.count') }}</th><th class="num">{{ name(901) }}</th><th class="num">{{ name(902) }}</th><th class="num">{{ t('game.deutShort') }}</th><th class="num">{{ t('common.total') }}</th><th class="num">{{ t('raids.perRaid') }}</th><th class="num">{{ t('raids.losses') }}</th><th class="num">{{ t('game.debrisShort') }}</th></tr>
         </thead>
         <tbody>
           <tr v-for="u in perUser" :key="u.username">

@@ -8,6 +8,7 @@ import type { DB } from './db.js';
 import { adminRoutes } from './routes/admin.js';
 import { authRoutes } from './routes/auth.js';
 import { claimsRoutes } from './routes/claims.js';
+import { plansRoutes } from './routes/plans.js';
 import { commentsRoutes } from './routes/comments.js';
 import { notificationRoutes } from './routes/notifications.js';
 import { deckRoutes } from './routes/deck.js';
@@ -59,6 +60,7 @@ export function buildApp(db: DB, opts: { logger?: boolean } = {}): FastifyInstan
       ingestRoutes(scope, db);
       eventRoutes(scope, db);
       claimsRoutes(scope, db);
+      plansRoutes(scope, db);
       commentsRoutes(scope, db);
       notificationRoutes(scope, db);
       for (const routes of [overviewRoutes, playersRoutes, spyRoutes, galaxyRoutes, reportsRoutes, deckRoutes, imperiumRoutes, messageRoutes]) routes(scope, db);

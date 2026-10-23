@@ -24,7 +24,9 @@ External analysis tool for [pr0game](https://codeberg.org/pr0game/pr0game) based
   missions they share)
 - **Targets**: members claim a planet or moon for a while (farming, attack, espionage) so nobody hits it twice;
   the claim shows next to the target everywhere and runs out by itself
-- **Raids** (incl. recycling), **expeditions**, **expedition deck** (card counting), **battle hall** archive
+- **Raid planner**: own attacks, solo or ACS, landing at the second: launch times, lead, delays and ACS limits per
+  member fleet, live for the whole alliance; the target is claimed as "attack"
+- **Raid statistics** (incl. recycling), **expeditions**, **expedition deck** (card counting), **battle hall** archive
 - **Admin**: universes (size, distance factors, fleet speed, time zone, deck), groups, invite links, ingest log with reparse, player merge
 - **Notifications**: bell with hostile fleets heading for members (from the synced fleet movements)
 - **Live**: what a member syncs shows up in the open hub tabs of the alliance without reloading, with a short hint

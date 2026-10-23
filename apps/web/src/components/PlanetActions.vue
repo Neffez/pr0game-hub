@@ -47,6 +47,7 @@ const items = computed(() => {
     href: flightCalcLink(settings.value, start.value?.c ?? null, target.value, ctx.value?.own?.research),
     hint: start.value ? t('actions.flightFrom', { from: start.value.label }) : t('actions.flightNoStart'),
   });
+  list.push({ label: t('actions.planAttack'), to: { path: `/${uni.value}/raid-planner`, query: { new: `${props.g}:${props.s}:${props.p}`, type: props.type } } });
   if (gameUrl.value) list.push({ label: t('actions.galaxy'), href: `${gameUrl.value}game.php?page=galaxy&galaxy=${props.g}&system=${props.s}`, hint: t('actions.inGame') });
   const comments = planetComments(props.g, props.s, props.p, props.type);
   list.push({
