@@ -1,12 +1,14 @@
-# Feature request: raid planner (attack plans and retime)
+# Feature request: raid planner (attack plans, retime and hold)
 
-Status (2026-10-23): usable. Attack plans (solo, ACS, against a player with rough times) and retime on hostile
-attacks are live in the raid planner, with hold plans, phalanx results, recall detection, launched fleets from the
-own overview, flight calculator and combat simulator links. Open: phalanx pastes in the sync, test data (see "Still
-open").
+Status (2026-10-23): done and in use, the requester checks it in the browser (desktop and mobile) as they play. Built:
+attack plans (solo, ACS, against a player with rough times), retime and hold on hostile attacks from the members'
+overviews and from phalanx results, recall detection, launched fleets from the own overview, flight calculator and
+combat simulator links (game simulator and TrashSim with all plan fleets), collapsible plans, plan counts in the menu.
+Open: refusing phalanx pastes in the sync, real test data, other universes' ship lists (see "Still open").
 
-The raid planner plans own attacks, solo or as ACS, and lands them at the right second. A plan starts empty or from a
-pasted hostile attack ("retime": land on the enemy origin right after the enemy fleet is back).
+The raid planner plans own fleets, solo or as ACS, landing at the right second. A plan starts empty, from a hostile
+attack as a retime (land on the enemy origin right after the enemy fleet is back) or as a hold (land on the attacked
+planet right before the impact).
 
 ## Requests
 
@@ -20,15 +22,17 @@ From a separate plan (ACS planning, merged here): plans with target, planned arr
 with start planet, ships, speed, launch time and status; live updates for everyone; the target is claimed as
 "attack"; prefilled from the own empire page; TrashSim / in-game simulator links.
 
-## Concept: one attack plan, two ways in
+## Concept: one plan, three ways in
 
-An **attack plan** says: own fleets of one or more members land on one target at one target time.
+A **plan** says: own fleets of one or more members land on one target at one target time, as an attack or a hold.
 
 - **One participant** = solo attack, **several** = ACS. There is no separate plan type.
 - **From scratch**: target from the action menu of a planet/moon ("Angriff planen") or typed in, target time by hand.
-- **From a hostile attack (retime)**: the raid planner lists the hostile fleets from the members' overview pastes;
-  "Retime planen" opens a plan prefilled with the enemy origin as target and the enemy fleet's return plus a buffer
-  as target time. The enemy fleet is kept with the plan ("enemy fleet", see data model).
+- **From a hostile attack (retime)**: the raid planner lists the hostile attacks from the members' overview pastes and
+  pasted phalanx results; "Retime planen" opens a plan prefilled with the enemy origin as target and the enemy fleet's
+  return plus a buffer as target time. The enemy fleet is kept with the plan ("enemy fleet", see data model).
+- **From a hostile attack (hold)**: "Halten planen" opens a hold plan on the attacked planet, landing 1 s before the
+  impact; every fleet lands on its own.
 
 ## Decisions
 
@@ -38,7 +42,7 @@ Answered by the requester on 2026-10-22/23.
 | --- | --- |
 | Menu | One menu item "Raid-Planer" / "Raid planner" above "Raids", which is renamed to "Raid-Statistiken" / "Raid statistics" (`raids` route and `RaidsView.vue` keep their names). No tabs: hostile fleets on top, plans below. |
 | Plan model | One attack plan for solo and ACS, started from scratch or from a parsed hostile attack. |
-| Hostile fleets | Attacks (single and ACS) and destroy missions on members from the overview, later also phalanx results. Espionage is shown in the notifications, not as a retime target. No own fleets, no friendly hold. |
+| Hostile fleets | Attacks (single and ACS) and destroy missions on members from the overview, and attacks seen in a pasted phalanx. Espionage is shown in the notifications, not as a retime target. No own fleets, no friendly hold. |
 | Ships | The copied overview text contains ship types and amounts, so the slowest ship is known. |
 | Arrival | The overview shows countdown and absolute arrival time; the absolute time is used. |
 | Speed steps | 10-100 % in steps of 10. |
@@ -66,11 +70,16 @@ All rows per group (`groupContext`).
 - **attack_plan_fleets** (025): one row per fleet (a member may send several): member, start planet/moon (empty while
   only invited), ships, speed percent, status (invited, ready, launched, withdrawn). Launch time, arrival and return
   are computed (`planAttack`), not stored.
+- **attack_plans.mission** (028): `attack` (solo, ACS, retime) or `hold` (on a member's planet against a hostile
+  attack; no claim).
 - **attack_plan_enemy** (027, 0 or 1 per plan): the hostile attack the plan answers, copied when the plan was made:
-  member it headed for, origin (= plan target) and target, its fleets (lead first, mission and ships), the followed
-  fleet, arrival as last seen and as first seen, owner's drives with source (`spy`/`manual`) and date, departure and
-  recall window, `recall_lead`, chosen speed `percent`, `buffer`, who changed it last. The attack is recognised again
-  by its route and the ships of the lead fleet (`attackKey`).
+  member it headed for (null when only seen in a phalanx), origin (= retime target) and target (= hold target), its
+  fleets (lead first, mission and ships), the followed fleet, arrival as last seen and as first seen, owner's drives
+  with source (`spy`/`manual`) and date, departure and recall window, `recall_lead`, chosen speed `percent`, `buffer`,
+  who changed it last; since 028 `hold_offset` (seconds from the impact, default -1) and `phalanx_home` /
+  `phalanx_time` (return home shown by a phalanx). The attack is recognised again by its route and the ships of the
+  lead fleet (`attackKey`).
+- **phalanx_snapshots** (029): pasted phalanx results (fleets with arrival, who pasted, page time), kept a day.
 
 Rights: creator or group admin edit the plan (target, time, note, status, invitations, deletion); every participant
 (also only invited) may fill in or change the coordinates alone (the claim stays with the creator); every member their
@@ -82,7 +91,9 @@ own fleets; every participant (and the creator/admins) the enemy inputs.
   coordinates and an exact time; "around an hour" shows approximate launches.
 - **Retime**: the chosen speed candidate's return home (after impact, or the earliest return after a recall) plus the
   buffer. The client derives it and saves it with the enemy inputs; every participant's launch time follows. Without
-  a chosen candidate the plan keeps the return at full speed plus 1 s it started with (default buffer 1 s: 0-1 s is a good retime, 2-3 s poor, from 4 s very poor).
+  a chosen candidate the plan keeps the return at full speed plus 1 s it started with (default buffer 1 s: 0-1 s is a
+  good retime, 2-3 s poor, from 4 s very poor). A return shown by a phalanx counts directly (plus the buffer).
+- **Hold**: impact + `hold_offset`, set by the server and following the impact after a delay.
 - The claim follows the target time (until 10 minutes after it) and the coordinates.
 
 ## Participants and ACS rules
@@ -103,8 +114,8 @@ From the game source (`ShowFleetStep3Page`, `FleetFunctions::setACSTime`), built
   "launched" and carries `seen` (real arrival, paste time; as the fleet sharing setting lets the viewer see it); the
   table shows the real arrival against the target time.
 - **Flight calculator** per fleet of an exact plan ("timing" mode: start, ships, speed, drives, target time).
-- **Simulator links** ("Simulator im Spiel", "TrashSim"): both take only the target's values as `im[ID]=amount`
-  (resources, ships, defense, buildings, research), like the game's "simulate" button:
+- **Simulator links** ("Simulator im Spiel", "TrashSim"; plans with coordinates, not holds): the target's values as
+  `im[ID]=amount` (resources, ships, defense, buildings, research), like the game's "simulate" button:
   `<game URL>game.php?page=battleSimulator&im[…]` and `<game URL>battlesim.html?&im[…]`. The plan carries the target's
   newest spy report (`spy`; research missing in it from the owner's newest report with research). The game simulator
   also takes the attackers (`ShowBattleSimulatorPage::show`): `slots=N` and `battleinput[slot][0][ID]` per fleet
@@ -114,7 +125,7 @@ From the game source (`ShowFleetStep3Page`, `FleetFunctions::setACSTime`), built
   fields + ships, the defender `1 0 …` + space dock + ships, 212 and 401-408. Ship columns: the flying ships in id order
   (`ShowTrashsimPage`, `SHIPS` of `@pr0hub/flight`, matches universe 7). Checked against a real export. Note: the
   importer in the game source reads the defender's ships from the space dock column on (one column off); TrashSim's
-  own exports are affected the same way.
+  own exports are affected the same way. Checked by the requester in the browser: loads correctly.
 
 ## Enemy fleet analysis (retime, as built)
 
@@ -213,27 +224,37 @@ The parser `packages/parser/src/parsers/fleets.ts` (stored in `fleet_snapshots`)
 ## Server, live updates, claims (as built)
 
 - `routes/plans.ts`: `GET`/`POST /api/:uni/plans`, `PUT`/`DELETE /api/:uni/plans/:id`, `POST /api/:uni/plans/:id/fleets`,
-  `PUT`/`DELETE /api/:uni/plans/:id/fleets/:fleet`, `GET /api/:uni/hostile-attacks`, `POST /api/:uni/plans/retime`,
-  `PUT /api/:uni/plans/:id/enemy`.
+  `PUT`/`DELETE /api/:uni/plans/:id/fleets/:fleet`, `GET /api/:uni/hostile-attacks` (with `planId` / `holdPlanId`),
+  `POST /api/:uni/plans/retime`, `POST /api/:uni/plans/hold`, `PUT /api/:uni/plans/:id/enemy`,
+  `DELETE /api/:uni/plans/:id/phalanx` (drop a taken-over return), `POST /api/:uni/phalanx` (phalanx paste).
 - `repo/hostile.ts`: hostile attacks from the newest `fleet_snapshots` of all members (incoming fleets are always
-  shared), missions attack, ACS attack and destroy, an ACS as one attack, the same attack seen twice once; listed until
-  the latest possible return (10 % without drive research).
-- **Live via SSE**: every change publishes a `DataEvent` (`attack_plans`, with claims also `target_claims`); the page
-  reloads on it and on new fleet pastes (`fleets`). Countdowns tick on their own (`Countdown`, `clock.ts`), the plan
-  state only at launches, target times and plan ends, so open drop-downs are not reset.
-- **Claims**: "attack" claim on the target once coordinates are known, until 10 minutes after the target time; moved
-  with new coordinates, released on cancel, done or delete.
+  shared) and from the phalanx results of the last day (`source` `overview`/`phalanx`), missions attack, ACS attack
+  and destroy, an ACS as one attack, the same attack seen twice once with the newest arrival; listed until the
+  latest possible return (10 % without drive research). `recallWindow` finds a recall in a member's older pastes.
+- **Live via SSE**: every change publishes a `DataEvent` (`attack_plans`, with claims also `target_claims`, phalanx
+  pastes as `fleets`); the page and the menu counts reload on it and on new fleet pastes. Countdowns tick on their own
+  (`Countdown`, `clock.ts`), the plan state only at launches, target times and plan ends, so open drop-downs are not
+  reset.
+- **Claims**: "attack" claim on the target once coordinates are known (held by the creator, also when a participant
+  fills in the coordinates), until 10 minutes after the target time; moved with new coordinates, released on cancel,
+  done or delete. Hold plans claim nothing.
 
 ## UI (as built)
 
 - Menu "Raid-Planer" above "Raid-Statistiken" (formerly "Raids") with the number of current plans: grey in planning,
   green running (plan or a fleet launched); "Angriff planen" in the action menu of a planet/moon.
-- Top: hostile attacks on members with countdown, origin and owner, "Retime planen" (or "Retime geplant").
-- Plans (current, past), collapsible to a summary line (kept per plan in the browser): target (player and/or coordinates), time by precision with countdown, delay and limit
-  warnings, lead; retime panel for plans with an enemy fleet; fleets table with start, ships, speed, flight time,
-  launch with countdown and flags, return, status; own fleet form; invitations; status buttons; edit target and time.
-- Tests: server (`test/plans.test.ts`), web (`test/plans.test.ts`, page smoke test `test/raid-planner.test.ts` in
-  happy-dom).
+- Top: "Angriff planen", "Phalanx einfügen"; hostile attacks (members' overviews and phalanx, marked "Phalanx" with
+  who pasted it and the return when shown) with countdown, origin and owner, "Retime planen" and "Halten planen" (or
+  "… geplant").
+- Plans (current, past), collapsible to a summary line (target time, fleets, own launch or "too late"; kept per plan
+  in the browser, by default open while at most two are current): target (player and/or coordinates, open
+  coordinates clickable for all participants), time by precision with countdown, delay and limit warnings, lead,
+  simulator links; retime panel or hold panel for plans with an enemy fleet; fleets table with start, ships, speed
+  (drop-down), flight time, launch with countdown and flags (or the real arrival once launched), return, status,
+  flight calculator link; own fleet form; invitations; status buttons; edit target and time.
+- Explanations behind info icons (`Hint`); on mobile the fleets are cards with the launch right below the member.
+- Tests: server (`test/plans.test.ts`), web (`test/plans.test.ts`, `test/format.test.ts` for the simulator links,
+  page smoke test `test/raid-planner.test.ts` in happy-dom).
 
 ## Built
 
@@ -252,12 +273,17 @@ The parser `packages/parser/src/parsers/fleets.ts` (stored in `fleet_snapshots`)
    arrival, flight calculator links from fleets and the retime panel, combat simulator links with the target's spy
    report.
 7. **Hold and phalanx** (028, 029): hold plans on hostile attacks, phalanx results as a source of attacks.
+8. **Overview**: plan counts in the menu, collapsible plans, hints as info icons, mobile fleet cards; participants fill
+   in open coordinates.
 
 ## Still open
 
 1. **Phalanx pastes in the sync**: a phalanx copied into the sync instead of "Phalanx einfügen" would be read as the
-   member's own fleet list ("Eine deiner Flotten"); detect it (e.g. by the phalanx window's text) and refuse it there.
-2. **Test data** (later): the full Ctrl+A copy of an overview with an attack (with server clock line), the English
-   texts (taken from the game's language files so far), a copied phalanx result, an own ACS fleet in the overview.
+   member's own fleet list ("Eine deiner Flotten"). Needs a real copied phalanx text to tell the two apart (e.g. by
+   the phalanx window's heading) and refuse it in the sync.
+2. **Test data** (later, from the requester): the full Ctrl+A copy of an overview with an attack (with server clock
+   line), the English texts (taken from the game's language files so far), a copied phalanx result, an own ACS fleet
+   in the overview (launched detection with an ACS member's mission).
 3. **Other universes**: TrashSim's ship columns and the ship table follow universe 7; a universe with other ships would
-   need its own list.
+   need its own list (only if such a universe is used).
+4. **Mobile**: tidied up once; further changes on feedback from the requester's browser checks.

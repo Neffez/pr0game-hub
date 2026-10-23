@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Raid planner plan (`FEATURE_REQUEST_RETIME.md`) brought up to date: three ways into a plan (from scratch, retime,
+  hold), data model with migrations 028/029, phalanx as a source, endpoints, claims, UI, and the remaining open items.
+
 - **Read-only API tokens** under Account: personal `hubpat_…` tokens (GET only, same group scoping and privacy as the
   web app). OpenAPI 3.1 at `/api/openapi.json` and `/api/openapi.yaml`; `GET /api/catalog` exposes element names and
   costs. Migration `032_api_tokens`. Document OpenAPI upkeep in `CLAUDE.md`.
