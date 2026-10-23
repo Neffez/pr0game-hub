@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- New page "What's new" (Account section of the sidebar and the start page): new features and fixes per day in plain
+  words, in German and English, from `apps/web/src/changelog.ts`; filled in back to the first version. `CLAUDE.md`
+  now requires an entry there with every user-facing `CHANGELOG.md` entry.
+
 - In-game messages: a profile icon next to each known player (messages and conversation headers) opens the player
   dialog; Ctrl/middle click opens the player page in a new tab.
 - In-game messages grouped into conversations: all messages with the same partner in one card (partner, number of

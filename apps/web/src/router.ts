@@ -9,6 +9,7 @@ export const router = createRouter({
     { path: '/', component: () => import('./views/HomeView.vue') },
     { path: '/admin', component: () => import('./views/AdminView.vue') },
     { path: '/account', component: () => import('./views/AccountView.vue') },
+    { path: '/changelog', component: () => import('./views/ChangelogView.vue') },
     {
       path: '/:uni',
       component: () => import('./views/UniverseLayout.vue'),
@@ -40,6 +41,7 @@ export const router = createRouter({
         // also top level (start page); inside a universe they keep the sidebar
         { path: 'admin', component: () => import('./views/AdminView.vue') },
         { path: 'account', component: () => import('./views/AccountView.vue') },
+        { path: 'changelog', component: () => import('./views/ChangelogView.vue') },
       ],
     },
   ],

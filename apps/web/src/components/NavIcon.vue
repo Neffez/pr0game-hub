@@ -66,6 +66,8 @@ const ICONS: Record<string, string[]> = {
     'M4 12h2', 'M10 12h10', 'M10 12a2 2 0 1 1-4 0a2 2 0 1 1 4 0',
     'M4 18h10', 'M18 18h2', 'M18 18a2 2 0 1 1-4 0a2 2 0 1 1 4 0',
   ],
+  // star (what's new)
+  changelog: ['M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z'],
   // three lines (menu)
   menu: ['M4 6h16', 'M4 12h16', 'M4 18h16'],
   // person

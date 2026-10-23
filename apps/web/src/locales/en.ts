@@ -63,6 +63,7 @@ const en: typeof de = {
     universes: 'Universes',
     admin: 'Admin panel',
     user: 'User',
+    changelog: "What's new",
     allianceName: 'Alliance: {name}',
     more: 'More',
     syncShort: 'Sync',
@@ -90,6 +91,12 @@ const en: typeof de = {
     noGroup: 'You are not in an alliance yet. An admin has to invite you.',
     account: 'Account',
     logout: 'Log out',
+  },
+  changelog: {
+    title: "What's new",
+    intro: 'New features and fixes in the hub, newest first.',
+    new: 'New',
+    fix: 'Fixed',
   },
   account: {
     title: 'Account: {name}',

@@ -98,7 +98,7 @@ watch(group, () => reportWhereabouts(true));
 
 /** Sidebar label of a page (message key below nav.*). */
 const pageLabel = (page: string | null) => {
-  const l = [...links, { to: 'admin', label: 'admin' }, { to: 'account', label: 'user' }, { to: 'player', label: 'player' }].find((x) => x.to === page);
+  const l = [...links, { to: 'admin', label: 'admin' }, { to: 'account', label: 'user' }, { to: 'changelog', label: 'changelog' }, { to: 'player', label: 'player' }].find((x) => x.to === page);
   return l?.label ? t(`nav.${l.label}`) : '';
 };
 
@@ -126,7 +126,7 @@ function onTouchEnd(e: TouchEvent) {
 /** Page title in the mobile top bar. */
 const pageTitle = computed(() => {
   const page = route.path.split('/')[2];
-  const l = [...links, { to: 'admin', label: 'admin' }, { to: 'account', label: 'user' }].find((x) => x.to === page);
+  const l = [...links, { to: 'admin', label: 'admin' }, { to: 'account', label: 'user' }, { to: 'changelog', label: 'changelog' }].find((x) => x.to === page);
   return l ? t(`nav.${l.label}`) : (ctx.value?.universe.name ?? uni.value);
 });
 
@@ -175,6 +175,7 @@ const tabs = [
         <RouterLink :to="{ path: '/', query: { list: null } }"><NavIcon name="universes" />{{ t('nav.universes') }}</RouterLink>
         <RouterLink v-if="session.me?.user?.isAdmin || ctx?.group.role === 'admin'" :to="`/${uni}/admin`"><NavIcon name="admin" />{{ t('nav.admin') }}</RouterLink>
         <RouterLink :to="`/${uni}/account`"><NavIcon name="user" />{{ t('nav.user') }}</RouterLink>
+        <RouterLink :to="`/${uni}/changelog`"><NavIcon name="changelog" />{{ t('nav.changelog') }}</RouterLink>
       </nav>
       <PresenceList v-if="ctx" :page-label="pageLabel" @navigate="navOpen = false" />
     </aside>

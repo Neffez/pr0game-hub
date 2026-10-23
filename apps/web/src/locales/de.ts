@@ -64,6 +64,7 @@ const de = {
     universes: 'Universen',
     admin: 'Admin-Panel',
     user: 'Benutzer',
+    changelog: 'Neuigkeiten',
     allianceName: 'Allianz: {name}',
     more: 'Mehr',
     syncShort: 'Sync',
@@ -91,6 +92,12 @@ const de = {
     noGroup: 'Du bist noch in keiner Allianz. Ein Admin muss dich einladen.',
     account: 'Konto',
     logout: 'Abmelden',
+  },
+  changelog: {
+    title: 'Neuigkeiten',
+    intro: 'Neue Funktionen und Fehlerbehebungen im Hub, die neuesten zuerst.',
+    new: 'Neu',
+    fix: 'Behoben',
   },
   account: {
     title: 'Konto: {name}',

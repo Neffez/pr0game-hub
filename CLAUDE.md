@@ -8,6 +8,10 @@ Guidance for Claude Code in this repository. See `README.md` for features, setup
   of the section for today's date (`## YYYY-MM-DD`, create it above the previous dates if missing). Write in English,
   describe what changed for users or developers, not the files touched. Several related changes can share a bullet
   with sub-bullets.
+- **User changelog alongside.** Whenever a commit adds something users notice to `CHANGELOG.md` (new feature,
+  fix), it also adds a short, non-technical entry to `apps/web/src/changelog.ts` (the "What's new" page under
+  Account): at the top of today's day (create it if missing), `kind` `new` or `fix`, text in German and English
+  (`de`/`en`), no file names, endpoints or migrations. Developer-only changes (refactors, tests, docs, CI) get none.
 - **Sync is copy and paste only.** pr0game's rules forbid automation: never add code that runs on game pages
   (userscripts, bookmarklets, extensions) or endpoints meant for automated submission. Improvements to syncing stay
   inside the hub (paste, clipboard, file upload).

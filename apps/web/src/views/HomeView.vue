@@ -42,6 +42,7 @@ async function logout() {
       <div class="row" style="margin-top: 14px">
         <RouterLink v-if="session.me?.user?.isAdmin || session.me?.groups.some((g) => g.role === 'admin')" to="/admin">{{ t('nav.admin') }}</RouterLink>
         <RouterLink to="/account">{{ t('home.account') }}</RouterLink>
+        <RouterLink to="/changelog">{{ t('nav.changelog') }}</RouterLink>
         <a href="#" @click.prevent="logout">{{ t('home.logout') }}</a>
       </div>
     </div>
