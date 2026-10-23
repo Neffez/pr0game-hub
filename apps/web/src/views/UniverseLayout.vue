@@ -41,7 +41,7 @@ function load() {
 }
 useLiveReload(() => loadClaims(uni.value), tables('target_claims'));
 useLiveReload(() => loadCommentCounts(uni.value), tables('comments'), 300);
-useLiveReload(() => loadNotifications(uni.value), tables('fleets'), 300);
+useLiveReload(() => loadNotifications(uni.value), tables('fleets', 'attack_plans'), 300);
 
 /** Raid planner in the menu: current plans in planning (grey) and running (green); recounted every minute. */
 const plans = ref<AttackPlan[]>([]);

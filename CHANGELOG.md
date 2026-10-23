@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Raid planner invitations show up in the notification bell of the invited member (kind `invite` in
+  `GET /api/:uni/notifications`, one per plan while it is in planning and its target time has not passed). They count
+  as unseen but are calmer than attacks (blue badge, no red bell); a click opens the plan in the raid planner
+  (`?plan=<id>`). The bell reloads on plan changes too.
+
 - Phalanx texts (from a real copy): fleet lines are read without the bar between clock and countdown (the phalanx
   separates them with tabs), so "Phalanx einfügen" finds its attacks. A phalanx is recognised by its head
   ("Scan Position [g:s:p]" / "Investigate position", `isPhalanxText`, `phalanxPosition`): the sync no longer stores it

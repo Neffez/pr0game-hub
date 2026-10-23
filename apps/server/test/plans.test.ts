@@ -81,6 +81,11 @@ describe('attack plans', () => {
     // Dave cannot invite others, Carol (creator) can
     expect((await call('POST', `/plans/${plan.id}/fleets`, dave, { user_id: carolId })).json().code).toBe('plan_not_yours');
     expect((await call('POST', `/plans/${plan.id}/fleets`, carol, { user_id: daveId })).statusCode).toBe(200);
+    // the invitation rings Dave's bell, not Carol's
+    expect((await call('GET', '/notifications', dave)).json()).toEqual([
+      expect.objectContaining({ id: `invite:${plan.id}`, kind: 'invite', userId: carolId, member: 'Carol', time: plan.target_time, plan: expect.objectContaining({ id: plan.id, g: 1, s: 41, p: 1, planet_type: 'moon', mission: 'attack' }) }),
+    ]);
+    expect((await call('GET', '/notifications', carol)).json()).toEqual([]);
 
     const fleets = (await call('GET', '/plans', dave)).json()[0].fleets;
     expect(fleets.map((f: any) => [f.member, f.status, f.speed, f.ships])).toEqual([
@@ -95,6 +100,7 @@ describe('attack plans', () => {
     expect((await call('PUT', `/plans/${plan.id}/fleets/${fleets[1].id}`, dave, { speed: 50, ships: { 204: 120 } })).statusCode).toBe(200);
     expect((await call('PUT', `/plans/${plan.id}/fleets/${fleets[0].id}`, dave, { speed: 50 })).json().code).toBe('plan_fleet_not_yours');
     expect((await call('PUT', `/plans/${plan.id}/fleets/${fleets[2].id}`, carol, { status: 'withdrawn' })).statusCode).toBe(200);
+    expect((await call('GET', '/notifications', dave)).json()).toEqual([]);
     expect((await call('DELETE', `/plans/${plan.id}/fleets/${fleets[2].id}`, dave)).statusCode).toBe(200);
     const after = (await call('GET', '/plans', carol)).json()[0].fleets;
     expect(after.map((f: any) => [f.member, f.speed, f.ships])).toEqual([['Carol', 90, { 207: 1773, 215: 2 }], ['Dave', 50, { 204: 120 }]]);

@@ -1087,6 +1087,8 @@ const de = {
     attacks: '{n} feindliche Flotte im Anflug | {n} feindliche Flotten im Anflug',
     acs: 'Verbandsangriff ({n} Flotten)',
     from: 'von',
+    invite: 'Einladung von {member}',
+    raid: 'Raid-Planer',
   },
   game: {
     missions: {

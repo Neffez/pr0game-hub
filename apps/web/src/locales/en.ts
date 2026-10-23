@@ -1083,6 +1083,8 @@ const en: typeof de = {
     attacks: '{n} hostile fleet approaching | {n} hostile fleets approaching',
     acs: 'ACS attack ({n} fleets)',
     from: 'from',
+    invite: 'Invitation from {member}',
+    raid: 'Raid planner',
   },
   game: {
     missions: {

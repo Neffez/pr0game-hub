@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-10-23',
     items: [
       {
+        kind: 'new',
+        de: 'Einladungen im Raid-Planer erscheinen jetzt in der Glocke (blau, weniger dringend als Angriffe). Ein Klick öffnet den Plan.',
+        en: 'Raid planner invitations now show up in the bell (blue, less urgent than attacks). A click opens the plan.',
+      },
+      {
         kind: 'fix',
         de: 'Phalanx: Kopierte Phalanx-Ergebnisse werden jetzt richtig gelesen. Im normalen Sync werden sie nicht mehr als eigene Flotten gespeichert, sondern mit Hinweis auf „Phalanx einfügen“ im Raid-Planer abgewiesen.',
         en: 'Phalanx: copied phalanx results are now read correctly. The normal sync no longer stores them as your own fleets but points to "Paste phalanx" in the raid planner.',

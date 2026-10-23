@@ -6,7 +6,7 @@ import PlanTargetForm from '../components/PlanTargetForm.vue';
 import PlayerLink from '../components/PlayerLink.vue';
 import HoldPanel from '../components/HoldPanel.vue';
 import RetimePanel from '../components/RetimePanel.vue';
-import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import { uniApi } from '../api';
@@ -148,6 +148,19 @@ watch(openState, (v) => {
 /** Current plans are open while there are at most two, past ones closed. */
 const isOpen = (p: AttackPlan) => openState[p.id] ?? (isCurrent(p, now.value) && current.value.length <= 2);
 const toggle = (p: AttackPlan) => (openState[p.id] = !isOpen(p));
+/** `?plan=<id>` (an invitation from the bell): opens that plan and scrolls to it once loaded. */
+watch(
+  [() => route.query.plan, plans],
+  async ([id]) => {
+    const plan = id ? plans.value.find((p) => p.id === Number(id)) : undefined;
+    if (!plan) return;
+    openState[plan.id] = true;
+    router.replace({ query: {} });
+    await nextTick();
+    document.getElementById(`plan-${plan.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  },
+  { immediate: true },
+);
 /** The viewer's next own launch in a plan (not launched yet), for the closed plan's summary. */
 const myLaunch = (p: AttackPlan) =>
   views.value.get(p.id)?.fleets.find((x) => x.fleet.user_id === me.value && x.plan && !x.fleet.seen && x.fleet.status !== 'launched' && x.plan.launch > now.value)?.plan
@@ -435,7 +448,7 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
 
   <template v-for="(list, i) in [current, past]" :key="i">
     <h2 v-if="i === 1 && list.length">{{ t('plans.past') }}</h2>
-    <div v-for="p in list" :key="p.id" class="card plan" :class="{ closed: closed(p) }">
+    <div v-for="p in list" :id="`plan-${p.id}`" :key="p.id" class="card plan" :class="{ closed: closed(p) }">
       <div class="row plan-head">
         <button class="toggle" :aria-expanded="isOpen(p)" :title="isOpen(p) ? t('plans.collapse') : t('plans.expand')" @click="toggle(p)">{{ isOpen(p) ? '▾' : '▸' }}</button>
         <template v-if="hasCoords(p)">

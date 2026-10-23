@@ -736,6 +736,11 @@ paths:
     get:
       tags: [Social]
       operationId: getNotifications
+      description: |
+        Current notifications, earliest first: `attack` (hostile fleets heading for a member, from the members' shared
+        fleet lists; `fleet`, `fleets`) and `invite` (the caller's open invitations to a raid planner plan in planning;
+        `plan`, `member` is the plan's creator, `time` its target time, valid until the end of its day or hour by
+        `plan.time_precision`).
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
@@ -744,7 +749,30 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: array, items: { type: object } }
+              schema:
+                type: array
+                items:
+                  type: object
+                  required: [id, kind, userId, member, time]
+                  properties:
+                    id: { type: string, description: Stable while the event lasts }
+                    kind: { type: string, enum: [attack, invite] }
+                    userId: { type: integer, description: 'attack: the attacked member; invite: the plan creator' }
+                    member: { type: string }
+                    time: { type: integer, description: Unix seconds (arrival or plan target time) }
+                    fleet: { type: object, description: 'attack only: the fleet (for an ACS the lead fleet with all ships)' }
+                    fleets: { type: integer, description: 'attack only: number of fleets of an ACS' }
+                    plan:
+                      type: object
+                      description: invite only
+                      properties:
+                        id: { type: integer }
+                        g: { type: [integer, 'null'] }
+                        s: { type: [integer, 'null'] }
+                        p: { type: [integer, 'null'] }
+                        planet_type: { type: string, enum: [planet, moon] }
+                        mission: { type: string, enum: [attack, hold] }
+                        time_precision: { type: string, enum: [day, hour, exact] }
   /api/{uni}/presence:
     get:
       tags: [Social]
