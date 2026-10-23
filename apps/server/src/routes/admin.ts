@@ -29,6 +29,9 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
     if (admins.length === 1 && admins[0] === userId) throw new HttpError(400, 'last_admin', 'The alliance needs at least one admin');
   };
 
+  /** The first global admin (who set the hub up) can't be removed from or demoted in an alliance by anyone. */
+  const owner = () => db.prepare('SELECT id FROM users WHERE is_admin = 1 ORDER BY id LIMIT 1').pluck().get() as number | undefined;
+
   // ------------------------------------------------------------- universes
 
   app.get('/api/universes', async (req) => {
@@ -117,7 +120,22 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
         `SELECT u.id, u.username, m.role, m.ingame_name, m.joined_at, u.last_login_at
          FROM group_members m JOIN users u ON u.id = m.user_id WHERE m.group_id = ? ORDER BY u.username`,
       )
-      .all(groupId);
+      .all(groupId)
+      .map((m: any) => ({ ...m, owner: m.id === owner() }));
+  });
+
+  app.put<{ Params: { id: string }; Body: { name?: string } }>('/api/admin/groups/:id', async (req) => {
+    const groupId = Number(req.params.id);
+    requireGroupAdmin(req, groupId);
+    const name = String(req.body?.name ?? '').trim();
+    if (!name) throw new HttpError(400, 'name_missing', 'Name missing');
+    const uni = db.prepare('SELECT universe_id FROM groups WHERE id = ?').pluck().get(groupId) as number | undefined;
+    if (!uni) throw new HttpError(404, 'not_found', 'Not found');
+    if (db.prepare('SELECT 1 FROM groups WHERE universe_id = ? AND name = ? AND id <> ?').get(uni, name, groupId)) {
+      throw new HttpError(409, 'group_exists', 'Alliance already exists');
+    }
+    db.prepare('UPDATE groups SET name = ? WHERE id = ?').run(name, groupId);
+    return { ok: true };
   });
 
   app.put<{ Params: { id: string; userId: string }; Body: { role?: string; ingameName?: string | null } }>(
@@ -127,7 +145,10 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
       const user = requireGroupAdmin(req, groupId);
       const role = req.body?.role;
       if (role && role !== 'member' && role !== 'admin') throw new HttpError(400, 'role_invalid', 'Invalid role');
-      if (role === 'member') keepLastAdmin(user, groupId, Number(req.params.userId));
+      if (role === 'member') {
+        if (Number(req.params.userId) === owner()) throw new HttpError(400, 'owner_protected', 'The hub owner stays admin');
+        keepLastAdmin(user, groupId, Number(req.params.userId));
+      }
       const hasName = req.body !== undefined && req.body !== null && 'ingameName' in req.body;
       db.prepare('UPDATE group_members SET role = COALESCE(?, role), ingame_name = CASE WHEN ? THEN ? ELSE ingame_name END WHERE group_id = ? AND user_id = ?').run(
         role ?? null,
@@ -143,8 +164,11 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
   app.delete<{ Params: { id: string; userId: string } }>('/api/admin/groups/:id/members/:userId', async (req) => {
     const groupId = Number(req.params.id);
     const user = requireGroupAdmin(req, groupId);
-    keepLastAdmin(user, groupId, Number(req.params.userId));
-    db.prepare('DELETE FROM group_members WHERE group_id = ? AND user_id = ?').run(groupId, Number(req.params.userId));
+    const target = Number(req.params.userId);
+    if (target === user.id) throw new HttpError(400, 'remove_self', 'You cannot remove yourself');
+    if (target === owner()) throw new HttpError(400, 'owner_protected', 'The hub owner cannot be removed');
+    keepLastAdmin(user, groupId, target);
+    db.prepare('DELETE FROM group_members WHERE group_id = ? AND user_id = ?').run(groupId, target);
     return { ok: true };
   });
 

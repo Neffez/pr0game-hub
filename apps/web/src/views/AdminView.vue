@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { vStack } from '../composables';
+import { useMobile, useSort, vStack } from '../composables';
 import Hint from '../components/Hint.vue';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -12,6 +12,8 @@ const route = useRoute();
 /** set when opened inside a universe (sidebar stays, its alliance is preselected) */
 const uni = route.params.uni ? String(route.params.uni) : null;
 const isAdmin = computed(() => !!session.me?.user?.isAdmin);
+const me = computed(() => session.me?.user?.id);
+const mobile = useMobile();
 const error = ref('');
 const msg = ref('');
 
@@ -32,6 +34,8 @@ const ingests = ref<any[]>([]);
 const inviteRole = ref('member');
 const merge = ref({ from: null as number | null, into: null as number | null });
 const group = computed(() => groups.value.find((g) => g.id === groupId.value));
+const groupName = ref('');
+watch(group, (g) => (groupName.value = g?.name ?? ''), { immediate: true });
 
 /** `ok`: message key shown on success */
 async function run(fn: () => Promise<unknown>, ok = '') {
@@ -111,6 +115,20 @@ const createGroup = () =>
     groupId.value = res.id;
   }, 'admin.groupCreated');
 
+const renameGroup = () =>
+  run(async () => {
+    await api(`/admin/groups/${groupId.value}`, { method: 'PUT', body: { name: groupName.value } });
+    await loadAll();
+    await loadMe();
+  }, 'admin.groupRenamed');
+
+const memberSort = useSort(
+  members,
+  (m: any, k) => ({ user: m.username.toLowerCase(), role: m.role, ingame: m.ingame_name?.toLowerCase(), joined: m.joined_at, login: m.last_login_at })[k],
+  'user',
+  false,
+);
+
 const createInvite = () =>
   run(async () => {
     await api(`/admin/groups/${groupId.value}/invites`, { body: { role: inviteRole.value } });
@@ -175,6 +193,19 @@ const aboutText = (a: About) => {
   return `${kind}${more}${a.sample.length ? ': ' + a.sample.join(', ') : ''}`;
 };
 
+const contentOf = (i: any): string[] => {
+  const about: About[] = i.summary?.about ?? [];
+  const text = about.length ? about.map(aboutText) : [i.page_type];
+  return i.source === 'upload' ? ['universe.json', ...text] : text;
+};
+const ingestSort = useSort(
+  ingests,
+  (i: any, k) => ({ time: i.created_at, user: i.username?.toLowerCase(), content: contentOf(i)[0].toLowerCase() })[k],
+  'time',
+);
+const ingestSorts = ['time', 'user', 'content'] as const;
+const ingestLabel = (k: string) => t(k === 'time' ? 'common.time' : k === 'user' ? 'nav.user' : 'admin.content');
+
 /** dry run of taking a sync back, shown under its row until confirmed */
 type Undo = {
   id: number; snapshots: number; scores: number; activity: number; players: string[]; alliances: string[]; kept: string[];
@@ -197,7 +228,7 @@ const doMerge = () => run(async () => {
 </script>
 
 <template>
-  <div :class="{ main: !uni }" style="max-width: 1100px" :style="{ margin: uni ? undefined : '0 auto' }">
+  <div class="admin" :class="{ main: !uni }" style="max-width: 1100px" :style="{ margin: uni ? undefined : '0 auto' }">
     <p v-if="!uni"><RouterLink to="/">{{ t('common.back') }}</RouterLink></p>
     <h1>{{ t('admin.title') }}</h1>
     <div v-if="error" class="error">{{ error }}</div>
@@ -296,29 +327,41 @@ const doMerge = () => run(async () => {
         <select v-model="groupId">
           <option v-for="g in groups" :key="g.id" :value="g.id">{{ g.universe }} · {{ g.name }} ({{ g.members }})</option>
         </select>
-        <template v-if="isAdmin">
-          <span class="grow" />
-          <select v-model="newGroup.universe">
-            <option value="" disabled>{{ t('admin.universe') }}</option>
-            <option v-for="u in universes" :key="u.slug" :value="u.slug">{{ u.slug }}</option>
-          </select>
-          <input v-model="newGroup.name" :placeholder="t('admin.groupName')" />
-          <button class="primary" @click="createGroup">{{ t('admin.createGroup') }}</button>
-        </template>
+        <form v-if="group" class="row" @submit.prevent="renameGroup">
+          <input v-model="groupName" :placeholder="t('admin.groupName')" />
+          <button :disabled="!groupName.trim() || groupName.trim() === group.name">{{ t('admin.rename') }}</button>
+        </form>
       </div>
+      <form v-if="isAdmin" class="row" style="margin-top: 10px" @submit.prevent="createGroup">
+        <select v-model="newGroup.universe">
+          <option value="" disabled>{{ t('admin.universe') }}</option>
+          <option v-for="u in universes" :key="u.slug" :value="u.slug">{{ u.slug }}</option>
+        </select>
+        <input v-model="newGroup.name" :placeholder="t('admin.groupName')" />
+        <button class="primary">{{ t('admin.createGroup') }}</button>
+      </form>
     </div>
 
     <template v-if="group">
       <h2>{{ t('admin.members', { name: group.name }) }}</h2>
       <div class="table-wrap" style="max-height: none">
         <table v-stack class="data">
-          <thead><tr><th>{{ t('nav.user') }}</th><th>{{ t('admin.role') }}</th><th>{{ t('admin.ingameName') }}</th><th>{{ t('admin.joined') }}</th><th>{{ t('admin.login') }}</th><th /></tr></thead>
+          <thead>
+            <tr>
+              <th class="sortable" @click="memberSort.sortBy('user')">{{ t('nav.user') }}{{ memberSort.indicator('user') }}</th>
+              <th class="sortable" @click="memberSort.sortBy('role')">{{ t('admin.role') }}{{ memberSort.indicator('role') }}</th>
+              <th class="sortable" @click="memberSort.sortBy('ingame')">{{ t('admin.ingameName') }}{{ memberSort.indicator('ingame') }}</th>
+              <th class="sortable" @click="memberSort.sortBy('joined')">{{ t('admin.joined') }}{{ memberSort.indicator('joined') }}</th>
+              <th class="sortable" @click="memberSort.sortBy('login')">{{ t('admin.login') }}{{ memberSort.indicator('login') }}</th>
+              <th />
+            </tr>
+          </thead>
           <tbody>
-            <tr v-for="m in members" :key="m.id">
+            <tr v-for="m in memberSort.sorted.value" :key="m.id">
               <td v-if="isAdmin"><input v-model="m.username" style="width: 140px" @change="renameUser(m)" /></td>
               <td v-else>{{ m.username }}</td>
               <td>
-                <select :value="m.role" @change="setRole(m, ($event.target as HTMLSelectElement).value)">
+                <select :value="m.role" :disabled="m.owner" @change="setRole(m, ($event.target as HTMLSelectElement).value)">
                   <option value="member">{{ t('admin.roles.member') }}</option>
                   <option value="admin">{{ t('admin.roles.admin') }}</option>
                 </select>
@@ -326,7 +369,10 @@ const doMerge = () => run(async () => {
               <td><input v-model="m.ingame_name" style="width: 140px" @change="setIngame(m)" /></td>
               <td class="small">{{ dateTime(m.joined_at) }}</td>
               <td class="small">{{ dateTime(m.last_login_at) }}</td>
-              <td><button @click="removeMember(m)">{{ t('admin.remove') }}</button></td>
+              <td>
+                <button v-if="m.id !== me && !m.owner" @click="removeMember(m)">{{ t('admin.remove') }}</button>
+                <span v-else-if="m.owner" class="faint small">{{ t('admin.owner') }}</span>
+              </td>
             </tr>
           </tbody>
         </table>
@@ -388,38 +434,51 @@ const doMerge = () => run(async () => {
       </div>
 
       <h2>{{ t('admin.ingests') }} <Hint>{{ t('admin.ingestsHint') }}</Hint></h2>
+      <div v-if="mobile" class="row small sortbar" style="margin-bottom: 8px">
+        <label>
+          {{ t('overview.sort') }}
+          <select :value="ingestSort.key.value" @change="ingestSort.sortBy(($event.target as HTMLSelectElement).value)">
+            <option v-for="k in ingestSorts" :key="k" :value="k">{{ ingestLabel(k) }}</option>
+          </select>
+        </label>
+        <button :title="t('overview.sortDir')" @click="ingestSort.descending.value = !ingestSort.descending.value">{{ ingestSort.descending.value ? '▾' : '▴' }}</button>
+      </div>
       <div class="table-wrap">
-        <table v-stack="2" class="data">
-          <thead><tr><th>{{ t('common.time') }}</th><th>{{ t('nav.user') }}</th><th>{{ t('admin.source') }}</th><th>{{ t('admin.content') }}</th><th>{{ t('admin.result') }}</th><th /></tr></thead>
+        <table v-stack="2" class="data ingests">
+          <thead>
+            <tr>
+              <th v-for="k in ingestSorts" :key="k" class="sortable" @click="ingestSort.sortBy(k)">{{ ingestLabel(k) }}{{ ingestSort.indicator(k) }}</th>
+              <th>{{ t('admin.result') }}</th>
+              <th />
+            </tr>
+          </thead>
           <tbody>
-            <template v-for="i in ingests" :key="i.id">
+            <template v-for="i in ingestSort.sorted.value" :key="i.id">
               <tr>
                 <td class="small">{{ dateTime(i.created_at) }}</td>
                 <td>{{ i.username }}</td>
-                <td class="small">{{ i.source }}</td>
-                <td class="small" style="white-space: normal; min-width: 220px">
-                  <div v-for="a in i.summary?.about ?? []" :key="a.kind">{{ aboutText(a) }}</div>
-                  <span v-if="!i.summary?.about?.length" class="muted">{{ i.page_type }}</span>
+                <td class="small content">
+                  <div v-for="(c, n) in contentOf(i)" :key="n">{{ c }}</div>
                 </td>
-                <td class="small muted">
-                  <span v-for="(c, k) in i.summary?.counts" :key="k">{{ k }}: {{ c.new }}/{{ c.duplicate }} </span>
-                  <span v-for="w in i.summary?.warnings" :key="w" class="warn">⚠ {{ w }} </span>
+                <td class="small muted content">
+                  <div v-for="(c, k) in i.summary?.counts" :key="k">{{ k }}: {{ t('admin.counts', { new: c.new, duplicate: c.duplicate }) }}</div>
+                  <div v-for="w in i.summary?.warnings" :key="w" class="warn">⚠ {{ w }}</div>
                 </td>
-                <td class="row">
-                  <template v-if="i.html_size || i.text_size">
+                <td>
+                  <div v-if="i.html_size || i.text_size" class="actions">
                     <button @click="reparse(i.id)">Reparse</button>
                     <button style="color: var(--neg)" @click="previewUndo(i.id)">{{ t('admin.undo') }}</button>
-                  </template>
+                  </div>
                 </td>
               </tr>
               <tr v-if="undo && undo.id === i.id">
-                <td colspan="6" class="small" style="white-space: normal">
+                <td colspan="5" class="small content">
                   <p>{{ t('admin.undoPreview', undo) }}</p>
                   <p v-if="undo.players.length"><b>{{ t('admin.undoPlayers') }} ({{ undo.players.length }}):</b> {{ undo.players.join(', ') }}</p>
                   <p v-if="undo.alliances.length"><b>{{ t('admin.undoAlliances') }} ({{ undo.alliances.length }}):</b> {{ undo.alliances.join(', ') }}</p>
                   <p v-if="undo.kept.length" class="warn"><b>{{ t('admin.undoKept') }} ({{ undo.kept.length }}):</b> {{ undo.kept.join(', ') }}</p>
                   <p v-if="undo.skipped.length" class="warn">{{ t('admin.undoSkipped', { kinds: undo.skipped.join(', ') }) }}</p>
-                  <div class="row">
+                  <div class="actions" style="justify-content: flex-start">
                     <button style="color: var(--neg)" @click="runUndo">{{ t('admin.undoRun') }}</button>
                     <button @click="undo = null">{{ t('common.cancel') }}</button>
                   </div>
@@ -432,3 +491,24 @@ const doMerge = () => run(async () => {
     </template>
   </div>
 </template>
+
+<style scoped>
+.actions { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: nowrap; }
+table.ingests td.content { white-space: normal; min-width: 220px; }
+@media (max-width: 799px) {
+  /* forms: one field per line, full width */
+  .admin .row > input,
+  .admin .row > select,
+  .admin .row > label,
+  .admin .row > form { flex: 1 1 100%; }
+  .admin .row input:not([type='checkbox']),
+  .admin .row select,
+  .admin table.data.stack input,
+  .admin table.data.stack select { width: 100% !important; box-sizing: border-box; }
+  /* content and result: label above, one entry per line */
+  table.ingests td.content { display: block; min-width: 0; flex-basis: 100%; text-align: left; }
+  table.ingests td.content::before { display: block; }
+  .admin .sortbar > label { flex: 1 1 auto; display: flex; align-items: center; gap: 8px; }
+  .admin .sortbar select { width: auto !important; flex: 1; }
+}
+</style>

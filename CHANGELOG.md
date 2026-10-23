@@ -4,6 +4,14 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- Admin panel:
+  - Sync table restructured: sortable by time, member and content (sort control on mobile), Reparse and Delete side
+    by side, one line per result count ("1 new · 0 duplicate"), source column dropped (uploads say "universe.json"
+    in the content).
+  - Members table sortable; nobody can remove themselves, and the hub owner (first global admin) can be neither
+    removed nor demoted (`remove_self`, `owner_protected`); the owner is marked in the list.
+  - Alliances can be renamed (`PUT /api/admin/groups/:id`, name unique per universe).
+  - Mobile: form fields take the full width, sync cards show content and result one entry per line.
 - Raid planner: open drop-down lists no longer lose their highlight every second. The page rendered again with every
   tick of the countdowns; countdowns are now their own component on one shared second clock, and the plan state
   (late, delays, current or past) only moves at the next launch, target time or end of a plan, at least every minute.

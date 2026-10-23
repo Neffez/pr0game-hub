@@ -1010,12 +1010,29 @@ describe('review fixes', () => {
     const carol = await login('carol', 'carolpass');
     const id = db.prepare("SELECT id FROM users WHERE username = 'carol'").pluck().get();
     const url = `/hub/api/admin/groups/${groupX}/members/${id}`;
-    // the creator leaves, carol is the only admin
-    await app.inject({ method: 'DELETE', url: `/hub/api/admin/groups/${groupX}/members/1`, headers: admin });
+    // nobody removes themselves or the hub owner (first admin), nor demotes the owner
+    const owner = `/hub/api/admin/groups/${groupX}/members/1`;
+    expect((await app.inject({ method: 'DELETE', url: owner, headers: admin })).json().code).toBe('remove_self');
+    expect((await app.inject({ method: 'DELETE', url: owner, headers: carol })).json().code).toBe('owner_protected');
+    expect((await app.inject({ method: 'PUT', url: owner, headers: carol, payload: { role: 'member' } })).json().code).toBe('owner_protected');
+    expect((await app.inject({ method: 'DELETE', url, headers: carol })).json().code).toBe('remove_self');
+    const members = (await app.inject({ method: 'GET', url: `/hub/api/admin/groups/${groupX}/members`, headers: carol })).json();
+    expect(members.map((m: any) => [m.username, m.owner])).toEqual([['admin', true], ['carol', false]]);
+    // the owner left (e.g. before this rule), carol is the only admin
+    db.prepare('DELETE FROM group_members WHERE group_id = ? AND user_id = 1').run(groupX);
     expect((await app.inject({ method: 'PUT', url, headers: carol, payload: { role: 'member' } })).json().code).toBe('last_admin');
-    expect((await app.inject({ method: 'DELETE', url, headers: carol })).json().code).toBe('last_admin');
     // the global admin may
     expect((await app.inject({ method: 'PUT', url, headers: admin, payload: { role: 'member' } })).statusCode).toBe(200);
+  });
+
+  it('renames an alliance', async () => {
+    const groupX = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', headers: admin, payload: { universe: 'u8', name: 'Alt' } })).json().id;
+    const rename = (name: string) => app.inject({ method: 'PUT', url: `/hub/api/admin/groups/${groupX}`, headers: admin, payload: { name } });
+    expect((await rename(' ')).json().code).toBe('name_missing');
+    expect((await rename('A')).json().code).toBe('group_exists');
+    expect((await rename(' Neu ')).statusCode).toBe(200);
+    expect(db.prepare('SELECT name FROM groups WHERE id = ?').pluck().get(groupX)).toBe('Neu');
+    expect((await rename('Neu')).statusCode).toBe(200);
   });
 
   it('rejects duplicate universes and invalid settings', async () => {
