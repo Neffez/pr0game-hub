@@ -5,6 +5,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { uniApi } from '../api';
 import Hint from '../components/Hint.vue';
 import PlayerMessage from '../components/PlayerMessage.vue';
+import ProfileLink from '../components/ProfileLink.vue';
 import { useLoader, useProgressive, useSort, useStored, useUni } from '../composables';
 import { dateTime } from '../format';
 import { tables, useLiveReload } from '../live';
@@ -197,11 +198,21 @@ async function toggleShare(m: Message) {
 
   <div v-else-if="data" class="list">
     <section v-for="c in convsShown" :key="c.id" class="conv" :class="{ open: isOpen(c.id) }">
-      <button class="conv-head" :aria-expanded="isOpen(c.id)" @click="toggle(c.id)">
+      <!-- not a <button>: it holds the profile links -->
+      <div
+        class="conv-head"
+        role="button"
+        tabindex="0"
+        :aria-expanded="isOpen(c.id)"
+        @click="toggle(c.id)"
+        @keydown.enter.prevent="toggle(c.id)"
+        @keydown.space.prevent="toggle(c.id)"
+      >
         <span class="conv-title">
           <template v-for="(p, i) in title(c)" :key="p.name">
             <span v-if="i" class="faint">{{ c.parties.some((x) => x.self) ? ', ' : ' ↔ ' }}</span>
             <span class="party" :class="p.ally ? 'ally' : 'other'">{{ p.name }}</span>
+            <ProfileLink v-if="p.player" :id="p.player" :name="p.name" />
           </template>
           <span class="badge">{{ c.messages.length }}</span>
         </span>
@@ -209,7 +220,7 @@ async function toggleShare(m: Message) {
         <span class="conv-preview small muted">
           <b>{{ c.latest.from.name }}:</b> {{ c.latest.subject }} – {{ preview(c.latest) }}
         </span>
-      </button>
+      </div>
       <div v-if="isOpen(c.id)" class="chat">
         <PlayerMessage v-for="m in c.messages" :key="m.id" :m="m" chat :busy="busy === m.id" @share="toggleShare" @partner="showPartner" />
       </div>
@@ -233,8 +244,10 @@ async function toggleShare(m: Message) {
 .conv.open { border-color: var(--border-strong); }
 .conv-head {
   display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; width: 100%; padding: 10px 14px;
-  background: none; border: 0; border-radius: var(--radius); text-align: left; color: inherit; font: inherit;
+  border-radius: var(--radius); cursor: pointer;
 }
+.conv-head:hover { background: var(--surface-2); }
+.conv-head:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .conv-title { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 4px; font-weight: 600; min-width: 0; }
 .conv-title .badge { margin-left: 6px; }
 .party { overflow-wrap: anywhere; }

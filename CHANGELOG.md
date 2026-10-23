@@ -4,6 +4,8 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-23
 
+- In-game messages: a profile icon next to each known player (messages and conversation headers) opens the player
+  dialog; Ctrl/middle click opens the player page in a new tab.
 - In-game messages grouped into conversations: all messages with the same partner in one card (partner, number of
   messages, last message), opened as a chat with the user's (or the members') messages on the right. Switch between
   "Conversations" and "Single" on the page.

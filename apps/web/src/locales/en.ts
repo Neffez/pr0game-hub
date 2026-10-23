@@ -183,7 +183,7 @@ const en: typeof de = {
     clickHint: 'Click a system to show it in the galaxy above.',
   },
   messages: {
-    hint: 'Player messages from the game (copy Messages → Player messages and paste it under Sync): your own and those of the members who share theirs. A message synced by both sender and recipient is listed once. Conversations combine all messages with the same partner, also across several game threads and renames (paste HTML or the page source; plain text has no thread id). Blue: players of the own alliance, orange: other players; a click on a name shows the conversation with them. You can share each of your messages with the alliance or not – this beats the account setting.',
+    hint: 'Player messages from the game (copy Messages → Player messages and paste it under Sync): your own and those of the members who share theirs. A message synced by both sender and recipient is listed once. Conversations combine all messages with the same partner, also across several game threads and renames (paste HTML or the page source; plain text has no thread id). Blue: players of the own alliance, orange: other players; a click on a name shows the conversation with them, the icon next to it their player profile. You can share each of your messages with the alliance or not – this beats the account setting.',
     sharing: 'You share your messages with the alliance.',
     private: 'Your messages are private, only you see them.',
     change: 'Change',
@@ -194,6 +194,7 @@ const en: typeof de = {
     with: 'Conversation with {name}',
     sortBy: 'Sort',
     sortLast: 'by last message',
+    profile: 'Player profile of {name}',
     modeConversations: 'Conversations',
     modeSingle: 'Single',
     conversationCount: '{n} conversation | {n} conversations',

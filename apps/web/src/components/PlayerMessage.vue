@@ -2,6 +2,7 @@
 import { useI18n } from 'vue-i18n';
 import { dateTime } from '../format';
 import type { MessageParty, PlayerMessage } from '../messages';
+import ProfileLink from './ProfileLink.vue';
 
 /** One player message: a card in the list, or a speech bubble in a conversation (`chat`). */
 const props = defineProps<{ m: PlayerMessage; chat?: boolean; busy?: boolean }>();
@@ -19,6 +20,7 @@ const sharedByOthers = () => props.m.shared && !props.m.own_shared;
         <a href="#" class="party" :class="m.from.ally ? 'ally' : 'other'" @click.prevent="emit('partner', m.from)">
           {{ m.from.name }}<span v-if="m.from.coords && !chat" class="coords"> [{{ m.from.coords }}]</span>
         </a>
+        <ProfileLink v-if="m.from.player" :id="m.from.player" :name="m.from.name" />
         <template v-if="!chat || m.recipients.length > 1">
           <span class="arrow" aria-hidden="true">→</span>
           <template v-for="(r, i) in m.recipients" :key="r.name">
@@ -26,6 +28,7 @@ const sharedByOthers = () => props.m.shared && !props.m.own_shared;
             <a href="#" class="party" :class="r.ally ? 'ally' : 'other'" @click.prevent="emit('partner', r)">
               {{ r.name }}<span v-if="r.coords && !chat" class="coords"> [{{ r.coords }}]</span>
             </a>
+            <ProfileLink v-if="r.player" :id="r.player" :name="r.name" />
           </template>
         </template>
       </div>
