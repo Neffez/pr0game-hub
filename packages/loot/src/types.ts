@@ -84,7 +84,7 @@ export interface Settings {
   rates: Res;
   /** reference market rates (in-game), conversions outside 75-125 % of them are flagged */
   refRates?: Res | null;
-  /** a shortage of deuterium is made up for in metal by this share, the rest in crystal (0..1) */
+  /** deuterium costs are paid back in metal by this share, the rest in crystal (0..1) */
   deficitMetalShare: number;
   /** ship used for the transfers (202 or 203) */
   cargoShip: number;
