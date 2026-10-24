@@ -1282,7 +1282,7 @@ const de = {
     online: '{n} online',
     offline: '{n} offline',
     active: 'aktiv',
-    away: 'im Hintergrund',
+    away: 'abwesend (im Hintergrund oder seit 5 Minuten untätig)',
     lastSeen: 'vor {ago}',
     viewing: 'Schaut gerade hier: {names}',
     globalAdmin: 'Globaler Admin',

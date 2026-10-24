@@ -28,9 +28,20 @@ export interface Whereabouts {
   s?: number;
   /** player shown in the player page or dialog */
   player?: number;
-  /** false while the tab is in the background */
+  /** false while the tab is in the background or its user idle */
   active: boolean;
 }
+
+/** One tab of a member as reported: `focused` while its window has the focus, `seq` orders the reports. */
+interface TabState {
+  w: Whereabouts;
+  focused: boolean;
+  seq: number;
+  at: number;
+}
+
+/** A tab that has not reported for this long is gone (closed without saying so); open tabs report every 5 minutes. */
+export const TAB_TTL_MS = 15 * 60_000;
 
 /** Members with an open hub tab: sent in full whenever someone comes, goes or moves. */
 export interface PresenceEvent {
@@ -53,10 +64,13 @@ export type PresenceFilter = (viewer: Pick<LiveClient, 'userId' | 'isAdmin'>, me
 
 export class EventBus {
   private groups = new Map<number, Set<LiveClient>>();
-  /** last whereabouts per group and user; only users with a connection count as online */
-  private whereabouts = new Map<number, Map<number, Whereabouts>>();
+  /** last report per group, user and tab; only users with a connection count as online */
+  private tabs = new Map<number, Map<number, Map<string, TabState>>>();
+  private seq = 0;
   private presenceFilter: PresenceFilter | null = null;
   private listeners = new Set<(groupId: number, event: LiveEvent) => void>();
+
+  constructor(private clock: () => number = Date.now) {}
 
   /** Per-viewer filtering for presence events (e.g. hidden online status). */
   setPresenceFilter(filter: PresenceFilter | null) {
@@ -74,19 +88,49 @@ export class EventBus {
       if (!set.delete(client)) return;
       if (!set.size) this.groups.delete(groupId);
       if (this.connections(groupId, client.userId)) return;
-      this.whereabouts.get(groupId)?.delete(client.userId);
+      this.tabs.get(groupId)?.delete(client.userId);
       onLeave?.();
       this.publishPresence(groupId);
     };
   }
 
-  /** A member's tab reports where it is. */
-  setWhereabouts(groupId: number, userId: number, w: Whereabouts) {
-    let map = this.whereabouts.get(groupId);
-    if (!map) this.whereabouts.set(groupId, (map = new Map()));
-    const before = JSON.stringify(map.get(userId) ?? null);
-    map.set(userId, w);
-    if (before !== JSON.stringify(w) && this.connections(groupId, userId)) this.publishPresence(groupId);
+  /**
+   * A member's tab reports where it is. Each tab of the member (several tabs, devices) is kept on its own, the
+   * presence shows the one in use (see `current`), so a tab in the background can't hide where the member really is.
+   */
+  setWhereabouts(groupId: number, userId: number, w: Whereabouts, tab: { id?: string; focused?: boolean } = {}) {
+    this.changeTabs(groupId, userId, (tabs) => tabs.set(tab.id ?? '', { w, focused: !!tab.focused, seq: ++this.seq, at: this.clock() }));
+  }
+
+  /** A member's tab was closed. */
+  closeTab(groupId: number, userId: number, tabId: string) {
+    this.changeTabs(groupId, userId, (tabs) => tabs.delete(tabId));
+  }
+
+  private changeTabs(groupId: number, userId: number, change: (tabs: Map<string, TabState>) => void) {
+    let users = this.tabs.get(groupId);
+    if (!users) this.tabs.set(groupId, (users = new Map()));
+    let tabs = users.get(userId);
+    if (!tabs) users.set(userId, (tabs = new Map()));
+    const before = JSON.stringify(this.current(tabs));
+    change(tabs);
+    if (before !== JSON.stringify(this.current(tabs)) && this.connections(groupId, userId)) this.publishPresence(groupId);
+  }
+
+  /**
+   * Whereabouts of the tab in use: an active one before the others (visible, its user not idle), the focused one
+   * before one only visible, then the latest report. Tabs gone silent drop out.
+   */
+  private current(tabs: Map<string, TabState> | undefined): Whereabouts | null {
+    if (!tabs) return null;
+    const rank = (t: TabState) => (t.w.active ? (t.focused ? 2 : 1) : 0);
+    const expired = this.clock() - TAB_TTL_MS;
+    let best: TabState | null = null;
+    for (const [id, t] of tabs) {
+      if (t.at < expired) tabs.delete(id);
+      else if (!best || rank(t) > rank(best) || (rank(t) === rank(best) && t.seq > best.seq)) best = t;
+    }
+    return best?.w ?? null;
   }
 
   /** Push an updated presence list to all open connections of a group. */
@@ -97,8 +141,8 @@ export class EventBus {
   /** Online members of a group with their whereabouts (unknown until their tab reports). */
   presence(groupId: number): PresenceEvent['members'] {
     const users = new Set([...(this.groups.get(groupId) ?? [])].map((c) => c.userId));
-    const map = this.whereabouts.get(groupId);
-    return [...users].map((userId) => ({ userId, ...(map?.get(userId) ?? { page: null, active: true }) }));
+    const map = this.tabs.get(groupId);
+    return [...users].map((userId) => ({ userId, ...(this.current(map?.get(userId)) ?? { page: null, active: true }) }));
   }
 
   private publishPresence(groupId: number) {

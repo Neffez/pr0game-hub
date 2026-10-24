@@ -1863,15 +1863,61 @@ paths:
     get:
       tags: [Social]
       operationId: getPresence
+      description: Online members of the group and where they are; per member the tab in use (see `reportPresence`).
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
         - { $ref: '#/components/parameters/HubGroupQuery' }
       responses:
         '200':
+          description: Online members
           content:
             application/json:
-              schema: { type: array, items: { type: object } }
+              schema:
+                type: array
+                items:
+                  type: object
+                  required: [userId, page, active]
+                  properties:
+                    userId: { type: integer }
+                    page: { type: [string, 'null'], description: Page below the universe, e.g. `browse`; null until reported }
+                    g: { type: integer }
+                    s: { type: integer }
+                    player: { type: integer, description: Player shown in the player page or dialog }
+                    active: { type: boolean, description: false while the tab is in the background or its user idle }
+    post:
+      tags: [Social]
+      operationId: reportPresence
+      description: >-
+        A hub tab of the current user reports where it is. Each tab (`tab`) is kept on its own; the presence shows the
+        tab in use: an active one before inactive ones, a focused one before one only visible, then the latest report.
+        Tabs that have not reported for 15 minutes are dropped, so open tabs report at least every 5 minutes.
+        `closed: true` removes the tab.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tab: { type: string, pattern: '^[A-Za-z0-9_-]{1,40}$', description: Id of the tab, new on every page load }
+                page: { type: string, pattern: '^[a-z-]{1,32}$' }
+                g: { type: integer }
+                s: { type: integer }
+                player: { type: integer }
+                active: { type: boolean, default: true, description: false while the tab is in the background or its user idle }
+                focused: { type: boolean, default: false, description: The tab's window has the focus }
+                closed: { type: boolean, description: The tab goes away; other fields are ignored }
+      responses:
+        '200':
+          description: Stored
+          content:
+            application/json:
+              schema: { type: object, properties: { ok: { type: boolean } } }
   /api/{uni}/events:
     get:
       tags: [Social]

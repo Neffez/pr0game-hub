@@ -4,6 +4,16 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-24
 
+- Presence shows the tab a member really uses: each tab reports with an id (`tab`) and whether its window has the
+  focus, the server keeps the tabs of a member apart and shows an active one first (visible, user not idle), the
+  focused before one only visible, then the latest report. Before, the last report of any tab or device won, so a
+  raid planner left open in a background tab or second window could stay shown while the member worked elsewhere.
+  - Idle detection: without input for 5 minutes a tab counts as away (yellow dot); push and Discord no longer treat
+    an idle member as watching the hub.
+  - Tabs say when they close (`closed: true`, sent with `keepalive`), report every 5 minutes and are forgotten after
+    15 minutes without a report; all tabs report again after a reconnect, also those in the background.
+  - `POST /api/{uni}/presence` is now in the OpenAPI spec (`reportPresence`), with the response of `getPresence`.
+
 - Loot settlement, debris field: the hub's settlement and the loot calculator show the debris field after the last
   battle, how much of it was recycled (with the share), what is left by the latest recycling report and, when that
   report emptied the field, how much others recycled (`debrisSummary` in `@pr0hub/loot`). Battles keep their debris

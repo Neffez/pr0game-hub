@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-10-24',
     items: [
       {
+        kind: 'fix',
+        de: 'Online-Liste: Bei mehreren offenen Tabs oder Geräten zeigt der Hub jetzt den Tab, den das Mitglied gerade benutzt. Vorher konnte etwa ein vergessener Raid-Planer-Tab stehen bleiben. Wer 5 Minuten nichts tut, gilt als abwesend (gelber Punkt) und bekommt dann wieder Push- und Discord-Benachrichtigungen.',
+        en: 'Online list: with several tabs or devices open, the hub now shows the tab the member is actually using. Before, a forgotten raid planner tab could stay shown. Whoever does nothing for 5 minutes counts as away (yellow dot) and gets push and Discord notifications again.',
+      },
+      {
         kind: 'new',
         de: 'Beute abrechnen und AKS-Beuterechner: Beim Recycling steht jetzt, wie groß das Trümmerfeld war, wie viel davon abgebaut wurde und was noch übrig ist. Ist das Feld leer, aber nicht alles von euch abgebaut, zeigt der Hub, wie viel andere geholt haben.',
         en: 'Settle loot and ACS loot calculator: the recycling now shows how big the debris field was, how much of it was recycled and what is left. If the field is empty but you did not recycle all of it, the hub shows how much others took.',
