@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-10-24',
     items: [
       {
+        kind: 'fix',
+        de: 'Kampfberichte zeigen jetzt die Beute und die Koordinaten des Ziels und laufen mobil nicht mehr seitlich über. Ein über den Link gespeicherter Bericht wird beim Einfügen des vollständigen Texts um Koordinaten und Beute ergänzt.',
+        en: 'Battle reports now show the loot and the target coordinates and no longer overflow sideways on mobile. A report saved from its link gets the coordinates and loot when you paste its full text.',
+      },
+      {
         kind: 'new',
         de: 'Links zum AKS-Beuterechner sind jetzt etwa viermal kürzer. Alte Links funktionieren weiter.',
         en: 'Links to the ACS loot calculator are now about four times shorter. Old links still work.',

@@ -593,7 +593,19 @@ export class Store {
           .pluck()
           .get(this.t.groupId, g, s, p, r.target.type, time - REPORT_SLACK, time + REPORT_SLACK, r.loot.metal, r.loot.crystal, r.loot.deuterium, time) as
           | string
-          | undefined) ?? `text-${time}-${g}-${s}-${p}`;
+          | undefined) ??
+        // the same battle archived from its public page (coordinates hidden until a paste fills them): same time and losses
+        (this.db
+          .prepare(
+            `SELECT report_id FROM combat_reports WHERE group_id = ? AND (g IS NULL OR (g = ? AND s = ? AND p = ? AND planet_type = ?))
+               AND time BETWEEN ? AND ? AND lost_attacker = ? AND lost_defender = ?
+             ORDER BY ABS(time - ?) LIMIT 1`,
+          )
+          .pluck()
+          .get(this.t.groupId, g, s, p, r.target.type, time - REPORT_SLACK, time + REPORT_SLACK, r.lost.attacker, r.lost.defender, time) as
+          | string
+          | undefined) ??
+        `text-${time}-${g}-${s}-${p}`;
     }
     if (!id) {
       this.summary.warnings.push('battle_report_no_id');
@@ -670,7 +682,10 @@ export class Store {
 /** Seconds a battle report and its battle message may lie apart. */
 export const REPORT_SLACK = 5;
 
-/** Stores a battle report compactly; returns false when it was already archived. */
+/**
+ * Stores a battle report compactly. An archived report gets what it lacked (the target hidden on the public page, the
+ * loot of reports archived before it was read); returns false when it was already archived with nothing to add.
+ */
 export function storeCombatReport(db: DB, groupId: number, r: CombatReportRecord, time: number | null): boolean {
   const fleets = r.fleets.map((f) => [
     f.side === 'attacker' ? 0 : 1,
@@ -679,9 +694,17 @@ export function storeCombatReport(db: DB, groupId: number, r: CombatReportRecord
   ]);
   const res = db
     .prepare(
-      `INSERT OR IGNORE INTO combat_reports (group_id, report_id, time, winner, rounds, lost_attacker, lost_defender, debris_metal, debris_crystal, fleets,
+      `INSERT INTO combat_reports (group_id, report_id, time, winner, rounds, lost_attacker, lost_defender, debris_metal, debris_crystal, fleets,
          loot_metal, loot_crystal, loot_deuterium, g, s, p, planet_type)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT (group_id, report_id) DO UPDATE SET
+         g = COALESCE(g, excluded.g), s = COALESCE(s, excluded.s), p = COALESCE(p, excluded.p),
+         planet_type = COALESCE(planet_type, excluded.planet_type),
+         loot_metal = IIF(loot_metal + loot_crystal + loot_deuterium = 0, excluded.loot_metal, loot_metal),
+         loot_crystal = IIF(loot_metal + loot_crystal + loot_deuterium = 0, excluded.loot_crystal, loot_crystal),
+         loot_deuterium = IIF(loot_metal + loot_crystal + loot_deuterium = 0, excluded.loot_deuterium, loot_deuterium)
+       WHERE (g IS NULL AND excluded.g IS NOT NULL)
+         OR (loot_metal + loot_crystal + loot_deuterium = 0 AND excluded.loot_metal + excluded.loot_crystal + excluded.loot_deuterium > 0)`,
     )
     .run(
       groupId, r.reportId, time, r.winner, r.rounds, r.lost.attacker, r.lost.defender, r.debris.metal, r.debris.crystal, JSON.stringify(fleets),

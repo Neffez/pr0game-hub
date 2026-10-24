@@ -406,6 +406,8 @@ const de = {
     defenderWon: 'Der Verteidiger hat die Schlacht gewonnen!',
     draw: 'Unentschieden',
     debris: 'Trümmerfeld',
+    loot: 'Beute',
+    moon: 'Mond',
     openInGame: 'im Spiel öffnen',
     lostUnits: 'verloren: {n} Units',
     noFleet: 'keine Flotte',
