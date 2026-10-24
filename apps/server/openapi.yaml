@@ -1361,7 +1361,8 @@ paths:
         `p`, `planet_type` (null when the page hid the coordinates) and the fleets before and after. Reports pasted as
         text have the id of the battle message at the same target and time, else the id of the same battle archived
         from its public page (same time and losses, coordinates hidden), else a local id `text-<epoch>-<g>-<s>-<p>`.
-        Archiving a report again fills in what the stored one lacked (target, loot).
+        Archiving a report again fills in what the stored one lacked (target, loot); a report archived later with its
+        game id (link, battle hall) takes over the local copy of the same battle, whose local id then no longer exists.
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }

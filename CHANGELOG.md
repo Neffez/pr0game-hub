@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-24
 
+- A battle report pasted as text (local id `text-…`) is moved to its game id when the same battle is archived later
+  from its link or the battle hall (same time and losses), instead of being kept twice; target and loot of the text
+  stay. Settlements are unaffected, they hold no report ids.
+
 - Battle report page: shows the loot and the attacked coordinates; wide fleet tables scroll inside their card instead
   of widening the page on mobile. Archiving a report again fills in what the stored one lacked (target hidden on the
   public page, loot of reports archived before it was read) instead of being ignored, and a report pasted as text

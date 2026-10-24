@@ -136,6 +136,28 @@ describe('raid settlements', () => {
     db.prepare('DELETE FROM combat_reports WHERE group_id = ?').run(groupB);
   });
 
+  it('moves a report pasted as text to its game id when archived from the link later', async () => {
+    const { storeCombatReport } = await import('../src/store.js');
+    const text = readFileSync(new URL('../../../packages/parser/test/fixtures/combat-report-de.txt', import.meta.url), 'utf8');
+    const time = Date.UTC(2026, 9, 24, 11, 4, 3) / 1000;
+    expect((await call('POST', '/ingest', as.carolB, { text })).json().counts.combat_reports).toEqual({ new: 1, duplicate: 0 });
+    const report = (loot: number) => ({
+      kind: 'combatReport' as const, reportId: 'pub2', time: null, winner: 'attacker' as const, rounds: 3,
+      lost: { attacker: 11114000, defender: 411433000 }, debris: { metal: 142823000, crystal: 68450500 },
+      loot: { metal: 0, crystal: loot, deuterium: 0 }, target: null, fleets: [],
+    });
+    expect(storeCombatReport(db, groupB, report(1343846), time + 1)).toBe(true);
+    // one report under the game id, keeping target and loot of the text
+    expect(db.prepare('SELECT report_id, g, s, p, loot_crystal, loot_deuterium FROM combat_reports WHERE group_id = ?').all(groupB)).toEqual([
+      { report_id: 'pub2', g: 3, s: 195, p: 5, loot_crystal: 1343846, loot_deuterium: 690373 },
+    ]);
+    expect(storeCombatReport(db, groupB, report(1343846), time + 1)).toBe(false);
+    // a different battle at the same time stays apart
+    expect(storeCombatReport(db, groupB, { ...report(5), reportId: 'pub3', lost: { attacker: 1, defender: 2 } }, time)).toBe(true);
+    expect(db.prepare('SELECT COUNT(*) FROM combat_reports WHERE group_id = ?').pluck().get(groupB)).toBe(2);
+    db.prepare('DELETE FROM combat_reports WHERE group_id = ?').run(groupB);
+  });
+
   it('takes battle reports pasted as text: by the battle message, else under a local id', async () => {
     const text = readFileSync(new URL('../../../packages/parser/test/fixtures/combat-report-de.txt', import.meta.url), 'utf8');
     const time = Date.UTC(2026, 9, 24, 11, 4, 3) / 1000; // 13:04:03 in Europe/Berlin (summer time)

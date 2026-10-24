@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Ein als Text eingefügter Kampfbericht wird nicht mehr doppelt gespeichert, wenn derselbe Kampf später über den Link synchronisiert wird.',
+        en: 'A battle report pasted as text is no longer saved twice when the same battle is synced from its link later.',
+      },
+      {
+        kind: 'fix',
         de: 'Kampfberichte zeigen jetzt die Beute und die Koordinaten des Ziels und laufen mobil nicht mehr seitlich über. Ein über den Link gespeicherter Bericht wird beim Einfügen des vollständigen Texts um Koordinaten und Beute ergänzt.',
         en: 'Battle reports now show the loot and the target coordinates and no longer overflow sideways on mobile. A report saved from its link gets the coordinates and loot when you paste its full text.',
       },
