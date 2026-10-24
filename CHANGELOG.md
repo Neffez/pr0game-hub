@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-24
 
+- Sync for another member: the sync page and the quick sync sheet have a "For" drop-down with the group's members
+  (default: oneself), e.g. for a recycling report a member sent. The data counts for the chosen member
+  (`forUser` on `POST /ingest`, must be a member of the group, otherwise `member_not_found`); the member who pasted
+  it is kept in `raw_ingests.synced_by` (migration 042) and shown in the admin sync list.
 - Raid planner, own attacks in flight: attacks, ACS attacks and destroy missions on the members' newest overviews
   without a plan on the target (within an hour of the arrival) are listed at the top (`GET /own-attacks`), only for
   their participants (own fleet, or a joined ACS fleet from the member's planet by the galaxy data). "Plan"

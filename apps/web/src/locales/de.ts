@@ -517,6 +517,10 @@ const de = {
     htmlDetected: 'HTML erkannt ({kb} KB)',
     file: 'Datei',
     statsCategory: 'Statistik-Kategorie',
+    forMember: 'Für',
+    forMemberHint: 'Für ein anderes Mitglied synchronisieren, z. B. einen Bericht, den es dir geschickt hat. Die Daten zählen dann für dieses Mitglied.',
+    myself: 'mich',
+    savedFor: 'Gespeichert für {name}',
     system: 'Galaxie:System',
     auto: 'automatisch',
     clear: 'Leeren',
@@ -916,6 +920,7 @@ const de = {
     ingests: 'Synchronisationen',
     content: 'Inhalt',
     counts: '{new} neu · {duplicate} doppelt',
+    syncedBy: 'über {name}',
     about: {
       stats_player: 'Statistik Spieler',
       stats_alliance: 'Statistik Allianzen',
