@@ -5,6 +5,7 @@ import {
   MAX_PARTICIPANTS,
   battleFromReport,
   cleanState,
+  debrisSummary,
   decodeShare,
   emptyState,
   encodeShare,
@@ -282,13 +283,15 @@ function buildRecycling() {
   var rows = S.recycling.map(function (r, i) {
     var base = 'recycling.' + i + '.';
     return '<tr><td><select data-bind="' + base + 'by" data-type="text">' + personOptions(r.by) + '</select></td>' +
-      '<td>' + amountInput(base + 'm', r.m) + '</td><td>' + amountInput(base + 'k', r.k) + '</td>' +
+      '<td>' + amountInput(base + 'm', r.m, ' placeholder="' + esc(t('metal')) + '" aria-label="' + esc(t('metal')) + '"') + '</td>' +
+      '<td>' + amountInput(base + 'k', r.k, ' placeholder="' + esc(t('crystal')) + '" aria-label="' + esc(t('crystal')) + '"') + '</td>' +
       '<td><button type="button" class="x" data-act="delRecycling" data-i="' + i + '" title="' + esc(t('remove')) + '">✕</button></td></tr>';
   }).join('');
   $('#recycling').innerHTML =
     '<div class="card-title">' + esc(t('recycling')) + '</div>' +
     '<p class="card-hint">' + esc(t('recyclingHint')) + '</p>' +
-    (rows ? '<div class="table-wrap"><table><thead><tr><th>' + esc(t('by')) + '</th><th>' + esc(t('metal')) + '</th><th>' +
+    '<div id="debrisSummary" class="debris-summary"></div>' +
+    (rows ? '<div class="table-wrap"><table class="stack-table"><thead><tr><th>' + esc(t('by')) + '</th><th>' + esc(t('metal')) + '</th><th>' +
       esc(t('crystal')) + '</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div>' : '') +
     '<div class="row-actions"><button type="button" class="btn" data-act="addRecycling"' + (people().length ? '' : ' disabled') + '>' +
     esc(t('addRecycling')) + '</button></div>' + recyclePasteField();
@@ -462,6 +465,24 @@ function render() {
   renderResults(lastResult);
   renderTransfers(lastResult);
   renderLootHints();
+  renderDebris();
+}
+
+/* Debris field: how much was recycled, what is left, and what others took of an emptied field. */
+function renderDebris() {
+  var el = $('#debrisSummary');
+  if (!el) return;
+  var d = debrisSummary(S);
+  var res = function (x) { return num(x.m) + ' ' + t('metal') + ' · ' + num(x.k) + ' ' + t('crystal'); };
+  var lines = [];
+  if (d.field) lines.push('<span class="meta">' + esc(t('debrisField')) + '</span> ' + esc(res(d.field)));
+  if (d.field || d.left) {
+    lines.push('<span class="meta">' + esc(t('debrisRecycled')) + '</span> ' + esc(res(d.recycled)) +
+      (d.share != null ? ' (' + Math.round(d.share * 100) + ' %)' : ''));
+  }
+  if (d.left) lines.push('<span class="meta">' + esc(t('debrisLeft')) + '</span> ' + esc(d.empty ? t('debrisEmpty') : res(d.left)));
+  if (d.taken) lines.push('<span class="err">' + esc(t('debrisTaken')) + ' ' + esc(res(d.taken)) + '</span>');
+  el.innerHTML = lines.map(function (l) { return '<div>' + l + '</div>'; }).join('');
 }
 
 function update() {
@@ -627,7 +648,7 @@ var ACTIONS = {
     if (!rows.length) {
       recyclePaste.msg = {ok: false, text: t('recyclingFailed')};
     } else {
-      rows.forEach(function (r) { S.recycling.push({by: recyclePaste.by, m: r.m, k: r.k}); });
+      rows.forEach(function (r) { S.recycling.push({by: recyclePaste.by, m: r.m, k: r.k, field: r.field}); });
       recyclePaste.text = '';
       recyclePaste.msg = {ok: true, text: '✓ ' + rows.length};
     }

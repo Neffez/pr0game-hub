@@ -4,6 +4,16 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-24
 
+- Loot settlement, debris field: the hub's settlement and the loot calculator show the debris field after the last
+  battle, how much of it was recycled (with the share), what is left by the latest recycling report and, when that
+  report emptied the field, how much others recycled (`debrisSummary` in `@pr0hub/loot`). Battles keep their debris
+  field (`Battle.debris`, from the battle report or message), recycling rows the field they collected from and their
+  time (`Recycling.field`, `Recycling.time`, from synced or pasted recycling reports; pasted ones take the date of
+  their message header).
+  - The recycling table no longer overflows on phones: in the hub metal and crystal share a cell and the time sits
+    under the name (times stay with their row when one is removed), in the loot calculator each row becomes a small
+    card.
+
 - Settlements from a battle report: "Create from battle report" in the raid planner's settlements tab
   (`POST /settlements/from-report`) archives the pasted report like a sync and makes a done plan for it, or opens the
   plan at the same target around that time. Members who attacked get launched fleets from their start planets with

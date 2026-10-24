@@ -54,6 +54,14 @@ export interface Battle {
   /** loot of all attackers together */
   loot: Res;
   fleets: BattleFleet[];
+  /** debris field at the target after the battle (battle report: "now lie"), when known */
+  debris?: Debris;
+}
+
+/** Metal and crystal of a debris field. */
+export interface Debris {
+  m: number;
+  k: number;
 }
 
 /** Debris collected by a participant or helper. */
@@ -61,6 +69,10 @@ export interface Recycling {
   by: string;
   m: number;
   k: number;
+  /** the debris field before this collection (recycling report: "from a total of"), when known */
+  field?: Debris;
+  /** epoch seconds of the recycling report, when known */
+  time?: number | null;
 }
 
 export type SplitMode = 'equal' | 'investment';

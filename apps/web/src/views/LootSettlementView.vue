@@ -5,7 +5,7 @@ import { useRoute } from 'vue-router';
 import { parseCombatReportText, parseRecycleReportsText } from '@pr0hub/core/combat';
 import { CAPACITY } from '@pr0hub/flight';
 import {
-  battleFromReport, cleanState, MAX_HELPER_KEEP, decodeShare, localEpoch, lootShares, settle, type LootState, type Res, type SettlementResult, type TransferInput,
+  battleFromReport, cleanState, debrisSummary, MAX_HELPER_KEEP, decodeShare, localEpoch, lootShares, settle, type LootState, type Res, type SettlementResult, type TransferInput,
 } from '@pr0hub/loot';
 import { uniApi } from '../api';
 import Hint from '../components/Hint.vue';
@@ -154,6 +154,11 @@ function applyReport() {
   error.value = skipped.length ? t('loot.pasteSkipped', { names: skipped.join(', ') }) : '';
 }
 
+// ---- debris field ----
+/** How much of the field was recycled, what is left, and what others took of an emptied field. */
+const debris = computed(() => (state.value ? debrisSummary(state.value) : null));
+const debrisText = (d: { m: number; k: number }) => `${fmt(d.m)} ${name(901)} · ${fmt(d.k)} ${name(902)}`;
+
 // ---- recycling reports pasted here ----
 const recycleText = ref('');
 const recycleBy = ref('');
@@ -175,7 +180,7 @@ function applyRecycling() {
     return;
   }
   if (!people.value.some((p) => p.id === who.id)) s.helpers.push({ id: who.id, name: who.name, keepPct: 20, recDeut: 0 });
-  for (const r of reports) s.recycling.push({ by: who.id, m: r.metal, k: r.crystal });
+  for (const r of reports) s.recycling.push({ by: who.id, m: r.metal, k: r.crystal, field: { m: r.totalMetal, k: r.totalCrystal }, time: localEpoch(r.time) });
   recycleText.value = '';
   error.value = '';
 }
@@ -366,18 +371,36 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
 
         <div class="card">
           <h3>{{ t('loot.recycling') }}</h3>
+          <div v-if="debris && (debris.field || debris.left)" class="debris small">
+            <div v-if="debris.field">
+              <span class="muted">{{ t('loot.debrisField') }}</span> {{ debrisText(debris.field) }}
+            </div>
+            <div>
+              <span class="muted">{{ t('loot.debrisRecycled') }}</span> {{ debrisText(debris.recycled) }}
+              <template v-if="debris.share != null"> ({{ Math.round(debris.share * 100) }} %)</template>
+            </div>
+            <div v-if="debris.left">
+              <span class="muted">{{ t('loot.debrisLeft') }}</span> <span :class="{ ok: debris.empty }">{{ debris.empty ? t('loot.debrisEmpty') : debrisText(debris.left) }}</span>
+            </div>
+            <div v-if="debris.taken" class="warn">
+              {{ t('loot.debrisTaken') }} {{ debrisText(debris.taken) }} <Hint>{{ t('loot.debrisTakenHint') }}</Hint>
+            </div>
+          </div>
           <p v-if="!state.recycling.length" class="muted small">{{ t('loot.noRecycling') }}</p>
-          <table v-else class="data">
+          <div v-else class="table-wrap">
+          <table class="data">
             <tbody>
               <tr v-for="(r, i) in state.recycling" :key="i">
-                <td>{{ personName(r.by) }}</td>
-                <td class="num">{{ fmt(r.m) }} {{ name(901) }}</td>
-                <td class="num">{{ fmt(r.k) }} {{ name(902) }}</td>
-                <td class="muted small">{{ dateTime(sources?.recycling[i]?.time) }}</td>
+                <td>
+                  {{ personName(r.by) }}
+                  <div v-if="r.time" class="muted small">{{ dateTime(r.time) }}</div>
+                </td>
+                <td class="num">{{ fmt(r.m) }} {{ name(901) }}<br />{{ fmt(r.k) }} {{ name(902) }}</td>
                 <td v-if="canEdit"><button :title="t('loot.removeRecycling')" @click="state.recycling.splice(i, 1)">✕</button></td>
               </tr>
             </tbody>
           </table>
+          </div>
           <template v-if="canEdit">
             <h3 style="margin-top: 12px">{{ t('loot.pasteRecycling') }} <Hint>{{ t('loot.pasteRecyclingHint') }}</Hint></h3>
             <textarea v-model="recycleText" class="report" :placeholder="t('loot.pasteRecyclingPlaceholder')" />
@@ -394,6 +417,7 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
               <input v-model="state.settings.helperDeut" type="checkbox" :disabled="!canEdit" />
               {{ t('loot.helperDeut') }} <Hint>{{ t('loot.helperDeutHint') }}</Hint>
             </label>
+            <div class="table-wrap">
             <table class="data">
               <thead>
                 <tr>
@@ -409,6 +433,7 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
                 </tr>
               </tbody>
             </table>
+            </div>
           </template>
         </div>
       </div>
@@ -495,6 +520,7 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
 
 <style scoped>
 .bar { gap: 10px; flex-wrap: wrap; }
+.debris { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; }
 .import { gap: 6px; margin: 0 0 12px; }
 .import input { flex: 1; min-width: 200px; }
 .cols { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 16px; }

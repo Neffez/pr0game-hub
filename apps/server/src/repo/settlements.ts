@@ -123,7 +123,7 @@ export function settlementDraft(db: DB, ctx: GroupContext, plan: PlanRow & { tim
   const until = plan.target_time + window + BATTLE_SLACK;
   type BattleRow = {
     report_id: string | null; c_report_id: string | null; time: number | null; loot_metal: number; loot_crystal: number; loot_deuterium: number;
-    fleets: string | null; c_metal: number | null; c_crystal: number | null; c_deuterium: number | null;
+    fleets: string | null; c_metal: number | null; c_crystal: number | null; c_deuterium: number | null; debris_metal: number | null; debris_crystal: number | null;
   };
   // battle messages with their archived report (by id, or a report pasted as text at the same target and time)
   const sameReport = `c.group_id = b.group_id AND (c.report_id = b.report_id OR (c.g = b.g AND c.s = b.s AND c.p = b.p AND c.planet_type = b.planet_type
@@ -132,7 +132,8 @@ export function settlementDraft(db: DB, ctx: GroupContext, plan: PlanRow & { tim
     ...(db
       .prepare(
         `SELECT b.report_id, c.report_id AS c_report_id, b.time, b.loot_metal, b.loot_crystal, b.loot_deuterium, c.fleets,
-           c.loot_metal AS c_metal, c.loot_crystal AS c_crystal, c.loot_deuterium AS c_deuterium
+           c.loot_metal AS c_metal, c.loot_crystal AS c_crystal, c.loot_deuterium AS c_deuterium,
+           COALESCE(c.debris_metal, b.debris_metal) AS debris_metal, COALESCE(c.debris_crystal, b.debris_crystal) AS debris_crystal
          FROM battle_reports b LEFT JOIN combat_reports c ON ${sameReport}
          WHERE b.group_id = ? AND b.g = ? AND b.s = ? AND b.p = ? AND b.planet_type = ? AND b.time BETWEEN ? AND ?
          ORDER BY b.time, b.id, c.report_id = b.report_id DESC`,
@@ -142,7 +143,7 @@ export function settlementDraft(db: DB, ctx: GroupContext, plan: PlanRow & { tim
     ...(db
       .prepare(
         `SELECT NULL AS report_id, c.report_id AS c_report_id, c.time, c.loot_metal, c.loot_crystal, c.loot_deuterium, c.fleets,
-           c.loot_metal AS c_metal, c.loot_crystal AS c_crystal, c.loot_deuterium AS c_deuterium
+           c.loot_metal AS c_metal, c.loot_crystal AS c_crystal, c.loot_deuterium AS c_deuterium, c.debris_metal, c.debris_crystal
          FROM combat_reports c
          WHERE c.group_id = ? AND c.g = ? AND c.s = ? AND c.p = ? AND c.planet_type = ? AND c.time BETWEEN ? AND ?
            AND NOT EXISTS (SELECT 1 FROM battle_reports b WHERE ${sameReport})`,
@@ -181,6 +182,8 @@ export function settlementDraft(db: DB, ctx: GroupContext, plan: PlanRow & { tim
       });
     }
     const battle: Battle = { time: b.time, loot, fleets: [...battleFleets.values()].filter((f) => state.participants.some((p) => p.id === f.participant)) };
+    // the field at the target after the battle
+    if (b.debris_metal || b.debris_crystal) battle.debris = { m: b.debris_metal ?? 0, k: b.debris_crystal ?? 0 };
     state.battles.push(battle);
     sources.battles.push({ reportId: b.c_report_id ?? b.report_id, time: b.time, fleets: b.fleets ? 'report' : 'plan' });
   }
@@ -217,17 +220,21 @@ export function settlementDraft(db: DB, ctx: GroupContext, plan: PlanRow & { tim
   const from = state.battles[0]?.time ?? plan.target_time - BATTLE_SLACK;
   const recycled = db
     .prepare(
-      `SELECT r.user_id, COALESCE(gm.ingame_name, u.username) AS member, r.time, r.metal, r.crystal
+      `SELECT r.user_id, COALESCE(gm.ingame_name, u.username) AS member, r.time, r.metal, r.crystal, r.total_metal, r.total_crystal
        FROM recycle_reports r JOIN users u ON u.id = r.user_id LEFT JOIN group_members gm ON gm.group_id = r.group_id AND gm.user_id = r.user_id
        WHERE r.group_id = ? AND r.g = ? AND r.s = ? AND r.p = ? AND r.time BETWEEN ? AND ? ORDER BY r.time, r.id`,
     )
-    .all(ctx.groupId, plan.g, plan.s, plan.p, from - 60, from + SHARE_WITHIN) as { user_id: number; member: string; time: number | null; metal: number; crystal: number }[];
+    .all(ctx.groupId, plan.g, plan.s, plan.p, from - 60, from + SHARE_WITHIN) as {
+    user_id: number; member: string; time: number | null; metal: number; crystal: number; total_metal: number; total_crystal: number;
+  }[];
   for (const r of recycled) {
     const id = memberKey(r.user_id);
     if (!state.participants.some((p) => p.id === id) && !state.helpers.some((h) => h.id === id)) {
       state.helpers.push({ id, name: r.member, keepPct: HELPER_KEEP, recDeut: 0 });
     }
-    state.recycling.push({ by: id, m: r.metal, k: r.crystal });
+    state.recycling.push({
+      by: id, m: r.metal, k: r.crystal, time: r.time, ...(r.total_metal || r.total_crystal ? { field: { m: r.total_metal, k: r.total_crystal } } : {}),
+    });
     sources.recycling.push({ by: id, time: r.time });
   }
   return { state: cleanState(state), sources };

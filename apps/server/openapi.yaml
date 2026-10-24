@@ -104,9 +104,17 @@ components:
                     end: { type: object }
                     carried: { type: object }
                     loot: { type: object, description: Loot this fleet brought home (wins over the share by cargo space) }
+              debris: { type: object, description: 'Debris field at the target after the battle (`{ m, k }`, battle report), when known' }
         recycling:
           type: array
-          items: { type: object, properties: { by: { type: string }, m: { type: integer }, k: { type: integer } } }
+          items:
+            type: object
+            properties:
+              by: { type: string }
+              m: { type: integer }
+              k: { type: integer }
+              field: { type: object, description: 'Debris field before this collection (`{ m, k }`, recycling report), when known' }
+              time: { type: [integer, 'null'], description: Time of the recycling report, when known }
         settings:
           type: object
           properties:

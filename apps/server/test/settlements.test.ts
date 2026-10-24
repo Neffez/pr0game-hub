@@ -136,6 +136,16 @@ describe('raid settlements', () => {
     let draft = (await call('GET', `/plans/${id}/settlement`, as.dave)).json().draft;
     expect(draft.sources.battles).toEqual([{ reportId: `text-${time}-3-195-5`, time, fleets: 'report' }]);
     expect(draft.state.battles[0].loot).toEqual({ m: 0, k: 1343846, d: 690373 });
+    expect(draft.state.battles[0].debris).toEqual({ m: 142823000, k: 68450500 });
+    // a recycling report keeps the field it collected from
+    db.prepare(
+      `INSERT INTO recycle_reports (group_id, user_id, dedupe_key, time, g, s, p, metal, crystal, total_metal, total_crystal)
+       VALUES (?, ?, 'x9', ?, 3, 195, 5, 40219074, 19280927, 142823000, 68469000)`,
+    ).run(groupA, ids.dave, time + 9);
+    expect((await call('GET', `/plans/${id}/settlement`, as.dave)).json().draft.state.recycling).toEqual([
+      { by: `u${ids.dave}`, m: 40219074, k: 19280927, time: time + 9, field: { m: 142823000, k: 68469000 } },
+    ]);
+    db.prepare("DELETE FROM recycle_reports WHERE dedupe_key = 'x9'").run();
     expect(draft.state.battles[0].fleets).toEqual([
       { participant: `u${ids.carol}`, start: { 206: 347, 207: 11799, 215: 4406, 222: 3544 }, end: { 206: 323, 207: 11794, 215: 4406, 222: 3521 } },
       { participant: `u${ids.dave}`, start: { 207: 2178, 215: 4348, 225: 4821 }, end: { 207: 2178, 215: 4348, 225: 3901 } },

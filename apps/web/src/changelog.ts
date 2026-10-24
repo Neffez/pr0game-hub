@@ -20,6 +20,16 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Beute abrechnen und AKS-Beuterechner: Beim Recycling steht jetzt, wie groß das Trümmerfeld war, wie viel davon abgebaut wurde und was noch übrig ist. Ist das Feld leer, aber nicht alles von euch abgebaut, zeigt der Hub, wie viel andere geholt haben.',
+        en: 'Settle loot and ACS loot calculator: the recycling now shows how big the debris field was, how much of it was recycled and what is left. If the field is empty but you did not recycle all of it, the hub shows how much others took.',
+      },
+      {
+        kind: 'fix',
+        de: 'Die Recycling-Tabelle passt jetzt auch auf dem Handy auf den Bildschirm.',
+        en: 'The recycling table now fits on phone screens.',
+      },
+      {
+        kind: 'new',
         de: 'Raid Planer, Abrechnungen: „Aus Kampfbericht anlegen“ rechnet auch Kämpfe ohne Plan ab. Kampfbericht einfügen, der Hub legt den Plan mit den Flotten der Mitglieder und ihren Startplaneten an, rechnet das Deut aus und öffnet die Abrechnung. Haben Mitglieder verteidigt, wird es ein Halten. Gibt es schon einen Plan für den Kampf, öffnet sich dieser.',
         en: 'Raid planner, settlements: "Create from battle report" settles battles without a plan too. Paste the battle report, the hub makes the plan with the members\u2019 fleets and their start planets, computes the deuterium and opens the settlement. If members defended, it becomes a hold. If the battle already has a plan, that one opens.',
       },

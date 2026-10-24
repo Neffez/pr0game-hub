@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { computeDeck, DEFAULT_DECK, isPhalanxText, localToEpoch, nearestClock, parseFleetsText, parsePage, phalanxPosition, type DeckEvent } from '../src/index.js';
-import { parseCombatReportText } from '../src/combat.js';
+import { parseCombatReportText, parseRecycleReportsText } from '../src/combat.js';
 import { elementPoints, idByName, idByShortName, sectionPoints } from '../src/tech.js';
 
 const fixture = (name: string) => readFileSync(new URL(`./fixtures/${name}`, import.meta.url), 'utf8');
@@ -287,6 +287,20 @@ describe('combat report', () => {
 });
 
 describe('recycling', () => {
+  it('reads every pasted recycling report with the date above it', () => {
+    const text = [
+      'Flottenhauptquartier', 'Recyclerbericht', '24. Okt 2026, 13:04:12',
+      'Deine Recycler haben an den Koordinaten [3:195:5] 40.219.074 Metall und 19.280.927 Kristall von insgesamt 142.823.000 Metall und 68.469.000 Kristall gesammelt.',
+      'Es werden 7.590 Recycler für das Trümmerfeld benötigt.',
+      'Recyclerbericht', '24. Okt 2026, 14:00:00',
+      'Deine Recycler haben an den Koordinaten [3:195:5] 1.000 Metall und 0 Kristall von insgesamt 1.000 Metall und 0 Kristall gesammelt.',
+    ].join('\n');
+    expect(parseRecycleReportsText(text)).toMatchObject([
+      { time: '2026-10-24 13:04:12', metal: 40219074, crystal: 19280927, totalMetal: 142823000, totalCrystal: 68469000 },
+      { time: '2026-10-24 14:00:00', metal: 1000, crystal: 0, totalMetal: 1000 },
+    ]);
+  });
+
   it('parses english recycling reports', () => {
     const res = parsePage({
       text: 'Recycling Report\nOct 21 2026, 16:00:00\nYour recyclers have collected 1,000 Metal and 2,000 Crystal from a total of 5,000 Metal and 6,000 Crystal at coordinates [2:3:4].',
