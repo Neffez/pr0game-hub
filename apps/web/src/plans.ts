@@ -151,6 +151,8 @@ export interface HostileAttack {
 /** A fleet of a non-member in an own ACS (server: routes/plans.ts), with their player's research from spy reports. */
 export interface GuestFleet {
   player: { id: number; name: string } | null;
+  /** name from a battle report when the player is not in the galaxy data */
+  name?: string;
   from: Body;
   mission: number | null;
   ships: Record<string, number>;

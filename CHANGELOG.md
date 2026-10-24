@@ -4,6 +4,16 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-24
 
+- Settlements from a battle report: "Create from battle report" in the raid planner's settlements tab
+  (`POST /settlements/from-report`) archives the pasted report like a sync and makes a done plan for it, or opens the
+  plan at the same target around that time. Members who attacked get launched fleets from their start planets with
+  the ships before the battle (speed 100 %, so the draft computes their deuterium from their drive research),
+  non-members join as guests (`guests[].name` when their player is not in the galaxy data). When members defended it
+  becomes a hold (first defender as the attacked member, attackers as the enemy); attack or hold can also be chosen.
+  - Battle report fleets carry their start planet or moon (`CombatFleet.from`).
+  - The hub's settlement takes pasted recycling reports (several at once) for a chosen person; members outside the
+    plan join as helpers. Recycling rows can be removed.
+
 - Loot calculator (pr0game tools): recycling reports can be pasted, one or several at once; each adds a recycling row
   with its metal and crystal for the chosen person. The recycling report parser moved into its own module without
   cheerio (`parseRecycleReportsText`, exported from `@pr0hub/core/combat`).

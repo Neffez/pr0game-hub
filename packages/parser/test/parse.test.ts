@@ -275,12 +275,12 @@ describe('combat report', () => {
       target: { coords: { g: 3, s: 195, p: 5 }, type: 'moon' },
     });
     expect(r!.fleets.filter((f) => f.side === 'attacker')).toEqual([
-      { side: 'attacker', name: 'CVXII', start: { 222: 3544 }, end: { 222: 3521 } },
-      { side: 'attacker', name: 'Rudolf', start: { 207: 2178, 215: 4348 }, end: { 207: 2178, 215: 4348 } },
-      { side: 'attacker', name: 'CVXII', start: { 206: 347, 207: 11799, 215: 4406 }, end: { 206: 323, 207: 11794, 215: 4406 } },
-      { side: 'attacker', name: 'Rudolf', start: { 225: 4821 }, end: { 225: 3901 } },
+      { side: 'attacker', name: 'CVXII', from: { coords: { g: 3, s: 26, p: 12 }, type: 'moon' }, start: { 222: 3544 }, end: { 222: 3521 } },
+      { side: 'attacker', name: 'Rudolf', from: { coords: { g: 3, s: 200, p: 1 }, type: 'moon' }, start: { 207: 2178, 215: 4348 }, end: { 207: 2178, 215: 4348 } },
+      { side: 'attacker', name: 'CVXII', from: { coords: { g: 3, s: 160, p: 5 }, type: 'moon' }, start: { 206: 347, 207: 11799, 215: 4406 }, end: { 206: 323, 207: 11794, 215: 4406 } },
+      { side: 'attacker', name: 'Rudolf', from: { coords: { g: 3, s: 200, p: 1 }, type: 'moon' }, start: { 225: 4821 }, end: { 225: 3901 } },
     ]);
-    expect(r!.fleets.find((f) => f.side === 'defender')).toMatchObject({ name: 'Hustensaftdealer', start: { 202: 136, 227: 303 }, end: { 202: 0, 227: 0 } });
+    expect(r!.fleets.find((f) => f.side === 'defender')).toMatchObject({ name: 'Hustensaftdealer', from: { coords: { g: 3, s: 195, p: 5 }, type: 'moon' }, start: { 202: 136, 227: 303 }, end: { 202: 0, 227: 0 } });
     // pasted as text when syncing
     expect(parsePage({ text })).toMatchObject({ pageType: 'combatReport', records: [{ reportId: null, loot: { crystal: 1343846 } }] });
   });

@@ -30,7 +30,9 @@ export interface DraftSources {
 }
 
 type PlanFleet = LaunchFleet & { member: string; speed: number; manual: string | null; drives_time: number | null };
-type Guest = { player: { id: number; name: string } | null; ships: Record<number, number> };
+/** `name`: a guest taken from a battle report whose player is not in the galaxy data */
+type Guest = { player: { id: number; name: string } | null; name?: string; ships: Record<number, number> };
+const guestName = (g: Guest) => g.player?.name ?? g.name ?? null;
 
 const lower = (s: string) => s.trim().toLowerCase();
 
@@ -76,10 +78,11 @@ export function settlementDraft(db: DB, ctx: GroupContext, plan: PlanRow & { tim
   if (attacked && !state.participants.some((p) => p.id === memberKey(attacked.id)) && state.participants.length < MAX_PARTICIPANTS) {
     state.participants.push({ id: memberKey(attacked.id), name: attacked.name, flightDeut: 0, recDeut: 0, missiles: 0 });
   }
-  const guests = (plan.guests ? (JSON.parse(plan.guests) as Guest[]) : []).filter((g) => g.player);
+  const guests = (plan.guests ? (JSON.parse(plan.guests) as Guest[]) : []).filter((g) => guestName(g));
   guests.forEach((g, i) => {
-    if (state.participants.length >= MAX_PARTICIPANTS || state.participants.some((p) => lower(p.name) === lower(g.player!.name))) return;
-    state.participants.push({ id: `g${i + 1}`, name: g.player!.name, flightDeut: 0, recDeut: 0, missiles: 0 });
+    const name = guestName(g)!;
+    if (state.participants.length >= MAX_PARTICIPANTS || state.participants.some((p) => lower(p.name) === lower(name))) return;
+    state.participants.push({ id: `g${i + 1}`, name, flightDeut: 0, recDeut: 0, missiles: 0 });
   });
   // battle report names -> participant: in-game name, hub name and the member's player in the galaxy data
   const players = memberPlayers(db, ctx);
