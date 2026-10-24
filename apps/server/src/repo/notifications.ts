@@ -2,7 +2,7 @@ import { distance, drivesFromResearch, flightDuration, launchFor, slowestShip } 
 import type { SessionUser } from '../auth.js';
 import { resolveGroup, type GroupContext, type Universe } from '../context.js';
 import type { DB } from '../db.js';
-import { alertDone, alertsOf, buildingsState, planetElements, planetOf } from './buildings.js';
+import { alertDone, alertsOf, buildingsState, planetElements, planetOf, storagesOf, type BuildingsState } from './buildings.js';
 import { FLEET_KEEP, openFleetAlerts } from './fleetAlerts.js';
 import { sharedFleets, type StoredFleet } from './fleets.js';
 import { alliance } from './members.js';
@@ -12,10 +12,11 @@ import { enemiesOf, followEnemies, launchedOf, planDrives, type LaunchFleet, typ
  * Something the members should notice: hostile fleets heading for a member (attack, spying, …) from outside the
  * alliance, the viewer's open invitations to a raid planner plan, new comments in threads the viewer wrote in, and the
  * launch of the viewer's own plan fleets, the next level of a building the viewer is waiting for being affordable, and
- * the arrival of own fleets the viewer set an alert for.
+ * the arrival of own fleets the viewer set an alert for, and full storages on the viewer's planets.
  * The bell lists them; push notifications send them (push.ts).
  */
-export type Notification = AttackNotification | InviteNotification | CommentNotification | LaunchNotification | BuildingNotification | FleetNotification;
+export type Notification =
+  | AttackNotification | InviteNotification | CommentNotification | LaunchNotification | BuildingNotification | FleetNotification | StorageNotification;
 
 interface Base {
   /** stable while the event lasts (the web app remembers which ones were seen, push sends each once) */
@@ -87,6 +88,17 @@ export interface FleetNotification extends Base {
   lead: number;
 }
 
+/**
+ * A storage on one of the viewer's planets is full by the newest synced pages: production up to the capacity or
+ * fleets landing (`time`: since when, kept over newer syncs while it stays full). Moons have no production.
+ */
+export interface StorageNotification extends Base {
+  kind: 'storage';
+  planet: { g: number; s: number; p: number; name: string };
+  /** 901 metal, 902 crystal, 903 deuterium */
+  resource: number;
+}
+
 /** A member created a plan (channel only, not on the bell; `userId`/`member`: the creator, `time`: its creation). */
 export interface PlanNotification extends Base {
   kind: 'plan';
@@ -104,6 +116,8 @@ export const COMMENT_KEEP = 48 * 3600;
 export const LAUNCH_AHEAD = 3600;
 /** An affordable building level is listed this long. */
 export const BUILDING_KEEP = 24 * 3600;
+/** A full storage is listed this long. */
+export const STORAGE_KEEP = 24 * 3600;
 /** New plans are posted to the channel this long after their creation. */
 export const PLAN_KEEP = 3600;
 const EXCERPT = 80;
@@ -119,9 +133,12 @@ function friends(db: DB, ctx: GroupContext) {
 
 /** Current notifications of the group for the viewer (`ctx.user`) at `t`, the next first; members' fleets as they share them. */
 export function notificationsFor(db: DB, ctx: GroupContext, t: number): Notification[] {
-  return [...attacks(db, ctx, t), ...invites(db, ctx, t), ...comments(db, ctx, t), ...launches(db, ctx, t), ...buildings(db, ctx, t), ...fleets(db, ctx, t)].sort(
-    (a, b) => a.time - b.time,
-  );
+  let state: BuildingsState | undefined;
+  const own = () => (state ??= buildingsState(db, ctx, ctx.user.id, t));
+  return [
+    ...attacks(db, ctx, t), ...invites(db, ctx, t), ...comments(db, ctx, t), ...launches(db, ctx, t), ...buildings(db, ctx, t, own), ...fleets(db, ctx, t),
+    ...storages(db, ctx, t, own),
+  ].sort((a, b) => a.time - b.time);
 }
 
 /**
@@ -273,10 +290,10 @@ export function nextBuildingAlert(db: DB, universe: Universe, groupId: number, t
  * The viewer's building alerts whose level is affordable now: resources and production of the newest synced pages plus
  * the fleets landing until then. Built or queued levels no longer count (the buildings page removes those alerts).
  */
-function buildings(db: DB, ctx: GroupContext, t: number): BuildingNotification[] {
+function buildings(db: DB, ctx: GroupContext, t: number, own: () => BuildingsState): BuildingNotification[] {
   const alerts = alertsOf(db, ctx, ctx.user.id);
   if (!alerts.length) return [];
-  const state = buildingsState(db, ctx, ctx.user.id, t);
+  const state = own();
   const name = db.prepare(`SELECT ${DISPLAY} FROM users u LEFT JOIN group_members gm ON gm.group_id = ? AND gm.user_id = u.id WHERE u.id = ?`).pluck().get(ctx.groupId, ctx.user.id) as string;
   const list: BuildingNotification[] = [];
   for (const a of alerts) {
@@ -291,6 +308,63 @@ function buildings(db: DB, ctx: GroupContext, t: number): BuildingNotification[]
     });
   }
   return list;
+}
+
+/**
+ * The full storages of the viewer's planets, listed `STORAGE_KEEP` from when they got full. `storage_full` keeps since
+ * when (the newest page of a full storage shows it full already at its sync time), a storage no longer full is
+ * removed from it, so it notifies again the next time it runs full.
+ */
+function storages(db: DB, ctx: GroupContext, t: number, own: () => BuildingsState): StorageNotification[] {
+  const state = own();
+  const full = state.planets.flatMap((bp) => storagesOf(state, bp, t).filter((x) => x.full).map((x) => ({ bp, resource: x.resource, at: x.at! })));
+  const known = db
+    .prepare('SELECT g, s, p, resource, since FROM storage_full WHERE group_id = ? AND user_id = ?')
+    .all(ctx.groupId, ctx.user.id) as { g: number; s: number; p: number; resource: number; since: number }[];
+  const keyOf = (c: { g: number; s: number; p: number }, res: number) => `${c.g}:${c.s}:${c.p}:${res}`;
+  const since = new Map(known.map((r) => [keyOf(r, r.resource), r.since]));
+  const still = new Set(full.map((f) => keyOf(f.bp.coords, f.resource)));
+  const drop = db.prepare('DELETE FROM storage_full WHERE group_id = ? AND user_id = ? AND g = ? AND s = ? AND p = ? AND resource = ?');
+  for (const r of known) if (!still.has(keyOf(r, r.resource))) drop.run(ctx.groupId, ctx.user.id, r.g, r.s, r.p, r.resource);
+  const add = db.prepare('INSERT OR IGNORE INTO storage_full (group_id, user_id, g, s, p, resource, since) VALUES (?, ?, ?, ?, ?, ?, ?)');
+  const list: StorageNotification[] = [];
+  let name: string | undefined;
+  for (const f of full) {
+    const c = f.bp.coords;
+    const key = keyOf(c, f.resource);
+    let from = since.get(key);
+    if (from == null) {
+      from = f.at;
+      add.run(ctx.groupId, ctx.user.id, c.g, c.s, c.p, f.resource, from);
+    }
+    if (from < t - STORAGE_KEEP) continue;
+    name ??= db.prepare(`SELECT ${DISPLAY} FROM users u LEFT JOIN group_members gm ON gm.group_id = ? AND gm.user_id = u.id WHERE u.id = ?`).pluck().get(ctx.groupId, ctx.user.id) as string;
+    list.push({
+      id: `storage:${key}:${from}`, kind: 'storage', userId: ctx.user.id, member: name, time: from,
+      planet: { g: c.g, s: c.s, p: c.p, name: f.bp.name }, resource: f.resource,
+    });
+  }
+  return list;
+}
+
+/**
+ * The earliest time after `t` when a storage on a planet of one of `userIds` (members of the group) gets full, null
+ * when none will by what is known now.
+ */
+export function nextStorageFull(db: DB, universe: Universe, groupId: number, userIds: number[], t: number): number | null {
+  let next: number | null = null;
+  for (const id of userIds) {
+    const u = db.prepare('SELECT id, username, is_admin, lang, date_format FROM users WHERE id = ?').get(id) as
+      | { id: number; username: string; is_admin: number; lang: string; date_format: string }
+      | undefined;
+    if (!u) continue;
+    const ctx = resolveGroup(db, { id: u.id, username: u.username, isAdmin: !!u.is_admin, lang: u.lang, dateFormat: u.date_format }, universe, groupId);
+    const state = buildingsState(db, ctx, u.id, t);
+    for (const bp of state.planets) {
+      for (const x of storagesOf(state, bp, t)) if (x.at != null && x.at > t) next = next == null ? x.at : Math.min(next, x.at);
+    }
+  }
+  return next;
 }
 
 /**

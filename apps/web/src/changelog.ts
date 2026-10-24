@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Benachrichtigung bei vollem Lager: Läuft Metall, Kristall oder Deuterium auf einem deiner Planeten voll, meldet das die Glocke, per Push und auf Discord. Der Hub rechnet die Produktion und ankommende Flotten seit deinem letzten Sync hoch. Monde zählen nicht, sie haben keine Produktion. Unter Konto lässt sich das für Push und Discord abschalten.',
+        en: 'Full storage notifications: when metal, crystal or deuterium storage on one of your planets runs full, the bell, push and Discord tell you. The hub projects the production and arriving fleets since your last sync. Moons do not count, they have no production. Under Account it can be switched off for push and Discord.',
+      },
+      {
+        kind: 'new',
         de: 'Kampfberichte lassen sich als Text synchronisieren: Kampfbericht im Spiel öffnen, alles kopieren und einfügen. Die Beute-Abrechnung übernimmt daraus Schiffe, Verluste und Beute; auf der Abrechnungsseite kann ein Kampfbericht auch direkt eingefügt werden.',
         en: 'Battle reports can be synced as text: open the battle report in the game, copy everything and paste it. The loot settlement takes ships, losses and loot from it; on the settlement page a battle report can also be pasted directly.',
       },

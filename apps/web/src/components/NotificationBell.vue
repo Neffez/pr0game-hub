@@ -29,6 +29,8 @@ function target(n: Notification) {
       return { path: `/${uni.value}/raid-planner`, query: { plan: n.plan.id } };
     case 'fleet':
       return `/${uni.value}/imperium`;
+    case 'storage':
+      return { path: `/${uni.value}/build`, query: { tab: 'buildings', c: `${n.planet.g}:${n.planet.s}:${n.planet.p}`, type: 'planet' } };
     case 'building':
       return {
         path: `/${uni.value}/build`,
@@ -46,6 +48,8 @@ const threadOf = (n: CommentNotification) =>
   'player' in n.thread
     ? n.thread.name
     : `${n.thread.owner ? n.thread.owner + ' ' : ''}${n.thread.type === 'moon' ? '☾ ' : ''}[${n.thread.g}:${n.thread.s}:${n.thread.p}]`;
+/** Storage building of a resource (901-903 → 22-24). */
+const storageOf = (res: number) => res - 879;
 const coords = (b: { g: number; s: number; p: number }, moon: boolean) => `${moon ? '☾ ' : ''}[${b.g}:${b.s}:${b.p}]`;
 
 const at = (b: { coords: { g: number; s: number; p: number }; type: string | null; name: string | null }) =>
@@ -67,6 +71,8 @@ function planTime(epoch: number, precision: 'day' | 'hour' | 'exact') {
   const time = d.toLocaleString(locale.value, { ...day, hour: '2-digit', hourCycle: 'h23', minute: '2-digit', ...(precision === 'exact' ? { second: '2-digit' } : {}) });
   return precision === 'hour' ? t('plans.around', { t: time }) : time;
 }
+/** Clock time today, else with the day. */
+const since = (epoch: number) => (new Date(epoch * 1000).toDateString() === new Date().toDateString() ? clock(epoch) : planTime(epoch, 'exact'));
 function left(sec: number) {
   const h = Math.floor(sec / 3600);
   const m = Math.floor((sec % 3600) / 60);
@@ -119,6 +125,10 @@ function left(sec: number) {
           <button v-else-if="n.kind === 'building'" class="bell-item building" @click="show(n)">
             <span><b>{{ n.element >= 100 ? '🔬' : '🏗' }} {{ t(n.element >= 100 ? 'notify.research' : 'notify.building', { name: name(n.element), level: n.level }) }}</b></span>
             <span class="small">{{ n.planet.name ? n.planet.name + ' ' : '' }}{{ coords(n.planet, n.planet.type === 'moon') }}</span>
+          </button>
+          <button v-else-if="n.kind === 'storage'" class="bell-item storage" @click="show(n)">
+            <span><b>📦 {{ t('notify.storage', { name: name(storageOf(n.resource)) }) }}</b></span>
+            <span class="small">{{ n.planet.name ? n.planet.name + ' ' : '' }}{{ coords(n.planet, false) }} · {{ t('notify.storageSince', { t: since(n.time) }) }}</span>
           </button>
           <button v-else-if="n.kind === 'fleet'" class="bell-item fleet" @click="show(n)">
             <span><b>{{ n.fleet.phase === 'return' ? '↩' : '✈' }} {{ t(n.fleet.phase === 'return' ? 'notify.fleetBack' : 'notify.fleet', { mission: n.fleet.missionName }) }}</b></span>
@@ -178,6 +188,8 @@ function left(sec: number) {
 .bell-item.comment:hover { background: color-mix(in srgb, var(--muted) 12%, var(--surface-2)); }
 .bell-item.building { background: var(--surface-2); border-left-color: var(--pos); }
 .bell-item.building:hover { background: color-mix(in srgb, var(--pos) 12%, var(--surface-2)); }
+.bell-item.storage { background: var(--surface-2); border-left-color: var(--warn); }
+.bell-item.storage:hover { background: color-mix(in srgb, var(--warn) 12%, var(--surface-2)); }
 .bell-item.fleet { background: var(--surface-2); border-left-color: var(--accent); }
 .bell-item.fleet:hover { background: color-mix(in srgb, var(--accent) 12%, var(--surface-2)); }
 .bell-item.launch { background: var(--surface-2); border-left-color: var(--warn); }

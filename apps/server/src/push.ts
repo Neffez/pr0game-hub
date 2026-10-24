@@ -1,5 +1,5 @@
 import type { FleetBody } from '@pr0hub/core';
-import { techName } from '@pr0hub/core/tech';
+import { STORAGE, techName } from '@pr0hub/core/tech';
 import type { FastifyBaseLogger } from 'fastify';
 import webpush from 'web-push';
 import type { SessionUser } from './auth.js';
@@ -13,7 +13,7 @@ import { notificationsFor, type ChannelNotification, type Notification } from '.
 /**
  * Web push: the notifications of the bell (repo/notifications.ts) sent to the members' browsers and phones, each once.
  * Data events of a group (a paste with fleet movements, a plan, a comment) deliver for that group, a ticker delivers
- * the launch reminders and affordable buildings. Every member gets what `notificationsFor` lists for them as the viewer (group context and fleet
+ * the launch reminders, affordable buildings and full storages. Every member gets what `notificationsFor` lists for them as the viewer (group context and fleet
  * sharing apply), filtered by their settings. The push services only see the encrypted payload.
  */
 
@@ -30,13 +30,15 @@ export interface PushPrefs {
   buildings: boolean;
   /** an own fleet the user set an alert for arrives (or is about to) */
   fleets: boolean;
+  /** a storage on one of the user's planets is full */
+  storage: boolean;
   /** launch reminder this many minutes before */
   leadMinutes: number;
 }
 
-export const PUSH_DEFAULTS: PushPrefs = { attackSelf: true, attackOthers: false, invites: true, comments: true, launch: true, buildings: true, fleets: true, leadMinutes: 5 };
+export const PUSH_DEFAULTS: PushPrefs = { attackSelf: true, attackOthers: false, invites: true, comments: true, launch: true, buildings: true, fleets: true, storage: true, leadMinutes: 5 };
 export const LEAD_MINUTES = [1, 2, 5, 10, 15, 30];
-const FLAGS = ['attackSelf', 'attackOthers', 'invites', 'comments', 'launch', 'buildings', 'fleets'] as const;
+const FLAGS = ['attackSelf', 'attackOthers', 'invites', 'comments', 'launch', 'buildings', 'fleets', 'storage'] as const;
 
 /** The user's settings for push (`push_prefs`) or for their Discord webhook (`discord_prefs`). */
 export function pushPrefs(db: DB, userId: number, column: 'push_prefs' | 'discord_prefs' = 'push_prefs'): PushPrefs {
@@ -138,8 +140,8 @@ export class PushService {
   }
 
   /**
-   * Launch reminders, affordable buildings and fleet alerts: checks the groups with plan fleets or building or fleet
-   * alerts of push users; returns the stop.
+   * Launch reminders, affordable buildings, fleet alerts and full storages: checks the groups with plan fleets of push
+   * users and, when due, the other groups of push users; returns the stop.
    */
   start(): () => void {
     if (!this.enabled) return () => {};
@@ -158,12 +160,9 @@ export class PushService {
       )
       .pluck()
       .all(t, t + TICK_AHEAD) as number[];
-    // groups with building or fleet alerts only when one of them may be ready (see AlertSchedule)
+    // groups of push users (building and fleet alerts, storages) only when one of them may be ready (see AlertSchedule)
     const alerts = this.db
-      .prepare(
-        `SELECT DISTINCT b.group_id FROM (SELECT group_id, user_id FROM building_alerts UNION SELECT group_id, user_id FROM fleet_alerts) b
-         WHERE EXISTS (SELECT 1 FROM push_subscriptions s WHERE s.user_id = b.user_id)`,
-      )
+      .prepare('SELECT DISTINCT m.group_id FROM group_members m WHERE EXISTS (SELECT 1 FROM push_subscriptions s WHERE s.user_id = m.user_id)')
       .pluck()
       .all() as number[];
     for (const g of alerts) if (!groups.includes(g) && this.alerts.due(g, t)) groups.push(g);
@@ -183,7 +182,7 @@ export class PushService {
     if (!this.enabled) return;
     const universe = groupUniverse(this.db, groupId);
     if (!universe) return;
-    // when the ticks look at the group's building and fleet alerts again (also when nobody here gets anything)
+    // when the ticks look at the group's building and fleet alerts and storages again (also when nobody here gets anything)
     this.alerts.plan(groupId, universe, t);
     const users = this.db
       .prepare(
@@ -208,7 +207,7 @@ export class PushService {
         outbox.push({
           userId: user.id,
           payload: payloadOf(n, user.lang === 'en' ? 'en' : 'de', universe.slug, universe.settings.timezone, groupId, t),
-          ttl: Math.max(60, n.kind === 'comment' || n.kind === 'building' ? 86400 : n.time - t),
+          ttl: Math.max(60, n.kind === 'comment' || n.kind === 'building' || n.kind === 'storage' ? 86400 : n.time - t),
           urgency: n.kind === 'attack' || n.kind === 'launch' || n.kind === 'fleet' ? 'high' : 'normal',
         });
       }
@@ -252,6 +251,8 @@ export function wanted(n: Notification, prefs: PushPrefs, userId: number, t: num
       return prefs.buildings;
     case 'fleet':
       return prefs.fleets && n.time - n.lead * 60 <= t;
+    case 'storage':
+      return prefs.storage;
   }
 }
 
@@ -274,6 +275,8 @@ const DE = {
   building: (name: string, level: number) => `🏗 ${name} ${level} baubar`,
   research: (name: string, level: number) => `🔬 ${name} ${level} erforschbar`,
   buildingBody: (planet: string) => `Rohstoffe auf ${planet} reichen für die nächste Stufe`,
+  storage: (name: string) => `📦 ${name} voll`,
+  storageBody: (planet: string, since: string) => `${planet} · seit ${since}, die Produktion steht`,
   fleetArrived: (what: string) => `✈ ${what}: Flotte angekommen`,
   fleetBack: (what: string) => `↩ ${what}: Flotte zurück`,
   fleetSoon: (what: string, min: number) => `⏰ ${what}: Ankunft in ${min} Min`,
@@ -304,6 +307,8 @@ const EN: typeof DE = {
   building: (name: string, level: number) => `🏗 ${name} ${level} can be built`,
   research: (name: string, level: number) => `🔬 ${name} ${level} can be researched`,
   buildingBody: (planet: string) => `Resources on ${planet} are enough for the next level`,
+  storage: (name: string) => `📦 ${name} full`,
+  storageBody: (planet: string, since: string) => `${planet} · since ${since}, production has stopped`,
   fleetArrived: (what: string) => `✈ ${what}: fleet arrived`,
   fleetBack: (what: string) => `↩ ${what}: fleet is back`,
   fleetSoon: (what: string, min: number) => `⏰ ${what}: arrival in ${min} min`,
@@ -376,6 +381,15 @@ export function payloadOf(n: Notification | ChannelNotification, lang: PushLang,
       const research = n.element >= 100;
       const title = (research ? L.research : L.building)(techName(n.element, lang), n.level);
       return { ...base, title, body: L.buildingBody(planet), url: link('build', { tab: research ? 'research' : 'buildings', c: `${p.g}:${p.s}:${p.p}`, type: p.type }) };
+    }
+    case 'storage': {
+      const p = n.planet;
+      const planet = `${p.name ? p.name + ' ' : ''}${coords(p.g, p.s, p.p, false)}`;
+      const since = n.time > t - 86400 ? clock(n.time) : clock(n.time, { ...day, hour: '2-digit', minute: '2-digit' });
+      return {
+        ...base, title: L.storage(techName(STORAGE[n.resource], lang)), body: L.storageBody(planet, since),
+        url: link('build', { tab: 'buildings', c: `${p.g}:${p.s}:${p.p}`, type: 'planet' }),
+      };
     }
     case 'fleet': {
       const f = n.fleet;

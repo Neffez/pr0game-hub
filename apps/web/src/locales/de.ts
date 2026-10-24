@@ -162,6 +162,7 @@ const de = {
       launch: 'Erinnerung an meine Starttermine im Raid-Planer',
       buildings: 'Nächste Gebäude- oder Forschungsstufe möglich (Glocke unter Bauen & Forschen)',
       fleets: 'Ankunft meiner Flotten (Glocke an der Flotte im Imperium)',
+      storage: 'Ein Lager auf einem meiner Planeten ist voll',
     },
     pushLead: 'Vorlauf',
     pushLeadMinutes: '{n} Min vorher',
@@ -1368,6 +1369,8 @@ const de = {
     research: '{name} {level} erforschbar',
     fleet: '{mission}: Ankunft',
     fleetBack: '{mission}: Flotte zurück',
+    storage: '{name} voll',
+    storageSince: 'seit {t}',
   },
   game: {
     missions: {

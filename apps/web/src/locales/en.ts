@@ -161,6 +161,7 @@ const en: typeof de = {
       launch: 'Reminder of my launch times in the raid planner',
       buildings: 'Next building or research level possible (bell under Build & Research)',
       fleets: 'Arrival of my fleets (bell on the fleet in the Imperium)',
+      storage: 'A storage on one of my planets is full',
     },
     pushLead: 'Lead time',
     pushLeadMinutes: '{n} min before',
@@ -1364,6 +1365,8 @@ const en: typeof de = {
     research: '{name} {level} can be researched',
     fleet: '{mission}: arrival',
     fleetBack: '{mission}: fleet is back',
+    storage: '{name} full',
+    storageSince: 'since {t}',
   },
   game: {
     missions: {

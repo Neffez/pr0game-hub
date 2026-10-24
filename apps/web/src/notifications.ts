@@ -7,9 +7,11 @@ import { useStored } from './composables';
 /**
  * Something the members should notice (server: repo/notifications.ts): hostile fleets on a member, raid planner
  * invitations, new comments in the viewer's threads, the launch of the viewer's plan fleets, the next level of a
- * building the viewer waits for being affordable, the arrival of an own fleet with an alert.
+ * building the viewer waits for being affordable, the arrival of an own fleet with an alert, a full storage on one of
+ * the viewer's planets.
  */
-export type Notification = AttackNotification | InviteNotification | CommentNotification | LaunchNotification | BuildingNotification | FleetNotification;
+export type Notification =
+  | AttackNotification | InviteNotification | CommentNotification | LaunchNotification | BuildingNotification | FleetNotification | StorageNotification;
 
 interface Base {
   id: string;
@@ -67,9 +69,17 @@ export interface FleetNotification extends Base {
   lead: number;
 }
 
+/** A storage on one of the viewer's planets is full since `time` (production stopped). */
+export interface StorageNotification extends Base {
+  kind: 'storage';
+  planet: { g: number; s: number; p: number; name: string };
+  /** 901 metal, 902 crystal, 903 deuterium */
+  resource: number;
+}
+
 /**
  * An invitation lasts until the end of the plan's day or hour, new comments two days, affordable buildings one day,
- * arrived fleets with an alert ten minutes.
+ * full storages one day, arrived fleets with an alert ten minutes.
  */
 const SPAN = { day: 86400, hour: 3600, exact: 0 };
 const COMMENT_SPAN = 48 * 3600;
@@ -82,6 +92,7 @@ const until = (n: Notification) => {
     case 'comment':
       return n.time + COMMENT_SPAN;
     case 'building':
+    case 'storage':
       return n.time + BUILDING_SPAN;
     case 'fleet':
       return n.time + FLEET_SPAN;

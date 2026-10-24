@@ -1,9 +1,9 @@
 import type { BuildingsRecord, EmpireRecord, OverviewRecord, ResearchRecord } from '@pr0hub/core';
 import {
-  buildingsOf, catchUpBonus, catchUpFromCosts, deriveBuildingSpeed, deriveResearchSpeed, labLevels, levelAfter, LOCKED_BY, NANITE_FACTORY, RESEARCH_LAB,
-  RESEARCH_NETWORK, researchOf, ROBOT_FACTORY, TECHNO_DOME, type Arrival, type BuildingInfo, type BuildPlanet,
+  buildingsOf, capacityOf, catchUpBonus, catchUpFromCosts, deriveBuildingSpeed, deriveResearchSpeed, labLevels, levelAfter, LOCKED_BY, NANITE_FACTORY,
+  RESEARCH_LAB, RESEARCH_NETWORK, researchOf, resourceAt, resourceReadyAt, ROBOT_FACTORY, TECHNO_DOME, type Arrival, type BuildingInfo, type BuildPlanet,
 } from '@pr0hub/core/buildings';
-import { METAL, STORAGE, storageCapacity } from '@pr0hub/core/tech';
+import { METAL, RESOURCES, STORAGE, storageCapacity } from '@pr0hub/core/tech';
 import type { GroupContext } from '../context.js';
 import { now, type DB } from '../db.js';
 import { latestEmpire } from './empire.js';
@@ -424,6 +424,26 @@ export function planetResearch(state: BuildingsState, bp: BuildingPlanet, now: n
 
 /** Buildings and research of a planet (for the alerts). */
 export const planetElements = (state: BuildingsState, bp: BuildingPlanet, now: number) => [...planetBuildings(state, bp, now), ...planetResearch(state, bp, now)];
+
+/**
+ * When each storage of a planet is full: production up to the capacity or fleets landing (null: not by what is known,
+ * e.g. no production); `full` when it is at `t`. Moons have no production and no entries, as have storages whose
+ * capacity is unknown (no resource bar and no storage level synced).
+ */
+export function storagesOf(state: BuildingsState, bp: BuildingPlanet, t: number): { resource: number; at: number | null; full: boolean }[] {
+  if (bp.type !== 'planet') return [];
+  const p = bp.planet;
+  return RESOURCES.filter((res) => p.storage?.[res] != null || p.values[STORAGE[res]] != null).map((res) => {
+    const cap = capacityOf(p, res, state.storageFactor);
+    const arrivals = bp.arrivals.map((a) => ({ at: a.at, amount: a.resources[res] ?? 0 })).filter((a) => a.amount > 0);
+    const start = p.resources[res] ?? 0;
+    const perHour = p.perHour[res] ?? 0;
+    const at = cap > 0 ? resourceReadyAt(cap, start, perHour, cap, p.time, arrivals) : null;
+    // consumption (negative production) empties a storage that fleets filled
+    const full = at != null && at <= t && resourceAt(start, perHour, cap, p.time, t, arrivals) >= cap;
+    return { resource: res, at, full };
+  });
+}
 
 export function alertsOf(db: DB, ctx: GroupContext, userId: number): BuildingAlert[] {
   return db
