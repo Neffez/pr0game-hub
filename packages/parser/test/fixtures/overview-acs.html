@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<!-- overview of a moon with an own ACS attack (own and friendly fleets) and a harvest return, trimmed to the parsed parts -->
+<html lang="de" class="no-js">
+<head>
+  <title>Übersicht - Universe 7 - pr0game</title>
+  <meta charset="utf-8">
+  <script type="text/javascript">
+    var ServerTimezoneOffset = 0;
+    var serverTimeDelta = new Date(2026, 9, 24, 12, 13, 07).getTime() - Date.now();
+    var queryString	= "page=overview";
+  </script>
+</head>
+
+<body id="overview" class="full">
+<div class="wrapper">
+	<header>
+		<div class="fixed">
+<div class="planetSelectorWrapper">
+	<select id="planetSelector">
+		<option value="1008948">Fortuna [1:100:9]</option>
+<option value="1008811">Shiva [1:100:10]</option>
+<option value="1008434">Ares [1:100:12]</option>
+<option value="1011019">Osirious (Mond) [1:100:12]</option>
+<option value="1010154">Quetzalcoatl [2:2:15]</option>
+<option value="1009729">Tzeentch [2:100:15]</option>
+<option value="1010887">Whorus (Mond) [2:100:15]</option>
+<option value="1009757">Domestos [3:100:15]</option>
+<option value="1010555">Hephaistos [3:200:1]</option>
+<option value="1011216" selected="selected">Ra (Mond) [3:200:1]</option>
+	</select>
+</div>
+		</div>
+	</header>
+
+	<content>
+    <div>
+        <div class="infos">
+            <div class="planeto">
+                <a href="#" onclick="return Dialog.PlanetAction();" title="Name ändern/Löschen">Mond Ra</a> (Rudolf)
+            </div>
+            Serverzeit : <span class="servertime">Okt Sa 24 12:13:07</span>
+            <br>
+            Punkte 1.463.507 (Platz <a href="game.php?page=statistics&amp;range=7">7</a> von 171)
+                            <br><span class="colorNegative">Gesetzloser bis: 29. Okt 2026, 21:13:43</span>
+                                        <br>Kosten- und Bauzeit-Bonus: 10.27 %
+        </div>
+
+        <div class="infos">
+            <div class="planeto">
+                Ereignisse <button id="chkbtn1">Ausblenden</button>
+                <span style="display:none" id="tn3">
+                    <button id="chkbtn3">Einblenden</button>
+                </span>
+            </div>
+
+            <ul style="list-style-type:none;" id="hidden-div2">
+                                    <li style=" padding: 3px; ">
+                      <span data-time="1792839789" class="statictimer"></span> |
+                      <span id="fleettime_17928397890016383949" class="fleets" data-fleet-end-time="1792839789" data-fleet-time="3002">
+                            50m  02s
+                        </span>
+                        <td id="fleettime_17928397890016383949"><span class="colorMission2friend">Eine <a href="#" data-tooltip-content="<table style='width:200px'><tr><td style='width:50%;color:white'>Schwerer Kreuzer:</td><td style='width:50%;color:white'>3.544</td></tr></table>" class="tooltip federation">Verbandsflotte</a><span class="textForBlind"> (3544 Schwerer Kreuzer)</span> vom Mond Marquette <a href="game.php?page=galaxy&amp;galaxy=3&amp;system=26" class="federation">[3:26:12]</a> erreicht den Mond Rees <a href="game.php?page=galaxy&amp;galaxy=3&amp;system=195" class="federation">[3:195:5]</a>. Mission: Verbandsangriff</span><br><br><span class="colorMission2Own">Eine deiner <a href="#" data-tooltip-content="<table style='width:200px'><tr><td style='width:50%;color:white'>Schlachtschiff:</td><td style='width:50%;color:white'>2.178</td></tr><tr><td style='width:50%;color:white'>Schlachtkreuzer:</td><td style='width:50%;color:white'>4.348</td></tr></table>" class="tooltip ownfederation">Flotten</a><span class="textForBlind"> (2178 Schlachtschiff; 4348 Schlachtkreuzer)</span> vom Mond Ra <a href="game.php?page=galaxy&amp;galaxy=3&amp;system=200" class="ownfederation">[3:200:1]</a> erreicht den Mond Rees <a href="game.php?page=galaxy&amp;galaxy=3&amp;system=195" class="ownfederation">[3:195:5]</a>. Mission: Verbandsangriff</span><br><br><span class="colorMission2friend">Eine <a href="#" data-tooltip-content="<table style='width:200px'><tr><td style='width:50%;color:white'>Kreuzer:</td><td style='width:50%;color:white'>347</td></tr><tr><td style='width:50%;color:white'>Schlachtschiff:</td><td style='width:50%;color:white'>11.799</td></tr><tr><td style='width:50%;color:white'>Schlachtkreuzer:</td><td style='width:50%;color:white'>4.406</td></tr></table>" class="tooltip federation">Verbandsflotte</a><span class="textForBlind"> (347 Kreuzer; 11799 Schlachtschiff; 4406 Schlachtkreuzer)</span> vom Mond Mount Tsukuba <a href="game.php?page=galaxy&amp;galaxy=3&amp;system=160" class="federation">[3:160:5]</a> erreicht den Mond Rees <a href="game.php?page=galaxy&amp;galaxy=3&amp;system=195" class="federation">[3:195:5]</a>. Mission: Verbandsangriff</span><br><br><span class="colorMission2Own">Eine deiner <a href="#" data-tooltip-content="<table style='width:200px'><tr><td style='width:50%;color:white'>Sturmtransporter:</td><td style='width:50%;color:white'>4.821</td></tr></table>" class="tooltip ownfederation">Flotten</a><span class="textForBlind"> (4821 Sturmtransporter)</span> vom Mond Ra <a href="game.php?page=galaxy&amp;galaxy=3&amp;system=200" class="ownfederation">[3:200:1]</a> erreicht den Mond Rees <a href="game.php?page=galaxy&amp;galaxy=3&amp;system=195" class="ownfederation">[3:195:5]</a>. Mission: Verbandsangriff</span></td>
+                    </li>
+                                    <li style=" padding: 3px; ">
+                      <span data-time="1792839852" class="statictimer"></span> |
+                      <span id="fleettime_17928398520016383903" class="fleets" data-fleet-end-time="1792839852" data-fleet-time="3065">
+                            51m  05s
+                        </span>
+                        <td id="fleettime_17928398520016383903"><span class="colorMission8Own">Eine deiner <a href="#" data-tooltip-content="<table style='width:200px'><tr><td style='width:50%;color:white'>Optimierter Recycler:</td><td style='width:50%;color:white'>1.700</td></tr></table>" class="tooltip ownharvest">Flotten</a><span class="textForBlind"> (1700 Optimierter Recycler)</span> vom Mond Ra <a href="game.php?page=galaxy&amp;galaxy=3&amp;system=200" class="ownharvest">[3:200:1]</a> erreicht das Trümmerfeld <a href="game.php?page=galaxy&amp;galaxy=3&amp;system=195" class="ownharvest">[3:195:5]</a>. Mission: Abbauen</span></td>
+                    </li>
+                                    <li style=" padding: 3px; ">
+                      <span data-time="1792842089" class="statictimer"></span> |
+                      <span id="fleettime_17928420890016383949" class="fleets" data-fleet-end-time="1792842089" data-fleet-time="5302">
+                            01h  28m  22s
+                        </span>
+                        <td id="fleettime_17928420890016383949"><span class="colorMissionReturnOwn">Eine deiner <a href="#" data-tooltip-content="<table style='width:200px'><tr><td style='width:50%;color:white'>Schlachtschiff:</td><td style='width:50%;color:white'>2.178</td></tr><tr><td style='width:50%;color:white'>Schlachtkreuzer:</td><td style='width:50%;color:white'>4.348</td></tr></table>" class="tooltip ownfederation">Flotten</a><span class="textForBlind"> (2178 Schlachtschiff; 4348 Schlachtkreuzer)</span> kehrt vom Mond Rees <a href="game.php?page=galaxy&amp;galaxy=3&amp;system=195" class="ownfederation">[3:195:5]</a> zurück zum Mond Ra <a href="game.php?page=galaxy&amp;galaxy=3&amp;system=200" class="ownfederation">[3:200:1]</a>. Mission: Verbandsangriff</span></td>
+                    </li>
+                                    <li style=" padding: 3px; ">
+                      <span data-time="1792842432" class="statictimer"></span> |
+                      <span id="fleettime_17928424320016384011" class="fleets" data-fleet-end-time="1792842432" data-fleet-time="5645">
+                            01h  34m  05s
+                        </span>
+                        <td id="fleettime_17928424320016384011"><span class="colorMissionReturnOwn">Eine deiner <a href="#" data-tooltip-content="<table style='width:200px'><tr><td style='width:50%;color:white'>Sturmtransporter:</td><td style='width:50%;color:white'>4.821</td></tr></table>" class="tooltip ownfederation">Flotten</a><span class="textForBlind"> (4821 Sturmtransporter)</span> kehrt vom Mond Rees <a href="game.php?page=galaxy&amp;galaxy=3&amp;system=195" class="ownfederation">[3:195:5]</a> zurück zum Mond Ra <a href="game.php?page=galaxy&amp;galaxy=3&amp;system=200" class="ownfederation">[3:200:1]</a>. Mission: Verbandsangriff</span></td>
+                    </li>
+                                    <li style=" padding: 3px; ">
+                      <span data-time="1792844025" class="statictimer"></span> |
+                      <span id="fleettime_17928440250016383903" class="fleets" data-fleet-end-time="1792844025" data-fleet-time="7238">
+                            02h  00m  38s
+                        </span>
+                        <td id="fleettime_17928440250016383903"><span class="colorMissionReturnOwn">Eine deiner <a href="#" data-tooltip-content="<table style='width:200px'><tr><td style='width:50%;color:white'>Optimierter Recycler:</td><td style='width:50%;color:white'>1.700</td></tr></table>" class="tooltip ownharvest">Flotten</a><span class="textForBlind"> (1700 Optimierter Recycler)</span> kehrt vom Trümmerfeld <a href="game.php?page=galaxy&amp;galaxy=3&amp;system=195" class="ownharvest">[3:195:5]</a> zurück zum Planeten Mond Ra <a href="game.php?page=galaxy&amp;galaxy=3&amp;system=200" class="ownharvest">[3:200:1]</a>. Mission: Abbauen</span></td>
+                    </li>
+                                    <li style=" padding: 3px; ">
+                      <span data-time="1792846535" class="statictimer"></span> |
+                      <span id="fleettime_17928465350016383800" class="fleets" data-fleet-end-time="1792846535" data-fleet-time="9748">
+                            02h  42m  28s
+                        </span>
+                        <td id="fleettime_17928465350016383800"><span class="colorMission4Own">Eine deiner <a href="#" data-tooltip-content="<table style='width:200px'><tr><td style='width:50%;color:white'>Großer Transporter:</td><td style='width:50%;color:white'>400</td></tr></table>" class="tooltip owndeploy">Flotten</a><span class="textForBlind"> (400 Großer Transporter)</span> vom Mond Whorus <a href="game.php?page=galaxy&amp;galaxy=2&amp;system=100" class="owndeploy">[2:100:15]</a> erreicht den Mond Ra <a href="game.php?page=galaxy&amp;galaxy=3&amp;system=200" class="owndeploy">[3:200:1]</a>. Mission: <a data-tooltip-content="<table style='width:200px'><tr><td style='width:50%;color:white'>Metall</td><td style='width:50%;color:white'>9.966.170</td></tr><tr><td style='width:50%;color:white'>Kristall</td><td style='width:50%;color:white'>0</td></tr><tr><td style='width:50%;color:white'>Deuterium</td><td style='width:50%;color:white'>0</td></tr></table>" class="tooltip owndeploy">Stationieren</a><span class="textForBlind"> (Rohstoffe: 9966170 Metall; 0 Kristall; 0 Deuterium)</span></span></td>
+                    </li>
+                            </ul>
+            &nbsp;
+        </div>
+
+        <div class="infos">
+            <div class="planeto">
+                Übersicht
+            </div>
+                            <div class="moon">
+                    <a href="game.php?page=overview&amp;cp=1010555&amp;re=0" title="Hephaistos">
+                        <img class="inline" src="./styles/theme/community/planeten/wasserplanet05.jpg" height="100" width="100" alt="Hephaistos (Planet)">
+                    </a>
+                    <br>
+                    Hephaistos (Planet)                    <br>
+                                            Frei
+                                    </div>
+            <div class="planeth">
+                <img style="float: left;" src="./styles/theme/community/planeten/mond06.jpg" height="200" width="200" alt="Ra">
+            </div>
+            <div class="planeth">
+                Ra
+                <br>
+                    <a href="game.php?page=buildings">Gebäude: Frei</a>
+                    <br>
+                    <a href="game.php?page=research">Forschung: Frei</a>
+                    <br>
+                    <a href="game.php?page=shipyard&amp;mode=fleet">Schiffswerft: Frei</a>
+                    <br>
+                        <a href="game.php?page=repairdock">Reparaturdock: Frei</a>
+                        <br>
+                <br>
+                Durchmesser: 4.560 km (<a title="bebaute Felder">16</a> / <a title="max. bebaubare Felder">16</a> Felder)
+                <br>
+                Temperatur: <a class="tooltip_sticky" data-tooltip-content="ca. von 183°C bis 218°C">218°C</a>
+                <br>
+                Position: <a href="game.php?page=galaxy&amp;galaxy=3&amp;system=200">[3:200:1]</a>
+            </div>
+            &nbsp;<br>
+        </div>
+    </div>
+	</content>
+</div>
+</body>
+</html>

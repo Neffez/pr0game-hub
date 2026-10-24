@@ -46,6 +46,9 @@ const OWN_RE = /^(?:Eine deiner|One of your)\b/i;
 const HOSTILE_RE = /^(?:Eine feindliche|A hostile)\b|^(?:Eine|A)\s+(?:Flotten|Fleets)\s*\(/i;
 
 function body(kind: string, name: string, coords: string): FleetBody {
+  // the return of a harvest to a moon reads "zurück zum Planeten Mond Ra [3:200:1]"
+  const moon = /^(?:Planeten|Planet)$/i.test(kind) ? name.match(/^\s*(?:Mond|Moon)\s+(.*)$/i) : null;
+  if (moon) [kind, name] = ['Mond', moon[1]];
   const type = /^(?:Mond|Moon)$/i.test(kind) ? 'moon' : /^(?:Trümmerfeld|Debris)/i.test(kind) ? 'debris' : /^Position$/i.test(kind) ? null : 'planet';
   return { coords: parseCoords(coords)!, type, name: name.trim() || null };
 }

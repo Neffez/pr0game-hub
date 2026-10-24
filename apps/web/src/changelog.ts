@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Flottenbewegungen: Recycler, die zu einem Mond zurückkehren, werden dem Mond zugeordnet statt einem Planeten.',
+        en: 'Fleet movements: recyclers returning to a moon are now assigned to the moon instead of a planet.',
+      },
+      {
+        kind: 'fix',
         de: 'Retime-Planer: Werden die Einstellungen des Universums (Entfernungen, Flottengeschwindigkeit) korrigiert, rechnen offene Retime-Pläne ihre Zielzeit automatisch neu.',
         en: 'Retime planner: when the universe settings (distances, fleet speed) are corrected, open retime plans recalculate their target time automatically.',
       },

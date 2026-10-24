@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-24
 
+- Fleet parser: the return of a harvest to a moon ("zurück zum Planeten Mond Ra [3:200:1]") is read as the moon
+  "Ra" instead of a planet named "Mond Ra"; tests cover an own ACS attack with friendly fleets ("Verbandsflotte")
+  as copied text and as page source (new fixture `overview-acs.html`).
+
 - Universe settings: changing distances or fleet speed recalculates the target time of open retime plans (planning or
   launched, still ahead): it moves by the change of the enemy's return home under the new settings, so a target set by
   hand keeps its offset; the claim's expiry follows and the alliances get a live update. A phalanx return and holds are
