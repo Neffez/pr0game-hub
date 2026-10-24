@@ -6,6 +6,8 @@ const { buildApp } = await import('../src/app.js');
 const { openDb } = await import('../src/db.js');
 const { hashPassword } = await import('../src/auth.js');
 const { events } = await import('../src/events.js');
+const { retimeHome } = await import('../src/repo/plans.js');
+const { UNIVERSE_DEFAULTS } = await import('../src/config.js');
 
 const db = openDb(':memory:');
 const app = buildApp(db, { logger: false });
@@ -245,6 +247,9 @@ describe('attack plans', () => {
     plan = (await call('GET', '/plans', dave)).json().find((p: any) => p.id === created.id);
     expect(plan.enemy.arrival - plan.enemy.first_seen).toBeGreaterThan(3500);
     expect(plan.enemy.recall_seen).toBeNull();
+    // the return home moves with the impact, and so does the target time (once)
+    expect(plan.target_time).toBe(attacks[0].arrival + 5000 + plan.enemy.arrival - plan.enemy.first_seen);
+    expect((await call('GET', '/plans', dave)).json().find((p: any) => p.id === created.id).target_time).toBe(plan.target_time);
 
     // the attack vanished from a newer overview before it arrived: recalled in between
     const later = Math.floor(Date.now() / 1000) + 60;
@@ -255,6 +260,19 @@ describe('attack plans', () => {
     expect(plan.enemy.recall_seen.from).toBeLessThan(later);
     expect(plan.enemy.recall).toBeNull();
     db.prepare('DELETE FROM fleet_snapshots WHERE page_time = ?').run(later);
+
+    // the universe gets its real fleet speed: the target time moves with the return home (offset by hand kept)
+    const row = db.prepare('SELECT * FROM attack_plan_enemy WHERE plan_id = ?').get(created.id) as any;
+    const fast = { ...UNIVERSE_DEFAULTS, fleetSpeed: 5000 };
+    const shift = retimeHome(fast, row)! - retimeHome(UNIVERSE_DEFAULTS, row)!;
+    expect(shift).toBeLessThan(-60);
+    const setSpeed = (fleetSpeed: number) =>
+      app.inject({ method: 'PUT', url: '/hub/api/admin/universes/u8', headers: admin, payload: { settings: { fleetSpeed } } });
+    expect((await setSpeed(5000)).statusCode).toBe(200);
+    const moved = (await call('GET', '/plans', dave)).json().find((p: any) => p.id === created.id);
+    expect(moved.target_time).toBe(plan.target_time + shift);
+    expect((await setSpeed(2500)).statusCode).toBe(200);
+    expect((await call('GET', '/plans', dave)).json().find((p: any) => p.id === created.id).target_time).toBe(plan.target_time);
 
     await call('DELETE', `/plans/${created.id}`, dave);
   });
