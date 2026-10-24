@@ -200,4 +200,47 @@ describe('raid settlements', () => {
     expect(saved.deliveries).toBeGreaterThan(0);
     expect((await call('GET', '/settlements', as.carolB)).json()).toEqual([]);
   });
+
+  it('makes a done plan from a pasted battle report, or takes the plan there', async () => {
+    // [name, coords, ships before, ships after] per fleet; the first defender is the target
+    type F = [string, string, string, number, number];
+    const report = (attackers: F[], defenders: F[]) => {
+      const block = (side: string, f: F, after: boolean) => [`${side} ${f[0]} (${f[1]})`, 'Typ', f[2], 'Anzahl', String(after ? f[4] : f[3])];
+      const round = (after: boolean) => [...attackers.flatMap((f) => block('Angreifer', f, after)), ...defenders.flatMap((f) => block('Verteidiger', f, after))];
+      return ['Folgende Flotten stehen sich gegenüber am 25. Okt 2026, 10:00:00', ...round(false), ...round(true),
+        'Der Angreifer hat die Schlacht gewonnen!', 'Er erbeutet 1.000 Metall, 2.000 Kristall und 3.000 Deuterium'].join('\n');
+    };
+    const attack = report([['CVXII', '[5:10:3]', 'Schlachtschiff', 100, 99], ['Gast', '[5:20:1] (M)', 'Schlachtschiff', 50, 50]], [['Opfer', '[5:100:8]', 'Kl. Transporter', 10, 0]]);
+    const res = await call('POST', '/settlements/from-report', as.erin, { text: attack });
+    expect(res.json()).toMatchObject({ existing: false, mission: 'attack' });
+    const id = res.json().id;
+    const plan = (await call('GET', '/plans', as.erin)).json().find((p: { id: number }) => p.id === id);
+    expect(plan).toMatchObject({ g: 5, s: 100, p: 8, planet_type: 'planet', status: 'done', mission: 'attack', time_precision: 'exact' });
+    expect(plan.fleets.map((f: any) => [f.user_id, f.g, f.s, f.p, f.status, f.ships])).toEqual([[ids.carol, 5, 10, 3, 'launched', { 207: 100 }]]);
+    expect(plan.guests).toMatchObject([{ player: null, name: 'Gast', from: { g: 5, s: 20, p: 1, type: 'moon' }, ships: { 207: 50 } }]);
+    const { state } = (await call('GET', `/plans/${id}/settlement`, as.carol)).json().draft;
+    expect(state.participants.map((p: { id: string; name: string }) => [p.id, p.name])).toEqual([[`u${ids.carol}`, 'CVXII'], ['g1', 'Gast']]);
+    expect(state.participants[0].flightDeut).toBeGreaterThan(0);
+    expect(state.battles).toEqual([{
+      time: expect.any(Number), loot: { m: 1000, k: 2000, d: 3000 },
+      fleets: [{ participant: `u${ids.carol}`, start: { 207: 100 }, end: { 207: 99 } }, { participant: 'g1', start: { 207: 50 }, end: { 207: 50 } }],
+    }]);
+    // pasted again: the same plan
+    expect((await call('POST', '/settlements/from-report', as.dave, { text: attack })).json()).toEqual({ id, existing: true, mission: 'attack' });
+
+    // members defended: a hold, the first defender is the attacked member
+    const hold = report([['Feind', '[6:1:1]', 'Schlachtschiff', 10, 10]], [['Hustensaftdealer', '[6:50:5]', 'Kl. Transporter', 5, 0], ['Rudolf', '[6:60:1]', 'Schlachtschiff', 3, 1]]);
+    expect((await call('POST', '/settlements/from-report', as.carol, { text: hold, mission: 'attack' })).json().code).toBe('report_no_member');
+    const h = (await call('POST', '/settlements/from-report', as.carol, { text: hold })).json();
+    expect(h).toMatchObject({ existing: false, mission: 'hold' });
+    expect(db.prepare('SELECT member_id, from_g, from_s, from_p FROM attack_plan_enemy WHERE plan_id = ?').get(h.id)).toEqual({ member_id: ids.erin, from_g: 6, from_s: 1, from_p: 1 });
+    const holdState = (await call('GET', `/plans/${h.id}/settlement`, as.erin)).json().draft.state;
+    expect(holdState.participants.map((p: { id: string }) => p.id)).toEqual([`u${ids.dave}`, `u${ids.erin}`]);
+    expect(holdState.battles[0]).toMatchObject({ loot: { m: 0, k: 0, d: 0 } });
+
+    expect((await call('POST', '/settlements/from-report', as.carol, { text: report([['A', '[7:1:1]', 'Schlachtschiff', 1, 1]], [['B', '[7:2:2]', 'Kl. Transporter', 1, 0]]) })).json().code).toBe('report_no_member');
+    expect((await call('POST', '/settlements/from-report', as.carol, { text: 'nothing' })).json().code).toBe('report_invalid');
+    // archived like a sync
+    expect(db.prepare('SELECT COUNT(*) FROM combat_reports WHERE group_id = ? AND g IN (5, 6)').pluck().get(groupA)).toBe(2);
+  });
 });

@@ -1,9 +1,13 @@
 import type { FastifyInstance } from 'fastify';
+import { localToEpoch } from '@pr0hub/core';
+import { parseCombatReportText } from '@pr0hub/core/combat';
 import { cleanState, settle } from '@pr0hub/loot';
 import { HttpError } from '../auth.js';
 import type { GroupContext } from '../context.js';
 import { now, type DB } from '../db.js';
 import { events } from '../events.js';
+import { ingest } from '../ingest.js';
+import { planFromReport } from '../repo/reportPlan.js';
 import type { PlanRow } from '../repo/plans.js';
 import { memberKey, savedSettlement, settlementDraft } from '../repo/settlements.js';
 import { clampInt, contextOf, DISPLAY, MEMBER, type Q } from './util.js';
@@ -88,6 +92,26 @@ export function settlementRoutes(app: FastifyInstance, db: DB) {
         saved,
       };
     });
+  });
+
+  /**
+   * Settlement from a pasted battle report: the report is archived like a sync, then a done plan is made for it (an
+   * attack of members, or a hold when members defended; `mission` decides when set), or the plan at the same target
+   * around that time is taken. The client opens its settlement.
+   */
+  app.post<{ Params: { uni: string }; Body: { text?: unknown; mission?: unknown } }>('/api/:uni/settlements/from-report', async (req) => {
+    const ctx = ctxOf(req);
+    const text = typeof req.body?.text === 'string' ? req.body.text : '';
+    const mission = req.body?.mission === 'attack' || req.body?.mission === 'hold' ? req.body.mission : null;
+    const report = parseCombatReportText(text, null);
+    const time = report?.time ? localToEpoch(report.time, ctx.universe.settings.timezone) : null;
+    if (!report || time == null) throw new HttpError(400, 'report_invalid', 'No battle report recognised');
+    if (!report.target) throw new HttpError(400, 'report_no_target', 'The battle report shows no coordinates (copy it while logged in)');
+    ingest(db, { groupId: ctx.groupId, userId: ctx.user.id, timezone: ctx.universe.settings.timezone }, { text, source: 'paste' });
+    const res = planFromReport(db, ctx, report, time, mission);
+    if (!res.ok) throw new HttpError(400, res.code, 'No member of the group fought on that side of the battle');
+    if (!res.existing) events.publish(ctx.groupId, { type: 'data', tables: ['attack_plans'], userId: ctx.user.id });
+    return { id: res.id, existing: res.existing, mission: res.mission };
   });
 
   /** Saved settlement (null if none) and a draft from the hub's data, both with their computed result. */

@@ -1519,6 +1519,45 @@ paths:
                             updated_by: { type: [string, 'null'] }
                             deliveries: { type: integer }
                             done: { type: integer }
+  /api/{uni}/settlements/from-report:
+    post:
+      tags: [Combat]
+      operationId: settlementFromReport
+      description: >-
+        Plan to settle a battle after the fact, from a pasted battle report (copied while logged in, with
+        coordinates). The report is archived like a sync. When members attacked it is an attack, when members defended
+        a hold; `mission` decides when set. A plan at the same target around the report's time with that mission is
+        returned instead of a new one (`existing`). A new plan is done: members' fleets launched from their start
+        planets with the ships before the battle (speed 100 %), non-members as guests; a hold keeps the first defender
+        as the attacked member and the attackers as the enemy. Open its settlement with GET /plans/{id}/settlement.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text]
+              properties:
+                text: { type: string, description: Text of the battle report }
+                mission: { type: string, enum: [attack, hold], description: 'Omit to detect it from the members in the report' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: integer }
+                  existing: { type: boolean }
+                  mission: { type: string, enum: [attack, hold] }
+        '400':
+          description: >-
+            No battle report (`report_invalid`), no coordinates in it (`report_no_target`) or no member on the chosen
+            side (`report_no_member`)
   /api/{uni}/plans/{id}/settlement:
     parameters:
       - { $ref: '#/components/parameters/Uni' }

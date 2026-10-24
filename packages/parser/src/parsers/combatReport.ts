@@ -33,7 +33,7 @@ export function parseCombatReportText(text: string, reportId: string | null): Co
     .filter(Boolean);
 
   // blocks in order; a new round starts when an attacker follows a defender
-  type Block = { side: 'attacker' | 'defender'; name: string; ships: Record<number, number> };
+  type Block = { side: 'attacker' | 'defender'; name: string; from: CombatFleet['from']; ships: Record<number, number> };
   const rounds: Block[][] = [[]];
   let cur: Block | null = null;
   let target: CombatReportRecord['target'] = null;
@@ -42,12 +42,13 @@ export function parseCombatReportText(text: string, reportId: string | null): Co
     const h = t.match(HEADER_RE);
     if (h) {
       const side = /^(Angreifer|Attacker)$/.test(h[1]) ? 'attacker' : 'defender';
+      const c = t.match(HEADER_COORDS_RE);
+      const from: CombatFleet['from'] = c ? { coords: { g: Number(c[1]), s: Number(c[2]), p: Number(c[3]) }, type: c[4] ? 'moon' : 'planet' } : null;
       // the first defender is the attacked planet
-      const c: RegExpMatchArray | null = side === 'defender' && rounds.length === 1 && !target ? t.match(HEADER_COORDS_RE) : null;
-      if (c) target = { coords: { g: Number(c[1]), s: Number(c[2]), p: Number(c[3]) }, type: c[4] ? 'moon' : 'planet' };
+      if (side === 'defender' && rounds.length === 1 && !target && from) target = from;
       const round = rounds.at(-1)!;
       if (side === 'attacker' && round.some((b) => b.side === 'defender')) rounds.push([]);
-      cur = { side, name: h[2].trim(), ships: {} };
+      cur = { side, name: h[2].trim(), from, ships: {} };
       rounds.at(-1)!.push(cur);
       continue;
     }
@@ -77,7 +78,7 @@ export function parseCombatReportText(text: string, reportId: string | null): Co
     const sameSide = (r: Block[]) => r.filter((x) => x.side === b.side);
     const idx = sameSide(first).indexOf(b);
     const after = sameSide(last)[idx];
-    return { side: b.side, name: b.name, start: b.ships, end: rounds.length > 1 ? (after?.ships ?? {}) : b.ships };
+    return { side: b.side, name: b.name, from: b.from, start: b.ships, end: rounds.length > 1 ? (after?.ships ?? {}) : b.ships };
   });
 
   const tail = text.slice(end.index);

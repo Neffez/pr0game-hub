@@ -783,6 +783,7 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
       <p v-for="(g, i) in p.guests ?? []" :key="`g${i}`" class="small">
         <span class="badge" :title="t('ownAttacks.guestTitle')">{{ t('ownAttacks.guest') }}</span>
         <PlayerLink v-if="g.player" :id="g.player.id" :name="g.player.name" />
+        <span v-else-if="g.name">{{ g.name }}</span>
         <span class="mono">{{ coords(g.from.g, g.from.s, g.from.p) }}</span><span v-if="g.from.type === 'moon'" class="muted"> ☾</span>
         · {{ Object.entries(g.ships).map(([id, n]) => `${fmt(n)} ${name(Number(id))}`).join(', ') }}
       </p>

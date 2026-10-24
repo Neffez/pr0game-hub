@@ -349,6 +349,8 @@ export interface BattleHallRecord {
 export interface CombatFleet {
   side: 'attacker' | 'defender';
   name: string;
+  /** planet or moon the fleet comes from (the defenders: where they stand), null when the page hides the coordinates */
+  from: { coords: Coords; type: 'planet' | 'moon' } | null;
   /** element id -> amount before the battle / after the last round */
   start: Record<number, number>;
   end: Record<number, number>;

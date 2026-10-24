@@ -1388,7 +1388,7 @@ describe('plausibility of pasted pages', () => {
     expect(foreignRecords(db, me, [hall(0, foreign.slice(0, 8))])).toBe(false);
     const report = (names: string[]) => ({
       kind: 'combatReport' as const, reportId: null, time: null, winner: 'draw' as const, rounds: 6, lost: { attacker: 0, defender: 0 }, debris: { metal: 0, crystal: 0 },
-      fleets: names.map((name) => ({ side: 'attacker' as const, name, start: {}, end: {} })),
+      fleets: names.map((name) => ({ side: 'attacker' as const, name, from: null, start: {}, end: {} })),
     });
     expect(foreignRecords(db, me, [report(foreign.slice(0, 2))])).toBe(false);
     expect(foreignRecords(db, me, [report(foreign.slice(0, 6))])).toBe(true);

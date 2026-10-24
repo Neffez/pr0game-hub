@@ -20,6 +20,16 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Raid Planer, Abrechnungen: „Aus Kampfbericht anlegen“ rechnet auch Kämpfe ohne Plan ab. Kampfbericht einfügen, der Hub legt den Plan mit den Flotten der Mitglieder und ihren Startplaneten an, rechnet das Deut aus und öffnet die Abrechnung. Haben Mitglieder verteidigt, wird es ein Halten. Gibt es schon einen Plan für den Kampf, öffnet sich dieser.',
+        en: 'Raid planner, settlements: "Create from battle report" settles battles without a plan too. Paste the battle report, the hub makes the plan with the members\u2019 fleets and their start planets, computes the deuterium and opens the settlement. If members defended, it becomes a hold. If the battle already has a plan, that one opens.',
+      },
+      {
+        kind: 'new',
+        de: 'Beute abrechnen: Recyclerberichte lassen sich einfügen, auch mehrere auf einmal, für eine wählbare Person. Recycling-Zeilen lassen sich entfernen.',
+        en: 'Settle loot: recycling reports can be pasted, several at once too, for a chosen person. Recycling rows can be removed.',
+      },
+      {
+        kind: 'new',
         de: 'AKS-Beuterechner: Recyclerberichte lassen sich einfügen, auch mehrere auf einmal. Jeder Bericht ergibt eine Recycling-Zeile mit Metall und Kristall für die gewählte Person.',
         en: 'ACS loot calculator: recycling reports can be pasted, several at once too. Each report adds a recycling row with metal and crystal for the chosen person.',
       },

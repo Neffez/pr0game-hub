@@ -2,7 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
-import { parseCombatReportText } from '@pr0hub/core/combat';
+import { parseCombatReportText, parseRecycleReportsText } from '@pr0hub/core/combat';
 import { CAPACITY } from '@pr0hub/flight';
 import {
   battleFromReport, cleanState, MAX_HELPER_KEEP, decodeShare, localEpoch, lootShares, settle, type LootState, type Res, type SettlementResult, type TransferInput,
@@ -154,6 +154,32 @@ function applyReport() {
   error.value = skipped.length ? t('loot.pasteSkipped', { names: skipped.join(', ') }) : '';
 }
 
+// ---- recycling reports pasted here ----
+const recycleText = ref('');
+const recycleBy = ref('');
+/** who may have recycled: the settlement's people, then the other members (they join as helpers) */
+const recyclers = computed(() => [
+  ...people.value.map((p) => ({ id: p.id, name: p.name })),
+  ...(ctx.value?.members ?? []).map((m) => ({ id: `u${m.id}`, name: m.name })).filter((m) => !people.value.some((p) => p.id === m.id)),
+]);
+// the viewer by default, else the first one
+watch(recyclers, (list) => {
+  if (!list.some((r) => r.id === recycleBy.value)) recycleBy.value = list.find((r) => r.id === data.value?.me)?.id ?? list[0]?.id ?? '';
+}, { immediate: true });
+function applyRecycling() {
+  const reports = parseRecycleReportsText(recycleText.value);
+  const s = state.value;
+  const who = recyclers.value.find((r) => r.id === recycleBy.value) ?? recyclers.value[0];
+  if (!reports.length || !s || !who) {
+    error.value = t('loot.recyclePasteFailed');
+    return;
+  }
+  if (!people.value.some((p) => p.id === who.id)) s.helpers.push({ id: who.id, name: who.name, keepPct: 20, recDeut: 0 });
+  for (const r of reports) s.recycling.push({ by: who.id, m: r.metal, k: r.crystal });
+  recycleText.value = '';
+  error.value = '';
+}
+
 // ---- battles ----
 /** Loot per participant of a battle by cargo space (or the known loot of its fleet). */
 const shares = computed(() => state.value?.battles.map((b) => lootShares(b)) ?? []);
@@ -209,6 +235,7 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
   </h1>
   <p class="muted small">{{ data?.plan.mission === 'hold' ? t('loot.introHold') : t('loot.intro') }}</p>
   <div v-if="error" class="error">{{ error }}</div>
+  <p v-if="route.query.existing" class="small warn">{{ t('loot.existingPlan') }}</p>
 
   <template v-if="data && state && result">
     <div class="card row bar">
@@ -347,9 +374,20 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
                 <td class="num">{{ fmt(r.m) }} {{ name(901) }}</td>
                 <td class="num">{{ fmt(r.k) }} {{ name(902) }}</td>
                 <td class="muted small">{{ dateTime(sources?.recycling[i]?.time) }}</td>
+                <td v-if="canEdit"><button :title="t('loot.removeRecycling')" @click="state.recycling.splice(i, 1)">✕</button></td>
               </tr>
             </tbody>
           </table>
+          <template v-if="canEdit">
+            <h3 style="margin-top: 12px">{{ t('loot.pasteRecycling') }} <Hint>{{ t('loot.pasteRecyclingHint') }}</Hint></h3>
+            <textarea v-model="recycleText" class="report" :placeholder="t('loot.pasteRecyclingPlaceholder')" />
+            <div class="row small" style="gap: 8px; margin-top: 6px">
+              <select v-model="recycleBy" :aria-label="t('loot.recycledBy')">
+                <option v-for="r in recyclers" :key="r.id" :value="r.id">{{ r.name }}</option>
+              </select>
+              <button :disabled="!recycleText.trim()" @click="applyRecycling">{{ t('common.apply') }}</button>
+            </div>
+          </template>
           <template v-if="state.helpers.length">
             <h3>{{ t('loot.helpers') }} <Hint>{{ t('loot.helpersHint') }}</Hint></h3>
             <label class="row small tick" style="margin-bottom: 6px">

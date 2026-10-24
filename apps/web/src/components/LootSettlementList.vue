@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, watch } from 'vue';
+import { computed, onMounted, reactive, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRouter } from 'vue-router';
 import { uniApi } from '../api';
 import Hint from './Hint.vue';
 import PlayerLink from './PlayerLink.vue';
@@ -36,6 +37,24 @@ watch(days, load);
 useLiveReload(load, tables('raid_settlements', 'attack_plans', 'battle_reports', 'combat_reports'));
 
 const calcUrl = computed(() => (ctx.value ? lootCalcUrl(ctx.value.universe.settings) : ''));
+/** A battle settled after the fact: the pasted report makes a done plan (or finds the one there), then its settlement opens. */
+const router = useRouter();
+const fromReport = reactive({ open: false, text: '', mission: '' as '' | 'attack' | 'hold', error: '', busy: false });
+async function createFromReport() {
+  fromReport.busy = true;
+  fromReport.error = '';
+  try {
+    const res = await uniApi<{ id: number; existing: boolean }>(uni.value, '/settlements/from-report', {
+      body: { text: fromReport.text, mission: fromReport.mission || undefined },
+    });
+    Object.assign(fromReport, { open: false, text: '', mission: '' });
+    router.push({ path: `/${uni.value}/raid-planner/${res.id}/loot`, query: res.existing ? { existing: '1' } : {} });
+  } catch (e) {
+    fromReport.error = (e as Error).message;
+  } finally {
+    fromReport.busy = false;
+  }
+}
 /** settled when every delivery is ticked off */
 const settled = (e: Entry) => !!e.saved && e.saved.done >= e.saved.deliveries;
 </script>
@@ -49,6 +68,21 @@ const settled = (e: Entry) => !!e.saved && e.saved.done >= e.saved.deliveries;
     </select>
     <a v-if="calcUrl" class="small" :href="calcUrl" target="_blank" rel="noopener">{{ t('loot.calculatorPlain') }} ↗</a>
     <Hint>{{ t('loot.calculatorPlainHint') }}</Hint>
+    <button class="primary" @click="fromReport.open = !fromReport.open">{{ t('loot.createFromReport') }}</button>
+  </div>
+  <div v-if="fromReport.open" class="card from-report">
+    <h3>{{ t('loot.createFromReport') }} <Hint>{{ t('loot.createFromReportHint') }}</Hint></h3>
+    <textarea v-model="fromReport.text" :placeholder="t('loot.pastePlaceholder')" />
+    <div class="row small" style="gap: 8px">
+      <select v-model="fromReport.mission" :aria-label="t('loot.kind')">
+        <option value="">{{ t('loot.missionAuto') }}</option>
+        <option value="attack">{{ t('loot.attack') }}</option>
+        <option value="hold">{{ t('hold.badge') }}</option>
+      </select>
+      <button class="primary" :disabled="!fromReport.text.trim() || fromReport.busy" @click="createFromReport">{{ t('loot.createFromReportGo') }}</button>
+      <button @click="fromReport.open = false">{{ t('plans.cancelForm') }}</button>
+    </div>
+    <div v-if="fromReport.error" class="error">{{ fromReport.error }}</div>
   </div>
   <div v-if="error" class="error">{{ error }}</div>
   <div v-else-if="data && !data.length" class="card muted">{{ t('loot.listEmpty') }}</div>
@@ -94,4 +128,7 @@ const settled = (e: Entry) => !!e.saved && e.saved.done >= e.saved.deliveries;
 <style scoped>
 .badge.mission-hold { color: var(--pos); }
 td .moon-tag { margin-left: 4px; }
+.from-report { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.from-report h3 { margin: 0; }
+.from-report textarea { width: 100%; min-height: 120px; font-size: 12px; }
 </style>
