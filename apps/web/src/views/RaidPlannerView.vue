@@ -899,6 +899,7 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
       </div>
     </div>
   </template>
+  </template>
 </template>
 
 <style scoped>
