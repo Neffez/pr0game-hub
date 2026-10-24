@@ -308,6 +308,16 @@ const doMerge = () => run(async () => {
               <input v-model.number="editUni.settings.buildingSpeed" type="number" min="0" style="width: 90px" />
             </label>
             <label>
+              {{ t('admin.researchSpeed') }}
+              <Hint>{{ t('admin.researchSpeedHint') }}</Hint>
+              <input v-model.number="editUni.settings.researchSpeed" type="number" min="0" style="width: 90px" />
+            </label>
+            <label>
+              {{ t('admin.universityFactor') }}
+              <Hint>{{ t('admin.universityFactorHint') }}</Hint>
+              <input v-model.number="editUni.settings.universityFactor" type="number" min="0" max="100" style="width: 60px" />
+            </label>
+            <label>
               {{ t('admin.timezone') }}
               <Hint>{{ t('admin.timezoneHint') }}</Hint>
               <input v-model="editUni.settings.timezone" style="width: 140px" />

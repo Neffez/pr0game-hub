@@ -234,6 +234,26 @@ export interface BuildingsRecord {
   queue: { id: number; level: number; destroy: boolean; end: number | null }[];
 }
 
+/** Game research page (page=research) on the selected planet: levels are account wide, costs and time this planet's. */
+export interface ResearchRecord {
+  kind: 'research';
+  coords: Coords;
+  type: PlanetType;
+  pageTime: string | null;
+  resources: Record<number, number>;
+  storage: Record<number, number>;
+  perHour: Record<number, number>;
+  catchUp: number | null;
+  /** a research lab or TechnoDome is being built: research is blocked */
+  labBusy: boolean;
+  /** the planet has no research lab */
+  noLab: boolean;
+  /** research levels with cost and time of the next level (`busy` unused) */
+  research: BuildingsEntry[];
+  /** account wide research queue, first in progress; `end` epoch seconds */
+  queue: { id: number; level: number; end: number | null }[];
+}
+
 export interface OverviewQueue {
   kind: 'building' | 'research' | 'shipyard';
   coords: Coords;
@@ -353,11 +373,12 @@ export type HubRecord =
   | EmpireRecord
   | OverviewRecord
   | BuildingsRecord
+  | ResearchRecord
   | FleetsRecord
   | BattleHallRecord
   | CombatReportRecord;
 
-export type PageType = 'stats' | 'messages' | 'galaxy' | 'empire' | 'overview' | 'buildings' | 'fleets' | 'phalanx' | 'battleHall' | 'combatReport' | 'unknown';
+export type PageType = 'stats' | 'messages' | 'galaxy' | 'empire' | 'overview' | 'buildings' | 'research' | 'fleets' | 'phalanx' | 'battleHall' | 'combatReport' | 'unknown';
 
 export interface ParseResult {
   pageType: PageType;

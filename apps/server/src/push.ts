@@ -252,6 +252,7 @@ const DE = {
   launchOf: (m: string, min: number) => `🚀 ${m}: Start in ${min} Min`,
   plan: (m: string) => `📋 Neuer Plan von ${m}`,
   building: (name: string, level: number) => `🏗 ${name} ${level} baubar`,
+  research: (name: string, level: number) => `🔬 ${name} ${level} erforschbar`,
   buildingBody: (planet: string) => `Rohstoffe auf ${planet} reichen für die nächste Stufe`,
   missions: { 1: 'Angreifen', 2: 'Verbandsangriff', 6: 'Spionage', 9: 'Zerstören', 10: 'Raketenangriff' } as Record<number, string>,
   hostile: 'Feindliche Flotte',
@@ -275,6 +276,7 @@ const EN: typeof DE = {
   launchOf: (m: string, min: number) => `🚀 ${m}: launch in ${min} min`,
   plan: (m: string) => `📋 New plan by ${m}`,
   building: (name: string, level: number) => `🏗 ${name} ${level} can be built`,
+  research: (name: string, level: number) => `🔬 ${name} ${level} can be researched`,
   buildingBody: (planet: string) => `Resources on ${planet} are enough for the next level`,
   missions: { 1: 'Attack', 2: 'ACS attack', 6: 'Espionage', 9: 'Destroy', 10: 'Missile attack' } as Record<number, string>,
   hostile: 'Hostile fleet',
@@ -339,7 +341,9 @@ export function payloadOf(n: Notification | ChannelNotification, lang: PushLang,
     case 'building': {
       const p = n.planet;
       const planet = `${p.name ? p.name + ' ' : ''}${coords(p.g, p.s, p.p, p.type === 'moon')}`;
-      return { ...base, title: L.building(techName(n.element, lang), n.level), body: L.buildingBody(planet), url: link('buildings', { c: `${p.g}:${p.s}:${p.p}`, type: p.type }) };
+      const research = n.element >= 100;
+      const title = (research ? L.research : L.building)(techName(n.element, lang), n.level);
+      return { ...base, title, body: L.buildingBody(planet), url: link('build', { tab: research ? 'research' : 'buildings', c: `${p.g}:${p.s}:${p.p}`, type: p.type }) };
     }
   }
 }

@@ -1,5 +1,5 @@
 import * as cheerio from 'cheerio';
-import { isBuildingsHtml, parseBuildingsHtml } from './parsers/buildings.js';
+import { isBuildingsHtml, isResearchHtml, parseBuildingsHtml, parseResearchHtml } from './parsers/buildings.js';
 import { isEmpireHtml, isEmpireText, parseEmpireHtml, parseEmpireText } from './parsers/empire.js';
 import { isGalaxyHtml, isGalaxyText, parseGalaxyHtml, parseGalaxyText, parseSystem } from './parsers/galaxy.js';
 import { looksLikeUniverseJson, parseUniverseJson } from './parsers/universeJson.js';
@@ -91,6 +91,10 @@ function parseHtml($: cheerio.CheerioAPI, htmlText: string, input: ParseInput, w
   }
   if (page === 'battlehall' || isBattleHallHtml($)) {
     return { pageType: 'battleHall', records: [parseBattleHallHtml($)] };
+  }
+  if (page === 'research' || isResearchHtml($)) {
+    const r = parseResearchHtml($);
+    if (r) return { pageType: 'research', records: [r] };
   }
   if (page === 'buildings' || isBuildingsHtml($)) {
     const r = parseBuildingsHtml($);

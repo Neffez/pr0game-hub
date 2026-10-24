@@ -28,7 +28,10 @@ function target(n: Notification) {
     case 'launch':
       return { path: `/${uni.value}/raid-planner`, query: { plan: n.plan.id } };
     case 'building':
-      return { path: `/${uni.value}/buildings`, query: { c: `${n.planet.g}:${n.planet.s}:${n.planet.p}`, type: n.planet.type } };
+      return {
+        path: `/${uni.value}/build`,
+        query: { tab: n.element >= 100 ? 'research' : 'buildings', c: `${n.planet.g}:${n.planet.s}:${n.planet.p}`, type: n.planet.type },
+      };
     case 'comment':
       return 'player' in n.thread
         ? `/${uni.value}/player/${n.thread.player}`
@@ -112,7 +115,7 @@ function left(sec: number) {
             </span>
           </button>
           <button v-else-if="n.kind === 'building'" class="bell-item building" @click="show(n)">
-            <span><b>🏗 {{ t('notify.building', { name: name(n.element), level: n.level }) }}</b></span>
+            <span><b>{{ n.element >= 100 ? '🔬' : '🏗' }} {{ t(n.element >= 100 ? 'notify.research' : 'notify.building', { name: name(n.element), level: n.level }) }}</b></span>
             <span class="small">{{ n.planet.name ? n.planet.name + ' ' : '' }}{{ coords(n.planet, n.planet.type === 'moon') }}</span>
           </button>
           <button v-else-if="n.kind === 'comment'" class="bell-item comment" @click="show(n)">

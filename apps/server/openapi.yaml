@@ -99,7 +99,7 @@ components:
         created_at: { type: integer }
     Buildings:
       type: object
-      required: [planets, research, catchUp, catchUpFrom, buildingSpeed, storageFactor, empireTime, fleetsTime, alerts]
+      required: [planets, research, researchQueue, researchSpeed, universityFactor, catchUp, catchUpFrom, buildingSpeed, storageFactor, empireTime, fleetsTime, alerts]
       properties:
         planets:
           type: array
@@ -111,15 +111,17 @@ components:
               name: { type: string }
               coords: { type: object, properties: { g: { type: integer }, s: { type: integer }, p: { type: integer } } }
               type: { type: string, enum: [planet, moon] }
-              source: { type: string, enum: [empire, buildings], description: Page the levels and resources come from }
+              source: { type: string, enum: [empire, buildings, research], description: Page the levels and resources come from }
               planet:
                 type: object
                 description: >-
                   levels (`values`), `resources` at `time` (Unix seconds), `perHour`, `storage` (when shown), `fields`,
                   `queue` (target levels, `end` when known) and `busy`: research (account wide, locks research lab and
-                  TechnoDome) and the planet's shipyard (locks nanite factory and shipyard) in use, each `{ until }`
-                  (Unix seconds, null when unknown) or null when free
+                  TechnoDome), the planet's shipyard (locks nanite factory and shipyard) and `lab` (a research lab or
+                  TechnoDome in any build queue, locks research) in use, each `{ until }` (Unix seconds, null when
+                  unknown) or null when free
               shown: { type: [object, 'null'], description: 'building id -> `{ next, cost, time }` as the buildings page showed them' }
+              shownResearch: { type: [object, 'null'], description: 'research id -> `{ next, cost, time }` as the research page of this planet showed them' }
               arrivals:
                 type: array
                 items:
@@ -131,7 +133,18 @@ components:
                     missionName: { type: string }
                     back: { type: boolean, description: Return flight }
                     from: { type: object }
-        research: { type: object }
+        research: { type: object, description: 'Research levels of the account (research id -> level), finished queue entries included' }
+        researchQueue:
+          type: array
+          description: Account wide research queue, first in progress (from the newest research page, overview or empire page)
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              level: { type: integer }
+              end: { type: [integer, 'null'] }
+        researchSpeed: { type: [integer, 'null'], description: 'Derived from a research page, else the universe setting `researchSpeed`; null when unknown' }
+        universityFactor: { type: number, description: 'Universe setting `universityFactor` (research time −% per TechnoDome level)' }
         catchUp:
           type: [number, 'null']
           description: >-
@@ -140,7 +153,7 @@ components:
         catchUpFrom:
           type: [object, 'null']
           properties:
-            source: { type: string, enum: [page, overview, stats] }
+            source: { type: string, enum: [page, research, overview, stats], description: 'page: a buildings page, research: a research page' }
             time: { type: integer, description: Unix seconds of that page or statistics update }
         buildingSpeed: { type: [integer, 'null'] }
         storageFactor: { type: number }
@@ -800,7 +813,7 @@ paths:
       tags: [Universe]
       operationId: getBuildings
       description: >-
-        The caller's planets and moons for the buildings page: per planet the levels, resources (with their time),
+        The caller's planets and moons for the build & research page: per planet the levels, resources (with their time),
         production per hour, storage, fields and build queue of the newest synced empire page or buildings page, the
         cost and build time of the next level as a buildings page showed them (`shown`, valid while `next` is still the
         next level) and the resources of fleets landing on it (`arrivals`); plus research, the catch-up bonus, the
@@ -820,7 +833,9 @@ paths:
     put:
       tags: [Universe]
       operationId: putBuildingAlert
-      description: Notify the caller when `level` of building `id` on one of their synced planets is affordable (one alert per building, replaces its level).
+      description: >-
+        Notify the caller when `level` of building or research `id` on one of their synced planets is affordable and not
+        blocked (one alert per element and planet, replaces its level; research only on planets).
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
@@ -837,7 +852,7 @@ paths:
                 s: { type: integer }
                 p: { type: integer }
                 type: { type: string, enum: [planet, moon] }
-                id: { type: integer, description: Building id }
+                id: { type: integer, description: Building or research id }
                 level: { type: integer }
       responses:
         '200':
@@ -853,7 +868,7 @@ paths:
     put:
       tags: [Universe]
       operationId: putHiddenBuildings
-      description: Replaces the buildings the caller hides on the buildings page (kept in the account, for all planets and universes).
+      description: Replaces the buildings and research the caller hides under build & research (kept in the account, for all planets and universes).
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
@@ -866,7 +881,7 @@ paths:
               type: object
               required: [ids]
               properties:
-                ids: { type: array, items: { type: integer }, description: Building ids }
+                ids: { type: array, items: { type: integer }, description: Building and research ids }
       responses:
         '200':
           content:
@@ -875,7 +890,7 @@ paths:
                 type: object
                 properties:
                   hidden: { type: array, items: { type: integer } }
-        '400': { description: 'Not a list of building ids (`hidden_invalid`)' }
+        '400': { description: 'Not a list of building or research ids (`hidden_invalid`)' }
   /api/{uni}/buildings/alerts/{id}:
     delete:
       tags: [Universe]
@@ -1253,7 +1268,7 @@ paths:
         the caller's last comment there, one entry per thread; `thread`, `excerpt`, `count`, `member`/`userId` the newest
         author, `time` the newest comment), `launch` (a fleet of the caller in a plan with an exact target time,
         invited or ready, that launches within the next hour; `plan`, `from`, `time` the launch) and `building` (the
-        resources for the level of a building alert are there, listed 24 hours; `alert`, `planet`, `element`, `level`,
+        resources for the level of a building or research alert are there, listed 24 hours; `alert`, `planet`, `element`, `level`,
         `time` since when). Push notifications send
         the same entries (see `/api/push/subscriptions`).
       parameters:

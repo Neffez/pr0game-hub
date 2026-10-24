@@ -2,7 +2,7 @@ import { distance, drivesFromResearch, flightDuration, launchFor, slowestShip } 
 import type { SessionUser } from '../auth.js';
 import type { GroupContext, Universe } from '../context.js';
 import type { DB } from '../db.js';
-import { alertDone, alertsOf, buildingsState, planetBuildings, planetOf } from './buildings.js';
+import { alertDone, alertsOf, buildingsState, planetElements, planetOf } from './buildings.js';
 import { sharedFleets, type StoredFleet } from './fleets.js';
 import { alliance } from './members.js';
 import { enemiesOf, followHolds, launchedOf, planDrives, type LaunchFleet, type LaunchPlan, type PlanRow } from './plans.js';
@@ -59,7 +59,10 @@ export interface LaunchNotification extends Base {
   from: { g: number; s: number; p: number; type: 'planet' | 'moon' };
 }
 
-/** The resources for the next level of a building on one of the viewer's planets are there (`time`: since when). */
+/**
+ * The resources for the next level of a building or research (`element` from 100) on one of the viewer's planets are
+ * there and nothing blocks it (`time`: since when).
+ */
 export interface BuildingNotification extends Base {
   kind: 'building';
   /** the alert (buildings page) */
@@ -239,7 +242,7 @@ function buildings(db: DB, ctx: GroupContext, t: number): BuildingNotification[]
   for (const a of alerts) {
     const bp = planetOf(state, a);
     if (!bp) continue;
-    const info = planetBuildings(state, bp, t).find((b) => b.id === a.element_id);
+    const info = planetElements(state, bp, t).find((b) => b.id === a.element_id);
     if (!info || alertDone(a, info) || info.next !== a.level || info.state !== 'buildable' || info.readyAt == null) continue;
     if (info.readyAt < t - BUILDING_KEEP) continue;
     list.push({

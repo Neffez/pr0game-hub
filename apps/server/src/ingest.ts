@@ -241,6 +241,7 @@ export function aboutRecords(records: HubRecord[]): About[] {
         if (r.current) add(c(r.current.coords));
         break;
       case 'buildings':
+      case 'research':
         add(c(r.coords));
         break;
       case 'battle':
@@ -283,6 +284,8 @@ function describe(r: HubRecord): PreviewItem {
       return { kind: r.kind, queues: r.queues.length };
     case 'buildings':
       return { kind: r.kind, coords: c(r.coords), moon: r.type === 'moon', buildings: r.buildings.length };
+    case 'research':
+      return { kind: r.kind, coords: c(r.coords), research: r.research.length, queue: r.queue.length };
     case 'fleets':
       return { kind: r.kind, fleets: r.fleets.length, hostile: r.fleets.filter((f) => f.owner === 'hostile').length };
     case 'combatReport':

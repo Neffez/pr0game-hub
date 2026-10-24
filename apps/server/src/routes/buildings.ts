@@ -1,10 +1,10 @@
-import { BUILDINGS } from '@pr0hub/core/buildings';
+import { BUILDINGS, RESEARCH } from '@pr0hub/core/buildings';
 import type { FastifyInstance } from 'fastify';
 import { HttpError } from '../auth.js';
 import type { GroupContext } from '../context.js';
 import { now, type DB } from '../db.js';
 import { events } from '../events.js';
-import { alertDone, alertsOf, buildingsState, planetBuildings, planetOf, type BuildingAlert, type BuildingsState } from '../repo/buildings.js';
+import { alertDone, alertsOf, buildingsState, planetElements, planetOf, type BuildingAlert, type BuildingsState } from '../repo/buildings.js';
 import { contextOf } from './util.js';
 
 interface AlertBody {
@@ -21,7 +21,7 @@ export function pruneAlerts(db: DB, ctx: GroupContext, state: BuildingsState, t 
   const done: number[] = [];
   const open = alertsOf(db, ctx, ctx.user.id).filter((a) => {
     const bp = planetOf(state, a);
-    if (bp && !alertDone(a, planetBuildings(state, bp, t).find((b) => b.id === a.element_id))) return true;
+    if (bp && !alertDone(a, planetElements(state, bp, t).find((b) => b.id === a.element_id))) return true;
     // without any synced page the alert stays (nothing to judge by)
     if (!state.planets.length) return true;
     done.push(a.id);
@@ -48,7 +48,10 @@ export function buildingsRoutes(app: FastifyInstance, db: DB) {
     return { ...state, alerts: pruneAlerts(db, ctx, state), hidden: hiddenBuildings(db, ctx.user.id) };
   });
 
-  /** Notify the viewer when `level` of a building on one of their planets is affordable (one alert per building). */
+  /**
+   * Notify the viewer when `level` of a building or research on one of their planets is affordable (one alert per
+   * element and planet).
+   */
   app.put<{ Params: { uni: string }; Body: AlertBody }>('/api/:uni/buildings/alerts', async (req) => {
     const ctx = ctxOf(req);
     const b = req.body ?? {};
@@ -56,7 +59,9 @@ export function buildingsRoutes(app: FastifyInstance, db: DB) {
     if (![b.g, b.s, b.p, b.id, b.level].every(int) || (b.type !== 'planet' && b.type !== 'moon')) {
       throw new HttpError(400, 'alert_invalid', 'Expected g, s, p, type, id and level');
     }
-    if (!BUILDINGS[String(b.id)]?.on.includes(b.type)) throw new HttpError(400, 'building_unknown', 'No such building on this planet type');
+    // research is started on planets (they have the labs)
+    const known = RESEARCH[String(b.id)] ? b.type === 'planet' : BUILDINGS[String(b.id)]?.on.includes(b.type);
+    if (!known) throw new HttpError(400, 'building_unknown', 'No such building or research on this planet type');
     const state = buildingsState(db, ctx, ctx.user.id);
     if (!planetOf(state, { g: b.g!, s: b.s!, p: b.p!, planet_type: b.type })) throw new HttpError(404, 'planet_not_found', 'Not one of your synced planets');
     db.prepare(
@@ -71,8 +76,8 @@ export function buildingsRoutes(app: FastifyInstance, db: DB) {
   app.put<{ Params: { uni: string }; Body: { ids?: unknown } }>('/api/:uni/buildings/hidden', async (req) => {
     const ctx = ctxOf(req);
     const ids = req.body?.ids;
-    if (!Array.isArray(ids) || !ids.every((id) => Number.isInteger(id) && BUILDINGS[String(id)])) {
-      throw new HttpError(400, 'hidden_invalid', 'Expected ids: building ids');
+    if (!Array.isArray(ids) || !ids.every((id) => Number.isInteger(id) && (BUILDINGS[String(id)] || RESEARCH[String(id)]))) {
+      throw new HttpError(400, 'hidden_invalid', 'Expected ids: building or research ids');
     }
     const list = [...new Set(ids as number[])].sort((a, b) => a - b);
     db.prepare('UPDATE users SET hidden_buildings = ? WHERE id = ?').run(list.length ? JSON.stringify(list) : null, ctx.user.id);

@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-10-24',
     items: [
       {
+        kind: 'new',
+        de: '„Gebäude“ heißt jetzt „Bauen & Forschen“ und hat einen zweiten Tab für Forschungen: wie im Spiel siehst du pro Planet Stufe, Voraussetzungen, Kosten, fehlende Rohstoffe, wann es losgehen kann und die Forschungszeit mit Labor, Forschungsnetzwerk und TechnoDome. Auch hier gibt es die Glocke für eine Benachrichtigung. Die Forschungs-Seite aus dem Spiel kannst du jetzt ebenfalls synchronisieren. Im Menü steht der Punkt jetzt nach Statistik und Mein Imperium.',
+        en: 'Buildings is now called Build & Research and has a second tab for research: like in the game you see per planet the level, requirements, costs, missing resources, when it can start and the research time with lab, research network and TechnoDome. The bell for a notification works here too. You can now also sync the research page from the game. In the menu it now comes after Statistics and My Empire.',
+      },
+      {
         kind: 'fix',
         de: 'Gebäude-Seite: Kosten und Bauzeiten stimmen jetzt aufs Ressourcen-Stück und auf die Sekunde mit dem Spiel überein. Der Aufhol-Bonus wird genau statt gerundet verwendet und nach einer neuen Statistik wie im Spiel neu berechnet.',
         en: 'Buildings page: costs and build times now match the game to the unit and the second. The catch-up bonus is used exactly instead of rounded and recalculated like in the game after a new statistics update.',

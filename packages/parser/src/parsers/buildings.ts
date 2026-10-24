@@ -1,12 +1,23 @@
 import type { CheerioAPI } from 'cheerio';
 import { idByName } from '../tech.js';
-import type { BuildingsEntry, BuildingsRecord, PlanetType } from '../types.js';
-import { parseCoords, parseNumber } from '../util.js';
+import type { BuildingsEntry, BuildingsRecord, PlanetType, ResearchRecord } from '../types.js';
+import { parseCoords, parseNumber, type Coords } from '../util.js';
 import { pageTime } from './empire.js';
 
-/** Buildings page (page=buildings): the element blocks link the building ids below 100, the build forms post to it. */
+/**
+ * The game's buildings page (page=buildings) and research page (page=research) share their layout: the selected
+ * planet in the header with the resource bar, a queue (`#buildlist`) and one `.infos` block per element with its
+ * level, the cost and the time of the next level. The filter buttons tell them apart.
+ */
+
+/** Buildings page: its filter buttons (`#btn1` …) or build forms. */
 export function isBuildingsHtml($: CheerioAPI): boolean {
-  return $('.infos .buildn').length > 0 && $('form[action*="page=buildings"], #buildlist').length > 0;
+  return $('.infos .buildn').length > 0 && $('.planeto #btn1, form[action*="page=buildings"]').length > 0;
+}
+
+/** Research page: its filter buttons (`#lab1` …) or research forms. */
+export function isResearchHtml($: CheerioAPI): boolean {
+  return $('.infos .buildn').length > 0 && $('.planeto #lab1, form[action*="page=research"]').length > 0;
 }
 
 const RES_KEYS: [number, string][] = [
@@ -27,18 +38,21 @@ const BUSY = /^(Beschäftigt|Busy)$/i;
 /** "Abreißen" / "Demolish" after a queue entry */
 const DESTROY = /\s+(?:Abreißen|Demolish|Dismantle)\s*$/i;
 
-export function parseBuildingsHtml($: CheerioAPI): BuildingsRecord | null {
+/** Planet selected in the header ("Name (Mond) [g:s:p]"). */
+function selected($: CheerioAPI): { coords: Coords; type: PlanetType } | null {
   const opt = $('#planetSelector option[selected]').first();
   const coords = parseCoords(opt.text());
-  if (!coords) return null;
-  const type: PlanetType = /\((Mond|Moon|Insel)\)/.test(opt.text()) ? 'moon' : 'planet';
+  return coords ? { coords, type: /\((Mond|Moon|Insel)\)/.test(opt.text()) ? 'moon' : 'planet' } : null;
+}
 
-  const buildings: BuildingsEntry[] = [];
+/** The `.infos` blocks of elements with an id in [from, to). */
+function entries($: CheerioAPI, from: number, to: number): BuildingsEntry[] {
+  const list: BuildingsEntry[] = [];
   $('.infos').each((_, el) => {
     const head = $(el).children('.buildn').first();
     if (!head.length) return;
     const id = infoId($, head) ?? idByName(head.find('a').first().text());
-    if (id == null || id >= 100) return;
+    if (id == null || id < from || id >= to) return;
     const level = Number(head.text().match(/\((?:Stufe|Level|Lvl\.?)\s*([\d.,]+)/i)?.[1]?.replace(/[.,]/g, '') ?? 0);
     const cost: Record<number, number> = {};
     // the cost column: "<a>Metall</a>: <b><span>1.234</span></b>" per resource (the second .buildl)
@@ -50,22 +64,32 @@ export function parseBuildingsHtml($: CheerioAPI): BuildingsRecord | null {
     });
     const ts = costCell.find('.statictime').first().attr('timestamp');
     const busy = costCell.children('span.colorNeutral').toArray().some((sp) => BUSY.test($(sp).text().trim()));
-    buildings.push({ id, level, cost, time: ts != null && ts !== '' ? Number(ts) : null, ...(busy ? { busy } : {}) });
+    list.push({ id, level, cost, time: ts != null && ts !== '' ? Number(ts) : null, ...(busy ? { busy } : {}) });
   });
-  if (!buildings.length) return null;
+  return list;
+}
 
-  const queue: BuildingsRecord['queue'] = [];
+/** Queue entries: "1.: Metallmine 21 [Abreißen]" / "1.: Spionagetechnik 10 @ Planet", with their end (epoch) when shown. */
+function queue($: CheerioAPI): { id: number; level: number; destroy: boolean; end: number | null }[] {
+  const list: { id: number; level: number; destroy: boolean; end: number | null }[] = [];
   $('#buildlist .buildb').each((_, el) => {
-    // "1.: Metallmine 21" (the name may be a button to move it up)
-    const text = $(el).clone().find('#progressbar').remove().end().text().replace(/\s+/g, ' ').trim().replace(/^\d+\.:\s*/, '');
+    const text = $(el)
+      .clone().find('#progressbar').remove().end()
+      .text().replace(/\s+/g, ' ').trim()
+      .replace(/^\d+\.:\s*/, '')
+      .replace(/\s+@\s+.*$/, '');
     const destroy = DESTROY.test(text);
     const m = text.replace(DESTROY, '').match(/^(.*?)\s+(\d+)$/);
     const id = m ? idByName(m[1]) : null;
     if (!m || id == null) return;
-    const end = Number($(el).next('.bulida').find('.timer[data-time]').attr('data-time'));
-    queue.push({ id, level: Number(m[2]), destroy, end: end > 0 ? end : null });
+    const end = Number($(el).next('.bulida').find('[data-time][data-umode]').attr('data-time'));
+    list.push({ id, level: Number(m[2]), destroy, end: end > 0 ? end : null });
   });
+  return list;
+}
 
+/** Resource bar: amounts, storage capacity and production per hour (from the page's `resourceTicker` calls). */
+function resourceBar($: CheerioAPI) {
   const resources: Record<number, number> = {};
   const storage: Record<number, number> = {};
   const perHour: Record<number, number> = {};
@@ -81,22 +105,53 @@ export function parseBuildingsHtml($: CheerioAPI): BuildingsRecord | null {
     const tick = script.match(new RegExp(`production:\\s*(-?[\\d.]+)\\s*,\\s*valueElem:\\s*["']current_${key}["']`));
     if (tick) perHour[id] = Number(tick[1]);
   }
+  return { resources, storage, perHour };
+}
 
+/** "Kosten- und Bauzeit-Bonus: 10.18 %" below the filter buttons (only when the universe has it). */
+function catchUp(head: string): number | null {
+  const m = head.match(/(?:Bauzeit-Bonus|construction time bonus)\s*:\s*(\d+(?:[.,]\d+)?)\s*%/i);
+  return m ? Number(m[1].replace(',', '.')) : null;
+}
+
+export function parseBuildingsHtml($: CheerioAPI): BuildingsRecord | null {
+  const at = selected($);
+  const buildings = entries($, 0, 100);
+  if (!at || !buildings.length) return null;
   const head = $('.planeto').first().text();
-  const bonus = head.match(/(?:Bauzeit-Bonus|construction time bonus)\s*:\s*(\d+(?:[.,]\d+)?)\s*%/i);
   // "168 / 208 Felder"
   const fields = head.match(/([\d.,]+)\s*\/\s*([\d.,]+)\s*(?:Felder|Fields)/i);
   return {
     kind: 'buildings',
-    coords,
-    type,
+    ...at,
     pageTime: pageTime($),
-    resources,
-    storage,
-    perHour,
-    catchUp: bonus ? Number(bonus[1].replace(',', '.')) : null,
+    ...resourceBar($),
+    catchUp: catchUp(head),
     fields: fields ? { used: parseNumber(fields[1]) ?? 0, max: parseNumber(fields[2]) ?? 0 } : null,
     buildings,
-    queue,
+    queue: queue($),
+  };
+}
+
+/** "Das Forschungslabor wird zurzeit ausgebaut!" / "You cannot research during lab upgrades." */
+const LAB_BUSY = /Forschungslabor wird zurzeit ausgebaut|cannot research during lab upgrades/i;
+/** "Auf diesem Planeten ist kein Labor vorhanden" / no lab on the planet */
+const NO_LAB = /kein Labor vorhanden|no (?:research )?lab/i;
+
+export function parseResearchHtml($: CheerioAPI): ResearchRecord | null {
+  const at = selected($);
+  const research = entries($, 100, 200);
+  if (!at || !research.length) return null;
+  const notes = $('.hidden-div').text();
+  return {
+    kind: 'research',
+    ...at,
+    pageTime: pageTime($),
+    ...resourceBar($),
+    catchUp: catchUp($('.planeto').first().text()),
+    labBusy: LAB_BUSY.test(notes),
+    noLab: NO_LAB.test(notes),
+    research,
+    queue: queue($).map(({ id, level, end }) => ({ id, level, end })),
   };
 }

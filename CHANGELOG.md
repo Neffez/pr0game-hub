@@ -4,6 +4,21 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-24
 
+- **Build & Research** (renamed from Buildings, route `/build`, `/buildings` redirects; Start menu now Overview,
+  Statistics, My Empire, Build & Research) with a buildings tab and a new research tab:
+  - Research per planet like the game's research page: next level (account wide queue counted), requirements (labs and
+    research), cost with the catch-up bonus, missing resources, ready time with production and landing fleets, research
+    time like `getBuildingTime` (lab levels with the intergalactic research network like `getNetworkLevel`, TechnoDome
+    with the new universe setting `universityFactor`, research speed derived from a research page or the new setting
+    `researchSpeed`), the game's filter groups and "not useful" past `max_useful_level`. Planets without a lab show it;
+    a research lab or TechnoDome in any build queue blocks research (`busy.lab`).
+  - The research page is a new sync type (`research_snapshots`, newest per planet): research levels, the whole queue
+    with its ends, the lab lock, the planet's resource bar, exact costs and times (and the catch-up bonus behind them).
+  - Research levels and queue come from the newest of research page, overview and empire page; finished entries raise
+    the levels. The buildings' research lock now lasts until the last queued research ends.
+  - Alerts, hidden list and notifications cover research (`🔬 … erforschbar`, links to the research tab).
+  - `gen:costs` also writes `research.json` (max level, last useful level, requirements).
+
 - Buildings page, catch-up bonus checked against a real buildings page (now a parser fixture):
   - Costs and build times use the exact bonus behind the page's costs (the page prints it rounded to two decimals,
     which was off by tens of resources); after a newer statistics sync the bonus is calculated like the game's

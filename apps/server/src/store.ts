@@ -6,6 +6,7 @@ import {
   type BattleHallRecord,
   type BattleRecord,
   type BuildingsRecord,
+  type ResearchRecord,
   type CombatReportRecord,
   type EmpireRecord,
   type ExpeditionRecord,
@@ -70,6 +71,8 @@ export class Store {
         return this.overview(r);
       case 'buildings':
         return this.buildings(r);
+      case 'research':
+        return this.research(r);
       case 'fleets':
         return this.fleets(r);
       case 'recycle':
@@ -571,18 +574,29 @@ export class Store {
 
   /** Buildings page of one planet/moon: only the newest per planet is ever read. */
   private buildings(r: BuildingsRecord) {
+    this.planetPage('building_snapshots', r);
+    this.count('buildings', true);
+  }
+
+  /** Research page of one planet: only the newest per planet is ever read. */
+  private research(r: ResearchRecord) {
+    this.planetPage('research_snapshots', r);
+    this.count('research', true);
+  }
+
+  /** Stores a page of one planet and keeps only the newest of that planet. */
+  private planetPage(table: 'building_snapshots' | 'research_snapshots', r: BuildingsRecord | ResearchRecord) {
     const { g, s, p } = r.coords;
     this.db
-      .prepare('INSERT INTO building_snapshots (group_id, user_id, g, s, p, planet_type, page_time, data) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+      .prepare(`INSERT INTO ${table} (group_id, user_id, g, s, p, planet_type, page_time, data) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
       .run(this.t.groupId, this.t.userId, g, s, p, r.type, this.epoch(r.pageTime) ?? now(), JSON.stringify(r));
     this.db
       .prepare(
-        `DELETE FROM building_snapshots WHERE group_id = ? AND user_id = ? AND g = ? AND s = ? AND p = ? AND planet_type = ?
-         AND id <> (SELECT id FROM building_snapshots WHERE group_id = ? AND user_id = ? AND g = ? AND s = ? AND p = ? AND planet_type = ?
+        `DELETE FROM ${table} WHERE group_id = ? AND user_id = ? AND g = ? AND s = ? AND p = ? AND planet_type = ?
+         AND id <> (SELECT id FROM ${table} WHERE group_id = ? AND user_id = ? AND g = ? AND s = ? AND p = ? AND planet_type = ?
                     ORDER BY page_time DESC, id DESC LIMIT 1)`,
       )
       .run(this.t.groupId, this.t.userId, g, s, p, r.type, this.t.groupId, this.t.userId, g, s, p, r.type);
-    this.count('buildings', true);
   }
 
   /**

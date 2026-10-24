@@ -1,5 +1,8 @@
-import type { BuildingsRecord, EmpireRecord, OverviewRecord } from '@pr0hub/core';
-import { buildingsOf, catchUpBonus, catchUpFromCosts, deriveBuildingSpeed, levelAfter, LOCKED_BY, NANITE_FACTORY, ROBOT_FACTORY, type Arrival, type BuildingInfo, type BuildPlanet } from '@pr0hub/core/buildings';
+import type { BuildingsRecord, EmpireRecord, OverviewRecord, ResearchRecord } from '@pr0hub/core';
+import {
+  buildingsOf, catchUpBonus, catchUpFromCosts, deriveBuildingSpeed, deriveResearchSpeed, labLevels, levelAfter, LOCKED_BY, NANITE_FACTORY, RESEARCH_LAB,
+  RESEARCH_NETWORK, researchOf, ROBOT_FACTORY, TECHNO_DOME, type Arrival, type BuildingInfo, type BuildPlanet,
+} from '@pr0hub/core/buildings';
 import { METAL, STORAGE, storageCapacity } from '@pr0hub/core/tech';
 import type { GroupContext } from '../context.js';
 import { now, type DB } from '../db.js';
@@ -9,9 +12,10 @@ import { memberPlayer } from './members.js';
 import { CATCH_UP_WEIGHTS, catchUpLeader, latestScores } from './stats.js';
 
 /**
- * The member's planets and moons as the buildings page needs them: the newest empire page, a buildings page of the
- * planet when it is newer (it also shows the exact costs and build times), the build queue of the newest page that has
- * one (overview, buildings page or empire marker) and the resources of fleets landing on the planet.
+ * The member's planets and moons as the build & research page needs them: the newest empire page, a buildings or
+ * research page of the planet when it is newer (they also show the exact costs and times), the build queue of the
+ * newest page that has one (overview, buildings page or empire marker), the account's research levels and queue, and
+ * the resources of fleets landing on the planet.
  */
 
 type Coords = { g: number; s: number; p: number };
@@ -22,20 +26,28 @@ export interface BuildingPlanet {
   coords: Coords;
   type: 'planet' | 'moon';
   /** where levels and resources come from, and when it was synced */
-  source: 'empire' | 'buildings';
+  source: 'empire' | 'buildings' | 'research';
   planet: BuildPlanet;
   /** next level cost and build time as the buildings page showed them */
   shown: Record<string, { next: number; cost: Record<number, number>; time: number | null }> | null;
+  /** next level cost and research time as the research page of this planet showed them */
+  shownResearch: Record<string, { next: number; cost: Record<number, number>; time: number | null }> | null;
   arrivals: (Arrival & { missionName: string; from: Coords })[];
 }
 
 export interface BuildingsState {
   planets: BuildingPlanet[];
+  /** research levels of the account (finished queue entries included) */
   research: Record<string, number>;
+  /** account wide research queue, first in progress; `end` when known; `coords` of the planet it runs on when known */
+  researchQueue: { id: number; level: number; end: number | null }[];
+  /** universe research speed: derived from a research page, else the universe setting; null when unknown */
+  researchSpeed: number | null;
+  universityFactor: number;
   /** catch-up bonus in percent (not rounded), see `catchUpOf` */
   catchUp: number | null;
   /** where the bonus comes from and as of when */
-  catchUpFrom: { source: 'page' | 'overview' | 'stats'; time: number } | null;
+  catchUpFrom: { source: 'page' | 'research' | 'overview' | 'stats'; time: number } | null;
   /** universe building speed: derived from a buildings page, else the universe setting; null when unknown */
   buildingSpeed: number | null;
   storageFactor: number;
@@ -78,6 +90,11 @@ export function buildingsState(db: DB, ctx: GroupContext, userId: number, t = no
     .prepare('SELECT page_time AS time, data FROM overview_snapshots WHERE group_id = ? AND user_id = ? ORDER BY page_time DESC, id DESC LIMIT 1')
     .get(ctx.groupId, userId) as { time: number; data: string } | undefined;
   const overview = overviewRow ? { time: overviewRow.time, rec: JSON.parse(overviewRow.data) as OverviewRecord } : null;
+  const researchPages = (
+    db
+      .prepare('SELECT page_time AS time, data FROM research_snapshots WHERE group_id = ? AND user_id = ? ORDER BY page_time DESC, id DESC')
+      .all(ctx.groupId, userId) as { time: number; data: string }[]
+  ).map((r) => ({ time: r.time, rec: JSON.parse(r.data) as ResearchRecord }));
   const fleets = sharedFleets(db, ctx.groupId, userId, userId);
   const settings = ctx.universe.settings as typeof ctx.universe.settings & { storageMultiplier?: number };
 
@@ -86,7 +103,7 @@ export function buildingsState(db: DB, ctx: GroupContext, userId: number, t = no
   for (const p of empire?.rec.planets ?? []) {
     const key = keyOf(p.coords, p.type);
     planets.set(key, {
-      key, name: p.name, coords: p.coords, type: p.type, source: 'empire', shown: null, arrivals: [],
+      key, name: p.name, coords: p.coords, type: p.type, source: 'empire', shown: null, shownResearch: null, arrivals: [],
       planet: {
         type: p.type, values: { ...p.values }, resources: { ...(p.resources ?? {}) }, perHour: { ...(p.perHour ?? {}) }, time: empire!.time,
         fields: p.fields, queue: p.building ? [{ ...p.building, destroy: false, end: null }] : [],
@@ -100,7 +117,7 @@ export function buildingsState(db: DB, ctx: GroupContext, userId: number, t = no
     const newer = !bp || page.time >= bp.planet.time;
     if (!bp) {
       bp = {
-        key, name: '', coords: r.coords, type: r.type, source: 'buildings', shown: null, arrivals: [],
+        key, name: '', coords: r.coords, type: r.type, source: 'buildings', shown: null, shownResearch: null, arrivals: [],
         planet: { type: r.type, values: {}, resources: {}, perHour: {}, time: page.time, queue: [] },
       };
       planets.set(key, bp);
@@ -122,6 +139,31 @@ export function buildingsState(db: DB, ctx: GroupContext, userId: number, t = no
     bp.planet.time = page.time;
     bp.planet.queue = r.queue.map((q) => ({ ...q }));
   }
+  // research pages: the planet's resource bar when newer; levels and queue are the account's (below)
+  for (const page of researchPages) {
+    const r = page.rec;
+    const key = keyOf(r.coords, r.type);
+    let bp = planets.get(key);
+    if (!bp) {
+      bp = {
+        key, name: '', coords: r.coords, type: r.type, source: 'research', shown: null, shownResearch: null, arrivals: [],
+        planet: { type: r.type, values: {}, resources: {}, perHour: {}, time: page.time, queue: [] },
+      };
+      planets.set(key, bp);
+    }
+    bp.shownResearch = Object.fromEntries(
+      r.research.map((e) => {
+        const queued = [...r.queue].reverse().find((q) => q.id === e.id);
+        return [e.id, { next: (queued ? queued.level : e.level) + 1, cost: e.cost, time: e.time }];
+      }),
+    );
+    if (page.time < bp.planet.time) continue;
+    bp.source = 'research';
+    bp.planet.resources = { ...bp.planet.resources, ...r.resources };
+    if (Object.keys(r.storage).length) bp.planet.storage = { ...r.storage };
+    if (Object.keys(r.perHour).length) bp.planet.perHour = { ...bp.planet.perHour, ...r.perHour };
+    bp.planet.time = page.time;
+  }
   // the overview shows the running build of every planet: newer than the page a planet comes from, it wins
   if (overview) {
     for (const bp of planets.values()) {
@@ -131,8 +173,10 @@ export function buildingsState(db: DB, ctx: GroupContext, userId: number, t = no
       bp.planet.queue = q ? [{ id: q.id, level: q.level, destroy: q.destroy, end: overview.time + q.seconds }, ...(bp.source === 'buildings' ? rest : [])] : [];
     }
   }
+  // research levels and queue of the account; queue entries done by now raise the levels
+  const { levels, queue: researchQueue } = researchState(empire, overview, researchPages, t);
   // facilities in use, from the newest page that tells: research account wide, the shipyard per planet
-  const research = researchBusy(empire, overview, pages);
+  const research = researchBusy(researchQueue, overview, empire, pages);
   for (const bp of planets.values()) {
     const empirePlanet = empire?.rec.planets.find((p) => same(p.coords, bp.coords) && p.type === bp.type);
     const shipyard: Busy[] = [];
@@ -148,6 +192,9 @@ export function buildingsState(db: DB, ctx: GroupContext, userId: number, t = no
     }
     bp.planet.busy = { research, shipyard: newest(shipyard) };
   }
+  // a research lab or TechnoDome in any build queue blocks research everywhere
+  const lab = labBusy([...planets.values()], researchPages[0] ?? null, overview, t);
+  for (const bp of planets.values()) bp.planet.busy!.lab = lab;
   for (const bp of planets.values()) {
     // builds finished since then raise the level
     while (bp.planet.queue[0]?.end != null && bp.planet.queue[0].end <= t) {
@@ -161,10 +208,21 @@ export function buildingsState(db: DB, ctx: GroupContext, userId: number, t = no
     bp.arrivals.sort((a, b) => a.at - b.at);
   }
 
-  const catchUp = catchUpOf(db, ctx, userId, overview, pages);
+  const catchUp = catchUpOf(db, ctx, userId, overview, [
+    ...pages,
+    ...researchPages.map((p) => ({
+      time: p.time, source: 'research' as const,
+      rec: { catchUp: p.rec.catchUp, buildings: p.rec.research, queue: p.rec.queue.map((q) => ({ ...q, destroy: false })) },
+    })),
+  ]);
+  const list = [...planets.values()];
+  const universityFactor = settings.universityFactor ?? 8;
   return {
-    planets: [...planets.values()],
-    research: empire?.rec.research ?? {},
+    planets: list,
+    research: levels,
+    researchQueue,
+    researchSpeed: derivedResearchSpeed(researchPages, list, levels, universityFactor) ?? (settings.researchSpeed || null),
+    universityFactor,
     catchUp: catchUp?.value ?? null,
     catchUpFrom: catchUp ? { source: catchUp.source, time: catchUp.time } : null,
     buildingSpeed: derivedSpeed(pages.map((p) => p.rec)) ?? (settings.buildingSpeed || null),
@@ -182,18 +240,19 @@ export function buildingsState(db: DB, ctx: GroupContext, userId: number, t = no
  * bonus) or nothing tells.
  */
 function catchUpOf(
-  db: DB, ctx: GroupContext, userId: number, overview: { time: number; rec: OverviewRecord } | null, pages: { time: number; rec: BuildingsRecord }[],
-): { value: number; source: 'page' | 'overview' | 'stats'; time: number } | null {
-  const shown: { value: number; source: 'page' | 'overview'; time: number }[] = [];
+  db: DB, ctx: GroupContext, userId: number, overview: { time: number; rec: OverviewRecord } | null,
+  pages: { time: number; source?: 'research'; rec: Pick<BuildingsRecord, 'catchUp' | 'buildings' | 'queue'> }[],
+): { value: number; source: 'page' | 'research' | 'overview' | 'stats'; time: number } | null {
+  const shown: { value: number; source: 'page' | 'research' | 'overview'; time: number }[] = [];
   if (overview && overview.rec.catchUp != null) shown.push({ value: overview.rec.catchUp, source: 'overview', time: overview.time });
   for (const p of pages) {
     if (p.rec.catchUp == null) continue;
     // the exact value only while it fits the rounded one shown
     const exact = catchUpFromCosts(p.rec);
-    shown.push({ value: exact != null && Math.abs(exact - p.rec.catchUp) < 0.006 ? exact : p.rec.catchUp, source: 'page', time: p.time });
+    shown.push({ value: exact != null && Math.abs(exact - p.rec.catchUp) < 0.006 ? exact : p.rec.catchUp, source: p.source ?? 'page', time: p.time });
   }
   // pages first on equal times (exact)
-  const latest = shown.sort((a, b) => b.time - a.time || (a.source === 'page' ? -1 : 1))[0] ?? null;
+  const latest = shown.sort((a, b) => b.time - a.time || (a.source === 'overview' ? 1 : -1))[0] ?? null;
   if (!latest) return null;
   const playerId = memberPlayer(db, ctx, userId);
   const leader = catchUpLeader(db, ctx.groupId);
@@ -209,25 +268,81 @@ type Busy = { time: number; busy: { until: number | null } | null };
 /** What the newest source says (null: free or unknown). */
 const newest = (list: Busy[]) => [...list].sort((a, b) => b.time - a.time)[0]?.busy ?? null;
 
+type ResearchQueue = { id: number; level: number; end: number | null }[];
+
 /**
- * Research in progress (account wide): the empire marker, the overview queue (with its end) or a buildings page
- * showing the lab or TechnoDome "busy"; the newest decides, the overview's end applies while it is after that.
+ * Research levels and queue of the account from the newest source: a research page (levels and the whole queue with
+ * its ends), the overview (the running research with its end) or the empire page (levels and the running research,
+ * no end; the overview's end applies when it shows the same). Entries done by `t` raise the levels.
+ */
+function researchState(
+  empire: { time: number; rec: EmpireRecord } | null, overview: { time: number; rec: OverviewRecord } | null,
+  pages: { time: number; rec: ResearchRecord }[], t: number,
+): { levels: Record<string, number>; queue: ResearchQueue } {
+  const levels: Record<string, number> = { ...(empire?.rec.research ?? {}) };
+  const page = pages[0] ?? null;
+  if (page && (!empire || page.time >= empire.time)) for (const e of page.rec.research) levels[e.id] = e.level;
+  const running = overview?.rec.queues.find((x) => x.kind === 'research');
+  const sources: { time: number; queue: ResearchQueue }[] = [];
+  if (empire) {
+    const m = empire.rec.researchQueue;
+    sources.push({ time: empire.time, queue: m ? [{ id: m.id, level: m.level, end: null }] : [] });
+  }
+  if (overview) sources.push({ time: overview.time, queue: running ? [{ id: running.id, level: running.level, end: overview.time + running.seconds }] : [] });
+  if (page) sources.push({ time: page.time, queue: page.rec.queue.map((q) => ({ ...q })) });
+  const queue = [...sources].sort((a, b) => b.time - a.time)[0]?.queue.map((q) => ({ ...q })) ?? [];
+  if (running && queue[0] && queue[0].end == null && queue[0].id === running.id && queue[0].level === running.level) {
+    queue[0].end = overview!.time + running.seconds;
+  }
+  while (queue[0]?.end != null && queue[0].end <= t) {
+    const done = queue.shift()!;
+    levels[done.id] = Math.max(levels[done.id] ?? 0, done.level);
+  }
+  return { levels, queue };
+}
+
+/**
+ * Research in progress (account wide, blocks lab and TechnoDome): the research queue until its last entry ends, or a
+ * buildings page showing the lab or TechnoDome "busy" when that is newer than what the queue comes from.
  */
 function researchBusy(
-  empire: { time: number; rec: EmpireRecord } | null, overview: { time: number; rec: OverviewRecord } | null, pages: { time: number; rec: BuildingsRecord }[],
+  queue: ResearchQueue, overview: { time: number; rec: OverviewRecord } | null, empire: { time: number } | null, pages: { time: number; rec: BuildingsRecord }[],
 ): { until: number | null } | null {
-  const list: Busy[] = [];
-  if (empire) list.push({ time: empire.time, busy: empire.rec.researchQueue ? { until: null } : null });
-  const q = overview?.rec.queues.find((x) => x.kind === 'research');
-  const end = q ? overview!.time + q.seconds : null;
-  if (overview) list.push({ time: overview.time, busy: end != null ? { until: end } : null });
+  if (queue.length) return { until: queue.every((q) => q.end != null) ? Math.max(...queue.map((q) => q.end!)) : null };
+  const known = Math.max(overview?.time ?? 0, empire?.time ?? 0);
   for (const page of pages) {
+    if (page.time <= known) continue;
     const lock = page.rec.buildings.filter((b) => LOCKED_BY[b.id] === 'research');
-    if (lock.length) list.push({ time: page.time, busy: lock.some((b) => b.busy) ? { until: null } : null });
+    if (lock.length) return lock.some((b) => b.busy) ? { until: null } : null;
   }
-  const latest = [...list].sort((a, b) => b.time - a.time)[0];
-  if (!latest?.busy) return null;
-  return { until: latest.busy.until ?? (end != null && end > latest.time ? end : null) };
+  return null;
+}
+
+/**
+ * A research lab or TechnoDome in the build queue of any planet blocks research: until the last of them ends (null when
+ * an end is unknown). A research page saying so counts while nothing newer tells about the queues.
+ */
+function labBusy(planets: BuildingPlanet[], page: { time: number; rec: ResearchRecord } | null, overview: { time: number } | null, t: number): { until: number | null } | null {
+  const builds = planets.flatMap((bp) => bp.planet.queue.filter((q) => (q.id === RESEARCH_LAB || q.id === TECHNO_DOME) && (q.end == null || q.end > t)));
+  if (builds.length) return { until: builds.every((q) => q.end != null) ? Math.max(...builds.map((q) => q.end!)) : null };
+  if (page?.rec.labBusy && page.time >= (overview?.time ?? 0) && planets.every((bp) => bp.planet.time <= page.time)) return { until: null };
+  return null;
+}
+
+/** Research speed from the longest research time of the newest research page (lab levels as now, with the network). */
+function derivedResearchSpeed(pages: { rec: ResearchRecord }[], planets: BuildingPlanet[], research: Record<string, number>, universityFactor: number): number | null {
+  for (const { rec } of pages) {
+    const bp = planets.find((p) => same(p.coords, rec.coords) && p.type === rec.type);
+    const own = bp?.planet.values[RESEARCH_LAB] ?? 0;
+    if (!bp || !own) continue;
+    const others = planets.filter((p) => p !== bp && p.type === 'planet').map((p) => p.planet.values[RESEARCH_LAB] ?? 0);
+    const longest = [...rec.research].filter((e) => e.time != null).sort((a, b) => b.time! - a.time!)[0];
+    if (!longest) continue;
+    const lab = labLevels(longest.id, own, others, research[RESEARCH_NETWORK] ?? 0);
+    const speed = deriveResearchSpeed(longest.cost, longest.time!, lab, bp.planet.values[TECHNO_DOME] ?? 0, universityFactor);
+    if (speed) return speed;
+  }
+  return null;
 }
 
 /** Storage factor from a resource bar (storage shown against the metal storage level), null when unknown. */
@@ -269,13 +384,27 @@ export function planetBuildings(state: BuildingsState, bp: BuildingPlanet, now: 
   });
 }
 
+/** The research with its next level when started on this planet at `now` (moons: none). */
+export function planetResearch(state: BuildingsState, bp: BuildingPlanet, now: number): BuildingInfo[] {
+  if (bp.type !== 'planet') return [];
+  return researchOf(bp.planet, {
+    research: state.research, queue: state.researchQueue,
+    otherLabs: state.planets.filter((p) => p !== bp && p.type === 'planet').map((p) => p.planet.values[RESEARCH_LAB] ?? 0),
+    catchUp: state.catchUp, researchSpeed: state.researchSpeed, universityFactor: state.universityFactor, storageFactor: state.storageFactor,
+    arrivals: bp.arrivals, now, shown: bp.shownResearch ?? undefined,
+  });
+}
+
+/** Buildings and research of a planet (for the alerts). */
+export const planetElements = (state: BuildingsState, bp: BuildingPlanet, now: number) => [...planetBuildings(state, bp, now), ...planetResearch(state, bp, now)];
+
 export function alertsOf(db: DB, ctx: GroupContext, userId: number): BuildingAlert[] {
   return db
     .prepare('SELECT id, g, s, p, planet_type, element_id, level, created_at FROM building_alerts WHERE group_id = ? AND user_id = ? ORDER BY id')
     .all(ctx.groupId, userId) as BuildingAlert[];
 }
 
-/** An alert whose level is built or in the queue is done. */
+/** An alert whose level is built, researched or in the queue is done. */
 export function alertDone(a: BuildingAlert, info: BuildingInfo | undefined): boolean {
   return !info || info.next > a.level;
 }

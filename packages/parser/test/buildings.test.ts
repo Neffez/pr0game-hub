@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
-  buildingCost, buildingsFor, catchUpBonus, catchUpFromCosts, buildingsOf, buildTime, deriveBuildingSpeed, requirementsOf, resourceAt, resourceReadyAt, type BuildPlanet,
+  buildingCost, buildingsFor, catchUpBonus, catchUpFromCosts, labLevels, researchOf, researchTime, buildingsOf, buildTime, deriveBuildingSpeed, requirementsOf, resourceAt, resourceReadyAt, type BuildPlanet,
 } from '../src/buildings.js';
 import { parsePage } from '../src/index.js';
 
@@ -199,3 +199,55 @@ describe('buildingsOf', () => {
     expect(byId(list, 1)).toMatchObject({ state: 'buildable', readyAt: 0, missing: {} });
   });
 });
+
+describe('research', () => {
+  it('parses the research page: levels, costs, times, queue and the lab lock', () => {
+    const res = parsePage({ html: fixture('research.html') });
+    expect(res.pageType).toBe('research');
+    const rec = res.records[0];
+    if (rec.kind !== 'research') throw new Error('expected research');
+    expect(rec).toMatchObject({
+      coords: { g: 1, s: 100, p: 12 }, type: 'planet', catchUp: 10.18, labBusy: true, noLab: false,
+      resources: { 901: 500000 }, perHour: { 902: 22733.784085 },
+      // the planet name after "@" (started elsewhere) is dropped
+      queue: [{ id: 113, level: 13, end: 4102444800 }, { id: 106, level: 9, end: 4102448400 }],
+    });
+    expect(rec.research).toEqual([
+      { id: 106, level: 8, cost: { 901: 45986, 902: 229930, 903: 45986 }, time: 1234 },
+      { id: 123, level: 0, cost: { 901: 215563, 902: 359272, 903: 143709 }, time: 9999 },
+    ]);
+    // and the buildings page is not mistaken for it
+    expect(parsePage({ html: fixture('buildings.html') }).pageType).toBe('buildings');
+  });
+
+  it('counts labs like getNetworkLevel and times like getBuildingTime', () => {
+    // no network: only the own lab
+    expect(labLevels(106, 10, [12, 8], 0)).toBe(10);
+    // network 2: own lab + the two best others
+    expect(labLevels(106, 10, [12, 8, 3], 2)).toBe(30);
+    // graviton needs lab 12: labs below do not count
+    expect(labLevels(199, 10, [12, 8], 2)).toBe(12);
+    const cost = { 901: 100000, 902: 200000 };
+    // 300000 / (1000 × 11) / (5000 / 2500) h, TechnoDome 2 with 8 %
+    expect(researchTime(cost, 10, 5000)).toBe(Math.floor((300000 / 11000 / 2) * 3600));
+    expect(researchTime(cost, 10, 5000, 2, 8)).toBe(Math.floor((300000 / 11000 / 2) * 0.92 ** 2 * 3600));
+  });
+
+  it('lists the research of a planet with lab, requirements, queue and lab lock', () => {
+    const planet: BuildPlanet = {
+      type: 'planet', values: { 31: 8, 22: 10, 23: 10, 24: 10 }, resources: { 901: 1e6, 902: 1e6, 903: 1e6 }, perHour: { 901: 1000, 902: 1000, 903: 1000 },
+      time: 0, queue: [],
+    };
+    const o = { research: { 113: 5, 106: 4 }, queue: [{ id: 106, level: 5 }], otherLabs: [], researchSpeed: 2500, now: 0 };
+    const list = researchOf(planet, o);
+    const spy = list.find((r) => r.id === 106)!;
+    expect(spy).toMatchObject({ level: 4, next: 6, state: 'buildable', groups: ['military'] });
+    expect(spy.time).toBe(researchTime(buildingCost(106, 6), 8, 2500));
+    expect(list.find((r) => r.id === 114)).toMatchObject({ groups: ['imperial', 'engines'], useful: 8, state: 'requirements' });
+    // a lab in a build queue blocks research
+    expect(researchOf({ ...planet, busy: { lab: { until: null } } }, o).find((r) => r.id === 106)!.state).toBe('busy');
+    // no lab: nothing to research here
+    expect(researchOf({ ...planet, values: {} }, o).every((r) => r.state === 'nolab')).toBe(true);
+  });
+});
+

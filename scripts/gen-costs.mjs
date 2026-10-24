@@ -1,5 +1,6 @@
 // Extracts element costs (cost901-903, factor) from the pr0game install.sql for point calculations, and per building
-// the planet types, the max level and the requirements (buildings page).
+// the planet types, the max level and the requirements (buildings page), per research the max level, the last useful
+// level and the requirements (research page).
 // Usage: node scripts/gen-costs.mjs <path-to-pr0game/install/install.sql>
 import { readFileSync, writeFileSync } from 'node:fs';
 
@@ -13,7 +14,11 @@ const lines = readFileSync(sqlFile, 'utf8').split(/\r?\n/);
 const start = lines.findIndex((l) => l.startsWith('INSERT INTO `%PREFIX%vars` ('));
 const out = {};
 const buildings = {};
+const research = {};
 for (const line of lines.slice(start + 1)) {
+  // research: class 100/101, max level, max_useful_level as the last column
+  const t = line.match(/^\((1\d\d), 0, '[^']*', 10[01], NULL, '[\d,]+', \d+, [\d.]+, (\d+),.*, (\d+)\),?$/);
+  if (t) research[t[1]] = { max: Number(t[2]), useful: Number(t[3]), req: {} };
   const b = line.match(/^\((\d+), 0, '[^']*', 0, NULL, '([\d,]+)', \d+, [\d.]+, (\d+),/);
   if (b && Number(b[1]) < 100) {
     // onPlanetType: 1 planet, 3 moon
@@ -48,7 +53,10 @@ for (const line of lines.slice(reqStart + 1)) {
   // elementID, universe, requireID, requireLevel
   const m = line.match(/^\((\d+), 0, (\d+), (\d+)\)/);
   if (m && buildings[m[1]]) buildings[m[1]].req[m[2]] = Number(m[3]);
+  if (m && research[m[1]]) research[m[1]].req[m[2]] = Number(m[3]);
   if (line.trimEnd().endsWith(';')) break;
 }
 writeFileSync(new URL('../packages/parser/src/data/buildings.json', import.meta.url), JSON.stringify(buildings) + '\n');
 console.log(`${Object.keys(buildings).length} buildings`);
+writeFileSync(new URL('../packages/parser/src/data/research.json', import.meta.url), JSON.stringify(research) + '\n');
+console.log(`${Object.keys(research).length} research`);

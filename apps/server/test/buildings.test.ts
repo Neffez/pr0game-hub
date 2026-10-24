@@ -107,7 +107,7 @@ describe('buildings page', () => {
     expect(bell).toMatchObject([{ kind: 'building', element: 1, level: 11, planet: { g: 1, s: 1, p: 1, type: 'planet', name: 'Home' }, time: t - 3600 }]);
     await app.push.deliver(group, t);
     expect(pushed).toHaveLength(1);
-    expect(pushed[0].payload).toMatchObject({ title: '🏗 Metallmine 11 baubar', url: `/hub/u8/buildings?c=1%3A1%3A1&type=planet&group=${group}` });
+    expect(pushed[0].payload).toMatchObject({ title: '🏗 Metallmine 11 baubar', url: `/hub/u8/build?tab=buildings&c=1%3A1%3A1&type=planet&group=${group}` });
     await app.discord.deliver(group, t);
     expect(posted).toHaveLength(1);
     expect(posted[0].message.embeds[0].title).toBe('🏗 Metallmine 11 baubar');
@@ -147,7 +147,7 @@ describe('buildings page', () => {
     };
     db.prepare('INSERT INTO overview_snapshots (group_id, user_id, page_time, data) VALUES (?, ?, ?, ?)').run(group, ids.carol, t, JSON.stringify(overview));
     const state = (await call('GET', '/u8/buildings', h.carol)).json();
-    expect(state.planets[0].planet.busy).toEqual({ research: { until: t + 600 }, shipyard: { until: null } });
+    expect(state.planets[0].planet.busy).toEqual({ research: { until: t + 600 }, shipyard: { until: null }, lab: null });
     db.prepare('DELETE FROM overview_snapshots WHERE user_id = ?').run(ids.carol);
   });
 
@@ -192,4 +192,21 @@ describe('buildings page', () => {
     expect(state.catchUpFrom).toEqual({ source: 'stats', time: t });
     expect(state.catchUp).toBeCloseTo((50 / 9) * (10 * 0.9747 ** 50 - 1), 8);
   });
+
+  it('takes research levels, queue and the lab lock from a research page and notifies research alerts', async () => {
+    const html = readFileSync(new URL('../../../packages/parser/test/fixtures/research.html', import.meta.url), 'utf8');
+    expect((await call('POST', '/u8/ingest', h.dave, { html })).json()).toMatchObject({ pageType: 'research', counts: { research: { new: 1 } } });
+    const state = (await call('GET', '/u8/buildings', h.dave)).json();
+    expect(state.research).toMatchObject({ 106: 8, 123: 0 });
+    expect(state.researchQueue).toEqual([{ id: 113, level: 13, end: 4102444800 }, { id: 106, level: 9, end: 4102448400 }]);
+    const ares = state.planets.find((p: { key: string }) => p.key === '1:100:12:planet');
+    // the page says the lab is being built; the queue runs until its last entry
+    expect(ares.planet.busy).toMatchObject({ research: { until: 4102448400 }, lab: { until: null } });
+    expect(ares.shownResearch[106]).toEqual({ next: 10, cost: { 901: 45986, 902: 229930, 903: 45986 }, time: 1234 });
+    // research alerts only on planets
+    expect((await call('PUT', '/u8/buildings/alerts', h.dave, { g: 1, s: 100, p: 12, type: 'moon', id: 106, level: 10 })).statusCode).toBe(400);
+    expect((await call('PUT', '/u8/buildings/alerts', h.dave, { g: 1, s: 100, p: 12, type: 'planet', id: 106, level: 10 })).statusCode).toBe(200);
+    expect((await call('PUT', '/u8/buildings/hidden', h.dave, { ids: [6, 199] })).json()).toEqual({ hidden: [6, 199] });
+  });
 });
+
