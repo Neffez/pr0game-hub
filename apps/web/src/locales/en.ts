@@ -517,6 +517,10 @@ const en: typeof de = {
     htmlDetected: 'HTML detected ({kb} KB)',
     file: 'File',
     statsCategory: 'Statistics category',
+    forMember: 'For',
+    forMemberHint: 'Sync for another member, e.g. a report they sent you. The data then counts for that member.',
+    myself: 'me',
+    savedFor: 'Saved for {name}',
     system: 'Galaxy:system',
     auto: 'automatic',
     clear: 'Clear',
@@ -919,6 +923,7 @@ const en: typeof de = {
     ingests: 'Syncs',
     content: 'Content',
     counts: '{new} new · {duplicate} duplicate',
+    syncedBy: 'via {name}',
     about: {
       stats_player: 'Player statistics',
       stats_alliance: 'Alliance statistics',

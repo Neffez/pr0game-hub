@@ -285,9 +285,9 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
     requireAdmin(req);
     const rows = db
       .prepare(
-        `SELECT r.id, r.source, r.page_type, r.url, r.summary, r.created_at, u.username,
+        `SELECT r.id, r.source, r.page_type, r.url, r.summary, r.created_at, u.username, b.username AS synced_by,
            length(r.html_gz) AS html_size, length(r.text_gz) AS text_size
-         FROM raw_ingests r LEFT JOIN users u ON u.id = r.user_id WHERE r.group_id = ? ORDER BY r.id DESC LIMIT 200`,
+         FROM raw_ingests r LEFT JOIN users u ON u.id = r.user_id LEFT JOIN users b ON b.id = r.synced_by WHERE r.group_id = ? ORDER BY r.id DESC LIMIT 200`,
       )
       .all(groupId) as { id: number; summary: string | null; html_size: number | null; text_size: number | null }[];
     // syncs stored before the content description: described once from their page, then kept

@@ -25,6 +25,11 @@ export const CHANGELOG: ChangelogDay[] = [
       },
       {
         kind: 'new',
+        de: 'Synchronisieren für andere: Beim Synchronisieren kannst du unter „Für“ ein Mitglied wählen, z. B. wenn es dir einen Recycling-Bericht geschickt hat. Die Daten zählen dann für dieses Mitglied. Ohne Auswahl synchronisierst du wie bisher für dich selbst.',
+        en: 'Sync for others: when syncing you can pick a member under "For", e.g. when they sent you a recycling report. The data then counts for that member. Without a choice you sync for yourself as before.',
+      },
+      {
+        kind: 'new',
         de: 'Raid Planer: Deine laufenden Angriffe und Verbände aus der Übersicht stehen oben, solange es keinen Plan dafür gibt. Nur du und die Teilnehmer des Verbands sehen sie. Mit „Planen“ wird daraus ein Plan mit den fliegenden Schiffen, den alle sehen. Flotten von Spielern ohne Hub-Konto kommen als Gastflotten mit in die Kampfsimulatoren.',
         en: 'Raid planner: your attacks and ACS attacks in flight from the overview are listed at the top as long as there is no plan for them. Only you and the participants of the ACS see them. "Plan" turns one into a plan with the ships flying that everyone sees. Fleets of players without a hub account go into the combat simulators as guest fleets.',
       },

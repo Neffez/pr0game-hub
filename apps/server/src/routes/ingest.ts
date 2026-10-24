@@ -12,6 +12,8 @@ interface IngestBody {
   statsType?: StatsType | null;
   /** "g:s" for a galaxy view copied without its galaxy/system inputs */
   system?: string | null;
+  /** member to sync for (e.g. a report they sent), default: oneself */
+  forUser?: number | null;
   dryRun?: boolean;
 }
 
@@ -24,9 +26,13 @@ export function ingestRoutes(app: FastifyInstance, db: DB) {
     if (foreignUniverse(body.html, ctx.universe.settings.gameUrl)) {
       throw new HttpError(400, 'wrong_universe', `The pasted page is from another universe than ${ctx.universe.name}`);
     }
+    const forUser = body.forUser != null && body.forUser !== ctx.user.id ? Number(body.forUser) : null;
+    if (forUser != null && !db.prepare('SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?').get(ctx.groupId, forUser)) {
+      throw new HttpError(400, 'member_not_found', 'Member not found');
+    }
     return ingest(
       db,
-      { groupId: ctx.groupId, userId: ctx.user.id, timezone: ctx.universe.settings.timezone },
+      { groupId: ctx.groupId, userId: forUser ?? ctx.user.id, timezone: ctx.universe.settings.timezone, syncedBy: forUser != null ? ctx.user.id : undefined },
       { html: body.html, text: body.text, statsType: body.statsType, system: body.system, source: 'paste' },
       { dryRun: !!body.dryRun },
     );
