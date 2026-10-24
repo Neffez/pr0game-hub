@@ -3,7 +3,9 @@ import { cleanState, emptyState, MAX_PARTICIPANTS, SHARE_WITHIN, type Battle, ty
 import type { GroupContext } from '../context.js';
 import type { DB } from '../db.js';
 import { REPORT_SLACK } from '../store.js';
+import { sameFleet } from './fleetAlerts.js';
 import { fleetHistory, sharedFleets, type StoredFleet } from './fleets.js';
+import { shipsKey } from './hostile.js';
 import { memberPlayers } from './members.js';
 import { launchedOf, planDrives, type LaunchFleet, type PlanRow } from './plans.js';
 
@@ -152,6 +154,8 @@ export function settlementDraft(db: DB, ctx: GroupContext, plan: PlanRow & { tim
   ].sort((a, b) => (a.time ?? 0) - (b.time ?? 0));
   // one battle synced by several members: same report id, or the same time and loot
   const keys = new Set<string>();
+  // per battle and participant: the ships each of their fleets in the report has left (they fly home)
+  const survivors: Map<string, string[]>[] = [];
   for (const b of battleRows) {
     const key = b.report_id ?? b.c_report_id ?? `${b.time}:${b.loot_metal}:${b.loot_crystal}:${b.loot_deuterium}`;
     if (keys.has(key) || state.battles.length >= 20) continue;
@@ -165,6 +169,7 @@ export function settlementDraft(db: DB, ctx: GroupContext, plan: PlanRow & { tim
       for (const [id, n] of Object.entries(end)) f.end[Number(id)] = (f.end[Number(id)] ?? 0) + n;
       battleFleets.set(participant, f);
     };
+    const left = new Map<string, string[]>();
     if (b.fleets) {
       // attackers, or the defenders of a hold (ships only: defence is rebuilt)
       for (const [side, name, all] of JSON.parse(b.fleets) as [number, string, [number, number, number][]][]) {
@@ -172,6 +177,7 @@ export function settlementDraft(db: DB, ctx: GroupContext, plan: PlanRow & { tim
         const ships = hold ? all.filter(([id]) => id >= 200 && id < 300) : all;
         if (!participant) continue;
         add(participant, Object.fromEntries(ships.map(([id, before]) => [id, before])), Object.fromEntries(ships.map(([id, , after]) => [id, after])));
+        left.set(participant, [...(left.get(participant) ?? []), shipsKey(Object.fromEntries(ships.map(([id, , after]) => [id, after])))]);
       }
     } else {
       // no archived report: the fleets as planned or seen flying, losses unknown
@@ -185,6 +191,7 @@ export function settlementDraft(db: DB, ctx: GroupContext, plan: PlanRow & { tim
     // the field at the target after the battle
     if (b.debris_metal || b.debris_crystal) battle.debris = { m: b.debris_metal ?? 0, k: b.debris_crystal ?? 0 };
     state.battles.push(battle);
+    survivors.push(left);
     sources.battles.push({ reportId: b.c_report_id ?? b.report_id, time: b.time, fleets: b.fleets ? 'report' : 'plan' });
   }
 
@@ -200,11 +207,23 @@ export function settlementDraft(db: DB, ctx: GroupContext, plan: PlanRow & { tim
           m.owner === 'own' && m.phase === 'return' && m.mission != null && ATTACK_MISSIONS.includes(m.mission) && m.resources &&
           m.from.coords.g === plan.g && m.from.coords.s === plan.s && m.from.coords.p === plan.p && m.from.type === plan.planet_type && m.arrival > at,
       );
-      // the same flight in several fleet lists: keep one per arrival and ships
-      const unique = new Map(moves.map((m) => [`${m.arrival}:${JSON.stringify(m.ships)}`, m]));
-      if (!unique.size) continue;
+      // the same flight in several fleet lists (its arrival a few seconds apart): the newest one
+      const unique: StoredFleet[] = [];
+      for (const m of moves.reverse()) if (!unique.some((u) => sameFleet(m, u) && shipsKey(u.ships) === shipsKey(m.ships))) unique.push(m);
+      // with the battle report: one flight home per fleet of the participant, with the ships it has left, the first one
+      // after the battle (a later raid with the same ships is not this one)
+      unique.sort((a, b) => a.arrival - b.arrival);
+      const wanted = survivors[0]?.get(p.id)?.slice();
+      const home = wanted
+        ? unique.filter((m) => {
+            const i = wanted.indexOf(shipsKey(m.ships));
+            if (i >= 0) wanted.splice(i, 1);
+            return i >= 0;
+          })
+        : unique;
+      if (!home.length) continue;
       const carried = { m: 0, k: 0, d: 0 };
-      for (const m of unique.values()) {
+      for (const m of home) {
         carried.m += m.resources?.[901] ?? 0;
         carried.k += m.resources?.[902] ?? 0;
         carried.d += m.resources?.[903] ?? 0;
@@ -213,6 +232,13 @@ export function settlementDraft(db: DB, ctx: GroupContext, plan: PlanRow & { tim
       if (!fleet) continue;
       fleet.loot = carried;
       sources.returnLoot[p.id] = { 0: carried };
+    }
+    // more than the battle's loot on the way home: not (only) from this battle, the shares by cargo space count
+    const battle = state.battles[0];
+    const home = battle.fleets.reduce((a, f) => ({ m: a.m + (f.loot?.m ?? 0), k: a.k + (f.loot?.k ?? 0), d: a.d + (f.loot?.d ?? 0) }), { m: 0, k: 0, d: 0 });
+    if (home.m > battle.loot.m + 10 || home.k > battle.loot.k + 10 || home.d > battle.loot.d + 10) {
+      for (const f of battle.fleets) delete f.loot;
+      sources.returnLoot = {};
     }
   }
 

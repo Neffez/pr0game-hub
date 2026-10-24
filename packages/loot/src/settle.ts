@@ -94,6 +94,15 @@ function allocate(claims: Res[], supply: Res, rates: Res, deficitMetalShare: num
   });
 }
 
+/**
+ * Deuterium costs (flights, recyclers, the deuterium of lost ships, refunded helper deuterium) are paid back in metal
+ * and crystal at market rates, `metalShare` of the value in metal: the captured deuterium is profit and shared like it.
+ */
+function deutInKind(c: Res, rates: Res, metalShare: number): Res {
+  const share = Math.min(1, Math.max(0, metalShare));
+  return { m: c.m + c.d * share * rate(rates, 'm'), k: c.k + c.d * (1 - share) * rate(rates, 'k'), d: 0 };
+}
+
 /** Settles an ACS: covers the costs of the participants and the helpers' parts, splits the profit, plans transfers. */
 export function settle(input: SettlementInput): SettlementResult {
   const { participants, helpers, battles, recycling, settings } = input;
@@ -154,7 +163,9 @@ export function settle(input: SettlementInput): SettlementResult {
   const left = potValue - helperFactor * helperValue;
   const coverage = costValue > left ? Math.max(0, left) / costValue : 1;
   if (coverage < 1) warnings.add('costs_not_covered');
-  const claims = [...costs.map((c) => scale(c, coverage)), ...helperParts.map((c) => scale(c, helperFactor))];
+  const claims = [...costs.map((c) => scale(c, coverage)), ...helperParts.map((c) => scale(c, helperFactor))].map((c) =>
+    deutInKind(c, rates, settings.deficitMetalShare),
+  );
   const covered = allocate(claims, pot, rates, settings.deficitMetalShare);
   const coveredSum = sum(covered);
   const profit = { m: Math.max(0, pot.m - coveredSum.m), k: Math.max(0, pot.k - coveredSum.k), d: Math.max(0, pot.d - coveredSum.d) };

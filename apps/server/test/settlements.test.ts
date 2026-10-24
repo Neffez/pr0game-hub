@@ -146,6 +146,31 @@ describe('raid settlements', () => {
       { by: `u${ids.dave}`, m: 40219074, k: 19280927, time: time + 9, field: { m: 142823000, k: 68469000 } },
     ]);
     db.prepare("DELETE FROM recycle_reports WHERE dedupe_key = 'x9'").run();
+
+    // Rudolf's flights home: the same ones in two fleet lists a second apart, and a later raid on the target
+    const back = (arrival: number, ships: Record<number, number>, k: number, d: number) => ({
+      owner: 'own', player: null, mission: 2, missionName: 'Verbandsangriff', phase: 'return', seconds: 0, clock: null, arrival,
+      from: { coords: { g: 3, s: 195, p: 5 }, type: 'moon', name: 'Ziel' }, to: { coords: { g: 3, s: 200, p: 1 }, type: 'moon', name: 'Mond' },
+      ships, resources: { 901: 0, 902: k, 903: d },
+    });
+    const snap = db.prepare('INSERT INTO fleet_snapshots (group_id, user_id, page_time, data) VALUES (?, ?, ?, ?)');
+    const bsbc = { 207: 2178, 215: 4348 };
+    snap.run(groupA, ids.dave, time + 60, JSON.stringify([back(time + 3000, bsbc, 200000, 100000), back(time + 3600, { 225: 3901 }, 400000, 200000)]));
+    snap.run(groupA, ids.dave, time + 120, JSON.stringify([
+      back(time + 3001, bsbc, 200000, 100000), back(time + 3601, { 225: 3901 }, 400000, 200000), back(time + 9000, { 225: 100 }, 5000, 5000),
+      // the same fleets raid the target again
+      back(time + 9600, bsbc, 190000, 90000), back(time + 9700, { 225: 3901 }, 380000, 180000),
+    ]));
+    draft = (await call('GET', `/plans/${id}/settlement`, as.dave)).json().draft;
+    expect(draft.sources.returnLoot).toEqual({ [`u${ids.dave}`]: { 0: { m: 0, k: 600000, d: 300000 } } });
+    expect(draft.state.battles[0].fleets.find((f: any) => f.participant === `u${ids.dave}`).loot).toEqual({ m: 0, k: 600000, d: 300000 });
+    // more than the battle's loot on the way home: not taken
+    db.prepare('UPDATE fleet_snapshots SET data = ? WHERE user_id = ? AND page_time = ?').run(
+      JSON.stringify([back(time + 3001, bsbc, 2000000, 100000), back(time + 3601, { 225: 3901 }, 400000, 200000)]), ids.dave, time + 120,
+    );
+    draft = (await call('GET', `/plans/${id}/settlement`, as.dave)).json().draft;
+    expect(draft.sources.returnLoot).toEqual({});
+    db.prepare('DELETE FROM fleet_snapshots WHERE user_id = ?').run(ids.dave);
     expect(draft.state.battles[0].fleets).toEqual([
       { participant: `u${ids.carol}`, start: { 206: 347, 207: 11799, 215: 4406, 222: 3544 }, end: { 206: 323, 207: 11794, 215: 4406, 222: 3521 } },
       { participant: `u${ids.dave}`, start: { 207: 2178, 215: 4348, 225: 4821 }, end: { 207: 2178, 215: 4348, 225: 3901 } },
