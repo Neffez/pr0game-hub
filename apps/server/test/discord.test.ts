@@ -67,7 +67,7 @@ describe('discord settings', () => {
     const res = await call('POST', '/auth/discord', h.carol, { webhook: HOOK.carol, userId: '200000000000000001' });
     expect(res.json()).toEqual({
       webhook: 'discord.com/api/webhooks/100000…', userId: '200000000000000001',
-      prefs: { attackSelf: true, attackOthers: false, invites: true, comments: true, launch: true, leadMinutes: 5 },
+      prefs: { attackSelf: true, attackOthers: false, invites: true, comments: true, launch: true, buildings: true, leadMinutes: 5 },
     });
     expect(JSON.stringify((await call('GET', '/auth/discord', h.carol)).json())).not.toContain('TTTT');
     expect((await call('POST', '/auth/discord', h.carol, { userId: '@carol' })).json().code).toBe('discord_user_id_invalid');

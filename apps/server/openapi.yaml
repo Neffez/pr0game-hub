@@ -62,6 +62,7 @@ components:
         invites: { type: boolean, description: Invitations to raid planner plans (default on) }
         comments: { type: boolean, description: New comments in threads the caller wrote in (default on) }
         launch: { type: boolean, description: Launch reminders of the caller's plan fleets (default on) }
+        buildings: { type: boolean, description: The next level of a building the caller waits for is affordable (default on) }
         leadMinutes: { type: integer, enum: [1, 2, 5, 10, 15, 30], description: Launch reminder this many minutes ahead (default 5) }
     DiscordSettings:
       type: object
@@ -84,6 +85,82 @@ components:
         launch: { type: boolean, description: Launch reminders of the members' plan fleets (default on) }
         leadMinutes: { type: integer, enum: [1, 2, 5, 10, 15, 30], description: Launch reminder this many minutes ahead (default 5) }
         lang: { type: string, enum: [de, en], description: Language of the channel's messages (default de) }
+    BuildingAlert:
+      type: object
+      required: [id, g, s, p, planet_type, element_id, level, created_at]
+      properties:
+        id: { type: integer }
+        g: { type: integer }
+        s: { type: integer }
+        p: { type: integer }
+        planet_type: { type: string, enum: [planet, moon] }
+        element_id: { type: integer }
+        level: { type: integer }
+        created_at: { type: integer }
+    Buildings:
+      type: object
+      required: [planets, research, researchQueue, researchSpeed, universityFactor, catchUp, catchUpFrom, buildingSpeed, storageFactor, empireTime, fleetsTime, alerts, hidden]
+      properties:
+        planets:
+          type: array
+          items:
+            type: object
+            required: [key, name, coords, type, source, planet, shown, arrivals]
+            properties:
+              key: { type: string, description: '`g:s:p:type`' }
+              name: { type: string }
+              coords: { type: object, properties: { g: { type: integer }, s: { type: integer }, p: { type: integer } } }
+              type: { type: string, enum: [planet, moon] }
+              source: { type: string, enum: [empire, buildings, research], description: Page the levels and resources come from }
+              planet:
+                type: object
+                description: >-
+                  levels (`values`), `resources` at `time` (Unix seconds), `perHour`, `storage` (when shown), `fields`,
+                  `queue` (target levels, `end` when known) and `busy`: research (account wide, locks research lab and
+                  TechnoDome), the planet's shipyard (locks nanite factory and shipyard) and `lab` (a research lab or
+                  TechnoDome in any build queue, locks research) in use, each `{ until }` (Unix seconds, null when
+                  unknown) or null when free
+              shown: { type: [object, 'null'], description: 'building id -> `{ next, cost, time }` as the buildings page showed them' }
+              shownResearch: { type: [object, 'null'], description: 'research id -> `{ next, cost, time }` as the research page of this planet showed them' }
+              arrivals:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    at: { type: integer, description: Unix seconds }
+                    resources: { type: object, description: 901-903 }
+                    mission: { type: [integer, 'null'] }
+                    missionName: { type: string }
+                    back: { type: boolean, description: Return flight }
+                    from: { type: object }
+        research: { type: object, description: 'Research levels of the account (research id -> level), finished queue entries included' }
+        researchQueue:
+          type: array
+          description: Account wide research queue, first in progress (from the newest research page, overview or empire page)
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              level: { type: integer }
+              end: { type: [integer, 'null'] }
+        researchSpeed: { type: [integer, 'null'], description: 'Derived from a research page, else the universe setting `researchSpeed`; null when unknown' }
+        universityFactor: { type: number, description: 'Universe setting `universityFactor` (research time −% per TechnoDome level)' }
+        catchUp:
+          type: [number, 'null']
+          description: >-
+            Catch-up bonus in percent, not rounded: the exact value behind the costs of a buildings page, the rounded one
+            of the overview, or calculated like the game from newer synced statistics; null when the universe has none
+        catchUpFrom:
+          type: [object, 'null']
+          properties:
+            source: { type: string, enum: [page, research, overview, stats], description: 'page: a buildings page, research: a research page' }
+            time: { type: integer, description: Unix seconds of that page or statistics update }
+        buildingSpeed: { type: [integer, 'null'] }
+        storageFactor: { type: number }
+        empireTime: { type: [integer, 'null'] }
+        fleetsTime: { type: [integer, 'null'] }
+        alerts: { type: array, items: { $ref: '#/components/schemas/BuildingAlert' } }
+        hidden: { type: array, items: { type: integer }, description: Building ids the caller hid on the buildings page }
     Error:
       type: object
       required: [error, code]
@@ -731,6 +808,110 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Imperium' }
+  /api/{uni}/buildings:
+    get:
+      tags: [Universe]
+      operationId: getBuildings
+      description: >-
+        The caller's planets and moons for the build & research page: per planet the levels, resources (with their time),
+        production per hour, storage, fields and build queue of the newest synced empire page or buildings page, the
+        cost and build time of the next level as a buildings page showed them (`shown`, valid while `next` is still the
+        next level) and the resources of fleets landing on it (`arrivals`); plus research, the catch-up bonus, the
+        building speed (derived from a buildings page or the universe setting `buildingSpeed`, null when unknown), the
+        storage factor, the caller's building alerts (alerts whose level is built or queued are removed) and the
+        buildings the caller hid (`hidden`, kept in the account).
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Buildings' }
+  /api/{uni}/buildings/alerts:
+    put:
+      tags: [Universe]
+      operationId: putBuildingAlert
+      description: >-
+        Notify the caller when `level` of building or research `id` on one of their synced planets is affordable and not
+        blocked (one alert per element and planet, replaces its level; research only on planets).
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [g, s, p, type, id, level]
+              properties:
+                g: { type: integer }
+                s: { type: integer }
+                p: { type: integer }
+                type: { type: string, enum: [planet, moon] }
+                id: { type: integer, description: Building or research id }
+                level: { type: integer }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  alerts: { type: array, items: { $ref: '#/components/schemas/BuildingAlert' } }
+        '400': { description: 'Invalid body or no such building on that planet type (`alert_invalid`, `building_unknown`)' }
+        '404': { description: 'Not one of the caller''s synced planets (`planet_not_found`)' }
+  /api/{uni}/buildings/hidden:
+    put:
+      tags: [Universe]
+      operationId: putHiddenBuildings
+      description: Replaces the buildings and research the caller hides under build & research (kept in the account, for all planets and universes).
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ids]
+              properties:
+                ids: { type: array, items: { type: integer }, description: Building and research ids }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  hidden: { type: array, items: { type: integer } }
+        '400': { description: 'Not a list of building or research ids (`hidden_invalid`)' }
+  /api/{uni}/buildings/alerts/{id}:
+    delete:
+      tags: [Universe]
+      operationId: deleteBuildingAlert
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  alerts: { type: array, items: { $ref: '#/components/schemas/BuildingAlert' } }
+        '404': { description: 'Not an alert of the caller (`alert_not_found`)' }
   /api/{uni}/alliance:
     get:
       tags: [Universe]
@@ -1095,8 +1276,10 @@ paths:
         `plan`, `member` is who invited, `time` its target time, valid until the end of its day or hour by
         `plan.time_precision`), `comment` (comments of others of the last 48 hours in a thread the caller wrote in, after
         the caller's last comment there, one entry per thread; `thread`, `excerpt`, `count`, `member`/`userId` the newest
-        author, `time` the newest comment) and `launch` (a fleet of the caller in a plan with an exact target time,
-        invited or ready, that launches within the next hour; `plan`, `from`, `time` the launch). Push notifications send
+        author, `time` the newest comment), `launch` (a fleet of the caller in a plan with an exact target time,
+        invited or ready, that launches within the next hour; `plan`, `from`, `time` the launch) and `building` (the
+        resources for the level of a building or research alert are there, listed 24 hours; `alert`, `planet`, `element`, `level`,
+        `time` since when). Push notifications send
         the same entries (see `/api/push/subscriptions`).
       parameters:
         - { $ref: '#/components/parameters/Uni' }
@@ -1113,10 +1296,22 @@ paths:
                   required: [id, kind, userId, member, time]
                   properties:
                     id: { type: string, description: Stable while the event lasts }
-                    kind: { type: string, enum: [attack, invite, comment, launch] }
-                    userId: { type: integer, description: 'attack: the attacked member; invite: who invited; comment: the newest author; launch: the caller' }
+                    kind: { type: string, enum: [attack, invite, comment, launch, building] }
+                    userId: { type: integer, description: 'attack: the attacked member; invite: who invited; comment: the newest author; launch and building: the caller' }
                     member: { type: string }
-                    time: { type: integer, description: Unix seconds (arrival, plan target time, newest comment or launch) }
+                    time: { type: integer, description: Unix seconds (arrival, plan target time, newest comment, launch or since when a building level is affordable) }
+                    alert: { type: integer, description: 'building only: id of the building alert' }
+                    planet:
+                      type: object
+                      description: 'building only: the planet or moon'
+                      properties:
+                        g: { type: integer }
+                        s: { type: integer }
+                        p: { type: integer }
+                        type: { type: string, enum: [planet, moon] }
+                        name: { type: string }
+                    element: { type: integer, description: 'building only: building id' }
+                    level: { type: integer, description: 'building only: the affordable level' }
                     fleet: { type: object, description: 'attack only: the fleet (for an ACS the lead fleet with all ships)' }
                     fleets: { type: integer, description: 'attack only: number of fleets of an ACS' }
                     plan:

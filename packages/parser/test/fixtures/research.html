@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<!-- Research page built from the game's template page.research.default.tpl (not a real page). -->
+<html lang="de" class="no-js">
+<head>
+  <title>Forschung - Universe 7 - pr0game</title>
+  <script type="text/javascript">
+    var serverTimeDelta = new Date(2026, 9, 24, 3, 0, 0).getTime() - Date.now();
+    var queryString	= "page=research";
+  </script>
+</head>
+<body id="research" class="full">
+<div class="wrapper">
+<header>
+  <select id="planetSelector">
+    <option value="1008948">Fortuna [1:100:9]</option>
+    <option value="1008434" selected="selected">Ares [1:100:12]</option>
+  </select>
+  <div class="no-mobile">
+    <div class="res_current" data-ticker="current_metal" data-real="500000">500.000</div>
+    <div class="res_max colorPositive" id="max_metal" data-real="4325000">4.325.000</div>
+  </div>
+  <div class="no-mobile">
+    <div class="res_current" data-ticker="current_crystal" data-real="300000">300.000</div>
+    <div class="res_max colorPositive" id="max_crystal" data-real="2350000">2.350.000</div>
+  </div>
+  <div class="no-mobile">
+    <div class="res_current" data-ticker="current_deuterium" data-real="100000">100.000</div>
+    <div class="res_max colorPositive" id="max_deuterium" data-real="2350000">2.350.000</div>
+  </div>
+  <script type="text/javascript">
+  $(function() {
+    resourceTicker({ available: 500000, limit: [0, 4325000], production: 38434.85904, valueElem: "current_metal" }, true);
+    resourceTicker({ available: 300000, limit: [0, 2350000], production: 22733.784085, valueElem: "current_crystal" }, true);
+    resourceTicker({ available: 100000, limit: [0, 2350000], production: 19994.068649, valueElem: "current_deuterium" }, true);
+  });
+  </script>
+</header>
+<content>
+  <div id="buildlist" class="infos1">
+    <div class="buildb">
+      1.:
+      Energietechnik 13 @ Fortuna
+      <br><br>
+      <div id="progressbar" data-time="1800"></div>
+    </div>
+    <div class="bulida">
+      <div id="time" data-time="3600"><br></div>
+      <form action="game.php?page=research" method="post" class="build_form">
+        <input type="hidden" name="cmd" value="cancel">
+        <button type="submit" class="build_submit onlist">Abbrechen</button>
+      </form>
+      <br><span class="colorPositive" data-time="4102444800" data-umode="0" class="timer">24.10.2026 04:00:00</span>
+    </div>
+    <div class="buildb">
+      2.:
+      <form action="game.php?page=research" method="post" class="build_form">
+        <input type="hidden" name="cmd" value="insert">
+        <input type="hidden" name="tech" value="106">
+        <button type="submit" class="build_submit onlist">Spionagetechnik 9</button>
+      </form>
+    </div>
+    <div class="bulida">
+      <br><span class="colorPositive" data-time="4102448400" data-umode="0" class="timer">24.10.2026 05:00:00</span>
+    </div>
+  </div>
+
+  <div class="hidden-div">Das Forschungslabor wird zurzeit ausgebaut!</div>
+  <div>
+    <div class="planeto">
+      <button id="lab1">Imperium</button> | <button id="lab2">Militär</button> | <button id="lab3">Triebwerke</button> | <button id="lab4">Rohstoffabbau</button> | <button id="lab5" class="selected">Alle</button>
+      <br>Kosten- und Bauzeit-Bonus: 10.18 %
+    </div>
+    <div class="infos" id="t106">
+      <div class="buildn">
+        <a href="#" onclick="return Dialog.info(106)">Spionagetechnik</a> (Stufe 8)
+      </div>
+      <div class="buildl">
+        Fehlende Rohstoffe:<br>
+      </div>
+      <div class="buildl">
+        <span>
+          <a href='#' onclick='return Dialog.info(901)' class='tooltip'>Metall</a>: <b><span class="colorPositive">45.986</span></b>
+          <a href='#' onclick='return Dialog.info(902)' class='tooltip'>Kristall</a>: <b><span class="colorPositive">229.930</span></b>
+          <a href='#' onclick='return Dialog.info(903)' class='tooltip'>Deuterium</a>: <b><span class="colorPositive">45.986</span></b>
+        </span>
+        <br><br>
+        <span class="colorNeutral">Bau nicht möglich</span>
+        </br>
+        Bauzeit
+        <span class="statictime" timestamp="1234"></span>
+      </div>
+    </div>
+    <div class="infos unavailable" id="t123">
+      <div class="buildn">
+        <a href="#" onclick="return Dialog.info(123)">Intergalaktisches Forschungsnetzwerk</a>
+      </div>
+      <div class="buildl">
+        Benötigt: </br>
+        <a href="#" onclick="return Dialog.info(108)"><span class="colorNeutral">Computertechnik (Stufe 6/8)</span></a>
+      </div>
+      <div class="buildl">
+        <span>
+          <a href='#' onclick='return Dialog.info(901)' class='tooltip'>Metall</a>: <b><span class="colorNegative">215.563</span></b>
+          <a href='#' onclick='return Dialog.info(902)' class='tooltip'>Kristall</a>: <b><span class="colorNegative">359.272</span></b>
+          <a href='#' onclick='return Dialog.info(903)' class='tooltip'>Deuterium</a>: <b><span class="colorNegative">143.709</span></b>
+        </span>
+        <br><br>
+        <span class="colorNeutral">Voraussetzungen nicht erfüllt</span>
+        </br>
+        Bauzeit
+        <span class="statictime" timestamp="9999"></span>
+      </div>
+    </div>
+  </div>
+</content>
+</div>
+</body>
+</html>

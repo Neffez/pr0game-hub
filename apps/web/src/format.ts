@@ -152,6 +152,10 @@ export interface UniverseSettings {
   planetDistanceFactor: number;
   planetDistance: number;
   fleetSpeed: number;
+  /** game config building_speed (2500 = 1x), 0 unknown */
+  buildingSpeed: number;
+  researchSpeed: number;
+  universityFactor: number;
   timezone: string;
   gameUrl: string;
 }

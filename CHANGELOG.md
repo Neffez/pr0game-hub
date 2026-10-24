@@ -23,6 +23,82 @@ Every commit adds its changes here, newest first, grouped by date.
   no longer shows them (so they no longer vanish, and a retime plan on them no longer reads as recalled); marked
   "arrived", without the hold button (`POST /plans/hold` answers `attack_arrived`).
 
+- Research checked against a real research page (now a parser fixture): every cost (exact catch-up bonus 10.5058 %
+  behind the shown 10.51 %) and research time (research speed 5000, own lab plus three network labs) matches the game.
+  - The research page's requirement lines ("Forschungslabor (Stufe 10/5)") are read (`ResearchRecord.known`): the
+    planet's lab level at page time, and the levels of research the page leaves out with the game's "hide useless"
+    setting (they kept an older level before). The research speed is derived with that lab level.
+
+- Build & Research review fixes:
+  - A newer overview merges into the queue of a buildings page by the running entry: entries before it count as
+    finished (their levels rise), the ones after it stay queued, also when a research page is newer than the buildings
+    page (the waiting entries were dropped, so a queued level could show as buildable and notify).
+  - Opening the page from a notification no longer resets the selected planet on every tab switch.
+  - A synced research page delivers research alerts right away (not only on the next tick); alerts removed while
+    loading the page update the bell on other tabs; the universe setting `universityFactor` is limited to 100.
+  - The research speed derived from a research page uses the lab levels of the empire page synced closest to it (a
+    later lab upgrade made it wrong) and the research network level shown on the page.
+  - The push and Discord ticks look at a group's building alerts only when one may be ready (`AlertSchedule`: the
+    earliest ready time, re-checked at least every 15 minutes, planned anew by every delivery) instead of recomputing
+    every member's notifications every 30 seconds.
+
+- **Build & Research** (renamed from Buildings, route `/build`, `/buildings` redirects; Start menu now Overview,
+  Statistics, My Empire, Build & Research) with a buildings tab and a new research tab:
+  - Research per planet like the game's research page: next level (account wide queue counted), requirements (labs and
+    research), cost with the catch-up bonus, missing resources, ready time with production and landing fleets, research
+    time like `getBuildingTime` (lab levels with the intergalactic research network like `getNetworkLevel`, TechnoDome
+    with the new universe setting `universityFactor`, research speed derived from a research page or the new setting
+    `researchSpeed`), the game's filter groups and "not useful" past `max_useful_level`. Planets without a lab show it;
+    a research lab or TechnoDome in any build queue blocks research (`busy.lab`).
+  - The research page is a new sync type (`research_snapshots`, newest per planet): research levels, the whole queue
+    with its ends, the lab lock, the planet's resource bar, exact costs and times (and the catch-up bonus behind them).
+  - Research levels and queue come from the newest of research page, overview and empire page; finished entries raise
+    the levels. The buildings' research lock now lasts until the last queued research ends.
+  - Alerts, hidden list and notifications cover research (`🔬 … erforschbar`, links to the research tab).
+  - `gen:costs` also writes `research.json` (max level, last useful level, requirements).
+
+- Buildings page, catch-up bonus checked against a real buildings page (now a parser fixture):
+  - Costs and build times use the exact bonus behind the page's costs (the page prints it rounded to two decimals,
+    which was off by tens of resources); after a newer statistics sync the bonus is calculated like the game's
+    `getCatchUpFactor` (own buildings ×1 + research ×0.8 + fleet ×0.6 against the leader's, at most 50 %). The page
+    shows the source.
+  - Costs and missing resources rounded like the game's `pretty_number`; fields taken from the buildings page.
+  - Leader query of the catch-up points shared by the Imperium and the buildings page (`catchUpLeader`).
+  - Demolitions in the build queue: the game queues them with the level they take down ("Metallmine 25 Abreißen"
+    leaves 24); the buildings page (next level, factories after the queue, finished builds) and the Imperium's live
+    points (a finished demolition was never subtracted) now read them that way.
+
+- Buildings page follow-ups:
+  - Hidden buildings are kept in the hub account (`users.hidden_buildings`, `PUT /api/{uni}/buildings/hidden`) instead
+    of the browser, so they apply on every device; a list hidden in the browser before is moved over once.
+  - Locks like the game: research lab and TechnoDome while research runs (account wide), nanite factory and shipyard
+    while the planet's shipyard works (state `busy`); from the empire markers, the overview queues (research with its
+    end) or "Busy" on a synced buildings page, the newest wins. The ready time waits for a known end; alerts fire only
+    once the building is free.
+  - Build time with the robot and nanite factories after the build queue (like adding a job now); the time shown on a
+    buildings page is used only while no factory is queued.
+
+- Buildings page: buildings can be hidden and shown again (✕/👁 per building, for all planets, kept per browser;
+  "show hidden" lists them dimmed), plus a free text name filter next to the group filters.
+
+- **Buildings page** (new menu entry under Start): the own planets and moons like the game's buildings page.
+  - Levels, requirements (own/needed), cost of the next level (catch-up bonus included, queued levels counted),
+    missing resources, state (buildable, missing resources, requirements, max level, no free fields, storage too small,
+    no production) and build time (building speed derived from a synced buildings page, else the new universe setting
+    `buildingSpeed`).
+  - Time until the resources are there: production per hour up to the storage plus the cargo of fleets landing on the
+    planet (own transports/deployments, return flights such as recycling or raids, transports of others).
+  - Source: the newest empire page, or the planet's buildings page when newer. The buildings page (HTML/page source)
+    is a new sync type (`building_snapshots`, newest per planet); its resource bar gives resources, storage and
+    production, its blocks the exact costs and build times.
+  - Building alerts (`building_alerts`, one per building and level): a new notification kind `building` on the bell,
+    for push and the personal Discord webhook (setting `buildings`, default on), checked by the reminder ticker;
+    alerts whose level is built or queued are removed. API: `GET /api/{uni}/buildings`, `PUT /api/{uni}/buildings/alerts`,
+    `DELETE /api/{uni}/buildings/alerts/{id}`.
+  - `@pr0hub/core/buildings`: building costs, build time, requirements, resource timeline with arrivals (shared by web
+    and server; the Imperium's live resources use it too); `gen:costs` also writes `buildings.json` (planet types, max
+    level, requirements from install.sql).
+
 - Raid planner hold plans show the fleet on the attacked planet, filled in from the member's empire page (else the
   planet's newest spy report) and editable, e.g. when ships are sent away before the impact; the combat simulator
   links use it in place of the planet's ships. Stored in `attack_plan_enemy.planet_ships` (migration `037`, null takes

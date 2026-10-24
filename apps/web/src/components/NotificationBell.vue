@@ -27,6 +27,11 @@ function target(n: Notification) {
     case 'invite':
     case 'launch':
       return { path: `/${uni.value}/raid-planner`, query: { plan: n.plan.id } };
+    case 'building':
+      return {
+        path: `/${uni.value}/build`,
+        query: { tab: n.element >= 100 ? 'research' : 'buildings', c: `${n.planet.g}:${n.planet.s}:${n.planet.p}`, type: n.planet.type },
+      };
     case 'comment':
       return 'player' in n.thread
         ? `/${uni.value}/player/${n.thread.player}`
@@ -109,6 +114,10 @@ function left(sec: number) {
               <Ticker v-slot="{ now }"><span class="mono muted"> ({{ left(Math.max(0, n.time - now)) }})</span></Ticker>
             </span>
           </button>
+          <button v-else-if="n.kind === 'building'" class="bell-item building" @click="show(n)">
+            <span><b>{{ n.element >= 100 ? '🔬' : '🏗' }} {{ t(n.element >= 100 ? 'notify.research' : 'notify.building', { name: name(n.element), level: n.level }) }}</b></span>
+            <span class="small">{{ n.planet.name ? n.planet.name + ' ' : '' }}{{ coords(n.planet, n.planet.type === 'moon') }}</span>
+          </button>
           <button v-else-if="n.kind === 'comment'" class="bell-item comment" @click="show(n)">
             <span><b>💬 {{ t('notify.comment', { member: n.member, on: threadOf(n) }) }}</b><template v-if="n.count > 1"> · {{ t('notify.comments', { n: n.count }) }}</template></span>
             <span class="small muted">{{ n.excerpt }}</span>
@@ -156,6 +165,8 @@ function left(sec: number) {
 .bell-item.invite:hover { background: color-mix(in srgb, var(--info) 12%, var(--surface-2)); }
 .bell-item.comment { background: var(--surface-2); border-left-color: var(--muted); }
 .bell-item.comment:hover { background: color-mix(in srgb, var(--muted) 12%, var(--surface-2)); }
+.bell-item.building { background: var(--surface-2); border-left-color: var(--pos); }
+.bell-item.building:hover { background: color-mix(in srgb, var(--pos) 12%, var(--surface-2)); }
 .bell-item.launch { background: var(--surface-2); border-left-color: var(--warn); }
 .bell-item.launch:hover { background: color-mix(in srgb, var(--warn) 12%, var(--surface-2)); }
 @media (max-width: 800px) {

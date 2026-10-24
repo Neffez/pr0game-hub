@@ -19,6 +19,9 @@ export const router = createRouter({
         { path: 'universe-json', redirect: (to) => `/${to.params.uni}/paste` },
         { path: 'overview', component: () => import('./views/OverviewView.vue') },
         { path: 'imperium', component: () => import('./views/ImperiumView.vue') },
+        { path: 'build', component: () => import('./views/BuildView.vue') },
+        // older links (push notifications) to the buildings page
+        { path: 'buildings', redirect: (to) => ({ path: `/${to.params.uni}/build`, query: { tab: 'buildings', ...to.query } }) },
         { path: 'stats', component: () => import('./views/StatsView.vue') },
         { path: 'browse', component: () => import('./views/UniverseBrowserView.vue') },
         { path: 'activity', component: () => import('./views/ActivityView.vue') },

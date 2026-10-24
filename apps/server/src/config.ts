@@ -46,6 +46,12 @@ export interface UniverseSettings {
   planetDistance: number;
   /** game config fleet_speed (2500 = 1x) */
   fleetSpeed: number;
+  /** game config building_speed (2500 = 1x) for build times; 0 unknown (derived from a synced buildings page) */
+  buildingSpeed: number;
+  /** game config research_speed (2500 = 1x) for research times; 0 unknown (derived from a synced research page) */
+  researchSpeed: number;
+  /** game config factor_university: research time −% per TechnoDome level (game default 8) */
+  universityFactor: number;
   timezone: string;
   /** game base URL incl. universe path, e.g. https://pr0game.com/uni8/ (for simulator links) */
   gameUrl: string;
@@ -63,6 +69,9 @@ export const UNIVERSE_DEFAULTS: UniverseSettings = {
   planetDistanceFactor: 5,
   planetDistance: 1000,
   fleetSpeed: 2500,
+  buildingSpeed: 0,
+  researchSpeed: 0,
+  universityFactor: 8,
   timezone: 'Europe/Berlin',
   gameUrl: '',
 };

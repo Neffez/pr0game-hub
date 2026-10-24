@@ -203,6 +203,62 @@ export interface EmpireRecord {
   active?: { coords: Coords; type: PlanetType; storage: Record<number, number> } | null;
 }
 
+/** Building on the buildings page of one planet/moon: level, cost and build time of the next level. */
+export interface BuildingsEntry {
+  id: number;
+  level: number;
+  /** cost of the next level (after the queue) as the game shows it (catch-up bonus included), 901-903 and 911 */
+  cost: Record<number, number>;
+  /** build time of the next level in seconds */
+  time: number | null;
+  /** "Busy": research (TechnoDome, lab) or the shipyard (nanite factory, shipyard) is working */
+  busy?: boolean;
+}
+
+/** Game buildings page (page=buildings) of the selected planet/moon. */
+export interface BuildingsRecord {
+  kind: 'buildings';
+  coords: Coords;
+  type: PlanetType;
+  pageTime: string | null;
+  /** resource bar: amounts, storage capacity and production per hour (basic income included) of 901-903 */
+  resources: Record<number, number>;
+  storage: Record<number, number>;
+  perHour: Record<number, number>;
+  /** catch-up bonus in percent as shown (rounded to 2 decimals), null if the universe has none */
+  catchUp: number | null;
+  /** used and maximum fields of the planet/moon */
+  fields?: { used: number; max: number } | null;
+  buildings: BuildingsEntry[];
+  /** build queue, first entry in progress; `end` epoch seconds when shown */
+  queue: { id: number; level: number; destroy: boolean; end: number | null }[];
+}
+
+/** Game research page (page=research) on the selected planet: levels are account wide, costs and time this planet's. */
+export interface ResearchRecord {
+  kind: 'research';
+  coords: Coords;
+  type: PlanetType;
+  pageTime: string | null;
+  resources: Record<number, number>;
+  storage: Record<number, number>;
+  perHour: Record<number, number>;
+  catchUp: number | null;
+  /** a research lab or TechnoDome is being built: research is blocked */
+  labBusy: boolean;
+  /** the planet has no research lab */
+  noLab: boolean;
+  /** research levels with cost and time of the next level (`busy` unused) */
+  research: BuildingsEntry[];
+  /** account wide research queue, first in progress; `end` epoch seconds */
+  queue: { id: number; level: number; end: number | null }[];
+  /**
+   * own levels the requirement lines show ("Forschungslabor (Stufe 10/5)"): the planet's lab and research the page
+   * leaves out (the game's "hide useless")
+   */
+  known?: Record<number, number>;
+}
+
 export interface OverviewQueue {
   kind: 'building' | 'research' | 'shipyard';
   coords: Coords;
@@ -321,11 +377,13 @@ export type HubRecord =
   | GalaxyRecord
   | EmpireRecord
   | OverviewRecord
+  | BuildingsRecord
+  | ResearchRecord
   | FleetsRecord
   | BattleHallRecord
   | CombatReportRecord;
 
-export type PageType = 'stats' | 'messages' | 'galaxy' | 'empire' | 'overview' | 'fleets' | 'phalanx' | 'battleHall' | 'combatReport' | 'unknown';
+export type PageType = 'stats' | 'messages' | 'galaxy' | 'empire' | 'overview' | 'buildings' | 'research' | 'fleets' | 'phalanx' | 'battleHall' | 'combatReport' | 'unknown';
 
 export interface ParseResult {
   pageType: PageType;
