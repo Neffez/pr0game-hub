@@ -32,6 +32,7 @@ import {
   mainFleet,
   newDraft,
   PLAN_STATUSES,
+  seenShipsDiffer,
   SPEEDS,
   type AttackPlan,
   type HostileAttack,
@@ -59,6 +60,8 @@ function scheduleStep() {
   const next = Math.min(
     t0 + 60,
     ...plans.value.flatMap((p) => [p.target_time, latestTime(p) + 3601, ...(views.value.get(p.id)?.fleets.map((x) => x.plan?.launch ?? Infinity) ?? [])]).filter((x) => x > t0),
+    // an attack arrives: no hold any more
+    ...attacks.value.map((a) => a.arrival).filter((x) => x > t0),
   );
   stepTimer = setTimeout(() => {
     now.value = nowSec();
@@ -473,6 +476,9 @@ async function saveFleet() {
 /** Speed right in the table: try speeds without opening the fleet form. */
 const setFleetSpeed = (p: AttackPlan, f: PlanFleet, speed: number) =>
   run(() => uniApi(uni.value, `/plans/${p.id}/fleets/${f.id}`, { method: 'PUT', body: { speed } }));
+/** The ships the overview shows flying become the plan's (flight time, simulator). */
+const takeSeenShips = (p: AttackPlan, f: PlanFleet) =>
+  run(() => uniApi(uni.value, `/plans/${p.id}/fleets/${f.id}`, { method: 'PUT', body: { ships: f.seen!.ships } }));
 const setFleetStatus = (p: AttackPlan, f: PlanFleet, status: string) =>
   run(() => uniApi(uni.value, `/plans/${p.id}/fleets/${f.id}`, { method: 'PUT', body: { status } }));
 function removeFleet(p: AttackPlan, f: PlanFleet) {
@@ -525,6 +531,7 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
       <span v-if="a.source === 'phalanx'" class="badge" :title="t('phalanx.byTitle', { name: a.reporter ?? '?' })">{{ t('phalanx.badge') }}</span>
       <span class="mono">{{ coords(a.to.g, a.to.s, a.to.p) }}</span>
       <span class="time"><b class="mono">{{ clock(a.arrival) }}</b> <Countdown class="muted small" :to="a.arrival" /></span>
+      <span v-if="a.arrival <= now" class="badge" :title="t('retime.arrivedTitle')">{{ t('retime.arrived') }}</span>
       <span v-if="a.home" class="small">{{ t('phalanx.home', { t: clock(a.home) }) }}</span>
       <span class="small">{{ attackShips(a) }}</span>
       <span class="small">
@@ -535,7 +542,7 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
       <span v-if="a.planId" class="muted small">{{ t('retime.planned') }}</span>
       <button v-else class="primary" @click="planRetime(a)">{{ t('retime.plan') }}</button>
       <span v-if="a.holdPlanId" class="muted small">{{ t('hold.planned') }}</span>
-      <button v-else @click="planHold(a)">{{ t('hold.plan') }}</button>
+      <button v-else-if="a.arrival > now" @click="planHold(a)">{{ t('hold.plan') }}</button>
     </div>
   </div>
 
@@ -656,9 +663,13 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
               <td class="mono">{{ x.duration != null ? duration(Math.floor(x.duration)) : '–' }}</td>
               <td class="c-launch m-wide">
                 <template v-if="x.fleet.seen">
-                  <span class="mono">{{ clock(x.fleet.seen.arrival) }}</span>
+                  <span class="small muted">{{ t('plans.arrival') }}</span> <span class="mono">{{ clock(x.fleet.seen.arrival) }}</span>
                   <div class="small" :class="exact(p) && x.fleet.seen.arrival !== p.target_time ? 'warn' : 'pos'">
                     {{ t('plans.seen') }}<template v-if="exact(p)"> · {{ offset(x.fleet.seen.arrival - p.target_time) }}</template>
+                  </div>
+                  <div v-if="seenShipsDiffer(x.fleet)" class="small warn">
+                    {{ t('plans.seenShips', { ships: shipList(x.fleet.seen.ships) }) }}
+                    <button v-if="canEditFleet(p, x.fleet) && !closed(p)" class="small" @click="takeSeenShips(p, x.fleet)">{{ t('plans.takeSeen') }}</button>
                   </div>
                 </template>
                 <template v-else-if="x.plan && exact(p)">

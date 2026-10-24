@@ -2,7 +2,7 @@ import { distance, flightDuration, slowestShip } from '@pr0hub/flight';
 import type { GroupContext } from '../context.js';
 import { now, type DB } from '../db.js';
 import { spyEmpire } from './empire.js';
-import { sharedFleets, type StoredFleet } from './fleets.js';
+import { fleetHistory, sharedFleets, type StoredFleet } from './fleets.js';
 
 /** Missions worth a retime: attack, ACS attack, destroy. */
 const RETIME_MISSIONS = [1, 2, 9];
@@ -87,7 +87,8 @@ export const PHALANX_KEEP = 86400;
  * Hostile attacks on the members, from the newest fleet snapshot of every member (incoming fleets are always shared),
  * and from the phalanx results of the last day pasted into the raid planner (attacks on the scanned planet, and the
  * scanned player's own attacks from it, with their return when the phalanx shows it). ACS fleets as one attack.
- * Listed until their latest possible return; the same attack seen twice counts once, with the newest arrival.
+ * Listed until their latest possible return, also after the impact (from the member's older fleet lists: the fleet is
+ * gone from the newer ones, the retime still runs); the same attack seen twice counts once, with the newest arrival.
  */
 export function hostileAttacks(db: DB, ctx: GroupContext): HostileAttack[] {
   const u = ctx.universe.settings;
@@ -118,7 +119,10 @@ export function hostileAttacks(db: DB, ctx: GroupContext): HostileAttack[] {
   for (const m of members) {
     const snap = sharedFleets(db, ctx.groupId, m.user_id, ctx.user.id);
     if (!snap) continue;
-    for (const g of attackGroups(snap.data, ['hostile'])) add(g, snap.time, { memberId: m.user_id, member: m.name, source: 'overview', reporter: null }, null);
+    const who = { memberId: m.user_id, member: m.name, source: 'overview', reporter: null } as const;
+    // arrived before the newest list: last seen on the list before
+    for (const g of attackGroups(fleetHistory(db, ctx.groupId, m.user_id, ctx.user.id, 0), ['hostile'])) add(g, g.fleets[0].arrival, who, null);
+    for (const g of attackGroups(snap.data, ['hostile'])) add(g, snap.time, who, null);
   }
 
   const pastes = db

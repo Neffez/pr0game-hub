@@ -359,6 +359,7 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
     const ctx = ctxOf(req);
     const attack = hostileAttacks(db, ctx).find((a) => a.key === req.body?.key);
     if (!attack) throw new HttpError(404, 'attack_not_found', 'Hostile attack not found (arrived or not pasted)');
+    if (attack.arrival <= now()) throw new HttpError(400, 'attack_arrived', 'The attack has already arrived: nothing left to hold');
     const id = db.transaction(() => planFromAttack(ctx, attack, 'hold', attack.to, null, attack.arrival + HOLD_OFFSET, { follow: 0, buffer: 1 }))();
     events.publish(ctx.groupId, { type: 'data', tables: ['attack_plans'], userId: ctx.user.id });
     return { id };

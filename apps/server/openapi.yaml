@@ -1075,6 +1075,9 @@ paths:
     get:
       tags: [Combat]
       operationId: getHostileAttacks
+      description: >-
+        Hostile attacks on members (overview pastes) and from phalanx results, ACS fleets as one attack. Listed until
+        their latest possible return, also after the impact (taken from the member's older fleet lists then).
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
@@ -1187,6 +1190,8 @@ paths:
         page, else its newest spy report). Hold plans also return `enemy.research` and `enemy.research_time`, the
         attacking player's research from the newest spy report showing it (null when unknown).
         `enemy.planet_ships` holds the ships on the attacked planet changed by hand (null: those of `spy`).
+        A fleet in flight carries `seen` (`arrival`, `time` of the overview, `ships` flying), from its member's
+        overview or, in an ACS, from another participant's overview showing it from a planet of that member.
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }

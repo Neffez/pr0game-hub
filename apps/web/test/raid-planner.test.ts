@@ -17,7 +17,7 @@ const plans = [
       { id: 1, user_id: 1, member: 'Carol', g: 1, s: 40, p: 5, planet_type: 'planet', ships: { 207: 1773, 215: 2 }, speed: 90, status: 'ready', updated_at: 0,
         drives: { time: Math.floor(Date.now() / 1000), research: { 115: 10, 117: 8, 118: 6, 134: 0 } }, seen: null },
       { id: 2, user_id: 2, member: 'Dave', g: 1, s: 42, p: 7, planet_type: 'planet', ships: { 204: 100 }, speed: 100, status: 'launched', updated_at: 0, drives: null,
-        seen: { arrival: target + 3, time: 0 } },
+        seen: { arrival: target + 3, time: 0, ships: { 204: 90, 222: 5 } } },
       { id: 3, user_id: 3, member: 'Erin', g: null, s: null, p: null, planet_type: null, ships: {}, speed: 100, status: 'invited', updated_at: 0, drives: null, seen: null },
     ],
   },
@@ -142,6 +142,23 @@ describe('raid planner page', () => {
     const put = calls.find((c) => c.init?.method === 'PUT')!;
     expect(put.url).toMatch(/\/plans\/7\/fleets\/1$/);
     expect(JSON.parse(String(put.init!.body))).toEqual({ speed: 60 });
+    vi.stubGlobal('fetch', fetchMock);
+  });
+
+  it('offers the ships the overview shows flying for the plan', async () => {
+    const calls: { url: string; init?: RequestInit }[] = [];
+    const fetchMock = globalThis.fetch;
+    vi.stubGlobal('fetch', async (url: string, init?: RequestInit) => {
+      calls.push({ url, init });
+      return fetchMock(url, init);
+    });
+    const row = [...root.querySelectorAll('.plan tbody tr')].find((tr) => tr.textContent!.includes('Dave'))!;
+    expect(row.textContent).toContain('fliegt mit');
+    [...row.querySelectorAll('button')].find((b) => b.textContent === 'In den Plan übernehmen')!.click();
+    await settle();
+    const put = calls.find((c) => c.init?.method === 'PUT')!;
+    expect(put.url).toMatch(/\/plans\/7\/fleets\/2$/);
+    expect(JSON.parse(String(put.init!.body))).toEqual({ ships: { 204: 90, 222: 5 } });
     vi.stubGlobal('fetch', fetchMock);
   });
 

@@ -50,6 +50,26 @@ export const CHANGELOG: ChangelogDay[] = [
       },
       {
         kind: 'new',
+        de: 'Raid-Planer: Fliegt eine Flotte laut Übersicht mit anderen Schiffen als geplant, zeigt der Plan sie an und übernimmt sie per Knopfdruck.',
+        en: 'Raid planner: if the overview shows a fleet flying with other ships than planned, the plan shows them and takes them over at the press of a button.',
+      },
+      {
+        kind: 'fix',
+        de: 'Raid-Planer: Eine Verbandsflotte aus der Übersicht eines anderen Teilnehmers wird nur dem Mitglied zugeordnet, dem der Startplanet gehört.',
+        en: "Raid planner: an ACS fleet from another participant's overview is only matched to the member who owns its starting planet.",
+      },
+      {
+        kind: 'fix',
+        de: 'Raid-Planer: Fliegt ein Verband, erkennt der Hub alle Plan-Flotten darin, sobald ein Teilnehmer seine Übersicht synchronisiert. Die Rückkehrzeit gestarteter Flotten stimmt jetzt, und statt der Startzeit steht bei ihnen klar die Ankunft.',
+        en: 'Raid planner: once an ACS is flying, the hub recognizes all plan fleets in it as soon as one participant syncs their overview. The return time of launched fleets is right now, and they clearly show their arrival instead of a launch time.',
+      },
+      {
+        kind: 'fix',
+        de: 'Raid-Planer: Feindliche Angriffe bleiben nach dem Einschlag in der Liste, bis die Flotte spätestens zu Hause sein kann. So lässt sich ein Retime auch noch planen, wenn die Übersicht danach neu synchronisiert wurde.',
+        en: 'Raid planner: hostile attacks stay in the list after the impact, until the fleet can be home at the latest. So a retime can still be planned after the overview was synced again.',
+      },
+      {
+        kind: 'new',
         de: 'Raid-Planer: Halten-Pläne zeigen die Flotte auf dem angegriffenen Planeten. Sie ist aus dem Imperium vorausgefüllt und lässt sich ändern, etwa wenn Schiffe vor dem Einschlag weggeschickt werden. Die Kampfsimulatoren rechnen damit.',
         en: 'Raid planner: hold plans show the fleet on the attacked planet. It is filled in from the empire page and can be changed, e.g. when ships are sent away before the impact. The combat simulators use it.',
       },

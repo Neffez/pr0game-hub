@@ -4,6 +4,25 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-24
 
+- Raid planner, fleets seen in flight:
+  - A plan fleet that flies with other ships than planned shows them, with a button to take them into the plan (any
+    member who may edit that fleet); `seen` of a plan fleet now carries the `ships` flying.
+  - A foreign ACS fleet in another participant's overview only counts for a member when the galaxy data does not
+    name another player as the owner of its start; among equal matches the one with the planned ships wins.
+
+- Raid planner, fleets in flight:
+  - A plan fleet missing from its member's overview counts as launched when another participant's overview shows it
+    as a foreign fleet on the same route (same ACS), with that arrival; a lead that has not synced is no longer taken
+    as not launched.
+  - The return home of a launched fleet follows from the arrival its overview shows, no longer from the planned ACS
+    arrival (which moved on with the clock while the lead counted as not launched).
+  - The launch column of a launched fleet says that it shows the arrival.
+
+- Raid planner: hostile attacks stay in the list after their impact, until their latest possible return, so a retime
+  can still be planned while the enemy flies home. They come from the member's older fleet lists once a newer overview
+  no longer shows them (so they no longer vanish, and a retime plan on them no longer reads as recalled); marked
+  "arrived", without the hold button (`POST /plans/hold` answers `attack_arrived`).
+
 - Research checked against a real research page (now a parser fixture): every cost (exact catch-up bonus 10.5058 %
   behind the shown 10.51 %) and research time (research speed 5000, own lab plus three network labs) matches the game.
   - The research page's requirement lines ("Forschungslabor (Stufe 10/5)") are read (`ResearchRecord.known`): the

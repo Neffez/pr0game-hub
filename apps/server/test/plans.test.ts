@@ -319,6 +319,28 @@ describe('attack plans', () => {
     expect(plan.fleets.map((f: any) => f.status)).toEqual(['launched', 'ready']);
     expect(Math.abs(plan.fleets[0].seen.arrival - (target - 60))).toBeLessThanOrEqual(2);
     expect(plan.fleets[1].seen).toBeNull();
+
+    // in one ACS: Carol's overview shows Dave's fleet as a foreign ACS fleet, Dave has not synced
+    const acs = [
+      '1h 58m 0s Eine Verbandsflotte (3 Schlachtschiff) vom Planet Basis [1:42:7] erreicht den Mond Ziel [3:115:8]. Mission: Verbandsangriff',
+      'Eine deiner Flotten (5 Leichter Jäger) vom Planet Heim [1:40:5] erreicht den Mond Ziel [3:115:8]. Mission: Verbandsangriff',
+    ].join('\n');
+    await call('POST', '/ingest', carol, { text: acs });
+    const both = (await call('GET', '/plans', dave)).json().find((p: any) => p.id === id);
+    expect(both.fleets.map((f: any) => f.status)).toEqual(['launched', 'launched']);
+    expect(both.fleets[1].seen.arrival).toBe(both.fleets[0].seen.arrival);
+    expect(Math.abs(both.fleets[1].seen.arrival - (target - 120))).toBeLessThanOrEqual(2);
+    expect(both.fleets[1].seen.ships).toEqual({ 207: 3 });
+
+    // the galaxy data says the start belongs to another player than Dave: not his fleet
+    db.prepare("INSERT INTO players (group_id, ingame_id, name) VALUES (?, 4720, 'Dave')").run(groupA);
+    const other = Number(db.prepare("INSERT INTO players (group_id, ingame_id, name) VALUES (?, 4721, 'Fremder')").run(groupA).lastInsertRowid);
+    db.prepare("INSERT INTO planets (group_id, g, s, p, name, player_id) VALUES (?, 1, 42, 7, 'Basis', ?)").run(groupA, other);
+    await call('PUT', `/plans/${id}/fleets/${both.fleets[1].id}`, dave, { status: 'ready' });
+    const foreign = (await call('GET', '/plans', dave)).json().find((p: any) => p.id === id);
+    expect(foreign.fleets[1]).toMatchObject({ status: 'ready', seen: null });
+    db.prepare('DELETE FROM planets WHERE g = 1 AND s = 42 AND p = 7').run();
+    db.prepare("DELETE FROM players WHERE ingame_id IN (4720, 4721)").run();
     await call('DELETE', `/plans/${id}`, carol);
   });
 
@@ -413,6 +435,25 @@ describe('attack plans', () => {
     expect(plan.fleets[0]).toMatchObject({ status: 'launched' });
     expect((await call('GET', '/claims', carol)).json()).toEqual([]);
     await call('DELETE', `/plans/${id}`, dave);
+  });
+
+  it('keeps an attack plannable for a retime after its impact, but not for a hold', async () => {
+    const text = '0h 1m 0s Eine Flotten(7 Schlachtschiff) vom Planet Feind [2:3:3] erreicht den Planet Ares [1:100:12]. Mission: Angreifen';
+    await call('POST', '/ingest', carol, { text });
+    // that overview was 10 minutes ago, the attack hit 9 minutes ago; a newer overview no longer shows it
+    const row = db.prepare('SELECT id, page_time, data FROM fleet_snapshots WHERE user_id = ? ORDER BY page_time DESC, id DESC LIMIT 1').get(carolId) as any;
+    const data = JSON.parse(row.data).map((f: any) => ({ ...f, arrival: f.arrival - 600 }));
+    db.prepare('UPDATE fleet_snapshots SET page_time = ?, data = ? WHERE id = ?').run(row.page_time - 600, JSON.stringify(data), row.id);
+    db.prepare("INSERT INTO fleet_snapshots (group_id, user_id, page_time, data) VALUES (?, ?, ?, '[]')").run(groupA, carolId, Math.floor(Date.now() / 1000));
+    const a = (await call('GET', '/hostile-attacks', dave)).json().find((x: any) => x.from.s === 3);
+    expect(a).toMatchObject({ member: 'Carol', arrival: data[0].arrival, planId: null });
+    expect((await call('POST', '/plans/hold', dave, { key: a.key })).json().code).toBe('attack_arrived');
+    const { id } = (await call('POST', '/plans/retime', dave, { key: a.key, target_time: a.arrival + 3600 })).json();
+    const plan = (await call('GET', '/plans', dave)).json().find((p: any) => p.id === id);
+    // gone because it hit, not recalled
+    expect(plan.enemy).toMatchObject({ arrival: a.arrival, recall_seen: null });
+    await call('DELETE', `/plans/${id}`, dave);
+    db.prepare('DELETE FROM fleet_snapshots WHERE user_id = ? AND page_time >= ?').run(carolId, row.page_time - 600);
   });
 
   it('lists plans up to a week after their target time', async () => {
