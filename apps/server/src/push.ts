@@ -6,7 +6,7 @@ import { config } from './config.js';
 import { resolveGroup } from './context.js';
 import { now, type DB } from './db.js';
 import type { EventBus } from './events.js';
-import { GroupDebounce, groupUniverse, SENT_KEEP, TICK_AHEAD, TICK_MS } from './notify.js';
+import { AlertSchedule, GroupDebounce, groupUniverse, SENT_KEEP, TICK_AHEAD, TICK_MS } from './notify.js';
 import { notificationsFor, type ChannelNotification, type Notification } from './repo/notifications.js';
 
 /**
@@ -98,6 +98,7 @@ export class PushService {
   private vapid: Vapid | null = null;
   private sender: PushSender;
   private debounce: GroupDebounce;
+  private alerts: AlertSchedule;
   private log: PushOptions['log'];
 
   constructor(
@@ -111,6 +112,7 @@ export class PushService {
     this.log = opts.log;
     if (this.enabled) this.vapid = { subject: contact, ...this.keys() };
     this.debounce = new GroupDebounce((groupId) => this.deliver(groupId).catch((err) => this.log?.warn({ err, groupId }, 'push delivery failed')));
+    this.alerts = new AlertSchedule(db);
   }
 
   /** The server's VAPID key pair, created on the first start. */
@@ -146,11 +148,18 @@ export class PushService {
       .prepare(
         `SELECT DISTINCT a.group_id FROM attack_plans a JOIN attack_plan_fleets f ON f.plan_id = a.id
          WHERE a.status IN ('planning', 'launched') AND a.time_precision = 'exact' AND a.target_time > ? AND a.target_time < ?
-           AND f.status IN ('invited', 'ready') AND EXISTS (SELECT 1 FROM push_subscriptions s WHERE s.user_id = f.user_id)
-         UNION SELECT b.group_id FROM building_alerts b WHERE EXISTS (SELECT 1 FROM push_subscriptions s WHERE s.user_id = b.user_id)`,
+           AND f.status IN ('invited', 'ready') AND EXISTS (SELECT 1 FROM push_subscriptions s WHERE s.user_id = f.user_id)`,
       )
       .pluck()
       .all(t, t + TICK_AHEAD) as number[];
+    // groups with building alerts only when one of them may be ready (see AlertSchedule)
+    const alerts = this.db
+      .prepare(
+        `SELECT DISTINCT b.group_id FROM building_alerts b WHERE EXISTS (SELECT 1 FROM push_subscriptions s WHERE s.user_id = b.user_id)`,
+      )
+      .pluck()
+      .all() as number[];
+    for (const g of alerts) if (!groups.includes(g) && this.alerts.due(g, t)) groups.push(g);
     for (const g of groups) await this.deliver(g, t);
   }
 
@@ -167,6 +176,8 @@ export class PushService {
     if (!this.enabled) return;
     const universe = groupUniverse(this.db, groupId);
     if (!universe) return;
+    // when the ticks look at the group's building alerts again (also when nobody here gets anything)
+    this.alerts.plan(groupId, universe, t);
     const users = this.db
       .prepare(
         `SELECT u.id, u.username, u.is_admin, u.lang, u.date_format FROM group_members m JOIN users u ON u.id = m.user_id

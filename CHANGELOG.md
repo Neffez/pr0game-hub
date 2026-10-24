@@ -4,6 +4,19 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-24
 
+- Build & Research review fixes:
+  - A newer overview merges into the queue of a buildings page by the running entry: entries before it count as
+    finished (their levels rise), the ones after it stay queued, also when a research page is newer than the buildings
+    page (the waiting entries were dropped, so a queued level could show as buildable and notify).
+  - Opening the page from a notification no longer resets the selected planet on every tab switch.
+  - A synced research page delivers research alerts right away (not only on the next tick); alerts removed while
+    loading the page update the bell on other tabs; the universe setting `universityFactor` is limited to 100.
+  - The research speed derived from a research page uses the lab levels of the empire page synced closest to it (a
+    later lab upgrade made it wrong) and the research network level shown on the page.
+  - The push and Discord ticks look at a group's building alerts only when one may be ready (`AlertSchedule`: the
+    earliest ready time, re-checked at least every 15 minutes, planned anew by every delivery) instead of recomputing
+    every member's notifications every 30 seconds.
+
 - **Build & Research** (renamed from Buildings, route `/build`, `/buildings` redirects; Start menu now Overview,
   Statistics, My Empire, Build & Research) with a buildings tab and a new research tab:
   - Research per planet like the game's research page: next level (account wide queue counted), requirements (labs and

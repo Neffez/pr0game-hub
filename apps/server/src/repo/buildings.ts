@@ -169,8 +169,13 @@ export function buildingsState(db: DB, ctx: GroupContext, userId: number, t = no
     for (const bp of planets.values()) {
       if (overview.time < bp.planet.time - 60) continue;
       const q = overview.rec.queues.find((x) => x.kind === 'building' && same(x.coords, bp.coords) && x.type === bp.type);
-      const rest = bp.planet.queue.slice(1);
-      bp.planet.queue = q ? [{ id: q.id, level: q.level, destroy: q.destroy, end: overview.time + q.seconds }, ...(bp.source === 'buildings' ? rest : [])] : [];
+      // entries of the older queue before the running one are done (also those that ended before the overview when it
+      // shows none); the ones after it still wait
+      const at = q ? bp.planet.queue.findIndex((x) => x.id === q.id && x.level === q.level && x.destroy === q.destroy) : -1;
+      const done = at > 0 ? bp.planet.queue.slice(0, at) : bp.planet.queue.filter((x) => x.end != null && x.end <= overview.time);
+      for (const d of done) bp.planet.values[d.id] = levelAfter(d);
+      const rest = at >= 0 ? bp.planet.queue.slice(at + 1) : [];
+      bp.planet.queue = q ? [{ id: q.id, level: q.level, destroy: q.destroy, end: overview.time + q.seconds }, ...rest] : [];
     }
   }
   // research levels and queue of the account; queue entries done by now raise the levels
@@ -221,7 +226,7 @@ export function buildingsState(db: DB, ctx: GroupContext, userId: number, t = no
     planets: list,
     research: levels,
     researchQueue,
-    researchSpeed: derivedResearchSpeed(researchPages, list, levels, universityFactor) ?? (settings.researchSpeed || null),
+    researchSpeed: derivedResearchSpeed(db, ctx, userId, researchPages, levels, universityFactor) ?? (settings.researchSpeed || null),
     universityFactor,
     catchUp: catchUp?.value ?? null,
     catchUpFrom: catchUp ? { source: catchUp.source, time: catchUp.time } : null,
@@ -252,7 +257,8 @@ function catchUpOf(
     shown.push({ value: exact != null && Math.abs(exact - p.rec.catchUp) < 0.006 ? exact : p.rec.catchUp, source: p.source ?? 'page', time: p.time });
   }
   // pages first on equal times (exact)
-  const latest = shown.sort((a, b) => b.time - a.time || (a.source === 'overview' ? 1 : -1))[0] ?? null;
+  const isOverview = (s: { source: string }) => (s.source === 'overview' ? 1 : 0);
+  const latest = shown.sort((a, b) => b.time - a.time || isOverview(a) - isOverview(b))[0] ?? null;
   if (!latest) return null;
   const playerId = memberPlayer(db, ctx, userId);
   const leader = catchUpLeader(db, ctx.groupId);
@@ -330,16 +336,31 @@ function labBusy(planets: BuildingPlanet[], page: { time: number; rec: ResearchR
 }
 
 /** Research speed from the longest research time of the newest research page (lab levels as now, with the network). */
-function derivedResearchSpeed(pages: { rec: ResearchRecord }[], planets: BuildingPlanet[], research: Record<string, number>, universityFactor: number): number | null {
-  for (const { rec } of pages) {
-    const bp = planets.find((p) => same(p.coords, rec.coords) && p.type === rec.type);
-    const own = bp?.planet.values[RESEARCH_LAB] ?? 0;
-    if (!bp || !own) continue;
-    const others = planets.filter((p) => p !== bp && p.type === 'planet').map((p) => p.planet.values[RESEARCH_LAB] ?? 0);
+/**
+ * Research speed from the longest research time of the newest research page that allows it. The time the page shows
+ * depends on the lab levels of that moment: they come from the empire page synced closest to it (the newest before,
+ * else the first after), the research network level from the page itself.
+ */
+function derivedResearchSpeed(
+  db: DB, ctx: GroupContext, userId: number, pages: { time: number; rec: ResearchRecord }[], research: Record<string, number>, universityFactor: number,
+): number | null {
+  const near = db.prepare(
+    `SELECT data FROM empire_snapshots WHERE group_id = ? AND user_id = ?
+     ORDER BY CASE WHEN created_at <= ? THEN 0 ELSE 1 END, ABS(created_at - ?), id DESC LIMIT 1`,
+  );
+  for (const { time, rec } of pages) {
+    const row = near.get(ctx.groupId, userId, time, time) as { data: string } | undefined;
+    if (!row) continue;
+    const planets = (JSON.parse(row.data) as EmpireRecord).planets.filter((p) => p.type === 'planet');
+    const here = planets.find((p) => same(p.coords, rec.coords));
+    const own = here?.values[RESEARCH_LAB] ?? 0;
+    if (!here || !own) continue;
+    const others = planets.filter((p) => p !== here).map((p) => p.values[RESEARCH_LAB] ?? 0);
     const longest = [...rec.research].filter((e) => e.time != null).sort((a, b) => b.time! - a.time!)[0];
     if (!longest) continue;
-    const lab = labLevels(longest.id, own, others, research[RESEARCH_NETWORK] ?? 0);
-    const speed = deriveResearchSpeed(longest.cost, longest.time!, lab, bp.planet.values[TECHNO_DOME] ?? 0, universityFactor);
+    const network = rec.research.find((e) => e.id === RESEARCH_NETWORK)?.level ?? research[RESEARCH_NETWORK] ?? 0;
+    const lab = labLevels(longest.id, own, others, network);
+    const speed = deriveResearchSpeed(longest.cost, longest.time!, lab, here.values[TECHNO_DOME] ?? 0, universityFactor);
     if (speed) return speed;
   }
   return null;

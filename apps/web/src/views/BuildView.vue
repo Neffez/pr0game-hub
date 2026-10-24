@@ -90,8 +90,9 @@ const filter = computed({
   set: (v: string) => (tab.value === 'research' ? (researchFilter.value = v) : (buildingFilter.value = v as BuildingGroup | 'all')),
 });
 /** a link (push notification) names the planet */
+// separate sources: the planet is only taken over when the link changes, not on every route change (tab switch)
 watch(
-  () => [route.query.c, route.query.type],
+  [() => route.query.c, () => route.query.type],
   ([c, type]) => {
     if (typeof c === 'string' && /^\d+:\d+:\d+$/.test(c)) stored.value = `${c}:${type === 'moon' ? 'moon' : 'planet'}`;
   },

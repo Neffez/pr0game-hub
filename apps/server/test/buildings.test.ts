@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { buildingCost } from '@pr0hub/core/buildings';
+import { buildingCost, deriveResearchSpeed } from '@pr0hub/core/buildings';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 process.env.WEB_DIR = '/nonexistent';
@@ -118,6 +118,27 @@ describe('buildings page', () => {
     expect(posted).toHaveLength(1);
   });
 
+  it('looks at waiting alerts only when they may be ready, and sends them on time', async () => {
+    // the robot factory needs deuterium, which the planet does not produce: it waits for a transport landing in 10 minutes
+    const fleet = {
+      owner: 'own', player: null, mission: 3, missionName: 'Transport', phase: 'out', ships: { 202: 10 }, resources: { 901: 0, 902: 0, 903: 1e6 },
+      arrival: t + 600, from: { coords: { g: 1, s: 1, p: 9 }, type: 'planet', name: null }, to: { coords: { g: 1, s: 1, p: 1 }, type: 'planet', name: null },
+    };
+    db.prepare('INSERT INTO fleet_snapshots (group_id, user_id, page_time, data) VALUES (?, ?, ?, ?)').run(group, ids.carol, t + 1, JSON.stringify([fleet]));
+    await call('PUT', '/u8/buildings/alerts', h.carol, { g: 1, s: 1, p: 1, type: 'planet', id: 14, level: 1 });
+    // the delivery after the change plans the group for the landing
+    await app.push.deliver(group, t);
+    const deliver = vi.spyOn(app.push, 'deliver');
+    await app.push.tick(t + 300);
+    expect(deliver).not.toHaveBeenCalled();
+    await app.push.tick(t + 601);
+    expect(deliver).toHaveBeenCalledTimes(1);
+    deliver.mockRestore();
+    expect(pushed.map((p) => p.payload.title)).toEqual(['🏗 Roboterfabrik 1 baubar']);
+    db.prepare('DELETE FROM fleet_snapshots WHERE page_time = ?').run(t + 1);
+    db.prepare('DELETE FROM building_alerts WHERE element_id = 14').run();
+  });
+
   it('respects the setting and removes the alert once the level is queued', async () => {
     expect((await call('POST', '/auth/push-settings', h.carol, { buildings: false })).json()).toMatchObject({ buildings: false });
     await call('POST', '/auth/push-settings', h.carol, { buildings: true });
@@ -207,6 +228,49 @@ describe('buildings page', () => {
     expect((await call('PUT', '/u8/buildings/alerts', h.dave, { g: 1, s: 100, p: 12, type: 'moon', id: 106, level: 10 })).statusCode).toBe(400);
     expect((await call('PUT', '/u8/buildings/alerts', h.dave, { g: 1, s: 100, p: 12, type: 'planet', id: 106, level: 10 })).statusCode).toBe(200);
     expect((await call('PUT', '/u8/buildings/hidden', h.dave, { ids: [6, 199] })).json()).toEqual({ hidden: [6, 199] });
+  });
+
+  it('merges a newer overview into the queue of a buildings page, also behind a newer research page', async () => {
+    const coords = { g: 1, s: 1, p: 1 };
+    const bar = { resources: { 901: 0, 902: 0, 903: 0 }, storage: {}, perHour: {}, catchUp: null };
+    const page = {
+      kind: 'buildings', coords, type: 'planet', pageTime: null, ...bar, fields: null,
+      buildings: [{ id: 1, level: 10, cost: {}, time: null }, { id: 2, level: 5, cost: {}, time: null }, { id: 3, level: 0, cost: {}, time: null }],
+      queue: [
+        { id: 1, level: 11, destroy: false, end: t - 15 },
+        { id: 2, level: 6, destroy: false, end: null },
+        { id: 3, level: 1, destroy: false, end: null },
+      ],
+    };
+    const research = { kind: 'research', coords, type: 'planet', pageTime: null, ...bar, labBusy: false, noLab: false, research: [], queue: [] };
+    // the metal mine finished, the crystal mine runs now
+    const overview = {
+      kind: 'overview', pageTime: null, current: null, catchUp: null,
+      queues: [{ kind: 'building', coords, type: 'planet', id: 2, level: 6, destroy: false, seconds: 600 }],
+    };
+    const row = '(group_id, user_id, g, s, p, planet_type, page_time, data) VALUES (?, ?, 1, 1, 1, ?, ?, ?)';
+    db.prepare(`INSERT INTO building_snapshots ${row}`).run(group, ids.carol, 'planet', t - 20, JSON.stringify(page));
+    db.prepare(`INSERT INTO research_snapshots ${row}`).run(group, ids.carol, 'planet', t - 10, JSON.stringify(research));
+    db.prepare('INSERT INTO overview_snapshots (group_id, user_id, page_time, data) VALUES (?, ?, ?, ?)').run(group, ids.carol, t - 5, JSON.stringify(overview));
+    const state = (await call('GET', '/u8/buildings', h.carol)).json();
+    expect(state.planets[0]).toMatchObject({ source: 'research', planet: { values: { 1: 11, 2: 5, 3: 0 } } });
+    expect(state.planets[0].planet.queue).toEqual([
+      { id: 2, level: 6, destroy: false, end: t + 595 },
+      { id: 3, level: 1, destroy: false, end: null },
+    ]);
+    for (const table of ['building_snapshots', 'research_snapshots', 'overview_snapshots']) db.prepare(`DELETE FROM ${table} WHERE user_id = ?`).run(ids.carol);
+  });
+
+  it('derives the research speed with the lab levels of the time of the research page, not later upgrades', async () => {
+    const pageTime = db.prepare('SELECT page_time FROM research_snapshots WHERE user_id = ? ORDER BY page_time DESC LIMIT 1').pluck().get(ids.dave) as number;
+    const planet = (lab: number) => ({ kind: 'empire', research: {}, planets: [{ name: 'Ares', coords: { g: 1, s: 100, p: 12 }, type: 'planet', values: { 31: lab } }] });
+    // lab 12 when the page was synced, lab 14 since then
+    db.prepare('INSERT INTO empire_snapshots (group_id, user_id, created_at, data) VALUES (?, ?, ?, ?)').run(group, ids.dave, pageTime - 100, JSON.stringify(planet(12)));
+    db.prepare('INSERT INTO empire_snapshots (group_id, user_id, created_at, data) VALUES (?, ?, ?, ?)').run(group, ids.dave, pageTime + 3600, JSON.stringify(planet(14)));
+    const state = (await call('GET', '/u8/buildings', h.dave)).json();
+    // the page's longest time: the research network, 574835 metal + crystal in 9999 s
+    expect(state.researchSpeed).toBe(deriveResearchSpeed({ 901: 215563, 902: 359272 }, 9999, 12));
+    expect(state.planets.find((p: { key: string }) => p.key === '1:100:12:planet').planet.values[31]).toBe(14);
   });
 });
 

@@ -27,7 +27,11 @@ export function pruneAlerts(db: DB, ctx: GroupContext, state: BuildingsState, t 
     done.push(a.id);
     return false;
   });
-  if (done.length) db.prepare('DELETE FROM building_alerts WHERE id IN (SELECT value FROM json_each(?))').run(JSON.stringify(done));
+  if (done.length) {
+    db.prepare('DELETE FROM building_alerts WHERE id IN (SELECT value FROM json_each(?))').run(JSON.stringify(done));
+    // the bell of the viewer's other tabs and devices drops them too
+    events.publish(ctx.groupId, { type: 'data', tables: ['building_alerts'], userId: ctx.user.id });
+  }
   return open;
 }
 

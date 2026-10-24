@@ -1,6 +1,6 @@
 import { distance, drivesFromResearch, flightDuration, launchFor, slowestShip } from '@pr0hub/flight';
 import type { SessionUser } from '../auth.js';
-import type { GroupContext, Universe } from '../context.js';
+import { resolveGroup, type GroupContext, type Universe } from '../context.js';
 import type { DB } from '../db.js';
 import { alertDone, alertsOf, buildingsState, planetElements, planetOf } from './buildings.js';
 import { sharedFleets, type StoredFleet } from './fleets.js';
@@ -227,6 +227,31 @@ function comments(db: DB, ctx: GroupContext, t: number): CommentNotification[] {
     });
   }
   return [...threads.values()];
+}
+
+/**
+ * The earliest time after `t` when one of the group's open building alerts gets ready (resources there, facility
+ * free), null when none will by what is known now.
+ */
+export function nextBuildingAlert(db: DB, universe: Universe, groupId: number, t: number): number | null {
+  const users = db
+    .prepare(
+      `SELECT DISTINCT u.id, u.username, u.is_admin, u.lang, u.date_format FROM building_alerts b JOIN users u ON u.id = b.user_id
+       WHERE b.group_id = ?`,
+    )
+    .all(groupId) as { id: number; username: string; is_admin: number; lang: string; date_format: string }[];
+  let next: number | null = null;
+  for (const u of users) {
+    const ctx = resolveGroup(db, { id: u.id, username: u.username, isAdmin: !!u.is_admin, lang: u.lang, dateFormat: u.date_format }, universe, groupId);
+    const state = buildingsState(db, ctx, u.id, t);
+    for (const a of alertsOf(db, ctx, u.id)) {
+      const bp = planetOf(state, a);
+      const info = bp && planetElements(state, bp, t).find((b) => b.id === a.element_id);
+      if (!info || alertDone(a, info) || info.readyAt == null || info.readyAt <= t) continue;
+      next = next == null ? info.readyAt : Math.min(next, info.readyAt);
+    }
+  }
+  return next;
 }
 
 /**

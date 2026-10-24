@@ -99,7 +99,7 @@ components:
         created_at: { type: integer }
     Buildings:
       type: object
-      required: [planets, research, researchQueue, researchSpeed, universityFactor, catchUp, catchUpFrom, buildingSpeed, storageFactor, empireTime, fleetsTime, alerts]
+      required: [planets, research, researchQueue, researchSpeed, universityFactor, catchUp, catchUpFrom, buildingSpeed, storageFactor, empireTime, fleetsTime, alerts, hidden]
       properties:
         planets:
           type: array
