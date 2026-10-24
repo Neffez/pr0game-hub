@@ -22,11 +22,12 @@ export function settlementRoutes(app: FastifyInstance, db: DB) {
     return plan;
   }
   /** Participants of the plan, its creator and group admins change the settlement. */
+  const canEdit = (ctx: GroupContext, plan: SettlementPlan) =>
+    plan.user_id === ctx.user.id ||
+    isAdmin(ctx) ||
+    !!db.prepare("SELECT 1 FROM attack_plan_fleets WHERE plan_id = ? AND user_id = ? AND status <> 'withdrawn'").get(plan.id, ctx.user.id);
   function editable(ctx: GroupContext, plan: SettlementPlan) {
-    const participant = !!db.prepare("SELECT 1 FROM attack_plan_fleets WHERE plan_id = ? AND user_id = ? AND status <> 'withdrawn'").get(plan.id, ctx.user.id);
-    if (!participant && plan.user_id !== ctx.user.id && !isAdmin(ctx)) {
-      throw new HttpError(403, 'settlement_not_yours', 'Only participants, the creator or an admin can change the settlement');
-    }
+    if (!canEdit(ctx, plan)) throw new HttpError(403, 'settlement_not_yours', 'Only participants, the creator or an admin can change the settlement');
   }
 
   /** Saved settlement (null if none) and a draft from the hub's data, both with their computed result. */
@@ -36,7 +37,8 @@ export function settlementRoutes(app: FastifyInstance, db: DB) {
     const saved = savedSettlement(db, ctx, plan.id);
     const draft = settlementDraft(db, ctx, plan);
     return {
-      plan_id: plan.id,
+      plan: { id: plan.id, g: plan.g, s: plan.s, p: plan.p, planet_type: plan.planet_type, target_time: plan.target_time, status: plan.status },
+      can_edit: canEdit(ctx, plan),
       saved: saved ? { ...saved, result: settle(saved.state) } : null,
       draft: { state: draft.state, sources: draft.sources, result: settle(draft.state) },
       me: memberKey(ctx.user.id),

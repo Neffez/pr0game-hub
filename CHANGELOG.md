@@ -4,6 +4,16 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-24
 
+- Raid planner, loot settlement page (`/:uni/raid-planner/:id/loot`, link "Settle loot" on launched and done attack
+  plans): shows the draft from the hub's data or the saved settlement with the source of each value (battle report,
+  plan fleet, returning fleet, recycling report), lets participants, the creator and admins change the settings,
+  costs, loot and helper shares, save it, refill it from the hub's data or take over a share link of the loot
+  calculator; result and deliveries are computed live with `@pr0hub/loot`, senders and receivers tick off their
+  deliveries. "Open in the loot calculator" passes the settlement to the public tool (`lootCalcLink`, next to the
+  universe's flight calculator URL).
+  - `GET /plans/:id/settlement` also returns the plan's target and time (`plan`) and whether the caller may save
+    (`can_edit`).
+
 - Raid planner, loot settlement API: `GET /plans/:id/settlement` returns the saved settlement of an attack plan and
   a draft prefilled from the hub's data (participants from the plan's fleets and guest fleets, battles at the target
   around the plan's time with fleets and losses from the archived battle report, loot of returning fleets in the

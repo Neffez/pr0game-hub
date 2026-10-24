@@ -1440,7 +1440,18 @@ paths:
               schema:
                 type: object
                 properties:
-                  plan_id: { type: integer }
+                  plan:
+                    type: object
+                    description: The plan's target and time
+                    properties:
+                      id: { type: integer }
+                      g: { type: [integer, 'null'] }
+                      s: { type: [integer, 'null'] }
+                      p: { type: [integer, 'null'] }
+                      planet_type: { type: string, enum: [planet, moon] }
+                      target_time: { type: integer }
+                      status: { type: string }
+                  can_edit: { type: boolean, description: The caller may save the settlement (participant, creator or admin) }
                   saved:
                     oneOf:
                       - { type: 'null' }

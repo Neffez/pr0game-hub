@@ -83,6 +83,8 @@ describe('raid settlements', () => {
     expect(result.people[0].costs).toMatchObject({ m: 450000, k: 150000 });
     expect(result.warnings).toEqual([]);
     expect(body.me).toBe(`u${ids.dave}`);
+    expect(body).toMatchObject({ can_edit: true, plan: { id: planId, g: 2, s: 100, p: 8, target_time: target } });
+    expect((await call('GET', `/plans/${planId}/settlement`, as.erin)).json().can_edit).toBe(false);
   });
 
   it('saves for participants only, keeps it within the group and marks deliveries', async () => {

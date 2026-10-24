@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Raid Planer: „Beute abrechnen“ bei gestarteten und erledigten Angriffen. Der Hub füllt Teilnehmer, Verluste, Beute, Recycling und Deut aus Kampfbericht, Flotten und Recyclingberichten selbst aus. Alle sehen, wer was bekommt und wer wem was schickt, und haken ihre Lieferungen ab. Helfer, die nur recycelt haben, behalten ihren Anteil und bekommen ihr Deut zurück.',
+        en: 'Raid planner: "Settle loot" on launched and done attacks. The hub fills in participants, losses, loot, recycling and deuterium from the battle report, fleets and recycling reports. Everyone sees who gets what and who sends what to whom, and ticks off their deliveries. Helpers who only recycled keep their share and get their deuterium back.',
+      },
+      {
+        kind: 'new',
         de: 'Neues Tool bei den pr0game-Tools: der AKS-Beuterechner. Er ersetzt allen Teilnehmern eines AKS die verlorenen Schiffe, das Deuterium und die Raketen, teilt den Rest gleichmäßig oder nach eingesetzter Flotte auf und schlägt vor, wer wem was schickt – mit möglichst wenigen Flügen. Einfach den Kampfbericht einfügen, Recycler und Helfer ergänzen, fertig.',
         en: 'New in the pr0game tools: the ACS loot calculator. It pays every ACS participant back for lost ships, deuterium and missiles, splits the rest equally or by the fleet sent and suggests who sends what to whom, with as few flights as possible. Paste the battle report, add recyclers and helpers, done.',
       },
