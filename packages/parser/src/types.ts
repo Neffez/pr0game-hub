@@ -363,6 +363,8 @@ export interface CombatReportRecord {
   rounds: number;
   lost: { attacker: number; defender: number };
   debris: { metal: number; crystal: number };
+  /** resources the attackers captured (all fleets together; 0 when the attacker did not win) */
+  loot: { metal: number; crystal: number; deuterium: number };
   fleets: CombatFleet[];
 }
 

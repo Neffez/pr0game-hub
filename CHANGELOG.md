@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-24
 
+- Groundwork for the ACS loot calculator: the battle report parser reads the captured resources
+  (`CombatReportRecord.loot`, German and English wording), `@pr0hub/core/combat` exports the battle report parser
+  without the HTML parsers (no cheerio, for the static tools), and `@pr0hub/flight` knows the cargo capacity of every
+  ship (`CAPACITY`, `fleetCapacity`, spy probes left out on raids as in the game).
+
 - Fleet alerts: a bell on each own fleet in flight in the Imperium (own view) notifies at its arrival or 1–10 minutes
   before (bell, web push, the member's Discord webhook), e.g. when recyclers are back.
   - New table `fleet_alerts` (migration 043) with the movement as last seen; matched again against each newer fleet

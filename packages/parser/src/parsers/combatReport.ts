@@ -10,6 +10,10 @@ import { parseGameDate, parseNumber } from '../util.js';
  */
 const START_RE = /(?:Folgende Flotten stehen sich gegenüber am|The following fleets face each other on:?)\s*(.+)/;
 const HEADER_RE = /^(Angreifer|Verteidiger|Attacker|Defender)\s+(.+?)\s*\((?:\[[^\]]*\]|[^)]*)\)/;
+// "Er erbeutet 1.000 Metall, 2.000 Kristall und 3.000 Deuterium" / "They loot 1,000 Metal, …" (the debris line has no
+// deuterium, so three amounts only match the loot)
+const LOOT_RE =
+  /([\d.,]+)\s*(?:Metall|Metal|Holz)\s*,\s*([\d.,]+)\s*(?:Kristall|Crystal|Gold)\s*(?:,|und|and)\s*([\d.,]+)\s*(?:Deuterium|Rum)/;
 const END_RE = /(Der Angreifer hat die Schlacht gewonnen|Der Verteidiger hat die Schlacht gewonnen|Der Kampf endet mit einem Unentschieden|The attacker has won the battle|The defender has won the battle|The fight ends in a draw)/;
 
 export function isCombatReportText(text: string): boolean {
@@ -73,6 +77,7 @@ export function parseCombatReportText(text: string, reportId: string | null): Co
   const tail = text.slice(end.index);
   const num = (re: RegExp) => parseNumber(tail.match(re)?.[1]) ?? 0;
   const winText = end[1];
+  const loot = tail.match(LOOT_RE);
   return {
     kind: 'combatReport',
     reportId,
@@ -88,6 +93,7 @@ export function parseCombatReportText(text: string, reportId: string | null): Co
       metal: num(/(?:liegen nun|are now:)\s*([\d.,]+)/),
       crystal: num(/(?:liegen nun|are now:)\s*[\d.,]+\s*\S+\s+(?:und|and)\s+([\d.,]+)/),
     },
+    loot: { metal: parseNumber(loot?.[1]) ?? 0, crystal: parseNumber(loot?.[2]) ?? 0, deuterium: parseNumber(loot?.[3]) ?? 0 },
     fleets,
   };
 }

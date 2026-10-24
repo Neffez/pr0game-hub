@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { computeDeck, DEFAULT_DECK, isPhalanxText, localToEpoch, nearestClock, parseFleetsText, parsePage, phalanxPosition, type DeckEvent } from '../src/index.js';
+import { parseCombatReportText } from '../src/combat.js';
 import { elementPoints, idByName, idByShortName, sectionPoints } from '../src/tech.js';
 
 const fixture = (name: string) => readFileSync(new URL(`./fixtures/${name}`, import.meta.url), 'utf8');
@@ -256,9 +257,34 @@ describe('combat report', () => {
     expect(res.records[0]).toMatchObject({
       reportId: '93a44dd012ff05992739d1afd749df1d', time: '2026-10-20 10:29:25', winner: 'attacker', rounds: 1,
       lost: { attacker: 3280000, defender: 22261000 }, debris: { metal: 3560500, crystal: 1890000 },
+      loot: { metal: 252190, crystal: 376570, deuterium: 225792 },
       fleets: [
         { side: 'attacker', name: 'pUsteblUme', start: { 207: 6445, 215: 2245 }, end: { 207: 6402, 215: 2235 } },
         { side: 'defender', name: 'Arys', start: { 203: 42, 207: 20, 401: 607 }, end: { 203: 0, 401: 0 } },
+      ],
+    });
+  });
+
+  it('reads the loot of a german report and the fleets of an ACS', () => {
+    const text = [
+      'Folgende Flotten stehen sich gegenüber am 20.10.2026, 12:29:25',
+      'Angreifer Alpha ([1:2:3])', 'Typ', 'Gr. Transporter', 'Schlachtschiff', 'Anzahl', '10', '5',
+      'Angreifer Beta ([1:2:4])', 'Typ', 'Schlachtschiff', 'Anzahl', '20',
+      'Verteidiger Gamma ([1:5:6])', 'Typ', 'Raketenwerfer', 'Anzahl', '100',
+      'Angreifer Alpha ([1:2:3])', 'Typ', 'Gr. Transporter', 'Schlachtschiff', 'Anzahl', '10', '4 (-1 / -1)',
+      'Angreifer Beta ([1:2:4])', 'Typ', 'Schlachtschiff', 'Anzahl', '20',
+      'Verteidiger Gamma ([1:5:6])', 'Typ', 'Raketenwerfer', 'Anzahl', 'Zerstört!',
+      'Der Angreifer hat die Schlacht gewonnen! Er erbeutet 120.000 Metall, 60.000 Kristall und 30.000 Deuterium',
+      'Der Angreifer hat insgesamt 60.000 Units verloren.',
+      'Auf diesen Raumkoordinaten liegen nun 18.000 Metall und 6.000 Kristall.',
+    ].join('\n');
+    expect(parseCombatReportText(text, null)).toMatchObject({
+      kind: 'combatReport', winner: 'attacker', loot: { metal: 120000, crystal: 60000, deuterium: 30000 },
+      debris: { metal: 18000, crystal: 6000 },
+      fleets: [
+        { side: 'attacker', name: 'Alpha', start: { 203: 10, 207: 5 }, end: { 203: 10, 207: 4 } },
+        { side: 'attacker', name: 'Beta', start: { 207: 20 }, end: { 207: 20 } },
+        { side: 'defender', name: 'Gamma' },
       ],
     });
   });
@@ -740,6 +766,7 @@ describe('pirate language (SetSail theme)', () => {
     expect(res.pageType).toBe('combatReport');
     expect(res.records[0]).toMatchObject({
       reportId: 'abc123', time: '2026-10-22 00:08:11', winner: 'attacker', debris: { metal: 0, crystal: 0 },
+      loot: { metal: 0, crystal: 0, deuterium: 0 },
       fleets: [{ side: 'attacker', name: 'Gottkaiser', start: { 210: 5 } }],
     });
   });
