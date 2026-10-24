@@ -360,26 +360,28 @@ const saveDateFormat = () =>
           <label>{{ t('account.apiTokenName') }} <input v-model="newTokenName" maxlength="64" :placeholder="t('account.apiTokenDefaultName')" /></label>
           <button class="primary">{{ t('account.apiTokenCreate') }}</button>
         </form>
-        <table v-if="apiTokens.length" class="token-table">
-          <thead>
-            <tr>
-              <th>{{ t('account.apiTokenName') }}</th>
-              <th>{{ t('account.apiTokenPrefix') }}</th>
-              <th>{{ t('account.apiTokenCreatedAt') }}</th>
-              <th>{{ t('account.apiTokenLastUsed') }}</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="tok in apiTokens" :key="tok.id">
-              <td>{{ tok.name }}</td>
-              <td><code>{{ tok.prefix }}…</code></td>
-              <td>{{ formatTokenTime(tok.createdAt) }}</td>
-              <td>{{ formatTokenTime(tok.lastUsedAt) }}</td>
-              <td><button type="button" class="danger" @click="revokeApiToken(tok.id)">{{ t('account.apiTokenRevoke') }}</button></td>
-            </tr>
-          </tbody>
-        </table>
+        <div v-if="apiTokens.length" class="scroll-x">
+          <table class="token-table">
+            <thead>
+              <tr>
+                <th>{{ t('account.apiTokenName') }}</th>
+                <th>{{ t('account.apiTokenPrefix') }}</th>
+                <th>{{ t('account.apiTokenCreatedAt') }}</th>
+                <th>{{ t('account.apiTokenLastUsed') }}</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="tok in apiTokens" :key="tok.id">
+                <td>{{ tok.name }}</td>
+                <td><code>{{ tok.prefix }}…</code></td>
+                <td>{{ formatTokenTime(tok.createdAt) }}</td>
+                <td>{{ formatTokenTime(tok.lastUsedAt) }}</td>
+                <td><button type="button" class="danger" @click="revokeApiToken(tok.id)">{{ t('account.apiTokenRevoke') }}</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
         <p v-else class="muted">{{ t('account.apiTokenNone') }}</p>
         <pre class="curl-hint">{{ t('account.apiCurlHint', { url: `${apiOrigin}${apiBase}`, group: session.me?.groups[0]?.id ?? 1 }) }}</pre>
       </section>
@@ -391,8 +393,8 @@ const saveDateFormat = () =>
 .account { max-width: 1000px; }
 .account.standalone { margin: 6vh auto; padding: 0 16px; }
 .status { margin: 0 0 10px; }
-.account-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(340px, 1fr)); gap: 14px; align-items: start; }
-.account-grid .card { margin: 0; }
+.account-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr)); gap: 14px; align-items: start; }
+.account-grid .card { margin: 0; min-width: 0; }
 .card h2 { margin-top: 0; }
 .field + .field { margin-top: 16px; }
 .field-label { display: block; margin-bottom: 6px; font-weight: 600; }
@@ -431,6 +433,6 @@ const saveDateFormat = () =>
 }
 .muted { opacity: 0.75; margin: 8px 0 0; }
 @media (max-width: 800px) {
-  .account-grid { grid-template-columns: 1fr; }
+  .account-grid { grid-template-columns: minmax(0, 1fr); }
 }
 </style>

@@ -16,6 +16,16 @@ export interface ChangelogDay {
 
 export const CHANGELOG: ChangelogDay[] = [
   {
+    date: '2026-10-24',
+    items: [
+      {
+        kind: 'fix',
+        de: 'Kontoeinstellungen auf dem Handy: Die Seite passt wieder auf den Bildschirm, die untere Leiste bleibt an ihrem Platz.',
+        en: 'Account settings on your phone: the page fits the screen again and the bottom bar stays in place.',
+      },
+    ],
+  },
+  {
     date: '2026-10-23',
     items: [
       {
