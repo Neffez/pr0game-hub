@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Retime-Planer: Werden die Einstellungen des Universums (Entfernungen, Flottengeschwindigkeit) korrigiert, rechnen offene Retime-Pläne ihre Zielzeit automatisch neu.',
+        en: 'Retime planner: when the universe settings (distances, fleet speed) are corrected, open retime plans recalculate their target time automatically.',
+      },
+      {
+        kind: 'fix',
         de: 'Retime-Planer: Die Startzeiten passen wieder zur angezeigten Zielzeit. Verzögert der Gegner, wandert die Zielzeit mit, und weicht der Plan einmal ab, weist das Retime-Feld darauf hin und Speichern übernimmt die richtige Zeit.',
         en: 'Retime planner: launch times match the shown target time again. If the enemy delays, the target time moves along, and if the plan ever differs, the retime box points it out and saving applies the right time.',
       },

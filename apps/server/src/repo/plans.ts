@@ -1,5 +1,7 @@
+import { drivesFromResearch, retimeCandidates } from '@pr0hub/flight';
+import type { UniverseSettings } from '../config.js';
 import type { GroupContext } from '../context.js';
-import type { DB } from '../db.js';
+import { now, type DB } from '../db.js';
 import { latestEmpires, spyEmpire } from './empire.js';
 import { sharedFleets, type StoredFleet } from './fleets.js';
 import { attackKey, hostileAttacks, recallWindow, type Body, type EnemyFleet } from './hostile.js';
@@ -199,4 +201,55 @@ export function followEnemies(db: DB, plans: Pick<PlanRow, 'id' | 'mission' | 't
     p.target_time = e.arrival + e.hold_offset;
     db.prepare('UPDATE attack_plans SET target_time = ? WHERE id = ?').run(p.target_time, p.id);
   }
+}
+
+/**
+ * Landing back home of a retime's enemy fleet as the retime panel derives it: followed fleet (the lead after a recall
+ * of the whole ACS), chosen speed or full speed until one is chosen; null without a known ship.
+ */
+export function retimeHome(u: UniverseSettings, e: EnemyRow): number | null {
+  const fleets = JSON.parse(e.fleets) as EnemyFleet[];
+  const recall = e.recall_from != null && e.recall_to != null ? { from: e.recall_from, to: e.recall_to } : null;
+  const fleet = fleets[recall && e.recall_lead ? 0 : e.follow] ?? fleets[0];
+  if (!fleet) return null;
+  const c = retimeCandidates(u, {
+    from: [e.from_g, e.from_s, e.from_p],
+    to: [e.to_g, e.to_s, e.to_p],
+    ships: fleet.ships,
+    drives: drivesFromResearch(JSON.parse(e.drives) as Record<number, number>),
+    arrival: e.arrival,
+    firstSeen: e.first_seen,
+    acs: fleets.length > 1,
+    departure: e.departure_from != null && e.departure_to != null ? { from: e.departure_from, to: e.departure_to } : null,
+    recall,
+  }).find((x) => x.percent === (e.percent ?? 100));
+  return c ? (c.recallHome ? c.recallHome.from : c.home) : null;
+}
+
+/**
+ * New distance or speed settings of a universe: open retimes move their target time by the change of the enemy's
+ * return home (a target set by hand keeps its offset), the claim follows. A phalanx return does not depend on them.
+ * Returns the groups with moved plans.
+ */
+export function followUniverse(db: DB, universeId: number, before: UniverseSettings, after: UniverseSettings): number[] {
+  const rows = db
+    .prepare(
+      `SELECT e.*, a.group_id FROM attack_plan_enemy e JOIN attack_plans a ON a.id = e.plan_id JOIN groups g ON g.id = a.group_id
+       WHERE g.universe_id = ? AND a.mission <> 'hold' AND a.status IN ('planning', 'launched') AND a.target_time > ? AND e.phalanx_home IS NULL`,
+    )
+    .all(universeId, now()) as (EnemyRow & { group_id: number })[];
+  const groups = new Set<number>();
+  db.transaction(() => {
+    for (const e of rows) {
+      const from = retimeHome(before, e);
+      const to = retimeHome(after, e);
+      if (from == null || to == null || from === to) continue;
+      db.prepare('UPDATE attack_plans SET target_time = target_time + ? WHERE id = ?').run(to - from, e.plan_id);
+      db.prepare(
+        'UPDATE target_claims SET expires_at = expires_at + ? WHERE id = (SELECT claim_id FROM attack_plans WHERE id = ?) AND released_at IS NULL',
+      ).run(to - from, e.plan_id);
+      groups.add(e.group_id);
+    }
+  })();
+  return [...groups];
 }

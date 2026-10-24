@@ -4,6 +4,12 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-24
 
+- Universe settings: changing distances or fleet speed recalculates the target time of open retime plans (planning or
+  launched, still ahead): it moves by the change of the enemy's return home under the new settings, so a target set by
+  hand keeps its offset; the claim's expiry follows and the alliances get a live update. A phalanx return and holds are
+  unaffected. Before, the plan kept the target time from the old settings while launch times and the retime panel
+  used the new ones.
+
 - Retime plans: launch times no longer run on an outdated target time while the retime panel shows another one.
   - A delayed (or otherwise moved) impact of the enemy now moves the plan's target time along with the return home,
     like holds already did (not with a phalanx return or a recall window, which do not depend on the impact); the

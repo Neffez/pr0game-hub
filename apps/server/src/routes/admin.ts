@@ -7,6 +7,7 @@ import { crawlerState, resumeCrawler } from '../crawler.js';
 import { events } from '../events.js';
 import { aboutRecords, backfillActivity, parseRaw, reparse, type RawIngest } from '../ingest.js';
 import { undoIngest } from '../repo/cleanup.js';
+import { followUniverse } from '../repo/plans.js';
 
 /**
  * Global admins manage universes, groups and the technical side (syncs, player merges, activity backfill, crawler).
@@ -96,14 +97,14 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
     async (req) => {
       requireAdmin(req);
       const { name, settings, deck } = req.body ?? {};
-      const cur = db.prepare('SELECT * FROM universes WHERE slug = ?').get(req.params.slug) as { settings: string } | undefined;
+      const cur = db.prepare('SELECT * FROM universes WHERE slug = ?').get(req.params.slug) as { id: number; settings: string } | undefined;
       if (!cur) throw new HttpError(404, 'universe_not_found', 'Universe not found');
       validateSettings(settings);
-      db.prepare('UPDATE universes SET name = COALESCE(?, name), settings = ? WHERE slug = ?').run(
-        name ?? null,
-        JSON.stringify({ ...JSON.parse(cur.settings), ...(settings ?? {}) }),
-        req.params.slug,
-      );
+      const next = { ...JSON.parse(cur.settings), ...(settings ?? {}) };
+      db.prepare('UPDATE universes SET name = COALESCE(?, name), settings = ? WHERE slug = ?').run(name ?? null, JSON.stringify(next), req.params.slug);
+      // retime targets were derived with the old distances and fleet speed
+      const moved = followUniverse(db, cur.id, { ...UNIVERSE_DEFAULTS, ...JSON.parse(cur.settings) }, { ...UNIVERSE_DEFAULTS, ...next });
+      for (const groupId of moved) events.publish(groupId, { type: 'data', tables: ['attack_plans', 'target_claims'] });
       if (deck !== undefined) {
         db.prepare('UPDATE universes SET deck_config = ? WHERE slug = ?').run(deck ? JSON.stringify(validateDeck(deck)) : null, req.params.slug);
       }
