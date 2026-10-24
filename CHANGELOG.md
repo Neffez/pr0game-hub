@@ -4,6 +4,12 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-24
 
+- Loot settlement: "Update from hub data" next to "Refill from hub data" takes what is new in the hub (recycling
+  reports, battles, participants and helpers synced since) into the edited or saved settlement and keeps everything
+  entered or changed (`mergeDraft` in `@pr0hub/loot`): known battles gain the fleets of new participants and their
+  debris field, participants without flight deuterium get the draft's, older recycling rows get their time and field.
+  A recycling row removed by hand comes back when the hub still has its report.
+
 - Loot settlement, debris field: the hub's settlement and the loot calculator show the debris field after the last
   battle, how much of it was recycled (with the share), what is left by the latest recycling report and, when that
   report emptied the field, how much others recycled (`debrisSummary` in `@pr0hub/loot`). Battles keep their debris

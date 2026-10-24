@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Beute abrechnen: „Aktualisieren aus Hub-Daten“ übernimmt, was seitdem synchronisiert wurde (z. B. fehlende Recyclerberichte), ohne die Abrechnung neu anzufangen. Alles Eingetragene und Geänderte bleibt stehen.',
+        en: 'Settle loot: "Update from hub data" takes what was synced since (e.g. missing recycling reports) without starting the settlement over. Everything entered or changed stays.',
+      },
+      {
+        kind: 'new',
         de: 'Beute abrechnen und AKS-Beuterechner: Beim Recycling steht jetzt, wie groß das Trümmerfeld war, wie viel davon abgebaut wurde und was noch übrig ist. Ist das Feld leer, aber nicht alles von euch abgebaut, zeigt der Hub, wie viel andere geholt haben.',
         en: 'Settle loot and ACS loot calculator: the recycling now shows how big the debris field was, how much of it was recycled and what is left. If the field is empty but you did not recycle all of it, the hub shows how much others took.',
       },

@@ -5,7 +5,7 @@ import { useRoute } from 'vue-router';
 import { parseCombatReportText, parseRecycleReportsText } from '@pr0hub/core/combat';
 import { CAPACITY } from '@pr0hub/flight';
 import {
-  battleFromReport, cleanState, debrisSummary, MAX_HELPER_KEEP, decodeShare, localEpoch, lootShares, settle, type LootState, type Res, type SettlementResult, type TransferInput,
+  battleFromReport, cleanState, debrisSummary, MAX_HELPER_KEEP, mergeDraft, decodeShare, localEpoch, lootShares, settle, type LootState, type Res, type SettlementResult, type TransferInput,
 } from '@pr0hub/loot';
 import { uniApi } from '../api';
 import Hint from '../components/Hint.vue';
@@ -110,6 +110,19 @@ function refill() {
   if (data.value?.saved && !confirm(t('loot.fromHubConfirm'))) return;
   fill(data.value!.draft.state, true);
 }
+
+/** Adds what is new in the hub's data (e.g. recycling reports synced later) to the settlement, keeping all changes. */
+const update = () =>
+  run(async () => {
+    const fresh = await uniApi<Response>(uni.value, `/plans/${planId.value}/settlement`);
+    data.value = { ...data.value!, draft: fresh.draft };
+    const { state: merged, added } = mergeDraft(state.value!, fresh.draft.state);
+    const parts = (['recycling', 'battles', 'participants', 'helpers'] as const)
+      .filter((k) => added[k] > 0)
+      .map((k) => t(`loot.updated_${k}`, { n: added[k] }, added[k]));
+    if (parts.length) state.value = merged;
+    notice.value = parts.length ? t('loot.updated', { what: parts.join(', ') }) : t('loot.upToDate');
+  });
 
 const remove = () =>
   confirm(t('loot.deleteConfirm')) &&
@@ -250,6 +263,7 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
       <span class="grow" />
       <template v-if="canEdit">
         <button class="primary" :disabled="busy || (!dirty && !!data.saved)" @click="save">{{ t('loot.save') }}</button>
+        <button :disabled="busy" :title="t('loot.updateHint')" @click="update">{{ t('loot.update') }}</button>
         <button :disabled="busy" @click="refill">{{ t('loot.fromHub') }}</button>
         <button v-if="data.saved" class="danger" :disabled="busy" @click="remove">{{ t('common.delete') }}</button>
       </template>
