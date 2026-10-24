@@ -30,7 +30,8 @@ export interface PlanFleet {
   /** research for flight times and the simulator: the member's latest empire page, else spy reports; drives also by hand (the newest counts) */
   drives: { time: number; research: Record<string, number>; source: 'empire' | 'spy' | 'manual' } | null;
   /** the member's newest overview shows this fleet in flight to the target: real arrival, time of that paste */
-  seen: { arrival: number; time: number } | null;
+  /** in flight per an overview: arrival and the ships flying */
+  seen: { arrival: number; time: number; ships: Record<string, number> } | null;
 }
 
 /** Own attack of one or more members on one target at one time (server: routes/plans.ts). */
@@ -103,6 +104,12 @@ export interface PlanEnemy {
   updated_at: number;
   updated_by: string | null;
 }
+
+/** Ships as a comparable key (amounts above zero, by id). */
+const shipsKey = (ships: Record<string, number>) =>
+  JSON.stringify(Object.entries(ships).filter(([, n]) => n > 0).sort(([a], [b]) => Number(a) - Number(b)));
+/** The overview shows the fleet flying with other ships than planned. */
+export const seenShipsDiffer = (f: PlanFleet) => !!f.seen && shipsKey(f.seen.ships) !== shipsKey(f.ships);
 
 /** Hostile attack on a member from the overview pastes, or seen in a phalanx (server: repo/hostile.ts). */
 export interface HostileAttack {

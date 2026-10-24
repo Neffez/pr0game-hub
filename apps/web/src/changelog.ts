@@ -19,6 +19,16 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-10-24',
     items: [
       {
+        kind: 'new',
+        de: 'Raid-Planer: Fliegt eine Flotte laut Übersicht mit anderen Schiffen als geplant, zeigt der Plan sie an und übernimmt sie per Knopfdruck.',
+        en: 'Raid planner: if the overview shows a fleet flying with other ships than planned, the plan shows them and takes them over at the press of a button.',
+      },
+      {
+        kind: 'fix',
+        de: 'Raid-Planer: Eine Verbandsflotte aus der Übersicht eines anderen Teilnehmers wird nur dem Mitglied zugeordnet, dem der Startplanet gehört.',
+        en: "Raid planner: an ACS fleet from another participant's overview is only matched to the member who owns its starting planet.",
+      },
+      {
         kind: 'fix',
         de: 'Raid-Planer: Fliegt ein Verband, erkennt der Hub alle Plan-Flotten darin, sobald ein Teilnehmer seine Übersicht synchronisiert. Die Rückkehrzeit gestarteter Flotten stimmt jetzt, und statt der Startzeit steht bei ihnen klar die Ankunft.',
         en: 'Raid planner: once an ACS is flying, the hub recognizes all plan fleets in it as soon as one participant syncs their overview. The return time of launched fleets is right now, and they clearly show their arrival instead of a launch time.',

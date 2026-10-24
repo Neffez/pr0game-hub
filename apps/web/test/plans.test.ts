@@ -1,7 +1,7 @@
 import { distance, flightDuration, shipSpeed } from '@pr0hub/flight';
 import { describe, expect, it } from 'vitest';
 import type { UniverseSettings } from '../src/format';
-import { computePlan, draftBody, draftOf, enemyCalcLink, fleetCalcLink, fromLocalInput, holdRating, planCounts, isCurrent, newDraft, parseTarget, toLocalInput, type AttackPlan, type PlanEnemy, type PlanFleet } from '../src/plans';
+import { computePlan, seenShipsDiffer, draftBody, draftOf, enemyCalcLink, fleetCalcLink, fromLocalInput, holdRating, planCounts, isCurrent, newDraft, parseTarget, toLocalInput, type AttackPlan, type PlanEnemy, type PlanFleet } from '../src/plans';
 
 const u: UniverseSettings = {
   galaxies: 9, systems: 400, positions: 15, circularGalaxies: true, circularSystems: true,
@@ -37,10 +37,17 @@ describe('attack plans in the web app', () => {
   });
 
   it('takes the return of a launched fleet from the arrival the overview shows', () => {
-    const seen = { ...fleet(1, 1, [1, 40, 5], { 204: 10 }), status: 'launched' as const, seen: { arrival: 2_000_000_000 - 55, time: 0 } };
+    const seen = { ...fleet(1, 1, [1, 40, 5], { 204: 10 }), status: 'launched' as const, seen: { arrival: 2_000_000_000 - 55, time: 0, ships: { 204: 10 } } };
     // the lead has not launched yet, the planned ACS arrival moves on with the clock
     const view = computePlan(u, plan([seen, fleet(2, 2, [2, 100, 3], { 207: 5 }, 50)]), 2_000_000_000);
     expect(view.fleets[0].plan!.home).toBe(Math.floor(2_000_000_000 - 55 + view.fleets[0].duration!));
+  });
+
+  it('notices when the overview shows other ships than planned', () => {
+    const f = fleet(1, 1, [1, 40, 5], { 204: 10, 207: 0 });
+    expect(seenShipsDiffer(f)).toBe(false);
+    expect(seenShipsDiffer({ ...f, seen: { arrival: 0, time: 0, ships: { 204: 10 } } })).toBe(false);
+    expect(seenShipsDiffer({ ...f, seen: { arrival: 0, time: 0, ships: { 204: 9, 222: 3 } } })).toBe(true);
   });
 
   it('has no flights without coordinates', () => {

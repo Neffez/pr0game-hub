@@ -4,7 +4,7 @@ import type { GroupContext } from '../context.js';
 import { now, type DB } from '../db.js';
 import { latestEmpires, spyEmpire } from './empire.js';
 import { sharedFleets, type StoredFleet } from './fleets.js';
-import { attackKey, hostileAttacks, recallWindow, type Body, type EnemyFleet } from './hostile.js';
+import { attackKey, hostileAttacks, recallWindow, shipsKey, type Body, type EnemyFleet } from './hostile.js';
 import { memberPlayers } from './members.js';
 
 /** Research ids of the plan fleets: drives and fuel efficiency (flight times), weapons, shields, armour (simulator). */
@@ -98,16 +98,25 @@ export function planDrives(db: DB, ctx: GroupContext) {
 }
 
 export type LaunchPlan = Pick<PlanRow, 'id' | 'g' | 's' | 'p' | 'planet_type' | 'target_time' | 'status' | 'mission'> & { time_precision: string };
-export type LaunchFleet = { id: number; plan_id: number; user_id: number; g: number | null; s: number | null; p: number | null; planet_type: string | null; status: string };
+export type LaunchFleet = {
+  id: number; plan_id: number; user_id: number; g: number | null; s: number | null; p: number | null; planet_type: string | null; status: string;
+  /** JSON of the planned ships */
+  ships: string;
+};
+/** A plan fleet in flight as an overview shows it. */
+export type LaunchSeen = { arrival: number; time: number; ships: Record<number, number> };
 
 /**
  * Plan fleets the member's newest overview shows in flight: an own attack (hold plans: hold) from the fleet's start to the plan's target,
  * landing around the plan's time (as the viewer may see it, `sharedFleets`). A fleet not on its member's overview counts
- * when another participant's overview shows it as a foreign fleet on the same route (both in one ACS, e.g. a lead that
- * has not synced). Returns the real arrival and the paste time per plan fleet; an invited or ready fleet becomes launched.
+ * when another participant's overview shows it as a foreign fleet on the same route from a planet of that member (by
+ * the galaxy data; both in one ACS, e.g. a lead that has not synced). Among equally good matches the one with the plan
+ * fleet's ships wins. Returns the real arrival, the ships flying and the paste time per plan fleet; an invited or ready
+ * fleet becomes launched.
  */
-export function launchedOf(db: DB, ctx: GroupContext, plans: LaunchPlan[], fleets: LaunchFleet[]): Map<number, { arrival: number; time: number }> {
-  const out = new Map<number, { arrival: number; time: number }>();
+export function launchedOf(db: DB, ctx: GroupContext, plans: LaunchPlan[], fleets: LaunchFleet[]): Map<number, LaunchSeen> {
+  const out = new Map<number, LaunchSeen>();
+  const players = memberPlayers(db, ctx);
   const snaps = new Map<number, { time: number; data: StoredFleet[]; used: Set<number> } | null>();
   const snapOf = (userId: number) => {
     if (!snaps.has(userId)) {
@@ -128,16 +137,21 @@ export function launchedOf(db: DB, ctx: GroupContext, plans: LaunchPlan[], fleet
     const find = (f: LaunchFleet, userId: number, owner: StoredFleet['owner']) => {
       const snap = snapOf(userId);
       if (!snap) return false;
+      const player = players.get(f.user_id) ?? null;
+      const planned = shipsKey(JSON.parse(f.ships) as Record<number, number>);
+      const score = (m: StoredFleet) => Math.abs(m.arrival - plan.target_time) * 2 + (shipsKey(m.ships) === planned ? 0 : 1);
       let best = -1;
       snap.data.forEach((m, i) => {
         if (m.owner !== owner || m.phase !== 'out' || m.mission == null || !missions.includes(m.mission) || snap.used.has(i)) return;
         if (!same(m.to, plan.g!, plan.s!, plan.p!, plan.planet_type) || !same(m.from, f.g!, f.s!, f.p!, f.planet_type ?? 'planet')) return;
         if (m.arrival < from || m.arrival > to) return;
-        if (best < 0 || Math.abs(m.arrival - plan.target_time) < Math.abs(snap.data[best].arrival - plan.target_time)) best = i;
+        // a foreign fleet from a planet of another player is not this member's
+        if (owner === 'foreign' && m.fromPlayer && player != null && m.fromPlayer.id !== player) return;
+        if (best < 0 || score(m) < score(snap.data[best])) best = i;
       });
       if (best < 0) return false;
       snap.used.add(best);
-      out.set(f.id, { arrival: snap.data[best].arrival, time: snap.time });
+      out.set(f.id, { arrival: snap.data[best].arrival, time: snap.time, ships: snap.data[best].ships });
       if (f.status === 'invited' || f.status === 'ready') {
         db.prepare("UPDATE attack_plan_fleets SET status = 'launched' WHERE id = ?").run(f.id);
         f.status = 'launched';

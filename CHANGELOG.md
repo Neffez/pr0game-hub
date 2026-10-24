@@ -4,6 +4,12 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-24
 
+- Raid planner, fleets seen in flight:
+  - A plan fleet that flies with other ships than planned shows them, with a button to take them into the plan (any
+    member who may edit that fleet); `seen` of a plan fleet now carries the `ships` flying.
+  - A foreign ACS fleet in another participant's overview only counts for a member when the galaxy data does not
+    name another player as the owner of its start; among equal matches the one with the planned ships wins.
+
 - Raid planner, fleets in flight:
   - A plan fleet missing from its member's overview counts as launched when another participant's overview shows it
     as a foreign fleet on the same route (same ACS), with that arrival; a lead that has not synced is no longer taken

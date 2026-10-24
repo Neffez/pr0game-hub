@@ -1011,6 +1011,8 @@ const de = {
     removeFleet: 'Flotte entfernen',
     calcTitle: 'Im Flugzeitrechner: Abflugzeiten je Geschwindigkeit für diese Zielzeit',
     seen: 'gestartet laut Übersicht',
+    seenShips: 'fliegt mit {ships}',
+    takeSeen: 'In den Plan übernehmen',
     onTime: 'pünktlich',
     simGame: 'Simulator im Spiel',
     simGameTitle: 'Mit dem neuesten Spionagebericht des Ziels ({time}) und allen Flotten des Plans (je Flotte ein Slot, mit Waffen, Schild und Panzerung aus dem Imperium)',
