@@ -4,6 +4,14 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-24
 
+- Raid planner, fleets in flight:
+  - A plan fleet missing from its member's overview counts as launched when another participant's overview shows it
+    as a foreign fleet on the same route (same ACS), with that arrival; a lead that has not synced is no longer taken
+    as not launched.
+  - The return home of a launched fleet follows from the arrival its overview shows, no longer from the planned ACS
+    arrival (which moved on with the clock while the lead counted as not launched).
+  - The launch column of a launched fleet says that it shows the arrival.
+
 - Raid planner: hostile attacks stay in the list after their impact, until their latest possible return, so a retime
   can still be planned while the enemy flies home. They come from the member's older fleet lists once a newer overview
   no longer shows them (so they no longer vanish, and a retime plan on them no longer reads as recalled); marked

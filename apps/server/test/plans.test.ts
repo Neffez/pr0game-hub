@@ -319,6 +319,17 @@ describe('attack plans', () => {
     expect(plan.fleets.map((f: any) => f.status)).toEqual(['launched', 'ready']);
     expect(Math.abs(plan.fleets[0].seen.arrival - (target - 60))).toBeLessThanOrEqual(2);
     expect(plan.fleets[1].seen).toBeNull();
+
+    // in one ACS: Carol's overview shows Dave's fleet as a foreign ACS fleet, Dave has not synced
+    const acs = [
+      '1h 58m 0s Eine Verbandsflotte (3 Schlachtschiff) vom Planet Basis [1:42:7] erreicht den Mond Ziel [3:115:8]. Mission: Verbandsangriff',
+      'Eine deiner Flotten (5 Leichter Jäger) vom Planet Heim [1:40:5] erreicht den Mond Ziel [3:115:8]. Mission: Verbandsangriff',
+    ].join('\n');
+    await call('POST', '/ingest', carol, { text: acs });
+    const both = (await call('GET', '/plans', dave)).json().find((p: any) => p.id === id);
+    expect(both.fleets.map((f: any) => f.status)).toEqual(['launched', 'launched']);
+    expect(both.fleets[1].seen.arrival).toBe(both.fleets[0].seen.arrival);
+    expect(Math.abs(both.fleets[1].seen.arrival - (target - 120))).toBeLessThanOrEqual(2);
     await call('DELETE', `/plans/${id}`, carol);
   });
 

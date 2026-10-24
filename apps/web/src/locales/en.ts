@@ -1008,7 +1008,7 @@ const en: typeof de = {
     edit: 'Edit',
     removeFleet: 'Remove fleet',
     calcTitle: 'In the flight calculator: launch times per speed for this target time',
-    seen: 'launched per overview (arrival)',
+    seen: 'launched per overview',
     onTime: 'on time',
     simGame: 'Simulator in the game',
     simGameTitle: 'With the newest spy report of the target ({time}) and all fleets of the plan (one slot per fleet, with weapons, shields and armour from the empire page)',

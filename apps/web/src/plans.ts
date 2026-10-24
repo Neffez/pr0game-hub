@@ -2,6 +2,7 @@ import {
   distance,
   drivesFromResearch,
   flightDuration,
+  homeOf,
   planAttack,
   retimeCandidates,
   SHIPS,
@@ -256,7 +257,11 @@ export function computePlan(u: UniverseSettings, plan: AttackPlan, now: number):
     : null;
   return {
     acs,
-    fleets: flights.map((x) => ({ ...x, plan: acs?.fleets.find((p) => p.id === String(x.fleet.id)) ?? null })),
+    fleets: flights.map((x) => {
+      const plan = acs?.fleets.find((p) => p.id === String(x.fleet.id)) ?? null;
+      // in flight: back home after the arrival the overview shows, not the planned one
+      return { ...x, plan: plan && x.fleet.seen && x.duration != null ? { ...plan, home: homeOf(x.fleet.seen.arrival, x.duration) } : plan };
+    }),
   };
 }
 

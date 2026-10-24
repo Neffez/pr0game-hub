@@ -36,6 +36,13 @@ describe('attack plans in the web app', () => {
     expect(view.fleets[0].plan).toMatchObject({ late: true, delays: true });
   });
 
+  it('takes the return of a launched fleet from the arrival the overview shows', () => {
+    const seen = { ...fleet(1, 1, [1, 40, 5], { 204: 10 }), status: 'launched' as const, seen: { arrival: 2_000_000_000 - 55, time: 0 } };
+    // the lead has not launched yet, the planned ACS arrival moves on with the clock
+    const view = computePlan(u, plan([seen, fleet(2, 2, [2, 100, 3], { 207: 5 }, 50)]), 2_000_000_000);
+    expect(view.fleets[0].plan!.home).toBe(Math.floor(2_000_000_000 - 55 + view.fleets[0].duration!));
+  });
+
   it('has no flights without coordinates', () => {
     const view = computePlan(u, { ...plan([fleet(1, 1, [1, 40, 5], { 204: 10 })]), g: null, s: null, p: null }, 0);
     expect(view).toMatchObject({ acs: null, fleets: [{ duration: null, plan: null }] });

@@ -102,12 +102,20 @@ export type LaunchFleet = { id: number; plan_id: number; user_id: number; g: num
 
 /**
  * Plan fleets the member's newest overview shows in flight: an own attack (hold plans: hold) from the fleet's start to the plan's target,
- * landing around the plan's time (as the viewer may see it, `sharedFleets`). Returns the real arrival and the paste
- * time per plan fleet; an invited or ready fleet becomes launched.
+ * landing around the plan's time (as the viewer may see it, `sharedFleets`). A fleet not on its member's overview counts
+ * when another participant's overview shows it as a foreign fleet on the same route (both in one ACS, e.g. a lead that
+ * has not synced). Returns the real arrival and the paste time per plan fleet; an invited or ready fleet becomes launched.
  */
 export function launchedOf(db: DB, ctx: GroupContext, plans: LaunchPlan[], fleets: LaunchFleet[]): Map<number, { arrival: number; time: number }> {
   const out = new Map<number, { arrival: number; time: number }>();
   const snaps = new Map<number, { time: number; data: StoredFleet[]; used: Set<number> } | null>();
+  const snapOf = (userId: number) => {
+    if (!snaps.has(userId)) {
+      const snap = sharedFleets(db, ctx.groupId, userId, ctx.user.id);
+      snaps.set(userId, snap ? { time: snap.time, data: snap.data, used: new Set() } : null);
+    }
+    return snaps.get(userId)!;
+  };
   const same = (b: StoredFleet['from'] | null, g: number, s: number, p: number, type: string) =>
     !!b && b.coords.g === g && b.coords.s === s && b.coords.p === p && b.type === type;
   for (const plan of plans) {
@@ -115,28 +123,32 @@ export function launchedOf(db: DB, ctx: GroupContext, plans: LaunchPlan[], fleet
     const missions = plan.mission === 'hold' ? [HOLD_MISSION] : LAUNCH_MISSIONS;
     const from = plan.target_time - LAUNCH_SLACK;
     const to = plan.target_time + (plan.time_precision === 'day' ? 86400 : plan.time_precision === 'hour' ? 3600 : 0) + LAUNCH_SLACK;
-    for (const f of fleets) {
-      if (f.plan_id !== plan.id || f.g == null || f.status === 'withdrawn') continue;
-      if (!snaps.has(f.user_id)) {
-        const snap = sharedFleets(db, ctx.groupId, f.user_id, ctx.user.id);
-        snaps.set(f.user_id, snap ? { time: snap.time, data: snap.data, used: new Set() } : null);
-      }
-      const snap = snaps.get(f.user_id);
-      if (!snap) continue;
+    const mine = fleets.filter((f) => f.plan_id === plan.id && f.g != null && f.status !== 'withdrawn');
+    /** the movement in `userId`'s overview closest to the plan's time that is `f` flying (`owner` as that overview names it) */
+    const find = (f: LaunchFleet, userId: number, owner: StoredFleet['owner']) => {
+      const snap = snapOf(userId);
+      if (!snap) return false;
       let best = -1;
       snap.data.forEach((m, i) => {
-        if (m.owner !== 'own' || m.phase !== 'out' || m.mission == null || !missions.includes(m.mission) || snap.used.has(i)) return;
+        if (m.owner !== owner || m.phase !== 'out' || m.mission == null || !missions.includes(m.mission) || snap.used.has(i)) return;
         if (!same(m.to, plan.g!, plan.s!, plan.p!, plan.planet_type) || !same(m.from, f.g!, f.s!, f.p!, f.planet_type ?? 'planet')) return;
         if (m.arrival < from || m.arrival > to) return;
         if (best < 0 || Math.abs(m.arrival - plan.target_time) < Math.abs(snap.data[best].arrival - plan.target_time)) best = i;
       });
-      if (best < 0) continue;
+      if (best < 0) return false;
       snap.used.add(best);
       out.set(f.id, { arrival: snap.data[best].arrival, time: snap.time });
       if (f.status === 'invited' || f.status === 'ready') {
         db.prepare("UPDATE attack_plan_fleets SET status = 'launched' WHERE id = ?").run(f.id);
         f.status = 'launched';
       }
+      return true;
+    };
+    for (const f of mine) find(f, f.user_id, 'own');
+    const others = [...new Set(mine.map((f) => f.user_id))];
+    for (const f of mine) {
+      if (out.has(f.id)) continue;
+      for (const userId of others) if (userId !== f.user_id && find(f, userId, 'foreign')) break;
     }
   }
   return out;
