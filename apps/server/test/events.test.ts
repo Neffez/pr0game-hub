@@ -7,7 +7,7 @@ process.env.WEB_DIR = '/nonexistent';
 const { buildApp } = await import('../src/app.js');
 const { openDb } = await import('../src/db.js');
 const { hashPassword } = await import('../src/auth.js');
-const { EventBus } = await import('../src/events.js');
+const { EventBus, TAB_TTL_MS } = await import('../src/events.js');
 
 const fixture = (name: string) =>
   readFileSync(new URL(`../../../packages/parser/test/fixtures/${name}`, import.meta.url), 'utf8');
@@ -209,5 +209,64 @@ describe('live events', () => {
     bus.publishIngest(1, 1, { galaxy_systems: { new: 1 } }, null);
     bus.publishIngest(1, 1, { spy_reports: { new: 0 } }, []);
     expect(got.filter((e) => e.type === 'data').map((e) => e.systems)).toEqual([undefined, undefined]);
+  });
+
+  it('shows the tab in use of a member with several tabs or devices', () => {
+    let clock = 1_000_000;
+    const bus = new EventBus(() => clock);
+    const got: any[] = [];
+    bus.subscribe(1, { userId: 7, isAdmin: false, send: (e) => got.push(e) });
+    const page = () => bus.presence(1)[0];
+
+    bus.setWhereabouts(1, 7, { page: 'overview', active: true }, { id: 'b', focused: true });
+    // the raid planner tab goes to the background after the other got the focus: it doesn't take over
+    bus.setWhereabouts(1, 7, { page: 'raid-planner', active: false }, { id: 'a' });
+    expect(page()).toMatchObject({ page: 'overview', active: true });
+
+    // visible but not focused (second window): the focused tab stays, whatever reported last
+    bus.setWhereabouts(1, 7, { page: 'raid-planner', active: true }, { id: 'a', focused: false });
+    expect(page().page).toBe('overview');
+    // the user turns to it
+    bus.setWhereabouts(1, 7, { page: 'raid-planner', active: true }, { id: 'a', focused: true });
+    expect(page().page).toBe('raid-planner');
+    // and back: the latest focus wins
+    bus.setWhereabouts(1, 7, { page: 'overview', active: true }, { id: 'b', focused: true });
+    expect(page().page).toBe('overview');
+
+    // idle in every tab: away, at the latest report
+    bus.setWhereabouts(1, 7, { page: 'raid-planner', active: false }, { id: 'a' });
+    bus.setWhereabouts(1, 7, { page: 'overview', active: false }, { id: 'b' });
+    expect(page()).toMatchObject({ page: 'overview', active: false });
+
+    // closed: the other tab again
+    bus.closeTab(1, 7, 'b');
+    expect(page().page).toBe('raid-planner');
+    const events = got.filter((e) => e.type === 'presence').length;
+    // the same place again: no event
+    bus.setWhereabouts(1, 7, { page: 'raid-planner', active: false }, { id: 'a' });
+    expect(got.filter((e) => e.type === 'presence').length).toBe(events);
+
+    // a tab gone silent (closed without saying so) drops out
+    clock += TAB_TTL_MS - 1;
+    bus.setWhereabouts(1, 7, { page: 'stats', active: false }, { id: 'c' });
+    clock += 2;
+    expect(page().page).toBe('stats');
+    clock += TAB_TTL_MS;
+    expect(page()).toMatchObject({ page: null, active: true });
+  });
+
+  it('takes tab, focus and closing from the reports of a tab', async () => {
+    const a = await stream(groupA);
+    await a.nextOf('presence');
+    const report = (payload: object) =>
+      app.inject({ method: 'POST', url: '/hub/api/u8/presence', headers: { cookie, 'x-hub-group': String(groupA) }, payload });
+    const mine = async () => (await app.inject({ method: 'GET', url: '/hub/api/u8/presence', headers: { cookie, 'x-hub-group': String(groupA) } })).json()[0];
+
+    await report({ page: 'stats', active: true, tab: 'tab-1', focused: true });
+    await report({ page: 'raid-planner', active: true, tab: 'tab-2', focused: false });
+    expect(await mine()).toEqual({ userId: expect.any(Number), page: 'stats', active: true });
+    expect((await report({ tab: 'tab-1', closed: true })).json()).toEqual({ ok: true });
+    expect((await mine()).page).toBe('raid-planner');
+    a.close();
   });
 });

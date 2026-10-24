@@ -120,17 +120,28 @@ export function stopLive() {
   currentUni = '';
 }
 
+/** Tells this tab's reports apart from the user's other tabs and devices (new on every page load). */
+const TAB_ID = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2);
+/** Without input for this long the user counts as away, even with the tab in front. */
+const IDLE_MS = 5 * 60_000;
+/** Reported again this often: the server forgets tabs gone silent (closed without saying so). */
+const HEARTBEAT_MS = 5 * 60_000;
+const INPUT_EVENTS = ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchstart', 'scroll'] as const;
+
 /**
  * Reports where this tab is (page, shown system or player) while the layout is mounted: on navigation, when the
- * tab goes to the background or comes back, and after a reconnect. A tab in the background only reports that.
+ * tab goes to the background, gets the focus or its user goes idle or comes back, after a reconnect and every few
+ * minutes; when it closes, that it is gone. The server shows the member's tab in use, so every tab reports.
  */
 export function useWhereabouts(uni: () => string, where: () => Omit<Whereabouts, 'active'>) {
   let timer: ReturnType<typeof setTimeout> | undefined;
   let last = '';
+  let lastInput = Date.now();
+  let idle = false;
   const report = (force = false) => {
     clearTimeout(timer);
     timer = setTimeout(() => {
-      const body: Whereabouts = { ...where(), active: !document.hidden };
+      const body = { ...where(), active: !document.hidden && !idle, tab: TAB_ID, focused: document.hasFocus() };
       const key = JSON.stringify(body);
       if (!force && key === last) return;
       last = key;
@@ -138,13 +149,45 @@ export function useWhereabouts(uni: () => string, where: () => Omit<Whereabouts,
     }, 500);
   };
   const onVisibility = () => report();
+  // the window the user turns to wins over the other visible ones, also with nothing else changed
+  const onFocus = () => report(true);
+  const onInput = () => {
+    lastInput = Date.now();
+    if (!idle) return;
+    idle = false;
+    report();
+  };
+  const idleCheck = setInterval(() => {
+    if (idle || Date.now() - lastInput < IDLE_MS) return;
+    idle = true;
+    report();
+  }, 15_000);
+  const heartbeat = setInterval(() => report(true), HEARTBEAT_MS);
+  const close = () => {
+    clearTimeout(timer);
+    last = '';
+    uniApi(uni(), '/presence', { body: { tab: TAB_ID, closed: true }, keepalive: true }).catch(() => {});
+  };
+  // back from the bfcache: the tab said it was closed
+  const onPageShow = (e: PageTransitionEvent) => e.persisted && report(true);
   document.addEventListener('visibilitychange', onVisibility);
+  window.addEventListener('focus', onFocus);
+  window.addEventListener('pagehide', close);
+  window.addEventListener('pageshow', onPageShow);
+  for (const name of INPUT_EVENTS) window.addEventListener(name, onInput, { passive: true, capture: true });
   useLive((e) => {
-    if (e.type === 'resync' && !document.hidden) report(true);
+    // the server forgot this browser while it was disconnected
+    if (e.type === 'resync') report(true);
   });
   onBeforeUnmount(() => {
-    clearTimeout(timer);
+    close();
+    clearInterval(idleCheck);
+    clearInterval(heartbeat);
     document.removeEventListener('visibilitychange', onVisibility);
+    window.removeEventListener('focus', onFocus);
+    window.removeEventListener('pagehide', close);
+    window.removeEventListener('pageshow', onPageShow);
+    for (const name of INPUT_EVENTS) window.removeEventListener(name, onInput, { capture: true });
   });
   return report;
 }

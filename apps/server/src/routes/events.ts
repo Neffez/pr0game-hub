@@ -73,18 +73,34 @@ export function eventRoutes(app: FastifyInstance, db: DB) {
     return presenceForViewer(db, ctx.user, events.presence(ctx.groupId));
   });
 
-  /** The tab of the current user reports its page (and the shown system or player). */
-  app.post<{ Params: { uni: string }; Body: Partial<Whereabouts> }>('/api/:uni/presence', async (req) => {
-    const ctx = groupContext(db, req, req.params.uni);
-    const b = req.body ?? {};
-    const id = (v: unknown) => (Number.isInteger(v) && (v as number) > 0 && (v as number) < 1e9 ? (v as number) : undefined);
-    events.setWhereabouts(ctx.groupId, ctx.user.id, {
-      page: typeof b.page === 'string' && /^[a-z-]{1,32}$/.test(b.page) ? b.page : null,
-      ...(id(b.g) && { g: id(b.g) }),
-      ...(id(b.s) && { s: id(b.s) }),
-      ...(id(b.player) && { player: id(b.player) }),
-      active: b.active !== false,
-    });
-    return { ok: true };
-  });
+  /**
+   * A tab of the current user reports its page (and the shown system or player), whether it is active and focused;
+   * `closed` when it goes away. `tab` tells the user's tabs apart.
+   */
+  app.post<{ Params: { uni: string }; Body: Partial<Whereabouts> & { tab?: unknown; focused?: unknown; closed?: unknown } }>(
+    '/api/:uni/presence',
+    async (req) => {
+      const ctx = groupContext(db, req, req.params.uni);
+      const b = req.body ?? {};
+      const tab = typeof b.tab === 'string' && /^[\w-]{1,40}$/.test(b.tab) ? b.tab : '';
+      if (b.closed === true) {
+        events.closeTab(ctx.groupId, ctx.user.id, tab);
+        return { ok: true };
+      }
+      const id = (v: unknown) => (Number.isInteger(v) && (v as number) > 0 && (v as number) < 1e9 ? (v as number) : undefined);
+      events.setWhereabouts(
+        ctx.groupId,
+        ctx.user.id,
+        {
+          page: typeof b.page === 'string' && /^[a-z-]{1,32}$/.test(b.page) ? b.page : null,
+          ...(id(b.g) && { g: id(b.g) }),
+          ...(id(b.s) && { s: id(b.s) }),
+          ...(id(b.player) && { player: id(b.player) }),
+          active: b.active !== false,
+        },
+        { id: tab, focused: b.focused === true },
+      );
+      return { ok: true };
+    },
+  );
 }

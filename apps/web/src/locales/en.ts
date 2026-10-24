@@ -1294,7 +1294,7 @@ const en: typeof de = {
     online: '{n} online',
     offline: '{n} offline',
     active: 'active',
-    away: 'in the background',
+    away: 'away (in the background or idle for 5 minutes)',
     lastSeen: '{ago} ago',
     viewing: 'Looking at this right now: {names}',
     globalAdmin: 'Global admin',
