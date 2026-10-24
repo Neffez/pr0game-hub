@@ -49,7 +49,7 @@ function load() {
 }
 useLiveReload(() => loadClaims(uni.value), tables('target_claims'));
 useLiveReload(() => loadCommentCounts(uni.value), tables('comments'), 300);
-useLiveReload(() => loadNotifications(uni.value), tables('fleets', 'attack_plans', 'comments'), 300);
+useLiveReload(() => loadNotifications(uni.value), tables('fleets', 'attack_plans', 'comments', 'empire', 'overview', 'buildings', 'research', 'building_alerts'), 300);
 // launches come up by the clock (an hour ahead), without any data event
 const notifyTimer = setInterval(() => !document.hidden && loadNotifications(uni.value), 5 * 60_000);
 onBeforeUnmount(() => clearInterval(notifyTimer));
@@ -94,8 +94,9 @@ const links = [
   { to: 'paste', label: 'sync', icon: 'sync' },
   { section: 'start' },
   { to: 'overview', label: 'overview', icon: 'overview' },
-  { to: 'imperium', label: 'imperium', icon: 'imperium' },
   { to: 'stats', label: 'stats', icon: 'stats' },
+  { to: 'imperium', label: 'imperium', icon: 'imperium' },
+  { to: 'build', label: 'build', icon: 'buildings' },
   { section: 'recon' },
   { to: 'browse', label: 'galaxy', icon: 'galaxy' },
   { to: 'spy', label: 'spy', icon: 'spy' },

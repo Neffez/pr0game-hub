@@ -1,3 +1,4 @@
+import { techName } from '@pr0hub/core/tech';
 import type { FastifyBaseLogger } from 'fastify';
 import webpush from 'web-push';
 import type { SessionUser } from './auth.js';
@@ -5,13 +6,13 @@ import { config } from './config.js';
 import { resolveGroup } from './context.js';
 import { now, type DB } from './db.js';
 import type { EventBus } from './events.js';
-import { GroupDebounce, groupUniverse, SENT_KEEP, TICK_AHEAD, TICK_MS } from './notify.js';
+import { AlertSchedule, GroupDebounce, groupUniverse, SENT_KEEP, TICK_AHEAD, TICK_MS } from './notify.js';
 import { notificationsFor, type ChannelNotification, type Notification } from './repo/notifications.js';
 
 /**
  * Web push: the notifications of the bell (repo/notifications.ts) sent to the members' browsers and phones, each once.
  * Data events of a group (a paste with fleet movements, a plan, a comment) deliver for that group, a ticker delivers
- * the launch reminders. Every member gets what `notificationsFor` lists for them as the viewer (group context and fleet
+ * the launch reminders and affordable buildings. Every member gets what `notificationsFor` lists for them as the viewer (group context and fleet
  * sharing apply), filtered by their settings. The push services only see the encrypted payload.
  */
 
@@ -24,13 +25,15 @@ export interface PushPrefs {
   invites: boolean;
   comments: boolean;
   launch: boolean;
+  /** the next level of a building the user waits for is affordable */
+  buildings: boolean;
   /** launch reminder this many minutes before */
   leadMinutes: number;
 }
 
-export const PUSH_DEFAULTS: PushPrefs = { attackSelf: true, attackOthers: false, invites: true, comments: true, launch: true, leadMinutes: 5 };
+export const PUSH_DEFAULTS: PushPrefs = { attackSelf: true, attackOthers: false, invites: true, comments: true, launch: true, buildings: true, leadMinutes: 5 };
 export const LEAD_MINUTES = [1, 2, 5, 10, 15, 30];
-const FLAGS = ['attackSelf', 'attackOthers', 'invites', 'comments', 'launch'] as const;
+const FLAGS = ['attackSelf', 'attackOthers', 'invites', 'comments', 'launch', 'buildings'] as const;
 
 /** The user's settings for push (`push_prefs`) or for their Discord webhook (`discord_prefs`). */
 export function pushPrefs(db: DB, userId: number, column: 'push_prefs' | 'discord_prefs' = 'push_prefs'): PushPrefs {
@@ -95,6 +98,7 @@ export class PushService {
   private vapid: Vapid | null = null;
   private sender: PushSender;
   private debounce: GroupDebounce;
+  private alerts: AlertSchedule;
   private log: PushOptions['log'];
 
   constructor(
@@ -108,6 +112,7 @@ export class PushService {
     this.log = opts.log;
     if (this.enabled) this.vapid = { subject: contact, ...this.keys() };
     this.debounce = new GroupDebounce((groupId) => this.deliver(groupId).catch((err) => this.log?.warn({ err, groupId }, 'push delivery failed')));
+    this.alerts = new AlertSchedule(db);
   }
 
   /** The server's VAPID key pair, created on the first start. */
@@ -129,7 +134,7 @@ export class PushService {
     return this.debounce.listen(this.bus);
   }
 
-  /** Launch reminders: checks the groups with plan fleets of push users ahead; returns the stop. */
+  /** Launch reminders and affordable buildings: checks the groups with plan fleets or building alerts of push users; returns the stop. */
   start(): () => void {
     if (!this.enabled) return () => {};
     const timer = setInterval(() => {
@@ -147,6 +152,14 @@ export class PushService {
       )
       .pluck()
       .all(t, t + TICK_AHEAD) as number[];
+    // groups with building alerts only when one of them may be ready (see AlertSchedule)
+    const alerts = this.db
+      .prepare(
+        `SELECT DISTINCT b.group_id FROM building_alerts b WHERE EXISTS (SELECT 1 FROM push_subscriptions s WHERE s.user_id = b.user_id)`,
+      )
+      .pluck()
+      .all() as number[];
+    for (const g of alerts) if (!groups.includes(g) && this.alerts.due(g, t)) groups.push(g);
     for (const g of groups) await this.deliver(g, t);
   }
 
@@ -163,6 +176,8 @@ export class PushService {
     if (!this.enabled) return;
     const universe = groupUniverse(this.db, groupId);
     if (!universe) return;
+    // when the ticks look at the group's building alerts again (also when nobody here gets anything)
+    this.alerts.plan(groupId, universe, t);
     const users = this.db
       .prepare(
         `SELECT u.id, u.username, u.is_admin, u.lang, u.date_format FROM group_members m JOIN users u ON u.id = m.user_id
@@ -186,7 +201,7 @@ export class PushService {
         outbox.push({
           userId: user.id,
           payload: payloadOf(n, user.lang === 'en' ? 'en' : 'de', universe.slug, universe.settings.timezone, groupId, t),
-          ttl: Math.max(60, n.kind === 'comment' ? 86400 : n.time - t),
+          ttl: Math.max(60, n.kind === 'comment' || n.kind === 'building' ? 86400 : n.time - t),
           urgency: n.kind === 'attack' || n.kind === 'launch' ? 'high' : 'normal',
         });
       }
@@ -226,6 +241,8 @@ export function wanted(n: Notification, prefs: PushPrefs, userId: number, t: num
       return prefs.comments;
     case 'launch':
       return prefs.launch && n.time - prefs.leadMinutes * 60 <= t;
+    case 'building':
+      return prefs.buildings;
   }
 }
 
@@ -245,6 +262,9 @@ const DE = {
   launchBody: (from: string, to: string, at: string) => `${from} → ${to} · Start ${at}`,
   launchOf: (m: string, min: number) => `🚀 ${m}: Start in ${min} Min`,
   plan: (m: string) => `📋 Neuer Plan von ${m}`,
+  building: (name: string, level: number) => `🏗 ${name} ${level} baubar`,
+  research: (name: string, level: number) => `🔬 ${name} ${level} erforschbar`,
+  buildingBody: (planet: string) => `Rohstoffe auf ${planet} reichen für die nächste Stufe`,
   missions: { 1: 'Angreifen', 2: 'Verbandsangriff', 6: 'Spionage', 9: 'Zerstören', 10: 'Raketenangriff' } as Record<number, string>,
   hostile: 'Feindliche Flotte',
   test: { title: 'pr0game Hub', body: 'Push-Benachrichtigungen funktionieren auf diesem Gerät.' },
@@ -266,6 +286,9 @@ const EN: typeof DE = {
   launchBody: (from: string, to: string, at: string) => `${from} → ${to} · launch ${at}`,
   launchOf: (m: string, min: number) => `🚀 ${m}: launch in ${min} min`,
   plan: (m: string) => `📋 New plan by ${m}`,
+  building: (name: string, level: number) => `🏗 ${name} ${level} can be built`,
+  research: (name: string, level: number) => `🔬 ${name} ${level} can be researched`,
+  buildingBody: (planet: string) => `Resources on ${planet} are enough for the next level`,
   missions: { 1: 'Attack', 2: 'ACS attack', 6: 'Espionage', 9: 'Destroy', 10: 'Missile attack' } as Record<number, string>,
   hostile: 'Hostile fleet',
   test: { title: 'pr0game Hub', body: 'Push notifications work on this device.' },
@@ -325,6 +348,13 @@ export function payloadOf(n: Notification | ChannelNotification, lang: PushLang,
       const min = Math.max(1, Math.round((n.time - t) / 60));
       const body = L.launchBody(coords(n.from.g, n.from.s, n.from.p, n.from.type === 'moon'), coords(p.g, p.s, p.p, p.planet_type === 'moon'), clock(n.time));
       return { ...base, title: channel ? L.launchOf(n.member, min) : L.launch(min), body, url: link('raid-planner', { plan: p.id }) };
+    }
+    case 'building': {
+      const p = n.planet;
+      const planet = `${p.name ? p.name + ' ' : ''}${coords(p.g, p.s, p.p, p.type === 'moon')}`;
+      const research = n.element >= 100;
+      const title = (research ? L.research : L.building)(techName(n.element, lang), n.level);
+      return { ...base, title, body: L.buildingBody(planet), url: link('build', { tab: research ? 'research' : 'buildings', c: `${p.g}:${p.s}:${p.p}`, type: p.type }) };
     }
   }
 }

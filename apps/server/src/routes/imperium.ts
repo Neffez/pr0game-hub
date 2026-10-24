@@ -6,7 +6,7 @@ import { now, type DB } from '../db.js';
 import { latestEmpire, spyEmpire, type SpyEmpire } from '../repo/empire.js';
 import { FLEET_HISTORY, fleetHistory, sharedFleets, type StoredFleet } from '../repo/fleets.js';
 import { memberPlayer, memberPlayers } from '../repo/members.js';
-import { latestScores } from '../repo/stats.js';
+import { catchUpLeader, latestScores } from '../repo/stats.js';
 import { contextOf, type Q } from './util.js';
 
 export function imperiumRoutes(app: FastifyInstance, db: DB) {
@@ -54,18 +54,7 @@ export function imperiumRoutes(app: FastifyInstance, db: DB) {
           .prepare('SELECT created_at AS time, data FROM empire_snapshots WHERE group_id = ? AND user_id = ? AND created_at >= ? ORDER BY created_at, id LIMIT 1')
           .get(ctx.groupId, userId, anchor.time) as { time: number; data: string } | undefined)
       : undefined;
-    // catch-up bonus: the game compares buildings ×1 + research ×0.8 + fleet ×0.6 with the best player of the universe
-    const leader = db
-      .prepare(
-        `WITH latest AS (SELECT type, MAX(stat_time) AS t FROM stat_snapshots WHERE group_id = ? AND who = 'player' AND type IN (2, 3, 4) GROUP BY type)
-         SELECT p.name, SUM(CASE st.type WHEN 4 THEN ps.points END) AS buildings, SUM(CASE st.type WHEN 3 THEN ps.points END) AS research,
-                SUM(CASE st.type WHEN 2 THEN ps.points END) AS fleet,
-                SUM(ps.points * CASE st.type WHEN 4 THEN 1 WHEN 3 THEN 0.8 ELSE 0.6 END) AS weighted
-         FROM stat_snapshots st JOIN latest l ON l.type = st.type AND l.t = st.stat_time
-         JOIN player_scores ps ON ps.snapshot_id = st.id JOIN players p ON p.id = ps.player_id
-         WHERE st.group_id = ? AND st.who = 'player' GROUP BY ps.player_id ORDER BY weighted DESC LIMIT 1`,
-      )
-      .get(ctx.groupId, ctx.groupId) as { name: string; buildings: number | null; research: number | null; fleet: number | null; weighted: number } | undefined;
+    const leader = catchUpLeader(db, ctx.groupId);
     // ship points (on the planets and in flight) and all other points (buildings, defense, research) of an empire page
     const empirePoints = (e: EmpireRecord) => {
       let fleet = 0;
@@ -93,7 +82,7 @@ export function imperiumRoutes(app: FastifyInstance, db: DB) {
       fleetHistory: fleetHistory(db, ctx.groupId, userId, ctx.user.id, now() - FLEET_HISTORY),
       player: player ? { ...player, stats: Object.fromEntries(stats.map((s) => [s.type, s])) } : null,
       fleetBase: fleetBase && basePoints && anchorFleet != null ? { time: fleetBase.time, points: basePoints.fleet, stat: anchorFleet } : null,
-      leader: leader ?? null,
+      leader: leader ? { name: leader.name, buildings: leader.buildings, research: leader.research, fleet: leader.fleet, weighted: leader.weighted } : null,
     };
   });
 

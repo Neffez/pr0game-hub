@@ -13,6 +13,10 @@
     "./tech": {
       "types": "./dist/tech.d.ts",
       "default": "./dist/tech.js"
+    },
+    "./buildings": {
+      "types": "./dist/buildings.d.ts",
+      "default": "./dist/buildings.js"
     }
   },
   "scripts": {
