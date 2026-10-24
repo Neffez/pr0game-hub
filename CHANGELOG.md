@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-24
 
+- Battle report page: shows the loot and the attacked coordinates; wide fleet tables scroll inside their card instead
+  of widening the page on mobile. Archiving a report again fills in what the stored one lacked (target hidden on the
+  public page, loot of reports archived before it was read) instead of being ignored, and a report pasted as text
+  joins the same battle archived from its link (same time and losses) instead of a second local copy.
+
 - Loot calculator share links are about a quarter as long: the settlement is packed as positional arrays (people by
   index, ships as id/amount pairs) and deflated (`fflate`) before base64url, marked with `z` (`#s=z…`); older links
   (`#s=eyJ…`) still open, in the calculator and when imported into the hub.

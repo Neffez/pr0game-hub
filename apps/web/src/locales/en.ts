@@ -405,6 +405,8 @@ const en: typeof de = {
     defenderWon: 'The defender has won the battle!',
     draw: 'Draw',
     debris: 'Debris field',
+    loot: 'Loot',
+    moon: 'moon',
     openInGame: 'open in the game',
     lostUnits: 'lost: {n} units',
     noFleet: 'no fleet',
