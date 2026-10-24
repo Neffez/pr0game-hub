@@ -549,13 +549,33 @@ export class Store {
     }
   }
 
-  /** Pasted/synced report page: archived like the crawler does (needs the report id from the URL). */
+  /**
+   * Pasted/synced report page: archived like the crawler does. Without the report id (copied text) it takes the id of
+   * the group's battle message at the same target and time (same loot when both show it), else a local id from the
+   * target and time; without target and id it cannot be told apart and is skipped.
+   */
   private combatReport(r: CombatReportRecord) {
-    if (!r.reportId) {
+    const time = this.epoch(r.time);
+    let id = r.reportId;
+    if (!id && r.target && time != null) {
+      const { g, s, p } = r.target.coords;
+      id =
+        (this.db
+          .prepare(
+            `SELECT report_id FROM battle_reports WHERE group_id = ? AND g = ? AND s = ? AND p = ? AND planet_type = ? AND report_id IS NOT NULL
+               AND time BETWEEN ? AND ? AND ((loot_metal = ? AND loot_crystal = ? AND loot_deuterium = ?) OR loot_metal + loot_crystal + loot_deuterium = 0)
+             ORDER BY ABS(time - ?) LIMIT 1`,
+          )
+          .pluck()
+          .get(this.t.groupId, g, s, p, r.target.type, time - REPORT_SLACK, time + REPORT_SLACK, r.loot.metal, r.loot.crystal, r.loot.deuterium, time) as
+          | string
+          | undefined) ?? `text-${time}-${g}-${s}-${p}`;
+    }
+    if (!id) {
       this.summary.warnings.push('battle_report_no_id');
       return;
     }
-    this.count('combat_reports', storeCombatReport(this.db, this.t.groupId, r, this.epoch(r.time)));
+    this.count('combat_reports', storeCombatReport(this.db, this.t.groupId, { ...r, reportId: id }, time));
   }
 
   private overview(r: OverviewRecord) {
@@ -623,6 +643,9 @@ export class Store {
   }
 }
 
+/** Seconds a battle report and its battle message may lie apart. */
+export const REPORT_SLACK = 5;
+
 /** Stores a battle report compactly; returns false when it was already archived. */
 export function storeCombatReport(db: DB, groupId: number, r: CombatReportRecord, time: number | null): boolean {
   const fleets = r.fleets.map((f) => [
@@ -632,10 +655,15 @@ export function storeCombatReport(db: DB, groupId: number, r: CombatReportRecord
   ]);
   const res = db
     .prepare(
-      `INSERT OR IGNORE INTO combat_reports (group_id, report_id, time, winner, rounds, lost_attacker, lost_defender, debris_metal, debris_crystal, fleets)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT OR IGNORE INTO combat_reports (group_id, report_id, time, winner, rounds, lost_attacker, lost_defender, debris_metal, debris_crystal, fleets,
+         loot_metal, loot_crystal, loot_deuterium, g, s, p, planet_type)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    .run(groupId, r.reportId, time, r.winner, r.rounds, r.lost.attacker, r.lost.defender, r.debris.metal, r.debris.crystal, JSON.stringify(fleets));
+    .run(
+      groupId, r.reportId, time, r.winner, r.rounds, r.lost.attacker, r.lost.defender, r.debris.metal, r.debris.crystal, JSON.stringify(fleets),
+      r.loot.metal, r.loot.crystal, r.loot.deuterium, r.target?.coords.g ?? null, r.target?.coords.s ?? null, r.target?.coords.p ?? null,
+      r.target?.type ?? null,
+    );
   db.prepare("UPDATE battle_hall SET report_status = 'archived' WHERE group_id = ? AND report_id = ?").run(groupId, r.reportId);
   return res.changes > 0;
 }

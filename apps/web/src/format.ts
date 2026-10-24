@@ -1,5 +1,6 @@
 import { techName } from '@pr0hub/core/tech';
 import { SHIPS, type Coords } from '@pr0hub/flight';
+import { encodeShare, type LootState } from '@pr0hub/loot';
 import { compressToEncodedURIComponent } from 'lz-string';
 import { ref } from 'vue';
 import { currentLang, intlLocale, t } from './i18n';
@@ -213,6 +214,7 @@ export type Coords3 = Coords;
 
 /** Default location of the flight calculator (pr0game-tools); override per universe with `flightCalculatorUrl`. */
 const FLIGHT_CALCULATOR_URL = 'https://pr0game.neffez.dev/flight-calculator/';
+const LOOT_CALCULATOR_URL = 'https://pr0game.neffez.dev/acs-loot/';
 
 /**
  * Link into the flight calculator: start/target, drive research and the universe layout are
@@ -339,3 +341,11 @@ export function phalanxRange(level: number, u: UniverseSettings) {
   const factor = (u as UniverseSettings & { phalanxRangeFactor?: number }).phalanxRangeFactor ?? 1;
   return level <= 1 ? 0 : Math.floor((level * level - 1) * factor);
 }
+
+/** Link to the public ACS loot calculator with a settlement (next to the flight calculator of the universe). */
+export function lootCalcLink(u: UniverseSettings, state: LootState): string {
+  const flight = (u as UniverseSettings & { flightCalculatorUrl?: string }).flightCalculatorUrl;
+  const base = flight ? new URL('../acs-loot/', flight.split('#')[0]).href : LOOT_CALCULATOR_URL;
+  return `${base}#s=${encodeShare(state)}`;
+}
+

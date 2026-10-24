@@ -64,9 +64,10 @@ Player IDs, alliance IDs and rank changes are only available in HTML/page source
 ```
 packages/parser   @pr0hub/core – page parsers, deck calculation, element data (DE/EN)
 packages/flight   @pr0hub/flight – flight times, recall and fuel like the game's FleetFunctions
+packages/loot     @pr0hub/loot – ACS loot settlement: loot shares, covering losses, profit split, transfers
 apps/server       Fastify + SQLite: auth, ingest, data APIs, battle report crawler; serves the SPA
 apps/web          Vue 3 SPA (base path /hub/)
-apps/tools        static pr0game tools next to the hub: tools index and the flight calculator
+apps/tools        static pr0game tools next to the hub: tools index, flight calculator and ACS loot calculator
 scripts           generators for the element data (gen:tech, gen:costs)
 ```
 
@@ -85,7 +86,7 @@ pnpm --filter @pr0hub/web dev
 
 # tools (flight calculator), no server needed
 pnpm --filter @pr0hub/tools dev
-# -> http://localhost:5174/flight-calculator/
+# -> http://localhost:5174/flight-calculator/ and http://localhost:5174/acs-loot/
 ```
 
 ```bash
@@ -135,7 +136,7 @@ Changes are recorded in [CHANGELOG.md](CHANGELOG.md). Contributions are welcome,
 Docker image (`Dockerfile`, port 3000, volume `/data`), configured with the environment variables above.
 
 The static tools are a second target of the same Dockerfile: `docker build --target tools .` gives an nginx image
-with the tools index at `/` and the flight calculator at `/flight-calculator/` (the hub links there).
+with the tools index at `/` the flight calculator at `/flight-calculator/` (the hub links there) and the ACS loot calculator at `/acs-loot/`.
 
 Push notifications need outbound HTTPS from the hub to the browsers' push services (Google, Mozilla, Apple, Microsoft),
 Discord notifications to `discord.com`.

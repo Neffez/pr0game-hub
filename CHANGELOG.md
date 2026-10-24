@@ -4,6 +4,65 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-24
 
+- Loot settlement: refunding the recycling helpers' recycler deuterium on top of their share is an option again
+  (`Settings.helperDeut`, default off; `Helper.recDeut` back), as the rule is not settled. Tool and hub show the
+  deuterium column of the helpers only when it is on.
+
+- Loot settlement, recycling helpers: they keep at most 20 % of what they recycled (default 20 %, less allowed;
+  `MAX_HELPER_KEEP`) and their recycler deuterium is no longer refunded on top (`Helper.recDeut` removed), as the
+  game's moderators confirmed.
+
+- Battle reports copied as text are archived when syncing: a report without its id takes the id of the group's
+  battle message at the same target and time (same loot), else a local id `text-<epoch>-<g>-<s>-<p>`; archived
+  reports keep the attacked planet or moon (`combat_reports.g/s/p/planet_type`, migration 045, also in
+  `GET /combat-reports/:id`). "Open in game" is only shown for real report ids.
+  - Loot settlement: the draft joins archived reports by id or by target and time and also takes reports without a
+    battle message, so a pasted report alone gives a battle with fleets and losses. The settlement page has a
+    "Paste battle report" box (new battle or replace one; attackers without a hub account join as guests).
+
+- Battle reports copied as text: the parser recognises them in pasted text (not only in HTML), reads the attacked
+  planet or moon from the first defender (`CombatReportRecord.target`, null on public pages) and is tested against a
+  real German ACS report (`combat-report-de.txt`: three rounds, two fleets per player, the new damage analysis).
+  - `battleFromReport` and `localEpoch` moved into `@pr0hub/loot` for the loot calculator and the hub.
+  - Loot calculator: report times are read as the player's local time (the game shows that when logged in), so the
+    24 h deadline is no longer off by one or two hours.
+
+- Raid planner, loot settlement page (`/:uni/raid-planner/:id/loot`, link "Settle loot" on launched and done attack
+  plans): shows the draft from the hub's data or the saved settlement with the source of each value (battle report,
+  plan fleet, returning fleet, recycling report), lets participants, the creator and admins change the settings,
+  costs, loot and helper shares, save it, refill it from the hub's data or take over a share link of the loot
+  calculator; result and deliveries are computed live with `@pr0hub/loot`, senders and receivers tick off their
+  deliveries. "Open in the loot calculator" passes the settlement to the public tool (`lootCalcLink`, next to the
+  universe's flight calculator URL).
+  - `GET /plans/:id/settlement` also returns the plan's target and time (`plan`) and whether the caller may save
+    (`can_edit`).
+
+- Raid planner, loot settlement API: `GET /plans/:id/settlement` returns the saved settlement of an attack plan and
+  a draft prefilled from the hub's data (participants from the plan's fleets and guest fleets, battles at the target
+  around the plan's time with fleets and losses from the archived battle report, loot of returning fleets in the
+  overviews, recycling reports at the target within 24 hours with members outside the plan as helpers, deuterium of
+  the attack flights), each with the result of `@pr0hub/loot`. `PUT` saves it (participants, creator, admins),
+  `PUT …/settlement/done` marks a delivery done, `DELETE` removes it (`raid_settlements`, migration 044).
+  - Archived battle reports keep the loot (`combat_reports.loot_*`, also in `GET /combat-reports/:id`).
+
+- New public tool: ACS loot calculator (`apps/tools/acs-loot/`, served at `/acs-loot/`, card on the tools index).
+  Up to 5 participants, several battles (waves), recycling by participants and helpers; pasting the battle report
+  fills in participants, ships, losses and loot. Shows what everyone holds, costs, covered, gets and the balance,
+  suggests deliveries (editable, with what is still open and a copyable text), the 24 h sharing deadline and rates
+  outside 75-125 % of the market. German and English, state in localStorage and in share links (`#s=…`, also
+  readable by the hub via `encodeShare`/`decodeShare` and `cleanState` of `@pr0hub/loot`).
+
+- New package `@pr0hub/loot`: settles an ACS for the standalone loot calculator and the hub. It shares a battle's
+  loot by the free cargo space of the surviving fleets like the game, covers the participants' costs (lost ships,
+  missiles, flight and recycler deuterium) and the recycling helpers' part (the kept share of what they recycled, at most 20 %),
+  makes up for a missing resource at market rates, covers the same share of everyone's costs when the pot is too
+  small, splits the profit equally or by the value of the ships sent and suggests transfers with few flights.
+
+- Groundwork for the ACS loot calculator: the battle report parser reads the captured resources
+  (`CombatReportRecord.loot`, German and English wording), `@pr0hub/core/combat` exports the battle report parser
+  without the HTML parsers (no cheerio, for the static tools), and `@pr0hub/flight` knows the cargo capacity of every
+  ship (`CAPACITY`, `fleetCapacity`, spy probes left out on raids as in the game).
+
 - Fleet alerts: a bell on each own fleet in flight in the Imperium (own view) notifies at its arrival or 1–10 minutes
   before (bell, web push, the member's Discord webhook), e.g. when recyclers are back.
   - New table `fleet_alerts` (migration 043) with the movement as last seen; matched again against each newer fleet

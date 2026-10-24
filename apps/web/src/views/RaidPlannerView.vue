@@ -148,6 +148,8 @@ const canEditFleet = (p: AttackPlan, f: PlanFleet) => f.user_id === me.value || 
 const canRemoveFleet = (p: AttackPlan, f: PlanFleet) => f.user_id === me.value || canEdit(p);
 const closed = (p: AttackPlan) => p.status === 'done' || p.status === 'cancelled';
 const hasCoords = (p: AttackPlan) => p.g != null;
+/** Attacks that flew can be settled (loot, debris, losses). */
+const settleable = (p: AttackPlan) => p.mission === 'attack' && hasCoords(p) && (p.status === 'launched' || p.status === 'done');
 
 const views = computed(() => new Map(plans.value.map((p) => [p.id, computePlan(settings.value, p, now.value)])));
 const current = computed(() => plans.value.filter((p) => isCurrent(p, now.value)));
@@ -605,6 +607,7 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
         <PlayerLink v-if="p.player_id" :id="p.player_id" :name="p.player_name ?? '?'" />
         <PlanetActions v-if="hasCoords(p)" :g="p.g!" :s="p.s!" :p="p.p!" :type="p.planet_type" />
         <span class="grow" />
+        <RouterLink v-if="settleable(p)" class="small" :to="`/${uni}/raid-planner/${p.id}/loot`">{{ t('loot.open') }}</RouterLink>
         <span v-if="p.mission === 'hold'" class="badge mission-hold">{{ t('hold.badge') }}</span>
         <span class="badge">{{ t(`plans.status.${p.status}`) }}</span>
       </div>

@@ -38,3 +38,38 @@ export const SHIPS: ShipCatalog = {
   231: ship([0, 0, 2500], [0, 0, 1], [0, 0, 1000]),
   232: ship([0, 0, 400], [0, 0, 1], [0, 0, 5000]),
 };
+
+/**
+ * Cargo capacity per ship (`vars.capacity`, not changed by research). 202-215 from install.sql, 222-232 from the
+ * in-game ship info. Spy probes (210) carry nothing on raids (`calculateSteal`), see `raidCapacity`.
+ */
+export const CAPACITY: Record<number, number> = {
+  202: 5000,
+  203: 25000,
+  204: 50,
+  205: 100,
+  206: 800,
+  207: 1500,
+  208: 7500,
+  209: 20000,
+  210: 5,
+  211: 500,
+  213: 2000,
+  214: 1000000,
+  215: 750,
+  222: 1000,
+  225: 3500,
+  227: 35000,
+  231: 100000,
+  232: 200000,
+};
+
+/** Cargo capacity of a fleet. `raid`: without spy probes, as the game counts it for loot. */
+export function fleetCapacity(fleet: Record<number | string, number>, raid = false): number {
+  let total = 0;
+  for (const [id, amount] of Object.entries(fleet)) {
+    if (raid && id === '210') continue;
+    total += (CAPACITY[Number(id)] ?? 0) * amount;
+  }
+  return total;
+}

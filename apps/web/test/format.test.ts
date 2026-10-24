@@ -109,3 +109,16 @@ describe('format', () => {
     );
   });
 });
+
+describe('loot calculator link', () => {
+  it('opens the settlement in the calculator next to the flight calculator', async () => {
+    const { lootCalcLink } = await import('../src/format');
+    const { decodeShare, emptyState } = await import('@pr0hub/loot');
+    const state = { ...emptyState(), participants: [{ id: 'u1', name: 'Carol', flightDeut: 5, recDeut: 0, missiles: 0 }] };
+    const u = { flightCalculatorUrl: 'https://tools.example/x/flight-calculator/' } as never;
+    const link = lootCalcLink(u, state);
+    expect(link.startsWith('https://tools.example/x/acs-loot/#s=')).toBe(true);
+    expect(decodeShare(link.split('#s=')[1])).toEqual(state);
+    expect(lootCalcLink({} as never, state)).toMatch(/^https:\/\/pr0game\.neffez\.dev\/acs-loot\/#s=/);
+  });
+});

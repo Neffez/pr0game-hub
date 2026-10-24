@@ -20,6 +20,21 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Kampfberichte lassen sich als Text synchronisieren: Kampfbericht im Spiel öffnen, alles kopieren und einfügen. Die Beute-Abrechnung übernimmt daraus Schiffe, Verluste und Beute; auf der Abrechnungsseite kann ein Kampfbericht auch direkt eingefügt werden.',
+        en: 'Battle reports can be synced as text: open the battle report in the game, copy everything and paste it. The loot settlement takes ships, losses and loot from it; on the settlement page a battle report can also be pasted directly.',
+      },
+      {
+        kind: 'new',
+        de: 'Raid Planer: „Beute abrechnen“ bei gestarteten und erledigten Angriffen. Der Hub füllt Teilnehmer, Verluste, Beute, Recycling und Deut aus Kampfbericht, Flotten und Recyclingberichten selbst aus. Alle sehen, wer was bekommt und wer wem was schickt, und haken ihre Lieferungen ab. Helfer, die nur recycelt haben, behalten bis zu 20 % ihres Recyclings; ihr Deut kann auf Wunsch zusätzlich erstattet werden.',
+        en: 'Raid planner: "Settle loot" on launched and done attacks. The hub fills in participants, losses, loot, recycling and deuterium from the battle report, fleets and recycling reports. Everyone sees who gets what and who sends what to whom, and ticks off their deliveries. Helpers who only recycled keep up to 20 % of what they recycled; their deuterium can be refunded on top if you like.',
+      },
+      {
+        kind: 'new',
+        de: 'Neues Tool bei den pr0game-Tools: der AKS-Beuterechner. Er ersetzt allen Teilnehmern eines AKS die verlorenen Schiffe, das Deuterium und die Raketen, teilt den Rest gleichmäßig oder nach eingesetzter Flotte auf und schlägt vor, wer wem was schickt – mit möglichst wenigen Flügen. Einfach den Kampfbericht einfügen, Recycler und Helfer ergänzen, fertig.',
+        en: 'New in the pr0game tools: the ACS loot calculator. It pays every ACS participant back for lost ships, deuterium and missiles, splits the rest equally or by the fleet sent and suggests who sends what to whom, with as few flights as possible. Paste the battle report, add recyclers and helpers, done.',
+      },
+      {
+        kind: 'new',
         de: 'Flotten-Benachrichtigung: Im Imperium hat jede deiner Flotten im Flug eine Glocke. Damit wirst du bei der Ankunft benachrichtigt – oder 1 bis 10 Minuten vorher, z. B. vor dem Einschlag eines Angriffs. So weißt du, wann deine Recycler zurück sind. Wird die Flotte zurückgerufen, entfällt die Benachrichtigung. Push und Discord lassen sich unter Konto dafür an- und abschalten.',
         en: 'Fleet notifications: in the Imperium each of your fleets in flight has a bell. It notifies you on arrival, or 1 to 10 minutes before, e.g. before an attack hits. That way you know when your recyclers are back. If the fleet is recalled, the notification is dropped. Push and Discord can be switched on and off for it under Account.',
       },

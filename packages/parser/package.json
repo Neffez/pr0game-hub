@@ -17,6 +17,10 @@
     "./buildings": {
       "types": "./dist/buildings.d.ts",
       "default": "./dist/buildings.js"
+    },
+    "./combat": {
+      "types": "./dist/combat.d.ts",
+      "default": "./dist/combat.js"
     }
   },
   "scripts": {

@@ -15,6 +15,7 @@
     "@fastify/static": "^8.0.2",
     "@pr0hub/core": "workspace:*",
     "@pr0hub/flight": "workspace:*",
+    "@pr0hub/loot": "workspace:*",
     "better-sqlite3": "^11.5.0",
     "fastify": "^5.1.0",
     "web-push": "^3.6.7",

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  fleetCapacity,
   delayedFlightTimes,
   distance,
   drivesFromResearch,
@@ -138,5 +139,13 @@ describe('recall', () => {
     expect(recallFor(1201, t400)).toMatchObject({ home: 1202 });
     expect(recallFor(1900, hold, true)).toEqual({ recall: 1500, home: 1900, phase: 'hold' });
     expect(recallFor(1900, t400)).toEqual({ recall: null, reason: 'no_recall_needed' });
+  });
+});
+
+describe('cargo capacity', () => {
+  it('sums the capacity, without spy probes on raids', () => {
+    expect(fleetCapacity({ 202: 2, 203: 1, 210: 10 })).toBe(35050);
+    expect(fleetCapacity({ 202: 2, 203: 1, 210: 10 }, true)).toBe(35000);
+    expect(fleetCapacity({ 227: 1, 999: 5 })).toBe(35000);
   });
 });

@@ -4,6 +4,7 @@ RUN corepack enable
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml tsconfig.base.json ./
 COPY packages/parser/package.json packages/parser/
 COPY packages/flight/package.json packages/flight/
+COPY packages/loot/package.json packages/loot/
 COPY apps/server/package.json apps/server/
 COPY apps/web/package.json apps/web/
 COPY apps/tools/package.json apps/tools/
