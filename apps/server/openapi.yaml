@@ -63,6 +63,7 @@ components:
         comments: { type: boolean, description: New comments in threads the caller wrote in (default on) }
         launch: { type: boolean, description: Launch reminders of the caller's plan fleets (default on) }
         buildings: { type: boolean, description: The next level of a building the caller waits for is affordable (default on) }
+        fleets: { type: boolean, description: An own fleet the caller set an alert for arrives (or is about to, by the alert's lead) (default on) }
         leadMinutes: { type: integer, enum: [1, 2, 5, 10, 15, 30], description: Launch reminder this many minutes ahead (default 5) }
     DiscordSettings:
       type: object
@@ -96,6 +97,15 @@ components:
         planet_type: { type: string, enum: [planet, moon] }
         element_id: { type: integer }
         level: { type: integer }
+        created_at: { type: integer }
+    FleetAlert:
+      type: object
+      required: [id, arrival, lead, fleet, created_at]
+      properties:
+        id: { type: integer }
+        arrival: { type: integer, description: Unix seconds, from the caller's newest fleet list }
+        lead: { type: integer, description: Minutes before the arrival to notify (0 at the arrival) }
+        fleet: { type: object, description: The fleet movement as last seen in the caller's fleet list }
         created_at: { type: integer }
     Buildings:
       type: object
@@ -293,6 +303,13 @@ components:
         overview: { type: object, nullable: true }
         fleets: { type: array, items: { type: object }, nullable: true }
         fleetHistory: { type: array, items: { type: object } }
+        fleetAlerts:
+          type: array
+          nullable: true
+          items: { $ref: '#/components/schemas/FleetAlert' }
+          description: >-
+            The caller's fleet alerts, only when the member is the caller (null otherwise). Alerts whose fleet is missing
+            from a newer fleet list before its arrival (recalled) and alerts arrived more than 10 minutes ago are removed.
         player: { type: object, nullable: true }
         fleetBase: { type: object, nullable: true }
         leader: { type: object, nullable: true }
@@ -822,7 +839,7 @@ paths:
     get:
       tags: [Universe]
       operationId: getImperium
-      description: Latest empire, overview, fleets and live points for a member (`user` query = member user id, default self).
+      description: Latest empire, overview, fleets and live points for a member (`user` query = member user id, default self), with the caller's own fleet alerts.
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
@@ -835,6 +852,63 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Imperium' }
+  /api/{uni}/fleets/alerts:
+    put:
+      tags: [Universe]
+      operationId: putFleetAlert
+      description: >-
+        Notify the caller when one of their own fleets in flight arrives, `lead` minutes before (default 0: at the
+        arrival). The fleet is given as listed in the caller's newest fleet list (mission, phase, start, target, arrival;
+        the arrival may be a few seconds off). Setting it again changes the lead.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phase, from, arrival]
+              properties:
+                mission: { type: [integer, 'null'], description: Game mission id }
+                phase: { type: string, enum: [out, return, hold] }
+                from: { type: object, description: 'Start: `{ coords: { g, s, p }, type }`' }
+                to: { type: [object, 'null'], description: 'Target: `{ coords: { g, s, p }, type }`' }
+                arrival: { type: integer, description: Unix seconds }
+                lead: { type: integer, minimum: 0, maximum: 120, description: Minutes before the arrival (default 0) }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  alerts: { type: array, items: { $ref: '#/components/schemas/FleetAlert' } }
+        '400': { description: 'Invalid body (`alert_invalid`)' }
+        '404': { description: 'No such own fleet in flight in the caller''s newest fleet list (`fleet_not_found`)' }
+  /api/{uni}/fleets/alerts/{id}:
+    delete:
+      tags: [Universe]
+      operationId: deleteFleetAlert
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  alerts: { type: array, items: { $ref: '#/components/schemas/FleetAlert' } }
+        '404': { description: 'Not an alert of the caller (`alert_not_found`)' }
   /api/{uni}/buildings:
     get:
       tags: [Universe]
@@ -1355,7 +1429,8 @@ paths:
         author, `time` the newest comment), `launch` (a fleet of the caller in a plan with an exact target time,
         invited or ready, that launches within the next hour; `plan`, `from`, `time` the launch) and `building` (the
         resources for the level of a building or research alert are there, listed 24 hours; `alert`, `planet`, `element`, `level`,
-        `time` since when). Push notifications send
+        `time` since when) and `fleet` (an own fleet with a fleet alert, due `lead` minutes before its arrival, listed
+        from an hour before that until 10 minutes after the arrival; `alert`, `fleet`, `lead`, `time` the arrival). Push notifications send
         the same entries (see `/api/push/subscriptions`).
       parameters:
         - { $ref: '#/components/parameters/Uni' }
@@ -1372,11 +1447,12 @@ paths:
                   required: [id, kind, userId, member, time]
                   properties:
                     id: { type: string, description: Stable while the event lasts }
-                    kind: { type: string, enum: [attack, invite, comment, launch, building] }
-                    userId: { type: integer, description: 'attack: the attacked member; invite: who invited; comment: the newest author; launch and building: the caller' }
+                    kind: { type: string, enum: [attack, invite, comment, launch, building, fleet] }
+                    userId: { type: integer, description: 'attack: the attacked member; invite: who invited; comment: the newest author; launch, building and fleet: the caller' }
                     member: { type: string }
-                    time: { type: integer, description: Unix seconds (arrival, plan target time, newest comment, launch or since when a building level is affordable) }
-                    alert: { type: integer, description: 'building only: id of the building alert' }
+                    time: { type: integer, description: Unix seconds (arrival, plan target time, newest comment, launch, since when a building level is affordable, or arrival of an alerted fleet) }
+                    alert: { type: integer, description: 'building and fleet: id of the building or fleet alert' }
+                    lead: { type: integer, description: 'fleet only: minutes before the arrival the alert reminds' }
                     planet:
                       type: object
                       description: 'building only: the planet or moon'
@@ -1388,7 +1464,7 @@ paths:
                         name: { type: string }
                     element: { type: integer, description: 'building only: building id' }
                     level: { type: integer, description: 'building only: the affordable level' }
-                    fleet: { type: object, description: 'attack only: the fleet (for an ACS the lead fleet with all ships)' }
+                    fleet: { type: object, description: 'attack: the fleet (for an ACS the lead fleet with all ships); fleet: the own fleet of the alert' }
                     fleets: { type: integer, description: 'attack only: number of fleets of an ACS' }
                     plan:
                       type: object

@@ -1,3 +1,4 @@
+import type { FleetBody } from '@pr0hub/core';
 import { techName } from '@pr0hub/core/tech';
 import type { FastifyBaseLogger } from 'fastify';
 import webpush from 'web-push';
@@ -27,13 +28,15 @@ export interface PushPrefs {
   launch: boolean;
   /** the next level of a building the user waits for is affordable */
   buildings: boolean;
+  /** an own fleet the user set an alert for arrives (or is about to) */
+  fleets: boolean;
   /** launch reminder this many minutes before */
   leadMinutes: number;
 }
 
-export const PUSH_DEFAULTS: PushPrefs = { attackSelf: true, attackOthers: false, invites: true, comments: true, launch: true, buildings: true, leadMinutes: 5 };
+export const PUSH_DEFAULTS: PushPrefs = { attackSelf: true, attackOthers: false, invites: true, comments: true, launch: true, buildings: true, fleets: true, leadMinutes: 5 };
 export const LEAD_MINUTES = [1, 2, 5, 10, 15, 30];
-const FLAGS = ['attackSelf', 'attackOthers', 'invites', 'comments', 'launch', 'buildings'] as const;
+const FLAGS = ['attackSelf', 'attackOthers', 'invites', 'comments', 'launch', 'buildings', 'fleets'] as const;
 
 /** The user's settings for push (`push_prefs`) or for their Discord webhook (`discord_prefs`). */
 export function pushPrefs(db: DB, userId: number, column: 'push_prefs' | 'discord_prefs' = 'push_prefs'): PushPrefs {
@@ -134,7 +137,10 @@ export class PushService {
     return this.debounce.listen(this.bus);
   }
 
-  /** Launch reminders and affordable buildings: checks the groups with plan fleets or building alerts of push users; returns the stop. */
+  /**
+   * Launch reminders, affordable buildings and fleet alerts: checks the groups with plan fleets or building or fleet
+   * alerts of push users; returns the stop.
+   */
   start(): () => void {
     if (!this.enabled) return () => {};
     const timer = setInterval(() => {
@@ -152,10 +158,11 @@ export class PushService {
       )
       .pluck()
       .all(t, t + TICK_AHEAD) as number[];
-    // groups with building alerts only when one of them may be ready (see AlertSchedule)
+    // groups with building or fleet alerts only when one of them may be ready (see AlertSchedule)
     const alerts = this.db
       .prepare(
-        `SELECT DISTINCT b.group_id FROM building_alerts b WHERE EXISTS (SELECT 1 FROM push_subscriptions s WHERE s.user_id = b.user_id)`,
+        `SELECT DISTINCT b.group_id FROM (SELECT group_id, user_id FROM building_alerts UNION SELECT group_id, user_id FROM fleet_alerts) b
+         WHERE EXISTS (SELECT 1 FROM push_subscriptions s WHERE s.user_id = b.user_id)`,
       )
       .pluck()
       .all() as number[];
@@ -176,7 +183,7 @@ export class PushService {
     if (!this.enabled) return;
     const universe = groupUniverse(this.db, groupId);
     if (!universe) return;
-    // when the ticks look at the group's building alerts again (also when nobody here gets anything)
+    // when the ticks look at the group's building and fleet alerts again (also when nobody here gets anything)
     this.alerts.plan(groupId, universe, t);
     const users = this.db
       .prepare(
@@ -202,7 +209,7 @@ export class PushService {
           userId: user.id,
           payload: payloadOf(n, user.lang === 'en' ? 'en' : 'de', universe.slug, universe.settings.timezone, groupId, t),
           ttl: Math.max(60, n.kind === 'comment' || n.kind === 'building' ? 86400 : n.time - t),
-          urgency: n.kind === 'attack' || n.kind === 'launch' ? 'high' : 'normal',
+          urgency: n.kind === 'attack' || n.kind === 'launch' || n.kind === 'fleet' ? 'high' : 'normal',
         });
       }
     }
@@ -230,7 +237,7 @@ export class PushService {
   }
 }
 
-/** Whether the user wants this notification pushed now (launch reminders from their lead time on). */
+/** Whether the user wants this notification pushed now (launch reminders and fleet alerts from their lead time on). */
 export function wanted(n: Notification, prefs: PushPrefs, userId: number, t: number): boolean {
   switch (n.kind) {
     case 'attack':
@@ -243,6 +250,8 @@ export function wanted(n: Notification, prefs: PushPrefs, userId: number, t: num
       return prefs.launch && n.time - prefs.leadMinutes * 60 <= t;
     case 'building':
       return prefs.buildings;
+    case 'fleet':
+      return prefs.fleets && n.time - n.lead * 60 <= t;
   }
 }
 
@@ -265,7 +274,13 @@ const DE = {
   building: (name: string, level: number) => `🏗 ${name} ${level} baubar`,
   research: (name: string, level: number) => `🔬 ${name} ${level} erforschbar`,
   buildingBody: (planet: string) => `Rohstoffe auf ${planet} reichen für die nächste Stufe`,
-  missions: { 1: 'Angreifen', 2: 'Verbandsangriff', 6: 'Spionage', 9: 'Zerstören', 10: 'Raketenangriff' } as Record<number, string>,
+  fleetArrived: (what: string) => `✈ ${what}: Flotte angekommen`,
+  fleetBack: (what: string) => `↩ ${what}: Flotte zurück`,
+  fleetSoon: (what: string, min: number) => `⏰ ${what}: Ankunft in ${min} Min`,
+  missions: {
+    1: 'Angreifen', 2: 'Verbandsangriff', 3: 'Transport', 4: 'Stationieren', 5: 'Halten', 6: 'Spionage', 7: 'Kolonisieren', 8: 'Abbau',
+    9: 'Zerstören', 10: 'Raketenangriff', 15: 'Expedition',
+  } as Record<number, string>,
   hostile: 'Feindliche Flotte',
   test: { title: 'pr0game Hub', body: 'Push-Benachrichtigungen funktionieren auf diesem Gerät.' },
   discordTest: { title: 'pr0game Hub', body: 'Discord-Benachrichtigungen kommen hier an.' },
@@ -289,7 +304,13 @@ const EN: typeof DE = {
   building: (name: string, level: number) => `🏗 ${name} ${level} can be built`,
   research: (name: string, level: number) => `🔬 ${name} ${level} can be researched`,
   buildingBody: (planet: string) => `Resources on ${planet} are enough for the next level`,
-  missions: { 1: 'Attack', 2: 'ACS attack', 6: 'Espionage', 9: 'Destroy', 10: 'Missile attack' } as Record<number, string>,
+  fleetArrived: (what: string) => `✈ ${what}: fleet arrived`,
+  fleetBack: (what: string) => `↩ ${what}: fleet is back`,
+  fleetSoon: (what: string, min: number) => `⏰ ${what}: arrival in ${min} min`,
+  missions: {
+    1: 'Attack', 2: 'ACS attack', 3: 'Transport', 4: 'Deploy', 5: 'Hold', 6: 'Espionage', 7: 'Colonize', 8: 'Harvest', 9: 'Destroy',
+    10: 'Missile attack', 15: 'Expedition',
+  } as Record<number, string>,
   hostile: 'Hostile fleet',
   test: { title: 'pr0game Hub', body: 'Push notifications work on this device.' },
   discordTest: { title: 'pr0game Hub', body: 'Discord notifications arrive here.' },
@@ -355,6 +376,15 @@ export function payloadOf(n: Notification | ChannelNotification, lang: PushLang,
       const research = n.element >= 100;
       const title = (research ? L.research : L.building)(techName(n.element, lang), n.level);
       return { ...base, title, body: L.buildingBody(planet), url: link('build', { tab: research ? 'research' : 'buildings', c: `${p.g}:${p.s}:${p.p}`, type: p.type }) };
+    }
+    case 'fleet': {
+      const f = n.fleet;
+      const what = (f.mission != null && L.missions[f.mission]) || f.missionName;
+      const min = Math.round((n.time - t) / 60);
+      const title = min >= 1 ? L.fleetSoon(what, min) : (f.phase === 'return' ? L.fleetBack : L.fleetArrived)(what);
+      const body = (b: FleetBody) => `${b.name ? b.name + ' ' : ''}${coords(b.coords.g, b.coords.s, b.coords.p, b.type === 'moon')}`;
+      const ships = Object.entries(f.ships).map(([id, k]) => `${k.toLocaleString(lang)} ${techName(Number(id), lang)}`).join(', ');
+      return { ...base, title, body: [`${body(f.from)}${f.to ? ' → ' + body(f.to) : ''}`, clock(n.time), ships].filter(Boolean).join(' · '), url: link('imperium') };
     }
   }
 }

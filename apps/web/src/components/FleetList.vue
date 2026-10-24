@@ -1,16 +1,6 @@
 <script lang="ts">
 /** How long the server keeps past fleet movements (seconds), the history below the fleets in flight. */
 export const FLEET_HISTORY = 12 * 3600;
-</script>
-
-<script setup lang="ts">
-import { RESOURCES } from '@pr0hub/core/tech';
-import { computed, reactive } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { useMobile } from '../composables';
-import { abbr, fmt, name, short } from '../format';
-import PlayerLink from './PlayerLink.vue';
-import Ticker from './Ticker.vue';
 
 /** Fleet movements of the game overview, next arrival first (empire view, alliance fleets). */
 export interface FleetBody {
@@ -36,11 +26,47 @@ export interface Fleet {
   fromPlayer?: { id: number; name: string } | null;
 }
 
+/** A notification for the arrival of an own fleet, `lead` minutes before it (server: repo/fleetAlerts.ts). */
+export interface FleetAlert {
+  id: number;
+  arrival: number;
+  lead: number;
+  fleet: Fleet;
+  created_at: number;
+}
+/** Lead times offered for a fleet alert (minutes, 0: at the arrival). */
+export const FLEET_LEADS = [0, 1, 2, 5, 10];
+
+const sameBody = (a: FleetBody | null, b: FleetBody | null) =>
+  a == null || b == null ? a == b : a.coords.g === b.coords.g && a.coords.s === b.coords.s && a.coords.p === b.coords.p && a.type === b.type;
+/** Whether an alert is for this fleet (the game gives fleets no id; arrivals of two syncs differ by a few seconds). */
+export const alertFor = (a: FleetAlert, f: Fleet) =>
+  f.owner === 'own' && a.fleet.mission === f.mission && a.fleet.phase === f.phase && sameBody(a.fleet.from, f.from) && sameBody(a.fleet.to, f.to) &&
+  Math.abs(a.arrival - f.arrival) <= 5;
+</script>
+
+<script setup lang="ts">
+import { RESOURCES } from '@pr0hub/core/tech';
+import { computed, reactive, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { useMobile } from '../composables';
+import { abbr, fmt, name, short } from '../format';
+import PlayerLink from './PlayerLink.vue';
+import Ticker from './Ticker.vue';
+
 const props = defineProps<{
   /** fleets in flight, sorted; `member` names the owner in the alliance list */
   fleets: (Fleet & { member?: string })[];
   /** arrived fleets (history): time since the arrival instead of the remaining time */
   past?: boolean;
+  /** the viewer's fleet alerts: given, own fleets get a bell to set one (the viewer's own list) */
+  alerts?: FleetAlert[];
+  /** a fleet whose alert is being changed */
+  busy?: Fleet | null;
+}>();
+const emit = defineEmits<{
+  /** set an alert `lead` minutes before the arrival, or remove it (null) */
+  alert: [fleet: Fleet, lead: number | null];
 }>();
 
 const { t, locale } = useI18n();
@@ -65,6 +91,20 @@ const rows = computed(() => {
   return out;
 });
 const open = reactive(new Set<string>());
+// ---------------------------------------------------------------- alerts
+const bells = computed(() => !!props.alerts && !props.past);
+const alertOf = (f: Fleet) => props.alerts?.find((a) => alertFor(a, f)) ?? null;
+/** row whose lead menu is open */
+const menu = ref<string | null>(null);
+function pick(f: Fleet, lead: number | null) {
+  menu.value = null;
+  emit('alert', f, lead);
+}
+const bellTitle = (f: Fleet) => {
+  const a = alertOf(f);
+  if (!a) return t('imperium.alertOn');
+  return a.lead ? t('imperium.alertBefore', { n: a.lead }) : t('imperium.alertAtArrival');
+};
 const toggle = (key: string) => (open.has(key) ? open.delete(key) : open.add(key));
 const mission = (r: { fleet: Row; parts: Row[] }) => (r.parts.length > 1 ? t('notify.acs', { n: r.parts.length }) : r.fleet.missionName);
 /** the named player, else the owner of the start from the galaxy data */
@@ -114,6 +154,18 @@ function clock(epoch: number) {
         <Ticker v-slot="{ now }"><span class="mono muted">{{ past ? t('imperium.since', { time: countdown(now - f.arrival) }) : countdown(f.arrival - now) }}</span></Ticker>
         <span class="grow" />
         <b v-if="f.member" class="fl-member">{{ f.member }}</b>
+        <span v-if="bells && f.owner === 'own'" class="fl-bell-wrap">
+          <button class="small fl-bell" :class="{ active: alertOf(f) }" :disabled="busy === r.parts[0]" :title="bellTitle(f)" @click="menu = menu === r.key ? null : r.key">
+            {{ alertOf(f) ? '🔔' : '🔕' }}<span v-if="alertOf(f)?.lead" class="fl-lead">{{ alertOf(f)!.lead }}′</span>
+          </button>
+          <span v-if="menu === r.key" class="fl-backdrop" @click="menu = null" />
+          <span v-if="menu === r.key" class="fl-menu card">
+            <button v-for="m in FLEET_LEADS" :key="m" class="small" :class="{ active: alertOf(f)?.lead === m }" @click="pick(r.parts[0], m)">
+              {{ m ? t('imperium.alertBefore', { n: m }) : t('imperium.alertAtArrival') }}
+            </button>
+            <button v-if="alertOf(f)" class="small" @click="pick(r.parts[0], null)">{{ t('imperium.alertOff') }}</button>
+          </span>
+        </span>
       </div>
       <div>
         <span class="fl-mission">{{ mission(r) }}</span>
@@ -153,6 +205,7 @@ function clock(epoch: number) {
           <th>{{ t('imperium.to') }}</th>
           <th>{{ t('imperium.ships') }}</th>
           <th>{{ t('imperium.cargo') }}</th>
+          <th v-if="bells" />
         </tr>
       </thead>
       <tbody>
@@ -180,6 +233,20 @@ function clock(epoch: number) {
             <span v-for="s in ships(f)" :key="s.id">{{ s.label }}</span>
           </td>
           <td class="small muted">{{ cargo(f).join(' · ') }}</td>
+          <td v-if="bells" class="fl-bell-wrap">
+            <template v-if="f.owner === 'own'">
+              <button class="small fl-bell" :class="{ active: alertOf(f) }" :disabled="busy === r.parts[0]" :title="bellTitle(f)" @click="menu = menu === r.key ? null : r.key">
+                {{ alertOf(f) ? '🔔' : '🔕' }}<span v-if="alertOf(f)?.lead" class="fl-lead">{{ alertOf(f)!.lead }}′</span>
+              </button>
+              <span v-if="menu === r.key" class="fl-backdrop" @click="menu = null" />
+          <span v-if="menu === r.key" class="fl-menu card">
+                <button v-for="m in FLEET_LEADS" :key="m" class="small" :class="{ active: alertOf(f)?.lead === m }" @click="pick(r.parts[0], m)">
+                  {{ m ? t('imperium.alertBefore', { n: m }) : t('imperium.alertAtArrival') }}
+                </button>
+                <button v-if="alertOf(f)" class="small" @click="pick(r.parts[0], null)">{{ t('imperium.alertOff') }}</button>
+              </span>
+            </template>
+          </td>
         </tr>
         <tr v-for="(part, j) in open.has(r.key) ? r.parts : []" :key="`${r.key}-${j}`" class="fl-part" :style="{ '--mc': color(part) }">
           <td colspan="2" />
@@ -188,6 +255,7 @@ function clock(epoch: number) {
           <td colspan="2" />
           <td class="small fl-ships"><span v-for="s in ships(part)" :key="s.id" :title="s.title">{{ s.label }}</span></td>
           <td />
+          <td v-if="bells" />
         </tr>
         </template>
       </tbody>
@@ -214,4 +282,15 @@ td.fl-ships span { display: inline-block; margin-right: 8px; }
 .fl-toggle { margin-left: 6px; padding: 0 6px; font-size: 11px; line-height: 1.4; }
 .fl-part td { padding-top: 0; }
 div.fl-part { padding-left: 10px; border-left: 2px solid var(--mc); }
+.fl-bell-wrap { position: relative; white-space: nowrap; }
+.fl-bell { padding: 2px 6px; }
+.fl-bell.active { border-color: var(--accent); background: var(--accent-soft); }
+.fl-lead { margin-left: 2px; font-size: 10px; }
+.fl-menu {
+  position: absolute; z-index: 20; top: 100%; right: 0; display: flex; flex-direction: column; gap: 4px; margin: 4px 0 0; padding: 6px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, .4);
+}
+.fl-backdrop { position: fixed; inset: 0; z-index: 19; }
+.fl-menu button { text-align: left; white-space: nowrap; }
+.fl-menu button.active { border-color: var(--accent); background: var(--accent-soft); }
 </style>

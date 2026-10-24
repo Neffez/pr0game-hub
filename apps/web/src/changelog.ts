@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Flotten-Benachrichtigung: Im Imperium hat jede deiner Flotten im Flug eine Glocke. Damit wirst du bei der Ankunft benachrichtigt – oder 1 bis 10 Minuten vorher, z. B. vor dem Einschlag eines Angriffs. So weißt du, wann deine Recycler zurück sind. Wird die Flotte zurückgerufen, entfällt die Benachrichtigung. Push und Discord lassen sich unter Konto dafür an- und abschalten.',
+        en: 'Fleet notifications: in the Imperium each of your fleets in flight has a bell. It notifies you on arrival, or 1 to 10 minutes before, e.g. before an attack hits. That way you know when your recyclers are back. If the fleet is recalled, the notification is dropped. Push and Discord can be switched on and off for it under Account.',
+      },
+      {
+        kind: 'new',
         de: 'Synchronisieren für andere: Beim Synchronisieren kannst du unter „Für“ ein Mitglied wählen, z. B. wenn es dir einen Recycling-Bericht geschickt hat. Die Daten zählen dann für dieses Mitglied. Ohne Auswahl synchronisierst du wie bisher für dich selbst.',
         en: 'Sync for others: when syncing you can pick a member under "For", e.g. when they sent you a recycling report. The data then counts for that member. Without a choice you sync for yourself as before.',
       },

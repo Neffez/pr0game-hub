@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { resourceAt } from '@pr0hub/core/buildings';
 import { classOf, elementPoints, METAL, RESOURCES, STORAGE, storageCapacity } from '@pr0hub/core/tech';
-import { computed, onMounted, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
 import { past, upcoming, useClock } from '../clock';
-import FleetList, { FLEET_HISTORY, type Fleet } from '../components/FleetList.vue';
+import FleetList, { alertFor, FLEET_HISTORY, type Fleet, type FleetAlert } from '../components/FleetList.vue';
 import Hint from '../components/Hint.vue';
 import Ticker from '../components/Ticker.vue';
 import { useLoader, useMobile, useStored, useUni } from '../composables';
@@ -60,6 +60,8 @@ interface Data {
   fleets: { time: number; data: Fleet[]; private?: boolean } | null;
   /** fleets of the older lists that arrived in the last 12 hours, oldest first (shared like `fleets`) */
   fleetHistory: Fleet[];
+  /** the viewer's alerts for their own fleets (null for other members) */
+  fleetAlerts: FleetAlert[] | null;
   /** the member's player with the latest synced statistics per category (1 total … 5 defense) */
   player: { id: number; name: string; stats: Record<number, { points: number; rank: number; time: number }> } | null;
   /**
@@ -85,7 +87,7 @@ const now = useClock();
 
 onMounted(load);
 watch(userId, load);
-useLiveReload(load, tables('empire', 'overview', 'fleets', 'player_scores'));
+useLiveReload(load, tables('empire', 'overview', 'fleets', 'player_scores', 'fleet_alerts'));
 
 const empire = computed(() => data.value?.empire ?? null);
 const overview = computed(() => data.value?.overview ?? null);
@@ -96,6 +98,28 @@ const arrived = computed(() => (fleets.value?.data.length ?? 0) - flights.value.
 /** past fleet movements of the last 12 hours, newest first: the older lists plus the arrived fleets of the newest */
 const history = past(computed(() => [...(data.value?.fleetHistory ?? []), ...(fleets.value?.data ?? [])]), (f) => f.arrival, now, FLEET_HISTORY);
 const same = (a: C3, b: C3) => a.g === b.g && a.s === b.s && a.p === b.p;
+
+/** Sets (lead in minutes) or removes (null) the alert for one of the viewer's own fleets. */
+const alertBusy = ref<Fleet | null>(null);
+const alertError = ref<string | null>(null);
+async function setAlert(f: Fleet, lead: number | null) {
+  const known = data.value?.fleetAlerts?.find((a) => alertFor(a, f));
+  alertBusy.value = f;
+  alertError.value = null;
+  try {
+    const res =
+      lead == null
+        ? await uniApi<{ alerts: FleetAlert[] }>(uni.value, `/fleets/alerts/${known!.id}`, { method: 'DELETE' })
+        : await uniApi<{ alerts: FleetAlert[] }>(uni.value, '/fleets/alerts', {
+            method: 'PUT', body: { mission: f.mission, phase: f.phase, from: f.from, to: f.to, arrival: f.arrival, lead },
+          });
+    data.value!.fleetAlerts = res.alerts;
+  } catch (e) {
+    alertError.value = (e as Error).message;
+  } finally {
+    alertBusy.value = null;
+  }
+}
 
 /**
  * Storage factor of the universe: derived from the storage shown in the resource bar of the
@@ -409,7 +433,8 @@ const memberName = (id: number | null) => ctx.value!.members.find((m) => m.id ==
       <span v-if="arrived" class="muted small" style="font-weight: normal"> · {{ t('imperium.fleetsArrived', { n: arrived }) }}</span>
     </h3>
     <p v-if="!flights.length" class="muted small" style="margin: 0">{{ t('imperium.fleetsNone') }}</p>
-    <FleetList v-else :fleets="flights" />
+    <p v-if="alertError" class="error small">{{ alertError }}</p>
+    <FleetList v-if="flights.length" :fleets="flights" :alerts="data?.fleetAlerts ?? undefined" :busy="alertBusy" @alert="setAlert" />
     <details v-if="history.length" class="fl-history">
       <summary class="muted small">{{ t('imperium.fleetHistory', { n: history.length }) }}</summary>
       <FleetList :fleets="history" past />
