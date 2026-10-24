@@ -67,7 +67,10 @@ const recycleReports = [
 
 describe('recycling reports', () => {
   it('takes every pasted recycling report', () => {
-    expect(recyclingFromReports(recycleReports)).toEqual([{ m: 40219074, k: 19280927 }, { m: 1000, k: 2000 }]);
+    expect(recyclingFromReports(recycleReports)).toEqual([
+      { m: 40219074, k: 19280927, field: { m: 142823000, k: 68469000 } },
+      { m: 1000, k: 2000, field: { m: 5000, k: 6000 } },
+    ]);
     expect(recyclingFromReports('nothing')).toEqual([]);
   });
 });
@@ -102,5 +105,7 @@ describe('loot calculator page', () => {
     expect(rows).toHaveLength(3);
     expect(rows.slice(1).map((r) => r.querySelector<HTMLSelectElement>('select')!.value)).toEqual(['b', 'b']);
     expect(document.querySelector<HTMLTextAreaElement>('textarea[data-paste-recycling]')!.value).toBe('');
+    // what is left in the field by the latest report
+    expect(document.getElementById('debrisSummary')?.textContent).toMatch(/Left in the field: 4,000 Metal · 4,000 Crystal/);
   });
 });

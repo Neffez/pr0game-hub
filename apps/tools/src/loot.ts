@@ -6,6 +6,7 @@ import { battleFromReport as fromReport, localEpoch, type LootState, type Report
 
 export {
   cleanState,
+  debrisSummary,
   decodeShare,
   DEFAULT_RATES,
   emptyState,
@@ -44,9 +45,9 @@ export function battleFromReport(state: LootState, text: string, side: ReportSid
   return report ? { ok: true, ...fromReport(state, report, localEpoch, 'p', side) } : { ok: false };
 }
 
-/** Metal and crystal of every recycling report in a pasted text (one or more reports copied from the game). */
-export function recyclingFromReports(text: string): { m: number; k: number }[] {
-  return parseRecycleReportsText(text).map((r) => ({ m: r.metal, k: r.crystal }));
+/** Metal and crystal of every recycling report in a pasted text (one or more reports copied from the game), with the field it collected from. */
+export function recyclingFromReports(text: string): { m: number; k: number; field: { m: number; k: number } }[] {
+  return parseRecycleReportsText(text).map((r) => ({ m: r.metal, k: r.crystal, field: { m: r.totalMetal, k: r.totalCrystal } }));
 }
 
 /** Thousands separators like the game: 1.234.567 (German) or 1,234,567 (English). */

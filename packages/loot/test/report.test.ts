@@ -15,6 +15,7 @@ describe('battle report into a settlement', () => {
     expect(skipped).toEqual([]);
     expect(battle.time).toBe(1);
     expect(battle.loot).toEqual({ m: 0, k: 1343846, d: 690373 });
+    expect(battle.debris).toEqual({ m: 142823000, k: 68450500 });
     expect(battle.fleets).toEqual([
       { participant: 'g2', start: { 206: 347, 207: 11799, 215: 4406, 222: 3544 }, end: { 206: 323, 207: 11794, 215: 4406, 222: 3521 } },
       { participant: 'u7', start: { 207: 2178, 215: 4348, 225: 4821 }, end: { 207: 2178, 215: 4348, 225: 3901 } },

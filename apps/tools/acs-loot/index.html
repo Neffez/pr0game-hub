@@ -125,6 +125,10 @@ textarea { min-height: 84px; resize: vertical; font-family: var(--mono); font-si
 .hint { font-size: 12px; color: var(--faint); }
 .hint.err { color: var(--danger); }
 .hint.ok { color: var(--ok); }
+.debris-summary { display: flex; flex-direction: column; gap: 2px; font-size: 12.5px; margin-bottom: 8px; }
+.debris-summary:empty { display: none; }
+.debris-summary .meta { color: var(--faint); }
+.debris-summary .err { color: var(--danger); }
 .grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .stack { display: flex; flex-direction: column; gap: 12px; }
@@ -194,6 +198,13 @@ footer { margin-top: 32px; color: var(--faint); font-size: 12.5px; text-align: c
 @media (max-width: 640px) {
   .wrap { padding: 0 12px 64px; }
   .grid3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  /* table rows as small cards: the person on top, the amounts below */
+  .stack-table thead { display: none; }
+  .stack-table tr { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 6px; padding: 8px 10px; border-top: 1px solid var(--border); }
+  .stack-table tr:first-child { border-top: 0; }
+  .stack-table td { display: block; padding: 0; border: 0; }
+  .stack-table td:first-child { grid-column: 1 / -1; }
+  .stack-table td input, .stack-table td select { width: 100%; min-width: 0; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; } }
 </style>

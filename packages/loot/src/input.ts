@@ -1,6 +1,6 @@
 import { CAPACITY } from '@pr0hub/flight';
 import { MAX_HELPER_KEEP, MAX_PARTICIPANTS } from './settle.js';
-import type { Battle, BattleFleet, Helper, Participant, Recycling, Res, Settings, SettlementInput, Ships, Transfer } from './types.js';
+import type { Battle, BattleFleet, Debris, Helper, Participant, Recycling, Res, Settings, SettlementInput, Ships, Transfer } from './types.js';
 
 /** A transfer as entered by hand (ships are computed). */
 export type TransferInput = Pick<Transfer, 'from' | 'to' | 'res'>;
@@ -46,6 +46,7 @@ const str = (v: unknown, max = 64) => (typeof v === 'string' ? v.trim().slice(0,
 const list = <T>(v: unknown, max: number, map: (x: unknown) => T | null): T[] =>
   Array.isArray(v) ? v.slice(0, max).map(map).filter((x): x is T => x != null) : [];
 const res = (v: unknown): Res => (isObj(v) ? { m: int(v.m), k: int(v.k), d: int(v.d) } : { m: 0, k: 0, d: 0 });
+const debris = (v: Record<string, unknown>): Debris => ({ m: int(v.m), k: int(v.k) });
 const ships = (v: unknown): Ships => {
   const out: Ships = {};
   if (!isObj(v)) return out;
@@ -100,11 +101,18 @@ export function cleanState(raw: unknown): LootState {
                 }
               : null,
           ),
+          ...(isObj(b.debris) ? { debris: debris(b.debris) } : {}),
         }
       : null,
   );
   const recycling = list<Recycling>(raw.recycling, MAX_ROWS, (r) =>
-    isObj(r) && ids.has(str(r.by)) ? { by: str(r.by), m: int(r.m), k: int(r.k) } : null,
+    isObj(r) && ids.has(str(r.by))
+      ? {
+          by: str(r.by), m: int(r.m), k: int(r.k),
+          ...(isObj(r.field) ? { field: debris(r.field) } : {}),
+          ...(r.time != null ? { time: int(r.time, 0, 1e11) } : {}),
+        }
+      : null,
   );
   const s = isObj(raw.settings) ? raw.settings : {};
   const rate = (v: unknown, fallback: number) => (num(v, 0, 1000) > 0 ? num(v, 0.01, 1000) : fallback);

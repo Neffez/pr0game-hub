@@ -4,7 +4,7 @@ import type { LootState } from './input.js';
 import type { Battle, Ships } from './types.js';
 
 /** A parsed battle report (`parseCombatReportText` of `@pr0hub/core/combat`), the parts a settlement needs. */
-export type ReportInput = Pick<CombatReportRecord, 'time' | 'loot' | 'fleets'>;
+export type ReportInput = Pick<CombatReportRecord, 'time' | 'loot' | 'fleets'> & Partial<Pick<CombatReportRecord, 'debris'>>;
 
 export type ReportResult = { battle: Battle; added: string[]; skipped: string[] };
 
@@ -78,6 +78,7 @@ export function battleFromReport(
       time: toEpoch(report.time),
       loot: side === 'attacker' ? { m: report.loot.metal, k: report.loot.crystal, d: report.loot.deuterium } : { m: 0, k: 0, d: 0 },
       fleets: [...fleets].map(([participant, f]) => ({ participant, start: f.start, end: f.end })),
+      ...(report.debris ? { debris: { m: report.debris.metal, k: report.debris.crystal } } : {}),
     },
     added,
     skipped,
