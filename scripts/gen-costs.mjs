@@ -1,4 +1,5 @@
-// Extracts element costs (cost901-903, factor) from the pr0game install.sql for point calculations.
+// Extracts element costs (cost901-903, factor) from the pr0game install.sql for point calculations, and per building
+// the planet types, the max level and the requirements (buildings page).
 // Usage: node scripts/gen-costs.mjs <path-to-pr0game/install/install.sql>
 import { readFileSync, writeFileSync } from 'node:fs';
 
@@ -11,7 +12,14 @@ if (!sqlFile) {
 const lines = readFileSync(sqlFile, 'utf8').split(/\r?\n/);
 const start = lines.findIndex((l) => l.startsWith('INSERT INTO `%PREFIX%vars` ('));
 const out = {};
+const buildings = {};
 for (const line of lines.slice(start + 1)) {
+  const b = line.match(/^\((\d+), 0, '[^']*', 0, NULL, '([\d,]+)', \d+, [\d.]+, (\d+),/);
+  if (b && Number(b[1]) < 100) {
+    // onPlanetType: 1 planet, 3 moon
+    const on = b[2].split(',').map((t) => (t === '3' ? 'moon' : 'planet'));
+    buildings[b[1]] = { on, max: Number(b[3]), req: {} };
+  }
   // elementID, universe, name, class, ship_type, onPlanetType, onePerPlanet, factor, maxLevel, cost901, cost902, cost903
   // Some rows (shield domes, missiles) have NULL as class and the class number one column later: only id and costs matter here.
   const m = line.match(/^\((\d+), (\d+), '[^']*', (?:NULL|\d+), (?:NULL|\d+|'[^']*'), '[^']*', \d+, ([\d.]+), (?:NULL|\d+), (\d+), (\d+), (\d+)/);
@@ -34,3 +42,13 @@ const changed = {
 Object.assign(out, changed);
 writeFileSync(new URL('../packages/parser/src/data/costs.json', import.meta.url), JSON.stringify(out) + '\n');
 console.log(`${Object.keys(out).length} elements`);
+
+const reqStart = lines.findIndex((l) => l.startsWith('INSERT INTO `%PREFIX%vars_requriements` ('));
+for (const line of lines.slice(reqStart + 1)) {
+  // elementID, universe, requireID, requireLevel
+  const m = line.match(/^\((\d+), 0, (\d+), (\d+)\)/);
+  if (m && buildings[m[1]]) buildings[m[1]].req[m[2]] = Number(m[3]);
+  if (line.trimEnd().endsWith(';')) break;
+}
+writeFileSync(new URL('../packages/parser/src/data/buildings.json', import.meta.url), JSON.stringify(buildings) + '\n');
+console.log(`${Object.keys(buildings).length} buildings`);

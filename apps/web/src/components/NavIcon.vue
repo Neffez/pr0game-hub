@@ -20,6 +20,8 @@ const ICONS: Record<string, string[]> = {
     'F:M18.5 8.8Q21 7 19 4.6Q16.4 6.4 18.5 8.8z',
     'F:M16.2 6.2Q17.6 3.3 14.7 2.2Q13.3 5 16.2 6.2z',
   ],
+  // crane over a building
+  buildings: ['M4 21h16', 'M6 21V11h6v10', 'M8 14h2', 'M8 17h2', 'M15 21V4', 'M15 4h6', 'M15 4l-4 4', 'M20 4v4', 'M19 8h2v2h-2z'],
   // podium (rankings)
   stats: ['M3 20.5h18', 'M9 20.5V8.5h6v12', 'M3 20.5v-7h6', 'M15 20.5v-4.5h6', 'M12 3.5v2'],
   // sun with orbit and planet

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { resourceAt } from '@pr0hub/core/buildings';
 import { classOf, elementPoints, METAL, RESOURCES, STORAGE, storageCapacity } from '@pr0hub/core/tech';
 import { computed, onMounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -112,14 +113,9 @@ const storageFactor = computed(() => {
 
 /** Live amount: production since the page time, never above the storage (but full storages stay as they are). */
 function live(p: EmpirePlanet, id: number, now: number) {
-  const start = p.resources?.[id] ?? 0;
   const cap = storageCapacity(p.values[STORAGE[id]] ?? 0, storageFactor.value);
   const perHour = p.perHour?.[id] ?? 0;
-  const elapsed = Math.max(0, now - empire.value!.time);
-  let value = start;
-  // consumption (e.g. fusion plant) also empties full storages, production stops at the limit
-  if (perHour < 0) value = Math.max(0, start + (perHour * elapsed) / 3600);
-  else if (start < cap) value = Math.min(cap, start + (perHour * elapsed) / 3600);
+  const value = resourceAt(p.resources?.[id] ?? 0, perHour, cap, empire.value!.time, Math.max(now, empire.value!.time));
   const fullIn = perHour > 0 && value < cap ? ((cap - value) / perHour) * 3600 : null;
   return { value: Math.floor(value), cap, perHour, fullIn };
 }

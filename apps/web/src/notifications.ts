@@ -6,9 +6,10 @@ import { useStored } from './composables';
 
 /**
  * Something the members should notice (server: repo/notifications.ts): hostile fleets on a member, raid planner
- * invitations, new comments in the viewer's threads, the launch of the viewer's plan fleets.
+ * invitations, new comments in the viewer's threads, the launch of the viewer's plan fleets, the next level of a
+ * building the viewer waits for being affordable.
  */
-export type Notification = AttackNotification | InviteNotification | CommentNotification | LaunchNotification;
+export type Notification = AttackNotification | InviteNotification | CommentNotification | LaunchNotification | BuildingNotification;
 
 interface Base {
   id: string;
@@ -49,10 +50,21 @@ export interface LaunchNotification extends Base {
   from: { g: number; s: number; p: number; type: 'planet' | 'moon' };
 }
 
-/** An invitation lasts until the end of the plan's day or hour, new comments two days. */
+/** The resources for `level` of a building on one of the viewer's planets are there since `time`. */
+export interface BuildingNotification extends Base {
+  kind: 'building';
+  alert: number;
+  planet: { g: number; s: number; p: number; type: 'planet' | 'moon'; name: string };
+  element: number;
+  level: number;
+}
+
+/** An invitation lasts until the end of the plan's day or hour, new comments two days, affordable buildings one day. */
 const SPAN = { day: 86400, hour: 3600, exact: 0 };
 const COMMENT_SPAN = 48 * 3600;
-const until = (n: Notification) => (n.kind === 'invite' ? n.time + SPAN[n.plan.time_precision] : n.kind === 'comment' ? n.time + COMMENT_SPAN : n.time);
+const BUILDING_SPAN = 24 * 3600;
+const until = (n: Notification) =>
+  n.kind === 'invite' ? n.time + SPAN[n.plan.time_precision] : n.kind === 'comment' ? n.time + COMMENT_SPAN : n.kind === 'building' ? n.time + BUILDING_SPAN : n.time;
 
 const list = ref<Notification[]>([]);
 /** Seconds now, ticking: arrived fleets drop out without a reload. */

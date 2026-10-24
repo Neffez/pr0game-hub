@@ -11,12 +11,12 @@ import type { EventBus } from './events.js';
 export const SENT_KEEP = 7 * 86400;
 /** Data events of a group are bundled this long (a paste of many pages, several members at once). */
 const DEBOUNCE_MS = 2000;
-/** Launch reminders are checked this often. */
+/** Launch reminders and building alerts are checked this often. */
 export const TICK_MS = 30_000;
 /** Ticks look at plans landing within this time. */
 export const TICK_AHEAD = 48 * 3600;
 /** Data events that may bring a notification. */
-const TABLES = ['fleets', 'attack_plans', 'comments', 'group_members'];
+const TABLES = ['fleets', 'attack_plans', 'comments', 'group_members', 'empire', 'overview', 'buildings', 'building_alerts'];
 
 /** Runs a delivery for a group once its data events have settled. */
 export class GroupDebounce {

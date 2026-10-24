@@ -1,0 +1,208 @@
+import type { BuildingsRecord, EmpireRecord, OverviewRecord } from '@pr0hub/core';
+import { buildingsOf, deriveBuildingSpeed, NANITE_FACTORY, ROBOT_FACTORY, type Arrival, type BuildingInfo, type BuildPlanet } from '@pr0hub/core/buildings';
+import { METAL, STORAGE, storageCapacity } from '@pr0hub/core/tech';
+import type { GroupContext } from '../context.js';
+import { now, type DB } from '../db.js';
+import { latestEmpire } from './empire.js';
+import { sharedFleets, type StoredFleet } from './fleets.js';
+
+/**
+ * The member's planets and moons as the buildings page needs them: the newest empire page, a buildings page of the
+ * planet when it is newer (it also shows the exact costs and build times), the build queue of the newest page that has
+ * one (overview, buildings page or empire marker) and the resources of fleets landing on the planet.
+ */
+
+type Coords = { g: number; s: number; p: number };
+
+export interface BuildingPlanet {
+  key: string;
+  name: string;
+  coords: Coords;
+  type: 'planet' | 'moon';
+  /** where levels and resources come from, and when it was synced */
+  source: 'empire' | 'buildings';
+  planet: BuildPlanet;
+  /** next level cost and build time as the buildings page showed them */
+  shown: Record<string, { next: number; cost: Record<number, number>; time: number | null }> | null;
+  arrivals: (Arrival & { missionName: string; from: Coords })[];
+}
+
+export interface BuildingsState {
+  planets: BuildingPlanet[];
+  research: Record<string, number>;
+  /** catch-up bonus in percent of the newest page showing it */
+  catchUp: number | null;
+  /** universe building speed: derived from a buildings page, else the universe setting; null when unknown */
+  buildingSpeed: number | null;
+  storageFactor: number;
+  empireTime: number | null;
+  fleetsTime: number | null;
+}
+
+export interface BuildingAlert {
+  id: number;
+  g: number;
+  s: number;
+  p: number;
+  planet_type: 'planet' | 'moon';
+  element_id: number;
+  level: number;
+  created_at: number;
+}
+
+const keyOf = (c: Coords, type: string) => `${c.g}:${c.s}:${c.p}:${type}`;
+const same = (a: Coords, b: Coords) => a.g === b.g && a.s === b.s && a.p === b.p;
+
+/** Missions whose fleets unload at their target (transport, deploy) when flying out. */
+const UNLOAD = [3, 4];
+
+/** Resources a fleet brings to one of the member's planets: own transports/deployments, return flights, transports of others. */
+function landing(f: StoredFleet): boolean {
+  if (!f.to || !f.resources || !Object.values(f.resources).some((n) => n > 0)) return false;
+  if (f.owner === 'own') return f.phase === 'return' || (f.phase === 'out' && f.mission != null && UNLOAD.includes(f.mission));
+  return f.owner === 'foreign' && f.phase === 'out' && f.mission === 3;
+}
+
+export function buildingsState(db: DB, ctx: GroupContext, userId: number, t = now()): BuildingsState {
+  const empire = latestEmpire(db, ctx, userId);
+  const pages = (
+    db
+      .prepare('SELECT page_time AS time, data FROM building_snapshots WHERE group_id = ? AND user_id = ? ORDER BY page_time DESC, id DESC')
+      .all(ctx.groupId, userId) as { time: number; data: string }[]
+  ).map((r) => ({ time: r.time, rec: JSON.parse(r.data) as BuildingsRecord }));
+  const overviewRow = db
+    .prepare('SELECT page_time AS time, data FROM overview_snapshots WHERE group_id = ? AND user_id = ? ORDER BY page_time DESC, id DESC LIMIT 1')
+    .get(ctx.groupId, userId) as { time: number; data: string } | undefined;
+  const overview = overviewRow ? { time: overviewRow.time, rec: JSON.parse(overviewRow.data) as OverviewRecord } : null;
+  const fleets = sharedFleets(db, ctx.groupId, userId, userId);
+  const settings = ctx.universe.settings as typeof ctx.universe.settings & { storageMultiplier?: number };
+
+  const storageFactor = storageFactorOf(empire?.rec ?? null, pages[0]?.rec ?? null) ?? settings.storageMultiplier ?? 1;
+  const planets = new Map<string, BuildingPlanet>();
+  for (const p of empire?.rec.planets ?? []) {
+    const key = keyOf(p.coords, p.type);
+    planets.set(key, {
+      key, name: p.name, coords: p.coords, type: p.type, source: 'empire', shown: null, arrivals: [],
+      planet: {
+        type: p.type, values: { ...p.values }, resources: { ...(p.resources ?? {}) }, perHour: { ...(p.perHour ?? {}) }, time: empire!.time,
+        fields: p.fields, queue: p.building ? [{ ...p.building, destroy: false, end: null }] : [],
+      },
+    });
+  }
+  for (const page of pages) {
+    const r = page.rec;
+    const key = keyOf(r.coords, r.type);
+    let bp = planets.get(key);
+    const newer = !bp || page.time >= bp.planet.time;
+    if (!bp) {
+      bp = {
+        key, name: '', coords: r.coords, type: r.type, source: 'buildings', shown: null, arrivals: [],
+        planet: { type: r.type, values: {}, resources: {}, perHour: {}, time: page.time, queue: [] },
+      };
+      planets.set(key, bp);
+    }
+    // the cost and time the page shows hold for the level it would build next then
+    bp.shown = Object.fromEntries(
+      r.buildings.map((b) => {
+        const queued = [...r.queue].reverse().find((q) => q.id === b.id);
+        return [b.id, { next: (queued ? queued.level : b.level) + 1, cost: b.cost, time: b.time }];
+      }),
+    );
+    if (!newer) continue;
+    bp.source = 'buildings';
+    for (const b of r.buildings) bp.planet.values[b.id] = b.level;
+    bp.planet.resources = { ...bp.planet.resources, ...r.resources };
+    if (Object.keys(r.storage).length) bp.planet.storage = { ...r.storage };
+    if (Object.keys(r.perHour).length) bp.planet.perHour = { ...bp.planet.perHour, ...r.perHour };
+    bp.planet.time = page.time;
+    bp.planet.queue = r.queue.map((q) => ({ ...q }));
+  }
+  // the overview shows the running build of every planet: newer than the page a planet comes from, it wins
+  if (overview) {
+    for (const bp of planets.values()) {
+      if (overview.time < bp.planet.time - 60) continue;
+      const q = overview.rec.queues.find((x) => x.kind === 'building' && same(x.coords, bp.coords) && x.type === bp.type);
+      const rest = bp.planet.queue.slice(1);
+      bp.planet.queue = q ? [{ id: q.id, level: q.level, destroy: q.destroy, end: overview.time + q.seconds }, ...(bp.source === 'buildings' ? rest : [])] : [];
+    }
+  }
+  for (const bp of planets.values()) {
+    // builds finished since then raise the level
+    while (bp.planet.queue[0]?.end != null && bp.planet.queue[0].end <= t) {
+      const done = bp.planet.queue.shift()!;
+      bp.planet.values[done.id] = done.level;
+    }
+    for (const f of fleets?.data ?? []) {
+      if (!landing(f) || !same(f.to!.coords, bp.coords) || (f.to!.type ?? 'planet') !== bp.type) continue;
+      bp.arrivals.push({ at: f.arrival, resources: f.resources!, mission: f.mission, back: f.phase === 'return', missionName: f.missionName, from: f.from.coords });
+    }
+    bp.arrivals.sort((a, b) => a.at - b.at);
+  }
+
+  const catchUp = [
+    ...(overview && overview.rec.catchUp != null ? [{ time: overview.time, v: overview.rec.catchUp }] : []),
+    ...pages.filter((p) => p.rec.catchUp != null).map((p) => ({ time: p.time, v: p.rec.catchUp! })),
+  ].sort((a, b) => b.time - a.time)[0]?.v ?? null;
+  return {
+    planets: [...planets.values()],
+    research: empire?.rec.research ?? {},
+    catchUp,
+    buildingSpeed: derivedSpeed(pages.map((p) => p.rec)) ?? (settings.buildingSpeed || null),
+    storageFactor,
+    empireTime: empire?.time ?? null,
+    fleetsTime: fleets?.time ?? null,
+  };
+}
+
+/** Storage factor from a resource bar (storage shown against the metal storage level), null when unknown. */
+function storageFactorOf(empire: EmpireRecord | null, page: BuildingsRecord | null): number | null {
+  const active = empire?.active;
+  const planet = active && empire!.planets.find((p) => same(p.coords, active.coords) && p.type === active.type);
+  if (planet && active.storage[METAL]) {
+    const base = storageCapacity(planet.values[STORAGE[METAL]] ?? 0);
+    if (base) return active.storage[METAL] / base;
+  }
+  if (page?.storage[METAL]) {
+    const level = page.buildings.find((b) => b.id === STORAGE[METAL])?.level;
+    const base = level != null ? storageCapacity(level) : 0;
+    if (base) return page.storage[METAL] / base;
+  }
+  return null;
+}
+
+/** Building speed from the longest build time of the newest buildings page (empty queue: robots and nanites as shown). */
+function derivedSpeed(pages: BuildingsRecord[]): number | null {
+  for (const r of pages) {
+    const levels = Object.fromEntries(r.buildings.map((b) => [b.id, b.level]));
+    const robot = levels[ROBOT_FACTORY] ?? 0;
+    const nanite = levels[NANITE_FACTORY] ?? 0;
+    // a robot or nanite factory in the queue speeds up what comes after it
+    if (r.queue.some((q) => q.id === ROBOT_FACTORY || q.id === NANITE_FACTORY)) continue;
+    const longest = [...r.buildings].filter((b) => b.time != null).sort((a, b) => b.time! - a.time!)[0];
+    const speed = longest ? deriveBuildingSpeed(longest.cost, longest.time!, robot, nanite) : null;
+    if (speed) return speed;
+  }
+  return null;
+}
+
+/** The buildings of a planet with their next level at `now`. */
+export function planetBuildings(state: BuildingsState, bp: BuildingPlanet, now: number): BuildingInfo[] {
+  return buildingsOf(bp.planet, {
+    research: state.research, catchUp: state.catchUp, buildingSpeed: state.buildingSpeed, storageFactor: state.storageFactor,
+    arrivals: bp.arrivals, now, shown: bp.shown ?? undefined,
+  });
+}
+
+export function alertsOf(db: DB, ctx: GroupContext, userId: number): BuildingAlert[] {
+  return db
+    .prepare('SELECT id, g, s, p, planet_type, element_id, level, created_at FROM building_alerts WHERE group_id = ? AND user_id = ? ORDER BY id')
+    .all(ctx.groupId, userId) as BuildingAlert[];
+}
+
+/** An alert whose level is built or in the queue is done. */
+export function alertDone(a: BuildingAlert, info: BuildingInfo | undefined): boolean {
+  return !info || info.next > a.level;
+}
+
+export const planetOf = (state: BuildingsState, a: Pick<BuildingAlert, 'g' | 's' | 'p' | 'planet_type'>) =>
+  state.planets.find((bp) => same(bp.coords, a) && bp.type === a.planet_type);

@@ -93,7 +93,7 @@ const EMBEDS_PER_MESSAGE = 10;
 /** A rate limit is waited for once if it ends within this many seconds. */
 const MAX_RETRY_AFTER = 10;
 const COLORS: Record<ChannelNotification['kind'] | Notification['kind'], number> = {
-  attack: 0xe74c3c, launch: 0xf39c12, invite: 0x3498db, plan: 0x3498db, comment: 0x95a5a6,
+  attack: 0xe74c3c, launch: 0xf39c12, invite: 0x3498db, plan: 0x3498db, comment: 0x95a5a6, building: 0x2ecc71,
 };
 
 type Item = { kind: keyof typeof COLORS; payload: PushPayload; mention?: string | null };
@@ -124,7 +124,10 @@ export class DiscordService {
     return this.debounce.listen(this.bus);
   }
 
-  /** Launch reminders: checks the groups with plan fleets ahead for a member's or the group's webhook; returns the stop. */
+  /**
+   * Launch reminders and affordable buildings: checks the groups with plan fleets ahead for a member's or the group's
+   * webhook and the groups with building alerts of members with a webhook; returns the stop.
+   */
   start(): () => void {
     const timer = setInterval(() => {
       this.tick().catch((err) => this.log?.warn({ err }, 'discord reminders failed'));
@@ -138,7 +141,8 @@ export class DiscordService {
         `SELECT DISTINCT a.group_id FROM attack_plans a JOIN attack_plan_fleets f ON f.plan_id = a.id JOIN groups g ON g.id = a.group_id
          JOIN users u ON u.id = f.user_id
          WHERE a.status IN ('planning', 'launched') AND a.time_precision = 'exact' AND a.target_time > ? AND a.target_time < ?
-           AND f.status IN ('invited', 'ready') AND (u.discord_webhook IS NOT NULL OR g.discord_webhook IS NOT NULL)`,
+           AND f.status IN ('invited', 'ready') AND (u.discord_webhook IS NOT NULL OR g.discord_webhook IS NOT NULL)
+         UNION SELECT b.group_id FROM building_alerts b JOIN users u ON u.id = b.user_id WHERE u.discord_webhook IS NOT NULL`,
       )
       .pluck()
       .all(t, t + TICK_AHEAD) as number[];

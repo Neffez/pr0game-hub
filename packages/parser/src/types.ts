@@ -203,6 +203,33 @@ export interface EmpireRecord {
   active?: { coords: Coords; type: PlanetType; storage: Record<number, number> } | null;
 }
 
+/** Building on the buildings page of one planet/moon: level, cost and build time of the next level. */
+export interface BuildingsEntry {
+  id: number;
+  level: number;
+  /** cost of the next level (after the queue) as the game shows it (catch-up bonus included), 901-903 and 911 */
+  cost: Record<number, number>;
+  /** build time of the next level in seconds */
+  time: number | null;
+}
+
+/** Game buildings page (page=buildings) of the selected planet/moon. */
+export interface BuildingsRecord {
+  kind: 'buildings';
+  coords: Coords;
+  type: PlanetType;
+  pageTime: string | null;
+  /** resource bar: amounts, storage capacity and production per hour (basic income included) of 901-903 */
+  resources: Record<number, number>;
+  storage: Record<number, number>;
+  perHour: Record<number, number>;
+  /** catch-up bonus in percent, null if the universe has none */
+  catchUp: number | null;
+  buildings: BuildingsEntry[];
+  /** build queue, first entry in progress; `end` epoch seconds when shown */
+  queue: { id: number; level: number; destroy: boolean; end: number | null }[];
+}
+
 export interface OverviewQueue {
   kind: 'building' | 'research' | 'shipyard';
   coords: Coords;
@@ -321,11 +348,12 @@ export type HubRecord =
   | GalaxyRecord
   | EmpireRecord
   | OverviewRecord
+  | BuildingsRecord
   | FleetsRecord
   | BattleHallRecord
   | CombatReportRecord;
 
-export type PageType = 'stats' | 'messages' | 'galaxy' | 'empire' | 'overview' | 'fleets' | 'phalanx' | 'battleHall' | 'combatReport' | 'unknown';
+export type PageType = 'stats' | 'messages' | 'galaxy' | 'empire' | 'overview' | 'buildings' | 'fleets' | 'phalanx' | 'battleHall' | 'combatReport' | 'unknown';
 
 export interface ParseResult {
   pageType: PageType;

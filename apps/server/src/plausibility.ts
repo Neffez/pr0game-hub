@@ -23,7 +23,7 @@ export interface PlausibilityTarget {
  * universe. Works for plain text too, unlike the markers of the HTML. Evidence per page type:
  * - a player named at coordinates (galaxy views, spy reports, hostile espionage) other than the owner the group knows
  *   there, for most compared planets;
- * - the member's own planets (overview, own fleets, target of hostile espionage, empire page) belonging to other
+ * - the member's own planets (overview, buildings page, own fleets, target of hostile espionage, empire page) belonging to other
  *   players, or an empire page sharing no planet with the member's stored ones (the home planet can't be given up);
  * - player messages mostly without any of the member's planets among sender and recipients;
  * - names the group mostly doesn't know (statistics, battle hall of a day/week/month, combat reports, other fleets).
@@ -52,6 +52,9 @@ export function foreignRecords(db: DB, target: PlausibilityTarget, records: HubR
         break;
       case 'overview':
         if (r.current) ctx.own(r.current.coords);
+        break;
+      case 'buildings':
+        ctx.own(r.coords);
         break;
       case 'fleets':
         for (const f of r.fleets) {

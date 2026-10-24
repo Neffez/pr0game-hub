@@ -2,6 +2,26 @@
 
 Every commit adds its changes here, newest first, grouped by date.
 
+## 2026-10-24
+
+- **Buildings page** (new menu entry under Start): the own planets and moons like the game's buildings page.
+  - Levels, requirements (own/needed), cost of the next level (catch-up bonus included, queued levels counted),
+    missing resources, state (buildable, missing resources, requirements, max level, no free fields, storage too small,
+    no production) and build time (building speed derived from a synced buildings page, else the new universe setting
+    `buildingSpeed`).
+  - Time until the resources are there: production per hour up to the storage plus the cargo of fleets landing on the
+    planet (own transports/deployments, return flights such as recycling or raids, transports of others).
+  - Source: the newest empire page, or the planet's buildings page when newer. The buildings page (HTML/page source)
+    is a new sync type (`building_snapshots`, newest per planet); its resource bar gives resources, storage and
+    production, its blocks the exact costs and build times.
+  - Building alerts (`building_alerts`, one per building and level): a new notification kind `building` on the bell,
+    for push and the personal Discord webhook (setting `buildings`, default on), checked by the reminder ticker;
+    alerts whose level is built or queued are removed. API: `GET /api/{uni}/buildings`, `PUT /api/{uni}/buildings/alerts`,
+    `DELETE /api/{uni}/buildings/alerts/{id}`.
+  - `@pr0hub/core/buildings`: building costs, build time, requirements, resource timeline with arrivals (shared by web
+    and server; the Imperium's live resources use it too); `gen:costs` also writes `buildings.json` (planet types, max
+    level, requirements from install.sql).
+
 ## 2026-10-23
 
 - Discord alliance channel: meant for a channel only the alliance's members can see (admin hint says so); the

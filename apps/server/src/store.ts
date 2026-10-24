@@ -5,6 +5,7 @@ import {
   nearestClock,
   type BattleHallRecord,
   type BattleRecord,
+  type BuildingsRecord,
   type CombatReportRecord,
   type EmpireRecord,
   type ExpeditionRecord,
@@ -67,6 +68,8 @@ export class Store {
         return this.empire(r);
       case 'overview':
         return this.overview(r);
+      case 'buildings':
+        return this.buildings(r);
       case 'fleets':
         return this.fleets(r);
       case 'recycle':
@@ -564,6 +567,22 @@ export class Store {
       )
       .run(this.t.groupId, this.t.userId, this.t.groupId, this.t.userId);
     this.count('overview', true);
+  }
+
+  /** Buildings page of one planet/moon: only the newest per planet is ever read. */
+  private buildings(r: BuildingsRecord) {
+    const { g, s, p } = r.coords;
+    this.db
+      .prepare('INSERT INTO building_snapshots (group_id, user_id, g, s, p, planet_type, page_time, data) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(this.t.groupId, this.t.userId, g, s, p, r.type, this.epoch(r.pageTime) ?? now(), JSON.stringify(r));
+    this.db
+      .prepare(
+        `DELETE FROM building_snapshots WHERE group_id = ? AND user_id = ? AND g = ? AND s = ? AND p = ? AND planet_type = ?
+         AND id <> (SELECT id FROM building_snapshots WHERE group_id = ? AND user_id = ? AND g = ? AND s = ? AND p = ? AND planet_type = ?
+                    ORDER BY page_time DESC, id DESC LIMIT 1)`,
+      )
+      .run(this.t.groupId, this.t.userId, g, s, p, r.type, this.t.groupId, this.t.userId, g, s, p, r.type);
+    this.count('buildings', true);
   }
 
   /**

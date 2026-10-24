@@ -2,6 +2,7 @@ import { distance, drivesFromResearch, flightDuration, launchFor, slowestShip } 
 import type { SessionUser } from '../auth.js';
 import type { GroupContext, Universe } from '../context.js';
 import type { DB } from '../db.js';
+import { alertDone, alertsOf, buildingsState, planetBuildings, planetOf } from './buildings.js';
 import { sharedFleets, type StoredFleet } from './fleets.js';
 import { alliance } from './members.js';
 import { enemiesOf, followHolds, launchedOf, planDrives, type LaunchFleet, type LaunchPlan, type PlanRow } from './plans.js';
@@ -9,9 +10,10 @@ import { enemiesOf, followHolds, launchedOf, planDrives, type LaunchFleet, type 
 /**
  * Something the members should notice: hostile fleets heading for a member (attack, spying, …) from outside the
  * alliance, the viewer's open invitations to a raid planner plan, new comments in threads the viewer wrote in, and the
- * launch of the viewer's own plan fleets. The bell lists them; push notifications send them (push.ts).
+ * launch of the viewer's own plan fleets, and the next level of a building the viewer is waiting for being affordable.
+ * The bell lists them; push notifications send them (push.ts).
  */
-export type Notification = AttackNotification | InviteNotification | CommentNotification | LaunchNotification;
+export type Notification = AttackNotification | InviteNotification | CommentNotification | LaunchNotification | BuildingNotification;
 
 interface Base {
   /** stable while the event lasts (the web app remembers which ones were seen, push sends each once) */
@@ -57,6 +59,16 @@ export interface LaunchNotification extends Base {
   from: { g: number; s: number; p: number; type: 'planet' | 'moon' };
 }
 
+/** The resources for the next level of a building on one of the viewer's planets are there (`time`: since when). */
+export interface BuildingNotification extends Base {
+  kind: 'building';
+  /** the alert (buildings page) */
+  alert: number;
+  planet: { g: number; s: number; p: number; type: 'planet' | 'moon'; name: string };
+  element: number;
+  level: number;
+}
+
 /** A member created a plan (channel only, not on the bell; `userId`/`member`: the creator, `time`: its creation). */
 export interface PlanNotification extends Base {
   kind: 'plan';
@@ -72,6 +84,8 @@ const PRECISION_SPAN = { day: 86400, hour: 3600, exact: 0 };
 export const COMMENT_KEEP = 48 * 3600;
 /** A launch is listed this long before it. */
 export const LAUNCH_AHEAD = 3600;
+/** An affordable building level is listed this long. */
+export const BUILDING_KEEP = 24 * 3600;
 /** New plans are posted to the channel this long after their creation. */
 export const PLAN_KEEP = 3600;
 const EXCERPT = 80;
@@ -87,7 +101,9 @@ function friends(db: DB, ctx: GroupContext) {
 
 /** Current notifications of the group for the viewer (`ctx.user`) at `t`, the next first; members' fleets as they share them. */
 export function notificationsFor(db: DB, ctx: GroupContext, t: number): Notification[] {
-  return [...attacks(db, ctx, t), ...invites(db, ctx, t), ...comments(db, ctx, t), ...launches(db, ctx, t)].sort((a, b) => a.time - b.time);
+  return [...attacks(db, ctx, t), ...invites(db, ctx, t), ...comments(db, ctx, t), ...launches(db, ctx, t), ...buildings(db, ctx, t)].sort(
+    (a, b) => a.time - b.time,
+  );
 }
 
 /**
@@ -208,6 +224,30 @@ function comments(db: DB, ctx: GroupContext, t: number): CommentNotification[] {
     });
   }
   return [...threads.values()];
+}
+
+/**
+ * The viewer's building alerts whose level is affordable now: resources and production of the newest synced pages plus
+ * the fleets landing until then. Built or queued levels no longer count (the buildings page removes those alerts).
+ */
+function buildings(db: DB, ctx: GroupContext, t: number): BuildingNotification[] {
+  const alerts = alertsOf(db, ctx, ctx.user.id);
+  if (!alerts.length) return [];
+  const state = buildingsState(db, ctx, ctx.user.id, t);
+  const name = db.prepare(`SELECT ${DISPLAY} FROM users u LEFT JOIN group_members gm ON gm.group_id = ? AND gm.user_id = u.id WHERE u.id = ?`).pluck().get(ctx.groupId, ctx.user.id) as string;
+  const list: BuildingNotification[] = [];
+  for (const a of alerts) {
+    const bp = planetOf(state, a);
+    if (!bp) continue;
+    const info = planetBuildings(state, bp, t).find((b) => b.id === a.element_id);
+    if (!info || alertDone(a, info) || info.next !== a.level || info.state !== 'buildable' || info.readyAt == null) continue;
+    if (info.readyAt < t - BUILDING_KEEP) continue;
+    list.push({
+      id: `building:${a.id}:${a.level}`, kind: 'building', userId: ctx.user.id, member: name, time: info.readyAt, alert: a.id,
+      planet: { g: a.g, s: a.s, p: a.p, type: a.planet_type, name: bp.name }, element: a.element_id, level: a.level,
+    });
+  }
+  return list;
 }
 
 /**

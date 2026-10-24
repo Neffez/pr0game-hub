@@ -46,6 +46,8 @@ export interface UniverseSettings {
   planetDistance: number;
   /** game config fleet_speed (2500 = 1x) */
   fleetSpeed: number;
+  /** game config building_speed (2500 = 1x) for build times; 0 unknown (derived from a synced buildings page) */
+  buildingSpeed: number;
   timezone: string;
   /** game base URL incl. universe path, e.g. https://pr0game.com/uni8/ (for simulator links) */
   gameUrl: string;
@@ -63,6 +65,7 @@ export const UNIVERSE_DEFAULTS: UniverseSettings = {
   planetDistanceFactor: 5,
   planetDistance: 1000,
   fleetSpeed: 2500,
+  buildingSpeed: 0,
   timezone: 'Europe/Berlin',
   gameUrl: '',
 };
