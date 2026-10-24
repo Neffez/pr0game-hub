@@ -2,7 +2,7 @@
 import { parseCombatReportText } from '@pr0hub/core/combat';
 import { TECH_NAMES } from '@pr0hub/core/tech';
 import { CAPACITY } from '@pr0hub/flight';
-import { battleFromReport as fromReport, type LootState } from '@pr0hub/loot';
+import { battleFromReport as fromReport, localEpoch, type LootState, type ReportSide } from '@pr0hub/loot';
 
 export {
   cleanState,
@@ -36,12 +36,12 @@ export function shipName(id: number, lang: ToolLang, short = false): string {
 export type ReportResult = ({ ok: true } & ReturnType<typeof fromReport>) | { ok: false };
 
 /**
- * Takes a pasted battle report into the state (see `battleFromReport` of @pr0hub/loot): times are read as the
- * player's local time, as the game shows them.
+ * Takes a pasted battle report into the state (see `battleFromReport` of @pr0hub/loot): the attackers, or the
+ * defenders of a hold (ACS defence); times are read as the player's local time, as the game shows them.
  */
-export function battleFromReport(state: LootState, text: string): ReportResult {
+export function battleFromReport(state: LootState, text: string, side: ReportSide = 'attacker'): ReportResult {
   const report = parseCombatReportText(text, null);
-  return report ? { ok: true, ...fromReport(state, report) } : { ok: false };
+  return report ? { ok: true, ...fromReport(state, report, localEpoch, 'p', side) } : { ok: false };
 }
 
 /** Thousands separators like the game: 1.234.567 (German) or 1,234,567 (English). */

@@ -30,4 +30,14 @@ describe('battle report into a settlement', () => {
     expect(localEpoch('2026-10-24 13:04:03')).toBe(new Date(2026, 9, 24, 13, 4, 3).getTime() / 1000);
     expect(localEpoch(null)).toBeNull();
   });
+
+  it('takes the defenders of a hold: ships only, no loot', () => {
+    const state = emptyState();
+    const { battle } = battleFromReport(state, parseCombatReportText(text, null)!, () => 1, 'g', 'defender');
+    expect(state.participants.map((p) => p.name)).toEqual(['Hustensaftdealer']);
+    expect(battle.loot).toEqual({ m: 0, k: 0, d: 0 });
+    expect(battle.fleets[0].start).toMatchObject({ 202: 136, 207: 1061, 227: 303 });
+    expect(battle.fleets[0].end).toMatchObject({ 202: 0, 207: 0 });
+    expect(Object.keys(battle.fleets[0].start).every((id) => Number(id) < 300)).toBe(true);
+  });
 });
