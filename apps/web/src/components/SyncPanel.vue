@@ -19,7 +19,14 @@ interface Summary {
 defineProps<{ compact?: boolean }>();
 
 const { t, te } = useI18n();
-const { uni } = useUni();
+const { ctx, uni } = useUni();
+/** member the sync counts for (e.g. a report they sent); null = oneself. Kept for the next page in series mode. */
+const forUser = ref<number | null>(null);
+const others = computed(() =>
+  (ctx.value?.members ?? []).filter((m) => m.id !== ctx.value?.me.id).sort((a, b) => a.name.localeCompare(b.name)),
+);
+/** name of the chosen member for the saved card, null for own syncs */
+const savedFor = ref<string | null>(null);
 const html = ref<string | null>(null);
 const text = ref('');
 const statsType = ref<number | null>(null);
@@ -146,6 +153,7 @@ async function run(dryRun: boolean) {
       text: html.value && text.value.startsWith(FILE_MARK) ? null : text.value,
       statsType: statsType.value,
       system: system.value.trim() || null,
+      forUser: forUser.value,
       dryRun,
     };
     const res = await uniApi<Summary>(uni.value, '/ingest', { body });
@@ -155,6 +163,7 @@ async function run(dryRun: boolean) {
       saved.value = null;
     } else {
       saved.value = res;
+      savedFor.value = others.value.find((m) => m.id === forUser.value)?.name ?? null;
       if (res.pageType === 'galaxy' && system.value) nextSystem();
       preview.value = null;
       html.value = null;
@@ -210,6 +219,13 @@ function next() {
           <option v-for="(label, id) in STATS_CATEGORIES" :key="id" :value="Number(id)">{{ label }}</option>
         </select>
       </label>
+      <label v-if="others.length" :title="t('paste.forMemberHint')">
+        {{ t('paste.forMember') }}
+        <select v-model="forUser" :class="{ 'for-other': forUser != null }">
+          <option :value="null">{{ t('paste.myself') }}</option>
+          <option v-for="m in others" :key="m.id" :value="m.id">{{ m.name }}</option>
+        </select>
+      </label>
       <label v-if="needsSystem">
         {{ t('paste.system') }}
         <input v-model="system" inputmode="numeric" placeholder="1:234" size="7" @input="refresh" />
@@ -233,7 +249,7 @@ function next() {
   </div>
 
   <div v-if="saved" class="card">
-    <h2 style="margin-top: 0" class="ok">{{ t('deck.saved') }}</h2>
+    <h2 style="margin-top: 0" class="ok">{{ savedFor ? t('paste.savedFor', { name: savedFor }) : t('deck.saved') }}</h2>
     <p v-for="w in saved.warnings" :key="w" class="warn">⚠ {{ label('paste.warnings', w) }}</p>
     <table class="data" style="width: auto">
       <tr><th>{{ t('paste.data') }}</th><th class="num">{{ t('paste.new') }}</th><th class="num">{{ t('paste.known') }}</th></tr>
@@ -252,4 +268,5 @@ function next() {
 <style scoped>
 .paste-btn { width: 100%; padding: 12px; margin-bottom: 8px; font-size: 16px; }
 .next-btn { padding: 12px; font-size: 16px; }
+.for-other { border-color: var(--warn); }
 </style>

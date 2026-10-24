@@ -10,8 +10,11 @@ import { Store } from './store.js';
 
 export interface IngestTarget {
   groupId: number;
+  /** member the data counts for */
   userId: number;
   timezone: string;
+  /** member who pasted it, when syncing for another member */
+  syncedBy?: number;
 }
 
 export interface IngestSummary {
@@ -55,11 +58,12 @@ export function ingest(
     for (const rec of parsed.records) store.record(rec);
     db.prepare('DELETE FROM raw_ingests WHERE group_id = ? AND created_at < ?').run(target.groupId, now() - config.rawRetentionDays * 86400);
     db.prepare(
-      `INSERT INTO raw_ingests (group_id, user_id, source, page_type, url, html_gz, text_gz, summary)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO raw_ingests (group_id, user_id, synced_by, source, page_type, url, html_gz, text_gz, summary)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(
       target.groupId,
       target.userId,
+      target.syncedBy ?? null,
       input.source,
       parsed.pageType,
       input.url ?? null,

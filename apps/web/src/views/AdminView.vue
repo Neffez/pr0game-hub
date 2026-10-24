@@ -537,7 +537,7 @@ const doMerge = () => run(async () => {
             <template v-for="i in ingestSort.sorted.value" :key="i.id">
               <tr>
                 <td class="small">{{ dateTime(i.created_at) }}</td>
-                <td>{{ i.username }}</td>
+                <td>{{ i.username }}<div v-if="i.synced_by" class="small muted">{{ t('admin.syncedBy', { name: i.synced_by }) }}</div></td>
                 <td class="small content">
                   <div v-for="(c, n) in contentOf(i)" :key="n">{{ c }}</div>
                 </td>

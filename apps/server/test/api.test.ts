@@ -1426,4 +1426,25 @@ describe('admin: content of syncs', () => {
     expect(about('empire')[0].sample[0]).toMatch(/ \d+:\d+:\d+$/);
     expect(JSON.parse(db.prepare('SELECT summary FROM raw_ingests WHERE id = ?').pluck().get(old) as string).about).toHaveLength(1);
   });
+
+  it('syncs a page for another member of the group', async () => {
+    const groupX = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', headers: admin, payload: { universe: 'u8', name: 'For others' } })).json().id;
+    const headers = { ...admin, 'x-hub-group': String(groupX) };
+    const frank = Number(db.prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)').run('frank', hashPassword('frankpass1')).lastInsertRowid);
+    const adminId = db.prepare("SELECT id FROM users WHERE username = 'admin'").pluck().get() as number;
+    const ingest = (forUser: number) =>
+      app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { html: fixture('messages.html'), forUser } });
+    // not (yet) a member of this group
+    expect((await ingest(frank)).json().code).toBe('member_not_found');
+    expect(db.prepare('SELECT COUNT(*) FROM raw_ingests WHERE group_id = ?').pluck().get(groupX)).toBe(0);
+    db.prepare("INSERT INTO group_members (group_id, user_id, role) VALUES (?, ?, 'member')").run(groupX, frank);
+    expect((await ingest(frank)).json().counts.recycle_reports).toEqual({ new: 1, duplicate: 0 });
+    expect(db.prepare('SELECT user_id FROM recycle_reports WHERE group_id = ?').pluck().all(groupX)).toEqual([frank]);
+    expect(db.prepare('SELECT user_id, synced_by FROM raw_ingests WHERE group_id = ?').get(groupX)).toEqual({ user_id: frank, synced_by: adminId });
+    const ingests = (await app.inject({ method: 'GET', url: `/hub/api/admin/groups/${groupX}/ingests`, headers: admin })).json();
+    expect(ingests[0]).toMatchObject({ username: 'frank', synced_by: 'admin' });
+    // oneself as the chosen member: an ordinary own sync
+    await ingest(adminId);
+    expect(db.prepare('SELECT synced_by FROM raw_ingests WHERE group_id = ? ORDER BY id DESC').pluck().get(groupX)).toBeNull();
+  });
 });
