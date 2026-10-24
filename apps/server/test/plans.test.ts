@@ -245,6 +245,9 @@ describe('attack plans', () => {
     plan = (await call('GET', '/plans', dave)).json().find((p: any) => p.id === created.id);
     expect(plan.enemy.arrival - plan.enemy.first_seen).toBeGreaterThan(3500);
     expect(plan.enemy.recall_seen).toBeNull();
+    // the return home moves with the impact, and so does the target time (once)
+    expect(plan.target_time).toBe(attacks[0].arrival + 5000 + plan.enemy.arrival - plan.enemy.first_seen);
+    expect((await call('GET', '/plans', dave)).json().find((p: any) => p.id === created.id).target_time).toBe(plan.target_time);
 
     // the attack vanished from a newer overview before it arrived: recalled in between
     const later = Math.floor(Date.now() / 1000) + 60;

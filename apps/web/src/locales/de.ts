@@ -904,6 +904,7 @@ const de = {
     launch: 'Abflug Gegner',
     home: 'Zurück zu Hause',
     target: 'Zielzeit des Plans: {t}',
+    targetOff: 'Der Plan läuft noch auf {t}, Speichern übernimmt die Zielzeit.',
     pick: 'Geschwindigkeit wählen, um die Zielzeit festzulegen.',
     phalanx: 'Phalanx',
     phalanxHome: 'Rückkehr laut Phalanx: {t}',

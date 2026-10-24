@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Retime-Planer: Die Startzeiten passen wieder zur angezeigten Zielzeit. Verzögert der Gegner, wandert die Zielzeit mit, und weicht der Plan einmal ab, weist das Retime-Feld darauf hin und Speichern übernimmt die richtige Zeit.',
+        en: 'Retime planner: launch times match the shown target time again. If the enemy delays, the target time moves along, and if the plan ever differs, the retime box points it out and saving applies the right time.',
+      },
+      {
+        kind: 'fix',
         de: 'Kontoeinstellungen auf dem Handy: Die Seite passt wieder auf den Bildschirm, die untere Leiste bleibt an ihrem Platz.',
         en: 'Account settings on your phone: the page fits the screen again and the bottom bar stays in place.',
       },

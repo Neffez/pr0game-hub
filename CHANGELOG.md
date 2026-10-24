@@ -4,6 +4,15 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-24
 
+- Retime plans: launch times no longer run on an outdated target time while the retime panel shows another one.
+  - A delayed (or otherwise moved) impact of the enemy now moves the plan's target time along with the return home,
+    like holds already did (not with a phalanx return or a recall window, which do not depend on the impact); the
+    claim's expiry follows. Launch notifications pick it up too.
+  - Editing a plan's target ("Ziel/Zeit ändern") only sends the time when it was changed in the form, so an edit
+    opened before a retime save no longer resets the target time.
+  - The retime panel warns when the plan's target time differs from the one the analysis gives and lets saving
+    apply it.
+
 - Account settings on phones: the page no longer gets wider than the screen (the API token table forced a minimum
   width, so the browser zoomed out and the bottom tab bar looked shifted and larger); the token table now scrolls
   inside its card.
