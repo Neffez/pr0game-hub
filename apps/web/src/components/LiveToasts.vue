@@ -23,6 +23,7 @@ const PAGES: [string, string][] = [
   ['spy_reports', 'spy'],
   ['battle_reports', 'raids'],
   ['recycle_reports', 'raids'],
+  ['fleet_returns', 'raids'],
   ['hostile_spying', 'hostile'],
   ['expeditions', 'expeditions'],
   ['battle_hall', 'battle-hall'],

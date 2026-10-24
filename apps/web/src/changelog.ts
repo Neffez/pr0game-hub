@@ -19,6 +19,16 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-10-24',
     items: [
       {
+        kind: 'fix',
+        de: 'Beute abrechnen: Deut-Kosten (Flüge, Recycler, verlorene Schiffe) werden in Metall und Kristall ersetzt, erbeutetes Deut wird als Gewinn nach Anteil verteilt. Die Beute je Flotte kommt jetzt zuerst aus den Flottenrückkehr-Nachrichten (beim Nachrichten-Sync mit einfügen), sonst aus der Übersicht – dort zählt nur noch der Rückflug dieses Kampfs, nicht mehr ein späterer Raid aufs selbe Ziel –, sonst aus dem Laderaum laut Kampfbericht. Bestehende Abrechnungen mit „Neu aus Hub-Daten“ neu rechnen.',
+        en: 'Settle loot: deuterium costs (flights, recyclers, lost ships) are paid back in metal and crystal, captured deuterium is profit and shared by the shares. The loot of each fleet now comes first from the fleet return messages (sync them with the messages), else from the overview – only the flight home of this battle, no longer a later raid on the same target –, else from the cargo space by the battle report. Recompute existing settlements with "Refill from hub data".',
+      },
+      {
+        kind: 'new',
+        de: 'Beute abrechnen: „Aktualisieren aus Hub-Daten“ übernimmt, was seitdem synchronisiert wurde (z. B. fehlende Recyclerberichte), ohne die Abrechnung neu anzufangen. Alles Eingetragene und Geänderte bleibt stehen.',
+        en: 'Settle loot: "Update from hub data" takes what was synced since (e.g. missing recycling reports) without starting the settlement over. Everything entered or changed stays.',
+      },
+      {
         kind: 'new',
         de: 'Beute abrechnen und AKS-Beuterechner: Beim Recycling steht jetzt, wie groß das Trümmerfeld war, wie viel davon abgebaut wurde und was noch übrig ist. Ist das Feld leer, aber nicht alles von euch abgebaut, zeigt der Hub, wie viel andere geholt haben.',
         en: 'Settle loot and ACS loot calculator: the recycling now shows how big the debris field was, how much of it was recycled and what is left. If the field is empty but you did not recycle all of it, the hub shows how much others took.',

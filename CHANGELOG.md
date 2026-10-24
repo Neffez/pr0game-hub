@@ -4,6 +4,25 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-24
 
+- Loot settlement fixes:
+  - Deuterium costs (flights, recyclers, deuterium of lost ships, refunded helper deuterium) are paid back in metal
+    and crystal at market rates (the setting's share in metal, the rest in crystal); the captured deuterium is profit
+    and shared by the shares. Before, the deuterium costs took the captured deuterium first.
+  - The loot each fleet brought home comes from the members' fleet return messages ("Flottenrückkehr", synced with
+    the messages; new record `fleetReturn`, table `fleet_returns`, migration 048) instead of the overview's flights
+    home, which counted later raids on the same target too: per participant the first returns after the battle, one
+    per fleet in the battle report, to planets they started from. Without messages the overview's flights home still
+    count, now strictly: per fleet in the report the first flight home after the battle with the ships it has left,
+    the same flight in several fleet lists once; without either, the shares by cargo space (`sources.returnSource`
+    tells which). When they carry more than the battle's loot (cargo from the way out), the shares by cargo space
+    count for everyone.
+
+- Loot settlement: "Update from hub data" next to "Refill from hub data" takes what is new in the hub (recycling
+  reports, battles, participants and helpers synced since) into the edited or saved settlement and keeps everything
+  entered or changed (`mergeDraft` in `@pr0hub/loot`): known battles gain the fleets of new participants and their
+  debris field, participants without flight deuterium get the draft's, older recycling rows get their time and field.
+  A recycling row removed by hand comes back when the hub still has its report.
+
 - Loot settlement, debris field: the hub's settlement and the loot calculator show the debris field after the last
   battle, how much of it was recycled (with the share), what is left by the latest recycling report and, when that
   report emptied the field, how much others recycled (`debrisSummary` in `@pr0hub/loot`). Battles keep their debris

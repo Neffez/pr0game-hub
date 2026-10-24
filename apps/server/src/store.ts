@@ -10,6 +10,7 @@ import {
   type CombatReportRecord,
   type EmpireRecord,
   type ExpeditionRecord,
+  type FleetReturnRecord,
   type FleetsRecord,
   type GalaxyRecord,
   type HostileSpyRecord,
@@ -77,6 +78,8 @@ export class Store {
         return this.fleets(r);
       case 'recycle':
         return this.recycle(r);
+      case 'fleetReturn':
+        return this.fleetReturn(r);
       case 'playerMessage':
         return this.playerMessage(r);
       case 'battleHall':
@@ -512,6 +515,27 @@ export class Store {
     this.count('recycle_reports', res.changes > 0);
     if (!res.changes || !time) return;
     this.recycleEvent(r, time, this.t.userId, key);
+  }
+
+  /** Fleet return message of an attack: what the fleet brings home. */
+  private fleetReturn(r: FleetReturnRecord) {
+    const key = r.msgId ? `m${r.msgId}` : `f${fnv1a(JSON.stringify([r.time, r.target, r.home, r.metal, r.crystal, r.deuterium]))}`;
+    const time = this.epoch(r.time);
+    const content = {
+      user_id: this.t.userId, time, g: r.target.g, s: r.target.s, p: r.target.p, home_g: r.home.g, home_s: r.home.s, home_p: r.home.p,
+      metal: r.metal, crystal: r.crystal, deuterium: r.deuterium,
+    };
+    if (this.sameContent('fleet_returns', content, r.msgId)) return this.count('fleet_returns', false);
+    const res = this.db
+      .prepare(
+        `INSERT OR IGNORE INTO fleet_returns (group_id, user_id, dedupe_key, msg_id, time, g, s, p, home_g, home_s, home_p, metal, crystal, deuterium)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        this.t.groupId, this.t.userId, key, r.msgId, time, r.target.g, r.target.s, r.target.p, r.home.g, r.home.s, r.home.p,
+        r.metal, r.crystal, r.deuterium,
+      );
+    this.count('fleet_returns', res.changes > 0);
   }
 
   /** Debris reduced/cleared by a member's recyclers (exact amounts), also used by the backfill. */

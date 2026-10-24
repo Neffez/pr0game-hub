@@ -146,6 +146,45 @@ describe('raid settlements', () => {
       { by: `u${ids.dave}`, m: 40219074, k: 19280927, time: time + 9, field: { m: 142823000, k: 68469000 } },
     ]);
     db.prepare("DELETE FROM recycle_reports WHERE dedupe_key = 'x9'").run();
+
+    // Rudolf's fleet return messages: his two fleets of this battle, then a later raid on the target
+    const returned = (at: string, k: string, d: string) =>
+      `Flottenrückkehr\n${at}\nEine deiner Flotten kehrt vom Angriff beim Planeten Rees [3:195:5] zurück zu Ra [3:200:1]. Sie haben 0 Metall, ${k} Kristall und ${d} Deuterium erbeutet\n`;
+    const messages = [
+      returned('24. Okt 2026, 13:48:06', '408.133', '209.670'), returned('24. Okt 2026, 13:42:23', '195.136', '100.247'),
+      returned('24. Okt 2026, 18:00:00', '300.000', '100.000'),
+    ].join('\n');
+    expect((await call('POST', '/ingest', as.dave, { text: messages })).json().counts.fleet_returns).toEqual({ new: 3, duplicate: 0 });
+    draft = (await call('GET', `/plans/${id}/settlement`, as.dave)).json().draft;
+    expect(draft.sources.returnLoot).toEqual({ [`u${ids.dave}`]: { 0: { m: 0, k: 603269, d: 309917 } } });
+    expect(draft.state.battles[0].fleets.find((f: any) => f.participant === `u${ids.dave}`).loot).toEqual({ m: 0, k: 603269, d: 309917 });
+    // pasted again: nothing new
+    expect((await call('POST', '/ingest', as.carol, { text: messages, forUser: ids.dave })).json().counts.fleet_returns).toEqual({ new: 0, duplicate: 3 });
+    // CVXII synced no fleet return messages: his flights home in the overview, the same one in two fleet lists a second
+    // apart and a later raid with the same ships
+    const back = (arrival: number, ships: Record<number, number>, k: number, d: number) => ({
+      owner: 'own', player: null, mission: 2, missionName: 'Verbandsangriff', phase: 'return', seconds: 0, clock: null, arrival,
+      from: { coords: { g: 3, s: 195, p: 5 }, type: 'moon', name: 'Rees' }, to: { coords: { g: 3, s: 160, p: 5 }, type: 'moon', name: 'Mond' },
+      ships, resources: { 901: 0, 902: k, 903: d },
+    });
+    const heavy = { 222: 3521 };
+    const mixed = { 206: 323, 207: 11794, 215: 4406 };
+    const snap = db.prepare('INSERT INTO fleet_snapshots (group_id, user_id, page_time, data) VALUES (?, ?, ?, ?)');
+    snap.run(groupA, ids.carol, time + 60, JSON.stringify([back(time + 3000, heavy, 100000, 50000), back(time + 3600, mixed, 600000, 300000)]));
+    snap.run(groupA, ids.carol, time + 120, JSON.stringify([
+      back(time + 3001, heavy, 100000, 50000), back(time + 3601, mixed, 600000, 300000), back(time + 20000, mixed, 90000, 9000),
+    ]));
+    draft = (await call('GET', `/plans/${id}/settlement`, as.dave)).json().draft;
+    expect(draft.sources.returnSource).toEqual({ [`u${ids.dave}`]: 'message', [`u${ids.carol}`]: 'overview' });
+    expect(draft.sources.returnLoot[`u${ids.carol}`]).toEqual({ 0: { m: 0, k: 700000, d: 350000 } });
+    db.prepare('DELETE FROM fleet_snapshots WHERE user_id = ?').run(ids.carol);
+
+    // more than the battle's loot on the way home (cargo from the way out): the shares by cargo space count
+    db.prepare("UPDATE fleet_returns SET crystal = 2000000 WHERE crystal = 408133").run();
+    draft = (await call('GET', `/plans/${id}/settlement`, as.dave)).json().draft;
+    expect(draft.sources.returnLoot).toEqual({});
+    expect(draft.sources.returnSource).toEqual({});
+    db.prepare('DELETE FROM fleet_returns').run();
     expect(draft.state.battles[0].fleets).toEqual([
       { participant: `u${ids.carol}`, start: { 206: 347, 207: 11799, 215: 4406, 222: 3544 }, end: { 206: 323, 207: 11794, 215: 4406, 222: 3521 } },
       { participant: `u${ids.dave}`, start: { 207: 2178, 215: 4348, 225: 4821 }, end: { 207: 2178, 215: 4348, 225: 3901 } },

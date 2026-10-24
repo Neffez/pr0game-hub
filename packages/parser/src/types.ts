@@ -115,6 +115,21 @@ export interface RecycleRecord {
   totalCrystal: number;
 }
 
+/**
+ * Return of an attack (transport message "Fleet return"): what one fleet carries home from the target (its loot, plus
+ * what it carried on the way out), by target and home planet.
+ */
+export interface FleetReturnRecord {
+  kind: 'fleetReturn';
+  msgId: number | null;
+  time: LocalDateTime | null;
+  target: Coords;
+  home: Coords;
+  metal: number;
+  crystal: number;
+  deuterium: number;
+}
+
 /** Sender or recipient of a player message: name, plus the main planet when the game shows it. */
 export interface MessageParty {
   name: string;
@@ -379,6 +394,7 @@ export type HubRecord =
   | ExpeditionRecord
   | HostileSpyRecord
   | RecycleRecord
+  | FleetReturnRecord
   | PlayerMessageRecord
   | GalaxyRecord
   | EmpireRecord
