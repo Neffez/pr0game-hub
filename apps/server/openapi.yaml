@@ -1579,7 +1579,8 @@ paths:
         ACS loot settlement of an attack or hold plan. `saved` is the settlement saved for the group (null if none), `draft` one
         prefilled from the hub's data: participants from the plan's fleets (members as `u<user id>`, then guest fleets),
         battles at the target around the plan's time (fleets and losses from the archived battle report, else the
-        planned ships), loot by cargo space unless a returning fleet in an overview carries something else, recycling
+        planned ships), loot by cargo space unless the members' fleet return messages (one per fleet in the report, the
+        first after the battle, together at most the battle's loot) tell what each fleet brought home, recycling
         reports at the target within 24 hours (members outside the plan as helpers keeping 20 %) and the deuterium of
         the attack flights. `sources` tells where the draft's values come from. Both carry `result`, computed by
         `@pr0hub/loot`. `me` is the caller's id in a settlement. A hold is settled like an ACS: participants are the hold

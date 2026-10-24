@@ -62,6 +62,8 @@ function previewText(p: Summary['preview'][number]) {
       return t('paste.preview.battle', { coords: p.coords, loot: fmt(p.loot) });
     case 'recycle':
       return t('paste.preview.recycle', { coords: p.coords, amount: fmt(p.amount) });
+    case 'fleetReturn':
+      return t('paste.preview.fleetReturn', { coords: p.coords, amount: fmt(p.amount) });
   }
   return te(`paste.preview.${p.kind}`) ? t(`paste.preview.${p.kind}`, p) : JSON.stringify(p);
 }

@@ -24,6 +24,7 @@ import {
   parseNumber,
   type LocalDateTime,
 } from '../util.js';
+import { FLEET_RETURN_START_RE, parseFleetReturnText } from './fleetReturn.js';
 import { parseRecycleText, RECYCLE_START_RE } from './recycle.js';
 
 // ---------------------------------------------------------------- spy reports
@@ -443,7 +444,7 @@ export function parseMessagesHtml($: CheerioAPI): HubRecord[] {
       if (r) records.push(r);
       return;
     }
-    const r = parseHostileText(text, msgId, time) ?? parseRecycleText(text, msgId, time);
+    const r = parseHostileText(text, msgId, time) ?? parseRecycleText(text, msgId, time) ?? parseFleetReturnText(text, msgId, time);
     if (r) records.push(r);
   });
   return records;
@@ -463,7 +464,7 @@ function parseBattleHtml($: CheerioAPI, el: Element, msgId: number | null, time:
   return parseBattleText(text, msgId, time, { reportId, outcome });
 }
 
-type Anchor = { index: number; kind: 'spy' | 'battle' | 'expedition' | 'hostile' | 'recycle' };
+type Anchor = { index: number; kind: 'spy' | 'battle' | 'expedition' | 'hostile' | 'recycle' | 'fleetReturn' };
 
 /**
  * Plain text copy of the messages page (or of single messages). Messages are
@@ -481,6 +482,7 @@ export function parseMessagesText(text: string): HubRecord[] {
   scan(EXPO_START_RE, 'expedition');
   scan(/(?:Feindliche Spionagesonden|Enemy spy probes)/, 'hostile');
   scan(RECYCLE_START_RE, 'recycle');
+  scan(FLEET_RETURN_START_RE, 'fleetReturn');
   anchors.sort((a, b) => a.index - b.index);
   // A battle summary directly following an expedition start belongs to that expedition (pirates/aliens).
   for (let i = anchors.length - 1; i > 0; i--) {
@@ -518,6 +520,9 @@ export function parseMessagesText(text: string): HubRecord[] {
       if (r) records.push(r);
     } else if (a.kind === 'recycle') {
       const r = parseRecycleText(block, null, time);
+      if (r) records.push(r);
+    } else if (a.kind === 'fleetReturn') {
+      const r = parseFleetReturnText(block, null, time);
       if (r) records.push(r);
     } else {
       const r = parseHostileText(block, null, time);

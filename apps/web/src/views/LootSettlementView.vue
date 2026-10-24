@@ -73,7 +73,7 @@ async function load(force = false) {
   }
 }
 onMounted(() => load(true));
-useLiveReload(() => load(), tables('raid_settlements', 'battle_reports', 'combat_reports', 'recycle_reports'));
+useLiveReload(() => load(), tables('raid_settlements', 'battle_reports', 'combat_reports', 'recycle_reports', 'fleet_returns'));
 watch(state, () => {
   if (!filling) dirty.value = true;
 }, { deep: true });

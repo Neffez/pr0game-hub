@@ -286,6 +286,28 @@ describe('combat report', () => {
   });
 });
 
+describe('fleet return messages', () => {
+  it('reads what each attack fleet brings home', () => {
+    const text = [
+      'Flottenhauptquartier', 'Flottenrückkehr', '24. Okt 2026, 13:48:06',
+      'Eine deiner Flotten kehrt vom Angriff beim Planeten Rees [3:195:5] zurück zu Ra [3:200:1]. Sie haben 0 Metall, 408.133 Kristall und 209.670 Deuterium erbeutet',
+      '', 'Es gingen folgende Schiffe verloren:', 'Sturmtransporter: 920', '', 'Favorite', 'Forward', 'System Nachrichten', 'Delete',
+      'Flottenhauptquartier', 'Flottenrückkehr', '24. Okt 2026, 13:42:23',
+      'Eine deiner Flotten kehrt vom Angriff beim Planeten Rees [3:195:5] zurück zu Ra [3:200:1]. Sie haben 0 Metall, 195.136 Kristall und 100.247 Deuterium erbeutet',
+    ].join('\n');
+    const res = parsePage({ text });
+    expect(res.pageType).toBe('messages');
+    expect(res.records).toEqual([
+      { kind: 'fleetReturn', msgId: null, time: '2026-10-24 13:48:06', target: { g: 3, s: 195, p: 5 }, home: { g: 3, s: 200, p: 1 }, metal: 0, crystal: 408133, deuterium: 209670 },
+      { kind: 'fleetReturn', msgId: null, time: '2026-10-24 13:42:23', target: { g: 3, s: 195, p: 5 }, home: { g: 3, s: 200, p: 1 }, metal: 0, crystal: 195136, deuterium: 100247 },
+    ]);
+    const en = parsePage({
+      text: 'Fleet return\n24 Oct 2026, 13:42:23\nOne of your fleets returns from a attack at the planet Rees [3:195:5] to Ra [3:200:1]. You have captured 1,000 Metal, 2,000 Crystal and 3,000 Deuterium',
+    });
+    expect(en.records[0]).toMatchObject({ kind: 'fleetReturn', target: { g: 3, s: 195, p: 5 }, metal: 1000, crystal: 2000, deuterium: 3000 });
+  });
+});
+
 describe('recycling', () => {
   it('reads every pasted recycling report with the date above it', () => {
     const text = [

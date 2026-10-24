@@ -7,7 +7,7 @@ External analysis tool for [pr0game](https://codeberg.org/pr0game/pr0game) based
 
 - **Sync**: plain text, HTML from the clipboard, page source (`Ctrl+U`) or a saved page, with a preview before saving.
   - Statistics (players/alliances, all categories incl. honor points)
-  - Messages: spy, battle, expedition and recycling reports, hostile spying, player messages
+  - Messages: spy, battle, expedition and recycling reports, fleet returns, hostile spying, player messages
   - Galaxy, empire, game overview (build queues, fleet movements), buildings and research pages, fleet movements on their own, battle hall
   - universe.json import and export
 - **Overview**: points per category with deltas per statistics update, rank changes, status, filters

@@ -8,10 +8,11 @@ Every commit adds its changes here, newest first, grouped by date.
   - Deuterium costs (flights, recyclers, deuterium of lost ships, refunded helper deuterium) are paid back in metal
     and crystal at market rates (the setting's share in metal, the rest in crystal); the captured deuterium is profit
     and shared by the shares. Before, the deuterium costs took the captured deuterium first.
-  - Loot on the way home (overview) is matched to the battle report: per fleet of a participant the first flight home
-    after the battle with the ships it has left, the same flight in several fleet lists counts once (arrivals a few
-    seconds apart). A later raid on the same target or other flights home from there no longer add to the loot; when
-    the flights home carry more than the battle's loot, the shares by cargo space count instead.
+  - The loot each fleet brought home comes from the members' fleet return messages ("Flottenrückkehr", synced with
+    the messages; new record `fleetReturn`, table `fleet_returns`, migration 048) instead of the overview's flights
+    home, which counted later raids on the same target too: per participant the first returns after the battle, one
+    per fleet in the battle report, to planets they started from. When they carry more than the battle's loot (cargo
+    from the way out), the shares by cargo space count instead.
 
 - Loot settlement: "Update from hub data" next to "Refill from hub data" takes what is new in the hub (recycling
   reports, battles, participants and helpers synced since) into the edited or saved settlement and keeps everything

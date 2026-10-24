@@ -20,8 +20,8 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
-        de: 'Beute abrechnen: Deut-Kosten (Flüge, Recycler, verlorene Schiffe) werden in Metall und Kristall ersetzt, erbeutetes Deut wird als Gewinn nach Anteil verteilt. Die Beute aus den Rückflügen zählt nur noch für die Flotten aus dem Kampfbericht, ein späterer Raid aufs selbe Ziel wird nicht mehr mitgezählt. Bestehende Abrechnungen mit „Neu aus Hub-Daten“ neu rechnen.',
-        en: 'Settle loot: deuterium costs (flights, recyclers, lost ships) are paid back in metal and crystal, captured deuterium is profit and shared by the shares. Loot from flights home only counts for the fleets in the battle report, a later raid on the same target no longer adds to it. Recompute existing settlements with "Refill from hub data".',
+        de: 'Beute abrechnen: Deut-Kosten (Flüge, Recycler, verlorene Schiffe) werden in Metall und Kristall ersetzt, erbeutetes Deut wird als Gewinn nach Anteil verteilt. Die Beute je Flotte kommt jetzt aus den Flottenrückkehr-Nachrichten (beim Nachrichten-Sync mit einfügen) statt aus der Übersicht, die spätere Raids aufs selbe Ziel mitgezählt hat. Bestehende Abrechnungen mit „Neu aus Hub-Daten“ neu rechnen.',
+        en: 'Settle loot: deuterium costs (flights, recyclers, lost ships) are paid back in metal and crystal, captured deuterium is profit and shared by the shares. The loot of each fleet now comes from the fleet return messages (sync them with the messages) instead of the overview, which counted later raids on the same target too. Recompute existing settlements with "Refill from hub data".',
       },
       {
         kind: 'new',
