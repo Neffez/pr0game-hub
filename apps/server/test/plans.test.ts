@@ -391,6 +391,25 @@ describe('attack plans', () => {
     await call('DELETE', `/plans/${id}`, dave);
   });
 
+  it('keeps an attack plannable for a retime after its impact, but not for a hold', async () => {
+    const text = '0h 1m 0s Eine Flotten(7 Schlachtschiff) vom Planet Feind [2:3:3] erreicht den Planet Ares [1:100:12]. Mission: Angreifen';
+    await call('POST', '/ingest', carol, { text });
+    // that overview was 10 minutes ago, the attack hit 9 minutes ago; a newer overview no longer shows it
+    const row = db.prepare('SELECT id, page_time, data FROM fleet_snapshots WHERE user_id = ? ORDER BY page_time DESC, id DESC LIMIT 1').get(carolId) as any;
+    const data = JSON.parse(row.data).map((f: any) => ({ ...f, arrival: f.arrival - 600 }));
+    db.prepare('UPDATE fleet_snapshots SET page_time = ?, data = ? WHERE id = ?').run(row.page_time - 600, JSON.stringify(data), row.id);
+    db.prepare("INSERT INTO fleet_snapshots (group_id, user_id, page_time, data) VALUES (?, ?, ?, '[]')").run(groupA, carolId, Math.floor(Date.now() / 1000));
+    const a = (await call('GET', '/hostile-attacks', dave)).json().find((x: any) => x.from.s === 3);
+    expect(a).toMatchObject({ member: 'Carol', arrival: data[0].arrival, planId: null });
+    expect((await call('POST', '/plans/hold', dave, { key: a.key })).json().code).toBe('attack_arrived');
+    const { id } = (await call('POST', '/plans/retime', dave, { key: a.key, target_time: a.arrival + 3600 })).json();
+    const plan = (await call('GET', '/plans', dave)).json().find((p: any) => p.id === id);
+    // gone because it hit, not recalled
+    expect(plan.enemy).toMatchObject({ arrival: a.arrival, recall_seen: null });
+    await call('DELETE', `/plans/${id}`, dave);
+    db.prepare('DELETE FROM fleet_snapshots WHERE user_id = ? AND page_time >= ?').run(carolId, row.page_time - 600);
+  });
+
   it('lists plans up to a week after their target time', async () => {
     const id = (await call('POST', '/plans', carol, { g: 2, s: 2, p: 2, target_time: soon() })).json().id;
     db.prepare('UPDATE attack_plans SET target_time = ? WHERE id = ?').run(Math.floor(Date.now() / 1000) - 6 * 86400, id);

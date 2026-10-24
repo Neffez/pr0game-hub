@@ -58,6 +58,8 @@ function scheduleStep() {
   const next = Math.min(
     t0 + 60,
     ...plans.value.flatMap((p) => [p.target_time, latestTime(p) + 3601, ...(views.value.get(p.id)?.fleets.map((x) => x.plan?.launch ?? Infinity) ?? [])]).filter((x) => x > t0),
+    // an attack arrives: no hold any more
+    ...attacks.value.map((a) => a.arrival).filter((x) => x > t0),
   );
   stepTimer = setTimeout(() => {
     now.value = nowSec();
@@ -513,6 +515,7 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
       <span v-if="a.source === 'phalanx'" class="badge" :title="t('phalanx.byTitle', { name: a.reporter ?? '?' })">{{ t('phalanx.badge') }}</span>
       <span class="mono">{{ coords(a.to.g, a.to.s, a.to.p) }}</span>
       <span class="time"><b class="mono">{{ clock(a.arrival) }}</b> <Countdown class="muted small" :to="a.arrival" /></span>
+      <span v-if="a.arrival <= now" class="badge" :title="t('retime.arrivedTitle')">{{ t('retime.arrived') }}</span>
       <span v-if="a.home" class="small">{{ t('phalanx.home', { t: clock(a.home) }) }}</span>
       <span class="small">{{ attackShips(a) }}</span>
       <span class="small">
@@ -523,7 +526,7 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
       <span v-if="a.planId" class="muted small">{{ t('retime.planned') }}</span>
       <button v-else class="primary" @click="planRetime(a)">{{ t('retime.plan') }}</button>
       <span v-if="a.holdPlanId" class="muted small">{{ t('hold.planned') }}</span>
-      <button v-else @click="planHold(a)">{{ t('hold.plan') }}</button>
+      <button v-else-if="a.arrival > now" @click="planHold(a)">{{ t('hold.plan') }}</button>
     </div>
   </div>
 

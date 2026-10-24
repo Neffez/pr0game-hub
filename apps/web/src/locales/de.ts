@@ -883,6 +883,8 @@ const de = {
     attacks: 'Feindliche Angriffe',
     plan: 'Retime planen',
     planned: 'Retime geplant',
+    arrived: 'eingeschlagen',
+    arrivedTitle: 'Die Flotte ist schon eingeschlagen und fliegt zurück: Ein Retime ist bis zu ihrer Rückkehr planbar.',
     enemy: 'Gegnerflotte',
     onMember: 'Angriff auf {member}',
     impact: 'Einschlag',

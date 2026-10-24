@@ -881,6 +881,8 @@ const en: typeof de = {
     attacks: 'Hostile attacks',
     plan: 'Plan retime',
     planned: 'Retime planned',
+    arrived: 'arrived',
+    arrivedTitle: 'The fleet has already arrived and is flying back: a retime can be planned until it is home.',
     enemy: 'Enemy fleet',
     onMember: 'Attack on {member}',
     impact: 'Impact',

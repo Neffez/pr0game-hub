@@ -894,6 +894,9 @@ paths:
     get:
       tags: [Combat]
       operationId: getHostileAttacks
+      description: >-
+        Hostile attacks on members (overview pastes) and from phalanx results, ACS fleets as one attack. Listed until
+        their latest possible return, also after the impact (taken from the member's older fleet lists then).
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }

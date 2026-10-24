@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-24
 
+- Raid planner: hostile attacks stay in the list after their impact, until their latest possible return, so a retime
+  can still be planned while the enemy flies home. They come from the member's older fleet lists once a newer overview
+  no longer shows them (so they no longer vanish, and a retime plan on them no longer reads as recalled); marked
+  "arrived", without the hold button (`POST /plans/hold` answers `attack_arrived`).
+
 - Universe settings: changing distances or fleet speed recalculates the target time of open retime plans (planning or
   launched, still ahead): it moves by the change of the enemy's return home under the new settings, so a target set by
   hand keeps its offset; the claim's expiry follows and the alliances get a live update. A phalanx return and holds are

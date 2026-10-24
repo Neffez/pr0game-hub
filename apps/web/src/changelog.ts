@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Raid-Planer: Feindliche Angriffe bleiben nach dem Einschlag in der Liste, bis die Flotte spätestens zu Hause sein kann. So lässt sich ein Retime auch noch planen, wenn die Übersicht danach neu synchronisiert wurde.',
+        en: 'Raid planner: hostile attacks stay in the list after the impact, until the fleet can be home at the latest. So a retime can still be planned after the overview was synced again.',
+      },
+      {
+        kind: 'fix',
         de: 'Retime-Planer: Werden die Einstellungen des Universums (Entfernungen, Flottengeschwindigkeit) korrigiert, rechnen offene Retime-Pläne ihre Zielzeit automatisch neu.',
         en: 'Retime planner: when the universe settings (distances, fleet speed) are corrected, open retime plans recalculate their target time automatically.',
       },
