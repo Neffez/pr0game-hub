@@ -4,6 +4,21 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-24
 
+- Raid planner hold plans show the fleet on the attacked planet, filled in from the member's empire page (else the
+  planet's newest spy report) and editable, e.g. when ships are sent away before the impact; the combat simulator
+  links use it in place of the planet's ships. Stored in `attack_plan_enemy.planet_ships` (migration `037`, null takes
+  the source again), set with `planet_ships` on `PUT /api/{uni}/plans/{id}/enemy`, returned as `enemy.planet_ships`
+  (OpenAPI description of `GET /api/{uni}/plans` updated). On hold plans the attacked member may change the enemy
+  inputs too, also without a fleet in the plan.
+
+- Raid planner hold plans get the combat simulator links too (game simulator and TrashSim), with the sides swapped:
+  the enemy fleets attack with the attacking player's research from the newest spy report showing it (drives as in
+  the plan), the defended planet (fleet, defense, resources, research from the attacked member's empire page, else
+  its newest spy report) and the plan's hold fleets defend (game simulator: one defender slot per fleet from the
+  second slot on; TrashSim: one defender row per fleet). `GET /api/{uni}/plans` now returns `spy` for hold plans and
+  `enemy.research`/`enemy.research_time` (OpenAPI description updated). The link "Simulator im Spiel" is now called
+  "Kampfsimulator" ("Combat simulator").
+
 - Fleet parser: the return of a harvest to a moon ("zurück zum Planeten Mond Ra [3:200:1]") is read as the moon
   "Ra" instead of a planet named "Mond Ra"; tests cover an own ACS attack with friendly fleets ("Verbandsflotte")
   as copied text and as page source (new fixture `overview-acs.html`).

@@ -1000,7 +1000,12 @@ paths:
     get:
       tags: [Combat]
       operationId: getPlans
-      description: Raid planner plans including fleets, enemy retime data and phalanx snapshots.
+      description: >-
+        Raid planner plans including fleets, enemy retime data and phalanx snapshots. `spy` holds the values for the
+        combat simulators: the target's newest spy report, for hold plans the defended planet (attacked member's empire
+        page, else its newest spy report). Hold plans also return `enemy.research` and `enemy.research_time`, the
+        attacking player's research from the newest spy report showing it (null when unknown).
+        `enemy.planet_ships` holds the ships on the attacked planet changed by hand (null: those of `spy`).
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
