@@ -12,6 +12,7 @@ export default defineConfig({
       input: {
         index: resolve(import.meta.dirname, 'index.html'),
         flightCalculator: resolve(import.meta.dirname, 'flight-calculator/index.html'),
+        acsLoot: resolve(import.meta.dirname, 'acs-loot/index.html'),
       },
     },
   },

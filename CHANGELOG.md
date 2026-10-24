@@ -4,6 +4,13 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-24
 
+- New public tool: ACS loot calculator (`apps/tools/acs-loot/`, served at `/acs-loot/`, card on the tools index).
+  Up to 5 participants, several battles (waves), recycling by participants and helpers; pasting the battle report
+  fills in participants, ships, losses and loot. Shows what everyone holds, costs, covered, gets and the balance,
+  suggests deliveries (editable, with what is still open and a copyable text), the 24 h sharing deadline and rates
+  outside 75-125 % of the market. German and English, state in localStorage and in share links (`#s=…`, also
+  readable by the hub via `encodeShare`/`decodeShare` and `cleanState` of `@pr0hub/loot`).
+
 - New package `@pr0hub/loot`: settles an ACS for the standalone loot calculator and the hub. It shares a battle's
   loot by the free cargo space of the surviving fleets like the game, covers the participants' costs (lost ships,
   missiles, flight and recycler deuterium) and the recycling helpers' part (kept percentage plus their deuterium),

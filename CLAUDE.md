@@ -46,6 +46,7 @@ pnpm build
 - `packages/loot` (`@pr0hub/loot`): ACS loot settlement (loot shares like the game's `calculateSteal`, covering
   costs, profit split, transfers), used by the loot calculator in `apps/tools` and by the hub.
 - `apps/server`: Fastify + SQLite; migrations in `migrations/` (numbered SQL files); every game-data query goes through `groupContext` so data stays within its group; OpenAPI spec in `openapi.yaml`.
-- `apps/tools`: static tools (Vite, no framework): `index.html` and `flight-calculator/` (UI in `main.js`, calculation
-  in `src/core.ts` on top of `@pr0hub/flight`); Docker target `tools`.
+- `apps/tools`: static tools (Vite, no framework): `index.html`, `flight-calculator/` (UI in `main.js`, calculation
+  in `src/core.ts` on top of `@pr0hub/flight`) and `acs-loot/` (UI in `main.js`, texts DE/EN in `i18n.js`, glue in
+  `src/loot.ts` on top of `@pr0hub/loot`); Docker target `tools`.
 - `apps/web`: Vue 3 SPA; the mobile layout starts below 800 px (`useMobile` in `composables.ts`, same breakpoint in `style.css`).

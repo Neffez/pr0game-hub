@@ -56,9 +56,15 @@ importers:
 
   apps/tools:
     dependencies:
+      '@pr0hub/core':
+        specifier: workspace:*
+        version: link:../../packages/parser
       '@pr0hub/flight':
         specifier: workspace:*
         version: link:../../packages/flight
+      '@pr0hub/loot':
+        specifier: workspace:*
+        version: link:../../packages/loot
     devDependencies:
       '@types/node':
         specifier: ^22.9.0
