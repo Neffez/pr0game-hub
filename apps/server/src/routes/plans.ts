@@ -335,7 +335,42 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
     const keyOf = (e: EnemyRow) => attackKey(fromOf(e), toOf(e), (JSON.parse(e.fleets) as EnemyFleet[])[0]?.ships ?? {});
     const retimes = new Map(rows.filter((e) => e.mission !== 'hold').map((e) => [keyOf(e), e.plan_id]));
     const holds = new Map(rows.filter((e) => e.mission === 'hold').map((e) => [keyOf(e), e.plan_id]));
-    return hostileAttacks(db, ctx).map((a) => ({ ...a, planId: retimes.get(a.key) ?? null, holdPlanId: holds.get(a.key) ?? null }));
+    const hidden = new Map(
+      (db
+        .prepare(`SELECT h.attack_key, h.until, h.created_at, ${DISPLAY} AS name FROM hidden_attacks h LEFT JOIN users u ON u.id = h.user_id ${MEMBER('h')} WHERE h.group_id = ?`)
+        .all(ctx.groupId) as { attack_key: string; until: number; created_at: number; name: string | null }[]).map((h) => [h.attack_key, h]),
+    );
+    return hostileAttacks(db, ctx).map((a) => {
+      // a later attack of the same fleet on the same route arrives after the hidden one's latest return: shown again
+      const h = hidden.get(a.key);
+      const hide = h && a.arrival <= h.until ? { by: h.name, at: h.created_at } : null;
+      return { ...a, planId: retimes.get(a.key) ?? null, holdPlanId: holds.get(a.key) ?? null, hidden: hide };
+    });
+  });
+
+  /** Hides a hostile attack in the raid planner for the whole group, until its latest possible return. */
+  app.post<{ Params: { uni: string }; Body: { key?: string } }>('/api/:uni/hostile-attacks/hide', async (req) => {
+    const ctx = ctxOf(req);
+    const attack = hostileAttacks(db, ctx).find((a) => a.key === req.body?.key);
+    if (!attack) throw new HttpError(404, 'attack_not_found', 'Hostile attack not found (arrived or not pasted)');
+    db.transaction(() => {
+      // hides of attacks long gone
+      db.prepare('DELETE FROM hidden_attacks WHERE group_id = ? AND until < ?').run(ctx.groupId, now() - 86400);
+      db.prepare(
+        `INSERT INTO hidden_attacks (group_id, attack_key, until, user_id, created_at) VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT (group_id, attack_key) DO UPDATE SET until = excluded.until, user_id = excluded.user_id, created_at = excluded.created_at`,
+      ).run(ctx.groupId, attack.key, attack.until, ctx.user.id, now());
+    })();
+    events.publish(ctx.groupId, { type: 'data', tables: ['hidden_attacks'], userId: ctx.user.id });
+    return { ok: true };
+  });
+
+  /** Shows a hidden hostile attack again. */
+  app.post<{ Params: { uni: string }; Body: { key?: string } }>('/api/:uni/hostile-attacks/unhide', async (req) => {
+    const ctx = ctxOf(req);
+    db.prepare('DELETE FROM hidden_attacks WHERE group_id = ? AND attack_key = ?').run(ctx.groupId, String(req.body?.key ?? ''));
+    events.publish(ctx.groupId, { type: 'data', tables: ['hidden_attacks'], userId: ctx.user.id });
+    return { ok: true };
   });
 
   /** Own attacks in flight (overview pastes) without a plan yet; only for their participants. */

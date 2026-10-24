@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-24
 
+- Raid planner: hostile attacks can be hidden by hand for the whole group (`POST /hostile-attacks/hide` and
+  `/unhide`, table `hidden_attacks`, migration 047) and come back from a collapsible "Hidden attacks" section at the
+  end of the page. A hide lasts until the attack's latest possible return; a later attack of the same fleet on the
+  same route is listed again. `GET /hostile-attacks` gives `hidden` (who, when).
+
 - Notifications for full storages: a new kind `storage` (bell, push, Discord) when metal, crystal or deuterium storage
   on one of the member's planets is full by the newest synced pages (production up to the capacity, landing fleets
   included; moons have no production and are left out). Listed a day from when it got full; `storage_full`

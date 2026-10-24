@@ -225,6 +225,19 @@ describe('attack plans', () => {
     expect(attacks[0].arrival - Math.floor(Date.now() / 1000)).toBeGreaterThan(3 * 3600 - 60);
 
     expect((await call('POST', '/plans/retime', dave, { key: 'nope', target_time: soon() })).json().code).toBe('attack_not_found');
+    // hidden by hand for the whole group, and shown again
+    expect(attacks[0].hidden).toBeNull();
+    expect((await call('POST', '/hostile-attacks/hide', dave, { key: 'nope' })).json().code).toBe('attack_not_found');
+    expect((await call('POST', '/hostile-attacks/hide', dave, { key: attacks[0].key })).statusCode).toBe(200);
+    expect((await call('GET', '/hostile-attacks', carol)).json()[0].hidden).toMatchObject({ by: 'Dave' });
+    expect((await call('GET', '/hostile-attacks', carolB)).json()).toEqual([]);
+    // a later attack of the same fleet on the same route (after the hidden one's latest return) is shown again
+    db.prepare('UPDATE hidden_attacks SET until = ? WHERE group_id = ?').run(attacks[0].arrival - 1, groupA);
+    expect((await call('GET', '/hostile-attacks', carol)).json()[0].hidden).toBeNull();
+    db.prepare('UPDATE hidden_attacks SET until = ? WHERE group_id = ?').run(attacks[0].until, groupA);
+    expect((await call('POST', '/hostile-attacks/unhide', carol, { key: attacks[0].key })).statusCode).toBe(200);
+    expect((await call('GET', '/hostile-attacks', dave)).json()[0].hidden).toBeNull();
+
     const created = (await call('POST', '/plans/retime', dave, { key: attacks[0].key, follow: 1, target_time: attacks[0].arrival + 7200 })).json();
     expect((await call('GET', '/hostile-attacks', carol)).json()[0].planId).toBe(created.id);
     let plan = (await call('GET', '/plans', carol)).json().find((p: any) => p.id === created.id);

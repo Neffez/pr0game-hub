@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Raid Planer: Feindliche Angriffe lassen sich ausblenden, für die ganze Gruppe. Ausgeblendete Angriffe stehen in einem aufklappbaren Abschnitt am Ende der Seite und lassen sich dort wieder einblenden.',
+        en: 'Raid planner: hostile attacks can be hidden, for the whole group. Hidden attacks are listed in a collapsible section at the end of the page and can be shown again from there.',
+      },
+      {
+        kind: 'new',
         de: 'Benachrichtigung bei vollem Lager: Läuft Metall, Kristall oder Deuterium auf einem deiner Planeten voll, meldet das die Glocke, per Push und auf Discord. Der Hub rechnet die Produktion und ankommende Flotten seit deinem letzten Sync hoch. Monde zählen nicht, sie haben keine Produktion. Unter Konto lässt sich das für Push und Discord abschalten.',
         en: 'Full storage notifications: when metal, crystal or deuterium storage on one of your planets runs full, the bell, push and Discord tell you. The hub projects the production and arriving fleets since your last sync. Moons do not count, they have no production. Under Account it can be switched off for push and Discord.',
       },

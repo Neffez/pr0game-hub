@@ -95,7 +95,7 @@ async function load() {
   scheduleStep();
 }
 onMounted(load);
-useLiveReload(load, tables('attack_plans', 'fleets'), 300);
+useLiveReload(load, tables('attack_plans', 'fleets', 'hidden_attacks'), 300);
 
 /** Runs a change; errors show above the list, the live event reloads the plans (and here at once). */
 async function run(fn: () => Promise<unknown>) {
@@ -292,6 +292,13 @@ async function planHold(a: HostileAttack) {
     const res = await uniApi<{ id: number }>(uni.value, '/plans/hold', { body: { key: a.key } });
     openState[res.id] = true;
   });
+}
+/** Hidden by hand for the whole group; shown again from the section at the end. */
+const shownAttacks = computed(() => attacks.value.filter((a) => !a.hidden));
+const hiddenAttacks = computed(() => attacks.value.filter((a) => a.hidden));
+const showHidden = ref(false);
+async function setHidden(a: HostileAttack, hide: boolean) {
+  await run(() => uniApi(uni.value, `/hostile-attacks/${hide ? 'hide' : 'unhide'}`, { body: { key: a.key } }));
 }
 const attackShips = (a: HostileAttack) =>
   a.fleets.length > 1 ? t('notify.acs', { n: a.fleets.length }) : (a.fleets[0]?.mission != null ? t(`game.missions.${a.fleets[0].mission}`) : '');
@@ -566,9 +573,9 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
     </div>
   </div>
 
-  <div v-if="attacks.length" class="card attacks">
+  <div v-if="shownAttacks.length" class="card attacks">
     <h3>{{ t('retime.attacks') }}</h3>
-    <div v-for="a in attacks" :key="a.key" class="row attack">
+    <div v-for="a in shownAttacks" :key="a.key" class="row attack">
       <span class="neg">⚔ {{ t('notify.attack', { member: a.member ?? coords(a.to.g, a.to.s, a.to.p) }) }}</span>
       <span v-if="a.source === 'phalanx'" class="badge" :title="t('phalanx.byTitle', { name: a.reporter ?? '?' })">{{ t('phalanx.badge') }}</span>
       <span class="mono">{{ coords(a.to.g, a.to.s, a.to.p) }}</span>
@@ -585,6 +592,7 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
       <button v-else class="primary" @click="planRetime(a)">{{ t('retime.plan') }}</button>
       <span v-if="a.holdPlanId" class="muted small">{{ t('hold.planned') }}</span>
       <button v-else-if="a.arrival > now" @click="planHold(a)">{{ t('hold.plan') }}</button>
+      <button :title="t('retime.hideTitle')" @click="setHidden(a, true)">{{ t('retime.hide') }}</button>
     </div>
   </div>
 
@@ -851,6 +859,29 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
       </template>
     </div>
   </template>
+
+  <template v-if="hiddenAttacks.length">
+    <h2 class="hidden-head">
+      <button class="toggle" :aria-expanded="showHidden" @click="showHidden = !showHidden">{{ showHidden ? '▾' : '▸' }}</button>
+      {{ t('retime.hidden', { n: hiddenAttacks.length }) }}
+    </h2>
+    <div v-if="showHidden" class="card attacks">
+      <div v-for="a in hiddenAttacks" :key="a.key" class="row attack">
+        <span class="neg">⚔ {{ t('notify.attack', { member: a.member ?? coords(a.to.g, a.to.s, a.to.p) }) }}</span>
+        <span class="mono">{{ coords(a.to.g, a.to.s, a.to.p) }}</span>
+        <span class="time"><b class="mono">{{ clock(a.arrival) }}</b> <Countdown class="muted small" :to="a.arrival" /></span>
+        <span v-if="a.arrival <= now" class="badge" :title="t('retime.arrivedTitle')">{{ t('retime.arrived') }}</span>
+        <span class="small">{{ attackShips(a) }}</span>
+        <span class="small">
+          {{ t('notify.from') }} <PlayerLink v-if="a.player" :id="a.player.id" :name="a.player.name" />
+          <span class="mono">{{ coords(a.from.g, a.from.s, a.from.p) }}</span><span v-if="a.from.type === 'moon'" class="muted"> ☾</span>
+        </span>
+        <span class="grow" />
+        <span class="muted small">{{ t('retime.hiddenBy', { name: a.hidden!.by ?? '?', time: timeWithAge(a.hidden!.at) }) }}</span>
+        <button @click="setHidden(a, false)">{{ t('retime.unhide') }}</button>
+      </div>
+    </div>
+  </template>
 </template>
 
 <style scoped>
@@ -859,7 +890,7 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
 .attack { gap: 6px 12px; padding: 4px 0; border-top: 1px solid var(--border); }
 .plan.closed { opacity: .7; }
 .plan-head { gap: 6px; }
-.plan-head .toggle { padding: 0 6px; border: 0; background: none; color: var(--muted); font-size: 14px; cursor: pointer; }
+.hidden-head .toggle, .plan-head .toggle { padding: 0 6px; border: 0; background: none; color: var(--muted); font-size: 14px; cursor: pointer; }
 .summary { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; padding-left: 26px; cursor: pointer; }
 .plan-form { display: flex; flex-direction: column; gap: 10px; }
 .plan-form h3 { margin: 0; }
