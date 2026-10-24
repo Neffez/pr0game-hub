@@ -252,6 +252,11 @@ export interface ResearchRecord {
   research: BuildingsEntry[];
   /** account wide research queue, first in progress; `end` epoch seconds */
   queue: { id: number; level: number; end: number | null }[];
+  /**
+   * own levels the requirement lines show ("Forschungslabor (Stufe 10/5)"): the planet's lab and research the page
+   * leaves out (the game's "hide useless")
+   */
+  known?: Record<number, number>;
 }
 
 export interface OverviewQueue {

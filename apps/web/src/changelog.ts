@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-10-24',
     items: [
       {
+        kind: 'fix',
+        de: 'Forschung: Kosten und Forschungszeiten stimmen mit einer echten Forschungs-Seite überein. Forschungen, die das Spiel mit „nutzlose ausblenden“ weglässt, behalten ihre richtige Stufe.',
+        en: 'Research: costs and research times match a real research page. Research the game leaves out with "hide useless" keeps its correct level.',
+      },
+      {
         kind: 'new',
         de: '„Gebäude“ heißt jetzt „Bauen & Forschen“ und hat einen zweiten Tab für Forschungen: wie im Spiel siehst du pro Planet Stufe, Voraussetzungen, Kosten, fehlende Rohstoffe, wann es losgehen kann und die Forschungszeit mit Labor, Forschungsnetzwerk und TechnoDome. Auch hier gibt es die Glocke für eine Benachrichtigung. Die Forschungs-Seite aus dem Spiel kannst du jetzt ebenfalls synchronisieren. Im Menü steht der Punkt jetzt nach Statistik und Mein Imperium.',
         en: 'Buildings is now called Build & Research and has a second tab for research: like in the game you see per planet the level, requirements, costs, missing resources, when it can start and the research time with lab, research network and TechnoDome. The bell for a notification works here too. You can now also sync the research page from the game. In the menu it now comes after Statistics and My Empire.',

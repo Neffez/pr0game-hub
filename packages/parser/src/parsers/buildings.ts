@@ -153,5 +153,19 @@ export function parseResearchHtml($: CheerioAPI): ResearchRecord | null {
     noLab: NO_LAB.test(notes),
     research,
     queue: queue($).map(({ id, level, end }) => ({ id, level, end })),
+    known: requirementLevels($),
   };
+}
+
+/** Own levels of the requirement lines: `<a onclick="Dialog.info(31)"><span>Forschungslabor (Stufe 10/5)</span></a>`. */
+function requirementLevels($: CheerioAPI): Record<number, number> {
+  const known: Record<number, number> = {};
+  $('.infos').each((_, el) => {
+    $(el).children('.buildl').first().children('a[onclick*="Dialog.info"]').each((_, a) => {
+      const id = Number(($(a).attr('onclick') ?? '').match(/Dialog\.info\((\d+)\)/)?.[1]);
+      const m = $(a).text().match(/\((?:Stufe|Level|Lvl\.?)\s*([\d.,]+)\s*\/\s*[\d.,]+\)/i);
+      if (id && m) known[id] = Number(m[1].replace(/[.,]/g, ''));
+    });
+  });
+  return known;
 }

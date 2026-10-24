@@ -272,5 +272,22 @@ describe('buildings page', () => {
     expect(state.researchSpeed).toBe(deriveResearchSpeed({ 901: 215563, 902: 359272 }, 9999, 12));
     expect(state.planets.find((p: { key: string }) => p.key === '1:100:12:planet').planet.values[31]).toBe(14);
   });
+
+  it('takes the real research page: hidden research and the lab from its requirement lines, the research speed', async () => {
+    const html = readFileSync(new URL('../../../packages/parser/test/fixtures/research-real-source.html', import.meta.url), 'utf8');
+    expect((await call('POST', '/u8/ingest', h.dave, { html })).json()).toMatchObject({ pageType: 'research' });
+    const pageTime = db.prepare('SELECT MAX(page_time) FROM research_snapshots WHERE user_id = ?').pluck().get(ids.dave) as number;
+    // an empire page shortly before: labs 10 (Ares) + 12, 10, 10 for the network of 3; older research levels
+    const labs = [['Ares', 12, 10], ['Fortuna', 9, 12], ['Shiva', 10, 10], ['Domestos', 15, 10]] as const;
+    db.prepare('INSERT INTO empire_snapshots (group_id, user_id, created_at, data) VALUES (?, ?, ?, ?)').run(group, ids.dave, pageTime - 60, JSON.stringify({
+      kind: 'empire', research: { 114: 8, 120: 11, 106: 10 },
+      planets: labs.map(([name, p, lab]) => ({ name, coords: { g: 1, s: 100, p }, type: 'planet', values: { 31: lab } })),
+    }));
+    const state = (await call('GET', '/u8/buildings', h.dave)).json();
+    // listed: from the page; hidden as useless: from the requirement lines (120) or the empire page (114)
+    expect(state.research).toMatchObject({ 106: 11, 113: 12, 114: 8, 120: 12, 123: 3 });
+    expect(state.planets.find((p: { key: string }) => p.key === '1:100:12:planet').planet.values[31]).toBe(10);
+    expect(state.researchSpeed).toBe(5000);
+  });
 });
 

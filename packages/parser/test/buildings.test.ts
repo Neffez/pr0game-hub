@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
-  buildingCost, buildingsFor, catchUpBonus, catchUpFromCosts, labLevels, researchOf, researchTime, buildingsOf, buildTime, deriveBuildingSpeed, requirementsOf, resourceAt, resourceReadyAt, type BuildPlanet,
+  buildingCost, buildingsFor, catchUpBonus, catchUpFromCosts, deriveResearchSpeed, labLevels, researchOf, researchTime, buildingsOf, buildTime, deriveBuildingSpeed, requirementsOf, resourceAt, resourceReadyAt, type BuildPlanet,
 } from '../src/buildings.js';
 import { parsePage } from '../src/index.js';
 
@@ -248,6 +248,56 @@ describe('research', () => {
     expect(researchOf({ ...planet, busy: { lab: { until: null } } }, o).find((r) => r.id === 106)!.state).toBe('busy');
     // no lab: nothing to research here
     expect(researchOf({ ...planet, values: {} }, o).every((r) => r.state === 'nolab')).toBe(true);
+  });
+});
+
+describe('real research page', () => {
+  const rec = parsePage({ html: fixture('research-real-source.html') }).records[0];
+  if (rec.kind !== 'research') throw new Error('expected research');
+  const levels = Object.fromEntries(rec.research.map((e) => [e.id, e.level]));
+
+  it('parses levels, the queue (a button), the bonus and the levels of the requirement lines', () => {
+    expect(rec).toMatchObject({
+      coords: { g: 1, s: 100, p: 12 }, type: 'planet', pageTime: '2026-10-24 11:25:55', catchUp: 10.51, labBusy: false, noLab: false,
+      resources: { 901: 20096, 902: 99866, 903: 163233 }, storage: { 901: 4325000 }, perHour: { 903: 19994.068649 },
+      queue: [{ id: 121, level: 3, end: 1792834149 }],
+      // lab of the planet, and laser technology the page hides as useless
+      known: { 31: 10, 113: 12, 120: 12, 121: 2 },
+    });
+    expect(levels).toMatchObject({ 106: 11, 108: 10, 109: 13, 110: 14, 111: 14, 113: 12, 121: 2, 122: 0, 123: 3, 124: 11, 134: 13, 199: 0 });
+    // "hide useless": hyperspace and laser technology are not listed
+    expect(levels[114]).toBeUndefined();
+    expect(levels[120]).toBeUndefined();
+  });
+
+  it('reproduces every cost and research time of the game', () => {
+    const bonus = catchUpFromCosts({ buildings: rec.research, queue: rec.queue.map((q) => ({ ...q, destroy: false })) })!;
+    // shown 10.51 %, the costs need 10.5058 %
+    expect(bonus).toBeCloseTo(10.5058, 3);
+    for (const e of rec.research) {
+      const queued = rec.queue.find((q) => q.id === e.id);
+      const cost = buildingCost(e.id, (queued ? queued.level : e.level) + 1, bonus);
+      for (const [r, x] of Object.entries(e.cost)) if (Number(r) !== 911) expect(Math.round(cost[Number(r)])).toBe(x);
+      // research speed 5000, own lab 10 + three network labs = 42 (all at least lab 12: graviton counts them too)
+      expect(researchTime(cost, 42, 5000)).toBe(e.time);
+    }
+    expect(deriveResearchSpeed(rec.research[0].cost, rec.research[0].time!, 42)).toBe(5000);
+  });
+
+  it('next level, "possible in" and the planet\'s research like the page', () => {
+    const planet: BuildPlanet = { type: 'planet', values: { 31: 10 }, resources: rec.resources, perHour: rec.perHour, storage: rec.storage, time: 0, queue: [] };
+    const list = researchOf(planet, {
+      research: { ...levels, 114: 8, 120: 12 }, queue: rec.queue, otherLabs: [12, 10, 10, 5], researchSpeed: 5000,
+      catchUp: catchUpFromCosts({ buildings: rec.research, queue: rec.queue.map((q) => ({ ...q, destroy: false })) }), now: 0,
+    });
+    const byId = (id: number) => list.find((r) => r.id === id)!;
+    // ion technology 3 is running: the next one is 4
+    expect(byId(121)).toMatchObject({ level: 2, next: 4, state: 'buildable', time: 389 });
+    // page: possible in 274424 s, research time 92068 s
+    expect(byId(106).readyAt).toBeCloseTo(274424, -1);
+    expect(byId(106).time).toBe(92068);
+    expect(byId(122).state).toBe('requirements');
+    expect(byId(199).state).toBe('requirements');
   });
 });
 

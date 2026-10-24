@@ -4,6 +4,12 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-24
 
+- Research checked against a real research page (now a parser fixture): every cost (exact catch-up bonus 10.5058 %
+  behind the shown 10.51 %) and research time (research speed 5000, own lab plus three network labs) matches the game.
+  - The research page's requirement lines ("Forschungslabor (Stufe 10/5)") are read (`ResearchRecord.known`): the
+    planet's lab level at page time, and the levels of research the page leaves out with the game's "hide useless"
+    setting (they kept an older level before). The research speed is derived with that lab level.
+
 - Build & Research review fixes:
   - A newer overview merges into the queue of a buildings page by the running entry: entries before it count as
     finished (their levels rise), the ones after it stay queued, also when a research page is newer than the buildings

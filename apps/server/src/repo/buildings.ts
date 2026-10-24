@@ -162,6 +162,8 @@ export function buildingsState(db: DB, ctx: GroupContext, userId: number, t = no
     bp.planet.resources = { ...bp.planet.resources, ...r.resources };
     if (Object.keys(r.storage).length) bp.planet.storage = { ...r.storage };
     if (Object.keys(r.perHour).length) bp.planet.perHour = { ...bp.planet.perHour, ...r.perHour };
+    // the lab level when a requirement line shows it
+    if (r.known?.[RESEARCH_LAB] != null) bp.planet.values[RESEARCH_LAB] = r.known[RESEARCH_LAB];
     bp.planet.time = page.time;
   }
   // the overview shows the running build of every planet: newer than the page a planet comes from, it wins
@@ -287,7 +289,11 @@ function researchState(
 ): { levels: Record<string, number>; queue: ResearchQueue } {
   const levels: Record<string, number> = { ...(empire?.rec.research ?? {}) };
   const page = pages[0] ?? null;
-  if (page && (!empire || page.time >= empire.time)) for (const e of page.rec.research) levels[e.id] = e.level;
+  if (page && (!empire || page.time >= empire.time)) {
+    for (const e of page.rec.research) levels[e.id] = e.level;
+    // research the page leaves out ("hide useless") when a requirement line shows its level
+    for (const [id, level] of Object.entries(page.rec.known ?? {})) if (Number(id) >= 100 && !page.rec.research.some((e) => e.id === Number(id))) levels[id] = level;
+  }
   const running = overview?.rec.queues.find((x) => x.kind === 'research');
   const sources: { time: number; queue: ResearchQueue }[] = [];
   if (empire) {
@@ -350,17 +356,17 @@ function derivedResearchSpeed(
   );
   for (const { time, rec } of pages) {
     const row = near.get(ctx.groupId, userId, time, time) as { data: string } | undefined;
-    if (!row) continue;
-    const planets = (JSON.parse(row.data) as EmpireRecord).planets.filter((p) => p.type === 'planet');
+    const planets = row ? (JSON.parse(row.data) as EmpireRecord).planets.filter((p) => p.type === 'planet') : [];
     const here = planets.find((p) => same(p.coords, rec.coords));
-    const own = here?.values[RESEARCH_LAB] ?? 0;
-    if (!here || !own) continue;
-    const others = planets.filter((p) => p !== here).map((p) => p.values[RESEARCH_LAB] ?? 0);
+    const network = rec.research.find((e) => e.id === RESEARCH_NETWORK)?.level ?? research[RESEARCH_NETWORK] ?? 0;
+    // the own lab as the page's requirement lines show it (exact), else from that empire page; other labs need one
+    const own = rec.known?.[RESEARCH_LAB] ?? here?.values[RESEARCH_LAB] ?? 0;
+    if (!own || (network > 0 && !row)) continue;
+    const others = planets.filter((p) => !same(p.coords, rec.coords)).map((p) => p.values[RESEARCH_LAB] ?? 0);
     const longest = [...rec.research].filter((e) => e.time != null).sort((a, b) => b.time! - a.time!)[0];
     if (!longest) continue;
-    const network = rec.research.find((e) => e.id === RESEARCH_NETWORK)?.level ?? research[RESEARCH_NETWORK] ?? 0;
     const lab = labLevels(longest.id, own, others, network);
-    const speed = deriveResearchSpeed(longest.cost, longest.time!, lab, here.values[TECHNO_DOME] ?? 0, universityFactor);
+    const speed = deriveResearchSpeed(longest.cost, longest.time!, lab, here?.values[TECHNO_DOME] ?? 0, universityFactor);
     if (speed) return speed;
   }
   return null;
