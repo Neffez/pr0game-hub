@@ -204,7 +204,7 @@ export function settlementDraft(db: DB, ctx: GroupContext, plan: PlanRow & { tim
   for (const r of recycled) {
     const id = memberKey(r.user_id);
     if (!state.participants.some((p) => p.id === id) && !state.helpers.some((h) => h.id === id)) {
-      state.helpers.push({ id, name: r.member, keepPct: HELPER_KEEP });
+      state.helpers.push({ id, name: r.member, keepPct: HELPER_KEEP, recDeut: 0 });
     }
     state.recycling.push({ by: id, m: r.metal, k: r.crystal });
     sources.recycling.push({ by: id, time: r.time });

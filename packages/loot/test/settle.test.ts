@@ -135,7 +135,7 @@ describe('settle', () => {
   it('lets helpers keep their share (at most 20 %), without a deuterium refund', () => {
     const r = settle(
       base({
-        helpers: [{ id: 'h', name: 'Helper', keepPct: 30 }],
+        helpers: [{ id: 'h', name: 'Helper', keepPct: 30, recDeut: 5_000 }],
         recycling: [{ by: 'h', m: 100_000, k: 50_000 }],
         battles: [{ loot: { m: 0, k: 0, d: 10_000 }, fleets: [{ participant: 'a', start: { 203: 1 }, end: { 203: 1 } }] }],
       }),
@@ -144,6 +144,18 @@ describe('settle', () => {
     expect(h.entitled).toEqual({ m: 20_000, k: 10_000, d: 0 });
     expect(h.balance).toEqual({ m: -80_000, k: -40_000, d: 0 });
     expect(person(r, 'a').entitled).toEqual({ m: 40_000, k: 20_000, d: 5_000 });
+    expect(settled(r.people, r.transfers)).toBe(true);
+  });
+
+  it('refunds the helpers\' recycler deuterium only with the option', () => {
+    const input = base({
+      helpers: [{ id: 'h', name: 'Helper', keepPct: 20, recDeut: 5_000 }],
+      recycling: [{ by: 'h', m: 100_000, k: 50_000 }],
+      battles: [{ loot: { m: 0, k: 0, d: 10_000 }, fleets: [{ participant: 'a', start: { 203: 1 }, end: { 203: 1 } }] }],
+    });
+    const r = settle({ ...input, settings: { ...settings, helperDeut: true } });
+    expect(person(r, 'h').entitled).toEqual({ m: 20_000, k: 10_000, d: 5_000 });
+    expect(person(r, 'a').entitled).toEqual({ m: 40_000, k: 20_000, d: 2_500 });
     expect(settled(r.people, r.transfers)).toBe(true);
   });
 

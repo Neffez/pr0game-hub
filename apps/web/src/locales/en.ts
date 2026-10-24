@@ -1173,6 +1173,8 @@ const en: typeof de = {
     fromPlan: 'computed from the plan fleet',
     helpers: 'Recycling helpers',
     keepPct: 'Keeps % (max. 20)',
+    helperDeut: 'Refund the helpers’ recycler deuterium on top',
+    helperDeutHint: 'Not by the current reading of the rules: the 20 % cover the deuterium too. If you handle it differently, the deuterium is paid from the pot on top.',
     helpersHint: 'Members who recycled at the target without being in the plan: keep up to 20 % of what they recycled (20 % is usual, the rules allow no more), their deuterium is not refunded on top.',
     battles: 'Battles',
     noBattles: 'No battle report found at the target. Sync battle reports or enter them by hand in the loot calculator.',

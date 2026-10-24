@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-24
 
+- Loot settlement: refunding the recycling helpers' recycler deuterium on top of their share is an option again
+  (`Settings.helperDeut`, default off; `Helper.recDeut` back), as the rule is not settled. Tool and hub show the
+  deuterium column of the helpers only when it is on.
+
 - Loot settlement, recycling helpers: they keep at most 20 % of what they recycled (default 20 %, less allowed;
   `MAX_HELPER_KEEP`) and their recycler deuterium is no longer refunded on top (`Helper.recDeut` removed), as the
   game's moderators confirmed.

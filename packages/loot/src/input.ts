@@ -19,6 +19,7 @@ export const DEFAULT_SETTINGS: Settings = {
   refRates: null,
   deficitMetalShare: 0.5,
   cargoShip: 203,
+  helperDeut: false,
 };
 
 export const emptyState = (): LootState => ({
@@ -75,7 +76,7 @@ export function cleanState(raw: unknown): LootState {
       : null,
   );
   const helpers = list<Helper>(raw.helpers, MAX_HELPERS, (h) =>
-    isObj(h) && str(h.id) ? { id: str(h.id), name: str(h.name), keepPct: num(h.keepPct, 0, MAX_HELPER_KEEP) } : null,
+    isObj(h) && str(h.id) ? { id: str(h.id), name: str(h.name), keepPct: num(h.keepPct, 0, MAX_HELPER_KEEP), recDeut: int(h.recDeut) } : null,
   );
   const ids = new Set<string>();
   for (const p of [...participants, ...helpers]) {
@@ -114,6 +115,7 @@ export function cleanState(raw: unknown): LootState {
     refRates: isObj(s.refRates) ? rates(s.refRates, { ...DEFAULT_RATES }) : null,
     deficitMetalShare: s.deficitMetalShare == null ? DEFAULT_SETTINGS.deficitMetalShare : num(s.deficitMetalShare, 0, 1),
     cargoShip: CAPACITY[int(s.cargoShip)] ? int(s.cargoShip) : DEFAULT_SETTINGS.cargoShip,
+    helperDeut: s.helperDeut === true,
   };
   const transfers = Array.isArray(raw.transfers)
     ? list<TransferInput>(raw.transfers, MAX_ROWS, (t) =>

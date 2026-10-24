@@ -26,13 +26,15 @@ export interface Participant {
 }
 
 /**
- * Recycles for the participants without being one: keeps `keepPct` % of what they recycled (game rule: at most 20 %),
- * their recycler deuterium is not refunded on top.
+ * Recycles for the participants without being one: keeps `keepPct` % of what they recycled (game rule: at most 20 %);
+ * the recycler deuterium is refunded on top only with `Settings.helperDeut`.
  */
 export interface Helper {
   id: string;
   name: string;
   keepPct: number;
+  /** deuterium of the recycler flights (counts only with `Settings.helperDeut`) */
+  recDeut?: number;
 }
 
 /** A participant's fleet in one battle, as the battle report lists it. */
@@ -74,6 +76,8 @@ export interface Settings {
   deficitMetalShare: number;
   /** ship used for the transfers (202 or 203) */
   cargoShip: number;
+  /** refund the helpers' recycler deuterium on top of their share (default off, the rule is not settled) */
+  helperDeut?: boolean;
 }
 
 export interface SettlementInput {

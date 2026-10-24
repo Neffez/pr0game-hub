@@ -86,6 +86,7 @@ components:
               id: { type: string }
               name: { type: string }
               keepPct: { type: number, minimum: 0, maximum: 20, description: Share of what they recycled the helper keeps (game rule at most 20 %) }
+              recDeut: { type: integer, description: Recycler deuterium, refunded only with `settings.helperDeut` }
         battles:
           type: array
           items:
@@ -114,6 +115,7 @@ components:
             refRates: { type: [object, 'null'] }
             deficitMetalShare: { type: number }
             cargoShip: { type: integer }
+            helperDeut: { type: boolean, description: Refund the helpers' recycler deuterium on top of their share (default false) }
         transfers: { type: [array, 'null'], items: { type: object } }
     PushSettings:
       type: object

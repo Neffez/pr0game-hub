@@ -349,14 +349,22 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
           </table>
           <template v-if="state.helpers.length">
             <h3>{{ t('loot.helpers') }} <Hint>{{ t('loot.helpersHint') }}</Hint></h3>
+            <label class="row small tick" style="margin-bottom: 6px">
+              <input v-model="state.settings.helperDeut" type="checkbox" :disabled="!canEdit" />
+              {{ t('loot.helperDeut') }} <Hint>{{ t('loot.helperDeutHint') }}</Hint>
+            </label>
             <table class="data">
               <thead>
-                <tr><th>{{ t('common.name') }}</th><th class="num">{{ t('loot.keepPct') }}</th></tr>
+                <tr>
+                  <th>{{ t('common.name') }}</th><th class="num">{{ t('loot.keepPct') }}</th>
+                  <th v-if="state.settings.helperDeut" class="num">{{ t('loot.recDeut') }}</th>
+                </tr>
               </thead>
               <tbody>
                 <tr v-for="h in state.helpers" :key="h.id">
                   <td>{{ h.name }}</td>
                   <td class="num"><input v-model.number="h.keepPct" type="number" min="0" :max="MAX_HELPER_KEEP" :disabled="!canEdit" /></td>
+                  <td v-if="state.settings.helperDeut" class="num"><input v-model.number="h.recDeut" type="number" min="0" :disabled="!canEdit" /></td>
                 </tr>
               </tbody>
             </table>

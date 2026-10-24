@@ -129,7 +129,7 @@ export function settle(input: SettlementInput): SettlementResult {
   const pot = sum(people.map(holds));
   const rates = settings.rates;
 
-  // claims: participants their costs, helpers their part of the recycling
+  // claims: participants their costs, helpers their part of the recycling (and their deuterium if refunded)
   const missileCost = shipCosts({ [MISSILE]: 1 });
   const costs = participants.map((p) =>
     round(
@@ -143,7 +143,7 @@ export function settle(input: SettlementInput): SettlementResult {
   const helperParts = helpers.map((h) => {
     const r = recycled.get(h.id)!;
     const keep = Math.min(MAX_HELPER_KEEP, Math.max(0, h.keepPct)) / 100;
-    return round({ m: r.m * keep, k: r.k * keep, d: 0 });
+    return round({ m: r.m * keep, k: r.k * keep, d: settings.helperDeut ? Math.max(0, h.recDeut ?? 0) : 0 });
   });
 
   // helpers first (they keep their part), then the participants, scaled down alike when the pot is worth less

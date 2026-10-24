@@ -1175,6 +1175,8 @@ const de = {
     fromPlan: 'aus der Planflotte berechnet',
     helpers: 'Recycling-Helfer',
     keepPct: 'Behält % (max. 20)',
+    helperDeut: 'Recycler-Deut der Helfer zusätzlich erstatten',
+    helperDeutHint: 'Nach aktueller Auslegung nicht: die 20 % decken auch das Deut. Falls ihr es anders handhabt, wird das Deut zusätzlich aus dem Topf ersetzt.',
     helpersHint: 'Mitglieder, die am Ziel recycelt haben, ohne im Plan zu sein: behalten bis zu 20 % ihres Recyclings (üblich sind 20 %, mehr erlaubt die Regel nicht), ihr Deut wird nicht extra erstattet.',
     battles: 'Kämpfe',
     noBattles: 'Kein Kampfbericht am Ziel gefunden. Kampfberichte synchronisieren oder im Beuterechner von Hand eintragen.',

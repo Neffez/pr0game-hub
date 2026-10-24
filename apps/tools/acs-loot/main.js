@@ -181,19 +181,26 @@ function buildParticipants() {
 }
 
 function buildHelpers() {
+  var deut = !!S.settings.helperDeut;
   var rows = S.helpers.map(function (h, i) {
     var base = 'helpers.' + i + '.';
     return '<tr>' +
       '<td><input data-bind="' + base + 'name" data-type="text" value="' + esc(h.name) + '" placeholder="' + esc(t('name')) + '"></td>' +
       '<td><input class="num" inputmode="decimal" data-bind="' + base + 'keepPct" data-type="pct" value="' + esc(h.keepPct) + '"></td>' +
+      (deut ? '<td>' + amountInput(base + 'recDeut', h.recDeut) + '</td>' : '') +
       '<td><button type="button" class="x" data-act="delHelper" data-i="' + i + '" title="' + esc(t('remove')) + '">✕</button></td>' +
       '</tr>';
   }).join('');
   $('#helpers').innerHTML =
     '<div class="card-title">' + esc(t('helpers')) + '</div>' +
     '<p class="card-hint">' + esc(t('helpersHint')) + '</p>' +
-    (rows ? '<div class="table-wrap"><table><thead><tr><th>' + esc(t('name')) + '</th><th>' + esc(t('keepPct')) +
-      '</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div>' : '') +
+    '<div class="field" style="margin-bottom:12px"><span class="field-label">' + esc(t('helperDeut')) + '</span>' +
+    '<div class="seg" role="group">' +
+    '<button type="button" data-act="helperDeut" data-on="0" aria-pressed="' + !deut + '">' + esc(t('helperDeutOff')) + '</button>' +
+    '<button type="button" data-act="helperDeut" data-on="1" aria-pressed="' + deut + '">' + esc(t('helperDeutOn')) + '</button>' +
+    '</div><span class="hint">' + esc(t('helperDeutHint')) + '</span></div>' +
+    (rows ? '<div class="table-wrap"><table><thead><tr><th>' + esc(t('name')) + '</th><th>' + esc(t('keepPct')) + '</th>' +
+      (deut ? '<th>' + esc(t('recDeut')) + '</th>' : '') + '<th></th></tr></thead><tbody>' + rows + '</tbody></table></div>' : '') +
     '<div class="row-actions"><button type="button" class="btn" data-act="addHelper">' + esc(t('addHelper')) + '</button></div>';
 }
 
@@ -544,6 +551,7 @@ function onChange(el) {
 
 var ACTIONS = {
   mode: function (el) { S.settings.mode = el.getAttribute('data-mode'); buildSettings(); },
+  helperDeut: function (el) { S.settings.helperDeut = el.getAttribute('data-on') === '1'; buildHelpers(); },
   cargo: function (el) { S.settings.cargoShip = Number(el.getAttribute('data-ship')); buildSettings(); },
   addParticipant: function () {
     if (S.participants.length >= MAX_PARTICIPANTS) return;
@@ -552,7 +560,7 @@ var ACTIONS = {
   },
   delParticipant: function (el) { removePerson(S.participants.splice(Number(el.getAttribute('data-i')), 1)[0]); },
   addHelper: function () {
-    S.helpers.push({id: newId(S, 'h'), name: '', keepPct: MAX_HELPER_KEEP});
+    S.helpers.push({id: newId(S, 'h'), name: '', keepPct: MAX_HELPER_KEEP, recDeut: 0});
     buildInputs();
   },
   delHelper: function (el) { removePerson(S.helpers.splice(Number(el.getAttribute('data-i')), 1)[0]); },
