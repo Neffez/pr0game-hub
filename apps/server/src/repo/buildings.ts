@@ -1,10 +1,12 @@
 import type { BuildingsRecord, EmpireRecord, OverviewRecord } from '@pr0hub/core';
-import { buildingsOf, deriveBuildingSpeed, LOCKED_BY, NANITE_FACTORY, ROBOT_FACTORY, type Arrival, type BuildingInfo, type BuildPlanet } from '@pr0hub/core/buildings';
+import { buildingsOf, catchUpBonus, catchUpFromCosts, deriveBuildingSpeed, levelAfter, LOCKED_BY, NANITE_FACTORY, ROBOT_FACTORY, type Arrival, type BuildingInfo, type BuildPlanet } from '@pr0hub/core/buildings';
 import { METAL, STORAGE, storageCapacity } from '@pr0hub/core/tech';
 import type { GroupContext } from '../context.js';
 import { now, type DB } from '../db.js';
 import { latestEmpire } from './empire.js';
 import { sharedFleets, type StoredFleet } from './fleets.js';
+import { memberPlayer } from './members.js';
+import { CATCH_UP_WEIGHTS, catchUpLeader, latestScores } from './stats.js';
 
 /**
  * The member's planets and moons as the buildings page needs them: the newest empire page, a buildings page of the
@@ -30,8 +32,10 @@ export interface BuildingPlanet {
 export interface BuildingsState {
   planets: BuildingPlanet[];
   research: Record<string, number>;
-  /** catch-up bonus in percent of the newest page showing it */
+  /** catch-up bonus in percent (not rounded), see `catchUpOf` */
   catchUp: number | null;
+  /** where the bonus comes from and as of when */
+  catchUpFrom: { source: 'page' | 'overview' | 'stats'; time: number } | null;
   /** universe building speed: derived from a buildings page, else the universe setting; null when unknown */
   buildingSpeed: number | null;
   storageFactor: number;
@@ -105,7 +109,7 @@ export function buildingsState(db: DB, ctx: GroupContext, userId: number, t = no
     bp.shown = Object.fromEntries(
       r.buildings.map((b) => {
         const queued = [...r.queue].reverse().find((q) => q.id === b.id);
-        return [b.id, { next: (queued ? queued.level : b.level) + 1, cost: b.cost, time: b.time }];
+        return [b.id, { next: (queued ? levelAfter(queued) : b.level) + 1, cost: b.cost, time: b.time }];
       }),
     );
     if (!newer) continue;
@@ -114,6 +118,7 @@ export function buildingsState(db: DB, ctx: GroupContext, userId: number, t = no
     bp.planet.resources = { ...bp.planet.resources, ...r.resources };
     if (Object.keys(r.storage).length) bp.planet.storage = { ...r.storage };
     if (Object.keys(r.perHour).length) bp.planet.perHour = { ...bp.planet.perHour, ...r.perHour };
+    if (r.fields) bp.planet.fields = { ...r.fields };
     bp.planet.time = page.time;
     bp.planet.queue = r.queue.map((q) => ({ ...q }));
   }
@@ -147,7 +152,7 @@ export function buildingsState(db: DB, ctx: GroupContext, userId: number, t = no
     // builds finished since then raise the level
     while (bp.planet.queue[0]?.end != null && bp.planet.queue[0].end <= t) {
       const done = bp.planet.queue.shift()!;
-      bp.planet.values[done.id] = done.level;
+      bp.planet.values[done.id] = levelAfter(done);
     }
     for (const f of fleets?.data ?? []) {
       if (!landing(f) || !same(f.to!.coords, bp.coords) || (f.to!.type ?? 'planet') !== bp.type) continue;
@@ -156,19 +161,47 @@ export function buildingsState(db: DB, ctx: GroupContext, userId: number, t = no
     bp.arrivals.sort((a, b) => a.at - b.at);
   }
 
-  const catchUp = [
-    ...(overview && overview.rec.catchUp != null ? [{ time: overview.time, v: overview.rec.catchUp }] : []),
-    ...pages.filter((p) => p.rec.catchUp != null).map((p) => ({ time: p.time, v: p.rec.catchUp! })),
-  ].sort((a, b) => b.time - a.time)[0]?.v ?? null;
+  const catchUp = catchUpOf(db, ctx, userId, overview, pages);
   return {
     planets: [...planets.values()],
     research: empire?.rec.research ?? {},
-    catchUp,
+    catchUp: catchUp?.value ?? null,
+    catchUpFrom: catchUp ? { source: catchUp.source, time: catchUp.time } : null,
     buildingSpeed: derivedSpeed(pages.map((p) => p.rec)) ?? (settings.buildingSpeed || null),
     storageFactor,
     empireTime: empire?.time ?? null,
     fleetsTime: fleets?.time ?? null,
   };
+}
+
+/**
+ * The catch-up bonus the game applies now (it lowers costs and with them build times). The game takes it from its
+ * latest statistics; its pages show it rounded to two decimals. Newest source wins: a buildings page (the exact value
+ * behind its costs, else its rounded one), the overview (rounded), or the synced statistics when they are newer than
+ * both (`getCatchUpFactor` with the own and the leader's points). Null when the universe has none (the pages show no
+ * bonus) or nothing tells.
+ */
+function catchUpOf(
+  db: DB, ctx: GroupContext, userId: number, overview: { time: number; rec: OverviewRecord } | null, pages: { time: number; rec: BuildingsRecord }[],
+): { value: number; source: 'page' | 'overview' | 'stats'; time: number } | null {
+  const shown: { value: number; source: 'page' | 'overview'; time: number }[] = [];
+  if (overview && overview.rec.catchUp != null) shown.push({ value: overview.rec.catchUp, source: 'overview', time: overview.time });
+  for (const p of pages) {
+    if (p.rec.catchUp == null) continue;
+    // the exact value only while it fits the rounded one shown
+    const exact = catchUpFromCosts(p.rec);
+    shown.push({ value: exact != null && Math.abs(exact - p.rec.catchUp) < 0.006 ? exact : p.rec.catchUp, source: 'page', time: p.time });
+  }
+  // pages first on equal times (exact)
+  const latest = shown.sort((a, b) => b.time - a.time || (a.source === 'page' ? -1 : 1))[0] ?? null;
+  if (!latest) return null;
+  const playerId = memberPlayer(db, ctx, userId);
+  const leader = catchUpLeader(db, ctx.groupId);
+  if (playerId == null || !leader || leader.types < 3 || leader.time <= latest.time) return latest;
+  const own = latestScores(db, ctx.groupId, [playerId], [2, 3, 4]).get(playerId);
+  if (!own || Object.keys(CATCH_UP_WEIGHTS).some((type) => !own[Number(type)] || own[Number(type)].time < leader.time)) return latest;
+  const weighted = Object.entries(CATCH_UP_WEIGHTS).reduce((sum, [type, w]) => sum + own[Number(type)].points * w, 0);
+  return { value: catchUpBonus(weighted, leader.weighted), source: 'stats', time: leader.time };
 }
 
 type Busy = { time: number; busy: { until: number | null } | null };

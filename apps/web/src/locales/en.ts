@@ -669,6 +669,8 @@ const en: typeof de = {
     fromEmpire: 'Empire',
     fromPage: 'Buildings page',
     catchUp: 'Cost bonus {n} %',
+    catchUpTitle: "The game's catch-up bonus: it lowers the costs and with them the build time. The game calculates it from its latest statistics (your points against the best player's: buildings ×1, research ×0.8, fleet ×0.6) and shows it rounded; the hub takes the exact value behind the costs of a buildings page or calculates it from newer synced statistics.",
+    catchUpFrom: { page: 'buildings page {time}', overview: 'overview {time}', stats: 'statistics {time}' },
     speedUnknown: 'Build time unknown',
     speedUnknownTitle: "Build times need the universe's building speed: sync a buildings page or set it in the admin panel.",
     fields: 'Fields {used}/{max}',

@@ -225,8 +225,10 @@ export interface BuildingsRecord {
   resources: Record<number, number>;
   storage: Record<number, number>;
   perHour: Record<number, number>;
-  /** catch-up bonus in percent, null if the universe has none */
+  /** catch-up bonus in percent as shown (rounded to 2 decimals), null if the universe has none */
   catchUp: number | null;
+  /** used and maximum fields of the planet/moon */
+  fields?: { used: number; max: number } | null;
   buildings: BuildingsEntry[];
   /** build queue, first entry in progress; `end` epoch seconds when shown */
   queue: { id: number; level: number; destroy: boolean; end: number | null }[];

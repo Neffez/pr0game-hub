@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-10-24',
     items: [
       {
+        kind: 'fix',
+        de: 'Gebäude-Seite: Kosten und Bauzeiten stimmen jetzt aufs Ressourcen-Stück und auf die Sekunde mit dem Spiel überein. Der Aufhol-Bonus wird genau statt gerundet verwendet und nach einer neuen Statistik wie im Spiel neu berechnet.',
+        en: 'Buildings page: costs and build times now match the game to the unit and the second. The catch-up bonus is used exactly instead of rounded and recalculated like in the game after a new statistics update.',
+      },
+      {
         kind: 'new',
         de: 'Gebäude-Seite: Ausgeblendete Gebäude werden jetzt in deinem Hub-Konto gespeichert und gelten auf allen Geräten. Forschungslabor, TechnoDome, Nanitenfabrik und Raumschiffwerft werden wie im Spiel als beschäftigt angezeigt, solange Forschung oder Werft laufen. Die Bauzeit berücksichtigt Roboter- und Nanitenfabrik, die noch in der Bauschleife sind.',
         en: 'Buildings page: hidden buildings are now kept in your hub account and apply on all devices. Research lab, TechnoDome, nanite factory and shipyard show as busy while research or the shipyard run, like in the game. Build times take robot and nanite factories still in the build queue into account.',

@@ -671,6 +671,8 @@ const de = {
     fromEmpire: 'Imperium',
     fromPage: 'Gebäude-Seite',
     catchUp: 'Kosten-Bonus {n} %',
+    catchUpTitle: 'Aufhol-Bonus des Spiels: senkt die Kosten und damit die Bauzeit. Das Spiel berechnet ihn aus der letzten Statistik (deine Punkte gegen die des besten Spielers: Gebäude ×1, Forschung ×0,8, Flotte ×0,6) und zeigt ihn gerundet an; der Hub nimmt den genauen Wert hinter den Kosten einer Gebäude-Seite oder rechnet ihn aus einer neueren synchronisierten Statistik.',
+    catchUpFrom: { page: 'Gebäude-Seite {time}', overview: 'Übersicht {time}', stats: 'Statistik {time}' },
     speedUnknown: 'Bauzeit unbekannt',
     speedUnknownTitle: 'Bauzeiten brauchen die Baugeschwindigkeit des Universums: eine Gebäude-Seite synchronisieren oder im Admin-Panel eintragen.',
     fields: 'Felder {used}/{max}',

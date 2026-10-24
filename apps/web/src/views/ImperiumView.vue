@@ -232,8 +232,9 @@ const livePoints = computed(() => {
       } else {
         const p = e.data.planets.find((x) => same(x.coords, q.coords) && x.type === q.type);
         const cur = p?.values[q.id] ?? 0;
-        if (q.destroy ? cur <= q.level : cur >= q.level) continue;
-        sum[0] += q.destroy ? -levelPoints(q.id, q.level + 1) : levelPoints(q.id, q.level);
+        // a demolition is queued with the level it takes down
+        if (q.destroy ? cur < q.level : cur >= q.level) continue;
+        sum[0] += q.destroy ? -levelPoints(q.id, q.level) : levelPoints(q.id, q.level);
       }
       finished.push(`${name(q.id)} ${q.level}`);
     }

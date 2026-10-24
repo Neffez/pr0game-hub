@@ -4,6 +4,17 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-24
 
+- Buildings page, catch-up bonus checked against a real buildings page (now a parser fixture):
+  - Costs and build times use the exact bonus behind the page's costs (the page prints it rounded to two decimals,
+    which was off by tens of resources); after a newer statistics sync the bonus is calculated like the game's
+    `getCatchUpFactor` (own buildings ×1 + research ×0.8 + fleet ×0.6 against the leader's, at most 50 %). The page
+    shows the source.
+  - Costs and missing resources rounded like the game's `pretty_number`; fields taken from the buildings page.
+  - Leader query of the catch-up points shared by the Imperium and the buildings page (`catchUpLeader`).
+  - Demolitions in the build queue: the game queues them with the level they take down ("Metallmine 25 Abreißen"
+    leaves 24); the buildings page (next level, factories after the queue, finished builds) and the Imperium's live
+    points (a finished demolition was never subtracted) now read them that way.
+
 - Buildings page follow-ups:
   - Hidden buildings are kept in the hub account (`users.hidden_buildings`, `PUT /api/{uni}/buildings/hidden`) instead
     of the browser, so they apply on every device; a list hidden in the browser before is moved over once.

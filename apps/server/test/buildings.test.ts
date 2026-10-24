@@ -168,4 +168,28 @@ describe('buildings page', () => {
       shown: { 1: { next: 19, cost: { 901: 77907, 902: 19476 }, time: 2804 }, 2: { next: 17 } },
     });
   });
+
+  it('takes the exact catch-up bonus behind the costs, and the statistics once they are newer', async () => {
+    const html = readFileSync(new URL('../../../packages/parser/test/fixtures/buildings-real-source.html', import.meta.url), 'utf8');
+    expect((await call('POST', '/u8/ingest', h.dave, { html })).json()).toMatchObject({ pageType: 'buildings' });
+    let state = (await call('GET', '/u8/buildings', h.dave)).json();
+    // the page shows 10.18 %, its costs need 10.1838 %
+    expect(state.catchUp).toBeCloseTo(10.1838, 3);
+    expect(state.catchUpFrom.source).toBe('page');
+    expect(state.planets.find((p: { key: string }) => p.key === '1:100:12:planet').planet.fields).toEqual({ used: 168, max: 208 });
+
+    // a statistics update after the page: the game's formula with the own and the leader's points
+    const dave = Number(db.prepare("INSERT INTO players (group_id, name) VALUES (?, 'Dave')").run(group).lastInsertRowid);
+    const top = Number(db.prepare("INSERT INTO players (group_id, name) VALUES (?, 'Top')").run(group).lastInsertRowid);
+    const points: Record<number, [number, number]> = { 4: [500, 1000], 3: [250, 500], 2: [100, 200] };
+    for (const [type, [own, best]] of Object.entries(points)) {
+      const snap = Number(db.prepare("INSERT INTO stat_snapshots (group_id, who, type, stat_time) VALUES (?, 'player', ?, ?)").run(group, Number(type), t).lastInsertRowid);
+      db.prepare('INSERT INTO player_scores (snapshot_id, player_id, rank, points) VALUES (?, ?, 2, ?)').run(snap, dave, own);
+      db.prepare('INSERT INTO player_scores (snapshot_id, player_id, rank, points) VALUES (?, ?, 1, ?)').run(snap, top, best);
+    }
+    state = (await call('GET', '/u8/buildings', h.dave)).json();
+    // half of the leader's weighted points
+    expect(state.catchUpFrom).toEqual({ source: 'stats', time: t });
+    expect(state.catchUp).toBeCloseTo((50 / 9) * (10 * 0.9747 ** 50 - 1), 8);
+  });
 });

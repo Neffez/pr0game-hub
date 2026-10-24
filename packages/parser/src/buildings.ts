@@ -27,13 +27,19 @@ export const NANITE_FACTORY = 15;
  */
 export const LOCKED_BY: Record<number, 'research' | 'shipyard'> = { 6: 'research', 31: 'research', 15: 'shipyard', 21: 'shipyard' };
 
+/**
+ * Level a queue entry leaves the building at: the game queues a build with the level it reaches, a demolition with
+ * the level it takes down ("Metallmine 25 Abreißen" leaves 24).
+ */
+export const levelAfter = (q: { level: number; destroy: boolean }) => (q.destroy ? q.level - 1 : q.level);
+
 /** Robot and nanite factory levels once the queue is done (a build added now uses them, like `getBuildingTime`). */
 export function factoriesAfterQueue(p: Pick<BuildPlanet, 'values' | 'queue'>): { robot: number; nanite: number } {
   let robot = p.values[ROBOT_FACTORY] ?? 0;
   let nanite = p.values[NANITE_FACTORY] ?? 0;
   for (const q of p.queue) {
-    if (q.id === ROBOT_FACTORY) robot += q.destroy ? -1 : 1;
-    if (q.id === NANITE_FACTORY) nanite += q.destroy ? -1 : 1;
+    if (q.id === ROBOT_FACTORY) robot = levelAfter(q);
+    if (q.id === NANITE_FACTORY) nanite = levelAfter(q);
   }
   return { robot, nanite };
 }
@@ -57,6 +63,42 @@ export function buildingCost(id: number, level: number, catchUp = 0): Record<num
     if (c[i]) cost[r] = c[i] * scale;
   });
   return cost;
+}
+
+/**
+ * Catch-up bonus in percent like the game's `PlayerUtil::getCatchUpFactor`: from the own points (buildings ×1 +
+ * research ×0.8 + fleet ×0.6, latest statistics) against the best player's, 10 × 0.9747^(% of the leader), at least 1,
+ * mapped linearly onto 0 … `maxBonus` percent (the game: factor 0.5 at most, i.e. 50 %). It lowers the costs of
+ * buildings and research and with them the build time.
+ */
+export function catchUpBonus(ownWeighted: number, leaderWeighted: number, maxBonus = 50): number {
+  const raw = Math.max(1, 10 * Math.pow(0.9747, (Math.max(ownWeighted, 1) / Math.max(leaderWeighted, 1)) * 100));
+  return (maxBonus / 9) * (raw - 1);
+}
+
+/**
+ * The exact catch-up bonus (percent) behind the costs a buildings page shows: the page only prints it rounded to two
+ * decimals, the costs are rounded to whole units. Each cost narrows the factor to [(x − ½) / base, (x + ½) / base];
+ * the middle of what all costs allow. Null without costs or when they don't fit one factor.
+ */
+export function catchUpFromCosts(page: {
+  buildings: { id: number; level: number; cost: Record<number, number> }[];
+  queue: { id: number; level: number; destroy: boolean }[];
+}): number | null {
+  let lo = 0;
+  let hi = Infinity;
+  for (const b of page.buildings) {
+    const queued = [...page.queue].reverse().find((q) => q.id === b.id);
+    const base = buildingCost(b.id, (queued ? levelAfter(queued) : b.level) + 1);
+    for (const r of RESOURCES) {
+      const x = b.cost[r];
+      if (!x || !base[r]) continue;
+      lo = Math.max(lo, (x - 0.5) / base[r]);
+      hi = Math.min(hi, (x + 0.5) / base[r]);
+    }
+  }
+  if (!Number.isFinite(hi) || lo > hi) return null;
+  return (1 - (lo + hi) / 2) * 100;
 }
 
 /** Build time in seconds (`getBuildingTime`): (metal + crystal) / (speed × (1 + robot factory)) × 0.5^nanite factory hours. */
@@ -223,7 +265,7 @@ export function buildingsOf(p: BuildPlanet, o: BuildOptions): BuildingInfo[] {
     const meta = BUILDINGS[String(id)];
     const level = p.values[id] ?? 0;
     const queued = [...p.queue].reverse().find((q) => q.id === id);
-    const next = (queued ? queued.level : level) + 1;
+    const next = (queued ? levelAfter(queued) : level) + 1;
     const shown = o.shown?.[id]?.next === next ? o.shown[id] : undefined;
     const cost = shown && Object.keys(pick(shown.cost)).length ? pick(shown.cost) : buildingCost(id, next, o.catchUp ?? 0);
     // the page shows the time with today's factories: it only holds while none of them is in the queue

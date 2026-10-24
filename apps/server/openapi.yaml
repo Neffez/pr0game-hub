@@ -99,7 +99,7 @@ components:
         created_at: { type: integer }
     Buildings:
       type: object
-      required: [planets, research, catchUp, buildingSpeed, storageFactor, empireTime, fleetsTime, alerts]
+      required: [planets, research, catchUp, catchUpFrom, buildingSpeed, storageFactor, empireTime, fleetsTime, alerts]
       properties:
         planets:
           type: array
@@ -132,7 +132,16 @@ components:
                     back: { type: boolean, description: Return flight }
                     from: { type: object }
         research: { type: object }
-        catchUp: { type: [number, 'null'], description: Catch-up bonus in percent }
+        catchUp:
+          type: [number, 'null']
+          description: >-
+            Catch-up bonus in percent, not rounded: the exact value behind the costs of a buildings page, the rounded one
+            of the overview, or calculated like the game from newer synced statistics; null when the universe has none
+        catchUpFrom:
+          type: [object, 'null']
+          properties:
+            source: { type: string, enum: [page, overview, stats] }
+            time: { type: integer, description: Unix seconds of that page or statistics update }
         buildingSpeed: { type: [integer, 'null'] }
         storageFactor: { type: number }
         empireTime: { type: [integer, 'null'] }

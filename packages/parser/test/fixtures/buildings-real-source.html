@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<!-- Real buildings page (Universe 7, 2026-10-24), trimmed: menu, comments and tooltip texts removed, player renamed. -->
+<html lang="de" class="no-js">
+<head>
+  <title>Gebäude - Universe 7 - pr0game</title>
+  <script type="text/javascript">
+    var ServerTimezoneOffset = 0;
+    var serverTimeDelta = new Date(2026, 9, 24, 2, 14, 21).getTime() - Date.now();
+    var queryString	= "page=buildings";
+  </script>
+</head>
+
+<body id="buildings" class="full">
+<div class="wrapper">
+	<header>
+		<div class="fixed">
+<div class="planetImage no-mobile">
+   <div>Imperator</div>
+   <div><a href="game.php?page=settings"><b>Spieler</b></div>
+</div>
+
+<div class="planetSelectorWrapper">
+	<select id="planetSelector">
+		<option value="1008948">Fortuna [1:100:9]</option>
+<option value="1008434" selected="selected">Ares [1:100:12]</option>
+<option value="1011019">Osirious (Mond) [1:100:12]</option>
+	</select>
+</div>
+
+<div id="resources_mobile">
+		<div id="resource_mobile">
+		<a href="#" onclick="return Dialog.info(901);">
+			<div class="no-mobile">Metall</div>
+			<div class="no-mobile">
+									<div class="res_current" data-ticker="current_metal" data-real="30353">30.353</div>
+													<div class="res_max colorPositive" id="max_metal" data-real="4325000">4.325.000</div>
+							</div>
+			<div class="mobile">
+									<div class="res_current tooltip" id="current_metal" data-ticker="current_metal" data-real="30353" data-tooltip-content="30.353"><span>30,4&nbsp;k</span></div>
+							</div>
+		</a>
+	</div>
+		<div id="resource_mobile">
+		<a href="#" onclick="return Dialog.info(902);">
+			<div class="no-mobile">Kristall</div>
+			<div class="no-mobile">
+									<div class="res_current" data-ticker="current_crystal" data-real="17953">17.953</div>
+													<div class="res_max colorPositive" id="max_crystal" data-real="2350000">2.350.000</div>
+							</div>
+			<div class="mobile">
+									<div class="res_current tooltip" id="current_crystal" data-ticker="current_crystal" data-real="17953" data-tooltip-content="17.953"><span>18,0&nbsp;k</span></div>
+							</div>
+		</a>
+	</div>
+		<div id="resource_mobile">
+		<a href="#" onclick="return Dialog.info(903);">
+			<div class="no-mobile">Deuterium</div>
+			<div class="no-mobile">
+									<div class="res_current" data-ticker="current_deuterium" data-real="15790">15.790</div>
+													<div class="res_max colorPositive" id="max_deuterium" data-real="2350000">2.350.000</div>
+							</div>
+			<div class="mobile">
+									<div class="res_current tooltip" id="current_deuterium" data-ticker="current_deuterium" data-real="15790" data-tooltip-content="15.790"><span>15,8&nbsp;k</span></div>
+							</div>
+		</a>
+	</div>
+		<div id="resource_mobile">
+		<a href="#" onclick="return Dialog.info(911);">
+			<div class="no-mobile">Energie</div>
+			<div class="no-mobile">
+															<div class="res_current tooltip" data-tooltip-content="35&nbsp;/&nbsp;12.187">
+							<span>35&nbsp;/&nbsp;12.187</span>
+						</div>
+													<div>&nbsp;</div>
+							</div>
+		</a>
+	</div>
+</div>
+<script type="text/javascript">
+var viewShortlyNumber	= 0;
+var vacation			= 0;
+$(function() {
+	resourceTicker({
+		available: 30353,
+		limit: [0, 4325000],
+		production: 38434.85904,
+		valueElem: "current_metal"
+	}, true);
+	resourceTicker({
+		available: 17953,
+		limit: [0, 2350000],
+		production: 22733.784085,
+		valueElem: "current_crystal"
+	}, true);
+	resourceTicker({
+		available: 15790,
+		limit: [0, 2350000],
+		production: 19994.068649,
+		valueElem: "current_deuterium"
+	}, true);
+});
+</script>
+		</div>
+	</header>
+
+	<content>
+  <div>
+    <div class="planeto">
+      <button id="btn1">Rohstoffabbau</button> | <button id="btn2">Lagerung</button> | <button id="btn3">Sonstige</button> | <button id="btn4" class="selected">Alle</button>
+      <br><a title="bebaute Felder">168</a> / <a title="max. bebaubare Felder">208</a> Felder
+                <br>Kosten- und Bauzeit-Bonus: 10.18 %
+          </div>
+          <div class="infos prod " >
+        <div class="buildn">
+          <a href="#" onclick="return Dialog.info(1)">Metallmine</a> (Stufe 25)        </div>
+        <div class="buildl">
+          <a href="#" onclick="return Dialog.info(1)">
+            <img style="float: left;" src="./styles/theme/community/gebaeude/1.gif" alt="Metallmine" width="120" height="120">
+          </a>
+                      Fehlende Rohstoffe:<br>
+                          <a href='#' onclick="return Dialog.info(901);" class='tooltip' data-tooltip-content="…">Metall</a>: <span style="font-weight:700">1.330.426</span><br>
+                          <a href='#' onclick="return Dialog.info(902);" class='tooltip' data-tooltip-content="…">Kristall</a>: <span style="font-weight:700">322.242</span><br>
+                        <div>Möglich in: <span style="font-weight: bold" class="buildcountdown" timestamp="124614"></span></div>            <br>
+                          Next Level:<br>
+              Verbraucht <span class="colorNegative">390</span> Energie mehr<br>
+                              </div>
+
+        <div class="buildl">
+          <span>
+                          <a href='#' onclick="return Dialog.info(901);" class='tooltip' data-tooltip-content="…">Metall</a>: <b><span class="colorNeutral">1.360.779</span></b>
+                          <a href='#' onclick="return Dialog.info(902);" class='tooltip' data-tooltip-content="…">Kristall</a>: <b><span class="colorNeutral">340.195</span></b>
+                      </span>
+          <br><br>
+                      <span class="colorNeutral">Fehlende Rohstoffe</span>
+
+          <br>
+          Bauzeit:<span class="statictime" timestamp="6958"></span>
+                                  <br><a class="tooltip_sticky" data-tooltip-content="
+                        <table style='width:300px'>
+              <tr>
+                <th colspan='2'>Kosten für Abriss: Metallmine 25</th>
+              </tr>
+                            <tr>
+                <td>Metall</td>
+                <td><span class='colorNeutral'>453.593</span></td>
+              </tr>
+                            <tr>
+                <td>Dauer</td>
+                <td><span class='statictime' timestamp='837'></span><script>showtimes()</script></td>
+              </tr>
+            </table>
+                        ">Abreißen</a>                  </div>
+      </div>
+          <div class="infos prod " >
+        <div class="buildn">
+          <a href="#" onclick="return Dialog.info(12)">Fusionskraftwerk</a> (Stufe 11)        </div>
+        <div class="buildl">
+                      Fehlende Rohstoffe:<br>
+                          <a href='#' onclick="return Dialog.info(901);" class='tooltip' data-tooltip-content="…">Metall</a>: <span style="font-weight:700">489.158</span><br>
+                          <a href='#' onclick="return Dialog.info(902);" class='tooltip' data-tooltip-content="…">Kristall</a>: <span style="font-weight:700">189.851</span><br>
+                          <a href='#' onclick="return Dialog.info(903);" class='tooltip' data-tooltip-content="…">Deuterium</a>: <span style="font-weight:700">88.112</span><br>
+                        <div>Möglich in: <span style="font-weight: bold" class="buildcountdown" timestamp="45816"></span></div>            <br>
+                              </div>
+
+        <div class="buildl">
+          <span>
+                          <a href='#' onclick="return Dialog.info(901);" class='tooltip' data-tooltip-content="…">Metall</a>: <b><span class="colorNeutral">519.511</span></b>
+                          <a href='#' onclick="return Dialog.info(902);" class='tooltip' data-tooltip-content="…">Kristall</a>: <b><span class="colorNeutral">207.804</span></b>
+                          <a href='#' onclick="return Dialog.info(903);" class='tooltip' data-tooltip-content="…">Deuterium</a>: <b><span class="colorNeutral">103.902</span></b>
+                      </span>
+          <br><br>
+                      <span class="colorNeutral">Fehlende Rohstoffe</span>
+
+          <br>
+          Bauzeit:<span class="statictime" timestamp="2975"></span>
+                  </div>
+      </div>
+          <div class="infos other " >
+        <div class="buildn">
+          <a href="#" onclick="return Dialog.info(14)">Roboterfabrik</a> (Stufe 10)        </div>
+        <div class="buildl">
+                      Fehlende Rohstoffe:<br>
+                        <div>Möglich in: <span style="font-weight: bold" class="buildcountdown" timestamp="31615"></span></div>            <br>
+                              </div>
+
+        <div class="buildl">
+          <span>
+                          <a href='#' onclick="return Dialog.info(901);" class='tooltip' data-tooltip-content="…">Metall</a>: <b><span class="colorNeutral">367.887</span></b>
+                          <a href='#' onclick="return Dialog.info(902);" class='tooltip' data-tooltip-content="…">Kristall</a>: <b><span class="colorNeutral">110.366</span></b>
+                          <a href='#' onclick="return Dialog.info(903);" class='tooltip' data-tooltip-content="…">Deuterium</a>: <b><span class="colorNeutral">183.944</span></b>
+                      </span>
+          <br><br>
+                      <span class="colorNeutral">Fehlende Rohstoffe</span>
+
+          <br>
+          Bauzeit:<span class="statictime" timestamp="1956"></span>
+                  </div>
+      </div>
+          <div class="infos other " >
+        <div class="buildn">
+          <a href="#" onclick="return Dialog.info(15)">Nanitenfabrik</a> (Stufe 4)        </div>
+        <div class="buildl">
+                      Fehlende Rohstoffe:<br>
+                        <div>Möglich in: <span style="font-weight: bold" class="buildcountdown" timestamp="1343178"></span></div>            <br>
+                              </div>
+
+        <div class="buildl">
+          <span>
+                          <a href='#' onclick="return Dialog.info(901);" class='tooltip' data-tooltip-content="…">Metall</a>: <b><span class="colorNeutral">14.370.594</span></b>
+                          <a href='#' onclick="return Dialog.info(902);" class='tooltip' data-tooltip-content="…">Kristall</a>: <b><span class="colorNeutral">7.185.297</span></b>
+                          <a href='#' onclick="return Dialog.info(903);" class='tooltip' data-tooltip-content="…">Deuterium</a>: <b><span class="colorNeutral">1.437.059</span></b>
+                      </span>
+          <br><br>
+                      <span class="colorNeutral">Fehlende Rohstoffe</span>
+
+          <br>
+          Bauzeit:<span class="statictime" timestamp="88183"></span>
+                  </div>
+      </div>
+          <div class="infos other " >
+        <div class="buildn">
+          <a href="#" onclick="return Dialog.info(33)">Terraformer</a>        </div>
+        <div class="buildl">
+                      Fehlende Rohstoffe:<br>
+                        <div>Möglich in: <span style="font-weight: bold" class="buildcountdown" timestamp="13328"></span></div>            <br>
+                              </div>
+
+        <div class="buildl">
+          <span>
+                          <a href='#' onclick="return Dialog.info(902);" class='tooltip' data-tooltip-content="…">Kristall</a>: <b><span class="colorNeutral">44.908</span></b>
+                          <a href='#' onclick="return Dialog.info(903);" class='tooltip' data-tooltip-content="…">Deuterium</a>: <b><span class="colorNeutral">89.816</span></b>
+                          <a href='#' onclick="return Dialog.info(911);" class='tooltip' data-tooltip-content="…">Energie</a>: <b><span class="colorPositive">1.000</span></b>
+                      </span>
+          <br><br>
+                      <span class="colorNeutral">Fehlende Rohstoffe</span>
+
+          <br>
+          Bauzeit:<span class="statictime" timestamp="183"></span>
+                      &nbsp;
+                  </div>
+      </div>
+          <div class="infos other " >
+        <div class="buildn">
+          <a href="#" onclick="return Dialog.info(35)">Reparaturdock</a>        </div>
+        <div class="buildl">
+                      Fehlende Rohstoffe:<br>
+                                    <br>
+                              </div>
+
+        <div class="buildl">
+          <span>
+                          <a href='#' onclick="return Dialog.info(901);" class='tooltip' data-tooltip-content="…">Metall</a>: <b><span class="colorPositive">17.963</span></b>
+                          <a href='#' onclick="return Dialog.info(902);" class='tooltip' data-tooltip-content="…">Kristall</a>: <b><span class="colorPositive">1.796</span></b>
+                          <a href='#' onclick="return Dialog.info(903);" class='tooltip' data-tooltip-content="…">Deuterium</a>: <b><span class="colorPositive">2.694</span></b>
+                      </span>
+          <br><br>
+                      <form action="game.php?page=buildings" method="post" class="build_form">
+              <input type="hidden" name="cmd" value="insert">
+              <input type="hidden" name="building" value="35">
+                              <button type="submit" class="colorPositive build_submit" >
+                            Bauen</button>
+            </form>
+
+          <br>
+          Bauzeit:<span class="statictime" timestamp="80"></span>
+                      &nbsp;
+                  </div>
+      </div>
+      </div>
+
+		<table class="hack"></table>
+	</content>
+</div>
+</body>
+</html>

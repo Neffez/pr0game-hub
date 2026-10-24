@@ -45,6 +45,7 @@ interface Data {
   planets: Planet[];
   research: Record<string, number>;
   catchUp: number | null;
+  catchUpFrom: { source: 'page' | 'overview' | 'stats'; time: number } | null;
   buildingSpeed: number | null;
   storageFactor: number;
   empireTime: number | null;
@@ -199,7 +200,10 @@ const costClass = (b: BuildingInfo, res: number) => (b.missing[res] ? 'neg' : 'p
         <span class="muted">
           {{ t('imperium.fleets') }}: <template v-if="data.fleetsTime">{{ dateTime(data.fleetsTime) }} ({{ ago(data.fleetsTime) }})</template><span v-else class="warn">{{ t('imperium.fleetsMissing') }}</span>
         </span>
-        <span v-if="data.catchUp" class="muted">{{ t('buildings.catchUp', { n: fmt(data.catchUp, 2) }) }}</span>
+        <span v-if="data.catchUp" class="muted" :title="t('buildings.catchUpTitle')">
+          {{ t('buildings.catchUp', { n: fmt(data.catchUp, 2) }) }}
+          <span v-if="data.catchUpFrom" class="faint">({{ t(`buildings.catchUpFrom.${data.catchUpFrom.source}`, { time: dateTime(data.catchUpFrom.time) }) }})</span>
+        </span>
         <span v-if="!data.buildingSpeed" class="faint" :title="t('buildings.speedUnknownTitle')">{{ t('buildings.speedUnknown') }}</span>
         <span v-if="current.planet.fields" class="muted">{{ t('buildings.fields', { used: current.planet.fields.used, max: current.planet.fields.max }) }}</span>
       </div>
@@ -260,8 +264,8 @@ const costClass = (b: BuildingInfo, res: number) => (b.missing[res] ? 'neg' : 'p
             <td class="num">{{ b.level }} <span class="faint">→ {{ b.next }}</span></td>
             <td v-for="id in RESOURCES" :key="id" class="num">
               <template v-if="b.cost[id]">
-                <span :class="costClass(b, id)">{{ fmt(Math.floor(b.cost[id])) }}</span>
-                <div v-if="b.missing[id]" class="small neg">−{{ fmt(Math.floor(b.missing[id])) }}</div>
+                <span :class="costClass(b, id)">{{ fmt(Math.round(b.cost[id])) }}</span>
+                <div v-if="b.missing[id]" class="small neg">−{{ fmt(Math.round(b.missing[id])) }}</div>
               </template>
               <span v-else class="faint">–</span>
             </td>

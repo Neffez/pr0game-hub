@@ -82,7 +82,10 @@ export function parseBuildingsHtml($: CheerioAPI): BuildingsRecord | null {
     if (tick) perHour[id] = Number(tick[1]);
   }
 
-  const bonus = $('.planeto').first().text().match(/(\d+(?:[.,]\d+)?)\s*%/);
+  const head = $('.planeto').first().text();
+  const bonus = head.match(/(?:Bauzeit-Bonus|construction time bonus)\s*:\s*(\d+(?:[.,]\d+)?)\s*%/i);
+  // "168 / 208 Felder"
+  const fields = head.match(/([\d.,]+)\s*\/\s*([\d.,]+)\s*(?:Felder|Fields)/i);
   return {
     kind: 'buildings',
     coords,
@@ -92,6 +95,7 @@ export function parseBuildingsHtml($: CheerioAPI): BuildingsRecord | null {
     storage,
     perHour,
     catchUp: bonus ? Number(bonus[1].replace(',', '.')) : null,
+    fields: fields ? { used: parseNumber(fields[1]) ?? 0, max: parseNumber(fields[2]) ?? 0 } : null,
     buildings,
     queue,
   };

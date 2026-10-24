@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
-  buildingCost, buildingsFor, buildingsOf, buildTime, deriveBuildingSpeed, requirementsOf, resourceAt, resourceReadyAt, type BuildPlanet,
+  buildingCost, buildingsFor, catchUpBonus, catchUpFromCosts, buildingsOf, buildTime, deriveBuildingSpeed, requirementsOf, resourceAt, resourceReadyAt, type BuildPlanet,
 } from '../src/buildings.js';
 import { parsePage } from '../src/index.js';
 
@@ -26,6 +26,58 @@ describe('buildings page', () => {
       { id: 21, level: 8, cost: { 901: 89600, 902: 44800, 903: 22400 }, time: 5000, busy: true },
       { id: 15, level: 0, cost: { 901: 875000, 902: 437500, 903: 87500 }, time: 80000 },
     ]);
+  });
+});
+
+describe('real buildings page', () => {
+  const rec = parsePage({ html: fixture('buildings-real-source.html') }).records[0];
+  if (rec.kind !== 'buildings') throw new Error('expected buildings');
+
+  it('parses the page as the game renders it', () => {
+    expect(rec).toMatchObject({
+      coords: { g: 1, s: 100, p: 12 }, type: 'planet', pageTime: '2026-10-24 02:14:21', catchUp: 10.18, fields: { used: 168, max: 208 },
+      resources: { 901: 30353, 902: 17953, 903: 15790 }, storage: { 901: 4325000, 902: 2350000, 903: 2350000 },
+      perHour: { 901: 38434.85904, 902: 22733.784085, 903: 19994.068649 }, queue: [],
+    });
+    expect(rec.buildings.map((b) => [b.id, b.level, b.time])).toEqual([[1, 25, 6958], [12, 11, 2975], [14, 10, 1956], [15, 4, 88183], [33, 0, 183], [35, 0, 80]]);
+    expect(rec.buildings[0].cost).toEqual({ 901: 1360779, 902: 340195 });
+    // the terraformer's energy is part of the cost as shown
+    expect(rec.buildings[4].cost).toEqual({ 902: 44908, 903: 89816, 911: 1000 });
+  });
+
+  it('reproduces the costs and build times of the game with the exact catch-up bonus', () => {
+    const bonus = catchUpFromCosts(rec)!;
+    // the page prints 10.18 %, the costs need 10.1838…
+    expect(bonus).toBeCloseTo(10.1838, 3);
+    for (const b of rec.buildings) {
+      const cost = buildingCost(b.id, b.level + 1, bonus);
+      for (const [r, x] of Object.entries(b.cost)) if (Number(r) !== 911) expect(Math.round(cost[Number(r)])).toBe(x);
+      // building speed 5000, robot factory 10, nanite factory 4
+      expect(buildTime(cost, 10, 4, 5000)).toBe(b.time);
+    }
+    // the rounded percent is off by tens of metal
+    expect(Math.round(buildingCost(1, 26, 10.18)[901])).not.toBe(1360779);
+  });
+
+  it('when the resources are there, like "possible in" on the page', () => {
+    const p = {
+      type: 'planet' as const, values: { 1: 25, 12: 11, 14: 10, 15: 4, 22: 12, 23: 11, 24: 11, 31: 10, 21: 10 }, resources: rec.resources,
+      perHour: rec.perHour, storage: rec.storage, time: 0, queue: [],
+    };
+    const list = buildingsOf(p, { research: { 108: 10, 113: 20 }, catchUp: catchUpFromCosts(rec), now: 0 });
+    // page: 124614 s (metal mine), 45816 s (fusion plant)
+    expect(list.find((b) => b.id === 1)!.readyAt).toBeCloseTo(124614, -1);
+    expect(list.find((b) => b.id === 12)!.readyAt).toBeCloseTo(45816, -1);
+    // the game says 1343178 s for the nanite factory, but its 14.4 M metal never fit into the 4.3 M storage
+    expect(list.find((b) => b.id === 15)).toMatchObject({ state: 'storage', readyAt: null });
+  });
+
+  it('catch-up bonus from the statistics like getCatchUpFactor', () => {
+    expect(catchUpBonus(1000, 1000)).toBe(0);
+    // far behind: raw factor 10 → the full 50 %
+    expect(catchUpBonus(1, 1e9)).toBeCloseTo(50, 5);
+    // 50 % of the leader: 10 × 0.9747^50 = 2.78…
+    expect(catchUpBonus(500, 1000)).toBeCloseTo((50 / 9) * (10 * 0.9747 ** 50 - 1), 10);
   });
 });
 
@@ -117,6 +169,11 @@ describe('buildingsOf', () => {
     const queued = buildingsOf({ ...planet, queue: [{ id: 14, level: 3, destroy: false }] }, { research: {}, now: 0, buildingSpeed: 2500 });
     // robot factory 2 + 1 queued
     expect(byId(queued, 1).time).toBe(buildTime(buildingCost(1, 11), 3, 0, 2500));
+    // a demolition is queued with the level it takes down: robot factory 2 → 1
+    const down = buildingsOf({ ...planet, queue: [{ id: 14, level: 2, destroy: true }] }, { research: {}, now: 0, buildingSpeed: 2500 });
+    expect(byId(down, 1).time).toBe(buildTime(buildingCost(1, 11), 1, 0, 2500));
+    // and the next build of it is level 2 again
+    expect(byId(down, 14).next).toBe(2);
     // the page's time (today's factories) no longer holds then
     const shown = { 1: { next: 11, cost: buildingCost(1, 11), time: 999 } };
     expect(byId(buildingsOf(planet, { research: {}, now: 0, shown }), 1).time).toBe(999);
