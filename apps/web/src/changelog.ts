@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-10-24',
     items: [
       {
+        kind: 'new',
+        de: 'Raid Planer: Deine laufenden Angriffe und Verbände aus der Übersicht stehen oben, solange es keinen Plan dafür gibt. Nur du und die Teilnehmer des Verbands sehen sie. Mit „Planen“ wird daraus ein Plan mit den fliegenden Schiffen, den alle sehen. Flotten von Spielern ohne Hub-Konto kommen als Gastflotten mit in die Kampfsimulatoren.',
+        en: 'Raid planner: your attacks and ACS attacks in flight from the overview are listed at the top as long as there is no plan for them. Only you and the participants of the ACS see them. "Plan" turns one into a plan with the ships flying that everyone sees. Fleets of players without a hub account go into the combat simulators as guest fleets.',
+      },
+      {
         kind: 'fix',
         de: 'Forschung: Kosten und Forschungszeiten stimmen mit einer echten Forschungs-Seite überein. Forschungen, die das Spiel mit „nutzlose ausblenden“ weglässt, behalten ihre richtige Stufe.',
         en: 'Research: costs and research times match a real research page. Research the game leaves out with "hide useless" keeps its correct level.',

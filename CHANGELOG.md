@@ -4,6 +4,14 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-24
 
+- Raid planner, own attacks in flight: attacks, ACS attacks and destroy missions on the members' newest overviews
+  without a plan on the target (within an hour of the arrival) are listed at the top (`GET /own-attacks`), only for
+  their participants (own fleet, or a joined ACS fleet from the member's planet by the galaxy data). "Plan"
+  (`POST /plans/own`) creates a launched plan with the exact arrival, one launched fleet per member with the ships
+  flying (speed 100 %) and the target claim; from then on everyone sees it.
+  - ACS fleets of non-members are kept with the plan as guest fleets (`attack_plans.guests`, migration 041) and go
+    into the combat simulators with their player's research from spy reports.
+
 - Raid planner, fleets seen in flight:
   - A plan fleet that flies with other ships than planned shows them, with a button to take them into the plan (any
     member who may edit that fleet); `seen` of a plan fleet now carries the `ships` flying.

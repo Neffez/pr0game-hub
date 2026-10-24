@@ -999,6 +999,13 @@ const en: typeof de = {
     byTitle: 'from a phalanx by {name}',
     home: 'return {t}',
   },
+  ownAttacks: {
+    title: 'Own attacks in flight',
+    hint: 'Own attacks and ACS attacks that are flying according to the overview and have no plan yet. Only you and the other participants of the ACS see them here. "Plan" turns one into a plan with the ships flying (speed 100 %) that everyone sees. Fleets of players without a hub account go into the combat simulators as guest fleets.',
+    plan: 'Plan',
+    guest: 'Guest',
+    guestTitle: 'Fleet of a player without a hub account in the ACS: only for the combat simulators',
+  },
   hold: {
     plan: 'Plan hold',
     planned: 'Hold planned',

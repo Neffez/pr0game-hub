@@ -1001,6 +1001,13 @@ const de = {
     byTitle: 'aus einer Phalanx von {name}',
     home: 'Rückkehr {t}',
   },
+  ownAttacks: {
+    title: 'Eigene laufende Angriffe',
+    hint: 'Eigene Angriffe und Verbände, die laut Übersicht gerade fliegen und für die es noch keinen Plan gibt. Nur du und die anderen Teilnehmer des Verbands seht sie hier. Mit „Planen“ wird daraus ein Plan mit den fliegenden Schiffen (Geschwindigkeit 100 %), den dann alle sehen. Flotten von Spielern ohne Hub-Konto gehen als Gastflotten in die Kampfsimulatoren.',
+    plan: 'Planen',
+    guest: 'Gast',
+    guestTitle: 'Flotte eines Spielers ohne Hub-Konto im Verband: nur für die Kampfsimulatoren',
+  },
   hold: {
     plan: 'Halten planen',
     planned: 'Halten geplant',

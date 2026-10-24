@@ -161,6 +161,33 @@ components:
         fleetsTime: { type: [integer, 'null'] }
         alerts: { type: array, items: { $ref: '#/components/schemas/BuildingAlert' } }
         hidden: { type: array, items: { type: integer }, description: Building ids the caller hid on the buildings page }
+    PlanBody:
+      type: object
+      properties:
+        g: { type: integer }
+        s: { type: integer }
+        p: { type: integer }
+        type: { type: string, enum: [planet, moon] }
+    OwnAttack:
+      type: object
+      properties:
+        key: { type: string, description: 'Stable while the attack lasts: route and the lead fleet''s ships' }
+        seen: { type: integer, description: Page time of the newest overview showing it }
+        arrival: { type: integer }
+        to: { $ref: '#/components/schemas/PlanBody' }
+        player: { type: [object, 'null'], description: 'Owner of the target (galaxy data): id, name' }
+        fleets:
+          type: array
+          description: The lead first
+          items:
+            type: object
+            properties:
+              memberId: { type: [integer, 'null'], description: 'null for a non-member''s ACS fleet' }
+              member: { type: [string, 'null'] }
+              player: { type: [object, 'null'], description: 'Owner of the start (galaxy data): id, name' }
+              from: { $ref: '#/components/schemas/PlanBody' }
+              mission: { type: [integer, 'null'] }
+              ships: { type: object, additionalProperties: { type: integer } }
     Error:
       type: object
       required: [error, code]
@@ -1087,6 +1114,24 @@ paths:
           content:
             application/json:
               schema: { type: array, items: { type: object } }
+  /api/{uni}/own-attacks:
+    get:
+      tags: [Combat]
+      operationId: getOwnAttacks
+      description: >-
+        Own attacks in flight (attack, ACS attack, destroy) from the members' newest overview pastes that no open plan
+        on the target covers yet (target time within an hour of the arrival). Only listed for their participants: the
+        member whose own fleet it is, in an ACS also members whose planet a joined fleet starts from (galaxy data).
+        ACS fleets as one attack, the lead first; fleets of non-members have `memberId` null.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: array, items: { $ref: '#/components/schemas/OwnAttack' } }
   /api/{uni}/battle-hall:
     get:
       tags: [Combat]
@@ -1192,6 +1237,8 @@ paths:
         `enemy.planet_ships` holds the ships on the attacked planet changed by hand (null: those of `spy`).
         A fleet in flight carries `seen` (`arrival`, `time` of the overview, `ships` flying), from its member's
         overview or, in an ACS, from another participant's overview showing it from a planet of that member.
+        `guests` lists ACS fleets of non-members taken over from an overview (`planOwnAttack`) for the simulators, with
+        their player's research from the newest spy report showing it (`research`, `research_time`, null when unknown).
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
@@ -1201,6 +1248,35 @@ paths:
           content:
             application/json:
               schema: { type: array, items: { type: object } }
+  /api/{uni}/plans/own:
+    post:
+      tags: [Combat]
+      operationId: planOwnAttack
+      description: >-
+        Plan for an own attack in flight (`key` from `getOwnAttacks`), by one of its participants: target and exact
+        target time from the overview, status launched, one launched fleet per member with the ships flying (speed
+        100 %), fleets of non-members as `guests` of the plan. Claims the target like a new plan.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [key], properties: { key: { type: string } } }
+      responses:
+        '200':
+          description: Plan created; `claimedBy` names the member holding the target claim instead, if any
+          content:
+            application/json:
+              schema: { type: object, properties: { id: { type: integer }, claimedBy: { type: [string, 'null'] } } }
+        '404':
+          description: Attack arrived, already planned, not pasted or not the caller's (`attack_not_found`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
   /api/{uni}/claims:
     get:
       tags: [Social]

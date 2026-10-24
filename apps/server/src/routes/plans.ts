@@ -7,7 +7,9 @@ import { isPhalanxText, localToEpoch, nearestClock, parseFleetsText } from '@pr0
 import { CLASS_RESEARCH } from '@pr0hub/core/tech';
 import { attackKey, hostileAttacks, PHALANX_KEEP, type Body, type EnemyFleet, type HostileAttack } from '../repo/hostile.js';
 import { latestEmpire, spyEmpire } from '../repo/empire.js';
-import { enemiesOf, followEnemies, fromOf, launchedOf, planDrives, toOf, type EnemyRow, type LaunchFleet, type LaunchPlan, type PlanRow } from '../repo/plans.js';
+import {
+  enemiesOf, followEnemies, fromOf, launchedOf, ownAttacks, planDrives, toOf, type EnemyRow, type LaunchFleet, type LaunchPlan, type OwnAttackFleet, type PlanRow,
+} from '../repo/plans.js';
 import { contextOf, DISPLAY, MEMBER } from './util.js';
 
 const STATUSES = ['planning', 'launched', 'done', 'cancelled'];
@@ -193,7 +195,7 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
     const plans = db
       .prepare(
         `SELECT a.id, a.user_id, ${DISPLAY} AS creator, a.g, a.s, a.p, a.planet_type, a.target_time, a.time_precision, a.note, a.status,
-           a.mission, a.created_at, a.updated_at, c.user_id AS claim_user_id, COALESCE(a.player_id, pl.player_id) AS player_id, pr.name AS player_name,
+           a.mission, a.guests, a.created_at, a.updated_at, c.user_id AS claim_user_id, COALESCE(a.player_id, pl.player_id) AS player_id, pr.name AS player_name,
            CASE WHEN a.planet_type = 'moon' THEN pl.moon_name ELSE pl.name END AS planet_name
          FROM attack_plans a
          JOIN users u ON u.id = a.user_id ${MEMBER('a')}
@@ -222,6 +224,7 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
     );
     return plans.map((p) => ({
       ...p,
+      guests: guestsOut(ctx, p.guests as string | null),
       fleets: fleets
         .filter((f) => f.plan_id === p.id)
         .map(({ plan_id, ships, manual, drives_time, ...f }) => ({
@@ -286,6 +289,15 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
     return spy?.researchTime != null ? { research: spy.research, research_time: spy.researchTime } : { research: null, research_time: null };
   }
 
+  /** Guest fleets of a plan with the research of their player (newest spy report showing it) for the simulators. */
+  function guestsOut(ctx: GroupContext, raw: string | null) {
+    if (raw == null) return [];
+    return (JSON.parse(raw) as Omit<OwnAttackFleet, 'memberId' | 'member'>[]).map((g) => {
+      const spy = g.player ? spyEmpire(db, ctx, g.player.id, g.player.name) : null;
+      return { ...g, research: spy?.researchTime != null ? spy.research : null, research_time: spy?.researchTime ?? null };
+    });
+  }
+
   const enemyOut = (e: EnemyRow) => ({
     member_id: e.member_id,
     member: e.member,
@@ -324,6 +336,41 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
     const retimes = new Map(rows.filter((e) => e.mission !== 'hold').map((e) => [keyOf(e), e.plan_id]));
     const holds = new Map(rows.filter((e) => e.mission === 'hold').map((e) => [keyOf(e), e.plan_id]));
     return hostileAttacks(db, ctx).map((a) => ({ ...a, planId: retimes.get(a.key) ?? null, holdPlanId: holds.get(a.key) ?? null }));
+  });
+
+  /** Own attacks in flight (overview pastes) without a plan yet; only for their participants. */
+  app.get<{ Params: { uni: string } }>('/api/:uni/own-attacks', async (req) => ownAttacks(db, ctxOf(req)));
+
+  /**
+   * Plan for an own attack in flight, by one of its participants: target and time from the overview, every member's
+   * fleet with the ships flying (launched, speed 100 %), fleets of non-members as guests for the simulators.
+   */
+  app.post<{ Params: { uni: string }; Body: { key?: string } }>('/api/:uni/plans/own', async (req) => {
+    const ctx = ctxOf(req);
+    const attack = ownAttacks(db, ctx).find((a) => a.key === req.body?.key);
+    if (!attack) throw new HttpError(404, 'attack_not_found', 'Attack not found (arrived, planned or not pasted)');
+    const guests = attack.fleets.filter((f) => f.memberId == null).map(({ player, from, mission, ships }) => ({ player, from, mission, ships }));
+    return db.transaction(() => {
+      const t = attack.to;
+      const id = Number(
+        db
+          .prepare(
+            `INSERT INTO attack_plans (group_id, user_id, player_id, g, s, p, planet_type, target_time, time_precision, mission, status, guests)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'exact', 'attack', 'launched', ?)`,
+          )
+          .run(ctx.groupId, ctx.user.id, attack.player?.id ?? null, t.g, t.s, t.p, t.type, attack.arrival, guests.length ? JSON.stringify(guests) : null).lastInsertRowid,
+      );
+      const fleet = db.prepare(
+        `INSERT INTO attack_plan_fleets (plan_id, user_id, g, s, p, planet_type, ships, status, invited_by) VALUES (?, ?, ?, ?, ?, ?, ?, 'launched', ?)`,
+      );
+      for (const f of attack.fleets.slice(0, MAX_FLEETS)) {
+        if (f.memberId == null) continue;
+        fleet.run(id, f.memberId, f.from.g, f.from.s, f.from.p, f.from.type, JSON.stringify(f.ships), f.memberId === ctx.user.id ? null : ctx.user.id);
+      }
+      const claimedBy = claim(ctx, id, t, attack.arrival);
+      events.publish(ctx.groupId, { type: 'data', tables: ['attack_plans', 'target_claims'], userId: ctx.user.id });
+      return { id, claimedBy };
+    })();
   });
 
   /**
