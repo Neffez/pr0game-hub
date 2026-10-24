@@ -6,6 +6,7 @@ import { events } from '../events.js';
 import { isPhalanxText, localToEpoch, nearestClock, parseFleetsText } from '@pr0hub/core';
 import { CLASS_RESEARCH } from '@pr0hub/core/tech';
 import { attackKey, hostileAttacks, PHALANX_KEEP, type Body, type EnemyFleet, type HostileAttack } from '../repo/hostile.js';
+import { latestEmpire, spyEmpire } from '../repo/empire.js';
 import { enemiesOf, followHolds, fromOf, launchedOf, planDrives, toOf, type EnemyRow, type LaunchFleet, type LaunchPlan, type PlanRow } from '../repo/plans.js';
 import { contextOf, DISPLAY, MEMBER } from './util.js';
 
@@ -214,7 +215,9 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
     const enemies = new Map(enemiesOf(db, ctx, plans.map((p) => p.id)).map((e) => [e.plan_id, e]));
     followHolds(db, plans as unknown as PlanRow[], enemies);
     const launched = launchedOf(db, ctx, plans as unknown as LaunchPlan[], fleets);
-    const spies = new Map(plans.map((p) => [p.id, p.mission === 'hold' ? null : targetSpy(ctx, p as unknown as SpyPlan)]));
+    const spies = new Map(
+      plans.map((p) => [p.id, p.mission === 'hold' ? holdSpy(ctx, p as unknown as SpyPlan, enemies.get(p.id)) : targetSpy(ctx, p as unknown as SpyPlan)]),
+    );
     return plans.map((p) => ({
       ...p,
       fleets: fleets
@@ -225,7 +228,7 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
           drives: fleetDrives({ user_id: f.user_id, manual, drives_time }),
           seen: launched.get(f.id) ?? null,
         })),
-      enemy: enemies.has(p.id) ? enemyOut(enemies.get(p.id)!) : null,
+      enemy: enemies.has(p.id) ? { ...enemyOut(enemies.get(p.id)!), ...(p.mission === 'hold' ? attackerResearch(ctx, enemies.get(p.id)!) : {}) } : null,
       spy: spies.get(p.id) ?? null,
     }));
   });
@@ -257,6 +260,28 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
       if (older) sections[CLASS_RESEARCH] = (JSON.parse(older) as Record<string, Record<string, number>>)[CLASS_RESEARCH];
     }
     return { time: row.report_time, values: Object.assign({}, ...Object.values(sections)) };
+  }
+
+  /**
+   * Defended planet of a hold plan for the combat simulators: the planet (fleet, defense, buildings, resources) and the
+   * research from the attacked member's newest empire page, else the newest spy report of the planet.
+   */
+  function holdSpy(ctx: GroupContext, p: SpyPlan, e: EnemyRow | undefined): { time: number; values: Record<string, number> } | null {
+    const empire = e?.member_id != null ? latestEmpire(db, ctx, e.member_id) : null;
+    const planet = empire?.rec.planets.find((pl) => pl.coords.g === p.g && pl.coords.s === p.s && pl.coords.p === p.p && pl.type === p.planet_type);
+    if (!empire || !planet) return targetSpy(ctx, p);
+    const resources = Object.fromEntries([901, 902, 903].map((id) => [id, planet.resources?.[id] ?? 0]));
+    return { time: empire.time, values: { ...planet.values, ...resources, ...empire.rec.research } };
+  }
+
+  /** Research of the attacking player of a hold plan (newest spy report showing it) for the combat simulators. */
+  function attackerResearch(ctx: GroupContext, e: EnemyRow): { research: Record<string, number> | null; research_time: number | null } {
+    const from = fromOf(e);
+    const owner = db
+      .prepare('SELECT pr.id, pr.name FROM planets pl JOIN players pr ON pr.id = pl.player_id WHERE pl.group_id = ? AND pl.g = ? AND pl.s = ? AND pl.p = ?')
+      .get(ctx.groupId, from.g, from.s, from.p) as { id: number; name: string } | undefined;
+    const spy = owner ? spyEmpire(db, ctx, owner.id, owner.name) : null;
+    return spy?.researchTime != null ? { research: spy.research, research_time: spy.researchTime } : { research: null, research_time: null };
   }
 
   const enemyOut = (e: EnemyRow) => ({

@@ -4,6 +4,14 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-24
 
+- Raid planner hold plans get the combat simulator links too (game simulator and TrashSim), with the sides swapped:
+  the enemy fleets attack with the attacking player's research from the newest spy report showing it (drives as in
+  the plan), the defended planet (fleet, defense, resources, research from the attacked member's empire page, else
+  its newest spy report) and the plan's hold fleets defend (game simulator: one defender slot per fleet from the
+  second slot on; TrashSim: one defender row per fleet). `GET /api/{uni}/plans` now returns `spy` for hold plans and
+  `enemy.research`/`enemy.research_time` (OpenAPI description updated). The link "Simulator im Spiel" is now called
+  "Kampfsimulator" ("Combat simulator").
+
 - Account settings on phones: the page no longer gets wider than the screen (the API token table forced a minimum
   width, so the browser zoomed out and the bottom tab bar looked shifted and larger); the token table now scrolls
   inside its card.

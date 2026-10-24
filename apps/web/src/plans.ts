@@ -59,7 +59,10 @@ export interface AttackPlan {
   fleets: PlanFleet[];
   /** retime: the hostile fleet the plan answers */
   enemy: PlanEnemy | null;
-  /** newest spy report of the target (values by element id) for the combat simulators */
+  /**
+   * newest spy report of the target (values by element id) for the combat simulators; hold plans: the defended planet
+   * from the member's empire page, else its newest spy report
+   */
   spy: { time: number; values: Record<string, number> } | null;
 }
 
@@ -88,6 +91,9 @@ export interface PlanEnemy {
   drives: Record<string, number>;
   drives_source: 'spy' | 'manual' | null;
   drives_time: number | null;
+  /** hold plans: research of the attacking player (newest spy report showing it) for the combat simulators */
+  research?: Record<string, number> | null;
+  research_time?: number | null;
   departure: { from: number; to: number } | null;
   recall: { from: number; to: number } | null;
   recall_lead: boolean;
