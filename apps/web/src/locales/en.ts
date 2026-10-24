@@ -902,6 +902,7 @@ const en: typeof de = {
     launch: 'Enemy launch',
     home: 'Back home',
     target: 'Target time of the plan: {t}',
+    targetOff: 'The plan still runs on {t}, saving applies the target time.',
     pick: 'Pick a speed to set the target time.',
     phalanx: 'Phalanx',
     phalanxHome: 'Return per phalanx: {t}',

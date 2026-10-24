@@ -70,6 +70,8 @@ const chosen = computed(() => candidates.value.find((c) => c.percent === draft.p
 /** Landing back home: shown by a phalanx, else the chosen candidate. */
 const home = computed(() => enemy.value.phalanx?.home ?? (chosen.value ? candidateHome(chosen.value) : null));
 const targetTime = computed(() => (home.value != null ? home.value + draft.buffer : null));
+/** The plan's target time differs from the analysis (changed by hand, or saved before the inputs changed): saving fixes it. */
+const offTarget = computed(() => targetTime.value != null && targetTime.value !== props.plan.target_time);
 
 /** Back to the speed candidates. */
 async function dropPhalanx() {
@@ -227,10 +229,11 @@ async function save() {
     </div>
 
     <div v-if="editable" class="row">
-      <button class="primary" :disabled="!dirty" @click="save">{{ t('plans.save') }}</button>
+      <button class="primary" :disabled="!dirty && !offTarget" @click="save">{{ t('plans.save') }}</button>
       <button v-if="dirty" @click="reset">{{ t('plans.cancelForm') }}</button>
       <span v-if="targetTime" class="small">{{ t('retime.target', { t: clock(targetTime) }) }}</span>
       <span v-else class="muted small">{{ t('retime.pick') }}</span>
+      <span v-if="offTarget" class="warn small">{{ t('retime.targetOff', { t: clock(plan.target_time) }) }}</span>
       <span v-if="enemy.updated_by" class="muted small">{{ t('retime.updatedBy', { name: enemy.updated_by }) }}</span>
     </div>
   </div>
