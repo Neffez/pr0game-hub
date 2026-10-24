@@ -49,7 +49,7 @@ function load() {
 }
 useLiveReload(() => loadClaims(uni.value), tables('target_claims'));
 useLiveReload(() => loadCommentCounts(uni.value), tables('comments'), 300);
-useLiveReload(() => loadNotifications(uni.value), tables('fleets', 'attack_plans', 'comments', 'empire', 'overview', 'buildings', 'research', 'building_alerts'), 300);
+useLiveReload(() => loadNotifications(uni.value), tables('fleets', 'attack_plans', 'comments', 'empire', 'overview', 'buildings', 'research', 'building_alerts', 'fleet_alerts'), 300);
 // launches come up by the clock (an hour ahead), without any data event
 const notifyTimer = setInterval(() => !document.hidden && loadNotifications(uni.value), 5 * 60_000);
 onBeforeUnmount(() => clearInterval(notifyTimer));

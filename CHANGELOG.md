@@ -4,6 +4,15 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-24
 
+- Fleet alerts: a bell on each own fleet in flight in the Imperium (own view) notifies at its arrival or 1–10 minutes
+  before (bell, web push, the member's Discord webhook), e.g. when recyclers are back.
+  - New table `fleet_alerts` (migration 042) with the movement as last seen; matched again against each newer fleet
+    list by mission, phase, start, target and an arrival within 5 seconds. Alerts whose fleet is missing from a newer
+    list before its arrival (recalled) and alerts arrived more than 10 minutes ago are removed.
+  - `PUT /fleets/alerts`, `DELETE /fleets/alerts/{id}`, `fleetAlerts` on `GET /imperium`, notification kind `fleet`,
+    push/Discord setting `fleets` (default on); the push and Discord ticks look at a group at its next reminder time.
+  - Push texts name more missions (transport, deploy, hold, colonize, harvest, expedition) in the user's language.
+
 - Raid planner, own attacks in flight: attacks, ACS attacks and destroy missions on the members' newest overviews
   without a plan on the target (within an hour of the arrival) are listed at the top (`GET /own-attacks`), only for
   their participants (own fleet, or a joined ACS fleet from the member's planet by the galaxy data). "Plan"

@@ -58,9 +58,10 @@ interface PushPrefs {
   comments: boolean;
   launch: boolean;
   buildings: boolean;
+  fleets: boolean;
   leadMinutes: number;
 }
-const PUSH_KINDS = ['attackSelf', 'attackOthers', 'invites', 'comments', 'buildings', 'launch'] as const;
+const PUSH_KINDS = ['attackSelf', 'attackOthers', 'invites', 'comments', 'buildings', 'fleets', 'launch'] as const;
 const LEAD_MINUTES = [1, 2, 5, 10, 15, 30];
 const pushPrefs = ref<PushPrefs | null>(null);
 const pushBusy = ref(false);

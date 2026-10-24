@@ -3,11 +3,16 @@ import { CLASS_BUILDINGS, CLASS_DEFENSE, CLASS_FLEET, classOf, elementPoints } f
 import type { FastifyInstance } from 'fastify';
 import { HttpError } from '../auth.js';
 import { now, type DB } from '../db.js';
+import { events } from '../events.js';
 import { latestEmpire, spyEmpire, type SpyEmpire } from '../repo/empire.js';
+import { openFleetAlerts, sameFleet } from '../repo/fleetAlerts.js';
 import { FLEET_HISTORY, fleetHistory, sharedFleets, type StoredFleet } from '../repo/fleets.js';
 import { memberPlayer, memberPlayers } from '../repo/members.js';
 import { catchUpLeader, latestScores } from '../repo/stats.js';
 import { contextOf, type Q } from './util.js';
+
+/** Most minutes an alert may remind before the arrival. */
+const MAX_LEAD = 120;
 
 export function imperiumRoutes(app: FastifyInstance, db: DB) {
   const ctxOf = contextOf(db);
@@ -79,11 +84,57 @@ export function imperiumRoutes(app: FastifyInstance, db: DB) {
       spy,
       overview: overview ? { time: overview.time, data: JSON.parse(overview.data) } : null,
       fleets,
+      // the viewer's own alerts for their fleets
+      fleetAlerts: userId === ctx.user.id ? openFleetAlerts(db, ctx, userId, now()) : null,
       fleetHistory: fleetHistory(db, ctx.groupId, userId, ctx.user.id, now() - FLEET_HISTORY),
       player: player ? { ...player, stats: Object.fromEntries(stats.map((s) => [s.type, s])) } : null,
       fleetBase: fleetBase && basePoints && anchorFleet != null ? { time: fleetBase.time, points: basePoints.fleet, stat: anchorFleet } : null,
       leader: leader ? { name: leader.name, buildings: leader.buildings, research: leader.research, fleet: leader.fleet, weighted: leader.weighted } : null,
     };
+  });
+
+  const alertsChanged = (groupId: number, userId: number) => events.publish(groupId, { type: 'data', tables: ['fleet_alerts'], userId });
+
+  /**
+   * Notify the viewer when one of their own fleets in flight arrives, `lead` minutes before (0: at the arrival). The
+   * fleet is given by mission, phase, start, target and arrival as listed; setting it again changes the lead.
+   */
+  app.put<{ Params: { uni: string }; Body: Record<string, unknown> }>('/api/:uni/fleets/alerts', async (req) => {
+    const ctx = ctxOf(req);
+    const b = req.body ?? {};
+    const lead = b.lead ?? 0;
+    const int = (v: unknown) => Number.isInteger(v) && (v as number) >= 0;
+    const body = (v: unknown) => {
+      const c = (v as { coords?: Record<string, unknown> } | null)?.coords;
+      return !!c && int(c.g) && int(c.s) && int(c.p);
+    };
+    if (
+      !int(b.arrival) || !int(lead) || (lead as number) > MAX_LEAD || !(b.mission == null || int(b.mission)) || typeof b.phase !== 'string' ||
+      !body(b.from) || !(b.to == null || body(b.to))
+    ) {
+      throw new HttpError(400, 'alert_invalid', `Expected mission, phase, from, to, arrival and lead (0-${MAX_LEAD} minutes)`);
+    }
+    const t = now();
+    const want = { mission: (b.mission ?? null) as number | null, phase: b.phase as StoredFleet['phase'], from: b.from as StoredFleet['from'], to: (b.to ?? null) as StoredFleet['to'], arrival: b.arrival as number };
+    const fleet = sharedFleets(db, ctx.groupId, ctx.user.id, ctx.user.id)?.data.find((f) => f.arrival > t && sameFleet(want, f));
+    if (!fleet) throw new HttpError(404, 'fleet_not_found', 'No such own fleet in flight in your newest fleet list');
+    const known = openFleetAlerts(db, ctx, ctx.user.id, t).find((a) => sameFleet(a.fleet, fleet));
+    if (known) db.prepare('UPDATE fleet_alerts SET lead = ? WHERE id = ?').run(lead, known.id);
+    else {
+      db.prepare('INSERT INTO fleet_alerts (group_id, user_id, arrival, lead, data, created_at) VALUES (?, ?, ?, ?, ?, ?)').run(
+        ctx.groupId, ctx.user.id, fleet.arrival, lead, JSON.stringify(fleet), t,
+      );
+    }
+    alertsChanged(ctx.groupId, ctx.user.id);
+    return { alerts: openFleetAlerts(db, ctx, ctx.user.id, t) };
+  });
+
+  app.delete<{ Params: { uni: string; id: string } }>('/api/:uni/fleets/alerts/:id', async (req) => {
+    const ctx = ctxOf(req);
+    const res = db.prepare('DELETE FROM fleet_alerts WHERE id = ? AND group_id = ? AND user_id = ?').run(Number(req.params.id), ctx.groupId, ctx.user.id);
+    if (!res.changes) throw new HttpError(404, 'alert_not_found', 'Alert not found');
+    alertsChanged(ctx.groupId, ctx.user.id);
+    return { alerts: openFleetAlerts(db, ctx, ctx.user.id, now()) };
   });
 
   /**

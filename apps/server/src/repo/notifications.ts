@@ -3,6 +3,7 @@ import type { SessionUser } from '../auth.js';
 import { resolveGroup, type GroupContext, type Universe } from '../context.js';
 import type { DB } from '../db.js';
 import { alertDone, alertsOf, buildingsState, planetElements, planetOf } from './buildings.js';
+import { FLEET_KEEP, openFleetAlerts } from './fleetAlerts.js';
 import { sharedFleets, type StoredFleet } from './fleets.js';
 import { alliance } from './members.js';
 import { enemiesOf, followEnemies, launchedOf, planDrives, type LaunchFleet, type LaunchPlan, type PlanRow } from './plans.js';
@@ -10,10 +11,11 @@ import { enemiesOf, followEnemies, launchedOf, planDrives, type LaunchFleet, typ
 /**
  * Something the members should notice: hostile fleets heading for a member (attack, spying, …) from outside the
  * alliance, the viewer's open invitations to a raid planner plan, new comments in threads the viewer wrote in, and the
- * launch of the viewer's own plan fleets, and the next level of a building the viewer is waiting for being affordable.
+ * launch of the viewer's own plan fleets, the next level of a building the viewer is waiting for being affordable, and
+ * the arrival of own fleets the viewer set an alert for.
  * The bell lists them; push notifications send them (push.ts).
  */
-export type Notification = AttackNotification | InviteNotification | CommentNotification | LaunchNotification | BuildingNotification;
+export type Notification = AttackNotification | InviteNotification | CommentNotification | LaunchNotification | BuildingNotification | FleetNotification;
 
 interface Base {
   /** stable while the event lasts (the web app remembers which ones were seen, push sends each once) */
@@ -72,6 +74,19 @@ export interface BuildingNotification extends Base {
   level: number;
 }
 
+/**
+ * One of the viewer's own fleets they set an alert for arrives (`time`): due `lead` minutes before it, listed from
+ * `LAUNCH_AHEAD` before that (the web app shows it from the due time on) until `FLEET_KEEP` after the arrival.
+ */
+export interface FleetNotification extends Base {
+  kind: 'fleet';
+  /** the alert (Imperium) */
+  alert: number;
+  fleet: StoredFleet;
+  /** minutes before the arrival */
+  lead: number;
+}
+
 /** A member created a plan (channel only, not on the bell; `userId`/`member`: the creator, `time`: its creation). */
 export interface PlanNotification extends Base {
   kind: 'plan';
@@ -104,7 +119,7 @@ function friends(db: DB, ctx: GroupContext) {
 
 /** Current notifications of the group for the viewer (`ctx.user`) at `t`, the next first; members' fleets as they share them. */
 export function notificationsFor(db: DB, ctx: GroupContext, t: number): Notification[] {
-  return [...attacks(db, ctx, t), ...invites(db, ctx, t), ...comments(db, ctx, t), ...launches(db, ctx, t), ...buildings(db, ctx, t)].sort(
+  return [...attacks(db, ctx, t), ...invites(db, ctx, t), ...comments(db, ctx, t), ...launches(db, ctx, t), ...buildings(db, ctx, t), ...fleets(db, ctx, t)].sort(
     (a, b) => a.time - b.time,
   );
 }
@@ -276,6 +291,21 @@ function buildings(db: DB, ctx: GroupContext, t: number): BuildingNotification[]
     });
   }
   return list;
+}
+
+/**
+ * The viewer's fleet alerts from `LAUNCH_AHEAD` before their reminder time (the arrival minus the lead) until
+ * `FLEET_KEEP` after the arrival.
+ */
+function fleets(db: DB, ctx: GroupContext, t: number): FleetNotification[] {
+  const alerts = openFleetAlerts(db, ctx, ctx.user.id, t).filter((a) => a.arrival - a.lead * 60 - LAUNCH_AHEAD <= t && a.arrival + FLEET_KEEP > t);
+  if (!alerts.length) return [];
+  const name = db.prepare(`SELECT ${DISPLAY} FROM users u LEFT JOIN group_members gm ON gm.group_id = ? AND gm.user_id = u.id WHERE u.id = ?`).pluck().get(ctx.groupId, ctx.user.id) as string;
+  // the id stays when the arrival moves by a second on a newer fleet list or the lead changes (sent once); alert ids
+  // are never reused
+  return alerts.map((a) => ({
+    id: `fleet:${a.id}`, kind: 'fleet', userId: ctx.user.id, member: name, time: a.arrival, alert: a.id, fleet: a.fleet, lead: a.lead,
+  }));
 }
 
 /**

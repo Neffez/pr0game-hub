@@ -2,7 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { createApp, defineComponent, h, nextTick, ref } from 'vue';
 import { createMemoryHistory, createRouter } from 'vue-router';
-import FleetList, { type Fleet } from '../src/components/FleetList.vue';
+import FleetList, { type Fleet, type FleetAlert } from '../src/components/FleetList.vue';
 import { provideUni, type UniContext } from '../src/composables';
 import { i18n, setLocale } from '../src/i18n';
 
@@ -37,5 +37,46 @@ describe('fleet list', () => {
     root.querySelector<HTMLButtonElement>('.fl-toggle')!.click();
     await nextTick();
     expect(root.querySelectorAll('tbody tr')).toHaveLength(4);
+  });
+
+  it('offers a bell with lead times on own fleets only, showing the set alert', async () => {
+    setLocale('de');
+    const root = document.createElement('div');
+    const own = fleet(8, { 209: 120 }, { owner: 'own', missionName: 'Abbauen', phase: 'return', acs: null, fromPlayer: null });
+    const fleets = [own, fleet(1, { 206: 2500 }, { acs: null, arrival: 2_000_000_100 })];
+    const alerts = ref<FleetAlert[]>([]);
+    const emitted: [Fleet, number | null][] = [];
+    const ctx = { universe: { slug: 'u7' }, members: [], me: { id: 1 }, group: { role: 'member' }, own: null } as unknown as UniContext;
+    const Shell = defineComponent({
+      setup() {
+        provideUni(ref(ctx));
+        return () => h(FleetList, { fleets, alerts: alerts.value, onAlert: (f: Fleet, lead: number | null) => emitted.push([f, lead]) });
+      },
+    });
+    createApp(Shell).use(i18n).mount(root);
+    await nextTick();
+    const bells = root.querySelectorAll<HTMLButtonElement>('.fl-bell');
+    expect(bells).toHaveLength(1);
+    expect(bells[0].textContent).toContain('🔕');
+    bells[0].click();
+    await nextTick();
+    const options = [...root.querySelectorAll<HTMLButtonElement>('.fl-menu button')];
+    expect(options.map((b) => b.textContent!.trim())).toEqual(['Bei Ankunft', '1 Min vorher', '2 Min vorher', '5 Min vorher', '10 Min vorher']);
+    options[2].click();
+    await nextTick();
+    expect(emitted).toEqual([[own, 2]]);
+    expect(root.querySelector('.fl-menu')).toBeNull();
+
+    // a few seconds off still match
+    alerts.value = [{ id: 7, arrival: own.arrival + 3, lead: 2, fleet: own, created_at: 0 }];
+    await nextTick();
+    const bell = root.querySelector<HTMLButtonElement>('.fl-bell')!;
+    expect(bell.textContent).toContain('🔔');
+    expect(bell.textContent).toContain('2′');
+    bell.click();
+    await nextTick();
+    const remove = [...root.querySelectorAll<HTMLButtonElement>('.fl-menu button')].find((b) => b.textContent!.includes('entfernen'))!;
+    remove.click();
+    expect(emitted[1]).toEqual([own, null]);
   });
 });

@@ -27,6 +27,8 @@ function target(n: Notification) {
     case 'invite':
     case 'launch':
       return { path: `/${uni.value}/raid-planner`, query: { plan: n.plan.id } };
+    case 'fleet':
+      return `/${uni.value}/imperium`;
     case 'building':
       return {
         path: `/${uni.value}/build`,
@@ -118,6 +120,15 @@ function left(sec: number) {
             <span><b>{{ n.element >= 100 ? '🔬' : '🏗' }} {{ t(n.element >= 100 ? 'notify.research' : 'notify.building', { name: name(n.element), level: n.level }) }}</b></span>
             <span class="small">{{ n.planet.name ? n.planet.name + ' ' : '' }}{{ coords(n.planet, n.planet.type === 'moon') }}</span>
           </button>
+          <button v-else-if="n.kind === 'fleet'" class="bell-item fleet" @click="show(n)">
+            <span><b>{{ n.fleet.phase === 'return' ? '↩' : '✈' }} {{ t(n.fleet.phase === 'return' ? 'notify.fleetBack' : 'notify.fleet', { mission: n.fleet.missionName }) }}</b></span>
+            <span class="small">
+              {{ at(n.fleet.from) }}<template v-if="n.fleet.to"> → {{ at(n.fleet.to) }}</template> ·
+              <span class="mono">{{ clock(n.time) }}</span>
+              <Ticker v-slot="{ now }"><span class="mono muted"> ({{ left(Math.max(0, n.time - now)) }})</span></Ticker>
+            </span>
+            <span v-if="Object.keys(n.fleet.ships).length" class="small muted" :title="shipsTitle(n.fleet.ships)">{{ ships(n.fleet.ships) }}</span>
+          </button>
           <button v-else-if="n.kind === 'comment'" class="bell-item comment" @click="show(n)">
             <span><b>💬 {{ t('notify.comment', { member: n.member, on: threadOf(n) }) }}</b><template v-if="n.count > 1"> · {{ t('notify.comments', { n: n.count }) }}</template></span>
             <span class="small muted">{{ n.excerpt }}</span>
@@ -167,6 +178,8 @@ function left(sec: number) {
 .bell-item.comment:hover { background: color-mix(in srgb, var(--muted) 12%, var(--surface-2)); }
 .bell-item.building { background: var(--surface-2); border-left-color: var(--pos); }
 .bell-item.building:hover { background: color-mix(in srgb, var(--pos) 12%, var(--surface-2)); }
+.bell-item.fleet { background: var(--surface-2); border-left-color: var(--accent); }
+.bell-item.fleet:hover { background: color-mix(in srgb, var(--accent) 12%, var(--surface-2)); }
 .bell-item.launch { background: var(--surface-2); border-left-color: var(--warn); }
 .bell-item.launch:hover { background: color-mix(in srgb, var(--warn) 12%, var(--surface-2)); }
 @media (max-width: 800px) {

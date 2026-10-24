@@ -1,30 +1,31 @@
 import { toUniverse, type Universe } from './context.js';
 import type { DB } from './db.js';
 import type { EventBus } from './events.js';
+import { nextFleetAlert } from './repo/fleetAlerts.js';
 import { nextBuildingAlert } from './repo/notifications.js';
 
 /**
  * What web push (push.ts) and Discord (discord.ts) share: delivery after data events of a group (bundled) and on a
- * ticker for the launch reminders.
+ * ticker for the launch reminders and the building and fleet alerts.
  */
 
 /** Sent notification ids are kept this long (longer than any notification lasts). */
 export const SENT_KEEP = 7 * 86400;
 /** Data events of a group are bundled this long (a paste of many pages, several members at once). */
 const DEBOUNCE_MS = 2000;
-/** Launch reminders and building alerts are checked this often. */
+/** Launch reminders, building and fleet alerts are checked this often. */
 export const TICK_MS = 30_000;
 /** Ticks look at plans landing within this time. */
 export const TICK_AHEAD = 48 * 3600;
 /** Data events that may bring a notification. */
-const TABLES = ['fleets', 'attack_plans', 'comments', 'group_members', 'empire', 'overview', 'buildings', 'research', 'building_alerts'];
+const TABLES = ['fleets', 'attack_plans', 'comments', 'group_members', 'empire', 'overview', 'buildings', 'research', 'building_alerts', 'fleet_alerts'];
 
-/** Building alerts of a group are looked at again at least this often by the ticks (data events deliver anyway). */
+/** Building and fleet alerts of a group are looked at again at least this often by the ticks (data events deliver anyway). */
 export const ALERT_RECHECK = 15 * 60;
 
 /**
- * When the ticks need to look at a group's building alerts again: the earliest ready time of its open alerts, at the
- * latest after `ALERT_RECHECK`. Every delivery of the group (data events, ticks) plans it anew, so the ticks do not
+ * When the ticks need to look at a group's building and fleet alerts again: the earliest ready time of its open
+ * building alerts or reminder time of its fleet alerts, at the latest after `ALERT_RECHECK`. Every delivery of the group (data events, ticks) plans it anew, so the ticks do not
  * recompute every member's notifications every 30 seconds for a group that only waits.
  */
 export class AlertSchedule {
@@ -37,11 +38,13 @@ export class AlertSchedule {
   }
 
   plan(groupId: number, universe: Universe, t: number) {
-    if (!this.db.prepare('SELECT 1 FROM building_alerts WHERE group_id = ?').get(groupId)) {
+    const buildings = !!this.db.prepare('SELECT 1 FROM building_alerts WHERE group_id = ?').get(groupId);
+    if (!buildings && !this.db.prepare('SELECT 1 FROM fleet_alerts WHERE group_id = ?').get(groupId)) {
       this.next.delete(groupId);
       return;
     }
-    this.next.set(groupId, Math.min(t + ALERT_RECHECK, nextBuildingAlert(this.db, universe, groupId, t) ?? Infinity));
+    const building = buildings ? nextBuildingAlert(this.db, universe, groupId, t) : null;
+    this.next.set(groupId, Math.min(t + ALERT_RECHECK, building ?? Infinity, nextFleetAlert(this.db, groupId, t) ?? Infinity));
   }
 }
 
