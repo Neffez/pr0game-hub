@@ -114,7 +114,11 @@ components:
               source: { type: string, enum: [empire, buildings], description: Page the levels and resources come from }
               planet:
                 type: object
-                description: 'levels (`values`), `resources` at `time` (Unix seconds), `perHour`, `storage` (when shown), `fields`, `queue` (target levels, `end` when known)'
+                description: >-
+                  levels (`values`), `resources` at `time` (Unix seconds), `perHour`, `storage` (when shown), `fields`,
+                  `queue` (target levels, `end` when known) and `busy`: research (account wide, locks research lab and
+                  TechnoDome) and the planet's shipyard (locks nanite factory and shipyard) in use, each `{ until }`
+                  (Unix seconds, null when unknown) or null when free
               shown: { type: [object, 'null'], description: 'building id -> `{ next, cost, time }` as the buildings page showed them' }
               arrivals:
                 type: array
@@ -134,6 +138,7 @@ components:
         empireTime: { type: [integer, 'null'] }
         fleetsTime: { type: [integer, 'null'] }
         alerts: { type: array, items: { $ref: '#/components/schemas/BuildingAlert' } }
+        hidden: { type: array, items: { type: integer }, description: Building ids the caller hid on the buildings page }
     Error:
       type: object
       required: [error, code]
@@ -791,7 +796,8 @@ paths:
         cost and build time of the next level as a buildings page showed them (`shown`, valid while `next` is still the
         next level) and the resources of fleets landing on it (`arrivals`); plus research, the catch-up bonus, the
         building speed (derived from a buildings page or the universe setting `buildingSpeed`, null when unknown), the
-        storage factor and the caller's building alerts (alerts whose level is built or queued are removed).
+        storage factor, the caller's building alerts (alerts whose level is built or queued are removed) and the
+        buildings the caller hid (`hidden`, kept in the account).
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
@@ -834,6 +840,33 @@ paths:
                   alerts: { type: array, items: { $ref: '#/components/schemas/BuildingAlert' } }
         '400': { description: 'Invalid body or no such building on that planet type (`alert_invalid`, `building_unknown`)' }
         '404': { description: 'Not one of the caller''s synced planets (`planet_not_found`)' }
+  /api/{uni}/buildings/hidden:
+    put:
+      tags: [Universe]
+      operationId: putHiddenBuildings
+      description: Replaces the buildings the caller hides on the buildings page (kept in the account, for all planets and universes).
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ids]
+              properties:
+                ids: { type: array, items: { type: integer }, description: Building ids }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  hidden: { type: array, items: { type: integer } }
+        '400': { description: 'Not a list of building ids (`hidden_invalid`)' }
   /api/{uni}/buildings/alerts/{id}:
     delete:
       tags: [Universe]

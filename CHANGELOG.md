@@ -4,6 +4,16 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-24
 
+- Buildings page follow-ups:
+  - Hidden buildings are kept in the hub account (`users.hidden_buildings`, `PUT /api/{uni}/buildings/hidden`) instead
+    of the browser, so they apply on every device; a list hidden in the browser before is moved over once.
+  - Locks like the game: research lab and TechnoDome while research runs (account wide), nanite factory and shipyard
+    while the planet's shipyard works (state `busy`); from the empire markers, the overview queues (research with its
+    end) or "Busy" on a synced buildings page, the newest wins. The ready time waits for a known end; alerts fire only
+    once the building is free.
+  - Build time with the robot and nanite factories after the build queue (like adding a job now); the time shown on a
+    buildings page is used only while no factory is queued.
+
 - Buildings page: buildings can be hidden and shown again (✕/👁 per building, for all planets, kept per browser;
   "show hidden" lists them dimmed), plus a free text name filter next to the group filters.
 

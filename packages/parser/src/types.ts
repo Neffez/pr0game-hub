@@ -211,6 +211,8 @@ export interface BuildingsEntry {
   cost: Record<number, number>;
   /** build time of the next level in seconds */
   time: number | null;
+  /** "Busy": research (TechnoDome, lab) or the shipyard (nanite factory, shipyard) is working */
+  busy?: boolean;
 }
 
 /** Game buildings page (page=buildings) of the selected planet/moon. */

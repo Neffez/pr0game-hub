@@ -23,6 +23,7 @@ describe('buildings page', () => {
     expect(rec.buildings).toEqual([
       { id: 1, level: 18, cost: { 901: 77907, 902: 19476 }, time: 2804 },
       { id: 2, level: 15, cost: { 901: 49000, 902: 47000 }, time: 3100 },
+      { id: 21, level: 8, cost: { 901: 89600, 902: 44800, 903: 22400 }, time: 5000, busy: true },
       { id: 15, level: 0, cost: { 901: 875000, 902: 437500, 903: 87500 }, time: 80000 },
     ]);
   });
@@ -110,6 +111,29 @@ describe('buildingsOf', () => {
     expect(cost[901]).toBeLessThan(1e6);
     const full = buildingsOf({ ...planet, fields: { used: 163, max: 163 } }, { research: {}, now: 0 });
     expect(byId(full, 1).state).toBe('fields');
+  });
+
+  it('uses the robot and nanite factories after the queue for the build time', () => {
+    const queued = buildingsOf({ ...planet, queue: [{ id: 14, level: 3, destroy: false }] }, { research: {}, now: 0, buildingSpeed: 2500 });
+    // robot factory 2 + 1 queued
+    expect(byId(queued, 1).time).toBe(buildTime(buildingCost(1, 11), 3, 0, 2500));
+    // the page's time (today's factories) no longer holds then
+    const shown = { 1: { next: 11, cost: buildingCost(1, 11), time: 999 } };
+    expect(byId(buildingsOf(planet, { research: {}, now: 0, shown }), 1).time).toBe(999);
+    expect(byId(buildingsOf({ ...planet, queue: [{ id: 14, level: 3, destroy: false }] }, { research: {}, now: 0, shown }), 1).time).toBeNull();
+  });
+
+  it('locks lab and shipyard while research or the shipyard work, like the game', () => {
+    const rich = { ...planet, values: { ...planet.values, 31: 1 }, resources: { 901: 1e6, 902: 1e6, 903: 1e6 } };
+    const list = buildingsOf({ ...rich, busy: { research: { until: 500 }, shipyard: { until: null } } }, { research: {}, now: 100 });
+    expect(byId(list, 31)).toMatchObject({ state: 'busy', busy: { by: 'research', until: 500 }, readyAt: 500 });
+    expect(byId(list, 21)).toMatchObject({ state: 'busy', busy: { by: 'shipyard', until: null } });
+    expect(byId(list, 1)).toMatchObject({ state: 'buildable', busy: null });
+    // research done by now: free again
+    expect(byId(buildingsOf({ ...rich, busy: { research: { until: 50 } } }, { research: {}, now: 100 }), 31)).toMatchObject({ state: 'buildable', busy: null });
+    // missing resources: ready once both are there
+    const poor = buildingsOf({ ...planet, perHour: { 901: 1000, 902: 100, 903: 100 }, values: { ...planet.values, 31: 1 }, busy: { research: { until: 1e9 } } }, { research: {}, now: 0 });
+    expect(byId(poor, 31)).toMatchObject({ state: 'resources', readyAt: 1e9 });
   });
 
   it('is buildable once the resources are there', () => {

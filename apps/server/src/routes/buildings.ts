@@ -31,6 +31,12 @@ export function pruneAlerts(db: DB, ctx: GroupContext, state: BuildingsState, t 
   return open;
 }
 
+/** Buildings the user hid on the buildings page (all planets and universes). */
+export function hiddenBuildings(db: DB, userId: number): number[] {
+  const raw = db.prepare('SELECT hidden_buildings FROM users WHERE id = ?').pluck().get(userId) as string | null | undefined;
+  return raw ? (JSON.parse(raw) as number[]) : [];
+}
+
 export function buildingsRoutes(app: FastifyInstance, db: DB) {
   const ctxOf = contextOf(db);
   const changed = (ctx: GroupContext) => events.publish(ctx.groupId, { type: 'data', tables: ['building_alerts'], userId: ctx.user.id });
@@ -39,7 +45,7 @@ export function buildingsRoutes(app: FastifyInstance, db: DB) {
   app.get<{ Params: { uni: string } }>('/api/:uni/buildings', async (req) => {
     const ctx = ctxOf(req);
     const state = buildingsState(db, ctx, ctx.user.id);
-    return { ...state, alerts: pruneAlerts(db, ctx, state) };
+    return { ...state, alerts: pruneAlerts(db, ctx, state), hidden: hiddenBuildings(db, ctx.user.id) };
   });
 
   /** Notify the viewer when `level` of a building on one of their planets is affordable (one alert per building). */
@@ -59,6 +65,18 @@ export function buildingsRoutes(app: FastifyInstance, db: DB) {
     ).run(ctx.groupId, ctx.user.id, b.g, b.s, b.p, b.type, b.id, b.level, now());
     changed(ctx);
     return { alerts: alertsOf(db, ctx, ctx.user.id) };
+  });
+
+  /** Replaces the viewer's hidden buildings (kept in the account, so on every device). */
+  app.put<{ Params: { uni: string }; Body: { ids?: unknown } }>('/api/:uni/buildings/hidden', async (req) => {
+    const ctx = ctxOf(req);
+    const ids = req.body?.ids;
+    if (!Array.isArray(ids) || !ids.every((id) => Number.isInteger(id) && BUILDINGS[String(id)])) {
+      throw new HttpError(400, 'hidden_invalid', 'Expected ids: building ids');
+    }
+    const list = [...new Set(ids as number[])].sort((a, b) => a - b);
+    db.prepare('UPDATE users SET hidden_buildings = ? WHERE id = ?').run(list.length ? JSON.stringify(list) : null, ctx.user.id);
+    return { hidden: list };
   });
 
   app.delete<{ Params: { uni: string; id: string } }>('/api/:uni/buildings/alerts/:id', async (req) => {

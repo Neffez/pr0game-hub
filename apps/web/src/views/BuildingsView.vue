@@ -50,6 +50,8 @@ interface Data {
   empireTime: number | null;
   fleetsTime: number | null;
   alerts: Alert[];
+  /** buildings the viewer hid (account, all planets) */
+  hidden: number[];
 }
 
 const { t, locale } = useI18n();
@@ -85,14 +87,27 @@ const list = computed<BuildingInfo[]>(() => {
     arrivals: p.arrivals, now: slow.value, shown: p.shown ?? undefined,
   });
 });
-/** buildings the viewer hid (for all planets, per browser) and the name filter */
-const hidden = useStored<number[]>('buildings.hidden', []);
+/** buildings the viewer hid (kept in the account, for all planets) and the name filter */
+const hidden = computed(() => data.value?.hidden ?? []);
 const showHidden = ref(false);
 const search = ref('');
 const isHidden = (b: BuildingInfo) => hidden.value.includes(b.id);
-function toggleHidden(b: BuildingInfo) {
-  hidden.value = isHidden(b) ? hidden.value.filter((id) => id !== b.id) : [...hidden.value, b.id];
+async function saveHidden(ids: number[]) {
+  try {
+    data.value!.hidden = (await uniApi<{ hidden: number[] }>(uni.value, '/buildings/hidden', { method: 'PUT', body: { ids } })).hidden;
+  } catch (e) {
+    error.value = (e as Error).message;
+  }
 }
+const toggleHidden = (b: BuildingInfo) => saveHidden(isHidden(b) ? hidden.value.filter((id) => id !== b.id) : [...hidden.value, b.id]);
+/** buildings hidden in this browser before they were kept in the account: moved over once */
+const localHidden = useStored<number[]>('buildings.hidden', []);
+watch(data, (d) => {
+  if (!d || !localHidden.value.length) return;
+  const ids = [...new Set([...d.hidden, ...localHidden.value])];
+  localHidden.value = [];
+  if (ids.length !== d.hidden.length) saveHidden(ids);
+});
 const inGroup = computed(() => list.value.filter((b) => filter.value === 'all' || b.group === filter.value));
 const hiddenCount = computed(() => inGroup.value.filter(isHidden).length);
 const shownList = computed(() => {
@@ -147,6 +162,10 @@ async function toggleAlert(b: BuildingInfo) {
     busy.value = null;
   }
 }
+
+/** "Lab busy until Sat 14:00" / "Shipyard busy" */
+const busyText = (b: BuildingInfo) =>
+  b.busy!.until != null ? t(`buildings.busyUntil.${b.busy!.by}`, { time: clock(b.busy!.until) }) : t(`buildings.busyBy.${b.busy!.by}`);
 
 const FILTERS: (BuildingGroup | 'all')[] = ['prod', 'storage', 'other', 'all'];
 const costClass = (b: BuildingInfo, res: number) => (b.missing[res] ? 'neg' : 'pos');
@@ -247,12 +266,13 @@ const costClass = (b: BuildingInfo, res: number) => (b.missing[res] ? 'neg' : 'p
               <span v-else class="faint">–</span>
             </td>
             <td>
-              <Ticker v-if="b.state === 'resources'" v-slot="{ now: n }">
+              <Ticker v-if="b.state === 'resources' || (b.state === 'busy' && b.readyAt != null && b.busy?.until != null)" v-slot="{ now: n }">
                 <span v-if="b.readyAt! > n" class="mono">{{ countdown(b.readyAt! - n) }}</span>
                 <span v-else class="pos">{{ t('buildings.state.buildable') }}</span>
                 <div class="small faint">{{ clock(b.readyAt!) }}</div>
               </Ticker>
               <span v-else :class="b.state === 'buildable' ? 'pos' : 'warn'">{{ t(`buildings.state.${b.state}`) }}</span>
+              <div v-if="b.busy" class="small warn">{{ busyText(b) }}</div>
             </td>
             <td class="num mono">{{ b.time != null ? countdown(b.time) : '–' }}</td>
             <td>
@@ -304,11 +324,12 @@ const costClass = (b: BuildingInfo, res: number) => (b.missing[res] ? 'neg' : 'p
           </template>
         </div>
         <div class="row small">
-          <Ticker v-if="b.state === 'resources'" v-slot="{ now: n }">
+          <Ticker v-if="b.state === 'resources' || (b.state === 'busy' && b.readyAt != null && b.busy?.until != null)" v-slot="{ now: n }">
             <span v-if="b.readyAt! > n">{{ t('buildings.readyIn') }} <span class="mono">{{ countdown(b.readyAt! - n) }}</span> <span class="faint">({{ clock(b.readyAt!) }})</span></span>
             <span v-else class="pos">{{ t('buildings.state.buildable') }}</span>
           </Ticker>
           <span v-else :class="b.state === 'buildable' ? 'pos' : 'warn'">{{ t(`buildings.state.${b.state}`) }}</span>
+          <span v-if="b.busy" class="warn">{{ busyText(b) }}</span>
           <span class="grow" />
           <span v-if="b.time != null" class="muted">⏱ <span class="mono">{{ countdown(b.time) }}</span></span>
         </div>

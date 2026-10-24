@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Gebäude-Seite: Ausgeblendete Gebäude werden jetzt in deinem Hub-Konto gespeichert und gelten auf allen Geräten. Forschungslabor, TechnoDome, Nanitenfabrik und Raumschiffwerft werden wie im Spiel als beschäftigt angezeigt, solange Forschung oder Werft laufen. Die Bauzeit berücksichtigt Roboter- und Nanitenfabrik, die noch in der Bauschleife sind.',
+        en: 'Buildings page: hidden buildings are now kept in your hub account and apply on all devices. Research lab, TechnoDome, nanite factory and shipyard show as busy while research or the shipyard run, like in the game. Build times take robot and nanite factories still in the build queue into account.',
+      },
+      {
+        kind: 'new',
         de: 'Gebäude-Seite: Gebäude, die dich nicht interessieren, kannst du ausblenden und jederzeit wieder einblenden. Dazu gibt es einen Namensfilter.',
         en: "Buildings page: hide buildings you don't care about and show them again any time. There is also a name filter.",
       },

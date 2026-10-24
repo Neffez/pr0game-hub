@@ -21,6 +21,9 @@ function infoId($: CheerioAPI, node: unknown): number | null {
   return m ? Number(m[1]) : null;
 }
 
+/** status of a building whose facility is in use */
+const BUSY = /^(Beschäftigt|Busy)$/i;
+
 /** "Abreißen" / "Demolish" after a queue entry */
 const DESTROY = /\s+(?:Abreißen|Demolish|Dismantle)\s*$/i;
 
@@ -46,7 +49,8 @@ export function parseBuildingsHtml($: CheerioAPI): BuildingsRecord | null {
       if (rid && value != null) cost[rid] = value;
     });
     const ts = costCell.find('.statictime').first().attr('timestamp');
-    buildings.push({ id, level, cost, time: ts != null && ts !== '' ? Number(ts) : null });
+    const busy = costCell.children('span.colorNeutral').toArray().some((sp) => BUSY.test($(sp).text().trim()));
+    buildings.push({ id, level, cost, time: ts != null && ts !== '' ? Number(ts) : null, ...(busy ? { busy } : {}) });
   });
   if (!buildings.length) return null;
 

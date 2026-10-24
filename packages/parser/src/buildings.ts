@@ -21,6 +21,23 @@ export const buildingGroup = (id: number): BuildingGroup =>
 export const ROBOT_FACTORY = 14;
 export const NANITE_FACTORY = 15;
 
+/**
+ * Buildings the game does not build while a facility is in use ("Busy" on the buildings page): TechnoDome and research
+ * lab while research runs (on any planet), nanite factory and shipyard while the planet's shipyard works.
+ */
+export const LOCKED_BY: Record<number, 'research' | 'shipyard'> = { 6: 'research', 31: 'research', 15: 'shipyard', 21: 'shipyard' };
+
+/** Robot and nanite factory levels once the queue is done (a build added now uses them, like `getBuildingTime`). */
+export function factoriesAfterQueue(p: Pick<BuildPlanet, 'values' | 'queue'>): { robot: number; nanite: number } {
+  let robot = p.values[ROBOT_FACTORY] ?? 0;
+  let nanite = p.values[NANITE_FACTORY] ?? 0;
+  for (const q of p.queue) {
+    if (q.id === ROBOT_FACTORY) robot += q.destroy ? -1 : 1;
+    if (q.id === NANITE_FACTORY) nanite += q.destroy ? -1 : 1;
+  }
+  return { robot, nanite };
+}
+
 /** Buildings of a planet type in the game's order (element id). */
 export const buildingsFor = (type: PlanetType): number[] =>
   Object.entries(BUILDINGS)
@@ -151,9 +168,11 @@ export interface BuildPlanet {
   fields?: { used: number; max: number };
   /** build queue (target levels), first in progress; `end` epoch seconds when known */
   queue: { id: number; level: number; destroy: boolean; end?: number | null }[];
+  /** facilities in use: research (account wide) and the planet's shipyard; `until` epoch seconds, null when unknown */
+  busy?: { research?: { until: number | null } | null; shipyard?: { until: number | null } | null };
 }
 
-export type BuildState = 'buildable' | 'resources' | 'requirements' | 'max' | 'fields' | 'storage' | 'never';
+export type BuildState = 'buildable' | 'busy' | 'resources' | 'requirements' | 'max' | 'fields' | 'storage' | 'never';
 
 export interface BuildingInfo {
   id: number;
@@ -168,8 +187,10 @@ export interface BuildingInfo {
   missing: Record<number, number>;
   /** when the resources are there (epoch seconds, in the past when they already are), null when never */
   readyAt: number | null;
-  /** build time in seconds, null without a known building speed */
+  /** build time in seconds with the robot and nanite factories after the queue, null without a known building speed */
   time: number | null;
+  /** the facility the building waits for (`LOCKED_BY`) and until when, null when free */
+  busy: { by: 'research' | 'shipyard'; until: number | null } | null;
   state: BuildState;
 }
 
@@ -196,8 +217,8 @@ export function capacityOf(p: BuildPlanet, res: number, factor = 1): number {
 export function buildingsOf(p: BuildPlanet, o: BuildOptions): BuildingInfo[] {
   const queuedFields = p.queue.reduce((n, q) => n + (q.destroy ? -1 : 1), 0);
   const fieldsFull = !!p.fields && p.fields.max > 0 && p.fields.used + queuedFields >= p.fields.max;
-  const robot = p.values[ROBOT_FACTORY] ?? 0;
-  const nanite = p.values[NANITE_FACTORY] ?? 0;
+  const { robot, nanite } = factoriesAfterQueue(p);
+  const factoriesQueued = robot !== (p.values[ROBOT_FACTORY] ?? 0) || nanite !== (p.values[NANITE_FACTORY] ?? 0);
   return buildingsFor(p.type).map((id) => {
     const meta = BUILDINGS[String(id)];
     const level = p.values[id] ?? 0;
@@ -205,7 +226,11 @@ export function buildingsOf(p: BuildPlanet, o: BuildOptions): BuildingInfo[] {
     const next = (queued ? queued.level : level) + 1;
     const shown = o.shown?.[id]?.next === next ? o.shown[id] : undefined;
     const cost = shown && Object.keys(pick(shown.cost)).length ? pick(shown.cost) : buildingCost(id, next, o.catchUp ?? 0);
-    const time = shown?.time ?? (o.buildingSpeed ? buildTime(cost, robot, nanite, o.buildingSpeed) : null);
+    // the page shows the time with today's factories: it only holds while none of them is in the queue
+    const time = !factoriesQueued && shown?.time != null ? shown.time : o.buildingSpeed ? buildTime(cost, robot, nanite, o.buildingSpeed) : null;
+    const by = LOCKED_BY[id];
+    const lock = by ? p.busy?.[by] : null;
+    const busy = lock && (lock.until == null || lock.until > o.now) ? { by, until: lock.until } : null;
     const missing: Record<number, number> = {};
     let readyAt: number | null = p.time;
     let overCap = false;
@@ -223,6 +248,8 @@ export function buildingsOf(p: BuildPlanet, o: BuildOptions): BuildingInfo[] {
       if (need > cap) overCap = true;
       readyAt = at == null || readyAt == null ? null : Math.max(readyAt, at);
     }
+    // buildable once the facility is free as well
+    if (busy?.until != null && readyAt != null) readyAt = Math.max(readyAt, busy.until);
     const requirements = requirementsOf(id, p.values, o.research);
     const state: BuildState = requirements.some((r) => r.own < r.need)
       ? 'requirements'
@@ -231,13 +258,15 @@ export function buildingsOf(p: BuildPlanet, o: BuildOptions): BuildingInfo[] {
         : fieldsFull
           ? 'fields'
           : !Object.keys(missing).length
-            ? 'buildable'
+            ? busy
+              ? 'busy'
+              : 'buildable'
             : readyAt != null
               ? 'resources'
               : overCap
                 ? 'storage'
                 : 'never';
-    return { id, group: buildingGroup(id), level, next, max: meta.max, requirements, cost, missing, readyAt, time, state };
+    return { id, group: buildingGroup(id), level, next, max: meta.max, requirements, cost, missing, readyAt, time, busy, state };
   });
 }
 

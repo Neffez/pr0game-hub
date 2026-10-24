@@ -128,6 +128,29 @@ describe('buildings page', () => {
     expect(db.prepare('SELECT COUNT(*) FROM building_alerts').pluck().get()).toBe(0);
   });
 
+  it('keeps hidden buildings in the account', async () => {
+    expect((await call('GET', '/u8/buildings', h.carol)).json().hidden).toEqual([]);
+    expect((await call('PUT', '/u8/buildings/hidden', h.carol, { ids: [6, 999] })).statusCode).toBe(400);
+    expect((await call('PUT', '/u8/buildings/hidden', h.carol, { ids: [34, 6, 34] })).json()).toEqual({ hidden: [6, 34] });
+    expect((await call('GET', '/u8/buildings', h.carol)).json().hidden).toEqual([6, 34]);
+    expect((await call('GET', '/u8/buildings', h.dave)).json().hidden).toEqual([]);
+    expect((await call('PUT', '/u8/buildings/hidden', h.carol, { ids: [] })).json()).toEqual({ hidden: [] });
+  });
+
+  it('knows when research or the shipyard keep the lab and shipyard busy', async () => {
+    const overview = {
+      kind: 'overview', pageTime: null, current: null, catchUp: null,
+      queues: [
+        { kind: 'research', coords: { g: 1, s: 1, p: 1 }, type: 'planet', id: 113, level: 5, destroy: false, seconds: 600 },
+        { kind: 'shipyard', coords: { g: 1, s: 1, p: 1 }, type: 'planet', id: 202, level: 10, destroy: false, seconds: 60 },
+      ],
+    };
+    db.prepare('INSERT INTO overview_snapshots (group_id, user_id, page_time, data) VALUES (?, ?, ?, ?)').run(group, ids.carol, t, JSON.stringify(overview));
+    const state = (await call('GET', '/u8/buildings', h.carol)).json();
+    expect(state.planets[0].planet.busy).toEqual({ research: { until: t + 600 }, shipyard: { until: null } });
+    db.prepare('DELETE FROM overview_snapshots WHERE user_id = ?').run(ids.carol);
+  });
+
   it('stores a synced buildings page and takes its levels, costs and resources when newer', async () => {
     const html = readFileSync(new URL('../../../packages/parser/test/fixtures/buildings.html', import.meta.url), 'utf8');
     const res = await call('POST', '/u8/ingest', h.dave, { html });
@@ -139,7 +162,9 @@ describe('buildings page', () => {
     expect(state.planets[0]).toMatchObject({
       key: '1:100:12:planet', source: 'buildings',
       // the crystal mine of the queue finished long ago
-      planet: { queue: [], values: { 1: 18, 2: 16, 15: 0 }, resources: { 901: 120000 }, storage: { 901: 1215000 }, perHour: { 902: 3000 } },
+      planet: { queue: [], values: { 1: 18, 2: 16, 15: 0 }, resources: { 901: 120000 }, storage: { 901: 1215000 }, perHour: { 902: 3000 },
+        // the page shows the shipyard busy; no lab on it, nothing else tells about research
+        busy: { research: null, shipyard: { until: null } } },
       shown: { 1: { next: 19, cost: { 901: 77907, 902: 19476 }, time: 2804 }, 2: { next: 17 } },
     });
   });

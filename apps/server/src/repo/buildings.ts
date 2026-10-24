@@ -1,5 +1,5 @@
 import type { BuildingsRecord, EmpireRecord, OverviewRecord } from '@pr0hub/core';
-import { buildingsOf, deriveBuildingSpeed, NANITE_FACTORY, ROBOT_FACTORY, type Arrival, type BuildingInfo, type BuildPlanet } from '@pr0hub/core/buildings';
+import { buildingsOf, deriveBuildingSpeed, LOCKED_BY, NANITE_FACTORY, ROBOT_FACTORY, type Arrival, type BuildingInfo, type BuildPlanet } from '@pr0hub/core/buildings';
 import { METAL, STORAGE, storageCapacity } from '@pr0hub/core/tech';
 import type { GroupContext } from '../context.js';
 import { now, type DB } from '../db.js';
@@ -126,6 +126,23 @@ export function buildingsState(db: DB, ctx: GroupContext, userId: number, t = no
       bp.planet.queue = q ? [{ id: q.id, level: q.level, destroy: q.destroy, end: overview.time + q.seconds }, ...(bp.source === 'buildings' ? rest : [])] : [];
     }
   }
+  // facilities in use, from the newest page that tells: research account wide, the shipyard per planet
+  const research = researchBusy(empire, overview, pages);
+  for (const bp of planets.values()) {
+    const empirePlanet = empire?.rec.planets.find((p) => same(p.coords, bp.coords) && p.type === bp.type);
+    const shipyard: Busy[] = [];
+    if (empirePlanet && empire) shipyard.push({ time: empire.time, busy: Object.keys(empirePlanet.shipyard ?? {}).length ? { until: null } : null });
+    if (overview) {
+      const q = overview.rec.queues.some((x) => x.kind === 'shipyard' && same(x.coords, bp.coords) && x.type === bp.type);
+      shipyard.push({ time: overview.time, busy: q ? { until: null } : null });
+    }
+    for (const page of pages) {
+      if (!same(page.rec.coords, bp.coords) || page.rec.type !== bp.type) continue;
+      const lock = page.rec.buildings.filter((b) => LOCKED_BY[b.id] === 'shipyard');
+      if (lock.length) shipyard.push({ time: page.time, busy: lock.some((b) => b.busy) ? { until: null } : null });
+    }
+    bp.planet.busy = { research, shipyard: newest(shipyard) };
+  }
   for (const bp of planets.values()) {
     // builds finished since then raise the level
     while (bp.planet.queue[0]?.end != null && bp.planet.queue[0].end <= t) {
@@ -152,6 +169,32 @@ export function buildingsState(db: DB, ctx: GroupContext, userId: number, t = no
     empireTime: empire?.time ?? null,
     fleetsTime: fleets?.time ?? null,
   };
+}
+
+type Busy = { time: number; busy: { until: number | null } | null };
+
+/** What the newest source says (null: free or unknown). */
+const newest = (list: Busy[]) => [...list].sort((a, b) => b.time - a.time)[0]?.busy ?? null;
+
+/**
+ * Research in progress (account wide): the empire marker, the overview queue (with its end) or a buildings page
+ * showing the lab or TechnoDome "busy"; the newest decides, the overview's end applies while it is after that.
+ */
+function researchBusy(
+  empire: { time: number; rec: EmpireRecord } | null, overview: { time: number; rec: OverviewRecord } | null, pages: { time: number; rec: BuildingsRecord }[],
+): { until: number | null } | null {
+  const list: Busy[] = [];
+  if (empire) list.push({ time: empire.time, busy: empire.rec.researchQueue ? { until: null } : null });
+  const q = overview?.rec.queues.find((x) => x.kind === 'research');
+  const end = q ? overview!.time + q.seconds : null;
+  if (overview) list.push({ time: overview.time, busy: end != null ? { until: end } : null });
+  for (const page of pages) {
+    const lock = page.rec.buildings.filter((b) => LOCKED_BY[b.id] === 'research');
+    if (lock.length) list.push({ time: page.time, busy: lock.some((b) => b.busy) ? { until: null } : null });
+  }
+  const latest = [...list].sort((a, b) => b.time - a.time)[0];
+  if (!latest?.busy) return null;
+  return { until: latest.busy.until ?? (end != null && end > latest.time ? end : null) };
 }
 
 /** Storage factor from a resource bar (storage shown against the metal storage level), null when unknown. */
