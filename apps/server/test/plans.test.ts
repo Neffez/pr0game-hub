@@ -392,10 +392,34 @@ describe('attack plans', () => {
     expect((await call('GET', '/hostile-attacks', dave)).json().find((x: any) => x.key === a.key)).toMatchObject({ planId: null, holdPlanId: id });
     let plan = (await call('GET', '/plans', carol)).json().find((p: any) => p.id === id);
     expect(plan).toMatchObject({ mission: 'hold', g: 1, s: 100, p: 12, planet_type: 'planet', target_time: a.arrival - 1, claim_user_id: null, spy: null });
-    expect(plan.enemy.hold_offset).toBe(-1);
+    expect(plan.enemy).toMatchObject({ hold_offset: -1, research: null, research_time: null });
 
-    // the attacked member joins and holds 3 s late (in case the enemy delays); others outside the plan may not
-    expect((await call('PUT', `/plans/${id}/enemy`, carol, { hold_offset: 3 })).json().code).toBe('plan_not_yours');
+    // simulators: the defended planet from the attacked member's empire page, the attacker's research from a spy report
+    // newer than Carol's empire page from the setup
+    const empireTime = 1893456000 + 60;
+    const planet = { name: 'Ares', coords: { g: 1, s: 100, p: 12 }, type: 'planet', values: { 204: 40, 401: 100 }, resources: { 901: 1000, 902: 500, 903: 200, 911: 5 } };
+    const empire = db.prepare('INSERT INTO empire_snapshots (group_id, user_id, created_at, data) VALUES (?, ?, ?, ?)').run(
+      groupA, carolId, empireTime, JSON.stringify({ kind: 'empire', research: { 109: 11, 115: 10 }, planets: [planet] }),
+    ).lastInsertRowid;
+    const enemy = Number(db.prepare("INSERT INTO players (group_id, ingame_id, name) VALUES (?, 4716, 'Feind')").run(groupA).lastInsertRowid);
+    db.prepare("INSERT INTO planets (group_id, g, s, p, name, player_id) VALUES (?, 2, 2, 2, 'Feind', ?)").run(groupA, enemy);
+    db.prepare("INSERT INTO spy_reports (group_id, g, s, p, planet_type, player_name, player_id, report_time, sections) VALUES (?, 2, 2, 2, 'planet', 'Feind', ?, ?, ?)")
+      .run(groupA, enemy, empireTime - 60, JSON.stringify({ 100: { 109: 14, 110: 13, 111: 12 } }));
+    plan = (await call('GET', '/plans', carol)).json().find((p: any) => p.id === id);
+    expect(plan.spy).toEqual({ time: empireTime, values: { 204: 40, 401: 100, 901: 1000, 902: 500, 903: 200, 109: 11, 115: 10 } });
+    expect(plan.enemy).toMatchObject({ research: { 109: 14, 110: 13, 111: 12 }, research_time: empireTime - 60 });
+
+    // the attacked member (not in the plan yet) sends ships away before the impact; null takes the empire page again
+    expect((await call('PUT', `/plans/${id}/enemy`, carol, { planet_ships: { 401: 5 } })).json().code).toBe('plan_ships_invalid');
+    expect((await call('PUT', `/plans/${id}/enemy`, carol, { planet_ships: { 204: 10, 202: 0 } })).statusCode).toBe(200);
+    plan = (await call('GET', '/plans', dave)).json().find((p: any) => p.id === id);
+    expect(plan.enemy.planet_ships).toEqual({ 204: 10 });
+    expect(plan.spy.values[204]).toBe(40);
+    await call('PUT', `/plans/${id}/enemy`, carol, { planet_ships: null });
+    expect((await call('GET', '/plans', dave)).json().find((p: any) => p.id === id).enemy.planet_ships).toBeNull();
+    db.prepare('DELETE FROM empire_snapshots WHERE id = ?').run(empire);
+
+    // the attacked member joins and holds 3 s late (in case the enemy delays)
     await call('POST', `/plans/${id}/fleets`, carol, { g: 1, s: 40, p: 5, type: 'planet', ships: { 204: 5 } });
     expect((await call('PUT', `/plans/${id}/enemy`, carol, { hold_offset: 99999 })).json().code).toBe('plan_enemy_invalid');
     expect((await call('PUT', `/plans/${id}/enemy`, carol, { hold_offset: 3 })).statusCode).toBe(200);

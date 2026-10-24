@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { dateFormat, datePattern, dateTime, fmt, numDate, fmtSigned, short, simLinks, trashSimExport } from '../src/format';
 import { setLocale } from '../src/i18n';
+import { decompressFromEncodedURIComponent } from 'lz-string';
 
 describe('format', () => {
   beforeEach(() => setLocale('de'));
@@ -74,6 +75,25 @@ describe('format', () => {
         + '&battleinput[1][0][109]=0&battleinput[1][0][110]=0&battleinput[1][0][111]=0&battleinput[1][0][204]=100&im[901]=5',
     );
     expect(links.trash).toMatch(/^https:\/\/pr0game\.com\/uni7\/battlesim\.html\?sim=[\w+$-]+$/);
+  });
+
+  it('puts hold fleets on the defender side from the second slot on', () => {
+    const links = simLinks(
+      'https://pr0game.com/uni7/',
+      { 901: 5 },
+      [{ ships: { 207: 50 }, research: { 109: 10 } }],
+      [1, 2, 3],
+      [{ ships: { 204: 100 }, research: { 109: 1, 110: 2, 111: 3 } }, { ships: { 206: 7 }, research: {} }],
+    );
+    expect(links.game).toBe(
+      'https://pr0game.com/uni7/game.php?page=battleSimulator&slots=3'
+        + '&battleinput[0][0][109]=10&battleinput[0][0][110]=0&battleinput[0][0][111]=0&battleinput[0][0][207]=50'
+        + '&battleinput[1][1][109]=1&battleinput[1][1][110]=2&battleinput[1][1][111]=3&battleinput[1][1][204]=100'
+        + '&battleinput[2][1][109]=0&battleinput[2][1][110]=0&battleinput[2][1][111]=0&battleinput[2][1][206]=7&im[901]=5',
+    );
+    const rows = decompressFromEncodedURIComponent(links.trash.split('sim=')[1]).trim().split('\n');
+    expect(rows.map((r) => r.split(' ').slice(0, 2).join(' '))).toEqual(['5 0', '0 0', '1 0', '1 1', '1 2']);
+    expect(rows[3].split(' ').length).toBe(rows[2].split(' ').length);
   });
 
   it('writes the TrashSim export string like TrashSim itself', () => {

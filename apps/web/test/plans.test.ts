@@ -1,7 +1,7 @@
 import { distance, flightDuration, shipSpeed } from '@pr0hub/flight';
 import { describe, expect, it } from 'vitest';
 import type { UniverseSettings } from '../src/format';
-import { computePlan, seenShipsDiffer, draftBody, draftOf, enemyCalcLink, fleetCalcLink, fromLocalInput, holdRating, planCounts, isCurrent, newDraft, parseTarget, toLocalInput, type AttackPlan, type PlanEnemy, type PlanFleet } from '../src/plans';
+import { computePlan, seenShipsDiffer, draftBody, draftOf, enemyCalcLink, fleetCalcLink, fromLocalInput, holdPlanetValues, holdRating, planCounts, isCurrent, newDraft, parseTarget, spyShips, toLocalInput, type AttackPlan, type PlanEnemy, type PlanFleet } from '../src/plans';
 
 const u: UniverseSettings = {
   galaxies: 9, systems: 400, positions: 15, circularGalaxies: true, circularSystems: true,
@@ -126,5 +126,20 @@ describe('attack plans in the web app', () => {
     expect(recalled).toMatchObject({ ships: '210:1', eout: 'recall', er: '1999999000' });
     expect(recalled.eo).toBeUndefined();
     expect(recalled.ks).toBeUndefined();
+  });
+});
+
+describe('hold planet', () => {
+  const hold = (planet_ships: Record<string, number> | null) =>
+    ({ spy: { time: 1, values: { 204: 40, 212: 9, 401: 100, 901: 5 } }, enemy: { planet_ships } }) as unknown as AttackPlan;
+
+  it('takes the ships of the empire page or spy report, without solar satellites', () => {
+    expect(spyShips(hold(null))).toEqual({ 204: 40 });
+    expect(holdPlanetValues(hold(null))).toEqual({ 204: 40, 212: 9, 401: 100, 901: 5 });
+  });
+
+  it('replaces the flying ships by the ones changed by hand', () => {
+    expect(holdPlanetValues(hold({ 206: 3 }))).toEqual({ 206: 3, 212: 9, 401: 100, 901: 5 });
+    expect(holdPlanetValues(hold({}))).toEqual({ 212: 9, 401: 100, 901: 5 });
   });
 });
