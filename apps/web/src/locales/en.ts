@@ -1219,6 +1219,7 @@ const en: typeof de = {
     lost: 'Lost',
     lootShare: 'Loot share',
     fromFleet: 'from the fleet return message',
+    fromOverview: 'from the overview (flight home, no fleet return message synced)',
     pasteReport: 'Paste battle report',
     pasteHint: 'Open the battle report in the game, select all, copy and paste it here. Attackers (in a hold the defenders) are matched to the participants by their in-game name, players without a hub account join as guests. Battle reports pasted when syncing go into the draft by themselves.',
     pastePlaceholder: 'Text of the battle report …',

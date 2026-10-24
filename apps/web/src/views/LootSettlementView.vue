@@ -17,6 +17,7 @@ import { tables, useLiveReload } from '../live';
 interface Sources {
   battles: { reportId: string | null; time: number | null; fleets: 'report' | 'plan' }[];
   returnLoot: Record<string, Record<number, Res>>;
+  returnSource?: Record<string, 'message' | 'overview'>;
   flightDeut: Record<string, number>;
   recycling: { by: string; time: number | null }[];
 }
@@ -362,7 +363,7 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
                   <td class="small neg">{{ lost(f.start, f.end).map((x) => `${fmt(x.n)} ${name(x.id)}`).join(', ') }}</td>
                   <td v-for="k in RES" :key="k" class="num">
                     {{ fmt(shares[i]?.get(f.participant)?.[k] ?? 0) }}
-                    <span v-if="f.loot && k === 'm'" class="src" :title="t('loot.fromFleet')">✓</span>
+                    <span v-if="f.loot && k === 'm'" class="src" :title="sources?.returnSource?.[f.participant] === 'overview' ? t('loot.fromOverview') : t('loot.fromFleet')">✓</span>
                   </td>
                 </tr>
               </tbody>

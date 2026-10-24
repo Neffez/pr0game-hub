@@ -1221,6 +1221,7 @@ const de = {
     lost: 'Verloren',
     lootShare: 'Beuteanteil',
     fromFleet: 'aus der Flottenrückkehr-Nachricht',
+    fromOverview: 'aus der Übersicht (Rückflug, keine Flottenrückkehr-Nachricht synchronisiert)',
     pasteReport: 'Kampfbericht einfügen',
     pasteHint: 'Kampfbericht im Spiel öffnen, alles markieren, kopieren und hier einfügen. Angreifer (bei Halten die Verteidiger) werden über den Ingame-Namen den Teilnehmern zugeordnet, Spieler ohne Hub-Konto kommen als Gäste dazu. Beim Synchronisieren eingefügte Kampfberichte übernimmt der Entwurf von selbst.',
     pastePlaceholder: 'Text des Kampfberichts …',

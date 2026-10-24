@@ -11,8 +11,11 @@ Every commit adds its changes here, newest first, grouped by date.
   - The loot each fleet brought home comes from the members' fleet return messages ("Flottenrückkehr", synced with
     the messages; new record `fleetReturn`, table `fleet_returns`, migration 048) instead of the overview's flights
     home, which counted later raids on the same target too: per participant the first returns after the battle, one
-    per fleet in the battle report, to planets they started from. When they carry more than the battle's loot (cargo
-    from the way out), the shares by cargo space count instead.
+    per fleet in the battle report, to planets they started from. Without messages the overview's flights home still
+    count, now strictly: per fleet in the report the first flight home after the battle with the ships it has left,
+    the same flight in several fleet lists once; without either, the shares by cargo space (`sources.returnSource`
+    tells which). When they carry more than the battle's loot (cargo from the way out), the shares by cargo space
+    count for everyone.
 
 - Loot settlement: "Update from hub data" next to "Refill from hub data" takes what is new in the hub (recycling
   reports, battles, participants and helpers synced since) into the edited or saved settlement and keeps everything
