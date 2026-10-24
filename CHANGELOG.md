@@ -2,6 +2,12 @@
 
 Every commit adds its changes here, newest first, grouped by date.
 
+## 2026-10-24
+
+- Account settings on phones: the page no longer gets wider than the screen (the API token table forced a minimum
+  width, so the browser zoomed out and the bottom tab bar looked shifted and larger); the token table now scrolls
+  inside its card.
+
 ## 2026-10-23
 
 - Overview on narrow screens: a Mobile/Desktop switch next to the heading shows the wide desktop tables instead of
