@@ -4,6 +4,12 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-24
 
+- New package `@pr0hub/loot`: settles an ACS for the standalone loot calculator and the hub. It shares a battle's
+  loot by the free cargo space of the surviving fleets like the game, covers the participants' costs (lost ships,
+  missiles, flight and recycler deuterium) and the recycling helpers' part (kept percentage plus their deuterium),
+  makes up for a missing resource at market rates, covers the same share of everyone's costs when the pot is too
+  small, splits the profit equally or by the value of the ships sent and suggests transfers with few flights.
+
 - Groundwork for the ACS loot calculator: the battle report parser reads the captured resources
   (`CombatReportRecord.loot`, German and English wording), `@pr0hub/core/combat` exports the battle report parser
   without the HTML parsers (no cheerio, for the static tools), and `@pr0hub/flight` knows the cargo capacity of every

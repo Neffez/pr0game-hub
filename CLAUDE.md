@@ -43,6 +43,8 @@ pnpm build
 - `packages/flight` (`@pr0hub/flight`): flight math ported from the game's `FleetFunctions` (distance, ship speed,
   duration, consumption, recall), ACS planning (`acs.ts`) and retime candidates (`retime.ts`); must stay second-exact
   with the game and the flight calculator.
+- `packages/loot` (`@pr0hub/loot`): ACS loot settlement (loot shares like the game's `calculateSteal`, covering
+  costs, profit split, transfers), used by the loot calculator in `apps/tools` and by the hub.
 - `apps/server`: Fastify + SQLite; migrations in `migrations/` (numbered SQL files); every game-data query goes through `groupContext` so data stays within its group; OpenAPI spec in `openapi.yaml`.
 - `apps/tools`: static tools (Vite, no framework): `index.html` and `flight-calculator/` (UI in `main.js`, calculation
   in `src/core.ts` on top of `@pr0hub/flight`); Docker target `tools`.

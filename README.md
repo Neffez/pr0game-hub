@@ -64,6 +64,7 @@ Player IDs, alliance IDs and rank changes are only available in HTML/page source
 ```
 packages/parser   @pr0hub/core – page parsers, deck calculation, element data (DE/EN)
 packages/flight   @pr0hub/flight – flight times, recall and fuel like the game's FleetFunctions
+packages/loot     @pr0hub/loot – ACS loot settlement: loot shares, covering losses, profit split, transfers
 apps/server       Fastify + SQLite: auth, ingest, data APIs, battle report crawler; serves the SPA
 apps/web          Vue 3 SPA (base path /hub/)
 apps/tools        static pr0game tools next to the hub: tools index and the flight calculator

@@ -134,6 +134,22 @@ importers:
         specifier: ^2.1.4
         version: 2.1.9(@types/node@22.20.5)(happy-dom@15.11.7)
 
+  packages/loot:
+    dependencies:
+      '@pr0hub/core':
+        specifier: workspace:*
+        version: link:../parser
+      '@pr0hub/flight':
+        specifier: workspace:*
+        version: link:../flight
+    devDependencies:
+      typescript:
+        specifier: ^5.6.3
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.4
+        version: 2.1.9(@types/node@22.20.5)(happy-dom@15.11.7)
+
   packages/parser:
     dependencies:
       cheerio:
