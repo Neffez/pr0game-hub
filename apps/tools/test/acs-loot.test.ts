@@ -26,9 +26,20 @@ describe('loot calculator glue', () => {
     if (!res.ok) throw new Error('not parsed');
     expect(state.participants.map((p) => p.name)).toEqual(['Alpha', 'Beta']);
     expect(res.battle.loot).toEqual({ m: 120000, k: 60000, d: 30000 });
-    expect(res.battle.time).toBe(Date.UTC(2026, 9, 20, 10, 29, 25) / 1000);
+    expect(res.battle.time).toBe(new Date(2026, 9, 20, 10, 29, 25).getTime() / 1000); // the player's local time
     expect(res.battle.fleets[0]).toEqual({ participant: 'p0', start: { 203: 10, 207: 7 }, end: { 203: 10, 207: 6 } });
     expect(battleFromReport(state, 'nothing')).toEqual({ ok: false });
+  });
+
+  it('takes a copied german report of an ACS with two fleets per player', () => {
+    const text = readFileSync(resolve(import.meta.dirname, '../../../packages/parser/test/fixtures/combat-report-de.txt'), 'utf8');
+    const state = emptyState();
+    const res = battleFromReport(state, text);
+    if (!res.ok) throw new Error('not parsed');
+    expect(state.participants.map((p) => p.name)).toEqual(['CVXII', 'Rudolf']);
+    expect(res.battle.loot).toEqual({ m: 0, k: 1343846, d: 690373 });
+    expect(res.battle.fleets.map((f) => f.start[207])).toEqual([11799, 2178]);
+    expect(res.battle.time).toBe(new Date(2026, 9, 24, 13, 4, 3).getTime() / 1000);
   });
 
   it('formats numbers per language', () => {

@@ -257,7 +257,7 @@ describe('combat report', () => {
     expect(res.records[0]).toMatchObject({
       reportId: '93a44dd012ff05992739d1afd749df1d', time: '2026-10-20 10:29:25', winner: 'attacker', rounds: 1,
       lost: { attacker: 3280000, defender: 22261000 }, debris: { metal: 3560500, crystal: 1890000 },
-      loot: { metal: 252190, crystal: 376570, deuterium: 225792 },
+      loot: { metal: 252190, crystal: 376570, deuterium: 225792 }, target: null,
       fleets: [
         { side: 'attacker', name: 'pUsteblUme', start: { 207: 6445, 215: 2245 }, end: { 207: 6402, 215: 2235 } },
         { side: 'defender', name: 'Arys', start: { 203: 42, 207: 20, 401: 607 }, end: { 203: 0, 401: 0 } },
@@ -265,28 +265,24 @@ describe('combat report', () => {
     });
   });
 
-  it('reads the loot of a german report and the fleets of an ACS', () => {
-    const text = [
-      'Folgende Flotten stehen sich gegenüber am 20.10.2026, 12:29:25',
-      'Angreifer Alpha ([1:2:3])', 'Typ', 'Gr. Transporter', 'Schlachtschiff', 'Anzahl', '10', '5',
-      'Angreifer Beta ([1:2:4])', 'Typ', 'Schlachtschiff', 'Anzahl', '20',
-      'Verteidiger Gamma ([1:5:6])', 'Typ', 'Raketenwerfer', 'Anzahl', '100',
-      'Angreifer Alpha ([1:2:3])', 'Typ', 'Gr. Transporter', 'Schlachtschiff', 'Anzahl', '10', '4 (-1 / -1)',
-      'Angreifer Beta ([1:2:4])', 'Typ', 'Schlachtschiff', 'Anzahl', '20',
-      'Verteidiger Gamma ([1:5:6])', 'Typ', 'Raketenwerfer', 'Anzahl', 'Zerstört!',
-      'Der Angreifer hat die Schlacht gewonnen! Er erbeutet 120.000 Metall, 60.000 Kristall und 30.000 Deuterium',
-      'Der Angreifer hat insgesamt 60.000 Units verloren.',
-      'Auf diesen Raumkoordinaten liegen nun 18.000 Metall und 6.000 Kristall.',
-    ].join('\n');
-    expect(parseCombatReportText(text, null)).toMatchObject({
-      kind: 'combatReport', winner: 'attacker', loot: { metal: 120000, crystal: 60000, deuterium: 30000 },
-      debris: { metal: 18000, crystal: 6000 },
-      fleets: [
-        { side: 'attacker', name: 'Alpha', start: { 203: 10, 207: 5 }, end: { 203: 10, 207: 4 } },
-        { side: 'attacker', name: 'Beta', start: { 207: 20 }, end: { 207: 20 } },
-        { side: 'defender', name: 'Gamma' },
-      ],
+  it('parses a copied german battle report of an ACS (logged in, coordinates shown)', () => {
+    const text = fixture('combat-report-de.txt');
+    const r = parseCombatReportText(text, null);
+    expect(r).toMatchObject({
+      kind: 'combatReport', reportId: null, time: '2026-10-24 13:04:03', winner: 'attacker', rounds: 3,
+      lost: { attacker: 11114000, defender: 411433000 }, debris: { metal: 142823000, crystal: 68450500 },
+      loot: { metal: 0, crystal: 1343846, deuterium: 690373 },
+      target: { coords: { g: 3, s: 195, p: 5 }, type: 'moon' },
     });
+    expect(r!.fleets.filter((f) => f.side === 'attacker')).toEqual([
+      { side: 'attacker', name: 'CVXII', start: { 222: 3544 }, end: { 222: 3521 } },
+      { side: 'attacker', name: 'Rudolf', start: { 207: 2178, 215: 4348 }, end: { 207: 2178, 215: 4348 } },
+      { side: 'attacker', name: 'CVXII', start: { 206: 347, 207: 11799, 215: 4406 }, end: { 206: 323, 207: 11794, 215: 4406 } },
+      { side: 'attacker', name: 'Rudolf', start: { 225: 4821 }, end: { 225: 3901 } },
+    ]);
+    expect(r!.fleets.find((f) => f.side === 'defender')).toMatchObject({ name: 'Hustensaftdealer', start: { 202: 136, 227: 303 }, end: { 202: 0, 227: 0 } });
+    // pasted as text when syncing
+    expect(parsePage({ text })).toMatchObject({ pageType: 'combatReport', records: [{ reportId: null, loot: { crystal: 1343846 } }] });
   });
 });
 

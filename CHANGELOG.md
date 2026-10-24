@@ -4,6 +4,13 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-24
 
+- Battle reports copied as text: the parser recognises them in pasted text (not only in HTML), reads the attacked
+  planet or moon from the first defender (`CombatReportRecord.target`, null on public pages) and is tested against a
+  real German ACS report (`combat-report-de.txt`: three rounds, two fleets per player, the new damage analysis).
+  - `battleFromReport` and `localEpoch` moved into `@pr0hub/loot` for the loot calculator and the hub.
+  - Loot calculator: report times are read as the player's local time (the game shows that when logged in), so the
+    24 h deadline is no longer off by one or two hours.
+
 - Raid planner, loot settlement page (`/:uni/raid-planner/:id/loot`, link "Settle loot" on launched and done attack
   plans): shows the draft from the hub's data or the saved settlement with the source of each value (battle report,
   plan fleet, returning fleet, recycling report), lets participants, the creator and admins change the settings,

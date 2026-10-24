@@ -141,6 +141,11 @@ function parseText(text: string, input: ParseInput, warnings: string[]): { pageT
     warnings.push('phalanx_use_raid_planner');
     return { pageType: 'phalanx', records: [] };
   }
+  // copied battle report: without the report id (only the URL has it)
+  if (isCombatReportText(text)) {
+    const r = parseCombatReportText(text, null);
+    if (r) return { pageType: 'combatReport', records: [r] };
+  }
   if (isStatsText(text)) {
     const r = parseStatsText(text);
     if (r) {
