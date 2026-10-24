@@ -36,6 +36,7 @@ import {
   SPEEDS,
   type AttackPlan,
   type HostileAttack,
+  type OwnAttack,
   type PlanDraft,
   type PlanFleet,
 } from '../plans';
@@ -62,6 +63,8 @@ function scheduleStep() {
     ...plans.value.flatMap((p) => [p.target_time, latestTime(p) + 3601, ...(views.value.get(p.id)?.fleets.map((x) => x.plan?.launch ?? Infinity) ?? [])]).filter((x) => x > t0),
     // an attack arrives: no hold any more
     ...attacks.value.map((a) => a.arrival).filter((x) => x > t0),
+    // an own attack arrives: off the list
+    ...ownAttacks.value.map((a) => a.arrival).filter((x) => x > t0),
   );
   stepTimer = setTimeout(() => {
     now.value = nowSec();
@@ -73,13 +76,16 @@ onBeforeUnmount(() => clearTimeout(stepTimer));
 const plans = ref<AttackPlan[]>([]);
 /** hostile attacks on members (overview pastes), to plan a retime on */
 const attacks = ref<HostileAttack[]>([]);
+/** own attacks in flight (overview pastes) without a plan yet, only those the viewer flies in */
+const ownAttacks = ref<OwnAttack[]>([]);
 const loaded = ref(false);
 const error = ref('');
 async function load() {
   try {
-    [plans.value, attacks.value] = await Promise.all([
+    [plans.value, attacks.value, ownAttacks.value] = await Promise.all([
       uniApi<AttackPlan[]>(uni.value, '/plans'),
       uniApi<HostileAttack[]>(uni.value, '/hostile-attacks'),
+      uniApi<OwnAttack[]>(uni.value, '/own-attacks'),
     ]);
     now.value = nowSec();
   } catch (e) {
@@ -110,10 +116,13 @@ const settings = computed(() => ctx.value!.universe.settings);
  * (not withdrawn, with ships) with the research of their member's empire page. Hold plans swap the sides: the enemy
  * fleets attack, the plan's fleets defend the planet next to its own fleet and defense.
  */
-const planFleets = (p: AttackPlan): SimFleet[] =>
-  p.fleets
+const planFleets = (p: AttackPlan): SimFleet[] => [
+  ...p.fleets
     .filter((f) => f.status !== 'withdrawn' && Object.values(f.ships).some((n) => n > 0))
-    .map((f) => ({ ships: f.ships, research: f.drives?.research ?? {}, from: f.g != null ? [f.g, f.s!, f.p!] : null, speed: f.speed }));
+    .map((f) => ({ ships: f.ships, research: f.drives?.research ?? {}, from: f.g != null ? [f.g, f.s!, f.p!] as Coords3 : null, speed: f.speed })),
+  // ACS fleets of non-members, research from spy reports of their player
+  ...(p.guests ?? []).map((g) => ({ ships: g.ships, research: g.research ?? {}, from: [g.from.g, g.from.s, g.from.p] as Coords3, speed: 100 })),
+];
 const sims = (p: AttackPlan) => {
   const target: Coords3 | null = hasCoords(p) ? [p.g!, p.s!, p.p!] : null;
   if (!settings.value.gameUrl) return null;
@@ -252,6 +261,19 @@ async function planRetime(a: HostileAttack) {
   });
   loadClaims(uni.value);
 }
+/** Own attack in flight: a plan with the fleets flying (launched), visible to everyone from then on. */
+async function planOwn(a: OwnAttack) {
+  await run(async () => {
+    const res = await uniApi<{ id: number; claimedBy: string | null }>(uni.value, '/plans/own', { body: { key: a.key } });
+    openState[res.id] = true;
+    info.value = res.claimedBy ? t('plans.claimedBy', { name: res.claimedBy }) : '';
+  });
+  loadClaims(uni.value);
+}
+const ownAttackShips = (a: OwnAttack) =>
+  a.fleets.length > 1 ? t('notify.acs', { n: a.fleets.length }) : (a.fleets[0]?.mission != null ? t(`game.missions.${a.fleets[0].mission}`) : '');
+const ownFleetName = (f: OwnAttack['fleets'][number]) => f.member ?? f.player?.name ?? coords(f.from.g, f.from.s, f.from.p);
+
 /** Phalanx result (copied like the overview): its attacks join the list above. */
 const phalanx = reactive({ open: false, text: '' });
 async function sendPhalanx() {
@@ -524,6 +546,24 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
     </div>
   </div>
 
+  <div v-if="ownAttacks.length" class="card attacks">
+    <h3>{{ t('ownAttacks.title') }} <Hint>{{ t('ownAttacks.hint') }}</Hint></h3>
+    <div v-for="a in ownAttacks" :key="a.key" class="row attack">
+      <span>⚔ {{ ownAttackShips(a) }}</span>
+      <span class="mono">{{ coords(a.to.g, a.to.s, a.to.p) }}</span><span v-if="a.to.type === 'moon'" class="muted"> ☾</span>
+      <PlayerLink v-if="a.player" :id="a.player.id" :name="a.player.name" />
+      <span class="time"><b class="mono">{{ clock(a.arrival) }}</b> <Countdown class="muted small" :to="a.arrival" /></span>
+      <span class="small">
+        <template v-for="(f, i) in a.fleets" :key="i">
+          <span v-if="i">, </span>
+          <span :class="{ muted: f.memberId == null }" :title="f.memberId == null ? t('ownAttacks.guestTitle') : undefined">{{ ownFleetName(f) }}</span>
+        </template>
+      </span>
+      <span class="grow" />
+      <button class="primary" @click="planOwn(a)">{{ t('ownAttacks.plan') }}</button>
+    </div>
+  </div>
+
   <div v-if="attacks.length" class="card attacks">
     <h3>{{ t('retime.attacks') }}</h3>
     <div v-for="a in attacks" :key="a.key" class="row attack">
@@ -712,6 +752,12 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
         </table>
       </div>
       <p v-else class="muted small">{{ t('plans.noFleets') }}</p>
+      <p v-for="(g, i) in p.guests ?? []" :key="`g${i}`" class="small">
+        <span class="badge" :title="t('ownAttacks.guestTitle')">{{ t('ownAttacks.guest') }}</span>
+        <PlayerLink v-if="g.player" :id="g.player.id" :name="g.player.name" />
+        <span class="mono">{{ coords(g.from.g, g.from.s, g.from.p) }}</span><span v-if="g.from.type === 'moon'" class="muted"> ☾</span>
+        · {{ Object.entries(g.ships).map(([id, n]) => `${fmt(n)} ${name(Number(id))}`).join(', ') }}
+      </p>
 
       <div v-if="fleetForm.planId === p.id" class="fleet-form">
         <h4 v-if="fleetForm.member">{{ t('plans.fleetOf', { member: fleetForm.member }) }}</h4>

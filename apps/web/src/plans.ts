@@ -61,6 +61,8 @@ export interface AttackPlan {
   fleets: PlanFleet[];
   /** retime: the hostile fleet the plan answers */
   enemy: PlanEnemy | null;
+  /** ACS fleets of non-members taken over from an overview, only for the combat simulators */
+  guests: GuestFleet[];
   /**
    * newest spy report of the target (values by element id) for the combat simulators; hold plans: the defended planet
    * from the member's empire page, else its newest spy report
@@ -142,6 +144,28 @@ export interface HostileAttack {
   /** retime and hold plan answering it */
   planId: number | null;
   holdPlanId: number | null;
+}
+
+/** A fleet of a non-member in an own ACS (server: routes/plans.ts), with their player's research from spy reports. */
+export interface GuestFleet {
+  player: { id: number; name: string } | null;
+  from: Body;
+  mission: number | null;
+  ships: Record<string, number>;
+  research: Record<string, number> | null;
+  research_time: number | null;
+}
+
+/** Own attack in flight from the overview pastes without a plan yet, only for its participants (server: repo/plans.ts). */
+export interface OwnAttack {
+  key: string;
+  seen: number;
+  arrival: number;
+  to: Body;
+  /** owner of the target */
+  player: { id: number; name: string } | null;
+  /** the lead first; `memberId` null: a non-member in the ACS */
+  fleets: { memberId: number | null; member: string | null; player: { id: number; name: string } | null; from: Body; mission: number | null; ships: Record<string, number> }[];
 }
 
 /** Inputs of the enemy analysis (plan enemy or form values). */

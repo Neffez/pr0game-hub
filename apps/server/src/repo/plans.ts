@@ -281,3 +281,95 @@ export function followUniverse(db: DB, universeId: number, before: UniverseSetti
   })();
   return [...groups];
 }
+
+/** A fleet of an own running attack: a member's (`memberId`) or, in an ACS, a non-member's (guest). */
+export interface OwnAttackFleet {
+  memberId: number | null;
+  member: string | null;
+  /** owner of the start by the galaxy data */
+  player: { id: number; name: string } | null;
+  from: Body;
+  mission: number | null;
+  ships: Record<number, number>;
+}
+
+/** A running own attack (solo or ACS) from the members' overview pastes that no plan covers yet. */
+export interface OwnAttack {
+  /** stable while the attack lasts: route and the lead fleet's ships */
+  key: string;
+  /** page time of the overview it was seen on */
+  seen: number;
+  arrival: number;
+  to: Body;
+  /** owner of the target by the galaxy data */
+  player: { id: number; name: string } | null;
+  /** the lead first */
+  fleets: OwnAttackFleet[];
+}
+
+const isBody = (b: StoredFleet['from'] | null): b is StoredFleet['from'] & { type: Body['type'] } => !!b && (b.type === 'planet' || b.type === 'moon');
+const bodyOf = (b: StoredFleet['from']): Body => ({ ...b.coords, type: b.type as Body['type'] });
+
+/**
+ * Own attacks (attack, ACS attack, destroy) in flight on the members' newest overviews, for the viewer to take into
+ * the raid planner: only those the viewer flies in (their own fleet, or in an ACS a foreign fleet from the viewer's
+ * player), until a plan on the target lands around the same time (± `LAUNCH_SLACK`). ACS fleets as one attack, the
+ * lead first; the same attack seen by several participants counts once, from the newest paste.
+ */
+export function ownAttacks(db: DB, ctx: GroupContext): OwnAttack[] {
+  const t = now();
+  const players = memberPlayers(db, ctx);
+  const memberOf = new Map<number, number>();
+  for (const [userId, playerId] of players) if (playerId != null && !memberOf.has(playerId)) memberOf.set(playerId, userId);
+  const members = db
+    .prepare('SELECT m.user_id, COALESCE(m.ingame_name, u.username) AS name FROM group_members m JOIN users u ON u.id = m.user_id WHERE m.group_id = ?')
+    .all(ctx.groupId) as { user_id: number; name: string }[];
+  const names = new Map(members.map((m) => [m.user_id, m.name]));
+  const playerName = db.prepare('SELECT name FROM players WHERE id = ?').pluck();
+  const byKey = new Map<string, OwnAttack & { viewers: Set<number> }>();
+  for (const m of members) {
+    const snap = sharedFleets(db, ctx.groupId, m.user_id, ctx.user.id);
+    if (!snap) continue;
+    const groups = new Map<string, StoredFleet[]>();
+    snap.data.forEach((f, i) => {
+      if (f.phase !== 'out' || f.mission == null || !LAUNCH_MISSIONS.includes(f.mission) || f.arrival <= t) return;
+      if (!isBody(f.from) || !isBody(f.to) || (f.owner !== 'own' && f.acs == null)) return;
+      const id = f.acs != null ? `acs${f.acs}` : `f${i}`;
+      groups.set(id, [...(groups.get(id) ?? []), f]);
+    });
+    for (const fleets of groups.values()) {
+      if (!fleets.some((f) => f.owner === 'own')) continue;
+      const lead = fleets[0];
+      const to = bodyOf(lead.to!);
+      const key = attackKey(bodyOf(lead.from), to, lead.ships);
+      const known = byKey.get(key);
+      const out = fleets.map((f): OwnAttackFleet => {
+        const playerId = f.owner === 'own' ? players.get(m.user_id) ?? null : f.fromPlayer?.id ?? null;
+        const memberId = f.owner === 'own' ? m.user_id : playerId != null ? memberOf.get(playerId) ?? null : null;
+        const player = f.owner === 'own'
+          ? (playerId != null ? { id: playerId, name: playerName.get(playerId) as string } : null)
+          : f.fromPlayer ?? null;
+        return { memberId, member: memberId != null ? names.get(memberId) ?? null : null, player, from: bodyOf(f.from), mission: f.mission, ships: f.ships };
+      });
+      // every participant seen in any paste may see it; the newest paste gives arrival and fleets
+      const viewers = new Set([...(known?.viewers ?? []), ...out.flatMap((f) => (f.memberId != null ? [f.memberId] : []))]);
+      if (known && known.seen >= snap.time) {
+        known.viewers = viewers;
+        continue;
+      }
+      byKey.set(key, { key, seen: snap.time, arrival: lead.arrival, to, player: null, fleets: out, viewers });
+    }
+  }
+  const planned = db.prepare(
+    `SELECT 1 FROM attack_plans WHERE group_id = ? AND mission <> 'hold' AND status IN ('planning', 'launched')
+       AND g = ? AND s = ? AND p = ? AND planet_type = ? AND target_time BETWEEN ? AND ?`,
+  );
+  const owner = db.prepare(
+    'SELECT pr.id, pr.name FROM planets pl JOIN players pr ON pr.id = pl.player_id WHERE pl.group_id = ? AND pl.g = ? AND pl.s = ? AND pl.p = ?',
+  );
+  return [...byKey.values()]
+    .filter((a) => a.viewers.has(ctx.user.id))
+    .filter((a) => !planned.get(ctx.groupId, a.to.g, a.to.s, a.to.p, a.to.type, a.arrival - LAUNCH_SLACK, a.arrival + LAUNCH_SLACK))
+    .sort((a, b) => a.arrival - b.arrival)
+    .map(({ viewers: _, ...a }) => ({ ...a, player: (owner.get(ctx.groupId, a.to.g, a.to.s, a.to.p) as { id: number; name: string } | undefined) ?? null }));
+}

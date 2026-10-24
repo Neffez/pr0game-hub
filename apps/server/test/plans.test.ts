@@ -456,6 +456,66 @@ describe('attack plans', () => {
     db.prepare('DELETE FROM fleet_snapshots WHERE user_id = ? AND page_time >= ?').run(carolId, row.page_time - 600);
   });
 
+  it('lists own attacks in flight for their participants only and plans them with the ships flying', async () => {
+    const t0 = Math.floor(Date.now() / 1000);
+    const davePlayer = Number(db.prepare("INSERT INTO players (group_id, ingame_id, name) VALUES (?, 4730, 'Dave')").run(groupA).lastInsertRowid);
+    db.prepare("INSERT INTO planets (group_id, g, s, p, name, player_id) VALUES (?, 2, 50, 5, 'Daves', ?)").run(groupA, davePlayer);
+    const body = (g: number, s: number, p: number, type = 'planet') => ({ coords: { g, s, p }, type, name: null });
+    const move = (o: object) => ({
+      owner: 'own', player: null, mission: 1, missionName: '', phase: 'out', from: body(1, 40, 5), to: body(4, 200, 7), ships: { 207: 10 },
+      resources: null, seconds: 0, clock: null, acs: null, arrival: t0 + 3600, ...o,
+    });
+    const snap = (userId: number, data: object[]) =>
+      db.prepare('INSERT INTO fleet_snapshots (group_id, user_id, page_time, data) VALUES (?, ?, ?, ?)').run(groupA, userId, t0, JSON.stringify(data));
+    snap(carolId, [
+      // solo attack of Carol; a transport and an arrived attack do not count
+      move({ to: body(4, 201, 1), ships: { 204: 3 } }),
+      move({ mission: 3, to: body(4, 202, 1) }),
+      move({ to: body(4, 203, 1), arrival: t0 - 10 }),
+      // ACS: Carol leads, Dave and a non-member (galaxy data: 'Angreifer' at 1:41:1) join
+      move({ mission: 2, acs: 1, from: body(1, 40, 5, 'moon') }),
+      move({ owner: 'foreign', mission: 2, acs: 1, from: body(2, 50, 5), ships: { 215: 4 } }),
+      move({ owner: 'foreign', mission: 2, acs: 1, from: body(1, 41, 1), ships: { 213: 2 } }),
+    ]);
+
+    const mine = (await call('GET', '/own-attacks', carol)).json();
+    expect(mine.map((a: any) => [a.to.s, a.fleets.length])).toEqual([[201, 1], [200, 3]]);
+    // Dave only sees the ACS he flies in (from Carol's overview, he has not synced)
+    const his = (await call('GET', '/own-attacks', dave)).json();
+    expect(his).toHaveLength(1);
+    expect(his[0]).toMatchObject({
+      arrival: t0 + 3600, to: { g: 4, s: 200, p: 7, type: 'planet' },
+      fleets: [
+        { memberId: carolId, member: 'Carol', from: { g: 1, s: 40, p: 5, type: 'moon' }, ships: { 207: 10 } },
+        { memberId: daveId, member: 'Dave', player: { id: davePlayer, name: 'Dave' }, ships: { 215: 4 } },
+        { memberId: null, member: null, player: { name: 'Angreifer' }, ships: { 213: 2 } },
+      ],
+    });
+
+    expect((await call('POST', '/plans/own', dave, { key: mine[0].key })).json().code).toBe('attack_not_found');
+    const created = (await call('POST', '/plans/own', dave, { key: his[0].key })).json();
+    expect(created.claimedBy).toBeNull();
+    // planned: gone for both, the plan is there for everyone
+    expect((await call('GET', '/own-attacks', dave)).json()).toEqual([]);
+    expect((await call('GET', '/own-attacks', carol)).json().map((a: any) => a.to.s)).toEqual([201]);
+    expect((await call('POST', '/plans/own', dave, { key: his[0].key })).json().code).toBe('attack_not_found');
+    const plan = (await call('GET', '/plans', admin)).json().find((p: any) => p.id === created.id);
+    expect(plan).toMatchObject({
+      g: 4, s: 200, p: 7, planet_type: 'planet', target_time: t0 + 3600, time_precision: 'exact', status: 'launched', creator: 'Dave', claim_user_id: daveId,
+      guests: [{ player: { name: 'Angreifer' }, from: { g: 1, s: 41, p: 1, type: 'planet' }, mission: 2, ships: { 213: 2 }, research: null }],
+    });
+    expect(plan.fleets.map((f: any) => [f.user_id, f.g, f.s, f.p, f.planet_type, f.ships, f.speed, f.status])).toEqual([
+      [carolId, 1, 40, 5, 'moon', { 207: 10 }, 100, 'launched'],
+      [daveId, 2, 50, 5, 'planet', { 215: 4 }, 100, 'launched'],
+    ]);
+    expect(plan.fleets[0].seen).toMatchObject({ arrival: t0 + 3600 });
+
+    await call('DELETE', `/plans/${created.id}`, dave);
+    db.prepare('DELETE FROM fleet_snapshots WHERE user_id = ? AND page_time = ?').run(carolId, t0);
+    db.prepare("DELETE FROM planets WHERE group_id = ? AND name = 'Daves'").run(groupA);
+    db.prepare('DELETE FROM players WHERE id = ?').run(davePlayer);
+  });
+
   it('lists plans up to a week after their target time', async () => {
     const id = (await call('POST', '/plans', carol, { g: 2, s: 2, p: 2, target_time: soon() })).json().id;
     db.prepare('UPDATE attack_plans SET target_time = ? WHERE id = ?').run(Math.floor(Date.now() / 1000) - 6 * 86400, id);
