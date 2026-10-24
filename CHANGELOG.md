@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-24
 
+- Buildings page: buildings can be hidden and shown again (✕/👁 per building, for all planets, kept per browser;
+  "show hidden" lists them dimmed), plus a free text name filter next to the group filters.
+
 - **Buildings page** (new menu entry under Start): the own planets and moons like the game's buildings page.
   - Levels, requirements (own/needed), cost of the next level (catch-up bonus included, queued levels counted),
     missing resources, state (buildable, missing resources, requirements, max level, no free fields, storage too small,

@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Gebäude-Seite: Gebäude, die dich nicht interessieren, kannst du ausblenden und jederzeit wieder einblenden. Dazu gibt es einen Namensfilter.',
+        en: "Buildings page: hide buildings you don't care about and show them again any time. There is also a name filter.",
+      },
+      {
+        kind: 'new',
         de: 'Neue Seite „Gebäude“: Für jeden deiner Planeten und Monde siehst du wie im Spiel Stufe, Voraussetzungen und Kosten der nächsten Stufe, dazu wie viele Rohstoffe fehlen und wann sie da sind – mit Produktion und Rohstoffen von Flotten, die noch ankommen. Mit der Glocke wirst du benachrichtigt (Hub, Push, Discord), sobald die nächste Stufe baubar ist. Grundlage ist dein Imperium oder die Gebäude-Seite aus dem Spiel, die du jetzt auch synchronisieren kannst.',
         en: "New \"Buildings\" page: for each of your planets and moons you see the level, requirements and cost of the next level like in the game, plus how many resources are missing and when they are there, counting production and resources of fleets still on their way. The bell notifies you (hub, push, Discord) as soon as the next level can be built. It uses your empire page or the game's buildings page, which you can now sync too.",
       },

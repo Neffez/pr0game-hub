@@ -85,7 +85,20 @@ const list = computed<BuildingInfo[]>(() => {
     arrivals: p.arrivals, now: slow.value, shown: p.shown ?? undefined,
   });
 });
-const shownList = computed(() => list.value.filter((b) => filter.value === 'all' || b.group === filter.value));
+/** buildings the viewer hid (for all planets, per browser) and the name filter */
+const hidden = useStored<number[]>('buildings.hidden', []);
+const showHidden = ref(false);
+const search = ref('');
+const isHidden = (b: BuildingInfo) => hidden.value.includes(b.id);
+function toggleHidden(b: BuildingInfo) {
+  hidden.value = isHidden(b) ? hidden.value.filter((id) => id !== b.id) : [...hidden.value, b.id];
+}
+const inGroup = computed(() => list.value.filter((b) => filter.value === 'all' || b.group === filter.value));
+const hiddenCount = computed(() => inGroup.value.filter(isHidden).length);
+const shownList = computed(() => {
+  const q = search.value.trim().toLowerCase();
+  return inGroup.value.filter((b) => (showHidden.value || !isHidden(b)) && (!q || name(b.id).toLowerCase().includes(q)));
+});
 
 /** live resources of the planet: production since the page time up to the storage, fleets landed until now */
 function resources(p: Planet, n: number) {
@@ -191,9 +204,16 @@ const costClass = (b: BuildingInfo, res: number) => (b.missing[res] ? 'neg' : 'p
       </Ticker>
     </div>
 
-    <div class="tabs">
-      <button v-for="f in FILTERS" :key="f" :class="{ active: filter === f }" @click="filter = f">{{ t(`buildings.filter.${f}`) }}</button>
+    <div class="row bld-filters">
+      <div class="tabs">
+        <button v-for="f in FILTERS" :key="f" :class="{ active: filter === f }" @click="filter = f">{{ t(`buildings.filter.${f}`) }}</button>
+      </div>
+      <input v-model="search" type="search" :placeholder="t('buildings.search')" class="bld-search" />
+      <label v-if="hiddenCount || showHidden" class="small">
+        <input v-model="showHidden" type="checkbox" /> {{ t('buildings.showHidden', { n: hiddenCount }) }}
+      </label>
     </div>
+    <p v-if="!shownList.length" class="card muted">{{ t('buildings.noMatch') }}</p>
 
     <!-- desktop: one table row per building -->
     <div v-if="!mobile" class="card scroll-x">
@@ -209,7 +229,7 @@ const costClass = (b: BuildingInfo, res: number) => (b.missing[res] ? 'neg' : 'p
           </tr>
         </thead>
         <tbody>
-          <tr v-for="b in shownList" :key="b.id" :class="{ faded: b.state === 'requirements' || b.state === 'max' }">
+          <tr v-for="b in shownList" :key="b.id" :class="{ faded: b.state === 'requirements' || b.state === 'max', 'bld-hidden': isHidden(b) }">
             <td style="white-space: normal">
               {{ name(b.id) }}
               <div v-if="b.state === 'requirements'" class="small bld-reqs">
@@ -244,6 +264,9 @@ const costClass = (b: BuildingInfo, res: number) => (b.missing[res] ? 'neg' : 'p
                 :title="alertOf(b) ? t('buildings.alertOff') : t('buildings.alertOn', { level: b.next })"
                 @click="toggleAlert(b)"
               >{{ alertOf(b) ? '🔔' : '🔕' }}</button>
+              <button class="small bld-bell" :title="isHidden(b) ? t('buildings.unhide') : t('buildings.hide')" @click="toggleHidden(b)">
+                {{ isHidden(b) ? '👁' : '✕' }}
+              </button>
             </td>
           </tr>
         </tbody>
@@ -252,7 +275,7 @@ const costClass = (b: BuildingInfo, res: number) => (b.missing[res] ? 'neg' : 'p
 
     <!-- mobile: one card per building -->
     <template v-else>
-      <div v-for="b in shownList" :key="b.id" class="card bld-card" :class="{ faded: b.state === 'requirements' || b.state === 'max' }">
+      <div v-for="b in shownList" :key="b.id" class="card bld-card" :class="{ faded: b.state === 'requirements' || b.state === 'max', 'bld-hidden': isHidden(b) }">
         <div class="row">
           <b>{{ name(b.id) }}</b>
           <span class="muted small">{{ b.level }} → {{ b.next }}</span>
@@ -265,6 +288,9 @@ const costClass = (b: BuildingInfo, res: number) => (b.missing[res] ? 'neg' : 'p
             :title="alertOf(b) ? t('buildings.alertOff') : t('buildings.alertOn', { level: b.next })"
             @click="toggleAlert(b)"
           >{{ alertOf(b) ? '🔔' : '🔕' }}</button>
+          <button class="small bld-bell" :title="isHidden(b) ? t('buildings.unhide') : t('buildings.hide')" @click="toggleHidden(b)">
+            {{ isHidden(b) ? '👁' : '✕' }}
+          </button>
         </div>
         <div v-if="b.state === 'requirements'" class="small bld-reqs">
           <span v-for="r in b.requirements" :key="r.id" :class="r.own < r.need ? 'warn' : 'pos'" class="bld-req">{{ name(r.id) }} {{ r.own }}/{{ r.need }}</span>
@@ -299,6 +325,11 @@ const costClass = (b: BuildingInfo, res: number) => (b.missing[res] ? 'neg' : 'p
 .bld-req { white-space: nowrap; }
 .bld-costs { display: flex; gap: 12px; flex-wrap: wrap; margin: 6px 0; }
 .bld-bell { padding: 2px 6px; }
+.bld-filters { margin-bottom: 12px; }
+.bld-filters .tabs { margin-bottom: 0; }
+.bld-search { width: 180px; }
+.bld-hidden { opacity: 0.45; }
+.bld-bell + .bld-bell { margin-left: 4px; }
 .bld-bell.active { border-color: var(--accent); background: var(--accent-soft); }
 .faded { opacity: 0.6; }
 .bld-card { margin-bottom: 8px; padding: 10px 12px; }
