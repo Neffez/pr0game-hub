@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Flottenbewegungen: Recycler, die zu einem Mond zurückkehren, werden dem Mond zugeordnet statt einem Planeten.',
+        en: 'Fleet movements: recyclers returning to a moon are now assigned to the moon instead of a planet.',
+      },
+      {
+        kind: 'fix',
         de: 'Kontoeinstellungen auf dem Handy: Die Seite passt wieder auf den Bildschirm, die untere Leiste bleibt an ihrem Platz.',
         en: 'Account settings on your phone: the page fits the screen again and the bottom bar stays in place.',
       },
