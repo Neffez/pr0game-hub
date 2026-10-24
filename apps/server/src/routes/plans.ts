@@ -6,7 +6,8 @@ import { events } from '../events.js';
 import { isPhalanxText, localToEpoch, nearestClock, parseFleetsText } from '@pr0hub/core';
 import { CLASS_RESEARCH } from '@pr0hub/core/tech';
 import { attackKey, hostileAttacks, PHALANX_KEEP, type Body, type EnemyFleet, type HostileAttack } from '../repo/hostile.js';
-import { enemiesOf, followHolds, fromOf, launchedOf, planDrives, toOf, type EnemyRow, type LaunchFleet, type LaunchPlan, type PlanRow } from '../repo/plans.js';
+import { latestEmpire, spyEmpire } from '../repo/empire.js';
+import { enemiesOf, followEnemies, fromOf, launchedOf, planDrives, toOf, type EnemyRow, type LaunchFleet, type LaunchPlan, type PlanRow } from '../repo/plans.js';
 import { contextOf, DISPLAY, MEMBER } from './util.js';
 
 const STATUSES = ['planning', 'launched', 'done', 'cancelled'];
@@ -65,6 +66,8 @@ interface EnemyBody {
   target_time?: number;
   /** hold plans: seconds from the impact the fleets land */
   hold_offset?: number;
+  /** hold plans: ships on the attacked planet for the simulators, null = from the empire page or spy report again */
+  planet_ships?: Record<string, unknown> | null;
 }
 
 interface FleetRow {
@@ -212,9 +215,11 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
       .all(JSON.stringify(plans.map((p) => p.id))) as (LaunchFleet & Record<string, unknown> & { ships: string; manual: string | null; drives_time: number | null })[];
     const fleetDrives = planDrives(db, ctx);
     const enemies = new Map(enemiesOf(db, ctx, plans.map((p) => p.id)).map((e) => [e.plan_id, e]));
-    followHolds(db, plans as unknown as PlanRow[], enemies);
+    followEnemies(db, plans as unknown as PlanRow[], enemies);
     const launched = launchedOf(db, ctx, plans as unknown as LaunchPlan[], fleets);
-    const spies = new Map(plans.map((p) => [p.id, p.mission === 'hold' ? null : targetSpy(ctx, p as unknown as SpyPlan)]));
+    const spies = new Map(
+      plans.map((p) => [p.id, p.mission === 'hold' ? holdSpy(ctx, p as unknown as SpyPlan, enemies.get(p.id)) : targetSpy(ctx, p as unknown as SpyPlan)]),
+    );
     return plans.map((p) => ({
       ...p,
       fleets: fleets
@@ -225,7 +230,7 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
           drives: fleetDrives({ user_id: f.user_id, manual, drives_time }),
           seen: launched.get(f.id) ?? null,
         })),
-      enemy: enemies.has(p.id) ? enemyOut(enemies.get(p.id)!) : null,
+      enemy: enemies.has(p.id) ? { ...enemyOut(enemies.get(p.id)!), ...(p.mission === 'hold' ? attackerResearch(ctx, enemies.get(p.id)!) : {}) } : null,
       spy: spies.get(p.id) ?? null,
     }));
   });
@@ -259,6 +264,28 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
     return { time: row.report_time, values: Object.assign({}, ...Object.values(sections)) };
   }
 
+  /**
+   * Defended planet of a hold plan for the combat simulators: the planet (fleet, defense, buildings, resources) and the
+   * research from the attacked member's newest empire page, else the newest spy report of the planet.
+   */
+  function holdSpy(ctx: GroupContext, p: SpyPlan, e: EnemyRow | undefined): { time: number; values: Record<string, number> } | null {
+    const empire = e?.member_id != null ? latestEmpire(db, ctx, e.member_id) : null;
+    const planet = empire?.rec.planets.find((pl) => pl.coords.g === p.g && pl.coords.s === p.s && pl.coords.p === p.p && pl.type === p.planet_type);
+    if (!empire || !planet) return targetSpy(ctx, p);
+    const resources = Object.fromEntries([901, 902, 903].map((id) => [id, planet.resources?.[id] ?? 0]));
+    return { time: empire.time, values: { ...planet.values, ...resources, ...empire.rec.research } };
+  }
+
+  /** Research of the attacking player of a hold plan (newest spy report showing it) for the combat simulators. */
+  function attackerResearch(ctx: GroupContext, e: EnemyRow): { research: Record<string, number> | null; research_time: number | null } {
+    const from = fromOf(e);
+    const owner = db
+      .prepare('SELECT pr.id, pr.name FROM planets pl JOIN players pr ON pr.id = pl.player_id WHERE pl.group_id = ? AND pl.g = ? AND pl.s = ? AND pl.p = ?')
+      .get(ctx.groupId, from.g, from.s, from.p) as { id: number; name: string } | undefined;
+    const spy = owner ? spyEmpire(db, ctx, owner.id, owner.name) : null;
+    return spy?.researchTime != null ? { research: spy.research, research_time: spy.researchTime } : { research: null, research_time: null };
+  }
+
   const enemyOut = (e: EnemyRow) => ({
     member_id: e.member_id,
     member: e.member,
@@ -276,6 +303,7 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
     recall_lead: !!e.recall_lead,
     recall_seen: e.recall_seen ?? null,
     hold_offset: e.hold_offset,
+    planet_ships: e.planet_ships != null ? (JSON.parse(e.planet_ships) as Record<string, number>) : null,
     phalanx: e.phalanx_home != null ? { home: e.phalanx_home, time: e.phalanx_time } : null,
     percent: e.percent,
     buffer: e.buffer,
@@ -364,8 +392,12 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
   /** Creator, admins and every member with a fleet in the plan may change the enemy side of a plan. */
   function enemyOfPlan(ctx: GroupContext, planId: number) {
     const plan = planOf(ctx, planId);
-    if (plan.user_id !== ctx.user.id && !isAdmin(ctx) && !isParticipant(ctx, plan.id)) throw new HttpError(403, 'plan_not_yours', 'Only participants can change the enemy fleet');
     const enemy = db.prepare('SELECT * FROM attack_plan_enemy WHERE plan_id = ?').get(plan.id) as EnemyRow | undefined;
+    // a hold is also the attacked member's business (the ships on their planet)
+    const attacked = plan.mission === 'hold' && enemy?.member_id === ctx.user.id;
+    if (plan.user_id !== ctx.user.id && !isAdmin(ctx) && !isParticipant(ctx, plan.id) && !attacked) {
+      throw new HttpError(403, 'plan_not_yours', 'Only participants can change the enemy fleet');
+    }
     if (!enemy) throw new HttpError(404, 'plan_enemy_not_found', 'The plan has no enemy fleet');
     return { plan, enemy };
   }
@@ -424,9 +456,9 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
   }
 
   /**
-   * Inputs on the enemy fleet (followed fleet, drives, departure and recall window, candidate, buffer; hold offset)
-   * and the target time derived from them (a hold's from the impact): creator, admins and every member with a fleet in
-   * the plan.
+   * Inputs on the enemy fleet (followed fleet, drives, departure and recall window, candidate, buffer; hold offset and
+   * the ships on the attacked planet) and the target time derived from them (a hold's from the impact): creator, admins,
+   * every member with a fleet in the plan and, on a hold, the attacked member.
    */
   app.put<{ Params: { uni: string; id: string }; Body: EnemyBody }>('/api/:uni/plans/:id/enemy', async (req) => {
     const ctx = ctxOf(req);
@@ -456,6 +488,10 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
       const v = b.hold_offset;
       if (!Number.isInteger(v) || v < -3600 || v > 3600) throw new HttpError(400, 'plan_enemy_invalid', 'Hold offset: -3600 to 3600 seconds');
       set.hold_offset = v;
+    }
+    if (b.planet_ships !== undefined) {
+      if (plan.mission !== 'hold') throw new HttpError(400, 'plan_enemy_invalid', 'Planet ships only for hold plans');
+      set.planet_ships = b.planet_ships === null ? null : JSON.stringify(shipsOf(b.planet_ships));
     }
     const targetTime =
       plan.mission === 'hold' ? enemy.arrival + ((set.hold_offset as number | undefined) ?? enemy.hold_offset)

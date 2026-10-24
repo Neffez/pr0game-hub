@@ -80,7 +80,48 @@ Every commit adds its changes here, newest first, grouped by date.
     and server; the Imperium's live resources use it too); `gen:costs` also writes `buildings.json` (planet types, max
     level, requirements from install.sql).
 
+- Raid planner hold plans show the fleet on the attacked planet, filled in from the member's empire page (else the
+  planet's newest spy report) and editable, e.g. when ships are sent away before the impact; the combat simulator
+  links use it in place of the planet's ships. Stored in `attack_plan_enemy.planet_ships` (migration `037`, null takes
+  the source again), set with `planet_ships` on `PUT /api/{uni}/plans/{id}/enemy`, returned as `enemy.planet_ships`
+  (OpenAPI description of `GET /api/{uni}/plans` updated). On hold plans the attacked member may change the enemy
+  inputs too, also without a fleet in the plan.
+
+- Raid planner hold plans get the combat simulator links too (game simulator and TrashSim), with the sides swapped:
+  the enemy fleets attack with the attacking player's research from the newest spy report showing it (drives as in
+  the plan), the defended planet (fleet, defense, resources, research from the attacked member's empire page, else
+  its newest spy report) and the plan's hold fleets defend (game simulator: one defender slot per fleet from the
+  second slot on; TrashSim: one defender row per fleet). `GET /api/{uni}/plans` now returns `spy` for hold plans and
+  `enemy.research`/`enemy.research_time` (OpenAPI description updated). The link "Simulator im Spiel" is now called
+  "Kampfsimulator" ("Combat simulator").
+
+- Fleet parser: the return of a harvest to a moon ("zurück zum Planeten Mond Ra [3:200:1]") is read as the moon
+  "Ra" instead of a planet named "Mond Ra"; tests cover an own ACS attack with friendly fleets ("Verbandsflotte")
+  as copied text and as page source (new fixture `overview-acs.html`).
+
+- Universe settings: changing distances or fleet speed recalculates the target time of open retime plans (planning or
+  launched, still ahead): it moves by the change of the enemy's return home under the new settings, so a target set by
+  hand keeps its offset; the claim's expiry follows and the alliances get a live update. A phalanx return and holds are
+  unaffected. Before, the plan kept the target time from the old settings while launch times and the retime panel
+  used the new ones.
+
+- Retime plans: launch times no longer run on an outdated target time while the retime panel shows another one.
+  - A delayed (or otherwise moved) impact of the enemy now moves the plan's target time along with the return home,
+    like holds already did (not with a phalanx return or a recall window, which do not depend on the impact); the
+    claim's expiry follows. Launch notifications pick it up too.
+  - Editing a plan's target ("Ziel/Zeit ändern") only sends the time when it was changed in the form, so an edit
+    opened before a retime save no longer resets the target time.
+  - The retime panel warns when the plan's target time differs from the one the analysis gives and lets saving
+    apply it.
+
+- Account settings on phones: the page no longer gets wider than the screen (the API token table forced a minimum
+  width, so the browser zoomed out and the bottom tab bar looked shifted and larger); the token table now scrolls
+  inside its card.
+
 ## 2026-10-23
+
+- Overview on narrow screens: a Mobile/Desktop switch next to the heading shows the wide desktop tables instead of
+  the compact list; remembered per device (`overview.desktopView`), not shown on wide screens.
 
 - Discord alliance channel: meant for a channel only the alliance's members can see (admin hint says so); the
   misleading note about fleet sharing is gone, the channel gets what every member sees in the hub.

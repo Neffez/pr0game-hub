@@ -48,6 +48,36 @@ export const CHANGELOG: ChangelogDay[] = [
         de: 'Neue Seite „Gebäude“: Für jeden deiner Planeten und Monde siehst du wie im Spiel Stufe, Voraussetzungen und Kosten der nächsten Stufe, dazu wie viele Rohstoffe fehlen und wann sie da sind – mit Produktion und Rohstoffen von Flotten, die noch ankommen. Mit der Glocke wirst du benachrichtigt (Hub, Push, Discord), sobald die nächste Stufe baubar ist. Grundlage ist dein Imperium oder die Gebäude-Seite aus dem Spiel, die du jetzt auch synchronisieren kannst.',
         en: "New \"Buildings\" page: for each of your planets and moons you see the level, requirements and cost of the next level like in the game, plus how many resources are missing and when they are there, counting production and resources of fleets still on their way. The bell notifies you (hub, push, Discord) as soon as the next level can be built. It uses your empire page or the game's buildings page, which you can now sync too.",
       },
+      {
+        kind: 'new',
+        de: 'Raid-Planer: Halten-Pläne zeigen die Flotte auf dem angegriffenen Planeten. Sie ist aus dem Imperium vorausgefüllt und lässt sich ändern, etwa wenn Schiffe vor dem Einschlag weggeschickt werden. Die Kampfsimulatoren rechnen damit.',
+        en: 'Raid planner: hold plans show the fleet on the attacked planet. It is filled in from the empire page and can be changed, e.g. when ships are sent away before the impact. The combat simulators use it.',
+      },
+      {
+        kind: 'new',
+        de: 'Raid-Planer: Auch Halten-Pläne haben jetzt Links zum Kampfsimulator und zu TrashSim. Die feindlichen Flotten greifen an, euer Planet und die eingetragenen Flotten verteidigen.',
+        en: 'Raid planner: hold plans now have links to the combat simulator and TrashSim too. The enemy fleets attack, your planet and the planned fleets defend.',
+      },
+      {
+        kind: 'fix',
+        de: 'Flottenbewegungen: Recycler, die zu einem Mond zurückkehren, werden dem Mond zugeordnet statt einem Planeten.',
+        en: 'Fleet movements: recyclers returning to a moon are now assigned to the moon instead of a planet.',
+      },
+      {
+        kind: 'fix',
+        de: 'Retime-Planer: Werden die Einstellungen des Universums (Entfernungen, Flottengeschwindigkeit) korrigiert, rechnen offene Retime-Pläne ihre Zielzeit automatisch neu.',
+        en: 'Retime planner: when the universe settings (distances, fleet speed) are corrected, open retime plans recalculate their target time automatically.',
+      },
+      {
+        kind: 'fix',
+        de: 'Retime-Planer: Die Startzeiten passen wieder zur angezeigten Zielzeit. Verzögert der Gegner, wandert die Zielzeit mit, und weicht der Plan einmal ab, weist das Retime-Feld darauf hin und Speichern übernimmt die richtige Zeit.',
+        en: 'Retime planner: launch times match the shown target time again. If the enemy delays, the target time moves along, and if the plan ever differs, the retime box points it out and saving applies the right time.',
+      },
+      {
+        kind: 'fix',
+        de: 'Kontoeinstellungen auf dem Handy: Die Seite passt wieder auf den Bildschirm, die untere Leiste bleibt an ihrem Platz.',
+        en: 'Account settings on your phone: the page fits the screen again and the bottom bar stays in place.',
+      },
     ],
   },
   {

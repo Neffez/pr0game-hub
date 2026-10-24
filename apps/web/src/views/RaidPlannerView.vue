@@ -12,7 +12,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { uniApi } from '../api';
 import { loadClaims } from '../claims';
 import { useUni, vStack } from '../composables';
-import { abbr, clockTime, coords, duration, fmt, name, numDate, simLinks, timeWithAge, weekday } from '../format';
+import { abbr, clockTime, coords, duration, fmt, name, numDate, simLinks, timeWithAge, weekday, type Coords3, type SimFleet } from '../format';
 import { intlLocale } from '../i18n';
 import { tables, useLiveReload } from '../live';
 import {
@@ -21,6 +21,7 @@ import {
   draftOf,
   DRIVES_MAX_AGE,
   FLEET_SHIPS,
+  holdPlanetValues,
   FLEET_STATUSES,
   isCurrent,
   candidateHome,
@@ -103,19 +104,29 @@ async function run(fn: () => Promise<unknown>) {
 const settings = computed(() => ctx.value!.universe.settings);
 /**
  * Combat simulators with the target's newest spy report (needs the game URL of the universe) and the plan's fleets
- * (not withdrawn, with ships) with the research of their member's empire page.
+ * (not withdrawn, with ships) with the research of their member's empire page. Hold plans swap the sides: the enemy
+ * fleets attack, the plan's fleets defend the planet next to its own fleet and defense.
  */
-const sims = (p: AttackPlan) =>
-  settings.value.gameUrl && p.spy
-    ? simLinks(
-        settings.value.gameUrl,
-        p.spy.values,
-        p.fleets
-          .filter((f) => f.status !== 'withdrawn' && Object.values(f.ships).some((n) => n > 0))
-          .map((f) => ({ ships: f.ships, research: f.drives?.research ?? {}, from: f.g != null ? [f.g, f.s!, f.p!] : null, speed: f.speed })),
-        hasCoords(p) ? [p.g!, p.s!, p.p!] : null,
-      )
-    : null;
+const planFleets = (p: AttackPlan): SimFleet[] =>
+  p.fleets
+    .filter((f) => f.status !== 'withdrawn' && Object.values(f.ships).some((n) => n > 0))
+    .map((f) => ({ ships: f.ships, research: f.drives?.research ?? {}, from: f.g != null ? [f.g, f.s!, f.p!] : null, speed: f.speed }));
+const sims = (p: AttackPlan) => {
+  const target: Coords3 | null = hasCoords(p) ? [p.g!, p.s!, p.p!] : null;
+  if (!settings.value.gameUrl) return null;
+  if (p.mission === 'hold' && p.enemy) {
+    const e = p.enemy;
+    const research = { ...(e.research ?? {}), ...e.drives };
+    const enemies = e.fleets.map((f) => ({ ships: f.ships, research, from: [e.from.g, e.from.s, e.from.p] as Coords3, speed: e.percent ?? 100 }));
+    return simLinks(settings.value.gameUrl, holdPlanetValues(p), enemies, target, planFleets(p));
+  }
+  return p.spy ? simLinks(settings.value.gameUrl, p.spy.values, planFleets(p), target) : null;
+};
+/** Tooltips of the simulator links: what they are filled with. */
+const simTitle = (p: AttackPlan, sim: 'Game' | 'Trash') =>
+  p.mission === 'hold'
+    ? t(`plans.simHold${sim}Title`, { planet: p.spy ? timeWithAge(p.spy.time) : t('plans.simNoData'), enemy: p.enemy?.research_time ? timeWithAge(p.enemy.research_time) : t('plans.simNoData') })
+    : t(`plans.sim${sim}Title`, { time: timeWithAge(p.spy!.time) });
 const me = computed(() => ctx.value?.me.id);
 const isAdmin = computed(() => ctx.value?.group.role === 'admin' || !!ctx.value?.me.isAdmin);
 const canEdit = (p: AttackPlan) => p.user_id === me.value || isAdmin.value;
@@ -257,14 +268,21 @@ async function planHold(a: HostileAttack) {
 }
 const attackShips = (a: HostileAttack) =>
   a.fleets.length > 1 ? t('notify.acs', { n: a.fleets.length }) : (a.fleets[0]?.mission != null ? t(`game.missions.${a.fleets[0].mission}`) : '');
-const canEditEnemy = (p: AttackPlan) => canEdit(p) || isParticipant(p);
+/** Enemy inputs: creator, admins, participants and, on a hold, the attacked member (the ships on their planet). */
+const canEditEnemy = (p: AttackPlan) => canEdit(p) || isParticipant(p) || (p.mission === 'hold' && p.enemy?.member_id === me.value);
 
 // ---- plan editing (creator, admins) ----
 const editing = reactive<Record<number, PlanDraft>>({});
-const startEdit = (p: AttackPlan) => (editing[p.id] = draftOf(p));
+/** the plan as the edit started: an unchanged time is not sent, so it cannot undo a retime saved meanwhile */
+const editStart: Record<number, PlanDraft> = {};
+const startEdit = (p: AttackPlan) => ((editStart[p.id] = draftOf(p)), (editing[p.id] = draftOf(p)));
 async function savePlan(p: AttackPlan) {
-  const body = draftBody(editing[p.id]);
-  if (!body) return void (error.value = t('plans.formInvalid'));
+  const d = editing[p.id];
+  const full = draftBody(d);
+  if (!full) return void (error.value = t('plans.formInvalid'));
+  const o = editStart[p.id];
+  const { target_time, time_precision, ...rest } = full;
+  const body = o && o.precision === d.precision && o.date === d.date && o.time === d.time ? rest : full;
   const ok = await run(async () => {
     const res = await uniApi<{ claimedBy: string | null }>(uni.value, `/plans/${p.id}`, { method: 'PUT', body });
     info.value = res.claimedBy ? t('plans.claimedBy', { name: res.claimedBy }) : '';
@@ -571,8 +589,8 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
         </span>
         <span class="muted small">{{ t('plans.by', { name: p.creator }) }}</span>
         <span v-if="sims(p)" class="small sims">
-          <a :href="sims(p)!.game" target="_blank" rel="noopener" :title="t('plans.simGameTitle', { time: timeWithAge(p.spy!.time) })">{{ t('plans.simGame') }}</a>
-          · <a :href="sims(p)!.trash" target="_blank" rel="noopener" :title="t('plans.simTrashTitle', { time: timeWithAge(p.spy!.time) })">TrashSim</a>
+          <a :href="sims(p)!.game" target="_blank" rel="noopener" :title="simTitle(p, 'Game')">{{ t('plans.simGame') }}</a>
+          · <a :href="sims(p)!.trash" target="_blank" rel="noopener" :title="simTitle(p, 'Trash')">TrashSim</a>
         </span>
       </div>
       <div v-if="p.note && !editing[p.id]" class="small">{{ p.note }}</div>

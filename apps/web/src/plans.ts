@@ -59,7 +59,10 @@ export interface AttackPlan {
   fleets: PlanFleet[];
   /** retime: the hostile fleet the plan answers */
   enemy: PlanEnemy | null;
-  /** newest spy report of the target (values by element id) for the combat simulators */
+  /**
+   * newest spy report of the target (values by element id) for the combat simulators; hold plans: the defended planet
+   * from the member's empire page, else its newest spy report
+   */
   spy: { time: number; values: Record<string, number> } | null;
 }
 
@@ -88,6 +91,9 @@ export interface PlanEnemy {
   drives: Record<string, number>;
   drives_source: 'spy' | 'manual' | null;
   drives_time: number | null;
+  /** hold plans: research of the attacking player (newest spy report showing it) for the combat simulators */
+  research?: Record<string, number> | null;
+  research_time?: number | null;
   departure: { from: number; to: number } | null;
   recall: { from: number; to: number } | null;
   recall_lead: boolean;
@@ -97,6 +103,8 @@ export interface PlanEnemy {
   buffer: number;
   /** hold plans: seconds from the impact the hold fleets land */
   hold_offset: number;
+  /** hold plans: ships on the attacked planet changed by hand, null: from the empire page or spy report (`spy`) */
+  planet_ships: Record<string, number> | null;
   /** landing back home as a pasted phalanx showed it (then the retime lands after it) */
   phalanx: { home: number; time: number | null } | null;
   updated_at: number;
@@ -346,4 +354,23 @@ export function draftBody(d: PlanDraft) {
     time_precision: d.precision,
     note: d.note,
   };
+}
+
+/** Flying ships (no solar satellites) the planet of a hold plan has by `spy` (empire page or spy report). */
+export function spyShips(p: AttackPlan): Record<string, number> {
+  return Object.fromEntries(Object.keys(SHIPS).filter((id) => (p.spy?.values[id] ?? 0) > 0).map((id) => [id, p.spy!.values[id]]));
+}
+
+/**
+ * Values of a hold plan's planet for the combat simulators: `spy` with its flying ships replaced by the ones changed by
+ * hand (`planet_ships`, e.g. ships sent away before the impact).
+ */
+export function holdPlanetValues(p: AttackPlan): Record<string, number> {
+  const values = { ...(p.spy?.values ?? {}) };
+  const ships = p.enemy?.planet_ships;
+  if (ships) {
+    for (const id of Object.keys(SHIPS)) delete values[id];
+    Object.assign(values, ships);
+  }
+  return values;
 }

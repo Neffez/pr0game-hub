@@ -5,7 +5,7 @@ import type { DB } from '../db.js';
 import { alertDone, alertsOf, buildingsState, planetElements, planetOf } from './buildings.js';
 import { sharedFleets, type StoredFleet } from './fleets.js';
 import { alliance } from './members.js';
-import { enemiesOf, followHolds, launchedOf, planDrives, type LaunchFleet, type LaunchPlan, type PlanRow } from './plans.js';
+import { enemiesOf, followEnemies, launchedOf, planDrives, type LaunchFleet, type LaunchPlan, type PlanRow } from './plans.js';
 
 /**
  * Something the members should notice: hostile fleets heading for a member (attack, spying, …) from outside the
@@ -299,8 +299,7 @@ function launches(db: DB, ctx: GroupContext, t: number): LaunchNotification[] {
        WHERE id IN (SELECT value FROM json_each(?))`,
     )
     .all(JSON.stringify([...new Set(fleets.map((f) => f.plan_id))])) as (LaunchPlan & Pick<PlanRow, 'g' | 's' | 'p'>)[];
-  const holds = plans.filter((p) => p.mission === 'hold');
-  if (holds.length) followHolds(db, holds, new Map(enemiesOf(db, ctx, holds.map((p) => p.id)).map((e) => [e.plan_id, e])));
+  followEnemies(db, plans, new Map(enemiesOf(db, ctx, plans.map((p) => p.id)).map((e) => [e.plan_id, e])));
   launchedOf(db, ctx, plans, fleets);
   const drivesOf = planDrives(db, ctx);
   const u = ctx.universe.settings;
