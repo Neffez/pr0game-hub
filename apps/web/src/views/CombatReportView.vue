@@ -44,6 +44,8 @@ const sides = computed(() =>
   })),
 );
 const gameUrl = computed(() => ctx.value?.universe.settings.gameUrl?.replace(/\/?$/, '/') ?? '');
+/** Reports pasted as text without a battle message have a local id the game does not know. */
+const inGame = computed(() => /^[0-9a-f]{32}$/i.test(report.value?.report_id ?? ''));
 </script>
 
 <template>
@@ -63,7 +65,7 @@ const gameUrl = computed(() => ctx.value?.universe.settings.gameUrl?.replace(/\/
       </b>
       <span>{{ t('combat.debris') }}: {{ name(901) }} {{ fmt(report.debris_metal) }} · {{ name(902) }} {{ fmt(report.debris_crystal) }}</span>
       <span class="grow" />
-      <a v-if="gameUrl" class="small" :href="`${gameUrl}game.php?page=raport&raport=${report.report_id}`" target="_blank" rel="noopener">{{ t('combat.openInGame') }}</a>
+      <a v-if="gameUrl && inGame" class="small" :href="`${gameUrl}game.php?page=raport&raport=${report.report_id}`" target="_blank" rel="noopener">{{ t('combat.openInGame') }}</a>
     </div>
 
     <div v-for="s in sides" :key="s.side" class="card">

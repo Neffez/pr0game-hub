@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Kampfberichte lassen sich als Text synchronisieren: Kampfbericht im Spiel öffnen, alles kopieren und einfügen. Die Beute-Abrechnung übernimmt daraus Schiffe, Verluste und Beute; auf der Abrechnungsseite kann ein Kampfbericht auch direkt eingefügt werden.',
+        en: 'Battle reports can be synced as text: open the battle report in the game, copy everything and paste it. The loot settlement takes ships, losses and loot from it; on the settlement page a battle report can also be pasted directly.',
+      },
+      {
+        kind: 'new',
         de: 'Raid Planer: „Beute abrechnen“ bei gestarteten und erledigten Angriffen. Der Hub füllt Teilnehmer, Verluste, Beute, Recycling und Deut aus Kampfbericht, Flotten und Recyclingberichten selbst aus. Alle sehen, wer was bekommt und wer wem was schickt, und haken ihre Lieferungen ab. Helfer, die nur recycelt haben, behalten ihren Anteil und bekommen ihr Deut zurück.',
         en: 'Raid planner: "Settle loot" on launched and done attacks. The hub fills in participants, losses, loot, recycling and deuterium from the battle report, fleets and recycling reports. Everyone sees who gets what and who sends what to whom, and ticks off their deliveries. Helpers who only recycled keep their share and get their deuterium back.',
       },

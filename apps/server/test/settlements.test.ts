@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 process.env.WEB_DIR = '/nonexistent';
@@ -115,5 +116,45 @@ describe('raid settlements', () => {
       debris: { metal: 0, crystal: 0 }, loot: { metal: 1, crystal: 2, deuterium: 3 }, fleets: [],
     }, target);
     expect((await call('GET', '/combat-reports/r2', as.carol)).json()).toMatchObject({ loot_metal: 1, loot_crystal: 2, loot_deuterium: 3 });
+  });
+
+  it('takes battle reports pasted as text: by the battle message, else under a local id', async () => {
+    const text = readFileSync(new URL('../../../packages/parser/test/fixtures/combat-report-de.txt', import.meta.url), 'utf8');
+    const time = Date.UTC(2026, 9, 24, 11, 4, 3) / 1000; // 13:04:03 in Europe/Berlin (summer time)
+    db.prepare("UPDATE group_members SET ingame_name = 'CVXII' WHERE user_id = ?").run(ids.carol);
+    db.prepare("UPDATE group_members SET ingame_name = 'Rudolf' WHERE user_id = ?").run(ids.dave);
+    const id = (await call('POST', '/plans', as.carol, { g: 3, s: 195, p: 5, type: 'moon', target_time: time })).json().id;
+    await call('POST', `/plans/${id}/fleets`, as.carol, { g: 3, s: 26, p: 12, type: 'moon', ships: { 222: 3544 }, speed: 100 });
+    await call('POST', `/plans/${id}/fleets`, as.dave, { g: 3, s: 200, p: 1, type: 'moon', ships: { 225: 4821 }, speed: 100 });
+
+    // no battle message yet: archived under a local id, the draft takes its fleets
+    let res = await call('POST', '/ingest', as.carol, { text });
+    expect(res.json().counts.combat_reports).toEqual({ new: 1, duplicate: 0 });
+    expect(db.prepare('SELECT report_id, g, s, p, planet_type, loot_crystal FROM combat_reports WHERE group_id = ? AND g = 3').get(groupA)).toEqual({
+      report_id: `text-${time}-3-195-5`, g: 3, s: 195, p: 5, planet_type: 'moon', loot_crystal: 1343846,
+    });
+    let draft = (await call('GET', `/plans/${id}/settlement`, as.dave)).json().draft;
+    expect(draft.sources.battles).toEqual([{ reportId: `text-${time}-3-195-5`, time, fleets: 'report' }]);
+    expect(draft.state.battles[0].loot).toEqual({ m: 0, k: 1343846, d: 690373 });
+    expect(draft.state.battles[0].fleets).toEqual([
+      { participant: `u${ids.carol}`, start: { 206: 347, 207: 11799, 215: 4406, 222: 3544 }, end: { 206: 323, 207: 11794, 215: 4406, 222: 3521 } },
+      { participant: `u${ids.dave}`, start: { 207: 2178, 215: 4348, 225: 4821 }, end: { 207: 2178, 215: 4348, 225: 3901 } },
+    ]);
+
+    // the battle message synced later: one battle, joined by target and time
+    db.prepare(
+      `INSERT INTO battle_reports (group_id, user_id, dedupe_key, report_id, time, g, s, p, planet_type, outcome, lost_attacker, lost_defender,
+         loot_metal, loot_crystal, loot_deuterium, debris_metal, debris_crystal) VALUES (?, ?, 'r9', 'abc123', ?, 3, 195, 5, 'moon', 'win', 0, 0, 0, 1343846, 690373, 0, 0)`,
+    ).run(groupA, ids.dave, time + 1);
+    draft = (await call('GET', `/plans/${id}/settlement`, as.dave)).json().draft;
+    expect(draft.sources.battles).toEqual([{ reportId: `text-${time}-3-195-5`, time: time + 1, fleets: 'report' }]);
+
+    // pasted after the message: archived under the message's report id
+    db.prepare('DELETE FROM combat_reports WHERE group_id = ? AND g = 3').run(groupA);
+    res = await call('POST', '/ingest', as.dave, { text });
+    expect(res.json().counts.combat_reports).toEqual({ new: 1, duplicate: 0 });
+    expect(db.prepare('SELECT report_id FROM combat_reports WHERE group_id = ? AND g = 3').pluck().get(groupA)).toBe('abc123');
+    expect((await call('POST', '/ingest', as.dave, { text })).json().counts.combat_reports).toEqual({ new: 0, duplicate: 1 });
+    expect((await call('GET', `/plans/${id}/settlement`, as.dave)).json().draft.sources.battles).toEqual([{ reportId: 'abc123', time: time + 1, fleets: 'report' }]);
   });
 });

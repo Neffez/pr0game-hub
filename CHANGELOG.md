@@ -4,6 +4,14 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-24
 
+- Battle reports copied as text are archived when syncing: a report without its id takes the id of the group's
+  battle message at the same target and time (same loot), else a local id `text-<epoch>-<g>-<s>-<p>`; archived
+  reports keep the attacked planet or moon (`combat_reports.g/s/p/planet_type`, migration 045, also in
+  `GET /combat-reports/:id`). "Open in game" is only shown for real report ids.
+  - Loot settlement: the draft joins archived reports by id or by target and time and also takes reports without a
+    battle message, so a pasted report alone gives a battle with fleets and losses. The settlement page has a
+    "Paste battle report" box (new battle or replace one; attackers without a hub account join as guests).
+
 - Battle reports copied as text: the parser recognises them in pasted text (not only in HTML), reads the attacked
   planet or moon from the first defender (`CombatReportRecord.target`, null on public pages) and is tested against a
   real German ACS report (`combat-report-de.txt`: three rounds, two fleets per player, the new damage analysis).

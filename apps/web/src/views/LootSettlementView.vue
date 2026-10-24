@@ -2,9 +2,10 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
+import { parseCombatReportText } from '@pr0hub/core/combat';
 import { CAPACITY } from '@pr0hub/flight';
 import {
-  cleanState, decodeShare, lootShares, settle, type LootState, type Res, type SettlementResult, type TransferInput,
+  battleFromReport, cleanState, decodeShare, localEpoch, lootShares, settle, type LootState, type Res, type SettlementResult, type TransferInput,
 } from '@pr0hub/loot';
 import { uniApi } from '../api';
 import Hint from '../components/Hint.vue';
@@ -46,6 +47,8 @@ const error = ref('');
 const busy = ref(false);
 const notice = ref('');
 const linkText = ref('');
+/** battles taken from a pasted report in this view (their draft source no longer applies) */
+const pasted = ref(new Set<number>());
 let filling = false;
 
 const planId = computed(() => Number(route.params.id));
@@ -53,6 +56,7 @@ const clone = (s: LootState): LootState => JSON.parse(JSON.stringify(s));
 
 function fill(s: LootState, isDirty = false) {
   filling = true;
+  pasted.value = new Set();
   state.value = clone(s);
   dirty.value = isDirty;
   queueMicrotask(() => (filling = false));
@@ -127,6 +131,26 @@ function importLink() {
 }
 
 const calcLink = computed(() => (state.value && ctx.value ? lootCalcLink(ctx.value.universe.settings, state.value) : ''));
+
+// ---- battle reports pasted here ----
+const reportText = ref('');
+/** battle to replace (index), -1: add a new battle */
+const reportTarget = ref(-1);
+function applyReport() {
+  const report = parseCombatReportText(reportText.value, null);
+  if (!report || !state.value) {
+    error.value = t('loot.pasteFailed');
+    return;
+  }
+  // attackers without a hub account join as guests ("g<n>"), as on plans
+  const { battle, skipped } = battleFromReport(state.value, report, localEpoch, 'g');
+  const i = reportTarget.value >= 0 && reportTarget.value < state.value.battles.length ? reportTarget.value : state.value.battles.length;
+  state.value.battles[i] = battle;
+  pasted.value = new Set([...pasted.value, i]);
+  reportText.value = '';
+  reportTarget.value = -1;
+  error.value = skipped.length ? t('loot.pasteSkipped', { names: skipped.join(', ') }) : '';
+}
 
 // ---- battles ----
 /** Loot per participant of a battle by cargo space (or the known loot of its fleet). */
@@ -266,7 +290,8 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
             <div class="row small">
               <b>{{ t('loot.battle', { n: i + 1 }) }}</b>
               <span class="muted">{{ dateTime(b.time) }}</span>
-              <template v-if="sources?.battles[i]">
+              <span v-if="pasted.has(i)" class="muted">{{ t('loot.fromPasted') }}</span>
+              <template v-else-if="sources?.battles[i]">
                 <RouterLink v-if="sources.battles[i].reportId" :to="`/${uni}/battle-hall/${sources.battles[i].reportId}`">{{ t('loot.report') }}</RouterLink>
                 <span :class="sources.battles[i].fleets === 'report' ? 'muted' : 'warn'">
                   {{ sources.battles[i].fleets === 'report' ? t('loot.fromReport') : t('loot.fromPlanShips') }}
@@ -285,9 +310,7 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
               <tbody>
                 <tr v-for="f in b.fleets" :key="f.participant">
                   <td :title="shipsText(f.start)">{{ personName(f.participant) }}</td>
-                  <td class="small">
-                    <span v-for="x in lost(f.start, f.end)" :key="x.id" class="neg">{{ fmt(x.n) }} {{ name(x.id) }} </span>
-                  </td>
+                  <td class="small neg">{{ lost(f.start, f.end).map((x) => `${fmt(x.n)} ${name(x.id)}`).join(', ') }}</td>
                   <td v-for="k in RES" :key="k" class="num">
                     {{ fmt(shares[i]?.get(f.participant)?.[k] ?? 0) }}
                     <span v-if="f.loot && k === 'm'" class="src" :title="t('loot.fromFleet')">✓</span>
@@ -296,6 +319,18 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
               </tbody>
             </table>
             </div>
+          </div>
+        </div>
+
+        <div v-if="canEdit" class="card">
+          <h3>{{ t('loot.pasteReport') }} <Hint>{{ t('loot.pasteHint') }}</Hint></h3>
+          <textarea v-model="reportText" class="report" :placeholder="t('loot.pastePlaceholder')" />
+          <div class="row small" style="gap: 8px; margin-top: 6px">
+            <select v-model.number="reportTarget">
+              <option :value="-1">{{ t('loot.newBattle') }}</option>
+              <option v-for="(_, i) in state.battles" :key="i" :value="i">{{ t('loot.replaceBattle', { n: i + 1 }) }}</option>
+            </select>
+            <button :disabled="!reportText.trim()" @click="applyReport">{{ t('common.apply') }}</button>
           </div>
         </div>
 
@@ -427,5 +462,6 @@ fieldset { border: 0; padding: 0; margin: 0; }
 .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-bottom: 10px; }
 .kpi { display: flex; flex-direction: column; padding: 8px 10px; border-radius: 8px; background: var(--surface-2); }
 tr.first td { border-top: 2px solid var(--border); }
+textarea.report { width: 100%; min-height: 90px; font-family: var(--mono); font-size: 12px; }
 .tick { display: inline-flex; align-items: center; gap: 6px; }
 </style>

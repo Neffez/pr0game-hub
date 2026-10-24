@@ -2,6 +2,7 @@ import { distance, drivesFromResearch, fleetConsumption, flightDuration, slowest
 import { cleanState, emptyState, MAX_PARTICIPANTS, SHARE_WITHIN, type Battle, type BattleFleet, type LootState, type Ships } from '@pr0hub/loot';
 import type { GroupContext } from '../context.js';
 import type { DB } from '../db.js';
+import { REPORT_SLACK } from '../store.js';
 import { fleetHistory, sharedFleets, type StoredFleet } from './fleets.js';
 import { memberPlayers } from './members.js';
 import { launchedOf, planDrives, type LaunchFleet, type PlanRow } from './plans.js';
@@ -99,22 +100,40 @@ export function settlementDraft(db: DB, ctx: GroupContext, plan: PlanRow & { tim
 
   if (plan.g == null) return { state, sources };
   const window = plan.time_precision === 'day' ? 86400 : plan.time_precision === 'hour' ? 3600 : 0;
-  const battleRows = db
-    .prepare(
-      `SELECT b.report_id, b.time, b.loot_metal, b.loot_crystal, b.loot_deuterium, c.fleets, c.loot_metal AS c_metal, c.loot_crystal AS c_crystal,
-         c.loot_deuterium AS c_deuterium
-       FROM battle_reports b LEFT JOIN combat_reports c ON c.group_id = b.group_id AND c.report_id = b.report_id
-       WHERE b.group_id = ? AND b.g = ? AND b.s = ? AND b.p = ? AND b.planet_type = ? AND b.time BETWEEN ? AND ?
-       ORDER BY b.time, b.id`,
-    )
-    .all(ctx.groupId, plan.g, plan.s, plan.p, plan.planet_type, plan.target_time - BATTLE_SLACK, plan.target_time + window + BATTLE_SLACK) as {
-    report_id: string | null; time: number | null; loot_metal: number; loot_crystal: number; loot_deuterium: number; fleets: string | null;
-    c_metal: number | null; c_crystal: number | null; c_deuterium: number | null;
-  }[];
+  const since = plan.target_time - BATTLE_SLACK;
+  const until = plan.target_time + window + BATTLE_SLACK;
+  type BattleRow = {
+    report_id: string | null; c_report_id: string | null; time: number | null; loot_metal: number; loot_crystal: number; loot_deuterium: number;
+    fleets: string | null; c_metal: number | null; c_crystal: number | null; c_deuterium: number | null;
+  };
+  // battle messages with their archived report (by id, or a report pasted as text at the same target and time)
+  const sameReport = `c.group_id = b.group_id AND (c.report_id = b.report_id OR (c.g = b.g AND c.s = b.s AND c.p = b.p AND c.planet_type = b.planet_type
+    AND ABS(c.time - b.time) <= ${REPORT_SLACK}))`;
+  const battleRows = [
+    ...(db
+      .prepare(
+        `SELECT b.report_id, c.report_id AS c_report_id, b.time, b.loot_metal, b.loot_crystal, b.loot_deuterium, c.fleets,
+           c.loot_metal AS c_metal, c.loot_crystal AS c_crystal, c.loot_deuterium AS c_deuterium
+         FROM battle_reports b LEFT JOIN combat_reports c ON ${sameReport}
+         WHERE b.group_id = ? AND b.g = ? AND b.s = ? AND b.p = ? AND b.planet_type = ? AND b.time BETWEEN ? AND ?
+         ORDER BY b.time, b.id, c.report_id = b.report_id DESC`,
+      )
+      .all(ctx.groupId, plan.g, plan.s, plan.p, plan.planet_type, since, until) as BattleRow[]),
+    // archived reports at the target without a battle message (e.g. pasted as text only)
+    ...(db
+      .prepare(
+        `SELECT NULL AS report_id, c.report_id AS c_report_id, c.time, c.loot_metal, c.loot_crystal, c.loot_deuterium, c.fleets,
+           c.loot_metal AS c_metal, c.loot_crystal AS c_crystal, c.loot_deuterium AS c_deuterium
+         FROM combat_reports c
+         WHERE c.group_id = ? AND c.g = ? AND c.s = ? AND c.p = ? AND c.planet_type = ? AND c.time BETWEEN ? AND ?
+           AND NOT EXISTS (SELECT 1 FROM battle_reports b WHERE ${sameReport})`,
+      )
+      .all(ctx.groupId, plan.g, plan.s, plan.p, plan.planet_type, since, until) as BattleRow[]),
+  ].sort((a, b) => (a.time ?? 0) - (b.time ?? 0));
   // one battle synced by several members: same report id, or the same time and loot
   const keys = new Set<string>();
   for (const b of battleRows) {
-    const key = b.report_id ?? `${b.time}:${b.loot_metal}:${b.loot_crystal}:${b.loot_deuterium}`;
+    const key = b.report_id ?? b.c_report_id ?? `${b.time}:${b.loot_metal}:${b.loot_crystal}:${b.loot_deuterium}`;
     if (keys.has(key) || state.battles.length >= 20) continue;
     keys.add(key);
     const loot = { m: b.loot_metal, k: b.loot_crystal, d: b.loot_deuterium };
@@ -142,7 +161,7 @@ export function settlementDraft(db: DB, ctx: GroupContext, plan: PlanRow & { tim
     }
     const battle: Battle = { time: b.time, loot, fleets: [...battleFleets.values()].filter((f) => state.participants.some((p) => p.id === f.participant)) };
     state.battles.push(battle);
-    sources.battles.push({ reportId: b.report_id, time: b.time, fleets: b.fleets ? 'report' : 'plan' });
+    sources.battles.push({ reportId: b.c_report_id ?? b.report_id, time: b.time, fleets: b.fleets ? 'report' : 'plan' });
   }
 
   // loot a returning fleet brings home (only with one battle: several waves cannot be told apart)

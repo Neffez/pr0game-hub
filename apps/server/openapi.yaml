@@ -1296,7 +1296,10 @@ paths:
       operationId: getCombatReport
       description: >-
         Archived battle report: outcome, losses, debris, `loot_metal`, `loot_crystal`, `loot_deuterium` (captured by
-        all attackers together, 0 for reports archived before the loot was read) and the fleets before and after.
+        all attackers together, 0 for reports archived before the loot was read), the attacked planet or moon `g`, `s`,
+        `p`, `planet_type` (null when the page hid the coordinates) and the fleets before and after. Reports pasted as
+        text have the id of the battle message at the same target and time, else a local id
+        `text-<epoch>-<g>-<s>-<p>`.
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
