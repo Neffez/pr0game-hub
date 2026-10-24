@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-10-24',
     items: [
       {
+        kind: 'new',
+        de: 'Links zum AKS-Beuterechner sind jetzt etwa viermal kürzer. Alte Links funktionieren weiter.',
+        en: 'Links to the ACS loot calculator are now about four times shorter. Old links still work.',
+      },
+      {
         kind: 'fix',
         de: 'Beute abrechnen: Deut-Kosten (Flüge, Recycler, verlorene Schiffe) werden in Metall und Kristall ersetzt, erbeutetes Deut wird als Gewinn nach Anteil verteilt. Die Beute je Flotte kommt jetzt zuerst aus den Flottenrückkehr-Nachrichten (beim Nachrichten-Sync mit einfügen), sonst aus der Übersicht – dort zählt nur noch der Rückflug dieses Kampfs, nicht mehr ein späterer Raid aufs selbe Ziel –, sonst aus dem Laderaum laut Kampfbericht. Bestehende Abrechnungen mit „Neu aus Hub-Daten“ neu rechnen.',
         en: 'Settle loot: deuterium costs (flights, recyclers, lost ships) are paid back in metal and crystal, captured deuterium is profit and shared by the shares. The loot of each fleet now comes first from the fleet return messages (sync them with the messages), else from the overview – only the flight home of this battle, no longer a later raid on the same target –, else from the cargo space by the battle report. Recompute existing settlements with "Refill from hub data".',

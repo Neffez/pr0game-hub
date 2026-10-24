@@ -4,5 +4,6 @@ export * from './merge.js';
 export * from './report.js';
 export * from './res.js';
 export * from './settle.js';
+export * from './share.js';
 export * from './transfers.js';
 export * from './types.js';

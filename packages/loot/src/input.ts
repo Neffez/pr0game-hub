@@ -132,27 +132,3 @@ export function cleanState(raw: unknown): LootState {
     : null;
   return { participants, helpers, battles, recycling, settings, transfers };
 }
-
-const toBase64Url = (bytes: Uint8Array) => {
-  let bin = '';
-  for (const b of bytes) bin += String.fromCharCode(b);
-  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-};
-const fromBase64Url = (s: string) => {
-  const bin = atob(s.replace(/-/g, '+').replace(/_/g, '/'));
-  return Uint8Array.from(bin, (c) => c.charCodeAt(0));
-};
-
-/** Compact text of a settlement for share links (`#s=…`), readable by `decodeShare`. */
-export function encodeShare(state: LootState): string {
-  return toBase64Url(new TextEncoder().encode(JSON.stringify(state)));
-}
-
-/** Settlement from `encodeShare`, cleaned; null when the text is not one. */
-export function decodeShare(text: string): LootState | null {
-  try {
-    return cleanState(JSON.parse(new TextDecoder().decode(fromBase64Url(text.trim()))));
-  } catch {
-    return null;
-  }
-}

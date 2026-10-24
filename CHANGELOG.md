@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-24
 
+- Loot calculator share links are about a quarter as long: the settlement is packed as positional arrays (people by
+  index, ships as id/amount pairs) and deflated (`fflate`) before base64url, marked with `z` (`#s=z…`); older links
+  (`#s=eyJ…`) still open, in the calculator and when imported into the hub.
+
 - Loot settlement fixes:
   - Deuterium costs (flights, recyclers, deuterium of lost ships, refunded helper deuterium) are paid back in metal
     and crystal at market rates (the setting's share in metal, the rest in crystal); the captured deuterium is profit

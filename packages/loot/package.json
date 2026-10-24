@@ -19,7 +19,8 @@
   },
   "dependencies": {
     "@pr0hub/core": "workspace:*",
-    "@pr0hub/flight": "workspace:*"
+    "@pr0hub/flight": "workspace:*",
+    "fflate": "^0.8.2"
   },
   "devDependencies": {
     "typescript": "^5.6.3",
