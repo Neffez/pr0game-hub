@@ -22,6 +22,9 @@ importers:
       '@pr0hub/flight':
         specifier: workspace:*
         version: link:../../packages/flight
+      '@pr0hub/loot':
+        specifier: workspace:*
+        version: link:../../packages/loot
       better-sqlite3:
         specifier: ^11.5.0
         version: 11.10.0

@@ -12,6 +12,7 @@ import { adminRoutes } from './routes/admin.js';
 import { authRoutes } from './routes/auth.js';
 import { claimsRoutes } from './routes/claims.js';
 import { plansRoutes } from './routes/plans.js';
+import { settlementRoutes } from './routes/settlements.js';
 import { commentsRoutes } from './routes/comments.js';
 import { notificationRoutes } from './routes/notifications.js';
 import { discordRoutes } from './routes/discord.js';
@@ -100,6 +101,7 @@ export function buildApp(db: DB, opts: { logger?: boolean; push?: PushOptions; d
       eventRoutes(scope, db);
       claimsRoutes(scope, db);
       plansRoutes(scope, db);
+      settlementRoutes(scope, db);
       commentsRoutes(scope, db);
       notificationRoutes(scope, db);
       pushRoutes(scope, db, push);

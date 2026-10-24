@@ -4,6 +4,14 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-24
 
+- Raid planner, loot settlement API: `GET /plans/:id/settlement` returns the saved settlement of an attack plan and
+  a draft prefilled from the hub's data (participants from the plan's fleets and guest fleets, battles at the target
+  around the plan's time with fleets and losses from the archived battle report, loot of returning fleets in the
+  overviews, recycling reports at the target within 24 hours with members outside the plan as helpers, deuterium of
+  the attack flights), each with the result of `@pr0hub/loot`. `PUT` saves it (participants, creator, admins),
+  `PUT …/settlement/done` marks a delivery done, `DELETE` removes it (`raid_settlements`, migration 044).
+  - Archived battle reports keep the loot (`combat_reports.loot_*`, also in `GET /combat-reports/:id`).
+
 - New public tool: ACS loot calculator (`apps/tools/acs-loot/`, served at `/acs-loot/`, card on the tools index).
   Up to 5 participants, several battles (waves), recycling by participants and helpers; pasting the battle report
   fills in participants, ships, losses and loot. Shows what everyone holds, costs, covered, gets and the balance,

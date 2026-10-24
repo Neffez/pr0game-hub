@@ -53,7 +53,69 @@ components:
       in: query
       schema: { type: integer }
       description: Alliance group id (alternative to `X-Hub-Group`, required for SSE)
+    PlanId:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer }
+      description: Attack plan id
   schemas:
+    LootState:
+      type: object
+      description: >-
+        Input of an ACS loot settlement (`@pr0hub/loot`, the same as the loot calculator's share links). Resources are
+        `{ m, k, d }` (metal, crystal, deuterium), ships element id -> amount. `transfers` null: the suggested deliveries.
+      properties:
+        participants:
+          type: array
+          maxItems: 5
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              name: { type: string }
+              flightDeut: { type: integer }
+              recDeut: { type: integer }
+              missiles: { type: integer }
+              extra: { type: object }
+        helpers:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: string }
+              name: { type: string }
+              keepPct: { type: number }
+              recDeut: { type: integer }
+        battles:
+          type: array
+          items:
+            type: object
+            properties:
+              time: { type: [integer, 'null'] }
+              loot: { type: object }
+              fleets:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    participant: { type: string }
+                    start: { type: object }
+                    end: { type: object }
+                    carried: { type: object }
+                    loot: { type: object, description: Loot this fleet brought home (wins over the share by cargo space) }
+        recycling:
+          type: array
+          items: { type: object, properties: { by: { type: string }, m: { type: integer }, k: { type: integer } } }
+        settings:
+          type: object
+          properties:
+            mode: { type: string, enum: [equal, investment] }
+            rates: { type: object, description: Metal and crystal per deuterium }
+            refRates: { type: [object, 'null'] }
+            deficitMetalShare: { type: number }
+            cargoShip: { type: integer }
+        transfers: { type: [array, 'null'], items: { type: object } }
     PushSettings:
       type: object
       properties:
@@ -1232,6 +1294,9 @@ paths:
     get:
       tags: [Combat]
       operationId: getCombatReport
+      description: >-
+        Archived battle report: outcome, losses, debris, `loot_metal`, `loot_crystal`, `loot_deuterium` (captured by
+        all attackers together, 0 for reports archived before the loot was read) and the fleets before and after.
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
@@ -1348,6 +1413,130 @@ paths:
               schema: { type: object, properties: { id: { type: integer }, claimedBy: { type: [string, 'null'] } } }
         '404':
           description: Attack arrived, already planned, not pasted or not the caller's (`attack_not_found`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /api/{uni}/plans/{id}/settlement:
+    parameters:
+      - { $ref: '#/components/parameters/Uni' }
+      - { $ref: '#/components/parameters/HubGroupHeader' }
+      - { $ref: '#/components/parameters/HubGroupQuery' }
+      - { $ref: '#/components/parameters/PlanId' }
+    get:
+      tags: [Combat]
+      operationId: getSettlement
+      description: >-
+        ACS loot settlement of an attack plan. `saved` is the settlement saved for the group (null if none), `draft` one
+        prefilled from the hub's data: participants from the plan's fleets (members as `u<user id>`, then guest fleets),
+        battles at the target around the plan's time (fleets and losses from the archived battle report, else the
+        planned ships), loot by cargo space unless a returning fleet in an overview carries something else, recycling
+        reports at the target within 24 hours (members outside the plan as helpers keeping 20 %) and the deuterium of
+        the attack flights. `sources` tells where the draft's values come from. Both carry `result`, computed by
+        `@pr0hub/loot`. `me` is the caller's id in a settlement.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  plan_id: { type: integer }
+                  saved:
+                    oneOf:
+                      - { type: 'null' }
+                      - type: object
+                        properties:
+                          state: { $ref: '#/components/schemas/LootState' }
+                          done: { type: array, items: { type: string }, description: 'Deliveries marked done ("<from id>><to id>")' }
+                          updated_at: { type: integer }
+                          updated_by: { type: [string, 'null'] }
+                          result: { type: object }
+                  draft:
+                    type: object
+                    properties:
+                      state: { $ref: '#/components/schemas/LootState' }
+                      sources: { type: object }
+                      result: { type: object }
+                  me: { type: string }
+        '404':
+          description: No attack plan with this id in the group (`plan_not_found`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+    put:
+      tags: [Combat]
+      operationId: saveSettlement
+      description: >-
+        Saves the settlement for the group (participants of the plan, its creator or a group admin). The state is
+        cleaned like a share link (known fields only, numbers clamped, at most 5 participants); deliveries marked done
+        stay.
+      security: [{ sessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [state], properties: { state: { $ref: '#/components/schemas/LootState' } } }
+      responses:
+        '200':
+          description: The saved settlement with `done`, `updated_at`, `updated_by` and `result`
+          content:
+            application/json:
+              schema: { type: object }
+        '400':
+          description: No or too large state (`settlement_invalid`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '403':
+          description: Not a participant, the creator or an admin (`settlement_not_yours`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+    delete:
+      tags: [Combat]
+      operationId: deleteSettlement
+      description: Deletes the saved settlement (participants of the plan, its creator or a group admin).
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object, properties: { ok: { type: boolean } } }
+        '403':
+          description: Not a participant, the creator or an admin (`settlement_not_yours`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /api/{uni}/plans/{id}/settlement/done:
+    put:
+      tags: [Combat]
+      operationId: markSettlementDelivery
+      description: >-
+        Marks a delivery of the saved settlement as done (`done` true or missing) or open again (`done: false`): its
+        sender or receiver, participants of the plan, its creator or a group admin.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+        - { $ref: '#/components/parameters/PlanId' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [key]
+              properties:
+                key: { type: string, description: '"<from id>><to id>", e.g. "u3>u7"' }
+                done: { type: boolean }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object, properties: { done: { type: array, items: { type: string } } } }
+        '404':
+          description: No saved settlement (`settlement_not_found`) or plan (`plan_not_found`)
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }

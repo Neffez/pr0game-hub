@@ -632,10 +632,14 @@ export function storeCombatReport(db: DB, groupId: number, r: CombatReportRecord
   ]);
   const res = db
     .prepare(
-      `INSERT OR IGNORE INTO combat_reports (group_id, report_id, time, winner, rounds, lost_attacker, lost_defender, debris_metal, debris_crystal, fleets)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT OR IGNORE INTO combat_reports (group_id, report_id, time, winner, rounds, lost_attacker, lost_defender, debris_metal, debris_crystal, fleets,
+         loot_metal, loot_crystal, loot_deuterium)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     )
-    .run(groupId, r.reportId, time, r.winner, r.rounds, r.lost.attacker, r.lost.defender, r.debris.metal, r.debris.crystal, JSON.stringify(fleets));
+    .run(
+      groupId, r.reportId, time, r.winner, r.rounds, r.lost.attacker, r.lost.defender, r.debris.metal, r.debris.crystal, JSON.stringify(fleets),
+      r.loot.metal, r.loot.crystal, r.loot.deuterium,
+    );
   db.prepare("UPDATE battle_hall SET report_status = 'archived' WHERE group_id = ? AND report_id = ?").run(groupId, r.reportId);
   return res.changes > 0;
 }
