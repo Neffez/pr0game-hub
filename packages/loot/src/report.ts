@@ -8,6 +8,12 @@ export type ReportInput = Pick<CombatReportRecord, 'time' | 'loot' | 'fleets'>;
 
 export type ReportResult = { battle: Battle; added: string[]; skipped: string[] };
 
+/** Side of the settling players: attackers (ACS attack) or defenders (ACS defence, a hold). */
+export type ReportSide = 'attacker' | 'defender';
+
+/** Ships only (no defence structures: they are rebuilt and not part of a hold). */
+const shipsOnly = (s: Ships): Ships => Object.fromEntries(Object.entries(s).filter(([id]) => Number(id) >= 200 && Number(id) < 300));
+
 /** Game time "YYYY-MM-DD HH:MM:SS" as epoch seconds, read in the local time zone (the game shows the player's time). */
 export function localEpoch(local: string | null): number | null {
   if (!local) return null;
@@ -30,17 +36,24 @@ const addShips = (a: Ships, b: Ships): Ships => {
 };
 
 /**
- * Takes a battle report into the state: attackers are matched to participants by name (case-insensitive; new ones
- * are added with an id `<prefix><n>` up to the ACS limit, an unnamed participant row is filled first), several fleets
- * of one player are summed up. Changes only `state.participants`; the caller puts the returned battle in place.
+ * Takes a battle report into the state: the fleets of `side` (attackers, or the defenders of a hold) are matched to
+ * participants by name (case-insensitive; new ones are added with an id `<prefix><n>` up to the ACS limit, an unnamed
+ * participant row is filled first), several fleets of one player are summed up. Defenders count with their ships
+ * only and capture no loot (only the debris is shared). Changes only `state.participants`; the caller puts the
+ * returned battle in place.
  */
-export function battleFromReport(state: LootState, report: ReportInput, toEpoch = localEpoch, prefix = 'p'): ReportResult {
+export function battleFromReport(
+  state: LootState, report: ReportInput, toEpoch = localEpoch, prefix = 'p', side: ReportSide = 'attacker',
+): ReportResult {
   const added: string[] = [];
   const skipped: string[] = [];
   const byName = new Map(state.participants.filter((p) => p.name).map((p) => [p.name.toLowerCase(), p.id]));
   const fleets = new Map<string, { start: Ships; end: Ships }>();
   for (const f of report.fleets) {
-    if (f.side !== 'attacker') continue;
+    if (f.side !== side) continue;
+    const start = side === 'defender' ? shipsOnly(f.start) : f.start;
+    const end = side === 'defender' ? shipsOnly(f.end) : f.end;
+    if (side === 'defender' && !Object.keys(start).length) continue;
     let id = byName.get(f.name.toLowerCase());
     if (!id) {
       const blank = state.participants.find((p) => !p.name);
@@ -58,12 +71,12 @@ export function battleFromReport(state: LootState, report: ReportInput, toEpoch 
       added.push(f.name);
     }
     const cur = fleets.get(id) ?? { start: {}, end: {} };
-    fleets.set(id, { start: addShips(cur.start, f.start), end: addShips(cur.end, f.end) });
+    fleets.set(id, { start: addShips(cur.start, start), end: addShips(cur.end, end) });
   }
   return {
     battle: {
       time: toEpoch(report.time),
-      loot: { m: report.loot.metal, k: report.loot.crystal, d: report.loot.deuterium },
+      loot: side === 'attacker' ? { m: report.loot.metal, k: report.loot.crystal, d: report.loot.deuterium } : { m: 0, k: 0, d: 0 },
       fleets: [...fleets].map(([participant, f]) => ({ participant, start: f.start, end: f.end })),
     },
     added,

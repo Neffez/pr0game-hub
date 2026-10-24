@@ -27,7 +27,7 @@ interface Saved {
   updated_by: string | null;
 }
 interface Response {
-  plan: { id: number; g: number | null; s: number | null; p: number | null; planet_type: 'planet' | 'moon'; target_time: number; status: string };
+  plan: { id: number; mission: 'attack' | 'hold'; g: number | null; s: number | null; p: number | null; planet_type: 'planet' | 'moon'; target_time: number; status: string };
   can_edit: boolean;
   saved: Saved | null;
   draft: { state: LootState; sources: Sources };
@@ -143,7 +143,9 @@ function applyReport() {
     return;
   }
   // attackers without a hub account join as guests ("g<n>"), as on plans
-  const { battle, skipped } = battleFromReport(state.value, report, localEpoch, 'g');
+  // a hold: the defenders settle (no loot of theirs, the debris covers their losses)
+  const side = data.value?.plan.mission === 'hold' ? 'defender' : 'attacker';
+  const { battle, skipped } = battleFromReport(state.value, report, localEpoch, 'g', side);
   const i = reportTarget.value >= 0 && reportTarget.value < state.value.battles.length ? reportTarget.value : state.value.battles.length;
   state.value.battles[i] = battle;
   pasted.value = new Set([...pasted.value, i]);
@@ -199,12 +201,13 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
 </script>
 
 <template>
-  <p><RouterLink :to="`/${uni}/raid-planner`">{{ t('loot.back') }}</RouterLink></p>
+  <p><RouterLink :to="`/${uni}/raid-planner?tab=settlements`">{{ t('loot.back') }}</RouterLink></p>
   <h1>
     {{ t('loot.title') }}
     <span v-if="data" class="muted small" style="font-weight: 400">{{ target }} · {{ dateTime(data.plan.target_time) }}</span>
+    <span v-if="data?.plan.mission === 'hold'" class="badge" style="margin-left: 6px">{{ t('hold.badge') }}</span>
   </h1>
-  <p class="muted small">{{ t('loot.intro') }}</p>
+  <p class="muted small">{{ data?.plan.mission === 'hold' ? t('loot.introHold') : t('loot.intro') }}</p>
   <div v-if="error" class="error">{{ error }}</div>
 
   <template v-if="data && state && result">

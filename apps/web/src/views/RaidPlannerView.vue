@@ -5,13 +5,14 @@ import PlanetActions from '../components/PlanetActions.vue';
 import PlanTargetForm from '../components/PlanTargetForm.vue';
 import PlayerLink from '../components/PlayerLink.vue';
 import HoldPanel from '../components/HoldPanel.vue';
+import LootSettlementList from '../components/LootSettlementList.vue';
 import RetimePanel from '../components/RetimePanel.vue';
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import { uniApi } from '../api';
 import { loadClaims } from '../claims';
-import { useUni, vStack } from '../composables';
+import { useStored, useUni, vStack } from '../composables';
 import { abbr, clockTime, coords, duration, fmt, name, numDate, simLinks, timeWithAge, weekday, type Coords3, type SimFleet } from '../format';
 import { intlLocale } from '../i18n';
 import { tables, useLiveReload } from '../live';
@@ -46,6 +47,16 @@ const { t } = useI18n();
 const { uni, ctx } = useUni();
 const route = useRoute();
 const router = useRouter();
+/** plans, or the attacks and holds to settle (link: ?tab=settlements) */
+type PlannerTab = 'plans' | 'settlements';
+const storedTab = useStored<PlannerTab>('raidPlanner.tab', 'plans');
+const tab = computed<PlannerTab>({
+  get: () => (route.query.tab === 'settlements' || route.query.tab === 'plans' ? route.query.tab : storedTab.value),
+  set: (v) => {
+    storedTab.value = v;
+    router.replace({ query: { ...route.query, tab: v } });
+  },
+});
 
 const nowSec = () => Math.floor(Date.now() / 1000);
 /**
@@ -148,8 +159,8 @@ const canEditFleet = (p: AttackPlan, f: PlanFleet) => f.user_id === me.value || 
 const canRemoveFleet = (p: AttackPlan, f: PlanFleet) => f.user_id === me.value || canEdit(p);
 const closed = (p: AttackPlan) => p.status === 'done' || p.status === 'cancelled';
 const hasCoords = (p: AttackPlan) => p.g != null;
-/** Attacks that flew can be settled (loot, debris, losses). */
-const settleable = (p: AttackPlan) => p.mission === 'attack' && hasCoords(p) && (p.status === 'launched' || p.status === 'done');
+/** Attacks and holds that flew can be settled (loot, debris, losses). */
+const settleable = (p: AttackPlan) => hasCoords(p) && (p.status === 'launched' || p.status === 'done');
 
 const views = computed(() => new Map(plans.value.map((p) => [p.id, computePlan(settings.value, p, now.value)])));
 const current = computed(() => plans.value.filter((p) => isCurrent(p, now.value)));
@@ -529,6 +540,12 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
     {{ t('nav.raidPlanner') }}
     <Hint>{{ t('plans.hint') }}</Hint>
   </h1>
+  <div class="tabs">
+    <button :class="{ active: tab === 'plans' }" @click="tab = 'plans'">{{ t('plans.tabPlans') }}</button>
+    <button :class="{ active: tab === 'settlements' }" @click="tab = 'settlements'">{{ t('plans.tabSettlements') }}</button>
+  </div>
+  <LootSettlementList v-if="tab === 'settlements'" />
+  <template v-else>
   <div class="row" style="margin-bottom: 12px">
     <button class="primary" @click="openForm()">{{ t('plans.new') }}</button>
     <button @click="phalanx.open = !phalanx.open">{{ t('phalanx.paste') }}</button>

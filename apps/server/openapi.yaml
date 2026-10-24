@@ -1472,6 +1472,53 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
+  /api/{uni}/settlements:
+    get:
+      tags: [Combat]
+      operationId: listSettlements
+      description: >-
+        Attack and hold plans to settle: plans of the last `days` (default 30, at most 90) that were launched or done,
+        or have a saved settlement, newest first. `members` are the plan's members (for a hold also the attacked
+        member), `battle` whether a battle message or report at the target around the plan's time is known, `saved`
+        the saved settlement's state (null if none) with the number of deliveries and how many are marked done.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+        - name: days
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 90 }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id: { type: integer }
+                    mission: { type: string, enum: [attack, hold] }
+                    g: { type: integer }
+                    s: { type: integer }
+                    p: { type: integer }
+                    planet_type: { type: string, enum: [planet, moon] }
+                    target_time: { type: integer }
+                    status: { type: string }
+                    creator: { type: string }
+                    player_id: { type: [integer, 'null'] }
+                    player_name: { type: [string, 'null'] }
+                    members: { type: array, items: { type: string } }
+                    battle: { type: boolean }
+                    saved:
+                      oneOf:
+                        - { type: 'null' }
+                        - type: object
+                          properties:
+                            updated_at: { type: integer }
+                            updated_by: { type: [string, 'null'] }
+                            deliveries: { type: integer }
+                            done: { type: integer }
   /api/{uni}/plans/{id}/settlement:
     parameters:
       - { $ref: '#/components/parameters/Uni' }
@@ -1482,13 +1529,15 @@ paths:
       tags: [Combat]
       operationId: getSettlement
       description: >-
-        ACS loot settlement of an attack plan. `saved` is the settlement saved for the group (null if none), `draft` one
+        ACS loot settlement of an attack or hold plan. `saved` is the settlement saved for the group (null if none), `draft` one
         prefilled from the hub's data: participants from the plan's fleets (members as `u<user id>`, then guest fleets),
         battles at the target around the plan's time (fleets and losses from the archived battle report, else the
         planned ships), loot by cargo space unless a returning fleet in an overview carries something else, recycling
         reports at the target within 24 hours (members outside the plan as helpers keeping 20 %) and the deuterium of
         the attack flights. `sources` tells where the draft's values come from. Both carry `result`, computed by
-        `@pr0hub/loot`. `me` is the caller's id in a settlement.
+        `@pr0hub/loot`. `me` is the caller's id in a settlement. A hold is settled like an ACS: participants are the hold
+        fleets and the attacked member, the battle report's defenders (ships only) and no loot, so the debris covers their
+        losses.
       responses:
         '200':
           content:
@@ -1501,6 +1550,7 @@ paths:
                     description: The plan's target and time
                     properties:
                       id: { type: integer }
+                      mission: { type: string, enum: [attack, hold] }
                       g: { type: [integer, 'null'] }
                       s: { type: [integer, 'null'] }
                       p: { type: [integer, 'null'] }
@@ -1534,7 +1584,8 @@ paths:
       tags: [Combat]
       operationId: saveSettlement
       description: >-
-        Saves the settlement for the group (participants of the plan, its creator or a group admin). The state is
+        Saves the settlement for the group (participants of the plan, for a hold also the attacked member, its creator or
+        a group admin). The state is
         cleaned like a share link (known fields only, numbers clamped, at most 5 participants); deliveries marked done
         stay.
       security: [{ sessionCookie: [] }]

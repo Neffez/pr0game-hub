@@ -157,4 +157,47 @@ describe('raid settlements', () => {
     expect((await call('POST', '/ingest', as.dave, { text })).json().counts.combat_reports).toEqual({ new: 0, duplicate: 1 });
     expect((await call('GET', `/plans/${id}/settlement`, as.dave)).json().draft.sources.battles).toEqual([{ reportId: 'abc123', time: time + 1, fleets: 'report' }]);
   });
+
+  it('settles a hold like an ACS: the defenders share the debris, no loot', async () => {
+    const time = Date.UTC(2026, 9, 24, 11, 4, 3) / 1000;
+    db.prepare("UPDATE group_members SET ingame_name = 'Hustensaftdealer' WHERE user_id = ?").run(ids.erin);
+    const id = Number(
+      db.prepare("INSERT INTO attack_plans (group_id, user_id, g, s, p, planet_type, target_time, mission, status) VALUES (?, ?, 3, 195, 5, 'moon', ?, 'hold', 'launched')")
+        .run(groupA, ids.dave, time - 1).lastInsertRowid,
+    );
+    db.prepare(
+      `INSERT INTO attack_plan_enemy (plan_id, member_id, from_g, from_s, from_p, from_type, to_g, to_s, to_p, to_type, fleets, arrival, first_seen)
+       VALUES (?, ?, 3, 26, 12, 'moon', 3, 195, 5, 'moon', '[]', ?, ?)`,
+    ).run(id, ids.erin, time, time);
+    await call('POST', `/plans/${id}/fleets`, as.dave, { g: 3, s: 200, p: 1, type: 'moon', ships: { 207: 10 }, speed: 100 });
+    const draft = (await call('GET', `/plans/${id}/settlement`, as.erin)).json();
+    expect(draft.plan).toMatchObject({ id, mission: 'hold' });
+    const { state } = draft.draft;
+    expect(state.participants.map((p: { id: string }) => p.id)).toEqual([`u${ids.dave}`, `u${ids.erin}`]);
+    expect(state.battles).toHaveLength(1);
+    expect(state.battles[0].loot).toEqual({ m: 0, k: 0, d: 0 });
+    // the attacked member's ships from the report (defence left out), the hold fleet was not in this battle
+    expect(state.battles[0].fleets).toEqual([
+      {
+        participant: `u${ids.erin}`,
+        start: { 202: 136, 203: 1393, 204: 11101, 205: 55, 206: 7057, 207: 1061, 209: 400, 210: 316, 215: 1007, 222: 122, 225: 57, 227: 303 },
+        end: {}, // all destroyed
+      },
+    ]);
+    // the attacked member may save it (participant of the hold)
+    expect((await call('PUT', `/plans/${id}/settlement`, as.erin, { state })).statusCode).toBe(200);
+  });
+
+  it('lists the attacks and holds to settle with their state', async () => {
+    db.prepare("UPDATE attack_plans SET status = 'launched' WHERE id = ?").run(planId);
+    const list = (await call('GET', '/settlements', as.carol)).json();
+    const attack = list.find((x: { id: number }) => x.id === planId);
+    expect(attack).toMatchObject({ mission: 'attack', g: 2, s: 100, p: 8, status: 'launched', battle: true, saved: null });
+    expect(attack.members.sort()).toEqual(['CVXII', 'Rudolf']);
+    await call('PUT', `/plans/${planId}/settlement`, as.carol, { state: (await call('GET', `/plans/${planId}/settlement`, as.carol)).json().draft.state });
+    const saved = (await call('GET', '/settlements', as.carol)).json().find((x: { id: number }) => x.id === planId).saved;
+    expect(saved).toMatchObject({ updated_by: 'CVXII', done: 0 });
+    expect(saved.deliveries).toBeGreaterThan(0);
+    expect((await call('GET', '/settlements', as.carolB)).json()).toEqual([]);
+  });
 });

@@ -40,6 +40,13 @@ describe('loot calculator glue', () => {
     expect(res.battle.loot).toEqual({ m: 0, k: 1343846, d: 690373 });
     expect(res.battle.fleets.map((f) => f.start[207])).toEqual([11799, 2178]);
     expect(res.battle.time).toBe(new Date(2026, 9, 24, 13, 4, 3).getTime() / 1000);
+
+    // the same report as a hold: the defender settles, without loot
+    const hold = emptyState();
+    const def = battleFromReport(hold, text, 'defender');
+    if (!def.ok) throw new Error('not parsed');
+    expect(hold.participants.map((p) => p.name)).toEqual(['Hustensaftdealer']);
+    expect(def.battle.loot).toEqual({ m: 0, k: 0, d: 0 });
   });
 
   it('formats numbers per language', () => {

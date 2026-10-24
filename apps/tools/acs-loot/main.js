@@ -27,6 +27,8 @@ var S = emptyState();
 var LANG = 'de';
 var lastResult = null;
 var pasteText = {};
+/* per battle: we were the attackers or the defenders (a hold) */
+var pasteSide = {};
 var reportMsg = {};
 
 /* ---------- helpers ---------- */
@@ -242,7 +244,12 @@ function buildBattles() {
       '<div class="stack">' +
       '<div class="field"><label>' + esc(t('paste')) + '</label><textarea data-paste="' + bi + '" placeholder="' + esc(t('pastePlaceholder')) + '">' +
       esc(pasteText[bi] || '') + '</textarea>' +
-      '<div class="row-actions" style="margin-top:6px"><button type="button" class="btn small" data-act="applyReport" data-i="' + bi + '">' + esc(t('apply')) + '</button>' +
+      '<div class="row-actions" style="margin-top:6px">' +
+      '<div class="seg small" role="group">' +
+      '<button type="button" data-act="pasteSide" data-i="' + bi + '" data-side="attacker" aria-pressed="' + (pasteSide[bi] !== 'defender') + '">' + esc(t('sideAttacker')) + '</button>' +
+      '<button type="button" data-act="pasteSide" data-i="' + bi + '" data-side="defender" aria-pressed="' + (pasteSide[bi] === 'defender') + '">' + esc(t('sideDefender')) + '</button>' +
+      '</div>' +
+      '<button type="button" class="btn small" data-act="applyReport" data-i="' + bi + '">' + esc(t('apply')) + '</button>' +
       (msg ? '<span class="hint ' + (msg.ok ? 'ok' : 'err') + '">' + esc(msg.text) + '</span>' : '') + '</div></div>' +
       '<div class="field"><span class="field-label">' + esc(t('loot')) + '</span><div class="grid3">' +
       RES.map(function (r) {
@@ -572,12 +579,17 @@ var ACTIONS = {
     var i = Number(el.getAttribute('data-i'));
     S.battles.splice(i, 1);
     pasteText = {};
+    pasteSide = {};
     reportMsg = {};
+    buildBattles();
+  },
+  pasteSide: function (el) {
+    pasteSide[el.getAttribute('data-i')] = el.getAttribute('data-side');
     buildBattles();
   },
   applyReport: function (el) {
     var i = Number(el.getAttribute('data-i'));
-    var res = battleFromReport(S, pasteText[i] || '');
+    var res = battleFromReport(S, pasteText[i] || '', pasteSide[i] === 'defender' ? 'defender' : 'attacker');
     if (!res.ok) {
       reportMsg[i] = {ok: false, text: t('reportFailed')};
     } else {

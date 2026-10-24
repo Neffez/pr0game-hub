@@ -6,8 +6,17 @@ Every commit adds its changes here, newest first, grouped by date.
 
 - Raid planner: hostile attacks can be hidden by hand for the whole group (`POST /hostile-attacks/hide` and
   `/unhide`, table `hidden_attacks`, migration 047) and come back from a collapsible "Hidden attacks" section at the
-  end of the page. A hide lasts until the attack's latest possible return; a later attack of the same fleet on the
+  end of the planning tab. A hide lasts until the attack's latest possible return; a later attack of the same fleet on the
   same route is listed again. `GET /hostile-attacks` gives `hidden` (who, when).
+
+- Loot settlement for holds: a hold (ACS defence) is settled like an ACS. The draft takes the hold fleets and the
+  attacked member as participants, the battle report's defenders (ships only, defence left out) and no loot, so the
+  debris covers their losses; the attacked member may save it. `battleFromReport` takes the side (`attacker` or
+  `defender`), the loot calculator asks for it when a report is pasted.
+- Raid planner tabs "Planning" and "Settlements": the second lists the launched and done attacks and holds of the
+  last 7/30/90 days and those with a saved settlement, with members, whether a battle is known and how many
+  deliveries are done (`GET /settlements`), plus a link to the public loot calculator for an ACS without a plan.
+  The settlement link is shown on launched and done holds too.
 
 - Notifications for full storages: a new kind `storage` (bell, push, Discord) when metal, crystal or deuterium storage
   on one of the member's planets is full by the newest synced pages (production up to the capacity, landing fleets

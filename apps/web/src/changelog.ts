@@ -25,6 +25,11 @@ export const CHANGELOG: ChangelogDay[] = [
       },
       {
         kind: 'new',
+        de: 'Raid Planer: neuer Reiter „Abrechnungen“ mit allen gestarteten und erledigten Angriffen und Halte-Aktionen, ob ein Kampfbericht da ist und wie viele Lieferungen schon erledigt sind. Halten wird jetzt wie ein AKS abgerechnet: Die Verteidiger teilen sich das Trümmerfeld, um ihre Verluste zu decken.',
+        en: 'Raid planner: new tab "Settlements" with all launched and done attacks and holds, whether a battle report is there and how many deliveries are done. Holds are now settled like an ACS: the defenders share the debris to cover their losses.',
+      },
+      {
+        kind: 'new',
         de: 'Benachrichtigung bei vollem Lager: Läuft Metall, Kristall oder Deuterium auf einem deiner Planeten voll, meldet das die Glocke, per Push und auf Discord. Der Hub rechnet die Produktion und ankommende Flotten seit deinem letzten Sync hoch. Monde zählen nicht, sie haben keine Produktion. Unter Konto lässt sich das für Push und Discord abschalten.',
         en: 'Full storage notifications: when metal, crystal or deuterium storage on one of your planets runs full, the bell, push and Discord tell you. The hub projects the production and arriving fleets since your last sync. Moons do not count, they have no production. Under Account it can be switched off for push and Discord.',
       },

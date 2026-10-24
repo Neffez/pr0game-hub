@@ -39,9 +39,12 @@ const lower = (s: string) => s.trim().toLowerCase();
  * battles at the target around the plan's time (fleets and losses from the archived battle report, else the planned
  * ships), loot by cargo space like the game unless a returning fleet in an overview carries something else, recycling
  * reports at the target within 24 hours (members outside the plan as helpers) and the deuterium of the attack flights.
+ * A hold is settled like an ACS: the defenders (hold fleets and the attacked member) share the debris to cover their
+ * lost ships; the attacker's loot is not theirs.
  */
 export function settlementDraft(db: DB, ctx: GroupContext, plan: PlanRow & { time_precision: string; guests: string | null }): { state: LootState; sources: DraftSources } {
   const state = emptyState();
+  const hold = plan.mission === 'hold';
   const sources: DraftSources = { battles: [], returnLoot: {}, flightDeut: {}, recycling: [] };
   const fleets = db
     .prepare(
@@ -61,6 +64,18 @@ export function settlementDraft(db: DB, ctx: GroupContext, plan: PlanRow & { tim
     if (state.participants.some((p) => p.id === id) || state.participants.length >= MAX_PARTICIPANTS) continue;
     state.participants.push({ id, name: f.member, flightDeut: 0, recDeut: 0, missiles: 0 });
   }
+  // a hold: the attacked member defends with the ships on the planet
+  const attacked = hold
+    ? (db
+        .prepare(
+          `SELECT e.member_id AS id, COALESCE(gm.ingame_name, u.username) AS name FROM attack_plan_enemy e JOIN users u ON u.id = e.member_id
+           LEFT JOIN group_members gm ON gm.group_id = ? AND gm.user_id = e.member_id WHERE e.plan_id = ?`,
+        )
+        .get(ctx.groupId, plan.id) as { id: number; name: string } | undefined)
+    : undefined;
+  if (attacked && !state.participants.some((p) => p.id === memberKey(attacked.id)) && state.participants.length < MAX_PARTICIPANTS) {
+    state.participants.push({ id: memberKey(attacked.id), name: attacked.name, flightDeut: 0, recDeut: 0, missiles: 0 });
+  }
   const guests = (plan.guests ? (JSON.parse(plan.guests) as Guest[]) : []).filter((g) => g.player);
   guests.forEach((g, i) => {
     if (state.participants.length >= MAX_PARTICIPANTS || state.participants.some((p) => lower(p.name) === lower(g.player!.name))) return;
@@ -78,6 +93,7 @@ export function settlementDraft(db: DB, ctx: GroupContext, plan: PlanRow & { tim
   }
   const username = db.prepare('SELECT username FROM users WHERE id = ?').pluck();
   for (const f of fleets) names.set(lower(username.get(f.user_id) as string), memberKey(f.user_id));
+  if (attacked) names.set(lower(username.get(attacked.id) as string), memberKey(attacked.id));
 
   // flight deuterium of the plan fleets (as the game charges it at launch)
   const u = ctx.universe.settings;
@@ -136,8 +152,8 @@ export function settlementDraft(db: DB, ctx: GroupContext, plan: PlanRow & { tim
     const key = b.report_id ?? b.c_report_id ?? `${b.time}:${b.loot_metal}:${b.loot_crystal}:${b.loot_deuterium}`;
     if (keys.has(key) || state.battles.length >= 20) continue;
     keys.add(key);
-    const loot = { m: b.loot_metal, k: b.loot_crystal, d: b.loot_deuterium };
-    if (!loot.m && !loot.k && !loot.d && b.c_metal != null) Object.assign(loot, { m: b.c_metal, k: b.c_crystal, d: b.c_deuterium });
+    const loot = hold ? { m: 0, k: 0, d: 0 } : { m: b.loot_metal, k: b.loot_crystal, d: b.loot_deuterium };
+    if (!hold && !loot.m && !loot.k && !loot.d && b.c_metal != null) Object.assign(loot, { m: b.c_metal, k: b.c_crystal, d: b.c_deuterium });
     const battleFleets = new Map<string, BattleFleet>();
     const add = (participant: string, start: Ships, end: Ships) => {
       const f = battleFleets.get(participant) ?? { participant, start: {}, end: {} };
@@ -146,8 +162,10 @@ export function settlementDraft(db: DB, ctx: GroupContext, plan: PlanRow & { tim
       battleFleets.set(participant, f);
     };
     if (b.fleets) {
-      for (const [side, name, ships] of JSON.parse(b.fleets) as [number, string, [number, number, number][]][]) {
-        const participant = side === 0 ? names.get(lower(name)) : undefined;
+      // attackers, or the defenders of a hold (ships only: defence is rebuilt)
+      for (const [side, name, all] of JSON.parse(b.fleets) as [number, string, [number, number, number][]][]) {
+        const participant = side === (hold ? 1 : 0) ? names.get(lower(name)) : undefined;
+        const ships = hold ? all.filter(([id]) => id >= 200 && id < 300) : all;
         if (!participant) continue;
         add(participant, Object.fromEntries(ships.map(([id, before]) => [id, before])), Object.fromEntries(ships.map(([id, , after]) => [id, after])));
       }
@@ -165,7 +183,7 @@ export function settlementDraft(db: DB, ctx: GroupContext, plan: PlanRow & { tim
   }
 
   // loot a returning fleet brings home (only with one battle: several waves cannot be told apart)
-  if (state.battles.length === 1) {
+  if (!hold && state.battles.length === 1) {
     const at = state.battles[0].time ?? plan.target_time;
     for (const p of state.participants) {
       if (!p.id.startsWith('u')) continue;
