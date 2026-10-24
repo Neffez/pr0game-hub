@@ -127,6 +127,7 @@ components:
         launch: { type: boolean, description: Launch reminders of the caller's plan fleets (default on) }
         buildings: { type: boolean, description: The next level of a building the caller waits for is affordable (default on) }
         fleets: { type: boolean, description: An own fleet the caller set an alert for arrives (or is about to, by the alert's lead) (default on) }
+        storage: { type: boolean, description: 'A storage (metal, crystal, deuterium) on one of the caller''s planets is full (default on)' }
         leadMinutes: { type: integer, enum: [1, 2, 5, 10, 15, 30], description: Launch reminder this many minutes ahead (default 5) }
     DiscordSettings:
       type: object
@@ -1651,15 +1652,15 @@ paths:
                   required: [id, kind, userId, member, time]
                   properties:
                     id: { type: string, description: Stable while the event lasts }
-                    kind: { type: string, enum: [attack, invite, comment, launch, building, fleet] }
-                    userId: { type: integer, description: 'attack: the attacked member; invite: who invited; comment: the newest author; launch, building and fleet: the caller' }
+                    kind: { type: string, enum: [attack, invite, comment, launch, building, fleet, storage] }
+                    userId: { type: integer, description: 'attack: the attacked member; invite: who invited; comment: the newest author; launch, building, fleet and storage: the caller' }
                     member: { type: string }
-                    time: { type: integer, description: Unix seconds (arrival, plan target time, newest comment, launch, since when a building level is affordable, or arrival of an alerted fleet) }
+                    time: { type: integer, description: Unix seconds (arrival, plan target time, newest comment, launch, since when a building level is affordable, arrival of an alerted fleet, or since when a storage is full) }
                     alert: { type: integer, description: 'building and fleet: id of the building or fleet alert' }
                     lead: { type: integer, description: 'fleet only: minutes before the arrival the alert reminds' }
                     planet:
                       type: object
-                      description: 'building only: the planet or moon'
+                      description: 'building: the planet or moon; storage: the planet (no type, moons have no production)'
                       properties:
                         g: { type: integer }
                         s: { type: integer }
@@ -1668,6 +1669,7 @@ paths:
                         name: { type: string }
                     element: { type: integer, description: 'building only: building id' }
                     level: { type: integer, description: 'building only: the affordable level' }
+                    resource: { type: integer, enum: [901, 902, 903], description: 'storage only: the full storage''s resource (metal, crystal, deuterium)' }
                     fleet: { type: object, description: 'attack: the fleet (for an ACS the lead fleet with all ships); fleet: the own fleet of the alert' }
                     fleets: { type: integer, description: 'attack only: number of fleets of an ACS' }
                     plan:

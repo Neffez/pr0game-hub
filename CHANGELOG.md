@@ -4,6 +4,16 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-24
 
+- Notifications for full storages: a new kind `storage` (bell, push, Discord) when metal, crystal or deuterium storage
+  on one of the member's planets is full by the newest synced pages (production up to the capacity, landing fleets
+  included; moons have no production and are left out). Listed a day from when it got full; `storage_full`
+  (migration 046) keeps since when, so newer syncs of a still full storage do not notify again, and a storage that is
+  no longer full notifies again the next time it runs full. New setting `storage` in push and Discord settings
+  (default on); `GET /notifications` gives `resource` and `planet`.
+  - The push and Discord ticks also look at the groups of members with push or a webhook, planned for the next time
+    a storage gets full (`AlertSchedule`); a group with nothing to wait for is only looked at again after a data
+    event.
+
 - Loot settlement: refunding the recycling helpers' recycler deuterium on top of their share is an option again
   (`Settings.helperDeut`, default off; `Helper.recDeut` back), as the rule is not settled. Tool and hub show the
   deuterium column of the helpers only when it is on.

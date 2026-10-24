@@ -134,7 +134,8 @@ describe('buildings page', () => {
     await app.push.tick(t + 601);
     expect(deliver).toHaveBeenCalledTimes(1);
     deliver.mockRestore();
-    expect(pushed.map((p) => p.payload.title)).toEqual(['🏗 Roboterfabrik 1 baubar']);
+    // the million deuterium of the transport also fill the deuterium tank
+    expect(pushed.map((p) => p.payload.title)).toEqual(['🏗 Roboterfabrik 1 baubar', '📦 Deuteriumtank voll']);
     db.prepare('DELETE FROM fleet_snapshots WHERE page_time = ?').run(t + 1);
     db.prepare('DELETE FROM building_alerts WHERE element_id = 14').run();
   });
@@ -291,3 +292,74 @@ describe('buildings page', () => {
   });
 });
 
+
+describe('full storages', () => {
+  const CAP = 255000;
+  /** Frank's planet with metal one hour before its storage 5 is full, and a moon with a full storage (no production). */
+  const frankEmpire = (metal: number) => ({
+    kind: 'empire', research: {},
+    planets: [
+      {
+        name: 'Mine', coords: { g: 2, s: 2, p: 2 }, type: 'planet', values: { 22: 5, 23: 5, 24: 5 }, fields: { used: 10, max: 163 },
+        resources: { 901: metal, 902: 0, 903: 0 }, perHour: { 901: 3600, 902: 0, 903: 0 }, building: null,
+      },
+      { name: 'Mond', coords: { g: 2, s: 2, p: 2 }, type: 'moon', values: { 22: 0 }, resources: { 901: 10000, 902: 0, 903: 0 }, perHour: {}, building: null },
+    ],
+  });
+  const frankPushes = () => pushed.filter((p) => p.endpoint === 'https://push.example/frank').map((p) => p.payload.title);
+
+  beforeAll(async () => {
+    db.prepare("INSERT INTO users (username, password_hash) VALUES ('frank', ?)").run(hashPassword('frankpass'));
+    ids.frank = db.prepare("SELECT id FROM users WHERE username = 'frank'").pluck().get() as number;
+    db.prepare("INSERT INTO group_members (group_id, user_id, ingame_name) VALUES (?, ?, 'Frank')").run(group, ids.frank);
+    h.frank = { cookie: await login('frank'), 'x-hub-group': String(group) };
+    await call('POST', '/push/subscriptions', h.frank, { endpoint: 'https://push.example/frank', keys: { p256dh: 'B'.repeat(87), auth: 'a'.repeat(22) } });
+    db.prepare('INSERT INTO empire_snapshots (group_id, user_id, created_at, data) VALUES (?, ?, ?, ?)').run(group, ids.frank, t, JSON.stringify(frankEmpire(CAP - 3600)));
+  });
+
+  it('notifies once when a planet storage runs full, on time and not for moons', async () => {
+    // the delivery after the sync plans the group for the storage
+    await app.push.deliver(group, t);
+    expect(frankPushes()).toEqual([]);
+    await app.push.tick(t + 1800);
+    expect(frankPushes()).toEqual([]);
+    await app.push.tick(t + 3601);
+    expect(frankPushes()).toEqual(['📦 Metallspeicher voll']);
+    expect(pushed.find((p) => p.endpoint === 'https://push.example/frank')!.payload.url).toContain('/u8/build?tab=buildings&c=2%3A2%3A2&type=planet');
+    await app.push.tick(t + 7200);
+    expect(frankPushes()).toEqual(['📦 Metallspeicher voll']);
+  });
+
+  it('keeps the notification over newer syncs while full and notifies again after it was emptied', async () => {
+    const { notificationsFor } = await import('../src/repo/notifications.js');
+    const { resolveGroup } = await import('../src/context.js');
+    const { groupUniverse } = await import('../src/notify.js');
+    const user = { id: ids.frank, username: 'frank', isAdmin: false, lang: 'de', dateFormat: 'auto' };
+    // a fresh context each time (it caches the newest empire pages)
+    const bell = async (at = t + 3700) => notificationsFor(db, resolveGroup(db, user, groupUniverse(db, group)!, group), at).filter((n) => n.kind === 'storage');
+    const first = await bell();
+    expect(first).toEqual([expect.objectContaining({ kind: 'storage', time: t + 3600, resource: 901, planet: { g: 2, s: 2, p: 2, name: 'Mine' } })]);
+    // still full on a newer page: same notification
+    db.prepare('INSERT INTO empire_snapshots (group_id, user_id, created_at, data) VALUES (?, ?, ?, ?)').run(group, ids.frank, t + 60, JSON.stringify(frankEmpire(CAP)));
+    expect((await bell()).map((n) => n.id)).toEqual([first[0].id]);
+    // listed a day
+    expect(await bell(t + 3600 + 86401)).toEqual([]);
+    // spent: gone, and once full again a new one
+    db.prepare('INSERT INTO empire_snapshots (group_id, user_id, created_at, data) VALUES (?, ?, ?, ?)').run(group, ids.frank, t + 120, JSON.stringify(frankEmpire(CAP - 7200)));
+    expect(await bell()).toEqual([]);
+    expect(db.prepare('SELECT COUNT(*) FROM storage_full WHERE user_id = ?').pluck().get(ids.frank)).toBe(0);
+    pushed.length = 0;
+    await app.push.deliver(group, t + 200);
+    await app.push.tick(t + 120 + 7201);
+    expect(frankPushes()).toEqual(['📦 Metallspeicher voll']);
+  });
+
+  it('respects the setting', async () => {
+    await call('POST', '/auth/push-settings', h.frank, { storage: false });
+    db.prepare('INSERT INTO empire_snapshots (group_id, user_id, created_at, data) VALUES (?, ?, ?, ?)').run(group, ids.frank, t + 200, JSON.stringify(frankEmpire(0)));
+    pushed.length = 0;
+    await app.push.deliver(group, t + 300);
+    await app.push.tick(t + 200 + 3600 * 72);
+    expect(frankPushes()).toEqual([]);
+  });
+});

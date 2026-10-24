@@ -35,7 +35,8 @@ External analysis tool for [pr0game](https://codeberg.org/pr0game/pr0game) based
 - **Raid statistics** (incl. recycling), **expeditions**, **expedition deck** (card counting), **battle hall** archive
 - **Admin**: universes (size, distance factors, fleet speed, time zone, deck), groups, members (including placeholders by in-game name with claim links), ingest log with reparse, player merge
 - **Notifications**: bell with hostile fleets heading for members (from the synced fleet movements), raid planner
-  invitations, new comments in your threads and your launch times; also as **push notifications** on desktop and phone
+  invitations, new comments in your threads, your launch times and full storages on your planets (by the production
+  and landing fleets since the last synced page); also as **push notifications** on desktop and phone
   (switched on per device under Account, each kind can be chosen) and to **Discord**: a personal webhook per user
   (own settings) and an alliance channel set by the alliance admins (attacks on members, new raid plans, launch
   reminders, members mentioned by their Discord user ID)

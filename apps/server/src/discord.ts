@@ -93,7 +93,7 @@ const EMBEDS_PER_MESSAGE = 10;
 /** A rate limit is waited for once if it ends within this many seconds. */
 const MAX_RETRY_AFTER = 10;
 const COLORS: Record<ChannelNotification['kind'] | Notification['kind'], number> = {
-  attack: 0xe74c3c, launch: 0xf39c12, invite: 0x3498db, plan: 0x3498db, comment: 0x95a5a6, building: 0x2ecc71, fleet: 0x6e8eea,
+  attack: 0xe74c3c, launch: 0xf39c12, invite: 0x3498db, plan: 0x3498db, comment: 0x95a5a6, building: 0x2ecc71, fleet: 0x6e8eea, storage: 0xe67e22,
 };
 
 type Item = { kind: keyof typeof COLORS; payload: PushPayload; mention?: string | null };
@@ -127,8 +127,8 @@ export class DiscordService {
   }
 
   /**
-   * Launch reminders, affordable buildings and fleet alerts: checks the groups with plan fleets ahead for a member's or
-   * the group's webhook and the groups with building or fleet alerts of members with a webhook; returns the stop.
+   * Launch reminders, affordable buildings, fleet alerts and full storages: checks the groups with plan fleets ahead for
+   * a member's or the group's webhook and, when due, the other groups of members with a webhook; returns the stop.
    */
   start(): () => void {
     const timer = setInterval(() => {
@@ -147,12 +147,9 @@ export class DiscordService {
       )
       .pluck()
       .all(t, t + TICK_AHEAD) as number[];
-    // groups with building or fleet alerts only when one of them may be ready (see AlertSchedule)
+    // groups of members with a webhook (building and fleet alerts, storages) only when one of them may be ready (see AlertSchedule)
     const alerts = this.db
-      .prepare(
-        `SELECT DISTINCT b.group_id FROM (SELECT group_id, user_id FROM building_alerts UNION SELECT group_id, user_id FROM fleet_alerts) b
-         JOIN users u ON u.id = b.user_id WHERE u.discord_webhook IS NOT NULL`,
-      )
+      .prepare('SELECT DISTINCT m.group_id FROM group_members m JOIN users u ON u.id = m.user_id WHERE u.discord_webhook IS NOT NULL')
       .pluck()
       .all() as number[];
     for (const g of alerts) if (!groups.includes(g) && this.alerts.due(g, t)) groups.push(g);
@@ -171,7 +168,7 @@ export class DiscordService {
   async deliver(groupId: number, t = now()) {
     const universe = groupUniverse(this.db, groupId);
     if (!universe) return;
-    // when the ticks look at the group's building and fleet alerts again (also when nobody here gets anything)
+    // when the ticks look at the group's building and fleet alerts and storages again (also when nobody here gets anything)
     this.alerts.plan(groupId, universe, t);
     this.db.prepare('DELETE FROM discord_sent WHERE sent_at < ?').run(t - SENT_KEEP);
     const mark = this.db.prepare('INSERT OR IGNORE INTO discord_sent (target, key, sent_at) VALUES (?, ?, ?)');
