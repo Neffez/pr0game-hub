@@ -21,6 +21,7 @@ import {
   draftOf,
   DRIVES_MAX_AGE,
   FLEET_SHIPS,
+  holdPlanetValues,
   FLEET_STATUSES,
   isCurrent,
   candidateHome,
@@ -117,7 +118,7 @@ const sims = (p: AttackPlan) => {
     const e = p.enemy;
     const research = { ...(e.research ?? {}), ...e.drives };
     const enemies = e.fleets.map((f) => ({ ships: f.ships, research, from: [e.from.g, e.from.s, e.from.p] as Coords3, speed: e.percent ?? 100 }));
-    return simLinks(settings.value.gameUrl, p.spy?.values ?? {}, enemies, target, planFleets(p));
+    return simLinks(settings.value.gameUrl, holdPlanetValues(p), enemies, target, planFleets(p));
   }
   return p.spy ? simLinks(settings.value.gameUrl, p.spy.values, planFleets(p), target) : null;
 };
@@ -267,7 +268,8 @@ async function planHold(a: HostileAttack) {
 }
 const attackShips = (a: HostileAttack) =>
   a.fleets.length > 1 ? t('notify.acs', { n: a.fleets.length }) : (a.fleets[0]?.mission != null ? t(`game.missions.${a.fleets[0].mission}`) : '');
-const canEditEnemy = (p: AttackPlan) => canEdit(p) || isParticipant(p);
+/** Enemy inputs: creator, admins, participants and, on a hold, the attacked member (the ships on their planet). */
+const canEditEnemy = (p: AttackPlan) => canEdit(p) || isParticipant(p) || (p.mission === 'hold' && p.enemy?.member_id === me.value);
 
 // ---- plan editing (creator, admins) ----
 const editing = reactive<Record<number, PlanDraft>>({});

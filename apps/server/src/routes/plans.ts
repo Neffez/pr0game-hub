@@ -66,6 +66,8 @@ interface EnemyBody {
   target_time?: number;
   /** hold plans: seconds from the impact the fleets land */
   hold_offset?: number;
+  /** hold plans: ships on the attacked planet for the simulators, null = from the empire page or spy report again */
+  planet_ships?: Record<string, unknown> | null;
 }
 
 interface FleetRow {
@@ -301,6 +303,7 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
     recall_lead: !!e.recall_lead,
     recall_seen: e.recall_seen ?? null,
     hold_offset: e.hold_offset,
+    planet_ships: e.planet_ships != null ? (JSON.parse(e.planet_ships) as Record<string, number>) : null,
     phalanx: e.phalanx_home != null ? { home: e.phalanx_home, time: e.phalanx_time } : null,
     percent: e.percent,
     buffer: e.buffer,
@@ -389,8 +392,12 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
   /** Creator, admins and every member with a fleet in the plan may change the enemy side of a plan. */
   function enemyOfPlan(ctx: GroupContext, planId: number) {
     const plan = planOf(ctx, planId);
-    if (plan.user_id !== ctx.user.id && !isAdmin(ctx) && !isParticipant(ctx, plan.id)) throw new HttpError(403, 'plan_not_yours', 'Only participants can change the enemy fleet');
     const enemy = db.prepare('SELECT * FROM attack_plan_enemy WHERE plan_id = ?').get(plan.id) as EnemyRow | undefined;
+    // a hold is also the attacked member's business (the ships on their planet)
+    const attacked = plan.mission === 'hold' && enemy?.member_id === ctx.user.id;
+    if (plan.user_id !== ctx.user.id && !isAdmin(ctx) && !isParticipant(ctx, plan.id) && !attacked) {
+      throw new HttpError(403, 'plan_not_yours', 'Only participants can change the enemy fleet');
+    }
     if (!enemy) throw new HttpError(404, 'plan_enemy_not_found', 'The plan has no enemy fleet');
     return { plan, enemy };
   }
@@ -449,9 +456,9 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
   }
 
   /**
-   * Inputs on the enemy fleet (followed fleet, drives, departure and recall window, candidate, buffer; hold offset)
-   * and the target time derived from them (a hold's from the impact): creator, admins and every member with a fleet in
-   * the plan.
+   * Inputs on the enemy fleet (followed fleet, drives, departure and recall window, candidate, buffer; hold offset and
+   * the ships on the attacked planet) and the target time derived from them (a hold's from the impact): creator, admins,
+   * every member with a fleet in the plan and, on a hold, the attacked member.
    */
   app.put<{ Params: { uni: string; id: string }; Body: EnemyBody }>('/api/:uni/plans/:id/enemy', async (req) => {
     const ctx = ctxOf(req);
@@ -481,6 +488,10 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
       const v = b.hold_offset;
       if (!Number.isInteger(v) || v < -3600 || v > 3600) throw new HttpError(400, 'plan_enemy_invalid', 'Hold offset: -3600 to 3600 seconds');
       set.hold_offset = v;
+    }
+    if (b.planet_ships !== undefined) {
+      if (plan.mission !== 'hold') throw new HttpError(400, 'plan_enemy_invalid', 'Planet ships only for hold plans');
+      set.planet_ships = b.planet_ships === null ? null : JSON.stringify(shipsOf(b.planet_ships));
     }
     const targetTime =
       plan.mission === 'hold' ? enemy.arrival + ((set.hold_offset as number | undefined) ?? enemy.hold_offset)

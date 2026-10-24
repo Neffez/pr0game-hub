@@ -58,6 +58,8 @@ export interface EnemyRow {
   /** recall window suggested by the overview pastes (the attack vanished before its arrival) */
   recall_seen?: { from: number; to: number } | null;
   hold_offset: number;
+  /** hold plans: ships on the attacked planet changed by hand (JSON), null: from the empire page or spy report */
+  planet_ships: string | null;
   phalanx_home: number | null;
   phalanx_time: number | null;
 }

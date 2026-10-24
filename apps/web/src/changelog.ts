@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Raid-Planer: Halten-Pläne zeigen die Flotte auf dem angegriffenen Planeten. Sie ist aus dem Imperium vorausgefüllt und lässt sich ändern, etwa wenn Schiffe vor dem Einschlag weggeschickt werden. Die Kampfsimulatoren rechnen damit.',
+        en: 'Raid planner: hold plans show the fleet on the attacked planet. It is filled in from the empire page and can be changed, e.g. when ships are sent away before the impact. The combat simulators use it.',
+      },
+      {
+        kind: 'new',
         de: 'Raid-Planer: Auch Halten-Pläne haben jetzt Links zum Kampfsimulator und zu TrashSim. Die feindlichen Flotten greifen an, euer Planet und die eingetragenen Flotten verteidigen.',
         en: 'Raid planner: hold plans now have links to the combat simulator and TrashSim too. The enemy fleets attack, your planet and the planned fleets defend.',
       },

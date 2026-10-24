@@ -4,6 +4,13 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-24
 
+- Raid planner hold plans show the fleet on the attacked planet, filled in from the member's empire page (else the
+  planet's newest spy report) and editable, e.g. when ships are sent away before the impact; the combat simulator
+  links use it in place of the planet's ships. Stored in `attack_plan_enemy.planet_ships` (migration `037`, null takes
+  the source again), set with `planet_ships` on `PUT /api/{uni}/plans/{id}/enemy`, returned as `enemy.planet_ships`
+  (OpenAPI description of `GET /api/{uni}/plans` updated). On hold plans the attacked member may change the enemy
+  inputs too, also without a fleet in the plan.
+
 - Raid planner hold plans get the combat simulator links too (game simulator and TrashSim), with the sides swapped:
   the enemy fleets attack with the attacking player's research from the newest spy report showing it (drives as in
   the plan), the defended planet (fleet, defense, resources, research from the attacked member's empire page, else
