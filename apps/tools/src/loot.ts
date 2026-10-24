@@ -1,5 +1,5 @@
 /* ACS loot calculator: glue between the page (../acs-loot/main.js) and @pr0hub/loot. */
-import { parseCombatReportText } from '@pr0hub/core/combat';
+import { parseCombatReportText, parseRecycleReportsText } from '@pr0hub/core/combat';
 import { TECH_NAMES } from '@pr0hub/core/tech';
 import { CAPACITY } from '@pr0hub/flight';
 import { battleFromReport as fromReport, localEpoch, type LootState, type ReportSide } from '@pr0hub/loot';
@@ -42,6 +42,11 @@ export type ReportResult = ({ ok: true } & ReturnType<typeof fromReport>) | { ok
 export function battleFromReport(state: LootState, text: string, side: ReportSide = 'attacker'): ReportResult {
   const report = parseCombatReportText(text, null);
   return report ? { ok: true, ...fromReport(state, report, localEpoch, 'p', side) } : { ok: false };
+}
+
+/** Metal and crystal of every recycling report in a pasted text (one or more reports copied from the game). */
+export function recyclingFromReports(text: string): { m: number; k: number }[] {
+  return parseRecycleReportsText(text).map((r) => ({ m: r.metal, k: r.crystal }));
 }
 
 /** Thousands separators like the game: 1.234.567 (German) or 1,234,567 (English). */

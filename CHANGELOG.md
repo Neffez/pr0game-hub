@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-24
 
+- Loot calculator (pr0game tools): recycling reports can be pasted, one or several at once; each adds a recycling row
+  with its metal and crystal for the chosen person. The recycling report parser moved into its own module without
+  cheerio (`parseRecycleReportsText`, exported from `@pr0hub/core/combat`).
+
 - Raid planner: hostile attacks can be hidden by hand for the whole group (`POST /hostile-attacks/hide` and
   `/unhide`, table `hidden_attacks`, migration 047) and come back from a collapsible "Hidden attacks" section at the
   end of the planning tab. A hide lasts until the attack's latest possible return; a later attack of the same fleet on the

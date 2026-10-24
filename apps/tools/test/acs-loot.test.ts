@@ -2,7 +2,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { battleFromReport, emptyState, encodeShare, fmtNum, fmtShort } from '../src/loot';
+import { battleFromReport, emptyState, encodeShare, fmtNum, fmtShort, recyclingFromReports } from '../src/loot';
 
 const report = [
   'The following fleets face each other on: 20 Oct 2026, 10:29:25',
@@ -57,6 +57,21 @@ describe('loot calculator glue', () => {
   });
 });
 
+const recycleReports = [
+  'Flottenhauptquartier', 'Recyclerbericht', '24. Okt 2026, 13:04:12',
+  'Deine Recycler haben an den Koordinaten [3:195:5] 40.219.074 Metall und 19.280.927 Kristall von insgesamt 142.823.000 Metall und 68.469.000 Kristall gesammelt.',
+  'Es werden 7.590 Recycler für das Trümmerfeld benötigt.',
+  'Fleet headquarters', 'Recycling report', '24 Oct 2026, 13:10:00',
+  'Your recyclers have collected 1,000 Metal and 2,000 Crystal from a total of 5,000 Metal and 6,000 Crystal at coordinates [3:195:5].',
+].join('\n');
+
+describe('recycling reports', () => {
+  it('takes every pasted recycling report', () => {
+    expect(recyclingFromReports(recycleReports)).toEqual([{ m: 40219074, k: 19280927 }, { m: 1000, k: 2000 }]);
+    expect(recyclingFromReports('nothing')).toEqual([]);
+  });
+});
+
 describe('loot calculator page', () => {
   beforeAll(async () => {
     const html = readFileSync(resolve(import.meta.dirname, '../acs-loot/index.html'), 'utf8');
@@ -73,5 +88,19 @@ describe('loot calculator page', () => {
     const names = [...document.querySelectorAll<HTMLInputElement>('#participants input[data-type="text"]')].map((el) => el.value);
     expect(names).toEqual(['Rolf', 'ballermann']);
     expect(document.getElementById('transferText')?.textContent).toMatch(/^Rolf \S+ 50k .* ballermann/);
+  });
+
+  it('adds a recycling row per pasted report for the chosen person', () => {
+    const area = document.querySelector<HTMLTextAreaElement>('textarea[data-paste-recycling]')!;
+    const by = document.querySelector<HTMLSelectElement>('select[data-recycle-by]')!;
+    by.value = 'b';
+    by.dispatchEvent(new Event('change', { bubbles: true }));
+    area.value = recycleReports;
+    area.dispatchEvent(new Event('input', { bubbles: true }));
+    document.querySelector<HTMLButtonElement>('[data-act="applyRecycling"]')!.click();
+    const rows = [...document.querySelectorAll('#recycling tbody tr')];
+    expect(rows).toHaveLength(3);
+    expect(rows.slice(1).map((r) => r.querySelector<HTMLSelectElement>('select')!.value)).toEqual(['b', 'b']);
+    expect(document.querySelector<HTMLTextAreaElement>('textarea[data-paste-recycling]')!.value).toBe('');
   });
 });

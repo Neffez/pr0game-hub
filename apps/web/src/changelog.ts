@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'AKS-Beuterechner: Recyclerberichte lassen sich einfügen, auch mehrere auf einmal. Jeder Bericht ergibt eine Recycling-Zeile mit Metall und Kristall für die gewählte Person.',
+        en: 'ACS loot calculator: recycling reports can be pasted, several at once too. Each report adds a recycling row with metal and crystal for the chosen person.',
+      },
+      {
+        kind: 'new',
         de: 'Raid Planer: Feindliche Angriffe lassen sich ausblenden, für die ganze Gruppe. Ausgeblendete Angriffe stehen in einem aufklappbaren Abschnitt am Ende der Seite und lassen sich dort wieder einblenden.',
         en: 'Raid planner: hostile attacks can be hidden, for the whole group. Hidden attacks are listed in a collapsible section at the end of the page and can be shown again from there.',
       },
