@@ -4,6 +4,15 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-24
 
+- Loot settlement for holds: a hold (ACS defence) is settled like an ACS. The draft takes the hold fleets and the
+  attacked member as participants, the battle report's defenders (ships only, defence left out) and no loot, so the
+  debris covers their losses; the attacked member may save it. `battleFromReport` takes the side (`attacker` or
+  `defender`), the loot calculator asks for it when a report is pasted.
+- Raid planner tabs "Planning" and "Settlements": the second lists the launched and done attacks and holds of the
+  last 7/30/90 days and those with a saved settlement, with members, whether a battle is known and how many
+  deliveries are done (`GET /settlements`), plus a link to the public loot calculator for an ACS without a plan.
+  The settlement link is shown on launched and done holds too.
+
 - Notifications for full storages: a new kind `storage` (bell, push, Discord) when metal, crystal or deuterium storage
   on one of the member's planets is full by the newest synced pages (production up to the capacity, landing fleets
   included; moons have no production and are left out). Listed a day from when it got full; `storage_full`

@@ -342,10 +342,14 @@ export function phalanxRange(level: number, u: UniverseSettings) {
   return level <= 1 ? 0 : Math.floor((level * level - 1) * factor);
 }
 
-/** Link to the public ACS loot calculator with a settlement (next to the flight calculator of the universe). */
-export function lootCalcLink(u: UniverseSettings, state: LootState): string {
+/** The public ACS loot calculator, next to the flight calculator of the universe. */
+export function lootCalcUrl(u: UniverseSettings): string {
   const flight = (u as UniverseSettings & { flightCalculatorUrl?: string }).flightCalculatorUrl;
-  const base = flight ? new URL('../acs-loot/', flight.split('#')[0]).href : LOOT_CALCULATOR_URL;
-  return `${base}#s=${encodeShare(state)}`;
+  return flight ? new URL('../acs-loot/', flight.split('#')[0]).href : LOOT_CALCULATOR_URL;
+}
+
+/** Link to the public ACS loot calculator with a settlement. */
+export function lootCalcLink(u: UniverseSettings, state: LootState): string {
+  return `${lootCalcUrl(u)}#s=${encodeShare(state)}`;
 }
 
