@@ -20,6 +20,16 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'AKS-Beuterechner: Recyclerberichte lassen sich einfügen, auch mehrere auf einmal. Jeder Bericht ergibt eine Recycling-Zeile mit Metall und Kristall für die gewählte Person.',
+        en: 'ACS loot calculator: recycling reports can be pasted, several at once too. Each report adds a recycling row with metal and crystal for the chosen person.',
+      },
+      {
+        kind: 'new',
+        de: 'Raid Planer: Feindliche Angriffe lassen sich ausblenden, für die ganze Gruppe. Ausgeblendete Angriffe stehen in einem aufklappbaren Abschnitt am Ende der Seite und lassen sich dort wieder einblenden.',
+        en: 'Raid planner: hostile attacks can be hidden, for the whole group. Hidden attacks are listed in a collapsible section at the end of the page and can be shown again from there.',
+      },
+      {
+        kind: 'new',
         de: 'Raid Planer: neuer Reiter „Abrechnungen“ mit allen gestarteten und erledigten Angriffen und Halte-Aktionen, ob ein Kampfbericht da ist und wie viele Lieferungen schon erledigt sind. Halten wird jetzt wie ein AKS abgerechnet: Die Verteidiger teilen sich das Trümmerfeld, um ihre Verluste zu decken.',
         en: 'Raid planner: new tab "Settlements" with all launched and done attacks and holds, whether a battle report is there and how many deliveries are done. Holds are now settled like an ACS: the defenders share the debris to cover their losses.',
       },

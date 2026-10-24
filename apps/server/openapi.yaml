@@ -1243,6 +1243,8 @@ paths:
       description: >-
         Hostile attacks on members (overview pastes) and from phalanx results, ACS fleets as one attack. Listed until
         their latest possible return, also after the impact (taken from the member's older fleet lists then).
+        `planId` and `holdPlanId` name the retime and hold plan answering an attack; `hidden` (`by`: member name,
+        `at`: epoch seconds) is set when a member hid it for the group, else null.
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
@@ -1252,6 +1254,55 @@ paths:
           content:
             application/json:
               schema: { type: array, items: { type: object } }
+  /api/{uni}/hostile-attacks/hide:
+    post:
+      tags: [Combat]
+      operationId: hideHostileAttack
+      description: >-
+        Hides a hostile attack in the raid planner for the whole group, until the attack's latest possible return
+        (`until`). A later attack with the same key (same route and lead ships) arriving after that is listed again.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [key]
+              properties:
+                key: { type: string, description: '`key` of the attack from GET /hostile-attacks' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object, properties: { ok: { type: boolean } } }
+        '404': { description: 'No such hostile attack listed (`attack_not_found`)' }
+  /api/{uni}/hostile-attacks/unhide:
+    post:
+      tags: [Combat]
+      operationId: unhideHostileAttack
+      description: Shows a hidden hostile attack again for the whole group (no error when it is not hidden).
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [key]
+              properties:
+                key: { type: string }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object, properties: { ok: { type: boolean } } }
   /api/{uni}/own-attacks:
     get:
       tags: [Combat]

@@ -144,6 +144,8 @@ export interface HostileAttack {
   /** retime and hold plan answering it */
   planId: number | null;
   holdPlanId: number | null;
+  /** hidden by hand for the group (until its latest possible return) */
+  hidden: { by: string | null; at: number } | null;
 }
 
 /** A fleet of a non-member in an own ACS (server: routes/plans.ts), with their player's research from spy reports. */

@@ -13,6 +13,7 @@ import {
   lootShares,
   newId,
   parseAmount,
+  recyclingFromReports,
   remaining,
   settle,
   shipName,
@@ -30,6 +31,8 @@ var pasteText = {};
 /* per battle: we were the attackers or the defenders (a hold) */
 var pasteSide = {};
 var reportMsg = {};
+/* pasted recycling reports: the text, who recycled, and the result of the last apply */
+var recyclePaste = {text: '', by: null, msg: null};
 
 /* ---------- helpers ---------- */
 
@@ -288,7 +291,20 @@ function buildRecycling() {
     (rows ? '<div class="table-wrap"><table><thead><tr><th>' + esc(t('by')) + '</th><th>' + esc(t('metal')) + '</th><th>' +
       esc(t('crystal')) + '</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div>' : '') +
     '<div class="row-actions"><button type="button" class="btn" data-act="addRecycling"' + (people().length ? '' : ' disabled') + '>' +
-    esc(t('addRecycling')) + '</button></div>';
+    esc(t('addRecycling')) + '</button></div>' + recyclePasteField();
+}
+
+/* Pasting recycling reports adds a row per report for the chosen person. */
+function recyclePasteField() {
+  if (!people().length) return '';
+  if (!people().some(function (p) { return p.id === recyclePaste.by; })) recyclePaste.by = people()[0].id;
+  var msg = recyclePaste.msg;
+  return '<div class="field" style="margin-top:10px"><label>' + esc(t('pasteRecycling')) + '</label>' +
+    '<textarea data-paste-recycling placeholder="' + esc(t('pasteRecyclingPlaceholder')) + '">' + esc(recyclePaste.text) + '</textarea>' +
+    '<div class="row-actions" style="margin-top:6px">' +
+    '<select class="input" style="width:auto" data-recycle-by aria-label="' + esc(t('by')) + '">' + personOptions(recyclePaste.by) + '</select>' +
+    '<button type="button" class="btn small" data-act="applyRecycling">' + esc(t('apply')) + '</button>' +
+    (msg ? '<span class="hint ' + (msg.ok ? 'ok' : 'err') + '">' + esc(msg.text) + '</span>' : '') + '</div></div>';
 }
 
 function buildInputs() {
@@ -553,6 +569,7 @@ function onChange(el) {
     renderTransfers(lastResult);
     return;
   }
+  if (el.matches('select[data-recycle-by]')) { recyclePaste.by = el.value; return; }
   if (el.matches('select[data-bind]')) onInput(el);
 }
 
@@ -605,6 +622,17 @@ var ACTIONS = {
     S.recycling.push({by: first.id, m: 0, k: 0});
     buildRecycling();
   },
+  applyRecycling: function () {
+    var rows = recyclingFromReports(recyclePaste.text);
+    if (!rows.length) {
+      recyclePaste.msg = {ok: false, text: t('recyclingFailed')};
+    } else {
+      rows.forEach(function (r) { S.recycling.push({by: recyclePaste.by, m: r.m, k: r.k}); });
+      recyclePaste.text = '';
+      recyclePaste.msg = {ok: true, text: '✓ ' + rows.length};
+    }
+    buildRecycling();
+  },
   delRecycling: function (el) { S.recycling.splice(Number(el.getAttribute('data-i')), 1); buildRecycling(); },
   useSuggestion: function () { S.transfers = null; },
   addTransfer: function () {
@@ -631,6 +659,7 @@ function bind() {
   document.addEventListener('input', function (e) {
     var el = e.target;
     if (el.matches('textarea[data-paste]')) { pasteText[el.getAttribute('data-paste')] = el.value; return; }
+    if (el.matches('textarea[data-paste-recycling]')) { recyclePaste.text = el.value; return; }
     if (el.matches('input[data-bind]')) onInput(el);
   });
   document.addEventListener('change', function (e) { onChange(e.target); });
@@ -643,6 +672,14 @@ function bind() {
   });
   document.addEventListener('paste', function (e) {
     var el = e.target;
+    if (el.matches && el.matches('textarea[data-paste-recycling]')) {
+      setTimeout(function () {
+        recyclePaste.text = el.value;
+        ACTIONS.applyRecycling();
+        update();
+      }, 0);
+      return;
+    }
     if (!el.matches || !el.matches('textarea[data-paste]')) return;
     setTimeout(function () {
       pasteText[el.getAttribute('data-paste')] = el.value;
@@ -674,6 +711,7 @@ function bind() {
     if (!window.confirm(t('resetConfirm'))) return;
     S = emptyState();
     pasteText = {};
+    recyclePaste = {text: '', by: null, msg: null};
     reportMsg = {};
     buildInputs();
     update();
