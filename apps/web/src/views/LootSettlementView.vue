@@ -5,7 +5,7 @@ import { useRoute } from 'vue-router';
 import { parseCombatReportText } from '@pr0hub/core/combat';
 import { CAPACITY } from '@pr0hub/flight';
 import {
-  battleFromReport, cleanState, decodeShare, localEpoch, lootShares, settle, type LootState, type Res, type SettlementResult, type TransferInput,
+  battleFromReport, cleanState, MAX_HELPER_KEEP, decodeShare, localEpoch, lootShares, settle, type LootState, type Res, type SettlementResult, type TransferInput,
 } from '@pr0hub/loot';
 import { uniApi } from '../api';
 import Hint from '../components/Hint.vue';
@@ -351,13 +351,12 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
             <h3>{{ t('loot.helpers') }} <Hint>{{ t('loot.helpersHint') }}</Hint></h3>
             <table class="data">
               <thead>
-                <tr><th>{{ t('common.name') }}</th><th class="num">{{ t('loot.keepPct') }}</th><th class="num">{{ t('loot.recDeut') }}</th></tr>
+                <tr><th>{{ t('common.name') }}</th><th class="num">{{ t('loot.keepPct') }}</th></tr>
               </thead>
               <tbody>
                 <tr v-for="h in state.helpers" :key="h.id">
                   <td>{{ h.name }}</td>
-                  <td class="num"><input v-model.number="h.keepPct" type="number" min="0" max="100" :disabled="!canEdit" /></td>
-                  <td class="num"><input v-model.number="h.recDeut" type="number" min="0" :disabled="!canEdit" /></td>
+                  <td class="num"><input v-model.number="h.keepPct" type="number" min="0" :max="MAX_HELPER_KEEP" :disabled="!canEdit" /></td>
                 </tr>
               </tbody>
             </table>

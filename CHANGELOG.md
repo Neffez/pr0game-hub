@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-24
 
+- Loot settlement, recycling helpers: they keep at most 20 % of what they recycled (default 20 %, less allowed;
+  `MAX_HELPER_KEEP`) and their recycler deuterium is no longer refunded on top (`Helper.recDeut` removed), as the
+  game's moderators confirmed.
+
 - Battle reports copied as text are archived when syncing: a report without its id takes the id of the group's
   battle message at the same target and time (same loot), else a local id `text-<epoch>-<g>-<s>-<p>`; archived
   reports keep the attacked planet or moon (`combat_reports.g/s/p/planet_type`, migration 045, also in
@@ -46,7 +50,7 @@ Every commit adds its changes here, newest first, grouped by date.
 
 - New package `@pr0hub/loot`: settles an ACS for the standalone loot calculator and the hub. It shares a battle's
   loot by the free cargo space of the surviving fleets like the game, covers the participants' costs (lost ships,
-  missiles, flight and recycler deuterium) and the recycling helpers' part (kept percentage plus their deuterium),
+  missiles, flight and recycler deuterium) and the recycling helpers' part (the kept share of what they recycled, at most 20 %),
   makes up for a missing resource at market rates, covers the same share of everyone's costs when the pot is too
   small, splits the profit equally or by the value of the ships sent and suggests transfers with few flights.
 

@@ -71,7 +71,7 @@ describe('raid settlements', () => {
     const { state, sources, result } = body.draft;
     expect(state.participants.map((p: { id: string; name: string }) => [p.id, p.name])).toEqual([[`u${ids.carol}`, 'Carol'], [`u${ids.dave}`, 'Dave']]);
     expect(state.participants[0].flightDeut).toBeGreaterThan(0);
-    expect(state.helpers).toEqual([{ id: `u${ids.erin}`, name: 'Erin', keepPct: 20, recDeut: 0 }]);
+    expect(state.helpers).toEqual([{ id: `u${ids.erin}`, name: 'Erin', keepPct: 20 }]);
     expect(state.battles).toHaveLength(1);
     expect(state.battles[0]).toMatchObject({ time: target, loot: { m: 400000, k: 200000, d: 50000 } });
     expect(state.battles[0].fleets).toEqual([

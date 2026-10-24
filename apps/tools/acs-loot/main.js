@@ -1,6 +1,7 @@
 /* ACS loot calculator UI. Calculation lives in @pr0hub/loot, glue in ../src/loot.ts. */
 import {
   LOOT_SHIPS,
+  MAX_HELPER_KEEP,
   MAX_PARTICIPANTS,
   battleFromReport,
   cleanState,
@@ -185,15 +186,14 @@ function buildHelpers() {
     return '<tr>' +
       '<td><input data-bind="' + base + 'name" data-type="text" value="' + esc(h.name) + '" placeholder="' + esc(t('name')) + '"></td>' +
       '<td><input class="num" inputmode="decimal" data-bind="' + base + 'keepPct" data-type="pct" value="' + esc(h.keepPct) + '"></td>' +
-      '<td>' + amountInput(base + 'recDeut', h.recDeut) + '</td>' +
       '<td><button type="button" class="x" data-act="delHelper" data-i="' + i + '" title="' + esc(t('remove')) + '">✕</button></td>' +
       '</tr>';
   }).join('');
   $('#helpers').innerHTML =
     '<div class="card-title">' + esc(t('helpers')) + '</div>' +
     '<p class="card-hint">' + esc(t('helpersHint')) + '</p>' +
-    (rows ? '<div class="table-wrap"><table><thead><tr><th>' + esc(t('name')) + '</th><th>' + esc(t('keepPct')) + '</th><th>' +
-      esc(t('recDeut')) + '</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div>' : '') +
+    (rows ? '<div class="table-wrap"><table><thead><tr><th>' + esc(t('name')) + '</th><th>' + esc(t('keepPct')) +
+      '</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div>' : '') +
     '<div class="row-actions"><button type="button" class="btn" data-act="addHelper">' + esc(t('addHelper')) + '</button></div>';
 }
 
@@ -473,7 +473,8 @@ function onInput(el) {
   }
   if (type === 'share' || type === 'pct') {
     var v = parseFloat(String(raw).replace(',', '.'));
-    v = Number.isFinite(v) ? Math.min(100, Math.max(0, v)) : 0;
+    // helpers keep at most 20 % by the game rules
+    v = Number.isFinite(v) ? Math.min(type === 'pct' ? MAX_HELPER_KEEP : 100, Math.max(0, v)) : 0;
     setPath(path, type === 'share' ? v / 100 : v);
     update();
     return;
@@ -551,7 +552,7 @@ var ACTIONS = {
   },
   delParticipant: function (el) { removePerson(S.participants.splice(Number(el.getAttribute('data-i')), 1)[0]); },
   addHelper: function () {
-    S.helpers.push({id: newId(S, 'h'), name: '', keepPct: 20, recDeut: 0});
+    S.helpers.push({id: newId(S, 'h'), name: '', keepPct: MAX_HELPER_KEEP});
     buildInputs();
   },
   delHelper: function (el) { removePerson(S.helpers.splice(Number(el.getAttribute('data-i')), 1)[0]); },

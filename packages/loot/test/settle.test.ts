@@ -132,18 +132,18 @@ describe('settle', () => {
     expect(r.warnings).toContain('costs_not_covered');
   });
 
-  it('lets helpers keep their share and refunds their deuterium', () => {
+  it('lets helpers keep their share (at most 20 %), without a deuterium refund', () => {
     const r = settle(
       base({
-        helpers: [{ id: 'h', name: 'Helper', keepPct: 20, recDeut: 5_000 }],
+        helpers: [{ id: 'h', name: 'Helper', keepPct: 30 }],
         recycling: [{ by: 'h', m: 100_000, k: 50_000 }],
         battles: [{ loot: { m: 0, k: 0, d: 10_000 }, fleets: [{ participant: 'a', start: { 203: 1 }, end: { 203: 1 } }] }],
       }),
     );
     const h = person(r, 'h');
-    expect(h.entitled).toEqual({ m: 20_000, k: 10_000, d: 5_000 });
-    expect(h.balance).toEqual({ m: -80_000, k: -40_000, d: 5_000 });
-    expect(person(r, 'a').entitled).toEqual({ m: 40_000, k: 20_000, d: 2_500 });
+    expect(h.entitled).toEqual({ m: 20_000, k: 10_000, d: 0 });
+    expect(h.balance).toEqual({ m: -80_000, k: -40_000, d: 0 });
+    expect(person(r, 'a').entitled).toEqual({ m: 40_000, k: 20_000, d: 5_000 });
     expect(settled(r.people, r.transfers)).toBe(true);
   });
 
@@ -172,7 +172,7 @@ describe('settle', () => {
           { id: 'b', name: 'B', recDeut: 777 },
           { id: 'c', name: 'C' },
         ],
-        helpers: [{ id: 'h', name: 'H', keepPct: 15, recDeut: 999 }],
+        helpers: [{ id: 'h', name: 'H', keepPct: 15 }],
         settings: { ...settings, mode: 'investment', deficitMetalShare: 0.4 },
         recycling: [
           { by: 'c', m: 333_333, k: 111_111 },

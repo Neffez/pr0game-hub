@@ -25,12 +25,14 @@ export interface Participant {
   extra?: Partial<Res>;
 }
 
-/** Recycles for the participants without being one: keeps `keepPct` % of the recycling plus the recycler deuterium. */
+/**
+ * Recycles for the participants without being one: keeps `keepPct` % of what they recycled (game rule: at most 20 %),
+ * their recycler deuterium is not refunded on top.
+ */
 export interface Helper {
   id: string;
   name: string;
   keepPct: number;
-  recDeut?: number;
 }
 
 /** A participant's fleet in one battle, as the battle report lists it. */
@@ -99,7 +101,7 @@ export interface PersonResult {
   recycled: Res;
   /** what the person holds now: loot + recycling */
   holds: Res;
-  /** costs to cover (participants) or the helper's part (kept share + deuterium) */
+  /** costs to cover (participants) or the helper's part (kept share of the recycling) */
   costs: Res;
   /** value of the ships sent in all battles (resources, as points * 1000) */
   invested: number;

@@ -85,8 +85,7 @@ components:
             properties:
               id: { type: string }
               name: { type: string }
-              keepPct: { type: number }
-              recDeut: { type: integer }
+              keepPct: { type: number, minimum: 0, maximum: 20, description: Share of what they recycled the helper keeps (game rule at most 20 %) }
         battles:
           type: array
           items:

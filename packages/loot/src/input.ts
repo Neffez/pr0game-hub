@@ -1,5 +1,5 @@
 import { CAPACITY } from '@pr0hub/flight';
-import { MAX_PARTICIPANTS } from './settle.js';
+import { MAX_HELPER_KEEP, MAX_PARTICIPANTS } from './settle.js';
 import type { Battle, BattleFleet, Helper, Participant, Recycling, Res, Settings, SettlementInput, Ships, Transfer } from './types.js';
 
 /** A transfer as entered by hand (ships are computed). */
@@ -75,7 +75,7 @@ export function cleanState(raw: unknown): LootState {
       : null,
   );
   const helpers = list<Helper>(raw.helpers, MAX_HELPERS, (h) =>
-    isObj(h) && str(h.id) ? { id: str(h.id), name: str(h.name), keepPct: num(h.keepPct, 0, 100), recDeut: int(h.recDeut) } : null,
+    isObj(h) && str(h.id) ? { id: str(h.id), name: str(h.name), keepPct: num(h.keepPct, 0, MAX_HELPER_KEEP) } : null,
   );
   const ids = new Set<string>();
   for (const p of [...participants, ...helpers]) {

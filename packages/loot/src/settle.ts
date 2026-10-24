@@ -10,6 +10,8 @@ export const MAX_PARTICIPANTS = ACS_LIMITS.maxParticipants;
 export const SHARE_WITHIN = 24 * 3600;
 /** Game rule: resources change hands at 75-125 % of the market price. */
 export const RATE_RANGE: readonly [number, number] = [0.75, 1.25];
+/** Game rule: a recycling helper keeps at most this share of what they recycled (%). */
+export const MAX_HELPER_KEEP = 20;
 /** Missile costs (interplanetary missile). */
 export const MISSILE = 503;
 
@@ -127,7 +129,7 @@ export function settle(input: SettlementInput): SettlementResult {
   const pot = sum(people.map(holds));
   const rates = settings.rates;
 
-  // claims: participants their costs, helpers their part of the recycling plus their deuterium
+  // claims: participants their costs, helpers their part of the recycling
   const missileCost = shipCosts({ [MISSILE]: 1 });
   const costs = participants.map((p) =>
     round(
@@ -140,8 +142,8 @@ export function settle(input: SettlementInput): SettlementResult {
   );
   const helperParts = helpers.map((h) => {
     const r = recycled.get(h.id)!;
-    const keep = Math.min(100, Math.max(0, h.keepPct)) / 100;
-    return round({ m: r.m * keep, k: r.k * keep, d: h.recDeut ?? 0 });
+    const keep = Math.min(MAX_HELPER_KEEP, Math.max(0, h.keepPct)) / 100;
+    return round({ m: r.m * keep, k: r.k * keep, d: 0 });
   });
 
   // helpers first (they keep their part), then the participants, scaled down alike when the pot is worth less

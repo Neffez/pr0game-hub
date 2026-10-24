@@ -12,6 +12,7 @@ export {
   encodeShare,
   lostShips,
   lootShares,
+  MAX_HELPER_KEEP,
   MAX_PARTICIPANTS,
   newId,
   planTransfers,

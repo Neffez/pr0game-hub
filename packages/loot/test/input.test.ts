@@ -14,7 +14,7 @@ describe('settlement input', () => {
     });
     expect(s.participants).toHaveLength(5);
     expect(s.participants[0]).toMatchObject({ id: 'a', name: 'Rolf', flightDeut: 1200, missiles: 0 });
-    expect(s.helpers[0].keepPct).toBe(100);
+    expect(s.helpers[0].keepPct).toBe(20);
     expect(s.battles[0]).toEqual({ time: 1, loot: { m: 2, k: 0, d: 0 }, fleets: [{ participant: 'a', start: { 207: 3 }, end: {} }] });
     expect(s.recycling).toEqual([{ by: 'h', m: 5, k: 6 }]);
     expect(s.settings).toMatchObject({ mode: 'investment', rates: { m: 2.8, k: 2, d: 1 }, cargoShip: 203 });
