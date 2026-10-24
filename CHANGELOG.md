@@ -5,7 +5,8 @@ Every commit adds its changes here, newest first, grouped by date.
 ## 2026-10-24
 
 - Fleet parser: the return of a harvest to a moon ("zurück zum Planeten Mond Ra [3:200:1]") is read as the moon
-  "Ra" instead of a planet named "Mond Ra"; a test covers an own ACS attack with friendly fleets ("Verbandsflotte").
+  "Ra" instead of a planet named "Mond Ra"; tests cover an own ACS attack with friendly fleets ("Verbandsflotte")
+  as copied text and as page source (new fixture `overview-acs.html`).
 - Account settings on phones: the page no longer gets wider than the screen (the API token table forced a minimum
   width, so the browser zoomed out and the bottom tab bar looked shifted and larger); the token table now scrolls
   inside its card.

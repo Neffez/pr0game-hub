@@ -631,6 +631,25 @@ describe('fleet movements', () => {
     ]);
   });
 
+  it('reads an own ACS attack with friendly fleets from the page source', () => {
+    const { records } = parsePage({ html: fixture('overview-acs.html') });
+    expect(records[0]).toMatchObject({ kind: 'overview', current: { coords: c(3, 200, 1), type: 'moon' } });
+    const rec = records.find((r) => r.kind === 'fleets') as any;
+    expect(rec.fleets.map((f: any) => [f.owner, f.mission, f.phase, f.seconds, f.acs, f.from.name, f.to.type, f.to.name])).toEqual([
+      ['foreign', 2, 'out', 3002, 0, 'Marquette', 'moon', 'Rees'],
+      ['own', 2, 'out', 3002, 0, 'Ra', 'moon', 'Rees'],
+      ['foreign', 2, 'out', 3002, 0, 'Mount Tsukuba', 'moon', 'Rees'],
+      ['own', 2, 'out', 3002, 0, 'Ra', 'moon', 'Rees'],
+      ['own', 8, 'out', 3065, null, 'Ra', 'debris', null],
+      ['own', 2, 'return', 5302, null, 'Rees', 'moon', 'Ra'],
+      ['own', 2, 'return', 5645, null, 'Rees', 'moon', 'Ra'],
+      ['own', 8, 'return', 7238, null, null, 'moon', 'Ra'],
+      ['own', 4, 'out', 9748, null, 'Whorus', 'moon', 'Ra'],
+    ]);
+    expect(rec.fleets[2].ships).toEqual({ 206: 347, 207: 11799, 215: 4406 });
+    expect(rec.fleets[8].resources).toEqual({ 901: 9966170, 902: 0, 903: 0 });
+  });
+
   it('places the arrival clock next to the estimated arrival', () => {
     const at = localToEpoch('2026-10-23 00:18:43');
     expect(nearestClock(at + 95, '00:18:43')).toBe(at);
