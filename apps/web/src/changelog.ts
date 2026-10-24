@@ -30,6 +30,21 @@ export const CHANGELOG: ChangelogDay[] = [
       },
       {
         kind: 'fix',
+        de: 'Flottenbewegungen: Recycler, die zu einem Mond zurückkehren, werden dem Mond zugeordnet statt einem Planeten.',
+        en: 'Fleet movements: recyclers returning to a moon are now assigned to the moon instead of a planet.',
+      },
+      {
+        kind: 'fix',
+        de: 'Retime-Planer: Werden die Einstellungen des Universums (Entfernungen, Flottengeschwindigkeit) korrigiert, rechnen offene Retime-Pläne ihre Zielzeit automatisch neu.',
+        en: 'Retime planner: when the universe settings (distances, fleet speed) are corrected, open retime plans recalculate their target time automatically.',
+      },
+      {
+        kind: 'fix',
+        de: 'Retime-Planer: Die Startzeiten passen wieder zur angezeigten Zielzeit. Verzögert der Gegner, wandert die Zielzeit mit, und weicht der Plan einmal ab, weist das Retime-Feld darauf hin und Speichern übernimmt die richtige Zeit.',
+        en: 'Retime planner: launch times match the shown target time again. If the enemy delays, the target time moves along, and if the plan ever differs, the retime box points it out and saving applies the right time.',
+      },
+      {
+        kind: 'fix',
         de: 'Kontoeinstellungen auf dem Handy: Die Seite passt wieder auf den Bildschirm, die untere Leiste bleibt an ihrem Platz.',
         en: 'Account settings on your phone: the page fits the screen again and the bottom bar stays in place.',
       },

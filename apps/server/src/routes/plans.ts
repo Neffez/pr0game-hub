@@ -7,7 +7,7 @@ import { isPhalanxText, localToEpoch, nearestClock, parseFleetsText } from '@pr0
 import { CLASS_RESEARCH } from '@pr0hub/core/tech';
 import { attackKey, hostileAttacks, PHALANX_KEEP, type Body, type EnemyFleet, type HostileAttack } from '../repo/hostile.js';
 import { latestEmpire, spyEmpire } from '../repo/empire.js';
-import { enemiesOf, followHolds, fromOf, launchedOf, planDrives, toOf, type EnemyRow, type LaunchFleet, type LaunchPlan, type PlanRow } from '../repo/plans.js';
+import { enemiesOf, followEnemies, fromOf, launchedOf, planDrives, toOf, type EnemyRow, type LaunchFleet, type LaunchPlan, type PlanRow } from '../repo/plans.js';
 import { contextOf, DISPLAY, MEMBER } from './util.js';
 
 const STATUSES = ['planning', 'launched', 'done', 'cancelled'];
@@ -215,7 +215,7 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
       .all(JSON.stringify(plans.map((p) => p.id))) as (LaunchFleet & Record<string, unknown> & { ships: string; manual: string | null; drives_time: number | null })[];
     const fleetDrives = planDrives(db, ctx);
     const enemies = new Map(enemiesOf(db, ctx, plans.map((p) => p.id)).map((e) => [e.plan_id, e]));
-    followHolds(db, plans as unknown as PlanRow[], enemies);
+    followEnemies(db, plans as unknown as PlanRow[], enemies);
     const launched = launchedOf(db, ctx, plans as unknown as LaunchPlan[], fleets);
     const spies = new Map(
       plans.map((p) => [p.id, p.mission === 'hold' ? holdSpy(ctx, p as unknown as SpyPlan, enemies.get(p.id)) : targetSpy(ctx, p as unknown as SpyPlan)]),

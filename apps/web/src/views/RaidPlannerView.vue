@@ -273,10 +273,16 @@ const canEditEnemy = (p: AttackPlan) => canEdit(p) || isParticipant(p) || (p.mis
 
 // ---- plan editing (creator, admins) ----
 const editing = reactive<Record<number, PlanDraft>>({});
-const startEdit = (p: AttackPlan) => (editing[p.id] = draftOf(p));
+/** the plan as the edit started: an unchanged time is not sent, so it cannot undo a retime saved meanwhile */
+const editStart: Record<number, PlanDraft> = {};
+const startEdit = (p: AttackPlan) => ((editStart[p.id] = draftOf(p)), (editing[p.id] = draftOf(p)));
 async function savePlan(p: AttackPlan) {
-  const body = draftBody(editing[p.id]);
-  if (!body) return void (error.value = t('plans.formInvalid'));
+  const d = editing[p.id];
+  const full = draftBody(d);
+  if (!full) return void (error.value = t('plans.formInvalid'));
+  const o = editStart[p.id];
+  const { target_time, time_precision, ...rest } = full;
+  const body = o && o.precision === d.precision && o.date === d.date && o.time === d.time ? rest : full;
   const ok = await run(async () => {
     const res = await uniApi<{ claimedBy: string | null }>(uni.value, `/plans/${p.id}`, { method: 'PUT', body });
     info.value = res.claimedBy ? t('plans.claimedBy', { name: res.claimedBy }) : '';

@@ -584,6 +584,34 @@ describe('fleet movements', () => {
     ]);
   });
 
+  it('reads an own ACS attack with friendly fleets and the harvest return to a moon', () => {
+    const text = [
+      'Ereignisse Ausblenden',
+      '    13:03:09 | 49m 36s Eine Verbandsflotte (3544 Schwerer Kreuzer) vom Mond Marquette [3:26:12] erreicht den Mond Rees [3:195:5]. Mission: Verbandsangriff',
+      '',
+      '    Eine deiner Flotten (2178 Schlachtschiff; 4348 Schlachtkreuzer) vom Mond Ra [3:200:1] erreicht den Mond Rees [3:195:5]. Mission: Verbandsangriff',
+      '',
+      '    Eine Verbandsflotte (347 Kreuzer; 11799 Schlachtschiff; 4406 Schlachtkreuzer) vom Mond Mount Tsukuba [3:160:5] erreicht den Mond Rees [3:195:5]. Mission: Verbandsangriff',
+      '',
+      '    Eine deiner Flotten (4821 Sturmtransporter) vom Mond Ra [3:200:1] erreicht den Mond Rees [3:195:5]. Mission: Verbandsangriff',
+      '    13:04:12 | 50m 39s Eine deiner Flotten (1700 Optimierter Recycler) vom Mond Ra [3:200:1] erreicht das Trümmerfeld [3:195:5]. Mission: Abbauen',
+      '    13:41:29 | 01h 27m 56s Eine deiner Flotten (2178 Schlachtschiff; 4348 Schlachtkreuzer) kehrt vom Mond Rees [3:195:5] zurück zum Mond Ra [3:200:1]. Mission: Verbandsangriff',
+      '    14:13:45 | 02h 00m 12s Eine deiner Flotten (1700 Optimierter Recycler) kehrt vom Trümmerfeld [3:195:5] zurück zum Planeten Mond Ra [3:200:1]. Mission: Abbauen',
+    ].join('\n');
+    const rec = parsePage({ text }).records[0] as any;
+    expect(rec.fleets.map((f: any) => [f.owner, f.mission, f.phase, f.seconds, f.acs, f.from.name, f.to.type, f.to.name])).toEqual([
+      ['foreign', 2, 'out', 2976, 0, 'Marquette', 'moon', 'Rees'],
+      ['own', 2, 'out', 2976, 0, 'Ra', 'moon', 'Rees'],
+      ['foreign', 2, 'out', 2976, 0, 'Mount Tsukuba', 'moon', 'Rees'],
+      ['own', 2, 'out', 2976, 0, 'Ra', 'moon', 'Rees'],
+      ['own', 8, 'out', 3039, null, 'Ra', 'debris', null],
+      ['own', 2, 'return', 5276, null, 'Rees', 'moon', 'Ra'],
+      ['own', 8, 'return', 7212, null, null, 'moon', 'Ra'],
+    ]);
+    expect(rec.fleets[2].ships).toEqual({ 206: 347, 207: 11799, 215: 4406 });
+    expect(rec.fleets[3].ships).toEqual({ 225: 4821 });
+  });
+
   it('splits an ACS event of the page source into its fleets', () => {
     const sentence = (cls: string, ships: string, mission: string) =>
       `<span class="${cls}">Eine <a href="#" class="tooltip attack">Flotten</a><span class="textForBlind"> (${ships})</span> vom Mond Mond ` +
@@ -601,6 +629,25 @@ describe('fleet movements', () => {
       ['hostile', 1, 1630, 0, { 210: 1 }],
       ['hostile', 2, 1630, 0, { 222: 1322 }],
     ]);
+  });
+
+  it('reads an own ACS attack with friendly fleets from the page source', () => {
+    const { records } = parsePage({ html: fixture('overview-acs.html') });
+    expect(records[0]).toMatchObject({ kind: 'overview', current: { coords: c(3, 200, 1), type: 'moon' } });
+    const rec = records.find((r) => r.kind === 'fleets') as any;
+    expect(rec.fleets.map((f: any) => [f.owner, f.mission, f.phase, f.seconds, f.acs, f.from.name, f.to.type, f.to.name])).toEqual([
+      ['foreign', 2, 'out', 3002, 0, 'Marquette', 'moon', 'Rees'],
+      ['own', 2, 'out', 3002, 0, 'Ra', 'moon', 'Rees'],
+      ['foreign', 2, 'out', 3002, 0, 'Mount Tsukuba', 'moon', 'Rees'],
+      ['own', 2, 'out', 3002, 0, 'Ra', 'moon', 'Rees'],
+      ['own', 8, 'out', 3065, null, 'Ra', 'debris', null],
+      ['own', 2, 'return', 5302, null, 'Rees', 'moon', 'Ra'],
+      ['own', 2, 'return', 5645, null, 'Rees', 'moon', 'Ra'],
+      ['own', 8, 'return', 7238, null, null, 'moon', 'Ra'],
+      ['own', 4, 'out', 9748, null, 'Whorus', 'moon', 'Ra'],
+    ]);
+    expect(rec.fleets[2].ships).toEqual({ 206: 347, 207: 11799, 215: 4406 });
+    expect(rec.fleets[8].resources).toEqual({ 901: 9966170, 902: 0, 903: 0 });
   });
 
   it('places the arrival clock next to the estimated arrival', () => {
