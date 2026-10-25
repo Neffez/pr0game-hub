@@ -168,7 +168,7 @@ function clock(epoch: number) {
           </span>
         </span>
       </div>
-      <div>
+      <div class="fl-line">
         <span class="fl-mission">{{ mission(r) }}</span>
         <button v-if="r.parts.length > 1" class="fl-toggle icon-btn small" :aria-expanded="open.has(r.key)" :aria-label="open.has(r.key) ? t('common.collapse') : t('common.expand')" @click="toggle(r.key)"><Icon :name="open.has(r.key) ? 'chevronDown' : 'chevronRight'" :size="14" /></button>
         <span v-if="f.phase !== 'out'" class="fl-phase"><Icon :name="f.phase === 'return' ? 'return' : 'pause'" :size="12" /> {{ t(`imperium.phase.${f.phase}`) }}</span>
@@ -278,6 +278,9 @@ td.fl-ships { display: table-cell; }
 td.fl-ships span { display: inline-block; margin-right: 8px; }
 .fl-cards { display: flex; flex-direction: column; gap: 8px; }
 .fl-card { display: flex; flex-direction: column; gap: 3px; padding: 6px 8px; border-left: 3px solid var(--mc); background: var(--surface-2); border-radius: 4px; }
+/* mission, phase and owner of a card: the template's line breaks between them render as nothing */
+.fl-line { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; }
+.fl-line .fl-phase, .fl-line .fl-toggle { margin-left: 0; }
 .fl-card.hostile { background: color-mix(in srgb, var(--neg) 12%, var(--surface-2)); }
 .fl-head { display: flex; align-items: baseline; gap: 8px; }
 .fl-toggle { margin-left: 6px; vertical-align: middle; }
