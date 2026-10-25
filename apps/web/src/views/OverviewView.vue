@@ -1,4 +1,9 @@
 <script setup lang="ts">
+import ActionMenu from '../components/ActionMenu.vue';
+import FilterBar, { type FilterChip } from '../components/FilterBar.vue';
+import Icon from '../components/Icon.vue';
+import PageHeader from '../components/PageHeader.vue';
+import SortBar from '../components/SortBar.vue';
 import SortMark from '../components/SortMark.vue';
 import { RESOURCES } from '@pr0hub/core/tech';
 import PlayerLink from '../components/PlayerLink.vue';
@@ -104,12 +109,13 @@ const desktopView = useStored('overview.desktopView', false);
 const mobile = computed(() => narrow.value && !desktopView.value);
 const mode = useStored<'planets' | 'players'>('overview.mode', 'planets');
 const win = useStored('overview.window', '24h');
-const filter = useStored('overview.filter', {
+/** Inactive players: all, hidden or only them. */
+const INACTIVE = ['all', 'hide', 'only'] as const;
+const FILTER_DEFAULTS = {
   text: '',
   ally: '',
-  hideInactive: false,
+  inactive: 'all' as (typeof INACTIVE)[number],
   hideVacation: true,
-  onlyInactive: false,
   minPoints: null as number | null,
   maxPoints: null as number | null,
   minDelta: null as number | null,
@@ -118,7 +124,16 @@ const filter = useStored('overview.filter', {
   from: '',
   onlySpied: false,
   hideMoons: false,
-});
+};
+const filter = useStored('overview.filter', { ...FILTER_DEFAULTS });
+// filters stored before: new fields with their defaults, the two inactive checkboxes become the three-way choice
+{
+  const old = filter.value as typeof FILTER_DEFAULTS & { hideInactive?: boolean; onlyInactive?: boolean };
+  const inactive = old.inactive ?? (old.onlyInactive ? 'only' : old.hideInactive ? 'hide' : 'all');
+  delete old.hideInactive;
+  delete old.onlyInactive;
+  filter.value = { ...FILTER_DEFAULTS, ...old, inactive };
+}
 const players = ref<Player[]>([]);
 const planets = ref<PlanetRow[]>([]);
 const coverage = ref<{ type: number; stat_time: number; rows: number; min_rank: number; max_rank: number }[]>([]);
@@ -164,8 +179,8 @@ function playerMatches(p: Player) {
   const ally = f.ally.trim().toLowerCase();
   if (text && !p.name.toLowerCase().includes(text) && !p.aliases.some((a) => a.toLowerCase().includes(text))) return false;
   if (ally && !`${p.ally_name ?? ''} ${p.ally_tag ?? ''}`.toLowerCase().includes(ally)) return false;
-  if (f.hideInactive && inactive(p)) return false;
-  if (f.onlyInactive && !inactive(p)) return false;
+  if (f.inactive === 'hide' && inactive(p)) return false;
+  if (f.inactive === 'only' && !inactive(p)) return false;
   if (f.hideVacation && p.status.includes('vacation')) return false;
   const total = p.scores[1]?.points ?? 0;
   if (minPoints != null && total < minPoints) return false;
@@ -361,10 +376,29 @@ const playerSortOptions = computed(() => [
     { key: 'd:' + type, label: `Δ ${STATS_TYPES[type]}` },
   ]),
 ]);
-const activeSort = computed(() => (mode.value === 'planets' ? planetSort : playerSort));
 const expanded = ref(new Set<string>());
 const toggle = (key: string) => (expanded.value.has(key) ? expanded.value.delete(key) : expanded.value.add(key));
-const filtersOpen = ref(false);
+/** Filters differing from the defaults, as removable chips (the name search stays in its field). */
+const chips = computed<FilterChip[]>(() => {
+  const f = filter.value;
+  const out: FilterChip[] = [];
+  const add = (key: keyof typeof FILTER_DEFAULTS, label: string) => out.push({ key, label, clear: () => ((filter.value as Record<string, unknown>)[key] = FILTER_DEFAULTS[key]) });
+  if (f.ally.trim()) add('ally', `${t('common.alliance')}: ${f.ally.trim()}`);
+  if (f.inactive !== 'all') add('inactive', t(`overview.inactiveChip.${f.inactive}`));
+  if (!f.hideVacation) add('hideVacation', t('overview.vacationShown'));
+  if (bound(f.minPoints) != null) add('minPoints', `${t('expeditions.points')} ≥ ${fmt(f.minPoints!)}`);
+  if (bound(f.maxPoints) != null) add('maxPoints', `${t('expeditions.points')} ≤ ${fmt(f.maxPoints!)}`);
+  if (bound(f.minDelta) != null) add('minDelta', `Δ ${STATS_TYPES[f.deltaType]} ≥ ${fmt(f.minDelta!)}`);
+  if (mode.value === 'planets') {
+    if (galaxy.value) add('galaxy', `${t('nav.galaxy')} ${galaxy.value}`);
+    if (origin.value) add('from', `${t('overview.dist')} ${f.from.trim()}`);
+    if (f.onlySpied) add('onlySpied', t('overview.onlySpied'));
+    if (f.hideMoons) add('hideMoons', t('overview.hideMoons'));
+  }
+  return out;
+});
+/** Back to the defaults; the name search and the Δ category stay. */
+const resetFilters = () => (filter.value = { ...FILTER_DEFAULTS, text: filter.value.text, deltaType: filter.value.deltaType });
 
 /** Former name matching the name filter (the player is listed because of it). */
 function matchedAlias(p: Player) {
@@ -417,104 +451,135 @@ const history = computed(() => {
 </script>
 
 <template>
-  <h1 class="row" style="gap: 6px">
-    {{ t('nav.overview') }}
-    <Hint>
-      <p>{{ t('overview.hint1') }}</p>
-      <p>{{ t('overview.hint2') }}</p>
-      <p>{{ t('overview.hint3') }}</p>
-      <p>{{ t('overview.hint4') }}</p>
-      <p>{{ t('overview.hint5') }}</p>
-      <p>{{ t('overview.hint6') }}</p>
-    </Hint>
-    <Hint v-if="players.length && !history" warn>{{ t('overview.needTwoStands') }}</Hint>
-    <template v-if="narrow">
-      <span class="grow" />
-      <div class="tabs small" style="margin: 0; font-weight: 400" :title="t('overview.layoutTitle')">
-        <button :class="{ active: !desktopView }" @click="desktopView = false">{{ t('overview.layoutMobile') }}</button>
-        <button :class="{ active: desktopView }" @click="desktopView = true">{{ t('overview.layoutDesktop') }}</button>
-      </div>
+  <PageHeader :title="t('nav.overview')">
+    <template #hint>
+      <Hint>
+        <p>{{ t('overview.hint1') }}</p>
+        <p>{{ t('overview.hint2') }}</p>
+        <p>{{ t('overview.hint3') }}</p>
+        <p>{{ t('overview.hint4') }}</p>
+        <p>{{ t('overview.hint5') }}</p>
+        <p>{{ t('overview.hint6') }}</p>
+      </Hint>
+      <Hint v-if="players.length && !history" warn>{{ t('overview.needTwoStands') }}</Hint>
     </template>
-  </h1>
+    <ActionMenu
+      v-if="narrow"
+      :items="[{ label: desktopView ? t('overview.layoutMobile') : t('overview.layoutDesktop'), hint: t('overview.layoutTitle'), onClick: () => (desktopView = !desktopView) }]"
+    />
+  </PageHeader>
 
-  <div class="card" :class="{ collapsed: mobile && !filtersOpen }">
-    <div class="row">
-      <div class="tabs" style="margin: 0">
+  <FilterBar store-key="overview" :chips="chips" @reset="resetFilters">
+    <template #toolbar>
+      <div class="seg">
         <button :class="{ active: mode === 'planets' }" @click="mode = 'planets'">{{ t('player.planets') }}</button>
         <button :class="{ active: mode === 'players' }" @click="mode = 'players'">{{ t('stats.players') }}</button>
       </div>
-      <label v-if="mode === 'players'" class="more">
+      <input v-model="filter.text" type="search" class="search" :placeholder="t('overview.searchPlayer')" :aria-label="t('overview.searchPlayer')" />
+    </template>
+    <template #end>
+      <label v-if="mode === 'players'" class="window">
         {{ t('overview.deltaWindow') }}
         <select v-model="win">
           <option v-for="w in WINDOWS" :key="w" :value="w">{{ windowLabel(w) }}</option>
         </select>
       </label>
-      <input v-model="filter.text" :placeholder="t('common.player')" style="width: 190px" />
-      <button v-if="mobile" :class="{ active: filtersOpen }" @click="filtersOpen = !filtersOpen">{{ t('overview.filters') }} {{ filtersOpen ? '▴' : '▾' }}</button>
-      <input v-model="filter.ally" class="more" :placeholder="t('common.alliance')" style="width: 110px" />
-      <label class="more"><input v-model="filter.hideInactive" type="checkbox" /> {{ t('overview.hideInactive') }}</label>
-      <label class="more"><input v-model="filter.onlyInactive" type="checkbox" /> {{ t('overview.onlyInactive') }}</label>
-      <label class="more"><input v-model="filter.hideVacation" type="checkbox" /> {{ t('overview.hideVacation') }}</label>
-      <label class="more">{{ t('expeditions.points') }} <input v-model.number="filter.minPoints" type="number" placeholder="min" /> – <input v-model.number="filter.maxPoints" type="number" placeholder="max" /></label>
-      <label class="more">
-        Δ
+      <span class="grow" />
+      <span class="muted small count">
+        <template v-if="mode === 'planets'">{{ t('overview.rows', { n: planetSort.sorted.value.length }) }} · </template>{{ t('overview.playerCount', { n: filteredPlayers.length, total: players.length }) }}
+      </span>
+    </template>
+
+    <div class="filter-group">
+      <span class="filter-title">{{ t('common.player') }}</span>
+      <div class="field">
+        <span class="lbl">{{ t('common.alliance') }}</span>
+        <input v-model="filter.ally" :placeholder="t('overview.allyPlaceholder')" />
+      </div>
+      <div class="field">
+        <span class="lbl">{{ t('overview.inactive') }}</span>
+        <div class="seg">
+          <button v-for="v in INACTIVE" :key="v" :class="{ active: filter.inactive === v }" @click="filter.inactive = v">{{ t(`overview.inactiveMode.${v}`) }}</button>
+        </div>
+      </div>
+      <label class="check"><input v-model="filter.hideVacation" type="checkbox" /> {{ t('overview.hideVacation') }}</label>
+    </div>
+    <div class="filter-group">
+      <span class="filter-title">{{ t('expeditions.points') }}</span>
+      <div class="field range">
+        <input v-model.number="filter.minPoints" type="number" min="0" placeholder="min" :aria-label="t('overview.minPoints')" />
+        <span class="faint">–</span>
+        <input v-model.number="filter.maxPoints" type="number" min="0" placeholder="max" :aria-label="t('overview.maxPoints')" />
+      </div>
+    </div>
+    <div class="filter-group">
+      <span class="filter-title">{{ t('overview.growth') }}</span>
+      <div class="field">
+        <span class="lbl">{{ t('overview.growthType') }}</span>
         <select v-model.number="filter.deltaType">
           <option v-for="(l, type) in STATS_TYPES" :key="type" :value="Number(type)">{{ l }}</option>
         </select>
-        <select v-if="mode === 'planets'" v-model="win">
+      </div>
+      <div v-if="mode === 'planets'" class="field">
+        <span class="lbl">{{ t('overview.deltaWindow') }}</span>
+        <select v-model="win">
           <option v-for="w in WINDOWS" :key="w" :value="w">{{ windowLabel(w) }}</option>
         </select>
-        ≥ <input v-model.number="filter.minDelta" type="number" />
-      </label>
+      </div>
+      <div class="field">
+        <span class="lbl">{{ t('overview.atLeast') }}</span>
+        <input v-model.number="filter.minDelta" type="number" />
+      </div>
     </div>
-    <div class="row" style="margin-top: 8px">
-      <template v-if="mode === 'planets'">
-        <label v-if="galaxies > 1" class="more">
-          {{ t('nav.galaxy') }}
-          <select v-model="galaxy">
-            <option :value="null">{{ t('common.all') }}</option>
-            <option v-for="g in galaxies" :key="g" :value="g">{{ g }}</option>
-          </select>
-        </label>
-        <label class="more">{{ t('overview.distanceFrom') }} <input v-model="filter.from" placeholder="1:100:8" style="width: 90px" /></label>
-        <label class="more"><input v-model="filter.onlySpied" type="checkbox" /> {{ t('overview.onlySpied') }}</label>
-        <label class="more"><input v-model="filter.hideMoons" type="checkbox" /> {{ t('overview.hideMoons') }}</label>
-      </template>
-      <span class="grow" />
-      <span class="muted small">
-        <template v-if="mode === 'planets'">{{ t('overview.rows', { n: planetSort.sorted.value.length }) }} · </template>{{ t('overview.playerCount', { n: filteredPlayers.length, total: players.length }) }}
-      </span>
+    <div v-if="mode === 'planets'" class="filter-group">
+      <span class="filter-title">{{ t('player.planets') }}</span>
+      <div v-if="galaxies > 1" class="field">
+        <span class="lbl">{{ t('nav.galaxy') }}</span>
+        <select v-model="galaxy">
+          <option :value="null">{{ t('common.all') }}</option>
+          <option v-for="g in galaxies" :key="g" :value="g">{{ g }}</option>
+        </select>
+      </div>
+      <div class="field">
+        <span class="lbl">{{ t('overview.distanceFrom') }}</span>
+        <input v-model="filter.from" class="mono" placeholder="1:100:8" size="10" />
+      </div>
+      <label class="check"><input v-model="filter.onlySpied" type="checkbox" /> {{ t('overview.onlySpied') }}</label>
+      <label class="check"><input v-model="filter.hideMoons" type="checkbox" /> {{ t('overview.hideMoons') }}</label>
     </div>
-    <div class="row small muted" style="margin-top: 8px; gap: 6px">
-      <span>
-        {{ t('nav.stats') }} <b v-if="newestStat">{{ time(newestStat) }}</b><span v-else class="warn">{{ t('overview.missing') }}</span>
-        <template v-if="history"> · {{ t('overview.historySince', { time: dateTime(history) }) }}</template>
-      </span>
-      <Hint>
-        <table class="cov">
-          <tr v-for="type in [1, 2, 3, 4, 5]" :key="type">
-            <td>{{ STATS_TYPES[type] }}</td>
-            <template v-if="latest[type]">
-              <td :class="{ warn: outdated(type) }">{{ dateTime(latest[type].time) }}</td>
-              <td>{{ t('overview.coveragePlayers', { n: latest[type].rows }) }}</td>
-              <td>{{ t('overview.coverageRank', { n: latest[type].max }) }}</td>
-            </template>
-            <td v-else colspan="3" class="warn">{{ t('overview.missing') }}</td>
-          </tr>
-        </table>
-        <p>{{ t('overview.coverageHint1') }}</p>
-        <p>{{ t('overview.coverageHint2') }}</p>
-      </Hint>
-      <span
-        v-for="type in staleTypes"
-        :key="type"
-        class="warn"
-        :title="latest[type] ? t('overview.staleTitle', { time: dateTime(latest[type].time), newest: dateTime(newestStat) }) : t('overview.notPasted')"
-      >
-        ⚠ {{ STATS_TYPES[type] }} {{ latest[type] ? t('overview.older', { time: time(latest[type].time) }) : t('overview.missing') }}
-      </span>
-    </div>
-  </div>
+
+    <template #status>
+      <div class="row small muted status">
+        <span>
+          {{ t('nav.stats') }} <b v-if="newestStat">{{ time(newestStat) }}</b><span v-else class="warn">{{ t('overview.missing') }}</span>
+          <template v-if="history"> · {{ t('overview.historySince', { time: dateTime(history) }) }}</template>
+        </span>
+        <Hint>
+          <table class="cov">
+            <tr v-for="type in [1, 2, 3, 4, 5]" :key="type">
+              <td>{{ STATS_TYPES[type] }}</td>
+              <template v-if="latest[type]">
+                <td :class="{ warn: outdated(type) }">{{ dateTime(latest[type].time) }}</td>
+                <td>{{ t('overview.coveragePlayers', { n: latest[type].rows }) }}</td>
+                <td>{{ t('overview.coverageRank', { n: latest[type].max }) }}</td>
+              </template>
+              <td v-else colspan="3" class="warn">{{ t('overview.missing') }}</td>
+            </tr>
+          </table>
+          <p>{{ t('overview.coverageHint1') }}</p>
+          <p>{{ t('overview.coverageHint2') }}</p>
+        </Hint>
+        <span
+          v-for="type in staleTypes"
+          :key="type"
+          class="warn"
+          :title="latest[type] ? t('overview.staleTitle', { time: dateTime(latest[type].time), newest: dateTime(newestStat) }) : t('overview.notPasted')"
+        >
+          <Icon name="warning" :size="12" /> {{ STATS_TYPES[type] }} {{ latest[type] ? t('overview.older', { time: time(latest[type].time) }) : t('overview.missing') }}
+        </span>
+      </div>
+    </template>
+  </FilterBar>
 
   <div v-if="error" class="error">{{ error }}</div>
   <div v-else-if="!loading && !players.length" class="card muted">
@@ -525,18 +590,14 @@ const history = computed(() => {
 
   <!-- Mobile: two-line list with sort selection, tap the values to see all of them -->
   <template v-else-if="mobile">
-    <div class="row small m-sort">
-      <label>
-        {{ t('overview.sort') }}
-        <select v-if="mode === 'planets'" :value="planetSort.key.value" style="max-width: 55vw" @change="planetSort.sortBy(($event.target as HTMLSelectElement).value)">
-          <option v-for="o in planetSortOptions" :key="o.key" :value="o.key">{{ o.label }}</option>
-        </select>
-        <select v-else :value="playerSort.key.value" style="max-width: 55vw" @change="playerSort.sortBy(($event.target as HTMLSelectElement).value)">
-          <option v-for="o in playerSortOptions" :key="o.key" :value="o.key">{{ o.label }}</option>
-        </select>
-      </label>
-      <button :title="t('overview.sortDir')" @click="activeSort.descending.value = !activeSort.descending.value">{{ activeSort.descending.value ? '▾' : '▴' }}</button>
-    </div>
+    <SortBar
+      v-if="mode === 'planets'"
+      v-model:desc="planetSort.descending.value"
+      :sort-key="planetSort.key.value"
+      :options="planetSortOptions"
+      @sort="planetSort.sortBy"
+    />
+    <SortBar v-else v-model:desc="playerSort.descending.value" :sort-key="playerSort.key.value" :options="playerSortOptions" @sort="playerSort.sortBy" />
 
     <div v-if="mode === 'planets'" class="m-list">
       <div v-for="(r, i) in planetsShown" :key="r.key" class="m-item" :class="{ dim: r.player.status.includes('vacation'), moon: r.planet?.type === 'moon' }">
@@ -546,7 +607,7 @@ const history = computed(() => {
           <PlayerLink :id="r.player.id" :name="r.player.name" />
           <span v-if="matchedAlias(r.player)" class="faint small">({{ t('player.aliases', { names: matchedAlias(r.player) }) }})</span>
           <StatusBadges :status="r.player.status" />
-          <span v-if="r.player.note" class="faint small" :title="r.player.note">✎</span>
+          <Icon v-if="r.player.note" name="edit" :size="12" class="faint" :label="r.player.note" />
           <span v-if="r.player.ally_tag ?? r.player.ally_name" class="muted small">[{{ r.player.ally_tag ?? r.player.ally_name }}]</span>
           <span class="grow" />
           <template v-if="r.planet">
@@ -554,7 +615,7 @@ const history = computed(() => {
               <a v-if="hasGameUrl" :href="galaxyLink(r.planet)" target="_blank" rel="noopener">{{ r.planet.g }}:{{ r.planet.s }}:{{ r.planet.p }}</a>
               <template v-else>{{ r.planet.g }}:{{ r.planet.s }}:{{ r.planet.p }}</template>
             </span>
-            <span v-if="r.planet.type === 'moon'" class="moon-tag" style="margin: 0">☾</span>
+            <span v-if="r.planet.type === 'moon'" class="moon-tag" style="margin: 0"><Icon name="moon" :size="11" :label="t('common.moon')" /></span>
             <PlanetActions :g="r.planet.g" :s="r.planet.s" :p="r.planet.p" :type="r.planet.type" :from="origin" />
           </template>
           <span v-else class="faint small" :title="t('overview.noPlanets')">–</span>
@@ -563,7 +624,7 @@ const history = computed(() => {
           <span v-for="m in planetChips" :key="m.key" class="m-chip" :class="{ sorted: m.key === planetSort.key.value }">
             <span class="faint">{{ m.label }}</span> <span :style="m.cell(r).style">{{ m.cell(r).text || '–' }}</span>
           </span>
-          <span class="m-toggle faint">{{ expanded.has(r.key) ? '▴' : '▾' }}</span>
+          <Icon :name="expanded.has(r.key) ? 'chevronDown' : 'chevronRight'" :size="14" class="m-toggle faint" />
         </button>
         <div v-if="expanded.has(r.key)" class="m-grid small">
           <div v-for="m in planetMetrics" :key="m.key" :class="{ sorted: m.key === planetSort.key.value }">
@@ -582,13 +643,13 @@ const history = computed(() => {
         <div class="m-line">
           <span class="small muted">
             #{{ r.scores[1]?.rank ?? '–' }}
-            <span v-if="r.scores[1]?.rankChange" :class="r.scores[1].rankChange > 0 ? 'pos' : 'neg'">{{ r.scores[1].rankChange > 0 ? '▲' : '▼' }}{{ Math.abs(r.scores[1].rankChange) }}</span>
+            <span v-if="r.scores[1]?.rankChange" :class="r.scores[1].rankChange > 0 ? 'pos' : 'neg'"><Icon :name="r.scores[1].rankChange > 0 ? 'rankUp' : 'rankDown'" :size="10" />{{ Math.abs(r.scores[1].rankChange) }}</span>
           </span>
           <span v-if="freshInactive(r) != null" class="badge" style="color: var(--neg)" :title="t('overview.inactiveSince')">{{ freshInactive(r) }}h</span>
           <PlayerLink :id="r.id" :name="r.name" />
           <span v-if="matchedAlias(r)" class="faint small">({{ t('player.aliases', { names: matchedAlias(r) }) }})</span>
           <StatusBadges :status="r.status" />
-          <span v-if="r.note" class="faint small" :title="r.note">✎</span>
+          <Icon v-if="r.note" name="edit" :size="12" class="faint" :label="r.note" />
           <span class="grow" />
           <span class="muted small">{{ r.ally_tag ?? r.ally_name ?? '' }}</span>
         </div>
@@ -640,13 +701,13 @@ const history = computed(() => {
             <PlayerLink :id="r.player.id" :name="r.player.name" />
             <span v-if="matchedAlias(r.player)" class="faint small"> ({{ t('player.aliases', { names: matchedAlias(r.player) }) }})</span>
             <StatusBadges :status="r.player.status" />
-            <span v-if="r.player.note" class="faint small" :title="r.player.note"> ✎</span>
+             <Icon v-if="r.player.note" name="edit" :size="12" class="faint" :label="r.player.note" />
           </td>
           <td class="mono small">
             <template v-if="r.planet">
               <a v-if="hasGameUrl" :href="galaxyLink(r.planet)" target="_blank" rel="noopener" :title="r.planet.name ?? ''">{{ r.planet.g }}:{{ r.planet.s }}:{{ r.planet.p }}</a>
               <span v-else :title="r.planet.name ?? ''">{{ r.planet.g }}:{{ r.planet.s }}:{{ r.planet.p }}</span>
-              <span v-if="r.planet.type === 'moon'" class="moon-tag" style="margin: 0 0 0 4px">☾ {{ t('common.moon') }}</span>
+              <span v-if="r.planet.type === 'moon'" class="moon-tag" style="margin: 0 0 0 4px"><Icon name="moon" :size="11" /> {{ t('common.moon') }}</span>
             </template>
             <span v-else class="faint" :title="t('overview.noPlanets')">–</span>
           </td>
@@ -703,7 +764,7 @@ const history = computed(() => {
           <td class="num">
             {{ r.scores[1]?.rank ?? '–' }}
             <span v-if="r.scores[1]?.rankChange" :class="r.scores[1].rankChange > 0 ? 'pos' : 'neg'" class="small">
-              {{ r.scores[1].rankChange > 0 ? '▲' : '▼' }}{{ Math.abs(r.scores[1].rankChange) }}
+              <Icon :name="r.scores[1].rankChange > 0 ? 'rankUp' : 'rankDown'" :size="10" />{{ Math.abs(r.scores[1].rankChange) }}
             </span>
           </td>
           <td>
@@ -711,7 +772,7 @@ const history = computed(() => {
             <PlayerLink :id="r.id" :name="r.name" />
             <span v-if="matchedAlias(r)" class="faint small"> ({{ t('player.aliases', { names: matchedAlias(r) }) }})</span>
             <StatusBadges :status="r.status" />
-            <span v-if="r.note" class="faint small" :title="r.note"> ✎</span>
+             <Icon v-if="r.note" name="edit" :size="12" class="faint" :label="r.note" />
           </td>
           <td class="muted">{{ r.ally_tag ?? r.ally_name ?? '' }}</td>
           <template v-for="type in [1, 4, 3, 2, 5]" :key="type">
@@ -731,9 +792,15 @@ const history = computed(() => {
 table.cov { border-collapse: collapse; margin-bottom: 6px; }
 table.cov td { padding: 1px 10px 1px 0; white-space: nowrap; }
 
-/* mobile: filters beyond the player search fold away */
-.collapsed .more { display: none; }
-.m-sort { margin-bottom: 8px; }
+.search { flex: 1 1 180px; max-width: 260px; min-width: 0; }
+.window select { margin-left: 4px; }
+.range input { width: 110px; }
+.status { gap: 6px; }
+@media (max-width: 800px) {
+  .search { max-width: none; }
+  .count { width: 100%; }
+  .range input { flex: 1; width: auto; min-width: 0; }
+}
 .m-list { border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); overflow: hidden; }
 .m-item { padding: 8px 12px; border-bottom: 1px solid var(--border); }
 /* the browser skips layout and painting of cards out of sight (auto: remembers their last height) */

@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-25
 
+- Overview filters: a toolbar with planets/players switch, player search and a filter button; the filters are grouped
+  (player, points, growth, planets) in a panel on desktop and a bottom sheet on mobile, active ones show as removable
+  chips with a reset. "Hide inactive" and "only inactive" became one three-way choice (stored filters are migrated).
+  The mobile/desktop layout switch moved into the page menu, the mobile sort into the shared sort bar.
 - Raid planner split into a plan list and a page per plan (`/:uni/raid-planner/:id`; `?plan=<id>` links from the
   bell, push and Discord lead there). The list starts with the viewer's own launches, then hostile attacks (retime as
   the main action, hold and hide in a menu, hidden ones folded), own attacks without a plan, the current plans as

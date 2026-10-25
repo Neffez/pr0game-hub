@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Übersicht: Filter aufgeräumt. Suche und Umschalter Planeten/Spieler bleiben sichtbar, die übrigen Filter sind gruppiert hinter „Filter“ (auf dem Handy als Fenster von unten). Aktive Filter erscheinen als Chips und lassen sich einzeln entfernen oder alle zurücksetzen. Inaktive: alle, ausblenden oder nur Inaktive.',
+        en: 'Overview: filters tidied up. Search and the planets/players switch stay visible, the other filters are grouped behind "Filters" (a sheet from the bottom on phones). Active filters show as chips that can be removed one by one or reset. Inactive: all, hide or only inactive.',
+      },
+      {
+        kind: 'new',
         de: 'Raid-Planer neu aufgebaut: Die Übersicht zeigt zuerst deine nächsten Starts, feindliche Angriffe und die aktuellen Pläne als kompakte Liste. Jeder Plan hat eine eigene Seite mit dem nächsten Schritt für dich (z. B. Flotte hinzufügen oder Startzeit mit Countdown), den Flotten aller Mitglieder und einem Menü für alles Weitere. Formulare öffnen sich als Dialog, auf dem Handy von unten.',
         en: 'Raid planner rebuilt: the overview shows your next launches, hostile attacks and the current plans as a compact list first. Every plan has its own page with your next step (e.g. add your fleet, or the launch time with a countdown), the fleets of all members and a menu for everything else. Forms open as dialogs, on phones from the bottom.',
       },
