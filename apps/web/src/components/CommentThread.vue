@@ -6,8 +6,8 @@ import { useLoader, useUni } from '../composables';
 import { dateTime } from '../format';
 import { tables, useLiveReload } from '../live';
 
-/** Alliance discussion on a player or on a planet/moon: oldest first, the own comments editable. */
-const props = defineProps<{ player?: number; g?: number; s?: number; p?: number; type?: 'planet' | 'moon' }>();
+/** Alliance discussion on a player, a plan's loot settlement or a planet/moon: oldest first, the own comments editable. */
+const props = defineProps<{ player?: number; plan?: number; g?: number; s?: number; p?: number; type?: 'planet' | 'moon' }>();
 const { t } = useI18n();
 const { uni, ctx } = useUni();
 
@@ -20,7 +20,7 @@ interface Comment {
   edited_at: number | null;
 }
 
-const query = computed(() => (props.player ? `player=${props.player}` : `c=${props.g}:${props.s}:${props.p}&type=${props.type ?? 'planet'}`));
+const query = computed(() => (props.player ? `player=${props.player}` : props.plan ? `plan=${props.plan}` : `c=${props.g}:${props.s}:${props.p}&type=${props.type ?? 'planet'}`));
 const { data, error, load } = useLoader(() => uniApi<Comment[]>(uni.value, `/comments?${query.value}`));
 onMounted(load);
 watch(query, load);
@@ -42,7 +42,7 @@ async function run(fn: () => Promise<unknown>) {
     actionError.value = (e as Error).message;
   }
 }
-const target = () => (props.player ? { player: props.player } : { c: `${props.g}:${props.s}:${props.p}`, type: props.type ?? 'planet' });
+const target = () => (props.player ? { player: props.player } : props.plan ? { plan: props.plan } : { c: `${props.g}:${props.s}:${props.p}`, type: props.type ?? 'planet' });
 const post = () =>
   run(async () => {
     await uniApi(uni.value, '/comments', { body: { ...target(), body: text.value } });

@@ -1304,6 +1304,7 @@ const de = {
   live: {
     commentPlayer: '{name} hat {player} kommentiert',
     commentPlanet: '{name} hat {coords} kommentiert',
+    commentSettlement: '{name} hat eine Beuteabrechnung kommentiert',
     synced: '{name} hat synchronisiert: {what}',
     systems: 'Galaxie {systems}',
     close: 'Schließen',
@@ -1420,6 +1421,7 @@ const de = {
     raid: 'Raid-Planer',
     launch: 'Start deiner Flotte',
     comment: '{member} zu {on}',
+    settlement: 'Beuteabrechnung {at}',
     comments: '{n} neue',
     building: '{name} {level} baubar',
     research: '{name} {level} erforschbar',

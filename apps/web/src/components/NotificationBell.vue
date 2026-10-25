@@ -37,6 +37,7 @@ function target(n: Notification) {
         query: { tab: n.element >= 100 ? 'research' : 'buildings', c: `${n.planet.g}:${n.planet.s}:${n.planet.p}`, type: n.planet.type },
       };
     case 'comment':
+      if ('plan' in n.thread) return `/${uni.value}/raid-planner/${n.thread.plan}/loot`;
       return 'player' in n.thread
         ? `/${uni.value}/player/${n.thread.player}`
         : { path: `/${uni.value}/spy`, query: { c: `${n.thread.g}:${n.thread.s}:${n.thread.p}`, type: n.thread.type } };
@@ -47,6 +48,8 @@ function target(n: Notification) {
 const threadOf = (n: CommentNotification) =>
   'player' in n.thread
     ? n.thread.name
+    : 'plan' in n.thread
+    ? t('notify.settlement', { at: `${n.thread.type === 'moon' ? '☾ ' : ''}[${n.thread.g}:${n.thread.s}:${n.thread.p}]` })
     : `${n.thread.owner ? n.thread.owner + ' ' : ''}${n.thread.type === 'moon' ? '☾ ' : ''}[${n.thread.g}:${n.thread.s}:${n.thread.p}]`;
 /** Storage building of a resource (901-903 → 22-24). */
 const storageOf = (res: number) => res - 879;

@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-10-25',
     items: [
       {
+        kind: 'new',
+        de: 'Beuteabrechnungen können jetzt von allen Mitgliedern kommentiert werden. Wer in einer Abrechnung mitgeschrieben hat, wird über neue Kommentare benachrichtigt.',
+        en: 'All members can now comment on loot settlements. Whoever wrote in a settlement is notified about new comments.',
+      },
+      {
         kind: 'fix',
         de: 'Online-Liste: Bei mehreren offenen Tabs oder Geräten zeigt der Hub jetzt den Tab, den das Mitglied gerade benutzt. Vorher konnte etwa ein vergessener Raid-Planer-Tab stehen bleiben. Wer 5 Minuten nichts tut, gilt als abwesend (gelber Punkt) und bekommt dann wieder Push- und Discord-Benachrichtigungen.',
         en: 'Online list: with several tabs or devices open, the hub now shows the tab the member is actually using. Before, a forgotten raid planner tab could stay shown. Whoever does nothing for 5 minutes counts as away (yellow dot) and gets push and Discord notifications again.',

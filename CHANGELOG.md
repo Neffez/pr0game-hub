@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-25
 
+- Loot settlements can be commented by all members: a discussion thread below the settlement (same as on players and
+  planets), with live toast, bell entry and push/Discord notification for members who wrote in the thread. Comments
+  have a third target `plan` (migration 049 rebuilds `comments`); the API takes `?plan=` and counts per plan.
 - Presence shows the tab a member really uses: each tab reports with an id (`tab`) and whether its window has the
   focus, the server keeps the tabs of a member apart and shows an active one first (visible, user not idle), the
   focused before one only visible, then the latest report. Before, the last report of any tab or device won, so a

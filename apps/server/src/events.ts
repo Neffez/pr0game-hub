@@ -16,8 +16,8 @@ export interface DataEvent {
   counts?: Record<string, number>;
   /** synced galaxy systems "g:s"; missing when unknown or too many (universe.json) */
   systems?: string[];
-  /** a new comment: on which player or planet (for the hint) */
-  comment?: { player?: number; playerName?: string; coords?: string; moon?: boolean };
+  /** a new comment: on which player, plan settlement or planet (for the hint) */
+  comment?: { player?: number; playerName?: string; plan?: number; coords?: string; moon?: boolean };
 }
 
 /** Where a member is in the hub (sent by their open tab). */

@@ -8,6 +8,7 @@ import {
   battleFromReport, cleanState, debrisSummary, MAX_HELPER_KEEP, mergeDraft, decodeShare, lootShares, settle, type LootState, type Res, type SettlementResult, type TransferInput,
 } from '@pr0hub/loot';
 import { uniApi } from '../api';
+import CommentThread from '../components/CommentThread.vue';
 import Hint from '../components/Hint.vue';
 import { useUni } from '../composables';
 import { abbr, coords, dateTime, fmt, lootCalcLink, name, short } from '../format';
@@ -532,6 +533,11 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
           </div>
         </div>
       </div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-top: 0">{{ t('comments.title') }}</h3>
+      <CommentThread :plan="data.plan.id" />
     </div>
   </template>
 </template>

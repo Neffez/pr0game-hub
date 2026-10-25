@@ -65,6 +65,9 @@ function describeComment(e: DataEvent): Toast | null {
   if (c.player) {
     return { id: ++nextId, text: t('live.commentPlayer', { name, player: c.playerName ?? '?' }), to: { query: { player: String(c.player) } } };
   }
+  if (c.plan) {
+    return { id: ++nextId, text: t('live.commentSettlement', { name }), to: { path: `/${uni.value}/raid-planner/${c.plan}/loot` } };
+  }
   const [g, s, p] = (c.coords ?? '').split(':');
   return {
     id: ++nextId,

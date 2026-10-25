@@ -12,7 +12,7 @@ export interface DataEvent {
   counts?: Record<string, number>;
   systems?: string[];
   /** a new comment: on which player or planet */
-  comment?: { player?: number; playerName?: string; coords?: string; moon?: boolean };
+  comment?: { player?: number; playerName?: string; plan?: number; coords?: string; moon?: boolean };
 }
 
 /** Where a member is in the hub (server: `Whereabouts`). */

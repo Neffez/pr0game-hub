@@ -1734,6 +1734,10 @@ paths:
         - name: player
           in: query
           schema: { type: integer }
+        - name: plan
+          in: query
+          description: Thread of the loot settlement of a raid plan (instead of `player` or `c`).
+          schema: { type: integer }
         - name: c
           in: query
           schema: { type: string }
@@ -1749,6 +1753,7 @@ paths:
     get:
       tags: [Social]
       operationId: getCommentCounts
+      description: Number of comments per `players` (player id), `plans` (raid plan id, loot settlement) and `planets` ("g:s:p:type").
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
@@ -1839,13 +1844,21 @@ paths:
                         time_precision: { type: string, enum: [day, hour, exact] }
                         target_time: { type: integer }
                     thread:
-                      description: 'comment only: a player, or a planet/moon with its owner'
+                      description: 'comment only: a player, the loot settlement of a raid plan (with the plan target), or a planet/moon with its owner'
                       oneOf:
                         - type: object
                           required: [player, name]
                           properties:
                             player: { type: integer }
                             name: { type: string }
+                        - type: object
+                          required: [plan, g, s, p, type]
+                          properties:
+                            plan: { type: integer }
+                            g: { type: integer }
+                            s: { type: integer }
+                            p: { type: integer }
+                            type: { type: string, enum: [planet, moon] }
                         - type: object
                           required: [g, s, p, type]
                           properties:

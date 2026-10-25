@@ -40,7 +40,7 @@ export interface InviteNotification extends Base {
 /** New comments of others in a thread the viewer wrote in (`member`: the newest author). */
 export interface CommentNotification extends Base {
   kind: 'comment';
-  thread: { player: number; name: string } | { g: number; s: number; p: number; type: 'planet' | 'moon'; owner: string | null };
+  thread: { player: number; name: string } | { plan: number; g: number; s: number; p: number; type: 'planet' | 'moon' } | { g: number; s: number; p: number; type: 'planet' | 'moon'; owner: string | null };
   excerpt: string;
   count: number;
 }

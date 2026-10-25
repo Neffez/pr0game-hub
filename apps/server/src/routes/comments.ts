@@ -7,19 +7,26 @@ import { contextOf, DISPLAY, MEMBER, type Q } from './util.js';
 
 const MAX_LENGTH = 2000;
 
-/** Thread target: a player of the group, or a planet/moon by coordinates. */
-type Target = { player: number } | { g: number; s: number; p: number; type: 'planet' | 'moon' };
+/** Thread target: a player of the group, a raid plan (its loot settlement), or a planet/moon by coordinates. */
+type Target = { player: number } | { plan: number } | { g: number; s: number; p: number; type: 'planet' | 'moon' };
 
 export function commentsRoutes(app: FastifyInstance, db: DB) {
   const ctxOf = contextOf(db);
 
-  function targetOf(ctx: GroupContext, q: { player?: unknown; c?: unknown; type?: unknown }): Target {
+  function targetOf(ctx: GroupContext, q: { player?: unknown; plan?: unknown; c?: unknown; type?: unknown }): Target {
     if (q.player != null) {
       const player = Number(q.player);
       if (!db.prepare('SELECT 1 FROM players WHERE id = ? AND group_id = ?').get(player, ctx.groupId)) {
         throw new HttpError(404, 'player_not_found', 'Player not found');
       }
       return { player };
+    }
+    if (q.plan != null) {
+      const plan = Number(q.plan);
+      if (!db.prepare('SELECT 1 FROM attack_plans WHERE id = ? AND group_id = ?').get(plan, ctx.groupId)) {
+        throw new HttpError(404, 'plan_not_found', 'Plan not found');
+      }
+      return { plan };
     }
     const m = String(q.c ?? '').match(/^(\d+):(\d+):(\d+)$/);
     const { galaxies, systems, positions } = ctx.universe.settings;
@@ -31,6 +38,8 @@ export function commentsRoutes(app: FastifyInstance, db: DB) {
   const where = (t: Target) =>
     'player' in t
       ? { sql: 'c.player_id = ?', args: [t.player] }
+      : 'plan' in t
+      ? { sql: 'c.plan_id = ?', args: [t.plan] }
       : { sql: 'c.g = ? AND c.s = ? AND c.p = ? AND c.planet_type = ?', args: [t.g, t.s, t.p, t.type] };
 
   const bodyOf = (v: unknown) => {
@@ -53,7 +62,7 @@ export function commentsRoutes(app: FastifyInstance, db: DB) {
   const changed = (ctx: GroupContext, comment?: DataEvent['comment']) =>
     events.publish(ctx.groupId, { type: 'data', tables: ['comments'], userId: ctx.user.id, comment });
 
-  /** Thread of a player (`?player=id`) or a planet (`?c=g:s:p&type=moon`), oldest first. */
+  /** Thread of a player (`?player=id`), a plan's settlement (`?plan=id`) or a planet (`?c=g:s:p&type=moon`), oldest first. */
   app.get<{ Params: { uni: string }; Querystring: Q }>('/api/:uni/comments', async (req) => {
     const ctx = ctxOf(req);
     const w = where(targetOf(ctx, req.query));
@@ -66,25 +75,27 @@ export function commentsRoutes(app: FastifyInstance, db: DB) {
       .all(ctx.groupId, ...w.args);
   });
 
-  /** Number of comments per player and per planet ("g:s:p:type"), for the badges. */
+  /** Number of comments per player, per plan and per planet ("g:s:p:type"), for the badges. */
   app.get<{ Params: { uni: string } }>('/api/:uni/comments/counts', async (req) => {
     const ctx = ctxOf(req);
     const rows = db
       .prepare(
-        `SELECT player_id, g, s, p, planet_type, COUNT(*) AS n FROM comments WHERE group_id = ? AND deleted_at IS NULL
-         GROUP BY player_id, g, s, p, planet_type`,
+        `SELECT player_id, plan_id, g, s, p, planet_type, COUNT(*) AS n FROM comments WHERE group_id = ? AND deleted_at IS NULL
+         GROUP BY player_id, plan_id, g, s, p, planet_type`,
       )
-      .all(ctx.groupId) as { player_id: number | null; g: number; s: number; p: number; planet_type: string; n: number }[];
+      .all(ctx.groupId) as { player_id: number | null; plan_id: number | null; g: number; s: number; p: number; planet_type: string; n: number }[];
     const players: Record<number, number> = {};
+    const plans: Record<number, number> = {};
     const planets: Record<string, number> = {};
     for (const r of rows) {
       if (r.player_id != null) players[r.player_id] = r.n;
+      else if (r.plan_id != null) plans[r.plan_id] = r.n;
       else planets[`${r.g}:${r.s}:${r.p}:${r.planet_type}`] = r.n;
     }
-    return { players, planets };
+    return { players, plans, planets };
   });
 
-  app.post<{ Params: { uni: string }; Body: { player?: number; c?: string; type?: string; body?: string } }>('/api/:uni/comments', async (req) => {
+  app.post<{ Params: { uni: string }; Body: { player?: number; plan?: number; c?: string; type?: string; body?: string } }>('/api/:uni/comments', async (req) => {
     const ctx = ctxOf(req);
     const b = req.body ?? {};
     const t = targetOf(ctx, b);
@@ -93,6 +104,9 @@ export function commentsRoutes(app: FastifyInstance, db: DB) {
     if ('player' in t) {
       id = db.prepare('INSERT INTO comments (group_id, user_id, player_id, body) VALUES (?, ?, ?, ?)').run(ctx.groupId, ctx.user.id, t.player, body).lastInsertRowid;
       changed(ctx, { player: t.player, playerName: db.prepare('SELECT name FROM players WHERE id = ?').pluck().get(t.player) as string });
+    } else if ('plan' in t) {
+      id = db.prepare('INSERT INTO comments (group_id, user_id, plan_id, body) VALUES (?, ?, ?, ?)').run(ctx.groupId, ctx.user.id, t.plan, body).lastInsertRowid;
+      changed(ctx, { plan: t.plan });
     } else {
       id = db
         .prepare('INSERT INTO comments (group_id, user_id, g, s, p, planet_type, body) VALUES (?, ?, ?, ?, ?, ?, ?)')

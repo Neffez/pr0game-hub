@@ -1302,6 +1302,7 @@ const en: typeof de = {
   live: {
     commentPlayer: '{name} commented on {player}',
     commentPlanet: '{name} commented on {coords}',
+    commentSettlement: '{name} commented on a loot settlement',
     synced: '{name} synced: {what}',
     systems: 'galaxy {systems}',
     close: 'Close',
@@ -1416,6 +1417,7 @@ const en: typeof de = {
     raid: 'Raid planner',
     launch: 'Your fleet launches',
     comment: '{member} on {on}',
+    settlement: 'loot settlement {at}',
     comments: '{n} new',
     building: '{name} {level} can be built',
     research: '{name} {level} can be researched',

@@ -267,6 +267,7 @@ const DE = {
   around: (t: string) => `gegen ${t}`,
   unknown: 'Ziel noch offen',
   comment: (m: string, on: string) => `💬 ${m} zu ${on}`,
+  settlement: (at: string) => `Beuteabrechnung ${at}`,
   more: (n: number) => `(${n} neue)`,
   launch: (min: number) => `🚀 Start in ${min} Min`,
   launchBody: (from: string, to: string, at: string) => `${from} → ${to} · Start ${at}`,
@@ -299,6 +300,7 @@ const EN: typeof DE = {
   around: (t: string) => `around ${t}`,
   unknown: 'target still open',
   comment: (m: string, on: string) => `💬 ${m} on ${on}`,
+  settlement: (at: string) => `loot settlement ${at}`,
   more: (n: number) => `(${n} new)`,
   launch: (min: number) => `🚀 Launch in ${min} min`,
   launchBody: (from: string, to: string, at: string) => `${from} → ${to} · launch ${at}`,
@@ -365,8 +367,9 @@ export function payloadOf(n: Notification | ChannelNotification, lang: PushLang,
       return { ...base, title: L.plan(n.member), body: planLine(n.plan, n.plan.target_time), url: link('raid-planner', { plan: n.plan.id }) };
     case 'comment': {
       const th = n.thread;
-      const on = 'player' in th ? th.name : `${th.owner ? th.owner + ' ' : ''}${coords(th.g, th.s, th.p, th.type === 'moon')}`;
-      const url = 'player' in th ? link(`player/${th.player}`) : link('spy', { c: `${th.g}:${th.s}:${th.p}`, type: th.type });
+      const on = 'player' in th ? th.name : 'plan' in th ? L.settlement(coords(th.g, th.s, th.p, th.type === 'moon')) : `${th.owner ? th.owner + ' ' : ''}${coords(th.g, th.s, th.p, th.type === 'moon')}`;
+      const url =
+        'player' in th ? link(`player/${th.player}`) : 'plan' in th ? link(`raid-planner/${th.plan}/loot`) : link('spy', { c: `${th.g}:${th.s}:${th.p}`, type: th.type });
       return { ...base, title: L.comment(n.member, on), body: n.count > 1 ? `${n.excerpt} ${L.more(n.count)}` : n.excerpt, url };
     }
     case 'launch': {

@@ -48,7 +48,7 @@ export interface InviteNotification extends Base {
 /** New comments in a thread the viewer wrote in, since their last comment there (`userId`/`member`: newest author). */
 export interface CommentNotification extends Base {
   kind: 'comment';
-  thread: { player: number; name: string } | { g: number; s: number; p: number; type: 'planet' | 'moon'; owner: string | null };
+  thread: { player: number; name: string } | { plan: number; g: number; s: number; p: number; type: 'planet' | 'moon' } | { g: number; s: number; p: number; type: 'planet' | 'moon'; owner: string | null };
   /** the newest comment, shortened */
   excerpt: string;
   /** new comments in the thread */
@@ -226,33 +226,39 @@ function invites(db: DB, ctx: GroupContext, t: number): InviteNotification[] {
 function comments(db: DB, ctx: GroupContext, t: number): CommentNotification[] {
   const rows = db
     .prepare(
-      `SELECT c.id, c.user_id, ${DISPLAY} AS author, c.body, c.created_at, c.player_id, pr.name AS player_name, c.g, c.s, c.p, c.planet_type,
-         op.name AS owner
+      `SELECT c.id, c.user_id, ${DISPLAY} AS author, c.body, c.created_at, c.player_id, pr.name AS player_name, c.plan_id, COALESCE(c.g, ap.g) AS g, COALESCE(c.s, ap.s) AS s,
+         COALESCE(c.p, ap.p) AS p, COALESCE(c.planet_type, ap.planet_type) AS planet_type, op.name AS owner
        FROM comments c
        LEFT JOIN users u ON u.id = c.user_id LEFT JOIN group_members gm ON gm.group_id = c.group_id AND gm.user_id = c.user_id
        LEFT JOIN players pr ON pr.id = c.player_id
-       LEFT JOIN planets pl ON c.player_id IS NULL AND pl.group_id = c.group_id AND pl.g = c.g AND pl.s = c.s AND pl.p = c.p
+       LEFT JOIN attack_plans ap ON ap.id = c.plan_id
+       LEFT JOIN planets pl ON c.player_id IS NULL AND c.plan_id IS NULL AND pl.group_id = c.group_id AND pl.g = c.g AND pl.s = c.s AND pl.p = c.p
        LEFT JOIN players op ON op.id = pl.player_id
        WHERE c.group_id = ? AND c.deleted_at IS NULL AND c.created_at > ? AND c.user_id IS NOT ?
          AND c.id > (
            SELECT MAX(o.id) FROM comments o
            WHERE o.group_id = c.group_id AND o.user_id = ? AND o.deleted_at IS NULL
              AND (CASE WHEN c.player_id IS NOT NULL THEN o.player_id = c.player_id
+                  WHEN c.plan_id IS NOT NULL THEN o.plan_id = c.plan_id
                   ELSE o.g = c.g AND o.s = c.s AND o.p = c.p AND o.planet_type = c.planet_type END)
          )
        ORDER BY c.created_at, c.id`,
     )
     .all(ctx.groupId, t - COMMENT_KEEP, ctx.user.id, ctx.user.id) as {
-    id: number; user_id: number | null; author: string | null; body: string; created_at: number; player_id: number | null; player_name: string | null;
+    id: number; user_id: number | null; author: string | null; body: string; created_at: number; player_id: number | null; player_name: string | null; plan_id: number | null;
     g: number | null; s: number | null; p: number | null; planet_type: 'planet' | 'moon' | null; owner: string | null;
   }[];
   const threads = new Map<string, CommentNotification>();
   for (const r of rows) {
-    const key = r.player_id != null ? `p${r.player_id}` : `${r.g}:${r.s}:${r.p}:${r.planet_type}`;
+    const key = r.player_id != null ? `p${r.player_id}` : r.plan_id != null ? `plan${r.plan_id}` : `${r.g}:${r.s}:${r.p}:${r.planet_type}`;
     const known = threads.get(key);
     const excerpt = r.body.length > EXCERPT ? r.body.slice(0, EXCERPT - 1).trimEnd() + '…' : r.body;
     const thread: CommentNotification['thread'] =
-      r.player_id != null ? { player: r.player_id, name: r.player_name ?? '?' } : { g: r.g!, s: r.s!, p: r.p!, type: r.planet_type!, owner: r.owner };
+      r.player_id != null
+        ? { player: r.player_id, name: r.player_name ?? '?' }
+        : r.plan_id != null
+          ? { plan: r.plan_id, g: r.g!, s: r.s!, p: r.p!, type: r.planet_type! }
+          : { g: r.g!, s: r.s!, p: r.p!, type: r.planet_type!, owner: r.owner };
     threads.set(key, {
       id: `comment:${key}:${r.id}`, kind: 'comment', userId: r.user_id ?? 0, member: r.author ?? '?', time: r.created_at,
       thread, excerpt, count: (known?.count ?? 0) + 1,
