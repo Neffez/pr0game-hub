@@ -133,6 +133,7 @@ const planMenu = computed<MenuItem[]>(() => {
   const open = !rp.closed(p);
   const next = nextStatus(p);
   const sims = rp.sims(p);
+  const ipm = rp.ipm(p);
   return [
     rp.canEdit(p) && open && { label: t('plans.editPlan'), icon: 'edit', onClick: () => openEdit() },
     !rp.hasCoords(p) && rp.canSetCoords(p) && { label: t('plans.setCoordsTitle'), icon: 'target', onClick: () => openEdit(true) },
@@ -140,6 +141,7 @@ const planMenu = computed<MenuItem[]>(() => {
     rp.canSim(p) && p.sim && { label: t('plans.simRemoveLong'), icon: 'close', onClick: removeSim },
     sims && { label: t('plans.simGame'), href: sims.game, hint: rp.simTitle(p, 'Game'), divider: true },
     sims && { label: 'TrashSim', href: sims.trash, hint: rp.simTitle(p, 'Trash') },
+    ipm && { label: t('plans.ipm'), href: ipm.href, hint: ipm.title, divider: !sims },
     rp.settleable(p) && { label: t('loot.open'), icon: 'cargo', to: settleLink.value, divider: !sims },
     ...(rp.canEdit(p)
       ? PLAN_STATUSES.filter((s) => s !== p.status && s !== next).map((s, i) => ({

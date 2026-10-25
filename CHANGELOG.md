@@ -4,6 +4,13 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-25
 
+- Hub links to the IPM calculator: in the spy history next to the simulators (defense, interceptors and armour of the
+  newest report; for a moon the interceptors of the planet's newest report, loaded for that), in the planet action
+  menu (target and own research only) and in the raid planner's plan menu (the plan's spy values). The start is the
+  nearest own planet in the target's galaxy; own impulse drive and weapons come from the empire page
+  (`ipmCalcLink`, `ipmStart` in `format.ts`).
+  - New universe setting `missileRangeFactor` (game config `missile_range_factor`, default 1), editable under
+    Admin → universe and passed on to the calculator; the server validates it like the other factors.
 - New static tool: the interplanetary missile calculator at `/ipm-calculator/` (`apps/tools/ipm-calculator/`, glue
   in `src/missile.ts`). It shows the destroyed and remaining defense per type (interceptors, primary target, weapons
   and armour exactly as in the game), the missiles needed to clear everything or the primary target, range, flight

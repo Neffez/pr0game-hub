@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Im Spionage-Verlauf, im Aktionsmenü eines Planeten und im Angriffsplaner gibt es einen Link zum IRak-Rechner. Aus dem Spionage-Verlauf sind Verteidigung, Abfangraketen und Panzerung schon eingetragen, bei einem Mond die Abfangraketen des Planeten.',
+        en: 'The spy history, the action menu of a planet and the raid planner link to the IPM calculator. From the spy history, defense, interceptors and armour are already filled in, for a moon the interceptors of its planet.',
+      },
+      {
+        kind: 'new',
         de: 'Neues Tool: der IRak-Rechner. Er zeigt, was Interplanetarraketen zerstören (mit Abfangraketen, Primärziel, Waffen und Panzerung wie im Spiel), wie viele Raketen für alles oder das Primärziel nötig sind, Reichweite und Flugzeit. Einen Spionagebericht kannst du direkt einfügen.',
         en: 'New tool: the IPM calculator. It shows what interplanetary missiles destroy (with interceptors, primary target, weapons and armour as in the game), how many missiles clear everything or the primary target, range and flight time. You can paste a spy report straight in.',
       },

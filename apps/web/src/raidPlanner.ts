@@ -3,7 +3,7 @@ import { useI18n } from 'vue-i18n';
 import { uniApi } from './api';
 import { loadClaims } from './claims';
 import { useUni } from './composables';
-import { abbr, clockTime, coords, duration, fmt, numDate, simLinks, timeWithAge, weekday, type Coords3, type SimFleet } from './format';
+import { abbr, clockTime, coords, duration, fmt, ipmCalcLink, ipmStart, numDate, simLinks, timeWithAge, weekday, type Coords3, type SimFleet } from './format';
 import { intlLocale } from './i18n';
 import { tables, useLiveReload } from './live';
 import { toast } from './toast';
@@ -156,6 +156,21 @@ export function useRaidPlanner() {
     }
     return p.spy ? simLinks(settings.value.gameUrl, p.spy.values, planFleets(p), target) : null;
   };
+  /** IPM calculator with the target's newest spy report (attack plans; a moon's interceptors are left to the user). */
+  const ipm = (p: AttackPlan) => {
+    if (p.mission === 'hold' || !p.spy || !hasCoords(p)) return null;
+    const to: Coords3 = [p.g!, p.s!, p.p!];
+    return {
+      href: ipmCalcLink(settings.value, {
+        from: ipmStart(settings.value, ctx.value?.own?.planets, to),
+        to,
+        moon: p.planet_type === 'moon',
+        research: ctx.value?.own?.research,
+        values: p.spy.values,
+      }),
+      title: t('plans.ipmTitle', { source: t(p.spy.source === 'sim' ? 'plans.simFromSim' : 'plans.simFromSpy', { time: timeWithAge(p.spy.time) }) }),
+    };
+  };
   /** Tooltips of the simulator links: what they are filled with. */
   const simTitle = (p: AttackPlan, sim: 'Game' | 'Trash') =>
     p.mission === 'hold'
@@ -258,7 +273,7 @@ export function useRaidPlanner() {
   return {
     t, uni, ctx, now, plans, attacks, ownAttacks, loaded, error, load, run, claimedInfo, settings, me,
     canEdit, isParticipant, canEditFleet, canRemoveFleet, closed, hasCoords, settleable, canSetCoords, canEditEnemy, canSim,
-    views, current, past, exact, myLaunch, lateFleet, flying, oldDrives, sims, simTitle,
+    views, current, past, exact, myLaunch, lateFleet, flying, oldDrives, sims, simTitle, ipm,
     targetText, clock, shortClock, offset, shipList, leadName, targetLabel, attackShips, ownFleetName,
     setStatus, removePlan, setFleetSpeed, takeSeenShips, setFleetStatus, removeFleet, invite, planRetime, planHold, planOwn, setHidden,
   };

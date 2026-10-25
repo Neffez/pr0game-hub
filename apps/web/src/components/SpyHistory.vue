@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useMobile } from '../composables';
-import { fmt, fmtSigned, name, SECTIONS, simLinks, timeWithAge } from '../format';
+import { useMobile, useUni } from '../composables';
+import { fmt, fmtSigned, ipmCalcLink, ipmStart, name, SECTIONS, simLinks, timeWithAge, type Coords3 } from '../format';
 
 export interface SpyReport {
   id: number;
@@ -13,8 +13,17 @@ export interface SpyReport {
   destroy_chance?: number | null;
 }
 
-const props = defineProps<{ reports: SpyReport[]; gameUrl?: string }>();
+const props = defineProps<{
+  reports: SpyReport[];
+  gameUrl?: string;
+  /** the spied target, for the IPM calculator link */
+  target?: Coords3 | null;
+  moon?: boolean;
+  /** a moon is defended by the interceptors of its planet: newest report of the planet (undefined while unknown) */
+  planetReport?: SpyReport | null;
+}>();
 const { t } = useI18n();
+const { ctx } = useUni();
 const mobile = useMobile();
 
 /**
@@ -42,7 +51,28 @@ const tables = computed(() =>
 );
 
 /** Combat simulator links (in the game, TrashSim) with all values of a report. */
-const sims = (r: SpyReport) => simLinks(props.gameUrl!, Object.assign({}, ...Object.values(r.sections)));
+const values = (r: SpyReport): Record<string, number> => Object.assign({}, ...Object.values(r.sections));
+const sims = (r: SpyReport) => simLinks(props.gameUrl!, values(r));
+
+/** IPM calculator with the newest report: defense, interceptors (of the planet for a moon) and armour, own research. */
+const ipm = computed(() => {
+  if (!props.target || !ctx.value) return null;
+  const u = ctx.value.universe.settings;
+  const planet = props.planetReport;
+  return {
+    href: ipmCalcLink(u, {
+      from: ipmStart(u, ctx.value.own?.planets, props.target),
+      to: props.target,
+      moon: props.moon,
+      research: ctx.value.own?.research,
+      values: values(props.reports[0]),
+      planetInterceptors: planet ? (planet.sections['400']?.[502] ?? 0) : null,
+    }),
+    title: !props.moon
+      ? t('spyHistory.ipmTitle')
+      : t('spyHistory.ipmMoonTitle', { planet: planet ? timeWithAge(planet.report_time) : t('spyHistory.ipmMoonNoPlanet') }),
+  };
+});
 </script>
 
 <template>
@@ -55,6 +85,7 @@ const sims = (r: SpyReport) => simLinks(props.gameUrl!, Object.assign({}, ...Obj
         · <a :href="sims(reports[0]).game" target="_blank" rel="noopener">{{ t('spyHistory.simulator') }}</a>
         · <a :href="sims(reports[0]).trash" target="_blank" rel="noopener">TrashSim</a>
       </template>
+      <template v-if="ipm"> · <a :href="ipm.href" :title="ipm.title" target="_blank" rel="noopener">{{ t('spyHistory.ipm') }}</a></template>
     </p>
     <!-- mobile: per section one block per report, values as name/value list -->
     <template v-if="mobile">

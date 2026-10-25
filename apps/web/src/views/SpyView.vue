@@ -31,6 +31,19 @@ const { data, error, load } = useLoader(async () => {
   return uniApi<{ reports: SpyReport[]; total: number }>(uni.value, `/spy/${m[1]}/${m[2]}/${m[3]}?type=${type.value}&limit=${limit.value}`);
 });
 const reports = computed(() => data.value?.reports ?? []);
+/** For a moon: the newest report of its planet, whose interceptors defend the moon against missiles. */
+const planetReport = ref<SpyReport | null>(null);
+watch(data, async () => {
+  planetReport.value = null;
+  const m = target.value.match(/(\d+)\D+(\d+)\D+(\d+)/);
+  if (!m || type.value !== 'moon' || !data.value?.reports.length) return;
+  try {
+    const res = await uniApi<{ reports: SpyReport[] }>(uni.value, `/spy/${m[1]}/${m[2]}/${m[3]}?type=planet&limit=1`);
+    planetReport.value = res.reports[0] ?? null;
+  } catch {
+    // the link then leaves the interceptors to the user
+  }
+});
 /** Shown target (after loading), for its action menu and comments. */
 const shown = computed(() => {
   const m = target.value.match(/(\d+)\D+(\d+)\D+(\d+)/);
@@ -99,7 +112,14 @@ const res = (r: any, id: number) => r.sections['900']?.[id] ?? 0;
     <div v-if="error" class="error">{{ error }}</div>
   </div>
 
-  <SpyHistory v-if="reports.length" :reports="reports" :game-url="ctx!.universe.settings.gameUrl" />
+  <SpyHistory
+    v-if="reports.length"
+    :reports="reports"
+    :game-url="ctx!.universe.settings.gameUrl"
+    :target="shown ? [shown.g, shown.s, shown.p] : null"
+    :moon="type === 'moon'"
+    :planet-report="planetReport"
+  />
 
   <div v-if="shown" class="card">
     <h3 class="mt-0">{{ t('comments.title') }} {{ coords(shown.g, shown.s, shown.p) }}<template v-if="type === 'moon'"> ({{ t('common.moon') }})</template></h3>

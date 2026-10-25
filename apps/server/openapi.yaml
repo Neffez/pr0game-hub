@@ -482,7 +482,12 @@ components:
       type: object
       description: Universe and alliance context for the selected group
       properties:
-        universe: { type: object }
+        universe:
+          type: object
+          description: >-
+            Universe with its `settings` (layout, speeds, distance factors, time zone, game URL as set by a hub admin).
+            Optional settings: `phalanxRangeFactor` and `missileRangeFactor` (game config `phalanx_range_factor` and
+            `missile_range_factor`, number ≥ 0, default 1; the missile factor is passed on to the IPM calculator).
         group:
           type: object
           properties:
