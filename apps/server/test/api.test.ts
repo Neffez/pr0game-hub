@@ -254,12 +254,15 @@ describe('api', () => {
 
   it('notifies the group of hostile fleets heading for a member', async () => {
     const headers = { ...admin, 'x-hub-group': String(groupA) };
+    // other kinds (a full storage of the fixtures' fixed timestamps) come and go with the clock
+    const attacks = async (h: object) =>
+      (await app.inject({ method: 'GET', url: '/hub/api/u8/notifications', headers: h })).json().filter((n: any) => n.kind === 'attack');
     const text = [
       '2h 0m 0s Eine feindliche Flotte (5 Schlachtschiff) des Spielers Mallory vom Planet Böse [4:20:6] erreicht den Planet Ares [1:100:12]. Mission: Angreifen',
       '1h 0m 0s Eine deiner Flotten (1 Leichter Jäger) vom Planet Ares [1:100:12] erreicht den Planet X [1:129:11]. Mission: Angreifen',
     ].join('\n');
     await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { text } });
-    const list = (await app.inject({ method: 'GET', url: '/hub/api/u8/notifications', headers })).json();
+    const list = await attacks(headers);
     expect(list).toHaveLength(1);
     expect(list[0]).toMatchObject({ kind: 'attack', member: 'admin', fleet: { owner: 'hostile', player: 'Mallory', ships: { 207: 5 } }, fleets: 1 });
     expect(list[0].time - Math.floor(Date.now() / 1000)).toBeGreaterThan(7000);
@@ -271,7 +274,7 @@ describe('api', () => {
       'Eine Flotten(1322 Schwerer Kreuzer) vom Mond Mond [1:41:1] erreicht den Planet Ares [1:100:12]. Mission: Verbandsangriff',
     ];
     await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { text: [text, ...acs].join('\n') } });
-    const both = (await app.inject({ method: 'GET', url: '/hub/api/u8/notifications', headers })).json();
+    const both = await attacks(headers);
     expect(both).toHaveLength(2);
     expect(both[1]).toMatchObject({ fleets: 3, fleet: { mission: 1, from: { coords: { g: 1, s: 41, p: 1 } }, ships: { 207: 1773, 210: 1, 215: 2, 222: 1322 } } });
     await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { text } });
@@ -279,13 +282,13 @@ describe('api', () => {
     // sharing covers the member's own fleets only: incoming attacks stay visible
     await app.inject({ method: 'POST', url: '/hub/api/auth/fleet-share', headers: admin, payload: { enabled: false, hidden: [] } });
     const erinHeaders = { ...(await login('erin', 'erinpass1')), 'x-hub-group': String(groupA) };
-    let seen = (await app.inject({ method: 'GET', url: '/hub/api/u8/notifications', headers: erinHeaders })).json();
+    let seen = await attacks(erinHeaders);
     expect(seen.map((n: any) => n.fleet.player)).toEqual(['Mallory']);
     await app.inject({ method: 'POST', url: '/hub/api/auth/fleet-share', headers: admin, payload: { enabled: true, hidden: [] } });
 
     // a fleet of an alliance member (moon attempt, debris for saving) raises no alarm
     db.prepare("UPDATE group_members SET ingame_name = 'Mallory' WHERE group_id = ? AND user_id = (SELECT id FROM users WHERE username = 'erin')").run(groupA);
-    seen = (await app.inject({ method: 'GET', url: '/hub/api/u8/notifications', headers })).json();
+    seen = await attacks(headers);
     expect(seen).toEqual([]);
     db.prepare("UPDATE group_members SET ingame_name = NULL WHERE group_id = ? AND user_id = (SELECT id FROM users WHERE username = 'erin')").run(groupA);
   });

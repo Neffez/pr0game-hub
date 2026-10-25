@@ -4,6 +4,8 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-25
 
+- Tests: the hostile fleet notification test only looks at attacks; the fixtures' fixed timestamps let a storage
+  become full during the day, which added a second notification and made the test fail from 19:37 UTC on.
 - Flight calculator: fixed horizontal scrolling on mobile; the invisible checkbox of the "live (now)" switch was
   as wide as the viewport and stuck out of the page.
 - Galaxy browser: the page menu next to the title downloads the universe.json (`downloadUniverseJson` in `api.ts`,
