@@ -43,6 +43,9 @@ interface TabState {
 /** A tab that has not reported for this long is gone (closed without saying so); open tabs report every 5 minutes. */
 export const TAB_TTL_MS = 15 * 60_000;
 
+/** Tabs kept per member and group (several windows and devices). */
+const MAX_TABS = 20;
+
 /** Members with an open hub tab: sent in full whenever someone comes, goes or moves. */
 export interface PresenceEvent {
   type: 'presence';
@@ -99,7 +102,13 @@ export class EventBus {
    * presence shows the one in use (see `current`), so a tab in the background can't hide where the member really is.
    */
   setWhereabouts(groupId: number, userId: number, w: Whereabouts, tab: { id?: string; focused?: boolean } = {}) {
-    this.changeTabs(groupId, userId, (tabs) => tabs.set(tab.id ?? '', { w, focused: !!tab.focused, seq: ++this.seq, at: this.clock() }));
+    this.changeTabs(groupId, userId, (tabs) => {
+      // re-inserted so the map stays ordered by the last report
+      tabs.delete(tab.id ?? '');
+      tabs.set(tab.id ?? '', { w, focused: !!tab.focused, seq: ++this.seq, at: this.clock() });
+      // tab ids come from the client: the longest silent ones go first, so made-up ids can't pile up in memory
+      for (const id of tabs.keys()) if (tabs.size > MAX_TABS) tabs.delete(id);
+    });
   }
 
   /** A member's tab was closed. */
@@ -165,6 +174,17 @@ export class EventBus {
   onPublish(listener: (groupId: number, event: LiveEvent) => void): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
+  }
+
+  /** Open connections of all groups and the users behind them (admin system page). */
+  stats(): { connections: number; users: number[] } {
+    const users = new Set<number>();
+    let connections = 0;
+    for (const set of this.groups.values()) {
+      connections += set.size;
+      for (const c of set) users.add(c.userId);
+    }
+    return { connections, users: [...users] };
   }
 
   /** Open connections of a user in a group. */

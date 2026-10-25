@@ -1455,3 +1455,50 @@ describe('admin: content of syncs', () => {
     expect(db.prepare('SELECT synced_by FROM raw_ingests WHERE group_id = ? ORDER BY id DESC').pluck().get(groupX)).toBeNull();
   });
 });
+
+describe('performance and system monitor', () => {
+  it('finds the newest score per category also when newer updates miss the player', async () => {
+    const { latestScores } = await import('../src/repo/stats.js');
+    const g = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', headers: admin, payload: { universe: 'u8', name: 'Scores' } })).json().id;
+    const player = (name: string) => Number(db.prepare('INSERT INTO players (group_id, name) VALUES (?, ?)').run(g, name).lastInsertRowid);
+    const [a, b] = [player('A'), player('B')];
+    const snap = (type: number, time: number) =>
+      Number(db.prepare("INSERT INTO stat_snapshots (group_id, who, type, stat_time) VALUES (?, 'player', ?, ?)").run(g, type, time).lastInsertRowid);
+    const score = (s: number, p: number, points: number) => db.prepare('INSERT INTO player_scores (snapshot_id, player_id, rank, points) VALUES (?, ?, 1, ?)').run(s, p, points);
+    const [old, mid, recent] = [snap(1, 1000), snap(1, 2000), snap(1, 3000)];
+    score(old, a, 10); score(old, b, 20);
+    score(mid, a, 11);
+    score(recent, a, 12);
+    // pasted later, but older
+    score(snap(1, 500), b, 99);
+    score(snap(2, 1500), b, 5);
+    // the trigger copies category and time onto rows inserted without them
+    expect(db.prepare('SELECT type, stat_time FROM player_scores WHERE snapshot_id = ?').get(mid)).toEqual({ type: 1, stat_time: 2000 });
+    const latest = latestScores(db, g, [a, b, a]);
+    expect(latest.get(a)).toEqual({ 1: { points: 12, rank: 1, time: 3000 } });
+    expect(latest.get(b)).toEqual({ 1: { points: 20, rank: 1, time: 1000 }, 2: { points: 5, rank: 1, time: 1500 } });
+    // players of other groups are not looked up
+    expect(latestScores(db, groupA, [a]).size).toBe(0);
+  });
+
+  it('reports database, memory and request figures to global admins only', async () => {
+    await app.inject({ method: 'GET', url: '/hub/api/u8/overview', headers: { ...admin, 'x-hub-group': String(groupA) } });
+    const res = await app.inject({ method: 'GET', url: '/hub/api/admin/system', headers: admin });
+    expect(res.statusCode).toBe(200);
+    const sys = res.json();
+    expect(sys.database.bytes).toBeGreaterThan(0);
+    expect(sys.database.tables.find((t: any) => t.name === 'player_scores')).toMatchObject({ rows: expect.any(Number), indexBytes: expect.any(Number) });
+    expect(sys.memory.rss).toBeGreaterThan(0);
+    expect(sys.requests.find((r: any) => r.route === 'GET /api/:uni/overview')).toMatchObject({ count: expect.any(Number), p95: expect.any(Number) });
+    expect(sys.usage.groups.find((x: any) => x.id === groupA)).toMatchObject({ members: expect.any(Number), syncs: expect.any(Number) });
+
+    const member = Number(db.prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)').run('sysmember', hashPassword('sysmember1')).lastInsertRowid);
+    db.prepare("INSERT INTO group_members (group_id, user_id, role) VALUES (?, ?, 'admin')").run(groupA, member);
+    const headers = await login('sysmember', 'sysmember1');
+    expect((await app.inject({ method: 'GET', url: '/hub/api/admin/system', headers })).statusCode).toBe(403);
+    expect((await app.inject({ method: 'POST', url: '/hub/api/admin/system/vacuum', headers, payload: {} })).statusCode).toBe(403);
+    // in-memory database: VACUUM works the same
+    const vac = await app.inject({ method: 'POST', url: '/hub/api/admin/system/vacuum', headers: admin, payload: {} });
+    expect(vac.json()).toMatchObject({ ok: true, before: expect.any(Number), after: expect.any(Number) });
+  });
+});

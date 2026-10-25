@@ -20,6 +20,21 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Große eingefügte Seiten werden schneller verarbeitet und brauchen weniger Speicher auf dem Server.',
+        en: 'Big pasted pages are processed faster and need less memory on the server.',
+      },
+      {
+        kind: 'fix',
+        de: 'Übersicht und Statistik laden deutlich schneller, vor allem in Universen mit langer Statistik-Historie.',
+        en: 'Overview and statistics load much faster, above all in universes with a long statistics history.',
+      },
+      {
+        kind: 'new',
+        de: 'Admin: Neuer Bereich „System“ mit Datenbankgröße und Wachstum, Speicher, Antwortzeiten und Nutzung des Hubs.',
+        en: 'Admin: new "System" section with the hub\'s database size and growth, memory, response times and usage.',
+      },
+      {
+        kind: 'fix',
         de: 'Flugrechner: Auf dem Handy lässt sich die Seite nicht mehr seitlich verschieben.',
         en: 'Flight calculator: the page no longer scrolls sideways on mobile.',
       },

@@ -13,6 +13,8 @@ export function openDb(file: string): DB {
   db.pragma('journal_mode = WAL');
   db.pragma('foreign_keys = ON');
   db.pragma('busy_timeout = 5000');
+  // A big transaction (universe.json, migrations) grows the WAL file; without a limit it keeps that size for good.
+  db.pragma(`journal_size_limit = ${64 * 1024 * 1024}`);
   migrate(db);
   cacheStatements(db);
   return db;
