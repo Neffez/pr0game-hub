@@ -1543,6 +1543,7 @@ const en: typeof de = {
     remove_self: 'You cannot remove yourself',
     owner_protected: 'The hub owner cannot be removed or demoted',
     manual_event_not_found: 'Manual event not found',
+    cross_origin: 'Request from another site refused',
     read_only_token: 'API tokens are read-only',
     session_required: 'Use the web app to manage account settings',
     token_name_invalid: 'Token name: 1–64 characters',

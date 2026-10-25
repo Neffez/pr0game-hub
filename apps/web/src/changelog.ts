@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Sicherheit: Passwort-Links für Mitglieder mit Konto erstellen nur noch globale Admins. Wer so ein Link nutzt, wird überall sonst abgemeldet, API-Tokens werden gelöscht.',
+        en: 'Security: only global admins can create password links for members with an account. Using such a link logs the account out everywhere else and deletes its API tokens.',
+      },
+      {
+        kind: 'fix',
         de: 'Große eingefügte Seiten werden schneller verarbeitet und brauchen weniger Speicher auf dem Server.',
         en: 'Big pasted pages are processed faster and need less memory on the server.',
       },

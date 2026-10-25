@@ -1546,6 +1546,7 @@ const de = {
     remove_self: 'Du kannst dich nicht selbst entfernen',
     owner_protected: 'Der Hub-Inhaber kann nicht entfernt oder herabgestuft werden',
     manual_event_not_found: 'Manuelles Ereignis nicht gefunden',
+    cross_origin: 'Anfrage von einer fremden Seite abgelehnt',
     read_only_token: 'API-Tokens sind nur zum Lesen',
     session_required: 'Kontoeinstellungen nur in der Web-App',
     token_name_invalid: 'Token-Name: 1–64 Zeichen',
