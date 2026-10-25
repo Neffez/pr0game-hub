@@ -100,7 +100,7 @@ describe('settle', () => {
     expect(r.transfers).toEqual([{ from: 'a', to: 'b', res: { m: 30_000, k: 0, d: 0 }, ships: 2 }]);
   });
 
-  it('pays deuterium costs back in metal and crystal, the captured deuterium is profit', () => {
+  it('pays deuterium costs back from the captured deuterium, what it lacks in metal and crystal', () => {
     const r = settle(
       base({
         participants: [{ id: 'a', name: 'A', flightDeut: 50_000 }, { id: 'b', name: 'B' }],
@@ -109,14 +109,38 @@ describe('settle', () => {
         battles: [{ loot: { m: 0, k: 0, d: 10_000 }, fleets: [{ participant: 'b', start: { 203: 1 }, end: { 203: 1 } }] }],
       }),
     );
-    // 50,000 deuterium of flights at 2.8 metal each, all in metal
-    expect(person(r, 'a').covered).toEqual({ m: 140_000, k: 0, d: 0 });
-    const profitM = 1_000_000 - 140_000;
-    expect(person(r, 'a').entitled).toEqual({ m: 140_000 + profitM / 2, k: 0, d: 5_000 });
-    expect(person(r, 'b').entitled).toEqual({ m: profitM / 2, k: 0, d: 5_000 });
+    // 10,000 of the 50,000 deuterium in kind, the other 40,000 at 2.8 metal each, all in metal
+    expect(person(r, 'a').covered).toEqual({ m: 112_000, k: 0, d: 10_000 });
+    const profitM = 1_000_000 - 112_000;
+    expect(person(r, 'a').entitled).toEqual({ m: 112_000 + profitM / 2, k: 0, d: 10_000 });
+    expect(person(r, 'b').entitled).toEqual({ m: profitM / 2, k: 0, d: 0 });
     // by default in crystal
     const k = settle({ ...base({}), participants: [{ id: 'a', name: 'A', flightDeut: 1_000 }], recycling: [{ by: 'a', m: 0, k: 10_000 }] });
     expect(k.people[0].covered).toEqual({ m: 0, k: 800, d: 0 });
+  });
+
+  it('matches the alliance spreadsheet with deuterium compensation when enough deuterium was captured', () => {
+    // Rolf loses 10 cruisers and flies for 30k deuterium, ballermann loses 5 battleships and flies for 20k
+    const r = settle(
+      base({
+        participants: [{ id: 'a', name: 'Rolf', flightDeut: 30_000 }, { id: 'b', name: 'ballermann', flightDeut: 20_000 }],
+        settings: { ...settings, deficitMetalShare: 0.5 },
+        battles: [
+          {
+            loot: { m: 500_000, k: 250_000, d: 200_000 },
+            fleets: [
+              { participant: 'a', start: { 206: 10 }, end: {}, loot: { m: 300_000, k: 150_000, d: 120_000 } },
+              { participant: 'b', start: { 207: 5 }, end: {}, loot: { m: 200_000, k: 100_000, d: 80_000 } },
+            ],
+          },
+        ],
+        recycling: [{ by: 'a', m: 600_000, k: 400_000 }],
+      }),
+    );
+    // each gets their deuterium costs in deuterium, the surplus of 130k is split
+    expect(person(r, 'a').entitled).toEqual({ m: 537_500, k: 322_500, d: 115_000 });
+    expect(person(r, 'b').entitled).toEqual({ m: 562_500, k: 327_500, d: 85_000 });
+    expect(r.profit).toEqual({ m: 675_000, k: 505_000, d: 130_000 });
   });
 
   it('covers the same share of everyone’s losses when the pot is too small', () => {
@@ -158,9 +182,9 @@ describe('settle', () => {
       battles: [{ loot: { m: 0, k: 0, d: 10_000 }, fleets: [{ participant: 'a', start: { 203: 1 }, end: { 203: 1 } }] }],
     });
     const r = settle({ ...input, settings: { ...settings, helperDeut: true } });
-    // the refund in crystal at the market rate (5,000 deuterium = 4,000 crystal), the loot's deuterium is profit
-    expect(person(r, 'h').entitled).toEqual({ m: 20_000, k: 14_000, d: 0 });
-    expect(person(r, 'a').entitled).toEqual({ m: 40_000, k: 18_000, d: 5_000 });
+    // the refund from the captured deuterium, the rest of it is profit
+    expect(person(r, 'h').entitled).toEqual({ m: 20_000, k: 10_000, d: 5_000 });
+    expect(person(r, 'a').entitled).toEqual({ m: 40_000, k: 20_000, d: 2_500 });
     expect(settled(r.people, r.transfers)).toBe(true);
   });
 

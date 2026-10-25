@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-10-25',
     items: [
       {
+        kind: 'new',
+        de: 'Beuteabrechnung wie die AKS-Excel: Deut-Kosten (Flüge, Recycler, verlorene Schiffe) werden zuerst mit erbeutetem Deut ersetzt, nur was fehlt (z. B. nur Trümmerfeld) in Metall und Kristall. Übriges Deut ist Gewinn.',
+        en: 'Loot settlement like the ACS spreadsheet: deuterium costs (flights, recyclers, lost ships) are paid back with captured deuterium first, only what is missing (e.g. debris only) in metal and crystal. Deuterium left over is profit.',
+      },
+      {
         kind: 'fix',
         de: 'Beuteabrechnung: Abrechnungen ohne Kosten der Teilnehmer, aber mit hoher Deuterium-Erstattung für Recycler-Helfer, werden wieder richtig berechnet.',
         en: 'Loot settlement: settlements without participant costs but with a large recycler deuterium refund for helpers are calculated correctly again.',
