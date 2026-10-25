@@ -196,6 +196,16 @@ describe('live events', () => {
     const adminList = (await app.inject({ method: 'GET', url: '/hub/api/u8/presence', headers: { cookie, 'x-hub-group': String(groupA) } })).json();
     expect(adminList.map((m: any) => m.userId)).toContain(carolId);
 
+    // visible but not sharing the activity: others lose the page, carol and the admin keep it
+    await app.inject({ method: 'POST', url: '/hub/api/auth/show-online', headers: carol, payload: { enabled: true } });
+    await app.inject({ method: 'POST', url: '/hub/api/u8/presence', headers: { cookie: carol.cookie, 'x-hub-group': String(groupA) }, payload: { page: 'browse', active: true } });
+    await app.inject({ method: 'POST', url: '/hub/api/auth/share-activity', headers: carol, payload: { enabled: false } });
+    const pageOf = async (h: object) =>
+      (await app.inject({ method: 'GET', url: '/hub/api/u8/presence', headers: h })).json().find((m: any) => m.userId === carolId)?.page;
+    expect(await pageOf(dave)).toBeNull();
+    expect(await pageOf(carol)).toBe('browse');
+    expect(await pageOf({ cookie, 'x-hub-group': String(groupA) })).toBe('browse');
+
     daveStream.close();
     carolStream.close();
   });

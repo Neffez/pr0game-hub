@@ -6,7 +6,14 @@ export function showOnlineEnabled(db: DB, userId: number): boolean {
   return !!db.prepare('SELECT show_online FROM users WHERE id = ?').pluck().get(userId);
 }
 
-/** Presence list for one viewer: users who hide their status are omitted unless they are the viewer or the viewer is a global admin. */
+export function shareActivityEnabled(db: DB, userId: number): boolean {
+  return !!db.prepare('SELECT share_activity FROM users WHERE id = ?').pluck().get(userId);
+}
+
+/**
+ * Presence list for one viewer: users who hide their status are omitted and users who do not share their activity
+ * lose their whereabouts (page, system, player), unless they are the viewer or the viewer is a global admin.
+ */
 export function presenceForViewer(
   db: DB,
   viewer: Pick<SessionUser, 'id' | 'isAdmin'>,
@@ -14,9 +21,13 @@ export function presenceForViewer(
 ): PresenceEvent['members'] {
   if (viewer.isAdmin || !members.length) return members;
   const ids = members.map((m) => m.userId);
-  const hidden = new Set(
-    db.prepare(`SELECT id FROM users WHERE id IN (${ids.map(() => '?').join(',')}) AND show_online = 0`).pluck().all(...ids) as number[],
-  );
-  if (!hidden.size) return members;
-  return members.filter((m) => m.userId === viewer.id || !hidden.has(m.userId));
+  const rows = db
+    .prepare(`SELECT id, show_online, share_activity FROM users WHERE id IN (${ids.map(() => '?').join(',')}) AND (show_online = 0 OR share_activity = 0)`)
+    .all(...ids) as { id: number; show_online: number; share_activity: number }[];
+  if (!rows.length) return members;
+  const hidden = new Set(rows.filter((r) => !r.show_online).map((r) => r.id));
+  const quiet = new Set(rows.filter((r) => !r.share_activity).map((r) => r.id));
+  return members
+    .filter((m) => m.userId === viewer.id || !hidden.has(m.userId))
+    .map((m) => (m.userId === viewer.id || !quiet.has(m.userId) ? m : { userId: m.userId, page: null, active: m.active }));
 }

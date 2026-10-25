@@ -20,6 +20,16 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Neue Einstellung „Aktivität“ im Konto: Du kannst ausblenden, auf welcher Seite du gerade bist. Andere sehen dich dann weiter als online, aber ohne Seite.',
+        en: 'New "Activity" setting in your account: you can hide which page you are currently on. Others still see you as online, but without the page.',
+      },
+      {
+        kind: 'fix',
+        de: 'Wer aus der letzten Allianz entfernt wird, wird abgemeldet und seine API-Tokens werden gelöscht.',
+        en: 'Anyone removed from their last alliance is logged out and their API tokens are deleted.',
+      },
+      {
+        kind: 'new',
         de: 'Handy: Abrechnung, Kampfberichte, Retime-Tabelle und weitere Listen passen jetzt ohne seitliches Scrollen auf den Bildschirm. Lange Bereiche (Forschung und Statusverlauf beim Spieler, Flotten im Imperium, Aktivitäts-Tage) lassen sich einklappen. „Mehr“ in der Leiste unten zeigt, wenn Angriffe oder Raid-Pläne warten.',
         en: 'Phones: settlements, battle reports, the retime table and other lists now fit the screen without scrolling sideways. Long sections (research and status history of a player, fleets in the empire, activity days) can be collapsed. "More" in the bottom bar shows when attacks or raid plans are waiting.',
       },

@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-25
 
+- Removing a member from their last alliance ends their sessions and deletes their API tokens (global admins are
+  unaffected), so they no longer reach account settings or tokens.
+- New account setting "Activity": when off, other members no longer see which page (system, player) the user is on;
+  the online status is unchanged. Global admins still see it. Stored in `users.share_activity` (migration 054).
 - Desktop tables on a phone (overview's desktop layout): buttons in the rows stay compact, so rows are as low as on
   desktop.
 - Fleet movements (empire, alliance, history): the ships column wraps between ship types instead of running wide.

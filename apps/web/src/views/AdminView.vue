@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Section from '../components/Section.vue';
 import Icon from '../components/Icon.vue';
 import SortBar from '../components/SortBar.vue';
 import SortMark from '../components/SortMark.vue';
@@ -267,8 +268,7 @@ const doMerge = () => run(async () => {
     <div v-if="msg" class="ok">{{ msg }}</div>
 
     <template v-if="isAdmin">
-      <h2>{{ t('nav.universes') }}</h2>
-      <div class="card">
+      <Section :title="t('nav.universes')" :count="universes.length" store-key="admin.universes">
         <div class="scroll-x">
         <table v-stack class="data">
           <tr><th>Slug</th><th>{{ t('common.name') }}</th><th>{{ t('admin.gameUrl') }}</th><th>{{ t('admin.size') }}</th><th>{{ t('admin.timezone') }}</th><th /></tr>
@@ -365,11 +365,10 @@ const doMerge = () => run(async () => {
             <button @click="editUni = null">{{ t('common.cancel') }}</button>
           </div>
         </div>
-      </div>
+      </Section>
     </template>
 
-    <h2>{{ t('stats.alliances') }}</h2>
-    <div class="card">
+    <Section :title="t('stats.alliances')" :count="groups.length" store-key="admin.groups">
       <div class="row">
         <select v-model="groupId">
           <option v-for="g in groups" :key="g.id" :value="g.id">{{ g.universe }} · {{ g.name }} ({{ g.members }})</option>
@@ -387,11 +386,11 @@ const doMerge = () => run(async () => {
         <input v-model="newGroup.name" :placeholder="t('admin.groupName')" />
         <button class="primary">{{ t('admin.createGroup') }}</button>
       </form>
-    </div>
+    </Section>
 
     <template v-if="group">
-      <h2>{{ t('admin.discord') }} <Hint>{{ t('admin.discordHint') }}</Hint></h2>
-      <div v-if="discord" class="card discord">
+      <Section v-if="discord" :title="t('admin.discord')" :default-open="false" store-key="admin.discord" class="discord">
+        <template #hint><Hint>{{ t('admin.discordHint') }}</Hint></template>
         <p v-if="discord.webhook" class="muted small">{{ t('account.discordWebhookSet', { hint: discord.webhook }) }}</p>
         <form class="row" @submit.prevent="saveDiscord({ webhook: discordWebhook.trim() }, 'account.discordSaved')">
           <input v-model="discordWebhook" type="password" autocomplete="off" placeholder="https://discord.com/api/webhooks/…" style="flex: 1; min-width: 200px" />
@@ -423,14 +422,14 @@ const doMerge = () => run(async () => {
           </div>
         </template>
         <p class="muted small">{{ t('admin.discordMentions') }}</p>
-      </div>
-      <h2>{{ t('admin.members', { name: group.name }) }}</h2>
-      <form class="row card" style="margin-bottom: 10px" @submit.prevent="addMember">
+      </Section>
+      <Section :title="t('admin.members', { name: group.name })" :count="memberSort.sorted.value.length" store-key="admin.members">
+      <form class="row" style="margin-bottom: 10px" @submit.prevent="addMember">
         <input v-model="newMemberName" :placeholder="t('admin.ingameName')" style="flex: 1; min-width: 140px" />
         <button class="primary" type="submit" :disabled="!newMemberName.trim()">{{ t('admin.addMember') }}</button>
         <Hint>{{ t('admin.addMemberHint') }}</Hint>
       </form>
-      <div class="table-wrap" style="max-height: none">
+      <div class="table-wrap flat">
         <table v-stack class="data">
           <thead>
             <tr>
@@ -464,13 +463,8 @@ const doMerge = () => run(async () => {
               <td class="invite-col">
                 <div v-if="m.invite" class="invite-row">
                   <CopyField :value="inviteUrl(m.invite)" @copied="msg = t('admin.linkCopied')" />
-                  <button type="button" class="small invite-renew" :title="t('admin.renewInvite')" @click="memberInvite(m)">
-                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                      <path d="M20 11a8 8 0 0 0-14.3-4.9L4 8" />
-                      <path d="M4 4v4h4" />
-                      <path d="M4 13a8 8 0 0 0 14.3 4.9L20 16" />
-                      <path d="M20 20v-4h-4" />
-                    </svg>
+                  <button type="button" class="small invite-renew" :title="t('admin.renewInvite')" :aria-label="t('admin.renewInvite')" @click="memberInvite(m)">
+                    <Icon name="sync" />
                   </button>
                 </div>
                 <button v-else type="button" class="small" @click="memberInvite(m)">{{
@@ -478,47 +472,50 @@ const doMerge = () => run(async () => {
                 }}</button>
               </td>
               <td>
-                <button v-if="m.id !== me && !m.owner" @click="removeMember(m)">{{ t('admin.remove') }}</button>
+                <button v-if="m.id !== me && !m.owner" class="danger" @click="removeMember(m)">{{ t('admin.remove') }}</button>
                 <span v-else-if="m.owner" class="faint small">{{ t('admin.owner') }}</span>
               </td>
             </tr>
           </tbody>
         </table>
       </div>
+      </Section>
 
-      <template v-if="crawler">
-        <h2>{{ t('admin.crawler') }} <Hint>{{ t('admin.crawlerHint') }}</Hint></h2>
-        <div class="card row">
+      <Section v-if="crawler" :title="t('admin.crawler')" :default-open="false" store-key="admin.crawler">
+        <template #hint><Hint>{{ t('admin.crawlerHint') }}</Hint></template>
+        <div class="row">
           <span>{{ crawler.enabled ? t('admin.crawlerRunning') : t('admin.crawlerOff') }}</span>
           <span class="muted small">{{ t('admin.crawlerState', { archived: crawler.archived ?? 0, pending: crawler.pending ?? 0, failed: crawler.failed ?? 0, gone: crawler.gone ?? 0, lost: crawler.lost ?? 0 }) }}</span>
           <span class="grow" />
           <button @click="retryCrawler">{{ t('admin.crawlerRetry') }}</button>
         </div>
-        <div v-for="u in crawler.universes.filter((u: any) => u.stopped || u.nextAttempt > Date.now())" :key="u.universe" class="card warn small">
+        <div v-for="u in crawler.universes.filter((u: any) => u.stopped || u.nextAttempt > Date.now())" :key="u.universe" class="warn small crawler-warn">
           {{
             u.stopped ? t('admin.crawlerStopped', { universe: u.universe, time: dateTime(u.failingSince / 1000), error: u.lastError })
             : t('admin.crawlerPaused', { universe: u.universe, time: dateTime(u.nextAttempt / 1000), error: u.lastError })
           }}
         </div>
-      </template>
+      </Section>
 
       <template v-if="isAdmin">
-      <h2>
-        {{ t('admin.backfill') }}
-        <Hint>{{ t('admin.backfillHint') }}</Hint>
-      </h2>
-      <div class="card row">
+      <Section :title="t('admin.backfill')" :default-open="false" store-key="admin.backfill">
+        <template #hint><Hint>{{ t('admin.backfillHint') }}</Hint></template>
+      <div class="row">
         <button @click="backfill">{{ t('admin.backfillButton') }}</button>
       </div>
+      </Section>
 
-      <h2>{{ t('admin.merge') }} <Hint>{{ t('admin.mergeHint') }}</Hint></h2>
-      <div class="card row">
+      <Section :title="t('admin.merge')" :default-open="false" store-key="admin.merge">
+        <template #hint><Hint>{{ t('admin.mergeHint') }}</Hint></template>
+      <div class="row">
         <label>{{ t('common.from') }} <input v-model.number="merge.from" type="number" /></label>
         <label>{{ t('admin.into') }} <input v-model.number="merge.into" type="number" /></label>
         <button :disabled="!merge.from || !merge.into" @click="doMerge">{{ t('admin.mergeButton') }}</button>
       </div>
+      </Section>
 
-      <h2>{{ t('admin.ingests') }} <Hint>{{ t('admin.ingestsHint') }}</Hint></h2>
+      <Section :title="t('admin.ingests')" :default-open="false" store-key="admin.ingests">
+        <template #hint><Hint>{{ t('admin.ingestsHint') }}</Hint></template>
       <SortBar
         v-if="mobile"
         v-model:desc="ingestSort.descending.value"
@@ -562,7 +559,7 @@ const doMerge = () => run(async () => {
                   <p v-if="undo.kept.length" class="warn"><b>{{ t('admin.undoKept') }} ({{ undo.kept.length }}):</b> {{ undo.kept.join(', ') }}</p>
                   <p v-if="undo.skipped.length" class="warn">{{ t('admin.undoSkipped', { kinds: undo.skipped.join(', ') }) }}</p>
                   <div class="actions" style="justify-content: flex-start">
-                    <button style="color: var(--neg)" @click="runUndo">{{ t('admin.undoRun') }}</button>
+                    <button class="danger" @click="runUndo">{{ t('admin.undoRun') }}</button>
                     <button @click="undo = null">{{ t('common.cancel') }}</button>
                   </div>
                 </td>
@@ -571,12 +568,14 @@ const doMerge = () => run(async () => {
           </tbody>
         </table>
       </div>
+      </Section>
       </template>
     </template>
   </div>
 </template>
 
 <style scoped>
+.crawler-warn { margin-top: 8px; }
 .discord .check { display: flex; gap: 8px; align-items: center; margin: 6px 0; }
 .discord .off { opacity: 0.5; }
 .discord label + label { margin-left: 12px; }

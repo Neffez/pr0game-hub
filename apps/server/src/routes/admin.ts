@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { checkUsername, HttpError, randomToken, requireAdmin, requireUser } from '../auth.js';
+import { checkUsername, HttpError, randomToken, requireAdmin, requireUser, revokeAccessIfOrphaned } from '../auth.js';
 import { config, UNIVERSE_DEFAULTS } from '../config.js';
 import { toUniverse } from '../context.js';
 import { now, type DB } from '../db.js';
@@ -234,6 +234,7 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
       db.prepare('DELETE FROM users WHERE id = ?').run(target);
     } else {
       db.prepare('DELETE FROM group_members WHERE group_id = ? AND user_id = ?').run(groupId, target);
+      revokeAccessIfOrphaned(db, target);
     }
     events.publish(groupId, { type: 'data', tables: ['group_members'] });
     return { ok: true };

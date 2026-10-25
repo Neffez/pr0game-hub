@@ -1965,7 +1965,7 @@ paths:
                   required: [userId, page, active]
                   properties:
                     userId: { type: integer }
-                    page: { type: [string, 'null'], description: Page below the universe, e.g. `browse`; null until reported }
+                    page: { type: [string, 'null'], description: 'Page below the universe, e.g. `browse`; null until reported or when the member does not share their activity' }
                     g: { type: integer }
                     s: { type: integer }
                     player: { type: integer, description: Player shown in the player page or dialog }

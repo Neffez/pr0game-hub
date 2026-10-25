@@ -51,6 +51,7 @@ const share = ref<{ enabled: boolean; hidden: number[]; history: boolean } | nul
 /** Player messages shared with the other members (off: only the user sees them). */
 const messageShare = ref<{ enabled: boolean } | null>(null);
 const showOnline = ref<{ enabled: boolean } | null>(null);
+const shareActivity = ref<{ enabled: boolean } | null>(null);
 
 /** Which notifications are pushed (all devices of the user, server: push.ts); this browser is switched on separately. */
 interface PushPrefs {
@@ -169,10 +170,11 @@ function formatTokenTime(sec: number | null) {
 
 onMounted(async () => {
   try {
-    const [fleetShare, messages, online, prefs, discordSettings] = await Promise.all([
+    const [fleetShare, messages, online, activity, prefs, discordSettings] = await Promise.all([
       api('/auth/fleet-share'),
       api('/auth/message-share'),
       api('/auth/show-online'),
+      api<{ enabled: boolean }>('/auth/share-activity'),
       api<PushPrefs>('/auth/push-settings'),
       api<DiscordSettings>('/auth/discord'),
       loadApiTokens(),
@@ -184,10 +186,15 @@ onMounted(async () => {
     share.value = fleetShare;
     messageShare.value = messages;
     showOnline.value = online;
+    shareActivity.value = activity;
   } catch (e) {
     error.value = (e as Error).message;
   }
 });
+const saveShareActivity = () =>
+  run(async () => {
+    shareActivity.value = await api('/auth/share-activity', { body: shareActivity.value });
+  }, () => t('account.shareActivitySaved'));
 const saveShowOnline = () =>
   run(async () => {
     showOnline.value = await api('/auth/show-online', { body: showOnline.value });
@@ -252,6 +259,10 @@ const saveDateFormat = () =>
         <div v-if="showOnline" class="field">
           <span class="field-label">{{ t('account.showOnline') }} <Hint>{{ t('account.showOnlineHint') }}</Hint></span>
           <label class="check"><input v-model="showOnline.enabled" type="checkbox" @change="saveShowOnline" /> {{ t('account.showOnlineEnabled') }}</label>
+        </div>
+        <div v-if="shareActivity" class="field">
+          <span class="field-label">{{ t('account.shareActivity') }} <Hint>{{ t('account.shareActivityHint') }}</Hint></span>
+          <label class="check"><input v-model="shareActivity.enabled" type="checkbox" @change="saveShareActivity" /> {{ t('account.shareActivityEnabled') }}</label>
         </div>
       </section>
       <section class="card">

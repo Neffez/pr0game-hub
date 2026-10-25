@@ -99,6 +99,15 @@ export function destroyOtherSessions(db: DB, userId: number, req: FastifyRequest
   db.prepare('DELETE FROM sessions WHERE user_id = ? AND token_hash != ?').run(userId, token ? sha256(token) : '');
 }
 
+/** A non-admin user who belongs to no group anymore loses all sessions and API tokens. */
+export function revokeAccessIfOrphaned(db: DB, userId: number) {
+  const row = db.prepare('SELECT is_admin FROM users WHERE id = ?').get(userId) as { is_admin: number } | undefined;
+  if (!row || row.is_admin) return;
+  if (db.prepare('SELECT 1 FROM group_members WHERE user_id = ?').get(userId)) return;
+  db.prepare('DELETE FROM sessions WHERE user_id = ?').run(userId);
+  db.prepare('DELETE FROM api_tokens WHERE user_id = ?').run(userId);
+}
+
 type UserRow = { id: number; username: string; is_admin: number; lang: string; date_format: string };
 
 function sessionUser(row: UserRow): SessionUser {

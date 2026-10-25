@@ -103,4 +103,20 @@ describe('api tokens', () => {
     expect(rows.some((r: { name: string; token?: string }) => r.name === 'listed' && r.token === undefined)).toBe(true);
     await app.inject({ method: 'DELETE', url: `/hub/api/auth/tokens/${created.json().id}`, headers: admin });
   });
+
+  it('removing the last membership ends sessions and tokens', async () => {
+    const uid = Number(db.prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)').run('leaver', hashPassword('leaverpass')).lastInsertRowid);
+    db.prepare("INSERT INTO group_members (group_id, user_id, role) VALUES (?, ?, 'member')").run(groupA, uid);
+    const member = await login('leaver', 'leaverpass');
+    const { token } = (await app.inject({ method: 'POST', url: '/hub/api/auth/tokens', headers: member, payload: { name: 'gone' } })).json();
+    const bearer = { authorization: `Bearer ${token}` };
+    const me = (h: object) => app.inject({ method: 'GET', url: '/hub/api/auth/me', headers: h });
+    expect((await me(member)).json().user).toBeTruthy();
+
+    const del = await app.inject({ method: 'DELETE', url: `/hub/api/admin/groups/${groupA}/members/${uid}`, headers: admin });
+    expect(del.statusCode).toBe(200);
+    expect((await me(member)).json().user).toBeNull();
+    expect((await me(bearer)).json().user).toBeNull();
+    expect(db.prepare('SELECT COUNT(*) FROM api_tokens WHERE user_id = ?').pluck().get(uid)).toBe(0);
+  });
 });

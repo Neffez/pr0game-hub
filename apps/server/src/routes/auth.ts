@@ -7,7 +7,7 @@ import { now, type DB } from '../db.js';
 import { events } from '../events.js';
 import { fleetShare, SHARE_MISSIONS } from '../repo/fleets.js';
 import { messageShare } from '../repo/messages.js';
-import { showOnlineEnabled } from '../repo/presence.js';
+import { shareActivityEnabled, showOnlineEnabled } from '../repo/presence.js';
 import { mergeUser } from '../repo/members.js';
 
 /** Failed logins per IP (any username) within the window; the per-username limit is 10. */
@@ -141,6 +141,19 @@ export function authRoutes(app: FastifyInstance, db: DB) {
     const user = requireUser(req);
     const enabled = req.body?.enabled !== false;
     db.prepare('UPDATE users SET show_online = ? WHERE id = ?').run(enabled ? 1 : 0, user.id);
+    for (const g of db.prepare('SELECT group_id FROM group_members WHERE user_id = ?').pluck().all(user.id) as number[]) {
+      events.refreshPresence(g);
+    }
+    return { enabled };
+  });
+
+  /** Whether other members see which page this user is on (global admins always do). */
+  app.get('/api/auth/share-activity', async (req) => ({ enabled: shareActivityEnabled(db, requireUser(req).id) }));
+
+  app.post<{ Body: { enabled?: boolean } }>('/api/auth/share-activity', async (req) => {
+    const user = requireUser(req);
+    const enabled = req.body?.enabled !== false;
+    db.prepare('UPDATE users SET share_activity = ? WHERE id = ?').run(enabled ? 1 : 0, user.id);
     for (const g of db.prepare('SELECT group_id FROM group_members WHERE user_id = ?').pluck().all(user.id) as number[]) {
       events.refreshPresence(g);
     }
