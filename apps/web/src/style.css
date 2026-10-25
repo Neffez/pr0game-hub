@@ -164,6 +164,9 @@ table.data tr.dim td { opacity: .55; }
   /* touch targets; 16px inputs keep iOS from zooming in on focus */
   input, select, textarea { font-size: 16px; }
   button { min-height: 36px; }
+  /* desktop tables shown on a phone (overview's desktop layout): row buttons stay as compact as on desktop */
+  table.data:not(.stack) button { min-height: 0; }
+  table.data:not(.stack) select { font-size: 13px; }
 
   /* tables scroll with the page instead of in a nested 75vh box */
   .table-wrap { max-height: none; }

@@ -4,6 +4,8 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-25
 
+- Desktop tables on a phone (overview's desktop layout): buttons in the rows stay compact, so rows are as low as on
+  desktop.
 - Fleet movements (empire, alliance, history): the ships column wraps between ship types instead of running wide.
 - Fleet movements on mobile: mission, phase and owner of a fleet card are spaced again ("Angreifen feindlich: …"
   ran together).
