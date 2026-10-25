@@ -21,6 +21,10 @@
     "./combat": {
       "types": "./dist/combat.d.ts",
       "default": "./dist/combat.js"
+    },
+    "./spy": {
+      "types": "./dist/spy.d.ts",
+      "default": "./dist/spy.js"
     }
   },
   "scripts": {

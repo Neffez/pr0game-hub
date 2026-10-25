@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-25
 
+- Interplanetary missile math in `@pr0hub/flight` (`missile.ts`), ported from the game: range and flight time
+  (`inMissileRange`, `getMIPDuration`, circular and sphere systems), the attack of `calculateMIPAttack` (interceptors,
+  primary target first, damage carried on target by target, the target's own missiles hit too), the fewest missiles
+  for clearing everything or the primary target, silo space and the value of destroyed defense. `@pr0hub/core/spy`
+  parses pasted spy reports without cheerio for the static tools.
 - The tools index subtitle reads "Tools for pr0game" and links "pr0game" to pr0game.com.
 - README points to commercial licenses (dual licensing next to the AGPL); CONTRIBUTING states that contributions may also
   be offered under a commercial license.
