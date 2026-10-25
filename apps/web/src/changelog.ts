@@ -20,7 +20,7 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
-        de: 'Beuteabrechnung: Zahlen ohne Kosten der Teilnehmer, aber mit hoher Deuterium-Erstattung für Recycler-Helfer, werden wieder richtig berechnet.',
+        de: 'Beuteabrechnung: Abrechnungen ohne Kosten der Teilnehmer, aber mit hoher Deuterium-Erstattung für Recycler-Helfer, werden wieder richtig berechnet.',
         en: 'Loot settlement: settlements without participant costs but with a large recycler deuterium refund for helpers are calculated correctly again.',
       },
       {
