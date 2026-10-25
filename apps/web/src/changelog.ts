@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-10-25',
     items: [
       {
+        kind: 'fix',
+        de: 'Expeditionen: Die Spielerauswahl steht jetzt bei der Verteilung, auf die sie wirkt, und zeigt zuerst deine eigenen Expeditionen. Die Erträge der Allianz zeigen weiterhin alle.',
+        en: 'Expeditions: the player choice now sits at the distribution it applies to and starts with your own expeditions. The alliance yields still show everyone.',
+      },
+      {
         kind: 'new',
         de: 'Nachrichten mit aufgeräumten Filtern, Allianz-Seiten mit einklappbarem Stand je Mitglied, Mitglieder-Auswahl im Imperium und im Deck oben neben dem Titel. „Abrechnung aus Bericht“ öffnet sich als Fenster.',
         en: 'Messages with tidier filters, alliance pages with a collapsible sync state per member, the member select in the empire and the deck next to the title. "Settlement from report" opens as a dialog.',

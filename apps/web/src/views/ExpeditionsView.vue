@@ -16,8 +16,14 @@ const { t } = useI18n();
 const { uni, ctx } = useUni();
 /** Default like the FF-Hub: the last 24 hours. */
 const days = useStored('expos.range', 1);
-/** null = whole alliance, otherwise one member */
-const member = useStored<number | null>('expos.member', null);
+/**
+ * Member whose distribution and expeditions are shown (null = whole alliance); the yields above always list everyone.
+ * Starts with the viewer's own.
+ */
+const member = useStored<number | null>('expos.memberFilter', ctx.value!.me.id);
+const memberLabel = computed(() =>
+  member.value == null ? t('raids.wholeAlliance') : (ctx.value!.members.find((m) => m.id === member.value)?.name ?? '?'),
+);
 
 const { data, error, load } = useLoader<any>(() => uniApi(uni.value, `/expeditions?from=${Math.floor(Date.now() / 1000) - days.value * 86400}`));
 onMounted(load);
@@ -101,7 +107,6 @@ const sumRes = (u: any) => Object.values(u.resources as Record<string, number>).
   </PageHeader>
   <div class="card row">
     <RangePicker v-model="days" />
-    <MemberSelect v-model="member" :all-label="t('raids.wholeAlliance')" />
   </div>
   <div v-if="error" class="error">{{ error }}</div>
   <template v-if="data">
@@ -146,7 +151,11 @@ const sumRes = (u: any) => Object.values(u.resources as Record<string, number>).
         </tfoot>
       </table>
     </div>
-    <h2>{{ t('expeditions.distribution') }}</h2>
+    <!-- the member filter applies to the distribution and the expeditions below, not to the yields above -->
+    <div class="dist-head">
+      <h2>{{ t('expeditions.distribution') }}</h2>
+      <MemberSelect v-model="member" :all-label="t('raids.wholeAlliance')" />
+    </div>
   </template>
   <div v-if="data && !columns.length" class="card muted">{{ t('expeditions.empty') }}</div>
   <template v-if="data && columns.length">
@@ -190,7 +199,7 @@ const sumRes = (u: any) => Object.values(u.resources as Record<string, number>).
       </table>
     </div>
 
-    <h2>{{ t('expeditions.recent') }}</h2>
+    <h2>{{ t('expeditions.recent') }} <span class="muted small">· {{ memberLabel }}</span></h2>
     <div class="table-wrap">
       <table v-stack="3" class="data">
         <thead><tr><th>{{ t('common.time') }}</th><th>{{ t('common.player') }}</th><th>{{ t('hostile.target') }}</th><th>{{ t('expeditions.event') }}</th><th>{{ t('expeditions.depletion') }}</th><th>{{ t('expeditions.found') }}</th><th /></tr></thead>
@@ -220,6 +229,8 @@ const sumRes = (u: any) => Object.values(u.resources as Record<string, number>).
 </template>
 
 <style scoped>
+.dist-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; margin: 20px 0 8px; }
+.dist-head h2 { margin: 0; }
 table.yields tr.mine td { background: var(--accent-soft); }
 table.yields td.strong { font-weight: 600; }
 table.yields tfoot th { border-top: 2px solid var(--border-strong); color: var(--text); }

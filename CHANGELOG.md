@@ -4,6 +4,8 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-25
 
+- Expeditions: the member filter sits at the distribution it applies to (and the recent expeditions below, which
+  name the member), not above the alliance yields it never filtered; it starts with the viewer's own expeditions.
 - Consistency pass: messages use the filter bar (sender, recipient and conversation partner as chips) and the shared
   sort bar; empire and deck use the member select (the deck's in the page header); the alliance pages fold the
   per-member sync ages into a section; the deck correction is a collapsible section and creating a settlement from a
