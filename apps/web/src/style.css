@@ -320,5 +320,5 @@ button.chip:hover { border-color: var(--accent); }
   .chip { min-height: 28px; }
   .field > .lbl { flex-basis: 100%; min-width: 0; }
   .section.card > .section-body { padding: 2px 12px 12px; }
-  .page-head .page-actions { margin-left: 0; width: 100%; }
+  .page-head { margin-bottom: 10px; }
 }

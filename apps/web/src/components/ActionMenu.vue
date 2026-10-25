@@ -43,6 +43,11 @@ async function toggle() {
     ...(below ? { top: `${r.bottom + 4}px` } : { bottom: `${window.innerHeight - r.top + 4}px` }),
   };
   open.value = true;
+  // right edge at the button's, but always fully on screen (a button at the left edge opens the menu to the right)
+  await nextTick();
+  const w = menu.value?.offsetWidth ?? 0;
+  const left = Math.min(Math.max(8, r.right - w), window.innerWidth - w - 8);
+  style.value = { ...style.value, left: `${Math.max(8, left)}px`, right: 'auto' };
   document.addEventListener('click', close);
   document.addEventListener('keydown', onKey);
   window.addEventListener('scroll', close, true);
