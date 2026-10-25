@@ -4,6 +4,18 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-25
 
+- Dependencies to their current majors: Vite 8 (Rolldown), Vitest 5, `@vitejs/plugin-vue` 6, Vue Router 5, vue-tsc 3,
+  TypeScript 6, happy-dom 21, Chart.js 4.6, `@types/better-sqlite3` 9; base images Debian trixie (bookworm is
+  oldstable) and nginx 1.30 for the tools; CI actions on their Node 24 majors (`actions/checkout` 7,
+  `actions/setup-node` 7, `pnpm/action-setup` 6). `pnpm audit` is clean, dev dependencies included. Left out on purpose:
+  TypeScript 7 (the native compiler has no JS API, which vue-tsc needs), `better-sqlite3` 13 (no prebuilt binaries),
+  `domhandler` 6 (cheerio uses 5, their node types must match) and `@types/node` 26 (types follow the Node runtime).
+- Node.js 24 (LTS) instead of 22, which only gets security fixes until April 2027: Docker images, CI, `engines`
+  and `@types/node`. `better-sqlite3` 11 → 12.11, version 11 has no prebuilt binary for Node 24 and the slim image
+  cannot compile one. The event loop histogram in `monitor.ts` takes its type from `monitorEventLoopDelay` (renamed
+  in the Node 24 types).
+- CI builds both Docker images and starts the hub image (health, login, web app) before a deployment is triggered,
+  so an image that does not build or start no longer reaches the server.
 - Security hardening:
   - Only global admins can create password recovery links (invites for members who already have an account); alliance
     admins could otherwise set any member's password, the hub owner's included. The member list no longer shows
