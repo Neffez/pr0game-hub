@@ -19,6 +19,16 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-10-25',
     items: [
       {
+        kind: 'fix',
+        de: 'Übersicht und Statistik laden deutlich schneller, vor allem in Universen mit langer Statistik-Historie.',
+        en: 'Overview and statistics load much faster, above all in universes with a long statistics history.',
+      },
+      {
+        kind: 'new',
+        de: 'Admin: Neuer Bereich „System“ mit Datenbankgröße und Wachstum, Speicher, Antwortzeiten und Nutzung des Hubs.',
+        en: 'Admin: new "System" section with the hub\'s database size and growth, memory, response times and usage.',
+      },
+      {
         kind: 'new',
         de: 'Galaxie: Die universe.json lässt sich jetzt auch direkt im Menü neben dem Titel herunterladen.',
         en: 'Galaxy: the universe.json can now also be downloaded right from the menu next to the title.',

@@ -221,6 +221,17 @@ describe('live events', () => {
     expect(got.filter((e) => e.type === 'data').map((e) => e.systems)).toEqual([undefined, undefined]);
   });
 
+  it('keeps a bounded number of tabs per member', () => {
+    const bus = new EventBus();
+    bus.subscribe(1, { userId: 7, isAdmin: false, send: () => {} });
+    bus.setWhereabouts(1, 7, { page: 'overview', active: true }, { id: 'real', focused: true });
+    for (let i = 0; i < 1000; i++) bus.setWhereabouts(1, 7, { page: 'browse', active: false }, { id: `fake-${i}` });
+    const tabs = (bus as any).tabs.get(1).get(7) as Map<string, unknown>;
+    expect(tabs.size).toBe(20);
+    expect(tabs.has('real')).toBe(false);
+    expect(bus.stats()).toEqual({ connections: 1, users: [7] });
+  });
+
   it('shows the tab in use of a member with several tabs or devices', () => {
     let clock = 1_000_000;
     const bus = new EventBus(() => clock);

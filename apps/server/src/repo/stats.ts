@@ -6,15 +6,15 @@ export type Score = { points: number; rank: number; time: number };
 export function latestScores(db: DB, groupId: number, playerIds: number[], types: number[] = [1, 2, 3, 4, 5]): Map<number, Record<number, Score>> {
   const out = new Map<number, Record<number, Score>>();
   if (!playerIds.length) return out;
+  // one index lookup per player and category (see migration 055), not an aggregate over the whole history
   const rows = db
     .prepare(
-      // SQLite takes the bare columns from the row with the MAX()
-      `SELECT ps.player_id, st.type, ps.points, ps.rank, MAX(st.stat_time) AS time FROM player_scores ps JOIN stat_snapshots st ON st.id = ps.snapshot_id
-       WHERE st.group_id = ? AND st.who = 'player' AND st.type IN (${types.map(() => '?').join(',')})
-         AND ps.player_id IN (${playerIds.map(() => '?').join(',')})
-       GROUP BY ps.player_id, st.type`,
+      `SELECT ps.player_id, ps.type, ps.points, ps.rank, ps.stat_time AS time
+       FROM json_each(?) id JOIN players p ON p.id = id.value AND p.group_id = ? CROSS JOIN json_each(?) t
+       JOIN player_scores ps ON ps.rowid = (
+         SELECT rowid FROM player_scores WHERE player_id = p.id AND type = t.value ORDER BY stat_time DESC LIMIT 1)`,
     )
-    .all(groupId, ...types, ...playerIds) as ({ player_id: number; type: number } & Score)[];
+    .all(JSON.stringify(playerIds), groupId, JSON.stringify(types)) as ({ player_id: number; type: number } & Score)[];
   for (const r of rows) out.set(r.player_id, { ...out.get(r.player_id), [r.type]: { points: r.points, rank: r.rank, time: r.time } });
   return out;
 }
