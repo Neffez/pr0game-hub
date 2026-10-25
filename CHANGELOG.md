@@ -4,6 +4,7 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-25
 
+- The tools index subtitle reads "Tools for pr0game" and links "pr0game" to pr0game.com.
 - README points to commercial licenses (dual licensing next to the AGPL); CONTRIBUTING states that contributions may also
   be offered under a commercial license.
 - The What's new page links to the source code on GitHub (AGPL-3.0 section 13 for users of a network service).
