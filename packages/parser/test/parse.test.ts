@@ -722,6 +722,27 @@ describe('fleet movements', () => {
     const winter = localToEpoch('2026-03-29 01:30:00');
     expect(nearestClock(Date.UTC(2026, 2, 29, 2, 0, 0) / 1000, '01:30:00')).toBe(winter);
   });
+
+  it('resolves the hour repeated at the switch to winter time', () => {
+    const cest = Date.UTC(2026, 9, 25, 0, 53, 0) / 1000; // 02:53 CEST
+    const cet = cest + 3600; // 02:53 CET
+    // without a hint the later instant, as before
+    expect(localToEpoch('2026-10-25 02:53:00')).toBe(cet);
+    // a page copied at 02:53 CEST: its time is not an hour ahead
+    expect(localToEpoch('2026-10-25 02:53:00', 'Europe/Berlin', cest + 5)).toBe(cest);
+    expect(localToEpoch('2026-10-25 02:53:00', 'Europe/Berlin', cet + 5)).toBe(cet);
+    // outside the repeated hour the hint changes nothing
+    expect(localToEpoch('2026-10-25 03:10:00', 'Europe/Berlin', cest)).toBe(Date.UTC(2026, 9, 25, 2, 10, 0) / 1000);
+    // a spy fleet arriving a minute later at 02:54:29 CEST
+    expect(nearestClock(cest + 89, '02:54:29')).toBe(cest + 89);
+    expect(nearestClock(cet + 89, '02:54:29')).toBe(cet + 89);
+    // estimated just before the switch, arriving just after it (02:00:20 CET)
+    const after = Date.UTC(2026, 9, 25, 1, 0, 20) / 1000;
+    expect(nearestClock(after - 30, '02:00:20')).toBe(after);
+    expect(nearestClock(after + 30, '02:59:50')).toBe(after - 30);
+    // a skipped spring time keeps the offset before the switch
+    expect(localToEpoch('2026-03-29 02:30:00')).toBe(Date.UTC(2026, 2, 29, 1, 30, 0) / 1000);
+  });
 });
 
 describe('deck', () => {
