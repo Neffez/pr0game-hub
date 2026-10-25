@@ -16,7 +16,7 @@ import { computed, reactive, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { uniApi } from '../api';
 import { loadClaims } from '../claims';
-import { vStack } from '../composables';
+import { useMobile, vStack } from '../composables';
 import { coords, duration, fmt, name, timeWithAge } from '../format';
 import { draftBody, draftOf, fleetCalcLink, FLEET_STATUSES, PLAN_STATUSES, seenShipsDiffer, SPEEDS, type PlanDraft, type PlanFleet } from '../plans';
 import { nextStatus, useRaidPlanner } from '../raidPlanner';
@@ -34,6 +34,7 @@ const planId = computed(() => Number(route.params.id));
 const plan = computed(() => plans.value.find((p) => p.id === planId.value) ?? null);
 const view = computed(() => (plan.value ? rp.views.value.get(plan.value.id) : undefined));
 const listLink = computed(() => `/${uni.value}/raid-planner`);
+const mobile = useMobile();
 
 // ---- fleets ----
 const fleetSheet = reactive({ open: false, fleet: null as PlanFleet | null });
@@ -238,17 +239,91 @@ const planMenu = computed<MenuItem[]>(() => {
       </template>
     </div>
 
-    <div v-if="plan.enemy" class="card enemy">
+    <Section v-if="plan.enemy" :title="plan.mission === 'hold' ? t('hold.title') : t('retime.enemy')" store-key="raidPlan.enemy" class="enemy">
       <HoldPanel v-if="plan.mission === 'hold'" :plan="plan" :editable="rp.canEditEnemy(plan) && !rp.closed(plan)" @saved="rp.load" @error="(m) => (error = m)" />
       <RetimePanel v-else :plan="plan" :editable="rp.canEditEnemy(plan) && !rp.closed(plan)" @saved="rp.load" @error="(m) => (error = m)" />
-    </div>
+    </Section>
 
     <Section :title="t('plans.fleets')" :count="rp.flying(plan)" store-key="raidPlan.fleets" class="fleets">
       <template v-if="!rp.closed(plan)" #actions>
         <button class="btn-icon" @click="openFleet()"><Icon name="plus" />{{ t('plans.addFleet') }}</button>
         <ActionMenu v-if="inviteMenu.length" :items="inviteMenu" :label="t('plans.invite')" icon="user" :title="t('plans.inviteTitle')" />
       </template>
-      <div v-if="plan.fleets.length || plan.guests?.length" class="table-wrap flat">
+      <!-- mobile: one card per fleet, the launch time first -->
+      <div v-if="mobile && (plan.fleets.length || plan.guests?.length)" class="fleet-cards">
+        <div v-for="x in view!.fleets" :key="x.fleet.id" class="fleet-card" :class="{ mine: x.fleet.user_id === me, dim: x.fleet.status === 'withdrawn' }">
+          <div class="fc-head">
+            <b>{{ x.fleet.member }}</b>
+            <span v-if="isLead(x.plan?.id)" class="badge">{{ t('plans.leadShort') }}</span>
+            <Icon v-if="x.duration != null && rp.oldDrives(x.fleet)" name="warning" :size="13" class="warn" :label="t('plans.drivesOld')" />
+            <span class="grow" />
+            <select
+              v-if="rp.canEditFleet(plan, x.fleet) && !rp.closed(plan)"
+              :value="x.fleet.status"
+              :aria-label="t('plans.fleetStatus')"
+              @change="rp.setFleetStatus(plan, x.fleet, ($event.target as HTMLSelectElement).value)"
+            >
+              <option v-for="s in FLEET_STATUSES" :key="s" :value="s">{{ t(`plans.fleetStatuses.${s}`) }}</option>
+            </select>
+            <span v-else class="badge">{{ t(`plans.fleetStatuses.${x.fleet.status}`) }}</span>
+            <ActionMenu v-if="fleetMenu(x.fleet, x.duration).length" :items="fleetMenu(x.fleet, x.duration)" :title="t('plans.fleetMenu', { member: x.fleet.member })" />
+          </div>
+          <div class="fc-launch">
+            <span v-if="x.fleet.recalled_at && x.fleet.status === 'withdrawn'" class="small warn">{{ t('plans.recalled', { time: rp.clock(x.fleet.recalled_at) }) }}</span>
+            <template v-else-if="x.fleet.seen">
+              <span class="small muted">{{ t('plans.arrival') }}</span> <b class="mono">{{ rp.clock(x.fleet.seen.arrival) }}</b>
+              <span class="small" :class="rp.exact(plan) && x.fleet.seen.arrival !== plan.target_time ? 'warn' : 'pos'">
+                {{ t('plans.seen') }}<template v-if="rp.exact(plan)"> · {{ rp.offset(x.fleet.seen.arrival - plan.target_time) }}</template>
+              </span>
+            </template>
+            <template v-else-if="x.plan && rp.exact(plan)">
+              <span class="small muted">{{ t('plans.launch') }}</span>
+              <b class="mono" :class="{ neg: x.plan.late }">{{ rp.clock(x.plan.launch) }}</b>
+              <Countdown class="muted small mono" :to="x.plan.launch" />
+              <span v-if="x.plan.late" class="neg small">{{ t('plans.late') }}</span>
+              <span v-if="x.plan.delays" class="warn small">{{ t('plans.delays') }}</span>
+              <span v-if="x.plan.beforeLead" class="warn small">{{ t('plans.beforeLead') }}</span>
+              <span v-if="x.plan.outside" class="warn small">{{ t('plans.outside') }}</span>
+            </template>
+            <span v-else-if="x.plan && plan.time_precision === 'hour'" class="mono">{{ t('plans.around', { t: rp.shortClock(x.plan.launch) }) }}</span>
+            <span v-else class="muted small">{{ x.duration == null && rp.hasCoords(plan) ? t('plans.incomplete') : '–' }}</span>
+          </div>
+          <div v-if="x.fleet.seen && seenShipsDiffer(x.fleet)" class="small warn">
+            {{ t('plans.seenShips', { ships: rp.shipList(x.fleet.seen.ships) }) }}
+            <button v-if="rp.canEditFleet(plan, x.fleet) && !rp.closed(plan)" class="small" @click="rp.takeSeenShips(plan, x.fleet)">{{ t('plans.takeSeen') }}</button>
+          </div>
+          <div class="fc-details small">
+            <span class="mono">
+              {{ x.fleet.g != null ? coords(x.fleet.g, x.fleet.s!, x.fleet.p!) : '–' }}
+              <Icon v-if="x.fleet.planet_type === 'moon'" name="moon" :size="11" class="muted" :label="t('common.moon')" />
+            </span>
+            <span>{{ rp.shipList(x.fleet.ships) }}</span>
+            <span v-if="x.duration != null" class="muted">{{ t('plans.flightOf', { t: duration(Math.floor(x.duration)) }) }}</span>
+            <select
+              v-if="rp.canEditFleet(plan, x.fleet) && !rp.closed(plan)"
+              class="speed"
+              :value="x.fleet.speed"
+              :aria-label="t('plans.speed')"
+              @change="rp.setFleetSpeed(plan, x.fleet, Number(($event.target as HTMLSelectElement).value))"
+            >
+              <option v-for="v in SPEEDS" :key="v" :value="v">{{ v }} %</option>
+            </select>
+            <span v-else>{{ x.fleet.speed }} %</span>
+          </div>
+        </div>
+        <div v-for="(g, i) in plan.guests ?? []" :key="`g${i}`" class="fleet-card guest">
+          <div class="fc-head">
+            <PlayerLink v-if="g.player" :id="g.player.id" :name="g.player.name" />
+            <span v-else>{{ g.name ?? '?' }}</span>
+            <span class="badge" :title="t('ownAttacks.guestTitle')">{{ t('ownAttacks.guest') }}</span>
+          </div>
+          <div class="fc-details small">
+            <span class="mono">{{ coords(g.from.g, g.from.s, g.from.p) }}</span>
+            <span>{{ Object.entries(g.ships).map(([id, n]) => `${fmt(n)} ${name(Number(id))}`).join(', ') }}</span>
+          </div>
+        </div>
+      </div>
+      <div v-else-if="plan.fleets.length || plan.guests?.length" class="table-wrap flat">
         <table v-stack class="data fleet-table">
           <thead>
             <tr>
@@ -406,7 +481,18 @@ const planMenu = computed<MenuItem[]>(() => {
 .step-label { color: var(--accent); font-weight: 600; }
 .step-time { display: inline-flex; align-items: baseline; gap: 8px; font-size: 20px; }
 .step-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-.enemy { padding-top: 12px; }
+/* fleet cards (mobile) */
+.fleet-cards { display: flex; flex-direction: column; gap: 8px; }
+.fleet-card { display: flex; flex-direction: column; gap: 6px; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2); }
+.fleet-card.mine { border-color: color-mix(in srgb, var(--accent) 55%, var(--border)); }
+.fleet-card.dim { opacity: .6; }
+.fleet-card.guest { background: none; }
+.fc-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.fc-head select { max-width: 45%; }
+.fc-launch { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 8px; }
+.fc-launch b { font-size: 16px; }
+.fc-details { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; }
+.fc-details select { min-height: 32px; padding: 2px 6px; font-size: 14px; }
 .flags { display: flex; flex-wrap: wrap; gap: 2px 8px; }
 tr.mine td:first-child { font-weight: 600; }
 tr.guest td { color: var(--muted); }

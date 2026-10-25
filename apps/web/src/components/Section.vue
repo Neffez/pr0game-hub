@@ -30,7 +30,7 @@ defineExpose({ open: () => (stored.value = true) });
         <span v-if="count != null" class="badge section-count">{{ count }}</span>
       </button>
       <slot name="hint" />
-      <span class="grow" />
+      <!-- on the right; below the title when the row is too narrow -->
       <div v-if="$slots.actions" class="section-actions"><slot name="actions" /></div>
     </div>
     <div v-if="open" class="section-body"><slot /></div>

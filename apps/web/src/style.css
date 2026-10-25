@@ -290,7 +290,7 @@ button.chip:hover { border-color: var(--accent); }
 
 /* collapsible section (Section.vue) */
 .section.card { padding: 0; }
-.section-head { display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 4px 12px 4px 6px; }
+.section-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; min-height: 40px; padding: 4px 12px 4px 6px; }
 .section:not(.card) > .section-head { padding-left: 0; margin: 16px 0 6px; }
 .section-toggle {
   display: inline-flex; align-items: center; gap: 6px; min-width: 0; min-height: 0; padding: 4px 6px; border: 0; background: none;
@@ -300,7 +300,7 @@ button.chip:hover { border-color: var(--accent); }
 .section-head.h3 .section-toggle { font-size: 14px; }
 .section-chevron { color: var(--muted); }
 .section-count { margin: 0; }
-.section-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.section-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 6px; margin-left: auto; }
 .section.card > .section-body { padding: 4px 16px 14px; }
 .section.card > .section-body > .table-wrap:first-child { margin-top: 2px; }
 .section.card:not(.open) { padding-bottom: 0; }

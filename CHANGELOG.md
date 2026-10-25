@@ -4,6 +4,12 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-25
 
+- Raid plan page, clearer structure: retime and hold panels start with a summary of the attack (impact, route,
+  ships); retimes show the speeds as a selectable list (two lines per speed on mobile, no sideways scrolling), the
+  narrowing inputs (drives, departure and recall windows) folded into one section that opens when a seen recall is
+  taken over, and the result (target time, buffer, save) at the end; holds show the landing time prominently, the
+  ships on the planet in a collapsible section. Fleets are cards on mobile with the launch time first; section
+  actions (add fleet, invite) move below the title when the row is too narrow.
 - Mobile and consistency pass over the other pages: no more sideways scrolling in the loot settlement (tables as
   cards, the result as one block per person), the settlements list, the API token list, retime candidates and battle
   reports (one row per ship on mobile). Collapsible, remembered sections for the player's research, comments and status

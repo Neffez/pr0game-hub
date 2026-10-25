@@ -397,7 +397,7 @@ describe('raid planner: plans without coordinates, retimes and holds', () => {
     await go('/u8/raid-planner/9');
     const panel = root.querySelector('.retime')!;
     expect(panel.textContent).toContain('verzögert um 0:10:00');
-    expect(panel.querySelectorAll('.cands tbody tr')).toHaveLength(10);
+    expect(panel.querySelectorAll('.cands .cand:not(.cand-head)')).toHaveLength(10);
     expect(panel.textContent).toContain('Geschwindigkeit wählen');
     const radio = panel.querySelectorAll<HTMLInputElement>('.cands input[type=radio]')[3];
     radio.click();
