@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Flotten, die in der doppelten Stunde der Zeitumstellung (2–3 Uhr) eingefügt wurden, zeigen keine Stunde zu viel Flugzeit mehr.',
+        en: 'Fleets pasted in the repeated hour of the clock change (2–3 am) no longer show an hour too much flight time.',
+      },
+      {
+        kind: 'fix',
         de: 'Ankunftszeiten eingefügter Flotten stimmen jetzt auch bei der Zeitumstellung (vorher eine Stunde daneben).',
         en: 'Arrival times of pasted fleets are now right around the daylight saving switch too (before, an hour off).',
       },

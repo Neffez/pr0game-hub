@@ -49,7 +49,8 @@ export class Store {
   }
 
   private epoch(local: string | null): number | null {
-    return local ? localToEpoch(local, this.t.timezone) : null;
+    // a time of the hour repeated in autumn: the one of its two instants that is already past
+    return local ? localToEpoch(local, this.t.timezone, now()) : null;
   }
 
   record(r: HubRecord) {

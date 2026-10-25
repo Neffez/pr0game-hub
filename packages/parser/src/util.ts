@@ -48,34 +48,59 @@ export function parseGameDate(raw: string): LocalDateTime | null {
   return `${m[3]}-${pad(month)}-${pad(m[1])} ${pad(m[4])}:${m[5]}:${m[6]}`;
 }
 
-/** Converts a wall-clock time in the given IANA timezone to unix seconds. */
-export function localToEpoch(local: LocalDateTime, timeZone = 'Europe/Berlin'): number {
+/**
+ * Converts a wall-clock time in the given IANA timezone to unix seconds. In the hour repeated when daylight saving ends
+ * the time stands for two instants: with `near` (unix seconds, e.g. now for a freshly copied page) the latest one not
+ * after it, else the later one; a time skipped in spring counts in the offset before the switch.
+ */
+export function localToEpoch(local: LocalDateTime, timeZone = 'Europe/Berlin', near?: number): number {
   const [d, t] = local.split(' ');
   const [y, mo, da] = d.split('-').map(Number);
   const [h, mi, s] = t.split(':').map(Number);
   const asUtc = Date.UTC(y, mo - 1, da, h, mi, s);
-  // Offset of the zone at that instant; iterate once to settle DST edges.
-  let guess = asUtc;
-  for (let i = 0; i < 2; i++) {
-    guess = asUtc - zoneOffsetMs(guess, timeZone);
+  const found = wallInstants(asUtc, timeZone);
+  if (found.length > 1 && near != null) {
+    const before = found.filter((x) => x <= (near + NEAR_SLACK) * 1000);
+    return Math.round((before.length ? Math.max(...before) : Math.min(...found)) / 1000);
   }
-  return Math.round(guess / 1000);
+  if (found.length) return Math.round(Math.max(...found) / 1000);
+  // skipped in spring: offset before the switch
+  return Math.round((asUtc - zoneOffsetMs(asUtc - 12 * 3600_000, timeZone)) / 1000);
+}
+
+/** Seconds a page time may lie after `near` (clocks of game and hub server differ a little). */
+const NEAR_SLACK = 120;
+
+/** Instants (ms) whose wall clock in the zone is `asUtc` read as UTC: one, two in the repeated hour, none in a gap. */
+function wallInstants(asUtc: number, timeZone: string): number[] {
+  const out: number[] = [];
+  for (const probe of [asUtc - 12 * 3600_000, asUtc + 12 * 3600_000]) {
+    const at = asUtc - zoneOffsetMs(probe, timeZone);
+    if (zoneOffsetMs(at, timeZone) === asUtc - at && !out.includes(at)) out.push(at);
+  }
+  return out;
 }
 
 /**
  * Instant closest to `approx` (unix seconds) whose wall-clock time in the zone is `clock` ("HH:MM:SS"),
- * e.g. the arrival clock of a fleet next to its rounded or delayed remaining time.
+ * e.g. the arrival clock of a fleet next to its rounded or delayed remaining time. Across a daylight saving switch the
+ * clock is taken in either offset, so a clock of the repeated hour lands on the right one of its two instants.
  */
 export function nearestClock(approx: number, clock: string, timeZone = 'Europe/Berlin'): number {
   const [h, m, s] = clock.split(':').map(Number);
-  const local = approx * 1000 + zoneOffsetMs(approx * 1000, timeZone);
-  const shown = Math.floor(local / 1000) % 86400;
-  let diff = h * 3600 + m * 60 + s - shown;
-  if (diff > 43200) diff -= 86400;
-  if (diff <= -43200) diff += 86400;
-  // across a daylight saving switch the clock lies in the other offset
-  const at = approx + diff;
-  return at + (zoneOffsetMs(approx * 1000, timeZone) - zoneOffsetMs(at * 1000, timeZone)) / 1000;
+  const local = new Date(approx * 1000 + zoneOffsetMs(approx * 1000, timeZone));
+  let best = approx;
+  let bestDiff = Infinity;
+  for (const day of [-1, 0, 1]) {
+    const asUtc = Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate() + day, h, m, s);
+    const found = wallInstants(asUtc, timeZone);
+    if (!found.length) found.push(localToEpoch(new Date(asUtc).toISOString().slice(0, 19).replace('T', ' '), timeZone) * 1000);
+    for (const x of found) {
+      const diff = Math.abs(x / 1000 - approx);
+      if (diff < bestDiff) [best, bestDiff] = [Math.round(x / 1000), diff];
+    }
+  }
+  return best;
 }
 
 /** Formatters per time zone; creating one is expensive and this runs per message. */

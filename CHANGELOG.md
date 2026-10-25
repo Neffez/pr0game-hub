@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-25
 
+- Times in the hour repeated when summer time ends (02:00–03:00 twice) are no longer an hour ahead: a page time of
+  that hour counts as the instant already past (it was always taken as the later one, so a spy fleet copied at 02:53
+  summer time showed an hour of flight left), and arrival clocks of that hour land on the instant nearest the
+  estimate, also when estimate and clock lie on different sides of the switch.
+
 - Fleet arrivals copied with their clock are right around a daylight saving switch: the shown clock is converted with
   the UTC offset of its own time, no longer that of the estimate (an hour off when the switch lay between them). The
   server test checks the Berlin clock instead of a fixed summer-time offset.

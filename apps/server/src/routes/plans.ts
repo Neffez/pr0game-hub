@@ -503,7 +503,7 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
     if (!isPhalanxText(text)) throw new HttpError(400, 'phalanx_not_phalanx', 'Not a phalanx result (no "Scan Position" line)');
     const rec = parseFleetsText(text);
     if (!rec?.fleets.length) throw new HttpError(400, 'phalanx_empty', 'No fleet movements in the text');
-    const pageTime = (rec.pageTime ? localToEpoch(rec.pageTime, tz) : null) ?? now();
+    const pageTime = (rec.pageTime ? localToEpoch(rec.pageTime, tz, now()) : null) ?? now();
     const fleets = rec.fleets.map((f) => ({ ...f, arrival: f.clock ? nearestClock(pageTime + f.seconds, f.clock, tz) : pageTime + f.seconds }));
     db.prepare('INSERT INTO phalanx_snapshots (group_id, user_id, page_time, data) VALUES (?, ?, ?, ?)').run(ctx.groupId, ctx.user.id, pageTime, JSON.stringify(fleets));
     db.prepare('DELETE FROM phalanx_snapshots WHERE group_id = ? AND page_time < ?').run(ctx.groupId, now() - PHALANX_KEEP);
