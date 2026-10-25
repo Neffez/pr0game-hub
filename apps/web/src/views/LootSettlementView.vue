@@ -2,10 +2,10 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
-import { parseCombatReportText, parseRecycleReportsText } from '@pr0hub/core/combat';
+import { localToEpoch, parseCombatReportText, parseRecycleReportsText } from '@pr0hub/core/combat';
 import { CAPACITY } from '@pr0hub/flight';
 import {
-  battleFromReport, cleanState, debrisSummary, MAX_HELPER_KEEP, mergeDraft, decodeShare, localEpoch, lootShares, settle, type LootState, type Res, type SettlementResult, type TransferInput,
+  battleFromReport, cleanState, debrisSummary, MAX_HELPER_KEEP, mergeDraft, decodeShare, lootShares, settle, type LootState, type Res, type SettlementResult, type TransferInput,
 } from '@pr0hub/loot';
 import { uniApi } from '../api';
 import Hint from '../components/Hint.vue';
@@ -146,6 +146,9 @@ function importLink() {
 
 const calcLink = computed(() => (state.value && ctx.value ? lootCalcLink(ctx.value.universe.settings, state.value) : ''));
 
+/** Game time of a pasted report in the universe's time zone, as the server reads synced reports (same battle, same instant). */
+const gameEpoch = (local: string | null) => (local ? localToEpoch(local, ctx.value?.universe.settings.timezone) : null);
+
 // ---- battle reports pasted here ----
 const reportText = ref('');
 /** battle to replace (index), -1: add a new battle */
@@ -159,7 +162,7 @@ function applyReport() {
   // attackers without a hub account join as guests ("g<n>"), as on plans
   // a hold: the defenders settle (no loot of theirs, the debris covers their losses)
   const side = data.value?.plan.mission === 'hold' ? 'defender' : 'attacker';
-  const { battle, skipped } = battleFromReport(state.value, report, localEpoch, 'g', side);
+  const { battle, skipped } = battleFromReport(state.value, report, gameEpoch, 'g', side);
   const i = reportTarget.value >= 0 && reportTarget.value < state.value.battles.length ? reportTarget.value : state.value.battles.length;
   state.value.battles[i] = battle;
   pasted.value = new Set([...pasted.value, i]);
@@ -194,7 +197,7 @@ function applyRecycling() {
     return;
   }
   if (!people.value.some((p) => p.id === who.id)) s.helpers.push({ id: who.id, name: who.name, keepPct: 20, recDeut: 0 });
-  for (const r of reports) s.recycling.push({ by: who.id, m: r.metal, k: r.crystal, field: { m: r.totalMetal, k: r.totalCrystal }, time: localEpoch(r.time) });
+  for (const r of reports) s.recycling.push({ by: who.id, m: r.metal, k: r.crystal, field: { m: r.totalMetal, k: r.totalCrystal }, time: gameEpoch(r.time) });
   recycleText.value = '';
   error.value = '';
 }

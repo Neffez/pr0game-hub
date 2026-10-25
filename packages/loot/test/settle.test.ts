@@ -164,6 +164,20 @@ describe('settle', () => {
     expect(settled(r.people, r.transfers)).toBe(true);
   });
 
+  it('stays a number when participants have no costs and the helpers claim more than the pot', () => {
+    const r = settle(
+      base({
+        helpers: [{ id: 'h', name: 'Helper', keepPct: 20, recDeut: 50_000_000 }],
+        recycling: [{ by: 'h', m: 890_793, k: 364_391 }],
+        settings: { ...settings, rates: { m: 3.624054575331542, k: 0.5193681150392759, d: 1 }, deficitMetalShare: 0.7952715235452417, helperDeut: true },
+      }),
+    );
+    expect(r.coverage).toBe(1);
+    expect(person(r, 'h').entitled).toEqual({ m: 890_793, k: 364_391, d: 0 });
+    expect(person(r, 'a').entitled).toEqual({ m: 0, k: 0, d: 0 });
+    expect(r.transfers).toEqual([]);
+  });
+
   it('counts missiles and recycler deuterium as costs and flags too many participants', () => {
     const r = settle(
       base({

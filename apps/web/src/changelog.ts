@@ -20,6 +20,21 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Beuteabrechnung: Zahlen ohne Kosten der Teilnehmer, aber mit hoher Deuterium-Erstattung für Recycler-Helfer, werden wieder richtig berechnet.',
+        en: 'Loot settlement: settlements without participant costs but with a large recycler deuterium refund for helpers are calculated correctly again.',
+      },
+      {
+        kind: 'fix',
+        de: 'In der Beuteabrechnung eingefügte Kampf- und Recyclingberichte bekommen die Spielzeit; „Aktualisieren“ übernimmt sie außerhalb deutscher Zeit nicht mehr doppelt.',
+        en: 'Battle and recycling reports pasted into a loot settlement get the game time; "Update" no longer takes them in twice outside German time.',
+      },
+      {
+        kind: 'fix',
+        de: 'Beuterechner: Die vorgeschlagenen Beuteanteile berücksichtigen bereits eingetragene Beute anderer Flotten.',
+        en: 'Loot calculator: the suggested loot shares take loot already entered for other fleets into account.',
+      },
+      {
+        kind: 'fix',
         de: 'Flotten, die in der doppelten Stunde der Zeitumstellung (2–3 Uhr) eingefügt wurden, zeigen keine Stunde zu viel Flugzeit mehr.',
         en: 'Fleets pasted in the repeated hour of the clock change (2–3 am) no longer show an hour too much flight time.',
       },

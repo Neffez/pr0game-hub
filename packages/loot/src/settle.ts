@@ -161,7 +161,8 @@ export function settle(input: SettlementInput): SettlementResult {
   const helperFactor = helperValue > potValue ? potValue / helperValue : 1;
   const costValue = deutValue(sum(costs), rates);
   const left = potValue - helperFactor * helperValue;
-  const coverage = costValue > left ? Math.max(0, left) / costValue : 1;
+  // no costs: fully covered (also when the helpers took the whole pot and `left` is a hair below 0)
+  const coverage = costValue > 0 && costValue > left ? Math.max(0, left) / costValue : 1;
   if (coverage < 1) warnings.add('costs_not_covered');
   const claims = [...costs.map((c) => scale(c, coverage)), ...helperParts.map((c) => scale(c, helperFactor))].map((c) =>
     deutInKind(c, rates, settings.deficitMetalShare),
