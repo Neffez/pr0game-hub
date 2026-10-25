@@ -4,6 +4,7 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-25
 
+- Fleet movements (empire, alliance, history): the ships column wraps between ship types instead of running wide.
 - Fleet movements on mobile: mission, phase and owner of a fleet card are spaced again ("Angreifen feindlich: …"
   ran together).
 - Retime: the speed list is collapsible and folds as soon as a speed is picked (also the default once one is saved);

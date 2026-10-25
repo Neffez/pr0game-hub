@@ -274,8 +274,9 @@ function clock(epoch: number) {
 .fl-table tbody tr { box-shadow: inset 3px 0 0 var(--mc); }
 .fl-table tr.hostile { background: color-mix(in srgb, var(--neg) 10%, transparent); }
 .fl-ships { display: flex; flex-wrap: wrap; gap: 0 8px; max-width: 320px; }
-td.fl-ships { display: table-cell; }
-td.fl-ships span { display: inline-block; margin-right: 8px; }
+/* many ship types wrap between the entries (table cells don't wrap by default), each entry stays on one line */
+td.fl-ships { display: table-cell; min-width: 180px; max-width: 340px; white-space: normal; }
+td.fl-ships span { display: inline-block; margin-right: 8px; white-space: nowrap; }
 .fl-cards { display: flex; flex-direction: column; gap: 8px; }
 .fl-card { display: flex; flex-direction: column; gap: 3px; padding: 6px 8px; border-left: 3px solid var(--mc); background: var(--surface-2); border-radius: 4px; }
 /* mission, phase and owner of a card: the template's line breaks between them render as nothing */
