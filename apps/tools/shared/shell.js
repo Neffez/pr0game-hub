@@ -1,7 +1,7 @@
 /* Shared page shell of the pr0game tools: DOM helpers, storage, language (German/English) with static texts,
    toast, copying the share link and info tooltips. Each tool brings its own TEXTS (same keys in de and en). */
 
-export var LANGS = ['de', 'en'];
+export var LANGS = ['en', 'de'];
 /* One language for all tools; the loot calculator stored its own before. */
 var LS_LANG = 'pr0tools.lang';
 var LEGACY_LANG_KEYS = ['pr0loot.lang.v1'];
@@ -50,14 +50,14 @@ export function store(key, value) {
 
 /* ---------- language ---------- */
 
-/* Stored choice, then the one of an earlier tool, then the browser language. */
+/* Stored choice, then the one of an earlier tool, else English. */
 export function storedLang() {
   var keys = [LS_LANG].concat(LEGACY_LANG_KEYS);
   for (var i = 0; i < keys.length; i++) {
     var value = load(keys[i]);
     if (LANGS.indexOf(value) !== -1) return value;
   }
-  return /^de\b/i.test((typeof navigator !== 'undefined' && navigator.language) || '') ? 'de' : 'en';
+  return 'en';
 }
 
 /* Sets the texts of the page and picks the language; returns it. */
@@ -100,7 +100,7 @@ export function applyTexts(root) {
   $$('#langSeg [data-lang]').forEach(function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-lang') === LANG)); });
 }
 
-/* The DE/EN switch in the header (#langSeg): stores the choice, applies the static texts, then `onChange`. */
+/* The EN/DE switch in the header (#langSeg): stores the choice, applies the static texts, then `onChange`. */
 export function bindLang(onChange) {
   var seg = $('#langSeg');
   if (!seg) return;

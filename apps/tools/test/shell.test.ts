@@ -7,14 +7,16 @@ const TEXTS = { de: { title: 'Rechner', hello: 'Hallo {name}' }, en: { title: 'C
 describe('tool shell', () => {
   beforeEach(() => localStorage.clear());
 
-  it('takes the stored language, then the one of the loot calculator, then the browser', () => {
-    expect(storedLang()).toBe(/^de\b/i.test(navigator.language) ? 'de' : 'en');
+  it('takes the stored language, then the one of the loot calculator, else English', () => {
+    vi.stubGlobal('navigator', { ...navigator, language: 'de-DE' });
+    expect(storedLang()).toBe('en');
+    vi.unstubAllGlobals();
     localStorage.setItem('pr0loot.lang.v1', JSON.stringify('de'));
     expect(storedLang()).toBe('de');
     localStorage.setItem('pr0tools.lang', JSON.stringify('en'));
     expect(storedLang()).toBe('en');
     localStorage.setItem('pr0tools.lang', JSON.stringify('xx'));
-    expect(storedLang()).toBe('de');
+    expect(storedLang()).toBe('de'); // invalid choice: the loot calculator's one still counts
   });
 
   it('fills placeholders, falls back to English and merges the shared header texts', () => {

@@ -35,8 +35,8 @@ export const CHANGELOG: ChangelogDay[] = [
       },
       {
         kind: 'new',
-        de: 'Flugrechner gibt es jetzt auch auf Deutsch. Flugrechner, Beuterechner und die Tool-Übersicht haben denselben Kopf mit DE/EN-Umschalter und „Link teilen“; die gewählte Sprache gilt für alle Tools.',
-        en: 'The flight calculator is now available in German. Flight calculator, loot calculator and the tools overview share the same header with a DE/EN switch and "Share link"; the chosen language applies to all tools.',
+        de: 'Flugrechner gibt es jetzt auch auf Deutsch. Flugrechner, Beuterechner und die Tool-Übersicht haben denselben Kopf mit EN/DE-Umschalter und „Link teilen“; die gewählte Sprache gilt für alle Tools, bis zur ersten Wahl ist es Englisch.',
+        en: 'The flight calculator is now available in German. Flight calculator, loot calculator and the tools overview share the same header with an EN/DE switch and "Share link"; the chosen language applies to all tools, English until you pick one.',
       },
       {
         kind: 'new',

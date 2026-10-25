@@ -25,8 +25,9 @@ Every commit adds its changes here, newest first, grouped by date.
 - The static tools share one page shell: `apps/tools/shared/tools.css` (tokens, header, cards, fields, buttons, tables,
   results, toast, tooltips) and `shared/shell.js` (DOM helpers, storage, German/English texts with `data-t*`
   attributes, toast with undo, copying with a fallback, the share link, tooltips). All three pages have the same
-  header with a DE/EN switch and a "Share link" button (icon and text, icon only on phones); the language is shared
-  across the tools (`pr0tools.lang`, taken over from the loot calculator's earlier key).
+  header with an EN/DE switch and a "Share link" button (icon and text, icon only on phones); the language is shared
+  across the tools (`pr0tools.lang`, taken over from the loot calculator's earlier key) and English until one is
+  chosen (no longer the browser language).
   - The flight calculator is now available in German (texts in `flight-calculator/i18n.js`, German ship names from
     the game data, German number format); English texts and share links are unchanged.
   - The tools index has the language switch and German texts too.
