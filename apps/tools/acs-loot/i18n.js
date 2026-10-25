@@ -116,6 +116,7 @@ export var TEXTS = {
     notCovered: 'Beute und TF decken die Kosten nicht – alle bekommen denselben Anteil ihrer Kosten ersetzt.',
     tooMany: 'Mehr als 5 Teilnehmer – im Spiel nicht möglich.',
     footer: 'pr0game tools · Rechnet im Browser, nichts wird gesendet.',
+    source: 'Quellcode (AGPL-3.0)',
     back: 'Alle Tools'
   },
   en: {
@@ -234,6 +235,7 @@ export var TEXTS = {
     notCovered: 'Loot and debris do not cover the costs – everyone gets the same share of their costs back.',
     tooMany: 'More than 5 participants – not possible in the game.',
     footer: 'pr0game tools · Calculated in your browser, nothing is sent.',
+    source: 'Source code (AGPL-3.0)',
     back: 'All tools'
   }
 };
