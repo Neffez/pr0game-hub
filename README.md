@@ -52,7 +52,7 @@ Player IDs, alliance IDs and rank changes are only available in HTML/page source
 | Area | Technology |
 |---|---|
 | Language | TypeScript (strict) throughout, ES modules |
-| Runtime / tooling | Node.js 22, pnpm workspaces (monorepo) |
+| Runtime / tooling | Node.js 24 (LTS), pnpm workspaces (monorepo) |
 | Parser | [cheerio](https://cheerio.js.org/) for HTML, own plain-text parsers; game element names and costs generated from the game source |
 | Server | [Fastify 5](https://fastify.dev/) with `@fastify/cookie` and `@fastify/static`; [better-sqlite3](https://github.com/WiseLibs/better-sqlite3) (SQLite) with numbered SQL migrations; session cookies, scrypt password hashes |
 | Web app | [Vue 3](https://vuejs.org/) (Composition API, `<script setup>`), [Vue Router 4](https://router.vuejs.org/), [vue-i18n](https://vue-i18n.intlify.dev/) (German/English), [Chart.js](https://www.chartjs.org/); plain CSS with custom properties, no UI framework |
@@ -74,7 +74,7 @@ scripts           generators for the element data (gen:tech, gen:costs)
 
 ## Development
 
-Requires Node.js 22 and pnpm (`corepack enable`).
+Requires Node.js 24 and pnpm (`corepack enable`).
 
 ```bash
 pnpm install

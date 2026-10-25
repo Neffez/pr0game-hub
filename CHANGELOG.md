@@ -4,6 +4,12 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-25
 
+- Node.js 24 (LTS) instead of 22, which only gets security fixes until April 2027: Docker images, CI, `engines`
+  and `@types/node`. `better-sqlite3` 11 → 12.11, version 11 has no prebuilt binary for Node 24 and the slim image
+  cannot compile one. The event loop histogram in `monitor.ts` takes its type from `monitorEventLoopDelay` (renamed
+  in the Node 24 types).
+- CI builds both Docker images and starts the hub image (health, login, web app) before a deployment is triggered,
+  so an image that does not build or start no longer reaches the server.
 - Security hardening:
   - Only global admins can create password recovery links (invites for members who already have an account); alliance
     admins could otherwise set any member's password, the hub owner's included. The member list no longer shows

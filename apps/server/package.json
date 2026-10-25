@@ -16,14 +16,14 @@
     "@pr0hub/core": "workspace:*",
     "@pr0hub/flight": "workspace:*",
     "@pr0hub/loot": "workspace:*",
-    "better-sqlite3": "^11.5.0",
+    "better-sqlite3": "^12.11.1",
     "fastify": "^5.1.0",
     "web-push": "^3.6.7",
     "yaml": "^2.6.1"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.11",
-    "@types/node": "^22.9.0",
+    "@types/node": "^24.19.2",
     "@types/web-push": "^3.6.4",
     "tsx": "^4.19.2",
     "typescript": "^5.6.3",

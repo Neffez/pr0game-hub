@@ -14,7 +14,7 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       # web and server import the built packages
@@ -23,10 +23,31 @@ jobs:
       - run: pnpm test
       - run: pnpm build
 
-  # Deployment lives in a private repository: after green tests on main it gets a
+  # The image must build and start: native modules (better-sqlite3) need a prebuilt binary for the image's Node,
+  # the slim image has no compiler. The tests above run outside Docker and would not notice.
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build --target tools -t pr0hub-tools .
+      - run: docker build -t pr0hub .
+      - name: Smoke test
+        run: |
+          docker run -d --name hub -p 3000:3000 -e SECURE_COOKIES=false -e CRAWLER_ENABLED=false \
+            -e ADMIN_BOOTSTRAP_USER=smoke -e ADMIN_BOOTSTRAP_PASSWORD=smokepass1 pr0hub
+          for i in $(seq 1 30); do curl -sf http://localhost:3000/hub/api/health && break; sleep 1; done
+          curl -sf http://localhost:3000/hub/api/health
+          # login writes a session: the database works
+          curl -sf -H 'content-type: application/json' -d '{"username":"smoke","password":"smokepass1"}' \
+            http://localhost:3000/hub/api/auth/login
+          curl -sf -o /dev/null http://localhost:3000/hub/
+      - if: failure()
+        run: docker logs hub
+
+  # Deployment lives in a private repository: after green tests and image build on main it gets a
   # repository_dispatch (target repo and token are secrets, so forks skip this).
   notify:
-    needs: test
+    needs: [test, docker]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:

@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, readFileSync, statfsSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { monitorEventLoopDelay, type IntervalHistogram } from 'node:perf_hooks';
+import { monitorEventLoopDelay } from 'node:perf_hooks';
 import { getHeapStatistics } from 'node:v8';
 import { config } from './config.js';
 import { now, type DB } from './db.js';
@@ -34,7 +34,7 @@ const routes = new Map<string, RouteStats>();
 const slow: { time: number; route: string; ms: number; status: number }[] = [];
 /** requests and slow requests since the last sample */
 let window = { requests: 0, slow: 0 };
-let loop: IntervalHistogram | null = null;
+let loop: ReturnType<typeof monitorEventLoopDelay> | null = null;
 
 /** One finished request; `route` is the route pattern (e.g. `GET /api/:uni/overview`), so the keys stay few. */
 export function recordRequest(route: string, ms: number, status: number) {
