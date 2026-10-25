@@ -18,7 +18,7 @@ RUN pnpm --filter "./packages/*" build \
  && pnpm --filter @pr0hub/server deploy --legacy --prod /out
 
 # Static pr0game tools (flight calculator): `docker build --target tools`.
-FROM nginx:1.30-alpine AS tools
+FROM nginx:1.31-alpine AS tools
 COPY --from=build /app/apps/tools/dist /usr/share/nginx/html
 
 # Hub (default target, last stage).
