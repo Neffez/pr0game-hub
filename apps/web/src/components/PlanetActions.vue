@@ -51,8 +51,10 @@ const items = computed(() => {
   const ipmFrom = ipmStart(settings.value, ctx.value?.own?.planets, target.value);
   list.push({
     label: t('actions.ipm'),
-    href: ipmCalcLink(settings.value, { from: ipmFrom, to: target.value, moon: props.type === 'moon', research: ctx.value?.own?.research }),
-    hint: ipmFrom ? t('actions.ipmFrom', { from: coords(...ipmFrom) }) : t('actions.ipmNoStart'),
+    href: ipmCalcLink(settings.value, {
+      from: ipmFrom?.c ?? null, silo: ipmFrom?.silo, missiles: ipmFrom?.ipm, to: target.value, moon: props.type === 'moon', research: ctx.value?.own?.research,
+    }),
+    hint: ipmFrom ? t('actions.ipmFrom', { from: coords(...ipmFrom.c), silo: ipmFrom.silo, n: ipmFrom.ipm }) : t('actions.ipmNoStart'),
   });
   list.push({ label: t('actions.planAttack'), to: { path: `/${uni.value}/raid-planner`, query: { new: `${props.g}:${props.s}:${props.p}`, type: props.type } } });
   if (gameUrl.value) list.push({ label: t('actions.galaxy'), href: `${gameUrl.value}game.php?page=galaxy&galaxy=${props.g}&system=${props.s}`, hint: t('actions.inGame') });

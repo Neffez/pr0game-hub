@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Der Link zum IRak-Rechner startet vom nächsten eigenen Planeten mit Raketensilo und trägt dessen Silo-Stufe und Interplanetarraketen aus dem Imperium ein.',
+        en: 'The link to the IPM calculator starts from the nearest own planet with a missile silo and fills in its silo level and interplanetary missiles from the empire page.',
+      },
+      {
+        kind: 'new',
         de: 'Im Spionage-Verlauf, im Aktionsmenü eines Planeten und im Angriffsplaner gibt es einen Link zum IRak-Rechner. Aus dem Spionage-Verlauf sind Verteidigung, Abfangraketen und Panzerung schon eingetragen, bei einem Mond die Abfangraketen des Planeten.',
         en: 'The spy history, the action menu of a planet and the raid planner link to the IPM calculator. From the spy history, defense, interceptors and armour are already filled in, for a moon the interceptors of its planet.',
       },

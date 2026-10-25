@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-25
 
+- IPM calculator links start from the nearest own planet with a missile silo of level 4 or more (else the nearest)
+  and fill in its silo level and interplanetary missiles: the context's `own.planets` carry `silo` and `ipm` from the
+  newest empire page (documented in the OpenAPI spec). A real missile impact report (10 missiles, weapons 15,
+  120 ion cannons at armour 11, all destroyed) is a test of the missile math.
 - Hub links to the IPM calculator: in the spy history next to the simulators (defense, interceptors and armour of the
   newest report; for a moon the interceptors of the planet's newest report, loaded for that), in the planet action
   menu (target and own research only) and in the raid planner's plan menu (the plan's spy values). The start is the

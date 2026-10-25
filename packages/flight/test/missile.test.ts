@@ -100,6 +100,13 @@ describe('missile attack (calculateMIPAttack)', () => {
     expect(primaryTarget(408)).toBe(408);
   });
 
+  it('matches a missile impact report of the game', () => {
+    // 26 Oct 2026: 10 missiles, weapons 15, on a planet with 120 ion cannons only (armour 11): "Ionengeschütz (- 120)"
+    const input = { weapons: 15, armor: 11, interceptors: 0, defense: { 405: 120 } };
+    expect(missileAttack({ ...input, missiles: 10 })).toMatchObject({ intercepted: 0, effective: 10, destroyed: { 405: 120 }, remaining: {} });
+    expect(missilesNeeded(input, 'all')).toBe(7); // 201,600 structure, 30,000 per missile
+  });
+
   it('values destroyed units at their costs', () => {
     expect(destroyedValue({ 401: 2, 404: 1 })).toEqual({ m: 24000, k: 15000, d: 2000 });
   });

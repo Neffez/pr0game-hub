@@ -59,9 +59,12 @@ const ipm = computed(() => {
   if (!props.target || !ctx.value) return null;
   const u = ctx.value.universe.settings;
   const planet = props.planetReport;
+  const start = ipmStart(u, ctx.value.own?.planets, props.target);
   return {
     href: ipmCalcLink(u, {
-      from: ipmStart(u, ctx.value.own?.planets, props.target),
+      from: start?.c ?? null,
+      silo: start?.silo,
+      missiles: start?.ipm,
       to: props.target,
       moon: props.moon,
       research: ctx.value.own?.research,

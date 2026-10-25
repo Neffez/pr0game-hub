@@ -236,7 +236,7 @@ const en: typeof de = {
     planAttack: 'Plan attack',
     flightFrom: 'from {from}',
     ipm: 'IPM calculator',
-    ipmFrom: 'from {from}, without defense (that comes from the spy history)',
+    ipmFrom: 'from {from} (silo {silo}, {n} IPMs), without defense (that comes from the spy history)',
     ipmNoStart: 'no own planet in this galaxy',
     flightNoStart: 'Start planet: paste your empire',
     galaxy: 'Open galaxy',

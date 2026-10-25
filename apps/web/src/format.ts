@@ -1,5 +1,5 @@
 import { techName } from '@pr0hub/core/tech';
-import { distance, SHIPS, type Coords } from '@pr0hub/flight';
+import { missileSystemDistance, SHIPS, type Coords } from '@pr0hub/flight';
 import { encodeShare, type LootState } from '@pr0hub/loot';
 import { compressToEncodedURIComponent } from 'lz-string';
 import { ref } from 'vue';
@@ -369,6 +369,9 @@ export interface IpmLinkInput {
   values?: Record<string, number> | null;
   /** a moon is defended by the interceptors of its planet (newest spy report of the planet) */
   planetInterceptors?: number | null;
+  /** missile silo level and interplanetary missiles of the start planet (empire page) */
+  silo?: number;
+  missiles?: number;
 }
 
 /**
@@ -389,6 +392,8 @@ export function ipmCalcLink(u: UniverseSettings, input: IpmLinkInput): string {
   const research = input.research ?? {};
   if (research[117] != null) p.set('i', String(research[117]));
   if (research[109] != null) p.set('w', String(research[109]));
+  if (input.silo) p.set('sl', String(input.silo));
+  if (input.missiles) p.set('n', String(input.missiles));
   const values = input.values ?? {};
   if (values[111]) p.set('a', String(values[111]));
   const interceptors = input.moon ? input.planetInterceptors : values[502];
@@ -402,20 +407,41 @@ export function ipmCalcLink(u: UniverseSettings, input: IpmLinkInput): string {
   return `${ipmCalcUrl(u)}#${p.toString()}`;
 }
 
-/** Nearest own planet (not moon) in the target's galaxy: missiles only fly within the galaxy, silos stand on planets. */
+/** Own planet the missiles start from, with its silo level and missiles from the empire page. */
+export interface IpmStart {
+  c: Coords3;
+  silo: number;
+  ipm: number;
+}
+
+/** Smallest silo level that can launch missiles (ShowFleetMissilePage). */
+const MIN_SILO = 4;
+
+/** Lexicographic order of rank tuples. */
+const before = (a: number[], b: number[]) => {
+  const i = a.findIndex((v, k) => v !== b[k]);
+  return i >= 0 && a[i] < b[i];
+};
+
+/**
+ * Start planet for missiles in the target's galaxy (missiles only fly within the galaxy, silos stand on planets): the
+ * nearest that can launch (silo 4+), else the nearest; nearest by missile distance (systems as the game counts them,
+ * then positions), so a planet in range always comes before one out of range.
+ */
 export function ipmStart(
   u: UniverseSettings,
-  planets: { name: string; coords: { g: number; s: number; p: number }; type: 'planet' | 'moon' }[] | undefined,
+  planets: { coords: { g: number; s: number; p: number }; type: 'planet' | 'moon'; silo?: number; ipm?: number }[] | undefined,
   to: Coords3,
-): Coords3 | null {
-  let best: { c: Coords3; d: number } | null = null;
+): IpmStart | null {
+  let best: { start: IpmStart; rank: number[] } | null = null;
   for (const pl of planets ?? []) {
     if (pl.type === 'moon' || pl.coords.g !== to[0]) continue;
     const c: Coords3 = [pl.coords.g, pl.coords.s, pl.coords.p];
-    const d = distance(u, c, to);
-    if (!best || d < best.d) best = { c, d };
+    const silo = pl.silo ?? 0;
+    const rank = [silo >= MIN_SILO ? 0 : 1, missileSystemDistance(u, c[1], to[1]), Math.abs(c[2] - to[2])];
+    if (!best || before(rank, best.rank)) best = { start: { c, silo, ipm: pl.ipm ?? 0 }, rank };
   }
-  return best?.c ?? null;
+  return best?.start ?? null;
 }
 
 /** Link to the public ACS loot calculator with a settlement. */

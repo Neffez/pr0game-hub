@@ -128,10 +128,10 @@ describe('loot calculator link', () => {
       systemDistanceFactor: 95, systemDistance: 2700, planetDistanceFactor: 5, planetDistance: 1000, fleetSpeed: 5000, buildingSpeed: 0,
       researchSpeed: 0, universityFactor: 8, timezone: 'Europe/Berlin', gameUrl: '' } as UniverseSettings;
     const values = { 401: 400, 404: 20, 502: 7, 503: 3, 111: 11, 901: 5000, 202: 3 };
-    const link = new URL(ipmCalcLink(u, { from: [1, 100, 5], to: [1, 110, 8], research: { 117: 6, 109: 12 }, values }));
+    const link = new URL(ipmCalcLink(u, { from: [1, 100, 5], silo: 6, missiles: 30, to: [1, 110, 8], research: { 117: 6, 109: 12 }, values }));
     expect(link.origin + link.pathname).toBe('https://pr0game.neffez.dev/ipm-calculator/');
     expect(Object.fromEntries(new URLSearchParams(link.hash.slice(1)))).toEqual({
-      sg: '1', ss: '100', sp: '5', tg: '1', ts: '110', tp: '8', i: '6', w: '12', a: '11', ic: '7', d401: '400', d404: '20', d503: '3', ms: '400', gt: '1', gs: '2',
+      sg: '1', ss: '100', sp: '5', tg: '1', ts: '110', tp: '8', i: '6', w: '12', sl: '6', n: '30', a: '11', ic: '7', d401: '400', d404: '20', d503: '3', ms: '400', gt: '1', gs: '2',
     });
     // a moon: the planet's interceptors, the range factor of the universe
     const moon = new URLSearchParams(new URL(ipmCalcLink({ ...u, missileRangeFactor: 0.5 } as UniverseSettings, { from: null, to: [1, 110, 8], moon: true, values, planetInterceptors: 4 })).hash.slice(1));
@@ -140,7 +140,7 @@ describe('loot calculator link', () => {
     expect(ipmCalcLink(flight, { from: null, to: [1, 1, 1] })).toMatch(/^https:\/\/tools\.example\/fc\/ipm-calculator\/#/);
   });
 
-  it('starts missiles from the nearest own planet in the same galaxy', () => {
+  it('starts missiles from the nearest planet whose silo launches, else the nearest', () => {
     const u = { galaxies: 4, systems: 400, positions: 15, circularGalaxies: true, circularSystems: true, galaxyDistanceFactor: 20000,
       systemDistanceFactor: 95, systemDistance: 2700, planetDistanceFactor: 5, planetDistance: 1000, fleetSpeed: 2500 } as UniverseSettings;
     const planets = [
@@ -149,8 +149,17 @@ describe('loot calculator link', () => {
       { name: 'M', coords: { g: 1, s: 111, p: 1 }, type: 'moon' as const },
       { name: 'C', coords: { g: 1, s: 130, p: 4 }, type: 'planet' as const },
     ];
-    expect(ipmStart(u, planets, [1, 110, 8])).toEqual([1, 130, 4]);
+    // without silo data: the nearest planet in the galaxy (moons have no silo)
+    expect(ipmStart(u, planets, [1, 110, 8])).toEqual({ c: [1, 130, 4], silo: 0, ipm: 0 });
     expect(ipmStart(u, planets, [3, 1, 1])).toBeNull();
     expect(ipmStart(u, undefined, [1, 1, 1])).toBeNull();
+    // a launching silo (4+) wins over a nearer planet without; among those the nearest, across the ring's edge too
+    const silos = [
+      { coords: { g: 1, s: 112, p: 1 }, type: 'planet' as const, silo: 3, ipm: 0 },
+      { coords: { g: 1, s: 150, p: 1 }, type: 'planet' as const, silo: 5, ipm: 20 },
+      { coords: { g: 1, s: 395, p: 1 }, type: 'planet' as const, silo: 8, ipm: 40 },
+    ];
+    expect(ipmStart(u, silos, [1, 110, 8])).toEqual({ c: [1, 150, 1], silo: 5, ipm: 20 });
+    expect(ipmStart(u, silos, [1, 5, 8])).toEqual({ c: [1, 395, 1], silo: 8, ipm: 40 });
   });
 });

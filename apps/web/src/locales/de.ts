@@ -238,7 +238,7 @@ const de = {
     flightFrom: 'von {from}',
     flightNoStart: 'Startplanet: Imperium einfügen',
     ipm: 'IRak-Rechner',
-    ipmFrom: 'von {from}, ohne Verteidigung (die kommt aus dem Spionage-Verlauf)',
+    ipmFrom: 'von {from} (Silo {silo}, {n} IRaks), ohne Verteidigung (die kommt aus dem Spionage-Verlauf)',
     ipmNoStart: 'kein eigener Planet in dieser Galaxie',
     galaxy: 'Galaxie öffnen',
     inGame: 'im Spiel',

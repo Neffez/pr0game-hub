@@ -146,6 +146,24 @@ describe('api', () => {
     expect(im.overview.data.queues).toHaveLength(5);
   });
 
+  it('gives the own planets with silo level and missiles for the IPM calculator link', async () => {
+    const headers = { ...admin, 'x-hub-group': String(groupA) };
+    // rows of the empire page: sum, then one cell per planet (planet 1:100:12, its moon, planet 3:200:1)
+    const row = (info: string, name: string, sum: number, cells: number[]) =>
+      `<tr data-info="${info}"><td><a href='#'>${name}</a></td><td>${sum}</td>${cells.map((v) => `<td><span class="">${v}</span></td>`).join('')}</tr>`;
+    const text = fixture('empire-real-source.html').replace(
+      '<tr class="defenses" data-info="d_401">',
+      `${row('b_44', 'Raketensilo', 6, [5, 0, 1])}${row('d_503', 'Interplanetarrakete', 12, [12, 0, 0])}<tr class="defenses" data-info="d_401">`,
+    );
+    expect((await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { text } })).statusCode).toBe(200);
+    const ctx = (await app.inject({ method: 'GET', url: '/hub/api/u8/context', headers })).json();
+    expect(ctx.own.planets.map((p: any) => [p.coords, p.type, p.silo, p.ipm])).toEqual([
+      [{ g: 1, s: 100, p: 12 }, 'planet', 5, 12],
+      [{ g: 1, s: 100, p: 12 }, 'moon', 0, 0],
+      [{ g: 3, s: 200, p: 1 }, 'planet', 1, 0],
+    ]);
+  });
+
   it('keeps the newest fleet movements of the overview or pasted on their own', async () => {
     const headers = { ...admin, 'x-hub-group': String(groupA) };
     let res = await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { text: fixture('overview-fleets.html') } });

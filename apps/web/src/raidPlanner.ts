@@ -160,9 +160,12 @@ export function useRaidPlanner() {
   const ipm = (p: AttackPlan) => {
     if (p.mission === 'hold' || !p.spy || !hasCoords(p)) return null;
     const to: Coords3 = [p.g!, p.s!, p.p!];
+    const start = ipmStart(settings.value, ctx.value?.own?.planets, to);
     return {
       href: ipmCalcLink(settings.value, {
-        from: ipmStart(settings.value, ctx.value?.own?.planets, to),
+        from: start?.c ?? null,
+        silo: start?.silo,
+        missiles: start?.ipm,
         to,
         moon: p.planet_type === 'moon',
         research: ctx.value?.own?.research,

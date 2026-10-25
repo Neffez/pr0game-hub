@@ -12,7 +12,8 @@ export interface UniContext {
   own: {
     time: number;
     research: Record<string, number>;
-    planets: { name: string; coords: { g: number; s: number; p: number }; type: 'planet' | 'moon' }[];
+    /** silo: missile silo level, ipm: interplanetary missiles (both 0 on moons) */
+    planets: { name: string; coords: { g: number; s: number; p: number }; type: 'planet' | 'moon'; silo?: number; ipm?: number }[];
   } | null;
 }
 
