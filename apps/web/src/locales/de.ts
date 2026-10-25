@@ -1011,6 +1011,8 @@ const de = {
     enemy: 'Gegnerflotte',
     onMember: 'Angriff auf {member}',
     route: 'Route',
+    speeds: 'Geschwindigkeit des Gegners',
+    speedChosen: 'Geschwindigkeit: {percent} %, zurück {home}',
     narrow: 'Eingrenzen: Antriebe, Abflug, Rückruf',
     followTitle: 'Welcher Flotte der Retime folgt',
     calcShort: 'Flugzeitrechner',

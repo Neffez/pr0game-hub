@@ -109,6 +109,13 @@ function applyRecallSeen() {
 /** The inputs narrowing the candidates (drives, departure and recall window), folded away with their count. */
 const narrowSection = ref<InstanceType<typeof Section> | null>(null);
 const narrowCount = computed(() => [input.value.departure, input.value.recall].filter(Boolean).length);
+/** The speed list folds away once a speed is saved; its header then shows the chosen one. */
+const speedsOpen = enemy.value.percent == null;
+const speedsTitle = computed(() =>
+  chosen.value
+    ? t('retime.speedChosen', { percent: chosen.value.percent, home: clock(candidateHome(chosen.value)) })
+    : t('retime.speeds'),
+);
 
 const clock = (epoch: number) => new Date(epoch * 1000).toLocaleTimeString(intlLocale(), { hour: '2-digit', hourCycle: 'h23', minute: '2-digit', second: '2-digit' });
 const ships = (s: Record<string, number>) =>
@@ -207,6 +214,7 @@ async function save() {
     </Section>
 
     <!-- one option per speed: when the enemy launched and when it is back home -->
+    <Section :title="speedsTitle" :card="false" :default-open="speedsOpen" class="speeds">
     <div class="cands" role="radiogroup" :aria-label="t('plans.speed')">
       <div class="cand cand-head" aria-hidden="true">
         <span />
@@ -232,6 +240,7 @@ async function save() {
         </span>
       </label>
     </div>
+    </Section>
 
     <!-- the result: target time from the chosen speed plus the buffer -->
     <div class="result">
@@ -264,7 +273,7 @@ async function save() {
 .notice { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 8px 10px; border-radius: 8px; background: var(--surface-2); }
 .warn-box { background: color-mix(in srgb, var(--warn) 12%, var(--surface-2)); color: var(--warn); }
 .warn-box .small { color: var(--text); }
-.narrow :deep(.section-head) { margin: 0; min-height: 0; }
+.narrow :deep(.section-head), .speeds :deep(.section-head) { margin: 0; min-height: 0; }
 .narrow-body { display: flex; flex-direction: column; gap: 10px; padding: 4px 0 2px 24px; }
 .field { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
 .lbl { min-width: 130px; color: var(--muted); font-size: 12px; }

@@ -1009,6 +1009,8 @@ const en: typeof de = {
     enemy: 'Enemy fleet',
     onMember: 'Attack on {member}',
     route: 'Route',
+    speeds: 'Speed of the enemy',
+    speedChosen: 'Speed: {percent} %, back {home}',
     narrow: 'Narrow down: drives, departure, recall',
     followTitle: 'Which fleet the retime follows',
     calcShort: 'Flight calculator',

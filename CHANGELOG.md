@@ -4,6 +4,8 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-25
 
+- Retime: the speed list is collapsible; folded (the default once a speed is saved) its header shows the chosen speed
+  and when the enemy is back home.
 - Raid plan page, clearer structure: retime and hold panels start with a summary of the attack (impact, route,
   ships); retimes show the speeds as a selectable list (two lines per speed on mobile, no sideways scrolling), the
   narrowing inputs (drives, departure and recall windows) folded into one section that opens when a seen recall is
