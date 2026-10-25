@@ -8,6 +8,9 @@ const { openDb } = await import('../src/db.js');
 const { hashPassword } = await import('../src/auth.js');
 const { scoreEntry, statSlots } = await import('../src/domain/stats.js');
 
+/** Query for the lists that show the last 8 days by default: the fixtures' reports are dated in October 2026. */
+const EVER = 'from=1&to=4102444800';
+
 const fixture = (name: string) =>
   readFileSync(new URL(`../../../packages/parser/test/fixtures/${name}`, import.meta.url), 'utf8');
 
@@ -89,10 +92,10 @@ describe('api', () => {
     const deck = (await app.inject({ method: 'GET', url: '/hub/api/u8/deck', headers })).json();
     expect(deck.state.drawnInDeck).toBe(3);
 
-    const raids = (await app.inject({ method: 'GET', url: '/hub/api/u8/raids', headers })).json();
+    const raids = (await app.inject({ method: 'GET', url: `/hub/api/u8/raids?${EVER}`, headers })).json();
     expect(raids.perUser[0]).toMatchObject({ raids: 1, metal: 600000 });
     expect(raids.recyclePerUser[0]).toMatchObject({ runs: 1, metal: 80000, crystal: 25000, left: 3895000 });
-    const activity = (await app.inject({ method: 'GET', url: '/hub/api/u8/activity?kinds=debris_shrunk', headers })).json();
+    const activity = (await app.inject({ method: 'GET', url: `/hub/api/u8/activity?kinds=debris_shrunk&${EVER}`, headers })).json();
     expect(activity.entries[0].data).toMatchObject({ metal: 2920000, crystal: 975000, collected: { metal: 80000, crystal: 25000 }, by: 'admin' });
 
     const ov = (await app.inject({ method: 'GET', url: '/hub/api/u8/overview', headers })).json();
@@ -254,12 +257,15 @@ describe('api', () => {
 
   it('notifies the group of hostile fleets heading for a member', async () => {
     const headers = { ...admin, 'x-hub-group': String(groupA) };
+    // other kinds (a full storage of the fixtures' fixed timestamps) come and go with the clock
+    const attacks = async (h: object) =>
+      (await app.inject({ method: 'GET', url: '/hub/api/u8/notifications', headers: h })).json().filter((n: any) => n.kind === 'attack');
     const text = [
       '2h 0m 0s Eine feindliche Flotte (5 Schlachtschiff) des Spielers Mallory vom Planet Böse [4:20:6] erreicht den Planet Ares [1:100:12]. Mission: Angreifen',
       '1h 0m 0s Eine deiner Flotten (1 Leichter Jäger) vom Planet Ares [1:100:12] erreicht den Planet X [1:129:11]. Mission: Angreifen',
     ].join('\n');
     await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { text } });
-    const list = (await app.inject({ method: 'GET', url: '/hub/api/u8/notifications', headers })).json();
+    const list = await attacks(headers);
     expect(list).toHaveLength(1);
     expect(list[0]).toMatchObject({ kind: 'attack', member: 'admin', fleet: { owner: 'hostile', player: 'Mallory', ships: { 207: 5 } }, fleets: 1 });
     expect(list[0].time - Math.floor(Date.now() / 1000)).toBeGreaterThan(7000);
@@ -271,7 +277,7 @@ describe('api', () => {
       'Eine Flotten(1322 Schwerer Kreuzer) vom Mond Mond [1:41:1] erreicht den Planet Ares [1:100:12]. Mission: Verbandsangriff',
     ];
     await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { text: [text, ...acs].join('\n') } });
-    const both = (await app.inject({ method: 'GET', url: '/hub/api/u8/notifications', headers })).json();
+    const both = await attacks(headers);
     expect(both).toHaveLength(2);
     expect(both[1]).toMatchObject({ fleets: 3, fleet: { mission: 1, from: { coords: { g: 1, s: 41, p: 1 } }, ships: { 207: 1773, 210: 1, 215: 2, 222: 1322 } } });
     await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { text } });
@@ -279,13 +285,13 @@ describe('api', () => {
     // sharing covers the member's own fleets only: incoming attacks stay visible
     await app.inject({ method: 'POST', url: '/hub/api/auth/fleet-share', headers: admin, payload: { enabled: false, hidden: [] } });
     const erinHeaders = { ...(await login('erin', 'erinpass1')), 'x-hub-group': String(groupA) };
-    let seen = (await app.inject({ method: 'GET', url: '/hub/api/u8/notifications', headers: erinHeaders })).json();
+    let seen = await attacks(erinHeaders);
     expect(seen.map((n: any) => n.fleet.player)).toEqual(['Mallory']);
     await app.inject({ method: 'POST', url: '/hub/api/auth/fleet-share', headers: admin, payload: { enabled: true, hidden: [] } });
 
     // a fleet of an alliance member (moon attempt, debris for saving) raises no alarm
     db.prepare("UPDATE group_members SET ingame_name = 'Mallory' WHERE group_id = ? AND user_id = (SELECT id FROM users WHERE username = 'erin')").run(groupA);
-    seen = (await app.inject({ method: 'GET', url: '/hub/api/u8/notifications', headers })).json();
+    seen = await attacks(headers);
     expect(seen).toEqual([]);
     db.prepare("UPDATE group_members SET ingame_name = NULL WHERE group_id = ? AND user_id = (SELECT id FROM users WHERE username = 'erin')").run(groupA);
   });
@@ -485,7 +491,7 @@ describe('api', () => {
     await ingest({ html: galaxy.replace('1.2K', '900') });
     await ingest({ html: galaxy.replace('1.2K / 300', '') });
 
-    const log = (await app.inject({ method: 'GET', url: '/hub/api/u8/activity', headers })).json();
+    const log = (await app.inject({ method: 'GET', url: `/hub/api/u8/activity?${EVER}`, headers })).json();
     const kinds = log.entries.map((e: any) => [e.kind, e.player_name, e.data.hours ?? e.data.level ?? e.data.delta ?? null]);
     expect(kinds).toEqual(
       expect.arrayContaining([
@@ -507,7 +513,7 @@ describe('api', () => {
     ]);
     expect(log.counts.no_growth).toBe(2);
     // filter by kind
-    const only = (await app.inject({ method: 'GET', url: '/hub/api/u8/activity?kinds=phalanx_new,phalanx_up', headers })).json();
+    const only = (await app.inject({ method: 'GET', url: `/hub/api/u8/activity?kinds=phalanx_new,phalanx_up&${EVER}`, headers })).json();
     expect(only.entries.map((e: any) => e.kind).sort()).toEqual(['phalanx_new', 'phalanx_up']);
 
     // backfill recreates the stats/spy based entries (galaxy changes can't be replayed)

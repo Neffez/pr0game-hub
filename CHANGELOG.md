@@ -23,7 +23,14 @@ Every commit adds its changes here, newest first, grouped by date.
     size and rows per table, free disk, memory (RSS, heap, container limit), event loop delay, users online and
     active, syncs per day and per alliance, response times per route (p50/p95/max, 5xx) and slow requests, history
     chart of database size and memory. "Compact database" runs `VACUUM` (`POST /api/admin/system/vacuum`).
-
+- Tests no longer depend on the date: the lists of the API tests (raids, activity) ask for an explicit time range
+  instead of the default last 8 days, the settlement test dates its battle report relative to today (plans are listed
+  for a week), and the time format test builds its time in the local zone. Checked with the clock moved from
+  three days to ten years ahead and with other time zones.
+- Tests: the hostile fleet notification test only looks at attacks; the fixtures' fixed timestamps let a storage
+  become full during the day, which added a second notification and made the test fail from 19:37 UTC on.
+- Flight calculator: fixed horizontal scrolling on mobile; the invisible checkbox of the "live (now)" switch was
+  as wide as the viewport and stuck out of the page.
 - Galaxy browser: the page menu next to the title downloads the universe.json (`downloadUniverseJson` in `api.ts`,
   shared with the sync page; new `download` icon).
 - Expeditions: the member filter sits at the distribution it applies to (and the recent expeditions below, which

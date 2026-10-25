@@ -8,8 +8,9 @@ describe('format', () => {
 
   it('shows times in 24 hours, also in English', () => {
     setLocale('en');
-    expect(dateTime(Date.UTC(2026, 9, 23, 15, 20) / 1000)).not.toMatch(/AM|PM/);
-    expect(dateTime(Date.UTC(2026, 9, 23, 15, 20) / 1000)).toMatch(/[0-2][0-9]:20/);
+    const afternoon = new Date(2026, 9, 23, 15, 20).getTime() / 1000;
+    expect(dateTime(afternoon)).not.toMatch(/AM|PM/);
+    expect(dateTime(afternoon)).toMatch(/[0-2][0-9]:20/);
   });
 
   it('formats dates per language or the chosen date format', () => {

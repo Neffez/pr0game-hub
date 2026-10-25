@@ -34,6 +34,11 @@ export const CHANGELOG: ChangelogDay[] = [
         en: 'Admin: new "System" section with the hub\'s database size and growth, memory, response times and usage.',
       },
       {
+        kind: 'fix',
+        de: 'Flugrechner: Auf dem Handy lässt sich die Seite nicht mehr seitlich verschieben.',
+        en: 'Flight calculator: the page no longer scrolls sideways on mobile.',
+      },
+      {
         kind: 'new',
         de: 'Galaxie: Die universe.json lässt sich jetzt auch direkt im Menü neben dem Titel herunterladen.',
         en: 'Galaxy: the universe.json can now also be downloaded right from the menu next to the title.',
