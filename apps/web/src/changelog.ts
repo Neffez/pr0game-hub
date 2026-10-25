@@ -40,6 +40,11 @@ export const CHANGELOG: ChangelogDay[] = [
       },
       {
         kind: 'new',
+        de: 'Die Tools-Startseite und die einzelnen Tools (Flugrechner, Beuterechner, IRak-Rechner) verlinken im Footer den Quellcode.',
+        en: 'The tools index and the single tools (flight calculator, loot calculator, IPM calculator) link to the source code in the footer.',
+      },
+      {
+        kind: 'new',
         de: 'Unter Neuigkeiten gibt es jetzt einen Link zum Quellcode des Hubs.',
         en: "What's new now has a link to the hub's source code.",
       },

@@ -16,6 +16,7 @@ export var COMMON_TEXTS = {
     allTools: 'Alle pr0game-Tools',
     linkLoaded: 'Werte aus dem Link übernommen',
     copied: 'Kopiert: {text}',
+    source: 'Quellcode',
   },
   en: {
     share: 'Share link',
@@ -25,6 +26,7 @@ export var COMMON_TEXTS = {
     allTools: 'All pr0game tools',
     linkLoaded: 'Values loaded from link',
     copied: 'Copied: {text}',
+    source: 'Source code',
   },
 };
 
