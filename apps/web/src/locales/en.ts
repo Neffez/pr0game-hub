@@ -339,6 +339,8 @@ const en: typeof de = {
     hint: "Enter a coordinate (or pick a report below): all of the alliance's spy reports for this planet/moon, with the changes against the previous report.",
     reports: '{n} report | {n} reports',
     recent: 'Latest reports',
+    body: 'Planet or moon',
+    count: 'Reports',
   },
   activity: {
     title: 'Activity log',
@@ -616,6 +618,7 @@ const en: typeof de = {
     rankCount: '{n} ranks',
     deltaSince: 'Δ since {time}',
     notSynced: 'not synced yet',
+    category: 'Statistics category',
     ranks: 'Ranks {from}–{to}',
     pageIncluded: '{range}: in the update from {time}',
     pageMissing: '{range}: not in the latest update – paste the page from the game',
@@ -704,6 +707,7 @@ const en: typeof de = {
     cargoHalf: '{small} light / {large} heavy cargos for half of it',
   },
   buildings: {
+    filterLabel: 'Show',
     title: 'Build & Research',
     tabBuildings: 'Buildings',
     tabResearch: 'Research',

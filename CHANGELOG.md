@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-25
 
+- Admin panel in collapsible, remembered sections (universes, alliances and members open; Discord, crawler, backfill,
+  merge and ingest log folded); remove and undo buttons styled as danger, the renewal button uses the icon set.
+  Statistics pick the category from a select on mobile (with the synced pages of the chosen one). Build & research:
+  the buildings/research switch sits next to the title, the filters are a segmented control (a select on mobile).
+  Spy history: the form fields have labels.
 - Removing a member from their last alliance ends their sessions and deletes their API tokens (global admins are
   unaffected), so they no longer reach account settings or tokens.
 - New account setting "Activity": when off, other members no longer see which page (system, player) the user is on;

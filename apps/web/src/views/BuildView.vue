@@ -11,6 +11,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { uniApi } from '../api';
 import { useClock } from '../clock';
 import Hint from '../components/Hint.vue';
+import PageHeader from '../components/PageHeader.vue';
 import Ticker from '../components/Ticker.vue';
 import { useLoader, useMobile, useStored, useUni } from '../composables';
 import { ago, dateTime, fmt, name, short } from '../format';
@@ -213,20 +214,20 @@ const costClass = (b: BuildingInfo, res: number) => (b.missing[res] ? 'neg' : 'p
 </script>
 
 <template>
-  <h1>
-    {{ t('buildings.title') }}
-    <Hint>
-      <p>{{ t('buildings.hint1') }}</p>
-      <p>{{ t('buildings.hintResearch') }}</p>
-      <p>{{ t('buildings.hint2') }}</p>
-      <p>{{ t('buildings.hint3') }}</p>
-    </Hint>
-  </h1>
-
-  <div class="tabs">
-    <button :class="{ active: tab === 'buildings' }" @click="tab = 'buildings'">{{ t('buildings.tabBuildings') }}</button>
-    <button :class="{ active: tab === 'research' }" @click="tab = 'research'">{{ t('buildings.tabResearch') }}</button>
-  </div>
+  <PageHeader :title="t('buildings.title')">
+    <template #hint>
+      <Hint>
+        <p>{{ t('buildings.hint1') }}</p>
+        <p>{{ t('buildings.hintResearch') }}</p>
+        <p>{{ t('buildings.hint2') }}</p>
+        <p>{{ t('buildings.hint3') }}</p>
+      </Hint>
+    </template>
+    <div class="seg">
+      <button :class="{ active: tab === 'buildings' }" @click="tab = 'buildings'">{{ t('buildings.tabBuildings') }}</button>
+      <button :class="{ active: tab === 'research' }" @click="tab = 'research'">{{ t('buildings.tabResearch') }}</button>
+    </div>
+  </PageHeader>
 
   <div v-if="error" class="error">{{ error }}</div>
   <div v-else-if="data && !planets.length" class="card muted">{{ t('buildings.empty') }}</div>
@@ -287,7 +288,10 @@ const costClass = (b: BuildingInfo, res: number) => (b.missing[res] ? 'neg' : 'p
     </div>
 
     <div class="row bld-filters">
-      <div class="tabs">
+      <select v-if="mobile" v-model="filter" :aria-label="t('buildings.filterLabel')">
+        <option v-for="f in FILTERS" :key="f" :value="f">{{ t(`buildings.filter.${f}`) }}</option>
+      </select>
+      <div v-else class="seg">
         <button v-for="f in FILTERS" :key="f" :class="{ active: filter === f }" @click="filter = f">{{ t(`buildings.filter.${f}`) }}</button>
       </div>
       <input v-model="search" type="search" :placeholder="t('buildings.search')" class="bld-search" />
@@ -416,8 +420,10 @@ const costClass = (b: BuildingInfo, res: number) => (b.missing[res] ? 'neg' : 'p
 .bld-costs { display: flex; gap: 12px; flex-wrap: wrap; margin: 6px 0; }
 .bld-bell { padding: 2px 6px; }
 .bld-filters { margin-bottom: 12px; }
-.bld-filters .tabs { margin-bottom: 0; }
 .bld-search { width: 180px; }
+@media (max-width: 800px) {
+  .bld-filters select, .bld-search { flex: 1 1 140px; width: auto; min-width: 0; }
+}
 .bld-hidden { opacity: 0.45; }
 .bld-bell { display: inline-flex; align-items: center; justify-content: center; min-width: 30px; }
 .bld-bell + .bld-bell { margin-left: 4px; }

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import PageHeader from '../components/PageHeader.vue';
 import Icon from '../components/Icon.vue';
 import CommentThread from '../components/CommentThread.vue';
 import PlanetActions from '../components/PlanetActions.vue';
@@ -64,34 +65,44 @@ const res = (r: any, id: number) => r.sections['900']?.[id] ?? 0;
 </script>
 
 <template>
-  <h1>
-    {{ t('actions.spyHistory') }}
-    <Hint>{{ t('spy.hint') }}</Hint>
-  </h1>
+  <PageHeader :title="t('actions.spyHistory')">
+    <template #hint><Hint>{{ t('spy.hint') }}</Hint></template>
+  </PageHeader>
   <div class="card">
-    <form class="row" @submit.prevent="load">
-      <input v-model="target" placeholder="1:234:5" style="width: 110px" />
-      <select v-model="type">
-        <option value="planet">{{ t('common.planet') }}</option>
-        <option value="moon">{{ t('common.moon') }}</option>
-      </select>
-      <select v-model.number="limit">
-        <option :value="5">5</option>
-        <option :value="20">20</option>
-        <option :value="100">100</option>
-        <option :value="500">{{ t('common.all') }}</option>
-      </select>
+    <form class="spy-form" @submit.prevent="load">
+      <label class="field-v">
+        <span>{{ t('common.coords') }}</span>
+        <input v-model="target" class="mono" placeholder="1:234:5" inputmode="numeric" />
+      </label>
+      <label class="field-v">
+        <span>{{ t('spy.body') }}</span>
+        <select v-model="type">
+          <option value="planet">{{ t('common.planet') }}</option>
+          <option value="moon">{{ t('common.moon') }}</option>
+        </select>
+      </label>
+      <label class="field-v">
+        <span>{{ t('spy.count') }}</span>
+        <select v-model.number="limit">
+          <option :value="5">5</option>
+          <option :value="20">20</option>
+          <option :value="100">100</option>
+          <option :value="500">{{ t('common.all') }}</option>
+        </select>
+      </label>
       <button class="primary">{{ t('common.show') }}</button>
-      <span v-if="reports.length" class="muted small">{{ reports[0].player_name }} · {{ t('spy.reports', total) }}</span>
-      <PlanetActions v-if="shown" :g="shown.g" :s="shown.s" :p="shown.p" :type="type === 'moon' ? 'moon' : 'planet'" />
     </form>
+    <div v-if="reports.length || shown" class="row small spy-found">
+      <span v-if="reports.length" class="muted">{{ reports[0].player_name }} · {{ t('spy.reports', total) }}</span>
+      <PlanetActions v-if="shown" :g="shown.g" :s="shown.s" :p="shown.p" :type="type === 'moon' ? 'moon' : 'planet'" />
+    </div>
     <div v-if="error" class="error">{{ error }}</div>
   </div>
 
   <SpyHistory v-if="reports.length" :reports="reports" :game-url="ctx!.universe.settings.gameUrl" />
 
   <div v-if="shown" class="card">
-    <h3 style="margin-top: 0">{{ t('comments.title') }} {{ coords(shown.g, shown.s, shown.p) }}<template v-if="type === 'moon'"> ({{ t('common.moon') }})</template></h3>
+    <h3 class="mt-0">{{ t('comments.title') }} {{ coords(shown.g, shown.s, shown.p) }}<template v-if="type === 'moon'"> ({{ t('common.moon') }})</template></h3>
     <CommentThread :g="shown.g" :s="shown.s" :p="shown.p" :type="type === 'moon' ? 'moon' : 'planet'" />
   </div>
 
@@ -139,6 +150,11 @@ const res = (r: any, id: number) => r.sections['900']?.[id] ?? 0;
 </template>
 
 <style scoped>
+.spy-form { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 10px; }
+.field-v { display: flex; flex-direction: column; gap: 3px; }
+.field-v input { width: 120px; }
+.spy-found { margin-top: 8px; }
+@media (max-width: 800px) { .field-v { flex: 1 1 100px; } .field-v input, .field-v select { width: 100%; margin: 0; } }
 /* mobile list of recent reports */
 .m-list { border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); overflow: hidden; }
 .m-item {

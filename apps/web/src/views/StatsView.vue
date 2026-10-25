@@ -6,7 +6,8 @@ import StatusBadges from '../components/StatusBadges.vue';
 import { computed, onMounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
-import { useLoader, useStored, useUni, vStack } from '../composables';
+import PageHeader from '../components/PageHeader.vue';
+import { useLoader, useMobile, useStored, useUni, vStack } from '../composables';
 import { tables, useLiveReload } from '../live';
 import { dateTime, fmt, fmtSigned, short, STATS_CATEGORIES, STATS_TYPES } from '../format';
 
@@ -47,6 +48,8 @@ const { t } = useI18n();
 const { uni } = useUni();
 const who = useStored<'player' | 'alliance'>('stats.who', 'player');
 const type = useStored('stats.type', 1);
+/** Mobile: the categories as a select instead of a cloud of buttons. */
+const mobile = useMobile();
 const { data, error, load } = useLoader(() => uniApi<Stats>(uni.value, `/stats?who=${who.value}&type=${type.value}`));
 onMounted(load);
 useLiveReload(load, tables('player_scores', 'alliance_scores', 'players'));
@@ -98,16 +101,17 @@ const SCORE_COLS = [4, 3, 2, 5] as const;
 </script>
 
 <template>
-  <h1>
-    {{ t('nav.stats') }}
-    <Hint>
-      <p>{{ t('stats.hint1') }}</p>
-      <p>{{ t('stats.hint2') }}</p>
-      <p>{{ t('stats.hint3') }}</p>
-      <p>{{ t('stats.hint4') }}</p>
-      <p>{{ t('stats.hint5') }}</p>
-    </Hint>
-  </h1>
+  <PageHeader :title="t('nav.stats')">
+    <template #hint>
+      <Hint>
+        <p>{{ t('stats.hint1') }}</p>
+        <p>{{ t('stats.hint2') }}</p>
+        <p>{{ t('stats.hint3') }}</p>
+        <p>{{ t('stats.hint4') }}</p>
+        <p>{{ t('stats.hint5') }}</p>
+      </Hint>
+    </template>
+  </PageHeader>
 
   <div class="card">
     <div class="row">
@@ -121,7 +125,17 @@ const SCORE_COLS = [4, 3, 2, 5] as const;
         <template v-if="data.prevTime"> · {{ t('stats.deltaSince', { time: dateTime(data.prevTime) }) }}</template>
       </span>
     </div>
-    <div class="cats">
+    <div v-if="mobile" class="cat-select">
+      <select v-model.number="type" :aria-label="t('stats.category')">
+        <option v-for="(label, cat) in STATS_CATEGORIES" :key="cat" :value="Number(cat)">
+          {{ label }}{{ data && !categoryOf(Number(cat)) ? ` (${t('stats.notSynced')})` : '' }}
+        </option>
+      </select>
+      <span class="pages" :title="t('stats.category')">
+        <i v-for="p in pageCount" :key="p" :class="{ ok: categoryOf(type)?.pages.includes(p - 1) }" :title="pageTitle(type, p - 1)" />
+      </span>
+    </div>
+    <div v-else class="cats">
       <button
         v-for="(label, cat) in STATS_CATEGORIES"
         :key="cat"
@@ -234,10 +248,8 @@ const SCORE_COLS = [4, 3, 2, 5] as const;
 </template>
 
 <style scoped>
-.seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
-.seg button { border: 0; border-radius: 0; background: transparent; margin: 0; }
-.seg button + button { border-left: 1px solid var(--border); }
-.seg button.active { background: var(--accent-soft); color: var(--accent); }
+.cat-select { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+.cat-select select { flex: 1; min-width: 0; }
 
 .cats { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .cat {

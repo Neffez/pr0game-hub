@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Admin-Bereich mit einklappbaren Abschnitten. Statistik: Kategorie auf dem Handy als Auswahl. Bauen & Forschen: aufgeräumte Umschalter, Filter auf dem Handy als Auswahl. Spionage-Verlauf mit beschrifteten Feldern.',
+        en: 'Admin area with collapsible sections. Statistics: category as a select on phones. Build & research: tidier switches, filters as a select on phones. Spy history with labelled fields.',
+      },
+      {
+        kind: 'new',
         de: 'Neue Einstellung „Aktivität“ im Konto: Du kannst ausblenden, auf welcher Seite du gerade bist. Andere sehen dich dann weiter als online, aber ohne Seite.',
         en: 'New "Activity" setting in your account: you can hide which page you are currently on. Others still see you as online, but without the page.',
       },

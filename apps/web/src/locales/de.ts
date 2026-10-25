@@ -340,6 +340,8 @@ const de = {
     hint: 'Koordinate eingeben (oder unten einen Bericht wählen): Alle Spionageberichte der Allianz zu diesem Planet/Mond, mit Veränderungen zum jeweils vorherigen Bericht.',
     reports: '{n} Bericht | {n} Berichte',
     recent: 'Neueste Berichte',
+    body: 'Planet oder Mond',
+    count: 'Berichte',
   },
   activity: {
     title: 'Aktivitätslog',
@@ -618,6 +620,7 @@ const de = {
     rankCount: '{n} Plätze',
     deltaSince: 'Δ seit {time}',
     notSynced: 'noch nicht synchronisiert',
+    category: 'Statistik-Kategorie',
     ranks: 'Plätze {from}–{to}',
     pageIncluded: '{range}: im Stand vom {time}',
     pageMissing: '{range}: nicht im neuesten Stand – Seite im Spiel einfügen',
@@ -706,6 +709,7 @@ const de = {
     cargoHalf: '{small} kleine / {large} große Transporter für die Hälfte',
   },
   buildings: {
+    filterLabel: 'Anzeigen',
     title: 'Bauen & Forschen',
     tabBuildings: 'Gebäude',
     tabResearch: 'Forschung',
