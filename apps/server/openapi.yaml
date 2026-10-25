@@ -1447,6 +1447,10 @@ paths:
         Plans made from an own attack (`planOwnAttack`) follow the running attack on each read: fleets joining the ACS
         later are added as launched fleets (existing fleets stay as they are), `guests` are renewed and the target time
         and claim move with a changed arrival.
+        Recalls are read on each read as well: a plan fleet whose member's newest overview, pasted before the fleet would
+        have landed, shows it flying back from the target to its start after an older overview showed it going there is
+        withdrawn with `recalled_at` (page time of that overview; once per fleet). When no fleet of the plan is left,
+        the plan is cancelled and its claim released.
         Attack plans with a taken-over battle simulation (`updatePlanFromSim`) carry `sim` (`time`, `by`: member name,
         `defender`: whether it holds the target), else null; `spy.source` is `sim` when the simulation's ships, defense
         and combat research replace those of an older (or missing) spy report, else `spy`. Guests whose combat research

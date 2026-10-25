@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-25
 
+- Recalled attacks reach the raid planner from the overview sync: a plan fleet the member's newest overview shows
+  flying back from the target before it would have landed (after an older overview showed it on the way there) is
+  withdrawn and marked "recalled per overview"; when no fleet is left, the plan is cancelled and its claim released.
+  Done on reading the plans like the ACS sync (`recallOwnPlans`), once per fleet (`attack_plan_fleets.recalled_at`,
+  migration 052), so a fleet set back by hand stays; fleets the member does not share are left alone.
 - Raid plans can be updated from a shared battle simulation ("Update from simulator" on attack plans,
   `POST /plans/{id}/sim`, removed with `DELETE`). Simulations carry dummy coordinates, so none are used:
   - The first defender becomes the target's ships, defense and combat research for the simulator links; resources and

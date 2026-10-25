@@ -1122,6 +1122,7 @@ const en: typeof de = {
     removeFleet: 'Remove fleet',
     calcTitle: 'In the flight calculator: launch times per speed for this target time',
     seen: 'launched per overview',
+    recalled: 'recalled per overview ({time})',
     seenShips: 'flying with {ships}',
     takeSeen: 'Use in the plan',
     onTime: 'on time',

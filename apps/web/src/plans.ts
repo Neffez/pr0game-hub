@@ -26,6 +26,8 @@ export interface PlanFleet {
   ships: Record<string, number>;
   speed: number;
   status: 'invited' | 'ready' | 'launched' | 'withdrawn';
+  /** withdrawn because the member's overview showed it recalled (time of that paste) */
+  recalled_at: number | null;
   updated_at: number;
   /** research for flight times and the simulator: the member's latest empire page, else spy reports; drives also by hand (the newest counts) */
   drives: { time: number; research: Record<string, number>; source: 'empire' | 'spy' | 'manual' } | null;

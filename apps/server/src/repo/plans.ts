@@ -3,7 +3,7 @@ import type { UniverseSettings } from '../config.js';
 import type { GroupContext } from '../context.js';
 import { now, type DB } from '../db.js';
 import { latestEmpires, spyEmpire } from './empire.js';
-import { sharedFleets, type StoredFleet } from './fleets.js';
+import { fleetShare, sharedFleets, type StoredFleet } from './fleets.js';
 import { attackKey, hostileAttacks, recallWindow, shipsKey, type Body, type EnemyFleet } from './hostile.js';
 import { memberPlayers } from './members.js';
 
@@ -383,6 +383,71 @@ function collectOwnAttacks(db: DB, ctx: GroupContext): (OwnAttack & { viewers: S
 /** The plan side of an own attack's non-member fleets (guests for the simulators). */
 export const guestsOfAttack = (fleets: OwnAttackFleet[]) =>
   fleets.filter((f) => f.memberId == null).map(({ player, from, mission, ships }) => ({ player, from, mission, ships }));
+
+/**
+ * Recalls from the members' overviews: a plan fleet whose member's newest overview, pasted before the fleet would have
+ * landed, shows it flying back from the plan's target to its start (and no longer towards it), after an older overview
+ * showed it on the way there, was recalled. It is withdrawn once (`recalled_at`, the paste time; set back by hand it
+ * stays so); when no fleet of the plan is left, the plan is cancelled and its claim released. Fleets a member does not
+ * share are left alone. Returns the ids of the changed plans.
+ */
+export function recallOwnPlans(db: DB, ctx: GroupContext): number[] {
+  const plans = db
+    .prepare(
+      `SELECT id, g, s, p, planet_type, target_time, time_precision, mission, claim_id FROM attack_plans
+       WHERE group_id = ? AND g IS NOT NULL AND status IN ('planning', 'launched') AND target_time > ?`,
+    )
+    .all(ctx.groupId, now() - LAUNCH_SLACK - 86400) as (LaunchPlan & { claim_id: number | null })[];
+  if (!plans.length) return [];
+  const fleets = db
+    .prepare(
+      `SELECT id, plan_id, user_id, g, s, p, planet_type, status FROM attack_plan_fleets
+       WHERE plan_id IN (SELECT value FROM json_each(?)) AND recalled_at IS NULL AND status <> 'withdrawn' AND g IS NOT NULL`,
+    )
+    .all(JSON.stringify(plans.map((p) => p.id))) as Omit<LaunchFleet, 'ships'>[];
+  const snaps = new Map<number, { time: number; data: StoredFleet[] }[]>();
+  const snapsOf = (userId: number) => {
+    if (!snaps.has(userId)) {
+      const rows = db
+        .prepare('SELECT page_time AS time, data FROM fleet_snapshots WHERE group_id = ? AND user_id = ? ORDER BY page_time DESC, id DESC')
+        .all(ctx.groupId, userId) as { time: number; data: string }[];
+      snaps.set(userId, rows.map((r) => ({ time: r.time, data: JSON.parse(r.data) as StoredFleet[] })));
+    }
+    return snaps.get(userId)!;
+  };
+  const same = (b: StoredFleet['from'] | null, g: number, s: number, p: number, type: string) =>
+    !!b && b.coords.g === g && b.coords.s === s && b.coords.p === p && b.type === type;
+  const changed: number[] = [];
+  db.transaction(() => {
+    for (const plan of plans) {
+      const missions = plan.mission === 'hold' ? [HOLD_MISSION] : LAUNCH_MISSIONS;
+      const from = plan.target_time - LAUNCH_SLACK;
+      const to = plan.target_time + (plan.time_precision === 'day' ? 86400 : plan.time_precision === 'hour' ? 3600 : 0) + LAUNCH_SLACK;
+      let recalled = false;
+      for (const f of fleets.filter((x) => x.plan_id === plan.id)) {
+        const share = fleetShare(db, f.user_id);
+        const shown = (m: StoredFleet) => m.owner === 'own' && m.mission != null && missions.includes(m.mission) && (share.enabled && !share.hidden.includes(m.mission));
+        const start = (b: StoredFleet['from'] | null) => same(b, f.g!, f.s!, f.p!, f.planet_type ?? 'planet');
+        const target = (b: StoredFleet['from'] | null) => same(b, plan.g!, plan.s!, plan.p!, plan.planet_type);
+        const going = (m: StoredFleet) => shown(m) && m.phase === 'out' && start(m.from) && target(m.to) && m.arrival >= from && m.arrival <= to;
+        const [newest, ...older] = snapsOf(f.user_id);
+        if (!newest || newest.data.some(going)) continue;
+        const before = older.find((s) => s.data.some(going))?.data.find(going);
+        if (!before || newest.time >= before.arrival) continue;
+        if (!newest.data.some((m) => shown(m) && m.phase === 'return' && target(m.from) && start(m.to))) continue;
+        db.prepare("UPDATE attack_plan_fleets SET status = 'withdrawn', recalled_at = ?, updated_at = ? WHERE id = ?").run(newest.time, now(), f.id);
+        recalled = true;
+      }
+      if (!recalled) continue;
+      changed.push(plan.id);
+      const left = db.prepare("SELECT COUNT(*) FROM attack_plan_fleets WHERE plan_id = ? AND status <> 'withdrawn'").pluck().get(plan.id) as number;
+      if (left) continue;
+      db.prepare("UPDATE attack_plans SET status = 'cancelled', claim_id = NULL, updated_at = ? WHERE id = ?").run(now(), plan.id);
+      if (plan.claim_id) db.prepare('UPDATE target_claims SET released_at = ? WHERE id = ? AND released_at IS NULL').run(now(), plan.claim_id);
+    }
+  })();
+  return changed;
+}
 
 /**
  * Carries a running own attack into the plans made from it (`attack_plans.attack_key`): fleets that joined the ACS

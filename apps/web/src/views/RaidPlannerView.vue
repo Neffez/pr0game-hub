@@ -757,7 +757,10 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
               </td>
               <td class="mono">{{ x.duration != null ? duration(Math.floor(x.duration)) : '–' }}</td>
               <td class="c-launch m-wide">
-                <template v-if="x.fleet.seen">
+                <span v-if="x.fleet.recalled_at && x.fleet.status === 'withdrawn'" class="small warn">
+                  {{ t('plans.recalled', { time: clock(x.fleet.recalled_at) }) }}
+                </span>
+                <template v-else-if="x.fleet.seen">
                   <span class="small muted">{{ t('plans.arrival') }}</span> <span class="mono">{{ clock(x.fleet.seen.arrival) }}</span>
                   <div class="small" :class="exact(p) && x.fleet.seen.arrival !== p.target_time ? 'warn' : 'pos'">
                     {{ t('plans.seen') }}<template v-if="exact(p)"> · {{ offset(x.fleet.seen.arrival - p.target_time) }}</template>

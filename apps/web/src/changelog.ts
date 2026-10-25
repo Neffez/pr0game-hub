@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Abgebrochene Angriffe kommen aus dem Übersichts-Sync in den Raid-Planer: Fliegt eine Flotte laut Übersicht vor der Ankunft zurück, gilt sie als zurückgerufen. Sind alle Flotten zurückgerufen, wird der Plan abgebrochen und die Reservierung freigegeben.',
+        en: 'Recalled attacks reach the raid planner from the overview sync: if the overview shows a fleet flying back before it arrived, it counts as recalled. Once all fleets are recalled, the plan is cancelled and the claim released.',
+      },
+      {
+        kind: 'new',
         de: 'Raid-Pläne lassen sich aus einer geteilten Kampfsimulation updaten: Der Verteidiger landet in den Simulator-Links, auch ohne Spionagebericht. Angreiferflotten werden nur angepasst, wenn sie eindeutig erkannt werden.',
         en: 'Raid plans can be updated from a shared battle simulation: the defender goes into the simulator links, even without a spy report. Attacker fleets are only adjusted when they are clearly recognised.',
       },

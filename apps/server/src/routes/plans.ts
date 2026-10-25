@@ -9,7 +9,7 @@ import { CLASS_RESEARCH } from '@pr0hub/core/tech';
 import { attackKey, hostileAttacks, PHALANX_KEEP, type Body, type EnemyFleet, type HostileAttack } from '../repo/hostile.js';
 import { latestEmpire, spyEmpire } from '../repo/empire.js';
 import {
-  enemiesOf, followEnemies, fromOf, launchedOf, guestsOfAttack, ownAttacks, planDrives, syncOwnPlans, toOf, type EnemyRow, type LaunchFleet, type LaunchPlan, type OwnAttackFleet, type PlanRow,
+  enemiesOf, followEnemies, fromOf, launchedOf, guestsOfAttack, ownAttacks, planDrives, recallOwnPlans, syncOwnPlans, toOf, type EnemyRow, type LaunchFleet, type LaunchPlan, type OwnAttackFleet, type PlanRow,
 } from '../repo/plans.js';
 import { applySimulation, bodyKey, withSim, type PlanSim } from '../repo/simPlan.js';
 import { contextOf, DISPLAY, MEMBER } from './util.js';
@@ -194,8 +194,9 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
   /** Plans of the group up to a week after their target time, with fleets and the members' drive levels. */
   app.get<{ Params: { uni: string } }>('/api/:uni/plans', async (req) => {
     const ctx = ctxOf(req);
-    // fleets that joined a running ACS and a moved arrival reach the plans made from it
-    syncOwnPlans(db, ctx, MAX_FLEETS);
+    // fleets that joined a running ACS and a moved arrival reach the plans made from it; recalled fleets are withdrawn
+    const synced = [...syncOwnPlans(db, ctx, MAX_FLEETS), ...recallOwnPlans(db, ctx)];
+    if (synced.length) events.publish(ctx.groupId, { type: 'data', tables: ['attack_plans', 'target_claims'], userId: ctx.user.id });
     const plans = db
       .prepare(
         `SELECT a.id, a.user_id, ${DISPLAY} AS creator, a.g, a.s, a.p, a.planet_type, a.target_time, a.time_precision, a.note, a.status,
@@ -212,7 +213,7 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
     if (!plans.length) return [];
     const fleets = db
       .prepare(
-        `SELECT f.id, f.plan_id, f.user_id, ${DISPLAY} AS member, f.g, f.s, f.p, f.planet_type, f.ships, f.speed, f.status, f.updated_at,
+        `SELECT f.id, f.plan_id, f.user_id, ${DISPLAY} AS member, f.g, f.s, f.p, f.planet_type, f.ships, f.speed, f.status, f.recalled_at, f.updated_at,
            f.drives AS manual, f.drives_time
          FROM attack_plan_fleets f JOIN attack_plans a ON a.id = f.plan_id
          JOIN users u ON u.id = f.user_id LEFT JOIN group_members gm ON gm.group_id = a.group_id AND gm.user_id = f.user_id

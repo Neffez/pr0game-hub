@@ -549,6 +549,36 @@ describe('attack plans', () => {
     db.prepare('DELETE FROM players WHERE id = ?').run(davePlayer);
   });
 
+  it('withdraws fleets an overview shows recalled and cancels the plan when none is left', async () => {
+    const target = Math.floor(Date.now() / 1000) + 7200;
+    const id = (await call('POST', '/plans', carol, { g: 3, s: 116, p: 8, type: 'moon', target_time: target })).json().id;
+    await call('POST', `/plans/${id}/fleets`, carol, { g: 1, s: 40, p: 5, type: 'planet', ships: { 204: 5 } });
+    await call('POST', `/plans/${id}/fleets`, dave, { g: 1, s: 42, p: 7, type: 'planet', ships: { 207: 3 } });
+    const out = (from: string) => `1h 59m 0s Eine deiner Flotten (5 Leichter Jäger) vom Planet Heim [${from}] erreicht den Mond Ziel [3:116:8]. Mission: Angreifen`;
+    const back = (from: string) => `0h 1m 0s Eine deiner Flotten (5 Leichter Jäger) kehrt vom Mond Ziel [3:116:8] zurück zum Planet Heim [${from}]. Mission: Angreifen`;
+    const plan = async () => (await call('GET', '/plans', carol)).json().find((p: any) => p.id === id);
+
+    await call('POST', '/ingest', carol, { text: out('1:40:5') });
+    expect((await plan()).fleets.map((f: any) => f.status)).toEqual(['launched', 'ready']);
+    // flying back before it landed: recalled; a return never seen going out (Dave) is no recall
+    await call('POST', '/ingest', carol, { text: back('1:40:5') });
+    await call('POST', '/ingest', dave, { text: back('1:42:7') });
+    let p = await plan();
+    expect(p.fleets.map((f: any) => f.status)).toEqual(['withdrawn', 'ready']);
+    expect(p.fleets[0].recalled_at).toBeGreaterThan(0);
+    expect(p.status).toBe('planning');
+
+    await call('POST', '/ingest', dave, { text: out('1:42:7') });
+    await call('POST', '/ingest', dave, { text: back('1:42:7') });
+    p = await plan();
+    expect(p.fleets.map((f: any) => f.status)).toEqual(['withdrawn', 'withdrawn']);
+    expect(p).toMatchObject({ status: 'cancelled', claim_user_id: null });
+    // set back by hand, it stays
+    await call('PUT', `/plans/${id}/fleets/${p.fleets[0].id}`, carol, { status: 'ready' });
+    expect((await plan()).fleets[0].status).toBe('ready');
+    await call('DELETE', `/plans/${id}`, carol);
+  });
+
   it('takes a shared battle simulation over: the defender for the simulators, attackers only where recognised', async () => {
     const text = readFileSync(new URL('../../../packages/parser/test/fixtures/combat-sim-de.txt', import.meta.url), 'utf8');
     // an older spy report of the target: resources stay, its ships and defense give way to the simulation

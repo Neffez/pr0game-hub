@@ -1124,6 +1124,7 @@ const de = {
     removeFleet: 'Flotte entfernen',
     calcTitle: 'Im Flugzeitrechner: Abflugzeiten je Geschwindigkeit für diese Zielzeit',
     seen: 'gestartet laut Übersicht',
+    recalled: 'zurückgerufen laut Übersicht ({time})',
     seenShips: 'fliegt mit {ships}',
     takeSeen: 'In den Plan übernehmen',
     onTime: 'pünktlich',
