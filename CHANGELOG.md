@@ -4,6 +4,16 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-25
 
+- Raid plans can be updated from a shared battle simulation ("Update from simulator" on attack plans,
+  `POST /plans/{id}/sim`, removed with `DELETE`). Simulations carry dummy coordinates, so none are used:
+  - The first defender becomes the target's ships, defense and combat research for the simulator links; resources and
+    buildings stay from the spy report, and a spy report newer than the simulation counts again (`spy.source`).
+  - Attacker fleets only change the plan when recognised: by member or guest name, else by the simulator slot (the
+    plan's order) with the same ship types, else as the only fleet with those ship types. Member fleets take the ships,
+    guests their combat research (and ships, unless the plan follows a running attack).
+  - Stored in `attack_plans.sim` (migration 051); `getPlans` returns `sim` (time, by whom).
+  - The battle report parser reads the per-fleet weapons/shields/armour percentages as research levels
+    (`CombatFleet.research`).
 - Raid plans made from a running own attack follow it: fleets that join the ACS afterwards are added to the plan as
   launched fleets (fleets already in the plan, also edited or withdrawn ones, stay untouched), the guests are renewed and
   the target time and claim move with a changed arrival. Plans remember the attack key (`attack_plans.attack_key`,

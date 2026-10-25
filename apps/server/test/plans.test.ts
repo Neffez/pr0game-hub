@@ -1,4 +1,5 @@
-﻿import { beforeAll, describe, expect, it, vi } from 'vitest';
+﻿import { readFileSync } from 'node:fs';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 process.env.WEB_DIR = '/nonexistent';
 
@@ -315,7 +316,7 @@ describe('attack plans', () => {
     spy.run(groupA, 'planet', owner, 3000, JSON.stringify({ 900: { 901: 500 }, 200: { 204: 7 } }));
     const id = (await call('POST', '/plans', carol, { g: 4, s: 4, p: 4, target_time: soon() })).json().id;
     const plan = (await call('GET', '/plans', dave)).json().find((p: any) => p.id === id);
-    expect(plan.spy).toEqual({ time: 3000, values: { 901: 500, 204: 7, 115: 10, 117: 8 } });
+    expect(plan.spy).toEqual({ time: 3000, values: { 901: 500, 204: 7, 115: 10, 117: 8 }, source: 'spy' });
     await call('DELETE', `/plans/${id}`, carol);
   });
 
@@ -546,6 +547,44 @@ describe('attack plans', () => {
     db.prepare('DELETE FROM fleet_snapshots WHERE user_id = ? AND page_time IN (?, ?)').run(carolId, t0, t0 + 60);
     db.prepare("DELETE FROM planets WHERE group_id = ? AND name = 'Daves'").run(groupA);
     db.prepare('DELETE FROM players WHERE id = ?').run(davePlayer);
+  });
+
+  it('takes a shared battle simulation over: the defender for the simulators, attackers only where recognised', async () => {
+    const text = readFileSync(new URL('../../../packages/parser/test/fixtures/combat-sim-de.txt', import.meta.url), 'utf8');
+    // an older spy report of the target: resources stay, its ships and defense give way to the simulation
+    db.prepare(
+      "INSERT INTO spy_reports (group_id, g, s, p, planet_type, player_name, report_time, sections) VALUES (?, 4, 6, 6, 'planet', 'Ziel', 1000, ?)",
+    ).run(groupA, JSON.stringify({ 900: { 901: 500 }, 200: { 204: 3 }, 400: { 401: 10 } }));
+    const id = (await call('POST', '/plans', carol, { g: 4, s: 6, p: 6, target_time: soon() })).json().id;
+    await call('POST', `/plans/${id}/fleets`, carol, { g: 1, s: 40, p: 5, type: 'planet', ships: { 225: 9000 } });
+    await call('POST', `/plans/${id}/fleets`, dave, { g: 1, s: 42, p: 7, type: 'planet', ships: { 202: 5 } });
+    const guest = { player: null, name: 'Fremd', from: { g: 2, s: 2, p: 2, type: 'planet' }, mission: 2, ships: { 204: 80000 } };
+    db.prepare('UPDATE attack_plans SET guests = ? WHERE id = ?').run(JSON.stringify([guest]), id);
+
+    expect((await call('POST', `/plans/${id}/sim`, dave, { text: 'Hallo' })).json().code).toBe('plan_sim_invalid');
+    // Nr.1 (heavy cruisers) and Nr.2 match no fleet; Nr.3 (light fighters) is the guest by its ship types
+    const res = await call('POST', `/plans/${id}/sim`, dave, { text });
+    expect(res.json()).toEqual({ defender: true, attackers: 3, identified: 1, updated: 1 });
+    let plan = (await call('GET', '/plans', carol)).json().find((p: any) => p.id === id);
+    expect(plan.sim).toMatchObject({ by: 'Dave', defender: true });
+    expect(plan.spy).toMatchObject({ source: 'sim', values: { 901: 500, 202: 884, 204: 1548, 225: 8708, 109: 25, 110: 24, 111: 24 } });
+    expect(plan.spy.values[401]).toBeUndefined();
+    expect(plan.fleets.map((f: any) => f.ships)).toEqual([{ 225: 9000 }, { 202: 5 }]);
+    expect(plan.guests[0]).toMatchObject({ ships: { 204: 82322 }, research: { 109: 25, 110: 23, 111: 24 }, research_source: 'sim' });
+
+    // Nr.1 is Carol's fleet by its ship types once it holds heavy cruisers, Nr.2 Dave's in its slot
+    await call('PUT', `/plans/${id}/fleets/${plan.fleets[0].id}`, carol, { ships: { 222: 9000 } });
+    await call('PUT', `/plans/${id}/fleets/${plan.fleets[1].id}`, carol, { ships: { 206: 1, 207: 1, 215: 1 } });
+    expect((await call('POST', `/plans/${id}/sim`, carol, { text })).json()).toEqual({ defender: true, attackers: 3, identified: 3, updated: 2 });
+    plan = (await call('GET', '/plans', carol)).json().find((p: any) => p.id === id);
+    expect(plan.fleets.map((f: any) => f.ships)).toEqual([{ 222: 10156 }, { 206: 152, 207: 579, 215: 4025 }]);
+
+    // dropped again: the spy report counts
+    await call('DELETE', `/plans/${id}/sim`, carol);
+    plan = (await call('GET', '/plans', carol)).json().find((p: any) => p.id === id);
+    expect(plan).toMatchObject({ sim: null, spy: { source: 'spy', values: { 901: 500, 204: 3, 401: 10 } } });
+    expect(plan.guests[0].research_source).toBeUndefined();
+    await call('DELETE', `/plans/${id}`, carol);
   });
 
   it('lists plans up to a week after their target time', async () => {

@@ -1447,6 +1447,10 @@ paths:
         Plans made from an own attack (`planOwnAttack`) follow the running attack on each read: fleets joining the ACS
         later are added as launched fleets (existing fleets stay as they are), `guests` are renewed and the target time
         and claim move with a changed arrival.
+        Attack plans with a taken-over battle simulation (`updatePlanFromSim`) carry `sim` (`time`, `by`: member name,
+        `defender`: whether it holds the target), else null; `spy.source` is `sim` when the simulation's ships, defense
+        and combat research replace those of an older (or missing) spy report, else `spy`. Guests whose combat research
+        comes from the simulation have `research_source: sim`.
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
@@ -1486,6 +1490,60 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
+  /api/{uni}/plans/{id}/sim:
+    parameters:
+      - { $ref: '#/components/parameters/Uni' }
+      - { $ref: '#/components/parameters/HubGroupHeader' }
+      - { $ref: '#/components/parameters/HubGroupQuery' }
+      - { $ref: '#/components/parameters/PlanId' }
+    post:
+      tags: [Combat]
+      operationId: updatePlanFromSim
+      description: >-
+        Takes a pasted battle simulation (or battle report) over into an attack plan; creator, admins and participants.
+        Coordinates in the text are ignored (simulations show placeholders). The first defender becomes the target's
+        ships, defense and combat research (109-111 from the percentages) for the simulators. Attacker fleets only
+        change the plan when recognised: by the name of a member or guest, else by the slot (plan fleets that are not
+        withdrawn, then guests) with the same ship types, else as the only remaining fleet with those ship types.
+        Recognised member fleets take the ships, guests their combat research and, unless the plan follows a running
+        attack, the ships. Replaces an earlier simulation of the plan.
+      security: [{ sessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [text], properties: { text: { type: string, description: Text of the simulation result } } }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  defender: { type: boolean, description: The simulation had a defender (taken over as the target) }
+                  attackers: { type: integer, description: Attacker fleets in the simulation }
+                  identified: { type: integer, description: Attacker fleets recognised as a plan fleet or guest }
+                  updated: { type: integer, description: Recognised fleets the simulation changed }
+        '400':
+          description: No battle simulation in the text (`plan_sim_invalid`) or a hold plan (`plan_sim_hold`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '403':
+          description: Not the creator, an admin or a participant (`plan_not_yours`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+    delete:
+      tags: [Combat]
+      operationId: removePlanSim
+      description: Drops the taken-over simulation; the target's spy report and the guests' spy research count again.
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object, properties: { ok: { type: boolean } } }
   /api/{uni}/settlements:
     get:
       tags: [Combat]

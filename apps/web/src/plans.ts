@@ -67,7 +67,9 @@ export interface AttackPlan {
    * newest spy report of the target (values by element id) for the combat simulators; hold plans: the defended planet
    * from the member's empire page, else its newest spy report
    */
-  spy: { time: number; values: Record<string, number> } | null;
+  spy: { time: number; values: Record<string, number>; source?: 'spy' | 'sim' } | null;
+  /** battle simulation taken over into an attack plan (target's ships, defense, combat research; guests' research) */
+  sim: { time: number; by: string | null; defender: boolean } | null;
 }
 
 export interface Body {
@@ -158,6 +160,8 @@ export interface GuestFleet {
   ships: Record<string, number>;
   research: Record<string, number> | null;
   research_time: number | null;
+  /** combat research from a taken-over simulation (newer than the spy reports) */
+  research_source?: 'sim';
 }
 
 /** Own attack in flight from the overview pastes without a plan yet, only for its participants (server: repo/plans.ts). */

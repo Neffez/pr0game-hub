@@ -1,0 +1,350 @@
+Folgende Flotten stehen sich gegenüber am 25. Okt 2026, 13:00:11 (0.0599 s)
+Angreifer Angreifer Nr.1 ([1:33:7] (P))
+Bewaff. 250% - Schilde 230% - Hülle 240%
+Typ
+Schwerer Kreuzer
+Anzahl
+10.156
+Bewaff.
+15.741.800
+Schilde
+2.335.880
+Hülle
+102.372.480
+Angreifer Angreifer Nr.2 ([1:33:7] (P))
+Bewaff. 240% - Schilde 230% - Hülle 240%
+Typ
+Kreuzer
+Schlachtschiff
+Schlachtkreuzer
+Anzahl
+152
+579
+4.025
+Bewaff.
+145.920
+1.389.600
+6.762.000
+Schilde
+17.480
+266.340
+3.703.000
+Hülle
+984.960
+8.337.600
+67.620.000
+Angreifer Angreifer Nr.3 ([1:33:7] (P))
+Bewaff. 250% - Schilde 230% - Hülle 240%
+Typ
+L. Jäger
+Anzahl
+82.322
+Bewaff.
+10.290.250
+Schilde
+1.893.406
+Hülle
+79.029.120
+Verteidiger Verteidiger Nr.1 ([1:33:7] (P))
+Bewaff. 250% - Schilde 240% - Hülle 240%
+Typ
+Kl. Transporter
+Gr. Transporter
+L. Jäger
+S. Jäger
+Schlachtschiff
+Kolonieschiff
+Spionagesonde
+Schlachtkreuzer
+Sturmtransporter
+Optimierter Recycler
+Anzahl
+884
+1.300
+1.548
+7.165
+8.199
+1
+2.086
+3.404
+8.708
+2.523
+Bewaff.
+11.492
+16.900
+193.500
+2.686.875
+20.497.500
+125
+0
+5.957.000
+1.088.500
+7.569
+Schilde
+21.216
+78.000
+37.152
+429.900
+3.935.520
+240
+0
+3.267.840
+1.880.928
+302.760
+Hülle
+848.640
+3.744.000
+1.486.080
+17.196.000
+118.065.600
+7.200
+500.640
+57.187.200
+20.899.200
+24.220.800
+Die Angreifenden Flotte schiesst mit einer Leistung von 53.522.995 auf den Verteidiger. Die Schilde des Verteidigers absorbieren 7.909.513 Schadenspunkte.
+Die Verteidigende Flotte schiesst mit einer Leistung von 31.688.961 auf den Angreifer. Die Schilde des Angreifers absorbieren 1.683.660 Schadenspunkte.
+Angreifer Angreifer Nr.1 ([1:33:7] (P))
+Bewaff. 250% - Schilde 230% - Hülle 240%
+Typ
+Schwerer Kreuzer
+Anzahl
+10.118
+(-38 / -38)
+Bewaff.
+15.682.900
+Schilde
+2.327.140
+Hülle
+99.357.875
+Angreifer Angreifer Nr.2 ([1:33:7] (P))
+Bewaff. 240% - Schilde 230% - Hülle 240%
+Typ
+Kreuzer
+Schlachtschiff
+Schlachtkreuzer
+Anzahl
+147
+(-5 / -5)
+578
+(-1 / -1)
+4.024
+(-1 / -1)
+Bewaff.
+141.120
+1.387.200
+6.760.320
+Schilde
+16.905
+265.880
+3.702.080
+Hülle
+938.250
+8.198.584
+66.879.855
+Angreifer Angreifer Nr.3 ([1:33:7] (P))
+Bewaff. 250% - Schilde 230% - Hülle 240%
+Typ
+L. Jäger
+Anzahl
+70.498
+(-11.824 / -11.824)
+Bewaff.
+8.812.250
+Schilde
+1.621.454
+Hülle
+65.872.009
+Verteidiger Verteidiger Nr.1 ([1:33:7] (P))
+Bewaff. 250% - Schilde 240% - Hülle 240%
+Typ
+Kl. Transporter
+Gr. Transporter
+L. Jäger
+S. Jäger
+Schlachtschiff
+Spionagesonde
+Schlachtkreuzer
+Sturmtransporter
+Optimierter Recycler
+Anzahl
+0
+(-33 / -884)
+17
+(-190 / -1.283)
+2
+(-60 / -1.546)
+110
+(-932 / -7.055)
+3.959
+(-2.881 / -4.240)
+0
+(-7 / -2.086)
+2.418
+(-787 / -986)
+295
+(-1.339 / -8.413)
+495
+(-895 / -2.028)
+Bewaff.
+0
+221
+250
+41.250
+9.897.500
+0
+4.231.500
+36.875
+1.485
+Schilde
+0
+1.020
+48
+6.600
+1.900.320
+0
+2.321.280
+63.720
+59.400
+Hülle
+0
+37.790
+1.165
+181.215
+45.694.125
+0
+33.700.560
+551.519
+3.615.505
+Die Angreifenden Flotte schiesst mit einer Leistung von 37.374.875 auf den Verteidiger. Die Schilde des Verteidigers absorbieren 4.310.377 Schadenspunkte.
+Die Verteidigende Flotte schiesst mit einer Leistung von 15.064.331 auf den Angreifer. Die Schilde des Angreifers absorbieren 685.581 Schadenspunkte.
+Angreifer Angreifer Nr.1 ([1:33:7] (P))
+Bewaff. 250% - Schilde 230% - Hülle 240%
+Typ
+Schwerer Kreuzer
+Anzahl
+9.647
+(-47 / -509)
+Bewaff.
+14.952.850
+Schilde
+2.218.810
+Hülle
+88.250.977
+Angreifer Angreifer Nr.2 ([1:33:7] (P))
+Bewaff. 240% - Schilde 230% - Hülle 240%
+Typ
+Kreuzer
+Schlachtschiff
+Schlachtkreuzer
+Anzahl
+124
+(-0 / -28)
+570
+(-0 / -9)
+4.016
+(-1 / -9)
+Bewaff.
+119.040
+1.368.000
+6.746.880
+Schilde
+14.260
+262.200
+3.694.720
+Hülle
+721.925
+7.702.551
+64.564.054
+Angreifer Angreifer Nr.3 ([1:33:7] (P))
+Bewaff. 250% - Schilde 230% - Hülle 240%
+Typ
+L. Jäger
+Anzahl
+45.683
+(-1.154 / -36.639)
+Bewaff.
+5.710.375
+Schilde
+1.050.709
+Hülle
+41.849.216
+Verteidiger Verteidiger Nr.1 ([1:33:7] (P))
+Bewaff. 250% - Schilde 240% - Hülle 240%
+Typ
+Gr. Transporter
+S. Jäger
+Schlachtschiff
+Schlachtkreuzer
+Sturmtransporter
+Optimierter Recycler
+Anzahl
+0
+(-1 / -1.300)
+0
+(-2 / -7.165)
+0
+(-677 / -8.199)
+0
+(-749 / -3.404)
+0
+(-5 / -8.708)
+0
+(-29 / -2.523)
+Bewaff.
+0
+0
+0
+0
+0
+0
+Schilde
+0
+0
+0
+0
+0
+0
+Hülle
+0
+0
+0
+0
+0
+0
+Runde 1
+Runde 2
+Runde 3
+Runde 4
+Runde 5
+Gesamt
+Angreifer
+⚔️Schaden verursacht▾
+🚀Angreifer Nr.1 (#0)▸
+🚀Angreifer Nr.2 (#1)▸
+🚀Angreifer Nr.3 (#2)▸
+ΣGesamt (alle Flotten)▸
+💀Überschussschaden▸
+🛡️Schildtreffer▸
+💥Schiffe zerstört▸
+🔥Schnellfeuer▸
+🌋Explosionen▸
+Verteidiger
+⚔️Schaden verursacht▾
+🚀Verteidiger Nr.1 (#0)▸
+💀Überschussschaden▸
+🛡️Schildtreffer▸
+💥Schiffe zerstört▸
+🔰Schaden abgeprallt▸
+🔥Schnellfeuer▸
+🌋Explosionen▸
+Der Angreifer hat die Schlacht gewonnen!
+Er erbeutet 8.380 Metall, 20.366 Kristall und 793.226 Deuterium
+
+Der Angreifer hat insgesamt 169.860.000 Units verloren
+Der Verteidiger hat insgesamt 1.017.314.000 Units verloren
+Auf diesen Raumkoordinaten liegen nun 394.599.750 Metall und 198.987.250 Kristall.
+
+Die Chance einer Mondentstehung beträgt: 40 %
+Es werden 29.680 Recycler für das Trümmerfeld benötigt.
+Für die Beute werden 165 Kleiner Transporter oder 33 Großer Transporter benötigt.

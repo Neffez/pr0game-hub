@@ -149,7 +149,7 @@ const sims = (p: AttackPlan) => {
 const simTitle = (p: AttackPlan, sim: 'Game' | 'Trash') =>
   p.mission === 'hold'
     ? t(`plans.simHold${sim}Title`, { planet: p.spy ? timeWithAge(p.spy.time) : t('plans.simNoData'), enemy: p.enemy?.research_time ? timeWithAge(p.enemy.research_time) : t('plans.simNoData') })
-    : t(`plans.sim${sim}Title`, { time: timeWithAge(p.spy!.time) });
+    : t(`plans.sim${sim}Title`, { source: t(p.spy!.source === 'sim' ? 'plans.simFromSim' : 'plans.simFromSpy', { time: timeWithAge(p.spy!.time) }) });
 const me = computed(() => ctx.value?.me.id);
 const isAdmin = computed(() => ctx.value?.group.role === 'admin' || !!ctx.value?.me.isAdmin);
 const canEdit = (p: AttackPlan) => p.user_id === me.value || isAdmin.value;
@@ -296,6 +296,28 @@ async function sendPhalanx() {
     Object.assign(phalanx, { open: false, text: '' });
   });
 }
+
+/**
+ * Battle simulation someone shared, pasted into an attack plan: the defender fills the target for the simulators,
+ * attacker fleets change the plan only where the server recognises them.
+ */
+const simForm = reactive({ planId: 0, text: '' });
+const canSim = (p: AttackPlan) => p.mission === 'attack' && (canEdit(p) || isParticipant(p));
+async function sendSim(p: AttackPlan) {
+  await run(async () => {
+    const res = await uniApi<{ defender: boolean; attackers: number; identified: number; updated: number }>(uni.value, `/plans/${p.id}/sim`, {
+      body: { text: simForm.text },
+    });
+    info.value = [
+      res.defender ? t('plans.simDefender') : '',
+      res.attackers ? t('plans.simAttackers', { identified: res.identified, attackers: res.attackers, updated: res.updated }) : '',
+    ].filter(Boolean).join(' ');
+    Object.assign(simForm, { planId: 0, text: '' });
+  });
+}
+const removeSim = (p: AttackPlan) => {
+  if (confirm(t('plans.simRemoveConfirm'))) run(() => uniApi(uni.value, `/plans/${p.id}/sim`, { method: 'DELETE' }));
+};
 
 /** Hold on the attacked planet: the fleets land 1 s before the impact (changeable in the plan). */
 async function planHold(a: HostileAttack) {
@@ -669,6 +691,11 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
         </span>
       </div>
       <div v-if="p.note && !editing[p.id]" class="small">{{ p.note }}</div>
+      <div v-if="p.sim" class="small muted">
+        {{ t('plans.simTaken', { name: p.sim.by ?? '?', time: timeWithAge(p.sim.time) }) }}
+        <template v-if="p.sim.defender && p.spy?.source === 'spy'"> · {{ t('plans.simOlder') }}</template>
+        <button v-if="canSim(p)" class="link small" @click="removeSim(p)">{{ t('plans.simRemove') }}</button>
+      </div>
       <HoldPanel v-if="p.enemy && p.mission === 'hold'" :plan="p" :editable="canEditEnemy(p) && !closed(p)" @saved="load" @error="(m) => (error = m)" />
       <RetimePanel v-else-if="p.enemy" :plan="p" :editable="canEditEnemy(p) && !closed(p)" @saved="load" @error="(m) => (error = m)" />
       <div v-if="views.get(p.id)?.acs" class="small">
@@ -867,6 +894,15 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
         <template v-if="canEdit(p)">
           <button v-if="!editing[p.id]" @click="startEdit(p)">{{ t('plans.editPlan') }}</button>
         </template>
+        <button v-if="canSim(p) && simForm.planId !== p.id" @click="Object.assign(simForm, { planId: p.id, text: '' })">{{ t('plans.simUpdate') }}</button>
+      </div>
+      <div v-if="simForm.planId === p.id" class="sim-form">
+        <textarea v-model="simForm.text" rows="4" :placeholder="t('plans.simPlaceholder')" />
+        <div class="row">
+          <button class="primary" :disabled="!simForm.text.trim()" @click="sendSim(p)">{{ t('plans.simApply') }}</button>
+          <button @click="simForm.planId = 0">{{ t('plans.cancelForm') }}</button>
+          <Hint>{{ t('plans.simHint') }}</Hint>
+        </div>
       </div>
       <div v-if="canEdit(p)" class="row plan-actions">
         <span class="muted small">{{ t('plans.setStatus') }}</span>
@@ -915,6 +951,8 @@ const oldDrives = (f: PlanFleet) => !f.drives || now.value - f.drives.time > DRI
 .plan-form h3 { margin: 0; }
 .phalanx-form { display: flex; flex-direction: column; gap: 8px; }
 .phalanx-form textarea { width: 100%; font-size: 12px; }
+.sim-form { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.sim-form textarea { width: 100%; font-size: 12px; }
 /* times: label, value and countdown with fixed gaps, wrapping as a whole */
 .times { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 20px; }
 .time { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }

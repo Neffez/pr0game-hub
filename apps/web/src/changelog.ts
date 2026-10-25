@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-10-25',
     items: [
       {
+        kind: 'new',
+        de: 'Raid-Pläne lassen sich aus einer geteilten Kampfsimulation updaten: Der Verteidiger landet in den Simulator-Links, auch ohne Spionagebericht. Angreiferflotten werden nur angepasst, wenn sie eindeutig erkannt werden.',
+        en: 'Raid plans can be updated from a shared battle simulation: the defender goes into the simulator links, even without a spy report. Attacker fleets are only adjusted when they are clearly recognised.',
+      },
+      {
         kind: 'fix',
         de: 'Raid-Pläne aus einem laufenden Angriff bleiben aktuell: Kommen später weitere Flotten in den Verband oder verschiebt sich die Ankunft, übernimmt der Plan das automatisch.',
         en: 'Raid plans made from a running attack stay up to date: if more fleets join the ACS later or the arrival moves, the plan picks it up automatically.',

@@ -4,12 +4,14 @@ import type { GroupContext } from '../context.js';
 import { now, type DB } from '../db.js';
 import { events } from '../events.js';
 import { isPhalanxText, localToEpoch, nearestClock, parseFleetsText } from '@pr0hub/core';
+import { isCombatReportText, parseCombatReportText } from '@pr0hub/core/combat';
 import { CLASS_RESEARCH } from '@pr0hub/core/tech';
 import { attackKey, hostileAttacks, PHALANX_KEEP, type Body, type EnemyFleet, type HostileAttack } from '../repo/hostile.js';
 import { latestEmpire, spyEmpire } from '../repo/empire.js';
 import {
   enemiesOf, followEnemies, fromOf, launchedOf, guestsOfAttack, ownAttacks, planDrives, syncOwnPlans, toOf, type EnemyRow, type LaunchFleet, type LaunchPlan, type OwnAttackFleet, type PlanRow,
 } from '../repo/plans.js';
+import { applySimulation, bodyKey, withSim, type PlanSim } from '../repo/simPlan.js';
 import { contextOf, DISPLAY, MEMBER } from './util.js';
 
 const STATUSES = ['planning', 'launched', 'done', 'cancelled'];
@@ -197,7 +199,7 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
     const plans = db
       .prepare(
         `SELECT a.id, a.user_id, ${DISPLAY} AS creator, a.g, a.s, a.p, a.planet_type, a.target_time, a.time_precision, a.note, a.status,
-           a.mission, a.guests, a.created_at, a.updated_at, c.user_id AS claim_user_id, COALESCE(a.player_id, pl.player_id) AS player_id, pr.name AS player_name,
+           a.mission, a.guests, a.sim, a.created_at, a.updated_at, c.user_id AS claim_user_id, COALESCE(a.player_id, pl.player_id) AS player_id, pr.name AS player_name,
            CASE WHEN a.planet_type = 'moon' THEN pl.moon_name ELSE pl.name END AS planet_name
          FROM attack_plans a
          JOIN users u ON u.id = a.user_id ${MEMBER('a')}
@@ -221,12 +223,17 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
     const enemies = new Map(enemiesOf(db, ctx, plans.map((p) => p.id)).map((e) => [e.plan_id, e]));
     followEnemies(db, plans as unknown as PlanRow[], enemies);
     const launched = launchedOf(db, ctx, plans as unknown as LaunchPlan[], fleets);
+    const sims = new Map(plans.map((p) => [p.id, p.sim != null ? (JSON.parse(p.sim as string) as PlanSim) : null]));
     const spies = new Map(
-      plans.map((p) => [p.id, p.mission === 'hold' ? holdSpy(ctx, p as unknown as SpyPlan, enemies.get(p.id)) : targetSpy(ctx, p as unknown as SpyPlan)]),
+      plans.map((p) => [
+        p.id,
+        p.mission === 'hold' ? holdSpy(ctx, p as unknown as SpyPlan, enemies.get(p.id)) : withSim(targetSpy(ctx, p as unknown as SpyPlan), sims.get(p.id)!),
+      ]),
     );
-    return plans.map((p) => ({
+    return plans.map(({ sim: _, ...p }) => ({
       ...p,
-      guests: guestsOut(ctx, p.guests as string | null),
+      guests: guestsOut(ctx, p.guests as string | null, sims.get(p.id)!),
+      sim: simOut(ctx, sims.get(p.id)!),
       fleets: fleets
         .filter((f) => f.plan_id === p.id)
         .map(({ plan_id, ships, manual, drives_time, ...f }) => ({
@@ -291,13 +298,30 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
     return spy?.researchTime != null ? { research: spy.research, research_time: spy.researchTime } : { research: null, research_time: null };
   }
 
-  /** Guest fleets of a plan with the research of their player (newest spy report showing it) for the simulators. */
-  function guestsOut(ctx: GroupContext, raw: string | null) {
+  /**
+   * Guest fleets of a plan with the research of their player (newest spy report showing it) for the simulators; the
+   * combat research of a taken-over simulation counts when it is newer.
+   */
+  function guestsOut(ctx: GroupContext, raw: string | null, sim: PlanSim | null) {
     if (raw == null) return [];
     return (JSON.parse(raw) as Omit<OwnAttackFleet, 'memberId' | 'member'>[]).map((g) => {
       const spy = g.player ? spyEmpire(db, ctx, g.player.id, g.player.name) : null;
+      const simmed = sim?.guests[bodyKey(g.from)];
+      if (simmed && (spy?.researchTime == null || spy.researchTime < sim!.time)) {
+        return { ...g, research: { ...(spy?.researchTime != null ? spy.research : {}), ...simmed }, research_time: sim!.time, research_source: 'sim' };
+      }
       return { ...g, research: spy?.researchTime != null ? spy.research : null, research_time: spy?.researchTime ?? null };
     });
+  }
+
+  /** When and by whom a simulation was taken over into the plan. */
+  function simOut(ctx: GroupContext, sim: PlanSim | null) {
+    if (!sim) return null;
+    const by = db
+      .prepare(`SELECT ${DISPLAY} FROM users u LEFT JOIN group_members gm ON gm.group_id = ? AND gm.user_id = u.id WHERE u.id = ?`)
+      .pluck()
+      .get(ctx.groupId, sim.user_id) as string | undefined;
+    return { time: sim.time, by: by ?? null, defender: sim.values != null };
   }
 
   const enemyOut = (e: EnemyRow) => ({
@@ -522,6 +546,39 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
     events.publish(ctx.groupId, { type: 'data', tables: ['attack_plans'], userId: ctx.user.id });
     return { ok: true };
   });
+
+  /**
+   * Battle simulation (or report) pasted into an attack plan: the first defender becomes the target's ships, defense
+   * and combat research for the simulators, recognised attacker fleets are updated (`applySimulation`). Creator,
+   * admins and participants.
+   */
+  app.post<{ Params: { uni: string; id: string }; Body: { text?: string } }>('/api/:uni/plans/:id/sim', async (req) => {
+    const ctx = ctxOf(req);
+    const plan = simPlanOf(ctx, Number(req.params.id));
+    const text = String(req.body?.text ?? '');
+    const report = isCombatReportText(text) ? parseCombatReportText(text, null) : null;
+    if (!report?.fleets.length) throw new HttpError(400, 'plan_sim_invalid', 'Not a battle simulation (no "Folgende Flotten stehen sich gegenüber" … result)');
+    const res = db.transaction(() => applySimulation(db, ctx, plan.id, report))();
+    changed(ctx);
+    return res;
+  });
+
+  /** Drops a taken-over simulation: the target's spy report and the guests' spy research count again. */
+  app.delete<{ Params: { uni: string; id: string } }>('/api/:uni/plans/:id/sim', async (req) => {
+    const ctx = ctxOf(req);
+    const plan = simPlanOf(ctx, Number(req.params.id));
+    db.prepare('UPDATE attack_plans SET sim = NULL, updated_at = ? WHERE id = ?').run(now(), plan.id);
+    changed(ctx);
+    return { ok: true };
+  });
+
+  /** An attack plan whose creator, an admin or a participant is acting (holds take the defended planet as it is). */
+  function simPlanOf(ctx: GroupContext, id: number) {
+    const plan = planOf(ctx, id);
+    if (plan.user_id !== ctx.user.id && !isAdmin(ctx) && !isParticipant(ctx, plan.id)) throw new HttpError(403, 'plan_not_yours', 'Only participants can change the plan');
+    if (plan.mission === 'hold') throw new HttpError(400, 'plan_sim_hold', 'Simulations are taken over into attack plans only');
+    return plan;
+  }
 
   const followOf = (v: unknown, count: number) => {
     if (!Number.isInteger(v) || (v as number) < 0 || (v as number) >= count) throw new HttpError(400, 'plan_enemy_invalid', 'Invalid fleet');

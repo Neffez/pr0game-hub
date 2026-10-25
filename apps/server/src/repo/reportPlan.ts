@@ -15,31 +15,34 @@ const lower = (s: string) => s.trim().toLowerCase();
 const bodyOf = (f: CombatFleet): Body | null => (f.from ? { ...f.from.coords, type: f.from.type } : null);
 const shipsOf = (f: CombatFleet) => Object.fromEntries(Object.entries(f.start).filter(([id, n]) => Number(id) >= 200 && Number(id) < 300 && n > 0));
 
-/**
- * Member of a battle report fleet: by the name (in-game name, hub name, the member's player in the galaxy data), else
- * by the owner of the planet it comes from.
- */
-function memberOfFleet(db: DB, ctx: GroupContext): (f: CombatFleet) => number | null {
+/** Member by a name in a battle report: in-game name, hub name or the name of the member's player in the galaxy data. */
+export function memberByName(db: DB, ctx: GroupContext): (name: string) => number | null {
   const players = memberPlayers(db, ctx);
   const playerName = db.prepare('SELECT name FROM players WHERE id = ?').pluck();
   const byName = new Map<string, number>();
-  const byPlayer = new Map<number, number>();
   const members = db
     .prepare('SELECT m.user_id, m.ingame_name, u.username FROM group_members m JOIN users u ON u.id = m.user_id WHERE m.group_id = ?')
     .all(ctx.groupId) as { user_id: number; ingame_name: string | null; username: string }[];
   for (const m of members) {
     const player = players.get(m.user_id);
     if (player != null) {
-      byPlayer.set(player, m.user_id);
       const name = playerName.get(player) as string | undefined;
       if (name) byName.set(lower(name), m.user_id);
     }
     if (m.ingame_name) byName.set(lower(m.ingame_name), m.user_id);
     byName.set(lower(m.username), m.user_id);
   }
+  return (name) => byName.get(lower(name)) ?? null;
+}
+
+/** Member of a battle report fleet: by the name (`memberByName`), else by the owner of the planet it comes from. */
+function memberOfFleet(db: DB, ctx: GroupContext): (f: CombatFleet) => number | null {
+  const byName = memberByName(db, ctx);
+  const players = memberPlayers(db, ctx);
+  const byPlayer = new Map([...players].filter(([, player]) => player != null).map(([userId, player]) => [player!, userId]));
   const owner = db.prepare('SELECT player_id FROM planets WHERE group_id = ? AND g = ? AND s = ? AND p = ? AND player_id IS NOT NULL').pluck();
   return (f) => {
-    const named = byName.get(lower(f.name));
+    const named = byName(f.name);
     if (named != null) return named;
     if (!f.from) return null;
     const player = owner.get(ctx.groupId, f.from.coords.g, f.from.coords.s, f.from.coords.p) as number | undefined;

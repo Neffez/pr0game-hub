@@ -274,15 +274,28 @@ describe('combat report', () => {
       loot: { metal: 0, crystal: 1343846, deuterium: 690373 },
       target: { coords: { g: 3, s: 195, p: 5 }, type: 'moon' },
     });
+    const R = { 109: 23, 110: 24, 111: 24 };
     expect(r!.fleets.filter((f) => f.side === 'attacker')).toEqual([
-      { side: 'attacker', name: 'CVXII', from: { coords: { g: 3, s: 26, p: 12 }, type: 'moon' }, start: { 222: 3544 }, end: { 222: 3521 } },
-      { side: 'attacker', name: 'Rudolf', from: { coords: { g: 3, s: 200, p: 1 }, type: 'moon' }, start: { 207: 2178, 215: 4348 }, end: { 207: 2178, 215: 4348 } },
-      { side: 'attacker', name: 'CVXII', from: { coords: { g: 3, s: 160, p: 5 }, type: 'moon' }, start: { 206: 347, 207: 11799, 215: 4406 }, end: { 206: 323, 207: 11794, 215: 4406 } },
-      { side: 'attacker', name: 'Rudolf', from: { coords: { g: 3, s: 200, p: 1 }, type: 'moon' }, start: { 225: 4821 }, end: { 225: 3901 } },
+      { side: 'attacker', name: 'CVXII', from: { coords: { g: 3, s: 26, p: 12 }, type: 'moon' }, research: R, start: { 222: 3544 }, end: { 222: 3521 } },
+      { side: 'attacker', name: 'Rudolf', from: { coords: { g: 3, s: 200, p: 1 }, type: 'moon' }, research: R, start: { 207: 2178, 215: 4348 }, end: { 207: 2178, 215: 4348 } },
+      { side: 'attacker', name: 'CVXII', from: { coords: { g: 3, s: 160, p: 5 }, type: 'moon' }, research: R, start: { 206: 347, 207: 11799, 215: 4406 }, end: { 206: 323, 207: 11794, 215: 4406 } },
+      { side: 'attacker', name: 'Rudolf', from: { coords: { g: 3, s: 200, p: 1 }, type: 'moon' }, research: R, start: { 225: 4821 }, end: { 225: 3901 } },
     ]);
     expect(r!.fleets.find((f) => f.side === 'defender')).toMatchObject({ name: 'Hustensaftdealer', from: { coords: { g: 3, s: 195, p: 5 }, type: 'moon' }, start: { 202: 136, 227: 303 }, end: { 202: 0, 227: 0 } });
     // pasted as text when syncing
     expect(parsePage({ text })).toMatchObject({ pageType: 'combatReport', records: [{ reportId: null, loot: { crystal: 1343846 } }] });
+  });
+
+  it('reads a shared battle simulation with research levels from the percentages', () => {
+    const r = parseCombatReportText(fixture('combat-sim-de.txt'), null);
+    expect(r!.fleets.map((f) => [f.side, f.name, f.research])).toEqual([
+      ['attacker', 'Angreifer Nr.1', { 109: 25, 110: 23, 111: 24 }],
+      ['attacker', 'Angreifer Nr.2', { 109: 24, 110: 23, 111: 24 }],
+      ['attacker', 'Angreifer Nr.3', { 109: 25, 110: 23, 111: 24 }],
+      ['defender', 'Verteidiger Nr.1', { 109: 25, 110: 24, 111: 24 }],
+    ]);
+    expect(r!.fleets[1].start).toEqual({ 206: 152, 207: 579, 215: 4025 });
+    expect(r!.fleets[3].start).toEqual({ 202: 884, 203: 1300, 204: 1548, 205: 7165, 207: 8199, 208: 1, 210: 2086, 215: 3404, 225: 8708, 227: 2523 });
   });
 });
 
