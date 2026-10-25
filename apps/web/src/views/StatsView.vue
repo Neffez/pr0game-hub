@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Loading from '../components/Loading.vue';
 import Icon from '../components/Icon.vue';
 import Hint from '../components/Hint.vue';
 import PlayerLink from '../components/PlayerLink.vue';
@@ -157,6 +158,7 @@ const SCORE_COLS = [4, 3, 2, 5] as const;
     {{ t('stats.empty', { who: who === 'player' ? t('stats.players') : t('stats.alliances'), category: STATS_CATEGORIES[type] }) }}
   </p>
 
+  <Loading v-else-if="!data" :lines="6" />
   <div v-else-if="data" class="table-wrap">
     <table v-if="who === 'player'" v-stack="4" class="data stats">
       <thead>

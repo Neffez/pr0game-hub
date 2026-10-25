@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Loading from '../components/Loading.vue';
 import ActionMenu from '../components/ActionMenu.vue';
 import FilterBar, { type FilterChip } from '../components/FilterBar.vue';
 import Icon from '../components/Icon.vue';
@@ -582,6 +583,7 @@ const history = computed(() => {
   </FilterBar>
 
   <div v-if="error" class="error">{{ error }}</div>
+  <Loading v-else-if="loading && !players.length" :lines="6" />
   <div v-else-if="!loading && !players.length" class="card muted">
     <i18n-t keypath="overview.empty">
       <template #sync><RouterLink :to="`/${uni}/paste`">{{ t('nav.sync') }}</RouterLink></template>

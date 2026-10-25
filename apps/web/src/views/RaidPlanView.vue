@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Loading from '../components/Loading.vue';
 import ActionMenu, { type MenuItem } from '../components/ActionMenu.vue';
 import BackLink from '../components/BackLink.vue';
 import Countdown from '../components/Countdown.vue';
@@ -20,6 +21,7 @@ import { useMobile, vStack } from '../composables';
 import { coords, duration, fmt, name, timeWithAge } from '../format';
 import { draftBody, draftOf, fleetCalcLink, FLEET_STATUSES, PLAN_STATUSES, seenShipsDiffer, SPEEDS, type PlanDraft, type PlanFleet } from '../plans';
 import { nextStatus, useRaidPlanner } from '../raidPlanner';
+import { toast } from '../toast';
 
 /**
  * One raid plan: target and time, the next step for the viewer (add the own fleet, launch, settle …), the fleets of
@@ -27,7 +29,9 @@ import { nextStatus, useRaidPlanner } from '../raidPlanner';
  * sheets.
  */
 const rp = useRaidPlanner();
-const { t, uni, ctx, me, now, plans, loaded, error, info, settings, run, claimedInfo } = rp;
+const { t, uni, ctx, me, now, plans, loaded, error, settings, run, claimedInfo } = rp;
+/** A panel or sheet saved: reload and confirm. */
+const onSaved = () => (toast(t('plans.toast.saved')), rp.load());
 const route = useRoute();
 const router = useRouter();
 const planId = computed(() => Number(route.params.id));
@@ -94,7 +98,7 @@ async function saveEdit() {
   const body = editSheet.coordsOnly
     ? { g: full.g, s: full.s, p: full.p, type: full.type }
     : o && o.precision === d.precision && o.date === d.date && o.time === d.time ? rest : full;
-  const ok = await run(async () => claimedInfo(await uniApi<{ claimedBy: string | null }>(uni.value, `/plans/${p.id}`, { method: 'PUT', body })));
+  const ok = await run(async () => claimedInfo(await uniApi<{ claimedBy: string | null }>(uni.value, `/plans/${p.id}`, { method: 'PUT', body })), t('plans.toast.saved'));
   if (ok) editSheet.open = false;
   loadClaims(uni.value);
 }
@@ -109,15 +113,15 @@ async function sendSim() {
     const res = await uniApi<{ defender: boolean; attackers: number; identified: number; updated: number }>(uni.value, `/plans/${plan.value!.id}/sim`, {
       body: { text: simSheet.text },
     });
-    info.value = [
+    toast([
       res.defender ? t('plans.simDefender') : '',
       res.attackers ? t('plans.simAttackers', { identified: res.identified, attackers: res.attackers, updated: res.updated }) : '',
-    ].filter(Boolean).join(' ');
+    ].filter(Boolean).join(' ') || t('plans.toast.saved'));
     Object.assign(simSheet, { open: false, text: '' });
   });
 }
 const removeSim = () => {
-  if (confirm(t('plans.simRemoveConfirm'))) run(() => uniApi(uni.value, `/plans/${plan.value!.id}/sim`, { method: 'DELETE' }));
+  if (confirm(t('plans.simRemoveConfirm'))) run(() => uniApi(uni.value, `/plans/${plan.value!.id}/sim`, { method: 'DELETE' }), t('plans.toast.saved'));
 };
 async function remove() {
   if (await rp.removePlan(plan.value!)) router.push(listLink.value);
@@ -153,7 +157,7 @@ const planMenu = computed<MenuItem[]>(() => {
 <template>
   <BackLink :to="listLink" :label="t('nav.raidPlanner')" />
   <div v-if="error" class="error">{{ error }}</div>
-  <div v-if="info" class="warn small info">{{ info }}</div>
+  <Loading v-if="!loaded" :lines="4" />
   <div v-if="loaded && !plan" class="card muted">{{ t('plans.notFound') }}</div>
 
   <template v-if="plan">
@@ -240,8 +244,8 @@ const planMenu = computed<MenuItem[]>(() => {
     </div>
 
     <Section v-if="plan.enemy" :title="plan.mission === 'hold' ? t('hold.title') : t('retime.enemy')" store-key="raidPlan.enemy" class="enemy">
-      <HoldPanel v-if="plan.mission === 'hold'" :plan="plan" :editable="rp.canEditEnemy(plan) && !rp.closed(plan)" @saved="rp.load" @error="(m) => (error = m)" />
-      <RetimePanel v-else :plan="plan" :editable="rp.canEditEnemy(plan) && !rp.closed(plan)" @saved="rp.load" @error="(m) => (error = m)" />
+      <HoldPanel v-if="plan.mission === 'hold'" :plan="plan" :editable="rp.canEditEnemy(plan) && !rp.closed(plan)" @saved="onSaved" @error="(m) => (error = m)" />
+      <RetimePanel v-else :plan="plan" :editable="rp.canEditEnemy(plan) && !rp.closed(plan)" @saved="onSaved" @error="(m) => (error = m)" />
     </Section>
 
     <Section :title="t('plans.fleets')" :count="rp.flying(plan)" store-key="raidPlan.fleets" class="fleets">
@@ -431,7 +435,7 @@ const planMenu = computed<MenuItem[]>(() => {
     </Section>
   </template>
 
-  <PlanFleetSheet v-model="fleetSheet.open" :plan="plan" :fleet="fleetSheet.fleet" @saved="rp.load" />
+  <PlanFleetSheet v-model="fleetSheet.open" :plan="plan" :fleet="fleetSheet.fleet" @saved="onSaved" />
 
   <Sheet v-model="editSheet.open" :title="editSheet.coordsOnly ? t('plans.setCoordsTitle') : t('plans.editPlan')">
     <div v-if="editSheet.draft" class="edit-box">
@@ -456,7 +460,6 @@ const planMenu = computed<MenuItem[]>(() => {
 </template>
 
 <style scoped>
-.info { margin: 0 0 10px; }
 .plan-card { display: flex; flex-direction: column; gap: 10px; }
 .plan-card.closed { opacity: .8; }
 .plan-title { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }

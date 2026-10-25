@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Loading from '../components/Loading.vue';
 import ActionMenu from '../components/ActionMenu.vue';
 import Countdown from '../components/Countdown.vue';
 import Hint from '../components/Hint.vue';
@@ -17,6 +18,7 @@ import { useStored } from '../composables';
 import { coords, duration } from '../format';
 import { draftBody, newDraft, type AttackPlan, type HostileAttack, type OwnAttack } from '../plans';
 import { useRaidPlanner } from '../raidPlanner';
+import { toast } from '../toast';
 
 /**
  * Raid planner: what needs attention first (own launches, hostile attacks, own attacks without a plan), then the
@@ -24,7 +26,7 @@ import { useRaidPlanner } from '../raidPlanner';
  * are entered in a sheet.
  */
 const rp = useRaidPlanner();
-const { t, uni, now, attacks, ownAttacks, loaded, error, info, current, past, run, claimedInfo } = rp;
+const { t, uni, now, attacks, ownAttacks, loaded, error, current, past, run, claimedInfo } = rp;
 const route = useRoute();
 const router = useRouter();
 
@@ -78,7 +80,7 @@ async function create() {
     const res = await uniApi<{ id: number; claimedBy: string | null }>(uni.value, '/plans', { body });
     claimedInfo(res);
     id = res.id;
-  });
+  }, t('plans.toast.created'));
   loadClaims(uni.value);
   if (!ok) return;
   form.open = false;
@@ -90,7 +92,7 @@ const phalanx = reactive({ open: false, text: '' });
 async function sendPhalanx() {
   await run(async () => {
     const res = await uniApi<{ attacks: number }>(uni.value, '/phalanx', { body: { text: phalanx.text } });
-    info.value = t('phalanx.found', { n: res.attacks }, res.attacks);
+    toast(t('phalanx.found', { n: res.attacks }, res.attacks), res.attacks ? 'ok' : 'warn');
     Object.assign(phalanx, { open: false, text: '' });
   });
 }
@@ -129,7 +131,6 @@ const delay = (p: AttackPlan) => (rp.exact(p) ? (rp.views.value.get(p.id)?.acs?.
   <LootSettlementList v-if="tab === 'settlements'" />
   <template v-else>
     <div v-if="error" class="error">{{ error }}</div>
-    <div v-if="info" class="warn small info">{{ info }}</div>
 
     <!-- what to do next: the viewer's own launches -->
     <RouterLink v-for="l in myLaunches" :key="l.plan.id" :to="planLink(l.plan.id)" class="card launch-strip">
@@ -220,6 +221,7 @@ const delay = (p: AttackPlan) => (rp.exact(p) ? (rp.views.value.get(p.id)?.acs?.
       </div>
     </Section>
 
+    <Loading v-if="!loaded" />
     <h2 class="plans-head">{{ t('plans.current') }} <span v-if="current.length" class="badge">{{ current.length }}</span></h2>
     <div v-if="loaded && !current.length" class="card muted empty">
       {{ t('plans.none') }}
@@ -299,7 +301,6 @@ const delay = (p: AttackPlan) => (rp.exact(p) ? (rp.views.value.get(p.id)?.acs?.
 
 <style scoped>
 .tab-seg { margin-bottom: 14px; }
-.info { margin: 0 0 10px; }
 .launch-strip {
   display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; color: var(--text);
   border-color: color-mix(in srgb, var(--accent) 50%, var(--border)); background: color-mix(in srgb, var(--accent) 8%, var(--surface));

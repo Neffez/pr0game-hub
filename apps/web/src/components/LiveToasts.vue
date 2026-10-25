@@ -4,8 +4,9 @@ import { onBeforeUnmount, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useUni } from '../composables';
 import { liveHints, useLive, type DataEvent } from '../live';
+import { dismissNotice, notices } from '../toast';
 
-/** Hints when other members sync: who pasted what, linked to the page showing it. */
+/** Hints when other members sync: who pasted what, linked to the page showing it; below them the own actions' feedback (toast). */
 const { t } = useI18n();
 const { ctx, uni } = useUni();
 
@@ -98,6 +99,11 @@ onBeforeUnmount(() => timers.forEach(clearTimeout));
 
 <template>
   <div class="live-toasts" aria-live="polite">
+    <div v-for="n in notices" :key="`n${n.id}`" class="live-toast notice" :class="n.kind">
+      <Icon :name="n.kind === 'ok' ? 'check' : 'warning'" :size="15" class="notice-icon" />
+      <span>{{ n.text }}</span>
+      <button class="close" :title="t('live.close')" :aria-label="t('live.close')" @click="dismissNotice(n.id)"><Icon name="close" :size="14" /></button>
+    </div>
     <div v-for="toast in toasts" :key="toast.id" class="live-toast">
       <RouterLink v-if="toast.to" :to="toast.to" @click="dismiss(toast.id)">{{ toast.text }}</RouterLink>
       <span v-else>{{ toast.text }}</span>
@@ -117,6 +123,10 @@ onBeforeUnmount(() => timers.forEach(clearTimeout));
   border-radius: var(--radius); box-shadow: 0 6px 20px rgba(0, 0, 0, .35); font-size: 13px;
 }
 .live-toast a, .live-toast span { flex: 1; color: var(--text); }
+.live-toast.notice.ok { border-left-color: var(--pos); }
+.live-toast.notice.warn { border-left-color: var(--warn); }
+.notice.ok .notice-icon { color: var(--pos); }
+.notice.warn .notice-icon { color: var(--warn); }
 .close { padding: 0 4px; border: 0; background: none; color: var(--muted); line-height: 1.2; }
 @media (max-width: 800px) {
   /* above the bottom tab bar */

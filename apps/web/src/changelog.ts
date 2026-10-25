@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Kurze Bestätigungen im Raid-Planer (z. B. „Plan angelegt“, „Gespeichert“) und Platzhalter beim Laden statt leerer Seiten.',
+        en: 'Short confirmations in the raid planner (e.g. "Plan created", "Saved") and placeholders while loading instead of empty pages.',
+      },
+      {
+        kind: 'new',
         de: 'Admin-Bereich mit einklappbaren Abschnitten. Statistik: Kategorie auf dem Handy als Auswahl. Bauen & Forschen: aufgeräumte Umschalter, Filter auf dem Handy als Auswahl. Spionage-Verlauf mit beschrifteten Feldern.',
         en: 'Admin area with collapsible sections. Statistics: category as a select on phones. Build & research: tidier switches, filters as a select on phones. Spy history with labelled fields.',
       },

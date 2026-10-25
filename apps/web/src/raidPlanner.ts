@@ -6,6 +6,7 @@ import { useUni } from './composables';
 import { abbr, clockTime, coords, duration, fmt, numDate, simLinks, timeWithAge, weekday, type Coords3, type SimFleet } from './format';
 import { intlLocale } from './i18n';
 import { tables, useLiveReload } from './live';
+import { toast } from './toast';
 import {
   candidateHome,
   computePlan,
@@ -63,8 +64,6 @@ export function useRaidPlanner() {
   const ownAttacks = ref<OwnAttack[]>([]);
   const loaded = ref(false);
   const error = ref('');
-  /** result of the last change worth telling (target claimed by someone else, phalanx, simulation) */
-  const info = ref('');
   async function load() {
     try {
       [plans.value, attacks.value, ownAttacks.value] = await Promise.all([
@@ -82,19 +81,24 @@ export function useRaidPlanner() {
   onMounted(load);
   useLiveReload(load, tables('attack_plans', 'fleets', 'hidden_attacks'), 300);
 
-  /** Runs a change; errors show at the top of the page, the live event reloads the plans (and here at once). */
-  async function run(fn: () => Promise<unknown>) {
+  /**
+   * Runs a change; errors show at the top of the page, the live event reloads the plans (and here at once).
+   * `done`: feedback shown as a toast on success.
+   */
+  async function run(fn: () => Promise<unknown>, done?: string) {
     error.value = '';
     try {
       await fn();
       await load();
+      if (done) toast(done);
       return true;
     } catch (e) {
       error.value = (e as Error).message;
       return false;
     }
   }
-  const claimedInfo = (res: { claimedBy?: string | null }) => (info.value = res.claimedBy ? t('plans.claimedBy', { name: res.claimedBy }) : '');
+  /** The target is claimed by someone else already: told as a warning. */
+  const claimedInfo = (res: { claimedBy?: string | null }) => res.claimedBy && toast(t('plans.claimedBy', { name: res.claimedBy }), 'warn');
 
   const settings = computed(() => ctx.value!.universe.settings);
   const me = computed(() => ctx.value?.me.id);
@@ -185,10 +189,12 @@ export function useRaidPlanner() {
 
   // ---- changes ----
   const setStatus = (p: AttackPlan, status: string) =>
-    run(() => uniApi(uni.value, `/plans/${p.id}`, { method: 'PUT', body: { status } })).then((ok) => (loadClaims(uni.value), ok));
+    run(() => uniApi(uni.value, `/plans/${p.id}`, { method: 'PUT', body: { status } }), t('plans.toast.status', { status: t(`plans.status.${status}`) })).then(
+      (ok) => (loadClaims(uni.value), ok),
+    );
   async function removePlan(p: AttackPlan) {
     if (!confirm(t('plans.confirmDelete', { target: targetLabel(p) }))) return false;
-    const ok = await run(() => uniApi(uni.value, `/plans/${p.id}`, { method: 'DELETE' }));
+    const ok = await run(() => uniApi(uni.value, `/plans/${p.id}`, { method: 'DELETE' }), t('plans.toast.deleted'));
     loadClaims(uni.value);
     return ok;
   }
@@ -201,9 +207,15 @@ export function useRaidPlanner() {
   const setFleetStatus = (p: AttackPlan, f: PlanFleet, status: string) =>
     run(() => uniApi(uni.value, `/plans/${p.id}/fleets/${f.id}`, { method: 'PUT', body: { status } }));
   function removeFleet(p: AttackPlan, f: PlanFleet) {
-    if (confirm(t('plans.confirmRemoveFleet', { member: f.member }))) run(() => uniApi(uni.value, `/plans/${p.id}/fleets/${f.id}`, { method: 'DELETE' }));
+    if (confirm(t('plans.confirmRemoveFleet', { member: f.member }))) {
+      run(() => uniApi(uni.value, `/plans/${p.id}/fleets/${f.id}`, { method: 'DELETE' }), t('plans.toast.fleetRemoved', { member: f.member }));
+    }
   }
-  const invite = (p: AttackPlan, userId: number) => run(() => uniApi(uni.value, `/plans/${p.id}/fleets`, { body: { user_id: userId } }));
+  const invite = (p: AttackPlan, userId: number) =>
+    run(
+      () => uniApi(uni.value, `/plans/${p.id}/fleets`, { body: { user_id: userId } }),
+      t('plans.toast.invited', { member: ctx.value?.members.find((m) => m.id === userId)?.name ?? '?' }),
+    );
 
   /** Starts a retime plan on a hostile attack: follows the main fleet, target time first its return at full speed plus 1 s. */
   async function planRetime(a: HostileAttack) {
@@ -217,7 +229,7 @@ export function useRaidPlanner() {
       const res = await uniApi<{ id: number; claimedBy: string | null }>(uni.value, '/plans/retime', { body: { key: a.key, follow, target_time: target, buffer: DEFAULT_BUFFER } });
       claimedInfo(res);
       id = res.id;
-    });
+    }, t('plans.toast.created'));
     loadClaims(uni.value);
     return id;
   }
@@ -226,7 +238,7 @@ export function useRaidPlanner() {
     let id: number | null = null;
     await run(async () => {
       id = (await uniApi<{ id: number }>(uni.value, '/plans/hold', { body: { key: a.key } })).id;
-    });
+    }, t('plans.toast.created'));
     return id;
   }
   /** Own attack in flight: a plan with the fleets flying (launched), visible to everyone from then on. */
@@ -236,14 +248,15 @@ export function useRaidPlanner() {
       const res = await uniApi<{ id: number; claimedBy: string | null }>(uni.value, '/plans/own', { body: { key: a.key } });
       claimedInfo(res);
       id = res.id;
-    });
+    }, t('plans.toast.created'));
     loadClaims(uni.value);
     return id;
   }
-  const setHidden = (a: HostileAttack, hide: boolean) => run(() => uniApi(uni.value, `/hostile-attacks/${hide ? 'hide' : 'unhide'}`, { body: { key: a.key } }));
+  const setHidden = (a: HostileAttack, hide: boolean) =>
+    run(() => uniApi(uni.value, `/hostile-attacks/${hide ? 'hide' : 'unhide'}`, { body: { key: a.key } }), t(hide ? 'plans.toast.hidden' : 'plans.toast.shown'));
 
   return {
-    t, uni, ctx, now, plans, attacks, ownAttacks, loaded, error, info, load, run, claimedInfo, settings, me,
+    t, uni, ctx, now, plans, attacks, ownAttacks, loaded, error, load, run, claimedInfo, settings, me,
     canEdit, isParticipant, canEditFleet, canRemoveFleet, closed, hasCoords, settleable, canSetCoords, canEditEnemy, canSim,
     views, current, past, exact, myLaunch, lateFleet, flying, oldDrives, sims, simTitle,
     targetText, clock, shortClock, offset, shipList, leadName, targetLabel, attackShips, ownFleetName,

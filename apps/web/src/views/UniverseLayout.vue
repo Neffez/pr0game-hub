@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Loading from '../components/Loading.vue';
 import LiveToasts from '../components/LiveToasts.vue';
 import Icon from '../components/Icon.vue';
 import NotificationBell from '../components/NotificationBell.vue';
@@ -237,6 +238,7 @@ const tabs = [
         <SyncSheet v-model="syncOpen" />
         <LiveToasts />
       </template>
+      <Loading v-else :lines="5" />
     </main>
     <nav class="tabbar" :aria-label="t('nav.menu')">
       <RouterLink v-for="tb in tabs.slice(0, 2)" :key="tb.to" :to="`/${uni}/${tb.to}`"><Icon :name="tb.icon" />{{ t(`nav.${tb.label}`) }}</RouterLink>

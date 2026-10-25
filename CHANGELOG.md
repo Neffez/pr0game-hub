@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-25
 
+- Feedback and loading: own actions in the raid planner confirm with a short toast (plan created, saved, status,
+  fleet removed, member invited, attack hidden; claimed targets and phalanx results as warnings) through a shared
+  `toast()` shown with the live hints, replacing the inline info lines. Pages show a shimmering placeholder while
+  loading (universe context, overview, statistics, raid planner list and plan page) instead of staying empty.
 - Admin panel in collapsible, remembered sections (universes, alliances and members open; Discord, crawler, backfill,
   merge and ingest log folded); remove and undo buttons styled as danger, the renewal button uses the icon set.
   Statistics pick the category from a select on mobile (with the synced pages of the chosen one). Build & research:
