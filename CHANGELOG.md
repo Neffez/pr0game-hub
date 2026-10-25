@@ -4,6 +4,14 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-25
 
+- The static tools share one page shell: `apps/tools/shared/tools.css` (tokens, header, cards, fields, buttons, tables,
+  results, toast, tooltips) and `shared/shell.js` (DOM helpers, storage, German/English texts with `data-t*`
+  attributes, toast with undo, copying with a fallback, the share link, tooltips). All three pages have the same
+  header with a DE/EN switch and a "Share link" button (icon and text, icon only on phones); the language is shared
+  across the tools (`pr0tools.lang`, taken over from the loot calculator's earlier key).
+  - The flight calculator is now available in German (texts in `flight-calculator/i18n.js`, German ship names from
+    the game data, German number format); English texts and share links are unchanged.
+  - The tools index has the language switch and German texts too.
 - Interplanetary missile math in `@pr0hub/flight` (`missile.ts`), ported from the game: range and flight time
   (`inMissileRange`, `getMIPDuration`, circular and sphere systems), the attack of `calculateMIPAttack` (interceptors,
   primary target first, damage carried on target by target, the target's own missiles hit too), the fewest missiles

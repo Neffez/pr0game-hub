@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Flugrechner gibt es jetzt auch auf Deutsch. Flugrechner, Beuterechner und die Tool-Übersicht haben denselben Kopf mit DE/EN-Umschalter und „Link teilen“; die gewählte Sprache gilt für alle Tools.',
+        en: 'The flight calculator is now available in German. Flight calculator, loot calculator and the tools overview share the same header with a DE/EN switch and "Share link"; the chosen language applies to all tools.',
+      },
+      {
+        kind: 'new',
         de: 'Unter Neuigkeiten gibt es jetzt einen Link zum Quellcode des Hubs.',
         en: "What's new now has a link to the hub's source code.",
       },

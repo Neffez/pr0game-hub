@@ -3,9 +3,6 @@ export var TEXTS = {
   de: {
     title: 'AKS-Beuterechner',
     subtitle: 'Beute und Trümmerfeld eines AKS fair aufteilen',
-    lang: 'Sprache',
-    share: 'Link teilen',
-    shared: 'Link kopiert',
     reset: 'Neu',
     resetConfirm: 'Alle Eingaben löschen?',
     intro: 'Teilnehmer und Kämpfe eintragen (oder Kampfbericht einfügen), Recycling ergänzen: der Rechner ersetzt zuerst die Verluste und Kosten aller Teilnehmer, teilt den Rest auf und schlägt Lieferungen mit möglichst wenigen Flügen vor.',
@@ -121,9 +118,6 @@ export var TEXTS = {
   en: {
     title: 'ACS Loot Calculator',
     subtitle: 'Share the loot and debris of an ACS fairly',
-    lang: 'Language',
-    share: 'Share link',
-    shared: 'Link copied',
     reset: 'New',
     resetConfirm: 'Clear all input?',
     intro: 'Enter participants and battles (or paste the battle report) and add the recycling: the calculator first covers every participant’s losses and costs, splits the rest and suggests deliveries with as few flights as possible.',
