@@ -48,7 +48,8 @@ function errorMessage(data: { error?: string; code?: string } | null, fallback: 
   return data?.code && i18n.global.te(key) ? t(key) : (data?.error ?? fallback);
 }
 
-export async function api<T = any>(path: string, opts: { method?: string; body?: unknown; uni?: string } = {}): Promise<T> {
+/** `keepalive`: the request outlives the page (sent while the tab closes). */
+export async function api<T = any>(path: string, opts: { method?: string; body?: unknown; uni?: string; keepalive?: boolean } = {}): Promise<T> {
   const headers: Record<string, string> = {};
   if (opts.body !== undefined) headers['content-type'] = 'application/json';
   if (opts.uni) {
@@ -60,6 +61,7 @@ export async function api<T = any>(path: string, opts: { method?: string; body?:
     headers,
     body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
     credentials: 'same-origin',
+    keepalive: opts.keepalive,
   });
   const data = res.headers.get('content-type')?.includes('json') ? await res.json() : null;
   if (!res.ok) throw new ApiError(res.status, errorMessage(data, res.statusText), data?.code);
@@ -67,7 +69,7 @@ export async function api<T = any>(path: string, opts: { method?: string; body?:
 }
 
 /** Shorthand for universe scoped endpoints: uniApi('u8', '/overview') -> /api/u8/overview */
-export const uniApi = <T = any>(uni: string, path: string, opts: { method?: string; body?: unknown } = {}) =>
+export const uniApi = <T = any>(uni: string, path: string, opts: { method?: string; body?: unknown; keepalive?: boolean } = {}) =>
   api<T>(`/${uni}${path}`, { ...opts, uni });
 
 export async function loadMe() {

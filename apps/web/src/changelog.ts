@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-10-25',
     items: [
       {
+        kind: 'fix',
+        de: 'Online-Liste: Bei mehreren offenen Tabs oder Geräten zeigt der Hub jetzt den Tab, den das Mitglied gerade benutzt. Vorher konnte etwa ein vergessener Raid-Planer-Tab stehen bleiben. Wer 5 Minuten nichts tut, gilt als abwesend (gelber Punkt) und bekommt dann wieder Push- und Discord-Benachrichtigungen.',
+        en: 'Online list: with several tabs or devices open, the hub now shows the tab the member is actually using. Before, a forgotten raid planner tab could stay shown. Whoever does nothing for 5 minutes counts as away (yellow dot) and gets push and Discord notifications again.',
+      },
+      {
         kind: 'new',
         de: 'Beuteabrechnung wie die AKS-Excel: Deut-Kosten (Flüge, Recycler, verlorene Schiffe) werden zuerst mit erbeutetem Deut ersetzt, nur was fehlt (z. B. nur Trümmerfeld) in Metall und Kristall. Übriges Deut ist Gewinn.',
         en: 'Loot settlement like the ACS spreadsheet: deuterium costs (flights, recyclers, lost ships) are paid back with captured deuterium first, only what is missing (e.g. debris only) in metal and crystal. Deuterium left over is profit.',
