@@ -1,0 +1,49 @@
+version: 2
+
+updates:
+  # pnpm workspace: root and all workspace packages share one lockfile
+  - package-ecosystem: npm
+    directories:
+      - /
+      - /apps/*
+      - /packages/*
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      # one pull request for all minor and patch updates, majors stay separate
+      npm-minor-patch:
+        update-types: [minor, patch]
+    ignore:
+      # TypeScript 7 is the native compiler without a JS API, which vue-tsc needs
+      - dependency-name: typescript
+        update-types: [version-update:semver-major]
+      # no prebuilt binaries, the slim image cannot compile it
+      - dependency-name: better-sqlite3
+        update-types: [version-update:semver-major]
+      # cheerio uses domhandler 5, the node types must match
+      - dependency-name: domhandler
+        update-types: [version-update:semver-major]
+      # the types follow the Node runtime (see Dockerfile and CI), bumped together with it
+      - dependency-name: "@types/node"
+        update-types: [version-update:semver-major]
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    ignore:
+      # Node LTS only, moved by hand together with CI, `engines` and `@types/node`
+      - dependency-name: node
+        update-types: [version-update:semver-major]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    groups:
+      github-actions:
+        patterns: ["*"]

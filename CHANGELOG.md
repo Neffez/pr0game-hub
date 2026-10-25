@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-25
 
+- Dependabot checks npm packages (one grouped pull request for minor and patch updates, majors separately), the Docker
+  base images and the GitHub Actions weekly. Majors that are left out on purpose (TypeScript 7, `better-sqlite3` 13,
+  `domhandler` 6, `@types/node` and the Node image) are ignored.
 - Dependencies to their current majors: Vite 8 (Rolldown), Vitest 5, `@vitejs/plugin-vue` 6, Vue Router 5, vue-tsc 3,
   TypeScript 6, happy-dom 21, Chart.js 4.6, `@types/better-sqlite3` 9; base images Debian trixie (bookworm is
   oldstable) and nginx 1.30 for the tools; CI actions on their Node 24 majors (`actions/checkout` 7,
