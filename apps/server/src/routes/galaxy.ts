@@ -142,15 +142,15 @@ function phalanxCoverage(db: DB, ctx: GroupContext, g: number, s: number) {
     // current owner from the galaxy data, falling back to the spy report
     const owner = db
       .prepare(
-        `SELECT p.id, p.name, a.name AS ally_name, a.tag AS ally_tag FROM planets pl JOIN players p ON p.id = pl.player_id
+        `SELECT p.id, p.name, p.status, a.name AS ally_name, a.tag AS ally_tag FROM planets pl JOIN players p ON p.id = pl.player_id
          LEFT JOIN alliances a ON a.id = p.alliance_id WHERE pl.group_id = ? AND pl.g = ? AND pl.s = ? AND pl.p = ?`,
       )
-      .get(ctx.groupId, g, m.s, m.p) as { id: number; name: string; ally_name: string | null; ally_tag: string | null } | undefined;
+      .get(ctx.groupId, g, m.s, m.p) as { id: number; name: string; status: string | null; ally_name: string | null; ally_tag: string | null } | undefined;
     const wrap = (x: number) => (ctx.universe.settings.circularSystems ? ((x - 1 + systems) % systems) + 1 : Math.min(systems, Math.max(1, x)));
     out.push({
       g, s: m.s, p: m.p, level: m.level, range, from: wrap(m.s - range), to: wrap(m.s + range), distance: dist,
       time: m.time, source: m.source, own: own.has(`${g}:${m.s}:${m.p}`),
-      player: owner ? { id: owner.id, name: owner.name, ally: owner.ally_tag ?? owner.ally_name } : m.playerName ? { id: m.playerId, name: m.playerName, ally: null } : null,
+      player: owner ? { id: owner.id, name: owner.name, ally: owner.ally_tag ?? owner.ally_name, vacation: (JSON.parse(owner.status || '[]') as string[]).includes('vacation') } : m.playerName ? { id: m.playerId, name: m.playerName, ally: null } : null,
     });
   }
   return out.sort((a, b) => b.time - a.time);

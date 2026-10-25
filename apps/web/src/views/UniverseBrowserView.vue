@@ -11,7 +11,7 @@ import PlanetActions from '../components/PlanetActions.vue';
 import StatusBadges from '../components/StatusBadges.vue';
 import { useLoader, useMobile, useStored, useUni } from '../composables';
 import { tables, useLiveReload, type DataEvent } from '../live';
-import { ago, dateTime, fmt, freshnessColor, name, short, timeWithAge } from '../format';
+import { STATUS_LABEL, STATUS_TITLE, ago, dateTime, fmt, freshnessColor, name, short, timeWithAge } from '../format';
 import GalaxyFreshness from '../components/GalaxyFreshness.vue';
 
 /** Galaxy view like in the game, from the synced galaxy data (no activity, no deuterium). */
@@ -68,7 +68,7 @@ interface Phalanx {
   time: number;
   source: 'spy' | 'empire';
   own: boolean;
-  player: { id: number | null; name: string; ally: string | null } | null;
+  player: { id: number | null; name: string; ally: string | null; vacation?: boolean } | null;
 }
 
 /** reference time of the ages shown (the data's load time) */
@@ -429,6 +429,7 @@ function onStripUp() {
         <PlayerLink v-if="ph.player?.id" :id="ph.player.id" :name="ph.player.name" />
         <span v-else>{{ ph.player?.name ?? t('common.unknown') }}</span>
         <span v-if="ph.player?.ally" class="muted small"> [{{ ph.player.ally }}]</span>
+        <span v-if="ph.player?.vacation" class="badge vacation" :title="STATUS_TITLE.vacation">{{ STATUS_LABEL.vacation }}</span>
         <span v-if="ph.own" class="badge" style="color: var(--accent)">{{ t('common.alliance') }}</span>
       </div>
       <a class="mono small" href="#" :title="t('browse.showSystem')" @click.prevent="s = ph.s">☾ {{ ph.g }}:{{ ph.s }}:{{ ph.p }}</a>
