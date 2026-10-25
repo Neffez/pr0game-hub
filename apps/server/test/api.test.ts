@@ -8,6 +8,9 @@ const { openDb } = await import('../src/db.js');
 const { hashPassword } = await import('../src/auth.js');
 const { scoreEntry, statSlots } = await import('../src/domain/stats.js');
 
+/** Query for the lists that show the last 8 days by default: the fixtures' reports are dated in October 2026. */
+const EVER = 'from=1&to=4102444800';
+
 const fixture = (name: string) =>
   readFileSync(new URL(`../../../packages/parser/test/fixtures/${name}`, import.meta.url), 'utf8');
 
@@ -89,10 +92,10 @@ describe('api', () => {
     const deck = (await app.inject({ method: 'GET', url: '/hub/api/u8/deck', headers })).json();
     expect(deck.state.drawnInDeck).toBe(3);
 
-    const raids = (await app.inject({ method: 'GET', url: '/hub/api/u8/raids', headers })).json();
+    const raids = (await app.inject({ method: 'GET', url: `/hub/api/u8/raids?${EVER}`, headers })).json();
     expect(raids.perUser[0]).toMatchObject({ raids: 1, metal: 600000 });
     expect(raids.recyclePerUser[0]).toMatchObject({ runs: 1, metal: 80000, crystal: 25000, left: 3895000 });
-    const activity = (await app.inject({ method: 'GET', url: '/hub/api/u8/activity?kinds=debris_shrunk', headers })).json();
+    const activity = (await app.inject({ method: 'GET', url: `/hub/api/u8/activity?kinds=debris_shrunk&${EVER}`, headers })).json();
     expect(activity.entries[0].data).toMatchObject({ metal: 2920000, crystal: 975000, collected: { metal: 80000, crystal: 25000 }, by: 'admin' });
 
     const ov = (await app.inject({ method: 'GET', url: '/hub/api/u8/overview', headers })).json();
@@ -488,7 +491,7 @@ describe('api', () => {
     await ingest({ html: galaxy.replace('1.2K', '900') });
     await ingest({ html: galaxy.replace('1.2K / 300', '') });
 
-    const log = (await app.inject({ method: 'GET', url: '/hub/api/u8/activity', headers })).json();
+    const log = (await app.inject({ method: 'GET', url: `/hub/api/u8/activity?${EVER}`, headers })).json();
     const kinds = log.entries.map((e: any) => [e.kind, e.player_name, e.data.hours ?? e.data.level ?? e.data.delta ?? null]);
     expect(kinds).toEqual(
       expect.arrayContaining([
@@ -510,7 +513,7 @@ describe('api', () => {
     ]);
     expect(log.counts.no_growth).toBe(2);
     // filter by kind
-    const only = (await app.inject({ method: 'GET', url: '/hub/api/u8/activity?kinds=phalanx_new,phalanx_up', headers })).json();
+    const only = (await app.inject({ method: 'GET', url: `/hub/api/u8/activity?kinds=phalanx_new,phalanx_up&${EVER}`, headers })).json();
     expect(only.entries.map((e: any) => e.kind).sort()).toEqual(['phalanx_new', 'phalanx_up']);
 
     // backfill recreates the stats/spy based entries (galaxy changes can't be replayed)

@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-25
 
+- Tests no longer depend on the date: the lists of the API tests (raids, activity) ask for an explicit time range
+  instead of the default last 8 days, the settlement test dates its battle report relative to today (plans are listed
+  for a week), and the time format test builds its time in the local zone. Checked with the clock moved from
+  three days to ten years ahead and with other time zones.
 - Tests: the hostile fleet notification test only looks at attacks; the fixtures' fixed timestamps let a storage
   become full during the day, which added a second notification and made the test fail from 19:37 UTC on.
 - Flight calculator: fixed horizontal scrolling on mobile; the invisible checkbox of the "live (now)" switch was
