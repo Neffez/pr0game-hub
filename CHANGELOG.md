@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-25
 
+- Raid plans made from a running own attack follow it: fleets that join the ACS afterwards are added to the plan as
+  launched fleets (fleets already in the plan, also edited or withdrawn ones, stay untouched), the guests are renewed and
+  the target time and claim move with a changed arrival. Plans remember the attack key (`attack_plans.attack_key`,
+  migration 050); `getPlans` does the sync on read, `ownAttacks` is split into a collecting part shared with it.
 - Loot settlements can be commented by all members: a discussion thread below the settlement (same as on players and
   planets), with live toast, bell entry and push/Discord notification for members who wrote in the thread. Comments
   have a third target `plan` (migration 049 rebuilds `comments`); the API takes `?plan=` and counts per plan.

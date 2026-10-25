@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it, vi } from 'vitest';
+﻿import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 process.env.WEB_DIR = '/nonexistent';
 
@@ -523,8 +523,27 @@ describe('attack plans', () => {
     ]);
     expect(plan.fleets[0].seen).toMatchObject({ arrival: t0 + 3600 });
 
+    // a later overview: another fleet of Dave joined the ACS and the arrival moved; the plan follows (Dave's fleet stays)
+    db.prepare("INSERT INTO planets (group_id, g, s, p, name, player_id) VALUES (?, 2, 50, 6, 'Daves 2', ?)").run(groupA, davePlayer);
+    db.prepare('INSERT INTO fleet_snapshots (group_id, user_id, page_time, data) VALUES (?, ?, ?, ?)').run(groupA, carolId, t0 + 60, JSON.stringify([
+      move({ mission: 2, acs: 1, from: body(1, 40, 5, 'moon'), arrival: t0 + 3720 }),
+      move({ owner: 'foreign', mission: 2, acs: 1, from: body(2, 50, 5), ships: { 215: 4 }, arrival: t0 + 3720 }),
+      move({ owner: 'foreign', mission: 2, acs: 1, from: body(2, 50, 6), ships: { 214: 1 }, arrival: t0 + 3720 }),
+    ]));
+    await call('PUT', `/plans/${created.id}/fleets/${plan.fleets[1].id}`, dave, { ships: { 215: 3 } });
+    const synced = (await call('GET', '/plans', admin)).json().find((p: any) => p.id === created.id);
+    expect(synced).toMatchObject({ target_time: t0 + 3720, guests: [] });
+    expect(synced.fleets.map((f: any) => [f.user_id, f.s, f.p, f.ships, f.status])).toEqual([
+      [carolId, 40, 5, { 207: 10 }, 'launched'],
+      [daveId, 50, 5, { 215: 3 }, 'launched'],
+      [daveId, 50, 6, { 214: 1 }, 'launched'],
+    ]);
+    // nothing new: the same state again
+    expect((await call('GET', '/plans', admin)).json().find((p: any) => p.id === created.id).fleets).toHaveLength(3);
+    db.prepare("DELETE FROM planets WHERE group_id = ? AND name = 'Daves 2'").run(groupA);
+
     await call('DELETE', `/plans/${created.id}`, dave);
-    db.prepare('DELETE FROM fleet_snapshots WHERE user_id = ? AND page_time = ?').run(carolId, t0);
+    db.prepare('DELETE FROM fleet_snapshots WHERE user_id = ? AND page_time IN (?, ?)').run(carolId, t0, t0 + 60);
     db.prepare("DELETE FROM planets WHERE group_id = ? AND name = 'Daves'").run(groupA);
     db.prepare('DELETE FROM players WHERE id = ?').run(davePlayer);
   });

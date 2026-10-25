@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-10-25',
     items: [
       {
+        kind: 'fix',
+        de: 'Raid-Pläne aus einem laufenden Angriff bleiben aktuell: Kommen später weitere Flotten in den Verband oder verschiebt sich die Ankunft, übernimmt der Plan das automatisch.',
+        en: 'Raid plans made from a running attack stay up to date: if more fleets join the ACS later or the arrival moves, the plan picks it up automatically.',
+      },
+      {
         kind: 'new',
         de: 'Beuteabrechnungen können jetzt von allen Mitgliedern kommentiert werden. Wer in einer Abrechnung mitgeschrieben hat, wird über neue Kommentare benachrichtigt.',
         en: 'All members can now comment on loot settlements. Whoever wrote in a settlement is notified about new comments.',

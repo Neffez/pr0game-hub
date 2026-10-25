@@ -8,7 +8,7 @@ import { CLASS_RESEARCH } from '@pr0hub/core/tech';
 import { attackKey, hostileAttacks, PHALANX_KEEP, type Body, type EnemyFleet, type HostileAttack } from '../repo/hostile.js';
 import { latestEmpire, spyEmpire } from '../repo/empire.js';
 import {
-  enemiesOf, followEnemies, fromOf, launchedOf, ownAttacks, planDrives, toOf, type EnemyRow, type LaunchFleet, type LaunchPlan, type OwnAttackFleet, type PlanRow,
+  enemiesOf, followEnemies, fromOf, launchedOf, guestsOfAttack, ownAttacks, planDrives, syncOwnPlans, toOf, type EnemyRow, type LaunchFleet, type LaunchPlan, type OwnAttackFleet, type PlanRow,
 } from '../repo/plans.js';
 import { contextOf, DISPLAY, MEMBER } from './util.js';
 
@@ -192,6 +192,8 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
   /** Plans of the group up to a week after their target time, with fleets and the members' drive levels. */
   app.get<{ Params: { uni: string } }>('/api/:uni/plans', async (req) => {
     const ctx = ctxOf(req);
+    // fleets that joined a running ACS and a moved arrival reach the plans made from it
+    syncOwnPlans(db, ctx, MAX_FLEETS);
     const plans = db
       .prepare(
         `SELECT a.id, a.user_id, ${DISPLAY} AS creator, a.g, a.s, a.p, a.planet_type, a.target_time, a.time_precision, a.note, a.status,
@@ -384,16 +386,16 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
     const ctx = ctxOf(req);
     const attack = ownAttacks(db, ctx).find((a) => a.key === req.body?.key);
     if (!attack) throw new HttpError(404, 'attack_not_found', 'Attack not found (arrived, planned or not pasted)');
-    const guests = attack.fleets.filter((f) => f.memberId == null).map(({ player, from, mission, ships }) => ({ player, from, mission, ships }));
+    const guests = guestsOfAttack(attack.fleets);
     return db.transaction(() => {
       const t = attack.to;
       const id = Number(
         db
           .prepare(
-            `INSERT INTO attack_plans (group_id, user_id, player_id, g, s, p, planet_type, target_time, time_precision, mission, status, guests)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'exact', 'attack', 'launched', ?)`,
+            `INSERT INTO attack_plans (group_id, user_id, player_id, g, s, p, planet_type, target_time, time_precision, mission, status, guests, attack_key)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'exact', 'attack', 'launched', ?, ?)`,
           )
-          .run(ctx.groupId, ctx.user.id, attack.player?.id ?? null, t.g, t.s, t.p, t.type, attack.arrival, guests.length ? JSON.stringify(guests) : null).lastInsertRowid,
+          .run(ctx.groupId, ctx.user.id, attack.player?.id ?? null, t.g, t.s, t.p, t.type, attack.arrival, guests.length ? JSON.stringify(guests) : null, attack.key).lastInsertRowid,
       );
       const fleet = db.prepare(
         `INSERT INTO attack_plan_fleets (plan_id, user_id, g, s, p, planet_type, ships, status, invited_by) VALUES (?, ?, ?, ?, ?, ?, ?, 'launched', ?)`,

@@ -317,6 +317,18 @@ const bodyOf = (b: StoredFleet['from']): Body => ({ ...b.coords, type: b.type as
  * lead first; the same attack seen by several participants counts once, from the newest paste.
  */
 export function ownAttacks(db: DB, ctx: GroupContext): OwnAttack[] {
+  const planned = db.prepare(
+    `SELECT 1 FROM attack_plans WHERE group_id = ? AND mission <> 'hold' AND status IN ('planning', 'launched')
+       AND g = ? AND s = ? AND p = ? AND planet_type = ? AND target_time BETWEEN ? AND ?`,
+  );
+  return collectOwnAttacks(db, ctx)
+    .filter((a) => a.viewers.has(ctx.user.id))
+    .filter((a) => !planned.get(ctx.groupId, a.to.g, a.to.s, a.to.p, a.to.type, a.arrival - LAUNCH_SLACK, a.arrival + LAUNCH_SLACK))
+    .map(({ viewers: _, ...a }) => a);
+}
+
+/** Own attacks in flight on the overviews the viewer may see, planned or not, with the members who fly in them. */
+function collectOwnAttacks(db: DB, ctx: GroupContext): (OwnAttack & { viewers: Set<number> })[] {
   const t = now();
   const players = memberPlayers(db, ctx);
   const memberOf = new Map<number, number>();
@@ -360,16 +372,70 @@ export function ownAttacks(db: DB, ctx: GroupContext): OwnAttack[] {
       byKey.set(key, { key, seen: snap.time, arrival: lead.arrival, to, player: null, fleets: out, viewers });
     }
   }
-  const planned = db.prepare(
-    `SELECT 1 FROM attack_plans WHERE group_id = ? AND mission <> 'hold' AND status IN ('planning', 'launched')
-       AND g = ? AND s = ? AND p = ? AND planet_type = ? AND target_time BETWEEN ? AND ?`,
-  );
   const owner = db.prepare(
     'SELECT pr.id, pr.name FROM planets pl JOIN players pr ON pr.id = pl.player_id WHERE pl.group_id = ? AND pl.g = ? AND pl.s = ? AND pl.p = ?',
   );
   return [...byKey.values()]
-    .filter((a) => a.viewers.has(ctx.user.id))
-    .filter((a) => !planned.get(ctx.groupId, a.to.g, a.to.s, a.to.p, a.to.type, a.arrival - LAUNCH_SLACK, a.arrival + LAUNCH_SLACK))
     .sort((a, b) => a.arrival - b.arrival)
-    .map(({ viewers: _, ...a }) => ({ ...a, player: (owner.get(ctx.groupId, a.to.g, a.to.s, a.to.p) as { id: number; name: string } | undefined) ?? null }));
+    .map((a) => ({ ...a, player: (owner.get(ctx.groupId, a.to.g, a.to.s, a.to.p) as { id: number; name: string } | undefined) ?? null }));
+}
+
+/** The plan side of an own attack's non-member fleets (guests for the simulators). */
+export const guestsOfAttack = (fleets: OwnAttackFleet[]) =>
+  fleets.filter((f) => f.memberId == null).map(({ player, from, mission, ships }) => ({ player, from, mission, ships }));
+
+/**
+ * Carries a running own attack into the plans made from it (`attack_plans.attack_key`): fleets that joined the ACS
+ * after the plan was made get a launched fleet row (existing rows, also changed or withdrawn ones, are left alone),
+ * guests are renewed and the plan follows a moved arrival (the claim with it). `maxFleets` caps the rows per plan.
+ * Returns the ids of the changed plans.
+ */
+export function syncOwnPlans(db: DB, ctx: GroupContext, maxFleets: number): number[] {
+  const plans = db
+    .prepare(
+      `SELECT id, attack_key, target_time, claim_id, guests FROM attack_plans
+       WHERE group_id = ? AND attack_key IS NOT NULL AND mission <> 'hold' AND status IN ('planning', 'launched') AND target_time > ?`,
+    )
+    .all(ctx.groupId, now() - LAUNCH_SLACK) as { id: number; attack_key: string; target_time: number; claim_id: number | null; guests: string | null }[];
+  if (!plans.length) return [];
+  const attacks = new Map(collectOwnAttacks(db, ctx).map((a) => [a.key, a]));
+  const rows = db.prepare('SELECT id, user_id, g, s, p, planet_type FROM attack_plan_fleets WHERE plan_id = ?');
+  const insert = db.prepare(
+    `INSERT INTO attack_plan_fleets (plan_id, user_id, g, s, p, planet_type, ships, status, invited_by) VALUES (?, ?, ?, ?, ?, ?, ?, 'launched', ?)`,
+  );
+  const changed: number[] = [];
+  db.transaction(() => {
+    for (const plan of plans) {
+      const attack = attacks.get(plan.attack_key);
+      if (!attack) continue;
+      let touched = false;
+      if (attack.arrival !== plan.target_time) {
+        db.prepare("UPDATE attack_plans SET target_time = ?, time_precision = 'exact', updated_at = ? WHERE id = ?").run(attack.arrival, now(), plan.id);
+        if (plan.claim_id) db.prepare('UPDATE target_claims SET expires_at = expires_at + ? WHERE id = ? AND released_at IS NULL').run(attack.arrival - plan.target_time, plan.claim_id);
+        touched = true;
+      }
+      const have = rows.all(plan.id) as { user_id: number; g: number | null; s: number | null; p: number | null; planet_type: string | null }[];
+      let count = have.length;
+      for (const f of attack.fleets) {
+        if (f.memberId == null) continue;
+        const at = have.findIndex((r) => r.user_id === f.memberId && r.g === f.from.g && r.s === f.from.s && r.p === f.from.p && (r.planet_type ?? 'planet') === f.from.type);
+        if (at >= 0) {
+          have.splice(at, 1);
+          continue;
+        }
+        if (count >= maxFleets) break;
+        count++;
+        insert.run(plan.id, f.memberId, f.from.g, f.from.s, f.from.p, f.from.type, JSON.stringify(f.ships), null);
+        touched = true;
+      }
+      const guests = guestsOfAttack(attack.fleets);
+      const json = guests.length ? JSON.stringify(guests) : null;
+      if (json !== plan.guests) {
+        db.prepare('UPDATE attack_plans SET guests = ?, updated_at = ? WHERE id = ?').run(json, now(), plan.id);
+        touched = true;
+      }
+      if (touched) changed.push(plan.id);
+    }
+  })();
+  return changed;
 }

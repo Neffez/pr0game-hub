@@ -1444,6 +1444,9 @@ paths:
         overview or, in an ACS, from another participant's overview showing it from a planet of that member.
         `guests` lists ACS fleets of non-members taken over from an overview (`planOwnAttack`) for the simulators, with
         their player's research from the newest spy report showing it (`research`, `research_time`, null when unknown).
+        Plans made from an own attack (`planOwnAttack`) follow the running attack on each read: fleets joining the ACS
+        later are added as launched fleets (existing fleets stay as they are), `guests` are renewed and the target time
+        and claim move with a changed arrival.
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
@@ -1461,6 +1464,7 @@ paths:
         Plan for an own attack in flight (`key` from `getOwnAttacks`), by one of its participants: target and exact
         target time from the overview, status launched, one launched fleet per member with the ships flying (speed
         100 %), fleets of non-members as `guests` of the plan. Claims the target like a new plan.
+        The plan keeps the attack's key and follows it (see `getPlans`).
       security: [{ sessionCookie: [] }]
       parameters:
         - { $ref: '#/components/parameters/Uni' }
