@@ -90,7 +90,7 @@ const label = (k: string) => (k === 'galaxy_systems' ? t('universeJson.systems')
 
   <div v-if="error" class="error">{{ error }}</div>
   <div v-if="result" class="card">
-    <h2 style="margin-top: 0" class="ok">{{ t('universeJson.imported') }}</h2>
+    <h2 class="ok mt-0">{{ t('universeJson.imported') }}</h2>
     <p v-for="(c, k) in result.counts" :key="k">
       {{ label(k) }}: <b>{{ fmt(c.new) }}</b> {{ t('universeJson.updated') }}<template v-if="c.duplicate">, {{ t('universeJson.skipped', { n: fmt(c.duplicate) }) }}</template>
     </p>

@@ -176,7 +176,7 @@ onBeforeUnmount(() => chart?.destroy());
           </div>
         </div>
       </div>
-      <p v-else class="muted small" style="margin: 0">{{ t('player.researchUnknown') }}</p>
+      <p v-else class="muted small m-0">{{ t('player.researchUnknown') }}</p>
     </Section>
 
     <div class="card">

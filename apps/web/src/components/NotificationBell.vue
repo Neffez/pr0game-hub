@@ -109,7 +109,7 @@ function left(sec: number) {
           <span class="grow" />
           <button class="icon-btn small" :title="t('live.close')" :aria-label="t('live.close')" @click="open = false"><Icon name="close" /></button>
         </div>
-        <p v-if="!notifications.length" class="muted small" style="margin: 0">{{ t('notify.none') }}</p>
+        <p v-if="!notifications.length" class="muted small m-0">{{ t('notify.none') }}</p>
         <template v-for="n in notifications" :key="n.id">
           <button v-if="n.kind === 'invite'" class="bell-item invite" @click="show(n)">
             <span class="bell-title"><Icon name="messages" :size="14" /><b>{{ t('notify.invite', { member: n.member }) }}</b> · {{ n.plan.mission === 'hold' ? t('hold.badge') : t('notify.raid') }}</span>

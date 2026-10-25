@@ -202,8 +202,9 @@ const total = computed(() => {
     </template>
   </PageHeader>
 
-  <div class="card row small">
-    <div v-if="page === 'fleet'" class="tabs" style="margin: 0">
+  <div class="card toolbar">
+    <div class="row small">
+    <div v-if="page === 'fleet'" class="seg">
       <button :class="{ active: fleetTab === 'movements' }" @click="fleetTab = 'movements'">{{ t('imperium.fleets') }}</button>
       <button :class="{ active: fleetTab === 'ships' }" @click="fleetTab = 'ships'">{{ name(200) }}</button>
       <button :class="{ active: fleetTab === 'defense' }" @click="fleetTab = 'defense'">{{ t('game.sections.400') }}</button>
@@ -214,21 +215,29 @@ const total = computed(() => {
         <option :value="null">{{ t('imperium.allMembers') }}</option>
         <option v-for="m in withFleets" :key="m.key" :value="m.user_id">{{ memberName(m) }}</option>
       </select>
-      <span v-for="m in withFleets" :key="m.key" class="muted" :title="dateTime(m.fleets!.time)">{{ memberName(m) }}: {{ ago(m.fleets!.time) }}</span>
       <Hint><p>{{ t('alliance.fleetsHint') }}</p></Hint>
     </template>
-    <template v-else>
-      <span v-for="m in withData" :key="m.key" class="muted" :title="dateTime(m.created_at)">
-        {{ memberName(m) }}: {{ ago(m.created_at) }}<template v-if="m.source === 'spy'"> ({{ t('alliance.spy') }})</template>
-      </span>
-      <span v-if="missing.length" class="warn">{{ t('alliance.missing', { names: missing.map(memberName).join(', ') }) }}</span>
-    </template>
+    <span v-else-if="missing.length" class="warn">{{ t('alliance.missing', { names: missing.map(memberName).join(', ') }) }}</span>
+    </div>
+    <!-- when each member last synced: folded, the list grows with the alliance -->
+    <Section :title="t('alliance.freshness')" :count="movements ? withFleets.length : withData.length" :card="false" :default-open="false" store-key="alliance.freshness" class="member-ages">
+      <div class="ages small">
+        <template v-if="movements">
+          <span v-for="m in withFleets" :key="m.key" class="muted" :title="dateTime(m.fleets!.time)">{{ memberName(m) }}: {{ ago(m.fleets!.time) }}</span>
+        </template>
+        <template v-else>
+          <span v-for="m in withData" :key="m.key" class="muted" :title="dateTime(m.created_at)">
+            {{ memberName(m) }}: {{ ago(m.created_at) }}<template v-if="m.source === 'spy'"> ({{ t('alliance.spy') }})</template>
+          </span>
+        </template>
+      </div>
+    </Section>
   </div>
 
   <div v-if="error" class="error">{{ error }}</div>
   <div v-else-if="movements" class="card">
-    <p v-if="!withFleets.length" class="muted small" style="margin: 0">{{ t('alliance.fleetsEmpty') }}</p>
-    <p v-else-if="!flights.length" class="muted small" style="margin: 0">{{ t('imperium.fleetsNone') }}</p>
+    <p v-if="!withFleets.length" class="muted small m-0">{{ t('alliance.fleetsEmpty') }}</p>
+    <p v-else-if="!flights.length" class="muted small m-0">{{ t('imperium.fleetsNone') }}</p>
     <FleetList v-else :fleets="flights" />
     <Section v-if="history.length" :title="t('imperium.fleetHistory', { n: history.length })" :card="false" :default-open="false" store-key="alliance.fleetHistory" class="fl-history">
       <FleetList :fleets="history" past />
@@ -243,7 +252,7 @@ const total = computed(() => {
       <div class="al-head">
         <template v-if="'coords' in r && r.coords">
           <span class="mono small">{{ r.coords.g }}:{{ r.coords.s }}:{{ r.coords.p }}</span>
-          <span v-if="r.type === 'moon'" class="moon-tag" style="margin: 0"><Icon name="moon" :size="11" /> {{ t('common.moon') }}</span>
+          <span v-if="r.type === 'moon'" class="moon-tag m-0"><Icon name="moon" :size="11" /> {{ t('common.moon') }}</span>
         </template>
         <b class="al-name">{{ r.label }}</b>
         <span v-if="'spy' in r && r.spy" class="spy-tag" :title="t('alliance.spyTitle', { time: dateTime(r.spy) })">{{ t('alliance.spy') }}</span>
@@ -303,6 +312,10 @@ const total = computed(() => {
 </template>
 
 <style scoped>
+.toolbar { display: flex; flex-direction: column; gap: 4px; }
+.member-ages :deep(.section-head) { margin: 0; min-height: 0; }
+.member-ages :deep(.section-toggle) { font-weight: 400; font-size: 12px; color: var(--muted); }
+.ages { display: flex; flex-wrap: wrap; gap: 2px 14px; }
 .al-card { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; margin-bottom: 8px; }
 .al-card.moon { border-left: 3px solid var(--info); background: color-mix(in srgb, var(--info) 7%, var(--surface)); }
 .al-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }

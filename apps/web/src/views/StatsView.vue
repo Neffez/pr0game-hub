@@ -60,10 +60,16 @@ watch([who, type], load);
 const categoryOf = (cat: number) => data.value?.categories.find((c) => c.who === who.value && c.type === cat) ?? null;
 /** Pages of 100 ranks to show per category: up to the highest page synced in any category. */
 const pageCount = computed(() => Math.max(1, ...(data.value?.categories ?? []).filter((c) => c.who === who.value).flatMap((c) => c.pages.map((p) => p + 1))));
+/** Newest update over all categories of the shown group; pages of older updates count as outdated (same tolerance as the overview). */
+const newestTime = computed(() => Math.max(0, ...(data.value?.categories ?? []).filter((c) => c.who === who.value).map((c) => c.stat_time)));
+const pageCurrent = (cat: number, p: number) => {
+  const c = categoryOf(cat);
+  return !!c?.pages.includes(p) && c.stat_time >= newestTime.value - 900;
+};
 const pageTitle = (cat: number, p: number) => {
   const c = categoryOf(cat);
   const range = t('stats.ranks', { from: p * 100 + 1, to: p * 100 + 100 });
-  return c?.pages.includes(p) ? t('stats.pageIncluded', { range, time: dateTime(c.stat_time) }) : t('stats.pageMissing', { range });
+  return pageCurrent(cat, p) ? t('stats.pageIncluded', { range, time: dateTime(c!.stat_time) }) : t('stats.pageMissing', { range });
 };
 
 // ------------------------------------------------------------------ colours
@@ -133,7 +139,7 @@ const SCORE_COLS = [4, 3, 2, 5] as const;
         </option>
       </select>
       <span class="pages" :title="t('stats.category')">
-        <i v-for="p in pageCount" :key="p" :class="{ ok: categoryOf(type)?.pages.includes(p - 1) }" :title="pageTitle(type, p - 1)" />
+        <i v-for="p in pageCount" :key="p" :class="{ ok: pageCurrent(type, p - 1) }" :title="pageTitle(type, p - 1)" />
       </span>
     </div>
     <div v-else class="cats">
@@ -147,7 +153,7 @@ const SCORE_COLS = [4, 3, 2, 5] as const;
       >
         <span>{{ label }}</span>
         <span class="pages">
-          <i v-for="p in pageCount" :key="p" :class="{ ok: categoryOf(Number(cat))?.pages.includes(p - 1) }" :title="pageTitle(Number(cat), p - 1)" />
+          <i v-for="p in pageCount" :key="p" :class="{ ok: pageCurrent(Number(cat), p - 1) }" :title="pageTitle(Number(cat), p - 1)" />
         </span>
       </button>
     </div>

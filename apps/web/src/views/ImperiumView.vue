@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import MemberSelect from '../components/MemberSelect.vue';
 import PageHeader from '../components/PageHeader.vue';
 import Section from '../components/Section.vue';
 import Icon from '../components/Icon.vue';
@@ -333,12 +334,7 @@ const memberName = (id: number | null) => ctx.value!.members.find((m) => m.id ==
   </PageHeader>
 
   <div class="card row small">
-    <label>
-      {{ t('common.player') }}
-      <select v-model="userId">
-        <option v-for="m in ctx!.members" :key="m.id" :value="m.id">{{ m.name }}</option>
-      </select>
-    </label>
+    <MemberSelect v-model="userId" />
     <span class="muted">
       {{ t('imperium.title') }}: <template v-if="empire">{{ dateTime(empire.time) }} ({{ ago(empire.time) }})</template><span v-else class="warn">{{ t('overview.missing') }}</span>
     </span>
@@ -360,7 +356,7 @@ const memberName = (id: number | null) => ctx.value!.members.find((m) => m.id ==
 
   <div v-if="!error && empire && livePoints" class="card live-points">
     <div class="row">
-      <h3 style="margin: 0">
+      <h3 class="m-0">
         {{ t('imperium.livePoints') }}
         <Hint>
           <p>{{ t('imperium.liveHint1') }}</p>
@@ -435,7 +431,7 @@ const memberName = (id: number | null) => ctx.value!.members.find((m) => m.id ==
       <Hint><p>{{ t('imperium.fleetsHint') }}</p></Hint>
       <span v-if="arrived" class="muted small">{{ t('imperium.fleetsArrived', { n: arrived }) }}</span>
     </template>
-    <p v-if="!flights.length" class="muted small" style="margin: 0">{{ t('imperium.fleetsNone') }}</p>
+    <p v-if="!flights.length" class="muted small m-0">{{ t('imperium.fleetsNone') }}</p>
     <p v-if="alertError" class="error small">{{ alertError }}</p>
     <FleetList v-if="flights.length" :fleets="flights" :alerts="data?.fleetAlerts ?? undefined" :busy="alertBusy" @alert="setAlert" />
     <Section v-if="history.length" :title="t('imperium.fleetHistory', { n: history.length })" :card="false" :default-open="false" store-key="imperium.fleetHistory" class="fl-history">

@@ -394,6 +394,10 @@ const en: typeof de = {
     },
   },
   battleHall: {
+    first: 'First page',
+    prev: 'Previous page',
+    next: 'Next page',
+    last: 'Last page',
     hint1: "Archive of the game's Hall of Fame. The game only shows the top 100 – here every battle report synced once is kept permanently.",
     hint2: 'To sync: open the "Hall of Fame" in the game (period all, day, week or month) and paste the page or send it via the script. Best regularly with the period "day".',
     hint3: 'Green = winner, red = loser, no colour = draw.',
@@ -520,6 +524,7 @@ const en: typeof de = {
     deleteTitle: 'Delete added event',
   },
   alliance: {
+    freshness: 'Last sync per member',
     hint: "From the latest empire page of every alliance member in the hub. Every member pastes their own empire page for this. Without an empire page (or for players of the in-game alliance who are not in the hub) the values come from the spy reports: per planet/moon each section from the newest report showing it (marked \"spy\").",
     hint_planets: 'One row per planet/moon with building levels. Points = building points of the planet.',
     hint_fleet: 'Fleet movements: fleets in flight from the synced overview. Ships or defense: summed over all planets and moons from the empire page.',

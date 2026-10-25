@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Sheet from './Sheet.vue';
 import Icon from './Icon.vue';
 import { computed, onMounted, reactive, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -69,22 +70,27 @@ const settled = (e: Entry) => !!e.saved && e.saved.done >= e.saved.deliveries;
     </select>
     <a v-if="calcUrl" class="small" :href="calcUrl" target="_blank" rel="noopener">{{ t('loot.calculatorPlain') }} <Icon name="external" :size="12" /></a>
     <Hint>{{ t('loot.calculatorPlainHint') }}</Hint>
-    <button class="primary" @click="fromReport.open = !fromReport.open">{{ t('loot.createFromReport') }}</button>
+    <button class="primary" @click="fromReport.open = true">{{ t('loot.createFromReport') }}</button>
   </div>
-  <div v-if="fromReport.open" class="card from-report">
-    <h3>{{ t('loot.createFromReport') }} <Hint>{{ t('loot.createFromReportHint') }}</Hint></h3>
-    <textarea v-model="fromReport.text" :placeholder="t('loot.pastePlaceholder')" />
-    <div class="row small" style="gap: 8px">
-      <select v-model="fromReport.mission" :aria-label="t('loot.kind')">
-        <option value="">{{ t('loot.missionAuto') }}</option>
-        <option value="attack">{{ t('loot.attack') }}</option>
-        <option value="hold">{{ t('hold.badge') }}</option>
-      </select>
-      <button class="primary" :disabled="!fromReport.text.trim() || fromReport.busy" @click="createFromReport">{{ t('loot.createFromReportGo') }}</button>
-      <button @click="fromReport.open = false">{{ t('plans.cancelForm') }}</button>
+  <Sheet v-model="fromReport.open" :title="t('loot.createFromReport')">
+    <template #head><Hint>{{ t('loot.createFromReportHint') }}</Hint></template>
+    <div class="from-report">
+      <textarea v-model="fromReport.text" :placeholder="t('loot.pastePlaceholder')" />
+      <label class="small">
+        {{ t('loot.kind') }}
+        <select v-model="fromReport.mission">
+          <option value="">{{ t('loot.missionAuto') }}</option>
+          <option value="attack">{{ t('loot.attack') }}</option>
+          <option value="hold">{{ t('hold.badge') }}</option>
+        </select>
+      </label>
+      <div v-if="fromReport.error" class="error">{{ fromReport.error }}</div>
     </div>
-    <div v-if="fromReport.error" class="error">{{ fromReport.error }}</div>
-  </div>
+    <template #footer>
+      <button @click="fromReport.open = false">{{ t('plans.cancelForm') }}</button>
+      <button class="primary" :disabled="!fromReport.text.trim() || fromReport.busy" @click="createFromReport">{{ t('loot.createFromReportGo') }}</button>
+    </template>
+  </Sheet>
   <div v-if="error" class="error">{{ error }}</div>
   <div v-else-if="data && !data.length" class="card muted">{{ t('loot.listEmpty') }}</div>
   <div v-else-if="data" class="table-wrap flat">

@@ -4,6 +4,14 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-25
 
+- Consistency pass: messages use the filter bar (sender, recipient and conversation partner as chips) and the shared
+  sort bar; empire and deck use the member select (the deck's in the page header); the alliance pages fold the
+  per-member sync ages into a section; the deck correction is a collapsible section and creating a settlement from a
+  report opens in a sheet; fleet and building alert buttons share one style (`.alert-btn`); the sync page puts Save
+  before Clear; the battle hall pager buttons have labels; inline margins became `.mt-0`/`.m-0` and inline tab
+  switches `.seg`.
+- Statistics page: the green/red page markers compare each category with the newest update over all categories (15
+  minutes tolerance, like the overview), so older categories and pages turn red after a newer update.
 - Long pages shorter: loot settlement settings, report paste, recycling and comments are collapsible sections; raid
   reports, recycling, expeditions and the hostile spying history show the newest 20 with "show all" (`useLimit`,
   `ShowMore`); the galaxy freshness map is collapsible and fits the phone width (cells share the row).

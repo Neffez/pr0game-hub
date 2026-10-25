@@ -84,7 +84,7 @@ const inGame = computed(() => /^[0-9a-f]{32}$/i.test(report.value?.report_id ?? 
     </div>
 
     <div v-for="s in sides" :key="s.side" class="card">
-      <h3 style="margin-top: 0">
+      <h3 class="mt-0">
         <span :class="{ pos: s.won, neg: !s.won && report.winner !== 'draw' }">{{ s.label }}</span>
         <span class="muted small" style="font-weight: 400"> · {{ t('combat.lostUnits', { n: fmt(s.lost) }) }}</span>
       </h3>

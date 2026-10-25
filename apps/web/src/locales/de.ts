@@ -395,6 +395,10 @@ const de = {
     },
   },
   battleHall: {
+    first: 'Erste Seite',
+    prev: 'Vorherige Seite',
+    next: 'Nächste Seite',
+    last: 'Letzte Seite',
     hint1: 'Archiv der Hall of Fame aus dem Spiel. Das Spiel zeigt nur die Top 100 – hier bleibt jeder einmal synchronisierte Kampfbericht dauerhaft erhalten.',
     hint2: 'Synchronisieren: im Spiel „Battle Hall“ öffnen (Zeitfenster alle, Tag, Woche oder Monat) und die Seite einfügen bzw. per Skript senden. Am besten regelmäßig das Zeitfenster „Tag“.',
     hint3: 'Grün = Gewinner, Rot = Verlierer, ohne Farbe = Unentschieden.',
@@ -521,6 +525,7 @@ const de = {
     deleteTitle: 'Nachgetragenes Ereignis löschen',
   },
   alliance: {
+    freshness: 'Stand je Mitglied',
     hint: 'Aus der zuletzt eingefügten Imperium-Seite jedes Allianz-Mitglieds im Hub. Jedes Mitglied fügt dafür seine eigene Imperium-Seite ein. Ohne Imperium-Seite (oder für Spieler der Ingame-Allianz, die nicht im Hub sind) stammen die Werte aus den Spionageberichten: je Planet/Mond jeder Bereich aus dem neuesten Bericht, der ihn zeigt (markiert mit „Spionage“).',
     hint_planets: 'Eine Zeile pro Planet/Mond mit Gebäudestufen. Punkte = Gebäudepunkte des Planeten.',
     hint_fleet: 'Flottenbewegungen: Flotten im Flug aus der synchronisierten Übersicht. Schiffe bzw. Verteidigung: summiert über alle Planeten und Monde aus dem Imperium.',

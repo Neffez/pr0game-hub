@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import FilterBar, { type FilterChip } from '../components/FilterBar.vue';
+import SortBar from '../components/SortBar.vue';
 import PageHeader from '../components/PageHeader.vue';
 import Icon from '../components/Icon.vue';
 import { computed, onMounted, ref } from 'vue';
@@ -58,6 +60,18 @@ const filtered = computed(() =>
       (!sender.value || m.from.name === sender.value) && (!recipient.value || m.recipients.some((r) => r.name === recipient.value)),
   ),
 );
+
+/** Sender, recipient and the conversation partner as removable chips. */
+const chips = computed<FilterChip[]>(() => [
+  ...(partnerLabel.value ? [{ key: 'partner', label: t('messages.with', { name: partnerLabel.value }), clear: clearPartner }] : []),
+  ...(sender.value ? [{ key: 'sender', label: `${t('messages.sender')}: ${sender.value}`, clear: () => (sender.value = '') }] : []),
+  ...(recipient.value ? [{ key: 'recipient', label: `${t('messages.recipient')}: ${recipient.value}`, clear: () => (recipient.value = '') }] : []),
+]);
+function resetFilters() {
+  sender.value = '';
+  recipient.value = '';
+  if (partnerLabel.value) clearPartner();
+}
 
 const SORT_KEYS = ['time', 'from', 'to', 'subject'] as const;
 const sortLabel: Record<(typeof SORT_KEYS)[number], string> = {
@@ -143,58 +157,64 @@ async function toggleShare(m: Message) {
       <Hint>{{ t('messages.hint') }}</Hint>
     </template>
   </PageHeader>
-  <div class="card filters">
-    <div class="row">
-      <div class="tabs" style="margin: 0">
+  <FilterBar store-key="messages" :chips="chips" @reset="resetFilters">
+    <template #toolbar>
+      <div class="seg">
         <button :class="{ active: mode === 'conversations' }" @click="mode = 'conversations'">{{ t('messages.modeConversations') }}</button>
         <button :class="{ active: mode === 'single' }" @click="mode = 'single'">{{ t('messages.modeSingle') }}</button>
       </div>
-      <span v-if="partnerLabel" class="chip">
-        {{ t('messages.with', { name: partnerLabel }) }}
-        <button class="icon-btn small" :title="t('messages.clear')" :aria-label="t('messages.clear')" @click="clearPartner"><Icon name="close" :size="12" /></button>
-      </span>
-    </div>
-    <div class="row">
-      <label>
-        {{ t('messages.sender') }}
+    </template>
+    <template #end>
+      <SortBar
+        v-if="mode === 'single'"
+        v-model:desc="sort.descending.value"
+        :sort-key="sort.key.value"
+        :options="SORT_KEYS.map((k) => ({ key: k, label: t(sortLabel[k]) }))"
+        class="msg-sort"
+        @sort="sort.sortBy"
+      />
+      <template v-else>
+        <span class="small muted">{{ t('messages.sortLast') }}</span>
+        <button
+          class="icon-btn"
+          :title="t(sort.descending.value ? 'messages.desc' : 'messages.asc')"
+          :aria-label="t(sort.descending.value ? 'messages.desc' : 'messages.asc')"
+          @click="sort.descending.value = !sort.descending.value"
+        >
+          <Icon :name="sort.descending.value ? 'sortDesc' : 'sortAsc'" />
+        </button>
+      </template>
+    </template>
+
+    <div class="filter-group">
+      <div class="field">
+        <span class="lbl">{{ t('messages.sender') }}</span>
         <select v-model="sender">
           <option value="">{{ t('common.all') }}</option>
           <option v-for="n in senders" :key="n" :value="n">{{ n }}</option>
         </select>
-      </label>
-      <label>
-        {{ t('messages.recipient') }}
+      </div>
+      <div class="field">
+        <span class="lbl">{{ t('messages.recipient') }}</span>
         <select v-model="recipient">
           <option value="">{{ t('common.all') }}</option>
           <option v-for="n in recipients" :key="n" :value="n">{{ n }}</option>
         </select>
-      </label>
-      <label v-if="mode === 'single'">
-        {{ t('messages.sortBy') }}
-        <select :value="sort.key.value" @change="sort.key.value = ($event.target as HTMLSelectElement).value">
-          <option v-for="k in SORT_KEYS" :key="k" :value="k">{{ t(sortLabel[k]) }}</option>
-        </select>
-      </label>
-      <span v-else class="small muted">{{ t('messages.sortLast') }}</span>
-      <button
-        class="icon-btn"
-        :title="t(sort.descending.value ? 'messages.desc' : 'messages.asc')"
-        :aria-label="t(sort.descending.value ? 'messages.desc' : 'messages.asc')"
-        @click="sort.descending.value = !sort.descending.value"
-      >
-        <Icon :name="sort.descending.value ? 'sortDesc' : 'sortAsc'" />
-      </button>
+      </div>
     </div>
-    <div v-if="data" class="row small muted">
-      <span v-if="mode === 'single'">{{ t('messages.count', { shown: filtered.length, total: all.length }) }}</span>
-      <span v-else>{{ t('messages.conversationCount', { n: convs.length }, convs.length) }}</span>
-      <span class="legend"><i class="dot ally" /> {{ t('messages.legendAlly') }} <i class="dot other" /> {{ t('messages.legendOther') }}</span>
-      <span>
-        {{ data.share ? t('messages.sharing') : t('messages.private') }}
-        <RouterLink :to="`/${uni}/account`">{{ t('messages.change') }}</RouterLink>
-      </span>
-    </div>
-  </div>
+
+    <template #status>
+      <div v-if="data" class="row small muted">
+        <span v-if="mode === 'single'">{{ t('messages.count', { shown: filtered.length, total: all.length }) }}</span>
+        <span v-else>{{ t('messages.conversationCount', { n: convs.length }, convs.length) }}</span>
+        <span class="legend"><i class="dot ally" /> {{ t('messages.legendAlly') }} <i class="dot other" /> {{ t('messages.legendOther') }}</span>
+        <span>
+          {{ data.share ? t('messages.sharing') : t('messages.private') }}
+          <RouterLink :to="`/${uni}/account`">{{ t('messages.change') }}</RouterLink>
+        </span>
+      </div>
+    </template>
+  </FilterBar>
   <div v-if="error || shareError" class="error">{{ error || shareError }}</div>
   <p v-if="data && !all.length" class="muted">{{ t('messages.empty') }}</p>
 
@@ -237,6 +257,7 @@ async function toggleShare(m: Message) {
 </template>
 
 <style scoped>
+.msg-sort { margin-bottom: 0; }
 .filters .row + .row { margin-top: 8px; }
 .chip { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border: 1px solid var(--border); border-radius: 12px; }
 .chip button { background: none; border: 0; padding: 0; color: var(--muted); cursor: pointer; }

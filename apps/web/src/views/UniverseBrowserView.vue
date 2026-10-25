@@ -264,7 +264,7 @@ function onStripUp() {
       </form>
     </div>
     <div v-else class="row">
-      <div class="tabs" style="margin: 0">
+      <div class="tabs m-0">
         <button v-for="n in settings.galaxies" :key="n" :class="{ active: g === n }" @click="g = n">G{{ n }}</button>
       </div>
       <span class="grow" />
@@ -423,7 +423,7 @@ function onStripUp() {
         <p>{{ t('browse.phalanxHint2') }}</p>
       </Hint>
     </template>
-    <p v-if="!system.phalanx.length" class="muted small" style="margin: 0">{{ t('browse.noPhalanx') }}</p>
+    <p v-if="!system.phalanx.length" class="muted small m-0">{{ t('browse.noPhalanx') }}</p>
     <div v-for="ph in system.phalanx" :key="`${ph.s}:${ph.p}`" class="ph-row" :class="{ own: ph.own }">
       <div class="ph-who">
         <PlayerLink v-if="ph.player?.id" :id="ph.player.id" :name="ph.player.name" />

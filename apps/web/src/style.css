@@ -289,6 +289,7 @@ button.chip:hover { border-color: var(--accent); }
 /* a table that grows with the page (no own scroll box) */
 .table-wrap.flat { max-height: none; margin-bottom: 14px; }
 .mt-0 { margin-top: 0; }
+.m-0 { margin: 0; }
 .bold { font-weight: 600; }
 
 /* collapsible section (Section.vue) */
@@ -326,3 +327,7 @@ button.chip:hover { border-color: var(--accent); }
   .section.card > .section-body { padding: 2px 12px 12px; }
   .page-head { margin-bottom: 10px; }
 }
+
+/* small toggle buttons in lists (fleet and building alerts, hide): icon plus an optional figure */
+.alert-btn { display: inline-flex; align-items: center; justify-content: center; gap: 2px; min-width: 30px; padding: 2px 6px; }
+.alert-btn.active { border-color: var(--accent); background: var(--accent-soft); }

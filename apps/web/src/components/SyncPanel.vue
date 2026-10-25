@@ -234,14 +234,14 @@ function next() {
         <input v-model="system" inputmode="numeric" placeholder="1:234" size="7" @input="refresh" />
       </label>
       <span class="grow" />
-      <button @click="clear">{{ t('paste.clear') }}</button>
       <button class="primary" :disabled="busy || !preview || !preview.preview.length || (needsType && !statsType)" @click="run(false)">{{ t('common.save') }}</button>
+      <button @click="clear">{{ t('paste.clear') }}</button>
     </div>
     <div v-if="error" class="error">{{ error }}</div>
   </div>
 
   <div v-if="preview" class="card">
-    <h2 style="margin-top: 0">{{ t('paste.previewTitle') }}</h2>
+    <h2 class="mt-0">{{ t('paste.previewTitle') }}</h2>
     <p class="muted small">{{ t('paste.detected', { page: preview.pageType, source: preview.source, lang: preview.lang }) }}</p>
     <p v-for="w in preview.warnings" :key="w" class="warn"><Icon name="warning" :size="14" /> {{ label('paste.warnings', w) }}</p>
     <ul v-if="preview.preview.length">
@@ -252,7 +252,7 @@ function next() {
   </div>
 
   <div v-if="saved" class="card">
-    <h2 style="margin-top: 0" class="ok">{{ savedFor ? t('paste.savedFor', { name: savedFor }) : t('deck.saved') }}</h2>
+    <h2 class="ok mt-0">{{ savedFor ? t('paste.savedFor', { name: savedFor }) : t('deck.saved') }}</h2>
     <p v-for="w in saved.warnings" :key="w" class="warn"><Icon name="warning" :size="14" /> {{ label('paste.warnings', w) }}</p>
     <table class="data" style="width: auto">
       <tr><th>{{ t('paste.data') }}</th><th class="num">{{ t('paste.new') }}</th><th class="num">{{ t('paste.known') }}</th></tr>

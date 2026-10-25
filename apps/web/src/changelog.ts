@@ -20,6 +20,16 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Nachrichten mit aufgeräumten Filtern, Allianz-Seiten mit einklappbarem Stand je Mitglied, Mitglieder-Auswahl im Imperium und im Deck oben neben dem Titel. „Abrechnung aus Bericht“ öffnet sich als Fenster.',
+        en: 'Messages with tidier filters, alliance pages with a collapsible sync state per member, the member select in the empire and the deck next to the title. "Settlement from report" opens as a dialog.',
+      },
+      {
+        kind: 'fix',
+        de: 'Statistik: Die grünen/roten Kästchen zeigen jetzt auch bei älteren Kategorien und Seiten rot an, sobald ein neuerer Stand eingefügt wurde.',
+        en: 'Statistics: the green/red boxes now also turn red for older categories and pages as soon as a newer update has been pasted.',
+      },
+      {
+        kind: 'new',
         de: 'Kürzere Seiten: Abrechnung mit einklappbaren Bereichen, lange Listen (Raids, Recycling, Expeditionen, Feindspionage) zeigen zuerst die neuesten 20 mit „Alle anzeigen“. Die Aktualitätskarte der Galaxie ist einklappbar und passt aufs Handy.',
         en: 'Shorter pages: settlements with collapsible sections, long lists (raids, recycling, expeditions, hostile spying) show the newest 20 first with "Show all". The galaxy freshness map is collapsible and fits phones.',
       },

@@ -348,14 +348,14 @@ const costClass = (b: BuildingInfo, res: number) => (b.missing[res] ? 'neg' : 'p
             <td>
               <button
                 v-if="alertable(b) || alertOf(b)"
-                class="small bld-bell"
+                class="small bld-bell alert-btn"
                 :class="{ active: alertOf(b) }"
                 :disabled="busy === b.id"
                 :title="alertOf(b) ? t('buildings.alertOff') : t('buildings.alertOn', { level: b.next })"
                 :aria-label="alertOf(b) ? t('buildings.alertOff') : t('buildings.alertOn', { level: b.next })"
                 @click="toggleAlert(b)"
               ><Icon :name="alertOf(b) ? 'bell' : 'bellOff'" :size="14" /></button>
-              <button class="small bld-bell" :title="isHidden(b) ? t('buildings.unhide') : t('buildings.hide')" :aria-label="isHidden(b) ? t('buildings.unhide') : t('buildings.hide')" @click="toggleHidden(b)">
+              <button class="small bld-bell alert-btn" :title="isHidden(b) ? t('buildings.unhide') : t('buildings.hide')" :aria-label="isHidden(b) ? t('buildings.unhide') : t('buildings.hide')" @click="toggleHidden(b)">
                 <Icon :name="isHidden(b) ? 'spy' : 'eyeOff'" :size="14" />
               </button>
             </td>
@@ -374,14 +374,14 @@ const costClass = (b: BuildingInfo, res: number) => (b.missing[res] ? 'neg' : 'p
           <span class="grow" />
           <button
             v-if="alertable(b) || alertOf(b)"
-            class="small bld-bell"
+            class="small bld-bell alert-btn"
             :class="{ active: alertOf(b) }"
             :disabled="busy === b.id"
             :title="alertOf(b) ? t('buildings.alertOff') : t('buildings.alertOn', { level: b.next })"
             :aria-label="alertOf(b) ? t('buildings.alertOff') : t('buildings.alertOn', { level: b.next })"
             @click="toggleAlert(b)"
           ><Icon :name="alertOf(b) ? 'bell' : 'bellOff'" :size="14" /></button>
-          <button class="small bld-bell" :title="isHidden(b) ? t('buildings.unhide') : t('buildings.hide')" :aria-label="isHidden(b) ? t('buildings.unhide') : t('buildings.hide')" @click="toggleHidden(b)">
+          <button class="small bld-bell alert-btn" :title="isHidden(b) ? t('buildings.unhide') : t('buildings.hide')" :aria-label="isHidden(b) ? t('buildings.unhide') : t('buildings.hide')" @click="toggleHidden(b)">
             <Icon :name="isHidden(b) ? 'spy' : 'eyeOff'" :size="14" />
           </button>
         </div>
@@ -418,16 +418,13 @@ const costClass = (b: BuildingInfo, res: number) => (b.missing[res] ? 'neg' : 'p
 .bld-reqs { display: flex; flex-wrap: wrap; gap: 0 8px; }
 .bld-req { white-space: nowrap; }
 .bld-costs { display: flex; gap: 12px; flex-wrap: wrap; margin: 6px 0; }
-.bld-bell { padding: 2px 6px; }
 .bld-filters { margin-bottom: 12px; }
 .bld-search { width: 180px; }
 @media (max-width: 800px) {
   .bld-filters select, .bld-search { flex: 1 1 140px; width: auto; min-width: 0; }
 }
 .bld-hidden { opacity: 0.45; }
-.bld-bell { display: inline-flex; align-items: center; justify-content: center; min-width: 30px; }
 .bld-bell + .bld-bell { margin-left: 4px; }
-.bld-bell.active { border-color: var(--accent); background: var(--accent-soft); }
 .faded { opacity: 0.6; }
 .bld-card { margin-bottom: 8px; padding: 10px 12px; }
 </style>

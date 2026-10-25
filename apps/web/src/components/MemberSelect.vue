@@ -12,6 +12,7 @@ const model = defineModel<number | null>({ required: true });
 const { t } = useI18n();
 const { ctx } = useUni();
 const others = computed(() => (ctx.value?.members ?? []).filter((m) => m.id !== ctx.value?.me.id));
+const ownName = computed(() => ctx.value?.members.find((m) => m.id === ctx.value?.me.id)?.name ?? ctx.value?.me.username ?? '');
 </script>
 
 <template>
@@ -19,7 +20,7 @@ const others = computed(() => (ctx.value?.members ?? []).filter((m) => m.id !== 
     {{ label ?? t('common.player') }}
     <select v-model="model">
       <option v-if="allLabel" :value="null">{{ allLabel }}</option>
-      <option :value="ctx!.me.id">{{ t('raids.onlyMine') }}</option>
+      <option :value="ctx!.me.id">{{ allLabel ? t('raids.onlyMine') : ownName }}</option>
       <option v-for="m in others" :key="m.id" :value="m.id">{{ m.name }}</option>
     </select>
   </label>

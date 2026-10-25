@@ -111,7 +111,7 @@ const res = (r: any, id: number) => r.sections['900']?.[id] ?? 0;
     <div v-for="r in recent" :key="r.id" class="m-item" role="button" tabindex="0" @click="open(r)" @keydown.enter="open(r)">
       <span class="m-line">
         <span class="mono">{{ coords(r.g, r.s, r.p) }}</span>
-        <span v-if="r.planet_type === 'moon'" class="moon-tag" style="margin: 0"><Icon name="moon" :size="11" :label="t('common.moon')" /></span>
+        <span v-if="r.planet_type === 'moon'" class="moon-tag m-0"><Icon name="moon" :size="11" :label="t('common.moon')" /></span>
         <PlayerLink v-if="r.player_id" :id="r.player_id" :name="r.player_name" @click.stop />
         <span v-else>{{ r.player_name }}</span>
         <span class="muted small al-ellipsis">{{ r.planet_name }}</span>

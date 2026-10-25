@@ -156,7 +156,7 @@ function clock(epoch: number) {
         <span class="grow" />
         <b v-if="f.member" class="fl-member">{{ f.member }}</b>
         <span v-if="bells && f.owner === 'own'" class="fl-bell-wrap">
-          <button class="small fl-bell" :class="{ active: alertOf(f) }" :disabled="busy === r.parts[0]" :title="bellTitle(f)" :aria-label="bellTitle(f)" @click="menu = menu === r.key ? null : r.key">
+          <button class="small fl-bell alert-btn" :class="{ active: alertOf(f) }" :disabled="busy === r.parts[0]" :title="bellTitle(f)" :aria-label="bellTitle(f)" @click="menu = menu === r.key ? null : r.key">
             <Icon :name="alertOf(f) ? 'bell' : 'bellOff'" :size="14" /><span v-if="alertOf(f)?.lead" class="fl-lead">{{ alertOf(f)!.lead }}′</span>
           </button>
           <span v-if="menu === r.key" class="fl-backdrop" @click="menu = null" />
@@ -236,7 +236,7 @@ function clock(epoch: number) {
           <td class="small muted">{{ cargo(f).join(' · ') }}</td>
           <td v-if="bells" class="fl-bell-wrap">
             <template v-if="f.owner === 'own'">
-              <button class="small fl-bell" :class="{ active: alertOf(f) }" :disabled="busy === r.parts[0]" :title="bellTitle(f)" :aria-label="bellTitle(f)" @click="menu = menu === r.key ? null : r.key">
+              <button class="small fl-bell alert-btn" :class="{ active: alertOf(f) }" :disabled="busy === r.parts[0]" :title="bellTitle(f)" :aria-label="bellTitle(f)" @click="menu = menu === r.key ? null : r.key">
                 <Icon :name="alertOf(f) ? 'bell' : 'bellOff'" :size="14" /><span v-if="alertOf(f)?.lead" class="fl-lead">{{ alertOf(f)!.lead }}′</span>
               </button>
               <span v-if="menu === r.key" class="fl-backdrop" @click="menu = null" />
@@ -288,8 +288,6 @@ td.fl-ships span { display: inline-block; margin-right: 8px; white-space: nowrap
 .fl-part td { padding-top: 0; }
 div.fl-part { padding-left: 10px; border-left: 2px solid var(--mc); }
 .fl-bell-wrap { position: relative; white-space: nowrap; }
-.fl-bell { display: inline-flex; align-items: center; gap: 2px; padding: 2px 6px; }
-.fl-bell.active { border-color: var(--accent); background: var(--accent-soft); }
 .fl-lead { margin-left: 2px; font-size: 10px; }
 .fl-menu {
   position: absolute; z-index: 20; top: 100%; right: 0; display: flex; flex-direction: column; gap: 4px; margin: 4px 0 0; padding: 6px;

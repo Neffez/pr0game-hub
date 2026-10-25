@@ -60,7 +60,7 @@ const rank = (i: number) => (page.value - 1) * 100 + i + 1;
   </PageHeader>
 
   <div class="card row">
-    <div class="tabs" style="margin: 0">
+    <div class="tabs m-0">
       <button :class="{ active: sort === 'units' }" @click="sort = 'units'">{{ t('battleHall.byUnits') }}</button>
       <button :class="{ active: sort === 'time' }" @click="sort = 'time'">{{ t('battleHall.byDate') }}</button>
     </div>
@@ -100,11 +100,11 @@ const rank = (i: number) => (page.value - 1) * 100 + i + 1;
       </table>
     </div>
     <div v-if="data.pages > 1" class="row pager">
-      <button :disabled="page <= 1" @click="page = 1">«</button>
-      <button :disabled="page <= 1" @click="page--">‹</button>
+      <button :disabled="page <= 1" :title="t('battleHall.first')" :aria-label="t('battleHall.first')" @click="page = 1">«</button>
+      <button :disabled="page <= 1" :title="t('battleHall.prev')" :aria-label="t('battleHall.prev')" @click="page--">‹</button>
       <span class="small">{{ t('battleHall.page', { page, pages: data.pages }) }}</span>
-      <button :disabled="page >= data.pages" @click="page++">›</button>
-      <button :disabled="page >= data.pages" @click="page = data.pages">»</button>
+      <button :disabled="page >= data.pages" :title="t('battleHall.next')" :aria-label="t('battleHall.next')" @click="page++">›</button>
+      <button :disabled="page >= data.pages" :title="t('battleHall.last')" :aria-label="t('battleHall.last')" @click="page = data.pages">»</button>
     </div>
   </template>
 </template>

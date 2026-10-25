@@ -617,7 +617,7 @@ const history = computed(() => {
               <a v-if="hasGameUrl" :href="galaxyLink(r.planet)" target="_blank" rel="noopener">{{ r.planet.g }}:{{ r.planet.s }}:{{ r.planet.p }}</a>
               <template v-else>{{ r.planet.g }}:{{ r.planet.s }}:{{ r.planet.p }}</template>
             </span>
-            <span v-if="r.planet.type === 'moon'" class="moon-tag" style="margin: 0"><Icon name="moon" :size="11" :label="t('common.moon')" /></span>
+            <span v-if="r.planet.type === 'moon'" class="moon-tag m-0"><Icon name="moon" :size="11" :label="t('common.moon')" /></span>
             <PlanetActions :g="r.planet.g" :s="r.planet.s" :p="r.planet.p" :type="r.planet.type" :from="origin" />
           </template>
           <span v-else class="faint small" :title="t('overview.noPlanets')">–</span>

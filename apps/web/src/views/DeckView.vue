@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import Section from '../components/Section.vue';
+import MemberSelect from '../components/MemberSelect.vue';
 import PageHeader from '../components/PageHeader.vue';
 import Icon from '../components/Icon.vue';
 import DateTimeInput from '../components/DateTimeInput.vue';
@@ -102,17 +104,8 @@ const progress = computed(() => (data.value ? data.value.state.drawnInDeck / dat
         <p>{{ t('deck.hint2') }}</p>
       </Hint>
     </template>
+    <MemberSelect v-model="userId" />
   </PageHeader>
-  <div class="card">
-    <div class="row">
-      <label>
-        {{ t('common.player') }}
-        <select v-model="userId">
-          <option v-for="m in ctx!.members" :key="m.id" :value="m.id">{{ m.name }}</option>
-        </select>
-      </label>
-    </div>
-  </div>
 
   <div v-if="error" class="error">{{ error }}</div>
   <template v-if="data">
@@ -151,7 +144,7 @@ const progress = computed(() => (data.value ? data.value.state.drawnInDeck / dat
     </div>
 
     <div v-if="isMe" class="card">
-      <h3 style="margin-top: 0">
+      <h3 class="mt-0">
         {{ t('deck.addTitle') }}
         <Hint>
           <p>{{ t('deck.addHint1') }}</p>
@@ -189,7 +182,7 @@ const progress = computed(() => (data.value ? data.value.state.drawnInDeck / dat
 
 
     <div v-if="isMe" class="card">
-      <h3 style="margin-top: 0">{{ t('home.settings') }}</h3>
+      <h3 class="mt-0">{{ t('home.settings') }}</h3>
       <div class="row">
         <label>
           {{ t('deck.start') }}
@@ -207,17 +200,14 @@ const progress = computed(() => (data.value ? data.value.state.drawnInDeck / dat
           </select>
         </label>
       </div>
-      <details style="margin-top: 10px">
-        <summary class="muted small">
-          {{ t('deck.correction') }}
-          <Hint>{{ t('deck.correctionHint') }}</Hint>
-        </summary>
-        <div class="row" style="margin-top: 8px">
+      <Section :title="t('deck.correction')" :card="false" :default-open="false" store-key="deck.correction" class="correction">
+        <template #hint><Hint>{{ t('deck.correctionHint') }}</Hint></template>
+        <div class="row">
           <label v-for="c in data.state.cards" :key="c.key">
             {{ cardLabel(c.key) }} <input v-model.number="initialDrawn[c.key]" type="number" min="0" style="width: 70px" />
           </label>
         </div>
-      </details>
+      </Section>
       <div class="row" style="margin-top: 10px">
         <button class="primary" @click="save">{{ t('common.save') }}</button>
         <span class="ok small">{{ msg }}</span>
@@ -227,6 +217,7 @@ const progress = computed(() => (data.value ? data.value.state.drawnInDeck / dat
 </template>
 
 <style scoped>
+.correction :deep(.section-toggle) { font-weight: 400; font-size: 12px; color: var(--muted); }
 .add-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; margin-top: 10px; }
 .add-grid button { margin: 0; text-align: left; }
 </style>
