@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Neues Tool: der IRak-Rechner. Er zeigt, was Interplanetarraketen zerstören (mit Abfangraketen, Primärziel, Waffen und Panzerung wie im Spiel), wie viele Raketen für alles oder das Primärziel nötig sind, Reichweite und Flugzeit. Einen Spionagebericht kannst du direkt einfügen.',
+        en: 'New tool: the IPM calculator. It shows what interplanetary missiles destroy (with interceptors, primary target, weapons and armour as in the game), how many missiles clear everything or the primary target, range and flight time. You can paste a spy report straight in.',
+      },
+      {
+        kind: 'new',
         de: 'Flugrechner gibt es jetzt auch auf Deutsch. Flugrechner, Beuterechner und die Tool-Übersicht haben denselben Kopf mit DE/EN-Umschalter und „Link teilen“; die gewählte Sprache gilt für alle Tools.',
         en: 'The flight calculator is now available in German. Flight calculator, loot calculator and the tools overview share the same header with a DE/EN switch and "Share link"; the chosen language applies to all tools.',
       },

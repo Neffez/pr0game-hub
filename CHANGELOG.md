@@ -4,6 +4,13 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-25
 
+- New static tool: the interplanetary missile calculator at `/ipm-calculator/` (`apps/tools/ipm-calculator/`, glue
+  in `src/missile.ts`). It shows the destroyed and remaining defense per type (interceptors, primary target, weapons
+  and armour exactly as in the game), the missiles needed to clear everything or the primary target, range, flight
+  time, silo capacity and the cost of the missiles against the value destroyed. A pasted spy report fills target,
+  defense, interceptors and armour (on a moon the planet's interceptors count, so they are left as entered). Share
+  links use short keys like the flight calculator's (`sg/ss/sp`, `tg/ts/tp`, `i`, `w`, `a`, `n`, `pt`, `ic`,
+  `d401…`); a link with a target replaces all target values. The tools index has a card for it.
 - The static tools share one page shell: `apps/tools/shared/tools.css` (tokens, header, cards, fields, buttons, tables,
   results, toast, tooltips) and `shared/shell.js` (DOM helpers, storage, German/English texts with `data-t*`
   attributes, toast with undo, copying with a fallback, the share link, tooltips). All three pages have the same
