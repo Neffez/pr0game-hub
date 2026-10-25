@@ -18,7 +18,7 @@ const fallback = () => (mobile.value && props.defaultOpenMobile !== undefined ? 
 const stored = props.storeKey ? useStored<boolean | null>(`section.${props.storeKey}`, null) : ref<boolean | null>(null);
 const open = computed(() => stored.value ?? fallback());
 const toggle = () => (stored.value = !open.value);
-defineExpose({ open: () => (stored.value = true) });
+defineExpose({ open: () => (stored.value = true), close: () => (stored.value = false) });
 </script>
 
 <template>

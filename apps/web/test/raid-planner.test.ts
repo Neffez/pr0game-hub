@@ -403,6 +403,9 @@ describe('raid planner: plans without coordinates, retimes and holds', () => {
     radio.click();
     await settle();
     expect(panel.textContent).toMatch(/Zielzeit des Plans: \d\d:\d\d:\d\d/);
+    // picking folds the list, its header shows the choice
+    expect(panel.querySelector('.cands')).toBeNull();
+    expect(panel.querySelector('.speeds .section-title')!.textContent).toMatch(/Geschwindigkeit: \d+ %, zurück \d\d:\d\d:\d\d/);
     expect(panel.querySelector<HTMLButtonElement>('button.primary')!.disabled).toBe(false);
   });
 

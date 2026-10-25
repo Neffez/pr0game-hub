@@ -111,6 +111,12 @@ const narrowSection = ref<InstanceType<typeof Section> | null>(null);
 const narrowCount = computed(() => [input.value.departure, input.value.recall].filter(Boolean).length);
 /** The speed list folds away once a speed is saved; its header then shows the chosen one. */
 const speedsOpen = enemy.value.percent == null;
+const speedsSection = ref<InstanceType<typeof Section> | null>(null);
+/** Picking a speed folds the list (the header shows the choice); it opens again to pick another one. */
+function pickSpeed() {
+  touch();
+  speedsSection.value?.close();
+}
 const speedsTitle = computed(() =>
   chosen.value
     ? t('retime.speedChosen', { percent: chosen.value.percent, home: clock(candidateHome(chosen.value)) })
@@ -214,7 +220,7 @@ async function save() {
     </Section>
 
     <!-- one option per speed: when the enemy launched and when it is back home -->
-    <Section :title="speedsTitle" :card="false" :default-open="speedsOpen" class="speeds">
+    <Section ref="speedsSection" :title="speedsTitle" :card="false" :default-open="speedsOpen" class="speeds">
     <div class="cands" role="radiogroup" :aria-label="t('plans.speed')">
       <div class="cand cand-head" aria-hidden="true">
         <span />
@@ -224,7 +230,7 @@ async function save() {
         <span>{{ t('retime.home') }}</span>
       </div>
       <label v-for="c in candidates" :key="c.percent" class="cand" :class="{ impossible: !c.possible, picked: c.percent === draft.percent }">
-        <input v-model.number="draft.percent" type="radio" :value="c.percent" :disabled="!editable || !c.possible" @change="touch" />
+        <input v-model.number="draft.percent" type="radio" :value="c.percent" :disabled="!editable || !c.possible" @change="pickSpeed" />
         <b class="c-speed">{{ c.percent }} %</b>
         <span class="c-flight"><span class="m-lbl">{{ t('plans.flight') }}</span> <span class="mono">{{ duration(Math.floor(c.duration)) }}</span></span>
         <span class="c-launch">

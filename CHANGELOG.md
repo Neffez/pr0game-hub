@@ -6,8 +6,8 @@ Every commit adds its changes here, newest first, grouped by date.
 
 - Fleet movements on mobile: mission, phase and owner of a fleet card are spaced again ("Angreifen feindlich: …"
   ran together).
-- Retime: the speed list is collapsible; folded (the default once a speed is saved) its header shows the chosen speed
-  and when the enemy is back home.
+- Retime: the speed list is collapsible and folds as soon as a speed is picked (also the default once one is saved);
+  its header then shows the chosen speed and when the enemy is back home, opening it again picks another one.
 - Raid plan page, clearer structure: retime and hold panels start with a summary of the attack (impact, route,
   ships); retimes show the speeds as a selectable list (two lines per speed on mobile, no sideways scrolling), the
   narrowing inputs (drives, departure and recall windows) folded into one section that opens when a seen recall is
