@@ -157,7 +157,8 @@ describe('api', () => {
     im = (await app.inject({ method: 'GET', url: '/hub/api/u8/imperium', headers })).json();
     expect(im.fleets.data).toHaveLength(1);
     // without a page time the arrival is the shown clock (00:18:43 Berlin) on the day it is due
-    expect((im.fleets.data[0].arrival - 1792707523) % 86400).toBe(0);
+    const berlin = new Date(im.fleets.data[0].arrival * 1000).toLocaleTimeString('de-DE', { timeZone: 'Europe/Berlin' });
+    expect(berlin).toBe('00:18:43');
     // the overview page is older than 12 hours but kept: it holds the fleets arriving until the pasted list
     expect(db.prepare('SELECT COUNT(*) FROM fleet_snapshots WHERE group_id = ?').pluck().get(groupA)).toBe(2);
     const alliance = (await app.inject({ method: 'GET', url: '/hub/api/u8/alliance', headers })).json();

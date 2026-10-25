@@ -2,6 +2,12 @@
 
 Every commit adds its changes here, newest first, grouped by date.
 
+## 2026-10-25
+
+- Fleet arrivals copied with their clock are right around a daylight saving switch: the shown clock is converted with
+  the UTC offset of its own time, no longer that of the estimate (an hour off when the switch lay between them). The
+  server test checks the Berlin clock instead of a fixed summer-time offset.
+
 ## 2026-10-24
 
 - A battle report pasted as text (local id `text-…`) is moved to its game id when the same battle is archived later

@@ -16,6 +16,16 @@ export interface ChangelogDay {
 
 export const CHANGELOG: ChangelogDay[] = [
   {
+    date: '2026-10-25',
+    items: [
+      {
+        kind: 'fix',
+        de: 'Ankunftszeiten eingefügter Flotten stimmen jetzt auch bei der Zeitumstellung (vorher eine Stunde daneben).',
+        en: 'Arrival times of pasted fleets are now right around the daylight saving switch too (before, an hour off).',
+      },
+    ],
+  },
+  {
     date: '2026-10-24',
     items: [
       {
