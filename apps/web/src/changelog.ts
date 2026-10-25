@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Kampfsimulationen: Mitglieder ohne bekannte Forschung bekommen Waffen, Schild und Panzerung aus der Simulation, statt mit 0 in den Simulator zu gehen.',
+        en: 'Battle simulations: members without known research get weapons, shields and armour from the simulation instead of going into the simulator with 0.',
+      },
+      {
+        kind: 'fix',
         de: 'Kampfsimulationen: Forschungen werden richtig übernommen (250 % sind Stufe 15, nicht 25). Bereits übernommene Simulationen bitte neu einfügen. Eine Simulation wird beim Sync und bei Abrechnungen nicht mehr als echter Kampf mit ihrer Zeit gespeichert.',
         en: 'Battle simulations: research is taken over correctly (250 % is level 15, not 25). Please paste simulations taken over before again. A simulation is no longer stored as a real battle with its time when syncing or settling.',
       },

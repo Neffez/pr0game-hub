@@ -612,6 +612,9 @@ describe('attack plans', () => {
     expect((await call('POST', `/plans/${id}/sim`, carol, { text })).json()).toEqual({ defender: true, attackers: 3, identified: 3, updated: 2 });
     plan = (await call('GET', '/plans', carol)).json().find((p: any) => p.id === id);
     expect(plan.fleets.map((f: any) => f.ships)).toEqual([{ 222: 10156 }, { 206: 152, 207: 579, 215: 4025 }]);
+    // combat research from the simulation only where the hub knows none of the member's
+    expect(plan.fleets[0].drives.research[109]).toBeDefined();
+    expect(plan.fleets.map((f: any) => f.sim_research)).toEqual([null, { 109: 14, 110: 13, 111: 14 }]);
 
     // dropped again: the spy report counts
     await call('DELETE', `/plans/${id}/sim`, carol);

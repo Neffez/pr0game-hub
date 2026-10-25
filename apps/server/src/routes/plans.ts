@@ -11,7 +11,7 @@ import { latestEmpire, spyEmpire } from '../repo/empire.js';
 import {
   enemiesOf, followEnemies, fromOf, launchedOf, guestsOfAttack, ownAttacks, planDrives, recallOwnPlans, syncOwnPlans, toOf, type EnemyRow, type LaunchFleet, type LaunchPlan, type OwnAttackFleet, type PlanRow,
 } from '../repo/plans.js';
-import { applySimulation, bodyKey, withSim, type PlanSim } from '../repo/simPlan.js';
+import { applySimulation, bodyKey, simResearch, withSim, type PlanSim } from '../repo/simPlan.js';
 import { contextOf, DISPLAY, MEMBER } from './util.js';
 
 const STATUSES = ['planning', 'launched', 'done', 'cancelled'];
@@ -237,12 +237,17 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
       sim: simOut(ctx, sims.get(p.id)!),
       fleets: fleets
         .filter((f) => f.plan_id === p.id)
-        .map(({ plan_id, ships, manual, drives_time, ...f }) => ({
-          ...f,
-          ships: JSON.parse(ships),
-          drives: fleetDrives({ user_id: f.user_id, manual, drives_time }),
-          seen: launched.get(f.id) ?? null,
-        })),
+        .map(({ plan_id, ships, manual, drives_time, ...f }) => {
+          const drives = fleetDrives({ user_id: f.user_id, manual, drives_time });
+          return {
+            ...f,
+            ships: JSON.parse(ships),
+            drives,
+            // combat research from a taken-over simulation where the member's is unknown
+            sim_research: simResearch(sims.get(p.id)!, f.id, drives?.research),
+            seen: launched.get(f.id) ?? null,
+          };
+        }),
       enemy: enemies.has(p.id) ? { ...enemyOut(enemies.get(p.id)!), ...(p.mission === 'hold' ? attackerResearch(ctx, enemies.get(p.id)!) : {}) } : null,
       spy: spies.get(p.id) ?? null,
     }));

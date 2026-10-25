@@ -26,6 +26,8 @@ export interface PlanFleet {
   ships: Record<string, number>;
   speed: number;
   status: 'invited' | 'ready' | 'launched' | 'withdrawn';
+  /** weapons, shields, armour from a taken-over simulation, only those the member's research (`drives`) lacks */
+  sim_research: Record<string, number> | null;
   /** withdrawn because the member's overview showed it recalled (time of that paste) */
   recalled_at: number | null;
   updated_at: number;

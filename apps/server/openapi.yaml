@@ -1509,8 +1509,9 @@ paths:
         ships, defense and combat research (109-111 from the percentages) for the simulators. Attacker fleets only
         change the plan when recognised: by the name of a member or guest, else by the slot (plan fleets that are not
         withdrawn, then guests) with the same ship types, else as the only remaining fleet with those ship types.
-        Recognised member fleets take the ships, guests their combat research and, unless the plan follows a running
-        attack, the ships. Replaces an earlier simulation of the plan.
+        Recognised member fleets take the ships and their combat research (returned as the fleet's `sim_research` in
+        `getPlans`, only the levels the member's own research lacks), guests their combat research and, unless the plan
+        follows a running attack, the ships. Replaces an earlier simulation of the plan.
       security: [{ sessionCookie: [] }]
       requestBody:
         required: true

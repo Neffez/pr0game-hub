@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-25
 
+- Battle simulations give recognised member fleets their weapons, shields and armour where the hub knows none of the
+  member's research (no empire page or spy report showing it): kept in the plan's simulation per fleet and returned
+  as `sim_research`, used by the simulator links; known research still wins.
 - Battle simulations: research levels were read as percent / 10 (250 % as 25); the game shows 100 % plus 10 % per
   level, so 250 % is level 15. Simulations taken over so far are dropped (migration 053) and need pasting again.
   A simulation (every fleet only numbered, "Angreifer Nr.1") is no longer stored as a battle: the sync skips it with the

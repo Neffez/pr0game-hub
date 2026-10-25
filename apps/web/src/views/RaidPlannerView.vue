@@ -130,7 +130,7 @@ const settings = computed(() => ctx.value!.universe.settings);
 const planFleets = (p: AttackPlan): SimFleet[] => [
   ...p.fleets
     .filter((f) => f.status !== 'withdrawn' && Object.values(f.ships).some((n) => n > 0))
-    .map((f) => ({ ships: f.ships, research: f.drives?.research ?? {}, from: f.g != null ? [f.g, f.s!, f.p!] as Coords3 : null, speed: f.speed })),
+    .map((f) => ({ ships: f.ships, research: { ...(f.sim_research ?? {}), ...(f.drives?.research ?? {}) }, from: f.g != null ? [f.g, f.s!, f.p!] as Coords3 : null, speed: f.speed })),
   // ACS fleets of non-members, research from spy reports of their player
   ...(p.guests ?? []).map((g) => ({ ships: g.ships, research: g.research ?? {}, from: [g.from.g, g.from.s, g.from.p] as Coords3, speed: 100 })),
 ];
