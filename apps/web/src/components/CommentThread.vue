@@ -57,7 +57,7 @@ const saveEdit = (c: Comment) =>
     await uniApi(uni.value, `/comments/${c.id}`, { method: 'PUT', body: { body: editText.value } });
     editing.value = null;
   });
-const remove = (c: Comment) => run(() => uniApi(uni.value, `/comments/${c.id}`, { method: 'DELETE' }));
+const remove = (c: Comment) => confirm(t('comments.confirmDelete')) && run(() => uniApi(uni.value, `/comments/${c.id}`, { method: 'DELETE' }));
 </script>
 
 <template>
@@ -71,7 +71,7 @@ const remove = (c: Comment) => run(() => uniApi(uni.value, `/comments/${c.id}`, 
         <span class="grow" />
         <template v-if="editing !== c.id">
           <button v-if="mine(c)" class="link" @click="startEdit(c)">{{ t('common.change') }}</button>
-          <button v-if="mine(c) || isAdmin" class="link" @click="remove(c)">{{ t('common.delete') }}</button>
+          <button v-if="mine(c) || isAdmin" class="link danger" @click="remove(c)">{{ t('common.delete') }}</button>
         </template>
       </div>
       <form v-if="editing === c.id" class="edit" @submit.prevent="saveEdit(c)">
@@ -101,4 +101,5 @@ const remove = (c: Comment) => run(() => uniApi(uni.value, `/comments/${c.id}`, 
 .edit textarea { width: 100%; resize: vertical; }
 button.link { padding: 0; border: 0; background: none; color: var(--muted); font-size: 12px; }
 button.link:hover { color: var(--accent); }
+button.link.danger:hover { color: var(--neg); }
 </style>

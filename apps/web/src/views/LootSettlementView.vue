@@ -12,7 +12,7 @@ import {
 import { uniApi } from '../api';
 import CommentThread from '../components/CommentThread.vue';
 import Hint from '../components/Hint.vue';
-import { useUni } from '../composables';
+import { useMobile, useUni, vStack } from '../composables';
 import { abbr, coords, dateTime, fmt, lootCalcLink, name, short } from '../format';
 import { tables, useLiveReload } from '../live';
 
@@ -40,6 +40,9 @@ interface Response {
 
 const RES: (keyof Res)[] = ['m', 'k', 'd'];
 const RES_IDS = { m: 901, k: 902, d: 903 } as const;
+/** Rows of a person's result on mobile (resources as columns there). */
+const RESULT_ROWS = ['holds', 'costs', 'covered', 'entitled', 'balance'] as const;
+const mobile = useMobile();
 
 const { t } = useI18n();
 const route = useRoute();
@@ -320,7 +323,7 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
         <div class="card">
           <h3>{{ t('loot.participants') }}</h3>
           <div class="table-wrap">
-            <table class="data">
+            <table v-stack class="data">
               <thead>
                 <tr><th>{{ t('common.name') }}</th><th class="num">{{ t('loot.flightDeut') }}</th><th class="num">{{ t('loot.recDeut') }}</th><th class="num">{{ t('loot.missiles') }}</th></tr>
               </thead>
@@ -359,7 +362,7 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
               <label v-for="k in RES" :key="k">{{ name(RES_IDS[k]) }} <input v-model.number="b.loot[k]" type="number" min="0" :disabled="!canEdit" /></label>
             </div>
             <div class="table-wrap">
-            <table class="data">
+            <table v-stack class="data">
               <thead>
                 <tr><th>{{ t('loot.lootShare') }}</th><th>{{ t('loot.lost') }}</th><th v-for="k in RES" :key="k" class="num">{{ name(RES_IDS[k]) }}</th></tr>
               </thead>
@@ -409,7 +412,7 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
           </div>
           <p v-if="!state.recycling.length" class="muted small">{{ t('loot.noRecycling') }}</p>
           <div v-else class="table-wrap">
-          <table class="data">
+          <table v-stack class="data">
             <tbody>
               <tr v-for="(r, i) in state.recycling" :key="i">
                 <td>
@@ -439,7 +442,7 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
               {{ t('loot.helperDeut') }} <Hint>{{ t('loot.helperDeutHint') }}</Hint>
             </label>
             <div class="table-wrap">
-            <table class="data">
+            <table v-stack class="data">
               <thead>
                 <tr>
                   <th>{{ t('common.name') }}</th><th class="num">{{ t('loot.keepPct') }}</th>
@@ -476,7 +479,34 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
           <p v-if="result.coverage < 1" class="warn small">{{ t('loot.notCovered') }}</p>
           <p v-if="result.rateWarnings.length" class="warn small">{{ t('loot.rateWarning') }}</p>
           <p v-if="result.deadline" class="muted small">{{ t('loot.deadline', { time: dateTime(result.deadline) }) }}</p>
-          <div class="table-wrap">
+          <!-- mobile: one block per person, resources as columns -->
+          <div v-if="mobile" class="people">
+            <div v-for="p in result.people" :key="p.id" class="person">
+              <div class="person-head">
+                <b>{{ p.name }}</b>
+                <span class="muted small">{{ p.role === 'helper' ? t('loot.helper') : `${t('loot.share')} ${pct(p.share)}` }}</span>
+              </div>
+              <table class="person-grid">
+                <thead>
+                  <tr><th /><th v-for="k in RES" :key="k" class="num">{{ name(RES_IDS[k]) }}</th></tr>
+                </thead>
+                <tbody>
+                  <tr v-for="row in RESULT_ROWS" :key="row">
+                    <th class="faint">{{ t(`loot.${row}`) }}</th>
+                    <td
+                      v-for="k in RES"
+                      :key="k"
+                      class="num"
+                      :class="row === 'balance' ? { pos: p.balance[k] > 0, neg: p.balance[k] < 0, faint: !p.balance[k] } : undefined"
+                    >
+                      {{ row === 'balance' && p.balance[k] > 0 ? '+' : '' }}{{ fmt(p[row][k]) }}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div v-else class="table-wrap">
             <table class="data">
               <thead>
                 <tr>
@@ -515,7 +545,7 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
           <h3>{{ t('loot.transfers') }} <Hint>{{ t('loot.doneHint') }}</Hint></h3>
           <p v-if="!transfers.length" class="muted small">{{ t('loot.noTransfers') }}</p>
           <div v-else class="table-wrap">
-          <table class="data">
+          <table v-stack class="data">
             <tbody>
               <tr v-for="x in transfers" :key="keyOf(x)" :class="{ dim: done.has(keyOf(x)) }">
                 <td>
@@ -564,4 +594,14 @@ fieldset { border: 0; padding: 0; margin: 0; }
 tr.first td { border-top: 2px solid var(--border); }
 textarea.report { width: 100%; min-height: 90px; font-family: var(--mono); font-size: 12px; }
 .tick { display: inline-flex; align-items: center; gap: 6px; }
+.people { display: flex; flex-direction: column; gap: 12px; }
+.person-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin-bottom: 4px; }
+.person-grid { width: 100%; border-collapse: collapse; font-size: 12px; }
+.person-grid th, .person-grid td { padding: 2px 4px; border-bottom: 1px solid var(--border); font-weight: 400; text-align: left; }
+.person-grid td.num, .person-grid th.num { text-align: right; font-family: var(--mono); }
+.person-grid thead th { color: var(--muted); }
+@media (max-width: 800px) {
+  .lbl { min-width: 0; flex-basis: 100%; }
+  .import input { min-width: 0; }
+}
 </style>

@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import { api, loadMe, session } from '../api';
 import Hint from '../components/Hint.vue';
+import { vStack } from '../composables';
 import { DATE_FORMATS, dateFormat, setDateFormat, type DateFormat } from '../format';
 import { currentLang, LANGS, setLocale, type Lang } from '../i18n';
 import { liveHints } from '../live';
@@ -143,7 +144,8 @@ async function createApiToken() {
   }, () => t('account.apiTokenCreatedMsg'));
 }
 
-async function revokeApiToken(id: number) {
+async function revokeApiToken(id: number, name: string) {
+  if (!confirm(t('account.apiTokenRevokeConfirm', { name }))) return;
   await run(async () => {
     await api(`/auth/tokens/${id}`, { method: 'DELETE' });
     await loadApiTokens();
@@ -364,8 +366,8 @@ const saveDateFormat = () =>
           <label>{{ t('account.apiTokenName') }} <input v-model="newTokenName" maxlength="64" :placeholder="t('account.apiTokenDefaultName')" /></label>
           <button class="primary">{{ t('account.apiTokenCreate') }}</button>
         </form>
-        <div v-if="apiTokens.length" class="scroll-x">
-          <table class="token-table">
+        <div v-if="apiTokens.length" class="table-wrap flat token-wrap">
+          <table v-stack class="data">
             <thead>
               <tr>
                 <th>{{ t('account.apiTokenName') }}</th>
@@ -381,7 +383,7 @@ const saveDateFormat = () =>
                 <td><code>{{ tok.prefix }}…</code></td>
                 <td>{{ formatTokenTime(tok.createdAt) }}</td>
                 <td>{{ formatTokenTime(tok.lastUsedAt) }}</td>
-                <td><button type="button" class="danger" @click="revokeApiToken(tok.id)">{{ t('account.apiTokenRevoke') }}</button></td>
+                <td><button type="button" class="danger" @click="revokeApiToken(tok.id, tok.name)">{{ t('account.apiTokenRevoke') }}</button></td>
               </tr>
             </tbody>
           </table>
@@ -421,8 +423,7 @@ const saveDateFormat = () =>
 }
 .token-value { display: block; word-break: break-all; margin: 8px 0; font-family: var(--mono); }
 .token-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-.token-table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 0.92rem; }
-.token-table th, .token-table td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border, #ddd); }
+.token-wrap { margin-top: 12px; }
 .curl-hint {
   margin-top: 14px;
   padding: 10px;

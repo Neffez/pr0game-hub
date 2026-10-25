@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Section from '../components/Section.vue';
 import Icon from '../components/Icon.vue';
 import SortBar from '../components/SortBar.vue';
 import SortMark from '../components/SortMark.vue';
@@ -227,10 +228,9 @@ const total = computed(() => {
     <p v-if="!withFleets.length" class="muted small" style="margin: 0">{{ t('alliance.fleetsEmpty') }}</p>
     <p v-else-if="!flights.length" class="muted small" style="margin: 0">{{ t('imperium.fleetsNone') }}</p>
     <FleetList v-else :fleets="flights" />
-    <details v-if="history.length" class="fl-history">
-      <summary class="muted small">{{ t('imperium.fleetHistory', { n: history.length }) }}</summary>
+    <Section v-if="history.length" :title="t('imperium.fleetHistory', { n: history.length })" :card="false" :default-open="false" store-key="alliance.fleetHistory" class="fl-history">
       <FleetList :fleets="history" past />
-    </details>
+    </Section>
   </div>
   <div v-else-if="!withData.length" class="card muted">{{ t('alliance.empty') }}</div>
 

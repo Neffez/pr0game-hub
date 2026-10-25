@@ -4,6 +4,13 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-25
 
+- Mobile and consistency pass over the other pages: no more sideways scrolling in the loot settlement (tables as
+  cards, the result as one block per person), the settlements list, the API token list, retime candidates and battle
+  reports (one row per ship on mobile). Collapsible, remembered sections for the player's research, comments and status
+  log, the empire's fleets and fleet history, the alliance fleet history and the activity days (newest open). "More" in
+  the mobile tab bar counts attacks and raid plans waiting in the menu; the player dialog keeps its close button
+  reachable on phones; raids and expeditions share the member filter; deleting a comment and revoking an API token ask
+  first; login fields have labels; the start page lists universes as large links.
 - Overview filters: a toolbar with planets/players switch, player search and a filter button; the filters are grouped
   (player, points, growth, planets) in a panel on desktop and a bottom sheet on mobile, active ones show as removable
   chips with a reset. "Hide inactive" and "only inactive" became one three-way choice (stored filters are migrated).

@@ -153,6 +153,13 @@ table.data tr.dim td { opacity: .55; }
   }
   .tabbar .sync-dot .icon { width: 24px; height: 24px; }
   .tabbar .tab-sync { color: var(--text); }
+  .tabbar .tab-icon { position: relative; display: inline-flex; }
+  .tabbar .tab-badge {
+    position: absolute; top: -5px; right: -10px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px;
+    background: var(--faint); color: #fff; font-size: 10px; font-weight: 700; line-height: 16px; text-align: center;
+  }
+  .tabbar .tab-badge.running { background: var(--pos); }
+  .tabbar .tab-badge.alarm { background: var(--neg); }
 
   /* touch targets; 16px inputs keep iOS from zooming in on focus */
   input, select, textarea { font-size: 16px; }
@@ -225,8 +232,9 @@ table.data tr.moon td { background: color-mix(in srgb, var(--info) 7%, transpare
 .scroll-x { overflow-x: auto; }
 
 /* past fleet movements below the fleets in flight (empire, alliance) */
-.fl-history { margin-top: 10px; }
-.fl-history summary { cursor: pointer; margin-bottom: 6px; }
+.fl-history { margin-top: 6px; }
+.fl-history > .section-head { margin: 4px 0; }
+.fl-history .section-toggle { font-weight: 400; font-size: 12px; color: var(--muted); }
 
 /* ---- shared building blocks ---------------------------------------------------------------------------------- */
 .icon { flex-shrink: 0; vertical-align: -3px; }

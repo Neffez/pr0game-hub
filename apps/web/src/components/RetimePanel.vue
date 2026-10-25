@@ -255,6 +255,8 @@ async function save() {
   .field input[type='datetime-local'] { flex: 1 1 140px; min-width: 0; }
   .cands { font-size: 12px; }
   .cands th, .cands td { padding: 4px 6px; }
+  /* launch and return windows break at the dash instead of widening the table */
+  .cands td.mono { white-space: normal; }
 }
 .cands tr.picked td { background: var(--accent-soft); }
 </style>

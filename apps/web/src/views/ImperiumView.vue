@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Section from '../components/Section.vue';
 import Icon from '../components/Icon.vue';
 import { resourceAt } from '@pr0hub/core/buildings';
 import { classOf, elementPoints, METAL, RESOURCES, STORAGE, storageCapacity } from '@pr0hub/core/tech';
@@ -427,20 +428,18 @@ const memberName = (id: number | null) => ctx.value!.members.find((m) => m.id ==
     <p v-if="livePoints.finished.length" class="muted small" style="margin: 6px 0 0">{{ t('imperium.finished', { list: livePoints.finished.join(', ') }) }}</p>
   </div>
 
-  <div v-if="!error && fleets" class="card">
-    <h3 style="margin: 0 0 6px">
-      {{ t('imperium.fleets') }}
+  <Section v-if="!error && fleets" :title="t('imperium.fleets')" :count="flights.length" store-key="imperium.fleets">
+    <template #hint>
       <Hint><p>{{ t('imperium.fleetsHint') }}</p></Hint>
-      <span v-if="arrived" class="muted small" style="font-weight: normal"> · {{ t('imperium.fleetsArrived', { n: arrived }) }}</span>
-    </h3>
+      <span v-if="arrived" class="muted small">{{ t('imperium.fleetsArrived', { n: arrived }) }}</span>
+    </template>
     <p v-if="!flights.length" class="muted small" style="margin: 0">{{ t('imperium.fleetsNone') }}</p>
     <p v-if="alertError" class="error small">{{ alertError }}</p>
     <FleetList v-if="flights.length" :fleets="flights" :alerts="data?.fleetAlerts ?? undefined" :busy="alertBusy" @alert="setAlert" />
-    <details v-if="history.length" class="fl-history">
-      <summary class="muted small">{{ t('imperium.fleetHistory', { n: history.length }) }}</summary>
+    <Section v-if="history.length" :title="t('imperium.fleetHistory', { n: history.length })" :card="false" :default-open="false" store-key="imperium.fleetHistory" class="fl-history">
       <FleetList :fleets="history" past />
-    </details>
-  </div>
+    </Section>
+  </Section>
 
   <!-- mobile: totals first, then one card per planet (moons below their planet) -->
   <template v-if="!error && empire && hasLiveData && mobile">

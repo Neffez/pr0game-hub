@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Icon from '../components/Icon.vue';
 import { computed, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
@@ -36,18 +37,37 @@ async function logout() {
     <div class="card">
       <h1>pr0game <span style="color: var(--accent)">Hub</span></h1>
       <p class="muted">{{ t('common.loggedInAs', { name: session.me?.user?.username }) }}</p>
-      <div v-for="u in universes" :key="u.slug" style="margin: 8px 0">
-        <RouterLink :to="`/${u.slug}/overview`">{{ u.name }}</RouterLink>
-        <span class="muted small"> – {{ u.groups.join(', ') }}</span>
-        <RouterLink v-if="session.me?.user?.isAdmin" :to="{ path: '/admin', query: { uni: u.slug } }" class="small"> · {{ t('home.settings') }}</RouterLink>
+      <div class="unis">
+        <div v-for="u in universes" :key="u.slug" class="uni">
+          <RouterLink :to="`/${u.slug}/overview`" class="uni-link">
+            <Icon name="universes" :size="18" />
+            <span class="uni-text"><b>{{ u.name }}</b><span class="muted small">{{ u.groups.join(', ') }}</span></span>
+            <Icon name="chevronRight" class="muted" />
+          </RouterLink>
+          <RouterLink v-if="session.me?.user?.isAdmin" :to="{ path: '/admin', query: { uni: u.slug } }" class="small">{{ t('home.settings') }}</RouterLink>
+        </div>
       </div>
       <p v-if="!universes.length" class="muted">{{ t('home.noGroup') }}</p>
       <div class="row" style="margin-top: 14px">
         <RouterLink v-if="session.me?.user?.isAdmin || session.me?.groups.some((g) => g.role === 'admin')" to="/admin">{{ t('nav.admin') }}</RouterLink>
         <RouterLink to="/account">{{ t('home.account') }}</RouterLink>
         <RouterLink to="/changelog">{{ t('nav.changelog') }}</RouterLink>
-        <a href="#" @click.prevent="logout">{{ t('home.logout') }}</a>
+        <span class="grow" />
+        <button class="btn-icon" @click="logout"><Icon name="logout" />{{ t('home.logout') }}</button>
       </div>
     </div>
   </div>
 </template>
+
+<style scoped>
+.unis { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; }
+.uni { display: flex; flex-direction: column; gap: 2px; }
+.uni-link {
+  display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius);
+  background: var(--surface-2); color: var(--text);
+}
+.uni-link:hover { border-color: var(--accent); text-decoration: none; }
+.uni-link > .icon:first-child { color: var(--accent); }
+.uni-text { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.uni > .small { align-self: flex-end; }
+</style>

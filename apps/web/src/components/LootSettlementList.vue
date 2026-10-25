@@ -6,7 +6,7 @@ import { useRouter } from 'vue-router';
 import { uniApi } from '../api';
 import Hint from './Hint.vue';
 import PlayerLink from './PlayerLink.vue';
-import { useLoader, useStored, useUni } from '../composables';
+import { useLoader, useStored, useUni, vStack } from '../composables';
 import { coords, dateTime, lootCalcUrl } from '../format';
 import { tables, useLiveReload } from '../live';
 
@@ -87,8 +87,8 @@ const settled = (e: Entry) => !!e.saved && e.saved.done >= e.saved.deliveries;
   </div>
   <div v-if="error" class="error">{{ error }}</div>
   <div v-else-if="data && !data.length" class="card muted">{{ t('loot.listEmpty') }}</div>
-  <div v-else-if="data" class="card table-wrap">
-    <table class="data">
+  <div v-else-if="data" class="table-wrap flat">
+    <table v-stack class="data">
       <thead>
         <tr>
           <th>{{ t('loot.when') }}</th>

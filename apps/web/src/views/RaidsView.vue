@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import MemberSelect from '../components/MemberSelect.vue';
 import Hint from '../components/Hint.vue';
 import { computed, onMounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -58,18 +59,11 @@ const browseLink = (r: any) => ({ path: `/${uni.value}/browse`, query: { g: r.g,
   </h1>
   <div class="card row">
     <RangePicker v-model="days" />
-    <label>
-      {{ t('common.player') }}
-      <select v-model="member">
-        <option :value="null">{{ t('raids.wholeAlliance') }}</option>
-        <option :value="ctx!.me.id">{{ t('raids.onlyMine') }}</option>
-        <option v-for="m in ctx!.members.filter((x) => x.id !== ctx!.me.id)" :key="m.id" :value="m.id">{{ m.name }}</option>
-      </select>
-    </label>
+    <MemberSelect v-model="member" :all-label="t('raids.wholeAlliance')" />
   </div>
   <div v-if="error" class="error">{{ error }}</div>
   <template v-if="data">
-    <div class="table-wrap" style="max-height: none; margin-bottom: 14px">
+    <div class="table-wrap flat">
       <table v-stack class="data">
         <thead>
           <tr><th>{{ t('common.player') }}</th><th class="num">{{ t('raids.count') }}</th><th class="num">{{ name(901) }}</th><th class="num">{{ name(902) }}</th><th class="num">{{ t('game.deutShort') }}</th><th class="num">{{ t('common.total') }}</th><th class="num">{{ t('raids.perRaid') }}</th><th class="num">{{ t('raids.losses') }}</th><th class="num">{{ t('game.debrisShort') }}</th></tr>
@@ -132,7 +126,7 @@ const browseLink = (r: any) => ({ path: `/${uni.value}/browse`, query: { g: r.g,
       {{ t('raids.recycling') }}
       <Hint>{{ t('raids.recyclingHint') }}</Hint>
     </h2>
-    <div class="table-wrap" style="max-height: none; margin-bottom: 14px">
+    <div class="table-wrap flat">
       <table v-stack class="data">
         <thead>
           <tr><th>{{ t('common.player') }}</th><th class="num">{{ t('raids.runs') }}</th><th class="num">{{ name(901) }}</th><th class="num">{{ name(902) }}</th><th class="num">{{ t('common.total') }}</th><th class="num">{{ t('raids.perRun') }}</th><th class="num">{{ t('raids.leftInDebris') }}</th></tr>

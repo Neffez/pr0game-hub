@@ -4,7 +4,7 @@ import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import { uniApi } from '../api';
-import { useUni } from '../composables';
+import { useMobile, useUni } from '../composables';
 import { abbr, coords, dateTime, fmt, name, short } from '../format';
 
 /** Locally archived battle report: participants, fleets before/after, outcome. */
@@ -32,6 +32,7 @@ interface Report {
 const { t } = useI18n();
 const route = useRoute();
 const { uni, ctx } = useUni();
+const mobile = useMobile();
 const report = ref<Report | null>(null);
 const error = ref('');
 
@@ -90,6 +91,20 @@ const inGame = computed(() => /^[0-9a-f]{32}$/i.test(report.value?.report_id ?? 
       <div v-for="(f, i) in s.fleets" :key="i" class="fleet">
         <div><b>{{ f.name }}</b></div>
         <div v-if="!f.ships.length" class="muted small">{{ t('combat.noFleet') }}</div>
+        <!-- mobile: one row per ship instead of one column -->
+        <table v-else-if="mobile" class="data ships-rows">
+          <thead>
+            <tr><th /><th class="num">{{ t('combat.before') }}</th><th class="num">{{ t('combat.left') }}</th><th class="num">{{ t('combat.lost') }}</th></tr>
+          </thead>
+          <tbody>
+            <tr v-for="sh in f.ships" :key="sh.id">
+              <td>{{ name(sh.id) }}</td>
+              <td class="num">{{ fmt(sh.before) }}</td>
+              <td class="num" :class="{ neg: !sh.after }">{{ fmt(sh.after) }}</td>
+              <td class="num faint">{{ sh.before - sh.after ? fmt(sh.after - sh.before) : '' }}</td>
+            </tr>
+          </tbody>
+        </table>
         <div v-else class="scroll-x">
           <table class="data" style="width: auto">
             <thead>
@@ -113,4 +128,5 @@ const inGame = computed(() => /^[0-9a-f]{32}$/i.test(report.value?.report_id ?? 
 <style scoped>
 .fleet + .fleet { margin-top: 14px; }
 .fleet table { margin-top: 6px; }
+.ships-rows td { white-space: normal; }
 </style>

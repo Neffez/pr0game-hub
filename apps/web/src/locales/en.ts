@@ -208,6 +208,7 @@ const en: typeof de = {
     apiTokenCreatedMsg: 'Token created.',
     apiTokenRevoke: 'Revoke',
     apiTokenRevoked: 'Token revoked.',
+    apiTokenRevokeConfirm: 'Revoke the token "{name}"? Programs using it lose access.',
     apiTokenReveal: 'Copy the token now – it will not be shown again.',
     apiTokenCopy: 'Copy to clipboard',
     apiTokenCopied: 'Token copied.',
@@ -985,6 +986,7 @@ const en: typeof de = {
     result: 'Result',
   },
   comments: {
+    confirmDelete: 'Delete this comment?',
     title: 'Alliance comments',
     none: 'No comments yet.',
     edited: 'edited',

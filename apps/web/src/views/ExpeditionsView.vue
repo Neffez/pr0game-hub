@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import MemberSelect from '../components/MemberSelect.vue';
 import Hint from '../components/Hint.vue';
 import { computed, onMounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -95,19 +96,12 @@ const sumRes = (u: any) => Object.values(u.resources as Record<string, number>).
   </h1>
   <div class="card row">
     <RangePicker v-model="days" />
-    <label>
-      {{ t('common.player') }}
-      <select v-model="member">
-        <option :value="null">{{ t('raids.wholeAlliance') }}</option>
-        <option :value="ctx!.me.id">{{ t('raids.onlyMine') }}</option>
-        <option v-for="m in ctx!.members.filter((x) => x.id !== ctx!.me.id)" :key="m.id" :value="m.id">{{ m.name }}</option>
-      </select>
-    </label>
+    <MemberSelect v-model="member" :all-label="t('raids.wholeAlliance')" />
   </div>
   <div v-if="error" class="error">{{ error }}</div>
   <template v-if="data">
     <h2>{{ t('expeditions.yields') }} ({{ rangeLabel(days) }})</h2>
-    <div class="table-wrap" style="max-height: none; margin-bottom: 14px">
+    <div class="table-wrap flat">
       <table v-stack class="data yields">
         <thead>
           <tr>
@@ -151,7 +145,7 @@ const sumRes = (u: any) => Object.values(u.resources as Record<string, number>).
   </template>
   <div v-if="data && !columns.length" class="card muted">{{ t('expeditions.empty') }}</div>
   <template v-if="data && columns.length">
-    <div class="table-wrap" style="max-height: none; margin-bottom: 14px">
+    <div class="table-wrap flat">
       <table v-stack class="data">
         <thead>
           <tr>

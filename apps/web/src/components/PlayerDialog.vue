@@ -45,11 +45,11 @@ useScrollLock(computed(() => id.value != null));
 .modal-tools { position: absolute; top: 14px; right: 16px; display: flex; align-items: center; gap: 12px; }
 .modal-close { padding: 2px 9px; }
 .modal :deep(h1) { padding-right: 170px; }
-@media (max-width: 600px) {
+@media (max-width: 800px) {
   .modal-backdrop { padding: 0; }
   .modal { min-height: 100%; border-radius: 0; border: 0; padding: 12px 12px 24px; padding-top: max(12px, env(safe-area-inset-top)); }
   /* tools in their own row above the title instead of overlapping it */
-  .modal-tools { position: static; justify-content: flex-end; margin-bottom: 8px; }
+  .modal-tools { position: sticky; top: 0; z-index: 2; justify-content: flex-end; margin: -4px -12px 8px; padding: 6px 12px; background: var(--bg); border-bottom: 1px solid var(--border); }
   .modal :deep(h1) { padding-right: 0; }
   .modal-close { padding: 6px 12px; }
 }

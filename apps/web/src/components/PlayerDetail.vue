@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Section from './Section.vue';
 import Icon from './Icon.vue';
 import CommentThread from './CommentThread.vue';
 import PresenceBadge from './PresenceBadge.vue';
@@ -162,13 +163,10 @@ onBeforeUnmount(() => chart?.destroy());
       <div style="height: 300px; margin-top: 10px"><canvas ref="canvas" /></div>
     </div>
 
-    <div class="card">
-      <h3 style="margin-top: 0">
-        {{ t('player.research') }}
-        <span v-if="data.research" class="small" style="font-weight: 400" :style="{ color: freshnessColor(Date.now() / 1000 - data.research.time) }">
-          · {{ sourceText(data.research) }}
-        </span>
-      </h3>
+    <Section :title="t('player.research')" store-key="player.research" :default-open-mobile="false">
+      <template #hint>
+        <span v-if="data.research" class="small" :style="{ color: freshnessColor(Date.now() / 1000 - data.research.time) }">{{ sourceText(data.research) }}</span>
+      </template>
       <div v-if="data.research" class="research">
         <div v-for="grp in RESEARCH_GROUPS" :key="grp.label">
           <div class="faint small">{{ t(`player.researchGroups.${grp.label}`) }}</div>
@@ -179,23 +177,22 @@ onBeforeUnmount(() => chart?.destroy());
         </div>
       </div>
       <p v-else class="muted small" style="margin: 0">{{ t('player.researchUnknown') }}</p>
-    </div>
+    </Section>
 
     <div class="card">
-      <h3 style="margin-top: 0">{{ t('player.note') }}</h3>
+      <h3 class="mt-0">{{ t('player.note') }}</h3>
       <div class="row">
-        <input v-model="note" class="grow" />
-        <button @click="saveNote">{{ t('common.save') }}</button>
+        <input v-model="note" class="grow" :aria-label="t('player.note')" />
+        <button class="primary" @click="saveNote">{{ t('common.save') }}</button>
       </div>
     </div>
 
-    <div class="card">
-      <h3 style="margin-top: 0">{{ t('comments.title') }}</h3>
+    <Section :title="t('comments.title')" store-key="player.comments">
       <CommentThread :player="data.player.id" />
-    </div>
+    </Section>
 
     <h2>{{ t('player.planets') }}</h2>
-    <div class="table-wrap" style="max-height: none">
+    <div class="table-wrap flat">
       <table v-stack="3" class="data">
         <thead><tr><th>{{ t('common.coords') }}</th><th>{{ t('common.name') }}</th><th /><th>{{ t('player.phalanx') }}</th><th>{{ t('player.lastSpy') }}</th><th>{{ t('player.galaxySeen') }}</th></tr></thead>
         <tbody>
@@ -227,7 +224,7 @@ onBeforeUnmount(() => chart?.destroy());
       </table>
     </div>
 
-    <h2>{{ t('player.statusLog') }}</h2>
+    <Section :title="t('player.statusLog')" :count="data.statusLog.length" :card="false" :level="2" :default-open="false" store-key="player.statusLog">
     <div class="small">
       <div v-for="s in data.statusLog" :key="s.seen_at">
         <span class="muted">{{ dateTime(s.seen_at) }}</span> <StatusBadges :status="JSON.parse(s.status)" />
@@ -235,6 +232,7 @@ onBeforeUnmount(() => chart?.destroy());
       </div>
       <span v-if="!data.statusLog.length" class="muted">–</span>
     </div>
+    </Section>
   </template>
 </template>
 

@@ -27,10 +27,10 @@ async function submit() {
   <div class="center-box card">
     <h1>pr0game <span style="color: var(--accent)">Hub</span></h1>
     <form @submit.prevent="submit">
-      <label>{{ t('common.username') }}</label>
-      <input v-model="username" autocomplete="username" autofocus />
-      <label>{{ t('common.password') }}</label>
-      <input v-model="password" type="password" autocomplete="current-password" />
+      <label for="login-user">{{ t('common.username') }}</label>
+      <input id="login-user" v-model="username" autocomplete="username" autofocus />
+      <label for="login-password">{{ t('common.password') }}</label>
+      <input id="login-password" v-model="password" type="password" autocomplete="current-password" />
       <div v-if="error" class="error">{{ error }}</div>
       <button class="primary" type="submit">{{ t('login.submit') }}</button>
     </form>

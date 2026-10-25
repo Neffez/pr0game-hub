@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Handy: Abrechnung, Kampfberichte, Retime-Tabelle und weitere Listen passen jetzt ohne seitliches Scrollen auf den Bildschirm. Lange Bereiche (Forschung und Statusverlauf beim Spieler, Flotten im Imperium, Aktivitäts-Tage) lassen sich einklappen. „Mehr“ in der Leiste unten zeigt, wenn Angriffe oder Raid-Pläne warten.',
+        en: 'Phones: settlements, battle reports, the retime table and other lists now fit the screen without scrolling sideways. Long sections (research and status history of a player, fleets in the empire, activity days) can be collapsed. "More" in the bottom bar shows when attacks or raid plans are waiting.',
+      },
+      {
+        kind: 'new',
         de: 'Übersicht: Filter aufgeräumt. Suche und Umschalter Planeten/Spieler bleiben sichtbar, die übrigen Filter sind gruppiert hinter „Filter“ (auf dem Handy als Fenster von unten). Aktive Filter erscheinen als Chips und lassen sich einzeln entfernen oder alle zurücksetzen. Inaktive: alle, ausblenden oder nur Inaktive.',
         en: 'Overview: filters tidied up. Search and the planets/players switch stay visible, the other filters are grouped behind "Filters" (a sheet from the bottom on phones). Active filters show as chips that can be removed one by one or reset. Inactive: all, hide or only inactive.',
       },

@@ -209,6 +209,7 @@ const de = {
     apiTokenCreatedMsg: 'Token erstellt.',
     apiTokenRevoke: 'Widerrufen',
     apiTokenRevoked: 'Token widerrufen.',
+    apiTokenRevokeConfirm: 'Token „{name}“ widerrufen? Programme, die ihn nutzen, verlieren den Zugriff.',
     apiTokenReveal: 'Kopiere den Token jetzt – er wird nicht wieder angezeigt.',
     apiTokenCopy: 'In Zwischenablage',
     apiTokenCopied: 'Token kopiert.',
@@ -987,6 +988,7 @@ const de = {
     result: 'Ergebnis',
   },
   comments: {
+    confirmDelete: 'Kommentar löschen?',
     title: 'Kommentare der Allianz',
     none: 'Noch keine Kommentare.',
     edited: 'bearbeitet',

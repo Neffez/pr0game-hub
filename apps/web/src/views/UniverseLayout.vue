@@ -169,6 +169,14 @@ const pageTitle = computed(() => {
 });
 
 /** Bottom tab bar: frequent pages around the sync button in the middle. */
+/** The drawer holds pages with something waiting (attacks on members, raid plans): counted on "More". */
+const moreTitle = computed(() =>
+  [
+    attacks.value ? t('notify.attacks', { n: attacks.value }, attacks.value) : '',
+    planCount.value.running ? t('nav.plansRunning', { n: planCount.value.running }, planCount.value.running) : '',
+    planCount.value.planning ? t('nav.plansPlanning', { n: planCount.value.planning }, planCount.value.planning) : '',
+  ].filter(Boolean).join(' · ') || undefined,
+);
 const tabs = [
   { to: 'overview', label: 'overview', icon: 'overview' },
   { to: 'imperium', label: 'imperiumShort', icon: 'imperium' },
@@ -236,8 +244,14 @@ const tabs = [
         <span class="sync-dot"><Icon name="sync" /></span>{{ t('nav.syncShort') }}
       </button>
       <RouterLink v-for="tb in tabs.slice(2)" :key="tb.to" :to="`/${uni}/${tb.to}`"><Icon :name="tb.icon" />{{ t(`nav.${tb.label}`) }}</RouterLink>
-      <button :class="{ active: navOpen }" aria-controls="sidebar" :aria-expanded="navOpen" @click="navOpen = !navOpen">
-        <Icon name="menu" />{{ t('nav.more') }}
+      <button :class="{ active: navOpen }" aria-controls="sidebar" :aria-expanded="navOpen" :title="moreTitle" @click="navOpen = !navOpen">
+        <span class="tab-icon">
+          <Icon name="menu" />
+          <span v-if="attacks || planCount.running || planCount.planning" class="tab-badge" :class="{ alarm: attacks, running: !attacks && planCount.running }">
+            {{ attacks || planCount.running + planCount.planning }}
+          </span>
+        </span>
+        {{ t('nav.more') }}
       </button>
     </nav>
   </div>

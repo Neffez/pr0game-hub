@@ -128,7 +128,7 @@ const progress = computed(() => (data.value ? data.value.state.drawnInDeck / dat
       </div>
     </div>
 
-    <div class="table-wrap" style="max-height: none; margin-bottom: 14px">
+    <div class="table-wrap flat">
       <table v-stack class="data">
         <thead>
           <tr><th>{{ t('deck.card') }}</th><th class="num">{{ t('deck.inDeck') }}</th><th class="num">{{ t('combat.left') }}</th><th class="num">{{ t('deck.minMax') }}</th><th class="num">{{ t('deck.nextCard') }}</th><th style="width: 30%"></th></tr>

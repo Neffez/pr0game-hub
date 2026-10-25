@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Section from '../components/Section.vue';
 import Icon from '../components/Icon.vue';
 import { computed, onMounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -165,8 +166,8 @@ function text(e: Entry) {
   <div v-if="error" class="error">{{ error }}</div>
   <div v-else-if="data && !entries.length" class="card muted">{{ t('activity.empty') }}</div>
 
-  <div v-for="d in days_" :key="d.day" class="day">
-    <h3>{{ d.day }}</h3>
+  <!-- one section per day, the newest open -->
+  <Section v-for="(d, i) in days_" :key="d.day" :title="d.day" :count="d.entries.length" :card="false" :default-open="i === 0" class="day">
     <div class="card" style="padding: 4px 0">
       <div v-for="e in d.entries" :key="e.id" class="entry">
         <span class="mono small faint">{{ time(e.time) }}</span>
@@ -186,13 +187,13 @@ function text(e: Entry) {
         <span v-else />
       </div>
     </div>
-  </div>
+  </Section>
 </template>
 
 <style scoped>
 .chips { margin-top: 10px; gap: 6px; }
 .chip.off { opacity: 0.4; text-decoration: line-through; }
-.day h3 { margin: 16px 0 6px; font-size: 13px; color: var(--muted); text-transform: capitalize; }
+.day :deep(.section-title) { font-size: 13px; color: var(--muted); text-transform: capitalize; }
 .entry { display: grid; grid-template-columns: 44px 20px minmax(160px, 260px) 1fr auto; align-items: center; gap: 10px; padding: 6px 16px; }
 .entry + .entry { border-top: 1px solid var(--border); }
 .kind-icon { display: flex; justify-content: center; }
