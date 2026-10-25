@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Icon from '../components/Icon.vue';
 import { resourceAt } from '@pr0hub/core/buildings';
 import { classOf, elementPoints, METAL, RESOURCES, STORAGE, storageCapacity } from '@pr0hub/core/tech';
 import { computed, onMounted, ref, watch } from 'vue';
@@ -388,7 +389,7 @@ const memberName = (id: number | null) => ctx.value!.members.find((m) => m.id ==
         <tr v-for="c in livePoints.cats" :key="c.type">
           <td style="white-space: normal">
             {{ STATS_TYPES[c.type] }}
-            <span v-if="c.type === 2 && !livePoints.fleetFromStats" class="warn small" :title="t('imperium.noFlyingTitle')">⚠</span>
+            <Icon v-if="c.type === 2 && !livePoints.fleetFromStats" name="warning" :size="13" class="warn" :label="t('imperium.noFlyingTitle')" />
             <!-- the total is synced more often: a category from an older update has a different Δ base -->
             <span v-if="c.statTime && livePoints.statTime && c.statTime < livePoints.statTime" class="muted small" :title="t('imperium.statOlderTitle')">
               {{ t('imperium.statOlder', { time: dateTime(c.statTime) }) }}
@@ -459,7 +460,7 @@ const memberName = (id: number | null) => ctx.value!.members.find((m) => m.id ==
           <div class="num faint">/ {{ short(sum.cap) }}</div>
           <div class="bar"><div :class="resClass(sum)" :style="{ width: fill(sum) + '%' }" /></div>
           <div class="small faint">+{{ short(sum.perHour) }}/h</div>
-          <div v-if="flying[RES[i]]" class="small muted">✈ {{ short(flying[RES[i]]) }}</div>
+          <div v-if="flying[RES[i]]" class="small muted"><Icon name="inFlight" :size="12" /> {{ short(flying[RES[i]]) }}</div>
         </div>
       </div>
       </Ticker>
@@ -468,9 +469,9 @@ const memberName = (id: number | null) => ctx.value!.members.find((m) => m.id ==
     <div v-for="r in rows" :key="r.key" class="card emp-card" :class="{ moon: r.p.type === 'moon' }">
       <div class="emp-head">
         <span class="mono small">{{ r.p.coords.g }}:{{ r.p.coords.s }}:{{ r.p.coords.p }}</span>
-        <span v-if="r.p.type === 'moon'" class="moon-tag">☾ {{ t('common.moon') }}</span>
+        <span v-if="r.p.type === 'moon'" class="moon-tag"><Icon name="moon" :size="11" /> {{ t('common.moon') }}</span>
         <b class="emp-name">{{ r.p.name }}</b>
-        <span v-if="r.energy != null" class="small" :class="r.energy < 0 ? 'neg' : 'muted'">⚡ {{ fmt(r.energy) }}</span>
+        <span v-if="r.energy != null" class="small" :class="r.energy < 0 ? 'neg' : 'muted'"><Icon name="bolt" :size="12" :label="name(911)" /> {{ fmt(r.energy) }}</span>
       </div>
       <div class="emp-queues small">
         <span class="muted">{{ name(0) }}</span>
@@ -534,7 +535,7 @@ const memberName = (id: number | null) => ctx.value!.members.find((m) => m.id ==
         <tr v-for="r in rows" :key="r.key" :class="{ moon: r.p.type === 'moon' }">
           <td>
             <span class="mono small">{{ r.p.coords.g }}:{{ r.p.coords.s }}:{{ r.p.coords.p }}</span>
-            <span v-if="r.p.type === 'moon'" class="moon-tag" style="margin-left: 4px">☾ {{ t('common.moon') }}</span>
+            <span v-if="r.p.type === 'moon'" class="moon-tag" style="margin-left: 4px"><Icon name="moon" :size="11" /> {{ t('common.moon') }}</span>
             {{ r.p.name }}
           </td>
           <td class="small">

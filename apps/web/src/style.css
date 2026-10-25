@@ -44,8 +44,8 @@ h3 { font-size: 14px; margin: 14px 0 6px; color: var(--muted); }
   display: flex; align-items: center; gap: 9px; padding: 6px 10px; border-radius: 6px; color: var(--text); margin: 1px 0;
 }
 .sidebar nav a:hover { background: var(--surface-2); text-decoration: none; }
-.sidebar nav .nav-icon { flex-shrink: 0; color: var(--muted); }
-.sidebar nav a:hover .nav-icon, .sidebar nav a.router-link-active .nav-icon { color: inherit; }
+.sidebar nav a > .icon { flex-shrink: 0; color: var(--muted); }
+.sidebar nav a:hover > .icon, .sidebar nav a.router-link-active > .icon { color: inherit; }
 .sidebar nav a.router-link-active { background: var(--accent-soft); color: var(--accent); }
 .sidebar .section { color: var(--faint); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; padding: 12px 10px 4px; }
 .sidebar select { width: 100%; margin: 4px 0; }
@@ -145,18 +145,18 @@ table.data tr.dim td { opacity: .55; }
     -webkit-tap-highlight-color: transparent;
   }
   .tabbar > a:hover { text-decoration: none; }
-  .tabbar .nav-icon { width: 22px; height: 22px; }
+  .tabbar .icon { width: 22px; height: 22px; }
   .tabbar > a.router-link-active, .tabbar > button.active { color: var(--accent); }
   .tabbar .sync-dot {
     display: flex; align-items: center; justify-content: center; width: 44px; height: 44px; margin-top: -18px;
     border-radius: 50%; background: var(--accent); color: #fff; box-shadow: 0 4px 14px rgba(242, 104, 60, .4);
   }
-  .tabbar .sync-dot .nav-icon { width: 24px; height: 24px; }
+  .tabbar .sync-dot .icon { width: 24px; height: 24px; }
   .tabbar .tab-sync { color: var(--text); }
 
   /* touch targets; 16px inputs keep iOS from zooming in on focus */
   input, select, textarea { font-size: 16px; }
-  button { min-height: 34px; }
+  button { min-height: 36px; }
 
   /* tables scroll with the page instead of in a nested 75vh box */
   .table-wrap { max-height: none; }
@@ -227,3 +227,90 @@ table.data tr.moon td { background: color-mix(in srgb, var(--info) 7%, transpare
 /* past fleet movements below the fleets in flight (empire, alliance) */
 .fl-history { margin-top: 10px; }
 .fl-history summary { cursor: pointer; margin-bottom: 6px; }
+
+/* ---- shared building blocks ---------------------------------------------------------------------------------- */
+.icon { flex-shrink: 0; vertical-align: -3px; }
+/* square button with an icon only (always with aria-label/title) */
+.icon-btn { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; min-height: 0; padding: 0; }
+.icon-btn.small { width: 26px; height: 26px; }
+button.danger { color: var(--neg); }
+button.danger:hover { border-color: var(--neg); }
+button.danger.solid { background: var(--neg); border-color: var(--neg); color: #fff; font-weight: 600; }
+/* text button that looks like a link */
+button.link { min-height: 0; padding: 0; border: 0; background: none; color: var(--accent); cursor: pointer; }
+button.link:hover { text-decoration: underline; }
+button.link.muted { color: var(--muted); }
+button.link.danger { color: var(--neg); }
+/* button with icon and text */
+.btn-icon { display: inline-flex; align-items: center; gap: 6px; }
+a.btn, .btn { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-2); color: var(--text); }
+a.btn:hover { border-color: var(--border-strong); text-decoration: none; }
+a.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 1px solid var(--accent); outline-offset: 0; }
+
+/* segmented control (mode switches in toolbars) */
+.seg { display: inline-flex; padding: 2px; gap: 2px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); }
+.seg button { min-height: 0; padding: 3px 10px; border: 0; border-radius: 6px; background: none; color: var(--muted); }
+.seg button:hover { color: var(--text); }
+.seg button.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+
+.chip {
+  display: inline-flex; align-items: center; gap: 5px; min-height: 0; padding: 2px 8px; border: 1px solid var(--border); border-radius: 999px;
+  background: var(--surface-2); color: var(--text); font-size: 12px; line-height: 1.5;
+}
+button.chip:hover { border-color: var(--accent); }
+
+/* form rows: label and field; on mobile the label sits above the field */
+.field { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.field > .lbl { min-width: 110px; color: var(--muted); font-size: 12px; }
+.check { display: inline-flex; align-items: center; gap: 6px; color: var(--text); font-size: 13px; cursor: pointer; }
+.check > input { margin: 0; }
+.filter-group { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.filter-group > .filter-title { color: var(--faint); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
+.filter-group .field > .lbl { min-width: 80px; }
+
+/* status dots (activity, presence) */
+.dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: currentColor; vertical-align: middle; }
+.dot.ring { background: none; box-shadow: inset 0 0 0 1.5px currentColor; }
+.dot.dashed { background: none; border: 1.5px dashed currentColor; }
+
+/* a table that grows with the page (no own scroll box) */
+.table-wrap.flat { max-height: none; margin-bottom: 14px; }
+.mt-0 { margin-top: 0; }
+.bold { font-weight: 600; }
+
+/* collapsible section (Section.vue) */
+.section.card { padding: 0; }
+.section-head { display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 4px 12px 4px 6px; }
+.section:not(.card) > .section-head { padding-left: 0; margin: 16px 0 6px; }
+.section-toggle {
+  display: inline-flex; align-items: center; gap: 6px; min-width: 0; min-height: 0; padding: 4px 6px; border: 0; background: none;
+  color: var(--text); font-weight: 600; text-align: left;
+}
+.section-head.h2 .section-toggle { font-size: 16px; }
+.section-head.h3 .section-toggle { font-size: 14px; }
+.section-chevron { color: var(--muted); }
+.section-count { margin: 0; }
+.section-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.section.card > .section-body { padding: 4px 16px 14px; }
+.section.card > .section-body > .table-wrap:first-child { margin-top: 2px; }
+.section.card:not(.open) { padding-bottom: 0; }
+
+/* page header: title with hint, actions on the right */
+.page-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-bottom: 12px; }
+.page-head h1 { display: flex; align-items: center; margin: 0; }
+.page-head .page-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-left: auto; }
+
+@media (max-width: 800px) {
+  .card { padding: 10px 12px; margin-bottom: 10px; }
+  h2 { margin: 14px 0 6px; }
+  .row { gap: 8px; }
+  .icon-btn { width: 36px; height: 36px; }
+  .icon-btn.small { width: 30px; height: 30px; }
+  .seg button { min-height: 30px; }
+  .chip { min-height: 28px; }
+  .field > .lbl { flex-basis: 100%; min-width: 0; }
+  .section.card > .section-body { padding: 2px 12px 12px; }
+  .page-head .page-actions { margin-left: 0; width: 100%; }
+}

@@ -14,7 +14,8 @@ describe('useSort', () => {
     expect(sort.sorted.value.map((r) => r.name)).toEqual(['c', 'b', 'a']);
     sort.sortBy('points');
     expect(sort.sorted.value.map((r) => r.name)).toEqual(['b', 'c', 'a']);
-    expect(sort.indicator('points')).toBe(' ▴');
+    expect(sort.direction('points')).toBe('asc');
+    expect(sort.direction('name')).toBe(null);
   });
 
   it('a new key starts descending again', () => {

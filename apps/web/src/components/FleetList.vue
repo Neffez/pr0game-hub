@@ -46,6 +46,7 @@ export const alertFor = (a: FleetAlert, f: Fleet) =>
 </script>
 
 <script setup lang="ts">
+import Icon from './Icon.vue';
 import { RESOURCES } from '@pr0hub/core/tech';
 import { computed, reactive, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -155,8 +156,8 @@ function clock(epoch: number) {
         <span class="grow" />
         <b v-if="f.member" class="fl-member">{{ f.member }}</b>
         <span v-if="bells && f.owner === 'own'" class="fl-bell-wrap">
-          <button class="small fl-bell" :class="{ active: alertOf(f) }" :disabled="busy === r.parts[0]" :title="bellTitle(f)" @click="menu = menu === r.key ? null : r.key">
-            {{ alertOf(f) ? '🔔' : '🔕' }}<span v-if="alertOf(f)?.lead" class="fl-lead">{{ alertOf(f)!.lead }}′</span>
+          <button class="small fl-bell" :class="{ active: alertOf(f) }" :disabled="busy === r.parts[0]" :title="bellTitle(f)" :aria-label="bellTitle(f)" @click="menu = menu === r.key ? null : r.key">
+            <Icon :name="alertOf(f) ? 'bell' : 'bellOff'" :size="14" /><span v-if="alertOf(f)?.lead" class="fl-lead">{{ alertOf(f)!.lead }}′</span>
           </button>
           <span v-if="menu === r.key" class="fl-backdrop" @click="menu = null" />
           <span v-if="menu === r.key" class="fl-menu card">
@@ -169,22 +170,22 @@ function clock(epoch: number) {
       </div>
       <div>
         <span class="fl-mission">{{ mission(r) }}</span>
-        <button v-if="r.parts.length > 1" class="fl-toggle" :aria-expanded="open.has(r.key)" @click="toggle(r.key)">{{ open.has(r.key) ? '▾' : '▸' }}</button>
-        <span v-if="f.phase !== 'out'" class="fl-phase">{{ t(`imperium.phase.${f.phase}`) }}</span>
+        <button v-if="r.parts.length > 1" class="fl-toggle icon-btn small" :aria-expanded="open.has(r.key)" :aria-label="open.has(r.key) ? t('common.collapse') : t('common.expand')" @click="toggle(r.key)"><Icon :name="open.has(r.key) ? 'chevronDown' : 'chevronRight'" :size="14" /></button>
+        <span v-if="f.phase !== 'out'" class="fl-phase"><Icon :name="f.phase === 'return' ? 'return' : 'pause'" :size="12" /> {{ t(`imperium.phase.${f.phase}`) }}</span>
         <span v-if="f.owner !== 'own'" class="small" :class="f.owner === 'hostile' ? 'neg' : 'muted'">
           {{ t(`imperium.${f.owner}`) }}<template v-if="f.fromPlayer && !f.player">: <PlayerLink :id="f.fromPlayer.id" :name="f.fromPlayer.name" /></template
               ><template v-else-if="playerName(f)">: {{ playerName(f) }}</template>
         </span>
       </div>
       <div class="small">
-        {{ f.from.name }} <span class="mono muted">{{ f.from.type === 'moon' ? '☾ ' : '' }}{{ coords(f.from) }}</span>
+        {{ f.from.name }} <span class="mono muted"><Icon v-if="f.from.type === 'moon'" name="moon" :size="12" :label="t('common.moon')" /> {{ coords(f.from) }}</span>
         <template v-if="f.to">
-          → {{ f.to.name }} <span class="mono muted">{{ f.to.type === 'moon' ? '☾ ' : '' }}{{ coords(f.to) }}</span>
+          <Icon name="arrowRight" :size="12" class="faint" /> {{ f.to.name }} <span class="mono muted"><Icon v-if="f.to.type === 'moon'" name="moon" :size="12" :label="t('common.moon')" /> {{ coords(f.to) }}</span>
         </template>
       </div>
       <div v-if="shipCount(f) || cargo(f).length" class="small muted fl-ships">
         <span v-for="s in ships(f)" :key="s.id" :title="s.title">{{ s.label }}</span>
-        <span v-if="cargo(f).length">📦 {{ cargo(f).join(' · ') }}</span>
+        <span v-if="cargo(f).length"><Icon name="cargo" :size="13" :label="t('imperium.cargo')" /> {{ cargo(f).join(' · ') }}</span>
       </div>
       <div v-for="(part, j) in open.has(r.key) ? r.parts : []" :key="j" class="small fl-part">
         <span>{{ part.missionName }}</span> <span class="muted">{{ ships(part).map((s) => s.label).join(' · ') }}</span>
@@ -216,18 +217,18 @@ function clock(epoch: number) {
           <td v-if="fleets.some((x) => x.member)"><b class="fl-member">{{ f.member }}</b></td>
           <td>
             <span class="fl-mission">{{ mission(r) }}</span>
-            <button v-if="r.parts.length > 1" class="fl-toggle" :aria-expanded="open.has(r.key)" @click="toggle(r.key)">{{ open.has(r.key) ? '▾' : '▸' }}</button>
-            <span v-if="f.phase !== 'out'" class="fl-phase">{{ t(`imperium.phase.${f.phase}`) }}</span>
+            <button v-if="r.parts.length > 1" class="fl-toggle icon-btn small" :aria-expanded="open.has(r.key)" :aria-label="open.has(r.key) ? t('common.collapse') : t('common.expand')" @click="toggle(r.key)"><Icon :name="open.has(r.key) ? 'chevronDown' : 'chevronRight'" :size="14" /></button>
+            <span v-if="f.phase !== 'out'" class="fl-phase"><Icon :name="f.phase === 'return' ? 'return' : 'pause'" :size="12" /> {{ t(`imperium.phase.${f.phase}`) }}</span>
             <div v-if="f.owner !== 'own'" class="small" :class="f.owner === 'hostile' ? 'neg' : 'muted'">
               {{ t(`imperium.${f.owner}`) }}<template v-if="f.fromPlayer && !f.player">: <PlayerLink :id="f.fromPlayer.id" :name="f.fromPlayer.name" /></template
               ><template v-else-if="playerName(f)">: {{ playerName(f) }}</template>
             </div>
           </td>
           <td>
-            {{ f.from.name }} <span class="mono small muted">{{ f.from.type === 'moon' ? '☾ ' : '' }}{{ coords(f.from) }}</span>
+            {{ f.from.name }} <span class="mono small muted"><Icon v-if="f.from.type === 'moon'" name="moon" :size="12" :label="t('common.moon')" /> {{ coords(f.from) }}</span>
           </td>
           <td>
-            <template v-if="f.to">{{ f.to.name }} <span class="mono small muted">{{ f.to.type === 'moon' ? '☾ ' : '' }}{{ coords(f.to) }}</span></template>
+            <template v-if="f.to">{{ f.to.name }} <span class="mono small muted"><Icon v-if="f.to.type === 'moon'" name="moon" :size="12" :label="t('common.moon')" /> {{ coords(f.to) }}</span></template>
           </td>
           <td class="small fl-ships" :title="ships(f).map((s) => s.title).join('\n')">
             <span v-for="s in ships(f)" :key="s.id">{{ s.label }}</span>
@@ -235,11 +236,11 @@ function clock(epoch: number) {
           <td class="small muted">{{ cargo(f).join(' · ') }}</td>
           <td v-if="bells" class="fl-bell-wrap">
             <template v-if="f.owner === 'own'">
-              <button class="small fl-bell" :class="{ active: alertOf(f) }" :disabled="busy === r.parts[0]" :title="bellTitle(f)" @click="menu = menu === r.key ? null : r.key">
-                {{ alertOf(f) ? '🔔' : '🔕' }}<span v-if="alertOf(f)?.lead" class="fl-lead">{{ alertOf(f)!.lead }}′</span>
+              <button class="small fl-bell" :class="{ active: alertOf(f) }" :disabled="busy === r.parts[0]" :title="bellTitle(f)" :aria-label="bellTitle(f)" @click="menu = menu === r.key ? null : r.key">
+                <Icon :name="alertOf(f) ? 'bell' : 'bellOff'" :size="14" /><span v-if="alertOf(f)?.lead" class="fl-lead">{{ alertOf(f)!.lead }}′</span>
               </button>
               <span v-if="menu === r.key" class="fl-backdrop" @click="menu = null" />
-          <span v-if="menu === r.key" class="fl-menu card">
+              <span v-if="menu === r.key" class="fl-menu card">
                 <button v-for="m in FLEET_LEADS" :key="m" class="small" :class="{ active: alertOf(f)?.lead === m }" @click="pick(r.parts[0], m)">
                   {{ m ? t('imperium.alertBefore', { n: m }) : t('imperium.alertAtArrival') }}
                 </button>
@@ -279,11 +280,11 @@ td.fl-ships span { display: inline-block; margin-right: 8px; }
 .fl-card { display: flex; flex-direction: column; gap: 3px; padding: 6px 8px; border-left: 3px solid var(--mc); background: var(--surface-2); border-radius: 4px; }
 .fl-card.hostile { background: color-mix(in srgb, var(--neg) 12%, var(--surface-2)); }
 .fl-head { display: flex; align-items: baseline; gap: 8px; }
-.fl-toggle { margin-left: 6px; padding: 0 6px; font-size: 11px; line-height: 1.4; }
+.fl-toggle { margin-left: 6px; vertical-align: middle; }
 .fl-part td { padding-top: 0; }
 div.fl-part { padding-left: 10px; border-left: 2px solid var(--mc); }
 .fl-bell-wrap { position: relative; white-space: nowrap; }
-.fl-bell { padding: 2px 6px; }
+.fl-bell { display: inline-flex; align-items: center; gap: 2px; padding: 2px 6px; }
 .fl-bell.active { border-color: var(--accent); background: var(--accent-soft); }
 .fl-lead { margin-left: 2px; font-size: 10px; }
 .fl-menu {

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Icon from './Icon.vue';
 import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { selectedGroup, uniApi } from '../api';
@@ -93,7 +94,7 @@ const label = (k: string) => (k === 'galaxy_systems' ? t('universeJson.systems')
     <p v-for="(c, k) in result.counts" :key="k">
       {{ label(k) }}: <b>{{ fmt(c.new) }}</b> {{ t('universeJson.updated') }}<template v-if="c.duplicate">, {{ t('universeJson.skipped', { n: fmt(c.duplicate) }) }}</template>
     </p>
-    <p v-for="w in result.warnings" :key="w" class="warn">⚠ {{ te(`paste.warnings.${w}`) ? t(`paste.warnings.${w}`) : w }}</p>
+    <p v-for="w in result.warnings" :key="w" class="warn"><Icon name="warning" :size="14" /> {{ te(`paste.warnings.${w}`) ? t(`paste.warnings.${w}`) : w }}</p>
   </div>
 </template>
 

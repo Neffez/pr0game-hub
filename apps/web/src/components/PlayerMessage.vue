@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Icon from './Icon.vue';
 import { useI18n } from 'vue-i18n';
 import { dateTime } from '../format';
 import type { MessageParty, PlayerMessage } from '../messages';
@@ -22,7 +23,7 @@ const sharedByOthers = () => props.m.shared && !props.m.own_shared;
         </a>
         <ProfileLink v-if="m.from.player" :id="m.from.player" :name="m.from.name" />
         <template v-if="!chat || m.recipients.length > 1">
-          <span class="arrow" aria-hidden="true">→</span>
+          <Icon name="arrowRight" :size="12" class="arrow" />
           <template v-for="(r, i) in m.recipients" :key="r.name">
             <span v-if="i" class="faint">,</span>
             <a href="#" class="party" :class="r.ally ? 'ally' : 'other'" @click.prevent="emit('partner', r)">

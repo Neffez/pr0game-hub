@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Icon from '../components/Icon.vue';
 import {
   buildingsOf, capacityOf, RESEARCH_GROUPS, RESEARCH_LAB, RESEARCH_NETWORK, researchOf, resourceAt, type Arrival, type BuildingGroup, type BuildingInfo,
   type BuildPlanet,
@@ -174,7 +175,7 @@ function countdown(sec: number) {
 }
 const clock = (epoch: number) =>
   new Date(epoch * 1000).toLocaleString(locale.value, { weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
-const planetLabel = (p: Planet) => `${p.type === 'moon' ? '☾ ' : ''}${p.name ? p.name + ' ' : ''}[${p.coords.g}:${p.coords.s}:${p.coords.p}]`;
+const planetLabel = (p: Planet) => `${p.name ? p.name + ' ' : ''}[${p.coords.g}:${p.coords.s}:${p.coords.p}]${p.type === 'moon' ? ` (${t('common.moon')})` : ''}`;
 
 // ---------------------------------------------------------------- alerts
 const alertOf = (b: BuildingInfo) => {
@@ -278,7 +279,7 @@ const costClass = (b: BuildingInfo, res: number) => (b.missing[res] ? 'neg' : 'p
         <div v-if="upcomingArrivals(current, n).length" class="small" style="margin-top: 6px">
           <span class="muted">{{ t('buildings.arrivals') }}:</span>
           <span v-for="(a, i) in upcomingArrivals(current, n)" :key="i" class="bld-arrival">
-            {{ clock(a.at) }} · {{ a.missionName || t(`game.missions.${a.mission}`) }}{{ a.back ? ' ↩' : '' }}:
+            {{ clock(a.at) }} · {{ a.missionName || t(`game.missions.${a.mission}`) }}<Icon v-if="a.back" name="return" :size="12" :label="t('imperium.phase.return')" />:
             <template v-for="id in RESOURCES" :key="id"><span v-if="a.resources[id]"> +{{ short(a.resources[id]) }} {{ name(id) }}</span></template>
           </span>
         </div>
@@ -320,7 +321,7 @@ const costClass = (b: BuildingInfo, res: number) => (b.missing[res] ? 'neg' : 'p
               </div>
             </td>
             <td class="num">
-              {{ b.level }} <span class="faint">→ {{ b.next }}</span>
+              {{ b.level }} <span class="faint"><Icon name="arrowRight" :size="11" /> {{ b.next }}</span>
               <div v-if="b.useful && b.next > b.useful" class="small faint" :title="t('buildings.uselessTitle', { level: b.useful })">{{ t('buildings.useless') }}</div>
             </td>
             <td v-for="id in RESOURCES" :key="id" class="num">
@@ -347,10 +348,11 @@ const costClass = (b: BuildingInfo, res: number) => (b.missing[res] ? 'neg' : 'p
                 :class="{ active: alertOf(b) }"
                 :disabled="busy === b.id"
                 :title="alertOf(b) ? t('buildings.alertOff') : t('buildings.alertOn', { level: b.next })"
+                :aria-label="alertOf(b) ? t('buildings.alertOff') : t('buildings.alertOn', { level: b.next })"
                 @click="toggleAlert(b)"
-              >{{ alertOf(b) ? '🔔' : '🔕' }}</button>
-              <button class="small bld-bell" :title="isHidden(b) ? t('buildings.unhide') : t('buildings.hide')" @click="toggleHidden(b)">
-                {{ isHidden(b) ? '👁' : '✕' }}
+              ><Icon :name="alertOf(b) ? 'bell' : 'bellOff'" :size="14" /></button>
+              <button class="small bld-bell" :title="isHidden(b) ? t('buildings.unhide') : t('buildings.hide')" :aria-label="isHidden(b) ? t('buildings.unhide') : t('buildings.hide')" @click="toggleHidden(b)">
+                <Icon :name="isHidden(b) ? 'spy' : 'eyeOff'" :size="14" />
               </button>
             </td>
           </tr>
@@ -363,7 +365,7 @@ const costClass = (b: BuildingInfo, res: number) => (b.missing[res] ? 'neg' : 'p
       <div v-for="b in shownList" :key="b.id" class="card bld-card" :class="{ faded: b.state === 'requirements' || b.state === 'max', 'bld-hidden': isHidden(b) }">
         <div class="row">
           <b>{{ name(b.id) }}</b>
-          <span class="muted small">{{ b.level }} → {{ b.next }}</span>
+          <span class="muted small">{{ b.level }} <Icon name="arrowRight" :size="11" /> {{ b.next }}</span>
           <span v-if="b.useful && b.next > b.useful" class="small faint" :title="t('buildings.uselessTitle', { level: b.useful })">{{ t('buildings.useless') }}</span>
           <span class="grow" />
           <button
@@ -372,10 +374,11 @@ const costClass = (b: BuildingInfo, res: number) => (b.missing[res] ? 'neg' : 'p
             :class="{ active: alertOf(b) }"
             :disabled="busy === b.id"
             :title="alertOf(b) ? t('buildings.alertOff') : t('buildings.alertOn', { level: b.next })"
+            :aria-label="alertOf(b) ? t('buildings.alertOff') : t('buildings.alertOn', { level: b.next })"
             @click="toggleAlert(b)"
-          >{{ alertOf(b) ? '🔔' : '🔕' }}</button>
-          <button class="small bld-bell" :title="isHidden(b) ? t('buildings.unhide') : t('buildings.hide')" @click="toggleHidden(b)">
-            {{ isHidden(b) ? '👁' : '✕' }}
+          ><Icon :name="alertOf(b) ? 'bell' : 'bellOff'" :size="14" /></button>
+          <button class="small bld-bell" :title="isHidden(b) ? t('buildings.unhide') : t('buildings.hide')" :aria-label="isHidden(b) ? t('buildings.unhide') : t('buildings.hide')" @click="toggleHidden(b)">
+            <Icon :name="isHidden(b) ? 'spy' : 'eyeOff'" :size="14" />
           </button>
         </div>
         <div v-if="b.state === 'requirements'" class="small bld-reqs">
@@ -397,7 +400,7 @@ const costClass = (b: BuildingInfo, res: number) => (b.missing[res] ? 'neg' : 'p
           <span v-else :class="b.state === 'buildable' ? 'pos' : 'warn'">{{ stateText(b.state) }}</span>
           <span v-if="b.busy" class="warn">{{ busyText(b) }}</span>
           <span class="grow" />
-          <span v-if="b.time != null" class="muted">⏱ <span class="mono">{{ countdown(b.time) }}</span></span>
+          <span v-if="b.time != null" class="muted"><Icon name="timer" :size="13" :label="t('common.time')" /> <span class="mono">{{ countdown(b.time) }}</span></span>
         </div>
       </div>
     </template>
@@ -416,6 +419,7 @@ const costClass = (b: BuildingInfo, res: number) => (b.missing[res] ? 'neg' : 'p
 .bld-filters .tabs { margin-bottom: 0; }
 .bld-search { width: 180px; }
 .bld-hidden { opacity: 0.45; }
+.bld-bell { display: inline-flex; align-items: center; justify-content: center; min-width: 30px; }
 .bld-bell + .bld-bell { margin-left: 4px; }
 .bld-bell.active { border-color: var(--accent); background: var(--accent-soft); }
 .faded { opacity: 0.6; }

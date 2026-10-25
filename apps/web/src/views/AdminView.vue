@@ -1,4 +1,8 @@
 <script setup lang="ts">
+import Icon from '../components/Icon.vue';
+import SortBar from '../components/SortBar.vue';
+import SortMark from '../components/SortMark.vue';
+import BackLink from '../components/BackLink.vue';
 import { useMobile, useSort, vStack } from '../composables';
 import CopyField from '../components/CopyField.vue';
 import Hint from '../components/Hint.vue';
@@ -257,7 +261,7 @@ const doMerge = () => run(async () => {
 
 <template>
   <div class="admin" :class="{ main: !uni }" style="max-width: 1100px" :style="{ margin: uni ? undefined : '0 auto' }">
-    <p v-if="!uni"><RouterLink to="/">{{ t('common.back') }}</RouterLink></p>
+    <BackLink v-if="!uni" to="/" :label="t('common.back')" />
     <h1>{{ t('admin.title') }}</h1>
     <div v-if="error" class="error">{{ error }}</div>
     <div v-if="msg" class="ok">{{ msg }}</div>
@@ -430,11 +434,11 @@ const doMerge = () => run(async () => {
         <table v-stack class="data">
           <thead>
             <tr>
-              <th class="sortable" @click="memberSort.sortBy('user')">{{ t('nav.user') }}{{ memberSort.indicator('user') }}</th>
-              <th class="sortable" @click="memberSort.sortBy('role')">{{ t('admin.role') }}{{ memberSort.indicator('role') }}</th>
-              <th class="sortable" @click="memberSort.sortBy('ingame')">{{ t('admin.ingameName') }}{{ memberSort.indicator('ingame') }}</th>
-              <th class="sortable" @click="memberSort.sortBy('joined')">{{ t('admin.joined') }}{{ memberSort.indicator('joined') }}</th>
-              <th class="sortable" @click="memberSort.sortBy('login')">{{ t('admin.login') }}{{ memberSort.indicator('login') }}</th>
+              <th class="sortable" @click="memberSort.sortBy('user')">{{ t('nav.user') }}<SortMark :dir="memberSort.direction('user')" /></th>
+              <th class="sortable" @click="memberSort.sortBy('role')">{{ t('admin.role') }}<SortMark :dir="memberSort.direction('role')" /></th>
+              <th class="sortable" @click="memberSort.sortBy('ingame')">{{ t('admin.ingameName') }}<SortMark :dir="memberSort.direction('ingame')" /></th>
+              <th class="sortable" @click="memberSort.sortBy('joined')">{{ t('admin.joined') }}<SortMark :dir="memberSort.direction('joined')" /></th>
+              <th class="sortable" @click="memberSort.sortBy('login')">{{ t('admin.login') }}<SortMark :dir="memberSort.direction('login')" /></th>
               <th class="invite-col">{{ t('admin.memberInvite') }}</th>
               <th />
             </tr>
@@ -515,20 +519,18 @@ const doMerge = () => run(async () => {
       </div>
 
       <h2>{{ t('admin.ingests') }} <Hint>{{ t('admin.ingestsHint') }}</Hint></h2>
-      <div v-if="mobile" class="row small sortbar" style="margin-bottom: 8px">
-        <label>
-          {{ t('overview.sort') }}
-          <select :value="ingestSort.key.value" @change="ingestSort.sortBy(($event.target as HTMLSelectElement).value)">
-            <option v-for="k in ingestSorts" :key="k" :value="k">{{ ingestLabel(k) }}</option>
-          </select>
-        </label>
-        <button :title="t('overview.sortDir')" @click="ingestSort.descending.value = !ingestSort.descending.value">{{ ingestSort.descending.value ? '▾' : '▴' }}</button>
-      </div>
+      <SortBar
+        v-if="mobile"
+        v-model:desc="ingestSort.descending.value"
+        :sort-key="ingestSort.key.value"
+        :options="ingestSorts.map((k) => ({ key: k, label: ingestLabel(k) }))"
+        @sort="ingestSort.sortBy"
+      />
       <div class="table-wrap">
         <table v-stack="2" class="data ingests">
           <thead>
             <tr>
-              <th v-for="k in ingestSorts" :key="k" class="sortable" @click="ingestSort.sortBy(k)">{{ ingestLabel(k) }}{{ ingestSort.indicator(k) }}</th>
+              <th v-for="k in ingestSorts" :key="k" class="sortable" @click="ingestSort.sortBy(k)">{{ ingestLabel(k) }}<SortMark :dir="ingestSort.direction(k)" /></th>
               <th>{{ t('admin.result') }}</th>
               <th />
             </tr>
@@ -543,12 +545,12 @@ const doMerge = () => run(async () => {
                 </td>
                 <td class="small muted content">
                   <div v-for="(c, k) in i.summary?.counts" :key="k">{{ k }}: {{ t('admin.counts', { new: c.new, duplicate: c.duplicate }) }}</div>
-                  <div v-for="w in i.summary?.warnings" :key="w" class="warn">⚠ {{ w }}</div>
+                  <div v-for="w in i.summary?.warnings" :key="w" class="warn"><Icon name="warning" :size="13" /> {{ w }}</div>
                 </td>
                 <td>
                   <div v-if="i.html_size || i.text_size" class="actions">
                     <button @click="reparse(i.id)">Reparse</button>
-                    <button style="color: var(--neg)" @click="previewUndo(i.id)">{{ t('admin.undo') }}</button>
+                    <button class="danger" @click="previewUndo(i.id)">{{ t('admin.undo') }}</button>
                   </div>
                 </td>
               </tr>

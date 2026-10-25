@@ -1,4 +1,7 @@
 <script setup lang="ts">
+import Icon from '../components/Icon.vue';
+import SortBar from '../components/SortBar.vue';
+import SortMark from '../components/SortMark.vue';
 import { classOf, elementPoints } from '@pr0hub/core/tech';
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -142,7 +145,7 @@ const ids = computed(() => {
   return [...set].sort((a, b) => a - b);
 });
 
-const { sorted, sortBy, indicator, key: sortKey, descending } = useSort(
+const { sorted, sortBy, direction, key: sortKey, descending } = useSort(
   rows,
   (r, key) => {
     if (key === 'name') return r.label.toLowerCase();
@@ -233,20 +236,12 @@ const total = computed(() => {
 
   <!-- mobile: one card per planet/member with the levels as a grid -->
   <template v-else-if="mobile">
-    <div class="row small" style="margin-bottom: 8px">
-      <label>
-        {{ t('overview.sort') }}
-        <select :value="sortKey" style="max-width: 55vw" @change="sortBy(($event.target as HTMLSelectElement).value)">
-          <option v-for="o in sortOptions" :key="o.key" :value="o.key">{{ o.label }}</option>
-        </select>
-      </label>
-      <button :title="t('overview.sortDir')" @click="descending = !descending">{{ descending ? '▾' : '▴' }}</button>
-    </div>
+    <SortBar v-model:desc="descending" :sort-key="sortKey" :options="sortOptions" @sort="sortBy" />
     <div v-for="r in [...sorted, ...(total ? [{ key: 'total', label: t('common.total'), ...total }] : [])]" :key="r.key" class="card al-card" :class="{ moon: 'type' in r && r.type === 'moon' }">
       <div class="al-head">
         <template v-if="'coords' in r && r.coords">
           <span class="mono small">{{ r.coords.g }}:{{ r.coords.s }}:{{ r.coords.p }}</span>
-          <span v-if="r.type === 'moon'" class="moon-tag" style="margin: 0">☾ {{ t('common.moon') }}</span>
+          <span v-if="r.type === 'moon'" class="moon-tag" style="margin: 0"><Icon name="moon" :size="11" /> {{ t('common.moon') }}</span>
         </template>
         <b class="al-name">{{ r.label }}</b>
         <span v-if="'spy' in r && r.spy" class="spy-tag" :title="t('alliance.spyTitle', { time: dateTime(r.spy) })">{{ t('alliance.spy') }}</span>
@@ -268,13 +263,13 @@ const total = computed(() => {
       <thead>
         <tr>
           <template v-if="page === 'planets'">
-            <th class="sortable" @click="sortBy('coords')">{{ t('common.coords') }}{{ indicator('coords') }}</th>
-            <th class="sortable" @click="sortBy('name')">{{ t('common.planet') }}{{ indicator('name') }}</th>
-            <th class="sortable" @click="sortBy('member')">{{ t('common.player') }}{{ indicator('member') }}</th>
+            <th class="sortable" @click="sortBy('coords')">{{ t('common.coords') }}<SortMark :dir="direction('coords')" /></th>
+            <th class="sortable" @click="sortBy('name')">{{ t('common.planet') }}<SortMark :dir="direction('name')" /></th>
+            <th class="sortable" @click="sortBy('member')">{{ t('common.player') }}<SortMark :dir="direction('member')" /></th>
           </template>
-          <th v-else class="sortable" @click="sortBy('name')">{{ t('common.player') }}{{ indicator('name') }}</th>
-          <th class="sortable num" @click="sortBy('points')">{{ t('expeditions.points') }}{{ indicator('points') }}</th>
-          <th v-for="id in ids" :key="id" class="sortable num" :title="name(id)" @click="sortBy(String(id))">{{ abbr(id) }}{{ indicator(String(id)) }}</th>
+          <th v-else class="sortable" @click="sortBy('name')">{{ t('common.player') }}<SortMark :dir="direction('name')" /></th>
+          <th class="sortable num" @click="sortBy('points')">{{ t('expeditions.points') }}<SortMark :dir="direction('points')" /></th>
+          <th v-for="id in ids" :key="id" class="sortable num" :title="name(id)" @click="sortBy(String(id))">{{ abbr(id) }}<SortMark :dir="direction(String(id))" /></th>
         </tr>
       </thead>
       <tbody>
@@ -282,7 +277,7 @@ const total = computed(() => {
           <template v-if="page === 'planets'">
             <td class="mono small">{{ r.coords!.g }}:{{ r.coords!.s }}:{{ r.coords!.p }}</td>
             <td>
-              <span v-if="r.type === 'moon'" class="moon-tag" :title="t('common.moon')">☾ {{ t('common.moon') }}</span>
+              <span v-if="r.type === 'moon'" class="moon-tag"><Icon name="moon" :size="11" /> {{ t('common.moon') }}</span>
               {{ r.label }}
               <span v-if="r.spy" class="spy-tag" :title="t('alliance.spyTitle', { time: dateTime(r.spy) })">{{ t('alliance.spy') }}</span>
             </td>

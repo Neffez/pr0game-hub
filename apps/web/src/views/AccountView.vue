@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import BackLink from '../components/BackLink.vue';
 import { onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
@@ -223,7 +224,7 @@ const saveDateFormat = () =>
 
 <template>
   <div class="account" :class="{ standalone: !inUni }">
-    <p v-if="!inUni"><RouterLink to="/">{{ t('common.back') }}</RouterLink></p>
+    <BackLink v-if="!inUni" to="/" :label="t('common.back')" />
     <h1>{{ t('account.title', { name: session.me?.user?.username }) }}</h1>
     <div v-if="msg" class="ok status">{{ msg }}</div>
     <div v-if="error" class="error status">{{ error }}</div>

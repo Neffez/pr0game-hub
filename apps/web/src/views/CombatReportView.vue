@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import BackLink from '../components/BackLink.vue';
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
@@ -58,7 +59,7 @@ const inGame = computed(() => /^[0-9a-f]{32}$/i.test(report.value?.report_id ?? 
 </script>
 
 <template>
-  <p><RouterLink :to="`/${uni}/battle-hall`">← {{ t('nav.battleHall') }}</RouterLink></p>
+  <BackLink :to="`/${uni}/battle-hall`" :label="t('nav.battleHall')" />
   <div v-if="error" class="error">{{ error }}</div>
   <template v-if="report">
     <h1>

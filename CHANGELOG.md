@@ -4,6 +4,14 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-25
 
+- UI building blocks and icons: all emoji and Unicode pictographs in the web app (bells, moons, swords, arrows,
+  warnings, close buttons …) are replaced by SVG line icons from one icon set (`Icon.vue`, formerly `NavIcon.vue`,
+  with `size` and an accessible `label`). New shared components: `Section` (collapsible section that remembers its
+  state per device), `Sheet` (dialog on desktop, bottom sheet on mobile), `ActionMenu` (overflow menu with keyboard
+  support), `FilterBar`, `SortBar`, `SortMark`, `MemberSelect` and `BackLink`. Global styles for danger buttons,
+  icon buttons, segmented controls, chips, form fields, focus rings and a more compact mobile layout; `useSort`
+  returns `direction()` instead of the text `indicator()`. The galaxy page's phalanx list and the activity log use
+  them already; mobile sort bars in the alliance, admin and messages pages too.
 - Battle simulations give recognised member fleets their weapons, shields and armour where the hub knows none of the
   member's research (no empire page or spy report showing it): kept in the plan's simulation per member (research is
   the player's, so one recognised fleet covers all of theirs) and returned per fleet as `sim_research`, used by the simulator links; known research still wins.

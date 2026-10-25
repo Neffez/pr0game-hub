@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Icon from './Icon.vue';
 import { computed, onBeforeUnmount, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { usePlayerDialog, useScrollLock, useUni } from '../composables';
@@ -23,8 +24,8 @@ useScrollLock(computed(() => id.value != null));
     <div v-if="id != null" class="modal-backdrop" @click.self="close">
       <div class="modal" role="dialog" aria-modal="true">
         <div class="modal-tools">
-          <RouterLink :to="`/${uni}/player/${id}`" class="small" :title="t('playerDialog.openPageTitle')">{{ t('playerDialog.openPage') }} ↗</RouterLink>
-          <button class="modal-close" :title="t('playerDialog.close')" @click="close">✕</button>
+          <RouterLink :to="`/${uni}/player/${id}`" class="small" :title="t('playerDialog.openPageTitle')">{{ t('playerDialog.openPage') }} <Icon name="external" :size="12" /></RouterLink>
+          <button class="icon-btn" :title="t('playerDialog.close')" :aria-label="t('playerDialog.close')" @click="close"><Icon name="close" /></button>
         </div>
         <PlayerDetail :id="id" />
       </div>

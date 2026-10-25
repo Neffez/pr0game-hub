@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Icon from './Icon.vue';
 import { onBeforeUnmount, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useUni } from '../composables';
@@ -71,7 +72,7 @@ function describeComment(e: DataEvent): Toast | null {
   const [g, s, p] = (c.coords ?? '').split(':');
   return {
     id: ++nextId,
-    text: t('live.commentPlanet', { name, coords: `${c.coords}${c.moon ? ' ☾' : ''}` }),
+    text: t('live.commentPlanet', { name, coords: `${c.coords}${c.moon ? ` (${t('common.moon')})` : ''}` }),
     to: { path: `/${uni.value}/spy`, query: { c: `${g}:${s}:${p}`, type: c.moon ? 'moon' : 'planet' } },
   };
 }
@@ -100,7 +101,7 @@ onBeforeUnmount(() => timers.forEach(clearTimeout));
     <div v-for="toast in toasts" :key="toast.id" class="live-toast">
       <RouterLink v-if="toast.to" :to="toast.to" @click="dismiss(toast.id)">{{ toast.text }}</RouterLink>
       <span v-else>{{ toast.text }}</span>
-      <button class="close" :title="t('live.close')" :aria-label="t('live.close')" @click="dismiss(toast.id)">✕</button>
+      <button class="close" :title="t('live.close')" :aria-label="t('live.close')" @click="dismiss(toast.id)"><Icon name="close" :size="14" /></button>
     </div>
   </div>
 </template>

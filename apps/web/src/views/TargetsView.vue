@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Icon from '../components/Icon.vue';
 import Hint from '../components/Hint.vue';
 import PlanetActions from '../components/PlanetActions.vue';
 import PlayerLink from '../components/PlayerLink.vue';
@@ -42,7 +43,7 @@ const browseLink = (c: { g: number; s: number }) => ({ path: `/${uni.value}/brow
         <tr v-for="c in rows" :key="c.id">
           <td>
             <RouterLink class="mono" :to="browseLink(c)">{{ coords(c.g, c.s, c.p) }}</RouterLink>
-            {{ c.planet_type === 'moon' ? '☾' : '' }} <span class="muted">{{ c.planet_name ?? '' }}</span>
+            <Icon v-if="c.planet_type === 'moon'" name="moon" :size="12" :label="t('common.moon')" /> <span class="muted">{{ c.planet_name ?? '' }}</span>
           </td>
           <td><PlayerLink v-if="c.player_id" :id="c.player_id" :name="c.player_name ?? '?'" /></td>
           <td>{{ t(`claims.kinds.${c.kind}`) }}</td>

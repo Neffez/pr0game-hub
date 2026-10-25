@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SortMark from '../components/SortMark.vue';
 import { RESOURCES } from '@pr0hub/core/tech';
 import PlayerLink from '../components/PlayerLink.vue';
 import Hint from '../components/Hint.vue';
@@ -609,25 +610,25 @@ const history = computed(() => {
       <thead>
         <tr>
           <th class="num">#</th>
-          <th class="sortable" @click="planetSort.sortBy('ally')">{{ t('overview.ally') }}{{ planetSort.indicator('ally') }}</th>
-          <th class="sortable" @click="planetSort.sortBy('name')">{{ t('common.player') }}{{ planetSort.indicator('name') }}</th>
-          <th class="sortable" @click="planetSort.sortBy('coords')">{{ t('common.coords') }}{{ planetSort.indicator('coords') }}</th>
+          <th class="sortable" @click="planetSort.sortBy('ally')">{{ t('overview.ally') }}<SortMark :dir="planetSort.direction('ally')" /></th>
+          <th class="sortable" @click="planetSort.sortBy('name')">{{ t('common.player') }}<SortMark :dir="planetSort.direction('name')" /></th>
+          <th class="sortable" @click="planetSort.sortBy('coords')">{{ t('common.coords') }}<SortMark :dir="planetSort.direction('coords')" /></th>
           <th />
-          <th v-if="origin" class="sortable num" @click="planetSort.sortBy('dist')">{{ t('overview.dist') }}{{ planetSort.indicator('dist') }}</th>
-          <th class="sortable num" :title="STATS_TYPES[1]" @click="planetSort.sortBy('p:1')">{{ t('expeditions.points') }}{{ planetSort.indicator('p:1') }}</th>
+          <th v-if="origin" class="sortable num" @click="planetSort.sortBy('dist')">{{ t('overview.dist') }}<SortMark :dir="planetSort.direction('dist')" /></th>
+          <th class="sortable num" :title="STATS_TYPES[1]" @click="planetSort.sortBy('p:1')">{{ t('expeditions.points') }}<SortMark :dir="planetSort.direction('p:1')" /></th>
           <th v-for="w in PLANET_WINDOWS" :key="w" class="sortable num" :title="slotHeader(w)" @click="planetSort.sortBy('d:' + w)">
-            Δ{{ w }}{{ planetSort.indicator('d:' + w) }}
+            Δ{{ w }}<SortMark :dir="planetSort.direction('d:' + w)" />
           </th>
-          <th class="sortable num" :title="t('overview.buildingTitle')" @click="planetSort.sortBy('building')">{{ t('stats.col.4') }}{{ planetSort.indicator('building') }}</th>
-          <th class="sortable num" :title="t('overview.researchTitle')" @click="planetSort.sortBy('p:3')">{{ t('stats.col.3') }}{{ planetSort.indicator('p:3') }}</th>
-          <th class="sortable num" :title="t('overview.fleetTitle')" @click="planetSort.sortBy('fleet')">{{ t('stats.col.2') }}{{ planetSort.indicator('fleet') }}</th>
-          <th class="sortable num" :title="t('overview.defenseTitle')" @click="planetSort.sortBy('defense')">{{ t('stats.col.5') }}{{ planetSort.indicator('defense') }}</th>
-          <th class="sortable" :title="t('overview.battleTitle')" @click="planetSort.sortBy('battle')">{{ t('overview.battle') }}{{ planetSort.indicator('battle') }}</th>
-          <th class="sortable" :title="t('overview.spyTitle')" @click="planetSort.sortBy('spy')">{{ t('player.sourceSpyShort') }}{{ planetSort.indicator('spy') }}</th>
-          <th class="sortable num" :title="t('overview.resTitle', { res: name(901) })" @click="planetSort.sortBy('res:901')">{{ t('overview.resShort.901') }}{{ planetSort.indicator('res:901') }}</th>
-          <th class="sortable num" :title="t('overview.resTitle', { res: name(902) })" @click="planetSort.sortBy('res:902')">{{ t('overview.resShort.902') }}{{ planetSort.indicator('res:902') }}</th>
-          <th class="sortable num" :title="t('overview.resTitle', { res: name(903) })" @click="planetSort.sortBy('res:903')">{{ t('overview.resShort.903') }}{{ planetSort.indicator('res:903') }}</th>
-          <th class="sortable num" :title="t('overview.resSum')" @click="planetSort.sortBy('res')">Σ{{ planetSort.indicator('res') }}</th>
+          <th class="sortable num" :title="t('overview.buildingTitle')" @click="planetSort.sortBy('building')">{{ t('stats.col.4') }}<SortMark :dir="planetSort.direction('building')" /></th>
+          <th class="sortable num" :title="t('overview.researchTitle')" @click="planetSort.sortBy('p:3')">{{ t('stats.col.3') }}<SortMark :dir="planetSort.direction('p:3')" /></th>
+          <th class="sortable num" :title="t('overview.fleetTitle')" @click="planetSort.sortBy('fleet')">{{ t('stats.col.2') }}<SortMark :dir="planetSort.direction('fleet')" /></th>
+          <th class="sortable num" :title="t('overview.defenseTitle')" @click="planetSort.sortBy('defense')">{{ t('stats.col.5') }}<SortMark :dir="planetSort.direction('defense')" /></th>
+          <th class="sortable" :title="t('overview.battleTitle')" @click="planetSort.sortBy('battle')">{{ t('overview.battle') }}<SortMark :dir="planetSort.direction('battle')" /></th>
+          <th class="sortable" :title="t('overview.spyTitle')" @click="planetSort.sortBy('spy')">{{ t('player.sourceSpyShort') }}<SortMark :dir="planetSort.direction('spy')" /></th>
+          <th class="sortable num" :title="t('overview.resTitle', { res: name(901) })" @click="planetSort.sortBy('res:901')">{{ t('overview.resShort.901') }}<SortMark :dir="planetSort.direction('res:901')" /></th>
+          <th class="sortable num" :title="t('overview.resTitle', { res: name(902) })" @click="planetSort.sortBy('res:902')">{{ t('overview.resShort.902') }}<SortMark :dir="planetSort.direction('res:902')" /></th>
+          <th class="sortable num" :title="t('overview.resTitle', { res: name(903) })" @click="planetSort.sortBy('res:903')">{{ t('overview.resShort.903') }}<SortMark :dir="planetSort.direction('res:903')" /></th>
+          <th class="sortable num" :title="t('overview.resSum')" @click="planetSort.sortBy('res')">Σ<SortMark :dir="planetSort.direction('res')" /></th>
         </tr>
       </thead>
       <tbody>
@@ -688,12 +689,12 @@ const history = computed(() => {
     <table class="data">
       <thead>
         <tr>
-          <th class="sortable num" @click="playerSort.sortBy('rank')">#{{ playerSort.indicator('rank') }}</th>
-          <th class="sortable" @click="playerSort.sortBy('name')">{{ t('common.player') }}{{ playerSort.indicator('name') }}</th>
-          <th class="sortable" @click="playerSort.sortBy('ally')">{{ t('common.alliance') }}{{ playerSort.indicator('ally') }}</th>
+          <th class="sortable num" @click="playerSort.sortBy('rank')">#<SortMark :dir="playerSort.direction('rank')" /></th>
+          <th class="sortable" @click="playerSort.sortBy('name')">{{ t('common.player') }}<SortMark :dir="playerSort.direction('name')" /></th>
+          <th class="sortable" @click="playerSort.sortBy('ally')">{{ t('common.alliance') }}<SortMark :dir="playerSort.direction('ally')" /></th>
           <template v-for="type in [1, 4, 3, 2, 5]" :key="type">
-            <th class="sortable num" :title="STATS_TYPES[type]" @click="playerSort.sortBy('p:' + type)">{{ STATS_SHORT[type] }}{{ playerSort.indicator('p:' + type) }}</th>
-            <th class="sortable num" :title="`Δ ${STATS_TYPES[type]} (${windowLabel(win)})`" @click="playerSort.sortBy('d:' + type)">Δ{{ playerSort.indicator('d:' + type) }}</th>
+            <th class="sortable num" :title="STATS_TYPES[type]" @click="playerSort.sortBy('p:' + type)">{{ STATS_SHORT[type] }}<SortMark :dir="playerSort.direction('p:' + type)" /></th>
+            <th class="sortable num" :title="`Δ ${STATS_TYPES[type]} (${windowLabel(win)})`" @click="playerSort.sortBy('d:' + type)">Δ<SortMark :dir="playerSort.direction('d:' + type)" /></th>
           </template>
         </tr>
       </thead>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Icon from './Icon.vue';
 import DateTimeInput from './DateTimeInput.vue';
 import Hint from './Hint.vue';
 import { onBeforeUnmount, ref, watch } from 'vue';
@@ -58,7 +59,7 @@ watch(
       );
       bodies.value = d.planets.flatMap((pl) => [
         { key: `${pl.g}:${pl.s}:${pl.p}:planet`, label: `${coords(pl.g, pl.s, pl.p)} ${pl.name ?? ''}` },
-        ...(pl.has_moon ? [{ key: `${pl.g}:${pl.s}:${pl.p}:moon`, label: `${coords(pl.g, pl.s, pl.p)} ☾ ${pl.moon_name ?? ''}` }] : []),
+        ...(pl.has_moon ? [{ key: `${pl.g}:${pl.s}:${pl.p}:moon`, label: `${coords(pl.g, pl.s, pl.p)} ${t('common.moon')} ${pl.moon_name ?? ''}` }] : []),
       ]);
     } catch {
       /* coordinates by hand */
@@ -80,7 +81,7 @@ function pickBody(e: Event) {
     <div v-if="!coordsOnly" class="field">
       <span class="lbl">{{ t('plans.player') }}</span>
       <span v-if="draft.player" class="chip">
-        {{ draft.player.name }} <button :title="t('plans.clear')" @click="draft.player = null">✕</button>
+        {{ draft.player.name }} <button type="button" class="icon-btn small" :title="t('plans.clear')" :aria-label="t('plans.clear')" @click="draft.player = null"><Icon name="close" :size="12" /></button>
       </span>
       <span v-else class="search">
         <input v-model="query" :placeholder="t('plans.playerSearch')" />

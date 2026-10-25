@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Icon from './Icon.vue';
 import { computed, onBeforeUnmount, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
@@ -121,16 +122,16 @@ onBeforeUnmount(close);
     class="claim-flag"
     :class="{ mine }"
     :title="t('claims.by', { name: claim.member, kind: t(`claims.kinds.${claim.kind}`), left: remaining(claim) }) + (claim.note ? ` – ${claim.note}` : '')"
-    >🎯 {{ mine ? t('claims.you') : claim.member }}</span
+    ><Icon name="target" :size="12" /> {{ mine ? t('claims.you') : claim.member }}</span
   >
   <RouterLink
     v-if="commentCount"
     class="comment-flag"
     :to="{ path: `/${uni}/spy`, query: { c: `${g}:${s}:${p}`, type } }"
     :title="t('comments.count', { n: commentCount }, commentCount)"
-    >💬 {{ commentCount }}</RouterLink
+    ><Icon name="comment" :size="12" /> {{ commentCount }}</RouterLink
   >
-  <button ref="button" class="actions-btn" :class="{ active: open }" :title="t('common.actions')" @click.stop="toggle">{{ label ?? t('common.actions') }} ▾</button>
+  <button ref="button" class="actions-btn" :class="{ active: open }" :title="t('common.actions')" @click.stop="toggle"><Icon v-if="label && type === 'moon'" name="moon" :size="12" />{{ label ?? t('common.actions') }} <Icon name="chevronDown" :size="12" /></button>
   <Teleport to="body">
     <div v-if="open" ref="menu" class="actions-menu" :style="menuStyle" @click.stop>
       <template v-for="it in items" :key="it.label">
@@ -142,7 +143,7 @@ onBeforeUnmount(close);
       <div class="claim-box">
         <template v-if="claim">
           <div class="small">
-            🎯 {{ t('claims.by', { name: mine ? t('claims.you') : claim.member, kind: t(`claims.kinds.${claim.kind}`), left: remaining(claim) }) }}
+            <Icon name="target" :size="12" /> {{ t('claims.by', { name: mine ? t('claims.you') : claim.member, kind: t(`claims.kinds.${claim.kind}`), left: remaining(claim) }) }}
             <div v-if="claim.note" class="hint-text">{{ claim.note }}</div>
           </div>
           <div v-if="mine || isAdmin" class="claim-row">
@@ -172,7 +173,7 @@ onBeforeUnmount(close);
 </template>
 
 <style scoped>
-.actions-btn { padding: 1px 8px; font-size: 12px; white-space: nowrap; }
+.actions-btn { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; font-size: 12px; white-space: nowrap; }
 .actions-btn.active { border-color: var(--accent); color: var(--accent); }
 .actions-menu {
   position: fixed; z-index: 50; min-width: 200px; padding: 4px;

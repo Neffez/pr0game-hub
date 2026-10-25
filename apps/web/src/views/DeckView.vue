@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Icon from '../components/Icon.vue';
 import DateTimeInput from '../components/DateTimeInput.vue';
 import Hint from '../components/Hint.vue';
 import { computed, onMounted, ref, watch } from 'vue';
@@ -169,7 +170,7 @@ const progress = computed(() => (data.value ? data.value.state.drawnInDeck / dat
             <option v-for="(label, d) in DEPLETION_LABEL" :key="d" :value="d">{{ label }}</option>
           </select>
         </label>
-        <span v-if="beforeStart" class="warn small">⚠ {{ t('deck.beforeStart') }}</span>
+        <span v-if="beforeStart" class="warn small"><Icon name="warning" :size="13" /> {{ t('deck.beforeStart') }}</span>
       </div>
       <div class="add-grid">
         <button v-for="c in deckCards" :key="c.key" @click="addEvent(c)">+ {{ cardLabel(c.key) }}</button>
@@ -180,7 +181,7 @@ const progress = computed(() => (data.value ? data.value.state.drawnInDeck / dat
           <a href="#" @click.prevent="removeEvent(lastAdded.id)">{{ t('deck.undo') }}</a>
         </template>
         <span class="grow" />
-        <RouterLink :to="`/${uni}/expeditions`">{{ t('deck.allExpeditions') }} →</RouterLink>
+        <RouterLink :to="`/${uni}/expeditions`">{{ t('deck.allExpeditions') }} <Icon name="arrowRight" :size="12" /></RouterLink>
       </div>
     </div>
 

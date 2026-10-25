@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Icon from '../components/Icon.vue';
 import PresenceBadge from '../components/PresenceBadge.vue';
 import { RESOURCES } from '@pr0hub/core/tech';
 import PlayerLink from '../components/PlayerLink.vue';
@@ -7,6 +8,7 @@ import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import { uniApi } from '../api';
 import Hint from '../components/Hint.vue';
+import Section from '../components/Section.vue';
 import PlanetActions from '../components/PlanetActions.vue';
 import StatusBadges from '../components/StatusBadges.vue';
 import { useLoader, useMobile, useStored, useUni } from '../composables';
@@ -326,7 +328,7 @@ function onStripUp() {
             <div v-if="it.row.player_id" class="pos-line">
               <PlayerLink :id="it.row.player_id" :name="it.row.player_name ?? ''" />
               <StatusBadges :status="it.row.status" />
-              <span v-if="it.row.note" class="faint small" :title="it.row.note">✎</span>
+              <Icon v-if="it.row.note" name="edit" :size="12" class="faint" :label="it.row.note" />
               <span v-if="it.row.ally_tag ?? it.row.ally_name" class="muted small">[{{ it.row.ally_tag ?? it.row.ally_name }}]</span>
               <span class="grow" />
               <span v-if="it.row.points != null" class="mono small">{{ short(it.row.points) }}<span v-if="it.row.rank" class="faint"> #{{ fmt(it.row.rank) }}</span></span>
@@ -334,13 +336,13 @@ function onStripUp() {
             <div class="pos-line">
               <PlanetActions v-if="it.row.player_id" :g="g" :s="s" :p="it.p" type="planet" :label="it.row.name || t('common.planet')" />
               <span v-else-if="it.row.destroyed" class="faint small">{{ t('browse.destroyed') }}</span>
-              <PlanetActions v-if="it.row.has_moon" :g="g" :s="s" :p="it.p" type="moon" :label="`☾ ${it.row.moon_name || t('common.moon')}`" />
+              <PlanetActions v-if="it.row.has_moon" :g="g" :s="s" :p="it.p" type="moon" :label="it.row.moon_name || t('common.moon')" />
               <span v-if="it.row.debris" class="small warn">{{ t('combat.debris') }} {{ debrisText(it.row.debris) }}</span>
               <span class="grow" />
-              <span v-if="it.row.last_battle" class="small muted" :title="dateTime(it.row.last_battle)">⚔ {{ ago(it.row.last_battle) }}</span>
+              <span v-if="it.row.last_battle" class="small muted" :title="dateTime(it.row.last_battle)"><Icon name="attack" :size="12" /> {{ ago(it.row.last_battle) }}</span>
             </div>
             <RouterLink v-for="sp in spies(it.row)" :key="sp.type" class="pos-spy small" :to="spyLink(it.p, sp.type)">
-              <span v-if="sp.type === 'moon'" class="moon-mark">☾</span>
+              <Icon v-if="sp.type === 'moon'" name="moon" :size="12" class="moon-mark" :label="t('common.moon')" />
               <span class="muted">{{ t('browse.lastSpy') }} {{ ago(sp.spy.time) }}</span>
               <span v-if="sp.spy.res" class="mono"> · {{ spyRes(sp.spy) }}</span>
             </RouterLink>
@@ -382,7 +384,7 @@ function onStripUp() {
             </td>
             <td>
               <template v-if="row?.has_moon">
-                <PlanetActions :g="g" :s="s" :p="p" type="moon" :label="`☾ ${row.moon_name || t('common.moon')}`" />
+                <PlanetActions :g="g" :s="s" :p="p" type="moon" :label="row.moon_name || t('common.moon')" />
               </template>
             </td>
             <td class="small" :class="{ warn: row?.debris }">{{ debrisText(row?.debris ?? null) }}</td>
@@ -390,14 +392,14 @@ function onStripUp() {
               <template v-if="row?.player_id">
                 <PlayerLink :id="row.player_id" :name="row.player_name ?? ''" />
                 <StatusBadges :status="row.status" />
-                <span v-if="row.note" class="faint small" :title="row.note"> ✎</span>
+                 <Icon v-if="row.note" name="edit" :size="12" class="faint" :label="row.note" />
               </template>
             </td>
             <td class="num" :title="row?.rank ? `${t('stats.rank')} ${row.rank}` : ''">{{ row?.points != null ? short(row.points) : '' }}<span v-if="row?.rank" class="faint small"> #{{ fmt(row.rank) }}</span></td>
             <td class="muted" :title="row?.ally_name ?? ''">{{ row?.ally_tag ?? row?.ally_name ?? '' }}</td>
             <td class="small">
               <RouterLink v-for="sp in spies(row)" :key="sp.type" class="spy-line mono" :to="spyLink(p, sp.type)" :title="sp.type === 'moon' ? t('common.moon') : t('common.planet')">
-                <span v-if="sp.type === 'moon'" class="moon-mark">☾</span>{{ timeWithAge(sp.spy.time) }}
+                <Icon v-if="sp.type === 'moon'" name="moon" :size="12" class="moon-mark" :label="t('common.moon')" />{{ timeWithAge(sp.spy.time) }}
               </RouterLink>
             </td>
             <td v-for="id in RESOURCES" :key="id" class="num">
@@ -412,17 +414,13 @@ function onStripUp() {
     </div>
   </div>
 
-  <component :is="mobile ? 'details' : 'div'" v-if="system" class="card phalanx">
-    <component :is="mobile ? 'summary' : 'div'">
-    <h3>
-      {{ t('browse.phalanxTitle', { g, s }) }}
+  <Section v-if="system" class="phalanx" :title="t('browse.phalanxTitle', { g, s })" :count="system.phalanx.length" store-key="browse.phalanx" :default-open-mobile="false">
+    <template #hint>
       <Hint>
         <p>{{ t('browse.phalanxHint1') }}</p>
         <p>{{ t('browse.phalanxHint2') }}</p>
       </Hint>
-      <span class="muted small" style="font-weight: 400">{{ t('browse.known', { n: system.phalanx.length }) }}</span>
-    </h3>
-    </component>
+    </template>
     <p v-if="!system.phalanx.length" class="muted small" style="margin: 0">{{ t('browse.noPhalanx') }}</p>
     <div v-for="ph in system.phalanx" :key="`${ph.s}:${ph.p}`" class="ph-row" :class="{ own: ph.own }">
       <div class="ph-who">
@@ -432,7 +430,7 @@ function onStripUp() {
         <span v-if="ph.player?.vacation" class="badge vacation" :title="STATUS_TITLE.vacation">{{ STATUS_LABEL.vacation }}</span>
         <span v-if="ph.own" class="badge" style="color: var(--accent)">{{ t('common.alliance') }}</span>
       </div>
-      <a class="mono small" href="#" :title="t('browse.showSystem')" @click.prevent="s = ph.s">☾ {{ ph.g }}:{{ ph.s }}:{{ ph.p }}</a>
+      <a class="mono small" href="#" :title="t('browse.showSystem')" @click.prevent="s = ph.s"><Icon name="moon" :size="12" /> {{ ph.g }}:{{ ph.s }}:{{ ph.p }}</a>
       <span class="small">{{ t('player.level') }} <b>{{ ph.level }}</b></span>
       <span class="mono small" :title="t('browse.rangeTitle', { range: ph.range, distance: ph.distance })">{{ ph.g }}:{{ ph.from }} – {{ ph.g }}:{{ ph.to }}</span>
       <div class="ph-bar" :title="t('browse.range', { from: `${ph.g}:${ph.from}`, to: `${ph.g}:${ph.to}` })">
@@ -444,7 +442,7 @@ function onStripUp() {
         {{ t('player.sourceAgo', { source: ph.source === 'spy' ? t('player.sourceSpy') : t('player.sourceEmpire'), ago: ago(ph.time) }) }}
       </span>
     </div>
-  </component>
+  </Section>
 
   <GalaxyFreshness :current="{ g, s }" @select="showSystem" />
 
@@ -463,7 +461,6 @@ function onStripUp() {
 </template>
 
 <style scoped>
-.phalanx h3 { margin: 0 0 10px; display: flex; align-items: center; gap: 8px; }
 .ph-row { display: grid; grid-template-columns: minmax(180px, 1.4fr) 90px 70px 130px minmax(120px, 1fr) 150px; align-items: center; gap: 12px; padding: 6px 8px; border-radius: 6px; }
 .ph-row:nth-child(odd) { background: var(--surface-2); }
 .ph-row.own { box-shadow: inset 3px 0 0 var(--accent); }
@@ -471,6 +468,7 @@ function onStripUp() {
 .ph-range { position: absolute; top: 0; height: 100%; border-radius: 4px; background: color-mix(in srgb, var(--info) 55%, transparent); }
 .ph-moon { position: absolute; top: -2px; width: 4px; height: 12px; margin-left: -2px; border-radius: 2px; background: var(--info); }
 .ph-here { position: absolute; top: -3px; width: 2px; height: 14px; margin-left: -1px; background: var(--accent); }
+/* the six columns need more room than the mobile layout leaves next to the sidebar */
 @media (max-width: 900px) {
   .ph-row { grid-template-columns: 1fr 1fr; }
 }
@@ -500,11 +498,6 @@ tr.empty td { color: var(--faint); }
 .pos-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
 .pos-line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
 .pos-spy { display: block; color: var(--text); }
-.phalanx summary { list-style: none; cursor: pointer; }
-.phalanx summary::-webkit-details-marker { display: none; }
-.phalanx summary h3::before { content: '▸'; color: var(--faint); }
-.phalanx[open] summary h3::before { content: '▾'; }
-details.phalanx:not([open]) h3 { margin: 0; }
 /* step bar above the tab bar */
 .stepper-space { height: 56px; }
 .stepper {

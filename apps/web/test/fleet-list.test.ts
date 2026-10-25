@@ -57,7 +57,7 @@ describe('fleet list', () => {
     await nextTick();
     const bells = root.querySelectorAll<HTMLButtonElement>('.fl-bell');
     expect(bells).toHaveLength(1);
-    expect(bells[0].textContent).toContain('🔕');
+    expect(bells[0].querySelector('.i-bellOff')).not.toBeNull();
     bells[0].click();
     await nextTick();
     const options = [...root.querySelectorAll<HTMLButtonElement>('.fl-menu button')];
@@ -71,7 +71,7 @@ describe('fleet list', () => {
     alerts.value = [{ id: 7, arrival: own.arrival + 3, lead: 2, fleet: own, created_at: 0 }];
     await nextTick();
     const bell = root.querySelector<HTMLButtonElement>('.fl-bell')!;
-    expect(bell.textContent).toContain('🔔');
+    expect(bell.querySelector('.i-bell')).not.toBeNull();
     expect(bell.textContent).toContain('2′');
     bell.click();
     await nextTick();

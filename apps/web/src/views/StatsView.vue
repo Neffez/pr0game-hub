@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Icon from '../components/Icon.vue';
 import Hint from '../components/Hint.vue';
 import PlayerLink from '../components/PlayerLink.vue';
 import StatusBadges from '../components/StatusBadges.vue';
@@ -163,7 +164,7 @@ const SCORE_COLS = [4, 3, 2, 5] as const;
           <td class="num small">
             <template v-for="m in [rankMove(r)]" :key="0">
               <span v-if="m" :class="[m.n > 0 ? 'pos' : 'neg', { calc: !m.game }]" :title="m.game ? t('stats.moveGame') : t('stats.moveCalc', { rank: r.prev_rank })">
-                {{ m.n > 0 ? '▲' : '▼' }}{{ Math.abs(m.n) }}
+                <Icon :name="m.n > 0 ? 'rankUp' : 'rankDown'" :size="10" />{{ Math.abs(m.n) }}
               </span>
               <span v-else class="faint">·</span>
             </template>
@@ -217,7 +218,7 @@ const SCORE_COLS = [4, 3, 2, 5] as const;
           <td class="num">{{ fmt(r.rank) }}</td>
           <td class="num small">
             <template v-for="m in [rankMove(r)]" :key="0">
-              <span v-if="m" :class="[m.n > 0 ? 'pos' : 'neg', { calc: !m.game }]">{{ m.n > 0 ? '▲' : '▼' }}{{ Math.abs(m.n) }}</span>
+              <span v-if="m" :class="[m.n > 0 ? 'pos' : 'neg', { calc: !m.game }]"><Icon :name="m.n > 0 ? 'rankUp' : 'rankDown'" :size="10" />{{ Math.abs(m.n) }}</span>
               <span v-else class="faint">·</span>
             </template>
           </td>

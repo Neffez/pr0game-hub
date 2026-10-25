@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Icon from '../components/Icon.vue';
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
@@ -145,7 +146,7 @@ async function toggleShare(m: Message) {
       </div>
       <span v-if="partnerLabel" class="chip">
         {{ t('messages.with', { name: partnerLabel }) }}
-        <button :title="t('messages.clear')" :aria-label="t('messages.clear')" @click="clearPartner">✕</button>
+        <button class="icon-btn small" :title="t('messages.clear')" :aria-label="t('messages.clear')" @click="clearPartner"><Icon name="close" :size="12" /></button>
       </span>
     </div>
     <div class="row">
@@ -171,11 +172,12 @@ async function toggleShare(m: Message) {
       </label>
       <span v-else class="small muted">{{ t('messages.sortLast') }}</span>
       <button
+        class="icon-btn"
         :title="t(sort.descending.value ? 'messages.desc' : 'messages.asc')"
         :aria-label="t(sort.descending.value ? 'messages.desc' : 'messages.asc')"
         @click="sort.descending.value = !sort.descending.value"
       >
-        {{ sort.descending.value ? '▾' : '▴' }}
+        <Icon :name="sort.descending.value ? 'sortDesc' : 'sortAsc'" />
       </button>
     </div>
     <div v-if="data" class="row small muted">
@@ -210,7 +212,7 @@ async function toggleShare(m: Message) {
       >
         <span class="conv-title">
           <template v-for="(p, i) in title(c)" :key="p.name">
-            <span v-if="i" class="faint">{{ c.parties.some((x) => x.self) ? ', ' : ' ↔ ' }}</span>
+            <span v-if="i" class="faint">{{ c.parties.some((x) => x.self) ? ', ' : ' – ' }}</span>
             <span class="party" :class="p.ally ? 'ally' : 'other'">{{ p.name }}</span>
             <ProfileLink v-if="p.player" :id="p.player" :name="p.name" />
           </template>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Icon from './Icon.vue';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
@@ -242,7 +243,7 @@ function next() {
   <div v-if="preview" class="card">
     <h2 style="margin-top: 0">{{ t('paste.previewTitle') }}</h2>
     <p class="muted small">{{ t('paste.detected', { page: preview.pageType, source: preview.source, lang: preview.lang }) }}</p>
-    <p v-for="w in preview.warnings" :key="w" class="warn">⚠ {{ label('paste.warnings', w) }}</p>
+    <p v-for="w in preview.warnings" :key="w" class="warn"><Icon name="warning" :size="14" /> {{ label('paste.warnings', w) }}</p>
     <ul v-if="preview.preview.length">
       <li v-for="(p, i) in preview.preview.slice(0, 50)" :key="i">{{ previewText(p) }}</li>
       <li v-if="preview.preview.length > 50" class="muted">… {{ t('paste.more', { n: preview.preview.length - 50 }) }}</li>
@@ -252,7 +253,7 @@ function next() {
 
   <div v-if="saved" class="card">
     <h2 style="margin-top: 0" class="ok">{{ savedFor ? t('paste.savedFor', { name: savedFor }) : t('deck.saved') }}</h2>
-    <p v-for="w in saved.warnings" :key="w" class="warn">⚠ {{ label('paste.warnings', w) }}</p>
+    <p v-for="w in saved.warnings" :key="w" class="warn"><Icon name="warning" :size="14" /> {{ label('paste.warnings', w) }}</p>
     <table class="data" style="width: auto">
       <tr><th>{{ t('paste.data') }}</th><th class="num">{{ t('paste.new') }}</th><th class="num">{{ t('paste.known') }}</th></tr>
       <tr v-for="(c, k) in saved.counts" :key="k">

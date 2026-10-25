@@ -1,5 +1,5 @@
 <script lang="ts">
-/** Line icons for the sidebar, drawn on a 24×24 grid (colour = currentColor). Paths are stroked, a leading "F:" fills the path instead. */
+/** Line icons (sidebar, buttons, status), drawn on a 24×24 grid (colour = currentColor). Paths are stroked, a leading "F:" fills the path instead. */
 const ICONS: Record<string, string[]> = {
   // two circular arrows
   sync: ['M20 11a8 8 0 0 0-14.3-4.9L4 8', 'M4 4v4h4', 'M4 13a8 8 0 0 0 14.3 4.9L20 16', 'M20 20v-4h-4'],
@@ -76,6 +76,76 @@ const ICONS: Record<string, string[]> = {
   menu: ['M4 6h16', 'M4 12h16', 'M4 18h16'],
   // person
   user: ['M16 8a4 4 0 1 1-8 0a4 4 0 1 1 8 0', 'M4.5 21a7.5 7.5 0 0 1 15 0'],
+
+  // ---- controls and status
+  // cross (close, remove)
+  close: ['M6 6l12 12', 'M18 6 6 18'],
+  // plus (add)
+  plus: ['M12 5v14', 'M5 12h14'],
+  // check mark
+  check: ['M4.5 12.5l5 5L19.5 7'],
+  // chevrons (collapse/expand)
+  chevronRight: ['M9 5l7 7-7 7'],
+  chevronDown: ['M5 9l7 7 7-7'],
+  // sort direction: arrow with bars
+  sortDesc: ['M7 4v16', 'M3.5 16.5 7 20l3.5-3.5', 'M13 6h8', 'M13 11h6', 'M13 16h4'],
+  sortAsc: ['M7 20V4', 'M3.5 7.5 7 4l3.5 3.5', 'M13 6h4', 'M13 11h6', 'M13 16h8'],
+  arrowLeft: ['M19 12H5', 'M11 6l-6 6 6 6'],
+  arrowRight: ['M5 12h14', 'M13 6l6 6-6 6'],
+  arrowUp: ['M12 19V5', 'M6 11l6-6 6 6'],
+  arrowDown: ['M12 5v14', 'M6 13l6 6 6-6'],
+  // box with an arrow leaving it (opens elsewhere)
+  external: ['M14 4h6v6', 'M20 4l-9 9', 'M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5'],
+  // triangle with exclamation mark
+  warning: ['M12 3.5 21.5 20h-19z', 'M12 10v4.5', 'M12 17.2v.01'],
+  // pencil
+  edit: ['M4 20h4L19 9l-4-4L4 16z', 'M13 7l4 4'],
+  // bin
+  trash: ['M4 7h16', 'M9.5 7V4.5h5V7', 'M6 7l1 13h10l1-13', 'M10 11v6', 'M14 11v6'],
+  // three dots (more actions)
+  more: [
+    'F:M7 12a1.6 1.6 0 1 1-3.2 0a1.6 1.6 0 1 1 3.2 0z',
+    'F:M13.6 12a1.6 1.6 0 1 1-3.2 0a1.6 1.6 0 1 1 3.2 0z',
+    'F:M20.2 12a1.6 1.6 0 1 1-3.2 0a1.6 1.6 0 1 1 3.2 0z',
+  ],
+  // crossed swords (attack)
+  attack: ['M4 4l11 11', 'M4 4h3.5L17 13.5', 'M13 17l4-4', 'M16 16l4 4', 'M20 4 9 15', 'M20 4h-3.5L7 13.5', 'M11 17l-4-4', 'M8 16l-4 4'],
+  // crescent moon
+  moon: ['M19.5 14.5A8 8 0 1 1 9.5 4.5a6.5 6.5 0 0 0 10 10z'],
+  // bell with a slash (alert off)
+  bellOff: ['M6 16.5V11a6 6 0 0 1 9.7-4.7', 'M18 11v5.5l1.8 1.8H8', 'M10 21a2.2 2.2 0 0 0 4 0', 'M3.5 3.5l17 17'],
+  // eye with a slash (hide)
+  eyeOff: [
+    'M4.5 8.5C3.2 10.2 2.5 12 2.5 12s3.5 6.5 9.5 6.5c1.6 0 3-.4 4.2-1.1',
+    'M9 5.9c.9-.3 1.9-.4 3-.4 6 0 9.5 6.5 9.5 6.5s-.8 1.5-2.3 3.1',
+    'M9.9 9.9a3 3 0 0 0 4.2 4.2',
+    'M3.5 3.5l17 17',
+  ],
+  // parcel (cargo, resources)
+  cargo: ['M3.5 7.5 12 3l8.5 4.5v9L12 21l-8.5-4.5z', 'M3.5 7.5 12 12l8.5-4.5', 'M12 12v9', 'M7.8 5.3l8.5 4.5'],
+  // arrow curving back (fleet return)
+  return: ['M9 14 4 9l5-5', 'M4 9h10.5a5.5 5.5 0 0 1 0 11H11'],
+  // speech bubble
+  comment: ['M4 5.5h16v10.5H10l-4.5 4v-4H4z'],
+  // bullseye
+  target: ['M20 12a8 8 0 1 1-16 0a8 8 0 1 1 16 0', 'M16 12a4 4 0 1 1-8 0a4 4 0 1 1 8 0', 'F:M13.2 12a1.2 1.2 0 1 1-2.4 0a1.2 1.2 0 1 1 2.4 0z'],
+  // paper plane (fleet in flight)
+  inFlight: ['M21 4.5 3 11l7 2.5 2.5 7z', 'M21 4.5 10 13.5'],
+  // lightning bolt
+  bolt: ['M13 2.5 4.5 13.5H12l-1 8 8.5-11H12z'],
+  // stopwatch
+  timer: ['M12 21a8 8 0 1 0 0-16a8 8 0 0 0 0 16', 'M12 9v4l2.5 1.5', 'M10 2h4', 'M12 2v3'],
+  // two bars (paused, holding)
+  pause: ['M8.5 5v14', 'M15.5 5v14'],
+  // small triangles (rank up/down)
+  rankUp: ['F:M12 6l6.5 10h-13z'],
+  rankDown: ['F:M12 18 5.5 8h13z'],
+  // four-pointed star (debris)
+  sparkle: ['M12 3c.8 5 2.9 7.2 9 9-6.1 1.8-8.2 4-9 9-.8-5-2.9-7.2-9-9 6.1-1.8 8.2-4 9-9z'],
+  // funnel (filters)
+  filter: ['M4 5h16l-6.2 7.5V19l-3.6 1.5v-8z'],
+  // log out
+  logout: ['M10 4H5v16h5', 'M14 8l4 4-4 4', 'M18 12H9'],
 };
 
 export type IconName = keyof typeof ICONS;
@@ -83,22 +153,27 @@ export { ICONS };
 </script>
 
 <script setup lang="ts">
-defineProps<{ name: string }>();
+/** `label`: icon carries meaning on its own (no visible text next to it), read out by screen readers. */
+withDefaults(defineProps<{ name: IconName | string; size?: number; label?: string }>(), { size: 16, label: undefined });
 </script>
 
 <template>
   <svg
-    class="nav-icon"
+    class="icon"
+    :class="`i-${name}`"
     viewBox="0 0 24 24"
-    width="16"
-    height="16"
+    :width="size"
+    :height="size"
     fill="none"
     stroke="currentColor"
     stroke-width="1.8"
     stroke-linecap="round"
     stroke-linejoin="round"
-    aria-hidden="true"
+    :role="label ? 'img' : undefined"
+    :aria-label="label"
+    :aria-hidden="label ? undefined : 'true'"
   >
+    <title v-if="label">{{ label }}</title>
     <template v-for="d in ICONS[name]" :key="d">
       <path v-if="d.startsWith('F:')" :d="d.slice(2)" fill="currentColor" stroke="none" />
       <path v-else :d="d" />

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import LiveToasts from '../components/LiveToasts.vue';
-import NavIcon from '../components/NavIcon.vue';
+import Icon from '../components/Icon.vue';
 import NotificationBell from '../components/NotificationBell.vue';
 import PresenceList from '../components/PresenceList.vue';
 import PlayerDialog from '../components/PlayerDialog.vue';
@@ -194,7 +194,7 @@ const tabs = [
       <div class="brand">
         pr0game <span>Hub</span>
         <NotificationBell v-if="ctx" class="sidebar-bell" />
-        <button class="nav-close" :title="t('nav.closeMenu')" :aria-label="t('nav.closeMenu')" @click="navOpen = false">✕</button>
+        <button class="nav-close" :title="t('nav.closeMenu')" :aria-label="t('nav.closeMenu')" @click="navOpen = false"><Icon name="close" /></button>
       </div>
       <div class="section">{{ ctx?.universe.name ?? uni }}</div>
       <select v-if="groups.length > 1" v-model="group" @change="changeGroup">
@@ -205,8 +205,8 @@ const tabs = [
         <template v-for="l in links" :key="l.to ?? l.section">
           <div v-if="l.section" class="section">{{ t(`nav.${l.section}`) }}</div>
           <RouterLink v-else :to="`/${uni}/${l.to}`">
-            <NavIcon :name="l.icon!" />{{ t(`nav.${l.label}`) }}
-            <span v-if="l.to === 'fleet' && attacks" class="nav-alarm" :title="t('notify.attacks', { n: attacks }, attacks)">⚔ {{ attacks }}</span>
+            <Icon :name="l.icon!" />{{ t(`nav.${l.label}`) }}
+            <span v-if="l.to === 'fleet' && attacks" class="nav-alarm" :title="t('notify.attacks', { n: attacks }, attacks)"><Icon name="attack" :size="11" /> {{ attacks }}</span>
             <span v-if="l.to === 'raid-planner' && (planCount.planning || planCount.running)" class="nav-badges">
               <span v-if="planCount.planning" class="nav-count" :title="t('nav.plansPlanning', { n: planCount.planning }, planCount.planning)">{{ planCount.planning }}</span>
               <span v-if="planCount.running" class="nav-count running" :title="t('nav.plansRunning', { n: planCount.running }, planCount.running)">{{ planCount.running }}</span>
@@ -214,10 +214,10 @@ const tabs = [
           </RouterLink>
         </template>
         <div class="section">{{ t('nav.account') }}</div>
-        <RouterLink :to="{ path: '/', query: { list: null } }"><NavIcon name="universes" />{{ t('nav.universes') }}</RouterLink>
-        <RouterLink v-if="session.me?.user?.isAdmin || ctx?.group.role === 'admin'" :to="`/${uni}/admin`"><NavIcon name="admin" />{{ t('nav.admin') }}</RouterLink>
-        <RouterLink :to="`/${uni}/account`"><NavIcon name="user" />{{ t('nav.user') }}</RouterLink>
-        <RouterLink :to="`/${uni}/changelog`"><NavIcon name="changelog" />{{ t('nav.changelog') }}</RouterLink>
+        <RouterLink :to="{ path: '/', query: { list: null } }"><Icon name="universes" />{{ t('nav.universes') }}</RouterLink>
+        <RouterLink v-if="session.me?.user?.isAdmin || ctx?.group.role === 'admin'" :to="`/${uni}/admin`"><Icon name="admin" />{{ t('nav.admin') }}</RouterLink>
+        <RouterLink :to="`/${uni}/account`"><Icon name="user" />{{ t('nav.user') }}</RouterLink>
+        <RouterLink :to="`/${uni}/changelog`"><Icon name="changelog" />{{ t('nav.changelog') }}</RouterLink>
       </nav>
       <PresenceList v-if="ctx" :page-label="pageLabel" @navigate="navOpen = false" />
     </aside>
@@ -231,13 +231,13 @@ const tabs = [
       </template>
     </main>
     <nav class="tabbar" :aria-label="t('nav.menu')">
-      <RouterLink v-for="tb in tabs.slice(0, 2)" :key="tb.to" :to="`/${uni}/${tb.to}`"><NavIcon :name="tb.icon" />{{ t(`nav.${tb.label}`) }}</RouterLink>
+      <RouterLink v-for="tb in tabs.slice(0, 2)" :key="tb.to" :to="`/${uni}/${tb.to}`"><Icon :name="tb.icon" />{{ t(`nav.${tb.label}`) }}</RouterLink>
       <button class="tab-sync" :class="{ active: syncOpen }" :aria-label="t('nav.quickSync')" @click="syncOpen = !syncOpen">
-        <span class="sync-dot"><NavIcon name="sync" /></span>{{ t('nav.syncShort') }}
+        <span class="sync-dot"><Icon name="sync" /></span>{{ t('nav.syncShort') }}
       </button>
-      <RouterLink v-for="tb in tabs.slice(2)" :key="tb.to" :to="`/${uni}/${tb.to}`"><NavIcon :name="tb.icon" />{{ t(`nav.${tb.label}`) }}</RouterLink>
+      <RouterLink v-for="tb in tabs.slice(2)" :key="tb.to" :to="`/${uni}/${tb.to}`"><Icon :name="tb.icon" />{{ t(`nav.${tb.label}`) }}</RouterLink>
       <button :class="{ active: navOpen }" aria-controls="sidebar" :aria-expanded="navOpen" @click="navOpen = !navOpen">
-        <NavIcon name="menu" />{{ t('nav.more') }}
+        <Icon name="menu" />{{ t('nav.more') }}
       </button>
     </nav>
   </div>

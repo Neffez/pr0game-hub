@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Icon from './Icon.vue';
 import CommentThread from './CommentThread.vue';
 import PresenceBadge from './PresenceBadge.vue';
 import { Chart, registerables } from 'chart.js';
@@ -201,7 +202,7 @@ onBeforeUnmount(() => chart?.destroy());
           <tr v-for="p in planetRows" :key="`${p.g}:${p.s}:${p.p}:${p.type}`" :class="{ moon: p.type === 'moon' }">
             <td class="mono">{{ coords(p.g, p.s, p.p) }}</td>
             <td>
-              <span v-if="p.type === 'moon'" class="moon-tag">☾ {{ t('common.moon') }}</span>
+              <span v-if="p.type === 'moon'" class="moon-tag"><Icon name="moon" :size="11" /> {{ t('common.moon') }}</span>
               {{ p.name }}
             </td>
             <td><PlanetActions :g="p.g" :s="p.s" :p="p.p" :type="p.type" /></td>

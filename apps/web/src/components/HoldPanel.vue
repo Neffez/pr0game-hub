@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Icon from './Icon.vue';
 import Hint from './Hint.vue';
 import { computed, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -82,7 +83,7 @@ async function save() {
     <div class="head">
       <b>{{ t('hold.title') }} <Hint>{{ t('hold.hint') }}</Hint></b>
       <span>{{ t('retime.onMember', { member: enemy.member ?? coords(enemy.to.g, enemy.to.s, enemy.to.p) }) }}</span>
-      <span class="mono">{{ coords(enemy.from.g, enemy.from.s, enemy.from.p) }} → {{ coords(enemy.to.g, enemy.to.s, enemy.to.p) }}</span>
+      <span class="mono">{{ coords(enemy.from.g, enemy.from.s, enemy.from.p) }} <Icon name="arrowRight" :size="12" class="faint" /> {{ coords(enemy.to.g, enemy.to.s, enemy.to.p) }}</span>
       <span>{{ t('retime.impact') }} <b class="mono">{{ clock(enemy.arrival) }}</b></span>
       <span v-if="delay > 0" class="warn small">{{ t('retime.delayed', { t: duration(delay), first: clock(enemy.first_seen) }) }}</span>
     </div>
@@ -111,7 +112,7 @@ async function save() {
         <span class="ship-name" :title="name(id)">{{ name(id) }}</span>
         <input v-model.number="ships[id]" type="number" min="0" :disabled="!editable" :aria-label="name(id)" @input="shipsDirty = true" />
         <span v-if="(sourceShips[id] ?? 0) !== ships[id]" class="muted small">{{ t('hold.planetWas', { n: fmt(sourceShips[id] ?? 0) }) }}</span>
-        <button v-if="editable" :title="t('plans.removeShip')" @click="removeShip(id)">✕</button>
+        <button v-if="editable" class="icon-btn" :title="t('plans.removeShip')" :aria-label="t('plans.removeShip')" @click="removeShip(id)"><Icon name="close" :size="14" /></button>
       </div>
       <div v-if="editable" class="row">
         <select v-if="addable.length" :aria-label="t('plans.addShip')" @change="addShip">

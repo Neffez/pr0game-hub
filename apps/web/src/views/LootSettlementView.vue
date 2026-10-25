@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import Icon from '../components/Icon.vue';
+import BackLink from '../components/BackLink.vue';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
@@ -250,7 +252,7 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
 </script>
 
 <template>
-  <p><RouterLink :to="`/${uni}/raid-planner?tab=settlements`">{{ t('loot.back') }}</RouterLink></p>
+  <BackLink :to="`/${uni}/raid-planner?tab=settlements`" :label="t('loot.back')" />
   <h1>
     {{ t('loot.title') }}
     <span v-if="data" class="muted small" style="font-weight: 400">{{ target }} · {{ dateTime(data.plan.target_time) }}</span>
@@ -272,7 +274,7 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
         <button :disabled="busy" @click="refill">{{ t('loot.fromHub') }}</button>
         <button v-if="data.saved" class="danger" :disabled="busy" @click="remove">{{ t('common.delete') }}</button>
       </template>
-      <a v-if="calcLink" class="small" :href="calcLink" target="_blank" rel="noopener">{{ t('loot.calculator') }} ↗</a>
+      <a v-if="calcLink" class="small" :href="calcLink" target="_blank" rel="noopener">{{ t('loot.calculator') }} <Icon name="external" :size="12" /></a>
     </div>
     <p v-if="!canEdit" class="muted small">{{ t('loot.readOnly') }}</p>
     <div v-else class="row small import">
@@ -327,7 +329,7 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
                   <td>{{ p.name }}</td>
                   <td class="num">
                     <input v-model.number="p.flightDeut" type="number" min="0" :disabled="!canEdit" />
-                    <span v-if="sources?.flightDeut[p.id] != null && sources.flightDeut[p.id] === p.flightDeut" class="src" :title="t('loot.fromPlan')">✓</span>
+                    <span v-if="sources?.flightDeut[p.id] != null && sources.flightDeut[p.id] === p.flightDeut" class="src"><Icon name="check" :size="12" :label="t('loot.fromPlan')" /></span>
                   </td>
                   <td class="num"><input v-model.number="p.recDeut" type="number" min="0" :disabled="!canEdit" /></td>
                   <td class="num"><input v-model.number="p.missiles" type="number" min="0" :disabled="!canEdit" /></td>
@@ -367,7 +369,7 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
                   <td class="small neg">{{ lost(f.start, f.end).map((x) => `${fmt(x.n)} ${name(x.id)}`).join(', ') }}</td>
                   <td v-for="k in RES" :key="k" class="num">
                     {{ fmt(shares[i]?.get(f.participant)?.[k] ?? 0) }}
-                    <span v-if="f.loot && k === 'm'" class="src" :title="sources?.returnSource?.[f.participant] === 'overview' ? t('loot.fromOverview') : t('loot.fromFleet')">✓</span>
+                    <span v-if="f.loot && k === 'm'" class="src"><Icon name="check" :size="12" :label="sources?.returnSource?.[f.participant] === 'overview' ? t('loot.fromOverview') : t('loot.fromFleet')" /></span>
                   </td>
                 </tr>
               </tbody>
@@ -415,7 +417,7 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
                   <div v-if="r.time" class="muted small">{{ dateTime(r.time) }}</div>
                 </td>
                 <td class="num">{{ fmt(r.m) }} {{ name(901) }}<br />{{ fmt(r.k) }} {{ name(902) }}</td>
-                <td v-if="canEdit"><button :title="t('loot.removeRecycling')" @click="state.recycling.splice(i, 1)">✕</button></td>
+                <td v-if="canEdit"><button class="icon-btn" :title="t('loot.removeRecycling')" :aria-label="t('loot.removeRecycling')" @click="state.recycling.splice(i, 1)"><Icon name="close" :size="14" /></button></td>
               </tr>
             </tbody>
           </table>

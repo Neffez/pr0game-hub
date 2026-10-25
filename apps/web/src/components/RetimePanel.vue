@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Icon from './Icon.vue';
 import DateTimeInput from './DateTimeInput.vue';
 import Hint from './Hint.vue';
 import { computed, reactive, ref, watch } from 'vue';
@@ -144,10 +145,10 @@ async function save() {
     <div class="head">
       <b>{{ t('retime.enemy') }} <Hint>{{ t('retime.hint') }}</Hint></b>
       <span>{{ t('retime.onMember', { member: enemy.member ?? coords(enemy.to.g, enemy.to.s, enemy.to.p) }) }}</span>
-      <span class="mono">{{ coords(enemy.from.g, enemy.from.s, enemy.from.p) }} → {{ coords(enemy.to.g, enemy.to.s, enemy.to.p) }}</span>
+      <span class="mono">{{ coords(enemy.from.g, enemy.from.s, enemy.from.p) }} <Icon name="arrowRight" :size="12" class="faint" /> {{ coords(enemy.to.g, enemy.to.s, enemy.to.p) }}</span>
       <span>{{ t('retime.impact') }} <b class="mono">{{ clock(enemy.arrival) }}</b></span>
       <span v-if="delay > 0" class="warn small">{{ t('retime.delayed', { t: duration(delay), first: clock(enemy.first_seen) }) }}</span>
-      <a class="small" :href="calcLink" target="_blank" rel="noopener" :title="t('retime.calcTitle')">{{ t('retime.calc') }} ↗</a>
+      <a class="small" :href="calcLink" target="_blank" rel="noopener" :title="t('retime.calcTitle')">{{ t('retime.calc') }} <Icon name="external" :size="12" /></a>
     </div>
 
     <div class="fleets">

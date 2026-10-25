@@ -52,8 +52,9 @@ export function useSort<T>(rows: Ref<T[]>, get: (row: T, key: string) => unknown
       descending.value = true;
     }
   };
-  const indicator = (k: string) => (key.value === k ? (descending.value ? ' ▾' : ' ▴') : '');
-  return { sorted, sortBy, indicator, key, descending };
+  /** Direction of a column for its header (SortMark), null when not sorted by it. */
+  const direction = (k: string) => (key.value === k ? (descending.value ? 'desc' : 'asc') : null);
+  return { sorted, sortBy, direction, key, descending };
 }
 
 /**
@@ -199,7 +200,7 @@ function stackLabels(table: HTMLTableElement, heads = 1) {
   const header = rows.find((r) => r.parentElement?.tagName !== 'TFOOT' && r.cells.length && [...r.cells].every((c) => c.tagName === 'TH'));
   const labels: string[] = [];
   for (const c of header?.cells ?? []) {
-    labels.push((c.textContent ?? '').replace(/[▾▴]/g, '').trim());
+    labels.push((c.textContent ?? '').trim());
     for (let i = 1; i < c.colSpan; i++) labels.push('');
   }
   header?.classList.add('m-header');

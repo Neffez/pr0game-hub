@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-10-25',
     items: [
       {
+        kind: 'new',
+        de: 'Neue, einheitliche Symbole statt Emojis überall im Hub (Glocken, Monde, Pfeile, Warnungen, Schließen-Knöpfe), mit besserer Lesbarkeit für Screenreader. Auf dem Handy ist alles etwas kompakter, Bereiche wie die Phalanx-Liste in der Galaxie lassen sich einklappen und merken sich das.',
+        en: 'New, consistent icons instead of emoji throughout the hub (bells, moons, arrows, warnings, close buttons), also readable for screen readers. On phones everything is a bit more compact; sections like the phalanx list in the galaxy view can be collapsed and remember it.',
+      },
+      {
         kind: 'fix',
         de: 'Kampfsimulationen: Mitglieder ohne bekannte Forschung bekommen Waffen, Schild und Panzerung aus der Simulation, statt mit 0 in den Simulator zu gehen.',
         en: 'Battle simulations: members without known research get weapons, shields and armour from the simulation instead of going into the simulator with 0.',

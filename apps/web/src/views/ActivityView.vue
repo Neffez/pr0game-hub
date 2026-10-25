@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Icon from '../components/Icon.vue';
 import { computed, onMounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
@@ -28,19 +29,19 @@ interface Entry {
   ally_name: string | null;
 }
 
-/** label: activity.kinds.<kind> */
+/** label: activity.kinds.<kind>; icon: name in Icon.vue */
 const KINDS: { kind: string; icon: string; color: string }[] = [
-  { kind: 'phalanx_new', icon: '◉', color: 'var(--info)' },
-  { kind: 'phalanx_up', icon: '⇡', color: 'var(--info)' },
-  { kind: 'planet_new', icon: '●', color: 'var(--pos)' },
-  { kind: 'moon_new', icon: '☾', color: 'var(--pos)' },
-  { kind: 'debris_new', icon: '✦', color: 'var(--warn)' },
-  { kind: 'debris_grown', icon: '✦', color: 'var(--neg)' },
-  { kind: 'debris_shrunk', icon: '✧', color: 'var(--info)' },
-  { kind: 'debris_cleared', icon: '○', color: 'var(--muted)' },
-  { kind: 'points_loss', icon: '▼', color: 'var(--neg)' },
-  { kind: 'fleet_loss', icon: '▼', color: 'var(--neg)' },
-  { kind: 'no_growth', icon: '◌', color: 'var(--muted)' },
+  { kind: 'phalanx_new', icon: 'spy', color: 'var(--info)' },
+  { kind: 'phalanx_up', icon: 'arrowUp', color: 'var(--info)' },
+  { kind: 'planet_new', icon: 'planets', color: 'var(--pos)' },
+  { kind: 'moon_new', icon: 'moon', color: 'var(--pos)' },
+  { kind: 'debris_new', icon: 'sparkle', color: 'var(--warn)' },
+  { kind: 'debris_grown', icon: 'sparkle', color: 'var(--neg)' },
+  { kind: 'debris_shrunk', icon: 'sparkle', color: 'var(--info)' },
+  { kind: 'debris_cleared', icon: 'close', color: 'var(--muted)' },
+  { kind: 'points_loss', icon: 'rankDown', color: 'var(--neg)' },
+  { kind: 'fleet_loss', icon: 'rankDown', color: 'var(--neg)' },
+  { kind: 'no_growth', icon: 'pause', color: 'var(--muted)' },
 ];
 const META = Object.fromEntries(KINDS.map((k) => [k.kind, k]));
 
@@ -151,10 +152,11 @@ function text(e: Entry) {
         :key="k.kind"
         class="chip"
         :class="{ off: hidden.includes(k.kind) }"
+        :aria-pressed="!hidden.includes(k.kind)"
         :title="hidden.includes(k.kind) ? t('activity.show') : t('activity.hide')"
         @click="toggle(k.kind)"
       >
-        <span :style="{ color: k.color }">{{ k.icon }}</span> {{ kindLabel(k.kind) }}
+        <Icon :name="k.icon" :size="13" :style="{ color: k.color }" /> {{ kindLabel(k.kind) }}
         <span class="faint">{{ data?.counts[k.kind] ?? 0 }}</span>
       </button>
     </div>
@@ -168,7 +170,7 @@ function text(e: Entry) {
     <div class="card" style="padding: 4px 0">
       <div v-for="e in d.entries" :key="e.id" class="entry">
         <span class="mono small faint">{{ time(e.time) }}</span>
-        <span class="icon" :style="{ color: META[e.kind]?.color }" :title="kindLabel(e.kind)">{{ META[e.kind]?.icon ?? '•' }}</span>
+        <span class="kind-icon" :style="{ color: META[e.kind]?.color }"><Icon :name="META[e.kind]?.icon ?? 'activity'" :size="15" :label="kindLabel(e.kind)" /></span>
         <span class="who">
           <template v-if="e.player_id">
             <PlayerLink :id="e.player_id" :name="e.player_name ?? '?'" />
@@ -179,7 +181,7 @@ function text(e: Entry) {
         </span>
         <span class="what">{{ text(e) }}</span>
         <RouterLink v-if="e.g" class="mono small" :to="browse(e)" :title="t('activity.showInBrowser')">
-          {{ e.planet_type === 'moon' ? '☾ ' : '' }}{{ coords(e.g, e.s!, e.p!) }}
+          <Icon v-if="e.planet_type === 'moon'" name="moon" :size="12" :label="t('common.moon')" /> {{ coords(e.g, e.s!, e.p!) }}
         </RouterLink>
         <span v-else />
       </div>
@@ -189,13 +191,12 @@ function text(e: Entry) {
 
 <style scoped>
 .chips { margin-top: 10px; gap: 6px; }
-.chip { padding: 3px 10px; border-radius: 999px; font-size: 12px; }
 .chip.off { opacity: 0.4; text-decoration: line-through; }
 .day h3 { margin: 16px 0 6px; font-size: 13px; color: var(--muted); text-transform: capitalize; }
 .entry { display: grid; grid-template-columns: 44px 20px minmax(160px, 260px) 1fr auto; align-items: center; gap: 10px; padding: 6px 16px; }
 .entry + .entry { border-top: 1px solid var(--border); }
-.icon { text-align: center; font-size: 14px; }
-@media (max-width: 700px) {
+.kind-icon { display: flex; justify-content: center; }
+@media (max-width: 800px) {
   .entry { grid-template-columns: 44px 20px 1fr; }
   .what, .entry > a { grid-column: 3; }
 }

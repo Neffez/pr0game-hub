@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Icon from './Icon.vue';
 import { computed, onMounted, reactive, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
@@ -66,7 +67,7 @@ const settled = (e: Entry) => !!e.saved && e.saved.done >= e.saved.deliveries;
     <select v-model.number="days" :aria-label="t('loot.period')">
       <option v-for="d in DAYS" :key="d" :value="d">{{ t('loot.lastDays', { n: d }) }}</option>
     </select>
-    <a v-if="calcUrl" class="small" :href="calcUrl" target="_blank" rel="noopener">{{ t('loot.calculatorPlain') }} ↗</a>
+    <a v-if="calcUrl" class="small" :href="calcUrl" target="_blank" rel="noopener">{{ t('loot.calculatorPlain') }} <Icon name="external" :size="12" /></a>
     <Hint>{{ t('loot.calculatorPlainHint') }}</Hint>
     <button class="primary" @click="fromReport.open = !fromReport.open">{{ t('loot.createFromReport') }}</button>
   </div>
@@ -109,7 +110,7 @@ const settled = (e: Entry) => !!e.saved && e.saved.done >= e.saved.deliveries;
           </td>
           <td><span class="badge" :class="{ 'mission-hold': e.mission === 'hold' }">{{ e.mission === 'hold' ? t('hold.badge') : t('loot.attack') }}</span></td>
           <td class="small">{{ e.members.join(', ') }}</td>
-          <td :class="e.battle ? 'ok' : 'faint'">{{ e.battle ? '✓' : '–' }}</td>
+          <td :class="e.battle ? 'ok' : 'faint'"><Icon v-if="e.battle" name="check" :size="14" :label="t('common.yes')" /><template v-else>–</template></td>
           <td class="small">
             <template v-if="e.saved">
               <span v-if="!e.saved.deliveries" class="ok">{{ t('loot.noTransfers') }}</span>

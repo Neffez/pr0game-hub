@@ -2,7 +2,7 @@
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { usePlayerDialog, useUni } from '../composables';
-import NavIcon from './NavIcon.vue';
+import Icon from './Icon.vue';
 
 /** Small profile icon next to a player name: opens the player dialog; Ctrl/Cmd/middle click the full page in a new tab. */
 const props = defineProps<{ id: number; name: string }>();
@@ -20,7 +20,7 @@ function onClick(e: MouseEvent) {
 
 <template>
   <a class="profile-link" :href="href" :title="t('messages.profile', { name })" :aria-label="t('messages.profile', { name })" @click.stop="onClick">
-    <NavIcon name="user" />
+    <Icon name="user" />
   </a>
 </template>
 

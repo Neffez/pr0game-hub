@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Icon from './Icon.vue';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useUni } from '../composables';
@@ -19,7 +20,7 @@ const names = computed(() =>
 
 <template>
   <span v-if="names.length" class="presence-badge small" :title="t('presence.viewing', { names: names.join(', ') })">
-    👁 {{ names.join(', ') }}
+    <Icon name="spy" :size="13" /> {{ names.join(', ') }}
   </span>
 </template>
 
