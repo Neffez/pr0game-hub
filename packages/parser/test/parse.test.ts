@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { computeDeck, DEFAULT_DECK, isPhalanxText, localToEpoch, nearestClock, parseFleetsText, parsePage, phalanxPosition, type DeckEvent } from '../src/index.js';
-import { parseCombatReportText, parseRecycleReportsText } from '../src/combat.js';
+import { isCombatSimulation, parseCombatReportText, parseRecycleReportsText } from '../src/combat.js';
 import { elementPoints, idByName, idByShortName, sectionPoints } from '../src/tech.js';
 
 const fixture = (name: string) => readFileSync(new URL(`./fixtures/${name}`, import.meta.url), 'utf8');
@@ -274,7 +274,7 @@ describe('combat report', () => {
       loot: { metal: 0, crystal: 1343846, deuterium: 690373 },
       target: { coords: { g: 3, s: 195, p: 5 }, type: 'moon' },
     });
-    const R = { 109: 23, 110: 24, 111: 24 };
+    const R = { 109: 13, 110: 14, 111: 14 };
     expect(r!.fleets.filter((f) => f.side === 'attacker')).toEqual([
       { side: 'attacker', name: 'CVXII', from: { coords: { g: 3, s: 26, p: 12 }, type: 'moon' }, research: R, start: { 222: 3544 }, end: { 222: 3521 } },
       { side: 'attacker', name: 'Rudolf', from: { coords: { g: 3, s: 200, p: 1 }, type: 'moon' }, research: R, start: { 207: 2178, 215: 4348 }, end: { 207: 2178, 215: 4348 } },
@@ -289,11 +289,15 @@ describe('combat report', () => {
   it('reads a shared battle simulation with research levels from the percentages', () => {
     const r = parseCombatReportText(fixture('combat-sim-de.txt'), null);
     expect(r!.fleets.map((f) => [f.side, f.name, f.research])).toEqual([
-      ['attacker', 'Angreifer Nr.1', { 109: 25, 110: 23, 111: 24 }],
-      ['attacker', 'Angreifer Nr.2', { 109: 24, 110: 23, 111: 24 }],
-      ['attacker', 'Angreifer Nr.3', { 109: 25, 110: 23, 111: 24 }],
-      ['defender', 'Verteidiger Nr.1', { 109: 25, 110: 24, 111: 24 }],
+      ['attacker', 'Angreifer Nr.1', { 109: 15, 110: 13, 111: 14 }],
+      ['attacker', 'Angreifer Nr.2', { 109: 14, 110: 13, 111: 14 }],
+      ['attacker', 'Angreifer Nr.3', { 109: 15, 110: 13, 111: 14 }],
+      ['defender', 'Verteidiger Nr.1', { 109: 15, 110: 14, 111: 14 }],
     ]);
+    expect(isCombatSimulation(r!)).toBe(true);
+    expect(isCombatSimulation(parseCombatReportText(fixture('combat-report-de.txt'), null)!)).toBe(false);
+    // pasted into the sync it is not stored as a battle
+    expect(parsePage({ text: fixture('combat-sim-de.txt') })).toMatchObject({ pageType: 'combatReport', records: [], warnings: ['simulation_use_raid_planner'] });
     expect(r!.fleets[1].start).toEqual({ 206: 152, 207: 579, 215: 4025 });
     expect(r!.fleets[3].start).toEqual({ 202: 884, 203: 1300, 204: 1548, 205: 7165, 207: 8199, 208: 1, 210: 2086, 215: 3404, 225: 8708, 227: 2523 });
   });

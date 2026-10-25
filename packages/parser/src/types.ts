@@ -366,7 +366,7 @@ export interface CombatFleet {
   name: string;
   /** planet or moon the fleet comes from (the defenders: where they stand), null when the page hides the coordinates */
   from: { coords: Coords; type: 'planet' | 'moon' } | null;
-  /** weapons, shields, armour (109-111) by the percentages in the report (10 % per level), when shown */
+  /** weapons, shields, armour (109-111) by the percentages in the report (100 % plus 10 % per level), when shown */
   research?: Record<number, number>;
   /** element id -> amount before the battle / after the last round */
   start: Record<number, number>;

@@ -1632,8 +1632,8 @@ paths:
                   mission: { type: string, enum: [attack, hold] }
         '400':
           description: >-
-            No battle report (`report_invalid`), no coordinates in it (`report_no_target`) or no member on the chosen
-            side (`report_no_member`)
+            No battle report (`report_invalid`), a battle simulation (`report_simulation`: every fleet only numbered),
+            no coordinates in it (`report_no_target`) or no member on the chosen side (`report_no_member`)
   /api/{uni}/plans/{id}/settlement:
     parameters:
       - { $ref: '#/components/parameters/Uni' }

@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-10-25',
     items: [
       {
+        kind: 'fix',
+        de: 'Kampfsimulationen: Forschungen werden richtig übernommen (250 % sind Stufe 15, nicht 25). Bereits übernommene Simulationen bitte neu einfügen. Eine Simulation wird beim Sync und bei Abrechnungen nicht mehr als echter Kampf mit ihrer Zeit gespeichert.',
+        en: 'Battle simulations: research is taken over correctly (250 % is level 15, not 25). Please paste simulations taken over before again. A simulation is no longer stored as a real battle with its time when syncing or settling.',
+      },
+      {
         kind: 'new',
         de: 'Abgebrochene Angriffe kommen aus dem Übersichts-Sync in den Raid-Planer: Fliegt eine Flotte laut Übersicht vor der Ankunft zurück, gilt sie als zurückgerufen. Sind alle Flotten zurückgerufen, wird der Plan abgebrochen und die Reservierung freigegeben.',
         en: 'Recalled attacks reach the raid planner from the overview sync: if the overview shows a fleet flying back before it arrived, it counts as recalled. Once all fleets are recalled, the plan is cancelled and the claim released.',

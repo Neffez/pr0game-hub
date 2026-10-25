@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { localToEpoch } from '@pr0hub/core';
-import { parseCombatReportText } from '@pr0hub/core/combat';
+import { isCombatSimulation, parseCombatReportText } from '@pr0hub/core/combat';
 import { cleanState, settle } from '@pr0hub/loot';
 import { HttpError } from '../auth.js';
 import type { GroupContext } from '../context.js';
@@ -106,6 +106,7 @@ export function settlementRoutes(app: FastifyInstance, db: DB) {
     const report = parseCombatReportText(text, null);
     const time = report?.time ? localToEpoch(report.time, ctx.universe.settings.timezone) : null;
     if (!report || time == null) throw new HttpError(400, 'report_invalid', 'No battle report recognised');
+    if (isCombatSimulation(report)) throw new HttpError(400, 'report_simulation', 'A battle simulation is no battle (paste it into the raid plan)');
     if (!report.target) throw new HttpError(400, 'report_no_target', 'The battle report shows no coordinates (copy it while logged in)');
     ingest(db, { groupId: ctx.groupId, userId: ctx.user.id, timezone: ctx.universe.settings.timezone }, { text, source: 'paste' });
     const res = planFromReport(db, ctx, report, time, mission);

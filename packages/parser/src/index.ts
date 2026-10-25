@@ -7,7 +7,7 @@ import { isMessagesHtml, parseMessagesHtml, parseMessagesText } from './parsers/
 import { isFleetsText, isPhalanxText, parseFleetsHtml, parseFleetsText } from './parsers/fleets.js';
 import { isOverviewHtml, isOverviewText, parseOverviewHtml, parseOverviewText } from './parsers/overview.js';
 import { isBattleHallHtml, parseBattleHallHtml } from './parsers/battleHall.js';
-import { isCombatReportText, parseCombatReportText } from './parsers/combatReport.js';
+import { isCombatReportText, isCombatSimulation, parseCombatReportText } from './parsers/combatReport.js';
 import { isStatsText, parseStatsHtml, parseStatsText } from './parsers/stats.js';
 import type { HubRecord, PageType, ParseResult, StatsType } from './types.js';
 import { detectLang, nodeToText, normalizeText } from './util.js';
@@ -87,6 +87,10 @@ function parseHtml($: cheerio.CheerioAPI, htmlText: string, input: ParseInput, w
   if (page === 'raport' || isCombatReportText(htmlText)) {
     const reportId = queryParam(url, 'raport');
     const r = parseCombatReportText(htmlText, reportId);
+    if (r && isCombatSimulation(r)) {
+      warnings.push('simulation_use_raid_planner');
+      return { pageType: 'combatReport', records: [] };
+    }
     if (r) return { pageType: 'combatReport', records: [r] };
   }
   if (page === 'battlehall' || isBattleHallHtml($)) {
@@ -144,6 +148,11 @@ function parseText(text: string, input: ParseInput, warnings: string[]): { pageT
   // copied battle report: without the report id (only the URL has it)
   if (isCombatReportText(text)) {
     const r = parseCombatReportText(text, null);
+    // a simulation is no battle: its time and placeholder coordinates would be stored as one
+    if (r && isCombatSimulation(r)) {
+      warnings.push('simulation_use_raid_planner');
+      return { pageType: 'combatReport', records: [] };
+    }
     if (r) return { pageType: 'combatReport', records: [r] };
   }
   if (isStatsText(text)) {

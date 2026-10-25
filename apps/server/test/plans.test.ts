@@ -592,15 +592,19 @@ describe('attack plans', () => {
     db.prepare('UPDATE attack_plans SET guests = ? WHERE id = ?').run(JSON.stringify([guest]), id);
 
     expect((await call('POST', `/plans/${id}/sim`, dave, { text: 'Hallo' })).json().code).toBe('plan_sim_invalid');
+    // no battle: neither a settlement nor a stored battle report with its time and placeholder coordinates
+    expect((await call('POST', '/settlements/from-report', dave, { text })).json().code).toBe('report_simulation');
+    expect((await call('POST', '/ingest', dave, { text })).json().warnings).toContain('simulation_use_raid_planner');
+    expect(db.prepare('SELECT COUNT(*) FROM combat_reports WHERE group_id = ?').pluck().get(groupA)).toBe(0);
     // Nr.1 (heavy cruisers) and Nr.2 match no fleet; Nr.3 (light fighters) is the guest by its ship types
     const res = await call('POST', `/plans/${id}/sim`, dave, { text });
     expect(res.json()).toEqual({ defender: true, attackers: 3, identified: 1, updated: 1 });
     let plan = (await call('GET', '/plans', carol)).json().find((p: any) => p.id === id);
     expect(plan.sim).toMatchObject({ by: 'Dave', defender: true });
-    expect(plan.spy).toMatchObject({ source: 'sim', values: { 901: 500, 202: 884, 204: 1548, 225: 8708, 109: 25, 110: 24, 111: 24 } });
+    expect(plan.spy).toMatchObject({ source: 'sim', values: { 901: 500, 202: 884, 204: 1548, 225: 8708, 109: 15, 110: 14, 111: 14 } });
     expect(plan.spy.values[401]).toBeUndefined();
     expect(plan.fleets.map((f: any) => f.ships)).toEqual([{ 225: 9000 }, { 202: 5 }]);
-    expect(plan.guests[0]).toMatchObject({ ships: { 204: 82322 }, research: { 109: 25, 110: 23, 111: 24 }, research_source: 'sim' });
+    expect(plan.guests[0]).toMatchObject({ ships: { 204: 82322 }, research: { 109: 15, 110: 13, 111: 14 }, research_source: 'sim' });
 
     // Nr.1 is Carol's fleet by its ship types once it holds heavy cruisers, Nr.2 Dave's in its slot
     await call('PUT', `/plans/${id}/fleets/${plan.fleets[0].id}`, carol, { ships: { 222: 9000 } });

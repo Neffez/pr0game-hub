@@ -542,6 +542,7 @@ const de = {
     clipboardDenied: 'Kein Zugriff auf die Zwischenablage – bitte ins Textfeld einfügen.',
     /** parser/ingest warning codes */
     warnings: {
+      simulation_use_raid_planner: 'Kampfsimulation erkannt: nicht gespeichert (kein echter Kampf). Bitte im Raid-Planer am Plan über „Aus Simulator updaten“ einfügen.',
       phalanx_use_raid_planner: 'Phalanx erkannt: nicht gespeichert. Bitte im Raid-Planer über „Phalanx einfügen“ einfügen.',
       html_no_data: 'HTML enthielt keine erkennbaren Daten, Plaintext wird verwendet.',
       stats_category_unknown: 'Statistik-Kategorie nicht erkannt – bitte auswählen.',
@@ -1132,7 +1133,7 @@ const de = {
     simGameTitle: 'Mit {source} und allen Flotten des Plans (je Flotte ein Slot, mit Waffen, Schild und Panzerung aus dem Imperium)',
     simTrashTitle: 'Mit {source} und allen Flotten des Plans (mit Forschung, Start und Geschwindigkeit)',
     simFromSpy: 'dem neuesten Spionagebericht des Ziels ({time})',
-    simFromSim: 'dem Verteidiger aus der übernommenen Simulation ({time}; Rohstoffe und Gebäude aus dem Spionagebericht, falls vorhanden)',
+    simFromSim: 'dem Verteidiger aus der übernommenen Simulation (Rohstoffe und Gebäude aus dem Spionagebericht, falls vorhanden)',
     simUpdate: 'Aus Simulator updaten',
     simPlaceholder: 'Geteilte Kampfsimulation hier einfügen (Strg+A, Strg+C auf der Ergebnisseite)',
     simApply: 'Übernehmen',
@@ -1349,6 +1350,7 @@ const de = {
     settlement_invalid: 'Ungültige Abrechnung',
     settlement_not_found: 'Abrechnung noch nicht gespeichert',
     report_invalid: 'Kein Kampfbericht erkannt',
+    report_simulation: 'Das ist eine Kampfsimulation, kein Kampf: im Raid-Planer am Plan über „Aus Simulator updaten“ einfügen',
     report_no_target: 'Der Kampfbericht zeigt keine Koordinaten: im Spiel eingeloggt kopieren',
     report_no_member: 'Auf dieser Seite des Kampfs war kein Mitglied der Gruppe',
     internal: 'Interner Fehler',

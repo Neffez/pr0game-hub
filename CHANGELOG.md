@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-25
 
+- Battle simulations: research levels were read as percent / 10 (250 % as 25); the game shows 100 % plus 10 % per
+  level, so 250 % is level 15. Simulations taken over so far are dropped (migration 053) and need pasting again.
+  A simulation (every fleet only numbered, "Angreifer Nr.1") is no longer stored as a battle: the sync skips it with the
+  warning `simulation_use_raid_planner`, the settlement from a report refuses it (`report_simulation`), so its time
+  and placeholder coordinates never end up as a battle; the target's simulator tooltip shows no time for it.
 - Recalled attacks reach the raid planner from the overview sync: a plan fleet the member's newest overview shows
   flying back from the target before it would have landed (after an older overview showed it on the way there) is
   withdrawn and marked "recalled per overview"; when no fleet is left, the plan is cancelled and its claim released.

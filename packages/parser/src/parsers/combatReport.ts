@@ -16,9 +16,17 @@ const HEADER_COORDS_RE = /\[(\d+):(\d+):(\d+)\](\s*\((?:M|Mond|Moon)\))?/;
 // deuterium, so three amounts only match the loot)
 const LOOT_RE =
   /([\d.,]+)\s*(?:Metall|Metal|Holz)\s*,\s*([\d.,]+)\s*(?:Kristall|Crystal|Gold)\s*(?:,|und|and)\s*([\d.,]+)\s*(?:Deuterium|Rum)/;
-// "Bewaff. 250% - Schilde 230% - Hülle 240%" below a fleet's header: 10 % per research level
+// "Bewaff. 250% - Schilde 230% - Hülle 240%" below a fleet's header: 100 % base plus 10 % per research level
 const TECH_RE = /^(?:Bewaff\.|Weapons?:?)\s*(\d+)\s*%\s*-?\s*(?:Schilde|Shields?:?)\s*(\d+)\s*%\s*-?\s*(?:Hülle|Armou?r:?|Hull:?)\s*(\d+)\s*%/;
 const END_RE = /(Der Angreifer hat die Schlacht gewonnen|Der Verteidiger hat die Schlacht gewonnen|Der Kampf endet mit einem Unentschieden|The attacker has won the battle|The defender has won the battle|The fight ends in a draw)/;
+
+// fleets of a battle simulation are only numbered ("Angreifer Nr.1"), its coordinates are placeholders
+const SIM_NAME_RE = /^(?:Angreifer|Verteidiger|Attacker|Defender)\s+(?:Nr\.|No\.)\s*\d+$/;
+
+/** A battle simulation, not a battle: every fleet only numbered. Its time and coordinates mean nothing. */
+export function isCombatSimulation(r: CombatReportRecord): boolean {
+  return r.fleets.length > 0 && r.fleets.every((f) => SIM_NAME_RE.test(f.name));
+}
 
 export function isCombatReportText(text: string): boolean {
   return START_RE.test(text) && END_RE.test(text);
@@ -56,7 +64,8 @@ export function parseCombatReportText(text: string, reportId: string | null): Co
     }
     const tech = cur && !cur.research ? t.match(TECH_RE) : null;
     if (tech) {
-      cur!.research = { 109: Math.round(Number(tech[1]) / 10), 110: Math.round(Number(tech[2]) / 10), 111: Math.round(Number(tech[3]) / 10) };
+      const level = (pct: string) => Math.max(0, Math.round((Number(pct) - 100) / 10));
+      cur!.research = { 109: level(tech[1]), 110: level(tech[2]), 111: level(tech[3]) };
       continue;
     }
     if (cur && /^(Typ|Type)$/.test(t)) {
