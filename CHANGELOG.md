@@ -4,6 +4,15 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-25
 
+- Raid planner split into a plan list and a page per plan (`/:uni/raid-planner/:id`; `?plan=<id>` links from the
+  bell, push and Discord lead there). The list starts with the viewer's own launches, then hostile attacks (retime as
+  the main action, hold and hide in a menu, hidden ones folded), own attacks without a plan, the current plans as
+  compact rows (target, time, fleets, own launch, late or delayed) and the past plans folded away. A plan's page shows
+  target and time, one "next step" for the viewer (enter coordinates, add or complete the own fleet, launch with
+  countdown and flight calculator, start or finish the plan, settle), the retime/hold panel and a slimmer fleet table
+  with a menu per fleet; editing the plan, simulations, status changes and deleting sit in the plan's menu. New plans,
+  fleets, phalanx results, simulations and plan edits open in sheets; inviting picks a member from a menu instead of
+  acting on a select's change. Shared logic moved to `raidPlanner.ts`, the fleet form to `PlanFleetSheet.vue`.
 - UI building blocks and icons: all emoji and Unicode pictographs in the web app (bells, moons, swords, arrows,
   warnings, close buttons …) are replaced by SVG line icons from one icon set (`Icon.vue`, formerly `NavIcon.vue`,
   with `size` and an accessible `label`). New shared components: `Section` (collapsible section that remembers its

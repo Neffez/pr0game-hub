@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Raid-Planer neu aufgebaut: Die Übersicht zeigt zuerst deine nächsten Starts, feindliche Angriffe und die aktuellen Pläne als kompakte Liste. Jeder Plan hat eine eigene Seite mit dem nächsten Schritt für dich (z. B. Flotte hinzufügen oder Startzeit mit Countdown), den Flotten aller Mitglieder und einem Menü für alles Weitere. Formulare öffnen sich als Dialog, auf dem Handy von unten.',
+        en: 'Raid planner rebuilt: the overview shows your next launches, hostile attacks and the current plans as a compact list first. Every plan has its own page with your next step (e.g. add your fleet, or the launch time with a countdown), the fleets of all members and a menu for everything else. Forms open as dialogs, on phones from the bottom.',
+      },
+      {
+        kind: 'new',
         de: 'Neue, einheitliche Symbole statt Emojis überall im Hub (Glocken, Monde, Pfeile, Warnungen, Schließen-Knöpfe), mit besserer Lesbarkeit für Screenreader. Auf dem Handy ist alles etwas kompakter, Bereiche wie die Phalanx-Liste in der Galaxie lassen sich einklappen und merken sich das.',
         en: 'New, consistent icons instead of emoji throughout the hub (bells, moons, arrows, warnings, close buttons), also readable for screen readers. On phones everything is a bit more compact; sections like the phalanx list in the galaxy view can be collapsed and remember it.',
       },
