@@ -153,4 +153,9 @@ with write access to its contents); without the secrets this step is skipped.
 
 ## License
 
-MIT, see [LICENSE](LICENSE).
+Copyright (c) 2026 Neffez. Licensed under the [GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0-only).
+You may use, modify and fork the hub, but if you run a modified version as a network service or distribute it, you must
+offer its complete source code to its users under the same license. Versions up to 2026-10-25 were published under the
+MIT license; copies obtained under it stay MIT.
+
+Commercial licenses (for use without the AGPL's source obligations) are available, contact mail@neffez.dev.

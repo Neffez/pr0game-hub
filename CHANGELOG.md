@@ -4,6 +4,12 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-25
 
+- README points to commercial licenses (dual licensing next to the AGPL); CONTRIBUTING states that contributions may also
+  be offered under a commercial license.
+- The What's new page links to the source code on GitHub (AGPL-3.0 section 13 for users of a network service).
+- License changed from MIT to AGPL-3.0-only: forks and modified versions run as a network service must publish their
+  source under the same license. `LICENSE`, `package.json`, README and CONTRIBUTING updated; copies obtained earlier
+  stay under MIT.
 - Dependabot checks npm packages (one grouped pull request for minor and patch updates, majors separately), the Docker
   base images and the GitHub Actions weekly. Majors that are left out on purpose (TypeScript 7, `better-sqlite3` 13,
   `domhandler` 6, `@types/node` and the Node image) are ignored.

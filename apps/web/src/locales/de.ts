@@ -122,6 +122,8 @@ const de = {
     intro: 'Neue Funktionen und Fehlerbehebungen im Hub, die neuesten zuerst.',
     new: 'Neu',
     fix: 'Behoben',
+    sourceIntro: 'Der Hub ist Open Source (AGPL-3.0).',
+    source: 'Quellcode auf GitHub',
   },
   account: {
     title: 'Konto: {name}',

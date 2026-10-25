@@ -5,6 +5,9 @@ import { useRoute } from 'vue-router';
 import { CHANGELOG } from '../changelog';
 import { currentLang, intlLocale } from '../i18n';
 
+/** AGPL-3.0 section 13: users of the hub get a way to the source code */
+const SOURCE_URL = 'https://github.com/Neffez/pr0game-hub';
+
 const { t } = useI18n();
 /** opened inside a universe: the sidebar stays, no back link */
 const inUni = !!useRoute().params.uni;
@@ -18,6 +21,10 @@ const day = (date: string) =>
     <BackLink v-if="!inUni" to="/" :label="t('common.back')" />
     <h1>{{ t('changelog.title') }}</h1>
     <p class="muted">{{ t('changelog.intro') }}</p>
+    <p class="muted">
+      {{ t('changelog.sourceIntro') }}
+      <a :href="SOURCE_URL" target="_blank" rel="noopener">{{ t('changelog.source') }}</a>
+    </p>
     <section v-for="d in CHANGELOG" :key="d.date" class="card">
       <h2>{{ day(d.date) }}</h2>
       <ul>
