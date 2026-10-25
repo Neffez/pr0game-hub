@@ -6,7 +6,8 @@ Every commit adds its changes here, newest first, grouped by date.
 
 - Dependencies to their current majors: Vite 8 (Rolldown), Vitest 5, `@vitejs/plugin-vue` 6, Vue Router 5, vue-tsc 3,
   TypeScript 6, happy-dom 21, Chart.js 4.6, `@types/better-sqlite3` 9; base images Debian trixie (bookworm is
-  oldstable) and nginx 1.30 for the tools. `pnpm audit` is clean, dev dependencies included. Left out on purpose:
+  oldstable) and nginx 1.30 for the tools; CI actions on their Node 24 majors (`actions/checkout` 7,
+  `actions/setup-node` 7, `pnpm/action-setup` 6). `pnpm audit` is clean, dev dependencies included. Left out on purpose:
   TypeScript 7 (the native compiler has no JS API, which vue-tsc needs), `better-sqlite3` 13 (no prebuilt binaries),
   `domhandler` 6 (cheerio uses 5, their node types must match) and `@types/node` 26 (types follow the Node runtime).
 - Node.js 24 (LTS) instead of 22, which only gets security fixes until April 2027: Docker images, CI, `engines`
