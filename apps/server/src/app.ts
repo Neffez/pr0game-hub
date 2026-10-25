@@ -1,6 +1,6 @@
 import fastifyCookie from '@fastify/cookie';
 import fastifyStatic from '@fastify/static';
-import Fastify, { type FastifyInstance } from 'fastify';
+import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify';
 import { existsSync } from 'node:fs';
 import { relative, sep } from 'node:path';
 import { bootstrapAdmin, HttpError, loadRequestUser } from './auth.js';
@@ -44,7 +44,8 @@ declare module 'fastify' {
 export function buildApp(db: DB, opts: { logger?: boolean; push?: PushOptions; discord?: DiscordOptions } = {}): FastifyInstance {
   const app = Fastify({
     bodyLimit: config.bodyLimit,
-    trustProxy: true,
+    // a hop count as function: Fastify's types only take booleans, addresses and functions
+    trustProxy: typeof config.trustProxy === 'number' ? hopsTrusted(config.trustProxy) : config.trustProxy,
     logger:
       opts.logger === false
         ? false
@@ -87,10 +88,10 @@ export function buildApp(db: DB, opts: { logger?: boolean; push?: PushOptions; d
         req.authSource = auth.authSource;
       });
       scope.addHook('preHandler', async (req) => {
-        if (req.authSource !== 'token') return;
         const m = req.method;
         if (m === 'GET' || m === 'HEAD' || m === 'OPTIONS') return;
-        throw new HttpError(403, 'read_only_token', 'API tokens are read-only');
+        if (crossOrigin(req)) throw new HttpError(403, 'cross_origin', 'Cross-origin requests are not allowed');
+        if (req.authSource === 'token') throw new HttpError(403, 'read_only_token', 'API tokens are read-only');
       });
       scope.get('/api/health', async () => ({ ok: true }));
       openapiRoutes(scope);
@@ -122,7 +123,7 @@ export function buildApp(db: DB, opts: { logger?: boolean; push?: PushOptions; d
       // icons) must be revalidated after a deploy. Without `cacheControl: false` the plugin overwrites the header.
       cacheControl: false,
       setHeaders: (res, filePath) => {
-        res.setHeader('Cache-Control', relative(config.webDir, filePath).startsWith('assets' + sep) ? 'public, max-age=31536000, immutable' : 'no-cache');
+        res.header('Cache-Control', relative(config.webDir, filePath).startsWith('assets' + sep) ? 'public, max-age=31536000, immutable' : 'no-cache');
       },
     });
   }
@@ -141,4 +142,21 @@ export function buildApp(db: DB, opts: { logger?: boolean; push?: PushOptions; d
 
   app.addHook('onReady', async () => bootstrapAdmin(db, app.log));
   return app;
+}
+
+/** Trusts the nearest `hops` proxies, like proxy-addr's hop count. */
+const hopsTrusted = (hops: number) => (_address: string, hop: number) => hop < hops;
+
+/**
+ * Browsers send `Origin` with every write: one from another site (the session cookie is also sent from sibling
+ * subdomains) is refused. Clients without the header (scripts, tests) are not browsers and carry no cookie of a victim.
+ */
+function crossOrigin(req: FastifyRequest): boolean {
+  const origin = req.headers.origin;
+  if (origin === undefined) return false;
+  try {
+    return new URL(origin).host !== req.headers.host;
+  } catch {
+    return true;
+  }
 }

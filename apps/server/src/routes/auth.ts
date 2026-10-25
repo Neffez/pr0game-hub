@@ -219,6 +219,10 @@ export function authRoutes(app: FastifyInstance, db: DB) {
           const password = String(req.body?.password ?? '');
           if (password.length < 8) throw new HttpError(400, 'password_too_short', 'Password must have at least 8 characters');
           db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hashPassword(password), inv.user_id);
+          // a recovered account may have been taken over: end its other sessions and revoke its API tokens
+          if (req.user) destroyOtherSessions(db, inv.user_id, req);
+          else db.prepare('DELETE FROM sessions WHERE user_id = ?').run(inv.user_id);
+          db.prepare('DELETE FROM api_tokens WHERE user_id = ?').run(inv.user_id);
           userId = inv.user_id;
           if (!req.user?.id) newSession = true;
         }

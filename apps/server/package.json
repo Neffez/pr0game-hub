@@ -12,7 +12,7 @@
   },
   "dependencies": {
     "@fastify/cookie": "^11.0.1",
-    "@fastify/static": "^8.0.2",
+    "@fastify/static": "^10.1.7",
     "@pr0hub/core": "workspace:*",
     "@pr0hub/flight": "workspace:*",
     "@pr0hub/loot": "workspace:*",

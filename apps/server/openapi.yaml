@@ -6,6 +6,9 @@ info:
     JSON API for alliance data synced into the hub. Read-only personal access tokens (`hubpat_…`) use the same
     endpoints as the web app for GET requests. Create tokens under **Account** in the hub (session cookie required).
 
+    **Browser writes:** Requests other than GET/HEAD/OPTIONS that carry an `Origin` header from another origin than
+    the hub's are refused with 403 (`cross_origin`).
+
     **Group scope:** For universe routes, send `X-Hub-Group` with the alliance group id, or `group` as a query parameter.
     If omitted, the first group you belong to in that universe is used.
 

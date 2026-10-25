@@ -11,6 +11,11 @@ export const config = {
   /** directory with the built SPA (apps/web/dist) */
   webDir: env.WEB_DIR ?? join(process.cwd(), '..', 'web', 'dist'),
   sessionDays: Number(env.SESSION_DAYS ?? 30),
+  /**
+   * Which proxies may set X-Forwarded-For (Fastify `trustProxy`): a hop count, `true`/`false` or IPs/CIDRs (comma
+   * separated). `true` would take the client's own header and let it pick the IP the login limit counts.
+   */
+  trustProxy: trustProxyOf(env.TRUST_PROXY ?? '1'),
   secureCookies: (env.SECURE_COOKIES ?? (env.NODE_ENV === 'production' ? 'true' : 'false')) === 'true',
   bodyLimit: Number(env.BODY_LIMIT_MB ?? 8) * 1024 * 1024,
   /** Pasted pages are kept this long for reparsing after parser fixes; the synced data itself stays. */
@@ -31,6 +36,12 @@ export const config = {
     giveUpHours: Number(env.CRAWLER_GIVE_UP_HOURS ?? 6),
   },
 };
+
+function trustProxyOf(v: string): boolean | number | string[] {
+  if (v === 'true' || v === 'false') return v === 'true';
+  if (/^\d+$/.test(v)) return Number(v);
+  return v.split(',').map((s) => s.trim()).filter(Boolean);
+}
 
 export interface UniverseSettings {
   galaxies: number;

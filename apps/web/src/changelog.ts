@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-10-25',
     items: [
       {
+        kind: 'fix',
+        de: 'Sicherheit: Passwort-Links für Mitglieder mit Konto erstellen nur noch globale Admins. Wer so ein Link nutzt, wird überall sonst abgemeldet, API-Tokens werden gelöscht.',
+        en: 'Security: only global admins can create password links for members with an account. Using such a link logs the account out everywhere else and deletes its API tokens.',
+      },
+      {
         kind: 'new',
         de: 'Galaxie: Die universe.json lässt sich jetzt auch direkt im Menü neben dem Titel herunterladen.',
         en: 'Galaxy: the universe.json can now also be downloaded right from the menu next to the title.',

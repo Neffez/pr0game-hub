@@ -467,6 +467,7 @@ const doMerge = () => run(async () => {
                     <Icon name="sync" />
                   </button>
                 </div>
+                <span v-else-if="m.account && !isAdmin" class="faint small">–</span>
                 <button v-else type="button" class="small" @click="memberInvite(m)">{{
                   m.account ? t('admin.passwordInvite') : t('admin.memberInvite')
                 }}</button>

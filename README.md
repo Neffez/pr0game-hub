@@ -122,6 +122,7 @@ Changes are recorded in [CHANGELOG.md](CHANGELOG.md). Contributions are welcome,
 | `BASE_PATH` | `/hub` | path prefix behind the proxy |
 | `DATA_DIR` | `./data` (Docker: `/data`) | SQLite database `hub.db` |
 | `ADMIN_BOOTSTRAP_USER` / `ADMIN_BOOTSTRAP_PASSWORD` | – | creates the first admin while no user exists |
+| `TRUST_PROXY` | `1` | proxies trusted for `X-Forwarded-For` (Fastify `trustProxy`): hop count, `true`/`false` or comma-separated IPs/CIDRs; the login limit counts per client IP |
 | `SECURE_COOKIES` | `true` in production | |
 | `SESSION_DAYS` | `30` | |
 | `BODY_LIMIT_MB` | `8` | |

@@ -152,7 +152,7 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
 
   app.get<{ Params: { id: string } }>('/api/admin/groups/:id/members', async (req) => {
     const groupId = Number(req.params.id);
-    requireGroupAdmin(req, groupId);
+    const user = requireGroupAdmin(req, groupId);
     const t = now();
     return db
       .prepare(
@@ -162,7 +162,14 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
          FROM group_members m JOIN users u ON u.id = m.user_id WHERE m.group_id = ? ORDER BY u.username`,
       )
       .all(t, groupId)
-      .map((m: any) => ({ ...m, account: !!m.account, global_admin: !!m.global_admin, owner: m.id === owner() }));
+      // a member's invite for an existing account is a password recovery link: only global admins see it
+      .map((m: any) => ({
+        ...m,
+        account: !!m.account,
+        global_admin: !!m.global_admin,
+        owner: m.id === owner(),
+        invite: m.account && !user.isAdmin ? null : m.invite,
+      }));
   });
 
   app.post<{ Params: { id: string }; Body: { name?: string } }>('/api/admin/groups/:id/members', async (req) => {
@@ -247,6 +254,8 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
     if (!db.prepare('SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?').get(groupId, target)) {
       throw new HttpError(404, 'member_not_found', 'Member not found');
     }
+    // a link for an existing account resets its password: that would let alliance admins take over any account
+    if (!isPlaceholder(target)) requireAdmin(req);
     return { token: createClaimInvite(groupId, target, user.id) };
   });
 

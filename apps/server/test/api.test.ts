@@ -691,7 +691,22 @@ describe('api', () => {
     db.prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)').run('forgotten', hashPassword('oldpass12'));
     const uid = db.prepare("SELECT id FROM users WHERE username = 'forgotten'").pluck().get() as number;
     db.prepare("INSERT INTO group_members (group_id, user_id, role, ingame_name) VALUES (?, ?, 'member', 'Forgotten')").run(groupA, uid);
+    const before = await login('forgotten', 'oldpass12');
+    await app.inject({ method: 'POST', url: '/hub/api/auth/tokens', headers: before, payload: { name: 'script' } });
+    // alliance admins can't create recovery links (they could take over any member's account) nor see them
+    db.prepare("INSERT INTO users (username, password_hash) VALUES (?, ?)").run('allyadmin', hashPassword('allyadmin12'));
+    const allyAdminId = db.prepare("SELECT id FROM users WHERE username = 'allyadmin'").pluck().get() as number;
+    db.prepare("INSERT INTO group_members (group_id, user_id, role) VALUES (?, ?, 'admin')").run(groupA, allyAdminId);
+    const allyAdmin = await login('allyadmin', 'allyadmin12');
+    const denied = await app.inject({ method: 'POST', url: `${ga}/members/${uid}/invite`, headers: allyAdmin });
+    expect(denied.json().code).toBe('admin_only');
+    const ownerId = db.prepare("SELECT id FROM users WHERE username = 'admin'").pluck().get() as number;
+    expect((await app.inject({ method: 'POST', url: `${ga}/members/${ownerId}/invite`, headers: allyAdmin })).statusCode).toBe(403);
     const token = (await app.inject({ method: 'POST', url: `${ga}/members/${uid}/invite`, headers: admin })).json().token;
+    const seen = (await app.inject({ method: 'GET', url: `${ga}/members`, headers: allyAdmin })).json();
+    expect(seen.find((m: { id: number }) => m.id === uid).invite).toBeNull();
+    const seenByAdmin = (await app.inject({ method: 'GET', url: `${ga}/members`, headers: admin })).json();
+    expect(seenByAdmin.find((m: { id: number }) => m.id === uid).invite).toBe(token);
     const info = (await app.inject({ method: 'GET', url: `/hub/api/invites/${token}` })).json();
     expect(info.recovery).toBe(true);
     expect(info.username).toBe('forgotten');
@@ -704,8 +719,39 @@ describe('api', () => {
     expect(wrong.statusCode).toBe(403);
     const accept = await app.inject({ method: 'POST', url: `/hub/api/invites/${token}/accept`, payload: { password: 'newpass12' } });
     expect(accept.statusCode).toBe(200);
+    // sessions and API tokens from before the recovery are gone
+    expect((await app.inject({ method: 'GET', url: '/hub/api/auth/me', headers: before })).json().user).toBeNull();
+    expect(db.prepare('SELECT COUNT(*) FROM api_tokens WHERE user_id = ?').pluck().get(uid)).toBe(0);
     expect((await app.inject({ method: 'POST', url: '/hub/api/auth/login', payload: { username: 'forgotten', password: 'oldpass12' } })).statusCode).toBe(401);
     expect((await app.inject({ method: 'POST', url: '/hub/api/auth/login', payload: { username: 'forgotten', password: 'newpass12' } })).statusCode).toBe(200);
+  });
+
+  it('refuses writes from another origin', async () => {
+    const payload = { lang: 'de' };
+    const url = '/hub/api/auth/lang';
+    const foreign = await app.inject({ method: 'POST', url, payload, headers: { ...admin, host: 'hub.example.org', origin: 'https://evil.example.org' } });
+    expect(foreign.statusCode).toBe(403);
+    expect(foreign.json().code).toBe('cross_origin');
+    expect((await app.inject({ method: 'POST', url, payload, headers: { ...admin, host: 'hub.example.org', origin: 'null' } })).statusCode).toBe(403);
+    expect((await app.inject({ method: 'POST', url, payload, headers: { ...admin, host: 'hub.example.org', origin: 'https://hub.example.org' } })).statusCode).toBe(200);
+    // reads and clients without Origin (scripts) are unaffected
+    expect((await app.inject({ method: 'GET', url: '/hub/api/auth/me', headers: { ...admin, host: 'hub.example.org', origin: 'https://evil.example.org' } })).statusCode).toBe(200);
+    expect((await app.inject({ method: 'POST', url, payload, headers: admin })).statusCode).toBe(200);
+  });
+
+  it('counts failed logins per client IP behind one proxy, not per forged X-Forwarded-For', async () => {
+    const attempt = (n: number) =>
+      app.inject({
+        method: 'POST',
+        url: '/hub/api/auth/login',
+        remoteAddress: '10.0.0.2',
+        headers: { 'x-forwarded-for': `198.51.100.${n}, 203.0.113.7` },
+        payload: { username: `nobody${n}`, password: 'wrongpass' },
+      });
+    const codes: number[] = [];
+    for (let n = 0; n < 31; n++) codes.push((await attempt(n)).statusCode);
+    expect(codes.slice(0, 30).every((c) => c === 401)).toBe(true);
+    expect(codes[30]).toBe(429);
   });
 
   it('ingests a galaxy view and needs a session', async () => {

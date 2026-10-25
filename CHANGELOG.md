@@ -4,6 +4,17 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-25
 
+- Security hardening:
+  - Only global admins can create password recovery links (invites for members who already have an account); alliance
+    admins could otherwise set any member's password, the hub owner's included. The member list no longer shows
+    alliance admins open recovery links, and migration `055` withdraws open ones that alliance admins created.
+  - Accepting a recovery link ends the account's other sessions and revokes its API tokens.
+  - `trustProxy` defaults to one proxy hop (new env `TRUST_PROXY`) instead of `true`, so a forged `X-Forwarded-For`
+    no longer picks the IP the login limit counts.
+  - Writes (non-GET) carrying an `Origin` of another origin are refused with 403 `cross_origin` (the session cookie
+    is also sent from sibling subdomains).
+  - `@fastify/static` 8 → 10 (`setHeaders` gets the reply) and `fflate` 0.8.3: `pnpm audit --prod` is clean; new
+    test for static serving.
 - Galaxy browser: the page menu next to the title downloads the universe.json (`downloadUniverseJson` in `api.ts`,
   shared with the sync page; new `download` icon).
 - Expeditions: the member filter sits at the distribution it applies to (and the recent expeditions below, which
