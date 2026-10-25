@@ -4,6 +4,7 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-25
 
+- The What's new page links to the source code on GitHub (AGPL-3.0 section 13 for users of a network service).
 - License changed from MIT to AGPL-3.0-only: forks and modified versions run as a network service must publish their
   source under the same license. `LICENSE`, `package.json`, README and CONTRIBUTING updated; copies obtained earlier
   stay under MIT.

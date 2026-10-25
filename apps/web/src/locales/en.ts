@@ -121,6 +121,8 @@ const en: typeof de = {
     intro: 'New features and fixes in the hub, newest first.',
     new: 'New',
     fix: 'Fixed',
+    sourceIntro: 'The hub is open source (AGPL-3.0).',
+    source: 'Source code on GitHub',
   },
   account: {
     title: 'Account: {name}',

@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-10-25',
     items: [
       {
+        kind: 'new',
+        de: 'Unter Neuigkeiten gibt es jetzt einen Link zum Quellcode des Hubs.',
+        en: "What's new now has a link to the hub's source code.",
+      },
+      {
         kind: 'fix',
         de: 'Sicherheit: Passwort-Links für Mitglieder mit Konto erstellen nur noch globale Admins. Wer so ein Link nutzt, wird überall sonst abgemeldet, API-Tokens werden gelöscht.',
         en: 'Security: only global admins can create password links for members with an account. Using such a link logs the account out everywhere else and deletes its API tokens.',
