@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-25
 
+- License changed from MIT to AGPL-3.0-only: forks and modified versions run as a network service must publish their
+  source under the same license. `LICENSE`, `package.json`, README and CONTRIBUTING updated; copies obtained earlier
+  stay under MIT.
 - Dependabot checks npm packages (one grouped pull request for minor and patch updates, majors separately), the Docker
   base images and the GitHub Actions weekly. Majors that are left out on purpose (TypeScript 7, `better-sqlite3` 13,
   `domhandler` 6, `@types/node` and the Node image) are ignored.
