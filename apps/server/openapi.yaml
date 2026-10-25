@@ -273,6 +273,139 @@ components:
               from: { $ref: '#/components/schemas/PlanBody' }
               mission: { type: [integer, 'null'] }
               ships: { type: object, additionalProperties: { type: integer } }
+    SystemInfo:
+      type: object
+      properties:
+        time: { type: integer, description: Unix time of the figures }
+        startedAt: { type: integer, description: Unix time the server started }
+        node: { type: string, description: Node.js version }
+        database:
+          type: object
+          properties:
+            file: { type: string }
+            bytes: { type: integer, description: Size of the database file }
+            freeBytes: { type: integer, description: Free pages inside the file (reused by new data, given back by vacuum) }
+            walBytes: { type: integer, description: Size of the write-ahead log }
+            pageSize: { type: integer }
+            rawRetentionDays: { type: integer, description: Days pasted pages are kept for reparsing }
+            backups:
+              type: [object, 'null']
+              description: Backups in the data directory (`dist/backup.js`), null when there is none
+              properties:
+                count: { type: integer }
+                bytes: { type: integer }
+                newest: { type: [string, 'null'] }
+            tables:
+              type: array
+              description: Largest first
+              items:
+                type: object
+                properties:
+                  name: { type: string }
+                  rows: { type: integer }
+                  bytes: { type: integer }
+                  indexBytes: { type: integer }
+        disk:
+          type: [object, 'null']
+          description: File system of the data directory
+          properties:
+            total: { type: integer }
+            free: { type: integer }
+        memory:
+          type: object
+          properties:
+            rss: { type: integer }
+            heapUsed: { type: integer }
+            heapTotal: { type: integer }
+            external: { type: integer }
+            arrayBuffers: { type: integer }
+            heapLimit: { type: integer, description: Maximum size of the JS heap }
+            container:
+              type: object
+              description: cgroup memory limit and use (incl. file cache); null outside a container or without limit
+              properties:
+                limit: { type: [integer, 'null'] }
+                current: { type: [integer, 'null'] }
+        eventLoop:
+          type: [object, 'null']
+          description: Event loop delay in ms since the last hourly sample; null when not measured
+          properties:
+            p50: { type: number }
+            p99: { type: number }
+            max: { type: number }
+            mean: { type: number }
+        usage:
+          type: object
+          properties:
+            users: { type: integer, description: Accounts with a password }
+            online: { type: integer, description: Users with an open hub tab }
+            connections: { type: integer, description: Open live event streams }
+            activeDay: { type: integer }
+            activeWeek: { type: integer }
+            days:
+              type: array
+              description: Syncs per day within the retention of pasted pages, newest first
+              items:
+                type: object
+                properties:
+                  day: { type: string, format: date }
+                  syncs: { type: integer }
+                  users: { type: integer }
+                  bytes: { type: integer, description: Stored (compressed) pages }
+            groups:
+              type: array
+              items:
+                type: object
+                properties:
+                  id: { type: integer }
+                  name: { type: string }
+                  universe: { type: string }
+                  members: { type: integer }
+                  syncs: { type: integer }
+                  raw_bytes: { type: integer }
+                  stat_snapshots: { type: integer }
+                  players: { type: integer }
+                  spy_reports: { type: integer }
+                  combat_reports: { type: integer }
+        requests:
+          type: array
+          description: Per route (`METHOD /api/path/:param`, without the base path) since the start; percentiles of the last 200 requests
+          items:
+            type: object
+            properties:
+              route: { type: string }
+              count: { type: integer }
+              errors: { type: integer, description: Responses with status 5xx }
+              avg: { type: number }
+              p50: { type: number }
+              p95: { type: number }
+              max: { type: number }
+        slow:
+          type: array
+          description: The latest requests that took 1 s or more
+          items:
+            type: object
+            properties:
+              time: { type: integer }
+              route: { type: string }
+              ms: { type: integer }
+              status: { type: integer }
+        samples:
+          type: array
+          description: Hourly samples of the last 90 days
+          items:
+            type: object
+            properties:
+              time: { type: integer }
+              db_bytes: { type: integer }
+              free_bytes: { type: integer }
+              wal_bytes: { type: integer }
+              rss: { type: integer }
+              heap_used: { type: integer }
+              loop_p99: { type: [number, 'null'] }
+              loop_max: { type: [number, 'null'] }
+              requests: { type: integer }
+              slow: { type: integer }
     Error:
       type: object
       required: [error, code]
@@ -746,6 +879,55 @@ paths:
               schema: { $ref: '#/components/schemas/Error' }
         '502':
           description: Discord refused the message (`discord_send_failed`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /api/admin/system:
+    get:
+      tags: [Admin]
+      operationId: getSystemInfo
+      description: |
+        Operating figures for global admins: database file size, free pages and WAL, size and rows per table, free disk
+        space, memory (process and container limit), event loop delay, users online and active, syncs per day and per
+        alliance, response times per route since the start, the slowest recent requests and the hourly samples of the
+        last 90 days. Reads the whole database file once, so meant for on-demand use.
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200':
+          description: Current figures
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/SystemInfo' }
+        '403':
+          description: Not a global admin (`admin_only`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /api/admin/system/vacuum:
+    post:
+      tags: [Admin]
+      operationId: vacuumDatabase
+      description: Rewrites the database file without its free pages (SQLite `VACUUM`); the hub does not answer while it runs.
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200':
+          description: Database compacted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  before: { type: integer, description: File size before (bytes) }
+                  after: { type: integer, description: File size after (bytes) }
+                  ms: { type: integer, description: Duration }
+        '403':
+          description: Not a global admin (`admin_only`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '507':
+          description: Less free disk space than the database needs to be rewritten (`disk_space_low`)
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }

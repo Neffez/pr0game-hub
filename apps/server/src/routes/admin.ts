@@ -6,6 +6,7 @@ import { now, type DB } from '../db.js';
 import { crawlerState, resumeCrawler } from '../crawler.js';
 import { events } from '../events.js';
 import { aboutRecords, backfillActivity, parseRaw, reparse, type RawIngest } from '../ingest.js';
+import { systemInfo, vacuum } from '../monitor.js';
 import { undoIngest } from '../repo/cleanup.js';
 import { followUniverse } from '../repo/plans.js';
 
@@ -340,6 +341,23 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
   app.post('/api/admin/crawler/retry', async (req) => {
     requireAdmin(req);
     return { reset: resumeCrawler(db) };
+  });
+
+  // ------------------------------------------------------- system monitor
+
+  /** Database and disk size, memory, event loop and request times (see monitor.ts). */
+  app.get('/api/admin/system', async (req) => {
+    requireAdmin(req);
+    return systemInfo(db);
+  });
+
+  /** Gives the free pages of the database file back to the disk (VACUUM); the hub waits while it runs. */
+  app.post('/api/admin/system/vacuum', async (req) => {
+    requireAdmin(req);
+    const res = vacuum(db);
+    if (!res.ok) throw new HttpError(507, 'disk_space_low', 'Not enough free disk space to rebuild the database');
+    req.log.info(res, 'database vacuumed');
+    return res;
   });
 
   app.post<{ Params: { id: string } }>('/api/admin/ingests/:id/reparse', async (req) => {

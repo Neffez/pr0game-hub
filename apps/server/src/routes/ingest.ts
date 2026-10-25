@@ -38,10 +38,13 @@ export function ingestRoutes(app: FastifyInstance, db: DB) {
     );
   });
 
-  /** universe.json upload (whole universe, several MB). */
+  /**
+   * universe.json upload (whole universe, a few MB). Parsing takes about three times the file in memory on top of the
+   * hub's own: the limit keeps that within a small container.
+   */
   app.post<{ Params: { uni: string }; Body: { text?: string } }>(
     '/api/:uni/universe-json',
-    { bodyLimit: 64 * 1024 * 1024 },
+    { bodyLimit: 16 * 1024 * 1024 },
     async (req) => {
       const ctx = groupContext(db, req, req.params.uni);
       const text = req.body?.text;

@@ -120,10 +120,10 @@ export class Store {
       this.players.playerStatus(playerId, row.status, statTime);
       const exists = db.prepare('SELECT 1 FROM player_scores WHERE snapshot_id = ? AND player_id = ?').get(snapshotId, playerId);
       db.prepare(
-        `INSERT INTO player_scores (snapshot_id, player_id, rank, rank_change, points, title) VALUES (?, ?, ?, ?, ?, ?)
+        `INSERT INTO player_scores (snapshot_id, player_id, rank, rank_change, points, title, type, stat_time) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT (snapshot_id, player_id) DO UPDATE SET rank_change = COALESCE(excluded.rank_change, rank_change),
            title = COALESCE(excluded.title, title)`,
-      ).run(snapshotId, playerId, row.rank, row.rankChange, row.points, row.title ?? null);
+      ).run(snapshotId, playerId, row.rank, row.rankChange, row.points, row.title ?? null, r.type, statTime);
       this.count('player_scores', !exists);
       if (!exists && (r.type === 1 || r.type === 2)) this.scoreEvents(playerId, r.type, statTime, row.points, row.status);
     }
@@ -161,8 +161,7 @@ export class Store {
   scoreEvents(playerId: number, type: number, statTime: number, points: number, status: string[]) {
     const history = this.db
       .prepare(
-        `SELECT ps.points, s.stat_time FROM player_scores ps JOIN stat_snapshots s ON s.id = ps.snapshot_id
-         WHERE ps.player_id = ? AND s.type = ? AND s.stat_time < ? ORDER BY s.stat_time DESC LIMIT 40`,
+        'SELECT points, stat_time FROM player_scores WHERE player_id = ? AND type = ? AND stat_time < ? ORDER BY stat_time DESC LIMIT 40',
       )
       .all(playerId, type, statTime) as { points: number; stat_time: number }[];
     if (!history.length) return;

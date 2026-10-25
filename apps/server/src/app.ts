@@ -18,6 +18,7 @@ import { notificationRoutes } from './routes/notifications.js';
 import { discordRoutes } from './routes/discord.js';
 import { pushRoutes } from './routes/push.js';
 import { events } from './events.js';
+import { recordRequest } from './monitor.js';
 import { PushService, type PushOptions } from './push.js';
 import { DiscordService, type DiscordOptions } from './discord.js';
 import { deckRoutes } from './routes/deck.js';
@@ -67,6 +68,14 @@ export function buildApp(db: DB, opts: { logger?: boolean; push?: PushOptions; d
     for (const stop of stopListening) stop();
     push.close();
     discord.close();
+  });
+  // request times per route for the admin system page; the live event streams stay open for hours
+  app.addHook('onResponse', async (req, reply) => {
+    const url = req.routeOptions.url;
+    if (url?.endsWith('/events')) return;
+    // the static files of the web app each have a route of their own
+    const route = !url ? '(unmatched)' : url.startsWith(`${config.basePath}/api/`) ? url.slice(config.basePath.length) : '(static files)';
+    recordRequest(`${req.method} ${route}`, reply.elapsedTime, reply.statusCode);
   });
   app.decorateRequest('user', null);
   app.decorateRequest('authSource', null);

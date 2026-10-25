@@ -293,10 +293,13 @@ describe('raid settlements', () => {
   it('makes a done plan from a pasted battle report, or takes the plan there', async () => {
     // [name, coords, ships before, ships after] per fleet; the first defender is the target
     type F = [string, string, string, number, number];
+    // the battle of yesterday: plans are listed for a week after their time
+    const day = new Date(Date.now() - 86400_000);
+    const when = `${day.getUTCDate()}. ${['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'][day.getUTCMonth()]} ${day.getUTCFullYear()}, 10:00:00`;
     const report = (attackers: F[], defenders: F[]) => {
       const block = (side: string, f: F, after: boolean) => [`${side} ${f[0]} (${f[1]})`, 'Typ', f[2], 'Anzahl', String(after ? f[4] : f[3])];
       const round = (after: boolean) => [...attackers.flatMap((f) => block('Angreifer', f, after)), ...defenders.flatMap((f) => block('Verteidiger', f, after))];
-      return ['Folgende Flotten stehen sich gegenüber am 25. Okt 2026, 10:00:00', ...round(false), ...round(true),
+      return ['Folgende Flotten stehen sich gegenüber am ' + when, ...round(false), ...round(true),
         'Der Angreifer hat die Schlacht gewonnen!', 'Er erbeutet 1.000 Metall, 2.000 Kristall und 3.000 Deuterium'].join('\n');
     };
     const attack = report([['CVXII', '[5:10:3]', 'Schlachtschiff', 100, 99], ['Gast', '[5:20:1] (M)', 'Schlachtschiff', 50, 50]], [['Opfer', '[5:100:8]', 'Kl. Transporter', 10, 0]]);

@@ -62,14 +62,14 @@ export function overviewRoutes(app: FastifyInstance, db: DB) {
            FROM player_scores ps JOIN stat_snapshots s ON s.id = ps.snapshot_id
            WHERE s.group_id = ? AND s.who = 'player' AND s.type = ? AND s.stat_time >= ?
            UNION ALL
-           SELECT player_id, points, rank, rank_change, stat_time FROM (
-             -- SQLite takes the bare columns from the row with the MAX()
-             SELECT ps.player_id, ps.points, ps.rank, ps.rank_change, MAX(s.stat_time) AS stat_time
-             FROM player_scores ps JOIN stat_snapshots s ON s.id = ps.snapshot_id
-             WHERE s.group_id = ? AND s.who = 'player' AND s.type = ? AND s.stat_time < ? GROUP BY ps.player_id)
+           -- one index lookup per player (see migration 055)
+           SELECT ps.player_id, ps.points, ps.rank, ps.rank_change, ps.stat_time FROM players p
+           JOIN player_scores ps ON ps.rowid = (
+             SELECT rowid FROM player_scores WHERE player_id = p.id AND type = ? AND stat_time < ? ORDER BY stat_time DESC LIMIT 1)
+           WHERE p.group_id = ?
            ORDER BY player_id, stat_time DESC`,
         )
-        .all(ctx.groupId, type, since, ctx.groupId, type, since) as (ScoreRow & { player_id: number })[];
+        .all(ctx.groupId, type, since, type, since, ctx.groupId) as (ScoreRow & { player_id: number })[];
       for (const [playerId, history] of groupBy(rows, (r) => r.player_id)) {
         const entry = players.get(playerId) ?? { scores: {} };
         entry.scores[type] = scoreEntry(history, sections[type]);

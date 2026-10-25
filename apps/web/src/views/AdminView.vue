@@ -7,6 +7,7 @@ import BackLink from '../components/BackLink.vue';
 import { useMobile, useSort, vStack } from '../composables';
 import CopyField from '../components/CopyField.vue';
 import Hint from '../components/Hint.vue';
+import SystemMonitor from '../components/SystemMonitor.vue';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
@@ -499,6 +500,11 @@ const doMerge = () => run(async () => {
       </Section>
 
       <template v-if="isAdmin">
+      <Section :title="t('admin.system.title')" :default-open="false" store-key="admin.system">
+        <template #hint><Hint>{{ t('admin.system.hint') }}</Hint></template>
+        <SystemMonitor />
+      </Section>
+
       <Section :title="t('admin.backfill')" :default-open="false" store-key="admin.backfill">
         <template #hint><Hint>{{ t('admin.backfillHint') }}</Hint></template>
       <div class="row">

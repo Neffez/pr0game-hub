@@ -7,7 +7,7 @@ Every commit adds its changes here, newest first, grouped by date.
 - Security hardening:
   - Only global admins can create password recovery links (invites for members who already have an account); alliance
     admins could otherwise set any member's password, the hub owner's included. The member list no longer shows
-    alliance admins open recovery links, and migration `055` withdraws open ones that alliance admins created.
+    alliance admins open recovery links, and migration `057` withdraws open ones that alliance admins created.
   - Accepting a recovery link ends the account's other sessions and revokes its API tokens.
   - `trustProxy` defaults to one proxy hop (new env `TRUST_PROXY`) instead of `true`, so a forged `X-Forwarded-For`
     no longer picks the IP the login limit counts.
@@ -15,6 +15,33 @@ Every commit adds its changes here, newest first, grouped by date.
     is also sent from sibling subdomains).
   - `@fastify/static` 8 → 10 (`setHeaders` gets the reply) and `fflate` 0.8.3: `pnpm audit --prod` is clean; new
     test for static serving.
+- Parser: pages are loaded with htmlparser2 instead of cheerio's default parse5. The DOM needs less than half the
+  memory and loads twice as fast; an 8 MB paste peaks at ~325 MB instead of ~455 MB and takes 3.5 s instead of 6.3 s.
+  The output of all fixtures is identical.
+- Performance review (memory, disk growth, response times) with fixes and an admin system monitor:
+  - The newest score of a player per category no longer aggregates the player's whole statistics history: migration
+    055 copies category and stat time onto `player_scores` (index `player_scores_history`, a trigger fills rows
+    inserted without them). With 90 days of full statistics for 1,500 players `/stats` went from ~5 s to ~0.3 s and
+    `/overview` from ~4 s to ~0.9 s; both no longer grow with the history (`latestScores`, overview, score events).
+  - `journal_size_limit` (64 MB): a big transaction (universe.json, migrations) no longer leaves a WAL file of its
+    size behind for good.
+  - universe.json upload limit 64 → 16 MB: parsing takes about three times the file on top of the ~145 MB the hub
+    uses idle, so a large upload could get the 256 MB container OOM-killed (a full universe.json is ~4 MB).
+  - Presence keeps at most 20 tabs per member (tab ids come from the client and could pile up in memory).
+  - Hourly housekeeping (`monitor.ts`): pasted pages past their retention for every group (also groups that stopped
+    syncing), expired sessions, `PRAGMA optimize`; and an hourly sample into `system_samples` (migration 056, 90 days).
+  - Admin → System (global admins, `GET /api/admin/system`): database size, free pages, WAL, growth per day,
+    size and rows per table, free disk, memory (RSS, heap, container limit), event loop delay, users online and
+    active, syncs per day and per alliance, response times per route (p50/p95/max, 5xx) and slow requests, history
+    chart of database size and memory. "Compact database" runs `VACUUM` (`POST /api/admin/system/vacuum`).
+- Tests no longer depend on the date: the lists of the API tests (raids, activity) ask for an explicit time range
+  instead of the default last 8 days, the settlement test dates its battle report relative to today (plans are listed
+  for a week), and the time format test builds its time in the local zone. Checked with the clock moved from
+  three days to ten years ahead and with other time zones.
+- Tests: the hostile fleet notification test only looks at attacks; the fixtures' fixed timestamps let a storage
+  become full during the day, which added a second notification and made the test fail from 19:37 UTC on.
+- Flight calculator: fixed horizontal scrolling on mobile; the invisible checkbox of the "live (now)" switch was
+  as wide as the viewport and stuck out of the page.
 - Galaxy browser: the page menu next to the title downloads the universe.json (`downloadUniverseJson` in `api.ts`,
   shared with the sync page; new `download` icon).
 - Expeditions: the member filter sits at the distribution it applies to (and the recent expeditions below, which
