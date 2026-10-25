@@ -4,6 +4,8 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-25
 
+- Flight calculator: fixed horizontal scrolling on mobile; the invisible checkbox of the "live (now)" switch was
+  as wide as the viewport and stuck out of the page.
 - Galaxy browser: the page menu next to the title downloads the universe.json (`downloadUniverseJson` in `api.ts`,
   shared with the sync page; new `download` icon).
 - Expeditions: the member filter sits at the distribution it applies to (and the recent expeditions below, which
