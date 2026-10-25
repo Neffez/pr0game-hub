@@ -1138,7 +1138,7 @@ const de = {
     simPlaceholder: 'Geteilte Kampfsimulation hier einfügen (Strg+A, Strg+C auf der Ergebnisseite)',
     simApply: 'Übernehmen',
     simHint:
-      'Der erste Verteidiger wird zum Ziel (Schiffe, Verteidigung, Waffen/Schild/Panzerung) für die Simulator-Links. Die Koordinaten einer Simulation sind Platzhalter und werden ignoriert. Angreifer ändern den Plan nur, wenn sie erkannt werden: am Namen, sonst am Slot mit denselben Schiffstypen oder als einzige Flotte mit diesen Schiffstypen. Erkannte Mitgliederflotten übernehmen die Schiffe (und Waffen/Schild/Panzerung, wenn der Hub die des Mitglieds nicht kennt), Gastflotten die Forschung (und die Schiffe, solange der Plan keinem laufenden Angriff folgt).',
+      'Der erste Verteidiger wird zum Ziel (Schiffe, Verteidigung, Waffen/Schild/Panzerung) für die Simulator-Links. Die Koordinaten einer Simulation sind Platzhalter und werden ignoriert. Angreifer ändern den Plan nur, wenn sie erkannt werden: am Namen, sonst am Slot mit denselben Schiffstypen oder als einzige Flotte mit diesen Schiffstypen. Erkannte Mitgliederflotten übernehmen die Schiffe (und das Mitglied Waffen/Schild/Panzerung, wenn der Hub seine nicht kennt), Gastflotten die Forschung (und die Schiffe, solange der Plan keinem laufenden Angriff folgt).',
     simDefender: 'Verteidiger aus der Simulation übernommen.',
     simAttackers: 'Angreifer: {identified} von {attackers} erkannt, {updated} geändert.',
     simTaken: 'Simulation übernommen von {name} ({time})',

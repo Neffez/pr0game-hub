@@ -9,15 +9,15 @@ const COMBAT_TECHS = [109, 110, 111];
 
 /**
  * Battle simulation taken over into an attack plan (`attack_plans.sim`): the target's ships, defense and combat
- * research (the first defender), the combat research of guest fleets by their start (`bodyKey`) and of plan fleets by
- * their id (for members whose research the hub does not know).
+ * research (the first defender), the combat research of guest fleets by their start (`bodyKey`) and of members by
+ * their user id (research is the player's: one recognised fleet gives it to all of theirs).
  */
 export interface PlanSim {
   time: number;
   user_id: number;
   values: Record<number, number> | null;
   guests: Record<string, Record<number, number>>;
-  fleets?: Record<string, Record<number, number>>;
+  members?: Record<string, Record<number, number>>;
 }
 
 interface Guest {
@@ -47,8 +47,8 @@ export interface SimResult {
  * read from them: the first defender becomes the target's ships, defense and combat research for the simulators
  * (`PlanSim.values`). Attacker fleets only change the plan where they are recognised: by the name of a member or guest,
  * else by the slot (the hub's simulator links fill the slots in the plan's order) with the same ship types, else as the
- * only open fleet with those ship types. A recognised member fleet takes the ships and its combat research (used where
- * the member's own is unknown, `simResearch`), a guest its research and, unless the plan follows a running attack, the
+ * only open fleet with those ship types. A recognised member fleet takes the ships and gives its member the combat
+ * research (used where the member's own is unknown, `simResearch`), a guest its research and, unless the plan follows a running attack, the
  * ships.
  */
 export function applySimulation(db: DB, ctx: GroupContext, planId: number, report: CombatReportRecord): SimResult {
@@ -67,9 +67,9 @@ export function applySimulation(db: DB, ctx: GroupContext, planId: number, repor
   const byName = memberByName(db, ctx);
 
   // the simulators' attacker slots: the plan's fleets, then its guests
-  type Slot = { ships: Record<number, number>; named: (name: string) => boolean } & ({ fleet: number } | { guest: number });
+  type Slot = { ships: Record<number, number>; named: (name: string) => boolean } & ({ fleet: number; user: number } | { guest: number });
   const slots: Slot[] = [
-    ...fleets.map((f) => ({ fleet: f.id, ships: f.ships, named: (name: string) => byName(name) === f.user_id })),
+    ...fleets.map((f) => ({ fleet: f.id, user: f.user_id, ships: f.ships, named: (name: string) => byName(name) === f.user_id })),
     ...guests.map((g, i) => ({ guest: i, ships: g.ships, named: (name: string) => [g.player?.name, g.name].some((n) => n && lower(n) === lower(name)) })),
   ];
   const used = new Set<number>();
@@ -85,7 +85,7 @@ export function applySimulation(db: DB, ctx: GroupContext, planId: number, repor
 
   const attackers = report.fleets.filter((f) => f.side === 'attacker');
   const guestResearch = { ...(prev?.guests ?? {}) };
-  const fleetResearch = { ...(prev?.fleets ?? {}) };
+  const memberResearch = { ...(prev?.members ?? {}) };
   const differs = (a: Record<number, number> | undefined, b: Record<number, number> | undefined) => JSON.stringify(a) !== JSON.stringify(b);
   const setShips = db.prepare('UPDATE attack_plan_fleets SET ships = ?, updated_at = ? WHERE id = ?');
   let identified = 0;
@@ -100,9 +100,9 @@ export function applySimulation(db: DB, ctx: GroupContext, planId: number, repor
     const ships = flying(f.start);
     const shipsChanged = shipsKey(ships) !== shipsKey(slot.ships);
     if ('fleet' in slot) {
-      const research = f.research && differs(f.research, fleetResearch[slot.fleet]) ? f.research : null;
+      const research = f.research && differs(f.research, memberResearch[slot.user]) ? f.research : null;
       if (shipsChanged) setShips.run(JSON.stringify(ships), now(), slot.fleet);
-      if (research) fleetResearch[slot.fleet] = research;
+      if (research) memberResearch[slot.user] = research;
       if (shipsChanged || research) updated++;
       return;
     }
@@ -122,7 +122,7 @@ export function applySimulation(db: DB, ctx: GroupContext, planId: number, repor
   const values = target
     ? { ...Object.fromEntries(Object.entries(target.start).filter(([, n]) => n > 0)), ...Object.fromEntries(COMBAT_TECHS.map((id) => [id, target.research?.[id] ?? 0])) }
     : (prev?.values ?? null);
-  const sim: PlanSim = { time: now(), user_id: ctx.user.id, values, guests: guestResearch, fleets: fleetResearch };
+  const sim: PlanSim = { time: now(), user_id: ctx.user.id, values, guests: guestResearch, members: memberResearch };
   db.prepare(`UPDATE attack_plans SET sim = ?, ${guestsChanged ? 'guests = ?, ' : ''}updated_at = ? WHERE id = ?`).run(
     ...[JSON.stringify(sim), ...(guestsChanged ? [JSON.stringify(guests)] : []), now(), planId],
   );
@@ -130,11 +130,11 @@ export function applySimulation(db: DB, ctx: GroupContext, planId: number, repor
 }
 
 /**
- * Combat research of a plan fleet from a taken-over simulation, for the simulators: only the levels the member's own
+ * Combat research of a member from a taken-over simulation, for the simulators: only the levels the member's own
  * research (empire page, spy report, by hand) does not have; null when there are none.
  */
-export function simResearch(sim: PlanSim | null, fleetId: number, known: Record<number, number> | undefined): Record<number, number> | null {
-  const research = sim?.fleets?.[fleetId];
+export function simResearch(sim: PlanSim | null, userId: number, known: Record<number, number> | undefined): Record<number, number> | null {
+  const research = sim?.members?.[userId];
   if (!research) return null;
   const missing = COMBAT_TECHS.filter((id) => known?.[id] == null && research[id] != null);
   return missing.length ? Object.fromEntries(missing.map((id) => [id, research[id]])) : null;

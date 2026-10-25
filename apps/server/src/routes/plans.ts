@@ -244,7 +244,7 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
             ships: JSON.parse(ships),
             drives,
             // combat research from a taken-over simulation where the member's is unknown
-            sim_research: simResearch(sims.get(p.id)!, f.id, drives?.research),
+            sim_research: simResearch(sims.get(p.id)!, f.user_id, drives?.research),
             seen: launched.get(f.id) ?? null,
           };
         }),

@@ -1136,7 +1136,7 @@ const en: typeof de = {
     simPlaceholder: 'Paste a shared battle simulation here (Ctrl+A, Ctrl+C on the result page)',
     simApply: 'Apply',
     simHint:
-      'The first defender becomes the target (ships, defense, weapons/shields/armour) for the simulator links. The coordinates of a simulation are placeholders and are ignored. Attackers only change the plan when they are recognised: by name, else by the slot with the same ship types, or as the only fleet with those ship types. Recognised member fleets take the ships (and weapons/shields/armour when the hub does not know the member's), guest fleets the research (and the ships, unless the plan follows a running attack).',
+      'The first defender becomes the target (ships, defense, weapons/shields/armour) for the simulator links. The coordinates of a simulation are placeholders and are ignored. Attackers only change the plan when they are recognised: by name, else by the slot with the same ship types, or as the only fleet with those ship types. Recognised member fleets take the ships (and their member weapons/shields/armour when the hub does not know theirs), guest fleets the research (and the ships, unless the plan follows a running attack).',
     simDefender: 'Defender taken over from the simulation.',
     simAttackers: 'Attackers: {identified} of {attackers} recognised, {updated} changed.',
     simTaken: 'Simulation taken over by {name} ({time})',

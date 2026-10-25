@@ -615,6 +615,10 @@ describe('attack plans', () => {
     // combat research from the simulation only where the hub knows none of the member's
     expect(plan.fleets[0].drives.research[109]).toBeDefined();
     expect(plan.fleets.map((f: any) => f.sim_research)).toEqual([null, { 109: 14, 110: 13, 111: 14 }]);
+    // research is the player's: a second fleet of Dave the simulation does not show gets it too
+    await call('POST', `/plans/${id}/fleets`, dave, { g: 1, s: 42, p: 8, type: 'planet', ships: { 202: 1 } });
+    plan = (await call('GET', '/plans', carol)).json().find((p: any) => p.id === id);
+    expect(plan.fleets[2].sim_research).toEqual({ 109: 14, 110: 13, 111: 14 });
 
     // dropped again: the spy report counts
     await call('DELETE', `/plans/${id}/sim`, carol);
