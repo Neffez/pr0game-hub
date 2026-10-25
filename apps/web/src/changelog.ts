@@ -16,8 +16,28 @@ export interface ChangelogDay {
 
 export const CHANGELOG: ChangelogDay[] = [
   {
+    date: '2026-10-25',
+    items: [
+      {
+        kind: 'fix',
+        de: 'Ankunftszeiten eingefügter Flotten stimmen jetzt auch bei der Zeitumstellung (vorher eine Stunde daneben).',
+        en: 'Arrival times of pasted fleets are now right around the daylight saving switch too (before, an hour off).',
+      },
+    ],
+  },
+  {
     date: '2026-10-24',
     items: [
+      {
+        kind: 'fix',
+        de: 'Ein als Text eingefügter Kampfbericht wird nicht mehr doppelt gespeichert, wenn derselbe Kampf später über den Link synchronisiert wird.',
+        en: 'A battle report pasted as text is no longer saved twice when the same battle is synced from its link later.',
+      },
+      {
+        kind: 'fix',
+        de: 'Kampfberichte zeigen jetzt die Beute und die Koordinaten des Ziels und laufen mobil nicht mehr seitlich über. Ein über den Link gespeicherter Bericht wird beim Einfügen des vollständigen Texts um Koordinaten und Beute ergänzt.',
+        en: 'Battle reports now show the loot and the target coordinates and no longer overflow sideways on mobile. A report saved from its link gets the coordinates and loot when you paste its full text.',
+      },
       {
         kind: 'new',
         de: 'Links zum AKS-Beuterechner sind jetzt etwa viermal kürzer. Alte Links funktionieren weiter.',

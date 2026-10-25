@@ -73,7 +73,9 @@ export function nearestClock(approx: number, clock: string, timeZone = 'Europe/B
   let diff = h * 3600 + m * 60 + s - shown;
   if (diff > 43200) diff -= 86400;
   if (diff <= -43200) diff += 86400;
-  return approx + diff;
+  // across a daylight saving switch the clock lies in the other offset
+  const at = approx + diff;
+  return at + (zoneOffsetMs(approx * 1000, timeZone) - zoneOffsetMs(at * 1000, timeZone)) / 1000;
 }
 
 /** Formatters per time zone; creating one is expensive and this runs per message. */

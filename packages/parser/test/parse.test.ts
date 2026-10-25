@@ -714,6 +714,13 @@ describe('fleet movements', () => {
     expect(nearestClock(at - 600, '00:18:43')).toBe(at);
     const late = localToEpoch('2026-10-22 23:59:30');
     expect(nearestClock(late + 60, '23:59:30')).toBe(late);
+    // estimate after the switch to winter time (03:00 CEST -> 02:00 CET), clock before it
+    const summer = localToEpoch('2026-10-25 00:18:43');
+    expect(summer).toBe(Date.UTC(2026, 9, 24, 22, 18, 43) / 1000);
+    expect(nearestClock(Date.UTC(2026, 9, 25, 1, 2, 0) / 1000, '00:18:43')).toBe(summer);
+    // and the other way round in spring (02:00 CET -> 03:00 CEST)
+    const winter = localToEpoch('2026-03-29 01:30:00');
+    expect(nearestClock(Date.UTC(2026, 2, 29, 2, 0, 0) / 1000, '01:30:00')).toBe(winter);
   });
 });
 

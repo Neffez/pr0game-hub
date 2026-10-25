@@ -2,7 +2,22 @@
 
 Every commit adds its changes here, newest first, grouped by date.
 
+## 2026-10-25
+
+- Fleet arrivals copied with their clock are right around a daylight saving switch: the shown clock is converted with
+  the UTC offset of its own time, no longer that of the estimate (an hour off when the switch lay between them). The
+  server test checks the Berlin clock instead of a fixed summer-time offset.
+
 ## 2026-10-24
+
+- A battle report pasted as text (local id `text-…`) is moved to its game id when the same battle is archived later
+  from its link or the battle hall (same time and losses), instead of being kept twice; target and loot of the text
+  stay. Settlements are unaffected, they hold no report ids.
+
+- Battle report page: shows the loot and the attacked coordinates; wide fleet tables scroll inside their card instead
+  of widening the page on mobile. Archiving a report again fills in what the stored one lacked (target hidden on the
+  public page, loot of reports archived before it was read) instead of being ignored, and a report pasted as text
+  joins the same battle archived from its link (same time and losses) instead of a second local copy.
 
 - Loot calculator share links are about a quarter as long: the settlement is packed as positional arrays (people by
   index, ships as id/amount pairs) and deflated (`fflate`) before base64url, marked with `z` (`#s=z…`); older links
