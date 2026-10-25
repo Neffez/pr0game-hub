@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Große eingefügte Seiten werden schneller verarbeitet und brauchen weniger Speicher auf dem Server.',
+        en: 'Big pasted pages are processed faster and need less memory on the server.',
+      },
+      {
+        kind: 'fix',
         de: 'Übersicht und Statistik laden deutlich schneller, vor allem in Universen mit langer Statistik-Historie.',
         en: 'Overview and statistics load much faster, above all in universes with a long statistics history.',
       },
