@@ -310,7 +310,8 @@ button.chip:hover { border-color: var(--accent); }
 
 /* page header: title with hint, actions on the right */
 .page-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-bottom: 12px; }
-.page-head h1 { display: flex; align-items: center; margin: 0; }
+.page-head h1 { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; margin: 0; }
+.page-head h1 .hint { margin-left: 0; }
 .page-head .page-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-left: auto; }
 
 @media (max-width: 800px) {

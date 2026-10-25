@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import PageHeader from '../components/PageHeader.vue';
 import Hint from '../components/Hint.vue';
 import { onMounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -19,7 +20,11 @@ watch(days, load);
 </script>
 
 <template>
-  <h1>{{ t('nav.hostile') }} <Hint>{{ t('hostile.hint') }}</Hint></h1>
+  <PageHeader :title="t('nav.hostile')">
+    <template #hint>
+      <Hint>{{ t('hostile.hint') }}</Hint>
+    </template>
+  </PageHeader>
   <div class="card row">
     <RangePicker v-model="days" />
   </div>

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import PageHeader from '../components/PageHeader.vue';
 import Section from '../components/Section.vue';
 import Icon from '../components/Icon.vue';
 import { resourceAt } from '@pr0hub/core/buildings';
@@ -321,14 +322,15 @@ const memberName = (id: number | null) => ctx.value!.members.find((m) => m.id ==
 </script>
 
 <template>
-  <h1>
-    {{ t('imperium.title') }}
-    <Hint>
-      <p>{{ t('imperium.hint1') }}</p>
-      <p>{{ t('imperium.hint2') }}</p>
-      <p>{{ t('imperium.hint3') }}</p>
-    </Hint>
-  </h1>
+  <PageHeader :title="t('imperium.title')">
+    <template #hint>
+      <Hint>
+        <p>{{ t('imperium.hint1') }}</p>
+        <p>{{ t('imperium.hint2') }}</p>
+        <p>{{ t('imperium.hint3') }}</p>
+      </Hint>
+    </template>
+  </PageHeader>
 
   <div class="card row small">
     <label>

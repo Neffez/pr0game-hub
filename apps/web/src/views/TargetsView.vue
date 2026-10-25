@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import PageHeader from '../components/PageHeader.vue';
 import Icon from '../components/Icon.vue';
 import Hint from '../components/Hint.vue';
 import PlanetActions from '../components/PlanetActions.vue';
@@ -21,10 +22,11 @@ const browseLink = (c: { g: number; s: number }) => ({ path: `/${uni.value}/brow
 </script>
 
 <template>
-  <h1>
-    {{ t('nav.targets') }}
-    <Hint>{{ t('claims.hint') }}</Hint>
-  </h1>
+  <PageHeader :title="t('nav.targets')">
+    <template #hint>
+      <Hint>{{ t('claims.hint') }}</Hint>
+    </template>
+  </PageHeader>
   <div v-if="!rows.length" class="card muted">{{ t('claims.none') }}</div>
   <div v-else class="card table-wrap">
     <table v-stack class="data">

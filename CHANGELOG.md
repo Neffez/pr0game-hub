@@ -4,6 +4,8 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-25
 
+- Every page title uses the shared `PageHeader` (title, hints, actions on the right), so headings look and wrap the
+  same everywhere.
 - Feedback and loading: own actions in the raid planner confirm with a short toast (plan created, saved, status,
   fleet removed, member invited, attack hidden; claimed targets and phalanx results as warnings) through a shared
   `toast()` shown with the live hints, replacing the inline info lines. Pages show a shimmering placeholder while

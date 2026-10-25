@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import PageHeader from '../components/PageHeader.vue';
 import MemberSelect from '../components/MemberSelect.vue';
 import Hint from '../components/Hint.vue';
 import { computed, onMounted, watch } from 'vue';
@@ -86,14 +87,15 @@ const sumRes = (u: any) => Object.values(u.resources as Record<string, number>).
 </script>
 
 <template>
-  <h1>
-    {{ t('nav.expeditions') }}
-    <Hint>
-      <p>{{ t('expeditions.hint1') }}</p>
-      <p>{{ t('expeditions.hint2') }}</p>
-      <p>{{ t('expeditions.hint3') }}</p>
-    </Hint>
-  </h1>
+  <PageHeader :title="t('nav.expeditions')">
+    <template #hint>
+      <Hint>
+        <p>{{ t('expeditions.hint1') }}</p>
+        <p>{{ t('expeditions.hint2') }}</p>
+        <p>{{ t('expeditions.hint3') }}</p>
+      </Hint>
+    </template>
+  </PageHeader>
   <div class="card row">
     <RangePicker v-model="days" />
     <MemberSelect v-model="member" :all-label="t('raids.wholeAlliance')" />

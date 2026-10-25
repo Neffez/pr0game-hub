@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import PageHeader from '../components/PageHeader.vue';
 import Icon from '../components/Icon.vue';
 import BackLink from '../components/BackLink.vue';
 import { computed, onMounted, ref, watch } from 'vue';
@@ -256,11 +257,12 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
 
 <template>
   <BackLink :to="`/${uni}/raid-planner?tab=settlements`" :label="t('loot.back')" />
-  <h1>
-    {{ t('loot.title') }}
-    <span v-if="data" class="muted small" style="font-weight: 400">{{ target }} · {{ dateTime(data.plan.target_time) }}</span>
-    <span v-if="data?.plan.mission === 'hold'" class="badge" style="margin-left: 6px">{{ t('hold.badge') }}</span>
-  </h1>
+  <PageHeader :title="t('loot.title')">
+    <template #hint>
+      <span v-if="data" class="muted small" style="font-weight: 400">{{ target }} · {{ dateTime(data.plan.target_time) }}</span>
+      <span v-if="data?.plan.mission === 'hold'" class="badge" style="margin-left: 6px">{{ t('hold.badge') }}</span>
+    </template>
+  </PageHeader>
   <p class="muted small">{{ data?.plan.mission === 'hold' ? t('loot.introHold') : t('loot.intro') }}</p>
   <div v-if="error" class="error">{{ error }}</div>
   <p v-if="route.query.existing" class="small warn">{{ t('loot.existingPlan') }}</p>

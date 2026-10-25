@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import PageHeader from '../components/PageHeader.vue';
 import Icon from '../components/Icon.vue';
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -137,7 +138,11 @@ async function toggleShare(m: Message) {
 </script>
 
 <template>
-  <h1>{{ t('nav.messages') }} <Hint>{{ t('messages.hint') }}</Hint></h1>
+  <PageHeader :title="t('nav.messages')">
+    <template #hint>
+      <Hint>{{ t('messages.hint') }}</Hint>
+    </template>
+  </PageHeader>
   <div class="card filters">
     <div class="row">
       <div class="tabs" style="margin: 0">

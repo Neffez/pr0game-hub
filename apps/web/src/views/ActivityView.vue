@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import PageHeader from '../components/PageHeader.vue';
 import Section from '../components/Section.vue';
 import Icon from '../components/Icon.vue';
 import { computed, onMounted, watch } from 'vue';
@@ -122,20 +123,21 @@ function text(e: Entry) {
 </script>
 
 <template>
-  <h1>
-    {{ t('activity.title') }}
-    <Hint>
-      <p>{{ t('activity.hint1') }}</p>
-      <p>
-        <b>{{ t('activity.hintPhalanx') }}</b> {{ t('activity.hintPhalanxText') }}
-        <b>{{ t('activity.hintPlanet') }}</b> {{ t('activity.hintPlanetText') }}
-        <b>{{ t('activity.hintDebris') }}</b> {{ t('activity.hintDebrisText') }}
-        <b>{{ t('activity.hintPoints') }}</b> {{ t('activity.hintPointsText') }}
-        <b>{{ t('activity.hintNoGrowth') }}</b> {{ t('activity.hintNoGrowthText') }}
-      </p>
-      <p>{{ t('activity.hintFilter') }}</p>
-    </Hint>
-  </h1>
+  <PageHeader :title="t('activity.title')">
+    <template #hint>
+      <Hint>
+        <p>{{ t('activity.hint1') }}</p>
+        <p>
+          <b>{{ t('activity.hintPhalanx') }}</b> {{ t('activity.hintPhalanxText') }}
+          <b>{{ t('activity.hintPlanet') }}</b> {{ t('activity.hintPlanetText') }}
+          <b>{{ t('activity.hintDebris') }}</b> {{ t('activity.hintDebrisText') }}
+          <b>{{ t('activity.hintPoints') }}</b> {{ t('activity.hintPointsText') }}
+          <b>{{ t('activity.hintNoGrowth') }}</b> {{ t('activity.hintNoGrowthText') }}
+        </p>
+        <p>{{ t('activity.hintFilter') }}</p>
+      </Hint>
+    </template>
+  </PageHeader>
 
   <div class="card">
     <div class="row">

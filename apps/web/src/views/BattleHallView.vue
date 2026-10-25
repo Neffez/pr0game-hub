@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import PageHeader from '../components/PageHeader.vue';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
@@ -47,15 +48,16 @@ const rank = (i: number) => (page.value - 1) * 100 + i + 1;
 </script>
 
 <template>
-  <h1>
-    {{ t('nav.battleHall') }}
-    <Hint>
-      <p>{{ t('battleHall.hint1') }}</p>
-      <p>{{ t('battleHall.hint2') }}</p>
-      <p>{{ t('battleHall.hint3') }}</p>
-      <p>{{ t('battleHall.hint4') }}</p>
-    </Hint>
-  </h1>
+  <PageHeader :title="t('nav.battleHall')">
+    <template #hint>
+      <Hint>
+        <p>{{ t('battleHall.hint1') }}</p>
+        <p>{{ t('battleHall.hint2') }}</p>
+        <p>{{ t('battleHall.hint3') }}</p>
+        <p>{{ t('battleHall.hint4') }}</p>
+      </Hint>
+    </template>
+  </PageHeader>
 
   <div class="card row">
     <div class="tabs" style="margin: 0">

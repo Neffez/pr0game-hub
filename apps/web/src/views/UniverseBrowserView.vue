@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import PageHeader from '../components/PageHeader.vue';
 import Icon from '../components/Icon.vue';
 import PresenceBadge from '../components/PresenceBadge.vue';
 import { RESOURCES } from '@pr0hub/core/tech';
@@ -243,14 +244,15 @@ function onStripUp() {
 </script>
 
 <template>
-  <h1>
-    {{ t('browse.title') }}
-    <Hint>
-      <p>{{ t('browse.hint1') }}</p>
-      <p>{{ t('browse.hint2') }}</p>
-      <p>{{ t('browse.hint3') }}</p>
-    </Hint>
-  </h1>
+  <PageHeader :title="t('browse.title')">
+    <template #hint>
+      <Hint>
+        <p>{{ t('browse.hint1') }}</p>
+        <p>{{ t('browse.hint2') }}</p>
+        <p>{{ t('browse.hint3') }}</p>
+      </Hint>
+    </template>
+  </PageHeader>
 
   <div class="card">
     <div v-if="mobile" class="row">

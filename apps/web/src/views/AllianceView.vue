@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import PageHeader from '../components/PageHeader.vue';
 import Section from '../components/Section.vue';
 import Icon from '../components/Icon.vue';
 import SortBar from '../components/SortBar.vue';
@@ -191,14 +192,15 @@ const total = computed(() => {
 </script>
 
 <template>
-  <h1>
-    {{ t(`nav.${page}`) }}
-    <Hint>
-      <p>{{ t('alliance.hint') }}</p>
-      <p>{{ t(`alliance.hint_${page}`) }}</p>
-      <p>{{ t('alliance.hintColumns') }}</p>
-    </Hint>
-  </h1>
+  <PageHeader :title="t(`nav.${page}`)">
+    <template #hint>
+      <Hint>
+        <p>{{ t('alliance.hint') }}</p>
+        <p>{{ t(`alliance.hint_${page}`) }}</p>
+        <p>{{ t('alliance.hintColumns') }}</p>
+      </Hint>
+    </template>
+  </PageHeader>
 
   <div class="card row small">
     <div v-if="page === 'fleet'" class="tabs" style="margin: 0">

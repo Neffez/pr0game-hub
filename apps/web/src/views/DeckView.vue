@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import PageHeader from '../components/PageHeader.vue';
 import Icon from '../components/Icon.vue';
 import DateTimeInput from '../components/DateTimeInput.vue';
 import Hint from '../components/Hint.vue';
@@ -94,13 +95,14 @@ const progress = computed(() => (data.value ? data.value.state.drawnInDeck / dat
 </script>
 
 <template>
-  <h1>
-    {{ t('nav.deck') }}
-    <Hint>
-      <p>{{ t('deck.hint1', { n: data?.state.deckSize ?? 1000 }) }}</p>
-      <p>{{ t('deck.hint2') }}</p>
-    </Hint>
-  </h1>
+  <PageHeader :title="t('nav.deck')">
+    <template #hint>
+      <Hint>
+        <p>{{ t('deck.hint1', { n: data?.state.deckSize ?? 1000 }) }}</p>
+        <p>{{ t('deck.hint2') }}</p>
+      </Hint>
+    </template>
+  </PageHeader>
   <div class="card">
     <div class="row">
       <label>

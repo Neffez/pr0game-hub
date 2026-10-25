@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import PageHeader from '../components/PageHeader.vue';
 import MemberSelect from '../components/MemberSelect.vue';
 import Hint from '../components/Hint.vue';
 import { computed, onMounted, watch } from 'vue';
@@ -53,10 +54,11 @@ const browseLink = (r: any) => ({ path: `/${uni.value}/browse`, query: { g: r.g,
 </script>
 
 <template>
-  <h1>
-    {{ t('nav.raids') }}
-    <Hint>{{ t('raids.hint') }}</Hint>
-  </h1>
+  <PageHeader :title="t('nav.raids')">
+    <template #hint>
+      <Hint>{{ t('raids.hint') }}</Hint>
+    </template>
+  </PageHeader>
   <div class="card row">
     <RangePicker v-model="days" />
     <MemberSelect v-model="member" :all-label="t('raids.wholeAlliance')" />
