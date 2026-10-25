@@ -436,7 +436,7 @@ function renderOpen(r) {
 /* Computed loot shares as placeholders of the loot inputs. */
 function renderLootHints() {
   S.battles.forEach(function (b, bi) {
-    var shares = lootShares({loot: b.loot, fleets: b.fleets.filter(function (f) { return !f.loot; })});
+    var shares = lootShares(b);
     RES.forEach(function (k) {
       S.participants.forEach(function (p) {
         var el = $('[data-loot-of="' + bi + ':' + p.id + ':' + k + '"]');

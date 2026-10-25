@@ -4,6 +4,24 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-25
 
+- ACS loot settlement covers deuterium costs (flights, recyclers, deuterium of lost ships, refunded helper
+  deuterium) from the captured deuterium first, like the alliance's spreadsheet with deuterium compensation; only what
+  it lacks (e.g. debris only) is paid back in metal and crystal at market rates by the metal share, and only the
+  deuterium left over is profit. Before, all deuterium costs were converted to metal and crystal and all captured
+  deuterium was profit. Values per person stay the same, the mix of resources changes; with enough captured deuterium
+  the result equals the spreadsheet's. Hints in hub and calculator updated.
+
+- ACS loot settlement fixes from a review of the settlement logic:
+  - A settlement whose participants have no costs while the helpers (with the recycler deuterium refund) claim more
+    than the pot no longer turns into NaN: the coverage is 1 without costs (it was 0/0 when floating point left a
+    hair below 0), so helpers no longer got more metal than was collected.
+  - The standalone loot calculator shows the right computed loot shares as placeholders when some fleets have their
+    loot entered: the rest of the battle's loot is split, no longer the whole loot again (the settlement itself was
+    already right).
+  - Battle and recycling reports pasted into a hub settlement read their game time in the universe's time zone, like
+    synced reports, no longer in the browser's: outside that time zone the deadline was off and "Update" took the
+    same battle or recycling report in a second time. `@pr0hub/core/combat` exports `localToEpoch` for this.
+
 - Times in the hour repeated when summer time ends (02:00–03:00 twice) are no longer an hour ahead: a page time of
   that hour counts as the instant already past (it was always taken as the later one, so a spy fleet copied at 02:53
   summer time showed an hour of flight left), and arrival clocks of that hour land on the instant nearest the
