@@ -838,6 +838,7 @@ const de = {
     cargo: 'Ladung',
   },
   browse: {
+    downloadJson: 'universe.json herunterladen',
     title: 'Galaxie-Browser',
     hint1: 'Galaxieansicht wie im Spiel, aus den synchronisierten Galaxie-Daten (eingefügte Galaxieansichten, universe.json) – ohne Aktivität und ohne Deuterium.',
     hint2: 'Planet- und Mondnamen öffnen das Aktionsmenü. „Letzte Spio“ und die Rohstoffspalten zeigen den letzten Spionagebericht, bei Planet und Mond untereinander (☾ = Mond). Klick auf die Zeit öffnet den Spionage-Verlauf.',

@@ -7,7 +7,8 @@ import PlayerLink from '../components/PlayerLink.vue';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
-import { uniApi } from '../api';
+import { downloadUniverseJson, uniApi } from '../api';
+import ActionMenu from '../components/ActionMenu.vue';
 import Hint from '../components/Hint.vue';
 import Section from '../components/Section.vue';
 import PlanetActions from '../components/PlanetActions.vue';
@@ -252,6 +253,9 @@ function onStripUp() {
         <p>{{ t('browse.hint3') }}</p>
       </Hint>
     </template>
+    <ActionMenu
+      :items="[{ label: t('browse.downloadJson'), icon: 'download', hint: t('universeJson.hintDownload'), onClick: () => downloadUniverseJson(uni) }]"
+    />
   </PageHeader>
 
   <div class="card">

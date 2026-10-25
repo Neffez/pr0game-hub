@@ -4,6 +4,8 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-25
 
+- Galaxy browser: the page menu next to the title downloads the universe.json (`downloadUniverseJson` in `api.ts`,
+  shared with the sync page; new `download` icon).
 - Expeditions: the member filter sits at the distribution it applies to (and the recent expeditions below, which
   name the member), not above the alliance yields it never filtered; it starts with the viewer's own expeditions.
 - Consistency pass: messages use the filter bar (sender, recipient and conversation partner as chips) and the shared

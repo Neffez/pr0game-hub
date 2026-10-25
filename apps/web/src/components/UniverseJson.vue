@@ -2,7 +2,7 @@
 import Icon from './Icon.vue';
 import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { selectedGroup, uniApi } from '../api';
+import { downloadUniverseJson, uniApi } from '../api';
 import Hint from './Hint.vue';
 import { useUni } from '../composables';
 import { fmt } from '../format';
@@ -14,11 +14,7 @@ interface Summary {
 
 const { t, te } = useI18n();
 const { uni } = useUni();
-/** The server answers with an attachment, so the browser downloads instead of navigating. */
-function download() {
-  const group = selectedGroup(uni.value);
-  location.href = `${import.meta.env.BASE_URL}api/${uni.value}/universe-json${group ? `?group=${group}` : ''}`;
-}
+const download = () => downloadUniverseJson(uni.value);
 const file = ref<File | null>(null);
 const result = ref<Summary | null>(null);
 const error = ref('');

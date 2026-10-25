@@ -836,6 +836,7 @@ const en: typeof de = {
     cargo: 'Cargo',
   },
   browse: {
+    downloadJson: 'Download universe.json',
     title: 'Galaxy browser',
     hint1: 'Galaxy view like in the game, from the synced galaxy data (pasted galaxy views, universe.json) – without activity and without deuterium.',
     hint2: 'Planet and moon names open the action menu. "Last spy" and the resource columns show the latest spy report, planet and moon below each other (☾ = moon). Clicking the time opens the spy history.',

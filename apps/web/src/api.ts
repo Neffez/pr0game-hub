@@ -28,6 +28,12 @@ export function selectedGroup(uni: string): number | null {
   return groups[0]?.id ?? null;
 }
 
+/** universe.json built from the galaxy data of the selected group; the server answers with an attachment, so the browser downloads it. */
+export function downloadUniverseJson(uni: string) {
+  const group = selectedGroup(uni);
+  location.href = `${import.meta.env.BASE_URL}api/${uni}/universe-json${group ? `?group=${group}` : ''}`;
+}
+
 export function selectGroup(uni: string, id: number) {
   try {
     localStorage.setItem(GROUP_KEY + uni, String(id));

@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-10-25',
     items: [
       {
+        kind: 'new',
+        de: 'Galaxie: Die universe.json lässt sich jetzt auch direkt im Menü neben dem Titel herunterladen.',
+        en: 'Galaxy: the universe.json can now also be downloaded right from the menu next to the title.',
+      },
+      {
         kind: 'fix',
         de: 'Expeditionen: Die Spielerauswahl steht jetzt bei der Verteilung, auf die sie wirkt, und zeigt zuerst deine eigenen Expeditionen. Die Erträge der Allianz zeigen weiterhin alle.',
         en: 'Expeditions: the player choice now sits at the distribution it applies to and starts with your own expeditions. The alliance yields still show everyone.',
