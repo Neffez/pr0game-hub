@@ -21,10 +21,7 @@ const day = (date: string) =>
     <BackLink v-if="!inUni" to="/" :label="t('common.back')" />
     <h1>{{ t('changelog.title') }}</h1>
     <p class="muted">{{ t('changelog.intro') }}</p>
-    <p class="muted">
-      {{ t('changelog.sourceIntro') }}
-      <a :href="SOURCE_URL" target="_blank" rel="noopener">{{ t('changelog.source') }}</a>
-    </p>
+    <p class="muted"><a :href="SOURCE_URL" target="_blank" rel="noopener">{{ t('changelog.source') }}</a></p>
     <section v-for="d in CHANGELOG" :key="d.date" class="card">
       <h2>{{ day(d.date) }}</h2>
       <ul>

@@ -4,6 +4,7 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-25
 
+- The source link on the What's new page is a plain "Source Code" link without the license sentence.
 - The source links in the tools footers no longer name the license.
 - The tools index subtitle reads "Tools for pr0game" and links "pr0game" to pr0game.com.
 - The tools index page and the standalone tools (flight calculator, ACS loot calculator) link to the source code in
