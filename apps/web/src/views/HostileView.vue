@@ -1,11 +1,12 @@
 <script setup lang="ts">
+import ShowMore from '../components/ShowMore.vue';
 import PageHeader from '../components/PageHeader.vue';
 import Hint from '../components/Hint.vue';
-import { onMounted, watch } from 'vue';
+import { computed, onMounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
 import RangePicker from '../components/RangePicker.vue';
-import { useLoader, useStored, useUni, vStack } from '../composables';
+import { useLoader, useStored, useUni, vStack, useLimit } from '../composables';
 import { tables, useLiveReload } from '../live';
 import { ago, coords, dateTime } from '../format';
 
@@ -14,6 +15,8 @@ const { uni } = useUni();
 const days = useStored('hostile.days', 7);
 
 const { data, error, load } = useLoader<any>(() => uniApi(uni.value, `/hostile?from=${Math.floor(Date.now() / 1000) - days.value * 86400}`));
+/** The newest 20 spyings of the history first. */
+const historyLimit = useLimit(computed<any[]>(() => data.value?.list ?? []));
 onMounted(load);
 useLiveReload(load, tables('hostile_spying'));
 watch(days, load);
@@ -49,7 +52,7 @@ watch(days, load);
       <table v-stack class="data">
         <thead><tr><th>{{ t('common.time') }}</th><th>{{ t('hostile.spy') }}</th><th>{{ t('common.from') }}</th><th>{{ t('hostile.target') }}</th><th>{{ t('hostile.member') }}</th></tr></thead>
         <tbody>
-          <tr v-for="h in data.list" :key="h.id">
+          <tr v-for="h in historyLimit.shown.value" :key="h.id">
             <td class="small">{{ dateTime(h.time) }}</td>
             <td>{{ h.from_player }}</td>
             <td class="mono">{{ coords(h.from_g, h.from_s, h.from_p) }}{{ h.from_type === 'moon' ? ' ' + t('game.moonShort') : '' }} <span class="muted">{{ h.from_planet }}</span></td>
@@ -59,5 +62,6 @@ watch(days, load);
         </tbody>
       </table>
     </div>
+    <ShowMore :limit="historyLimit" />
   </template>
 </template>

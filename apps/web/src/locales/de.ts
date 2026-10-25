@@ -42,6 +42,7 @@ const de = {
     collapse: 'Zuklappen',
     edit: 'Bearbeiten',
     yes: 'ja',
+    showAll: 'Alle {n} anzeigen',
   },
   time: {
     soon: 'gleich',

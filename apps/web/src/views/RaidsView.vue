@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ShowMore from '../components/ShowMore.vue';
 import PageHeader from '../components/PageHeader.vue';
 import MemberSelect from '../components/MemberSelect.vue';
 import Hint from '../components/Hint.vue';
@@ -6,7 +7,7 @@ import { computed, onMounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
 import RangePicker from '../components/RangePicker.vue';
-import { useLoader, useStored, useUni, vStack } from '../composables';
+import { useLoader, useStored, useUni, vStack, useLimit } from '../composables';
 import { tables, useLiveReload } from '../live';
 import { coords, dateTime, fmt, name, short } from '../format';
 
@@ -44,6 +45,9 @@ const recyclers = computed(() =>
   [...(data.value?.recyclePerUser ?? [])].filter((u: any) => shown(u.userId)).sort((a, b) => b.metal + b.crystal - (a.metal + a.crystal)),
 );
 const recycling = computed(() => (data.value?.recycling ?? []).filter((r: any) => shown(r.user_id)));
+/** Long report lists: the newest 20 first. */
+const reportsLimit = useLimit<any>(reports);
+const recyclingLimit = useLimit<any>(recycling);
 const recycleSum = computed(() =>
   recyclers.value.reduce(
     (s, u) => ({ runs: s.runs + u.runs, metal: s.metal + u.metal, crystal: s.crystal + u.crystal, left: s.left + u.left }),
@@ -105,7 +109,7 @@ const browseLink = (r: any) => ({ path: `/${uni.value}/browse`, query: { g: r.g,
           <tr><th>{{ t('common.time') }}</th><th>{{ t('common.player') }}</th><th>{{ t('hostile.target') }}</th><th></th><th class="num">{{ t('raids.loot') }}</th><th class="num">{{ t('raids.lostAttacker') }}</th><th class="num">{{ t('raids.lostDefender') }}</th><th class="num">{{ t('game.debrisShort') }}</th></tr>
         </thead>
         <tbody>
-          <tr v-for="r in reports" :key="r.id" :class="{ dim: r.defense }">
+          <tr v-for="r in reportsLimit.shown.value" :key="r.id" :class="{ dim: r.defense }">
             <td class="small">{{ dateTime(r.time) }}</td>
             <td>{{ r.username }}</td>
             <td class="mono">
@@ -123,6 +127,7 @@ const browseLink = (r: any) => ({ path: `/${uni.value}/browse`, query: { g: r.g,
         </tbody>
       </table>
     </div>
+    <ShowMore :limit="reportsLimit" />
 
     <h2>
       {{ t('raids.recycling') }}
@@ -163,7 +168,7 @@ const browseLink = (r: any) => ({ path: `/${uni.value}/browse`, query: { g: r.g,
           <tr><th>{{ t('common.time') }}</th><th>{{ t('common.player') }}</th><th>{{ t('combat.debris') }}</th><th class="num">{{ name(901) }}</th><th class="num">{{ name(902) }}</th><th class="num">{{ t('raids.debrisBefore') }}</th><th class="num">{{ t('raids.rest') }}</th></tr>
         </thead>
         <tbody>
-          <tr v-for="r in recycling" :key="r.id">
+          <tr v-for="r in recyclingLimit.shown.value" :key="r.id">
             <td class="small">{{ dateTime(r.time ?? r.created_at) }}</td>
             <td>{{ r.username }}</td>
             <td class="mono"><RouterLink :to="browseLink(r)" :title="t('activity.showInBrowser')">{{ coords(r.g, r.s, r.p) }}</RouterLink></td>
@@ -175,5 +180,6 @@ const browseLink = (r: any) => ({ path: `/${uni.value}/browse`, query: { g: r.g,
         </tbody>
       </table>
     </div>
+    <ShowMore :limit="recyclingLimit" />
   </template>
 </template>

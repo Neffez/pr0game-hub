@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import ShowMore from '../components/ShowMore.vue';
 import PageHeader from '../components/PageHeader.vue';
 import MemberSelect from '../components/MemberSelect.vue';
 import Hint from '../components/Hint.vue';
@@ -6,7 +7,7 @@ import { computed, onMounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
 import RangePicker from '../components/RangePicker.vue';
-import { useLoader, useStored, useUni, vStack } from '../composables';
+import { useLoader, useStored, useUni, vStack, useLimit } from '../composables';
 import { tables, useLiveReload } from '../live';
 import { CRYSTAL, DEUTERIUM, elementPoints, METAL } from '@pr0hub/core/tech';
 import { cardLabel, coords, dateTime, DEPLETION_LABEL, fmt, name, short } from '../format';
@@ -51,6 +52,8 @@ const columns = computed(() => {
   return [...list, total];
 });
 const list = computed(() => (data.value?.list ?? []).filter((e: any) => member.value == null || e.user_id === member.value));
+/** The newest 20 expeditions first. */
+const listLimit = useLimit<any>(list);
 const isManual = (e: any) => String(e.dedupe_key).startsWith('manual:');
 /** Own manually counted entries (Expo-Deck) can be removed again. */
 async function removeManual(e: any) {
@@ -192,7 +195,7 @@ const sumRes = (u: any) => Object.values(u.resources as Record<string, number>).
       <table v-stack="3" class="data">
         <thead><tr><th>{{ t('common.time') }}</th><th>{{ t('common.player') }}</th><th>{{ t('hostile.target') }}</th><th>{{ t('expeditions.event') }}</th><th>{{ t('expeditions.depletion') }}</th><th>{{ t('expeditions.found') }}</th><th /></tr></thead>
         <tbody>
-          <tr v-for="e in list" :key="e.id">
+          <tr v-for="e in listLimit.shown.value" :key="e.id">
             <td class="small">{{ dateTime(e.time) }}</td>
             <td>{{ e.username }}</td>
             <td class="mono">{{ e.g ? coords(e.g, e.s, e.p) : '' }}</td>
@@ -212,6 +215,7 @@ const sumRes = (u: any) => Object.values(u.resources as Record<string, number>).
         </tbody>
       </table>
     </div>
+    <ShowMore :limit="listLimit" />
   </template>
 </template>
 

@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Kürzere Seiten: Abrechnung mit einklappbaren Bereichen, lange Listen (Raids, Recycling, Expeditionen, Feindspionage) zeigen zuerst die neuesten 20 mit „Alle anzeigen“. Die Aktualitätskarte der Galaxie ist einklappbar und passt aufs Handy.',
+        en: 'Shorter pages: settlements with collapsible sections, long lists (raids, recycling, expeditions, hostile spying) show the newest 20 first with "Show all". The galaxy freshness map is collapsible and fits phones.',
+      },
+      {
+        kind: 'new',
         de: 'Kurze Bestätigungen im Raid-Planer (z. B. „Plan angelegt“, „Gespeichert“) und Platzhalter beim Laden statt leerer Seiten.',
         en: 'Short confirmations in the raid planner (e.g. "Plan created", "Saved") and placeholders while loading instead of empty pages.',
       },

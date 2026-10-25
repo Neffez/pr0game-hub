@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Section from '../components/Section.vue';
 import PageHeader from '../components/PageHeader.vue';
 import Icon from '../components/Icon.vue';
 import BackLink from '../components/BackLink.vue';
@@ -290,8 +291,7 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
 
     <div class="cols">
       <div class="col">
-        <div class="card">
-          <h3>{{ t('loot.settings') }}</h3>
+        <Section :title="t('loot.settings')" store-key="loot.settings" :default-open-mobile="false">
           <fieldset :disabled="!canEdit" class="stack">
             <label class="row">
               <span class="lbl">{{ t('loot.mode') }} <Hint>{{ t('loot.modeHint') }}</Hint></span>
@@ -320,7 +320,7 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
               </select>
             </label>
           </fieldset>
-        </div>
+        </Section>
 
         <div class="card">
           <h3>{{ t('loot.participants') }}</h3>
@@ -383,8 +383,8 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
           </div>
         </div>
 
-        <div v-if="canEdit" class="card">
-          <h3>{{ t('loot.pasteReport') }} <Hint>{{ t('loot.pasteHint') }}</Hint></h3>
+        <Section v-if="canEdit" :title="t('loot.pasteReport')" store-key="loot.pasteReport" :default-open="false">
+          <template #hint><Hint>{{ t('loot.pasteHint') }}</Hint></template>
           <textarea v-model="reportText" class="report" :placeholder="t('loot.pastePlaceholder')" />
           <div class="row small" style="gap: 8px; margin-top: 6px">
             <select v-model.number="reportTarget">
@@ -393,10 +393,9 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
             </select>
             <button :disabled="!reportText.trim()" @click="applyReport">{{ t('common.apply') }}</button>
           </div>
-        </div>
+        </Section>
 
-        <div class="card">
-          <h3>{{ t('loot.recycling') }}</h3>
+        <Section :title="t('loot.recycling')" store-key="loot.recycling" :default-open-mobile="false">
           <div v-if="debris && (debris.field || debris.left)" class="debris small">
             <div v-if="debris.field">
               <span class="muted">{{ t('loot.debrisField') }}</span> {{ debrisText(debris.field) }}
@@ -461,7 +460,7 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
             </table>
             </div>
           </template>
-        </div>
+        </Section>
       </div>
 
       <div class="col">
@@ -569,10 +568,9 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
       </div>
     </div>
 
-    <div class="card">
-      <h3 style="margin-top: 0">{{ t('comments.title') }}</h3>
+    <Section :title="t('comments.title')" store-key="loot.comments">
       <CommentThread :plan="data.plan.id" />
-    </div>
+    </Section>
   </template>
 </template>
 

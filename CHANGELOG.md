@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-25
 
+- Long pages shorter: loot settlement settings, report paste, recycling and comments are collapsible sections; raid
+  reports, recycling, expeditions and the hostile spying history show the newest 20 with "show all" (`useLimit`,
+  `ShowMore`); the galaxy freshness map is collapsible and fits the phone width (cells share the row).
 - Every page title uses the shared `PageHeader` (title, hints, actions on the right), so headings look and wrap the
   same everywhere.
 - Feedback and loading: own actions in the raid planner confirm with a short toast (plan created, saved, status,

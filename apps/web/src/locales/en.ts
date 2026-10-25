@@ -41,6 +41,7 @@ const en: typeof de = {
     collapse: 'Collapse',
     edit: 'Edit',
     yes: 'yes',
+    showAll: 'Show all {n}',
   },
   time: {
     soon: 'soon',

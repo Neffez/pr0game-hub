@@ -219,3 +219,11 @@ export const vStack: Directive<HTMLTableElement, number | undefined> = {
   mounted: (el, binding) => stackLabels(el, binding.value),
   updated: (el, binding) => stackLabels(el, binding.value),
 };
+
+/** The first `step` items of a long list; `showAll` lifts the limit (ShowMore renders the button). */
+export function useLimit<T>(list: Ref<T[]>, step = 20) {
+  const all = ref(false);
+  const shown = computed(() => (all.value ? list.value : list.value.slice(0, step)));
+  const hidden = computed(() => (all.value ? 0 : Math.max(0, list.value.length - step)));
+  return { shown, hidden, total: computed(() => list.value.length), showAll: () => (all.value = true) };
+}
