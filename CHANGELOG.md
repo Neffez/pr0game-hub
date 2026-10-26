@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-26
 
+- CI: on `main` the tested images are published to the GitHub Container Registry (`ghcr.io/neffez/pr0game-hub`,
+  `ghcr.io/neffez/pr0game-tools`, tags `latest` and the commit) before the deployment is triggered, so the deployment
+  pulls them instead of building on the server (the Rust and Node builds filled its disk). Builds use Buildx with the
+  GitHub Actions cache.
+
 - Tools: the battle simulator uses up to 1680 px of width (two sides and their tables side by side). The page width
   override of the ACS loot calculator never applied (the built shared stylesheet comes after the page's own style):
   both pages now use `body .wrap`, checked in the built image (1680 / 1320 px, others 1240 px).

@@ -88,7 +88,7 @@ be used on its own.
 | Web app | [Vue 3](https://vuejs.org/) (Composition API, `<script setup>`), [Vue Router 4](https://router.vuejs.org/), [vue-i18n](https://vue-i18n.intlify.dev/) (German/English), [Chart.js](https://www.chartjs.org/); plain CSS with custom properties, no UI framework |
 | Build | [Vite 5](https://vitejs.dev/) and `vue-tsc` for the web app, `tsc` for parser and server, `tsx` for the server in development |
 | Tests | [Vitest](https://vitest.dev/): parser tests against saved game pages (`packages/parser/test/fixtures`), flight math tests, API tests with Fastify's `inject` against an in-memory database, web unit tests for formatting and composables |
-| Delivery | Multi-stage Docker image (`node:22-bookworm-slim`), the server serves the built SPA; GitHub Actions for typecheck, tests and build |
+| Delivery | Multi-stage Docker image (`node:24-trixie-slim`), the server serves the built SPA; GitHub Actions for typecheck, tests and build, and on `main` publishing the images to `ghcr.io/neffez/pr0game-hub` and `ghcr.io/neffez/pr0game-tools` |
 
 ## Structure
 

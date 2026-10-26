@@ -16,7 +16,8 @@ Guidance for Claude Code in this repository. See `README.md` for features, setup
   (userscripts, bookmarklets, extensions) or endpoints meant for automated submission. Improvements to syncing stay
   inside the hub (paste, clipboard, file upload).
 - **No deployment details.** Server setup, hosts and SSH belong to the private deployment repository. This repository
-  only builds the Docker image and sends the `repository_dispatch` from CI.
+  only builds the Docker images, publishes them to `ghcr.io/neffez/pr0game-hub` and `ghcr.io/neffez/pr0game-tools`
+  (public, `latest` and the commit) and sends the `repository_dispatch` from CI; the deployment pulls the images.
 - **Language.** Code, comments, commit messages, README and changelog in English. UI texts live in
   `apps/web/src/locales/de.ts` and `en.ts`; always update both. Texts of push notifications are built by the server and
   live in `apps/server/src/push.ts` (German and English; English is typed against German, so a missing text fails the
