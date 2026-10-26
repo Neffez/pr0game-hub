@@ -50,5 +50,8 @@ export const LIVE_STUN: Record<number, number> = {
   405: 1,
 };
 
-/** Shield domes as "ship shields": they must fall before other units can be hit (assumed for both domes). */
+/**
+ * Shield domes as "ship shields": they must fall before other units can be hit. A universe setting (not every
+ * universe has it, e.g. not U7), so it only applies with `bigShields` in the battle's options.
+ */
 export const LIVE_BIGSHIELD: number[] = [407, 408];

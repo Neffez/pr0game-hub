@@ -1290,7 +1290,7 @@ describe('review fixes', () => {
     expect(
       (await app.inject({ method: 'POST', url: '/hub/api/admin/universes', payload: { slug: 'u9', settings: { timezone: 'Mars/Base' } }, ...h })).statusCode,
     ).toBe(400);
-    for (const settings of [{ systems: 'many' }, { galaxies: 0 }, { positions: 1.5 }, { circularSystems: 'yes' }, { systemDistanceFactor: -1 }, { missileRangeFactor: -0.5 }, { missileRangeFactor: 'x' }, { fleetDebrisPercent: 101 }, { defenseDebrisPercent: -1 }]) {
+    for (const settings of [{ systems: 'many' }, { galaxies: 0 }, { positions: 1.5 }, { circularSystems: 'yes' }, { systemDistanceFactor: -1 }, { missileRangeFactor: -0.5 }, { missileRangeFactor: 'x' }, { fleetDebrisPercent: 101 }, { defenseDebrisPercent: -1 }, { bigShields: 'yes' }]) {
       const res = await app.inject({ method: 'POST', url: '/hub/api/admin/universes', payload: { slug: 'u9', settings }, ...h });
       expect(res.json().code).toBe('setting_invalid');
     }

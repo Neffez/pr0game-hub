@@ -924,6 +924,8 @@ const en: typeof de = {
     missileRangeFactor: 'Missile range factor',
     fleetDebrisPercent: 'Fleet into debris (%)',
     fleetDebrisPercentHint: 'As in the game configuration (fleet_debris_percentage): share of the destroyed ships that ends up in the debris field, default 30. Passed on to the battle simulator.',
+    bigShields: 'Shield domes first',
+    bigShieldsHint: 'When active in the universe: in battle the shield domes must fall before other units can be hit. Passed on to the battle simulator.',
     defenseDebrisPercent: 'Defense into debris (%)',
     defenseDebrisPercentHint: 'As in the game configuration (def_debris_percentage): share of the destroyed defense that is not rebuilt that ends up in the debris field, default 0. Passed on to the battle simulator.',
     missileRangeFactorHint: 'As in the game configuration (missile_range_factor): interplanetary missile range = (impulse drive × 5 − 1) × factor systems, default 1. Passed on to the IPM calculator.',

@@ -24,13 +24,15 @@ export var UNI_FIELDS = [
   {group: 'groupBattle', key: 'fleet_debris', label: 'uFleetDebris', step: 1, min: 0, max: 100, hint: 'uFleetDebrisHint'},
   {group: 'groupBattle', key: 'defense_debris', label: 'uDefenseDebris', step: 1, min: 0, max: 100, hint: 'uDefenseDebrisHint'},
   {group: 'groupBattle', key: 'moon_factor', label: 'uMoonFactor', step: 'any', min: 0, hint: 'uMoonFactorHint'},
-  {group: 'groupBattle', key: 'max_moon_chance', label: 'uMaxMoon', step: 1, min: 0, max: 100}
+  {group: 'groupBattle', key: 'max_moon_chance', label: 'uMaxMoon', step: 1, min: 0, max: 100},
+  {group: 'groupBattle', key: 'big_shields', label: 'uBigShields', type: 'toggle', hint: 'uBigShieldsHint'}
 ];
 export var SHAPES = [[0, 'shapeLinear'], [1, 'shapeRing'], [2, 'shapeSphere']];
+var TOGGLE = [[0, 'toggleOff'], [1, 'toggleOn']];
 
 /* Defaults of the battle values (game config: fleet_debris_percentage, def_debris_percentage, moon_factor,
-   moon_chance); the flight values default in ../src/core.ts (DEFAULT_UNI). */
-export var BATTLE_UNI_DEFAULTS = {fleet_debris: 30, defense_debris: 0, moon_factor: 1, max_moon_chance: 20};
+   moon_chance; shield domes as ship shields off); the flight values default in ../src/core.ts (DEFAULT_UNI). */
+export var BATTLE_UNI_DEFAULTS = {fleet_debris: 30, defense_debris: 0, moon_factor: 1, max_moon_chance: 20, big_shields: 0};
 
 /* Hash keys (compatible with the in-game calculator links and the hub's links). */
 export var UNI_HASH = {
@@ -38,7 +40,7 @@ export var UNI_HASH = {
   galaxy_distance_factor: 'gdf', system_distance_factor: 'sdf', system_distance: 'sd',
   planet_distance_factor: 'pdf', planet_distance: 'pd', game_speed: 'gs',
   expo_hold_multiplier: 'ehm', honor_boost: 'hb',
-  fleet_debris: 'fd', defense_debris: 'dd', moon_factor: 'mf', max_moon_chance: 'mc'
+  fleet_debris: 'fd', defense_debris: 'dd', moon_factor: 'mf', max_moon_chance: 'mc', big_shields: 'bs'
 };
 
 export var UNI_TEXTS = {
@@ -66,6 +68,8 @@ export var UNI_TEXTS = {
     uDefenseDebris: 'Verteidigung ins Trümmerfeld (%)', uDefenseDebrisHint: 'Anteil der zerstörten Verteidigung, die nicht wieder aufgebaut wird (rund 30 %), der im Trümmerfeld landet.',
     uMoonFactor: 'Mondfaktor', uMoonFactorHint: 'Mondchance: 1 % je 100.000 Trümmerfeld mal diesem Faktor.',
     uMaxMoon: 'Höchste Mondchance (%)',
+    uBigShields: 'Schildkuppeln zuerst', uBigShieldsHint: 'Wenn im Universum aktiv: Die Schildkuppeln müssen fallen, bevor andere Einheiten getroffen werden können.',
+    toggleOff: 'aus', toggleOn: 'an',
     shapeLinear: 'linear', shapeRing: 'ein Ring (geht rundherum)', shapeSphere: 'eine Kugel (alle gleich weit)',
     uniReset: 'Universum auf Standard zurückgesetzt'
   },
@@ -93,6 +97,8 @@ export var UNI_TEXTS = {
     uDefenseDebris: 'Defense into debris (%)', uDefenseDebrisHint: 'Share of the destroyed defense that is not rebuilt (about 30 %) that ends up in the debris field.',
     uMoonFactor: 'Moon factor', uMoonFactorHint: 'Moon chance: 1 % per 100,000 debris times this factor.',
     uMaxMoon: 'Highest moon chance (%)',
+    uBigShields: 'Shield domes first', uBigShieldsHint: 'When active in the universe: the shield domes must fall before other units can be hit.',
+    toggleOff: 'off', toggleOn: 'on',
     shapeLinear: 'linear', shapeRing: 'a ring (wrap around)', shapeSphere: 'a sphere (all equally far)',
     uniReset: 'Universe reset to defaults'
   }
@@ -105,9 +111,11 @@ export function uniFieldGroups(groups) {
   UNI_FIELDS.forEach(function (f) {
     if (!out[f.group]) return;
     var html;
-    if (f.type === 'shape') {
-      html = '<div class="field"><label for="u-' + f.key + '">' + esc(t(f.label)) + '</label><select id="u-' + f.key + '" data-uni="' + f.key + '">'
-        + SHAPES.map(function (s) { return '<option value="' + s[0] + '">' + esc(t(s[1])) + '</option>'; }).join('') + '</select></div>';
+    if (f.type === 'shape' || f.type === 'toggle') {
+      html = '<div class="field"><div class="label-row"><label for="u-' + f.key + '">' + esc(t(f.label)) + '</label>'
+        + (f.hint ? '<button type="button" class="tip" aria-label="' + esc(t('info')) + '" data-tip="' + esc(t(f.hint)) + '"></button>' : '') + '</div>'
+        + '<select id="u-' + f.key + '" data-uni="' + f.key + '">'
+        + (f.type === 'shape' ? SHAPES : TOGGLE).map(function (s) { return '<option value="' + s[0] + '">' + esc(t(s[1])) + '</option>'; }).join('') + '</select></div>';
     } else {
       html = '<div class="field"><div class="label-row"><label for="u-' + f.key + '">' + esc(t(f.label)) + '</label>'
         + (f.hint ? '<button type="button" class="tip" aria-label="' + esc(t('info')) + '" data-tip="' + esc(t(f.hint)) + '"></button>' : '') + '</div>'

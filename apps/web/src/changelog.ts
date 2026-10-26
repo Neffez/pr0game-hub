@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Kampfsimulator: „Schildkuppeln zuerst“ ist eine Einstellung pro Universum (standardmäßig aus), weil nicht jedes Universum diese Regel hat.',
+        en: 'Battle simulator: "Shield domes first" is a setting per universe (off by default), as not every universe has this rule.',
+      },
+      {
+        kind: 'new',
         de: 'Raid-Planer und Spionage-Verlauf öffnen den neuen Kampfsimulator mit allen Flotten, Forschungen und dem Spionagebericht. Im Spionage-Verlauf stehen die drei Simulatoren jetzt in einem Menü „Simulieren“. Admins stellen pro Universum ein, wie viel Flotte und Verteidigung ins Trümmerfeld geht.',
         en: 'The raid planner and the spy history open the new battle simulator with all fleets, research and the spy report. In the spy history the three simulators are now in one "Simulate" menu. Admins set per universe how much fleet and defense goes into the debris field.',
       },

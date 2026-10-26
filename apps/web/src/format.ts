@@ -342,13 +342,13 @@ const pick = (values: Record<string, number>, keep: (id: number) => boolean) =>
 /**
  * Link into the battle simulator (pr0game-tools) with the same fleets as `simLinks`: the attackers with research,
  * start and speed, the planet from a spy report's values (ships, defense, combat research, resources) and the fleets
- * holding there; the universe's debris percentages, layout and fleet speed go along (keys see `encodeShare` in
+ * holding there; the universe's debris percentages, shield domes setting, layout and fleet speed go along (keys see `encodeShare` in
  * @pr0hub/battle).
  */
 export function battleSimLink(
   u: UniverseSettings, values: Record<string, number>, attackers: SimFleet[] = [], target: Coords3 | null = null, defenders: SimFleet[] = [],
 ): string {
-  const s = u as UniverseSettings & { fleetDebrisPercent?: number; defenseDebrisPercent?: number };
+  const s = u as UniverseSettings & { fleetDebrisPercent?: number; defenseDebrisPercent?: number; bigShields?: boolean };
   const research = (r: Record<string, number>) => pick(r, (id) => SLOT_TECHS.includes(id));
   const units = (v: Record<string, number>) => pick(v, (id) => (id >= 202 && id < 300) || (id >= 401 && id <= 408));
   const uni: Record<string, number> = {
@@ -358,6 +358,7 @@ export function battleSimLink(
   };
   if (s.fleetDebrisPercent != null) uni.fd = s.fleetDebrisPercent;
   if (s.defenseDebrisPercent != null) uni.dd = s.defenseDebrisPercent;
+  if (s.bigShields != null) uni.bs = s.bigShields ? 1 : 0;
   const hash = encodeBattleShare({
     attackers: attackers.map((a) => ({ units: units(a.ships), research: research(a.research), from: a.from ?? null, speed: a.speed ?? 100 })),
     defenders: [

@@ -338,6 +338,10 @@ const doMerge = () => run(async () => {
               <input v-model.number="editUni.settings.defenseDebrisPercent" type="number" min="0" max="100" placeholder="0" style="width: 60px" />
             </label>
             <label>
+              <input v-model="editUni.settings.bigShields" type="checkbox" /> {{ t('admin.bigShields') }}
+              <Hint>{{ t('admin.bigShieldsHint') }}</Hint>
+            </label>
+            <label>
               {{ t('admin.timezone') }}
               <Hint>{{ t('admin.timezoneHint') }}</Hint>
               <input v-model="editUni.settings.timezone" style="width: 140px" />

@@ -37,7 +37,12 @@ const EXPLODE = 0.7;
 
 const round1 = (n: number) => Math.round(n * 10) / 10;
 
-function ships(fleet: BattleFleet, attacker: boolean): EngineShip[] {
+/** Options of the universe: shield domes as ship shields (`bigshield`). */
+export interface EngineOptions {
+  bigShields?: boolean;
+}
+
+function ships(fleet: BattleFleet, attacker: boolean, options: EngineOptions): EngineShip[] {
   const level = (id: number) => fleet.research[id] ?? 0;
   return Object.entries(fleet.units)
     .filter(([id, n]) => n > 0 && UNITS[Number(id)])
@@ -50,7 +55,7 @@ function ships(fleet: BattleFleet, attacker: boolean): EngineShip[] {
         attack: attacker ? round1(attack) : Math.round(attack),
         hull: Math.round(u.hull * (1 + 0.1 * level(ARMOUR))),
         shield: Math.round(u.shield * (1 + 0.1 * level(SHIELDS))),
-        bigshield: u.bigshield,
+        bigshield: u.bigshield && !!options.bigShields,
         stun: u.stun,
         // attackers' units all explode, of the defender only ships (TODO in the game: "move to database")
         explode: attacker || Math.floor(id / 100) === 2 ? EXPLODE : 0,
@@ -63,12 +68,13 @@ function ships(fleet: BattleFleet, attacker: boolean): EngineShip[] {
 /**
  * Input of the Rust engine like the game builds it (`BattleEngineRust::createRustJson`): research raises attack,
  * shield and hull by 10 % per level, the attackers' attack is rounded to one decimal, everything else to integers.
- * The fleets are named by their slot (attackers from 0, the defending planet is defender 0).
+ * The fleets are named by their slot (attackers from 0, the defending planet is defender 0). Shield domes are ship
+ * shields only with `options.bigShields`.
  */
-export function engineInput(attackers: BattleFleet[], defenders: BattleFleet[], rounds = ROUNDS): EngineInput {
+export function engineInput(attackers: BattleFleet[], defenders: BattleFleet[], options: EngineOptions = {}, rounds = ROUNDS): EngineInput {
   return {
     rounds,
-    attacker: attackers.map((f, i) => ({ name: i, ships: ships(f, true) })),
-    defender: defenders.map((f, i) => ({ name: i, ships: ships(f, false) })),
+    attacker: attackers.map((f, i) => ({ name: i, ships: ships(f, true, options) })),
+    defender: defenders.map((f, i) => ({ name: i, ships: ships(f, false, options) })),
   };
 }

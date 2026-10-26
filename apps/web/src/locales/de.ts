@@ -926,6 +926,8 @@ const de = {
     missileRangeFactor: 'Raketen-Reichweitenfaktor',
     fleetDebrisPercent: 'Flotte ins TF (%)',
     fleetDebrisPercentHint: 'Wie in der Spielkonfiguration (fleet_debris_percentage): Anteil zerstörter Schiffe, der im Trümmerfeld landet, Standard 30. Wird an den Kampfsimulator übergeben.',
+    bigShields: 'Schildkuppeln zuerst',
+    bigShieldsHint: 'Wenn im Universum aktiv: Die Schildkuppeln müssen im Kampf fallen, bevor andere Einheiten getroffen werden können. Wird an den Kampfsimulator übergeben.',
     defenseDebrisPercent: 'Verteidigung ins TF (%)',
     defenseDebrisPercentHint: 'Wie in der Spielkonfiguration (def_debris_percentage): Anteil der zerstörten Verteidigung, die nicht wieder aufgebaut wird, der im Trümmerfeld landet, Standard 0. Wird an den Kampfsimulator übergeben.',
     missileRangeFactorHint: 'Wie in der Spielkonfiguration (missile_range_factor): Reichweite der Interplanetarraketen = (Impulstriebwerk × 5 − 1) × Faktor Systeme, Standard 1. Wird an den IRak-Rechner übergeben.',

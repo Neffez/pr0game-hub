@@ -158,6 +158,7 @@ export function simSettings(u: Record<string, number>): SimSettings {
     defenseDebris: Number(u.defense_debris ?? 0),
     moonFactor: Number(u.moon_factor ?? 1),
     maxMoonChance: Number(u.max_moon_chance ?? 20),
+    bigShields: Number(u.big_shields) === 1,
   };
 }
 

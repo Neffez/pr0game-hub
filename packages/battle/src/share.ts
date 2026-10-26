@@ -23,8 +23,11 @@ export interface ShareState {
   runs?: number;
 }
 
-/** Universe keys of the link: debris percent of fleet and defense, then the flight calculator's layout and speed. */
-export const UNI_KEYS = ['fd', 'dd', 'mf', 'mc', 'ut', 'gt', 'mg', 'ms', 'mp', 'gdf', 'sdf', 'sd', 'pdf', 'pd', 'gs'] as const;
+/**
+ * Universe keys of the link: debris percent of fleet and defense, moon factor and cap, shield domes as ship shields
+ * (`bs` 0/1), then the flight calculator's layout and speed.
+ */
+export const UNI_KEYS = ['fd', 'dd', 'mf', 'mc', 'bs', 'ut', 'gt', 'mg', 'ms', 'mp', 'gdf', 'sdf', 'sd', 'pdf', 'pd', 'gs'] as const;
 
 const MAX_SLOTS = 16;
 

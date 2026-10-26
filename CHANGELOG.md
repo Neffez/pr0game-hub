@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-26
 
+- Battle simulation: shield domes as ship shields are a universe option now (off by default, not every universe has
+  them): `bigShields` in the hub's universe settings (admin checkbox, OpenAPI), "Shield domes first" in the battle
+  simulator's universe settings (`bs` in its link), `EngineOptions.bigShields` / `SimSettings.bigShields` in
+  `@pr0hub/battle`.
+
 - Hub links to the new battle simulator (pr0game-tools) with the same values as the other simulators:
   - the raid planner's plan menu lists it first (attack and hold plans: target's spy report or hold planet, all
     plan and guest fleets with research, start and speed); the in-game simulator and TrashSim follow, and the battle

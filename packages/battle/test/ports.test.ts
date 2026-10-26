@@ -22,6 +22,9 @@ describe('engineInput (createRustJson)', () => {
     expect(UNITS[214].rapidfire[225]).toBe(140);
     expect(UNITS[231].rapidfire[227]).toBe(10);
     expect(UNITS[407].bigshield).toBe(true);
+    // ship shields only where the universe has them
+    const domes = (bigShields: boolean) => engineInput([], [{ units: { 407: 1 }, research: {} }], { bigShields }).defender[0].ships[0].bigshield;
+    expect([domes(false), domes(true)]).toEqual([false, true]);
   });
 });
 

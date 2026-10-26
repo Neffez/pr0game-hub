@@ -102,7 +102,7 @@ describe('format', () => {
     const { decodeShare } = await import('@pr0hub/battle');
     const u = { galaxies: 4, systems: 400, positions: 15, circularGalaxies: true, circularSystems: false, galaxyDistanceFactor: 20000,
       systemDistanceFactor: 95, systemDistance: 2700, planetDistanceFactor: 5, planetDistance: 1000, fleetSpeed: 10000, buildingSpeed: 0,
-      researchSpeed: 0, universityFactor: 8, timezone: 'Europe/Berlin', gameUrl: '', fleetDebrisPercent: 50, defenseDebrisPercent: 10 } as UniverseSettings;
+      researchSpeed: 0, universityFactor: 8, timezone: 'Europe/Berlin', gameUrl: '', fleetDebrisPercent: 50, defenseDebrisPercent: 10, bigShields: true } as UniverseSettings;
     // spy values: resources, ships, defense, research (only combat research goes to the planet), a missile
     const values = { 901: 5000, 902: 300, 903: 7, 202: 3, 401: 400, 405: 20, 503: 2, 109: 12, 111: 11, 114: 8 };
     const link = battleSimLink(u, values, [{ ships: { 207: 50, 210: 0 }, research: { 109: 14, 118: 10, 120: 5 }, from: [1, 100, 5], speed: 80 }], [1, 110, 8],
@@ -116,7 +116,7 @@ describe('format', () => {
     ]);
     expect(s.target).toEqual([1, 110, 8]);
     expect(s.resources).toEqual({ metal: 5000, crystal: 300, deuterium: 7 });
-    expect(s.uni).toMatchObject({ fd: 50, dd: 10, gs: 4, ut: 1, gt: 0, ms: 400 });
+    expect(s.uni).toMatchObject({ fd: 50, dd: 10, bs: 1, gs: 4, ut: 1, gt: 0, ms: 400 });
     // without debris settings the simulator keeps its own
     expect(decodeShare(battleSimLink({ ...u, fleetDebrisPercent: undefined, defenseDebrisPercent: undefined } as never, values).split('#')[1]).uni.fd).toBeUndefined();
   });

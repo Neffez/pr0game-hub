@@ -16,9 +16,11 @@ export interface BattleSetup {
 export interface SimSettings extends DebrisSettings {
   moonFactor: number;
   maxMoonChance: number;
+  /** shield domes as ship shields (universe setting) */
+  bigShields?: boolean;
 }
 
-export const DEFAULT_SIM_SETTINGS: SimSettings = { ...DEFAULT_DEBRIS, moonFactor: 1, maxMoonChance: 20 };
+export const DEFAULT_SIM_SETTINGS: SimSettings = { ...DEFAULT_DEBRIS, moonFactor: 1, maxMoonChance: 20, bigShields: false };
 
 export interface Range {
   avg: number;
@@ -57,7 +59,7 @@ const ZERO_RES: Resources = { metal: 0, crystal: 0, deuterium: 0 };
 
 /** One battle: engine, evaluation, loot of a won battle, moon chance. */
 export function runBattle(fight: Fight, setup: BattleSetup, settings: SimSettings = DEFAULT_SIM_SETTINGS, random = Math.random) {
-  const output = JSON.parse(fight(JSON.stringify(engineInput(setup.attackers, setup.defenders)))) as EngineOutput;
+  const output = JSON.parse(fight(JSON.stringify(engineInput(setup.attackers, setup.defenders, { bigShields: settings.bigShields })))) as EngineOutput;
   const result = battleResult(output, setup.attackers, setup.defenders, settings, random);
   const loot =
     result.winner === 'attacker' && setup.resources
