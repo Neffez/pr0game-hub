@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-26
 
+- Battle simulator: the planet shows its drive research too (defaults of the defender's recyclers); the rebuilt column
+  is last in the defender's loss table and the fleet tag sits under the unit's name, so half-width tables fit; space
+  between the balances and the debris, moon and rounds tiles; the moon chance in the language's decimals; the
+  fleets of a result are labelled in the current language. Checked in the built tools image with headless Chrome.
+
 - Battle simulator: fleets holding at the planet have a start, speed and drive research with fuel efficiency like the
   attackers, so a defense can be simulated with incoming fleets: their flight time is listed and their deuterium is a
   row of the defender's balance. Research and ships of both sides stay on the same rows (the planet keeps empty rows

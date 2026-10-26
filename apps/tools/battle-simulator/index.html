@@ -66,7 +66,6 @@
 .rec-btn { display: inline-flex; align-items: center; gap: 6px; text-transform: none; letter-spacing: 0; font-size: 12.5px; padding: 5px 10px; }
 .rec-count { font-family: var(--mono); }
 .target-row { display: grid; grid-template-columns: 110px repeat(3, minmax(0, 1fr)); gap: 10px; }
-.row-spacer { visibility: hidden; }
 .rec-info .kpi.warn .kpi-sub { color: var(--warn); }
 .menu-wrap { position: relative; display: inline-flex; }
 .menu {
@@ -98,6 +97,7 @@
 .outcome-meta { font-size: 12.5px; color: var(--muted); align-self: center; }
 .debris-to { display: flex; justify-content: flex-end; align-items: center; gap: 10px; margin: 16px 0 12px; font-size: 12.5px; color: var(--muted); }
 .balances { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+#resultBody > .hero { margin-top: 20px; }
 .balance table td, .balance table th { text-align: right; }
 .balance table td:first-child, .balance table th:first-child { text-align: left; }
 .balance tr.b-net td { font-weight: 600; border-top: 1px solid var(--border-strong); }
@@ -105,6 +105,9 @@
 .balance td.net-neg { background: rgba(242, 85, 90, .14); }
 .sub-title { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin: 18px 0 0; }
 .table-wrap td.name { white-space: nowrap; }
+.loss td.name { white-space: normal; }
+.slot-tag.block { display: block; margin: 1px 0 0; white-space: nowrap; }
+.loss th, .loss td { padding-left: 8px; padding-right: 8px; }
 .table-wrap tr.gone td:first-child { color: var(--faint); }
 .slot-tag { font-family: var(--mono); font-size: 11px; color: var(--accent-text); margin-left: 6px; }
 .round-side .slot-tag { margin: 0 4px 0 0; }

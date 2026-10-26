@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-10-26',
     items: [
       {
+        kind: 'fix',
+        de: 'Kampfsimulator: Auch der Planet zeigt die Antriebsforschung, die Spalte Wiederaufgebaut steht ganz hinten, und die Verlusttabellen passen in ihre halbe Breite. Mehr Abstand im Ergebnis.',
+        en: 'Battle simulator: the planet shows its drive research too, the rebuilt column is last, and the loss tables fit their half width. More space in the result.',
+      },
+      {
         kind: 'new',
         de: 'Kampfsimulator: Haltende Flotten beim Verteidiger haben jetzt Start, Geschwindigkeit und Antriebsforschung. Ihre Flugzeit wird angezeigt und ihr Deuterium geht in die Bilanz des Verteidigers ein. Forschung und Schiffe stehen auf beiden Seiten auf gleicher Höhe.',
         en: 'Battle simulator: fleets holding at the defender now have a start, speed and drive research. Their flight time is shown and their deuterium goes into the defender balance. Research and ships of both sides are at the same height.',

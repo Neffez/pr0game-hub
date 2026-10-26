@@ -408,10 +408,8 @@ function renderSlot(side) {
       html += routeRow();
     }
     html += '<div class="grid3 techs">' + techFields(side, COMBAT_TECHS, s.research) + '</div>';
-    // the planet does not fly: an empty row of the drives' height, so the ships of both sides start on one line
-    html += i > 0
-      ? '<div class="grid4 techs">' + techFields(side, DRIVE_TECHS, s.research) + '</div>'
-      : '<div class="grid4 techs row-spacer" aria-hidden="true"><div class="field"><label>&nbsp;</label><input tabindex="-1" disabled></div></div>';
+    // drives on every row like the attacker's (the planet's are the defaults of its recyclers)
+    html += '<div class="grid4 techs">' + techFields(side, DRIVE_TECHS, s.research) + '</div>';
     // the solar satellite only defends: after the ships
     var ships = SHIP_IDS.filter(function (id) { return id !== 212; }).concat([212]);
     html += '<div class="field"><span class="field-label">' + esc(t('ships')) + '</span>' + unitGrid(side, ships, s.units) + '</div>';
@@ -537,10 +535,10 @@ function run() {
   if (job) cancel();
   if (!worker) newWorker();
   var fighting = fightingSlots(S);
-  // names of the fighting fleets as they were when the simulation started
+  // names of the fighting fleets as they were when the simulation started (labelled in the current language)
   var labels = {
-    att: fighting.attackers.map(function (i) { return slotLabel('att', i); }),
-    def: fighting.defenders.map(function (i) { return slotLabel('def', i); }),
+    att: fighting.attackers.map(function (i) { return S.attackers[i].name; }),
+    def: fighting.defenders.map(function (i) { return S.defenders[i].name; }),
   };
   job = {id: Date.now() + Math.random(), runs: S.runs, slots: fighting, setup: setup, tab: activeTab, labels: labels, started: Date.now()};
   var started = job;
@@ -582,17 +580,18 @@ function lossRows(side, fleets, slotIdx, initial) {
   var rows = '';
   fleets.forEach(function (f, k) {
     var slot = slotIdx[k];
-    var label = last.labels ? last.labels[side][k] : slotLabel(side, slot);
+    var label = runLabel(side, slot, k);
     var units = initial[k].units;
     Object.keys(units).filter(function (id) { return units[id] > 0; }).map(Number).sort(function (a, b) { return a - b; }).forEach(function (id) {
       var lost = f.lost[id] || {avg: 0, min: 0, max: 0};
       var rep = f.repaired[id];
       var left = f.remaining[id] || {avg: 0};
       var chance = (f.lossChance || {})[id] || 0;
-      rows += '<tr class="' + (left.avg > 0 ? '' : 'gone') + '"><td class="name">' + esc(elementName(id, lang())) + '<span class="slot-tag">' + esc(label) + '</span></td>'
+      rows += '<tr class="' + (left.avg > 0 ? '' : 'gone') + '"><td class="name">' + esc(elementName(id, lang())) + '<span class="slot-tag block">' + esc(label) + '</span></td>'
         + '<td>' + num(units[id]) + '</td><td class="' + (lost.avg ? 'neg' : 'dim') + '">' + avgRange(lost) + '</td>'
-        + (side === 'def' ? '<td>' + (rep ? avgRange(rep) : '') + '</td>' : '') + '<td>' + avg(left.avg) + '</td>'
-        + '<td class="' + (chance ? 'neg' : 'dim') + '" title="' + esc(t('colRiskTitle')) + '">' + risk(chance) + '</td></tr>';
+        + '<td>' + avg(left.avg) + '</td>'
+        + '<td class="' + (chance ? 'neg' : 'dim') + '" title="' + esc(t('colRiskTitle')) + '">' + risk(chance) + '</td>'
+        + (side === 'def' ? '<td>' + (rep ? avgRange(rep) : '') + '</td>' : '') + '</tr>';
     });
   });
   return rows;
@@ -600,9 +599,16 @@ function lossRows(side, fleets, slotIdx, initial) {
 
 function lossTable(side, fleets, slotIdx, initial) {
   // only the planet's defense is rebuilt
-  var cols = side === 'def' ? ['colUnit', 'colCount', 'colLost', 'colRebuilt', 'colLeft', 'colRisk'] : ['colUnit', 'colCount', 'colLost', 'colLeft', 'colRisk'];
+  var cols = ['colUnit', 'colCount', 'colLost', 'colLeft', 'colRisk'].concat(side === 'def' ? ['colRebuilt'] : []);
   var head = '<tr>' + cols.map(function (h) { return '<th>' + esc(t(h)) + '</th>'; }).join('') + '</tr>';
-  return '<div class="table-wrap"><table><thead>' + head + '</thead><tbody>' + lossRows(side, fleets, slotIdx, initial) + '</tbody></table></div>';
+  return '<div class="table-wrap loss"><table><thead>' + head + '</thead><tbody>' + lossRows(side, fleets, slotIdx, initial) + '</tbody></table></div>';
+}
+
+/* Label of a fleet of the last run: its name when the run started, else "A 1" / the planet. */
+function runLabel(side, slot, k) {
+  var name = last.labels ? last.labels[side][k] : slots(side)[slot] && slots(side)[slot].name;
+  if (!name) return defaultLabel(side, slot);
+  return side === 'def' && slot === 0 ? t('planetOf', {name: name}) : name;
 }
 
 /* Rounds of the typical run: per round and side the units with their amount, losses and stunned ones. */
@@ -622,7 +628,7 @@ function reportHtml(output, slotIdx) {
             + (u.lost ? ' <span class="neg">−' + num(u.lost) + '</span>' : '')
             + (u.stunned ? ' <span class="stun" title="' + esc(t('stunnedTitle')) + '">⚡' + num(u.stunned) + '</span>' : '');
         });
-        var label = last.labels ? last.labels[side][Number(fleet)] : slotLabel(side, idx[Number(fleet)]);
+        var label = runLabel(side, idx[Number(fleet)], Number(fleet));
         lines.push('<div><span class="slot-tag">' + esc(label) + '</span> ' + (parts.join(' · ') || '–') + '</div>');
       });
       var stats = round[key].Statistics;
@@ -686,7 +692,7 @@ function renderResult() {
 
   html += '<div class="hero">'
     + kpi(t('debris'), short(debris), t('debrisSub', {m: short(s.debris.metal.avg), k: short(s.debris.crystal.avg), n: num(Math.ceil(debris / RECYCLER))}))
-    + kpi(t('moonChance'), Math.round(s.moonChance.avg * 10) / 10 + ' %', s.moonChance.min !== s.moonChance.max ? s.moonChance.min + '–' + s.moonChance.max + ' %' : '')
+    + kpi(t('moonChance'), avg(Math.round(s.moonChance.avg * 10) / 10) + ' %', s.moonChance.min !== s.moonChance.max ? s.moonChance.min + '–' + s.moonChance.max + ' %' : '')
     + roundsKpi(s)
     + '</div>';
 
