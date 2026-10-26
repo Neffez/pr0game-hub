@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-10-26',
     items: [
       {
+        kind: 'fix',
+        de: 'Kampfsimulator aus dem Spionageverlauf: Deine Forschungen und dein nächster Planet als Start werden jetzt für den Angreifer übernommen.',
+        en: 'Battle simulator from the spy history: your research and your nearest planet as start are now filled in for the attacker.',
+      },
+      {
         kind: 'new',
         de: '„n“ und „s“ werden jetzt auch in Galaxie, Statistik, Spielerinfo und Aktivität aus deinen Punkten berechnet, wenn der Noobschutz des Universums eingetragen ist.',
         en: '"N" and "S" are now also calculated from your points in the galaxy, statistics, player info and activity once the universe’s noob protection is entered.',

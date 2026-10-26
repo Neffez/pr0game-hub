@@ -3,7 +3,10 @@ import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useMobile, useUni } from '../composables';
 import ActionMenu, { type MenuItem } from './ActionMenu.vue';
-import { battleSimLink, fmt, fmtSigned, ipmCalcLink, ipmStart, name, SECTIONS, simLinks, timeWithAge, type Coords3 } from '../format';
+import {
+  battleSimLink, distance, fmt, fmtSigned, ipmCalcLink, ipmStart, name, SECTIONS, simLinks, timeWithAge, type Coords3, type SimFleet,
+  type UniverseSettings,
+} from '../format';
 
 export interface SpyReport {
   id: number;
@@ -51,6 +54,23 @@ const tables = computed(() =>
   }).filter((t) => t.rows.length),
 );
 
+/**
+ * The viewer as the attacker of the battle simulator, without ships: own research (empire page) and the nearest own
+ * planet as start.
+ */
+const ownAttacker = (u: UniverseSettings): SimFleet | null => {
+  const own = ctx.value?.own;
+  if (!own) return null;
+  let from: { c: Coords3; d: number } | null = null;
+  for (const pl of own.planets) {
+    const c: Coords3 = [pl.coords.g, pl.coords.s, pl.coords.p];
+    const d = props.target ? distance(u, c, props.target) : 0;
+    if (!from || d < from.d) from = { c, d };
+  }
+  const me = ctx.value!.members.find((m) => m.id === ctx.value!.me.id);
+  return { ships: {}, research: own.research, from: from?.c ?? null, name: me?.name ?? null };
+};
+
 /** Combat simulators with all values of the newest report: the battle simulator (pr0game-tools), the one in the game and TrashSim. */
 const values = (r: SpyReport): Record<string, number> => Object.assign({}, ...Object.values(r.sections));
 const simMenu = computed<MenuItem[]>(() => {
@@ -58,8 +78,9 @@ const simMenu = computed<MenuItem[]>(() => {
   if (!r) return [];
   const game = props.gameUrl ? simLinks(props.gameUrl, values(r)) : null;
   const u = ctx.value?.universe.settings;
+  const attacker = u && ownAttacker(u);
   return [
-    u && { label: t('spyHistory.simTools'), href: battleSimLink(u, values(r), [], props.target ?? null, [], r.player_name ?? null) },
+    u && { label: t('spyHistory.simTools'), href: battleSimLink(u, values(r), attacker ? [attacker] : [], props.target ?? null, [], r.player_name ?? null) },
     game && { label: t('spyHistory.simulator'), href: game.game },
     game && { label: 'TrashSim', href: game.trash },
   ].filter(Boolean) as MenuItem[];

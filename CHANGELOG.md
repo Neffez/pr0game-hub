@@ -4,6 +4,8 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-26
 
+- The battle simulator link of the spy history fills in the viewer as attacker: own research from the latest empire
+  page and the nearest own planet as start (ships left empty). Before, the attacker had no research at all.
 - Weak/strong from the own points on every page: the status badges in the galaxy, statistics, player info and
   activity log use the universe's noob protection like the overview (status history excepted). The own player and
   total points come with the universe context (`player` in `GET /api/{uni}/context`, reloaded on statistics syncs)
