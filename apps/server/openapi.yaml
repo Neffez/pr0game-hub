@@ -417,9 +417,9 @@ components:
         units: { type: object, additionalProperties: { type: integer, minimum: 0 }, example: { '207': 200, '203': 50 } }
         research: { type: object, additionalProperties: { type: integer, minimum: 0, maximum: 99 }, example: { '109': 12, '110': 12, '111': 12 } }
         from:
-          description: Attackers only, for flight time and deuterium. "g:s:p" or [g, s, p]
+          description: Attackers and holding fleets (not the planet), for flight time and deuterium. "g:s:p" or [g, s, p]
           oneOf: [{ type: string, example: '1:100:5' }, { type: array, items: { type: integer }, minItems: 3, maxItems: 3 }]
-        speed: { type: integer, enum: [10, 20, 30, 40, 50, 60, 70, 80, 90, 100], default: 100, description: Attackers only, speed in percent }
+        speed: { type: integer, enum: [10, 20, 30, 40, 50, 60, 70, 80, 90, 100], default: 100, description: Attackers and holding fleets, speed in percent }
         carried: { type: integer, minimum: 0, default: 0, description: Attackers only, resources already on board (less cargo space for loot) }
         name: { type: string, maxLength: 40, description: Player or fleet name, shown in the battle simulator page of `link` }
     BattleRequest:
@@ -514,11 +514,12 @@ components:
           properties: { id: { type: integer }, time: { type: integer }, reporter: { type: [string, 'null'] }, player: { type: [string, 'null'], description: Spied player, the planet's name in `link` } }
         flights:
           type: array
-          description: Attackers with a start
+          description: Attackers and holding fleets with a start
           items:
             type: object
             properties:
-              slot: { type: integer }
+              side: { type: string, enum: [attacker, defender] }
+              slot: { type: integer, description: Index in `attackers` or `defenders` }
               distance: { type: integer }
               duration: { type: integer, description: One way, seconds }
               deuterium: { type: number }

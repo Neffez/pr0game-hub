@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-10-26',
     items: [
       {
+        kind: 'new',
+        de: 'Kampfsimulator: Haltende Flotten beim Verteidiger haben jetzt Start, Geschwindigkeit und Antriebsforschung. Ihre Flugzeit wird angezeigt und ihr Deuterium geht in die Bilanz des Verteidigers ein. Forschung und Schiffe stehen auf beiden Seiten auf gleicher Höhe.',
+        en: 'Battle simulator: fleets holding at the defender now have a start, speed and drive research. Their flight time is shown and their deuterium goes into the defender balance. Research and ships of both sides are at the same height.',
+      },
+      {
         kind: 'fix',
         de: 'Kampfsimulator: Das Ergebnis flackert beim Simulieren nicht mehr, beim Angreifer fehlt die unnötige Spalte Wiederaufgebaut, und die Verteidigung des Planeten hat einen Link zum IRak-Rechner.',
         en: 'Battle simulator: the result no longer flickers when simulating, the attacker no longer has the needless rebuilt column, and the planet defense links to the IPM calculator.',

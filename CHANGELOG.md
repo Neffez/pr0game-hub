@@ -4,6 +4,12 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-26
 
+- Battle simulator: fleets holding at the planet have a start, speed and drive research with fuel efficiency like the
+  attackers, so a defense can be simulated with incoming fleets: their flight time is listed and their deuterium is a
+  row of the defender's balance. Research and ships of both sides stay on the same rows (the planet keeps empty rows
+  of the same height). The hub's links carry start and speed of hold fleets; the API lists their flights
+  (`flights[].side`).
+
 - Battle simulator: a link to the IPM calculator in the planet's defense row (target, defense and armour, start,
   weapons and impulse of the first attacking fleet); the running state shows only after 200 ms and the progress bar
   is a line under the row, so a quick simulation no longer makes the result flicker; the attackers' loss table has

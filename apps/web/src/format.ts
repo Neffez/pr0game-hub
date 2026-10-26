@@ -366,7 +366,7 @@ export function battleSimLink(
     attackers: attackers.map((a) => ({ units: units(a.ships), research: research(a.research), from: a.from ?? null, speed: a.speed ?? 100, name: a.name })),
     defenders: [
       { units: units(values), research: pick(values, (id) => COMBAT_TECHS.includes(id)), name: planetName },
-      ...defenders.map((d) => ({ units: units(d.ships), research: research(d.research), name: d.name })),
+      ...defenders.map((d) => ({ units: units(d.ships), research: research(d.research), from: d.from ?? null, speed: d.speed ?? 100, name: d.name })),
     ],
     target,
     resources: { metal: values[901] ?? 0, crystal: values[902] ?? 0, deuterium: values[903] ?? 0 },

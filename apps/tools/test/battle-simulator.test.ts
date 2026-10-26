@@ -75,6 +75,12 @@ describe('battle simulator balance', () => {
     expect(b.defender.at(-1)).toMatchObject({ metal: -7000, crystal: -3500, deuterium: -700 });
   });
 
+  it('takes the fuel of holding fleets into the defenders balance', () => {
+    const b = balance(summary, 'attacker', { metal: 2, crystal: 1 }, { attacker: 100, defender: 40 });
+    expect(b.attacker.find((r) => r.key === 'fuel')!.deuterium).toBe(-100);
+    expect(b.defender.map((r) => r.key)).toEqual(['lost', 'loot', 'fuel', 'net']);
+  });
+
   it('takes the recyclers fuel of both sides into the balance', () => {
     const b = balance(summary, 'defender', { metal: 2, crystal: 1 }, 0, { attacker: 50, defender: 30 });
     expect(b.attacker.map((r) => r.key)).toEqual(['lost', 'loot', 'recyclerFuel', 'net']);
@@ -303,5 +309,33 @@ describe('battle simulator page', () => {
     (document.getElementById('runBtn') as HTMLButtonElement).click();
     expect((document.getElementById('runBtn') as HTMLButtonElement).hidden).toBe(false);
     expect((document.getElementById('progress') as HTMLElement).hidden).toBe(true);
+  });
+
+  it('gives holding fleets a start, speed and drives, with their flight in the result', async () => {
+    (document.querySelector('[data-add-slot="def"]') as HTMLButtonElement).click();
+    const set = (id: string, value: string) => {
+      const el = document.getElementById(id) as HTMLInputElement;
+      el.value = value;
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+    expect(document.getElementById('r-def-115')).not.toBeNull();
+    set('from-def', '2:21:1');
+    set('r-def-115', '8');
+    set('u-def-204', '40');
+    (document.getElementById('runBtn') as HTMLButtonElement).click();
+    await new Promise((r) => setTimeout(r, 20));
+    const flights = [...document.querySelectorAll('#resultBody table')].map((x) => x.textContent ?? '').find((x) => x.includes('D 2') || x.includes('V 2'));
+    expect(flights).toBeTruthy();
+    expect([...document.querySelectorAll('#resultBody .balance')][1].textContent).toContain('Treibstoff');
+  });
+
+  it('puts research and ships of both sides on the same rows', () => {
+    const rows = (id: string) => [...document.getElementById(id)!.children].map((el) => (el.querySelector('[data-unit]') ? 'units' : el.querySelector('[data-tech="109"]') ? 'combat' : el.classList.contains('grid4') ? 'drives' : 'route'));
+    (document.querySelector('#defTabs [data-slot="0"]') as HTMLButtonElement).click();
+    const attacker = rows('attSlot');
+    expect(attacker.slice(0, 4)).toEqual(['route', 'combat', 'drives', 'units']);
+    expect(rows('defSlot').slice(0, 4)).toEqual(attacker.slice(0, 4));
+    (document.querySelector('#defTabs [data-slot="1"]') as HTMLButtonElement).click();
+    expect(rows('defSlot').slice(0, 4)).toEqual(attacker.slice(0, 4));
   });
 });

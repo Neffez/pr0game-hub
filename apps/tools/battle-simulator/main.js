@@ -383,11 +383,15 @@ function renderSlot(side) {
   var i = active[side];
   var s = slots(side)[i];
   var html = '';
-  if (side === 'att') {
-    html += '<div class="grid2"><div class="field"><label for="fromIn" data-t="from">' + esc(t('from')) + '</label>'
-      + '<input id="fromIn" class="coord" data-side="att" data-from="1" type="text" inputmode="numeric" autocomplete="off" placeholder="1:234:5" value="' + fmtCoords(s.from) + '"></div>'
-      + '<div class="field"><label for="speedIn">' + esc(t('speed')) + '</label><select id="speedIn" data-side="att" data-speed="1">'
+  // start and speed of a flying fleet (attackers and fleets holding at the planet: flight time and fuel)
+  var routeRow = function () {
+    return '<div class="grid2"><div class="field"><label for="from-' + side + '">' + esc(t('from')) + '</label>'
+      + '<input id="from-' + side + '" class="coord" data-side="' + side + '" data-from="1" type="text" inputmode="numeric" autocomplete="off" placeholder="1:234:5" value="' + fmtCoords(s.from) + '"></div>'
+      + '<div class="field"><label for="speed-' + side + '">' + esc(t('speed')) + '</label><select id="speed-' + side + '" data-side="' + side + '" data-speed="1">'
       + SPEEDS.map(function (v) { return '<option value="' + v + '"' + (v === s.speed ? ' selected' : '') + '>' + v + ' %</option>'; }).join('') + '</select></div></div>';
+  };
+  if (side === 'att') {
+    html += routeRow();
     html += '<div class="grid3 techs">' + techFields(side, COMBAT_TECHS, s.research) + '</div>';
     html += '<div class="grid4 techs">' + techFields(side, DRIVE_TECHS, s.research) + '</div>';
     html += '<div class="field"><span class="field-label">' + esc(t('ships')) + '</span>' + unitGrid(side, SHIP_IDS.filter(function (id) { return id !== 212; }), s.units) + '</div>';
@@ -401,9 +405,13 @@ function renderSlot(side) {
           return '<div class="field"><label for="res-' + r + '">' + esc(t(r)) + '</label><input id="res-' + r + '" data-res="' + r + '" type="text" inputmode="numeric" autocomplete="off" placeholder="0" value="' + (S.resources[r] ? num(S.resources[r]) : '') + '"></div>';
         }).join('') + '</div>';
     } else {
-      html += '<div class="target-row row-spacer" aria-hidden="true"><div class="field"><label>&nbsp;</label><input tabindex="-1" disabled></div></div>';
+      html += routeRow();
     }
     html += '<div class="grid3 techs">' + techFields(side, COMBAT_TECHS, s.research) + '</div>';
+    // the planet does not fly: an empty row of the drives' height, so the ships of both sides start on one line
+    html += i > 0
+      ? '<div class="grid4 techs">' + techFields(side, DRIVE_TECHS, s.research) + '</div>'
+      : '<div class="grid4 techs row-spacer" aria-hidden="true"><div class="field"><label>&nbsp;</label><input tabindex="-1" disabled></div></div>';
     // the solar satellite only defends: after the ships
     var ships = SHIP_IDS.filter(function (id) { return id !== 212; }).concat([212]);
     html += '<div class="field"><span class="field-label">' + esc(t('ships')) + '</span>' + unitGrid(side, ships, s.units) + '</div>';
@@ -638,8 +646,13 @@ function renderResult() {
   }
   var s = last.summary;
   var debris = s.debris.metal.avg + s.debris.crystal.avg;
-  var flights = S.attackers.map(function (slot, i) { return {i: i, f: slotFlight(S, slot, U)}; }).filter(function (x) { return x.f; });
-  var fuel = flights.reduce(function (sum, x) { return sum + x.f.consumption; }, 0);
+  var flights = S.attackers.map(function (slot, i) { return {side: 'att', i: i, f: slotFlight(S, slot, U)}; })
+    .concat(S.defenders.map(function (slot, i) { return {side: 'def', i: i, f: i > 0 ? slotFlight(S, slot, U) : null}; }))
+    .filter(function (x) { return x.f; });
+  var fuelOf = function (side) {
+    return flights.filter(function (x) { return x.side === side; }).reduce(function (sum, x) { return sum + x.f.consumption; }, 0);
+  };
+  var fuel = {attacker: fuelOf('att'), defender: fuelOf('def')};
   var debrisTo = S.debrisTo || defaultDebrisTo(s);
 
   /* outcome: win chances, runs and rounds */
@@ -685,7 +698,7 @@ function renderResult() {
     html += '<h3 class="sub-title">' + esc(t('flights')) + '</h3><div class="table-wrap"><table><thead><tr>'
       + ['colSlot', 'colDistance', 'colDuration', 'colFuel'].map(function (h) { return '<th>' + esc(t(h)) + '</th>'; }).join('') + '</tr></thead><tbody>'
       + flights.map(function (x) {
-        return '<tr><td class="name">' + esc(slotLabel('att', x.i)) + ' · ' + S.attackers[x.i].speed + ' %</td><td>' + num(x.f.distance) + '</td>'
+        return '<tr><td class="name">' + esc(slotLabel(x.side, x.i)) + ' · ' + slots(x.side)[x.i].speed + ' %</td><td>' + num(x.f.distance) + '</td>'
           + '<td class="mono">' + fmtDur(x.f.duration) + '</td><td>' + num(x.f.consumption) + '</td></tr>';
       }).join('') + '</tbody></table></div>';
   }

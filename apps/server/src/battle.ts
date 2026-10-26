@@ -158,17 +158,18 @@ export function checkSize(setup: BattleSetup, runs: number) {
   }
 }
 
-/** Flight time and deuterium of the attackers with a start (and the target known). */
-export function flights(u: UniverseSettings, attackers: ApiSlot[], target: Coords | null) {
+/** Flight time and deuterium of the attackers and the fleets holding at the planet with a start (target known). */
+export function flights(u: UniverseSettings, attackers: ApiSlot[], target: Coords | null, holding: ApiSlot[] = []) {
   if (!target) return [];
-  return attackers.flatMap((a, slot) => {
+  const fleets = [...attackers.map((a, slot) => ({ a, slot, side: 'attacker' })), ...holding.map((a, i) => ({ a, slot: i + 1, side: 'defender' }))];
+  return fleets.flatMap(({ a, slot, side }) => {
     if (!a.from) return [];
     const drives = drivesFromResearch(a.research);
     const slowest = slowestShip(a.units, drives);
     if (!slowest) return [];
     const dist = distance(u, a.from, target);
     const duration = flightDuration(u, dist, slowest.speed, a.speed);
-    return [{ slot, distance: dist, duration: Math.floor(duration), deuterium: fleetConsumption(u, a.units, duration, dist, drives) }];
+    return [{ side, slot, distance: dist, duration: Math.floor(duration), deuterium: fleetConsumption(u, a.units, duration, dist, drives) }];
   });
 }
 
@@ -178,7 +179,7 @@ export function toolsLink(u: UniverseSettings, req: BattleRequest, planet: ApiSl
   const base = flightUrl ? new URL('../battle-simulator/', flightUrl.split('#')[0]).href : TOOLS_URL;
   const hash = encodeShare({
     attackers: req.attackers.map((a) => ({ units: a.units, research: a.research, from: a.from, speed: a.speed, name: a.name })),
-    defenders: [planet, ...(req.defenders.slice(1) as ApiSlot[])].map((d) => ({ units: d.units, research: d.research, name: d.name })),
+    defenders: [planet, ...(req.defenders.slice(1) as ApiSlot[])].map((d, i) => ({ units: d.units, research: d.research, name: d.name, ...(i ? { from: d.from, speed: d.speed } : {}) })),
     target: req.target,
     resources: req.resources,
     uni: {

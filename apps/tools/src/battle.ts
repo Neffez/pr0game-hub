@@ -130,7 +130,7 @@ export function shareFromState(s: BattleState, uni: Record<string, number>): Sha
   const slot = (x: Slot): ShareSlot => ({ units: x.units, research: x.research, from: x.from, speed: x.speed, name: x.name });
   return {
     attackers: s.attackers.map(slot),
-    defenders: s.defenders.map((x) => ({ units: x.units, research: x.research, name: x.name })),
+    defenders: s.defenders.map((x, i) => (i === 0 ? { units: x.units, research: x.research, name: x.name } : slot(x))),
     target: s.target,
     resources: s.resources,
     runs: s.runs,
@@ -272,12 +272,14 @@ export function defaultDebrisTo(summary: SimSummary): Side {
 
 /**
  * Average gains and losses of each side in resources and DSE: lost units (rebuilt defense not counted), the loot
- * (gained by the attacker, lost by the defender), the attackers' fuel, the recyclers' fuel of each side and the debris
- * field for the side that gets it.
+ * (gained by the attacker, lost by the defender), the fuel of the flying fleets (attackers, fleets holding at the
+ * planet; a number is the attackers'), the recyclers' fuel of each side and the debris field for the side that gets it.
  */
 export function balance(
-  summary: SimSummary, debrisTo: Side, rates = DEFAULT_RATES, fuel = 0, recyclerFuel: Record<Side, number> = { attacker: 0, defender: 0 },
+  summary: SimSummary, debrisTo: Side, rates = DEFAULT_RATES, fuel: number | Record<Side, number> = 0,
+  recyclerFuel: Record<Side, number> = { attacker: 0, defender: 0 },
 ): Record<Side, BalanceRow[]> {
+  const fleetFuel = typeof fuel === 'number' ? { attacker: fuel, defender: 0 } : fuel;
   const rm = rates.metal > 0 ? rates.metal : 1;
   const rk = rates.crystal > 0 ? rates.crystal : 1;
   const row = (key: BalanceRow['key'], metal: number, crystal: number, deuterium: number): BalanceRow => ({
@@ -289,7 +291,7 @@ export function balance(
     attacker: [row('lost', ...neg(summary.lostResources.attacker)), row('loot', summary.loot.metal, summary.loot.crystal, summary.loot.deuterium)],
     defender: [row('lost', ...neg(summary.lostResources.defender)), row('loot', ...neg(summary.loot))],
   };
-  if (fuel > 0) sides.attacker.push(row('fuel', 0, 0, -fuel));
+  for (const side of ['attacker', 'defender'] as const) if (fleetFuel[side] > 0) sides[side].push(row('fuel', 0, 0, -fleetFuel[side]));
   for (const side of ['attacker', 'defender'] as const) if (recyclerFuel[side] > 0) sides[side].push(row('recyclerFuel', 0, 0, -recyclerFuel[side]));
   sides[debrisTo].push(row('debris', debris.metal, debris.crystal, 0));
   for (const side of ['attacker', 'defender'] as const) {

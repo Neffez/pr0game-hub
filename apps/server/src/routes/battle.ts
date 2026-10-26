@@ -51,7 +51,7 @@ export function battleRoutes(app: FastifyInstance, db: DB) {
       ...summary,
       settings,
       spyReport,
-      flights: flights(u, body.attackers, body.target),
+      flights: flights(u, body.attackers, body.target, body.defenders.slice(1) as ApiSlot[]),
       typical: { winner: typical.run.winner, rounds: typical.run.rounds, ...(body.report ? { engine: typical.output } : {}) },
       link: toolsLink(u, { ...body, resources }, planet, settings),
     };

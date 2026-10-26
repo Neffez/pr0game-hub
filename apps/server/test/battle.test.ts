@@ -52,7 +52,7 @@ describe('battle simulator API', () => {
     expect(r.settings).toMatchObject({ fleetDebris: 50, defenseDebris: 10, bigShields: false });
     expect(r.loot.metal).toBeGreaterThan(0);
     expect(r.flights).toHaveLength(1);
-    expect(r.flights[0]).toMatchObject({ slot: 0, distance: 2700 + 95 * 10 });
+    expect(r.flights[0]).toMatchObject({ side: 'attacker', slot: 0, distance: 2700 + 95 * 10 });
     expect(r.typical.engine).toBeUndefined();
     const link = decodeShare(r.link.split('#')[1]);
     expect(link.defenders[0].units).toEqual({ 401: 50 });
