@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-10-26',
     items: [
       {
+        kind: 'new',
+        de: 'Kampfsimulator: Nach einer Simulation öffnet „Nächste Welle“ einen neuen Tab mit den übrigen Schiffen und der Verteidigung beider Seiten und den Ressourcen nach der Beute, so lassen sich mehrere Wellen nacheinander simulieren.',
+        en: 'Battle simulator: after a simulation, "Next wave" opens a new tab with the ships and defense left on both sides and the resources after the loot, so several waves can be simulated one after another.',
+      },
+      {
         kind: 'fix',
         de: 'Kampfsimulator: Flotten lassen sich per Doppelklick auf ihren Tab wieder umbenennen, und ein einzelner Tab hat rechts wieder Abstand.',
         en: 'Battle simulator: fleets can be renamed by double-clicking their tab again, and a single tab has its right padding back.',

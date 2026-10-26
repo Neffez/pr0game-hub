@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-26
 
+- Battle simulator: "Next wave" button at the result (like trashsim). It opens a new tab with the inputs that were
+  simulated, the fighting fleets of both sides set to what is left of them (rounded average, rebuilt defense included)
+  and the planet's resources less the average loot. Waves are numbered in the tab name ("Sim 1 · W2") and stored with
+  the tabs. Checked with headless Chrome on the built tools.
+
 - Battle simulator: shorter footer, "Calculated with Battlerust · all inputs stay in your browser", with the link to the
   Battlerust repository on the word instead of a separate link at the end.
 

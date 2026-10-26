@@ -46,7 +46,7 @@ var worker = null;
 var job = null;
 var last = null;
 var stale = false;
-/* independent simulations: {id, name, state, last, stale}; results stay in memory only */
+/* independent simulations: {id, name, wave, state, last, stale}; results stay in memory only */
 var TABS = [];
 var activeTab = null;
 var tabSeq = 0;
@@ -152,15 +152,15 @@ function uniHash() {
 }
 
 function persist() {
-  store(LS_TABS, {active: TABS.indexOf(activeTab), tabs: TABS.map(function (tab) { return {name: tab.name, state: tab.state}; })});
+  store(LS_TABS, {active: TABS.indexOf(activeTab), tabs: TABS.map(function (tab) { return {name: tab.name, wave: tab.wave, state: tab.state}; })});
   store(LS_UNI, Object.assign({}, load(LS_UNI) || {}, U));
 }
 
 /* ---------- tabs ---------- */
 
-function newTab(state, name) {
+function newTab(state, name, wave) {
   tabSeq += 1;
-  return {id: 't' + tabSeq, name: name || null, state: state, last: null, stale: false};
+  return {id: 't' + tabSeq, name: name || null, wave: wave > 1 ? Math.min(99, wave | 0) : 1, state: state, last: null, stale: false};
 }
 
 function tabAutoName(tab) {
@@ -190,7 +190,7 @@ function updateCalcTabs() {
     var el = $('#calcTabs [data-tab="' + tab.id + '"]');
     if (!el) return;
     var name = el.querySelector('.ctab-name');
-    if (name) name.textContent = tab.name || tabAutoName(tab);
+    if (name) name.textContent = (tab.name || tabAutoName(tab)) + (tab.wave > 1 ? ' · ' + t('waveShort', {n: tab.wave}) : '');
     var result = tab === activeTab ? last : tab.last;
     var running = job && job.tab === tab;
     el.querySelector('.ctab-sum').textContent = running ? t('tabRunning') : result ? t('tabSum', {n: pct(result.summary.wins.attacker)}) : '—';
@@ -217,12 +217,12 @@ function switchTab(tab) {
   persist();
 }
 
-function addTab(state, name) {
+function addTab(state, name, wave) {
   if (TABS.length >= MAX_TABS) {
     toast(t('tabsMax', {n: MAX_TABS}));
     return null;
   }
-  var tab = newTab(state, name);
+  var tab = newTab(state, name, wave);
   TABS.splice(TABS.indexOf(activeTab) + 1, 0, tab);
   switchTab(tab);
   return tab;
@@ -334,7 +334,7 @@ function bindCalcTabs() {
 function loadTabs() {
   var saved = load(LS_TABS);
   if (saved && Array.isArray(saved.tabs) && saved.tabs.length) {
-    saved.tabs.slice(0, MAX_TABS).forEach(function (x) { TABS.push(newTab(cleanState(x.state), typeof x.name === 'string' ? x.name : null)); });
+    saved.tabs.slice(0, MAX_TABS).forEach(function (x) { TABS.push(newTab(cleanState(x.state), typeof x.name === 'string' ? x.name : null, x.wave)); });
     activeTab = TABS[Math.min(Math.max(0, saved.active | 0), TABS.length - 1)];
     return true;
   }
@@ -506,7 +506,7 @@ function newWorker() {
     if (msg.type === 'progress') {
       setProgress(msg.done / job.runs);
     } else if (msg.type === 'done') {
-      var result = {summary: msg.summary, slots: job.slots, setup: job.setup, labels: job.labels};
+      var result = {summary: msg.summary, slots: job.slots, setup: job.setup, labels: job.labels, state: job.state};
       var tab = job.tab;
       job = null;
       if (tab === activeTab) {
@@ -540,7 +540,9 @@ function run() {
     att: fighting.attackers.map(function (i) { return S.attackers[i].name; }),
     def: fighting.defenders.map(function (i) { return S.defenders[i].name; }),
   };
-  job = {id: Date.now() + Math.random(), runs: S.runs, slots: fighting, setup: setup, tab: activeTab, labels: labels, started: Date.now()};
+  // the inputs as simulated: the next wave starts from them, even when they were changed since
+  var state = JSON.parse(JSON.stringify(S));
+  job = {id: Date.now() + Math.random(), runs: S.runs, slots: fighting, setup: setup, tab: activeTab, labels: labels, state: state, started: Date.now()};
   var started = job;
   setTimeout(function () { if (job === started) renderRun(); }, RUN_DELAY);
   worker.postMessage({id: job.id, setup: setup, runs: S.runs, settings: simSettings(U)});
@@ -569,12 +571,37 @@ function renderRun() {
   var running = !!job && job.tab === activeTab && Date.now() - job.started >= RUN_DELAY;
   $('#runBtn').hidden = running;
   $('#cancelBtn').hidden = !running;
+  $('#waveBtn').hidden = running || !last;
   $('#progress').hidden = !running;
   $('#results').classList.toggle('stale', stale && !!last);
   $('#staleNote').hidden = !(stale && last && !running);
 }
 
 /* ---------- result ---------- */
+
+/* Next wave (like trashsim): a new tab with the inputs of the last result, the fighting fleets of both sides set to
+   what is left of them (rounded average, rebuilt defense included) and the planet's resources less the average loot. */
+function nextWave() {
+  if (!last) return;
+  var state = JSON.parse(JSON.stringify(last.state));
+  var s = last.summary;
+  var leftover = function (list, fleets, slotIdx) {
+    slotIdx.forEach(function (slot, k) {
+      var units = {};
+      Object.keys(fleets[k].remaining).forEach(function (id) {
+        var n = Math.round(fleets[k].remaining[id].avg);
+        if (n > 0) units[id] = n;
+      });
+      list[slot].units = units;
+    });
+  };
+  leftover(state.attackers, s.attackers, last.slots.attackers);
+  leftover(state.defenders, s.defenders, last.slots.defenders);
+  ['metal', 'crystal', 'deuterium'].forEach(function (r) { state.resources[r] = Math.max(0, Math.round(state.resources[r] - s.loot[r])); });
+  // the waves of a battle share its name: "Sim 1 · W2"
+  var tab = addTab(cleanState(state), activeTab.name || tabAutoName(activeTab), (activeTab.wave || 1) + 1);
+  if (tab) toast(t('waveCreated', {n: tab.wave}));
+}
 
 function lossRows(side, fleets, slotIdx, initial) {
   var rows = '';
@@ -901,6 +928,7 @@ function bind() {
     run();
   });
   $('#cancelBtn').addEventListener('click', cancel);
+  $('#waveBtn').addEventListener('click', nextWave);
   $('#spyIn').addEventListener('input', function () {
     var text = $('#spyIn').value;
     if (!text.trim()) { spyMsg = null; renderSpyHint(); return; }
