@@ -294,7 +294,12 @@ function renderTabs(side) {
   var list = slots(side);
   var html = list.map(function (s, i) {
     var has = Object.keys(s.units).some(function (id) { return s.units[id] > 0; });
-    return '<button type="button" role="tab" class="slot-tab' + (i === active[side] ? ' on' : '') + (has ? ' has' : '') + '" data-slot-side="' + side + '" data-slot="' + i + '">' + esc(slotLabel(side, i)) + '</button>';
+    // the planet stays, the last attacking fleet too
+    var removable = side === 'att' ? list.length > 1 : i > 0;
+    return '<span class="slot-tab' + (i === active[side] ? ' on' : '') + (has ? ' has' : '') + '">'
+      + '<button type="button" role="tab" class="slot-main" aria-selected="' + (i === active[side]) + '" data-slot-side="' + side + '" data-slot="' + i + '">' + esc(slotLabel(side, i)) + '</button>'
+      + (removable ? '<button type="button" class="slot-x" data-remove-slot="' + side + '" data-index="' + i + '" title="' + esc(t('removeSlot')) + '" aria-label="' + esc(t('removeSlot')) + '">×</button>' : '')
+      + '</span>';
   }).join('');
   if (list.length < MAX_SLOTS) {
     html += '<button type="button" class="slot-tab add" data-add-slot="' + side + '" title="' + esc(t(side === 'att' ? 'addAttacker' : 'addDefender')) + '">+</button>';
@@ -323,11 +328,12 @@ function renderSlot(side) {
       }).join('') + '</div>';
     }
     html += '<div class="grid3 techs">' + techFields(side, COMBAT_TECHS, s.research) + '</div>';
-    html += '<div class="field"><span class="field-label">' + esc(t('ships')) + '</span>' + unitGrid(side, SHIP_IDS, s.units) + '</div>';
+    // the solar satellite only defends: after the ships
+    var ships = SHIP_IDS.filter(function (id) { return id !== 212; }).concat([212]);
+    html += '<div class="field"><span class="field-label">' + esc(t('ships')) + '</span>' + unitGrid(side, ships, s.units) + '</div>';
     if (i === 0) html += '<div class="field"><span class="field-label">' + esc(t('defense')) + '</span>' + unitGrid(side, DEFENSE_IDS, s.units) + '</div>';
   }
-  html += '<div class="slot-actions"><button type="button" class="link-btn" data-clear-slot="' + side + '">' + esc(t('clearSlot')) + '</button>'
-    + (i > 0 || slots(side).length > 1 ? '<button type="button" class="link-btn danger" data-remove-slot="' + side + '">' + esc(t('removeSlot')) + '</button>' : '') + '</div>';
+  html += '<div class="slot-actions"><button type="button" class="link-btn" data-clear-slot="' + side + '">' + esc(t('clearSlot')) + '</button></div>';
   $('#' + side + 'Slot').innerHTML = html;
 }
 
@@ -642,9 +648,11 @@ function bind() {
     var remove = e.target.closest('[data-remove-slot]');
     if (remove) {
       var rs = remove.dataset.removeSlot;
-      slots(rs).splice(active[rs], 1);
+      var index = Number(remove.dataset.index);
+      if (!window.confirm(t('removeSlotConfirm', {slot: slotLabel(rs, index)}))) return;
+      slots(rs).splice(index, 1);
       if (!slots(rs).length) slots(rs).push(emptySlot());
-      active[rs] = Math.max(0, active[rs] - 1);
+      if (active[rs] >= index) active[rs] = Math.max(0, active[rs] - 1);
       renderTabs(rs);
       renderSlot(rs);
       update();
@@ -664,13 +672,63 @@ function bind() {
     var text = $('#spyIn').value;
     if (!text.trim()) { spyMsg = null; renderSpyHint(); return; }
     spyMsg = applySpyReport(S, text);
+    renderSpyHint();
     if (spyMsg.ok) {
       active.def = 0;
       renderInputs();
       update();
+      // taken over: back to the battle, the hint as a toast
+      toast($('#spyHint').textContent);
+      $('#spyIn').value = '';
+      spyMsg = null;
+      renderSpyHint();
+      $('#spyDialog').close();
     }
-    renderSpyHint();
   });
+  /* the "⋯" menus of both sides: reset all fleets of the side, paste a spy report (defender) */
+  var closeMenus = function () {
+    $$('.menu-wrap .menu').forEach(function (menu) { menu.hidden = true; });
+    $$('[data-menu]').forEach(function (btn) { btn.setAttribute('aria-expanded', 'false'); });
+  };
+  $$('[data-menu]').forEach(function (btn) {
+    btn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var menu = $('#' + btn.dataset.menu);
+      var open = menu.hidden;
+      closeMenus();
+      menu.hidden = !open;
+      btn.setAttribute('aria-expanded', String(open));
+    });
+  });
+  document.addEventListener('click', function (e) { if (!e.target.closest('.menu-wrap')) closeMenus(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeMenus(); });
+  $$('.menu-wrap .menu').forEach(function (menu) {
+    menu.addEventListener('click', function (e) {
+      var item = e.target.closest('[data-menu-action]');
+      if (!item) return;
+      closeMenus();
+      var side = item.dataset.side;
+      if (item.dataset.menuAction === 'spy') {
+        spyMsg = null;
+        renderSpyHint();
+        openDialog($('#spyDialog'));
+        $('#spyIn').focus();
+        return;
+      }
+      if (!window.confirm(t(side === 'att' ? 'resetAttackersConfirm' : 'resetDefendersConfirm'))) return;
+      if (side === 'att') {
+        S.attackers = [emptySlot()];
+      } else {
+        S.defenders = [emptySlot()];
+        S.target = null;
+        S.resources = {metal: 0, crystal: 0, deuterium: 0};
+      }
+      active[side] = 0;
+      renderInputs();
+      update();
+    });
+  });
+  $('#spyDialog').addEventListener('click', function (e) { if (e.target === e.currentTarget) e.currentTarget.close(); });
   $('#resetBtn').addEventListener('click', function () {
     if (!window.confirm(t('resetConfirm'))) return;
     S = emptyState();

@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Kampfsimulator: Angreifer und Verteidiger stehen sich auf gleicher Höhe gegenüber. Der Spionagebericht wird über das „⋯“-Menü der Verteidiger eingefügt, beide Menüs können alle Flotten entfernen. Jede Flotte lässt sich über ein × in ihrem Tab entfernen. Solarsatelliten stehen beim Verteidiger nach den Schiffen.',
+        en: 'Battle simulator: attackers and defenders face each other at the same height. The spy report is pasted from the defenders' "⋯" menu, both menus can remove all fleets. Each fleet can be removed with an × in its tab. Solar satellites are listed after the ships on the defender side.',
+      },
+      {
+        kind: 'new',
         de: 'Kampfsimulator: Für Angreifer und Verteidiger steht jetzt die Bilanz in Metall, Kristall, Deuterium und DSE da, mit Verlusten, Beute, Treibstoff und Trümmerfeld. Ein Schalter legt fest, wer das Trümmerfeld bekommt, vorbelegt mit dem Gewinner.',
         en: 'Battle simulator: attacker and defender now show their balance in metal, crystal, deuterium and DSU, with losses, loot, fuel and debris. A switch sets who gets the debris field, the winner by default.',
       },

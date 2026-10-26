@@ -178,4 +178,44 @@ describe('battle simulator page', () => {
     const stored = JSON.parse(localStorage.getItem('pr0bs.tabs.v1')!);
     expect(stored.tabs.map((x: { state: { attackers: { units: Record<string, number> }[] } }) => x.state.attackers[0].units[207])).toEqual([100, 7]);
   });
+
+  it('pastes a spy report from the defender menu and lists the solar satellite after the ships', () => {
+    (document.querySelector('[data-menu="defMenu"]') as HTMLButtonElement).click();
+    expect((document.getElementById('defMenu') as HTMLElement).hidden).toBe(false);
+    (document.querySelector('[data-menu-action="spy"]') as HTMLButtonElement).click();
+    expect((document.getElementById('defMenu') as HTMLElement).hidden).toBe(true);
+    expect((document.getElementById('spyDialog') as HTMLDialogElement).open).toBe(true);
+    const area = document.getElementById('spyIn') as HTMLTextAreaElement;
+    area.value = spyReport;
+    area.dispatchEvent(new Event('input', { bubbles: true }));
+    expect((document.getElementById('spyDialog') as HTMLDialogElement).open).toBe(false);
+    expect((document.getElementById('u-def-405') as HTMLInputElement).value).toBe('30');
+    expect((document.getElementById('res-metal') as HTMLInputElement).value).toBe('300.000');
+    const ships = [...document.querySelectorAll('#defSlot .units')][0].querySelectorAll('input');
+    expect(ships[ships.length - 1].id).toBe('u-def-212');
+    // resetting (confirmed) leaves an empty planet
+    window.confirm = () => true;
+    (document.querySelector('[data-menu="defMenu"]') as HTMLButtonElement).click();
+    (document.querySelector('[data-menu-action="reset"][data-side="def"]') as HTMLButtonElement).click();
+    expect((document.getElementById('u-def-405') as HTMLInputElement).value).toBe('');
+    expect((document.getElementById('targetIn') as HTMLInputElement).value).toBe('');
+  });
+
+  it('removes a fleet with the × of its tab after confirming, and resets all attackers from the menu', () => {
+    const attTabs = () => document.querySelectorAll('#attTabs [data-slot]').length;
+    (document.querySelector('[data-add-slot="att"]') as HTMLButtonElement).click();
+    const before = attTabs();
+    window.confirm = () => false;
+    (document.querySelector('#attTabs [data-remove-slot]') as HTMLButtonElement).click();
+    expect(attTabs()).toBe(before);
+    window.confirm = () => true;
+    (document.querySelector('#attTabs [data-remove-slot]') as HTMLButtonElement).click();
+    expect(attTabs()).toBe(before - 1);
+    // the planet has no ×
+    expect(document.querySelector('#defTabs [data-remove-slot][data-index="0"]')).toBeNull();
+    (document.querySelector('[data-menu="attMenu"]') as HTMLButtonElement).click();
+    (document.querySelector('[data-menu-action="reset"][data-side="att"]') as HTMLButtonElement).click();
+    expect(attTabs()).toBe(1);
+    expect((document.getElementById('u-att-207') as HTMLInputElement).value).toBe('');
+  });
 });

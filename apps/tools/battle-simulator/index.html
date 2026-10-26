@@ -27,12 +27,16 @@
 }
 .slot-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
 .slot-tab {
-  padding: 6px 12px; border-radius: var(--radius-sm); background: var(--surface-2); border: 1px solid var(--border);
-  color: var(--muted); font-size: 13px; font-weight: 600;
+  display: inline-flex; align-items: center; border-radius: var(--radius-sm); background: var(--surface-2);
+  border: 1px solid var(--border); color: var(--muted); font-size: 13px; font-weight: 600;
 }
+.slot-tab button { border: 0; background: transparent; color: inherit; font: inherit; }
+.slot-main { padding: 6px 12px; }
+.slot-x { padding: 6px 8px 6px 0; color: var(--faint) !important; }
+.slot-x:hover { color: var(--danger) !important; }
 .slot-tab.has { color: var(--text); }
 .slot-tab.on { border-color: var(--accent); color: var(--accent-text); }
-.slot-tab.add { min-width: 34px; }
+.slot-tab.add { min-width: 34px; padding: 6px 12px; justify-content: center; }
 .slot-body { display: flex; flex-direction: column; gap: 12px; }
 .grid4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
 .techs .field label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -51,8 +55,21 @@
 .unit input.invalid, .field input.invalid { border-color: var(--danger); }
 .slot-actions { display: flex; justify-content: space-between; gap: 8px; }
 .link-btn.danger { color: var(--danger); }
-.spy textarea { min-height: 70px; }
+.spy textarea { min-height: 220px; width: 100%; font-family: var(--mono); font-size: 12px; }
 .spy .hint { margin-top: 6px; }
+.card-title .title-spacer { flex: 1; }
+.menu-wrap { position: relative; display: inline-flex; }
+.menu {
+  position: absolute; right: 0; top: calc(100% + 4px); z-index: 30; min-width: 220px; padding: 4px;
+  display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm); box-shadow: var(--shadow); text-transform: none; letter-spacing: 0;
+}
+.menu[hidden] { display: none; }
+.menu button {
+  text-align: left; padding: 8px 10px; border: 0; background: transparent; border-radius: 6px;
+  font-size: 13px; font-weight: 500; color: var(--text);
+}
+.menu button:hover, .menu button:focus-visible { background: var(--surface-2); }
 .run-row { display: flex; align-items: end; gap: 10px; flex-wrap: wrap; }
 .run-row .field { width: 130px; }
 .run-row input { font-family: var(--mono); }
@@ -129,18 +146,32 @@
 
   <main class="layout">
     <section class="card">
-      <h2 class="card-title" data-t="attackers">Attackers</h2>
+      <h2 class="card-title"><span data-t="attackers">Attackers</span><span class="title-spacer"></span>
+        <span class="menu-wrap">
+          <button type="button" class="icon-btn" data-menu="attMenu" aria-haspopup="menu" aria-expanded="false" data-t-title="attMenuTitle" data-t-aria="attMenuTitle">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
+          </button>
+          <span class="menu" id="attMenu" role="menu" hidden>
+            <button type="button" role="menuitem" data-menu-action="reset" data-side="att" data-t="resetAttackers">Remove all fleets and reset</button>
+          </span>
+        </span>
+      </h2>
       <div class="slot-tabs" id="attTabs" role="tablist"></div>
       <div class="slot-body" id="attSlot"></div>
     </section>
     <section class="card">
-      <h2 class="card-title" data-t="defenders">Defenders</h2>
-      <div class="field spy">
-        <label for="spyIn" data-t="spyPaste">Paste spy report</label>
-        <textarea id="spyIn" spellcheck="false" data-t-ph="spyPh"></textarea>
-        <p class="hint" id="spyHint" hidden></p>
-      </div>
-      <div class="slot-tabs" id="defTabs" role="tablist" style="margin-top: 14px"></div>
+      <h2 class="card-title"><span data-t="defenders">Defenders</span><span class="title-spacer"></span>
+        <span class="menu-wrap">
+          <button type="button" class="icon-btn" data-menu="defMenu" aria-haspopup="menu" aria-expanded="false" data-t-title="defMenuTitle" data-t-aria="defMenuTitle">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
+          </button>
+          <span class="menu" id="defMenu" role="menu" hidden>
+            <button type="button" role="menuitem" data-menu-action="spy" data-side="def" data-t="spyPasteMenu">Paste spy report …</button>
+            <button type="button" role="menuitem" data-menu-action="reset" data-side="def" data-t="resetDefenders">Remove all fleets and reset</button>
+          </span>
+        </span>
+      </h2>
+      <div class="slot-tabs" id="defTabs" role="tablist"></div>
       <div class="slot-body" id="defSlot"></div>
     </section>
     <section class="card" id="results" aria-live="off">
@@ -158,6 +189,22 @@
   <p class="foot"><span data-t="foot"></span> · <a href="https://github.com/Tsaranoga/Battlerust" target="_blank" rel="noopener">Battlerust</a> · <a href="https://github.com/Neffez/pr0game-hub" target="_blank" rel="noopener" data-t="source">Source code</a></p>
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<dialog id="spyDialog" aria-labelledby="spyTitle">
+  <form method="dialog" class="dlg">
+    <div class="dlg-head">
+      <div><h2 id="spyTitle" data-t="spyPaste">Paste spy report</h2><p data-t="spyDialogSub">Target, resources, fleet, defense and research go to the planet.</p></div>
+      <button class="icon-btn" value="close" data-t-aria="close">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="dlg-body spy">
+      <textarea id="spyIn" spellcheck="false" data-t-ph="spyPh" aria-labelledby="spyTitle"></textarea>
+      <p class="hint" id="spyHint" hidden></p>
+    </div>
+    <div class="dlg-foot"><span></span><button class="btn primary" value="close" data-t="done">Done</button></div>
+  </form>
+</dialog>
 
 <dialog id="settings" aria-labelledby="settingsTitle">
   <form method="dialog" class="dlg">

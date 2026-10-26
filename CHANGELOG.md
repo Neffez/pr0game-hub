@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-26
 
+- Battle simulator: attackers and defenders face each other at the same height: pasting a spy report moved into a
+  "⋯" menu in the defenders' title row (opens a dialog, closes when the report is taken over), both sides' menus can
+  remove all fleets and reset the side (with confirmation); every fleet tab has an × to remove it after a
+  confirmation (not the planet, not the last attacker); the defenders list the solar satellite after the ships.
+
 - Battle simulator: balance of both sides like common simulators: win chances of attacker, draw and defender,
   then per side lost units (rebuilt defense not counted), loot, the attackers' fuel and the debris field with the net
   result in metal, crystal, deuterium and DSU; a switch decides who gets the debris (default: the side that wins most
