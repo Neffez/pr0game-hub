@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-26
 
+- Overview filters: "hide weak (N)" and "hide strong (S)" drop players with the weak/strong status (as seen by the
+  member who synced the galaxy or statistics last), and "hide planets" next to "hide moons" lists only moons.
+  Checked with headless Chrome (desktop and mobile).
+
 - Fleet sharing per fleet, like player messages: in the own empire view an eye on every own fleet (in flight and in
   the history) shares it with the other members or not, ahead of the account setting (also when fleet sharing is off
   or the mission or history is hidden). The later lines of the same flight (holding, return: same mission and

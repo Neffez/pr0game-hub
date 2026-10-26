@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Übersicht: Neue Filter „Schwache (n) aus“ und „Starke (s) aus“ blenden Spieler mit diesem Status aus, „Planeten aus“ zeigt nur noch Monde.',
+        en: 'Overview: new filters "hide weak (N)" and "hide strong (S)" hide players with that status, "hide planets" shows only moons.',
+      },
+      {
+        kind: 'new',
         de: 'Imperium: Mit dem Auge an einer eigenen Flotte teilst du sie mit der Allianz oder nicht, wie bei Ingame-Nachrichten, auch wenn du Flottenbewegungen im Konto sonst nicht teilst. Der Rückflug derselben Flotte folgt automatisch.',
         en: 'Empire: the eye on one of your fleets shares it with the alliance or not, like in-game messages, even if you otherwise do not share fleet movements under Account. The return of the same fleet follows automatically.',
       },

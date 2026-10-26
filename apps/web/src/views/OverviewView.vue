@@ -126,6 +126,8 @@ const FILTER_DEFAULTS = {
   ally: '',
   inactive: 'all' as (typeof INACTIVE)[number],
   hideVacation: true,
+  hideNoob: false,
+  hideStrong: false,
   minPoints: null as number | null,
   maxPoints: null as number | null,
   minDelta: null as number | null,
@@ -133,6 +135,7 @@ const FILTER_DEFAULTS = {
   galaxy: null as number | null,
   from: '',
   onlySpied: false,
+  hidePlanets: false,
   hideMoons: false,
 };
 const filter = useStored('overview.filter', { ...FILTER_DEFAULTS });
@@ -192,6 +195,8 @@ function playerMatches(p: Player) {
   if (f.inactive === 'hide' && inactive(p)) return false;
   if (f.inactive === 'only' && !inactive(p)) return false;
   if (f.hideVacation && p.status.includes('vacation')) return false;
+  if (f.hideNoob && p.status.includes('noob')) return false;
+  if (f.hideStrong && p.status.includes('strong')) return false;
   const total = p.scores[1]?.points ?? 0;
   if (minPoints != null && total < minPoints) return false;
   if (maxPoints != null && total > maxPoints) return false;
@@ -231,6 +236,7 @@ const planetRows = computed<Row[]>(() => {
     for (const planet of list) {
       if (galaxy.value && planet.g !== galaxy.value) continue;
       if (f.onlySpied && !planet.spy) continue;
+      if (f.hidePlanets && planet.type !== 'moon') continue;
       if (f.hideMoons && planet.type === 'moon') continue;
       const dist = origin.value ? distance(u, origin.value, [planet.g, planet.s, planet.p]) : null;
       rows.push({ key: `${planet.g}:${planet.s}:${planet.p}:${planet.type}`, player, planet, dist });
@@ -406,6 +412,8 @@ const chips = computed<FilterChip[]>(() => {
   if (f.ally.trim()) add('ally', `${t('common.alliance')}: ${f.ally.trim()}`);
   if (f.inactive !== 'all') add('inactive', t(`overview.inactiveChip.${f.inactive}`));
   if (!f.hideVacation) add('hideVacation', t('overview.vacationShown'));
+  if (f.hideNoob) add('hideNoob', t('overview.hideNoob'));
+  if (f.hideStrong) add('hideStrong', t('overview.hideStrong'));
   if (bound(f.minPoints) != null) add('minPoints', `${t('expeditions.points')} ≥ ${fmt(f.minPoints!)}`);
   if (bound(f.maxPoints) != null) add('maxPoints', `${t('expeditions.points')} ≤ ${fmt(f.maxPoints!)}`);
   if (bound(f.minDelta) != null) add('minDelta', `Δ ${STATS_TYPES[f.deltaType]} ≥ ${fmt(f.minDelta!)}`);
@@ -413,6 +421,7 @@ const chips = computed<FilterChip[]>(() => {
     if (galaxy.value) add('galaxy', `${t('nav.galaxy')} ${galaxy.value}`);
     if (origin.value) add('from', `${t('overview.dist')} ${f.from.trim()}`);
     if (f.onlySpied) add('onlySpied', t('overview.onlySpied'));
+    if (f.hidePlanets) add('hidePlanets', t('overview.hidePlanets'));
     if (f.hideMoons) add('hideMoons', t('overview.hideMoons'));
   }
   return out;
@@ -523,6 +532,8 @@ const history = computed(() => {
         </div>
       </div>
       <label class="check"><input v-model="filter.hideVacation" type="checkbox" /> {{ t('overview.hideVacation') }}</label>
+      <label class="check"><input v-model="filter.hideNoob" type="checkbox" /> {{ t('overview.hideNoob') }}</label>
+      <label class="check"><input v-model="filter.hideStrong" type="checkbox" /> {{ t('overview.hideStrong') }}</label>
     </div>
     <div class="filter-group">
       <span class="filter-title">{{ t('expeditions.points') }}</span>
@@ -565,6 +576,7 @@ const history = computed(() => {
         <input v-model="filter.from" class="mono" placeholder="1:100:8" size="10" />
       </div>
       <label class="check"><input v-model="filter.onlySpied" type="checkbox" /> {{ t('overview.onlySpied') }}</label>
+      <label class="check"><input v-model="filter.hidePlanets" type="checkbox" /> {{ t('overview.hidePlanets') }}</label>
       <label class="check"><input v-model="filter.hideMoons" type="checkbox" /> {{ t('overview.hideMoons') }}</label>
     </div>
 
