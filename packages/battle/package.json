@@ -1,0 +1,37 @@
+{
+  "name": "@pr0hub/battle",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./wasm": {
+      "types": "./wasm/battlerust.d.ts",
+      "default": "./wasm/battlerust.js"
+    },
+    "./wasm/battlerust_bg.wasm": "./wasm/battlerust_bg.wasm"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "dev": "tsc -p tsconfig.json --watch --preserveWatchOutput",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@pr0hub/core": "workspace:*",
+    "@pr0hub/flight": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "vitest": "^5.0.5"
+  },
+  "files": [
+    "dist",
+    "wasm"
+  ]
+}

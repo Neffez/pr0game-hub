@@ -10,6 +10,7 @@
     "build": "pnpm -r build",
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck",
+    "build:battle": "docker build --target battle-wasm-out --output type=local,dest=packages/battle/wasm .",
     "gen:tech": "node scripts/gen-tech.mjs ../pr0game/language",
     "gen:costs": "node scripts/gen-costs.mjs ../pr0game/install/install.sql"
   }

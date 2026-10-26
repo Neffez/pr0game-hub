@@ -91,6 +91,7 @@ be used on its own.
 packages/parser   @pr0hub/core – page parsers, deck calculation, element data (DE/EN)
 packages/flight   @pr0hub/flight – flight times, recall and fuel like the game's FleetFunctions
 packages/loot     @pr0hub/loot – ACS loot settlement: loot shares, covering losses, profit split, transfers
+packages/battle   @pr0hub/battle – battle simulation on the game's Rust engine (Battlerust as WebAssembly)
 apps/server       Fastify + SQLite: auth, ingest, data APIs, battle report crawler; serves the SPA
 apps/web          Vue 3 SPA (base path /hub/)
 apps/tools        static pr0game tools next to the hub: tools index, flight, ACS loot and IPM calculator
@@ -127,7 +128,13 @@ pnpm build       # all packages and apps
 - UI texts live in `apps/web/src/locales/` (`de.ts`, `en.ts`); the mobile layout starts below 800 px.
 
 Element names and costs are generated from the game source ([codeberg.org/pr0game/pr0game](https://codeberg.org/pr0game/pr0game))
-checked out next to this repository: `pnpm gen:tech` and `pnpm gen:costs`.
+checked out next to this repository: `pnpm gen:tech` and `pnpm gen:costs`. Combat values of units missing in the game's
+`install.sql` (later ships, stun, ship shields) live in `packages/battle/src/live.ts`.
+
+The battle simulator uses the game's battle engine [Battlerust](https://github.com/Tsaranoga/Battlerust) (Rust, by
+Tsaranoga, used with permission), built to WebAssembly at a pinned commit in the `battle-wasm` stage of the
+`Dockerfile`. `pnpm build:battle` exports it to `packages/battle/wasm/` (needs Docker, no Rust toolchain); the battle
+package's tests and the tools build need it.
 
 First start: log in with the bootstrap admin and create a universe (e.g. `u8`) and a group under **Admin**, then add members (claim links appear in the members table).
 

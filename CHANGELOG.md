@@ -4,6 +4,15 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-26
 
+- Battle simulation package `@pr0hub/battle` on the game's own battle engine Battlerust (Rust, with stun and ship
+  shields), built to WebAssembly from a pinned commit in a Docker stage (`pnpm build:battle`, also in CI and the image):
+  - engine input and evaluation ported from the game (`createRustJson`, `parseRustJson`: research factors and
+    rounding, defense rebuild, debris with fleet and defense percent), loot like `calculateSteal`, moon chance,
+    summary over many runs, and a link format shared by the hub and the upcoming simulator page;
+  - combat values from `install.sql` (`gen:costs` now writes them too) plus the values of the running game for
+    Heavy Cruiser, Assault Transporter, Optimised Recycler, Behemoth and Void Titan (attack, shield, rapidfire both
+    ways), the ion cannon's stun and the shield domes as ship shields.
+
 - Docs: the raid planner feature request plan (`FEATURE_REQUEST_RETIME.md`) is removed from the repository, since the
   feature is implemented; the flight library's retime comments no longer refer to it.
 

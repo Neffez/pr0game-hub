@@ -46,6 +46,10 @@ pnpm build
   flight calculator.
 - `packages/loot` (`@pr0hub/loot`): ACS loot settlement (loot shares like the game's `calculateSteal`, covering
   costs, profit split, transfers), used by the loot calculator in `apps/tools` and by the hub.
+- `packages/battle` (`@pr0hub/battle`): battle simulation on Battlerust, the game's Rust engine as WebAssembly
+  (`pnpm build:battle` exports it to `wasm/` via the `battle-wasm` Docker stage): engine input like the game's
+  `createRustJson` (`input.ts`), evaluation like `parseRustJson` (`result.ts`), loot (`steal.ts`), runs and summary
+  (`simulate.ts`), link format (`share.ts`); unit values from install.sql (`gen:costs`) plus `src/live.ts`.
 - `apps/server`: Fastify + SQLite; migrations in `migrations/` (numbered SQL files); every game-data query goes through `groupContext` so data stays within its group; OpenAPI spec in `openapi.yaml`.
 - `apps/tools`: static tools (Vite, no framework): `index.html`, `flight-calculator/` (UI in `main.js`, calculation
   in `src/core.ts` on top of `@pr0hub/flight`), `acs-loot/` (glue in `src/loot.ts` on top of `@pr0hub/loot`) and

@@ -17,6 +17,8 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # the battle engine (Battlerust, Rust → WebAssembly) is built in its Docker stage, no Rust toolchain needed
+      - run: pnpm build:battle
       # web and server import the built packages
       - run: pnpm --filter "./packages/*" build
       - run: pnpm typecheck

@@ -60,3 +60,26 @@ writeFileSync(new URL('../packages/parser/src/data/buildings.json', import.meta.
 console.log(`${Object.keys(buildings).length} buildings`);
 writeFileSync(new URL('../packages/parser/src/data/research.json', import.meta.url), JSON.stringify(research) + '\n');
 console.log(`${Object.keys(research).length} research`);
+
+// Combat values of ships and defense (battle simulator): attack and shield (`defend`) of the vars rows, rapidfire
+// from vars_rapidfire. Ships missing in install.sql and abilities of the Rust engine live in packages/battle/src/live.ts.
+const combat = {};
+for (const line of lines.slice(start + 1)) {
+  // ships 202-215 and defense 401-408 of the game (install.sql also has unused ones); the 24th and 25th column (values
+  // outside quotes) are attack and defend
+  const cols = line.replace(/^\(|\),?;?\s*$/g, '').match(/'[^']*'|[^,\s][^,]*/g) ?? [];
+  const id = Number(cols[0]);
+  if (cols[1] === '0' && ((id >= 202 && id <= 215) || (id >= 401 && id <= 408))) {
+    combat[id] = { attack: Number(cols[23]), shield: Number(cols[24]), rapidfire: {} };
+  }
+  if (line.trimEnd().endsWith(';')) break;
+}
+const rfStart = lines.findIndex((l) => l.startsWith('INSERT INTO `%PREFIX%vars_rapidfire` ('));
+for (const line of lines.slice(rfStart + 1)) {
+  // elementID, universe, rapidfireID, shoots
+  const m = line.match(/^\((\d+), 0, (\d+), (\d+)\)/);
+  if (m && combat[m[1]]) combat[m[1]].rapidfire[m[2]] = Number(m[3]);
+  if (line.trimEnd().endsWith(';')) break;
+}
+writeFileSync(new URL('../packages/battle/src/data/combat.json', import.meta.url), JSON.stringify(combat) + '\n');
+console.log(`${Object.keys(combat).length} combat units`);
