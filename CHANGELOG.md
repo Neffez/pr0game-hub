@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-26
 
+- README: new section on the standalone pr0game tools shipped with the deployment (flight, ACS loot and IPM
+  calculator), which work without the hub, login or server.
+
 - Tools: labels with an info button look like the other field labels and wrap instead of pushing the button into the
   next column (IPM calculator universe settings and flight calculator settings on phones). The headers show the
   title only, without subtitle; the IPM calculator texts drop "exactly like the game".

@@ -47,6 +47,31 @@ External analysis tool for [pr0game](https://codeberg.org/pr0game/pr0game) based
 
 Player IDs, alliance IDs and rank changes are only available in HTML/page source. With plain text, players are matched by name.
 
+## Standalone tools
+
+Next to the hub, the deployment ships static pr0game tools (`apps/tools`) that work **without the hub**: no login,
+no server, everything is calculated in the browser. The tools index at `/` links them and the hub. All tools are in
+German and English, keep their input locally in the browser and put it into share links (URL hash).
+
+- **Flight calculator** (`/flight-calculator/`): second-exact with the game's `FleetFunctions` (the same code as the
+  hub's raid planner, `@pr0hub/flight`)
+  - **Flight time**: departure → arrival and return, distance and fuel consumption
+  - **Timing**: arrival → departure, when to send a fleet to land at a given second
+  - **Retime**: when a hostile fleet is back home, including ACS delays
+  - **Recall**: fleet save and recall times
+  - **Counter-attack**: send times for your own fleet to land on the enemy home planet right after their fleet returns
+  - Universe settings (galaxies, systems, distance factors, fleet speed) and drive research levels
+- **ACS loot calculator** (`/acs-loot/`): shares the loot and debris of an ACS among up to 5 participants over
+  several battles; a pasted battle report fills in participants, ships, losses and loot, recycling reports the
+  debris. Covers losses and deuterium first, splits the profit equally or by investment and suggests deliveries
+  with as few flights as possible.
+- **IPM calculator** (`/ipm-calculator/`): interplanetary missiles against a planet's defense: destroyed and
+  remaining defense per type (interceptors, primary target, weapons and armour as in the game), missiles needed,
+  range, flight time and the cost against the value destroyed; a pasted spy report fills in the target.
+
+The hub links into the tools with prefilled values (e.g. from spy reports and the raid planner), but every tool can
+be used on its own.
+
 ## Tech stack
 
 | Area | Technology |
