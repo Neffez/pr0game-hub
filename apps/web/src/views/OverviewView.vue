@@ -15,10 +15,10 @@ import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
 import PlanetActions from '../components/PlanetActions.vue';
 import StatusBadges from '../components/StatusBadges.vue';
-import { useMobile, useProgressive, useSort, useStored, useUni } from '../composables';
+import { useMobile, useProgressive, useProtection, useSort, useStored, useUni } from '../composables';
 import { upcoming, useClock } from '../clock';
 import { tables, useLiveReload } from '../live';
-import { ago, dateTime, distance, fmt, fmtSigned, name, protectionStatus, short, STATS_SHORT, STATS_TYPES } from '../format';
+import { ago, dateTime, distance, fmt, fmtSigned, name, short, STATS_SHORT, STATS_TYPES } from '../format';
 import { intlLocale } from '../i18n';
 
 interface Delta {
@@ -113,6 +113,7 @@ const slotTitle = (sl: { from: number; to: number } | null) =>
   sl ? t('overview.slotTitle', { from: dateTime(sl.from), to: dateTime(sl.to) }) : t('overview.slotMissing');
 
 const { uni, ctx } = useUni();
+const protection = useProtection();
 /** Narrow screen; there the overview can still be switched to the desktop tables (remembered per device). */
 const narrow = useMobile();
 const desktopView = useStored('overview.desktopView', false);
@@ -159,9 +160,7 @@ async function load() {
   try {
     const res = await uniApi(uni.value, '/overview');
     // weak/strong from the own points where the universe's noob protection is set, instead of the syncing member's view
-    const own = (res.players as Player[]).find((p) => p.id === res.me)?.scores[1]?.points;
-    const u = ctx.value!.universe.settings;
-    players.value = (res.players as Player[]).map((p) => ({ ...p, status: protectionStatus(u, own, p.scores[1]?.points, p.status) }));
+    players.value = (res.players as Player[]).map((p) => ({ ...p, status: protection(p.status, p.scores[1]?.points) }));
     planets.value = res.planets;
     coverage.value = res.coverage;
     sections.value = res.slots ?? [];

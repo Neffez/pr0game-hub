@@ -6,6 +6,7 @@ import { scoreEntry, SLOT, SLOT_TOLERANCE, SLOTS, statSlots, TOLERANCE, TYPES, W
 import { latestEmpire, latestEmpires } from '../repo/empire.js';
 import { sharedFleets } from '../repo/fleets.js';
 import { memberPlayer, memberPlayers } from '../repo/members.js';
+import { latestScores } from '../repo/stats.js';
 import { contextOf, groupBy } from './util.js';
 
 export function overviewRoutes(app: FastifyInstance, db: DB) {
@@ -22,11 +23,14 @@ export function overviewRoutes(app: FastifyInstance, db: DB) {
     // own research + planets (latest empire page) for flight time and missile links: silo level and missiles per planet
     const empire = latestEmpire(db, ctx, ctx.user.id);
     const rec = empire?.rec;
+    // own player and total points: weak/strong (noob protection) are derived from them
+    const playerId = memberPlayer(db, ctx, ctx.user.id);
     return {
       universe: ctx.universe,
       group: { id: ctx.groupId, name: ctx.groupName, role: ctx.role },
       members,
       me: ctx.user,
+      player: playerId ? { id: playerId, points: latestScores(db, ctx.groupId, [playerId], [1]).get(playerId)?.[1]?.points ?? null } : null,
       own: rec
         ? {
             time: empire!.time,
@@ -97,8 +101,7 @@ export function overviewRoutes(app: FastifyInstance, db: DB) {
     // every known player (also from galaxy views and spy reports), with the latest synced points they have, if any
     const result = info.map((p) => ({ ...p, status: JSON.parse(p.status), aliases: JSON.parse(p.aliases), scores: players.get(p.id)?.scores ?? {} }));
 
-    // own player: the page derives weak/strong (noob protection) from its points
-    return { players: result, planets: planetRows(db, ctx), coverage: coverage(db, ctx), slots: sections[1], me: memberPlayer(db, ctx, ctx.user.id) };
+    return { players: result, planets: planetRows(db, ctx), coverage: coverage(db, ctx), slots: sections[1] };
   });
 }
 

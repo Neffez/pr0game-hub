@@ -333,7 +333,7 @@ function onStripUp() {
           <div class="pos-body">
             <div v-if="it.row.player_id" class="pos-line">
               <PlayerLink :id="it.row.player_id" :name="it.row.player_name ?? ''" />
-              <StatusBadges :status="it.row.status" />
+              <StatusBadges :status="it.row.status" :points="it.row.points" />
               <Icon v-if="it.row.note" name="edit" :size="12" class="faint" :label="it.row.note" />
               <span v-if="it.row.ally_tag ?? it.row.ally_name" class="muted small">[{{ it.row.ally_tag ?? it.row.ally_name }}]</span>
               <span class="grow" />
@@ -397,7 +397,7 @@ function onStripUp() {
             <td>
               <template v-if="row?.player_id">
                 <PlayerLink :id="row.player_id" :name="row.player_name ?? ''" />
-                <StatusBadges :status="row.status" />
+                <StatusBadges :status="row.status" :points="row.points" />
                  <Icon v-if="row.note" name="edit" :size="12" class="faint" :label="row.note" />
               </template>
             </td>

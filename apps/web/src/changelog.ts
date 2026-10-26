@@ -20,8 +20,13 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: '„n“ und „s“ werden jetzt auch in Galaxie, Statistik, Spielerinfo und Aktivität aus deinen Punkten berechnet, wenn der Noobschutz des Universums eingetragen ist.',
+        en: '"N" and "S" are now also calculated from your points in the galaxy, statistics, player info and activity once the universe’s noob protection is entered.',
+      },
+      {
+        kind: 'new',
         de: 'Übersicht: „n“ und „s“ werden aus deinen Punkten berechnet, sobald der Admin den Noobschutz des Universums (Limit, Faktor) eingetragen hat. Vorher galt die Sicht dessen, der zuletzt synchronisiert hat.',
-        en: 'Overview: "N" and "S" are calculated from your points once the admin has entered the universe's noob protection (limit, factor). Before, they showed the view of whoever synced last.',
+        en: 'Overview: "N" and "S" are calculated from your points once the admin has entered the universe’s noob protection (limit, factor). Before, they showed the view of whoever synced last.',
       },
       {
         kind: 'new',

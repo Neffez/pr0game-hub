@@ -59,8 +59,6 @@ describe('api', () => {
     expect(res.json().counts.player_scores).toEqual({ new: 0, duplicate: 3 });
 
     const ov = (await app.inject({ method: 'GET', url: '/hub/api/u8/overview', headers })).json();
-    // the admin has no player in this group
-    expect(ov.me).toBeNull();
     const alpha = ov.players.find((p: any) => p.name === 'Alpha');
     expect(alpha.ingame_id).toBe(1234);
     expect(alpha.ally_name).toBe('Die Allianz');

@@ -139,7 +139,7 @@ onBeforeUnmount(() => chart?.destroy());
   <template v-if="data">
     <h1>
       {{ data.player.name }}
-      <StatusBadges :status="data.player.status" />
+      <StatusBadges :status="data.player.status" :points="latest[1]?.points ?? null" />
       <span v-if="data.player.ally_name" class="muted"> [{{ data.player.ally_tag ?? data.player.ally_name }}]</span>
       <PresenceBadge :player="data.player.id" />
     </h1>

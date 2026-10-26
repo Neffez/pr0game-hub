@@ -618,7 +618,7 @@ components:
             Optional settings: `phalanxRangeFactor` and `missileRangeFactor` (game config `phalanx_range_factor` and
             `missile_range_factor`, number ≥ 0, default 1; the missile factor is passed on to the IPM calculator),
             `noobLimit`, `noobFactor` and `noobInactives` (game config `noob_protection_time`, `noob_protection_multi` and
-            `noob_inactives`, default 0 = unknown, 5 and false; the overview derives weak/strong from them),
+            `noob_inactives`, default 0 = unknown, 5 and false; weak/strong are derived from them and `player.points`),
             `fleetDebrisPercent` and `defenseDebrisPercent` (game config `fleet_debris_percentage` and
             `def_debris_percentage`, 0-100, default 40 and 0) and `bigShields` (boolean, default false: shield domes
             must fall before other units can be hit); passed on to the battle simulator.
@@ -630,6 +630,15 @@ components:
             role: { type: string }
         members: { type: array, items: { type: object } }
         me: { $ref: '#/components/schemas/User' }
+        player:
+          type: object
+          nullable: true
+          description: >-
+            Hub player of the requesting member (`id`) with the newest synced total `points` (null if unknown); the
+            pages derive weak/strong (noob protection) from them
+          properties:
+            id: { type: integer }
+            points: { type: integer, nullable: true }
         own:
           type: object
           nullable: true
@@ -664,7 +673,6 @@ components:
                   members: { type: array, items: { type: string } }
         coverage: { type: array, items: { type: object } }
         slots: { type: object }
-        me: { type: integer, nullable: true, description: Hub player id of the requesting member (for weak/strong from the own points) }
     Imperium:
       type: object
       properties:
@@ -1702,7 +1710,16 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: array, items: { type: object } }
+              schema:
+                type: object
+                properties:
+                  counts: { type: object, description: Entries per kind in the period }
+                  entries:
+                    type: array
+                    description: >-
+                      Newest 1000 entries with the player (`player_id`, `player_name`, `status`, alliance) and the
+                      player's newest synced total `points` (null if unknown)
+                    items: { type: object }
   /api/{uni}/hostile:
     get:
       tags: [Intelligence]

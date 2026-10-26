@@ -194,7 +194,7 @@ const SCORE_COLS = [4, 3, 2, 5] as const;
           <td>
             <span v-if="r.title" class="honor">{{ r.title }}</span>
             <span :class="['pname', nameClass(r)]"><PlayerLink :id="r.id" :name="r.name" /></span>
-            <StatusBadges :status="r.status ?? []" />
+            <StatusBadges :status="r.status ?? []" :points="r.scores?.[1] ?? null" />
           </td>
           <td>
             <span v-if="r.ally_id" :class="{ ally: r.ownAlly }">{{ r.ally_name ?? '' }}<span v-if="r.ally_tag" class="muted"> [{{ r.ally_tag }}]</span></span>

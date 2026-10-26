@@ -1,6 +1,6 @@
 import { computed, inject, nextTick, onBeforeUnmount, provide, ref, watch, type Directive, type InjectionKey, type Ref, type WatchSource } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import type { UniverseSettings } from './format';
+import { protectionStatus, type UniverseSettings } from './format';
 
 export interface UniContext {
   universe: { id: number; slug: string; name: string; settings: UniverseSettings; deck: { type: string; size: string; count: number }[] };
@@ -8,6 +8,8 @@ export interface UniContext {
   /** name = in-game name, falls back to the hub username; global_admin = hub admin (1/0) */
   members: { id: number; username: string; name: string; role: string; global_admin: number; ingame_name: string | null; last_seen_at: number | null }[];
   me: { id: number; username: string; isAdmin: boolean };
+  /** own player with the newest synced total points */
+  player: { id: number; points: number | null } | null;
   /** own research and planets from the latest own empire page */
   own: {
     time: number;
@@ -27,6 +29,16 @@ export function provideUni(ctx: Ref<UniContext | null>) {
 export function useUni() {
   const ctx = inject(KEY)!;
   return { ctx, uni: computed(() => ctx.value?.universe.slug ?? '') };
+}
+
+/**
+ * Status of a player with weak/strong derived from the own total points where the universe's noob protection is set
+ * (`protectionStatus`); outside of a universe or without the target's points the synced status stays.
+ */
+export function useProtection() {
+  const ctx = inject(KEY, null);
+  return (status: string[], points: number | null | undefined) =>
+    ctx?.value ? protectionStatus(ctx.value.universe.settings, ctx.value.player?.points, points, status) : status;
 }
 
 /** Client-side table sorting. `get` maps a row and key to a sortable value. */

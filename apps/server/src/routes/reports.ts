@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { HttpError } from '../auth.js';
 import type { DB } from '../db.js';
 import { ownCoords } from '../repo/empire.js';
+import { latestScores } from '../repo/stats.js';
 import { contextOf, DISPLAY, likeTerm, MEMBER, range, type Q } from './util.js';
 
 export function reportsRoutes(app: FastifyInstance, db: DB) {
@@ -62,9 +63,11 @@ export function reportsRoutes(app: FastifyInstance, db: DB) {
     const counts = db
       .prepare('SELECT kind, COUNT(*) AS n FROM activity_log WHERE group_id = ? AND time BETWEEN ? AND ? GROUP BY kind')
       .all(ctx.groupId, from, to);
+    // newest total points of the players: weak/strong (noob protection) are derived from them
+    const scores = latestScores(db, ctx.groupId, [...new Set(rows.map((r) => r.player_id).filter((id) => id != null))], [1]);
     return {
       counts: Object.fromEntries((counts as { kind: string; n: number }[]).map((c) => [c.kind, c.n])),
-      entries: rows.map((r) => ({ ...r, data: JSON.parse(r.data), status: r.status ? JSON.parse(r.status) : [] })),
+      entries: rows.map((r) => ({ ...r, data: JSON.parse(r.data), status: r.status ? JSON.parse(r.status) : [], points: scores.get(r.player_id)?.[1]?.points ?? null })),
     };
   });
 

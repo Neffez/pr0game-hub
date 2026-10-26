@@ -4,12 +4,18 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-26
 
+- Weak/strong from the own points on every page: the status badges in the galaxy, statistics, player info and
+  activity log use the universe's noob protection like the overview (status history excepted). The own player and
+  total points come with the universe context (`player` in `GET /api/{uni}/context`, reloaded on statistics syncs)
+  instead of `me` in the overview; activity entries carry the player's total `points`. Also fixes the build of the
+  user changelog (quote in the previous entry). Checked with headless Chrome.
+
 - Noob protection computed in the hub: new optional universe settings `noobLimit`, `noobFactor` and `noobInactives`
   (game config `noob_protection_time`, `noob_protection_multi`, `noob_inactives`). With a limit set, the overview
   derives weak (N) and strong (S) from the requesting member's total points like the game's `CheckNoobProtec`
   (banned players and, without `noobInactives`, inactive ones are never protected; rebuild protection and outlaws are
   unknown to the hub) instead of the status seen by whoever synced last; the badges and the weak/strong filters use
-  it. Without a limit or points the synced status stays. `GET /api/{uni}/overview` returns `me` (the member's player).
+  it. Without a limit or points the synced status stays.
   - Admin: a cleared optional universe setting is sent as `null` and removed, so it falls back to its default instead
     of being rejected.
 

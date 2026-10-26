@@ -27,6 +27,8 @@ interface Entry {
   player_id: number | null;
   player_name: string | null;
   status: string[];
+  /** newest total points of the player */
+  points: number | null;
   ally_tag: string | null;
   ally_name: string | null;
 }
@@ -177,7 +179,7 @@ function text(e: Entry) {
         <span class="who">
           <template v-if="e.player_id">
             <PlayerLink :id="e.player_id" :name="e.player_name ?? '?'" />
-            <StatusBadges :status="e.status" />
+            <StatusBadges :status="e.status" :points="e.points" />
             <span v-if="e.ally_tag || e.ally_name" class="muted small"> [{{ e.ally_tag ?? e.ally_name }}]</span>
           </template>
           <span v-else class="faint">–</span>
