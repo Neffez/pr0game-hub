@@ -2,7 +2,6 @@
 export var TEXTS = {
   de: {
     title: 'IRak-Rechner',
-    subtitle: 'pr0game-Tools · Interplanetarraketen stückgenau wie das Spiel',
     route: 'Route',
     start: 'Dein Planet (Silo)',
     target: 'Ziel',
@@ -81,7 +80,6 @@ export var TEXTS = {
   },
   en: {
     title: 'IPM Calculator',
-    subtitle: 'pr0game tools · interplanetary missiles, exact like the game',
     route: 'Route',
     start: 'Your planet (silo)',
     target: 'Target',

@@ -2,6 +2,12 @@
 
 Every commit adds its changes here, newest first, grouped by date.
 
+## 2026-10-26
+
+- Tools: labels with an info button look like the other field labels and wrap instead of pushing the button into the
+  next column (IPM calculator universe settings and flight calculator settings on phones). The headers show the
+  title only, without subtitle; the IPM calculator texts drop "exactly like the game".
+
 ## 2026-10-25
 
 - IPM calculator links start from the nearest own planet with a missile silo of level 4 or more (else the nearest)

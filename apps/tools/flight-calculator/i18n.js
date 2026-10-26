@@ -2,7 +2,6 @@
 export var TEXTS = {
   de: {
     title: 'Flugzeitrechner',
-    subtitle: 'pr0game-Tools · sekundengenau wie der Server',
     clockTitle: 'Aktuelle Zeit (inklusive Uhr-Versatz aus den Einstellungen)',
     uniSettings: 'Universumseinstellungen',
     tabsAria: 'Berechnungen',
@@ -196,7 +195,6 @@ export var TEXTS = {
   },
   en: {
     title: 'Flight Calculator',
-    subtitle: 'pr0game tools · second-accurate, just like the server',
     clockTitle: 'Current time (including the clock offset from the settings)',
     uniSettings: 'Universe settings',
     tabsAria: 'Calculations',
