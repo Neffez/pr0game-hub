@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-26
 
+- Battle simulator: double-click renames fleet tabs again in real browsers (a click no longer rebuilds the tab bar,
+  which replaced the button between the two clicks); a single calculation tab without a close button keeps its right
+  padding (flight calculator too). Checked with real mouse clicks in headless Chrome.
+
 - CI: on `main` the tested images are published to the GitHub Container Registry (`ghcr.io/neffez/pr0game-hub`,
   `ghcr.io/neffez/pr0game-tools`, tags `latest` and the commit) before the deployment is triggered, so the deployment
   pulls them instead of building on the server (the Rust and Node builds filled its disk). Builds use Buildx with the

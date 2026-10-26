@@ -298,6 +298,8 @@ dialog[open] { animation: pop .18s ease-out; }
   display: flex; flex-direction: column; align-items: flex-start; gap: 1px; min-width: 0;
   border: 0; background: transparent; padding: 6px 4px 6px 10px; text-align: left;
 }
+/* a single tab has no close button: the same space on the right as on the left */
+.ctab-main:last-child { padding-right: 10px; }
 .ctab-name { font-size: 12.5px; font-weight: 600; max-width: 170px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ctab.active .ctab-name { color: var(--accent-text); }
 .ctab-sum { font-size: 11.5px; font-family: var(--mono); color: var(--muted); white-space: nowrap; }

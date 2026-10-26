@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Kampfsimulator: Flotten lassen sich per Doppelklick auf ihren Tab wieder umbenennen, und ein einzelner Tab hat rechts wieder Abstand.',
+        en: 'Battle simulator: fleets can be renamed by double-clicking their tab again, and a single tab has its right padding back.',
+      },
+      {
+        kind: 'fix',
         de: 'Kampfsimulator und AKS-Beuterechner nutzen auf breiten Bildschirmen mehr Breite, die Tabellen müssen weniger scrollen.',
         en: 'Battle simulator and ACS loot calculator use more width on wide screens, so the tables need less scrolling.',
       },

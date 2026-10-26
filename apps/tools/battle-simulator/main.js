@@ -787,9 +787,15 @@ function bind() {
   document.addEventListener('click', function (e) {
     var tab = e.target.closest('[data-slot]');
     if (tab) {
-      active[tab.dataset.slotSide] = Number(tab.dataset.slot);
-      renderTabs(tab.dataset.slotSide);
-      renderSlot(tab.dataset.slotSide);
+      // only the classes change: rebuilding the bar would replace the button and break a double click (rename)
+      var tabSide = tab.dataset.slotSide;
+      active[tabSide] = Number(tab.dataset.slot);
+      $$('#' + tabSide + 'Tabs [data-slot]').forEach(function (b) {
+        var on = Number(b.dataset.slot) === active[tabSide];
+        b.closest('.slot-tab').classList.toggle('on', on);
+        b.setAttribute('aria-selected', String(on));
+      });
+      renderSlot(tabSide);
       return;
     }
     var add = e.target.closest('[data-add-slot]');
