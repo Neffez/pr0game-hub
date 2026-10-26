@@ -105,14 +105,14 @@ describe('format', () => {
       researchSpeed: 0, universityFactor: 8, timezone: 'Europe/Berlin', gameUrl: '', fleetDebrisPercent: 50, defenseDebrisPercent: 10, bigShields: true } as UniverseSettings;
     // spy values: resources, ships, defense, research (only combat research goes to the planet), a missile
     const values = { 901: 5000, 902: 300, 903: 7, 202: 3, 401: 400, 405: 20, 503: 2, 109: 12, 111: 11, 114: 8 };
-    const link = battleSimLink(u, values, [{ ships: { 207: 50, 210: 0 }, research: { 109: 14, 118: 10, 120: 5 }, from: [1, 100, 5], speed: 80 }], [1, 110, 8],
-      [{ ships: { 204: 100 }, research: { 110: 3 } }]);
+    const link = battleSimLink(u, values, [{ ships: { 207: 50, 210: 0 }, research: { 109: 14, 118: 10, 120: 5 }, from: [1, 100, 5], speed: 80, name: 'Neffez' }], [1, 110, 8],
+      [{ ships: { 204: 100 }, research: { 110: 3 } }], 'Alpha');
     expect(link.startsWith('https://pr0game.neffez.dev/battle-simulator/#')).toBe(true);
     const s = decodeShare(link.split('#')[1]);
-    expect(s.attackers).toEqual([{ units: { 207: 50 }, research: { 109: 14, 118: 10 }, from: [1, 100, 5], speed: 80 }]);
+    expect(s.attackers).toEqual([{ units: { 207: 50 }, research: { 109: 14, 118: 10 }, from: [1, 100, 5], speed: 80, name: 'Neffez' }]);
     expect(s.defenders).toEqual([
-      { units: { 202: 3, 401: 400, 405: 20 }, research: { 109: 12, 111: 11 }, from: null, speed: 100 },
-      { units: { 204: 100 }, research: { 110: 3 }, from: null, speed: 100 },
+      { units: { 202: 3, 401: 400, 405: 20 }, research: { 109: 12, 111: 11 }, from: null, speed: 100, name: 'Alpha' },
+      { units: { 204: 100 }, research: { 110: 3 }, from: null, speed: 100, name: null },
     ]);
     expect(s.target).toEqual([1, 110, 8]);
     expect(s.resources).toEqual({ metal: 5000, crystal: 300, deuterium: 7 });

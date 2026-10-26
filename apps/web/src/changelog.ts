@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Kampfsimulator: Die Flotten tragen Namen. Aus dem Raid-Planer kommen die Mitglieder und Gastspieler mit, aus Plan und Spionagebericht der Zielspieler. Per Doppelklick auf eine Flotte lässt sie sich umbenennen.',
+        en: 'Battle simulator: fleets carry names. From the raid planner come the members and guest players, from the plan and spy report the target player. Double-click a fleet to rename it.',
+      },
+      {
+        kind: 'new',
         de: 'Kampfsimulator: Für jede Einheit steht jetzt das Verlustrisiko da, und die Durchschnitte haben Nachkommastellen (z. B. 1,8 von 2 Kleinen Transportern übrig). So sieht man auch bei kleinen Kämpfen, wie wahrscheinlich ein Verlust ist.',
         en: 'Battle simulator: each unit now shows its loss risk, and the averages have decimals (e.g. 1.8 of 2 small cargos left). Even small battles show how likely a loss is.',
       },

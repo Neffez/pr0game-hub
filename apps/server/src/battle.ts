@@ -31,6 +31,7 @@ export interface ApiSlot {
   from: Coords | null;
   speed: number;
   carried: number;
+  name: string | null;
 }
 
 export interface BattleRequest {
@@ -75,7 +76,9 @@ function slot(v: unknown, what: string, allowed: number[]): ApiSlot {
   }
   const speed = v.speed == null ? 100 : count(v.speed, `${what}.speed`, 100);
   if (speed < 10 || speed % 10) throw bad(`${what}.speed: 10, 20, … 100`);
-  return { units, research, from: coords(v.from, `${what}.from`), speed, carried: v.carried == null ? 0 : count(v.carried, `${what}.carried`) };
+  if (v.name != null && typeof v.name !== 'string') throw bad(`${what}.name: string`);
+  const name = typeof v.name === 'string' ? v.name.trim().slice(0, 40) || null : null;
+  return { units, research, from: coords(v.from, `${what}.from`), speed, carried: v.carried == null ? 0 : count(v.carried, `${what}.carried`), name };
 }
 
 /** Checks and normalizes the request body. */
@@ -122,11 +125,11 @@ export function parseBattleRequest(body: unknown): BattleRequest {
 }
 
 /** The planet slot from spy report values: ships, defense, combat research; resources when the request has none. */
-export function planetFromSpy(values: Record<string, number>): { planet: ApiSlot; resources: BattleRequest['resources'] } {
+export function planetFromSpy(values: Record<string, number>, name: string | null = null): { planet: ApiSlot; resources: BattleRequest['resources'] } {
   const units = Object.fromEntries([...SHIP_IDS, ...DEFENSE_IDS].filter((id) => values[id] > 0).map((id) => [id, values[id]]));
   const research = Object.fromEntries(COMBAT_TECHS.filter((id) => values[id] > 0).map((id) => [id, values[id]]));
   return {
-    planet: { units, research, from: null, speed: 100, carried: 0 },
+    planet: { units, research, from: null, speed: 100, carried: 0, name },
     resources: { metal: values[901] ?? 0, crystal: values[902] ?? 0, deuterium: values[903] ?? 0 },
   };
 }
@@ -174,8 +177,8 @@ export function toolsLink(u: UniverseSettings, req: BattleRequest, planet: ApiSl
   const flightUrl = (u as UniverseSettings & { flightCalculatorUrl?: string }).flightCalculatorUrl;
   const base = flightUrl ? new URL('../battle-simulator/', flightUrl.split('#')[0]).href : TOOLS_URL;
   const hash = encodeShare({
-    attackers: req.attackers.map((a) => ({ units: a.units, research: a.research, from: a.from, speed: a.speed })),
-    defenders: [planet, ...(req.defenders.slice(1) as ApiSlot[])].map((d) => ({ units: d.units, research: d.research })),
+    attackers: req.attackers.map((a) => ({ units: a.units, research: a.research, from: a.from, speed: a.speed, name: a.name })),
+    defenders: [planet, ...(req.defenders.slice(1) as ApiSlot[])].map((d) => ({ units: d.units, research: d.research, name: d.name })),
     target: req.target,
     resources: req.resources,
     uni: {

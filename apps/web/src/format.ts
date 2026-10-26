@@ -277,6 +277,8 @@ export interface SimFleet {
   research: Record<string, number>;
   from?: Coords3 | null;
   speed?: number;
+  /** member or player name (battle simulator) */
+  name?: string | null;
 }
 
 /**
@@ -343,10 +345,11 @@ const pick = (values: Record<string, number>, keep: (id: number) => boolean) =>
  * Link into the battle simulator (pr0game-tools) with the same fleets as `simLinks`: the attackers with research,
  * start and speed, the planet from a spy report's values (ships, defense, combat research, resources) and the fleets
  * holding there; the universe's debris percentages, shield domes setting, layout and fleet speed go along (keys see `encodeShare` in
- * @pr0hub/battle).
+ * @pr0hub/battle). Fleets carry their member or player name, the planet the name of its player (`planetName`).
  */
 export function battleSimLink(
   u: UniverseSettings, values: Record<string, number>, attackers: SimFleet[] = [], target: Coords3 | null = null, defenders: SimFleet[] = [],
+  planetName: string | null = null,
 ): string {
   const s = u as UniverseSettings & { fleetDebrisPercent?: number; defenseDebrisPercent?: number; bigShields?: boolean };
   const research = (r: Record<string, number>) => pick(r, (id) => SLOT_TECHS.includes(id));
@@ -360,10 +363,10 @@ export function battleSimLink(
   if (s.defenseDebrisPercent != null) uni.dd = s.defenseDebrisPercent;
   if (s.bigShields != null) uni.bs = s.bigShields ? 1 : 0;
   const hash = encodeBattleShare({
-    attackers: attackers.map((a) => ({ units: units(a.ships), research: research(a.research), from: a.from ?? null, speed: a.speed ?? 100 })),
+    attackers: attackers.map((a) => ({ units: units(a.ships), research: research(a.research), from: a.from ?? null, speed: a.speed ?? 100, name: a.name })),
     defenders: [
-      { units: units(values), research: pick(values, (id) => COMBAT_TECHS.includes(id)) },
-      ...defenders.map((d) => ({ units: units(d.ships), research: research(d.research) })),
+      { units: units(values), research: pick(values, (id) => COMBAT_TECHS.includes(id)), name: planetName },
+      ...defenders.map((d) => ({ units: units(d.ships), research: research(d.research), name: d.name })),
     ],
     target,
     resources: { metal: values[901] ?? 0, crystal: values[902] ?? 0, deuterium: values[903] ?? 0 },

@@ -59,7 +59,7 @@ const simMenu = computed<MenuItem[]>(() => {
   const game = props.gameUrl ? simLinks(props.gameUrl, values(r)) : null;
   const u = ctx.value?.universe.settings;
   return [
-    u && { label: t('spyHistory.simTools'), href: battleSimLink(u, values(r), [], props.target ?? null) },
+    u && { label: t('spyHistory.simTools'), href: battleSimLink(u, values(r), [], props.target ?? null, [], r.player_name ?? null) },
     game && { label: t('spyHistory.simulator'), href: game.game },
     game && { label: 'TrashSim', href: game.trash },
   ].filter(Boolean) as MenuItem[];

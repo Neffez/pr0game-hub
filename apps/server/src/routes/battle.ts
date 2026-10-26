@@ -17,22 +17,24 @@ export function battleRoutes(app: FastifyInstance, db: DB) {
     const body = parseBattleRequest(req.body);
     let planet = body.defenders[0];
     let resources = body.resources;
-    let spyReport: { id: number; time: number; reporter: string | null } | null = null;
+    let spyReport: { id: number; time: number; reporter: string | null; player: string | null } | null = null;
     if (!planet) {
       const [g, s, p] = body.target!;
       const row = db
         .prepare(
-          `SELECT sr.id, sr.report_time, sr.sections, COALESCE(gm.ingame_name, u.username) AS reporter FROM spy_reports sr
+          `SELECT sr.id, sr.report_time, sr.sections, sr.player_name, COALESCE(gm.ingame_name, u.username) AS reporter FROM spy_reports sr
            LEFT JOIN users u ON u.id = sr.user_id LEFT JOIN group_members gm ON gm.group_id = sr.group_id AND gm.user_id = sr.user_id
            WHERE sr.group_id = ? AND sr.g = ? AND sr.s = ? AND sr.p = ? AND sr.planet_type = ? ORDER BY sr.report_time DESC LIMIT 1`,
         )
         .get(ctx.groupId, g, s, p, body.planetType);
       if (!row) throw new HttpError(404, 'spy_report_not_found', 'No spy report of the target in the group');
-      const report = parseSections(row) as { id: number; report_time: number; reporter: string | null; sections: Record<string, Record<string, number>> };
-      const fromSpy = planetFromSpy(Object.assign({}, ...Object.values(report.sections)));
+      const report = parseSections(row) as {
+        id: number; report_time: number; reporter: string | null; player_name: string | null; sections: Record<string, Record<string, number>>;
+      };
+      const fromSpy = planetFromSpy(Object.assign({}, ...Object.values(report.sections)), report.player_name);
       planet = fromSpy.planet;
       resources ??= fromSpy.resources;
-      spyReport = { id: report.id, time: report.report_time, reporter: report.reporter };
+      spyReport = { id: report.id, time: report.report_time, reporter: report.reporter, player: report.player_name };
     }
     const defenders = [planet, ...(body.defenders.slice(1) as ApiSlot[])];
     const setup = {

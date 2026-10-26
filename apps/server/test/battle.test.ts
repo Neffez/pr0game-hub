@@ -56,6 +56,8 @@ describe('battle simulator API', () => {
     expect(r.typical.engine).toBeUndefined();
     const link = decodeShare(r.link.split('#')[1]);
     expect(link.defenders[0].units).toEqual({ 401: 50 });
+    expect(link.defenders[0].name).toBe('Alpha');
+    expect(r.spyReport.player).toBe('Alpha');
     expect(link.uni).toMatchObject({ fd: 50, dd: 10 });
   });
 

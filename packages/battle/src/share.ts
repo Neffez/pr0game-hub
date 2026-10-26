@@ -9,6 +9,8 @@ export interface ShareSlot {
   from?: Coords | null;
   /** speed in percent */
   speed?: number;
+  /** player or fleet name shown instead of "A 1" (at most 40 characters) */
+  name?: string | null;
 }
 
 /** Everything the simulator's link carries (hub links and the tool's share link). */
@@ -30,6 +32,9 @@ export interface ShareState {
 export const UNI_KEYS = ['fd', 'dd', 'mf', 'mc', 'bs', 'rm', 'rk', 'ut', 'gt', 'mg', 'ms', 'mp', 'gdf', 'sdf', 'sd', 'pdf', 'pd', 'gs'] as const;
 
 const MAX_SLOTS = 16;
+export const MAX_NAME = 40;
+
+const cleanName = (v: string | null | undefined) => (v ?? '').trim().slice(0, MAX_NAME) || null;
 
 const list = (values: Record<string, number>) =>
   Object.entries(values)
@@ -52,7 +57,7 @@ function parseCoords(value: string | null): Coords | null {
 }
 
 /**
- * The link hash (without `#`): per slot `a0`/`d0` units (`id:n,…`), `a0r` research, `a0f` start, `a0v` speed; `t`
+ * The link hash (without `#`): per slot `a0`/`d0` units (`id:n,…`), `a0r` research, `a0f` start, `a0v` speed, `a0n` name; `t`
  * target, `res` resources (metal, crystal, deuterium), `n` runs and the universe keys (`UNI_KEYS`).
  */
 export function encodeShare(state: ShareState): string {
@@ -64,6 +69,8 @@ export function encodeShare(state: ShareState): string {
     if (research) p.set(`${prefix}${i}r`, research);
     if (s.from) p.set(`${prefix}${i}f`, s.from.join(':'));
     if (s.speed != null && s.speed !== 100) p.set(`${prefix}${i}v`, String(s.speed));
+    const name = cleanName(s.name);
+    if (name) p.set(`${prefix}${i}n`, name);
   };
   state.attackers.slice(0, MAX_SLOTS).forEach((s, i) => slot('a', s, i));
   state.defenders.slice(0, MAX_SLOTS).forEach((s, i) => slot('d', s, i));
@@ -82,7 +89,7 @@ export function decodeShare(hash: string): ShareState {
   const slots = (prefix: string) => {
     const out: ShareSlot[] = [];
     for (let i = 0; i < MAX_SLOTS; i++) {
-      const keys = ['', 'r', 'f', 'v'].map((k) => `${prefix}${i}${k}`);
+      const keys = ['', 'r', 'f', 'v', 'n'].map((k) => `${prefix}${i}${k}`);
       if (!keys.some((k) => p.has(k))) continue;
       while (out.length < i) out.push({ units: {}, research: {} });
       const speed = Number(p.get(`${prefix}${i}v`));
@@ -91,6 +98,7 @@ export function decodeShare(hash: string): ShareState {
         research: parseList(p.get(`${prefix}${i}r`)),
         from: parseCoords(p.get(`${prefix}${i}f`)),
         speed: speed >= 10 && speed <= 100 ? speed : 100,
+        name: cleanName(p.get(`${prefix}${i}n`)),
       });
     }
     return out;

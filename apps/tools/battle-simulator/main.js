@@ -112,12 +112,24 @@ function parseCoordsText(text) {
   return m ? [Number(m[1]), Number(m[2]), Number(m[3])] : null;
 }
 
-function slotLabel(side, i) {
+/* Default label of a fleet: "A 1", "D 2", the planet. */
+function defaultLabel(side, i) {
   if (side === 'def' && i === 0) return t('planet');
   return (side === 'att' ? t('attackerShort') : t('defenderShort')) + ' ' + (i + 1);
 }
 
-function slots(side) { return side === 'att' ? S.attackers : S.defenders; }
+/* Label of a fleet: its name (the planet "Alpha (Planet)"), else the default. */
+function slotLabel(side, i, state) {
+  var slot = slots(side, state)[i];
+  var name = slot && slot.name;
+  if (!name) return defaultLabel(side, i);
+  return side === 'def' && i === 0 ? t('planetOf', {name: name}) : name;
+}
+
+function slots(side, state) {
+  var s = state || S;
+  return side === 'att' ? s.attackers : s.defenders;
+}
 
 /* Universe values by hash key, for the share link. */
 function uniHash() {
@@ -139,7 +151,9 @@ function newTab(state, name) {
 }
 
 function tabAutoName(tab) {
-  return tab.state.target ? '→ ' + fmtCoords(tab.state.target) : t('tabSim', {n: TABS.indexOf(tab) + 1});
+  var player = tab.state.defenders[0] && tab.state.defenders[0].name;
+  if (tab.state.target) return (player ? player + ' ' : '→ ') + fmtCoords(tab.state.target);
+  return player || t('tabSim', {n: TABS.indexOf(tab) + 1});
 }
 
 function renderCalcTabs() {
@@ -254,6 +268,36 @@ function startRename(tab) {
   input.addEventListener('blur', function () { finish(true); });
 }
 
+function renameSlot(side, i, button) {
+  var slot = slots(side)[i];
+  var input = document.createElement('input');
+  input.className = 'slot-rename';
+  input.maxLength = 40;
+  input.value = slot.name || '';
+  input.placeholder = defaultLabel(side, i);
+  input.setAttribute('aria-label', t('slotName'));
+  button.replaceWith(input);
+  input.focus();
+  input.select();
+  var done = false;
+  function finish(save) {
+    if (done) return;
+    done = true;
+    if (save) {
+      slot.name = input.value.trim().slice(0, 40) || null;
+      update();
+      if (last) renderResult();
+    }
+    renderTabs(side);
+  }
+  input.addEventListener('keydown', function (e) {
+    // Enter saves the name here instead of starting the simulation
+    if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); finish(true); }
+    if (e.key === 'Escape') { e.stopPropagation(); finish(false); }
+  });
+  input.addEventListener('blur', function () { finish(true); });
+}
+
 function bindCalcTabs() {
   var bar = $('#calcTabs');
   bar.addEventListener('click', function (e) {
@@ -312,7 +356,7 @@ function renderTabs(side) {
     // the planet stays, the last attacking fleet too
     var removable = side === 'att' ? list.length > 1 : i > 0;
     return '<span class="slot-tab' + (i === active[side] ? ' on' : '') + (has ? ' has' : '') + '">'
-      + '<button type="button" role="tab" class="slot-main" aria-selected="' + (i === active[side]) + '" data-slot-side="' + side + '" data-slot="' + i + '">' + esc(slotLabel(side, i)) + '</button>'
+      + '<button type="button" role="tab" class="slot-main" aria-selected="' + (i === active[side]) + '" data-slot-side="' + side + '" data-slot="' + i + '" title="' + esc(t('slotRename')) + '">' + esc(slotLabel(side, i)) + '</button>'
       + (removable ? '<button type="button" class="slot-x" data-remove-slot="' + side + '" data-index="' + i + '" title="' + esc(t('removeSlot')) + '" aria-label="' + esc(t('removeSlot')) + '">×</button>' : '')
       + '</span>';
   }).join('');
@@ -380,7 +424,7 @@ function newWorker() {
     if (msg.type === 'progress') {
       setProgress(msg.done / job.runs);
     } else if (msg.type === 'done') {
-      var result = {summary: msg.summary, slots: job.slots, setup: job.setup};
+      var result = {summary: msg.summary, slots: job.slots, setup: job.setup, labels: job.labels};
       var tab = job.tab;
       job = null;
       if (tab === activeTab) {
@@ -408,7 +452,13 @@ function run() {
   // one simulation at a time: a new one replaces a running one (of any tab)
   if (job) cancel();
   if (!worker) newWorker();
-  job = {id: Date.now() + Math.random(), runs: S.runs, slots: fightingSlots(S), setup: setup, tab: activeTab};
+  var fighting = fightingSlots(S);
+  // names of the fighting fleets as they were when the simulation started
+  var labels = {
+    att: fighting.attackers.map(function (i) { return slotLabel('att', i); }),
+    def: fighting.defenders.map(function (i) { return slotLabel('def', i); }),
+  };
+  job = {id: Date.now() + Math.random(), runs: S.runs, slots: fighting, setup: setup, tab: activeTab, labels: labels};
   worker.postMessage({id: job.id, setup: setup, runs: S.runs, settings: simSettings(U)});
   setProgress(0);
   renderRun();
@@ -442,13 +492,14 @@ function lossRows(side, fleets, slotIdx, initial) {
   var rows = '';
   fleets.forEach(function (f, k) {
     var slot = slotIdx[k];
+    var label = last.labels ? last.labels[side][k] : slotLabel(side, slot);
     var units = initial[k].units;
     Object.keys(units).filter(function (id) { return units[id] > 0; }).map(Number).sort(function (a, b) { return a - b; }).forEach(function (id) {
       var lost = f.lost[id] || {avg: 0, min: 0, max: 0};
       var rep = f.repaired[id];
       var left = f.remaining[id] || {avg: 0};
       var chance = (f.lossChance || {})[id] || 0;
-      rows += '<tr class="' + (left.avg > 0 ? '' : 'gone') + '"><td class="name">' + esc(elementName(id, lang())) + '<span class="slot-tag">' + esc(slotLabel(side, slot)) + '</span></td>'
+      rows += '<tr class="' + (left.avg > 0 ? '' : 'gone') + '"><td class="name">' + esc(elementName(id, lang())) + '<span class="slot-tag">' + esc(label) + '</span></td>'
         + '<td>' + num(units[id]) + '</td><td class="' + (lost.avg ? 'neg' : 'dim') + '">' + avgRange(lost) + '</td>'
         + '<td>' + (rep ? avgRange(rep) : '') + '</td><td>' + avg(left.avg) + '</td>'
         + '<td class="' + (chance ? 'neg' : 'dim') + '" title="' + esc(t('colRiskTitle')) + '">' + risk(chance) + '</td></tr>';
@@ -479,7 +530,8 @@ function reportHtml(output, slotIdx) {
             + (u.lost ? ' <span class="neg">−' + num(u.lost) + '</span>' : '')
             + (u.stunned ? ' <span class="stun" title="' + esc(t('stunnedTitle')) + '">⚡' + num(u.stunned) + '</span>' : '');
         });
-        lines.push('<div><span class="slot-tag">' + esc(slotLabel(side, idx[Number(fleet)])) + '</span> ' + (parts.join(' · ') || '–') + '</div>');
+        var label = last.labels ? last.labels[side][Number(fleet)] : slotLabel(side, idx[Number(fleet)]);
+        lines.push('<div><span class="slot-tag">' + esc(label) + '</span> ' + (parts.join(' · ') || '–') + '</div>');
       });
       var stats = round[key].Statistics;
       var sum = function (k) { return stats && stats[k] ? stats[k].sum : 0; };
@@ -665,6 +717,11 @@ function bind() {
       renderSlot(rs);
       update();
     }
+  });
+  // double click on a fleet tab: rename the fleet (empty: back to "A 1")
+  document.addEventListener('dblclick', function (e) {
+    var tab = e.target.closest('[data-slot]');
+    if (tab) renameSlot(tab.dataset.slotSide, Number(tab.dataset.slot), tab);
   });
   $('#runsIn').max = String(MAX_RUNS);
   $('#runsIn').addEventListener('input', function () {

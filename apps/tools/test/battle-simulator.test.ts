@@ -233,4 +233,25 @@ describe('battle simulator page', () => {
     await new Promise((r) => setTimeout(r, 20));
     expect(document.querySelector('.run-row #outcome')?.textContent).toMatch(/%/);
   });
+
+  it('takes the fleet names of a link and renames a fleet by double click', async () => {
+    const named = cleanState({
+      attackers: [{ units: { 204: 5 }, name: 'Neffez' }, { units: { 202: 2 }, name: 'Gast' }],
+      defenders: [{ units: { 401: 3 }, name: 'Alpha' }],
+      target: [2, 20, 4],
+    });
+    location.hash = '#' + encodeShare(shareFromState(named, {}));
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(document.getElementById('attTabs')?.textContent).toContain('Neffez');
+    expect(document.getElementById('attTabs')?.textContent).toContain('Gast');
+    expect(document.getElementById('defTabs')?.textContent).toContain('Alpha (Planet)');
+    expect(document.querySelector('#calcTabs .ctab.active .ctab-name')?.textContent).toBe('Alpha 2:20:4');
+    const tab = document.querySelector('#attTabs [data-slot="1"]') as HTMLButtonElement;
+    tab.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    const input = document.querySelector('#attTabs .slot-rename') as HTMLInputElement;
+    input.value = 'Bob';
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    expect(document.getElementById('attTabs')?.textContent).toContain('Bob');
+  });
 });

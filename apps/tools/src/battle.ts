@@ -27,6 +27,8 @@ export interface Slot {
   from: Coords3 | null;
   /** attackers: speed in percent (10-100) */
   speed: number;
+  /** player or fleet name (from the hub, a spy report or typed in), null: "A 1" */
+  name: string | null;
 }
 
 export interface BattleState {
@@ -40,7 +42,7 @@ export interface BattleState {
   debrisTo: 'attacker' | 'defender' | null;
 }
 
-export const emptySlot = (): Slot => ({ units: {}, research: {}, from: null, speed: 100 });
+export const emptySlot = (): Slot => ({ units: {}, research: {}, from: null, speed: 100, name: null });
 
 export const emptyState = (): BattleState => ({
   attackers: [emptySlot()],
@@ -67,7 +69,8 @@ function cleanSlot(raw: unknown, defender: boolean): Slot {
   for (const id of allowed) if (int(o.units?.[id]) > 0) units[id] = int(o.units?.[id]);
   const research: Record<string, number> = {};
   for (const id of TECHS) if (int(o.research?.[id]) > 0) research[id] = int(o.research?.[id], 0, 99);
-  return { units, research, from: cleanCoords(o.from), speed: int(o.speed ?? 100, 10, 100) };
+  const name = typeof o.name === 'string' ? o.name.trim().slice(0, 40) : '';
+  return { units, research, from: cleanCoords(o.from), speed: int(o.speed ?? 100, 10, 100), name: name || null };
 }
 
 /** A stored or linked state, with everything out of range dropped. */
@@ -100,10 +103,10 @@ export function stateFromShare(share: ShareState): BattleState {
 }
 
 export function shareFromState(s: BattleState, uni: Record<string, number>): ShareState {
-  const slot = (x: Slot): ShareSlot => ({ units: x.units, research: x.research, from: x.from, speed: x.speed });
+  const slot = (x: Slot): ShareSlot => ({ units: x.units, research: x.research, from: x.from, speed: x.speed, name: x.name });
   return {
     attackers: s.attackers.map(slot),
-    defenders: s.defenders.map((x) => ({ units: x.units, research: x.research })),
+    defenders: s.defenders.map((x) => ({ units: x.units, research: x.research, name: x.name })),
     target: s.target,
     resources: s.resources,
     runs: s.runs,
@@ -133,6 +136,7 @@ export function applySpyReport(s: BattleState, text: string): SpyApplyResult {
   if (seen(200)) planet.units = { ...keep(200, 300), ...Object.fromEntries(SHIP_IDS.filter((id) => values[id]).map((id) => [id, values[id]])) };
   if (seen(400)) planet.units = { ...keep(400, 500), ...Object.fromEntries(DEFENSE_IDS.filter((id) => values[id]).map((id) => [id, values[id]])) };
   if (seen(100)) for (const id of COMBAT_TECHS) planet.research[id] = values[id] ?? 0;
+  if (report.playerName) planet.name = report.playerName;
   return { ok: true, coords: s.target, moon: report.planetType === 'moon', fleet: seen(200), defense: seen(400), research: seen(100), resources: seen(900) };
 }
 

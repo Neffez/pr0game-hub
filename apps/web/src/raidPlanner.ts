@@ -141,9 +141,9 @@ export function useRaidPlanner() {
   const planFleets = (p: AttackPlan): SimFleet[] => [
     ...p.fleets
       .filter((f) => f.status !== 'withdrawn' && Object.values(f.ships).some((n) => n > 0))
-      .map((f) => ({ ships: f.ships, research: { ...(f.sim_research ?? {}), ...(f.drives?.research ?? {}) }, from: f.g != null ? [f.g, f.s!, f.p!] as Coords3 : null, speed: f.speed })),
+      .map((f) => ({ ships: f.ships, research: { ...(f.sim_research ?? {}), ...(f.drives?.research ?? {}) }, from: f.g != null ? [f.g, f.s!, f.p!] as Coords3 : null, speed: f.speed, name: f.member })),
     // ACS fleets of non-members, research from spy reports of their player
-    ...(p.guests ?? []).map((g) => ({ ships: g.ships, research: g.research ?? {}, from: [g.from.g, g.from.s, g.from.p] as Coords3, speed: 100 })),
+    ...(p.guests ?? []).map((g) => ({ ships: g.ships, research: g.research ?? {}, from: [g.from.g, g.from.s, g.from.p] as Coords3, speed: 100, name: g.player?.name ?? g.name ?? null })),
   ];
   const sims = (p: AttackPlan): { tools: string; game: string | null; trash: string | null } | null => {
     const target: Coords3 | null = hasCoords(p) ? [p.g!, p.s!, p.p!] : null;
@@ -161,7 +161,7 @@ export function useRaidPlanner() {
     const [values, attackers, defenders] = battle;
     // the game's simulators need the universe's game URL, the battle simulator (pr0game-tools) does not
     const game = settings.value.gameUrl ? simLinks(settings.value.gameUrl, values, attackers, target, defenders) : null;
-    return { tools: battleSimLink(settings.value, values, attackers, target, defenders), game: game?.game ?? null, trash: game?.trash ?? null };
+    return { tools: battleSimLink(settings.value, values, attackers, target, defenders, p.player_name), game: game?.game ?? null, trash: game?.trash ?? null };
   };
   /** IPM calculator with the target's newest spy report (attack plans; a moon's interceptors are left to the user). */
   const ipm = (p: AttackPlan) => {

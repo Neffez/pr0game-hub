@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-26
 
+- Battle simulator: fleets carry names. The link format has `a0n`/`d0n`; the hub passes the members of a raid plan,
+  guest players and the target player (plan or spy history), a pasted spy report names the planet, a double click on
+  a fleet tab renames it. Tabs, loss tables and the round report show the names; the simulation tab is named after
+  the target player. The API takes optional `name`s and names the planet after the spied player (`spyReport.player`).
+
 - Battle simulator: loss risk per unit (share of the battles in which at least one unit of the type is lost for good)
   and averages with decimals (e.g. 1.8 of 2 small cargos left), so small battles show their risk; `lossChance` per
   fleet in `@pr0hub/battle` and the API (OpenAPI).
