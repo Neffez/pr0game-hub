@@ -16,6 +16,16 @@ export interface ChangelogDay {
 
 export const CHANGELOG: ChangelogDay[] = [
   {
+    date: '2026-10-26',
+    items: [
+      {
+        kind: 'fix',
+        de: 'Tools: Auf dem Handy überlappen sich lange Feldnamen mit Info-Knopf nicht mehr. Die Köpfe der Tools zeigen nur noch den Titel.',
+        en: 'Tools: on phones long field names with an info button no longer overlap. The tool headers show the title only.',
+      },
+    ],
+  },
+  {
     date: '2026-10-25',
     items: [
       {
