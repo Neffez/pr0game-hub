@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-26
 
+- Account: new option "Show others when I sync something" (on by default). Off, the live events of the member's
+  syncs go out without the member's id, so the other members' views still reload but no hint "X synced …" names
+  them. Independent of online status and activity. `GET`/`POST /api/auth/share-syncs`, migration `058_share_syncs`.
+
 - Moon badge: only the moon icon (with "Moon" as label for screen readers and as tooltip) instead of icon plus
   word, so the columns of the overview, planets, player info, alliance, empire, spy reports and raid planner get
   narrower; the loot settlement list shows the icon instead of "M". Checked with headless Chrome.

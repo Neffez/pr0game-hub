@@ -537,6 +537,10 @@ components:
       properties:
         error: { type: string, description: English message }
         code: { type: string, description: Stable key for clients }
+    Enabled:
+      type: object
+      properties:
+        enabled: { type: boolean }
     User:
       type: object
       properties:
@@ -766,6 +770,34 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
+  /api/auth/share-syncs:
+    get:
+      tags: [Auth]
+      operationId: getShareSyncs
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200':
+          description: >-
+            Whether the live events of the user's syncs name the user (other members get a hint "X synced …").
+            Off: the events go out without `userId`, views still reload.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Enabled' }
+    post:
+      tags: [Auth]
+      operationId: setShareSyncs
+      security: [{ sessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Enabled' }
+      responses:
+        '200':
+          description: Stored on the account
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Enabled' }
   /api/auth/push-settings:
     get:
       tags: [Auth]

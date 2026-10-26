@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Konto: Neue Option „Anderen zeigen, wenn ich etwas synchronisiere“. Ausgeschaltet bekommen andere Mitglieder keinen Hinweis mehr mit deinem Namen, wenn du etwas einfügst; die Daten sehen sie weiterhin.',
+        en: 'Account: new option "Show others when I sync something". When it is off, other members no longer get a hint with your name when you paste something; they still see the data.',
+      },
+      {
+        kind: 'new',
         de: 'Monde sind in Tabellen jetzt nur noch mit dem Mond-Symbol markiert statt mit Symbol und Wort, die Spalten werden dadurch schmaler.',
         en: 'Moons in tables are now marked with just the moon symbol instead of symbol and word, so the columns get narrower.',
       },

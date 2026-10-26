@@ -10,6 +10,11 @@ export function shareActivityEnabled(db: DB, userId: number): boolean {
   return !!db.prepare('SELECT share_activity FROM users WHERE id = ?').pluck().get(userId);
 }
 
+/** Whether the live events of this user's syncs name the user (the other members' hints "X synced …"). */
+export function shareSyncsEnabled(db: DB, userId: number): boolean {
+  return !!db.prepare('SELECT share_syncs FROM users WHERE id = ?').pluck().get(userId);
+}
+
 /**
  * Presence list for one viewer: users who hide their status are omitted and users who do not share their activity
  * lose their whereabouts (page, system, player), unless they are the viewer or the viewer is a global admin.

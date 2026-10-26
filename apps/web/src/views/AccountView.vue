@@ -52,6 +52,7 @@ const share = ref<{ enabled: boolean; hidden: number[]; history: boolean } | nul
 const messageShare = ref<{ enabled: boolean } | null>(null);
 const showOnline = ref<{ enabled: boolean } | null>(null);
 const shareActivity = ref<{ enabled: boolean } | null>(null);
+const shareSyncs = ref<{ enabled: boolean } | null>(null);
 
 /** Which notifications are pushed (all devices of the user, server: push.ts); this browser is switched on separately. */
 interface PushPrefs {
@@ -170,11 +171,12 @@ function formatTokenTime(sec: number | null) {
 
 onMounted(async () => {
   try {
-    const [fleetShare, messages, online, activity, prefs, discordSettings] = await Promise.all([
+    const [fleetShare, messages, online, activity, syncs, prefs, discordSettings] = await Promise.all([
       api('/auth/fleet-share'),
       api('/auth/message-share'),
       api('/auth/show-online'),
       api<{ enabled: boolean }>('/auth/share-activity'),
+      api<{ enabled: boolean }>('/auth/share-syncs'),
       api<PushPrefs>('/auth/push-settings'),
       api<DiscordSettings>('/auth/discord'),
       loadApiTokens(),
@@ -187,6 +189,7 @@ onMounted(async () => {
     messageShare.value = messages;
     showOnline.value = online;
     shareActivity.value = activity;
+    shareSyncs.value = syncs;
   } catch (e) {
     error.value = (e as Error).message;
   }
@@ -195,6 +198,10 @@ const saveShareActivity = () =>
   run(async () => {
     shareActivity.value = await api('/auth/share-activity', { body: shareActivity.value });
   }, () => t('account.shareActivitySaved'));
+const saveShareSyncs = () =>
+  run(async () => {
+    shareSyncs.value = await api('/auth/share-syncs', { body: shareSyncs.value });
+  }, () => t('account.shareSyncsSaved'));
 const saveShowOnline = () =>
   run(async () => {
     showOnline.value = await api('/auth/show-online', { body: showOnline.value });
@@ -263,6 +270,10 @@ const saveDateFormat = () =>
         <div v-if="shareActivity" class="field">
           <span class="field-label">{{ t('account.shareActivity') }} <Hint>{{ t('account.shareActivityHint') }}</Hint></span>
           <label class="check"><input v-model="shareActivity.enabled" type="checkbox" @change="saveShareActivity" /> {{ t('account.shareActivityEnabled') }}</label>
+        </div>
+        <div v-if="shareSyncs" class="field">
+          <span class="field-label">{{ t('account.shareSyncs') }} <Hint>{{ t('account.shareSyncsHint') }}</Hint></span>
+          <label class="check"><input v-model="shareSyncs.enabled" type="checkbox" @change="saveShareSyncs" /> {{ t('account.shareSyncsEnabled') }}</label>
         </div>
       </section>
       <section class="card">

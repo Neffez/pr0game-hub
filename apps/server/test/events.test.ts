@@ -131,6 +131,19 @@ describe('live events', () => {
     b.close();
   });
 
+  it('leaves out who synced when the member does not share it', async () => {
+    const headers = { cookie, 'x-hub-group': String(groupA) };
+    const a = await stream(groupA);
+    expect((await app.inject({ method: 'POST', url: '/hub/api/auth/share-syncs', headers: { cookie }, payload: { enabled: false } })).json()).toEqual({ enabled: false });
+    expect((await app.inject({ method: 'GET', url: '/hub/api/auth/share-syncs', headers: { cookie } })).json()).toEqual({ enabled: false });
+    await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { html: fixture('stats-alliance.html') } });
+    const event = await a.nextOf('data');
+    expect(event.tables).toEqual(['alliance_scores']);
+    expect(event.userId).toBeUndefined();
+    await app.inject({ method: 'POST', url: '/hub/api/auth/share-syncs', headers: { cookie }, payload: { enabled: true } });
+    a.close();
+  });
+
   it('shows who is online and where, and when a member was last online', async () => {
     db.prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)').run('carol', hashPassword('carolpass'));
     const carolId = db.prepare("SELECT id FROM users WHERE username = 'carol'").pluck().get() as number;

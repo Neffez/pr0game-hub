@@ -6,6 +6,7 @@ import { now, type DB } from './db.js';
 import { events } from './events.js';
 import { foreignRecords } from './plausibility.js';
 import { messageShare } from './repo/messages.js';
+import { shareSyncsEnabled } from './repo/presence.js';
 import { Store } from './store.js';
 
 export interface IngestTarget {
@@ -73,7 +74,9 @@ export function ingest(
     );
   })();
   const systems = parsed.records.flatMap((r) => (r.kind === 'galaxy' ? [`${r.g}:${r.s}`] : []));
-  events.publishIngest(target.groupId, target.userId, publicCounts(db, target.userId, summary.counts), systems);
+  // without the member's consent the others' views still reload, but no hint names who synced
+  const by = shareSyncsEnabled(db, target.userId) ? target.userId : undefined;
+  events.publishIngest(target.groupId, by, publicCounts(db, target.userId, summary.counts), systems);
   return summary;
 }
 
