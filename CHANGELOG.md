@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-26
 
+- Battle simulator: attackers and defenders side by side with the result below across both columns; tabs for
+  independent simulations like the flight calculator (copy, rename, close with undo, stored locally, a link opens in a
+  new tab, the tab shows the attacker's win chance); the number of simulations is a number input (1-1000). The tab
+  styles moved to `shared/tools.css`.
+
 - API: battle simulator for scripts and AI agents, `POST /api/{uni}/battle/simulate` (`simulateBattle` in the
   OpenAPI spec with request and response schemas): attackers and defenders in game ids, or the group's newest spy
   report of a target as the planet; returns win chances, losses with range, rebuilt defense, debris, loot, moon

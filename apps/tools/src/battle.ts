@@ -16,7 +16,8 @@ const TECHS = [...COMBAT_TECHS, ...DRIVE_TECHS];
 
 /** Most fleets of an ACS; the defending side takes as many. */
 export const MAX_SLOTS = ACS_LIMITS.maxFleets;
-export const RUN_CHOICES = [1, 10, 20, 50, 100, 250];
+/** Runs per simulation: the battle is random, more runs give steadier averages. */
+export const MAX_RUNS = 1000;
 export const DEFAULT_RUNS = 20;
 
 export interface Slot {
@@ -77,7 +78,7 @@ export function cleanState(raw: unknown): BattleState {
     defenders: slots(o.defenders, true),
     target: cleanCoords(o.target),
     resources: { metal: int(r.metal), crystal: int(r.crystal), deuterium: int(r.deuterium) },
-    runs: RUN_CHOICES.includes(Number(o.runs)) ? Number(o.runs) : DEFAULT_RUNS,
+    runs: o.runs == null ? DEFAULT_RUNS : int(o.runs, 1, MAX_RUNS),
   };
 }
 

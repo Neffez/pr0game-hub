@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Kampfsimulator: Angreifer und Verteidiger stehen nebeneinander, das Ergebnis darunter. Mehrere Simulationen lassen sich in Tabs offen halten wie im Flugzeitrechner, und die Anzahl der Kämpfe ist frei einstellbar.',
+        en: 'Battle simulator: attackers and defenders side by side, the result below. Several simulations can stay open in tabs like in the flight calculator, and the number of battles can be set freely.',
+      },
+      {
+        kind: 'new',
         de: 'API: Der Kampfsimulator lässt sich mit einem API-Token (Account → API-Tokens) auch aus Skripten und von KI-Agenten nutzen, auf Wunsch mit dem neuesten Spionagebericht eures Ziels.',
         en: 'API: the battle simulator can be used with an API token (Account → API tokens) from scripts and AI agents too, optionally with your newest spy report of the target.',
       },

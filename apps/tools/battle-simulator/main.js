@@ -4,8 +4,8 @@ import {
   COMBAT_TECHS,
   DEFENSE_IDS,
   DRIVE_TECHS,
+  MAX_RUNS,
   MAX_SLOTS,
-  RUN_CHOICES,
   SHIP_IDS,
   applySpyReport,
   battleSetup,
@@ -25,6 +25,8 @@ import { $, $$, applyTexts, bindLang, bindShare, bindTips, clearHash, esc, fmtNu
 import { BATTLE_UNI_DEFAULTS, LS_UNI, UNI_HASH, fieldsetsHtml, openDialog, syncUniInputs, uniFieldGroups, uniSummary } from '../shared/uni.js';
 
 var LS_STATE = 'pr0bs.state.v1';
+var LS_TABS = 'pr0bs.tabs.v1';
+var MAX_TABS = 12;
 var SPEEDS = [100, 90, 80, 70, 60, 50, 40, 30, 20, 10];
 /* recycler capacity for the debris field */
 var RECYCLER = 20000;
@@ -34,11 +36,16 @@ var U = Object.assign({}, DEFAULT_UNI, BATTLE_UNI_DEFAULTS);
 /* selected slot per side */
 var active = {att: 0, def: 0};
 var spyMsg = null;
-/* running job, last result and whether the inputs changed since */
+/* running job (of one tab), the active tab's last result and whether its inputs changed since */
 var worker = null;
 var job = null;
 var last = null;
 var stale = false;
+/* independent simulations: {id, name, state, last, stale}; results stay in memory only */
+var TABS = [];
+var activeTab = null;
+var tabSeq = 0;
+var closedTab = null;
 
 /* ---------- helpers ---------- */
 
@@ -96,8 +103,164 @@ function uniHash() {
 }
 
 function persist() {
-  store(LS_STATE, S);
+  store(LS_TABS, {active: TABS.indexOf(activeTab), tabs: TABS.map(function (tab) { return {name: tab.name, state: tab.state}; })});
   store(LS_UNI, Object.assign({}, load(LS_UNI) || {}, U));
+}
+
+/* ---------- tabs ---------- */
+
+function newTab(state, name) {
+  tabSeq += 1;
+  return {id: 't' + tabSeq, name: name || null, state: state, last: null, stale: false};
+}
+
+function tabAutoName(tab) {
+  return tab.state.target ? '→ ' + fmtCoords(tab.state.target) : t('tabSim', {n: TABS.indexOf(tab) + 1});
+}
+
+function renderCalcTabs() {
+  var html = TABS.map(function (tab) {
+    return '<div class="ctab' + (tab === activeTab ? ' active' : '') + '" data-tab="' + tab.id + '">'
+      + '<button type="button" class="ctab-main" role="tab" aria-selected="' + (tab === activeTab) + '" title="' + esc(t('tabRename')) + '">'
+      + '<span class="ctab-name"></span><span class="ctab-sum"></span></button>'
+      + (TABS.length > 1 ? '<button type="button" class="ctab-close" aria-label="' + esc(t('tabClose')) + '" title="' + esc(t('tabClose')) + '">×</button>' : '')
+      + '</div>';
+  }).join('');
+  if (TABS.length < MAX_TABS) {
+    html += '<button type="button" class="ctab-add" id="addTab" title="' + esc(t('tabNew')) + '" aria-label="' + esc(t('tabNewAria')) + '">+</button>';
+  }
+  $('#calcTabs').innerHTML = html;
+  updateCalcTabs();
+}
+
+/* Name and key result (the attacker's win chance) of each tab. */
+function updateCalcTabs() {
+  TABS.forEach(function (tab) {
+    var el = $('#calcTabs [data-tab="' + tab.id + '"]');
+    if (!el) return;
+    var name = el.querySelector('.ctab-name');
+    if (name) name.textContent = tab.name || tabAutoName(tab);
+    var result = tab === activeTab ? last : tab.last;
+    var running = job && job.tab === tab;
+    el.querySelector('.ctab-sum').textContent = running ? t('tabRunning') : result ? t('tabSum', {n: pct(result.summary.wins.attacker)}) : '—';
+  });
+}
+
+function switchTab(tab) {
+  if (activeTab) {
+    activeTab.last = last;
+    activeTab.stale = stale;
+  }
+  activeTab = tab;
+  S = tab.state;
+  last = tab.last;
+  stale = tab.stale;
+  active = {att: 0, def: 0};
+  spyMsg = null;
+  $('#spyIn').value = '';
+  renderCalcTabs();
+  renderInputs();
+  renderSpyHint();
+  renderRun();
+  renderResult();
+  persist();
+}
+
+function addTab(state, name) {
+  if (TABS.length >= MAX_TABS) {
+    toast(t('tabsMax', {n: MAX_TABS}));
+    return null;
+  }
+  var tab = newTab(state, name);
+  TABS.splice(TABS.indexOf(activeTab) + 1, 0, tab);
+  switchTab(tab);
+  return tab;
+}
+
+function closeTab(tab) {
+  if (TABS.length < 2) return;
+  var index = TABS.indexOf(tab);
+  if (job && job.tab === tab) cancel();
+  TABS.splice(index, 1);
+  closedTab = {tab: tab, index: index};
+  if (tab === activeTab) {
+    tab.last = last;
+    tab.stale = stale;
+    activeTab = null;
+    switchTab(TABS[Math.min(index, TABS.length - 1)]);
+  } else {
+    renderCalcTabs();
+    persist();
+  }
+  toast(t('tabClosed'), {label: t('undo'), fn: function () {
+    if (!closedTab || TABS.length >= MAX_TABS) return;
+    TABS.splice(Math.min(closedTab.index, TABS.length), 0, closedTab.tab);
+    var restored = closedTab.tab;
+    closedTab = null;
+    switchTab(restored);
+  }});
+}
+
+function startRename(tab) {
+  var el = $('#calcTabs [data-tab="' + tab.id + '"] .ctab-name');
+  if (!el) return;
+  var input = document.createElement('input');
+  input.className = 'ctab-rename';
+  input.maxLength = 40;
+  input.value = tab.name || tabAutoName(tab);
+  input.setAttribute('aria-label', t('tabName'));
+  el.replaceWith(input);
+  input.focus();
+  input.select();
+  var done = false;
+  function finish(save) {
+    if (done) return;
+    done = true;
+    if (save) {
+      var value = input.value.trim();
+      tab.name = value && value !== tabAutoName(tab) ? value : null;
+      persist();
+    }
+    renderCalcTabs();
+  }
+  input.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') finish(true);
+    if (e.key === 'Escape') { e.stopPropagation(); finish(false); }
+  });
+  input.addEventListener('blur', function () { finish(true); });
+}
+
+function bindCalcTabs() {
+  var bar = $('#calcTabs');
+  bar.addEventListener('click', function (e) {
+    if (e.target.closest('#addTab')) {
+      if (addTab(JSON.parse(JSON.stringify(S)), null)) toast(t('tabCopied'));
+      return;
+    }
+    var box = e.target.closest('[data-tab]');
+    if (!box || e.target.closest('.ctab-rename')) return;
+    var tab = TABS.filter(function (x) { return x.id === box.dataset.tab; })[0];
+    if (e.target.closest('.ctab-close')) closeTab(tab);
+    else if (tab !== activeTab) switchTab(tab);
+  });
+  bar.addEventListener('dblclick', function (e) {
+    var box = e.target.closest('[data-tab]');
+    if (box && !e.target.closest('.ctab-close')) startRename(TABS.filter(function (x) { return x.id === box.dataset.tab; })[0]);
+  });
+}
+
+/* Stored tabs, else the single state of the first version. */
+function loadTabs() {
+  var saved = load(LS_TABS);
+  if (saved && Array.isArray(saved.tabs) && saved.tabs.length) {
+    saved.tabs.slice(0, MAX_TABS).forEach(function (x) { TABS.push(newTab(cleanState(x.state), typeof x.name === 'string' ? x.name : null)); });
+    activeTab = TABS[Math.min(Math.max(0, saved.active | 0), TABS.length - 1)];
+    return true;
+  }
+  var legacy = load(LS_STATE);
+  TABS.push(newTab(cleanState(legacy), null));
+  activeTab = TABS[0];
+  return !!legacy;
 }
 
 /* ---------- inputs ---------- */
@@ -165,7 +328,7 @@ function renderInputs() {
     renderTabs(side);
     renderSlot(side);
   });
-  $('#runsIn').value = String(S.runs);
+  if (document.activeElement !== $('#runsIn')) $('#runsIn').value = String(S.runs);
 }
 
 /* ---------- universe settings ---------- */
@@ -188,14 +351,23 @@ function newWorker() {
     if (msg.type === 'progress') {
       setProgress(msg.done / job.runs);
     } else if (msg.type === 'done') {
-      last = {summary: msg.summary, slots: job.slots, setup: job.setup};
-      stale = false;
+      var result = {summary: msg.summary, slots: job.slots, setup: job.setup};
+      var tab = job.tab;
       job = null;
+      if (tab === activeTab) {
+        last = result;
+        stale = false;
+        renderResult();
+      } else {
+        tab.last = result;
+        tab.stale = false;
+      }
       renderRun();
-      renderResult();
+      updateCalcTabs();
     } else {
       job = null;
       renderRun();
+      updateCalcTabs();
       toast(t('runError', {error: msg.message}));
     }
   };
@@ -204,11 +376,14 @@ function newWorker() {
 function run() {
   var setup = battleSetup(S);
   if (!setup.attackers.length) { toast(t('noAttackers')); return; }
+  // one simulation at a time: a new one replaces a running one (of any tab)
+  if (job) cancel();
   if (!worker) newWorker();
-  job = {id: Date.now() + Math.random(), runs: S.runs, slots: fightingSlots(S), setup: setup};
+  job = {id: Date.now() + Math.random(), runs: S.runs, slots: fightingSlots(S), setup: setup, tab: activeTab};
   worker.postMessage({id: job.id, setup: setup, runs: S.runs, settings: simSettings(U)});
   setProgress(0);
   renderRun();
+  updateCalcTabs();
 }
 
 function cancel() {
@@ -216,6 +391,7 @@ function cancel() {
   worker = null;
   job = null;
   renderRun();
+  updateCalcTabs();
 }
 
 function setProgress(share) {
@@ -223,7 +399,7 @@ function setProgress(share) {
 }
 
 function renderRun() {
-  var running = !!job;
+  var running = !!job && job.tab === activeTab;
   $('#runBtn').hidden = running;
   $('#cancelBtn').hidden = !running;
   $('#progress').hidden = !running;
@@ -339,6 +515,7 @@ function update() {
   persist();
   if (last) stale = true;
   renderRun();
+  updateCalcTabs();
 }
 
 /* ---------- events ---------- */
@@ -434,8 +611,14 @@ function bind() {
       update();
     }
   });
-  $('#runsIn').innerHTML = RUN_CHOICES.map(function (n) { return '<option value="' + n + '">' + n + '</option>'; }).join('');
-  $('#runsIn').addEventListener('change', function () { S.runs = Number($('#runsIn').value); persist(); });
+  $('#runsIn').max = String(MAX_RUNS);
+  $('#runsIn').addEventListener('input', function () {
+    var n = Number($('#runsIn').value);
+    var ok = Number.isInteger(n) && n >= 1 && n <= MAX_RUNS;
+    $('#runsIn').classList.toggle('invalid', !ok);
+    if (ok) { S.runs = n; persist(); }
+  });
+  $('#runsIn').addEventListener('blur', function () { $('#runsIn').value = String(S.runs); $('#runsIn').classList.remove('invalid'); });
   $('#runBtn').addEventListener('click', run);
   $('#cancelBtn').addEventListener('click', cancel);
   $('#spyIn').addEventListener('input', function () {
@@ -452,6 +635,7 @@ function bind() {
   $('#resetBtn').addEventListener('click', function () {
     if (!window.confirm(t('resetConfirm'))) return;
     S = emptyState();
+    activeTab.state = S;
     active = {att: 0, def: 0};
     spyMsg = null;
     last = null;
@@ -475,6 +659,7 @@ function bind() {
   });
   bindShare(function () { return location.origin + location.pathname + '#' + encodeShare(shareFromState(S, uniHash())); });
   bindLang(function () {
+    renderCalcTabs();
     buildUniDialog();
     syncUniSummary();
     renderInputs();
@@ -482,7 +667,8 @@ function bind() {
     renderResult();
   });
   window.addEventListener('hashchange', function () {
-    if (loadHash()) { renderInputs(); update(); toast(t('linkLoaded')); run(); }
+    var state = linkState();
+    if (state && addTab(state, null)) { toast(t('linkNewTab')); run(); }
   });
 }
 
@@ -491,40 +677,49 @@ function openSettings() {
   openDialog($('#settings'));
 }
 
-/* A link (from the hub or a shared one) replaces the inputs and sets the universe values it carries. */
-function loadHash() {
+/* The battle of a link (from the hub or a shared one), null without one; sets the universe values it carries. */
+function linkState() {
   var hash = location.hash.replace(/^#/, '');
-  if (!hash) return false;
+  if (!hash) return null;
   var share = decodeShare(hash);
-  if (!share.attackers.length && !share.defenders.length) return false;
-  S = stateFromShare(share);
+  if (!share.attackers.length && !share.defenders.length) return null;
   Object.keys(UNI_HASH).forEach(function (key) {
     if (share.uni[UNI_HASH[key]] !== undefined) U[key] = share.uni[UNI_HASH[key]];
   });
-  active = {att: 0, def: 0};
-  last = null;
-  stale = false;
   clearHash();
   syncUniSummary();
-  return true;
+  return stateFromShare(share);
 }
 
 function init() {
   initTexts(TEXTS);
   applyTexts();
   U = Object.assign({}, DEFAULT_UNI, BATTLE_UNI_DEFAULTS, load(LS_UNI) || {});
-  S = cleanState(load(LS_STATE));
-  var fromLink = loadHash();
+  var hadState = loadTabs();
+  var fromLink = linkState();
+  // a link opens in a new tab next to the stored ones (or fills the first one)
+  if (fromLink) {
+    if (hadState && TABS.length < MAX_TABS) {
+      var tab = newTab(fromLink, null);
+      TABS.splice(TABS.indexOf(activeTab) + 1, 0, tab);
+      activeTab = tab;
+    } else {
+      activeTab.state = fromLink;
+    }
+  }
+  S = activeTab.state;
   buildUniDialog();
   syncUniSummary();
   bind();
+  bindCalcTabs();
   bindTips();
+  renderCalcTabs();
   renderInputs();
   renderRun();
   renderResult();
   persist();
   if (fromLink) {
-    toast(t('linkLoaded'));
+    toast(t(hadState ? 'linkNewTab' : 'linkLoaded'));
     run();
   }
 }

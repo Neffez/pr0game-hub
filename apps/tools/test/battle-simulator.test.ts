@@ -111,4 +111,36 @@ describe('battle simulator page', () => {
     input.dispatchEvent(new Event('input', { bubbles: true }));
     expect(document.getElementById('staleNote')?.hidden).toBe(false);
   });
+
+  it('takes the number of simulations as a number', () => {
+    const runs = document.getElementById('runsIn') as HTMLInputElement;
+    expect(runs.value).toBe('10');
+    runs.value = '37';
+    runs.dispatchEvent(new Event('input', { bubbles: true }));
+    runs.value = '0';
+    runs.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(runs.classList.contains('invalid')).toBe(true);
+    runs.dispatchEvent(new Event('blur'));
+    expect(runs.value).toBe('37');
+  });
+
+  it('keeps independent simulations in tabs', async () => {
+    const tabs = () => [...document.querySelectorAll('#calcTabs [data-tab]')];
+    expect(tabs()).toHaveLength(1);
+    expect(tabs()[0].textContent).toContain('1:110:8');
+    // a new tab copies the current one, without its result
+    (document.getElementById('addTab') as HTMLButtonElement).click();
+    expect(tabs()).toHaveLength(2);
+    expect((document.getElementById('u-att-207') as HTMLInputElement).value).toBe('100');
+    expect(document.querySelector('#resultBody .hero')).toBeNull();
+    const input = document.getElementById('u-att-207') as HTMLInputElement;
+    input.value = '7';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    // back to the first tab: its own fleet and result
+    (tabs()[0].querySelector('.ctab-main') as HTMLButtonElement).click();
+    expect((document.getElementById('u-att-207') as HTMLInputElement).value).toBe('100');
+    expect(document.querySelector('#resultBody .hero')).not.toBeNull();
+    const stored = JSON.parse(localStorage.getItem('pr0bs.tabs.v1')!);
+    expect(stored.tabs.map((x: { state: { attackers: { units: Record<string, number> }[] } }) => x.state.attackers[0].units[207])).toEqual([100, 7]);
+  });
 });
