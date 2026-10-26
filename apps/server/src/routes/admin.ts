@@ -102,6 +102,8 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
       if (!cur) throw new HttpError(404, 'universe_not_found', 'Universe not found');
       validateSettings(settings);
       const next = { ...JSON.parse(cur.settings), ...(settings ?? {}) };
+      // null removes an optional setting (back to its default)
+      for (const [key, value] of Object.entries(next)) if (value === null) delete next[key];
       db.prepare('UPDATE universes SET name = COALESCE(?, name), settings = ? WHERE slug = ?').run(name ?? null, JSON.stringify(next), req.params.slug);
       // retime targets were derived with the old distances and fleet speed
       const moved = followUniverse(db, cur.id, { ...UNIVERSE_DEFAULTS, ...JSON.parse(cur.settings) }, { ...UNIVERSE_DEFAULTS, ...next });
@@ -413,8 +415,9 @@ function validateSettings(settings: object | undefined) {
   }
   if (s.gameUrl && !/^https?:\/\//i.test(String(s.gameUrl))) throw new HttpError(400, 'game_url_invalid', 'Game URL must start with http(s)://');
   // sizes and distance factors feed the distance, flight time, phalanx and missile range calculations
-  const defaults: Record<string, unknown> = { ...UNIVERSE_DEFAULTS, phalanxRangeFactor: 1, missileRangeFactor: 1, fleetDebrisPercent: 40, defenseDebrisPercent: 0, bigShields: false };
+  const defaults: Record<string, unknown> = { ...UNIVERSE_DEFAULTS, phalanxRangeFactor: 1, missileRangeFactor: 1, noobLimit: 0, noobFactor: 5, noobInactives: false, fleetDebrisPercent: 40, defenseDebrisPercent: 0, bigShields: false };
   for (const [key, value] of Object.entries(s)) {
+    if (value === null && !(key in UNIVERSE_DEFAULTS)) continue;
     let valid = true;
     if (typeof defaults[key] === 'boolean') valid = typeof value === 'boolean';
     else if (typeof defaults[key] === 'number') {

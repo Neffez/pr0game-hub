@@ -112,7 +112,8 @@ function startEdit(u: any) {
 const saveUni = () =>
   run(async () => {
     const e = editUni.value!;
-    const settings = { ...e.settings, gameUrl: String(e.settings.gameUrl ?? '').trim() };
+    // a cleared optional number field (v-model.number leaves '') is removed and falls back to its default
+    const settings = { ...Object.fromEntries(Object.entries(e.settings).map(([k, v]) => [k, v === '' ? null : v])), gameUrl: String(e.settings.gameUrl ?? '').trim() };
     await api(`/admin/universes/${e.slug}`, { method: 'PUT', body: { name: e.name, settings, deck: e.deck } });
     editUni.value = null;
     await loadAll();
@@ -326,6 +327,19 @@ const doMerge = () => run(async () => {
               {{ t('admin.missileRangeFactor') }}
               <Hint>{{ t('admin.missileRangeFactorHint') }}</Hint>
               <input v-model.number="editUni.settings.missileRangeFactor" type="number" min="0" step="any" placeholder="1" style="width: 70px" />
+            </label>
+            <label>
+              {{ t('admin.noobLimit') }}
+              <Hint>{{ t('admin.noobLimitHint') }}</Hint>
+              <input v-model.number="editUni.settings.noobLimit" type="number" min="0" placeholder="0" style="width: 110px" />
+            </label>
+            <label>
+              {{ t('admin.noobFactor') }}
+              <input v-model.number="editUni.settings.noobFactor" type="number" min="0" step="any" placeholder="5" style="width: 60px" />
+            </label>
+            <label>
+              <input v-model="editUni.settings.noobInactives" type="checkbox" /> {{ t('admin.noobInactives') }}
+              <Hint>{{ t('admin.noobInactivesHint') }}</Hint>
             </label>
             <label>
               {{ t('admin.fleetDebrisPercent') }}

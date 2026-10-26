@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { dateFormat, datePattern, dateTime, fmt, ipmCalcLink, ipmStart, numDate, fmtSigned, short, simLinks, trashSimExport, type UniverseSettings } from '../src/format';
+import { dateFormat, datePattern, dateTime, fmt, ipmCalcLink, ipmStart, numDate, fmtSigned, protectionStatus, short, simLinks, trashSimExport, type UniverseSettings } from '../src/format';
 import { setLocale } from '../src/i18n';
 import { decompressFromEncodedURIComponent } from 'lz-string';
 
@@ -185,5 +185,33 @@ describe('loot calculator link', () => {
     ];
     expect(ipmStart(u, silos, [1, 110, 8])).toEqual({ c: [1, 150, 1], silo: 5, ipm: 20 });
     expect(ipmStart(u, silos, [1, 5, 8])).toEqual({ c: [1, 395, 1], silo: 8, ipm: 40 });
+  });
+});
+
+describe('noob protection', () => {
+  const u = { noobLimit: 5_000_000, noobFactor: 5 } as unknown as UniverseSettings;
+  it('derives weak and strong from the own points like the game', () => {
+    // target up to the limit and more than 5x below: weak; the synced view is replaced
+    expect(protectionStatus(u, 10_000_000, 1_000_000, ['strong'])).toEqual(['noob']);
+    expect(protectionStatus(u, 5_000_000, 1_000_000, [])).toEqual([]);
+    // above the limit nobody is protected
+    expect(protectionStatus(u, 100_000_000, 6_000_000, ['noob'])).toEqual([]);
+    // own points below the limit and the target more than 5x above: strong
+    expect(protectionStatus(u, 1_000_000, 6_000_000, ['vacation'])).toEqual(['vacation', 'strong']);
+    expect(protectionStatus(u, 6_000_000, 40_000_000, [])).toEqual([]);
+  });
+  it('leaves banned and inactive players unprotected unless inactive protection is on', () => {
+    expect(protectionStatus(u, 10_000_000, 1_000_000, ['banned', 'noob'])).toEqual(['banned']);
+    expect(protectionStatus(u, 10_000_000, 1_000_000, ['inactive'])).toEqual(['inactive']);
+    expect(protectionStatus(u, 1_000_000, 6_000_000, ['inactive'])).toEqual(['inactive']);
+    const inactives = { ...u, noobInactives: true } as UniverseSettings;
+    // without points limit for inactive players
+    expect(protectionStatus(inactives, 100_000_000, 6_000_000, ['longinactive'])).toEqual(['longinactive', 'noob']);
+    expect(protectionStatus(inactives, 1_000_000, 6_000_000, ['inactive'])).toEqual(['inactive']);
+  });
+  it('keeps the synced status without a limit or points', () => {
+    expect(protectionStatus({} as UniverseSettings, 10_000_000, 1_000_000, ['strong'])).toEqual(['strong']);
+    expect(protectionStatus(u, undefined, 1_000_000, ['noob'])).toEqual(['noob']);
+    expect(protectionStatus(u, 10_000_000, undefined, ['noob'])).toEqual(['noob']);
   });
 });

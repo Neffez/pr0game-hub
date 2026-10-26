@@ -5,7 +5,7 @@ import { now, type DB } from '../db.js';
 import { scoreEntry, SLOT, SLOT_TOLERANCE, SLOTS, statSlots, TOLERANCE, TYPES, WINDOWS, type ScoreRow } from '../domain/stats.js';
 import { latestEmpire, latestEmpires } from '../repo/empire.js';
 import { sharedFleets } from '../repo/fleets.js';
-import { memberPlayers } from '../repo/members.js';
+import { memberPlayer, memberPlayers } from '../repo/members.js';
 import { contextOf, groupBy } from './util.js';
 
 export function overviewRoutes(app: FastifyInstance, db: DB) {
@@ -97,7 +97,8 @@ export function overviewRoutes(app: FastifyInstance, db: DB) {
     // every known player (also from galaxy views and spy reports), with the latest synced points they have, if any
     const result = info.map((p) => ({ ...p, status: JSON.parse(p.status), aliases: JSON.parse(p.aliases), scores: players.get(p.id)?.scores ?? {} }));
 
-    return { players: result, planets: planetRows(db, ctx), coverage: coverage(db, ctx), slots: sections[1] };
+    // own player: the page derives weak/strong (noob protection) from its points
+    return { players: result, planets: planetRows(db, ctx), coverage: coverage(db, ctx), slots: sections[1], me: memberPlayer(db, ctx, ctx.user.id) };
   });
 }
 

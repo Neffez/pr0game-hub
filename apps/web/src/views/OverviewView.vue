@@ -18,7 +18,7 @@ import StatusBadges from '../components/StatusBadges.vue';
 import { useMobile, useProgressive, useSort, useStored, useUni } from '../composables';
 import { upcoming, useClock } from '../clock';
 import { tables, useLiveReload } from '../live';
-import { ago, dateTime, distance, fmt, fmtSigned, name, short, STATS_SHORT, STATS_TYPES } from '../format';
+import { ago, dateTime, distance, fmt, fmtSigned, name, protectionStatus, short, STATS_SHORT, STATS_TYPES } from '../format';
 import { intlLocale } from '../i18n';
 
 interface Delta {
@@ -158,7 +158,10 @@ async function load() {
   error.value = '';
   try {
     const res = await uniApi(uni.value, '/overview');
-    players.value = res.players;
+    // weak/strong from the own points where the universe's noob protection is set, instead of the syncing member's view
+    const own = (res.players as Player[]).find((p) => p.id === res.me)?.scores[1]?.points;
+    const u = ctx.value!.universe.settings;
+    players.value = (res.players as Player[]).map((p) => ({ ...p, status: protectionStatus(u, own, p.scores[1]?.points, p.status) }));
     planets.value = res.planets;
     coverage.value = res.coverage;
     sections.value = res.slots ?? [];

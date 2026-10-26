@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Übersicht: „n“ und „s“ werden aus deinen Punkten berechnet, sobald der Admin den Noobschutz des Universums (Limit, Faktor) eingetragen hat. Vorher galt die Sicht dessen, der zuletzt synchronisiert hat.',
+        en: 'Overview: "N" and "S" are calculated from your points once the admin has entered the universe's noob protection (limit, factor). Before, they showed the view of whoever synced last.',
+      },
+      {
+        kind: 'new',
         de: 'Übersicht: Neue Filter „Schwache (n) aus“ und „Starke (s) aus“ blenden Spieler mit diesem Status aus, „Planeten aus“ zeigt nur noch Monde.',
         en: 'Overview: new filters "hide weak (N)" and "hide strong (S)" hide players with that status, "hide planets" shows only moons.',
       },

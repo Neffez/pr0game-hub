@@ -59,6 +59,8 @@ describe('api', () => {
     expect(res.json().counts.player_scores).toEqual({ new: 0, duplicate: 3 });
 
     const ov = (await app.inject({ method: 'GET', url: '/hub/api/u8/overview', headers })).json();
+    // the admin has no player in this group
+    expect(ov.me).toBeNull();
     const alpha = ov.players.find((p: any) => p.name === 'Alpha');
     expect(alpha.ingame_id).toBe(1234);
     expect(alpha.ally_name).toBe('Die Allianz');
@@ -1359,10 +1361,18 @@ describe('review fixes', () => {
     expect(
       (await app.inject({ method: 'POST', url: '/hub/api/admin/universes', payload: { slug: 'u9', settings: { timezone: 'Mars/Base' } }, ...h })).statusCode,
     ).toBe(400);
-    for (const settings of [{ systems: 'many' }, { galaxies: 0 }, { positions: 1.5 }, { circularSystems: 'yes' }, { systemDistanceFactor: -1 }, { missileRangeFactor: -0.5 }, { missileRangeFactor: 'x' }, { fleetDebrisPercent: 101 }, { defenseDebrisPercent: -1 }, { bigShields: 'yes' }]) {
+    for (const settings of [{ systems: 'many' }, { galaxies: 0 }, { positions: 1.5 }, { circularSystems: 'yes' }, { systemDistanceFactor: -1 }, { missileRangeFactor: -0.5 }, { missileRangeFactor: 'x' }, { fleetDebrisPercent: 101 }, { defenseDebrisPercent: -1 }, { bigShields: 'yes' }, { noobLimit: -1 }, { noobInactives: 1 }, { galaxies: null }]) {
       const res = await app.inject({ method: 'POST', url: '/hub/api/admin/universes', payload: { slug: 'u9', settings }, ...h });
       expect(res.json().code).toBe('setting_invalid');
     }
+    // null removes an optional setting, so it falls back to its default
+    const put = (settings: object) => app.inject({ method: 'PUT', url: '/hub/api/admin/universes/u8', payload: { settings }, ...h });
+    const settings = () => JSON.parse(db.prepare("SELECT settings FROM universes WHERE slug = 'u8'").pluck().get() as string);
+    expect((await put({ noobLimit: 5_000_000, noobFactor: 5 })).statusCode).toBe(200);
+    expect(settings()).toMatchObject({ noobLimit: 5_000_000, noobFactor: 5 });
+    expect((await put({ noobLimit: null })).statusCode).toBe(200);
+    expect(settings()).not.toHaveProperty('noobLimit');
+    expect(settings().noobFactor).toBe(5);
   });
 });
 

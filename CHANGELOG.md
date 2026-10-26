@@ -4,6 +4,15 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-26
 
+- Noob protection computed in the hub: new optional universe settings `noobLimit`, `noobFactor` and `noobInactives`
+  (game config `noob_protection_time`, `noob_protection_multi`, `noob_inactives`). With a limit set, the overview
+  derives weak (N) and strong (S) from the requesting member's total points like the game's `CheckNoobProtec`
+  (banned players and, without `noobInactives`, inactive ones are never protected; rebuild protection and outlaws are
+  unknown to the hub) instead of the status seen by whoever synced last; the badges and the weak/strong filters use
+  it. Without a limit or points the synced status stays. `GET /api/{uni}/overview` returns `me` (the member's player).
+  - Admin: a cleared optional universe setting is sent as `null` and removed, so it falls back to its default instead
+    of being rejected.
+
 - Overview filters: "hide weak (N)" and "hide strong (S)" drop players with the weak/strong status (as seen by the
   member who synced the galaxy or statistics last), and "hide planets" next to "hide moons" lists only moons.
   Checked with headless Chrome (desktop and mobile).

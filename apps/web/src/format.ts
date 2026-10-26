@@ -392,6 +392,26 @@ export function phalanxRange(level: number, u: UniverseSettings) {
   return level <= 1 ? 0 : Math.floor((level * level - 1) * factor);
 }
 
+/** Optional universe settings of the noob protection (game config noob_protection_time, _multi, noob_inactives). */
+export type NoobSettings = { noobLimit?: number; noobFactor?: number; noobInactives?: boolean };
+
+/**
+ * Status with weak (`noob`) and strong derived from the own and the target's total points, like the game's
+ * CheckNoobProtec; rebuild protection and outlaws are unknown to the hub. Without a limit set or with points missing
+ * the synced status stays (weak/strong as seen by the member who synced it).
+ */
+export function protectionStatus(u: UniverseSettings, own: number | null | undefined, target: number | null | undefined, status: string[]): string[] {
+  const { noobLimit: limit, noobFactor, noobInactives } = u as UniverseSettings & NoobSettings;
+  if (!limit || own == null || target == null) return status;
+  const factor = noobFactor || 5;
+  const rest = status.filter((s) => s !== 'noob' && s !== 'strong');
+  const inactive = status.includes('inactive') || status.includes('longinactive');
+  if (status.includes('banned') || (inactive && !noobInactives)) return rest;
+  if ((inactive || target <= limit) && own > target * factor) return [...rest, 'noob'];
+  if (!inactive && own < limit && own * factor < target) return [...rest, 'strong'];
+  return rest;
+}
+
 /** The public ACS loot calculator, next to the flight calculator of the universe. */
 export function lootCalcUrl(u: UniverseSettings): string {
   const flight = (u as UniverseSettings & { flightCalculatorUrl?: string }).flightCalculatorUrl;
