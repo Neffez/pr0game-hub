@@ -464,7 +464,8 @@ components:
       properties:
         lost: { type: object, additionalProperties: { $ref: '#/components/schemas/BattleRange' }, description: Pieces lost in the battle }
         repaired: { type: object, additionalProperties: { $ref: '#/components/schemas/BattleRange' }, description: Defense rebuilt after the battle (the planet only) }
-        remaining: { type: object, additionalProperties: { $ref: '#/components/schemas/BattleRange' }, description: Pieces after the battle }
+        remaining: { type: object, additionalProperties: { $ref: '#/components/schemas/BattleRange' }, description: Pieces after the battle (the average shows the risk, e.g. 1.8 of 2) }
+        lossChance: { type: object, additionalProperties: { type: number }, description: 'Share of the runs (0-1) in which at least one piece of the type is lost for good' }
     BattleSimulation:
       type: object
       properties:

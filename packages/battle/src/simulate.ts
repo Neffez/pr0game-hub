@@ -32,6 +32,8 @@ export interface FleetSummary {
   lost: Record<number, Range>;
   repaired: Record<number, Range>;
   remaining: Record<number, Range>;
+  /** share of the runs (0-1) in which at least one unit of the type is lost for good (rebuilt defense not counted) */
+  lossChance: Record<number, number>;
 }
 
 export interface RunResult extends BattleResult {
@@ -77,10 +79,13 @@ function range(values: number[]): Range {
 }
 
 function fleetSummary(fleets: { lost: Record<number, number>; repaired: Record<number, number>; remaining: Record<number, number> }[]): FleetSummary {
-  const out: FleetSummary = { lost: {}, repaired: {}, remaining: {} };
+  const out: FleetSummary = { lost: {}, repaired: {}, remaining: {}, lossChance: {} };
   for (const key of ['lost', 'repaired', 'remaining'] as const) {
     const ids = new Set(fleets.flatMap((f) => Object.keys(f[key]).map(Number)));
     for (const id of ids) out[key][id] = range(fleets.map((f) => f[key][id] ?? 0));
+  }
+  for (const id of Object.keys(out.remaining).map(Number)) {
+    out.lossChance[id] = fleets.filter((f) => (f.lost[id] ?? 0) - (f.repaired[id] ?? 0) > 0).length / fleets.length;
   }
   return out;
 }

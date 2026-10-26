@@ -13,6 +13,17 @@ describe('Battlerust engine (WASM)', () => {
     const s = simulate(fight, setup, 10);
     expect(s.wins.defender).toBe(1);
     expect(s.attackers[0].lost[204].avg).toBe(1);
+    expect(s.attackers[0].lossChance[204]).toBe(1);
+  });
+
+  it('shows the risk of small battles: two small cargos against a rocket launcher', () => {
+    const setup: BattleSetup = { attackers: [{ units: { 202: 2 }, research: none }], defenders: [{ units: { 401: 1 }, research: none }] };
+    const s = simulate(fight, setup, 300);
+    const chance = s.attackers[0].lossChance[202];
+    expect(chance).toBeGreaterThan(0);
+    expect(chance).toBeLessThan(1);
+    // the average left carries the risk: 2 − lost on average
+    expect(s.attackers[0].remaining[202].avg).toBeCloseTo(2 - s.attackers[0].lost[202]?.avg, 10);
   });
 
   it('stuns with ion cannons: their hits disable ships for a round', () => {

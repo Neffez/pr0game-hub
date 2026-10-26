@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-26
 
+- Battle simulator: loss risk per unit (share of the battles in which at least one unit of the type is lost for good)
+  and averages with decimals (e.g. 1.8 of 2 small cargos left), so small battles show their risk; `lossChance` per
+  fleet in `@pr0hub/battle` and the API (OpenAPI).
+
 - Battle simulator UX: Enter in a field starts the simulation; the win chances stand right of the Simulate button;
   space below the debris switch; the side menus have "Remove all fleets" and "Reset" (clears the units, keeps the
   fleets with research, start and speed), the "Clear units" link is gone; the universe dialog leaves out the

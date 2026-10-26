@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Kampfsimulator: Für jede Einheit steht jetzt das Verlustrisiko da, und die Durchschnitte haben Nachkommastellen (z. B. 1,8 von 2 Kleinen Transportern übrig). So sieht man auch bei kleinen Kämpfen, wie wahrscheinlich ein Verlust ist.',
+        en: 'Battle simulator: each unit now shows its loss risk, and the averages have decimals (e.g. 1.8 of 2 small cargos left). Even small battles show how likely a loss is.',
+      },
+      {
+        kind: 'new',
         de: 'Kampfsimulator: Enter startet die Simulation, die Gewinnchancen stehen neben dem Knopf. Die Menüs der Seiten können alle Flotten entfernen oder nur die Schiffe zurücksetzen. Standard für die Flotte im Trümmerfeld ist jetzt 40 %.',
         en: 'Battle simulator: Enter starts the simulation, the win chances stand next to the button. The menus of both sides can remove all fleets or only reset the ships. The default share of the fleet in the debris field is now 40 %.',
       },

@@ -82,7 +82,22 @@ function signed(n) {
   return (r > 0 ? '+' : '−') + fmtNum(Math.abs(r));
 }
 
-function avgRange(r) { return r.min === r.max ? num(r.avg) : num(r.avg) + ' (' + num(r.min) + '–' + num(r.max) + ')'; }
+/* Averages with decimals where they matter (1,8 of 2 ships left: one is lost in 20 % of the battles). */
+function avg(n) {
+  if (Math.abs(n - Math.round(n)) < 0.005) return num(n);
+  var digits = Math.abs(n) < 100 ? 2 : 1;
+  return Number(n).toLocaleString(lang() === 'de' ? 'de-DE' : 'en-GB', {minimumFractionDigits: 1, maximumFractionDigits: digits});
+}
+
+function avgRange(r) { return r.min === r.max ? avg(r.avg) : avg(r.avg) + ' (' + num(r.min) + '–' + num(r.max) + ')'; }
+
+/* Risk of losing at least one unit: under 1 % and over 99 % are shown as such, not rounded away. */
+function risk(share) {
+  if (!share) return '—';
+  if (share < 0.01) return '<1 %';
+  if (share > 0.99 && share < 1) return '>99 %';
+  return Math.round(share * 100) + ' %';
+}
 
 function kpi(label, value, sub, cls) {
   return '<div class="kpi ' + (cls || '') + '"><span class="kpi-label">' + esc(label) + '</span>'
@@ -432,16 +447,18 @@ function lossRows(side, fleets, slotIdx, initial) {
       var lost = f.lost[id] || {avg: 0, min: 0, max: 0};
       var rep = f.repaired[id];
       var left = f.remaining[id] || {avg: 0};
+      var chance = (f.lossChance || {})[id] || 0;
       rows += '<tr class="' + (left.avg > 0 ? '' : 'gone') + '"><td class="name">' + esc(elementName(id, lang())) + '<span class="slot-tag">' + esc(slotLabel(side, slot)) + '</span></td>'
         + '<td>' + num(units[id]) + '</td><td class="' + (lost.avg ? 'neg' : 'dim') + '">' + avgRange(lost) + '</td>'
-        + '<td>' + (rep ? avgRange(rep) : '') + '</td><td>' + num(left.avg) + '</td></tr>';
+        + '<td>' + (rep ? avgRange(rep) : '') + '</td><td>' + avg(left.avg) + '</td>'
+        + '<td class="' + (chance ? 'neg' : 'dim') + '" title="' + esc(t('colRiskTitle')) + '">' + risk(chance) + '</td></tr>';
     });
   });
   return rows;
 }
 
 function lossTable(side, fleets, slotIdx, initial) {
-  var head = '<tr>' + ['colUnit', 'colCount', 'colLost', 'colRebuilt', 'colLeft'].map(function (h) { return '<th>' + esc(t(h)) + '</th>'; }).join('') + '</tr>';
+  var head = '<tr>' + ['colUnit', 'colCount', 'colLost', 'colRebuilt', 'colLeft', 'colRisk'].map(function (h) { return '<th>' + esc(t(h)) + '</th>'; }).join('') + '</tr>';
   return '<div class="table-wrap"><table><thead>' + head + '</thead><tbody>' + lossRows(side, fleets, slotIdx, initial) + '</tbody></table></div>';
 }
 
