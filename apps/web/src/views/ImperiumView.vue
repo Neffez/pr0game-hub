@@ -125,6 +125,24 @@ async function setAlert(f: Fleet, lead: number | null) {
   }
 }
 
+/** Shares own fleets (with the later lines of their flight) with the other members or not, ahead of the account setting. */
+const mine = computed(() => userId.value === ctx.value!.me.id);
+const shareBusy = ref<Fleet | null>(null);
+async function setShare(list: Fleet[], shared: boolean) {
+  shareBusy.value = list[0];
+  alertError.value = null;
+  try {
+    for (const f of list) {
+      await uniApi(uni.value, '/fleets/share', { method: 'PUT', body: { mission: f.mission, phase: f.phase, from: f.from, to: f.to, arrival: f.arrival, shared } });
+    }
+    await load();
+  } catch (e) {
+    alertError.value = (e as Error).message;
+  } finally {
+    shareBusy.value = null;
+  }
+}
+
 /**
  * Storage factor of the universe: derived from the storage shown in the resource bar of the
  * selected planet (page header), otherwise the universe setting `storageMultiplier`.
@@ -433,9 +451,9 @@ const memberName = (id: number | null) => ctx.value!.members.find((m) => m.id ==
     </template>
     <p v-if="!flights.length" class="muted small m-0">{{ t('imperium.fleetsNone') }}</p>
     <p v-if="alertError" class="error small">{{ alertError }}</p>
-    <FleetList v-if="flights.length" :fleets="flights" :alerts="data?.fleetAlerts ?? undefined" :busy="alertBusy" @alert="setAlert" />
+    <FleetList v-if="flights.length" :fleets="flights" :alerts="data?.fleetAlerts ?? undefined" :busy="alertBusy" :sharing="mine" :share-busy="shareBusy" @alert="setAlert" @share="setShare" />
     <Section v-if="history.length" :title="t('imperium.fleetHistory', { n: history.length })" :card="false" :default-open="false" store-key="imperium.fleetHistory" class="fl-history">
-      <FleetList :fleets="history" past />
+      <FleetList :fleets="history" past :sharing="mine" :share-busy="shareBusy" @share="setShare" />
     </Section>
   </Section>
 

@@ -3,7 +3,7 @@ import type { UniverseSettings } from '../config.js';
 import type { GroupContext } from '../context.js';
 import { now, type DB } from '../db.js';
 import { latestEmpires, spyEmpire } from './empire.js';
-import { fleetShare, sharedFleets, type StoredFleet } from './fleets.js';
+import { fleetVisibility, sharedFleets, type StoredFleet } from './fleets.js';
 import { attackKey, hostileAttacks, recallWindow, shipsKey, type Body, type EnemyFleet } from './hostile.js';
 import { memberPlayers } from './members.js';
 
@@ -425,8 +425,8 @@ export function recallOwnPlans(db: DB, ctx: GroupContext): number[] {
       const to = plan.target_time + (plan.time_precision === 'day' ? 86400 : plan.time_precision === 'hour' ? 3600 : 0) + LAUNCH_SLACK;
       let recalled = false;
       for (const f of fleets.filter((x) => x.plan_id === plan.id)) {
-        const share = fleetShare(db, f.user_id);
-        const shown = (m: StoredFleet) => m.owner === 'own' && m.mission != null && missions.includes(m.mission) && (share.enabled && !share.hidden.includes(m.mission));
+        const vis = fleetVisibility(db, ctx.groupId, f.user_id);
+        const shown = (m: StoredFleet) => m.owner === 'own' && m.mission != null && missions.includes(m.mission) && vis.shared(m);
         const start = (b: StoredFleet['from'] | null) => same(b, f.g!, f.s!, f.p!, f.planet_type ?? 'planet');
         const target = (b: StoredFleet['from'] | null) => same(b, plan.g!, plan.s!, plan.p!, plan.planet_type);
         const going = (m: StoredFleet) => shown(m) && m.phase === 'out' && start(m.from) && target(m.to) && m.arrival >= from && m.arrival <= to;

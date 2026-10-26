@@ -3,8 +3,7 @@ import { cleanState, emptyState, MAX_PARTICIPANTS, SHARE_WITHIN, type Battle, ty
 import type { GroupContext } from '../context.js';
 import type { DB } from '../db.js';
 import { REPORT_SLACK } from '../store.js';
-import { sameFleet } from './fleetAlerts.js';
-import { fleetHistory, sharedFleets, type StoredFleet } from './fleets.js';
+import { fleetHistory, sameFleet, sharedFleets, type StoredFleet } from './fleets.js';
 import { shipsKey } from './hostile.js';
 import { memberPlayers } from './members.js';
 import { launchedOf, planDrives, type LaunchFleet, type PlanRow } from './plans.js';

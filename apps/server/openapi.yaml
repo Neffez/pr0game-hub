@@ -1336,6 +1336,45 @@ paths:
                   alerts: { type: array, items: { $ref: '#/components/schemas/FleetAlert' } }
         '400': { description: 'Invalid body (`alert_invalid`)' }
         '404': { description: 'No such own fleet in flight in the caller''s newest fleet list (`fleet_not_found`)' }
+  /api/{uni}/fleets/share:
+    put:
+      tags: [Universe]
+      operationId: putFleetShare
+      description: >-
+        Share one of the caller's own fleets with the other members of the group or not, ahead of the account setting
+        (`/api/auth/fleet-share`), for the fleets in flight and the history. The fleet is given as in the caller's newest
+        fleet list or history (like a fleet alert); the later lines of its flight (holding, return: same mission and
+        planets, the only one of its phase) get the same choice. In the caller's own empire view own fleets carry
+        `shared`.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phase, from, arrival, shared]
+              properties:
+                mission: { type: [integer, 'null'], description: Game mission id }
+                phase: { type: string, enum: [out, return, hold] }
+                from: { type: object, description: 'Start: `{ coords: { g, s, p }, type }`' }
+                to: { type: [object, 'null'], description: 'Target: `{ coords: { g, s, p }, type }`' }
+                arrival: { type: integer, description: Unix seconds }
+                shared: { type: boolean }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  shared: { type: boolean }
+                  lines: { type: integer, description: Fleet lines the choice was stored for }
+        '400': { description: 'Invalid body (`fleet_invalid`)' }
+        '404': { description: 'No such own fleet in the caller''s fleet lists (`fleet_not_found`)' }
   /api/{uni}/fleets/alerts/{id}:
     delete:
       tags: [Universe]

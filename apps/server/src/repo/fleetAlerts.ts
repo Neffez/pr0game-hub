@@ -1,7 +1,6 @@
-import type { FleetBody } from '@pr0hub/core';
 import type { GroupContext } from '../context.js';
 import type { DB } from '../db.js';
-import { sharedFleets, type StoredFleet } from './fleets.js';
+import { sameFleet, sharedFleets, type StoredFleet } from './fleets.js';
 
 /** A notification for the arrival of one of the user's own fleets (`lead`: minutes before it). */
 export interface FleetAlert {
@@ -15,22 +14,6 @@ export interface FleetAlert {
 
 /** Fleet alerts are listed (bell) and kept this long after the arrival. */
 export const FLEET_KEEP = 10 * 60;
-/** Arrivals of one movement in two fleet lists differ by up to this much (remaining time vs. shown clock). */
-const TOLERANCE = 5;
-
-const sameBody = (a: FleetBody | null, b: FleetBody | null) =>
-  a == null || b == null
-    ? a == b
-    : a.coords.g === b.coords.g && a.coords.s === b.coords.s && a.coords.p === b.coords.p && (a.type ?? null) === (b.type ?? null);
-
-/** Whether two fleet movements are the same one (the game gives them no id). */
-export function sameFleet(a: Pick<StoredFleet, 'mission' | 'phase' | 'from' | 'to' | 'arrival'>, b: StoredFleet): boolean {
-  return (
-    b.owner === 'own' && (a.mission ?? null) === (b.mission ?? null) && a.phase === b.phase && sameBody(a.from, b.from) && sameBody(a.to, b.to) &&
-    Math.abs(a.arrival - b.arrival) <= TOLERANCE
-  );
-}
-
 /**
  * The user's fleet alerts, matched against their newest fleet list: a matched alert takes the fleet's arrival, an alert
  * whose fleet is missing from a list synced after it was set and before its arrival is removed (recalled), as are

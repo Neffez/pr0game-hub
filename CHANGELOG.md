@@ -4,6 +4,14 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-26
 
+- Fleet sharing per fleet, like player messages: in the own empire view an eye on every own fleet (in flight and in
+  the history) shares it with the other members or not, ahead of the account setting (also when fleet sharing is off
+  or the mission or history is hidden). The later lines of the same flight (holding, return: same mission and
+  planets, unambiguous only) take the same choice. Choices are matched against the fleet lists like fleet alerts
+  (mission, phase, start, target, arrival) and apply everywhere fleets are shared (empire, alliance fleets, overview
+  countdowns, raid planner). `PUT /api/{uni}/fleets/share`, own fleets carry `shared` in the own empire view,
+  migration `059_fleet_share_choices`. Checked with headless Chrome (desktop and mobile).
+
 - Account: new option "Show others when I sync something" (on by default). Off, the live events of the member's
   syncs go out without the member's id, so the other members' views still reload but no hint "X synced …" names
   them. Independent of online status and activity. `GET`/`POST /api/auth/share-syncs`, migration `058_share_syncs`.

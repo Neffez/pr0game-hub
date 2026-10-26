@@ -24,6 +24,8 @@ export interface Fleet {
   acs?: number | null;
   /** owner of the start by the galaxy data (the game names none on attacks) */
   fromPlayer?: { id: number; name: string } | null;
+  /** in the viewer's own list: whether the other members see this own fleet */
+  shared?: boolean;
 }
 
 /** A notification for the arrival of an own fleet, `lead` minutes before it (server: repo/fleetAlerts.ts). */
@@ -64,10 +66,16 @@ const props = defineProps<{
   alerts?: FleetAlert[];
   /** a fleet whose alert is being changed */
   busy?: Fleet | null;
+  /** the viewer's own list: own fleets get an eye to share them with the other members or not */
+  sharing?: boolean;
+  /** a fleet whose sharing is being changed */
+  shareBusy?: Fleet | null;
 }>();
 const emit = defineEmits<{
   /** set an alert `lead` minutes before the arrival, or remove it (null) */
   alert: [fleet: Fleet, lead: number | null];
+  /** share the own fleets of a row (one, or the own ones of an ACS) or not */
+  share: [fleets: Fleet[], shared: boolean];
 }>();
 
 const { t, locale } = useI18n();
@@ -106,6 +114,10 @@ const bellTitle = (f: Fleet) => {
   if (!a) return t('imperium.alertOn');
   return a.lead ? t('imperium.alertBefore', { n: a.lead }) : t('imperium.alertAtArrival');
 };
+// ---------------------------------------------------------------- sharing
+const ownParts = (parts: Row[]) => parts.filter((f) => f.owner === 'own' && f.shared != null);
+const eyeTitle = (f: Fleet) => t(f.shared ? 'imperium.fleetShared' : 'imperium.fleetNotShared');
+const actions = computed(() => bells.value || !!props.sharing);
 const toggle = (key: string) => (open.has(key) ? open.delete(key) : open.add(key));
 const mission = (r: { fleet: Row; parts: Row[] }) => (r.parts.length > 1 ? t('notify.acs', { n: r.parts.length }) : r.fleet.missionName);
 /** the named player, else the owner of the start from the galaxy data */
@@ -155,6 +167,9 @@ function clock(epoch: number) {
         <Ticker v-slot="{ now }"><span class="mono muted">{{ past ? t('imperium.since', { time: countdown(now - f.arrival) }) : countdown(f.arrival - now) }}</span></Ticker>
         <span class="grow" />
         <b v-if="f.member" class="fl-member">{{ f.member }}</b>
+        <button v-if="sharing && ownParts(r.parts).length" class="small fl-eye alert-btn" :class="{ active: f.shared }" :disabled="shareBusy === r.parts[0]" :title="eyeTitle(f)" :aria-label="eyeTitle(f)" @click="emit('share', ownParts(r.parts), !f.shared)">
+          <Icon :name="f.shared ? 'eye' : 'eyeOff'" :size="14" />
+        </button>
         <span v-if="bells && f.owner === 'own'" class="fl-bell-wrap">
           <button class="small fl-bell alert-btn" :class="{ active: alertOf(f) }" :disabled="busy === r.parts[0]" :title="bellTitle(f)" :aria-label="bellTitle(f)" @click="menu = menu === r.key ? null : r.key">
             <Icon :name="alertOf(f) ? 'bell' : 'bellOff'" :size="14" /><span v-if="alertOf(f)?.lead" class="fl-lead">{{ alertOf(f)!.lead }}′</span>
@@ -206,7 +221,7 @@ function clock(epoch: number) {
           <th>{{ t('imperium.to') }}</th>
           <th>{{ t('imperium.ships') }}</th>
           <th>{{ t('imperium.cargo') }}</th>
-          <th v-if="bells" />
+          <th v-if="actions" />
         </tr>
       </thead>
       <tbody>
@@ -234,8 +249,11 @@ function clock(epoch: number) {
             <span v-for="s in ships(f)" :key="s.id">{{ s.label }}</span>
           </td>
           <td class="small muted">{{ cargo(f).join(' · ') }}</td>
-          <td v-if="bells" class="fl-bell-wrap">
-            <template v-if="f.owner === 'own'">
+          <td v-if="actions" class="fl-bell-wrap">
+            <button v-if="sharing && ownParts(r.parts).length" class="small fl-eye alert-btn" :class="{ active: f.shared }" :disabled="shareBusy === r.parts[0]" :title="eyeTitle(f)" :aria-label="eyeTitle(f)" @click="emit('share', ownParts(r.parts), !f.shared)">
+              <Icon :name="f.shared ? 'eye' : 'eyeOff'" :size="14" />
+            </button>
+            <template v-if="bells && f.owner === 'own'">
               <button class="small fl-bell alert-btn" :class="{ active: alertOf(f) }" :disabled="busy === r.parts[0]" :title="bellTitle(f)" :aria-label="bellTitle(f)" @click="menu = menu === r.key ? null : r.key">
                 <Icon :name="alertOf(f) ? 'bell' : 'bellOff'" :size="14" /><span v-if="alertOf(f)?.lead" class="fl-lead">{{ alertOf(f)!.lead }}′</span>
               </button>
@@ -256,7 +274,7 @@ function clock(epoch: number) {
           <td colspan="2" />
           <td class="small fl-ships"><span v-for="s in ships(part)" :key="s.id" :title="s.title">{{ s.label }}</span></td>
           <td />
-          <td v-if="bells" />
+          <td v-if="actions" />
         </tr>
         </template>
       </tbody>
@@ -289,6 +307,7 @@ td.fl-ships span { display: inline-block; margin-right: 8px; white-space: nowrap
 div.fl-part { padding-left: 10px; border-left: 2px solid var(--mc); }
 .fl-bell-wrap { position: relative; white-space: nowrap; }
 .fl-lead { margin-left: 2px; font-size: 10px; }
+.fl-eye + .fl-bell, .fl-eye + .fl-bell-wrap { margin-left: 4px; }
 .fl-menu {
   position: absolute; z-index: 20; top: 100%; right: 0; display: flex; flex-direction: column; gap: 4px; margin: 4px 0 0; padding: 6px;
   box-shadow: 0 6px 20px rgba(0, 0, 0, .4);

@@ -114,6 +114,8 @@ const ICONS: Record<string, string[]> = {
   moon: ['M19.5 14.5A8 8 0 1 1 9.5 4.5a6.5 6.5 0 0 0 10 10z'],
   // bell with a slash (alert off)
   bellOff: ['M6 16.5V11a6 6 0 0 1 9.7-4.7', 'M18 11v5.5l1.8 1.8H8', 'M10 21a2.2 2.2 0 0 0 4 0', 'M3.5 3.5l17 17'],
+  // eye (shown, shared)
+  eye: ['M2.5 12s3.5-6.5 9.5-6.5 9.5 6.5 9.5 6.5-3.5 6.5-9.5 6.5S2.5 12 2.5 12z', 'M9 12a3 3 0 1 0 6 0 3 3 0 1 0-6 0'],
   // eye with a slash (hide)
   eyeOff: [
     'M4.5 8.5C3.2 10.2 2.5 12 2.5 12s3.5 6.5 9.5 6.5c1.6 0 3-.4 4.2-1.1',

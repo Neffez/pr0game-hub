@@ -5,14 +5,25 @@ import { HttpError } from '../auth.js';
 import { now, type DB } from '../db.js';
 import { events } from '../events.js';
 import { latestEmpire, spyEmpire, type SpyEmpire } from '../repo/empire.js';
-import { openFleetAlerts, sameFleet } from '../repo/fleetAlerts.js';
-import { FLEET_HISTORY, fleetHistory, sharedFleets, type StoredFleet } from '../repo/fleets.js';
+import { openFleetAlerts } from '../repo/fleetAlerts.js';
+import { chooseFleetShare, FLEET_HISTORY, fleetHistory, flightLines, sameFleet, sharedFleets, type StoredFleet } from '../repo/fleets.js';
 import { memberPlayer, memberPlayers } from '../repo/members.js';
 import { catchUpLeader, latestScores } from '../repo/stats.js';
 import { contextOf, type Q } from './util.js';
 
 /** Most minutes an alert may remind before the arrival. */
 const MAX_LEAD = 120;
+
+const int = (v: unknown) => Number.isInteger(v) && (v as number) >= 0;
+const isBody = (v: unknown) => {
+  const c = (v as { coords?: Record<string, unknown> } | null)?.coords;
+  return !!c && int(c.g) && int(c.s) && int(c.p);
+};
+/** A fleet as given by the client (mission, phase, start, target, arrival as listed), null when malformed. */
+function fleetOf(b: Record<string, unknown>): Pick<StoredFleet, 'mission' | 'phase' | 'from' | 'to' | 'arrival'> | null {
+  if (!int(b.arrival) || !(b.mission == null || int(b.mission)) || typeof b.phase !== 'string' || !isBody(b.from) || !(b.to == null || isBody(b.to))) return null;
+  return { mission: (b.mission ?? null) as number | null, phase: b.phase as StoredFleet['phase'], from: b.from as StoredFleet['from'], to: (b.to ?? null) as StoredFleet['to'], arrival: b.arrival as number };
+}
 
 export function imperiumRoutes(app: FastifyInstance, db: DB) {
   const ctxOf = contextOf(db);
@@ -103,19 +114,11 @@ export function imperiumRoutes(app: FastifyInstance, db: DB) {
     const ctx = ctxOf(req);
     const b = req.body ?? {};
     const lead = b.lead ?? 0;
-    const int = (v: unknown) => Number.isInteger(v) && (v as number) >= 0;
-    const body = (v: unknown) => {
-      const c = (v as { coords?: Record<string, unknown> } | null)?.coords;
-      return !!c && int(c.g) && int(c.s) && int(c.p);
-    };
-    if (
-      !int(b.arrival) || !int(lead) || (lead as number) > MAX_LEAD || !(b.mission == null || int(b.mission)) || typeof b.phase !== 'string' ||
-      !body(b.from) || !(b.to == null || body(b.to))
-    ) {
+    const want = fleetOf(b);
+    if (!want || !int(lead) || (lead as number) > MAX_LEAD) {
       throw new HttpError(400, 'alert_invalid', `Expected mission, phase, from, to, arrival and lead (0-${MAX_LEAD} minutes)`);
     }
     const t = now();
-    const want = { mission: (b.mission ?? null) as number | null, phase: b.phase as StoredFleet['phase'], from: b.from as StoredFleet['from'], to: (b.to ?? null) as StoredFleet['to'], arrival: b.arrival as number };
     const fleet = sharedFleets(db, ctx.groupId, ctx.user.id, ctx.user.id)?.data.find((f) => f.arrival > t && sameFleet(want, f));
     if (!fleet) throw new HttpError(404, 'fleet_not_found', 'No such own fleet in flight in your newest fleet list');
     const known = openFleetAlerts(db, ctx, ctx.user.id, t).find((a) => sameFleet(a.fleet, fleet));
@@ -127,6 +130,29 @@ export function imperiumRoutes(app: FastifyInstance, db: DB) {
     }
     alertsChanged(ctx.groupId, ctx.user.id);
     return { alerts: openFleetAlerts(db, ctx, ctx.user.id, t) };
+  });
+
+  /**
+   * Shares one of the viewer's own fleets with the other members or not, ahead of the account setting (like a player
+   * message); the later lines of its flight (holding, return) follow. The fleet is one of the newest fleet list or of
+   * the history, given like an alert's.
+   */
+  app.put<{ Params: { uni: string }; Body: Record<string, unknown> }>('/api/:uni/fleets/share', async (req) => {
+    const ctx = ctxOf(req);
+    const b = req.body ?? {};
+    const want = fleetOf(b);
+    if (!want || typeof b.shared !== 'boolean') throw new HttpError(400, 'fleet_invalid', 'Expected mission, phase, from, to, arrival and shared');
+    const t = now();
+    const list = [
+      ...fleetHistory(db, ctx.groupId, ctx.user.id, ctx.user.id, t - FLEET_HISTORY),
+      ...(sharedFleets(db, ctx.groupId, ctx.user.id, ctx.user.id)?.data ?? []),
+    ];
+    const fleet = list.find((f) => sameFleet(want, f));
+    if (!fleet) throw new HttpError(404, 'fleet_not_found', 'No such own fleet in your fleet lists');
+    const lines = flightLines(list, fleet);
+    chooseFleetShare(db, ctx.groupId, ctx.user.id, lines, b.shared, t);
+    events.publish(ctx.groupId, { type: 'data', tables: ['fleets'], userId: ctx.user.id });
+    return { shared: b.shared, lines: lines.length };
   });
 
   app.delete<{ Params: { uni: string; id: string } }>('/api/:uni/fleets/alerts/:id', async (req) => {

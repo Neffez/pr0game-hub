@@ -302,6 +302,46 @@ describe('api', () => {
     await app.inject({ method: 'POST', url: '/hub/api/auth/fleet-share', headers: admin, payload: { enabled: true, hidden: [] } });
   });
 
+  it('shares single fleets ahead of the owner setting, with the rest of their flight', async () => {
+    const headers = { ...admin, 'x-hub-group': String(groupA) };
+    const other = { ...(await login('erin', 'erinpass1')), 'x-hub-group': String(groupA) };
+    const adminId = db.prepare("SELECT id FROM users WHERE username = 'admin'").pluck().get() as number;
+    db.prepare('DELETE FROM fleet_snapshots WHERE group_id = ?').run(groupA);
+    const t = Math.floor(Date.now() / 1000);
+    const a = { coords: { g: 1, s: 1, p: 1 }, type: 'planet', name: null };
+    const b = { coords: { g: 1, s: 1, p: 2 }, type: 'planet', name: null };
+    const fleet = (mission: number, arrival: number, phase = 'out', from = a, to = b) => ({
+      owner: 'own', player: null, mission, missionName: 'x', phase, ships: { 202: 1 }, resources: null, arrival, from, to,
+    });
+    const insert = db.prepare('INSERT INTO fleet_snapshots (group_id, user_id, page_time, data) VALUES (?, ?, ?, ?)');
+    insert.run(groupA, adminId, t - 3600, JSON.stringify([fleet(3, t - 1800)]));
+    insert.run(groupA, adminId, t - 600, JSON.stringify([fleet(1, t + 600), fleet(1, t + 1200, 'return', b, a), fleet(4, t + 300)]));
+    const seen = async (h: object) => {
+      const im = (await app.inject({ method: 'GET', url: `/hub/api/u8/imperium?user=${adminId}`, headers: h })).json();
+      return { fleets: im.fleets.data.map((f: any) => `${f.mission}${f.phase[0]}`), history: im.fleetHistory.map((f: any) => f.mission), private: im.fleets.private };
+    };
+    const share = (f: object, shared: unknown) => app.inject({ method: 'PUT', url: '/hub/api/u8/fleets/share', headers, payload: { ...f, shared } });
+    await app.inject({ method: 'POST', url: '/hub/api/auth/fleet-share', headers: admin, payload: { enabled: false } });
+    expect(await seen(other)).toEqual({ fleets: [], history: [], private: true });
+
+    // the outbound attack takes its return along; an arrived fleet of the history can be shared too
+    expect((await share(fleet(1, t + 602), true)).json()).toEqual({ shared: true, lines: 2 });
+    expect((await share(fleet(3, t - 1800), true)).json()).toEqual({ shared: true, lines: 1 });
+    expect(await seen(other)).toEqual({ fleets: ['1o', '1r'], history: [3], private: false });
+    const own = (await app.inject({ method: 'GET', url: '/hub/api/u8/imperium', headers })).json();
+    expect(own.fleets.data.map((f: any) => f.shared)).toEqual([true, true, false]);
+
+    // shared by default: a single fleet can be hidden
+    await app.inject({ method: 'POST', url: '/hub/api/auth/fleet-share', headers: admin, payload: { enabled: true, hidden: [] } });
+    await share(fleet(1, t + 600), false);
+    expect((await seen(other)).fleets).toEqual(['4o']);
+
+    expect((await share(fleet(5, t + 600), true)).statusCode).toBe(404);
+    expect((await share(fleet(1, t + 600), 'yes')).statusCode).toBe(400);
+    db.prepare('DELETE FROM fleet_snapshots WHERE group_id = ?').run(groupA);
+    db.prepare('DELETE FROM fleet_share_choices').run();
+  });
+
   it('notifies the group of hostile fleets heading for a member', async () => {
     const headers = { ...admin, 'x-hub-group': String(groupA) };
     // other kinds (a full storage of the fixtures' fixed timestamps) come and go with the clock

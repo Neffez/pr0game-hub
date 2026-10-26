@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Imperium: Mit dem Auge an einer eigenen Flotte teilst du sie mit der Allianz oder nicht, wie bei Ingame-Nachrichten, auch wenn du Flottenbewegungen im Konto sonst nicht teilst. Der Rückflug derselben Flotte folgt automatisch.',
+        en: 'Empire: the eye on one of your fleets shares it with the alliance or not, like in-game messages, even if you otherwise do not share fleet movements under Account. The return of the same fleet follows automatically.',
+      },
+      {
+        kind: 'new',
         de: 'Konto: Neue Option „Anderen zeigen, wenn ich etwas synchronisiere“. Ausgeschaltet bekommen andere Mitglieder keinen Hinweis mehr mit deinem Namen, wenn du etwas einfügst; die Daten sehen sie weiterhin.',
         en: 'Account: new option "Show others when I sync something". When it is off, other members no longer get a hint with your name when you paste something; they still see the data.',
       },
