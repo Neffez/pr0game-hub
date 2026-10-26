@@ -12,6 +12,7 @@ import { adminRoutes } from './routes/admin.js';
 import { authRoutes } from './routes/auth.js';
 import { claimsRoutes } from './routes/claims.js';
 import { plansRoutes } from './routes/plans.js';
+import { battleRoutes } from './routes/battle.js';
 import { settlementRoutes } from './routes/settlements.js';
 import { commentsRoutes } from './routes/comments.js';
 import { notificationRoutes } from './routes/notifications.js';
@@ -100,7 +101,9 @@ export function buildApp(db: DB, opts: { logger?: boolean; push?: PushOptions; d
         const m = req.method;
         if (m === 'GET' || m === 'HEAD' || m === 'OPTIONS') return;
         if (crossOrigin(req)) throw new HttpError(403, 'cross_origin', 'Cross-origin requests are not allowed');
-        if (req.authSource === 'token') throw new HttpError(403, 'read_only_token', 'API tokens are read-only');
+        // routes that write nothing (the battle simulator) may be called with a read-only token
+        const allowToken = (req.routeOptions.config as { allowToken?: boolean } | undefined)?.allowToken;
+        if (req.authSource === 'token' && !allowToken) throw new HttpError(403, 'read_only_token', 'API tokens are read-only');
       });
       scope.get('/api/health', async () => ({ ok: true }));
       openapiRoutes(scope);
@@ -111,6 +114,7 @@ export function buildApp(db: DB, opts: { logger?: boolean; push?: PushOptions; d
       eventRoutes(scope, db);
       claimsRoutes(scope, db);
       plansRoutes(scope, db);
+      battleRoutes(scope, db);
       settlementRoutes(scope, db);
       commentsRoutes(scope, db);
       notificationRoutes(scope, db);

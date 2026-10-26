@@ -16,6 +16,9 @@ importers:
       '@fastify/static':
         specifier: ^10.1.7
         version: 10.1.7
+      '@pr0hub/battle':
+        specifier: workspace:*
+        version: link:../../packages/battle
       '@pr0hub/core':
         specifier: workspace:*
         version: link:../../packages/parser

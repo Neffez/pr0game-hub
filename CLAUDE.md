@@ -50,7 +50,7 @@ pnpm build
   (`pnpm build:battle` exports it to `wasm/` via the `battle-wasm` Docker stage): engine input like the game's
   `createRustJson` (`input.ts`), evaluation like `parseRustJson` (`result.ts`), loot (`steal.ts`), runs and summary
   (`simulate.ts`), link format (`share.ts`); unit values from install.sql (`gen:costs`) plus `src/live.ts`.
-- `apps/server`: Fastify + SQLite; migrations in `migrations/` (numbered SQL files); every game-data query goes through `groupContext` so data stays within its group; OpenAPI spec in `openapi.yaml`.
+- `apps/server`: Fastify + SQLite; migrations in `migrations/` (numbered SQL files); every game-data query goes through `groupContext` so data stays within its group; OpenAPI spec in `openapi.yaml`. The battle simulator API (`src/battle.ts`, `src/routes/battle.ts`) runs `battle-worker.mjs` (plain JS next to `src/` and `dist/`) in a worker thread; it is the only POST allowed with read-only tokens (route config `allowToken`).
 - `apps/tools`: static tools (Vite, no framework): `index.html`, `flight-calculator/` (UI in `main.js`, calculation
   in `src/core.ts` on top of `@pr0hub/flight`), `acs-loot/` (glue in `src/loot.ts` on top of `@pr0hub/loot`) and
   `ipm-calculator/` (glue in `src/missile.ts` on top of `@pr0hub/flight`) and `battle-simulator/` (glue in

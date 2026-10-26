@@ -4,6 +4,16 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-26
 
+- API: battle simulator for scripts and AI agents, `POST /api/{uni}/battle/simulate` (`simulateBattle` in the
+  OpenAPI spec with request and response schemas): attackers and defenders in game ids, or the group's newest spy
+  report of a target as the planet; returns win chances, losses with range, rebuilt defense, debris, loot, moon
+  chance, flight times, optionally the engine's rounds, and a link to the battle simulator page. The hub's universe
+  settings apply (debris percentages, shield domes) unless overridden.
+  - Runs in a worker thread (`battle-worker.mjs`) with limits: 5,000,000 pieces per battle, 50,000,000 pieces × runs,
+    100 runs, 20 per minute and user, 2 at a time, 20 seconds.
+  - Allowed with read-only API tokens, as it writes nothing (route config `allowToken`); every other write still
+    refuses tokens.
+
 - Battle simulation: shield domes as ship shields are a universe option now (off by default, not every universe has
   them): `bigShields` in the hub's universe settings (admin checkbox, OpenAPI), "Shield domes first" in the battle
   simulator's universe settings (`bs` in its link), `EngineOptions.bigShields` / `SimSettings.bigShields` in

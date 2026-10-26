@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'API: Der Kampfsimulator lässt sich mit einem API-Token (Account → API-Tokens) auch aus Skripten und von KI-Agenten nutzen, auf Wunsch mit dem neuesten Spionagebericht eures Ziels.',
+        en: 'API: the battle simulator can be used with an API token (Account → API tokens) from scripts and AI agents too, optionally with your newest spy report of the target.',
+      },
+      {
+        kind: 'new',
         de: 'Kampfsimulator: „Schildkuppeln zuerst“ ist eine Einstellung pro Universum (standardmäßig aus), weil nicht jedes Universum diese Regel hat.',
         en: 'Battle simulator: "Shield domes first" is a setting per universe (off by default), as not every universe has this rule.',
       },

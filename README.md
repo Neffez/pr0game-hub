@@ -149,6 +149,16 @@ The hub exposes the same JSON the web app uses under `{BASE_PATH}/api` (default 
 
 OpenAPI 3.1: `GET /hub/api/openapi.json` (also `.yaml`). Token management requires a browser session cookie; data endpoints accept Bearer tokens for GET requests only.
 
+The one exception is the battle simulator for scripts and AI agents, `POST /hub/api/{uni}/battle/simulate`: it fights a
+battle many times on the game's engine (in a worker thread with a time limit) and returns win chances, losses, debris,
+loot, moon chance, flight times and a link to the battle simulator page. Without a planet in the request it takes the
+group's newest spy report of the target. It writes nothing, so read-only tokens may call it; see the OpenAPI spec
+(`simulateBattle`) for the request and the limits.
+
+```bash
+curl -H "Authorization: Bearer hubpat_…" -H 'X-Hub-Group: 1' -H 'Content-Type: application/json' \n  -d '{"attackers":[{"units":{"207":200,"203":50},"research":{"109":12,"110":12,"111":12}}],"target":"1:110:8"}' \n  https://hub.example/hub/api/u8/battle/simulate
+```
+
 Changes are recorded in [CHANGELOG.md](CHANGELOG.md). Contributions are welcome, see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Configuration (env)
