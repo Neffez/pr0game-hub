@@ -1,6 +1,6 @@
 /**
  * Retime: when does a hostile fleet land back home? Ships and route are known, the speed percent is not, so there is
- * one candidate per speed step. Rules (timing rules in FEATURE_REQUEST_RETIME.md, from the game source):
+ * one candidate per speed step. Rules (from the game source):
  * - return after impact = arrival + duration (pure flight time, ACS delays do not count);
  * - a single attack launched exactly `floor(duration)` before its arrival; a fleet in an ACS may have waited for the
  *   ACS time or been pushed back, so it launched at that time or earlier;
