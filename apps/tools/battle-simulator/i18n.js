@@ -126,7 +126,8 @@ export var TEXTS = {
     roundStats: 'Schaden {damage} · Schildtreffer {shield} · deaktiviert {stunned}',
     stunnedTitle: 'Deaktiviert (Stun)',
     uniDebris: 'TF {fleet}/{def} %',
-    foot: 'Gerechnet mit Battlerust, der Kampf-Engine von pr0game (von Tsaranoga) · alle Eingaben bleiben in deinem Browser'
+    footCalc: 'Gerechnet mit',
+    foot: 'alle Eingaben bleiben in deinem Browser'
   },
   en: {
     ...UNI_TEXTS.en,
@@ -251,6 +252,7 @@ export var TEXTS = {
     roundStats: 'Damage {damage} · shield hits {shield} · disabled {stunned}',
     stunnedTitle: 'Disabled (stun)',
     uniDebris: 'debris {fleet}/{def} %',
-    foot: 'Calculated with Battlerust, the battle engine of pr0game (by Tsaranoga) · all inputs stay in your browser'
+    footCalc: 'Calculated with',
+    foot: 'all inputs stay in your browser'
   }
 };
