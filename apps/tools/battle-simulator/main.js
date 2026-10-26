@@ -17,6 +17,7 @@ import {
   emptySlot,
   emptyState,
   fightingSlots,
+  ipmHash,
   recyclerInfo,
   shareFromState,
   simSettings,
@@ -406,7 +407,11 @@ function renderSlot(side) {
     // the solar satellite only defends: after the ships
     var ships = SHIP_IDS.filter(function (id) { return id !== 212; }).concat([212]);
     html += '<div class="field"><span class="field-label">' + esc(t('ships')) + '</span>' + unitGrid(side, ships, s.units) + '</div>';
-    if (i === 0) html += '<div class="field"><span class="field-label">' + esc(t('defense')) + '</span>' + unitGrid(side, DEFENSE_IDS, s.units) + '</div>';
+    if (i === 0) {
+      html += '<div class="field"><div class="label-row"><span class="field-label">' + esc(t('defense')) + '</span>'
+        + '<a class="link-btn ipm-link" href="../ipm-calculator/" target="_blank" rel="noopener" data-ipm="1" title="' + esc(t('ipmTitle')) + '">' + esc(t('ipm')) + ' ↗</a></div>'
+        + unitGrid(side, DEFENSE_IDS, s.units) + '</div>';
+    }
   }
   $('#' + side + 'Slot').innerHTML = html;
 }
@@ -529,7 +534,9 @@ function run() {
     att: fighting.attackers.map(function (i) { return slotLabel('att', i); }),
     def: fighting.defenders.map(function (i) { return slotLabel('def', i); }),
   };
-  job = {id: Date.now() + Math.random(), runs: S.runs, slots: fighting, setup: setup, tab: activeTab, labels: labels};
+  job = {id: Date.now() + Math.random(), runs: S.runs, slots: fighting, setup: setup, tab: activeTab, labels: labels, started: Date.now()};
+  var started = job;
+  setTimeout(function () { if (job === started) renderRun(); }, RUN_DELAY);
   worker.postMessage({id: job.id, setup: setup, runs: S.runs, settings: simSettings(U)});
   setProgress(0);
   renderRun();
@@ -548,8 +555,12 @@ function setProgress(share) {
   $('#progressBar').style.width = Math.round(share * 100) + '%';
 }
 
+/* Short simulations finish before the running state would show: it appears after RUN_DELAY ms, so the button and the
+   result don't flicker. */
+var RUN_DELAY = 200;
+
 function renderRun() {
-  var running = !!job && job.tab === activeTab;
+  var running = !!job && job.tab === activeTab && Date.now() - job.started >= RUN_DELAY;
   $('#runBtn').hidden = running;
   $('#cancelBtn').hidden = !running;
   $('#progress').hidden = !running;
@@ -572,7 +583,7 @@ function lossRows(side, fleets, slotIdx, initial) {
       var chance = (f.lossChance || {})[id] || 0;
       rows += '<tr class="' + (left.avg > 0 ? '' : 'gone') + '"><td class="name">' + esc(elementName(id, lang())) + '<span class="slot-tag">' + esc(label) + '</span></td>'
         + '<td>' + num(units[id]) + '</td><td class="' + (lost.avg ? 'neg' : 'dim') + '">' + avgRange(lost) + '</td>'
-        + '<td>' + (rep ? avgRange(rep) : '') + '</td><td>' + avg(left.avg) + '</td>'
+        + (side === 'def' ? '<td>' + (rep ? avgRange(rep) : '') + '</td>' : '') + '<td>' + avg(left.avg) + '</td>'
         + '<td class="' + (chance ? 'neg' : 'dim') + '" title="' + esc(t('colRiskTitle')) + '">' + risk(chance) + '</td></tr>';
     });
   });
@@ -580,7 +591,9 @@ function lossRows(side, fleets, slotIdx, initial) {
 }
 
 function lossTable(side, fleets, slotIdx, initial) {
-  var head = '<tr>' + ['colUnit', 'colCount', 'colLost', 'colRebuilt', 'colLeft', 'colRisk'].map(function (h) { return '<th>' + esc(t(h)) + '</th>'; }).join('') + '</tr>';
+  // only the planet's defense is rebuilt
+  var cols = side === 'def' ? ['colUnit', 'colCount', 'colLost', 'colRebuilt', 'colLeft', 'colRisk'] : ['colUnit', 'colCount', 'colLost', 'colLeft', 'colRisk'];
+  var head = '<tr>' + cols.map(function (h) { return '<th>' + esc(t(h)) + '</th>'; }).join('') + '</tr>';
   return '<div class="table-wrap"><table><thead>' + head + '</thead><tbody>' + lossRows(side, fleets, slotIdx, initial) + '</tbody></table></div>';
 }
 
@@ -795,6 +808,10 @@ function bind() {
     }
   });
   // double click on a fleet tab: rename the fleet (empty: back to "A 1")
+  document.addEventListener('click', function (e) {
+    var link = e.target.closest('[data-ipm]');
+    if (link) link.href = '../ipm-calculator/#' + ipmHash(S, U);
+  }, true);
   document.addEventListener('dblclick', function (e) {
     var tab = e.target.closest('[data-slot]');
     if (tab) renameSlot(tab.dataset.slotSide, Number(tab.dataset.slot), tab);

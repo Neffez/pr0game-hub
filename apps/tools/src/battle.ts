@@ -228,6 +228,26 @@ export function recyclerInfo(s: BattleState, rec: RecyclerFleet | null, u: UniSe
   return { flight: slotFlight(s, rec, u), capacity: fleetCapacity(rec.units), count: Object.values(rec.units).reduce((a, b) => a + b, 0) };
 }
 
+/**
+ * Hash of the IPM calculator (keys of its share link) for the planet: target, defense and armour; start, weapons and
+ * impulse drive of the first attacking fleet; the universe's systems, their shape and the speed.
+ */
+export function ipmHash(s: BattleState, u: Pick<UniSettings, 'max_system' | 'galaxy_type' | 'game_speed'>): string {
+  const p = new URLSearchParams();
+  const first = s.attackers[0];
+  if (first?.from) [['sg', 0], ['ss', 1], ['sp', 2]].forEach(([k, i]) => p.set(k as string, String(first.from![i as number])));
+  if (s.target) [['tg', 0], ['ts', 1], ['tp', 2]].forEach(([k, i]) => p.set(k as string, String(s.target![i as number])));
+  if (first?.research[117]) p.set('i', String(first.research[117]));
+  if (first?.research[109]) p.set('w', String(first.research[109]));
+  const planet = s.defenders[0];
+  if (planet.research[111]) p.set('a', String(planet.research[111]));
+  for (const id of DEFENSE_IDS) if (planet.units[id]) p.set(`d${id}`, String(planet.units[id]));
+  p.set('ms', String(u.max_system));
+  p.set('gt', String(u.galaxy_type));
+  p.set('gs', String(u.game_speed));
+  return p.toString();
+}
+
 // ---- balance ------------------------------------------------------------------------------------------------------
 
 export type Side = 'attacker' | 'defender';

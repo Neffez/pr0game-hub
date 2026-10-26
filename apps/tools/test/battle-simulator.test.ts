@@ -283,4 +283,25 @@ describe('battle simulator page', () => {
     // target and resources share the first row of the planet
     expect(document.querySelector('#defSlot .target-row #res-metal')).not.toBeNull();
   });
+
+  it('links the planet to the IPM calculator and leaves the rebuilt column out for attackers', () => {
+    const defense = document.getElementById('u-def-401') as HTMLInputElement;
+    defense.value = '25';
+    defense.dispatchEvent(new Event('input', { bubbles: true }));
+    const link = document.querySelector('[data-ipm]') as HTMLAnchorElement;
+    link.addEventListener('click', (e) => e.preventDefault());
+    link.click();
+    const hash = new URLSearchParams(link.href.split('#')[1]);
+    expect(hash.get('d401')).toBe('25');
+    expect(hash.get('tg')).toBe('2');
+    const heads = [...document.querySelectorAll('#resultBody .balances')].at(-1)!.querySelectorAll('thead');
+    expect(heads[0].textContent).not.toContain('Wiederaufgebaut');
+    expect(heads[1].textContent).toContain('Wiederaufgebaut');
+  });
+
+  it('does not show the running state for quick simulations', () => {
+    (document.getElementById('runBtn') as HTMLButtonElement).click();
+    expect((document.getElementById('runBtn') as HTMLButtonElement).hidden).toBe(false);
+    expect((document.getElementById('progress') as HTMLElement).hidden).toBe(true);
+  });
 });

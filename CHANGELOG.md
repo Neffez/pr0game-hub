@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-26
 
+- Battle simulator: a link to the IPM calculator in the planet's defense row (target, defense and armour, start,
+  weapons and impulse of the first attacking fleet); the running state shows only after 200 ms and the progress bar
+  is a line under the row, so a quick simulation no longer makes the result flicker; the attackers' loss table has
+  no rebuilt column.
+
 - Battle simulator:
   - recyclers per side: a button in each side's title opens a dialog for recyclers and optimised recyclers, start,
     speed and drives, with flight time, deuterium and cargo space against the average debris field; their deuterium

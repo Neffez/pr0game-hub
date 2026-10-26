@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-10-26',
     items: [
       {
+        kind: 'fix',
+        de: 'Kampfsimulator: Das Ergebnis flackert beim Simulieren nicht mehr, beim Angreifer fehlt die unnötige Spalte Wiederaufgebaut, und die Verteidigung des Planeten hat einen Link zum IRak-Rechner.',
+        en: 'Battle simulator: the result no longer flickers when simulating, the attacker no longer has the needless rebuilt column, and the planet defense links to the IPM calculator.',
+      },
+      {
         kind: 'new',
         de: 'Kampfsimulator: Beide Seiten können Recycler zum Trümmerfeld schicken. Der Dialog zeigt Flugzeit, Deuterium und Ladekapazität, das Deuterium geht in die Bilanz ein. Außerdem stehen die wahrscheinliche Rundenzahl im Ergebnis und die Forschung beider Seiten auf einer Linie.',
         en: 'Battle simulator: both sides can send recyclers to the debris field. The dialog shows flight time, deuterium and cargo space, the deuterium goes into the balance. The result also shows the likely number of rounds, and the research of both sides is on one line.',
