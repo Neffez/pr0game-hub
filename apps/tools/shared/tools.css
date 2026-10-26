@@ -253,3 +253,31 @@ td .muted { color: var(--faint); font-family: var(--sans); font-size: 12px; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* universe chip and settings dialog (../shared/uni.js) */
+.uni-chip {
+  display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--muted);
+  padding: 7px 10px; border-radius: var(--radius-sm); background: var(--surface);
+  border: 1px solid var(--border); transition: border-color .15s, color .15s;
+}
+.uni-chip:hover { border-color: var(--border-strong); color: var(--text); }
+#settingsBtn:hover svg { transform: rotate(45deg); }
+#settingsBtn svg { transition: transform .3s; }
+dialog {
+  margin: auto; border: 1px solid var(--border); border-radius: 16px; padding: 0;
+  background: var(--surface); color: var(--text); width: min(640px, calc(100vw - 24px));
+  max-height: min(88vh, 900px); box-shadow: var(--shadow);
+}
+dialog::backdrop { background: rgba(5, 8, 12, .6); backdrop-filter: blur(3px); }
+dialog[open] { animation: pop .18s ease-out; }
+@keyframes pop { from { opacity: 0; transform: translateY(8px) scale(.98); } }
+.dlg { display: flex; flex-direction: column; max-height: inherit; }
+.dlg-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px; border-bottom: 1px solid var(--border); }
+.dlg-head h2 { font-size: 17px; font-weight: 700; }
+.dlg-head p { font-size: 12.5px; color: var(--muted); }
+.dlg-body { padding: 16px 18px; overflow-y: auto; display: flex; flex-direction: column; gap: 18px; }
+.dlg-body fieldset { border: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; }
+.dlg-body legend { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 10px; }
+.dlg-body .field input { font-family: var(--mono); }
+.dlg-foot { display: flex; justify-content: space-between; gap: 8px; padding: 14px 18px; border-top: 1px solid var(--border); }
+@media (max-width: 640px) { .uni-chip span { display: none; } }

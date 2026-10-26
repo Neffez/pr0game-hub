@@ -59,6 +59,9 @@ importers:
 
   apps/tools:
     dependencies:
+      '@pr0hub/battle':
+        specifier: workspace:*
+        version: link:../../packages/battle
       '@pr0hub/core':
         specifier: workspace:*
         version: link:../../packages/parser

@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Battle Simulator · pr0game</title>
+<meta name="description" content="Battle simulator for pr0game on the game's own battle engine: win chance, losses, debris, loot and moon chance over many runs, with ACS, stun and spy reports. Kampfsimulator für pr0game mit der Kampf-Engine des Spiels.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="pr0game tools">
+<meta property="og:title" content="Battle Simulator · pr0game">
+<meta property="og:description" content="Battle simulator for pr0game on the game's own battle engine: win chance, losses, debris, loot and moon chance over many runs, with ACS, stun and spy reports. Kampfsimulator für pr0game mit der Kampf-Engine des Spiels.">
+<meta property="og:locale" content="en_US">
+<meta property="og:locale:alternate" content="de_DE">
+<meta name="theme-color" content="#0d1117">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%230d1117'/%3E%3Cpath d='M9 9l14 14M23 9L9 23' stroke='%23f2683c' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/tools.css">
+<style>
+/* Battle simulator: layout, slot tabs, unit grid, results and round report (base look in ../shared/tools.css) */
+.layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+@media (min-width: 1100px) {
+  .layout { grid-template-columns: minmax(420px, 520px) minmax(0, 1fr); align-items: start; }
+  .col-results { position: sticky; top: 16px; }
+}
+.slot-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.slot-tab {
+  padding: 6px 12px; border-radius: var(--radius-sm); background: var(--surface-2); border: 1px solid var(--border);
+  color: var(--muted); font-size: 13px; font-weight: 600;
+}
+.slot-tab.has { color: var(--text); }
+.slot-tab.on { border-color: var(--accent); color: var(--accent-text); }
+.slot-tab.add { min-width: 34px; }
+.slot-body { display: flex; flex-direction: column; gap: 12px; }
+.grid4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.techs .field label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.units { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.unit {
+  display: grid; grid-template-columns: minmax(0, 1fr) 84px; align-items: center; gap: 6px;
+  padding: 5px 5px 5px 10px; border-radius: var(--radius-sm); background: var(--surface-2); border: 1px solid transparent;
+}
+.unit.has { border-color: var(--border-strong); }
+.unit-name { font-size: 13px; font-weight: 600; line-height: 1.25; overflow-wrap: break-word; hyphens: auto; }
+.unit input {
+  width: 100%; text-align: right; font-family: var(--mono); background: var(--surface);
+  border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; outline: none;
+}
+.unit input:focus { border-color: var(--accent); }
+.unit input.invalid, .field input.invalid { border-color: var(--danger); }
+.slot-actions { display: flex; justify-content: space-between; gap: 8px; }
+.link-btn.danger { color: var(--danger); }
+.spy textarea { min-height: 70px; }
+.spy .hint { margin-top: 6px; }
+.run-row { display: flex; align-items: end; gap: 10px; flex-wrap: wrap; }
+.run-row .field { min-width: 130px; }
+.progress { flex: 1 1 100%; height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
+.progress-bar { height: 100%; width: 0; background: var(--accent); transition: width .1s; }
+#results.stale .hero, #results.stale table { opacity: .55; }
+.sub-title { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin: 18px 0 0; }
+.table-wrap td.name { white-space: nowrap; }
+.table-wrap tr.gone td:first-child { color: var(--faint); }
+.slot-tag { font-family: var(--mono); font-size: 11px; color: var(--accent-text); margin-left: 6px; }
+.round-side .slot-tag { margin: 0 4px 0 0; }
+.report { margin-top: 18px; }
+.report summary { cursor: pointer; font-weight: 600; }
+.round { margin-top: 12px; }
+.round h4 { font-size: 13px; margin-bottom: 6px; }
+.round-sides { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; font-size: 12.5px; }
+.round-side { display: flex; flex-direction: column; gap: 3px; padding: 8px 10px; border-radius: var(--radius-sm); background: var(--surface-2); }
+.round-stats { color: var(--muted); margin-top: 4px; }
+.stun { color: #1d68e0; font-weight: 600; }
+@media (max-width: 640px) {
+  .units { grid-template-columns: minmax(0, 1fr); }
+  .unit { grid-template-columns: 1fr 110px; }
+  .grid4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .round-sides { grid-template-columns: minmax(0, 1fr); }
+  .kpi.big { grid-column: 1 / -1; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="/" data-t-title="allTools">
+      <div class="brand-logo" aria-hidden="true">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 17.5L3 6V3h3l11.5 11.5"/><path d="M13 19l6-6"/><path d="M16 16l4 4"/><path d="M19 21l2-2"/><path d="M14.5 6.5L18 3h3v3l-3.5 3.5"/><path d="M5 14l4 4"/><path d="M7 17l-3 3"/><path d="M3 19l2 2"/></svg>
+      </div>
+      <div><strong data-t="title">Battle Simulator</strong></div>
+    </a>
+    <div class="top-actions">
+      <button class="uni-chip" id="uniChip" type="button" data-t-title="uniSettings">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/></svg>
+        <span id="uniSummary"></span>
+      </button>
+      <div class="seg small" id="langSeg" role="group" data-t-aria="language">
+        <button type="button" data-lang="en">EN</button>
+        <button type="button" data-lang="de">DE</button>
+      </div>
+      <button type="button" class="btn share-btn" id="shareBtn" data-t-title="shareTitle">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+        <span class="lbl" data-t="share">Share link</span>
+      </button>
+      <button type="button" class="btn ghost" id="resetBtn" data-t="reset">New</button>
+      <button class="icon-btn" id="settingsBtn" type="button" data-t-title="uniSettings" data-t-aria="uniSettings">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <div class="col">
+      <section class="card">
+        <h2 class="card-title" data-t="attackers">Attackers</h2>
+        <div class="slot-tabs" id="attTabs" role="tablist"></div>
+        <div class="slot-body" id="attSlot"></div>
+      </section>
+      <section class="card">
+        <h2 class="card-title" data-t="defenders">Defenders</h2>
+        <div class="field spy">
+          <label for="spyIn" data-t="spyPaste">Paste spy report</label>
+          <textarea id="spyIn" spellcheck="false" data-t-ph="spyPh"></textarea>
+          <p class="hint" id="spyHint" hidden></p>
+        </div>
+        <div class="slot-tabs" id="defTabs" role="tablist" style="margin-top: 14px"></div>
+        <div class="slot-body" id="defSlot"></div>
+      </section>
+    </div>
+    <div class="col col-results">
+      <section class="card" id="results" aria-live="off">
+        <h2 class="card-title" data-t="result">Result</h2>
+        <div class="run-row">
+          <div class="field"><label for="runsIn" data-t="runs">Simulations</label><select id="runsIn"></select></div>
+          <button type="button" class="btn primary" id="runBtn" data-t="run">Simulate</button>
+          <button type="button" class="btn" id="cancelBtn" data-t="cancel" hidden>Cancel</button>
+          <div class="progress" id="progress" hidden><div class="progress-bar" id="progressBar"></div></div>
+        </div>
+        <p class="note warn" id="staleNote" data-t="stale" hidden></p>
+        <div id="resultBody"></div>
+      </section>
+    </div>
+  </main>
+  <p class="foot"><span data-t="foot"></span> · <a href="https://github.com/Tsaranoga/Battlerust" target="_blank" rel="noopener">Battlerust</a> · <a href="https://github.com/Neffez/pr0game-hub" target="_blank" rel="noopener" data-t="source">Source code</a></p>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<dialog id="settings" aria-labelledby="settingsTitle">
+  <form method="dialog" class="dlg">
+    <div class="dlg-head">
+      <div><h2 id="settingsTitle" data-t="uniSettings">Universe settings</h2><p data-t="storedLocally">Stored locally in your browser.</p></div>
+      <button class="icon-btn" value="close" data-t-aria="close">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="dlg-body" id="uniFields"></div>
+    <div class="dlg-foot">
+      <button type="button" class="btn ghost" id="uniReset" data-t="defaults">Defaults</button>
+      <button class="btn primary" value="close" data-t="done">Done</button>
+    </div>
+  </form>
+</dialog>
+<script type="module" src="./main.js"></script>
+</body>
+</html>

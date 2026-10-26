@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-10-26',
     items: [
       {
+        kind: 'new',
+        de: 'Neues Tool: Kampfsimulator. Er rechnet jeden Kampf viele Male mit der Kampf-Engine des Spiels, auch mit dem Stun der Ionengeschütze. Er zeigt Gewinnchance, Verluste, Trümmerfeld, Beute, Mondchance und Flugzeiten, mit AKS und eingefügtem Spionagebericht. Die Anteile von Flotte und Verteidigung im Trümmerfeld sind einstellbar.',
+        en: "New tool: battle simulator. It runs each battle many times on the game's battle engine, including the stun of ion cannons. It shows win chance, losses, debris, loot, moon chance and flight times, with ACS and a pasted spy report. The fleet and defense shares of the debris field can be set.",
+      },
+      {
         kind: 'fix',
         de: 'Tools: Auf dem Handy überlappen sich lange Feldnamen mit Info-Knopf nicht mehr. Die Köpfe der Tools zeigen nur noch den Titel.',
         en: 'Tools: on phones long field names with an info button no longer overlap. The tool headers show the title only.',

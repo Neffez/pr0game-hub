@@ -4,6 +4,16 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-26
 
+- Tools: new battle simulator (`/battle-simulator/`) on the game's battle engine (`@pr0hub/battle`, runs in a Web
+  Worker): several attacking (ACS) and holding fleets with research, start and speed; a pasted spy report fills in
+  the planet; win chance, losses per unit with range, rebuilt defense, debris and recyclers, loot, moon chance,
+  flight time and fuel, and the rounds of a typical battle with the units disabled by stun. Share link with all
+  inputs (the format the hub will use), universe settings in the header with a new "Battle" group (fleet and defense
+  share of the debris field, moon factor, highest moon chance).
+  - The universe settings dialog of the flight calculator moved to `shared/uni.js` (fields, hash keys, texts, styles)
+    so both tools share it and its stored values; the flight calculator is unchanged for users.
+  - Tools index: tile for the battle simulator.
+
 - Battle simulation package `@pr0hub/battle` on the game's own battle engine Battlerust (Rust, with stun and ship
   shields), built to WebAssembly from a pinned commit in a Docker stage (`pnpm build:battle`, also in CI and the image):
   - engine input and evaluation ported from the game (`createRustJson`, `parseRustJson`: research factors and
