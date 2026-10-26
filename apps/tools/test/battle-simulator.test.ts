@@ -75,6 +75,13 @@ describe('battle simulator balance', () => {
     expect(b.defender.at(-1)).toMatchObject({ metal: -7000, crystal: -3500, deuterium: -700 });
   });
 
+  it('takes the recyclers fuel of both sides into the balance', () => {
+    const b = balance(summary, 'defender', { metal: 2, crystal: 1 }, 0, { attacker: 50, defender: 30 });
+    expect(b.attacker.map((r) => r.key)).toEqual(['lost', 'loot', 'recyclerFuel', 'net']);
+    expect(b.defender.map((r) => r.key)).toEqual(['lost', 'loot', 'recyclerFuel', 'debris', 'net']);
+    expect(b.defender.at(-1)!.deuterium).toBe(-700 - 30);
+  });
+
   it('leaves the debris to the defender on a draw', () => {
     expect(defaultDebrisTo({ ...summary, wins: { attacker: 0, defender: 0, draw: 1 } })).toBe('defender');
     expect(balance(summary, 'defender').defender.map((r) => r.key)).toEqual(['lost', 'loot', 'debris', 'net']);
@@ -253,5 +260,27 @@ describe('battle simulator page', () => {
     input.value = 'Bob';
     input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
     expect(document.getElementById('attTabs')?.textContent).toContain('Bob');
+  });
+
+  it('sends recyclers with the dialog, shows their flight and puts their fuel into the balance', async () => {
+    (document.querySelector('[data-rec="att"]') as HTMLButtonElement).click();
+    expect((document.getElementById('recDialog') as HTMLDialogElement).open).toBe(true);
+    const set = (id: string, value: string) => {
+      const el = document.getElementById(id) as HTMLInputElement;
+      el.value = value;
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+    set('rec-209', '10');
+    set('recFrom', '2:20:9');
+    set('rec-r-115', '10');
+    const info = document.getElementById('recInfo')?.textContent ?? '';
+    expect(info).toContain('200.000');
+    expect(document.querySelector('[data-rec="att"] .rec-count')?.textContent).toContain('10');
+    (document.getElementById('runBtn') as HTMLButtonElement).click();
+    await new Promise((r) => setTimeout(r, 20));
+    expect(document.querySelector('#resultBody .balance')?.textContent).toContain('Recycler');
+    expect(document.querySelector('#resultBody .hero')?.textContent).toContain('Runden');
+    // target and resources share the first row of the planet
+    expect(document.querySelector('#defSlot .target-row #res-metal')).not.toBeNull();
   });
 });

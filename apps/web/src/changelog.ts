@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Kampfsimulator: Beide Seiten können Recycler zum Trümmerfeld schicken. Der Dialog zeigt Flugzeit, Deuterium und Ladekapazität, das Deuterium geht in die Bilanz ein. Außerdem stehen die wahrscheinliche Rundenzahl im Ergebnis und die Forschung beider Seiten auf einer Linie.',
+        en: 'Battle simulator: both sides can send recyclers to the debris field. The dialog shows flight time, deuterium and cargo space, the deuterium goes into the balance. The result also shows the likely number of rounds, and the research of both sides is on one line.',
+      },
+      {
+        kind: 'new',
         de: 'Kampfsimulator: Die Flotten tragen Namen. Aus dem Raid-Planer kommen die Mitglieder und Gastspieler mit, aus Plan und Spionagebericht der Zielspieler. Per Doppelklick auf eine Flotte lässt sie sich umbenennen.',
         en: 'Battle simulator: fleets carry names. From the raid planner come the members and guest players, from the plan and spy report the target player. Double-click a fleet to rename it.',
       },

@@ -14,6 +14,7 @@ describe('Battlerust engine (WASM)', () => {
     expect(s.wins.defender).toBe(1);
     expect(s.attackers[0].lost[204].avg).toBe(1);
     expect(s.attackers[0].lossChance[204]).toBe(1);
+    expect(Object.values(s.roundShares).reduce((a, b) => a + b, 0)).toBeCloseTo(1, 10);
   });
 
   it('shows the risk of small battles: two small cargos against a rocket launcher', () => {

@@ -476,6 +476,7 @@ components:
           description: Share of the runs (0-1)
           properties: { attacker: { type: number }, defender: { type: number }, draw: { type: number } }
         rounds: { $ref: '#/components/schemas/BattleRange' }
+        roundShares: { type: object, additionalProperties: { type: number }, description: 'Share of the runs (0-1) per number of rounds fought' }
         attackers: { type: array, items: { $ref: '#/components/schemas/BattleFleetSummary' } }
         defenders: { type: array, items: { $ref: '#/components/schemas/BattleFleetSummary' } }
         debris:

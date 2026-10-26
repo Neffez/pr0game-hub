@@ -46,6 +46,8 @@ export interface SimSummary {
   /** share of the runs (0-1) */
   wins: { attacker: number; defender: number; draw: number };
   rounds: Range;
+  /** share of the runs (0-1) per number of rounds fought */
+  roundShares: Record<number, number>;
   attackers: FleetSummary[];
   defenders: FleetSummary[];
   debris: { metal: Range; crystal: Range };
@@ -107,6 +109,10 @@ export function summarize(runs: { run: RunResult; output: EngineOutput }[]): Sim
     runs: n,
     wins: { attacker: share('attacker'), defender: share('defender'), draw: share('draw') },
     rounds: range(results.map((r) => r.rounds)),
+    roundShares: results.reduce<Record<number, number>>((acc, r) => {
+      acc[r.rounds] = (acc[r.rounds] ?? 0) + 1 / n;
+      return acc;
+    }, {}),
     attackers: results[0].attackers.map((_, i) => fleetSummary(results.map((r) => r.attackers[i]))),
     defenders: results[0].defenders.map((_, i) => fleetSummary(results.map((r) => r.defenders[i]))),
     debris: { metal: range(results.map((r) => r.debris.metal)), crystal: range(results.map((r) => r.debris.crystal)) },

@@ -5,6 +5,7 @@ import {
   DEFENSE_IDS,
   DRIVE_TECHS,
   MAX_RUNS,
+  RECYCLER_IDS,
   MAX_SLOTS,
   SHIP_IDS,
   applySpyReport,
@@ -16,6 +17,7 @@ import {
   emptySlot,
   emptyState,
   fightingSlots,
+  recyclerInfo,
   shareFromState,
   simSettings,
   slotFlight,
@@ -97,6 +99,16 @@ function risk(share) {
   if (share < 0.01) return '<1 %';
   if (share > 0.99 && share < 1) return '>99 %';
   return Math.round(share * 100) + ' %';
+}
+
+/* The most likely number of rounds with its share, the average and the range. */
+function roundsKpi(s) {
+  var shares = s.roundShares || {};
+  var likely = Object.keys(shares).sort(function (a, b) { return shares[b] - shares[a] || a - b; })[0];
+  if (likely === undefined) return '';
+  var sub = t('roundsSub', {share: pct(shares[likely]), avg: avg(s.rounds.avg)})
+    + (s.rounds.min !== s.rounds.max ? ' · ' + s.rounds.min + '–' + s.rounds.max : '');
+  return kpi(t('rounds'), likely, sub);
 }
 
 function kpi(label, value, sub, cls) {
@@ -379,12 +391,16 @@ function renderSlot(side) {
     html += '<div class="grid4 techs">' + techFields(side, DRIVE_TECHS, s.research) + '</div>';
     html += '<div class="field"><span class="field-label">' + esc(t('ships')) + '</span>' + unitGrid(side, SHIP_IDS.filter(function (id) { return id !== 212; }), s.units) + '</div>';
   } else {
+    // first row like the attacker's start and speed: target and resources (holding fleets: an empty row of the same
+    // height), so the combat research of both sides is on one line
     if (i === 0) {
-      html += '<div class="field"><label for="targetIn">' + esc(t('target')) + '</label>'
-        + '<input id="targetIn" class="coord" data-target="1" type="text" inputmode="numeric" autocomplete="off" placeholder="1:234:5" value="' + fmtCoords(S.target) + '"></div>';
-      html += '<div class="grid3">' + ['metal', 'crystal', 'deuterium'].map(function (r) {
-        return '<div class="field"><label for="res-' + r + '">' + esc(t(r)) + '</label><input id="res-' + r + '" data-res="' + r + '" type="text" inputmode="numeric" autocomplete="off" placeholder="0" value="' + (S.resources[r] ? num(S.resources[r]) : '') + '"></div>';
-      }).join('') + '</div>';
+      html += '<div class="target-row"><div class="field"><label for="targetIn">' + esc(t('target')) + '</label>'
+        + '<input id="targetIn" class="coord" data-target="1" type="text" inputmode="numeric" autocomplete="off" placeholder="1:234:5" value="' + fmtCoords(S.target) + '"></div>'
+        + ['metal', 'crystal', 'deuterium'].map(function (r) {
+          return '<div class="field"><label for="res-' + r + '">' + esc(t(r)) + '</label><input id="res-' + r + '" data-res="' + r + '" type="text" inputmode="numeric" autocomplete="off" placeholder="0" value="' + (S.resources[r] ? num(S.resources[r]) : '') + '"></div>';
+        }).join('') + '</div>';
+    } else {
+      html += '<div class="target-row row-spacer" aria-hidden="true"><div class="field"><label>&nbsp;</label><input tabindex="-1" disabled></div></div>';
     }
     html += '<div class="grid3 techs">' + techFields(side, COMBAT_TECHS, s.research) + '</div>';
     // the solar satellite only defends: after the ships
@@ -395,6 +411,60 @@ function renderSlot(side) {
   $('#' + side + 'Slot').innerHTML = html;
 }
 
+/* The recycler buttons show how many recyclers a side sends. */
+function renderRecyclerButtons() {
+  ['att', 'def'].forEach(function (side) {
+    var info = recyclerInfo(S, S.recyclers[side], U);
+    $('[data-rec="' + side + '"] .rec-count').textContent = info ? ' · ' + num(info.count) : '';
+  });
+}
+
+var recSide = null;
+
+function openRecyclers(side) {
+  recSide = side;
+  // a side without recyclers starts from its first fleet's start, speed and drives
+  if (!S.recyclers[side]) {
+    var first = slots(side)[0];
+    var research = {};
+    DRIVE_TECHS.forEach(function (id) { if (first.research[id]) research[id] = first.research[id]; });
+    S.recyclers[side] = {units: {}, research: research, from: side === 'att' ? first.from : null, speed: 100};
+  }
+  var rec = S.recyclers[side];
+  $('#recTitle').textContent = t('recyclersOf', {side: t(side === 'att' ? 'attacker' : 'defender')});
+  $('#recFields').innerHTML = '<div class="grid2">'
+    + RECYCLER_IDS.map(function (id) {
+      return '<div class="field"><label for="rec-' + id + '">' + esc(elementName(id, lang())) + '</label>'
+        + '<input id="rec-' + id + '" data-rec-unit="' + id + '" type="text" inputmode="numeric" autocomplete="off" placeholder="0" value="' + (rec.units[id] ? num(rec.units[id]) : '') + '"></div>';
+    }).join('') + '</div>'
+    + '<div class="grid2"><div class="field"><label for="recFrom">' + esc(t('from')) + '</label>'
+    + '<input id="recFrom" class="coord" data-rec-from="1" type="text" inputmode="numeric" autocomplete="off" placeholder="1:234:5" value="' + fmtCoords(rec.from) + '"></div>'
+    + '<div class="field"><label for="recSpeed">' + esc(t('speed')) + '</label><select id="recSpeed" data-rec-speed="1">'
+    + SPEEDS.map(function (v) { return '<option value="' + v + '"' + (v === rec.speed ? ' selected' : '') + '>' + v + ' %</option>'; }).join('') + '</select></div></div>'
+    + '<div class="grid4 techs">' + DRIVE_TECHS.map(function (id) {
+      return '<div class="field"><label for="rec-r-' + id + '">' + esc(elementName(id, lang())) + '</label>'
+        + '<input id="rec-r-' + id + '" data-rec-tech="' + id + '" type="number" min="0" inputmode="numeric" value="' + (rec.research[id] || 0) + '"></div>';
+    }).join('') + '</div>'
+    + '<div class="hero rec-info" id="recInfo"></div>';
+  renderRecyclerInfo();
+  openDialog($('#recDialog'));
+}
+
+/* Flight time, deuterium and cargo space of the recyclers (against the average debris field of the last result). */
+function renderRecyclerInfo() {
+  var info = recyclerInfo(S, S.recyclers[recSide], U);
+  var debris = last ? last.summary.debris.metal.avg + last.summary.debris.crystal.avg : null;
+  var html = '';
+  if (!info) {
+    html = '<p class="hint">' + esc(t('recNone')) + '</p>';
+  } else {
+    html += kpi(t('colDuration'), info.flight ? fmtDur(info.flight.duration) : '–', info.flight ? t('recDistance', {n: num(info.flight.distance)}) : t('recNoRoute'));
+    html += kpi(t('deuterium'), info.flight ? num(info.flight.consumption) : '–', t('recFuelSub'));
+    html += kpi(t('recCapacity'), num(info.capacity), debris != null ? t('recDebris', {n: num(debris)}) : '', debris != null && info.capacity < debris ? 'warn' : '');
+  }
+  $('#recInfo').innerHTML = html;
+}
+
 function renderInputs() {
   ['att', 'def'].forEach(function (side) {
     active[side] = Math.min(active[side], slots(side).length - 1);
@@ -402,6 +472,7 @@ function renderInputs() {
     renderSlot(side);
   });
   if (document.activeElement !== $('#runsIn')) $('#runsIn').value = String(S.runs);
+  renderRecyclerButtons();
 }
 
 /* ---------- universe settings ---------- */
@@ -570,7 +641,11 @@ function renderResult() {
     + ['attacker', 'defender'].map(function (side) {
       return '<button type="button" data-debris-to="' + side + '" class="' + (side === debrisTo ? 'active' : '') + '" aria-pressed="' + (side === debrisTo) + '">' + esc(t(side)) + '</button>';
     }).join('') + '</div></div>';
-  var rows = balance(s, debrisTo, {metal: Number(U.rate_metal), crystal: Number(U.rate_crystal)}, fuel);
+  var recFuel = function (side) {
+    var info = recyclerInfo(S, S.recyclers[side], U);
+    return info && info.flight ? info.flight.consumption : 0;
+  };
+  var rows = balance(s, debrisTo, {metal: Number(U.rate_metal), crystal: Number(U.rate_crystal)}, fuel, {attacker: recFuel('att'), defender: recFuel('def')});
   html += '<div class="balances">' + ['attacker', 'defender'].map(function (side) {
     return '<div class="table-wrap balance"><table><thead><tr><th>' + esc(t(side)) + '</th>'
       + ['metal', 'crystal', 'deuterium', 'dse'].map(function (k) { return '<th>' + esc(t(k)) + '</th>'; }).join('') + '</tr></thead><tbody>'
@@ -586,6 +661,7 @@ function renderResult() {
   html += '<div class="hero">'
     + kpi(t('debris'), short(debris), t('debrisSub', {m: short(s.debris.metal.avg), k: short(s.debris.crystal.avg), n: num(Math.ceil(debris / RECYCLER))}))
     + kpi(t('moonChance'), Math.round(s.moonChance.avg * 10) / 10 + ' %', s.moonChance.min !== s.moonChance.max ? s.moonChance.min + '–' + s.moonChance.max + ' %' : '')
+    + roundsKpi(s)
     + '</div>';
 
   html += '<div class="balances">'
@@ -723,6 +799,48 @@ function bind() {
     var tab = e.target.closest('[data-slot]');
     if (tab) renameSlot(tab.dataset.slotSide, Number(tab.dataset.slot), tab);
   });
+  $$('[data-rec]').forEach(function (btn) {
+    btn.addEventListener('click', function () { openRecyclers(btn.dataset.rec); });
+  });
+  $('#recFields').addEventListener('input', function (e) {
+    var el = e.target;
+    var rec = S.recyclers[recSide];
+    if (el.dataset.recUnit) {
+      var n = parseAmount(el.value);
+      el.classList.toggle('invalid', isNaN(n));
+      if (!isNaN(n) && n > 0) rec.units[el.dataset.recUnit] = n;
+      else delete rec.units[el.dataset.recUnit];
+    } else if (el.dataset.recTech) {
+      rec.research[el.dataset.recTech] = Math.max(0, Math.min(99, parseInt(el.value, 10) || 0));
+    } else if (el.dataset.recFrom) {
+      var c = parseCoordsText(el.value);
+      el.classList.toggle('invalid', !!el.value.trim() && !c);
+      rec.from = c;
+    } else if (el.dataset.recSpeed) {
+      rec.speed = Number(el.value) || 100;
+    } else {
+      return;
+    }
+    renderRecyclerInfo();
+    renderRecyclerButtons();
+    persist();
+    if (last) renderResult();
+  });
+  $('#recFields').addEventListener('change', function (e) {
+    if (!e.target.dataset.recSpeed) return;
+    S.recyclers[recSide].speed = Number(e.target.value) || 100;
+    renderRecyclerInfo();
+    persist();
+    if (last) renderResult();
+  });
+  $('#recClear').addEventListener('click', function () {
+    S.recyclers[recSide] = null;
+    renderRecyclerButtons();
+    persist();
+    if (last) renderResult();
+    $('#recDialog').close();
+  });
+  $('#recDialog').addEventListener('click', function (e) { if (e.target === e.currentTarget) e.currentTarget.close(); });
   $('#runsIn').max = String(MAX_RUNS);
   $('#runsIn').addEventListener('input', function () {
     var n = Number($('#runsIn').value);

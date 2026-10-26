@@ -4,6 +4,15 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-26
 
+- Battle simulator:
+  - recyclers per side: a button in each side's title opens a dialog for recyclers and optimised recyclers, start,
+    speed and drives, with flight time, deuterium and cargo space against the average debris field; their deuterium
+    is a row of the side's balance (stored per tab);
+  - the planet's target and resources share the first row, so the combat research of both sides is on one line
+    (holding fleets keep an empty row of the same height);
+  - the most likely number of rounds with its share, the average and the range (`roundShares` in `@pr0hub/battle`
+    and the API).
+
 - Battle simulator: fleets carry names. The link format has `a0n`/`d0n`; the hub passes the members of a raid plan,
   guest players and the target player (plan or spy history), a pasted spy report names the planet, a double click on
   a fleet tab renames it. Tabs, loss tables and the round report show the names; the simulation tab is named after

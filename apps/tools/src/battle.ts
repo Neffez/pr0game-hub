@@ -1,7 +1,7 @@
 /** Glue of the battle simulator page on top of @pr0hub/battle: state, link, spy report, setup and flight times. */
 import { DEFENSE_IDS, SHIP_IDS, type BattleSetup, type Resources, type ShareSlot, type ShareState, type SimSettings, type SimSummary } from '@pr0hub/battle';
 import { parseSpyReportsText, spyValues } from '@pr0hub/core/spy';
-import { ACS_LIMITS } from '@pr0hub/flight';
+import { ACS_LIMITS, fleetCapacity } from '@pr0hub/flight';
 import { getFleetConsumption, getFleetSlowest, getMissionDuration, getTargetDistance, type UniSettings } from './core';
 
 export { DEFENSE_IDS, SHIP_IDS };
@@ -31,6 +31,16 @@ export interface Slot {
   name: string | null;
 }
 
+/** Recyclers a side sends to the debris field: (optimised) recyclers, drives, start and speed. */
+export interface RecyclerFleet {
+  units: Record<string, number>;
+  research: Record<string, number>;
+  from: Coords3 | null;
+  speed: number;
+}
+
+export const RECYCLER_IDS = [209, 227];
+
 export interface BattleState {
   attackers: Slot[];
   /** the planet first, then fleets holding there */
@@ -40,6 +50,8 @@ export interface BattleState {
   runs: number;
   /** who gets the debris field in the balance; null: the winner */
   debrisTo: 'attacker' | 'defender' | null;
+  /** recyclers of each side (their fuel goes into the balance) */
+  recyclers: { att: RecyclerFleet | null; def: RecyclerFleet | null };
 }
 
 export const emptySlot = (): Slot => ({ units: {}, research: {}, from: null, speed: 100, name: null });
@@ -51,6 +63,7 @@ export const emptyState = (): BattleState => ({
   resources: { metal: 0, crystal: 0, deuterium: 0 },
   runs: DEFAULT_RUNS,
   debrisTo: null,
+  recyclers: { att: null, def: null },
 });
 
 const int = (v: unknown, min = 0, max = Number.MAX_SAFE_INTEGER) => {
@@ -73,6 +86,16 @@ function cleanSlot(raw: unknown, defender: boolean): Slot {
   return { units, research, from: cleanCoords(o.from), speed: int(o.speed ?? 100, 10, 100), name: name || null };
 }
 
+function cleanRecyclers(raw: unknown): RecyclerFleet | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const o = raw as Partial<RecyclerFleet>;
+  const units: Record<string, number> = {};
+  for (const id of RECYCLER_IDS) if (int(o.units?.[id]) > 0) units[id] = int(o.units?.[id]);
+  const research: Record<string, number> = {};
+  for (const id of DRIVE_TECHS) if (int(o.research?.[id]) > 0) research[id] = int(o.research?.[id], 0, 99);
+  return { units, research, from: cleanCoords(o.from), speed: int(o.speed ?? 100, 10, 100) };
+}
+
 /** A stored or linked state, with everything out of range dropped. */
 export function cleanState(raw: unknown): BattleState {
   const o = (raw && typeof raw === 'object' ? raw : {}) as Partial<BattleState>;
@@ -86,6 +109,7 @@ export function cleanState(raw: unknown): BattleState {
     resources: { metal: int(r.metal), crystal: int(r.crystal), deuterium: int(r.deuterium) },
     runs: o.runs == null ? DEFAULT_RUNS : int(o.runs, 1, MAX_RUNS),
     debrisTo: o.debrisTo === 'attacker' || o.debrisTo === 'defender' ? o.debrisTo : null,
+    recyclers: { att: cleanRecyclers(o.recyclers?.att), def: cleanRecyclers(o.recyclers?.def) },
   };
 }
 
@@ -142,7 +166,7 @@ export function applySpyReport(s: BattleState, text: string): SpyApplyResult {
 
 // ---- battle -------------------------------------------------------------------------------------------------------
 
-const hasUnits = (x: Slot) => Object.values(x.units).some((n) => n > 0);
+const hasUnits = (x: Pick<Slot, 'units'>) => Object.values(x.units).some((n) => n > 0);
 
 /** The battle of the state: slots without units are left out (the planet always fights, even empty). */
 export function battleSetup(s: BattleState): BattleSetup {
@@ -180,7 +204,7 @@ export interface FlightInfo {
 }
 
 /** Flight time and fuel of an attacker slot to the target (null without start, target or ships). */
-export function slotFlight(s: BattleState, slot: Slot, u: UniSettings): FlightInfo | null {
+export function slotFlight(s: BattleState, slot: Pick<Slot, 'units' | 'research' | 'from' | 'speed'>, u: UniSettings): FlightInfo | null {
   if (!slot.from || !s.target || !hasUnits(slot)) return null;
   const t = {
     combustion: slot.research[115] ?? 0,
@@ -198,12 +222,18 @@ export function slotFlight(s: BattleState, slot: Slot, u: UniSettings): FlightIn
   return { distance, duration, consumption };
 }
 
+/** Recyclers of a side: flight to the target, deuterium and cargo space (null without recyclers). */
+export function recyclerInfo(s: BattleState, rec: RecyclerFleet | null, u: UniSettings): { flight: FlightInfo | null; capacity: number; count: number } | null {
+  if (!rec || !hasUnits(rec)) return null;
+  return { flight: slotFlight(s, rec, u), capacity: fleetCapacity(rec.units), count: Object.values(rec.units).reduce((a, b) => a + b, 0) };
+}
+
 // ---- balance ------------------------------------------------------------------------------------------------------
 
 export type Side = 'attacker' | 'defender';
 
 export interface BalanceRow {
-  key: 'lost' | 'loot' | 'fuel' | 'debris' | 'net';
+  key: 'lost' | 'loot' | 'fuel' | 'recyclerFuel' | 'debris' | 'net';
   metal: number;
   crystal: number;
   deuterium: number;
@@ -222,9 +252,12 @@ export function defaultDebrisTo(summary: SimSummary): Side {
 
 /**
  * Average gains and losses of each side in resources and DSE: lost units (rebuilt defense not counted), the loot
- * (gained by the attacker, lost by the defender), the attackers' fuel and the debris field for the side that gets it.
+ * (gained by the attacker, lost by the defender), the attackers' fuel, the recyclers' fuel of each side and the debris
+ * field for the side that gets it.
  */
-export function balance(summary: SimSummary, debrisTo: Side, rates = DEFAULT_RATES, fuel = 0): Record<Side, BalanceRow[]> {
+export function balance(
+  summary: SimSummary, debrisTo: Side, rates = DEFAULT_RATES, fuel = 0, recyclerFuel: Record<Side, number> = { attacker: 0, defender: 0 },
+): Record<Side, BalanceRow[]> {
   const rm = rates.metal > 0 ? rates.metal : 1;
   const rk = rates.crystal > 0 ? rates.crystal : 1;
   const row = (key: BalanceRow['key'], metal: number, crystal: number, deuterium: number): BalanceRow => ({
@@ -237,6 +270,7 @@ export function balance(summary: SimSummary, debrisTo: Side, rates = DEFAULT_RAT
     defender: [row('lost', ...neg(summary.lostResources.defender)), row('loot', ...neg(summary.loot))],
   };
   if (fuel > 0) sides.attacker.push(row('fuel', 0, 0, -fuel));
+  for (const side of ['attacker', 'defender'] as const) if (recyclerFuel[side] > 0) sides[side].push(row('recyclerFuel', 0, 0, -recyclerFuel[side]));
   sides[debrisTo].push(row('debris', debris.metal, debris.crystal, 0));
   for (const side of ['attacker', 'defender'] as const) {
     const rows = sides[side];
