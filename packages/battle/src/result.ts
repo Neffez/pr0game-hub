@@ -57,6 +57,14 @@ export interface BattleResult {
   debris: { metal: number; crystal: number };
   /** value of the lost units (metal + crystal) per side */
   lostValue: { attacker: number; defender: number };
+  /** costs of what each side lost for good (rebuilt defense not counted), with deuterium */
+  lostResources: { attacker: Resources3; defender: Resources3 };
+}
+
+export interface Resources3 {
+  metal: number;
+  crystal: number;
+  deuterium: number;
 }
 
 const WINNER: Record<number, Winner> = { 1: 'attacker', [-1]: 'defender', 0: 'draw' };
@@ -100,6 +108,13 @@ export function battleResult(
   const d = outcomes(defenders, output.rounds, 'defender');
   const debris = { metal: 0, crystal: 0 };
   const lostValue = { attacker: 0, defender: 0 };
+  const lostResources = { attacker: { metal: 0, crystal: 0, deuterium: 0 }, defender: { metal: 0, crystal: 0, deuterium: 0 } };
+  const cost = (side: Resources3, id: number, amount: number) => {
+    const [metal, crystal, deuterium] = ELEMENT_COSTS[id] ?? [0, 0, 0];
+    side.metal += metal * amount;
+    side.crystal += crystal * amount;
+    side.deuterium += deuterium * amount;
+  };
   const add = (id: number, amount: number, percent: number) => {
     const [metal, crystal] = ELEMENT_COSTS[id] ?? [0, 0];
     debris.metal += (metal * amount * percent) / 100;
@@ -111,6 +126,7 @@ export function battleResult(
     for (const [key, n] of Object.entries(f.lost)) {
       add(Number(key), n, settings.fleetDebris);
       lostValue.attacker += value(Number(key), n);
+      cost(lostResources.attacker, Number(key), n);
     }
   }
   d.forEach((f, slot) => {
@@ -123,6 +139,7 @@ export function battleResult(
       }
       add(id, n - back, id < 400 ? settings.fleetDebris : settings.defenseDebris);
       lostValue.defender += value(id, n);
+      cost(lostResources.defender, id, n - back);
     }
   });
 
@@ -133,6 +150,7 @@ export function battleResult(
     defenders: d,
     debris,
     lostValue,
+    lostResources,
   };
 }
 

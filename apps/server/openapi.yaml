@@ -488,6 +488,14 @@ components:
           type: object
           description: Value of the lost pieces (metal + crystal) per side
           properties: { attacker: { $ref: '#/components/schemas/BattleRange' }, defender: { $ref: '#/components/schemas/BattleRange' } }
+        lostResources:
+          type: object
+          description: >-
+            Average costs (metal, crystal, deuterium) of what each side lost for good, rebuilt defense not counted;
+            with `loot` and `debris` the balance of both sides
+          properties:
+            attacker: { type: object, properties: { metal: { type: number }, crystal: { type: number }, deuterium: { type: number } } }
+            defender: { type: object, properties: { metal: { type: number }, crystal: { type: number }, deuterium: { type: number } } }
         settings:
           type: object
           description: Settings used (universe settings of the hub with the request's overrides)

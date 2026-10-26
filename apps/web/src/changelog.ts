@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Kampfsimulator: Für Angreifer und Verteidiger steht jetzt die Bilanz in Metall, Kristall, Deuterium und DSE da, mit Verlusten, Beute, Treibstoff und Trümmerfeld. Ein Schalter legt fest, wer das Trümmerfeld bekommt, vorbelegt mit dem Gewinner.',
+        en: 'Battle simulator: attacker and defender now show their balance in metal, crystal, deuterium and DSU, with losses, loot, fuel and debris. A switch sets who gets the debris field, the winner by default.',
+      },
+      {
+        kind: 'new',
         de: 'Kampfsimulator: Angreifer und Verteidiger stehen nebeneinander, das Ergebnis darunter. Mehrere Simulationen lassen sich in Tabs offen halten wie im Flugzeitrechner, und die Anzahl der Kämpfe ist frei einstellbar.',
         en: 'Battle simulator: attackers and defenders side by side, the result below. Several simulations can stay open in tabs like in the flight calculator, and the number of battles can be set freely.',
       },

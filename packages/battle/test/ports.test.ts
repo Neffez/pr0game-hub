@@ -43,6 +43,8 @@ describe('battleResult (parseRustJson)', () => {
     expect(r.defenders[0].repaired[401]).toBe(5);
     expect(r.defenders[0].remaining).toEqual({ 401: 5, 202: 0 });
     expect(r.debris).toEqual({ metal: 4 * 3000 * 0.5 + 2 * 2000 * 0.5, crystal: 4 * 1000 * 0.5 + 2 * 2000 * 0.5 });
+    // rebuilt launchers are no loss
+    expect(r.lostResources).toEqual({ attacker: { metal: 12000, crystal: 4000, deuterium: 0 }, defender: { metal: 4000, crystal: 4000, deuterium: 0 } });
   });
 });
 

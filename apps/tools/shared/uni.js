@@ -25,14 +25,16 @@ export var UNI_FIELDS = [
   {group: 'groupBattle', key: 'defense_debris', label: 'uDefenseDebris', step: 1, min: 0, max: 100, hint: 'uDefenseDebrisHint'},
   {group: 'groupBattle', key: 'moon_factor', label: 'uMoonFactor', step: 'any', min: 0, hint: 'uMoonFactorHint'},
   {group: 'groupBattle', key: 'max_moon_chance', label: 'uMaxMoon', step: 1, min: 0, max: 100},
-  {group: 'groupBattle', key: 'big_shields', label: 'uBigShields', type: 'toggle', hint: 'uBigShieldsHint'}
+  {group: 'groupBattle', key: 'big_shields', label: 'uBigShields', type: 'toggle', hint: 'uBigShieldsHint'},
+  {group: 'groupBattle', key: 'rate_metal', label: 'uRateMetal', step: 'any', min: 0.01, hint: 'uRateHint'},
+  {group: 'groupBattle', key: 'rate_crystal', label: 'uRateCrystal', step: 'any', min: 0.01, hint: 'uRateHint'}
 ];
 export var SHAPES = [[0, 'shapeLinear'], [1, 'shapeRing'], [2, 'shapeSphere']];
 var TOGGLE = [[0, 'toggleOff'], [1, 'toggleOn']];
 
 /* Defaults of the battle values (game config: fleet_debris_percentage, def_debris_percentage, moon_factor,
-   moon_chance; shield domes as ship shields off); the flight values default in ../src/core.ts (DEFAULT_UNI). */
-export var BATTLE_UNI_DEFAULTS = {fleet_debris: 30, defense_debris: 0, moon_factor: 1, max_moon_chance: 20, big_shields: 0};
+   moon_chance; shield domes as ship shields off; market rates of the loot calculator for DSE); the flight values default in ../src/core.ts (DEFAULT_UNI). */
+export var BATTLE_UNI_DEFAULTS = {fleet_debris: 30, defense_debris: 0, moon_factor: 1, max_moon_chance: 20, big_shields: 0, rate_metal: 2.8, rate_crystal: 0.8};
 
 /* Hash keys (compatible with the in-game calculator links and the hub's links). */
 export var UNI_HASH = {
@@ -40,7 +42,8 @@ export var UNI_HASH = {
   galaxy_distance_factor: 'gdf', system_distance_factor: 'sdf', system_distance: 'sd',
   planet_distance_factor: 'pdf', planet_distance: 'pd', game_speed: 'gs',
   expo_hold_multiplier: 'ehm', honor_boost: 'hb',
-  fleet_debris: 'fd', defense_debris: 'dd', moon_factor: 'mf', max_moon_chance: 'mc', big_shields: 'bs'
+  fleet_debris: 'fd', defense_debris: 'dd', moon_factor: 'mf', max_moon_chance: 'mc', big_shields: 'bs',
+  rate_metal: 'rm', rate_crystal: 'rk'
 };
 
 export var UNI_TEXTS = {
@@ -70,6 +73,7 @@ export var UNI_TEXTS = {
     uMaxMoon: 'Höchste Mondchance (%)',
     uBigShields: 'Schildkuppeln zuerst', uBigShieldsHint: 'Wenn im Universum aktiv: Die Schildkuppeln müssen fallen, bevor andere Einheiten getroffen werden können.',
     toggleOff: 'aus', toggleOn: 'an',
+    uRateMetal: 'Kurs Metall', uRateCrystal: 'Kurs Kristall', uRateHint: 'Marktkurs für die DSE (Deuterium-Standard-Einheiten): so viel Metall bzw. Kristall ist 1 Deuterium wert.',
     shapeLinear: 'linear', shapeRing: 'ein Ring (geht rundherum)', shapeSphere: 'eine Kugel (alle gleich weit)',
     uniReset: 'Universum auf Standard zurückgesetzt'
   },
@@ -99,6 +103,7 @@ export var UNI_TEXTS = {
     uMaxMoon: 'Highest moon chance (%)',
     uBigShields: 'Shield domes first', uBigShieldsHint: 'When active in the universe: the shield domes must fall before other units can be hit.',
     toggleOff: 'off', toggleOn: 'on',
+    uRateMetal: 'Metal rate', uRateCrystal: 'Crystal rate', uRateHint: 'Market rate for the DSU (deuterium standard units): this much metal or crystal is worth 1 deuterium.',
     shapeLinear: 'linear', shapeRing: 'a ring (wrap around)', shapeSphere: 'a sphere (all equally far)',
     uniReset: 'Universe reset to defaults'
   }

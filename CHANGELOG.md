@@ -4,6 +4,12 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-26
 
+- Battle simulator: balance of both sides like common simulators: win chances of attacker, draw and defender,
+  then per side lost units (rebuilt defense not counted), loot, the attackers' fuel and the debris field with the net
+  result in metal, crystal, deuterium and DSU; a switch decides who gets the debris (default: the side that wins most
+  often, a draw leaves it to the defender, kept per tab). Market rates for the DSU are universe settings (`rm`/`rk`,
+  default 2.8 and 0.8 like the loot calculator). `@pr0hub/battle` sums `lostResources` per side (also in the API).
+
 - Battle simulator: attackers and defenders side by side with the result below across both columns; tabs for
   independent simulations like the flight calculator (copy, rename, close with undo, stored locally, a link opens in a
   new tab, the tab shows the attacker's win chance); the number of simulations is a number input (1-1000). The tab

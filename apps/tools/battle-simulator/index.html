@@ -58,7 +58,21 @@
 .run-row input { font-family: var(--mono); }
 .progress { flex: 1 1 100%; height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
 .progress-bar { height: 100%; width: 0; background: var(--accent); transition: width .1s; }
-#results.stale .hero, #results.stale table { opacity: .55; }
+#results.stale .hero, #results.stale table, #results.stale .outcome { opacity: .55; }
+.outcome { display: flex; align-items: flex-end; gap: 28px; flex-wrap: wrap; margin-top: 16px; }
+.win b { display: block; font-size: 28px; font-weight: 700; line-height: 1.1; font-family: var(--mono); }
+.win span { font-size: 12.5px; color: var(--muted); }
+.win.att b { color: var(--danger); }
+.win.draw b { color: var(--text); }
+.win.def b { color: #7c83ff; }
+.outcome-meta { margin-left: auto; font-size: 12.5px; color: var(--muted); }
+.debris-to { display: flex; justify-content: flex-end; align-items: center; gap: 10px; margin-top: 12px; font-size: 12.5px; color: var(--muted); }
+.balances { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.balance table td, .balance table th { text-align: right; }
+.balance table td:first-child, .balance table th:first-child { text-align: left; }
+.balance tr.b-net td { font-weight: 600; border-top: 1px solid var(--border-strong); }
+.balance td.net-pos { background: rgba(46, 160, 67, .14); }
+.balance td.net-neg { background: rgba(242, 85, 90, .14); }
 .sub-title { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin: 18px 0 0; }
 .table-wrap td.name { white-space: nowrap; }
 .table-wrap tr.gone td:first-child { color: var(--faint); }
@@ -77,6 +91,7 @@
   .unit { grid-template-columns: 1fr 110px; }
   .grid4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .round-sides { grid-template-columns: minmax(0, 1fr); }
+  .balances { grid-template-columns: minmax(0, 1fr); }
   .kpi.big { grid-column: 1 / -1; }
 }
 </style>

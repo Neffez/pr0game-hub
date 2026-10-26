@@ -1,5 +1,5 @@
 /** Glue of the battle simulator page on top of @pr0hub/battle: state, link, spy report, setup and flight times. */
-import { DEFENSE_IDS, SHIP_IDS, type BattleSetup, type Resources, type ShareSlot, type ShareState, type SimSettings } from '@pr0hub/battle';
+import { DEFENSE_IDS, SHIP_IDS, type BattleSetup, type Resources, type ShareSlot, type ShareState, type SimSettings, type SimSummary } from '@pr0hub/battle';
 import { parseSpyReportsText, spyValues } from '@pr0hub/core/spy';
 import { ACS_LIMITS } from '@pr0hub/flight';
 import { getFleetConsumption, getFleetSlowest, getMissionDuration, getTargetDistance, type UniSettings } from './core';
@@ -36,6 +36,8 @@ export interface BattleState {
   target: Coords3 | null;
   resources: Resources;
   runs: number;
+  /** who gets the debris field in the balance; null: the winner */
+  debrisTo: 'attacker' | 'defender' | null;
 }
 
 export const emptySlot = (): Slot => ({ units: {}, research: {}, from: null, speed: 100 });
@@ -46,6 +48,7 @@ export const emptyState = (): BattleState => ({
   target: null,
   resources: { metal: 0, crystal: 0, deuterium: 0 },
   runs: DEFAULT_RUNS,
+  debrisTo: null,
 });
 
 const int = (v: unknown, min = 0, max = Number.MAX_SAFE_INTEGER) => {
@@ -79,6 +82,7 @@ export function cleanState(raw: unknown): BattleState {
     target: cleanCoords(o.target),
     resources: { metal: int(r.metal), crystal: int(r.crystal), deuterium: int(r.deuterium) },
     runs: o.runs == null ? DEFAULT_RUNS : int(o.runs, 1, MAX_RUNS),
+    debrisTo: o.debrisTo === 'attacker' || o.debrisTo === 'defender' ? o.debrisTo : null,
   };
 }
 
@@ -188,4 +192,51 @@ export function slotFlight(s: BattleState, slot: Slot, u: UniSettings): FlightIn
   const duration = getMissionDuration(slot.speed / 10, slowest.speed, distance, u.game_speed);
   const consumption = getFleetConsumption(slot.units, duration, distance, t, u.game_speed, u.honor_boost);
   return { distance, duration, consumption };
+}
+
+// ---- balance ------------------------------------------------------------------------------------------------------
+
+export type Side = 'attacker' | 'defender';
+
+export interface BalanceRow {
+  key: 'lost' | 'loot' | 'fuel' | 'debris' | 'net';
+  metal: number;
+  crystal: number;
+  deuterium: number;
+  /** value in deuterium at the market rates */
+  dse: number;
+}
+
+/** Market rates for the value in deuterium: metal and crystal per deuterium (the loot calculator's default). */
+export const DEFAULT_RATES = { metal: 2.8, crystal: 0.8 };
+
+/** Who gets the debris field by default: the side that wins most often (a draw leaves it to the defender). */
+export function defaultDebrisTo(summary: SimSummary): Side {
+  const w = summary.wins;
+  return w.attacker > w.defender && w.attacker >= w.draw ? 'attacker' : 'defender';
+}
+
+/**
+ * Average gains and losses of each side in resources and DSE: lost units (rebuilt defense not counted), the loot
+ * (gained by the attacker, lost by the defender), the attackers' fuel and the debris field for the side that gets it.
+ */
+export function balance(summary: SimSummary, debrisTo: Side, rates = DEFAULT_RATES, fuel = 0): Record<Side, BalanceRow[]> {
+  const rm = rates.metal > 0 ? rates.metal : 1;
+  const rk = rates.crystal > 0 ? rates.crystal : 1;
+  const row = (key: BalanceRow['key'], metal: number, crystal: number, deuterium: number): BalanceRow => ({
+    key, metal, crystal, deuterium, dse: metal / rm + crystal / rk + deuterium,
+  });
+  const neg = (r: Resources) => [-r.metal, -r.crystal, -r.deuterium] as const;
+  const debris = { metal: summary.debris.metal.avg, crystal: summary.debris.crystal.avg, deuterium: 0 };
+  const sides: Record<Side, BalanceRow[]> = {
+    attacker: [row('lost', ...neg(summary.lostResources.attacker)), row('loot', summary.loot.metal, summary.loot.crystal, summary.loot.deuterium)],
+    defender: [row('lost', ...neg(summary.lostResources.defender)), row('loot', ...neg(summary.loot))],
+  };
+  if (fuel > 0) sides.attacker.push(row('fuel', 0, 0, -fuel));
+  sides[debrisTo].push(row('debris', debris.metal, debris.crystal, 0));
+  for (const side of ['attacker', 'defender'] as const) {
+    const rows = sides[side];
+    rows.push(row('net', ...(['metal', 'crystal', 'deuterium'] as const).map((k) => rows.reduce((a, r) => a + r[k], 0)) as [number, number, number]));
+  }
+  return sides;
 }

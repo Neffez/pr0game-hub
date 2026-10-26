@@ -25,9 +25,9 @@ export interface ShareState {
 
 /**
  * Universe keys of the link: debris percent of fleet and defense, moon factor and cap, shield domes as ship shields
- * (`bs` 0/1), then the flight calculator's layout and speed.
+ * (`bs` 0/1), market rates for the value in deuterium (`rm`, `rk`), then the flight calculator's layout and speed.
  */
-export const UNI_KEYS = ['fd', 'dd', 'mf', 'mc', 'bs', 'ut', 'gt', 'mg', 'ms', 'mp', 'gdf', 'sdf', 'sd', 'pdf', 'pd', 'gs'] as const;
+export const UNI_KEYS = ['fd', 'dd', 'mf', 'mc', 'bs', 'rm', 'rk', 'ut', 'gt', 'mg', 'ms', 'mp', 'gdf', 'sdf', 'sd', 'pdf', 'pd', 'gs'] as const;
 
 const MAX_SLOTS = 16;
 

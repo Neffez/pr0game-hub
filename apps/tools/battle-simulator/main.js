@@ -8,7 +8,9 @@ import {
   MAX_SLOTS,
   SHIP_IDS,
   applySpyReport,
+  balance,
   battleSetup,
+  defaultDebrisTo,
   cleanState,
   elementName,
   emptySlot,
@@ -72,6 +74,13 @@ function short(n) {
 }
 
 function pct(share) { return Math.round(share * 100) + ' %'; }
+
+/* Signed amount for the balance: +1.234 / −1.234, nothing as a dash. */
+function signed(n) {
+  var r = Math.round(n);
+  if (!r) return '—';
+  return (r > 0 ? '+' : '−') + fmtNum(Math.abs(r));
+}
 
 function avgRange(r) { return r.min === r.max ? num(r.avg) : num(r.avg) + ' (' + num(r.min) + '–' + num(r.max) + ')'; }
 
@@ -470,21 +479,44 @@ function renderResult() {
   }
   var s = last.summary;
   var debris = s.debris.metal.avg + s.debris.crystal.avg;
-  var loot = s.loot.metal + s.loot.crystal + s.loot.deuterium;
-  var html = '<div class="hero">'
-    + kpi(t('attackerWins'), pct(s.wins.attacker), t('drawSub', {n: pct(s.wins.draw)}), 'big ' + (s.wins.attacker >= 0.5 ? 'pos' : ''))
-    + kpi(t('defenderWins'), pct(s.wins.defender), t('runsSub', {n: s.runs, rounds: Math.round(s.rounds.avg * 10) / 10}), 'big')
-    + kpi(t('lostAttacker'), short(s.lostValue.attacker.avg), t('unitsValue'))
-    + kpi(t('lostDefender'), short(s.lostValue.defender.avg), t('unitsValue'))
+  var flights = S.attackers.map(function (slot, i) { return {i: i, f: slotFlight(S, slot, U)}; }).filter(function (x) { return x.f; });
+  var fuel = flights.reduce(function (sum, x) { return sum + x.f.consumption; }, 0);
+  var debrisTo = S.debrisTo || defaultDebrisTo(s);
+
+  /* outcome: win chances, runs and rounds */
+  var html = '<div class="outcome">'
+    + '<div class="win att"><b>' + pct(s.wins.attacker) + '</b><span>' + esc(t('attackerWins')) + '</span></div>'
+    + '<div class="win draw"><b>' + pct(s.wins.draw) + '</b><span>' + esc(t('draw')) + '</span></div>'
+    + '<div class="win def"><b>' + pct(s.wins.defender) + '</b><span>' + esc(t('defenderWins')) + '</span></div>'
+    + '<span class="outcome-meta">' + esc(t('runsSub', {n: num(s.runs), rounds: Math.round(s.rounds.avg * 10) / 10})) + '</span></div>';
+
+  /* balance per side: losses, loot, fuel and debris in resources and DSE */
+  html += '<div class="debris-to"><span>' + esc(t('debrisTo')) + '</span><div class="seg small" role="group">'
+    + ['attacker', 'defender'].map(function (side) {
+      return '<button type="button" data-debris-to="' + side + '" class="' + (side === debrisTo ? 'active' : '') + '" aria-pressed="' + (side === debrisTo) + '">' + esc(t(side)) + '</button>';
+    }).join('') + '</div></div>';
+  var rows = balance(s, debrisTo, {metal: Number(U.rate_metal), crystal: Number(U.rate_crystal)}, fuel);
+  html += '<div class="balances">' + ['attacker', 'defender'].map(function (side) {
+    return '<div class="table-wrap balance"><table><thead><tr><th>' + esc(t(side)) + '</th>'
+      + ['metal', 'crystal', 'deuterium', 'dse'].map(function (k) { return '<th>' + esc(t(k)) + '</th>'; }).join('') + '</tr></thead><tbody>'
+      + rows[side].map(function (r) {
+        var cell = function (v) {
+          var cls = r.key === 'net' ? (Math.round(v) > 0 ? 'pos net-pos' : Math.round(v) < 0 ? 'neg net-neg' : 'dim') : (Math.round(v) > 0 ? 'pos' : Math.round(v) < 0 ? 'neg' : 'dim');
+          return '<td class="' + cls + '">' + signed(v) + '</td>';
+        };
+        return '<tr class="b-' + r.key + '"><td class="name">' + esc(t('balance_' + r.key)) + '</td>' + cell(r.metal) + cell(r.crystal) + cell(r.deuterium) + cell(r.dse) + '</tr>';
+      }).join('') + '</tbody></table></div>';
+  }).join('') + '</div>';
+
+  html += '<div class="hero">'
     + kpi(t('debris'), short(debris), t('debrisSub', {m: short(s.debris.metal.avg), k: short(s.debris.crystal.avg), n: num(Math.ceil(debris / RECYCLER))}))
-    + kpi(t('loot'), short(loot), t('lootSub', {m: short(s.loot.metal), k: short(s.loot.crystal), d: short(s.loot.deuterium)}))
     + kpi(t('moonChance'), Math.round(s.moonChance.avg * 10) / 10 + ' %', s.moonChance.min !== s.moonChance.max ? s.moonChance.min + '–' + s.moonChance.max + ' %' : '')
     + '</div>';
 
-  html += '<h3 class="sub-title">' + esc(t('attackers')) + '</h3>' + lossTable('att', s.attackers, last.slots.attackers, last.setup.attackers);
-  html += '<h3 class="sub-title">' + esc(t('defenders')) + '</h3>' + lossTable('def', s.defenders, last.slots.defenders, last.setup.defenders);
+  html += '<div class="balances">'
+    + '<div><h3 class="sub-title">' + esc(t('attackers')) + '</h3>' + lossTable('att', s.attackers, last.slots.attackers, last.setup.attackers) + '</div>'
+    + '<div><h3 class="sub-title">' + esc(t('defenders')) + '</h3>' + lossTable('def', s.defenders, last.slots.defenders, last.setup.defenders) + '</div></div>';
 
-  var flights = S.attackers.map(function (slot, i) { return {i: i, f: slotFlight(S, slot, U)}; }).filter(function (x) { return x.f; });
   if (flights.length) {
     html += '<h3 class="sub-title">' + esc(t('flights')) + '</h3><div class="table-wrap"><table><thead><tr>'
       + ['colSlot', 'colDistance', 'colDuration', 'colFuel'].map(function (h) { return '<th>' + esc(t(h)) + '</th>'; }).join('') + '</tr></thead><tbody>'
@@ -598,6 +630,13 @@ function bind() {
       renderTabs(clear.dataset.clearSlot);
       renderSlot(clear.dataset.clearSlot);
       update();
+      return;
+    }
+    var to = e.target.closest('[data-debris-to]');
+    if (to) {
+      S.debrisTo = to.dataset.debrisTo;
+      persist();
+      renderResult();
       return;
     }
     var remove = e.target.closest('[data-remove-slot]');

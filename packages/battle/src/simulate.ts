@@ -51,6 +51,8 @@ export interface SimSummary {
   loot: { metal: number; crystal: number; deuterium: number };
   moonChance: Range;
   lostValue: { attacker: Range; defender: Range };
+  /** average costs of what each side lost for good, with deuterium */
+  lostResources: { attacker: Resources; defender: Resources };
   /** the run closest to the average losses, with the engine's rounds for the report */
   typical: { run: RunResult; output: EngineOutput };
 }
@@ -106,6 +108,10 @@ export function summarize(runs: { run: RunResult; output: EngineOutput }[]): Sim
     loot: { metal: avg((r) => r.loot.metal), crystal: avg((r) => r.loot.crystal), deuterium: avg((r) => r.loot.deuterium) },
     moonChance: range(results.map((r) => r.moonChance)),
     lostValue: { attacker: range(results.map((r) => r.lostValue.attacker)), defender: range(results.map((r) => r.lostValue.defender)) },
+    lostResources: {
+      attacker: { metal: avg((r) => r.lostResources.attacker.metal), crystal: avg((r) => r.lostResources.attacker.crystal), deuterium: avg((r) => r.lostResources.attacker.deuterium) },
+      defender: { metal: avg((r) => r.lostResources.defender.metal), crystal: avg((r) => r.lostResources.defender.crystal), deuterium: avg((r) => r.lostResources.defender.deuterium) },
+    },
     typical,
   };
 }

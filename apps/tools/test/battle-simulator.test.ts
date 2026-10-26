@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 import { encodeShare, runBattle, summarize } from '@pr0hub/battle';
 import { initSync, wasm_fight_battle_rounds } from '@pr0hub/battle/wasm';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { applySpyReport, battleSetup, cleanState, emptyState, fightingSlots, shareFromState, slotFlight, stateFromShare } from '../src/battle';
+import { applySpyReport, balance, battleSetup, cleanState, defaultDebrisTo, emptyState, fightingSlots, shareFromState, slotFlight, stateFromShare } from '../src/battle';
 import { DEFAULT_UNI } from '../src/core';
 
 const spyReport = [
@@ -58,6 +58,29 @@ describe('battle simulator glue', () => {
   });
 });
 
+describe('battle simulator balance', () => {
+  const summary = {
+    wins: { attacker: 0.7, defender: 0.1, draw: 0.2 },
+    lostResources: { attacker: { metal: 1000, crystal: 500, deuterium: 0 }, defender: { metal: 4000, crystal: 2000, deuterium: 100 } },
+    loot: { metal: 3000, crystal: 1500, deuterium: 600 },
+    debris: { metal: { avg: 2500, min: 0, max: 0 }, crystal: { avg: 1250, min: 0, max: 0 } },
+  } as unknown as Parameters<typeof balance>[0];
+
+  it('nets losses, loot, fuel and debris per side in resources and DSU', () => {
+    expect(defaultDebrisTo(summary)).toBe('attacker');
+    const b = balance(summary, 'attacker', { metal: 2, crystal: 1 }, 200);
+    expect(b.attacker.map((r) => r.key)).toEqual(['lost', 'loot', 'fuel', 'debris', 'net']);
+    expect(b.attacker.at(-1)).toEqual({ key: 'net', metal: 4500, crystal: 2250, deuterium: 400, dse: 4500 / 2 + 2250 + 400 });
+    expect(b.defender.map((r) => r.key)).toEqual(['lost', 'loot', 'net']);
+    expect(b.defender.at(-1)).toMatchObject({ metal: -7000, crystal: -3500, deuterium: -700 });
+  });
+
+  it('leaves the debris to the defender on a draw', () => {
+    expect(defaultDebrisTo({ ...summary, wins: { attacker: 0, defender: 0, draw: 1 } })).toBe('defender');
+    expect(balance(summary, 'defender').defender.map((r) => r.key)).toEqual(['lost', 'loot', 'debris', 'net']);
+  });
+});
+
 describe('battle simulator page', () => {
   beforeAll(async () => {
     initSync({ module: readFileSync(resolve(import.meta.dirname, '../../../packages/battle/wasm/battlerust_bg.wasm')) });
@@ -88,7 +111,7 @@ describe('battle simulator page', () => {
   it('loads a link, runs it at once and shows the result', () => {
     expect(location.hash).toBe('');
     expect((document.getElementById('u-att-207') as HTMLInputElement).value).toBe('100');
-    const hero = document.querySelector('#resultBody .hero')?.textContent ?? '';
+    const hero = document.querySelector('#resultBody .outcome')?.textContent ?? '';
     expect(hero).toContain('100 %');
     expect(document.getElementById('uniSummary')?.textContent).toContain('50/10');
     // the rocket launchers' debris: 10 % of what is not rebuilt
@@ -102,7 +125,7 @@ describe('battle simulator page', () => {
     expect((document.getElementById('r-att-109') as HTMLInputElement).value).toBe('10');
     (document.querySelector('#langSeg [data-lang="de"]') as HTMLButtonElement).click();
     expect(document.querySelector('#attTabs')?.textContent).toContain('A 2');
-    expect(document.querySelector('#resultBody thead')?.textContent).toContain('Verlust');
+    expect(document.querySelector('#resultBody .balance')?.textContent).toContain('Verloren');
   });
 
   it('marks the result as outdated after a change', () => {
@@ -122,6 +145,18 @@ describe('battle simulator page', () => {
     expect(runs.classList.contains('invalid')).toBe(true);
     runs.dispatchEvent(new Event('blur'));
     expect(runs.value).toBe('37');
+  });
+
+  it('shows the balance of both sides and switches who gets the debris', () => {
+    const tables = () => [...document.querySelectorAll('#resultBody .balance')].map((x) => x.textContent ?? '');
+    expect(tables()).toHaveLength(2);
+    // the attacker wins: the debris goes to the attacker
+    expect(tables()[0]).toContain('Trümmerfeld');
+    expect(tables()[1]).not.toContain('Trümmerfeld');
+    (document.querySelector('[data-debris-to="defender"]') as HTMLButtonElement).click();
+    expect(tables()[1]).toContain('Trümmerfeld');
+    expect(tables()[0]).not.toContain('Trümmerfeld');
+    expect(document.querySelector('[data-debris-to="defender"]')?.getAttribute('aria-pressed')).toBe('true');
   });
 
   it('keeps independent simulations in tabs', async () => {
