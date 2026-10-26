@@ -20,55 +20,52 @@ import {
   parseTimeInput,
   recallFor,
   setCustomShips,
+  shipLabel,
 } from '../src/core.ts';
+import { TEXTS } from './i18n.js';
+import { $, $$, applyTexts, bindLang, bindTips, clearHash, copy as copyText, esc, fmtNum as fmtNumLang, initTexts, lang, load, store, t as tr, toast } from '../shared/shell.js';
 
 
 var LS_STATE = 'pr0fc.state.v1';
 var LS_UNI = 'pr0fc.uni.v1';
 var SPEEDS = [10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
-var WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+/* Mode descriptions (text keys); the keys of MODES are the valid modes. */
+var MODES = {flight: 'modeTextFlight', timing: 'modeTextTiming', retime: 'modeTextRetime', abort: 'modeTextAbort'};
 
-var MODES = {
-  flight: 'When does the fleet arrive and when is it back home? Depart now or at a planned time.',
-  timing: 'You want to land at an exact second – e.g. right after another fleet. See for every speed when you have to send.',
-  retime: 'An enemy fleet is flying an attack – on you or on someone else. Its arrival time, origin and ships tell you when it launched and when it lands back home – including the send time for your counter-attack.',
-  abort: 'Fleet save & recall: when do you have to recall to be back at your desired time – or when is the fleet home after a recall?'
-};
-
-var TIME_FORMATS = 'Input formats: 14:23:05 · 20.10. 14:23 · 2026-10-20 14:23:05 · relative +1:30:00, -45:00, 2h 15m. You can also paste whole lines from the game.';
-
+/* Why a recall time does not exist (text keys by reason of recallFor / recallHome). */
 var REASONS = {
-  not_started: 'not launched yet',
-  stay_locked: 'cannot be recalled during the stay',
-  returning: 'already returning',
-  before_start: 'is before departure',
-  no_abort_needed: 'no recall needed',
-  unreachable: 'not exactly reachable'
+  not_started: 'reasonNotStarted',
+  stay_locked: 'reasonStayLocked',
+  returning: 'reasonReturning',
+  before_start: 'reasonBeforeStart',
+  no_abort_needed: 'reasonNoAbort',
+  unreachable: 'reasonUnreachable'
 };
 
 var ENEMY_RECALL = {
-  not_started: 'recall before launch – impossible at this speed',
-  stay_locked: 'cannot be recalled during the stay',
-  returning: 'recall after impact – impossible'
+  not_started: 'enemyNotStarted',
+  stay_locked: 'enemyStayLocked',
+  returning: 'enemyReturning'
 };
 
+/* Universe settings dialog; group, label and hint are text keys. */
 var UNI_FIELDS = [
-  {group: 'Speed', key: 'game_speed', label: 'Fleet speed', step: 'any', min: 0.01, hint: '1 = normal, 2 = twice as fast'},
-  {group: 'Speed', key: 'expo_hold_multiplier', label: 'Expedition hold factor', step: 'any', min: 0.01, hint: 'Divides the expedition hold time'},
-  {group: 'Speed', key: 'honor_boost', label: 'Deuterium factor', step: 'any', min: 0, hint: 'Honor boost applied to consumption'},
-  {group: 'Layout', key: 'max_galaxy', label: 'Galaxies', step: 1, min: 1},
-  {group: 'Layout', key: 'max_system', label: 'Systems', step: 1, min: 1},
-  {group: 'Layout', key: 'max_planets', label: 'Planet positions', step: 1, min: 1},
-  {group: 'Layout', key: 'uni_type', label: 'Galaxies are …', type: 'shape'},
-  {group: 'Layout', key: 'galaxy_type', label: 'Systems are …', type: 'shape'},
-  {group: 'Distances', key: 'galaxy_distance_factor', label: 'Galaxy factor', step: 'any', min: 0},
-  {group: 'Distances', key: 'system_distance_factor', label: 'System factor', step: 'any', min: 0},
-  {group: 'Distances', key: 'system_distance', label: 'System base distance', step: 'any', min: 0},
-  {group: 'Distances', key: 'planet_distance_factor', label: 'Planet factor', step: 'any', min: 0},
-  {group: 'Distances', key: 'planet_distance', label: 'Planet base distance', step: 'any', min: 0},
-  {group: 'Clock', key: 'clock_offset', label: 'Game clock offset (s)', step: 1, hint: 'Positive if the game clock is ahead of your device. Compare with the clock in the game so countdowns are accurate to the second.'}
+  {group: 'groupSpeed', key: 'game_speed', label: 'uGameSpeed', step: 'any', min: 0.01, hint: 'uGameSpeedHint'},
+  {group: 'groupSpeed', key: 'expo_hold_multiplier', label: 'uExpoHold', step: 'any', min: 0.01, hint: 'uExpoHoldHint'},
+  {group: 'groupSpeed', key: 'honor_boost', label: 'uHonor', step: 'any', min: 0, hint: 'uHonorHint'},
+  {group: 'groupLayout', key: 'max_galaxy', label: 'uGalaxies', step: 1, min: 1},
+  {group: 'groupLayout', key: 'max_system', label: 'uSystems', step: 1, min: 1},
+  {group: 'groupLayout', key: 'max_planets', label: 'uPlanets', step: 1, min: 1},
+  {group: 'groupLayout', key: 'uni_type', label: 'uUniType', type: 'shape'},
+  {group: 'groupLayout', key: 'galaxy_type', label: 'uGalaxyType', type: 'shape'},
+  {group: 'groupDistances', key: 'galaxy_distance_factor', label: 'uGalFactor', step: 'any', min: 0},
+  {group: 'groupDistances', key: 'system_distance_factor', label: 'uSysFactor', step: 'any', min: 0},
+  {group: 'groupDistances', key: 'system_distance', label: 'uSysBase', step: 'any', min: 0},
+  {group: 'groupDistances', key: 'planet_distance_factor', label: 'uPlanetFactor', step: 'any', min: 0},
+  {group: 'groupDistances', key: 'planet_distance', label: 'uPlanetBase', step: 'any', min: 0},
+  {group: 'groupClock', key: 'clock_offset', label: 'uClock', step: 1, hint: 'uClockHint'}
 ];
-var SHAPES = [[0, 'linear'], [1, 'a ring (wrap around)'], [2, 'a sphere (all equally far)']];
+var SHAPES = [[0, 'shapeLinear'], [1, 'shapeRing'], [2, 'shapeSphere']];
 
 /* Hash keys for uni settings (compatible with the in-game calculator links). */
 var UNI_HASH = {
@@ -82,25 +79,8 @@ var TECH_HASH = {combustion: 'c', impulse: 'i', hyperspace: 'h', fuelEfficiency:
 var U = Object.assign({}, DEFAULT_UNI);
 var S = null;
 
-function $(sel) { return document.querySelector(sel); }
-function $$(sel) { return Array.prototype.slice.call(document.querySelectorAll(sel)); }
-
-function esc(value) {
-  return String(value).replace(/[&<>"']/g, function (ch) {
-    return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[ch];
-  });
-}
-
 function nowUnix() {
   return Math.floor(Date.now() / 1000 + (Number(U.clock_offset) || 0));
-}
-
-function load(key) {
-  try { return JSON.parse(localStorage.getItem(key)); } catch (e) { return null; }
-}
-
-function store(key, value) {
-  try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* storage unavailable */ }
 }
 
 /* ---------- formatting ---------- */
@@ -119,7 +99,7 @@ function fmtFull(unix) {
 
 function fmtDay(unix) {
   var d = new Date(unix * 1000);
-  return WEEKDAYS[d.getDay()] + ', ' + d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+  return tr('weekdays').split(',')[d.getDay()] + ', ' + d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
 }
 
 function dayDiff(unix, now) {
@@ -140,13 +120,17 @@ function fmtDur(seconds) {
 
 function fmtCountdown(seconds) {
   if (seconds === 0) {
-    return 'now';
+    return tr('nowWord');
   }
-  return seconds > 0 ? 'in ' + fmtDur(seconds) : fmtDur(-seconds) + ' ago';
+  return seconds > 0 ? tr('inDur', {dur: fmtDur(seconds)}) : tr('agoDur', {dur: fmtDur(-seconds)});
 }
 
 function fmtNum(n) {
-  return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return fmtNumLang(n);
+}
+
+function shipName(ship) {
+  return shipLabel(ship, lang());
 }
 
 function fmtCoords(c) {
@@ -161,7 +145,7 @@ function fmtHours(h) {
 function tcell(unix, now) {
   var diff = dayDiff(unix, now);
   var tag = diff === 0 ? '' : '<sup>' + (diff > 0 ? '+' : '−') + Math.abs(diff) + '</sup>';
-  return '<span class="t" data-copy="' + fmtClock(unix) + '" title="' + fmtDay(unix) + ' ' + fmtClock(unix) + ' – click to copy">' + fmtClock(unix) + tag + '</span>';
+  return '<span class="t" data-copy="' + fmtClock(unix) + '" title="' + esc(tr('copyTitle', {time: fmtDay(unix) + ' ' + fmtClock(unix)})) + '">' + fmtClock(unix) + tag + '</span>';
 }
 
 /* ---------- state ---------- */
@@ -469,59 +453,61 @@ function renderHero(c, r) {
   var t = r.t;
   var now = c.now;
   var html = '';
-  var stayInfo = c.stay > 0 ? 'stay until ' + fmtClock(t.stayEnd) : '';
+  var stayInfo = c.stay > 0 ? tr('stayUntil', {time: fmtClock(t.stayEnd)}) : '';
   if (S.mode === 'flight') {
-    html += kpi('Arrival', tcell(t.arrival, now), cdSpan(t.arrival - now), 'big');
-    html += kpi('Return', tcell(t.home, now), stayInfo || cdSpan(t.home - now), 'big ret');
-    html += kpi('Departure', tcell(t.start, now), S.depLive ? 'now' : fmtDay(t.start));
-    html += kpi('Duration (one way)', fmtDur(r.dur));
-    html += kpi('Deuterium', fmtNum(r.deut));
+    html += kpi(tr('arrival'), tcell(t.arrival, now), cdSpan(t.arrival - now), 'big');
+    html += kpi(tr('return'), tcell(t.home, now), stayInfo || cdSpan(t.home - now), 'big ret');
+    html += kpi(tr('departure'), tcell(t.start, now), S.depLive ? tr('nowWord') : fmtDay(t.start));
+    html += kpi(tr('durationOneWay'), fmtDur(r.dur));
+    html += kpi(tr('deuterium'), fmtNum(r.deut));
   } else if (S.mode === 'timing') {
-    html += kpi('Send at', tcell(t.start, now), cdSpan(r.cd) + (r.cd < 0 ? ' – too late for ' + (r.n * 10) + ' %' : ''), 'big');
-    html += kpi('Arrival', tcell(t.arrival, now), fmtDay(t.arrival));
-    html += kpi('Return', tcell(t.home, now), stayInfo);
-    html += kpi('Duration (one way)', fmtDur(r.dur));
-    html += kpi('Deuterium', fmtNum(r.deut));
+    html += kpi(tr('sendAt'), tcell(t.start, now), cdSpan(r.cd) + (r.cd < 0 ? esc(tr('tooLateFor', {pct: r.n * 10})) : ''), 'big');
+    html += kpi(tr('arrival'), tcell(t.arrival, now), fmtDay(t.arrival));
+    html += kpi(tr('return'), tcell(t.home, now), stayInfo);
+    html += kpi(tr('durationOneWay'), fmtDur(r.dur));
+    html += kpi(tr('deuterium'), fmtNum(r.deut));
   } else if (S.mode === 'retime') {
     var recalled = S.enemyOutcome === 'recall';
     if (r.enemyHome !== null) {
-      html += kpi('Enemy back home', tcell(r.enemyHome, now), cdSpan(r.enemyHome - now), 'big ret');
+      html += kpi(tr('enemyBackHome'), tcell(r.enemyHome, now), cdSpan(r.enemyHome - now), 'big ret');
     } else {
-      html += kpiNa('Enemy back home', ENEMY_RECALL[r.res.reason], 'try another enemy speed', 'big');
+      html += kpiNa(tr('enemyBackHome'), tr(ENEMY_RECALL[r.res.reason]), esc(tr('tryOtherSpeed')), 'big');
     }
-    html += kpi('Enemy launched', tcell(t.start, now), cdSpan(t.start - now));
+    html += kpi(tr('enemyLaunched'), tcell(t.start, now), cdSpan(t.start - now));
     if (recalled) {
-      html += kpi('Recalled at', tcell(r.recall, now), r.enemyHome !== null ? 'flew ' + fmtDur(r.recall - t.start) + ' outbound' : '');
-      html += kpi('Without recall', tcell(t.home, now), r.enemyHome !== null ? 'recall returns ' + fmtDur(Math.abs(r.enemyHome - t.home)) + (r.enemyHome >= t.home ? ' later' : ' earlier') : '');
+      html += kpi(tr('recalledAt'), tcell(r.recall, now), r.enemyHome !== null ? esc(tr('flewOutbound', {dur: fmtDur(r.recall - t.start)})) : '');
+      html += kpi(tr('withoutRecall'), tcell(t.home, now), r.enemyHome !== null
+        ? esc(tr('recallReturns', {dur: fmtDur(Math.abs(r.enemyHome - t.home)), when: tr(r.enemyHome >= t.home ? 'later' : 'earlier')}))
+        : '');
     } else {
-      html += kpi(S.enemyDelayed ? 'Impact (delayed)' : 'Arrival at target', tcell(t.arrival, now), stayInfo);
+      html += kpi(tr(S.enemyDelayed ? 'impactDelayed' : 'arrivalAtTarget'), tcell(t.arrival, now), stayInfo);
     }
     if (S.enemyDelayed) {
-      html += kpi('Delay', (S.enemyArr >= S.enemyOrigArr ? '+' : '−') + fmtDur(Math.abs(S.enemyArr - S.enemyOrigArr)));
+      html += kpi(tr('delay'), (S.enemyArr >= S.enemyOrigArr ? '+' : '−') + fmtDur(Math.abs(S.enemyArr - S.enemyOrigArr)));
     }
-    html += kpi('Duration (one way)', fmtDur(r.dur));
+    html += kpi(tr('durationOneWay'), fmtDur(r.dur));
   } else if (S.abortKind === 'home') {
     if (r.res.recall !== null) {
-      html += kpi('Recall at', tcell(r.res.recall, now), cdSpan(r.cd) + (r.res.phase === 'hold' ? ' · during hold' : ''), 'big');
-      html += kpi('Back at', tcell(r.res.home, now), r.res.home !== S.home ? '+' + (r.res.home - S.home) + ' s (rounding)' : 'exact', 'big ret');
+      html += kpi(tr('recallAt'), tcell(r.res.recall, now), cdSpan(r.cd) + (r.res.phase === 'hold' ? esc(tr('duringHold')) : ''), 'big');
+      html += kpi(tr('backAt'), tcell(r.res.home, now), esc(r.res.home !== S.home ? tr('rounding', {s: r.res.home - S.home}) : tr('exact')), 'big ret');
     } else {
-      var detail = r.res.reason === 'no_abort_needed' ? 'regular return at ' + fmtClock(t.home) : '';
-      html += kpiNa('Recall at', REASONS[r.res.reason], detail, 'big');
+      var detail = r.res.reason === 'no_abort_needed' ? esc(tr('regularReturnAt', {time: fmtClock(t.home)})) : '';
+      html += kpiNa(tr('recallAt'), tr(REASONS[r.res.reason]), detail, 'big');
     }
-    html += kpi('Arrival at target', tcell(t.arrival, now), fmtDur(r.dur) + ' flight');
-    html += kpi('Latest recall', tcell(r.latest, now), cdSpan(r.latest - now));
-    html += kpi('Regular return', tcell(t.home, now));
+    html += kpi(tr('arrivalAtTarget'), tcell(t.arrival, now), esc(tr('flight', {dur: fmtDur(r.dur)})));
+    html += kpi(tr('latestRecall'), tcell(r.latest, now), cdSpan(r.latest - now));
+    html += kpi(tr('regularReturn'), tcell(t.home, now));
   } else {
     if (r.res.home !== null) {
-      html += kpi('Back at', tcell(r.res.home, now), 'return flight ' + fmtDur(r.res.home - r.recall), 'big ret');
+      html += kpi(tr('backAt'), tcell(r.res.home, now), esc(tr('returnFlight', {dur: fmtDur(r.res.home - r.recall)})), 'big ret');
     } else {
-      html += kpiNa('Back at', 'Recall: ' + REASONS[r.res.reason], '', 'big');
+      html += kpiNa(tr('backAt'), tr('recallReason', {reason: tr(REASONS[r.res.reason])}), '', 'big');
     }
     var progress = Math.max(0, Math.min(100, (r.recall - t.start) / Math.max(1, t.arrival - t.start) * 100));
-    html += kpi('Recall at', tcell(r.recall, now), S.recallLive ? 'now' : cdSpan(r.recall - now));
-    html += kpi('Outbound progress', progress.toFixed(1) + ' %');
-    html += kpi('Arrival at target', tcell(t.arrival, now));
-    html += kpi('Latest recall', tcell(r.latest, now), cdSpan(r.latest - now));
+    html += kpi(tr('recallAt'), tcell(r.recall, now), S.recallLive ? tr('nowWord') : cdSpan(r.recall - now));
+    html += kpi(tr('outboundProgress'), progress.toFixed(1) + ' %');
+    html += kpi(tr('arrivalAtTarget'), tcell(t.arrival, now));
+    html += kpi(tr('latestRecall'), tcell(r.latest, now), cdSpan(r.latest - now));
   }
   $('#hero').innerHTML = html;
 }
@@ -541,14 +527,14 @@ function renderTimeline(c, r) {
   }
   var marks = [];
   if (c.now >= t.start && c.now <= t.home) {
-    marks.push({at: c.now, label: 'now', cls: 'now'});
+    marks.push({at: c.now, label: tr('tlNow'), cls: 'now'});
   }
   if (S.mode === 'abort' || (S.mode === 'retime' && r.res && r.res.home !== null)) {
     var recall = S.mode === 'retime' || S.abortKind === 'at' ? r.recall : r.res.recall;
     if (recall !== null && recall >= t.start && recall <= t.home && recall !== c.now) {
-      marks.push({at: recall, label: 'recall', cls: 'recall'});
+      marks.push({at: recall, label: tr('tlRecall'), cls: 'recall'});
     } else if (recall === c.now && marks.length) {
-      marks[0] = {at: recall, label: 'recall now', cls: 'recall'};
+      marks[0] = {at: recall, label: tr('tlRecallNow'), cls: 'recall'};
     }
   }
   var bar = '<span class="tl-seg out" style="flex:' + (t.arrival - t.start) + '"></span>';
@@ -557,13 +543,13 @@ function renderTimeline(c, r) {
   }
   bar += '<span class="tl-seg back" style="flex:' + (t.home - t.stayEnd) + '"></span>';
   marks.forEach(function (m) {
-    bar += '<span class="tl-mark ' + m.cls + '" style="left:' + ((m.at - t.start) / total * 100).toFixed(2) + '%"><i></i><em>' + m.label + '</em></span>';
+    bar += '<span class="tl-mark ' + m.cls + '" style="left:' + ((m.at - t.start) / total * 100).toFixed(2) + '%"><i></i><em>' + esc(m.label) + '</em></span>';
   });
-  var legend = '<span><i style="background:var(--out)"></i>Outbound ' + fmtClock(t.start) + ' → ' + fmtClock(t.arrival) + '</span>';
+  var legend = '<span><i style="background:var(--out)"></i>' + esc(tr('outbound')) + ' ' + fmtClock(t.start) + ' → ' + fmtClock(t.arrival) + '</span>';
   if (t.stayEnd > t.arrival) {
-    legend += '<span><i style="background:var(--stay)"></i>Stay ' + fmtDur(t.stayEnd - t.arrival) + '</span>';
+    legend += '<span><i style="background:var(--stay)"></i>' + esc(tr('stay')) + ' ' + fmtDur(t.stayEnd - t.arrival) + '</span>';
   }
-  legend += '<span><i style="background:var(--back)"></i>Return → ' + fmtClock(t.home) + '</span>';
+  legend += '<span><i style="background:var(--back)"></i>' + esc(tr('returnArrow')) + ' → ' + fmtClock(t.home) + '</span>';
   $('#timeline').innerHTML = '<div class="tl-bar">' + bar + '</div><div class="tl-legend">' + legend + '</div>';
 }
 
@@ -573,15 +559,15 @@ function renderTable(c, rows) {
   var showStay = c.stay > 0;
   var now = c.now;
   if (S.mode === 'flight') {
-    head = ['Speed', 'Duration', 'Arrival'].concat(showStay ? ['Stay until'] : []).concat(['Return', 'Deuterium']);
+    head = ['colSpeed', 'colDuration', 'arrival'].concat(showStay ? ['colStayUntil'] : []).concat(['return', 'deuterium']);
   } else if (S.mode === 'timing') {
-    head = ['Speed', 'Duration', 'Send at', 'Countdown', 'Return', 'Deuterium'];
+    head = ['colSpeed', 'colDuration', 'sendAt', 'colCountdown', 'return', 'deuterium'];
   } else if (S.mode === 'retime') {
-    head = ['Speed', 'Duration', 'Enemy launched'].concat(showStay ? ['Stay until'] : []).concat(['Enemy home', '']);
+    head = ['colSpeed', 'colDuration', 'enemyLaunched'].concat(showStay ? ['colStayUntil'] : []).concat(['colEnemyHome', '']);
   } else if (S.abortKind === 'home') {
-    head = ['Speed', 'Duration', 'Arrival', 'Latest recall', 'Recall at', 'Countdown', 'Back at'];
+    head = ['colSpeed', 'colDuration', 'arrival', 'latestRecall', 'recallAt', 'colCountdown', 'backAt'];
   } else {
-    head = ['Speed', 'Duration', 'Arrival', 'Latest recall', 'Back after recall', 'Regular return'];
+    head = ['colSpeed', 'colDuration', 'arrival', 'latestRecall', 'colBackAfterRecall', 'regularReturn'];
   }
   rows.forEach(function (r) {
     var t = r.t;
@@ -600,9 +586,9 @@ function renderTable(c, rows) {
       if (showStay) { cells.push('<td>' + tcell(t.stayEnd, now) + '</td>'); }
       if (r.enemyHome === null) {
         past = true;
-        cells.push('<td colspan="2"><span class="muted">' + ENEMY_RECALL[r.res.reason] + '</span></td>');
+        cells.push('<td colspan="2"><span class="muted">' + esc(tr(ENEMY_RECALL[r.res.reason])) + '</span></td>');
       } else {
-        cells.push('<td>' + tcell(r.enemyHome, now) + '</td>', '<td>' + (t.start > now ? '<span class="muted">not launched yet</span>' : '') + '</td>');
+        cells.push('<td>' + tcell(r.enemyHome, now) + '</td>', '<td>' + (t.start > now ? '<span class="muted">' + esc(tr('notLaunched')) + '</span>' : '') + '</td>');
       }
     } else if (S.abortKind === 'home') {
       cells.push('<td>' + tcell(t.arrival, now) + '</td>', '<td>' + tcell(r.latest, now) + '</td>');
@@ -610,19 +596,19 @@ function renderTable(c, rows) {
         past = r.cd < 0;
         cells.push('<td>' + tcell(r.res.recall, now) + '</td>', '<td>' + cdSpan(r.cd) + '</td>', '<td>' + tcell(r.res.home, now) + '</td>');
       } else {
-        cells.push('<td colspan="3"><span class="muted">' + REASONS[r.res.reason] + '</span></td>');
+        cells.push('<td colspan="3"><span class="muted">' + esc(tr(REASONS[r.res.reason])) + '</span></td>');
       }
     } else {
       cells.push('<td>' + tcell(t.arrival, now) + '</td>', '<td>' + tcell(r.latest, now) + '</td>');
       cells.push(r.res.home !== null
         ? '<td>' + tcell(r.res.home, now) + '</td>'
-        : '<td><span class="muted">' + REASONS[r.res.reason] + '</span></td>');
+        : '<td><span class="muted">' + esc(tr(REASONS[r.res.reason])) + '</span></td>');
       cells.push('<td>' + tcell(t.home, now) + '</td>');
     }
     var cls = (r.n === S.speed ? 'sel' : '') + (past ? ' past' : '');
     body += '<tr data-speed="' + r.n + '" class="' + cls + '">' + cells.join('') + '</tr>';
   });
-  $('#table thead').innerHTML = '<tr>' + head.map(function (h) { return '<th>' + h + '</th>'; }).join('') + '</tr>';
+  $('#table thead').innerHTML = '<tr>' + head.map(function (h) { return '<th>' + (h ? esc(tr(h)) : '') + '</th>'; }).join('') + '</tr>';
   $('#table tbody').innerHTML = body;
 }
 
@@ -633,15 +619,16 @@ function renderKonter(c, sel) {
   var speed = getShipSpeed(ship, k);
   var dist = getTargetDistance(from, S.start, U);
   if (sel.enemyHome === null) {
-    $('#konterInfo').textContent = 'No return time for the selected enemy speed – pick a speed where the recall is possible.';
+    $('#konterInfo').textContent = tr('konterNoReturn');
     $('#konterTable thead').innerHTML = '';
     $('#konterTable tbody').innerHTML = '';
     return;
   }
   var land = sel.enemyHome + (Number(k.offset) || 0);
-  $('#konterInfo').innerHTML = 'Landing on <strong>' + fmtCoords(S.start) + '</strong> at <strong>' + fmtClock(land) + '</strong>'
-    + ' (enemy return at ' + (sel.n * 10) + ' % + ' + (Number(k.offset) || 0) + ' s) · distance <strong>' + fmtNum(dist) + '</strong>'
-    + ' · ' + esc(ship.name) + ' <strong>' + fmtNum(speed) + '</strong>';
+  $('#konterInfo').innerHTML = tr('konterInfo', {
+    target: fmtCoords(S.start), land: fmtClock(land), speed: sel.n * 10, offset: Number(k.offset) || 0,
+    dist: fmtNum(dist), ship: esc(shipName(ship)), shipSpeed: fmtNum(speed)
+  });
   var body = '';
   SPEEDS.forEach(function (n) {
     var dur = getMissionDuration(n, speed, dist, U.game_speed);
@@ -650,7 +637,9 @@ function renderKonter(c, sel) {
     body += '<tr class="' + (cd < 0 ? 'past' : '') + '"><td>' + (n * 10) + ' %</td><td>' + fmtDur(dur) + '</td><td>'
       + tcell(launch, c.now) + '</td><td>' + cdSpan(cd) + '</td></tr>';
   });
-  $('#konterTable thead').innerHTML = '<tr><th>Your speed</th><th>Duration</th><th>Send at</th><th>Countdown</th></tr>';
+  $('#konterTable thead').innerHTML = '<tr>' + ['yourSpeed', 'colDuration', 'sendAt', 'colCountdown'].map(function (h) {
+    return '<th>' + esc(tr(h)) + '</th>';
+  }).join('') + '</tr>';
   $('#konterTable tbody').innerHTML = body;
 }
 
@@ -663,25 +652,25 @@ function renderMobileBar(c, r) {
   var main;
   var t = r.t;
   if (S.mode === 'flight') {
-    main = 'Arrival <b>' + fmtClock(t.arrival) + '</b> · back <b>' + fmtClock(t.home) + '</b>';
+    main = tr('mbarArrival', {a: fmtClock(t.arrival), h: fmtClock(t.home)});
   } else if (S.mode === 'timing') {
-    main = 'Send <b>' + fmtClock(t.start) + '</b> · ' + fmtCountdown(r.cd);
+    main = tr('mbarSend', {t: fmtClock(t.start), cd: fmtCountdown(r.cd)});
   } else if (S.mode === 'retime') {
-    main = r.enemyHome !== null ? 'Enemy home <b>' + fmtClock(r.enemyHome) + '</b>' : ENEMY_RECALL[r.res.reason];
+    main = r.enemyHome !== null ? tr('mbarEnemyHome', {t: fmtClock(r.enemyHome)}) : esc(tr(ENEMY_RECALL[r.res.reason]));
   } else if (S.abortKind === 'home') {
-    main = r.res.recall !== null ? 'Recall <b>' + fmtClock(r.res.recall) + '</b> · ' + fmtCountdown(r.cd) : REASONS[r.res.reason];
+    main = r.res.recall !== null ? tr('mbarRecall', {t: fmtClock(r.res.recall), cd: fmtCountdown(r.cd)}) : esc(tr(REASONS[r.res.reason]));
   } else {
-    main = r.res.home !== null ? 'Back <b>' + fmtClock(r.res.home) + '</b>' : REASONS[r.res.reason];
+    main = r.res.home !== null ? tr('mbarBack', {t: fmtClock(r.res.home)}) : esc(tr(REASONS[r.res.reason]));
   }
   bar.innerHTML = '<span>' + main + '</span><span>' + (r.n * 10) + ' % ↓</span>';
   bar.classList.add('on');
 }
 
 function renderInputsMeta(c) {
-  $('#distMeta').textContent = 'Distance ' + fmtNum(c.dist);
+  $('#distMeta').textContent = tr('distance', {d: fmtNum(c.dist)});
   var count = activeShips(S.ships).reduce(function (sum, id) { return sum + Number(S.ships[id]); }, 0);
-  $('#fleetMeta').textContent = count ? '· ' + fmtNum(count) + ' ships · ' + fmtNum(c.slowest.speed) : '';
-  $('#techMeta').textContent = '· CE ' + S.techs.combustion + ' · IE ' + S.techs.impulse + ' · HE ' + S.techs.hyperspace;
+  $('#fleetMeta').textContent = count ? tr(count === 1 ? 'fleetMetaOne' : 'fleetMeta', {n: fmtNum(count), speed: fmtNum(c.slowest.speed)}) : '';
+  $('#techMeta').textContent = tr('techMeta', {c: S.techs.combustion, i: S.techs.impulse, h: S.techs.hyperspace});
   SHIPS.forEach(function (ship) {
     var el = document.getElementById('ship-' + ship.id);
     var box = el.closest('.ship');
@@ -690,13 +679,13 @@ function renderInputsMeta(c) {
     var isSlowest = has && c.slowest.id === String(ship.id) && activeShips(S.ships).length > 1;
     box.classList.toggle('slowest', isSlowest);
     box.querySelector('.ship-name span').textContent = fmtNum(getShipSpeed(ship, S.techs))
-      + (isSlowest ? ' · slowest' : '');
+      + (isSlowest ? tr('slowest') : '');
   });
   var errors = [];
-  [['Start', S.start], ['Target', S.target]].forEach(function (pair) {
+  [['start', S.start], ['target', S.target]].forEach(function (pair) {
     var p = pair[1];
     if (p.g < 1 || p.g > U.max_galaxy || p.s < 1 || p.s > U.max_system || p.p < 1 || p.p > U.max_planets + 1) {
-      errors.push(pair[0] + ' is outside the universe (' + U.max_galaxy + ':' + U.max_system + ':' + U.max_planets + ')');
+      errors.push(tr('outsideUni', {which: tr(pair[0]), size: U.max_galaxy + ':' + U.max_system + ':' + U.max_planets}));
     }
   });
   $('#routeErr').hidden = !errors.length;
@@ -740,7 +729,7 @@ function syncMode() {
   $$('.modes [data-mode]').forEach(function (btn) {
     btn.setAttribute('aria-selected', String(btn.dataset.mode === S.mode));
   });
-  $('#modeTip').dataset.tip = MODES[S.mode] + '\n\n' + TIME_FORMATS;
+  $('#modeTip').dataset.tip = tr(MODES[S.mode]) + '\n\n' + tr('timeFormats');
   $$('[data-for]').forEach(function (el) {
     el.hidden = el.dataset.for.split(' ').indexOf(S.mode) === -1;
   });
@@ -749,11 +738,11 @@ function syncMode() {
   });
   setPressed('#abortKindSeg', 'data-kind', S.abortKind);
   var enemy = S.mode === 'retime';
-  $('#startLbl').textContent = enemy ? 'Enemy home planet' : 'Start';
-  $('#targetLbl').textContent = enemy ? 'Enemy target' : 'Target';
-  $('#fleetTitle').textContent = enemy ? 'Enemy fleet' : 'Fleet';
-  $('#techTitle').textContent = enemy ? 'Enemy research' : 'Research';
-  $('#speedLbl').textContent = enemy ? 'Enemy speed' : 'Speed';
+  $('#startLbl').textContent = tr(enemy ? 'enemyHomePlanet' : 'start');
+  $('#targetLbl').textContent = tr(enemy ? 'enemyTarget' : 'target');
+  $('#fleetTitle').textContent = tr(enemy ? 'enemyFleet' : 'fleet');
+  $('#techTitle').textContent = tr(enemy ? 'enemyResearch' : 'research');
+  $('#speedLbl').textContent = tr(enemy ? 'enemySpeed' : 'speed');
   syncRetime();
 }
 
@@ -762,11 +751,11 @@ function syncRetime() {
   $('#origWrap').hidden = !S.enemyDelayed;
   $('#enemyRecallWrap').hidden = S.enemyOutcome !== 'recall';
   setPressed('#outcomeSeg', 'data-outcome', S.enemyOutcome);
-  $('label[for="tf-enemyArr"]').textContent = S.enemyDelayed ? 'Arrival after the delay (currently shown)' : 'Arrival of the enemy fleet';
+  $('label[for="tf-enemyArr"]').textContent = tr(S.enemyDelayed ? 'lblEnemyArrDelayed' : 'lblEnemyArr');
   var hint = $('#retimeHint');
   if (S.enemyDelayed && S.enemyOrigArr > S.enemyArr) {
     hint.classList.add('err');
-    hint.textContent = 'The original arrival has to be before the delayed arrival.';
+    hint.textContent = tr('origBeforeDelayed');
     hint.hidden = false;
     return;
   }
@@ -782,15 +771,15 @@ function syncMission() {
     chips = STAY_PRESETS[S.mission].map(function (h) {
       return '<button type="button" class="chip" data-stay="' + h + '" aria-pressed="' + (S.stay[S.mission] === h) + '">' + fmtHours(h) + '</button>';
     }).join('');
-    tipText = S.mission === 'hold' ? 'Hold can be recalled during the stay – the return then takes the full outbound duration.' : 'Trade can be recalled during the stay – the return then takes the full outbound duration.';
+    tipText = tr(S.mission === 'hold' ? 'holdTip' : 'tradeTip');
   } else if (S.mission === 'expo') {
     var opts = expoOptions();
     var current = stayHours();
     chips = opts.map(function (h) {
       return '<button type="button" class="chip" data-stay="' + h + '" aria-pressed="' + (current === h) + '">' + fmtHours(h) + '</button>';
     }).join('');
-    tipText = 'Hold times: 1 h up to your Astrophysics level, divided by the universe\'s expedition hold factor. Expeditions can only be recalled on the outbound flight.';
-    hint = opts.length ? '' : 'Enter your Astrophysics level under Research to choose a hold time.';
+    tipText = tr('expoTip');
+    hint = opts.length ? '' : tr('expoNeedsAstro');
   }
   $('#stayChips').innerHTML = chips;
   $('#stayChips').hidden = !chips;
@@ -805,7 +794,7 @@ function syncCoords() {
   $('#targetIn').value = fmtCoords(S.target);
   $('#startIn').classList.remove('invalid');
   $('#targetIn').classList.remove('invalid');
-  $('#kStart').placeholder = fmtCoords(S.target) + ' (= enemy target)';
+  syncCoordsPlaceholder();
 }
 
 function buildTimeFields() {
@@ -815,10 +804,10 @@ function buildTimeFields() {
     var id = 'tf-' + key;
     el.innerHTML = '<div class="field">'
       + '<div class="tf-head"><label for="' + id + '">' + esc(el.dataset.label) + '</label>'
-      + (live ? '<label class="switch"><input type="checkbox" data-live-toggle="' + live + '"><span class="track"></span>live (now)</label>' : '')
+      + (live ? '<label class="switch"><input type="checkbox" data-live-toggle="' + live + '"><span class="track"></span>' + esc(tr('live')) + '</label>' : '')
       + '</div>'
       + '<div class="tf-row"><input id="' + id + '" type="text" autocomplete="off" spellcheck="false" data-time="' + key + '" placeholder="hh:mm:ss">'
-      + '<button type="button" class="btn" data-now="' + key + '">Now</button></div>'
+      + '<button type="button" class="btn" data-now="' + key + '">' + esc(tr('now')) + '</button></div>'
       + '<span class="hint" data-time-hint="' + key + '"></span></div>';
   });
 }
@@ -826,7 +815,7 @@ function buildTimeFields() {
 function timeHint(key, value) {
   var hint = $('[data-time-hint="' + key + '"]');
   if (value === null) {
-    hint.textContent = 'Time not recognised';
+    hint.textContent = tr('timeNotRecognised');
     hint.classList.add('err');
     return;
   }
@@ -856,11 +845,11 @@ function syncTimeFields(skipFocused) {
 function buildShips() {
   $('#shipGrid').innerHTML = SHIPS.map(function (ship) {
     return '<div class="ship" data-ship-box="' + ship.id + '"' + '>'
-      + '<label class="ship-name" for="ship-' + ship.id + '" title="' + esc(ship.name) + '"><strong>' + esc(ship.name) + '</strong><span></span></label>'
+      + '<label class="ship-name" for="ship-' + ship.id + '" title="' + esc(shipName(ship)) + '"><strong>' + esc(shipName(ship)) + '</strong><span></span></label>'
       + '<input id="ship-' + ship.id + '" data-ship="' + ship.id + '" type="text" inputmode="numeric" autocomplete="off" placeholder="0"></div>';
   }).join('');
   $('#kShip').innerHTML = SHIPS.map(function (ship) {
-    return '<option value="' + ship.id + '">' + esc(ship.name) + '</option>';
+    return '<option value="' + ship.id + '">' + esc(shipName(ship)) + '</option>';
   }).join('');
 }
 
@@ -918,14 +907,14 @@ function update() {
 
 var LS_SHIPS = 'pr0fc.ships.v1';
 var CUSTOM = [];
-var DRIVES = [['1', 'Combustion'], ['2', 'Impulse'], ['3', 'Hyperspace']];
+var DRIVES = [['1', 'combustion'], ['2', 'impulse'], ['3', 'hyperspace']];
 var CUSTOM_FIELDS = ['speed1', 'speed2', 'speed3', 'tech1', 'tech2', 'tech3', 'consumption1', 'consumption2', 'consumption3'];
 
 function applyCustom(list) {
   CUSTOM = (Array.isArray(list) ? list : []).filter(function (c) {
     return c && /^c\d+$/.test(c.id);
   }).map(function (c) {
-    var ship = {id: c.id, name: String(c.name || 'Custom ship').slice(0, 40), custom: true};
+    var ship = {id: c.id, name: String(c.name || tr('customShip')).slice(0, 40), custom: true};
     CUSTOM_FIELDS.forEach(function (key) {
       ship[key] = Math.max(0, Number(c[key]) || 0);
     });
@@ -950,14 +939,17 @@ function renderCustomList() {
   }
   list.innerHTML = CUSTOM.map(function (c) {
     var rows = DRIVES.map(function (d) {
-      return '<tr><td>' + d[1] + '</td>' + ['speed', 'tech', 'consumption'].map(function (key) {
-        return '<td><input data-cs="' + key + d[0] + '" type="number" min="0" step="1" inputmode="numeric" value="' + c[key + d[0]] + '" aria-label="' + d[1] + ' ' + key + '"></td>';
+      return '<tr><td>' + esc(tr(d[1])) + '</td>' + [['speed', 'baseSpeed'], ['tech', 'usedFrom'], ['consumption', 'consumption']].map(function (col) {
+        var key = col[0];
+        return '<td><input data-cs="' + key + d[0] + '" type="number" min="0" step="1" inputmode="numeric" value="' + c[key + d[0]] + '" aria-label="' + esc(tr(d[1]) + ' ' + tr(col[1])) + '"></td>';
       }).join('') + '</tr>';
     }).join('');
     return '<div class="cship" data-cid="' + c.id + '">'
-      + '<div class="cship-head"><input class="input" data-cs="name" value="' + esc(c.name) + '" maxlength="40" aria-label="Ship name">'
-      + '<button type="button" class="btn ghost" data-cs-del>Remove</button></div>'
-      + '<div class="table-wrap"><table class="cship-table"><thead><tr><th>Drive</th><th>Base speed</th><th>Used from level</th><th>Consumption</th></tr></thead>'
+      + '<div class="cship-head"><input class="input" data-cs="name" value="' + esc(c.name) + '" maxlength="40" aria-label="' + esc(tr('shipName')) + '">'
+      + '<button type="button" class="btn ghost" data-cs-del>' + esc(tr('remove')) + '</button></div>'
+      + '<div class="table-wrap"><table class="cship-table"><thead><tr>' + ['drive', 'baseSpeed', 'usedFrom', 'consumption'].map(function (h) {
+        return '<th>' + esc(tr(h)) + '</th>';
+      }).join('') + '</tr></thead>'
       + '<tbody>' + rows + '</tbody></table></div></div>';
   }).join('');
 }
@@ -972,7 +964,7 @@ function rebuildShipUi() {
 
 var LS_TABS = 'pr0fc.tabs.v1';
 var MAX_TABS = 12;
-var MODE_NAMES = {flight: 'Flight', timing: 'Timing', retime: 'Retime', abort: 'Recall'};
+var MODE_NAMES = {flight: 'tabFlight', timing: 'tabTiming', retime: 'tabRetime', abort: 'tabAbort'};
 var TABS = [];
 var activeTab = null;
 var tabSeq = 0;
@@ -985,7 +977,7 @@ function newTab(state, name) {
 
 function tabAutoName(state) {
   var coords = state.mode === 'retime' ? state.start : state.target;
-  return MODE_NAMES[state.mode] + ' → ' + fmtCoords(coords);
+  return tr(MODE_NAMES[state.mode]) + ' → ' + fmtCoords(coords);
 }
 
 /* Key result of a tab (uses the tab's own state). */
@@ -1000,18 +992,18 @@ function tabSummary(tab) {
     var r = rowFor(c, S.speed);
     var t = r.t;
     if (S.mode === 'flight') {
-      return {label: 'Arrival', at: t.arrival};
+      return {label: tr('sumArrival'), at: t.arrival};
     }
     if (S.mode === 'timing') {
-      return {label: 'Send', at: t.start, due: true, now: c.now};
+      return {label: tr('sumSend'), at: t.start, due: true, now: c.now};
     }
     if (S.mode === 'retime') {
-      return r.enemyHome !== null ? {label: 'Enemy home', at: r.enemyHome} : null;
+      return r.enemyHome !== null ? {label: tr('sumEnemyHome'), at: r.enemyHome} : null;
     }
     if (S.abortKind === 'home') {
-      return r.res.recall !== null ? {label: 'Recall', at: r.res.recall, due: true, now: c.now} : null;
+      return r.res.recall !== null ? {label: tr('sumRecall'), at: r.res.recall, due: true, now: c.now} : null;
     }
-    return r.res.home !== null ? {label: 'Back', at: r.res.home} : null;
+    return r.res.home !== null ? {label: tr('sumBack'), at: r.res.home} : null;
   } finally {
     S = prev;
   }
@@ -1020,13 +1012,13 @@ function tabSummary(tab) {
 function renderTabs() {
   var html = TABS.map(function (tab) {
     return '<div class="ctab' + (tab === activeTab ? ' active' : '') + '" data-tab="' + tab.id + '">'
-      + '<button type="button" class="ctab-main" role="tab" aria-selected="' + (tab === activeTab) + '" title="Double-click to rename">'
+      + '<button type="button" class="ctab-main" role="tab" aria-selected="' + (tab === activeTab) + '" title="' + esc(tr('tabRename')) + '">'
       + '<span class="ctab-name"></span><span class="ctab-sum"></span></button>'
-      + (TABS.length > 1 ? '<button type="button" class="ctab-close" aria-label="Close tab" title="Close tab">×</button>' : '')
+      + (TABS.length > 1 ? '<button type="button" class="ctab-close" aria-label="' + esc(tr('tabClose')) + '" title="' + esc(tr('tabClose')) + '">×</button>' : '')
       + '</div>';
   }).join('');
   html += TABS.length < MAX_TABS
-    ? '<button type="button" class="ctab-add" id="addTab" title="New tab (copy of the current one)" aria-label="New tab">+</button>'
+    ? '<button type="button" class="ctab-add" id="addTab" title="' + esc(tr('tabNew')) + '" aria-label="' + esc(tr('tabNewAria')) + '">+</button>'
     : '';
   $('#calcTabs').innerHTML = html;
   updateTabs();
@@ -1059,7 +1051,7 @@ function switchTab(tab) {
 
 function addTab(state, name) {
   if (TABS.length >= MAX_TABS) {
-    toast('Maximum of ' + MAX_TABS + ' tabs reached');
+    toast(tr('tabsMax', {n: MAX_TABS}));
     return null;
   }
   var tab = newTab(state, name);
@@ -1085,7 +1077,7 @@ function closeTab(tab) {
     renderTabs();
     persist();
   }
-  toast('Tab closed', {label: 'Undo', fn: function () {
+  toast(tr('tabClosed'), {label: tr('undo'), fn: function () {
     if (!closedTab || TABS.length >= MAX_TABS) {
       return;
     }
@@ -1105,7 +1097,7 @@ function startRename(tab) {
   input.className = 'ctab-rename';
   input.maxLength = 40;
   input.value = tab.name || tabAutoName(tab.state);
-  input.setAttribute('aria-label', 'Tab name');
+  input.setAttribute('aria-label', tr('tabName'));
   el.replaceWith(input);
   input.focus();
   input.select();
@@ -1139,7 +1131,7 @@ function bindTabs() {
   bar.addEventListener('click', function (e) {
     if (e.target.closest('#addTab')) {
       addTab(cloneState(S), null);
-      toast('New tab – copied from the current one');
+      toast(tr('tabCopied'));
       return;
     }
     var box = e.target.closest('[data-tab]');
@@ -1184,8 +1176,8 @@ function loadTabs(now) {
 /* ---------- universe settings ---------- */
 
 function syncUniSummary() {
-  var shape = Number(U.uni_type) === 1 ? ' · ring' : (Number(U.uni_type) === 2 ? ' · sphere' : '');
-  $('#uniSummary').textContent = 'Speed ×' + U.game_speed + ' · ' + U.max_galaxy + ' gal' + shape;
+  var shape = Number(U.uni_type) === 1 ? tr('shapeRingShort') : (Number(U.uni_type) === 2 ? tr('shapeSphereShort') : '');
+  $('#uniSummary').textContent = tr('uniSummary', {speed: U.game_speed, gal: U.max_galaxy, shape: shape});
 }
 
 function buildUniDialog() {
@@ -1193,21 +1185,21 @@ function buildUniDialog() {
   UNI_FIELDS.forEach(function (f) {
     var html;
     if (f.type === 'shape') {
-      html = '<div class="field"><label for="u-' + f.key + '">' + esc(f.label) + '</label><select id="u-' + f.key + '" data-uni="' + f.key + '">'
-        + SHAPES.map(function (s) { return '<option value="' + s[0] + '">' + s[1] + '</option>'; }).join('') + '</select></div>';
+      html = '<div class="field"><label for="u-' + f.key + '">' + esc(tr(f.label)) + '</label><select id="u-' + f.key + '" data-uni="' + f.key + '">'
+        + SHAPES.map(function (s) { return '<option value="' + s[0] + '">' + esc(tr(s[1])) + '</option>'; }).join('') + '</select></div>';
     } else {
-      html = '<div class="field"><div class="label-row"><label for="u-' + f.key + '">' + esc(f.label) + '</label>'
-        + (f.hint ? '<button type="button" class="tip" aria-label="Info" data-tip="' + esc(f.hint) + '"></button>' : '') + '</div>'
+      html = '<div class="field"><div class="label-row"><label for="u-' + f.key + '">' + esc(tr(f.label)) + '</label>'
+        + (f.hint ? '<button type="button" class="tip" aria-label="' + esc(tr('info')) + '" data-tip="' + esc(tr(f.hint)) + '"></button>' : '') + '</div>'
         + '<input id="u-' + f.key + '" data-uni="' + f.key + '" type="number" step="' + f.step + '"' + (f.min !== undefined ? ' min="' + f.min + '"' : '') + ' inputmode="decimal"></div>';
     }
     (groups[f.group] = groups[f.group] || []).push(html);
   });
-  groups.Clock.push('<p class="clock-compare">Your device: <strong id="clockLocal"></strong> · calculator uses: <strong id="clockAdjusted"></strong></p>');
+  groups.groupClock.push('<p class="clock-compare">' + tr('clockCompare') + '</p>');
   $('#uniFields').innerHTML = Object.keys(groups).map(function (g) {
-    return '<fieldset><legend>' + g + '</legend>' + groups[g].join('') + '</fieldset>';
+    return '<fieldset><legend>' + esc(tr(g)) + '</legend>' + groups[g].join('') + '</fieldset>';
   }).join('')
-    + '<fieldset class="cships"><legend class="label-row">Custom ships <button type="button" class="tip" aria-label="Info" data-tip="Enter the values from the ship info in the game. Used from level: 0 = drive not available, 1 = always, N = from that research level on. The highest available drive wins (hyperspace before impulse before combustion)."></button></legend>'
-    + '<div id="customList"></div><button type="button" class="btn" id="addShip">+ Add ship</button></fieldset>';
+    + '<fieldset class="cships"><legend class="label-row">' + esc(tr('customShips')) + ' <button type="button" class="tip" aria-label="' + esc(tr('info')) + '" data-tip="' + esc(tr('customShipsTip')) + '"></button></legend>'
+    + '<div id="customList"></div><button type="button" class="btn" id="addShip">' + esc(tr('addShip')) + '</button></fieldset>';
   renderCustomList();
 }
 
@@ -1232,45 +1224,8 @@ function openSettings() {
 
 /* ---------- misc ---------- */
 
-var toastTimer = null;
-var toastAction = null;
-function toast(text, action) {
-  var el = $('#toast');
-  el.textContent = text;
-  toastAction = action || null;
-  if (action) {
-    var b = document.createElement('b');
-    b.textContent = action.label;
-    el.appendChild(b);
-  }
-  el.classList.toggle('action', !!action);
-  el.classList.add('show');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(function () {
-    el.classList.remove('show', 'action');
-    toastAction = null;
-  }, action ? 5000 : 1800);
-}
-
 function copy(text, label) {
-  var done = function () { toast(label || ('Copied: ' + text)); };
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(text).then(done, function () { fallbackCopy(text); done(); });
-  } else {
-    fallbackCopy(text);
-    done();
-  }
-}
-
-function fallbackCopy(text) {
-  var ta = document.createElement('textarea');
-  ta.value = text;
-  ta.style.position = 'fixed';
-  ta.style.opacity = '0';
-  document.body.appendChild(ta);
-  ta.select();
-  try { document.execCommand('copy'); } catch (e) { /* ignore */ }
-  document.body.removeChild(ta);
+  copyText(text, label || tr('copied', {text: text}));
 }
 
 function tickClock() {
@@ -1281,90 +1236,6 @@ function tickClock() {
     local.textContent = fmtClock(Math.floor(Date.now() / 1000));
     $('#clockAdjusted').textContent = fmtClock(now);
   }
-}
-
-/* ---------- tooltips ---------- */
-
-var tipBubble = null;
-var tipOwner = null;
-
-function showTip(btn) {
-  if (!btn.dataset.tip) {
-    return;
-  }
-  if (!tipBubble) {
-    tipBubble = document.createElement('div');
-    tipBubble.className = 'tip-bubble';
-    tipBubble.id = 'tipBubble';
-    tipBubble.setAttribute('role', 'tooltip');
-  }
-  /* Inside a modal dialog the bubble has to live in the top layer too. */
-  var host = btn.closest('dialog') || document.body;
-  if (tipBubble.parentNode !== host) {
-    host.appendChild(tipBubble);
-  }
-  if (tipOwner && tipOwner !== btn) {
-    tipOwner.setAttribute('aria-expanded', 'false');
-  }
-  tipBubble.textContent = btn.dataset.tip;
-  tipBubble.hidden = false;
-  tipOwner = btn;
-  btn.setAttribute('aria-expanded', 'true');
-  btn.setAttribute('aria-describedby', 'tipBubble');
-  var r = btn.getBoundingClientRect();
-  var w = tipBubble.offsetWidth;
-  var h = tipBubble.offsetHeight;
-  var left = Math.min(Math.max(8, r.left + r.width / 2 - w / 2), window.innerWidth - w - 8);
-  var top = r.bottom + 8;
-  if (top + h > window.innerHeight - 8) {
-    top = Math.max(8, r.top - h - 8);
-  }
-  tipBubble.style.left = left + 'px';
-  tipBubble.style.top = top + 'px';
-}
-
-function hideTip() {
-  if (tipBubble) {
-    tipBubble.hidden = true;
-  }
-  if (tipOwner) {
-    tipOwner.setAttribute('aria-expanded', 'false');
-    tipOwner.removeAttribute('aria-describedby');
-    tipOwner = null;
-  }
-}
-
-function bindTips() {
-  document.addEventListener('mouseover', function (e) {
-    var btn = e.target.closest('.tip');
-    if (btn) { showTip(btn); }
-  });
-  document.addEventListener('mouseout', function (e) {
-    var btn = e.target.closest('.tip');
-    if (btn && !btn.contains(e.relatedTarget) && document.activeElement !== btn) { hideTip(); }
-  });
-  document.addEventListener('focusin', function (e) {
-    if (e.target.classList && e.target.classList.contains('tip')) { showTip(e.target); }
-  });
-  document.addEventListener('focusout', function (e) {
-    if (e.target === tipOwner) { hideTip(); }
-  });
-  /* Capture phase: a tap toggles the bubble without triggering labels or summaries. */
-  document.addEventListener('click', function (e) {
-    var btn = e.target.closest('.tip');
-    if (btn) {
-      e.preventDefault();
-      e.stopPropagation();
-      if (tipOwner === btn && !tipBubble.hidden) { hideTip(); } else { showTip(btn); }
-    } else if (tipOwner) {
-      hideTip();
-    }
-  }, true);
-  document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape' && tipOwner) { hideTip(); }
-  });
-  window.addEventListener('scroll', hideTip, true);
-  window.addEventListener('resize', hideTip);
 }
 
 /* ---------- events ---------- */
@@ -1411,7 +1282,7 @@ function bind() {
     if (S.mission === 'expo' && S.target.p <= U.max_planets) {
       S.target = {g: S.start.g, s: S.start.s, p: Number(U.max_planets) + 1};
       syncCoords();
-      toast('Target set to expedition slot ' + fmtCoords(S.target));
+      toast(tr('expoSlot', {coords: fmtCoords(S.target)}));
     }
     syncMission();
     update();
@@ -1480,7 +1351,7 @@ function bind() {
     } else if (el.dataset.cs) {
       var custom = SHIP_BY_ID[el.closest('.cship').dataset.cid];
       if (el.dataset.cs === 'name') {
-        custom.name = el.value.slice(0, 40) || 'Custom ship';
+        custom.name = el.value.slice(0, 40) || tr('customShip');
         rebuildShipUi();
       } else {
         custom[el.dataset.cs] = Math.max(0, Number(el.value) || 0);
@@ -1593,7 +1464,7 @@ function bind() {
   });
   $('#uniFields').addEventListener('click', function (e) {
     if (e.target.closest('#addShip')) {
-      var ship = {id: nextCustomId(), name: 'Custom ship ' + (CUSTOM.length + 1)};
+      var ship = {id: nextCustomId(), name: tr('customShip') + ' ' + (CUSTOM.length + 1)};
       CUSTOM_FIELDS.forEach(function (key) { ship[key] = 0; });
       ship.speed1 = 10000;
       ship.tech1 = 1;
@@ -1626,12 +1497,13 @@ function bind() {
     syncUniDialog();
     syncUniSummary();
     update();
-    toast('Universe reset to defaults');
+    toast(tr('uniReset'));
   });
 
   $('#shareBtn').addEventListener('click', function () {
-    copy(buildShareUrl(), 'Link with all inputs copied');
+    copy(buildShareUrl(), tr('shared'));
   });
+  bindLang(relabel);
   $('#mbar').addEventListener('click', function () {
     $('#results').scrollIntoView({behavior: 'smooth', block: 'start'});
   });
@@ -1639,35 +1511,39 @@ function bind() {
   window.addEventListener('hashchange', function () {
     var state = defaultState(nowUnix());
     if (applyHash(state, parseHash())) {
-      history.replaceState(null, '', location.pathname + location.search);
+      clearHash();
       renderCustomList();
       rebuildShipUi();
       addTab(state, null);
-      toast('Link opened in a new tab');
-    }
-  });
-  $('#toast').addEventListener('click', function () {
-    if (toastAction) {
-      var fn = toastAction.fn;
-      toastAction = null;
-      $('#toast').classList.remove('show', 'action');
-      fn();
+      toast(tr('linkNewTab'));
     }
   });
 }
 
 function syncCoordsPlaceholder() {
-  $('#kStart').placeholder = fmtCoords(S.target) + ' (= enemy target)';
+  $('#kStart').placeholder = tr('konterPlaceholder', {coords: fmtCoords(S.target)});
+}
+
+/* Language switched: rebuild the generated parts with their texts, keep all inputs. */
+function relabel() {
+  buildTimeFields();
+  buildShips();
+  buildUniDialog();
+  syncAll();
+  renderTabs();
+  render();
 }
 
 function init() {
+  initTexts(TEXTS);
+  applyTexts();
   U = Object.assign({}, DEFAULT_UNI, load(LS_UNI) || {});
   applyCustom(load(LS_SHIPS));
   var hadState = loadTabs(nowUnix());
   var linkState = defaultState(nowUnix());
   var fromLink = applyHash(linkState, parseHash());
   if (fromLink) {
-    history.replaceState(null, '', location.pathname + location.search);
+    clearHash();
     if (hadState && TABS.length < MAX_TABS) {
       TABS.splice(TABS.indexOf(activeTab) + 1, 0, newTab(linkState, null));
       activeTab = TABS[TABS.indexOf(activeTab) + 1];
@@ -1689,7 +1565,7 @@ function init() {
   persist();
   tickClock();
   if (fromLink) {
-    toast(hadState ? 'Link opened in a new tab' : 'Values loaded from link');
+    toast(tr(hadState ? 'linkNewTab' : 'linkLoaded'));
   }
   setInterval(function () {
     tickClock();

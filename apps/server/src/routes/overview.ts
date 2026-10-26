@@ -18,7 +18,7 @@ export function overviewRoutes(app: FastifyInstance, db: DB) {
          FROM group_members m JOIN users u ON u.id = m.user_id WHERE m.group_id = ? ORDER BY name COLLATE NOCASE`,
       )
       .all(ctx.groupId);
-    // own research + planets (latest empire page) for flight time links
+    // own research + planets (latest empire page) for flight time and missile links: silo level and missiles per planet
     const empire = latestEmpire(db, ctx, ctx.user.id);
     const rec = empire?.rec;
     return {
@@ -27,7 +27,11 @@ export function overviewRoutes(app: FastifyInstance, db: DB) {
       members,
       me: ctx.user,
       own: rec
-        ? { time: empire!.time, research: rec.research, planets: rec.planets.map((p) => ({ name: p.name, coords: p.coords, type: p.type })) }
+        ? {
+            time: empire!.time,
+            research: rec.research,
+            planets: rec.planets.map((p) => ({ name: p.name, coords: p.coords, type: p.type, silo: p.values[44] ?? 0, ipm: p.values[503] ?? 0 })),
+          }
         : null,
     };
   });

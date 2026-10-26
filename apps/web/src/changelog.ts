@@ -20,8 +20,28 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
-        de: 'Die Tools-Startseite und die einzelnen Tools (Flugrechner, Beuterechner) verlinken im Footer den Quellcode.',
-        en: 'The tools index and the single tools (flight calculator, loot calculator) link to the source code in the footer.',
+        de: 'Der Link zum IRak-Rechner startet vom nächsten eigenen Planeten mit Raketensilo und trägt dessen Silo-Stufe und Interplanetarraketen aus dem Imperium ein.',
+        en: 'The link to the IPM calculator starts from the nearest own planet with a missile silo and fills in its silo level and interplanetary missiles from the empire page.',
+      },
+      {
+        kind: 'new',
+        de: 'Im Spionage-Verlauf, im Aktionsmenü eines Planeten und im Angriffsplaner gibt es einen Link zum IRak-Rechner. Aus dem Spionage-Verlauf sind Verteidigung, Abfangraketen und Panzerung schon eingetragen, bei einem Mond die Abfangraketen des Planeten.',
+        en: 'The spy history, the action menu of a planet and the raid planner link to the IPM calculator. From the spy history, defense, interceptors and armour are already filled in, for a moon the interceptors of its planet.',
+      },
+      {
+        kind: 'new',
+        de: 'Neues Tool: der IRak-Rechner. Er zeigt, was Interplanetarraketen zerstören (mit Abfangraketen, Primärziel, Waffen und Panzerung wie im Spiel), wie viele Raketen für alles oder das Primärziel nötig sind, Reichweite und Flugzeit. Einen Spionagebericht kannst du direkt einfügen.',
+        en: 'New tool: the IPM calculator. It shows what interplanetary missiles destroy (with interceptors, primary target, weapons and armour as in the game), how many missiles clear everything or the primary target, range and flight time. You can paste a spy report straight in.',
+      },
+      {
+        kind: 'new',
+        de: 'Flugrechner gibt es jetzt auch auf Deutsch. Flugrechner, Beuterechner und die Tool-Übersicht haben denselben Kopf mit EN/DE-Umschalter und „Link teilen“; die gewählte Sprache gilt für alle Tools, bis zur ersten Wahl ist es Englisch.',
+        en: 'The flight calculator is now available in German. Flight calculator, loot calculator and the tools overview share the same header with an EN/DE switch and "Share link"; the chosen language applies to all tools, English until you pick one.',
+      },
+      {
+        kind: 'new',
+        de: 'Die Tools-Startseite und die einzelnen Tools (Flugrechner, Beuterechner, IRak-Rechner) verlinken im Footer den Quellcode.',
+        en: 'The tools index and the single tools (flight calculator, loot calculator, IPM calculator) link to the source code in the footer.',
       },
       {
         kind: 'new',

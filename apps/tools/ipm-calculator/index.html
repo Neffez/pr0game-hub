@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>IPM Calculator · pr0game</title>
+<meta name="description" content="Interplanetary missile calculator for pr0game: destroyed defense, interceptors, missiles needed, range and flight time – exactly like the game.">
+<meta name="theme-color" content="#0d1117">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%230d1117'/%3E%3Cpath d='M9 22l4-1 9-9a3 3 0 00-4-4l-9 9-1 4z' fill='%23f2683c'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/tools.css">
+<style>
+/* IPM calculator: layout, defense grid and result table (base look in ../shared/tools.css) */
+.layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+@media (min-width: 1000px) {
+  .layout { grid-template-columns: minmax(380px, 440px) minmax(0, 1fr); align-items: start; }
+  .col-results { position: sticky; top: 16px; }
+}
+.route { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.switch-row { margin-top: 12px; }
+.defs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.def {
+  display: grid; grid-template-columns: minmax(0, 1fr) 72px; align-items: center; gap: 6px;
+  padding: 7px 7px 7px 10px; border-radius: var(--radius-sm); background: var(--surface-2);
+  border: 1px solid transparent; transition: border-color .15s;
+}
+.def.has { border-color: var(--border-strong); }
+.def.primary { border-color: var(--accent); }
+.def-name { min-width: 0; }
+.def-name strong { display: block; font-size: 13px; font-weight: 600; line-height: 1.25; overflow-wrap: break-word; hyphens: auto; }
+.def-name span { display: block; font-size: 11.5px; color: var(--faint); font-family: var(--mono); }
+.def input {
+  width: 100%; text-align: right; font-family: var(--mono); background: var(--surface);
+  border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; outline: none;
+}
+.def input:focus { border-color: var(--accent); }
+.def input.invalid { border-color: var(--danger); }
+.spy textarea { min-height: 70px; }
+.spy .hint { margin-top: 6px; }
+.kpi.big .kpi-value { font-size: 26px; }
+.result-table { margin-top: 16px; }
+.result-table td .tag { font-family: var(--sans); font-size: 11px; color: var(--accent-text); margin-left: 6px; }
+.result-table tr.gone td:first-child { color: var(--faint); text-decoration: line-through; text-decoration-color: var(--faint); }
+.econ { margin-top: 16px; }
+@media (max-width: 640px) {
+  .defs { grid-template-columns: minmax(0, 1fr); }
+  .def { grid-template-columns: 1fr 110px; }
+  .kpi.big { grid-column: 1 / -1; }
+  .result-table th, .result-table td { padding: 7px 6px; }
+  .result-table td.name { white-space: normal; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="/" data-t-title="allTools">
+      <div class="brand-logo" aria-hidden="true">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4"/></svg>
+      </div>
+      <div><strong data-t="title">IPM Calculator</strong><span data-t="subtitle"></span></div>
+    </a>
+    <div class="top-actions">
+      <div class="seg small" id="langSeg" role="group" data-t-aria="language">
+        <button type="button" data-lang="en">EN</button>
+        <button type="button" data-lang="de">DE</button>
+      </div>
+      <button type="button" class="btn share-btn" id="shareBtn" data-t-title="shareTitle">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+        <span class="lbl" data-t="share">Share link</span>
+      </button>
+      <button type="button" class="btn ghost" id="resetBtn" data-t="reset">New</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <div class="col">
+      <section class="card">
+        <h2 class="card-title"><span data-t="route">Route</span><span class="spacer"></span><span class="card-meta mono" id="routeMeta"></span></h2>
+        <div class="route">
+          <div class="field">
+            <label for="startIn" data-t="start">Your planet (silo)</label>
+            <input id="startIn" class="coord" type="text" inputmode="numeric" autocomplete="off" placeholder="1:234:5">
+          </div>
+          <div class="field">
+            <label for="targetIn" data-t="target">Target</label>
+            <input id="targetIn" class="coord" type="text" inputmode="numeric" autocomplete="off" placeholder="1:234:5">
+          </div>
+        </div>
+        <div class="label-row switch-row">
+          <label class="switch"><input type="checkbox" id="moonIn"><span class="track"></span><span data-t="moon">Target is a moon</span></label>
+          <button type="button" class="tip" data-t-aria="info" aria-label="Info" data-t-tip="moonTip"></button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 class="card-title" data-t="attacker">Your missiles</h2>
+        <div class="stack">
+          <div class="grid3">
+            <div class="field"><label for="impulseIn" data-t="impulse">Impulse Engine</label><input id="impulseIn" data-num="impulse" type="number" min="0" inputmode="numeric"></div>
+            <div class="field"><label for="weaponsIn" data-t="weapons">Weapons Technology</label><input id="weaponsIn" data-num="weapons" type="number" min="0" inputmode="numeric"></div>
+            <div class="field"><label for="siloIn" data-t="silo">Missile Silo</label><input id="siloIn" data-num="silo" type="number" min="0" inputmode="numeric"></div>
+          </div>
+          <div class="grid2">
+            <div class="field"><label for="missilesIn" data-t="missiles">Interplanetary missiles</label><input id="missilesIn" data-amount="missiles" class="num" type="text" inputmode="numeric" autocomplete="off" placeholder="0"></div>
+            <div class="field">
+              <div class="label-row"><label for="primaryIn" class="field-label" data-t="primary">Primary target</label><button type="button" class="tip" data-t-aria="info" aria-label="Info" data-t-tip="primaryTip"></button></div>
+              <select id="primaryIn"></select>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2 class="card-title"><span data-t="targetCard">Target</span><span class="spacer"></span><button type="button" class="link-btn" id="clearDefense" data-t="clear">Clear</button></h2>
+        <div class="stack">
+          <div class="field spy">
+            <label for="spyIn" data-t="spyPaste">Paste spy report</label>
+            <textarea id="spyIn" spellcheck="false" data-t-ph="spyPh"></textarea>
+            <p class="hint" id="spyHint" hidden></p>
+          </div>
+          <div class="grid2">
+            <div class="field"><label for="armorIn" data-t="armor">Armour Technology</label><input id="armorIn" data-num="armor" type="number" min="0" inputmode="numeric"></div>
+            <div class="field"><label for="interceptorsIn" id="interceptorsLbl" data-t="interceptors">Interceptors</label><input id="interceptorsIn" data-amount="interceptors" class="num" type="text" inputmode="numeric" autocomplete="off" placeholder="0"></div>
+          </div>
+          <div class="field">
+            <span class="field-label" data-t="defense">Defense</span>
+            <div class="defs" id="defGrid"></div>
+          </div>
+        </div>
+      </section>
+
+      <details class="card" id="uniCard">
+        <summary class="card-title"><span data-t="universe">Universe</span><span class="card-meta mono" id="uniMeta"></span></summary>
+        <div class="grid2">
+          <div class="field"><label for="systemsIn" data-t="systems">Systems</label><input id="systemsIn" data-uni="systems" type="number" min="1" step="1" inputmode="numeric"></div>
+          <div class="field"><label for="galaxyTypeIn" data-t="galaxyType">Systems are …</label>
+            <select id="galaxyTypeIn" data-uni="galaxyType">
+              <option value="0" data-t="shapeLinear">linear</option>
+              <option value="1" data-t="shapeRing">a ring (wrap around)</option>
+              <option value="2" data-t="shapeSphere">a sphere (all equally far)</option>
+            </select>
+          </div>
+          <div class="field"><div class="label-row"><label for="speedIn" data-t="speed">Fleet speed</label><button type="button" class="tip" data-t-aria="info" aria-label="Info" data-t-tip="speedHint"></button></div><input id="speedIn" data-uni="speed" type="number" min="0.01" step="any" inputmode="decimal"></div>
+          <div class="field"><div class="label-row"><label for="rangeFactorIn" data-t="rangeFactor">Range factor</label><button type="button" class="tip" data-t-aria="info" aria-label="Info" data-t-tip="rangeFactorHint"></button></div><input id="rangeFactorIn" data-uni="rangeFactor" type="number" min="0" step="any" inputmode="decimal"></div>
+          <div class="field"><div class="label-row"><label for="siloFactorIn" data-t="siloFactor">Silo factor</label><button type="button" class="tip" data-t-aria="info" aria-label="Info" data-t-tip="siloFactorHint"></button></div><input id="siloFactorIn" data-uni="siloFactor" type="number" min="0" step="any" inputmode="decimal"></div>
+        </div>
+      </details>
+    </div>
+
+    <div class="col col-results">
+      <section class="card" id="results" aria-live="off">
+        <h2 class="card-title" data-t="result">Result</h2>
+        <div class="notes" id="notes"></div>
+        <div class="hero" id="hero"></div>
+        <p class="empty" id="empty" data-t="noTargets" hidden></p>
+        <div class="table-wrap result-table" id="tableWrap"><table id="table"><thead></thead><tbody></tbody></table></div>
+        <div class="hero econ" id="econ"></div>
+      </section>
+    </div>
+  </main>
+
+  <p class="foot"><span data-t="foot"></span> · <a href="https://github.com/Neffez/pr0game-hub" target="_blank" rel="noopener" data-t="source">Source code</a></p>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script type="module" src="./main.js"></script>
+</body>
+</html>

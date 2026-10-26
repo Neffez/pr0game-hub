@@ -412,8 +412,8 @@ function validateSettings(settings: object | undefined) {
     }
   }
   if (s.gameUrl && !/^https?:\/\//i.test(String(s.gameUrl))) throw new HttpError(400, 'game_url_invalid', 'Game URL must start with http(s)://');
-  // sizes and distance factors feed the distance, flight time and phalanx calculations
-  const defaults: Record<string, unknown> = { ...UNIVERSE_DEFAULTS, phalanxRangeFactor: 1 };
+  // sizes and distance factors feed the distance, flight time, phalanx and missile range calculations
+  const defaults: Record<string, unknown> = { ...UNIVERSE_DEFAULTS, phalanxRangeFactor: 1, missileRangeFactor: 1 };
   for (const [key, value] of Object.entries(s)) {
     let valid = true;
     if (typeof defaults[key] === 'boolean') valid = typeof value === 'boolean';

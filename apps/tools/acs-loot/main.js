@@ -20,9 +20,9 @@ import {
   shipName,
 } from '../src/loot.ts';
 import { TEXTS } from './i18n.js';
+import { $, $$, applyTexts, bindLang, bindShare, bindTips, clearHash, copy, esc, initTexts, load, store, t } from '../shared/shell.js';
 
 var LS_STATE = 'pr0loot.state.v1';
-var LS_LANG = 'pr0loot.lang.v1';
 var RES = ['m', 'k', 'd'];
 
 var S = emptyState();
@@ -37,45 +37,10 @@ var recyclePaste = {text: '', by: null, msg: null};
 
 /* ---------- helpers ---------- */
 
-function $(sel, root) { return (root || document).querySelector(sel); }
-function $$(sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)); }
-
-function esc(value) {
-  return String(value).replace(/[&<>"']/g, function (ch) {
-    return {'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[ch];
-  });
-}
-
-function t(key) { return (TEXTS[LANG] && TEXTS[LANG][key]) || TEXTS.en[key] || key; }
-
-function load(key) {
-  try { return JSON.parse(localStorage.getItem(key)); } catch (e) { return null; }
-}
-
-function store(key, value) {
-  try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* storage unavailable */ }
-}
-
 function num(n) { return fmtNum(n || 0, LANG); }
 function signed(n) {
   var cls = n > 0 ? 'pos' : n < 0 ? 'neg' : 'dim';
   return '<span class="' + cls + '">' + (n > 0 ? '+' : '') + num(n) + '</span>';
-}
-
-function toast(text) {
-  var el = $('#toast');
-  el.textContent = text;
-  el.hidden = false;
-  clearTimeout(toast.timer);
-  toast.timer = setTimeout(function () { el.hidden = true; }, 1800);
-}
-
-function copy(text, done) {
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(text).then(function () { toast(done); }, function () { toast(text); });
-  } else {
-    toast(text);
-  }
 }
 
 function personName(id) {
@@ -316,13 +281,6 @@ function buildInputs() {
   buildBattles();
   buildRecycling();
   buildHelpers();
-}
-
-function applyTexts() {
-  document.documentElement.lang = LANG;
-  document.title = t('title') + ' · pr0game';
-  $$('[data-t]').forEach(function (el) { el.textContent = t(el.getAttribute('data-t')); });
-  $$('#langSeg button').forEach(function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-lang') === LANG)); });
 }
 
 /* ---------- render: results ---------- */
@@ -715,18 +673,14 @@ function bind() {
       update();
       return;
     }
-    var lang = e.target.closest('[data-lang]');
-    if (lang) {
-      LANG = lang.getAttribute('data-lang');
-      store(LS_LANG, LANG);
-      applyTexts();
-      buildInputs();
-      render();
-    }
   });
-  $('#shareBtn').addEventListener('click', function () {
-    var url = location.href.split('#')[0] + '#s=' + encodeShare(cleanState(S));
-    copy(url, t('shared'));
+  bindLang(function (lang) {
+    LANG = lang;
+    buildInputs();
+    render();
+  });
+  bindShare(function () {
+    return location.href.split('#')[0] + '#s=' + encodeShare(cleanState(S));
   });
   $('#resetBtn').addEventListener('click', function () {
     if (!window.confirm(t('resetConfirm'))) return;
@@ -748,13 +702,12 @@ function loadHash() {
   var state = decodeShare(m[1]);
   if (!state) return false;
   S = state;
-  try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* ignore */ }
+  clearHash();
   return true;
 }
 
 function init() {
-  var lang = load(LS_LANG);
-  LANG = lang === 'de' || lang === 'en' ? lang : /^de\b/i.test(navigator.language || '') ? 'de' : 'en';
+  LANG = initTexts(TEXTS);
   if (!loadHash()) {
     var saved = load(LS_STATE);
     if (saved) S = cleanState(saved);
@@ -767,6 +720,7 @@ function init() {
   applyTexts();
   buildInputs();
   bind();
+  bindTips();
   render();
 }
 

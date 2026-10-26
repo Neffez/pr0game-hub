@@ -1,5 +1,5 @@
 import { techName } from '@pr0hub/core/tech';
-import { SHIPS, type Coords } from '@pr0hub/flight';
+import { missileSystemDistance, SHIPS, type Coords } from '@pr0hub/flight';
 import { encodeShare, type LootState } from '@pr0hub/loot';
 import { compressToEncodedURIComponent } from 'lz-string';
 import { ref } from 'vue';
@@ -215,6 +215,7 @@ export type Coords3 = Coords;
 /** Default location of the flight calculator (pr0game-tools); override per universe with `flightCalculatorUrl`. */
 const FLIGHT_CALCULATOR_URL = 'https://pr0game.neffez.dev/flight-calculator/';
 const LOOT_CALCULATOR_URL = 'https://pr0game.neffez.dev/acs-loot/';
+const IPM_CALCULATOR_URL = 'https://pr0game.neffez.dev/ipm-calculator/';
 
 /**
  * Link into the flight calculator: start/target, drive research and the universe layout are
@@ -346,6 +347,101 @@ export function phalanxRange(level: number, u: UniverseSettings) {
 export function lootCalcUrl(u: UniverseSettings): string {
   const flight = (u as UniverseSettings & { flightCalculatorUrl?: string }).flightCalculatorUrl;
   return flight ? new URL('../acs-loot/', flight.split('#')[0]).href : LOOT_CALCULATOR_URL;
+}
+
+/** The public interplanetary missile calculator, next to the flight calculator of the universe. */
+export function ipmCalcUrl(u: UniverseSettings): string {
+  const flight = (u as UniverseSettings & { flightCalculatorUrl?: string }).flightCalculatorUrl;
+  return flight ? new URL('../ipm-calculator/', flight.split('#')[0]).href : IPM_CALCULATOR_URL;
+}
+
+/** What a missile can hit: the defense and the target's own interplanetary missiles (calculateMIPAttack). */
+const IPM_TARGETS = [401, 402, 403, 404, 405, 406, 407, 408, 409, 410, 411, 503];
+
+export interface IpmLinkInput {
+  /** own planet the missiles start from */
+  from: Coords3 | null;
+  to: Coords3;
+  moon?: boolean;
+  /** own research: impulse drive (117, range) and weapons (109) */
+  research?: Record<string, number>;
+  /** values of the target's newest spy report: defense, interceptors (502), missiles (503), armour (111) */
+  values?: Record<string, number> | null;
+  /** a moon is defended by the interceptors of its planet (newest spy report of the planet) */
+  planetInterceptors?: number | null;
+  /** missile silo level and interplanetary missiles of the start planet (empire page) */
+  silo?: number;
+  missiles?: number;
+}
+
+/**
+ * Link into the IPM calculator: start, target and universe like `flightCalcLink`, own impulse drive and weapons,
+ * and from a spy report the defense, interceptors and armour (keys see `encodeHash` in the calculator's glue).
+ */
+export function ipmCalcLink(u: UniverseSettings, input: IpmLinkInput): string {
+  const p = new URLSearchParams();
+  if (input.from) {
+    p.set('sg', String(input.from[0]));
+    p.set('ss', String(input.from[1]));
+    p.set('sp', String(input.from[2]));
+  }
+  p.set('tg', String(input.to[0]));
+  p.set('ts', String(input.to[1]));
+  p.set('tp', String(input.to[2]));
+  if (input.moon) p.set('m', '1');
+  const research = input.research ?? {};
+  if (research[117] != null) p.set('i', String(research[117]));
+  if (research[109] != null) p.set('w', String(research[109]));
+  if (input.silo) p.set('sl', String(input.silo));
+  if (input.missiles) p.set('n', String(input.missiles));
+  const values = input.values ?? {};
+  if (values[111]) p.set('a', String(values[111]));
+  const interceptors = input.moon ? input.planetInterceptors : values[502];
+  if (interceptors) p.set('ic', String(interceptors));
+  for (const id of IPM_TARGETS) if (values[id]) p.set(`d${id}`, String(values[id]));
+  p.set('ms', String(u.systems));
+  p.set('gt', u.circularSystems ? '1' : '0');
+  p.set('gs', String(u.fleetSpeed / 2500));
+  const factor = (u as UniverseSettings & { missileRangeFactor?: number }).missileRangeFactor;
+  if (factor != null && factor !== 1) p.set('mrf', String(factor));
+  return `${ipmCalcUrl(u)}#${p.toString()}`;
+}
+
+/** Own planet the missiles start from, with its silo level and missiles from the empire page. */
+export interface IpmStart {
+  c: Coords3;
+  silo: number;
+  ipm: number;
+}
+
+/** Smallest silo level that can launch missiles (ShowFleetMissilePage). */
+const MIN_SILO = 4;
+
+/** Lexicographic order of rank tuples. */
+const before = (a: number[], b: number[]) => {
+  const i = a.findIndex((v, k) => v !== b[k]);
+  return i >= 0 && a[i] < b[i];
+};
+
+/**
+ * Start planet for missiles in the target's galaxy (missiles only fly within the galaxy, silos stand on planets): the
+ * nearest that can launch (silo 4+), else the nearest; nearest by missile distance (systems as the game counts them,
+ * then positions), so a planet in range always comes before one out of range.
+ */
+export function ipmStart(
+  u: UniverseSettings,
+  planets: { coords: { g: number; s: number; p: number }; type: 'planet' | 'moon'; silo?: number; ipm?: number }[] | undefined,
+  to: Coords3,
+): IpmStart | null {
+  let best: { start: IpmStart; rank: number[] } | null = null;
+  for (const pl of planets ?? []) {
+    if (pl.type === 'moon' || pl.coords.g !== to[0]) continue;
+    const c: Coords3 = [pl.coords.g, pl.coords.s, pl.coords.p];
+    const silo = pl.silo ?? 0;
+    const rank = [silo >= MIN_SILO ? 0 : 1, missileSystemDistance(u, c[1], to[1]), Math.abs(c[2] - to[2])];
+    if (!best || before(rank, best.rank)) best = { start: { c, silo, ipm: pl.ipm ?? 0 }, rank };
+  }
+  return best?.start ?? null;
 }
 
 /** Link to the public ACS loot calculator with a settlement. */

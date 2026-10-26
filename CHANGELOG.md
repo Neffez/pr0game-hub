@@ -4,11 +4,43 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-25
 
+- IPM calculator links start from the nearest own planet with a missile silo of level 4 or more (else the nearest)
+  and fill in its silo level and interplanetary missiles: the context's `own.planets` carry `silo` and `ipm` from the
+  newest empire page (documented in the OpenAPI spec). A real missile impact report (10 missiles, weapons 15,
+  120 ion cannons at armour 11, all destroyed) is a test of the missile math.
+- Hub links to the IPM calculator: in the spy history next to the simulators (defense, interceptors and armour of the
+  newest report; for a moon the interceptors of the planet's newest report, loaded for that), in the planet action
+  menu (target and own research only) and in the raid planner's plan menu (the plan's spy values). The start is the
+  nearest own planet in the target's galaxy; own impulse drive and weapons come from the empire page
+  (`ipmCalcLink`, `ipmStart` in `format.ts`).
+  - New universe setting `missileRangeFactor` (game config `missile_range_factor`, default 1), editable under
+    Admin → universe and passed on to the calculator; the server validates it like the other factors.
+- New static tool: the interplanetary missile calculator at `/ipm-calculator/` (`apps/tools/ipm-calculator/`, glue
+  in `src/missile.ts`). It shows the destroyed and remaining defense per type (interceptors, primary target, weapons
+  and armour exactly as in the game), the missiles needed to clear everything or the primary target, range, flight
+  time, silo capacity and the cost of the missiles against the value destroyed. A pasted spy report fills target,
+  defense, interceptors and armour (on a moon the planet's interceptors count, so they are left as entered). Share
+  links use short keys like the flight calculator's (`sg/ss/sp`, `tg/ts/tp`, `i`, `w`, `a`, `n`, `pt`, `ic`,
+  `d401…`); a link with a target replaces all target values. The tools index has a card for it.
+- The static tools share one page shell: `apps/tools/shared/tools.css` (tokens, header, cards, fields, buttons, tables,
+  results, toast, tooltips) and `shared/shell.js` (DOM helpers, storage, German/English texts with `data-t*`
+  attributes, toast with undo, copying with a fallback, the share link, tooltips). All three pages have the same
+  header with an EN/DE switch and a "Share link" button (icon and text, icon only on phones); the language is shared
+  across the tools (`pr0tools.lang`, taken over from the loot calculator's earlier key) and English until one is
+  chosen (no longer the browser language).
+  - The flight calculator is now available in German (texts in `flight-calculator/i18n.js`, German ship names from
+    the game data, German number format); English texts and share links are unchanged.
+  - The tools index has the language switch and German texts too.
+- Interplanetary missile math in `@pr0hub/flight` (`missile.ts`), ported from the game: range and flight time
+  (`inMissileRange`, `getMIPDuration`, circular and sphere systems), the attack of `calculateMIPAttack` (interceptors,
+  primary target first, damage carried on target by target, the target's own missiles hit too), the fewest missiles
+  for clearing everything or the primary target, silo space and the value of destroyed defense. `@pr0hub/core/spy`
+  parses pasted spy reports without cheerio for the static tools.
 - The source link on the What's new page is a plain "Source Code" link without the license sentence.
 - The source links in the tools footers no longer name the license.
 - The tools index subtitle reads "Tools for pr0game" and links "pr0game" to pr0game.com.
-- The tools index page and the standalone tools (flight calculator, ACS loot calculator) link to the source code in
-  their footer.
+- The tools index page and the standalone tools (flight calculator, ACS loot calculator, IPM calculator) link to the
+  source code in their footer (texts German and English).
 - README points to commercial licenses (dual licensing next to the AGPL); CONTRIBUTING states that contributions may also
   be offered under a commercial license.
 - The What's new page links to the source code on GitHub (AGPL-3.0 section 13 for users of a network service).

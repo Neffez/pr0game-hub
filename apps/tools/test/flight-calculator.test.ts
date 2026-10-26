@@ -27,4 +27,16 @@ describe('flight calculator page', () => {
     expect(document.querySelector('[data-ship-box="222"] .ship-name span')?.textContent).toContain('30,000');
     expect(document.querySelectorAll('#results tbody tr, table tbody tr').length).toBeGreaterThanOrEqual(10);
   });
+
+  it('switches to German: static texts, ship names and number format', () => {
+    (document.querySelector('#langSeg [data-lang="de"]') as HTMLButtonElement).click();
+    expect(document.documentElement.lang).toBe('de');
+    expect(document.querySelector('[data-mode="timing"] small')?.textContent).toBe('Ankunft → Start');
+    expect(document.querySelector('[data-ship-box="222"] .ship-name strong')?.textContent).toBe('Schwerer Kreuzer');
+    expect(document.querySelector('[data-ship-box="222"] .ship-name span')?.textContent).toContain('30.000');
+    expect(document.querySelector('#table thead')?.textContent).toContain('Ankunft');
+    expect((document.getElementById('ship-222') as HTMLInputElement).value).toBe('3');
+    (document.querySelector('#langSeg [data-lang="en"]') as HTMLButtonElement).click();
+    expect(document.querySelector('[data-ship-box="222"] .ship-name strong')?.textContent).toBe('Heavy Cruiser');
+  });
 });

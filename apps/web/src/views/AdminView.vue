@@ -323,6 +323,11 @@ const doMerge = () => run(async () => {
               <input v-model.number="editUni.settings.universityFactor" type="number" min="0" max="100" style="width: 60px" />
             </label>
             <label>
+              {{ t('admin.missileRangeFactor') }}
+              <Hint>{{ t('admin.missileRangeFactorHint') }}</Hint>
+              <input v-model.number="editUni.settings.missileRangeFactor" type="number" min="0" step="any" placeholder="1" style="width: 70px" />
+            </label>
+            <label>
               {{ t('admin.timezone') }}
               <Hint>{{ t('admin.timezoneHint') }}</Hint>
               <input v-model="editUni.settings.timezone" style="width: 140px" />

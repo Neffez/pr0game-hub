@@ -482,7 +482,12 @@ components:
       type: object
       description: Universe and alliance context for the selected group
       properties:
-        universe: { type: object }
+        universe:
+          type: object
+          description: >-
+            Universe with its `settings` (layout, speeds, distance factors, time zone, game URL as set by a hub admin).
+            Optional settings: `phalanxRangeFactor` and `missileRangeFactor` (game config `phalanx_range_factor` and
+            `missile_range_factor`, number ≥ 0, default 1; the missile factor is passed on to the IPM calculator).
         group:
           type: object
           properties:
@@ -491,7 +496,12 @@ components:
             role: { type: string }
         members: { type: array, items: { type: object } }
         me: { $ref: '#/components/schemas/User' }
-        own: { type: object, nullable: true }
+        own:
+          type: object
+          nullable: true
+          description: >-
+            Own data from the newest own empire page: `time`, `research` (element id → level) and `planets` with
+            `name`, `coords`, `type` (planet/moon), `silo` (missile silo level) and `ipm` (interplanetary missiles).
     Overview:
       type: object
       properties:

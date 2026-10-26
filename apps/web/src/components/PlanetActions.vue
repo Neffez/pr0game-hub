@@ -6,7 +6,7 @@ import { uniApi } from '../api';
 import { CLAIM_KINDS, CLAIM_MINUTES, claimOf, loadClaims, remaining } from '../claims';
 import { planetComments } from '../comments';
 import { useUni } from '../composables';
-import { coords, distance, flightCalcLink, type Coords3 } from '../format';
+import { coords, distance, flightCalcLink, ipmCalcLink, ipmStart, type Coords3 } from '../format';
 
 /** Action menu for a planet/moon: links into the game, the flight calculator and the spy history; claiming the target. */
 const props = defineProps<{ g: number; s: number; p: number; type: 'planet' | 'moon'; from?: Coords3 | null; label?: string }>();
@@ -47,6 +47,14 @@ const items = computed(() => {
     label: t('actions.flightTime'),
     href: flightCalcLink(settings.value, start.value?.c ?? null, target.value, ctx.value?.own?.research),
     hint: start.value ? t('actions.flightFrom', { from: start.value.label }) : t('actions.flightNoStart'),
+  });
+  const ipmFrom = ipmStart(settings.value, ctx.value?.own?.planets, target.value);
+  list.push({
+    label: t('actions.ipm'),
+    href: ipmCalcLink(settings.value, {
+      from: ipmFrom?.c ?? null, silo: ipmFrom?.silo, missiles: ipmFrom?.ipm, to: target.value, moon: props.type === 'moon', research: ctx.value?.own?.research,
+    }),
+    hint: ipmFrom ? t('actions.ipmFrom', { from: coords(...ipmFrom.c), silo: ipmFrom.silo, n: ipmFrom.ipm }) : t('actions.ipmNoStart'),
   });
   list.push({ label: t('actions.planAttack'), to: { path: `/${uni.value}/raid-planner`, query: { new: `${props.g}:${props.s}:${props.p}`, type: props.type } } });
   if (gameUrl.value) list.push({ label: t('actions.galaxy'), href: `${gameUrl.value}game.php?page=galaxy&galaxy=${props.g}&system=${props.s}`, hint: t('actions.inGame') });

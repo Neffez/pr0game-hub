@@ -1,0 +1,23 @@
+// Types of the shared page shell (shell.js) for the tests.
+export type ToolLang = 'de' | 'en';
+export type Texts = Record<ToolLang, Record<string, string>>;
+export const LANGS: ToolLang[];
+export const COMMON_TEXTS: Texts;
+export function $(sel: string, root?: ParentNode): HTMLElement | null;
+export function $$(sel: string, root?: ParentNode): HTMLElement[];
+export function esc(value: unknown): string;
+export function load(key: string): unknown;
+export function store(key: string, value: unknown): void;
+export function storedLang(): ToolLang;
+export function initTexts(texts: Partial<Texts>): ToolLang;
+export function lang(): ToolLang;
+export function setLang(value: string): void;
+export function t(key: string, vars?: Record<string, string | number>): string;
+export function applyTexts(root?: ParentNode): void;
+export function bindLang(onChange?: (lang: ToolLang) => void): void;
+export function fmtNum(n: number, language?: ToolLang): string;
+export function toast(text: string, action?: { label: string; fn: () => void }): void;
+export function copy(text: string, done?: string): void;
+export function bindShare(build: () => string): void;
+export function clearHash(): void;
+export function bindTips(): void;

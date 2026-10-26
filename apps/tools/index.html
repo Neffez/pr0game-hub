@@ -10,61 +10,13 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./shared/tools.css">
 <style>
-:root {
-  --bg: #0d1117;
-  --bg-glow: rgba(242, 104, 60, 0.08);
-  --surface: #151b23;
-  --surface-2: #1c2430;
-  --border: #283241;
-  --border-strong: #3a4657;
-  --text: #e6edf3;
-  --muted: #8b98a9;
-  --faint: #5d6a7b;
-  --accent: #f2683c;
-  --accent-soft: rgba(242, 104, 60, 0.14);
-  --accent-text: #ff8a5c;
-  --radius: 12px;
-  --shadow: 0 10px 40px rgba(0, 0, 0, 0.35);
-  --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  --sans: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  color-scheme: dark;
-}
-@media (prefers-color-scheme: light) {
-  :root {
-    --bg: #f4f5f7;
-    --bg-glow: rgba(242, 104, 60, 0.07);
-    --surface: #ffffff;
-    --surface-2: #f1f3f6;
-    --border: #e1e5eb;
-    --border-strong: #c9d0da;
-    --text: #18202b;
-    --muted: #5f6b7b;
-    --faint: #98a2b0;
-    --accent: #e4572a;
-    --accent-soft: rgba(228, 87, 42, 0.1);
-    --accent-text: #c9471c;
-    --shadow: 0 10px 30px rgba(20, 30, 50, 0.08);
-    color-scheme: light;
-  }
-}
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body {
-  font-family: var(--sans);
-  font-size: 15px;
-  line-height: 1.5;
-  color: var(--text);
-  background:
-    radial-gradient(1100px 500px at 85% -10%, var(--bg-glow), transparent 70%),
-    var(--bg);
-  min-height: 100vh;
-  padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px);
-  -webkit-font-smoothing: antialiased;
-}
-.wrap { max-width: 960px; margin: 0 auto; padding: 0 20px 64px; }
-:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-
-header { padding: 56px 0 36px; }
+/* Tools index: hero header and tool cards (base look in shared/tools.css) */
+body { font-size: 15px; line-height: 1.5; }
+.wrap { max-width: 960px; padding-bottom: 64px; }
+.lang-row { display: flex; justify-content: flex-end; padding-top: 18px; }
+header { padding: 26px 0 36px; }
 .brand-logo {
   width: 48px; height: 48px; border-radius: 12px; display: grid; place-items: center;
   background: var(--accent-soft); color: var(--accent); margin-bottom: 20px;
@@ -98,22 +50,23 @@ a.tool:hover { border-color: var(--accent); transform: translateY(-2px); box-sha
 .tool.soon .tool-icon { background: var(--surface-2); color: var(--faint); }
 .tool.soon h2 { color: var(--muted); }
 
-footer { margin-top: 48px; color: var(--faint); font-size: 12.5px; text-align: center; }
-footer a { color: var(--muted); }
-
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { transition: none !important; }
-}
+footer.foot { margin-top: 48px; font-size: 12.5px; }
 </style>
 </head>
 <body>
 <div class="wrap">
+  <div class="lang-row">
+    <div class="seg small" id="langSeg" role="group" data-t-aria="language">
+      <button type="button" data-lang="en">EN</button>
+      <button type="button" data-lang="de">DE</button>
+    </div>
+  </div>
   <header>
     <div class="brand-logo" aria-hidden="true">
       <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
     </div>
-    <h1>pr0game tools</h1>
-    <p>Tools for <a href="https://pr0game.com" target="_blank" rel="noopener">pr0game</a>.</p>
+    <h1 data-t="heading">pr0game tools</h1>
+    <p><span data-t="toolsFor">Tools for</span> <a href="https://pr0game.com" target="_blank" rel="noopener">pr0game</a>.</p>
   </header>
 
   <main class="tools">
@@ -121,20 +74,30 @@ footer a { color: var(--muted); }
       <div class="tool-icon" aria-hidden="true">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>
       </div>
-      <h2>Flight Calculator</h2>
-      <p>Second-accurate flight times, send timing, enemy retime with delay and recall, fleet save and counter-attacks.</p>
-      <div class="tags"><span>flight time</span><span>timing</span><span>retime</span><span>recall</span></div>
-      <span class="go">Open →</span>
+      <h2 data-t="flightTitle">Flight Calculator</h2>
+      <p data-t="flightText">Second-accurate flight times, send timing, enemy retime with delay and recall, fleet save and counter-attacks.</p>
+      <div class="tags"><span data-t="tagFlightTime">flight time</span><span>timing</span><span>retime</span><span data-t="tagRecall">recall</span></div>
+      <span class="go" data-t="open">Open →</span>
     </a>
 
     <a class="tool" href="/acs-loot/">
       <div class="tool-icon" aria-hidden="true">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8l-9-5-9 5 9 5 9-5z"/><path d="M3 8v8l9 5 9-5V8"/><path d="M12 13v8"/></svg>
       </div>
-      <h2>ACS Loot Calculator</h2>
-      <p>Share the loot and debris of an ACS: covers lost ships and deuterium, splits the profit equally or by investment and plans the deliveries. German and English.</p>
-      <div class="tags"><span>ACS</span><span>loot</span><span>debris</span><span>sharing</span></div>
-      <span class="go">Open →</span>
+      <h2 data-t="lootTitle">ACS Loot Calculator</h2>
+      <p data-t="lootText">Share the loot and debris of an ACS: covers lost ships and deuterium, splits the profit equally or by investment and plans the deliveries.</p>
+      <div class="tags"><span data-t="tagAcs">ACS</span><span data-t="tagLoot">loot</span><span data-t="tagDebris">debris</span><span data-t="tagSharing">sharing</span></div>
+      <span class="go" data-t="open">Open →</span>
+    </a>
+
+    <a class="tool" href="/ipm-calculator/">
+      <div class="tool-icon" aria-hidden="true">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4"/></svg>
+      </div>
+      <h2 data-t="ipmTitle">IPM Calculator</h2>
+      <p data-t="ipmText">Interplanetary missiles exactly like the game: destroyed defense with interceptors and primary target, missiles needed, range and flight time. Takes a pasted spy report.</p>
+      <div class="tags"><span data-t="tagIpm">IPM</span><span data-t="tagDefense">defense</span><span data-t="tagRange">range</span><span data-t="tagSpy">spy reports</span></div>
+      <span class="go" data-t="open">Open →</span>
     </a>
 
     <a class="tool" href="/hub/">
@@ -142,21 +105,22 @@ footer a { color: var(--muted); }
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/></svg>
       </div>
       <h2>Hub</h2>
-      <p>Paste stats, spy reports, expeditions and galaxy pages: point changes, spy history, raid and expo stats, deck counting. Login required, data is shared within your alliance.</p>
-      <div class="tags"><span>stats</span><span>spy reports</span><span>expeditions</span><span>alliance</span></div>
-      <span class="go">Open →</span>
+      <p data-t="hubText">Paste stats, spy reports, expeditions and galaxy pages: point changes, spy history, raid and expo stats, deck counting. Login required, data is shared within your alliance.</p>
+      <div class="tags"><span data-t="tagStats">stats</span><span data-t="tagSpy">spy reports</span><span data-t="tagExpo">expeditions</span><span data-t="tagAlliance">alliance</span></div>
+      <span class="go" data-t="open">Open →</span>
     </a>
 
     <div class="tool soon">
       <div class="tool-icon" aria-hidden="true">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
       </div>
-      <h2>More to come</h2>
-      <p>Further tools will show up here.</p>
+      <h2 data-t="soonTitle">More to come</h2>
+      <p data-t="soonText">Further tools will show up here.</p>
     </div>
   </main>
 
-  <footer>pr0game tools · <a href="https://github.com/Neffez/pr0game-hub" target="_blank" rel="noopener">Source code</a></footer>
+  <footer class="foot"><span data-t="heading">pr0game tools</span> · <a href="https://github.com/Neffez/pr0game-hub" target="_blank" rel="noopener" data-t="source">Source code</a></footer>
 </div>
+<script type="module" src="./index.js"></script>
 </body>
 </html>

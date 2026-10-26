@@ -19,6 +19,7 @@ import {
   type ShipCatalog,
   type Universe,
 } from '@pr0hub/flight';
+import { TECH_NAMES } from '@pr0hub/core/tech';
 
 /** Universe settings with the game's config keys (kept for stored settings and share links). */
 export interface UniSettings {
@@ -94,6 +95,12 @@ const NAMES: Record<number, string> = {
   231: 'Behemoth',
   232: 'Void Titan',
 };
+
+/** Ship name in the page language: German from the game's texts, English official names, custom ships as entered. */
+export function shipLabel(ship: Pick<Ship, 'id' | 'name' | 'custom'>, lang: 'de' | 'en'): string {
+  if (ship.custom || lang !== 'de') return ship.name;
+  return (TECH_NAMES as Record<string, Record<string, string>>).de[String(ship.id)] ?? ship.name;
+}
 
 const BASE_SHIPS: Ship[] = Object.entries(NAMES).map(([id, name]) => {
   const d = LIB_SHIPS[id];
