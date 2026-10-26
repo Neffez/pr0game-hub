@@ -4,6 +4,15 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-26
 
+- Hub links to the new battle simulator (pr0game-tools) with the same values as the other simulators:
+  - the raid planner's plan menu lists it first (attack and hold plans: target's spy report or hold planet, all
+    plan and guest fleets with research, start and speed); the in-game simulator and TrashSim follow, and the battle
+    simulator works without a game URL of the universe;
+  - the spy history's two simulator links become one "Simulate" menu with all three simulators;
+  - new universe settings `fleetDebrisPercent` (default 30) and `defenseDebrisPercent` (default 0), 0-100, set by
+    an admin and passed on in the link (documented in the OpenAPI spec); the in-game simulator's menu entry is now
+    called "In-game simulator".
+
 - Tools: new battle simulator (`/battle-simulator/`) on the game's battle engine (`@pr0hub/battle`, runs in a Web
   Worker): several attacking (ACS) and holding fleets with research, start and speed; a pasted spy report fills in
   the planet; win chance, losses per unit with range, rebuilt defense, debris and recyclers, loot, moon chance,

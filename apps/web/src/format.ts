@@ -1,3 +1,4 @@
+import { encodeShare as encodeBattleShare } from '@pr0hub/battle';
 import { techName } from '@pr0hub/core/tech';
 import { missileSystemDistance, SHIPS, type Coords } from '@pr0hub/flight';
 import { encodeShare, type LootState } from '@pr0hub/loot';
@@ -216,6 +217,7 @@ export type Coords3 = Coords;
 const FLIGHT_CALCULATOR_URL = 'https://pr0game.neffez.dev/flight-calculator/';
 const LOOT_CALCULATOR_URL = 'https://pr0game.neffez.dev/acs-loot/';
 const IPM_CALCULATOR_URL = 'https://pr0game.neffez.dev/ipm-calculator/';
+const BATTLE_SIMULATOR_URL = 'https://pr0game.neffez.dev/battle-simulator/';
 
 /**
  * Link into the flight calculator: start/target, drive research and the universe layout are
@@ -324,6 +326,49 @@ export function simLinks(
     game: `${base}game.php?page=battleSimulator&${fleets}${params}`,
     trash: slots ? `${base}battlesim.html?sim=${trashSimExport(values, target, attackers, defenders)}` : `${base}battlesim.html?&${params}`,
   };
+}
+
+/** The public battle simulator, next to the flight calculator of the universe. */
+export function battleSimUrl(u: UniverseSettings): string {
+  const flight = (u as UniverseSettings & { flightCalculatorUrl?: string }).flightCalculatorUrl;
+  return flight ? new URL('../battle-simulator/', flight.split('#')[0]).href : BATTLE_SIMULATOR_URL;
+}
+
+/** Research a simulator slot takes: weapons, shields, armour, the three drives and fuel efficiency (flight time). */
+const SLOT_TECHS = [109, 110, 111, 115, 117, 118, 134];
+const pick = (values: Record<string, number>, keep: (id: number) => boolean) =>
+  Object.fromEntries(Object.entries(values).filter(([id, n]) => keep(Number(id)) && n > 0));
+
+/**
+ * Link into the battle simulator (pr0game-tools) with the same fleets as `simLinks`: the attackers with research,
+ * start and speed, the planet from a spy report's values (ships, defense, combat research, resources) and the fleets
+ * holding there; the universe's debris percentages, layout and fleet speed go along (keys see `encodeShare` in
+ * @pr0hub/battle).
+ */
+export function battleSimLink(
+  u: UniverseSettings, values: Record<string, number>, attackers: SimFleet[] = [], target: Coords3 | null = null, defenders: SimFleet[] = [],
+): string {
+  const s = u as UniverseSettings & { fleetDebrisPercent?: number; defenseDebrisPercent?: number };
+  const research = (r: Record<string, number>) => pick(r, (id) => SLOT_TECHS.includes(id));
+  const units = (v: Record<string, number>) => pick(v, (id) => (id >= 202 && id < 300) || (id >= 401 && id <= 408));
+  const uni: Record<string, number> = {
+    ut: u.circularGalaxies ? 1 : 0, gt: u.circularSystems ? 1 : 0, mg: u.galaxies, ms: u.systems, mp: u.positions,
+    gdf: u.galaxyDistanceFactor, sdf: u.systemDistanceFactor, sd: u.systemDistance, pdf: u.planetDistanceFactor,
+    pd: u.planetDistance, gs: u.fleetSpeed / 2500,
+  };
+  if (s.fleetDebrisPercent != null) uni.fd = s.fleetDebrisPercent;
+  if (s.defenseDebrisPercent != null) uni.dd = s.defenseDebrisPercent;
+  const hash = encodeBattleShare({
+    attackers: attackers.map((a) => ({ units: units(a.ships), research: research(a.research), from: a.from ?? null, speed: a.speed ?? 100 })),
+    defenders: [
+      { units: units(values), research: pick(values, (id) => COMBAT_TECHS.includes(id)) },
+      ...defenders.map((d) => ({ units: units(d.ships), research: research(d.research) })),
+    ],
+    target,
+    resources: { metal: values[901] ?? 0, crystal: values[902] ?? 0, deuterium: values[903] ?? 0 },
+    uni,
+  });
+  return `${battleSimUrl(u)}#${hash}`;
 }
 
 /** Colour for how old a galaxy view is (Gala-Aktualität, universe browser). */

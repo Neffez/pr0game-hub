@@ -2,7 +2,8 @@
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useMobile, useUni } from '../composables';
-import { fmt, fmtSigned, ipmCalcLink, ipmStart, name, SECTIONS, simLinks, timeWithAge, type Coords3 } from '../format';
+import ActionMenu, { type MenuItem } from './ActionMenu.vue';
+import { battleSimLink, fmt, fmtSigned, ipmCalcLink, ipmStart, name, SECTIONS, simLinks, timeWithAge, type Coords3 } from '../format';
 
 export interface SpyReport {
   id: number;
@@ -50,9 +51,19 @@ const tables = computed(() =>
   }).filter((t) => t.rows.length),
 );
 
-/** Combat simulator links (in the game, TrashSim) with all values of a report. */
+/** Combat simulators with all values of the newest report: the battle simulator (pr0game-tools), the one in the game and TrashSim. */
 const values = (r: SpyReport): Record<string, number> => Object.assign({}, ...Object.values(r.sections));
-const sims = (r: SpyReport) => simLinks(props.gameUrl!, values(r));
+const simMenu = computed<MenuItem[]>(() => {
+  const r = props.reports[0];
+  if (!r) return [];
+  const game = props.gameUrl ? simLinks(props.gameUrl, values(r)) : null;
+  const u = ctx.value?.universe.settings;
+  return [
+    u && { label: t('spyHistory.simTools'), href: battleSimLink(u, values(r), [], props.target ?? null) },
+    game && { label: t('spyHistory.simulator'), href: game.game },
+    game && { label: 'TrashSim', href: game.trash },
+  ].filter(Boolean) as MenuItem[];
+});
 
 /** IPM calculator with the newest report: defense, interceptors (of the planet for a moon) and armour, own research. */
 const ipm = computed(() => {
@@ -84,9 +95,8 @@ const ipm = computed(() => {
     <p class="small muted">
       {{ t('spyHistory.latest', { time: timeWithAge(reports[0].report_time) }) }}
       <template v-if="reports[0].reporter"> {{ t('common.from') }} {{ reports[0].reporter }}</template>
-      <template v-if="gameUrl">
-        · <a :href="sims(reports[0]).game" target="_blank" rel="noopener">{{ t('spyHistory.simulator') }}</a>
-        · <a :href="sims(reports[0]).trash" target="_blank" rel="noopener">TrashSim</a>
+      <template v-if="simMenu.length">
+        · <ActionMenu :items="simMenu" :label="t('spyHistory.simulate')" icon="chevronDown" :title="t('spyHistory.simulateTitle')" />
       </template>
       <template v-if="ipm"> · <a :href="ipm.href" :title="ipm.title" target="_blank" rel="noopener">{{ t('spyHistory.ipm') }}</a></template>
     </p>

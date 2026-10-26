@@ -3,7 +3,7 @@ import { useI18n } from 'vue-i18n';
 import { uniApi } from './api';
 import { loadClaims } from './claims';
 import { useUni } from './composables';
-import { abbr, clockTime, coords, duration, fmt, ipmCalcLink, ipmStart, numDate, simLinks, timeWithAge, weekday, type Coords3, type SimFleet } from './format';
+import { abbr, battleSimLink, clockTime, coords, duration, fmt, ipmCalcLink, ipmStart, numDate, simLinks, timeWithAge, weekday, type Coords3, type SimFleet } from './format';
 import { intlLocale } from './i18n';
 import { tables, useLiveReload } from './live';
 import { toast } from './toast';
@@ -145,16 +145,23 @@ export function useRaidPlanner() {
     // ACS fleets of non-members, research from spy reports of their player
     ...(p.guests ?? []).map((g) => ({ ships: g.ships, research: g.research ?? {}, from: [g.from.g, g.from.s, g.from.p] as Coords3, speed: 100 })),
   ];
-  const sims = (p: AttackPlan) => {
+  const sims = (p: AttackPlan): { tools: string; game: string | null; trash: string | null } | null => {
     const target: Coords3 | null = hasCoords(p) ? [p.g!, p.s!, p.p!] : null;
-    if (!settings.value.gameUrl) return null;
+    let battle: [Record<string, number>, SimFleet[], SimFleet[]];
     if (p.mission === 'hold' && p.enemy) {
       const e = p.enemy;
       const research = { ...(e.research ?? {}), ...e.drives };
       const enemies = e.fleets.map((f) => ({ ships: f.ships, research, from: [e.from.g, e.from.s, e.from.p] as Coords3, speed: e.percent ?? 100 }));
-      return simLinks(settings.value.gameUrl, holdPlanetValues(p), enemies, target, planFleets(p));
+      battle = [holdPlanetValues(p), enemies, planFleets(p)];
+    } else if (p.spy) {
+      battle = [p.spy.values, planFleets(p), []];
+    } else {
+      return null;
     }
-    return p.spy ? simLinks(settings.value.gameUrl, p.spy.values, planFleets(p), target) : null;
+    const [values, attackers, defenders] = battle;
+    // the game's simulators need the universe's game URL, the battle simulator (pr0game-tools) does not
+    const game = settings.value.gameUrl ? simLinks(settings.value.gameUrl, values, attackers, target, defenders) : null;
+    return { tools: battleSimLink(settings.value, values, attackers, target, defenders), game: game?.game ?? null, trash: game?.trash ?? null };
   };
   /** IPM calculator with the target's newest spy report (attack plans; a moon's interceptors are left to the user). */
   const ipm = (p: AttackPlan) => {
@@ -175,7 +182,7 @@ export function useRaidPlanner() {
     };
   };
   /** Tooltips of the simulator links: what they are filled with. */
-  const simTitle = (p: AttackPlan, sim: 'Game' | 'Trash') =>
+  const simTitle = (p: AttackPlan, sim: 'Tools' | 'Game' | 'Trash') =>
     p.mission === 'hold'
       ? t(`plans.simHold${sim}Title`, { planet: p.spy ? timeWithAge(p.spy.time) : t('plans.simNoData'), enemy: p.enemy?.research_time ? timeWithAge(p.enemy.research_time) : t('plans.simNoData') })
       : t(`plans.sim${sim}Title`, { source: t(p.spy!.source === 'sim' ? 'plans.simFromSim' : 'plans.simFromSpy', { time: timeWithAge(p.spy!.time) }) });

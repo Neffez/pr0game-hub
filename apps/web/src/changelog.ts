@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Raid-Planer und Spionage-Verlauf öffnen den neuen Kampfsimulator mit allen Flotten, Forschungen und dem Spionagebericht. Im Spionage-Verlauf stehen die drei Simulatoren jetzt in einem Menü „Simulieren“. Admins stellen pro Universum ein, wie viel Flotte und Verteidigung ins Trümmerfeld geht.',
+        en: 'The raid planner and the spy history open the new battle simulator with all fleets, research and the spy report. In the spy history the three simulators are now in one "Simulate" menu. Admins set per universe how much fleet and defense goes into the debris field.',
+      },
+      {
+        kind: 'new',
         de: 'Neues Tool: Kampfsimulator. Er rechnet jeden Kampf viele Male mit der Kampf-Engine des Spiels, auch mit dem Stun der Ionengeschütze. Er zeigt Gewinnchance, Verluste, Trümmerfeld, Beute, Mondchance und Flugzeiten, mit AKS und eingefügtem Spionagebericht. Die Anteile von Flotte und Verteidigung im Trümmerfeld sind einstellbar.',
         en: "New tool: battle simulator. It runs each battle many times on the game's battle engine, including the stun of ion cannons. It shows win chance, losses, debris, loot, moon chance and flight times, with ACS and a pasted spy report. The fleet and defense shares of the debris field can be set.",
       },

@@ -10,6 +10,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@pr0hub/battle": "workspace:*",
     "@pr0hub/core": "workspace:*",
     "@pr0hub/flight": "workspace:*",
     "@pr0hub/loot": "workspace:*",

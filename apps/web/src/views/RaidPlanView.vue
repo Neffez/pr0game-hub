@@ -139,8 +139,9 @@ const planMenu = computed<MenuItem[]>(() => {
     !rp.hasCoords(p) && rp.canSetCoords(p) && { label: t('plans.setCoordsTitle'), icon: 'target', onClick: () => openEdit(true) },
     rp.canSim(p) && open && { label: t('plans.simUpdate'), icon: 'sync', onClick: () => Object.assign(simSheet, { open: true, text: '' }) },
     rp.canSim(p) && p.sim && { label: t('plans.simRemoveLong'), icon: 'close', onClick: removeSim },
-    sims && { label: t('plans.simGame'), href: sims.game, hint: rp.simTitle(p, 'Game'), divider: true },
-    sims && { label: 'TrashSim', href: sims.trash, hint: rp.simTitle(p, 'Trash') },
+    sims && { label: t('plans.simTools'), href: sims.tools, hint: rp.simTitle(p, 'Tools'), divider: true },
+    sims?.game && { label: t('plans.simGame'), href: sims.game, hint: rp.simTitle(p, 'Game') },
+    sims?.trash && { label: 'TrashSim', href: sims.trash, hint: rp.simTitle(p, 'Trash') },
     ipm && { label: t('plans.ipm'), href: ipm.href, hint: ipm.title, divider: !sims },
     rp.settleable(p) && { label: t('loot.open'), icon: 'cargo', to: settleLink.value, divider: !sims },
     ...(rp.canEdit(p)

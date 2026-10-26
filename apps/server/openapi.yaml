@@ -487,7 +487,9 @@ components:
           description: >-
             Universe with its `settings` (layout, speeds, distance factors, time zone, game URL as set by a hub admin).
             Optional settings: `phalanxRangeFactor` and `missileRangeFactor` (game config `phalanx_range_factor` and
-            `missile_range_factor`, number ≥ 0, default 1; the missile factor is passed on to the IPM calculator).
+            `missile_range_factor`, number ≥ 0, default 1; the missile factor is passed on to the IPM calculator),
+            `fleetDebrisPercent` and `defenseDebrisPercent` (game config `fleet_debris_percentage` and
+            `def_debris_percentage`, 0-100, default 30 and 0; passed on to the battle simulator).
         group:
           type: object
           properties:

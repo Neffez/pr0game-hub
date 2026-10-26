@@ -413,7 +413,7 @@ function validateSettings(settings: object | undefined) {
   }
   if (s.gameUrl && !/^https?:\/\//i.test(String(s.gameUrl))) throw new HttpError(400, 'game_url_invalid', 'Game URL must start with http(s)://');
   // sizes and distance factors feed the distance, flight time, phalanx and missile range calculations
-  const defaults: Record<string, unknown> = { ...UNIVERSE_DEFAULTS, phalanxRangeFactor: 1, missileRangeFactor: 1 };
+  const defaults: Record<string, unknown> = { ...UNIVERSE_DEFAULTS, phalanxRangeFactor: 1, missileRangeFactor: 1, fleetDebrisPercent: 30, defenseDebrisPercent: 0 };
   for (const [key, value] of Object.entries(s)) {
     let valid = true;
     if (typeof defaults[key] === 'boolean') valid = typeof value === 'boolean';
@@ -421,7 +421,7 @@ function validateSettings(settings: object | undefined) {
       valid = typeof value === 'number' && Number.isFinite(value) && value >= 0;
       if (['galaxies', 'systems', 'positions', 'fleetSpeed'].includes(key)) valid &&= Number.isInteger(value) && (value as number) >= 1;
       // a percentage per TechnoDome level: above 100 research times turn negative
-      if (key === 'universityFactor') valid &&= (value as number) <= 100;
+      if (['universityFactor', 'fleetDebrisPercent', 'defenseDebrisPercent'].includes(key)) valid &&= (value as number) <= 100;
     }
     if (!valid) throw new HttpError(400, 'setting_invalid', `Invalid setting: ${key}`);
   }

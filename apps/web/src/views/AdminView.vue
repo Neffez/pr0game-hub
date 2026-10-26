@@ -328,6 +328,16 @@ const doMerge = () => run(async () => {
               <input v-model.number="editUni.settings.missileRangeFactor" type="number" min="0" step="any" placeholder="1" style="width: 70px" />
             </label>
             <label>
+              {{ t('admin.fleetDebrisPercent') }}
+              <Hint>{{ t('admin.fleetDebrisPercentHint') }}</Hint>
+              <input v-model.number="editUni.settings.fleetDebrisPercent" type="number" min="0" max="100" placeholder="30" style="width: 60px" />
+            </label>
+            <label>
+              {{ t('admin.defenseDebrisPercent') }}
+              <Hint>{{ t('admin.defenseDebrisPercentHint') }}</Hint>
+              <input v-model.number="editUni.settings.defenseDebrisPercent" type="number" min="0" max="100" placeholder="0" style="width: 60px" />
+            </label>
+            <label>
               {{ t('admin.timezone') }}
               <Hint>{{ t('admin.timezoneHint') }}</Hint>
               <input v-model="editUni.settings.timezone" style="width: 140px" />
