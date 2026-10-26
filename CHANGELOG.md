@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-26
 
+- Docs: the raid planner feature request plan (`FEATURE_REQUEST_RETIME.md`) is removed from the repository; older
+  changelog entries still refer to it.
+
 - Tools: search engine and link preview metadata in every page head, without changing the pages: descriptions
   name the tools in English and German (Flugzeitrechner, AKS-Beuterechner, IRak-Rechner), Open Graph title,
   description and locales; the index title lists the tools. Domain-specific tags (canonical, `og:url`, preview image)
