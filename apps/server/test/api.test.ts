@@ -246,6 +246,35 @@ describe('api', () => {
     await app.inject({ method: 'POST', url: '/hub/api/auth/fleet-share', headers: admin, payload: { enabled: true, hidden: [] } });
   });
 
+  it('shows attacks and spying of members still flying in the overview', async () => {
+    const headers = { ...admin, 'x-hub-group': String(groupA) };
+    const other = { ...(await login('erin', 'erinpass1')), 'x-hub-group': String(groupA) };
+    const adminId = db.prepare("SELECT id FROM users WHERE username = 'admin'").pluck().get() as number;
+    const planets = (await app.inject({ method: 'GET', url: '/hub/api/u8/overview', headers })).json().planets;
+    const target = planets.find((p: any) => p.type === 'planet');
+    const coords = { g: target.g, s: target.s, p: target.p };
+    const t = Math.floor(Date.now() / 1000);
+    const fleet = (mission: number, arrival: number, phase = 'out', owner = 'own') => ({
+      owner, player: null, mission, missionName: 'x', phase, ships: { 210: 1 }, resources: null, arrival,
+      from: { coords: { g: 9, s: 9, p: 9 }, type: 'planet', name: null }, to: { coords, type: 'planet', name: null },
+    });
+    db.prepare('DELETE FROM fleet_snapshots WHERE group_id = ?').run(groupA);
+    // arrived, returning and foreign fleets don't count; the earliest attack (ACS, destroy too) is shown
+    db.prepare('INSERT INTO fleet_snapshots (group_id, user_id, page_time, data) VALUES (?, ?, ?, ?)').run(groupA, adminId, t - 60, JSON.stringify([
+      fleet(6, t - 10), fleet(1, t + 900, 'return'), fleet(1, t + 50, 'out', 'foreign'), fleet(9, t + 600), fleet(2, t + 300), fleet(6, t + 120),
+    ]));
+    const row = async (h: object) =>
+      (await app.inject({ method: 'GET', url: '/hub/api/u8/overview', headers: h })).json().planets.find(
+        (p: any) => p.type === 'planet' && p.g === coords.g && p.s === coords.s && p.p === coords.p,
+      );
+    expect(await row(headers)).toMatchObject({ next_attack: { arrival: t + 300, members: ['admin'] }, next_spy: { arrival: t + 120, members: ['admin'] } });
+    // the owner's fleet sharing applies
+    await app.inject({ method: 'POST', url: '/hub/api/auth/fleet-share', headers: admin, payload: { enabled: true, hidden: [6] } });
+    expect(await row(other)).toMatchObject({ next_attack: { arrival: t + 300 }, next_spy: null });
+    await app.inject({ method: 'POST', url: '/hub/api/auth/fleet-share', headers: admin, payload: { enabled: true, hidden: [] } });
+    db.prepare('DELETE FROM fleet_snapshots WHERE group_id = ?').run(groupA);
+  });
+
   it('shares the fleet history unless the owner turned it off', async () => {
     const headers = { ...admin, 'x-hub-group': String(groupA) };
     const other = { ...(await login('erin', 'erinpass1')), 'x-hub-group': String(groupA) };

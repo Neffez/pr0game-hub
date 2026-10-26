@@ -2,6 +2,7 @@
 import Loading from '../components/Loading.vue';
 import ActionMenu from '../components/ActionMenu.vue';
 import FilterBar, { type FilterChip } from '../components/FilterBar.vue';
+import Countdown from '../components/Countdown.vue';
 import Icon from '../components/Icon.vue';
 import PageHeader from '../components/PageHeader.vue';
 import SortBar from '../components/SortBar.vue';
@@ -15,6 +16,7 @@ import { uniApi } from '../api';
 import PlanetActions from '../components/PlanetActions.vue';
 import StatusBadges from '../components/StatusBadges.vue';
 import { useMobile, useProgressive, useSort, useStored, useUni } from '../composables';
+import { upcoming, useClock } from '../clock';
 import { tables, useLiveReload } from '../live';
 import { ago, dateTime, distance, fmt, fmtSigned, name, short, STATS_SHORT, STATS_TYPES } from '../format';
 import { intlLocale } from '../i18n';
@@ -75,6 +77,13 @@ interface PlanetRow {
   spy: Spy | null;
   own: Own | null;
   last_battle: number | null;
+  /** attack (also ACS, destroy) and spying of members still flying here */
+  next_attack: Flight | null;
+  next_spy: Flight | null;
+}
+interface Flight {
+  arrival: number;
+  members: string[];
 }
 interface Row {
   key: string;
@@ -158,7 +167,7 @@ async function load() {
 }
 onMounted(load);
 // the heaviest page: waits a little longer for further syncs
-useLiveReload(load, tables('player_scores', 'alliance_scores', 'galaxy_systems', 'spy_reports', 'players'), 3000);
+useLiveReload(load, tables('player_scores', 'alliance_scores', 'galaxy_systems', 'spy_reports', 'players', 'fleets'), 3000);
 
 const inactive = (p: Player) => p.status.includes('inactive') || p.status.includes('longinactive');
 const delta = (p: Player, type: number, w = win.value) => p.scores[type]?.deltas[w];
@@ -247,6 +256,16 @@ function pts(r: Row, field: 'building' | 'fleet' | 'defense') {
     : { value: null, title: '' };
 }
 
+// Flights in progress replace the time of the last report until they arrive; the list changes only when one arrives.
+const flightList = computed(() => planets.value.flatMap((pl) => [pl.next_attack, pl.next_spy].filter((f): f is Flight => f != null)));
+const flying = upcoming(flightList, (f) => f.arrival, useClock());
+const flyingSet = computed(() => new Set(flying.value));
+const flight = (r: Row, kind: 'attack' | 'spy') => {
+  const f = r.planet?.[kind === 'attack' ? 'next_attack' : 'next_spy'];
+  return f && flyingSet.value.has(f) ? f : null;
+};
+const flightTitle = (f: Flight) => t('overview.flightTitle', { members: f.members.join(', '), time: dateTime(f.arrival) });
+
 const resOf = (r: Row, id: number) => r.planet?.spy?.res?.[id] ?? null;
 const resSum = (r: Row) => (r.planet?.spy?.res ? RESOURCES.reduce<number>((s, id) => s + (resOf(r, id) ?? 0), 0) : null);
 
@@ -273,9 +292,9 @@ const planetSort = useSort(
       case 'defense':
         return ptsSource(r, kind)?.value ?? null;
       case 'battle':
-        return r.planet?.last_battle ?? null;
+        return flight(r, 'attack')?.arrival ?? r.planet?.last_battle ?? null;
       case 'spy':
-        return spy?.time ?? null;
+        return flight(r, 'spy')?.arrival ?? spy?.time ?? null;
       case 'res':
         return arg ? resOf(r, Number(arg)) : resSum(r);
     }
@@ -624,14 +643,18 @@ const history = computed(() => {
         </div>
         <button class="m-chips" :aria-expanded="expanded.has(r.key)" :title="t('overview.details')" @click="toggle(r.key)">
           <span v-for="m in planetChips" :key="m.key" class="m-chip" :class="{ sorted: m.key === planetSort.key.value }">
-            <span class="faint">{{ m.label }}</span> <span :style="m.cell(r).style">{{ m.cell(r).text || '–' }}</span>
+            <span class="faint">{{ m.label }}</span>&#32;<Countdown
+              v-if="(m.key === 'battle' || m.key === 'spy') && flight(r, m.key === 'battle' ? 'attack' : 'spy')" class="flight" :to="flight(r, m.key === 'battle' ? 'attack' : 'spy')!.arrival" />
+            <span v-else :style="m.cell(r).style">{{ m.cell(r).text || '–' }}</span>
           </span>
           <Icon :name="expanded.has(r.key) ? 'chevronDown' : 'chevronRight'" :size="14" class="m-toggle faint" />
         </button>
         <div v-if="expanded.has(r.key)" class="m-grid small">
           <div v-for="m in planetMetrics" :key="m.key" :class="{ sorted: m.key === planetSort.key.value }">
             <span class="faint">{{ m.label }}</span>
-            <RouterLink v-if="m.key === 'spy' && r.planet?.spy" :to="spyLink(r.planet)">{{ m.cell(r).text }}</RouterLink>
+            <Countdown v-if="m.key === 'battle' && flight(r, 'attack')" class="flight" :to="flight(r, 'attack')!.arrival" :title="flightTitle(flight(r, 'attack')!)" />
+            <Countdown v-else-if="m.key === 'spy' && flight(r, 'spy')" class="flight" :to="flight(r, 'spy')!.arrival" :title="flightTitle(flight(r, 'spy')!)" />
+            <RouterLink v-else-if="m.key === 'spy' && r.planet?.spy" :to="spyLink(r.planet)">{{ m.cell(r).text }}</RouterLink>
             <span v-else :style="m.cell(r).style" :title="m.cell(r).title">{{ m.cell(r).text || '–' }}</span>
           </div>
           <div v-if="r.planet?.name"><span class="faint">{{ t('common.planet') }}</span> <span>{{ r.planet.name }}</span></div>
@@ -731,9 +754,11 @@ const history = computed(() => {
           <td class="num">{{ num(r.player.scores[3]?.points) }}</td>
           <td class="num" :title="`${t('overview.playerTotal', { n: fmt(r.player.scores[2]?.points) })} · ${pts(r, 'fleet').title}`">{{ num(pts(r, 'fleet').value) }}</td>
           <td class="num" :title="`${t('overview.playerTotal', { n: fmt(r.player.scores[5]?.points) })} · ${pts(r, 'defense').title}`">{{ num(pts(r, 'defense').value) }}</td>
-          <td class="small muted" :title="dateTime(r.planet?.last_battle)">{{ r.planet?.last_battle ? ago(r.planet.last_battle) : '' }}</td>
+          <td v-if="flight(r, 'attack')" class="small"><Countdown class="flight" :to="flight(r, 'attack')!.arrival" :title="flightTitle(flight(r, 'attack')!)" /></td>
+          <td v-else class="small muted" :title="dateTime(r.planet?.last_battle)">{{ r.planet?.last_battle ? ago(r.planet.last_battle) : '' }}</td>
           <td class="small">
-            <RouterLink v-if="r.planet?.spy" :to="spyLink(r.planet)" :title="`${t('spy.reports', r.planet.spy.count)} · ${dateTime(r.planet.spy.time)}`">{{ ago(r.planet.spy.time) }}</RouterLink>
+            <Countdown v-if="flight(r, 'spy')" class="flight" :to="flight(r, 'spy')!.arrival" :title="flightTitle(flight(r, 'spy')!)" />
+            <RouterLink v-else-if="r.planet?.spy" :to="spyLink(r.planet)" :title="`${t('spy.reports', r.planet.spy.count)} · ${dateTime(r.planet.spy.time)}`">{{ ago(r.planet.spy.time) }}</RouterLink>
           </td>
           <td class="num" :title="age(r.planet?.spy?.resTime)">{{ shortOrEmpty(resOf(r, 901)) }}</td>
           <td class="num" :title="age(r.planet?.spy?.resTime)">{{ shortOrEmpty(resOf(r, 902)) }}</td>
@@ -796,6 +821,7 @@ table.cov td { padding: 1px 10px 1px 0; white-space: nowrap; }
 
 .search { flex: 1 1 180px; max-width: 260px; min-width: 0; }
 .window select { margin-left: 4px; }
+.flight { color: var(--warn); font-weight: 600; white-space: nowrap; }
 .range input { width: 110px; }
 .status { gap: 6px; }
 @media (max-width: 800px) {

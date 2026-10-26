@@ -4,6 +4,13 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-26
 
+- Overview: the planet table's "Attack" and "Spy" columns show a countdown while an attack (also ACS attack and
+  destroy) or spying of a member is flying to the planet/moon, like FF-Hub; the tooltip names the members and the
+  arrival. Comes from the members' newest fleet lists (outbound only, their fleet sharing applies), sorted by the
+  arrival; once it is due the column falls back to the latest report, as a flight without one counts as recalled.
+  `GET /api/{uni}/overview` returns `next_attack` and `next_spy` per planet; the page reloads on fleet syncs.
+  Checked with headless Chrome (desktop and mobile).
+
 - Battle simulator: "Next wave" button at the result (like trashsim). It opens a new tab with the inputs that were
   simulated, the fighting fleets of both sides set to what is left of them (rounded average, rebuilt defense included)
   and the planet's resources less the average loot. Waves are numbered in the tab name ("Sim 1 · W2") and stored with

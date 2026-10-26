@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Übersicht: In den Spalten Angriff und Spio läuft ein Countdown, solange ein Angriff oder eine Spionage eines Mitglieds auf den Planeten unterwegs ist (wie im FF-Hub). Der Tooltip zeigt, wer fliegt und wann die Flotte ankommt.',
+        en: 'Overview: the Attack and Spy columns show a countdown while an attack or spying of a member is on its way to the planet (like FF-Hub). The tooltip shows who is flying and when the fleet arrives.',
+      },
+      {
+        kind: 'new',
         de: 'Kampfsimulator: Nach einer Simulation öffnet „Nächste Welle“ einen neuen Tab mit den übrigen Schiffen und der Verteidigung beider Seiten und den Ressourcen nach der Beute, so lassen sich mehrere Wellen nacheinander simulieren.',
         en: 'Battle simulator: after a simulation, "Next wave" opens a new tab with the ships and defense left on both sides and the resources after the loot, so several waves can be simulated one after another.',
       },

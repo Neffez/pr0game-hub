@@ -634,7 +634,28 @@ components:
       type: object
       properties:
         players: { type: array, items: { type: object } }
-        planets: { type: array, items: { type: object } }
+        planets:
+          type: array
+          items:
+            type: object
+            properties:
+              last_battle: { type: integer, nullable: true, description: Unix seconds of the newest battle report at the position }
+              next_attack:
+                type: object
+                nullable: true
+                description: >-
+                  Attack, ACS attack or destroy of members still flying to this planet/moon (from their newest fleet
+                  list, as far as they share it): next `arrival` (Unix seconds) and the `members` flying
+                properties:
+                  arrival: { type: integer }
+                  members: { type: array, items: { type: string } }
+              next_spy:
+                type: object
+                nullable: true
+                description: Spying of members still flying to this planet/moon, like `next_attack`
+                properties:
+                  arrival: { type: integer }
+                  members: { type: array, items: { type: string } }
         coverage: { type: array, items: { type: object } }
         slots: { type: object }
     Imperium:

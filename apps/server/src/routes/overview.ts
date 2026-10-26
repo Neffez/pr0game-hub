@@ -1,9 +1,10 @@
 import { CLASS_BUILDINGS, CLASS_DEFENSE, CLASS_FLEET, CLASS_RESOURCES, classOf, sectionPoints } from '@pr0hub/core/tech';
 import type { FastifyInstance } from 'fastify';
 import type { GroupContext } from '../context.js';
-import type { DB } from '../db.js';
+import { now, type DB } from '../db.js';
 import { scoreEntry, SLOT, SLOT_TOLERANCE, SLOTS, statSlots, TOLERANCE, TYPES, WINDOWS, type ScoreRow } from '../domain/stats.js';
 import { latestEmpire, latestEmpires } from '../repo/empire.js';
+import { sharedFleets } from '../repo/fleets.js';
 import { memberPlayers } from '../repo/members.js';
 import { contextOf, groupBy } from './util.js';
 
@@ -112,6 +113,10 @@ function coverage(db: DB, ctx: GroupContext) {
     .all(ctx.groupId, ctx.groupId);
 }
 
+/** Missions shown as attack: attack, ACS attack, destroy (game mission ids). */
+const ATTACK_MISSIONS = [1, 2, 9];
+const SPY_MISSION = 6;
+
 /**
  * One row per known planet/moon (galaxy view or spy report) with the latest spy values.
  * Each section comes from the newest report that contains it, as low-level reports only show resources.
@@ -121,7 +126,7 @@ function planetRows(db: DB, ctx: GroupContext) {
   const key = (g: number, s: number, p: number, type: string) => `${g}:${s}:${p}:${type}`;
   const add = (g: number, s: number, p: number, type: string, name: string | null, playerId: number | null) => {
     const k = key(g, s, p, type);
-    if (!rows.has(k)) rows.set(k, { g, s, p, type, name, player_id: playerId, spy: null, own: null, last_battle: null });
+    if (!rows.has(k)) rows.set(k, { g, s, p, type, name, player_id: playerId, spy: null, own: null, last_battle: null, next_attack: null, next_spy: null });
     return rows.get(k);
   };
 
@@ -186,6 +191,24 @@ function planetRows(db: DB, ctx: GroupContext) {
   for (const b of battles) {
     const row = rows.get(key(b.g, b.s, b.p, b.planet_type));
     if (row) row.last_battle = b.last;
+  }
+
+  // Attacks and spying of the members still flying to a planet (as far as they share them, like FF-Hub): the next
+  // arrival and who flies. Without a report afterwards the flight counts as recalled, so arrived flights are left out.
+  const t = now();
+  const names = db
+    .prepare('SELECT m.user_id, COALESCE(m.ingame_name, u.username) AS name FROM group_members m JOIN users u ON u.id = m.user_id WHERE m.group_id = ?')
+    .all(ctx.groupId) as { user_id: number; name: string }[];
+  for (const m of names) {
+    for (const f of sharedFleets(db, ctx.groupId, m.user_id, ctx.user.id)?.data ?? []) {
+      const field = f.mission != null && ATTACK_MISSIONS.includes(f.mission) ? 'next_attack' : f.mission === SPY_MISSION ? 'next_spy' : null;
+      if (!field || f.owner !== 'own' || f.phase !== 'out' || !f.to || f.arrival <= t) continue;
+      const row = rows.get(key(f.to.coords.g, f.to.coords.s, f.to.coords.p, f.to.type === 'moon' ? 'moon' : 'planet'));
+      if (!row) continue;
+      const next = (row[field] ??= { arrival: f.arrival, members: [] });
+      next.arrival = Math.min(next.arrival, f.arrival);
+      if (!next.members.includes(m.name)) next.members.push(m.name);
+    }
   }
   return [...rows.values()].filter((r) => r.player_id != null);
 }
