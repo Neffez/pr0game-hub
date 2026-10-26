@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Kampfsimulator und AKS-Beuterechner nutzen auf breiten Bildschirmen mehr Breite, die Tabellen müssen weniger scrollen.',
+        en: 'Battle simulator and ACS loot calculator use more width on wide screens, so the tables need less scrolling.',
+      },
+      {
+        kind: 'fix',
         de: 'Kampfsimulator: Auch der Planet zeigt die Antriebsforschung, die Spalte Wiederaufgebaut steht ganz hinten, und die Verlusttabellen passen in ihre halbe Breite. Mehr Abstand im Ergebnis.',
         en: 'Battle simulator: the planet shows its drive research too, the rebuilt column is last, and the loss tables fit their half width. More space in the result.',
       },

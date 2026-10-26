@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-26
 
+- Tools: the battle simulator uses up to 1680 px of width (two sides and their tables side by side). The page width
+  override of the ACS loot calculator never applied (the built shared stylesheet comes after the page's own style):
+  both pages now use `body .wrap`, checked in the built image (1680 / 1320 px, others 1240 px).
+
 - Battle simulator: the planet shows its drive research too (defaults of the defender's recyclers); the rebuilt column
   is last in the defender's loss table and the fleet tag sits under the unit's name, so half-width tables fit; space
   between the balances and the debris, moon and rounds tiles; the moon chance in the language's decimals; the

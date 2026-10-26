@@ -19,6 +19,8 @@
 <link rel="stylesheet" href="../shared/tools.css">
 <style>
 /* Battle simulator: layout, slot tabs, unit grid, results and round report (base look in ../shared/tools.css) */
+/* wider than the other tools: two sides and their tables side by side */
+body .wrap { max-width: 1680px; }
 /* attackers and defenders side by side, the result below across both */
 .layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; align-items: start; }
 .layout > #results { grid-column: 1 / -1; }
