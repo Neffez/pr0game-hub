@@ -231,7 +231,7 @@ const delay = (p: AttackPlan) => (rp.exact(p) ? (rp.views.value.get(p.id)?.acs?.
       <RouterLink v-for="p in current" :id="`plan-${p.id}`" :key="p.id" :to="planLink(p.id)" class="plan-row" :class="{ mine: rp.myLaunch(p) }">
         <div class="item-line">
           <template v-if="rp.hasCoords(p)">
-            <span v-if="p.planet_type === 'moon'" class="moon-tag"><Icon name="moon" :size="11" /> {{ t('plans.moon') }}</span>
+            <span v-if="p.planet_type === 'moon'" class="moon-tag"><Icon name="moon" :size="12" :label="t('plans.moon')" /></span>
             <b class="mono">{{ coords(p.g!, p.s!, p.p!) }}</b>
             <span v-if="p.planet_name" class="muted">{{ p.planet_name }}</span>
           </template>

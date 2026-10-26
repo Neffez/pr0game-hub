@@ -168,7 +168,7 @@ const planMenu = computed<MenuItem[]>(() => {
     <div class="card plan-card" :class="{ closed: rp.closed(plan) }">
       <div class="plan-title">
         <template v-if="rp.hasCoords(plan)">
-          <span v-if="plan.planet_type === 'moon'" class="moon-tag"><Icon name="moon" :size="11" /> {{ t('plans.moon') }}</span>
+          <span v-if="plan.planet_type === 'moon'" class="moon-tag"><Icon name="moon" :size="12" :label="t('plans.moon')" /></span>
           <h1 class="mono">{{ coords(plan.g!, plan.s!, plan.p!) }}</h1>
           <span v-if="plan.planet_name" class="muted">{{ plan.planet_name }}</span>
         </template>

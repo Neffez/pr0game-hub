@@ -252,7 +252,7 @@ const total = computed(() => {
       <div class="al-head">
         <template v-if="'coords' in r && r.coords">
           <span class="mono small">{{ r.coords.g }}:{{ r.coords.s }}:{{ r.coords.p }}</span>
-          <span v-if="r.type === 'moon'" class="moon-tag m-0"><Icon name="moon" :size="11" /> {{ t('common.moon') }}</span>
+          <span v-if="r.type === 'moon'" class="moon-tag m-0"><Icon name="moon" :size="12" :label="t('common.moon')" /></span>
         </template>
         <b class="al-name">{{ r.label }}</b>
         <span v-if="'spy' in r && r.spy" class="spy-tag" :title="t('alliance.spyTitle', { time: dateTime(r.spy) })">{{ t('alliance.spy') }}</span>
@@ -288,7 +288,7 @@ const total = computed(() => {
           <template v-if="page === 'planets'">
             <td class="mono small">{{ r.coords!.g }}:{{ r.coords!.s }}:{{ r.coords!.p }}</td>
             <td>
-              <span v-if="r.type === 'moon'" class="moon-tag"><Icon name="moon" :size="11" /> {{ t('common.moon') }}</span>
+              <span v-if="r.type === 'moon'" class="moon-tag"><Icon name="moon" :size="12" :label="t('common.moon')" /></span>
               {{ r.label }}
               <span v-if="r.spy" class="spy-tag" :title="t('alliance.spyTitle', { time: dateTime(r.spy) })">{{ t('alliance.spy') }}</span>
             </td>

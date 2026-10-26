@@ -466,7 +466,7 @@ const memberName = (id: number | null) => ctx.value!.members.find((m) => m.id ==
     <div v-for="r in rows" :key="r.key" class="card emp-card" :class="{ moon: r.p.type === 'moon' }">
       <div class="emp-head">
         <span class="mono small">{{ r.p.coords.g }}:{{ r.p.coords.s }}:{{ r.p.coords.p }}</span>
-        <span v-if="r.p.type === 'moon'" class="moon-tag"><Icon name="moon" :size="11" /> {{ t('common.moon') }}</span>
+        <span v-if="r.p.type === 'moon'" class="moon-tag"><Icon name="moon" :size="12" :label="t('common.moon')" /></span>
         <b class="emp-name">{{ r.p.name }}</b>
         <span v-if="r.energy != null" class="small" :class="r.energy < 0 ? 'neg' : 'muted'"><Icon name="bolt" :size="12" :label="name(911)" /> {{ fmt(r.energy) }}</span>
       </div>
@@ -532,7 +532,7 @@ const memberName = (id: number | null) => ctx.value!.members.find((m) => m.id ==
         <tr v-for="r in rows" :key="r.key" :class="{ moon: r.p.type === 'moon' }">
           <td>
             <span class="mono small">{{ r.p.coords.g }}:{{ r.p.coords.s }}:{{ r.p.coords.p }}</span>
-            <span v-if="r.p.type === 'moon'" class="moon-tag" style="margin-left: 4px"><Icon name="moon" :size="11" /> {{ t('common.moon') }}</span>
+            <span v-if="r.p.type === 'moon'" class="moon-tag" style="margin-left: 4px"><Icon name="moon" :size="12" :label="t('common.moon')" /></span>
             {{ r.p.name }}
           </td>
           <td class="small">

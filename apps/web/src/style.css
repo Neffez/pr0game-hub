@@ -223,7 +223,8 @@ table.data tr.dim td { opacity: .55; }
 
 /* Moon rows (share the coordinates of their planet) */
 table.data tr.moon td { background: color-mix(in srgb, var(--info) 7%, transparent); }
-.moon-tag { display: inline-block; padding: 0 5px; margin-right: 4px; border-radius: 4px; font-size: 11px; font-weight: 600; color: var(--info); background: color-mix(in srgb, var(--info) 15%, transparent); }
+.moon-tag { display: inline-flex; align-items: center; vertical-align: -2px; padding: 1px 2px; margin-right: 4px; border-radius: 4px; color: var(--info); background: color-mix(in srgb, var(--info) 15%, transparent); }
+.moon-tag .icon { stroke-width: 2.2; }
 
 /* Touch: tooltip as a sheet above the tab bar instead of hanging off the screen edge */
 @media (hover: none) and (max-width: 800px) {

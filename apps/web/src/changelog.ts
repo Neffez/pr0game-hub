@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Monde sind in Tabellen jetzt nur noch mit dem Mond-Symbol markiert statt mit Symbol und Wort, die Spalten werden dadurch schmaler.',
+        en: 'Moons in tables are now marked with just the moon symbol instead of symbol and word, so the columns get narrower.',
+      },
+      {
+        kind: 'new',
         de: 'Übersicht: In den Spalten Angriff und Spio läuft ein Countdown, solange ein Angriff oder eine Spionage eines Mitglieds auf den Planeten unterwegs ist (wie im FF-Hub). Der Tooltip zeigt, wer fliegt und wann die Flotte ankommt.',
         en: 'Overview: the Attack and Spy columns show a countdown while an attack or spying of a member is on its way to the planet (like FF-Hub). The tooltip shows who is flying and when the fleet arrives.',
       },

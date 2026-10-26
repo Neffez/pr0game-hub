@@ -111,7 +111,7 @@ const settled = (e: Entry) => !!e.saved && e.saved.done >= e.saved.deliveries;
           <td class="mono">{{ dateTime(e.target_time) }}</td>
           <td>
             <span class="mono">{{ coords(e.g, e.s, e.p) }}</span>
-            <span v-if="e.planet_type === 'moon'" class="moon-tag">M</span>
+            <span v-if="e.planet_type === 'moon'" class="moon-tag"><Icon name="moon" :size="12" :label="t('common.moon')" /></span>
             <PlayerLink v-if="e.player_id" :id="e.player_id" :name="e.player_name ?? '?'" />
           </td>
           <td><span class="badge" :class="{ 'mission-hold': e.mission === 'hold' }">{{ e.mission === 'hold' ? t('hold.badge') : t('loot.attack') }}</span></td>

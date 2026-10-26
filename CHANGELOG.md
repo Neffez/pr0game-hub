@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-26
 
+- Moon badge: only the moon icon (with "Moon" as label for screen readers and as tooltip) instead of icon plus
+  word, so the columns of the overview, planets, player info, alliance, empire, spy reports and raid planner get
+  narrower; the loot settlement list shows the icon instead of "M". Checked with headless Chrome.
+
 - Overview: the planet table's "Attack" and "Spy" columns show a countdown while an attack (also ACS attack and
   destroy) or spying of a member is flying to the planet/moon, like FF-Hub; the tooltip names the members and the
   arrival. Comes from the members' newest fleet lists (outbound only, their fleet sharing applies), sorted by the
