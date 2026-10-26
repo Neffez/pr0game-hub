@@ -111,7 +111,7 @@ describe('battle simulator page', () => {
   it('loads a link, runs it at once and shows the result', () => {
     expect(location.hash).toBe('');
     expect((document.getElementById('u-att-207') as HTMLInputElement).value).toBe('100');
-    const hero = document.querySelector('#resultBody .outcome')?.textContent ?? '';
+    const hero = document.getElementById('outcome')?.textContent ?? '';
     expect(hero).toContain('100 %');
     expect(document.getElementById('uniSummary')?.textContent).toContain('50/10');
     // the rocket launchers' debris: 10 % of what is not rebuilt
@@ -193,12 +193,12 @@ describe('battle simulator page', () => {
     expect((document.getElementById('res-metal') as HTMLInputElement).value).toBe('300.000');
     const ships = [...document.querySelectorAll('#defSlot .units')][0].querySelectorAll('input');
     expect(ships[ships.length - 1].id).toBe('u-def-212');
-    // resetting (confirmed) leaves an empty planet
+    // resetting (confirmed) clears the units, the target stays
     window.confirm = () => true;
     (document.querySelector('[data-menu="defMenu"]') as HTMLButtonElement).click();
     (document.querySelector('[data-menu-action="reset"][data-side="def"]') as HTMLButtonElement).click();
     expect((document.getElementById('u-def-405') as HTMLInputElement).value).toBe('');
-    expect((document.getElementById('targetIn') as HTMLInputElement).value).toBe('');
+    expect((document.getElementById('targetIn') as HTMLInputElement).value).toBe('1:110:8');
   });
 
   it('removes a fleet with the × of its tab after confirming, and resets all attackers from the menu', () => {
@@ -213,9 +213,24 @@ describe('battle simulator page', () => {
     expect(attTabs()).toBe(before - 1);
     // the planet has no ×
     expect(document.querySelector('#defTabs [data-remove-slot][data-index="0"]')).toBeNull();
+    // reset keeps the fleets and clears their ships, "remove all" leaves one empty fleet
+    (document.querySelector('[data-add-slot="att"]') as HTMLButtonElement).click();
     (document.querySelector('[data-menu="attMenu"]') as HTMLButtonElement).click();
     (document.querySelector('[data-menu-action="reset"][data-side="att"]') as HTMLButtonElement).click();
+    expect(attTabs()).toBe(before);
+    expect((document.querySelector('#attTabs [data-slot="0"]') as HTMLButtonElement).closest('.slot-tab')?.classList.contains('has')).toBe(false);
+    (document.querySelector('[data-menu="attMenu"]') as HTMLButtonElement).click();
+    (document.querySelector('[data-menu-action="remove"][data-side="att"]') as HTMLButtonElement).click();
     expect(attTabs()).toBe(1);
     expect((document.getElementById('u-att-207') as HTMLInputElement).value).toBe('');
+  });
+
+  it('starts the simulation with Enter in a field and shows the win chances next to the button', async () => {
+    const input = document.getElementById('u-att-204') as HTMLInputElement;
+    input.value = '50';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await new Promise((r) => setTimeout(r, 20));
+    expect(document.querySelector('.run-row #outcome')?.textContent).toMatch(/%/);
   });
 });

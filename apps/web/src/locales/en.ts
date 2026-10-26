@@ -923,7 +923,7 @@ const en: typeof de = {
     universityFactorHint: 'As in the game configuration (factor_university): research time −% per TechnoDome level, default 8.',
     missileRangeFactor: 'Missile range factor',
     fleetDebrisPercent: 'Fleet into debris (%)',
-    fleetDebrisPercentHint: 'As in the game configuration (fleet_debris_percentage): share of the destroyed ships that ends up in the debris field, default 30. Passed on to the battle simulator.',
+    fleetDebrisPercentHint: 'As in the game configuration (fleet_debris_percentage): share of the destroyed ships that ends up in the debris field, default 40. Passed on to the battle simulator.',
     bigShields: 'Shield domes first',
     bigShieldsHint: 'When active in the universe: in battle the shield domes must fall before other units can be hit. Passed on to the battle simulator.',
     defenseDebrisPercent: 'Defense into debris (%)',

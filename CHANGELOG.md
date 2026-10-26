@@ -4,6 +4,14 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-26
 
+- Battle simulator UX: Enter in a field starts the simulation; the win chances stand right of the Simulate button;
+  space below the debris switch; the side menus have "Remove all fleets" and "Reset" (clears the units, keeps the
+  fleets with research, start and speed), the "Clear units" link is gone; the universe dialog leaves out the
+  expedition hold factor (fleet speed and deuterium factor stay: flight time and fuel); shorter label for the
+  defense debris share.
+  - Defaults: 40 % of the fleet into the debris field (simulator, API and hub universe setting), the simulator starts
+    with one galaxy as a ring and 400 linear systems (the flight calculator keeps its defaults).
+
 - Battle simulator: attackers and defenders face each other at the same height: pasting a spy report moved into a
   "⋯" menu in the defenders' title row (opens a dialog, closes when the report is taken over), both sides' menus can
   remove all fleets and reset the side (with confirmation); every fleet tab has an × to remove it after a

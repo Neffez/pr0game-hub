@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Kampfsimulator: Enter startet die Simulation, die Gewinnchancen stehen neben dem Knopf. Die Menüs der Seiten können alle Flotten entfernen oder nur die Schiffe zurücksetzen. Standard für die Flotte im Trümmerfeld ist jetzt 40 %.',
+        en: 'Battle simulator: Enter starts the simulation, the win chances stand next to the button. The menus of both sides can remove all fleets or only reset the ships. The default share of the fleet in the debris field is now 40 %.',
+      },
+      {
+        kind: 'new',
         de: 'Kampfsimulator: Angreifer und Verteidiger stehen sich auf gleicher Höhe gegenüber. Der Spionagebericht wird über das „⋯“-Menü der Verteidiger eingefügt, beide Menüs können alle Flotten entfernen. Jede Flotte lässt sich über ein × in ihrem Tab entfernen. Solarsatelliten stehen beim Verteidiger nach den Schiffen.',
         en: 'Battle simulator: attackers and defenders face each other at the same height. The spy report is pasted from the "⋯" menu of the defenders, both menus can remove all fleets. Each fleet can be removed with an × in its tab. Solar satellites are listed after the ships on the defender side.',
       },

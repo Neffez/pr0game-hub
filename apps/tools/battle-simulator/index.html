@@ -53,7 +53,6 @@
 }
 .unit input:focus { border-color: var(--accent); }
 .unit input.invalid, .field input.invalid { border-color: var(--danger); }
-.slot-actions { display: flex; justify-content: space-between; gap: 8px; }
 .link-btn.danger { color: var(--danger); }
 .spy textarea { min-height: 220px; width: 100%; font-family: var(--mono); font-size: 12px; }
 .spy .hint { margin-top: 6px; }
@@ -76,14 +75,15 @@
 .progress { flex: 1 1 100%; height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
 .progress-bar { height: 100%; width: 0; background: var(--accent); transition: width .1s; }
 #results.stale .hero, #results.stale table, #results.stale .outcome { opacity: .55; }
-.outcome { display: flex; align-items: flex-end; gap: 28px; flex-wrap: wrap; margin-top: 16px; }
+.outcome { display: flex; align-items: flex-end; gap: 28px; flex-wrap: wrap; margin-left: auto; text-align: right; }
+.outcome:empty { display: none; }
 .win b { display: block; font-size: 28px; font-weight: 700; line-height: 1.1; font-family: var(--mono); }
 .win span { font-size: 12.5px; color: var(--muted); }
 .win.att b { color: var(--danger); }
 .win.draw b { color: var(--text); }
 .win.def b { color: #7c83ff; }
-.outcome-meta { margin-left: auto; font-size: 12.5px; color: var(--muted); }
-.debris-to { display: flex; justify-content: flex-end; align-items: center; gap: 10px; margin-top: 12px; font-size: 12.5px; color: var(--muted); }
+.outcome-meta { font-size: 12.5px; color: var(--muted); align-self: center; }
+.debris-to { display: flex; justify-content: flex-end; align-items: center; gap: 10px; margin: 16px 0 12px; font-size: 12.5px; color: var(--muted); }
 .balances { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .balance table td, .balance table th { text-align: right; }
 .balance table td:first-child, .balance table th:first-child { text-align: left; }
@@ -152,7 +152,8 @@
             <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>
           </button>
           <span class="menu" id="attMenu" role="menu" hidden>
-            <button type="button" role="menuitem" data-menu-action="reset" data-side="att" data-t="resetAttackers">Remove all fleets and reset</button>
+            <button type="button" role="menuitem" data-menu-action="remove" data-side="att" data-t="removeAll">Remove all fleets</button>
+            <button type="button" role="menuitem" data-menu-action="reset" data-side="att" data-t="resetUnits">Reset</button>
           </span>
         </span>
       </h2>
@@ -167,7 +168,8 @@
           </button>
           <span class="menu" id="defMenu" role="menu" hidden>
             <button type="button" role="menuitem" data-menu-action="spy" data-side="def" data-t="spyPasteMenu">Paste spy report …</button>
-            <button type="button" role="menuitem" data-menu-action="reset" data-side="def" data-t="resetDefenders">Remove all fleets and reset</button>
+            <button type="button" role="menuitem" data-menu-action="remove" data-side="def" data-t="removeAll">Remove all fleets</button>
+            <button type="button" role="menuitem" data-menu-action="reset" data-side="def" data-t="resetUnits">Reset</button>
           </span>
         </span>
       </h2>
@@ -180,6 +182,7 @@
         <div class="field"><label for="runsIn" data-t="runs">Simulations</label><input id="runsIn" type="number" min="1" step="1" inputmode="numeric"></div>
         <button type="button" class="btn primary" id="runBtn" data-t="run">Simulate</button>
         <button type="button" class="btn" id="cancelBtn" data-t="cancel" hidden>Cancel</button>
+        <div class="outcome" id="outcome"></div>
         <div class="progress" id="progress" hidden><div class="progress-bar" id="progressBar"></div></div>
       </div>
       <p class="note warn" id="staleNote" data-t="stale" hidden></p>

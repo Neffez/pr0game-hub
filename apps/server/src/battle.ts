@@ -135,7 +135,7 @@ export function planetFromSpy(values: Record<string, number>): { planet: ApiSlot
 export function simSettingsOf(u: UniverseSettings, own: Partial<SimSettings>): SimSettings {
   const s = u as UniverseSettings & { fleetDebrisPercent?: number; defenseDebrisPercent?: number; bigShields?: boolean };
   return {
-    fleetDebris: s.fleetDebrisPercent ?? 30,
+    fleetDebris: s.fleetDebrisPercent ?? 40,
     defenseDebris: s.defenseDebrisPercent ?? 0,
     moonFactor: 1,
     maxMoonChance: 20,

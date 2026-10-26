@@ -330,7 +330,7 @@ const doMerge = () => run(async () => {
             <label>
               {{ t('admin.fleetDebrisPercent') }}
               <Hint>{{ t('admin.fleetDebrisPercentHint') }}</Hint>
-              <input v-model.number="editUni.settings.fleetDebrisPercent" type="number" min="0" max="100" placeholder="30" style="width: 60px" />
+              <input v-model.number="editUni.settings.fleetDebrisPercent" type="number" min="0" max="100" placeholder="40" style="width: 60px" />
             </label>
             <label>
               {{ t('admin.defenseDebrisPercent') }}

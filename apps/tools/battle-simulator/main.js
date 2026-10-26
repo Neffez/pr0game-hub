@@ -24,7 +24,7 @@ import {
 import { DEFAULT_UNI, parseAmount } from '../src/core.ts';
 import { TEXTS } from './i18n.js';
 import { $, $$, applyTexts, bindLang, bindShare, bindTips, clearHash, esc, fmtNum, initTexts, lang, load, store, t, toast } from '../shared/shell.js';
-import { BATTLE_UNI_DEFAULTS, LS_UNI, UNI_HASH, fieldsetsHtml, openDialog, syncUniInputs, uniFieldGroups, uniSummary } from '../shared/uni.js';
+import { BATTLE_LAYOUT_DEFAULTS, BATTLE_UNI_DEFAULTS, LS_UNI, UNI_HASH, fieldsetsHtml, openDialog, syncUniInputs, uniFieldGroups, uniSummary } from '../shared/uni.js';
 
 var LS_STATE = 'pr0bs.state.v1';
 var LS_TABS = 'pr0bs.tabs.v1';
@@ -34,7 +34,7 @@ var SPEEDS = [100, 90, 80, 70, 60, 50, 40, 30, 20, 10];
 var RECYCLER = 20000;
 
 var S = emptyState();
-var U = Object.assign({}, DEFAULT_UNI, BATTLE_UNI_DEFAULTS);
+var U = Object.assign({}, DEFAULT_UNI, BATTLE_LAYOUT_DEFAULTS, BATTLE_UNI_DEFAULTS);
 /* selected slot per side */
 var active = {att: 0, def: 0};
 var spyMsg = null;
@@ -333,7 +333,6 @@ function renderSlot(side) {
     html += '<div class="field"><span class="field-label">' + esc(t('ships')) + '</span>' + unitGrid(side, ships, s.units) + '</div>';
     if (i === 0) html += '<div class="field"><span class="field-label">' + esc(t('defense')) + '</span>' + unitGrid(side, DEFENSE_IDS, s.units) + '</div>';
   }
-  html += '<div class="slot-actions"><button type="button" class="link-btn" data-clear-slot="' + side + '">' + esc(t('clearSlot')) + '</button></div>';
   $('#' + side + 'Slot').innerHTML = html;
 }
 
@@ -349,7 +348,7 @@ function renderInputs() {
 /* ---------- universe settings ---------- */
 
 function buildUniDialog() {
-  $('#uniFields').innerHTML = fieldsetsHtml(uniFieldGroups(['groupBattle', 'groupSpeed', 'groupLayout', 'groupDistances']));
+  $('#uniFields').innerHTML = fieldsetsHtml(uniFieldGroups(['groupBattle', 'groupSpeed', 'groupLayout', 'groupDistances'], ['expo_hold_multiplier']));
 }
 
 function syncUniSummary() {
@@ -480,6 +479,7 @@ function reportHtml(output, slotIdx) {
 function renderResult() {
   var box = $('#resultBody');
   if (!last) {
+    $('#outcome').innerHTML = '';
     box.innerHTML = '<p class="empty">' + esc(t('noResult')) + '</p>';
     return;
   }
@@ -490,11 +490,11 @@ function renderResult() {
   var debrisTo = S.debrisTo || defaultDebrisTo(s);
 
   /* outcome: win chances, runs and rounds */
-  var html = '<div class="outcome">'
-    + '<div class="win att"><b>' + pct(s.wins.attacker) + '</b><span>' + esc(t('attackerWins')) + '</span></div>'
+  $('#outcome').innerHTML = '<div class="win att"><b>' + pct(s.wins.attacker) + '</b><span>' + esc(t('attackerWins')) + '</span></div>'
     + '<div class="win draw"><b>' + pct(s.wins.draw) + '</b><span>' + esc(t('draw')) + '</span></div>'
     + '<div class="win def"><b>' + pct(s.wins.defender) + '</b><span>' + esc(t('defenderWins')) + '</span></div>'
-    + '<span class="outcome-meta">' + esc(t('runsSub', {n: num(s.runs), rounds: Math.round(s.rounds.avg * 10) / 10})) + '</span></div>';
+    + '<span class="outcome-meta">' + esc(t('runsSub', {n: num(s.runs), rounds: Math.round(s.rounds.avg * 10) / 10})) + '</span>';
+  var html = '';
 
   /* balance per side: losses, loot, fuel and debris in resources and DSE */
   html += '<div class="debris-to"><span>' + esc(t('debrisTo')) + '</span><div class="seg small" role="group">'
@@ -629,15 +629,6 @@ function bind() {
       update();
       return;
     }
-    var clear = e.target.closest('[data-clear-slot]');
-    if (clear) {
-      var cs = slots(clear.dataset.clearSlot)[active[clear.dataset.clearSlot]];
-      cs.units = {};
-      renderTabs(clear.dataset.clearSlot);
-      renderSlot(clear.dataset.clearSlot);
-      update();
-      return;
-    }
     var to = e.target.closest('[data-debris-to]');
     if (to) {
       S.debrisTo = to.dataset.debrisTo;
@@ -667,6 +658,14 @@ function bind() {
   });
   $('#runsIn').addEventListener('blur', function () { $('#runsIn').value = String(S.runs); $('#runsIn').classList.remove('invalid'); });
   $('#runBtn').addEventListener('click', run);
+  // Enter in a field of the battle starts the simulation
+  $('main.layout').addEventListener('keydown', function (e) {
+    var el = e.target;
+    if (e.key !== 'Enter' || e.isComposing || el.tagName === 'TEXTAREA' || el.tagName === 'BUTTON') return;
+    if (el.tagName !== 'INPUT' && el.tagName !== 'SELECT') return;
+    e.preventDefault();
+    run();
+  });
   $('#cancelBtn').addEventListener('click', cancel);
   $('#spyIn').addEventListener('input', function () {
     var text = $('#spyIn').value;
@@ -715,15 +714,17 @@ function bind() {
         $('#spyIn').focus();
         return;
       }
-      if (!window.confirm(t(side === 'att' ? 'resetAttackersConfirm' : 'resetDefendersConfirm'))) return;
-      if (side === 'att') {
-        S.attackers = [emptySlot()];
+      var action = item.dataset.menuAction;
+      if (!window.confirm(t(action + (side === 'att' ? 'AttackersConfirm' : 'DefendersConfirm')))) return;
+      if (action === 'remove') {
+        // all fleets go, one empty slot (the planet) stays
+        if (side === 'att') S.attackers = [emptySlot()];
+        else S.defenders = [emptySlot()];
+        active[side] = 0;
       } else {
-        S.defenders = [emptySlot()];
-        S.target = null;
-        S.resources = {metal: 0, crystal: 0, deuterium: 0};
+        // the fleets stay with research, start and speed, only their units are cleared
+        slots(side).forEach(function (x) { x.units = {}; });
       }
-      active[side] = 0;
       renderInputs();
       update();
     });
@@ -748,7 +749,7 @@ function bind() {
   $('#settings').addEventListener('click', function (e) { if (e.target === e.currentTarget) e.currentTarget.close(); });
   $('#settings').addEventListener('close', function () { if (last) renderResult(); });
   $('#uniReset').addEventListener('click', function () {
-    U = Object.assign({}, U, DEFAULT_UNI, BATTLE_UNI_DEFAULTS, {clock_offset: U.clock_offset || 0});
+    U = Object.assign({}, U, DEFAULT_UNI, BATTLE_LAYOUT_DEFAULTS, BATTLE_UNI_DEFAULTS, {clock_offset: U.clock_offset || 0});
     syncUniInputs(U);
     syncUniSummary();
     update();
@@ -791,7 +792,7 @@ function linkState() {
 function init() {
   initTexts(TEXTS);
   applyTexts();
-  U = Object.assign({}, DEFAULT_UNI, BATTLE_UNI_DEFAULTS, load(LS_UNI) || {});
+  U = Object.assign({}, DEFAULT_UNI, BATTLE_LAYOUT_DEFAULTS, BATTLE_UNI_DEFAULTS, load(LS_UNI) || {});
   var hadState = loadTabs();
   var fromLink = linkState();
   // a link opens in a new tab next to the stored ones (or fills the first one)

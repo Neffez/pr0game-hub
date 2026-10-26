@@ -32,9 +32,14 @@ export var UNI_FIELDS = [
 export var SHAPES = [[0, 'shapeLinear'], [1, 'shapeRing'], [2, 'shapeSphere']];
 var TOGGLE = [[0, 'toggleOff'], [1, 'toggleOn']];
 
-/* Defaults of the battle values (game config: fleet_debris_percentage, def_debris_percentage, moon_factor,
-   moon_chance; shield domes as ship shields off; market rates of the loot calculator for DSE); the flight values default in ../src/core.ts (DEFAULT_UNI). */
-export var BATTLE_UNI_DEFAULTS = {fleet_debris: 30, defense_debris: 0, moon_factor: 1, max_moon_chance: 20, big_shields: 0, rate_metal: 2.8, rate_crystal: 0.8};
+/* Defaults of the battle values (40 % of the fleet into the debris field, no defense, moon factor 1 up to 20 %, shield
+   domes as ship shields off, market rates of the loot calculator for DSE); the flight values default in ../src/core.ts
+   (DEFAULT_UNI). */
+export var BATTLE_UNI_DEFAULTS = {fleet_debris: 40, defense_debris: 0, moon_factor: 1, max_moon_chance: 20, big_shields: 0, rate_metal: 2.8, rate_crystal: 0.8};
+
+/* Layout the battle simulator starts with (pr0game: one galaxy as a ring, 400 linear systems); the flight calculator
+   keeps DEFAULT_UNI. */
+export var BATTLE_LAYOUT_DEFAULTS = {max_galaxy: 1, max_system: 400, uni_type: 1, galaxy_type: 0};
 
 /* Hash keys (compatible with the in-game calculator links and the hub's links). */
 export var UNI_HASH = {
@@ -58,7 +63,7 @@ export var UNI_TEXTS = {
     shapeRingShort: ' · Ring',
     shapeSphereShort: ' · Kugel',
     groupSpeed: 'Geschwindigkeit', groupLayout: 'Aufbau', groupDistances: 'Entfernungen', groupClock: 'Uhr', groupBattle: 'Kampf',
-    uGameSpeed: 'Flottengeschwindigkeit', uGameSpeedHint: '1 = normal, 2 = doppelt so schnell',
+    uGameSpeed: 'Flottengeschwindigkeit', uGameSpeedHint: '1 = normal, 2 = doppelt so schnell (Flugzeit und Deuterium)',
     uExpoHold: 'Expeditions-Haltefaktor', uExpoHoldHint: 'Teilt die Haltezeit der Expedition',
     uHonor: 'Deuterium-Faktor', uHonorHint: 'Ehren-Boost auf den Verbrauch',
     uGalaxies: 'Galaxien', uSystems: 'Systeme', uPlanets: 'Planetenpositionen',
@@ -68,7 +73,7 @@ export var UNI_TEXTS = {
     uClock: 'Versatz der Spieluhr (s)',
     uClockHint: 'Positiv, wenn die Spieluhr deinem Gerät voraus ist. Vergleich sie mit der Uhr im Spiel, damit Countdowns sekundengenau sind.',
     uFleetDebris: 'Flotte ins Trümmerfeld (%)', uFleetDebrisHint: 'Anteil der zerstörten Schiffe (Metall und Kristall), der im Trümmerfeld landet.',
-    uDefenseDebris: 'Verteidigung ins Trümmerfeld (%)', uDefenseDebrisHint: 'Anteil der zerstörten Verteidigung, die nicht wieder aufgebaut wird (rund 30 %), der im Trümmerfeld landet.',
+    uDefenseDebris: 'Vert. ins Trümmerfeld (%)', uDefenseDebrisHint: 'Anteil der zerstörten Verteidigung, die nicht wieder aufgebaut wird (rund 30 %), der im Trümmerfeld landet.',
     uMoonFactor: 'Mondfaktor', uMoonFactorHint: 'Mondchance: 1 % je 100.000 Trümmerfeld mal diesem Faktor.',
     uMaxMoon: 'Höchste Mondchance (%)',
     uBigShields: 'Schildkuppeln zuerst', uBigShieldsHint: 'Wenn im Universum aktiv: Die Schildkuppeln müssen fallen, bevor andere Einheiten getroffen werden können.',
@@ -88,7 +93,7 @@ export var UNI_TEXTS = {
     shapeRingShort: ' · ring',
     shapeSphereShort: ' · sphere',
     groupSpeed: 'Speed', groupLayout: 'Layout', groupDistances: 'Distances', groupClock: 'Clock', groupBattle: 'Battle',
-    uGameSpeed: 'Fleet speed', uGameSpeedHint: '1 = normal, 2 = twice as fast',
+    uGameSpeed: 'Fleet speed', uGameSpeedHint: '1 = normal, 2 = twice as fast (flight time and deuterium)',
     uExpoHold: 'Expedition hold factor', uExpoHoldHint: 'Divides the expedition hold time',
     uHonor: 'Deuterium factor', uHonorHint: 'Honor boost applied to consumption',
     uGalaxies: 'Galaxies', uSystems: 'Systems', uPlanets: 'Planet positions',
@@ -98,7 +103,7 @@ export var UNI_TEXTS = {
     uClock: 'Game clock offset (s)',
     uClockHint: 'Positive if the game clock is ahead of your device. Compare with the clock in the game so countdowns are accurate to the second.',
     uFleetDebris: 'Fleet into debris (%)', uFleetDebrisHint: 'Share of the destroyed ships (metal and crystal) that ends up in the debris field.',
-    uDefenseDebris: 'Defense into debris (%)', uDefenseDebrisHint: 'Share of the destroyed defense that is not rebuilt (about 30 %) that ends up in the debris field.',
+    uDefenseDebris: 'Def. into debris (%)', uDefenseDebrisHint: 'Share of the destroyed defense that is not rebuilt (about 30 %) that ends up in the debris field.',
     uMoonFactor: 'Moon factor', uMoonFactorHint: 'Moon chance: 1 % per 100,000 debris times this factor.',
     uMaxMoon: 'Highest moon chance (%)',
     uBigShields: 'Shield domes first', uBigShieldsHint: 'When active in the universe: the shield domes must fall before other units can be hit.',
@@ -109,12 +114,12 @@ export var UNI_TEXTS = {
   }
 };
 
-/* The dialog's fieldsets for the given groups (in their order), each as {group: [field html]}. */
-export function uniFieldGroups(groups) {
+/* The dialog's fieldsets for the given groups (in their order), each as {group: [field html]}; `skip`: keys left out. */
+export function uniFieldGroups(groups, skip) {
   var out = {};
   groups.forEach(function (g) { out[g] = []; });
   UNI_FIELDS.forEach(function (f) {
-    if (!out[f.group]) return;
+    if (!out[f.group] || (skip && skip.indexOf(f.key) !== -1)) return;
     var html;
     if (f.type === 'shape' || f.type === 'toggle') {
       html = '<div class="field"><div class="label-row"><label for="u-' + f.key + '">' + esc(t(f.label)) + '</label>'
