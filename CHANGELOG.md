@@ -2,6 +2,11 @@
 
 Every commit adds its changes here, newest first, grouped by date.
 
+## 2026-10-27
+
+- Fleet sharing knows the marketplace (16) and transfer (17) missions: both can be hidden in the account's sharing
+  settings, the parser reads them from copied fleet lines (`Mission: Marktplatz`/`Transfer`) and push texts name them.
+
 ## 2026-10-26
 
 - The battle simulator link of the spy history fills in the viewer as attacker: own research from the latest empire

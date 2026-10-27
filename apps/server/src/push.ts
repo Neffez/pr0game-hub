@@ -283,7 +283,7 @@ const DE = {
   fleetSoon: (what: string, min: number) => `⏰ ${what}: Ankunft in ${min} Min`,
   missions: {
     1: 'Angreifen', 2: 'Verbandsangriff', 3: 'Transport', 4: 'Stationieren', 5: 'Halten', 6: 'Spionage', 7: 'Kolonisieren', 8: 'Abbau',
-    9: 'Zerstören', 10: 'Raketenangriff', 15: 'Expedition',
+    9: 'Zerstören', 10: 'Raketenangriff', 15: 'Expedition', 16: 'Marktplatz', 17: 'Transfer',
   } as Record<number, string>,
   hostile: 'Feindliche Flotte',
   test: { title: 'pr0game Hub', body: 'Push-Benachrichtigungen funktionieren auf diesem Gerät.' },
@@ -316,7 +316,7 @@ const EN: typeof DE = {
   fleetSoon: (what: string, min: number) => `⏰ ${what}: arrival in ${min} min`,
   missions: {
     1: 'Attack', 2: 'ACS attack', 3: 'Transport', 4: 'Deploy', 5: 'Hold', 6: 'Espionage', 7: 'Colonize', 8: 'Harvest', 9: 'Destroy',
-    10: 'Missile attack', 15: 'Expedition',
+    10: 'Missile attack', 15: 'Expedition', 16: 'Marketplace', 17: 'Transfer',
   } as Record<number, string>,
   hostile: 'Hostile fleet',
   test: { title: 'pr0game Hub', body: 'Push notifications work on this device.' },

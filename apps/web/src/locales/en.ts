@@ -1634,7 +1634,7 @@ const en: typeof de = {
   game: {
     missions: {
       1: 'Attack', 2: 'ACS attack', 3: 'Transport', 4: 'Deploy', 5: 'Hold', 6: 'Espionage', 7: 'Colonize',
-      8: 'Recycle', 9: 'Destroy', 10: 'Missile attack', 15: 'Expedition',
+      8: 'Recycle', 9: 'Destroy', 10: 'Missile attack', 15: 'Expedition', 16: 'Marketplace', 17: 'Transfer',
     },
     stats: { 1: 'Total', 2: 'Fleet', 3: 'Research', 4: 'Buildings', 5: 'Defense', 6: 'Honor points' },
     statsShort: { 1: 'Σ', 2: 'F', 3: 'R', 4: 'B', 5: 'D' },

@@ -24,6 +24,8 @@ const MISSIONS: [RegExp, number][] = [
   [/^(?:Zerstören|Mondzerstörung|Destroy|Moon destruction)/i, 9],
   [/^(?:Raketenangriff|Missile)/i, 10],
   [/^Expedition/i, 15],
+  [/^(?:Marktplatz|Handel|Trade|Market)/i, 16],
+  [/^Transfer/i, 17],
 ];
 
 const BODY_RE = new RegExp(

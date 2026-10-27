@@ -16,6 +16,16 @@ export interface ChangelogDay {
 
 export const CHANGELOG: ChangelogDay[] = [
   {
+    date: '2026-10-27',
+    items: [
+      {
+        kind: 'fix',
+        de: 'Flottenbewegungen teilen: Marktplatz- und Transferflüge lassen sich jetzt in den Kontoeinstellungen ausblenden.',
+        en: 'Sharing fleet movements: marketplace and transfer flights can now be hidden in the account settings.',
+      },
+    ],
+  },
+  {
     date: '2026-10-26',
     items: [
       {

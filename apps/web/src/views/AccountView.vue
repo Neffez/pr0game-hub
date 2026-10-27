@@ -46,7 +46,7 @@ const savePassword = () =>
   }, () => t('account.passwordChanged'));
 
 /** Fleet movements shared with the other members (game mission ids, as the server's SHARE_MISSIONS). */
-const MISSIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15];
+const MISSIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 16, 17];
 const share = ref<{ enabled: boolean; hidden: number[]; history: boolean } | null>(null);
 /** Player messages shared with the other members (off: only the user sees them). */
 const messageShare = ref<{ enabled: boolean } | null>(null);

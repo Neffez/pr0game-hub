@@ -554,6 +554,14 @@ describe('fleet movements', () => {
     expect(rec.fleets[0].ships).toEqual({ 202: 208, 203: 705, 225: 539 });
   });
 
+  it('reads the marketplace and transfer missions from copied lines', () => {
+    const rec = parseFleetsText([
+      '10:00:00 | 01h 00m 00s Eine deiner Flotten (5 Großer Transporter) vom Planet Ares [1:100:12] erreicht den Planet Kolonie [3:4:1]. Mission: Marktplatz',
+      '11:00:00 | 02h 00m 00s Eine deiner Flotten (5 Großer Transporter) vom Planet Ares [1:100:12] erreicht den Planet Kolonie [3:4:1]. Mission: Transfer',
+    ].join('\n'))!;
+    expect(rec.fleets.map((f) => f.mission)).toEqual([16, 17]);
+  });
+
   it('parses copied event lines on their own', () => {
     const res = parsePage({ text: lines.join('\n') });
     expect(res).toMatchObject({ pageType: 'fleets', source: 'text' });
