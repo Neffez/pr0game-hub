@@ -582,8 +582,9 @@ export class Store {
   }
 
   /**
-   * Marketplace: the rate (an estimate from a text copy and an exact rate within an hour of each other: the exact one
-   * wins; a resource the estimate can't tell keeps the current value) and the open offers. Offers are recognised by the game's id, else (text copy) by
+   * Marketplace: the rate (exact from the page's HTML, also a copied page, else estimated from the offers of plain text;
+   * an estimate and an exact rate within an hour of each other: the exact one wins; a resource the estimate can't tell
+   * keeps the current value; the same rate again only moves the newest row on in time) and the open offers. Offers are recognised by the game's id, else (text copy) by
    * resources, amounts and end within 90 s, one to one; a new one is logged as activity. The trade history is collected.
    */
   private marketplace(r: MarketplaceRecord) {
@@ -592,8 +593,8 @@ export class Store {
     const seen = this.epoch(r.pageTime) ?? r.seenAt ?? now();
     if (r.rate) {
       const source = r.rate.exact ? 'source' : 'text';
-      const latest = db.prepare('SELECT metal, crystal FROM market_rates WHERE group_id = ? ORDER BY time DESC, id DESC LIMIT 1').get(g) as
-        | { metal: number; crystal: number }
+      const latest = db.prepare('SELECT id, time, metal, crystal, source FROM market_rates WHERE group_id = ? ORDER BY time DESC, id DESC LIMIT 1').get(g) as
+        | { id: number; time: number; metal: number; crystal: number; source: string }
         | undefined;
       const m = r.rate.m ?? latest?.metal;
       const k = r.rate.k ?? latest?.crystal;
@@ -601,7 +602,10 @@ export class Store {
         !r.rate.exact &&
         db.prepare("SELECT 1 FROM market_rates WHERE group_id = ? AND source <> 'text' AND ABS(time - ?) < 3600").get(g, seen);
       const known = db.prepare('SELECT 1 FROM market_rates WHERE group_id = ? AND time = ? AND source = ?').get(g, seen, source);
-      const isNew = !!m && !!k && !exactNear && !known;
+      // the same rate seen again: the newest row only moves on in time
+      const same = latest && latest.source === source && latest.time <= seen && Math.abs(latest.metal - m!) < 1e-9 && Math.abs(latest.crystal - k!) < 1e-9;
+      if (same && !known) db.prepare('UPDATE market_rates SET time = ?, user_id = ? WHERE id = ?').run(seen, this.t.userId, latest.id);
+      const isNew = !!m && !!k && !exactNear && !known && !same;
       if (isNew) {
         db.prepare('INSERT INTO market_rates (group_id, time, metal, crystal, source, user_id) VALUES (?, ?, ?, ?, ?, ?)').run(g, seen, m, k, source, this.t.userId);
         // the exact rate replaces the estimates around it

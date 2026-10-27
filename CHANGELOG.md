@@ -4,6 +4,12 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-27
 
+- Marketplace: the rate source reads "exact" / "estimated" / "by hand": a page copied in the browser arrives as HTML and
+  carries the exact rate as well, only plain text gives an estimate (hints corrected). A sync with an unchanged rate
+  moves the newest rate row on in time instead of adding another one to the history.
+- Loot settlement: the draft from the hub takes the group's market rate as its rates (two decimals) and as the
+  reference, not only as the reference; "Update from hub data" (`mergeDraft` in `@pr0hub/loot`) takes a new market rate
+  as the reference and as the rates unless they were changed by hand (still the defaults or the previous market rate).
 - Marketplace: the trade history of the page (the universe's last 40 accepted offers) is collected over the syncs
   (migration 066, `market_trades`; dates of a copied page in the universe's time zone, the page source's epoch seconds)
   and shown as a collapsible "Trade history" on the marketplace page with the exchange rate at the current rate;

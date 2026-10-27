@@ -9,7 +9,7 @@ import { useRoute } from 'vue-router';
 import { localToEpoch, parseCombatReportText, parseRecycleReportsText } from '@pr0hub/core/combat';
 import { CAPACITY } from '@pr0hub/flight';
 import {
-  battleFromReport, cleanState, debrisSummary, MAX_HELPER_KEEP, mergeDraft, decodeShare, lootShares, settle, type LootState, type Res, type SettlementResult, type TransferInput,
+  battleFromReport, cleanState, debrisSummary, marketRates, MAX_HELPER_KEEP, mergeDraft, decodeShare, lootShares, settle, type LootState, type Res, type SettlementResult, type TransferInput,
 } from '@pr0hub/loot';
 import { uniApi } from '../api';
 import CommentThread from '../components/CommentThread.vue';
@@ -56,9 +56,8 @@ const state = ref<LootState | null>(null);
 const market = computed(() => ctx.value?.marketRate ?? null);
 function takeMarketRate() {
   if (!state.value || !market.value) return;
-  const round = (v: number) => Math.round(v * 100) / 100;
-  state.value.settings.rates = { m: round(market.value.m), k: round(market.value.k), d: 1 };
-  state.value.settings.refRates ??= { m: market.value.m, k: market.value.k, d: 1 };
+  state.value.settings.refRates = { m: market.value.m, k: market.value.k, d: 1 };
+  state.value.settings.rates = marketRates(state.value.settings.refRates);
 }
 const dirty = ref(false);
 const error = ref('');
@@ -135,10 +134,11 @@ const update = () =>
     const fresh = await uniApi<Response>(uni.value, `/plans/${planId.value}/settlement`);
     data.value = { ...data.value!, draft: fresh.draft };
     const { state: merged, added } = mergeDraft(state.value!, fresh.draft.state);
-    const parts = (['recycling', 'battles', 'participants', 'helpers'] as const)
+    const parts = (['recycling', 'battles', 'participants', 'helpers', 'rates'] as const)
       .filter((k) => added[k] > 0)
       .map((k) => t(`loot.updated_${k}`, { n: added[k] }, added[k]));
-    if (parts.length) state.value = merged;
+    // a new reference rate alone changes nothing visible but the warning: taken over as well
+    state.value = merged;
     notice.value = parts.length ? t('loot.updated', { what: parts.join(', ') }) : t('loot.upToDate');
   });
 

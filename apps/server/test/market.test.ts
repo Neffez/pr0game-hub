@@ -54,7 +54,8 @@ describe('marketplace', () => {
     expect(offers().filter((o) => o.give_amount === 350_000)).toHaveLength(2);
     expect(logged()).toHaveLength(5);
     expect(JSON.parse(logged()[0].data)).toMatchObject({ give: { res: 'k', amount: 1_000_000 }, want: { res: 'd', amount: 650_000 }, ratio: 1.07, ally: false });
-    expect(rates().map((r) => r.source)).toEqual(['text', 'text']);
+    // the same estimate again moves the row on instead of adding one
+    expect(rates().map((r) => r.source)).toEqual(['text']);
   });
 
   it('recognises the offers in the page source, takes their ids and the exact rate', async () => {

@@ -70,7 +70,7 @@ components:
       properties:
         m: { type: number }
         k: { type: number }
-        source: { type: string, enum: [source, text, manual], description: 'Page source (exact), estimated from a copied page, or set by hand' }
+        source: { type: string, enum: [source, text, manual], description: 'Exact from the page''s HTML (copied page or page source), estimated from plain text, or set by hand' }
         time: { type: integer, description: Epoch seconds (game time of the page, or when it was set) }
         by: { type: [string, 'null'], description: Member who synced or set it }
     LootState:
@@ -1788,8 +1788,9 @@ paths:
         The group's resource market: the current market rate (`rate`, null when none is known), the last 30 rates
         (`rates`, newest first), time and member of the latest marketplace sync (`syncedAt`, `syncedBy`, null before the
         first one), the offers it showed that haven't ended yet (`offers`, by end) and the synced trade history (`trades`). Rates come from pasted marketplace
-        pages (`source`: exact from the page source; `text`: estimated from the exchange rates of a copied page, not
-        kept when an exact rate is within an hour) or are set by hand (`manual`).
+        pages (`source`: exact from the page's HTML, a copied page or the page source; `text`: estimated from the
+        exchange rates of plain text, not kept when an exact rate is within an hour) or are set by hand (`manual`); a
+        sync with the same rate moves the newest row on in time instead of adding one.
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }

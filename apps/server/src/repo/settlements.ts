@@ -1,5 +1,5 @@
 import { distance, drivesFromResearch, fleetConsumption, flightDuration, slowestShip } from '@pr0hub/flight';
-import { cleanState, emptyState, MAX_PARTICIPANTS, SHARE_WITHIN, type Battle, type BattleFleet, type LootState, type Ships } from '@pr0hub/loot';
+import { cleanState, emptyState, marketRates, MAX_PARTICIPANTS, SHARE_WITHIN, type Battle, type BattleFleet, type LootState, type Ships } from '@pr0hub/loot';
 import type { GroupContext } from '../context.js';
 import type { DB } from '../db.js';
 import { REPORT_SLACK } from '../store.js';
@@ -51,9 +51,12 @@ const lower = (s: string) => s.trim().toLowerCase();
  */
 export function settlementDraft(db: DB, ctx: GroupContext, plan: PlanRow & { time_precision: string; guests: string | null }): { state: LootState; sources: DraftSources } {
   const state = emptyState();
-  // the in-game market as the reference: the settlement warns when its rates are far off
+  // the group's market rate as rates and as the reference (the settlement warns when rates typed in are far off)
   const market = latestMarketRate(db, ctx.groupId);
-  if (market) state.settings.refRates = { m: market.m, k: market.k, d: 1 };
+  if (market) {
+    state.settings.refRates = { m: market.m, k: market.k, d: 1 };
+    state.settings.rates = marketRates(state.settings.refRates);
+  }
   const hold = plan.mission === 'hold';
   const sources: DraftSources = { battles: [], returnLoot: {}, returnSource: {}, flightDeut: {}, recycling: [] };
   const fleets = db

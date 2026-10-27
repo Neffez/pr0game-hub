@@ -1,4 +1,5 @@
-import type { LootState } from './input.js';
+import { DEFAULT_RATES, type LootState } from './input.js';
+import type { Res } from './types.js';
 import { MAX_PARTICIPANTS } from './settle.js';
 import type { Battle, Recycling } from './types.js';
 
@@ -11,7 +12,13 @@ export interface MergeAdded {
   helpers: number;
   battles: number;
   recycling: number;
+  /** 1 when the market rate of the draft was taken over */
+  rates: number;
 }
+
+/** Market rate as settlement rate: two decimals, like typed in. */
+export const marketRates = (ref: Res): Res => ({ m: Math.round(ref.m * 100) / 100, k: Math.round(ref.k * 100) / 100, d: 1 });
+const sameRates = (a: Res, b: Res) => a.m === b.m && a.k === b.k;
 
 const sameBattle = (a: Battle, b: Battle) => (a.time == null || b.time == null ? a.time === b.time : Math.abs(a.time - b.time) <= SAME_BATTLE);
 /** Same recycling report: same person and time, or (rows without a time) the same amounts. */
@@ -22,11 +29,13 @@ const sameRecycling = (a: Recycling, b: Recycling) =>
  * Takes what is new in a fresh draft into a settlement that was edited or saved: participants and helpers, battles and
  * recycling rows it does not have yet are added; battles it has get fleets of new participants and their debris field
  * when missing, participants without flight deuterium get the draft's. Everything else stays as it is, so changes made
- * by hand are kept; new rows go to the end. Returns a new state and the counts of what was added.
+ * by hand are kept; new rows go to the end. A new market rate of the draft (`refRates`) becomes the reference and, unless
+ * the rates were changed by hand (still the defaults or the previous market rate), the rates. Returns a new state and the
+ * counts of what was added.
  */
 export function mergeDraft(current: LootState, draft: LootState): { state: LootState; added: MergeAdded } {
   const state: LootState = JSON.parse(JSON.stringify(current));
-  const added: MergeAdded = { participants: 0, helpers: 0, battles: 0, recycling: 0 };
+  const added: MergeAdded = { participants: 0, helpers: 0, battles: 0, recycling: 0, rates: 0 };
   const ids = () => new Set([...state.participants, ...state.helpers].map((p) => p.id));
 
   for (const p of draft.participants) {
@@ -70,6 +79,16 @@ export function mergeDraft(current: LootState, draft: LootState): { state: LootS
     if (!d) continue;
     if (r.time == null && d.time != null) r.time = d.time;
     if (!r.field && d.field) r.field = { ...d.field };
+  }
+  const ref = draft.settings.refRates;
+  if (ref && !(state.settings.refRates && sameRates(state.settings.refRates, ref))) {
+    const s = state.settings;
+    const untouched = sameRates(s.rates, DEFAULT_RATES) || (s.refRates != null && sameRates(s.rates, marketRates(s.refRates)));
+    s.refRates = { ...ref };
+    if (untouched && !sameRates(s.rates, marketRates(ref))) {
+      s.rates = marketRates(ref);
+      added.rates = 1;
+    }
   }
   return { state, added };
 }

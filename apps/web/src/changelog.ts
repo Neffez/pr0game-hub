@@ -19,6 +19,16 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-10-27',
     items: [
       {
+        kind: 'fix',
+        de: 'Marktplatz: Die Kursquelle heißt jetzt „genau“, „geschätzt“ oder „von Hand“ – auch die normal kopierte Seite liefert den genauen Kurs. Ein unveränderter Kurs erzeugt keine doppelten Einträge im Verlauf mehr.',
+        en: 'Marketplace: the rate source now reads "exact", "estimated" or "by hand" – a normally copied page gives the exact rate too. An unchanged rate no longer adds duplicate rows to the history.',
+      },
+      {
+        kind: 'fix',
+        de: 'Beute abrechnen: Der Marktkurs aus dem Marktplatz wird jetzt beim Erstellen aus Hub-Daten als Kurs übernommen, und „Aktualisieren aus Hub-Daten“ übernimmt einen neuen Marktkurs, solange du die Kurse nicht von Hand geändert hast.',
+        en: 'Loot settlement: the market rate from the marketplace is now used as the rates when creating from hub data, and "Update from hub data" takes over a new market rate as long as you have not changed the rates by hand.',
+      },
+      {
         kind: 'new',
         de: 'Marktplatz: Der Handelsverlauf der Marktplatz-Seite wird bei jedem Sync mitgesammelt und auf der Seite „Marktplatz“ einklappbar angezeigt. „Allianz“ bei einem Angebot heißt: eigene Allianz oder eine Allianz mit Vertrag (im Spiel grün markiert).',
         en: 'Marketplace: the trade history of the marketplace page is collected with every sync and shown, collapsible, on the "Marketplace" page. "Alliance" on an offer means the own alliance or an alliance with a pact (marked green in the game).',
