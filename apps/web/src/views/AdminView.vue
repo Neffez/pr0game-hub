@@ -197,6 +197,30 @@ const removeMember = (m: any) => {
     await loadGroup();
   });
 };
+/** access requests from the login page (global admins) and the players without an account to assign them to */
+type AccessRequests = {
+  requests: { id: number; username: string; message: string; created_at: number }[];
+  placeholders: { id: number; name: string; group: string; universe: string }[];
+};
+const access = ref<AccessRequests>({ requests: [], placeholders: [] });
+const accessTarget = ref<Record<number, number | ''>>({});
+const loadAccess = async () => {
+  if (isAdmin.value) access.value = await api('/admin/access-requests');
+};
+onMounted(() => run(loadAccess));
+const assignRequest = (r: AccessRequests['requests'][number]) =>
+  run(async () => {
+    await api(`/admin/access-requests/${r.id}/assign`, { body: { userId: accessTarget.value[r.id] } });
+    await Promise.all([loadAccess(), loadGroup()]);
+    msg.value = t('admin.accessAssigned', { name: r.username });
+  });
+const rejectRequest = (r: AccessRequests['requests'][number]) => {
+  if (!confirm(t('admin.accessRejectConfirm', { name: r.username }))) return;
+  run(async () => {
+    await api(`/admin/access-requests/${r.id}`, { method: 'DELETE' });
+    await loadAccess();
+  });
+};
 const reparse = (id: number) => run(async () => {
   const res = await api(`/admin/ingests/${id}/reparse`, { body: {} });
   msg.value = 'Reparse: ' + JSON.stringify(res.counts);
@@ -401,6 +425,25 @@ const doMerge = () => run(async () => {
         </div>
       </Section>
     </template>
+
+    <Section v-if="isAdmin" :title="t('admin.accessRequests')" :count="access.requests.length" store-key="admin.access">
+      <template #hint><Hint>{{ t('admin.accessRequestsHint') }}</Hint></template>
+      <p v-if="!access.requests.length" class="muted small">{{ t('admin.accessRequestsNone') }}</p>
+      <div v-for="r in access.requests" :key="r.id" class="access-request">
+        <div>
+          <b>{{ r.username }}</b> <span class="muted small">{{ dateTime(r.created_at) }}</span>
+          <div v-if="r.message" class="small access-message">{{ r.message }}</div>
+        </div>
+        <div class="row">
+          <select v-model="accessTarget[r.id]">
+            <option value="" disabled>{{ t('admin.accessAssign') }}</option>
+            <option v-for="p in access.placeholders" :key="p.id" :value="p.id">{{ p.universe }} · {{ p.group }} · {{ p.name }}</option>
+          </select>
+          <button class="primary" :disabled="!accessTarget[r.id]" @click="assignRequest(r)">{{ t('admin.accessAssignButton') }}</button>
+          <button class="danger" @click="rejectRequest(r)">{{ t('admin.accessReject') }}</button>
+        </div>
+      </div>
+    </Section>
 
     <Section :title="t('stats.alliances')" :count="groups.length" store-key="admin.groups">
       <div class="row">
@@ -615,6 +658,9 @@ const doMerge = () => run(async () => {
 </template>
 
 <style scoped>
+.access-request { padding: 8px 0; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 6px; }
+.access-request:first-of-type { border-top: 0; }
+.access-message { white-space: pre-wrap; overflow-wrap: anywhere; }
 .crawler-warn { margin-top: 8px; }
 .discord .check { display: flex; gap: 8px; align-items: center; margin: 6px 0; }
 .discord .off { opacity: 0.5; }

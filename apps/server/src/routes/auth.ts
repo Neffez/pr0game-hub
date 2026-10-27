@@ -12,6 +12,9 @@ import { mergeUser } from '../repo/members.js';
 
 /** Failed logins per IP (any username) within the window; the per-username limit is 10. */
 const IP_LIMIT = 30;
+/** Access requests per IP and hour, and open requests in total. */
+const ACCESS_REQUESTS_PER_IP = 5;
+const MAX_ACCESS_REQUESTS = 100;
 
 export function authRoutes(app: FastifyInstance, db: DB) {
   app.post<{ Body: { username: string; password: string } }>('/api/auth/login', async (req, reply) => {
@@ -168,6 +171,33 @@ export function authRoutes(app: FastifyInstance, db: DB) {
     const enabled = req.body?.enabled !== false;
     db.prepare('UPDATE users SET share_syncs = ? WHERE id = ?').run(enabled ? 1 : 0, user.id);
     return { enabled };
+  });
+
+  /**
+   * Request for access without an invite: username and password wait (hashed) until a global admin assigns the
+   * request to a placeholder member (admin.ts). Public, so limited per IP and in total.
+   */
+  app.post<{ Body: { username?: string; password?: string; message?: string; lang?: string } }>('/api/access-requests', async (req) => {
+    const key = `access|${req.ip}`;
+    if (loginBlocked(key, ACCESS_REQUESTS_PER_IP)) throw new HttpError(429, 'too_many_attempts', 'Too many requests, please try again later');
+    const username = checkUsername(db, req.body?.username);
+    const password = String(req.body?.password ?? '');
+    if (password.length < 8) throw new HttpError(400, 'password_too_short', 'Password must have at least 8 characters');
+    const message = String(req.body?.message ?? '').trim();
+    if (message.length > 500) throw new HttpError(400, 'message_too_long', 'Message: at most 500 characters');
+    if (db.prepare('SELECT 1 FROM access_requests WHERE username = ?').get(username)) throw new HttpError(409, 'username_taken', 'Username already taken');
+    if ((db.prepare('SELECT COUNT(*) FROM access_requests').pluck().get() as number) >= MAX_ACCESS_REQUESTS) {
+      throw new HttpError(429, 'too_many_requests', 'Too many open requests, please try again later');
+    }
+    loginFailed(key, 3600);
+    db.prepare('INSERT INTO access_requests (username, password_hash, lang, message, created_at) VALUES (?, ?, ?, ?, ?)').run(
+      username,
+      hashPassword(password),
+      req.body?.lang === 'en' ? 'en' : 'de',
+      message,
+      now(),
+    );
+    return { ok: true };
   });
 
   /** Invite info for the registration form. */

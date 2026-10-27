@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Zugang anfragen: Auf der Anmeldeseite können Leute ohne Account Nutzername, Passwort und eine Nachricht hinterlegen. Ein Admin weist die Anfrage einem Spieler ohne Account zu, danach kann sich der Spieler mit diesen Daten anmelden.',
+        en: 'Request access: on the login page, people without an account can leave a username, password and a message. An admin assigns the request to a player without an account, after which that player can log in with these details.',
+      },
+      {
+        kind: 'new',
         de: 'Aktivitätsmuster: Bei Spielern der eigenen Allianz zählen jetzt auch ihre Synchronisierungen und die Zeiten, in denen sie den Hub offen hatten (nur wenn sie Online-Status bzw. Synchronisierungen teilen). Der Punktezuwachs erscheint als graue Stufenfläche je Statistik-Zeitraum (6 h) im Vergleich zu den anderen Zeiträumen des Spielers: keine Punkte heißt keine Aktivität, viele Punkte viel Aktivität.',
         en: 'Activity pattern: for players of your own alliance, their syncs and the times they had the hub open now count too (only if they share their online status or syncs). Point gains now show as a grey stepped area per statistics window (6 h) compared with the player’s other windows: no points means no activity, many points much activity.',
       },

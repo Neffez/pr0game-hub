@@ -126,6 +126,50 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
     return { ok: true, username };
   });
 
+  // ------------------------------------------------------- access requests
+
+  /** Open requests plus the placeholder members (no account yet) they can be assigned to. */
+  app.get('/api/admin/access-requests', async (req) => {
+    requireAdmin(req);
+    const requests = db.prepare('SELECT id, username, message, created_at FROM access_requests ORDER BY id').all();
+    const placeholders = db
+      .prepare(
+        `SELECT u.id, COALESCE(m.ingame_name, u.username) AS name, g.name AS "group", un.slug AS universe
+         FROM users u JOIN group_members m ON m.user_id = u.id JOIN groups g ON g.id = m.group_id JOIN universes un ON un.id = g.universe_id
+         WHERE u.password_hash = '' ORDER BY un.slug, g.name, name`,
+      )
+      .all();
+    return { requests, placeholders };
+  });
+
+  /** The request's username and password go to the placeholder member, who can log in with them from then on. */
+  app.post<{ Params: { id: string }; Body: { userId?: number } }>('/api/admin/access-requests/:id/assign', async (req) => {
+    requireAdmin(req);
+    const request = db.prepare('SELECT * FROM access_requests WHERE id = ?').get(Number(req.params.id)) as
+      | { id: number; username: string; password_hash: string; lang: string }
+      | undefined;
+    if (!request) throw new HttpError(404, 'not_found', 'Not found');
+    const userId = Number(req.body?.userId);
+    if (!db.prepare("SELECT 1 FROM users WHERE id = ? AND password_hash = ''").get(userId)) {
+      throw new HttpError(400, 'not_placeholder', 'The player already has an account');
+    }
+    const username = checkUsername(db, request.username, userId);
+    const groups = db.prepare('SELECT group_id FROM group_members WHERE user_id = ?').pluck().all(userId) as number[];
+    db.transaction(() => {
+      db.prepare('UPDATE users SET username = ?, password_hash = ?, lang = ? WHERE id = ?').run(username, request.password_hash, request.lang, userId);
+      db.prepare('DELETE FROM invites WHERE user_id = ? AND used_at IS NULL').run(userId);
+      db.prepare('DELETE FROM access_requests WHERE id = ?').run(request.id);
+    })();
+    for (const groupId of groups) events.publish(groupId, { type: 'data', tables: ['group_members'] });
+    return { ok: true };
+  });
+
+  app.delete<{ Params: { id: string } }>('/api/admin/access-requests/:id', async (req) => {
+    requireAdmin(req);
+    if (!db.prepare('DELETE FROM access_requests WHERE id = ?').run(Number(req.params.id)).changes) throw new HttpError(404, 'not_found', 'Not found');
+    return { ok: true };
+  });
+
   // ---------------------------------------------------------------- groups
 
   app.get('/api/admin/groups', async (req) => {
