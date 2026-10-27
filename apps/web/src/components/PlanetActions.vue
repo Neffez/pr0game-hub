@@ -6,10 +6,13 @@ import { uniApi } from '../api';
 import { CLAIM_KINDS, CLAIM_MINUTES, claimOf, loadClaims, remaining } from '../claims';
 import { planetComments } from '../comments';
 import { useUni } from '../composables';
-import { coords, distance, flightCalcLink, ipmCalcLink, ipmStart, type Coords3 } from '../format';
+import { coords, distance, flightCalcLink, fmt, ipmCalcLink, ipmStart, moonCalcLink, type Coords3 } from '../format';
 
-/** Action menu for a planet/moon: links into the game, the flight calculator and the spy history; claiming the target. */
-const props = defineProps<{ g: number; s: number; p: number; type: 'planet' | 'moon'; from?: Coords3 | null; label?: string }>();
+/**
+ * Action menu for a planet/moon: links into the game, the flight, IPM and (moons) moon destruction calculators and the
+ * spy history; claiming the target. `diameter` is the moon's diameter from the galaxy view.
+ */
+const props = defineProps<{ g: number; s: number; p: number; type: 'planet' | 'moon'; from?: Coords3 | null; label?: string; diameter?: number | null }>();
 
 const { t } = useI18n();
 const { ctx, uni } = useUni();
@@ -56,6 +59,14 @@ const items = computed(() => {
     }),
     hint: ipmFrom ? t('actions.ipmFrom', { from: coords(...ipmFrom.c), silo: ipmFrom.silo, n: ipmFrom.ipm }) : t('actions.ipmNoStart'),
   });
+  if (props.type === 'moon') {
+    list.push({
+      label: t('actions.moonDestruction'),
+      // the label is the moon's name unless it is the generic "moon"
+      href: moonCalcLink(settings.value, target.value, { name: props.label !== t('common.moon') ? props.label : null, diameter: props.diameter }),
+      hint: props.diameter ? t('actions.moonDiameter', { n: fmt(props.diameter) }) : t('actions.moonNoDiameter'),
+    });
+  }
   list.push({ label: t('actions.planAttack'), to: { path: `/${uni.value}/raid-planner`, query: { new: `${props.g}:${props.s}:${props.p}`, type: props.type } } });
   if (gameUrl.value) list.push({ label: t('actions.galaxy'), href: `${gameUrl.value}game.php?page=galaxy&galaxy=${props.g}&system=${props.s}`, hint: t('actions.inGame') });
   const comments = planetComments(props.g, props.s, props.p, props.type);

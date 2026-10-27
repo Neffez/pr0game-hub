@@ -75,6 +75,9 @@ German and English, keep their input locally in the browser and put it into shar
   field and recyclers, loot and moon chance, flight time and fuel per attacker, and the rounds of a typical battle.
   ACS with several attacking and holding fleets; a pasted spy report fills in the planet; debris percentages and moon
   chance are universe settings.
+- **Moon destruction calculator** (`/moon-destruction/`): chance to destroy a moon with Death Stars and to lose them,
+  per wave and in total over several waves (formulas of the game), and the fewest Death Stars per wave for a wanted
+  total chance; the diameter is typed in or taken from the pasted moon tooltip of the galaxy view.
 
 The hub links into the tools with prefilled values (e.g. from spy reports and the raid planner), but every tool can
 be used on its own.
@@ -120,7 +123,7 @@ pnpm --filter @pr0hub/web dev
 
 # tools (flight calculator), no server needed
 pnpm --filter @pr0hub/tools dev
-# -> http://localhost:5174/flight-calculator/, /acs-loot/, /ipm-calculator/ and /battle-simulator/
+# -> http://localhost:5174/flight-calculator/, /acs-loot/, /ipm-calculator/, /battle-simulator/ and /moon-destruction/
 ```
 
 ```bash
@@ -188,8 +191,9 @@ Docker image (`Dockerfile`, port 3000, volume `/data`), configured with the envi
 
 The static tools are a second target of the same Dockerfile: `docker build --target tools .` gives an nginx image
 with the tools index at `/`, the flight calculator at `/flight-calculator/` (the hub links there), the ACS loot calculator at
-`/acs-loot/`, the interplanetary missile calculator at `/ipm-calculator/` (the hub links there from spy reports) and the
-battle simulator at `/battle-simulator/`.
+`/acs-loot/`, the interplanetary missile calculator at `/ipm-calculator/` (the hub links there from spy reports), the
+battle simulator at `/battle-simulator/` and the moon destruction calculator at `/moon-destruction/` (the hub links
+there from moons).
 
 Push notifications need outbound HTTPS from the hub to the browsers' push services (Google, Mozilla, Apple, Microsoft),
 Discord notifications to `discord.com`.

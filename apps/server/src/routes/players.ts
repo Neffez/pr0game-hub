@@ -143,7 +143,7 @@ export function playersRoutes(app: FastifyInstance, db: DB) {
       .all(id);
     const planets = db
       .prepare(
-        `SELECT pl.g, pl.s, pl.p, pl.name, pl.has_moon, pl.moon_name, pl.updated_at,
+        `SELECT pl.g, pl.s, pl.p, pl.name, pl.has_moon, pl.moon_name, pl.moon_diameter, pl.updated_at,
            (SELECT MAX(report_time) FROM spy_reports sr WHERE sr.group_id = pl.group_id AND sr.g = pl.g AND sr.s = pl.s AND sr.p = pl.p
               AND sr.planet_type = 'planet') AS last_spy,
            (SELECT MAX(report_time) FROM spy_reports sr WHERE sr.group_id = pl.group_id AND sr.g = pl.g AND sr.s = pl.s AND sr.p = pl.p

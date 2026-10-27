@@ -4,6 +4,15 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-27
 
+- Moon destruction calculator (`/moon-destruction/` in the tools): chance to destroy a moon with Death Stars and to
+  lose the fleet, per wave and in total over several waves, with the formulas of the game's `MissionCaseDestruction`
+  (chance rounded to 0.1 % in the report but rolled in whole percent; later waves only fly while the moon stands).
+  Recommends the fewest Death Stars per wave for a wanted total chance (1 to 6 waves, with expected losses). The
+  diameter is typed in or taken from a pasted moon tooltip / galaxy page.
+  - The hub reads moon diameters from the galaxy view HTML (moon tooltip) and stores them per position (migration 063,
+    `moon_diameter`, kept like the moon name when a sync carries none); `GET /api/{uni}/browse/{g}/{s}` and
+    `GET /api/{uni}/players/{id}` return it. The action menu of a moon links to the calculator with diameter,
+    coordinates and name.
 - Access requests: the login page links to "Request access", where people without an account choose a username and
   password and leave a message (required). Global admins see the requests in the admin panel and assign one to a player without
   an account (claim link not used yet); that player takes over the username and password (open claim links are

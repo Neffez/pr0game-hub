@@ -356,11 +356,11 @@ describe('galaxy + empire', () => {
     expect(rec).toMatchObject({ g: 1, s: 234 });
     expect(rec.rows).toEqual([
       {
-        position: 5, planetName: 'Heimat', moon: true, moonName: 'Luna Prime', destroyed: false, playerId: 1234, playerName: 'Alpha',
+        position: 5, planetName: 'Heimat', moon: true, moonName: 'Luna Prime', moonDiameter: 4560, destroyed: false, playerId: 1234, playerName: 'Alpha',
         status: ['inactive'], allyId: 77, allyTag: 'DA', debris: { metal: '1.2K', crystal: '300' }, activity: 0,
       },
       {
-        position: 7, planetName: '', moon: false, moonName: null, destroyed: true, playerId: null, playerName: null,
+        position: 7, planetName: '', moon: false, moonName: null, moonDiameter: null, destroyed: true, playerId: null, playerName: null,
         status: [], allyId: null, allyTag: null, debris: null, activity: null,
       },
     ]);

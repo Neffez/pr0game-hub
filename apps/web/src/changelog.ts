@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Mondzerstörungsrechner bei den Tools: Chance, einen Mond mit Todessternen zu zerstören und dabei die Flotte zu verlieren, auch über mehrere Wellen, und eine Empfehlung, wie viele Todessterne und Wellen ein Mond für die gewünschte Chance braucht. Im Hub öffnet das Aktionsmenü eines Mondes den Rechner mit dem Durchmesser aus der Galaxie (dafür die Galaxie als Seitenquelltext einfügen).',
+        en: 'Moon destruction calculator in the tools: the chance to destroy a moon with Death Stars and to lose the fleet doing so, also over several waves, and a recommendation of how many Death Stars and waves a moon needs for the wanted chance. In the hub, the action menu of a moon opens the calculator with the diameter from the galaxy (paste the galaxy as page source for that).',
+      },
+      {
+        kind: 'new',
         de: 'Zugang anfragen: Auf der Anmeldeseite können Leute ohne Account Nutzername, Passwort und eine Nachricht (Pflicht) hinterlegen. Ein Admin weist die Anfrage einem Spieler ohne Account zu, danach kann sich der Spieler mit diesen Daten anmelden. Admins werden über neue Anfragen benachrichtigt (Glocke, Push und Discord, wenn eingerichtet). Allianz-Admins sehen die Anfragen auf der Glocke und können sie Spielern ihrer eigenen Allianz zuweisen.',
         en: 'Request access: on the login page, people without an account can leave a username, password and a message (required). An admin assigns the request to a player without an account, after which that player can log in with these details. Admins are notified of new requests (bell, push and Discord if set up). Alliance admins see requests on the bell and can assign them to players of their own alliance.',
       },

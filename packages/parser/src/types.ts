@@ -161,6 +161,8 @@ export interface GalaxyRow {
   moon: boolean;
   /** moon name (alt text of the moon image in the galaxy HTML) */
   moonName?: string | null;
+  /** moon diameter in km (moon tooltip of the galaxy HTML); missing where the source has none */
+  moonDiameter?: number | null;
   destroyed: boolean;
   playerId: number | null;
   playerName: string | null;

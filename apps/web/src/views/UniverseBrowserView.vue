@@ -30,6 +30,7 @@ interface Row {
   name: string | null;
   has_moon: number;
   moon_name: string | null;
+  moon_diameter: number | null;
   destroyed: number;
   debris: { metal: string; crystal: string } | null;
   updated_at: number;
@@ -342,7 +343,7 @@ function onStripUp() {
             <div class="pos-line">
               <PlanetActions v-if="it.row.player_id" :g="g" :s="s" :p="it.p" type="planet" :label="it.row.name || t('common.planet')" />
               <span v-else-if="it.row.destroyed" class="faint small">{{ t('browse.destroyed') }}</span>
-              <PlanetActions v-if="it.row.has_moon" :g="g" :s="s" :p="it.p" type="moon" :label="it.row.moon_name || t('common.moon')" />
+              <PlanetActions v-if="it.row.has_moon" :g="g" :s="s" :p="it.p" type="moon" :label="it.row.moon_name || t('common.moon')" :diameter="it.row.moon_diameter" />
               <span v-if="it.row.debris" class="small warn">{{ t('combat.debris') }} {{ debrisText(it.row.debris) }}</span>
               <span class="grow" />
               <span v-if="it.row.last_battle" class="small muted" :title="dateTime(it.row.last_battle)"><Icon name="attack" :size="12" /> {{ ago(it.row.last_battle) }}</span>
@@ -390,7 +391,7 @@ function onStripUp() {
             </td>
             <td>
               <template v-if="row?.has_moon">
-                <PlanetActions :g="g" :s="s" :p="p" type="moon" :label="row.moon_name || t('common.moon')" />
+                <PlanetActions :g="g" :s="s" :p="p" type="moon" :label="row.moon_name || t('common.moon')" :diameter="row.moon_diameter" />
               </template>
             </td>
             <td class="small" :class="{ warn: row?.debris }">{{ debrisText(row?.debris ?? null) }}</td>

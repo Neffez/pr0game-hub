@@ -49,7 +49,7 @@ export function galaxyRoutes(app: FastifyInstance, db: DB) {
       .get(ctx.groupId, g, s);
     const rows = db
       .prepare(
-        `SELECT pl.p, pl.name, pl.has_moon, pl.moon_name, pl.destroyed, pl.debris, pl.updated_at,
+        `SELECT pl.p, pl.name, pl.has_moon, pl.moon_name, pl.moon_diameter, pl.destroyed, pl.debris, pl.updated_at,
            p.id AS player_id, p.ingame_id, p.name AS player_name, p.status, p.note, a.id AS ally_id, a.name AS ally_name, a.tag AS ally_tag,
            (SELECT MAX(COALESCE(time, created_at)) FROM battle_reports b WHERE b.group_id = pl.group_id AND b.g = pl.g AND b.s = pl.s AND b.p = pl.p) AS last_battle
          FROM planets pl LEFT JOIN players p ON p.id = pl.player_id LEFT JOIN alliances a ON a.id = p.alliance_id

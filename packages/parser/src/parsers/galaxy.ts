@@ -13,6 +13,12 @@ function activityOf(name: string): number | null {
   return m ? (m[1] === '*' ? 0 : parseInt(m[1], 10)) : null;
 }
 
+/** Moon diameter from the moon's tooltip (data-tooltip-content, row "Durchmesser"/"Diameter"); null without one. */
+function moonDiameterOf(tooltip: string | undefined): number | null {
+  const m = tooltip?.replace(/<[^>]*>/g, ' ').match(/(?:Durchmesser|Diameter)\s*:?\s*([\d.,]+)/i);
+  return m ? parseNumber(m[1]) || null : null;
+}
+
 export function isGalaxyHtml($: CheerioAPI): boolean {
   return $('.galaxy-grid-row[data-info^="p_"]').length > 0;
 }
@@ -57,6 +63,7 @@ export function parseGalaxyHtml($: CheerioAPI, url?: string, system?: { g: numbe
       planetName: destroyed ? '' : planetLink.text().replace(ACTIVITY_RE, '').trim(),
       moon: moonImg.length > 0,
       moonName: moonImg.attr('alt')?.trim() || null,
+      moonDiameter: moonImg.length > 0 ? moonDiameterOf(row.find('.galaxy-moon [data-tooltip-content]').first().attr('data-tooltip-content')) : null,
       destroyed,
       playerId: parseNumber(player.attr('playerid')),
       playerName: player.text().trim() || null,

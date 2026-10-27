@@ -15,6 +15,7 @@ export default defineConfig({
         acsLoot: resolve(import.meta.dirname, 'acs-loot/index.html'),
         ipmCalculator: resolve(import.meta.dirname, 'ipm-calculator/index.html'),
         battleSimulator: resolve(import.meta.dirname, 'battle-simulator/index.html'),
+        moonDestruction: resolve(import.meta.dirname, 'moon-destruction/index.html'),
       },
     },
   },

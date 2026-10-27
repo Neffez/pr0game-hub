@@ -1031,19 +1031,19 @@ describe('review fixes', () => {
     expect(d.state.events).toBe(2); // the synced one + the manual "Nothing"
   });
 
-  it('keeps moon names from the galaxy view', async () => {
+  it('keeps moon names and diameters from the galaxy view', async () => {
     const groupX = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', headers: admin, payload: { universe: 'u8', name: 'Moons' } })).json().id;
     const headers = { ...admin, 'x-hub-group': String(groupX) };
     await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { html: fixture('galaxy.html') } });
     const moonOf = async () => (await app.inject({ method: 'GET', url: '/hub/api/u8/browse/1/234', headers })).json().rows.find((r: any) => r.p === 5);
-    expect(await moonOf()).toMatchObject({ has_moon: 1, moon_name: 'Luna Prime' });
+    expect(await moonOf()).toMatchObject({ has_moon: 1, moon_name: 'Luna Prime', moon_diameter: 4560 });
     // a newer universe.json (no moon names) keeps the known name
     const newer = fixture('universe.json').replaceAll('"timepoint": 1792569600000', '"timepoint": 4102444800000');
     await app.inject({ method: 'POST', url: '/hub/api/u8/universe-json', headers, payload: { text: newer } });
-    expect(await moonOf()).toMatchObject({ has_moon: 1, moon_name: 'Luna Prime' });
+    expect(await moonOf()).toMatchObject({ has_moon: 1, moon_name: 'Luna Prime', moon_diameter: 4560 });
     const alpha = db.prepare('SELECT id FROM players WHERE group_id = ? AND ingame_id = 1234').pluck().get(groupX);
     const detail = (await app.inject({ method: 'GET', url: `/hub/api/u8/players/${alpha}`, headers })).json();
-    expect(detail.planets.find((p: any) => p.p === 5).moon_name).toBe('Luna Prime');
+    expect(detail.planets.find((p: any) => p.p === 5)).toMatchObject({ moon_name: 'Luna Prime', moon_diameter: 4560 });
   });
 
   it('exports universe.json in pr0game format', async () => {

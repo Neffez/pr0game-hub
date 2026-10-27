@@ -218,6 +218,7 @@ const FLIGHT_CALCULATOR_URL = 'https://pr0game.neffez.dev/flight-calculator/';
 const LOOT_CALCULATOR_URL = 'https://pr0game.neffez.dev/acs-loot/';
 const IPM_CALCULATOR_URL = 'https://pr0game.neffez.dev/ipm-calculator/';
 const BATTLE_SIMULATOR_URL = 'https://pr0game.neffez.dev/battle-simulator/';
+const MOON_DESTRUCTION_URL = 'https://pr0game.neffez.dev/moon-destruction/';
 
 /**
  * Link into the flight calculator: start/target, drive research and the universe layout are
@@ -422,6 +423,23 @@ export function lootCalcUrl(u: UniverseSettings): string {
 export function ipmCalcUrl(u: UniverseSettings): string {
   const flight = (u as UniverseSettings & { flightCalculatorUrl?: string }).flightCalculatorUrl;
   return flight ? new URL('../ipm-calculator/', flight.split('#')[0]).href : IPM_CALCULATOR_URL;
+}
+
+/** The public moon destruction calculator, next to the flight calculator of the universe. */
+export function moonCalcUrl(u: UniverseSettings): string {
+  const flight = (u as UniverseSettings & { flightCalculatorUrl?: string }).flightCalculatorUrl;
+  return flight ? new URL('../moon-destruction/', flight.split('#')[0]).href : MOON_DESTRUCTION_URL;
+}
+
+/** Link into the moon destruction calculator: the moon's coordinates, name and diameter (galaxy view) when known. */
+export function moonCalcLink(u: UniverseSettings, to: Coords3, moon: { name?: string | null; diameter?: number | null } = {}): string {
+  const p = new URLSearchParams();
+  if (moon.diameter) p.set('d', String(moon.diameter));
+  p.set('tg', String(to[0]));
+  p.set('ts', String(to[1]));
+  p.set('tp', String(to[2]));
+  if (moon.name) p.set('mn', moon.name);
+  return `${moonCalcUrl(u)}#${p.toString()}`;
 }
 
 /** What a missile can hit: the defense and the target's own interplanetary missiles (calculateMIPAttack). */

@@ -205,7 +205,7 @@ onBeforeUnmount(() => chart?.destroy());
               <span v-if="p.type === 'moon'" class="moon-tag"><Icon name="moon" :size="12" :label="t('common.moon')" /></span>
               {{ p.name }}
             </td>
-            <td><PlanetActions :g="p.g" :s="p.s" :p="p.p" :type="p.type" /></td>
+            <td><PlanetActions :g="p.g" :s="p.s" :p="p.p" :type="p.type" :diameter="p.type === 'moon' ? p.moon_diameter : null" /></td>
             <td class="small">
               <template v-if="p.type === 'moon' && data.phalanx[`${p.g}:${p.s}:${p.p}`]">
                 <template v-for="ph in [data.phalanx[`${p.g}:${p.s}:${p.p}`]]" :key="ph.time">

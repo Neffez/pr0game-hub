@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { dateFormat, datePattern, dateTime, fmt, ipmCalcLink, ipmStart, numDate, fmtSigned, protectionStatus, short, simLinks, trashSimExport, type UniverseSettings } from '../src/format';
+import { dateFormat, datePattern, dateTime, fmt, ipmCalcLink, ipmStart, moonCalcLink, numDate, fmtSigned, protectionStatus, short, simLinks, trashSimExport, type UniverseSettings } from '../src/format';
 import { setLocale } from '../src/i18n';
 import { decompressFromEncodedURIComponent } from 'lz-string';
 
@@ -162,6 +162,15 @@ describe('loot calculator link', () => {
     expect([moon.get('m'), moon.get('ic'), moon.get('mrf'), moon.get('sg')]).toEqual(['1', '4', '0.5', null]);
     const flight = { ...u, flightCalculatorUrl: 'https://tools.example/fc/flight-calculator/' } as UniverseSettings;
     expect(ipmCalcLink(flight, { from: null, to: [1, 1, 1] })).toMatch(/^https:\/\/tools\.example\/fc\/ipm-calculator\/#/);
+  });
+
+  it('links the moon destruction calculator with the moon from the galaxy view', () => {
+    const u = { systems: 400 } as UniverseSettings;
+    const link = new URL(moonCalcLink(u, [3, 200, 1], { name: 'Ra', diameter: 4560 }));
+    expect(link.origin + link.pathname).toBe('https://pr0game.neffez.dev/moon-destruction/');
+    expect(Object.fromEntries(new URLSearchParams(link.hash.slice(1)))).toEqual({ d: '4560', tg: '3', ts: '200', tp: '1', mn: 'Ra' });
+    const flight = { ...u, flightCalculatorUrl: 'https://tools.example/fc/flight-calculator/' } as UniverseSettings;
+    expect(moonCalcLink(flight, [1, 2, 3])).toBe('https://tools.example/fc/moon-destruction/#tg=1&ts=2&tp=3');
   });
 
   it('starts missiles from the nearest planet whose silo launches, else the nearest', () => {

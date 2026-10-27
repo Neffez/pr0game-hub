@@ -55,7 +55,8 @@ pnpm build
 - `apps/tools`: static tools (Vite, no framework): `index.html`, `flight-calculator/` (UI in `main.js`, calculation
   in `src/core.ts` on top of `@pr0hub/flight`), `acs-loot/` (glue in `src/loot.ts` on top of `@pr0hub/loot`) and
   `ipm-calculator/` (glue in `src/missile.ts` on top of `@pr0hub/flight`) and `battle-simulator/` (glue in
-  `src/battle.ts` on top of `@pr0hub/battle`, battles in a Web Worker `worker.js`); each tool has its UI in `main.js`
+  `src/battle.ts` on top of `@pr0hub/battle`, battles in a Web Worker `worker.js`) and `moon-destruction/`
+  (calculation in `src/moon.ts`, formulas of the game's `MissionCaseDestruction`); each tool has its UI in `main.js`
   and its texts DE/EN in `i18n.js`. All pages share `shared/tools.css` and `shared/shell.js` (header with language
   switch and share link, texts via `data-t*`, toast, tooltips); the universe settings dialog (fields, hash keys,
   texts, one localStorage key for all tools) is `shared/uni.js`. Docker target `tools`.

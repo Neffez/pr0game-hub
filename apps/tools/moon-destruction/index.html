@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Moon Destruction · pr0game</title>
+<meta name="description" content="Moon destruction calculator for pr0game: chance to destroy a moon with Death Stars and to lose them, over several waves, and how many Death Stars a moon needs. Mondzerstörungsrechner für pr0game: Chance auf Mondzerstörung und Verlust der Todessterne über mehrere Wellen.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="pr0game tools">
+<meta property="og:title" content="Moon Destruction · pr0game">
+<meta property="og:description" content="Moon destruction calculator for pr0game: chance to destroy a moon with Death Stars and to lose them, over several waves, and how many Death Stars a moon needs. Mondzerstörungsrechner für pr0game: Chance auf Mondzerstörung und Verlust der Todessterne über mehrere Wellen.">
+<meta property="og:locale" content="en_US">
+<meta property="og:locale:alternate" content="de_DE">
+<meta name="theme-color" content="#0d1117">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='15' fill='%230d1117'/%3E%3Cpath d='M20 8a9 9 0 1 0 4 12 7 7 0 0 1-4-12z' fill='%23f2683c'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../shared/tools.css">
+<style>
+/* Moon destruction calculator: layout, wave list and tables (base look in ../shared/tools.css) */
+.layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+@media (min-width: 1000px) {
+  .layout { grid-template-columns: minmax(340px, 400px) minmax(0, 1fr); align-items: start; }
+}
+.card-title .title-spacer { flex: 1; }
+.card-title { gap: 8px; }
+.add-btn { display: inline-flex; align-items: center; gap: 5px; text-transform: none; letter-spacing: 0; }
+.moon-meta { font-size: 12.5px; color: var(--muted); margin-top: 10px; }
+.moon-meta:empty { display: none; }
+.waves { display: flex; flex-direction: column; gap: 6px; }
+.wave {
+  display: grid; grid-template-columns: minmax(0, 1fr) 96px 30px; align-items: center; gap: 6px;
+  padding: 5px 5px 5px 10px; border-radius: var(--radius-sm); background: var(--surface-2); border: 1px solid transparent;
+}
+.wave.has { border-color: var(--border-strong); }
+.wave-name { font-size: 13px; font-weight: 600; line-height: 1.25; }
+.wave-name span { display: block; font-size: 11.5px; font-weight: 400; color: var(--faint); font-family: var(--mono); }
+.wave input {
+  width: 100%; text-align: right; font-family: var(--mono); background: var(--surface);
+  border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; outline: none;
+}
+.wave input:focus { border-color: var(--accent); }
+.wave input.invalid, .field input.invalid { border-color: var(--danger); }
+.wave .icon-btn { width: 30px; height: 30px; }
+.wave .icon-btn:hover { color: var(--danger); }
+.wave .icon-btn[disabled] { visibility: hidden; }
+.paste textarea { min-height: 160px; width: 100%; font-family: var(--mono); font-size: 12px; }
+.paste .hint { margin-top: 6px; }
+.pick { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.pick:empty { display: none; }
+.result-table { margin-top: 16px; }
+.table-wrap td.name { white-space: nowrap; }
+.table-wrap td .sub { display: block; font-size: 11px; color: var(--faint); }
+.rec-head { display: flex; align-items: end; gap: 14px; flex-wrap: wrap; margin-bottom: 14px; }
+.goal-field { width: 110px; }
+.goal-field input { font-family: var(--mono); }
+.rec-head .hint { padding-bottom: 9px; }
+.tag { display: block; font-family: var(--sans); font-size: 11px; color: var(--accent-text); white-space: nowrap; }
+.rec-table tr.best td { background: var(--accent-soft); }
+@media (max-width: 640px) {
+  .kpi.big { grid-column: 1 / -1; }
+  .table-wrap th, .table-wrap td { padding: 7px 6px; }
+  .wave { grid-template-columns: minmax(0, 1fr) 110px 30px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <a class="brand" href="/" data-t-title="allTools">
+      <div class="brand-logo" aria-hidden="true">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/><path d="M15 3l2 2M19 7l2 2M19 3l-2 2M21 9l-2-2" /></svg>
+      </div>
+      <div><strong data-t="title">Moon Destruction</strong></div>
+    </a>
+    <div class="top-actions">
+      <div class="seg small" id="langSeg" role="group" data-t-aria="language">
+        <button type="button" data-lang="en">EN</button>
+        <button type="button" data-lang="de">DE</button>
+      </div>
+      <button type="button" class="btn share-btn" id="shareBtn" data-t-title="shareTitle">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+        <span class="lbl" data-t="share">Share link</span>
+      </button>
+      <button type="button" class="btn ghost" id="resetBtn" data-t="reset">New</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <div class="col">
+      <section class="card">
+        <h2 class="card-title"><span data-t="moonCard">Moon</span><span class="title-spacer"></span>
+          <button type="button" class="btn small add-btn" id="pasteBtn" data-t-title="pasteTitle">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1"/></svg>
+            <span data-t="pasteBtn">From galaxy</span>
+          </button>
+        </h2>
+        <div class="grid2">
+          <div class="field">
+            <div class="label-row"><label for="diameterIn" data-t="diameter">Diameter (km)</label><button type="button" class="tip" data-t-aria="info" aria-label="Info" data-t-tip="diameterTip"></button></div>
+            <input id="diameterIn" class="num" type="text" inputmode="numeric" autocomplete="off" placeholder="4.560">
+          </div>
+          <div class="field">
+            <label for="coordsIn" data-t="coords">Coordinates (optional)</label>
+            <input id="coordsIn" class="coord" type="text" inputmode="numeric" autocomplete="off" placeholder="1:234:5">
+          </div>
+        </div>
+        <p class="moon-meta" id="moonMeta"></p>
+      </section>
+
+      <section class="card">
+        <h2 class="card-title"><span data-t="wavesCard">Waves</span>
+          <button type="button" class="tip" data-t-aria="info" aria-label="Info" data-t-tip="ripsTip"></button>
+          <span class="title-spacer"></span>
+          <button type="button" class="btn small add-btn" id="addWave" data-t-title="addWaveTitle">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+            <span data-t="addWave">Wave</span>
+          </button>
+        </h2>
+        <div class="waves" id="waves"></div>
+      </section>
+    </div>
+
+    <div class="col">
+      <section class="card" id="results" aria-live="off">
+        <h2 class="card-title"><span data-t="result">Result</span>
+          <button type="button" class="tip" data-t-aria="info" aria-label="Info" data-t-tip="formulaTip"></button>
+        </h2>
+        <div class="notes" id="notes"></div>
+        <div class="hero" id="hero"></div>
+        <div class="table-wrap result-table" id="tableWrap"><table id="table"><thead></thead><tbody></tbody></table></div>
+      </section>
+
+      <section class="card" id="recCard">
+        <h2 class="card-title" data-t="recommendation">Recommendation</h2>
+        <div class="rec-head">
+          <div class="field goal-field"><label for="goalIn" data-t="goal">Goal (%)</label><input id="goalIn" type="number" min="1" max="100" step="1" inputmode="numeric"></div>
+          <span class="hint" id="hundred"></span>
+        </div>
+        <p class="empty" id="recEmpty" hidden></p>
+        <div class="table-wrap rec-table" id="recWrap"><table id="recTable"><thead></thead><tbody></tbody></table></div>
+      </section>
+    </div>
+  </main>
+
+  <p class="foot"><span data-t="foot"></span> · <a href="https://github.com/Neffez/pr0game-hub" target="_blank" rel="noopener" data-t="source">Source code</a></p>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<dialog id="pasteDialog" aria-labelledby="pasteTitle">
+  <form method="dialog" class="dlg">
+    <div class="dlg-head">
+      <div><h2 id="pasteTitle" data-t="pasteTitle">Paste a moon from the galaxy</h2><p data-t="pasteSub"></p></div>
+      <button class="icon-btn" value="close" data-t-aria="close">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="dlg-body paste">
+      <textarea id="pasteIn" spellcheck="false" data-t-ph="pastePh" aria-labelledby="pasteTitle"></textarea>
+      <p class="hint" id="pasteHint" hidden></p>
+      <div class="pick" id="pastePick"></div>
+    </div>
+    <div class="dlg-foot"><span></span><button class="btn primary" value="close" data-t="done">Done</button></div>
+  </form>
+</dialog>
+<script type="module" src="./main.js"></script>
+</body>
+</html>

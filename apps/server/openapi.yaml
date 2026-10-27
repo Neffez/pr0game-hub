@@ -1452,6 +1452,9 @@ paths:
     get:
       tags: [Universe]
       operationId: getPlayer
+      description: >-
+        One player: scores over time, `planets` (with `has_moon`, `moon_name`, `moon_diameter` in km or null, newest spy
+        report times), recent spy reports and further intelligence of the group.
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
@@ -1805,6 +1808,10 @@ paths:
     get:
       tags: [Intelligence]
       operationId: browseSystem
+      description: >-
+        One system of the group's galaxy data: `rows` per position with planet, moon (`has_moon`, `moon_name`,
+        `moon_diameter` in km from the moon tooltip of a synced galaxy view, null when unknown), owner, debris and the
+        newest battle; plus who synced the system when.
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }

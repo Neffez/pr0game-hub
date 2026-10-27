@@ -382,15 +382,18 @@ export class Store {
         if (row.activity != null) galaxyMark(db, this.t.groupId, playerId, { g: r.g, s: r.s, p: row.position }, row.activity, seenAt);
       }
       db.prepare(
-        `INSERT INTO planets (group_id, g, s, p, name, player_id, has_moon, moon_name, destroyed, debris, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `INSERT INTO planets (group_id, g, s, p, name, player_id, has_moon, moon_name, moon_diameter, destroyed, debris, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT (group_id, g, s, p) DO UPDATE SET
            name = CASE WHEN excluded.name IS NULL AND player_id IS excluded.player_id THEN name ELSE excluded.name END, player_id = excluded.player_id,
-           -- universe.json has no moon names: keep the known one while owner and moon stay the same
+           -- universe.json and copied text have no moon names and diameters: keep the known ones while owner and moon stay the same
            moon_name = CASE WHEN excluded.has_moon = 1 AND excluded.moon_name IS NULL AND player_id IS excluded.player_id THEN moon_name ELSE excluded.moon_name END,
+           moon_diameter = CASE WHEN excluded.has_moon = 1 AND excluded.moon_diameter IS NULL AND has_moon = 1 AND player_id IS excluded.player_id
+             THEN moon_diameter ELSE excluded.moon_diameter END,
            has_moon = excluded.has_moon, destroyed = excluded.destroyed, debris = excluded.debris, updated_at = excluded.updated_at`,
       ).run(
         this.t.groupId, r.g, r.s, row.position, row.planetName || null, playerId, row.moon ? 1 : 0, (row.moon && row.moonName) || null,
-        row.destroyed ? 1 : 0, row.debris ? JSON.stringify(row.debris) : null, seenAt,
+        (row.moon && row.moonDiameter) || null, row.destroyed ? 1 : 0, row.debris ? JSON.stringify(row.debris) : null, seenAt,
       );
       const prev = before.get(row.position);
       const c = { g: r.g, s: r.s, p: row.position };
