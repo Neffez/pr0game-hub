@@ -318,7 +318,7 @@ const en: typeof de = {
       withdraw: 'Withdraw report',
       spread: '± {min} min',
       sources: {
-        spy: 'Espionage', attack: 'Attack', defense: 'Defense with help', message: 'Message', galaxy: 'Galaxy activity',
+        spy: 'Espionage', attack: 'Attack', defense: 'Defense', message: 'Message', galaxy: 'Galaxy activity',
         fleet: 'Fleet launch', recall: 'Recall', manual: 'Report', sync: 'Synced', hub: 'In the hub',
       },
     },

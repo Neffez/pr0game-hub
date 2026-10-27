@@ -319,7 +319,7 @@ const de = {
       withdraw: 'Meldung zurückziehen',
       spread: '± {min} min',
       sources: {
-        spy: 'Spionage', attack: 'Angriff', defense: 'Verteidigung mit Hilfe', message: 'Nachricht', galaxy: 'Galaxie-Aktivität',
+        spy: 'Spionage', attack: 'Angriff', defense: 'Verteidigung', message: 'Nachricht', galaxy: 'Galaxie-Aktivität',
         fleet: 'Flottenstart', recall: 'Rückruf', manual: 'Meldung', sync: 'Synchronisiert', hub: 'Im Hub',
       },
     },

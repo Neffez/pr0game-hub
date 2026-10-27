@@ -4,6 +4,7 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-27
 
+- Activity pattern: the defense source is labelled just "Verteidigung"/"Defense" in the chart.
 - Activity pattern: point gains are no longer spread as events into the curve (every 6-hourly stat update gave the
   same uninformative wave). They are a separate coarse layer instead: per time of day the age-weighted gain rate of the
   stat windows covering it, relative to the player's best window (nothing gained = 0, hours without a known window
