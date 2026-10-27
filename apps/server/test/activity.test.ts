@@ -97,13 +97,15 @@ describe('player activity', () => {
       `INSERT INTO player_messages (group_id, user_id, dedupe_key, time, from_name, recipients, subject, body)
        VALUES (?, ?, 'm1', ?, 'Alpha', '[]', 'Hi', 'Hi')`,
     ).run(groupA, carolId, t - 600);
-    // point gains come with every stat update: no evidence
+    // point gains are no events, they come as the stat stands for the coarse layer
     const snap = db.prepare("INSERT INTO stat_snapshots (group_id, who, type, stat_time) VALUES (?, 'player', 1, ?)");
     const score = db.prepare('INSERT INTO player_scores (snapshot_id, player_id, rank, points) VALUES (?, ?, 1, ?)');
     score.run(snap.run(groupA, t - 12 * 3600).lastInsertRowid, alpha, 1000);
     score.run(snap.run(groupA, t - 6 * 3600).lastInsertRowid, alpha, 1500);
 
     expect(sources(await activity())).toEqual(['attack', 'defense', 'galaxy', 'galaxy', 'spy']);
+    const { scores } = (await call('GET', `/players/${alpha}/activity`, admin)).json();
+    expect(scores).toEqual([{ time: t - 12 * 3600, points: 1000 }, { time: t - 6 * 3600, points: 1500 }]);
     expect(sources(await activity(carol))).toContain('message');
   });
 

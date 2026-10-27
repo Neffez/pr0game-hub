@@ -4,8 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-27
 
-- Activity pattern: point gains no longer count (an active player gains with every 6-hourly stat update, also from a
-  build queue while offline, which gave the same uninformative wave every day). Instead, players of the alliance get
+- Activity pattern: point gains are no longer spread as events into the curve (every 6-hourly stat update gave the
+  same uninformative wave). They are a separate coarse layer instead: per time of day the age-weighted gain rate of the
+  stat windows covering it, relative to the player's best window (nothing gained = 0, hours without a known window
+  stay empty; windows with a loss or longer than 12 h are left out), drawn as a stepped area behind the curve; the
+  endpoint returns the stat stands as `scores`. Players of the alliance get
   their members' syncs (the member who pasted, 15-minute buckets, weight 1; hidden by `share_syncs` off) and half
   hours with an active hub tab (weight 0.5; hidden by `show_online` off), always visible to the member and global
   admins. Active presence reports note 5-minute slots in the new table `member_online` (migration 061, kept 30 days).

@@ -4,7 +4,7 @@ import { HttpError } from '../auth.js';
 import type { GroupContext } from '../context.js';
 import { now, type DB } from '../db.js';
 import { events } from '../events.js';
-import { ACTIVITY_DAYS, addActivity, playerActivity } from '../repo/activity.js';
+import { ACTIVITY_DAYS, activityScores, addActivity, playerActivity } from '../repo/activity.js';
 import { latestEmpires } from '../repo/empire.js';
 import { memberPlayer, memberPlayers } from '../repo/members.js';
 import { latestScores } from '../repo/stats.js';
@@ -192,7 +192,7 @@ export function playersRoutes(app: FastifyInstance, db: DB) {
     const ctx = ctxOf(req);
     const id = groupPlayer(ctx, req.params.id);
     const from = now() - ACTIVITY_DAYS * 86400;
-    return { from, events: playerActivity(db, ctx, id, from) };
+    return { from, events: playerActivity(db, ctx, id, from), scores: activityScores(db, id, from) };
   });
 
   /** A member reports that the player is (or was at `time`) online. */

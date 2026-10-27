@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { activityCurve, type ActivityEvent } from '../src/activity';
+import { activityCurve, pointsRate, type ActivityEvent } from '../src/activity';
 
 const at = (h: number, m = 0, daysAgo = 0) => new Date(2026, 9, 27 - daysAgo, h, m).getTime() / 1000;
 const now = at(23, 59);
@@ -39,5 +39,45 @@ describe('activity curve', () => {
     const events = [ev(at(9, 0, 3))];
     expect(activityCurve(events, now, 1)).toEqual([]);
     expect(activityCurve(events, now, 7)).toHaveLength(288);
+  });
+});
+
+describe('points rate', () => {
+  /** stat updates at 0, 6, 12, 18 h with the given gains per window, from `daysAgo` on */
+  const stats = (gains: number[], daysAgo = 1) => {
+    let points = 1000;
+    const out = [{ time: at(0, 0, daysAgo), points }];
+    gains.forEach((g, i) => {
+      points += g;
+      out.push({ time: at(0, 0, daysAgo) + (i + 1) * 6 * 3600, points });
+    });
+    return out;
+  };
+  const block = (rate: (number | null)[], h: number) => rate[(h * 60) / 5];
+
+  it('shows the gain per window relative to the best one, nothing gained as zero', () => {
+    const rate = pointsRate(stats([0, 500, 1000, 250]), now, 7);
+    expect(rate).toHaveLength(288);
+    expect([3, 9, 15, 21].map((h) => block(rate, h))).toEqual([0, 0.5, 1, 0.25]);
+  });
+
+  it('leaves unknown hours empty and skips losses and long gaps', () => {
+    const scores = stats([100, 200]);
+    expect(block(pointsRate(scores, now, 7), 15)).toBeNull();
+    const loss = [...scores, { time: scores[2].time + 6 * 3600, points: 0 }];
+    expect(block(pointsRate(loss, now, 7), 15)).toBeNull();
+    const gap = [scores[0], { time: scores[0].time + 18 * 3600, points: 5000 }];
+    expect(pointsRate(gap, now, 7)).toEqual([]);
+  });
+
+  it('averages the days, newer ones counting more', () => {
+    // the morning window: 1000 yesterday, 0 five days ago
+    const scores = [...stats([0, 0, 0, 0], 5), ...stats([1000, 0, 0, 0], 1)];
+    const rate = pointsRate(scores, now, 7);
+    expect(block(rate, 3)).toBe(1);
+    expect(block(rate, 9)).toBe(0);
+    // 24 h: only the evening window ends in the period
+    const day = pointsRate(scores, now, 1);
+    expect([block(day, 3), block(day, 21)]).toEqual([null, 0]);
   });
 });

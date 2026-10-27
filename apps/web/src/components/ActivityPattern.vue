@@ -7,7 +7,7 @@ import { Chart, registerables, type ChartDataset } from 'chart.js';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
-import { activityCurve, minuteOfDay, type ActivityEvent, type ActivitySource } from '../activity';
+import { activityCurve, minuteOfDay, pointsRate, type ActivityEvent, type ActivitySource } from '../activity';
 import { useLoader, useStored, useUni } from '../composables';
 import { tables, useLiveReload } from '../live';
 import { dateTime } from '../format';
@@ -26,9 +26,10 @@ const COLORS: Record<ActivitySource, string> = {
   galaxy: '#3fb950', fleet: '#ff7b72', recall: '#db61a2', manual: '#e6edf3', hub: '#8b98a9',
 };
 const CURVE = '#7c6cf0';
+const POINTS = '#8b98a9';
 
 const days = useStored('player.activityDays', 7);
-const { data, error, load } = useLoader(() => uniApi<{ from: number; events: ActivityEvent[] }>(uni.value, `/players/${props.player}/activity`));
+const { data, error, load } = useLoader(() => uniApi<{ from: number; events: ActivityEvent[]; scores: { time: number; points: number }[] }>(uni.value, `/players/${props.player}/activity`));
 const canvas = ref<HTMLCanvasElement | null>(null);
 let chart: Chart | null = null;
 
@@ -37,17 +38,37 @@ const shown = computed(() => {
   return (data.value?.events ?? []).filter((e) => e.time >= from);
 });
 const manual = computed(() => shown.value.filter((e) => e.source === 'manual').reverse());
+/** point gain per stat window over the day (coarse: 6-hour blocks) */
+const rate = computed(() => pointsRate(data.value?.scores ?? [], Date.now() / 1000, days.value));
+const empty = computed(() => !shown.value.length && !rate.value.length);
 const sourceLabel = (s: ActivitySource) => t(`player.activity.sources.${s}`);
 
 function draw() {
   chart?.destroy();
   chart = null;
-  if (!canvas.value || !shown.value.length) return;
+  if (!canvas.value || empty.value) return;
   const curve = activityCurve(shown.value, Date.now() / 1000, days.value);
-  const step = 24 / curve.length;
+  const step = 24 / 288;
   const present = [...new Set(shown.value.map((e) => e.source))];
-  const datasets: ChartDataset<'scatter', { x: number; y: number; e?: ActivityEvent }[]>[] = [
-    {
+  const datasets: ChartDataset<'scatter', { x: number; y: number | null; e?: ActivityEvent }[]>[] = [];
+  if (rate.value.length) {
+    datasets.push({
+      showLine: true,
+      label: t('player.activity.points'),
+      // unknown hours (no stat window) stay a gap
+      data: rate.value.map((y, i) => ({ x: (i + 0.5) * step, y })),
+      stepped: 'middle',
+      spanGaps: false,
+      borderColor: POINTS,
+      backgroundColor: `${POINTS}33`,
+      fill: 'origin',
+      pointRadius: 0,
+      borderWidth: 1,
+      borderDash: [4, 3],
+    });
+  }
+  if (curve.length) {
+    datasets.push({
       showLine: true,
       label: t('player.activity.title'),
       // closed over midnight: the value at 24:00 is the one at 00:00
@@ -58,7 +79,9 @@ function draw() {
       pointRadius: 0,
       tension: 0.3,
       borderWidth: 2,
-    },
+    });
+  }
+  datasets.push(
     // one tick per event below the curve
     ...present.map((source) => ({
       label: sourceLabel(source),
@@ -71,7 +94,7 @@ function draw() {
       pointHoverRadius: 9,
       borderWidth: 2,
     })),
-  ];
+  );
   chart = new Chart(canvas.value, {
     type: 'scatter',
     data: { datasets },
@@ -91,9 +114,10 @@ function draw() {
         y: { min: -0.12, max: 1.05, display: false },
       },
       plugins: {
-        legend: { labels: { color: '#e6edf3', filter: (item) => item.datasetIndex! > 0 } },
+        // the curve needs no legend entry, the point layer and the sources do
+        legend: { labels: { color: '#e6edf3', filter: (item) => item.text !== t('player.activity.title') } },
         tooltip: {
-          filter: (item) => item.datasetIndex > 0,
+          filter: (item) => !!(item.raw as { e?: ActivityEvent }).e,
           callbacks: {
             title: (items) => {
               const e = (items[0]?.raw as { e?: ActivityEvent })?.e;
@@ -149,13 +173,13 @@ onMounted(reload);
 watch(() => props.player, reload);
 // the canvas is only there while the section is open
 watch([days, locale, canvas], () => nextTick(draw));
-useLiveReload(reload, tables('player_activity', 'hostile_spying', 'battle_hall', 'combat_reports', 'player_messages', 'galaxy_systems', 'fleets'));
+useLiveReload(reload, tables('player_activity', 'hostile_spying', 'battle_hall', 'combat_reports', 'player_messages', 'galaxy_systems', 'fleets', 'player_scores'));
 onBeforeUnmount(() => chart?.destroy());
 </script>
 
 <template>
   <Section :title="t('player.activity.title')" store-key="player.activity">
-    <template #hint><Hint>{{ t('player.activity.hint') }} {{ t('player.activity.hintGalaxy') }}</Hint></template>
+    <template #hint><Hint>{{ t('player.activity.hint') }} {{ t('player.activity.hintPoints') }} {{ t('player.activity.hintGalaxy') }}</Hint></template>
     <template #actions>
       <select v-model.number="days" :aria-label="t('time.range')">
         <option :value="1">{{ t('time.h24') }}</option>
@@ -172,8 +196,8 @@ onBeforeUnmount(() => chart?.destroy());
     </div>
 
     <div v-if="error" class="error">{{ error }}</div>
-    <p v-else-if="data && !shown.length" class="muted small m-0">{{ t('player.activity.empty') }}</p>
-    <div v-show="shown.length" class="chart"><canvas ref="canvas" /></div>
+    <p v-else-if="data && empty" class="muted small m-0">{{ t('player.activity.empty') }}</p>
+    <div v-show="!empty" class="chart"><canvas ref="canvas" /></div>
 
     <div v-if="manual.length" class="manual small">
       <span class="muted">{{ t('player.activity.manual') }}:</span>

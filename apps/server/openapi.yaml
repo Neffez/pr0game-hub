@@ -1309,7 +1309,8 @@ paths:
       tags: [Universe]
       operationId: getPlayerActivity
       description: >-
-        Evidence of when the player was online during the last 7 days, for the activity pattern: espionage on members,
+        Evidence of when the player was online during the last 7 days, for the activity pattern (plus the stat stands
+        for the point gain per window): espionage on members,
         battles (as attacker; as defender only with more than one defending fleet), messages the caller may see, galaxy
         activity marks, launches and recalls of hostile fleets and manual reports of members; for a member's player
         also their syncs (unless they hide them, `share_syncs`) and half hours with an active hub tab (unless they hide
@@ -1329,6 +1330,16 @@ paths:
                 properties:
                   from: { type: integer, description: Start of the period (Unix seconds) }
                   events: { type: array, items: { $ref: '#/components/schemas/ActivityEvent' } }
+                  scores:
+                    type: array
+                    description: >-
+                      Total points per stat time since 12 hours before `from`, oldest first: the gain per stat window
+                      compared with the player's other windows tells how active they were then (coarse, 6-hour blocks).
+                    items:
+                      type: object
+                      properties:
+                        time: { type: integer, description: Stat time (Unix seconds) }
+                        points: { type: integer }
         '404': { description: 'Not a player of the group (`player_not_found`)' }
     post:
       tags: [Universe]

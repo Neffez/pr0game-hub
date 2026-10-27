@@ -305,9 +305,11 @@ const en: typeof de = {
     active: 'active',
     activity: {
       title: 'Activity pattern',
-      hint: 'When the player is online over the day, from everything the hub knows about them: espionage on us, battles as attacker (as defender only when help came), their messages, fleet launches and recalls, activity marks in the galaxy and reports by members; for players of the alliance also their syncs and when they had the hub open (if they share their online status or syncs). Point gains do not count, they come with every statistics update. The days are laid on top of each other and smoothed; newer evidence counts more (half as much after 2 days), vague evidence spreads wider. The ticks below show the single pieces.',
+      hint: 'When the player is online over the day, from everything the hub knows about them: espionage on us, battles as attacker (as defender only when help came), their messages, fleet launches and recalls, activity marks in the galaxy and reports by members; for players of the alliance also their syncs and when they had the hub open (if they share their online status or syncs). The days are laid on top of each other and smoothed; newer evidence counts more (half as much after 2 days), vague evidence spreads wider. The ticks below show the single pieces.',
+      hintPoints: 'The grey stepped area is the point gain per statistics update (every 6 h) compared with their other windows: no points, no activity; many points, much activity. Hours without known statistics stay empty.',
       hintGalaxy: 'Galaxy activity counts little: foreign actions on the planet set it too (espionage, arriving transports, attacks); marks at the time of own espionage or battles there are ignored.',
       empty: 'No evidence in this period yet.',
+      points: 'Point gain per 6 h',
       report: 'Report online time',
       now: 'Online now',
       or: 'or',

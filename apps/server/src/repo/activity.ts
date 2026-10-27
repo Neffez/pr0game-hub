@@ -9,8 +9,8 @@ import { SHARED } from './messages.js';
 /**
  * Evidence of when a player was online, for their activity pattern: stored reports (espionage on members, battles,
  * messages; for members' players their syncs and hub presence) read when served, and `player_activity` for what would
- * be lost otherwise (galaxy activity marks, fleet launches and recalls) or is entered by hand. Point gains are left
- * out: an active player gains with every stat update (every 6 hours), also from a long build queue while offline.
+ * be lost otherwise (galaxy activity marks, fleet launches and recalls) or is entered by hand. Point gains are no
+ * events: a stat window spans 6 hours, so they only tell how active the player was per window (`activityScores`).
  */
 export type ActivitySource = 'spy' | 'attack' | 'defense' | 'message' | 'galaxy' | 'fleet' | 'recall' | 'manual' | 'sync' | 'hub';
 
@@ -155,6 +155,19 @@ export function phalanxActivity(db: DB, groupId: number, data: StoredFleet[]) {
       playerId, time, spread: 60, source: 'fleet', coords: { ...out.from.coords, type: out.from.type }, key: `phalanx:${fleetKey(out)}:${Math.round(time / 60)}`,
     });
   }
+}
+
+/** Stat windows reaching back this far before `from` still cover the first hours of the period. */
+const SCORE_LEAD = 12 * 3600;
+
+/**
+ * Total points per stat time since a little before `from`, oldest first: how much the player gained per window
+ * compared with the other windows tells how active they were then (shown as a coarse layer of the pattern).
+ */
+export function activityScores(db: DB, playerId: number, from: number): { time: number; points: number }[] {
+  return db
+    .prepare('SELECT stat_time AS time, MAX(points) AS points FROM player_scores WHERE player_id = ? AND type = 1 AND stat_time >= ? GROUP BY stat_time ORDER BY stat_time')
+    .all(playerId, from - SCORE_LEAD) as { time: number; points: number }[];
 }
 
 /** Evidence of the player since `from`, by time. */

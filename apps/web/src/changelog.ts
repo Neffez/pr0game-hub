@@ -20,8 +20,8 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
-        de: 'Aktivitätsmuster: Bei Spielern der eigenen Allianz zählen jetzt auch ihre Synchronisierungen und die Zeiten, in denen sie den Hub offen hatten (nur wenn sie Online-Status bzw. Synchronisierungen teilen). Punktezuwachs zählt nicht mehr – er kam bei jedem Statistik-Update und sagte nichts über die Uhrzeit.',
-        en: 'Activity pattern: for players of your own alliance, their syncs and the times they had the hub open now count too (only if they share their online status or syncs). Point gains no longer count – they came with every statistics update and said nothing about the time of day.',
+        de: 'Aktivitätsmuster: Bei Spielern der eigenen Allianz zählen jetzt auch ihre Synchronisierungen und die Zeiten, in denen sie den Hub offen hatten (nur wenn sie Online-Status bzw. Synchronisierungen teilen). Der Punktezuwachs erscheint als graue Stufenfläche je Statistik-Zeitraum (6 h) im Vergleich zu den anderen Zeiträumen des Spielers: keine Punkte heißt keine Aktivität, viele Punkte viel Aktivität.',
+        en: 'Activity pattern: for players of your own alliance, their syncs and the times they had the hub open now count too (only if they share their online status or syncs). Point gains now show as a grey stepped area per statistics window (6 h) compared with the player’s other windows: no points means no activity, many points much activity.',
       },
       {
         kind: 'new',

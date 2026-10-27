@@ -306,9 +306,11 @@ const de = {
     active: 'aktiv',
     activity: {
       title: 'Aktivitätsmuster',
-      hint: 'Wann der Spieler über den Tag online ist, aus allem, was der Hub über ihn weiß: Spionagen bei uns, Kämpfe als Angreifer (als Verteidiger nur, wenn Hilfe da war), seine Nachrichten, Flottenstarts und Rückrufe, Aktivitätsanzeigen der Galaxie und Meldungen von Mitgliedern; bei Spielern der Allianz auch ihre Synchronisierungen und wann sie den Hub offen hatten (wenn sie Online-Status bzw. Synchronisierungen teilen). Punktezuwachs zählt nicht, er kommt bei jedem Statistik-Update. Die Tage werden übereinandergelegt und geglättet; jüngere Hinweise zählen mehr (nach 2 Tagen halb so viel), ungenaue verteilen sich breiter. Die Striche unten zeigen die einzelnen Hinweise.',
+      hint: 'Wann der Spieler über den Tag online ist, aus allem, was der Hub über ihn weiß: Spionagen bei uns, Kämpfe als Angreifer (als Verteidiger nur, wenn Hilfe da war), seine Nachrichten, Flottenstarts und Rückrufe, Aktivitätsanzeigen der Galaxie und Meldungen von Mitgliedern; bei Spielern der Allianz auch ihre Synchronisierungen und wann sie den Hub offen hatten (wenn sie Online-Status bzw. Synchronisierungen teilen). Die Tage werden übereinandergelegt und geglättet; jüngere Hinweise zählen mehr (nach 2 Tagen halb so viel), ungenaue verteilen sich breiter. Die Striche unten zeigen die einzelnen Hinweise.',
+      hintPoints: 'Die graue, gestufte Fläche ist der Punktezuwachs je Statistik-Update (alle 6 h) im Vergleich zu seinen anderen Zeitfenstern: keine Punkte, keine Aktivität; viele Punkte, viel Aktivität. Zeiten ohne bekannte Statistik bleiben leer.',
       hintGalaxy: 'Galaxie-Aktivität zählt wenig: sie entsteht auch durch fremde Aktionen auf dem Planeten (Spionage, ankommende Transporte, Angriffe); Anzeigen zur Zeit eigener Spionagen oder Kämpfe dort werden ignoriert.',
       empty: 'Noch keine Hinweise in diesem Zeitraum.',
+      points: 'Punktezuwachs je 6 h',
       report: 'Onlinezeit melden',
       now: 'Jetzt online',
       or: 'oder',
