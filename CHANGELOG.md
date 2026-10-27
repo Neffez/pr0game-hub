@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-27
 
+- Hub: admins can mark a universe as the default universe (universe settings in the admin panel). Opening `/hub/` then
+  forwards members straight to it; the universe list stays at `/hub/?list` (menu item Universes). Without a default
+  universe the list is shown as before. Stored as `universes.is_default` (migration 064), delivered as `defaultUniverse`
+  in `/api/auth/me` and `isDefault` per universe; `PUT /api/admin/universes/{slug}` accepts `isDefault`.
 - Hub: the "pr0game Hub" title in the sidebar and the mobile top bar links to the tools index (same tab).
   - The tools location is now configuration instead of a hardcoded domain: new server setting `TOOLS_URL` (default
     `PUBLIC_URL`, else the root of the hub's origin), delivered as `toolsUrl` in `/api/{uni}/context`. All tool links of

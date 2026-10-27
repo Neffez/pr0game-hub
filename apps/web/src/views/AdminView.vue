@@ -28,7 +28,7 @@ const msg = ref('');
 const universes = ref<any[]>([]);
 const newUni = ref({ slug: '', name: '' });
 type DeckCard = { type: string; size: string; count: number };
-const editUni = ref<{ slug: string; name: string; settings: Record<string, any>; deck: DeckCard[] } | null>(null);
+const editUni = ref<{ slug: string; name: string; isDefault: boolean; settings: Record<string, any>; deck: DeckCard[] } | null>(null);
 const deckTotal = computed(() => editUni.value?.deck.reduce((sum, c) => sum + (Number(c.count) || 0), 0) ?? 0);
 
 // ------------------------------------------------------------------- groups
@@ -107,7 +107,7 @@ const createUni = () =>
   }, 'admin.universeCreated');
 
 function startEdit(u: any) {
-  editUni.value = { slug: u.slug, name: u.name, settings: { ...u.settings }, deck: u.deck.map((c: DeckCard) => ({ ...c })) };
+  editUni.value = { slug: u.slug, name: u.name, isDefault: !!u.isDefault, settings: { ...u.settings }, deck: u.deck.map((c: DeckCard) => ({ ...c })) };
 }
 
 const saveUni = () =>
@@ -115,9 +115,10 @@ const saveUni = () =>
     const e = editUni.value!;
     // a cleared optional number field (v-model.number leaves '') is removed and falls back to its default
     const settings = { ...Object.fromEntries(Object.entries(e.settings).map(([k, v]) => [k, v === '' ? null : v])), gameUrl: String(e.settings.gameUrl ?? '').trim() };
-    await api(`/admin/universes/${e.slug}`, { method: 'PUT', body: { name: e.name, settings, deck: e.deck } });
+    await api(`/admin/universes/${e.slug}`, { method: 'PUT', body: { name: e.name, settings, deck: e.deck, isDefault: e.isDefault } });
     editUni.value = null;
     await loadAll();
+    await loadMe();
   }, 'deck.saved');
 
 /** Drops the custom deck so the universe falls back to the game's default deck. */
@@ -301,7 +302,7 @@ const doMerge = () => run(async () => {
           <tr><th>Slug</th><th>{{ t('common.name') }}</th><th>{{ t('admin.gameUrl') }}</th><th>{{ t('admin.size') }}</th><th>{{ t('admin.timezone') }}</th><th /></tr>
           <tr v-for="u in universes" :key="u.slug">
             <td class="mono">{{ u.slug }}</td>
-            <td>{{ u.name }}</td>
+            <td>{{ u.name }}<span v-if="u.isDefault" class="badge" style="margin-left: 6px">{{ t('admin.defaultBadge') }}</span></td>
             <td class="small">{{ u.settings.gameUrl || '–' }}</td>
             <td class="small">{{ u.settings.galaxies }} × {{ u.settings.systems }} × {{ u.settings.positions }}</td>
             <td class="small">{{ u.settings.timezone }}</td>
@@ -318,6 +319,11 @@ const doMerge = () => run(async () => {
           <h3>{{ t('admin.editTitle', { slug: editUni.slug }) }}</h3>
           <div class="row">
             <label>{{ t('common.name') }} <input v-model="editUni.name" /></label>
+            <label class="check">
+              <input v-model="editUni.isDefault" type="checkbox" />
+              {{ t('admin.defaultUniverse') }}
+              <Hint>{{ t('admin.defaultUniverseHint') }}</Hint>
+            </label>
             <label>
               {{ t('admin.gameUrl') }}
               <Hint>{{ t('admin.gameUrlHint') }}</Hint>

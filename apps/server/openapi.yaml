@@ -578,6 +578,7 @@ components:
         groups:
           type: array
           items: { $ref: '#/components/schemas/GroupMembership' }
+        defaultUniverse: { type: [string, 'null'], description: Slug of the universe the start page forwards to (set by a hub admin); null when none is set }
     ApiTokenMeta:
       type: object
       properties:
@@ -1384,7 +1385,7 @@ paths:
       operationId: listUniverses
       responses:
         '200':
-          description: Universes the user can access
+          description: 'Universes the user can access; each carries `isDefault` (the universe the start page forwards to)'
           content:
             application/json:
               schema:

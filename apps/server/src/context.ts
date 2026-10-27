@@ -10,6 +10,7 @@ export interface Universe {
   name: string;
   settings: UniverseSettings;
   deck: DeckCard[];
+  isDefault: boolean;
 }
 
 export interface GroupContext {
@@ -20,7 +21,7 @@ export interface GroupContext {
   role: 'member' | 'admin';
 }
 
-type UniverseRow = { id: number; slug: string; name: string; settings: string; deck_config: string | null };
+type UniverseRow = { id: number; slug: string; name: string; settings: string; deck_config: string | null; is_default?: number };
 
 export function toUniverse(row: UniverseRow): Universe {
   return {
@@ -29,6 +30,7 @@ export function toUniverse(row: UniverseRow): Universe {
     name: row.name,
     settings: { ...UNIVERSE_DEFAULTS, ...JSON.parse(row.settings || '{}') },
     deck: row.deck_config ? JSON.parse(row.deck_config) : DEFAULT_DECK,
+    isDefault: !!row.is_default,
   };
 }
 

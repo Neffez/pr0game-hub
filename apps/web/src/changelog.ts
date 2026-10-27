@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Standard-Universum: Admins können ein Universum festlegen, in dem man direkt landet, wenn man den Hub öffnet. Die Universenliste erreichst du weiterhin über das Menü „Universen“.',
+        en: 'Default universe: admins can pick a universe you land in directly when opening the hub. The universe list is still available from the “Universes” menu.',
+      },
+      {
+        kind: 'new',
         de: 'Schnellzugriff auf die Tools: Ein Klick auf „pr0game Hub“ im Menü (am Handy oben in der Leiste) führt zu den Tools.',
         en: 'Quick access to the tools: clicking “pr0game Hub” in the menu (in the top bar on mobile) takes you to the tools.',
       },

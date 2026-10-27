@@ -19,9 +19,13 @@ const universes = computed(() => {
   return [...map.values()];
 });
 
-// With a single universe go straight there, unless the list was opened explicitly from the menu (?list).
+// Go straight to the default universe set by an admin (when the user is a member), else to the only universe,
+// unless the list was opened explicitly from the menu (?list).
 onMounted(() => {
-  if (universes.value.length === 1 && route.query.list === undefined) router.replace(`/${universes.value[0].slug}/overview`);
+  if (route.query.list !== undefined) return;
+  const def = universes.value.find((u) => u.slug === session.me?.defaultUniverse);
+  if (def) router.replace(`/${def.slug}/overview`);
+  else if (universes.value.length === 1) router.replace(`/${universes.value[0].slug}/overview`);
 });
 
 async function logout() {

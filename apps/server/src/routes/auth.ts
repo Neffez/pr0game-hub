@@ -62,7 +62,7 @@ export function authRoutes(app: FastifyInstance, db: DB) {
   });
 
   app.get('/api/auth/me', async (req) => {
-    if (!req.user) return { user: null, groups: [] };
+    if (!req.user) return { user: null, groups: [], defaultUniverse: null };
     const groups = db
       .prepare(
         `SELECT g.id, g.name, m.role, u.slug AS universe, u.name AS universe_name
@@ -70,7 +70,8 @@ export function authRoutes(app: FastifyInstance, db: DB) {
          WHERE m.user_id = ? ORDER BY u.slug, g.name`,
       )
       .all(req.user.id);
-    return { user: req.user, groups };
+    const defaultUniverse = (db.prepare('SELECT slug FROM universes WHERE is_default = 1').pluck().get() as string | undefined) ?? null;
+    return { user: req.user, groups, defaultUniverse };
   });
 
   app.post<{ Body: { oldPassword: string; newPassword: string } }>('/api/auth/password', async (req) => {

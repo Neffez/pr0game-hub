@@ -93,11 +93,11 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
     return { ok: true };
   });
 
-  app.put<{ Params: { slug: string }; Body: { name?: string; settings?: object; deck?: unknown | null } }>(
+  app.put<{ Params: { slug: string }; Body: { name?: string; settings?: object; deck?: unknown | null; isDefault?: boolean } }>(
     '/api/admin/universes/:slug',
     async (req) => {
       requireAdmin(req);
-      const { name, settings, deck } = req.body ?? {};
+      const { name, settings, deck, isDefault } = req.body ?? {};
       const cur = db.prepare('SELECT * FROM universes WHERE slug = ?').get(req.params.slug) as { id: number; settings: string } | undefined;
       if (!cur) throw new HttpError(404, 'universe_not_found', 'Universe not found');
       validateSettings(settings);
@@ -108,6 +108,11 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
       // retime targets were derived with the old distances and fleet speed
       const moved = followUniverse(db, cur.id, { ...UNIVERSE_DEFAULTS, ...JSON.parse(cur.settings) }, { ...UNIVERSE_DEFAULTS, ...next });
       for (const groupId of moved) events.publish(groupId, { type: 'data', tables: ['attack_plans', 'target_claims'] });
+      if (isDefault !== undefined) {
+        // at most one default universe
+        if (isDefault) db.prepare('UPDATE universes SET is_default = 0 WHERE is_default = 1').run();
+        db.prepare('UPDATE universes SET is_default = ? WHERE slug = ?').run(isDefault ? 1 : 0, req.params.slug);
+      }
       if (deck !== undefined) {
         db.prepare('UPDATE universes SET deck_config = ? WHERE slug = ?').run(deck ? JSON.stringify(validateDeck(deck)) : null, req.params.slug);
       }
