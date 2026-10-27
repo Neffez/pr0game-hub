@@ -4,6 +4,7 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-27
 
+- Moon destruction calculator: no more note that the game rolls whole percent (the calculation still does).
 - Moon destruction calculator (`/moon-destruction/` in the tools): chance to destroy a moon with Death Stars and to
   lose the fleet, per wave and in total over several waves, with the formulas of the game's `MissionCaseDestruction`
   (chance rounded to 0.1 % in the report but rolled in whole percent; later waves only fly while the moon stands).

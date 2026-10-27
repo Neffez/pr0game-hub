@@ -111,8 +111,6 @@ function render() {
   else if (Math.sqrt(d) >= 100) notes.push(['err', t('noteTooBig')]);
   else if (!flown) notes.push(['', t('noWaves')]);
   if (d && flown) {
-    var rounded = r.rows.filter(function (x) { return x.shown < 100 && x.shown !== Math.floor(x.shown); })[0];
-    if (rounded) notes.push(['warn', t('noteRounded', {shown: shownPct(rounded.shown), pct: pct(rounded.chance, 0)})]);
     notes.push(['', t('noteBattle')]);
     if (flown > 1) notes.push(['', t('noteAfter')]);
   }
