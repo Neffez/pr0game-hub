@@ -43,3 +43,7 @@ async function submit() {
     <p v-if="!sent" class="muted small"><router-link to="/login">{{ t('requestAccess.toLogin') }}</router-link></p>
   </div>
 </template>
+
+<style scoped>
+textarea { display: block; width: 100%; box-sizing: border-box; margin: 4px 0 14px; resize: vertical; }
+</style>
