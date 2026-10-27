@@ -30,7 +30,7 @@ export interface StoredMessage {
 }
 
 /** A copy is shared by its message choice, else by its member's account setting. */
-const SHARED = 'COALESCE(pm.share, u.message_share) = 1';
+export const SHARED = 'COALESCE(pm.share, u.message_share) = 1';
 
 /**
  * Player messages a member may see: their own and the shared ones of current members, newest first. A message synced

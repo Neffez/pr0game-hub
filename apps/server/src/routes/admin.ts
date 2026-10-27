@@ -283,7 +283,7 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
       db.prepare('UPDATE OR IGNORE player_scores SET player_id = ? WHERE player_id = ?').run(into, from);
       for (const table of ['spy_reports', 'planets', 'comments']) db.prepare(`UPDATE ${table} SET player_id = ? WHERE player_id = ?`).run(into, from);
       db.prepare('UPDATE OR IGNORE player_aliases SET player_id = ? WHERE player_id = ?').run(into, from);
-      for (const table of ['player_status_log', 'activity_log']) db.prepare(`UPDATE ${table} SET player_id = ? WHERE player_id = ?`).run(into, from);
+      for (const table of ['player_status_log', 'activity_log', 'player_activity']) db.prepare(`UPDATE ${table} SET player_id = ? WHERE player_id = ?`).run(into, from);
       db.prepare('INSERT OR REPLACE INTO player_aliases (player_id, name, seen_until) VALUES (?, ?, ?)').run(into, src.name, src.last_seen);
       if (src.ingame_id) db.prepare('UPDATE players SET ingame_id = NULL WHERE id = ?').run(from);
       db.prepare('UPDATE players SET ingame_id = COALESCE(ingame_id, ?), first_seen = MIN(first_seen, ?) WHERE id = ?').run(src.ingame_id, src.first_seen, into);
@@ -398,7 +398,7 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
     if (!row) throw new HttpError(404, 'not_found', 'Not found');
     const tz = JSON.parse(row.settings).timezone ?? UNIVERSE_DEFAULTS.timezone;
     const added = backfillActivity(db, groupId, tz);
-    if (added) events.publish(groupId, { type: 'data', tables: ['activity_log'] });
+    if (added) events.publish(groupId, { type: 'data', tables: ['activity_log', 'player_activity'] });
     return { added };
   });
 }

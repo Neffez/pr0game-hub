@@ -26,7 +26,7 @@ export interface UndoResult {
 const SCORE_KINDS = ['points_loss', 'fleet_loss', 'no_growth'];
 
 /** Rows owned by a player/alliance that go with it; any other reference keeps it. */
-const OWNED = new Set(['player_aliases', 'player_status_log', 'activity_log', 'player_scores', 'alliance_scores']);
+const OWNED = new Set(['player_aliases', 'player_status_log', 'activity_log', 'player_activity', 'player_scores', 'alliance_scores']);
 
 /** Record kinds whose rows a sync can find again and remove. */
 const UNDOABLE = new Set<HubRecord['kind']>(['stats', 'empire', 'overview', 'fleets', 'spy']);

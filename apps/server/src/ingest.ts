@@ -5,7 +5,9 @@ import { config } from './config.js';
 import { now, type DB } from './db.js';
 import { events } from './events.js';
 import { foreignRecords } from './plausibility.js';
+import { galaxyMark } from './repo/activity.js';
 import { messageShare } from './repo/messages.js';
+import { Players } from './repo/players.js';
 import { shareSyncsEnabled } from './repo/presence.js';
 import { Store } from './store.js';
 
@@ -103,6 +105,7 @@ export interface RawIngest {
   url: string | null;
   html_gz: Buffer | null;
   text_gz: Buffer | null;
+  created_at: number;
 }
 
 /** Parses a stored sync again. */
@@ -128,8 +131,10 @@ export function reparse(db: DB, rawId: number, timezone: string): IngestSummary 
     (db.prepare("SELECT user_id FROM group_members WHERE group_id = ? ORDER BY role = 'admin' DESC, joined_at LIMIT 1").pluck().get(row.group_id) as number | undefined);
   if (!userId) throw new Error('group has no members');
   const store = new Store(db, { groupId: row.group_id, userId, timezone }, summary);
-  // player messages are private: never attributed to someone else
-  const records = parsed.records.filter((r) => r.kind !== 'playerMessage' || row.user_id);
+  // player messages are private: never attributed to someone else; a galaxy view was seen when it was synced
+  const records = parsed.records
+    .filter((r) => r.kind !== 'playerMessage' || row.user_id)
+    .map((r) => (r.kind === 'galaxy' ? { ...r, seenAt: r.seenAt ?? row.created_at } : r));
   db.transaction(() => records.forEach((r) => store.record(r)))();
   events.publishIngest(row.group_id, undefined, publicCounts(db, userId, summary.counts), null);
   return summary;
@@ -145,10 +150,14 @@ function publicCounts(db: DB, userId: number, counts: IngestSummary['counts']): 
 /**
  * Fills the activity log from data stored before it existed: point/fleet losses and stagnation from
  * the stat snapshots, phalanx changes from the moon spy reports. Galaxy changes can't be replayed
- * (only the latest galaxy state is stored). Idempotent: existing entries are kept.
+ * (only the latest galaxy state is stored), except the activity marks of the galaxy views still kept as raw syncs.
+ * Idempotent: existing entries are kept.
  */
 export function backfillActivity(db: DB, groupId: number, timezone: string): number {
-  const before = db.prepare('SELECT COUNT(*) FROM activity_log WHERE group_id = ?').pluck().get(groupId) as number;
+  const count = () =>
+    (db.prepare('SELECT COUNT(*) FROM activity_log WHERE group_id = ?').pluck().get(groupId) as number) +
+    (db.prepare('SELECT COUNT(*) FROM player_activity WHERE group_id = ?').pluck().get(groupId) as number);
+  const before = count();
   const summary: IngestSummary = { pageType: 'unknown', source: 'text', lang: 'de', warnings: [], counts: {}, preview: [] };
   const store = new Store(db, { groupId, userId: 0, timezone }, summary);
   db.transaction(() => {
@@ -196,8 +205,25 @@ export function backfillActivity(db: DB, groupId: number, timezone: string): num
       )
       .all(groupId) as { g: number; s: number; p: number; player_id: number | null; debris: string; seen_at: number }[];
     for (const d of debris) store.debrisSeen({ g: d.g, s: d.s, p: d.p }, d.seen_at, d.player_id, JSON.parse(d.debris));
+
+    // activity marks of the galaxy views synced as HTML (copied text lacks the system typed with it)
+    const players = new Players(db, groupId);
+    const byIngameId = db.prepare('SELECT id FROM players WHERE group_id = ? AND ingame_id = ?').pluck();
+    const raws = db.prepare("SELECT * FROM raw_ingests WHERE group_id = ? AND page_type = 'galaxy' ORDER BY created_at").all(groupId) as RawIngest[];
+    for (const raw of raws) {
+      for (const r of parseRaw(raw).records) {
+        if (r.kind !== 'galaxy') continue;
+        for (const row of r.rows) {
+          if (row.activity == null) continue;
+          const playerId =
+            (row.playerId != null ? (byIngameId.get(groupId, row.playerId) as number | undefined) : undefined) ??
+            (row.playerName ? players.byName(row.playerName) : null);
+          if (playerId) galaxyMark(db, groupId, playerId, { g: r.g, s: r.s, p: row.position }, row.activity, raw.created_at);
+        }
+      }
+    }
   })();
-  return (db.prepare('SELECT COUNT(*) FROM activity_log WHERE group_id = ?').pluck().get(groupId) as number) - before;
+  return count() - before;
 }
 
 /** What a sync contained, per record kind, for the admin's list of syncs (names and coordinates, not translated). */

@@ -7,6 +7,7 @@ import { isPhalanxText, localToEpoch, nearestClock, parseFleetsText } from '@pr0
 import { isCombatReportText, parseCombatReportText } from '@pr0hub/core/combat';
 import { CLASS_RESEARCH } from '@pr0hub/core/tech';
 import { attackKey, hostileAttacks, PHALANX_KEEP, type Body, type EnemyFleet, type HostileAttack } from '../repo/hostile.js';
+import { phalanxActivity } from '../repo/activity.js';
 import { latestEmpire, spyEmpire } from '../repo/empire.js';
 import {
   enemiesOf, followEnemies, fromOf, launchedOf, guestsOfAttack, ownAttacks, planDrives, recallOwnPlans, syncOwnPlans, toOf, type EnemyRow, type LaunchFleet, type LaunchPlan, type OwnAttackFleet, type PlanRow,
@@ -539,7 +540,8 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
     const fleets = rec.fleets.map((f) => ({ ...f, arrival: f.clock ? nearestClock(pageTime + f.seconds, f.clock, tz) : pageTime + f.seconds }));
     db.prepare('INSERT INTO phalanx_snapshots (group_id, user_id, page_time, data) VALUES (?, ?, ?, ?)').run(ctx.groupId, ctx.user.id, pageTime, JSON.stringify(fleets));
     db.prepare('DELETE FROM phalanx_snapshots WHERE group_id = ? AND page_time < ?').run(ctx.groupId, now() - PHALANX_KEEP);
-    events.publish(ctx.groupId, { type: 'data', tables: ['fleets'], userId: ctx.user.id });
+    phalanxActivity(db, ctx.groupId, fleets);
+    events.publish(ctx.groupId, { type: 'data', tables: ['fleets', 'player_activity'], userId: ctx.user.id });
     const keys = new Set(hostileAttacks(db, ctx).filter((x) => x.source === 'phalanx').map((x) => x.key));
     return { attacks: keys.size };
   });

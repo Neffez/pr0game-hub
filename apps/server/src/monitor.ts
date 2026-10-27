@@ -5,6 +5,7 @@ import { getHeapStatistics } from 'node:v8';
 import { config } from './config.js';
 import { now, type DB } from './db.js';
 import { events } from './events.js';
+import { ACTIVITY_KEEP } from './repo/activity.js';
 
 /**
  * Operating figures for the admin page (routes/admin.ts `GET /api/admin/system`): database and disk size, memory,
@@ -239,6 +240,7 @@ function housekeeping(db: DB) {
   const t = now();
   db.prepare('DELETE FROM raw_ingests WHERE created_at < ?').run(t - config.rawRetentionDays * 86400);
   db.prepare('DELETE FROM sessions WHERE expires_at <= ?').run(t);
+  db.prepare('DELETE FROM player_activity WHERE time < ?').run(t - ACTIVITY_KEEP);
   // planner statistics for the indexes (cheap, only analyzes what changed a lot)
   db.pragma('optimize');
 }

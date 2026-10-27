@@ -4,6 +4,20 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-27
 
+- Activity pattern on the player page: when a player is online over the day, smoothed with a Gaussian kernel (30 min,
+  wider for vague evidence), the last 24 hours or 7 days laid on top of each other, evidence halving its weight every
+  2 days. Ticks below the curve show the single pieces per source.
+  - Sources: espionage on members, battles from the battle hall and archived reports (attackers; defenders only with
+    more than one defending fleet), messages the viewer may see, total point gains between two stat times (24 h at
+    most), galaxy activity marks (low weight; marks at the time of a member's spy report or battle on that planet are
+    left out), hostile fleets that appear or vanish before their arrival between two fleet lists of a member (6 h
+    apart at most) and exact launches from a phalanx that shows the return.
+  - Members report a player online now or at a picked time, and withdraw their own reports.
+  - The galaxy parser keeps the activity mark (`(*)`, `(N min)`) as `activity` on the rows. New table
+    `player_activity` (migration 060; rows kept 30 days, moved by player merges) for marks, fleet events and reports.
+    The admin's activity backfill reads the marks of the galaxy pages still kept as raw syncs; a reparse dates a
+    galaxy view to its sync instead of now.
+  - API: `GET`/`POST /api/{uni}/players/{id}/activity`, `DELETE /api/{uni}/players/{id}/activity/{eventId}`.
 - Fleet sharing knows the marketplace (16) and transfer (17) missions: both can be hidden in the account's sharing
   settings, the parser reads them from copied fleet lines (`Mission: Marktplatz`/`Transfer`) and push texts name them.
 

@@ -24,6 +24,7 @@ import {
 import { CLASS_BUILDINGS, PHALANX } from '@pr0hub/core/tech';
 import { now, type DB } from './db.js';
 import type { IngestSummary, IngestTarget } from './ingest.js';
+import { fleetActivity, galaxyMark } from './repo/activity.js';
 import { FLEET_HISTORY } from './repo/fleets.js';
 import { Players } from './repo/players.js';
 
@@ -378,6 +379,7 @@ export class Store {
         const allyId = this.players.alliance(row.allyId, row.allyName ?? null, row.allyTag);
         db.prepare('UPDATE players SET alliance_id = ? WHERE id = ? AND last_seen <= ?').run(allyId, playerId, seenAt);
         this.players.playerStatus(playerId, row.status, seenAt);
+        if (row.activity != null) galaxyMark(db, this.t.groupId, playerId, { g: r.g, s: r.s, p: row.position }, row.activity, seenAt);
       }
       db.prepare(
         `INSERT INTO planets (group_id, g, s, p, name, player_id, has_moon, moon_name, destroyed, debris, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -665,6 +667,10 @@ export class Store {
       const approx = pageTime + f.seconds;
       return { ...f, arrival: f.clock ? nearestClock(approx, f.clock, this.t.timezone) : approx };
     });
+    const prev = this.db
+      .prepare('SELECT page_time AS time, data FROM fleet_snapshots WHERE group_id = ? AND user_id = ? AND page_time < ? ORDER BY page_time DESC, id DESC LIMIT 1')
+      .get(this.t.groupId, this.t.userId, pageTime) as { time: number; data: string } | undefined;
+    fleetActivity(this.db, this.t.groupId, this.t.userId, prev ? { time: prev.time, data: JSON.parse(prev.data) } : null, { time: pageTime, data: fleets });
     this.db
       .prepare('INSERT INTO fleet_snapshots (group_id, user_id, page_time, data) VALUES (?, ?, ?, ?)')
       .run(this.t.groupId, this.t.userId, pageTime, JSON.stringify(fleets));

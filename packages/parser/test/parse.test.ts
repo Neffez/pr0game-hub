@@ -357,11 +357,11 @@ describe('galaxy + empire', () => {
     expect(rec.rows).toEqual([
       {
         position: 5, planetName: 'Heimat', moon: true, moonName: 'Luna Prime', destroyed: false, playerId: 1234, playerName: 'Alpha',
-        status: ['inactive'], allyId: 77, allyTag: 'DA', debris: { metal: '1.2K', crystal: '300' },
+        status: ['inactive'], allyId: 77, allyTag: 'DA', debris: { metal: '1.2K', crystal: '300' }, activity: 0,
       },
       {
         position: 7, planetName: '', moon: false, moonName: null, destroyed: true, playerId: null, playerName: null,
-        status: [], allyId: null, allyTag: null, debris: null,
+        status: [], allyId: null, allyTag: null, debris: null, activity: null,
       },
     ]);
   });
@@ -371,14 +371,14 @@ describe('galaxy + empire', () => {
     expect(res).toMatchObject({ pageType: 'galaxy', source: 'text', warnings: [] });
     const rec = res.records[0] as any;
     expect(rec).toMatchObject({ g: 1, s: 3 });
-    const row = (position: number, planetName: string, moonName: string | null, playerName: string, status: string[], debris: [string, string] | null, allyTag: string | null = null) => ({
+    const row = (position: number, planetName: string, moonName: string | null, playerName: string, status: string[], debris: [string, string] | null, allyTag: string | null = null, activity: number | null = null) => ({
       position, planetName, moon: moonName != null, moonName, destroyed: false, playerId: null, playerName, status,
-      allyId: null, allyTag, debris: debris && { metal: debris[0], crystal: debris[1] },
+      allyId: null, allyTag, debris: debris && { metal: debris[0], crystal: debris[1] }, activity,
     });
     const ii = ['longinactive', 'inactive'];
     expect(rec.rows).toEqual([
       row(1, '5', 'Mond', 'Anda', ii, ['148K', '444K']),
-      row(2, 'Mondspender', 'MV4U', 'Gottkaiser', [], ['133.504M', '106.906M'], '1337'),
+      row(2, 'Mondspender', 'MV4U', 'Gottkaiser', [], ['133.504M', '106.906M'], '1337', 17),
       row(4, '4', 'Mond', 'Anda', ii, ['135K', '405K']),
       row(5, '3', 'Mond', 'Anda', ii, ['181K', '543K']),
       row(6, '1', 'Mond', 'Anda', ii, ['1,7B', '1,3B']),

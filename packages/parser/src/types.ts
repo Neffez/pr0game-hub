@@ -170,6 +170,11 @@ export interface GalaxyRow {
   /** universe.json carries the alliance name instead of the tag */
   allyName?: string | null;
   debris: { metal: string; crystal: string } | null;
+  /**
+   * activity mark behind the planet name: minutes since the planet was last active, 0 for "(*)" (under 15 minutes);
+   * null without a mark, missing where the source has none (universe.json, empty positions)
+   */
+  activity?: number | null;
 }
 
 export interface GalaxyRecord {

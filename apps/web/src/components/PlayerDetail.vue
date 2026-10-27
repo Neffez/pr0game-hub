@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import Section from './Section.vue';
 import Icon from './Icon.vue';
+import ActivityPattern from './ActivityPattern.vue';
 import CommentThread from './CommentThread.vue';
 import PresenceBadge from './PresenceBadge.vue';
 import { Chart, registerables } from 'chart.js';
@@ -162,6 +163,8 @@ onBeforeUnmount(() => chart?.destroy());
       </div>
       <div style="height: 300px; margin-top: 10px"><canvas ref="canvas" /></div>
     </div>
+
+    <ActivityPattern :player="data.player.id" />
 
     <Section :title="t('player.research')" store-key="player.research" :default-open-mobile="false">
       <template #hint>

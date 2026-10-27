@@ -541,6 +541,16 @@ components:
       type: object
       properties:
         enabled: { type: boolean }
+    ActivityEvent:
+      type: object
+      required: [time, spread, source]
+      properties:
+        time: { type: integer, description: Best estimate (Unix seconds) }
+        spread: { type: integer, description: Half width of the uncertainty in seconds (0 = exact) }
+        source: { type: string, enum: [spy, attack, defense, message, points, galaxy, fleet, recall, manual] }
+        id: { type: integer, description: Manual reports only }
+        reporter: { type: [string, 'null'], description: Reporting member (manual reports only) }
+        mine: { type: boolean, description: Reported by the caller (manual reports only) }
     User:
       type: object
       properties:
@@ -1294,6 +1304,67 @@ paths:
           content:
             application/json:
               schema: { type: object }
+  /api/{uni}/players/{id}/activity:
+    get:
+      tags: [Universe]
+      operationId: getPlayerActivity
+      description: >-
+        Evidence of when the player was online during the last 7 days, for the activity pattern: espionage on members,
+        battles (as attacker; as defender only with more than one defending fleet), messages the caller may see, total
+        point gains between two stat times, galaxy activity marks, launches and recalls of hostile fleets and manual
+        reports of members. Each event has a best estimate `time` and the half width `spread` of its uncertainty.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [from, events]
+                properties:
+                  from: { type: integer, description: Start of the period (Unix seconds) }
+                  events: { type: array, items: { $ref: '#/components/schemas/ActivityEvent' } }
+        '404': { description: 'Not a player of the group (`player_not_found`)' }
+    post:
+      tags: [Universe]
+      operationId: reportPlayerActivity
+      description: >-
+        Report that the player is online now or was at `time` (within the last 7 days, not in the future). The same
+        member's report for the same minute counts once.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                time: { type: [integer, 'null'], description: Unix seconds (default now) }
+      responses:
+        '200': { description: Stored }
+        '400': { description: 'Time in the future or older than 7 days (`activity_time_invalid`)' }
+        '404': { description: 'Not a player of the group (`player_not_found`)' }
+  /api/{uni}/players/{id}/activity/{eventId}:
+    delete:
+      tags: [Universe]
+      operationId: deletePlayerActivity
+      description: Withdraw one of the caller's own manual reports.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+        - { name: id, in: path, required: true, schema: { type: integer } }
+        - { name: eventId, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Removed }
+        '404': { description: 'Not a player of the group (`player_not_found`) or no own manual report (`activity_not_found`)' }
   /api/{uni}/imperium:
     get:
       tags: [Universe]

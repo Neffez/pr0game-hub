@@ -7,6 +7,12 @@ import { STATUS_LETTERS, statusFromSpans } from './stats.js';
 /** Activity mark behind the planet name: "(*)" or "(15 min)". */
 const ACTIVITY_RE = /\s*\((\*|\d+\s*min)\)\s*$/;
 
+/** Minutes of the activity mark behind a planet name: 0 for "(*)", null without a mark. */
+function activityOf(name: string): number | null {
+  const m = name.match(ACTIVITY_RE);
+  return m ? (m[1] === '*' ? 0 : parseInt(m[1], 10)) : null;
+}
+
 export function isGalaxyHtml($: CheerioAPI): boolean {
   return $('.galaxy-grid-row[data-info^="p_"]').length > 0;
 }
@@ -58,6 +64,7 @@ export function parseGalaxyHtml($: CheerioAPI, url?: string, system?: { g: numbe
       allyId: parseNumber(ally.attr('allyid')),
       allyTag: ally.length ? ally.text().trim().replace(/^\[|\]$/g, '') : null,
       debris: parseDebris(row.find('.galaxy-debris')),
+      activity: destroyed ? null : activityOf(planetLink.text().trim()),
     });
   });
   return { kind: 'galaxy', g, s, rows };
@@ -140,6 +147,7 @@ export function parseGalaxyText(text: string, system: { g: number; s: number }):
       allyId: null,
       allyTag,
       debris,
+      activity: activityOf(rest[0]),
     });
   });
   return { kind: 'galaxy', g: system.g, s: system.s, rows };

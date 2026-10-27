@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-10-27',
     items: [
       {
+        kind: 'new',
+        de: 'Aktivitätsmuster auf der Spielerseite: zeigt, wann ein Spieler über den Tag meist online ist – aus Spionagen, Kämpfen, Nachrichten, Flottenbewegungen, Punktezuwachs und Galaxie-Aktivität, wahlweise für die letzten 24 Stunden oder 7 Tage. Mit „Onlinezeit melden“ trägst du selbst ein, dass ein Spieler gerade (oder zu einer bestimmten Zeit) online war.',
+        en: 'Activity pattern on the player page: shows when a player is usually online over the day – from espionage, battles, messages, fleet movements, point gains and galaxy activity, for the last 24 hours or 7 days. With “Report online time” you note yourself that a player is (or was at a certain time) online.',
+      },
+      {
         kind: 'fix',
         de: 'Flottenbewegungen teilen: Marktplatz- und Transferflüge lassen sich jetzt in den Kontoeinstellungen ausblenden.',
         en: 'Sharing fleet movements: marketplace and transfer flights can now be hidden in the account settings.',

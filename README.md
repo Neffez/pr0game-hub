@@ -18,7 +18,8 @@ External analysis tool for [pr0game](https://codeberg.org/pr0game/pr0game) based
   network, TechnoDome), locks like the game; a bell per element notifies (hub bell, push, Discord) once the next level is
   possible
 - **Statistics**: rankings with rank moves, change since the previous update and sync coverage
-- **Player details**: points history (chart), planets, status history, notes
+- **Player details**: points history (chart), activity pattern over the day (from espionage, battles, messages,
+  fleets, point gains, galaxy activity and members' "online now" reports), planets, status history, notes
 - **Comments**: the alliance discusses a player or a planet/moon in a thread (player details, spy history), with a
   💬 count next to the planet
 - **Galaxy browser** with phalanx coverage and a freshness heat map

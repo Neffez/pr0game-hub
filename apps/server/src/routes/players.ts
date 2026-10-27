@@ -2,8 +2,9 @@ import { CLASS_BUILDINGS, CLASS_RESEARCH, PHALANX } from '@pr0hub/core/tech';
 import type { FastifyInstance } from 'fastify';
 import { HttpError } from '../auth.js';
 import type { GroupContext } from '../context.js';
-import type { DB } from '../db.js';
+import { now, type DB } from '../db.js';
 import { events } from '../events.js';
+import { ACTIVITY_DAYS, addActivity, playerActivity } from '../repo/activity.js';
 import { latestEmpires } from '../repo/empire.js';
 import { memberPlayer, memberPlayers } from '../repo/members.js';
 import { latestScores } from '../repo/stats.js';
@@ -177,6 +178,48 @@ export function playersRoutes(app: FastifyInstance, db: DB) {
       player: { ...player, status: JSON.parse(player.status) },
       history, ownHistory, planets, spyReports, statusLog, aliases, ...intel,
     };
+  });
+
+  /** The player of the request's group (404 otherwise). */
+  const groupPlayer = (ctx: GroupContext, id: string) => {
+    const player = db.prepare('SELECT id FROM players WHERE id = ? AND group_id = ?').pluck().get(Number(id), ctx.groupId) as number | undefined;
+    if (!player) throw new HttpError(404, 'player_not_found', 'Player not found');
+    return player;
+  };
+
+  /** Evidence of when the player was online during the last days, for the activity pattern. */
+  app.get<{ Params: { uni: string; id: string } }>('/api/:uni/players/:id/activity', async (req) => {
+    const ctx = ctxOf(req);
+    const id = groupPlayer(ctx, req.params.id);
+    const from = now() - ACTIVITY_DAYS * 86400;
+    return { from, events: playerActivity(db, ctx, id, from) };
+  });
+
+  /** A member reports that the player is (or was at `time`) online. */
+  app.post<{ Params: { uni: string; id: string }; Body: { time?: number | null } }>('/api/:uni/players/:id/activity', async (req) => {
+    const ctx = ctxOf(req);
+    const id = groupPlayer(ctx, req.params.id);
+    const t = now();
+    const time = req.body?.time ?? t;
+    if (!Number.isInteger(time) || time > t + 60 || time < t - ACTIVITY_DAYS * 86400) {
+      throw new HttpError(400, 'activity_time_invalid', 'The time must lie within the last days and not in the future');
+    }
+    // the same report twice (a double click) counts once
+    addActivity(db, ctx.groupId, { playerId: id, time, spread: 0, source: 'manual', userId: ctx.user.id, key: `manual:${ctx.user.id}:${id}:${Math.floor(time / 60)}` });
+    events.publish(ctx.groupId, { type: 'data', tables: ['player_activity'], userId: ctx.user.id });
+    return { ok: true };
+  });
+
+  /** Withdraws one of the member's own manual reports. */
+  app.delete<{ Params: { uni: string; id: string; eventId: string } }>('/api/:uni/players/:id/activity/:eventId', async (req) => {
+    const ctx = ctxOf(req);
+    const id = groupPlayer(ctx, req.params.id);
+    const res = db
+      .prepare("DELETE FROM player_activity WHERE id = ? AND player_id = ? AND group_id = ? AND source = 'manual' AND user_id = ?")
+      .run(Number(req.params.eventId), id, ctx.groupId, ctx.user.id);
+    if (!res.changes) throw new HttpError(404, 'activity_not_found', 'Report not found');
+    events.publish(ctx.groupId, { type: 'data', tables: ['player_activity'], userId: ctx.user.id });
+    return { ok: true };
   });
 
   app.put<{ Params: { uni: string; id: string }; Body: { note: string | null } }>('/api/:uni/players/:id/note', async (req) => {
