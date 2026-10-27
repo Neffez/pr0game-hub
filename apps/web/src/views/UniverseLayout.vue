@@ -12,6 +12,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { selectGroup, selectedGroup, session, uniApi } from '../api';
 import { provideUni, useLoader, useScrollLock, type UniContext } from '../composables';
 import { clearClaims, loadClaims } from '../claims';
+import { toolsIndexUrl } from '../format';
 import { clearCommentCounts, loadCommentCounts } from '../comments';
 import { attacks, clearNotifications, loadNotifications } from '../notifications';
 import { planCounts, type AttackPlan } from '../plans';
@@ -27,6 +28,7 @@ const group = ref<number | null>(null);
 const reloadKey = ref(0);
 
 provideUni(ctx);
+const toolsUrl = computed(() => toolsIndexUrl(ctx.value?.universe.settings));
 
 function load() {
   // a link with the group (push notification) opens that alliance
@@ -188,7 +190,7 @@ const tabs = [
 <template>
   <div class="layout">
     <header class="topbar">
-      <span class="brand">pr0game <span>Hub</span></span>
+      <a class="brand" :href="toolsUrl" target="_blank" rel="noopener" :title="t('nav.toolsLink')">pr0game <span>Hub</span></a>
       <span class="topbar-title">{{ pageTitle }}</span>
       <NotificationBell v-if="ctx" />
     </header>
@@ -201,7 +203,7 @@ const tabs = [
       @touchend="onTouchEnd"
     >
       <div class="brand">
-        pr0game <span>Hub</span>
+        <a :href="toolsUrl" target="_blank" rel="noopener" :title="t('nav.toolsLink')">pr0game <span>Hub</span></a>
         <NotificationBell v-if="ctx" class="sidebar-bell" />
         <button class="nav-close" :title="t('nav.closeMenu')" :aria-label="t('nav.closeMenu')" @click="navOpen = false"><Icon name="close" /></button>
       </div>

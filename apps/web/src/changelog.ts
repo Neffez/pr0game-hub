@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Schnellzugriff auf die Tools: Ein Klick auf „pr0game Hub“ im Menü (am Handy oben in der Leiste) öffnet die Tools in einem neuen Tab.',
+        en: 'Quick access to the tools: clicking “pr0game Hub” in the menu (in the top bar on mobile) opens the tools in a new tab.',
+      },
+      {
+        kind: 'new',
         de: 'Mondzerstörungsrechner bei den Tools: Chance, einen Mond mit Todessternen zu zerstören und dabei die Flotte zu verlieren, auch über mehrere Wellen, und eine Empfehlung, wie viele Todessterne und Wellen ein Mond für die gewünschte Chance braucht. Im Hub öffnet das Aktionsmenü eines Mondes den Rechner mit dem Durchmesser aus der Galaxie (dafür die Galaxie als Seitenquelltext einfügen).',
         en: 'Moon destruction calculator in the tools: the chance to destroy a moon with Death Stars and to lose the fleet doing so, also over several waves, and a recommendation of how many Death Stars and waves a moon needs for the wanted chance. In the hub, the action menu of a moon opens the calculator with the diameter from the galaxy (paste the galaxy as page source for that).',
       },

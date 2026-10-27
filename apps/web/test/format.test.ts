@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { dateFormat, datePattern, dateTime, fmt, ipmCalcLink, ipmStart, moonCalcLink, numDate, fmtSigned, protectionStatus, short, simLinks, trashSimExport, type UniverseSettings } from '../src/format';
+import { dateFormat, datePattern, dateTime, fmt, ipmCalcLink, ipmStart, moonCalcLink, numDate, fmtSigned, protectionStatus, short, simLinks, toolsIndexUrl, trashSimExport, type UniverseSettings } from '../src/format';
 import { setLocale } from '../src/i18n';
 import { decompressFromEncodedURIComponent } from 'lz-string';
 
@@ -132,6 +132,14 @@ describe('format', () => {
     expect(trashSimExport(spy, null, [attacker])).toBe(
       'EwBmGYFYQTgAnANgOwkTcdgA4cwIzJzQBQIc5+m+ALHLXPE-ZuW-SO1x97-fhUF9u4TsIokBlSgPzAOCovkhDB+TqvbrxlJPWD5EjUNmIrUyJWnY0NUOt21Lg8yEVGtNX3iSA',
     );
+  });
+});
+
+describe('tools index link', () => {
+  it('is the parent of the universe flight calculator, else the public tools', () => {
+    expect(toolsIndexUrl({ flightCalculatorUrl: 'https://tools.example/x/flight-calculator/#a=1' } as never)).toBe('https://tools.example/x/');
+    expect(toolsIndexUrl({} as never)).toBe('https://pr0game.neffez.dev/');
+    expect(toolsIndexUrl(null)).toBe('https://pr0game.neffez.dev/');
   });
 });
 

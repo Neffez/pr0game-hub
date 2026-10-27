@@ -214,7 +214,8 @@ export function timeWithAge(epoch: number | null | undefined): string {
 export type Coords3 = Coords;
 
 /** Default location of the flight calculator (pr0game-tools); override per universe with `flightCalculatorUrl`. */
-const FLIGHT_CALCULATOR_URL = 'https://pr0game.neffez.dev/flight-calculator/';
+const TOOLS_INDEX_URL = 'https://pr0game.neffez.dev/';
+const FLIGHT_CALCULATOR_URL ='https://pr0game.neffez.dev/flight-calculator/';
 const LOOT_CALCULATOR_URL = 'https://pr0game.neffez.dev/acs-loot/';
 const IPM_CALCULATOR_URL = 'https://pr0game.neffez.dev/ipm-calculator/';
 const BATTLE_SIMULATOR_URL = 'https://pr0game.neffez.dev/battle-simulator/';
@@ -411,6 +412,12 @@ export function protectionStatus(u: UniverseSettings, own: number | null | undef
   if ((inactive || target <= limit) && own > target * factor) return [...rest, 'noob'];
   if (!inactive && own < limit && own * factor < target) return [...rest, 'strong'];
   return rest;
+}
+
+/** Index of the public tools (pr0game-tools), the parent of the flight calculator of the universe. */
+export function toolsIndexUrl(u?: UniverseSettings | null): string {
+  const flight = (u as (UniverseSettings & { flightCalculatorUrl?: string }) | null | undefined)?.flightCalculatorUrl;
+  return flight ? new URL('../', flight.split('#')[0]).href : TOOLS_INDEX_URL;
 }
 
 /** The public ACS loot calculator, next to the flight calculator of the universe. */

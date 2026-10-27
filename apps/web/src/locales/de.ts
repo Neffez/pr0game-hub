@@ -90,6 +90,7 @@ const de = {
     menu: 'Menü',
     player: 'Spieler',
     closeMenu: 'Menü schließen',
+    toolsLink: 'pr0game-Tools öffnen (neuer Tab)',
     quickSync: 'Schnell synchronisieren',
     openSyncPage: 'Zur Sync-Seite',
     close: 'Schließen',
