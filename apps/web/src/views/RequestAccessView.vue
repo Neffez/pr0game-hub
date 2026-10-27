@@ -36,7 +36,7 @@ async function submit() {
       <label for="request-password">{{ t('invite.passwordHint') }}</label>
       <input id="request-password" v-model="password" type="password" autocomplete="new-password" />
       <label for="request-message">{{ t('requestAccess.message') }}</label>
-      <textarea id="request-message" v-model="message" rows="4" maxlength="500" :placeholder="t('requestAccess.messageHint')" />
+      <textarea id="request-message" v-model="message" rows="4" maxlength="500" required :placeholder="t('requestAccess.messageHint')" />
       <div v-if="error" class="error">{{ error }}</div>
       <button class="primary" type="submit">{{ t('requestAccess.submit') }}</button>
     </form>

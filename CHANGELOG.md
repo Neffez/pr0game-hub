@@ -5,7 +5,7 @@ Every commit adds its changes here, newest first, grouped by date.
 ## 2026-10-27
 
 - Access requests: the login page links to "Request access", where people without an account choose a username and
-  password and leave a message. Global admins see the requests in the admin panel and assign one to a player without
+  password and leave a message (required). Global admins see the requests in the admin panel and assign one to a player without
   an account (claim link not used yet); that player takes over the username and password (open claim links are
   revoked) and can log in. Requests can be rejected. Public endpoint limited to 5 requests per IP and hour and 100 open
   requests; new table `access_requests` (migration 062).

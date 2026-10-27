@@ -184,6 +184,7 @@ export function authRoutes(app: FastifyInstance, db: DB) {
     const password = String(req.body?.password ?? '');
     if (password.length < 8) throw new HttpError(400, 'password_too_short', 'Password must have at least 8 characters');
     const message = String(req.body?.message ?? '').trim();
+    if (!message) throw new HttpError(400, 'message_missing', 'Message missing');
     if (message.length > 500) throw new HttpError(400, 'message_too_long', 'Message: at most 500 characters');
     if (db.prepare('SELECT 1 FROM access_requests WHERE username = ?').get(username)) throw new HttpError(409, 'username_taken', 'Username already taken');
     if ((db.prepare('SELECT COUNT(*) FROM access_requests').pluck().get() as number) >= MAX_ACCESS_REQUESTS) {

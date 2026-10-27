@@ -102,7 +102,7 @@ const de = {
   requestAccess: {
     title: 'Zugang anfragen',
     intro: 'Wähle Nutzername und Passwort, mit denen du dich anmelden willst. Ein Admin weist deine Anfrage deinem Spieler zu; danach kannst du dich einloggen.',
-    message: 'Nachricht (optional)',
+    message: 'Nachricht',
     messageHint: 'Wer bist du, welche Allianz und welcher Spieler?',
     submit: 'Anfrage senden',
     sent: 'Anfrage gesendet. Sobald ein Admin sie deinem Spieler zugewiesen hat, kannst du dich mit diesem Nutzernamen und Passwort einloggen.',

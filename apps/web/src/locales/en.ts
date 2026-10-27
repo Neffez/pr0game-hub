@@ -101,7 +101,7 @@ const en: typeof de = {
   requestAccess: {
     title: 'Request access',
     intro: 'Choose the username and password you want to log in with. An admin assigns your request to your player; after that you can log in.',
-    message: 'Message (optional)',
+    message: 'Message',
     messageHint: 'Who are you, which alliance and player?',
     submit: 'Send request',
     sent: 'Request sent. As soon as an admin has assigned it to your player, you can log in with this username and password.',

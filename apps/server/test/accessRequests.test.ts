@@ -30,14 +30,16 @@ beforeAll(async () => {
 describe('access requests', () => {
   it('validates the request and rejects a taken username', async () => {
     expect((await request({ username: 'x', password: 'longenough' })).statusCode).toBe(400);
-    expect((await request({ username: 'bobby', password: 'short' })).statusCode).toBe(400);
-    expect((await request({ username: 'admin', password: 'longenough' })).statusCode).toBe(409);
+    expect((await request({ username: 'bobby', password: 'short', message: 'Hi' })).statusCode).toBe(400);
+    expect((await request({ username: 'bobby', password: 'longenough' })).statusCode).toBe(400);
+    expect((await request({ username: 'bobby', password: 'longenough', message: '  ' })).statusCode).toBe(400);
+    expect((await request({ username: 'admin', password: 'longenough', message: 'Hi' })).statusCode).toBe(409);
     expect((await request({ username: 'bobby', password: 'longenough', message: 'x'.repeat(501) })).statusCode).toBe(400);
   });
 
   it('is visible to global admins only and assigned to a player without an account', async () => {
     expect((await request({ username: 'bobby', password: 'longenough', message: 'Hi, I am Bob', lang: 'en' })).statusCode).toBe(200);
-    expect((await request({ username: 'bobby', password: 'longenough' })).statusCode).toBe(409);
+    expect((await request({ username: 'bobby', password: 'longenough', message: 'Hi' })).statusCode).toBe(409);
     expect((await call('GET', '/admin/access-requests', {})).statusCode).toBe(401);
 
     const list = (await call('GET', '/admin/access-requests', admin)).json();
@@ -59,7 +61,7 @@ describe('access requests', () => {
   });
 
   it('can reject a request', async () => {
-    await request({ username: 'carl', password: 'longenough' });
+    await request({ username: 'carl', password: 'longenough', message: 'Hi' });
     const [r] = (await call('GET', '/admin/access-requests', admin)).json().requests;
     expect((await call('DELETE', `/admin/access-requests/${r.id}`, admin)).statusCode).toBe(200);
     expect((await call('DELETE', `/admin/access-requests/${r.id}`, admin)).statusCode).toBe(404);
@@ -67,7 +69,7 @@ describe('access requests', () => {
 
   it('limits requests per IP', async () => {
     const codes: number[] = [];
-    for (let i = 0; i < 7; i++) codes.push((await request({ username: `spam${i}`, password: 'longenough' }, '10.0.0.9')).statusCode);
+    for (let i = 0; i < 7; i++) codes.push((await request({ username: `spam${i}`, password: 'longenough', message: 'Hi' }, '10.0.0.9')).statusCode);
     expect(codes.slice(0, 5)).toEqual([200, 200, 200, 200, 200]);
     expect(codes[5]).toBe(429);
   });
