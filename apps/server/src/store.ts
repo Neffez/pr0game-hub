@@ -584,7 +584,7 @@ export class Store {
   /**
    * Marketplace: the rate (an estimate from a text copy and an exact rate within an hour of each other: the exact one
    * wins; a resource the estimate can't tell keeps the current value) and the open offers. Offers are recognised by the game's id, else (text copy) by
-   * resources, amounts and end within 90 s, one to one; a new one is logged as activity.
+   * resources, amounts and end within 90 s, one to one; a new one is logged as activity. The trade history is collected.
    */
   private marketplace(r: MarketplaceRecord) {
     const db = this.db;
@@ -647,6 +647,15 @@ export class Store {
       this.count('market_offers', true);
     }
     db.prepare('DELETE FROM market_offers WHERE group_id = ? AND ends_at < ?').run(g, seen - 7 * 86400);
+
+    const trade = db.prepare(
+      'INSERT OR IGNORE INTO market_trades (group_id, time, give_res, give_amount, want_res, want_amount) VALUES (?, ?, ?, ?, ?, ?)',
+    );
+    for (const x of r.trades) {
+      const time = x.epoch ?? this.epoch(x.time);
+      if (time == null) continue;
+      this.count('market_trades', trade.run(g, time, x.give.res, x.give.amount, x.want.res, x.want.amount).changes > 0);
+    }
     db.prepare(
       `INSERT INTO market_syncs (group_id, seen_at, user_id) VALUES (?, ?, ?)
        ON CONFLICT (group_id) DO UPDATE SET seen_at = excluded.seen_at, user_id = excluded.user_id WHERE excluded.seen_at >= market_syncs.seen_at`,

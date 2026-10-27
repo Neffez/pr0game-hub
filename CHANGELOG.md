@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-27
 
+- Marketplace: the trade history of the page (the universe's last 40 accepted offers) is collected over the syncs
+  (migration 066, `market_trades`; dates of a copied page in the universe's time zone, the page source's epoch seconds)
+  and shown as a collapsible "Trade history" on the marketplace page with the exchange rate at the current rate;
+  `GET /api/{uni}/market` returns it as `trades`. The page's hint explains the "Alliance" mark of an offer: per the game's
+  template the own alliance or an accepted main, wing, alliance or trade alliance pact.
 - Marketplace sync: the hub reads pr0game's marketplace page (copied page or page source) and keeps the alliance's
   market rate and the open resource offers.
   - Rate (metal and crystal per 1 deuterium): exact from the page source (`#ratioBaselines`); from a copied page it is

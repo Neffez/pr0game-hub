@@ -612,6 +612,10 @@ const en: typeof de = {
     ratio: 'Rate',
     ends: 'Ends',
     ally: 'Alliance',
+    trades: 'Trade history',
+    tradesHint: "The universe's accepted offers as the marketplace shows them (the last 40 there), collected over all syncs. Rate: at the current market rate.",
+    date: 'Date',
+    allyHint: '"Alliance": offered by the own alliance or by an alliance with a main, wing, alliance or trade alliance pact (marked green in the game).',
   },
   paste: {
     title: 'Paste page',

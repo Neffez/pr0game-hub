@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import PageHeader from '../components/PageHeader.vue';
+import Section from '../components/Section.vue';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
@@ -21,6 +22,11 @@ interface Offer {
   endsAt: number;
   firstSeen: number;
 }
+interface Trade {
+  time: number;
+  give: { res: Res; amount: number };
+  want: { res: Res; amount: number };
+}
 type Res = 'm' | 'k' | 'd';
 
 const RES_ID: Record<Res, number> = { m: 901, k: 902, d: 903 };
@@ -28,10 +34,13 @@ const RES_ID: Record<Res, number> = { m: 901, k: 902, d: 903 };
 const { t } = useI18n();
 const { uni, ctx } = useUni();
 const { data, error, load } = useLoader(() =>
-  uniApi<{ rate: MarketRate | null; rates: MarketRate[]; syncedAt: number | null; syncedBy: string | null; offers: Offer[] }>(uni.value, '/market'),
+  uniApi<{ rate: MarketRate | null; rates: MarketRate[]; syncedAt: number | null; syncedBy: string | null; offers: Offer[]; trades: Trade[] }>(
+    uni.value,
+    '/market',
+  ),
 );
 onMounted(load);
-useLiveReload(load, tables('market_rates', 'market_offers'));
+useLiveReload(load, tables('market_rates', 'market_offers', 'market_trades'));
 
 /** countdowns of the offers */
 const now = ref(Math.floor(Date.now() / 1000));
@@ -67,15 +76,15 @@ async function save() {
 
 const sourceLabel = (r: MarketRate) => t(`market.source.${r.source}`);
 const resName = (res: Res) => name(RES_ID[res]);
-/** the offer's exchange rate at the current rate (offered value / asked value in deuterium) */
-function ratio(o: Offer): number | null {
+/** exchange rate at the current rate (offered value / asked value in deuterium) */
+function ratio(o: Offer | Trade): number | null {
   const r = data.value?.rate;
-  if (!r) return o.ratio;
+  if (!r) return 'ratio' in o ? o.ratio : null;
   const per: Record<Res, number> = { m: r.m, k: r.k, d: 1 };
   return o.give.amount / per[o.give.res] / (o.want.amount / per[o.want.res]);
 }
 /** green above, red below the market rate, by the shown two decimals */
-function tone(o: Offer) {
+function tone(o: Offer | Trade) {
   const r = ratio(o);
   if (r == null) return '';
   const shown = Math.round(r * 100);
@@ -91,6 +100,7 @@ const offers = computed(() => (data.value?.offers ?? []).filter((o) => o.endsAt 
         <p>{{ t('market.hint1') }}</p>
         <p>{{ t('market.hint2') }}</p>
         <p>{{ t('market.hint3') }}</p>
+        <p>{{ t('market.allyHint') }}</p>
       </Hint>
     </template>
   </PageHeader>
@@ -158,6 +168,32 @@ const offers = computed(() => (data.value?.offers ?? []).filter((o) => o.endsAt 
         </table>
       </div>
     </div>
+
+    <Section v-if="data.trades.length" :title="t('market.trades')" :count="data.trades.length" store-key="market.trades" :default-open="false">
+      <p class="muted small mt-0">{{ t('market.tradesHint') }}</p>
+      <div class="table-wrap flat offers">
+        <table v-stack="3" class="data">
+          <thead>
+            <tr>
+              <th>{{ t('market.date') }}</th>
+              <th class="num">{{ t('market.give') }}</th>
+              <th />
+              <th class="num">{{ t('market.want') }}</th>
+              <th class="num">{{ t('market.ratio') }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="x in data.trades" :key="`${x.time}-${x.give.res}-${x.give.amount}-${x.want.amount}`">
+              <td class="small nowrap">{{ dateTime(x.time) }}</td>
+              <td class="num">{{ fmt(x.give.amount) }} {{ resName(x.give.res) }}</td>
+              <td class="faint"><Icon name="arrowRight" :size="12" /></td>
+              <td class="num">{{ fmt(x.want.amount) }} {{ resName(x.want.res) }}</td>
+              <td class="num" :class="tone(x)">{{ fmt(ratio(x), 2) }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </Section>
   </template>
 </template>
 

@@ -380,8 +380,17 @@ export interface MarketOffer {
   ratio: number | null;
   /** seconds until the offer ends, from the page time */
   endsIn: number;
-  /** offered by a member of the own alliance */
+  /** offered by the own alliance or one with an accepted pact up to trade alliance (game class `trade-ally`) */
   ally: boolean;
+}
+
+/** One trade of the market history (the game lists the universe's last 40 resource trades). */
+export interface MarketTrade {
+  /** when the offer was bought: epoch seconds from the page source, else the shown date */
+  epoch: number | null;
+  time: LocalDateTime | null;
+  give: { res: MarketRes; amount: number };
+  want: { res: MarketRes; amount: number };
 }
 
 /** Metal and crystal per 1 deuterium; exact from the page source, else estimated from the offers (null when unknown). */
@@ -397,6 +406,8 @@ export interface MarketplaceRecord {
   rate: MarketRate | null;
   pageTime: LocalDateTime | null;
   offers: MarketOffer[];
+  /** trade history (newest first) */
+  trades: MarketTrade[];
   /** when the page was seen (epoch seconds) when the page carries no server time; default: time of the paste */
   seenAt?: number;
 }

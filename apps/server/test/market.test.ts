@@ -48,7 +48,7 @@ describe('marketplace', () => {
     for (let i = 0; i < 2; i++) {
       const summary = { pageType: 'marketplace' as const, source: 'text' as const, lang: 'de' as const, warnings: [], counts: {}, preview: [] };
       new Store(db, { groupId: groupA, userId: carolId, timezone: 'Europe/Berlin' }, summary).record({ ...rec, seenAt: htmlSeen + 199 + i * 20 });
-      expect(summary.counts).toMatchObject({ market_offers: { new: i ? 0 : 5, duplicate: i ? 5 : 0 } });
+      expect(summary.counts).toMatchObject({ market_offers: { new: i ? 0 : 5, duplicate: i ? 5 : 0 }, market_trades: { new: i ? 0 : 3, duplicate: i ? 3 : 0 } });
     }
     // the twin offers (350.000 crystal for 999.000 metal, 29 s apart) stay two
     expect(offers().filter((o) => o.give_amount === 350_000)).toHaveLength(2);
@@ -60,7 +60,8 @@ describe('marketplace', () => {
   it('recognises the offers in the page source, takes their ids and the exact rate', async () => {
     const res = await call('POST', '/ingest', carol, { html: fixture('marketplace-real-source.html') });
     expect(res.statusCode).toBe(200);
-    expect(res.json().counts).toMatchObject({ market_rates: { new: 1, duplicate: 0 }, market_offers: { new: 0, duplicate: 5 } });
+    // the history dates of the copy (Berlin time) are the source's epoch seconds
+    expect(res.json().counts).toMatchObject({ market_rates: { new: 1, duplicate: 0 }, market_offers: { new: 0, duplicate: 5 }, market_trades: { new: 0, duplicate: 2 } });
     expect(offers().map((o) => o.offer_id)).toEqual([16395715, 16395717, 16395236, 16395238, 16395539]);
     expect(offers()[0].ends_at).toBe(htmlSeen + 4610);
     expect(logged()).toHaveLength(5);
@@ -72,6 +73,8 @@ describe('marketplace', () => {
     // the text copy is the later view of the market
     expect(market.syncedAt).toBe(htmlSeen + 219);
     expect(market.syncedBy).toBe('Carol');
+    expect(market.trades.map((x: any) => x.time)).toEqual([1793112911, localToEpoch('2026-10-27 10:17:53', 'Europe/Berlin'), 1792997617]);
+    expect(market.trades[0]).toMatchObject({ give: { res: 'k', amount: 2_000_000 }, want: { res: 'd', amount: 1_300_000 } });
     expect((await call('GET', '/context', carol)).json().marketRate).toMatchObject({ m: 4.055148796006, source: 'source' });
   });
 

@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { HttpError } from '../auth.js';
 import { now, type DB } from '../db.js';
 import { events } from '../events.js';
-import { latestMarket, latestMarketRate, marketRates } from '../repo/market.js';
+import { latestMarket, latestMarketRate, marketRates, marketTrades } from '../repo/market.js';
 import { contextOf } from './util.js';
 
 /** Highest metal or crystal per deuterium accepted as a rate set by hand. */
@@ -11,7 +11,7 @@ const MAX_RATE = 100;
 export function marketRoutes(app: FastifyInstance, db: DB) {
   const ctxOf = contextOf(db);
 
-  /** Current market rate, its history and the open offers of the latest marketplace sync. */
+  /** Current market rate, its history, the open offers of the latest marketplace sync and the synced trades. */
   app.get<{ Params: { uni: string } }>('/api/:uni/market', async (req) => {
     const ctx = ctxOf(req);
     const market = latestMarket(db, ctx.groupId, now());
@@ -21,6 +21,7 @@ export function marketRoutes(app: FastifyInstance, db: DB) {
       syncedAt: market?.syncedAt ?? null,
       syncedBy: market?.syncedBy ?? null,
       offers: market?.offers ?? [],
+      trades: marketTrades(db, ctx.groupId),
     };
   });
 

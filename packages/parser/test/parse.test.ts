@@ -924,6 +924,9 @@ describe('marketplace', () => {
     expect(rec.offers[0].ratio).toBeCloseTo(697918 / 650000, 6);
     expect(rec.offers[2]).toMatchObject({ id: 16395236, ...offer('k', 350_000, 'm', 999_000), endsIn: 8973 });
     expect(rec.offers[4]).toMatchObject({ id: 16395539, ...offer('k', 1_430_000, 'd', 1_000_000), endsIn: 72007, ally: true });
+    expect(rec.trades).toHaveLength(2);
+    expect(rec.trades[0]).toEqual({ epoch: 1793112911, time: '2026-10-27 15:55:11', ...offer('k', 2_000_000, 'd', 1_300_000) });
+    expect(rec.trades[1]).toMatchObject({ epoch: 1792997617, ...offer('m', 999_000, 'k', 333_333) });
   });
 
   it('detects the page source pasted as text', () => {
@@ -941,6 +944,11 @@ describe('marketplace', () => {
     expect(rec.offers).toHaveLength(5);
     expect(rec.offers[0]).toEqual({ id: null, ...offer('k', 1_000_000, 'd', 650_000), ratio: 1.07, endsIn: 4411, ally: false });
     expect(rec.offers[4]).toMatchObject({ ...offer('k', 1_430_000, 'd', 1_000_000), ratio: 1, endsIn: 19 * 3600 + 56 * 60 + 48 });
+    expect(rec.trades).toEqual([
+      { epoch: null, time: '2026-10-27 15:55:11', ...offer('k', 2_000_000, 'd', 1_300_000) },
+      { epoch: null, time: '2026-10-27 10:17:53', ...offer('d', 500_000, 'k', 599_000) },
+      { epoch: null, time: '2026-10-26 07:53:37', ...offer('m', 999_000, 'k', 333_333) },
+    ]);
     expect(rec.rate?.exact).toBe(false);
     expect(Math.abs(rec.rate!.m! / 4.055148796006 - 1)).toBeLessThan(0.01);
     expect(Math.abs(rec.rate!.k! / 1.43283508019 - 1)).toBeLessThan(0.01);

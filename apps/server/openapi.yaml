@@ -1787,7 +1787,7 @@ paths:
       description: >-
         The group's resource market: the current market rate (`rate`, null when none is known), the last 30 rates
         (`rates`, newest first), time and member of the latest marketplace sync (`syncedAt`, `syncedBy`, null before the
-        first one) and the offers it showed that haven't ended yet (`offers`, by end). Rates come from pasted marketplace
+        first one), the offers it showed that haven't ended yet (`offers`, by end) and the synced trade history (`trades`). Rates come from pasted marketplace
         pages (`source`: exact from the page source; `text`: estimated from the exchange rates of a copied page, not
         kept when an exact rate is within an hour) or are set by hand (`manual`).
       parameters:
@@ -1828,9 +1828,32 @@ paths:
                             res: { type: string, enum: [m, k, d] }
                             amount: { type: integer }
                         ratio: { type: [number, 'null'], description: Exchange rate the game showed (offered / asked value in deuterium) }
-                        ally: { type: boolean, description: Offered by a member of the own alliance }
+                        ally:
+                          type: boolean
+                          description: >-
+                            Offered by the own alliance or by one with an accepted main, wing, alliance or trade
+                            alliance pact (the game's `trade-ally` row)
                         endsAt: { type: integer }
                         firstSeen: { type: integer }
+                  trades:
+                    type: array
+                    description: >-
+                      Synced trade history (accepted offers of the universe as the marketplace lists them), newest
+                      first, at most 200
+                    items:
+                      type: object
+                      properties:
+                        time: { type: integer, description: Epoch seconds of the trade }
+                        give:
+                          type: object
+                          properties:
+                            res: { type: string, enum: [m, k, d] }
+                            amount: { type: integer }
+                        want:
+                          type: object
+                          properties:
+                            res: { type: string, enum: [m, k, d] }
+                            amount: { type: integer }
   /api/{uni}/market/rate:
     put:
       tags: [Universe]

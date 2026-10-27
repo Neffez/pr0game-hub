@@ -1,6 +1,6 @@
 import type { CheerioAPI } from 'cheerio';
-import type { MarketOffer, MarketRate, MarketRes, MarketplaceRecord } from '../types.js';
-import { parseNumber } from '../util.js';
+import type { MarketOffer, MarketRate, MarketRes, MarketTrade, MarketplaceRecord } from '../types.js';
+import { GAME_DATE_RE, parseGameDate, parseNumber } from '../util.js';
 import { pageTime } from './empire.js';
 
 /** Resource market (page=marketPlace): the game's reference rate and the open resource offers. */
@@ -15,8 +15,11 @@ const OFFER_RE = new RegExp(
   'i',
 );
 
+// history: "27. Okt 2026, 15:55:11  2.000.000  Kristall  ->  1.300.000  Deuterium"
+const TRADE_RE = new RegExp(`^(${GAME_DATE_RE.source.replace(/^\\b/, '')})\\s+([\\d.,]+)\\s+(${RES})\\s+->\\s+([\\d.,]+)\\s+(${RES})\\s*$`, 'i');
+
 export function isMarketplaceText(text: string): boolean {
-  return /^Reference ratio:/m.test(text) || text.split('\n').some((l) => OFFER_RE.test(l));
+  return /^Reference ratio:/m.test(text) || text.split('\n').some((l) => OFFER_RE.test(l) || TRADE_RE.test(l));
 }
 
 const RES_ID: Record<string, MarketRes> = { 1: 'm', 2: 'k', 3: 'd' };
@@ -62,13 +65,44 @@ export function parseMarketplaceHtml($: CheerioAPI): MarketplaceRecord {
       ally: row.hasClass('trade-ally'),
     });
   });
+  const trades: MarketTrade[] = [];
+  $('#resourceHistoryList tbody tr').each((_, tr) => {
+    const row = $(tr);
+    const res = row.find('td[data-resource-id]');
+    const give = RES_ID[res.eq(0).attr('data-resource-id') ?? ''];
+    const want = RES_ID[res.eq(1).attr('data-resource-id') ?? ''];
+    const cells = row.children('td');
+    const when = cells.eq(0);
+    const epoch = Number(when.attr('data-seconds'));
+    const giveAmount = parseNumber(cells.eq(1).text());
+    const wantAmount = parseNumber(cells.eq(4).text());
+    if (!give || !want || !giveAmount || !wantAmount) return;
+    trades.push({
+      epoch: Number.isInteger(epoch) && epoch > 0 ? epoch : null,
+      time: parseGameDate(when.text()),
+      give: { res: give, amount: giveAmount },
+      want: { res: want, amount: wantAmount },
+    });
+  });
   const rate: MarketRate | null = m > 0 && k > 0 ? { m: m / d, k: k / d, exact: true } : estimateMarketRate(offers);
-  return { kind: 'marketplace', rate, pageTime: pageTime($), offers };
+  return { kind: 'marketplace', rate, pageTime: pageTime($), offers, trades };
 }
 
 export function parseMarketplaceText(text: string): MarketplaceRecord {
   const offers: MarketOffer[] = [];
+  const trades: MarketTrade[] = [];
   for (const line of text.split('\n')) {
+    const h = line.match(TRADE_RE);
+    if (h) {
+      const [, date, giveAmount, give, wantAmount, want] = [h[0], h[1], ...h.slice(-4)];
+      trades.push({
+        epoch: null,
+        time: parseGameDate(date),
+        give: { res: resOf(give), amount: parseNumber(giveAmount) ?? 0 },
+        want: { res: resOf(want), amount: parseNumber(wantAmount) ?? 0 },
+      });
+      continue;
+    }
     const r = line.match(OFFER_RE);
     if (!r) continue;
     const [, giveAmount, give, wantAmount, want, ratio, dd, hh, mm, ss] = r;
@@ -81,7 +115,7 @@ export function parseMarketplaceText(text: string): MarketplaceRecord {
       ally: false,
     });
   }
-  return { kind: 'marketplace', rate: estimateMarketRate(offers), pageTime: null, offers };
+  return { kind: 'marketplace', rate: estimateMarketRate(offers), pageTime: null, offers, trades };
 }
 
 /**

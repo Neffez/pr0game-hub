@@ -613,6 +613,10 @@ const de = {
     ratio: 'Kurs',
     ends: 'Endet',
     ally: 'Allianz',
+    trades: 'Handelsverlauf',
+    tradesHint: 'Angenommene Angebote des Universums, wie sie der Marktplatz zeigt (dort die letzten 40); gesammelt über alle Syncs. Kurs: zum aktuellen Marktkurs.',
+    date: 'Datum',
+    allyHint: '„Allianz“: Angebot aus der eigenen Allianz oder von einer Allianz mit Main-, Wing-, Bündnis- oder Handelsbündnis-Vertrag (im Spiel grün markiert).',
   },
   paste: {
     title: 'Seite einfügen',

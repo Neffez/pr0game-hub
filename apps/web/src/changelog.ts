@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Marktplatz: Der Handelsverlauf der Marktplatz-Seite wird bei jedem Sync mitgesammelt und auf der Seite „Marktplatz“ einklappbar angezeigt. „Allianz“ bei einem Angebot heißt: eigene Allianz oder eine Allianz mit Vertrag (im Spiel grün markiert).',
+        en: 'Marketplace: the trade history of the marketplace page is collected with every sync and shown, collapsible, on the "Marketplace" page. "Alliance" on an offer means the own alliance or an alliance with a pact (marked green in the game).',
+      },
+      {
+        kind: 'new',
         de: 'Marktplatz: Kopiere die Marktplatz-Seite aus dem Spiel und füge sie unter Synchronisieren ein. Der Hub merkt sich den Marktkurs (genau aus dem Seitenquelltext, sonst geschätzt) und zeigt ihn mit den offenen Angeboten auf der neuen Seite „Marktplatz“, wo du ihn auch von Hand setzen kannst. Neue Angebote erscheinen im Aktivitätslog, und in der Beute-Abrechnung übernimmst du den Marktkurs mit einem Klick auf „Marktkurs“.',
         en: 'Marketplace: copy the marketplace page in the game and paste it under Sync. The hub keeps the market rate (exact from the page source, otherwise estimated) and shows it with the open offers on the new "Marketplace" page, where you can also set it by hand. New offers show up in the activity log, and in the loot settlement the “Market rate” button takes it over with one click.',
       },

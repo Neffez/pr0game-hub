@@ -33,6 +33,20 @@ export interface MarketOfferRow {
   firstSeen: number;
 }
 
+export interface MarketTradeRow {
+  time: number;
+  give: { res: string; amount: number };
+  want: { res: string; amount: number };
+}
+
+/** Synced trades of the market, newest first. */
+export function marketTrades(db: DB, groupId: number, limit = 200): MarketTradeRow[] {
+  const rows = db
+    .prepare('SELECT time, give_res, give_amount, want_res, want_amount FROM market_trades WHERE group_id = ? ORDER BY time DESC, id DESC LIMIT ?')
+    .all(groupId, limit) as any[];
+  return rows.map((r) => ({ time: r.time, give: { res: r.give_res, amount: r.give_amount }, want: { res: r.want_res, amount: r.want_amount } }));
+}
+
 /** The latest marketplace sync with its offers that haven't ended by `at`. */
 export function latestMarket(db: DB, groupId: number, at: number): { syncedAt: number; syncedBy: string | null; offers: MarketOfferRow[] } | null {
   const sync = db
