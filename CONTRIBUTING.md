@@ -36,5 +36,4 @@ parse. Remove anything you do not want to publish.
 
 ## License
 
-By contributing you agree that your contributions are licensed under the [GNU Affero General Public License v3.0](LICENSE) and that the maintainer may also offer them under
-a commercial license (dual licensing).
+By contributing you agree that your contributions are licensed under the [GNU Affero General Public License v3.0](LICENSE).
