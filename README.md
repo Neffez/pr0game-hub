@@ -206,5 +206,3 @@ Copyright (c) 2026 Neffez. Licensed under the [GNU Affero General Public License
 You may use, modify and fork the hub, but if you run a modified version as a network service or distribute it, you must
 offer its complete source code to its users under the same license. Versions up to 2026-10-25 were published under the
 MIT license; copies obtained under it stay MIT.
-
-Commercial licenses (for use without the AGPL's source obligations) are available, contact mail@neffez.dev.
