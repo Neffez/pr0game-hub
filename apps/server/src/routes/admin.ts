@@ -128,23 +128,34 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
 
   // ------------------------------------------------------- access requests
 
+  /**
+   * The alliances whose placeholders the user may assign requests to: all for global admins, else the ones they are
+   * admin of (none: 403). Requests carry no alliance, so alliance admins see all of them but only offer their own players.
+   */
+  const assignableGroups = (user: { id: number; isAdmin: boolean }) => {
+    if (user.isAdmin) return null;
+    const groups = db.prepare("SELECT group_id FROM group_members WHERE user_id = ? AND role = 'admin'").pluck().all(user.id) as number[];
+    if (!groups.length) throw new HttpError(403, 'group_admin_only', 'Alliance admins only');
+    return groups;
+  };
+
   /** Open requests plus the placeholder members (no account yet) they can be assigned to. */
   app.get('/api/admin/access-requests', async (req) => {
-    requireAdmin(req);
+    const groups = assignableGroups(requireUser(req));
     const requests = db.prepare('SELECT id, username, message, created_at FROM access_requests ORDER BY id').all();
     const placeholders = db
       .prepare(
         `SELECT u.id, COALESCE(m.ingame_name, u.username) AS name, g.name AS "group", un.slug AS universe
          FROM users u JOIN group_members m ON m.user_id = u.id JOIN groups g ON g.id = m.group_id JOIN universes un ON un.id = g.universe_id
-         WHERE u.password_hash = '' ORDER BY un.slug, g.name, name`,
+         WHERE u.password_hash = '' ${groups ? `AND g.id IN (${groups.map(() => '?').join(',')})` : ''} ORDER BY un.slug, g.name, name`,
       )
-      .all();
+      .all(...(groups ?? []));
     return { requests, placeholders };
   });
 
   /** The request's username and password go to the placeholder member, who can log in with them from then on. */
   app.post<{ Params: { id: string }; Body: { userId?: number } }>('/api/admin/access-requests/:id/assign', async (req) => {
-    requireAdmin(req);
+    const groups = assignableGroups(requireUser(req));
     const request = db.prepare('SELECT * FROM access_requests WHERE id = ?').get(Number(req.params.id)) as
       | { id: number; username: string; password_hash: string; lang: string }
       | undefined;
@@ -154,13 +165,15 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
       throw new HttpError(400, 'not_placeholder', 'The player already has an account');
     }
     const username = checkUsername(db, request.username, userId);
-    const groups = db.prepare('SELECT group_id FROM group_members WHERE user_id = ?').pluck().all(userId) as number[];
+    const memberOf = db.prepare('SELECT group_id FROM group_members WHERE user_id = ?').pluck().all(userId) as number[];
+    // alliance admins only take over players of their own alliances
+    if (groups && !memberOf.some((g) => groups.includes(g))) throw new HttpError(403, 'group_admin_only', 'Alliance admins only');
     db.transaction(() => {
       db.prepare('UPDATE users SET username = ?, password_hash = ?, lang = ? WHERE id = ?').run(username, request.password_hash, request.lang, userId);
       db.prepare('DELETE FROM invites WHERE user_id = ? AND used_at IS NULL').run(userId);
       db.prepare('DELETE FROM access_requests WHERE id = ?').run(request.id);
     })();
-    for (const groupId of groups) events.publish(groupId, { type: 'data', tables: ['group_members'] });
+    for (const groupId of memberOf) events.publish(groupId, { type: 'data', tables: ['group_members'] });
     return { ok: true };
   });
 

@@ -91,6 +91,7 @@ async function loadGroup() {
 onMounted(() =>
   run(async () => {
     await loadAll();
+    await loadAccess();
     // /admin?uni=u8 opens the universe settings directly (link from the start page)
     const u = universes.value.find((x) => x.slug === route.query.uni);
     if (u) startEdit(u);
@@ -204,10 +205,10 @@ type AccessRequests = {
 };
 const access = ref<AccessRequests>({ requests: [], placeholders: [] });
 const accessTarget = ref<Record<number, number | ''>>({});
+/** alliance admins assign requests to players of their alliances; rejecting is up to global admins */
 const loadAccess = async () => {
-  if (isAdmin.value) access.value = await api('/admin/access-requests');
+  if (isAdmin.value || groups.value.length) access.value = await api('/admin/access-requests');
 };
-onMounted(() => run(loadAccess));
 const assignRequest = (r: AccessRequests['requests'][number]) =>
   run(async () => {
     await api(`/admin/access-requests/${r.id}/assign`, { body: { userId: accessTarget.value[r.id] } });
@@ -426,7 +427,7 @@ const doMerge = () => run(async () => {
       </Section>
     </template>
 
-    <Section v-if="isAdmin" :title="t('admin.accessRequests')" :count="access.requests.length" store-key="admin.access">
+    <Section v-if="isAdmin || groups.length" :title="t('admin.accessRequests')" :count="access.requests.length" store-key="admin.access">
       <template #hint><Hint>{{ t('admin.accessRequestsHint') }}</Hint></template>
       <p v-if="!access.requests.length" class="muted small">{{ t('admin.accessRequestsNone') }}</p>
       <div v-for="r in access.requests" :key="r.id" class="access-request">
@@ -440,7 +441,7 @@ const doMerge = () => run(async () => {
             <option v-for="p in access.placeholders" :key="p.id" :value="p.id">{{ p.universe }} · {{ p.group }} · {{ p.name }}</option>
           </select>
           <button class="primary" :disabled="!accessTarget[r.id]" @click="assignRequest(r)">{{ t('admin.accessAssignButton') }}</button>
-          <button class="danger" @click="rejectRequest(r)">{{ t('admin.accessReject') }}</button>
+          <button v-if="isAdmin" class="danger" @click="rejectRequest(r)">{{ t('admin.accessReject') }}</button>
         </div>
       </div>
     </Section>

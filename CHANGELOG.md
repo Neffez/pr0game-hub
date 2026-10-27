@@ -13,6 +13,9 @@ Every commit adds its changes here, newest first, grouped by date.
     Discord (own webhook) send them when set up; the new notification setting `accessRequests` (default on, only shown
     to global admins) switches them off per channel. The notification is sent directly when the request comes in, not
     through the alliance deliveries.
+  - Alliance admins see the requests too (on the bell and in the admin panel) and can assign them, but only to players
+    of their own alliances (`group_admin_only` otherwise); rejecting stays with global admins. Push and Discord still
+    go to global admins only, and the alliances are not disclosed to the requester.
   - API: `POST /api/access-requests`, `GET /api/admin/access-requests`,
     `POST /api/admin/access-requests/{id}/assign`, `DELETE /api/admin/access-requests/{id}`.
 - Activity pattern: the defense source is labelled just "Verteidigung"/"Defense" in the chart.

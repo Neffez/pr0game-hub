@@ -119,7 +119,7 @@ const due = computed(() => {
 });
 /** Current notifications, the next first (loaded by the layout, kept up to date by live events). */
 export const notifications = upcoming(due, until, notifyClock);
-/** Open access requests from the login page (global admins only; they open the admin page). */
+/** Open access requests from the login page (global and alliance admins; they open the admin page). */
 export interface AccessRequest {
   id: number;
   username: string;
@@ -143,9 +143,9 @@ export async function loadNotifications(uni: string) {
   await loadAccessRequests();
 }
 
-/** Global admins: the requests waiting for an assignment. */
+/** Global and alliance admins: the requests waiting for an assignment. */
 export async function loadAccessRequests() {
-  if (!session.me?.user?.isAdmin) return;
+  if (!session.me?.user?.isAdmin && !session.me?.groups.some((g) => g.role === 'admin')) return;
   try {
     accessRequests.value = (await api<{ requests: AccessRequest[] }>('/admin/access-requests')).requests;
   } catch {

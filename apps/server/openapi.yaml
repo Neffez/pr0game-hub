@@ -1193,7 +1193,9 @@ paths:
     get:
       tags: [Admin]
       operationId: listAccessRequests
-      description: Open access requests and the players without an account they can be assigned to; global admins.
+      description: |
+        Open access requests and the players without an account they can be assigned to. Global admins get all players,
+        alliance admins the players of the alliances they are admin of (and see all requests, which carry no alliance).
       security: [{ sessionCookie: [] }]
       responses:
         '200':
@@ -1222,7 +1224,7 @@ paths:
                         group: { type: string }
                         universe: { type: string }
         '403':
-          description: Not a global admin (`admin_only`)
+          description: Neither a global nor an alliance admin (`group_admin_only`)
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
@@ -1232,7 +1234,8 @@ paths:
       operationId: assignAccessRequest
       description: |
         Gives the request's username, password and language to a player without an account, who can log in with them
-        from then on; the request is removed and open claim links of the player are revoked. Global admins.
+        from then on; the request is removed and open claim links of the player are revoked. Global admins, or alliance
+        admins for players of their own alliances.
       security: [{ sessionCookie: [] }]
       parameters:
         - { name: id, in: path, required: true, schema: { type: integer } }
@@ -1260,7 +1263,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
         '403':
-          description: Not a global admin (`admin_only`)
+          description: Not an admin, or an alliance admin and the player is not in their alliances (`group_admin_only`)
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
@@ -1278,7 +1281,7 @@ paths:
     delete:
       tags: [Admin]
       operationId: deleteAccessRequest
-      description: Rejects (removes) an access request; global admins.
+      description: Rejects (removes) an access request; global admins only.
       security: [{ sessionCookie: [] }]
       parameters:
         - { name: id, in: path, required: true, schema: { type: integer } }

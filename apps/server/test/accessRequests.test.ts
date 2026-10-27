@@ -91,6 +91,35 @@ describe('access requests', () => {
     expect(posted).toHaveLength(0);
   });
 
+  it('lets alliance admins assign to players of their own alliance only', async () => {
+    db.prepare("INSERT INTO users (username, password_hash) VALUES ('lena', ?)").run(hashPassword('lenapass'));
+    const lena = db.prepare("SELECT id FROM users WHERE username = 'lena'").pluck().get();
+    db.prepare("INSERT INTO group_members (group_id, user_id, role) VALUES (?, ?, 'admin')").run(groupId, lena);
+    const other = (await call('POST', '/admin/groups', admin, { universe: 'u8', name: 'B' })).json().id;
+    const stranger = (await call('POST', `/admin/groups/${other}/members`, admin, { name: 'Stranger' })).json().id;
+    const own = (await call('POST', `/admin/groups/${groupId}/members`, admin, { name: 'Own' })).json().id;
+    const res = await app.inject({ method: 'POST', url: '/hub/api/auth/login', payload: { username: 'lena', password: 'lenapass' } });
+    const lenaH = { cookie: `hub_session=${res.cookies.find((c) => c.name === 'hub_session')!.value}` };
+    const member = db.prepare("INSERT INTO users (username, password_hash) VALUES ('norma', ?)").run(hashPassword('normapass')).lastInsertRowid;
+    db.prepare("INSERT INTO group_members (group_id, user_id) VALUES (?, ?)").run(groupId, member);
+    const normaLogin = await app.inject({ method: 'POST', url: '/hub/api/auth/login', payload: { username: 'norma', password: 'normapass' } });
+    const normaH = { cookie: `hub_session=${normaLogin.cookies.find((c) => c.name === 'hub_session')!.value}` };
+
+    await request({ username: 'frida', password: 'longenough', message: 'Frida' }, '10.0.2.1');
+    const list = (await call('GET', '/admin/access-requests', lenaH)).json();
+    const frida = list.requests.find((r: { username: string }) => r.username === 'frida');
+    expect(frida).toBeTruthy();
+    const ids = list.placeholders.map((p: { id: number }) => p.id);
+    expect(ids).toContain(own);
+    expect(ids).not.toContain(stranger);
+    // plain members have no access, rejecting is for global admins
+    expect((await call('GET', '/admin/access-requests', normaH)).statusCode).toBe(403);
+    expect((await call('DELETE', `/admin/access-requests/${frida.id}`, lenaH)).statusCode).toBe(403);
+    expect((await call('POST', `/admin/access-requests/${frida.id}/assign`, lenaH, { userId: stranger })).statusCode).toBe(403);
+    expect((await call('POST', `/admin/access-requests/${frida.id}/assign`, lenaH, { userId: own })).statusCode).toBe(200);
+    expect((await app.inject({ method: 'POST', url: '/hub/api/auth/login', payload: { username: 'frida', password: 'longenough' } })).statusCode).toBe(200);
+  });
+
   it('can reject a request', async () => {
     await request({ username: 'carl', password: 'longenough', message: 'Hi' });
     const [r] = (await call('GET', '/admin/access-requests', admin)).json().requests;
