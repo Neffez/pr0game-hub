@@ -1,6 +1,6 @@
 /** Activity pattern of a player: evidence of online times laid over one day and smoothed (see `activityCurve`). */
 
-export type ActivitySource = 'spy' | 'attack' | 'defense' | 'message' | 'points' | 'galaxy' | 'fleet' | 'recall' | 'manual';
+export type ActivitySource = 'spy' | 'attack' | 'defense' | 'message' | 'galaxy' | 'fleet' | 'recall' | 'manual' | 'sync' | 'hub';
 
 export interface ActivityEvent {
   time: number;
@@ -12,9 +12,12 @@ export interface ActivityEvent {
   mine?: boolean;
 }
 
-/** How much one piece of evidence counts: galaxy marks are also set by others' actions, point gains are vague. */
+/**
+ * How much one piece of evidence counts: galaxy marks are also set by others' actions, an open hub tab means the member
+ * is around but not necessarily in the game.
+ */
 export const SOURCE_WEIGHT: Record<ActivitySource, number> = {
-  spy: 1, attack: 1, defense: 1, message: 1, fleet: 1, recall: 1, manual: 1, galaxy: 0.4, points: 0.3,
+  spy: 1, attack: 1, defense: 1, message: 1, fleet: 1, recall: 1, manual: 1, sync: 1, galaxy: 0.4, hub: 0.5,
 };
 
 /** Evidence of yesterday counts about 0.7, of a week ago about 0.1. */

@@ -305,7 +305,7 @@ const en: typeof de = {
     active: 'active',
     activity: {
       title: 'Activity pattern',
-      hint: 'When the player is online over the day, from everything the hub knows about them: espionage on us, battles as attacker (as defender only when help came), their messages, fleet launches and recalls, point gains between two statistics updates, activity marks in the galaxy and reports by members. The days are laid on top of each other and smoothed; newer evidence counts more (half as much after 2 days), vague evidence spreads wider. The ticks below show the single pieces.',
+      hint: 'When the player is online over the day, from everything the hub knows about them: espionage on us, battles as attacker (as defender only when help came), their messages, fleet launches and recalls, activity marks in the galaxy and reports by members; for players of the alliance also their syncs and when they had the hub open (if they share their online status or syncs). Point gains do not count, they come with every statistics update. The days are laid on top of each other and smoothed; newer evidence counts more (half as much after 2 days), vague evidence spreads wider. The ticks below show the single pieces.',
       hintGalaxy: 'Galaxy activity counts little: foreign actions on the planet set it too (espionage, arriving transports, attacks); marks at the time of own espionage or battles there are ignored.',
       empty: 'No evidence in this period yet.',
       report: 'Report online time',
@@ -316,8 +316,8 @@ const en: typeof de = {
       withdraw: 'Withdraw report',
       spread: '± {min} min',
       sources: {
-        spy: 'Espionage', attack: 'Attack', defense: 'Defense with help', message: 'Message', points: 'Point gain',
-        galaxy: 'Galaxy activity', fleet: 'Fleet launch', recall: 'Recall', manual: 'Report',
+        spy: 'Espionage', attack: 'Attack', defense: 'Defense with help', message: 'Message', galaxy: 'Galaxy activity',
+        fleet: 'Fleet launch', recall: 'Recall', manual: 'Report', sync: 'Synced', hub: 'In the hub',
       },
     },
   },

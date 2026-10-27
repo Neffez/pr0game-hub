@@ -3,14 +3,16 @@ import type { DB } from '../db.js';
 import { DISPLAY, MEMBER } from '../routes/util.js';
 import type { StoredFleet } from './fleets.js';
 import { shipsKey } from './hostile.js';
+import { memberPlayers } from './members.js';
 import { SHARED } from './messages.js';
 
 /**
  * Evidence of when a player was online, for their activity pattern: stored reports (espionage on members, battles,
- * messages, point gains) read when served, and `player_activity` for what would be lost otherwise (galaxy activity
- * marks, fleet launches and recalls) or is entered by hand.
+ * messages; for members' players their syncs and hub presence) read when served, and `player_activity` for what would
+ * be lost otherwise (galaxy activity marks, fleet launches and recalls) or is entered by hand. Point gains are left
+ * out: an active player gains with every stat update (every 6 hours), also from a long build queue while offline.
  */
-export type ActivitySource = 'spy' | 'attack' | 'defense' | 'message' | 'points' | 'galaxy' | 'fleet' | 'recall' | 'manual';
+export type ActivitySource = 'spy' | 'attack' | 'defense' | 'message' | 'galaxy' | 'fleet' | 'recall' | 'manual' | 'sync' | 'hub';
 
 export interface ActivityEvent {
   time: number;
@@ -29,8 +31,12 @@ export const ACTIVITY_DAYS = 7;
 export const ACTIVITY_KEEP = 30 * 86400;
 /** A launch or recall known only within a longer window says nothing about the time of day. */
 const FLEET_WINDOW = 6 * 3600;
-/** Point gains between stat times further apart are left out. */
-const POINTS_WINDOW = 24 * 3600;
+/** Syncs within this many seconds count once. */
+const SYNC_BUCKET = 900;
+/** Hub presence counts per half hour (one 5-minute slot is enough). */
+const HUB_BUCKET = 1800;
+/** Length of a `member_online` slot. */
+const SLOT = 300;
 const ESPIONAGE = 6;
 /** Missions with a holding time: the return does not tell the flight time. */
 const HOLD_MISSIONS = [5, 15];
@@ -43,6 +49,11 @@ interface NewActivity {
   coords?: { g: number; s: number; p: number; type?: string | null } | null;
   userId?: number | null;
   key: string;
+}
+
+/** Notes that a member has the hub open and active now (one row per 5-minute slot). */
+export function memberOnline(db: DB, groupId: number, userId: number, time: number) {
+  db.prepare('INSERT OR IGNORE INTO member_online (group_id, user_id, slot) VALUES (?, ?, ?)').run(groupId, userId, Math.floor(time / SLOT) * SLOT);
 }
 
 /** Stores one piece of evidence; false when it is known already. */
@@ -203,14 +214,32 @@ export function playerActivity(db: DB, ctx: GroupContext, playerId: number, from
     exact(time, 'message');
   }
 
-  // total points grown between two stat times: some time in between
-  const scores = db
-    .prepare('SELECT stat_time, MAX(points) AS points FROM player_scores WHERE player_id = ? AND type = 1 AND stat_time >= ? GROUP BY stat_time ORDER BY stat_time')
-    .all(playerId, from - POINTS_WINDOW) as { stat_time: number; points: number }[];
-  for (let i = 1; i < scores.length; i++) {
-    const [a, b] = [scores[i - 1], scores[i]];
-    if (b.points <= a.points || b.stat_time - a.stat_time > POINTS_WINDOW || b.stat_time < from) continue;
-    out.push({ time: Math.round((a.stat_time + b.stat_time) / 2), spread: Math.round((b.stat_time - a.stat_time) / 2), source: 'points' });
+  // a member's player: pages they synced (copied from the game, so online there) and an active hub tab, as far as the
+  // member shares them with the others
+  const members = [...memberPlayers(db, ctx)].filter(([, p]) => p === playerId).map(([user]) => user);
+  for (const user of members) {
+    const self = user === ctx.user.id || ctx.user.isAdmin;
+    const settings = db.prepare('SELECT show_online, share_syncs FROM users WHERE id = ?').get(user) as { show_online: number; share_syncs: number };
+    if (self || settings.share_syncs) {
+      // several pages in a row count once per bucket
+      for (const time of db
+        .prepare(
+          `SELECT MIN(created_at) FROM raw_ingests WHERE group_id = ? AND COALESCE(synced_by, user_id) = ? AND created_at >= ?
+           GROUP BY created_at / ${SYNC_BUCKET}`,
+        )
+        .pluck()
+        .all(ctx.groupId, user, from) as number[]) {
+        exact(time, 'sync');
+      }
+    }
+    if (self || settings.show_online) {
+      for (const bucket of db
+        .prepare(`SELECT DISTINCT slot / ${HUB_BUCKET} FROM member_online WHERE group_id = ? AND user_id = ? AND slot >= ?`)
+        .pluck()
+        .all(ctx.groupId, user, from) as number[]) {
+        out.push({ time: bucket * HUB_BUCKET + HUB_BUCKET / 2, spread: HUB_BUCKET / 2, source: 'hub' });
+      }
+    }
   }
 
   const stored = db

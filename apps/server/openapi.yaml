@@ -547,7 +547,7 @@ components:
       properties:
         time: { type: integer, description: Best estimate (Unix seconds) }
         spread: { type: integer, description: Half width of the uncertainty in seconds (0 = exact) }
-        source: { type: string, enum: [spy, attack, defense, message, points, galaxy, fleet, recall, manual] }
+        source: { type: string, enum: [spy, attack, defense, message, galaxy, fleet, recall, manual, sync, hub] }
         id: { type: integer, description: Manual reports only }
         reporter: { type: [string, 'null'], description: Reporting member (manual reports only) }
         mine: { type: boolean, description: Reported by the caller (manual reports only) }
@@ -1310,9 +1310,10 @@ paths:
       operationId: getPlayerActivity
       description: >-
         Evidence of when the player was online during the last 7 days, for the activity pattern: espionage on members,
-        battles (as attacker; as defender only with more than one defending fleet), messages the caller may see, total
-        point gains between two stat times, galaxy activity marks, launches and recalls of hostile fleets and manual
-        reports of members. Each event has a best estimate `time` and the half width `spread` of its uncertainty.
+        battles (as attacker; as defender only with more than one defending fleet), messages the caller may see, galaxy
+        activity marks, launches and recalls of hostile fleets and manual reports of members; for a member's player
+        also their syncs (unless they hide them, `share_syncs`) and half hours with an active hub tab (unless they hide
+        their online status), always visible to themselves and global admins. Each event has a best estimate `time` and the half width `spread` of its uncertainty.
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
@@ -2543,7 +2544,8 @@ paths:
         A hub tab of the current user reports where it is. Each tab (`tab`) is kept on its own; the presence shows the
         tab in use: an active one before inactive ones, a focused one before one only visible, then the latest report.
         Tabs that have not reported for 15 minutes are dropped, so open tabs report at least every 5 minutes.
-        `closed: true` removes the tab.
+        `closed: true` removes the tab. An active report also notes the 5-minute slot for the activity pattern of the
+        user's player (`getPlayerActivity`, kept 30 days).
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }

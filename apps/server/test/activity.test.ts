@@ -16,9 +16,11 @@ let groupA = 0;
 let groupB = 0;
 let alpha = 0;
 let carolId = 0;
+let adminId = 0;
 let admin: Record<string, string>;
 let carol: Record<string, string>;
 let carolB: Record<string, string>;
+let dave: Record<string, string>;
 
 async function login(username: string, password: string) {
   const res = await app.inject({ method: 'POST', url: '/hub/api/auth/login', payload: { username, password } });
@@ -32,7 +34,8 @@ const stored = (source: string) => db.prepare('SELECT time, spread FROM player_a
 
 beforeAll(async () => {
   await app.ready();
-  db.prepare('INSERT INTO users (username, password_hash, is_admin) VALUES (?, ?, 1)').run('admin', hashPassword('adminpass'));
+  adminId = Number(db.prepare('INSERT INTO users (username, password_hash, is_admin) VALUES (?, ?, 1)').run('admin', hashPassword('adminpass')).lastInsertRowid);
+  const daveId = db.prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)').run('dave', hashPassword('davepass')).lastInsertRowid;
   carolId = Number(db.prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)').run('carol', hashPassword('carolpass')).lastInsertRowid);
   const adminCookie = await login('admin', 'adminpass');
   const h = { headers: { cookie: adminCookie } };
@@ -41,10 +44,12 @@ beforeAll(async () => {
   groupB = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', payload: { universe: 'u8', name: 'B' }, ...h })).json().id;
   db.prepare("INSERT INTO group_members (group_id, user_id, ingame_name) VALUES (?, ?, 'Carol')").run(groupA, carolId);
   db.prepare('INSERT INTO group_members (group_id, user_id) VALUES (?, ?)').run(groupB, carolId);
+  db.prepare('INSERT INTO group_members (group_id, user_id) VALUES (?, ?)').run(groupA, daveId);
   const carolCookie = await login('carol', 'carolpass');
   admin = { cookie: adminCookie, 'x-hub-group': String(groupA) };
   carol = { cookie: carolCookie, 'x-hub-group': String(groupA) };
   carolB = { cookie: carolCookie, 'x-hub-group': String(groupB) };
+  dave = { cookie: await login('dave', 'davepass'), 'x-hub-group': String(groupA) };
 });
 
 describe('player activity', () => {
@@ -70,7 +75,7 @@ describe('player activity', () => {
     expect(galaxyMark(db, groupA, alpha, { g: 1, s: 234, p: 5 }, 40, t)).toBe(true);
   });
 
-  it('collects espionage, battles, messages and point gains', async () => {
+  it('collects espionage, battles and messages', async () => {
     const t = now();
     db.prepare(
       `INSERT INTO hostile_spying (group_id, dedupe_key, time, from_player, from_g, from_s, from_p, from_type, target_g, target_s, target_p, target_type)
@@ -92,15 +97,36 @@ describe('player activity', () => {
       `INSERT INTO player_messages (group_id, user_id, dedupe_key, time, from_name, recipients, subject, body)
        VALUES (?, ?, 'm1', ?, 'Alpha', '[]', 'Hi', 'Hi')`,
     ).run(groupA, carolId, t - 600);
+    // point gains come with every stat update: no evidence
     const snap = db.prepare("INSERT INTO stat_snapshots (group_id, who, type, stat_time) VALUES (?, 'player', 1, ?)");
     const score = db.prepare('INSERT INTO player_scores (snapshot_id, player_id, rank, points) VALUES (?, ?, 1, ?)');
     score.run(snap.run(groupA, t - 12 * 3600).lastInsertRowid, alpha, 1000);
     score.run(snap.run(groupA, t - 6 * 3600).lastInsertRowid, alpha, 1500);
 
-    const events = await activity();
-    expect(sources(events)).toEqual(['attack', 'defense', 'galaxy', 'galaxy', 'points', 'spy']);
-    expect(events.find((e) => e.source === 'points')).toMatchObject({ time: t - 9 * 3600, spread: 3 * 3600 });
+    expect(sources(await activity())).toEqual(['attack', 'defense', 'galaxy', 'galaxy', 'spy']);
     expect(sources(await activity(carol))).toContain('message');
+  });
+
+  it("takes a member's syncs and hub presence as far as they share them", async () => {
+    // Carol's player, found by her in-game name
+    const carolPlayer = Number(db.prepare("INSERT INTO players (group_id, name) VALUES (?, 'Carol')").run(groupA).lastInsertRowid);
+    const t = now();
+    const raw = db.prepare("INSERT INTO raw_ingests (group_id, user_id, synced_by, source, page_type, created_at) VALUES (?, ?, ?, 'paste', 'fleets', ?)");
+    // two pages in a row count once; a page the admin synced for Carol is the admin's
+    raw.run(groupA, carolId, null, t - 3600);
+    raw.run(groupA, carolId, null, t - 3590);
+    raw.run(groupA, carolId, adminId, t - 7200);
+    expect((await call('POST', '/presence', carol, { page: 'overview', tab: 't1' })).statusCode).toBe(200);
+
+    const of = async (headers: Record<string, string>) =>
+      sources((await call('GET', `/players/${carolPlayer}/activity`, headers)).json().events);
+    expect(await of(dave)).toEqual(['hub', 'sync']);
+    db.prepare('UPDATE users SET show_online = 0, share_syncs = 0 WHERE id = ?').run(carolId);
+    expect(await of(dave)).toEqual([]);
+    // herself and global admins still see them
+    expect(await of(carol)).toEqual(['hub', 'sync']);
+    expect(await of(admin)).toEqual(['hub', 'sync']);
+    db.prepare('UPDATE users SET show_online = 1, share_syncs = 1 WHERE id = ?').run(carolId);
   });
 
   it('notes launches and recalls of hostile fleets between two fleet lists', () => {

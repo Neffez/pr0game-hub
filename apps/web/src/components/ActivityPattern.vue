@@ -22,8 +22,8 @@ const { t, locale } = useI18n();
 const { uni } = useUni();
 
 const COLORS: Record<ActivitySource, string> = {
-  spy: '#58a6ff', attack: '#f2683c', defense: '#d29922', message: '#a371f7', points: '#8b98a9',
-  galaxy: '#3fb950', fleet: '#ff7b72', recall: '#db61a2', manual: '#e6edf3',
+  spy: '#58a6ff', attack: '#f2683c', defense: '#d29922', message: '#a371f7', sync: '#56d4dd',
+  galaxy: '#3fb950', fleet: '#ff7b72', recall: '#db61a2', manual: '#e6edf3', hub: '#8b98a9',
 };
 const CURVE = '#7c6cf0';
 
@@ -149,7 +149,7 @@ onMounted(reload);
 watch(() => props.player, reload);
 // the canvas is only there while the section is open
 watch([days, locale, canvas], () => nextTick(draw));
-useLiveReload(reload, tables('player_activity', 'hostile_spying', 'battle_hall', 'combat_reports', 'player_scores', 'player_messages', 'galaxy_systems', 'fleets'));
+useLiveReload(reload, tables('player_activity', 'hostile_spying', 'battle_hall', 'combat_reports', 'player_messages', 'galaxy_systems', 'fleets'));
 onBeforeUnmount(() => chart?.destroy());
 </script>
 

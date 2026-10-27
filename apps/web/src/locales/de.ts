@@ -306,7 +306,7 @@ const de = {
     active: 'aktiv',
     activity: {
       title: 'Aktivitätsmuster',
-      hint: 'Wann der Spieler über den Tag online ist, aus allem, was der Hub über ihn weiß: Spionagen bei uns, Kämpfe als Angreifer (als Verteidiger nur, wenn Hilfe da war), seine Nachrichten, Flottenstarts und Rückrufe, Punktezuwachs zwischen zwei Statistik-Updates, Aktivitätsanzeigen der Galaxie und Meldungen von Mitgliedern. Die Tage werden übereinandergelegt und geglättet; jüngere Hinweise zählen mehr (nach 2 Tagen halb so viel), ungenaue verteilen sich breiter. Die Striche unten zeigen die einzelnen Hinweise.',
+      hint: 'Wann der Spieler über den Tag online ist, aus allem, was der Hub über ihn weiß: Spionagen bei uns, Kämpfe als Angreifer (als Verteidiger nur, wenn Hilfe da war), seine Nachrichten, Flottenstarts und Rückrufe, Aktivitätsanzeigen der Galaxie und Meldungen von Mitgliedern; bei Spielern der Allianz auch ihre Synchronisierungen und wann sie den Hub offen hatten (wenn sie Online-Status bzw. Synchronisierungen teilen). Punktezuwachs zählt nicht, er kommt bei jedem Statistik-Update. Die Tage werden übereinandergelegt und geglättet; jüngere Hinweise zählen mehr (nach 2 Tagen halb so viel), ungenaue verteilen sich breiter. Die Striche unten zeigen die einzelnen Hinweise.',
       hintGalaxy: 'Galaxie-Aktivität zählt wenig: sie entsteht auch durch fremde Aktionen auf dem Planeten (Spionage, ankommende Transporte, Angriffe); Anzeigen zur Zeit eigener Spionagen oder Kämpfe dort werden ignoriert.',
       empty: 'Noch keine Hinweise in diesem Zeitraum.',
       report: 'Onlinezeit melden',
@@ -317,8 +317,8 @@ const de = {
       withdraw: 'Meldung zurückziehen',
       spread: '± {min} min',
       sources: {
-        spy: 'Spionage', attack: 'Angriff', defense: 'Verteidigung mit Hilfe', message: 'Nachricht', points: 'Punktezuwachs',
-        galaxy: 'Galaxie-Aktivität', fleet: 'Flottenstart', recall: 'Rückruf', manual: 'Meldung',
+        spy: 'Spionage', attack: 'Angriff', defense: 'Verteidigung mit Hilfe', message: 'Nachricht', galaxy: 'Galaxie-Aktivität',
+        fleet: 'Flottenstart', recall: 'Rückruf', manual: 'Meldung', sync: 'Synchronisiert', hub: 'Im Hub',
       },
     },
   },

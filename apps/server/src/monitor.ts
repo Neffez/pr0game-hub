@@ -241,6 +241,7 @@ function housekeeping(db: DB) {
   db.prepare('DELETE FROM raw_ingests WHERE created_at < ?').run(t - config.rawRetentionDays * 86400);
   db.prepare('DELETE FROM sessions WHERE expires_at <= ?').run(t);
   db.prepare('DELETE FROM player_activity WHERE time < ?').run(t - ACTIVITY_KEEP);
+  db.prepare('DELETE FROM member_online WHERE slot < ?').run(t - ACTIVITY_KEEP);
   // planner statistics for the indexes (cheap, only analyzes what changed a lot)
   db.pragma('optimize');
 }

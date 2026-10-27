@@ -3,6 +3,7 @@ import { HttpError, loadSessionUser } from '../auth.js';
 import { groupContext, resolveGroup } from '../context.js';
 import { now, type DB } from '../db.js';
 import { events, type Whereabouts } from '../events.js';
+import { memberOnline } from '../repo/activity.js';
 import { presenceForViewer } from '../repo/presence.js';
 
 /** Comment line that keeps proxies from closing an idle stream; also when session and membership are checked again. */
@@ -100,6 +101,8 @@ export function eventRoutes(app: FastifyInstance, db: DB) {
         },
         { id: tab, focused: b.focused === true },
       );
+      // an active hub tab: the member is around (activity pattern of their player)
+      if (b.active !== false) memberOnline(db, ctx.groupId, ctx.user.id, now());
       return { ok: true };
     },
   );

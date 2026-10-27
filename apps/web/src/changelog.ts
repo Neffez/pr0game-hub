@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Aktivitätsmuster: Bei Spielern der eigenen Allianz zählen jetzt auch ihre Synchronisierungen und die Zeiten, in denen sie den Hub offen hatten (nur wenn sie Online-Status bzw. Synchronisierungen teilen). Punktezuwachs zählt nicht mehr – er kam bei jedem Statistik-Update und sagte nichts über die Uhrzeit.',
+        en: 'Activity pattern: for players of your own alliance, their syncs and the times they had the hub open now count too (only if they share their online status or syncs). Point gains no longer count – they came with every statistics update and said nothing about the time of day.',
+      },
+      {
+        kind: 'new',
         de: 'Aktivitätsmuster auf der Spielerseite: zeigt, wann ein Spieler über den Tag meist online ist – aus Spionagen, Kämpfen, Nachrichten, Flottenbewegungen, Punktezuwachs und Galaxie-Aktivität, wahlweise für die letzten 24 Stunden oder 7 Tage. Mit „Onlinezeit melden“ trägst du selbst ein, dass ein Spieler gerade (oder zu einer bestimmten Zeit) online war.',
         en: 'Activity pattern on the player page: shows when a player is usually online over the day – from espionage, battles, messages, fleet movements, point gains and galaxy activity, for the last 24 hours or 7 days. With “Report online time” you note yourself that a player is (or was at a certain time) online.',
       },
