@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="de" class="no-js">
+<head>
+  <title>Marktplatz - Universe 7 - pr0game</title>
+  <meta charset="utf-8">
+  <script type="text/javascript">
+    var ServerTimezoneOffset = 0;
+    var serverTimeDelta = new Date(2026, 9, 27, 21, 04, 11).getTime() - Date.now();
+    var queryString    = "page=marketPlace";
+  </script>
+</head>
+
+<body id="marketPlace" class="full">
+<div class="wrapper">
+    <menu>
+        <div class="fixed">
+            <ul id="menu">
+  <li><a href="game.php?page=overview">Übersicht</a></li>
+          <li><a href="game.php?page=marketPlace">Marktplatz</a></li>
+  <li><a href="game.php?page=statistics">Statistik</a></li>
+</ul>
+        </div>
+    </menu>
+
+    <content>
+<table style="width:80%">
+    <tr>
+        <th colspan="2">
+            Marktplatz
+        </th>
+    </tr>
+    <tr>
+                    <td colspan="2">
+                <button id="resourceMBtn" class="marketOption selected">Resource market</button>
+            </td>
+            </tr>
+    <tr>
+        <td>
+            Schiffstyp für den Handel wählen
+        </td>
+        <td>
+            <select id="shipT">
+                <option value="1">Kl. Transporter</option>
+                <option value="2" selected>Gr. Transporter</option>
+            </select>
+        </td>
+    </tr>
+</table>
+
+<table class="ratio-ref">
+    <tr class="ratio">
+        <td>Reference ratio:</td>
+        <td id="ratioBaselines" data-metal="4.055148796006" data-crystal="1.432835080190" data-deuterium="1.000000000000">
+            <div class="ratio-grid">
+                <input type="text" inputmode="decimal" name="ratio-metal" value="4,06" autocomplete="off"/>
+                <span>:</span>
+                <input type="text" inputmode="decimal" name="ratio-cristal" value="1,43" autocomplete="off"/>
+                <span>:</span>
+                <input type="text" inputmode="decimal" name="ratio-deuterium" value="1,00" autocomplete="off"/>
+                <button type="button" class="ratioBaseline" data-resource="metal">Metall</button>
+                <span>:</span>
+                <button type="button" class="ratioBaseline" data-resource="crystal">Kristall</button>
+                <span>:</span>
+                <button type="button" class="ratioBaseline selected" data-resource="deuterium">Deuterium</button>
+            </div>
+        </td>
+    </tr>
+</table>
+
+<div id="resourceMarketBox" style="display:none">
+<table id="tradeList" style="width:80%;white-space: nowrap;" class="tablesorter market-list">
+    <thead>
+        <tr>
+            <th>Menge</th>
+            <th class="market-res-type">Art des Angebots</th>
+            <th class="no-background no-border center">-></th>
+            <th>Menge</th>
+            <th class="market-res-type">Art der Kosten</th>
+            <th>Wechselkurs</th>
+            <th>Ende</th>
+            <th class="LC" style="display: none;">Flug nach</th>
+            <th class="HC">Flug nach</th>
+            <th>Kaufen</th>
+        </tr>
+    </thead>
+    <tbody>
+
+            <tr class='    '>
+        <td class="offered-resource-amount">1.000.000</td>
+        <td class="market-res-type offered-resource-2" data-resource-id="2">
+                        <img class="market-res-icon" src="./styles/theme/community/images/crystal.gif" alt=""/>
+                        Kristall
+        </td>
+        <td class="no-background no-border center">-></td>
+        <td class="wanted-resource-amount">650.000</td>
+        <td class="market-res-type wanted-resource-3" data-resource-id="3">
+                        <img class="market-res-icon" src="./styles/theme/community/images/deuterium.gif" alt=""/>
+                        Deuterium
+        </td>
+        <td class="ratio" data-offer-deut="697918" data-ask-deut="650000">1,07</td>
+        <td data-time="4610">01h  16m  50s</td>
+        <td class="LC" style="display: none;" data-seconds="9364">02:36:04</td>
+        <td class="HC" data-seconds="13122">03:38:42</td>
+        <td>
+                        <form class="market_form" action="game.php?page=marketPlace&amp;action=buy" method="post">
+                <input name="fleetID" value="16395715" type="hidden">
+                <input value="Handel annehmen!" type="button" class="market_buy_button">
+        <input type="submit" style="display: none">
+            </form>
+                    </td>
+    </tr>
+
+                <tr class='    '>
+        <td class="offered-resource-amount">1.200.000</td>
+        <td class="market-res-type offered-resource-2" data-resource-id="2">
+                        <img class="market-res-icon" src="./styles/theme/community/images/crystal.gif" alt=""/>
+                        Kristall
+        </td>
+        <td class="no-background no-border center">-></td>
+        <td class="wanted-resource-amount">780.000</td>
+        <td class="market-res-type wanted-resource-3" data-resource-id="3">
+                        <img class="market-res-icon" src="./styles/theme/community/images/deuterium.gif" alt=""/>
+                        Deuterium
+        </td>
+        <td class="ratio" data-offer-deut="837501" data-ask-deut="780000">1,07</td>
+        <td data-time="4727">01h  18m  47s</td>
+        <td class="LC" style="display: none;" data-seconds="9364">02:36:04</td>
+        <td class="HC" data-seconds="13122">03:38:42</td>
+        <td>
+                        <form class="market_form" action="game.php?page=marketPlace&amp;action=buy" method="post">
+                <input name="fleetID" value="16395717" type="hidden">
+                <input value="Handel annehmen!" type="button" class="market_buy_button">
+        <input type="submit" style="display: none">
+            </form>
+                    </td>
+    </tr>
+
+                <tr class='    '>
+        <td class="offered-resource-amount">350.000</td>
+        <td class="market-res-type offered-resource-2" data-resource-id="2">
+                        <img class="market-res-icon" src="./styles/theme/community/images/crystal.gif" alt=""/>
+                        Kristall
+        </td>
+        <td class="no-background no-border center">-></td>
+        <td class="wanted-resource-amount">999.000</td>
+        <td class="market-res-type wanted-resource-1" data-resource-id="1">
+                        <img class="market-res-icon" src="./styles/theme/community/images/metal.gif" alt=""/>
+                        Metall
+        </td>
+        <td class="ratio" data-offer-deut="244271" data-ask-deut="246354">0,99</td>
+        <td data-time="8973">02h  29m  33s</td>
+        <td class="LC" style="display: none;" data-seconds="4376">01:12:56</td>
+        <td class="HC" data-seconds="6130">01:42:10</td>
+        <td>
+                        <form class="market_form" action="game.php?page=marketPlace&amp;action=buy" method="post">
+                <input name="fleetID" value="16395236" type="hidden">
+                <input value="Handel annehmen!" type="button" class="market_buy_button">
+        <input type="submit" style="display: none">
+            </form>
+                    </td>
+    </tr>
+
+                <tr class='    '>
+        <td class="offered-resource-amount">350.000</td>
+        <td class="market-res-type offered-resource-2" data-resource-id="2">
+                        <img class="market-res-icon" src="./styles/theme/community/images/crystal.gif" alt=""/>
+                        Kristall
+        </td>
+        <td class="no-background no-border center">-></td>
+        <td class="wanted-resource-amount">999.000</td>
+        <td class="market-res-type wanted-resource-1" data-resource-id="1">
+                        <img class="market-res-icon" src="./styles/theme/community/images/metal.gif" alt=""/>
+                        Metall
+        </td>
+        <td class="ratio" data-offer-deut="244271" data-ask-deut="246354">0,99</td>
+        <td data-time="9002">02h  30m  02s</td>
+        <td class="LC" style="display: none;" data-seconds="4376">01:12:56</td>
+        <td class="HC" data-seconds="6130">01:42:10</td>
+        <td>
+                        <form class="market_form" action="game.php?page=marketPlace&amp;action=buy" method="post">
+                <input name="fleetID" value="16395238" type="hidden">
+                <input value="Handel annehmen!" type="button" class="market_buy_button">
+        <input type="submit" style="display: none">
+            </form>
+                    </td>
+    </tr>
+
+                <tr class='         trade-ally
+              '>
+        <td class="offered-resource-amount">1.430.000</td>
+        <td class="market-res-type offered-resource-2" data-resource-id="2">
+                        <img class="market-res-icon" src="./styles/theme/community/images/crystal.gif" alt=""/>
+                        Kristall
+        </td>
+        <td class="no-background no-border center">-></td>
+        <td class="wanted-resource-amount">1.000.000</td>
+        <td class="market-res-type wanted-resource-3" data-resource-id="3">
+                        <img class="market-res-icon" src="./styles/theme/community/images/deuterium.gif" alt=""/>
+                        Deuterium
+        </td>
+        <td class="ratio" data-offer-deut="998022" data-ask-deut="1000000">1,00</td>
+        <td data-time="72007">20h  00m  07s</td>
+        <td class="LC" style="display: none;" data-seconds="5134">01:25:34</td>
+        <td class="HC" data-seconds="7193">01:59:53</td>
+        <td>
+                        <form class="market_form" action="game.php?page=marketPlace&amp;action=buy" method="post">
+                <input name="fleetID" value="16395539" type="hidden">
+                <input value="Handel annehmen!" type="button" class="market_buy_button">
+        <input type="submit" style="display: none">
+            </form>
+                    </td>
+    </tr>
+
+            </tbody>
+</table>
+<hr>
+
+<table id="resourceHistoryList" style="width:80%;white-space: nowrap;" class="tablesorter market-list">
+    <thead>
+        <tr>
+            <th>Datum</th>
+            <th>Menge</th>
+            <th class="market-res-type">Art des Angebots</th>
+            <th class="no-background no-border center">-></th>
+            <th>Menge</th>
+            <th class="market-res-type">Art der Kosten</th>
+        </tr>
+    </thead>
+    <tbody>
+                <tr>
+            <td data-seconds="1793112911">27. Okt 2026, 15:55:11</td>
+            <td>2.000.000</td>
+            <td class="market-res-type" data-resource-id="2">
+                                <img class="market-res-icon" src="./styles/theme/community/images/crystal.gif" alt=""/>
+                                Kristall
+            </td>
+            <td class="no-background no-border center">-></td>
+            <td>1.300.000</td>
+            <td class="market-res-type" data-resource-id="3">
+                                <img class="market-res-icon" src="./styles/theme/community/images/deuterium.gif" alt=""/>
+                                Deuterium
+            </td>
+        </tr>
+                <tr>
+            <td data-seconds="1792997617">26. Okt 2026, 07:53:37</td>
+            <td>999.000</td>
+            <td class="market-res-type" data-resource-id="1">
+                                <img class="market-res-icon" src="./styles/theme/community/images/metal.gif" alt=""/>
+                                Metall
+            </td>
+            <td class="no-background no-border center">-></td>
+            <td>333.333</td>
+            <td class="market-res-type" data-resource-id="2">
+                                <img class="market-res-icon" src="./styles/theme/community/images/crystal.gif" alt=""/>
+                                Kristall
+            </td>
+        </tr>
+            </tbody>
+</table>
+
+</div>
+<div id="fleetMarketBox"  style="display:none">
+<table id="tradeFleetList" style="width:80%;white-space: nowrap;" class="tablesorter market-list">
+    <tbody>
+                                                </tbody>
+</table>
+</div>
+    </content>
+</div>
+</body>
+</html>

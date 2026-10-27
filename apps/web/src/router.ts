@@ -23,6 +23,7 @@ export const router = createRouter({
         { path: 'build', component: () => import('./views/BuildView.vue') },
         // older links (push notifications) to the buildings page
         { path: 'buildings', redirect: (to) => ({ path: `/${to.params.uni}/build`, query: { tab: 'buildings', ...to.query } }) },
+        { path: 'market', component: () => import('./views/MarketView.vue') },
         { path: 'stats', component: () => import('./views/StatsView.vue') },
         { path: 'browse', component: () => import('./views/UniverseBrowserView.vue') },
         { path: 'activity', component: () => import('./views/ActivityView.vue') },

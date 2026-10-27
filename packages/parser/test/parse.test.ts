@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { computeDeck, DEFAULT_DECK, isPhalanxText, localToEpoch, nearestClock, parseFleetsText, parsePage, phalanxPosition, type DeckEvent } from '../src/index.js';
+import { computeDeck, DEFAULT_DECK, estimateMarketRate, isPhalanxText, localToEpoch, nearestClock, parseFleetsText, parsePage, phalanxPosition, type DeckEvent } from '../src/index.js';
 import { isCombatSimulation, parseCombatReportText, parseRecycleReportsText } from '../src/combat.js';
 import { elementPoints, idByName, idByShortName, sectionPoints } from '../src/tech.js';
 
@@ -905,5 +905,52 @@ describe('pirate language (SetSail theme)', () => {
     expect(idByName('Deuterium Power Plant')).toBe(12);
     expect(idByName('Fusion Power Plant')).toBe(12);
     expect(idByShortName('Fregatte')).toBe(215);
+  });
+});
+
+describe('marketplace', () => {
+  const offer = (give: 'm' | 'k' | 'd', giveAmount: number, want: 'm' | 'k' | 'd', wantAmount: number) => ({ give: { res: give, amount: giveAmount }, want: { res: want, amount: wantAmount } });
+
+  it('reads the exact reference rate and the offers from the page source', () => {
+    const res = parsePage({ html: fixture('marketplace-real-source.html') });
+    expect(res.pageType).toBe('marketplace');
+    expect(res.source).toBe('html');
+    const rec = res.records[0];
+    if (rec.kind !== 'marketplace') throw new Error('expected marketplace');
+    expect(rec.rate).toEqual({ m: 4.055148796006, k: 1.43283508019, exact: true });
+    expect(rec.pageTime).toBe('2026-10-27 21:04:11');
+    expect(rec.offers).toHaveLength(5);
+    expect(rec.offers[0]).toMatchObject({ id: 16395715, ...offer('k', 1_000_000, 'd', 650_000), endsIn: 4610, ally: false });
+    expect(rec.offers[0].ratio).toBeCloseTo(697918 / 650000, 6);
+    expect(rec.offers[2]).toMatchObject({ id: 16395236, ...offer('k', 350_000, 'm', 999_000), endsIn: 8973 });
+    expect(rec.offers[4]).toMatchObject({ id: 16395539, ...offer('k', 1_430_000, 'd', 1_000_000), endsIn: 72007, ally: true });
+  });
+
+  it('detects the page source pasted as text', () => {
+    const res = parsePage({ text: fixture('marketplace-real-source.html') });
+    expect(res.pageType).toBe('marketplace');
+    expect(res.source).toBe('html');
+  });
+
+  it('reads the offers of a text copy and estimates the rate from their exchange rates', () => {
+    const res = parsePage({ text: fixture('marketplace-de.txt') });
+    expect(res.pageType).toBe('marketplace');
+    expect(res.source).toBe('text');
+    const rec = res.records[0];
+    if (rec.kind !== 'marketplace') throw new Error('expected marketplace');
+    expect(rec.offers).toHaveLength(5);
+    expect(rec.offers[0]).toEqual({ id: null, ...offer('k', 1_000_000, 'd', 650_000), ratio: 1.07, endsIn: 4411, ally: false });
+    expect(rec.offers[4]).toMatchObject({ ...offer('k', 1_430_000, 'd', 1_000_000), ratio: 1, endsIn: 19 * 3600 + 56 * 60 + 48 });
+    expect(rec.rate?.exact).toBe(false);
+    expect(Math.abs(rec.rate!.m! / 4.055148796006 - 1)).toBeLessThan(0.01);
+    expect(Math.abs(rec.rate!.k! / 1.43283508019 - 1)).toBeLessThan(0.01);
+  });
+
+  it('leaves a resource unknown that no offer ties to deuterium', () => {
+    const rate = estimateMarketRate([{ id: null, ...offer('k', 1_000_000, 'd', 650_000), ratio: 1.07, endsIn: 60, ally: false }]);
+    expect(rate?.m).toBeNull();
+    expect(rate?.k).toBeCloseTo(1_000_000 / (1.07 * 650_000), 6);
+    expect(estimateMarketRate([{ id: null, ...offer('k', 350_000, 'm', 999_000), ratio: 0.99, endsIn: 60, ally: false }])).toBeNull();
+    expect(estimateMarketRate([])).toBeNull();
   });
 });

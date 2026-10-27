@@ -131,10 +131,10 @@ export function reparse(db: DB, rawId: number, timezone: string): IngestSummary 
     (db.prepare("SELECT user_id FROM group_members WHERE group_id = ? ORDER BY role = 'admin' DESC, joined_at LIMIT 1").pluck().get(row.group_id) as number | undefined);
   if (!userId) throw new Error('group has no members');
   const store = new Store(db, { groupId: row.group_id, userId, timezone }, summary);
-  // player messages are private: never attributed to someone else; a galaxy view was seen when it was synced
+  // player messages are private: never attributed to someone else; a galaxy view or marketplace was seen when it was synced
   const records = parsed.records
     .filter((r) => r.kind !== 'playerMessage' || row.user_id)
-    .map((r) => (r.kind === 'galaxy' ? { ...r, seenAt: r.seenAt ?? row.created_at } : r));
+    .map((r) => (r.kind === 'galaxy' || r.kind === 'marketplace' ? { ...r, seenAt: r.seenAt ?? row.created_at } : r));
   db.transaction(() => records.forEach((r) => store.record(r)))();
   events.publishIngest(row.group_id, undefined, publicCounts(db, userId, summary.counts), null);
   return summary;
@@ -293,6 +293,9 @@ export function aboutRecords(records: HubRecord[]): About[] {
       case 'fleets':
         add(...r.fleets.filter((f) => f.owner === 'own').map((f) => c(f.from.coords)));
         break;
+      case 'marketplace':
+        add(`${r.offers.length} offers`);
+        break;
     }
   }
   return [...kinds.values()];
@@ -328,6 +331,8 @@ function describe(r: HubRecord): PreviewItem {
       return { kind: r.kind, names: r.fleets.map((f) => f.name).join(', ') };
     case 'battleHall':
       return { kind: r.kind, entries: r.entries.length };
+    case 'marketplace':
+      return { kind: r.kind, offers: r.offers.length, m: r.rate?.m ?? null, k: r.rate?.k ?? null, exact: r.rate?.exact ?? false };
     case 'recycle':
       return { kind: r.kind, coords: c(r.coords), amount: r.metal + r.crystal };
     case 'fleetReturn':

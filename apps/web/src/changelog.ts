@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Marktplatz: Kopiere die Marktplatz-Seite aus dem Spiel und füge sie unter Synchronisieren ein. Der Hub merkt sich den Marktkurs (genau aus dem Seitenquelltext, sonst geschätzt) und zeigt ihn mit den offenen Angeboten auf der neuen Seite „Marktplatz“, wo du ihn auch von Hand setzen kannst. Neue Angebote erscheinen im Aktivitätslog, und in der Beute-Abrechnung übernimmst du den Marktkurs mit einem Klick auf „Marktkurs“.',
+        en: 'Marketplace: copy the marketplace page in the game and paste it under Sync. The hub keeps the market rate (exact from the page source, otherwise estimated) and shows it with the open offers on the new "Marketplace" page, where you can also set it by hand. New offers show up in the activity log, and in the loot settlement the “Market rate” button takes it over with one click.',
+      },
+      {
+        kind: 'new',
         de: 'Standard-Universum: Admins können ein Universum festlegen, in dem man direkt landet, wenn man den Hub öffnet. Die Universenliste erreichst du weiterhin über das Menü „Universen“.',
         en: 'Default universe: admins can pick a universe you land in directly when opening the hub. The universe list is still available from the “Universes” menu.',
       },

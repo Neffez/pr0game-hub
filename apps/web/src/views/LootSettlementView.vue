@@ -15,7 +15,7 @@ import { uniApi } from '../api';
 import CommentThread from '../components/CommentThread.vue';
 import Hint from '../components/Hint.vue';
 import { useMobile, useUni, vStack } from '../composables';
-import { abbr, coords, dateTime, fmt, lootCalcLink, name, short } from '../format';
+import { abbr, coords, dateTime, fmt, lootCalcLink, name, rateText, short } from '../format';
 import { tables, useLiveReload } from '../live';
 
 /** Where the hub took a value of the draft from (server `DraftSources`). */
@@ -51,6 +51,15 @@ const route = useRoute();
 const { uni, ctx } = useUni();
 const data = ref<Response | null>(null);
 const state = ref<LootState | null>(null);
+
+/** The group's market rate (marketplace sync or set by hand) as the settlement's rates, also as the reference. */
+const market = computed(() => ctx.value?.marketRate ?? null);
+function takeMarketRate() {
+  if (!state.value || !market.value) return;
+  const round = (v: number) => Math.round(v * 100) / 100;
+  state.value.settings.rates = { m: round(market.value.m), k: round(market.value.k), d: 1 };
+  state.value.settings.refRates ??= { m: market.value.m, k: market.value.k, d: 1 };
+}
 const dirty = ref(false);
 const error = ref('');
 const busy = ref(false);
@@ -304,6 +313,13 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
               <span class="lbl">{{ t('loot.rates') }}</span>
               <label>{{ name(901) }} <input v-model.number="state.settings.rates.m" type="number" step="0.1" min="0.1" /></label>
               <label>{{ name(902) }} <input v-model.number="state.settings.rates.k" type="number" step="0.1" min="0.1" /></label>
+              <button
+                v-if="market" type="button" class="small"
+                :title="t('loot.marketRateHint', { rate: rateText(market.m, market.k), time: dateTime(market.time) }) + (market.source === 'text' ? ` (${t('market.estimated')})` : '')"
+                @click="takeMarketRate"
+              >
+                {{ t('loot.marketRate') }}
+              </button>
             </div>
             <label class="row">
               <span class="lbl">{{ t('loot.deficit') }} <Hint>{{ t('loot.deficitHint') }}</Hint></span>

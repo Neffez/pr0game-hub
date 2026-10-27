@@ -4,7 +4,7 @@ import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
 import { useUni } from '../composables';
-import { cardLabel, DEPLETION_LABEL, fmt, STATS_CATEGORIES } from '../format';
+import { cardLabel, DEPLETION_LABEL, fmt, rateText, STATS_CATEGORIES } from '../format';
 
 interface Summary {
   pageType: string;
@@ -65,6 +65,11 @@ function previewText(p: Summary['preview'][number]) {
       return t('paste.preview.recycle', { coords: p.coords, amount: fmt(p.amount) });
     case 'fleetReturn':
       return t('paste.preview.fleetReturn', { coords: p.coords, amount: fmt(p.amount) });
+    case 'marketplace':
+      return (
+        t('paste.preview.marketplace', { offers: p.offers, rate: p.m != null || p.k != null ? rateText(p.m as number | null, p.k as number | null) : unknown }) +
+        (p.exact || (p.m == null && p.k == null) ? '' : ` (${t('market.estimated')})`)
+      );
   }
   return te(`paste.preview.${p.kind}`) ? t(`paste.preview.${p.kind}`, p) : JSON.stringify(p);
 }

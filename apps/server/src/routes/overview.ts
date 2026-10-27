@@ -5,6 +5,7 @@ import type { GroupContext } from '../context.js';
 import { now, type DB } from '../db.js';
 import { scoreEntry, SLOT, SLOT_TOLERANCE, SLOTS, statSlots, TOLERANCE, TYPES, WINDOWS, type ScoreRow } from '../domain/stats.js';
 import { latestEmpire, latestEmpires } from '../repo/empire.js';
+import { latestMarketRate } from '../repo/market.js';
 import { sharedFleets } from '../repo/fleets.js';
 import { memberPlayer, memberPlayers } from '../repo/members.js';
 import { latestScores } from '../repo/stats.js';
@@ -30,6 +31,7 @@ export function overviewRoutes(app: FastifyInstance, db: DB) {
       universe: ctx.universe,
       group: { id: ctx.groupId, name: ctx.groupName, role: ctx.role },
       toolsUrl: config.toolsUrl,
+      marketRate: latestMarketRate(db, ctx.groupId),
       members,
       me: ctx.user,
       player: playerId ? { id: playerId, points: latestScores(db, ctx.groupId, [playerId], [1]).get(playerId)?.[1]?.points ?? null } : null,

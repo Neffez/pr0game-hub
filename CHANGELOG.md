@@ -4,6 +4,21 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-27
 
+- Marketplace sync: the hub reads pr0game's marketplace page (copied page or page source) and keeps the alliance's
+  market rate and the open resource offers.
+  - Rate (metal and crystal per 1 deuterium): exact from the page source (`#ratioBaselines`); from a copied page it is
+    estimated by least squares over the offers' rounded exchange rates (`estimateMarketRate` in `@pr0hub/core`). An
+    estimate is not kept when an exact rate lies within an hour of it, and an exact rate removes the estimates around
+    it.
+  - Offers are recognised again by the game's offer id, a copied page by resources, amounts and end (within 90 s, one to
+    one); each new offer is logged once in the activity log (kind `market_offer`).
+  - New page "Marketplace" (below Build & Research): current rate with source, time and member, a history of the last
+    rates, setting the rate by hand, and the open offers of the latest sync with their exchange rate at the current
+    rate and countdowns.
+  - The loot settlement gets a "Market rate" button next to its rates, and its draft takes the market rate as the
+    reference rate (the existing 75–125 % warning); links to the battle simulator carry it as `rm`/`rk`.
+  - Migration 065 (`market_rates`, `market_offers`, `market_syncs`); `GET /api/{uni}/market`, `PUT
+    /api/{uni}/market/rate`, `marketRate` in `/api/{uni}/context`.
 - Hub: admins can mark a universe as the default universe (universe settings in the admin panel). Opening `/hub/` then
   forwards members straight to it; the universe list stays at `/hub/?list` (menu item Universes). Without a default
   universe the list is shown as before. Stored as `universes.is_default` (migration 064), delivered as `defaultUniverse`

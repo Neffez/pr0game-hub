@@ -15,6 +15,7 @@ import {
   type GalaxyRecord,
   type HostileSpyRecord,
   type HubRecord,
+  type MarketplaceRecord,
   type OverviewRecord,
   type PlayerMessageRecord,
   type RecycleRecord,
@@ -88,6 +89,8 @@ export class Store {
         return this.battleHall(r);
       case 'combatReport':
         return this.combatReport(r);
+      case 'marketplace':
+        return this.marketplace(r);
     }
   }
 
@@ -576,6 +579,78 @@ export class Store {
       );
       this.count('battle_hall', res.changes > 0);
     }
+  }
+
+  /**
+   * Marketplace: the rate (an estimate from a text copy and an exact rate within an hour of each other: the exact one
+   * wins; a resource the estimate can't tell keeps the current value) and the open offers. Offers are recognised by the game's id, else (text copy) by
+   * resources, amounts and end within 90 s, one to one; a new one is logged as activity.
+   */
+  private marketplace(r: MarketplaceRecord) {
+    const db = this.db;
+    const g = this.t.groupId;
+    const seen = this.epoch(r.pageTime) ?? r.seenAt ?? now();
+    if (r.rate) {
+      const source = r.rate.exact ? 'source' : 'text';
+      const latest = db.prepare('SELECT metal, crystal FROM market_rates WHERE group_id = ? ORDER BY time DESC, id DESC LIMIT 1').get(g) as
+        | { metal: number; crystal: number }
+        | undefined;
+      const m = r.rate.m ?? latest?.metal;
+      const k = r.rate.k ?? latest?.crystal;
+      const exactNear =
+        !r.rate.exact &&
+        db.prepare("SELECT 1 FROM market_rates WHERE group_id = ? AND source <> 'text' AND ABS(time - ?) < 3600").get(g, seen);
+      const known = db.prepare('SELECT 1 FROM market_rates WHERE group_id = ? AND time = ? AND source = ?').get(g, seen, source);
+      const isNew = !!m && !!k && !exactNear && !known;
+      if (isNew) {
+        db.prepare('INSERT INTO market_rates (group_id, time, metal, crystal, source, user_id) VALUES (?, ?, ?, ?, ?, ?)').run(g, seen, m, k, source, this.t.userId);
+        // the exact rate replaces the estimates around it
+        if (r.rate.exact) db.prepare("DELETE FROM market_rates WHERE group_id = ? AND source = 'text' AND ABS(time - ?) < 3600").run(g, seen);
+      }
+      this.count('market_rates', isNew);
+    }
+
+    type Row = { id: number; offer_id: number | null; give_res: string; give_amount: number; want_res: string; want_amount: number; ends_at: number };
+    const open = db.prepare('SELECT id, offer_id, give_res, give_amount, want_res, want_amount, ends_at FROM market_offers WHERE group_id = ? AND ends_at > ?').all(g, seen - 300) as Row[];
+    const claimed = new Set<number>();
+    const update = db.prepare(
+      `UPDATE market_offers SET last_seen = MAX(last_seen, ?), offer_id = COALESCE(offer_id, ?), ratio = COALESCE(?, ratio), ally = MAX(ally, ?) WHERE id = ?`,
+    );
+    const insert = db.prepare(
+      `INSERT INTO market_offers (group_id, offer_id, give_res, give_amount, want_res, want_amount, ratio, ally, ends_at, first_seen, last_seen)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    );
+    for (const o of r.offers) {
+      const endsAt = seen + o.endsIn;
+      let match = o.id != null ? open.find((x) => x.offer_id === o.id) : undefined;
+      if (!match) {
+        let best = 91;
+        for (const x of open) {
+          const d = Math.abs(x.ends_at - endsAt);
+          if (claimed.has(x.id) || (o.id != null && x.offer_id != null) || d >= best) continue;
+          if (x.give_res !== o.give.res || x.give_amount !== o.give.amount || x.want_res !== o.want.res || x.want_amount !== o.want.amount) continue;
+          match = x;
+          best = d;
+        }
+      }
+      if (match) {
+        claimed.add(match.id);
+        update.run(seen, o.id, o.ratio, o.ally ? 1 : 0, match.id);
+        this.count('market_offers', false);
+        continue;
+      }
+      const id = Number(
+        insert.run(g, o.id, o.give.res, o.give.amount, o.want.res, o.want.amount, o.ratio, o.ally ? 1 : 0, endsAt, seen, seen).lastInsertRowid,
+      );
+      claimed.add(id);
+      this.log('market_offer', seen, null, null, null, { give: o.give, want: o.want, ratio: o.ratio, endsAt, ally: o.ally }, `market_offer:${id}`);
+      this.count('market_offers', true);
+    }
+    db.prepare('DELETE FROM market_offers WHERE group_id = ? AND ends_at < ?').run(g, seen - 7 * 86400);
+    db.prepare(
+      `INSERT INTO market_syncs (group_id, seen_at, user_id) VALUES (?, ?, ?)
+       ON CONFLICT (group_id) DO UPDATE SET seen_at = excluded.seen_at, user_id = excluded.user_id WHERE excluded.seen_at >= market_syncs.seen_at`,
+    ).run(g, seen, this.t.syncedBy ?? this.t.userId);
   }
 
   /**

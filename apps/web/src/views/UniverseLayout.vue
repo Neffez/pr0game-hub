@@ -12,7 +12,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { selectGroup, selectedGroup, session, uniApi } from '../api';
 import { provideUni, useLoader, useScrollLock, type UniContext } from '../composables';
 import { clearClaims, loadClaims } from '../claims';
-import { setToolsUrl, toolsIndexUrl } from '../format';
+import { setMarketRate, setToolsUrl, toolsIndexUrl } from '../format';
 import { clearCommentCounts, loadCommentCounts } from '../comments';
 import { attacks, clearNotifications, loadNotifications } from '../notifications';
 import { planCounts, type AttackPlan } from '../plans';
@@ -34,6 +34,7 @@ const toolsUrl = computed(() => {
 });
 // set before the children render their tool links (they only render once the context is there)
 watch(ctx, (c) => setToolsUrl(c?.toolsUrl), { flush: 'sync' });
+watch(() => ctx.value?.marketRate, setMarketRate, { flush: 'sync', immediate: true });
 
 function load() {
   // a link with the group (push notification) opens that alliance
@@ -78,7 +79,7 @@ const planCount = computed(() => planCounts(plans.value, minute.value));
 useLiveReload(loadPlans, tables('attack_plans', 'fleets'), 300);
 onBeforeUnmount(stopLive);
 // own research and planets for flight times come from the own empire page, the own points (noob protection) from the statistics
-useLiveReload(fetchContext, (e) => (tables('empire')(e) && e.userId === ctx.value?.me.id) || tables('group_members', 'player_scores')(e));
+useLiveReload(fetchContext, (e) => (tables('empire')(e) && e.userId === ctx.value?.me.id) || tables('group_members', 'player_scores', 'market_rates')(e));
 
 function changeGroup() {
   navOpen.value = false;
@@ -105,6 +106,7 @@ const links = [
   { to: 'stats', label: 'stats', icon: 'stats' },
   { to: 'imperium', label: 'imperium', icon: 'imperium' },
   { to: 'build', label: 'build', icon: 'buildings' },
+  { to: 'market', label: 'market', icon: 'market' },
   { section: 'recon' },
   { to: 'browse', label: 'galaxy', icon: 'galaxy' },
   { to: 'spy', label: 'spy', icon: 'spy' },

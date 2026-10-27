@@ -1,0 +1,53 @@
+Imperator
+Spieler
+Übersicht
+	
+	
+Metall
+2.051.925
+50.000
+Kristall
+10.737.580
+50.000
+Deuterium
+2.467.362
+50.000
+Energie
+0 / 0
+	
+
+    Übersicht
+    Imperium
+    Gebäude
+    Marktplatz
+    Allianz
+    Logout
+
+Marktplatz
+Resource market
+
+Linke Seite - Martplatzangebot | Rechte Seite - Kaufbetrag
+
+• Angenommene Marktplatzangebote können nicht storniert werden. •
+• Manche Angebote können wegen der Push-Regel nicht angenommen werden. •
+• Deut für gekaufte Flotte wird vom Käufer bezahlt.•
+Schiffstyp für den Handel wählen		
+Reference ratio:		
+: :
+Metall
+:
+Kristall
+:
+Deuterium
+
+
+Menge	Art des Angebots	->	Menge	Art der Kosten	Wechselkurs	Ende	Flug nach	Kaufen
+1.000.000	Kristall	->	650.000	Deuterium	1,07	01h 13m 31s	03:38:42	
+1.200.000	Kristall	->	780.000	Deuterium	1,07	01h 15m 28s	03:38:42	
+350.000	Kristall	->	999.000	Metall	0,99	02h 26m 14s	01:42:10	
+350.000	Kristall	->	999.000	Metall	0,99	02h 26m 43s	01:42:10	
+1.430.000	Kristall	->	1.000.000	Deuterium	1,00	19h 56m 48s	01:59:53	
+Datum	Menge	Art des Angebots	->	Menge	Art der Kosten
+27. Okt 2026, 15:55:11	2.000.000	Kristall	->	1.300.000	Deuterium
+27. Okt 2026, 10:17:53	500.000	Deuterium	->	599.000	Kristall
+26. Okt 2026, 07:53:37	999.000	Metall	->	333.333	Kristall

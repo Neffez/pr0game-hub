@@ -220,6 +220,15 @@ export function setToolsUrl(url: string | undefined | null): void {
 }
 const FLIGHT_CALCULATOR_URL = () => `${toolsBase}flight-calculator/`;
 
+/** The group's market rate (metal and crystal per deuterium) for the value in deuterium of tool links; null: the tools' default. */
+let marketRate: { m: number; k: number } | null = null;
+export function setMarketRate(rate: { m: number; k: number } | null | undefined): void {
+  marketRate = rate ? { m: rate.m, k: rate.k } : null;
+}
+
+/** Market rate as "metal : crystal : deuterium" (per 1 deuterium). */
+export const rateText = (m: number | null | undefined, k: number | null | undefined) => `${fmt(m, 2)} : ${fmt(k, 2)} : ${fmt(1, 2)}`;
+
 /**
  * Link into the flight calculator: start/target, drive research and the universe layout are
  * passed via its share-link hash (sg/ss/sp, tg/ts/tp, c/i/h/fe/ex, mg/ms/…); `extra` adds further keys of the
@@ -345,7 +354,7 @@ const pick = (values: Record<string, number>, keep: (id: number) => boolean) =>
 /**
  * Link into the battle simulator (pr0game-tools) with the same fleets as `simLinks`: the attackers with research,
  * start and speed, the planet from a spy report's values (ships, defense, combat research, resources) and the fleets
- * holding there; the universe's debris percentages, shield domes setting, layout and fleet speed go along (keys see `encodeShare` in
+ * holding there; the universe's debris percentages, shield domes setting, layout and fleet speed and the group's market rate go along (keys see `encodeShare` in
  * @pr0hub/battle). Fleets carry their member or player name, the planet the name of its player (`planetName`).
  */
 export function battleSimLink(
@@ -363,6 +372,10 @@ export function battleSimLink(
   if (s.fleetDebrisPercent != null) uni.fd = s.fleetDebrisPercent;
   if (s.defenseDebrisPercent != null) uni.dd = s.defenseDebrisPercent;
   if (s.bigShields != null) uni.bs = s.bigShields ? 1 : 0;
+  if (marketRate) {
+    uni.rm = Math.round(marketRate.m * 1000) / 1000;
+    uni.rk = Math.round(marketRate.k * 1000) / 1000;
+  }
   const hash = encodeBattleShare({
     attackers: attackers.map((a) => ({ units: units(a.ships), research: research(a.research), from: a.from ?? null, speed: a.speed ?? 100, name: a.name })),
     defenders: [

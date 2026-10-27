@@ -7,6 +7,7 @@ import { isMessagesHtml, parseMessagesHtml, parseMessagesText } from './parsers/
 import { isFleetsText, isPhalanxText, parseFleetsHtml, parseFleetsText } from './parsers/fleets.js';
 import { isOverviewHtml, isOverviewText, parseOverviewHtml, parseOverviewText } from './parsers/overview.js';
 import { isBattleHallHtml, parseBattleHallHtml } from './parsers/battleHall.js';
+import { isMarketplaceHtml, isMarketplaceText, parseMarketplaceHtml, parseMarketplaceText } from './parsers/marketplace.js';
 import { isCombatReportText, isCombatSimulation, parseCombatReportText } from './parsers/combatReport.js';
 import { isStatsText, parseStatsHtml, parseStatsText } from './parsers/stats.js';
 import type { HubRecord, PageType, ParseResult, StatsType } from './types.js';
@@ -19,6 +20,7 @@ export * from './buildings.js';
 export * from './deck.js';
 export { looksLikeUniverseJson, UNIVERSE_JSON_STATUS } from './parsers/universeJson.js';
 export { isPhalanxText, parseFleetsText, phalanxPosition } from './parsers/fleets.js';
+export { estimateMarketRate } from './parsers/marketplace.js';
 
 export interface ParseInput {
   /** text/html from the clipboard, a saved page or the page source */
@@ -98,6 +100,9 @@ function parseHtml($: cheerio.CheerioAPI, htmlText: string, input: ParseInput, w
   if (page === 'battlehall' || isBattleHallHtml($)) {
     return { pageType: 'battleHall', records: [parseBattleHallHtml($)] };
   }
+  if (page === 'marketplace' || isMarketplaceHtml($)) {
+    return { pageType: 'marketplace', records: [parseMarketplaceHtml($)] };
+  }
   if (page === 'research' || isResearchHtml($)) {
     const r = parseResearchHtml($);
     if (r) return { pageType: 'research', records: [r] };
@@ -156,6 +161,9 @@ function parseText(text: string, input: ParseInput, warnings: string[]): { pageT
       return { pageType: 'combatReport', records: [] };
     }
     if (r) return { pageType: 'combatReport', records: [r] };
+  }
+  if (isMarketplaceText(text)) {
+    return { pageType: 'marketplace', records: [parseMarketplaceText(text)] };
   }
   if (isStatsText(text)) {
     const r = parseStatsText(text);

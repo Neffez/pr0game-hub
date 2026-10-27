@@ -2,11 +2,22 @@ import { computed, inject, nextTick, onBeforeUnmount, provide, ref, watch, type 
 import { useRoute, useRouter } from 'vue-router';
 import { protectionStatus, type UniverseSettings } from './format';
 
+export interface MarketRate {
+  m: number;
+  k: number;
+  /** source: page source (exact), text: estimated from a text copy, manual: set by hand */
+  source: 'source' | 'text' | 'manual';
+  time: number;
+  by: string | null;
+}
+
 export interface UniContext {
   universe: { id: number; slug: string; name: string; settings: UniverseSettings; deck: { type: string; size: string; count: number }[] };
   group: { id: number; name: string; role: string };
   /** base URL of the pr0game tools (server setting `TOOLS_URL`) */
   toolsUrl?: string;
+  /** the group's market rate (metal and crystal per 1 deuterium), newest synced or set by hand */
+  marketRate?: MarketRate | null;
   /** name = in-game name, falls back to the hub username; global_admin = hub admin (1/0) */
   members: { id: number; username: string; name: string; role: string; global_admin: number; ingame_name: string | null; last_seen_at: number | null }[];
   me: { id: number; username: string; isAdmin: boolean };

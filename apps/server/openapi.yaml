@@ -64,6 +64,15 @@ components:
       schema: { type: integer }
       description: Attack plan id
   schemas:
+    MarketRate:
+      type: object
+      description: Market rate as metal (`m`) and crystal (`k`) per 1 deuterium
+      properties:
+        m: { type: number }
+        k: { type: number }
+        source: { type: string, enum: [source, text, manual], description: 'Page source (exact), estimated from a copied page, or set by hand' }
+        time: { type: integer, description: Epoch seconds (game time of the page, or when it was set) }
+        by: { type: [string, 'null'], description: Member who synced or set it }
     LootState:
       type: object
       description: >-
@@ -645,6 +654,13 @@ components:
           description: >-
             Base URL of the pr0game tools with trailing slash (server setting `TOOLS_URL`, default the root of the hub's
             origin); the hub links the tool pages (flight calculator, battle simulator, …) below it.
+        marketRate:
+          description: >-
+            The group's current market rate (newest from a marketplace sync or set by hand, see `getMarket`); null when
+            none is known. The hub uses it for the loot settlement and links to the battle simulator.
+          oneOf:
+            - { $ref: '#/components/schemas/MarketRate' }
+            - { type: 'null' }
         members: { type: array, items: { type: object } }
         me: { $ref: '#/components/schemas/User' }
         player:
@@ -1764,6 +1780,82 @@ paths:
                 properties:
                   alerts: { type: array, items: { $ref: '#/components/schemas/BuildingAlert' } }
         '404': { description: 'Not an alert of the caller (`alert_not_found`)' }
+  /api/{uni}/market:
+    get:
+      tags: [Universe]
+      operationId: getMarket
+      description: >-
+        The group's resource market: the current market rate (`rate`, null when none is known), the last 30 rates
+        (`rates`, newest first), time and member of the latest marketplace sync (`syncedAt`, `syncedBy`, null before the
+        first one) and the offers it showed that haven't ended yet (`offers`, by end). Rates come from pasted marketplace
+        pages (`source`: exact from the page source; `text`: estimated from the exchange rates of a copied page, not
+        kept when an exact rate is within an hour) or are set by hand (`manual`).
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rate:
+                    oneOf:
+                      - { $ref: '#/components/schemas/MarketRate' }
+                      - { type: 'null' }
+                  rates: { type: array, items: { $ref: '#/components/schemas/MarketRate' } }
+                  syncedAt: { type: [integer, 'null'], description: Epoch seconds (game time of the page) }
+                  syncedBy: { type: [string, 'null'] }
+                  offers:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: integer }
+                        offerId: { type: [integer, 'null'], description: The game's offer id (page source only) }
+                        give:
+                          type: object
+                          description: Offered resource (`m`, `k`, `d`) and amount
+                          properties:
+                            res: { type: string, enum: [m, k, d] }
+                            amount: { type: integer }
+                        want:
+                          type: object
+                          description: Asked resource and amount
+                          properties:
+                            res: { type: string, enum: [m, k, d] }
+                            amount: { type: integer }
+                        ratio: { type: [number, 'null'], description: Exchange rate the game showed (offered / asked value in deuterium) }
+                        ally: { type: boolean, description: Offered by a member of the own alliance }
+                        endsAt: { type: integer }
+                        firstSeen: { type: integer }
+  /api/{uni}/market/rate:
+    put:
+      tags: [Universe]
+      operationId: setMarketRate
+      description: Sets the group's market rate by hand (metal `m` and crystal `k` per 1 deuterium); it becomes the current rate.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [m, k]
+              properties:
+                m: { type: number, exclusiveMinimum: 0, maximum: 100 }
+                k: { type: number, exclusiveMinimum: 0, maximum: 100 }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/MarketRate' }
+        '400': { description: 'm or k missing, not above 0 or above 100 (`rate_invalid`)' }
   /api/{uni}/alliance:
     get:
       tags: [Universe]
@@ -1962,6 +2054,10 @@ paths:
           schema: { type: integer }
         - name: kinds
           in: query
+          description: >-
+            Comma-separated kinds: `phalanx_new`, `phalanx_up`, `planet_new`, `moon_new`, `debris_new`, `debris_grown`,
+            `debris_shrunk`, `debris_cleared`, `points_loss`, `fleet_loss`, `no_growth`, `market_offer` (a new offer of a
+            synced marketplace; `data` has `give`, `want`, `ratio`, `endsAt`, `ally`)
           schema: { type: string }
       responses:
         '200':

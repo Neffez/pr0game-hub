@@ -46,6 +46,7 @@ const KINDS: { kind: string; icon: string; color: string }[] = [
   { kind: 'points_loss', icon: 'rankDown', color: 'var(--neg)' },
   { kind: 'fleet_loss', icon: 'rankDown', color: 'var(--neg)' },
   { kind: 'no_growth', icon: 'pause', color: 'var(--muted)' },
+  { kind: 'market_offer', icon: 'market', color: 'var(--info)' },
 ];
 const META = Object.fromEntries(KINDS.map((k) => [k.kind, k]));
 
@@ -60,7 +61,7 @@ const { data, error, load } = useLoader(() =>
   uniApi<{ counts: Record<string, number>; entries: Entry[] }>(uni.value, `/activity?from=${Math.floor(Date.now() / 1000) - days.value * 86400}`),
 );
 onMounted(load);
-useLiveReload(load, tables('activity_log', 'player_scores', 'spy_reports', 'galaxy_systems'));
+useLiveReload(load, tables('activity_log', 'player_scores', 'spy_reports', 'galaxy_systems', 'market_offers'));
 watch(days, load);
 
 function toggle(kind: string) {
@@ -86,6 +87,7 @@ const days_ = computed(() => {
 const time = (epoch: number) => new Date(epoch * 1000).toLocaleTimeString(intlLocale(), { hour: '2-digit', hourCycle: 'h23', minute: '2-digit' });
 const browse = (e: Entry) => ({ path: `/${uni.value}/browse`, query: { g: e.g, s: e.s } });
 
+const MARKET_RES: Record<string, number> = { m: 901, k: 902, d: 903 };
 const res = (d: Record<string, any>) => `${name(901)} ${short(d.metal)} · ${name(902)} ${short(d.crystal)}`;
 
 function text(e: Entry) {
@@ -119,6 +121,15 @@ function text(e: Entry) {
       return t('activity.text.fleetLoss', { delta: fmtSigned(d.delta), before: short(d.before), points: short(d.points) });
     case 'no_growth':
       return t('activity.text.noGrowth', { hours: d.hours, points: fmt(d.points), since: dateTime(d.since) });
+    case 'market_offer':
+      return (
+        t('activity.text.marketOffer', {
+          give: `${fmt(d.give.amount)} ${name(MARKET_RES[d.give.res])}`,
+          want: `${fmt(d.want.amount)} ${name(MARKET_RES[d.want.res])}`,
+          ratio: fmt(d.ratio, 2),
+          end: dateTime(d.endsAt),
+        }) + (d.ally ? ` · ${t('market.ally')}` : '')
+      );
   }
   return e.kind;
 }
@@ -135,6 +146,7 @@ function text(e: Entry) {
           <b>{{ t('activity.hintDebris') }}</b> {{ t('activity.hintDebrisText') }}
           <b>{{ t('activity.hintPoints') }}</b> {{ t('activity.hintPointsText') }}
           <b>{{ t('activity.hintNoGrowth') }}</b> {{ t('activity.hintNoGrowthText') }}
+          <b>{{ t('activity.hintMarket') }}</b> {{ t('activity.hintMarketText') }}
         </p>
         <p>{{ t('activity.hintFilter') }}</p>
       </Hint>
@@ -188,6 +200,7 @@ function text(e: Entry) {
         <RouterLink v-if="e.g" class="mono small" :to="browse(e)" :title="t('activity.showInBrowser')">
           <Icon v-if="e.planet_type === 'moon'" name="moon" :size="12" :label="t('common.moon')" /> {{ coords(e.g, e.s!, e.p!) }}
         </RouterLink>
+        <RouterLink v-else-if="e.kind === 'market_offer'" class="small" :to="`/${uni}/market`">{{ t('nav.market') }}</RouterLink>
         <span v-else />
       </div>
     </div>

@@ -368,6 +368,39 @@ export interface BattleHallRecord {
   entries: BattleHallEntry[];
 }
 
+export type MarketRes = 'm' | 'k' | 'd';
+
+/** One open offer of the resource market: `give` is offered for `want`. */
+export interface MarketOffer {
+  /** the game's offer id (page source only) */
+  id: number | null;
+  give: { res: MarketRes; amount: number };
+  want: { res: MarketRes; amount: number };
+  /** exchange rate at the reference rate (offered value / asked value in deuterium), null when not shown */
+  ratio: number | null;
+  /** seconds until the offer ends, from the page time */
+  endsIn: number;
+  /** offered by a member of the own alliance */
+  ally: boolean;
+}
+
+/** Metal and crystal per 1 deuterium; exact from the page source, else estimated from the offers (null when unknown). */
+export interface MarketRate {
+  m: number | null;
+  k: number | null;
+  exact: boolean;
+}
+
+/** Marketplace page: the reference rate and the open resource offers. */
+export interface MarketplaceRecord {
+  kind: 'marketplace';
+  rate: MarketRate | null;
+  pageTime: LocalDateTime | null;
+  offers: MarketOffer[];
+  /** when the page was seen (epoch seconds) when the page carries no server time; default: time of the paste */
+  seenAt?: number;
+}
+
 export interface CombatFleet {
   side: 'attacker' | 'defender';
   name: string;
@@ -412,9 +445,10 @@ export type HubRecord =
   | ResearchRecord
   | FleetsRecord
   | BattleHallRecord
-  | CombatReportRecord;
+  | CombatReportRecord
+  | MarketplaceRecord;
 
-export type PageType = 'stats' | 'messages' | 'galaxy' | 'empire' | 'overview' | 'buildings' | 'research' | 'fleets' | 'phalanx' | 'battleHall' | 'combatReport' | 'unknown';
+export type PageType = 'stats' | 'messages' | 'galaxy' | 'empire' | 'overview' | 'buildings' | 'research' | 'fleets' | 'phalanx' | 'battleHall' | 'combatReport' | 'marketplace' | 'unknown';
 
 export interface ParseResult {
   pageType: PageType;

@@ -5,6 +5,7 @@ import type { DB } from '../db.js';
 import { REPORT_SLACK } from '../store.js';
 import { fleetHistory, sameFleet, sharedFleets, type StoredFleet } from './fleets.js';
 import { shipsKey } from './hostile.js';
+import { latestMarketRate } from './market.js';
 import { memberPlayers } from './members.js';
 import { launchedOf, planDrives, type LaunchFleet, type PlanRow } from './plans.js';
 
@@ -50,6 +51,9 @@ const lower = (s: string) => s.trim().toLowerCase();
  */
 export function settlementDraft(db: DB, ctx: GroupContext, plan: PlanRow & { time_precision: string; guests: string | null }): { state: LootState; sources: DraftSources } {
   const state = emptyState();
+  // the in-game market as the reference: the settlement warns when its rates are far off
+  const market = latestMarketRate(db, ctx.groupId);
+  if (market) state.settings.refRates = { m: market.m, k: market.k, d: 1 };
   const hold = plan.mission === 'hold';
   const sources: DraftSources = { battles: [], returnLoot: {}, returnSource: {}, flightDeut: {}, recycling: [] };
   const fleets = db
