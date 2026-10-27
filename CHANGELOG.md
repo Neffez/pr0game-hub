@@ -9,6 +9,10 @@ Every commit adds its changes here, newest first, grouped by date.
   an account (claim link not used yet); that player takes over the username and password (open claim links are
   revoked) and can log in. Requests can be rejected. Public endpoint limited to 5 requests per IP and hour and 100 open
   requests; new table `access_requests` (migration 062).
+  - Global admins are told about new requests: the bell lists open requests (opening the admin page), and push and
+    Discord (own webhook) send them when set up; the new notification setting `accessRequests` (default on, only shown
+    to global admins) switches them off per channel. The notification is sent directly when the request comes in, not
+    through the alliance deliveries.
   - API: `POST /api/access-requests`, `GET /api/admin/access-requests`,
     `POST /api/admin/access-requests/{id}/assign`, `DELETE /api/admin/access-requests/{id}`.
 - Activity pattern: the defense source is labelled just "Verteidigung"/"Defense" in the chart.

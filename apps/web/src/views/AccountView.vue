@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import BackLink from '../components/BackLink.vue';
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import { api, loadMe, session } from '../api';
@@ -64,9 +64,12 @@ interface PushPrefs {
   buildings: boolean;
   fleets: boolean;
   storage: boolean;
+  accessRequests: boolean;
   leadMinutes: number;
 }
-const PUSH_KINDS = ['attackSelf', 'attackOthers', 'invites', 'comments', 'buildings', 'storage', 'fleets', 'launch'] as const;
+const ALL_PUSH_KINDS = ['attackSelf', 'attackOthers', 'invites', 'comments', 'buildings', 'storage', 'fleets', 'launch', 'accessRequests'] as const;
+/** access requests only concern global admins */
+const PUSH_KINDS = computed(() => ALL_PUSH_KINDS.filter((k) => k !== 'accessRequests' || session.me?.user?.isAdmin));
 const LEAD_MINUTES = [1, 2, 5, 10, 15, 30];
 const pushPrefs = ref<PushPrefs | null>(null);
 const pushBusy = ref(false);

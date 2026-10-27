@@ -20,8 +20,8 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
-        de: 'Zugang anfragen: Auf der Anmeldeseite können Leute ohne Account Nutzername, Passwort und eine Nachricht (Pflicht) hinterlegen. Ein Admin weist die Anfrage einem Spieler ohne Account zu, danach kann sich der Spieler mit diesen Daten anmelden.',
-        en: 'Request access: on the login page, people without an account can leave a username, password and a message (required). An admin assigns the request to a player without an account, after which that player can log in with these details.',
+        de: 'Zugang anfragen: Auf der Anmeldeseite können Leute ohne Account Nutzername, Passwort und eine Nachricht (Pflicht) hinterlegen. Ein Admin weist die Anfrage einem Spieler ohne Account zu, danach kann sich der Spieler mit diesen Daten anmelden. Admins werden über neue Anfragen benachrichtigt (Glocke, Push und Discord, wenn eingerichtet).',
+        en: 'Request access: on the login page, people without an account can leave a username, password and a message (required). An admin assigns the request to a player without an account, after which that player can log in with these details. Admins are notified of new requests (bell, push and Discord if set up).',
       },
       {
         kind: 'new',

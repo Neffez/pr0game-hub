@@ -195,6 +195,7 @@ const de = {
       buildings: 'Nächste Gebäude- oder Forschungsstufe möglich (Glocke unter Bauen & Forschen)',
       fleets: 'Ankunft meiner Flotten (Glocke an der Flotte im Imperium)',
       storage: 'Ein Lager auf einem meiner Planeten ist voll',
+      accessRequests: 'Zugangsanfragen von der Anmeldeseite (Admins)',
     },
     pushLead: 'Vorlauf',
     pushLeadMinutes: '{n} Min vorher',
@@ -1657,6 +1658,7 @@ const de = {
   notify: {
     title: 'Benachrichtigungen',
     none: 'Keine aktuellen Benachrichtigungen.',
+    accessRequest: 'Zugangsanfrage von {name}',
     attack: 'Angriff auf {member}',
     attacks: '{n} feindliche Flotte im Anflug | {n} feindliche Flotten im Anflug',
     acs: 'Verbandsangriff ({n} Flotten)',

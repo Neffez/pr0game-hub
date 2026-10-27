@@ -3,7 +3,7 @@ import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { useUni } from '../composables';
-import { attacks, markSeen, notifications, unseen, type CommentNotification, type Notification } from '../notifications';
+import { accessRequests, attacks, loadAccessRequests, markSeen, notifications, unseen, type CommentNotification, type Notification } from '../notifications';
 import { abbr, fmt, name } from '../format';
 import Icon from './Icon.vue';
 import Ticker from './Ticker.vue';
@@ -16,7 +16,14 @@ const open = ref(false);
 
 function toggle() {
   open.value = !open.value;
-  if (open.value) markSeen();
+  if (open.value) {
+    markSeen();
+    loadAccessRequests().then(markSeen);
+  }
+}
+function showAccess() {
+  open.value = false;
+  router.push(`/${uni.value}/admin`);
 }
 function show(n: Notification) {
   open.value = false;
@@ -109,7 +116,11 @@ function left(sec: number) {
           <span class="grow" />
           <button class="icon-btn small" :title="t('live.close')" :aria-label="t('live.close')" @click="open = false"><Icon name="close" /></button>
         </div>
-        <p v-if="!notifications.length" class="muted small m-0">{{ t('notify.none') }}</p>
+        <p v-if="!notifications.length && !accessRequests.length" class="muted small m-0">{{ t('notify.none') }}</p>
+        <button v-for="r in accessRequests" :key="`access:${r.id}`" class="bell-item access" @click="showAccess">
+          <span class="bell-title"><Icon name="messages" :size="14" /><b>{{ t('notify.accessRequest', { name: r.username }) }}</b></span>
+          <span class="small muted access-message">{{ r.message }}</span>
+        </button>
         <template v-for="n in notifications" :key="n.id">
           <button v-if="n.kind === 'invite'" class="bell-item invite" @click="show(n)">
             <span class="bell-title"><Icon name="messages" :size="14" /><b>{{ t('notify.invite', { member: n.member }) }}</b> · {{ n.plan.mission === 'hold' ? t('hold.badge') : t('notify.raid') }}</span>
@@ -190,7 +201,8 @@ function left(sec: number) {
 }
 .bell-item:hover { background: color-mix(in srgb, var(--c) calc(var(--tint) + 12%), var(--surface-2)); }
 .bell-item.attack { --c: var(--neg); --tint: 10%; }
-.bell-item.invite { --c: var(--info); }
+.bell-item.invite, .bell-item.access { --c: var(--info); }
+.access-message { overflow-wrap: anywhere; }
 .bell-item.building { --c: var(--pos); }
 .bell-item.storage, .bell-item.launch { --c: var(--warn); }
 .bell-item.fleet { --c: var(--accent); }

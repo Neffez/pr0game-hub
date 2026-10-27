@@ -32,13 +32,15 @@ export interface PushPrefs {
   fleets: boolean;
   /** a storage on one of the user's planets is full */
   storage: boolean;
+  /** someone requests access on the login page (global admins) */
+  accessRequests: boolean;
   /** launch reminder this many minutes before */
   leadMinutes: number;
 }
 
-export const PUSH_DEFAULTS: PushPrefs = { attackSelf: true, attackOthers: false, invites: true, comments: true, launch: true, buildings: true, fleets: true, storage: true, leadMinutes: 5 };
+export const PUSH_DEFAULTS: PushPrefs = { attackSelf: true, attackOthers: false, invites: true, comments: true, launch: true, buildings: true, fleets: true, storage: true, accessRequests: true, leadMinutes: 5 };
 export const LEAD_MINUTES = [1, 2, 5, 10, 15, 30];
-const FLAGS = ['attackSelf', 'attackOthers', 'invites', 'comments', 'launch', 'buildings', 'fleets', 'storage'] as const;
+const FLAGS = ['attackSelf', 'attackOthers', 'invites', 'comments', 'launch', 'buildings', 'fleets', 'storage', 'accessRequests'] as const;
 
 /** The user's settings for push (`push_prefs`) or for their Discord webhook (`discord_prefs`). */
 export function pushPrefs(db: DB, userId: number, column: 'push_prefs' | 'discord_prefs' = 'push_prefs'): PushPrefs {
@@ -174,6 +176,13 @@ export class PushService {
     this.debounce.close();
   }
 
+  /** Tells the global admins with a subscription about a new access request. */
+  async notifyAccessRequest(request: { id: number; username: string; message: string }) {
+    if (!this.enabled) return;
+    const admins = accessRequestAdmins(this.db, 'push_prefs', 'EXISTS (SELECT 1 FROM push_subscriptions s WHERE s.user_id = users.id)');
+    for (const a of admins) await this.sendTo(a.id, accessRequestPayload(a.lang === 'en' ? 'en' : 'de', request), { ttl: 86400, urgency: 'normal' });
+  }
+
   /**
    * Pushes the group's notifications every member with a subscription has not got yet. Comments and invitations are
    * not pushed while the member has a hub tab of the group in front (they see the bell), but count as sent.
@@ -278,6 +287,7 @@ const DE = {
   buildingBody: (planet: string) => `Rohstoffe auf ${planet} reichen für die nächste Stufe`,
   storage: (name: string) => `📦 ${name} voll`,
   storageBody: (planet: string, since: string) => `${planet} · seit ${since}, die Produktion steht`,
+  accessRequest: (name: string) => `🔑 Zugangsanfrage von ${name}`,
   fleetArrived: (what: string) => `✈ ${what}: Flotte angekommen`,
   fleetBack: (what: string) => `↩ ${what}: Flotte zurück`,
   fleetSoon: (what: string, min: number) => `⏰ ${what}: Ankunft in ${min} Min`,
@@ -311,6 +321,7 @@ const EN: typeof DE = {
   buildingBody: (planet: string) => `Resources on ${planet} are enough for the next level`,
   storage: (name: string) => `📦 ${name} full`,
   storageBody: (planet: string, since: string) => `${planet} · since ${since}, production has stopped`,
+  accessRequest: (name: string) => `🔑 Access request from ${name}`,
   fleetArrived: (what: string) => `✈ ${what}: fleet arrived`,
   fleetBack: (what: string) => `↩ ${what}: fleet is back`,
   fleetSoon: (what: string, min: number) => `⏰ ${what}: arrival in ${min} min`,
@@ -326,6 +337,20 @@ const TEXT = { de: DE, en: EN };
 export type PushLang = keyof typeof TEXT;
 
 export const testPayload = (lang: PushLang, kind: 'test' | 'discordTest' = 'test'): PushPayload => ({ ...TEXT[lang][kind], url: `${config.basePath}/account`, tag: 'test' });
+
+/** A request for access on the login page (global admins, outside of any alliance): opens the admin page. */
+export const accessRequestPayload = (lang: PushLang, request: { id: number; username: string; message: string }): PushPayload => ({
+  title: TEXT[lang].accessRequest(request.username),
+  body: request.message,
+  url: `${config.basePath}/admin`,
+  tag: `access:${request.id}`,
+});
+
+/** Global admins (id and language) with `where` who want to hear about access requests by the settings in `column`. */
+export function accessRequestAdmins(db: DB, column: 'push_prefs' | 'discord_prefs', where: string) {
+  const admins = db.prepare(`SELECT id, lang FROM users WHERE is_admin = 1 AND ${where}`).all() as { id: number; lang: string }[];
+  return admins.filter((a) => pushPrefs(db, a.id, column).accessRequests);
+}
 
 const coords = (g: number, s: number, p: number, moon: boolean) => `${moon ? '☾ ' : ''}[${g}:${s}:${p}]`;
 

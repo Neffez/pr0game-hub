@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 process.env.WEB_DIR = '/nonexistent';
 
@@ -7,7 +7,16 @@ const { openDb } = await import('../src/db.js');
 const { hashPassword } = await import('../src/auth.js');
 
 const db = openDb(':memory:');
-const app = buildApp(db, { logger: false });
+const pushed: { endpoint: string; payload: { title: string; body: string; url: string } }[] = [];
+const posted: { url: string; message: { embeds: { title: string; description: string }[] } }[] = [];
+const app = buildApp(db, {
+  logger: false,
+  push: {
+    contact: 'mailto:hub@example.com',
+    sender: async (target, payload) => (pushed.push({ endpoint: target.endpoint, payload: JSON.parse(payload) }), 201),
+  },
+  discord: { sender: vi.fn(async (url: string, message: never) => (posted.push({ url, message }), { status: 204 })) },
+});
 let admin: Record<string, string>;
 let groupId = 0;
 let placeholder = 0;
@@ -58,6 +67,28 @@ describe('access requests', () => {
     expect(db.prepare('SELECT COUNT(*) FROM invites WHERE user_id = ?').pluck().get(placeholder)).toBe(0);
     const login = await app.inject({ method: 'POST', url: '/hub/api/auth/login', payload: { username: 'bobby', password: 'longenough' } });
     expect(login.statusCode).toBe(200);
+  });
+
+  it('notifies global admins by push and Discord, as far as they want it', async () => {
+    const adminId = db.prepare("SELECT id FROM users WHERE username = 'admin'").pluck().get();
+    db.prepare('INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth, created_at) VALUES (?, ?, ?, ?, 0)').run(adminId, 'https://push.example/admin', 'B'.repeat(87), 'a'.repeat(22));
+    db.prepare('UPDATE users SET discord_webhook = ? WHERE id = ?').run(`https://discord.com/api/webhooks/123456789012345678/${'T'.repeat(68)}`, adminId);
+    const wait = () => vi.waitFor(() => expect(pushed.length).toBeGreaterThan(0));
+
+    expect((await request({ username: 'dora', password: 'longenough', message: 'Dora here' }, '10.0.1.1')).statusCode).toBe(200);
+    await wait();
+    expect(pushed[0].endpoint).toBe('https://push.example/admin');
+    expect(pushed[0].payload).toMatchObject({ title: expect.stringContaining('dora'), body: 'Dora here', url: '/hub/admin' });
+    await vi.waitFor(() => expect(posted).toHaveLength(1));
+    expect(posted[0].message.embeds[0].title).toContain('dora');
+
+    // switched off per channel
+    pushed.length = posted.length = 0;
+    db.prepare('UPDATE users SET push_prefs = ?, discord_prefs = ? WHERE id = ?').run('{"accessRequests":false}', '{"accessRequests":false}', adminId);
+    await request({ username: 'emil', password: 'longenough', message: 'Emil here' }, '10.0.1.2');
+    await new Promise((r) => setTimeout(r, 50));
+    expect(pushed).toHaveLength(0);
+    expect(posted).toHaveLength(0);
   });
 
   it('can reject a request', async () => {

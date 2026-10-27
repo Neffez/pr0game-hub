@@ -194,6 +194,7 @@ const en: typeof de = {
       buildings: 'Next building or research level possible (bell under Build & Research)',
       fleets: 'Arrival of my fleets (bell on the fleet in the Imperium)',
       storage: 'A storage on one of my planets is full',
+      accessRequests: 'Access requests from the login page (admins)',
     },
     pushLead: 'Lead time',
     pushLeadMinutes: '{n} min before',
@@ -1653,6 +1654,7 @@ const en: typeof de = {
   notify: {
     title: 'Notifications',
     none: 'No current notifications.',
+    accessRequest: 'Access request from {name}',
     attack: 'Attack on {member}',
     attacks: '{n} hostile fleet approaching | {n} hostile fleets approaching',
     acs: 'ACS attack ({n} fleets)',

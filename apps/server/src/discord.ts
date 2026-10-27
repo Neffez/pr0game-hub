@@ -5,7 +5,7 @@ import { resolveGroup } from './context.js';
 import { now, type DB } from './db.js';
 import type { EventBus } from './events.js';
 import { AlertSchedule, GroupDebounce, groupUniverse, SENT_KEEP, TICK_AHEAD, TICK_MS } from './notify.js';
-import { LEAD_MINUTES, payloadOf, pushPrefs, testPayload, wanted, type PushLang, type PushPayload } from './push.js';
+import { accessRequestAdmins, accessRequestPayload, LEAD_MINUTES, payloadOf, pushPrefs, testPayload, wanted, type PushLang, type PushPayload } from './push.js';
 import { channelNotificationsFor, notificationsFor, type ChannelNotification, type Notification } from './repo/notifications.js';
 
 /**
@@ -92,8 +92,8 @@ const fetchSender: DiscordSender = async (url, message) => {
 const EMBEDS_PER_MESSAGE = 10;
 /** A rate limit is waited for once if it ends within this many seconds. */
 const MAX_RETRY_AFTER = 10;
-const COLORS: Record<ChannelNotification['kind'] | Notification['kind'], number> = {
-  attack: 0xe74c3c, launch: 0xf39c12, invite: 0x3498db, plan: 0x3498db, comment: 0x95a5a6, building: 0x2ecc71, fleet: 0x6e8eea, storage: 0xe67e22,
+const COLORS: Record<ChannelNotification['kind'] | Notification['kind'] | 'access', number> = {
+  attack: 0xe74c3c, launch: 0xf39c12, invite: 0x3498db, plan: 0x3498db, comment: 0x95a5a6, building: 0x2ecc71, fleet: 0x6e8eea, storage: 0xe67e22, access: 0x1abc9c,
 };
 
 type Item = { kind: keyof typeof COLORS; payload: PushPayload; mention?: string | null };
@@ -213,6 +213,14 @@ export class DiscordService {
     }
 
     for (const m of outbox) await this.send(m.target, m.items);
+  }
+
+  /** Tells the global admins with a webhook about a new access request. */
+  async notifyAccessRequest(request: { id: number; username: string; message: string }) {
+    for (const a of accessRequestAdmins(this.db, 'discord_prefs', 'discord_webhook IS NOT NULL')) {
+      const url = this.db.prepare('SELECT discord_webhook FROM users WHERE id = ?').pluck().get(a.id) as string;
+      await this.send(this.userTarget(a.id, url), [{ kind: 'access', payload: accessRequestPayload(a.lang === 'en' ? 'en' : 'de', request) }]);
+    }
   }
 
   /** A test message to the user's own webhook; null without one, false when Discord refused it. */

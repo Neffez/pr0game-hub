@@ -1,5 +1,5 @@
 import { computed, ref } from 'vue';
-import { uniApi } from './api';
+import { api, session, uniApi } from './api';
 import { nowSec, upcoming } from './clock';
 import type { Fleet } from './components/FleetList.vue';
 import { useStored } from './composables';
@@ -119,7 +119,18 @@ const due = computed(() => {
 });
 /** Current notifications, the next first (loaded by the layout, kept up to date by live events). */
 export const notifications = upcoming(due, until, notifyClock);
-export const unseen = computed(() => notifications.value.filter((n) => !seen.value.includes(n.id)).length);
+/** Open access requests from the login page (global admins only; they open the admin page). */
+export interface AccessRequest {
+  id: number;
+  username: string;
+  message: string;
+  created_at: number;
+}
+export const accessRequests = ref<AccessRequest[]>([]);
+const accessId = (r: AccessRequest) => `access:${r.id}`;
+export const unseen = computed(
+  () => notifications.value.filter((n) => !seen.value.includes(n.id)).length + accessRequests.value.filter((r) => !seen.value.includes(accessId(r))).length,
+);
 export const attacks = computed(() => notifications.value.filter((n) => n.kind === 'attack').length);
 
 export async function loadNotifications(uni: string) {
@@ -129,13 +140,25 @@ export async function loadNotifications(uni: string) {
   } catch {
     /* kept until the next reload */
   }
+  await loadAccessRequests();
+}
+
+/** Global admins: the requests waiting for an assignment. */
+export async function loadAccessRequests() {
+  if (!session.me?.user?.isAdmin) return;
+  try {
+    accessRequests.value = (await api<{ requests: AccessRequest[] }>('/admin/access-requests')).requests;
+  } catch {
+    /* kept until the next reload */
+  }
 }
 
 export function clearNotifications() {
   list.value = [];
+  accessRequests.value = [];
 }
 
 /** Opening the list marks everything in it as seen; ids of past notifications are dropped. */
 export function markSeen() {
-  seen.value = notifications.value.map((n) => n.id);
+  seen.value = [...notifications.value.map((n) => n.id), ...accessRequests.value.map(accessId)];
 }

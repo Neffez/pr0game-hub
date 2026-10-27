@@ -191,13 +191,16 @@ export function authRoutes(app: FastifyInstance, db: DB) {
       throw new HttpError(429, 'too_many_requests', 'Too many open requests, please try again later');
     }
     loginFailed(key, 3600);
-    db.prepare('INSERT INTO access_requests (username, password_hash, lang, message, created_at) VALUES (?, ?, ?, ?, ?)').run(
+    const id = db.prepare('INSERT INTO access_requests (username, password_hash, lang, message, created_at) VALUES (?, ?, ?, ?, ?)').run(
       username,
       hashPassword(password),
       req.body?.lang === 'en' ? 'en' : 'de',
       message,
       now(),
-    );
+    ).lastInsertRowid;
+    // the global admins hear about it on the bell (admin page) and, when set up, by push and Discord
+    const request = { id: Number(id), username, message };
+    for (const service of [app.push, app.discord]) service.notifyAccessRequest(request).catch((err) => req.log.warn({ err }, 'access request notification failed'));
     return { ok: true };
   });
 
