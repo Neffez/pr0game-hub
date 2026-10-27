@@ -639,6 +639,11 @@ components:
             id: { type: integer }
             name: { type: string }
             role: { type: string }
+        toolsUrl:
+          type: string
+          description: >-
+            Base URL of the pr0game tools with trailing slash (server setting `TOOLS_URL`, default the root of the hub's
+            origin); the hub links the tool pages (flight calculator, battle simulator, …) below it.
         members: { type: array, items: { type: object } }
         me: { $ref: '#/components/schemas/User' }
         player:

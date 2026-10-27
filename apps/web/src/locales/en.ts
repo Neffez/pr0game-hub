@@ -89,7 +89,7 @@ const en: typeof de = {
     menu: 'Menu',
     player: 'Player',
     closeMenu: 'Close menu',
-    toolsLink: 'Open pr0game tools (new tab)',
+    toolsLink: 'Go to the pr0game tools',
     quickSync: 'Quick sync',
     openSyncPage: 'Open sync page',
     close: 'Close',

@@ -12,7 +12,7 @@ import { useRoute, useRouter } from 'vue-router';
 import { selectGroup, selectedGroup, session, uniApi } from '../api';
 import { provideUni, useLoader, useScrollLock, type UniContext } from '../composables';
 import { clearClaims, loadClaims } from '../claims';
-import { toolsIndexUrl } from '../format';
+import { setToolsUrl, toolsIndexUrl } from '../format';
 import { clearCommentCounts, loadCommentCounts } from '../comments';
 import { attacks, clearNotifications, loadNotifications } from '../notifications';
 import { planCounts, type AttackPlan } from '../plans';
@@ -28,7 +28,12 @@ const group = ref<number | null>(null);
 const reloadKey = ref(0);
 
 provideUni(ctx);
-const toolsUrl = computed(() => toolsIndexUrl(ctx.value?.universe.settings));
+const toolsUrl = computed(() => {
+  setToolsUrl(ctx.value?.toolsUrl);
+  return toolsIndexUrl(ctx.value?.universe.settings);
+});
+// set before the children render their tool links (they only render once the context is there)
+watch(ctx, (c) => setToolsUrl(c?.toolsUrl), { flush: 'sync' });
 
 function load() {
   // a link with the group (push notification) opens that alliance
@@ -190,7 +195,7 @@ const tabs = [
 <template>
   <div class="layout">
     <header class="topbar">
-      <a class="brand" :href="toolsUrl" target="_blank" rel="noopener" :title="t('nav.toolsLink')">pr0game <span>Hub</span></a>
+      <a class="brand" :href="toolsUrl" :title="t('nav.toolsLink')">pr0game <span>Hub</span></a>
       <span class="topbar-title">{{ pageTitle }}</span>
       <NotificationBell v-if="ctx" />
     </header>
@@ -203,7 +208,7 @@ const tabs = [
       @touchend="onTouchEnd"
     >
       <div class="brand">
-        <a :href="toolsUrl" target="_blank" rel="noopener" :title="t('nav.toolsLink')">pr0game <span>Hub</span></a>
+        <a :href="toolsUrl" :title="t('nav.toolsLink')">pr0game <span>Hub</span></a>
         <NotificationBell v-if="ctx" class="sidebar-bell" />
         <button class="nav-close" :title="t('nav.closeMenu')" :aria-label="t('nav.closeMenu')" @click="navOpen = false"><Icon name="close" /></button>
       </div>

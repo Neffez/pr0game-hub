@@ -28,6 +28,8 @@ export const config = {
   pushContact: env.PUSH_CONTACT ?? '',
   /** Public origin of the hub (e.g. https://hub.example.org) for links in Discord messages; without it they have none. */
   publicUrl: (env.PUBLIC_URL ?? '').replace(/\/+$/, ''),
+  /** Base URL of the pr0game tools (with trailing slash) for links from the hub; defaults to the root of the hub's origin. */
+  toolsUrl: toolsUrlOf(env.TOOLS_URL, env.PUBLIC_URL),
   /** Background archiving of battle hall reports from the public report pages. */
   crawler: {
     enabled: (env.CRAWLER_ENABLED ?? 'true') !== 'false',
@@ -36,6 +38,11 @@ export const config = {
     giveUpHours: Number(env.CRAWLER_GIVE_UP_HOURS ?? 6),
   },
 };
+
+function toolsUrlOf(tools?: string, publicUrl?: string): string {
+  const base = (tools || publicUrl || '').replace(/\/+$/, '');
+  return `${base}/`;
+}
 
 function trustProxyOf(v: string): boolean | number | string[] {
   if (v === 'true' || v === 'false') return v === 'true';

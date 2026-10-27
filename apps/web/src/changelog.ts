@@ -20,8 +20,8 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
-        de: 'Schnellzugriff auf die Tools: Ein Klick auf „pr0game Hub“ im Menü (am Handy oben in der Leiste) öffnet die Tools in einem neuen Tab.',
-        en: 'Quick access to the tools: clicking “pr0game Hub” in the menu (in the top bar on mobile) opens the tools in a new tab.',
+        de: 'Schnellzugriff auf die Tools: Ein Klick auf „pr0game Hub“ im Menü (am Handy oben in der Leiste) führt zu den Tools.',
+        en: 'Quick access to the tools: clicking “pr0game Hub” in the menu (in the top bar on mobile) takes you to the tools.',
       },
       {
         kind: 'new',

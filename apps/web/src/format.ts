@@ -213,13 +213,12 @@ export function timeWithAge(epoch: number | null | undefined): string {
 
 export type Coords3 = Coords;
 
-/** Default location of the flight calculator (pr0game-tools); override per universe with `flightCalculatorUrl`. */
-const TOOLS_INDEX_URL = 'https://pr0game.neffez.dev/';
-const FLIGHT_CALCULATOR_URL ='https://pr0game.neffez.dev/flight-calculator/';
-const LOOT_CALCULATOR_URL = 'https://pr0game.neffez.dev/acs-loot/';
-const IPM_CALCULATOR_URL = 'https://pr0game.neffez.dev/ipm-calculator/';
-const BATTLE_SIMULATOR_URL = 'https://pr0game.neffez.dev/battle-simulator/';
-const MOON_DESTRUCTION_URL = 'https://pr0game.neffez.dev/moon-destruction/';
+/** Base URL of the pr0game tools with trailing slash, from the server (`TOOLS_URL`); a universe can override it with `flightCalculatorUrl`. */
+let toolsBase = '/';
+export function setToolsUrl(url: string | undefined | null): void {
+  if (url) toolsBase = url.endsWith('/') ? url : `${url}/`;
+}
+const FLIGHT_CALCULATOR_URL = () => `${toolsBase}flight-calculator/`;
 
 /**
  * Link into the flight calculator: start/target, drive research and the universe layout are
@@ -258,7 +257,7 @@ export function flightCalcLink(
   p.set('pd', String(u.planetDistance));
   p.set('gs', String(u.fleetSpeed / 2500));
   for (const [key, value] of Object.entries(extra)) p.set(key, String(value));
-  const base = (u as UniverseSettings & { flightCalculatorUrl?: string }).flightCalculatorUrl || FLIGHT_CALCULATOR_URL;
+  const base = (u as UniverseSettings & { flightCalculatorUrl?: string }).flightCalculatorUrl || FLIGHT_CALCULATOR_URL();
   return `${base}#${p.toString()}`;
 }
 
@@ -335,7 +334,7 @@ export function simLinks(
 /** The public battle simulator, next to the flight calculator of the universe. */
 export function battleSimUrl(u: UniverseSettings): string {
   const flight = (u as UniverseSettings & { flightCalculatorUrl?: string }).flightCalculatorUrl;
-  return flight ? new URL('../battle-simulator/', flight.split('#')[0]).href : BATTLE_SIMULATOR_URL;
+  return flight ? new URL('../battle-simulator/', flight.split('#')[0]).href : `${toolsBase}battle-simulator/`;
 }
 
 /** Research a simulator slot takes: weapons, shields, armour, the three drives and fuel efficiency (flight time). */
@@ -417,25 +416,25 @@ export function protectionStatus(u: UniverseSettings, own: number | null | undef
 /** Index of the public tools (pr0game-tools), the parent of the flight calculator of the universe. */
 export function toolsIndexUrl(u?: UniverseSettings | null): string {
   const flight = (u as (UniverseSettings & { flightCalculatorUrl?: string }) | null | undefined)?.flightCalculatorUrl;
-  return flight ? new URL('../', flight.split('#')[0]).href : TOOLS_INDEX_URL;
+  return flight ? new URL('../', flight.split('#')[0]).href : toolsBase;
 }
 
 /** The public ACS loot calculator, next to the flight calculator of the universe. */
 export function lootCalcUrl(u: UniverseSettings): string {
   const flight = (u as UniverseSettings & { flightCalculatorUrl?: string }).flightCalculatorUrl;
-  return flight ? new URL('../acs-loot/', flight.split('#')[0]).href : LOOT_CALCULATOR_URL;
+  return flight ? new URL('../acs-loot/', flight.split('#')[0]).href : `${toolsBase}acs-loot/`;
 }
 
 /** The public interplanetary missile calculator, next to the flight calculator of the universe. */
 export function ipmCalcUrl(u: UniverseSettings): string {
   const flight = (u as UniverseSettings & { flightCalculatorUrl?: string }).flightCalculatorUrl;
-  return flight ? new URL('../ipm-calculator/', flight.split('#')[0]).href : IPM_CALCULATOR_URL;
+  return flight ? new URL('../ipm-calculator/', flight.split('#')[0]).href : `${toolsBase}ipm-calculator/`;
 }
 
 /** The public moon destruction calculator, next to the flight calculator of the universe. */
 export function moonCalcUrl(u: UniverseSettings): string {
   const flight = (u as UniverseSettings & { flightCalculatorUrl?: string }).flightCalculatorUrl;
-  return flight ? new URL('../moon-destruction/', flight.split('#')[0]).href : MOON_DESTRUCTION_URL;
+  return flight ? new URL('../moon-destruction/', flight.split('#')[0]).href : `${toolsBase}moon-destruction/`;
 }
 
 /** Link into the moon destruction calculator: the moon's coordinates, name and diameter (galaxy view) when known. */

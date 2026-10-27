@@ -2,7 +2,7 @@ import { Worker } from 'node:worker_threads';
 import { DEFENSE_IDS, encodeShare, SHIP_IDS, type BattleSetup, type SimSettings, type SimSummary } from '@pr0hub/battle';
 import { distance, drivesFromResearch, fleetConsumption, flightDuration, slowestShip } from '@pr0hub/flight';
 import { HttpError } from './auth.js';
-import type { UniverseSettings } from './config.js';
+import { config, type UniverseSettings } from './config.js';
 
 /**
  * Limits of the simulator API, counted in pieces (ships and defense units, not resource units): the engine handles
@@ -19,7 +19,6 @@ export const BATTLE_LIMITS = {
   perMinute: 20,
 };
 
-const TOOLS_URL = 'https://pr0game.neffez.dev/battle-simulator/';
 const TECHS = [109, 110, 111, 115, 117, 118, 134];
 const COMBAT_TECHS = [109, 110, 111];
 
@@ -176,7 +175,7 @@ export function flights(u: UniverseSettings, attackers: ApiSlot[], target: Coord
 /** Link into the battle simulator page with the same battle (like the hub's `battleSimLink`). */
 export function toolsLink(u: UniverseSettings, req: BattleRequest, planet: ApiSlot, settings: SimSettings): string {
   const flightUrl = (u as UniverseSettings & { flightCalculatorUrl?: string }).flightCalculatorUrl;
-  const base = flightUrl ? new URL('../battle-simulator/', flightUrl.split('#')[0]).href : TOOLS_URL;
+  const base = flightUrl ? new URL('../battle-simulator/', flightUrl.split('#')[0]).href : `${config.toolsUrl}battle-simulator/`;
   const hash = encodeShare({
     attackers: req.attackers.map((a) => ({ units: a.units, research: a.research, from: a.from, speed: a.speed, name: a.name })),
     defenders: [planet, ...(req.defenders.slice(1) as ApiSlot[])].map((d, i) => ({ units: d.units, research: d.research, name: d.name, ...(i ? { from: d.from, speed: d.speed } : {}) })),

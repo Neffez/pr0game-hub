@@ -5,6 +5,8 @@ import { protectionStatus, type UniverseSettings } from './format';
 export interface UniContext {
   universe: { id: number; slug: string; name: string; settings: UniverseSettings; deck: { type: string; size: string; count: number }[] };
   group: { id: number; name: string; role: string };
+  /** base URL of the pr0game tools (server setting `TOOLS_URL`) */
+  toolsUrl?: string;
   /** name = in-game name, falls back to the hub username; global_admin = hub admin (1/0) */
   members: { id: number; username: string; name: string; role: string; global_admin: number; ingame_name: string | null; last_seen_at: number | null }[];
   me: { id: number; username: string; isAdmin: boolean };

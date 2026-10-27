@@ -1,5 +1,6 @@
 import { CLASS_BUILDINGS, CLASS_DEFENSE, CLASS_FLEET, CLASS_RESOURCES, classOf, sectionPoints } from '@pr0hub/core/tech';
 import type { FastifyInstance } from 'fastify';
+import { config } from '../config.js';
 import type { GroupContext } from '../context.js';
 import { now, type DB } from '../db.js';
 import { scoreEntry, SLOT, SLOT_TOLERANCE, SLOTS, statSlots, TOLERANCE, TYPES, WINDOWS, type ScoreRow } from '../domain/stats.js';
@@ -28,6 +29,7 @@ export function overviewRoutes(app: FastifyInstance, db: DB) {
     return {
       universe: ctx.universe,
       group: { id: ctx.groupId, name: ctx.groupName, role: ctx.role },
+      toolsUrl: config.toolsUrl,
       members,
       me: ctx.user,
       player: playerId ? { id: playerId, points: latestScores(db, ctx.groupId, [playerId], [1]).get(playerId)?.[1]?.points ?? null } : null,

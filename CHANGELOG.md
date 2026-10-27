@@ -4,8 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-27
 
-- Hub: the "pr0game Hub" title in the sidebar and the mobile top bar links to the tools index (new tab; derived from
-  the universe's flight calculator URL, else the public tools).
+- Hub: the "pr0game Hub" title in the sidebar and the mobile top bar links to the tools index (same tab).
+  - The tools location is now configuration instead of a hardcoded domain: new server setting `TOOLS_URL` (default
+    `PUBLIC_URL`, else the root of the hub's origin), delivered as `toolsUrl` in `/api/{uni}/context`. All tool links of
+    the hub (flight calculator, loot, IPM, battle simulator, moon destruction) and the battle API's `toolsLink` use it;
+    a universe's `flightCalculatorUrl` still overrides it.
 - Moon destruction calculator: the note that the game rolls whole percent moved from the results into the info
   tooltip of the formula (the calculation is unchanged).
 - Moon destruction calculator (`/moon-destruction/` in the tools): chance to destroy a moon with Death Stars and to

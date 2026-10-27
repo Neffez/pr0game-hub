@@ -107,7 +107,7 @@ describe('format', () => {
     const values = { 901: 5000, 902: 300, 903: 7, 202: 3, 401: 400, 405: 20, 503: 2, 109: 12, 111: 11, 114: 8 };
     const link = battleSimLink(u, values, [{ ships: { 207: 50, 210: 0 }, research: { 109: 14, 118: 10, 120: 5 }, from: [1, 100, 5], speed: 80, name: 'Neffez' }], [1, 110, 8],
       [{ ships: { 204: 100 }, research: { 110: 3, 117: 6 }, from: [1, 105, 3], speed: 90 }], 'Alpha');
-    expect(link.startsWith('https://pr0game.neffez.dev/battle-simulator/#')).toBe(true);
+    expect(link.startsWith('/battle-simulator/#')).toBe(true);
     const s = decodeShare(link.split('#')[1]);
     expect(s.attackers).toEqual([{ units: { 207: 50 }, research: { 109: 14, 118: 10 }, from: [1, 100, 5], speed: 80, name: 'Neffez' }]);
     expect(s.defenders).toEqual([
@@ -138,8 +138,8 @@ describe('format', () => {
 describe('tools index link', () => {
   it('is the parent of the universe flight calculator, else the public tools', () => {
     expect(toolsIndexUrl({ flightCalculatorUrl: 'https://tools.example/x/flight-calculator/#a=1' } as never)).toBe('https://tools.example/x/');
-    expect(toolsIndexUrl({} as never)).toBe('https://pr0game.neffez.dev/');
-    expect(toolsIndexUrl(null)).toBe('https://pr0game.neffez.dev/');
+    expect(toolsIndexUrl({} as never)).toBe('/');
+    expect(toolsIndexUrl(null)).toBe('/');
   });
 });
 
@@ -152,7 +152,7 @@ describe('loot calculator link', () => {
     const link = lootCalcLink(u, state);
     expect(link.startsWith('https://tools.example/x/acs-loot/#s=')).toBe(true);
     expect(decodeShare(link.split('#s=')[1])).toEqual(state);
-    expect(lootCalcLink({} as never, state)).toMatch(/^https:\/\/pr0game\.neffez\.dev\/acs-loot\/#s=/);
+    expect(lootCalcLink({} as never, state)).toMatch(/^\/acs-loot\/#s=/);
   });
 
   it('links the IPM calculator with own research and the defense of a spy report', () => {
@@ -160,13 +160,13 @@ describe('loot calculator link', () => {
       systemDistanceFactor: 95, systemDistance: 2700, planetDistanceFactor: 5, planetDistance: 1000, fleetSpeed: 5000, buildingSpeed: 0,
       researchSpeed: 0, universityFactor: 8, timezone: 'Europe/Berlin', gameUrl: '' } as UniverseSettings;
     const values = { 401: 400, 404: 20, 502: 7, 503: 3, 111: 11, 901: 5000, 202: 3 };
-    const link = new URL(ipmCalcLink(u, { from: [1, 100, 5], silo: 6, missiles: 30, to: [1, 110, 8], research: { 117: 6, 109: 12 }, values }));
-    expect(link.origin + link.pathname).toBe('https://pr0game.neffez.dev/ipm-calculator/');
+    const link = new URL(ipmCalcLink(u, { from: [1, 100, 5], silo: 6, missiles: 30, to: [1, 110, 8], research: { 117: 6, 109: 12 }, values }), 'http://hub.test');
+    expect(link.pathname).toBe('/ipm-calculator/');
     expect(Object.fromEntries(new URLSearchParams(link.hash.slice(1)))).toEqual({
       sg: '1', ss: '100', sp: '5', tg: '1', ts: '110', tp: '8', i: '6', w: '12', sl: '6', n: '30', a: '11', ic: '7', d401: '400', d404: '20', d503: '3', ms: '400', gt: '1', gs: '2',
     });
     // a moon: the planet's interceptors, the range factor of the universe
-    const moon = new URLSearchParams(new URL(ipmCalcLink({ ...u, missileRangeFactor: 0.5 } as UniverseSettings, { from: null, to: [1, 110, 8], moon: true, values, planetInterceptors: 4 })).hash.slice(1));
+    const moon = new URLSearchParams(new URL(ipmCalcLink({ ...u, missileRangeFactor: 0.5 } as UniverseSettings, { from: null, to: [1, 110, 8], moon: true, values, planetInterceptors: 4 }), 'http://hub.test').hash.slice(1));
     expect([moon.get('m'), moon.get('ic'), moon.get('mrf'), moon.get('sg')]).toEqual(['1', '4', '0.5', null]);
     const flight = { ...u, flightCalculatorUrl: 'https://tools.example/fc/flight-calculator/' } as UniverseSettings;
     expect(ipmCalcLink(flight, { from: null, to: [1, 1, 1] })).toMatch(/^https:\/\/tools\.example\/fc\/ipm-calculator\/#/);
@@ -174,8 +174,8 @@ describe('loot calculator link', () => {
 
   it('links the moon destruction calculator with the moon from the galaxy view', () => {
     const u = { systems: 400 } as UniverseSettings;
-    const link = new URL(moonCalcLink(u, [3, 200, 1], { name: 'Ra', diameter: 4560 }));
-    expect(link.origin + link.pathname).toBe('https://pr0game.neffez.dev/moon-destruction/');
+    const link = new URL(moonCalcLink(u, [3, 200, 1], { name: 'Ra', diameter: 4560 }), 'http://hub.test');
+    expect(link.pathname).toBe('/moon-destruction/');
     expect(Object.fromEntries(new URLSearchParams(link.hash.slice(1)))).toEqual({ d: '4560', tg: '3', ts: '200', tp: '1', mn: 'Ra' });
     const flight = { ...u, flightCalculatorUrl: 'https://tools.example/fc/flight-calculator/' } as UniverseSettings;
     expect(moonCalcLink(flight, [1, 2, 3])).toBe('https://tools.example/fc/moon-destruction/#tg=1&ts=2&tp=3');
