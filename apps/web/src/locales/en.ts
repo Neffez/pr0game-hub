@@ -1170,7 +1170,7 @@ const en: typeof de = {
       battleHall: 'Battle hall',
       combatReport: 'Combat report',
     },
-    fleetAttacks: 'Fleet movements (attacks)',
+    fleetAttacks: 'Fleet movements',
     fleetOwnerCol: 'Seen as',
     fleetOwnerOwn: 'own',
     fleetRoute: 'Route',

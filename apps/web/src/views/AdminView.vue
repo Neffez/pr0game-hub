@@ -569,7 +569,7 @@ const doMerge = () => run(async () => {
                 <td class="small">{{ missionLabel(a.mission) }}<span v-if="a.fleets > 1" class="muted"> · ACS {{ a.fleets }}</span></td>
                 <td class="small mono">{{ bodyCoords(a.from) }} → {{ bodyCoords(a.to) }}</td>
                 <td class="mono small">{{ clockTime(new Date(a.arrival * 1000), true) }}</td>
-                <td><button class="danger small" @click="removeFleetAttack(a)">{{ t('common.remove') }}</button></td>
+                <td><button class="danger small" @click="removeFleetAttack(a)">{{ t('admin.remove') }}</button></td>
               </tr>
             </tbody>
           </table>

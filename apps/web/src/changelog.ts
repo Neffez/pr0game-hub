@@ -20,8 +20,13 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
-        de: 'Admin-Panel: Allianz-Admins können falsch gespeicherte Angriffe aus den Flottenlisten eines Mitglieds entfernen („Flottenbewegungen (Angriffe)“).',
-        en: 'Admin panel: alliance admins can remove wrongly stored attacks from a member’s saved fleet lists (“Fleet movements (attacks)”).',
+        de: 'Admin-Panel: Im Abschnitt „Flottenbewegungen“ heißt der Entfernen-Button wieder „Entfernen“ (statt Platzhaltertext).',
+        en: 'Admin panel: the “Fleet movements” section shows “Remove” on its button again instead of a missing translation placeholder.',
+      },
+      {
+        kind: 'fix',
+        de: 'Admin-Panel: Allianz-Admins können falsch gespeicherte Angriffe aus den Flottenlisten eines Mitglieds entfernen (Abschnitt „Flottenbewegungen“).',
+        en: 'Admin panel: alliance admins can remove wrongly stored attacks from a member’s saved fleet lists (“Fleet movements” section).',
       },
       {
         kind: 'fix',

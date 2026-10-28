@@ -4,8 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-28
 
+- Admin panel: the fleet-movements cleanup section shows "Remove" on its button (not a missing translation) and is titled
+  "Fleet movements" without the redundant "(attacks)" suffix.
 - Admin panel: alliance admins can remove wrongly stored attacks from a member's saved overview fleet lists (section
-  "Fleet movements (attacks)"); the entry disappears from empire, raid planner and notifications in all snapshots.
+  "Fleet movements"); the entry disappears from empire, raid planner and notifications in all snapshots.
 - Sync: incoming attacks whose overview line omits the ship list (`Eine Flotten vom …` instead of `Eine Flotten(…)`) are
   marked hostile again on the attacked member's paste, not as a foreign fleet.
 - Sync: copied overview and phalanx fleet events whose arrival clock shows days (`3T 17:13:37` before the remaining

@@ -1172,7 +1172,7 @@ const de = {
       battleHall: 'Ruhmeshalle',
       combatReport: 'Kampfbericht',
     },
-    fleetAttacks: 'Flottenbewegungen (Angriffe)',
+    fleetAttacks: 'Flottenbewegungen',
     fleetOwnerCol: 'Erkannt als',
     fleetOwnerOwn: 'eigen',
     fleetRoute: 'Route',
