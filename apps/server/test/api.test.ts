@@ -622,6 +622,11 @@ describe('api', () => {
     expect(hall.entries.map((e: any) => e.units)).toEqual([1075302000, 276316000, 260583000, 25541000]);
     const anda = (await app.inject({ method: 'GET', url: '/hub/api/u8/battle-hall?q=Anda&sort=time', headers })).json();
     expect(anda.entries.map((e: any) => e.report_id.slice(0, 4))).toEqual(['778f', '4a2c']);
+    db.prepare('INSERT INTO players (group_id, name, ingame_id) VALUES (?, ?, NULL)').run(groupA, 'Anda');
+    const andaId = db.prepare('SELECT id FROM players WHERE group_id = ? AND name = ?').pluck().get(groupA, 'Anda') as number;
+    db.prepare('INSERT OR REPLACE INTO player_aliases (player_id, name, seen_until) VALUES (?, ?, 1)').run(andaId, 'AndaFormer');
+    const byAlias = (await app.inject({ method: 'GET', url: '/hub/api/u8/battle-hall?q=AndaFormer&sort=time', headers })).json();
+    expect(byAlias.entries.map((e: any) => e.report_id.slice(0, 4))).toEqual(['778f', '4a2c']);
   });
 
   it('archives battle reports with the background worker', async () => {

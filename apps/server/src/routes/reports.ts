@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { HttpError } from '../auth.js';
 import type { DB } from '../db.js';
 import { ownCoords } from '../repo/empire.js';
+import { battleHallParticipantFilter } from '../repo/players.js';
 import { latestScores } from '../repo/stats.js';
 import { contextOf, DISPLAY, likeTerm, MEMBER, range, type Q } from './util.js';
 
@@ -14,12 +15,14 @@ export function reportsRoutes(app: FastifyInstance, db: DB) {
     const page = Math.max(1, Number(req.query.page) || 1);
     const order = req.query.sort === 'time' ? 'time DESC' : 'units DESC';
     const q = (req.query.q ?? '').trim();
-    const where = `h.group_id = ?${q ? " AND (h.attackers LIKE ? ESCAPE '\\' OR h.defenders LIKE ? ESCAPE '\\')" : ''}`;
-    const args: unknown[] = [ctx.groupId, ...(q ? [likeTerm(q), likeTerm(q)] : [])];
+    const participant = q ? battleHallParticipantFilter(db, ctx.groupId, q) : null;
+    const where = `h.group_id = ?${participant ? ` AND ${participant.clause}` : ''}`;
+    const args: unknown[] = [ctx.groupId, ...(participant?.args ?? [])];
     const total = db.prepare(`SELECT COUNT(*) FROM battle_hall h WHERE ${where}`).pluck().get(...args) as number;
     const rows = db
       .prepare(
-        `SELECT h.*, EXISTS (SELECT 1 FROM combat_reports c WHERE c.group_id = h.group_id AND c.report_id = h.report_id) AS archived
+        `SELECT h.*, EXISTS (SELECT 1 FROM combat_reports c WHERE c.group_id = h.group_id AND c.report_id = h.report_id) AS archived,
+           COALESCE((SELECT c.moon_destruction FROM combat_reports c WHERE c.group_id = h.group_id AND c.report_id = h.report_id), 0) AS moon_destruction
          FROM battle_hall h WHERE ${where} ORDER BY h.${order}, h.id LIMIT 100 OFFSET ?`,
       )
       .all(...args, (page - 1) * 100) as any[];

@@ -6,6 +6,7 @@ import { uniApi } from '../api';
 import Hint from '../components/Hint.vue';
 import { useLoader, useStored, useUni, vStack } from '../composables';
 import { tables, useLiveReload } from '../live';
+import DeathStarIcon from '../components/DeathStarIcon.vue';
 import { dateTime, fmt, short } from '../format';
 
 /** Archive of the game's battle hall (the game itself only lists the top 100). */
@@ -19,6 +20,7 @@ interface Entry {
   units: number;
   archived: number;
   report_status: string | null;
+  moon_destruction: number;
 }
 
 const { t } = useI18n();
@@ -64,7 +66,7 @@ const rank = (i: number) => (page.value - 1) * 100 + i + 1;
       <button :class="{ active: sort === 'units' }" @click="sort = 'units'">{{ t('battleHall.byUnits') }}</button>
       <button :class="{ active: sort === 'time' }" @click="sort = 'time'">{{ t('battleHall.byDate') }}</button>
     </div>
-    <input v-model="q" :placeholder="t('common.player')" style="width: 160px" />
+    <input v-model="q" :placeholder="t('battleHall.searchHint')" style="width: 220px" />
     <span class="grow" />
     <span v-if="data" class="muted small">{{ t('battleHall.count', { n: fmt(data.total) }, data.total) }}</span>
   </div>
@@ -83,7 +85,9 @@ const rank = (i: number) => (page.value - 1) * 100 + i + 1;
         <tbody>
           <tr v-for="(e, i) in data.entries" :key="e.id">
             <td class="num faint">{{ sort === 'units' ? rank(i) : '' }}</td>
-            <td :class="{ pos: e.winner === 'attacker', neg: e.winner === 'defender' }">{{ e.attackers.join(' & ') || '–' }}</td>
+            <td :class="{ pos: e.winner === 'attacker', neg: e.winner === 'defender' }">
+              <span class="attacker-names">{{ e.attackers.join(' & ') || '–' }}</span><DeathStarIcon v-if="e.moon_destruction" :title="t('battleHall.moonDestruction')" />
+            </td>
             <td class="faint small">VS</td>
             <td :class="{ pos: e.winner === 'defender', neg: e.winner === 'attacker' }">{{ e.defenders.join(' & ') || '–' }}</td>
             <td class="small">{{ dateTime(e.time) }}</td>
@@ -111,4 +115,5 @@ const rank = (i: number) => (page.value - 1) * 100 + i + 1;
 
 <style scoped>
 .pager { justify-content: center; margin-top: 12px; }
+.attacker-names { margin-right: 4px; }
 </style>

@@ -2207,6 +2207,9 @@ paths:
     get:
       tags: [Combat]
       operationId: getBattleHall
+      description: >-
+        Paginated battle hall archive. Each entry includes `moon_destruction` (0 or 1) when the report is locally
+        archived and was a moon-destruction battle; otherwise 0.
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
@@ -2219,6 +2222,9 @@ paths:
           schema: { type: string }
         - name: q
           in: query
+          description: >-
+            Participant filter (substring). Matches names in the hall entry and, via player aliases, any current or
+            former name of players whose name or alias matches.
           schema: { type: string }
       responses:
         '200':

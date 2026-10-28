@@ -265,6 +265,23 @@ describe('combat report', () => {
     });
   });
 
+  it('parses a german moon-destruction battle report', () => {
+    const text = fixture('combat-report-moon-de.txt');
+    expect(parseCombatReportText(text, null)).toMatchObject({
+      moonDestruction: true,
+      time: '2026-10-24 16:05:37',
+      winner: 'defender',
+      lost: { attacker: 69000000, defender: 3676000 },
+      debris: { metal: 23878500, crystal: 12459500 },
+      target: { coords: { g: 3, s: 141, p: 15 }, type: 'moon' },
+      fleets: [
+        { side: 'attacker', name: 'iHackdiZamm', start: { 207: 1000, 232: 1 }, end: { 207: 1000, 232: 1 } },
+        { side: 'defender', name: 'B0b', start: { 204: 69873, 222: 9843 }, end: { 204: 69873, 222: 9843 } },
+      ],
+    });
+    expect(parsePage({ text })).toMatchObject({ pageType: 'combatReport', records: [{ winner: 'defender' }] });
+  });
+
   it('parses a copied german battle report of an ACS (logged in, coordinates shown)', () => {
     const text = fixture('combat-report-de.txt');
     const r = parseCombatReportText(text, null);

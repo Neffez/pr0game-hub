@@ -16,6 +16,26 @@ export interface ChangelogDay {
 
 export const CHANGELOG: ChangelogDay[] = [
   {
+    date: '2026-10-28',
+    items: [
+      {
+        kind: 'fix',
+        de: 'Battle Hall: Die Spielersuche findet Kämpfe auch über frühere Namen (wie in der Übersicht).',
+        en: 'Battle Hall: player search finds battles by former names too (like on the overview).',
+      },
+      {
+        kind: 'new',
+        de: 'Battle Hall: Lokal archivierte Mondzerstörungen sind am Todesstern-Symbol hinter den Angreifer-Namen erkennbar.',
+        en: 'Battle Hall: locally archived moon-destruction battles show a death star icon after the attackers’ names.',
+      },
+      {
+        kind: 'fix',
+        de: 'Kampfberichte zur Mondzerstörung werden wieder erkannt – beim Archiv aus der Battle Hall und beim Einfügen als Text.',
+        en: 'Moon-destruction battle reports are recognised again when archived from the battle hall and when pasted as text.',
+      },
+    ],
+  },
+  {
     date: '2026-10-27',
     items: [
       {

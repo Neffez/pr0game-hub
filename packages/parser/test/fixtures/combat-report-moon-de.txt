@@ -1,0 +1,22 @@
+Folgende Flotten stehen sich zur Mondzerstörung gegenüber am 24. Okt 2026, 16:05:37 (0.039 s)
+Angreifer iHackdiZamm ([3:8:8] (M))
+Bewaff. 220% - Schilde 200% - Hülle 240%
+Typ
+Schlachtschiff
+Void Titan
+Anzahl
+1.000
+1
+Verteidiger B0b ([3:141:15] (M))
+Bewaff. 250% - Schilde 220% - Hülle 240%
+Typ
+L. Jäger
+Schwerer Kreuzer
+Anzahl
+69.873
+9.843
+Der Verteidiger hat die Schlacht gewonnen!
+Der Angreifer hat insgesamt 69.000.000 Units verloren
+Der Verteidiger hat insgesamt 3.676.000 Units verloren
+Auf diesen Raumkoordinaten liegen nun 23.878.500 Metall und 12.459.500 Kristall.
+Der Verteidiger hat die Mondzerstörung erfolgreich abgeblockt.

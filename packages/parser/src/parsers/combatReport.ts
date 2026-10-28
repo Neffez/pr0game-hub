@@ -8,7 +8,14 @@ import { parseGameDate, parseNumber } from '../util.js';
  * "Angreifer NAME (…)", "Typ" + short names, "Anzahl" + amounts (or "Zerstört!").
  * The first round is the fleet before the battle, the last one what is left.
  */
-const START_RE = /(?:Folgende Flotten stehen sich gegenüber am|The following fleets face each other on:?)\s*(.+)/;
+const MOON_DESTRUCTION_INTRO =
+  /(?:zur (?:Mondzerstörung|Inselzerstörung) gegenüber|The following fleets face each other for a moon destruction:)/;
+const START_RE =
+  /(?:Folgende Flotten stehen sich(?: zur (?:Mondzerstörung|Inselzerstörung))? gegenüber am|The following fleets face each other on:?|The following fleets face each other for a moon destruction:)\s*(.+)/;
+
+export function isMoonDestructionCombatText(text: string): boolean {
+  return MOON_DESTRUCTION_INTRO.test(text);
+}
 const HEADER_RE = /^(Angreifer|Verteidiger|Attacker|Defender)\s+(.+?)\s*\((?:\[[^\]]*\]|[^)]*)\)/;
 // coordinates in a header, "([3:195:5] (M))" on a moon; public pages hide them ("[XX:XX:XX]")
 const HEADER_COORDS_RE = /\[(\d+):(\d+):(\d+)\](\s*\((?:M|Mond|Moon)\))?/;
@@ -105,6 +112,7 @@ export function parseCombatReportText(text: string, reportId: string | null): Co
   const loot = tail.match(LOOT_RE);
   return {
     kind: 'combatReport',
+    moonDestruction: isMoonDestructionCombatText(text),
     reportId,
     // public pages show "20 Oct 2026, 10:29:25" (server time in UTC)
     time: parseGameDate(start[1]) ?? parseGameDate(start[1].replace(/^(\d{1,2})\s+/, '$1. ')),

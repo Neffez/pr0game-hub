@@ -427,6 +427,8 @@ export interface CombatFleet {
 /** Battle report page (compact: participants, fleets before/after, outcome). */
 export interface CombatReportRecord {
   kind: 'combatReport';
+  /** battle report intro is the moon-destruction variant (Death Stars vs. moon) */
+  moonDestruction?: boolean;
   reportId: string | null;
   time: LocalDateTime | null;
   winner: 'attacker' | 'defender' | 'draw';

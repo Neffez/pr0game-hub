@@ -4,6 +4,12 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-28
 
+- Battle Hall: the participant search matches former player names (all names of matching players from
+  `player_aliases`), not only the substring in the stored hall entry.
+- Battle Hall: locally archived moon-destruction reports show a small death-star icon after the attackers' names
+  (`moon_destruction` on archived combat reports).
+- Battle report archive and pasted moon-destruction reports: the parser recognises the game's moon-destruction intro
+  (German and English), so the crawler no longer marks those hall entries as failed after three tries.
 - Admin panel: universe settings for resource production (`resource_multiplier`), shipyard speed (`shipyard_speed`)
   and storage factor (`storage_multiplier`), alongside the existing building and research speeds.
 

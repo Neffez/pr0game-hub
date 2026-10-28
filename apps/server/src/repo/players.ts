@@ -133,3 +133,36 @@ export class Players {
     );
   }
 }
+
+const likeTerm = (s: string) => `%${s.replace(/[\\%_]/g, '\\$&')}%`;
+
+/**
+ * SQL filter for battle hall participant search: substring match on the stored JSON and exact participant names
+ * (current and former) of every player whose current or alias name matches `q`.
+ */
+export function battleHallParticipantFilter(db: DB, groupId: number, q: string): { clause: string; args: unknown[] } {
+  const like = likeTerm(q);
+  const args: unknown[] = [like, like];
+  let clause = `(h.attackers LIKE ? ESCAPE '\\' OR h.defenders LIKE ? ESCAPE '\\'`;
+  const ids = db
+    .prepare(
+      `SELECT id FROM players p WHERE p.group_id = ?
+         AND (p.name LIKE ? ESCAPE '\\' OR EXISTS (SELECT 1 FROM player_aliases a WHERE a.player_id = p.id AND a.name LIKE ? ESCAPE '\\'))`,
+    )
+    .pluck()
+    .all(groupId, like, like) as number[];
+  const names = new Set<string>();
+  const namesOf = db.prepare('SELECT name FROM players WHERE id = ? UNION SELECT name FROM player_aliases WHERE player_id = ?');
+  for (const id of ids) {
+    for (const name of namesOf.pluck().all(id, id) as string[]) names.add(name);
+  }
+  if (names.size) {
+    const json = JSON.stringify([...names]);
+    clause +=
+      " OR EXISTS (SELECT 1 FROM json_each(h.attackers) a WHERE a.value COLLATE NOCASE IN (SELECT value FROM json_each(?)))" +
+      " OR EXISTS (SELECT 1 FROM json_each(h.defenders) d WHERE d.value COLLATE NOCASE IN (SELECT value FROM json_each(?)))";
+    args.push(json, json);
+  }
+  clause += ')';
+  return { clause, args };
+}
