@@ -23,6 +23,7 @@ import {
   type StatsRecord,
 } from '@pr0hub/core';
 import { CLASS_BUILDINGS, PHALANX } from '@pr0hub/core/tech';
+import { combatFleetsNamesDegraded, participantNamesDegraded } from './battleParticipants.js';
 import { now, type DB } from './db.js';
 import type { IngestSummary, IngestTarget } from './ingest.js';
 import { fleetActivity, galaxyMark } from './repo/activity.js';
@@ -571,13 +572,47 @@ export class Store {
 
   private battleHall(r: BattleHallRecord) {
     const insert = this.db.prepare(
-      `INSERT OR IGNORE INTO battle_hall (group_id, report_id, time, attackers, defenders, winner, units) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO battle_hall (group_id, report_id, time, attackers, defenders, winner, units) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    );
+    const existing = this.db.prepare(
+      'SELECT attackers, defenders, winner, units FROM battle_hall WHERE group_id = ? AND report_id = ?',
+    );
+    const update = this.db.prepare(
+      'UPDATE battle_hall SET attackers = ?, defenders = ?, winner = ?, units = ? WHERE group_id = ? AND report_id = ?',
     );
     for (const e of r.entries) {
-      const res = insert.run(
-        this.t.groupId, e.reportId, this.epoch(e.time), JSON.stringify(e.attackers), JSON.stringify(e.defenders), e.winner, e.units,
-      );
-      this.count('battle_hall', res.changes > 0);
+      const row = existing.get(this.t.groupId, e.reportId) as
+        | { attackers: string; defenders: string; winner: string | null; units: number }
+        | undefined;
+      const time = this.epoch(e.time);
+      if (!row) {
+        insert.run(this.t.groupId, e.reportId, time, JSON.stringify(e.attackers), JSON.stringify(e.defenders), e.winner, e.units);
+        this.count('battle_hall', true);
+        continue;
+      }
+      this.count('battle_hall', false);
+      const oldA = JSON.parse(row.attackers) as string[];
+      const oldD = JSON.parse(row.defenders) as string[];
+      const attackers = participantNamesDegraded(oldA, e.attackers) ? oldA : e.attackers;
+      const defenders = participantNamesDegraded(oldD, e.defenders) ? oldD : e.defenders;
+      const namesDegraded =
+        participantNamesDegraded(oldA, e.attackers) || participantNamesDegraded(oldD, e.defenders);
+      const winner = namesDegraded ? row.winner : e.winner;
+      const units = namesDegraded ? row.units : e.units;
+      const next = {
+        attackers: JSON.stringify(attackers),
+        defenders: JSON.stringify(defenders),
+        winner,
+        units,
+      };
+      if (
+        next.attackers !== row.attackers ||
+        next.defenders !== row.defenders ||
+        next.winner !== row.winner ||
+        next.units !== row.units
+      ) {
+        update.run(next.attackers, next.defenders, next.winner, next.units, this.t.groupId, e.reportId);
+      }
     }
   }
 
@@ -807,6 +842,11 @@ export function storeCombatReport(db: DB, groupId: number, r: CombatReportRecord
     f.name,
     Object.entries(f.start).map(([id, n]) => [Number(id), n, f.end[Number(id)] ?? 0]),
   ]);
+  const fleetsJson = JSON.stringify(fleets);
+  const stored = db.prepare('SELECT fleets FROM combat_reports WHERE group_id = ? AND report_id = ?').get(groupId, r.reportId) as
+    | { fleets: string }
+    | undefined;
+  const keepFleets = stored != null && combatFleetsNamesDegraded(stored.fleets, r.fleets);
   const res = db
     .prepare(
       `INSERT INTO combat_reports (group_id, report_id, time, winner, rounds, lost_attacker, lost_defender, debris_metal, debris_crystal, fleets,
@@ -816,17 +856,21 @@ export function storeCombatReport(db: DB, groupId: number, r: CombatReportRecord
          g = COALESCE(g, excluded.g), s = COALESCE(s, excluded.s), p = COALESCE(p, excluded.p),
          planet_type = COALESCE(planet_type, excluded.planet_type),
          moon_destruction = MAX(moon_destruction, excluded.moon_destruction),
+         fleets = CASE WHEN ? THEN fleets ELSE excluded.fleets END,
          loot_metal = IIF(loot_metal + loot_crystal + loot_deuterium = 0, excluded.loot_metal, loot_metal),
          loot_crystal = IIF(loot_metal + loot_crystal + loot_deuterium = 0, excluded.loot_crystal, loot_crystal),
          loot_deuterium = IIF(loot_metal + loot_crystal + loot_deuterium = 0, excluded.loot_deuterium, loot_deuterium)
        WHERE (g IS NULL AND excluded.g IS NOT NULL)
          OR (loot_metal + loot_crystal + loot_deuterium = 0 AND excluded.loot_metal + excluded.loot_crystal + excluded.loot_deuterium > 0)
-         OR (moon_destruction = 0 AND excluded.moon_destruction = 1)`,
+         OR (moon_destruction = 0 AND excluded.moon_destruction = 1)
+         OR (? = 0 AND fleets <> excluded.fleets)`,
     )
     .run(
-      groupId, r.reportId, time, r.winner, r.rounds, r.lost.attacker, r.lost.defender, r.debris.metal, r.debris.crystal, JSON.stringify(fleets),
+      groupId, r.reportId, time, r.winner, r.rounds, r.lost.attacker, r.lost.defender, r.debris.metal, r.debris.crystal, fleetsJson,
       r.loot.metal, r.loot.crystal, r.loot.deuterium, r.target?.coords.g ?? null, r.target?.coords.s ?? null, r.target?.coords.p ?? null,
       r.target?.type ?? null, r.moonDestruction ? 1 : 0,
+      keepFleets ? 1 : 0,
+      keepFleets ? 1 : 0,
     );
   db.prepare("UPDATE battle_hall SET report_status = 'archived' WHERE group_id = ? AND report_id = ?").run(groupId, r.reportId);
   return renamed || res.changes > 0;

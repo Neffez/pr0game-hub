@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Battle Hall und lokal archivierte Kampfberichte: Ein erneuter Sync, nachdem Spieler im Spiel gelöscht wurden, überschreibt gespeicherte Namen nicht mehr durch „–“ oder leere Einträge.',
+        en: 'Battle Hall and locally archived battle reports: syncing again after players were deleted in the game no longer overwrites stored names with “–” or blanks.',
+      },
+      {
+        kind: 'fix',
         de: 'Battle Hall: Die Spielersuche findet Kämpfe auch über frühere Namen (wie in der Übersicht).',
         en: 'Battle Hall: player search finds battles by former names too (like on the overview).',
       },

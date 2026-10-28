@@ -627,6 +627,15 @@ describe('api', () => {
     db.prepare('INSERT OR REPLACE INTO player_aliases (player_id, name, seen_until) VALUES (?, ?, 1)').run(andaId, 'AndaFormer');
     const byAlias = (await app.inject({ method: 'GET', url: '/hub/api/u8/battle-hall?q=AndaFormer&sort=time', headers })).json();
     expect(byAlias.entries.map((e: any) => e.report_id.slice(0, 4))).toEqual(['778f', '4a2c']);
+    // a later battle hall sync after deleted accounts must not replace stored participant names
+    const redacted = fixture('battlehall.html')
+      .replace('pUsteblUme', '')
+      .replace('Arys', '')
+      .replace('<span class="colorNegative"></span>', '<span class="colorNegative">-</span>');
+    await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { text: redacted } });
+    const puste = (await app.inject({ method: 'GET', url: '/hub/api/u8/battle-hall?q=pUsteblUme', headers })).json();
+    expect(puste.entries[0]?.attackers).toEqual(['pUsteblUme']);
+    expect(puste.entries[0]?.defenders).toEqual(['Arys']);
   });
 
   it('archives battle reports with the background worker', async () => {

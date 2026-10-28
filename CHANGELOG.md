@@ -4,6 +4,8 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-28
 
+- Battle Hall and archived combat reports: re-syncing after deleted game accounts no longer replaces stored
+  participant names (or archived fleet names) with empty or dash placeholders when the hub already had the real names.
 - Battle Hall: the participant search matches former player names (all names of matching players from
   `player_aliases`), not only the substring in the stored hall entry.
 - Battle Hall: locally archived moon-destruction reports show a small death-star icon after the attackers' names
