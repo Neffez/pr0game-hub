@@ -154,7 +154,7 @@ const storageFactor = computed(() => {
     const base = storageCapacity(planet.values[STORAGE[METAL]] ?? 0);
     if (base) return active.storage[METAL] / base;
   }
-  return (ctx.value!.universe.settings as { storageMultiplier?: number }).storageMultiplier ?? 1;
+  return ctx.value!.universe.settings.storageMultiplier;
 });
 
 /** Live amount: production since the page time, never above the storage (but full storages stay as they are). */

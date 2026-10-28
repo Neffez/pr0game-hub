@@ -102,7 +102,7 @@ describe('format', () => {
     const { decodeShare } = await import('@pr0hub/battle');
     const u = { galaxies: 4, systems: 400, positions: 15, circularGalaxies: true, circularSystems: false, galaxyDistanceFactor: 20000,
       systemDistanceFactor: 95, systemDistance: 2700, planetDistanceFactor: 5, planetDistance: 1000, fleetSpeed: 10000, buildingSpeed: 0,
-      researchSpeed: 0, universityFactor: 8, timezone: 'Europe/Berlin', gameUrl: '', fleetDebrisPercent: 50, defenseDebrisPercent: 10, bigShields: true } as UniverseSettings;
+      researchSpeed: 0, shipyardSpeed: 0, resourceMultiplier: 0, storageMultiplier: 1, universityFactor: 8, timezone: 'Europe/Berlin', gameUrl: '', fleetDebrisPercent: 50, defenseDebrisPercent: 10, bigShields: true } as UniverseSettings;
     // spy values: resources, ships, defense, research (only combat research goes to the planet), a missile
     const values = { 901: 5000, 902: 300, 903: 7, 202: 3, 401: 400, 405: 20, 503: 2, 109: 12, 111: 11, 114: 8 };
     const link = battleSimLink(u, values, [{ ships: { 207: 50, 210: 0 }, research: { 109: 14, 118: 10, 120: 5 }, from: [1, 100, 5], speed: 80, name: 'Neffez' }], [1, 110, 8],
@@ -158,7 +158,7 @@ describe('loot calculator link', () => {
   it('links the IPM calculator with own research and the defense of a spy report', () => {
     const u = { galaxies: 4, systems: 400, positions: 15, circularGalaxies: true, circularSystems: true, galaxyDistanceFactor: 20000,
       systemDistanceFactor: 95, systemDistance: 2700, planetDistanceFactor: 5, planetDistance: 1000, fleetSpeed: 5000, buildingSpeed: 0,
-      researchSpeed: 0, universityFactor: 8, timezone: 'Europe/Berlin', gameUrl: '' } as UniverseSettings;
+      researchSpeed: 0, shipyardSpeed: 0, resourceMultiplier: 0, storageMultiplier: 1, universityFactor: 8, timezone: 'Europe/Berlin', gameUrl: '' } as UniverseSettings;
     const values = { 401: 400, 404: 20, 502: 7, 503: 3, 111: 11, 901: 5000, 202: 3 };
     const link = new URL(ipmCalcLink(u, { from: [1, 100, 5], silo: 6, missiles: 30, to: [1, 110, 8], research: { 117: 6, 109: 12 }, values }), 'http://hub.test');
     expect(link.pathname).toBe('/ipm-calculator/');

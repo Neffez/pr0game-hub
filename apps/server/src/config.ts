@@ -68,6 +68,12 @@ export interface UniverseSettings {
   buildingSpeed: number;
   /** game config research_speed (2500 = 1x) for research times; 0 unknown (derived from a synced research page) */
   researchSpeed: number;
+  /** game config shipyard_speed (2500 = 1x) for shipyard build times; 0 unknown */
+  shipyardSpeed: number;
+  /** game config resource_multiplier (2500 = 1x) for resource production; 0 unknown */
+  resourceMultiplier: number;
+  /** game config storage_multiplier: capacity factor when not derived from a synced page */
+  storageMultiplier: number;
   /** game config factor_university: research time −% per TechnoDome level (game default 8) */
   universityFactor: number;
   timezone: string;
@@ -89,6 +95,9 @@ export const UNIVERSE_DEFAULTS: UniverseSettings = {
   fleetSpeed: 2500,
   buildingSpeed: 0,
   researchSpeed: 0,
+  shipyardSpeed: 0,
+  resourceMultiplier: 0,
+  storageMultiplier: 1,
   universityFactor: 8,
   timezone: 'Europe/Berlin',
   gameUrl: '',

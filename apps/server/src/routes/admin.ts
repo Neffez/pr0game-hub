@@ -485,6 +485,7 @@ function validateSettings(settings: object | undefined) {
     else if (typeof defaults[key] === 'number') {
       valid = typeof value === 'number' && Number.isFinite(value) && value >= 0;
       if (['galaxies', 'systems', 'positions', 'fleetSpeed'].includes(key)) valid &&= Number.isInteger(value) && (value as number) >= 1;
+      if (key === 'storageMultiplier') valid &&= Number.isInteger(value) && (value as number) >= 0;
       // a percentage per TechnoDome level: above 100 research times turn negative
       if (['universityFactor', 'fleetDebrisPercent', 'defenseDebrisPercent'].includes(key)) valid &&= (value as number) <= 100;
     }

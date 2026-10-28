@@ -636,6 +636,8 @@ components:
           type: object
           description: >-
             Universe with its `settings` (layout, speeds, distance factors, time zone, game URL as set by a hub admin).
+            Speed settings use the game's internal values (2500 = 1×): `buildingSpeed`, `researchSpeed`, `shipyardSpeed`,
+            `resourceMultiplier` and `fleetSpeed`; `storageMultiplier` is the game config `storage_multiplier` (default 1).
             Optional settings: `phalanxRangeFactor` and `missileRangeFactor` (game config `phalanx_range_factor` and
             `missile_range_factor`, number ≥ 0, default 1; the missile factor is passed on to the IPM calculator),
             `noobLimit`, `noobFactor` and `noobInactives` (game config `noob_protection_time`, `noob_protection_multi` and

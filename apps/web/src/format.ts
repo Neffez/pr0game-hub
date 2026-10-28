@@ -157,6 +157,9 @@ export interface UniverseSettings {
   /** game config building_speed (2500 = 1x), 0 unknown */
   buildingSpeed: number;
   researchSpeed: number;
+  shipyardSpeed: number;
+  resourceMultiplier: number;
+  storageMultiplier: number;
   universityFactor: number;
   timezone: string;
   gameUrl: string;

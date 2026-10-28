@@ -2,6 +2,11 @@
 
 Every commit adds its changes here, newest first, grouped by date.
 
+## 2026-10-28
+
+- Admin panel: universe settings for resource production (`resource_multiplier`), shipyard speed (`shipyard_speed`)
+  and storage factor (`storage_multiplier`), alongside the existing building and research speeds.
+
 ## 2026-10-27
 
 - Marketplace: the rate source reads "exact" / "estimated" / "by hand": a page copied in the browser arrives as HTML and

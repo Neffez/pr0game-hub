@@ -96,9 +96,9 @@ export function buildingsState(db: DB, ctx: GroupContext, userId: number, t = no
       .all(ctx.groupId, userId) as { time: number; data: string }[]
   ).map((r) => ({ time: r.time, rec: JSON.parse(r.data) as ResearchRecord }));
   const fleets = sharedFleets(db, ctx.groupId, userId, userId);
-  const settings = ctx.universe.settings as typeof ctx.universe.settings & { storageMultiplier?: number };
+  const settings = ctx.universe.settings;
 
-  const storageFactor = storageFactorOf(empire?.rec ?? null, pages[0]?.rec ?? null) ?? settings.storageMultiplier ?? 1;
+  const storageFactor = storageFactorOf(empire?.rec ?? null, pages[0]?.rec ?? null) ?? settings.storageMultiplier;
   const planets = new Map<string, BuildingPlanet>();
   for (const p of empire?.rec.planets ?? []) {
     const key = keyOf(p.coords, p.type);

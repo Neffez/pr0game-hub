@@ -350,6 +350,21 @@ const doMerge = () => run(async () => {
               <input v-model.number="editUni.settings.researchSpeed" type="number" min="0" style="width: 90px" />
             </label>
             <label>
+              {{ t('admin.shipyardSpeed') }}
+              <Hint>{{ t('admin.shipyardSpeedHint') }}</Hint>
+              <input v-model.number="editUni.settings.shipyardSpeed" type="number" min="0" style="width: 90px" />
+            </label>
+            <label>
+              {{ t('admin.resourceMultiplier') }}
+              <Hint>{{ t('admin.resourceMultiplierHint') }}</Hint>
+              <input v-model.number="editUni.settings.resourceMultiplier" type="number" min="0" style="width: 90px" />
+            </label>
+            <label>
+              {{ t('admin.storageMultiplier') }}
+              <Hint>{{ t('admin.storageMultiplierHint') }}</Hint>
+              <input v-model.number="editUni.settings.storageMultiplier" type="number" min="0" step="1" placeholder="1" style="width: 70px" />
+            </label>
+            <label>
               {{ t('admin.universityFactor') }}
               <Hint>{{ t('admin.universityFactorHint') }}</Hint>
               <input v-model.number="editUni.settings.universityFactor" type="number" min="0" max="100" style="width: 60px" />
