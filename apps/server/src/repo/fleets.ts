@@ -25,7 +25,7 @@ export function fleetShare(db: DB, userId: number): FleetShare {
 export type StoredFleet = FleetMovement & { arrival: number; fromPlayer?: { id: number; name: string } | null; shared?: boolean };
 
 /** Arrivals of one movement in two fleet lists differ by up to this much (remaining time vs. shown clock). */
-const TOLERANCE = 5;
+export const TOLERANCE = 5;
 
 const sameBody = (a: FleetBody | null, b: FleetBody | null) =>
   a == null || b == null

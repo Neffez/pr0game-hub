@@ -41,12 +41,22 @@ const EVENTS_HEAD_RE = /^(?:Ereignisse|Events)\s+(Ausblenden|Einblenden|Hide|Sho
 
 /**
  * Owner from the game's sentence templates (INGAME.yaml cff_mission_*): "Eine deiner …" is own, "Eine feindliche …"
- * (spying, destroying, …) hostile. An attack or ACS attack of someone else on the viewer reads "Eine Flotten(…)"
- * without player name (cff_mission_acs with ov_fleet); one on another player, e.g. a friendly ACS, "Eine
- * Verbandsflotte(…)" (cff_acs_fleet).
+ * (spying, destroying, …) hostile. An attack or ACS attack of someone else on the viewer reads "Eine Flotten(…)" or
+ * "Eine Flotten vom …" when the game omits the ship list, without player name (cff_mission_acs with ov_fleet); one on
+ * another player, e.g. a friendly ACS, "Eine Verbandsflotte(…)" (cff_acs_fleet).
  */
 const OWN_RE = /^(?:Eine deiner|One of your)\b/i;
-const HOSTILE_RE = /^(?:Eine feindliche|A hostile)\b|^(?:Eine|A)\s+(?:Flotten|Fleets)\s*\(/i;
+const PLAYER_FLEET_RE = /(?:vom|von|des)\s+Spieler\b|(?:of|from)\s+player\b/i;
+
+/** Incoming attack on the viewer's overview: "Eine Flotten(…)" or "Eine Flotten vom …" without naming the player. */
+function fleetOwner(text: string): FleetMovement['owner'] {
+  if (OWN_RE.test(text)) return 'own';
+  if (/^(?:Eine feindliche|A hostile)\b/i.test(text)) return 'hostile';
+  if (/^(?:Eine friedliche|A (?:friendly|peaceful))\b/i.test(text)) return 'foreign';
+  if (/^(?:Eine|A)\s+Verbandsflotte/i.test(text)) return 'foreign';
+  if (/^(?:Eine|A)\s+(?:Flotten|Fleets)\b/i.test(text)) return PLAYER_FLEET_RE.test(text) ? 'foreign' : 'hostile';
+  return 'foreign';
+}
 
 function body(kind: string, name: string, coords: string): FleetBody {
   // the return of a harvest to a moon reads "zurück zum Planeten Mond Ra [3:200:1]"
@@ -75,7 +85,7 @@ export function parseFleetSentence(text: string, seconds: number, clock: string 
   const bodies = [...s.matchAll(BODY_RE)].map((m) => body(m[1], m[2], m[0].slice(m[0].lastIndexOf('['))));
   const missionName = s.match(/Mission\s*:\s*([^(]+?)\s*(?:\(|$)/i)?.[1]?.replace(/\.$/, '').trim() ?? '';
   if (!bodies.length || !missionName) return null;
-  const owner: FleetMovement['owner'] = OWN_RE.test(s) ? 'own' : HOSTILE_RE.test(s) ? 'hostile' : 'foreign';
+  const owner = fleetOwner(s);
   const ships = s.match(/^[^(]*?(?:Flotten?|Fleets?(?: in ACS)?)\s*\(([^)]*)\)/i)?.[1] ?? '';
   const res = s.match(/(?:Rohstoffe|Resources)\s*:\s*([^)]*)/i)?.[1];
   const resources: Record<number, number> = {};

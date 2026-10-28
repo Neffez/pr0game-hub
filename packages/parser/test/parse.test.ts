@@ -585,7 +585,7 @@ describe('fleet movements', () => {
     const cases: [string, Partial<{ mission: number; phase: string; owner: string }>][] = [
       [
         'Eine Flotten vom Mond A [3:4:1] erreicht den Mond B [1:82:4]. Mission: Angreifen',
-        { mission: 1, phase: 'out', owner: 'foreign' },
+        { mission: 1, phase: 'out', owner: 'hostile' },
       ],
       [
         'Eine deiner Flotten (5 Großer Transporter) vom Planet Ares [1:100:12] erreicht den Planet Kolonie [3:4:1]. Mission: Transport',
@@ -682,6 +682,24 @@ describe('fleet movements', () => {
     '13:20:00 | 33m 10s Eine feindliche Flotten(5 Spionagesonde) vom Spieler Späher [PN] vom Planet Nest [2:7:3] erreicht den Planet Immer Online [3:115:8]. Mission: Spionieren',
     '13:30:00 | 43m 10s Eine Flotten(10 Leichter Jäger) vom Planet Solo [4:4:4] erreicht den Planet Immer Online [3:115:8]. Mission: Angreifen',
   ];
+
+  it('keeps a foreign ACS fleet that names the player before the start', () => {
+    const line =
+      '1h 0m 0s Eine Flotten(1773 Schlachtschiff) vom Spieler Ally [PN] vom Mond Mond [2:50:5] erreicht den Planet Ares [1:100:12]. Mission: Verbandsangriff';
+    expect(parseFleetsText(line)!.fleets[0].owner).toBe('foreign');
+  });
+
+  it('marks an incoming attack as hostile when the game omits the ship list before "vom"', () => {
+    const line =
+      '3T 17:13:37 | 3d 01h 25m 12s Eine Flotten vom Mond auch ein Satellit [3:4:1] erreicht den Mond Spicy Noodle [1:82:4]. Mission: Angreifen';
+    const f = parseFleetsText(line)!.fleets[0];
+    expect(f).toMatchObject({
+      owner: 'hostile',
+      mission: 1,
+      from: { coords: c(3, 4, 1), type: 'moon' },
+      to: { coords: c(1, 82, 4), type: 'moon' },
+    });
+  });
 
   it('marks attacks on the viewer as hostile and keeps the fleets of an ACS together', () => {
     const rec = parsePage({ text: acsText.join('\n') }).records[0] as any;

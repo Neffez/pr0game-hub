@@ -9,6 +9,7 @@ import { aboutRecords, backfillActivity, parseRaw, reparse, type RawIngest } fro
 import { systemInfo, vacuum } from '../monitor.js';
 import { undoIngest } from '../repo/cleanup.js';
 import { followUniverse } from '../repo/plans.js';
+import { memberFleetAttacks, removeStoredAttack } from '../repo/hostile.js';
 
 /**
  * Global admins manage universes, groups and the technical side (syncs, player merges, activity backfill, crawler).
@@ -353,6 +354,35 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
     })();
     events.publish(groupId, { type: 'data', tables: ['players', 'comments'] });
     return { ok: true };
+  });
+
+  /** Running attacks in members' stored overview fleet lists (alliance admins: remove wrong entries). */
+  app.get<{ Params: { id: string } }>('/api/admin/groups/:id/fleet-attacks', async (req) => {
+    const groupId = Number(req.params.id);
+    requireGroupAdmin(req, groupId);
+    const members = db
+      .prepare(
+        `SELECT m.user_id, COALESCE(m.ingame_name, u.username) AS name FROM group_members m JOIN users u ON u.id = m.user_id WHERE m.group_id = ? ORDER BY name`,
+      )
+      .all(groupId) as { user_id: number; name: string }[];
+    return members.flatMap((m) =>
+      memberFleetAttacks(db, groupId, m.user_id).map((a) => ({ userId: m.user_id, member: m.name, ...a })),
+    );
+  });
+
+  app.post<{ Params: { id: string }; Body: { userId?: number; key?: string } }>('/api/admin/groups/:id/fleet-attacks/remove', async (req) => {
+    const groupId = Number(req.params.id);
+    requireGroupAdmin(req, groupId);
+    const userId = Number(req.body?.userId);
+    const key = String(req.body?.key ?? '');
+    if (!userId || !key) throw new HttpError(400, 'invalid_body', 'userId and key required');
+    if (!db.prepare('SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?').get(groupId, userId)) {
+      throw new HttpError(404, 'member_not_found', 'Member not found');
+    }
+    const snapshots = removeStoredAttack(db, groupId, userId, key);
+    if (!snapshots) throw new HttpError(404, 'attack_not_found', 'No such attack in stored fleet lists');
+    events.publish(groupId, { type: 'data', tables: ['fleets', 'hidden_attacks'] });
+    return { snapshots };
   });
 
   app.get<{ Params: { id: string } }>('/api/admin/groups/:id/ingests', async (req) => {

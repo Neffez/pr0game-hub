@@ -20,6 +20,16 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Admin-Panel: Allianz-Admins können falsch gespeicherte Angriffe aus den Flottenlisten eines Mitglieds entfernen („Flottenbewegungen (Angriffe)“).',
+        en: 'Admin panel: alliance admins can remove wrongly stored attacks from a member’s saved fleet lists (“Fleet movements (attacks)”).',
+      },
+      {
+        kind: 'fix',
+        de: 'Sync: Eingehende Angriffe ohne Schiffsliste in der Zeile („Eine Flotten vom …“) gelten wieder als feindlich, nicht als fremde Flotte.',
+        en: 'Sync: incoming attacks without a ship list in the line (“A fleet from …”) are marked hostile again on the attacked member’s overview, not foreign.',
+      },
+      {
+        kind: 'fix',
         de: 'Sync: Flotten aus kopierter Übersicht oder Phalanx mit Ankunftsuhr über einem Tag (z. B. „3T 17:13:37“) werden wieder erkannt – für alle Missionen.',
         en: 'Sync: fleet events from a copied overview or phalanx whose arrival clock is more than a day away (e.g. “3T 17:13:37”) are recognised again for every mission.',
       },

@@ -342,6 +342,21 @@ describe('api', () => {
     db.prepare('DELETE FROM fleet_share_choices').run();
   });
 
+  it('lets alliance admins remove a stored attack from fleet snapshots', async () => {
+    const headers = { ...admin, 'x-hub-group': String(groupA) };
+    const text =
+      '3T 17:13:37 | 3d 01h 25m 12s Eine Flotten vom Mond auch ein Satellit [3:4:1] erreicht den Mond Spicy Noodle [1:82:4]. Mission: Angreifen';
+    await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { text } });
+    let list = (await app.inject({ method: 'GET', url: `/hub/api/admin/groups/${groupA}/fleet-attacks`, headers: admin })).json();
+    expect(list.length).toBe(1);
+    expect(list[0].owner).toBe('hostile');
+    const { userId, key } = list[0];
+    expect((await app.inject({ method: 'POST', url: `/hub/api/admin/groups/${groupA}/fleet-attacks/remove`, headers: admin, payload: { userId, key } })).json().snapshots).toBeGreaterThan(0);
+    list = (await app.inject({ method: 'GET', url: `/hub/api/admin/groups/${groupA}/fleet-attacks`, headers: admin })).json();
+    expect(list).toHaveLength(0);
+    expect((await app.inject({ method: 'GET', url: '/hub/api/u8/hostile-attacks', headers })).json()).toHaveLength(0);
+  });
+
   it('notifies the group of hostile fleets heading for a member', async () => {
     const headers = { ...admin, 'x-hub-group': String(groupA) };
     // other kinds (a full storage of the fixtures' fixed timestamps) come and go with the clock

@@ -2,7 +2,7 @@ import { distance, flightDuration, slowestShip } from '@pr0hub/flight';
 import type { GroupContext } from '../context.js';
 import { now, type DB } from '../db.js';
 import { spyEmpire } from './empire.js';
-import { fleetHistory, sharedFleets, type StoredFleet } from './fleets.js';
+import { fleetHistory, sharedFleets, TOLERANCE, type StoredFleet } from './fleets.js';
 
 /** Missions worth a retime: attack, ACS attack, destroy. */
 const RETIME_MISSIONS = [1, 2, 9];
@@ -64,7 +64,7 @@ const sameBody = (b: StoredFleet['from'] | null, c: Body) => !!b && b.coords.g =
  * Attacks worth a retime in one fleet list (`owners`: hostile ones on the viewer, in a phalanx also the scanned
  * player's own ones): ACS fleets as one group, the lead first.
  */
-function attackGroups(data: StoredFleet[], owners: StoredFleet['owner'][]): AttackGroup[] {
+export function attackGroups(data: StoredFleet[], owners: StoredFleet['owner'][]): AttackGroup[] {
   const groups = new Map<string, StoredFleet[]>();
   data.forEach((f, i) => {
     if (!owners.includes(f.owner) || f.phase !== 'out' || f.mission == null || !RETIME_MISSIONS.includes(f.mission)) return;
@@ -158,6 +158,58 @@ export function hostileAttacks(db: DB, ctx: GroupContext): HostileAttack[] {
     }
   }
   return list;
+}
+
+const ATTACK_OWNERS: StoredFleet['owner'][] = ['own', 'hostile', 'foreign'];
+
+/** Attacks (missions 1/2/9) in a member's newest overview paste, for admin cleanup. */
+export function memberFleetAttacks(
+  db: DB,
+  groupId: number,
+  userId: number,
+): { key: string; owner: StoredFleet['owner']; arrival: number; from: Body; to: Body; mission: number | null; fleets: number }[] {
+  const snap = db
+    .prepare('SELECT data FROM fleet_snapshots WHERE group_id = ? AND user_id = ? ORDER BY page_time DESC, id DESC LIMIT 1')
+    .get(groupId, userId) as { data: string } | undefined;
+  if (!snap) return [];
+  const data = JSON.parse(snap.data) as StoredFleet[];
+  return attackGroups(data, ATTACK_OWNERS).map((g) => ({
+    key: g.key,
+    owner: g.fleets[0].owner,
+    arrival: g.fleets[0].arrival,
+    from: g.from,
+    to: g.to,
+    mission: g.fleets[0].mission,
+    fleets: g.fleets.length,
+  }));
+}
+
+/**
+ * Removes one attack (solo or ACS) from every stored fleet list of the member. Returns how many snapshots were changed.
+ */
+export function removeStoredAttack(db: DB, groupId: number, userId: number, key: string): number {
+  const rows = db
+    .prepare('SELECT id, data FROM fleet_snapshots WHERE group_id = ? AND user_id = ?')
+    .all(groupId, userId) as { id: number; data: string }[];
+  const update = db.prepare('UPDATE fleet_snapshots SET data = ? WHERE id = ?');
+  let changed = 0;
+  for (const row of rows) {
+    const data = JSON.parse(row.data) as StoredFleet[];
+    const group = attackGroups(data, ATTACK_OWNERS).find((g) => g.key === key);
+    if (!group) continue;
+    const lead = group.fleets[0];
+    const drop = new Set<number>();
+    data.forEach((f, i) => {
+      if (lead.acs != null) {
+        if (f.acs === lead.acs && Math.abs(f.arrival - lead.arrival) <= TOLERANCE) drop.add(i);
+      } else if (group.fleets.includes(f)) drop.add(i);
+    });
+    if (!drop.size) continue;
+    update.run(JSON.stringify(data.filter((_, i) => !drop.has(i))), row.id);
+    changed++;
+  }
+  if (changed) db.prepare('DELETE FROM hidden_attacks WHERE group_id = ? AND attack_key = ?').run(groupId, key);
+  return changed;
 }
 
 /**

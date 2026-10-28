@@ -12,7 +12,19 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import { api, loadMe, selectedGroup, session } from '../api';
-import { dateTime, STATS_CATEGORIES } from '../format';
+import { clockTime, coords, dateTime, STATS_CATEGORIES } from '../format';
+
+type FleetAttackRow = {
+  userId: number;
+  member: string;
+  key: string;
+  owner: string;
+  arrival: number;
+  from: { g: number; s: number; p: number; type: string };
+  to: { g: number; s: number; p: number; type: string };
+  mission: number | null;
+  fleets: number;
+};
 
 const { t } = useI18n();
 const route = useRoute();
@@ -37,6 +49,7 @@ const newGroup = ref({ universe: '', name: '' });
 const groupId = ref<number | null>(null);
 const members = ref<any[]>([]);
 const ingests = ref<any[]>([]);
+const fleetAttacks = ref<FleetAttackRow[]>([]);
 const newMemberName = ref('');
 const merge = ref({ from: null as number | null, into: null as number | null });
 const group = computed(() => groups.value.find((g) => g.id === groupId.value));
@@ -78,11 +91,12 @@ async function loadAll() {
 
 async function loadGroup() {
   if (!groupId.value) return;
-  [members.value, ingests.value, discord.value] = await Promise.all([
+  [members.value, ingests.value, discord.value, fleetAttacks.value] = await Promise.all([
     api(`/admin/groups/${groupId.value}/members`),
     // sync history is technical administration: global admins only
     isAdmin.value ? api(`/admin/groups/${groupId.value}/ingests`) : [],
     api(`/admin/groups/${groupId.value}/discord`),
+    api<FleetAttackRow[]>(`/admin/groups/${groupId.value}/fleet-attacks`),
   ]);
   discordWebhook.value = '';
   undo.value = null;
@@ -162,6 +176,17 @@ const memberSort = useSort(
 
 const inviteUrl = (token: string) => `${location.origin}${import.meta.env.BASE_URL}invite/${token}`;
 const copy = (text: string) => navigator.clipboard?.writeText(text).then(() => (msg.value = t('admin.linkCopied')));
+
+const bodyCoords = (b: FleetAttackRow['from']) => `${coords(b.g, b.s, b.p)}${b.type === 'moon' ? ` (${t('common.moon')})` : ''}`;
+const missionLabel = (id: number | null) => (id != null ? t(`game.missions.${id}`) : '–');
+const ownerLabel = (o: string) => (o === 'own' ? t('admin.fleetOwnerOwn') : o === 'hostile' ? t('imperium.hostile') : t('imperium.foreign'));
+const removeFleetAttack = (a: FleetAttackRow) => {
+  if (!confirm(t('admin.fleetAttackRemoveConfirm', { member: a.member, route: `${bodyCoords(a.from)} → ${bodyCoords(a.to)}` }))) return;
+  run(async () => {
+    await api(`/admin/groups/${groupId.value}/fleet-attacks/remove`, { body: { userId: a.userId, key: a.key } });
+    fleetAttacks.value = await api(`/admin/groups/${groupId.value}/fleet-attacks`);
+  }, 'admin.fleetAttackRemoved');
+};
 
 const setRole = (m: any, role: string) => run(async () => {
   await api(`/admin/groups/${groupId.value}/members/${m.id}`, { method: 'PUT', body: { role } });
@@ -522,6 +547,35 @@ const doMerge = () => run(async () => {
         </template>
         <p class="muted small">{{ t('admin.discordMentions') }}</p>
       </Section>
+      <Section :title="t('admin.fleetAttacks')" :count="fleetAttacks.length" :default-open="false" store-key="admin.fleetAttacks">
+        <template #hint><Hint>{{ t('admin.fleetAttacksHint') }}</Hint></template>
+        <p v-if="!fleetAttacks.length" class="muted small">{{ t('admin.fleetAttacksNone') }}</p>
+        <div v-else class="table-wrap">
+          <table v-stack="2" class="data">
+            <thead>
+              <tr>
+                <th>{{ t('nav.user') }}</th>
+                <th>{{ t('admin.fleetOwnerCol') }}</th>
+                <th>{{ t('imperium.mission') }}</th>
+                <th>{{ t('admin.fleetRoute') }}</th>
+                <th>{{ t('imperium.arrival') }}</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="a in fleetAttacks" :key="`${a.userId}:${a.key}`">
+                <td>{{ a.member }}</td>
+                <td class="small">{{ ownerLabel(a.owner) }}</td>
+                <td class="small">{{ missionLabel(a.mission) }}<span v-if="a.fleets > 1" class="muted"> · ACS {{ a.fleets }}</span></td>
+                <td class="small mono">{{ bodyCoords(a.from) }} → {{ bodyCoords(a.to) }}</td>
+                <td class="mono small">{{ clockTime(new Date(a.arrival * 1000), true) }}</td>
+                <td><button class="danger small" @click="removeFleetAttack(a)">{{ t('common.remove') }}</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </Section>
+
       <Section :title="t('admin.members', { name: group.name })" :count="memberSort.sorted.value.length" store-key="admin.members">
       <form class="row" style="margin-bottom: 10px" @submit.prevent="addMember">
         <input v-model="newMemberName" :placeholder="t('admin.ingameName')" style="flex: 1; min-width: 140px" />
