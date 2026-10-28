@@ -32,8 +32,9 @@ const BODY_RE = new RegExp(
   String.raw`(Planeten|Planet|Mond|Moon|Trümmerfeld|Debris field|Position)\s+([^\[]*?)\s*` + COORDS_RE.source,
   'gi',
 );
-/** "13:14:00 | 27m 10s <sentence>" (overview), "21:25:37  03h 14m 57s <sentence>" (phalanx: tabs, no bar) */
-const LINE_RE = /^(?:(\d{1,2}:\d{2}:\d{2})\s*(?:\|\s*|\s+))?((?:\d+\s*[Wdhms]\s*)+)(\S.*Mission\s*:.*)$/;
+/** "13:14:00 | 27m 10s <sentence>" (overview), "3T 17:13:37 | 3d …" when arrival is days away, phalanx: tabs, no bar */
+const LINE_RE =
+  /^(?:(?:(\d+)T\s*)?(\d{1,2}:\d{2}:\d{2})\s*(?:\|\s*|\s+))?((?:\d+\s*[Wdhms]\s*)+)(\S.*Mission\s*:.*)$/i;
 /** Head of a copied phalanx (INGAME.yaml px_scan_position): "Scan Position [3:4:1] (Kolonie)" */
 const PHALANX_RE = /^\s*(?:Scan Position|Investigate position)\s*\[(\d+):(\d+):(\d+)\]/im;
 const EVENTS_HEAD_RE = /^(?:Ereignisse|Events)\s+(Ausblenden|Einblenden|Hide|Show)$/im;
@@ -115,16 +116,16 @@ export function parseFleetLines(text: string): FleetMovement[] {
   for (const raw of text.split('\n')) {
     const line = `${prefix} ${raw.trim()}`.trim();
     if (!line) continue;
-    if (/^[\d:|\sWdhms]+$/.test(line) && /\d/.test(line)) {
+    if (/^[\d:|\sWdhmsT]+$/i.test(line) && /\d/.test(line)) {
       prefix = line;
       continue;
     }
     prefix = '';
     const m = line.match(LINE_RE);
     if (m) {
-      const secs = parseDuration(m[2]);
-      const clock = m[1]?.padStart(8, '0') ?? null;
-      const f = secs != null ? parseFleetSentence(m[3], secs, clock) : null;
+      const secs = parseDuration(m[3]);
+      const clock = m[2]?.padStart(8, '0') ?? null;
+      const f = secs != null ? parseFleetSentence(m[4], secs, clock) : null;
       event = f ? { index: out.length, seconds: f.seconds, clock } : null;
       if (f) out.push(f);
       continue;

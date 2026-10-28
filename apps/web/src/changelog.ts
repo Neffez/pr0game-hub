@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Sync: Flotten aus kopierter Übersicht oder Phalanx mit Ankunftsuhr über einem Tag (z. B. „3T 17:13:37“) werden wieder erkannt – für alle Missionen.',
+        en: 'Sync: fleet events from a copied overview or phalanx whose arrival clock is more than a day away (e.g. “3T 17:13:37”) are recognised again for every mission.',
+      },
+      {
+        kind: 'fix',
         de: 'Battle Hall: Das Todesstern-Symbol bei Mondzerstörungen ist neutral grau hinterlegt statt in der Gewinner-/Verlierer-Farbe des Namens.',
         en: 'Battle Hall: the death star icon for moon destruction uses a neutral grey badge instead of the attacker name’s win/loss colour.',
       },

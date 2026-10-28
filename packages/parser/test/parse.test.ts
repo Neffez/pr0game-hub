@@ -579,6 +579,42 @@ describe('fleet movements', () => {
     expect(rec.fleets.map((f) => f.mission)).toEqual([16, 17]);
   });
 
+  it('parses any fleet event whose arrival clock shows days (nT HH:MM:SS)', () => {
+    const secs = 3 * 86400 + 3600 + 25 * 60 + 12;
+    const tail = (sentence: string) => `3T 17:13:37 | 3d 01h 25m 12s ${sentence}`;
+    const cases: [string, Partial<{ mission: number; phase: string; owner: string }>][] = [
+      [
+        'Eine Flotten vom Mond A [3:4:1] erreicht den Mond B [1:82:4]. Mission: Angreifen',
+        { mission: 1, phase: 'out', owner: 'foreign' },
+      ],
+      [
+        'Eine deiner Flotten (5 Großer Transporter) vom Planet Ares [1:100:12] erreicht den Planet Kolonie [3:4:1]. Mission: Transport',
+        { mission: 3, phase: 'out', owner: 'own' },
+      ],
+      [
+        'Eine deiner Flotten (1 Kolonieschiff) vom Planet Ares [1:100:12] erreicht die Position [4:200:7]. Mission: Kolonisieren',
+        { mission: 7, phase: 'out', owner: 'own' },
+      ],
+      [
+        'Eine deiner Flotten (10 Recycler) kehrt vom Trümmerfeld Debris [2:50:8] zurück zum Planet Ares [1:100:12]. Mission: Abbauen',
+        { mission: 8, phase: 'return', owner: 'own' },
+      ],
+      [
+        'Eine deiner Flotten (1 Spionagesonde) vom Planet Ares [1:100:12] erreicht die Position [5:5:5]. Mission: Expedition',
+        { mission: 15, phase: 'out', owner: 'own' },
+      ],
+    ];
+    for (const [sentence, wanted] of cases) {
+      const rec = parseFleetsText(tail(sentence))!;
+      expect(rec.fleets).toHaveLength(1);
+      expect(rec.fleets[0]).toMatchObject({ ...wanted, clock: '17:13:37', seconds: secs });
+    }
+    const attack = cases[0][0];
+    const [clock, rest] = tail(attack).split(' | ');
+    const split = [clock, '|', rest.replace(' Eine', '\nEine')].join('\n');
+    expect(parseFleetsText(split)!.fleets[0]).toMatchObject({ mission: 1, seconds: secs, clock: '17:13:37' });
+  });
+
   it('parses copied event lines on their own', () => {
     const res = parsePage({ text: lines.join('\n') });
     expect(res).toMatchObject({ pageType: 'fleets', source: 'text' });

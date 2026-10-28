@@ -87,7 +87,8 @@ function wallInstants(asUtc: number, timeZone: string): number[] {
  * clock is taken in either offset, so a clock of the repeated hour lands on the right one of its two instants.
  */
 export function nearestClock(approx: number, clock: string, timeZone = 'Europe/Berlin'): number {
-  const [h, m, s] = clock.split(':').map(Number);
+  const time = clock.match(/^(?:\d+T\s*)?(\d{1,2}:\d{2}:\d{2})$/i)?.[1] ?? clock;
+  const [h, m, s] = time.split(':').map(Number);
   const local = new Date(approx * 1000 + zoneOffsetMs(approx * 1000, timeZone));
   let best = approx;
   let bestDiff = Infinity;

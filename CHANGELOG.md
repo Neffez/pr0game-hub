@@ -4,6 +4,8 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-28
 
+- Sync: copied overview and phalanx fleet events whose arrival clock shows days (`3T 17:13:37` before the remaining
+  time) are parsed again for every mission, not only short flights with `HH:MM:SS` alone.
 - Battle Hall: the moon-destruction death-star icon uses a neutral grey badge (like moon icons) instead of inheriting
   the attacker row's win/loss colour.
 - Battle Hall and archived combat reports: re-syncing after deleted game accounts no longer replaces stored

@@ -334,7 +334,7 @@ export interface FleetMovement {
   resources: Record<number, number> | null;
   /** remaining seconds at page time */
   seconds: number;
-  /** arrival as shown in the copied text ("HH:MM:SS", game time), refines `seconds` */
+  /** arrival clock from copied text ("HH:MM:SS", game time), refines `seconds`; day prefix "nT" is not stored */
   clock: string | null;
   /**
    * ACS: the fleets of one ACS share one event (one timer) in the game; they get the same number here, the first one
