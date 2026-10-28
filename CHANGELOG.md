@@ -4,6 +4,8 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-28
 
+- Battle Hall: the moon-destruction death-star icon uses a neutral grey badge (like moon icons) instead of inheriting
+  the attacker row's win/loss colour.
 - Battle Hall and archived combat reports: re-syncing after deleted game accounts no longer replaces stored
   participant names (or archived fleet names) with empty or dash placeholders when the hub already had the real names.
 - Battle Hall: the participant search matches former player names (all names of matching players from

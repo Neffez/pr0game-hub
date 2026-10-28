@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Battle Hall: Das Todesstern-Symbol bei Mondzerstörungen ist neutral grau hinterlegt statt in der Gewinner-/Verlierer-Farbe des Namens.',
+        en: 'Battle Hall: the death star icon for moon destruction uses a neutral grey badge instead of the attacker name’s win/loss colour.',
+      },
+      {
+        kind: 'fix',
         de: 'Battle Hall und lokal archivierte Kampfberichte: Ein erneuter Sync, nachdem Spieler im Spiel gelöscht wurden, überschreibt gespeicherte Namen nicht mehr durch „–“ oder leere Einträge.',
         en: 'Battle Hall and locally archived battle reports: syncing again after players were deleted in the game no longer overwrites stored names with “–” or blanks.',
       },
