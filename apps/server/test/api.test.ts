@@ -1339,6 +1339,9 @@ describe('review fixes', () => {
     const spy = (await app.inject({ method: 'GET', url: '/hub/api/u8/spy/9/9/9?limit=-1', headers })).json();
     expect(spy).toMatchObject({ total: 2 });
     expect(spy.reports).toHaveLength(1);
+    const recent = (await app.inject({ method: 'GET', url: '/hub/api/u8/spy-reports?limit=1&offset=1', headers })).json();
+    expect(recent).toHaveLength(1);
+    expect(recent[0].report_time).toBe(1000);
 
     const player = db.prepare('SELECT id FROM players WHERE group_id = ? LIMIT 1').pluck().get(groupA);
     const note = (payload: object) => app.inject({ method: 'PUT', url: `/hub/api/u8/players/${player}/note`, headers, payload });

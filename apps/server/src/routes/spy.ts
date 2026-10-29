@@ -27,13 +27,15 @@ export function spyRoutes(app: FastifyInstance, db: DB) {
 
   app.get<{ Params: { uni: string }; Querystring: Q }>('/api/:uni/spy-reports', async (req) => {
     const ctx = ctxOf(req);
+    const limit = clampInt(req.query.limit, 100, 1, 1000);
+    const offset = clampInt(req.query.offset, 0, 0, 1_000_000);
     return db
       .prepare(
         `SELECT sr.id, sr.g, sr.s, sr.p, sr.planet_type, sr.planet_name, sr.player_name, sr.player_id, sr.report_time, sr.sections,
            ${DISPLAY} AS reporter
-         FROM spy_reports sr LEFT JOIN users u ON u.id = sr.user_id ${MEMBER('sr')} WHERE sr.group_id = ? ORDER BY sr.report_time DESC LIMIT ?`,
+         FROM spy_reports sr LEFT JOIN users u ON u.id = sr.user_id ${MEMBER('sr')} WHERE sr.group_id = ? ORDER BY sr.report_time DESC LIMIT ? OFFSET ?`,
       )
-      .all(ctx.groupId, clampInt(req.query.limit, 100, 1, 1000))
+      .all(ctx.groupId, limit, offset)
       .map(parseSections);
   });
 }

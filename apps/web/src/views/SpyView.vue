@@ -10,7 +10,7 @@ import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import { uniApi } from '../api';
 import SpyHistory, { type SpyReport } from '../components/SpyHistory.vue';
-import { useLoader, useMobile, useUni } from '../composables';
+import { useLoader, useMobile, useProgressive, useUni } from '../composables';
 import { tables, useLiveReload } from '../live';
 import { coords, fmt, name, short, timeWithAge } from '../format';
 
@@ -23,6 +23,10 @@ const target = ref(String(route.query.c ?? ''));
 const type = ref(route.query.type === 'moon' ? 'moon' : 'planet');
 const limit = ref(20);
 const recent = ref<any[]>([]);
+const recentDone = ref(false);
+let recentLoading = false;
+const RECENT_BATCH = 100;
+const { shown: recentShown, more: recentMore, sentinel: recentSentinel } = useProgressive(recent, 50);
 
 const { data, error, load } = useLoader(async () => {
   const m = target.value.match(/(\d+)\D+(\d+)\D+(\d+)/);
@@ -57,13 +61,33 @@ function open(r: any) {
   load();
 }
 
-async function loadRecent() {
+async function appendRecent() {
+  if (recentLoading || recentDone.value) return;
+  recentLoading = true;
   try {
-    recent.value = await uniApi(uni.value, '/spy-reports?limit=50');
+    const batch = await uniApi<any[]>(uni.value, `/spy-reports?limit=${RECENT_BATCH}&offset=${recent.value.length}`);
+    recent.value = recent.value.concat(batch);
+    if (batch.length < RECENT_BATCH) recentDone.value = true;
   } catch (e) {
     error.value = (e as Error).message;
+  } finally {
+    recentLoading = false;
   }
 }
+
+async function loadRecent() {
+  recent.value = [];
+  recentDone.value = false;
+  await appendRecent();
+}
+
+watch(
+  () => [recentShown.value.length, recent.value.length, recentDone.value] as const,
+  ([shown, loaded, done]) => {
+    if (done || !loaded || shown < loaded - 20) return;
+    appendRecent();
+  },
+);
 onMounted(() => {
   if (target.value) load();
   loadRecent();
@@ -128,7 +152,7 @@ const res = (r: any, id: number) => r.sections['900']?.[id] ?? 0;
 
   <h2>{{ t('spy.recent') }}</h2>
   <div v-if="mobile" class="m-list">
-    <div v-for="r in recent" :key="r.id" class="m-item" role="button" tabindex="0" @click="open(r)" @keydown.enter="open(r)">
+    <div v-for="r in recentShown" :key="r.id" class="m-item" role="button" tabindex="0" @click="open(r)" @keydown.enter="open(r)">
       <span class="m-line">
         <span class="mono">{{ coords(r.g, r.s, r.p) }}</span>
         <span v-if="r.planet_type === 'moon'" class="moon-tag m-0"><Icon name="moon" :size="12" :label="t('common.moon')" /></span>
@@ -144,6 +168,7 @@ const res = (r: any, id: number) => r.sections['900']?.[id] ?? 0;
         <span class="faint">{{ timeWithAge(r.report_time) }}<template v-if="r.reporter"> · {{ r.reporter }}</template></span>
       </span>
     </div>
+    <div v-if="recentMore" ref="recentSentinel" class="list-end" />
   </div>
   <div v-else class="table-wrap">
     <table class="data">
@@ -151,7 +176,7 @@ const res = (r: any, id: number) => r.sections['900']?.[id] ?? 0;
         <tr><th>{{ t('common.time') }}</th><th>{{ t('common.coords') }}</th><th>{{ t('common.player') }}</th><th>{{ t('common.planet') }}</th><th class="num">{{ name(901) }}</th><th class="num">{{ name(902) }}</th><th class="num">{{ t('game.deutShort') }}</th><th>{{ t('common.from') }}</th></tr>
       </thead>
       <tbody>
-        <tr v-for="r in recent" :key="r.id" style="cursor: pointer" @click="open(r)">
+        <tr v-for="r in recentShown" :key="r.id" style="cursor: pointer" @click="open(r)">
           <td class="small mono">{{ timeWithAge(r.report_time) }}</td>
           <td class="mono">{{ coords(r.g, r.s, r.p) }}<span v-if="r.planet_type === 'moon'" class="moon-tag" style="margin: 0 0 0 4px"><Icon name="moon" :size="12" :label="t('common.moon')" /></span></td>
           <td>
@@ -166,6 +191,7 @@ const res = (r: any, id: number) => r.sections['900']?.[id] ?? 0;
         </tr>
       </tbody>
     </table>
+    <div v-if="recentMore" ref="recentSentinel" class="list-end" />
   </div>
 </template>
 
@@ -184,4 +210,5 @@ const res = (r: any, id: number) => r.sections['900']?.[id] ?? 0;
 .m-item:last-child { border-bottom: 0; }
 .m-line { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; min-width: 0; }
 .al-ellipsis { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.list-end { height: 1px; }
 </style>

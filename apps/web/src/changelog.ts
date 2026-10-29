@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-10-29',
     items: [
       {
+        kind: 'new',
+        de: 'Spionage-Verlauf: „Neueste Berichte“ zeigt beim Scrollen mehr Einträge (wie in der Übersicht), nicht nur die ersten 50.',
+        en: 'Spy history: “Latest reports” loads more entries as you scroll (like the overview), not just the first 50.',
+      },
+      {
         kind: 'fix',
         de: 'Fremdspionage: Spionennamen sind klickbar und öffnen das Spielerprofil, wenn der Spieler im Hub bekannt ist – wie bei Spionageberichten.',
         en: 'Hostile espionage: spy names are clickable and open the player profile when that player is known in the hub, like on spy reports.',

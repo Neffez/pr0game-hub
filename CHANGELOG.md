@@ -4,6 +4,8 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-29
 
+- Spy history: “Latest reports” loads more alliance spy reports with infinite scroll (like the overview), paginated via
+  `offset` on `/spy-reports`.
 - Hostile espionage: spy names in the summary and history link to the hub player profile when the player is known
   (from galaxy data or name), like on the spy reports page.
 - Activity: galaxy sync logs when a known planet or moon disappears at a position ("Planet destroyed" / "Moon destroyed");
