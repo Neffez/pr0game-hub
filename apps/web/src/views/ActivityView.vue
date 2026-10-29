@@ -38,6 +38,7 @@ const KINDS: { kind: string; icon: string; color: string }[] = [
   { kind: 'phalanx_new', icon: 'spy', color: 'var(--info)' },
   { kind: 'phalanx_up', icon: 'arrowUp', color: 'var(--info)' },
   { kind: 'planet_new', icon: 'planets', color: 'var(--pos)' },
+  { kind: 'planet_destroyed', icon: 'close', color: 'var(--neg)' },
   { kind: 'moon_new', icon: 'moon', color: 'var(--pos)' },
   { kind: 'moon_destroyed', icon: 'close', color: 'var(--neg)' },
   { kind: 'debris_new', icon: 'sparkle', color: 'var(--warn)' },
@@ -100,6 +101,8 @@ function text(e: Entry) {
       return t('activity.text.phalanxUp', { before: d.before, level: d.level });
     case 'planet_new':
       return d.name ? t('activity.text.planetNewNamed', { name: d.name }) : kindLabel('planet_new');
+    case 'planet_destroyed':
+      return d.name ? t('activity.text.planetDestroyedNamed', { name: d.name }) : kindLabel('planet_destroyed');
     case 'moon_new':
       return kindLabel('moon_new');
     case 'moon_destroyed':

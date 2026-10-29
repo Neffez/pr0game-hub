@@ -20,8 +20,8 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
-        de: 'Aktivität: Wenn ein bekannter Mond in der Galaxie verschwindet, erscheint „Mond zerstört“ (neben „Neuer Mond“).',
-        en: 'Activity: when a known moon disappears from the galaxy view, a “Moon destroyed” entry appears (alongside “New moon”).',
+        de: 'Aktivität: Verschwindet ein bekannter Planet oder Mond in der Galaxie, erscheinen „Planet zerstört“ bzw. „Mond zerstört“ (neben „Neuer Planet“ / „Neuer Mond“).',
+        en: 'Activity: when a known planet or moon disappears from the galaxy view, “Planet destroyed” or “Moon destroyed” entries appear (alongside new planet/moon).',
       },
       {
         kind: 'fix',

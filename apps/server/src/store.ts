@@ -362,14 +362,19 @@ export class Store {
 
     // Planets/moons are only news when the system was known before (a first sync would report everything).
     const before = new Map(
-      (db.prepare('SELECT id, p, player_id, has_moon, moon_name, debris FROM planets WHERE group_id = ? AND g = ? AND s = ?').all(this.t.groupId, r.g, r.s) as {
-        id: number; p: number; player_id: number | null; has_moon: number; moon_name: string | null; debris: string | null;
+      (db.prepare('SELECT id, p, player_id, name, has_moon, moon_name, debris FROM planets WHERE group_id = ? AND g = ? AND s = ?').all(this.t.groupId, r.g, r.s) as {
+        id: number; p: number; player_id: number | null; name: string | null; has_moon: number; moon_name: string | null; debris: string | null;
       }[]).map((x) => [x.p, x]),
     );
     const positions = new Set(r.rows.map((row) => row.position));
     // Positions not listed anymore are empty now.
     for (const e of before.values()) {
-      if (!positions.has(e.p)) db.prepare('DELETE FROM planets WHERE id = ?').run(e.id);
+      if (!positions.has(e.p)) {
+        if (known != null && e.player_id) {
+          this.log('planet_destroyed', seenAt, { g: r.g, s: r.s, p: e.p }, 'planet', e.player_id, { name: e.name ?? null });
+        }
+        db.prepare('DELETE FROM planets WHERE id = ?').run(e.id);
+      }
     }
     for (const row of r.rows) {
       // empty positions are only kept for a destroyed planet or a debris field
@@ -406,6 +411,9 @@ export class Store {
         if (playerId && row.moon && !prev?.has_moon) this.log('moon_new', seenAt, c, 'moon', playerId, {});
         if (playerId && prev?.has_moon && !row.moon && prev.player_id === playerId) {
           this.log('moon_destroyed', seenAt, c, 'moon', playerId, { name: prev.moon_name ?? null });
+        }
+        if (prev?.player_id && !playerId) {
+          this.log('planet_destroyed', seenAt, c, 'planet', prev.player_id, { name: prev.name ?? null });
         }
       }
       this.debrisEvent(c, seenAt, playerId, prev?.debris ?? null, row.debris, known == null);
