@@ -4,6 +4,8 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-29
 
+- Tests: fix activity debris sequence (moon sync after cleared debris) and spy-reports offset assertion against
+  existing group data.
 - Spy history: fix “Latest reports” infinite scroll resetting after each server page (append in place for
   `useProgressive`); scroll sentinel stays active while more reports exist on the server; desktop list uses a flat
   table (page scroll, like messages).

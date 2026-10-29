@@ -600,9 +600,10 @@ describe('api', () => {
     // debris: grown, then reduced, then gone
     await ingest({ html: galaxy.replace('1.2K', '2.5K') });
     await ingest({ html: galaxy.replace('1.2K', '900') });
-    await ingest({ html: galaxy.replace('1.2K / 300', '') });
+    const clearedDebris = galaxy.replace('1.2K / 300', '');
+    await ingest({ html: clearedDebris });
 
-    const noMoon = galaxy.replace(/<div class="galaxy-grid-item galaxy-moon centered">[\s\S]*?<\/div>/, '<div class="galaxy-grid-item galaxy-moon centered"></div>');
+    const noMoon = clearedDebris.replace(/<div class="galaxy-grid-item galaxy-moon centered">[\s\S]*?<\/div>/, '<div class="galaxy-grid-item galaxy-moon centered"></div>');
     await ingest({ html: noMoon });
 
     const noPlanet = noMoon.replace(/<div class="galaxy-grid-row even" data-info="p_5">[\s\S]*?<\/div>\s*/, '');
@@ -1333,13 +1334,14 @@ describe('review fixes', () => {
 
   it('clamps limits and validates notes and deck settings', async () => {
     const headers = { ...admin, 'x-hub-group': String(groupA) };
+    const spyCount = db.prepare('SELECT COUNT(*) FROM spy_reports WHERE group_id = ?').pluck().get(groupA) as number;
     for (let i = 0; i < 2; i++) {
       db.prepare("INSERT INTO spy_reports (group_id, g, s, p, planet_type, report_time, player_name, sections) VALUES (?, 9, 9, 9, 'planet', ?, 'X', '{}')").run(groupA, 1000 + i);
     }
     const spy = (await app.inject({ method: 'GET', url: '/hub/api/u8/spy/9/9/9?limit=-1', headers })).json();
     expect(spy).toMatchObject({ total: 2 });
     expect(spy.reports).toHaveLength(1);
-    const recent = (await app.inject({ method: 'GET', url: '/hub/api/u8/spy-reports?limit=1&offset=1', headers })).json();
+    const recent = (await app.inject({ method: 'GET', url: `/hub/api/u8/spy-reports?limit=1&offset=${spyCount + 1}`, headers })).json();
     expect(recent).toHaveLength(1);
     expect(recent[0].report_time).toBe(1000);
 
