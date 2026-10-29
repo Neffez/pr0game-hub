@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-10-29',
     items: [
       {
+        kind: 'fix',
+        de: 'Spionage-Verlauf: „Neueste Berichte“ lädt beim Scrollen zuverlässig weitere Berichte nach (Fix für abgebrochenes Nachladen).',
+        en: 'Spy history: “Latest reports” reliably loads more reports while scrolling (fix for broken pagination).',
+      },
+      {
         kind: 'new',
         de: 'Spionage-Verlauf: „Neueste Berichte“ zeigt beim Scrollen mehr Einträge (wie in der Übersicht), nicht nur die ersten 50.',
         en: 'Spy history: “Latest reports” loads more entries as you scroll (like the overview), not just the first 50.',

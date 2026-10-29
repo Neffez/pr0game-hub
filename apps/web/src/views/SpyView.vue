@@ -27,6 +27,8 @@ const recentDone = ref(false);
 let recentLoading = false;
 const RECENT_BATCH = 100;
 const { shown: recentShown, more: recentMore, sentinel: recentSentinel } = useProgressive(recent, 50);
+/** More rows in the DOM or more pages on the server — keep the scroll sentinel mounted for both. */
+const recentScrollMore = computed(() => recentMore.value || !recentDone.value);
 
 const { data, error, load } = useLoader(async () => {
   const m = target.value.match(/(\d+)\D+(\d+)\D+(\d+)/);
@@ -66,7 +68,8 @@ async function appendRecent() {
   recentLoading = true;
   try {
     const batch = await uniApi<any[]>(uni.value, `/spy-reports?limit=${RECENT_BATCH}&offset=${recent.value.length}`);
-    recent.value = recent.value.concat(batch);
+    // push in place: replacing the array would reset useProgressive's visible count
+    recent.value.push(...batch);
     if (batch.length < RECENT_BATCH) recentDone.value = true;
   } catch (e) {
     error.value = (e as Error).message;
@@ -168,9 +171,9 @@ const res = (r: any, id: number) => r.sections['900']?.[id] ?? 0;
         <span class="faint">{{ timeWithAge(r.report_time) }}<template v-if="r.reporter"> · {{ r.reporter }}</template></span>
       </span>
     </div>
-    <div v-if="recentMore" ref="recentSentinel" class="list-end" />
+    <div v-if="recentScrollMore" ref="recentSentinel" class="list-end" />
   </div>
-  <div v-else class="table-wrap">
+  <div v-else class="table-wrap flat">
     <table class="data">
       <thead>
         <tr><th>{{ t('common.time') }}</th><th>{{ t('common.coords') }}</th><th>{{ t('common.player') }}</th><th>{{ t('common.planet') }}</th><th class="num">{{ name(901) }}</th><th class="num">{{ name(902) }}</th><th class="num">{{ t('game.deutShort') }}</th><th>{{ t('common.from') }}</th></tr>
@@ -191,7 +194,7 @@ const res = (r: any, id: number) => r.sections['900']?.[id] ?? 0;
         </tr>
       </tbody>
     </table>
-    <div v-if="recentMore" ref="recentSentinel" class="list-end" />
+    <div v-if="recentScrollMore" ref="recentSentinel" class="list-end" />
   </div>
 </template>
 

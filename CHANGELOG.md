@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-29
 
+- Spy history: fix “Latest reports” infinite scroll resetting after each server page (append in place for
+  `useProgressive`); scroll sentinel stays active while more reports exist on the server; desktop list uses a flat
+  table (page scroll, like messages).
 - Spy history: “Latest reports” loads more alliance spy reports with infinite scroll (like the overview), paginated via
   `offset` on `/spy-reports`.
 - Hostile espionage: spy names in the summary and history link to the hub player profile when the player is known
