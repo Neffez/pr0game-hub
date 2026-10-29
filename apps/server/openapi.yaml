@@ -2117,7 +2117,30 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: array, items: { type: object } }
+              schema:
+                type: object
+                properties:
+                  from: { type: integer }
+                  to: { type: integer }
+                  list:
+                    type: array
+                    description: Newest hostile espionage events (up to 1000)
+                    items:
+                      type: object
+                      properties:
+                        from_player: { type: string }
+                        from_player_id: { type: integer, nullable: true, description: Hub player id of the spy when known }
+                  bySpy:
+                    type: array
+                    description: Aggregated by spy name
+                    items:
+                      type: object
+                      properties:
+                        from_player: { type: string }
+                        from_player_id: { type: integer, nullable: true }
+                        count: { type: integer }
+                        victims: { type: integer }
+                        last: { type: integer, nullable: true }
   /api/{uni}/hostile-attacks:
     get:
       tags: [Combat]

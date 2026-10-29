@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-10-29',
     items: [
       {
+        kind: 'fix',
+        de: 'Fremdspionage: Spionennamen sind klickbar und öffnen das Spielerprofil, wenn der Spieler im Hub bekannt ist – wie bei Spionageberichten.',
+        en: 'Hostile espionage: spy names are clickable and open the player profile when that player is known in the hub, like on spy reports.',
+      },
+      {
         kind: 'new',
         de: 'Aktivität: Verschwindet ein bekannter Planet oder Mond in der Galaxie, erscheinen „Planet zerstört“ bzw. „Mond zerstört“ (neben „Neuer Planet“ / „Neuer Mond“).',
         en: 'Activity: when a known planet or moon disappears from the galaxy view, “Planet destroyed” or “Moon destroyed” entries appear (alongside new planet/moon).',

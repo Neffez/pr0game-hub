@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { HttpError } from '../auth.js';
 import type { DB } from '../db.js';
 import { ownCoords } from '../repo/empire.js';
-import { battleHallParticipantFilter } from '../repo/players.js';
+import { battleHallParticipantFilter, Players } from '../repo/players.js';
 import { latestScores } from '../repo/stats.js';
 import { contextOf, DISPLAY, likeTerm, MEMBER, range, type Q } from './util.js';
 
@@ -155,18 +155,24 @@ export function reportsRoutes(app: FastifyInstance, db: DB) {
   app.get<{ Params: { uni: string }; Querystring: Q }>('/api/:uni/hostile', async (req) => {
     const ctx = ctxOf(req);
     const { from, to } = range(req.query);
-    const list = db
+    const players = new Players(db, ctx.groupId);
+    const ownerAtFrom = db.prepare('SELECT player_id FROM planets WHERE group_id = ? AND g = ? AND s = ? AND p = ?');
+    const spyPlayerId = (fromPlayer: string, fromG: number, fromS: number, fromP: number) =>
+      (ownerAtFrom.pluck().get(ctx.groupId, fromG, fromS, fromP) as number | undefined) ?? players.byName(fromPlayer);
+    const listRows = db
       .prepare(
         `SELECT h.*, ${DISPLAY} AS username FROM hostile_spying h LEFT JOIN users u ON u.id = h.user_id ${MEMBER('h')}
          WHERE h.group_id = ? AND (h.time IS NULL OR h.time BETWEEN ? AND ?) ORDER BY h.time DESC LIMIT 1000`,
       )
-      .all(ctx.groupId, from, to);
-    const bySpy = db
+      .all(ctx.groupId, from, to) as { from_player: string; from_g: number; from_s: number; from_p: number }[];
+    const list = listRows.map((h) => ({ ...h, from_player_id: spyPlayerId(h.from_player, h.from_g, h.from_s, h.from_p) }));
+    const bySpyRows = db
       .prepare(
         `SELECT from_player, COUNT(*) AS count, MAX(time) AS last, COUNT(DISTINCT user_id) AS victims
          FROM hostile_spying WHERE group_id = ? AND (time IS NULL OR time BETWEEN ? AND ?) GROUP BY from_player ORDER BY count DESC`,
       )
-      .all(ctx.groupId, from, to);
+      .all(ctx.groupId, from, to) as { from_player: string }[];
+    const bySpy = bySpyRows.map((s) => ({ ...s, from_player_id: players.byName(s.from_player) }));
     return { from, to, list, bySpy };
   });
 }

@@ -2,6 +2,7 @@
 import ShowMore from '../components/ShowMore.vue';
 import PageHeader from '../components/PageHeader.vue';
 import Hint from '../components/Hint.vue';
+import PlayerLink from '../components/PlayerLink.vue';
 import { computed, onMounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
@@ -39,7 +40,10 @@ watch(days, load);
         <thead><tr><th>{{ t('common.player') }}</th><th class="num">{{ t('hostile.count') }}</th><th class="num">{{ t('hostile.victims') }}</th><th>{{ t('hostile.last') }}</th></tr></thead>
         <tbody>
           <tr v-for="s in data.bySpy" :key="s.from_player">
-            <td>{{ s.from_player }}</td>
+            <td>
+              <PlayerLink v-if="s.from_player_id" :id="s.from_player_id" :name="s.from_player" />
+              <span v-else>{{ s.from_player }}</span>
+            </td>
             <td class="num">{{ s.count }}</td>
             <td class="num">{{ s.victims }}</td>
             <td class="small">{{ ago(s.last) }}</td>
@@ -54,7 +58,10 @@ watch(days, load);
         <tbody>
           <tr v-for="h in historyLimit.shown.value" :key="h.id">
             <td class="small">{{ dateTime(h.time) }}</td>
-            <td>{{ h.from_player }}</td>
+            <td>
+              <PlayerLink v-if="h.from_player_id" :id="h.from_player_id" :name="h.from_player" />
+              <span v-else>{{ h.from_player }}</span>
+            </td>
             <td class="mono">{{ coords(h.from_g, h.from_s, h.from_p) }}{{ h.from_type === 'moon' ? ' ' + t('game.moonShort') : '' }} <span class="muted">{{ h.from_planet }}</span></td>
             <td class="mono">{{ coords(h.target_g, h.target_s, h.target_p) }}{{ h.target_type === 'moon' ? ' ' + t('game.moonShort') : '' }} <span class="muted">{{ h.target_planet }}</span></td>
             <td>{{ h.username }}</td>
