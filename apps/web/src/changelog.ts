@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-10-29',
     items: [
       {
+        kind: 'new',
+        de: 'Aktivität: Wenn ein bekannter Mond in der Galaxie verschwindet, erscheint „Mond zerstört“ (neben „Neuer Mond“).',
+        en: 'Activity: when a known moon disappears from the galaxy view, a “Moon destroyed” entry appears (alongside “New moon”).',
+      },
+      {
         kind: 'fix',
         de: 'Admin-Panel: Den Abschnitt „Flottenbewegungen“ (falsch gespeicherte Angriffe entfernen) sehen und nutzen nur noch Hub-Administratoren, nicht Allianz-Admins.',
         en: 'Admin panel: only hub administrators can see and use the “Fleet movements” section to remove wrongly stored attacks; alliance admins cannot.',

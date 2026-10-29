@@ -2081,7 +2081,7 @@ paths:
         - name: kinds
           in: query
           description: >-
-            Comma-separated kinds: `phalanx_new`, `phalanx_up`, `planet_new`, `moon_new`, `debris_new`, `debris_grown`,
+            Comma-separated kinds: `phalanx_new`, `phalanx_up`, `planet_new`, `moon_new`, `moon_destroyed`, `debris_new`, `debris_grown`,
             `debris_shrunk`, `debris_cleared`, `points_loss`, `fleet_loss`, `no_growth`, `market_offer` (a new offer of a
             synced marketplace; `data` has `give`, `want`, `ratio`, `endsAt`, `ally`)
           schema: { type: string }

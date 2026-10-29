@@ -602,12 +602,16 @@ describe('api', () => {
     await ingest({ html: galaxy.replace('1.2K', '900') });
     await ingest({ html: galaxy.replace('1.2K / 300', '') });
 
+    const noMoon = galaxy.replace(/<div class="galaxy-grid-item galaxy-moon centered">[\s\S]*?<\/div>/, '<div class="galaxy-grid-item galaxy-moon centered"></div>');
+    await ingest({ html: noMoon });
+
     const log = (await app.inject({ method: 'GET', url: `/hub/api/u8/activity?${EVER}`, headers })).json();
     const kinds = log.entries.map((e: any) => [e.kind, e.player_name, e.data.hours ?? e.data.level ?? e.data.delta ?? null]);
     expect(kinds).toEqual(
       expect.arrayContaining([
         ['planet_new', 'Alpha', null],
         ['moon_new', 'Alpha', null],
+        ['moon_destroyed', 'Alpha', null],
         ['no_growth', 'Alpha', 6],
         ['no_growth', 'Alpha', 12],
         ['points_loss', 'Alpha', -100000],

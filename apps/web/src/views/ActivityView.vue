@@ -39,6 +39,7 @@ const KINDS: { kind: string; icon: string; color: string }[] = [
   { kind: 'phalanx_up', icon: 'arrowUp', color: 'var(--info)' },
   { kind: 'planet_new', icon: 'planets', color: 'var(--pos)' },
   { kind: 'moon_new', icon: 'moon', color: 'var(--pos)' },
+  { kind: 'moon_destroyed', icon: 'close', color: 'var(--neg)' },
   { kind: 'debris_new', icon: 'sparkle', color: 'var(--warn)' },
   { kind: 'debris_grown', icon: 'sparkle', color: 'var(--neg)' },
   { kind: 'debris_shrunk', icon: 'sparkle', color: 'var(--info)' },
@@ -101,6 +102,8 @@ function text(e: Entry) {
       return d.name ? t('activity.text.planetNewNamed', { name: d.name }) : kindLabel('planet_new');
     case 'moon_new':
       return kindLabel('moon_new');
+    case 'moon_destroyed':
+      return d.name ? t('activity.text.moonDestroyedNamed', { name: d.name }) : kindLabel('moon_destroyed');
     case 'debris_new':
       // older entries stored the galaxy strings
       if (d.debris) return t('activity.text.debris', { res: `${name(901)} ${d.debris.metal} · ${name(902)} ${d.debris.crystal}` });

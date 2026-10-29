@@ -4,6 +4,7 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-29
 
+- Activity: galaxy sync logs when a known moon disappears at a position ("Moon destroyed"), alongside new moons.
 - Admin panel: the "Fleet movements" cleanup section and its remove action are limited to hub administrators;
   alliance group admins no longer see or call it.
 
