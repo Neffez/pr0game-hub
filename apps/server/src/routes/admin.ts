@@ -356,10 +356,10 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
     return { ok: true };
   });
 
-  /** Running attacks in members' stored overview fleet lists (alliance admins: remove wrong entries). */
+  /** Running attacks in members' stored overview fleet lists (global admins: remove wrong entries). */
   app.get<{ Params: { id: string } }>('/api/admin/groups/:id/fleet-attacks', async (req) => {
+    requireAdmin(req);
     const groupId = Number(req.params.id);
-    requireGroupAdmin(req, groupId);
     const members = db
       .prepare(
         `SELECT m.user_id, COALESCE(m.ingame_name, u.username) AS name FROM group_members m JOIN users u ON u.id = m.user_id WHERE m.group_id = ? ORDER BY name`,
@@ -371,8 +371,8 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
   });
 
   app.post<{ Params: { id: string }; Body: { userId?: number; key?: string } }>('/api/admin/groups/:id/fleet-attacks/remove', async (req) => {
+    requireAdmin(req);
     const groupId = Number(req.params.id);
-    requireGroupAdmin(req, groupId);
     const userId = Number(req.body?.userId);
     const key = String(req.body?.key ?? '');
     if (!userId || !key) throw new HttpError(400, 'invalid_body', 'userId and key required');

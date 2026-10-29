@@ -1176,7 +1176,7 @@ const de = {
     fleetOwnerCol: 'Erkannt als',
     fleetOwnerOwn: 'eigen',
     fleetRoute: 'Route',
-    fleetAttacksHint: 'Angriffe und ACS aus den gespeicherten Übersichts-Syncs der Mitglieder. Eintrag entfernen, wenn er falsch erkannt wurde (z. B. nach Parser-Korrektur): er verschwindet aus Imperium, Raidplaner und Benachrichtigungen in allen gespeicherten Flottenlisten dieses Mitglieds.',
+    fleetAttacksHint: 'Angriffe und ACS aus den gespeicherten Übersichts-Syncs der Mitglieder (nur Hub-Administratoren). Eintrag entfernen, wenn er falsch erkannt wurde (z. B. nach Parser-Korrektur): er verschwindet aus Imperium, Raidplaner und Benachrichtigungen in allen gespeicherten Flottenlisten dieses Mitglieds.',
     fleetAttacksNone: 'Keine laufenden Angriffe in den gespeicherten Flottenlisten.',
     fleetAttackRemoveConfirm: 'Angriff von {member} ({route}) aus allen gespeicherten Flottenlisten entfernen?',
     fleetAttackRemoved: 'Flottenbewegung entfernt',

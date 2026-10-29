@@ -2,6 +2,11 @@
 
 Every commit adds its changes here, newest first, grouped by date.
 
+## 2026-10-29
+
+- Admin panel: the "Fleet movements" cleanup section and its remove action are limited to hub administrators;
+  alliance group admins no longer see or call it.
+
 ## 2026-10-28
 
 - Admin panel: the fleet-movements cleanup section shows "Remove" on its button (not a missing translation) and is titled

@@ -96,7 +96,7 @@ async function loadGroup() {
     // sync history is technical administration: global admins only
     isAdmin.value ? api(`/admin/groups/${groupId.value}/ingests`) : [],
     api(`/admin/groups/${groupId.value}/discord`),
-    api<FleetAttackRow[]>(`/admin/groups/${groupId.value}/fleet-attacks`),
+    isAdmin.value ? api<FleetAttackRow[]>(`/admin/groups/${groupId.value}/fleet-attacks`) : [],
   ]);
   discordWebhook.value = '';
   undo.value = null;
@@ -547,7 +547,7 @@ const doMerge = () => run(async () => {
         </template>
         <p class="muted small">{{ t('admin.discordMentions') }}</p>
       </Section>
-      <Section :title="t('admin.fleetAttacks')" :count="fleetAttacks.length" :default-open="false" store-key="admin.fleetAttacks">
+      <Section v-if="isAdmin" :title="t('admin.fleetAttacks')" :count="fleetAttacks.length" :default-open="false" store-key="admin.fleetAttacks">
         <template #hint><Hint>{{ t('admin.fleetAttacksHint') }}</Hint></template>
         <p v-if="!fleetAttacks.length" class="muted small">{{ t('admin.fleetAttacksNone') }}</p>
         <div v-else class="table-wrap">

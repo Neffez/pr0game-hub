@@ -342,7 +342,7 @@ describe('api', () => {
     db.prepare('DELETE FROM fleet_share_choices').run();
   });
 
-  it('lets alliance admins remove a stored attack from fleet snapshots', async () => {
+  it('lets hub admins remove a stored attack from fleet snapshots', async () => {
     const headers = { ...admin, 'x-hub-group': String(groupA) };
     const text =
       '3T 17:13:37 | 3d 01h 25m 12s Eine Flotten vom Mond auch ein Satellit [3:4:1] erreicht den Mond Spicy Noodle [1:82:4]. Mission: Angreifen';
@@ -351,6 +351,15 @@ describe('api', () => {
     expect(list.length).toBe(1);
     expect(list[0].owner).toBe('hostile');
     const { userId, key } = list[0];
+    db.prepare("INSERT INTO users (username, password_hash) VALUES (?, ?)").run('fleetally', hashPassword('fleetally12'));
+    const allyId = db.prepare("SELECT id FROM users WHERE username = 'fleetally'").pluck().get() as number;
+    db.prepare("INSERT INTO group_members (group_id, user_id, role) VALUES (?, ?, 'admin')").run(groupA, allyId);
+    const allyAdmin = await login('fleetally', 'fleetally12');
+    expect((await app.inject({ method: 'GET', url: `/hub/api/admin/groups/${groupA}/fleet-attacks`, headers: allyAdmin })).statusCode).toBe(403);
+    expect(
+      (await app.inject({ method: 'POST', url: `/hub/api/admin/groups/${groupA}/fleet-attacks/remove`, headers: allyAdmin, payload: { userId, key } }))
+        .statusCode,
+    ).toBe(403);
     expect((await app.inject({ method: 'POST', url: `/hub/api/admin/groups/${groupA}/fleet-attacks/remove`, headers: admin, payload: { userId, key } })).json().snapshots).toBeGreaterThan(0);
     list = (await app.inject({ method: 'GET', url: `/hub/api/admin/groups/${groupA}/fleet-attacks`, headers: admin })).json();
     expect(list).toHaveLength(0);

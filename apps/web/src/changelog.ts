@@ -16,6 +16,16 @@ export interface ChangelogDay {
 
 export const CHANGELOG: ChangelogDay[] = [
   {
+    date: '2026-10-29',
+    items: [
+      {
+        kind: 'fix',
+        de: 'Admin-Panel: Den Abschnitt „Flottenbewegungen“ (falsch gespeicherte Angriffe entfernen) sehen und nutzen nur noch Hub-Administratoren, nicht Allianz-Admins.',
+        en: 'Admin panel: only hub administrators can see and use the “Fleet movements” section to remove wrongly stored attacks; alliance admins cannot.',
+      },
+    ],
+  },
+  {
     date: '2026-10-28',
     items: [
       {
@@ -25,8 +35,8 @@ export const CHANGELOG: ChangelogDay[] = [
       },
       {
         kind: 'fix',
-        de: 'Admin-Panel: Allianz-Admins können falsch gespeicherte Angriffe aus den Flottenlisten eines Mitglieds entfernen (Abschnitt „Flottenbewegungen“).',
-        en: 'Admin panel: alliance admins can remove wrongly stored attacks from a member’s saved fleet lists (“Fleet movements” section).',
+        de: 'Admin-Panel: Hub-Administratoren können falsch gespeicherte Angriffe aus den Flottenlisten eines Mitglieds entfernen (Abschnitt „Flottenbewegungen“).',
+        en: 'Admin panel: hub administrators can remove wrongly stored attacks from a member’s saved fleet lists (“Fleet movements” section).',
       },
       {
         kind: 'fix',

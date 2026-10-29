@@ -1174,7 +1174,7 @@ const en: typeof de = {
     fleetOwnerCol: 'Seen as',
     fleetOwnerOwn: 'own',
     fleetRoute: 'Route',
-    fleetAttacksHint: 'Attacks and ACS from stored overview syncs of members. Remove an entry when it was parsed wrong (e.g. after a parser fix): it disappears from empire, raid planner and notifications in all stored fleet lists of that member.',
+    fleetAttacksHint: 'Attacks and ACS from stored overview syncs of members (hub admins only). Remove an entry when it was parsed wrong (e.g. after a parser fix): it disappears from empire, raid planner and notifications in all stored fleet lists of that member.',
     fleetAttacksNone: 'No running attacks in stored fleet lists.',
     fleetAttackRemoveConfirm: 'Remove attack by {member} ({route}) from all stored fleet lists?',
     fleetAttackRemoved: 'Fleet movement removed',
