@@ -4,6 +4,8 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-30
 
+- Action menus on phones (planet and moon, including the galaxy browser) open as a bottom sheet so every item stays on
+  screen and tappable.
 - Activity pattern: when filtering stored galaxy marks, use the galaxy sync time (`created_at`, set from the paste
   on insert) to match spy reports and dedupe repeated pastes in the same hour; late backfills fall back to the mark
   estimate (fixes false “online” from an alliance spy and duplicate ticks on old data).

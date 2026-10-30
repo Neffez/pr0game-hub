@@ -108,7 +108,7 @@ const button = (scope: ParentNode, text: string) => [...scope.querySelectorAll<H
 async function menuItem(scope: ParentNode, label: string) {
   scope.querySelector<HTMLButtonElement>('.menu-btn')!.click();
   await settle();
-  const item = [...document.body.querySelectorAll<HTMLElement>('.menu [role=menuitem]')].find((b) => b.textContent!.includes(label))!;
+  const item = [...document.body.querySelectorAll<HTMLElement>('[role=menuitem]')].find((b) => b.textContent!.includes(label))!;
   item.click();
   await settle();
 }

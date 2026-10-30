@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Aktionsmenüs auf dem Handy (Planet und Mond, auch im Galaxie-Browser) öffnen sich von unten, damit alle Einträge sichtbar und tippbar bleiben.',
+        en: 'Action menus on phones (planet and moon, including the galaxy browser) open from the bottom so every item stays on screen and tappable.',
+      },
+      {
+        kind: 'fix',
         de: 'Aktivitätsmuster: Galaxie-Sterne nach einem Spio und doppelte Sterne aus älteren Syncs werden beim Anzeigen zuverlässiger erkannt (Sync-Zeit statt nur geschätzter Aktivitätszeit).',
         en: 'Activity pattern: galaxy marks after a spy and duplicate marks from older syncs are filtered more reliably when viewing (sync time, not estimated activity time alone).',
       },
