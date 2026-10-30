@@ -1344,6 +1344,15 @@ describe('review fixes', () => {
     const recent = (await app.inject({ method: 'GET', url: `/hub/api/u8/spy-reports?limit=1&offset=${spyCount + 1}`, headers })).json();
     expect(recent).toHaveLength(1);
     expect(recent[0].report_time).toBe(1000);
+    // keyset paging: same second, ordered by id; a report added meanwhile does not shift the next page
+    const same = [1, 2].map((p) =>
+      Number(db.prepare("INSERT INTO spy_reports (group_id, g, s, p, planet_type, report_time, player_name, sections) VALUES (?, 9, 8, ?, 'planet', 500, 'X', '{}')").run(groupA, p).lastInsertRowid),
+    );
+    const page = async (before: string) => (await app.inject({ method: 'GET', url: `/hub/api/u8/spy-reports?limit=1&before=${before}`, headers })).json();
+    const first = await page('501:0');
+    expect(first.map((r: any) => r.id)).toEqual([same[1]]);
+    db.prepare("INSERT INTO spy_reports (group_id, g, s, p, planet_type, report_time, player_name, sections) VALUES (?, 9, 9, 9, 'planet', 2000, 'X', '{}')").run(groupA);
+    expect((await page(`500:${first[0].id}`)).map((r: any) => r.id)).toEqual([same[0]]);
 
     const player = db.prepare('SELECT id FROM players WHERE group_id = ? LIMIT 1').pluck().get(groupA);
     const note = (payload: object) => app.inject({ method: 'PUT', url: `/hub/api/u8/players/${player}/note`, headers, payload });

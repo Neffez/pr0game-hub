@@ -2142,15 +2142,23 @@ paths:
     get:
       tags: [Intelligence]
       operationId: listSpyReports
+      description: The group's spy reports, newest first (report time, then id).
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
         - { $ref: '#/components/parameters/HubGroupQuery' }
         - name: limit
           in: query
-          schema: { type: integer }
+          schema: { type: integer, minimum: 1, maximum: 1000, default: 100 }
+        - name: before
+          in: query
+          description: |
+            Keyset paging: `<report_time>:<id>` of the last report of the previous page; only older reports follow.
+            Stable while new reports come in. Takes precedence over `offset`.
+          schema: { type: string, pattern: '^\d+:\d+$' }
         - name: offset
           in: query
+          description: Rows to skip (ignored with `before`)
           schema: { type: integer }
       responses:
         '200':

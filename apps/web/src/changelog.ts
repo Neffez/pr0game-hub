@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Spionage-Historie: Beim Weiterscrollen fehlen keine Berichte mehr und es tauchen keine doppelt auf, auch wenn gerade neue Berichte dazukommen.',
+        en: 'Spy history: scrolling on no longer skips or repeats reports, even while new reports come in.',
+      },
+      {
+        kind: 'fix',
         de: 'Kampfhalle: Nach einer Umbenennung erscheint der neue Name, und Sieger und Einheiten werden weiter aktualisiert.',
         en: 'Battle hall: after a rename the new name shows up, and winner and units keep being updated.',
       },

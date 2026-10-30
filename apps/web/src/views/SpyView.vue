@@ -63,22 +63,32 @@ function open(r: any) {
   load();
 }
 
+/** bumped by a reload: a batch of an older request is dropped */
+let recentGen = 0;
+
 async function appendRecent() {
   if (recentLoading || recentDone.value) return;
   recentLoading = true;
+  const gen = recentGen;
+  const last = recent.value.at(-1);
   try {
-    const batch = await uniApi<any[]>(uni.value, `/spy-reports?limit=${RECENT_BATCH}&offset=${recent.value.length}`);
+    const before = last ? `&before=${last.report_time}:${last.id}` : '';
+    const batch = await uniApi<any[]>(uni.value, `/spy-reports?limit=${RECENT_BATCH}${before}`);
+    if (gen !== recentGen) return;
+    const have = new Set(recent.value.map((r) => r.id));
     // push in place: replacing the array would reset useProgressive's visible count
-    recent.value.push(...batch);
+    recent.value.push(...batch.filter((r) => !have.has(r.id)));
     if (batch.length < RECENT_BATCH) recentDone.value = true;
   } catch (e) {
-    error.value = (e as Error).message;
+    if (gen === recentGen) error.value = (e as Error).message;
   } finally {
-    recentLoading = false;
+    if (gen === recentGen) recentLoading = false;
   }
 }
 
 async function loadRecent() {
+  recentGen++;
+  recentLoading = false;
   recent.value = [];
   recentDone.value = false;
   await appendRecent();

@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-30
 
+- Spy history: endless scrolling pages by report time and id (`before=<report_time>:<id>` on
+  `GET /api/{uni}/spy-reports`, documented) instead of an offset, so reports synced meanwhile neither repeat nor go
+  missing, reports of the same second keep their order, and a live reload during loading no longer starts the list in
+  the middle of the history.
 - Battle hall and combat reports: a renamed participant is taken over instead of counting as a lost name; only fewer
   usable names or a name turning blank/"-" keeps the stored names. Winner and units of a battle hall entry always
   follow the newest sync.
