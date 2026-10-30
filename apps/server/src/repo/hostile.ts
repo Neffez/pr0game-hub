@@ -185,9 +185,10 @@ export function memberFleetAttacks(
 }
 
 /**
- * Removes one attack (solo or ACS) from every stored fleet list of the member. Returns how many snapshots were changed.
+ * Removes one attack (solo or ACS) from every stored fleet list of the member. Waves with the same route and ships
+ * share the key: `arrival` picks one of them, without it all go. Returns how many snapshots were changed.
  */
-export function removeStoredAttack(db: DB, groupId: number, userId: number, key: string): number {
+export function removeStoredAttack(db: DB, groupId: number, userId: number, key: string, arrival?: number): number {
   const rows = db
     .prepare('SELECT id, data FROM fleet_snapshots WHERE group_id = ? AND user_id = ?')
     .all(groupId, userId) as { id: number; data: string }[];
@@ -195,15 +196,18 @@ export function removeStoredAttack(db: DB, groupId: number, userId: number, key:
   let changed = 0;
   for (const row of rows) {
     const data = JSON.parse(row.data) as StoredFleet[];
-    const group = attackGroups(data, ATTACK_OWNERS).find((g) => g.key === key);
-    if (!group) continue;
-    const lead = group.fleets[0];
+    const groups = attackGroups(data, ATTACK_OWNERS).filter(
+      (g) => g.key === key && (arrival == null || Math.abs(g.fleets[0].arrival - arrival) <= TOLERANCE),
+    );
     const drop = new Set<number>();
-    data.forEach((f, i) => {
-      if (lead.acs != null) {
-        if (f.acs === lead.acs && Math.abs(f.arrival - lead.arrival) <= TOLERANCE) drop.add(i);
-      } else if (group.fleets.includes(f)) drop.add(i);
-    });
+    for (const group of groups) {
+      const lead = group.fleets[0];
+      data.forEach((f, i) => {
+        if (lead.acs != null) {
+          if (f.acs === lead.acs && Math.abs(f.arrival - lead.arrival) <= TOLERANCE) drop.add(i);
+        } else if (group.fleets.includes(f)) drop.add(i);
+      });
+    }
     if (!drop.size) continue;
     update.run(JSON.stringify(data.filter((_, i) => !drop.has(i))), row.id);
     changed++;

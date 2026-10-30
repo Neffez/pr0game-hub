@@ -140,10 +140,10 @@ function galaxyMarkCausedByForeignAction(db: DB, groupId: number, g: number, s: 
   const hi = sync + 60;
   return !!db
     .prepare(
-      `SELECT 1 FROM spy_reports WHERE group_id = ? AND g = ? AND s = ? AND p = ? AND report_time BETWEEN ? AND ? AND report_time <= ?
-       UNION ALL SELECT 1 FROM battle_reports WHERE group_id = ? AND g = ? AND s = ? AND p = ? AND time BETWEEN ? AND ? AND time <= ? LIMIT 1`,
+      `SELECT 1 FROM spy_reports WHERE group_id = ? AND g = ? AND s = ? AND p = ? AND report_time BETWEEN ? AND ?
+       UNION ALL SELECT 1 FROM battle_reports WHERE group_id = ? AND g = ? AND s = ? AND p = ? AND time BETWEEN ? AND ? LIMIT 1`,
     )
-    .get(groupId, g, s, p, lo, hi, hi, groupId, g, s, p, lo, hi, hi);
+    .get(groupId, g, s, p, lo, hi, groupId, g, s, p, lo, hi);
 }
 
 function galaxyMarkBlocked(db: DB, groupId: number, g: number, s: number, p: number, row: { time: number; spread: number; created_at: number }): boolean {

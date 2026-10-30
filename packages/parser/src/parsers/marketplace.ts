@@ -16,7 +16,7 @@ const OFFER_RE = new RegExp(
 );
 
 // history: "27. Okt 2026, 15:55:11  2.000.000  Kristall  ->  1.300.000  Deuterium"
-const TRADE_RE = new RegExp(`^(${GAME_DATE_RE.source.replace(/^\\b/, '')})\\s+([\\d.,]+)\\s+(${RES})\\s+->\\s+([\\d.,]+)\\s+(${RES})\\s*$`, 'i');
+const TRADE_RE = new RegExp(`^(${GAME_DATE_RE.source})\\s+([\\d.,]+)\\s+(${RES})\\s+->\\s+([\\d.,]+)\\s+(${RES})\\s*$`, 'i');
 
 export function isMarketplaceText(text: string): boolean {
   return /^Reference ratio:/m.test(text) || text.split('\n').some((l) => OFFER_RE.test(l) || TRADE_RE.test(l));

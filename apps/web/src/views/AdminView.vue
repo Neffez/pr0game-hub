@@ -183,7 +183,7 @@ const ownerLabel = (o: string) => (o === 'own' ? t('admin.fleetOwnerOwn') : o ==
 const removeFleetAttack = (a: FleetAttackRow) => {
   if (!confirm(t('admin.fleetAttackRemoveConfirm', { member: a.member, route: `${bodyCoords(a.from)} → ${bodyCoords(a.to)}` }))) return;
   run(async () => {
-    await api(`/admin/groups/${groupId.value}/fleet-attacks/remove`, { body: { userId: a.userId, key: a.key } });
+    await api(`/admin/groups/${groupId.value}/fleet-attacks/remove`, { body: { userId: a.userId, key: a.key, arrival: a.arrival } });
     fleetAttacks.value = await api(`/admin/groups/${groupId.value}/fleet-attacks`);
   }, 'admin.fleetAttackRemoved');
 };
@@ -387,7 +387,7 @@ const doMerge = () => run(async () => {
             <label>
               {{ t('admin.storageMultiplier') }}
               <Hint>{{ t('admin.storageMultiplierHint') }}</Hint>
-              <input v-model.number="editUni.settings.storageMultiplier" type="number" min="0" step="1" placeholder="1" style="width: 70px" />
+              <input v-model.number="editUni.settings.storageMultiplier" type="number" min="1" step="1" placeholder="1" style="width: 70px" />
             </label>
             <label>
               {{ t('admin.universityFactor') }}
@@ -563,7 +563,7 @@ const doMerge = () => run(async () => {
               </tr>
             </thead>
             <tbody>
-              <tr v-for="a in fleetAttacks" :key="`${a.userId}:${a.key}`">
+              <tr v-for="a in fleetAttacks" :key="`${a.userId}:${a.key}:${a.arrival}`">
                 <td>{{ a.member }}</td>
                 <td class="small">{{ ownerLabel(a.owner) }}</td>
                 <td class="small">{{ missionLabel(a.mission) }}<span v-if="a.fleets > 1" class="muted"> · ACS {{ a.fleets }}</span></td>

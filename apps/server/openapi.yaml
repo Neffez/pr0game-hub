@@ -541,6 +541,25 @@ components:
             rounds: { type: integer }
             engine: { type: object, description: The engine's output (with `report`), rounds with Roundstats and Statistics per side }
         link: { type: string, description: The same battle in the battle simulator page (pr0game-tools) }
+    StoredFleetBody:
+      type: object
+      properties:
+        g: { type: integer }
+        s: { type: integer }
+        p: { type: integer }
+        type: { type: string, enum: [planet, moon] }
+    StoredFleetAttack:
+      type: object
+      properties:
+        userId: { type: integer }
+        member: { type: string, description: In-game name or hub username }
+        key: { type: string }
+        owner: { type: string, enum: [own, hostile, foreign], description: Fleet owner as seen by the member }
+        arrival: { type: integer, description: Epoch seconds }
+        from: { $ref: '#/components/schemas/StoredFleetBody' }
+        to: { $ref: '#/components/schemas/StoredFleetBody' }
+        mission: { type: [integer, 'null'] }
+        fleets: { type: integer, description: Fleets in the attack (ACS > 1) }
     Error:
       type: object
       required: [error, code]
@@ -1121,6 +1140,71 @@ paths:
               schema: { $ref: '#/components/schemas/Error' }
         '502':
           description: Discord refused the message (`discord_send_failed`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /api/admin/groups/{id}/fleet-attacks:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer }, description: Alliance group id }
+    get:
+      tags: [Admin]
+      operationId: listGroupFleetAttacks
+      description: |
+        Running attacks (solo and ACS) in the latest stored overview fleet list of every member, so global admins can
+        remove wrong entries. Waves with the same route and ships share `key` and differ by `arrival`.
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200':
+          description: Attacks per member
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/StoredFleetAttack' }
+        '403':
+          description: Not a global admin (`admin_only`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /api/admin/groups/{id}/fleet-attacks/remove:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer }, description: Alliance group id }
+    post:
+      tags: [Admin]
+      operationId: removeGroupFleetAttack
+      description: Removes one attack from every stored fleet list of the member and unhides it; global admins.
+      security: [{ sessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId, key]
+              properties:
+                userId: { type: integer, description: Member whose fleet lists hold the attack }
+                key: { type: string, description: Attack key from the list }
+                arrival:
+                  type: integer
+                  description: Arrival (epoch seconds) of the wave to remove; without it every wave with this key goes
+      responses:
+        '200':
+          description: Removed
+          content:
+            application/json:
+              schema: { type: object, properties: { snapshots: { type: integer, description: Fleet lists changed } } }
+        '400':
+          description: Missing `userId` or `key`, or `arrival` not a number (`invalid_body`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '403':
+          description: Not a global admin (`admin_only`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '404':
+          description: Not a member of the alliance (`member_not_found`) or no such attack (`attack_not_found`)
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }

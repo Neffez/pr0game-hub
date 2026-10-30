@@ -137,8 +137,9 @@ const update = () =>
     const parts = (['recycling', 'battles', 'participants', 'helpers', 'rates'] as const)
       .filter((k) => added[k] > 0)
       .map((k) => t(`loot.updated_${k}`, { n: added[k] }, added[k]));
-    // a new reference rate alone changes nothing visible but the warning: taken over as well
-    state.value = merged;
+    // a new reference rate alone changes nothing visible but the warning: taken over as well; nothing new keeps the
+    // state untouched, so a saved settlement does not turn dirty
+    if (JSON.stringify(merged) !== JSON.stringify(state.value)) state.value = merged;
     notice.value = parts.length ? t('loot.updated', { what: parts.join(', ') }) : t('loot.upToDate');
   });
 

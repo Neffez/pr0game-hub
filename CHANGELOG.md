@@ -4,6 +4,18 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-30
 
+- Code review quick wins:
+  - Loot settlement: "Update" with nothing new no longer marks a saved settlement as changed (save stayed enabled,
+    transfers could not be ticked, live reload stopped).
+  - Action menus: arrow keys in embedded form fields (claim box) move inside the field again instead of jumping to a
+    menu item; scrolling or resizing (on-screen keyboard) keeps the popover open while one of its fields has focus.
+  - Admin, stored fleet attacks: waves with the same route and ships are listed and removed one by one (removal takes
+    an optional `arrival`); both endpoints are now documented in the OpenAPI spec.
+  - Universe settings: the storage multiplier must be at least 1.
+  - Battle hall search loads the names of all matching players in one query instead of one per player.
+  - Cleanups: shared `likeTerm`, unused import, no side effect in the tools link `computed`, fleet event lines match unit letters
+    case-sensitively again, the marketplace trade pattern uses the game date pattern as is, redundant upper
+    bound in the galaxy mark query.
 - Action menus on phones (planet and moon, including the galaxy browser) open as a bottom sheet so every item stays on
   screen and tappable.
 - Activity pattern: galaxy marks are dropped only when a spy report or battle at that slot is at or before the galaxy

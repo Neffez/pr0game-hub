@@ -4,7 +4,7 @@ import type { DB } from '../db.js';
 import { ownCoords } from '../repo/empire.js';
 import { battleHallParticipantFilter, Players } from '../repo/players.js';
 import { latestScores } from '../repo/stats.js';
-import { contextOf, DISPLAY, likeTerm, MEMBER, range, type Q } from './util.js';
+import { contextOf, DISPLAY, MEMBER, range, type Q } from './util.js';
 
 export function reportsRoutes(app: FastifyInstance, db: DB) {
   const ctxOf = contextOf(db);

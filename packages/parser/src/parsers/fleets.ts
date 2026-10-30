@@ -34,7 +34,7 @@ const BODY_RE = new RegExp(
 );
 /** "13:14:00 | 27m 10s <sentence>" (overview), "3T 17:13:37 | 3d …" when arrival is days away, phalanx: tabs, no bar */
 const LINE_RE =
-  /^(?:(?:(\d+)T\s*)?(\d{1,2}:\d{2}:\d{2})\s*(?:\|\s*|\s+))?((?:\d+\s*[Wdhms]\s*)+)(\S.*Mission\s*:.*)$/i;
+  /^(?:(?:(\d+)T\s*)?(\d{1,2}:\d{2}:\d{2})\s*(?:\|\s*|\s+))?((?:\d+\s*[Wdhms]\s*)+)(\S.*Mission\s*:.*)$/;
 /** Head of a copied phalanx (INGAME.yaml px_scan_position): "Scan Position [3:4:1] (Kolonie)" */
 const PHALANX_RE = /^\s*(?:Scan Position|Investigate position)\s*\[(\d+):(\d+):(\d+)\]/im;
 const EVENTS_HEAD_RE = /^(?:Ereignisse|Events)\s+(Ausblenden|Einblenden|Hide|Show)$/im;

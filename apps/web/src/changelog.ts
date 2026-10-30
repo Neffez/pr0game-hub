@@ -20,6 +20,16 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Beuteabrechnung: „Aktualisieren“ ohne neue Daten markiert eine gespeicherte Abrechnung nicht mehr als geändert, Transfers lassen sich danach weiter abhaken.',
+        en: 'Loot settlement: “Update” without new data no longer marks a saved settlement as changed; transfers can still be ticked afterwards.',
+      },
+      {
+        kind: 'fix',
+        de: 'Planet-Aktionen: Art und Dauer eines Claims lassen sich wieder mit den Pfeiltasten wählen, und die Bildschirmtastatur auf Tablets schließt das Menü nicht mehr.',
+        en: 'Planet actions: the type and duration of a claim can be picked with the arrow keys again, and the on-screen keyboard on tablets no longer closes the menu.',
+      },
+      {
+        kind: 'fix',
         de: 'Aktionsmenüs auf dem Handy (Planet und Mond, auch im Galaxie-Browser) öffnen sich von unten, damit alle Einträge sichtbar und tippbar bleiben.',
         en: 'Action menus on phones (planet and moon, including the galaxy browser) open from the bottom so every item stays on screen and tappable.',
       },
