@@ -7,6 +7,12 @@ describe('battle participant names', () => {
     expect(participantNamesDegraded(['Alice'], ['-'])).toBe(true);
     expect(participantNamesDegraded(['Alice'], ['Alice', 'Bob'])).toBe(false);
     expect(participantNamesDegraded([], ['Alice'])).toBe(false);
+    expect(participantNamesDegraded(['Alice', 'Bob'], ['Alice', ''])).toBe(true);
+  });
+
+  it('takes a rename as new names, not a loss', () => {
+    expect(participantNamesDegraded(['Alice'], ['Alicia'])).toBe(false);
+    expect(participantNamesDegraded(['Alice', 'Bob'], ['Bob', 'Carol'])).toBe(false);
   });
 
   it('detects degraded archived fleet names', () => {
@@ -18,6 +24,12 @@ describe('battle participant names', () => {
     expect(
       combatFleetsNamesDegraded(stored, [
         { side: 'attacker', name: 'Alice', from: null, start: {}, end: {} },
+        { side: 'defender', name: 'Bob', from: null, start: {}, end: {} },
+      ]),
+    ).toBe(false);
+    expect(
+      combatFleetsNamesDegraded(stored, [
+        { side: 'attacker', name: 'Alicia', from: null, start: {}, end: {} },
         { side: 'defender', name: 'Bob', from: null, start: {}, end: {} },
       ]),
     ).toBe(false);

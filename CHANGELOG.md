@@ -4,6 +4,13 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-30
 
+- Battle hall and combat reports: a renamed participant is taken over instead of counting as a lost name; only fewer
+  usable names or a name turning blank/"-" keeps the stored names. Winner and units of a battle hall entry always
+  follow the newest sync.
+- Enemy spying: the spy's player link uses the owner of the start planet only when its current or former name matches
+  the report (the planet may have changed hands), else the name; the owner is looked up in the list query instead of
+  one query per row.
+- Marketplace: a rate synced on behalf of another member is attributed like the offers sync (the member who synced).
 - Code review quick wins:
   - Loot settlement: "Update" with nothing new no longer marks a saved settlement as changed (save stayed enabled,
     transfers could not be ticked, live reload stopped).
@@ -13,9 +20,9 @@ Every commit adds its changes here, newest first, grouped by date.
     an optional `arrival`); both endpoints are now documented in the OpenAPI spec.
   - Universe settings: the storage multiplier must be at least 1.
   - Battle hall search loads the names of all matching players in one query instead of one per player.
-  - Cleanups: shared `likeTerm`, unused import, no side effect in the tools link `computed`, fleet event lines match unit letters
-    case-sensitively again, the marketplace trade pattern uses the game date pattern as is, redundant upper
-    bound in the galaxy mark query.
+  - Cleanups: shared `likeTerm`, unused import, no side effect in the tools link `computed`, fleet event lines match
+    unit letters case-sensitively again, the marketplace trade pattern uses the game date pattern as is, redundant
+    upper bound in the galaxy mark query.
 - Action menus on phones (planet and moon, including the galaxy browser) open as a bottom sheet so every item stays on
   screen and tappable.
 - Activity pattern: galaxy marks are dropped only when a spy report or battle at that slot is at or before the galaxy

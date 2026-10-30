@@ -9,15 +9,14 @@ export function meaningfulParticipantNames(names: string[]): string[] {
 }
 
 /**
- * True when `incoming` has fewer usable participant names than `stored` (e.g. after deleted game accounts
- * the battle hall only shows "–" or empty strings).
+ * True when `incoming` has fewer usable participant names than `stored`, or a name at the same place turned blank or
+ * a dash (deleted game accounts: the battle hall only shows "–" or empty strings). Another non-empty name is a
+ * rename, not a loss.
  */
 export function participantNamesDegraded(stored: string[], incoming: string[]): boolean {
-  const s = meaningfulParticipantNames(stored);
-  const i = meaningfulParticipantNames(incoming);
-  if (s.length === 0) return false;
-  if (i.length < s.length) return true;
-  return !s.every((n) => i.some((x) => x.toLowerCase() === n.toLowerCase()));
+  const usable = (n: string | undefined) => n != null && meaningfulParticipantNames([n]).length > 0;
+  if (meaningfulParticipantNames(incoming).length < meaningfulParticipantNames(stored).length) return true;
+  return stored.length === incoming.length && stored.some((n, i) => usable(n) && !usable(incoming[i]));
 }
 
 function sideFleetNames(fleets: CombatFleet[], side: 'attacker' | 'defender'): string[] {

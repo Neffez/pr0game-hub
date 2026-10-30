@@ -20,6 +20,16 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Kampfhalle: Nach einer Umbenennung erscheint der neue Name, und Sieger und Einheiten werden weiter aktualisiert.',
+        en: 'Battle hall: after a rename the new name shows up, and winner and units keep being updated.',
+      },
+      {
+        kind: 'fix',
+        de: 'Feindliche Spionage: Der Spieler-Link zeigt nicht mehr auf einen neuen Besitzer des Startplaneten.',
+        en: 'Enemy spying: the player link no longer points to a new owner of the start planet.',
+      },
+      {
+        kind: 'fix',
         de: 'Beuteabrechnung: „Aktualisieren“ ohne neue Daten markiert eine gespeicherte Abrechnung nicht mehr als geändert, Transfers lassen sich danach weiter abhaken.',
         en: 'Loot settlement: “Update” without new data no longer marks a saved settlement as changed; transfers can still be ticked afterwards.',
       },
