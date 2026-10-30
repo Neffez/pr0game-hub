@@ -154,9 +154,20 @@ function galaxySpyWindow(row: { time: number; spread: number; created_at: number
   };
 }
 
-function galaxyMarkBlocked(db: DB, groupId: number, g: number, s: number, p: number, row: { time: number; spread: number; created_at: number }): boolean {
+function spyOnPlayer(db: DB, groupId: number, playerId: number, names: string, lo: number, hi: number): boolean {
+  return !!db
+    .prepare(
+      `SELECT 1 FROM spy_reports WHERE group_id = ? AND report_time BETWEEN ? AND ?
+       AND (player_id = ? OR player_name COLLATE NOCASE IN (SELECT value FROM json_each(?))) LIMIT 1`,
+    )
+    .get(groupId, lo, hi, playerId, names);
+}
+
+function galaxyMarkBlocked(
+  db: DB, groupId: number, playerId: number, names: string, g: number, s: number, p: number, row: { time: number; spread: number; created_at: number },
+): boolean {
   const { lo, hi } = galaxySpyWindow(row);
-  return spyOrBattleOnPlanet(db, groupId, g, s, p, lo, hi);
+  return spyOrBattleOnPlanet(db, groupId, g, s, p, lo, hi) || spyOnPlayer(db, groupId, playerId, names, lo, hi);
 }
 
 /** Total galaxy weight for `n` planets with a mark in the same hour. */
@@ -324,9 +335,20 @@ export function playerActivity(db: DB, ctx: GroupContext, playerId: number, from
     .prepare(
       `SELECT pa.id, pa.time, pa.spread, pa.created_at, pa.source, pa.g, pa.s, pa.p, pa.planet_type, pa.user_id, ${DISPLAY} AS reporter FROM player_activity pa
        LEFT JOIN users u ON u.id = pa.user_id ${MEMBER('pa')}
-       WHERE pa.group_id = ? AND pa.player_id = ? AND pa.time >= ?`,
+       WHERE pa.group_id = ? AND pa.player_id = ? AND (pa.time >= ? OR (pa.source = 'galaxy' AND pa.created_at >= ?))`,
     )
-    .all(ctx.groupId, playerId, from) as StoredRow[];
+    .all(ctx.groupId, playerId, from, from) as StoredRow[];
+
+  /** Hours (Unix) when the alliance spied this player; galaxy marks in the same sync hour are dropped. */
+  const spiedHours = new Set<number>();
+  for (const t of db
+    .prepare(
+      `SELECT report_time FROM spy_reports WHERE group_id = ? AND report_time >= ? AND (player_id = ? OR player_name COLLATE NOCASE IN (SELECT value FROM json_each(?)))`,
+    )
+    .pluck()
+    .all(ctx.groupId, from - GALAXY_HOUR, playerId, names) as number[]) {
+    spiedHours.add(Math.floor(t / GALAXY_HOUR));
+  }
 
   const memberReport = (r: StoredRow): ActivityEvent => ({
     time: r.time,
@@ -344,8 +366,10 @@ export function playerActivity(db: DB, ctx: GroupContext, playerId: number, from
   let galaxy = stored.filter((r) => r.source === 'galaxy' && r.g != null && r.s != null && r.p != null);
   galaxy = galaxy.filter((g) => {
     const sync = galaxySyncedAt(g);
+    const syncHour = Math.floor(sync / GALAXY_HOUR);
+    if (spiedHours.has(syncHour)) return false;
     if (offlineTimes.some((o) => Math.abs(sync - o) <= GALAXY_HOUR || Math.abs(galaxySeenAt(g.time, g.spread) - o) <= GALAXY_HOUR)) return false;
-    return !galaxyMarkBlocked(db, ctx.groupId, g.g!, g.s!, g.p!, g);
+    return !galaxyMarkBlocked(db, ctx.groupId, playerId, names, g.g!, g.s!, g.p!, g);
   });
 
   const bestPerPlanetHour = new Map<string, StoredRow>();

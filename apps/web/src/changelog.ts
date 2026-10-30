@@ -25,6 +25,11 @@ export const CHANGELOG: ChangelogDay[] = [
       },
       {
         kind: 'fix',
+        de: 'Aktivitätsmuster: Nach einem Spio auf den Spieler zählen Galaxie-Sterne in derselben Sync-Stunde auf allen Planeten nicht mehr (auch wenn der Spio nur einen Planeten traf).',
+        en: 'Activity pattern: after a spy report on the player, galaxy marks in the same sync hour no longer count on any planet (even when the spy targeted only one planet).',
+      },
+      {
+        kind: 'fix',
         de: 'Aktivitätsmuster: Galaxie-Sterne nach einem Spio und doppelte Sterne aus älteren Syncs werden beim Anzeigen zuverlässiger erkannt (Sync-Zeit statt nur geschätzter Aktivitätszeit).',
         en: 'Activity pattern: galaxy marks after a spy and duplicate marks from older syncs are filtered more reliably when viewing (sync time, not estimated activity time alone).',
       },

@@ -9,6 +9,8 @@ Every commit adds its changes here, newest first, grouped by date.
 - Activity pattern: when filtering stored galaxy marks, use the galaxy sync time (`created_at`, set from the paste
   on insert) to match spy reports and dedupe repeated pastes in the same hour; late backfills fall back to the mark
   estimate (fixes false “online” from an alliance spy and duplicate ticks on old data).
+- Activity pattern: a synced spy report on the player (by id or name) drops galaxy marks in that sync hour on all
+  planets, not only the spied coordinate; galaxy rows are also loaded by sync time, not only estimated activity time.
 - Activity pattern: galaxy activity marks count once per planet per hour; one planet weighs less in the curve, several
   planets in the same hour weigh more (up to the previous cap). Marks at the time of a synced spy report or battle on
   that planet are dropped; an offline report drops galaxy marks in that hour.

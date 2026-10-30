@@ -152,6 +152,23 @@ describe('player activity', () => {
     expect((await activity()).some((e) => e.source === 'galaxy')).toBe(false);
   });
 
+  it('drops all galaxy marks in a sync hour when the player was spied on another planet', async () => {
+    const sync = now() - 2 * 3600;
+    const spyTime = sync - 5 * 60;
+    db.prepare('DELETE FROM player_activity WHERE player_id = ?').run(alpha);
+    db.prepare('DELETE FROM spy_reports WHERE group_id = ?').run(groupA);
+    db.prepare(
+      "INSERT INTO spy_reports (group_id, g, s, p, planet_type, report_time, sections, player_name) VALUES (?, 1, 234, 5, 'planet', ?, '{}', 'Alpha')",
+    ).run(groupA, spyTime);
+    for (const p of [5, 6]) {
+      db.prepare(
+        `INSERT INTO player_activity (group_id, player_id, time, spread, source, g, s, p, dedupe_key, created_at)
+         VALUES (?, ?, ?, ?, 'galaxy', 1, 234, ?, ?, ?)`,
+      ).run(groupA, alpha, sync - 450, 450, p, `legacy-other:${p}:${sync}`, sync);
+    }
+    expect((await activity()).some((e) => e.source === 'galaxy')).toBe(false);
+  });
+
   it('matches spy reports when created_at is from a late backfill', async () => {
     const sync = now() - 2 * 3600;
     const spyTime = sync - 5 * 60;
