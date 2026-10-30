@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-10-30',
     items: [
       {
+        kind: 'fix',
+        de: 'Aktivitätsmuster: Galaxie-Sterne nach einem Spio und doppelte Sterne aus älteren Syncs werden beim Anzeigen zuverlässiger erkannt (Sync-Zeit statt nur geschätzter Aktivitätszeit).',
+        en: 'Activity pattern: galaxy marks after a spy and duplicate marks from older syncs are filtered more reliably when viewing (sync time, not estimated activity time alone).',
+      },
+      {
         kind: 'new',
         de: 'Aktivitätsmuster: Galaxie-Sterne zählen pro Planet nur einmal pro Stunde – ein Planet wenig, mehrere Planeten in derselben Stunde stärker (bis zum bisherigen Maximum). Eigener Spio oder Kampf auf dem Planeten streicht nur diesen Stern; Offline-Meldungen streichen die Sterne in der Stunde.',
         en: 'Activity pattern: galaxy marks count once per planet per hour – one planet counts little, several planets in the same hour count more (up to the former maximum). Own espionage or a battle on that planet drops only that mark; offline reports drop the marks in that hour.',

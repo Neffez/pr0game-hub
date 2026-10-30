@@ -137,6 +137,52 @@ describe('player activity', () => {
     expect(galaxy[0].weight).toBeCloseTo(galaxyHourWeight(1), 5);
   });
 
+  it('drops old galaxy rows when a spy report matches the sync hour', async () => {
+    const sync = now() - 2 * 3600;
+    const spyTime = sync - 5 * 60;
+    db.prepare('DELETE FROM player_activity WHERE player_id = ?').run(alpha);
+    db.prepare('DELETE FROM spy_reports WHERE group_id = ? AND g = 1 AND s = 234 AND p = 5').run(groupA);
+    db.prepare(
+      "INSERT INTO spy_reports (group_id, g, s, p, planet_type, report_time, sections, player_id) VALUES (?, 1, 234, 5, 'planet', ?, '{}', ?)",
+    ).run(groupA, spyTime, alpha);
+    db.prepare(
+      `INSERT INTO player_activity (group_id, player_id, time, spread, source, g, s, p, dedupe_key, created_at)
+       VALUES (?, ?, ?, ?, 'galaxy', 1, 234, 5, ?, ?)`,
+    ).run(groupA, alpha, sync - 450, 450, `legacy:${sync}`, sync);
+    expect((await activity()).some((e) => e.source === 'galaxy')).toBe(false);
+  });
+
+  it('matches spy reports when created_at is from a late backfill', async () => {
+    const sync = now() - 2 * 3600;
+    const spyTime = sync - 5 * 60;
+    db.prepare('DELETE FROM player_activity WHERE player_id = ?').run(alpha);
+    db.prepare('DELETE FROM spy_reports WHERE group_id = ? AND g = 1 AND s = 234 AND p = 5').run(groupA);
+    db.prepare(
+      "INSERT INTO spy_reports (group_id, g, s, p, planet_type, report_time, sections, player_id) VALUES (?, 1, 234, 5, 'planet', ?, '{}', ?)",
+    ).run(groupA, spyTime, alpha);
+    db.prepare(
+      `INSERT INTO player_activity (group_id, player_id, time, spread, source, g, s, p, dedupe_key, created_at)
+       VALUES (?, ?, ?, ?, 'galaxy', 1, 234, 5, ?, ?)`,
+    ).run(groupA, alpha, sync - 450, 450, `legacy-late:${sync}`, now());
+    expect((await activity()).some((e) => e.source === 'galaxy')).toBe(false);
+  });
+
+  it('dedupes repeated galaxy syncs of the same planet in one hour', async () => {
+    const base = Math.floor((now() - 3600) / 3600) * 3600 + 20 * 60;
+    db.prepare('DELETE FROM player_activity WHERE player_id = ?').run(alpha);
+    db.prepare('DELETE FROM spy_reports WHERE group_id = ? AND g = 1 AND s = 234 AND p = 5').run(groupA);
+    for (const [key, at] of [
+      ['dup:a', base],
+      ['dup:b', base + 10 * 60],
+    ] as const) {
+      db.prepare(
+        `INSERT INTO player_activity (group_id, player_id, time, spread, source, g, s, p, dedupe_key, created_at)
+         VALUES (?, ?, ?, ?, 'galaxy', 1, 234, 5, ?, ?)`,
+      ).run(groupA, alpha, at - 450, 450, key, at);
+    }
+    expect((await activity()).filter((e) => e.source === 'galaxy')).toHaveLength(1);
+  });
+
   it('drops galaxy marks in the hour of an offline report', async () => {
     const t = now();
     db.prepare('DELETE FROM player_activity WHERE player_id = ?').run(alpha);

@@ -51,6 +51,8 @@ interface NewActivity {
   coords?: { g: number; s: number; p: number; type?: string | null } | null;
   userId?: number | null;
   key: string;
+  /** When the evidence was synced (galaxy marks); stored as `created_at`. */
+  syncedAt?: number;
 }
 
 /** Galaxy marks in the activity curve cap at this; one planet counts less, more planets approach the cap. */
@@ -64,16 +66,27 @@ export function memberOnline(db: DB, groupId: number, userId: number, time: numb
 
 /** Stores one piece of evidence; false when it is known already. */
 export function addActivity(db: DB, groupId: number, a: NewActivity): boolean {
+  const row = [
+    groupId, a.playerId, Math.round(a.time), Math.round(a.spread), a.source, a.coords?.g ?? null, a.coords?.s ?? null, a.coords?.p ?? null,
+    a.coords?.type ?? null, a.userId ?? null, a.key,
+  ];
+  if (a.syncedAt != null) {
+    return (
+      db
+        .prepare(
+          `INSERT OR IGNORE INTO player_activity (group_id, player_id, time, spread, source, g, s, p, planet_type, user_id, dedupe_key, created_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        )
+        .run(...row, Math.round(a.syncedAt)).changes > 0
+    );
+  }
   return (
     db
       .prepare(
         `INSERT OR IGNORE INTO player_activity (group_id, player_id, time, spread, source, g, s, p, planet_type, user_id, dedupe_key)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
-      .run(
-        groupId, a.playerId, Math.round(a.time), Math.round(a.spread), a.source, a.coords?.g ?? null, a.coords?.s ?? null, a.coords?.p ?? null,
-        a.coords?.type ?? null, a.userId ?? null, a.key,
-      ).changes > 0
+      .run(...row).changes > 0
   );
 }
 
@@ -102,13 +115,13 @@ export function galaxyMark(db: DB, groupId: number, playerId: number, c: { g: nu
   const near = db
     .prepare(
       `SELECT id, time, spread FROM player_activity WHERE player_id = ? AND source = 'galaxy' AND g = ? AND s = ? AND p = ?
-       AND time BETWEEN ? AND ?`,
+       AND created_at BETWEEN ? AND ?`,
     )
     .all(playerId, c.g, c.s, c.p, seenAt - GALAXY_HOUR, seenAt + 60) as { id: number; time: number; spread: number }[];
   if (near.some((x) => x.spread <= spread)) return false;
   for (const x of near) db.prepare('DELETE FROM player_activity WHERE id = ?').run(x.id);
   const hour = Math.floor(seenAt / GALAXY_HOUR);
-  return addActivity(db, groupId, { playerId, time, spread, source: 'galaxy', coords: c, key: `galaxy:${playerId}:${c.g}:${c.s}:${c.p}:${hour}` });
+  return addActivity(db, groupId, { playerId, time, spread, source: 'galaxy', coords: c, key: `galaxy:${playerId}:${c.g}:${c.s}:${c.p}:${hour}`, syncedAt: seenAt });
 }
 
 function spyOrBattleOnPlanet(db: DB, groupId: number, g: number, s: number, p: number, lo: number, hi: number): boolean {
@@ -120,8 +133,31 @@ function spyOrBattleOnPlanet(db: DB, groupId: number, g: number, s: number, p: n
     .get(groupId, g, s, p, lo, hi, groupId, g, s, p, lo, hi);
 }
 
-/** When the galaxy row was synced (exact for "(*)", approximate for "(n min)"). */
+/** Estimated activity time from the mark (for the chart). */
 const galaxySeenAt = (time: number, spread: number) => time + spread;
+
+/**
+ * When the galaxy view was pasted into the hub (`created_at`, set from `seenAt` on insert). Rows backfilled later may
+ * have a `created_at` after the estimated mark time; then the estimate is used as a fallback.
+ */
+const galaxySyncedAt = (row: { time: number; spread: number; created_at: number }) => {
+  const seen = galaxySeenAt(row.time, row.spread);
+  return row.created_at > seen + 300 ? seen : row.created_at;
+};
+
+function galaxySpyWindow(row: { time: number; spread: number; created_at: number }) {
+  const sync = galaxySyncedAt(row);
+  const seen = galaxySeenAt(row.time, row.spread);
+  return {
+    lo: Math.min(row.time - row.spread - 60, sync - GALAXY_HOUR, seen - GALAXY_HOUR),
+    hi: Math.max(row.time + row.spread + 60, sync + 60, seen + 60),
+  };
+}
+
+function galaxyMarkBlocked(db: DB, groupId: number, g: number, s: number, p: number, row: { time: number; spread: number; created_at: number }): boolean {
+  const { lo, hi } = galaxySpyWindow(row);
+  return spyOrBattleOnPlanet(db, groupId, g, s, p, lo, hi);
+}
 
 /** Total galaxy weight for `n` planets with a mark in the same hour. */
 export const galaxyHourWeight = (n: number) => (n <= 0 ? 0 : GALAXY_WEIGHT_CAP * (1 - 0.5 ** n));
@@ -281,12 +317,12 @@ export function playerActivity(db: DB, ctx: GroupContext, playerId: number, from
   }
 
   type StoredRow = {
-    id: number; time: number; spread: number; source: ActivitySource; g: number | null; s: number | null; p: number | null;
+    id: number; time: number; spread: number; created_at: number; source: ActivitySource; g: number | null; s: number | null; p: number | null;
     planet_type: string | null; user_id: number | null; reporter: string | null;
   };
   const stored = db
     .prepare(
-      `SELECT pa.id, pa.time, pa.spread, pa.source, pa.g, pa.s, pa.p, pa.planet_type, pa.user_id, ${DISPLAY} AS reporter FROM player_activity pa
+      `SELECT pa.id, pa.time, pa.spread, pa.created_at, pa.source, pa.g, pa.s, pa.p, pa.planet_type, pa.user_id, ${DISPLAY} AS reporter FROM player_activity pa
        LEFT JOIN users u ON u.id = pa.user_id ${MEMBER('pa')}
        WHERE pa.group_id = ? AND pa.player_id = ? AND pa.time >= ?`,
     )
@@ -307,18 +343,17 @@ export function playerActivity(db: DB, ctx: GroupContext, playerId: number, from
 
   let galaxy = stored.filter((r) => r.source === 'galaxy' && r.g != null && r.s != null && r.p != null);
   galaxy = galaxy.filter((g) => {
-    const seen = galaxySeenAt(g.time, g.spread);
-    if (offlineTimes.some((o) => Math.abs(seen - o) <= GALAXY_HOUR)) return false;
-    const lo = Math.min(g.time - g.spread - 60, seen - GALAXY_HOUR);
-    const hi = Math.max(g.time + g.spread + 60, seen + 60);
-    return !spyOrBattleOnPlanet(db, ctx.groupId, g.g!, g.s!, g.p!, lo, hi);
+    const sync = galaxySyncedAt(g);
+    if (offlineTimes.some((o) => Math.abs(sync - o) <= GALAXY_HOUR || Math.abs(galaxySeenAt(g.time, g.spread) - o) <= GALAXY_HOUR)) return false;
+    return !galaxyMarkBlocked(db, ctx.groupId, g.g!, g.s!, g.p!, g);
   });
 
   const bestPerPlanetHour = new Map<string, StoredRow>();
   for (const g of galaxy) {
-    const key = `${planetSlot(g)}:${Math.floor(galaxySeenAt(g.time, g.spread) / GALAXY_HOUR)}`;
+    const syncHour = Math.floor(galaxySyncedAt(g) / GALAXY_HOUR);
+    const key = `${planetSlot(g)}:${syncHour}`;
     const cur = bestPerPlanetHour.get(key);
-    if (!cur || g.spread < cur.spread) bestPerPlanetHour.set(key, g);
+    if (!cur || g.spread < cur.spread || (g.spread === cur.spread && g.created_at > cur.created_at)) bestPerPlanetHour.set(key, g);
   }
   galaxy = [...bestPerPlanetHour.values()];
 
