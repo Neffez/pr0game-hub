@@ -16,6 +16,21 @@ export interface ChangelogDay {
 
 export const CHANGELOG: ChangelogDay[] = [
   {
+    date: '2026-10-30',
+    items: [
+      {
+        kind: 'new',
+        de: 'Aktivitätsmuster: Galaxie-Sterne zählen pro Planet nur einmal pro Stunde – ein Planet wenig, mehrere Planeten in derselben Stunde stärker (bis zum bisherigen Maximum). Eigener Spio oder Kampf auf dem Planeten streicht nur diesen Stern; Offline-Meldungen streichen die Sterne in der Stunde.',
+        en: 'Activity pattern: galaxy marks count once per planet per hour – one planet counts little, several planets in the same hour count more (up to the former maximum). Own espionage or a battle on that planet drops only that mark; offline reports drop the marks in that hour.',
+      },
+      {
+        kind: 'new',
+        de: 'Aktivitätsmuster: Neben „Onlinezeit melden“ kannst du Offlinezeit melden – der Spieler gilt dann zu dem Zeitpunkt als offline (sichtbar im Muster, ohne die Kurve zu erhöhen).',
+        en: 'Activity pattern: besides “Report online time” you can report offline time – the player is then treated as offline at that time (shown in the pattern without raising the curve).',
+      },
+    ],
+  },
+  {
     date: '2026-10-29',
     items: [
       {

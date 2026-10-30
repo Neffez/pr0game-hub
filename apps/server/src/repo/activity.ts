@@ -12,14 +12,16 @@ import { SHARED } from './messages.js';
  * be lost otherwise (galaxy activity marks, fleet launches and recalls) or is entered by hand. Point gains are no
  * events: a stat window spans 6 hours, so they only tell how active the player was per window (`activityScores`).
  */
-export type ActivitySource = 'spy' | 'attack' | 'defense' | 'message' | 'galaxy' | 'fleet' | 'recall' | 'manual' | 'sync' | 'hub';
+export type ActivitySource = 'spy' | 'attack' | 'defense' | 'message' | 'galaxy' | 'fleet' | 'recall' | 'manual' | 'offline' | 'sync' | 'hub';
 
 export interface ActivityEvent {
   time: number;
   /** half width of the uncertainty in seconds (0: exact) */
   spread: number;
   source: ActivitySource;
-  /** manual reports: row id, reporting member and whether the viewer reported it */
+  /** contribution to the activity curve (galaxy marks: scaled by planets per hour) */
+  weight?: number;
+  /** manual and offline reports: row id, reporting member and whether the viewer reported it */
   id?: number;
   reporter?: string | null;
   mine?: boolean;
@@ -45,11 +47,15 @@ interface NewActivity {
   playerId: number;
   time: number;
   spread: number;
-  source: 'galaxy' | 'fleet' | 'recall' | 'manual';
+  source: 'galaxy' | 'fleet' | 'recall' | 'manual' | 'offline';
   coords?: { g: number; s: number; p: number; type?: string | null } | null;
   userId?: number | null;
   key: string;
 }
+
+/** Galaxy marks in the activity curve cap at this; one planet counts less, more planets approach the cap. */
+export const GALAXY_WEIGHT_CAP = 0.4;
+const GALAXY_HOUR = 3600;
 
 /** Notes that a member has the hub open and active now (one row per 5-minute slot). */
 export function memberOnline(db: DB, groupId: number, userId: number, time: number) {
@@ -76,14 +82,16 @@ const STAR_SPREAD = 450;
 
 /**
  * Activity mark of a planet in the galaxy view (`minutes` since active, 0 for "(*)"). The game also sets it for foreign
- * actions on the planet: a mark matching a member's spy report or battle there is left out. The same activity seen
- * again (later, on another planet) counts once, the most exact sighting wins.
+ * actions on the planet: a mark matching a member's spy report or battle there is left out. The same planet seen again
+ * within an hour counts once, the most exact sighting wins; marks on other planets are kept separately.
  */
 export function galaxyMark(db: DB, groupId: number, playerId: number, c: { g: number; s: number; p: number }, minutes: number, seenAt: number): boolean {
   const spread = minutes === 0 ? STAR_SPREAD : 60;
   const time = minutes === 0 ? seenAt - STAR_SPREAD : seenAt - minutes * 60;
-  const lo = time - spread - 60;
-  const hi = time + spread + 60;
+  const markLo = time - spread - 60;
+  const markHi = time + spread + 60;
+  const lo = Math.min(markLo, seenAt - GALAXY_HOUR);
+  const hi = Math.max(markHi, seenAt + 60);
   const ours = db
     .prepare(
       `SELECT 1 FROM spy_reports WHERE group_id = ? AND g = ? AND s = ? AND p = ? AND report_time BETWEEN ? AND ?
@@ -91,15 +99,32 @@ export function galaxyMark(db: DB, groupId: number, playerId: number, c: { g: nu
     )
     .get(groupId, c.g, c.s, c.p, lo, hi, groupId, c.g, c.s, c.p, lo, hi);
   if (ours) return false;
-  const near = (
-    db
-      .prepare(`SELECT id, time, spread FROM player_activity WHERE player_id = ? AND source = 'galaxy' AND time BETWEEN ? AND ?`)
-      .all(playerId, time - spread - STAR_SPREAD - 180, time + spread + STAR_SPREAD + 180) as { id: number; time: number; spread: number }[]
-  ).filter((x) => Math.abs(x.time - time) <= x.spread + spread + 180);
+  const near = db
+    .prepare(
+      `SELECT id, time, spread FROM player_activity WHERE player_id = ? AND source = 'galaxy' AND g = ? AND s = ? AND p = ?
+       AND time BETWEEN ? AND ?`,
+    )
+    .all(playerId, c.g, c.s, c.p, seenAt - GALAXY_HOUR, seenAt + 60) as { id: number; time: number; spread: number }[];
   if (near.some((x) => x.spread <= spread)) return false;
   for (const x of near) db.prepare('DELETE FROM player_activity WHERE id = ?').run(x.id);
-  return addActivity(db, groupId, { playerId, time, spread, source: 'galaxy', coords: c, key: `galaxy:${playerId}:${time}` });
+  const hour = Math.floor(seenAt / GALAXY_HOUR);
+  return addActivity(db, groupId, { playerId, time, spread, source: 'galaxy', coords: c, key: `galaxy:${playerId}:${c.g}:${c.s}:${c.p}:${hour}` });
 }
+
+function spyOrBattleOnPlanet(db: DB, groupId: number, g: number, s: number, p: number, lo: number, hi: number): boolean {
+  return !!db
+    .prepare(
+      `SELECT 1 FROM spy_reports WHERE group_id = ? AND g = ? AND s = ? AND p = ? AND report_time BETWEEN ? AND ?
+       UNION ALL SELECT 1 FROM battle_reports WHERE group_id = ? AND g = ? AND s = ? AND p = ? AND time BETWEEN ? AND ? LIMIT 1`,
+    )
+    .get(groupId, g, s, p, lo, hi, groupId, g, s, p, lo, hi);
+}
+
+/** When the galaxy row was synced (exact for "(*)", approximate for "(n min)"). */
+const galaxySeenAt = (time: number, spread: number) => time + spread;
+
+/** Total galaxy weight for `n` planets with a mark in the same hour. */
+export const galaxyHourWeight = (n: number) => (n <= 0 ? 0 : GALAXY_WEIGHT_CAP * (1 - 0.5 ** n));
 
 const bodyKey = (b: StoredFleet['from'] | null) => (b ? `${b.coords.g}:${b.coords.s}:${b.coords.p}:${b.type}` : '-');
 const fleetKey = (f: StoredFleet) => `${f.mission}|${bodyKey(f.from)}>${bodyKey(f.to)}|${shipsKey(f.ships)}`;
@@ -255,19 +280,62 @@ export function playerActivity(db: DB, ctx: GroupContext, playerId: number, from
     }
   }
 
+  type StoredRow = {
+    id: number; time: number; spread: number; source: ActivitySource; g: number | null; s: number | null; p: number | null;
+    planet_type: string | null; user_id: number | null; reporter: string | null;
+  };
   const stored = db
     .prepare(
-      `SELECT pa.id, pa.time, pa.spread, pa.source, pa.user_id, ${DISPLAY} AS reporter FROM player_activity pa
+      `SELECT pa.id, pa.time, pa.spread, pa.source, pa.g, pa.s, pa.p, pa.planet_type, pa.user_id, ${DISPLAY} AS reporter FROM player_activity pa
        LEFT JOIN users u ON u.id = pa.user_id ${MEMBER('pa')}
        WHERE pa.group_id = ? AND pa.player_id = ? AND pa.time >= ?`,
     )
-    .all(ctx.groupId, playerId, from) as { id: number; time: number; spread: number; source: ActivitySource; user_id: number | null; reporter: string | null }[];
+    .all(ctx.groupId, playerId, from) as StoredRow[];
+
+  const memberReport = (r: StoredRow): ActivityEvent => ({
+    time: r.time,
+    spread: r.spread,
+    source: r.source as 'manual' | 'offline',
+    id: r.id,
+    reporter: r.reporter,
+    mine: r.user_id === ctx.user.id,
+    ...(r.source === 'offline' ? { weight: 0 } : {}),
+  });
+
+  const offlineTimes = stored.filter((r) => r.source === 'offline').map((r) => r.time);
+  const planetSlot = (r: StoredRow) => `${r.g}:${r.s}:${r.p}:${r.planet_type ?? 'planet'}`;
+
+  let galaxy = stored.filter((r) => r.source === 'galaxy' && r.g != null && r.s != null && r.p != null);
+  galaxy = galaxy.filter((g) => {
+    const seen = galaxySeenAt(g.time, g.spread);
+    if (offlineTimes.some((o) => Math.abs(seen - o) <= GALAXY_HOUR)) return false;
+    const lo = Math.min(g.time - g.spread - 60, seen - GALAXY_HOUR);
+    const hi = Math.max(g.time + g.spread + 60, seen + 60);
+    return !spyOrBattleOnPlanet(db, ctx.groupId, g.g!, g.s!, g.p!, lo, hi);
+  });
+
+  const bestPerPlanetHour = new Map<string, StoredRow>();
+  for (const g of galaxy) {
+    const key = `${planetSlot(g)}:${Math.floor(galaxySeenAt(g.time, g.spread) / GALAXY_HOUR)}`;
+    const cur = bestPerPlanetHour.get(key);
+    if (!cur || g.spread < cur.spread) bestPerPlanetHour.set(key, g);
+  }
+  galaxy = [...bestPerPlanetHour.values()];
+
+  const byHour = new Map<number, StoredRow[]>();
+  for (const g of galaxy) {
+    const h = Math.floor(galaxySeenAt(g.time, g.spread) / GALAXY_HOUR);
+    if (!byHour.has(h)) byHour.set(h, []);
+    byHour.get(h)!.push(g);
+  }
+  for (const group of byHour.values()) {
+    const share = galaxyHourWeight(group.length) / group.length;
+    for (const g of group) out.push({ time: g.time, spread: g.spread, source: 'galaxy', weight: share });
+  }
+
   for (const r of stored) {
-    out.push(
-      r.source === 'manual'
-        ? { time: r.time, spread: r.spread, source: r.source, id: r.id, reporter: r.reporter, mine: r.user_id === ctx.user.id }
-        : { time: r.time, spread: r.spread, source: r.source },
-    );
+    if (r.source === 'manual' || r.source === 'offline') out.push(memberReport(r));
+    else if (r.source !== 'galaxy') out.push({ time: r.time, spread: r.spread, source: r.source });
   }
   return out.sort((a, b) => a.time - b.time);
 }

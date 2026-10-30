@@ -28,6 +28,10 @@ describe('activity curve', () => {
     expect(peakHour(activityCurve([...old, ev(at(20, 0))], now, 7))).toBeCloseTo(20, 0);
     // a galaxy mark weighs less than a spy probe
     expect(peakHour(activityCurve([ev(at(8, 0), 'galaxy'), ev(at(16, 0), 'spy')], now, 7))).toBeCloseTo(16, 0);
+    // explicit weight on an event (one planet in the hour) beats a default galaxy mark
+    expect(peakHour(activityCurve([{ ...ev(at(8, 0), 'galaxy'), weight: 0.2 }, ev(at(16, 0), 'spy')], now, 7))).toBeCloseTo(16, 0);
+    // offline reports do not affect the curve
+    expect(activityCurve([ev(at(12, 0), 'offline'), ev(at(12, 0), 'spy')], now, 7)).toEqual(activityCurve([ev(at(12, 0), 'spy')], now, 7));
     // vague evidence (10:00–14:00) spreads over its window, an exact time stays narrow
     const vague = activityCurve([ev(at(12, 0), 'manual', 2 * 3600)], now, 7);
     const exact = activityCurve([ev(at(12, 0))], now, 7);

@@ -2,6 +2,14 @@
 
 Every commit adds its changes here, newest first, grouped by date.
 
+## 2026-10-30
+
+- Activity pattern: galaxy activity marks count once per planet per hour; one planet weighs less in the curve, several
+  planets in the same hour weigh more (up to the previous cap). Marks at the time of a synced spy report or battle on
+  that planet are dropped; an offline report drops galaxy marks in that hour.
+- Activity pattern: members can report offline time for a player (alongside online reports); offline is shown in the
+  chart but does not raise the activity curve.
+
 ## 2026-10-29
 
 - Tests: fix activity debris sequence (moon sync after cleared debris) and spy-reports offset assertion against

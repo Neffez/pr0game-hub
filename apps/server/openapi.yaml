@@ -557,10 +557,11 @@ components:
       properties:
         time: { type: integer, description: Best estimate (Unix seconds) }
         spread: { type: integer, description: Half width of the uncertainty in seconds (0 = exact) }
-        source: { type: string, enum: [spy, attack, defense, message, galaxy, fleet, recall, manual, sync, hub] }
-        id: { type: integer, description: Manual reports only }
-        reporter: { type: [string, 'null'], description: Reporting member (manual reports only) }
-        mine: { type: boolean, description: Reported by the caller (manual reports only) }
+        source: { type: string, enum: [spy, attack, defense, message, galaxy, fleet, recall, manual, offline, sync, hub] }
+        weight: { type: number, description: Contribution to the activity curve (galaxy marks scaled by planets per hour) }
+        id: { type: integer, description: Manual and offline reports only }
+        reporter: { type: [string, 'null'], description: Reporting member (manual and offline reports only) }
+        mine: { type: boolean, description: Reported by the caller (manual and offline reports only) }
     User:
       type: object
       properties:
@@ -1533,8 +1534,8 @@ paths:
       tags: [Universe]
       operationId: reportPlayerActivity
       description: >-
-        Report that the player is online now or was at `time` (within the last 7 days, not in the future). The same
-        member's report for the same minute counts once.
+        Report that the player is online or offline now or was at `time` (within the last 7 days, not in the future).
+        `kind` is `online` (default) or `offline`. The same member's report for the same minute counts once.
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
@@ -1547,6 +1548,7 @@ paths:
               type: object
               properties:
                 time: { type: [integer, 'null'], description: Unix seconds (default now) }
+                kind: { type: string, enum: [online, offline], description: Online or offline report (default online) }
       responses:
         '200': { description: Stored }
         '400': { description: 'Time in the future or older than 7 days (`activity_time_invalid`)' }
@@ -1555,7 +1557,7 @@ paths:
     delete:
       tags: [Universe]
       operationId: deletePlayerActivity
-      description: Withdraw one of the caller's own manual reports.
+      description: Withdraw one of the caller's own manual or offline reports.
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }

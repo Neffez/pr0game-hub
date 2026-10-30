@@ -195,27 +195,29 @@ export function playersRoutes(app: FastifyInstance, db: DB) {
     return { from, events: playerActivity(db, ctx, id, from), scores: activityScores(db, id, from) };
   });
 
-  /** A member reports that the player is (or was at `time`) online. */
-  app.post<{ Params: { uni: string; id: string }; Body: { time?: number | null } }>('/api/:uni/players/:id/activity', async (req) => {
+  /** A member reports that the player is (or was at `time`) online or offline. */
+  app.post<{ Params: { uni: string; id: string }; Body: { time?: number | null; kind?: 'online' | 'offline' } }>('/api/:uni/players/:id/activity', async (req) => {
     const ctx = ctxOf(req);
     const id = groupPlayer(ctx, req.params.id);
     const t = now();
     const time = req.body?.time ?? t;
+    const kind = req.body?.kind === 'offline' ? 'offline' : 'online';
     if (!Number.isInteger(time) || time > t + 60 || time < t - ACTIVITY_DAYS * 86400) {
       throw new HttpError(400, 'activity_time_invalid', 'The time must lie within the last days and not in the future');
     }
     // the same report twice (a double click) counts once
-    addActivity(db, ctx.groupId, { playerId: id, time, spread: 0, source: 'manual', userId: ctx.user.id, key: `manual:${ctx.user.id}:${id}:${Math.floor(time / 60)}` });
+    const source = kind === 'offline' ? 'offline' : 'manual';
+    addActivity(db, ctx.groupId, { playerId: id, time, spread: 0, source, userId: ctx.user.id, key: `${source}:${ctx.user.id}:${id}:${Math.floor(time / 60)}` });
     events.publish(ctx.groupId, { type: 'data', tables: ['player_activity'], userId: ctx.user.id });
     return { ok: true };
   });
 
-  /** Withdraws one of the member's own manual reports. */
+  /** Withdraws one of the member's own manual or offline reports. */
   app.delete<{ Params: { uni: string; id: string; eventId: string } }>('/api/:uni/players/:id/activity/:eventId', async (req) => {
     const ctx = ctxOf(req);
     const id = groupPlayer(ctx, req.params.id);
     const res = db
-      .prepare("DELETE FROM player_activity WHERE id = ? AND player_id = ? AND group_id = ? AND source = 'manual' AND user_id = ?")
+      .prepare("DELETE FROM player_activity WHERE id = ? AND player_id = ? AND group_id = ? AND source IN ('manual', 'offline') AND user_id = ?")
       .run(Number(req.params.eventId), id, ctx.groupId, ctx.user.id);
     if (!res.changes) throw new HttpError(404, 'activity_not_found', 'Report not found');
     events.publish(ctx.groupId, { type: 'data', tables: ['player_activity'], userId: ctx.user.id });

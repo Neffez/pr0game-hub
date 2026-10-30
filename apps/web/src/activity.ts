@@ -1,12 +1,13 @@
 /** Activity pattern of a player: evidence of online times laid over one day and smoothed (see `activityCurve`). */
 
-export type ActivitySource = 'spy' | 'attack' | 'defense' | 'message' | 'galaxy' | 'fleet' | 'recall' | 'manual' | 'sync' | 'hub';
+export type ActivitySource = 'spy' | 'attack' | 'defense' | 'message' | 'galaxy' | 'fleet' | 'recall' | 'manual' | 'offline' | 'sync' | 'hub';
 
 export interface ActivityEvent {
   time: number;
   /** half width of the uncertainty in seconds */
   spread: number;
   source: ActivitySource;
+  weight?: number;
   id?: number;
   reporter?: string | null;
   mine?: boolean;
@@ -17,7 +18,7 @@ export interface ActivityEvent {
  * is around but not necessarily in the game.
  */
 export const SOURCE_WEIGHT: Record<ActivitySource, number> = {
-  spy: 1, attack: 1, defense: 1, message: 1, fleet: 1, recall: 1, manual: 1, sync: 1, galaxy: 0.4, hub: 0.5,
+  spy: 1, attack: 1, defense: 1, message: 1, fleet: 1, recall: 1, manual: 1, offline: 0, sync: 1, galaxy: 0.4, hub: 0.5,
 };
 
 /** Evidence of yesterday counts about 0.7, of a week ago about 0.1. */
@@ -44,10 +45,12 @@ export function activityCurve(events: ActivityEvent[], now: number, days: number
   let any = false;
   for (const e of events) {
     if (e.time < from || e.time > now + 60) continue;
+    const base = e.weight ?? SOURCE_WEIGHT[e.source];
+    if (base <= 0) continue;
     any = true;
     // a uniform window of ±spread has the standard deviation spread/√3
     const sigma = Math.sqrt(BANDWIDTH ** 2 + (e.spread / 60 / Math.sqrt(3)) ** 2);
-    const w = (SOURCE_WEIGHT[e.source] * 0.5 ** (Math.max(0, now - e.time) / HALF_LIFE)) / sigma;
+    const w = (base * 0.5 ** (Math.max(0, now - e.time) / HALF_LIFE)) / sigma;
     const m = minuteOfDay(e.time);
     for (let i = 0; i < bins; i++) {
       const d = ((((i + 0.5) * step - m) % DAY) + DAY * 1.5) % DAY - DAY / 2;

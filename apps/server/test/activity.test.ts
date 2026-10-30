@@ -6,7 +6,7 @@ process.env.WEB_DIR = '/nonexistent';
 const { buildApp } = await import('../src/app.js');
 const { openDb, now } = await import('../src/db.js');
 const { hashPassword } = await import('../src/auth.js');
-const { fleetActivity, galaxyMark, phalanxActivity } = await import('../src/repo/activity.js');
+const { fleetActivity, galaxyMark, galaxyHourWeight, phalanxActivity } = await import('../src/repo/activity.js');
 
 const fixture = (name: string) => readFileSync(new URL(`../../../packages/parser/test/fixtures/${name}`, import.meta.url), 'utf8');
 
@@ -53,17 +53,20 @@ beforeAll(async () => {
 });
 
 describe('player activity', () => {
-  it('keeps the galaxy activity mark once, the most exact sighting', async () => {
+  it('keeps one galaxy mark per planet per hour, the most exact sighting', async () => {
     // Alpha's planet 1:234:5 shows "(*)"
     for (let i = 0; i < 2; i++) expect((await call('POST', '/ingest', admin, { html: fixture('galaxy.html') })).statusCode).toBe(200);
     alpha = db.prepare("SELECT id FROM players WHERE group_id = ? AND name = 'Alpha'").pluck().get(groupA) as number;
     expect(stored('galaxy')).toEqual([{ time: expect.any(Number), spread: 450 }]);
-    // "(3 min)" a little later on another planet: the same activity, more exact
     const t = now();
+    // another planet in the same hour is kept separately
     expect(galaxyMark(db, groupA, alpha, { g: 1, s: 234, p: 6 }, 3, t)).toBe(true);
-    expect(stored('galaxy')).toEqual([{ time: t - 180, spread: 60 }]);
-    // and the vague one again: known
+    expect(stored('galaxy')).toHaveLength(2);
+    // the vague mark on the same planet again: known
     expect(galaxyMark(db, groupA, alpha, { g: 1, s: 234, p: 5 }, 0, t)).toBe(false);
+    // a more exact mark on that planet replaces the vague one
+    expect(galaxyMark(db, groupA, alpha, { g: 1, s: 234, p: 5 }, 3, t)).toBe(true);
+    expect(stored('galaxy').filter((x) => x.spread === 60)).toHaveLength(2);
   });
 
   it('leaves out galaxy marks set by a member spying or fighting there', () => {
@@ -72,6 +75,10 @@ describe('player activity', () => {
       "INSERT INTO spy_reports (group_id, g, s, p, planet_type, report_time, sections) VALUES (?, 1, 234, 5, 'planet', ?, '{}')",
     ).run(groupA, t - 20 * 60);
     expect(galaxyMark(db, groupA, alpha, { g: 1, s: 234, p: 5 }, 20, t)).toBe(false);
+    db.prepare('DELETE FROM spy_reports WHERE group_id = ? AND g = 1 AND s = 234 AND p = 5').run(groupA);
+    db.prepare(
+      "INSERT INTO spy_reports (group_id, g, s, p, planet_type, report_time, sections) VALUES (?, 1, 234, 5, 'planet', ?, '{}')",
+    ).run(groupA, t - 70 * 60);
     expect(galaxyMark(db, groupA, alpha, { g: 1, s: 234, p: 5 }, 40, t)).toBe(true);
   });
 
@@ -103,10 +110,42 @@ describe('player activity', () => {
     score.run(snap.run(groupA, t - 12 * 3600).lastInsertRowid, alpha, 1000);
     score.run(snap.run(groupA, t - 6 * 3600).lastInsertRowid, alpha, 1500);
 
-    expect(sources(await activity())).toEqual(['attack', 'defense', 'galaxy', 'galaxy', 'spy']);
+    expect(sources(await activity()).sort()).toEqual(['attack', 'defense', 'galaxy', 'galaxy', 'spy'].sort());
     const { scores } = (await call('GET', `/players/${alpha}/activity`, admin)).json();
     expect(scores).toEqual([{ time: t - 12 * 3600, points: 1000 }, { time: t - 6 * 3600, points: 1500 }]);
     expect(sources(await activity(carol))).toContain('message');
+  });
+
+  it('weights galaxy marks by planets per hour and drops them after a spy on that planet', async () => {
+    const t = now();
+    db.prepare('DELETE FROM player_activity WHERE player_id = ?').run(alpha);
+    expect(galaxyMark(db, groupA, alpha, { g: 1, s: 234, p: 5 }, 0, t)).toBe(true);
+    let galaxy = (await activity()).filter((e) => e.source === 'galaxy');
+    expect(galaxy).toHaveLength(1);
+    expect(galaxy[0].weight).toBeCloseTo(galaxyHourWeight(1), 5);
+
+    expect(galaxyMark(db, groupA, alpha, { g: 1, s: 234, p: 6 }, 0, t)).toBe(true);
+    galaxy = (await activity()).filter((e) => e.source === 'galaxy');
+    expect(galaxy).toHaveLength(2);
+    expect(galaxy.every((e) => e.weight === galaxyHourWeight(2) / 2)).toBe(true);
+
+    db.prepare(
+      "INSERT INTO spy_reports (group_id, g, s, p, planet_type, report_time, sections) VALUES (?, 1, 234, 5, 'planet', ?, '{}')",
+    ).run(groupA, t);
+    galaxy = (await activity()).filter((e) => e.source === 'galaxy');
+    expect(galaxy).toHaveLength(1);
+    expect(galaxy[0].weight).toBeCloseTo(galaxyHourWeight(1), 5);
+  });
+
+  it('drops galaxy marks in the hour of an offline report', async () => {
+    const t = now();
+    db.prepare('DELETE FROM player_activity WHERE player_id = ?').run(alpha);
+    db.prepare('DELETE FROM spy_reports WHERE group_id = ? AND g = 1 AND s = 234 AND p = 5').run(groupA);
+    expect(galaxyMark(db, groupA, alpha, { g: 1, s: 234, p: 5 }, 0, t)).toBe(true);
+    expect((await activity()).some((e) => e.source === 'galaxy')).toBe(true);
+    expect((await call('POST', `/players/${alpha}/activity`, carol, { time: t, kind: 'offline' })).statusCode).toBe(200);
+    expect((await activity()).some((e) => e.source === 'galaxy')).toBe(false);
+    expect((await activity()).some((e) => e.source === 'offline')).toBe(true);
   });
 
   it("takes a member's syncs and hub presence as far as they share them", async () => {
@@ -156,10 +195,11 @@ describe('player activity', () => {
     expect(stored('fleet')).toContainEqual({ time: t - 2000, spread: 60 });
   });
 
-  it('takes manual reports, each member withdraws their own', async () => {
+  it('takes manual and offline reports, each member withdraws their own', async () => {
     const t = now();
     for (let i = 0; i < 2; i++) expect((await call('POST', `/players/${alpha}/activity`, carol, {})).statusCode).toBe(200);
     expect((await call('POST', `/players/${alpha}/activity`, admin, { time: t - 86400 })).statusCode).toBe(200);
+    expect((await call('POST', `/players/${alpha}/activity`, admin, { time: t - 3600, kind: 'offline' })).statusCode).toBe(200);
     expect((await call('POST', `/players/${alpha}/activity`, admin, { time: t + 3600 })).json().code).toBe('activity_time_invalid');
     expect((await call('POST', `/players/${alpha}/activity`, admin, { time: t - 8 * 86400 })).json().code).toBe('activity_time_invalid');
 
@@ -169,6 +209,9 @@ describe('player activity', () => {
     expect((await call('DELETE', `/players/${alpha}/activity/${carols.id}`, admin)).statusCode).toBe(404);
     expect((await call('DELETE', `/players/${alpha}/activity/${carols.id}`, carol)).statusCode).toBe(200);
     expect((await activity()).filter((e) => e.source === 'manual')).toHaveLength(1);
+    const offline = (await activity()).find((e) => e.source === 'offline');
+    expect(offline?.weight).toBe(0);
+    expect((await call('DELETE', `/players/${alpha}/activity/${offline!.id}`, admin)).statusCode).toBe(200);
   });
 
   it('stays within the group', async () => {

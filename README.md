@@ -22,7 +22,8 @@ External analysis tool for [pr0game](https://codeberg.org/pr0game/pr0game) based
   simulator links, new offers show up in the activity log
 - **Statistics**: rankings with rank moves, change since the previous update and sync coverage
 - **Player details**: points history (chart), activity pattern over the day (from espionage, battles, messages,
-  fleets, galaxy activity, members' "online now" reports and, for alliance players, their syncs and hub presence),
+  fleets, galaxy activity (scaled by how many planets show a mark in the same hour), members' online and offline
+  reports and, for alliance players, their syncs and hub presence),
   planets, status history, notes
 - **Comments**: the alliance discusses a player or a planet/moon in a thread (player details, spy history), with a
   💬 count next to the planet

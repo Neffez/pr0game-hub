@@ -23,7 +23,7 @@ const { uni } = useUni();
 
 const COLORS: Record<ActivitySource, string> = {
   spy: '#58a6ff', attack: '#f2683c', defense: '#d29922', message: '#a371f7', sync: '#56d4dd',
-  galaxy: '#3fb950', fleet: '#ff7b72', recall: '#db61a2', manual: '#e6edf3', hub: '#8b98a9',
+  galaxy: '#3fb950', fleet: '#ff7b72', recall: '#db61a2', manual: '#e6edf3', offline: '#6e7681', hub: '#8b98a9',
 };
 const CURVE = '#7c6cf0';
 const POINTS = '#8b98a9';
@@ -37,7 +37,7 @@ const shown = computed(() => {
   const from = Date.now() / 1000 - days.value * 86400;
   return (data.value?.events ?? []).filter((e) => e.time >= from);
 });
-const manual = computed(() => shown.value.filter((e) => e.source === 'manual').reverse());
+const memberReports = computed(() => shown.value.filter((e) => e.source === 'manual' || e.source === 'offline').reverse());
 /** point gain per stat window over the day (coarse: 6-hour blocks) */
 const rate = computed(() => pointsRate(data.value?.scores ?? [], Date.now() / 1000, days.value));
 const empty = computed(() => !shown.value.length && !rate.value.length);
@@ -143,17 +143,19 @@ async function reload() {
   draw();
 }
 
-// manual report: now, or a time picked
-const reporting = ref(false);
+// member report: online or offline, now or a time picked
+const reporting = ref<'online' | 'offline' | false>(false);
 const pick = ref('');
-function openReport() {
+function openReport(kind: 'online' | 'offline') {
   pick.value = toLocalInput(Math.floor(Date.now() / 1000)).slice(0, 16);
-  reporting.value = !reporting.value;
+  reporting.value = reporting.value === kind ? false : kind;
 }
 async function report(time: number | null) {
+  const kind = reporting.value;
+  if (!kind) return;
   try {
-    await uniApi(uni.value, `/players/${props.player}/activity`, { method: 'POST', body: time == null ? {} : { time } });
-    toast(t('player.activity.reported'));
+    await uniApi(uni.value, `/players/${props.player}/activity`, { method: 'POST', body: time == null ? { kind } : { time, kind } });
+    toast(kind === 'offline' ? t('player.activity.reportedOffline') : t('player.activity.reported'));
     reporting.value = false;
     await reload();
   } catch (e) {
@@ -185,11 +187,12 @@ onBeforeUnmount(() => chart?.destroy());
         <option :value="1">{{ t('time.h24') }}</option>
         <option :value="7">{{ t('time.days', { n: 7 }) }}</option>
       </select>
-      <button type="button" :aria-expanded="reporting" @click="openReport"><Icon name="plus" :size="13" /> {{ t('player.activity.report') }}</button>
+      <button type="button" :aria-expanded="reporting === 'online'" @click="openReport('online')"><Icon name="plus" :size="13" /> {{ t('player.activity.report') }}</button>
+      <button type="button" :aria-expanded="reporting === 'offline'" @click="openReport('offline')"><Icon name="plus" :size="13" /> {{ t('player.activity.reportOffline') }}</button>
     </template>
 
     <div v-if="reporting" class="row report">
-      <button type="button" class="primary" @click="report(null)">{{ t('player.activity.now') }}</button>
+      <button type="button" class="primary" @click="report(null)">{{ reporting === 'offline' ? t('player.activity.nowOffline') : t('player.activity.now') }}</button>
       <span class="muted small">{{ t('player.activity.or') }}</span>
       <DateTimeInput v-model="pick" />
       <button type="button" :disabled="fromLocalInput(pick) == null" @click="report(fromLocalInput(pick))">{{ t('common.save') }}</button>
@@ -199,10 +202,10 @@ onBeforeUnmount(() => chart?.destroy());
     <p v-else-if="data && empty" class="muted small m-0">{{ t('player.activity.empty') }}</p>
     <div v-show="!empty" class="chart"><canvas ref="canvas" /></div>
 
-    <div v-if="manual.length" class="manual small">
+    <div v-if="memberReports.length" class="manual small">
       <span class="muted">{{ t('player.activity.manual') }}:</span>
-      <span v-for="e in manual" :key="e.id" class="chip">
-        {{ dateTime(e.time) }} <span class="faint">{{ e.reporter }}</span>
+      <span v-for="e in memberReports" :key="e.id" class="chip">
+        {{ sourceLabel(e.source) }} · {{ dateTime(e.time) }} <span class="faint">{{ e.reporter }}</span>
         <button v-if="e.mine" type="button" class="icon-btn small" :title="t('player.activity.withdraw')" @click="remove(e)">
           <Icon name="close" :size="11" :label="t('player.activity.withdraw')" />
         </button>
