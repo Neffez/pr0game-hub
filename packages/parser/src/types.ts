@@ -186,6 +186,11 @@ export interface GalaxyRecord {
   rows: GalaxyRow[];
   /** when the system was seen (epoch seconds, universe.json); default: time of the paste */
   seenAt?: number;
+  /**
+   * Copied text cut off before the end of the system: positions after this one were not seen, so they say nothing
+   * (not empty). Missing when the whole system was seen.
+   */
+  lastPosition?: number;
 }
 
 export interface EmpirePlanet {

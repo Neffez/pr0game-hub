@@ -107,8 +107,12 @@ export function parseGalaxyText(text: string, system: { g: number; s: number }):
   // Cells of each position; a line equal to the next position number starts the next row
   // (planet or player names like "4" are fine as long as they are not the next position).
   const cells: string[][] = [];
+  let complete = false;
   for (const line of lines.slice(start + 1)) {
-    if (/Planeten besiedelt|planets colonized|^Legende$|^Legend$/i.test(line)) break;
+    if (/Planeten besiedelt|planets colonized|^Legende$|^Legend$/i.test(line)) {
+      complete = true;
+      break;
+    }
     if (line === String(cells.length + 1)) cells.push([]);
     else cells[cells.length - 1]?.push(line);
   }
@@ -157,7 +161,10 @@ export function parseGalaxyText(text: string, system: { g: number; s: number }):
       activity: activityOf(rest[0]),
     });
   });
-  return { kind: 'galaxy', g: system.g, s: system.s, rows };
+  if (complete) return { kind: 'galaxy', g: system.g, s: system.s, rows };
+  // without the footer the copy ends early: its last row may be cut off as well
+  const lastPosition = Math.max(0, cells.length - 1);
+  return { kind: 'galaxy', g: system.g, s: system.s, rows: rows.filter((r) => r.position <= lastPosition), lastPosition };
 }
 
 function emptyRow(position: number, debris: GalaxyRow['debris']): GalaxyRow {

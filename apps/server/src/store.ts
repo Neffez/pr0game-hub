@@ -367,9 +367,9 @@ export class Store {
       }[]).map((x) => [x.p, x]),
     );
     const positions = new Set(r.rows.map((row) => row.position));
-    // Positions not listed anymore are empty now.
+    // Positions not listed anymore are empty now (a cut-off text copy says nothing about the positions after its end).
     for (const e of before.values()) {
-      if (!positions.has(e.p)) {
+      if (!positions.has(e.p) && (r.lastPosition == null || e.p <= r.lastPosition)) {
         if (known != null && e.player_id) {
           this.log('planet_destroyed', seenAt, { g: r.g, s: r.s, p: e.p }, 'planet', e.player_id, { name: e.name ?? null });
         }

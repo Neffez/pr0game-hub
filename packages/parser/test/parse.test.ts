@@ -408,6 +408,16 @@ describe('galaxy + empire', () => {
     ]);
   });
 
+  it('tells a cut-off galaxy text copy by the missing footer', () => {
+    const full = fixture('galaxy.txt');
+    expect(parsePage({ text: full, system: '1:3' }).records[0]).not.toHaveProperty('lastPosition');
+    const cut = full.slice(0, full.indexOf('Hauptplanet') - 1);
+    const rec = parsePage({ text: cut, system: '1:3' }).records[0] as any;
+    // position 12 was only copied up to its number: neither it nor the positions after it are known
+    expect(rec.lastPosition).toBe(11);
+    expect(rec.rows.at(-1)).toMatchObject({ position: 11, playerName: 'Anda' });
+  });
+
   it('asks for galaxy:system when copied galaxy text has none', () => {
     const res = parsePage({ text: fixture('galaxy.txt') });
     expect(res).toMatchObject({ pageType: 'galaxy', records: [], warnings: ['galaxy_position_missing'] });

@@ -564,6 +564,18 @@ describe('api', () => {
     expect(al.filter((m: any) => m.player_id === own)).toHaveLength(1);
   });
 
+  it('keeps the planets after the end of a cut-off galaxy text copy', async () => {
+    const groupT = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', payload: { universe: 'u8', name: 'Cut' }, headers: admin })).json().id;
+    const headers = { ...admin, 'x-hub-group': String(groupT) };
+    const ingest = (text: string) => app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { text, system: '1:3' } });
+    const full = fixture('galaxy.txt');
+    expect((await ingest(full)).statusCode).toBe(200);
+    expect((await ingest(full.slice(0, full.indexOf('Hauptplanet') - 1))).statusCode).toBe(200);
+    const positions = db.prepare('SELECT p FROM planets WHERE group_id = ? AND g = 1 AND s = 3 ORDER BY p').pluck().all(groupT);
+    expect(positions).toEqual([1, 2, 4, 5, 6, 7, 8, 9, 11, 12, 13]);
+    expect(db.prepare("SELECT COUNT(*) FROM activity_log WHERE group_id = ? AND kind = 'planet_destroyed'").pluck().get(groupT)).toBe(0);
+  });
+
   it('writes the activity log while syncing', async () => {
     const groupC = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', payload: { universe: 'u8', name: 'C' }, headers: admin })).json().id;
     const headers = { ...admin, 'x-hub-group': String(groupC) };

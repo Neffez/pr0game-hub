@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Galaxie: Wird nur ein Teil eines Systems als Text kopiert, gelten die Planeten danach nicht mehr als zerstört.',
+        en: 'Galaxy: copying only part of a system as text no longer marks the planets after it as destroyed.',
+      },
+      {
+        kind: 'fix',
         de: 'Spionage-Historie: Beim Weiterscrollen fehlen keine Berichte mehr und es tauchen keine doppelt auf, auch wenn gerade neue Berichte dazukommen.',
         en: 'Spy history: scrolling on no longer skips or repeats reports, even while new reports come in.',
       },

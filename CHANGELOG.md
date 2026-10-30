@@ -4,6 +4,8 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-30
 
+- Galaxy text copies cut off before the end of the system (no "planets colonized" footer) no longer delete the planets
+  after the cut nor log them as destroyed; the parser reports `lastPosition` and drops the possibly incomplete last row.
 - Spy history: endless scrolling pages by report time and id (`before=<report_time>:<id>` on
   `GET /api/{uni}/spy-reports`, documented) instead of an offset, so reports synced meanwhile neither repeat nor go
   missing, reports of the same second keep their order, and a live reload during loading no longer starts the list in
