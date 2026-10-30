@@ -21,6 +21,11 @@ export interface ActivityEvent {
   source: ActivitySource;
   /** contribution to the activity curve (galaxy marks: scaled by planets per hour) */
   weight?: number;
+  /** galaxy marks: coordinates and when the galaxy view was synced */
+  g?: number;
+  s?: number;
+  p?: number;
+  syncedAt?: number;
   /** manual and offline reports: row id, reporting member and whether the viewer reported it */
   id?: number;
   reporter?: string | null;
@@ -101,17 +106,7 @@ const STAR_SPREAD = 450;
 export function galaxyMark(db: DB, groupId: number, playerId: number, c: { g: number; s: number; p: number }, minutes: number, seenAt: number): boolean {
   const spread = minutes === 0 ? STAR_SPREAD : 60;
   const time = minutes === 0 ? seenAt - STAR_SPREAD : seenAt - minutes * 60;
-  const markLo = time - spread - 60;
-  const markHi = time + spread + 60;
-  const lo = Math.min(markLo, seenAt - GALAXY_HOUR);
-  const hi = Math.max(markHi, seenAt + 60);
-  const ours = db
-    .prepare(
-      `SELECT 1 FROM spy_reports WHERE group_id = ? AND g = ? AND s = ? AND p = ? AND report_time BETWEEN ? AND ?
-       UNION ALL SELECT 1 FROM battle_reports WHERE group_id = ? AND g = ? AND s = ? AND p = ? AND time BETWEEN ? AND ? LIMIT 1`,
-    )
-    .get(groupId, c.g, c.s, c.p, lo, hi, groupId, c.g, c.s, c.p, lo, hi);
-  if (ours) return false;
+  if (galaxyMarkCausedByForeignAction(db, groupId, c.g, c.s, c.p, seenAt)) return false;
   const near = db
     .prepare(
       `SELECT id, time, spread FROM player_activity WHERE player_id = ? AND source = 'galaxy' AND g = ? AND s = ? AND p = ?
@@ -122,15 +117,6 @@ export function galaxyMark(db: DB, groupId: number, playerId: number, c: { g: nu
   for (const x of near) db.prepare('DELETE FROM player_activity WHERE id = ?').run(x.id);
   const hour = Math.floor(seenAt / GALAXY_HOUR);
   return addActivity(db, groupId, { playerId, time, spread, source: 'galaxy', coords: c, key: `galaxy:${playerId}:${c.g}:${c.s}:${c.p}:${hour}`, syncedAt: seenAt });
-}
-
-function spyOrBattleOnPlanet(db: DB, groupId: number, g: number, s: number, p: number, lo: number, hi: number): boolean {
-  return !!db
-    .prepare(
-      `SELECT 1 FROM spy_reports WHERE group_id = ? AND g = ? AND s = ? AND p = ? AND report_time BETWEEN ? AND ?
-       UNION ALL SELECT 1 FROM battle_reports WHERE group_id = ? AND g = ? AND s = ? AND p = ? AND time BETWEEN ? AND ? LIMIT 1`,
-    )
-    .get(groupId, g, s, p, lo, hi, groupId, g, s, p, lo, hi);
 }
 
 /** Estimated activity time from the mark (for the chart). */
@@ -145,29 +131,23 @@ const galaxySyncedAt = (row: { time: number; spread: number; created_at: number 
   return row.created_at > seen + 300 ? seen : row.created_at;
 };
 
-function galaxySpyWindow(row: { time: number; spread: number; created_at: number }) {
-  const sync = galaxySyncedAt(row);
-  const seen = galaxySeenAt(row.time, row.spread);
-  return {
-    lo: Math.min(row.time - row.spread - 60, sync - GALAXY_HOUR, seen - GALAXY_HOUR),
-    hi: Math.max(row.time + row.spread + 60, sync + 60, seen + 60),
-  };
-}
-
-function spyOnPlayer(db: DB, groupId: number, playerId: number, names: string, lo: number, hi: number): boolean {
+/**
+ * A spy report or battle at the slot before the galaxy sync (within the last hour) likely set the mark; one after the
+ * sync is ambiguous activity and does not suppress the mark.
+ */
+function galaxyMarkCausedByForeignAction(db: DB, groupId: number, g: number, s: number, p: number, sync: number): boolean {
+  const lo = sync - GALAXY_HOUR;
+  const hi = sync + 60;
   return !!db
     .prepare(
-      `SELECT 1 FROM spy_reports WHERE group_id = ? AND report_time BETWEEN ? AND ?
-       AND (player_id = ? OR player_name COLLATE NOCASE IN (SELECT value FROM json_each(?))) LIMIT 1`,
+      `SELECT 1 FROM spy_reports WHERE group_id = ? AND g = ? AND s = ? AND p = ? AND report_time BETWEEN ? AND ? AND report_time <= ?
+       UNION ALL SELECT 1 FROM battle_reports WHERE group_id = ? AND g = ? AND s = ? AND p = ? AND time BETWEEN ? AND ? AND time <= ? LIMIT 1`,
     )
-    .get(groupId, lo, hi, playerId, names);
+    .get(groupId, g, s, p, lo, hi, hi, groupId, g, s, p, lo, hi, hi);
 }
 
-function galaxyMarkBlocked(
-  db: DB, groupId: number, playerId: number, names: string, g: number, s: number, p: number, row: { time: number; spread: number; created_at: number },
-): boolean {
-  const { lo, hi } = galaxySpyWindow(row);
-  return spyOrBattleOnPlanet(db, groupId, g, s, p, lo, hi) || spyOnPlayer(db, groupId, playerId, names, lo, hi);
+function galaxyMarkBlocked(db: DB, groupId: number, g: number, s: number, p: number, row: { time: number; spread: number; created_at: number }): boolean {
+  return galaxyMarkCausedByForeignAction(db, groupId, g, s, p, galaxySyncedAt(row));
 }
 
 /** Total galaxy weight for `n` planets with a mark in the same hour. */
@@ -339,17 +319,6 @@ export function playerActivity(db: DB, ctx: GroupContext, playerId: number, from
     )
     .all(ctx.groupId, playerId, from, from) as StoredRow[];
 
-  /** Hours (Unix) when the alliance spied this player; galaxy marks in the same sync hour are dropped. */
-  const spiedHours = new Set<number>();
-  for (const t of db
-    .prepare(
-      `SELECT report_time FROM spy_reports WHERE group_id = ? AND report_time >= ? AND (player_id = ? OR player_name COLLATE NOCASE IN (SELECT value FROM json_each(?)))`,
-    )
-    .pluck()
-    .all(ctx.groupId, from - GALAXY_HOUR, playerId, names) as number[]) {
-    spiedHours.add(Math.floor(t / GALAXY_HOUR));
-  }
-
   const memberReport = (r: StoredRow): ActivityEvent => ({
     time: r.time,
     spread: r.spread,
@@ -366,10 +335,8 @@ export function playerActivity(db: DB, ctx: GroupContext, playerId: number, from
   let galaxy = stored.filter((r) => r.source === 'galaxy' && r.g != null && r.s != null && r.p != null);
   galaxy = galaxy.filter((g) => {
     const sync = galaxySyncedAt(g);
-    const syncHour = Math.floor(sync / GALAXY_HOUR);
-    if (spiedHours.has(syncHour)) return false;
     if (offlineTimes.some((o) => Math.abs(sync - o) <= GALAXY_HOUR || Math.abs(galaxySeenAt(g.time, g.spread) - o) <= GALAXY_HOUR)) return false;
-    return !galaxyMarkBlocked(db, ctx.groupId, playerId, names, g.g!, g.s!, g.p!, g);
+    return !galaxyMarkBlocked(db, ctx.groupId, g.g!, g.s!, g.p!, g);
   });
 
   const bestPerPlanetHour = new Map<string, StoredRow>();
@@ -389,7 +356,11 @@ export function playerActivity(db: DB, ctx: GroupContext, playerId: number, from
   }
   for (const group of byHour.values()) {
     const share = galaxyHourWeight(group.length) / group.length;
-    for (const g of group) out.push({ time: g.time, spread: g.spread, source: 'galaxy', weight: share });
+    for (const g of group) {
+      out.push({
+        time: g.time, spread: g.spread, source: 'galaxy', weight: share, g: g.g!, s: g.s!, p: g.p!, syncedAt: galaxySyncedAt(g),
+      });
+    }
   }
 
   for (const r of stored) {

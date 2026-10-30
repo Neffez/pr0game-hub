@@ -8,6 +8,10 @@ export interface ActivityEvent {
   spread: number;
   source: ActivitySource;
   weight?: number;
+  g?: number;
+  s?: number;
+  p?: number;
+  syncedAt?: number;
   id?: number;
   reporter?: string | null;
   mine?: boolean;

@@ -116,9 +116,27 @@ describe('player activity', () => {
     expect(sources(await activity(carol))).toContain('message');
   });
 
+  it('keeps a galaxy mark when the spy report is after the galaxy sync', async () => {
+    const sync = now() - 3600;
+    const spyAfter = sync + 20 * 60;
+    db.prepare('DELETE FROM player_activity WHERE player_id = ?').run(alpha);
+    db.prepare('DELETE FROM spy_reports WHERE group_id = ? AND g = 1 AND s = 234 AND p = 5').run(groupA);
+    db.prepare(
+      `INSERT INTO player_activity (group_id, player_id, time, spread, source, g, s, p, dedupe_key, created_at)
+       VALUES (?, ?, ?, ?, 'galaxy', 1, 234, 5, ?, ?)`,
+    ).run(groupA, alpha, sync - 450, 450, `after-spy:${sync}`, sync);
+    db.prepare(
+      "INSERT INTO spy_reports (group_id, g, s, p, planet_type, report_time, sections, player_id) VALUES (?, 1, 234, 5, 'planet', ?, '{}', ?)",
+    ).run(groupA, spyAfter, alpha);
+    const galaxy = (await activity()).filter((e) => e.source === 'galaxy');
+    expect(galaxy).toHaveLength(1);
+    expect(galaxy[0]).toMatchObject({ g: 1, s: 234, p: 5, syncedAt: sync });
+  });
+
   it('weights galaxy marks by planets per hour and drops them after a spy on that planet', async () => {
     const t = now();
     db.prepare('DELETE FROM player_activity WHERE player_id = ?').run(alpha);
+    db.prepare('DELETE FROM spy_reports WHERE group_id = ? AND g = 1 AND s = 234 AND p IN (5, 6)').run(groupA);
     expect(galaxyMark(db, groupA, alpha, { g: 1, s: 234, p: 5 }, 0, t)).toBe(true);
     let galaxy = (await activity()).filter((e) => e.source === 'galaxy');
     expect(galaxy).toHaveLength(1);
@@ -149,23 +167,6 @@ describe('player activity', () => {
       `INSERT INTO player_activity (group_id, player_id, time, spread, source, g, s, p, dedupe_key, created_at)
        VALUES (?, ?, ?, ?, 'galaxy', 1, 234, 5, ?, ?)`,
     ).run(groupA, alpha, sync - 450, 450, `legacy:${sync}`, sync);
-    expect((await activity()).some((e) => e.source === 'galaxy')).toBe(false);
-  });
-
-  it('drops all galaxy marks in a sync hour when the player was spied on another planet', async () => {
-    const sync = now() - 2 * 3600;
-    const spyTime = sync - 5 * 60;
-    db.prepare('DELETE FROM player_activity WHERE player_id = ?').run(alpha);
-    db.prepare('DELETE FROM spy_reports WHERE group_id = ?').run(groupA);
-    db.prepare(
-      "INSERT INTO spy_reports (group_id, g, s, p, planet_type, report_time, sections, player_name) VALUES (?, 1, 234, 5, 'planet', ?, '{}', 'Alpha')",
-    ).run(groupA, spyTime);
-    for (const p of [5, 6]) {
-      db.prepare(
-        `INSERT INTO player_activity (group_id, player_id, time, spread, source, g, s, p, dedupe_key, created_at)
-         VALUES (?, ?, ?, ?, 'galaxy', 1, 234, ?, ?, ?)`,
-      ).run(groupA, alpha, sync - 450, 450, p, `legacy-other:${p}:${sync}`, sync);
-    }
     expect((await activity()).some((e) => e.source === 'galaxy')).toBe(false);
   });
 

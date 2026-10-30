@@ -559,6 +559,10 @@ components:
         spread: { type: integer, description: Half width of the uncertainty in seconds (0 = exact) }
         source: { type: string, enum: [spy, attack, defense, message, galaxy, fleet, recall, manual, offline, sync, hub] }
         weight: { type: number, description: Contribution to the activity curve (galaxy marks scaled by planets per hour) }
+        g: { type: integer, description: Galaxy mark only – galaxy coordinate }
+        s: { type: integer, description: Galaxy mark only – system coordinate }
+        p: { type: integer, description: Galaxy mark only – position }
+        syncedAt: { type: integer, description: Galaxy mark only – when the galaxy view was synced (Unix seconds) }
         id: { type: integer, description: Manual and offline reports only }
         reporter: { type: [string, 'null'], description: Reporting member (manual and offline reports only) }
         mine: { type: boolean, description: Reported by the caller (manual and offline reports only) }
