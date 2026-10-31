@@ -4,6 +4,12 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-31
 
+- Sync shows which loot settlements the pasted messages count for (battles, fleet returns, recycling and missiles at a
+  launched or done plan's target around its time; `settlements` in the ingest summary, `settlementsFor`), with links,
+  in the preview and after saving.
+- New notification `settlement` (bell, push, Discord webhook): a loot settlement the member takes part in was finalized
+  and they have deliveries open, with what they send and get; listed for 48 hours while deliveries are open (neither
+  ticked off nor delivered by transport reports). Push setting `settlements` (default on).
 - Sync reads three more messages (DE/EN, pirate language): transport reports (sender's and receiver's copy,
   `transports`), interplanetary missile impacts (`missile_impacts`) and recyclers coming home (`recycle_returns`),
   migration `069`, with preview lines and counts. The loot settlement takes them: each member's missiles fired on the

@@ -1,4 +1,4 @@
-import { parsePage, type HubRecord, type ParseInput, type ParseResult, type SpyReportRecord } from '@pr0hub/core';
+import { localToEpoch, parsePage, type HubRecord, type ParseInput, type ParseResult, type SpyReportRecord } from '@pr0hub/core';
 import { gunzipSync, gzipSync } from 'node:zlib';
 import { HttpError } from './auth.js';
 import { config } from './config.js';
@@ -29,6 +29,58 @@ export interface IngestSummary {
   counts: Record<string, { new: number; duplicate: number }>;
   /** short description for the preview, per record (formatted by the web app) */
   preview: PreviewItem[];
+  /** loot settlements (raid plans) the messages count for: battles, fleet returns, recycling and missiles at their target */
+  settlements?: SettlementHit[];
+}
+
+export interface SettlementHit {
+  id: number;
+  mission: string;
+  g: number;
+  s: number;
+  p: number;
+  planet_type: string;
+  target_time: number;
+  /** record kinds that count for it */
+  kinds: string[];
+}
+
+/** How long after its time a plan still takes messages (recycling, returns) and how long before (missiles). */
+const SETTLEMENT_BEFORE = 86400;
+const SETTLEMENT_AFTER = 3 * 86400;
+
+/**
+ * Launched or done raid plans whose settlement takes the records: battle, fleet return, recycling and missile
+ * messages at the plan's target around its time.
+ */
+export function settlementsFor(db: DB, target: IngestTarget, records: HubRecord[]): SettlementHit[] {
+  const find = db.prepare(
+    `SELECT id, mission, g, s, p, planet_type, target_time FROM attack_plans
+     WHERE group_id = ? AND g = ? AND s = ? AND p = ? AND (? IS NULL OR planet_type = ?) AND status IN ('launched', 'done')
+       AND target_time BETWEEN ? AND ?
+     ORDER BY ABS(target_time - ?) LIMIT 1`,
+  );
+  const hits = new Map<number, SettlementHit>();
+  for (const r of records) {
+    const at =
+      r.kind === 'battle' ? { c: r.coords, time: r.time, type: r.planetType }
+      : r.kind === 'recycle' ? { c: r.coords, time: r.time }
+      : r.kind === 'fleetReturn' ? { c: r.target, time: r.time }
+      : r.kind === 'missileImpact' ? { c: r.target, time: r.time }
+      : null;
+    if (!at) continue;
+    const time = at.time ? localToEpoch(at.time, target.timezone) : null;
+    if (time == null) continue;
+    const type = 'type' in at ? at.type : null;
+    const plan = find.get(target.groupId, at.c.g, at.c.s, at.c.p, type, type, time - SETTLEMENT_AFTER, time + SETTLEMENT_BEFORE, time) as
+      | Omit<SettlementHit, 'kinds'>
+      | undefined;
+    if (!plan) continue;
+    const hit = hits.get(plan.id) ?? { ...plan, kinds: [] };
+    if (!hit.kinds.includes(r.kind)) hit.kinds.push(r.kind);
+    hits.set(plan.id, hit);
+  }
+  return [...hits.values()];
 }
 
 export type PreviewItem = { kind: HubRecord['kind'] } & Record<string, string | number | boolean | null>;
@@ -51,6 +103,7 @@ export function ingest(
     counts: {},
     // universe.json yields thousands of systems: the preview only needs a sample
     preview: parsed.records.slice(0, 100).map(describe),
+    settlements: settlementsFor(db, target, parsed.records),
   };
   if (opts.dryRun) return summary;
 

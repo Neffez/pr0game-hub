@@ -217,6 +217,7 @@ components:
         accessRequests: { type: boolean, description: Access requests from the login page; only global admins get them (default on) }
         fleets: { type: boolean, description: An own fleet the caller set an alert for arrives (or is about to, by the alert's lead) (default on) }
         storage: { type: boolean, description: 'A storage (metal, crystal, deuterium) on one of the caller''s planets is full (default on)' }
+        settlements: { type: boolean, description: A loot settlement the caller takes part in was finalized and they have deliveries open (default on) }
         leadMinutes: { type: integer, enum: [1, 2, 5, 10, 15, 30], description: Launch reminder this many minutes ahead (default 5) }
     DiscordSettings:
       type: object
@@ -2989,7 +2990,10 @@ paths:
         invited or ready, that launches within the next hour; `plan`, `from`, `time` the launch) and `building` (the
         resources for the level of a building or research alert are there, listed 24 hours; `alert`, `planet`, `element`, `level`,
         `time` since when) and `fleet` (an own fleet with a fleet alert, due `lead` minutes before its arrival, listed
-        from an hour before that until 10 minutes after the arrival; `alert`, `fleet`, `lead`, `time` the arrival). Push notifications send
+        from an hour before that until 10 minutes after the arrival; `alert`, `fleet`, `lead`, `time` the arrival) and
+        `settlement` (a loot settlement the caller takes part in, finalized within 48 hours, while deliveries of the
+        caller are open, neither ticked off nor delivered by transport messages; `plan`, `sends`, `gets`, `member` who
+        finalized it, `time` when). Push notifications send
         the same entries (see `/api/push/subscriptions`).
       parameters:
         - { $ref: '#/components/parameters/Uni' }
@@ -3006,10 +3010,10 @@ paths:
                   required: [id, kind, userId, member, time]
                   properties:
                     id: { type: string, description: Stable while the event lasts }
-                    kind: { type: string, enum: [attack, invite, comment, launch, building, fleet, storage] }
-                    userId: { type: integer, description: 'attack: the attacked member; invite: who invited; comment: the newest author; launch, building, fleet and storage: the caller' }
+                    kind: { type: string, enum: [attack, invite, comment, launch, building, fleet, storage, settlement] }
+                    userId: { type: integer, description: 'attack: the attacked member; invite: who invited; comment: the newest author; launch, building, fleet and storage: the caller; settlement: who finalized it' }
                     member: { type: string }
-                    time: { type: integer, description: Unix seconds (arrival, plan target time, newest comment, launch, since when a building level is affordable, arrival of an alerted fleet, or since when a storage is full) }
+                    time: { type: integer, description: Unix seconds (arrival, plan target time, newest comment, launch, since when a building level is affordable, arrival of an alerted fleet, since when a storage is full, or when a settlement was finalized) }
                     alert: { type: integer, description: 'building and fleet: id of the building or fleet alert' }
                     lead: { type: integer, description: 'fleet only: minutes before the arrival the alert reminds' }
                     planet:
@@ -3028,7 +3032,7 @@ paths:
                     fleets: { type: integer, description: 'attack only: number of fleets of an ACS' }
                     plan:
                       type: object
-                      description: 'invite and launch (launch: `time_precision` is always exact and missing; `target_time` instead)'
+                      description: 'invite, launch and settlement (launch: `time_precision` is always exact and missing; `target_time` instead; settlement: target and mission only)'
                       properties:
                         id: { type: integer }
                         g: { type: [integer, 'null'] }
@@ -3038,6 +3042,14 @@ paths:
                         mission: { type: string, enum: [attack, hold] }
                         time_precision: { type: string, enum: [day, hour, exact] }
                         target_time: { type: integer }
+                    sends:
+                      type: array
+                      description: 'settlement only: the caller''s open deliveries to send (by name)'
+                      items: { type: object, properties: { to: { type: string }, res: { type: object } } }
+                    gets:
+                      type: array
+                      description: 'settlement only: the caller''s open deliveries to get (by name)'
+                      items: { type: object, properties: { from: { type: string }, res: { type: object } } }
                     thread:
                       description: 'comment only: a player, the loot settlement of a raid plan (with the plan target), or a planet/moon with its owner'
                       oneOf:

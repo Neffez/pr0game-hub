@@ -423,6 +423,19 @@ describe('raid settlements', () => {
     // the caller's open deliveries, by name
     expect(finalized.mine.length).toBeGreaterThan(0);
     expect(finalized.mine.every((x: { from: string; to: string }) => x.from === 'CVXII' || x.to === 'CVXII')).toBe(true);
+    // the bell (and push) tells the members what they send and get
+    const bell = (await call('GET', '/notifications', as.carol)).json().filter((n: { kind: string }) => n.kind === 'settlement');
+    expect(bell).toHaveLength(1);
+    expect(bell[0]).toMatchObject({ member: 'CVXII', plan: { id: planId, g: 2, s: 100, p: 8 } });
+    expect(bell[0].sends.length + bell[0].gets.length).toBe(finalized.mine.length);
+    const { payloadOf } = await import('../src/push.js');
+    const push = payloadOf(bell[0], 'de', 'u8', 'Europe/Berlin', groupA);
+    expect(push.title).toBe('💰 Beuteabrechnung [2:100:8] festgeschrieben');
+    expect(push.url).toContain(`/raid-planner/${planId}/loot`);
+    // Erin (recycling helper) gets hers only: as many as her open deliveries in the list
+    const erinMine = (await call('GET', '/settlements', as.erin)).json().find((x: { id: number }) => x.id === planId).mine;
+    const erinBell = (await call('GET', '/notifications', as.erin)).json().filter((n: { kind: string }) => n.kind === 'settlement');
+    expect(erinBell.flatMap((n: { sends: unknown[]; gets: unknown[] }) => [...n.sends, ...n.gets])).toHaveLength(erinMine.length);
     expect((await call('GET', '/settlements', as.carolB)).json()).toEqual([]);
   });
 

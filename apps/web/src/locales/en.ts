@@ -196,6 +196,7 @@ const en: typeof de = {
       buildings: 'Next building or research level possible (bell under Build & Research)',
       fleets: 'Arrival of my fleets (bell on the fleet in the Imperium)',
       storage: 'A storage on one of my planets is full',
+      settlements: 'A loot settlement I send or get something in was finalized',
       accessRequests: 'Access requests from the login page (admins)',
     },
     pushLead: 'Lead time',
@@ -627,6 +628,7 @@ const en: typeof de = {
     allyHint: '"Alliance": offered by the own alliance or by an alliance with a main, wing, alliance or trade alliance pact (marked green in the game).',
   },
   paste: {
+    forSettlement: 'Counts for the loot settlement {target}, {time}',
     title: 'Paste page',
     hint1: 'Open the page in the game, Ctrl+A, Ctrl+C and Ctrl+V here. Alternatively copy and paste the page source (Ctrl+U) or choose the saved page as a file.',
     hint2: 'Supported: statistics (players/alliances), messages (spy, battle and expedition reports, counterintelligence reports), galaxy, empire, marketplace (only an estimated rate from plain text), buildings and research (as page source/HTML), overview (build queues and fleet movements; exact remaining times only as page source/HTML), fleet movements on their own (select and copy the event lines of the overview).',
@@ -1790,6 +1792,7 @@ const en: typeof de = {
     fleetBack: '{mission}: fleet is back',
     storage: '{name} full',
     storageSince: 'since {t}',
+    settlementFinalized: 'Loot settlement {at} finalized',
   },
   game: {
     missions: {

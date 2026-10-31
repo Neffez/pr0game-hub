@@ -197,6 +197,7 @@ const de = {
       buildings: 'Nächste Gebäude- oder Forschungsstufe möglich (Glocke unter Bauen & Forschen)',
       fleets: 'Ankunft meiner Flotten (Glocke an der Flotte im Imperium)',
       storage: 'Ein Lager auf einem meiner Planeten ist voll',
+      settlements: 'Beuteabrechnung festgeschrieben, in der ich etwas schicke oder bekomme',
       accessRequests: 'Zugangsanfragen von der Anmeldeseite (Admins)',
     },
     pushLead: 'Vorlauf',
@@ -628,6 +629,7 @@ const de = {
     allyHint: '„Allianz“: Angebot aus der eigenen Allianz oder von einer Allianz mit Main-, Wing-, Bündnis- oder Handelsbündnis-Vertrag (im Spiel grün markiert).',
   },
   paste: {
+    forSettlement: 'Fließt in die Beuteabrechnung {target}, {time}',
     title: 'Seite einfügen',
     hint1: 'Im Spiel die Seite öffnen, Strg+A, Strg+C und hier Strg+V. Alternativ: Seitenquelltext (Strg+U) kopieren und einfügen oder die gespeicherte Seite als Datei wählen.',
     hint2: 'Unterstützt: Statistik (Spieler/Allianz), Nachrichten (Spionage-, Kampf-, Expeditionsberichte, Spionage-Aktivität), Galaxie, Imperium, Marktplatz (aus reinem Text nur geschätzter Kurs), Gebäude und Forschung (als Quelltext/HTML), Übersicht (Bauschleifen und Flottenbewegungen; genaue Restzeiten nur als Quelltext/HTML), Flottenbewegungen allein (die Ereignis-Zeilen der Übersicht markieren und kopieren).',
@@ -1794,6 +1796,7 @@ const de = {
     fleetBack: '{mission}: Flotte zurück',
     storage: '{name} voll',
     storageSince: 'seit {t}',
+    settlementFinalized: 'Beuteabrechnung {at} festgeschrieben',
   },
   game: {
     missions: {

@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Beim Synchronisieren siehst du, in welche Beuteabrechnung deine Berichte einfließen. Wird eine Abrechnung festgeschrieben, sagt dir eine Benachrichtigung (Glocke, Push, Discord), was du schickst und bekommst.',
+        en: 'When syncing you see which loot settlement your reports count for. When a settlement is finalized, a notification (bell, push, Discord) tells you what you send and get.',
+      },
+      {
+        kind: 'new',
         de: 'Synchronisieren liest jetzt auch Transportberichte, Raketeneinschläge und Recycler-Rückkehr. Beute abrechnen übernimmt daraus die IRaks, schätzt das Recycler-Deut, rechnet das Flug-Deut mit der echten Flugzeit und hakt Lieferungen ab, sobald der Transportbericht synchronisiert ist.',
         en: 'Sync now also reads transport reports, missile impacts and recyclers coming home. The loot settlement takes the missiles from them, estimates the recycler deuterium, computes the flight deuterium with the real flight time and ticks off deliveries once the transport report is synced.',
       },

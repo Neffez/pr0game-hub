@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { useUni } from '../composables';
 import { accessRequests, attacks, loadAccessRequests, markSeen, notifications, unseen, type CommentNotification, type Notification } from '../notifications';
-import { abbr, fmt, name } from '../format';
+import { abbr, fmt, name, short } from '../format';
 import Icon from './Icon.vue';
 import Ticker from './Ticker.vue';
 
@@ -36,6 +36,8 @@ function target(n: Notification) {
       return { path: `/${uni.value}/raid-planner`, query: { plan: n.plan.id } };
     case 'fleet':
       return `/${uni.value}/imperium`;
+    case 'settlement':
+      return `/${uni.value}/raid-planner/${n.plan.id}/loot`;
     case 'storage':
       return { path: `/${uni.value}/build`, query: { tab: 'buildings', c: `${n.planet.g}:${n.planet.s}:${n.planet.p}`, type: 'planet' } };
     case 'building':
@@ -60,6 +62,8 @@ const threadOf = (n: CommentNotification) =>
     : `${n.thread.owner ? n.thread.owner + ' ' : ''}${coords(n.thread, n.thread.type === 'moon')}`;
 /** Storage building of a resource (901-903 → 22-24). */
 const storageOf = (res: number) => res - 879;
+const resText = (r: { m: number; k: number; d: number }) =>
+  ([[r.m, 901], [r.k, 902], [r.d, 903]] as const).filter(([v]) => v > 0).map(([v, id]) => `${short(v)} ${name(id)}`).join(', ');
 /** Coordinates in brackets; moons named as such (no symbol). */
 function coords(b: { g: number; s: number; p: number }, moon: boolean) {
   return `${moon ? t('common.moon') + ' ' : ''}[${b.g}:${b.s}:${b.p}]`;
@@ -146,6 +150,11 @@ function left(sec: number) {
           <button v-else-if="n.kind === 'storage'" class="bell-item storage" @click="show(n)">
             <span class="bell-title"><Icon name="cargo" :size="14" /><b>{{ t('notify.storage', { name: name(storageOf(n.resource)) }) }}</b></span>
             <span class="small">{{ n.planet.name ? n.planet.name + ' ' : '' }}{{ coords(n.planet, false) }} · {{ t('notify.storageSince', { t: since(n.time) }) }}</span>
+          </button>
+          <button v-else-if="n.kind === 'settlement'" class="bell-item settlement" @click="show(n)">
+            <span class="bell-title"><Icon name="cargo" :size="14" /><b>{{ t('notify.settlementFinalized', { at: coords(n.plan, n.plan.planet_type === 'moon') }) }}</b></span>
+            <span v-for="(x, i) in n.sends" :key="`s${i}`" class="small">{{ t('loot.youSend', { to: x.to }) }} {{ resText(x.res) }}</span>
+            <span v-for="(x, i) in n.gets" :key="`g${i}`" class="small">{{ t('loot.youGet', { from: x.from }) }} {{ resText(x.res) }}</span>
           </button>
           <button v-else-if="n.kind === 'fleet'" class="bell-item fleet" @click="show(n)">
             <span class="bell-title"><Icon :name="n.fleet.phase === 'return' ? 'return' : 'inFlight'" :size="14" /><b>{{ t(n.fleet.phase === 'return' ? 'notify.fleetBack' : 'notify.fleet', { mission: n.fleet.missionName }) }}</b></span>
