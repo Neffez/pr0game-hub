@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-31
 
+- `@pr0hub/loot`: corrections on top of the hub's draft (`overrides.ts`): `diffOverrides` stores only what differs from
+  the draft (people by id, battles and recycling rows by their new `key`, rows added by hand, settings, transfers),
+  `applyOverrides` puts them back on a fresh draft (a battle whose key changed is found again by its time),
+  `adoptKeys` gives settlements saved before keys existed the draft's keys, `overriddenPaths` and `stateChanges` for
+  the view. Groundwork for settlements that follow synced data without "Update from hub data".
 - Coordinate fields (tools: flight, IPM, battle simulator, moon destruction; hub: sync system, spy target) no longer
   force the numeric keyboard on mobile, which on many phones has no `:`; they open the normal keyboard.
 - Removed `CODEREVIEW.md`: its findings are fixed or decided (see the entries of 2026-10-30 and 2026-10-31).

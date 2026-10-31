@@ -88,6 +88,7 @@ export function cleanState(raw: unknown): LootState {
   const battles = list<Battle>(raw.battles, MAX_BATTLES, (b) =>
     isObj(b)
       ? {
+          ...(str(b.key, 128) ? { key: str(b.key, 128) } : {}),
           time: b.time == null ? null : int(b.time, 0, 1e11),
           loot: res(b.loot),
           fleets: list<BattleFleet>(b.fleets, MAX_ROWS, (f) =>
@@ -108,6 +109,7 @@ export function cleanState(raw: unknown): LootState {
   const recycling = list<Recycling>(raw.recycling, MAX_ROWS, (r) =>
     isObj(r) && ids.has(str(r.by))
       ? {
+          ...(str(r.key, 128) ? { key: str(r.key, 128) } : {}),
           by: str(r.by), m: int(r.m), k: int(r.k),
           ...(isObj(r.field) ? { field: debris(r.field) } : {}),
           ...(r.time != null ? { time: int(r.time, 0, 1e11) } : {}),

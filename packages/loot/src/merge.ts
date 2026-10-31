@@ -20,9 +20,9 @@ export interface MergeAdded {
 export const marketRates = (ref: Res): Res => ({ m: Math.round(ref.m * 100) / 100, k: Math.round(ref.k * 100) / 100, d: 1 });
 const sameRates = (a: Res, b: Res) => a.m === b.m && a.k === b.k;
 
-const sameBattle = (a: Battle, b: Battle) => (a.time == null || b.time == null ? a.time === b.time : Math.abs(a.time - b.time) <= SAME_BATTLE);
+export const sameBattle = (a: Battle, b: Battle) => (a.time == null || b.time == null ? a.time === b.time : Math.abs(a.time - b.time) <= SAME_BATTLE);
 /** Same recycling report: same person and time, or (rows without a time) the same amounts. */
-const sameRecycling = (a: Recycling, b: Recycling) =>
+export const sameRecycling = (a: Recycling, b: Recycling) =>
   a.by === b.by && (a.time != null && b.time != null ? a.time === b.time : a.m === b.m && a.k === b.k);
 
 /**

@@ -49,6 +49,8 @@ export interface BattleFleet {
 }
 
 export interface Battle {
+  /** stable id of a battle the hub took from its data (report id, else the time), for corrections kept on top of it */
+  key?: string;
   /** epoch seconds, for the 24 h deadline */
   time?: number | null;
   /** loot of all attackers together */
@@ -66,6 +68,8 @@ export interface Debris {
 
 /** Debris collected by a participant or helper. */
 export interface Recycling {
+  /** stable id of a recycling report the hub took from its data, for corrections kept on top of it */
+  key?: string;
   by: string;
   m: number;
   k: number;
