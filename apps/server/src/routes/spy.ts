@@ -29,13 +29,18 @@ export function spyRoutes(app: FastifyInstance, db: DB) {
     const ctx = ctxOf(req);
     const limit = clampInt(req.query.limit, 100, 1, 1000);
     const offset = clampInt(req.query.offset, 0, 0, 1_000_000);
+    // keyset paging (`before=<report_time>:<id>` of the last row): stable while new reports come in
+    const before = req.query.before?.match(/^(\d+):(\d+)$/);
+    const after = before ? 'AND (sr.report_time < ? OR (sr.report_time = ? AND sr.id < ?))' : '';
+    const args = before ? [Number(before[1]), Number(before[1]), Number(before[2])] : [];
     return db
       .prepare(
         `SELECT sr.id, sr.g, sr.s, sr.p, sr.planet_type, sr.planet_name, sr.player_name, sr.player_id, sr.report_time, sr.sections,
            ${DISPLAY} AS reporter
-         FROM spy_reports sr LEFT JOIN users u ON u.id = sr.user_id ${MEMBER('sr')} WHERE sr.group_id = ? ORDER BY sr.report_time DESC LIMIT ? OFFSET ?`,
+         FROM spy_reports sr LEFT JOIN users u ON u.id = sr.user_id ${MEMBER('sr')}
+         WHERE sr.group_id = ? ${after} ORDER BY sr.report_time DESC, sr.id DESC LIMIT ? OFFSET ?`,
       )
-      .all(ctx.groupId, limit, offset)
+      .all(ctx.groupId, ...args, limit, before ? 0 : offset)
       .map(parseSections);
   });
 }

@@ -4,7 +4,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 process.env.WEB_DIR = '/nonexistent';
 
 const { buildApp } = await import('../src/app.js');
-const { openDb } = await import('../src/db.js');
+const { openDb, now } = await import('../src/db.js');
 const { hashPassword } = await import('../src/auth.js');
 const { scoreEntry, statSlots } = await import('../src/domain/stats.js');
 
@@ -366,6 +366,30 @@ describe('api', () => {
     expect((await app.inject({ method: 'GET', url: '/hub/api/u8/hostile-attacks', headers })).json()).toHaveLength(0);
   });
 
+  it('removes one of two equal waves and keeps the other hidden', async () => {
+    const headers = { ...admin, 'x-hub-group': String(groupA) };
+    const line = (clock: string, left: string) =>
+      `3T ${clock} | 3d ${left} Eine Flotten vom Mond auch ein Satellit [3:4:1] erreicht den Mond Spicy Noodle [1:82:4]. Mission: Angreifen`;
+    await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { text: [line('17:13:37', '01h 25m 12s'), line('18:13:37', '02h 25m 12s')].join('\n') } });
+    const list = async () => (await app.inject({ method: 'GET', url: `/hub/api/admin/groups/${groupA}/fleet-attacks`, headers: admin })).json() as any[];
+    const waves = await list();
+    expect(waves).toHaveLength(2);
+    expect(waves[0].key).toBe(waves[1].key);
+    const { userId, key } = waves[0];
+    db.prepare('INSERT INTO hidden_attacks (group_id, attack_key, until, user_id, created_at) VALUES (?, ?, ?, ?, ?)').run(groupA, key, now() + 86400 * 5, userId, now());
+    const hidden = () => db.prepare('SELECT COUNT(*) FROM hidden_attacks WHERE group_id = ? AND attack_key = ?').pluck().get(groupA, key);
+    const remove = (arrival: number) =>
+      app.inject({ method: 'POST', url: `/hub/api/admin/groups/${groupA}/fleet-attacks/remove`, headers: admin, payload: { userId, key, arrival } });
+
+    expect((await remove(waves[0].arrival)).statusCode).toBe(200);
+    expect((await list()).map((w) => w.arrival)).toEqual([waves[1].arrival]);
+    // the other wave is still there: it stays hidden
+    expect(hidden()).toBe(1);
+    expect((await remove(waves[1].arrival)).statusCode).toBe(200);
+    expect(await list()).toHaveLength(0);
+    expect(hidden()).toBe(0);
+  });
+
   it('notifies the group of hostile fleets heading for a member', async () => {
     const headers = { ...admin, 'x-hub-group': String(groupA) };
     // other kinds (a full storage of the fixtures' fixed timestamps) come and go with the clock
@@ -562,6 +586,18 @@ describe('api', () => {
     al = (await app.inject({ method: 'GET', url: '/hub/api/u8/alliance', headers })).json();
     expect(al.find((m: any) => m.player_id === own)).toMatchObject({ source: 'spy', created_at: 1700 });
     expect(al.filter((m: any) => m.player_id === own)).toHaveLength(1);
+  });
+
+  it('keeps the planets after the end of a cut-off galaxy text copy', async () => {
+    const groupT = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', payload: { universe: 'u8', name: 'Cut' }, headers: admin })).json().id;
+    const headers = { ...admin, 'x-hub-group': String(groupT) };
+    const ingest = (text: string) => app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { text, system: '1:3' } });
+    const full = fixture('galaxy.txt');
+    expect((await ingest(full)).statusCode).toBe(200);
+    expect((await ingest(full.slice(0, full.indexOf('Hauptplanet') - 1))).statusCode).toBe(200);
+    const positions = db.prepare('SELECT p FROM planets WHERE group_id = ? AND g = 1 AND s = 3 ORDER BY p').pluck().all(groupT);
+    expect(positions).toEqual([1, 2, 4, 5, 6, 7, 8, 9, 11, 12, 13]);
+    expect(db.prepare("SELECT COUNT(*) FROM activity_log WHERE group_id = ? AND kind = 'planet_destroyed'").pluck().get(groupT)).toBe(0);
   });
 
   it('writes the activity log while syncing', async () => {
@@ -1344,6 +1380,15 @@ describe('review fixes', () => {
     const recent = (await app.inject({ method: 'GET', url: `/hub/api/u8/spy-reports?limit=1&offset=${spyCount + 1}`, headers })).json();
     expect(recent).toHaveLength(1);
     expect(recent[0].report_time).toBe(1000);
+    // keyset paging: same second, ordered by id; a report added meanwhile does not shift the next page
+    const same = [1, 2].map((p) =>
+      Number(db.prepare("INSERT INTO spy_reports (group_id, g, s, p, planet_type, report_time, player_name, sections) VALUES (?, 9, 8, ?, 'planet', 500, 'X', '{}')").run(groupA, p).lastInsertRowid),
+    );
+    const page = async (before: string) => (await app.inject({ method: 'GET', url: `/hub/api/u8/spy-reports?limit=1&before=${before}`, headers })).json();
+    const first = await page('501:0');
+    expect(first.map((r: any) => r.id)).toEqual([same[1]]);
+    db.prepare("INSERT INTO spy_reports (group_id, g, s, p, planet_type, report_time, player_name, sections) VALUES (?, 9, 9, 9, 'planet', 2000, 'X', '{}')").run(groupA);
+    expect((await page(`500:${first[0].id}`)).map((r: any) => r.id)).toEqual([same[0]]);
 
     const player = db.prepare('SELECT id FROM players WHERE group_id = ? LIMIT 1').pluck().get(groupA);
     const note = (payload: object) => app.inject({ method: 'PUT', url: `/hub/api/u8/players/${player}/note`, headers, payload });

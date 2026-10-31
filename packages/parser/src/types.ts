@@ -184,8 +184,15 @@ export interface GalaxyRecord {
   g: number;
   s: number;
   rows: GalaxyRow[];
-  /** when the system was seen (epoch seconds, universe.json); default: time of the paste */
+  /** when the system was seen (epoch seconds, universe.json); default: `pageTime`, else the time of the paste */
   seenAt?: number;
+  /** server time of the page (script of the page source, else the "Serverzeit" header of a copy) */
+  pageTime?: string | null;
+  /**
+   * Copied text cut off before the end of the system: positions after this one were not seen, so they say nothing
+   * (not empty). Missing when the whole system was seen.
+   */
+  lastPosition?: number;
 }
 
 export interface EmpirePlanet {

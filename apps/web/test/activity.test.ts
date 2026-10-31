@@ -39,6 +39,14 @@ describe('activity curve', () => {
     expect(exact[(13 * 60) / 5]).toBeLessThan(0.2);
   });
 
+  it('keeps evidence of low weight low even when it is all there is', () => {
+    const galaxy = activityCurve([{ ...ev(at(8, 0), 'galaxy', 60), weight: 0.2 }, { ...ev(at(8, 10, 1), 'galaxy', 60), weight: 0.2 }], now, 7);
+    expect(Math.max(...galaxy)).toBeCloseTo(0.2, 5);
+    expect(peakHour(galaxy)).toBeCloseTo(8, 0);
+    // next to a spy report it keeps its share
+    expect(Math.max(...activityCurve([ev(at(16, 0)), { ...ev(at(8, 0), 'galaxy'), weight: 0.2 }], now, 7))).toBeCloseTo(1, 5);
+  });
+
   it('only takes the chosen days', () => {
     const events = [ev(at(9, 0, 3))];
     expect(activityCurve(events, now, 1)).toEqual([]);

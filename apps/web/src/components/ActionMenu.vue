@@ -57,15 +57,24 @@ function place(r: DOMRect) {
 function bindPopover() {
   document.addEventListener('click', close);
   document.addEventListener('keydown', onKey);
-  window.addEventListener('scroll', close, true);
-  window.addEventListener('resize', close);
+  window.addEventListener('scroll', closeUnlessTyping, true);
+  window.addEventListener('resize', closeUnlessTyping);
 }
 
 function unbindPopover() {
   document.removeEventListener('click', close);
   document.removeEventListener('keydown', onKey);
-  window.removeEventListener('scroll', close, true);
-  window.removeEventListener('resize', close);
+  window.removeEventListener('scroll', closeUnlessTyping, true);
+  window.removeEventListener('resize', closeUnlessTyping);
+}
+
+/** A form field of the slot (claim box): typing there, not a menu key */
+const isField = (el: EventTarget | null) => el instanceof HTMLElement && !!el.closest('input, select, textarea');
+
+/** The on-screen keyboard of a tablet resizes and scrolls the page: the menu stays while one of its fields has focus. */
+function closeUnlessTyping() {
+  const el = document.activeElement;
+  if (!(isField(el) && menu.value?.contains(el))) close();
 }
 
 async function openPopover() {
@@ -104,7 +113,7 @@ function onKey(e: KeyboardEvent) {
   if (e.key === 'Escape') {
     close();
     trigger()?.focus();
-  } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+  } else if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && !isField(e.target)) {
     e.preventDefault();
     const all = [...(menu.value?.querySelectorAll<HTMLElement>('[role=menuitem]:not([aria-disabled=true])') ?? [])];
     const i = all.indexOf(document.activeElement as HTMLElement);

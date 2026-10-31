@@ -2,8 +2,61 @@
 
 Every commit adds its changes here, newest first, grouped by date.
 
+## 2026-10-31
+
+- Removed `CODEREVIEW.md`: its findings are fixed or decided (see the entries of 2026-10-30 and 2026-10-31).
+- Admin, stored fleet attacks: removing one of several waves with the same key keeps the alliance's "hidden" mark of
+  the key while another wave is still in a stored fleet list; it goes with the last one.
+- Battle hall and combat reports keep the participant names stored first (replaces the rename handling of 2026-10-30):
+  the game shows a renamed player's new name and "-" or nothing for a deleted account, the hub keeps the original;
+  only a place without a usable name takes the incoming one. Archived combat reports take ships and losses of a new
+  parse with the stored names; a parse with more fleets replaces the list. Search keeps matching former and current
+  names. Fix: quoted `syncedAt` description in the OpenAPI spec (the colon broke the YAML).
+- Activity pattern, galaxy marks (code review finding 2, 10, 15):
+  - A galaxy view is dated by the server time of its page (script of the page source, else the "Serverzeit" header of
+    a copy; `GalaxyRecord.pageTime`) when it lies at most a day before and five minutes after the paste, else by the
+    paste time; also in the activity backfill. Marks and the spy/battle window are then in game time like the
+    reports, so a view pasted later or a clock difference between game and hub no longer keeps marks that a spy
+    report explains.
+  - Reading checks a mark against its sync time like writing does; the estimated mark time is only the fallback for
+    rows of a late backfill (more than an hour after the mark), so `syncedAt`, the grouping per sync hour and the
+    spy window no longer differ between storing and showing.
+  - Members' own fleets arriving at the slot in the hour before the sync (any mission, from their stored fleet lists)
+    explain a mark as well, also when the report was never synced.
+  - Spy reports, battles and fleet arrivals are loaded once per activity request instead of one query per mark; the
+    stored evidence is read with a time bound the index can use.
+  - An offline report drops galaxy marks whose activity estimate lies within 15 minutes of it (was one hour on both
+    sides, also by the sync time).
+  - The curve is scaled by the peak the same evidence would reach at full weight: galaxy marks and hub presence stay
+    low when they are all there is; galaxy ticks below the curve are paler and shorter.
+
 ## 2026-10-30
 
+- Galaxy text copies cut off before the end of the system (no "planets colonized" footer) no longer delete the planets
+  after the cut nor log them as destroyed; the parser reports `lastPosition` and drops the possibly incomplete last row.
+- Spy history: endless scrolling pages by report time and id (`before=<report_time>:<id>` on
+  `GET /api/{uni}/spy-reports`, documented) instead of an offset, so reports synced meanwhile neither repeat nor go
+  missing, reports of the same second keep their order, and a live reload during loading no longer starts the list in
+  the middle of the history.
+- Battle hall and combat reports: a renamed participant is taken over instead of counting as a lost name; only fewer
+  usable names or a name turning blank/"-" keeps the stored names. Winner and units of a battle hall entry always
+  follow the newest sync.
+- Enemy spying: the spy's player link uses the owner of the start planet only when its current or former name matches
+  the report (the planet may have changed hands), else the name; the owner is looked up in the list query instead of
+  one query per row.
+- Marketplace: a rate synced on behalf of another member is attributed like the offers sync (the member who synced).
+- Code review quick wins:
+  - Loot settlement: "Update" with nothing new no longer marks a saved settlement as changed (save stayed enabled,
+    transfers could not be ticked, live reload stopped).
+  - Action menus: arrow keys in embedded form fields (claim box) move inside the field again instead of jumping to a
+    menu item; scrolling or resizing (on-screen keyboard) keeps the popover open while one of its fields has focus.
+  - Admin, stored fleet attacks: waves with the same route and ships are listed and removed one by one (removal takes
+    an optional `arrival`); both endpoints are now documented in the OpenAPI spec.
+  - Universe settings: the storage multiplier must be at least 1.
+  - Battle hall search loads the names of all matching players in one query instead of one per player.
+  - Cleanups: shared `likeTerm`, unused import, no side effect in the tools link `computed`, fleet event lines match
+    unit letters case-sensitively again, the marketplace trade pattern uses the game date pattern as is, redundant
+    upper bound in the galaxy mark query.
 - Action menus on phones (planet and moon, including the galaxy browser) open as a bottom sheet so every item stays on
   screen and tappable.
 - Activity pattern: galaxy marks are dropped only when a spy report or battle at that slot is at or before the galaxy

@@ -16,8 +16,63 @@ export interface ChangelogDay {
 
 export const CHANGELOG: ChangelogDay[] = [
   {
+    date: '2026-10-31',
+    items: [
+      {
+        kind: 'fix',
+        de: 'Angriffe: Entfernt ein Admin eine falsch erkannte Welle, bleibt eine gleiche, ausgeblendete Welle weiter ausgeblendet.',
+        en: 'Attacks: when an admin removes a wrongly detected wave, an identical wave that was hidden stays hidden.',
+      },
+      {
+        kind: 'fix',
+        de: 'Kampfhalle und Kampfberichte behalten die Namen vom ersten Sync, auch wenn sich ein Spieler umbenennt oder löscht. Die Suche findet Kämpfe mit früheren und aktuellen Namen.',
+        en: 'Battle hall and combat reports keep the names of the first sync, even when a player renames or deletes their account. Search finds battles by former and current names.',
+      },
+      {
+        kind: 'fix',
+        de: 'Aktivitätsmuster: Galaxie-Sterne nutzen die Serverzeit der kopierten Seite. Spionage oder Kampf kurz vor dem Kopieren erklärt einen Stern damit zuverlässig, auch wenn die Galaxie erst später eingefügt wird.',
+        en: 'Activity pattern: galaxy marks use the server time of the copied page. Espionage or a battle shortly before copying now reliably explains a mark, even when the galaxy is pasted later.',
+      },
+      {
+        kind: 'fix',
+        de: 'Aktivitätsmuster: Eigene Flotten der Allianz, die kurz vor dem Galaxie-Sync am Planeten ankamen (Spionage, Transport, Angriff …), erklären einen Galaxie-Stern auch ohne gesyncten Bericht.',
+        en: 'Activity pattern: own alliance fleets that arrived at the planet shortly before the galaxy sync (espionage, transport, attack …) explain a galaxy mark even without a synced report.',
+      },
+      {
+        kind: 'fix',
+        de: 'Aktivitätsmuster: Eine Offline-Meldung streicht nur Galaxie-Sterne im Abstand von 15 Minuten. Nur Galaxie-Sterne heben die Kurve nicht mehr auf volle Höhe, ihre Striche sind blasser.',
+        en: 'Activity pattern: an offline report only removes galaxy marks within 15 minutes of it. Galaxy marks alone no longer raise the curve to full height, and their ticks are paler.',
+      },
+    ],
+  },
+  {
     date: '2026-10-30',
     items: [
+      {
+        kind: 'fix',
+        de: 'Galaxie: Wird nur ein Teil eines Systems als Text kopiert, gelten die Planeten danach nicht mehr als zerstört.',
+        en: 'Galaxy: copying only part of a system as text no longer marks the planets after it as destroyed.',
+      },
+      {
+        kind: 'fix',
+        de: 'Spionage-Historie: Beim Weiterscrollen fehlen keine Berichte mehr und es tauchen keine doppelt auf, auch wenn gerade neue Berichte dazukommen.',
+        en: 'Spy history: scrolling on no longer skips or repeats reports, even while new reports come in.',
+      },
+      {
+        kind: 'fix',
+        de: 'Feindliche Spionage: Der Spieler-Link zeigt nicht mehr auf einen neuen Besitzer des Startplaneten.',
+        en: 'Enemy spying: the player link no longer points to a new owner of the start planet.',
+      },
+      {
+        kind: 'fix',
+        de: 'Beuteabrechnung: „Aktualisieren“ ohne neue Daten markiert eine gespeicherte Abrechnung nicht mehr als geändert, Transfers lassen sich danach weiter abhaken.',
+        en: 'Loot settlement: “Update” without new data no longer marks a saved settlement as changed; transfers can still be ticked afterwards.',
+      },
+      {
+        kind: 'fix',
+        de: 'Planet-Aktionen: Art und Dauer eines Claims lassen sich wieder mit den Pfeiltasten wählen, und die Bildschirmtastatur auf Tablets schließt das Menü nicht mehr.',
+        en: 'Planet actions: the type and duration of a claim can be picked with the arrow keys again, and the on-screen keyboard on tablets no longer closes the menu.',
+      },
       {
         kind: 'fix',
         de: 'Aktionsmenüs auf dem Handy (Planet und Mond, auch im Galaxie-Browser) öffnen sich von unten, damit alle Einträge sichtbar und tippbar bleiben.',

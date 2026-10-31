@@ -1,25 +1,33 @@
 import { describe, expect, it } from 'vitest';
-import { combatFleetsNamesDegraded, participantNamesDegraded } from '../src/battleParticipants.js';
+import { keepOriginalNames, mergeCombatFleets } from '../src/battleParticipants.js';
 
 describe('battle participant names', () => {
-  it('detects degraded hall names after deleted accounts', () => {
-    expect(participantNamesDegraded(['Alice', 'Bob'], [])).toBe(true);
-    expect(participantNamesDegraded(['Alice'], ['-'])).toBe(true);
-    expect(participantNamesDegraded(['Alice'], ['Alice', 'Bob'])).toBe(false);
-    expect(participantNamesDegraded([], ['Alice'])).toBe(false);
+  it('keeps the names stored first in the battle hall', () => {
+    // deleted account: the game shows "-" or nothing
+    expect(keepOriginalNames(['Alice', 'Bob'], ['-', ''])).toEqual(['Alice', 'Bob']);
+    expect(keepOriginalNames(['Alice', 'Bob'], [])).toEqual(['Alice', 'Bob']);
+    // renamed: the original stays
+    expect(keepOriginalNames(['Alice'], ['Alicia'])).toEqual(['Alice']);
+    // only a place without a usable name takes the incoming one
+    expect(keepOriginalNames(['-', 'Bob'], ['Carol', 'Bobby'])).toEqual(['Carol', 'Bob']);
   });
 
-  it('detects degraded archived fleet names', () => {
+  it('keeps the names of archived fleets and takes the new ships', () => {
     const stored = JSON.stringify([
-      [0, 'Alice', []],
+      [0, 'Alice', [[202, 1, 1]]],
       [1, 'Bob', []],
     ]);
-    expect(combatFleetsNamesDegraded(stored, [{ side: 'attacker', name: '-', from: null, start: {}, end: {} }])).toBe(true);
     expect(
-      combatFleetsNamesDegraded(stored, [
-        { side: 'attacker', name: 'Alice', from: null, start: {}, end: {} },
-        { side: 'defender', name: 'Bob', from: null, start: {}, end: {} },
+      mergeCombatFleets(stored, [
+        [0, 'Alicia', [[202, 2, 1]]],
+        [1, '-', [[401, 5, 0]]],
       ]),
-    ).toBe(false);
+    ).toEqual([
+      [0, 'Alice', [[202, 2, 1]]],
+      [1, 'Bob', [[401, 5, 0]]],
+    ]);
+    // another number of fleets: the longer list
+    expect(mergeCombatFleets(stored, [[0, 'Alicia', []]])).toEqual(JSON.parse(stored));
+    expect(mergeCombatFleets(stored, [[0, 'A', []], [1, 'B', []], [1, 'C', []]])).toHaveLength(3);
   });
 });

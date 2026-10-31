@@ -388,6 +388,7 @@ describe('galaxy + empire', () => {
     expect(res).toMatchObject({ pageType: 'galaxy', source: 'text', warnings: [] });
     const rec = res.records[0] as any;
     expect(rec).toMatchObject({ g: 1, s: 3 });
+    expect(rec.pageTime).toMatch(/-10-22 17:33:10$/);
     const row = (position: number, planetName: string, moonName: string | null, playerName: string, status: string[], debris: [string, string] | null, allyTag: string | null = null, activity: number | null = null) => ({
       position, planetName, moon: moonName != null, moonName, destroyed: false, playerId: null, playerName, status,
       allyId: null, allyTag, debris: debris && { metal: debris[0], crystal: debris[1] }, activity,
@@ -406,6 +407,16 @@ describe('galaxy + empire', () => {
       row(12, 'Hauptplanet', null, 'paul', ii, null),
       row(13, 'Kolonie', null, 'Pseudoephedrin', [], null),
     ]);
+  });
+
+  it('tells a cut-off galaxy text copy by the missing footer', () => {
+    const full = fixture('galaxy.txt');
+    expect(parsePage({ text: full, system: '1:3' }).records[0]).not.toHaveProperty('lastPosition');
+    const cut = full.slice(0, full.indexOf('Hauptplanet') - 1);
+    const rec = parsePage({ text: cut, system: '1:3' }).records[0] as any;
+    // position 12 was only copied up to its number: neither it nor the positions after it are known
+    expect(rec.lastPosition).toBe(11);
+    expect(rec.rows.at(-1)).toMatchObject({ position: 11, playerName: 'Anda' });
   });
 
   it('asks for galaxy:system when copied galaxy text has none', () => {

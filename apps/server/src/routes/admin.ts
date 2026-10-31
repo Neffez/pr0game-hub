@@ -370,16 +370,17 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
     );
   });
 
-  app.post<{ Params: { id: string }; Body: { userId?: number; key?: string } }>('/api/admin/groups/:id/fleet-attacks/remove', async (req) => {
+  app.post<{ Params: { id: string }; Body: { userId?: number; key?: string; arrival?: number } }>('/api/admin/groups/:id/fleet-attacks/remove', async (req) => {
     requireAdmin(req);
     const groupId = Number(req.params.id);
     const userId = Number(req.body?.userId);
     const key = String(req.body?.key ?? '');
-    if (!userId || !key) throw new HttpError(400, 'invalid_body', 'userId and key required');
+    const arrival = req.body?.arrival == null ? undefined : Number(req.body.arrival);
+    if (!userId || !key || (arrival !== undefined && !Number.isFinite(arrival))) throw new HttpError(400, 'invalid_body', 'userId and key required, arrival a number');
     if (!db.prepare('SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?').get(groupId, userId)) {
       throw new HttpError(404, 'member_not_found', 'Member not found');
     }
-    const snapshots = removeStoredAttack(db, groupId, userId, key);
+    const snapshots = removeStoredAttack(db, groupId, userId, key, arrival);
     if (!snapshots) throw new HttpError(404, 'attack_not_found', 'No such attack in stored fleet lists');
     events.publish(groupId, { type: 'data', tables: ['fleets', 'hidden_attacks'] });
     return { snapshots };
@@ -515,7 +516,7 @@ function validateSettings(settings: object | undefined) {
     else if (typeof defaults[key] === 'number') {
       valid = typeof value === 'number' && Number.isFinite(value) && value >= 0;
       if (['galaxies', 'systems', 'positions', 'fleetSpeed'].includes(key)) valid &&= Number.isInteger(value) && (value as number) >= 1;
-      if (key === 'storageMultiplier') valid &&= Number.isInteger(value) && (value as number) >= 0;
+      if (key === 'storageMultiplier') valid &&= Number.isInteger(value) && (value as number) >= 1;
       // a percentage per TechnoDome level: above 100 research times turn negative
       if (['universityFactor', 'fleetDebrisPercent', 'defenseDebrisPercent'].includes(key)) valid &&= (value as number) <= 100;
     }

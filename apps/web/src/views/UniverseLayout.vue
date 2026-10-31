@@ -28,12 +28,9 @@ const group = ref<number | null>(null);
 const reloadKey = ref(0);
 
 provideUni(ctx);
-const toolsUrl = computed(() => {
-  setToolsUrl(ctx.value?.toolsUrl);
-  return toolsIndexUrl(ctx.value?.universe.settings);
-});
 // set before the children render their tool links (they only render once the context is there)
-watch(ctx, (c) => setToolsUrl(c?.toolsUrl), { flush: 'sync' });
+watch(ctx, (c) => setToolsUrl(c?.toolsUrl), { flush: 'sync', immediate: true });
+const toolsUrl = computed(() => toolsIndexUrl(ctx.value?.universe.settings));
 watch(() => ctx.value?.marketRate, setMarketRate, { flush: 'sync', immediate: true });
 
 function load() {

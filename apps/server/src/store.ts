@@ -23,7 +23,7 @@ import {
   type StatsRecord,
 } from '@pr0hub/core';
 import { CLASS_BUILDINGS, PHALANX } from '@pr0hub/core/tech';
-import { combatFleetsNamesDegraded, participantNamesDegraded } from './battleParticipants.js';
+import { keepOriginalNames, mergeCombatFleets } from './battleParticipants.js';
 import { now, type DB } from './db.js';
 import type { IngestSummary, IngestTarget } from './ingest.js';
 import { fleetActivity, galaxyMark } from './repo/activity.js';
@@ -344,9 +344,19 @@ export class Store {
     this.count('hostile_spying', res.changes > 0);
   }
 
+  /**
+   * When a galaxy view was seen: the server time of the page (game time, like the reports its activity marks are
+   * checked against) when it fits the paste (at most a day before, a few minutes after), else the paste time.
+   * `pasted`: `seenAt` of the record (universe.json, reparse: time of the raw sync), else now.
+   */
+  galaxySeenAt(r: GalaxyRecord, pasted = r.seenAt ?? now()): number {
+    const page = this.epoch(r.pageTime ?? null);
+    return page != null && page >= pasted - 86400 && page <= pasted + 300 ? page : pasted;
+  }
+
   private galaxy(r: GalaxyRecord) {
     const db = this.db;
-    const seenAt = r.seenAt ?? now();
+    const seenAt = this.galaxySeenAt(r);
     // Never overwrite a fresher view with older data (e.g. an old universe.json).
     const known = db.prepare('SELECT seen_at FROM galaxy_views WHERE group_id = ? AND g = ? AND s = ?').pluck().get(this.t.groupId, r.g, r.s) as
       | number
@@ -367,9 +377,9 @@ export class Store {
       }[]).map((x) => [x.p, x]),
     );
     const positions = new Set(r.rows.map((row) => row.position));
-    // Positions not listed anymore are empty now.
+    // Positions not listed anymore are empty now (a cut-off text copy says nothing about the positions after its end).
     for (const e of before.values()) {
-      if (!positions.has(e.p)) {
+      if (!positions.has(e.p) && (r.lastPosition == null || e.p <= r.lastPosition)) {
         if (known != null && e.player_id) {
           this.log('planet_destroyed', seenAt, { g: r.g, s: r.s, p: e.p }, 'planet', e.player_id, { name: e.name ?? null });
         }
@@ -604,17 +614,14 @@ export class Store {
       this.count('battle_hall', false);
       const oldA = JSON.parse(row.attackers) as string[];
       const oldD = JSON.parse(row.defenders) as string[];
-      const attackers = participantNamesDegraded(oldA, e.attackers) ? oldA : e.attackers;
-      const defenders = participantNamesDegraded(oldD, e.defenders) ? oldD : e.defenders;
-      const namesDegraded =
-        participantNamesDegraded(oldA, e.attackers) || participantNamesDegraded(oldD, e.defenders);
-      const winner = namesDegraded ? row.winner : e.winner;
-      const units = namesDegraded ? row.units : e.units;
+      // the names stored first stay (renamed or deleted accounts), see keepOriginalNames
+      const attackers = keepOriginalNames(oldA, e.attackers);
+      const defenders = keepOriginalNames(oldD, e.defenders);
       const next = {
         attackers: JSON.stringify(attackers),
         defenders: JSON.stringify(defenders),
-        winner,
-        units,
+        winner: e.winner,
+        units: e.units,
       };
       if (
         next.attackers !== row.attackers ||
@@ -629,7 +636,7 @@ export class Store {
 
   /**
    * Marketplace: the rate (exact from the page's HTML, also a copied page, else estimated from the offers of plain text;
-   * an estimate and an exact rate within an hour of each other: the exact one wins; a resource the estimate can't tell
+   * an estimate and an exact or hand-set rate within an hour of each other: the latter wins; a resource the estimate can't tell
    * keeps the current value; the same rate again only moves the newest row on in time) and the open offers. Offers are recognised by the game's id, else (text copy) by
    * resources, amounts and end within 90 s, one to one; a new one is logged as activity. The trade history is collected.
    */
@@ -644,16 +651,19 @@ export class Store {
         | undefined;
       const m = r.rate.m ?? latest?.metal;
       const k = r.rate.k ?? latest?.crystal;
+      // an estimate from text yields to any rate within the hour that is not an estimate itself: the exact one of the
+      // page source and one set by hand
       const exactNear =
         !r.rate.exact &&
         db.prepare("SELECT 1 FROM market_rates WHERE group_id = ? AND source <> 'text' AND ABS(time - ?) < 3600").get(g, seen);
       const known = db.prepare('SELECT 1 FROM market_rates WHERE group_id = ? AND time = ? AND source = ?').get(g, seen, source);
       // the same rate seen again: the newest row only moves on in time
       const same = latest && latest.source === source && latest.time <= seen && Math.abs(latest.metal - m!) < 1e-9 && Math.abs(latest.crystal - k!) < 1e-9;
-      if (same && !known) db.prepare('UPDATE market_rates SET time = ?, user_id = ? WHERE id = ?').run(seen, this.t.userId, latest.id);
+      const by = this.t.syncedBy ?? this.t.userId;
+      if (same && !known) db.prepare('UPDATE market_rates SET time = ?, user_id = ? WHERE id = ?').run(seen, by, latest.id);
       const isNew = !!m && !!k && !exactNear && !known && !same;
       if (isNew) {
-        db.prepare('INSERT INTO market_rates (group_id, time, metal, crystal, source, user_id) VALUES (?, ?, ?, ?, ?, ?)').run(g, seen, m, k, source, this.t.userId);
+        db.prepare('INSERT INTO market_rates (group_id, time, metal, crystal, source, user_id) VALUES (?, ?, ?, ?, ?, ?)').run(g, seen, m, k, source, by);
         // the exact rate replaces the estimates around it
         if (r.rate.exact) db.prepare("DELETE FROM market_rates WHERE group_id = ? AND source = 'text' AND ABS(time - ?) < 3600").run(g, seen);
       }
@@ -848,16 +858,16 @@ export function storeCombatReport(db: DB, groupId: number, r: CombatReportRecord
       renamed = true;
     }
   }
-  const fleets = r.fleets.map((f) => [
+  const parsed: [number, string, unknown][] = r.fleets.map((f) => [
     f.side === 'attacker' ? 0 : 1,
     f.name,
     Object.entries(f.start).map(([id, n]) => [Number(id), n, f.end[Number(id)] ?? 0]),
   ]);
-  const fleetsJson = JSON.stringify(fleets);
   const stored = db.prepare('SELECT fleets FROM combat_reports WHERE group_id = ? AND report_id = ?').get(groupId, r.reportId) as
     | { fleets: string }
     | undefined;
-  const keepFleets = stored != null && combatFleetsNamesDegraded(stored.fleets, r.fleets);
+  // names as stored first (renamed or deleted accounts), ships from the new parse
+  const fleetsJson = JSON.stringify(stored ? mergeCombatFleets(stored.fleets, parsed) : parsed);
   const res = db
     .prepare(
       `INSERT INTO combat_reports (group_id, report_id, time, winner, rounds, lost_attacker, lost_defender, debris_metal, debris_crystal, fleets,
@@ -867,21 +877,19 @@ export function storeCombatReport(db: DB, groupId: number, r: CombatReportRecord
          g = COALESCE(g, excluded.g), s = COALESCE(s, excluded.s), p = COALESCE(p, excluded.p),
          planet_type = COALESCE(planet_type, excluded.planet_type),
          moon_destruction = MAX(moon_destruction, excluded.moon_destruction),
-         fleets = CASE WHEN ? THEN fleets ELSE excluded.fleets END,
+         fleets = excluded.fleets,
          loot_metal = IIF(loot_metal + loot_crystal + loot_deuterium = 0, excluded.loot_metal, loot_metal),
          loot_crystal = IIF(loot_metal + loot_crystal + loot_deuterium = 0, excluded.loot_crystal, loot_crystal),
          loot_deuterium = IIF(loot_metal + loot_crystal + loot_deuterium = 0, excluded.loot_deuterium, loot_deuterium)
        WHERE (g IS NULL AND excluded.g IS NOT NULL)
          OR (loot_metal + loot_crystal + loot_deuterium = 0 AND excluded.loot_metal + excluded.loot_crystal + excluded.loot_deuterium > 0)
          OR (moon_destruction = 0 AND excluded.moon_destruction = 1)
-         OR (? = 0 AND fleets <> excluded.fleets)`,
+         OR fleets <> excluded.fleets`,
     )
     .run(
       groupId, r.reportId, time, r.winner, r.rounds, r.lost.attacker, r.lost.defender, r.debris.metal, r.debris.crystal, fleetsJson,
       r.loot.metal, r.loot.crystal, r.loot.deuterium, r.target?.coords.g ?? null, r.target?.coords.s ?? null, r.target?.coords.p ?? null,
       r.target?.type ?? null, r.moonDestruction ? 1 : 0,
-      keepFleets ? 1 : 0,
-      keepFleets ? 1 : 0,
     );
   db.prepare("UPDATE battle_hall SET report_status = 'archived' WHERE group_id = ? AND report_id = ?").run(groupId, r.reportId);
   return renamed || res.changes > 0;
