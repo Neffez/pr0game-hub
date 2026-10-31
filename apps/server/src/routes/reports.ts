@@ -9,14 +9,19 @@ import { contextOf, DISPLAY, MEMBER, range, type Q } from './util.js';
 export function reportsRoutes(app: FastifyInstance, db: DB) {
   const ctxOf = contextOf(db);
 
-  /** Archived battle hall reports, 100 per page; sort by units or date, filter by participant. */
+  /**
+   * Archived battle hall reports, 100 per page; sort by units or date, filter by participant. Farewell battles
+   * (`memorial` 1) are left out unless `memorial=all` (all entries) or `memorial=only` (farewells only).
+   */
   app.get<{ Params: { uni: string }; Querystring: Q }>('/api/:uni/battle-hall', async (req) => {
     const ctx = ctxOf(req);
     const page = Math.max(1, Number(req.query.page) || 1);
     const order = req.query.sort === 'time' ? 'time DESC' : 'units DESC';
     const q = (req.query.q ?? '').trim();
     const participant = q ? battleHallParticipantFilter(db, ctx.groupId, q) : null;
-    const where = `h.group_id = ?${participant ? ` AND ${participant.clause}` : ''}`;
+    const memorial =
+      req.query.memorial === 'all' ? '' : req.query.memorial === 'only' ? ' AND h.memorial = 1' : ' AND h.memorial IS NOT 1';
+    const where = `h.group_id = ?${memorial}${participant ? ` AND ${participant.clause}` : ''}`;
     const args: unknown[] = [ctx.groupId, ...(participant?.args ?? [])];
     const total = db.prepare(`SELECT COUNT(*) FROM battle_hall h WHERE ${where}`).pluck().get(...args) as number;
     const rows = db
@@ -26,8 +31,9 @@ export function reportsRoutes(app: FastifyInstance, db: DB) {
          FROM battle_hall h WHERE ${where} ORDER BY h.${order}, h.id LIMIT 100 OFFSET ?`,
       )
       .all(...args, (page - 1) * 100) as any[];
+    const memorials = db.prepare('SELECT COUNT(*) FROM battle_hall WHERE group_id = ? AND memorial = 1').pluck().get(ctx.groupId) as number;
     return {
-      total, page, pages: Math.max(1, Math.ceil(total / 100)),
+      total, page, pages: Math.max(1, Math.ceil(total / 100)), memorials,
       entries: rows.map((r) => ({ ...r, attackers: JSON.parse(r.attackers), defenders: JSON.parse(r.defenders) })),
     };
   });

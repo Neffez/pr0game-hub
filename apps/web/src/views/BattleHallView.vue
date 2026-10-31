@@ -21,22 +21,26 @@ interface Entry {
   archived: number;
   report_status: string | null;
   moon_destruction: number;
+  memorial: number | null;
 }
 
 const { t } = useI18n();
 const { uni, ctx } = useUni();
 const sort = useStored<'units' | 'time'>('battleHall.sort', 'units');
+/** farewell battles: hidden by default like in the game */
+const memorial = useStored<'hide' | 'all' | 'only'>('battleHall.memorial', 'hide');
 const q = ref('');
 const page = ref(1);
 const { data, error, load } = useLoader(() => {
   const params = new URLSearchParams({ page: String(page.value), sort: sort.value });
   if (q.value.trim()) params.set('q', q.value.trim());
-  return uniApi<{ total: number; page: number; pages: number; entries: Entry[] }>(uni.value, `/battle-hall?${params}`);
+  if (memorial.value !== 'hide') params.set('memorial', memorial.value);
+  return uniApi<{ total: number; page: number; pages: number; memorials: number; entries: Entry[] }>(uni.value, `/battle-hall?${params}`);
 });
 onMounted(load);
 useLiveReload(load, tables('battle_hall', 'combat_reports'));
 watch(page, load);
-watch(sort, () => (page.value === 1 ? load() : (page.value = 1)));
+watch([sort, memorial], () => (page.value === 1 ? load() : (page.value = 1)));
 let timer: ReturnType<typeof setTimeout> | undefined;
 watch(q, () => {
   clearTimeout(timer);
@@ -57,6 +61,7 @@ const rank = (i: number) => (page.value - 1) * 100 + i + 1;
         <p>{{ t('battleHall.hint2') }}</p>
         <p>{{ t('battleHall.hint3') }}</p>
         <p>{{ t('battleHall.hint4') }}</p>
+        <p>{{ t('battleHall.hint5') }}</p>
       </Hint>
     </template>
   </PageHeader>
@@ -67,6 +72,15 @@ const rank = (i: number) => (page.value - 1) * 100 + i + 1;
       <button :class="{ active: sort === 'time' }" @click="sort = 'time'">{{ t('battleHall.byDate') }}</button>
     </div>
     <input v-model="q" :placeholder="t('battleHall.searchHint')" style="width: 220px" />
+    <label class="small nowrap">
+      {{ t('battleHall.memorial') }}
+      <select v-model="memorial" :title="t('battleHall.memorialTitle')">
+        <option value="hide">{{ t('battleHall.memorialHide') }}</option>
+        <option value="all">{{ t('battleHall.memorialAll') }}</option>
+        <option value="only">{{ t('battleHall.memorialOnly') }}</option>
+      </select>
+    </label>
+    <span v-if="data?.memorials && memorial === 'hide'" class="muted small">{{ t('battleHall.memorialsHidden', { n: fmt(data.memorials) }, data.memorials) }}</span>
     <span class="grow" />
     <span v-if="data" class="muted small">{{ t('battleHall.count', { n: fmt(data.total) }, data.total) }}</span>
   </div>
@@ -86,7 +100,7 @@ const rank = (i: number) => (page.value - 1) * 100 + i + 1;
           <tr v-for="(e, i) in data.entries" :key="e.id">
             <td class="num faint">{{ sort === 'units' ? rank(i) : '' }}</td>
             <td :class="{ pos: e.winner === 'attacker', neg: e.winner === 'defender' }">
-              <span class="attacker-names">{{ e.attackers.join(' & ') || '–' }}</span><DeathStarIcon v-if="e.moon_destruction" :title="t('battleHall.moonDestruction')" />
+              <span class="attacker-names">{{ e.attackers.join(' & ') || '–' }}</span><DeathStarIcon v-if="e.moon_destruction" :title="t('battleHall.moonDestruction')" /><span v-if="e.memorial" class="memorial faint small" :title="t('battleHall.memorialTitle')">{{ t('battleHall.memorialTag') }}</span>
             </td>
             <td class="faint small">VS</td>
             <td :class="{ pos: e.winner === 'defender', neg: e.winner === 'attacker' }">{{ e.defenders.join(' & ') || '–' }}</td>
@@ -116,4 +130,5 @@ const rank = (i: number) => (page.value - 1) * 100 + i + 1;
 <style scoped>
 .pager { justify-content: center; margin-top: 12px; }
 .attacker-names { margin-right: 4px; }
+.memorial { margin-left: 4px; border: 1px solid currentColor; border-radius: 4px; padding: 0 4px; }
 </style>

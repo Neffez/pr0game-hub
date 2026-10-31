@@ -241,12 +241,24 @@ describe('battle hall', () => {
     expect(res.pageType).toBe('battleHall');
     const rec = res.records[0] as any;
     expect(rec.timeframe).toBe(1);
+    expect(rec.memorial).toBeNull();
     expect(rec.entries).toEqual([
       { reportId: '1528afec76dd0c472021c32c53277ba7', rank: 1, attackers: ['CredoBono', 'Urinaal', 'Burper'], defenders: ['Toter Schmetterling', 'Reed'], winner: 'draw', time: '2026-10-16 13:33:29', units: 1075302000 },
       { reportId: '93a44dd012ff05992739d1afd749df1d', rank: 2, attackers: ['pUsteblUme'], defenders: ['Arys'], winner: 'attacker', time: '2026-10-20 12:29:25', units: 25541000 },
       { reportId: '778f7e93ac40c40bc90bcbe615be7420', rank: 3, attackers: ['Magglish'], defenders: ['Anda'], winner: 'defender', time: '2026-10-13 13:00:47', units: 260583000 },
       { reportId: '4a2cdacac6d527ed06443e57a93d45c7', rank: 4, attackers: ['Steveboo', 'Anda'], defenders: [], winner: 'attacker', time: '2026-10-04 03:19:12', units: 276316000 },
     ]);
+  });
+});
+
+describe('battle hall farewells', () => {
+  it('reads the farewell filter of the page', () => {
+    const select = (v: number) =>
+      `<select name="memorial" id="memorial">${[0, 1, 2].map((o) => `<option value="${o}"${o === v ? ' selected="selected"' : ''}>x</option>`).join('')}</select>`;
+    for (const v of [0, 1, 2]) {
+      const html = fixture('battlehall.html').replace('<select name="timeframe"', `${select(v)}<select name="timeframe"`);
+      expect((parsePage({ text: html }).records[0] as any).memorial).toBe(v);
+    }
   });
 });
 

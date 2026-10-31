@@ -4,6 +4,12 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-31
 
+- Battle hall: farewell battles ("Abschiede", a player crashing on purpose when quitting, flagged by the game) are
+  recognised from the farewell filter of the synced hall page (`BattleHallRecord.memorial`): "only" flags every entry,
+  "hide" clears the flag, "all" leaves it unknown. Stored in `battle_hall.memorial` (migration 068). The hub's battle
+  hall hides them by default like the game, with a filter hide/all/only, a "farewell" tag and the number of hidden
+  ones; `GET /api/{uni}/battle-hall` takes `memorial=all|only` and returns `memorial` per entry and `memorials`. The
+  sync preview names a farewell hall. Player activity still counts them.
 - Coordinate fields (tools: flight, IPM, battle simulator, moon destruction; hub: sync system, spy target) no longer
   force the numeric keyboard on mobile, which on many phones has no `:`; they open the normal keyboard.
 - Removed `CODEREVIEW.md`: its findings are fixed or decided (see the entries of 2026-10-30 and 2026-10-31).
