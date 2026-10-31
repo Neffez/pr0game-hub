@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Beute abrechnen: Ein Diagramm zeigt, wie Beute und Trümmerfeld über Kostenausgleich, Gewinn und Helferanteil bei jedem Teilnehmer ankommen, nach Menge oder nach Wert in Deut.',
+        en: 'Loot settlement: a diagram shows how loot and debris field go through costs covered, profit and the helpers\' part to each participant, by amount or by value in deuterium.',
+      },
+      {
+        kind: 'new',
         de: 'Battle Hall: Abschiede (Spieler, die aufhören und ihre Flotte absichtlich zerstören lassen) werden erkannt und sind wie im Spiel ausgeblendet. Dafür die Battle Hall im Spiel einmal mit „Abschiede: anzeigen“ einfügen.',
         en: 'Battle hall: farewell battles (players quitting who have their fleet destroyed on purpose) are recognised and hidden like in the game. To get them, paste the battle hall once with "Memorials: only".',
       },

@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-31
 
+- Loot settlement: a "Distribution" section shows where the loot goes as a Sankey diagram (`LootSankey.vue`, plain
+  SVG): loot and debris field into the pot (and what was not recycled), the pot into costs covered, profit and the
+  helpers' part, and those into what each person gets. Widths by amount (metal, crystal and deuterium added up) or by
+  value in deuterium at the settlement's rates; people in the validated categorical order, named next to their bar;
+  hovering a flow or node shows its metal, crystal and deuterium. The result table stays the exact view.
 - Loot settlement fixes from a code review of today's changes:
   - Settlements saved before finalizing existed no longer show changes that are none (`stateChanges` matches their
     rows to the live ones first) and send no "finalized" notification (`raid_settlements.migrated`, migration `069`).

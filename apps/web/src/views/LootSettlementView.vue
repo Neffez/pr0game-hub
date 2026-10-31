@@ -14,6 +14,7 @@ import {
 } from '@pr0hub/loot';
 import { uniApi } from '../api';
 import CommentThread from '../components/CommentThread.vue';
+import LootSankey from '../components/LootSankey.vue';
 import Hint from '../components/Hint.vue';
 import { useMobile, useUni, vStack } from '../composables';
 import { abbr, coords, dateTime, fmt, lootCalcLink, name, rateText, resText, short } from '../format';
@@ -709,6 +710,11 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
         </div>
       </div>
     </div>
+
+    <Section v-if="result.pot.m + result.pot.k + result.pot.d > 0" :title="t('loot.flow.title')" store-key="loot.flow">
+      <template #hint><Hint>{{ t('loot.flow.hint') }}</Hint></template>
+      <LootSankey :state="state" :result="result" />
+    </Section>
 
     <Section :title="t('comments.title')" store-key="loot.comments">
       <CommentThread :plan="data.plan.id" />
