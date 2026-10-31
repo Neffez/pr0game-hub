@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { dateFormat, datePattern, dateTime, fmt, ipmCalcLink, ipmStart, moonCalcLink, numDate, fmtSigned, protectionStatus, short, simLinks, toolsIndexUrl, trashSimExport, type UniverseSettings } from '../src/format';
+import { dateFormat, datePattern, dateTime, fmt, ipmCalcLink, ipmStart, moonCalcLink, numDate, fmtSigned, protectionStatus, resText, short, simLinks, toolsIndexUrl, trashSimExport, type UniverseSettings } from '../src/format';
 import { setLocale } from '../src/i18n';
 import { decompressFromEncodedURIComponent } from 'lz-string';
 
@@ -230,5 +230,11 @@ describe('noob protection', () => {
     expect(protectionStatus({} as UniverseSettings, 10_000_000, 1_000_000, ['strong'])).toEqual(['strong']);
     expect(protectionStatus(u, undefined, 1_000_000, ['noob'])).toEqual(['noob']);
     expect(protectionStatus(u, 10_000_000, undefined, ['noob'])).toEqual(['noob']);
+  });
+
+  it('writes resources in short form, leaving out empty ones', () => {
+    setLocale('de');
+    expect(resText({ m: 1234567, k: 0, d: 50 })).toBe('1,23 Mio Metall, 50 Deuterium');
+    expect(resText({ m: 0, k: 0, d: 0 })).toBe('');
   });
 });

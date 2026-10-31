@@ -4,6 +4,21 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-31
 
+- Loot settlement fixes from a code review of today's changes:
+  - Settlements saved before finalizing existed no longer show changes that are none (`stateChanges` matches their
+    rows to the live ones first) and send no "finalized" notification (`raid_settlements.migrated`, migration `068`).
+  - A battle or recycling report added by hand and synced later counts once, from the hub's data; a battle whose key
+    changed while it was edited (its report synced meanwhile) stays a correction of that battle instead of becoming a
+    copy that no longer follows the data (`diffOverrides`/`applyOverrides` match rows by time and amounts).
+  - Transports count for a delivery from the settlement's finalizing on for three days and for one settlement only
+    (settlements finalized first take them first), so trades or deliveries of another settlement between the same
+    members no longer tick it off.
+  - Reopening remembers the deliveries done with their amounts (`raid_settlements.done_before`); finalizing again
+    keeps only those whose amounts did not change.
+  - Flight deuterium from the real flight time only with one battle (with several waves the planned speed stays).
+  - The member who finalizes a settlement gets no notification about it.
+  - Deliveries of finalized settlements and the members' planets are worked out once per request
+    (`finalizedSettlements`, used by the settlement, the list and the notifications); one `resText` in the web app.
 - Loot settlement deliveries by transport report: the members' planets come from their empire pages, the galaxy
   data, their raid plan start planets and the homes of their fleet and recycler returns, so the sender's copy alone
   ticks off a delivery to a member whose planet is not in the galaxy data (found in the browser check). README lists

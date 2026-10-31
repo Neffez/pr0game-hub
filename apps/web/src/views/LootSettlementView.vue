@@ -16,7 +16,7 @@ import { uniApi } from '../api';
 import CommentThread from '../components/CommentThread.vue';
 import Hint from '../components/Hint.vue';
 import { useMobile, useUni, vStack } from '../composables';
-import { abbr, coords, dateTime, fmt, lootCalcLink, name, rateText, short } from '../format';
+import { abbr, coords, dateTime, fmt, lootCalcLink, name, rateText, resText, short } from '../format';
 import { tables, useLiveReload } from '../live';
 
 /** Where the hub took a value of the draft from (server `DraftSources`). */
@@ -302,10 +302,6 @@ const tick = (x: TransferInput, checked: boolean) =>
     const res = await uniApi<{ done: string[] }>(uni.value, `${url()}/done`, { method: 'PUT', body: { key: keyOf(x), done: checked } });
     data.value!.done = res.done;
   });
-const resText = (r: Res) =>
-  RES.filter((k) => r[k] > 0)
-    .map((k) => `${short(r[k])} ${name(RES_IDS[k])}`)
-    .join(', ');
 const transferText = computed(() =>
   transfers.value
     .filter((x) => x.res.m + x.res.k + x.res.d > 0)

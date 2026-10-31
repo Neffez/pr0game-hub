@@ -47,6 +47,33 @@ const same = (a: unknown, b: unknown) => canon(a) === canon(b);
 const isEmpty = (o: object) => Object.keys(o).length === 0;
 const battleKey = (b: Battle, i: number) => b.key ?? `#${i}`;
 const recyclingKey = (r: Recycling, i: number) => r.key ?? `#${i}`;
+/** Same recycling report without relying on keys: same person and time, or the same person and amounts. */
+const sameRow = (a: Recycling, b: Recycling) => sameRecycling(a, b) || (a.by === b.by && a.m === b.m && a.k === b.k);
+/** Same battle by time, both times known (a battle without a time is matched by its key only). */
+const sameTimed = (a: Battle, b: Battle) => a.time != null && b.time != null && sameBattle(a, b);
+
+/**
+ * Pairs the rows of an edited settlement with the draft's: by key first, then rows whose key the draft no longer has
+ * (a report synced while editing changed it) or that were added by hand with a draft row of the same event that no
+ * other row took. Returns the draft index per edited row, -1 for rows of its own.
+ */
+function pair<T extends { key?: string }>(draft: T[], edited: T[], same: (a: T, b: T) => boolean): number[] {
+  const taken = new Set<number>();
+  const out = edited.map((e) => {
+    const i = e.key != null ? draft.findIndex((d) => d.key === e.key) : -1;
+    if (i >= 0) taken.add(i);
+    return i;
+  });
+  edited.forEach((e, j) => {
+    if (out[j] >= 0) return;
+    const i = draft.findIndex((d, k) => !taken.has(k) && same(d, e));
+    if (i >= 0) {
+      taken.add(i);
+      out[j] = i;
+    }
+  });
+  return out;
+}
 
 const PERSON_FIELDS = ['name', 'flightDeut', 'recDeut', 'missiles', 'extra', 'keepPct'] as const;
 const SETTING_FIELDS: (keyof Settings)[] = ['mode', 'rates', 'refRates', 'deficitMetalShare', 'cargoShip', 'helperDeut'];
@@ -112,34 +139,32 @@ export function diffOverrides(draft: LootState, edited: LootState): Overrides {
   if (helpers.extra.length) extra.helpers = helpers.extra;
 
   const battles: Record<string, BattleOverride> = {};
-  const draftBattles = new Map(draft.battles.map((b, i) => [battleKey(b, i), b]));
-  for (const b of edited.battles) {
-    const d = b.key != null ? draftBattles.get(b.key) : undefined;
-    if (!d) {
+  const battlePairs = pair(draft.battles, edited.battles, sameTimed);
+  edited.battles.forEach((b, j) => {
+    const i = battlePairs[j];
+    if (i < 0) {
       const { key: _, ...rest } = copy(b);
       (extra.battles ??= []).push(rest);
-      continue;
+      return;
     }
-    const diff = battleDiff(d, b);
-    if (diff) battles[b.key!] = diff;
-  }
+    const diff = battleDiff(draft.battles[i], b);
+    if (diff) battles[battleKey(draft.battles[i], i)] = diff;
+  });
   draft.battles.forEach((d, i) => {
-    const key = battleKey(d, i);
-    if (!edited.battles.some((b) => b.key === key)) battles[key] = { at: d.time ?? null, hidden: true };
+    if (!battlePairs.includes(i)) battles[battleKey(d, i)] = { at: d.time ?? null, hidden: true };
   });
   if (!isEmpty(battles)) o.battles = battles;
 
   const recycling: Record<string, RecyclingOverride> = {};
-  const draftRows = new Map(draft.recycling.map((r, i) => [recyclingKey(r, i), r]));
-  for (const r of edited.recycling) {
-    const d = r.key != null ? draftRows.get(r.key) : undefined;
+  const rowPairs = pair(draft.recycling, edited.recycling, sameRow);
+  edited.recycling.forEach((r, j) => {
+    const i = rowPairs[j];
     const { key: _, ...rest } = copy(r);
-    if (!d) (extra.recycling ??= []).push(rest);
-    else if (!same({ ...d, key: undefined }, { ...r, key: undefined })) recycling[r.key!] = rest;
-  }
+    if (i < 0) (extra.recycling ??= []).push(rest);
+    else if (!same({ ...draft.recycling[i], key: undefined }, { ...r, key: undefined })) recycling[recyclingKey(draft.recycling[i], i)] = rest;
+  });
   draft.recycling.forEach((d, i) => {
-    const key = recyclingKey(d, i);
-    if (!edited.recycling.some((r) => r.key === key)) recycling[key] = { hidden: true };
+    if (!rowPairs.includes(i)) recycling[recyclingKey(d, i)] = { hidden: true };
   });
   if (!isEmpty(recycling)) o.recycling = recycling;
 
@@ -162,7 +187,9 @@ function applyPeople<T extends Participant | Helper>(draft: T[], over: Record<st
 
 /**
  * The settlement: the draft with the corrections on top. A battle correction whose key the draft no longer has (its
- * report was synced later) applies to the draft battle at the same time that has no correction of its own.
+ * report was synced later) applies to the draft battle at the same time that has no correction of its own. A battle or
+ * recycling row added by hand that the hub's data has since (the same report synced later) is taken from the hub's
+ * data instead of being counted twice.
  */
 export function applyOverrides(draft: LootState, o: Overrides | null | undefined): LootState {
   if (!o) return cleanState(copy(draft));
@@ -200,7 +227,12 @@ export function applyOverrides(draft: LootState, o: Overrides | null | undefined
     }
     battles.push(battle);
   });
-  for (const b of o.extra?.battles ?? []) battles.push(copy(b));
+  const fromHub = battles.slice();
+  for (const b of o.extra?.battles ?? []) {
+    const i = fromHub.findIndex((d) => sameTimed(d, b));
+    if (i >= 0) fromHub.splice(i, 1);
+    else battles.push(copy(b));
+  }
 
   const recycling: Recycling[] = [];
   draft.recycling.forEach((d, i) => {
@@ -208,7 +240,12 @@ export function applyOverrides(draft: LootState, o: Overrides | null | undefined
     if (r?.hidden) return;
     recycling.push(r ? { ...copy(r as Recycling), ...(d.key ? { key: d.key } : {}) } : copy(d));
   });
-  for (const r of o.extra?.recycling ?? []) recycling.push(copy(r));
+  const rowsFromHub = recycling.slice();
+  for (const r of o.extra?.recycling ?? []) {
+    const i = rowsFromHub.findIndex((d) => sameRow(d, r));
+    if (i >= 0) rowsFromHub.splice(i, 1);
+    else recycling.push(copy(r));
+  }
 
   return cleanState({
     participants,
@@ -237,7 +274,7 @@ export function adoptKeys(draft: LootState, state: LootState): LootState {
   const rows = new Set(s.recycling.map((r) => r.key).filter((k): k is string => !!k));
   for (const r of s.recycling) {
     if (r.key) continue;
-    const d = draft.recycling.find((x) => x.key && !rows.has(x.key) && (sameRecycling(x, r) || (x.by === r.by && x.m === r.m && x.k === r.k)));
+    const d = draft.recycling.find((x) => x.key && !rows.has(x.key) && sameRow(x, r));
     if (d?.key) rows.add((r.key = d.key));
   }
   return s;
@@ -269,7 +306,9 @@ export interface StateChanges {
   settings: number;
 }
 
-export function stateChanges(a: LootState, b: LootState): StateChanges {
+export function stateChanges(final: LootState, b: LootState): StateChanges {
+  // a settlement saved before keys existed: its rows get the live rows' keys first, so only real changes count
+  const a = adoptKeys(b, final);
   const count = <T>(x: T[], y: T[], id: (v: T, i: number) => string) => {
     const left = new Map(x.map((v, i) => [id(v, i), canon(v)]));
     const right = new Map(y.map((v, i) => [id(v, i), canon(v)]));

@@ -1,5 +1,5 @@
 import { CAPACITY, distance, drivesFromResearch, fleetConsumption, flightDuration, slowestShip } from '@pr0hub/flight';
-import { adoptKeys, cleanState, debrisSummary, diffOverrides, emptyState, marketRates, MAX_PARTICIPANTS, SHARE_WITHIN, type Battle, type BattleFleet, type LootState, type Overrides, type Ships } from '@pr0hub/loot';
+import { adoptKeys, cleanState, debrisSummary, diffOverrides, emptyState, marketRates, settle, MAX_PARTICIPANTS, SHARE_WITHIN, type Battle, type BattleFleet, type LootState, type Overrides, type Ships } from '@pr0hub/loot';
 import type { GroupContext } from '../context.js';
 import type { DB } from '../db.js';
 import { REPORT_SLACK } from '../store.js';
@@ -226,8 +226,9 @@ export function settlementDraft(db: DB, ctx: GroupContext, plan: PlanRow & { tim
   }
 
   // the real flight time of an attack fleet: its return flight from the target in the overview takes as long as the
-  // way out (arrival home minus the battle), so its deuterium is exact whatever speed it flew at
-  if (!hold && state.battles.length && state.battles[0].time != null) {
+  // way out (arrival home minus the battle), so its deuterium is exact whatever speed it flew at; only with one battle
+  // (with several waves it is not known which battle a fleet fought in, the planned speed stays)
+  if (!hold && state.battles.length === 1 && state.battles[0].time != null) {
     const at = state.battles[0].time;
     const used = new Set<StoredFleet>();
     for (const x of flights) {
@@ -389,9 +390,12 @@ export function settlementDraft(db: DB, ctx: GroupContext, plan: PlanRow & { tim
 /**
  * Planets ("g:s:p") of the members (settlement ids): their newest empire page, the planets their players own in the
  * galaxy data, the start planets of their raid plan fleets and the home planets of their fleet and recycler returns.
- * The first source that names a planet wins.
+ * The first source that names a planet wins. Computed once per request (the context is per request).
  */
+const planetCache = new WeakMap<GroupContext, Map<string, string>>();
 function memberPlanets(db: DB, ctx: GroupContext): Map<string, string> {
+  const known = planetCache.get(ctx);
+  if (known) return known;
   const owner = new Map<string, string>();
   const add = (g: number, s: number, p: number, userId: number | null) => {
     const key = `${g}:${s}:${p}`;
@@ -411,63 +415,130 @@ function memberPlanets(db: DB, ctx: GroupContext): Map<string, string> {
     )
     .all(ctx.groupId, ctx.groupId, ctx.groupId) as { user_id: number | null; g: number; s: number; p: number }[];
   for (const h of homes) add(h.g, h.s, h.p, h.user_id);
+  planetCache.set(ctx, owner);
   return owner;
 }
 
+type Res = { m: number; k: number; d: number };
+const RES = ['m', 'k', 'd'] as const;
 /** Share of a delivery that counts it as done (rounding in the game, a little less sent). */
 const DELIVERED = 0.99;
+/** Transports count for a settlement from its finalizing on for this long. */
+const DELIVERY_WINDOW = 3 * 86400;
+/** Finalized settlements whose deliveries are worked out (the settlements list goes back 90 days). */
+const FINALIZED_SPAN = 92 * 86400;
+
+/** A delivery of a finalized settlement and how far it is done. */
+export interface Delivery {
+  key: string;
+  from: string;
+  to: string;
+  res: Res;
+  /** what the members' transport messages show delivered for it */
+  delivered: Res;
+  /** delivered in full by transport messages */
+  auto: boolean;
+  /** ticked off by hand or delivered in full */
+  done: boolean;
+}
+
+export interface FinalizedSettlement {
+  planId: number;
+  state: LootState;
+  finalizedAt: number;
+  finalizedBy: number | null;
+  /** saved before settlements could be finalized (migration 068): no notification */
+  migrated: boolean;
+  deadline: number | null;
+  deliveries: Delivery[];
+}
+
+const finalizedCache = new WeakMap<GroupContext, Map<number, FinalizedSettlement>>();
+/** After a change of a settlement within the request: worked out again on the next call. */
+export const forgetFinalized = (ctx: GroupContext) => finalizedCache.delete(ctx);
 
 /**
- * Resources delivered per transfer ("<from id>><to id>") of a settlement, from the members' transport messages (the
- * sender's or the receiver's copy, both of one transport once) from the first battle on for a week: planets belong to
- * the member whose player owns them in the galaxy data, or who synced the copy (sender: start, receiver: target).
- * `done` lists the transfers delivered in full.
+ * The group's finalized settlements of the last 92 days with their deliveries: ticked off by hand, or delivered by the
+ * members' transport messages (the sender's or the receiver's copy, both of one transport once; planets by
+ * `memberPlanets` or by who synced the copy). A transport counts from the settlement's finalizing on for three days and
+ * for one settlement only: settlements finalized first take the transports between the same two members first.
+ * Computed once per request.
  */
-export function transportDeliveries(
-  db: DB, ctx: GroupContext, state: LootState, transfers: { from: string; to: string; res: { m: number; k: number; d: number } }[],
-): { delivered: Record<string, { m: number; k: number; d: number }>; done: string[] } {
-  const since = Math.min(...state.battles.map((b) => b.time ?? Infinity));
-  if (!Number.isFinite(since) || !transfers.length) return { delivered: {}, done: [] };
+export function finalizedSettlements(db: DB, ctx: GroupContext, t = Math.floor(Date.now() / 1000)): Map<number, FinalizedSettlement> {
+  const known = finalizedCache.get(ctx);
+  if (known) return known;
+  const rows = db
+    .prepare(
+      `SELECT s.plan_id, s.data, s.done, s.finalized_at, s.finalized_by, s.migrated FROM raid_settlements s JOIN attack_plans a ON a.id = s.plan_id
+       WHERE s.group_id = ? AND s.finalized_at IS NOT NULL AND a.target_time > ? ORDER BY s.finalized_at, s.plan_id`,
+    )
+    .all(ctx.groupId, t - FINALIZED_SPAN) as { plan_id: number; data: string; done: string; finalized_at: number; finalized_by: number | null; migrated: number }[];
+  const out = new Map<number, FinalizedSettlement>();
+  for (const r of rows) {
+    const state = cleanState(JSON.parse(r.data));
+    const result = settle(state);
+    const manual = new Set(JSON.parse(r.done) as string[]);
+    const deliveries = (state.transfers ?? result.transfers)
+      .filter((x) => x.res.m + x.res.k + x.res.d > 0)
+      .map((x) => {
+        const key = `${x.from}>${x.to}`;
+        return { key, from: x.from, to: x.to, res: { ...x.res }, delivered: { m: 0, k: 0, d: 0 }, auto: false, done: manual.has(key) };
+      });
+    out.set(r.plan_id, {
+      planId: r.plan_id, state, finalizedAt: r.finalized_at, finalizedBy: r.finalized_by, migrated: !!r.migrated, deadline: result.deadline, deliveries,
+    });
+  }
+  allocateTransports(db, ctx, [...out.values()]);
+  finalizedCache.set(ctx, out);
+  return out;
+}
+
+/** Shares the members' transports out to the deliveries of the settlements (in order of finalizing). */
+function allocateTransports(db: DB, ctx: GroupContext, list: FinalizedSettlement[]) {
+  if (!list.some((s) => s.deliveries.length)) return;
+  const from = Math.min(...list.map((s) => s.finalizedAt));
+  const until = Math.max(...list.map((s) => s.finalizedAt)) + DELIVERY_WINDOW;
   const rows = db
     .prepare(
       `SELECT user_id, time, side, from_g, from_s, from_p, to_g, to_s, to_p, metal, crystal, deuterium FROM transports
        WHERE group_id = ? AND time BETWEEN ? AND ? ORDER BY time, id`,
     )
-    .all(ctx.groupId, since, since + 7 * 86400) as {
+    .all(ctx.groupId, from, until) as {
     user_id: number | null; time: number; side: 'own' | 'foreign'; from_g: number; from_s: number; from_p: number; to_g: number; to_s: number; to_p: number;
     metal: number; crystal: number; deuterium: number;
   }[];
-  if (!rows.length) return { delivered: {}, done: [] };
-  const owner = memberPlanets(db, ctx);
+  if (!rows.length) return;
+  const owner = new Map(memberPlanets(db, ctx));
   for (const r of rows) {
     if (r.user_id == null) continue;
     const mine = r.side === 'own' ? `${r.from_g}:${r.from_s}:${r.from_p}` : `${r.to_g}:${r.to_s}:${r.to_p}`;
     if (!owner.has(mine)) owner.set(mine, memberKey(r.user_id));
   }
+  // one entry per transport (both copies once), with what is left of it to share out
   const seen = new Set<string>();
-  const delivered: Record<string, { m: number; k: number; d: number }> = {};
+  const transports: { pair: string; time: number; left: Res }[] = [];
   for (const r of rows) {
-    const from = `${r.from_g}:${r.from_s}:${r.from_p}`;
-    const to = `${r.to_g}:${r.to_s}:${r.to_p}`;
-    const key = `${from}|${to}|${r.time}|${r.metal}|${r.crystal}|${r.deuterium}`;
-    if (seen.has(key)) continue;
+    const a = owner.get(`${r.from_g}:${r.from_s}:${r.from_p}`);
+    const b = owner.get(`${r.to_g}:${r.to_s}:${r.to_p}`);
+    const key = `${r.from_g}:${r.from_s}:${r.from_p}|${r.to_g}:${r.to_s}:${r.to_p}|${r.time}|${r.metal}|${r.crystal}|${r.deuterium}`;
+    if (seen.has(key) || !a || !b || a === b) continue;
     seen.add(key);
-    const a = owner.get(from);
-    const b = owner.get(to);
-    if (!a || !b || a === b) continue;
-    const d = (delivered[`${a}>${b}`] ??= { m: 0, k: 0, d: 0 });
-    d.m += r.metal;
-    d.k += r.crystal;
-    d.d += r.deuterium;
+    transports.push({ pair: `${a}>${b}`, time: r.time, left: { m: r.metal, k: r.crystal, d: r.deuterium } });
   }
-  const done = transfers
-    .filter((x) => {
-      const d = delivered[`${x.from}>${x.to}`];
-      return d && x.res.m + x.res.k + x.res.d > 0 && (['m', 'k', 'd'] as const).every((k) => d[k] >= x.res[k] * DELIVERED - 1);
-    })
-    .map((x) => `${x.from}>${x.to}`);
-  const wanted = new Set(transfers.map((x) => `${x.from}>${x.to}`));
-  return { delivered: Object.fromEntries(Object.entries(delivered).filter(([k]) => wanted.has(k))), done };
+  for (const s of list) {
+    for (const d of s.deliveries) {
+      for (const tr of transports) {
+        if (tr.pair !== d.key || tr.time < s.finalizedAt || tr.time > s.finalizedAt + DELIVERY_WINDOW) continue;
+        for (const k of RES) {
+          const take = Math.min(tr.left[k], Math.max(0, d.res[k] - d.delivered[k]));
+          d.delivered[k] += take;
+          tr.left[k] -= take;
+        }
+      }
+      d.auto = RES.every((k) => d.delivered[k] >= d.res[k] * DELIVERED - 1);
+      if (d.auto) d.done = true;
+    }
+  }
 }
 
 /**

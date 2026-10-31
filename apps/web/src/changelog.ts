@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-10-31',
     items: [
       {
+        kind: 'fix',
+        de: 'Beute abrechnen: Von Hand eingefügte Berichte zählen nicht mehr doppelt, wenn sie später synchronisiert werden. Ein Transport hakt nur noch eine Lieferung ab, und erst nach dem Festschreiben. Nach erneutem Festschreiben bleiben nur Lieferungen mit unveränderten Beträgen abgehakt.',
+        en: 'Loot settlement: reports pasted by hand no longer count twice once they are synced. A transport ticks off only one delivery, and only after finalizing. After finalizing again only deliveries with unchanged amounts stay ticked off.',
+      },
+      {
         kind: 'new',
         de: 'Beim Synchronisieren siehst du, in welche Beuteabrechnung deine Berichte einfließen. Wird eine Abrechnung festgeschrieben, sagt dir eine Benachrichtigung (Glocke, Push, Discord), was du schickst und bekommst.',
         en: 'When syncing you see which loot settlement your reports count for. When a settlement is finalized, a notification (bell, push, Discord) tells you what you send and get.',

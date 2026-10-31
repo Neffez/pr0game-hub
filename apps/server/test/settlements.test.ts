@@ -155,11 +155,17 @@ describe('raid settlements', () => {
     for (const r of old.recycling) delete r.key;
     old.battles[0].loot.m = 5;
     // as the migration leaves it: the whole state, finalized
-    db.prepare('INSERT INTO raid_settlements (plan_id, group_id, data, updated_by, updated_at, finalized_at, finalized_by) VALUES (?, ?, ?, ?, 100, 100, ?)')
-      .run(planId, groupA, JSON.stringify(old), ids.carol, ids.carol);
+    db.prepare(
+      'INSERT INTO raid_settlements (plan_id, group_id, data, updated_by, updated_at, finalized_at, finalized_by, migrated) VALUES (?, ?, ?, ?, 100, 100, ?, 1)',
+    ).run(planId, groupA, JSON.stringify(old), ids.carol, ids.carol);
     let body = (await call('GET', url, as.carol)).json();
     expect(body.finalized).toMatchObject({ at: 100, by: 'Carol' });
     expect(body.state.battles[0].loot.m).toBe(5);
+    // the frozen state has no keys: matched to the live rows (which carry its loot as a correction), no false changes
+    expect(body.finalized.changes).toEqual({ people: 0, battles: 0, recycling: 0, settings: 0 });
+    // saved just before the deploy: no "finalized" notification for it
+    db.prepare('UPDATE raid_settlements SET finalized_at = unixepoch() WHERE plan_id = ?').run(planId);
+    expect((await call('GET', '/notifications', as.dave)).json().filter((n: { kind: string }) => n.kind === 'settlement')).toEqual([]);
     body = (await call('DELETE', `${url}/finalize`, as.carol)).json();
     expect(body.overrides).toEqual({ battles: { r1: { at: target, loot: { m: 5, k: 200000, d: 50000 } } } });
     expect(body.state.battles[0].key).toBe('r1');
@@ -205,6 +211,12 @@ describe('raid settlements', () => {
     expect(sources.flightDeutFrom).toEqual({ [`u${ids.carol}`]: 'plan', [`u${ids.dave}`]: 'fleet' });
     expect(state.participants[1].flightDeut).not.toBe(planned.draft.state.participants[1].flightDeut);
     expect(state.participants[0].flightDeut).toBe(planned.draft.state.participants[0].flightDeut);
+    // a second wave: it is not known which battle Dave's fleet fought in, the planned speed stays
+    db.prepare(`INSERT INTO battle_reports (group_id, user_id, dedupe_key, report_id, time, g, s, p, planet_type, outcome, lost_attacker, lost_defender,
+       loot_metal, loot_crystal, loot_deuterium, debris_metal, debris_crystal) VALUES (?, ?, 'w2', 'w2', ?, 2, 100, 8, 'planet', 'win', 0, 0, 1, 1, 1, 0, 0)`)
+      .run(groupA, ids.dave, target + 1800);
+    expect((await call('GET', url, as.carol)).json().draft.sources.flightDeutFrom[`u${ids.dave}`]).toBe('plan');
+    db.prepare("DELETE FROM battle_reports WHERE dedupe_key = 'w2'").run();
 
     // finalized: the transport messages tick off the deliveries
     body = (await call('POST', `${url}/finalize`, as.carol, {})).json();
@@ -241,6 +253,50 @@ describe('raid settlements', () => {
 
     for (const t of ['transports', 'missile_impacts', 'recycle_returns']) db.prepare(`DELETE FROM ${t}`).run();
     db.prepare('DELETE FROM fleet_snapshots WHERE user_id = ?').run(ids.dave);
+    await call('DELETE', url, as.carol);
+  });
+
+  it('counts a transport from the finalizing on, for one settlement only, and keeps ticks of unchanged deliveries', async () => {
+    const url = `/plans/${planId}/settlement`;
+    const body = (await call('POST', `${url}/finalize`, as.dave, {})).json();
+    const at = body.finalized.at as number;
+    const x = body.result.transfers.find((t: { res: { m: number; k: number; d: number } }) => t.res.m + t.res.k + t.res.d > 0);
+    // a second settlement with the same delivery, finalized later
+    const other = Number(db.prepare("INSERT INTO attack_plans (group_id, user_id, g, s, p, planet_type, target_time, status) VALUES (?, ?, 2, 100, 9, 'planet', ?, 'done')")
+      .run(groupA, ids.carol, target).lastInsertRowid);
+    db.prepare('INSERT INTO raid_settlements (plan_id, group_id, data, updated_by, updated_at, finalized_at, finalized_by) VALUES (?, ?, ?, ?, ?, ?, ?)')
+      .run(other, groupA, JSON.stringify(body.state), ids.dave, at + 10, at + 10, ids.dave);
+    const homes: Record<string, [number, number, number]> = { [`u${ids.carol}`]: [2, 90, 4], [`u${ids.dave}`]: [2, 95, 4], [`u${ids.erin}`]: [2, 80, 1] };
+    const transport = db.prepare(
+      `INSERT INTO transports (group_id, user_id, dedupe_key, time, side, from_g, from_s, from_p, to_g, to_s, to_p, metal, crystal, deuterium)
+       VALUES (?, ?, ?, ?, 'own', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    );
+    const send = (key: string, time: number) =>
+      transport.run(groupA, Number(x.from.slice(1)), key, time, ...homes[x.from], ...homes[x.to], x.res.m, x.res.k, x.res.d);
+    const autoOf = async (id: number) => (await call('GET', `/plans/${id}/settlement`, as.carol)).json().auto_done;
+    // sent before the finalizing: not this settlement's delivery
+    send('t-early', at - 600);
+    expect(await autoOf(planId)).toEqual([]);
+    // one transport: the settlement finalized first takes it, the other still waits
+    send('t1', at + 100);
+    expect(await autoOf(planId)).toEqual([x.key ?? `${x.from}>${x.to}`]);
+    expect(await autoOf(other)).toEqual([]);
+    send('t2', at + 200);
+    expect(await autoOf(other)).toEqual([`${x.from}>${x.to}`]);
+
+    // reopened and finalized again with the same amounts: the delivery stays done
+    await call('DELETE', `${url}/finalize`, as.dave);
+    let again = (await call('POST', `${url}/finalize`, as.dave, {})).json();
+    expect(again.done).toEqual([`${x.from}>${x.to}`]);
+    // reopened, the loot changed, finalized again: the delivery is open again
+    await call('DELETE', `${url}/finalize`, as.dave);
+    const changedState = (await call('GET', url, as.dave)).json().state;
+    changedState.battles[0].loot.m += 500000;
+    again = (await call('POST', `${url}/finalize`, as.dave, { state: changedState })).json();
+    expect(again.done).toEqual([]);
+
+    db.prepare('DELETE FROM transports').run();
+    db.prepare('DELETE FROM attack_plans WHERE id = ?').run(other);
     await call('DELETE', url, as.carol);
   });
 
@@ -432,11 +488,15 @@ describe('raid settlements', () => {
     // the caller's open deliveries, by name
     expect(finalized.mine.length).toBeGreaterThan(0);
     expect(finalized.mine.every((x: { from: string; to: string }) => x.from === 'CVXII' || x.to === 'CVXII')).toBe(true);
-    // the bell (and push) tells the members what they send and get
-    const bell = (await call('GET', '/notifications', as.carol)).json().filter((n: { kind: string }) => n.kind === 'settlement');
+    // the bell (and push) tells the members what they send and get, not the one who finalized it
+    const settlementsOf = async (h: Record<string, string>) => (await call('GET', '/notifications', h)).json().filter((n: { kind: string }) => n.kind === 'settlement');
+    expect(await settlementsOf(as.carol)).toEqual([]);
+    const daveMine = (await call('GET', '/settlements', as.dave)).json().find((x: { id: number }) => x.id === planId).mine;
+    expect(daveMine.length).toBeGreaterThan(0);
+    const bell = await settlementsOf(as.dave);
     expect(bell).toHaveLength(1);
     expect(bell[0]).toMatchObject({ member: 'CVXII', plan: { id: planId, g: 2, s: 100, p: 8 } });
-    expect(bell[0].sends.length + bell[0].gets.length).toBe(finalized.mine.length);
+    expect(bell[0].sends.length + bell[0].gets.length).toBe(daveMine.length);
     const { payloadOf } = await import('../src/push.js');
     const push = payloadOf(bell[0], 'de', 'u8', 'Europe/Berlin', groupA);
     expect(push.title).toBe('💰 Beuteabrechnung [2:100:8] festgeschrieben');

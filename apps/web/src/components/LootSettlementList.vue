@@ -8,7 +8,7 @@ import { uniApi } from '../api';
 import Hint from './Hint.vue';
 import PlayerLink from './PlayerLink.vue';
 import { useLoader, useStored, useUni, vStack } from '../composables';
-import { coords, dateTime, lootCalcUrl, name, short } from '../format';
+import { coords, dateTime, lootCalcUrl, resText } from '../format';
 import { tables, useLiveReload } from '../live';
 
 /** An attack or hold to settle (`GET /settlements`). */
@@ -69,8 +69,6 @@ const settled = (e: Entry) => e.stage === 'settled';
 const onlyMine = useStored('settlements.onlyMine', false);
 const shown = computed(() => (onlyMine.value ? (data.value ?? []).filter((e) => e.mine.length) : (data.value ?? [])));
 const STAGE_CLASS: Record<Entry['stage'], string> = { open: 'muted', waiting: 'warn', ready: 'ok', delivering: 'warn', settled: 'ok' };
-const resText = (r: { m: number; k: number; d: number }) =>
-  (['m', 'k', 'd'] as const).filter((k) => r[k] > 0).map((k) => `${short(r[k])} ${name({ m: 901, k: 902, d: 903 }[k])}`).join(', ');
 /** time left until the deadline (open ones only) */
 const left = (e: Entry) => {
   if (!e.deadline || e.stage === 'settled') return null;

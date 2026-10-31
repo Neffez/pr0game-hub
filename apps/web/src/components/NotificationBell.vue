@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { useUni } from '../composables';
 import { accessRequests, attacks, loadAccessRequests, markSeen, notifications, unseen, type CommentNotification, type Notification } from '../notifications';
-import { abbr, fmt, name, short } from '../format';
+import { abbr, fmt, name, resText } from '../format';
 import Icon from './Icon.vue';
 import Ticker from './Ticker.vue';
 
@@ -62,8 +62,6 @@ const threadOf = (n: CommentNotification) =>
     : `${n.thread.owner ? n.thread.owner + ' ' : ''}${coords(n.thread, n.thread.type === 'moon')}`;
 /** Storage building of a resource (901-903 → 22-24). */
 const storageOf = (res: number) => res - 879;
-const resText = (r: { m: number; k: number; d: number }) =>
-  ([[r.m, 901], [r.k, 902], [r.d, 903]] as const).filter(([v]) => v > 0).map(([v, id]) => `${short(v)} ${name(id)}`).join(', ');
 /** Coordinates in brackets; moons named as such (no symbol). */
 function coords(b: { g: number; s: number; p: number }, moon: boolean) {
   return `${moon ? t('common.moon') + ' ' : ''}[${b.g}:${b.s}:${b.p}]`;

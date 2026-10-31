@@ -2754,7 +2754,8 @@ paths:
         later flows in), or, once `finalized`, the state frozen then; `finalized.live` is what it would be now and
         `finalized.changes` counts the differences per kind. `result` is computed from `state` by `@pr0hub/loot`, `done`
         lists the deliveries marked done, `delivered` what the members' transport messages show delivered per delivery
-        of a finalized settlement and `auto_done` the deliveries delivered in full by them, `me` is the caller's id in a
+        of a finalized settlement and `auto_done` the deliveries delivered in full by them (a transport counts from the
+        finalizing on for three days and for one settlement only, the one finalized first), `me` is the caller's id in a
         settlement. A hold is settled like an ACS:
         participants are the hold fleets and the attacked member, the battle report's defenders (ships only) and no
         loot, so the debris covers their losses.
@@ -2860,7 +2861,8 @@ paths:
       description: >-
         Reopens a finalized settlement (participants, creator or admin): it follows the hub's data again with its
         corrections (a settlement saved before corrections existed is turned into corrections of its whole state).
-        Deliveries marked done stay.
+        The deliveries done (by hand or transport report) are remembered with their amounts: finalizing it again keeps
+        those whose amounts did not change.
       security: [{ sessionCookie: [] }]
       responses:
         '200':
@@ -2992,8 +2994,9 @@ paths:
         `time` since when) and `fleet` (an own fleet with a fleet alert, due `lead` minutes before its arrival, listed
         from an hour before that until 10 minutes after the arrival; `alert`, `fleet`, `lead`, `time` the arrival) and
         `settlement` (a loot settlement the caller takes part in, finalized within 48 hours, while deliveries of the
-        caller are open, neither ticked off nor delivered by transport messages; `plan`, `sends`, `gets`, `member` who
-        finalized it, `time` when). Push notifications send
+        caller are open, neither ticked off nor delivered by transport messages, not for the member who finalized it
+        nor for settlements saved before finalizing existed; `plan`, `sends`, `gets`, `member` who finalized it, `time`
+        when). Push notifications send
         the same entries (see `/api/push/subscriptions`).
       parameters:
         - { $ref: '#/components/parameters/Uni' }

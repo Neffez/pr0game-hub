@@ -6,8 +6,7 @@ import { alertDone, alertsOf, buildingsState, planetElements, planetOf, storages
 import { FLEET_KEEP, openFleetAlerts } from './fleetAlerts.js';
 import { sharedFleets, type StoredFleet } from './fleets.js';
 import { alliance } from './members.js';
-import { cleanState, settle } from '@pr0hub/loot';
-import { memberKey, transportDeliveries } from './settlements.js';
+import { finalizedSettlements, memberKey } from './settlements.js';
 import { enemiesOf, followEnemies, launchedOf, planDrives, type LaunchFleet, type LaunchPlan, type PlanRow } from './plans.js';
 
 /**
@@ -178,34 +177,29 @@ export function channelNotificationsFor(db: DB, universe: Universe, groupId: num
   return [...attacks(db, channel, t), ...plans(db, groupId, t), ...own].sort((a, b) => a.time - b.time);
 }
 
-/** Settlements finalized within `SETTLEMENT_KEEP` with deliveries of the viewer not done (by hand or transport report). */
+/**
+ * Settlements finalized within `SETTLEMENT_KEEP` with deliveries of the viewer not done (by hand or transport report);
+ * not for the member who finalized it (they know) nor for settlements saved before finalizing existed.
+ */
 function settlements(db: DB, ctx: GroupContext, t: number): SettlementNotification[] {
-  const rows = db
-    .prepare(
-      `SELECT s.plan_id, s.data, s.done, s.finalized_at, s.finalized_by, ${DISPLAY} AS member, a.g, a.s, a.p, a.planet_type, a.mission
-       FROM raid_settlements s JOIN attack_plans a ON a.id = s.plan_id LEFT JOIN users u ON u.id = s.finalized_by
-       LEFT JOIN group_members gm ON gm.group_id = s.group_id AND gm.user_id = s.finalized_by
-       WHERE s.group_id = ? AND s.finalized_at > ? AND a.g IS NOT NULL`,
-    )
-    .all(ctx.groupId, t - SETTLEMENT_KEEP) as {
-    plan_id: number; data: string; done: string; finalized_at: number; finalized_by: number | null; member: string | null;
-    g: number; s: number; p: number; planet_type: 'planet' | 'moon'; mission: 'attack' | 'hold';
-  }[];
   const me = memberKey(ctx.user.id);
+  const recent = [...finalizedSettlements(db, ctx, t).values()].filter(
+    (f) => f.finalizedAt > t - SETTLEMENT_KEEP && !f.migrated && f.finalizedBy !== ctx.user.id,
+  );
+  if (!recent.length) return [];
+  const plan = db.prepare('SELECT a.g, a.s, a.p, a.planet_type, a.mission FROM attack_plans a WHERE a.id = ? AND a.g IS NOT NULL');
+  const who = db.prepare(`SELECT ${DISPLAY} FROM users u LEFT JOIN group_members gm ON gm.group_id = ? AND gm.user_id = u.id WHERE u.id = ?`).pluck();
   const list: SettlementNotification[] = [];
-  for (const r of rows) {
-    const state = cleanState(JSON.parse(r.data));
-    const people = [...state.participants, ...state.helpers];
-    if (!people.some((x) => x.id === me)) continue;
-    const transfers = (state.transfers ?? settle(state).transfers).filter((x) => x.res.m + x.res.k + x.res.d > 0 && (x.from === me || x.to === me));
-    if (!transfers.length) continue;
-    const done = new Set([...(JSON.parse(r.done) as string[]), ...transportDeliveries(db, ctx, state, transfers).done]);
-    const open = transfers.filter((x) => !done.has(`${x.from}>${x.to}`));
-    if (!open.length) continue;
+  for (const f of recent) {
+    const open = f.deliveries.filter((x) => !x.done && (x.from === me || x.to === me));
+    const target = open.length ? (plan.get(f.planId) as Omit<SettlementNotification['plan'], 'id'> | undefined) : undefined;
+    if (!target) continue;
+    const people = [...f.state.participants, ...f.state.helpers];
     const nameOf = (id: string) => people.find((x) => x.id === id)?.name ?? '?';
     list.push({
-      id: `settlement:${r.plan_id}:${r.finalized_at}`, kind: 'settlement', userId: r.finalized_by ?? 0, member: r.member ?? '?', time: r.finalized_at,
-      plan: { id: r.plan_id, g: r.g, s: r.s, p: r.p, planet_type: r.planet_type, mission: r.mission },
+      id: `settlement:${f.planId}:${f.finalizedAt}`, kind: 'settlement', userId: f.finalizedBy ?? 0,
+      member: (f.finalizedBy != null ? (who.get(ctx.groupId, f.finalizedBy) as string | undefined) : undefined) ?? '?', time: f.finalizedAt,
+      plan: { id: f.planId, ...target },
       sends: open.filter((x) => x.from === me).map((x) => ({ to: nameOf(x.to), res: x.res })),
       gets: open.filter((x) => x.to === me).map((x) => ({ from: nameOf(x.from), res: x.res })),
     });

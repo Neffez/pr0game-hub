@@ -116,4 +116,48 @@ describe('corrections on top of the hub draft', () => {
     expect(sameBattle(b(100), b(106))).toBe(false);
     expect(sameBattle(b(null), b(null))).toBe(true);
   });
+
+  it('keeps following a battle whose key changed while it was edited', () => {
+    // the client edited a flight deuterium; meanwhile the battle's report was synced and its key changed
+    const edited = draft();
+    edited.participants[0].flightDeut = 1;
+    const fresh = draft();
+    fresh.battles[0].key = 'rep-9';
+    fresh.battles[0].time = 1002;
+    const o = diffOverrides(fresh, edited);
+    expect(o.extra).toBeUndefined();
+    expect(o.battles).toEqual({ 'rep-9': { at: 1002, time: 1000 } });
+    // a battle and a recycling report pasted by hand that the draft has: corrections of those, not added twice
+    const pasted = draft();
+    pasted.battles.push({ time: 1001, loot: { m: 7, k: 0, d: 0 }, fleets: [] });
+    pasted.battles.splice(0, 1);
+    pasted.recycling.push({ by: 'u1', m: 100, k: 50, time: 2000 });
+    pasted.recycling.splice(0, 1);
+    const p = diffOverrides(draft(), pasted);
+    expect(p.extra).toBeUndefined();
+    expect(applyOverrides(draft(), p).battles).toHaveLength(1);
+  });
+
+  it('takes rows added by hand from the hub once the same report is synced', () => {
+    const edited = draft();
+    edited.battles = [];
+    edited.recycling = [];
+    const o = diffOverrides(emptyState(), { ...edited, battles: [{ time: 5000, loot: { m: 1, k: 1, d: 1 }, fleets: [] }], recycling: [{ by: 'u1', m: 3, k: 4, time: 6000 }] });
+    expect(o.extra?.battles).toHaveLength(1);
+    expect(o.extra?.recycling).toHaveLength(1);
+    // later the hub has both: counted once, from the hub
+    const fresh = draft();
+    fresh.battles = [{ key: 'rep-5', time: 5002, loot: { m: 9, k: 9, d: 9 }, fleets: [] }];
+    fresh.recycling = [{ key: 'r7', by: 'u1', m: 3, k: 4, time: 6000 }];
+    const live = applyOverrides(fresh, o);
+    expect(live.battles).toEqual([{ key: 'rep-5', time: 5002, loot: { m: 9, k: 9, d: 9 }, fleets: [] }]);
+    expect(live.recycling.map((r) => r.key)).toEqual(['r7']);
+  });
+
+  it('finds no changes in a settlement saved before keys existed', () => {
+    const old = draft();
+    for (const b of old.battles) delete b.key;
+    for (const r of old.recycling) delete r.key;
+    expect(stateChanges(old, draft())).toEqual({ people: 0, battles: 0, recycling: 0, settings: 0 });
+  });
 });

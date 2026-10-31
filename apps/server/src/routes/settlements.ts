@@ -9,7 +9,7 @@ import { events } from '../events.js';
 import { ingest } from '../ingest.js';
 import { planFromReport } from '../repo/reportPlan.js';
 import type { PlanRow } from '../repo/plans.js';
-import { correctionsOf, memberKey, settlementChecks, settlementDraft, storedSettlement, transportDeliveries } from '../repo/settlements.js';
+import { correctionsOf, finalizedSettlements, forgetFinalized, memberKey, settlementChecks, settlementDraft, storedSettlement } from '../repo/settlements.js';
 import { clampInt, contextOf, DISPLAY, MEMBER, type Q } from './util.js';
 
 /** Battles count for a plan from an hour before its time until an hour after (as in the draft). */
@@ -21,7 +21,10 @@ type SettlementPlan = PlanRow & { time_precision: string; guests: string | null 
 export function settlementRoutes(app: FastifyInstance, db: DB) {
   const ctxOf = contextOf(db);
   const isAdmin = (ctx: GroupContext) => ctx.role === 'admin' || ctx.user.isAdmin;
-  const changed = (ctx: GroupContext) => events.publish(ctx.groupId, { type: 'data', tables: ['raid_settlements'], userId: ctx.user.id });
+  const changed = (ctx: GroupContext) => {
+    forgetFinalized(ctx);
+    events.publish(ctx.groupId, { type: 'data', tables: ['raid_settlements'], userId: ctx.user.id });
+  };
 
   function planOf(ctx: GroupContext, id: number) {
     const plan = db.prepare('SELECT * FROM attack_plans WHERE id = ? AND group_id = ?').get(id, ctx.groupId) as SettlementPlan | undefined;
@@ -77,6 +80,7 @@ export function settlementRoutes(app: FastifyInstance, db: DB) {
     ).pluck();
     const me = memberKey(ctx.user.id);
     const planRow = db.prepare('SELECT * FROM attack_plans WHERE id = ?');
+    const finalized = finalizedSettlements(db, ctx, t);
     return plans.map((p) => {
       const window = p.time_precision === 'day' ? 86400 : p.time_precision === 'hour' ? 3600 : 0;
       let saved = null;
@@ -86,21 +90,18 @@ export function settlementRoutes(app: FastifyInstance, db: DB) {
       /** the caller's open deliveries of a finalized settlement (`sends`: the caller sends, else receives) */
       const mine: { from: string; to: string; sends: boolean; res: { m: number; k: number; d: number } }[] = [];
       if (p.stored != null) {
-        // deliveries count once the settlement is finalized (before, its numbers still follow the synced data)
-        const state = p.finalized_at != null && p.data ? cleanState(JSON.parse(p.data)) : null;
-        const result = state ? settle(state) : null;
-        const transfers = state ? (state.transfers ?? result!.transfers).filter((x) => x.res.m + x.res.k + x.res.d > 0) : [];
+        // deliveries count once the settlement is finalized (before, its numbers still follow the synced data); done:
         // ticked off by hand or delivered by the transport messages
-        const done = new Set([...(JSON.parse(p.done ?? '[]') as string[]), ...(state ? transportDeliveries(db, ctx, state, transfers).done : [])]);
-        const open = transfers.filter((x) => !done.has(`${x.from}>${x.to}`));
+        const f = p.finalized_at != null ? finalized.get(p.id) : undefined;
+        const open = f ? f.deliveries.filter((x) => !x.done) : [];
         saved = {
-          updated_at: p.updated_at, updated_by: p.updated_by, finalized_at: p.finalized_at, deliveries: transfers.length,
-          done: transfers.length - open.length,
+          updated_at: p.updated_at, updated_by: p.updated_by, finalized_at: p.finalized_at, deliveries: f?.deliveries.length ?? 0,
+          done: (f?.deliveries.length ?? 0) - open.length,
         };
-        if (state) {
+        if (f) {
           stage = open.length ? 'delivering' : 'settled';
-          deadline = result!.deadline;
-          const nameOf = (id: string) => [...state.participants, ...state.helpers].find((x) => x.id === id)?.name ?? '?';
+          deadline = f.deadline;
+          const nameOf = (id: string) => [...f.state.participants, ...f.state.helpers].find((x) => x.id === id)?.name ?? '?';
           for (const x of open) if (x.from === me || x.to === me) mine.push({ from: nameOf(x.from), to: nameOf(x.to), sends: x.from === me, res: x.res });
         }
       }
@@ -162,7 +163,7 @@ export function settlementRoutes(app: FastifyInstance, db: DB) {
     const state = final ?? live;
     const result = settle(state);
     // deliveries of a finalized settlement the members' transport messages show
-    const transported = final ? transportDeliveries(db, ctx, final, (final.transfers ?? result.transfers).filter((x) => x.res.m + x.res.k + x.res.d > 0)) : null;
+    const deliveries = final ? (finalizedSettlements(db, ctx).get(plan.id)?.deliveries ?? []) : [];
     return {
       plan: {
         id: plan.id, mission: plan.mission, g: plan.g, s: plan.s, p: plan.p, planet_type: plan.planet_type, target_time: plan.target_time,
@@ -178,8 +179,8 @@ export function settlementRoutes(app: FastifyInstance, db: DB) {
       state,
       result,
       done: stored?.done ?? [],
-      delivered: transported?.delivered ?? {},
-      auto_done: transported?.done ?? [],
+      delivered: Object.fromEntries(deliveries.filter((x) => x.delivered.m + x.delivered.k + x.delivered.d > 0).map((x) => [x.key, x.delivered])),
+      auto_done: deliveries.filter((x) => x.auto).map((x) => x.key),
     };
   }
 
@@ -225,6 +226,7 @@ export function settlementRoutes(app: FastifyInstance, db: DB) {
     editable(ctx, plan);
     if (isFinal(plan.id)) throw new HttpError(409, 'settlement_finalized', 'The settlement is finalized already');
     const t = now();
+    const before = db.prepare('SELECT done_before FROM raid_settlements WHERE plan_id = ?').pluck().get(plan.id) as string | null | undefined;
     if (req.body?.state != null) {
       const { overrides, state } = correctionsFrom(ctx, plan, req.body.state);
       db.prepare(
@@ -239,6 +241,15 @@ export function settlementRoutes(app: FastifyInstance, db: DB) {
          ON CONFLICT (plan_id) DO UPDATE SET data = excluded.data, finalized_at = excluded.finalized_at, finalized_by = excluded.finalized_by`,
       ).run(plan.id, ctx.groupId, JSON.stringify(v.state), JSON.stringify(v.overrides ?? {}), ctx.user.id, t, t, ctx.user.id);
     }
+    // finalized again after reopening: deliveries done before stay done when their amounts did not change
+    const frozen = cleanState(JSON.parse(db.prepare('SELECT data FROM raid_settlements WHERE plan_id = ?').pluck().get(plan.id) as string));
+    const transfersNow = (frozen.transfers ?? settle(frozen).transfers).map((x) => ({ key: `${x.from}>${x.to}`, res: x.res }));
+    const kept = before
+      ? (JSON.parse(before) as { key: string; res: { m: number; k: number; d: number } }[])
+          .filter((d) => transfersNow.some((x) => x.key === d.key && x.res.m === d.res.m && x.res.k === d.res.k && x.res.d === d.res.d))
+          .map((d) => d.key)
+      : [];
+    db.prepare('UPDATE raid_settlements SET done = ?, done_before = NULL, migrated = 0 WHERE plan_id = ?').run(JSON.stringify(kept), plan.id);
     changed(ctx);
     return view(ctx, plan);
   });
@@ -251,7 +262,11 @@ export function settlementRoutes(app: FastifyInstance, db: DB) {
     const stored = storedSettlement(db, ctx, plan.id);
     if (!stored) throw new HttpError(404, 'settlement_not_found', 'Settlement not saved');
     const overrides = correctionsOf(stored, settlementDraft(db, ctx, plan).state) ?? {};
-    db.prepare('UPDATE raid_settlements SET overrides = ?, finalized_at = NULL, finalized_by = NULL WHERE plan_id = ?').run(JSON.stringify(overrides), plan.id);
+    // what was done (by hand or by transport) with its amounts: kept when it is finalized again with the same amounts
+    const doneBefore = (finalizedSettlements(db, ctx).get(plan.id)?.deliveries ?? []).filter((x) => x.done).map((x) => ({ key: x.key, res: x.res }));
+    db.prepare(
+      "UPDATE raid_settlements SET overrides = ?, finalized_at = NULL, finalized_by = NULL, done = '[]', done_before = ?, migrated = 0 WHERE plan_id = ?",
+    ).run(JSON.stringify(overrides), JSON.stringify(doneBefore), plan.id);
     changed(ctx);
     return view(ctx, plan);
   });
