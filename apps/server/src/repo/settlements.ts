@@ -6,6 +6,7 @@ import { REPORT_SLACK } from '../store.js';
 import { fleetHistory, sameFleet, sharedFleets, type StoredFleet } from './fleets.js';
 import { shipsKey } from './hostile.js';
 import { latestMarketRate } from './market.js';
+import { latestEmpires } from './empire.js';
 import { memberPlayers } from './members.js';
 import { launchedOf, planDrives, type LaunchFleet, type PlanRow } from './plans.js';
 
@@ -385,6 +386,34 @@ export function settlementDraft(db: DB, ctx: GroupContext, plan: PlanRow & { tim
   return { state: cleanState(state), sources };
 }
 
+/**
+ * Planets ("g:s:p") of the members (settlement ids): their newest empire page, the planets their players own in the
+ * galaxy data, the start planets of their raid plan fleets and the home planets of their fleet and recycler returns.
+ * The first source that names a planet wins.
+ */
+function memberPlanets(db: DB, ctx: GroupContext): Map<string, string> {
+  const owner = new Map<string, string>();
+  const add = (g: number, s: number, p: number, userId: number | null) => {
+    const key = `${g}:${s}:${p}`;
+    if (userId != null && !owner.has(key)) owner.set(key, memberKey(userId));
+  };
+  for (const e of latestEmpires(db, ctx)) for (const pl of e.rec.planets ?? []) add(pl.coords.g, pl.coords.s, pl.coords.p, e.userId);
+  const planets = db.prepare('SELECT g, s, p FROM planets WHERE group_id = ? AND player_id = ?');
+  for (const [userId, player] of memberPlayers(db, ctx)) {
+    if (player == null) continue;
+    for (const pl of planets.all(ctx.groupId, player) as { g: number; s: number; p: number }[]) add(pl.g, pl.s, pl.p, userId);
+  }
+  const homes = db
+    .prepare(
+      `SELECT f.user_id, f.g, f.s, f.p FROM attack_plan_fleets f JOIN attack_plans a ON a.id = f.plan_id WHERE a.group_id = ? AND f.g IS NOT NULL
+       UNION SELECT user_id, home_g, home_s, home_p FROM fleet_returns WHERE group_id = ?
+       UNION SELECT user_id, home_g, home_s, home_p FROM recycle_returns WHERE group_id = ?`,
+    )
+    .all(ctx.groupId, ctx.groupId, ctx.groupId) as { user_id: number | null; g: number; s: number; p: number }[];
+  for (const h of homes) add(h.g, h.s, h.p, h.user_id);
+  return owner;
+}
+
 /** Share of a delivery that counts it as done (rounding in the game, a little less sent). */
 const DELIVERED = 0.99;
 
@@ -409,13 +438,7 @@ export function transportDeliveries(
     metal: number; crystal: number; deuterium: number;
   }[];
   if (!rows.length) return { delivered: {}, done: [] };
-  const owner = new Map<string, string>();
-  const players = memberPlayers(db, ctx);
-  const planets = db.prepare('SELECT g, s, p FROM planets WHERE group_id = ? AND player_id = ?');
-  for (const [userId, player] of players) {
-    if (player == null) continue;
-    for (const pl of planets.all(ctx.groupId, player) as { g: number; s: number; p: number }[]) owner.set(`${pl.g}:${pl.s}:${pl.p}`, memberKey(userId));
-  }
+  const owner = memberPlanets(db, ctx);
   for (const r of rows) {
     if (r.user_id == null) continue;
     const mine = r.side === 'own' ? `${r.from_g}:${r.from_s}:${r.from_p}` : `${r.to_g}:${r.to_s}:${r.to_p}`;

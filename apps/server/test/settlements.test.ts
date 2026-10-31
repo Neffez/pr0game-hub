@@ -230,6 +230,15 @@ describe('raid settlements', () => {
     // a transport the other way does not count
     expect(body.delivered[`${x.to}>${x.from}`]).toBeUndefined();
 
+    // only the sender's copy synced, the receiver's planet known from the plan only (no galaxy data): still counts
+    db.prepare('DELETE FROM transports').run();
+    const planned2 = body.result.transfers.find(
+      (t: { from: string; to: string; res: { m: number } }) => [`u${ids.carol}`, `u${ids.dave}`].includes(t.from) && [`u${ids.carol}`, `u${ids.dave}`].includes(t.to),
+    );
+    expect(planned2).toBeTruthy();
+    transport.run(groupA, Number(planned2.from.slice(1)), 't3', target + 4000, 'own', ...homes[planned2.from], ...homes[planned2.to], planned2.res.m, planned2.res.k, planned2.res.d);
+    expect((await call('GET', url, as.carol)).json().auto_done).toContain(`${planned2.from}>${planned2.to}`);
+
     for (const t of ['transports', 'missile_impacts', 'recycle_returns']) db.prepare(`DELETE FROM ${t}`).run();
     db.prepare('DELETE FROM fleet_snapshots WHERE user_id = ?').run(ids.dave);
     await call('DELETE', url, as.carol);

@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-31
 
+- Loot settlement deliveries by transport report: the members' planets come from their empire pages, the galaxy
+  data, their raid plan start planets and the homes of their fleet and recycler returns, so the sender's copy alone
+  ticks off a delivery to a member whose planet is not in the galaxy data (found in the browser check). README lists
+  the loot settlement and the new messages.
 - Sync shows which loot settlements the pasted messages count for (battles, fleet returns, recycling and missiles at a
   launched or done plan's target around its time; `settlements` in the ingest summary, `settlementsFor`), with links,
   in the preview and after saving.
