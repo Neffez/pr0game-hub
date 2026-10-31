@@ -1,4 +1,4 @@
-import { distance, drivesFromResearch, fleetConsumption, flightDuration, slowestShip } from '@pr0hub/flight';
+import { CAPACITY, distance, drivesFromResearch, fleetConsumption, flightDuration, slowestShip } from '@pr0hub/flight';
 import { adoptKeys, cleanState, debrisSummary, diffOverrides, emptyState, marketRates, MAX_PARTICIPANTS, SHARE_WITHIN, type Battle, type BattleFleet, type LootState, type Overrides, type Ships } from '@pr0hub/loot';
 import type { GroupContext } from '../context.js';
 import type { DB } from '../db.js';
@@ -30,6 +30,15 @@ export interface DraftSources {
   returnSource: Record<string, 'message' | 'overview'>;
   /** participant id -> deuterium of the attack flights computed from the plan fleet */
   flightDeut: Record<string, number>;
+  /**
+   * participant id -> how the flight deuterium was computed: `fleet` with the flight time of the fleets' return flights
+   * in the overview (exact), `plan` with the planned speed (estimate)
+   */
+  flightDeutFrom: Record<string, 'fleet' | 'plan'>;
+  /** person id -> deuterium of their recycler flights, estimated from the recycler return messages */
+  recDeut: Record<string, number>;
+  /** participant id -> interplanetary missiles fired on the target (missile impact messages) */
+  missiles: Record<string, number>;
   /** recycling reports taken (id of the person, time) */
   recycling: { by: string; time: number | null }[];
 }
@@ -58,7 +67,9 @@ export function settlementDraft(db: DB, ctx: GroupContext, plan: PlanRow & { tim
     state.settings.rates = marketRates(state.settings.refRates);
   }
   const hold = plan.mission === 'hold';
-  const sources: DraftSources = { battles: [], returnLoot: {}, returnSource: {}, flightDeut: {}, recycling: [] };
+  const sources: DraftSources = {
+    battles: [], returnLoot: {}, returnSource: {}, flightDeut: {}, flightDeutFrom: {}, recDeut: {}, missiles: {}, recycling: [],
+  };
   const fleets = db
     .prepare(
       `SELECT f.id, f.plan_id, f.user_id, COALESCE(gm.ingame_name, u.username) AS member, f.g, f.s, f.p, f.planet_type, f.ships, f.speed, f.status,
@@ -68,6 +79,7 @@ export function settlementDraft(db: DB, ctx: GroupContext, plan: PlanRow & { tim
     )
     .all(ctx.groupId, plan.id) as PlanFleet[];
   const seen = launchedOf(db, ctx, [plan], fleets);
+  const returnCache = new Map<string, StoredFleet[]>();
   const shipsOf = (f: PlanFleet): Ships => seen.get(f.id)?.ships ?? (JSON.parse(f.ships) as Ships);
 
   // participants: members of the plan, then guest fleets (at most the game's ACS limit)
@@ -112,6 +124,17 @@ export function settlementDraft(db: DB, ctx: GroupContext, plan: PlanRow & { tim
   // flight deuterium of the plan fleets (as the game charges it at launch)
   const u = ctx.universe.settings;
   const drivesOf = planDrives(db, ctx);
+  /** per plan fleet: what its flight costs, with the planned speed until its real flight time is known */
+  const flights: { f: PlanFleet; ships: Ships; drives: ReturnType<typeof drivesFromResearch>; dist: number; deut: number; exact: boolean }[] = [];
+  const sumFlights = () => {
+    for (const p of state.participants) {
+      const mine = flights.filter((x) => memberKey(x.f.user_id) === p.id);
+      if (!mine.length) continue;
+      p.flightDeut = mine.reduce((a, x) => a + x.deut, 0);
+      sources.flightDeut[p.id] = p.flightDeut;
+      sources.flightDeutFrom[p.id] = mine.every((x) => x.exact) ? 'fleet' : 'plan';
+    }
+  };
   if (plan.g != null) {
     for (const f of fleets) {
       if (f.g == null) continue;
@@ -120,12 +143,9 @@ export function settlementDraft(db: DB, ctx: GroupContext, plan: PlanRow & { tim
       const slowest = slowestShip(ships, drives);
       if (!slowest) continue;
       const dist = distance(u, [f.g, f.s!, f.p!], [plan.g, plan.s!, plan.p!]);
-      const deut = fleetConsumption(u, ships, flightDuration(u, dist, slowest.speed, f.speed), dist, drives);
-      const p = state.participants.find((x) => x.id === memberKey(f.user_id));
-      if (!p) continue;
-      p.flightDeut = (p.flightDeut ?? 0) + deut;
-      sources.flightDeut[p.id] = p.flightDeut;
+      flights.push({ f, ships, drives, dist, deut: fleetConsumption(u, ships, flightDuration(u, dist, slowest.speed, f.speed), dist, drives), exact: false });
     }
+    sumFlights();
   }
 
   if (plan.g == null) return { state, sources };
@@ -204,6 +224,43 @@ export function settlementDraft(db: DB, ctx: GroupContext, plan: PlanRow & { tim
     sources.battles.push({ key: battle.key!, reportId: b.c_report_id ?? b.report_id, time: b.time, fleets: b.fleets ? 'report' : 'plan' });
   }
 
+  // the real flight time of an attack fleet: its return flight from the target in the overview takes as long as the
+  // way out (arrival home minus the battle), so its deuterium is exact whatever speed it flew at
+  if (!hold && state.battles.length && state.battles[0].time != null) {
+    const at = state.battles[0].time;
+    const used = new Set<StoredFleet>();
+    for (const x of flights) {
+      const back = returnFlights(x.f.user_id, at).find(
+        (m) => !used.has(m) && m.to != null && m.to.coords.g === x.f.g && m.to.coords.s === x.f.s && m.to.coords.p === x.f.p &&
+          m.to.type === (x.f.planet_type ?? 'planet'),
+      );
+      const duration = back ? back.arrival - at : 0;
+      if (!back || duration <= 0 || duration > 7 * 86400) continue;
+      used.add(back);
+      x.deut = fleetConsumption(u, x.ships, duration, x.dist, x.drives);
+      x.exact = true;
+    }
+    sumFlights();
+  }
+
+  // interplanetary missiles each member fired on the target from a day before until the last battle (their copy of
+  // the impact message)
+  {
+    const last = Math.max(plan.target_time + window, ...state.battles.map((b) => b.time ?? 0));
+    const fired = db
+      .prepare(
+        `SELECT user_id, SUM(count) AS n FROM missile_impacts WHERE group_id = ? AND g = ? AND s = ? AND p = ? AND time BETWEEN ? AND ?
+         GROUP BY user_id`,
+      )
+      .all(ctx.groupId, plan.g, plan.s, plan.p, plan.target_time - 86400, last + BATTLE_SLACK) as { user_id: number; n: number }[];
+    for (const r of fired) {
+      const p = state.participants.find((x) => x.id === memberKey(r.user_id));
+      if (!p) continue;
+      p.missiles = r.n;
+      sources.missiles[p.id] = r.n;
+    }
+  }
+
   // loot each fleet brought home (only with one battle: several waves cannot be told apart), wins over the shares by
   // cargo space; per participant from their fleet return messages, else from their fleet lists (overview)
   if (!hold && state.battles.length === 1) {
@@ -250,15 +307,7 @@ export function settlementDraft(db: DB, ctx: GroupContext, plan: PlanRow & { tim
    * (a later raid with the same ships is not this one).
    */
   function overviewReturns(userId: number, at: number, left: string[] | undefined) {
-    const latest = sharedFleets(db, ctx.groupId, userId, ctx.user.id)?.data ?? [];
-    const moves = [...fleetHistory(db, ctx.groupId, userId, ctx.user.id, at), ...latest].filter(
-      (m: StoredFleet) =>
-        m.owner === 'own' && m.phase === 'return' && m.mission != null && ATTACK_MISSIONS.includes(m.mission) && m.resources &&
-        m.from.coords.g === plan.g && m.from.coords.s === plan.s && m.from.coords.p === plan.p && m.from.type === plan.planet_type && m.arrival > at,
-    );
-    const unique: StoredFleet[] = [];
-    for (const m of moves.reverse()) if (!unique.some((u) => sameFleet(m, u) && shipsKey(u.ships) === shipsKey(m.ships))) unique.push(m);
-    unique.sort((a, b) => a.arrival - b.arrival);
+    const unique = returnFlights(userId, at).filter((m) => m.resources);
     const wanted = left?.slice();
     const home = wanted
       ? unique.filter((m) => {
@@ -268,6 +317,27 @@ export function settlementDraft(db: DB, ctx: GroupContext, plan: PlanRow & { tim
         })
       : unique;
     return home.map((m) => ({ m: m.resources?.[901] ?? 0, k: m.resources?.[902] ?? 0, d: m.resources?.[903] ?? 0 }));
+  }
+
+  /**
+   * A member's own attack flights home from the target after `at` in their fleet lists (as shared with the viewer), the
+   * same flight in several lists once, earliest first.
+   */
+  function returnFlights(userId: number, at: number): StoredFleet[] {
+    const key = `${userId}:${at}`;
+    const known = returnCache.get(key);
+    if (known) return known;
+    const latest = sharedFleets(db, ctx.groupId, userId, ctx.user.id)?.data ?? [];
+    const moves = [...fleetHistory(db, ctx.groupId, userId, ctx.user.id, at), ...latest].filter(
+      (m: StoredFleet) =>
+        m.owner === 'own' && m.phase === 'return' && m.mission != null && ATTACK_MISSIONS.includes(m.mission) &&
+        m.from.coords.g === plan.g && m.from.coords.s === plan.s && m.from.coords.p === plan.p && m.from.type === plan.planet_type && m.arrival > at,
+    );
+    const unique: StoredFleet[] = [];
+    for (const m of moves.reverse()) if (!unique.some((u) => sameFleet(m, u) && shipsKey(u.ships) === shipsKey(m.ships))) unique.push(m);
+    unique.sort((a, b) => a.arrival - b.arrival);
+    returnCache.set(key, unique);
+    return unique;
   }
 
   // recycling at the target within 24 hours of the first battle
@@ -291,7 +361,90 @@ export function settlementDraft(db: DB, ctx: GroupContext, plan: PlanRow & { tim
     });
     sources.recycling.push({ by: id, time: r.time });
   }
+
+  // deuterium of the recycler flights (estimate): each recycling report with the recyclers' return message carrying
+  // that cargo home; the flight took as long as from the report to the return, the recyclers needed for the cargo
+  const recyclerReturns = db.prepare(
+    `SELECT home_g, home_s, home_p, time FROM recycle_returns WHERE group_id = ? AND user_id = ? AND metal = ? AND crystal = ? AND time > ? AND time <= ?
+     ORDER BY time LIMIT 1`,
+  );
+  for (const r of recycled) {
+    if (r.time == null) continue;
+    const back = recyclerReturns.get(ctx.groupId, r.user_id, r.metal, r.crystal, r.time, r.time + 7 * 86400) as
+      | { home_g: number; home_s: number; home_p: number; time: number }
+      | undefined;
+    if (!back) continue;
+    const ships = { 209: Math.max(1, Math.ceil((r.metal + r.crystal) / (CAPACITY[209] ?? 20000))) };
+    const drives = drivesFromResearch(drivesOf({ user_id: r.user_id, manual: null, drives_time: null })?.research ?? {});
+    const dist = distance(u, [back.home_g, back.home_s, back.home_p], [plan.g, plan.s!, plan.p!]);
+    const id = memberKey(r.user_id);
+    const deut = fleetConsumption(u, ships, back.time - r.time, dist, drives);
+    sources.recDeut[id] = (sources.recDeut[id] ?? 0) + deut;
+  }
+  for (const p of [...state.participants, ...state.helpers]) if (sources.recDeut[p.id] != null) p.recDeut = sources.recDeut[p.id];
   return { state: cleanState(state), sources };
+}
+
+/** Share of a delivery that counts it as done (rounding in the game, a little less sent). */
+const DELIVERED = 0.99;
+
+/**
+ * Resources delivered per transfer ("<from id>><to id>") of a settlement, from the members' transport messages (the
+ * sender's or the receiver's copy, both of one transport once) from the first battle on for a week: planets belong to
+ * the member whose player owns them in the galaxy data, or who synced the copy (sender: start, receiver: target).
+ * `done` lists the transfers delivered in full.
+ */
+export function transportDeliveries(
+  db: DB, ctx: GroupContext, state: LootState, transfers: { from: string; to: string; res: { m: number; k: number; d: number } }[],
+): { delivered: Record<string, { m: number; k: number; d: number }>; done: string[] } {
+  const since = Math.min(...state.battles.map((b) => b.time ?? Infinity));
+  if (!Number.isFinite(since) || !transfers.length) return { delivered: {}, done: [] };
+  const rows = db
+    .prepare(
+      `SELECT user_id, time, side, from_g, from_s, from_p, to_g, to_s, to_p, metal, crystal, deuterium FROM transports
+       WHERE group_id = ? AND time BETWEEN ? AND ? ORDER BY time, id`,
+    )
+    .all(ctx.groupId, since, since + 7 * 86400) as {
+    user_id: number | null; time: number; side: 'own' | 'foreign'; from_g: number; from_s: number; from_p: number; to_g: number; to_s: number; to_p: number;
+    metal: number; crystal: number; deuterium: number;
+  }[];
+  if (!rows.length) return { delivered: {}, done: [] };
+  const owner = new Map<string, string>();
+  const players = memberPlayers(db, ctx);
+  const planets = db.prepare('SELECT g, s, p FROM planets WHERE group_id = ? AND player_id = ?');
+  for (const [userId, player] of players) {
+    if (player == null) continue;
+    for (const pl of planets.all(ctx.groupId, player) as { g: number; s: number; p: number }[]) owner.set(`${pl.g}:${pl.s}:${pl.p}`, memberKey(userId));
+  }
+  for (const r of rows) {
+    if (r.user_id == null) continue;
+    const mine = r.side === 'own' ? `${r.from_g}:${r.from_s}:${r.from_p}` : `${r.to_g}:${r.to_s}:${r.to_p}`;
+    if (!owner.has(mine)) owner.set(mine, memberKey(r.user_id));
+  }
+  const seen = new Set<string>();
+  const delivered: Record<string, { m: number; k: number; d: number }> = {};
+  for (const r of rows) {
+    const from = `${r.from_g}:${r.from_s}:${r.from_p}`;
+    const to = `${r.to_g}:${r.to_s}:${r.to_p}`;
+    const key = `${from}|${to}|${r.time}|${r.metal}|${r.crystal}|${r.deuterium}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const a = owner.get(from);
+    const b = owner.get(to);
+    if (!a || !b || a === b) continue;
+    const d = (delivered[`${a}>${b}`] ??= { m: 0, k: 0, d: 0 });
+    d.m += r.metal;
+    d.k += r.crystal;
+    d.d += r.deuterium;
+  }
+  const done = transfers
+    .filter((x) => {
+      const d = delivered[`${x.from}>${x.to}`];
+      return d && x.res.m + x.res.k + x.res.d > 0 && (['m', 'k', 'd'] as const).every((k) => d[k] >= x.res[k] * DELIVERED - 1);
+    })
+    .map((x) => `${x.from}>${x.to}`);
+  const wanted = new Set(transfers.map((x) => `${x.from}>${x.to}`));
+  return { delivered: Object.fromEntries(Object.entries(delivered).filter(([k]) => wanted.has(k))), done };
 }
 
 /**

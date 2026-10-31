@@ -65,6 +65,12 @@ function previewText(p: Summary['preview'][number]) {
       return t('paste.preview.recycle', { coords: p.coords, amount: fmt(p.amount) });
     case 'fleetReturn':
       return t('paste.preview.fleetReturn', { coords: p.coords, amount: fmt(p.amount) });
+    case 'transport':
+      return t('paste.preview.transport', { from: p.from, to: p.to, amount: fmt(p.amount) });
+    case 'missileImpact':
+      return t('paste.preview.missileImpact', { coords: p.coords, count: fmt(p.count) });
+    case 'recycleReturn':
+      return t('paste.preview.recycleReturn', { coords: p.coords, amount: fmt(p.amount) });
     case 'marketplace':
       return (
         t('paste.preview.marketplace', { offers: p.offers, rate: p.m != null || p.k != null ? rateText(p.m as number | null, p.k as number | null) : unknown }) +

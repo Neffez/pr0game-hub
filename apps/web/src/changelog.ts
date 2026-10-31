@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Synchronisieren liest jetzt auch Transportberichte, Raketeneinschläge und Recycler-Rückkehr. Beute abrechnen übernimmt daraus die IRaks, schätzt das Recycler-Deut, rechnet das Flug-Deut mit der echten Flugzeit und hakt Lieferungen ab, sobald der Transportbericht synchronisiert ist.',
+        en: 'Sync now also reads transport reports, missile impacts and recyclers coming home. The loot settlement takes the missiles from them, estimates the recycler deuterium, computes the flight deuterium with the real flight time and ticks off deliveries once the transport report is synced.',
+      },
+      {
+        kind: 'new',
         de: 'Beute abrechnen: Ein Datenstand zeigt, welche Berichte noch fehlen und wer sie synchronisieren muss. Die Liste der Abrechnungen zeigt den Stand, die verbleibende Zeit zum Verteilen und deine offenen Lieferungen.',
         en: 'Loot settlement: a data status shows which reports are still missing and who has to sync them. The list of settlements shows the stage, the time left to share and your open deliveries.',
       },

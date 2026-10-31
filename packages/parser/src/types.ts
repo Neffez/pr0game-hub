@@ -130,6 +130,44 @@ export interface FleetReturnRecord {
   deuterium: number;
 }
 
+/**
+ * Transport message: a fleet delivered resources from one planet to another. `own`: the sender's copy (the target's
+ * type is named), `foreign`: the receiver's copy of a peaceful fleet.
+ */
+export interface TransportRecord {
+  kind: 'transport';
+  msgId: number | null;
+  time: LocalDateTime | null;
+  side: 'own' | 'foreign';
+  from: Coords;
+  to: Coords;
+  toType: PlanetType | null;
+  metal: number;
+  crystal: number;
+  deuterium: number;
+}
+
+/** Interplanetary missiles hit a planet: how many, from which planet. */
+export interface MissileImpactRecord {
+  kind: 'missileImpact';
+  msgId: number | null;
+  time: LocalDateTime | null;
+  count: number;
+  from: Coords;
+  target: Coords;
+}
+
+/** A recycler fleet came home with its cargo. */
+export interface RecycleReturnRecord {
+  kind: 'recycleReturn';
+  msgId: number | null;
+  time: LocalDateTime | null;
+  home: Coords;
+  metal: number;
+  crystal: number;
+  deuterium: number;
+}
+
 /** Sender or recipient of a player message: name, plus the main planet when the game shows it. */
 export interface MessageParty {
   name: string;
@@ -457,6 +495,9 @@ export type HubRecord =
   | HostileSpyRecord
   | RecycleRecord
   | FleetReturnRecord
+  | TransportRecord
+  | MissileImpactRecord
+  | RecycleReturnRecord
   | PlayerMessageRecord
   | GalaxyRecord
   | EmpireRecord

@@ -16,11 +16,14 @@ import {
   type HostileSpyRecord,
   type HubRecord,
   type MarketplaceRecord,
+  type MissileImpactRecord,
   type OverviewRecord,
   type PlayerMessageRecord,
   type RecycleRecord,
+  type RecycleReturnRecord,
   type SpyReportRecord,
   type StatsRecord,
+  type TransportRecord,
 } from '@pr0hub/core';
 import { CLASS_BUILDINGS, PHALANX } from '@pr0hub/core/tech';
 import { keepOriginalNames, mergeCombatFleets } from './battleParticipants.js';
@@ -84,6 +87,12 @@ export class Store {
         return this.recycle(r);
       case 'fleetReturn':
         return this.fleetReturn(r);
+      case 'transport':
+        return this.transport(r);
+      case 'missileImpact':
+        return this.missileImpact(r);
+      case 'recycleReturn':
+        return this.recycleReturn(r);
       case 'playerMessage':
         return this.playerMessage(r);
       case 'battleHall':
@@ -566,6 +575,40 @@ export class Store {
         r.metal, r.crystal, r.deuterium,
       );
     this.count('fleet_returns', res.changes > 0);
+  }
+
+  /** Generic store of a message row: same content (also synced as HTML and as text) once, keyed by message id or content. */
+  private message(table: string, prefix: string, msgId: number | null, content: Record<string, unknown>) {
+    const key = msgId ? `m${msgId}` : `${prefix}${fnv1a(JSON.stringify(Object.values(content)))}`;
+    const row = { user_id: this.t.userId, ...content };
+    if (this.sameContent(table, row, msgId)) return this.count(table, false);
+    const cols = ['group_id', 'dedupe_key', 'msg_id', ...Object.keys(row)];
+    const res = this.db
+      .prepare(`INSERT OR IGNORE INTO ${table} (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`)
+      .run(this.t.groupId, key, msgId, ...Object.values(row));
+    this.count(table, res.changes > 0);
+  }
+
+  /** Transport message (sender's or receiver's copy): a delivery between planets. */
+  private transport(r: TransportRecord) {
+    this.message('transports', 't', r.msgId, {
+      time: this.epoch(r.time), side: r.side, from_g: r.from.g, from_s: r.from.s, from_p: r.from.p, to_g: r.to.g, to_s: r.to.s, to_p: r.to.p,
+      to_type: r.toType, metal: r.metal, crystal: r.crystal, deuterium: r.deuterium,
+    });
+  }
+
+  /** Interplanetary missiles that hit a planet. */
+  private missileImpact(r: MissileImpactRecord) {
+    this.message('missile_impacts', 'i', r.msgId, {
+      time: this.epoch(r.time), count: r.count, from_g: r.from.g, from_s: r.from.s, from_p: r.from.p, g: r.target.g, s: r.target.s, p: r.target.p,
+    });
+  }
+
+  /** Recyclers that came home. */
+  private recycleReturn(r: RecycleReturnRecord) {
+    this.message('recycle_returns', 'c', r.msgId, {
+      time: this.epoch(r.time), home_g: r.home.g, home_s: r.home.s, home_p: r.home.p, metal: r.metal, crystal: r.crystal, deuterium: r.deuterium,
+    });
   }
 
   /** Debris reduced/cleared by a member's recyclers (exact amounts), also used by the backfill. */

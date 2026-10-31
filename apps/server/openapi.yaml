@@ -135,6 +135,11 @@ components:
         state: { $ref: '#/components/schemas/LootState' }
         result: { type: object, description: 'Settlement of `state` computed by @pr0hub/loot' }
         done: { type: array, items: { type: string }, description: 'Deliveries marked done ("<from id>><to id>")' }
+        delivered:
+          type: object
+          description: 'Finalized: resources the transport messages show delivered per delivery ("<from id>><to id>")'
+          additionalProperties: { type: object, properties: { m: { type: integer }, k: { type: integer }, d: { type: integer } } }
+        auto_done: { type: array, items: { type: string }, description: Deliveries the transport messages show delivered in full }
     LootState:
       type: object
       description: >-
@@ -2630,7 +2635,8 @@ paths:
         follows the synced data) and, once finalized, the number of deliveries and how many are marked done. `stage`:
         open settlements of the last week are checked against the hub's data (`waiting` with `missing` items, else
         `ready`; older ones `open`), finalized ones are `delivering` until every delivery is ticked off (`settled`).
-        `deadline` is 24 hours after the last battle, `mine` the caller's open deliveries of a finalized settlement.
+        `deadline` is 24 hours after the last battle, `mine` the caller's open deliveries of a finalized settlement;
+        deliveries the transport messages show delivered in full count as done.
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
@@ -2737,13 +2743,18 @@ paths:
         by cargo space unless a member's fleet return messages (one per fleet in the report, the first after the battle)
         or else their flights home in the overview (first per fleet with its surviving ships) tell what each fleet
         brought home (`sources.returnLoot`, `sources.returnSource`; together at most the battle's loot), recycling
-        reports at the target within 24 hours (`key` `r<id>`, members outside the plan as helpers keeping 20 %) and the
-        deuterium of the attack flights. `sources` tells where the draft's values come from. `overrides` are the
+        reports at the target within 24 hours (`key` `r<id>`, members outside the plan as helpers keeping 20 %), the
+        deuterium of the attack flights (with the flight time of their return flight in the overview when seen, else
+        the planned speed: `sources.flightDeutFrom`), the deuterium of the recycler flights estimated from the
+        recyclers' return messages (`sources.recDeut`) and the interplanetary missiles of the members' missile impact
+        messages on the target (`sources.missiles`). `sources` tells where the draft's values come from. `overrides` are the
         corrections made by hand on top of the draft (`Overrides` of `@pr0hub/loot`, null if none), `corrected` when
         they were last saved. `state` is the settlement everyone sees: the draft with the corrections (so data synced
         later flows in), or, once `finalized`, the state frozen then; `finalized.live` is what it would be now and
         `finalized.changes` counts the differences per kind. `result` is computed from `state` by `@pr0hub/loot`, `done`
-        lists the deliveries marked done, `me` is the caller's id in a settlement. A hold is settled like an ACS:
+        lists the deliveries marked done, `delivered` what the members' transport messages show delivered per delivery
+        of a finalized settlement and `auto_done` the deliveries delivered in full by them, `me` is the caller's id in a
+        settlement. A hold is settled like an ACS:
         participants are the hold fleets and the attacked member, the battle report's defenders (ships only) and no
         loot, so the debris covers their losses.
       responses:

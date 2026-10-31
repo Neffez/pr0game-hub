@@ -9,7 +9,7 @@ import { events } from '../events.js';
 import { ingest } from '../ingest.js';
 import { planFromReport } from '../repo/reportPlan.js';
 import type { PlanRow } from '../repo/plans.js';
-import { correctionsOf, memberKey, settlementChecks, settlementDraft, storedSettlement } from '../repo/settlements.js';
+import { correctionsOf, memberKey, settlementChecks, settlementDraft, storedSettlement, transportDeliveries } from '../repo/settlements.js';
 import { clampInt, contextOf, DISPLAY, MEMBER, type Q } from './util.js';
 
 /** Battles count for a plan from an hour before its time until an hour after (as in the draft). */
@@ -90,7 +90,8 @@ export function settlementRoutes(app: FastifyInstance, db: DB) {
         const state = p.finalized_at != null && p.data ? cleanState(JSON.parse(p.data)) : null;
         const result = state ? settle(state) : null;
         const transfers = state ? (state.transfers ?? result!.transfers).filter((x) => x.res.m + x.res.k + x.res.d > 0) : [];
-        const done = new Set(JSON.parse(p.done ?? '[]') as string[]);
+        // ticked off by hand or delivered by the transport messages
+        const done = new Set([...(JSON.parse(p.done ?? '[]') as string[]), ...(state ? transportDeliveries(db, ctx, state, transfers).done : [])]);
         const open = transfers.filter((x) => !done.has(`${x.from}>${x.to}`));
         saved = {
           updated_at: p.updated_at, updated_by: p.updated_by, finalized_at: p.finalized_at, deliveries: transfers.length,
@@ -159,6 +160,9 @@ export function settlementRoutes(app: FastifyInstance, db: DB) {
     const live = applyOverrides(draft.state, overrides);
     const final = stored?.finalizedAt != null && stored.final ? stored.final : null;
     const state = final ?? live;
+    const result = settle(state);
+    // deliveries of a finalized settlement the members' transport messages show
+    const transported = final ? transportDeliveries(db, ctx, final, (final.transfers ?? result.transfers).filter((x) => x.res.m + x.res.k + x.res.d > 0)) : null;
     return {
       plan: {
         id: plan.id, mission: plan.mission, g: plan.g, s: plan.s, p: plan.p, planet_type: plan.planet_type, target_time: plan.target_time,
@@ -172,8 +176,10 @@ export function settlementRoutes(app: FastifyInstance, db: DB) {
       corrected: stored ? { updated_at: stored.updatedAt, updated_by: stored.updatedBy } : null,
       finalized: final ? { at: stored!.finalizedAt!, by: stored!.finalizedBy, live, changes: stateChanges(final, live) } : null,
       state,
-      result: settle(state),
+      result,
       done: stored?.done ?? [],
+      delivered: transported?.delivered ?? {},
+      auto_done: transported?.done ?? [],
     };
   }
 

@@ -166,6 +166,75 @@ describe('raid settlements', () => {
     await call('DELETE', url, as.carol);
   });
 
+  it('takes missiles, recycler and flight deuterium from synced messages and ticks off deliveries by transport messages', async () => {
+    const url = `/plans/${planId}/settlement`;
+    // the messages are stored like any sync
+    const text = [
+      'Transportbericht', '24. Okt 2026, 14:00:00',
+      'Eine deiner Flotten von Heim [2:90:4] erreicht den Planet Dave [2:95:4] und liefert 1.000 Metall, 0 Kristall und 0 Deuterium.',
+      'Raketeneinschlag', '24. Okt 2026, 12:50:00', 'Interplanetarraketen (3) von Heim [2:90:4] sind auf dem Planeten Ziel [2:100:8] eingeschlagen',
+      'Flottenrückkehr', '24. Okt 2026, 13:30:00', 'Eine deiner Recycler-Flotten kehrt nach Heim [2:90:4] mit 1 Metall, 2 Kristall und 0 Deuterium zurück.',
+    ].join('\n');
+    const counts = (await call('POST', '/ingest', as.carol, { text })).json().counts;
+    expect(counts).toMatchObject({ transports: { new: 1 }, missile_impacts: { new: 1 }, recycle_returns: { new: 1 } });
+    expect((await call('POST', '/ingest', as.carol, { text })).json().counts).toMatchObject({ transports: { new: 0, duplicate: 1 } });
+    for (const t of ['transports', 'missile_impacts', 'recycle_returns']) db.prepare(`DELETE FROM ${t}`).run();
+
+    const planned = (await call('GET', url, as.carol)).json();
+    expect(planned.draft.sources.flightDeutFrom).toEqual({ [`u${ids.carol}`]: 'plan', [`u${ids.dave}`]: 'plan' });
+    // Carol fired 12 missiles before the battle (two messages), Dave's recyclers... none; her recyclers came home after 50 minutes
+    const impact = db.prepare("INSERT INTO missile_impacts (group_id, user_id, dedupe_key, time, count, from_g, from_s, from_p, g, s, p) VALUES (?, ?, ?, ?, ?, 2, 90, 4, 2, 100, 8)");
+    impact.run(groupA, ids.carol, 'i1', target - 600, 10);
+    impact.run(groupA, ids.carol, 'i2', target - 500, 2);
+    impact.run(groupA, ids.carol, 'i3', target - 3 * 86400, 99); // an older attack
+    db.prepare("INSERT INTO recycle_returns (group_id, user_id, dedupe_key, time, home_g, home_s, home_p, metal, crystal, deuterium) VALUES (?, ?, 'c1', ?, 2, 90, 4, 300000, 100000, 0)")
+      .run(groupA, ids.carol, target + 600 + 3000);
+    // Dave's fleet flew home in 40 minutes (the plan said 100 %)
+    const back = {
+      owner: 'own', player: null, mission: 2, missionName: 'Verbandsangriff', phase: 'return', seconds: 0, clock: null, arrival: target + 2400,
+      from: { coords: { g: 2, s: 100, p: 8 }, type: 'planet', name: 'Ziel' }, to: { coords: { g: 2, s: 95, p: 4 }, type: 'planet', name: 'Heim' },
+      ships: { 207: 30 }, resources: { 901: 0, 902: 0, 903: 0 },
+    };
+    db.prepare('INSERT INTO fleet_snapshots (group_id, user_id, page_time, data) VALUES (?, ?, ?, ?)').run(groupA, ids.dave, target + 60, JSON.stringify([back]));
+    let body = (await call('GET', url, as.carol)).json();
+    const { sources, state } = body.draft;
+    expect(sources.missiles).toEqual({ [`u${ids.carol}`]: 12 });
+    expect(state.participants[0].missiles).toBe(12);
+    expect(sources.recDeut[`u${ids.carol}`]).toBeGreaterThan(0);
+    expect(state.participants[0].recDeut).toBe(sources.recDeut[`u${ids.carol}`]);
+    expect(sources.flightDeutFrom).toEqual({ [`u${ids.carol}`]: 'plan', [`u${ids.dave}`]: 'fleet' });
+    expect(state.participants[1].flightDeut).not.toBe(planned.draft.state.participants[1].flightDeut);
+    expect(state.participants[0].flightDeut).toBe(planned.draft.state.participants[0].flightDeut);
+
+    // finalized: the transport messages tick off the deliveries
+    body = (await call('POST', `${url}/finalize`, as.carol, {})).json();
+    const x = body.result.transfers.find((t: { res: { m: number; k: number; d: number } }) => t.res.m + t.res.k + t.res.d > 0);
+    expect(body.auto_done).toEqual([]);
+    const homes: Record<string, [number, number, number]> = { [`u${ids.carol}`]: [2, 90, 4], [`u${ids.dave}`]: [2, 95, 4], [`u${ids.erin}`]: [2, 80, 1] };
+    const transport = db.prepare(
+      `INSERT INTO transports (group_id, user_id, dedupe_key, time, side, from_g, from_s, from_p, to_g, to_s, to_p, metal, crystal, deuterium)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    );
+    const sender = Number(x.from.slice(1));
+    const receiver = Number(x.to.slice(1));
+    // half of it first, synced by both (one transport), then the rest by the receiver only
+    const half = { m: Math.floor(x.res.m / 2), k: Math.floor(x.res.k / 2), d: Math.floor(x.res.d / 2) };
+    transport.run(groupA, sender, 't1', target + 4000, 'own', ...homes[x.from], ...homes[x.to], half.m, half.k, half.d);
+    transport.run(groupA, receiver, 't1', target + 4000, 'foreign', ...homes[x.from], ...homes[x.to], half.m, half.k, half.d);
+    body = (await call('GET', url, as.carol)).json();
+    expect(body.delivered[`${x.from}>${x.to}`]).toEqual(half);
+    expect(body.auto_done).toEqual([]);
+    transport.run(groupA, receiver, 't2', target + 5000, 'foreign', ...homes[x.from], ...homes[x.to], x.res.m - half.m, x.res.k - half.k, x.res.d - half.d);
+    body = (await call('GET', url, as.carol)).json();
+    expect(body.auto_done).toEqual([`${x.from}>${x.to}`]);
+    // a transport the other way does not count
+    expect(body.delivered[`${x.to}>${x.from}`]).toBeUndefined();
+
+    for (const t of ['transports', 'missile_impacts', 'recycle_returns']) db.prepare(`DELETE FROM ${t}`).run();
+    db.prepare('DELETE FROM fleet_snapshots WHERE user_id = ?').run(ids.dave);
+    await call('DELETE', url, as.carol);
+  });
+
   it('stores the loot of archived battle reports', async () => {
     const { storeCombatReport } = await import('../src/store.js');
     storeCombatReport(db, groupA, {

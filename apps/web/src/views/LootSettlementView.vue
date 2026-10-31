@@ -25,6 +25,9 @@ interface Sources {
   returnLoot: Record<string, Record<number, Res>>;
   returnSource?: Record<string, 'message' | 'overview'>;
   flightDeut: Record<string, number>;
+  flightDeutFrom?: Record<string, 'fleet' | 'plan'>;
+  recDeut?: Record<string, number>;
+  missiles?: Record<string, number>;
   recycling: { by: string; time: number | null }[];
 }
 /** `GET /plans/:id/settlement`: the draft from the hub's data, the corrections on top, or the finalized state. */
@@ -40,6 +43,9 @@ interface Response {
   finalized: { at: number; by: string | null; live: LootState; changes: StateChanges } | null;
   state: LootState;
   done: string[];
+  /** finalized: what the transport messages show delivered per delivery, and the deliveries delivered in full */
+  delivered: Record<string, Res>;
+  auto_done: string[];
 }
 
 const RES: (keyof Res)[] = ['m', 'k', 'd'];
@@ -101,7 +107,10 @@ function show(res: Response) {
   fill(res.state);
 }
 onMounted(() => load(true));
-useLiveReload(() => load(), tables('raid_settlements', 'battle_reports', 'combat_reports', 'recycle_reports', 'fleet_returns'));
+useLiveReload(
+  () => load(),
+  tables('raid_settlements', 'battle_reports', 'combat_reports', 'recycle_reports', 'fleet_returns', 'transports', 'missile_impacts', 'recycle_returns', 'fleets'),
+);
 watch(state, () => {
   if (!filling) dirty.value = true;
 }, { deep: true });
@@ -271,7 +280,18 @@ const shipsText = (ships: Record<number, number>) =>
 // ---- deliveries ----
 const transfers = computed<TransferInput[]>(() => state.value?.transfers ?? result.value?.transfers ?? []);
 const keyOf = (x: TransferInput) => `${x.from}>${x.to}`;
-const done = computed(() => new Set(data.value?.done ?? []));
+const done = computed(() => new Set([...(data.value?.done ?? []), ...(data.value?.auto_done ?? [])]));
+const autoDone = computed(() => new Set(data.value?.auto_done ?? []));
+/** what the transport messages show delivered of a delivery not complete yet */
+const partly = (x: TransferInput) => (autoDone.value.has(keyOf(x)) ? null : (data.value?.delivered[keyOf(x)] ?? null));
+/** Where a participant's value comes from (synced data), for the mark next to it. */
+function sourceOf(id: string, f: 'flightDeut' | 'recDeut' | 'missiles'): string | null {
+  const src = sources.value;
+  if (!src) return null;
+  if (f === 'flightDeut') return src.flightDeut[id] == null ? null : src.flightDeutFrom?.[id] === 'fleet' ? t('loot.fromFleetTime') : t('loot.fromPlan');
+  if (f === 'recDeut') return src.recDeut?.[id] != null ? t('loot.fromRecycleReturn') : null;
+  return src.missiles?.[id] != null ? t('loot.fromMissiles') : null;
+}
 const shipsFor = (r: Res) => {
   const cap = CAPACITY[state.value?.settings.cargoShip ?? 203] ?? 25000;
   return Math.ceil((r.m + r.k + r.d) / cap);
@@ -441,7 +461,9 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
                     >
                       <Icon name="edit" :size="12" :label="t('loot.manual')" />
                     </button>
-                    <span v-else-if="f === 'flightDeut' && sources?.flightDeut[p.id] != null" class="src"><Icon name="check" :size="12" :label="t('loot.fromPlan')" /></span>
+                    <span v-else-if="sourceOf(p.id, f)" class="src" :class="{ est: f === 'recDeut' || (f === 'flightDeut' && sources?.flightDeutFrom?.[p.id] !== 'fleet') }">
+                      <Icon name="check" :size="12" :label="sourceOf(p.id, f)!" />
+                    </span>
                   </td>
                 </tr>
               </tbody>
@@ -537,8 +559,8 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
             </tbody>
           </table>
           </div>
-          <template v-if="editing">
-            <h3 style="margin-top: 12px">{{ t('loot.pasteRecycling') }} <Hint>{{ t('loot.pasteRecyclingHint') }}</Hint></h3>
+          <details v-if="editing" class="fallback">
+            <summary class="small muted">{{ t('loot.pasteRecycling') }} <Hint>{{ t('loot.pasteRecyclingHint') }}</Hint></summary>
             <textarea v-model="recycleText" class="report" :placeholder="t('loot.pasteRecyclingPlaceholder')" />
             <div class="row small" style="gap: 8px; margin-top: 6px">
               <select v-model="recycleBy" :aria-label="t('loot.recycledBy')">
@@ -546,7 +568,7 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
               </select>
               <button :disabled="!recycleText.trim()" @click="applyRecycling">{{ t('common.apply') }}</button>
             </div>
-          </template>
+          </details>
           <template v-if="state.helpers.length">
             <h3>{{ t('loot.helpers') }} <Hint>{{ t('loot.helpersHint') }}</Hint></h3>
             <label class="row small tick" style="margin-bottom: 6px">
@@ -670,9 +692,14 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
               <tr v-for="x in transfers" :key="keyOf(x)" :class="{ dim: done.has(keyOf(x)) }">
                 <td>
                   <label class="tick">
-                    <input type="checkbox" :checked="done.has(keyOf(x))" :disabled="busy || !mayTick(x)" @change="tick(x, ($event.target as HTMLInputElement).checked)" />
+                    <input
+                      type="checkbox" :checked="done.has(keyOf(x))" :disabled="busy || !mayTick(x) || autoDone.has(keyOf(x))"
+                      @change="tick(x, ($event.target as HTMLInputElement).checked)"
+                    />
                     {{ t('loot.sends', { from: personName(x.from), to: personName(x.to) }) }}
                   </label>
+                  <div v-if="autoDone.has(keyOf(x))" class="small ok">{{ t('loot.byTransport') }}</div>
+                  <div v-else-if="partly(x)" class="small warn">{{ t('loot.partlyDelivered', { what: resText(partly(x)!) || '0' }) }}</div>
                 </td>
                 <td v-for="k in RES" :key="k" class="num">{{ x.res[k] ? `${fmt(x.res[k])} ${name(RES_IDS[k])}` : '' }}</td>
                 <td class="num faint">{{ t('loot.ships', { n: shipsFor(x.res), ship: abbr(state.settings.cargoShip) }) }}</td>
@@ -707,6 +734,9 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
 button.link { background: none; border: 0; padding: 0 4px; color: var(--accent); text-decoration: underline; cursor: pointer; }
 button.src { background: none; border: 0; padding: 0; cursor: pointer; }
 .src.manual { color: var(--warn); margin-left: 4px; }
+.src.est { color: var(--muted); }
+.fallback { margin-top: 12px; }
+.fallback summary { cursor: pointer; }
 .debris { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; }
 .import { gap: 6px; margin: 0 0 12px; }
 .import input { flex: 1; min-width: 200px; }

@@ -25,6 +25,9 @@ import {
   type LocalDateTime,
 } from '../util.js';
 import { FLEET_RETURN_START_RE, parseFleetReturnText } from './fleetReturn.js';
+import {
+  MISSILE_START_RE, parseMissileImpactText, parseRecycleReturnText, parseTransportText, RECYCLE_RETURN_START_RE, TRANSPORT_START_RE,
+} from './logistics.js';
 import { parseRecycleText, RECYCLE_START_RE } from './recycle.js';
 
 // ---------------------------------------------------------------- spy reports
@@ -444,7 +447,9 @@ export function parseMessagesHtml($: CheerioAPI): HubRecord[] {
       if (r) records.push(r);
       return;
     }
-    const r = parseHostileText(text, msgId, time) ?? parseRecycleText(text, msgId, time) ?? parseFleetReturnText(text, msgId, time);
+    const r =
+      parseHostileText(text, msgId, time) ?? parseRecycleText(text, msgId, time) ?? parseFleetReturnText(text, msgId, time) ??
+      parseTransportText(text, msgId, time) ?? parseMissileImpactText(text, msgId, time) ?? parseRecycleReturnText(text, msgId, time);
     if (r) records.push(r);
   });
   return records;
@@ -464,7 +469,7 @@ function parseBattleHtml($: CheerioAPI, el: Element, msgId: number | null, time:
   return parseBattleText(text, msgId, time, { reportId, outcome });
 }
 
-type Anchor = { index: number; kind: 'spy' | 'battle' | 'expedition' | 'hostile' | 'recycle' | 'fleetReturn' };
+type Anchor = { index: number; kind: 'spy' | 'battle' | 'expedition' | 'hostile' | 'recycle' | 'fleetReturn' | 'transport' | 'missileImpact' | 'recycleReturn' };
 
 /**
  * Plain text copy of the messages page (or of single messages). Messages are
@@ -483,6 +488,9 @@ export function parseMessagesText(text: string): HubRecord[] {
   scan(/(?:Feindliche Spionagesonden|Enemy spy probes)/, 'hostile');
   scan(RECYCLE_START_RE, 'recycle');
   scan(FLEET_RETURN_START_RE, 'fleetReturn');
+  scan(TRANSPORT_START_RE, 'transport');
+  scan(MISSILE_START_RE, 'missileImpact');
+  scan(RECYCLE_RETURN_START_RE, 'recycleReturn');
   anchors.sort((a, b) => a.index - b.index);
   // A battle summary directly following an expedition start belongs to that expedition (pirates/aliens).
   for (let i = anchors.length - 1; i > 0; i--) {
@@ -523,6 +531,15 @@ export function parseMessagesText(text: string): HubRecord[] {
       if (r) records.push(r);
     } else if (a.kind === 'fleetReturn') {
       const r = parseFleetReturnText(block, null, time);
+      if (r) records.push(r);
+    } else if (a.kind === 'transport') {
+      const r = parseTransportText(block, null, time);
+      if (r) records.push(r);
+    } else if (a.kind === 'missileImpact') {
+      const r = parseMissileImpactText(block, null, time);
+      if (r) records.push(r);
+    } else if (a.kind === 'recycleReturn') {
+      const r = parseRecycleReturnText(block, null, time);
       if (r) records.push(r);
     } else {
       const r = parseHostileText(block, null, time);

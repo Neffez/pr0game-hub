@@ -284,6 +284,15 @@ export function aboutRecords(records: HubRecord[]): About[] {
       case 'fleetReturn':
         add(c(r.target));
         break;
+      case 'transport':
+        add(`${c(r.from)} → ${c(r.to)}`);
+        break;
+      case 'missileImpact':
+        add(c(r.target));
+        break;
+      case 'recycleReturn':
+        add(c(r.home));
+        break;
       case 'battleHall':
         add(...r.entries.flatMap((e) => e.attackers));
         break;
@@ -337,6 +346,12 @@ function describe(r: HubRecord): PreviewItem {
       return { kind: r.kind, coords: c(r.coords), amount: r.metal + r.crystal };
     case 'fleetReturn':
       return { kind: r.kind, coords: c(r.target), amount: r.metal + r.crystal + r.deuterium };
+    case 'transport':
+      return { kind: r.kind, from: c(r.from), to: c(r.to), amount: r.metal + r.crystal + r.deuterium };
+    case 'missileImpact':
+      return { kind: r.kind, coords: c(r.target), count: r.count };
+    case 'recycleReturn':
+      return { kind: r.kind, coords: c(r.home), amount: r.metal + r.crystal + r.deuterium };
     case 'playerMessage':
       return { kind: r.kind, from: r.from.name, to: r.to.map((p) => p.name).join(', '), subject: r.subject, time: r.time };
   }

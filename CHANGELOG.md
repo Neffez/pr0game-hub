@@ -4,6 +4,16 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-31
 
+- Sync reads three more messages (DE/EN, pirate language): transport reports (sender's and receiver's copy,
+  `transports`), interplanetary missile impacts (`missile_impacts`) and recyclers coming home (`recycle_returns`),
+  migration `069`, with preview lines and counts. The loot settlement takes them: each member's missiles fired on the
+  target from a day before until the last battle, the recycler deuterium estimated from the recycling report and the
+  recyclers' return (flight time, recyclers for the cargo, home planet), and the flight deuterium with the real flight
+  time of the attack fleets' return flight in the overview (else the planned speed, marked as an estimate).
+  Deliveries of a finalized settlement are ticked off when the transport messages show them delivered in full (both
+  copies of a transport count once, several transports add up, a part shows as "delivered so far"; planets by owner in
+  the galaxy data or by who synced the copy): `delivered` and `auto_done` in `GET /plans/{id}/settlement`, counted as
+  done in `GET /settlements`. Pasting recycling reports in the settlement is folded away as a fallback.
 - Loot settlement visibility: a "Data status" section lists what the synced data covers and who still has to sync
   what (battle report archived or only the message, each member's fleet return message or overview estimate, recycling
   reports and an emptied field they do not cover; `checks` in `GET /plans/{id}/settlement`, `settlementChecks`). A
