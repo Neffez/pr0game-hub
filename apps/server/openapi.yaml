@@ -1172,7 +1172,10 @@ paths:
     post:
       tags: [Admin]
       operationId: removeGroupFleetAttack
-      description: Removes one attack from every stored fleet list of the member and unhides it; global admins.
+      description: |
+        Removes one attack (one wave with `arrival`) from every stored fleet list of the member; global admins. The
+        alliance's hidden mark of the key is removed only when no stored fleet list of the alliance still holds an
+        attack with this key.
       security: [{ sessionCookie: [] }]
       requestBody:
         required: true

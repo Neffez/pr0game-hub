@@ -4,6 +4,8 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-31
 
+- Admin, stored fleet attacks: removing one of several waves with the same key keeps the alliance's "hidden" mark of
+  the key while another wave is still in a stored fleet list; it goes with the last one.
 - Battle hall and combat reports keep the participant names stored first (replaces the rename handling of 2026-10-30):
   the game shows a renamed player's new name and "-" or nothing for a deleted account, the hub keeps the original;
   only a place without a usable name takes the incoming one. Archived combat reports take ships and losses of a new

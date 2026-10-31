@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Angriffe: Entfernt ein Admin eine falsch erkannte Welle, bleibt eine gleiche, ausgeblendete Welle weiter ausgeblendet.',
+        en: 'Attacks: when an admin removes a wrongly detected wave, an identical wave that was hidden stays hidden.',
+      },
+      {
+        kind: 'fix',
         de: 'Kampfhalle und Kampfberichte behalten die Namen vom ersten Sync, auch wenn sich ein Spieler umbenennt oder löscht. Die Suche findet Kämpfe mit früheren und aktuellen Namen.',
         en: 'Battle hall and combat reports keep the names of the first sync, even when a player renames or deletes their account. Search finds battles by former and current names.',
       },

@@ -186,7 +186,9 @@ export function memberFleetAttacks(
 
 /**
  * Removes one attack (solo or ACS) from every stored fleet list of the member. Waves with the same route and ships
- * share the key: `arrival` picks one of them, without it all go. Returns how many snapshots were changed.
+ * share the key: `arrival` picks one of them, without it all go. The alliance's "hidden" mark of the key goes only when
+ * no fleet list of the group still holds an attack with it (another wave stays hidden). Returns how many snapshots
+ * were changed.
  */
 export function removeStoredAttack(db: DB, groupId: number, userId: number, key: string, arrival?: number): number {
   const rows = db
@@ -212,8 +214,19 @@ export function removeStoredAttack(db: DB, groupId: number, userId: number, key:
     update.run(JSON.stringify(data.filter((_, i) => !drop.has(i))), row.id);
     changed++;
   }
-  if (changed) db.prepare('DELETE FROM hidden_attacks WHERE group_id = ? AND attack_key = ?').run(groupId, key);
+  if (changed && !storedAttackKeys(db, groupId).has(key)) {
+    db.prepare('DELETE FROM hidden_attacks WHERE group_id = ? AND attack_key = ?').run(groupId, key);
+  }
   return changed;
+}
+
+/** Keys of the attacks in all stored fleet lists of the group. */
+function storedAttackKeys(db: DB, groupId: number): Set<string> {
+  const keys = new Set<string>();
+  for (const data of db.prepare('SELECT data FROM fleet_snapshots WHERE group_id = ?').pluck().all(groupId) as string[]) {
+    for (const g of attackGroups(JSON.parse(data) as StoredFleet[], ATTACK_OWNERS)) keys.add(g.key);
+  }
+  return keys;
 }
 
 /**

@@ -4,7 +4,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 process.env.WEB_DIR = '/nonexistent';
 
 const { buildApp } = await import('../src/app.js');
-const { openDb } = await import('../src/db.js');
+const { openDb, now } = await import('../src/db.js');
 const { hashPassword } = await import('../src/auth.js');
 const { scoreEntry, statSlots } = await import('../src/domain/stats.js');
 
@@ -364,6 +364,30 @@ describe('api', () => {
     list = (await app.inject({ method: 'GET', url: `/hub/api/admin/groups/${groupA}/fleet-attacks`, headers: admin })).json();
     expect(list).toHaveLength(0);
     expect((await app.inject({ method: 'GET', url: '/hub/api/u8/hostile-attacks', headers })).json()).toHaveLength(0);
+  });
+
+  it('removes one of two equal waves and keeps the other hidden', async () => {
+    const headers = { ...admin, 'x-hub-group': String(groupA) };
+    const line = (clock: string, left: string) =>
+      `3T ${clock} | 3d ${left} Eine Flotten vom Mond auch ein Satellit [3:4:1] erreicht den Mond Spicy Noodle [1:82:4]. Mission: Angreifen`;
+    await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { text: [line('17:13:37', '01h 25m 12s'), line('18:13:37', '02h 25m 12s')].join('\n') } });
+    const list = async () => (await app.inject({ method: 'GET', url: `/hub/api/admin/groups/${groupA}/fleet-attacks`, headers: admin })).json() as any[];
+    const waves = await list();
+    expect(waves).toHaveLength(2);
+    expect(waves[0].key).toBe(waves[1].key);
+    const { userId, key } = waves[0];
+    db.prepare('INSERT INTO hidden_attacks (group_id, attack_key, until, user_id, created_at) VALUES (?, ?, ?, ?, ?)').run(groupA, key, now() + 86400 * 5, userId, now());
+    const hidden = () => db.prepare('SELECT COUNT(*) FROM hidden_attacks WHERE group_id = ? AND attack_key = ?').pluck().get(groupA, key);
+    const remove = (arrival: number) =>
+      app.inject({ method: 'POST', url: `/hub/api/admin/groups/${groupA}/fleet-attacks/remove`, headers: admin, payload: { userId, key, arrival } });
+
+    expect((await remove(waves[0].arrival)).statusCode).toBe(200);
+    expect((await list()).map((w) => w.arrival)).toEqual([waves[1].arrival]);
+    // the other wave is still there: it stays hidden
+    expect(hidden()).toBe(1);
+    expect((await remove(waves[1].arrival)).statusCode).toBe(200);
+    expect(await list()).toHaveLength(0);
+    expect(hidden()).toBe(0);
   });
 
   it('notifies the group of hostile fleets heading for a member', async () => {
