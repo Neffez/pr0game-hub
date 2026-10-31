@@ -93,7 +93,7 @@ const EMBEDS_PER_MESSAGE = 10;
 /** A rate limit is waited for once if it ends within this many seconds. */
 const MAX_RETRY_AFTER = 10;
 const COLORS: Record<ChannelNotification['kind'] | Notification['kind'] | 'access', number> = {
-  attack: 0xe74c3c, launch: 0xf39c12, invite: 0x3498db, plan: 0x3498db, comment: 0x95a5a6, building: 0x2ecc71, fleet: 0x6e8eea, storage: 0xe67e22, access: 0x1abc9c,
+  attack: 0xe74c3c, launch: 0xf39c12, invite: 0x3498db, plan: 0x3498db, comment: 0x95a5a6, building: 0x2ecc71, fleet: 0x6e8eea, storage: 0xe67e22, settlement: 0xf1c40f, access: 0x1abc9c,
 };
 
 type Item = { kind: keyof typeof COLORS; payload: PushPayload; mention?: string | null };

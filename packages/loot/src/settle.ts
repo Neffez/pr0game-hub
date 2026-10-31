@@ -1,7 +1,7 @@
 import { ACS_LIMITS, fleetCapacity } from '@pr0hub/flight';
 import { add, apportion, deutValue, lostShips, rate, res, roundResTo, scale, shipCosts, sub, sum, total, ZERO } from './res.js';
 import { planTransfers } from './transfers.js';
-import type { Battle, PersonResult, Res, ResKey, SettlementInput, SettlementResult, SettlementWarning } from './types.js';
+import type { Battle, Participant, PersonResult, Res, ResKey, SettlementInput, SettlementResult, SettlementWarning } from './types.js';
 import { RES_KEYS } from './types.js';
 
 /** Most participants of an ACS (the game's limit). */
@@ -94,6 +94,18 @@ function allocate(claims: Res[], supply: Res, rates: Res, deficitMetalShare: num
   });
 }
 
+/**
+ * Profit shares in percent when the profit is split by percent: the percent set per participant, the rest of 100 %
+ * split equally among those without one (none set: equal shares). The sum may differ from 100 when the percents set
+ * do (the settlement then scales them and warns).
+ */
+export function profitPercents(participants: Pick<Participant, 'sharePct'>[]): number[] {
+  const set = participants.filter((p) => p.sharePct != null);
+  const rest = participants.length - set.length;
+  const each = rest ? Math.max(0, 100 - set.reduce((a, p) => a + p.sharePct!, 0)) / rest : 0;
+  return participants.map((p) => p.sharePct ?? each);
+}
+
 /** Settles an ACS: covers the costs of the participants and the helpers' parts, splits the profit, plans transfers. */
 export function settle(input: SettlementInput): SettlementResult {
   const { participants, helpers, battles, recycling, settings } = input;
@@ -162,11 +174,18 @@ export function settle(input: SettlementInput): SettlementResult {
   const coveredSum = sum(covered);
   const profit = { m: Math.max(0, pot.m - coveredSum.m), k: Math.max(0, pot.k - coveredSum.k), d: Math.max(0, pot.d - coveredSum.d) };
 
-  // profit shares: equal, or by the value of the ships sent
+  // profit shares: by percent (equal by default), or by the value of the ships sent
   const invested = participants.map((p) => sent.get(p.id)!);
   const investSum = invested.reduce((s, v) => s + v, 0);
+  const percents = profitPercents(participants);
+  if (settings.mode !== 'investment' && participants.some((p) => p.sharePct != null) && Math.abs(percents.reduce((a, v) => a + v, 0) - 100) > 0.01) {
+    warnings.add('shares_not_100');
+  }
+  const percentSum = percents.reduce((a, v) => a + v, 0);
   const shares = participants.map((_, i) =>
-    settings.mode === 'investment' && investSum > 0 ? invested[i] / investSum : 1 / participants.length,
+    settings.mode === 'investment' && investSum > 0
+      ? invested[i] / investSum
+      : percentSum > 0 ? percents[i] / percentSum : 1 / participants.length,
   );
   const entitledRaw = [
     ...participants.map((_, i) => add(covered[i], scale(profit, shares[i]))),

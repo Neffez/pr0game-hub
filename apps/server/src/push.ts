@@ -32,15 +32,17 @@ export interface PushPrefs {
   fleets: boolean;
   /** a storage on one of the user's planets is full */
   storage: boolean;
+  /** a loot settlement the user takes part in was finalized and they have deliveries to send or get */
+  settlements: boolean;
   /** someone requests access on the login page (global admins) */
   accessRequests: boolean;
   /** launch reminder this many minutes before */
   leadMinutes: number;
 }
 
-export const PUSH_DEFAULTS: PushPrefs = { attackSelf: true, attackOthers: false, invites: true, comments: true, launch: true, buildings: true, fleets: true, storage: true, accessRequests: true, leadMinutes: 5 };
+export const PUSH_DEFAULTS: PushPrefs = { attackSelf: true, attackOthers: false, invites: true, comments: true, launch: true, buildings: true, fleets: true, storage: true, settlements: true, accessRequests: true, leadMinutes: 5 };
 export const LEAD_MINUTES = [1, 2, 5, 10, 15, 30];
-const FLAGS = ['attackSelf', 'attackOthers', 'invites', 'comments', 'launch', 'buildings', 'fleets', 'storage', 'accessRequests'] as const;
+const FLAGS = ['attackSelf', 'attackOthers', 'invites', 'comments', 'launch', 'buildings', 'fleets', 'storage', 'settlements', 'accessRequests'] as const;
 
 /** The user's settings for push (`push_prefs`) or for their Discord webhook (`discord_prefs`). */
 export function pushPrefs(db: DB, userId: number, column: 'push_prefs' | 'discord_prefs' = 'push_prefs'): PushPrefs {
@@ -216,7 +218,7 @@ export class PushService {
         outbox.push({
           userId: user.id,
           payload: payloadOf(n, user.lang === 'en' ? 'en' : 'de', universe.slug, universe.settings.timezone, groupId, t),
-          ttl: Math.max(60, n.kind === 'comment' || n.kind === 'building' || n.kind === 'storage' ? 86400 : n.time - t),
+          ttl: Math.max(60, n.kind === 'comment' || n.kind === 'building' || n.kind === 'storage' || n.kind === 'settlement' ? 86400 : n.time - t),
           urgency: n.kind === 'attack' || n.kind === 'launch' || n.kind === 'fleet' ? 'high' : 'normal',
         });
       }
@@ -262,8 +264,13 @@ export function wanted(n: Notification, prefs: PushPrefs, userId: number, t: num
       return prefs.fleets && n.time - n.lead * 60 <= t;
     case 'storage':
       return prefs.storage;
+    case 'settlement':
+      return prefs.settlements;
   }
 }
+
+/** Amount in a short form (1,2 Mio. / 1.2M). */
+const short = (v: number, lang: string) => new Intl.NumberFormat(lang, { notation: 'compact', maximumFractionDigits: 1 }).format(v);
 
 /** Texts of the push notifications (the server builds them, so they live here, not in the web app's locales). */
 const DE = {
@@ -277,6 +284,9 @@ const DE = {
   unknown: 'Ziel noch offen',
   comment: (m: string, on: string) => `💬 ${m} zu ${on}`,
   settlement: (at: string) => `Beuteabrechnung ${at}`,
+  finalized: (at: string) => `💰 Beuteabrechnung ${at} festgeschrieben`,
+  youSend: (to: string, what: string) => `Du schickst ${to}: ${what}`,
+  youGet: (from: string, what: string) => `Du bekommst von ${from}: ${what}`,
   more: (n: number) => `(${n} neue)`,
   launch: (min: number) => `🚀 Start in ${min} Min`,
   launchBody: (from: string, to: string, at: string) => `${from} → ${to} · Start ${at}`,
@@ -311,6 +321,9 @@ const EN: typeof DE = {
   unknown: 'target still open',
   comment: (m: string, on: string) => `💬 ${m} on ${on}`,
   settlement: (at: string) => `loot settlement ${at}`,
+  finalized: (at: string) => `💰 Loot settlement ${at} finalized`,
+  youSend: (to: string, what: string) => `You send ${to}: ${what}`,
+  youGet: (from: string, what: string) => `You get from ${from}: ${what}`,
   more: (n: number) => `(${n} new)`,
   launch: (min: number) => `🚀 Launch in ${min} min`,
   launchBody: (from: string, to: string, at: string) => `${from} → ${to} · launch ${at}`,
@@ -409,6 +422,13 @@ export function payloadOf(n: Notification | ChannelNotification, lang: PushLang,
       const research = n.element >= 100;
       const title = (research ? L.research : L.building)(techName(n.element, lang), n.level);
       return { ...base, title, body: L.buildingBody(planet), url: link('build', { tab: research ? 'research' : 'buildings', c: `${p.g}:${p.s}:${p.p}`, type: p.type }) };
+    }
+    case 'settlement': {
+      const p = n.plan;
+      const what = (r: { m: number; k: number; d: number }) =>
+        ([[r.m, 901], [r.k, 902], [r.d, 903]] as const).filter(([v]) => v > 0).map(([v, id]) => `${short(v, lang)} ${techName(id, lang)}`).join(', ');
+      const body = [...n.sends.map((x) => L.youSend(x.to, what(x.res))), ...n.gets.map((x) => L.youGet(x.from, what(x.res)))].join(' · ');
+      return { ...base, title: L.finalized(coords(p.g, p.s, p.p, p.planet_type === 'moon')), body, url: link(`raid-planner/${p.id}/loot`) };
     }
     case 'storage': {
       const p = n.planet;

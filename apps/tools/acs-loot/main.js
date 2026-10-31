@@ -14,6 +14,7 @@ import {
   lootShares,
   newId,
   parseAmount,
+  profitPercents,
   recyclingFromReports,
   remaining,
   settle,
@@ -132,6 +133,8 @@ function rateField(path, value, label) {
 }
 
 function buildParticipants() {
+  // split by percent: a share per participant, empty = an equal part of what the others leave
+  var byPercent = S.settings.mode === 'equal';
   var rows = S.participants.map(function (p, i) {
     var base = 'participants.' + i + '.';
     return '<tr>' +
@@ -139,6 +142,9 @@ function buildParticipants() {
       '<td>' + amountInput(base + 'flightDeut', p.flightDeut) + '</td>' +
       '<td>' + amountInput(base + 'recDeut', p.recDeut) + '</td>' +
       '<td>' + amountInput(base + 'missiles', p.missiles) + '</td>' +
+      (byPercent ? '<td><input class="num" inputmode="decimal" autocomplete="off" data-bind="' + base + 'sharePct" data-type="sharePct" data-share-of="' +
+        esc(p.id) + '" aria-label="' + esc(t('sharePct') + ' ' + (p.name || '')) + '" value="' +
+        (p.sharePct == null ? '' : esc(String(p.sharePct).replace('.', LANG === 'de' ? ',' : '.'))) + '"></td>' : '') +
       '<td><button type="button" class="x" data-act="delParticipant" data-i="' + i + '" title="' + esc(t('remove')) + '">✕</button></td>' +
       '</tr>';
   }).join('');
@@ -146,7 +152,9 @@ function buildParticipants() {
     '<div class="card-title">' + esc(t('participants')) + '<span class="spacer"></span><span class="hint">' + S.participants.length + ' / ' + MAX_PARTICIPANTS + '</span></div>' +
     '<p class="card-hint">' + esc(t('participantsHint')) + '</p>' +
     (rows ? '<div class="table-wrap"><table><thead><tr><th>' + esc(t('name')) + '</th><th>' + esc(t('flightDeut')) + '</th><th>' +
-      esc(t('recDeut')) + '</th><th>' + esc(t('missiles')) + '</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div>' : '') +
+      esc(t('recDeut')) + '</th><th>' + esc(t('missiles')) + '</th>' +
+      (byPercent ? '<th>' + esc(t('sharePct')) + ' <button type="button" class="tip" aria-label="' + esc(t('info')) + '" data-tip="' + esc(t('sharePctHint')) + '"></button></th>' : '') +
+      '<th></th></tr></thead><tbody>' + rows + '</tbody></table></div>' : '') +
     '<div class="row-actions"><button type="button" class="btn" data-act="addParticipant"' +
     (S.participants.length >= MAX_PARTICIPANTS ? ' disabled' : '') + '>' + esc(t('addParticipant')) + '</button></div>';
 }
@@ -293,6 +301,7 @@ function renderResults(r) {
   var notes = [];
   if (r.warnings.indexOf('too_many_participants') >= 0) notes.push('<div class="note err">' + esc(t('tooMany')) + '</div>');
   if (r.coverage < 1) notes.push('<div class="note warn">' + esc(t('notCovered')) + '</div>');
+  if (r.warnings.indexOf('shares_not_100') >= 0) notes.push('<div class="note warn">' + esc(t('sharesNot100')) + '</div>');
   if (r.rateWarnings.length) {
     notes.push('<div class="note warn">' + esc(t('rateWarning') + r.rateWarnings.map(function (k) { return t(k === 'm' ? 'metal' : 'crystal'); }).join(', ')) + '</div>');
   }
@@ -418,11 +427,23 @@ function activeState() {
   return Object.assign({}, S, {participants: S.participants.filter(keep), helpers: S.helpers.filter(keep)});
 }
 
+/* The profit percent that applies now as placeholder of the share inputs (blank rows get none). */
+function renderShareHints() {
+  var active = activeState().participants;
+  var pct = profitPercents(active);
+  S.participants.forEach(function (p) {
+    var el = $('[data-share-of="' + p.id + '"]');
+    var i = active.indexOf(p);
+    if (el) el.placeholder = i >= 0 ? String(Math.round(pct[i] * 10) / 10).replace('.', LANG === 'de' ? ',' : '.') : '';
+  });
+}
+
 function render() {
   lastResult = settle(activeState());
   renderResults(lastResult);
   renderTransfers(lastResult);
   renderLootHints();
+  renderShareHints();
   renderDebris();
 }
 
@@ -477,6 +498,16 @@ function onInput(el) {
     } else if (r != null) {
       setPath(path, r);
     }
+    update();
+    return;
+  }
+  if (type === 'sharePct') {
+    // empty: back to the equal part of the rest
+    var pv = parseFloat(String(raw).replace(',', '.'));
+    var who = S.participants[Number(path.split('.')[1])];
+    el.classList.toggle('invalid', raw.trim() !== '' && !Number.isFinite(pv));
+    if (raw.trim() === '') delete who.sharePct;
+    else if (Number.isFinite(pv)) who.sharePct = Math.min(100, Math.max(0, pv));
     update();
     return;
   }
@@ -553,7 +584,7 @@ function onChange(el) {
 }
 
 var ACTIONS = {
-  mode: function (el) { S.settings.mode = el.getAttribute('data-mode'); buildSettings(); },
+  mode: function (el) { S.settings.mode = el.getAttribute('data-mode'); buildSettings(); buildParticipants(); },
   helperDeut: function (el) { S.settings.helperDeut = el.getAttribute('data-on') === '1'; buildHelpers(); },
   cargo: function (el) { S.settings.cargoShip = Number(el.getAttribute('data-ship')); buildSettings(); },
   addParticipant: function () {

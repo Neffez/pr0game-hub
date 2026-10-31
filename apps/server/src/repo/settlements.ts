@@ -1,11 +1,12 @@
-import { distance, drivesFromResearch, fleetConsumption, flightDuration, slowestShip } from '@pr0hub/flight';
-import { cleanState, emptyState, marketRates, MAX_PARTICIPANTS, SHARE_WITHIN, type Battle, type BattleFleet, type LootState, type Ships } from '@pr0hub/loot';
+import { CAPACITY, distance, drivesFromResearch, fleetConsumption, flightDuration, slowestShip } from '@pr0hub/flight';
+import { adoptKeys, cleanState, debrisSummary, diffOverrides, emptyState, marketRates, settle, MAX_PARTICIPANTS, SHARE_WITHIN, type Battle, type BattleFleet, type LootState, type Overrides, type Ships } from '@pr0hub/loot';
 import type { GroupContext } from '../context.js';
 import type { DB } from '../db.js';
 import { REPORT_SLACK } from '../store.js';
 import { fleetHistory, sameFleet, sharedFleets, type StoredFleet } from './fleets.js';
 import { shipsKey } from './hostile.js';
 import { latestMarketRate } from './market.js';
+import { latestEmpires } from './empire.js';
 import { memberPlayers } from './members.js';
 import { launchedOf, planDrives, type LaunchFleet, type PlanRow } from './plans.js';
 
@@ -22,14 +23,23 @@ export const memberKey = (userId: number) => `u${userId}`;
 
 /** Where the hub took a value of the draft from, for the web view. */
 export interface DraftSources {
-  /** per battle: report id (null: battle message without report) and whether the fleets come from the battle report */
-  battles: { reportId: string | null; time: number | null; fleets: 'report' | 'plan' }[];
+  /** per battle (its key): report id (null: battle message without report) and whether the fleets come from the battle report */
+  battles: { key: string; reportId: string | null; time: number | null; fleets: 'report' | 'plan' }[];
   /** participant id -> battle index -> loot of their fleets on the way home (wins over the share by cargo space) */
   returnLoot: Record<string, Record<number, { m: number; k: number; d: number }>>;
   /** participant id -> where that loot comes from: their fleet return messages, else their fleet lists (overview) */
   returnSource: Record<string, 'message' | 'overview'>;
   /** participant id -> deuterium of the attack flights computed from the plan fleet */
   flightDeut: Record<string, number>;
+  /**
+   * participant id -> how the flight deuterium was computed: `fleet` with the flight time of the fleets' return flights
+   * in the overview (exact), `plan` with the planned speed (estimate)
+   */
+  flightDeutFrom: Record<string, 'fleet' | 'plan'>;
+  /** person id -> deuterium of their recycler flights, estimated from the recycler return messages */
+  recDeut: Record<string, number>;
+  /** participant id -> interplanetary missiles fired on the target (missile impact messages) */
+  missiles: Record<string, number>;
   /** recycling reports taken (id of the person, time) */
   recycling: { by: string; time: number | null }[];
 }
@@ -58,7 +68,9 @@ export function settlementDraft(db: DB, ctx: GroupContext, plan: PlanRow & { tim
     state.settings.rates = marketRates(state.settings.refRates);
   }
   const hold = plan.mission === 'hold';
-  const sources: DraftSources = { battles: [], returnLoot: {}, returnSource: {}, flightDeut: {}, recycling: [] };
+  const sources: DraftSources = {
+    battles: [], returnLoot: {}, returnSource: {}, flightDeut: {}, flightDeutFrom: {}, recDeut: {}, missiles: {}, recycling: [],
+  };
   const fleets = db
     .prepare(
       `SELECT f.id, f.plan_id, f.user_id, COALESCE(gm.ingame_name, u.username) AS member, f.g, f.s, f.p, f.planet_type, f.ships, f.speed, f.status,
@@ -68,6 +80,7 @@ export function settlementDraft(db: DB, ctx: GroupContext, plan: PlanRow & { tim
     )
     .all(ctx.groupId, plan.id) as PlanFleet[];
   const seen = launchedOf(db, ctx, [plan], fleets);
+  const returnCache = new Map<string, StoredFleet[]>();
   const shipsOf = (f: PlanFleet): Ships => seen.get(f.id)?.ships ?? (JSON.parse(f.ships) as Ships);
 
   // participants: members of the plan, then guest fleets (at most the game's ACS limit)
@@ -112,6 +125,17 @@ export function settlementDraft(db: DB, ctx: GroupContext, plan: PlanRow & { tim
   // flight deuterium of the plan fleets (as the game charges it at launch)
   const u = ctx.universe.settings;
   const drivesOf = planDrives(db, ctx);
+  /** per plan fleet: what its flight costs, with the planned speed until its real flight time is known */
+  const flights: { f: PlanFleet; ships: Ships; drives: ReturnType<typeof drivesFromResearch>; dist: number; deut: number; exact: boolean }[] = [];
+  const sumFlights = () => {
+    for (const p of state.participants) {
+      const mine = flights.filter((x) => memberKey(x.f.user_id) === p.id);
+      if (!mine.length) continue;
+      p.flightDeut = mine.reduce((a, x) => a + x.deut, 0);
+      sources.flightDeut[p.id] = p.flightDeut;
+      sources.flightDeutFrom[p.id] = mine.every((x) => x.exact) ? 'fleet' : 'plan';
+    }
+  };
   if (plan.g != null) {
     for (const f of fleets) {
       if (f.g == null) continue;
@@ -120,12 +144,9 @@ export function settlementDraft(db: DB, ctx: GroupContext, plan: PlanRow & { tim
       const slowest = slowestShip(ships, drives);
       if (!slowest) continue;
       const dist = distance(u, [f.g, f.s!, f.p!], [plan.g, plan.s!, plan.p!]);
-      const deut = fleetConsumption(u, ships, flightDuration(u, dist, slowest.speed, f.speed), dist, drives);
-      const p = state.participants.find((x) => x.id === memberKey(f.user_id));
-      if (!p) continue;
-      p.flightDeut = (p.flightDeut ?? 0) + deut;
-      sources.flightDeut[p.id] = p.flightDeut;
+      flights.push({ f, ships, drives, dist, deut: fleetConsumption(u, ships, flightDuration(u, dist, slowest.speed, f.speed), dist, drives), exact: false });
     }
+    sumFlights();
   }
 
   if (plan.g == null) return { state, sources };
@@ -196,12 +217,50 @@ export function settlementDraft(db: DB, ctx: GroupContext, plan: PlanRow & { tim
         if (p) add(p.id, g.ships, g.ships);
       });
     }
-    const battle: Battle = { time: b.time, loot, fleets: [...battleFleets.values()].filter((f) => state.participants.some((p) => p.id === f.participant)) };
+    const battle: Battle = { key: b.c_report_id ?? b.report_id ?? `t${b.time ?? 0}`, time: b.time, loot, fleets: [...battleFleets.values()].filter((f) => state.participants.some((p) => p.id === f.participant)) };
     // the field at the target after the battle
     if (b.debris_metal || b.debris_crystal) battle.debris = { m: b.debris_metal ?? 0, k: b.debris_crystal ?? 0 };
     state.battles.push(battle);
     survivors.push(left);
-    sources.battles.push({ reportId: b.c_report_id ?? b.report_id, time: b.time, fleets: b.fleets ? 'report' : 'plan' });
+    sources.battles.push({ key: battle.key!, reportId: b.c_report_id ?? b.report_id, time: b.time, fleets: b.fleets ? 'report' : 'plan' });
+  }
+
+  // the real flight time of an attack fleet: its return flight from the target in the overview takes as long as the
+  // way out (arrival home minus the battle), so its deuterium is exact whatever speed it flew at; only with one battle
+  // (with several waves it is not known which battle a fleet fought in, the planned speed stays)
+  if (!hold && state.battles.length === 1 && state.battles[0].time != null) {
+    const at = state.battles[0].time;
+    const used = new Set<StoredFleet>();
+    for (const x of flights) {
+      const back = returnFlights(x.f.user_id, at).find(
+        (m) => !used.has(m) && m.to != null && m.to.coords.g === x.f.g && m.to.coords.s === x.f.s && m.to.coords.p === x.f.p &&
+          m.to.type === (x.f.planet_type ?? 'planet'),
+      );
+      const duration = back ? back.arrival - at : 0;
+      if (!back || duration <= 0 || duration > 7 * 86400) continue;
+      used.add(back);
+      x.deut = fleetConsumption(u, x.ships, duration, x.dist, x.drives);
+      x.exact = true;
+    }
+    sumFlights();
+  }
+
+  // interplanetary missiles each member fired on the target from a day before until the last battle (their copy of
+  // the impact message)
+  {
+    const last = Math.max(plan.target_time + window, ...state.battles.map((b) => b.time ?? 0));
+    const fired = db
+      .prepare(
+        `SELECT user_id, SUM(count) AS n FROM missile_impacts WHERE group_id = ? AND g = ? AND s = ? AND p = ? AND time BETWEEN ? AND ?
+         GROUP BY user_id`,
+      )
+      .all(ctx.groupId, plan.g, plan.s, plan.p, plan.target_time - 86400, last + BATTLE_SLACK) as { user_id: number; n: number }[];
+    for (const r of fired) {
+      const p = state.participants.find((x) => x.id === memberKey(r.user_id));
+      if (!p) continue;
+      p.missiles = r.n;
+      sources.missiles[p.id] = r.n;
+    }
   }
 
   // loot each fleet brought home (only with one battle: several waves cannot be told apart), wins over the shares by
@@ -250,15 +309,7 @@ export function settlementDraft(db: DB, ctx: GroupContext, plan: PlanRow & { tim
    * (a later raid with the same ships is not this one).
    */
   function overviewReturns(userId: number, at: number, left: string[] | undefined) {
-    const latest = sharedFleets(db, ctx.groupId, userId, ctx.user.id)?.data ?? [];
-    const moves = [...fleetHistory(db, ctx.groupId, userId, ctx.user.id, at), ...latest].filter(
-      (m: StoredFleet) =>
-        m.owner === 'own' && m.phase === 'return' && m.mission != null && ATTACK_MISSIONS.includes(m.mission) && m.resources &&
-        m.from.coords.g === plan.g && m.from.coords.s === plan.s && m.from.coords.p === plan.p && m.from.type === plan.planet_type && m.arrival > at,
-    );
-    const unique: StoredFleet[] = [];
-    for (const m of moves.reverse()) if (!unique.some((u) => sameFleet(m, u) && shipsKey(u.ships) === shipsKey(m.ships))) unique.push(m);
-    unique.sort((a, b) => a.arrival - b.arrival);
+    const unique = returnFlights(userId, at).filter((m) => m.resources);
     const wanted = left?.slice();
     const home = wanted
       ? unique.filter((m) => {
@@ -270,16 +321,37 @@ export function settlementDraft(db: DB, ctx: GroupContext, plan: PlanRow & { tim
     return home.map((m) => ({ m: m.resources?.[901] ?? 0, k: m.resources?.[902] ?? 0, d: m.resources?.[903] ?? 0 }));
   }
 
+  /**
+   * A member's own attack flights home from the target after `at` in their fleet lists (as shared with the viewer), the
+   * same flight in several lists once, earliest first.
+   */
+  function returnFlights(userId: number, at: number): StoredFleet[] {
+    const key = `${userId}:${at}`;
+    const known = returnCache.get(key);
+    if (known) return known;
+    const latest = sharedFleets(db, ctx.groupId, userId, ctx.user.id)?.data ?? [];
+    const moves = [...fleetHistory(db, ctx.groupId, userId, ctx.user.id, at), ...latest].filter(
+      (m: StoredFleet) =>
+        m.owner === 'own' && m.phase === 'return' && m.mission != null && ATTACK_MISSIONS.includes(m.mission) &&
+        m.from.coords.g === plan.g && m.from.coords.s === plan.s && m.from.coords.p === plan.p && m.from.type === plan.planet_type && m.arrival > at,
+    );
+    const unique: StoredFleet[] = [];
+    for (const m of moves.reverse()) if (!unique.some((u) => sameFleet(m, u) && shipsKey(u.ships) === shipsKey(m.ships))) unique.push(m);
+    unique.sort((a, b) => a.arrival - b.arrival);
+    returnCache.set(key, unique);
+    return unique;
+  }
+
   // recycling at the target within 24 hours of the first battle
   const from = state.battles[0]?.time ?? plan.target_time - BATTLE_SLACK;
   const recycled = db
     .prepare(
-      `SELECT r.user_id, COALESCE(gm.ingame_name, u.username) AS member, r.time, r.metal, r.crystal, r.total_metal, r.total_crystal
+      `SELECT r.id, r.user_id, COALESCE(gm.ingame_name, u.username) AS member, r.time, r.metal, r.crystal, r.total_metal, r.total_crystal
        FROM recycle_reports r JOIN users u ON u.id = r.user_id LEFT JOIN group_members gm ON gm.group_id = r.group_id AND gm.user_id = r.user_id
        WHERE r.group_id = ? AND r.g = ? AND r.s = ? AND r.p = ? AND r.time BETWEEN ? AND ? ORDER BY r.time, r.id`,
     )
     .all(ctx.groupId, plan.g, plan.s, plan.p, from - 60, from + SHARE_WITHIN) as {
-    user_id: number; member: string; time: number | null; metal: number; crystal: number; total_metal: number; total_crystal: number;
+    id: number; user_id: number; member: string; time: number | null; metal: number; crystal: number; total_metal: number; total_crystal: number;
   }[];
   for (const r of recycled) {
     const id = memberKey(r.user_id);
@@ -287,28 +359,258 @@ export function settlementDraft(db: DB, ctx: GroupContext, plan: PlanRow & { tim
       state.helpers.push({ id, name: r.member, keepPct: HELPER_KEEP, recDeut: 0 });
     }
     state.recycling.push({
-      by: id, m: r.metal, k: r.crystal, time: r.time, ...(r.total_metal || r.total_crystal ? { field: { m: r.total_metal, k: r.total_crystal } } : {}),
+      key: `r${r.id}`, by: id, m: r.metal, k: r.crystal, time: r.time, ...(r.total_metal || r.total_crystal ? { field: { m: r.total_metal, k: r.total_crystal } } : {}),
     });
     sources.recycling.push({ by: id, time: r.time });
   }
+
+  // deuterium of the recycler flights (estimate): each recycling report with the recyclers' return message carrying
+  // that cargo home; the flight took as long as from the report to the return, the recyclers needed for the cargo
+  const recyclerReturns = db.prepare(
+    `SELECT home_g, home_s, home_p, time FROM recycle_returns WHERE group_id = ? AND user_id = ? AND metal = ? AND crystal = ? AND time > ? AND time <= ?
+     ORDER BY time LIMIT 1`,
+  );
+  for (const r of recycled) {
+    if (r.time == null) continue;
+    const back = recyclerReturns.get(ctx.groupId, r.user_id, r.metal, r.crystal, r.time, r.time + 7 * 86400) as
+      | { home_g: number; home_s: number; home_p: number; time: number }
+      | undefined;
+    if (!back) continue;
+    const ships = { 209: Math.max(1, Math.ceil((r.metal + r.crystal) / (CAPACITY[209] ?? 20000))) };
+    const drives = drivesFromResearch(drivesOf({ user_id: r.user_id, manual: null, drives_time: null })?.research ?? {});
+    const dist = distance(u, [back.home_g, back.home_s, back.home_p], [plan.g, plan.s!, plan.p!]);
+    const id = memberKey(r.user_id);
+    const deut = fleetConsumption(u, ships, back.time - r.time, dist, drives);
+    sources.recDeut[id] = (sources.recDeut[id] ?? 0) + deut;
+  }
+  for (const p of [...state.participants, ...state.helpers]) if (sources.recDeut[p.id] != null) p.recDeut = sources.recDeut[p.id];
   return { state: cleanState(state), sources };
 }
 
-export interface SavedSettlement {
-  state: LootState;
-  done: string[];
-  updated_at: number;
-  updated_by: string | null;
+/**
+ * Planets ("g:s:p") of the members (settlement ids): their newest empire page, the planets their players own in the
+ * galaxy data, the start planets of their raid plan fleets and the home planets of their fleet and recycler returns.
+ * The first source that names a planet wins. Computed once per request (the context is per request).
+ */
+const planetCache = new WeakMap<GroupContext, Map<string, string>>();
+function memberPlanets(db: DB, ctx: GroupContext): Map<string, string> {
+  const known = planetCache.get(ctx);
+  if (known) return known;
+  const owner = new Map<string, string>();
+  const add = (g: number, s: number, p: number, userId: number | null) => {
+    const key = `${g}:${s}:${p}`;
+    if (userId != null && !owner.has(key)) owner.set(key, memberKey(userId));
+  };
+  for (const e of latestEmpires(db, ctx)) for (const pl of e.rec.planets ?? []) add(pl.coords.g, pl.coords.s, pl.coords.p, e.userId);
+  const planets = db.prepare('SELECT g, s, p FROM planets WHERE group_id = ? AND player_id = ?');
+  for (const [userId, player] of memberPlayers(db, ctx)) {
+    if (player == null) continue;
+    for (const pl of planets.all(ctx.groupId, player) as { g: number; s: number; p: number }[]) add(pl.g, pl.s, pl.p, userId);
+  }
+  const homes = db
+    .prepare(
+      `SELECT f.user_id, f.g, f.s, f.p FROM attack_plan_fleets f JOIN attack_plans a ON a.id = f.plan_id WHERE a.group_id = ? AND f.g IS NOT NULL
+       UNION SELECT user_id, home_g, home_s, home_p FROM fleet_returns WHERE group_id = ?
+       UNION SELECT user_id, home_g, home_s, home_p FROM recycle_returns WHERE group_id = ?`,
+    )
+    .all(ctx.groupId, ctx.groupId, ctx.groupId) as { user_id: number | null; g: number; s: number; p: number }[];
+  for (const h of homes) add(h.g, h.s, h.p, h.user_id);
+  planetCache.set(ctx, owner);
+  return owner;
 }
 
-export function savedSettlement(db: DB, ctx: GroupContext, planId: number): SavedSettlement | null {
+type Res = { m: number; k: number; d: number };
+const RES = ['m', 'k', 'd'] as const;
+/** Share of a delivery that counts it as done (rounding in the game, a little less sent). */
+const DELIVERED = 0.99;
+/** Transports count for a settlement from its finalizing on for this long. */
+const DELIVERY_WINDOW = 3 * 86400;
+/** Finalized settlements whose deliveries are worked out (the settlements list goes back 90 days). */
+const FINALIZED_SPAN = 92 * 86400;
+
+/** A delivery of a finalized settlement and how far it is done. */
+export interface Delivery {
+  key: string;
+  from: string;
+  to: string;
+  res: Res;
+  /** what the members' transport messages show delivered for it */
+  delivered: Res;
+  /** delivered in full by transport messages */
+  auto: boolean;
+  /** ticked off by hand or delivered in full */
+  done: boolean;
+}
+
+export interface FinalizedSettlement {
+  planId: number;
+  state: LootState;
+  finalizedAt: number;
+  finalizedBy: number | null;
+  /** saved before settlements could be finalized (migration 069): no notification */
+  migrated: boolean;
+  deadline: number | null;
+  deliveries: Delivery[];
+}
+
+const finalizedCache = new WeakMap<GroupContext, Map<number, FinalizedSettlement>>();
+/** After a change of a settlement within the request: worked out again on the next call. */
+export const forgetFinalized = (ctx: GroupContext) => finalizedCache.delete(ctx);
+
+/**
+ * The group's finalized settlements of the last 92 days with their deliveries: ticked off by hand, or delivered by the
+ * members' transport messages (the sender's or the receiver's copy, both of one transport once; planets by
+ * `memberPlanets` or by who synced the copy). A transport counts from the settlement's finalizing on for three days and
+ * for one settlement only: settlements finalized first take the transports between the same two members first.
+ * Computed once per request.
+ */
+export function finalizedSettlements(db: DB, ctx: GroupContext, t = Math.floor(Date.now() / 1000)): Map<number, FinalizedSettlement> {
+  const known = finalizedCache.get(ctx);
+  if (known) return known;
+  const rows = db
+    .prepare(
+      `SELECT s.plan_id, s.data, s.done, s.finalized_at, s.finalized_by, s.migrated FROM raid_settlements s JOIN attack_plans a ON a.id = s.plan_id
+       WHERE s.group_id = ? AND s.finalized_at IS NOT NULL AND a.target_time > ? ORDER BY s.finalized_at, s.plan_id`,
+    )
+    .all(ctx.groupId, t - FINALIZED_SPAN) as { plan_id: number; data: string; done: string; finalized_at: number; finalized_by: number | null; migrated: number }[];
+  const out = new Map<number, FinalizedSettlement>();
+  for (const r of rows) {
+    const state = cleanState(JSON.parse(r.data));
+    const result = settle(state);
+    const manual = new Set(JSON.parse(r.done) as string[]);
+    const deliveries = (state.transfers ?? result.transfers)
+      .filter((x) => x.res.m + x.res.k + x.res.d > 0)
+      .map((x) => {
+        const key = `${x.from}>${x.to}`;
+        return { key, from: x.from, to: x.to, res: { ...x.res }, delivered: { m: 0, k: 0, d: 0 }, auto: false, done: manual.has(key) };
+      });
+    out.set(r.plan_id, {
+      planId: r.plan_id, state, finalizedAt: r.finalized_at, finalizedBy: r.finalized_by, migrated: !!r.migrated, deadline: result.deadline, deliveries,
+    });
+  }
+  allocateTransports(db, ctx, [...out.values()]);
+  finalizedCache.set(ctx, out);
+  return out;
+}
+
+/** Shares the members' transports out to the deliveries of the settlements (in order of finalizing). */
+function allocateTransports(db: DB, ctx: GroupContext, list: FinalizedSettlement[]) {
+  if (!list.some((s) => s.deliveries.length)) return;
+  const from = Math.min(...list.map((s) => s.finalizedAt));
+  const until = Math.max(...list.map((s) => s.finalizedAt)) + DELIVERY_WINDOW;
+  const rows = db
+    .prepare(
+      `SELECT user_id, time, side, from_g, from_s, from_p, to_g, to_s, to_p, metal, crystal, deuterium FROM transports
+       WHERE group_id = ? AND time BETWEEN ? AND ? ORDER BY time, id`,
+    )
+    .all(ctx.groupId, from, until) as {
+    user_id: number | null; time: number; side: 'own' | 'foreign'; from_g: number; from_s: number; from_p: number; to_g: number; to_s: number; to_p: number;
+    metal: number; crystal: number; deuterium: number;
+  }[];
+  if (!rows.length) return;
+  const owner = new Map(memberPlanets(db, ctx));
+  for (const r of rows) {
+    if (r.user_id == null) continue;
+    const mine = r.side === 'own' ? `${r.from_g}:${r.from_s}:${r.from_p}` : `${r.to_g}:${r.to_s}:${r.to_p}`;
+    if (!owner.has(mine)) owner.set(mine, memberKey(r.user_id));
+  }
+  // one entry per transport (both copies once), with what is left of it to share out
+  const seen = new Set<string>();
+  const transports: { pair: string; time: number; left: Res }[] = [];
+  for (const r of rows) {
+    const a = owner.get(`${r.from_g}:${r.from_s}:${r.from_p}`);
+    const b = owner.get(`${r.to_g}:${r.to_s}:${r.to_p}`);
+    const key = `${r.from_g}:${r.from_s}:${r.from_p}|${r.to_g}:${r.to_s}:${r.to_p}|${r.time}|${r.metal}|${r.crystal}|${r.deuterium}`;
+    if (seen.has(key) || !a || !b || a === b) continue;
+    seen.add(key);
+    transports.push({ pair: `${a}>${b}`, time: r.time, left: { m: r.metal, k: r.crystal, d: r.deuterium } });
+  }
+  for (const s of list) {
+    for (const d of s.deliveries) {
+      for (const tr of transports) {
+        if (tr.pair !== d.key || tr.time < s.finalizedAt || tr.time > s.finalizedAt + DELIVERY_WINDOW) continue;
+        for (const k of RES) {
+          const take = Math.min(tr.left[k], Math.max(0, d.res[k] - d.delivered[k]));
+          d.delivered[k] += take;
+          tr.left[k] -= take;
+        }
+      }
+      d.auto = RES.every((k) => d.delivered[k] >= d.res[k] * DELIVERED - 1);
+      if (d.auto) d.done = true;
+    }
+  }
+}
+
+/**
+ * What the hub's data covers of a settlement, so members see what is still to sync: the battle report (archived with
+ * its fleets, only the battle message, or none), per member fleet of an attack with one battle the loot it brought home
+ * (fleet return message, overview, none), and the recycling (reports of the field; `gap`: an emptied field the
+ * recycling rows do not cover, a report may be missing). `missing` counts what is missing.
+ */
+export interface SettlementChecks {
+  battle: 'report' | 'plan' | 'missing';
+  returns: Record<string, 'message' | 'overview' | 'missing'>;
+  recycling: 'ok' | 'none' | 'gap' | 'n/a';
+  missing: number;
+}
+
+export function settlementChecks(mission: string, draft: LootState, sources: DraftSources): SettlementChecks {
+  const battle = !draft.battles.length ? 'missing' : sources.battles.every((b) => b.fleets === 'report') ? 'report' : 'plan';
+  const returns: SettlementChecks['returns'] = {};
+  if (mission !== 'hold' && draft.battles.length === 1) {
+    for (const f of draft.battles[0].fleets) if (f.participant.startsWith('u')) returns[f.participant] = sources.returnSource[f.participant] ?? 'missing';
+  }
+  const debris = debrisSummary(draft);
+  const field = debris.field ? debris.field.m + debris.field.k : 0;
+  const recycling = debris.taken ? 'gap' : !field ? 'n/a' : draft.recycling.length ? 'ok' : 'none';
+  const missing = (battle === 'report' ? 0 : 1) + Object.values(returns).filter((r) => r === 'missing').length + (recycling === 'gap' ? 1 : 0);
+  return { battle, returns, recycling, missing };
+}
+
+/** Row of a settlement: corrections on top of the draft, and the state frozen when it was finalized. */
+export interface StoredSettlement {
+  /** corrections (null: saved before corrections existed, `final` holds the whole settlement) */
+  overrides: Overrides | null;
+  /** state when finalized (or last saved), null when none was stored */
+  final: LootState | null;
+  finalizedAt: number | null;
+  finalizedBy: string | null;
+  done: string[];
+  updatedAt: number;
+  updatedBy: string | null;
+}
+
+export function storedSettlement(db: DB, ctx: GroupContext, planId: number): StoredSettlement | null {
   const row = db
     .prepare(
-      `SELECT s.data, s.done, s.updated_at, COALESCE(gm.ingame_name, u.username) AS updated_by
+      `SELECT s.data, s.overrides, s.done, s.updated_at, s.finalized_at, COALESCE(gm.ingame_name, u.username) AS updated_by,
+         COALESCE(gf.ingame_name, uf.username) AS finalized_by
        FROM raid_settlements s LEFT JOIN users u ON u.id = s.updated_by LEFT JOIN group_members gm ON gm.group_id = s.group_id AND gm.user_id = s.updated_by
+       LEFT JOIN users uf ON uf.id = s.finalized_by LEFT JOIN group_members gf ON gf.group_id = s.group_id AND gf.user_id = s.finalized_by
        WHERE s.plan_id = ? AND s.group_id = ?`,
     )
-    .get(planId, ctx.groupId) as { data: string; done: string; updated_at: number; updated_by: string | null } | undefined;
+    .get(planId, ctx.groupId) as
+    | { data: string; overrides: string | null; done: string; updated_at: number; finalized_at: number | null; updated_by: string | null; finalized_by: string | null }
+    | undefined;
   if (!row) return null;
-  return { state: cleanState(JSON.parse(row.data)), done: JSON.parse(row.done) as string[], updated_at: row.updated_at, updated_by: row.updated_by };
+  const data = JSON.parse(row.data) as unknown;
+  return {
+    overrides: row.overrides != null ? (JSON.parse(row.overrides) as Overrides) : null,
+    final: data && typeof data === 'object' && Object.keys(data).length ? cleanState(data) : null,
+    finalizedAt: row.finalized_at,
+    finalizedBy: row.finalized_at != null ? row.finalized_by : null,
+    done: JSON.parse(row.done) as string[],
+    updatedAt: row.updated_at,
+    updatedBy: row.updated_by,
+  };
+}
+
+/**
+ * Corrections of a stored settlement on top of the draft; one saved before corrections existed is turned into
+ * corrections of its whole state (its battles and recycling rows matched to the draft's by time).
+ */
+export function correctionsOf(stored: StoredSettlement | null, draft: LootState): Overrides | null {
+  if (!stored) return null;
+  if (stored.overrides) return stored.overrides;
+  return stored.final ? diffOverrides(draft, adoptKeys(draft, stored.final)) : null;
 }

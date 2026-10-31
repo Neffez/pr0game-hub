@@ -11,7 +11,8 @@ import { useStored } from './composables';
  * the viewer's planets.
  */
 export type Notification =
-  | AttackNotification | InviteNotification | CommentNotification | LaunchNotification | BuildingNotification | FleetNotification | StorageNotification;
+  | AttackNotification | InviteNotification | CommentNotification | LaunchNotification | BuildingNotification | FleetNotification | StorageNotification
+  | SettlementNotification;
 
 interface Base {
   id: string;
@@ -77,6 +78,14 @@ export interface StorageNotification extends Base {
   resource: number;
 }
 
+/** A loot settlement the viewer takes part in was finalized (`time`) and they still have deliveries open. */
+export interface SettlementNotification extends Base {
+  kind: 'settlement';
+  plan: { id: number; g: number; s: number; p: number; planet_type: 'planet' | 'moon'; mission: 'attack' | 'hold' };
+  sends: { to: string; res: { m: number; k: number; d: number } }[];
+  gets: { from: string; res: { m: number; k: number; d: number } }[];
+}
+
 /**
  * An invitation lasts until the end of the plan's day or hour, new comments two days, affordable buildings one day,
  * full storages one day, arrived fleets with an alert ten minutes.
@@ -96,6 +105,8 @@ const until = (n: Notification) => {
       return n.time + BUILDING_SPAN;
     case 'fleet':
       return n.time + FLEET_SPAN;
+    case 'settlement':
+      return n.time + 2 * 86400;
     default:
       return n.time;
   }

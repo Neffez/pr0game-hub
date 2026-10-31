@@ -7,7 +7,8 @@ External analysis tool for [pr0game](https://codeberg.org/pr0game/pr0game) based
 
 - **Sync**: plain text, HTML from the clipboard, page source (`Ctrl+U`) or a saved page, with a preview before saving.
   - Statistics (players/alliances, all categories incl. honor points)
-  - Messages: spy, battle, expedition and recycling reports, fleet returns, hostile spying, player messages
+  - Messages: spy, battle, expedition and recycling reports, fleet and recycler returns, transport reports, missile
+    impacts, hostile spying, player messages
   - Galaxy, empire, game overview (build queues, fleet movements), buildings and research pages, fleet movements on their own, battle hall, marketplace
   - universe.json import and export
 - **Overview**: points per category with deltas per statistics update, rank changes, status, filters
@@ -38,10 +39,15 @@ External analysis tool for [pr0game](https://codeberg.org/pr0game/pr0game) based
 - **Raid planner**: own attacks, solo or ACS, landing at the second, also as retime on hostile attacks (return
   candidates per speed with departure and recall windows): launch times, lead, delays and ACS limits per
   member fleet, live for the whole alliance; the target is claimed as "attack"
+- **Loot settlement** of attacks and holds: filled from the synced reports alone (battle reports, fleet returns,
+  recycling, missile impacts, flight and recycler deuterium) and following later syncs, with corrections by hand kept
+  on top; a data status shows who still has to sync what; "Finalize" freezes it for the deliveries, which transport
+  reports tick off
 - **Raid statistics** (incl. recycling), **expeditions**, **expedition deck** (card counting), **battle hall** archive
 - **Admin**: universes (size, distance factors, fleet speed, time zone, deck), groups, members (including placeholders by in-game name with claim links), ingest log with reparse, player merge
 - **Notifications**: bell with hostile fleets heading for members (from the synced fleet movements), raid planner
-  invitations, new comments in your threads, your launch times and full storages on your planets (by the production
+  invitations, new comments in your threads, your launch times, finalized loot settlements with your deliveries and
+  full storages on your planets (by the production
   and landing fleets since the last synced page); also as **push notifications** on desktop and phone
   (switched on per device under Account, each kind can be chosen) and to **Discord**: a personal webhook per user
   (own settings) and an alliance channel set by the alliance admins (attacks on members, new raid plans, launch

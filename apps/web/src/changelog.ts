@@ -20,8 +20,43 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Beute abrechnen und Beuterechner: Statt „gleichmäßig“ lässt sich der Gewinn jetzt nach Prozent aufteilen, mit einem eigenen Anteil pro Teilnehmer. Ohne Angabe bekommen alle gleich viel.',
+        en: 'Loot settlement and loot calculator: instead of "equally" the profit can now be split by percent, with a share per participant. Without any, everyone gets the same.',
+      },
+      {
+        kind: 'new',
+        de: 'Beute abrechnen: Ein Diagramm zeigt, wie Beute und Trümmerfeld über Kostenausgleich, Gewinn und Helferanteil bei jedem Teilnehmer ankommen, nach Menge oder nach Wert in Deut.',
+        en: 'Loot settlement: a diagram shows how loot and debris field go through costs covered, profit and the helpers\' part to each participant, by amount or by value in deuterium.',
+      },
+      {
+        kind: 'new',
         de: 'Battle Hall: Abschiede (Spieler, die aufhören und ihre Flotte absichtlich zerstören lassen) werden erkannt und sind wie im Spiel ausgeblendet. Dafür die Battle Hall im Spiel einmal mit „Abschiede: anzeigen“ einfügen.',
         en: 'Battle hall: farewell battles (players quitting who have their fleet destroyed on purpose) are recognised and hidden like in the game. To get them, paste the battle hall once with "Memorials: only".',
+      },
+      {
+        kind: 'fix',
+        de: 'Beute abrechnen: Von Hand eingefügte Berichte zählen nicht mehr doppelt, wenn sie später synchronisiert werden. Ein Transport hakt nur noch eine Lieferung ab, und erst nach dem Festschreiben. Nach erneutem Festschreiben bleiben nur Lieferungen mit unveränderten Beträgen abgehakt.',
+        en: 'Loot settlement: reports pasted by hand no longer count twice once they are synced. A transport ticks off only one delivery, and only after finalizing. After finalizing again only deliveries with unchanged amounts stay ticked off.',
+      },
+      {
+        kind: 'new',
+        de: 'Beim Synchronisieren siehst du, in welche Beuteabrechnung deine Berichte einfließen. Wird eine Abrechnung festgeschrieben, sagt dir eine Benachrichtigung (Glocke, Push, Discord), was du schickst und bekommst.',
+        en: 'When syncing you see which loot settlement your reports count for. When a settlement is finalized, a notification (bell, push, Discord) tells you what you send and get.',
+      },
+      {
+        kind: 'new',
+        de: 'Synchronisieren liest jetzt auch Transportberichte, Raketeneinschläge und Recycler-Rückkehr. Beute abrechnen übernimmt daraus die IRaks, schätzt das Recycler-Deut, rechnet das Flug-Deut mit der echten Flugzeit und hakt Lieferungen ab, sobald der Transportbericht synchronisiert ist.',
+        en: 'Sync now also reads transport reports, missile impacts and recyclers coming home. The loot settlement takes the missiles from them, estimates the recycler deuterium, computes the flight deuterium with the real flight time and ticks off deliveries once the transport report is synced.',
+      },
+      {
+        kind: 'new',
+        de: 'Beute abrechnen: Ein Datenstand zeigt, welche Berichte noch fehlen und wer sie synchronisieren muss. Die Liste der Abrechnungen zeigt den Stand, die verbleibende Zeit zum Verteilen und deine offenen Lieferungen.',
+        en: 'Loot settlement: a data status shows which reports are still missing and who has to sync them. The list of settlements shows the stage, the time left to share and your open deliveries.',
+      },
+      {
+        kind: 'new',
+        de: 'Beute abrechnen: Die Abrechnung übernimmt später synchronisierte Kampf-, Flottenrückkehr- und Recyclerberichte von selbst, deine Korrekturen bleiben markiert stehen. Mit „Festschreiben“ werden die Zahlen für die Lieferungen eingefroren, „Wieder öffnen“ holt neue Daten.',
+        en: 'Loot settlement: reports synced later (battle, fleet return, recycling) flow in by themselves, your corrections stay and are marked. "Finalize" freezes the numbers for the deliveries, "Reopen" takes in new data.',
       },
       {
         kind: 'fix',

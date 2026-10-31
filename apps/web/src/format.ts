@@ -98,6 +98,9 @@ export const coords = (g: number, s: number, p: number) => `[${g}:${s}:${p}]`;
 
 /** Element name in the current language (names as in the game, generated into tech.json). */
 export const name = (id: number | string) => techName(id, currentLang());
+/** Metal, crystal and deuterium in short form, the ones above 0: "1,2 Mio Metall, 300k Deuterium". */
+export const resText = (r: { m: number; k: number; d: number }) =>
+  ([[r.m, 901], [r.k, 902], [r.d, 903]] as const).filter(([v]) => v > 0).map(([v, id]) => `${short(v)} ${name(id)}`).join(', ');
 
 /**
  * Label table whose values are looked up in the current language on access, so `LABEL[key]`

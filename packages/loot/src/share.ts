@@ -41,7 +41,10 @@ function pack(s: LootState): Packed {
   const ids = [...s.participants, ...s.helpers].map((p) => p.id);
   const at = (id: string) => ids.indexOf(id);
   return [
-    s.participants.map((p) => trim([p.id, p.name, p.flightDeut ?? 0, p.recDeut ?? 0, p.missiles ?? 0, p.extra ? mkd(p.extra) : 0])),
+    // a set profit percent as [percent] (0 % is a value, 0 means none)
+    s.participants.map((p) =>
+      trim([p.id, p.name, p.flightDeut ?? 0, p.recDeut ?? 0, p.missiles ?? 0, p.extra ? mkd(p.extra) : 0, p.sharePct != null ? [p.sharePct] : 0]),
+    ),
     s.helpers.map((h) => trim([h.id, h.name, h.keepPct, h.recDeut ?? 0])),
     s.battles.map((b) =>
       trim([
@@ -66,8 +69,8 @@ function unpack(p: Packed): unknown {
   const arr = (v: unknown) => (Array.isArray(v) ? v : []);
   const [parts, helps, battles, recycling, settings, transfers] = p;
   const participants = arr(parts).map((x) => {
-    const [id, name, flightDeut, recDeut, missiles, extra] = arr(x);
-    return { id, name, flightDeut, recDeut, missiles, ...(extra ? { extra: res(extra) } : {}) };
+    const [id, name, flightDeut, recDeut, missiles, extra, sharePct] = arr(x);
+    return { id, name, flightDeut, recDeut, missiles, ...(extra ? { extra: res(extra) } : {}), ...(Array.isArray(sharePct) ? { sharePct: sharePct[0] } : {}) };
   });
   const helpers = arr(helps).map((x) => {
     const [id, name, keepPct, recDeut] = arr(x);

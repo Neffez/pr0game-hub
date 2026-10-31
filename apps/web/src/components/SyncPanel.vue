@@ -4,7 +4,7 @@ import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
 import { useUni } from '../composables';
-import { cardLabel, DEPLETION_LABEL, fmt, rateText, STATS_CATEGORIES } from '../format';
+import { cardLabel, coords, dateTime, DEPLETION_LABEL, fmt, rateText, STATS_CATEGORIES } from '../format';
 
 interface Summary {
   pageType: string;
@@ -14,6 +14,8 @@ interface Summary {
   warnings: string[];
   counts: Record<string, { new: number; duplicate: number }>;
   preview: ({ kind: string } & Record<string, any>)[];
+  /** loot settlements the messages count for */
+  settlements?: { id: number; mission: string; g: number; s: number; p: number; planet_type: string; target_time: number; kinds: string[] }[];
 }
 
 /** Paste a game page and save it (sync page; `compact` = quick sync sheet on mobile, with clipboard button and series mode). */
@@ -65,6 +67,12 @@ function previewText(p: Summary['preview'][number]) {
       return t('paste.preview.recycle', { coords: p.coords, amount: fmt(p.amount) });
     case 'fleetReturn':
       return t('paste.preview.fleetReturn', { coords: p.coords, amount: fmt(p.amount) });
+    case 'transport':
+      return t('paste.preview.transport', { from: p.from, to: p.to, amount: fmt(p.amount) });
+    case 'missileImpact':
+      return t('paste.preview.missileImpact', { coords: p.coords, count: fmt(p.count) });
+    case 'recycleReturn':
+      return t('paste.preview.recycleReturn', { coords: p.coords, amount: fmt(p.amount) });
     case 'battleHall':
       return t(p.memorial ? 'paste.preview.battleHallMemorial' : 'paste.preview.battleHall', { entries: p.entries });
     case 'marketplace':
@@ -256,6 +264,12 @@ function next() {
       <li v-if="preview.preview.length > 50" class="muted">… {{ t('paste.more', { n: preview.preview.length - 50 }) }}</li>
     </ul>
     <p v-else class="error">{{ t('paste.noData') }}</p>
+    <ul v-if="preview.settlements?.length" class="settlements small">
+      <li v-for="x in preview.settlements" :key="x.id">
+        <Icon name="raids" :size="14" />
+        <RouterLink :to="`/${uni}/raid-planner/${x.id}/loot`">{{ t('paste.forSettlement', { target: coords(x.g, x.s, x.p) + (x.planet_type === 'moon' ? ' (M)' : ''), time: dateTime(x.target_time) }) }}</RouterLink>
+      </li>
+    </ul>
   </div>
 
   <div v-if="saved" class="card">
@@ -269,6 +283,12 @@ function next() {
         <td class="num">{{ c.duplicate }}</td>
       </tr>
     </table>
+    <ul v-if="saved.settlements?.length" class="settlements small">
+      <li v-for="x in saved.settlements" :key="x.id">
+        <Icon name="raids" :size="14" />
+        <RouterLink :to="`/${uni}/raid-planner/${x.id}/loot`">{{ t('paste.forSettlement', { target: coords(x.g, x.s, x.p) + (x.planet_type === 'moon' ? ' (M)' : ''), time: dateTime(x.target_time) }) }}</RouterLink>
+      </li>
+    </ul>
     <div v-if="compact" class="row" style="margin-top: 12px">
       <button class="primary grow next-btn" @click="next">{{ canReadClipboard ? t('paste.nextFromClipboard') : t('paste.next') }}</button>
     </div>
@@ -279,4 +299,6 @@ function next() {
 .paste-btn { width: 100%; padding: 12px; margin-bottom: 8px; font-size: 16px; }
 .next-btn { padding: 12px; font-size: 16px; }
 .for-other { border-color: var(--warn); }
+.settlements { list-style: none; padding: 0; margin: 10px 0 0; display: flex; flex-direction: column; gap: 4px; }
+.settlements li { display: flex; align-items: center; gap: 6px; }
 </style>

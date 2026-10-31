@@ -4,6 +4,74 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-31
 
+- Loot settlement: the profit split "equally" becomes "by percent": each participant can have a share in percent
+  (`Participant.sharePct`, new column in the participants table); participants without one split what the others
+  leave equally, so without any it stays equal shares. Shares that don't add up to 100 % are scaled and warned about
+  (`shares_not_100`). `profitPercents` in `@pr0hub/loot`; share links carry the percents (0 % included), corrections
+  keep them. The standalone loot calculator (pr0game tools) has the same column, "by percent" and the warning.
+- Loot settlement: a "Distribution" section shows where the loot goes as a Sankey diagram (`LootSankey.vue`, plain
+  SVG): loot and debris field into the pot (and what was not recycled), the pot into costs covered, profit and the
+  helpers' part, and those into what each person gets. Widths by amount (metal, crystal and deuterium added up) or by
+  value in deuterium at the settlement's rates; people in the validated categorical order, named next to their bar;
+  hovering a flow or node shows its metal, crystal and deuterium. The result table stays the exact view.
+- Loot settlement fixes from a code review of today's changes:
+  - Settlements saved before finalizing existed no longer show changes that are none (`stateChanges` matches their
+    rows to the live ones first) and send no "finalized" notification (`raid_settlements.migrated`, migration `069`).
+  - A battle or recycling report added by hand and synced later counts once, from the hub's data; a battle whose key
+    changed while it was edited (its report synced meanwhile) stays a correction of that battle instead of becoming a
+    copy that no longer follows the data (`diffOverrides`/`applyOverrides` match rows by time and amounts).
+  - Transports count for a delivery from the settlement's finalizing on for three days and for one settlement only
+    (settlements finalized first take them first), so trades or deliveries of another settlement between the same
+    members no longer tick it off.
+  - Reopening remembers the deliveries done with their amounts (`raid_settlements.done_before`); finalizing again
+    keeps only those whose amounts did not change.
+  - Flight deuterium from the real flight time only with one battle (with several waves the planned speed stays).
+  - The member who finalizes a settlement gets no notification about it.
+  - Deliveries of finalized settlements and the members' planets are worked out once per request
+    (`finalizedSettlements`, used by the settlement, the list and the notifications); one `resText` in the web app.
+- Loot settlement deliveries by transport report: the members' planets come from their empire pages, the galaxy
+  data, their raid plan start planets and the homes of their fleet and recycler returns, so the sender's copy alone
+  ticks off a delivery to a member whose planet is not in the galaxy data (found in the browser check). README lists
+  the loot settlement and the new messages.
+- Sync shows which loot settlements the pasted messages count for (battles, fleet returns, recycling and missiles at a
+  launched or done plan's target around its time; `settlements` in the ingest summary, `settlementsFor`), with links,
+  in the preview and after saving.
+- New notification `settlement` (bell, push, Discord webhook): a loot settlement the member takes part in was finalized
+  and they have deliveries open, with what they send and get; listed for 48 hours while deliveries are open (neither
+  ticked off nor delivered by transport reports). Push setting `settlements` (default on).
+- Sync reads three more messages (DE/EN, pirate language): transport reports (sender's and receiver's copy,
+  `transports`), interplanetary missile impacts (`missile_impacts`) and recyclers coming home (`recycle_returns`),
+  migration `070`, with preview lines and counts. The loot settlement takes them: each member's missiles fired on the
+  target from a day before until the last battle, the recycler deuterium estimated from the recycling report and the
+  recyclers' return (flight time, recyclers for the cargo, home planet), and the flight deuterium with the real flight
+  time of the attack fleets' return flight in the overview (else the planned speed, marked as an estimate).
+  Deliveries of a finalized settlement are ticked off when the transport messages show them delivered in full (both
+  copies of a transport count once, several transports add up, a part shows as "delivered so far"; planets by owner in
+  the galaxy data or by who synced the copy): `delivered` and `auto_done` in `GET /plans/{id}/settlement`, counted as
+  done in `GET /settlements`. Pasting recycling reports in the settlement is folded away as a fallback.
+- Loot settlement visibility: a "Data status" section lists what the synced data covers and who still has to sync
+  what (battle report archived or only the message, each member's fleet return message or overview estimate, recycling
+  reports and an emptied field they do not cover; `checks` in `GET /plans/{id}/settlement`, `settlementChecks`). A
+  finalized settlement shows the viewer's open deliveries on top. The settlements list shows a stage per entry
+  (waiting for data with the count, data complete, finalized, done; open ones of the last week are checked), the time
+  left of the 24 hours, the viewer's open deliveries and a filter "only my deliveries" (`stage`, `missing`,
+  `deadline`, `mine` in `GET /settlements`).
+- `@pr0hub/loot`: `mergeDraft` removed (replaced by the corrections); the battle and recycling matching it shared lives
+  in `match.ts`.
+- Loot settlement follows the synced data: instead of a saved snapshot it is the draft from the hub's data with the
+  corrections made by hand on top (`raid_settlements.overrides`, migration `069`), so reports synced later (battle
+  reports, fleet returns, recycling) flow in without "Update/Refill from hub data" (both buttons removed). A new
+  "Finalize" freezes it for the deliveries (`POST/DELETE /plans/{id}/settlement/finalize`); data synced since shows as
+  a count of changes with "Reopen". Deliveries are ticked off on the finalized settlement. Values changed by hand are
+  marked and go back to the hub's value with a click. Settlements saved before count as finalized; reopening turns
+  them into corrections (battles and recycling rows matched by time). `GET /plans/{id}/settlement` returns `state`,
+  `overrides`, `corrected`, `finalized`, `result` and `done` instead of `saved`; draft battles and recycling rows carry
+  a `key`, `sources.battles` too; the settlements list shows live or finalized.
+- `@pr0hub/loot`: corrections on top of the hub's draft (`overrides.ts`): `diffOverrides` stores only what differs from
+  the draft (people by id, battles and recycling rows by their new `key`, rows added by hand, settings, transfers),
+  `applyOverrides` puts them back on a fresh draft (a battle whose key changed is found again by its time),
+  `adoptKeys` gives settlements saved before keys existed the draft's keys, `overriddenPaths` and `stateChanges` for
+  the view. Groundwork for settlements that follow synced data without "Update from hub data".
 - Battle hall: farewell battles ("Abschiede", a player crashing on purpose when quitting, flagged by the game) are
   recognised from the farewell filter of the synced hall page (`BattleHallRecord.memorial`): "only" flags every entry,
   "hide" clears the flag, "all" leaves it unknown. Stored in `battle_hall.memorial` (migration 068). The hub's battle

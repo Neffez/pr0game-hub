@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { apportion, lootShares, planTransfers, remaining, settle, settled, type SettlementInput } from '../src/index.js';
+import { apportion, lootShares, planTransfers, profitPercents, remaining, settle, settled, type SettlementInput } from '../src/index.js';
 
 const settings = { mode: 'equal' as const, rates: { m: 2.8, k: 0.8, d: 1 }, deficitMetalShare: 0, cargoShip: 203 };
 const none = { m: 0, k: 0, d: 0 };
@@ -264,5 +264,39 @@ describe('transfers', () => {
     const left = remaining(balances, [{ from: 'b', to: 'a', res: { m: 60, k: 0, d: 0 } }]);
     expect(left.get('a')).toEqual({ m: 40, k: 0, d: 0 });
     expect(left.get('b')).toEqual({ m: -40, k: 0, d: 0 });
+  });
+});
+
+describe('profit split by percent', () => {
+  const battle = (m: number) => ({
+    loot: { m, k: 0, d: 0 },
+    fleets: [
+      { participant: 'a', start: { 207: 1 }, end: { 207: 1 }, loot: { m, k: 0, d: 0 } },
+      { participant: 'b', start: { 207: 1 }, end: { 207: 1 }, loot: none },
+      { participant: 'c', start: { 207: 1 }, end: { 207: 1 }, loot: none },
+    ],
+  });
+  const three = [{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }, { id: 'c', name: 'C' }];
+
+  it('splits equally without percents and the rest of 100 % among those without one', () => {
+    expect(profitPercents(three)).toEqual([100 / 3, 100 / 3, 100 / 3]);
+    expect(profitPercents([{ sharePct: 50 }, {}, {}])).toEqual([50, 25, 25]);
+    expect(profitPercents([{ sharePct: 0 }, {}])).toEqual([0, 100]);
+    const r = settle(base({ participants: [{ id: 'a', name: 'A', sharePct: 50 }, { id: 'b', name: 'B' }, { id: 'c', name: 'C' }], battles: [battle(100_000)] }));
+    expect(r.people.map((p) => p.entitled.m)).toEqual([50_000, 25_000, 25_000]);
+    expect(person(r, 'b').share).toBeCloseTo(0.25);
+    expect(r.warnings).toEqual([]);
+  });
+
+  it('scales percents that do not add up to 100 and warns', () => {
+    const r = settle(base({ participants: [{ id: 'a', name: 'A', sharePct: 60 }, { id: 'b', name: 'B', sharePct: 60 }, { id: 'c', name: 'C', sharePct: 0 }], battles: [battle(120_000)] }));
+    expect(r.people.map((p) => p.entitled.m)).toEqual([60_000, 60_000, 0]);
+    expect(r.warnings).toContain('shares_not_100');
+  });
+
+  it('ignores the percents when the profit is split by investment', () => {
+    const r = settle(base({ participants: [{ id: 'a', name: 'A', sharePct: 90 }, { id: 'b', name: 'B' }, { id: 'c', name: 'C' }], battles: [battle(90_000)], settings: { ...settings, mode: 'investment' } }));
+    expect(r.people.map((p) => p.entitled.m)).toEqual([30_000, 30_000, 30_000]);
+    expect(r.warnings).toEqual([]);
   });
 });

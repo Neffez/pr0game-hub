@@ -354,6 +354,78 @@ describe('fleet return messages', () => {
   });
 });
 
+describe('transport, missile and recycler return messages', () => {
+  it('reads both copies of a transport, missile impacts and recyclers coming home (DE)', () => {
+    const text = [
+      'Flottenhauptquartier', 'Transportbericht', '24. Okt 2026, 14:00:00',
+      'Eine deiner Flotten von Ra [3:200:1] erreicht den Mond Mond [3:160:5] und liefert 106.509 Metall, 57.555 Kristall und 33.088 Deuterium.',
+      'Flottenhauptquartier', 'Transportbericht', '24. Okt 2026, 14:00:01',
+      'Eine friedliche Flotte von Ra [3:200:1] erreicht Kolonie [3:26:12] und liefert 1.000 Metall, 0 Kristall und 5 Deuterium.',
+      'Flottenhauptquartier', 'Raketeneinschlag', '24. Okt 2026, 12:50:00',
+      'Interplanetarraketen (25) von Ra [3:200:1] sind auf dem Planeten Rees [3:195:5] eingeschlagen',
+      '3 Raketen wurden abgefangen.', 'Raketenwerfer (- 120)',
+      'Flottenhauptquartier', 'Flottenrückkehr', '24. Okt 2026, 13:30:00',
+      'Eine deiner Recycler-Flotten kehrt nach Ra [3:200:1] mit 40.219.074 Metall, 19.280.927 Kristall und 0 Deuterium zurück.',
+    ].join('\n');
+    const res = parsePage({ text });
+    expect(res.pageType).toBe('messages');
+    expect(res.records).toEqual([
+      {
+        kind: 'transport', msgId: null, time: '2026-10-24 14:00:00', side: 'own', from: { g: 3, s: 200, p: 1 }, to: { g: 3, s: 160, p: 5 }, toType: 'moon',
+        metal: 106509, crystal: 57555, deuterium: 33088,
+      },
+      {
+        kind: 'transport', msgId: null, time: '2026-10-24 14:00:01', side: 'foreign', from: { g: 3, s: 200, p: 1 }, to: { g: 3, s: 26, p: 12 }, toType: null,
+        metal: 1000, crystal: 0, deuterium: 5,
+      },
+      { kind: 'missileImpact', msgId: null, time: '2026-10-24 12:50:00', count: 25, from: { g: 3, s: 200, p: 1 }, target: { g: 3, s: 195, p: 5 } },
+      { kind: 'recycleReturn', msgId: null, time: '2026-10-24 13:30:00', home: { g: 3, s: 200, p: 1 }, metal: 40219074, crystal: 19280927, deuterium: 0 },
+    ]);
+  });
+
+  it('reads the English and pirate texts', () => {
+    const en = parsePage({
+      text: [
+        'Transportmessage', '24 Oct 2026, 14:00:00',
+        'One of your fleets from Ra [3:200:1] reaches the Planet Home [3:26:12] and delivers 1,000 Metal, 2,000 Crystal and 3,000 Deuterium.',
+        'Transportmessage', '24 Oct 2026, 14:00:01',
+        'A peaceful fleet of Ra [3:200:1] reached Home [3:26:12] and delivers 1,000 Metal, 2,000 Crystal and 3,000 Deuterium.',
+        'Rocket impact', '24 Oct 2026, 12:00:00',
+        'Interplanetary rockets (7) from Ra [3:200:1] are on the planet Rees [3:195:5] <br><br>',
+        'Fleet return', '24 Oct 2026, 13:00:00',
+        'One of your recycler fleets returns to Ra [3:200:1] with 10 Metal, 20 Crystal and 0 Deuterium.',
+      ].join('\n'),
+    }).records;
+    expect(en.map((r) => r.kind)).toEqual(['transport', 'transport', 'missileImpact', 'recycleReturn']);
+    expect(en[0]).toMatchObject({ side: 'own', toType: 'planet', metal: 1000, crystal: 2000, deuterium: 3000 });
+    expect(en[1]).toMatchObject({ side: 'foreign', to: { g: 3, s: 26, p: 12 } });
+    expect(en[2]).toMatchObject({ count: 7, target: { g: 3, s: 195, p: 5 } });
+    expect(en[3]).toMatchObject({ home: { g: 3, s: 200, p: 1 }, crystal: 20 });
+    const pirate = parsePage({
+      text: [
+        'Bombeneinschlag', '24. Okt 2026, 12:00:00', 'Brandbomben (4) von Bucht [1:2:3] sind auf dem Hafen Ziel [4:5:6] eingeschlagen',
+        'Flottenrückkehr', '24. Okt 2026, 13:00:00', 'Eine deiner Wracktaucher-Gruppen kehrt nach Bucht [1:2:3] mit 5 Holz, 6 Gold und 0 Rum zurück.',
+        'Transportbericht', '24. Okt 2026, 14:00:00', 'Eine deiner Flotten von Bucht [1:2:3] erreicht den Insel Eiland [4:5:6] und liefert 1 Holz, 2 Gold und 3 Rum.',
+      ].join('\n'),
+    }).records;
+    expect(pirate).toMatchObject([
+      { kind: 'missileImpact', count: 4, from: { g: 1, s: 2, p: 3 } },
+      { kind: 'recycleReturn', metal: 5, crystal: 6 },
+      { kind: 'transport', toType: 'moon', deuterium: 3 },
+    ]);
+  });
+
+  it('does not take a deployment or an attack return as a transport', () => {
+    const res = parsePage({
+      text: [
+        'Stationierte Flotte', '24. Okt 2026, 14:00:00',
+        'Deine Flotte von Ra [3:200:1] erreicht den Planet Home [3:26:12] und liefert 1 Metall, 2 Kristall und 3 Deuterium.',
+      ].join('\n'),
+    });
+    expect(res.records.filter((r) => r.kind === 'transport')).toEqual([]);
+  });
+});
+
 describe('recycling', () => {
   it('reads every pasted recycling report with the date above it', () => {
     const text = [

@@ -6,6 +6,7 @@ import { alertDone, alertsOf, buildingsState, planetElements, planetOf, storages
 import { FLEET_KEEP, openFleetAlerts } from './fleetAlerts.js';
 import { sharedFleets, type StoredFleet } from './fleets.js';
 import { alliance } from './members.js';
+import { finalizedSettlements, memberKey } from './settlements.js';
 import { enemiesOf, followEnemies, launchedOf, planDrives, type LaunchFleet, type LaunchPlan, type PlanRow } from './plans.js';
 
 /**
@@ -16,7 +17,8 @@ import { enemiesOf, followEnemies, launchedOf, planDrives, type LaunchFleet, typ
  * The bell lists them; push notifications send them (push.ts).
  */
 export type Notification =
-  | AttackNotification | InviteNotification | CommentNotification | LaunchNotification | BuildingNotification | FleetNotification | StorageNotification;
+  | AttackNotification | InviteNotification | CommentNotification | LaunchNotification | BuildingNotification | FleetNotification | StorageNotification
+  | SettlementNotification;
 
 interface Base {
   /** stable while the event lasts (the web app remembers which ones were seen, push sends each once) */
@@ -99,6 +101,17 @@ export interface StorageNotification extends Base {
   resource: number;
 }
 
+/**
+ * A loot settlement the viewer takes part in was finalized and they still have deliveries open (`userId`/`member`:
+ * who finalized it, `time`: when): what they send and get.
+ */
+export interface SettlementNotification extends Base {
+  kind: 'settlement';
+  plan: { id: number; g: number; s: number; p: number; planet_type: 'planet' | 'moon'; mission: 'attack' | 'hold' };
+  sends: { to: string; res: { m: number; k: number; d: number } }[];
+  gets: { from: string; res: { m: number; k: number; d: number } }[];
+}
+
 /** A member created a plan (channel only, not on the bell; `userId`/`member`: the creator, `time`: its creation). */
 export interface PlanNotification extends Base {
   kind: 'plan';
@@ -118,6 +131,8 @@ export const LAUNCH_AHEAD = 3600;
 export const BUILDING_KEEP = 24 * 3600;
 /** A full storage is listed this long. */
 export const STORAGE_KEEP = 24 * 3600;
+/** Finalized settlements remind of open deliveries this long (the game's 24 hours to share, with slack). */
+export const SETTLEMENT_KEEP = 2 * 86400;
 /** New plans are posted to the channel this long after their creation. */
 export const PLAN_KEEP = 3600;
 const EXCERPT = 80;
@@ -137,7 +152,7 @@ export function notificationsFor(db: DB, ctx: GroupContext, t: number): Notifica
   const own = () => (state ??= buildingsState(db, ctx, ctx.user.id, t));
   return [
     ...attacks(db, ctx, t), ...invites(db, ctx, t), ...comments(db, ctx, t), ...launches(db, ctx, t), ...buildings(db, ctx, t, own), ...fleets(db, ctx, t),
-    ...storages(db, ctx, t, own),
+    ...storages(db, ctx, t, own), ...settlements(db, ctx, t),
   ].sort((a, b) => a.time - b.time);
 }
 
@@ -160,6 +175,36 @@ export function channelNotificationsFor(db: DB, universe: Universe, groupId: num
     .all(groupId, t) as { id: number; username: string; lang: string; date_format: string }[];
   const own = launching.flatMap((u) => launches(db, ctxOf({ id: u.id, username: u.username, isAdmin: false, lang: u.lang, dateFormat: u.date_format }), t));
   return [...attacks(db, channel, t), ...plans(db, groupId, t), ...own].sort((a, b) => a.time - b.time);
+}
+
+/**
+ * Settlements finalized within `SETTLEMENT_KEEP` with deliveries of the viewer not done (by hand or transport report);
+ * not for the member who finalized it (they know) nor for settlements saved before finalizing existed.
+ */
+function settlements(db: DB, ctx: GroupContext, t: number): SettlementNotification[] {
+  const me = memberKey(ctx.user.id);
+  const recent = [...finalizedSettlements(db, ctx, t).values()].filter(
+    (f) => f.finalizedAt > t - SETTLEMENT_KEEP && !f.migrated && f.finalizedBy !== ctx.user.id,
+  );
+  if (!recent.length) return [];
+  const plan = db.prepare('SELECT a.g, a.s, a.p, a.planet_type, a.mission FROM attack_plans a WHERE a.id = ? AND a.g IS NOT NULL');
+  const who = db.prepare(`SELECT ${DISPLAY} FROM users u LEFT JOIN group_members gm ON gm.group_id = ? AND gm.user_id = u.id WHERE u.id = ?`).pluck();
+  const list: SettlementNotification[] = [];
+  for (const f of recent) {
+    const open = f.deliveries.filter((x) => !x.done && (x.from === me || x.to === me));
+    const target = open.length ? (plan.get(f.planId) as Omit<SettlementNotification['plan'], 'id'> | undefined) : undefined;
+    if (!target) continue;
+    const people = [...f.state.participants, ...f.state.helpers];
+    const nameOf = (id: string) => people.find((x) => x.id === id)?.name ?? '?';
+    list.push({
+      id: `settlement:${f.planId}:${f.finalizedAt}`, kind: 'settlement', userId: f.finalizedBy ?? 0,
+      member: (f.finalizedBy != null ? (who.get(ctx.groupId, f.finalizedBy) as string | undefined) : undefined) ?? '?', time: f.finalizedAt,
+      plan: { id: f.planId, ...target },
+      sends: open.filter((x) => x.from === me).map((x) => ({ to: nameOf(x.to), res: x.res })),
+      gets: open.filter((x) => x.to === me).map((x) => ({ from: nameOf(x.from), res: x.res })),
+    });
+  }
+  return list;
 }
 
 /** Plans of the group created within `PLAN_KEEP` that are still being planned. */

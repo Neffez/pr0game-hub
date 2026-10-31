@@ -23,6 +23,11 @@ export interface Participant {
   missiles?: number;
   /** any other costs */
   extra?: Partial<Res>;
+  /**
+   * share of the profit in percent when it is split by percent (`Settings.mode` 'equal'); participants without one
+   * split what the others leave equally (none set: equal shares)
+   */
+  sharePct?: number;
 }
 
 /**
@@ -49,6 +54,8 @@ export interface BattleFleet {
 }
 
 export interface Battle {
+  /** stable id of a battle the hub took from its data (report id, else the time), for corrections kept on top of it */
+  key?: string;
   /** epoch seconds, for the 24 h deadline */
   time?: number | null;
   /** loot of all attackers together */
@@ -66,6 +73,8 @@ export interface Debris {
 
 /** Debris collected by a participant or helper. */
 export interface Recycling {
+  /** stable id of a recycling report the hub took from its data, for corrections kept on top of it */
+  key?: string;
   by: string;
   m: number;
   k: number;
@@ -78,7 +87,7 @@ export interface Recycling {
 export type SplitMode = 'equal' | 'investment';
 
 export interface Settings {
-  /** profit split: equal shares, or by the value of the ships sent */
+  /** profit split: by percent (`Participant.sharePct`, equal shares by default), or by the value of the ships sent */
   mode: SplitMode;
   /** market rates as the game gives them: metal and crystal per deuterium (`d` is 1) */
   rates: Res;
@@ -132,7 +141,7 @@ export interface PersonResult {
   balance: Res;
 }
 
-export type SettlementWarning = 'too_many_participants' | 'unknown_person' | 'costs_not_covered' | 'rates_out_of_range';
+export type SettlementWarning = 'too_many_participants' | 'unknown_person' | 'costs_not_covered' | 'rates_out_of_range' | 'shares_not_100';
 
 export interface SettlementResult {
   people: PersonResult[];

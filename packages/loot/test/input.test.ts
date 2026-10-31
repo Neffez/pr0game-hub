@@ -69,4 +69,14 @@ describe('settlement input', () => {
     expect(decodeShare(text)).toEqual(state);
     expect(text.length).toBeLessThan(old.length / 3);
   });
+
+  it('keeps profit percents in share links, 0 % included', () => {
+    const state = cleanState({
+      ...emptyState(),
+      participants: [{ id: 'a', name: 'A', sharePct: 0 }, { id: 'b', name: 'B', sharePct: 62.5 }, { id: 'c', name: 'C' }],
+    });
+    expect(state.participants.map((p) => p.sharePct)).toEqual([0, 62.5, undefined]);
+    expect(decodeShare(encodeShare(state))).toEqual(state);
+    expect(cleanState({ participants: [{ id: 'a', name: 'A', sharePct: 250 }] }).participants[0].sharePct).toBe(100);
+  });
 });

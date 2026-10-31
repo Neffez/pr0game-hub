@@ -67,46 +67,237 @@ describe('raid settlements', () => {
     const res = await call('GET', `/plans/${planId}/settlement`, as.dave);
     expect(res.statusCode).toBe(200);
     const body = res.json();
-    expect(body.saved).toBeNull();
-    const { state, sources, result } = body.draft;
+    expect(body).toMatchObject({ corrected: null, finalized: null, overrides: null, done: [] });
+    expect(body.state).toEqual(body.draft.state);
+    const { state, sources } = body.draft;
+    const { result } = body;
     expect(state.participants.map((p: { id: string; name: string }) => [p.id, p.name])).toEqual([[`u${ids.carol}`, 'Carol'], [`u${ids.dave}`, 'Dave']]);
     expect(state.participants[0].flightDeut).toBeGreaterThan(0);
     expect(state.helpers).toEqual([{ id: `u${ids.erin}`, name: 'Erin', keepPct: 20, recDeut: 0 }]);
     expect(state.battles).toHaveLength(1);
-    expect(state.battles[0]).toMatchObject({ time: target, loot: { m: 400000, k: 200000, d: 50000 } });
+    expect(state.battles[0]).toMatchObject({ key: 'r1', time: target, loot: { m: 400000, k: 200000, d: 50000 } });
     expect(state.battles[0].fleets).toEqual([
       { participant: `u${ids.carol}`, start: { 203: 10, 207: 70 }, end: { 203: 10, 207: 60 } },
       { participant: `u${ids.dave}`, start: { 207: 30 }, end: { 207: 30 } },
     ]);
     expect(state.recycling).toHaveLength(2);
-    expect(sources.battles).toEqual([{ reportId: 'r1', time: target, fleets: 'report' }]);
+    expect(sources.battles).toEqual([{ key: 'r1', reportId: 'r1', time: target, fleets: 'report' }]);
     // Carol lost 10 battleships
     expect(result.people[0].costs).toMatchObject({ m: 450000, k: 150000 });
     expect(result.warnings).toEqual([]);
     expect(body.me).toBe(`u${ids.dave}`);
+    // what the members still have to sync: their fleet return messages
+    expect(body.checks).toEqual({ battle: 'report', returns: { [`u${ids.carol}`]: 'missing', [`u${ids.dave}`]: 'missing' }, recycling: 'n/a', missing: 2 });
     expect(body).toMatchObject({ can_edit: true, plan: { id: planId, g: 2, s: 100, p: 8, target_time: target } });
     expect((await call('GET', `/plans/${planId}/settlement`, as.erin)).json().can_edit).toBe(false);
   });
 
-  it('saves for participants only, keeps it within the group and marks deliveries', async () => {
+  it('saves corrections for participants only, keeps it within the group and marks deliveries once finalized', async () => {
     const draft = (await call('GET', `/plans/${planId}/settlement`, as.carol)).json().draft.state;
     expect((await call('PUT', `/plans/${planId}/settlement`, as.erin, { state: draft })).statusCode).toBe(403);
     const saved = await call('PUT', `/plans/${planId}/settlement`, as.dave, { state: { ...draft, settings: { ...draft.settings, mode: 'investment' }, junk: 1 } });
     expect(saved.statusCode).toBe(200);
-    expect(saved.json()).toMatchObject({ updated_by: 'Dave', done: [], state: { settings: { mode: 'investment' } } });
+    // only the correction is stored
+    expect(saved.json()).toMatchObject({ corrected: { updated_by: 'Dave' }, overrides: { settings: { mode: 'investment' } }, finalized: null, state: { settings: { mode: 'investment' } } });
     expect('junk' in saved.json().state).toBe(false);
     expect((await call('GET', `/plans/${planId}/settlement`, as.carolB)).statusCode).toBe(404);
 
-    // a helper may mark their own delivery, not others'
+    // deliveries are marked on the finalized settlement only
     const key = `u${ids.erin}>u${ids.carol}`;
+    expect((await call('PUT', `/plans/${planId}/settlement/done`, as.erin, { key })).statusCode).toBe(404);
+    expect((await call('POST', `/plans/${planId}/settlement/finalize`, as.erin, {})).statusCode).toBe(403);
+    const final = (await call('POST', `/plans/${planId}/settlement/finalize`, as.carol, {})).json();
+    expect(final.finalized).toMatchObject({ by: 'Carol', changes: { people: 0, battles: 0, recycling: 0, settings: 0 } });
+    expect((await call('PUT', `/plans/${planId}/settlement`, as.dave, { state: draft })).json().code).toBe('settlement_finalized');
+    // a helper may mark their own delivery, not others'
     expect((await call('PUT', `/plans/${planId}/settlement/done`, as.erin, { key })).json()).toEqual({ done: [key] });
     expect((await call('PUT', `/plans/${planId}/settlement/done`, as.erin, { key: `u${ids.dave}>u${ids.carol}` })).statusCode).toBe(403);
     expect((await call('PUT', `/plans/${planId}/settlement/done`, as.carol, { key, done: false })).json()).toEqual({ done: [] });
 
     const body = (await call('GET', `/plans/${planId}/settlement`, as.erin)).json();
-    expect(body.saved.result.people.find((p: { id: string }) => p.id === `u${ids.carol}`).share).toBeCloseTo(4_320_000 / 6_120_000); // 70 battleships + 10 heavy cargo vs. 30 battleships
+    expect(body.result.people.find((p: { id: string }) => p.id === `u${ids.carol}`).share).toBeCloseTo(4_320_000 / 6_120_000); // 70 battleships + 10 heavy cargo vs. 30 battleships
     expect((await call('DELETE', `/plans/${planId}/settlement`, as.carol)).statusCode).toBe(200);
-    expect((await call('GET', `/plans/${planId}/settlement`, as.carol)).json().saved).toBeNull();
+    expect((await call('GET', `/plans/${planId}/settlement`, as.carol)).json()).toMatchObject({ corrected: null, finalized: null });
+  });
+
+  it('follows data synced later, keeps corrections and freezes once finalized', async () => {
+    const url = `/plans/${planId}/settlement`;
+    const state = (await call('GET', url, as.carol)).json().state;
+    state.participants[1].missiles = 4;
+    state.battles[0].loot.d = 1;
+    await call('PUT', url, as.carol, { state });
+    // a recycling report synced after the correction flows in, the corrections stay
+    const rec = db.prepare("INSERT INTO recycle_reports (group_id, user_id, dedupe_key, time, g, s, p, metal, crystal, total_metal, total_crystal) VALUES (?, ?, 'x4', ?, 2, 100, 8, 1000, 500, 0, 0)");
+    rec.run(groupA, ids.dave, target + 800);
+    let body = (await call('GET', url, as.carol)).json();
+    expect(body.state.recycling.map((r: { m: number }) => r.m)).toEqual([300000, 200000, 1000]);
+    expect(body.state.participants[1].missiles).toBe(4);
+    expect(body.state.battles[0].loot).toEqual({ m: 400000, k: 200000, d: 1 });
+
+    // finalized: frozen; data synced since shows as changes
+    await call('POST', `${url}/finalize`, as.dave, {});
+    db.prepare("DELETE FROM recycle_reports WHERE dedupe_key = 'x4'").run();
+    body = (await call('GET', url, as.carol)).json();
+    expect(body.state.recycling).toHaveLength(3);
+    expect(body.finalized.changes).toEqual({ people: 0, battles: 0, recycling: 1, settings: 0 });
+    // reopened: follows the data again
+    body = (await call('DELETE', `${url}/finalize`, as.carol)).json();
+    expect(body.finalized).toBeNull();
+    expect(body.state.recycling).toHaveLength(2);
+    expect(body.state.participants[1].missiles).toBe(4);
+    await call('DELETE', url, as.carol);
+  });
+
+  it('turns a settlement saved before corrections existed into corrections when reopened', async () => {
+    const url = `/plans/${planId}/settlement`;
+    const old = (await call('GET', url, as.carol)).json().draft.state;
+    for (const b of old.battles) delete b.key;
+    for (const r of old.recycling) delete r.key;
+    old.battles[0].loot.m = 5;
+    // as the migration leaves it: the whole state, finalized
+    db.prepare(
+      'INSERT INTO raid_settlements (plan_id, group_id, data, updated_by, updated_at, finalized_at, finalized_by, migrated) VALUES (?, ?, ?, ?, 100, 100, ?, 1)',
+    ).run(planId, groupA, JSON.stringify(old), ids.carol, ids.carol);
+    let body = (await call('GET', url, as.carol)).json();
+    expect(body.finalized).toMatchObject({ at: 100, by: 'Carol' });
+    expect(body.state.battles[0].loot.m).toBe(5);
+    // the frozen state has no keys: matched to the live rows (which carry its loot as a correction), no false changes
+    expect(body.finalized.changes).toEqual({ people: 0, battles: 0, recycling: 0, settings: 0 });
+    // saved just before the deploy: no "finalized" notification for it
+    db.prepare('UPDATE raid_settlements SET finalized_at = unixepoch() WHERE plan_id = ?').run(planId);
+    expect((await call('GET', '/notifications', as.dave)).json().filter((n: { kind: string }) => n.kind === 'settlement')).toEqual([]);
+    body = (await call('DELETE', `${url}/finalize`, as.carol)).json();
+    expect(body.overrides).toEqual({ battles: { r1: { at: target, loot: { m: 5, k: 200000, d: 50000 } } } });
+    expect(body.state.battles[0].key).toBe('r1');
+    await call('DELETE', url, as.carol);
+  });
+
+  it('takes missiles, recycler and flight deuterium from synced messages and ticks off deliveries by transport messages', async () => {
+    const url = `/plans/${planId}/settlement`;
+    // the messages are stored like any sync
+    const text = [
+      'Transportbericht', '24. Okt 2026, 14:00:00',
+      'Eine deiner Flotten von Heim [2:90:4] erreicht den Planet Dave [2:95:4] und liefert 1.000 Metall, 0 Kristall und 0 Deuterium.',
+      'Raketeneinschlag', '24. Okt 2026, 12:50:00', 'Interplanetarraketen (3) von Heim [2:90:4] sind auf dem Planeten Ziel [2:100:8] eingeschlagen',
+      'Flottenrückkehr', '24. Okt 2026, 13:30:00', 'Eine deiner Recycler-Flotten kehrt nach Heim [2:90:4] mit 1 Metall, 2 Kristall und 0 Deuterium zurück.',
+    ].join('\n');
+    const counts = (await call('POST', '/ingest', as.carol, { text })).json().counts;
+    expect(counts).toMatchObject({ transports: { new: 1 }, missile_impacts: { new: 1 }, recycle_returns: { new: 1 } });
+    expect((await call('POST', '/ingest', as.carol, { text })).json().counts).toMatchObject({ transports: { new: 0, duplicate: 1 } });
+    for (const t of ['transports', 'missile_impacts', 'recycle_returns']) db.prepare(`DELETE FROM ${t}`).run();
+
+    const planned = (await call('GET', url, as.carol)).json();
+    expect(planned.draft.sources.flightDeutFrom).toEqual({ [`u${ids.carol}`]: 'plan', [`u${ids.dave}`]: 'plan' });
+    // Carol fired 12 missiles before the battle (two messages), Dave's recyclers... none; her recyclers came home after 50 minutes
+    const impact = db.prepare("INSERT INTO missile_impacts (group_id, user_id, dedupe_key, time, count, from_g, from_s, from_p, g, s, p) VALUES (?, ?, ?, ?, ?, 2, 90, 4, 2, 100, 8)");
+    impact.run(groupA, ids.carol, 'i1', target - 600, 10);
+    impact.run(groupA, ids.carol, 'i2', target - 500, 2);
+    impact.run(groupA, ids.carol, 'i3', target - 3 * 86400, 99); // an older attack
+    db.prepare("INSERT INTO recycle_returns (group_id, user_id, dedupe_key, time, home_g, home_s, home_p, metal, crystal, deuterium) VALUES (?, ?, 'c1', ?, 2, 90, 4, 300000, 100000, 0)")
+      .run(groupA, ids.carol, target + 600 + 3000);
+    // Dave's fleet flew home in 40 minutes (the plan said 100 %)
+    const back = {
+      owner: 'own', player: null, mission: 2, missionName: 'Verbandsangriff', phase: 'return', seconds: 0, clock: null, arrival: target + 2400,
+      from: { coords: { g: 2, s: 100, p: 8 }, type: 'planet', name: 'Ziel' }, to: { coords: { g: 2, s: 95, p: 4 }, type: 'planet', name: 'Heim' },
+      ships: { 207: 30 }, resources: { 901: 0, 902: 0, 903: 0 },
+    };
+    db.prepare('INSERT INTO fleet_snapshots (group_id, user_id, page_time, data) VALUES (?, ?, ?, ?)').run(groupA, ids.dave, target + 60, JSON.stringify([back]));
+    let body = (await call('GET', url, as.carol)).json();
+    const { sources, state } = body.draft;
+    expect(sources.missiles).toEqual({ [`u${ids.carol}`]: 12 });
+    expect(state.participants[0].missiles).toBe(12);
+    expect(sources.recDeut[`u${ids.carol}`]).toBeGreaterThan(0);
+    expect(state.participants[0].recDeut).toBe(sources.recDeut[`u${ids.carol}`]);
+    expect(sources.flightDeutFrom).toEqual({ [`u${ids.carol}`]: 'plan', [`u${ids.dave}`]: 'fleet' });
+    expect(state.participants[1].flightDeut).not.toBe(planned.draft.state.participants[1].flightDeut);
+    expect(state.participants[0].flightDeut).toBe(planned.draft.state.participants[0].flightDeut);
+    // a second wave: it is not known which battle Dave's fleet fought in, the planned speed stays
+    db.prepare(`INSERT INTO battle_reports (group_id, user_id, dedupe_key, report_id, time, g, s, p, planet_type, outcome, lost_attacker, lost_defender,
+       loot_metal, loot_crystal, loot_deuterium, debris_metal, debris_crystal) VALUES (?, ?, 'w2', 'w2', ?, 2, 100, 8, 'planet', 'win', 0, 0, 1, 1, 1, 0, 0)`)
+      .run(groupA, ids.dave, target + 1800);
+    expect((await call('GET', url, as.carol)).json().draft.sources.flightDeutFrom[`u${ids.dave}`]).toBe('plan');
+    db.prepare("DELETE FROM battle_reports WHERE dedupe_key = 'w2'").run();
+
+    // finalized: the transport messages tick off the deliveries
+    body = (await call('POST', `${url}/finalize`, as.carol, {})).json();
+    const x = body.result.transfers.find((t: { res: { m: number; k: number; d: number } }) => t.res.m + t.res.k + t.res.d > 0);
+    expect(body.auto_done).toEqual([]);
+    const homes: Record<string, [number, number, number]> = { [`u${ids.carol}`]: [2, 90, 4], [`u${ids.dave}`]: [2, 95, 4], [`u${ids.erin}`]: [2, 80, 1] };
+    const transport = db.prepare(
+      `INSERT INTO transports (group_id, user_id, dedupe_key, time, side, from_g, from_s, from_p, to_g, to_s, to_p, metal, crystal, deuterium)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    );
+    const sender = Number(x.from.slice(1));
+    const receiver = Number(x.to.slice(1));
+    // half of it first, synced by both (one transport), then the rest by the receiver only
+    const half = { m: Math.floor(x.res.m / 2), k: Math.floor(x.res.k / 2), d: Math.floor(x.res.d / 2) };
+    transport.run(groupA, sender, 't1', target + 4000, 'own', ...homes[x.from], ...homes[x.to], half.m, half.k, half.d);
+    transport.run(groupA, receiver, 't1', target + 4000, 'foreign', ...homes[x.from], ...homes[x.to], half.m, half.k, half.d);
+    body = (await call('GET', url, as.carol)).json();
+    expect(body.delivered[`${x.from}>${x.to}`]).toEqual(half);
+    expect(body.auto_done).toEqual([]);
+    transport.run(groupA, receiver, 't2', target + 5000, 'foreign', ...homes[x.from], ...homes[x.to], x.res.m - half.m, x.res.k - half.k, x.res.d - half.d);
+    body = (await call('GET', url, as.carol)).json();
+    expect(body.auto_done).toEqual([`${x.from}>${x.to}`]);
+    // a transport the other way does not count
+    expect(body.delivered[`${x.to}>${x.from}`]).toBeUndefined();
+
+    // only the sender's copy synced, the receiver's planet known from the plan only (no galaxy data): still counts
+    db.prepare('DELETE FROM transports').run();
+    const planned2 = body.result.transfers.find(
+      (t: { from: string; to: string; res: { m: number } }) => [`u${ids.carol}`, `u${ids.dave}`].includes(t.from) && [`u${ids.carol}`, `u${ids.dave}`].includes(t.to),
+    );
+    expect(planned2).toBeTruthy();
+    transport.run(groupA, Number(planned2.from.slice(1)), 't3', target + 4000, 'own', ...homes[planned2.from], ...homes[planned2.to], planned2.res.m, planned2.res.k, planned2.res.d);
+    expect((await call('GET', url, as.carol)).json().auto_done).toContain(`${planned2.from}>${planned2.to}`);
+
+    for (const t of ['transports', 'missile_impacts', 'recycle_returns']) db.prepare(`DELETE FROM ${t}`).run();
+    db.prepare('DELETE FROM fleet_snapshots WHERE user_id = ?').run(ids.dave);
+    await call('DELETE', url, as.carol);
+  });
+
+  it('counts a transport from the finalizing on, for one settlement only, and keeps ticks of unchanged deliveries', async () => {
+    const url = `/plans/${planId}/settlement`;
+    const body = (await call('POST', `${url}/finalize`, as.dave, {})).json();
+    const at = body.finalized.at as number;
+    const x = body.result.transfers.find((t: { res: { m: number; k: number; d: number } }) => t.res.m + t.res.k + t.res.d > 0);
+    // a second settlement with the same delivery, finalized later
+    const other = Number(db.prepare("INSERT INTO attack_plans (group_id, user_id, g, s, p, planet_type, target_time, status) VALUES (?, ?, 2, 100, 9, 'planet', ?, 'done')")
+      .run(groupA, ids.carol, target).lastInsertRowid);
+    db.prepare('INSERT INTO raid_settlements (plan_id, group_id, data, updated_by, updated_at, finalized_at, finalized_by) VALUES (?, ?, ?, ?, ?, ?, ?)')
+      .run(other, groupA, JSON.stringify(body.state), ids.dave, at + 10, at + 10, ids.dave);
+    const homes: Record<string, [number, number, number]> = { [`u${ids.carol}`]: [2, 90, 4], [`u${ids.dave}`]: [2, 95, 4], [`u${ids.erin}`]: [2, 80, 1] };
+    const transport = db.prepare(
+      `INSERT INTO transports (group_id, user_id, dedupe_key, time, side, from_g, from_s, from_p, to_g, to_s, to_p, metal, crystal, deuterium)
+       VALUES (?, ?, ?, ?, 'own', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    );
+    const send = (key: string, time: number) =>
+      transport.run(groupA, Number(x.from.slice(1)), key, time, ...homes[x.from], ...homes[x.to], x.res.m, x.res.k, x.res.d);
+    const autoOf = async (id: number) => (await call('GET', `/plans/${id}/settlement`, as.carol)).json().auto_done;
+    // sent before the finalizing: not this settlement's delivery
+    send('t-early', at - 600);
+    expect(await autoOf(planId)).toEqual([]);
+    // one transport: the settlement finalized first takes it, the other still waits
+    send('t1', at + 100);
+    expect(await autoOf(planId)).toEqual([x.key ?? `${x.from}>${x.to}`]);
+    expect(await autoOf(other)).toEqual([]);
+    send('t2', at + 200);
+    expect(await autoOf(other)).toEqual([`${x.from}>${x.to}`]);
+
+    // reopened and finalized again with the same amounts: the delivery stays done
+    await call('DELETE', `${url}/finalize`, as.dave);
+    let again = (await call('POST', `${url}/finalize`, as.dave, {})).json();
+    expect(again.done).toEqual([`${x.from}>${x.to}`]);
+    // reopened, the loot changed, finalized again: the delivery is open again
+    await call('DELETE', `${url}/finalize`, as.dave);
+    const changedState = (await call('GET', url, as.dave)).json().state;
+    changedState.battles[0].loot.m += 500000;
+    again = (await call('POST', `${url}/finalize`, as.dave, { state: changedState })).json();
+    expect(again.done).toEqual([]);
+
+    db.prepare('DELETE FROM transports').run();
+    db.prepare('DELETE FROM attack_plans WHERE id = ?').run(other);
+    await call('DELETE', url, as.carol);
   });
 
   it('stores the loot of archived battle reports', async () => {
@@ -174,7 +365,7 @@ describe('raid settlements', () => {
       report_id: `text-${time}-3-195-5`, g: 3, s: 195, p: 5, planet_type: 'moon', loot_crystal: 1343846,
     });
     let draft = (await call('GET', `/plans/${id}/settlement`, as.dave)).json().draft;
-    expect(draft.sources.battles).toEqual([{ reportId: `text-${time}-3-195-5`, time, fleets: 'report' }]);
+    expect(draft.sources.battles).toEqual([{ key: `text-${time}-3-195-5`, reportId: `text-${time}-3-195-5`, time, fleets: 'report' }]);
     expect(draft.state.battles[0].loot).toEqual({ m: 0, k: 1343846, d: 690373 });
     expect(draft.state.battles[0].debris).toEqual({ m: 142823000, k: 68450500 });
     // a recycling report keeps the field it collected from
@@ -183,7 +374,7 @@ describe('raid settlements', () => {
        VALUES (?, ?, 'x9', ?, 3, 195, 5, 40219074, 19280927, 142823000, 68469000)`,
     ).run(groupA, ids.dave, time + 9);
     expect((await call('GET', `/plans/${id}/settlement`, as.dave)).json().draft.state.recycling).toEqual([
-      { by: `u${ids.dave}`, m: 40219074, k: 19280927, time: time + 9, field: { m: 142823000, k: 68469000 } },
+      { key: expect.stringMatching(/^r\d+$/), by: `u${ids.dave}`, m: 40219074, k: 19280927, time: time + 9, field: { m: 142823000, k: 68469000 } },
     ]);
     db.prepare("DELETE FROM recycle_reports WHERE dedupe_key = 'x9'").run();
 
@@ -236,7 +427,7 @@ describe('raid settlements', () => {
          loot_metal, loot_crystal, loot_deuterium, debris_metal, debris_crystal) VALUES (?, ?, 'r9', 'abc123', ?, 3, 195, 5, 'moon', 'win', 0, 0, 0, 1343846, 690373, 0, 0)`,
     ).run(groupA, ids.dave, time + 1);
     draft = (await call('GET', `/plans/${id}/settlement`, as.dave)).json().draft;
-    expect(draft.sources.battles).toEqual([{ reportId: `text-${time}-3-195-5`, time: time + 1, fleets: 'report' }]);
+    expect(draft.sources.battles).toEqual([{ key: `text-${time}-3-195-5`, reportId: `text-${time}-3-195-5`, time: time + 1, fleets: 'report' }]);
 
     // pasted after the message: archived under the message's report id
     db.prepare('DELETE FROM combat_reports WHERE group_id = ? AND g = 3').run(groupA);
@@ -244,7 +435,7 @@ describe('raid settlements', () => {
     expect(res.json().counts.combat_reports).toEqual({ new: 1, duplicate: 0 });
     expect(db.prepare('SELECT report_id FROM combat_reports WHERE group_id = ? AND g = 3').pluck().get(groupA)).toBe('abc123');
     expect((await call('POST', '/ingest', as.dave, { text })).json().counts.combat_reports).toEqual({ new: 0, duplicate: 1 });
-    expect((await call('GET', `/plans/${id}/settlement`, as.dave)).json().draft.sources.battles).toEqual([{ reportId: 'abc123', time: time + 1, fleets: 'report' }]);
+    expect((await call('GET', `/plans/${id}/settlement`, as.dave)).json().draft.sources.battles).toEqual([{ key: 'abc123', reportId: 'abc123', time: time + 1, fleets: 'report' }]);
   });
 
   it('settles a hold like an ACS: the defenders share the debris, no loot', async () => {
@@ -281,12 +472,39 @@ describe('raid settlements', () => {
     db.prepare("UPDATE attack_plans SET status = 'launched' WHERE id = ?").run(planId);
     const list = (await call('GET', '/settlements', as.carol)).json();
     const attack = list.find((x: { id: number }) => x.id === planId);
-    expect(attack).toMatchObject({ mission: 'attack', g: 2, s: 100, p: 8, status: 'launched', battle: true, saved: null });
+    expect(attack).toMatchObject({ mission: 'attack', g: 2, s: 100, p: 8, status: 'launched', battle: true, saved: null, stage: 'waiting', missing: 2, mine: [] });
+    expect(attack.deadline).toBe(target + 86400);
     expect(attack.members.sort()).toEqual(['CVXII', 'Rudolf']);
     await call('PUT', `/plans/${planId}/settlement`, as.carol, { state: (await call('GET', `/plans/${planId}/settlement`, as.carol)).json().draft.state });
-    const saved = (await call('GET', '/settlements', as.carol)).json().find((x: { id: number }) => x.id === planId).saved;
-    expect(saved).toMatchObject({ updated_by: 'CVXII', done: 0 });
+    const entry = async () => (await call('GET', '/settlements', as.carol)).json().find((x: { id: number }) => x.id === planId).saved;
+    // open: its deliveries still follow the data
+    expect(await entry()).toMatchObject({ updated_by: 'CVXII', finalized_at: null, deliveries: 0, done: 0 });
+    await call('POST', `/plans/${planId}/settlement/finalize`, as.carol, {});
+    const saved = await entry();
+    expect(saved).toMatchObject({ finalized_at: expect.any(Number), done: 0 });
     expect(saved.deliveries).toBeGreaterThan(0);
+    const finalized = (await call('GET', '/settlements', as.carol)).json().find((x: { id: number }) => x.id === planId);
+    expect(finalized).toMatchObject({ stage: 'delivering', missing: null });
+    // the caller's open deliveries, by name
+    expect(finalized.mine.length).toBeGreaterThan(0);
+    expect(finalized.mine.every((x: { from: string; to: string }) => x.from === 'CVXII' || x.to === 'CVXII')).toBe(true);
+    // the bell (and push) tells the members what they send and get, not the one who finalized it
+    const settlementsOf = async (h: Record<string, string>) => (await call('GET', '/notifications', h)).json().filter((n: { kind: string }) => n.kind === 'settlement');
+    expect(await settlementsOf(as.carol)).toEqual([]);
+    const daveMine = (await call('GET', '/settlements', as.dave)).json().find((x: { id: number }) => x.id === planId).mine;
+    expect(daveMine.length).toBeGreaterThan(0);
+    const bell = await settlementsOf(as.dave);
+    expect(bell).toHaveLength(1);
+    expect(bell[0]).toMatchObject({ member: 'CVXII', plan: { id: planId, g: 2, s: 100, p: 8 } });
+    expect(bell[0].sends.length + bell[0].gets.length).toBe(daveMine.length);
+    const { payloadOf } = await import('../src/push.js');
+    const push = payloadOf(bell[0], 'de', 'u8', 'Europe/Berlin', groupA);
+    expect(push.title).toBe('💰 Beuteabrechnung [2:100:8] festgeschrieben');
+    expect(push.url).toContain(`/raid-planner/${planId}/loot`);
+    // Erin (recycling helper) gets hers only: as many as her open deliveries in the list
+    const erinMine = (await call('GET', '/settlements', as.erin)).json().find((x: { id: number }) => x.id === planId).mine;
+    const erinBell = (await call('GET', '/notifications', as.erin)).json().filter((n: { kind: string }) => n.kind === 'settlement');
+    expect(erinBell.flatMap((n: { sends: unknown[]; gets: unknown[] }) => [...n.sends, ...n.gets])).toHaveLength(erinMine.length);
     expect((await call('GET', '/settlements', as.carolB)).json()).toEqual([]);
   });
 
@@ -314,7 +532,7 @@ describe('raid settlements', () => {
     expect(state.participants.map((p: { id: string; name: string }) => [p.id, p.name])).toEqual([[`u${ids.carol}`, 'CVXII'], ['g1', 'Gast']]);
     expect(state.participants[0].flightDeut).toBeGreaterThan(0);
     expect(state.battles).toEqual([{
-      time: expect.any(Number), loot: { m: 1000, k: 2000, d: 3000 },
+      key: expect.any(String), time: expect.any(Number), loot: { m: 1000, k: 2000, d: 3000 },
       fleets: [{ participant: `u${ids.carol}`, start: { 207: 100 }, end: { 207: 99 } }, { participant: 'g1', start: { 207: 50 }, end: { 207: 50 } }],
     }]);
     // pasted again: the same plan
