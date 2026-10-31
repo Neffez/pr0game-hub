@@ -25,7 +25,7 @@ interface Entry {
   player_name: string | null;
   members: string[];
   battle: boolean;
-  saved: { updated_at: number; updated_by: string | null; deliveries: number; done: number } | null;
+  saved: { updated_at: number; updated_by: string | null; finalized_at: number | null; deliveries: number; done: number } | null;
 }
 
 const DAYS = [7, 30, 90];
@@ -57,8 +57,8 @@ async function createFromReport() {
     fromReport.busy = false;
   }
 }
-/** settled when every delivery is ticked off */
-const settled = (e: Entry) => !!e.saved && e.saved.done >= e.saved.deliveries;
+/** settled when it is finalized and every delivery is ticked off */
+const settled = (e: Entry) => !!e.saved?.finalized_at && e.saved.done >= e.saved.deliveries;
 </script>
 
 <template>
@@ -118,12 +118,12 @@ const settled = (e: Entry) => !!e.saved && e.saved.done >= e.saved.deliveries;
           <td class="small">{{ e.members.join(', ') }}</td>
           <td :class="e.battle ? 'ok' : 'faint'"><Icon v-if="e.battle" name="check" :size="14" :label="t('common.yes')" /><template v-else>–</template></td>
           <td class="small">
-            <template v-if="e.saved">
+            <template v-if="e.saved?.finalized_at">
               <span v-if="!e.saved.deliveries" class="ok">{{ t('loot.noTransfers') }}</span>
               <span v-else :class="settled(e) ? 'ok' : 'warn'">{{ t('loot.deliveriesDone', { done: e.saved.done, n: e.saved.deliveries }) }}</span>
-              <span class="faint"> · {{ e.saved.updated_by ?? '?' }}, {{ dateTime(e.saved.updated_at) }}</span>
+              <span class="faint"> · {{ t('loot.finalizedBadge') }} {{ dateTime(e.saved.finalized_at) }}</span>
             </template>
-            <span v-else class="muted">{{ t('loot.notSaved') }}</span>
+            <span v-else class="muted">{{ e.saved ? t('loot.liveCorrected') : t('loot.liveBadge') }}</span>
           </td>
           <td><RouterLink :to="`/${uni}/raid-planner/${e.id}/loot`">{{ t('loot.open') }}</RouterLink></td>
         </tr>

@@ -92,6 +92,13 @@ describe('corrections on top of the hub draft', () => {
     expect(keyed.battles[0].key).toBe('rep-1');
     expect(keyed.recycling.map((r) => r.key)).toEqual(['r1', 'r2']);
     expect(diffOverrides(draft(), keyed)).toEqual({ battles: { 'rep-1': { at: 1000, time: 1002 } } });
+    // a battle key that looks like a recycling key does not block that row
+    const clash = draft();
+    clash.battles[0].key = 'r1';
+    const oldClash = JSON.parse(JSON.stringify(clash)) as LootState;
+    delete oldClash.battles[0].key;
+    for (const r of oldClash.recycling) delete r.key;
+    expect(adoptKeys(clash, oldClash).recycling.map((r) => r.key)).toEqual(['r1', 'r2']);
   });
 
   it('counts what changed since a settlement was finalized', () => {

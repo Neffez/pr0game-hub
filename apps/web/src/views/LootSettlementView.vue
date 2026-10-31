@@ -9,7 +9,8 @@ import { useRoute } from 'vue-router';
 import { localToEpoch, parseCombatReportText, parseRecycleReportsText } from '@pr0hub/core/combat';
 import { CAPACITY } from '@pr0hub/flight';
 import {
-  battleFromReport, cleanState, debrisSummary, marketRates, MAX_HELPER_KEEP, mergeDraft, decodeShare, lootShares, settle, type LootState, type Res, type SettlementResult, type TransferInput,
+  adoptKeys, battleFromReport, cleanState, debrisSummary, decodeShare, diffOverrides, lootShares, marketRates, MAX_HELPER_KEEP, overriddenPaths, settle,
+  type Battle, type LootState, type Overrides, type Res, type SettlementResult, type StateChanges, type TransferInput,
 } from '@pr0hub/loot';
 import { uniApi } from '../api';
 import CommentThread from '../components/CommentThread.vue';
@@ -20,24 +21,23 @@ import { tables, useLiveReload } from '../live';
 
 /** Where the hub took a value of the draft from (server `DraftSources`). */
 interface Sources {
-  battles: { reportId: string | null; time: number | null; fleets: 'report' | 'plan' }[];
+  battles: { key: string; reportId: string | null; time: number | null; fleets: 'report' | 'plan' }[];
   returnLoot: Record<string, Record<number, Res>>;
   returnSource?: Record<string, 'message' | 'overview'>;
   flightDeut: Record<string, number>;
   recycling: { by: string; time: number | null }[];
 }
-interface Saved {
-  state: LootState;
-  done: string[];
-  updated_at: number;
-  updated_by: string | null;
-}
+/** `GET /plans/:id/settlement`: the draft from the hub's data, the corrections on top, or the finalized state. */
 interface Response {
   plan: { id: number; mission: 'attack' | 'hold'; g: number | null; s: number | null; p: number | null; planet_type: 'planet' | 'moon'; target_time: number; status: string };
   can_edit: boolean;
-  saved: Saved | null;
-  draft: { state: LootState; sources: Sources };
   me: string;
+  draft: { state: LootState; sources: Sources };
+  overrides: Overrides | null;
+  corrected: { updated_at: number; updated_by: string | null } | null;
+  finalized: { at: number; by: string | null; live: LootState; changes: StateChanges } | null;
+  state: LootState;
+  done: string[];
 }
 
 const RES: (keyof Res)[] = ['m', 'k', 'd'];
@@ -79,15 +79,24 @@ function fill(s: LootState, isDirty = false) {
   queueMicrotask(() => (filling = false));
 }
 
+/** New hub data while editing: shown, taken in once the corrections are saved or discarded. */
+const stale = ref(false);
 async function load(force = false) {
-  if (dirty.value && !force) return;
+  if (dirty.value && !force) {
+    stale.value = true;
+    return;
+  }
   try {
-    data.value = await uniApi<Response>(uni.value, `/plans/${planId.value}/settlement`);
-    fill(data.value.saved?.state ?? data.value.draft.state);
+    show(await uniApi<Response>(uni.value, `/plans/${planId.value}/settlement`));
     error.value = '';
   } catch (e) {
     error.value = (e as Error).message;
   }
+}
+function show(res: Response) {
+  data.value = res;
+  stale.value = false;
+  fill(res.state);
 }
 onMounted(() => load(true));
 useLiveReload(() => load(), tables('raid_settlements', 'battle_reports', 'combat_reports', 'recycle_reports', 'fleet_returns'));
@@ -97,6 +106,31 @@ watch(state, () => {
 
 const result = computed<SettlementResult | null>(() => (state.value ? settle(state.value) : null));
 const canEdit = computed(() => !!data.value?.can_edit);
+const finalized = computed(() => data.value?.finalized ?? null);
+/** values can be corrected: by participants, creator and admins, while the settlement is not finalized */
+const editing = computed(() => canEdit.value && !finalized.value);
+const draftState = computed(() => data.value?.draft.state ?? null);
+/** corrections made by hand (also those not saved yet), as field paths */
+const manual = computed(() => (state.value && draftState.value && !finalized.value ? overriddenPaths(diffOverrides(draftState.value, state.value)) : new Set<string>()));
+const hasCorrections = computed(() => manual.value.size > 0 || !!data.value?.corrected);
+const changeCount = computed(() => {
+  const c = finalized.value?.changes;
+  return c ? c.people + c.battles + c.recycling + c.settings : 0;
+});
+const draftPerson = (id: string) => [...(draftState.value?.participants ?? []), ...(draftState.value?.helpers ?? [])].find((p) => p.id === id);
+/** A participant's or helper's value in the hub's data. */
+const draftValue = (id: string, field: 'flightDeut' | 'recDeut' | 'missiles' | 'keepPct') => ((draftPerson(id) as Record<string, unknown> | undefined)?.[field] as number | undefined) ?? 0;
+const draftBattle = (b: Battle) => draftState.value?.battles.find((x) => x.key && x.key === b.key);
+const battleSource = (b: Battle) => (b.key ? sources.value?.battles.find((x) => x.key === b.key) : undefined);
+/** Back to the hub's value of a participant's field. */
+function resetPerson(id: string, field: 'flightDeut' | 'recDeut' | 'missiles' | 'keepPct') {
+  const p = [...(state.value?.participants ?? []), ...(state.value?.helpers ?? [])].find((x) => x.id === id) as Record<string, unknown> | undefined;
+  if (p && draftPerson(id)) p[field] = draftValue(id, field);
+}
+function resetLoot(b: Battle) {
+  const d = draftBattle(b);
+  if (d) b.loot = { ...d.loot };
+}
 const sources = computed(() => data.value?.draft.sources ?? null);
 const people = computed(() => (state.value ? [...state.value.participants, ...state.value.helpers] : []));
 const personName = (id: string) => people.value.find((p) => p.id === id)?.name || '?';
@@ -115,38 +149,32 @@ async function run(fn: () => Promise<unknown>) {
   }
 }
 
+const url = () => `/plans/${planId.value}/settlement`;
+/** Saves the corrections (only what differs from the hub's data is stored). */
 const save = () =>
   run(async () => {
-    const saved = await uniApi<Saved>(uni.value, `/plans/${planId.value}/settlement`, { method: 'PUT', body: { state: state.value } });
-    data.value = { ...data.value!, saved };
-    fill(saved.state);
+    show(await uniApi<Response>(uni.value, url(), { method: 'PUT', body: { state: state.value } }));
     notice.value = t('loot.saved');
   });
+const discard = () => load(true);
 
-function refill() {
-  if (data.value?.saved && !confirm(t('loot.fromHubConfirm'))) return;
-  fill(data.value!.draft.state, true);
-}
-
-/** Adds what is new in the hub's data (e.g. recycling reports synced later) to the settlement, keeping all changes. */
-const update = () =>
+/** Freezes the settlement for the deliveries (unsaved corrections are saved with it). */
+const finalize = () =>
+  confirm(t('loot.finalizeConfirm')) &&
   run(async () => {
-    const fresh = await uniApi<Response>(uni.value, `/plans/${planId.value}/settlement`);
-    data.value = { ...data.value!, draft: fresh.draft };
-    const { state: merged, added } = mergeDraft(state.value!, fresh.draft.state);
-    const parts = (['recycling', 'battles', 'participants', 'helpers', 'rates'] as const)
-      .filter((k) => added[k] > 0)
-      .map((k) => t(`loot.updated_${k}`, { n: added[k] }, added[k]));
-    // a new reference rate alone changes nothing visible but the warning: taken over as well; nothing new keeps the
-    // state untouched, so a saved settlement does not turn dirty
-    if (JSON.stringify(merged) !== JSON.stringify(state.value)) state.value = merged;
-    notice.value = parts.length ? t('loot.updated', { what: parts.join(', ') }) : t('loot.upToDate');
+    show(await uniApi<Response>(uni.value, `${url()}/finalize`, { method: 'POST', body: dirty.value ? { state: state.value } : {} }));
+  });
+const reopen = () =>
+  confirm(t('loot.reopenConfirm')) &&
+  run(async () => {
+    show(await uniApi<Response>(uni.value, `${url()}/finalize`, { method: 'DELETE' }));
   });
 
-const remove = () =>
-  confirm(t('loot.deleteConfirm')) &&
+/** Drops all corrections (and a finalized state): the settlement follows the hub's data alone. */
+const reset = () =>
+  confirm(t('loot.resetConfirm')) &&
   run(async () => {
-    await uniApi(uni.value, `/plans/${planId.value}/settlement`, { method: 'DELETE' });
+    await uniApi(uni.value, url(), { method: 'DELETE' });
     await load(true);
   });
 
@@ -157,7 +185,8 @@ function importLink() {
     error.value = t('loot.importFailed');
     return;
   }
-  fill(cleanState(s), true);
+  // battles and recycling rows the hub knows keep following its data
+  fill(draftState.value ? adoptKeys(draftState.value, cleanState(s)) : cleanState(s), true);
   linkText.value = '';
   error.value = '';
 }
@@ -182,7 +211,9 @@ function applyReport() {
   const side = data.value?.plan.mission === 'hold' ? 'defender' : 'attacker';
   const { battle, skipped } = battleFromReport(state.value, report, gameEpoch, 'g', side);
   const i = reportTarget.value >= 0 && reportTarget.value < state.value.battles.length ? reportTarget.value : state.value.battles.length;
-  state.value.battles[i] = battle;
+  // replacing a battle of the hub: a correction of that battle
+  const key = state.value.battles[i]?.key;
+  state.value.battles[i] = key ? { ...battle, key } : battle;
   pasted.value = new Set([...pasted.value, i]);
   reportText.value = '';
   reportTarget.value = -1;
@@ -236,16 +267,16 @@ const shipsText = (ships: Record<number, number>) =>
 // ---- deliveries ----
 const transfers = computed<TransferInput[]>(() => state.value?.transfers ?? result.value?.transfers ?? []);
 const keyOf = (x: TransferInput) => `${x.from}>${x.to}`;
-const done = computed(() => new Set(data.value?.saved?.done ?? []));
+const done = computed(() => new Set(data.value?.done ?? []));
 const shipsFor = (r: Res) => {
   const cap = CAPACITY[state.value?.settings.cargoShip ?? 203] ?? 25000;
   return Math.ceil((r.m + r.k + r.d) / cap);
 };
-const mayTick = (x: TransferInput) => !!data.value?.saved && !dirty.value && (canEdit.value || x.from === data.value.me || x.to === data.value.me);
+const mayTick = (x: TransferInput) => !!finalized.value && (canEdit.value || x.from === data.value?.me || x.to === data.value?.me);
 const tick = (x: TransferInput, checked: boolean) =>
   run(async () => {
-    const res = await uniApi<{ done: string[] }>(uni.value, `/plans/${planId.value}/settlement/done`, { method: 'PUT', body: { key: keyOf(x), done: checked } });
-    data.value!.saved!.done = res.done;
+    const res = await uniApi<{ done: string[] }>(uni.value, `${url()}/done`, { method: 'PUT', body: { key: keyOf(x), done: checked } });
+    data.value!.done = res.done;
   });
 const resText = (r: Res) =>
   RES.filter((k) => r[k] > 0)
@@ -274,26 +305,39 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
       <span v-if="data?.plan.mission === 'hold'" class="badge" style="margin-left: 6px">{{ t('hold.badge') }}</span>
     </template>
   </PageHeader>
-  <p class="muted small">{{ data?.plan.mission === 'hold' ? t('loot.introHold') : t('loot.intro') }}</p>
+  <p class="muted small">{{ data?.plan.mission === 'hold' ? t('loot.introHold') : t('loot.intro') }} {{ t('loot.introSync') }}</p>
   <div v-if="error" class="error">{{ error }}</div>
   <p v-if="route.query.existing" class="small warn">{{ t('loot.existingPlan') }}</p>
 
   <template v-if="data && state && result">
-    <div class="card row bar">
-      <span v-if="data.saved && !dirty" class="small">{{ t('loot.savedBy', { name: data.saved.updated_by ?? '?', time: dateTime(data.saved.updated_at) }) }}</span>
-      <span v-else class="small warn">{{ t('loot.draft') }}</span>
-      <span v-if="notice" class="small ok">{{ notice }}</span>
-      <span class="grow" />
-      <template v-if="canEdit">
-        <button class="primary" :disabled="busy || (!dirty && !!data.saved)" @click="save">{{ t('loot.save') }}</button>
-        <button :disabled="busy" :title="t('loot.updateHint')" @click="update">{{ t('loot.update') }}</button>
-        <button :disabled="busy" @click="refill">{{ t('loot.fromHub') }}</button>
-        <button v-if="data.saved" class="danger" :disabled="busy" @click="remove">{{ t('common.delete') }}</button>
-      </template>
-      <a v-if="calcLink" class="small" :href="calcLink" target="_blank" rel="noopener">{{ t('loot.calculator') }} <Icon name="external" :size="12" /></a>
+    <div class="card bar" :class="finalized ? 'final' : 'live'">
+      <div class="row bar-row">
+        <span v-if="finalized" class="badge ok-badge"><Icon name="check" :size="12" /> {{ t('loot.finalizedBadge') }}</span>
+        <span v-else class="badge live-badge"><Icon name="sync" :size="12" /> {{ t('loot.liveBadge') }}</span>
+        <span v-if="finalized" class="small">{{ t('loot.finalizedBy', { name: finalized.by ?? '?', time: dateTime(finalized.at) }) }}</span>
+        <span v-else class="small muted">{{ t('loot.liveHint') }}</span>
+        <span v-if="notice" class="small ok">{{ notice }}</span>
+        <span class="grow" />
+        <template v-if="canEdit">
+          <template v-if="!finalized">
+            <button v-if="dirty" class="primary" :disabled="busy" @click="save">{{ t('loot.saveCorrections') }}</button>
+            <button v-if="dirty" :disabled="busy" @click="discard">{{ t('loot.discard') }}</button>
+            <button :class="{ primary: !dirty }" :disabled="busy" :title="t('loot.finalizeHint')" @click="finalize">{{ t('loot.finalize') }}</button>
+          </template>
+          <button v-else :disabled="busy" :title="t('loot.reopenHint')" @click="reopen">{{ t('loot.reopen') }}</button>
+          <button v-if="hasCorrections || finalized" class="danger" :disabled="busy" :title="t('loot.resetHint')" @click="reset">{{ t('loot.reset') }}</button>
+        </template>
+        <a v-if="calcLink" class="small" :href="calcLink" target="_blank" rel="noopener">{{ t('loot.calculator') }} <Icon name="external" :size="12" /></a>
+      </div>
+      <p v-if="finalized && changeCount" class="small warn">
+        <Icon name="warning" :size="14" /> {{ t('loot.changedSince', { n: changeCount }, changeCount) }}
+        <button v-if="canEdit" class="link" :disabled="busy" @click="reopen">{{ t('loot.reopen') }}</button>
+      </p>
+      <p v-if="stale" class="small warn"><Icon name="warning" :size="14" /> {{ t('loot.staleWhileEditing') }}</p>
+      <p v-if="!finalized && data.corrected && !dirty" class="small muted">{{ t('loot.correctedBy', { name: data.corrected.updated_by ?? '?', time: dateTime(data.corrected.updated_at) }) }}</p>
     </div>
     <p v-if="!canEdit" class="muted small">{{ t('loot.readOnly') }}</p>
-    <div v-else class="row small import">
+    <div v-else-if="editing" class="row small import">
       <input v-model="linkText" :placeholder="t('loot.importLink')" @keydown.enter="importLink" />
       <button :disabled="!linkText" @click="importLink">{{ t('common.apply') }}</button>
       <Hint>{{ t('loot.calculatorHint') }}</Hint>
@@ -302,7 +346,7 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
     <div class="cols">
       <div class="col">
         <Section :title="t('loot.settings')" store-key="loot.settings" :default-open-mobile="false">
-          <fieldset :disabled="!canEdit" class="stack">
+          <fieldset :disabled="!editing" class="stack">
             <label class="row">
               <span class="lbl">{{ t('loot.mode') }} <Hint>{{ t('loot.modeHint') }}</Hint></span>
               <select v-model="state.settings.mode">
@@ -349,12 +393,16 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
               <tbody>
                 <tr v-for="p in state.participants" :key="p.id">
                   <td>{{ p.name }}</td>
-                  <td class="num">
-                    <input v-model.number="p.flightDeut" type="number" min="0" :disabled="!canEdit" />
-                    <span v-if="sources?.flightDeut[p.id] != null && sources.flightDeut[p.id] === p.flightDeut" class="src"><Icon name="check" :size="12" :label="t('loot.fromPlan')" /></span>
+                  <td v-for="f in (['flightDeut', 'recDeut', 'missiles'] as const)" :key="f" class="num">
+                    <input v-model.number="p[f]" type="number" min="0" :disabled="!editing" />
+                    <button
+                      v-if="manual.has(`p:${p.id}:${f}`) && draftPerson(p.id)" class="src manual" type="button" :disabled="!editing"
+                      :title="t('loot.manualReset', { value: fmt(draftValue(p.id, f)) })" @click="resetPerson(p.id, f)"
+                    >
+                      <Icon name="edit" :size="12" :label="t('loot.manual')" />
+                    </button>
+                    <span v-else-if="f === 'flightDeut' && sources?.flightDeut[p.id] != null" class="src"><Icon name="check" :size="12" :label="t('loot.fromPlan')" /></span>
                   </td>
-                  <td class="num"><input v-model.number="p.recDeut" type="number" min="0" :disabled="!canEdit" /></td>
-                  <td class="num"><input v-model.number="p.missiles" type="number" min="0" :disabled="!canEdit" /></td>
                 </tr>
               </tbody>
             </table>
@@ -368,17 +416,23 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
             <div class="row small">
               <b>{{ t('loot.battle', { n: i + 1 }) }}</b>
               <span class="muted">{{ dateTime(b.time) }}</span>
-              <span v-if="pasted.has(i)" class="muted">{{ t('loot.fromPasted') }}</span>
-              <template v-else-if="sources?.battles[i]">
-                <RouterLink v-if="sources.battles[i].reportId" :to="`/${uni}/battle-hall/${sources.battles[i].reportId}`">{{ t('loot.report') }}</RouterLink>
-                <span :class="sources.battles[i].fleets === 'report' ? 'muted' : 'warn'">
-                  {{ sources.battles[i].fleets === 'report' ? t('loot.fromReport') : t('loot.fromPlanShips') }}
+              <span v-if="pasted.has(i) || !b.key" class="muted">{{ t('loot.fromPasted') }}</span>
+              <template v-else-if="battleSource(b)">
+                <RouterLink v-if="battleSource(b)!.reportId" :to="`/${uni}/battle-hall/${battleSource(b)!.reportId}`">{{ t('loot.report') }}</RouterLink>
+                <span :class="battleSource(b)!.fleets === 'report' ? 'muted' : 'warn'">
+                  {{ battleSource(b)!.fleets === 'report' ? t('loot.fromReport') : t('loot.fromPlanShips') }}
                 </span>
               </template>
             </div>
             <div class="row small">
               <span class="lbl">{{ t('loot.lootTotal') }}</span>
-              <label v-for="k in RES" :key="k">{{ name(RES_IDS[k]) }} <input v-model.number="b.loot[k]" type="number" min="0" :disabled="!canEdit" /></label>
+              <label v-for="k in RES" :key="k">{{ name(RES_IDS[k]) }} <input v-model.number="b.loot[k]" type="number" min="0" :disabled="!editing" /></label>
+              <button
+                v-if="b.key && manual.has(`b:${b.key}:loot`) && draftBattle(b)" class="src manual" type="button" :disabled="!editing"
+                :title="t('loot.manualReset', { value: resText(draftBattle(b)!.loot) || '0' })" @click="resetLoot(b)"
+              >
+                <Icon name="edit" :size="12" :label="t('loot.manual')" />
+              </button>
             </div>
             <div class="table-wrap">
             <table v-stack class="data">
@@ -400,7 +454,7 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
           </div>
         </div>
 
-        <Section v-if="canEdit" :title="t('loot.pasteReport')" store-key="loot.pasteReport" :default-open="false">
+        <Section v-if="editing" :title="t('loot.pasteReport')" store-key="loot.pasteReport" :default-open="false">
           <template #hint><Hint>{{ t('loot.pasteHint') }}</Hint></template>
           <textarea v-model="reportText" class="report" :placeholder="t('loot.pastePlaceholder')" />
           <div class="row small" style="gap: 8px; margin-top: 6px">
@@ -438,12 +492,12 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
                   <div v-if="r.time" class="muted small">{{ dateTime(r.time) }}</div>
                 </td>
                 <td class="num">{{ fmt(r.m) }} {{ name(901) }}<br />{{ fmt(r.k) }} {{ name(902) }}</td>
-                <td v-if="canEdit"><button class="icon-btn" :title="t('loot.removeRecycling')" :aria-label="t('loot.removeRecycling')" @click="state.recycling.splice(i, 1)"><Icon name="close" :size="14" /></button></td>
+                <td v-if="editing"><button class="icon-btn" :title="t('loot.removeRecycling')" :aria-label="t('loot.removeRecycling')" @click="state.recycling.splice(i, 1)"><Icon name="close" :size="14" /></button></td>
               </tr>
             </tbody>
           </table>
           </div>
-          <template v-if="canEdit">
+          <template v-if="editing">
             <h3 style="margin-top: 12px">{{ t('loot.pasteRecycling') }} <Hint>{{ t('loot.pasteRecyclingHint') }}</Hint></h3>
             <textarea v-model="recycleText" class="report" :placeholder="t('loot.pasteRecyclingPlaceholder')" />
             <div class="row small" style="gap: 8px; margin-top: 6px">
@@ -456,7 +510,7 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
           <template v-if="state.helpers.length">
             <h3>{{ t('loot.helpers') }} <Hint>{{ t('loot.helpersHint') }}</Hint></h3>
             <label class="row small tick" style="margin-bottom: 6px">
-              <input v-model="state.settings.helperDeut" type="checkbox" :disabled="!canEdit" />
+              <input v-model="state.settings.helperDeut" type="checkbox" :disabled="!editing" />
               {{ t('loot.helperDeut') }} <Hint>{{ t('loot.helperDeutHint') }}</Hint>
             </label>
             <div class="table-wrap">
@@ -470,8 +524,16 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
               <tbody>
                 <tr v-for="h in state.helpers" :key="h.id">
                   <td>{{ h.name }}</td>
-                  <td class="num"><input v-model.number="h.keepPct" type="number" min="0" :max="MAX_HELPER_KEEP" :disabled="!canEdit" /></td>
-                  <td v-if="state.settings.helperDeut" class="num"><input v-model.number="h.recDeut" type="number" min="0" :disabled="!canEdit" /></td>
+                  <td class="num">
+                    <input v-model.number="h.keepPct" type="number" min="0" :max="MAX_HELPER_KEEP" :disabled="!editing" />
+                    <button
+                      v-if="manual.has(`p:${h.id}:keepPct`) && draftPerson(h.id)" class="src manual" type="button" :disabled="!editing"
+                      :title="t('loot.manualReset', { value: fmt(draftValue(h.id, 'keepPct')) })" @click="resetPerson(h.id, 'keepPct')"
+                    >
+                      <Icon name="edit" :size="12" :label="t('loot.manual')" />
+                    </button>
+                  </td>
+                  <td v-if="state.settings.helperDeut" class="num"><input v-model.number="h.recDeut" type="number" min="0" :disabled="!editing" /></td>
                 </tr>
               </tbody>
             </table>
@@ -592,7 +654,15 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
 </template>
 
 <style scoped>
-.bar { gap: 10px; flex-wrap: wrap; }
+.bar-row { gap: 10px; flex-wrap: wrap; }
+.bar p { margin: 6px 0 0; }
+.bar.live { border-left: 3px solid var(--accent); }
+.bar.final { border-left: 3px solid var(--pos); }
+.badge.live-badge, .badge.ok-badge { display: inline-flex; align-items: center; gap: 4px; }
+.badge.ok-badge { color: var(--pos); }
+button.link { background: none; border: 0; padding: 0 4px; color: var(--accent); text-decoration: underline; cursor: pointer; }
+button.src { background: none; border: 0; padding: 0; cursor: pointer; }
+.src.manual { color: var(--warn); margin-left: 4px; }
 .debris { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; }
 .import { gap: 6px; margin: 0 0 12px; }
 .import input { flex: 1; min-width: 200px; }
@@ -605,7 +675,7 @@ fieldset { border: 0; padding: 0; margin: 0; }
 .lbl { min-width: 190px; color: var(--muted); font-size: 13px; }
 .battle + .battle { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--border); }
 .battle .row { gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
-.src { color: var(--ok); margin-left: 4px; }
+.src { color: var(--pos); margin-left: 4px; }
 .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-bottom: 10px; }
 .kpi { display: flex; flex-direction: column; padding: 8px 10px; border-radius: 8px; background: var(--surface-2); }
 tr.first td { border-top: 2px solid var(--border); }

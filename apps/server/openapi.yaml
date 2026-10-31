@@ -73,6 +73,56 @@ components:
         source: { type: string, enum: [source, text, manual], description: 'Exact from the page''s HTML (copied page or page source), estimated from plain text, or set by hand' }
         time: { type: integer, description: Epoch seconds (game time of the page, or when it was set) }
         by: { type: [string, 'null'], description: Member who synced or set it }
+    Settlement:
+      type: object
+      description: A loot settlement of a raid plan (GET /plans/{id}/settlement)
+      properties:
+        plan:
+          type: object
+          description: The plan's target and time
+          properties:
+            id: { type: integer }
+            mission: { type: string, enum: [attack, hold] }
+            g: { type: [integer, 'null'] }
+            s: { type: [integer, 'null'] }
+            p: { type: [integer, 'null'] }
+            planet_type: { type: string, enum: [planet, moon] }
+            target_time: { type: integer }
+            status: { type: string }
+        can_edit: { type: boolean, description: 'The caller may correct, finalize and reopen it (participant, creator or admin)' }
+        me: { type: string }
+        draft:
+          type: object
+          properties:
+            state: { $ref: '#/components/schemas/LootState' }
+            sources: { type: object }
+        overrides: { type: [object, 'null'], description: 'Corrections made by hand on top of the draft (`Overrides` of @pr0hub/loot)' }
+        corrected:
+          oneOf:
+            - { type: 'null' }
+            - type: object
+              properties:
+                updated_at: { type: integer }
+                updated_by: { type: [string, 'null'] }
+        finalized:
+          oneOf:
+            - { type: 'null' }
+            - type: object
+              properties:
+                at: { type: integer }
+                by: { type: [string, 'null'] }
+                live: { $ref: '#/components/schemas/LootState' }
+                changes:
+                  type: object
+                  description: Differences between the frozen state and `live`, per kind
+                  properties:
+                    people: { type: integer }
+                    battles: { type: integer }
+                    recycling: { type: integer }
+                    settings: { type: integer }
+        state: { $ref: '#/components/schemas/LootState' }
+        result: { type: object, description: 'Settlement of `state` computed by @pr0hub/loot' }
+        done: { type: array, items: { type: string }, description: 'Deliveries marked done ("<from id>><to id>")' }
     LootState:
       type: object
       description: >-
@@ -2564,7 +2614,8 @@ paths:
         Attack and hold plans to settle: plans of the last `days` (default 30, at most 90) that were launched or done,
         or have a saved settlement, newest first. `members` are the plan's members (for a hold also the attacked
         member), `battle` whether a battle message or report at the target around the plan's time is known, `saved`
-        the saved settlement's state (null if none) with the number of deliveries and how many are marked done.
+        the stored settlement (null if none): when its corrections were last saved, when it was finalized (null while it
+        follows the synced data) and, once finalized, the number of deliveries and how many are marked done.
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
@@ -2601,7 +2652,8 @@ paths:
                           properties:
                             updated_at: { type: integer }
                             updated_by: { type: [string, 'null'] }
-                            deliveries: { type: integer }
+                            finalized_at: { type: [integer, 'null'] }
+                            deliveries: { type: integer, description: 'Deliveries of the finalized settlement (0 while open)' }
                             done: { type: integer }
   /api/{uni}/settlements/from-report:
     post:
@@ -2652,55 +2704,26 @@ paths:
       tags: [Combat]
       operationId: getSettlement
       description: >-
-        ACS loot settlement of an attack or hold plan. `saved` is the settlement saved for the group (null if none), `draft` one
-        prefilled from the hub's data: participants from the plan's fleets (members as `u<user id>`, then guest fleets),
-        battles at the target around the plan's time (fleets and losses from the archived battle report, else the
-        planned ships), loot by cargo space unless a member's fleet return messages (one per fleet in the report, the
-        first after the battle) or else their flights home in the overview (first per fleet with its surviving ships)
-        tell what each fleet brought home (`sources.returnLoot`, `sources.returnSource`; together at most the battle's
-        loot), recycling
-        reports at the target within 24 hours (members outside the plan as helpers keeping 20 %) and the deuterium of
-        the attack flights. `sources` tells where the draft's values come from. Both carry `result`, computed by
-        `@pr0hub/loot`. `me` is the caller's id in a settlement. A hold is settled like an ACS: participants are the hold
-        fleets and the attacked member, the battle report's defenders (ships only) and no loot, so the debris covers their
-        losses.
+        ACS loot settlement of an attack or hold plan. `draft` is prefilled from the hub's data: participants from the
+        plan's fleets (members as `u<user id>`, then guest fleets), battles at the target around the plan's time (fleets
+        and losses from the archived battle report, else the planned ships; `key` the report id, else `t<time>`), loot
+        by cargo space unless a member's fleet return messages (one per fleet in the report, the first after the battle)
+        or else their flights home in the overview (first per fleet with its surviving ships) tell what each fleet
+        brought home (`sources.returnLoot`, `sources.returnSource`; together at most the battle's loot), recycling
+        reports at the target within 24 hours (`key` `r<id>`, members outside the plan as helpers keeping 20 %) and the
+        deuterium of the attack flights. `sources` tells where the draft's values come from. `overrides` are the
+        corrections made by hand on top of the draft (`Overrides` of `@pr0hub/loot`, null if none), `corrected` when
+        they were last saved. `state` is the settlement everyone sees: the draft with the corrections (so data synced
+        later flows in), or, once `finalized`, the state frozen then; `finalized.live` is what it would be now and
+        `finalized.changes` counts the differences per kind. `result` is computed from `state` by `@pr0hub/loot`, `done`
+        lists the deliveries marked done, `me` is the caller's id in a settlement. A hold is settled like an ACS:
+        participants are the hold fleets and the attacked member, the battle report's defenders (ships only) and no
+        loot, so the debris covers their losses.
       responses:
         '200':
           content:
             application/json:
-              schema:
-                type: object
-                properties:
-                  plan:
-                    type: object
-                    description: The plan's target and time
-                    properties:
-                      id: { type: integer }
-                      mission: { type: string, enum: [attack, hold] }
-                      g: { type: [integer, 'null'] }
-                      s: { type: [integer, 'null'] }
-                      p: { type: [integer, 'null'] }
-                      planet_type: { type: string, enum: [planet, moon] }
-                      target_time: { type: integer }
-                      status: { type: string }
-                  can_edit: { type: boolean, description: The caller may save the settlement (participant, creator or admin) }
-                  saved:
-                    oneOf:
-                      - { type: 'null' }
-                      - type: object
-                        properties:
-                          state: { $ref: '#/components/schemas/LootState' }
-                          done: { type: array, items: { type: string }, description: 'Deliveries marked done ("<from id>><to id>")' }
-                          updated_at: { type: integer }
-                          updated_by: { type: [string, 'null'] }
-                          result: { type: object }
-                  draft:
-                    type: object
-                    properties:
-                      state: { $ref: '#/components/schemas/LootState' }
-                      sources: { type: object }
-                      result: { type: object }
-                  me: { type: string }
+              schema: { $ref: '#/components/schemas/Settlement' }
         '404':
           description: No attack plan with this id in the group (`plan_not_found`)
           content:
@@ -2710,10 +2733,10 @@ paths:
       tags: [Combat]
       operationId: saveSettlement
       description: >-
-        Saves the settlement for the group (participants of the plan, for a hold also the attacked member, its creator or
-        a group admin). The state is
-        cleaned like a share link (known fields only, numbers clamped, at most 5 participants); deliveries marked done
-        stay.
+        Saves the corrections of the settlement for the group (participants of the plan, for a hold also the attacked
+        member, its creator or a group admin): `state` is the edited settlement, cleaned like a share link (known
+        fields only, numbers clamped, at most 5 participants); only what differs from the current draft is stored.
+        Not while the settlement is finalized.
       security: [{ sessionCookie: [] }]
       requestBody:
         required: true
@@ -2722,10 +2745,10 @@ paths:
             schema: { type: object, required: [state], properties: { state: { $ref: '#/components/schemas/LootState' } } }
       responses:
         '200':
-          description: The saved settlement with `done`, `updated_at`, `updated_by` and `result`
+          description: The settlement as GET returns it
           content:
             application/json:
-              schema: { type: object }
+              schema: { $ref: '#/components/schemas/Settlement' }
         '400':
           description: No or too large state (`settlement_invalid`)
           content:
@@ -2736,10 +2759,17 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
+        '409':
+          description: The settlement is finalized (`settlement_finalized`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
     delete:
       tags: [Combat]
       operationId: deleteSettlement
-      description: Deletes the saved settlement (participants of the plan, its creator or a group admin).
+      description: >-
+        Deletes the stored settlement: corrections, finalized state and deliveries marked done (participants of the
+        plan, its creator or a group admin). It then follows the hub's data again without corrections.
       security: [{ sessionCookie: [] }]
       responses:
         '200':
@@ -2751,12 +2781,65 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
+  /api/{uni}/plans/{id}/settlement/finalize:
+    parameters:
+      - { $ref: '#/components/parameters/Uni' }
+      - { $ref: '#/components/parameters/HubGroupHeader' }
+      - { $ref: '#/components/parameters/HubGroupQuery' }
+      - { $ref: '#/components/parameters/PlanId' }
+    post:
+      tags: [Combat]
+      operationId: finalizeSettlement
+      description: >-
+        Finalizes the settlement (participants, creator or admin): its current state is frozen, so the deliveries stay
+        as they are while people send; data synced later only shows in `finalized.changes`. With `state`, the
+        corrections are saved first (as PUT).
+      security: [{ sessionCookie: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, properties: { state: { $ref: '#/components/schemas/LootState' } } }
+      responses:
+        '200':
+          description: The settlement as GET returns it
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Settlement' }
+        '403':
+          description: Not a participant, the creator or an admin (`settlement_not_yours`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '409':
+          description: Finalized already (`settlement_finalized`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+    delete:
+      tags: [Combat]
+      operationId: reopenSettlement
+      description: >-
+        Reopens a finalized settlement (participants, creator or admin): it follows the hub's data again with its
+        corrections (a settlement saved before corrections existed is turned into corrections of its whole state).
+        Deliveries marked done stay.
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200':
+          description: The settlement as GET returns it
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Settlement' }
+        '404':
+          description: No stored settlement (`settlement_not_found`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
   /api/{uni}/plans/{id}/settlement/done:
     put:
       tags: [Combat]
       operationId: markSettlementDelivery
       description: >-
-        Marks a delivery of the saved settlement as done (`done` true or missing) or open again (`done: false`): its
+        Marks a delivery of the finalized settlement as done (`done` true or missing) or open again (`done: false`): its
         sender or receiver, participants of the plan, its creator or a group admin.
       security: [{ sessionCookie: [] }]
       parameters:
@@ -2780,7 +2863,7 @@ paths:
             application/json:
               schema: { type: object, properties: { done: { type: array, items: { type: string } } } }
         '404':
-          description: No saved settlement (`settlement_not_found`) or plan (`plan_not_found`)
+          description: No finalized settlement (`settlement_not_found`) or plan (`plan_not_found`)
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }

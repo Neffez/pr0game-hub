@@ -4,6 +4,15 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-31
 
+- Loot settlement follows the synced data: instead of a saved snapshot it is the draft from the hub's data with the
+  corrections made by hand on top (`raid_settlements.overrides`, migration `068`), so reports synced later (battle
+  reports, fleet returns, recycling) flow in without "Update/Refill from hub data" (both buttons removed). A new
+  "Finalize" freezes it for the deliveries (`POST/DELETE /plans/{id}/settlement/finalize`); data synced since shows as
+  a count of changes with "Reopen". Deliveries are ticked off on the finalized settlement. Values changed by hand are
+  marked and go back to the hub's value with a click. Settlements saved before count as finalized; reopening turns
+  them into corrections (battles and recycling rows matched by time). `GET /plans/{id}/settlement` returns `state`,
+  `overrides`, `corrected`, `finalized`, `result` and `done` instead of `saved`; draft battles and recycling rows carry
+  a `key`, `sources.battles` too; the settlements list shows live or finalized.
 - `@pr0hub/loot`: corrections on top of the hub's draft (`overrides.ts`): `diffOverrides` stores only what differs from
   the draft (people by id, battles and recycling rows by their new `key`, rows added by hand, settings, transfers),
   `applyOverrides` puts them back on a fresh draft (a battle whose key changed is found again by its time),

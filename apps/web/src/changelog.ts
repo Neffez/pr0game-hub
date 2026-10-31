@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-10-31',
     items: [
       {
+        kind: 'new',
+        de: 'Beute abrechnen: Die Abrechnung übernimmt später synchronisierte Kampf-, Flottenrückkehr- und Recyclerberichte von selbst, deine Korrekturen bleiben markiert stehen. Mit „Festschreiben“ werden die Zahlen für die Lieferungen eingefroren, „Wieder öffnen“ holt neue Daten.',
+        en: 'Loot settlement: reports synced later (battle, fleet return, recycling) flow in by themselves, your corrections stay and are marked. "Finalize" freezes the numbers for the deliveries, "Reopen" takes in new data.',
+      },
+      {
         kind: 'fix',
         de: 'Koordinatenfelder öffnen auf dem Handy wieder die normale Tastatur, damit man den Doppelpunkt tippen kann.',
         en: 'Coordinate fields open the normal keyboard on phones again, so you can type the colon.',

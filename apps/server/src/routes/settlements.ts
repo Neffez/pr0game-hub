@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { localToEpoch } from '@pr0hub/core';
 import { isCombatSimulation, parseCombatReportText } from '@pr0hub/core/combat';
-import { cleanState, settle } from '@pr0hub/loot';
+import { applyOverrides, cleanState, diffOverrides, settle, stateChanges, type LootState } from '@pr0hub/loot';
 import { HttpError } from '../auth.js';
 import type { GroupContext } from '../context.js';
 import { now, type DB } from '../db.js';
@@ -9,7 +9,7 @@ import { events } from '../events.js';
 import { ingest } from '../ingest.js';
 import { planFromReport } from '../repo/reportPlan.js';
 import type { PlanRow } from '../repo/plans.js';
-import { memberKey, savedSettlement, settlementDraft } from '../repo/settlements.js';
+import { correctionsOf, memberKey, settlementDraft, storedSettlement } from '../repo/settlements.js';
 import { clampInt, contextOf, DISPLAY, MEMBER, type Q } from './util.js';
 
 /** Battles count for a plan from an hour before its time until an hour after (as in the draft). */
@@ -49,7 +49,7 @@ export function settlementRoutes(app: FastifyInstance, db: DB) {
     const plans = db
       .prepare(
         `SELECT a.id, a.mission, a.g, a.s, a.p, a.planet_type, a.target_time, a.time_precision, a.status, ${DISPLAY} AS creator,
-           COALESCE(a.player_id, pl.player_id) AS player_id, pr.name AS player_name, s.data, s.done, s.updated_at,
+           COALESCE(a.player_id, pl.player_id) AS player_id, pr.name AS player_name, s.plan_id AS stored, s.data, s.done, s.updated_at, s.finalized_at,
            COALESCE(gb.ingame_name, ub.username) AS updated_by
          FROM attack_plans a JOIN users u ON u.id = a.user_id ${MEMBER('a')}
          LEFT JOIN planets pl ON pl.group_id = a.group_id AND pl.g = a.g AND pl.s = a.s AND pl.p = a.p
@@ -60,8 +60,8 @@ export function settlementRoutes(app: FastifyInstance, db: DB) {
          ORDER BY a.target_time DESC`,
       )
       .all(ctx.groupId, since, t + 86400) as (PlanRow & {
-      time_precision: string; creator: string; player_name: string | null; data: string | null; done: string | null; updated_at: number | null;
-      updated_by: string | null;
+      time_precision: string; creator: string; player_name: string | null; stored: number | null; data: string | null; done: string | null;
+      updated_at: number | null; finalized_at: number | null; updated_by: string | null;
     })[];
     const members = db.prepare(
       `SELECT DISTINCT COALESCE(gm.ingame_name, u.username) FROM attack_plan_fleets f JOIN users u ON u.id = f.user_id
@@ -76,11 +76,15 @@ export function settlementRoutes(app: FastifyInstance, db: DB) {
     return plans.map((p) => {
       const window = p.time_precision === 'day' ? 86400 : p.time_precision === 'hour' ? 3600 : 0;
       let saved = null;
-      if (p.data != null) {
-        const state = cleanState(JSON.parse(p.data));
-        const deliveries = (state.transfers ?? settle(state).transfers).filter((x) => x.res.m + x.res.k + x.res.d > 0).map((x) => `${x.from}>${x.to}`);
+      if (p.stored != null) {
+        // deliveries count once the settlement is finalized (before, its numbers still follow the synced data)
+        const state = p.finalized_at != null && p.data ? cleanState(JSON.parse(p.data)) : null;
+        const deliveries = state ? (state.transfers ?? settle(state).transfers).filter((x) => x.res.m + x.res.k + x.res.d > 0).map((x) => `${x.from}>${x.to}`) : [];
         const done = new Set(JSON.parse(p.done ?? '[]') as string[]);
-        saved = { updated_at: p.updated_at, updated_by: p.updated_by, deliveries: deliveries.length, done: deliveries.filter((k) => done.has(k)).length };
+        saved = {
+          updated_at: p.updated_at, updated_by: p.updated_by, finalized_at: p.finalized_at, deliveries: deliveries.length,
+          done: deliveries.filter((k) => done.has(k)).length,
+        };
       }
       return {
         id: p.id, mission: p.mission, g: p.g, s: p.s, p: p.p, planet_type: p.planet_type, target_time: p.target_time, status: p.status,
@@ -115,44 +119,109 @@ export function settlementRoutes(app: FastifyInstance, db: DB) {
     return { id: res.id, existing: res.existing, mission: res.mission };
   });
 
-  /** Saved settlement (null if none) and a draft from the hub's data, both with their computed result. */
-  app.get<{ Params: { uni: string; id: string } }>('/api/:uni/plans/:id/settlement', async (req) => {
-    const ctx = ctxOf(req);
-    const plan = planOf(ctx, Number(req.params.id));
-    const saved = savedSettlement(db, ctx, plan.id);
+  /**
+   * The settlement as everyone sees it: the draft from the hub's data with the corrections on top (live), or the state
+   * frozen when it was finalized; with what changed in the hub's data since.
+   */
+  function view(ctx: GroupContext, plan: SettlementPlan) {
+    const stored = storedSettlement(db, ctx, plan.id);
     const draft = settlementDraft(db, ctx, plan);
+    const overrides = correctionsOf(stored, draft.state);
+    const live = applyOverrides(draft.state, overrides);
+    const final = stored?.finalizedAt != null && stored.final ? stored.final : null;
+    const state = final ?? live;
     return {
       plan: {
         id: plan.id, mission: plan.mission, g: plan.g, s: plan.s, p: plan.p, planet_type: plan.planet_type, target_time: plan.target_time,
         status: plan.status,
       },
       can_edit: canEdit(ctx, plan),
-      saved: saved ? { ...saved, result: settle(saved.state) } : null,
-      draft: { state: draft.state, sources: draft.sources, result: settle(draft.state) },
       me: memberKey(ctx.user.id),
+      draft: { state: draft.state, sources: draft.sources },
+      overrides,
+      corrected: stored ? { updated_at: stored.updatedAt, updated_by: stored.updatedBy } : null,
+      finalized: final ? { at: stored!.finalizedAt!, by: stored!.finalizedBy, live, changes: stateChanges(final, live) } : null,
+      state,
+      result: settle(state),
+      done: stored?.done ?? [],
     };
+  }
+
+  /** Cleans an edited settlement from the client into corrections of the current draft. */
+  function correctionsFrom(ctx: GroupContext, plan: SettlementPlan, raw: unknown): { overrides: string; state: LootState } {
+    if (raw == null || typeof raw !== 'object') throw new HttpError(400, 'settlement_invalid', 'Invalid settlement');
+    const draft = settlementDraft(db, ctx, plan).state;
+    const overrides = diffOverrides(draft, cleanState(raw));
+    const json = JSON.stringify(overrides);
+    if (json.length > 200_000) throw new HttpError(400, 'settlement_invalid', 'Settlement too large');
+    return { overrides: json, state: applyOverrides(draft, overrides) };
+  }
+  const isFinal = (planId: number) => !!db.prepare('SELECT 1 FROM raid_settlements WHERE plan_id = ? AND finalized_at IS NOT NULL').get(planId);
+
+  app.get<{ Params: { uni: string; id: string } }>('/api/:uni/plans/:id/settlement', async (req) => {
+    const ctx = ctxOf(req);
+    return view(ctx, planOf(ctx, Number(req.params.id)));
   });
 
-  /** Saves the settlement (input of @pr0hub/loot); deliveries marked done stay. */
+  /** Saves the corrections made by hand (the client sends the edited settlement); not while it is finalized. */
   app.put<{ Params: { uni: string; id: string }; Body: { state?: unknown } }>('/api/:uni/plans/:id/settlement', async (req) => {
     const ctx = ctxOf(req);
     const plan = planOf(ctx, Number(req.params.id));
     editable(ctx, plan);
-    if (req.body?.state == null || typeof req.body.state !== 'object') throw new HttpError(400, 'settlement_invalid', 'Invalid settlement');
-    const state = cleanState(req.body.state);
-    const data = JSON.stringify(state);
-    if (data.length > 200_000) throw new HttpError(400, 'settlement_invalid', 'Settlement too large');
+    if (isFinal(plan.id)) throw new HttpError(409, 'settlement_finalized', 'The settlement is finalized (reopen it to change it)');
+    const { overrides, state } = correctionsFrom(ctx, plan, req.body?.state);
     db.prepare(
-      `INSERT INTO raid_settlements (plan_id, group_id, data, updated_by, updated_at) VALUES (?, ?, ?, ?, ?)
-       ON CONFLICT (plan_id) DO UPDATE SET data = excluded.data, updated_by = excluded.updated_by, updated_at = excluded.updated_at`,
-    ).run(plan.id, ctx.groupId, data, ctx.user.id, now());
+      `INSERT INTO raid_settlements (plan_id, group_id, data, overrides, updated_by, updated_at) VALUES (?, ?, ?, ?, ?, ?)
+       ON CONFLICT (plan_id) DO UPDATE SET data = excluded.data, overrides = excluded.overrides, updated_by = excluded.updated_by,
+         updated_at = excluded.updated_at`,
+    ).run(plan.id, ctx.groupId, JSON.stringify(state), overrides, ctx.user.id, now());
     changed(ctx);
-    const saved = savedSettlement(db, ctx, plan.id)!;
-    return { ...saved, result: settle(saved.state) };
+    return view(ctx, plan);
   });
 
   /**
-   * Marks a delivery ("<from id>><to id>") as done or open: its sender or receiver, participants of the plan, its
+   * Finalizes the settlement: its state is frozen, so the deliveries stay as they are while people send; with `state`
+   * the corrections are saved first. Data synced later only shows as changes until it is reopened.
+   */
+  app.post<{ Params: { uni: string; id: string }; Body: { state?: unknown } | undefined }>('/api/:uni/plans/:id/settlement/finalize', async (req) => {
+    const ctx = ctxOf(req);
+    const plan = planOf(ctx, Number(req.params.id));
+    editable(ctx, plan);
+    if (isFinal(plan.id)) throw new HttpError(409, 'settlement_finalized', 'The settlement is finalized already');
+    const t = now();
+    if (req.body?.state != null) {
+      const { overrides, state } = correctionsFrom(ctx, plan, req.body.state);
+      db.prepare(
+        `INSERT INTO raid_settlements (plan_id, group_id, data, overrides, updated_by, updated_at, finalized_at, finalized_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT (plan_id) DO UPDATE SET data = excluded.data, overrides = excluded.overrides, updated_by = excluded.updated_by,
+           updated_at = excluded.updated_at, finalized_at = excluded.finalized_at, finalized_by = excluded.finalized_by`,
+      ).run(plan.id, ctx.groupId, JSON.stringify(state), overrides, ctx.user.id, t, t, ctx.user.id);
+    } else {
+      const v = view(ctx, plan);
+      db.prepare(
+        `INSERT INTO raid_settlements (plan_id, group_id, data, overrides, updated_by, updated_at, finalized_at, finalized_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT (plan_id) DO UPDATE SET data = excluded.data, finalized_at = excluded.finalized_at, finalized_by = excluded.finalized_by`,
+      ).run(plan.id, ctx.groupId, JSON.stringify(v.state), JSON.stringify(v.overrides ?? {}), ctx.user.id, t, t, ctx.user.id);
+    }
+    changed(ctx);
+    return view(ctx, plan);
+  });
+
+  /** Reopens a finalized settlement: it follows the hub's data again, with its corrections. */
+  app.delete<{ Params: { uni: string; id: string } }>('/api/:uni/plans/:id/settlement/finalize', async (req) => {
+    const ctx = ctxOf(req);
+    const plan = planOf(ctx, Number(req.params.id));
+    editable(ctx, plan);
+    const stored = storedSettlement(db, ctx, plan.id);
+    if (!stored) throw new HttpError(404, 'settlement_not_found', 'Settlement not saved');
+    const overrides = correctionsOf(stored, settlementDraft(db, ctx, plan).state) ?? {};
+    db.prepare('UPDATE raid_settlements SET overrides = ?, finalized_at = NULL, finalized_by = NULL WHERE plan_id = ?').run(JSON.stringify(overrides), plan.id);
+    changed(ctx);
+    return view(ctx, plan);
+  });
+
+  /**
+   * Marks a delivery ("<from id>><to id>") of the finalized settlement as done or open: its sender or receiver, participants of the plan, its
    * creator and group admins.
    */
   app.put<{ Params: { uni: string; id: string }; Body: { key?: unknown; done?: unknown } }>('/api/:uni/plans/:id/settlement/done', async (req) => {
@@ -163,9 +232,9 @@ export function settlementRoutes(app: FastifyInstance, db: DB) {
     if (!from || !to || key.length > 140) throw new HttpError(400, 'settlement_invalid', 'Invalid delivery');
     const me = memberKey(ctx.user.id);
     if (from !== me && to !== me) editable(ctx, plan);
-    const saved = savedSettlement(db, ctx, plan.id);
-    if (!saved) throw new HttpError(404, 'settlement_not_found', 'Settlement not saved');
-    const done = new Set(saved.done);
+    const stored = storedSettlement(db, ctx, plan.id);
+    if (!stored || stored.finalizedAt == null) throw new HttpError(404, 'settlement_not_found', 'Settlement not finalized');
+    const done = new Set(stored.done);
     if (req.body?.done === false) done.delete(key);
     else done.add(key);
     db.prepare('UPDATE raid_settlements SET done = ? WHERE plan_id = ?').run(JSON.stringify([...done]), plan.id);
@@ -173,6 +242,7 @@ export function settlementRoutes(app: FastifyInstance, db: DB) {
     return { done: [...done] };
   });
 
+  /** Deletes the stored settlement: corrections, finalized state and deliveries marked done. */
   app.delete<{ Params: { uni: string; id: string } }>('/api/:uni/plans/:id/settlement', async (req) => {
     const ctx = ctxOf(req);
     const plan = planOf(ctx, Number(req.params.id));

@@ -227,16 +227,18 @@ export function applyOverrides(draft: LootState, o: Overrides | null | undefined
  */
 export function adoptKeys(draft: LootState, state: LootState): LootState {
   const s = copy(state);
-  const taken = new Set([...s.battles.map((b) => b.key), ...s.recycling.map((r) => r.key)].filter((k): k is string => !!k));
+  // battle and recycling keys are separate (a report id may look like a recycling key)
+  const battles = new Set(s.battles.map((b) => b.key).filter((k): k is string => !!k));
   for (const b of s.battles) {
     if (b.key) continue;
-    const d = draft.battles.find((x) => x.key && !taken.has(x.key) && sameBattle(x, b));
-    if (d?.key) taken.add((b.key = d.key));
+    const d = draft.battles.find((x) => x.key && !battles.has(x.key) && sameBattle(x, b));
+    if (d?.key) battles.add((b.key = d.key));
   }
+  const rows = new Set(s.recycling.map((r) => r.key).filter((k): k is string => !!k));
   for (const r of s.recycling) {
     if (r.key) continue;
-    const d = draft.recycling.find((x) => x.key && !taken.has(x.key) && (sameRecycling(x, r) || (x.by === r.by && x.m === r.m && x.k === r.k)));
-    if (d?.key) taken.add((r.key = d.key));
+    const d = draft.recycling.find((x) => x.key && !rows.has(x.key) && (sameRecycling(x, r) || (x.by === r.by && x.m === r.m && x.k === r.k)));
+    if (d?.key) rows.add((r.key = d.key));
   }
   return s;
 }
