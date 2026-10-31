@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Beute abrechnen: Statt „gleichmäßig“ lässt sich der Gewinn jetzt nach Prozent aufteilen, mit einem eigenen Anteil pro Teilnehmer. Ohne Angabe bekommen alle gleich viel.',
+        en: 'Loot settlement: instead of "equally" the profit can now be split by percent, with a share per participant. Without any, everyone gets the same.',
+      },
+      {
+        kind: 'new',
         de: 'Beute abrechnen: Ein Diagramm zeigt, wie Beute und Trümmerfeld über Kostenausgleich, Gewinn und Helferanteil bei jedem Teilnehmer ankommen, nach Menge oder nach Wert in Deut.',
         en: 'Loot settlement: a diagram shows how loot and debris field go through costs covered, profit and the helpers\' part to each participant, by amount or by value in deuterium.',
       },

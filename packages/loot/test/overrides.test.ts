@@ -160,4 +160,12 @@ describe('corrections on top of the hub draft', () => {
     for (const r of old.recycling) delete r.key;
     expect(stateChanges(old, draft())).toEqual({ people: 0, battles: 0, recycling: 0, settings: 0 });
   });
+
+  it('keeps a profit percent of 0 as a correction', () => {
+    const edited = draft();
+    edited.participants[0].sharePct = 0;
+    const o = diffOverrides(draft(), edited);
+    expect(o.participants).toEqual({ u1: { sharePct: 0 } });
+    expect(applyOverrides(draft(), o).participants[0].sharePct).toBe(0);
+  });
 });

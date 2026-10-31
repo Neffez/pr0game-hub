@@ -9,8 +9,8 @@ import { useRoute } from 'vue-router';
 import { localToEpoch, parseCombatReportText, parseRecycleReportsText } from '@pr0hub/core/combat';
 import { CAPACITY } from '@pr0hub/flight';
 import {
-  adoptKeys, battleFromReport, cleanState, debrisSummary, decodeShare, diffOverrides, lootShares, marketRates, MAX_HELPER_KEEP, overriddenPaths, settle,
-  type Battle, type LootState, type Overrides, type Res, type SettlementResult, type StateChanges, type TransferInput,
+  adoptKeys, battleFromReport, cleanState, debrisSummary, decodeShare, diffOverrides, lootShares, marketRates, MAX_HELPER_KEEP, overriddenPaths, profitPercents,
+  settle, type Battle, type Participant, type LootState, type Overrides, type Res, type SettlementResult, type StateChanges, type TransferInput,
 } from '@pr0hub/loot';
 import { uniApi } from '../api';
 import CommentThread from '../components/CommentThread.vue';
@@ -117,6 +117,16 @@ watch(state, () => {
 }, { deep: true });
 
 const result = computed<SettlementResult | null>(() => (state.value ? settle(state.value) : null));
+/** profit split by percent: each participant's percent (set, or their equal part of the rest) */
+const byPercent = computed(() => state.value?.settings.mode === 'equal');
+const percents = computed(() => (state.value ? profitPercents(state.value.participants) : []));
+const pctText = (n: number | undefined) => (n == null ? '' : String(Math.round(n * 10) / 10));
+/** an empty field: back to the equal part of the rest */
+function setPct(p: Participant, value: string) {
+  const n = Number(value);
+  if (value.trim() === '' || !Number.isFinite(n)) delete p.sharePct;
+  else p.sharePct = Math.min(100, Math.max(0, n));
+}
 const canEdit = computed(() => !!data.value?.can_edit);
 const finalized = computed(() => data.value?.finalized ?? null);
 /** values can be corrected: by participants, creator and admins, while the settlement is not finalized */
@@ -445,7 +455,8 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
           <div class="table-wrap">
             <table v-stack class="data">
               <thead>
-                <tr><th>{{ t('common.name') }}</th><th class="num">{{ t('loot.flightDeut') }}</th><th class="num">{{ t('loot.recDeut') }}</th><th class="num">{{ t('loot.missiles') }}</th></tr>
+                <tr><th>{{ t('common.name') }}</th><th class="num">{{ t('loot.flightDeut') }}</th><th class="num">{{ t('loot.recDeut') }}</th><th class="num">{{ t('loot.missiles') }}</th>
+                  <th v-if="byPercent" class="num">{{ t('loot.sharePct') }} <Hint>{{ t('loot.sharePctHint') }}</Hint></th></tr>
               </thead>
               <tbody>
                 <tr v-for="p in state.participants" :key="p.id">
@@ -461,6 +472,12 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
                     <span v-else-if="sourceOf(p.id, f)" class="src" :class="{ est: f === 'recDeut' || (f === 'flightDeut' && sources?.flightDeutFrom?.[p.id] !== 'fleet') }">
                       <Icon name="check" :size="12" :label="sourceOf(p.id, f)!" />
                     </span>
+                  </td>
+                  <td v-if="byPercent" class="num">
+                    <input
+                      type="number" min="0" max="100" step="any" :value="p.sharePct ?? ''" :placeholder="pctText(percents[state.participants.indexOf(p)])"
+                      :disabled="!editing" :aria-label="`${t('loot.sharePct')} ${p.name}`" @input="setPct(p, ($event.target as HTMLInputElement).value)"
+                    />
                   </td>
                 </tr>
               </tbody>
@@ -617,6 +634,7 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
           </div>
           <p v-if="result.coverage < 1" class="warn small">{{ t('loot.notCovered') }}</p>
           <p v-if="result.rateWarnings.length" class="warn small">{{ t('loot.rateWarning') }}</p>
+          <p v-if="result.warnings.includes('shares_not_100')" class="warn small">{{ t('loot.sharesNot100', { sum: pctText(percents.reduce((a, v) => a + v, 0)) }) }}</p>
           <p v-if="result.deadline" class="muted small">{{ t('loot.deadline', { time: dateTime(result.deadline) }) }}</p>
           <!-- mobile: one block per person, resources as columns -->
           <div v-if="mobile" class="people">

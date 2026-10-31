@@ -75,7 +75,9 @@ function pair<T extends { key?: string }>(draft: T[], edited: T[], same: (a: T, 
   return out;
 }
 
-const PERSON_FIELDS = ['name', 'flightDeut', 'recDeut', 'missiles', 'extra', 'keepPct'] as const;
+const PERSON_FIELDS = ['name', 'flightDeut', 'recDeut', 'missiles', 'extra', 'keepPct', 'sharePct'] as const;
+/** fields where 0 and unset mean the same */
+const ZERO_IS_UNSET = new Set<string>(['flightDeut', 'recDeut', 'missiles', 'keepPct']);
 const SETTING_FIELDS: (keyof Settings)[] = ['mode', 'rates', 'refRates', 'deficitMetalShare', 'cargoShip', 'helperDeut'];
 
 function personDiff<T extends Participant | Helper>(draft: T, edited: T): PersonOverride | null {
@@ -83,7 +85,7 @@ function personDiff<T extends Participant | Helper>(draft: T, edited: T): Person
   for (const f of PERSON_FIELDS) {
     const a = (draft as unknown as Record<string, unknown>)[f];
     const b = (edited as unknown as Record<string, unknown>)[f];
-    if (b !== undefined && !same(a ?? null, b ?? null) && !(f !== 'name' && f !== 'extra' && !a && !b)) o[f] = copy(b);
+    if (b !== undefined && !same(a ?? null, b ?? null) && !(ZERO_IS_UNSET.has(f) && !a && !b)) o[f] = copy(b);
   }
   return isEmpty(o) ? null : (o as PersonOverride);
 }

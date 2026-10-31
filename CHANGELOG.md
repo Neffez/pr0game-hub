@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-31
 
+- Loot settlement: the profit split "equally" becomes "by percent": each participant can have a share in percent
+  (`Participant.sharePct`, new column in the participants table); participants without one split what the others
+  leave equally, so without any it stays equal shares. Shares that don't add up to 100 % are scaled and warned about
+  (`shares_not_100`). `profitPercents` in `@pr0hub/loot`; share links carry the percents (0 % included), corrections
+  keep them. The standalone loot calculator computes them from a link but has no field for them yet.
 - Loot settlement: a "Distribution" section shows where the loot goes as a Sankey diagram (`LootSankey.vue`, plain
   SVG): loot and debris field into the pot (and what was not recycled), the pot into costs covered, profit and the
   helpers' part, and those into what each person gets. Widths by amount (metal, crystal and deuterium added up) or by

@@ -158,6 +158,11 @@ components:
               recDeut: { type: integer }
               missiles: { type: integer }
               extra: { type: object }
+              sharePct:
+                type: number
+                minimum: 0
+                maximum: 100
+                description: Share of the profit in percent with `settings.mode` equal; participants without one split what the others leave equally
         helpers:
           type: array
           items:
@@ -198,7 +203,7 @@ components:
         settings:
           type: object
           properties:
-            mode: { type: string, enum: [equal, investment] }
+            mode: { type: string, enum: [equal, investment], description: 'equal: by percent (`sharePct`, equal shares by default); investment: by the value of the ships sent' }
             rates: { type: object, description: Metal and crystal per deuterium }
             refRates: { type: [object, 'null'] }
             deficitMetalShare: { type: number }

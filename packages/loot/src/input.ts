@@ -73,6 +73,7 @@ export function cleanState(raw: unknown): LootState {
           recDeut: int(p.recDeut),
           missiles: int(p.missiles, 0, 1e6),
           ...(isObj(p.extra) ? { extra: res(p.extra) } : {}),
+          ...(p.sharePct != null && p.sharePct !== '' ? { sharePct: num(p.sharePct, 0, 100) } : {}),
         }
       : null,
   );
