@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Koordinatenfelder öffnen auf dem Handy wieder die normale Tastatur, damit man den Doppelpunkt tippen kann.',
+        en: 'Coordinate fields open the normal keyboard on phones again, so you can type the colon.',
+      },
+      {
+        kind: 'fix',
         de: 'Angriffe: Entfernt ein Admin eine falsch erkannte Welle, bleibt eine gleiche, ausgeblendete Welle weiter ausgeblendet.',
         en: 'Attacks: when an admin removes a wrongly detected wave, an identical wave that was hidden stays hidden.',
       },

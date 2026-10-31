@@ -236,7 +236,7 @@ function next() {
       </label>
       <label v-if="needsSystem">
         {{ t('paste.system') }}
-        <input v-model="system" inputmode="numeric" placeholder="1:234" size="7" @input="refresh" />
+        <input v-model="system" placeholder="1:234" size="7" @input="refresh" />
       </label>
       <span class="grow" />
       <button class="primary" :disabled="busy || !preview || !preview.preview.length || (needsType && !statsType)" @click="run(false)">{{ t('common.save') }}</button>

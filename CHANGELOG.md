@@ -4,6 +4,8 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-31
 
+- Coordinate fields (tools: flight, IPM, battle simulator, moon destruction; hub: sync system, spy target) no longer
+  force the numeric keyboard on mobile, which on many phones has no `:`; they open the normal keyboard.
 - Removed `CODEREVIEW.md`: its findings are fixed or decided (see the entries of 2026-10-30 and 2026-10-31).
 - Admin, stored fleet attacks: removing one of several waves with the same key keeps the alliance's "hidden" mark of
   the key while another wave is still in a stored fleet list; it goes with the last one.
