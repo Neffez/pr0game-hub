@@ -17,6 +17,7 @@ export {
   MAX_PARTICIPANTS,
   newId,
   planTransfers,
+  profitPercents,
   remaining,
   settle,
   SHARE_WITHIN,
