@@ -38,13 +38,16 @@ export const minuteOfDay = (epoch: number) => {
 };
 
 /**
- * Activity over the day in `bins` steps (bin i covers minute i·1440/bins), scaled to a peak of 1: every event of the
- * last `days` adds a Gaussian around its time of day (wrapping at midnight), wider by its uncertainty and weighted by
- * its source and age. Empty without events.
+ * Activity over the day in `bins` steps (bin i covers minute i·1440/bins): every event of the last `days` adds a
+ * Gaussian around its time of day (wrapping at midnight), wider by its uncertainty and weighted by its source and age.
+ * Scaled by the peak the same events would reach at full weight, so evidence that counts less (galaxy marks, hub
+ * presence) stays low even when it is all there is; with full-weight evidence the peak is 1. Empty without events.
  */
 export function activityCurve(events: ActivityEvent[], now: number, days: number, bins = 288): number[] {
   const from = now - days * 86400;
   const out = new Array<number>(bins).fill(0);
+  /** the same at full weight: the scale */
+  const full = new Array<number>(bins).fill(0);
   const step = DAY / bins;
   let any = false;
   for (const e of events) {
@@ -54,15 +57,17 @@ export function activityCurve(events: ActivityEvent[], now: number, days: number
     any = true;
     // a uniform window of ±spread has the standard deviation spread/√3
     const sigma = Math.sqrt(BANDWIDTH ** 2 + (e.spread / 60 / Math.sqrt(3)) ** 2);
-    const w = (base * 0.5 ** (Math.max(0, now - e.time) / HALF_LIFE)) / sigma;
+    const w = 0.5 ** (Math.max(0, now - e.time) / HALF_LIFE) / sigma;
     const m = minuteOfDay(e.time);
     for (let i = 0; i < bins; i++) {
       const d = ((((i + 0.5) * step - m) % DAY) + DAY * 1.5) % DAY - DAY / 2;
-      out[i] += w * Math.exp(-(d * d) / (2 * sigma * sigma));
+      const v = w * Math.exp(-(d * d) / (2 * sigma * sigma));
+      out[i] += base * v;
+      full[i] += Math.max(base, 1) * v;
     }
   }
   if (!any) return [];
-  const peak = Math.max(...out);
+  const peak = Math.max(...full);
   return peak > 0 ? out.map((v) => v / peak) : out;
 }
 

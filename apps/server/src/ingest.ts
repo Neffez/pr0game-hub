@@ -218,7 +218,7 @@ export function backfillActivity(db: DB, groupId: number, timezone: string): num
           const playerId =
             (row.playerId != null ? (byIngameId.get(groupId, row.playerId) as number | undefined) : undefined) ??
             (row.playerName ? players.byName(row.playerName) : null);
-          if (playerId) galaxyMark(db, groupId, playerId, { g: r.g, s: r.s, p: row.position }, row.activity, raw.created_at);
+          if (playerId) galaxyMark(db, groupId, playerId, { g: r.g, s: r.s, p: row.position }, row.activity, store.galaxySeenAt(r, raw.created_at));
         }
       }
     }

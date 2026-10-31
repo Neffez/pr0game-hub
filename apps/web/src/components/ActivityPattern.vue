@@ -82,18 +82,22 @@ function draw() {
     });
   }
   datasets.push(
-    // one tick per event below the curve
-    ...present.map((source) => ({
-      label: sourceLabel(source),
-      data: shown.value.filter((e) => e.source === source).map((e) => ({ x: minuteOfDay(e.time) / 60, y: -0.06, e })),
-      borderColor: COLORS[source],
-      backgroundColor: COLORS[source],
-      pointStyle: 'line' as const,
-      rotation: 90,
-      pointRadius: 7,
-      pointHoverRadius: 9,
-      borderWidth: 2,
-    })),
+    // one tick per event below the curve; galaxy marks (also set by others' actions) paler and shorter
+    ...present.map((source) => {
+      const weak = source === 'galaxy';
+      const color = weak ? `${COLORS[source]}88` : COLORS[source];
+      return {
+        label: sourceLabel(source),
+        data: shown.value.filter((e) => e.source === source).map((e) => ({ x: minuteOfDay(e.time) / 60, y: -0.06, e })),
+        borderColor: color,
+        backgroundColor: color,
+        pointStyle: 'line' as const,
+        rotation: 90,
+        pointRadius: weak ? 4 : 7,
+        pointHoverRadius: weak ? 7 : 9,
+        borderWidth: weak ? 1.5 : 2,
+      };
+    }),
   );
   chart = new Chart(canvas.value, {
     type: 'scatter',

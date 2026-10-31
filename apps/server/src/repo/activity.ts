@@ -63,6 +63,8 @@ interface NewActivity {
 /** Galaxy marks in the activity curve cap at this; one planet counts less, more planets approach the cap. */
 export const GALAXY_WEIGHT_CAP = 0.4;
 const GALAXY_HOUR = 3600;
+/** An offline report drops galaxy marks whose activity estimate lies within this many seconds of it. */
+const OFFLINE_WINDOW = 900;
 
 /** Notes that a member has the hub open and active now (one row per 5-minute slot). */
 export function memberOnline(db: DB, groupId: number, userId: number, time: number) {
@@ -106,7 +108,8 @@ const STAR_SPREAD = 450;
 export function galaxyMark(db: DB, groupId: number, playerId: number, c: { g: number; s: number; p: number }, minutes: number, seenAt: number): boolean {
   const spread = minutes === 0 ? STAR_SPREAD : 60;
   const time = minutes === 0 ? seenAt - STAR_SPREAD : seenAt - minutes * 60;
-  if (galaxyMarkCausedByForeignAction(db, groupId, c.g, c.s, c.p, seenAt)) return false;
+  const { lo, hi } = causeWindow(seenAt);
+  if (causedByForeignAction(foreignActions(db, groupId, [c], lo, hi), c, seenAt)) return false;
   const near = db
     .prepare(
       `SELECT id, time, spread FROM player_activity WHERE player_id = ? AND source = 'galaxy' AND g = ? AND s = ? AND p = ?
@@ -123,31 +126,57 @@ export function galaxyMark(db: DB, groupId: number, playerId: number, c: { g: nu
 const galaxySeenAt = (time: number, spread: number) => time + spread;
 
 /**
- * When the galaxy view was pasted into the hub (`created_at`, set from `seenAt` on insert). Rows backfilled later may
- * have a `created_at` after the estimated mark time; then the estimate is used as a fallback.
+ * When the galaxy view was seen (`created_at`, stored from `seenAt`). A mark is at most an hour old when synced, so a
+ * `created_at` further after the mark is the time of a late backfill of rows from before `created_at` was stored;
+ * then the estimated mark time is the fallback.
  */
-const galaxySyncedAt = (row: { time: number; spread: number; created_at: number }) => {
-  const seen = galaxySeenAt(row.time, row.spread);
-  return row.created_at > seen + 300 ? seen : row.created_at;
-};
+const galaxySyncedAt = (row: { time: number; spread: number; created_at: number }) =>
+  row.created_at > row.time + GALAXY_HOUR + 300 ? galaxySeenAt(row.time, row.spread) : row.created_at;
+
+/** A foreign action at the slot within this window around the galaxy sync likely set its mark. */
+const causeWindow = (sync: number) => ({ lo: sync - GALAXY_HOUR, hi: sync + 60 });
 
 /**
- * A spy report or battle at the slot before the galaxy sync (within the last hour) likely set the mark; one after the
- * sync is ambiguous activity and does not suppress the mark.
+ * Times of foreign actions at the slots between `lo` and `hi` that set galaxy activity marks: spy reports and battles
+ * the group synced, and members' own fleets arriving there (any mission, from their stored fleet lists, so also
+ * probes whose report was never synced). Loaded once for all slots, by "g:s:p".
  */
-function galaxyMarkCausedByForeignAction(db: DB, groupId: number, g: number, s: number, p: number, sync: number): boolean {
-  const lo = sync - GALAXY_HOUR;
-  const hi = sync + 60;
-  return !!db
+function foreignActions(db: DB, groupId: number, slots: { g: number; s: number; p: number }[], lo: number, hi: number): Map<string, number[]> {
+  const out = new Map<string, number[]>();
+  if (!slots.length) return out;
+  const keys = new Set(slots.map((c) => `${c.g}:${c.s}:${c.p}`));
+  const add = (key: string, time: number) => {
+    if (!keys.has(key) || time < lo || time > hi) return;
+    if (!out.has(key)) out.set(key, []);
+    out.get(key)!.push(time);
+  };
+  const json = JSON.stringify(slots.map((c) => [c.g, c.s, c.p]));
+  const reports = db
     .prepare(
-      `SELECT 1 FROM spy_reports WHERE group_id = ? AND g = ? AND s = ? AND p = ? AND report_time BETWEEN ? AND ?
-       UNION ALL SELECT 1 FROM battle_reports WHERE group_id = ? AND g = ? AND s = ? AND p = ? AND time BETWEEN ? AND ? LIMIT 1`,
+      `WITH slots AS (SELECT value ->> 0 AS g, value ->> 1 AS s, value ->> 2 AS p FROM json_each(?))
+       SELECT r.g, r.s, r.p, r.report_time AS time FROM spy_reports r JOIN slots USING (g, s, p) WHERE r.group_id = ? AND r.report_time BETWEEN ? AND ?
+       UNION ALL
+       SELECT b.g, b.s, b.p, b.time FROM battle_reports b JOIN slots USING (g, s, p) WHERE b.group_id = ? AND b.time BETWEEN ? AND ?`,
     )
-    .get(groupId, g, s, p, lo, hi, groupId, g, s, p, lo, hi);
+    .all(json, groupId, lo, hi, groupId, lo, hi) as { g: number; s: number; p: number; time: number }[];
+  for (const r of reports) add(`${r.g}:${r.s}:${r.p}`, r.time);
+  // a fleet shows in the lists synced before its arrival (kept `FLEET_HISTORY`)
+  const snapshots = db
+    .prepare('SELECT data FROM fleet_snapshots WHERE group_id = ? AND page_time BETWEEN ? AND ?')
+    .pluck()
+    .all(groupId, lo - 86400, hi) as string[];
+  for (const data of snapshots) {
+    for (const f of JSON.parse(data) as StoredFleet[]) {
+      if (f.owner === 'own' && f.phase === 'out' && f.to) add(`${f.to.coords.g}:${f.to.coords.s}:${f.to.coords.p}`, f.arrival);
+    }
+  }
+  return out;
 }
 
-function galaxyMarkBlocked(db: DB, groupId: number, g: number, s: number, p: number, row: { time: number; spread: number; created_at: number }): boolean {
-  return galaxyMarkCausedByForeignAction(db, groupId, g, s, p, galaxySyncedAt(row));
+/** Whether one of the `actions` at the slot lies in the window before the sync (one after it is ambiguous activity). */
+function causedByForeignAction(actions: Map<string, number[]>, c: { g: number; s: number; p: number }, sync: number): boolean {
+  const { lo, hi } = causeWindow(sync);
+  return (actions.get(`${c.g}:${c.s}:${c.p}`) ?? []).some((t) => t >= lo && t <= hi);
 }
 
 /** Total galaxy weight for `n` planets with a mark in the same hour. */
@@ -315,9 +344,11 @@ export function playerActivity(db: DB, ctx: GroupContext, playerId: number, from
     .prepare(
       `SELECT pa.id, pa.time, pa.spread, pa.created_at, pa.source, pa.g, pa.s, pa.p, pa.planet_type, pa.user_id, ${DISPLAY} AS reporter FROM player_activity pa
        LEFT JOIN users u ON u.id = pa.user_id ${MEMBER('pa')}
-       WHERE pa.group_id = ? AND pa.player_id = ? AND (pa.time >= ? OR (pa.source = 'galaxy' AND pa.created_at >= ?))`,
+       WHERE pa.player_id = ? AND pa.time >= ? AND pa.group_id = ?`,
     )
-    .all(ctx.groupId, playerId, from, from) as StoredRow[];
+    // galaxy marks count by their sync, at most an hour after the mark: the time bound stays on the index
+    .all(playerId, from - GALAXY_HOUR - 300, ctx.groupId)
+    .filter((r: any) => r.time >= from || (r.source === 'galaxy' && r.created_at >= from)) as StoredRow[];
 
   const memberReport = (r: StoredRow): ActivityEvent => ({
     time: r.time,
@@ -332,14 +363,20 @@ export function playerActivity(db: DB, ctx: GroupContext, playerId: number, from
   const offlineTimes = stored.filter((r) => r.source === 'offline').map((r) => r.time);
   const planetSlot = (r: StoredRow) => `${r.g}:${r.s}:${r.p}:${r.planet_type ?? 'planet'}`;
 
-  let galaxy = stored.filter((r) => r.source === 'galaxy' && r.g != null && r.s != null && r.p != null);
-  galaxy = galaxy.filter((g) => {
-    const sync = galaxySyncedAt(g);
-    if (offlineTimes.some((o) => Math.abs(sync - o) <= GALAXY_HOUR || Math.abs(galaxySeenAt(g.time, g.spread) - o) <= GALAXY_HOUR)) return false;
-    return !galaxyMarkBlocked(db, ctx.groupId, g.g!, g.s!, g.p!, g);
-  });
+  type GalaxyRow = StoredRow & { g: number; s: number; p: number };
+  let galaxy = stored.filter((r): r is GalaxyRow => r.source === 'galaxy' && r.g != null && r.s != null && r.p != null);
+  const syncs = galaxy.map(galaxySyncedAt);
+  const actions = galaxy.length
+    ? foreignActions(db, ctx.groupId, galaxy, Math.min(...syncs) - GALAXY_HOUR, Math.max(...syncs) + 60)
+    : new Map<string, number[]>();
+  // an offline report contradicts a mark whose activity estimate lies close to it
+  galaxy = galaxy.filter(
+    (g) =>
+      !offlineTimes.some((o) => Math.abs(galaxySeenAt(g.time, g.spread) - o) <= OFFLINE_WINDOW) &&
+      !causedByForeignAction(actions, g, galaxySyncedAt(g)),
+  );
 
-  const bestPerPlanetHour = new Map<string, StoredRow>();
+  const bestPerPlanetHour = new Map<string, GalaxyRow>();
   for (const g of galaxy) {
     const syncHour = Math.floor(galaxySyncedAt(g) / GALAXY_HOUR);
     const key = `${planetSlot(g)}:${syncHour}`;

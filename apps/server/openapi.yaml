@@ -581,7 +581,7 @@ components:
         g: { type: integer, description: Galaxy mark only – galaxy coordinate }
         s: { type: integer, description: Galaxy mark only – system coordinate }
         p: { type: integer, description: Galaxy mark only – position }
-        syncedAt: { type: integer, description: Galaxy mark only – when the galaxy view was synced (Unix seconds) }
+        syncedAt: { type: integer, description: Galaxy mark only – when the galaxy view was seen: server time of the page, else the time of the sync (Unix seconds) }
         id: { type: integer, description: Manual and offline reports only }
         reporter: { type: [string, 'null'], description: Reporting member (manual and offline reports only) }
         mine: { type: boolean, description: Reported by the caller (manual and offline reports only) }

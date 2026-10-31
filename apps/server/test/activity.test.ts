@@ -7,6 +7,7 @@ const { buildApp } = await import('../src/app.js');
 const { openDb, now } = await import('../src/db.js');
 const { hashPassword } = await import('../src/auth.js');
 const { fleetActivity, galaxyMark, galaxyHourWeight, phalanxActivity } = await import('../src/repo/activity.js');
+const { Store } = await import('../src/store.js');
 
 const fixture = (name: string) => readFileSync(new URL(`../../../packages/parser/test/fixtures/${name}`, import.meta.url), 'utf8');
 
@@ -69,6 +70,21 @@ describe('player activity', () => {
     expect(stored('galaxy').filter((x) => x.spread === 60)).toHaveLength(2);
   });
 
+  it('dates a galaxy view by the server time of its page when it fits the paste', () => {
+    const store = new Store(db, { groupId: groupA, userId: adminId, timezone: 'UTC' }, { pageType: 'galaxy', source: 'text', lang: 'de', warnings: [], counts: {}, preview: [] });
+    const t = now();
+    const local = (epoch: number) => new Date(epoch * 1000).toISOString().slice(0, 19).replace('T', ' ');
+    const view = (pageTime: string | null) => ({ kind: 'galaxy' as const, g: 1, s: 1, rows: [], pageTime });
+    // copied at the game's clock, pasted half an hour later
+    expect(store.galaxySeenAt(view(local(t - 1800)), t)).toBe(t - 1800);
+    // a page clock a few seconds ahead of the hub
+    expect(store.galaxySeenAt(view(local(t + 90)), t)).toBe(t + 90);
+    // implausible (older than a day, far ahead) or missing: the paste time
+    expect(store.galaxySeenAt(view(local(t - 2 * 86400)), t)).toBe(t);
+    expect(store.galaxySeenAt(view(local(t + 3600)), t)).toBe(t);
+    expect(store.galaxySeenAt(view(null), t)).toBe(t);
+  });
+
   it('leaves out galaxy marks set by a member spying or fighting there', () => {
     const t = now() - 6 * 3600;
     db.prepare(
@@ -110,7 +126,9 @@ describe('player activity', () => {
     score.run(snap.run(groupA, t - 12 * 3600).lastInsertRowid, alpha, 1000);
     score.run(snap.run(groupA, t - 6 * 3600).lastInsertRowid, alpha, 1500);
 
-    expect(sources(await activity()).sort()).toEqual(['attack', 'defense', 'galaxy', 'galaxy', 'spy'].sort());
+    // galaxy: the two marks of the first test, and the "(40 min)" mark with the spy report 70 min before its sync
+    // (read like it was written: against the sync time, not the estimated activity)
+    expect(sources(await activity()).sort()).toEqual(['attack', 'defense', 'galaxy', 'galaxy', 'galaxy', 'spy'].sort());
     const { scores } = (await call('GET', `/players/${alpha}/activity`, admin)).json();
     expect(scores).toEqual([{ time: t - 12 * 3600, points: 1000 }, { time: t - 6 * 3600, points: 1500 }]);
     expect(sources(await activity(carol))).toContain('message');
@@ -201,15 +219,41 @@ describe('player activity', () => {
     expect((await activity()).filter((e) => e.source === 'galaxy')).toHaveLength(1);
   });
 
-  it('drops galaxy marks in the hour of an offline report', async () => {
+  it('drops galaxy marks within 15 minutes of an offline report', async () => {
     const t = now();
     db.prepare('DELETE FROM player_activity WHERE player_id = ?').run(alpha);
     db.prepare('DELETE FROM spy_reports WHERE group_id = ? AND g = 1 AND s = 234 AND p = 5').run(groupA);
     expect(galaxyMark(db, groupA, alpha, { g: 1, s: 234, p: 5 }, 0, t)).toBe(true);
     expect((await activity()).some((e) => e.source === 'galaxy')).toBe(true);
+    // an offline report 30 minutes earlier does not contradict it
+    db.prepare("DELETE FROM player_activity WHERE player_id = ? AND source = 'offline'").run(alpha);
+    expect((await call('POST', `/players/${alpha}/activity`, carol, { time: t - 1800, kind: 'offline' })).statusCode).toBe(200);
+    expect((await activity()).some((e) => e.source === 'galaxy')).toBe(true);
     expect((await call('POST', `/players/${alpha}/activity`, carol, { time: t, kind: 'offline' })).statusCode).toBe(200);
     expect((await activity()).some((e) => e.source === 'galaxy')).toBe(false);
     expect((await activity()).some((e) => e.source === 'offline')).toBe(true);
+  });
+
+  it("leaves out galaxy marks set by a member's own fleet arriving there", async () => {
+    const t = now();
+    db.prepare('DELETE FROM player_activity WHERE player_id = ?').run(alpha);
+    db.prepare('DELETE FROM spy_reports WHERE group_id = ? AND g = 1 AND s = 234 AND p = 7').run(groupA);
+    // a transport of Carol arrived 10 minutes before the sync, its report (if any) was never synced
+    const fleet = {
+      owner: 'own', player: null, mission: 3, missionName: 'Transport', phase: 'out', acs: null,
+      from: { coords: { g: 2, s: 2, p: 2 }, type: 'planet', name: null },
+      to: { coords: { g: 1, s: 234, p: 7 }, type: 'planet', name: null },
+      ships: { 202: 1 }, resources: null, seconds: 0, clock: null, arrival: t - 600,
+    };
+    db.prepare('INSERT INTO fleet_snapshots (group_id, user_id, page_time, data) VALUES (?, ?, ?, ?)').run(groupA, carolId, t - 1800, JSON.stringify([fleet]));
+    expect(galaxyMark(db, groupA, alpha, { g: 1, s: 234, p: 7 }, 10, t)).toBe(false);
+    // its return flight is no cause
+    db.prepare('UPDATE fleet_snapshots SET data = ? WHERE group_id = ? AND user_id = ?').run(JSON.stringify([{ ...fleet, phase: 'return' }]), groupA, carolId);
+    expect(galaxyMark(db, groupA, alpha, { g: 1, s: 234, p: 7 }, 10, t)).toBe(true);
+    // a snapshot synced later explains the stored mark when it is read
+    db.prepare('UPDATE fleet_snapshots SET data = ? WHERE group_id = ? AND user_id = ?').run(JSON.stringify([fleet]), groupA, carolId);
+    expect((await activity()).some((e) => e.source === 'galaxy' && e.p === 7)).toBe(false);
+    db.prepare('DELETE FROM fleet_snapshots WHERE group_id = ? AND user_id = ?').run(groupA, carolId);
   });
 
   it("takes a member's syncs and hub presence as far as they share them", async () => {

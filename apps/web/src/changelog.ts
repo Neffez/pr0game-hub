@@ -16,6 +16,26 @@ export interface ChangelogDay {
 
 export const CHANGELOG: ChangelogDay[] = [
   {
+    date: '2026-10-31',
+    items: [
+      {
+        kind: 'fix',
+        de: 'Aktivitätsmuster: Galaxie-Sterne nutzen die Serverzeit der kopierten Seite. Spionage oder Kampf kurz vor dem Kopieren erklärt einen Stern damit zuverlässig, auch wenn die Galaxie erst später eingefügt wird.',
+        en: 'Activity pattern: galaxy marks use the server time of the copied page. Espionage or a battle shortly before copying now reliably explains a mark, even when the galaxy is pasted later.',
+      },
+      {
+        kind: 'fix',
+        de: 'Aktivitätsmuster: Eigene Flotten der Allianz, die kurz vor dem Galaxie-Sync am Planeten ankamen (Spionage, Transport, Angriff …), erklären einen Galaxie-Stern auch ohne gesyncten Bericht.',
+        en: 'Activity pattern: own alliance fleets that arrived at the planet shortly before the galaxy sync (espionage, transport, attack …) explain a galaxy mark even without a synced report.',
+      },
+      {
+        kind: 'fix',
+        de: 'Aktivitätsmuster: Eine Offline-Meldung streicht nur Galaxie-Sterne im Abstand von 15 Minuten. Nur Galaxie-Sterne heben die Kurve nicht mehr auf volle Höhe, ihre Striche sind blasser.',
+        en: 'Activity pattern: an offline report only removes galaxy marks within 15 minutes of it. Galaxy marks alone no longer raise the curve to full height, and their ticks are paler.',
+      },
+    ],
+  },
+  {
     date: '2026-10-30',
     items: [
       {

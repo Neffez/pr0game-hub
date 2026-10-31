@@ -388,6 +388,7 @@ describe('galaxy + empire', () => {
     expect(res).toMatchObject({ pageType: 'galaxy', source: 'text', warnings: [] });
     const rec = res.records[0] as any;
     expect(rec).toMatchObject({ g: 1, s: 3 });
+    expect(rec.pageTime).toMatch(/-10-22 17:33:10$/);
     const row = (position: number, planetName: string, moonName: string | null, playerName: string, status: string[], debris: [string, string] | null, allyTag: string | null = null, activity: number | null = null) => ({
       position, planetName, moon: moonName != null, moonName, destroyed: false, playerId: null, playerName, status,
       allyId: null, allyTag, debris: debris && { metal: debris[0], crystal: debris[1] }, activity,

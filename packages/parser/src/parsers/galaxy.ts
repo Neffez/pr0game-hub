@@ -2,6 +2,8 @@ import type { Cheerio, CheerioAPI } from 'cheerio';
 import type { AnyNode } from 'domhandler';
 import type { GalaxyRecord, GalaxyRow, PlayerStatus } from '../types.js';
 import { parseNumber } from '../util.js';
+import { pageTime } from './empire.js';
+import { parseServerClock } from './overview.js';
 import { STATUS_LETTERS, statusFromSpans } from './stats.js';
 
 /** Activity mark behind the planet name: "(*)" or "(15 min)". */
@@ -74,7 +76,8 @@ export function parseGalaxyHtml($: CheerioAPI, url?: string, system?: { g: numbe
       activity: destroyed ? null : activityOf(planetLink.text().trim()),
     });
   });
-  return { kind: 'galaxy', g, s, rows };
+  // a copy to the clipboard has no script, but the header with the server clock
+  return { kind: 'galaxy', g, s, rows, pageTime: pageTime($) ?? parseServerClock($.root().text()) };
 }
 
 /** Copied galaxy view: the column header "Spieler (Status) [Allianz]" is part of the text. */
@@ -161,10 +164,11 @@ export function parseGalaxyText(text: string, system: { g: number; s: number }):
       activity: activityOf(rest[0]),
     });
   });
-  if (complete) return { kind: 'galaxy', g: system.g, s: system.s, rows };
+  const base = { kind: 'galaxy' as const, g: system.g, s: system.s, pageTime: parseServerClock(text) };
+  if (complete) return { ...base, rows };
   // without the footer the copy ends early: its last row may be cut off as well
   const lastPosition = Math.max(0, cells.length - 1);
-  return { kind: 'galaxy', g: system.g, s: system.s, rows: rows.filter((r) => r.position <= lastPosition), lastPosition };
+  return { ...base, rows: rows.filter((r) => r.position <= lastPosition), lastPosition };
 }
 
 function emptyRow(position: number, debris: GalaxyRow['debris']): GalaxyRow {

@@ -344,9 +344,19 @@ export class Store {
     this.count('hostile_spying', res.changes > 0);
   }
 
+  /**
+   * When a galaxy view was seen: the server time of the page (game time, like the reports its activity marks are
+   * checked against) when it fits the paste (at most a day before, a few minutes after), else the paste time.
+   * `pasted`: `seenAt` of the record (universe.json, reparse: time of the raw sync), else now.
+   */
+  galaxySeenAt(r: GalaxyRecord, pasted = r.seenAt ?? now()): number {
+    const page = this.epoch(r.pageTime ?? null);
+    return page != null && page >= pasted - 86400 && page <= pasted + 300 ? page : pasted;
+  }
+
   private galaxy(r: GalaxyRecord) {
     const db = this.db;
-    const seenAt = r.seenAt ?? now();
+    const seenAt = this.galaxySeenAt(r);
     // Never overwrite a fresher view with older data (e.g. an old universe.json).
     const known = db.prepare('SELECT seen_at FROM galaxy_views WHERE group_id = ? AND g = ? AND s = ?').pluck().get(this.t.groupId, r.g, r.s) as
       | number

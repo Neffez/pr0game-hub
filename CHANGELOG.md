@@ -2,6 +2,26 @@
 
 Every commit adds its changes here, newest first, grouped by date.
 
+## 2026-10-31
+
+- Activity pattern, galaxy marks (code review finding 2, 10, 15):
+  - A galaxy view is dated by the server time of its page (script of the page source, else the "Serverzeit" header of
+    a copy; `GalaxyRecord.pageTime`) when it lies at most a day before and five minutes after the paste, else by the
+    paste time; also in the activity backfill. Marks and the spy/battle window are then in game time like the
+    reports, so a view pasted later or a clock difference between game and hub no longer keeps marks that a spy
+    report explains.
+  - Reading checks a mark against its sync time like writing does; the estimated mark time is only the fallback for
+    rows of a late backfill (more than an hour after the mark), so `syncedAt`, the grouping per sync hour and the
+    spy window no longer differ between storing and showing.
+  - Members' own fleets arriving at the slot in the hour before the sync (any mission, from their stored fleet lists)
+    explain a mark as well, also when the report was never synced.
+  - Spy reports, battles and fleet arrivals are loaded once per activity request instead of one query per mark; the
+    stored evidence is read with a time bound the index can use.
+  - An offline report drops galaxy marks whose activity estimate lies within 15 minutes of it (was one hour on both
+    sides, also by the sync time).
+  - The curve is scaled by the peak the same evidence would reach at full weight: galaxy marks and hub presence stay
+    low when they are all there is; galaxy ticks below the curve are paler and shorter.
+
 ## 2026-10-30
 
 - Galaxy text copies cut off before the end of the system (no "planets colonized" footer) no longer delete the planets
