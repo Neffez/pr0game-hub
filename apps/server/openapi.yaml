@@ -2404,7 +2404,10 @@ paths:
       operationId: getBattleHall
       description: >-
         Paginated battle hall archive. Each entry includes `moon_destruction` (0 or 1) when the report is locally
-        archived and was a moon-destruction battle; otherwise 0.
+        archived and was a moon-destruction battle; otherwise 0, and `memorial`: 1 for a farewell battle (a player
+        crashing on purpose when quitting, flagged by the game; learned from a hall synced with the farewell filter
+        "only"), 0 when seen with the filter "hide", null when not known. Farewell battles are left out by default.
+        The response carries `memorials`, the number of farewell battles of the group regardless of filters.
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
@@ -2421,6 +2424,11 @@ paths:
             Participant filter (substring). Matches names in the hall entry and, via player aliases, any current or
             former name of players whose name or alias matches.
           schema: { type: string }
+        - name: memorial
+          in: query
+          description: >-
+            Farewell battles: omitted leaves them out, `all` includes them, `only` returns only them.
+          schema: { type: string, enum: [all, only] }
       responses:
         '200':
           content:

@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-10-31',
     items: [
       {
+        kind: 'new',
+        de: 'Battle Hall: Abschiede (Spieler, die aufhören und ihre Flotte absichtlich zerstören lassen) werden erkannt und sind wie im Spiel ausgeblendet. Dafür die Battle Hall im Spiel einmal mit „Abschiede: anzeigen“ einfügen.',
+        en: 'Battle hall: farewell battles (players quitting who have their fleet destroyed on purpose) are recognised and hidden like in the game. To get them, paste the battle hall once with "Memorials: only".',
+      },
+      {
         kind: 'fix',
         de: 'Beute abrechnen: Von Hand eingefügte Berichte zählen nicht mehr doppelt, wenn sie später synchronisiert werden. Ein Transport hakt nur noch eine Lieferung ab, und erst nach dem Festschreiben. Nach erneutem Festschreiben bleiben nur Lieferungen mit unveränderten Beträgen abgehakt.',
         en: 'Loot settlement: reports pasted by hand no longer count twice once they are synced. A transport ticks off only one delivery, and only after finalizing. After finalizing again only deliveries with unchanged amounts stay ticked off.',

@@ -36,5 +36,11 @@ export function parseBattleHallHtml($: CheerioAPI): BattleHallRecord {
     });
   });
   const timeframe = $('#timeframe option[selected]').attr('value') ?? null;
-  return { kind: 'battleHall', timeframe: timeframe != null ? Number(timeframe) : null, entries };
+  const memorial = $('#memorial option[selected]').attr('value') ?? null;
+  return {
+    kind: 'battleHall',
+    timeframe: timeframe != null ? Number(timeframe) : null,
+    memorial: memorial != null && /^[012]$/.test(memorial) ? Number(memorial) : null,
+    entries,
+  };
 }

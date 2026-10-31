@@ -6,7 +6,7 @@ Every commit adds its changes here, newest first, grouped by date.
 
 - Loot settlement fixes from a code review of today's changes:
   - Settlements saved before finalizing existed no longer show changes that are none (`stateChanges` matches their
-    rows to the live ones first) and send no "finalized" notification (`raid_settlements.migrated`, migration `068`).
+    rows to the live ones first) and send no "finalized" notification (`raid_settlements.migrated`, migration `069`).
   - A battle or recycling report added by hand and synced later counts once, from the hub's data; a battle whose key
     changed while it was edited (its report synced meanwhile) stays a correction of that battle instead of becoming a
     copy that no longer follows the data (`diffOverrides`/`applyOverrides` match rows by time and amounts).
@@ -31,7 +31,7 @@ Every commit adds its changes here, newest first, grouped by date.
   ticked off nor delivered by transport reports). Push setting `settlements` (default on).
 - Sync reads three more messages (DE/EN, pirate language): transport reports (sender's and receiver's copy,
   `transports`), interplanetary missile impacts (`missile_impacts`) and recyclers coming home (`recycle_returns`),
-  migration `069`, with preview lines and counts. The loot settlement takes them: each member's missiles fired on the
+  migration `070`, with preview lines and counts. The loot settlement takes them: each member's missiles fired on the
   target from a day before until the last battle, the recycler deuterium estimated from the recycling report and the
   recyclers' return (flight time, recyclers for the cargo, home planet), and the flight deuterium with the real flight
   time of the attack fleets' return flight in the overview (else the planned speed, marked as an estimate).
@@ -49,7 +49,7 @@ Every commit adds its changes here, newest first, grouped by date.
 - `@pr0hub/loot`: `mergeDraft` removed (replaced by the corrections); the battle and recycling matching it shared lives
   in `match.ts`.
 - Loot settlement follows the synced data: instead of a saved snapshot it is the draft from the hub's data with the
-  corrections made by hand on top (`raid_settlements.overrides`, migration `068`), so reports synced later (battle
+  corrections made by hand on top (`raid_settlements.overrides`, migration `069`), so reports synced later (battle
   reports, fleet returns, recycling) flow in without "Update/Refill from hub data" (both buttons removed). A new
   "Finalize" freezes it for the deliveries (`POST/DELETE /plans/{id}/settlement/finalize`); data synced since shows as
   a count of changes with "Reopen". Deliveries are ticked off on the finalized settlement. Values changed by hand are
@@ -62,6 +62,12 @@ Every commit adds its changes here, newest first, grouped by date.
   `applyOverrides` puts them back on a fresh draft (a battle whose key changed is found again by its time),
   `adoptKeys` gives settlements saved before keys existed the draft's keys, `overriddenPaths` and `stateChanges` for
   the view. Groundwork for settlements that follow synced data without "Update from hub data".
+- Battle hall: farewell battles ("Abschiede", a player crashing on purpose when quitting, flagged by the game) are
+  recognised from the farewell filter of the synced hall page (`BattleHallRecord.memorial`): "only" flags every entry,
+  "hide" clears the flag, "all" leaves it unknown. Stored in `battle_hall.memorial` (migration 068). The hub's battle
+  hall hides them by default like the game, with a filter hide/all/only, a "farewell" tag and the number of hidden
+  ones; `GET /api/{uni}/battle-hall` takes `memorial=all|only` and returns `memorial` per entry and `memorials`. The
+  sync preview names a farewell hall. Player activity still counts them.
 - Coordinate fields (tools: flight, IPM, battle simulator, moon destruction; hub: sync system, spy target) no longer
   force the numeric keyboard on mobile, which on many phones has no `:`; they open the normal keyboard.
 - Removed `CODEREVIEW.md`: its findings are fixed or decided (see the entries of 2026-10-30 and 2026-10-31).

@@ -392,7 +392,7 @@ function describe(r: HubRecord): PreviewItem {
     case 'combatReport':
       return { kind: r.kind, names: r.fleets.map((f) => f.name).join(', ') };
     case 'battleHall':
-      return { kind: r.kind, entries: r.entries.length };
+      return { kind: r.kind, entries: r.entries.length, memorial: r.memorial === 2 };
     case 'marketplace':
       return { kind: r.kind, offers: r.offers.length, m: r.rate?.m ?? null, k: r.rate?.k ?? null, exact: r.rate?.exact ?? false };
     case 'recycle':

@@ -447,7 +447,7 @@ export interface FinalizedSettlement {
   state: LootState;
   finalizedAt: number;
   finalizedBy: number | null;
-  /** saved before settlements could be finalized (migration 068): no notification */
+  /** saved before settlements could be finalized (migration 069): no notification */
   migrated: boolean;
   deadline: number | null;
   deliveries: Delivery[];

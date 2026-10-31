@@ -73,6 +73,8 @@ function previewText(p: Summary['preview'][number]) {
       return t('paste.preview.missileImpact', { coords: p.coords, count: fmt(p.count) });
     case 'recycleReturn':
       return t('paste.preview.recycleReturn', { coords: p.coords, amount: fmt(p.amount) });
+    case 'battleHall':
+      return t(p.memorial ? 'paste.preview.battleHallMemorial' : 'paste.preview.battleHall', { entries: p.entries });
     case 'marketplace':
       return (
         t('paste.preview.marketplace', { offers: p.offers, rate: p.m != null || p.k != null ? rateText(p.m as number | null, p.k as number | null) : unknown }) +

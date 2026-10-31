@@ -707,6 +707,31 @@ describe('api', () => {
     expect(puste.entries[0]?.defenders).toEqual(['Arys']);
   });
 
+  it('flags farewell battles from the battle hall filter and hides them by default', async () => {
+    const headers = { ...admin, 'x-hub-group': String(groupA) };
+    const withFilter = (v: number) =>
+      fixture('battlehall.html').replace(
+        '<select name="timeframe"',
+        `<select name="memorial" id="memorial">${[0, 1, 2].map((o) => `<option value="${o}"${o === v ? ' selected="selected"' : ''}>x</option>`).join('')}</select><select name="timeframe"`,
+      );
+    const get = async (memorial?: string) =>
+      (await app.inject({ method: 'GET', url: `/hub/api/u8/battle-hall${memorial ? `?memorial=${memorial}` : ''}`, headers })).json();
+    // "only farewells": every entry becomes a farewell, also the ones already stored
+    let res = await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { text: withFilter(2) } });
+    expect(res.json().counts.battle_hall).toBeDefined();
+    expect(await get()).toMatchObject({ total: 0, memorials: 4 });
+    expect((await get('only')).entries.map((e: any) => e.memorial)).toEqual([1, 1, 1, 1]);
+    expect((await get('all')).total).toBe(4);
+    // "all" tells nothing per row
+    await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { text: withFilter(0) } });
+    expect((await get()).memorials).toBe(4);
+    // "hide farewells": the game team took the flag back
+    await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { text: withFilter(1) } });
+    const shown = await get();
+    expect(shown).toMatchObject({ total: 4, memorials: 0 });
+    expect(shown.entries.map((e: any) => e.memorial)).toEqual([0, 0, 0, 0]);
+  });
+
   it('archives battle reports with the background worker', async () => {
     const headers = { ...admin, 'x-hub-group': String(groupA) };
     const { step, crawlerState } = await import('../src/crawler.js');
@@ -1624,7 +1649,7 @@ describe('plausibility of pasted pages', () => {
 
     // battle hall (not the all-time list) and combat reports: names the group mostly doesn't know
     const hall = (timeframe: number, names: string[]) => ({
-      kind: 'battleHall' as const, timeframe,
+      kind: 'battleHall' as const, timeframe, memorial: null,
       entries: names.map((n, i) => ({ reportId: String(i), rank: i + 1, attackers: [n], defenders: [], winner: null, time: null, units: 1 })),
     });
     expect(foreignRecords(db, me, [hall(2, own.slice(0, 8))])).toBe(false);
