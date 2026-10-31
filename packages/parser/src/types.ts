@@ -372,6 +372,11 @@ export interface BattleHallRecord {
   kind: 'battleHall';
   /** 0 all, 1 day, 2 week, 3 month */
   timeframe: number | null;
+  /**
+   * The page's farewell ("Abschiede", memorial) filter: 0 all (flag unknown per row), 1 hidden (no entry is a farewell),
+   * 2 only (every entry is a farewell); null when the page has no filter (text copy, older pages).
+   */
+  memorial: number | null;
   entries: BattleHallEntry[];
 }
 

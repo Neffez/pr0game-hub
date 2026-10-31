@@ -593,7 +593,13 @@ export class Store {
 
   private battleHall(r: BattleHallRecord) {
     const insert = this.db.prepare(
-      `INSERT INTO battle_hall (group_id, report_id, time, attackers, defenders, winner, units) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO battle_hall (group_id, report_id, time, attackers, defenders, winner, units, memorial) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    );
+    // farewell flag from the page's filter: "only farewells" (2) flags every entry, "hide farewells" (1) clears it
+    // (the game team can take a flag back); "all" (0) or no filter tells nothing per row
+    const memorial = r.memorial === 2 ? 1 : r.memorial === 1 ? 0 : null;
+    const setMemorial = this.db.prepare(
+      'UPDATE battle_hall SET memorial = ? WHERE group_id = ? AND report_id = ? AND memorial IS NOT ?',
     );
     const existing = this.db.prepare(
       'SELECT attackers, defenders, winner, units FROM battle_hall WHERE group_id = ? AND report_id = ?',
@@ -607,11 +613,12 @@ export class Store {
         | undefined;
       const time = this.epoch(e.time);
       if (!row) {
-        insert.run(this.t.groupId, e.reportId, time, JSON.stringify(e.attackers), JSON.stringify(e.defenders), e.winner, e.units);
+        insert.run(this.t.groupId, e.reportId, time, JSON.stringify(e.attackers), JSON.stringify(e.defenders), e.winner, e.units, memorial);
         this.count('battle_hall', true);
         continue;
       }
       this.count('battle_hall', false);
+      if (memorial != null) setMemorial.run(memorial, this.t.groupId, e.reportId, memorial);
       const oldA = JSON.parse(row.attackers) as string[];
       const oldD = JSON.parse(row.defenders) as string[];
       // the names stored first stay (renamed or deleted accounts), see keepOriginalNames
