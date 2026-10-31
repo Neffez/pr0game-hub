@@ -1,5 +1,3 @@
-import type { CombatFleet } from '@pr0hub/core';
-
 /** Participant names that still identify someone in a battle (not blank or a dash placeholder). */
 export function meaningfulParticipantNames(names: string[]): string[] {
   return names.filter((n) => {
@@ -8,29 +6,26 @@ export function meaningfulParticipantNames(names: string[]): string[] {
   });
 }
 
+const usable = (n: string | undefined | null) => n != null && meaningfulParticipantNames([n]).length > 0;
+
 /**
- * True when `incoming` has fewer usable participant names than `stored`, or a name at the same place turned blank or
- * a dash (deleted game accounts: the battle hall only shows "–" or empty strings). Another non-empty name is a
- * rename, not a loss.
+ * Names of a battle as the hub keeps them: the ones stored first stay. The game shows a renamed player's new name in the
+ * report and "-" or nothing for a deleted account; the hub keeps the original (search finds it by former and current
+ * names). Only a place without a usable name takes the incoming one.
  */
-export function participantNamesDegraded(stored: string[], incoming: string[]): boolean {
-  const usable = (n: string | undefined) => n != null && meaningfulParticipantNames([n]).length > 0;
-  if (meaningfulParticipantNames(incoming).length < meaningfulParticipantNames(stored).length) return true;
-  return stored.length === incoming.length && stored.some((n, i) => usable(n) && !usable(incoming[i]));
+export function keepOriginalNames(stored: string[], incoming: string[]): string[] {
+  return stored.map((n, i) => (usable(n) || !usable(incoming[i]) ? n : incoming[i]));
 }
 
-function sideFleetNames(fleets: CombatFleet[], side: 'attacker' | 'defender'): string[] {
-  return fleets.filter((f) => f.side === side).map((f) => f.name);
-}
+type StoredFleet = [side: number, name: string, ships: unknown];
 
-function sideNamesFromStoredFleets(json: string, side: 0 | 1): string[] {
-  return (JSON.parse(json) as [number, string][]).filter((f) => f[0] === side).map((f) => f[1]);
-}
-
-/** True when the parsed report carries worse participant names than the archived fleets JSON. */
-export function combatFleetsNamesDegraded(storedFleetsJson: string, incoming: CombatFleet[]): boolean {
-  return (
-    participantNamesDegraded(sideNamesFromStoredFleets(storedFleetsJson, 0), sideFleetNames(incoming, 'attacker')) ||
-    participantNamesDegraded(sideNamesFromStoredFleets(storedFleetsJson, 1), sideFleetNames(incoming, 'defender'))
-  );
+/**
+ * Fleets of an archived combat report synced again: ships and losses from the new parse, names as stored first (see
+ * `keepOriginalNames`). A parse with another number of fleets per report is not the same list: more fleets (more
+ * complete) replace the stored ones, fewer keep them.
+ */
+export function mergeCombatFleets(storedJson: string, incoming: StoredFleet[]): StoredFleet[] {
+  const stored = JSON.parse(storedJson) as StoredFleet[];
+  if (stored.length !== incoming.length) return incoming.length > stored.length ? incoming : stored;
+  return incoming.map((f, i) => (stored[i][0] === f[0] && usable(stored[i][1]) ? [f[0], stored[i][1], f[2]] : f));
 }

@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-31
 
+- Battle hall and combat reports keep the participant names stored first (replaces the rename handling of 2026-10-30):
+  the game shows a renamed player's new name and "-" or nothing for a deleted account, the hub keeps the original;
+  only a place without a usable name takes the incoming one. Archived combat reports take ships and losses of a new
+  parse with the stored names; a parse with more fleets replaces the list. Search keeps matching former and current
+  names. Fix: quoted `syncedAt` description in the OpenAPI spec (the colon broke the YAML).
 - Activity pattern, galaxy marks (code review finding 2, 10, 15):
   - A galaxy view is dated by the server time of its page (script of the page source, else the "Serverzeit" header of
     a copy; `GalaxyRecord.pageTime`) when it lies at most a day before and five minutes after the paste, else by the

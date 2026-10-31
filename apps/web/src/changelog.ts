@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Kampfhalle und Kampfberichte behalten die Namen vom ersten Sync, auch wenn sich ein Spieler umbenennt oder löscht. Die Suche findet Kämpfe mit früheren und aktuellen Namen.',
+        en: 'Battle hall and combat reports keep the names of the first sync, even when a player renames or deletes their account. Search finds battles by former and current names.',
+      },
+      {
+        kind: 'fix',
         de: 'Aktivitätsmuster: Galaxie-Sterne nutzen die Serverzeit der kopierten Seite. Spionage oder Kampf kurz vor dem Kopieren erklärt einen Stern damit zuverlässig, auch wenn die Galaxie erst später eingefügt wird.',
         en: 'Activity pattern: galaxy marks use the server time of the copied page. Espionage or a battle shortly before copying now reliably explains a mark, even when the galaxy is pasted later.',
       },
@@ -47,11 +52,6 @@ export const CHANGELOG: ChangelogDay[] = [
         kind: 'fix',
         de: 'Spionage-Historie: Beim Weiterscrollen fehlen keine Berichte mehr und es tauchen keine doppelt auf, auch wenn gerade neue Berichte dazukommen.',
         en: 'Spy history: scrolling on no longer skips or repeats reports, even while new reports come in.',
-      },
-      {
-        kind: 'fix',
-        de: 'Kampfhalle: Nach einer Umbenennung erscheint der neue Name, und Sieger und Einheiten werden weiter aktualisiert.',
-        en: 'Battle hall: after a rename the new name shows up, and winner and units keep being updated.',
       },
       {
         kind: 'fix',

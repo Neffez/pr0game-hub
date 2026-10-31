@@ -23,7 +23,7 @@ import {
   type StatsRecord,
 } from '@pr0hub/core';
 import { CLASS_BUILDINGS, PHALANX } from '@pr0hub/core/tech';
-import { combatFleetsNamesDegraded, participantNamesDegraded } from './battleParticipants.js';
+import { keepOriginalNames, mergeCombatFleets } from './battleParticipants.js';
 import { now, type DB } from './db.js';
 import type { IngestSummary, IngestTarget } from './ingest.js';
 import { fleetActivity, galaxyMark } from './repo/activity.js';
@@ -614,9 +614,9 @@ export class Store {
       this.count('battle_hall', false);
       const oldA = JSON.parse(row.attackers) as string[];
       const oldD = JSON.parse(row.defenders) as string[];
-      const attackers = participantNamesDegraded(oldA, e.attackers) ? oldA : e.attackers;
-      const defenders = participantNamesDegraded(oldD, e.defenders) ? oldD : e.defenders;
-      // winner and units do not depend on the names: always the newest
+      // the names stored first stay (renamed or deleted accounts), see keepOriginalNames
+      const attackers = keepOriginalNames(oldA, e.attackers);
+      const defenders = keepOriginalNames(oldD, e.defenders);
       const next = {
         attackers: JSON.stringify(attackers),
         defenders: JSON.stringify(defenders),
@@ -858,16 +858,16 @@ export function storeCombatReport(db: DB, groupId: number, r: CombatReportRecord
       renamed = true;
     }
   }
-  const fleets = r.fleets.map((f) => [
+  const parsed: [number, string, unknown][] = r.fleets.map((f) => [
     f.side === 'attacker' ? 0 : 1,
     f.name,
     Object.entries(f.start).map(([id, n]) => [Number(id), n, f.end[Number(id)] ?? 0]),
   ]);
-  const fleetsJson = JSON.stringify(fleets);
   const stored = db.prepare('SELECT fleets FROM combat_reports WHERE group_id = ? AND report_id = ?').get(groupId, r.reportId) as
     | { fleets: string }
     | undefined;
-  const keepFleets = stored != null && combatFleetsNamesDegraded(stored.fleets, r.fleets);
+  // names as stored first (renamed or deleted accounts), ships from the new parse
+  const fleetsJson = JSON.stringify(stored ? mergeCombatFleets(stored.fleets, parsed) : parsed);
   const res = db
     .prepare(
       `INSERT INTO combat_reports (group_id, report_id, time, winner, rounds, lost_attacker, lost_defender, debris_metal, debris_crystal, fleets,
@@ -877,21 +877,19 @@ export function storeCombatReport(db: DB, groupId: number, r: CombatReportRecord
          g = COALESCE(g, excluded.g), s = COALESCE(s, excluded.s), p = COALESCE(p, excluded.p),
          planet_type = COALESCE(planet_type, excluded.planet_type),
          moon_destruction = MAX(moon_destruction, excluded.moon_destruction),
-         fleets = CASE WHEN ? THEN fleets ELSE excluded.fleets END,
+         fleets = excluded.fleets,
          loot_metal = IIF(loot_metal + loot_crystal + loot_deuterium = 0, excluded.loot_metal, loot_metal),
          loot_crystal = IIF(loot_metal + loot_crystal + loot_deuterium = 0, excluded.loot_crystal, loot_crystal),
          loot_deuterium = IIF(loot_metal + loot_crystal + loot_deuterium = 0, excluded.loot_deuterium, loot_deuterium)
        WHERE (g IS NULL AND excluded.g IS NOT NULL)
          OR (loot_metal + loot_crystal + loot_deuterium = 0 AND excluded.loot_metal + excluded.loot_crystal + excluded.loot_deuterium > 0)
          OR (moon_destruction = 0 AND excluded.moon_destruction = 1)
-         OR (? = 0 AND fleets <> excluded.fleets)`,
+         OR fleets <> excluded.fleets`,
     )
     .run(
       groupId, r.reportId, time, r.winner, r.rounds, r.lost.attacker, r.lost.defender, r.debris.metal, r.debris.crystal, fleetsJson,
       r.loot.metal, r.loot.crystal, r.loot.deuterium, r.target?.coords.g ?? null, r.target?.coords.s ?? null, r.target?.coords.p ?? null,
       r.target?.type ?? null, r.moonDestruction ? 1 : 0,
-      keepFleets ? 1 : 0,
-      keepFleets ? 1 : 0,
     );
   db.prepare("UPDATE battle_hall SET report_status = 'archived' WHERE group_id = ? AND report_id = ?").run(groupId, r.reportId);
   return renamed || res.changes > 0;
