@@ -1,5 +1,5 @@
 import { cleanState, type LootState, type TransferInput } from './input.js';
-import { sameBattle, sameRecycling } from './merge.js';
+import { sameBattle, sameRecycling } from './match.js';
 import type { Battle, BattleFleet, Debris, Helper, Participant, Recycling, Res, Settings } from './types.js';
 
 /** Corrections of a participant or helper the hub knows; `hidden` removes them from the settlement. */

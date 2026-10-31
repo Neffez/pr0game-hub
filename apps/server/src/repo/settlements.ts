@@ -1,5 +1,5 @@
 import { distance, drivesFromResearch, fleetConsumption, flightDuration, slowestShip } from '@pr0hub/flight';
-import { adoptKeys, cleanState, diffOverrides, emptyState, marketRates, MAX_PARTICIPANTS, SHARE_WITHIN, type Battle, type BattleFleet, type LootState, type Overrides, type Ships } from '@pr0hub/loot';
+import { adoptKeys, cleanState, debrisSummary, diffOverrides, emptyState, marketRates, MAX_PARTICIPANTS, SHARE_WITHIN, type Battle, type BattleFleet, type LootState, type Overrides, type Ships } from '@pr0hub/loot';
 import type { GroupContext } from '../context.js';
 import type { DB } from '../db.js';
 import { REPORT_SLACK } from '../store.js';
@@ -292,6 +292,32 @@ export function settlementDraft(db: DB, ctx: GroupContext, plan: PlanRow & { tim
     sources.recycling.push({ by: id, time: r.time });
   }
   return { state: cleanState(state), sources };
+}
+
+/**
+ * What the hub's data covers of a settlement, so members see what is still to sync: the battle report (archived with
+ * its fleets, only the battle message, or none), per member fleet of an attack with one battle the loot it brought home
+ * (fleet return message, overview, none), and the recycling (reports of the field; `gap`: an emptied field the
+ * recycling rows do not cover, a report may be missing). `missing` counts what is missing.
+ */
+export interface SettlementChecks {
+  battle: 'report' | 'plan' | 'missing';
+  returns: Record<string, 'message' | 'overview' | 'missing'>;
+  recycling: 'ok' | 'none' | 'gap' | 'n/a';
+  missing: number;
+}
+
+export function settlementChecks(mission: string, draft: LootState, sources: DraftSources): SettlementChecks {
+  const battle = !draft.battles.length ? 'missing' : sources.battles.every((b) => b.fleets === 'report') ? 'report' : 'plan';
+  const returns: SettlementChecks['returns'] = {};
+  if (mission !== 'hold' && draft.battles.length === 1) {
+    for (const f of draft.battles[0].fleets) if (f.participant.startsWith('u')) returns[f.participant] = sources.returnSource[f.participant] ?? 'missing';
+  }
+  const debris = debrisSummary(draft);
+  const field = debris.field ? debris.field.m + debris.field.k : 0;
+  const recycling = debris.taken ? 'gap' : !field ? 'n/a' : draft.recycling.length ? 'ok' : 'none';
+  const missing = (battle === 'report' ? 0 : 1) + Object.values(returns).filter((r) => r === 'missing').length + (recycling === 'gap' ? 1 : 0);
+  return { battle, returns, recycling, missing };
 }
 
 /** Row of a settlement: corrections on top of the draft, and the state frozen when it was finalized. */

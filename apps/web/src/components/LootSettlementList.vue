@@ -8,7 +8,7 @@ import { uniApi } from '../api';
 import Hint from './Hint.vue';
 import PlayerLink from './PlayerLink.vue';
 import { useLoader, useStored, useUni, vStack } from '../composables';
-import { coords, dateTime, lootCalcUrl } from '../format';
+import { coords, dateTime, lootCalcUrl, name, short } from '../format';
 import { tables, useLiveReload } from '../live';
 
 /** An attack or hold to settle (`GET /settlements`). */
@@ -26,6 +26,13 @@ interface Entry {
   members: string[];
   battle: boolean;
   saved: { updated_at: number; updated_by: string | null; finalized_at: number | null; deliveries: number; done: number } | null;
+  /** open: older than a week, not checked; waiting: data missing; ready: complete; delivering/settled: finalized */
+  stage: 'open' | 'waiting' | 'ready' | 'delivering' | 'settled';
+  missing: number | null;
+  /** 24 h after the last battle (game rule) */
+  deadline: number | null;
+  /** the viewer's open deliveries */
+  mine: { from: string; to: string; sends: boolean; res: { m: number; k: number; d: number } }[];
 }
 
 const DAYS = [7, 30, 90];
@@ -58,13 +65,25 @@ async function createFromReport() {
   }
 }
 /** settled when it is finalized and every delivery is ticked off */
-const settled = (e: Entry) => !!e.saved?.finalized_at && e.saved.done >= e.saved.deliveries;
+const settled = (e: Entry) => e.stage === 'settled';
+const onlyMine = useStored('settlements.onlyMine', false);
+const shown = computed(() => (onlyMine.value ? (data.value ?? []).filter((e) => e.mine.length) : (data.value ?? [])));
+const STAGE_CLASS: Record<Entry['stage'], string> = { open: 'muted', waiting: 'warn', ready: 'ok', delivering: 'warn', settled: 'ok' };
+const resText = (r: { m: number; k: number; d: number }) =>
+  (['m', 'k', 'd'] as const).filter((k) => r[k] > 0).map((k) => `${short(r[k])} ${name({ m: 901, k: 902, d: 903 }[k])}`).join(', ');
+/** time left until the deadline (open ones only) */
+const left = (e: Entry) => {
+  if (!e.deadline || e.stage === 'settled') return null;
+  const s = e.deadline - Date.now() / 1000;
+  return s <= 0 ? t('loot.deadlinePassed') : t('loot.deadlineLeft', { h: Math.floor(s / 3600), m: Math.floor((s % 3600) / 60) });
+};
 </script>
 
 <template>
   <div class="row" style="margin-bottom: 12px">
     <span class="muted small">{{ t('loot.listHint') }}</span>
     <span class="grow" />
+    <label class="small row" style="gap: 4px"><input v-model="onlyMine" type="checkbox" /> {{ t('loot.onlyMine') }}</label>
     <select v-model.number="days" :aria-label="t('loot.period')">
       <option v-for="d in DAYS" :key="d" :value="d">{{ t('loot.lastDays', { n: d }) }}</option>
     </select>
@@ -92,7 +111,7 @@ const settled = (e: Entry) => !!e.saved?.finalized_at && e.saved.done >= e.saved
     </template>
   </Sheet>
   <div v-if="error" class="error">{{ error }}</div>
-  <div v-else-if="data && !data.length" class="card muted">{{ t('loot.listEmpty') }}</div>
+  <div v-else-if="data && !shown.length" class="card muted">{{ t('loot.listEmpty') }}</div>
   <div v-else-if="data" class="table-wrap flat">
     <table v-stack class="data">
       <thead>
@@ -107,7 +126,7 @@ const settled = (e: Entry) => !!e.saved?.finalized_at && e.saved.done >= e.saved
         </tr>
       </thead>
       <tbody>
-        <tr v-for="e in data" :key="e.id" :class="{ dim: settled(e) }">
+        <tr v-for="e in shown" :key="e.id" :class="{ dim: settled(e) }">
           <td class="mono">{{ dateTime(e.target_time) }}</td>
           <td>
             <span class="mono">{{ coords(e.g, e.s, e.p) }}</span>
@@ -118,12 +137,15 @@ const settled = (e: Entry) => !!e.saved?.finalized_at && e.saved.done >= e.saved
           <td class="small">{{ e.members.join(', ') }}</td>
           <td :class="e.battle ? 'ok' : 'faint'"><Icon v-if="e.battle" name="check" :size="14" :label="t('common.yes')" /><template v-else>–</template></td>
           <td class="small">
-            <template v-if="e.saved?.finalized_at">
-              <span v-if="!e.saved.deliveries" class="ok">{{ t('loot.noTransfers') }}</span>
-              <span v-else :class="settled(e) ? 'ok' : 'warn'">{{ t('loot.deliveriesDone', { done: e.saved.done, n: e.saved.deliveries }) }}</span>
-              <span class="faint"> · {{ t('loot.finalizedBadge') }} {{ dateTime(e.saved.finalized_at) }}</span>
+            <span :class="STAGE_CLASS[e.stage]">{{ t(`loot.stage.${e.stage}`, { n: e.missing ?? 0 }, e.missing ?? 0) }}</span>
+            <template v-if="e.saved?.finalized_at && e.saved.deliveries">
+              · <span :class="settled(e) ? 'ok' : 'warn'">{{ t('loot.deliveriesDone', { done: e.saved.done, n: e.saved.deliveries }) }}</span>
             </template>
-            <span v-else class="muted">{{ e.saved ? t('loot.liveCorrected') : t('loot.liveBadge') }}</span>
+            <span v-else-if="e.saved && !e.saved.finalized_at" class="faint"> · {{ t('loot.liveCorrected') }}</span>
+            <div v-if="left(e)" class="faint">{{ left(e) }}</div>
+            <div v-for="(x, i) in e.mine" :key="i" class="mine">
+              {{ x.sends ? t('loot.youSend', { to: x.to }) : t('loot.youGet', { from: x.from }) }} {{ resText(x.res) }}
+            </div>
           </td>
           <td><RouterLink :to="`/${uni}/raid-planner/${e.id}/loot`">{{ t('loot.open') }}</RouterLink></td>
         </tr>
@@ -135,6 +157,7 @@ const settled = (e: Entry) => !!e.saved?.finalized_at && e.saved.done >= e.saved
 <style scoped>
 .badge.mission-hold { color: var(--pos); }
 td .moon-tag { margin-left: 4px; }
+.mine { color: var(--warn); }
 .from-report { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
 .from-report h3 { margin: 0; }
 .from-report textarea { width: 100%; min-height: 120px; font-size: 12px; }

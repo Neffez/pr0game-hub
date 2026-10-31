@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Beute abrechnen: Ein Datenstand zeigt, welche Berichte noch fehlen und wer sie synchronisieren muss. Die Liste der Abrechnungen zeigt den Stand, die verbleibende Zeit zum Verteilen und deine offenen Lieferungen.',
+        en: 'Loot settlement: a data status shows which reports are still missing and who has to sync them. The list of settlements shows the stage, the time left to share and your open deliveries.',
+      },
+      {
+        kind: 'new',
         de: 'Beute abrechnen: Die Abrechnung übernimmt später synchronisierte Kampf-, Flottenrückkehr- und Recyclerberichte von selbst, deine Korrekturen bleiben markiert stehen. Mit „Festschreiben“ werden die Zahlen für die Lieferungen eingefroren, „Wieder öffnen“ holt neue Daten.',
         en: 'Loot settlement: reports synced later (battle, fleet return, recycling) flow in by themselves, your corrections stay and are marked. "Finalize" freezes the numbers for the deliveries, "Reopen" takes in new data.',
       },

@@ -4,6 +4,15 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-10-31
 
+- Loot settlement visibility: a "Data status" section lists what the synced data covers and who still has to sync
+  what (battle report archived or only the message, each member's fleet return message or overview estimate, recycling
+  reports and an emptied field they do not cover; `checks` in `GET /plans/{id}/settlement`, `settlementChecks`). A
+  finalized settlement shows the viewer's open deliveries on top. The settlements list shows a stage per entry
+  (waiting for data with the count, data complete, finalized, done; open ones of the last week are checked), the time
+  left of the 24 hours, the viewer's open deliveries and a filter "only my deliveries" (`stage`, `missing`,
+  `deadline`, `mine` in `GET /settlements`).
+- `@pr0hub/loot`: `mergeDraft` removed (replaced by the corrections); the battle and recycling matching it shared lives
+  in `match.ts`.
 - Loot settlement follows the synced data: instead of a saved snapshot it is the draft from the hub's data with the
   corrections made by hand on top (`raid_settlements.overrides`, migration `068`), so reports synced later (battle
   reports, fleet returns, recycling) flow in without "Update/Refill from hub data" (both buttons removed). A new

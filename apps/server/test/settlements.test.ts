@@ -86,6 +86,8 @@ describe('raid settlements', () => {
     expect(result.people[0].costs).toMatchObject({ m: 450000, k: 150000 });
     expect(result.warnings).toEqual([]);
     expect(body.me).toBe(`u${ids.dave}`);
+    // what the members still have to sync: their fleet return messages
+    expect(body.checks).toEqual({ battle: 'report', returns: { [`u${ids.carol}`]: 'missing', [`u${ids.dave}`]: 'missing' }, recycling: 'n/a', missing: 2 });
     expect(body).toMatchObject({ can_edit: true, plan: { id: planId, g: 2, s: 100, p: 8, target_time: target } });
     expect((await call('GET', `/plans/${planId}/settlement`, as.erin)).json().can_edit).toBe(false);
   });
@@ -336,7 +338,8 @@ describe('raid settlements', () => {
     db.prepare("UPDATE attack_plans SET status = 'launched' WHERE id = ?").run(planId);
     const list = (await call('GET', '/settlements', as.carol)).json();
     const attack = list.find((x: { id: number }) => x.id === planId);
-    expect(attack).toMatchObject({ mission: 'attack', g: 2, s: 100, p: 8, status: 'launched', battle: true, saved: null });
+    expect(attack).toMatchObject({ mission: 'attack', g: 2, s: 100, p: 8, status: 'launched', battle: true, saved: null, stage: 'waiting', missing: 2, mine: [] });
+    expect(attack.deadline).toBe(target + 86400);
     expect(attack.members.sort()).toEqual(['CVXII', 'Rudolf']);
     await call('PUT', `/plans/${planId}/settlement`, as.carol, { state: (await call('GET', `/plans/${planId}/settlement`, as.carol)).json().draft.state });
     const entry = async () => (await call('GET', '/settlements', as.carol)).json().find((x: { id: number }) => x.id === planId).saved;
@@ -346,6 +349,11 @@ describe('raid settlements', () => {
     const saved = await entry();
     expect(saved).toMatchObject({ finalized_at: expect.any(Number), done: 0 });
     expect(saved.deliveries).toBeGreaterThan(0);
+    const finalized = (await call('GET', '/settlements', as.carol)).json().find((x: { id: number }) => x.id === planId);
+    expect(finalized).toMatchObject({ stage: 'delivering', missing: null });
+    // the caller's open deliveries, by name
+    expect(finalized.mine.length).toBeGreaterThan(0);
+    expect(finalized.mine.every((x: { from: string; to: string }) => x.from === 'CVXII' || x.to === 'CVXII')).toBe(true);
     expect((await call('GET', '/settlements', as.carolB)).json()).toEqual([]);
   });
 

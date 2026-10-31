@@ -33,6 +33,8 @@ interface Response {
   can_edit: boolean;
   me: string;
   draft: { state: LootState; sources: Sources };
+  /** what the hub's data covers, what members still have to sync */
+  checks: { battle: 'report' | 'plan' | 'missing'; returns: Record<string, 'message' | 'overview' | 'missing'>; recycling: 'ok' | 'none' | 'gap' | 'n/a'; missing: number };
   overrides: Overrides | null;
   corrected: { updated_at: number; updated_by: string | null } | null;
   finalized: { at: number; by: string | null; live: LootState; changes: StateChanges } | null;
@@ -113,6 +115,8 @@ const draftState = computed(() => data.value?.draft.state ?? null);
 /** corrections made by hand (also those not saved yet), as field paths */
 const manual = computed(() => (state.value && draftState.value && !finalized.value ? overriddenPaths(diffOverrides(draftState.value, state.value)) : new Set<string>()));
 const hasCorrections = computed(() => manual.value.size > 0 || !!data.value?.corrected);
+const checks = computed(() => data.value?.checks ?? null);
+const checkName = (id: string) => draftPerson(id)?.name ?? '?';
 const changeCount = computed(() => {
   const c = finalized.value?.changes;
   return c ? c.people + c.battles + c.recycling + c.settings : 0;
@@ -288,6 +292,10 @@ const transferText = computed(() =>
     .map((x) => `${personName(x.from)} → ${personName(x.to)}: ${resText(x.res)} (${shipsFor(x.res)} ${cargoName.value})`)
     .join('\n'),
 );
+/** the viewer's deliveries not ticked off yet (finalized settlement) */
+const myOpen = computed(() =>
+  finalized.value ? transfers.value.filter((x) => (x.from === data.value?.me || x.to === data.value?.me) && x.res.m + x.res.k + x.res.d > 0 && !done.value.has(keyOf(x))) : [],
+);
 const copyText = () => navigator.clipboard?.writeText(transferText.value).then(() => (notice.value = t('loot.copied')));
 
 const target = computed(() => {
@@ -341,6 +349,38 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
       <input v-model="linkText" :placeholder="t('loot.importLink')" @keydown.enter="importLink" />
       <button :disabled="!linkText" @click="importLink">{{ t('common.apply') }}</button>
       <Hint>{{ t('loot.calculatorHint') }}</Hint>
+    </div>
+
+    <Section v-if="checks && !finalized" :title="t('loot.dataStatus')" store-key="loot.dataStatus">
+      <template #hint>
+        <span v-if="checks.missing" class="small warn">{{ t('loot.dataMissing', { n: checks.missing }, checks.missing) }}</span>
+        <span v-else class="small ok">{{ t('loot.dataComplete') }}</span>
+      </template>
+      <ul class="checks small">
+        <li :class="checks.battle === 'report' ? 'ok' : 'warn'">
+          <Icon :name="checks.battle === 'report' ? 'check' : 'warning'" :size="14" />
+          {{ t(`loot.check.battle_${checks.battle}`) }}
+        </li>
+        <li v-for="(r, id) in checks.returns" :key="id" :class="r === 'missing' ? 'warn' : r === 'overview' ? 'muted' : 'ok'">
+          <Icon :name="r === 'missing' ? 'warning' : 'check'" :size="14" />
+          {{ t(`loot.check.return_${r}`, { name: checkName(String(id)) }) }}
+        </li>
+        <li v-if="checks.recycling !== 'n/a'" :class="checks.recycling === 'gap' ? 'warn' : checks.recycling === 'none' ? 'muted' : 'ok'">
+          <Icon :name="checks.recycling === 'ok' ? 'check' : 'warning'" :size="14" />
+          {{ t(`loot.check.recycling_${checks.recycling}`) }}
+        </li>
+      </ul>
+      <p v-if="checks.missing" class="small muted">
+        {{ t('loot.check.howTo') }} <RouterLink :to="`/${uni}/paste`">{{ t('nav.sync') }}</RouterLink>
+      </p>
+    </Section>
+
+    <div v-if="myOpen.length" class="card mine">
+      <h3>{{ t('loot.myDeliveries') }}</h3>
+      <div v-for="x in myOpen" :key="keyOf(x)" class="small">
+        <b>{{ x.from === data.me ? t('loot.youSend', { to: personName(x.to) }) : t('loot.youGet', { from: personName(x.from) }) }}</b>
+        {{ resText(x.res) }} ({{ shipsFor(x.res) }} {{ cargoName }})
+      </div>
     </div>
 
     <div class="cols">
@@ -655,6 +695,10 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
 
 <style scoped>
 .bar-row { gap: 10px; flex-wrap: wrap; }
+.checks { list-style: none; padding: 0; margin: 0 0 6px; display: flex; flex-direction: column; gap: 4px; }
+.checks li { display: flex; align-items: center; gap: 6px; }
+.card.mine { border-left: 3px solid var(--warn); }
+.card.mine h3 { margin-bottom: 4px; }
 .bar p { margin: 6px 0 0; }
 .bar.live { border-left: 3px solid var(--accent); }
 .bar.final { border-left: 3px solid var(--pos); }

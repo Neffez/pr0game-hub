@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { adoptKeys, applyOverrides, cleanState, diffOverrides, emptyState, overriddenPaths, stateChanges, type LootState } from '../src/index.js';
+import { adoptKeys, applyOverrides, cleanState, marketRates, sameBattle, diffOverrides, emptyState, overriddenPaths, stateChanges, type LootState } from '../src/index.js';
 
 const person = (id: string, name: string, flightDeut = 0) => ({ id, name, flightDeut, recDeut: 0, missiles: 0 });
 
@@ -107,5 +107,13 @@ describe('corrections on top of the hub draft', () => {
     fresh.participants[0].flightDeut = 1;
     expect(stateChanges(draft(), fresh)).toEqual({ people: 1, battles: 0, recycling: 1, settings: 0 });
     expect(stateChanges(draft(), draft())).toEqual({ people: 0, battles: 0, recycling: 0, settings: 0 });
+  });
+
+  it('rounds market rates and tells battles apart by time', () => {
+    expect(marketRates({ m: 4.0551, k: 1.4328, d: 1 })).toEqual({ m: 4.06, k: 1.43, d: 1 });
+    const b = (time: number | null) => ({ time, loot: { m: 0, k: 0, d: 0 }, fleets: [] });
+    expect(sameBattle(b(100), b(105))).toBe(true);
+    expect(sameBattle(b(100), b(106))).toBe(false);
+    expect(sameBattle(b(null), b(null))).toBe(true);
   });
 });

@@ -96,6 +96,18 @@ components:
           properties:
             state: { $ref: '#/components/schemas/LootState' }
             sources: { type: object }
+        checks:
+          type: object
+          description: >-
+            What the hub's data covers, so members see what is still to sync: `battle` (archived report with fleets,
+            only the battle message, none), `returns` per member fleet of an attack with one battle (loot from the fleet
+            return message, the overview, or missing), `recycling` (`gap`: an emptied debris field the recycling rows do
+            not cover), `missing` the count of missing items.
+          properties:
+            battle: { type: string, enum: [report, plan, missing] }
+            returns: { type: object, additionalProperties: { type: string, enum: [message, overview, missing] } }
+            recycling: { type: string, enum: [ok, none, gap, n/a] }
+            missing: { type: integer }
         overrides: { type: [object, 'null'], description: 'Corrections made by hand on top of the draft (`Overrides` of @pr0hub/loot)' }
         corrected:
           oneOf:
@@ -2615,7 +2627,10 @@ paths:
         or have a saved settlement, newest first. `members` are the plan's members (for a hold also the attacked
         member), `battle` whether a battle message or report at the target around the plan's time is known, `saved`
         the stored settlement (null if none): when its corrections were last saved, when it was finalized (null while it
-        follows the synced data) and, once finalized, the number of deliveries and how many are marked done.
+        follows the synced data) and, once finalized, the number of deliveries and how many are marked done. `stage`:
+        open settlements of the last week are checked against the hub's data (`waiting` with `missing` items, else
+        `ready`; older ones `open`), finalized ones are `delivering` until every delivery is ticked off (`settled`).
+        `deadline` is 24 hours after the last battle, `mine` the caller's open deliveries of a finalized settlement.
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
@@ -2655,6 +2670,18 @@ paths:
                             finalized_at: { type: [integer, 'null'] }
                             deliveries: { type: integer, description: 'Deliveries of the finalized settlement (0 while open)' }
                             done: { type: integer }
+                    stage: { type: string, enum: [open, waiting, ready, delivering, settled] }
+                    missing: { type: [integer, 'null'], description: 'Items the hub data still lacks (checked open settlements only)' }
+                    deadline: { type: [integer, 'null'] }
+                    mine:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          from: { type: string }
+                          to: { type: string }
+                          sends: { type: boolean, description: 'The caller sends (else receives)' }
+                          res: { type: object, properties: { m: { type: integer }, k: { type: integer }, d: { type: integer } } }
   /api/{uni}/settlements/from-report:
     post:
       tags: [Combat]

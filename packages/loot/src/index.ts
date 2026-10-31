@@ -1,6 +1,6 @@
 export * from './debris.js';
 export * from './input.js';
-export * from './merge.js';
+export * from './match.js';
 export * from './overrides.js';
 export * from './report.js';
 export * from './res.js';

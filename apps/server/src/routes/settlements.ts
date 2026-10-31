@@ -9,7 +9,7 @@ import { events } from '../events.js';
 import { ingest } from '../ingest.js';
 import { planFromReport } from '../repo/reportPlan.js';
 import type { PlanRow } from '../repo/plans.js';
-import { correctionsOf, memberKey, settlementDraft, storedSettlement } from '../repo/settlements.js';
+import { correctionsOf, memberKey, settlementChecks, settlementDraft, storedSettlement } from '../repo/settlements.js';
 import { clampInt, contextOf, DISPLAY, MEMBER, type Q } from './util.js';
 
 /** Battles count for a plan from an hour before its time until an hour after (as in the draft). */
@@ -40,7 +40,9 @@ export function settlementRoutes(app: FastifyInstance, db: DB) {
 
   /**
    * Attacks and holds to settle: plans of the last `days` (default 30) that were launched or done, or have a saved
-   * settlement, newest first, with their members, whether a battle at the target is known and the settlement's state.
+   * settlement, newest first, with their members, whether a battle at the target is known and the settlement's stage:
+   * open ones of the last week are checked against the hub's data (`waiting` while data is missing, else `ready`),
+   * finalized ones are `delivering` until every delivery is ticked off (`settled`); with the caller's open deliveries.
    */
   app.get<{ Params: { uni: string }; Querystring: Q }>('/api/:uni/settlements', async (req) => {
     const ctx = ctxOf(req);
@@ -73,18 +75,41 @@ export function settlementRoutes(app: FastifyInstance, db: DB) {
       `SELECT EXISTS (SELECT 1 FROM battle_reports WHERE group_id = @group AND g = @g AND s = @s AND p = @p AND planet_type = @type AND time BETWEEN @from AND @to)
          OR EXISTS (SELECT 1 FROM combat_reports WHERE group_id = @group AND g = @g AND s = @s AND p = @p AND planet_type = @type AND time BETWEEN @from AND @to)`,
     ).pluck();
+    const me = memberKey(ctx.user.id);
+    const planRow = db.prepare('SELECT * FROM attack_plans WHERE id = ?');
     return plans.map((p) => {
       const window = p.time_precision === 'day' ? 86400 : p.time_precision === 'hour' ? 3600 : 0;
       let saved = null;
+      let stage: 'open' | 'waiting' | 'ready' | 'delivering' | 'settled' = 'open';
+      let missing: number | null = null;
+      let deadline: number | null = null;
+      /** the caller's open deliveries of a finalized settlement (`sends`: the caller sends, else receives) */
+      const mine: { from: string; to: string; sends: boolean; res: { m: number; k: number; d: number } }[] = [];
       if (p.stored != null) {
         // deliveries count once the settlement is finalized (before, its numbers still follow the synced data)
         const state = p.finalized_at != null && p.data ? cleanState(JSON.parse(p.data)) : null;
-        const deliveries = state ? (state.transfers ?? settle(state).transfers).filter((x) => x.res.m + x.res.k + x.res.d > 0).map((x) => `${x.from}>${x.to}`) : [];
+        const result = state ? settle(state) : null;
+        const transfers = state ? (state.transfers ?? result!.transfers).filter((x) => x.res.m + x.res.k + x.res.d > 0) : [];
         const done = new Set(JSON.parse(p.done ?? '[]') as string[]);
+        const open = transfers.filter((x) => !done.has(`${x.from}>${x.to}`));
         saved = {
-          updated_at: p.updated_at, updated_by: p.updated_by, finalized_at: p.finalized_at, deliveries: deliveries.length,
-          done: deliveries.filter((k) => done.has(k)).length,
+          updated_at: p.updated_at, updated_by: p.updated_by, finalized_at: p.finalized_at, deliveries: transfers.length,
+          done: transfers.length - open.length,
         };
+        if (state) {
+          stage = open.length ? 'delivering' : 'settled';
+          deadline = result!.deadline;
+          const nameOf = (id: string) => [...state.participants, ...state.helpers].find((x) => x.id === id)?.name ?? '?';
+          for (const x of open) if (x.from === me || x.to === me) mine.push({ from: nameOf(x.from), to: nameOf(x.to), sends: x.from === me, res: x.res });
+        }
+      }
+      // open ones of the last week: what the hub's data still lacks
+      if (stage === 'open' && p.target_time > t - 7 * 86400) {
+        const plan = planRow.get(p.id) as SettlementPlan;
+        const draft = settlementDraft(db, ctx, plan);
+        missing = settlementChecks(plan.mission, draft.state, draft.sources).missing;
+        stage = missing ? 'waiting' : 'ready';
+        deadline = settle(draft.state).deadline;
       }
       return {
         id: p.id, mission: p.mission, g: p.g, s: p.s, p: p.p, planet_type: p.planet_type, target_time: p.target_time, status: p.status,
@@ -94,6 +119,10 @@ export function settlementRoutes(app: FastifyInstance, db: DB) {
           group: ctx.groupId, g: p.g, s: p.s, p: p.p, type: p.planet_type, from: p.target_time - BATTLE_SLACK, to: p.target_time + window + BATTLE_SLACK,
         }),
         saved,
+        stage,
+        missing,
+        deadline,
+        mine,
       };
     });
   });
@@ -138,6 +167,7 @@ export function settlementRoutes(app: FastifyInstance, db: DB) {
       can_edit: canEdit(ctx, plan),
       me: memberKey(ctx.user.id),
       draft: { state: draft.state, sources: draft.sources },
+      checks: settlementChecks(plan.mission, draft.state, draft.sources),
       overrides,
       corrected: stored ? { updated_at: stored.updatedAt, updated_by: stored.updatedBy } : null,
       finalized: final ? { at: stored!.finalizedAt!, by: stored!.finalizedBy, live, changes: stateChanges(final, live) } : null,
