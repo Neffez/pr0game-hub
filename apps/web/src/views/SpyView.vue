@@ -122,7 +122,7 @@ const res = (r: any, id: number) => r.sections['900']?.[id] ?? 0;
     <form class="spy-form" @submit.prevent="load">
       <label class="field-v">
         <span>{{ t('common.coords') }}</span>
-        <input v-model="target" class="mono" placeholder="1:234:5" inputmode="numeric" />
+        <input v-model="target" class="mono" placeholder="1:234:5" />
       </label>
       <label class="field-v">
         <span>{{ t('spy.body') }}</span>

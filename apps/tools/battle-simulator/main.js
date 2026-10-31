@@ -386,7 +386,7 @@ function renderSlot(side) {
   // start and speed of a flying fleet (attackers and fleets holding at the planet: flight time and fuel)
   var routeRow = function () {
     return '<div class="grid2"><div class="field"><label for="from-' + side + '">' + esc(t('from')) + '</label>'
-      + '<input id="from-' + side + '" class="coord" data-side="' + side + '" data-from="1" type="text" inputmode="numeric" autocomplete="off" placeholder="1:234:5" value="' + fmtCoords(s.from) + '"></div>'
+      + '<input id="from-' + side + '" class="coord" data-side="' + side + '" data-from="1" type="text" autocomplete="off" placeholder="1:234:5" value="' + fmtCoords(s.from) + '"></div>'
       + '<div class="field"><label for="speed-' + side + '">' + esc(t('speed')) + '</label><select id="speed-' + side + '" data-side="' + side + '" data-speed="1">'
       + SPEEDS.map(function (v) { return '<option value="' + v + '"' + (v === s.speed ? ' selected' : '') + '>' + v + ' %</option>'; }).join('') + '</select></div></div>';
   };
@@ -400,7 +400,7 @@ function renderSlot(side) {
     // height), so the combat research of both sides is on one line
     if (i === 0) {
       html += '<div class="target-row"><div class="field"><label for="targetIn">' + esc(t('target')) + '</label>'
-        + '<input id="targetIn" class="coord" data-target="1" type="text" inputmode="numeric" autocomplete="off" placeholder="1:234:5" value="' + fmtCoords(S.target) + '"></div>'
+        + '<input id="targetIn" class="coord" data-target="1" type="text" autocomplete="off" placeholder="1:234:5" value="' + fmtCoords(S.target) + '"></div>'
         + ['metal', 'crystal', 'deuterium'].map(function (r) {
           return '<div class="field"><label for="res-' + r + '">' + esc(t(r)) + '</label><input id="res-' + r + '" data-res="' + r + '" type="text" inputmode="numeric" autocomplete="off" placeholder="0" value="' + (S.resources[r] ? num(S.resources[r]) : '') + '"></div>';
         }).join('') + '</div>';
@@ -449,7 +449,7 @@ function openRecyclers(side) {
         + '<input id="rec-' + id + '" data-rec-unit="' + id + '" type="text" inputmode="numeric" autocomplete="off" placeholder="0" value="' + (rec.units[id] ? num(rec.units[id]) : '') + '"></div>';
     }).join('') + '</div>'
     + '<div class="grid2"><div class="field"><label for="recFrom">' + esc(t('from')) + '</label>'
-    + '<input id="recFrom" class="coord" data-rec-from="1" type="text" inputmode="numeric" autocomplete="off" placeholder="1:234:5" value="' + fmtCoords(rec.from) + '"></div>'
+    + '<input id="recFrom" class="coord" data-rec-from="1" type="text" autocomplete="off" placeholder="1:234:5" value="' + fmtCoords(rec.from) + '"></div>'
     + '<div class="field"><label for="recSpeed">' + esc(t('speed')) + '</label><select id="recSpeed" data-rec-speed="1">'
     + SPEEDS.map(function (v) { return '<option value="' + v + '"' + (v === rec.speed ? ' selected' : '') + '>' + v + ' %</option>'; }).join('') + '</select></div></div>'
     + '<div class="grid4 techs">' + DRIVE_TECHS.map(function (id) {
