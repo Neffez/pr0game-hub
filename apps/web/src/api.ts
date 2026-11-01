@@ -6,7 +6,7 @@ const BASE = import.meta.env.BASE_URL.replace(/\/$/, '') + '/api';
 
 export interface Me {
   user: { id: number; username: string; isAdmin: boolean; lang: string; dateFormat: string } | null;
-  groups: { id: number; name: string; role: string; universe: string; universe_name: string; universe_ended_at: number | null }[];
+  groups: { id: number; name: string; role: string; universe: string; universe_name: string; universe_starts_at: number | null; universe_ended_at: number | null }[];
   defaultUniverse?: string | null;
 }
 

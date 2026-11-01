@@ -7,6 +7,8 @@ import BackLink from '../components/BackLink.vue';
 import { useMobile, useSort, vStack } from '../composables';
 import CopyField from '../components/CopyField.vue';
 import Hint from '../components/Hint.vue';
+import DateTimeInput from '../components/DateTimeInput.vue';
+import { fromLocalInput, toLocalInput } from '../plans';
 import SystemMonitor from '../components/SystemMonitor.vue';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -38,9 +40,16 @@ const msg = ref('');
 
 // ---------------------------------------------------------------- universes
 const universes = ref<any[]>([]);
-const newUni = ref({ slug: '', name: '' });
+const newUni = ref({ slug: '', name: '', startsAt: '' });
 type DeckCard = { type: string; size: string; count: number };
-const editUni = ref<{ slug: string; name: string; isDefault: boolean; settings: Record<string, any>; deck: DeckCard[] } | null>(null);
+/** `startsAt`/`endedAt`: browser-local "YYYY-MM-DDTHH:mm" of the scheduled start and end, '' = none */
+const editUni = ref<{ slug: string; name: string; isDefault: boolean; startsAt: string; endedAt: string; settings: Record<string, any>; deck: DeckCard[] } | null>(null);
+/** the real time: inside an ended universe the hub's clock stands still at its end */
+const realNow = () => Math.floor(Date.now() / 1000);
+const isEnded = (u: { endedAt?: number | null }) => u.endedAt != null && u.endedAt <= realNow();
+const isScheduled = (u: { startsAt?: number | null }) => u.startsAt != null && u.startsAt > realNow();
+const localOf = (epoch: number | null | undefined) => (epoch != null ? toLocalInput(epoch).slice(0, 16) : '');
+const epochOf = (local: string) => (local ? fromLocalInput(local) : null);
 const deckTotal = computed(() => editUni.value?.deck.reduce((sum, c) => sum + (Number(c.count) || 0), 0) ?? 0);
 
 // ------------------------------------------------------------------- groups
@@ -115,13 +124,14 @@ watch(groupId, () => run(loadGroup));
 
 const createUni = () =>
   run(async () => {
-    await api('/admin/universes', { body: newUni.value });
-    newUni.value = { slug: '', name: '' };
+    const { startsAt, ...rest } = newUni.value;
+    await api('/admin/universes', { body: { ...rest, startsAt: epochOf(startsAt) } });
+    newUni.value = { slug: '', name: '', startsAt: '' };
     await loadAll();
   }, 'admin.universeCreated');
 
 function startEdit(u: any) {
-  editUni.value = { slug: u.slug, name: u.name, isDefault: !!u.isDefault, settings: { ...u.settings }, deck: u.deck.map((c: DeckCard) => ({ ...c })) };
+  editUni.value = { slug: u.slug, name: u.name, isDefault: !!u.isDefault, startsAt: localOf(u.startsAt), endedAt: localOf(u.endedAt), settings: { ...u.settings }, deck: u.deck.map((c: DeckCard) => ({ ...c })) };
 }
 
 const saveUni = () =>
@@ -129,18 +139,18 @@ const saveUni = () =>
     const e = editUni.value!;
     // a cleared optional number field (v-model.number leaves '') is removed and falls back to its default
     const settings = { ...Object.fromEntries(Object.entries(e.settings).map(([k, v]) => [k, v === '' ? null : v])), gameUrl: String(e.settings.gameUrl ?? '').trim() };
-    await api(`/admin/universes/${e.slug}`, { method: 'PUT', body: { name: e.name, settings, deck: e.deck, isDefault: e.isDefault } });
+    await api(`/admin/universes/${e.slug}`, { method: 'PUT', body: { name: e.name, settings, deck: e.deck, isDefault: e.isDefault, startsAt: epochOf(e.startsAt), endedAt: epochOf(e.endedAt) } });
     editUni.value = null;
     await loadAll();
     await loadMe();
   }, 'deck.saved');
 
-/** The stored universe being edited (its end is not part of the edit form). */
+/** The stored universe being edited. */
 const editedUni = computed(() => universes.value.find((x: { slug: string }) => x.slug === editUni.value?.slug));
 
-/** Ends the universe (frozen, read-only) or lets an ended one run again. */
+/** Ends the universe now (frozen, read-only) or lets an ended one run again (without an end). */
 function toggleEnded(u: { slug: string; name: string; endedAt?: number | null }) {
-  const ended = u.endedAt == null;
+  const ended = !isEnded(u);
   if (!confirm(t(ended ? 'admin.endUniverseConfirm' : 'admin.reopenUniverseConfirm', { name: u.name }))) return;
   return run(async () => {
     await api(`/admin/universes/${u.slug}`, { method: 'PUT', body: { ended } });
@@ -342,7 +352,7 @@ const doMerge = () => run(async () => {
           <tr><th>Slug</th><th>{{ t('common.name') }}</th><th>{{ t('admin.gameUrl') }}</th><th>{{ t('admin.size') }}</th><th>{{ t('admin.timezone') }}</th><th /></tr>
           <tr v-for="u in universes" :key="u.slug">
             <td class="mono">{{ u.slug }}</td>
-            <td>{{ u.name }}<span v-if="u.isDefault" class="badge" style="margin-left: 6px">{{ t('admin.defaultBadge') }}</span><span v-if="u.endedAt != null" class="badge" style="margin-left: 6px" :title="t('admin.endedAt', { time: dateTime(u.endedAt) })">{{ t('admin.endedBadge') }}</span></td>
+            <td>{{ u.name }}<span v-if="u.isDefault" class="badge" style="margin-left: 6px">{{ t('admin.defaultBadge') }}</span><span v-if="isEnded(u)" class="badge" style="margin-left: 6px" :title="t('admin.endedAt', { time: dateTime(u.endedAt) })">{{ t('admin.endedBadge') }}</span><span v-else-if="isScheduled(u)" class="badge" style="margin-left: 6px" :title="t('admin.startsAt', { time: dateTime(u.startsAt) })">{{ t('admin.scheduledBadge') }}</span><span v-if="!isEnded(u) && u.endedAt != null" class="muted small" style="margin-left: 6px">{{ t('admin.endsAt', { time: dateTime(u.endedAt) }) }}</span></td>
             <td class="small">{{ u.settings.gameUrl || '–' }}</td>
             <td class="small">{{ u.settings.galaxies }} × {{ u.settings.systems }} × {{ u.settings.positions }}</td>
             <td class="small">{{ u.settings.timezone }}</td>
@@ -353,6 +363,7 @@ const doMerge = () => run(async () => {
         <form class="row" style="margin-top: 10px" @submit.prevent="createUni">
           <input v-model="newUni.slug" :placeholder="t('admin.slugPlaceholder')" style="width: 120px" />
           <input v-model="newUni.name" :placeholder="t('common.name')" />
+          <label>{{ t('admin.startTime') }} <Hint>{{ t('admin.startTimeHint') }}</Hint> <DateTimeInput v-model="newUni.startsAt" /></label>
           <button class="primary">{{ t('admin.createUniverse') }}</button>
         </form>
         <div v-if="editUni" style="margin-top: 12px">
@@ -369,6 +380,10 @@ const doMerge = () => run(async () => {
               <Hint>{{ t('admin.gameUrlHint') }}</Hint>
               <input v-model="editUni.settings.gameUrl" :placeholder="`https://pr0game.com/uni${editUni.slug.replace(/\D/g, '')}/`" style="width: 260px" />
             </label>
+          </div>
+          <div class="row" style="margin-top: 8px">
+            <label>{{ t('admin.startTime') }} <Hint>{{ t('admin.startTimeHint') }}</Hint> <DateTimeInput v-model="editUni.startsAt" /></label>
+            <label>{{ t('admin.endTime') }} <Hint>{{ t('admin.endTimeHint') }}</Hint> <DateTimeInput v-model="editUni.endedAt" /></label>
           </div>
           <div class="row" style="margin-top: 8px">
             <label>{{ t('admin.galaxies') }} <input v-model.number="editUni.settings.galaxies" type="number" min="1" style="width: 70px" /></label>
@@ -485,7 +500,7 @@ const doMerge = () => run(async () => {
             <button @click="editUni = null">{{ t('common.cancel') }}</button>
             <span class="grow" />
             <template v-if="editedUni">
-              <button :class="{ danger: editedUni.endedAt == null }" @click="toggleEnded(editedUni)">{{ t(editedUni.endedAt == null ? 'admin.endUniverse' : 'admin.reopenUniverse') }}</button>
+              <button :class="{ danger: !isEnded(editedUni) }" @click="toggleEnded(editedUni)">{{ t(!isEnded(editedUni) ? 'admin.endUniverse' : 'admin.reopenUniverse') }}</button>
               <Hint>{{ t('admin.endUniverseHint') }}</Hint>
             </template>
           </div>

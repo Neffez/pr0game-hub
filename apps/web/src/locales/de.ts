@@ -52,6 +52,7 @@ const de = {
     everything: 'alles',
   },
   nav: {
+    universeStarts: 'Dieses Universum startet am {time}. Bis dahin lässt sich noch nichts synchronisieren.',
     universeEnded: 'Dieses Universum ist beendet (seit {time}). Alle Daten bleiben lesbar, aber Synchronisieren und Ändern sind nicht mehr möglich; Ressourcen und Countdowns stehen still.',
     plansPlanning: '{n} Raid-Plan in Planung | {n} Raid-Pläne in Planung',
     plansRunning: '{n} Raid-Plan gestartet | {n} Raid-Pläne gestartet',
@@ -1021,8 +1022,15 @@ const de = {
     defaultUniverseHint: 'Wer die Startseite öffnet, landet direkt in diesem Universum (sofern er Mitglied ist). Die Universenliste bleibt über das Menü erreichbar. Ohne Standard-Universum landet man auf der Universenliste.',
     defaultBadge: 'Standard',
     endedBadge: 'Beendet',
+    scheduledBadge: 'Geplant',
+    startsAt: 'Startet am {time}',
+    endsAt: 'endet am {time}',
+    startTime: 'Start (optional)',
+    startTimeHint: 'Ab diesem Zeitpunkt ist das Universum aktiv. Vorher sehen Mitglieder es mit einem Hinweis und Countdown, können aber noch nichts synchronisieren; Allianzen und Mitglieder lassen sich schon anlegen. Leer = sofort aktiv.',
+    endTime: 'Ende (optional)',
+    endTimeHint: 'Zu diesem Zeitpunkt wird das Universum eingefroren (wie „Jetzt beenden“). Leer = kein Ende, z. B. für permanente Universen.',
     endedAt: 'Beendet am {time}',
-    endUniverse: 'Universum beenden',
+    endUniverse: 'Jetzt beenden',
     reopenUniverse: 'Wieder öffnen',
     endUniverseHint: 'Ein beendetes Universum wird eingefroren: Alle Daten bleiben lesbar, aber es kann nichts mehr synchronisiert oder geändert werden, Ressourcen und Countdowns laufen nicht weiter, Benachrichtigungen und Battle-Hall-Abruf ruhen; der Crawler archiviert noch die Kampfberichte, die schon in der Battle Hall stehen. Wieder öffnen hebt das auf.',
     endUniverseConfirm: '„{name}“ beenden? Das Universum wird eingefroren und ist danach nur noch lesbar.',
@@ -1737,6 +1745,8 @@ const de = {
   },
   /** Server error codes (HttpError code), see apps/server */
   errors: {
+    universe_not_started: 'Das Universum hat noch nicht begonnen',
+    schedule_invalid: 'Das Ende muss nach dem Start liegen',
     universe_ended: 'Das Universum ist beendet: Seine Daten sind nur noch lesbar',
     settlement_not_yours: 'Nur Teilnehmer, der Ersteller des Plans und Admins können die Abrechnung ändern',
     settlement_invalid: 'Ungültige Abrechnung',

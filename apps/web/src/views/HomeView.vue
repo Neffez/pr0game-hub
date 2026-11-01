@@ -5,14 +5,16 @@ import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { api, session } from '../api';
 import { disablePush } from '../push';
+import { dateTime } from '../format';
 
 const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
 const universes = computed(() => {
-  const map = new Map<string, { slug: string; name: string; ended: boolean; groups: string[] }>();
+  const map = new Map<string, { slug: string; name: string; ended: boolean; startsAt: number | null; groups: string[] }>();
+  const now = Math.floor(Date.now() / 1000);
   for (const g of session.me?.groups ?? []) {
-    const u = map.get(g.universe) ?? { slug: g.universe, name: g.universe_name, ended: g.universe_ended_at != null, groups: [] };
+    const u = map.get(g.universe) ?? { slug: g.universe, name: g.universe_name, ended: g.universe_ended_at != null && g.universe_ended_at <= now, startsAt: g.universe_starts_at != null && g.universe_starts_at > now ? g.universe_starts_at : null, groups: [] };
     u.groups.push(g.name);
     map.set(g.universe, u);
   }
@@ -45,7 +47,7 @@ async function logout() {
         <div v-for="u in universes" :key="u.slug" class="uni">
           <RouterLink :to="`/${u.slug}/overview`" class="uni-link">
             <Icon name="universes" :size="18" />
-            <span class="uni-text"><b>{{ u.name }}<span v-if="u.ended" class="badge" style="margin-left: 6px">{{ t('admin.endedBadge') }}</span></b><span class="muted small">{{ u.groups.join(', ') }}</span></span>
+            <span class="uni-text"><b>{{ u.name }}<span v-if="u.ended" class="badge" style="margin-left: 6px">{{ t('admin.endedBadge') }}</span><span v-else-if="u.startsAt" class="badge" style="margin-left: 6px">{{ t('admin.startsAt', { time: dateTime(u.startsAt) }) }}</span></b><span class="muted small">{{ u.groups.join(', ') }}</span></span>
             <Icon name="chevronRight" class="muted" />
           </RouterLink>
           <RouterLink v-if="session.me?.user?.isAdmin" :to="{ path: '/admin', query: { uni: u.slug } }" class="small">{{ t('home.settings') }}</RouterLink>

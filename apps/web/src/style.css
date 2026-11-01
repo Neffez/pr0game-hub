@@ -65,6 +65,8 @@ h3 { font-size: 14px; margin: 14px 0 6px; color: var(--muted); }
 .small { font-size: 12px; }
 .error { color: var(--neg); margin: 8px 0; }
 .ok { color: var(--pos); }
+.starts-card { max-width: 520px; margin: 40px auto; text-align: center; }
+.starts-countdown { font-size: 1.4em; font-weight: 600; color: var(--accent); }
 .ended-banner { margin: 0 0 12px; padding: 8px 12px; border: 1px solid var(--warn); border-radius: var(--radius); }
 
 input, select, textarea, button {

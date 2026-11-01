@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { HttpError, loadSessionUser } from '../auth.js';
-import { groupContext, resolveGroup } from '../context.js';
+import { groupContext, isRunning, resolveGroup } from '../context.js';
 import { now, type DB } from '../db.js';
 import { events, type Whereabouts } from '../events.js';
 import { memberOnline } from '../repo/activity.js';
@@ -103,7 +103,7 @@ export function eventRoutes(app: FastifyInstance, db: DB) {
         { id: tab, focused: b.focused === true },
       );
       // an active hub tab: the member is around (activity pattern of their player)
-      if (b.active !== false && ctx.universe.endedAt == null) memberOnline(db, ctx.groupId, ctx.user.id, now());
+      if (b.active !== false && isRunning(ctx.universe)) memberOnline(db, ctx.groupId, ctx.user.id, now());
       return { ok: true };
     },
   );

@@ -78,4 +78,48 @@ describe('ended universe', () => {
     expect(urls).toHaveLength(1);
     await end(false);
   });
+
+  it('can be scheduled: inactive before its start, frozen from its end', async () => {
+    const html = fixture('stats-player.html');
+    const put = (payload: object) => app.inject({ method: 'PUT', url: '/hub/api/admin/universes/u8', headers, payload });
+    const context = async () => (await app.inject({ method: 'GET', url: '/hub/api/u8/context', headers })).json().universe;
+    const t = Math.floor(Date.now() / 1000);
+
+    // start ahead: announced, readable, but nothing comes in yet
+    expect((await put({ startsAt: t + 3600 })).statusCode).toBe(200);
+    expect(await context()).toMatchObject({ startsAt: t + 3600, endedAt: null });
+    const me = (await app.inject({ method: 'GET', url: '/hub/api/auth/me', headers })).json();
+    expect(me.groups[0].universe_starts_at).toBe(t + 3600);
+    expect((await ingest(html)).json().code).toBe('universe_not_started');
+    expect((await app.inject({ method: 'GET', url: '/hub/api/u8/notifications', headers })).json()).toEqual([]);
+
+    // the end must come after the start; nothing is changed then
+    const bad = await put({ endedAt: t + 60 });
+    expect(bad.statusCode).toBe(400);
+    expect(bad.json().code).toBe('schedule_invalid');
+    expect((await put({ startsAt: -5 })).json().code).toBe('schedule_invalid');
+    expect((await context()).endedAt).toBeNull();
+
+    // started, with an end ahead: running
+    expect((await put({ startsAt: t - 60, endedAt: t + 3600 })).statusCode).toBe(200);
+    expect((await ingest(html)).statusCode).toBe(200);
+
+    // the end has come: frozen
+    expect((await put({ endedAt: t - 1 })).statusCode).toBe(200);
+    expect((await ingest(html)).json().code).toBe('universe_ended');
+    // without an end (permanent universe) and start it runs again
+    expect((await put({ startsAt: null, endedAt: null })).statusCode).toBe(200);
+    expect(await context()).toMatchObject({ startsAt: null, endedAt: null });
+    expect((await ingest(html)).statusCode).toBe(200);
+  });
+
+  it('takes the start and end when a universe is created', async () => {
+    const t = Math.floor(Date.now() / 1000);
+    const res = await app.inject({ method: 'POST', url: '/hub/api/admin/universes', headers, payload: { slug: 'u9', name: 'U9', startsAt: t + 86400 } });
+    expect(res.statusCode).toBe(200);
+    const u9 = (await app.inject({ method: 'GET', url: '/hub/api/universes', headers })).json().find((u: { slug: string }) => u.slug === 'u9');
+    expect(u9).toMatchObject({ startsAt: t + 86400, endedAt: null });
+    const bad = await app.inject({ method: 'POST', url: '/hub/api/admin/universes', headers, payload: { slug: 'u10', name: 'U10', startsAt: t, endedAt: t } });
+    expect(bad.json().code).toBe('schedule_invalid');
+  });
 });

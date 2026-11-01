@@ -106,12 +106,15 @@ export function buildApp(db: DB, opts: { logger?: boolean; push?: PushOptions; d
         // routes that write nothing (the battle simulator) may be called with a read-only token
         const allowToken = (req.routeOptions.config as { allowToken?: boolean } | undefined)?.allowToken;
         if (req.authSource === 'token' && !allowToken) throw new HttpError(403, 'read_only_token', 'API tokens are read-only');
-        // an ended universe is read-only: only routes that write no game data (`allowToken`, `allowEnded`) go on
+        // a universe before its start or after its end is read-only: only routes that write no game data
+        // (`allowToken`, `allowEnded`) go on
         const uni = (req.params as { uni?: unknown } | undefined)?.uni;
         const allowEnded = (req.routeOptions.config as { allowEnded?: boolean } | undefined)?.allowEnded;
         if (typeof uni === 'string' && !allowToken && !allowEnded) {
-          const endedAt = db.prepare('SELECT ended_at FROM universes WHERE slug = ?').pluck().get(uni) as number | null | undefined;
-          if (endedAt != null) requireRunning({ endedAt });
+          const row = db.prepare('SELECT starts_at AS startsAt, ended_at AS endedAt FROM universes WHERE slug = ?').get(uni) as
+            | { startsAt: number | null; endedAt: number | null }
+            | undefined;
+          if (row) requireRunning(row);
         }
       });
       scope.get('/api/health', async () => ({ ok: true }));

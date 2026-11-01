@@ -12,7 +12,7 @@ export interface MarketRate {
 }
 
 export interface UniContext {
-  universe: { id: number; slug: string; name: string; settings: UniverseSettings; deck: { type: string; size: string; count: number }[]; endedAt: number | null };
+  universe: { id: number; slug: string; name: string; settings: UniverseSettings; deck: { type: string; size: string; count: number }[]; startsAt: number | null; endedAt: number | null };
   group: { id: number; name: string; role: string };
   /** base URL of the pr0game tools (server setting `TOOLS_URL`) */
   toolsUrl?: string;

@@ -11,7 +11,9 @@ export interface Universe {
   settings: UniverseSettings;
   deck: DeckCard[];
   isDefault: boolean;
-  /** the universe is over: frozen at this time (epoch), null while it runs */
+  /** scheduled start (epoch): before it the universe is announced but takes no data; null = active since creation */
+  startsAt: number | null;
+  /** end (epoch, may be scheduled ahead): from then on it is frozen at this time and read-only; null = no end */
   endedAt: number | null;
 }
 
@@ -25,7 +27,7 @@ export interface GroupContext {
   now: number;
 }
 
-type UniverseRow = { id: number; slug: string; name: string; settings: string; deck_config: string | null; is_default?: number; ended_at?: number | null };
+type UniverseRow = { id: number; slug: string; name: string; settings: string; deck_config: string | null; is_default?: number; starts_at?: number | null; ended_at?: number | null };
 
 export function toUniverse(row: UniverseRow): Universe {
   return {
@@ -35,6 +37,7 @@ export function toUniverse(row: UniverseRow): Universe {
     settings: { ...UNIVERSE_DEFAULTS, ...JSON.parse(row.settings || '{}') },
     deck: row.deck_config ? JSON.parse(row.deck_config) : DEFAULT_DECK,
     isDefault: !!row.is_default,
+    startsAt: row.starts_at ?? null,
     endedAt: row.ended_at ?? null,
   };
 }
@@ -42,9 +45,19 @@ export function toUniverse(row: UniverseRow): Universe {
 /** The time of a universe: now, or the end of an ended universe. */
 export const universeNow = (u: Pick<Universe, 'endedAt'>, t = now()) => (u.endedAt != null ? Math.min(t, u.endedAt) : t);
 
-/** Writes to an ended universe are refused (it stays readable). */
-export function requireRunning(u: Pick<Universe, 'endedAt'>) {
-  if (u.endedAt != null) throw new HttpError(409, 'universe_ended', 'The universe has ended: its data is read-only');
+/** The universe has reached its end (a scheduled end still ahead does not count). */
+export const isEnded = (u: Pick<Universe, 'endedAt'>, t = now()) => u.endedAt != null && u.endedAt <= t;
+
+/** The universe has started (no scheduled start, or it has passed). */
+export const isStarted = (u: Pick<Universe, 'startsAt'>, t = now()) => u.startsAt == null || u.startsAt <= t;
+
+/** Started and not ended: data is taken in and notifications go out. */
+export const isRunning = (u: Pick<Universe, 'startsAt' | 'endedAt'>, t = now()) => isStarted(u, t) && !isEnded(u, t);
+
+/** Writes are refused before the start and after the end of a universe (an ended one stays readable). */
+export function requireRunning(u: Pick<Universe, 'startsAt' | 'endedAt'>, t = now()) {
+  if (!isStarted(u, t)) throw new HttpError(409, 'universe_not_started', 'The universe has not started yet');
+  if (isEnded(u, t)) throw new HttpError(409, 'universe_ended', 'The universe has ended: its data is read-only');
 }
 
 export function getUniverse(db: DB, slug: string): Universe {
