@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { nowSec } from '../clock';
 import Section from './Section.vue';
 import Hint from './Hint.vue';
 import Icon from './Icon.vue';
@@ -34,12 +35,12 @@ const canvas = ref<HTMLCanvasElement | null>(null);
 let chart: Chart | null = null;
 
 const shown = computed(() => {
-  const from = Date.now() / 1000 - days.value * 86400;
+  const from = nowSec() - days.value * 86400;
   return (data.value?.events ?? []).filter((e) => e.time >= from);
 });
 const memberReports = computed(() => shown.value.filter((e) => e.source === 'manual' || e.source === 'offline').reverse());
 /** point gain per stat window over the day (coarse: 6-hour blocks) */
-const rate = computed(() => pointsRate(data.value?.scores ?? [], Date.now() / 1000, days.value));
+const rate = computed(() => pointsRate(data.value?.scores ?? [], nowSec(), days.value));
 const empty = computed(() => !shown.value.length && !rate.value.length);
 const sourceLabel = (s: ActivitySource) => t(`player.activity.sources.${s}`);
 
@@ -47,7 +48,7 @@ function draw() {
   chart?.destroy();
   chart = null;
   if (!canvas.value || empty.value) return;
-  const curve = activityCurve(shown.value, Date.now() / 1000, days.value);
+  const curve = activityCurve(shown.value, nowSec(), days.value);
   const step = 24 / 288;
   const present = [...new Set(shown.value.map((e) => e.source))];
   const datasets: ChartDataset<'scatter', { x: number; y: number | null; e?: ActivityEvent }[]>[] = [];
@@ -151,7 +152,7 @@ async function reload() {
 const reporting = ref<'online' | 'offline' | false>(false);
 const pick = ref('');
 function openReport(kind: 'online' | 'offline') {
-  pick.value = toLocalInput(Math.floor(Date.now() / 1000)).slice(0, 16);
+  pick.value = toLocalInput(nowSec()).slice(0, 16);
   reporting.value = reporting.value === kind ? false : kind;
 }
 async function report(time: number | null) {

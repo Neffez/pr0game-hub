@@ -22,6 +22,7 @@ import {
   type OwnAttack,
   type PlanFleet,
 } from './plans';
+import { nowSec } from './clock';
 
 /**
  * State and actions of the raid planner, shared by the plan list and a plan's page: the plans, hostile and own
@@ -31,7 +32,6 @@ export function useRaidPlanner() {
   const { t } = useI18n();
   const { uni, ctx } = useUni();
 
-  const nowSec = () => Math.floor(Date.now() / 1000);
   /**
    * Time for the plan state (late, delays, current or past). It only moves when something changes: at the next launch,
    * target time or end of a plan, at least every minute. Countdowns tick on their own (Countdown), so the page is not

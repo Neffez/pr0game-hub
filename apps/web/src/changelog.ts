@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Beendete Universen: Admins können ein Universum beenden, wenn es vorbei ist. Es wird eingefroren: Alle Daten bleiben lesbar, Ressourcen und Countdowns stehen still, synchronisieren und ändern geht nicht mehr, Benachrichtigungen ruhen. Bei Bedarf lässt es sich wieder öffnen.',
+        en: 'Ended universes: admins can end a universe once it is over. It is frozen: all data stays readable, resources and countdowns stand still, syncing and changes are no longer possible, notifications rest. It can be reopened if needed.',
+      },
+      {
+        kind: 'new',
         de: 'Battle Hall: Der Hub liest die öffentliche Battle Hall alle paar Stunden selbst ein. Neue Einträge und ihre Kampfberichte kommen so auch dann an, wenn niemand die Battle Hall im Spiel synchronisiert.',
         en: 'Battle hall: the hub reads the public battle hall by itself every few hours. New entries and their battle reports arrive even when nobody syncs the battle hall in the game.',
       },

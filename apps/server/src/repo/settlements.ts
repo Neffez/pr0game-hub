@@ -464,7 +464,7 @@ export const forgetFinalized = (ctx: GroupContext) => finalizedCache.delete(ctx)
  * for one settlement only: settlements finalized first take the transports between the same two members first.
  * Computed once per request.
  */
-export function finalizedSettlements(db: DB, ctx: GroupContext, t = Math.floor(Date.now() / 1000)): Map<number, FinalizedSettlement> {
+export function finalizedSettlements(db: DB, ctx: GroupContext, t = ctx.now): Map<number, FinalizedSettlement> {
   const known = finalizedCache.get(ctx);
   if (known) return known;
   const rows = db

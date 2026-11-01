@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { nowSec } from '../clock';
 import PageHeader from '../components/PageHeader.vue';
 import Section from '../components/Section.vue';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
@@ -43,8 +44,8 @@ onMounted(load);
 useLiveReload(load, tables('market_rates', 'market_offers', 'market_trades'));
 
 /** countdowns of the offers */
-const now = ref(Math.floor(Date.now() / 1000));
-const timer = setInterval(() => (now.value = Math.floor(Date.now() / 1000)), 1000);
+const now = ref(nowSec());
+const timer = setInterval(() => (now.value = nowSec()), 1000);
 onBeforeUnmount(() => clearInterval(timer));
 
 const m = ref<number | null>(null);

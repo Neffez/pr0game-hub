@@ -80,6 +80,7 @@ export function eventRoutes(app: FastifyInstance, db: DB) {
    */
   app.post<{ Params: { uni: string }; Body: Partial<Whereabouts> & { tab?: unknown; focused?: unknown; closed?: unknown } }>(
     '/api/:uni/presence',
+    { config: { allowEnded: true } },
     async (req) => {
       const ctx = groupContext(db, req, req.params.uni);
       const b = req.body ?? {};
@@ -102,7 +103,7 @@ export function eventRoutes(app: FastifyInstance, db: DB) {
         { id: tab, focused: b.focused === true },
       );
       // an active hub tab: the member is around (activity pattern of their player)
-      if (b.active !== false) memberOnline(db, ctx.groupId, ctx.user.id, now());
+      if (b.active !== false && ctx.universe.endedAt == null) memberOnline(db, ctx.groupId, ctx.user.id, now());
       return { ok: true };
     },
   );

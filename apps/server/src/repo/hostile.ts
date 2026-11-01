@@ -92,7 +92,7 @@ export const PHALANX_KEEP = 86400;
  */
 export function hostileAttacks(db: DB, ctx: GroupContext): HostileAttack[] {
   const u = ctx.universe.settings;
-  const t = now();
+  const t = ctx.now;
   const byKey = new Map<string, HostileAttack>();
   const add = (g: AttackGroup, seen: number, who: Pick<HostileAttack, 'memberId' | 'member' | 'source' | 'reporter'>, home: number | null) => {
     const lead = g.fleets[0];

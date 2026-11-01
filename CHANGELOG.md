@@ -4,6 +4,19 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-01
 
+- Universes can be ended: a global admin ends (or reopens) a universe under Admin → Universes (`ended` on
+  `PUT /api/admin/universes/{slug}`, new column `universes.ended_at`, migration 071). An ended universe is frozen at
+  its end (`endedAt` in the universe, `universe_ended_at` in `/api/auth/me`):
+  - Reads keep working and show the data as at that time (`GroupContext.now`, `universeNow`): fleet history, plans,
+    claims, hostile and own attacks, markets and buildings use the end instead of the current time.
+  - Every other request to its routes is refused with 409 `universe_ended` (central check in the API pre-handler;
+    routes that store no game data opt out with `allowToken` or the new route config `allowEnded`: battle simulator,
+    presence, hidden buildings). `GET /plans` no longer syncs or recalls plans, presence no longer records activity.
+  - Notifications are empty; push and Discord reminders and the battle hall poller skip the universe. The crawler
+    keeps archiving the reports already in its battle hall, so the archive is complete before the game deletes them.
+  - Web: the shared clock stops at the end (`freezeClock`, `nowSec` everywhere game time is shown), so resources in
+    the empire, countdowns and "ago" times stand still; a banner explains it, the sync entry and button are hidden,
+    the universe list and the admin table show an "Ended" badge.
 - Battle hall: the server reads the public battle hall of every universe with a game URL (`index.php?page=battleHall`,
   no login; farewells hidden and farewells only) every `CRAWLER_HALL_HOURS` hours (default 6, `0` = off) and adds new
   entries to the battle hall of every group of the universe, so the crawler archives their reports even when nobody

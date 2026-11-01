@@ -16,7 +16,7 @@ import { uniApi } from '../api';
 import PlanetActions from '../components/PlanetActions.vue';
 import StatusBadges from '../components/StatusBadges.vue';
 import { useMobile, useProgressive, useProtection, useSort, useStored, useUni } from '../composables';
-import { upcoming, useClock } from '../clock';
+import { nowSec, upcoming, useClock } from '../clock';
 import { tables, useLiveReload } from '../live';
 import { ago, dateTime, distance, fmt, fmtSigned, name, short, STATS_SHORT, STATS_TYPES } from '../format';
 import { intlLocale } from '../i18n';
@@ -441,7 +441,7 @@ function matchedAlias(p: Player) {
 /** Recently inactive players are interesting raid targets (FF-Hub shows hours < 48). */
 const freshInactive = (p: Player) => {
   if (!p.inactive_since || !inactive(p)) return null;
-  const h = Math.floor((Date.now() / 1000 - p.inactive_since) / 3600);
+  const h = Math.floor((nowSec() - p.inactive_since) / 3600);
   return h < 48 ? h : null;
 };
 

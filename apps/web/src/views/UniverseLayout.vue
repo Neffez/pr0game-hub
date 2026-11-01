@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { nowSec } from '../clock';
 import Loading from '../components/Loading.vue';
 import LiveToasts from '../components/LiveToasts.vue';
 import Icon from '../components/Icon.vue';
@@ -12,7 +13,8 @@ import { useRoute, useRouter } from 'vue-router';
 import { selectGroup, selectedGroup, session, uniApi } from '../api';
 import { provideUni, useLoader, useScrollLock, type UniContext } from '../composables';
 import { clearClaims, loadClaims } from '../claims';
-import { setMarketRate, setToolsUrl, toolsIndexUrl } from '../format';
+import { dateTime, setMarketRate, setToolsUrl, toolsIndexUrl } from '../format';
+import { freezeClock } from '../clock';
 import { clearCommentCounts, loadCommentCounts } from '../comments';
 import { attacks, clearNotifications, loadNotifications } from '../notifications';
 import { planCounts, type AttackPlan } from '../plans';
@@ -32,6 +34,10 @@ provideUni(ctx);
 watch(ctx, (c) => setToolsUrl(c?.toolsUrl), { flush: 'sync', immediate: true });
 const toolsUrl = computed(() => toolsIndexUrl(ctx.value?.universe.settings));
 watch(() => ctx.value?.marketRate, setMarketRate, { flush: 'sync', immediate: true });
+// an ended universe stands still at its end: resources, countdowns and "ago" times stop there
+const endedAt = computed(() => ctx.value?.universe.endedAt ?? null);
+watch(endedAt, freezeClock, { flush: 'sync', immediate: true });
+onBeforeUnmount(() => freezeClock(null));
 
 function load() {
   // a link with the group (push notification) opens that alliance
@@ -62,8 +68,8 @@ onBeforeUnmount(() => clearInterval(notifyTimer));
 
 /** Raid planner in the menu: current plans in planning (grey) and running (green); recounted every minute. */
 const plans = ref<AttackPlan[]>([]);
-const minute = ref(Math.floor(Date.now() / 1000));
-const minuteTimer = setInterval(() => (minute.value = Math.floor(Date.now() / 1000)), 60_000);
+const minute = ref(nowSec());
+const minuteTimer = setInterval(() => (minute.value = nowSec()), 60_000);
 onBeforeUnmount(() => clearInterval(minuteTimer));
 async function loadPlans() {
   try {
@@ -76,7 +82,7 @@ const planCount = computed(() => planCounts(plans.value, minute.value));
 useLiveReload(loadPlans, tables('attack_plans', 'fleets'), 300);
 onBeforeUnmount(stopLive);
 // own research and planets for flight times come from the own empire page, the own points (noob protection) from the statistics
-useLiveReload(fetchContext, (e) => (tables('empire')(e) && e.userId === ctx.value?.me.id) || tables('group_members', 'player_scores', 'market_rates')(e));
+useLiveReload(fetchContext, (e) => (tables('empire')(e) && e.userId === ctx.value?.me.id) || tables('group_members', 'player_scores', 'market_rates', 'universe')(e));
 
 function changeGroup() {
   navOpen.value = false;
@@ -217,7 +223,7 @@ const tabs = [
       </select>
       <div v-else-if="ctx" class="muted small" style="padding: 0 10px">{{ t('nav.allianceName', { name: ctx.group.name }) }}</div>
       <nav>
-        <template v-for="l in links" :key="l.to ?? l.section">
+        <template v-for="l in links.filter((x) => endedAt == null || x.to !== 'paste')" :key="l.to ?? l.section">
           <div v-if="l.section" class="section">{{ t(`nav.${l.section}`) }}</div>
           <RouterLink v-else :to="`/${uni}/${l.to}`">
             <Icon :name="l.icon!" />{{ t(`nav.${l.label}`) }}
@@ -239,16 +245,17 @@ const tabs = [
     <main class="main">
       <div v-if="error" class="error">{{ error }}</div>
       <template v-else-if="ctx">
+        <div v-if="endedAt != null" class="warn ended-banner">{{ t('nav.universeEnded', { time: dateTime(endedAt) }) }}</div>
         <RouterView :key="reloadKey" />
         <PlayerDialog />
-        <SyncSheet v-model="syncOpen" />
+        <SyncSheet v-if="endedAt == null" v-model="syncOpen" />
         <LiveToasts />
       </template>
       <Loading v-else :lines="5" />
     </main>
     <nav class="tabbar" :aria-label="t('nav.menu')">
       <RouterLink v-for="tb in tabs.slice(0, 2)" :key="tb.to" :to="`/${uni}/${tb.to}`"><Icon :name="tb.icon" />{{ t(`nav.${tb.label}`) }}</RouterLink>
-      <button class="tab-sync" :class="{ active: syncOpen }" :aria-label="t('nav.quickSync')" @click="syncOpen = !syncOpen">
+      <button v-if="endedAt == null" class="tab-sync" :class="{ active: syncOpen }" :aria-label="t('nav.quickSync')" @click="syncOpen = !syncOpen">
         <span class="sync-dot"><Icon name="sync" /></span>{{ t('nav.syncShort') }}
       </button>
       <RouterLink v-for="tb in tabs.slice(2)" :key="tb.to" :to="`/${uni}/${tb.to}`"><Icon :name="tb.icon" />{{ t(`nav.${tb.label}`) }}</RouterLink>

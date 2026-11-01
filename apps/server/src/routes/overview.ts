@@ -203,7 +203,7 @@ function planetRows(db: DB, ctx: GroupContext) {
 
   // Attacks and spying of the members still flying to a planet (as far as they share them, like FF-Hub): the next
   // arrival and who flies. Without a report afterwards the flight counts as recalled, so arrived flights are left out.
-  const t = now();
+  const t = ctx.now;
   const names = db
     .prepare('SELECT m.user_id, COALESCE(m.ingame_name, u.username) AS name FROM group_members m JOIN users u ON u.id = m.user_id WHERE m.group_id = ?')
     .all(ctx.groupId) as { user_id: number; name: string }[];

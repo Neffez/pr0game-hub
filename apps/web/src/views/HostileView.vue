@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { nowSec } from '../clock';
 import ShowMore from '../components/ShowMore.vue';
 import PageHeader from '../components/PageHeader.vue';
 import Hint from '../components/Hint.vue';
@@ -15,7 +16,7 @@ const { t } = useI18n();
 const { uni } = useUni();
 const days = useStored('hostile.days', 7);
 
-const { data, error, load } = useLoader<any>(() => uniApi(uni.value, `/hostile?from=${Math.floor(Date.now() / 1000) - days.value * 86400}`));
+const { data, error, load } = useLoader<any>(() => uniApi(uni.value, `/hostile?from=${nowSec() - days.value * 86400}`));
 /** The newest 20 spyings of the history first. */
 const historyLimit = useLimit(computed<any[]>(() => data.value?.list ?? []));
 onMounted(load);

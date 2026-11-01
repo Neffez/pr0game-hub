@@ -94,12 +94,12 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
     return { ok: true };
   });
 
-  app.put<{ Params: { slug: string }; Body: { name?: string; settings?: object; deck?: unknown | null; isDefault?: boolean } }>(
+  app.put<{ Params: { slug: string }; Body: { name?: string; settings?: object; deck?: unknown | null; isDefault?: boolean; ended?: boolean } }>(
     '/api/admin/universes/:slug',
     async (req) => {
       requireAdmin(req);
-      const { name, settings, deck, isDefault } = req.body ?? {};
-      const cur = db.prepare('SELECT * FROM universes WHERE slug = ?').get(req.params.slug) as { id: number; settings: string } | undefined;
+      const { name, settings, deck, isDefault, ended } = req.body ?? {};
+      const cur = db.prepare('SELECT * FROM universes WHERE slug = ?').get(req.params.slug) as { id: number; settings: string; ended_at: number | null } | undefined;
       if (!cur) throw new HttpError(404, 'universe_not_found', 'Universe not found');
       validateSettings(settings);
       const next = { ...JSON.parse(cur.settings), ...(settings ?? {}) };
@@ -116,6 +116,12 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
       }
       if (deck !== undefined) {
         db.prepare('UPDATE universes SET deck_config = ? WHERE slug = ?').run(deck ? JSON.stringify(validateDeck(deck)) : null, req.params.slug);
+      }
+      // ending freezes the universe at this moment (an ended one keeps its time); reopening lets it run again
+      if (ended !== undefined && ended !== (cur.ended_at != null)) {
+        db.prepare('UPDATE universes SET ended_at = ? WHERE slug = ?').run(ended ? now() : null, req.params.slug);
+        const groups = db.prepare('SELECT id FROM groups WHERE universe_id = ?').pluck().all(cur.id) as number[];
+        for (const groupId of groups) events.publish(groupId, { type: 'data', tables: ['universe'] });
       }
       return { ok: true };
     },

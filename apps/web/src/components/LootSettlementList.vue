@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { nowSec } from '../clock';
 import Sheet from './Sheet.vue';
 import Icon from './Icon.vue';
 import { computed, onMounted, reactive, watch } from 'vue';
@@ -72,7 +73,7 @@ const STAGE_CLASS: Record<Entry['stage'], string> = { open: 'muted', waiting: 'w
 /** time left until the deadline (open ones only) */
 const left = (e: Entry) => {
   if (!e.deadline || e.stage === 'settled') return null;
-  const s = e.deadline - Date.now() / 1000;
+  const s = e.deadline - nowSec();
   return s <= 0 ? t('loot.deadlinePassed') : t('loot.deadlineLeft', { h: Math.floor(s / 3600), m: Math.floor((s % 3600) / 60) });
 };
 </script>

@@ -1,7 +1,7 @@
 import type { FastifyRequest } from 'fastify';
 import { HttpError, requireUser, type SessionUser } from './auth.js';
 import { UNIVERSE_DEFAULTS, type UniverseSettings } from './config.js';
-import type { DB } from './db.js';
+import { now, type DB } from './db.js';
 import { DEFAULT_DECK, type DeckCard } from '@pr0hub/core';
 
 export interface Universe {
@@ -11,6 +11,8 @@ export interface Universe {
   settings: UniverseSettings;
   deck: DeckCard[];
   isDefault: boolean;
+  /** the universe is over: frozen at this time (epoch), null while it runs */
+  endedAt: number | null;
 }
 
 export interface GroupContext {
@@ -19,9 +21,11 @@ export interface GroupContext {
   groupId: number;
   groupName: string;
   role: 'member' | 'admin';
+  /** the time of the universe: now, or the end of an ended universe (reads show the data as it was then) */
+  now: number;
 }
 
-type UniverseRow = { id: number; slug: string; name: string; settings: string; deck_config: string | null; is_default?: number };
+type UniverseRow = { id: number; slug: string; name: string; settings: string; deck_config: string | null; is_default?: number; ended_at?: number | null };
 
 export function toUniverse(row: UniverseRow): Universe {
   return {
@@ -31,7 +35,16 @@ export function toUniverse(row: UniverseRow): Universe {
     settings: { ...UNIVERSE_DEFAULTS, ...JSON.parse(row.settings || '{}') },
     deck: row.deck_config ? JSON.parse(row.deck_config) : DEFAULT_DECK,
     isDefault: !!row.is_default,
+    endedAt: row.ended_at ?? null,
   };
+}
+
+/** The time of a universe: now, or the end of an ended universe. */
+export const universeNow = (u: Pick<Universe, 'endedAt'>, t = now()) => (u.endedAt != null ? Math.min(t, u.endedAt) : t);
+
+/** Writes to an ended universe are refused (it stays readable). */
+export function requireRunning(u: Pick<Universe, 'endedAt'>) {
+  if (u.endedAt != null) throw new HttpError(409, 'universe_ended', 'The universe has ended: its data is read-only');
 }
 
 export function getUniverse(db: DB, slug: string): Universe {
@@ -62,5 +75,5 @@ export function resolveGroup(db: DB, user: SessionUser, universe: Universe, want
     .all(universe.id, user.id) as { id: number; name: string; role: 'member' | 'admin' }[];
   const row = wanted ? rows.find((r) => r.id === wanted) : rows[0];
   if (!row) throw new HttpError(403, 'no_group', 'No alliance in this universe');
-  return { user, universe, groupId: row.id, groupName: row.name, role: row.role };
+  return { user, universe, groupId: row.id, groupName: row.name, role: row.role, now: universeNow(universe) };
 }

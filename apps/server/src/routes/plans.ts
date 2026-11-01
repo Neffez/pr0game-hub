@@ -196,7 +196,8 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
   app.get<{ Params: { uni: string } }>('/api/:uni/plans', async (req) => {
     const ctx = ctxOf(req);
     // fleets that joined a running ACS and a moved arrival reach the plans made from it; recalled fleets are withdrawn
-    const synced = [...syncOwnPlans(db, ctx, MAX_FLEETS), ...recallOwnPlans(db, ctx)];
+    // (not in an ended universe: it is read-only)
+    const synced = ctx.universe.endedAt != null ? [] : [...syncOwnPlans(db, ctx, MAX_FLEETS), ...recallOwnPlans(db, ctx)];
     if (synced.length) events.publish(ctx.groupId, { type: 'data', tables: ['attack_plans', 'target_claims'], userId: ctx.user.id });
     const plans = db
       .prepare(
@@ -210,7 +211,7 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
          LEFT JOIN players pr ON pr.id = COALESCE(a.player_id, pl.player_id)
          WHERE a.group_id = ? AND a.target_time > ? ORDER BY a.target_time`,
       )
-      .all(now(), ctx.groupId, now() - KEEP_SECONDS) as (Record<string, unknown> & { id: number })[];
+      .all(ctx.now, ctx.groupId, ctx.now - KEEP_SECONDS) as (Record<string, unknown> & { id: number })[];
     if (!plans.length) return [];
     const fleets = db
       .prepare(

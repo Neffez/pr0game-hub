@@ -329,7 +329,7 @@ export function ownAttacks(db: DB, ctx: GroupContext): OwnAttack[] {
 
 /** Own attacks in flight on the overviews the viewer may see, planned or not, with the members who fly in them. */
 function collectOwnAttacks(db: DB, ctx: GroupContext): (OwnAttack & { viewers: Set<number> })[] {
-  const t = now();
+  const t = ctx.now;
   const players = memberPlayers(db, ctx);
   const memberOf = new Map<number, number>();
   for (const [userId, playerId] of players) if (playerId != null && !memberOf.has(playerId)) memberOf.set(playerId, userId);

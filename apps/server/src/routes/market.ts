@@ -14,7 +14,7 @@ export function marketRoutes(app: FastifyInstance, db: DB) {
   /** Current market rate, its history, the open offers of the latest marketplace sync and the synced trades. */
   app.get<{ Params: { uni: string } }>('/api/:uni/market', async (req) => {
     const ctx = ctxOf(req);
-    const market = latestMarket(db, ctx.groupId, now());
+    const market = latestMarket(db, ctx.groupId, ctx.now);
     return {
       rate: latestMarketRate(db, ctx.groupId),
       rates: marketRates(db, ctx.groupId),

@@ -64,7 +64,8 @@ export function startCrawler(db: DB, log: Log) {
  */
 export async function step(db: DB, log: Log, fetcher = fetch): Promise<'done' | 'idle' | 'transient'> {
   // newest first: small reports of today are the ones the game deletes soonest;
-  // universes without game URL are skipped until it is set, paused ones until their next attempt
+  // universes without game URL are skipped until it is set, paused ones until their next attempt;
+  // ended universes still get the reports of their battle hall archived (the hall poller adds no new entries there)
   const now = Date.now();
   const paused = [...crawlerState].filter(([, s]) => s.stopped || s.nextAttempt > now).map(([id]) => id);
   const job = db

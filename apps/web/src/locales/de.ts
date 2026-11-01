@@ -52,6 +52,7 @@ const de = {
     everything: 'alles',
   },
   nav: {
+    universeEnded: 'Dieses Universum ist beendet (seit {time}). Alle Daten bleiben lesbar, aber Synchronisieren und Ändern sind nicht mehr möglich; Ressourcen und Countdowns stehen still.',
     plansPlanning: '{n} Raid-Plan in Planung | {n} Raid-Pläne in Planung',
     plansRunning: '{n} Raid-Plan gestartet | {n} Raid-Pläne gestartet',
     sync: 'Synchronisieren',
@@ -1019,6 +1020,15 @@ const de = {
     defaultUniverse: 'Standard-Universum',
     defaultUniverseHint: 'Wer die Startseite öffnet, landet direkt in diesem Universum (sofern er Mitglied ist). Die Universenliste bleibt über das Menü erreichbar. Ohne Standard-Universum landet man auf der Universenliste.',
     defaultBadge: 'Standard',
+    endedBadge: 'Beendet',
+    endedAt: 'Beendet am {time}',
+    endUniverse: 'Universum beenden',
+    reopenUniverse: 'Wieder öffnen',
+    endUniverseHint: 'Ein beendetes Universum wird eingefroren: Alle Daten bleiben lesbar, aber es kann nichts mehr synchronisiert oder geändert werden, Ressourcen und Countdowns laufen nicht weiter, Benachrichtigungen und Battle-Hall-Abruf ruhen; der Crawler archiviert noch die Kampfberichte, die schon in der Battle Hall stehen. Wieder öffnen hebt das auf.',
+    endUniverseConfirm: '„{name}“ beenden? Das Universum wird eingefroren und ist danach nur noch lesbar.',
+    reopenUniverseConfirm: '„{name}“ wieder öffnen? Synchronisieren und Ändern sind dann wieder möglich.',
+    universeEnded: 'Universum beendet',
+    universeReopened: 'Universum wieder geöffnet',
     galaxies: 'Galaxien',
     systems: 'Systeme',
     positions: 'Positionen',
@@ -1727,6 +1737,7 @@ const de = {
   },
   /** Server error codes (HttpError code), see apps/server */
   errors: {
+    universe_ended: 'Das Universum ist beendet: Seine Daten sind nur noch lesbar',
     settlement_not_yours: 'Nur Teilnehmer, der Ersteller des Plans und Admins können die Abrechnung ändern',
     settlement_invalid: 'Ungültige Abrechnung',
     settlement_not_found: 'Abrechnung noch nicht gespeichert',

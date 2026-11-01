@@ -17,7 +17,7 @@ interface AlertBody {
 }
 
 /** Removes the viewer's alerts whose level is built or queued (or whose planet is gone); returns the others. */
-export function pruneAlerts(db: DB, ctx: GroupContext, state: BuildingsState, t = now()): BuildingAlert[] {
+export function pruneAlerts(db: DB, ctx: GroupContext, state: BuildingsState, t = ctx.now): BuildingAlert[] {
   const done: number[] = [];
   const open = alertsOf(db, ctx, ctx.user.id).filter((a) => {
     const bp = planetOf(state, a);
@@ -77,7 +77,7 @@ export function buildingsRoutes(app: FastifyInstance, db: DB) {
   });
 
   /** Replaces the viewer's hidden buildings (kept in the account, so on every device). */
-  app.put<{ Params: { uni: string }; Body: { ids?: unknown } }>('/api/:uni/buildings/hidden', async (req) => {
+  app.put<{ Params: { uni: string }; Body: { ids?: unknown } }>('/api/:uni/buildings/hidden', { config: { allowEnded: true } }, async (req) => {
     const ctx = ctxOf(req);
     const ids = req.body?.ids;
     if (!Array.isArray(ids) || !ids.every((id) => Number.isInteger(id) && (BUILDINGS[String(id)] || RESEARCH[String(id)]))) {
