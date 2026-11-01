@@ -2,6 +2,14 @@
 
 Every commit adds its changes here, newest first, grouped by date.
 
+## 2026-11-01
+
+- Battle hall: the server reads the public battle hall of every universe with a game URL (`index.php?page=battleHall`,
+  no login; farewells hidden and farewells only) every `CRAWLER_HALL_HOURS` hours (default 6, `0` = off) and adds new
+  entries to the battle hall of every group of the universe, so the crawler archives their reports even when nobody
+  syncs the hall in the game. The public page has no minimum size (top 100 by units) and shows UTC; its farewell
+  filter values (0 hide, 1 only) are mapped to the in-game ones.
+
 ## 2026-10-31
 
 - Loot settlement: the profit split "equally" becomes "by percent": each participant can have a share in percent

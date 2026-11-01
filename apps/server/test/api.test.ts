@@ -790,6 +790,53 @@ describe('api', () => {
     await app.inject({ method: 'PUT', url: '/hub/api/admin/universes/u8', headers: admin, payload: { settings: { gameUrl: '' } } });
   });
 
+  it('adds entries of the public battle hall to every group of the universe', async () => {
+    const { pollBattleHall } = await import('../src/hallPoller.js');
+    const log = { info: () => {}, warn: () => {} };
+    // the login page's template (index.php?page=battleHall): no filters without several universes
+    const row = (rank: number, rid: string, a: string, d: string, time: string, units: string) =>
+      `<tr><td>${rank}</td><td><a href="game.php?page=raport&amp;raport=${rid}" target="_blank">` +
+      `<span class="colorPositive">${a}</span><span style="color:#FFFFFF"><b> VS </b></span><span class="colorNegative">${d}</span>` +
+      `</a></td><td>${time}</td><td>${units}</td></tr>`;
+    const page = (rows: string) =>
+      `<html><head><title>Battle Hall</title></head><body id="battleHall"><table><tr><th>Platz</th><th>Besitzer</th><th>Datum</th><th>Einheiten</th></tr>${rows}` +
+      `<tr><td colspan="4"><p>Legende</p></td></tr></table></body></html>`;
+    const hidden = page(
+row(1, 'aa'.repeat(16), 'Alpha', 'Beta', '01. Nov 2026, 10:00:00', '9.000.000'));
+    const farewells = page(row(1, 'bb'.repeat(16), 'Gamma', 'Delta', '01. Nov 2026, 11:00:00', '5.000.000'));
+    const urls: string[] = [];
+    const fetcher = (async (url: string) => {
+      urls.push(url);
+      return { ok: true, text: async () => (url.endsWith('memorial=1') ? farewells : hidden) };
+    }) as unknown as typeof fetch;
+    // without game URL nothing is fetched
+    expect(await pollBattleHall(db, log, fetcher)).toEqual({});
+    expect(urls).toEqual([]);
+    await app.inject({ method: 'PUT', url: '/hub/api/admin/universes/u8', headers: admin, payload: { settings: { gameUrl: 'https://pr0game.com/uni8' } } });
+    try {
+    // two new entries in every group of the universe
+    const groups = db.prepare("SELECT COUNT(*) FROM groups g JOIN universes u ON u.id = g.universe_id WHERE u.slug = 'u8'").pluck().get() as number;
+    expect(await pollBattleHall(db, log, fetcher)).toEqual({ u8: 2 * groups });
+    expect(urls).toEqual(['https://pr0game.com/uni8/index.php?page=battleHall&memorial=0', 'https://pr0game.com/uni8/index.php?page=battleHall&memorial=1']);
+    const rows = db
+      .prepare("SELECT group_id, time, memorial, winner, units, report_status FROM battle_hall WHERE report_id IN (?, ?) AND group_id IN (?, ?) ORDER BY group_id, report_id")
+      .all('aa'.repeat(16), 'bb'.repeat(16), groupA, groupB);
+    expect(rows).toEqual([
+      { group_id: groupA, time: Date.UTC(2026, 10, 1, 10) / 1000, memorial: 0, winner: 'attacker', units: 9000000, report_status: null },
+      { group_id: groupA, time: Date.UTC(2026, 10, 1, 11) / 1000, memorial: 1, winner: 'attacker', units: 5000000, report_status: null },
+      { group_id: groupB, time: Date.UTC(2026, 10, 1, 10) / 1000, memorial: 0, winner: 'attacker', units: 9000000, report_status: null },
+      { group_id: groupB, time: Date.UTC(2026, 10, 1, 11) / 1000, memorial: 1, winner: 'attacker', units: 5000000, report_status: null },
+    ]);
+    // the next poll adds nothing; a failing game skips the universe
+    expect(await pollBattleHall(db, log, fetcher)).toEqual({ u8: 0 });
+    const down = (async () => { throw new Error('ECONNREFUSED'); }) as unknown as typeof fetch;
+    expect(await pollBattleHall(db, log, down)).toEqual({});
+    } finally {
+      db.prepare('DELETE FROM battle_hall WHERE report_id IN (?, ?)').run('aa'.repeat(16), 'bb'.repeat(16));
+      await app.inject({ method: 'PUT', url: '/hub/api/admin/universes/u8', headers: admin, payload: { settings: { gameUrl: '' } } });
+    }
+  });
+
   it('keeps groups isolated', async () => {
     const headers = { ...admin, 'x-hub-group': String(groupB) };
     const ov = (await app.inject({ method: 'GET', url: '/hub/api/u8/overview', headers })).json();

@@ -3,18 +3,21 @@ import { buildApp } from './app.js';
 import { config } from './config.js';
 import { startCrawler } from './crawler.js';
 import { openDb } from './db.js';
+import { startHallPoller } from './hallPoller.js';
 import { startMonitor } from './monitor.js';
 
 const db = openDb(join(config.dataDir, 'hub.db'));
 const app = buildApp(db);
 
 const stopCrawler = startCrawler(db, app.log);
+const stopHallPoller = startHallPoller(db, app.log);
 const stopReminders = app.push.start();
 const stopDiscordReminders = app.discord.start();
 const stopMonitor = startMonitor(db, app.log);
 
 const shutdown = async () => {
   stopCrawler();
+  stopHallPoller();
   stopReminders();
   stopDiscordReminders();
   stopMonitor();

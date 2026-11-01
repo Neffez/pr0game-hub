@@ -192,6 +192,7 @@ Changes are recorded in [CHANGELOG.md](CHANGELOG.md). Contributions are welcome,
 | `CRAWLER_ENABLED` | `true` | background archiving of public battle reports |
 | `CRAWLER_INTERVAL_MS` | `5000` | |
 | `CRAWLER_GIVE_UP_HOURS` | `6` | pause the crawler after the game was unreachable this long |
+| `CRAWLER_HALL_HOURS` | `6` | read the public battle hall of every universe with a game URL this often and add new entries to all its groups (`0` = off) |
 | `PUBLIC_URL` | – | public origin of the hub (e.g. `https://hub.example.org`); Discord messages link to the hub's pages only when it is set |
 | `TOOLS_URL` | `PUBLIC_URL`, else `/` | base URL of the pr0game tools (e.g. `https://tools.example.org/`); the hub's tool links and the title in the menu point there. A universe can override it with its `flightCalculatorUrl` setting |
 | `PUSH_CONTACT` | – | contact for the push services (`mailto:…` or `https://…`); push notifications are off without it. The VAPID keys are created on the first start and kept in the database |

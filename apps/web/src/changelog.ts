@@ -16,6 +16,16 @@ export interface ChangelogDay {
 
 export const CHANGELOG: ChangelogDay[] = [
   {
+    date: '2026-11-01',
+    items: [
+      {
+        kind: 'new',
+        de: 'Battle Hall: Der Hub liest die öffentliche Battle Hall alle paar Stunden selbst ein. Neue Einträge und ihre Kampfberichte kommen so auch dann an, wenn niemand die Battle Hall im Spiel synchronisiert.',
+        en: 'Battle hall: the hub reads the public battle hall by itself every few hours. New entries and their battle reports arrive even when nobody syncs the battle hall in the game.',
+      },
+    ],
+  },
+  {
     date: '2026-10-31',
     items: [
       {
