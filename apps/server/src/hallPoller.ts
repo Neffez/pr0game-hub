@@ -24,7 +24,8 @@ const PUBLIC_MEMORIAL = [
  */
 export async function pollBattleHall(db: DB, log: Log, fetcher = fetch): Promise<Record<string, number>> {
   const universes = db
-    .prepare(`SELECT id, slug, json_extract(settings, '$.gameUrl') AS gameUrl FROM universes WHERE COALESCE(json_extract(settings, '$.gameUrl'), '') != '' AND ended_at IS NULL`)
+    .prepare(`SELECT id, slug, json_extract(settings, '$.gameUrl') AS gameUrl FROM universes WHERE COALESCE(json_extract(settings, '$.gameUrl'), '') != ''
+       AND (starts_at IS NULL OR starts_at <= unixepoch()) AND (ended_at IS NULL OR ended_at > unixepoch())`)
     .all() as { id: number; slug: string; gameUrl: string }[];
   const added: Record<string, number> = {};
   for (const u of universes) {

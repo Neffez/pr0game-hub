@@ -79,29 +79,57 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
     return (db.prepare('SELECT * FROM universes ORDER BY slug').all() as never[]).map(toUniverse);
   });
 
-  app.post<{ Body: { slug: string; name: string; settings?: object; deck?: unknown } }>('/api/admin/universes', async (req) => {
+  /**
+   * Start and end of a universe from the request (undefined: unchanged, null: none) on top of the current ones; the end
+   * must come after the start.
+   */
+  const scheduleOf = (body: { startsAt?: unknown; endedAt?: unknown }, cur: { starts_at: number | null; ended_at: number | null }) => {
+    const time = (v: unknown, cur: number | null) => {
+      if (v === undefined) return cur;
+      if (v === null) return null;
+      if (!Number.isInteger(v) || (v as number) <= 0) throw new HttpError(400, 'schedule_invalid', 'Start and end: epoch seconds or null');
+      return v as number;
+    };
+    const startsAt = time(body.startsAt, cur.starts_at);
+    const endedAt = time(body.endedAt, cur.ended_at);
+    if (startsAt != null && endedAt != null && endedAt <= startsAt) throw new HttpError(400, 'schedule_invalid', 'The end must come after the start');
+    return { startsAt, endedAt };
+  };
+
+  app.post<{ Body: { slug: string; name: string; settings?: object; deck?: unknown; startsAt?: number | null; endedAt?: number | null } }>('/api/admin/universes', async (req) => {
     requireAdmin(req);
     const { slug, name, settings, deck } = req.body ?? ({} as never);
     if (!/^[a-z0-9-]{1,16}$/.test(slug ?? '')) throw new HttpError(400, 'slug_invalid', 'Slug: a-z, 0-9, -');
     if (db.prepare('SELECT 1 FROM universes WHERE slug = ?').get(slug)) throw new HttpError(409, 'universe_exists', 'Universe already exists');
     validateSettings(settings);
-    db.prepare('INSERT INTO universes (slug, name, settings, deck_config) VALUES (?, ?, ?, ?)').run(
+    const schedule = scheduleOf(req.body, { starts_at: null, ended_at: null });
+    db.prepare('INSERT INTO universes (slug, name, settings, deck_config, starts_at, ended_at) VALUES (?, ?, ?, ?, ?, ?)').run(
       slug,
       name || slug,
       JSON.stringify({ ...UNIVERSE_DEFAULTS, ...(settings ?? {}) }),
       deck ? JSON.stringify(validateDeck(deck)) : null,
+      schedule.startsAt,
+      schedule.endedAt,
     );
     return { ok: true };
   });
 
-  app.put<{ Params: { slug: string }; Body: { name?: string; settings?: object; deck?: unknown | null; isDefault?: boolean; ended?: boolean } }>(
+  app.put<{ Params: { slug: string }; Body: { name?: string; settings?: object; deck?: unknown | null; isDefault?: boolean; startsAt?: number | null; endedAt?: number | null; ended?: boolean } }>(
     '/api/admin/universes/:slug',
     async (req) => {
       requireAdmin(req);
       const { name, settings, deck, isDefault, ended } = req.body ?? {};
-      const cur = db.prepare('SELECT * FROM universes WHERE slug = ?').get(req.params.slug) as { id: number; settings: string; ended_at: number | null } | undefined;
+      const cur = db.prepare('SELECT * FROM universes WHERE slug = ?').get(req.params.slug) as
+        | { id: number; settings: string; starts_at: number | null; ended_at: number | null }
+        | undefined;
       if (!cur) throw new HttpError(404, 'universe_not_found', 'Universe not found');
       validateSettings(settings);
+      // `ended`: end now (an ended universe keeps its end) or remove the end; else the scheduled times
+      const t = now();
+      const schedule =
+        ended === true ? { startsAt: cur.starts_at != null && cur.starts_at > t ? null : cur.starts_at, endedAt: cur.ended_at != null && cur.ended_at <= t ? cur.ended_at : t }
+        : ended === false ? { startsAt: cur.starts_at, endedAt: null }
+        : scheduleOf(req.body ?? {}, cur);
       const next = { ...JSON.parse(cur.settings), ...(settings ?? {}) };
       // null removes an optional setting (back to its default)
       for (const [key, value] of Object.entries(next)) if (value === null) delete next[key];
@@ -117,9 +145,9 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
       if (deck !== undefined) {
         db.prepare('UPDATE universes SET deck_config = ? WHERE slug = ?').run(deck ? JSON.stringify(validateDeck(deck)) : null, req.params.slug);
       }
-      // ending freezes the universe at this moment (an ended one keeps its time); reopening lets it run again
-      if (ended !== undefined && ended !== (cur.ended_at != null)) {
-        db.prepare('UPDATE universes SET ended_at = ? WHERE slug = ?').run(ended ? now() : null, req.params.slug);
+      // the start makes it take data, the end freezes it at that time; members' pages follow
+      if (schedule.startsAt !== cur.starts_at || schedule.endedAt !== cur.ended_at) {
+        db.prepare('UPDATE universes SET starts_at = ?, ended_at = ? WHERE slug = ?').run(schedule.startsAt, schedule.endedAt, req.params.slug);
         const groups = db.prepare('SELECT id FROM groups WHERE universe_id = ?').pluck().all(cur.id) as number[];
         for (const groupId of groups) events.publish(groupId, { type: 'data', tables: ['universe'] });
       }

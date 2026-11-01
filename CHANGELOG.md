@@ -4,6 +4,16 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-01
 
+- Universes can be scheduled: a global admin sets a start and an optional end (permanent universes have none) when
+  creating or editing a universe (`startsAt`/`endedAt` on `POST /api/admin/universes` and
+  `PUT /api/admin/universes/{slug}`, `schedule_invalid` when the end is not after the start; new column
+  `universes.starts_at`, migration 072; `ended_at` may now lie ahead). "End now" and "Reopen" stay as shortcuts.
+  - Before the start the universe is listed with its start time (`universe_starts_at` in `/api/auth/me`) and takes no
+    data: writes are refused with 409 `universe_not_started`, notifications are empty, reminders and the battle hall
+    poller skip it. Its pages show a notice with a countdown instead (admin, account and "What's new" stay open, so
+    alliances and members can be set up ahead) and open by themselves at the start.
+  - A scheduled end takes effect by itself: the web clock stops and the banner appears at that moment, the server
+    refuses writes from then on (`isStarted`, `isEnded`, `isRunning` in `context.ts`).
 - Universes can be ended: a global admin ends (or reopens) a universe under Admin → Universes (`ended` on
   `PUT /api/admin/universes/{slug}`, new column `universes.ended_at`, migration 071). An ended universe is frozen at
   its end (`endedAt` in the universe, `universe_ended_at` in `/api/auth/me`):

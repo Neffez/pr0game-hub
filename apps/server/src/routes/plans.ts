@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { HttpError } from '../auth.js';
-import type { GroupContext } from '../context.js';
+import { isRunning, type GroupContext } from '../context.js';
 import { now, type DB } from '../db.js';
 import { events } from '../events.js';
 import { isPhalanxText, localToEpoch, nearestClock, parseFleetsText } from '@pr0hub/core';
@@ -196,8 +196,8 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
   app.get<{ Params: { uni: string } }>('/api/:uni/plans', async (req) => {
     const ctx = ctxOf(req);
     // fleets that joined a running ACS and a moved arrival reach the plans made from it; recalled fleets are withdrawn
-    // (not in an ended universe: it is read-only)
-    const synced = ctx.universe.endedAt != null ? [] : [...syncOwnPlans(db, ctx, MAX_FLEETS), ...recallOwnPlans(db, ctx)];
+    // (not before the start or after the end: the universe is read-only then)
+    const synced = !isRunning(ctx.universe) ? [] : [...syncOwnPlans(db, ctx, MAX_FLEETS), ...recallOwnPlans(db, ctx)];
     if (synced.length) events.publish(ctx.groupId, { type: 'data', tables: ['attack_plans', 'target_claims'], userId: ctx.user.id });
     const plans = db
       .prepare(

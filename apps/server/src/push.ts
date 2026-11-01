@@ -4,7 +4,7 @@ import type { FastifyBaseLogger } from 'fastify';
 import webpush from 'web-push';
 import type { SessionUser } from './auth.js';
 import { config } from './config.js';
-import { resolveGroup } from './context.js';
+import { isRunning, resolveGroup } from './context.js';
 import { now, type DB } from './db.js';
 import type { EventBus } from './events.js';
 import { AlertSchedule, GroupDebounce, groupUniverse, SENT_KEEP, TICK_AHEAD, TICK_MS } from './notify.js';
@@ -192,8 +192,8 @@ export class PushService {
   async deliver(groupId: number, t = now()) {
     if (!this.enabled) return;
     const universe = groupUniverse(this.db, groupId);
-    // an ended universe sends nothing any more
-    if (!universe || universe.endedAt != null) return;
+    // a universe before its start or after its end sends nothing
+    if (!universe || !isRunning(universe, t)) return;
     // when the ticks look at the group's building and fleet alerts and storages again (also when nobody here gets anything)
     this.alerts.plan(groupId, universe, t);
     const users = this.db

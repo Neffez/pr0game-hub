@@ -14,7 +14,8 @@ import { selectGroup, selectedGroup, session, uniApi } from '../api';
 import { provideUni, useLoader, useScrollLock, type UniContext } from '../composables';
 import { clearClaims, loadClaims } from '../claims';
 import { dateTime, setMarketRate, setToolsUrl, toolsIndexUrl } from '../format';
-import { freezeClock } from '../clock';
+import { freezeClock, useClock } from '../clock';
+import Countdown from '../components/Countdown.vue';
 import { clearCommentCounts, loadCommentCounts } from '../comments';
 import { attacks, clearNotifications, loadNotifications } from '../notifications';
 import { planCounts, type AttackPlan } from '../plans';
@@ -34,10 +35,19 @@ provideUni(ctx);
 watch(ctx, (c) => setToolsUrl(c?.toolsUrl), { flush: 'sync', immediate: true });
 const toolsUrl = computed(() => toolsIndexUrl(ctx.value?.universe.settings));
 watch(() => ctx.value?.marketRate, setMarketRate, { flush: 'sync', immediate: true });
-// an ended universe stands still at its end: resources, countdowns and "ago" times stop there
+// an ended universe stands still at its end: resources, countdowns and "ago" times stop there (a scheduled end
+// stops the clock when it comes); before a scheduled start the universe only announces it
 const endedAt = computed(() => ctx.value?.universe.endedAt ?? null);
+const startsAt = computed(() => ctx.value?.universe.startsAt ?? null);
 watch(endedAt, freezeClock, { flush: 'sync', immediate: true });
 onBeforeUnmount(() => freezeClock(null));
+const clock = useClock();
+const ended = computed(() => endedAt.value != null && clock.value >= endedAt.value);
+const started = computed(() => startsAt.value == null || clock.value >= startsAt.value);
+const running = computed(() => started.value && !ended.value);
+/** pages of the account and the hub that work before the start (alliance admins set up their members there) */
+const OPEN_BEFORE_START = ['admin', 'account', 'changelog'];
+const waiting = computed(() => !started.value && !OPEN_BEFORE_START.includes(route.path.split('/')[2] ?? ''));
 
 function load() {
   // a link with the group (push notification) opens that alliance
@@ -83,6 +93,13 @@ useLiveReload(loadPlans, tables('attack_plans', 'fleets'), 300);
 onBeforeUnmount(stopLive);
 // own research and planets for flight times come from the own empire page, the own points (noob protection) from the statistics
 useLiveReload(fetchContext, (e) => (tables('empire')(e) && e.userId === ctx.value?.me.id) || tables('group_members', 'player_scores', 'market_rates', 'universe')(e));
+// the start opens the pages: claims, comments and plans may have come in meanwhile
+watch(started, (now, before) => {
+  if (now && before === false) {
+    reloadKey.value++;
+    load();
+  }
+});
 
 function changeGroup() {
   navOpen.value = false;
@@ -223,7 +240,7 @@ const tabs = [
       </select>
       <div v-else-if="ctx" class="muted small" style="padding: 0 10px">{{ t('nav.allianceName', { name: ctx.group.name }) }}</div>
       <nav>
-        <template v-for="l in links.filter((x) => endedAt == null || x.to !== 'paste')" :key="l.to ?? l.section">
+        <template v-for="l in links.filter((x) => running || x.to !== 'paste')" :key="l.to ?? l.section">
           <div v-if="l.section" class="section">{{ t(`nav.${l.section}`) }}</div>
           <RouterLink v-else :to="`/${uni}/${l.to}`">
             <Icon :name="l.icon!" />{{ t(`nav.${l.label}`) }}
@@ -245,17 +262,23 @@ const tabs = [
     <main class="main">
       <div v-if="error" class="error">{{ error }}</div>
       <template v-else-if="ctx">
-        <div v-if="endedAt != null" class="warn ended-banner">{{ t('nav.universeEnded', { time: dateTime(endedAt) }) }}</div>
-        <RouterView :key="reloadKey" />
+        <div v-if="ended" class="warn ended-banner">{{ t('nav.universeEnded', { time: dateTime(endedAt) }) }}</div>
+        <div v-else-if="!started && !waiting" class="warn ended-banner">{{ t('nav.universeStarts', { time: dateTime(startsAt) }) }}</div>
+        <div v-if="waiting" class="card starts-card">
+          <h2>{{ ctx.universe.name }}</h2>
+          <p>{{ t('nav.universeStarts', { time: dateTime(startsAt) }) }}</p>
+          <p class="starts-countdown"><Countdown :to="startsAt!" /></p>
+        </div>
+        <RouterView v-else :key="reloadKey" />
         <PlayerDialog />
-        <SyncSheet v-if="endedAt == null" v-model="syncOpen" />
+        <SyncSheet v-if="running" v-model="syncOpen" />
         <LiveToasts />
       </template>
       <Loading v-else :lines="5" />
     </main>
     <nav class="tabbar" :aria-label="t('nav.menu')">
       <RouterLink v-for="tb in tabs.slice(0, 2)" :key="tb.to" :to="`/${uni}/${tb.to}`"><Icon :name="tb.icon" />{{ t(`nav.${tb.label}`) }}</RouterLink>
-      <button v-if="endedAt == null" class="tab-sync" :class="{ active: syncOpen }" :aria-label="t('nav.quickSync')" @click="syncOpen = !syncOpen">
+      <button v-if="running" class="tab-sync" :class="{ active: syncOpen }" :aria-label="t('nav.quickSync')" @click="syncOpen = !syncOpen">
         <span class="sync-dot"><Icon name="sync" /></span>{{ t('nav.syncShort') }}
       </button>
       <RouterLink v-for="tb in tabs.slice(2)" :key="tb.to" :to="`/${uni}/${tb.to}`"><Icon :name="tb.icon" />{{ t(`nav.${tb.label}`) }}</RouterLink>

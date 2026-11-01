@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Universen planen: Admins können für ein Universum einen Starttermin und optional ein Ende festlegen. Bis zum Start zeigt das Universum einen Countdown, danach geht es von selbst los; zum Ende wird es automatisch eingefroren.',
+        en: 'Scheduled universes: admins can set a start and optionally an end for a universe. Until the start it shows a countdown, then it opens by itself; at the end it is frozen automatically.',
+      },
+      {
+        kind: 'new',
         de: 'Beendete Universen: Admins können ein Universum beenden, wenn es vorbei ist. Es wird eingefroren: Alle Daten bleiben lesbar, Ressourcen und Countdowns stehen still, synchronisieren und ändern geht nicht mehr, Benachrichtigungen ruhen. Bei Bedarf lässt es sich wieder öffnen.',
         en: 'Ended universes: admins can end a universe once it is over. It is frozen: all data stays readable, resources and countdowns stand still, syncing and changes are no longer possible, notifications rest. It can be reopened if needed.',
       },
