@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { nowSec } from '../clock';
 import Section from './Section.vue';
 import Hint from './Hint.vue';
 import { computed, onMounted, ref } from 'vue';
@@ -17,11 +18,11 @@ const views = ref<{ g: number; s: number; seen_at: number; username: string | nu
 /** systems per heatmap row */
 const PER_ROW = 50;
 
-const now = ref(Math.floor(Date.now() / 1000));
+const now = ref(nowSec());
 async function load() {
   try {
     views.value = await uniApi(uni.value, '/galaxy-views');
-    now.value = Math.floor(Date.now() / 1000);
+    now.value = nowSec();
   } catch {
     /* only a heat map: the page shows the error of its own data */
   }

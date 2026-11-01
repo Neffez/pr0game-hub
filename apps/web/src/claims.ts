@@ -1,6 +1,6 @@
 import { ref } from 'vue';
 import { uniApi } from './api';
-import { upcoming } from './clock';
+import { nowSec, upcoming } from './clock';
 
 /** Target a member claimed for a while (server: routes/claims.ts). */
 export interface Claim {
@@ -26,17 +26,17 @@ export const CLAIM_MINUTES = [30, 60, 120, 240, 480, 1440];
 
 const claims = ref<Claim[]>([]);
 /** Seconds now, ticking: claims run out without a reload. */
-export const clock = ref(Math.floor(Date.now() / 1000));
+export const clock = ref(nowSec());
 let ticker: ReturnType<typeof setInterval> | undefined;
 
 /** Active claims of the group (loaded by the layout, kept up to date by live events). */
 export const activeClaims = upcoming(claims, (c) => c.expires_at, clock);
 
 export async function loadClaims(uni: string) {
-  ticker ??= setInterval(() => (clock.value = Math.floor(Date.now() / 1000)), 15_000);
+  ticker ??= setInterval(() => (clock.value = nowSec()), 15_000);
   try {
     claims.value = await uniApi<Claim[]>(uni, '/claims');
-    clock.value = Math.floor(Date.now() / 1000);
+    clock.value = nowSec();
   } catch {
     /* kept until the next reload */
   }

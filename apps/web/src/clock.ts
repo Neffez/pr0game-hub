@@ -5,7 +5,19 @@ import { computed, onScopeDispose, readonly, ref, type Ref } from 'vue';
  * rarely changes (`upcoming`, counts, keys), the visible seconds come from `<Ticker>` / `<Countdown>`, which render
  * only themselves.
  */
-export const nowSec = () => Math.floor(Date.now() / 1000);
+export const nowSec = () => {
+  const t = Math.floor(Date.now() / 1000);
+  return frozenAt != null ? Math.min(t, frozenAt) : t;
+};
+
+/** End of the open universe when it has ended: its time stands still there (nothing counts up or down any more). */
+let frozenAt: number | null = null;
+
+/** Stops the clock at the end of an ended universe (`null`: it runs again). */
+export function freezeClock(at: number | null | undefined) {
+  frozenAt = at ?? null;
+  tick.value = nowSec();
+}
 
 /** One shared second clock; runs while at least one component uses it. */
 const tick = ref(nowSec());

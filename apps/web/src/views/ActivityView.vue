@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { nowSec } from '../clock';
 import PageHeader from '../components/PageHeader.vue';
 import Section from '../components/Section.vue';
 import Icon from '../components/Icon.vue';
@@ -60,7 +61,7 @@ const days = useStored('activity.days', 3);
 const hidden = useStored<string[]>('activity.hidden', []);
 const minHours = useStored('activity.minHours', 6);
 const { data, error, load } = useLoader(() =>
-  uniApi<{ counts: Record<string, number>; entries: Entry[] }>(uni.value, `/activity?from=${Math.floor(Date.now() / 1000) - days.value * 86400}`),
+  uniApi<{ counts: Record<string, number>; entries: Entry[] }>(uni.value, `/activity?from=${nowSec() - days.value * 86400}`),
 );
 onMounted(load);
 useLiveReload(load, tables('activity_log', 'player_scores', 'spy_reports', 'galaxy_systems', 'market_offers'));

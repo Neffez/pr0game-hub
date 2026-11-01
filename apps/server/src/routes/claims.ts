@@ -63,7 +63,7 @@ export function claimsRoutes(app: FastifyInstance, db: DB) {
          LEFT JOIN players pr ON pr.id = pl.player_id
          WHERE c.group_id = ? AND ${ACTIVE} ORDER BY c.expires_at`,
       )
-      .all(ctx.groupId, now());
+      .all(ctx.groupId, ctx.now);
   });
 
   app.post<{ Params: { uni: string }; Body: ClaimBody }>('/api/:uni/claims', async (req) => {

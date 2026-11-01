@@ -100,7 +100,7 @@ export class GroupDebounce {
 /** The universe a group belongs to. */
 export function groupUniverse(db: DB, groupId: number): Universe | null {
   const row = db
-    .prepare('SELECT u.id, u.slug, u.name, u.settings, u.deck_config FROM groups g JOIN universes u ON u.id = g.universe_id WHERE g.id = ?')
+    .prepare('SELECT u.id, u.slug, u.name, u.settings, u.deck_config, u.ended_at FROM groups g JOIN universes u ON u.id = g.universe_id WHERE g.id = ?')
     .get(groupId) as Parameters<typeof toUniverse>[0] | undefined;
   return row ? toUniverse(row) : null;
 }

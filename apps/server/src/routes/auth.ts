@@ -65,7 +65,7 @@ export function authRoutes(app: FastifyInstance, db: DB) {
     if (!req.user) return { user: null, groups: [], defaultUniverse: null };
     const groups = db
       .prepare(
-        `SELECT g.id, g.name, m.role, u.slug AS universe, u.name AS universe_name
+        `SELECT g.id, g.name, m.role, u.slug AS universe, u.name AS universe_name, u.ended_at AS universe_ended_at
          FROM group_members m JOIN groups g ON g.id = m.group_id JOIN universes u ON u.id = g.universe_id
          WHERE m.user_id = ? ORDER BY u.slug, g.name`,
       )

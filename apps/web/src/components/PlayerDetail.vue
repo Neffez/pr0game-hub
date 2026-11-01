@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { nowSec } from '../clock';
 import Section from './Section.vue';
 import Icon from './Icon.vue';
 import ActivityPattern from './ActivityPattern.vue';
@@ -168,7 +169,7 @@ onBeforeUnmount(() => chart?.destroy());
 
     <Section :title="t('player.research')" store-key="player.research" :default-open-mobile="false">
       <template #hint>
-        <span v-if="data.research" class="small" :style="{ color: freshnessColor(Date.now() / 1000 - data.research.time) }">{{ sourceText(data.research) }}</span>
+        <span v-if="data.research" class="small" :style="{ color: freshnessColor(nowSec() - data.research.time) }">{{ sourceText(data.research) }}</span>
       </template>
       <div v-if="data.research" class="research">
         <div v-for="grp in RESEARCH_GROUPS" :key="grp.label">

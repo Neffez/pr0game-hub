@@ -135,6 +135,21 @@ const saveUni = () =>
     await loadMe();
   }, 'deck.saved');
 
+/** The stored universe being edited (its end is not part of the edit form). */
+const editedUni = computed(() => universes.value.find((x: { slug: string }) => x.slug === editUni.value?.slug));
+
+/** Ends the universe (frozen, read-only) or lets an ended one run again. */
+function toggleEnded(u: { slug: string; name: string; endedAt?: number | null }) {
+  const ended = u.endedAt == null;
+  if (!confirm(t(ended ? 'admin.endUniverseConfirm' : 'admin.reopenUniverseConfirm', { name: u.name }))) return;
+  return run(async () => {
+    await api(`/admin/universes/${u.slug}`, { method: 'PUT', body: { ended } });
+    editUni.value = null;
+    await loadAll();
+    await loadMe();
+  }, ended ? 'admin.universeEnded' : 'admin.universeReopened');
+}
+
 /** Drops the custom deck so the universe falls back to the game's default deck. */
 const resetDeck = () =>
   run(async () => {
@@ -327,7 +342,7 @@ const doMerge = () => run(async () => {
           <tr><th>Slug</th><th>{{ t('common.name') }}</th><th>{{ t('admin.gameUrl') }}</th><th>{{ t('admin.size') }}</th><th>{{ t('admin.timezone') }}</th><th /></tr>
           <tr v-for="u in universes" :key="u.slug">
             <td class="mono">{{ u.slug }}</td>
-            <td>{{ u.name }}<span v-if="u.isDefault" class="badge" style="margin-left: 6px">{{ t('admin.defaultBadge') }}</span></td>
+            <td>{{ u.name }}<span v-if="u.isDefault" class="badge" style="margin-left: 6px">{{ t('admin.defaultBadge') }}</span><span v-if="u.endedAt != null" class="badge" style="margin-left: 6px" :title="t('admin.endedAt', { time: dateTime(u.endedAt) })">{{ t('admin.endedBadge') }}</span></td>
             <td class="small">{{ u.settings.gameUrl || '–' }}</td>
             <td class="small">{{ u.settings.galaxies }} × {{ u.settings.systems }} × {{ u.settings.positions }}</td>
             <td class="small">{{ u.settings.timezone }}</td>
@@ -468,6 +483,11 @@ const doMerge = () => run(async () => {
           <div>
             <button class="primary" @click="saveUni">{{ t('common.save') }}</button>
             <button @click="editUni = null">{{ t('common.cancel') }}</button>
+            <span class="grow" />
+            <template v-if="editedUni">
+              <button :class="{ danger: editedUni.endedAt == null }" @click="toggleEnded(editedUni)">{{ t(editedUni.endedAt == null ? 'admin.endUniverse' : 'admin.reopenUniverse') }}</button>
+              <Hint>{{ t('admin.endUniverseHint') }}</Hint>
+            </template>
           </div>
         </div>
       </Section>

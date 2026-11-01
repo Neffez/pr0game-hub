@@ -96,8 +96,8 @@ export function imperiumRoutes(app: FastifyInstance, db: DB) {
       overview: overview ? { time: overview.time, data: JSON.parse(overview.data) } : null,
       fleets,
       // the viewer's own alerts for their fleets
-      fleetAlerts: userId === ctx.user.id ? openFleetAlerts(db, ctx, userId, now()) : null,
-      fleetHistory: fleetHistory(db, ctx.groupId, userId, ctx.user.id, now() - FLEET_HISTORY),
+      fleetAlerts: userId === ctx.user.id ? openFleetAlerts(db, ctx, userId, ctx.now) : null,
+      fleetHistory: fleetHistory(db, ctx.groupId, userId, ctx.user.id, ctx.now - FLEET_HISTORY),
       player: player ? { ...player, stats: Object.fromEntries(stats.map((s) => [s.type, s])) } : null,
       fleetBase: fleetBase && basePoints && anchorFleet != null ? { time: fleetBase.time, points: basePoints.fleet, stat: anchorFleet } : null,
       leader: leader ? { name: leader.name, buildings: leader.buildings, research: leader.research, fleet: leader.fleet, weighted: leader.weighted } : null,
@@ -181,7 +181,7 @@ export function imperiumRoutes(app: FastifyInstance, db: DB) {
     }[] = rows.map((r) => {
       const e = latestEmpire(db, ctx, r.user_id);
       const f = sharedFleets(db, ctx.groupId, r.user_id, ctx.user.id);
-      const history = f ? fleetHistory(db, ctx.groupId, r.user_id, ctx.user.id, now() - FLEET_HISTORY) : [];
+      const history = f ? fleetHistory(db, ctx.groupId, r.user_id, ctx.user.id, ctx.now - FLEET_HISTORY) : [];
       const playerId = players.get(r.user_id) ?? null;
       const spy = !e && playerId ? spyEmpire(db, ctx, playerId, playerName.get(playerId) as string) : null;
       return {

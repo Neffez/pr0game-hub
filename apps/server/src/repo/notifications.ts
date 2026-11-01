@@ -1,6 +1,6 @@
 import { distance, drivesFromResearch, flightDuration, launchFor, slowestShip } from '@pr0hub/flight';
 import type { SessionUser } from '../auth.js';
-import { resolveGroup, type GroupContext, type Universe } from '../context.js';
+import { resolveGroup, universeNow, type GroupContext, type Universe } from '../context.js';
 import type { DB } from '../db.js';
 import { alertDone, alertsOf, buildingsState, planetElements, planetOf, storagesOf, type BuildingsState } from './buildings.js';
 import { FLEET_KEEP, openFleetAlerts } from './fleetAlerts.js';
@@ -164,7 +164,7 @@ export function notificationsFor(db: DB, ctx: GroupContext, t: number): Notifica
 export function channelNotificationsFor(db: DB, universe: Universe, groupId: number, t: number): ChannelNotification[] {
   const group = db.prepare('SELECT name FROM groups WHERE id = ?').pluck().get(groupId) as string | undefined;
   if (group == null) return [];
-  const ctxOf = (user: SessionUser): GroupContext => ({ user, universe, groupId, groupName: group, role: 'member' });
+  const ctxOf = (user: SessionUser): GroupContext => ({ user, universe, groupId, groupName: group, role: 'member', now: universeNow(universe, t) });
   const channel = ctxOf({ id: 0, username: '', isAdmin: false, lang: 'de', dateFormat: 'auto' });
   const launching = db
     .prepare(

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { nowSec } from '../clock';
 import ShowMore from '../components/ShowMore.vue';
 import PageHeader from '../components/PageHeader.vue';
 import MemberSelect from '../components/MemberSelect.vue';
@@ -17,7 +18,7 @@ const days = useStored('raids.days', 7);
 /** null = whole alliance, otherwise one member */
 const member = useStored<number | null>('raids.member', null);
 
-const { data, error, load } = useLoader<any>(() => uniApi(uni.value, `/raids?from=${Math.floor(Date.now() / 1000) - days.value * 86400}`));
+const { data, error, load } = useLoader<any>(() => uniApi(uni.value, `/raids?from=${nowSec() - days.value * 86400}`));
 onMounted(load);
 useLiveReload(load, tables('battle_reports', 'recycle_reports'));
 watch(days, load);

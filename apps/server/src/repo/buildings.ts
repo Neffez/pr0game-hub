@@ -79,7 +79,7 @@ function landing(f: StoredFleet): boolean {
   return f.owner === 'foreign' && f.phase === 'out' && f.mission === 3;
 }
 
-export function buildingsState(db: DB, ctx: GroupContext, userId: number, t = now()): BuildingsState {
+export function buildingsState(db: DB, ctx: GroupContext, userId: number, t = ctx.now): BuildingsState {
   const empire = latestEmpire(db, ctx, userId);
   const pages = (
     db

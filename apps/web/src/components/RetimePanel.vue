@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { nowSec } from '../clock';
 import Icon from './Icon.vue';
 import DateTimeInput from './DateTimeInput.vue';
 import EnemySummary from './EnemySummary.vue';
@@ -130,7 +131,7 @@ const ships = (s: Record<string, number>) =>
     .join(', ');
 const drivesOld = computed(() => {
   const e = enemy.value;
-  return !e.drives_time || Date.now() / 1000 - e.drives_time > DRIVES_MAX_AGE;
+  return !e.drives_time || nowSec() - e.drives_time > DRIVES_MAX_AGE;
 });
 
 async function save() {

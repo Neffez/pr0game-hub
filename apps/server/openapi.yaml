@@ -10,6 +10,11 @@ info:
     **Browser writes:** Requests other than GET/HEAD/OPTIONS that carry an `Origin` header from another origin than
     the hub's are refused with 403 (`cross_origin`).
 
+    **Ended universes:** A universe a hub admin has ended is frozen at its end (`endedAt` in the universe): GET
+    requests keep working and show the data as at that time; other requests to its routes are refused with 409
+    (`universe_ended`), except the battle simulator and the presence and hidden-buildings routes, which store no game
+    data.
+
     **Group scope:** For universe routes, send `X-Hub-Group` with the alliance group id, or `group` as a query parameter.
     If omitted, the first group you belong to in that universe is used.
 
@@ -677,6 +682,7 @@ components:
         role: { type: string, enum: [member, admin] }
         universe: { type: string }
         universe_name: { type: string }
+        universe_ended_at: { type: [integer, 'null'], description: 'When the universe was ended (epoch seconds), null while it runs' }
     Me:
       type: object
       properties:
@@ -741,7 +747,8 @@ components:
             `noob_inactives`, default 0 = unknown, 5 and false; weak/strong are derived from them and `player.points`),
             `fleetDebrisPercent` and `defenseDebrisPercent` (game config `fleet_debris_percentage` and
             `def_debris_percentage`, 0-100, default 40 and 0) and `bigShields` (boolean, default false: shield domes
-            must fall before other units can be hit); passed on to the battle simulator.
+            must fall before other units can be hit); passed on to the battle simulator. `endedAt`: when a hub admin
+            ended the universe (epoch seconds; it is frozen and read-only from then on), null while it runs.
         group:
           type: object
           properties:
@@ -1568,7 +1575,7 @@ paths:
       operationId: listUniverses
       responses:
         '200':
-          description: 'Universes the user can access; each carries `isDefault` (the universe the start page forwards to)'
+          description: 'Universes the user can access; each carries `isDefault` (the universe the start page forwards to) and `endedAt` (epoch seconds when it was ended, null while it runs)'
           content:
             application/json:
               schema:
@@ -2996,7 +3003,7 @@ paths:
       tags: [Social]
       operationId: getNotifications
       description: |
-        Current notifications, earliest first: `attack` (hostile fleets heading for a member, from the members' shared
+        Current notifications, earliest first (none in an ended universe): `attack` (hostile fleets heading for a member, from the members' shared
         fleet lists; `fleet`, `fleets`), `invite` (the caller's open invitations to a raid planner plan in planning;
         `plan`, `member` is who invited, `time` its target time, valid until the end of its day or hour by
         `plan.time_precision`), `comment` (comments of others of the last 48 hours in a thread the caller wrote in, after

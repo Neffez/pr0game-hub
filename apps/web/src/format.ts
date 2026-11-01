@@ -5,6 +5,7 @@ import { encodeShare, type LootState } from '@pr0hub/loot';
 import { compressToEncodedURIComponent } from 'lz-string';
 import { ref } from 'vue';
 import { currentLang, intlLocale, t } from './i18n';
+import { nowSec } from './clock';
 
 /** Intl formatters per locale and options: toLocaleString creates one per call, tables format thousands of values. */
 const formats = new Map<string, Intl.NumberFormat | Intl.DateTimeFormat>();
@@ -87,7 +88,7 @@ export function dateTime(epoch: number | null | undefined): string {
 
 export function ago(epoch: number | null | undefined): string {
   if (!epoch) return '–';
-  const s = Math.floor(Date.now() / 1000) - epoch;
+  const s = nowSec() - epoch;
   if (s < 0) return t('time.soon');
   if (s < 3600) return `${Math.max(1, Math.floor(s / 60))} min`;
   if (s < 86400 * 2) return `${Math.floor(s / 3600)} h`;
@@ -213,7 +214,7 @@ export function timeWithAge(epoch: number | null | undefined): string {
   const time = cached('dts', (l) => new Intl.DateTimeFormat(l, {
     day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', hourCycle: 'h23', minute: '2-digit', second: '2-digit',
   })).format(epoch * 1000);
-  const s = Math.max(0, Math.floor(Date.now() / 1000) - epoch);
+  const s = Math.max(0, nowSec() - epoch);
   return `${time} (${s < 3600 ? `${Math.floor(s / 60)} min` : `${Math.floor(s / 3600)} h`})`;
 }
 

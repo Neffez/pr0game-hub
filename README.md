@@ -44,7 +44,7 @@ External analysis tool for [pr0game](https://codeberg.org/pr0game/pr0game) based
   on top; a data status shows who still has to sync what; "Finalize" freezes it for the deliveries, which transport
   reports tick off
 - **Raid statistics** (incl. recycling), **expeditions**, **expedition deck** (card counting), **battle hall** archive
-- **Admin**: universes (size, distance factors, fleet speed, time zone, deck), groups, members (including placeholders by in-game name with claim links), ingest log with reparse, player merge
+- **Admin**: universes (size, distance factors, fleet speed, time zone, deck; ending a finished universe freezes it read-only), groups, members (including placeholders by in-game name with claim links), ingest log with reparse, player merge
 - **Notifications**: bell with hostile fleets heading for members (from the synced fleet movements), raid planner
   invitations, new comments in your threads, your launch times, finalized loot settlements with your deliveries and
   full storages on your planets (by the production

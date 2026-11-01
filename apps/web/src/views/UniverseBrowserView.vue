@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { nowSec } from '../clock';
 import PageHeader from '../components/PageHeader.vue';
 import Icon from '../components/Icon.vue';
 import PresenceBadge from '../components/PresenceBadge.vue';
@@ -77,7 +78,7 @@ interface Phalanx {
 }
 
 /** reference time of the ages shown (the data's load time) */
-const now = ref(Math.floor(Date.now() / 1000));
+const now = ref(nowSec());
 
 const { data: system, error, load: fetchSystem } = useLoader(() =>
   uniApi<{ view: { seen_at: number; username: string } | null; rows: Row[]; phalanx: Phalanx[] }>(uni.value, `/browse/${g.value}/${s.value}`),
@@ -86,7 +87,7 @@ const { data: strip, load: loadStrip } = useLoader(() =>
   uniApi<{ planets: Record<string, number>; seen: Record<string, number>; own: number[] }>(uni.value, `/browse/${g.value}`),
 );
 function loadSystem() {
-  now.value = Math.floor(Date.now() / 1000);
+  now.value = nowSec();
   last.value = { g: g.value, s: s.value };
   router.replace({ query: { ...route.query, g: g.value, s: s.value } });
   return fetchSystem();

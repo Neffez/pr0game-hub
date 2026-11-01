@@ -192,7 +192,8 @@ export class PushService {
   async deliver(groupId: number, t = now()) {
     if (!this.enabled) return;
     const universe = groupUniverse(this.db, groupId);
-    if (!universe) return;
+    // an ended universe sends nothing any more
+    if (!universe || universe.endedAt != null) return;
     // when the ticks look at the group's building and fleet alerts and storages again (also when nobody here gets anything)
     this.alerts.plan(groupId, universe, t);
     const users = this.db

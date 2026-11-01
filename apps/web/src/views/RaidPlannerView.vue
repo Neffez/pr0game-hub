@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { nowSec } from '../clock';
 import Loading from '../components/Loading.vue';
 import ActionMenu from '../components/ActionMenu.vue';
 import Countdown from '../components/Countdown.vue';
@@ -53,9 +54,9 @@ watch(
 );
 
 // ---- new plan ----
-const form = reactive({ open: false, draft: newDraft(Math.floor(Date.now() / 1000)) });
+const form = reactive({ open: false, draft: newDraft(nowSec()) });
 function openForm(target = '', type: 'planet' | 'moon' = 'planet') {
-  form.draft = newDraft(Math.floor(Date.now() / 1000), target, type);
+  form.draft = newDraft(nowSec(), target, type);
   form.open = true;
 }
 /** `?new=<g:s:p>&type=moon` (planet action menu): the form filled in. */
