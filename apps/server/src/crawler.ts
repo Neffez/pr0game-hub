@@ -64,7 +64,8 @@ export function startCrawler(db: DB, log: Log) {
  */
 export async function step(db: DB, log: Log, fetcher = fetch): Promise<'done' | 'idle' | 'transient'> {
   // newest first: small reports of today are the ones the game deletes soonest;
-  // universes without game URL are skipped until it is set, paused ones until their next attempt, ended ones for good
+  // universes without game URL are skipped until it is set, paused ones until their next attempt;
+  // ended universes still get the reports of their battle hall archived (the hall poller adds no new entries there)
   const now = Date.now();
   const paused = [...crawlerState].filter(([, s]) => s.stopped || s.nextAttempt > now).map(([id]) => id);
   const job = db
@@ -72,7 +73,7 @@ export async function step(db: DB, log: Log, fetcher = fetch): Promise<'done' | 
       `SELECT h.group_id, h.report_id, h.time, u.id AS universe, u.settings FROM battle_hall h
        JOIN groups g ON g.id = h.group_id JOIN universes u ON u.id = g.universe_id
        WHERE h.report_status IS NULL AND h.report_tries < ${MAX_TRIES}
-         AND COALESCE(json_extract(u.settings, '$.gameUrl'), '') != '' AND u.ended_at IS NULL
+         AND COALESCE(json_extract(u.settings, '$.gameUrl'), '') != ''
          AND u.id NOT IN (SELECT value FROM json_each(?))
          AND NOT EXISTS (SELECT 1 FROM combat_reports c WHERE c.group_id = h.group_id AND c.report_id = h.report_id)
        ORDER BY h.time DESC LIMIT 1`,

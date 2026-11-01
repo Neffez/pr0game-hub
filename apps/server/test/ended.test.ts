@@ -6,6 +6,8 @@ process.env.WEB_DIR = '/nonexistent';
 const { buildApp } = await import('../src/app.js');
 const { openDb } = await import('../src/db.js');
 const { hashPassword } = await import('../src/auth.js');
+const { step } = await import('../src/crawler.js');
+const { pollBattleHall } = await import('../src/hallPoller.js');
 
 const fixture = (name: string) => readFileSync(new URL(`../../../packages/parser/test/fixtures/${name}`, import.meta.url), 'utf8');
 
@@ -57,5 +59,23 @@ describe('ended universe', () => {
     expect((await end(false)).statusCode).toBe(200);
     expect((await app.inject({ method: 'GET', url: '/hub/api/u8/context', headers })).json().universe.endedAt).toBeNull();
     expect((await ingest(html)).statusCode).toBe(200);
+  });
+
+  it('still archives the battle hall reports, but polls no new entries', async () => {
+    const group = Number(headers['x-hub-group']);
+    await app.inject({ method: 'PUT', url: '/hub/api/admin/universes/u8', headers, payload: { settings: { gameUrl: 'https://pr0game.com/uni8/' } } });
+    db.prepare(`INSERT INTO battle_hall (group_id, report_id, time, attackers, defenders, units) VALUES (?, 'r1', 1, '[]', '[]', 1)`).run(group);
+    await end(true);
+    const urls: string[] = [];
+    const fetcher = (async (url: string) => {
+      urls.push(url);
+      return { ok: true, text: async () => '<title>Info - Universum 8</title> Contact with the attacking fleet was lost (i.e. it was shot down in the first round).' };
+    }) as unknown as typeof fetch;
+    const log = { info() {}, warn() {}, error() {} } as never;
+    expect(await step(db, log, fetcher)).toBe('done');
+    expect(urls[0]).toContain('raport=r1');
+    expect(await pollBattleHall(db, log, fetcher)).toEqual({});
+    expect(urls).toHaveLength(1);
+    await end(false);
   });
 });

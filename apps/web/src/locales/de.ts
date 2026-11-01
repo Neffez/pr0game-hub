@@ -1024,7 +1024,7 @@ const de = {
     endedAt: 'Beendet am {time}',
     endUniverse: 'Universum beenden',
     reopenUniverse: 'Wieder öffnen',
-    endUniverseHint: 'Ein beendetes Universum wird eingefroren: Alle Daten bleiben lesbar, aber es kann nichts mehr synchronisiert oder geändert werden, Ressourcen und Countdowns laufen nicht weiter, Benachrichtigungen, Crawler und Battle-Hall-Abruf ruhen. Wieder öffnen hebt das auf.',
+    endUniverseHint: 'Ein beendetes Universum wird eingefroren: Alle Daten bleiben lesbar, aber es kann nichts mehr synchronisiert oder geändert werden, Ressourcen und Countdowns laufen nicht weiter, Benachrichtigungen und Battle-Hall-Abruf ruhen; der Crawler archiviert noch die Kampfberichte, die schon in der Battle Hall stehen. Wieder öffnen hebt das auf.',
     endUniverseConfirm: '„{name}“ beenden? Das Universum wird eingefroren und ist danach nur noch lesbar.',
     reopenUniverseConfirm: '„{name}“ wieder öffnen? Synchronisieren und Ändern sind dann wieder möglich.',
     universeEnded: 'Universum beendet',

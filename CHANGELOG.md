@@ -12,7 +12,8 @@ Every commit adds its changes here, newest first, grouped by date.
   - Every other request to its routes is refused with 409 `universe_ended` (central check in the API pre-handler;
     routes that store no game data opt out with `allowToken` or the new route config `allowEnded`: battle simulator,
     presence, hidden buildings). `GET /plans` no longer syncs or recalls plans, presence no longer records activity.
-  - Notifications are empty; push and Discord reminders, the crawler and the battle hall poller skip the universe.
+  - Notifications are empty; push and Discord reminders and the battle hall poller skip the universe. The crawler
+    keeps archiving the reports already in its battle hall, so the archive is complete before the game deletes them.
   - Web: the shared clock stops at the end (`freezeClock`, `nowSec` everywhere game time is shown), so resources in
     the empire, countdowns and "ago" times stand still; a banner explains it, the sync entry and button are hidden,
     the universe list and the admin table show an "Ended" badge.

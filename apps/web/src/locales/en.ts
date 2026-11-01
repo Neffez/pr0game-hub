@@ -1022,7 +1022,7 @@ const en: typeof de = {
     endedAt: 'Ended on {time}',
     endUniverse: 'End universe',
     reopenUniverse: 'Reopen',
-    endUniverseHint: 'An ended universe is frozen: all data stays readable, but nothing can be synced or changed any more, resources and countdowns stop, notifications, the crawler and the battle hall polling rest. Reopening undoes this.',
+    endUniverseHint: 'An ended universe is frozen: all data stays readable, but nothing can be synced or changed any more, resources and countdowns stop, notifications and the battle hall polling rest; the crawler still archives the battle reports already in the battle hall. Reopening undoes this.',
     endUniverseConfirm: 'End “{name}”? The universe is frozen and read-only afterwards.',
     reopenUniverseConfirm: 'Reopen “{name}”? Syncing and changes are possible again.',
     universeEnded: 'Universe ended',
