@@ -32,6 +32,8 @@ export interface StepResult {
   /** cost paid at the start */
   cost: Record<number, number> | null;
   wait: WaitReason | null;
+  /** resources beyond the storage that have to come by transport (overflow), null when none */
+  transport: Record<number, number> | null;
 }
 
 export interface Simulation {
@@ -131,7 +133,7 @@ export function simulate(order: BuildOrder, hub: HubState, o: SimulateOptions): 
     planets.push({
       key: hp.key, type: hp.type, levels, res, rate: { 901: 0, 902: 0, 903: 0 }, cap,
       syncedCap: { level: Object.fromEntries(RES.map((r) => [r, levels[STORAGE[r]] ?? 0])), cap: { ...cap } },
-      temp: hp.temp ?? 0, factors: {}, calibration: { 901: 1, 902: 1, 903: 1 }, build, shipyard,
+      temp: hp.temp ?? 0, factors: { ...(hp.factors ?? {}) }, calibration: { 901: 1, 902: 1, 903: 1 }, build, shipyard,
       arrivals: hp.arrivals.filter((a) => a.at > o.now).map((a) => ({ at: a.at, resources: a.resources })),
       steps: order.planets[hp.key] ?? [], head: 0, waitUntil: o.now, wait: null,
     });
@@ -188,8 +190,8 @@ export function simulate(order: BuildOrder, hub: HubState, o: SimulateOptions): 
       const s = p.steps[p.head];
       const target = targets.get(s.id) ?? null;
       const done: DoneState = doneStateOf(s, target ?? undefined, p.key, hub);
-      if (s.deactivated) record(p, s, { target, state: 'deactivated', start: null, end: null, cost: null, wait: null });
-      else if (done !== 'open') record(p, s, { target, state: done, start: null, end: null, cost: null, wait: null });
+      if (s.deactivated) record(p, s, { target, state: 'deactivated', start: null, end: null, cost: null, wait: null, transport: null });
+      else if (done !== 'open') record(p, s, { target, state: done, start: null, end: null, cost: null, wait: null, transport: null });
       else return;
       p.head++;
     }
@@ -198,17 +200,29 @@ export function simulate(order: BuildOrder, hub: HubState, o: SimulateOptions): 
 
   const levelOf = (p: Planet, id: number) => p.build.reduce((l, q) => (q.id === id ? q.level : l), p.levels[id] ?? 0);
   const researchLevelOf = (id: number) => researchQueue.reduce((l, q) => (q.id === id ? q.level : l), research[id] ?? 0);
+  /**
+   * When the resources for `cost` are there. More than the storage holds: production stops at the capacity, but
+   * fleets may bring more (overflow); landing fleets or a storage being built are waited for, else the rest is
+   * assumed to come by transport once the storage is full (`overflow`, the start books it).
+   */
   const ready = (p: Planet, cost: Record<number, number>, t: number): Check => {
     let at = t;
+    let overflow = false;
     for (const r of RES) {
       const need = cost[r] ?? 0;
       if (need <= p.res[r] + 1e-9) continue;
-      // more than the storage holds: only landing fleets or a storage being built can help
-      if (need > p.cap[r]) return { ok: false, wait: 'storage', never: !p.arrivals.length && !p.build.some((q) => q.id === STORAGE[r]) };
+      if (need > p.cap[r]) {
+        const landing = p.arrivals.reduce((s, a) => s + (a.resources[r] ?? 0), 0);
+        if (p.res[r] + landing >= need || p.build.some((q) => q.id === STORAGE[r])) return { ok: false, wait: 'storage' };
+        overflow = true;
+        if (p.res[r] < p.cap[r] && p.rate[r] > 0) at = Math.max(at, t + Math.ceil(((p.cap[r] - p.res[r]) / p.rate[r]) * 3600));
+        continue;
+      }
       if (p.rate[r] <= 0) return { ok: false, wait: 'resources' };
       at = Math.max(at, t + Math.ceil(((need - p.res[r]) / p.rate[r]) * 3600));
     }
-    return at <= t ? { ok: true } : { ok: false, wait: 'resources', readyAt: at };
+    if (at > t) return { ok: false, wait: overflow ? 'storage' : 'resources', readyAt: at };
+    return { ok: true, wait: overflow ? 'storage' : undefined };
   };
   const unmet = (p: Planet, id: number) => requirementsOf(id, p.levels, research).some((r) => r.own < r.need);
   /**
@@ -337,8 +351,20 @@ export function simulate(order: BuildOrder, hub: HubState, o: SimulateOptions): 
         break;
       }
     }
+    // beyond the storage: the rest comes by transport (overflow)
+    const transport: Record<number, number> = {};
+    for (const r of RES) {
+      const short = (cost[r] ?? 0) - p.res[r];
+      if (short > 1e-9) {
+        transport[r] = Math.ceil(short);
+        p.res[r] += short;
+      }
+    }
     pay(p, cost);
-    record(p, s, { target, state: 'planned', start: t, end, cost: Object.keys(cost).length ? cost : null, wait: p.wait });
+    record(p, s, {
+      target, state: 'planned', start: t, end, cost: Object.keys(cost).length ? cost : null, wait: p.wait,
+      transport: Object.keys(transport).length ? transport : null,
+    });
     p.wait = null;
     p.head++;
     skip(p);
@@ -346,7 +372,7 @@ export function simulate(order: BuildOrder, hub: HubState, o: SimulateOptions): 
 
   const invalid = (p: Planet, wait: WaitReason) => {
     const s = p.steps[p.head];
-    record(p, s, { target: targets.get(s.id) ?? null, state: 'invalid', start: null, end: null, cost: null, wait });
+    record(p, s, { target: targets.get(s.id) ?? null, state: 'invalid', start: null, end: null, cost: null, wait, transport: null });
     p.wait = null;
     p.head++;
     skip(p);
@@ -408,6 +434,7 @@ export function simulate(order: BuildOrder, hub: HubState, o: SimulateOptions): 
         if (p.head >= p.steps.length) continue;
         const c = check(p, p.steps[p.head], t);
         if (c.ok) {
+          if (c.wait) p.wait = c.wait;
           start(p, p.steps[p.head], t);
           started = true;
         } else if (c.never) {
@@ -452,7 +479,7 @@ export function simulate(order: BuildOrder, hub: HubState, o: SimulateOptions): 
     nextOf[key] = null;
     for (const s of list) {
       const r = resultById.get(s.id) ?? {
-        id: s.id, planet: key, target: targets.get(s.id) ?? null, state: 'invalid' as const, start: null, end: null, cost: null, wait: 'planet' as const,
+        id: s.id, planet: key, target: targets.get(s.id) ?? null, state: 'invalid' as const, start: null, end: null, cost: null, wait: 'planet' as const, transport: null,
       };
       steps.push(r);
       if (nextOf[key] == null && (r.state === 'planned' || r.state === 'invalid')) nextOf[key] = s.id;

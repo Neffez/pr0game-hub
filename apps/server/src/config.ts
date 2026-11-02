@@ -81,6 +81,8 @@ export interface UniverseSettings {
   timezone: string;
   /** game base URL incl. universe path, e.g. https://pr0game.com/uni8/ (for simulator links) */
   gameUrl: string;
+  /** pr0plan (build order planner) linked from the build order tab */
+  pr0planUrl: string;
 }
 
 export const UNIVERSE_DEFAULTS: UniverseSettings = {
@@ -103,4 +105,5 @@ export const UNIVERSE_DEFAULTS: UniverseSettings = {
   universityFactor: 8,
   timezone: 'Europe/Berlin',
   gameUrl: '',
+  pr0planUrl: 'https://pr0sync.pages.dev/',
 };

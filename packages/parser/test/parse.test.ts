@@ -553,6 +553,14 @@ describe('galaxy + empire', () => {
     });
     expect(moon).toMatchObject({ temp: 3, resources: { 901: 134160, 911: 0 } });
     expect(moon.perHour).toBeUndefined();
+    expect(ares.production).toEqual({ 901: 100 });
+    expect(moon.production).toBeUndefined();
+    // below 100 % the game shows the setting in a tooltip
+    const reduced = fixture('empire-real-source.html').replace(
+      /class="colorPositive"\s*>\s*38\.369 \/h/,
+      'class="colorNeutral tooltip" data-tooltip-content="Aktuelle Produktion 60 %">38.369 /h',
+    );
+    expect((parsePage({ text: reduced }).records[0] as any).planets[0].production).toEqual({ 901: 60 });
     expect(moon.building).toBeUndefined();
     expect(rec.researchQueue).toEqual({ id: 110, level: 14, coords: { g: 1, s: 100, p: 12 } });
     expect(rec.flying).toEqual({ 901: 2396674 });

@@ -31,7 +31,9 @@ import Ticker from './Ticker.vue';
  */
 const props = defineProps<{ hub: HubState; planetKey: string; mobile: boolean }>();
 const { t, locale } = useI18n();
-const { uni } = useUni();
+const { ctx, uni } = useUni();
+/** pr0plan as the universe settings link it (empty: none) */
+const pr0planUrl = computed(() => ctx.value?.universe.settings.pr0planUrl || '');
 const { data, error, load } = useLoader(() => uniApi<{ buildOrder: StoredBuildOrder | null }>(uni.value, '/build-order'));
 onMounted(load);
 useLiveReload(load, tables('build_orders'));
@@ -171,6 +173,9 @@ function onDrop(i: number) {
       </template>
       <span v-else class="muted">{{ t('buildOrder.none') }}</span>
       <span class="grow" />
+      <a v-if="pr0planUrl" :href="pr0planUrl" target="_blank" rel="noopener" class="small" :title="t('buildOrder.pr0planTitle')">
+        {{ t('buildOrder.pr0plan') }} <Icon name="external" :size="12" />
+      </a>
       <button class="primary small" @click="importOpen = true"><Icon name="plus" :size="14" /> {{ t('buildOrder.import') }}</button>
       <button v-if="stored" class="small" @click="removeAll">{{ t('buildOrder.delete') }}</button>
     </div>
@@ -238,7 +243,11 @@ function onDrop(i: number) {
               <span v-else>{{ t('buildOrder.startIn') }} <span class="mono">{{ countdown(r.result.start! - n) }}</span> <span class="faint">({{ clock(r.result.start!) }})</span></span>
             </Ticker>
             <span v-if="r.result.end! > r.result.start!" class="muted">{{ t('buildOrder.until', { time: clock(r.result.end!) }) }}</span>
-            <span v-if="r.result.wait" class="faint">{{ t(`buildOrder.wait.${r.result.wait}`) }}</span>
+            <span v-if="r.result.wait && !r.result.transport" class="faint">{{ t(`buildOrder.wait.${r.result.wait}`) }}</span>
+            <span v-if="r.result.transport" class="warn" :title="t('buildOrder.overflowTitle')">
+              {{ t('buildOrder.overflow') }}
+              <template v-for="id in RESOURCES" :key="id"><span v-if="r.result.transport[id]" class="bo-cost">{{ short(r.result.transport[id]) }} {{ name(id) }}</span></template>
+            </span>
             <span class="grow" />
             <span v-if="r.result.cost" class="muted">
               <template v-for="id in RESOURCES" :key="id"><span v-if="r.result.cost[id]" class="bo-cost">{{ short(r.result.cost[id]) }} {{ name(id) }}</span></template>

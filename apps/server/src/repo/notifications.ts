@@ -2,7 +2,7 @@ import { distance, drivesFromResearch, flightDuration, launchFor, slowestShip } 
 import type { SessionUser } from '../auth.js';
 import { resolveGroup, universeNow, type GroupContext, type Universe } from '../context.js';
 import type { DB } from '../db.js';
-import { buildOrderOf, nextSteps } from './buildOrders.js';
+import { buildOrderOf, nextSteps, syncBuildOrder } from './buildOrders.js';
 import { alertDone, alertsOf, buildingsState, planetElements, planetOf, storagesOf, type BuildingsState } from './buildings.js';
 import { FLEET_KEEP, openFleetAlerts } from './fleetAlerts.js';
 import { sharedFleets, type StoredFleet } from './fleets.js';
@@ -376,10 +376,11 @@ function buildings(db: DB, ctx: GroupContext, t: number, own: () => BuildingsSta
 
 /** The next steps of the viewer's build order that can start now (one per planet). */
 function buildOrder(db: DB, ctx: GroupContext, t: number, own: () => BuildingsState): BuildOrderNotification[] {
-  const stored = buildOrderOf(db, ctx, ctx.user.id);
-  if (!stored) return [];
+  const found = buildOrderOf(db, ctx, ctx.user.id);
+  if (!found) return [];
   const state = own();
   if (!state.planets.length) return [];
+  const stored = syncBuildOrder(db, ctx, ctx.user.id, found, state);
   const name = db.prepare(`SELECT ${DISPLAY} FROM users u LEFT JOIN group_members gm ON gm.group_id = ? AND gm.user_id = u.id WHERE u.id = ?`).pluck().get(ctx.groupId, ctx.user.id) as string;
   return nextSteps(stored.order, state, t)
     .filter((n) => n.result.state === 'planned' && n.result.start != null && n.result.start <= t)
@@ -401,9 +402,10 @@ export function nextBuildOrderStep(db: DB, universe: Universe, groupId: number, 
   let next: number | null = null;
   for (const u of users) {
     const ctx = resolveGroup(db, { id: u.id, username: u.username, isAdmin: !!u.is_admin, lang: u.lang, dateFormat: u.date_format }, universe, groupId);
-    const stored = buildOrderOf(db, ctx, u.id);
+    const found = buildOrderOf(db, ctx, u.id);
     const state = buildingsState(db, ctx, u.id, t);
-    if (!stored || !state.planets.length) continue;
+    if (!found || !state.planets.length) continue;
+    const stored = syncBuildOrder(db, ctx, u.id, found, state);
     for (const n of nextSteps(stored.order, state, t)) {
       const at = n.result.start;
       if (n.result.state !== 'planned' || at == null || at <= t) continue;

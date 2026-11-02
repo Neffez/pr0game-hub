@@ -4,7 +4,8 @@ import { HttpError } from '../auth.js';
 import type { GroupContext } from '../context.js';
 import { now, type DB } from '../db.js';
 import { events } from '../events.js';
-import { buildOrderOf } from '../repo/buildOrders.js';
+import { buildOrderOf, syncBuildOrder } from '../repo/buildOrders.js';
+import { buildingsState } from '../repo/buildings.js';
 import { contextOf } from './util.js';
 
 /** Meta data of an import (file settings, mapping) is kept as sent, up to this size. */
@@ -19,7 +20,13 @@ export function buildOrderRoutes(app: FastifyInstance, db: DB) {
   const changed = (ctx: GroupContext) => events.publish(ctx.groupId, { type: 'data', tables: ['build_orders'], userId: ctx.user.id });
   const result = (ctx: GroupContext) => ({ buildOrder: buildOrderOf(db, ctx, ctx.user.id) });
 
-  app.get<{ Params: { uni: string } }>('/api/:uni/build-order', async (req) => result(ctxOf(req)));
+  /** The build order; production and transport steps the synced pages show as done are checked off first. */
+  app.get<{ Params: { uni: string } }>('/api/:uni/build-order', async (req) => {
+    const ctx = ctxOf(req);
+    const stored = buildOrderOf(db, ctx, ctx.user.id);
+    if (!stored) return { buildOrder: null };
+    return { buildOrder: syncBuildOrder(db, ctx, ctx.user.id, stored, buildingsState(db, ctx, ctx.user.id)) };
+  });
 
   /** Imports a build order: replaces the viewer's one in this group. */
   app.put<{ Params: { uni: string }; Body: { order?: unknown; meta?: unknown } }>('/api/:uni/build-order', async (req) => {

@@ -4,6 +4,19 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-02
 
+- Build orders follow the synced pages and the storage rules more closely:
+  - The empire parser reads the mines' production setting (`production`, percent per resource; below 100 % the
+    game puts it in a tooltip, page source only); `GET /api/{uni}/buildings` passes it per planet as `factors`. The
+    timeline starts from it, and `detectDone` (`@pr0hub/planner`) checks off production steps whose setting the
+    empire page shows and transports whose own fleet (transport or deploy, about the resources, after the import)
+    the fleet movements show, in list order. The server keeps these checks (`GET /api/{uni}/build-order` and the
+    notifications), so they stay when the setting changes again or the fleet leaves the history.
+  - A full storage no longer makes a step impossible: production stops at the capacity, but fleets may bring more
+    (overflow). Landing fleets and storage builds are waited for, otherwise the timeline assumes the rest arrives by
+    transport once the storage is full and shows it on the step (`transport` in the step result).
+  - New universe setting `pr0planUrl` (admin panel, default https://pr0sync.pages.dev/, `pr0plan_url_invalid`
+    unless http(s)), linked from the build order tab; empty hides the link.
+
 - Build & research: new tab "Build order" (`?tab=order`). Import a pr0plan export (file, drop or paste) in a dialog:
   map its planets onto the own planets, choose the start levels (file settings, hub state, all 0), see the left out
   actions and where the file's speeds or planet temperatures differ from the hub (the hub's values are used, the

@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { buildTime, buildingCost } from '@pr0hub/core/buildings';
 import { describe, expect, it } from 'vitest';
 import {
-  baseFromFile, baseFromHub, compareSettings, doneStateOf, ImportError, parsePr0plan, simulate, targetsOf, toBuildOrder, validateBuildOrder, type BuildOrder, type HubPlanet,
+  baseFromFile, baseFromHub, compareSettings, doneStateOf, ImportError, parsePr0plan, simulate, targetsOf, toBuildOrder, validateBuildOrder, detectDone, type BuildOrder, type HubPlanet, type OwnFleet,
   type HubState, type Step,
 } from '../src/index.js';
 
@@ -131,11 +131,16 @@ describe('simulate', () => {
     const lab = sim.steps.find((s) => order.planets[HOME].find((x) => x.id === s.id)!.element === 31)!;
     const energy = sim.steps.find((s) => order.planets[HOME].find((x) => x.id === s.id)!.element === 113)!;
     expect(energy).toMatchObject({ start: lab.end, wait: 'nolab' });
-    // impulse engine 3 costs more crystal than the storage holds (pr0plan has no storage), astrophysics needs it
-    expect(at(sim, 43)).toMatchObject({ state: 'invalid', wait: 'storage' });
-    expect(at(sim, 45)).toMatchObject({ state: 'invalid', wait: 'requirements' });
+    // impulse engine 3 costs more crystal than the storage holds: production stops at the capacity, the rest has to
+    // come by transport (overflow); then astrophysics follows
+    const impulse = at(sim, 43);
+    expect(impulse).toMatchObject({ state: 'planned', wait: 'storage' });
+    expect(impulse.transport![902]).toBeGreaterThan(0);
+    expect(impulse.transport![902]).toBeLessThan(impulse.cost![902]);
+    expect(at(sim, 45)).toMatchObject({ state: 'planned' });
+    expect(sim.steps.filter((x) => x.state === 'invalid')).toEqual([]);
     // the metal mine after the last research starts while it runs
-    expect(at(sim, 46).start!).toBeLessThan(at(sim, 44).end!);
+    expect(at(sim, 46).start!).toBeLessThan(at(sim, 45).end!);
     expect(sim.next).toEqual({ [HOME]: order.planets[HOME][0].id });
     // without storages every step fits
     expect(simulate(order, hub, { now: 1000, noStorage: true }).steps.filter((s) => s.state === 'invalid')).toEqual([]);
@@ -228,5 +233,43 @@ describe('validateBuildOrder', () => {
     expect(validateBuildOrder({ base, planets: { [HOME]: [{ id: 'a', kind: 'transport', transport: { target: COLONY, resources: { 901: 5 }, flight: 60 }, extra: 1 }] } })).toEqual({
       order: { base, planets: { [HOME]: [{ id: 'a', kind: 'transport', transport: { target: COLONY, resources: { 901: 5 }, flight: 60 } }] } },
     });
+  });
+});
+
+describe('detectDone', () => {
+  const prod = (id: string, m: number): Step => ({ id, kind: 'prod', prod: { factors: { 1: m, 2: 1, 3: 1 }, awaitBuilding: false, awaitResearch: false, awaitShipyard: false, wait: 0 } });
+  const transport = (id: string): Step => ({ id, kind: 'transport', transport: { target: COLONY, resources: { 901: 1000, 902: 500 }, flight: 3600 } });
+  const fleet = (extra: Partial<OwnFleet> = {}): OwnFleet => ({ from: HOME, to: COLONY, mission: 3, resources: { 901: 1000, 902: 500 }, arrival: 5000, ...extra });
+
+  it('checks off production steps by the empire page setting, in list order', () => {
+    const order: BuildOrder = { base: { planets: { [HOME]: { 1: 5 } }, research: {} }, planets: { [HOME]: [prod('p1', 0.5), { id: 'b', kind: 'building', element: 1 }, prod('p2', 1)] } };
+    const hub = (factors: Record<string, number> | null, values: Record<string, number> = { 1: 5 }) => hubOf([{ ...planet(HOME, values), factors }]);
+    expect(detectDone(order, hub({ 1: 0.5, 2: 1, 3: 1 }), [], 0)).toEqual(['p1']);
+    expect(detectDone(order, hub({ 1: 1, 2: 1, 3: 1 }), [], 0)).toEqual([]);
+    expect(detectDone(order, hub(null), [], 0)).toEqual([]);
+    // after the metal mine is built, the second step needs 100 %
+    expect(detectDone({ ...order, planets: { [HOME]: [{ ...prod('p1', 0.5), done: true }, order.planets[HOME][1], prod('p2', 1)] } }, hub({ 1: 1 }, { 1: 6 }), [], 0)).toEqual(['p2']);
+  });
+
+  it('checks off transports by own fleets after the import, each fleet once', () => {
+    const order: BuildOrder = { base: { planets: {}, research: {} }, planets: { [HOME]: [transport('t1'), transport('t2')] } };
+    const hub = hubOf([planet(HOME), planet(COLONY)]);
+    expect(detectDone(order, hub, [fleet()], 0)).toEqual(['t1']);
+    expect(detectDone(order, hub, [fleet(), fleet({ mission: 4, arrival: 6000 })], 0)).toEqual(['t1', 't2']);
+    expect(detectDone(order, hub, [fleet({ arrival: 100 })], 1000)).toEqual([]);
+    expect(detectDone(order, hub, [fleet({ resources: { 901: 100 } })], 0)).toEqual([]);
+    expect(detectDone(order, hub, [fleet({ to: HOME })], 0)).toEqual([]);
+    expect(detectDone(order, hub, [fleet({ mission: 1 })], 0)).toEqual([]);
+  });
+
+  it('plans with the production setting of the empire page', () => {
+    const order: BuildOrder = { base: { planets: {}, research: {} }, planets: { [HOME]: [{ id: 'b', kind: 'building', element: 22 }] } };
+    const poor = (factors: Record<string, number> | null) => ({ ...planet(HOME, { 1: 5, 4: 5 }, { resources: { 901: 0, 902: 0, 903: 0 }, perHour: { 901: 1800 } }), factors });
+    // synced at 50 %: 1800/h; a production step to 100 % then doubles it
+    const steps: Step[] = [prod('p', 1), { id: 'b', kind: 'building', element: 22 }];
+    const half = simulate({ ...order, planets: { [HOME]: steps } }, hubOf([poor({ 1: 0.5 })]), { now: 0 }).steps[1].start!;
+    const full = simulate({ ...order, planets: { [HOME]: steps } }, hubOf([poor(null)]), { now: 0 }).steps[1].start!;
+    expect(full).toBe(2000);
+    expect(half).toBeLessThan(1100);
   });
 });

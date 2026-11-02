@@ -78,8 +78,14 @@ export function parseEmpireHtml($: CheerioAPI): EmpireRecord | null {
       cells.slice(2).forEach((td, i) => {
         if (!planets[i]) return;
         (planets[i].resources ??= {})[id] = parseNumber(firstSpanOrText($, td)) ?? 0;
-        const perHour = $(td).find('span').filter((_, sp) => /\/h/.test($(sp).text())).first().text();
+        const span = $(td).find('span').filter((_, sp) => /\/h/.test($(sp).text())).first();
+        const perHour = span.text();
         if (perHour) (planets[i].perHour ??= {})[id] = parseNumber(perHour.replace('/h', '')) ?? 0;
+        // the mine's production setting: below 100 % the game puts it in a tooltip ("Aktuelle Produktion 50 %")
+        if (perHour && planets[i].type === 'planet') {
+          const tip = (span.attr('data-tooltip-content') ?? '').match(/(\d+)\s*%/);
+          (planets[i].production ??= {})[id] = tip ? Number(tip[1]) : 100;
+        }
       });
       return;
     }

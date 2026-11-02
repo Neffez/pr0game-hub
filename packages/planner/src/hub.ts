@@ -14,6 +14,8 @@ export interface HubPlanet {
   planet: BuildPlanet;
   arrivals: Arrival[];
   temp: number | null;
+  /** production setting of the mines (1, 2, 3 -> 0 … 1) from the empire page, when known */
+  factors?: Record<string, number> | null;
 }
 
 export interface HubState {
@@ -91,6 +93,63 @@ export function doneStateOf(step: Step, target: number | undefined, key: string,
   if (!p) return 'open';
   if ((p.planet.values[step.element] ?? 0) >= target) return 'done';
   return (levelsAfterQueue(p.planet)[step.element] ?? 0) >= target ? 'queued' : 'open';
+}
+
+/** An own fleet movement as the hub synced it (current list or history), planets by key. */
+export interface OwnFleet {
+  from: string;
+  to: string | null;
+  /** game mission id (3 transport, 4 deploy) */
+  mission: number | null;
+  resources: Record<string, number>;
+  /** arrival at the target (epoch seconds) */
+  arrival: number;
+}
+
+/** Transports must bring at least this share of each resource of the step. */
+const TRANSPORT_SHARE = 0.9;
+/** Production settings match within this (the game has steps of 10 %). */
+const FACTOR_TOLERANCE = 0.05;
+
+/**
+ * Production and transport steps the synced pages show as done: the empire page's production setting of the mines
+ * equals the step's, an own transport or deployment from the planet to the step's target with (about) its resources
+ * arrived or is on its way, after `since` (the import). Only steps whose earlier steps on the planet are all done,
+ * queued or skipped count, in list order; each fleet counts once. Returns the ids to check off.
+ */
+export function detectDone(order: BuildOrder, hub: HubState, fleets: OwnFleet[], since: number): string[] {
+  const targets = targetsOf(order);
+  const used = new Set<OwnFleet>();
+  const out: string[] = [];
+  for (const [key, steps] of Object.entries(order.planets)) {
+    const planet = hub.planets.find((p) => p.key === key);
+    if (!planet) continue;
+    for (const s of steps) {
+      if (s.deactivated || doneStateOf(s, targets.get(s.id), key, hub) !== 'open') continue;
+      if (s.kind === 'prod') {
+        const f = planet.factors;
+        const match = !!f && Object.entries(s.prod!.factors).every(([id, v]) => !['1', '2', '3'].includes(id) || Math.abs((f[id] ?? 1) - v) <= FACTOR_TOLERANCE);
+        if (!match) break;
+        out.push(s.id);
+        continue;
+      }
+      if (s.kind === 'transport' && s.transport!.target) {
+        const t = s.transport!;
+        const fleet = fleets.find(
+          (f) =>
+            !used.has(f) && f.from === key && f.to === t.target && (f.mission === 3 || f.mission === 4) && f.arrival > since &&
+            Object.entries(t.resources).every(([r, v]) => !v || (f.resources[r] ?? 0) >= v * TRANSPORT_SHARE),
+        );
+        if (!fleet) break;
+        used.add(fleet);
+        out.push(s.id);
+        continue;
+      }
+      // an open step that is not detected ends the planet's list
+      break;
+    }
+  }
+  return out;
 }
 
 export interface SettingsDiff {

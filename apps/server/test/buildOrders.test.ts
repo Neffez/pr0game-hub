@@ -112,6 +112,20 @@ describe('build order', () => {
     expect(bell).toMatchObject([{ id: 'buildorder:1:1:1:planet:b', planet: { g: 1, s: 1, p: 1, name: 'Home' }, step: { id: 'b', kind: 'building', element: 2, target: 6 } }]);
   });
 
+  it('checks off a transport the synced fleets show, and keeps it', async () => {
+    const step = { id: 't', kind: 'transport', transport: { target: '1:1:9:planet', resources: { 901: 1000 }, flight: 600 } };
+    await call('PATCH', '/u8/build-order', h.carol, { planets: { [HOME]: [step] } });
+    expect((await call('GET', '/u8/build-order', h.carol)).json().buildOrder.order.planets[HOME][0].done).toBeUndefined();
+    const fleet = {
+      owner: 'own', player: null, mission: 3, missionName: 'Transport', phase: 'out', ships: { 203: 1 }, resources: { 901: 1000, 902: 0, 903: 0 },
+      arrival: t + 600, from: { coords: { g: 1, s: 1, p: 1 }, type: 'planet', name: null }, to: { coords: { g: 1, s: 1, p: 9 }, type: 'planet', name: null },
+    };
+    db.prepare('INSERT INTO fleet_snapshots (group_id, user_id, page_time, data) VALUES (?, ?, ?, ?)').run(group, ids.carol, t, JSON.stringify([fleet]));
+    expect((await call('GET', '/u8/build-order', h.carol)).json().buildOrder.order.planets[HOME][0]).toMatchObject({ id: 't', done: true });
+    db.prepare('DELETE FROM fleet_snapshots').run();
+    expect((await call('GET', '/u8/build-order', h.carol)).json().buildOrder.order.planets[HOME][0].done).toBe(true);
+  });
+
   it('respects the setting and deletes', async () => {
     expect((await call('POST', '/auth/push-settings', h.carol, { buildOrder: false })).json()).toMatchObject({ buildOrder: false });
     await call('PATCH', '/u8/build-order', h.carol, { planets: { [HOME]: [{ id: 'c', kind: 'building', element: 22 }] } });

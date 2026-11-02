@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Bauliste: Produktionswechsel und Transporte werden nach einem Sync (Imperium als Seitenquelltext, Flottenbewegungen) von selbst abgehakt. Ist ein Speicher zu klein, zeigt der Schritt, wie viel per Transport kommen muss, statt „nicht möglich“. Dazu ein Link zu pr0plan (im Admin-Panel einstellbar).',
+        en: 'Build order: production changes and transports are checked off by themselves after a sync (empire page source, fleet movements). If a storage is too small, the step shows how much has to come by transport instead of “not possible”. Plus a link to pr0plan (configurable in the admin panel).',
+      },
+      {
+        kind: 'new',
         de: 'Bauliste unter Bauen & Forschen: Importiere eine Build Order aus pr0plan, ordne ihre Planeten deinen zu und sieh für jeden Schritt, wann er möglich ist – gerechnet ab deinem echten Stand mit Produktion, Speicher und ankommenden Transporten. Schritte lassen sich umsortieren, abhaken und überspringen. Ist der nächste Schritt möglich, kommt eine Benachrichtigung. Weichen die Einstellungen der Datei vom Universum ab, siehst du eine Warnung; gerechnet wird mit den Werten des Hubs.',
         en: 'Build order under build & research: import a build order from pr0plan, map its planets onto yours and see for each step when it is possible – planned from your real state with production, storage and incoming transports. Steps can be reordered, checked off and skipped. You get a notification when the next step is possible. If the file’s settings differ from the universe, you see a warning; the hub’s values are used.',
       },

@@ -62,6 +62,7 @@ type UniGroup = { id: string; hint?: string; fields: UniField[] };
 const UNI_GROUPS: UniGroup[] = [
   { id: 'general', fields: [
     { key: 'gameUrl', label: 'gameUrl', hint: true, type: 'text' },
+    { key: 'pr0planUrl', label: 'pr0planUrl', hint: true, type: 'text', placeholder: 'https://pr0sync.pages.dev/' },
     { key: 'timezone', label: 'timezone', hint: true, type: 'text', placeholder: 'Europe/Berlin' },
   ] },
   { id: 'schedule', fields: [] },
@@ -221,7 +222,7 @@ const saveUni = () =>
   run(async () => {
     const e = editUni.value!;
     // a cleared optional number field (v-model.number leaves '') is removed and falls back to its default
-    const settings = { ...Object.fromEntries(Object.entries(e.settings).map(([k, v]) => [k, v === '' ? null : v])), gameUrl: String(e.settings.gameUrl ?? '').trim() };
+    const settings = { ...Object.fromEntries(Object.entries(e.settings).map(([k, v]) => [k, v === '' ? null : v])), gameUrl: String(e.settings.gameUrl ?? '').trim(), pr0planUrl: String(e.settings.pr0planUrl ?? '').trim() };
     await api(`/admin/universes/${e.slug}`, { method: 'PUT', body: { name: e.name, settings, deck: e.deck, isDefault: e.isDefault, startsAt: epochOf(e.startsAt), endedAt: epochOf(e.endedAt) } });
     editUni.value = null;
     await loadAll();

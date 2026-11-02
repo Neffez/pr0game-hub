@@ -167,6 +167,8 @@ export interface UniverseSettings {
   universityFactor: number;
   timezone: string;
   gameUrl: string;
+  /** pr0plan, linked from the build order tab */
+  pr0planUrl?: string;
 }
 
 export { distance } from '@pr0hub/flight';

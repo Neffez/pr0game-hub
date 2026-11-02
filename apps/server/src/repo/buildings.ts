@@ -36,6 +36,8 @@ export interface BuildingPlanet {
   arrivals: (Arrival & { missionName: string; from: Coords })[];
   /** max temperature (empire page), null when unknown */
   temp: number | null;
+  /** production setting of the mines (1, 2, 3 -> 0 … 1) from the empire page source, null when unknown */
+  factors: Record<string, number> | null;
 }
 
 export interface BuildingsState {
@@ -111,6 +113,7 @@ export function buildingsState(db: DB, ctx: GroupContext, userId: number, t = ct
     const key = keyOf(p.coords, p.type);
     planets.set(key, {
       key, name: p.name, coords: p.coords, type: p.type, source: 'empire', shown: null, shownResearch: null, arrivals: [], temp: p.temp ?? null,
+      factors: p.production ? { 1: (p.production[901] ?? 100) / 100, 2: (p.production[902] ?? 100) / 100, 3: (p.production[903] ?? 100) / 100 } : null,
       planet: {
         type: p.type, values: { ...p.values }, resources: { ...(p.resources ?? {}) }, perHour: { ...(p.perHour ?? {}) }, time: empire!.time,
         fields: p.fields, queue: p.building ? [{ ...p.building, destroy: false, end: null }] : [], shipyard: { ...(p.shipyard ?? {}) },
@@ -124,7 +127,7 @@ export function buildingsState(db: DB, ctx: GroupContext, userId: number, t = ct
     const newer = !bp || page.time >= bp.planet.time;
     if (!bp) {
       bp = {
-        key, name: '', coords: r.coords, type: r.type, source: 'buildings', shown: null, shownResearch: null, arrivals: [], temp: null,
+        key, name: '', coords: r.coords, type: r.type, source: 'buildings', shown: null, shownResearch: null, arrivals: [], temp: null, factors: null,
         planet: { type: r.type, values: {}, resources: {}, perHour: {}, time: page.time, queue: [] },
       };
       planets.set(key, bp);
@@ -153,7 +156,7 @@ export function buildingsState(db: DB, ctx: GroupContext, userId: number, t = ct
     let bp = planets.get(key);
     if (!bp) {
       bp = {
-        key, name: '', coords: r.coords, type: r.type, source: 'research', shown: null, shownResearch: null, arrivals: [], temp: null,
+        key, name: '', coords: r.coords, type: r.type, source: 'research', shown: null, shownResearch: null, arrivals: [], temp: null, factors: null,
         planet: { type: r.type, values: {}, resources: {}, perHour: {}, time: page.time, queue: [] },
       };
       planets.set(key, bp);

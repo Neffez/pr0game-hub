@@ -247,6 +247,8 @@ export interface EmpirePlanet {
   resources?: Record<number, number>;
   /** production per hour (only when "Produktion /h" is enabled on the empire page) */
   perHour?: Record<number, number>;
+  /** production setting of the mines in percent per resource 901-903 (with "Produktion /h", page source only) */
+  production?: Record<number, number>;
   /** building in the queue (⬆): element and target level */
   building?: { id: number; level: number } | null;
   /** ships/defense in the shipyard queue (⬆): element -> amount */
