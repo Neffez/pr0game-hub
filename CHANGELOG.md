@@ -4,6 +4,17 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-02
 
+- New package `@pr0hub/planner` for build orders:
+  - `parsePr0plan` reads pr0plan exports (with or without settings; buildings, research, ships, defense, production
+    settings, transports, deactivated actions) and maps pr0plan keys to game ids and hours to seconds;
+    `toBuildOrder` puts the lists onto hub planets, `baseFromFile` / `baseFromHub` give the start levels.
+  - `targetsOf` derives each step's target level or unit count from the base and the steps before it (reordering
+    renumbers), `doneStateOf` tells done / queued / open from the hub's levels, `compareSettings` lists differing
+    speeds and planet temperatures.
+  - `simulate` plans the timeline from the hub's state like pr0plan's engine (lists in order, build slot, account
+    research, shipyard, locks, requirements), with production calibrated against the synced one, storage limits,
+    landing fleets and the order's transports; steps that can never start are marked with the reason.
+
 - Build & research: new tab "Ships & defense" (`?tab=ships`) with ships, defense and missiles per planet or moon:
   count (empire page) and units in the shipyard queue, cost and build time per unit, how many fit now, when one is
   affordable, requirements, one-per-planet shields, silo space, the shipyard blocked by a shipyard or nanite factory

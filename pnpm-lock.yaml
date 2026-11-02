@@ -206,6 +206,19 @@ importers:
         specifier: ^5.0.5
         version: 5.0.5(@types/node@24.19.2)(happy-dom@21.0.4)(vite@8.3.5(@types/node@24.19.2)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1))
 
+  packages/planner:
+    dependencies:
+      '@pr0hub/core':
+        specifier: workspace:*
+        version: link:../parser
+    devDependencies:
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: ^5.0.5
+        version: 5.0.5(@types/node@24.19.2)(happy-dom@21.0.4)(vite@8.3.5(@types/node@24.19.2)(esbuild@0.28.2)(tsx@4.23.15)(yaml@2.9.1))
+
 packages:
 
   '@babel/helper-string-parser@7.29.11':

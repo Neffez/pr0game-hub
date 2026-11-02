@@ -1,0 +1,333 @@
+{
+  "1": [
+    {
+      "type": "UPGRADE_BUILDING",
+      "payload": {
+        "planetId": "1",
+        "building": "solarPlant"
+      }
+    },
+    {
+      "type": "UPGRADE_BUILDING",
+      "payload": {
+        "planetId": "1",
+        "building": "metalMine"
+      }
+    },
+    {
+      "type": "UPGRADE_BUILDING",
+      "payload": {
+        "planetId": "1",
+        "building": "crystalMine"
+      }
+    },
+    {
+      "type": "UPGRADE_BUILDING",
+      "payload": {
+        "planetId": "1",
+        "building": "metalMine"
+      }
+    },
+    {
+      "type": "UPGRADE_BUILDING",
+      "payload": {
+        "planetId": "1",
+        "building": "solarPlant"
+      }
+    },
+    {
+      "type": "UPGRADE_BUILDING",
+      "payload": {
+        "planetId": "1",
+        "building": "metalMine"
+      }
+    },
+    {
+      "type": "UPGRADE_BUILDING",
+      "payload": {
+        "planetId": "1",
+        "building": "crystalMine"
+      }
+    },
+    {
+      "type": "UPGRADE_BUILDING",
+      "payload": {
+        "planetId": "1",
+        "building": "crystalMine"
+      }
+    },
+    {
+      "type": "UPGRADE_BUILDING",
+      "payload": {
+        "planetId": "1",
+        "building": "solarPlant"
+      }
+    },
+    {
+      "type": "UPGRADE_BUILDING",
+      "payload": {
+        "planetId": "1",
+        "building": "solarPlant"
+      }
+    },
+    {
+      "type": "UPGRADE_BUILDING",
+      "payload": {
+        "planetId": "1",
+        "building": "metalMine"
+      }
+    },
+    {
+      "type": "UPGRADE_BUILDING",
+      "payload": {
+        "planetId": "1",
+        "building": "crystalMine"
+      }
+    },
+    {
+      "type": "UPGRADE_BUILDING",
+      "payload": {
+        "planetId": "1",
+        "building": "solarPlant"
+      }
+    },
+    {
+      "type": "UPGRADE_BUILDING",
+      "payload": {
+        "planetId": "1",
+        "building": "metalMine"
+      }
+    },
+    {
+      "type": "UPGRADE_BUILDING",
+      "payload": {
+        "planetId": "1",
+        "building": "crystalMine"
+      }
+    },
+    {
+      "type": "UPGRADE_BUILDING",
+      "payload": {
+        "planetId": "1",
+        "building": "solarPlant"
+      }
+    },
+    {
+      "type": "UPGRADE_BUILDING",
+      "payload": {
+        "planetId": "1",
+        "building": "metalMine"
+      }
+    },
+    {
+      "type": "UPGRADE_BUILDING",
+      "payload": {
+        "planetId": "1",
+        "building": "metalMine"
+      }
+    },
+    {
+      "type": "UPGRADE_BUILDING",
+      "payload": {
+        "planetId": "1",
+        "building": "solarPlant"
+      }
+    },
+    {
+      "type": "UPGRADE_BUILDING",
+      "payload": {
+        "planetId": "1",
+        "building": "crystalMine"
+      }
+    },
+    {
+      "type": "UPGRADE_BUILDING",
+      "payload": {
+        "planetId": "1",
+        "building": "solarPlant"
+      }
+    },
+    {
+      "type": "UPGRADE_BUILDING",
+      "payload": {
+        "planetId": "1",
+        "building": "deuteriumSynthesizer"
+      }
+    },
+    {
+      "type": "UPGRADE_BUILDING",
+      "payload": {
+        "planetId": "1",
+        "building": "deuteriumSynthesizer"
+      }
+    },
+    {
+      "type": "UPGRADE_BUILDING",
+      "payload": {
+        "planetId": "1",
+        "building": "crystalMine"
+      }
+    },
+    {
+      "type": "UPGRADE_BUILDING",
+      "payload": {
+        "planetId": "1",
+        "building": "solarPlant"
+      }
+    },
+    {
+      "type": "UPGRADE_BUILDING",
+      "payload": {
+        "planetId": "1",
+        "building": "deuteriumSynthesizer"
+      }
+    },
+    {
+      "type": "UPGRADE_BUILDING",
+      "payload": {
+        "planetId": "1",
+        "building": "crystalMine"
+      }
+    },
+    {
+      "type": "UPGRADE_BUILDING",
+      "payload": {
+        "planetId": "1",
+        "building": "deuteriumSynthesizer"
+      }
+    },
+    {
+      "type": "UPGRADE_BUILDING",
+      "payload": {
+        "planetId": "1",
+        "building": "solarPlant"
+      }
+    },
+    {
+      "type": "UPGRADE_BUILDING",
+      "payload": {
+        "planetId": "1",
+        "building": "crystalMine"
+      }
+    },
+    {
+      "type": "UPGRADE_BUILDING",
+      "payload": {
+        "planetId": "1",
+        "building": "researchLab"
+      }
+    },
+    {
+      "type": "RESEARCH",
+      "payload": {
+        "planetId": "1",
+        "tech": "energyTech"
+      }
+    },
+    {
+      "type": "UPGRADE_BUILDING",
+      "payload": {
+        "planetId": "1",
+        "building": "crystalMine"
+      }
+    },
+    {
+      "type": "UPGRADE_BUILDING",
+      "payload": {
+        "planetId": "1",
+        "building": "solarPlant"
+      }
+    },
+    {
+      "type": "UPGRADE_BUILDING",
+      "payload": {
+        "planetId": "1",
+        "building": "deuteriumSynthesizer"
+      }
+    },
+    {
+      "type": "UPGRADE_BUILDING",
+      "payload": {
+        "planetId": "1",
+        "building": "deuteriumSynthesizer"
+      }
+    },
+    {
+      "type": "UPGRADE_BUILDING",
+      "payload": {
+        "planetId": "1",
+        "building": "researchLab"
+      }
+    },
+    {
+      "type": "UPGRADE_BUILDING",
+      "payload": {
+        "planetId": "1",
+        "building": "crystalMine"
+      }
+    },
+    {
+      "type": "UPGRADE_BUILDING",
+      "payload": {
+        "planetId": "1",
+        "building": "researchLab"
+      }
+    },
+    {
+      "type": "RESEARCH",
+      "payload": {
+        "planetId": "1",
+        "tech": "spioTech"
+      }
+    },
+    {
+      "type": "RESEARCH",
+      "payload": {
+        "planetId": "1",
+        "tech": "impulseEngine"
+      }
+    },
+    {
+      "type": "RESEARCH",
+      "payload": {
+        "planetId": "1",
+        "tech": "spioTech"
+      }
+    },
+    {
+      "type": "RESEARCH",
+      "payload": {
+        "planetId": "1",
+        "tech": "impulseEngine"
+      }
+    },
+    {
+      "type": "RESEARCH",
+      "payload": {
+        "planetId": "1",
+        "tech": "impulseEngine"
+      }
+    },
+    {
+      "type": "RESEARCH",
+      "payload": {
+        "planetId": "1",
+        "tech": "spioTech"
+      }
+    },
+    {
+      "type": "RESEARCH",
+      "payload": {
+        "planetId": "1",
+        "tech": "astroTech"
+      }
+    },
+    {
+      "type": "UPGRADE_BUILDING",
+      "payload": {
+        "planetId": "1",
+        "building": "metalMine"
+      }
+    }
+  ]
+}
