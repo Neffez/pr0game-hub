@@ -274,13 +274,13 @@ components:
         created_at: { type: integer }
     Buildings:
       type: object
-      required: [planets, research, researchQueue, researchSpeed, universityFactor, catchUp, catchUpFrom, buildingSpeed, storageFactor, empireTime, fleetsTime, alerts, hidden]
+      required: [planets, research, researchQueue, researchSpeed, universityFactor, catchUp, catchUpFrom, buildingSpeed, shipyardSpeed, resourceSpeed, storageFactor, empireTime, fleetsTime, alerts, hidden]
       properties:
         planets:
           type: array
           items:
             type: object
-            required: [key, name, coords, type, source, planet, shown, arrivals]
+            required: [key, name, coords, type, source, planet, shown, arrivals, temp]
             properties:
               key: { type: string, description: '`g:s:p:type`' }
               name: { type: string }
@@ -290,13 +290,15 @@ components:
               planet:
                 type: object
                 description: >-
-                  levels (`values`), `resources` at `time` (Unix seconds), `perHour`, `storage` (when shown), `fields`,
+                  levels (`values`, with the counts of ships, defense and missiles from the empire page), `shipyard` (units in
+                  the shipyard queue, element id -> count), `resources` at `time` (Unix seconds), `perHour`, `storage` (when shown), `fields`,
                   `queue` (target levels, `end` when known) and `busy`: research (account wide, locks research lab and
                   TechnoDome), the planet's shipyard (locks nanite factory and shipyard) and `lab` (a research lab or
                   TechnoDome in any build queue, locks research) in use, each `{ until }` (Unix seconds, null when
                   unknown) or null when free
               shown: { type: [object, 'null'], description: 'building id -> `{ next, cost, time }` as the buildings page showed them' }
               shownResearch: { type: [object, 'null'], description: 'research id -> `{ next, cost, time }` as the research page of this planet showed them' }
+              temp: { type: [integer, 'null'], description: Max temperature of the planet (empire page) }
               arrivals:
                 type: array
                 items:
@@ -331,6 +333,8 @@ components:
             source: { type: string, enum: [page, research, overview, stats], description: 'page: a buildings page, research: a research page' }
             time: { type: integer, description: Unix seconds of that page or statistics update }
         buildingSpeed: { type: [integer, 'null'] }
+        shipyardSpeed: { type: [integer, 'null'], description: 'Universe setting `shipyardSpeed` (2500 = 1x), else the building speed; null when unknown' }
+        resourceSpeed: { type: [integer, 'null'], description: 'Universe setting `resourceMultiplier` (2500 = 1x); null when unknown' }
         storageFactor: { type: number }
         empireTime: { type: [integer, 'null'] }
         fleetsTime: { type: [integer, 'null'] }

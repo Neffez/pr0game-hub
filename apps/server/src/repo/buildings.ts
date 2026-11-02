@@ -1,7 +1,8 @@
 import type { BuildingsRecord, EmpireRecord, OverviewRecord, ResearchRecord } from '@pr0hub/core';
 import {
   buildingsOf, capacityOf, catchUpBonus, catchUpFromCosts, deriveBuildingSpeed, deriveResearchSpeed, labLevels, levelAfter, LOCKED_BY, NANITE_FACTORY,
-  RESEARCH_LAB, RESEARCH_NETWORK, researchOf, resourceAt, resourceReadyAt, ROBOT_FACTORY, TECHNO_DOME, type Arrival, type BuildingInfo, type BuildPlanet,
+  RESEARCH_LAB, RESEARCH_NETWORK, researchOf, resourceAt, resourceReadyAt, ROBOT_FACTORY, shipsOf, TECHNO_DOME, type Arrival, type BuildingInfo, type BuildPlanet,
+  type ShipInfo,
 } from '@pr0hub/core/buildings';
 import { METAL, RESOURCES, STORAGE, storageCapacity } from '@pr0hub/core/tech';
 import type { GroupContext } from '../context.js';
@@ -33,6 +34,8 @@ export interface BuildingPlanet {
   /** next level cost and research time as the research page of this planet showed them */
   shownResearch: Record<string, { next: number; cost: Record<number, number>; time: number | null }> | null;
   arrivals: (Arrival & { missionName: string; from: Coords })[];
+  /** max temperature (empire page), null when unknown */
+  temp: number | null;
 }
 
 export interface BuildingsState {
@@ -50,6 +53,10 @@ export interface BuildingsState {
   catchUpFrom: { source: 'page' | 'research' | 'overview' | 'stats'; time: number } | null;
   /** universe building speed: derived from a buildings page, else the universe setting; null when unknown */
   buildingSpeed: number | null;
+  /** universe shipyard speed: the universe setting, else the building speed; null when unknown */
+  shipyardSpeed: number | null;
+  /** universe resource multiplier (2500 = 1x), null when unknown */
+  resourceSpeed: number | null;
   storageFactor: number;
   empireTime: number | null;
   fleetsTime: number | null;
@@ -103,10 +110,10 @@ export function buildingsState(db: DB, ctx: GroupContext, userId: number, t = ct
   for (const p of empire?.rec.planets ?? []) {
     const key = keyOf(p.coords, p.type);
     planets.set(key, {
-      key, name: p.name, coords: p.coords, type: p.type, source: 'empire', shown: null, shownResearch: null, arrivals: [],
+      key, name: p.name, coords: p.coords, type: p.type, source: 'empire', shown: null, shownResearch: null, arrivals: [], temp: p.temp ?? null,
       planet: {
         type: p.type, values: { ...p.values }, resources: { ...(p.resources ?? {}) }, perHour: { ...(p.perHour ?? {}) }, time: empire!.time,
-        fields: p.fields, queue: p.building ? [{ ...p.building, destroy: false, end: null }] : [],
+        fields: p.fields, queue: p.building ? [{ ...p.building, destroy: false, end: null }] : [], shipyard: { ...(p.shipyard ?? {}) },
       },
     });
   }
@@ -117,7 +124,7 @@ export function buildingsState(db: DB, ctx: GroupContext, userId: number, t = ct
     const newer = !bp || page.time >= bp.planet.time;
     if (!bp) {
       bp = {
-        key, name: '', coords: r.coords, type: r.type, source: 'buildings', shown: null, shownResearch: null, arrivals: [],
+        key, name: '', coords: r.coords, type: r.type, source: 'buildings', shown: null, shownResearch: null, arrivals: [], temp: null,
         planet: { type: r.type, values: {}, resources: {}, perHour: {}, time: page.time, queue: [] },
       };
       planets.set(key, bp);
@@ -146,7 +153,7 @@ export function buildingsState(db: DB, ctx: GroupContext, userId: number, t = ct
     let bp = planets.get(key);
     if (!bp) {
       bp = {
-        key, name: '', coords: r.coords, type: r.type, source: 'research', shown: null, shownResearch: null, arrivals: [],
+        key, name: '', coords: r.coords, type: r.type, source: 'research', shown: null, shownResearch: null, arrivals: [], temp: null,
         planet: { type: r.type, values: {}, resources: {}, perHour: {}, time: page.time, queue: [] },
       };
       planets.set(key, bp);
@@ -191,6 +198,8 @@ export function buildingsState(db: DB, ctx: GroupContext, userId: number, t = ct
     if (overview) {
       const q = overview.rec.queues.some((x) => x.kind === 'shipyard' && same(x.coords, bp.coords) && x.type === bp.type);
       shipyard.push({ time: overview.time, busy: q ? { until: null } : null });
+      // a newer overview without a shipyard queue: the units of the empire page's queue are built by now
+      if (!q && (!empire || overview.time > empire.time)) bp.planet.shipyard = {};
     }
     for (const page of pages) {
       if (!same(page.rec.coords, bp.coords) || page.rec.type !== bp.type) continue;
@@ -224,6 +233,7 @@ export function buildingsState(db: DB, ctx: GroupContext, userId: number, t = ct
   ]);
   const list = [...planets.values()];
   const universityFactor = settings.universityFactor ?? 8;
+  const buildingSpeed = derivedSpeed(pages.map((p) => p.rec)) ?? (settings.buildingSpeed || null);
   return {
     planets: list,
     research: levels,
@@ -232,7 +242,9 @@ export function buildingsState(db: DB, ctx: GroupContext, userId: number, t = ct
     universityFactor,
     catchUp: catchUp?.value ?? null,
     catchUpFrom: catchUp ? { source: catchUp.source, time: catchUp.time } : null,
-    buildingSpeed: derivedSpeed(pages.map((p) => p.rec)) ?? (settings.buildingSpeed || null),
+    buildingSpeed,
+    shipyardSpeed: settings.shipyardSpeed || buildingSpeed,
+    resourceSpeed: settings.resourceMultiplier || null,
     storageFactor,
     empireTime: empire?.time ?? null,
     fleetsTime: fleets?.time ?? null,
@@ -420,6 +432,11 @@ export function planetResearch(state: BuildingsState, bp: BuildingPlanet, now: n
     catchUp: state.catchUp, researchSpeed: state.researchSpeed, universityFactor: state.universityFactor, storageFactor: state.storageFactor,
     arrivals: bp.arrivals, now, shown: bp.shownResearch ?? undefined,
   });
+}
+
+/** Ships, defense and missiles of a planet at `now`. */
+export function planetShips(state: BuildingsState, bp: BuildingPlanet, now: number): ShipInfo[] {
+  return shipsOf(bp.planet, { research: state.research, shipyardSpeed: state.shipyardSpeed, storageFactor: state.storageFactor, arrivals: bp.arrivals, now });
 }
 
 /** Buildings and research of a planet (for the alerts). */

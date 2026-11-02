@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import Icon from '../components/Icon.vue';
 import {
-  buildingsOf, capacityOf, RESEARCH_GROUPS, RESEARCH_LAB, RESEARCH_NETWORK, researchOf, resourceAt, type Arrival, type BuildingGroup, type BuildingInfo,
-  type BuildPlanet,
+  buildingsOf, capacityOf, RESEARCH_GROUPS, RESEARCH_LAB, RESEARCH_NETWORK, researchOf, resourceAt, shipsOf, SHIPYARD, type Arrival, type BuildingGroup,
+  type BuildingInfo, type BuildPlanet, type ShipInfo,
 } from '@pr0hub/core/buildings';
 import { RESOURCES } from '@pr0hub/core/tech';
 import { computed, onMounted, ref, watch } from 'vue';
@@ -21,7 +21,8 @@ import { tables, useLiveReload } from '../live';
  * Build & research: the viewer's buildings per planet/moon like the game's buildings page, and in a second tab the
  * research when started on a planet like the research page: level, requirements, cost of the next level, missing
  * resources and when they are there (production per hour up to the storage, plus fleets landing on the planet), build
- * or research time. An alert per element notifies (bell, push, Discord) once the next level is affordable.
+ * or research time. An alert per element notifies (bell, push, Discord) once the next level is affordable. A third tab
+ * lists ships, defense and missiles like the shipyard: count, cost and time per unit, how many fit now.
  */
 interface C3 {
   g: number;
@@ -38,6 +39,7 @@ interface Planet {
   shown: Record<string, { next: number; cost: Record<number, number>; time: number | null }> | null;
   shownResearch: Record<string, { next: number; cost: Record<number, number>; time: number | null }> | null;
   arrivals: (Arrival & { missionName: string; from: C3 })[];
+  temp: number | null;
 }
 interface Alert {
   id: number;
@@ -57,6 +59,8 @@ interface Data {
   catchUp: number | null;
   catchUpFrom: { source: 'page' | 'research' | 'overview' | 'stats'; time: number } | null;
   buildingSpeed: number | null;
+  shipyardSpeed: number | null;
+  resourceSpeed: number | null;
   storageFactor: number;
   empireTime: number | null;
   fleetsTime: number | null;
@@ -74,11 +78,12 @@ const { data, error, load } = useLoader(() => uniApi<Data>(uni.value, '/building
 onMounted(load);
 useLiveReload(load, tables('empire', 'overview', 'buildings', 'research', 'fleets', 'building_alerts'));
 
-type Tab = 'buildings' | 'research';
+type Tab = 'buildings' | 'research' | 'ships';
+const TABS: Tab[] = ['buildings', 'research', 'ships'];
 const storedTab = useStored<Tab>('build.tab', 'buildings');
 /** the tab from the link (push notification, bell), else the last one */
 const tab = computed<Tab>({
-  get: () => (route.query.tab === 'research' || route.query.tab === 'buildings' ? route.query.tab : storedTab.value),
+  get: () => (TABS.includes(route.query.tab as Tab) ? (route.query.tab as Tab) : storedTab.value),
   set: (v) => {
     storedTab.value = v;
     router.replace({ query: { ...route.query, tab: v } });
@@ -87,9 +92,14 @@ const tab = computed<Tab>({
 const stored = useStored<string | null>('buildings.planet', null);
 const buildingFilter = useStored<BuildingGroup | 'all'>('buildings.filter', 'all');
 const researchFilter = useStored<string>('research.filter', 'all');
+const shipFilter = useStored<string>('ships.filter', 'all');
 const filter = computed({
-  get: () => (tab.value === 'research' ? researchFilter.value : buildingFilter.value),
-  set: (v: string) => (tab.value === 'research' ? (researchFilter.value = v) : (buildingFilter.value = v as BuildingGroup | 'all')),
+  get: () => (tab.value === 'research' ? researchFilter.value : tab.value === 'ships' ? shipFilter.value : buildingFilter.value),
+  set: (v: string) => {
+    if (tab.value === 'research') researchFilter.value = v;
+    else if (tab.value === 'ships') shipFilter.value = v;
+    else buildingFilter.value = v as BuildingGroup | 'all';
+  },
 });
 /** a link (push notification) names the planet */
 // separate sources: the planet is only taken over when the link changes, not on every route change (tab switch)
@@ -111,7 +121,7 @@ const slow = computed(() => Math.floor(now.value / 10) * 10);
 const list = computed<BuildingInfo[]>(() => {
   const p = current.value;
   const d = data.value;
-  if (!p || !d) return [];
+  if (!p || !d || tab.value === 'ships') return [];
   if (tab.value === 'research') {
     return researchOf(p.planet, {
       research: d.research, queue: d.researchQueue, otherLabs: otherLabs.value, catchUp: d.catchUp, researchSpeed: d.researchSpeed,
@@ -123,6 +133,16 @@ const list = computed<BuildingInfo[]>(() => {
     arrivals: p.arrivals, now: slow.value, shown: p.shown ?? undefined,
   });
 });
+/** ships, defense and missiles of the planet (shipyard tab) */
+const shipList = computed<ShipInfo[]>(() => {
+  const p = current.value;
+  const d = data.value;
+  if (!p || !d || tab.value !== 'ships') return [];
+  return shipsOf(p.planet, { research: d.research, shipyardSpeed: d.shipyardSpeed, storageFactor: d.storageFactor, arrivals: p.arrivals, now: slow.value });
+});
+/** units to build per element (shipyard tab), for the total cost and time */
+const amounts = ref<Record<number, number>>({});
+const amountOf = (s: ShipInfo) => Math.max(1, Math.floor(amounts.value[s.id] || 1));
 /** lab levels of the other planets (intergalactic research network) */
 const otherLabs = computed(() => allPlanets.value.filter((p) => p.type === 'planet' && p !== current.value).map((p) => p.planet.values[RESEARCH_LAB] ?? 0));
 const network = computed(() => data.value?.research[RESEARCH_NETWORK] ?? 0);
@@ -130,7 +150,7 @@ const network = computed(() => data.value?.research[RESEARCH_NETWORK] ?? 0);
 const hidden = computed(() => data.value?.hidden ?? []);
 const showHidden = ref(false);
 const search = ref('');
-const isHidden = (b: BuildingInfo) => hidden.value.includes(b.id);
+const isHidden = (b: { id: number }) => hidden.value.includes(b.id);
 async function saveHidden(ids: number[]) {
   try {
     data.value!.hidden = (await uniApi<{ hidden: number[] }>(uni.value, '/buildings/hidden', { method: 'PUT', body: { ids } })).hidden;
@@ -138,7 +158,7 @@ async function saveHidden(ids: number[]) {
     error.value = (e as Error).message;
   }
 }
-const toggleHidden = (b: BuildingInfo) => saveHidden(isHidden(b) ? hidden.value.filter((id) => id !== b.id) : [...hidden.value, b.id]);
+const toggleHidden = (b: { id: number }) => saveHidden(isHidden(b) ? hidden.value.filter((id) => id !== b.id) : [...hidden.value, b.id]);
 /** buildings hidden in this browser before they were kept in the account: moved over once */
 const localHidden = useStored<number[]>('buildings.hidden', []);
 watch(data, (d) => {
@@ -147,7 +167,8 @@ watch(data, (d) => {
   localHidden.value = [];
   if (ids.length !== d.hidden.length) saveHidden(ids);
 });
-const inGroup = computed(() => list.value.filter((b) => filter.value === 'all' || b.groups.includes(filter.value)));
+const items = computed<(BuildingInfo | ShipInfo)[]>(() => (tab.value === 'ships' ? shipList.value : list.value));
+const inGroup = computed(() => items.value.filter((b) => filter.value === 'all' || b.groups.includes(filter.value)));
 const hiddenCount = computed(() => inGroup.value.filter(isHidden).length);
 const shownList = computed(() => {
   const q = search.value.trim().toLowerCase();
@@ -206,11 +227,20 @@ async function toggleAlert(b: BuildingInfo) {
 const busyText = (b: BuildingInfo) =>
   b.busy!.until != null ? t(`buildings.busyUntil.${b.busy!.by}`, { time: clock(b.busy!.until) }) : t(`buildings.busyBy.${b.busy!.by}`);
 
-const FILTERS = computed<string[]>(() => (tab.value === 'research' ? [...Object.keys(RESEARCH_GROUPS), 'all'] : ['prod', 'storage', 'other', 'all']));
+const FILTERS = computed<string[]>(() =>
+  tab.value === 'research' ? [...Object.keys(RESEARCH_GROUPS), 'all'] : tab.value === 'ships' ? ['ships', 'defense', 'all'] : ['prod', 'storage', 'other', 'all'],
+);
+const shipBusyText = (s: ShipInfo) =>
+  s.busy!.until != null ? t('buildings.busyUntil.building', { time: clock(s.busy!.until) }) : t('buildings.busyBy.building');
+/** state text of a unit: "max" means one per planet or a full silo */
+const shipStateText = (s: ShipInfo) =>
+  t(s.state === 'max' ? (s.id >= 500 ? 'buildings.state.siloFull' : 'buildings.state.onePerPlanet') : `buildings.state.${s.state}`);
+const buildingRows = computed(() => shownList.value as BuildingInfo[]);
+const shipRows = computed(() => shownList.value as ShipInfo[]);
 /** state text; research is "researchable" instead of "buildable" */
 const stateText = (state: string) => t(`buildings.state.${tab.value === 'research' && state === 'buildable' ? 'researchable' : state}`);
 const sourceLabel = (p: Planet) => t(p.source === 'buildings' ? 'buildings.fromPage' : p.source === 'research' ? 'buildings.fromResearch' : 'buildings.fromEmpire');
-const costClass = (b: BuildingInfo, res: number) => (b.missing[res] ? 'neg' : 'pos');
+const costClass = (b: { missing: Record<number, number> }, res: number) => (b.missing[res] ? 'neg' : 'pos');
 </script>
 
 <template>
@@ -219,6 +249,7 @@ const costClass = (b: BuildingInfo, res: number) => (b.missing[res] ? 'neg' : 'p
       <Hint>
         <p>{{ t('buildings.hint1') }}</p>
         <p>{{ t('buildings.hintResearch') }}</p>
+        <p>{{ t('buildings.hintShips') }}</p>
         <p>{{ t('buildings.hint2') }}</p>
         <p>{{ t('buildings.hint3') }}</p>
       </Hint>
@@ -226,6 +257,7 @@ const costClass = (b: BuildingInfo, res: number) => (b.missing[res] ? 'neg' : 'p
     <div class="seg">
       <button :class="{ active: tab === 'buildings' }" @click="tab = 'buildings'">{{ t('buildings.tabBuildings') }}</button>
       <button :class="{ active: tab === 'research' }" @click="tab = 'research'">{{ t('buildings.tabResearch') }}</button>
+      <button :class="{ active: tab === 'ships' }" @click="tab = 'ships'">{{ t('buildings.tabShips') }}</button>
     </div>
   </PageHeader>
 
@@ -254,6 +286,10 @@ const costClass = (b: BuildingInfo, res: number) => (b.missing[res] ? 'neg' : 'p
         <template v-if="tab === 'research'">
           <span v-if="!data.researchSpeed" class="faint" :title="t('buildings.researchSpeedUnknownTitle')">{{ t('buildings.researchSpeedUnknown') }}</span>
           <span class="muted">{{ t('buildings.lab', { level: current.planet.values[RESEARCH_LAB] ?? 0 }) }}<template v-if="network"> · {{ t('buildings.network', { n: network }) }}</template></span>
+        </template>
+        <template v-else-if="tab === 'ships'">
+          <span v-if="!data.shipyardSpeed" class="faint" :title="t('buildings.shipyardSpeedUnknownTitle')">{{ t('buildings.shipyardSpeedUnknown') }}</span>
+          <span class="muted">{{ t('buildings.shipyardLevel', { level: current.planet.values[SHIPYARD] ?? 0 }) }}</span>
         </template>
         <span v-else-if="!data.buildingSpeed" class="faint" :title="t('buildings.speedUnknownTitle')">{{ t('buildings.speedUnknown') }}</span>
         <span v-if="tab === 'buildings' && current.planet.fields" class="muted">{{ t('buildings.fields', { used: current.planet.fields.used, max: current.planet.fields.max }) }}</span>
@@ -301,8 +337,107 @@ const costClass = (b: BuildingInfo, res: number) => (b.missing[res] ? 'neg' : 'p
     </div>
     <p v-if="!shownList.length" class="card muted">{{ t('buildings.noMatch') }}</p>
 
+    <template v-if="tab === 'ships'">
+      <!-- desktop: one table row per ship, defense or missile -->
+      <div v-if="!mobile" class="card scroll-x">
+        <table class="data">
+          <thead>
+            <tr>
+              <th>{{ t('buildings.unit') }}</th>
+              <th class="num">{{ t('buildings.count') }}</th>
+              <th v-for="id in RESOURCES" :key="id" class="num">{{ name(id) }}</th>
+              <th>{{ t('buildings.status') }}</th>
+              <th class="num">{{ t('buildings.unitTime') }}</th>
+              <th class="num">{{ t('buildings.amount') }}</th>
+              <th class="num">{{ t('buildings.total') }}</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="s in shipRows" :key="s.id" :class="{ faded: s.state === 'requirements' || s.state === 'max', 'bld-hidden': isHidden(s) }">
+              <td style="white-space: normal">
+                {{ name(s.id) }}
+                <div v-if="s.state === 'requirements'" class="small bld-reqs">
+                  <span v-for="r in s.requirements" :key="r.id" :class="r.own < r.need ? 'warn' : 'pos'" class="bld-req">{{ name(r.id) }} {{ r.own }}/{{ r.need }}</span>
+                </div>
+              </td>
+              <td class="num">
+                {{ fmt(s.count) }}<div v-if="s.queued" class="small faint">{{ t('buildings.queued', { n: fmt(s.queued) }) }}</div>
+              </td>
+              <td v-for="id in RESOURCES" :key="id" class="num">
+                <template v-if="s.cost[id]">
+                  <span :class="costClass(s, id)">{{ fmt(s.cost[id]) }}</span>
+                  <div v-if="s.missing[id]" class="small neg">−{{ fmt(Math.round(s.missing[id])) }}</div>
+                </template>
+                <span v-else class="faint">–</span>
+              </td>
+              <td>
+                <Ticker v-if="s.state === 'resources' || (s.state === 'busy' && s.readyAt != null && s.busy?.until != null)" v-slot="{ now: n }">
+                  <span v-if="s.readyAt! > n" class="mono">{{ countdown(s.readyAt! - n) }}</span>
+                  <span v-else class="pos">{{ stateText('buildable') }}</span>
+                  <div class="small faint">{{ clock(s.readyAt!) }}</div>
+                </Ticker>
+                <span v-else :class="s.state === 'buildable' ? 'pos' : 'warn'">{{ shipStateText(s) }}</span>
+                <div v-if="s.state === 'buildable'" class="small faint">{{ t('buildings.maxNow', { n: fmt(s.max) }) }}</div>
+                <div v-if="s.busy" class="small warn">{{ shipBusyText(s) }}</div>
+              </td>
+              <td class="num mono">{{ s.time != null ? countdown(s.time) : '–' }}</td>
+              <td class="num"><input v-model.number="amounts[s.id]" type="number" min="1" class="bld-amount" :aria-label="t('buildings.amount')" placeholder="1" /></td>
+              <td class="num small">
+                <template v-for="id in RESOURCES" :key="id"><div v-if="s.cost[id]">{{ short(s.cost[id] * amountOf(s)) }} {{ name(id) }}</div></template>
+                <div v-if="s.time != null" class="mono">{{ countdown(s.time * amountOf(s)) }}</div>
+              </td>
+              <td>
+                <button class="small bld-bell alert-btn" :title="isHidden(s) ? t('buildings.unhide') : t('buildings.hide')" :aria-label="isHidden(s) ? t('buildings.unhide') : t('buildings.hide')" @click="toggleHidden(s)">
+                  <Icon :name="isHidden(s) ? 'spy' : 'eyeOff'" :size="14" />
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <!-- mobile: one card per unit -->
+      <template v-else>
+        <div v-for="s in shipRows" :key="s.id" class="card bld-card" :class="{ faded: s.state === 'requirements' || s.state === 'max', 'bld-hidden': isHidden(s) }">
+          <div class="row">
+            <b>{{ name(s.id) }}</b>
+            <span class="muted small">{{ fmt(s.count) }}<template v-if="s.queued"> · {{ t('buildings.queued', { n: fmt(s.queued) }) }}</template></span>
+            <span class="grow" />
+            <button class="small bld-bell alert-btn" :title="isHidden(s) ? t('buildings.unhide') : t('buildings.hide')" :aria-label="isHidden(s) ? t('buildings.unhide') : t('buildings.hide')" @click="toggleHidden(s)">
+              <Icon :name="isHidden(s) ? 'spy' : 'eyeOff'" :size="14" />
+            </button>
+          </div>
+          <div v-if="s.state === 'requirements'" class="small bld-reqs">
+            <span v-for="r in s.requirements" :key="r.id" :class="r.own < r.need ? 'warn' : 'pos'" class="bld-req">{{ name(r.id) }} {{ r.own }}/{{ r.need }}</span>
+          </div>
+          <div class="small bld-costs">
+            <template v-for="id in RESOURCES" :key="id">
+              <span v-if="s.cost[id]">{{ name(id) }} <span :class="costClass(s, id)">{{ short(s.cost[id]) }}</span></span>
+            </template>
+          </div>
+          <div class="row small">
+            <Ticker v-if="s.state === 'resources' || (s.state === 'busy' && s.readyAt != null && s.busy?.until != null)" v-slot="{ now: n }">
+              <span v-if="s.readyAt! > n">{{ t('buildings.readyIn') }} <span class="mono">{{ countdown(s.readyAt! - n) }}</span> <span class="faint">({{ clock(s.readyAt!) }})</span></span>
+              <span v-else class="pos">{{ stateText('buildable') }}</span>
+            </Ticker>
+            <span v-else :class="s.state === 'buildable' ? 'pos' : 'warn'">{{ shipStateText(s) }}<template v-if="s.state === 'buildable'"> · {{ t('buildings.maxNow', { n: fmt(s.max) }) }}</template></span>
+            <span v-if="s.busy" class="warn">{{ shipBusyText(s) }}</span>
+            <span class="grow" />
+            <span v-if="s.time != null" class="muted"><Icon name="timer" :size="13" :label="t('common.time')" /> <span class="mono">{{ countdown(s.time) }}</span></span>
+          </div>
+          <div class="row small">
+            <label>{{ t('buildings.amount') }} <input v-model.number="amounts[s.id]" type="number" min="1" class="bld-amount" placeholder="1" /></label>
+            <span class="muted">
+              <template v-for="id in RESOURCES" :key="id"><template v-if="s.cost[id]">{{ short(s.cost[id] * amountOf(s)) }} {{ name(id) }} · </template></template>
+              <span v-if="s.time != null" class="mono">{{ countdown(s.time * amountOf(s)) }}</span>
+            </span>
+          </div>
+        </div>
+      </template>
+    </template>
+
     <!-- desktop: one table row per building -->
-    <div v-if="!mobile" class="card scroll-x">
+    <div v-else-if="!mobile" class="card scroll-x">
       <table class="data">
         <thead>
           <tr>
@@ -315,7 +450,7 @@ const costClass = (b: BuildingInfo, res: number) => (b.missing[res] ? 'neg' : 'p
           </tr>
         </thead>
         <tbody>
-          <tr v-for="b in shownList" :key="b.id" :class="{ faded: b.state === 'requirements' || b.state === 'max', 'bld-hidden': isHidden(b) }">
+          <tr v-for="b in buildingRows" :key="b.id" :class="{ faded: b.state === 'requirements' || b.state === 'max', 'bld-hidden': isHidden(b) }">
             <td style="white-space: normal">
               {{ name(b.id) }}
               <div v-if="b.state === 'requirements'" class="small bld-reqs">
@@ -366,7 +501,7 @@ const costClass = (b: BuildingInfo, res: number) => (b.missing[res] ? 'neg' : 'p
 
     <!-- mobile: one card per building -->
     <template v-else>
-      <div v-for="b in shownList" :key="b.id" class="card bld-card" :class="{ faded: b.state === 'requirements' || b.state === 'max', 'bld-hidden': isHidden(b) }">
+      <div v-for="b in buildingRows" :key="b.id" class="card bld-card" :class="{ faded: b.state === 'requirements' || b.state === 'max', 'bld-hidden': isHidden(b) }">
         <div class="row">
           <b>{{ name(b.id) }}</b>
           <span class="muted small">{{ b.level }} <Icon name="arrowRight" :size="11" /> {{ b.next }}</span>
@@ -420,6 +555,7 @@ const costClass = (b: BuildingInfo, res: number) => (b.missing[res] ? 'neg' : 'p
 .bld-costs { display: flex; gap: 12px; flex-wrap: wrap; margin: 6px 0; }
 .bld-filters { margin-bottom: 12px; }
 .bld-search { width: 180px; }
+.bld-amount { width: 80px; text-align: right; }
 @media (max-width: 800px) {
   .bld-filters select, .bld-search { flex: 1 1 140px; width: auto; min-width: 0; }
 }

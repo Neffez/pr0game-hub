@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Bauen & Forschen hat einen Tab „Schiffe & Verteidigung“: Anzahl, Kosten und Bauzeit je Einheit, wie viele du dir gerade leisten kannst, wann die nächste bezahlbar ist, und Gesamtkosten und -zeit für eine Menge. Schilde (einmal je Planet), Silo-Platz und eine blockierte Werft sind berücksichtigt.',
+        en: 'Build & research has a “Ships & defense” tab: count, cost and build time per unit, how many you can afford right now, when the next one is affordable, and the total cost and time for an amount. Shields (once per planet), silo space and a blocked shipyard are taken into account.',
+      },
+      {
+        kind: 'new',
         de: 'Admin: Die Universum-Einstellungen öffnen sich in einem eigenen Fenster, übersichtlich in aufklappbare Abschnitte gegliedert (auch auf dem Handy). „Universum anlegen“ ist ein Button unter der Liste.',
         en: 'Admin: universe settings open in their own window, organized into collapsible sections (also on phones). “Create universe” is a button below the list.',
       },
