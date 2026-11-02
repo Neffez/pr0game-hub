@@ -258,6 +258,7 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
       .prepare(
         `SELECT u.id, u.username, m.role, m.ingame_name, m.joined_at, u.last_login_at, u.is_admin AS global_admin,
            (u.password_hash <> '') AS account,
+           (SELECT COUNT(*) FROM group_members o WHERE o.user_id = u.id AND o.group_id <> m.group_id) AS other_groups,
            (SELECT token FROM invites WHERE user_id = u.id AND used_at IS NULL AND expires_at > ? LIMIT 1) AS invite
          FROM group_members m JOIN users u ON u.id = m.user_id WHERE m.group_id = ? ORDER BY u.username`,
       )
@@ -272,9 +273,53 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
       }));
   });
 
-  app.post<{ Params: { id: string }; Body: { name?: string } }>('/api/admin/groups/:id/members', async (req) => {
+  /**
+   * Existing accounts that can be added to the group (not yet a member): all for global admins, else the members of
+   * the alliances the user is admin of in any universe (e.g. their alliance in the previous universe). `ingameName` is
+   * the most recent in-game name from another membership.
+   */
+  const candidateUsers = (user: { id: number; isAdmin: boolean }, groupId: number) => {
+    const rows = db
+      .prepare(
+        `SELECT u.id, u.username, (u.password_hash <> '') AS account,
+           (SELECT m.ingame_name FROM group_members m WHERE m.user_id = u.id AND m.ingame_name IS NOT NULL ORDER BY m.joined_at DESC LIMIT 1) AS ingameName,
+           (SELECT json_group_array(un.slug || ' · ' || g.name) FROM group_members m JOIN groups g ON g.id = m.group_id
+              JOIN universes un ON un.id = g.universe_id WHERE m.user_id = u.id) AS groups
+         FROM users u
+         WHERE u.id NOT IN (SELECT user_id FROM group_members WHERE group_id = ?)
+           AND (? OR u.id IN (SELECT m.user_id FROM group_members m WHERE m.group_id IN
+                (SELECT group_id FROM group_members WHERE user_id = ? AND role = 'admin')))
+         ORDER BY u.username COLLATE NOCASE`,
+      )
+      .all(groupId, user.isAdmin ? 1 : 0, user.id) as { id: number; username: string; account: number; ingameName: string | null; groups: string }[];
+    return rows.map((r) => ({ ...r, account: !!r.account, groups: JSON.parse(r.groups) as string[] }));
+  };
+
+  app.get<{ Params: { id: string } }>('/api/admin/groups/:id/candidates', async (req) => {
     const groupId = Number(req.params.id);
     const user = requireGroupAdmin(req, groupId);
+    return candidateUsers(user, groupId);
+  });
+
+  app.post<{ Params: { id: string }; Body: { name?: string; userId?: number; ingameName?: string | null } }>('/api/admin/groups/:id/members', async (req) => {
+    const groupId = Number(req.params.id);
+    const user = requireGroupAdmin(req, groupId);
+    if (req.body?.userId !== undefined && req.body?.userId !== null) {
+      // an existing account (from another universe's alliance): no new account, no invite
+      const userId = Number(req.body.userId);
+      if (db.prepare('SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?').get(groupId, userId)) {
+        throw new HttpError(409, 'member_exists', 'Already a member of this alliance');
+      }
+      const candidate = candidateUsers(user, groupId).find((c) => c.id === userId);
+      if (!candidate) throw new HttpError(404, 'user_not_found', 'User not found');
+      const ingame = String(req.body.ingameName ?? '').trim() || candidate.ingameName || null;
+      if (ingame && db.prepare('SELECT 1 FROM group_members WHERE group_id = ? AND ingame_name = ?').get(groupId, ingame)) {
+        throw new HttpError(409, 'member_exists', 'A member with this in-game name already exists');
+      }
+      db.prepare("INSERT INTO group_members (group_id, user_id, role, ingame_name) VALUES (?, ?, 'member', ?)").run(groupId, userId, ingame);
+      events.publish(groupId, { type: 'data', tables: ['group_members'] });
+      return { id: userId };
+    }
     const name = String(req.body?.name ?? '').trim();
     if (!name) throw new HttpError(400, 'name_missing', 'Name missing');
     if (db.prepare('SELECT 1 FROM group_members WHERE group_id = ? AND ingame_name = ?').get(groupId, name)) {
@@ -337,8 +382,13 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
     if (!db.prepare('SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?').get(groupId, target)) {
       throw new HttpError(404, 'member_not_found', 'Member not found');
     }
-    if (isPlaceholder(target)) {
+    const elsewhere = !!db.prepare('SELECT 1 FROM group_members WHERE user_id = ? AND group_id <> ?').get(target, groupId);
+    if (isPlaceholder(target) && !elsewhere) {
       db.prepare('DELETE FROM users WHERE id = ?').run(target);
+    } else if (isPlaceholder(target)) {
+      // still a member of other alliances (other universes): keep the account, drop this membership and its claim link
+      db.prepare('DELETE FROM group_members WHERE group_id = ? AND user_id = ?').run(groupId, target);
+      db.prepare('DELETE FROM invites WHERE group_id = ? AND user_id = ? AND used_at IS NULL').run(groupId, target);
     } else {
       db.prepare('DELETE FROM group_members WHERE group_id = ? AND user_id = ?').run(groupId, target);
       revokeAccessIfOrphaned(db, target);

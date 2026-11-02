@@ -138,6 +138,16 @@ const members = ref<any[]>([]);
 const ingests = ref<any[]>([]);
 const fleetAttacks = ref<FleetAttackRow[]>([]);
 const newMemberName = ref('');
+/** existing accounts (e.g. from the alliance in another universe) that can join this alliance */
+type Candidate = { id: number; username: string; account: boolean; ingameName: string | null; groups: string[] };
+const candidates = ref<Candidate[]>([]);
+const assignUserId = ref<number | null>(null);
+const assignIngame = ref('');
+watch(assignUserId, (id) => (assignIngame.value = candidates.value.find((c) => c.id === id)?.ingameName ?? ''));
+const candidateLabel = (c: Candidate) =>
+  [c.username, c.ingameName && c.ingameName !== c.username ? c.ingameName : '', c.account ? '' : t('admin.noAccount'), c.groups.join(', ')]
+    .filter(Boolean)
+    .join(' · ');
 const merge = ref({ from: null as number | null, into: null as number | null });
 const group = computed(() => groups.value.find((g) => g.id === groupId.value));
 const groupName = ref('');
@@ -178,13 +188,15 @@ async function loadAll() {
 
 async function loadGroup() {
   if (!groupId.value) return;
-  [members.value, ingests.value, discord.value, fleetAttacks.value] = await Promise.all([
+  [members.value, ingests.value, discord.value, fleetAttacks.value, candidates.value] = await Promise.all([
     api(`/admin/groups/${groupId.value}/members`),
     // sync history is technical administration: global admins only
     isAdmin.value ? api(`/admin/groups/${groupId.value}/ingests`) : [],
     api(`/admin/groups/${groupId.value}/discord`),
     isAdmin.value ? api<FleetAttackRow[]>(`/admin/groups/${groupId.value}/fleet-attacks`) : [],
+    api<Candidate[]>(`/admin/groups/${groupId.value}/candidates`),
   ]);
+  if (!candidates.value.some((c) => c.id === assignUserId.value)) assignUserId.value = null;
   discordWebhook.value = '';
   undo.value = null;
 }
@@ -317,6 +329,14 @@ const addMember = () =>
     await loadGroup();
   }, 'deck.saved');
 
+const assignMember = () =>
+  run(async () => {
+    await api(`/admin/groups/${groupId.value}/members`, { body: { userId: assignUserId.value, ingameName: assignIngame.value.trim() || null } });
+    assignUserId.value = null;
+    assignIngame.value = '';
+    await loadGroup();
+  }, 'deck.saved');
+
 const memberInvite = (m: any) =>
   run(async () => {
     const res = await api<{ token: string }>(`/admin/groups/${groupId.value}/members/${m.id}/invite`, { body: {} });
@@ -325,7 +345,8 @@ const memberInvite = (m: any) =>
   });
 
 const removeMember = (m: any) => {
-  const key = m.account ? 'admin.removeConfirm' : 'admin.removePlaceholderConfirm';
+  // a placeholder that is still in other alliances (other universes) keeps its account and data there
+  const key = m.account || m.other_groups ? 'admin.removeConfirm' : 'admin.removePlaceholderConfirm';
   const name = m.ingame_name || m.username;
   if (!confirm(t(key, { name }))) return;
   run(async () => {
@@ -656,6 +677,15 @@ const doMerge = () => run(async () => {
         <input v-model="newMemberName" :placeholder="t('admin.ingameName')" style="flex: 1; min-width: 140px" />
         <button class="primary" type="submit" :disabled="!newMemberName.trim()">{{ t('admin.addMember') }}</button>
         <Hint>{{ t('admin.addMemberHint') }}</Hint>
+      </form>
+      <form v-if="candidates.length" class="row" style="margin-bottom: 10px" @submit.prevent="assignMember">
+        <select v-model="assignUserId" style="flex: 2; min-width: 180px">
+          <option :value="null" disabled>{{ t('admin.chooseUser') }}</option>
+          <option v-for="c in candidates" :key="c.id" :value="c.id">{{ candidateLabel(c) }}</option>
+        </select>
+        <input v-model="assignIngame" :placeholder="t('admin.ingameName')" style="flex: 1; min-width: 120px" />
+        <button class="primary" type="submit" :disabled="!assignUserId">{{ t('admin.assignUser') }}</button>
+        <Hint>{{ t('admin.assignUserHint') }}</Hint>
       </form>
       <div class="table-wrap flat">
         <table v-stack class="data">

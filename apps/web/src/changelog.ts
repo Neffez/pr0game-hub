@@ -19,6 +19,16 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-02',
     items: [
       {
+        kind: 'new',
+        de: 'Admin-Panel: Bestehende Konten lassen sich einer Allianz in einem weiteren Universum zuweisen, statt dort neue Mitglieder anzulegen. Der Ingame-Name wird übernommen und kann geändert werden.',
+        en: 'Admin panel: existing accounts can be assigned to an alliance in another universe instead of creating new members there. The in-game name is taken over and can be changed.',
+      },
+      {
+        kind: 'fix',
+        de: 'Ein Mitglied ohne Konto, das aus einer Allianz entfernt wird, bleibt in seinen Allianzen anderer Universen erhalten.',
+        en: 'A member without an account who is removed from one alliance stays in their alliances of other universes.',
+      },
+      {
         kind: 'fix',
         de: 'Info-Hinweise werden in Dialogen nicht mehr abgeschnitten. Die Universumseinstellungen erklären jetzt auch Entfernungsfaktoren, runde Galaxien/Systeme und den Noobschutz-Faktor.',
         en: 'Info tooltips are no longer cut off in dialogs. The universe settings now also explain the distance factors, circular galaxies/systems and the noob protection factor.',

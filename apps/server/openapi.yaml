@@ -1204,6 +1204,90 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
+  /api/admin/groups/{id}/candidates:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer }, description: Alliance group id }
+    get:
+      tags: [Admin]
+      operationId: listGroupMemberCandidates
+      description: |
+        Existing accounts (with or without a password) that can be added to the alliance, e.g. members of its
+        alliance in a previous universe; members of the alliance are left out. Global admins get every account,
+        alliance admins the members of the alliances (in any universe) they are admin of.
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200':
+          description: Accounts by username
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  required: [id, username, account, ingameName, groups]
+                  properties:
+                    id: { type: integer, description: User id }
+                    username: { type: string }
+                    account: { type: boolean, description: false for a placeholder without password }
+                    ingameName: { type: [string, 'null'], description: Most recent in-game name of the account in another alliance }
+                    groups: { type: array, items: { type: string }, description: 'Alliances of the account as "<universe slug> · <alliance name>"' }
+        '403':
+          description: Not an admin of the alliance (`group_admin_only`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /api/admin/groups/{id}/members:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer }, description: Alliance group id }
+    post:
+      tags: [Admin]
+      operationId: addGroupMember
+      description: |
+        Adds a member; alliance admins. With `name` a new placeholder account (no password) is created together with
+        a claim invite. With `userId` an existing account (one of `listGroupMemberCandidates`) joins as member; no
+        account and no invite are created, and the in-game name defaults to the account's most recent one.
+      security: [{ sessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, description: In-game name of a new placeholder member }
+                userId: { type: integer, description: Existing account to add instead of a new one }
+                ingameName: { type: [string, 'null'], description: 'With `userId`: in-game name in this alliance' }
+      responses:
+        '200':
+          description: Added
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [id]
+                properties:
+                  id: { type: integer, description: User id of the member }
+                  token: { type: string, description: Claim invite token (only for a new placeholder) }
+        '400':
+          description: Neither `name` nor `userId` (`name_missing`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '403':
+          description: Not an admin of the alliance (`group_admin_only`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '404':
+          description: The account is not one the caller may add (`user_not_found`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '409':
+          description: Already a member, or the in-game name is taken in the alliance (`member_exists`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
   /api/admin/groups/{id}/discord:
     parameters:
       - { name: id, in: path, required: true, schema: { type: integer }, description: Alliance group id }

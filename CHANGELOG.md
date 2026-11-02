@@ -4,6 +4,15 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-02
 
+- Existing accounts can join alliances of other universes instead of getting a new placeholder account per universe:
+  - `GET /api/admin/groups/{id}/candidates` lists the accounts an admin may add (global admins: all; alliance admins:
+    members of the alliances they are admin of, in any universe), with their latest in-game name and alliances.
+  - `POST /api/admin/groups/{id}/members` takes `{ userId, ingameName? }` besides `{ name }`; the in-game name defaults
+    to the account's latest one. Both operations are now in the OpenAPI spec.
+  - The admin panel's members section has a second form to pick such an account.
+  - Removing a placeholder from one alliance no longer deletes the account while it is still a member elsewhere; only
+    the membership and its open claim link of that alliance go. The members list returns `other_groups`.
+
 - Info tooltips for the universe settings that were not self-explanatory: distance factors and bases, positions,
   circular galaxies/systems and the noob protection factor in the hub's admin dialog; distance factors, bases and the
   highest moon chance in the tools' universe dialog. The hub's `Hint` bubble is now positioned against the viewport
