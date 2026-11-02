@@ -59,3 +59,29 @@ describe('unit pages', () => {
     expect(parseUnitPage('<p>hallo</p>')).toBeNull();
   });
 });
+
+describe('unit pages (real sources)', () => {
+  it('hangar of the test server: costs, unmet requirements, the list', () => {
+    const page = parseUnitPage(fixture('hangar-real-source.html'))!;
+    expect(page).toMatchObject({ kind: 'shipyard', lang: 'en', mode: 'fleet', unknown: [] });
+    expect(page.units).toEqual([
+      { id: 202, name: 'Light Cargo', cost: [2000, 2000, 0] },
+      { id: 212, name: 'Solar Satellite', cost: [0, 2000, 500] },
+      { id: 214, name: 'Death Star', cost: [5000000, 4000000, 1000000], req: { 21: 12, 114: 6, 118: 7, 199: 1 } },
+      { id: 232, name: 'Void Titan', cost: [0, 9000000, 0] },
+    ]);
+  });
+
+  it('defense of the test server: new units, once per planet, missiles', () => {
+    const page = parseUnitPage(fixture('defense-real-source.html'))!;
+    expect(page).toMatchObject({ kind: 'shipyard', mode: 'defense' });
+    expect(page.units).toEqual([
+      { id: 401, name: 'Missile Launcher', cost: [2000, 0, 0] },
+      { id: 408, name: 'Large Shield Dome', cost: [50000, 50000, 0], one: true },
+      { id: 412, name: 'Bunker', cost: [9000, 1000, 0] },
+      { id: 413, name: 'Titan Laser', cost: [54000, 18000, 0] },
+      { id: 414, name: 'Decoy', cost: [100, 0, 0] },
+      { id: 503, name: 'Interplanetary missiles', cost: [12500, 2500, 10000], req: { 21: 1, 44: 4, 117: 1 } },
+    ]);
+  });
+});

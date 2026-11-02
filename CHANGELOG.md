@@ -4,6 +4,12 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-02
 
+- Unit pages from real sources: the hangar and defense page of the test server parse as expected (new fixtures
+  `hangar-real-source.html`, `defense-real-source.html`; new defense units 412-414 there). `parseUnitPage` tells which
+  list a shipyard page is (`mode`: `fleet`/`defense`). The game lists every unit of the universe there, so the unit
+  editor offers to hide units missing on a pasted list and to show hidden ones it lists. The hide offers are only
+  preselected when at most half of the list is missing, since more looks like a cut page.
+
 - Admin: section "Ships & defense" in the universe settings dialog (`UnitEditor.vue`). It lists every unit (default,
   changed, new, hidden). Values come from pasted page sources: several pages in a row, a preview of the new and
   changed values per unit to pick from, the rapidfire of info pages also against the unit. A form per unit edits

@@ -39,6 +39,11 @@ export interface UnitPage {
   units: ParsedUnit[];
   /** names that could not be matched to an id */
   unknown: string[];
+  /**
+   * Shipyard page: which list it is. The game lists every ship (fleet) or every defense unit and missile (defense)
+   * of the universe there, whether buildable or not, so units missing on it do not exist in the universe.
+   */
+  mode?: 'fleet' | 'defense';
 }
 
 const LEVEL_RE = /\((?:Stufe|Level|Lvl\.?)\s*([\d.,]+)\s*\/\s*([\d.,]+)\)/i;
@@ -213,5 +218,10 @@ export function parseUnitPage(html: string, known: Record<string, number> = {}):
   const lookup = (name: string) => extra.get(clean(name).toLowerCase()) ?? idByName(name);
   const unknown: string[] = [];
   const units = kind === 'shipyard' ? shipyard($) : kind === 'techtree' ? techTree($) : info($, lookup, unknown);
-  return { kind, lang: langOf($, html), units, unknown: [...new Set(unknown)] };
+  const page: UnitPage = { kind, lang: langOf($, html), units, unknown: [...new Set(unknown)] };
+  if (kind === 'shipyard') {
+    const m = html.match(/page=shipyard(?:&amp;|&)mode=(fleet|defense)/);
+    page.mode = m ? (m[1] as 'fleet' | 'defense') : units.every((u) => u.id >= 400) ? 'defense' : 'fleet';
+  }
+  return page;
 }

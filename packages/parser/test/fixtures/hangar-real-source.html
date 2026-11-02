@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<!-- Real hangar page (test server, Universum 1, 2026-11-02), trimmed: menu, header, scripts, tooltip texts and most units removed, player renamed. -->
+<!--[if lt IE 7 ]> <html lang="en" class="no-js ie6"> <![endif]-->
+<!--[if (gt IE 9)|!(IE)]><!-->
+<html lang="en" class="no-js">
+<!--<![endif]-->
+<head>
+  <title>Hangar - Universum 1 - pr0game testserver</title>
+  <script type="text/javascript">
+    var queryString    = "page=shipyard&mode=fleet";
+  </script>
+</head>
+
+<body id="shipyard" class="full">
+<div class="wrapper">
+    <header>
+        <div class="fixed">
+<div class="planetImage no-mobile">
+   <div>Emperor</div>
+   <div><a href="game.php?page=settings"><b>Spieler</b></div>
+</div>
+<div id="resources_mobile">
+        <div id="resource_mobile">
+                <a href="#" onclick="return Dialog.info(901);">
+            <div class="no-mobile">Metal</div>
+            <div class="no-mobile">
+                                    <div class="res_current" data-ticker="current_metal" data-real="9770643700346">9,770,643,700,346</div>
+                                                    <div class="res_max colorPositive" id="max_metal" data-real="50000">50,000</div>
+                            </div>
+        </a>
+    </div>
+</div>
+        </div>
+    </header>
+    <content>
+                        <div style="text-align: center;">
+                <div id="bx" class="z"></div>
+                <div class="ship">
+                    <form action="game.php?page=shipyard&amp;mode=fleet" method="post" >
+                        <input type="hidden" name="action" value="delete">
+                    </form>
+                </div>
+            </div><br>
+
+                    <div class="planeto">
+            <button id="ship1">Civil</button> | <button id="ship2">Military</button> | <button id="ship3" class="selected">All</button>
+        </div>
+
+            <div class="infos " id="s202">
+            <div class="buildn"><a href="#" onclick="return Dialog.info(202)">Light Cargo</a>
+                <span id="val_202"> (Available:  609,499)</span>
+            </div>
+            <div class="buildl">
+                <a href="#" onclick="return Dialog.info(202)">
+                    <img style="float: left;" src="./styles/theme/community/gebaeude/202.gif" alt="Light Cargo" width="120" height="120">
+                </a>
+                                    Missing raw materials:<br>
+                                            <a href='#' onclick='return Dialog.info(901)' class='tooltip' data-tooltip-content="">Metal</a>: <span style="font-weight:700">0</span><br>
+                                            <a href='#' onclick='return Dialog.info(902)' class='tooltip' data-tooltip-content="">Crystal</a>: <span style="font-weight:700">0</span><br>
+                                        <p>Maximum possible units to build:<span style="font-weight:700"><br>3,456,586,535</p>
+                            </div>
+            <div class="buildl">
+                <span>
+                                            <a href='#' onclick='return Dialog.info(901)' class='tooltip' data-tooltip-content="
+                        <table>
+                            <tr><th>Metal</th></tr>
+                        </table>">Metal</a>: <b><span class="colorPositive">2,000</span></b>
+                                            <a href='#' onclick='return Dialog.info(902)' class='tooltip' data-tooltip-content="
+                        <table>
+                            <tr><th>Crystal</th></tr>
+                        </table>">Crystal</a>: <b><span class="colorPositive">2,000</span></b>
+                                    </span>
+                <br><br>
+                                <span>
+                                            <form action="game.php?page=shipyard&amp;mode=fleet" method="post" id="s202">
+                            <input type="number" name="fmenge[202]" id="input_202" size="3" maxlength="7" value="0" tabindex="" >
+                            <input type="button" value="max" onclick="$('#input_202').val('3456586535')">
+                            <input class="b colorPositive" type="submit" value="Build">
+                        </form>
+                                        <p>Time:  <span class="statictime" timestamp="1"></span></p>
+                </span>
+            </div>
+        </div>
+            <div class="infos " id="s212">
+            <div class="buildn"><a href="#" onclick="return Dialog.info(212)">Solar Satellite</a>
+                <span id="val_212"></span>
+            </div>
+            <div class="buildl">
+                <a href="#" onclick="return Dialog.info(212)">
+                    <img style="float: left;" src="./styles/theme/community/gebaeude/212.gif" alt="Solar Satellite" width="120" height="120">
+                </a>
+                                    Missing raw materials:<br>
+                                            <a href='#' onclick='return Dialog.info(902)' class='tooltip' data-tooltip-content="">Crystal</a>: <span style="font-weight:700">0</span><br>
+                                            <a href='#' onclick='return Dialog.info(903)' class='tooltip' data-tooltip-content="">Deuterium</a>: <span style="font-weight:700">0</span><br>
+                                        <p>Maximum possible units to build:<span style="font-weight:700"><br>3,456,586,535</p>
+                            </div>
+            <div class="buildl">
+                <span>
+                                            <a href='#' onclick='return Dialog.info(902)' class='tooltip' data-tooltip-content="">Crystal</a>: <b><span class="colorPositive">2,000</span></b>
+                                            <a href='#' onclick='return Dialog.info(903)' class='tooltip' data-tooltip-content="">Deuterium</a>: <b><span class="colorPositive">500</span></b>
+                                    </span>
+                <br><br>
+                 +26.7 Energy<br>                <span>
+                                            <form action="game.php?page=shipyard&amp;mode=fleet" method="post" id="s212">
+                            <input type="number" name="fmenge[212]" id="input_212" size="3" maxlength="7" value="0" tabindex="" >
+                        </form>
+                                        <p>Time:  <span class="statictime" timestamp="1"></span></p>
+                </span>
+            </div>
+        </div>
+            <div class="infos unavailable" id="s214">
+            <div class="buildn"><a href="#" onclick="return Dialog.info(214)">Death Star</a>
+                <span id="val_214"> (Available:  24,210,668)</span>
+            </div>
+            <div class="buildl">
+                <a href="#" onclick="return Dialog.info(214)">
+                    <img style="float: left;" src="./styles/theme/community/gebaeude/214.gif" alt="Death Star" width="120" height="120">
+                </a>
+                                    Requirements: </br>
+                                            <a href="#" onclick="return Dialog.info(21)">
+                        <span class="colorNeutral">
+                            Shipyard (Level  10/12)
+                        </span>
+                        </a><br>                                            <a href="#" onclick="return Dialog.info(118)">
+                        <span class="colorPositive">
+                            Hyperspace Engine (Level  33/7)
+                        </span>
+                        </a><br>                                            <a href="#" onclick="return Dialog.info(114)">
+                        <span class="colorPositive">
+                            Hyperspace Technology (Level  8/6)
+                        </span>
+                        </a><br>                                            <a href="#" onclick="return Dialog.info(199)">
+                        <span class="colorPositive">
+                            Graviton Research (Level  8/1)
+                        </span>
+                        </a>                                                </div>
+            <div class="buildl">
+                <span>
+                                            <a href='#' onclick='return Dialog.info(901)' class='tooltip' data-tooltip-content="">Metal</a>: <b><span class="colorPositive">5,000,000</span></b>
+                                            <a href='#' onclick='return Dialog.info(902)' class='tooltip' data-tooltip-content="">Crystal</a>: <b><span class="colorPositive">4,000,000</span></b>
+                                            <a href='#' onclick='return Dialog.info(903)' class='tooltip' data-tooltip-content="">Deuterium</a>: <b><span class="colorPositive">1,000,000</span></b>
+                                    </span>
+                <br><br>
+                                <span>
+                                            <span class="colorNeutral">Requirements not met</span>
+                                        <p>Time:  <span class="statictime" timestamp="235"></span></p>
+                </span>
+            </div>
+        </div>
+            <div class="infos " id="s232">
+            <div class="buildn"><a href="#" onclick="return Dialog.info(232)">Void Titan</a>
+                <span id="val_232"> (Available:  37,571)</span>
+            </div>
+            <div class="buildl">
+                <a href="#" onclick="return Dialog.info(232)">
+                    <img style="float: left;" src="./styles/theme/community/gebaeude/232.gif" alt="Void Titan" width="120" height="120">
+                </a>
+                                    Missing raw materials:<br>
+                                            <a href='#' onclick='return Dialog.info(902)' class='tooltip' data-tooltip-content="">Crystal</a>: <span style="font-weight:700">0</span><br>
+                                        <p>Maximum possible units to build:<span style="font-weight:700"><br>768,130</p>
+                            </div>
+            <div class="buildl">
+                <span>
+                                            <a href='#' onclick='return Dialog.info(902)' class='tooltip' data-tooltip-content="">Crystal</a>: <b><span class="colorPositive">9,000,000</span></b>
+                                    </span>
+                <br><br>
+                                <span>
+                                            <form action="game.php?page=shipyard&amp;mode=fleet" method="post" id="s232">
+                            <input type="number" name="fmenge[232]" id="input_232" size="3" maxlength="7" value="0" tabindex="" >
+                        </form>
+                                        <p>Time:  <span class="statictime" timestamp="235"></span></p>
+                </span>
+            </div>
+        </div>
+
+        <table class="hack"></table>
+    </content>
+</div>
+</body>
+</html>

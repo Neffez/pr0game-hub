@@ -1225,7 +1225,7 @@ const de = {
     unitsHint: 'Schiffe, Verteidigung und Raketen, wie der Hub in diesem Universum mit ihnen rechnet (Bauen & Forschen, Flugzeiten, Kampfsimulator, Beuteabrechnung). Gespeichert werden nur Abweichungen vom Standard des Hubs.',
     units: {
       paste: 'Aus Spielseiten einfügen',
-      pasteHint: 'Quelltext einer Spielseite einfügen (Strg+U im Spiel, alles kopieren): Schiffswerft und Verteidigung liefern ID, Name und Kosten, der Technologiebaum alle Voraussetzungen, die Infoseite einer Einheit (game.php?page=information&id=… direkt öffnen) Angriff, Schild, Ladung, Antriebe und Rapidfire. Mehrere Seiten nacheinander einfügen, dann prüfen und übernehmen.',
+      pasteHint: 'Quelltext einer Spielseite einfügen (Strg+U im Spiel, alles kopieren): Schiffswerft und Verteidigung liefern ID, Name und Kosten und zeigen alle Einheiten des Universums (fehlende werden zum Ausblenden vorgeschlagen), der Technologiebaum alle Voraussetzungen, die Infoseite einer Einheit (game.php?page=information&id=… direkt öffnen) Angriff, Schild, Ladung, Antriebe und Rapidfire. Mehrere Seiten nacheinander einfügen, dann prüfen und übernehmen.',
       pastePlaceholder: 'Seitenquelltext hier einfügen',
       read: 'Auslesen',
       kind: { shipyard: 'Werft/Verteidigung: {n}', techtree: 'Technologiebaum: {n}', info: 'Infoseite: {n}' },
@@ -1258,7 +1258,7 @@ const de = {
       state: { default: 'Standard', changed: 'geändert', new: 'neu', hidden: 'ausgeblendet' },
       field: {
         name: 'Name', short: 'Kurzname', cost: 'Kosten', req: 'Voraussetzungen', one: 'Nur einmal pro Planet', attack: 'Angriff',
-        shield: 'Schild', capacity: 'Ladekapazität', drives: 'Antriebe', rapidfire: 'Rapidfire',
+        shield: 'Schild', capacity: 'Ladekapazität', drives: 'Antriebe', rapidfire: 'Rapidfire', present: 'Im Universum',
       },
       summary: '{n} geändert',
     },

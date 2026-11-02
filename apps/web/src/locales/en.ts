@@ -1223,7 +1223,7 @@ const en: typeof de = {
     unitsHint: "Ships, defense and missiles as the hub calculates with them in this universe (build & research, flight times, battle simulator, loot settlement). Only differences from the hub's defaults are stored.",
     units: {
       paste: 'Paste from game pages',
-      pasteHint: "Paste the source of a game page (Ctrl+U in the game, copy all): shipyard and defense give id, name and costs, the tech tree all requirements, a unit's info page (open game.php?page=information&id=… directly) attack, shield, cargo, drives and rapidfire. Paste several pages one after another, then check and take over.",
+      pasteHint: "Paste the source of a game page (Ctrl+U in the game, copy all): shipyard and defense give id, name and costs and list every unit of the universe (missing ones are offered for hiding), the tech tree all requirements, a unit's info page (open game.php?page=information&id=… directly) attack, shield, cargo, drives and rapidfire. Paste several pages one after another, then check and take over.",
       pastePlaceholder: 'Paste the page source here',
       read: 'Read',
       kind: { shipyard: 'Shipyard/defense: {n}', techtree: 'Tech tree: {n}', info: 'Info page: {n}' },
@@ -1256,7 +1256,7 @@ const en: typeof de = {
       state: { default: 'default', changed: 'changed', new: 'new', hidden: 'hidden' },
       field: {
         name: 'Name', short: 'Short name', cost: 'Costs', req: 'Requirements', one: 'Once per planet', attack: 'Attack',
-        shield: 'Shield', capacity: 'Cargo capacity', drives: 'Drives', rapidfire: 'Rapidfire',
+        shield: 'Shield', capacity: 'Cargo capacity', drives: 'Drives', rapidfire: 'Rapidfire', present: 'In the universe',
       },
       summary: '{n} changed',
     },

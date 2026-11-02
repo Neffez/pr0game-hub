@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Admin-Panel, Schiffe & Verteidigung: Eingefügte Werft- und Verteidigungsseiten zeigen alle Einheiten des Universums. Fehlende schlägt der Hub zum Ausblenden vor, ausgeblendete, die dort stehen, zum Einblenden.',
+        en: 'Admin panel, ships & defense: pasted shipyard and defense pages list every unit of the universe. The hub offers to hide the missing ones and to show hidden ones listed there.',
+      },
+      {
+        kind: 'new',
         de: 'Admin-Panel: Schiffe und Verteidigung pro Universum einstellbar – Kosten, Voraussetzungen, Ladung, Antriebe, Angriff, Schild und Rapidfire, auch neue Einheiten. Die Werte lassen sich aus Quelltexten von Werft, Verteidigung, Technologiebaum und Infoseiten einfügen. Bauen & Forschen, Flugzeiten, Raid-Planer, Kampfsimulator und Beuteabrechnung rechnen dann mit den Werten des Universums.',
         en: 'Admin panel: ships and defense can be set per universe – costs, requirements, cargo, drives, attack, shield and rapidfire, new units too. The values can be pasted from the page sources of the shipyard, defense, tech tree and info pages. Build & research, flight times, raid planner, battle simulator and loot settlement then use the universe’s values.',
       },

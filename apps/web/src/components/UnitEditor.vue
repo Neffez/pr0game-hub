@@ -35,6 +35,7 @@ interface UnitPage {
   lang: 'de' | 'en';
   units: ParsedUnit[];
   unknown: string[];
+  mode?: 'fleet' | 'defense';
 }
 
 const saved = ref<UnitOverrides>({});
@@ -171,6 +172,8 @@ const foundFrom = ref<Record<number, Record<string, number>>>({});
 const unknown = ref<string[]>([]);
 const pasted = ref<string[]>([]);
 const chosen = ref<Record<number, boolean>>({});
+/** units on the pasted shipyard and defense lists (they show every unit of the universe) */
+const listed = ref<{ fleet?: number[]; defense?: number[] }>({});
 
 async function parse() {
   if (!pasteHtml.value.trim()) return;
@@ -189,6 +192,14 @@ async function parse() {
       chosen.value[u.id] ??= true;
     }
     for (const shooter of Object.keys(foundFrom.value)) chosen.value[Number(shooter)] ??= true;
+    if (page.kind === 'shipyard' && page.mode) {
+      listed.value = { ...listed.value, [page.mode]: [...new Set([...(listed.value[page.mode] ?? []), ...page.units.map((u) => u.id)])] };
+      // preselected unless much of the list is missing (rather a cut page than a smaller universe)
+      const ofList = (id: number) => (page.mode === 'fleet' ? id < 300 : id >= 400);
+      const missing = absent.value.filter(ofList);
+      const preselect = missing.length <= all.value.filter((x) => ofList(x.id) && x.state !== 'hidden').length / 2;
+      for (const x of missing) chosen.value[x] ??= preselect;
+    }
     unknown.value = [...new Set([...unknown.value.filter((n) => !pastedNames.value[n]), ...page.unknown])];
     pasted.value = [...pasted.value, t(`admin.units.kind.${page.kind}`, { n: page.units.length })];
     pasteHtml.value = '';
@@ -222,6 +233,15 @@ function withFound(id: number): UnitDef {
   return u;
 }
 
+/** Units of the universe missing on a pasted shipyard or defense list: they do not exist there. */
+const absent = computed(() =>
+  all.value
+    .filter((x) => x.state !== 'hidden' && !found.value[x.id])
+    .filter((x) => (x.id < 300 ? listed.value.fleet : listed.value.defense)?.includes(x.id) === false)
+    .map((x) => x.id),
+);
+const hiddenNow = (id: number) => !!overrides.value[id]?.hidden;
+
 const FIELDS = ['name', 'cost', 'req', 'one', 'attack', 'shield', 'capacity', 'drives', 'rapidfire'] as const;
 /** Fields that would change, as text, per unit with findings. */
 const preview = computed(() => {
@@ -229,11 +249,14 @@ const preview = computed(() => {
   return [...ids].sort((a, b) => a - b).map((id) => {
     const before = merged(id);
     const after = withFound(id);
-    const changes = FIELDS.filter((k) => JSON.stringify(before[k]) !== JSON.stringify(after[k])).map((k) => ({ field: k, from: show(k, before), to: show(k, after) }));
+    const changes: { field: string; from: string; to: string }[] = FIELDS.filter((k) => JSON.stringify(before[k]) !== JSON.stringify(after[k])).map((k) => ({ field: k, from: show(k, before), to: show(k, after) }));
+    if (hiddenNow(id) && found.value[id]) changes.unshift({ field: 'present', from: t('common.no'), to: t('common.yes') });
     const f = found.value[id];
     const structure = f?.structure != null && f.structure !== after.cost[0] + after.cost[1] ? f.structure : null;
-    return { id, isNew: !all.value.some((x) => x.id === id), name: f?.name ?? unitName(id), changes, structure };
-  }).filter((p) => p.changes.length || p.isNew || p.structure != null);
+    return { id, isNew: !all.value.some((x) => x.id === id), name: f?.name ?? unitName(id), changes, structure, hide: false };
+  }).filter((p) => p.changes.length || p.isNew || p.structure != null).concat(
+    absent.value.map((id) => ({ id, isNew: false, name: unitName(id), changes: [{ field: 'present', from: t('common.yes'), to: t('common.no') }], structure: null, hide: true })),
+  );
 });
 
 function show(field: (typeof FIELDS)[number], u: UnitDef): string {
@@ -249,7 +272,16 @@ function show(field: (typeof FIELDS)[number], u: UnitDef): string {
 }
 
 function takeOver() {
-  for (const p of preview.value) if (chosen.value[p.id]) put(withFound(p.id));
+  for (const p of preview.value) {
+    if (!chosen.value[p.id]) continue;
+    if (p.hide) {
+      if (!hiddenNow(p.id)) toggleHidden(p.id);
+      continue;
+    }
+    const unhide = hiddenNow(p.id) && !!found.value[p.id];
+    put(withFound(p.id));
+    if (unhide) toggleHidden(p.id);
+  }
   clearPaste();
 }
 
@@ -260,6 +292,7 @@ function clearPaste() {
   pasted.value = [];
   chosen.value = {};
   pastedNames.value = {};
+  listed.value = {};
 }
 
 async function save() {
