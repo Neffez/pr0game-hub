@@ -3,6 +3,7 @@
 import init, { wasm_fight_battle_rounds } from '@pr0hub/battle/wasm';
 import wasmUrl from '@pr0hub/battle/wasm/battlerust_bg.wasm?url';
 import { runBattle, summarize } from '@pr0hub/battle';
+import { unitCatalog } from '@pr0hub/core/units';
 
 var ready = init({ module_or_path: wasmUrl });
 
@@ -10,9 +11,10 @@ self.onmessage = function (e) {
   var job = e.data;
   ready.then(function () {
     var list = [];
+    var units = unitCatalog(job.units || {});
     var last = Date.now();
     for (var i = 0; i < job.runs; i++) {
-      list.push(runBattle(wasm_fight_battle_rounds, job.setup, job.settings));
+      list.push(runBattle(wasm_fight_battle_rounds, job.setup, job.settings, Math.random, units));
       if (Date.now() - last > 100) {
         last = Date.now();
         self.postMessage({ id: job.id, type: 'progress', done: i + 1 });

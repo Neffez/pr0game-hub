@@ -1,6 +1,6 @@
 /* ACS loot calculator UI. Calculation lives in @pr0hub/loot, glue in ../src/loot.ts. */
 import {
-  LOOT_SHIPS,
+  lootShips,
   MAX_HELPER_KEEP,
   MAX_PARTICIPANTS,
   battleFromReport,
@@ -22,6 +22,7 @@ import {
 } from '../src/loot.ts';
 import { TEXTS } from './i18n.js';
 import { $, $$, applyTexts, bindLang, bindShare, bindTips, clearHash, copy, esc, initTexts, load, store, t } from '../shared/shell.js';
+import { UNITS_HASH, initUnits, mountUnitsButton, onUnitsChange, unitsLinkValue } from '../shared/units.js';
 
 var LS_STATE = 'pr0loot.state.v1';
 var RES = ['m', 'k', 'd'];
@@ -210,7 +211,7 @@ function buildBattles() {
             bi + ':' + p.id + ':' + r + '" value="' + (f && f.loot ? num(f.loot[r]) : '') + '" title="' + esc(t('lootOverride')) + '">';
         }).join('') + '</div></td>';
       }).join('') + '</tr>';
-    var options = LOOT_SHIPS.filter(function (id) { return ships.indexOf(id) < 0; }).map(function (id) {
+    var options = lootShips().filter(function (id) { return ships.indexOf(id) < 0; }).map(function (id) {
       return '<option value="' + id + '">' + esc(shipName(id, LANG)) + '</option>';
     }).join('');
     var when = b.time ? new Date(b.time * 1000).toLocaleString(LANG === 'de' ? 'de-DE' : 'en-GB') : '';
@@ -711,7 +712,8 @@ function bind() {
     render();
   });
   bindShare(function () {
-    return location.href.split('#')[0] + '#s=' + encodeShare(cleanState(S));
+    var units = unitsLinkValue(usedUnits());
+    return location.href.split('#')[0] + '#s=' + encodeShare(cleanState(S)) + (units ? '&' + UNITS_HASH + '=' + units : '');
   });
   $('#resetBtn').addEventListener('click', function () {
     if (!window.confirm(t('resetConfirm'))) return;
@@ -727,9 +729,22 @@ function bind() {
   });
 }
 
+/* Ship ids of all fleets (their own values go into the share link). */
+function usedUnits() {
+  var ids = {};
+  S.battles.forEach(function (b) {
+    (b.fleets || []).forEach(function (f) {
+      Object.keys(f.start || {}).concat(Object.keys(f.end || {})).forEach(function (id) { ids[id] = true; });
+    });
+  });
+  return Object.keys(ids).map(Number);
+}
+
 function loadHash() {
   var m = location.hash.match(/^#s=([\w-]+)/);
   if (!m) return false;
+  var uo = location.hash.match(/[&#]uo=([\w-]+)/);
+  if (uo) initUnits(uo[1]);
   var state = decodeShare(m[1]);
   if (!state) return false;
   S = state;
@@ -739,6 +754,8 @@ function loadHash() {
 
 function init() {
   LANG = initTexts(TEXTS);
+  initUnits(null);
+  onUnitsChange(function () { buildInputs(); update(); });
   if (!loadHash()) {
     var saved = load(LS_STATE);
     if (saved) S = cleanState(saved);
@@ -749,6 +766,7 @@ function init() {
     S.battles.push({time: null, loot: {m: 0, k: 0, d: 0}, fleets: []});
   }
   applyTexts();
+  mountUnitsButton();
   buildInputs();
   bind();
   bindTips();

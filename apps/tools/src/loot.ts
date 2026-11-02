@@ -1,7 +1,7 @@
 /* ACS loot calculator: glue between the page (../acs-loot/main.js) and @pr0hub/loot. */
 import { parseCombatReportText, parseRecycleReportsText } from '@pr0hub/core/combat';
-import { TECH_NAMES } from '@pr0hub/core/tech';
-import { CAPACITY } from '@pr0hub/flight';
+import { activeUnits } from '@pr0hub/core/units';
+import { elementLabel } from './core';
 import { battleFromReport as fromReport, localEpoch, type LootState, type ReportSide } from '@pr0hub/loot';
 
 export {
@@ -26,13 +26,12 @@ export { parseAmount } from './core';
 
 export type ToolLang = 'de' | 'en';
 
-/** Ships that can fly in an ACS, in game order. */
-export const LOOT_SHIPS: number[] = Object.keys(CAPACITY).map(Number).sort((a, b) => a - b);
+/** Ships that can carry loot in an ACS (active unit catalog), in game order. */
+export const lootShips = (): number[] => Object.keys(activeUnits().capacity).map(Number).sort((a, b) => a - b);
 
 /** Ship name in the page language (short name in tables). */
 export function shipName(id: number, lang: ToolLang, short = false): string {
-  const names = TECH_NAMES as unknown as Record<string, Record<string, string>>;
-  return names[short ? `${lang}Short` : lang]?.[id] ?? names[lang]?.[id] ?? String(id);
+  return elementLabel(id, lang, short);
 }
 
 export type ReportResult = ({ ok: true } & ReturnType<typeof fromReport>) | { ok: false };

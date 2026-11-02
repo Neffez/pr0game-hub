@@ -19,9 +19,12 @@ import {
   parseCoords,
   parseTimeInput,
   recallFor,
-  setCustomShips,
+  legacyShipUnits,
+  rebuildShips,
   shipLabel,
 } from '../src/core.ts';
+import { DEFAULT_UNIT_DEFS } from '@pr0hub/core/units';
+import { LS_UNITS, UNITS_HASH, initUnits, mountUnitsButton, onUnitsChange, unitsLinkValue } from '../shared/units.js';
 import { TEXTS } from './i18n.js';
 import { LS_UNI, UNI_HASH, fieldsetsHtml, openDialog, syncUniInputs, uniFieldGroups, uniSummary } from '../shared/uni.js';
 import { $, $$, applyTexts, bindLang, bindTips, clearHash, copy as copyText, esc, fmtNum as fmtNumLang, initTexts, lang, load, store, t as tr, toast } from '../shared/shell.js';
@@ -217,13 +220,11 @@ function applyHash(state, h) {
       state.techs[tech] = parseInt(h[TECH_HASH[tech]], 10) || 0;
     }
   });
-  if (h.cs) {
-    try { applyCustom(JSON.parse(h.cs)); } catch (e) { /* ignore broken link data */ }
-  }
   if (h.ships) {
     state.ships = {};
     h.ships.split(',').forEach(function (part) {
       var bits = part.split(':');
+      if (LEGACY_IDS[bits[0]]) { bits[0] = String(LEGACY_IDS[bits[0]]); }
       if (bits.length === 2 && SHIP_BY_ID[bits[0]]) {
         state.ships[bits[0]] = Math.max(0, Math.floor(num(bits[1], 0)));
       }
@@ -263,7 +264,8 @@ function applyHash(state, h) {
   if (h.rc) { state.recall = parseInt(h.rc, 10); state.recallLive = false; }
   if (h.hm) { state.home = parseInt(h.hm, 10); }
   if (h.ks) { state.konter.start = parseCoords(h.ks); }
-  if (h.kship && SHIP_BY_ID[h.kship]) { state.konter.ship = h.kship; }
+  var kship = LEGACY_IDS[h.kship] || h.kship;
+  if (kship && SHIP_BY_ID[kship]) { state.konter.ship = kship; }
   if (h.kc !== undefined) { state.konter.combustion = parseInt(h.kc, 10) || 0; }
   if (h.ki !== undefined) { state.konter.impulse = parseInt(h.ki, 10) || 0; }
   if (h.kh !== undefined) { state.konter.hyperspace = parseInt(h.kh, 10) || 0; }
@@ -308,13 +310,8 @@ function buildShareUrl() {
     if (S.abortKind === 'home') { p.set('hm', S.home); } else if (!S.recallLive) { p.set('rc', S.recall); }
   }
   Object.keys(UNI_HASH).forEach(function (key) { if (U[key] !== undefined) p.set(UNI_HASH[key], U[key]); });
-  if (CUSTOM.length) {
-    p.set('cs', JSON.stringify(CUSTOM.map(function (c) {
-      var out = {id: c.id, name: c.name};
-      CUSTOM_FIELDS.forEach(function (key) { out[key] = c[key]; });
-      return out;
-    })));
-  }
+  var units = unitsLinkValue(activeShips(S.ships).concat(S.mode === 'retime' ? [S.konter.ship] : []));
+  if (units) { p.set(UNITS_HASH, units); }
   return location.origin + location.pathname + '#' + p.toString();
 }
 
@@ -324,7 +321,6 @@ function persist() {
   saveTimer = setTimeout(function () {
     store(LS_TABS, {active: TABS.indexOf(activeTab), tabs: TABS.map(function (t) { return {name: t.name, state: t.state}; })});
     store(LS_UNI, U);
-    store(LS_SHIPS, CUSTOM);
   }, 250);
 }
 
@@ -877,55 +873,34 @@ function update() {
 }
 
 
-/* ---------- custom ships ---------- */
+/* ---------- own units ---------- */
 
+/* Custom ships of older versions (ids "c1" …) became units of the shared unit editor: old id -> new id. */
 var LS_SHIPS = 'pr0fc.ships.v1';
-var CUSTOM = [];
-var DRIVES = [['1', 'combustion'], ['2', 'impulse'], ['3', 'hyperspace']];
-var CUSTOM_FIELDS = ['speed1', 'speed2', 'speed3', 'tech1', 'tech2', 'tech3', 'consumption1', 'consumption2', 'consumption3'];
+var LEGACY_IDS = {};
 
-function applyCustom(list) {
-  CUSTOM = (Array.isArray(list) ? list : []).filter(function (c) {
-    return c && /^c\d+$/.test(c.id);
-  }).map(function (c) {
-    var ship = {id: c.id, name: String(c.name || tr('customShip')).slice(0, 40), custom: true};
-    CUSTOM_FIELDS.forEach(function (key) {
-      ship[key] = Math.max(0, Number(c[key]) || 0);
-    });
-    return ship;
-  });
-  setCustomShips(CUSTOM);
+function takenId(id) {
+  return !!DEFAULT_UNIT_DEFS[id] || !!(load(LS_UNITS) || {})[id];
 }
 
-function nextCustomId() {
-  var max = 0;
-  CUSTOM.forEach(function (c) {
-    max = Math.max(max, parseInt(c.id.slice(1), 10) || 0);
-  });
-  return 'c' + (max + 1);
+/* Custom ships of a link of an older version (key cs) as units for the session. */
+function legacyLinkUnits(h) {
+  if (!h.cs) { return null; }
+  var list;
+  try { list = JSON.parse(h.cs); } catch (e) { return null; }
+  var mig = legacyShipUnits(list, function (id) { return takenId(id) || Object.values(LEGACY_IDS).indexOf(id) !== -1; });
+  Object.assign(LEGACY_IDS, mig.ids);
+  return mig.units;
 }
 
-function renderCustomList() {
-  var list = $('#customList');
-  if (!CUSTOM.length) {
-    list.innerHTML = '';
-    return;
-  }
-  list.innerHTML = CUSTOM.map(function (c) {
-    var rows = DRIVES.map(function (d) {
-      return '<tr><td>' + esc(tr(d[1])) + '</td>' + [['speed', 'baseSpeed'], ['tech', 'usedFrom'], ['consumption', 'consumption']].map(function (col) {
-        var key = col[0];
-        return '<td><input data-cs="' + key + d[0] + '" type="number" min="0" step="1" inputmode="numeric" value="' + c[key + d[0]] + '" aria-label="' + esc(tr(d[1]) + ' ' + tr(col[1])) + '"></td>';
-      }).join('') + '</tr>';
-    }).join('');
-    return '<div class="cship" data-cid="' + c.id + '">'
-      + '<div class="cship-head"><input class="input" data-cs="name" value="' + esc(c.name) + '" maxlength="40" aria-label="' + esc(tr('shipName')) + '">'
-      + '<button type="button" class="btn ghost" data-cs-del>' + esc(tr('remove')) + '</button></div>'
-      + '<div class="table-wrap"><table class="cship-table"><thead><tr>' + ['drive', 'baseSpeed', 'usedFrom', 'consumption'].map(function (h) {
-        return '<th>' + esc(tr(h)) + '</th>';
-      }).join('') + '</tr></thead>'
-      + '<tbody>' + rows + '</tbody></table></div></div>';
-  }).join('');
+function remapLegacy(state) {
+  Object.keys(state.ships || {}).forEach(function (id) {
+    if (LEGACY_IDS[id]) {
+      state.ships[LEGACY_IDS[id]] = state.ships[id];
+      delete state.ships[id];
+    }
+  });
+  if (state.konter && LEGACY_IDS[state.konter.ship]) { state.konter.ship = LEGACY_IDS[state.konter.ship]; }
 }
 
 function rebuildShipUi() {
@@ -1156,10 +1131,7 @@ function syncUniSummary() {
 function buildUniDialog() {
   var groups = uniFieldGroups(['groupSpeed', 'groupLayout', 'groupDistances', 'groupClock']);
   groups.groupClock.push('<p class="clock-compare">' + tr('clockCompare') + '</p>');
-  $('#uniFields').innerHTML = fieldsetsHtml(groups)
-    + '<fieldset class="cships"><legend class="label-row">' + esc(tr('customShips')) + ' <button type="button" class="tip" aria-label="' + esc(tr('info')) + '" data-tip="' + esc(tr('customShipsTip')) + '"></button></legend>'
-    + '<div id="customList"></div><button type="button" class="btn" id="addShip">' + esc(tr('addShip')) + '</button></fieldset>';
-  renderCustomList();
+  $('#uniFields').innerHTML = fieldsetsHtml(groups);
 }
 
 function syncUniDialog() {
@@ -1298,15 +1270,6 @@ function bind() {
     } else if (el.dataset.ktech) {
       S.konter[el.dataset.ktech] = Math.max(0, parseInt(el.value, 10) || 0);
       update();
-    } else if (el.dataset.cs) {
-      var custom = SHIP_BY_ID[el.closest('.cship').dataset.cid];
-      if (el.dataset.cs === 'name') {
-        custom.name = el.value.slice(0, 40) || tr('customShip');
-        rebuildShipUi();
-      } else {
-        custom[el.dataset.cs] = Math.max(0, Number(el.value) || 0);
-      }
-      update();
     } else if (el.dataset.uni) {
       var v = parseFloat(el.value);
       if (!isNaN(v)) {
@@ -1412,35 +1375,6 @@ function bind() {
     syncCoords();
     render();
   });
-  $('#uniFields').addEventListener('click', function (e) {
-    if (e.target.closest('#addShip')) {
-      var ship = {id: nextCustomId(), name: tr('customShip') + ' ' + (CUSTOM.length + 1)};
-      CUSTOM_FIELDS.forEach(function (key) { ship[key] = 0; });
-      ship.speed1 = 10000;
-      ship.tech1 = 1;
-      ship.consumption1 = 100;
-      applyCustom(CUSTOM.concat([ship]));
-      renderCustomList();
-      rebuildShipUi();
-      update();
-      var input = $('[data-cid="' + ship.id + '"] [data-cs="name"]');
-      input.focus();
-      input.select();
-      return;
-    }
-    var del = e.target.closest('[data-cs-del]');
-    if (del) {
-      var id = del.closest('.cship').dataset.cid;
-      applyCustom(CUSTOM.filter(function (c) { return c.id !== id; }));
-      delete S.ships[id];
-      if (String(S.konter.ship) === id) {
-        S.konter.ship = 204;
-      }
-      renderCustomList();
-      rebuildShipUi();
-      update();
-    }
-  });
   $('#uniReset').addEventListener('click', function () {
     var offset = U.clock_offset;
     U = Object.assign({}, DEFAULT_UNI, {clock_offset: offset});
@@ -1460,9 +1394,13 @@ function bind() {
 
   window.addEventListener('hashchange', function () {
     var state = defaultState(nowUnix());
-    if (applyHash(state, parseHash())) {
+    var h = parseHash();
+    if (h[UNITS_HASH] || h.cs) {
+      initUnits(h[UNITS_HASH], {link: legacyLinkUnits(h)});
+      rebuildShips();
+    }
+    if (applyHash(state, h)) {
       clearHash();
-      renderCustomList();
       rebuildShipUi();
       addTab(state, null);
       toast(tr('linkNewTab'));
@@ -1488,10 +1426,27 @@ function init() {
   initTexts(TEXTS);
   applyTexts();
   U = Object.assign({}, DEFAULT_UNI, load(LS_UNI) || {});
-  applyCustom(load(LS_SHIPS));
+  // custom ships of older versions become units of the shared editor (once), then the own and the link's units
+  var legacy = load(LS_SHIPS);
+  var migrated = null;
+  if (Array.isArray(legacy) && legacy.length) {
+    var mig = legacyShipUnits(legacy, takenId);
+    LEGACY_IDS = mig.ids;
+    migrated = mig.units;
+  }
+  try { localStorage.removeItem(LS_SHIPS); } catch (e) { /* storage unavailable */ }
+  var hash = parseHash();
+  initUnits(hash[UNITS_HASH], {stored: migrated, link: legacyLinkUnits(hash)});
+  rebuildShips();
+  onUnitsChange(function () {
+    rebuildShips();
+    rebuildShipUi();
+    update();
+  });
   var hadState = loadTabs(nowUnix());
+  TABS.forEach(function (tab) { remapLegacy(tab.state); });
   var linkState = defaultState(nowUnix());
-  var fromLink = applyHash(linkState, parseHash());
+  var fromLink = applyHash(linkState, hash);
   if (fromLink) {
     clearHash();
     if (hadState && TABS.length < MAX_TABS) {
@@ -1506,6 +1461,7 @@ function init() {
   buildShips();
   buildSpeedSeg();
   buildUniDialog();
+  mountUnitsButton();
   bind();
   bindTips();
   bindTabs();

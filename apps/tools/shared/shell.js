@@ -1,6 +1,8 @@
 /* Shared page shell of the pr0game tools: DOM helpers, storage, language (German/English) with static texts,
    toast, copying the share link and info tooltips. Each tool brings its own TEXTS (same keys in de and en). */
 
+import { UNITS_TEXTS } from './unitsTexts.js';
+
 export var LANGS = ['en', 'de'];
 /* One language for all tools; the loot calculator stored its own before. */
 var LS_LANG = 'pr0tools.lang';
@@ -65,7 +67,7 @@ export function storedLang() {
 /* Sets the texts of the page and picks the language; returns it. */
 export function initTexts(texts) {
   TEXTS = {};
-  LANGS.forEach(function (l) { TEXTS[l] = Object.assign({}, COMMON_TEXTS[l], texts[l]); });
+  LANGS.forEach(function (l) { TEXTS[l] = Object.assign({}, COMMON_TEXTS[l], UNITS_TEXTS[l], texts[l]); });
   LANG = storedLang();
   return LANG;
 }

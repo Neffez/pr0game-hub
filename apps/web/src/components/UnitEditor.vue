@@ -218,7 +218,7 @@ function withFound(id: number): UnitDef {
     if (f.name && f.lang) {
       u.name = { ...u.name, [f.lang]: f.name };
       if (!DEFAULT_UNIT_DEFS[id] && u.name[f.lang === 'de' ? 'en' : 'de'] === `#${id}`) u.name = { de: f.name, en: f.name };
-      if (u.short.de === `#${id}`) u.short = { de: f.name.slice(0, 6), en: f.name.slice(0, 6) };
+      if (u.short.de === `#${id}`) u.short = { de: f.name.slice(0, 6).trim(), en: f.name.slice(0, 6).trim() };
     }
     if (f.cost) u.cost = f.cost;
     if (f.req) u.req = f.req;

@@ -282,6 +282,56 @@ dialog[open] { animation: pop .18s ease-out; }
 .dlg-foot { display: flex; justify-content: space-between; gap: 8px; padding: 14px 18px; border-top: 1px solid var(--border); }
 @media (max-width: 640px) { .uni-chip span { display: none; } }
 
+/* own values for ships and defense (shared/units.js) */
+.units-btn { position: relative; }
+.units-btn.on { color: var(--accent); border-color: var(--accent); }
+.units-badge {
+  position: absolute; top: -6px; right: -6px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px;
+  background: var(--accent); color: #fff; font-size: 10px; line-height: 16px; font-weight: 700; text-align: center;
+}
+.units-dlg .dlg-body { gap: 12px; }
+.units-foot { display: inline-flex; gap: 8px; }
+.units-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.units-new { display: inline-flex; gap: 6px; margin-left: auto; }
+.units-new input { width: 120px; }
+.units-paste, .units-form {
+  display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--border);
+  border-radius: var(--radius-sm); background: var(--surface-2);
+}
+.units-paste textarea { width: 100%; }
+.units-chip { font-size: 12px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); }
+.units-found ul { margin: 4px 0 0 22px; font-size: 12.5px; }
+.units-check { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; cursor: pointer; }
+.units-muted { color: var(--muted); }
+.units-warn { color: var(--warn); }
+.units-error { color: var(--danger); }
+.units-form h3 { font-size: 15px; }
+.units-form h4 { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-top: 4px; }
+.units-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+.units-form .field input { width: 100%; font-family: var(--mono); }
+.units-drive { display: grid; grid-template-columns: minmax(0, 1fr) repeat(3, minmax(0, 110px)); gap: 8px; align-items: end; }
+.units-drive b { align-self: center; font-weight: 500; font-size: 13px; }
+.units-row { display: flex; gap: 6px; align-items: center; }
+.units-row select { flex: 1; min-width: 0; }
+.units-row input { width: 90px; }
+.units-list { width: 100%; font-size: 13px; }
+.units-list td { padding: 5px 6px; border-bottom: 1px solid var(--border); vertical-align: middle; text-align: left; font-family: inherit; font-weight: 400; }
+.units-list td.mono { font-family: var(--mono); }
+.units-list tr.off td { opacity: .5; }
+.units-list td.mono { color: var(--muted); width: 1%; }
+.units-cost { font-size: 11px; color: var(--faint); }
+.units-list td.units-actions { text-align: right; white-space: nowrap; }
+.units-actions .btn { margin-left: 4px; }
+.units-state { font-size: 11px; font-weight: 600; margin-left: 4px; color: var(--accent); }
+.units-state.new { color: var(--ok); }
+.units-state.hidden { color: var(--faint); }
+@media (max-width: 640px) {
+  .units-new { margin-left: 0; }
+  .units-drive { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .units-drive b { grid-column: 1 / -1; }
+  .units-actions .btn { padding: 4px 7px; }
+}
+
 /* tabs of independent calculations (flight calculator, battle simulator) */
 .calc-tabs {
   display: flex; align-items: stretch; gap: 6px; margin-bottom: 10px; overflow-x: auto;

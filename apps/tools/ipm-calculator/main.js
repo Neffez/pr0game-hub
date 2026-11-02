@@ -1,8 +1,8 @@
 /* Interplanetary missile calculator UI. Calculation lives in @pr0hub/flight, glue in ../src/missile.ts. */
 import {
   MISSILE_COST,
-  MISSILE_TARGET_IDS,
-  PRIMARY_TARGET_IDS,
+  missileTargetIds,
+  primaryTargetIds,
   applyHash,
   applySpyReport,
   calculate,
@@ -13,11 +13,12 @@ import {
   fmtCoordsText,
   missileDamage,
   parseCoordsText,
-  structurePoints,
+  structureOf,
 } from '../src/missile.ts';
 import { parseAmount } from '../src/core.ts';
 import { TEXTS } from './i18n.js';
 import { $, $$, applyTexts, bindLang, bindShare, bindTips, clearHash, esc, fmtNum, initTexts, lang, load, store, t, toast } from '../shared/shell.js';
+import { UNITS_HASH, initUnits, mountUnitsButton, onUnitsChange, unitsLinkValue } from '../shared/units.js';
 
 var LS_STATE = 'pr0ipm.state.v1';
 
@@ -64,12 +65,12 @@ function persist() { store(LS_STATE, S); }
 /* ---------- inputs ---------- */
 
 function buildDefense() {
-  $('#defGrid').innerHTML = MISSILE_TARGET_IDS.map(function (id) {
+  $('#defGrid').innerHTML = missileTargetIds().map(function (id) {
     return '<div class="def" data-def-box="' + id + '">'
       + '<label class="def-name" for="def-' + id + '" title="' + esc(elementName(id, lang())) + '"><strong>' + esc(elementName(id, lang())) + '</strong><span></span></label>'
       + '<input id="def-' + id + '" data-def="' + id + '" type="text" inputmode="numeric" autocomplete="off" placeholder="0"></div>';
   }).join('');
-  $('#primaryIn').innerHTML = '<option value="0">' + esc(t('primaryNone')) + '</option>' + PRIMARY_TARGET_IDS.map(function (id) {
+  $('#primaryIn').innerHTML = '<option value="0">' + esc(t('primaryNone')) + '</option>' + primaryTargetIds().map(function (id) {
     return '<option value="' + id + '">' + esc(elementName(id, lang())) + '</option>';
   }).join('');
 }
@@ -84,7 +85,7 @@ function syncInputs() {
   $$('[data-amount]').forEach(function (el) { set(el, S[el.dataset.amount] ? num(S[el.dataset.amount]) : ''); });
   $$('[data-def]').forEach(function (el) { var n = S.defense[el.dataset.def]; set(el, n ? num(n) : ''); });
   $$('[data-uni]').forEach(function (el) { set(el, S.uni[el.dataset.uni]); });
-  $('#primaryIn').value = String(PRIMARY_TARGET_IDS.indexOf(S.primary) !== -1 ? S.primary : 0);
+  $('#primaryIn').value = String(primaryTargetIds().indexOf(S.primary) !== -1 ? S.primary : 0);
 }
 
 /* ---------- render ---------- */
@@ -110,12 +111,12 @@ function render() {
   $('#uniMeta').textContent = '· ' + S.uni.systems + ' · ' + shape + ' · ×' + S.uni.speed;
 
   /* defense grid: structure points, primary target marked */
-  MISSILE_TARGET_IDS.forEach(function (id) {
+  missileTargetIds().forEach(function (id) {
     var box = $('[data-def-box="' + id + '"]');
     var row = r.rows.filter(function (x) { return x.id === id; })[0];
     box.classList.toggle('has', !!row);
     box.classList.toggle('primary', !!row && S.primary === id);
-    box.querySelector('.def-name span').textContent = t('structure', {n: num(Math.ceil(structurePoints(id, S.armor)))});
+    box.querySelector('.def-name span').textContent = t('structure', {n: num(Math.ceil(structureOf(id, S.armor)))});
   });
 
   /* notes */
@@ -242,7 +243,10 @@ function bind() {
     syncInputs();
     update();
   });
-  bindShare(function () { return location.origin + location.pathname + '#' + encodeHash(S); });
+  bindShare(function () {
+    var units = unitsLinkValue(Object.keys(S.defense).map(Number).concat([503]));
+    return location.origin + location.pathname + '#' + encodeHash(S) + (units ? '&' + UNITS_HASH + '=' + units : '');
+  });
   bindLang(function () {
     buildDefense();
     syncInputs();
@@ -257,6 +261,11 @@ function bind() {
 function loadHash() {
   var hash = location.hash.replace(/^#/, '');
   if (!hash) return false;
+  var uo = new URLSearchParams(hash).get(UNITS_HASH);
+  if (uo) {
+    initUnits(uo);
+    buildDefense();
+  }
   var state = cleanState(S);
   if (!applyHash(state, hash)) return false;
   S = state;
@@ -267,9 +276,12 @@ function loadHash() {
 function init() {
   initTexts(TEXTS);
   applyTexts();
+  initUnits(null);
+  onUnitsChange(function () { buildDefense(); syncInputs(); update(); });
   S = cleanState(load(LS_STATE));
   var fromLink = loadHash();
   buildDefense();
+  mountUnitsButton();
   bind();
   bindTips();
   syncInputs();

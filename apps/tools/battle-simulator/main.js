@@ -2,12 +2,12 @@
 import { decodeShare, encodeShare } from '@pr0hub/battle';
 import {
   COMBAT_TECHS,
-  DEFENSE_IDS,
   DRIVE_TECHS,
   MAX_RUNS,
   RECYCLER_IDS,
   MAX_SLOTS,
-  SHIP_IDS,
+  defenseIds,
+  shipIds,
   applySpyReport,
   balance,
   battleSetup,
@@ -27,6 +27,7 @@ import {
 import { DEFAULT_UNI, parseAmount } from '../src/core.ts';
 import { TEXTS } from './i18n.js';
 import { $, $$, applyTexts, bindLang, bindShare, bindTips, clearHash, esc, fmtNum, initTexts, lang, load, store, t, toast } from '../shared/shell.js';
+import { UNITS_HASH, activeUnitOverrides, initUnits, mountUnitsButton, onUnitsChange, unitsLinkValue } from '../shared/units.js';
 import { BATTLE_LAYOUT_DEFAULTS, BATTLE_UNI_DEFAULTS, LS_UNI, UNI_HASH, fieldsetsHtml, openDialog, syncUniInputs, uniFieldGroups, uniSummary } from '../shared/uni.js';
 
 var LS_STATE = 'pr0bs.state.v1';
@@ -394,7 +395,7 @@ function renderSlot(side) {
     html += routeRow();
     html += '<div class="grid3 techs">' + techFields(side, COMBAT_TECHS, s.research) + '</div>';
     html += '<div class="grid4 techs">' + techFields(side, DRIVE_TECHS, s.research) + '</div>';
-    html += '<div class="field"><span class="field-label">' + esc(t('ships')) + '</span>' + unitGrid(side, SHIP_IDS.filter(function (id) { return id !== 212; }), s.units) + '</div>';
+    html += '<div class="field"><span class="field-label">' + esc(t('ships')) + '</span>' + unitGrid(side, shipIds().filter(function (id) { return id !== 212; }), s.units) + '</div>';
   } else {
     // first row like the attacker's start and speed: target and resources (holding fleets: an empty row of the same
     // height), so the combat research of both sides is on one line
@@ -411,12 +412,12 @@ function renderSlot(side) {
     // drives on every row like the attacker's (the planet's are the defaults of its recyclers)
     html += '<div class="grid4 techs">' + techFields(side, DRIVE_TECHS, s.research) + '</div>';
     // the solar satellite only defends: after the ships
-    var ships = SHIP_IDS.filter(function (id) { return id !== 212; }).concat([212]);
+    var ships = shipIds().filter(function (id) { return id !== 212; }).concat([212]);
     html += '<div class="field"><span class="field-label">' + esc(t('ships')) + '</span>' + unitGrid(side, ships, s.units) + '</div>';
     if (i === 0) {
       html += '<div class="field"><div class="label-row"><span class="field-label">' + esc(t('defense')) + '</span>'
         + '<a class="link-btn ipm-link" href="../ipm-calculator/" target="_blank" rel="noopener" data-ipm="1" title="' + esc(t('ipmTitle')) + '">' + esc(t('ipm')) + ' ↗</a></div>'
-        + unitGrid(side, DEFENSE_IDS, s.units) + '</div>';
+        + unitGrid(side, defenseIds(), s.units) + '</div>';
     }
   }
   $('#' + side + 'Slot').innerHTML = html;
@@ -545,7 +546,7 @@ function run() {
   job = {id: Date.now() + Math.random(), runs: S.runs, slots: fighting, setup: setup, tab: activeTab, labels: labels, state: state, started: Date.now()};
   var started = job;
   setTimeout(function () { if (job === started) renderRun(); }, RUN_DELAY);
-  worker.postMessage({id: job.id, setup: setup, runs: S.runs, settings: simSettings(U)});
+  worker.postMessage({id: job.id, setup: setup, runs: S.runs, settings: simSettings(U), units: activeUnitOverrides()});
   setProgress(0);
   renderRun();
   updateCalcTabs();
@@ -1017,7 +1018,11 @@ function bind() {
     update();
     toast(t('uniReset'));
   });
-  bindShare(function () { return location.origin + location.pathname + '#' + encodeShare(shareFromState(S, uniHash())); });
+  bindShare(function () {
+    var hash = encodeShare(shareFromState(S, uniHash()));
+    var units = unitsLinkValue(usedUnits());
+    return location.origin + location.pathname + '#' + hash + (units ? '&' + UNITS_HASH + '=' + units : '');
+  });
   bindLang(function () {
     renderCalcTabs();
     buildUniDialog();
@@ -1032,6 +1037,13 @@ function bind() {
   });
 }
 
+/* Unit ids of all slots of the battle (their own values go into the share link). */
+function usedUnits() {
+  var ids = {};
+  S.attackers.concat(S.defenders).forEach(function (s) { Object.keys(s.units || {}).forEach(function (id) { if (s.units[id] > 0) ids[id] = true; }); });
+  return Object.keys(ids).map(Number);
+}
+
 function openSettings() {
   syncUniInputs(U);
   openDialog($('#settings'));
@@ -1041,6 +1053,8 @@ function openSettings() {
 function linkState() {
   var hash = location.hash.replace(/^#/, '');
   if (!hash) return null;
+  var uo = new URLSearchParams(hash).get(UNITS_HASH);
+  if (uo) initUnits(uo);
   var share = decodeShare(hash);
   if (!share.attackers.length && !share.defenders.length) return null;
   Object.keys(UNI_HASH).forEach(function (key) {
@@ -1055,6 +1069,11 @@ function init() {
   initTexts(TEXTS);
   applyTexts();
   U = Object.assign({}, DEFAULT_UNI, BATTLE_LAYOUT_DEFAULTS, BATTLE_UNI_DEFAULTS, load(LS_UNI) || {});
+  initUnits(null);
+  onUnitsChange(function () {
+    renderInputs();
+    update();
+  });
   var hadState = loadTabs();
   var fromLink = linkState();
   // a link opens in a new tab next to the stored ones (or fills the first one)
@@ -1070,6 +1089,7 @@ function init() {
   S = activeTab.state;
   buildUniDialog();
   syncUniSummary();
+  mountUnitsButton();
   bind();
   bindCalcTabs();
   bindTips();

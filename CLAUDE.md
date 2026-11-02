@@ -66,5 +66,6 @@ pnpm build
   (calculation in `src/moon.ts`, formulas of the game's `MissionCaseDestruction`); each tool has its UI in `main.js`
   and its texts DE/EN in `i18n.js`. All pages share `shared/tools.css` and `shared/shell.js` (header with language
   switch and share link, texts via `data-t*`, toast, tooltips); the universe settings dialog (fields, hash keys,
-  texts, one localStorage key for all tools) is `shared/uni.js`. Docker target `tools`.
+  texts, one localStorage key for all tools) is `shared/uni.js`. Own values for ships and defense (one store for all tools, editor with
+  pasted game pages, link key `uo`) are `shared/units.js` on top of `@pr0hub/core/units`. Docker target `tools`.
 - `apps/web`: Vue 3 SPA; the mobile layout starts below 800 px (`useMobile` in `composables.ts`, same breakpoint in `style.css`).

@@ -168,13 +168,6 @@ export var TEXTS = {
     linkNewTab: 'Link in neuem Tab geöffnet',
     // universe settings
     clockCompare: 'Dein Gerät: <strong id="clockLocal"></strong> · der Rechner nutzt: <strong id="clockAdjusted"></strong>',
-    customShips: 'Eigene Schiffe',
-    customShipsTip: 'Trag die Werte aus der Schiffsinfo im Spiel ein. Genutzt ab Stufe: 0 = Antrieb nicht vorhanden, 1 = immer, N = ab dieser Forschungsstufe. Der höchste verfügbare Antrieb gewinnt (Hyperraum vor Impuls vor Verbrennung).',
-    addShip: '+ Schiff hinzufügen',
-    customShip: 'Eigenes Schiff',
-    shipName: 'Schiffsname',
-    remove: 'Entfernen',
-    drive: 'Antrieb', baseSpeed: 'Grundgeschwindigkeit', usedFrom: 'Genutzt ab Stufe', consumption: 'Verbrauch',
   },
   en: {
     ...UNI_TEXTS.en,
@@ -338,12 +331,5 @@ export var TEXTS = {
     sumArrival: 'Arrival', sumSend: 'Send', sumEnemyHome: 'Enemy home', sumRecall: 'Recall', sumBack: 'Back',
     linkNewTab: 'Link opened in a new tab',
     clockCompare: 'Your device: <strong id="clockLocal"></strong> · calculator uses: <strong id="clockAdjusted"></strong>',
-    customShips: 'Custom ships',
-    customShipsTip: 'Enter the values from the ship info in the game. Used from level: 0 = drive not available, 1 = always, N = from that research level on. The highest available drive wins (hyperspace before impulse before combustion).',
-    addShip: '+ Add ship',
-    customShip: 'Custom ship',
-    shipName: 'Ship name',
-    remove: 'Remove',
-    drive: 'Drive', baseSpeed: 'Base speed', usedFrom: 'Used from level', consumption: 'Consumption',
   },
 };

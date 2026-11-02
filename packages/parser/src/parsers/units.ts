@@ -1,5 +1,5 @@
-import * as cheerio from 'cheerio';
-import type { CheerioAPI } from 'cheerio';
+import * as cheerio from 'cheerio/slim';
+import type { CheerioAPI } from 'cheerio/slim';
 import { idByName } from '../tech.js';
 import { isUnitId, type ShipDrives } from '../units.js';
 import { parseNumber, type Lang } from '../util.js';

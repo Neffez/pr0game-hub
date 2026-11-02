@@ -92,6 +92,8 @@ export interface MissileAttackInput {
   defense: Record<number, number>;
   /** primary target; 0, unknown ids and interceptors fall back to the missile launcher */
   primary?: number;
+  /** what a missile can hit with its costs (default MISSILE_TARGETS; a universe's own units) */
+  targets?: Record<number, readonly [number, number, number]>;
 }
 
 export interface MissileAttackResult {
@@ -107,8 +109,8 @@ export interface MissileAttackResult {
 }
 
 /** Structure points of one unit: (metal + crystal) × (1 + 0.1 × armour) / 10. */
-export function structurePoints(id: number, armor: number): number {
-  const cost = MISSILE_TARGETS[id];
+export function structurePoints(id: number, armor: number, targets: Record<number, readonly [number, number, number]> = MISSILE_TARGETS): number {
+  const cost = targets[id] ?? [0, 0, 0];
   return ((cost[0] + cost[1]) * (1 + 0.1 * armor)) / 10;
 }
 
@@ -118,13 +120,15 @@ export function missileDamage(count: number, weapons: number): number {
 }
 
 /** The primary target the game uses for a given choice. */
-export function primaryTarget(primary: number | undefined): number {
-  return primary && PRIMARY_TARGET_IDS.includes(primary) ? primary : DEFAULT_PRIMARY;
+export function primaryTarget(primary: number | undefined, targets: Record<number, readonly [number, number, number]> = MISSILE_TARGETS): number {
+  return primary && primary < 500 && targets[primary] ? primary : DEFAULT_PRIMARY;
 }
 
+const idsOf = (targets: Record<number, unknown>) => Object.keys(targets).map(Number).sort((a, b) => a - b);
+
 /** Targets with units, in the order the missiles hit them: the primary target first, then by id. */
-function targetOrder(defense: Record<number, number>, primary: number): number[] {
-  const ids = MISSILE_TARGET_IDS.filter((id) => (defense[id] ?? 0) > 0);
+function targetOrder(defense: Record<number, number>, primary: number, targets: Record<number, unknown> = MISSILE_TARGETS): number[] {
+  const ids = idsOf(targets).filter((id) => (defense[id] ?? 0) > 0);
   return ids.includes(primary) ? [primary, ...ids.filter((id) => id !== primary)] : ids;
 }
 
@@ -133,15 +137,16 @@ export function missileAttack(input: MissileAttackInput): MissileAttackResult {
   const missiles = Math.max(0, Math.floor(input.missiles));
   const interceptors = Math.max(0, Math.floor(input.interceptors));
   const remaining: Record<number, number> = {};
-  for (const id of MISSILE_TARGET_IDS) if ((input.defense[id] ?? 0) > 0) remaining[id] = input.defense[id];
+  const targets = input.targets ?? MISSILE_TARGETS;
+  for (const id of idsOf(targets)) if ((input.defense[id] ?? 0) > 0) remaining[id] = input.defense[id];
   const destroyed: Record<number, number> = {};
   if (interceptors >= missiles) {
     return { intercepted: missiles, effective: 0, interceptorsLeft: interceptors - missiles, destroyed, remaining, damageLeft: 0 };
   }
   const effective = missiles - interceptors;
   let damage = missileDamage(effective, input.weapons);
-  for (const id of targetOrder(input.defense, primaryTarget(input.primary))) {
-    const points = structurePoints(id, input.armor);
+  for (const id of targetOrder(input.defense, primaryTarget(input.primary, targets), targets)) {
+    const points = structurePoints(id, input.armor, targets);
     const count = Math.min(Math.floor(damage / points), remaining[id]);
     damage -= count * points;
     if (count > 0) {
@@ -159,10 +164,11 @@ export function missileAttack(input: MissileAttackInput): MissileAttackResult {
  * null without anything to destroy.
  */
 export function missilesNeeded(input: Omit<MissileAttackInput, 'missiles'>, goal: 'all' | 'primary'): number | null {
-  const primary = primaryTarget(input.primary);
-  const ids = goal === 'all' ? targetOrder(input.defense, primary) : (input.defense[primary] ?? 0) > 0 ? [primary] : [];
+  const targets = input.targets ?? MISSILE_TARGETS;
+  const primary = primaryTarget(input.primary, targets);
+  const ids = goal === 'all' ? targetOrder(input.defense, primary, targets) : (input.defense[primary] ?? 0) > 0 ? [primary] : [];
   if (!ids.length) return null;
-  const points = ids.reduce((sum, id) => sum + input.defense[id] * structurePoints(id, input.armor), 0);
+  const points = ids.reduce((sum, id) => sum + input.defense[id] * structurePoints(id, input.armor, targets), 0);
   const interceptors = Math.max(0, Math.floor(input.interceptors));
   const done = (n: number) => {
     const r = missileAttack({ ...input, missiles: n });
@@ -176,10 +182,10 @@ export function missilesNeeded(input: Omit<MissileAttackInput, 'missiles'>, goal
 }
 
 /** Resources of destroyed units (metal, crystal, deuterium). */
-export function destroyedValue(destroyed: Record<number, number>): { m: number; k: number; d: number } {
+export function destroyedValue(destroyed: Record<number, number>, targets: Record<number, readonly [number, number, number]> = MISSILE_TARGETS): { m: number; k: number; d: number } {
   const v = { m: 0, k: 0, d: 0 };
   for (const [id, n] of Object.entries(destroyed)) {
-    const cost = MISSILE_TARGETS[Number(id)];
+    const cost = targets[Number(id)];
     if (!cost) continue;
     v.m += cost[0] * n;
     v.k += cost[1] * n;

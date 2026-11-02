@@ -1,5 +1,6 @@
 /* Interplanetary missile calculator: glue between the page (../ipm-calculator/main.js) and @pr0hub/flight. */
-import { TECH_NAMES } from '@pr0hub/core/tech';
+import { activeUnits } from '@pr0hub/core/units';
+import { elementLabel } from './core';
 import { parseSpyReportsText, spyValues } from '@pr0hub/core/spy';
 import {
   destroyedValue,
@@ -15,14 +16,30 @@ import {
   missileRange,
   missileSystemDistance,
   missilesNeeded,
-  PRIMARY_TARGET_IDS,
   primaryTarget,
   siloSlots,
   structurePoints,
   type Coords,
 } from '@pr0hub/flight';
 
-export { MISSILE_COST, MISSILE_TARGET_IDS, MISSILE_TARGETS, PRIMARY_TARGET_IDS, missileDamage, structurePoints };
+export { MISSILE_COST, MISSILE_TARGETS, missileDamage };
+
+/**
+ * What a missile can hit by the active unit catalog (the tools' own values): defense and interplanetary missiles
+ * with their costs; units the catalog lacks keep the values of @pr0hub/flight.
+ */
+export function missileTargets(): Record<number, readonly [number, number, number]> {
+  const out: Record<number, readonly [number, number, number]> = {};
+  for (const u of Object.values(activeUnits().units)) if (u.id >= 400 && u.id !== INTERCEPTOR) out[u.id] = [u.cost[0], u.cost[1], u.cost[2]];
+  return out;
+}
+export const missileTargetIds = (): number[] => Object.keys(missileTargets()).map(Number).sort((a, b) => a - b);
+/** Primary targets of the launch page: the defense, not the missiles. */
+export const primaryTargetIds = (): number[] => missileTargetIds().filter((id) => id < 500);
+/** Structure points of one unit with the armour. */
+export const structureOf = (id: number, armor: number): number => structurePoints(id, armor, missileTargets());
+/** ids a link or a stored state may carry: the catalog's and the ones of @pr0hub/flight */
+const knownIds = (): number[] => [...new Set([...MISSILE_TARGET_IDS, ...missileTargetIds()])].sort((a, b) => a - b);
 
 export type ToolLang = 'de' | 'en';
 
@@ -76,8 +93,7 @@ export function emptyState(): MissileState {
 
 /** Element name in the page language (short name for tight spots). */
 export function elementName(id: number, lang: ToolLang, short = false): string {
-  const names = TECH_NAMES as unknown as Record<string, Record<string, string>>;
-  return names[short ? `${lang}Short` : lang]?.[id] ?? names[lang]?.[id] ?? String(id);
+  return elementLabel(id, lang, short);
 }
 
 const int = (v: unknown, min = 0) => {
@@ -117,7 +133,7 @@ export function encodeHash(s: MissileState): string {
   for (const [key, which, i] of COORD_KEYS) p.set(key, String(s[which][i]));
   if (s.moon) p.set('m', '1');
   for (const [key, field] of NUM_KEYS) if (s[field]) p.set(key, String(s[field]));
-  for (const id of MISSILE_TARGET_IDS) if (s.defense[id]) p.set(`d${id}`, String(s.defense[id]));
+  for (const id of knownIds()) if (s.defense[id]) p.set(`d${id}`, String(s.defense[id]));
   p.set('ms', String(s.uni.systems));
   p.set('gt', String(s.uni.galaxyType));
   p.set('gs', String(s.uni.speed));
@@ -151,7 +167,7 @@ export function applyHash(s: MissileState, hash: string): boolean {
   }
   const defense: Record<number, number> = {};
   let hasDefense = false;
-  for (const id of MISSILE_TARGET_IDS) {
+  for (const id of knownIds()) {
     if (p.has(`d${id}`)) { defense[id] = int(p.get(`d${id}`)); hasDefense = true; }
   }
   if (hasDefense) { s.defense = defense; any = true; }
@@ -174,7 +190,7 @@ export function cleanState(saved: unknown): MissileState {
   s.target = coords(o.target, s.target);
   s.moon = !!o.moon;
   for (const [, field] of NUM_KEYS) s[field] = int(o[field]);
-  for (const id of MISSILE_TARGET_IDS) if (o.defense && int(o.defense[id])) s.defense[id] = int(o.defense[id]);
+  for (const id of knownIds()) if (o.defense && int(o.defense[id])) s.defense[id] = int(o.defense[id]);
   if (o.uni) {
     s.uni.systems = int(o.uni.systems, 1) || 400;
     s.uni.galaxyType = Math.min(2, int(o.uni.galaxyType));
@@ -205,7 +221,7 @@ export function applySpyReport(s: MissileState, text: string): SpyApplyResult {
   const defenseSeen = report.sections[400] != null;
   if (defenseSeen) {
     s.defense = {};
-    for (const id of MISSILE_TARGET_IDS) if (values[id]) s.defense[id] = values[id];
+    for (const id of missileTargetIds()) if (values[id]) s.defense[id] = values[id];
     if (!moon) s.interceptors = values[INTERCEPTOR] ?? 0;
   }
   const armorSeen = values[ARMOR] != null;
@@ -255,12 +271,13 @@ const universe = (s: MissileState) => ({
 
 export function calculate(s: MissileState): MissileResult {
   const u = universe(s);
-  const input = { weapons: s.weapons, armor: s.armor, interceptors: s.interceptors, defense: s.defense, primary: s.primary };
+  const targets = missileTargets();
+  const input = { weapons: s.weapons, armor: s.armor, interceptors: s.interceptors, defense: s.defense, primary: s.primary, targets };
   const attack = missileAttack({ ...input, missiles: s.missiles });
-  const rows = MISSILE_TARGET_IDS.filter((id) => (s.defense[id] ?? 0) > 0).map((id) => ({
+  const rows = missileTargetIds().filter((id) => (s.defense[id] ?? 0) > 0).map((id) => ({
     id,
     count: s.defense[id],
-    structure: structurePoints(id, s.armor),
+    structure: structurePoints(id, s.armor, targets),
     destroyed: attack.destroyed[id] ?? 0,
     remaining: attack.remaining[id] ?? 0,
   }));
@@ -273,7 +290,7 @@ export function calculate(s: MissileState): MissileResult {
     siloOk: s.silo >= MIN_SILO,
     impulseOk: s.impulse > 0,
     siloCapacity: Math.floor(siloSlots(s.silo, s.uni.siloFactor) / 2),
-    primary: primaryTarget(s.primary),
+    primary: primaryTarget(s.primary, targets),
     intercepted: attack.intercepted,
     effective: attack.effective,
     interceptorsLeft: attack.interceptorsLeft,
@@ -282,7 +299,7 @@ export function calculate(s: MissileState): MissileResult {
     neededAll: missilesNeeded(input, 'all'),
     neededPrimary: missilesNeeded(input, 'primary'),
     cost: { m: MISSILE_COST.m * s.missiles, k: MISSILE_COST.k * s.missiles, d: MISSILE_COST.d * s.missiles },
-    value: destroyedValue(attack.destroyed),
+    value: destroyedValue(attack.destroyed, targets),
   };
 }
 

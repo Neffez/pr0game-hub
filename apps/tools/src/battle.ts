@@ -1,10 +1,12 @@
 /** Glue of the battle simulator page on top of @pr0hub/battle: state, link, spy report, setup and flight times. */
-import { DEFENSE_IDS, SHIP_IDS, type BattleSetup, type Resources, type ShareSlot, type ShareState, type SimSettings, type SimSummary } from '@pr0hub/battle';
+import { defenseIds, shipIds, type BattleSetup, type Resources, type ShareSlot, type ShareState, type SimSettings, type SimSummary } from '@pr0hub/battle';
 import { parseSpyReportsText, spyValues } from '@pr0hub/core/spy';
+import { activeUnits } from '@pr0hub/core/units';
 import { ACS_LIMITS, fleetCapacity } from '@pr0hub/flight';
 import { getFleetConsumption, getFleetSlowest, getMissionDuration, getTargetDistance, type UniSettings } from './core';
 
-export { DEFENSE_IDS, SHIP_IDS };
+/** Ships and defense that fight, of the active unit catalog (the tools' own values). */
+export { defenseIds, shipIds };
 export { elementName } from './missile';
 
 export type Coords3 = [number, number, number];
@@ -77,7 +79,7 @@ function cleanCoords(v: unknown): Coords3 | null {
 
 function cleanSlot(raw: unknown, defender: boolean): Slot {
   const o = (raw && typeof raw === 'object' ? raw : {}) as Partial<Slot>;
-  const allowed = defender ? [...SHIP_IDS, ...DEFENSE_IDS] : SHIP_IDS.filter((id) => id !== 212);
+  const allowed = defender ? [...shipIds(), ...defenseIds()] : shipIds().filter((id) => id !== 212);
   const units: Record<string, number> = {};
   for (const id of allowed) if (int(o.units?.[id]) > 0) units[id] = int(o.units?.[id]);
   const research: Record<string, number> = {};
@@ -157,8 +159,8 @@ export function applySpyReport(s: BattleState, text: string): SpyApplyResult {
   const seen = (cls: number) => report.sections[cls] != null;
   if (seen(900)) s.resources = { metal: values[901] ?? 0, crystal: values[902] ?? 0, deuterium: values[903] ?? 0 };
   const keep = (from: number, to: number) => Object.fromEntries(Object.entries(planet.units).filter(([id]) => Number(id) < from || Number(id) >= to));
-  if (seen(200)) planet.units = { ...keep(200, 300), ...Object.fromEntries(SHIP_IDS.filter((id) => values[id]).map((id) => [id, values[id]])) };
-  if (seen(400)) planet.units = { ...keep(400, 500), ...Object.fromEntries(DEFENSE_IDS.filter((id) => values[id]).map((id) => [id, values[id]])) };
+  if (seen(200)) planet.units = { ...keep(200, 300), ...Object.fromEntries(shipIds().filter((id) => values[id]).map((id) => [id, values[id]])) };
+  if (seen(400)) planet.units = { ...keep(400, 500), ...Object.fromEntries(defenseIds().filter((id) => values[id]).map((id) => [id, values[id]])) };
   if (seen(100)) for (const id of COMBAT_TECHS) planet.research[id] = values[id] ?? 0;
   if (report.playerName) planet.name = report.playerName;
   return { ok: true, coords: s.target, moon: report.planetType === 'moon', fleet: seen(200), defense: seen(400), research: seen(100), resources: seen(900) };
@@ -225,7 +227,7 @@ export function slotFlight(s: BattleState, slot: Pick<Slot, 'units' | 'research'
 /** Recyclers of a side: flight to the target, deuterium and cargo space (null without recyclers). */
 export function recyclerInfo(s: BattleState, rec: RecyclerFleet | null, u: UniSettings): { flight: FlightInfo | null; capacity: number; count: number } | null {
   if (!rec || !hasUnits(rec)) return null;
-  return { flight: slotFlight(s, rec, u), capacity: fleetCapacity(rec.units), count: Object.values(rec.units).reduce((a, b) => a + b, 0) };
+  return { flight: slotFlight(s, rec, u), capacity: fleetCapacity(rec.units, false, activeUnits().capacity), count: Object.values(rec.units).reduce((a, b) => a + b, 0) };
 }
 
 /**
@@ -241,7 +243,7 @@ export function ipmHash(s: BattleState, u: Pick<UniSettings, 'max_system' | 'gal
   if (first?.research[109]) p.set('w', String(first.research[109]));
   const planet = s.defenders[0];
   if (planet.research[111]) p.set('a', String(planet.research[111]));
-  for (const id of DEFENSE_IDS) if (planet.units[id]) p.set(`d${id}`, String(planet.units[id]));
+  for (const id of defenseIds()) if (planet.units[id]) p.set(`d${id}`, String(planet.units[id]));
   p.set('ms', String(u.max_system));
   p.set('gt', String(u.galaxy_type));
   p.set('gs', String(u.game_speed));

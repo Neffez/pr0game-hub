@@ -4,6 +4,20 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-02
 
+- Tools: own values for ships, defense and missiles (`shared/units.js`, texts in `shared/unitsTexts.js`). One store
+  for all tools (`pr0tools.units.v1`, the differences from the default unit catalog). The editor dialog (star button in
+  the header) works like the hub's: paste game page sources with a preview, then a form per unit; hide, reset, add by
+  id. The page parser `@pr0hub/core/unitPages` (now on `cheerio/slim`, so it runs in the browser) is loaded only
+  when a page is pasted.
+  - Share links of the flight calculator, battle simulator, ACS loot and IPM calculator carry the differences of
+    the units in them (hash key `uo`). A link's values only apply for the session; "Save" keeps them.
+  - The flight calculator takes its ships from the catalog. Its former custom ships (`pr0fc.ships.v1`, link key
+    `cs`) become units with free ids from 299 down, once; stored tabs and old links follow.
+  - The battle simulator lists, simulates (the worker gets the units) and counts cargo with the catalog. The loot
+    calculator offers its ships and counts costs and cargo with it. The IPM calculator takes defense and costs from
+    it: `missileAttack`, `missilesNeeded`, `structurePoints`, `primaryTarget` and `destroyedValue` of
+    `@pr0hub/flight` take the targets as an option.
+
 - Unit pages from real sources: the hangar and defense page of the test server parse as expected (new fixtures
   `hangar-real-source.html`, `defense-real-source.html`; new defense units 412-414 there). `parseUnitPage` tells which
   list a shipyard page is (`mode`: `fleet`/`defense`). The game lists every unit of the universe there, so the unit

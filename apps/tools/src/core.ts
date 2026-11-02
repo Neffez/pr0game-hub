@@ -13,13 +13,13 @@ import {
   recallHome,
   shipSpeed,
   slowestShip,
-  SHIPS as LIB_SHIPS,
   type Drives,
   type FlightTimes,
   type ShipCatalog,
   type Universe,
 } from '@pr0hub/flight';
 import { TECH_NAMES } from '@pr0hub/core/tech';
+import { activeUnits, DEFAULT_UNIT_DEFS, type UnitOverrides } from '@pr0hub/core/units';
 
 /** Universe settings with the game's config keys (kept for stored settings and share links). */
 export interface UniSettings {
@@ -61,7 +61,11 @@ export const DEFAULT_UNI: UniSettings = {
 
 export interface Ship {
   id: number | string;
+  /** English name (fallback) */
   name: string;
+  /** names by language (unit catalog) */
+  names?: Record<'de' | 'en', string>;
+  /** a unit the tools' own values add (not one of the hub's defaults) */
   custom?: boolean;
   speed1: number;
   speed2: number;
@@ -74,70 +78,87 @@ export interface Ship {
   consumption3: number;
 }
 
-/** Official English names (language/en/TECH.yaml); drive data comes from @pr0hub/flight. */
-const NAMES: Record<number, string> = {
-  202: 'Light Cargo',
-  203: 'Heavy Cargo',
-  204: 'Light Fighter',
-  205: 'Heavy Fighter',
-  206: 'Cruiser',
-  207: 'Battleship',
-  208: 'Colony Ship',
-  209: 'Recycler',
-  210: 'Spy Probe',
-  211: 'Bomber',
-  213: 'Destroyer',
-  214: 'Death Star',
-  215: 'Battle Cruiser',
-  222: 'Heavy Cruiser',
-  225: 'Storm Transporter',
-  227: 'Optimized Recycler',
-  231: 'Behemoth',
-  232: 'Void Titan',
-};
-
-/** Ship name in the page language: German from the game's texts, English official names, custom ships as entered. */
-export function shipLabel(ship: Pick<Ship, 'id' | 'name' | 'custom'>, lang: 'de' | 'en'): string {
-  if (ship.custom || lang !== 'de') return ship.name;
-  return (TECH_NAMES as Record<string, Record<string, string>>).de[String(ship.id)] ?? ship.name;
+/**
+ * Element name in the page language: units by the active unit catalog (own values), short names (tight spots) the
+ * game's short names of the battle reports where there are some.
+ */
+export function elementLabel(id: number, lang: 'de' | 'en', short = false): string {
+  const names = TECH_NAMES as unknown as Record<string, Record<string, string>>;
+  const unit = activeUnits().units[id];
+  if (short && names[`${lang}Short`]?.[id] && (!unit || unit.name[lang] === names[lang]?.[id])) return names[`${lang}Short`][id];
+  return unit?.name[lang] ?? names[lang]?.[id] ?? String(id);
 }
 
-const BASE_SHIPS: Ship[] = Object.entries(NAMES).map(([id, name]) => {
-  const d = LIB_SHIPS[id];
-  return {
-    id: Number(id),
-    name,
-    speed1: d.speed[0],
-    speed2: d.speed[1],
-    speed3: d.speed[2],
-    tech1: d.tech[0],
-    tech2: d.tech[1],
-    tech3: d.tech[2],
-    consumption1: d.consumption[0],
-    consumption2: d.consumption[1],
-    consumption3: d.consumption[2],
-  };
-});
+/** Ship name in the page language. */
+export function shipLabel(ship: Pick<Ship, 'id' | 'name' | 'names'>, lang: 'de' | 'en'): string {
+  return ship.names?.[lang] ?? ship.name;
+}
 
-/** Built-in plus custom ships; reassigned by setCustomShips (live ES module bindings). */
+/** Flying ships of the active unit catalog (with the tools' own values); reassigned by rebuildShips (live bindings). */
 export let SHIPS: Ship[] = [];
 export let SHIP_BY_ID: Record<string, Ship> = {};
 let CATALOG: ShipCatalog = {};
 
-export function setCustomShips(custom: Ship[] | null | undefined): void {
-  SHIPS = BASE_SHIPS.concat(custom ?? []);
-  SHIP_BY_ID = {};
-  CATALOG = {};
-  for (const s of SHIPS) {
-    SHIP_BY_ID[s.id] = s;
-    CATALOG[s.id] = {
-      speed: [s.speed1, s.speed2, s.speed3],
-      tech: [s.tech1, s.tech2, s.tech3],
-      consumption: [s.consumption1, s.consumption2, s.consumption3],
+/** Takes the ships with drives from the active unit catalog (after the own values changed). */
+export function rebuildShips(): void {
+  const units = activeUnits();
+  CATALOG = { ...units.drives };
+  SHIPS = Object.keys(units.drives).map(Number).sort((a, b) => a - b).map((id) => {
+    const u = units.units[id];
+    const d = units.drives[id];
+    return {
+      id,
+      name: u.name.en,
+      names: { ...u.name },
+      custom: !DEFAULT_UNIT_DEFS[id],
+      speed1: d.speed[0],
+      speed2: d.speed[1],
+      speed3: d.speed[2],
+      tech1: d.tech[0],
+      tech2: d.tech[1],
+      tech3: d.tech[2],
+      consumption1: d.consumption[0],
+      consumption2: d.consumption[1],
+      consumption3: d.consumption[2],
     };
-  }
+  });
+  SHIP_BY_ID = {};
+  for (const ship of SHIPS) SHIP_BY_ID[ship.id] = ship;
 }
-setCustomShips([]);
+rebuildShips();
+
+/** Custom ships of older versions (`pr0fc.ships.v1`, link key `cs`): ids "c1", "c2" … with speed1-3/tech1-3/consumption1-3. */
+export interface LegacyShip {
+  id: string;
+  name?: string;
+  [key: string]: unknown;
+}
+
+/**
+ * Turns custom ships of older versions into new units of the unit catalog: free ids from 299 down, the drives as
+ * entered, no costs. Returns the units and the old id → new id.
+ */
+export function legacyShipUnits(list: unknown, taken: (id: number) => boolean): { units: UnitOverrides; ids: Record<string, number> } {
+  const units: UnitOverrides = {};
+  const ids: Record<string, number> = {};
+  let next = 299;
+  for (const raw of Array.isArray(list) ? list : []) {
+    const c = raw as LegacyShip;
+    if (!c || !/^c\d+$/.test(String(c.id))) continue;
+    while (next >= 200 && (taken(next) || units[next])) next--;
+    if (next < 200) break;
+    const v = (key: string) => Math.max(0, Math.floor(Number(c[key]) || 0));
+    const name = String(c.name || c.id).trim().slice(0, 40) || String(c.id);
+    units[next] = {
+      name: { de: name, en: name },
+      short: { de: name.slice(0, 6).trim(), en: name.slice(0, 6).trim() },
+      cost: [0, 0, 0],
+      drives: { speed: [v('speed1'), v('speed2'), v('speed3')], tech: [v('tech1'), v('tech2'), v('tech3')], consumption: [v('consumption1'), v('consumption2'), v('consumption3')] },
+    };
+    ids[c.id] = next;
+  }
+  return { units, ids };
+}
 
 export const STAY_PRESETS: Record<string, number[]> = {
   hold: [1, 2, 4, 8, 12, 16, 32],

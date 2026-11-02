@@ -1,3 +1,4 @@
+import { setActiveUnits, unitCatalog } from '@pr0hub/core/units';
 import { beforeEach, describe, expect, it } from 'vitest';
 import {
   abortHome,
@@ -14,15 +15,20 @@ import {
   parseCoords,
   parseTimeInput,
   recallFor,
-  setCustomShips,
+  legacyShipUnits,
+  rebuildShips,
   SHIP_BY_ID,
+  SHIPS,
 } from '../src/core.js';
 
 // The calculator's former in-page self-test.
 const techs = { combustion: 0, impulse: 0, hyperspace: 0, fuelEfficiency: 0 };
 
 describe('flight calculator core', () => {
-  beforeEach(() => setCustomShips([]));
+  beforeEach(() => {
+    setActiveUnits(null);
+    rebuildShips();
+  });
 
   it('computes distances from the game config keys', () => {
     const start = { g: 1, s: 1, p: 1 };
@@ -34,16 +40,28 @@ describe('flight calculator core', () => {
     expect(getTargetDistance(start, { g: 6, s: 1, p: 1 }, { ...DEFAULT_UNI, uni_type: 2 })).toBe(20000);
   });
 
-  it('computes ship speeds and the slowest ship, also for custom ships', () => {
+  it('computes ship speeds and the slowest ship, also for own units', () => {
     expect(getShipSpeed(SHIP_BY_ID[210], techs)).toBe(100000000);
     expect(getShipSpeed(SHIP_BY_ID[202], techs)).toBe(5000);
     expect(getShipSpeed(SHIP_BY_ID[202], { combustion: 0, impulse: 5, hyperspace: 0 })).toBe(20000);
     expect(getFleetSlowest({ 202: 5, 203: 1, 210: 0 }, techs).id).toBe('202');
     expect(getFleetSlowest({}, techs)).toEqual({ speed: 0, id: null });
-    setCustomShips([
-      { id: 'c1', name: 'Custom', custom: true, speed1: 3000, speed2: 0, speed3: 0, tech1: 1, tech2: 0, tech3: 0, consumption1: 1, consumption2: 0, consumption3: 0 },
-    ]);
-    expect(getFleetSlowest({ 202: 1, c1: 1 }, techs)).toEqual({ speed: 3000, id: 'c1' });
+    setActiveUnits(unitCatalog({ 233: { name: { de: 'Eigen', en: 'Own' }, cost: [1, 0, 0], drives: { speed: [3000, 0, 0], tech: [1, 0, 0], consumption: [1, 0, 0] } }, 231: { hidden: true } }));
+    rebuildShips();
+    expect(getFleetSlowest({ 202: 1, 233: 1 }, techs)).toEqual({ speed: 3000, id: '233' });
+    expect(SHIP_BY_ID[233]).toMatchObject({ names: { de: 'Eigen', en: 'Own' }, custom: true });
+    expect(SHIP_BY_ID[231]).toBeUndefined();
+    expect(SHIPS.some((s) => s.id === 212)).toBe(false);
+  });
+
+  it('turns custom ships of older versions into units with free ids', () => {
+    const { units, ids } = legacyShipUnits(
+      [{ id: 'c1', name: 'Alt', speed1: 3000, tech1: 1, consumption1: 5 }, { id: 'x', name: 'kaputt' }, { id: 'c2' }],
+      (id) => id === 299,
+    );
+    expect(ids).toEqual({ c1: 298, c2: 297 });
+    expect(units[298]).toMatchObject({ name: { de: 'Alt', en: 'Alt' }, cost: [0, 0, 0], drives: { speed: [3000, 0, 0], tech: [1, 0, 0], consumption: [5, 0, 0] } });
+    expect(units[297].name).toEqual({ de: 'c2', en: 'c2' });
   });
 
   it('floors timestamps, recovers launch and handles recalls', () => {

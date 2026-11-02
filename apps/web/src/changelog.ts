@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'pr0game-Tools: Eigene Werte für Schiffe und Verteidigung in Flugrechner, Kampfsimulator, Beute- und IPM-Rechner, auch neue Einheiten. Die Werte lassen sich aus Quelltexten von Werft, Verteidigung, Technologiebaum und Infoseiten einfügen und bleiben in deinem Browser. Geteilte Links nehmen sie mit. Die bisherigen eigenen Schiffe des Flugrechners werden übernommen.',
+        en: 'pr0game tools: own values for ships and defense in the flight calculator, battle simulator, loot and IPM calculator, new units too. The values can be pasted from the page sources of the shipyard, defense, tech tree and info pages and stay in your browser. Shared links carry them. The flight calculator’s custom ships are taken over.',
+      },
+      {
+        kind: 'new',
         de: 'Admin-Panel, Schiffe & Verteidigung: Eingefügte Werft- und Verteidigungsseiten zeigen alle Einheiten des Universums. Fehlende schlägt der Hub zum Ausblenden vor, ausgeblendete, die dort stehen, zum Einblenden.',
         en: 'Admin panel, ships & defense: pasted shipyard and defense pages list every unit of the universe. The hub offers to hide the missing ones and to show hidden ones listed there.',
       },
