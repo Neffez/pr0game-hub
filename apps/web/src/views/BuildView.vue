@@ -13,6 +13,7 @@ import { useClock } from '../clock';
 import Hint from '../components/Hint.vue';
 import PageHeader from '../components/PageHeader.vue';
 import Ticker from '../components/Ticker.vue';
+import BuildOrder from '../components/BuildOrder.vue';
 import { useLoader, useMobile, useStored, useUni } from '../composables';
 import { ago, dateTime, fmt, name, short } from '../format';
 import { tables, useLiveReload } from '../live';
@@ -78,8 +79,8 @@ const { data, error, load } = useLoader(() => uniApi<Data>(uni.value, '/building
 onMounted(load);
 useLiveReload(load, tables('empire', 'overview', 'buildings', 'research', 'fleets', 'building_alerts'));
 
-type Tab = 'buildings' | 'research' | 'ships';
-const TABS: Tab[] = ['buildings', 'research', 'ships'];
+type Tab = 'buildings' | 'research' | 'ships' | 'order';
+const TABS: Tab[] = ['buildings', 'research', 'ships', 'order'];
 const storedTab = useStored<Tab>('build.tab', 'buildings');
 /** the tab from the link (push notification, bell), else the last one */
 const tab = computed<Tab>({
@@ -111,8 +112,8 @@ watch(
   { immediate: true },
 );
 const allPlanets = computed(() => data.value?.planets ?? []);
-/** research is started on planets (moons have no lab) */
-const planets = computed(() => (tab.value === 'research' ? allPlanets.value.filter((p) => p.type === 'planet') : allPlanets.value));
+/** research is started on planets (moons have no lab); build orders are for planets */
+const planets = computed(() => (tab.value === 'research' || tab.value === 'order' ? allPlanets.value.filter((p) => p.type === 'planet') : allPlanets.value));
 const current = computed(() => planets.value.find((p) => p.key === stored.value) ?? planets.value[0] ?? null);
 
 const now = useClock();
@@ -250,6 +251,7 @@ const costClass = (b: { missing: Record<number, number> }, res: number) => (b.mi
         <p>{{ t('buildings.hint1') }}</p>
         <p>{{ t('buildings.hintResearch') }}</p>
         <p>{{ t('buildings.hintShips') }}</p>
+        <p>{{ t('buildings.hintOrder') }}</p>
         <p>{{ t('buildings.hint2') }}</p>
         <p>{{ t('buildings.hint3') }}</p>
       </Hint>
@@ -258,6 +260,7 @@ const costClass = (b: { missing: Record<number, number> }, res: number) => (b.mi
       <button :class="{ active: tab === 'buildings' }" @click="tab = 'buildings'">{{ t('buildings.tabBuildings') }}</button>
       <button :class="{ active: tab === 'research' }" @click="tab = 'research'">{{ t('buildings.tabResearch') }}</button>
       <button :class="{ active: tab === 'ships' }" @click="tab = 'ships'">{{ t('buildings.tabShips') }}</button>
+      <button :class="{ active: tab === 'order' }" @click="tab = 'order'">{{ t('buildings.tabOrder') }}</button>
     </div>
   </PageHeader>
 
@@ -323,6 +326,8 @@ const costClass = (b: { missing: Record<number, number> }, res: number) => (b.mi
       </Ticker>
     </div>
 
+    <BuildOrder v-if="tab === 'order'" :hub="data" :planet-key="current.key" :mobile="mobile" />
+    <template v-else>
     <div class="row bld-filters">
       <select v-if="mobile" v-model="filter" :aria-label="t('buildings.filterLabel')">
         <option v-for="f in FILTERS" :key="f" :value="f">{{ t(`buildings.filter.${f}`) }}</option>
@@ -348,8 +353,7 @@ const costClass = (b: { missing: Record<number, number> }, res: number) => (b.mi
               <th v-for="id in RESOURCES" :key="id" class="num">{{ name(id) }}</th>
               <th>{{ t('buildings.status') }}</th>
               <th class="num">{{ t('buildings.unitTime') }}</th>
-              <th class="num">{{ t('buildings.amount') }}</th>
-              <th class="num">{{ t('buildings.total') }}</th>
+              <th class="num">{{ t('buildings.amount') }} · {{ t('buildings.total') }}</th>
               <th />
             </tr>
           </thead>
@@ -382,10 +386,12 @@ const costClass = (b: { missing: Record<number, number> }, res: number) => (b.mi
                 <div v-if="s.busy" class="small warn">{{ shipBusyText(s) }}</div>
               </td>
               <td class="num mono">{{ s.time != null ? countdown(s.time) : '–' }}</td>
-              <td class="num"><input v-model.number="amounts[s.id]" type="number" min="1" class="bld-amount" :aria-label="t('buildings.amount')" placeholder="1" /></td>
               <td class="num small">
-                <template v-for="id in RESOURCES" :key="id"><div v-if="s.cost[id]">{{ short(s.cost[id] * amountOf(s)) }} {{ name(id) }}</div></template>
-                <div v-if="s.time != null" class="mono">{{ countdown(s.time * amountOf(s)) }}</div>
+                <input v-model.number="amounts[s.id]" type="number" min="1" class="bld-amount" :aria-label="t('buildings.amount')" placeholder="1" />
+                <div v-if="amountOf(s) > 1" class="faint">
+                  <template v-for="id in RESOURCES" :key="id"><span v-if="s.cost[id]" class="bld-total">{{ short(s.cost[id] * amountOf(s)) }}</span></template>
+                  <div v-if="s.time != null" class="mono">{{ countdown(s.time * amountOf(s)) }}</div>
+                </div>
               </td>
               <td>
                 <button class="small bld-bell alert-btn" :title="isHidden(s) ? t('buildings.unhide') : t('buildings.hide')" :aria-label="isHidden(s) ? t('buildings.unhide') : t('buildings.hide')" @click="toggleHidden(s)">
@@ -543,6 +549,7 @@ const costClass = (b: { missing: Record<number, number> }, res: number) => (b.mi
         </div>
       </div>
     </template>
+    </template>
   </template>
 </template>
 
@@ -555,7 +562,8 @@ const costClass = (b: { missing: Record<number, number> }, res: number) => (b.mi
 .bld-costs { display: flex; gap: 12px; flex-wrap: wrap; margin: 6px 0; }
 .bld-filters { margin-bottom: 12px; }
 .bld-search { width: 180px; }
-.bld-amount { width: 80px; text-align: right; }
+.bld-amount { width: 72px; text-align: right; }
+.bld-total + .bld-total::before { content: ' · '; }
 @media (max-width: 800px) {
   .bld-filters select, .bld-search { flex: 1 1 140px; width: auto; min-width: 0; }
 }

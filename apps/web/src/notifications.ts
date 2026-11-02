@@ -12,7 +12,7 @@ import { useStored } from './composables';
  */
 export type Notification =
   | AttackNotification | InviteNotification | CommentNotification | LaunchNotification | BuildingNotification | FleetNotification | StorageNotification
-  | SettlementNotification;
+  | SettlementNotification | BuildOrderNotification;
 
 interface Base {
   id: string;
@@ -78,6 +78,13 @@ export interface StorageNotification extends Base {
   resource: number;
 }
 
+/** The next step of the viewer's build order on a planet can start (`time`: when the server looked). */
+export interface BuildOrderNotification extends Base {
+  kind: 'buildorder';
+  planet: { g: number; s: number; p: number; type: 'planet' | 'moon'; name: string };
+  step: { id: string; kind: 'building' | 'research' | 'ship' | 'defense' | 'prod' | 'transport'; element: number | null; count: number | null; target: number | null };
+}
+
 /** A loot settlement the viewer takes part in was finalized (`time`) and they still have deliveries open. */
 export interface SettlementNotification extends Base {
   kind: 'settlement';
@@ -102,6 +109,7 @@ const until = (n: Notification) => {
       return n.time + COMMENT_SPAN;
     case 'building':
     case 'storage':
+    case 'buildorder':
       return n.time + BUILDING_SPAN;
     case 'fleet':
       return n.time + FLEET_SPAN;

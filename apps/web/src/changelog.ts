@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Bauliste unter Bauen & Forschen: Importiere eine Build Order aus pr0plan, ordne ihre Planeten deinen zu und sieh für jeden Schritt, wann er möglich ist – gerechnet ab deinem echten Stand mit Produktion, Speicher und ankommenden Transporten. Schritte lassen sich umsortieren, abhaken und überspringen. Ist der nächste Schritt möglich, kommt eine Benachrichtigung. Weichen die Einstellungen der Datei vom Universum ab, siehst du eine Warnung; gerechnet wird mit den Werten des Hubs.',
+        en: 'Build order under build & research: import a build order from pr0plan, map its planets onto yours and see for each step when it is possible – planned from your real state with production, storage and incoming transports. Steps can be reordered, checked off and skipped. You get a notification when the next step is possible. If the file’s settings differ from the universe, you see a warning; the hub’s values are used.',
+      },
+      {
+        kind: 'new',
         de: 'Bauen & Forschen hat einen Tab „Schiffe & Verteidigung“: Anzahl, Kosten und Bauzeit je Einheit, wie viele du dir gerade leisten kannst, wann die nächste bezahlbar ist, und Gesamtkosten und -zeit für eine Menge. Schilde (einmal je Planet), Silo-Platz und eine blockierte Werft sind berücksichtigt.',
         en: 'Build & research has a “Ships & defense” tab: count, cost and build time per unit, how many you can afford right now, when the next one is affordable, and the total cost and time for an amount. Shields (once per planet), silo space and a blocked shipyard are taken into account.',
       },

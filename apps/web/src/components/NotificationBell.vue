@@ -3,7 +3,7 @@ import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { useUni } from '../composables';
-import { accessRequests, attacks, loadAccessRequests, markSeen, notifications, unseen, type CommentNotification, type Notification } from '../notifications';
+import { accessRequests, attacks, loadAccessRequests, markSeen, notifications, unseen, type BuildOrderNotification, type CommentNotification, type Notification } from '../notifications';
 import { abbr, fmt, name, resText } from '../format';
 import Icon from './Icon.vue';
 import Ticker from './Ticker.vue';
@@ -45,6 +45,8 @@ function target(n: Notification) {
         path: `/${uni.value}/build`,
         query: { tab: n.element >= 100 ? 'research' : 'buildings', c: `${n.planet.g}:${n.planet.s}:${n.planet.p}`, type: n.planet.type },
       };
+    case 'buildorder':
+      return { path: `/${uni.value}/build`, query: { tab: 'order', c: `${n.planet.g}:${n.planet.s}:${n.planet.p}`, type: n.planet.type } };
     case 'comment':
       if ('plan' in n.thread) return `/${uni.value}/raid-planner/${n.thread.plan}/loot`;
       return 'player' in n.thread
@@ -54,6 +56,13 @@ function target(n: Notification) {
       return `/${uni.value}/fleet`;
   }
 }
+/** "Metallmine 11 jetzt bauen", "20× Solarsatellit jetzt bauen", "Produktion umstellen" */
+const orderTitle = (n: BuildOrderNotification) => {
+  const s = n.step;
+  if (s.kind === 'building' || s.kind === 'research') return t(`notify.buildOrder.${s.kind}`, { name: name(s.element!), level: s.target ?? '' });
+  if (s.kind === 'ship' || s.kind === 'defense') return t('notify.buildOrder.units', { n: s.count ?? 1, name: name(s.element!) });
+  return t(`notify.buildOrder.${s.kind}`);
+};
 const threadOf = (n: CommentNotification) =>
   'player' in n.thread
     ? n.thread.name
@@ -144,6 +153,10 @@ function left(sec: number) {
           <button v-else-if="n.kind === 'building'" class="bell-item building" @click="show(n)">
             <span class="bell-title"><Icon :name="n.element >= 100 ? 'research' : 'buildings'" :size="14" /><b>{{ t(n.element >= 100 ? 'notify.research' : 'notify.building', { name: name(n.element), level: n.level }) }}</b></span>
             <span class="small">{{ n.planet.name ? n.planet.name + ' ' : '' }}{{ coords(n.planet, n.planet.type === 'moon') }}</span>
+          </button>
+          <button v-else-if="n.kind === 'buildorder'" class="bell-item building" @click="show(n)">
+            <span class="bell-title"><Icon name="buildings" :size="14" /><b>{{ orderTitle(n) }}</b></span>
+            <span class="small">{{ t('notify.buildOrderOn') }} {{ n.planet.name ? n.planet.name + ' ' : '' }}{{ coords(n.planet, n.planet.type === 'moon') }}</span>
           </button>
           <button v-else-if="n.kind === 'storage'" class="bell-item storage" @click="show(n)">
             <span class="bell-title"><Icon name="cargo" :size="14" /><b>{{ t('notify.storage', { name: name(storageOf(n.resource)) }) }}</b></span>

@@ -4,6 +4,15 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-02
 
+- Build & research: new tab "Build order" (`?tab=order`). Import a pr0plan export (file, drop or paste) in a dialog:
+  map its planets onto the own planets, choose the start levels (file settings, hub state, all 0), see the left out
+  actions and where the file's speeds or planet temperatures differ from the hub (the hub's values are used, the
+  warning stays on the tab). The list of the chosen planet shows each step with its target level, cost, start, end
+  and what it waits for from the timeline planned in the browser (`@pr0hub/planner`, again every minute), the next
+  step highlighted, done and queued steps collapsible; reorder by dragging or arrows, check off, skip, remove (saved
+  with `PATCH`). Bell entry and push / Discord setting for the next step. The ships & defense tab leaves out units
+  of install.sql the game does not offer (216-219, 409-411) and shows amount and total in one column.
+
 - Build orders on the server: `GET`, `PUT` (import, replaces), `PATCH` (steps: order, done, deactivated, removed) and
   `DELETE /api/{uni}/build-order`, one per member and group (table `build_orders`, migration 073), validated with
   `@pr0hub/planner`. New notification kind `buildorder` (bell, push, Discord): the next open step of a planet can

@@ -56,15 +56,17 @@ for (const line of lines.slice(reqStart + 1)) {
   if (m && research[m[1]]) research[m[1]].req[m[2]] = Number(m[3]);
   if (line.trimEnd().endsWith(';')) break;
 }
-// Ships, defense and missiles (shipyard): one per planet (shield domes) and the requirements.
+// Ships, defense and missiles (shipyard): one per planet (shield domes) and the requirements. install.sql also has
+// units the game does not offer (216-219, 409-411): left out.
+const UNUSED = new Set([216, 217, 218, 219, 409, 410, 411]);
 const ships = {};
 for (const line of lines.slice(start + 1)) {
   const cols = line.replace(/^\(|\),?;?\s*$/g, '').match(/'[^']*'|[^,\s][^,]*/g) ?? [];
   const id = Number(cols[0]);
-  if (cols[1] === '0' && id >= 200 && id < 600 && out[id]) ships[id] = { one: cols[6] === '1', req: {} };
+  if (cols[1] === '0' && id >= 200 && id < 600 && out[id] && !UNUSED.has(id)) ships[id] = { one: cols[6] === '1', req: {} };
   if (line.trimEnd().endsWith(';')) break;
 }
-for (const id of Object.keys(out)) if (Number(id) >= 200 && Number(id) < 600) ships[id] ??= { one: false, req: {} };
+for (const id of Object.keys(out)) if (Number(id) >= 200 && Number(id) < 600 && !UNUSED.has(Number(id))) ships[id] ??= { one: false, req: {} };
 for (const line of lines.slice(reqStart + 1)) {
   const m = line.match(/^\((\d+), 0, (\d+), (\d+)\)/);
   if (m && ships[m[1]]) ships[m[1]].req[m[2]] = Number(m[3]);
