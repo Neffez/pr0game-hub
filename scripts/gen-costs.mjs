@@ -56,6 +56,28 @@ for (const line of lines.slice(reqStart + 1)) {
   if (m && research[m[1]]) research[m[1]].req[m[2]] = Number(m[3]);
   if (line.trimEnd().endsWith(';')) break;
 }
+// Ships, defense and missiles (shipyard): one per planet (shield domes) and the requirements.
+const ships = {};
+for (const line of lines.slice(start + 1)) {
+  const cols = line.replace(/^\(|\),?;?\s*$/g, '').match(/'[^']*'|[^,\s][^,]*/g) ?? [];
+  const id = Number(cols[0]);
+  if (cols[1] === '0' && id >= 200 && id < 600 && out[id]) ships[id] = { one: cols[6] === '1', req: {} };
+  if (line.trimEnd().endsWith(';')) break;
+}
+for (const id of Object.keys(out)) if (Number(id) >= 200 && Number(id) < 600) ships[id] ??= { one: false, req: {} };
+for (const line of lines.slice(reqStart + 1)) {
+  const m = line.match(/^\((\d+), 0, (\d+), (\d+)\)/);
+  if (m && ships[m[1]]) ships[m[1]].req[m[2]] = Number(m[3]);
+  if (line.trimEnd().endsWith(';')) break;
+}
+// Requirements of ships added later, from the game's info pages (techtree).
+const extraReq = {
+  225: { 21: 4, 111: 4, 115: 5 }, // Sturmtransporter
+};
+for (const [id, req] of Object.entries(extraReq)) if (!Object.keys(ships[id].req).length) ships[id].req = req;
+writeFileSync(new URL('../packages/parser/src/data/ships.json', import.meta.url), JSON.stringify(ships) + '\n');
+console.log(`${Object.keys(ships).length} ships and defense`);
+
 writeFileSync(new URL('../packages/parser/src/data/buildings.json', import.meta.url), JSON.stringify(buildings) + '\n');
 console.log(`${Object.keys(buildings).length} buildings`);
 writeFileSync(new URL('../packages/parser/src/data/research.json', import.meta.url), JSON.stringify(research) + '\n');

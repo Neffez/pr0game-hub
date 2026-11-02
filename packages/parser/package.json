@@ -18,6 +18,10 @@
       "types": "./dist/buildings.d.ts",
       "default": "./dist/buildings.js"
     },
+    "./production": {
+      "types": "./dist/production.d.ts",
+      "default": "./dist/production.js"
+    },
     "./combat": {
       "types": "./dist/combat.d.ts",
       "default": "./dist/combat.js"
