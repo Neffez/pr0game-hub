@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-02',
     items: [
       {
+        kind: 'fix',
+        de: 'Schiffe & Verteidigung: Schwerer Kreuzer, Optimierter Recycler, Behemoth und Void Titan zeigen jetzt ihre Voraussetzungen.',
+        en: 'Ships & defense: heavy cruiser, optimized recycler, Behemoth and Void Titan now show their requirements.',
+      },
+      {
         kind: 'new',
         de: 'Bauliste: Produktionswechsel und Transporte werden nach einem Sync (Imperium als Seitenquelltext, Flottenbewegungen) von selbst abgehakt. Ist ein Speicher zu klein, zeigt der Schritt, wie viel per Transport kommen muss, statt „nicht möglich“. Dazu ein Link zu pr0plan (im Admin-Panel einstellbar).',
         en: 'Build order: production changes and transports are checked off by themselves after a sync (empire page source, fleet movements). If a storage is too small, the step shows how much has to come by transport instead of “not possible”. Plus a link to pr0plan (configurable in the admin panel).',

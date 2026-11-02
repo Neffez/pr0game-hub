@@ -72,9 +72,13 @@ for (const line of lines.slice(reqStart + 1)) {
   if (m && ships[m[1]]) ships[m[1]].req[m[2]] = Number(m[3]);
   if (line.trimEnd().endsWith(';')) break;
 }
-// Requirements of ships added later, from the game's info pages (techtree).
+// Requirements of ships added later, from the pr0game wiki (wiki.pr0game.com).
 const extraReq = {
+  222: { 21: 7, 118: 5, 121: 7 }, // Schwerer Kreuzer
   225: { 21: 4, 111: 4, 115: 5 }, // Sturmtransporter
+  227: { 21: 8, 110: 8, 117: 9 }, // Optimierter Recycler (Universe 7; elsewhere 6/6/6)
+  231: { 21: 12, 114: 6, 118: 7, 199: 1 }, // Behemoth
+  232: { 21: 12, 114: 6, 118: 7, 199: 1 }, // Void Titan
 };
 for (const [id, req] of Object.entries(extraReq)) if (!Object.keys(ships[id].req).length) ships[id].req = req;
 writeFileSync(new URL('../packages/parser/src/data/ships.json', import.meta.url), JSON.stringify(ships) + '\n');

@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-02
 
+- Requirements of the heavy cruiser (222), optimized recycler (227, Universe 7 values), Behemoth (231) and Void Titan
+  (232) from the pr0game wiki in `ships.json` (`gen:costs`): the ships & defense tab and build orders check them.
+
 - Build orders follow the synced pages and the storage rules more closely:
   - The empire parser reads the mines' production setting (`production`, percent per resource; below 100 % the
     game puts it in a tooltip, page source only); `GET /api/{uni}/buildings` passes it per planet as `factors`. The
