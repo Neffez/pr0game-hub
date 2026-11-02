@@ -4,6 +4,16 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-02
 
+- Admin: section "Ships & defense" in the universe settings dialog (`UnitEditor.vue`). It lists every unit (default,
+  changed, new, hidden). Values come from pasted page sources: several pages in a row, a preview of the new and
+  changed values per unit to pick from, the rapidfire of info pages also against the unit. A form per unit edits
+  names, short labels, costs, attack, shield, cargo, drives, requirements and rapidfire. Units can be hidden, reset to
+  the default or added by id. Saved with the dialog (`PUT /api/admin/universes/{slug}/units`).
+  - The web app sets the open universe's unit catalog from its context (`units.ts`) and renders the page anew when an
+    admin changes it. Ship lists of plans and holds, flight times, short labels, names and the loot view's cargo follow
+    it.
+  - Fix: `unitCatalog` copies its input, so it no longer freezes the caller's (reactive) objects.
+
 - Units per universe on the server: migration 074 adds `universes.units` (the universe's differences from the default
   unit catalog, part of the universe in `GET /api/{uni}/context`). Ship lists and build order timelines, flight
   times and deuterium (hostile attacks, launch reminders, retimes, battle API flights, settlements), cargo and costs of

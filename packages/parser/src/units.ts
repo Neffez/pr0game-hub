@@ -178,7 +178,8 @@ export function unitCatalog(overrides: UnitOverrides | null | undefined): UnitCa
   let c = cache.get(key);
   if (!c) {
     if (cache.size > 50) cache.clear();
-    c = build(overrides ?? {}, key);
+    // a copy: the catalog is frozen and must not freeze (or share) the caller's objects
+    c = build(JSON.parse(key) as UnitOverrides, key);
     cache.set(key, c);
   }
   return c;

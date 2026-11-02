@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import Section from '../components/Section.vue';
 import Sheet from '../components/Sheet.vue';
+import UnitEditor from '../components/UnitEditor.vue';
 import Icon from '../components/Icon.vue';
 import SortBar from '../components/SortBar.vue';
 import SortMark from '../components/SortMark.vue';
@@ -101,7 +102,10 @@ const UNI_GROUPS: UniGroup[] = [
     { key: 'noobInactives', label: 'noobInactives', hint: true, type: 'check' },
   ] },
   { id: 'deck', hint: 'admin.deckHint', fields: [] },
+  { id: 'units', hint: 'admin.unitsHint', fields: [] },
 ];
+/** the unit editor of the open universe (saved together with the settings) */
+const unitEditor = ref<InstanceType<typeof UnitEditor> | null>(null);
 
 /** Speed values of the game configuration: 2500 = 1x; 0 or empty = unknown. */
 const speed = (v: unknown) => (Number(v) > 0 ? `×${+(Number(v) / 2500).toFixed(2)}` : '–');
@@ -126,6 +130,7 @@ function groupSummary(id: string): string {
     case 'combat': return `${orDefault(s.fleetDebrisPercent, 40)} % / ${orDefault(s.defenseDebrisPercent, 0)} %`;
     case 'noob': return Number(s.noobLimit) > 0 ? fmt(Number(s.noobLimit)) : '–';
     case 'deck': return String(deckTotal.value);
+    case 'units': return unitEditor.value?.changedCount ? t('admin.units.summary', { n: unitEditor.value.changedCount }) : '–';
   }
   return '';
 }
@@ -236,6 +241,7 @@ const saveUni = () =>
     // a cleared optional number field (v-model.number leaves '') is removed and falls back to its default
     const settings = { ...Object.fromEntries(Object.entries(e.settings).map(([k, v]) => [k, v === '' ? null : v])), gameUrl: String(e.settings.gameUrl ?? '').trim(), pr0planUrl: String(e.settings.pr0planUrl ?? '').trim() };
     await api(`/admin/universes/${e.slug}`, { method: 'PUT', body: { name: e.name, settings, deck: e.deck, isDefault: e.isDefault, startsAt: epochOf(e.startsAt), endedAt: epochOf(e.endedAt) } });
+    if (unitEditor.value?.dirty) await unitEditor.value.save();
     editUni.value = null;
     await loadAll();
     await loadMe();
@@ -496,7 +502,8 @@ const doMerge = () => run(async () => {
         >
           <template v-if="g.hint" #hint><Hint>{{ t(g.hint) }}</Hint></template>
           <template #actions><span class="muted small mono uni-summary">{{ groupSummary(g.id) }}</span></template>
-          <template v-if="g.id === 'deck'">
+          <UnitEditor v-if="g.id === 'units'" :ref="(el) => (unitEditor = el as InstanceType<typeof UnitEditor> | null)" :slug="editUni.slug" />
+          <template v-else-if="g.id === 'deck'">
             <table class="data uni-deck">
               <thead><tr><th>{{ t('expeditions.event') }}</th><th>{{ t('admin.cardSize') }}</th><th class="num">{{ t('admin.count') }}</th></tr></thead>
               <tbody>

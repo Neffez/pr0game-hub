@@ -7,7 +7,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import { localToEpoch, parseCombatReportText, parseRecycleReportsText } from '@pr0hub/core/combat';
-import { CAPACITY } from '@pr0hub/flight';
+import { units } from '../units';
 import {
   adoptKeys, battleFromReport, cleanState, debrisSummary, decodeShare, diffOverrides, lootShares, marketRates, MAX_HELPER_KEEP, overriddenPaths, profitPercents,
   settle, type Battle, type Participant, type LootState, type Overrides, type Res, type SettlementResult, type StateChanges, type TransferInput,
@@ -304,7 +304,7 @@ function sourceOf(id: string, f: 'flightDeut' | 'recDeut' | 'missiles'): string 
   return src.missiles?.[id] != null ? t('loot.fromMissiles') : null;
 }
 const shipsFor = (r: Res) => {
-  const cap = CAPACITY[state.value?.settings.cargoShip ?? 203] ?? 25000;
+  const cap = units.value.capacity[state.value?.settings.cargoShip ?? 203] ?? 25000;
   return Math.ceil((r.m + r.k + r.d) / cap);
 };
 const mayTick = (x: TransferInput) => !!finalized.value && (canEdit.value || x.from === data.value?.me || x.to === data.value?.me);

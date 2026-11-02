@@ -12,6 +12,7 @@ import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import { selectGroup, selectedGroup, session, uniApi } from '../api';
 import { provideUni, useLoader, useScrollLock, type UniContext } from '../composables';
+import { applyUnits } from '../units';
 import { clearClaims, loadClaims } from '../claims';
 import { dateTime, setMarketRate, setToolsUrl, toolsIndexUrl } from '../format';
 import { freezeClock, useClock } from '../clock';
@@ -35,6 +36,15 @@ provideUni(ctx);
 watch(ctx, (c) => setToolsUrl(c?.toolsUrl), { flush: 'sync', immediate: true });
 const toolsUrl = computed(() => toolsIndexUrl(ctx.value?.universe.settings));
 watch(() => ctx.value?.marketRate, setMarketRate, { flush: 'sync', immediate: true });
+// the universe's ships and defense; a change (admin) renders the page anew with them
+watch(
+  () => ctx.value?.universe.units,
+  (overrides, before) => {
+    if (applyUnits(overrides) && before !== undefined) reloadKey.value++;
+  },
+  { flush: 'sync', immediate: true },
+);
+onBeforeUnmount(() => applyUnits(null));
 // an ended universe stands still at its end: resources, countdowns and "ago" times stop there (a scheduled end
 // stops the clock when it comes); before a scheduled start the universe only announces it
 const endedAt = computed(() => ctx.value?.universe.endedAt ?? null);

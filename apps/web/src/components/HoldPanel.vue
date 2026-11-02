@@ -9,7 +9,8 @@ import { uniApi } from '../api';
 import { useUni } from '../composables';
 import { abbr, fmt, name, timeWithAge } from '../format';
 import { intlLocale } from '../i18n';
-import { FLEET_SHIPS, holdRating, spyShips, type AttackPlan, type PlanEnemy } from '../plans';
+import { fleetShips } from '../units';
+import { holdRating, spyShips, type AttackPlan, type PlanEnemy } from '../plans';
 
 /**
  * Hold against a hostile attack: the own fleets land on the attacked planet `hold_offset` seconds from the impact,
@@ -50,7 +51,7 @@ function resetShips() {
 }
 watch(planetShips, () => !shipsDirty.value && resetShips(), { immediate: true });
 const shipIds = computed(() => Object.keys(ships).map(Number).sort((a, b) => a - b));
-const addable = computed(() => FLEET_SHIPS.filter((id) => ships[id] == null));
+const addable = computed(() => fleetShips().filter((id) => ships[id] == null));
 const shipsValid = computed(() => Object.values(ships).every((n) => Number.isInteger(n) && n >= 0));
 function addShip(e: Event) {
   const el = e.target as HTMLSelectElement;

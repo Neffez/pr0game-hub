@@ -1,5 +1,6 @@
 import { encodeShare as encodeBattleShare } from '@pr0hub/battle';
 import { techName } from '@pr0hub/core/tech';
+import { units } from './units';
 import { missileSystemDistance, SHIPS, type Coords } from '@pr0hub/flight';
 import { encodeShare, type LootState } from '@pr0hub/loot';
 import { compressToEncodedURIComponent } from 'lz-string';
@@ -202,7 +203,7 @@ const ABBR: Record<'de' | 'en', Record<number, string>> = {
     401: 'ML', 402: 'LL', 403: 'HL', 404: 'Gauss', 405: 'Ion', 406: 'Plas', 407: 'SSD', 408: 'LSD', 502: 'ABM', 503: 'IPM',
   },
 };
-export const abbr = (id: number) => ABBR[currentLang()][id] ?? name(id);
+export const abbr = (id: number) => units.value.units[id]?.short[currentLang()] ?? ABBR[currentLang()][id] ?? name(id);
 
 /** Colour from red (low) to green (column maximum), like the FF-Hub tables. */
 export function scaleColor(value: number | null | undefined, max: number) {

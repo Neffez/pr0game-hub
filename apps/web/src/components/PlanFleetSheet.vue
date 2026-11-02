@@ -4,7 +4,8 @@ import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
 import { useUni } from '../composables';
 import { abbr, coords, fmt, name, numDate } from '../format';
-import { FLEET_SHIPS, SPEEDS, type AttackPlan, type PlanFleet } from '../plans';
+import { fleetShips } from '../units';
+import { SPEEDS, type AttackPlan, type PlanFleet } from '../plans';
 import Hint from './Hint.vue';
 import Icon from './Icon.vue';
 import Section from './Section.vue';
@@ -58,7 +59,7 @@ async function loadEmpire(userId: number) {
 const owned = computed(() => {
   const out: Record<number, number> = {};
   const add = (values: Record<string, number>) => {
-    for (const id of FLEET_SHIPS) if (values[id]) out[id] = (out[id] ?? 0) + values[id];
+    for (const id of fleetShips()) if (values[id]) out[id] = (out[id] ?? 0) + values[id];
   };
   for (const pl of ownEmpire.value?.planets ?? []) add(pl.values);
   add(ownEmpire.value?.flyingShips ?? {});
@@ -124,10 +125,10 @@ function cap(id: number): number | null {
 }
 const added = (id: number) => form.ships[id] != null;
 /** Ships to add: those on the start planet, and all own ones (also those still to be moved there). */
-const startShips = computed(() => FLEET_SHIPS.filter((id) => !added(id) && onStart(id) > 0));
-const ownShips = computed(() => FLEET_SHIPS.filter((id) => !added(id) && (owned.value[id] ?? 0) > 0));
+const startShips = computed(() => fleetShips().filter((id) => !added(id) && onStart(id) > 0));
+const ownShips = computed(() => fleetShips().filter((id) => !added(id) && (owned.value[id] ?? 0) > 0));
 /** Without an empire page (also with spy reports, which may miss planets) any ship can be entered by hand. */
-const otherShips = computed(() => (ownEmpire.value?.source === 'empire' ? [] : FLEET_SHIPS.filter((id) => !added(id))));
+const otherShips = computed(() => (ownEmpire.value?.source === 'empire' ? [] : fleetShips().filter((id) => !added(id))));
 /** The start is typed in: no planets known, "other coordinates" picked, or a saved start not among the planets. */
 const typedStart = computed(
   () => !ownPlanets.value?.length || form.start === 'manual' || (!!form.start && !ownPlanets.value.some((pl) => planetKey(pl.coords, pl.type) === form.start)),

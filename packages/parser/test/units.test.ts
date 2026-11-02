@@ -83,3 +83,12 @@ describe('unit catalog', () => {
     expect(unitPatch(base, base)).toEqual({});
   });
 });
+
+describe('unit catalog input', () => {
+  it('does not freeze or share the overrides it was built from', () => {
+    const overrides = { 233: { name: { de: 'A', en: 'A' }, cost: [1, 1, 1] as [number, number, number], drives: { speed: [0, 0, 1] as [number, number, number], tech: [0, 0, 1] as [number, number, number], consumption: [0, 0, 1] as [number, number, number] } } };
+    const c = unitCatalog(overrides);
+    expect(Object.isFrozen(overrides[233].drives)).toBe(false);
+    expect(c.units[233].drives).not.toBe(overrides[233].drives);
+  });
+});

@@ -1,5 +1,6 @@
 import { computed, inject, nextTick, onBeforeUnmount, provide, ref, watch, type Directive, type InjectionKey, type Ref, type WatchSource } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import type { UnitOverrides } from '@pr0hub/core/units';
 import { protectionStatus, type UniverseSettings } from './format';
 
 export interface MarketRate {
@@ -12,7 +13,7 @@ export interface MarketRate {
 }
 
 export interface UniContext {
-  universe: { id: number; slug: string; name: string; settings: UniverseSettings; deck: { type: string; size: string; count: number }[]; startsAt: number | null; endedAt: number | null };
+  universe: { id: number; slug: string; name: string; settings: UniverseSettings; deck: { type: string; size: string; count: number }[]; units?: UnitOverrides; startsAt: number | null; endedAt: number | null };
   group: { id: number; name: string; role: string };
   /** base URL of the pr0game tools (server setting `TOOLS_URL`) */
   toolsUrl?: string;

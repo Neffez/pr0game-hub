@@ -1,3 +1,4 @@
+import { fleetShips, units } from './units';
 import {
   distance,
   drivesFromResearch,
@@ -5,7 +6,6 @@ import {
   homeOf,
   planAttack,
   retimeCandidates,
-  SHIPS,
   slowestShip,
   type AcsPlan,
   type Coords,
@@ -201,7 +201,7 @@ export function enemyCandidates(u: UniverseSettings, e: EnemyInput): RetimeCandi
     acs: e.fleets.length > 1,
     departure: e.departure,
     recall: e.recall,
-  });
+  }, units.value.drives);
 }
 
 const shipsParam = (ships: Record<string, number>) =>
@@ -235,7 +235,7 @@ export function enemyCalcLink(u: UniverseSettings, e: EnemyInput & Pick<PlanEnem
   if (e.recall) extra.er = e.recall.from;
   if (own?.g != null) {
     const research = own.drives?.research ?? {};
-    const slowest = slowestShip(own.ships, drivesFromResearch(research));
+    const slowest = slowestShip(own.ships, drivesFromResearch(research), units.value.drives);
     extra.ks = `${own.g}:${own.s}:${own.p}`;
     if (slowest) extra.kship = slowest.id;
     Object.assign(extra, { kc: research[115] ?? 0, ki: research[117] ?? 0, kh: research[118] ?? 0, ko: e.buffer });
@@ -264,8 +264,6 @@ export const PRECISIONS = ['day', 'hour', 'exact'] as const;
 export type Precision = (typeof PRECISIONS)[number];
 export const FLEET_STATUSES = ['invited', 'ready', 'launched', 'withdrawn'] as const;
 export const SPEEDS = [100, 90, 80, 70, 60, 50, 40, 30, 20, 10];
-/** Ships that can fly (drive data in @pr0hub/flight), in game order. */
-export const FLEET_SHIPS = Object.keys(SHIPS).map(Number);
 /** Drive research older than this is flagged (days). */
 export const DRIVES_MAX_AGE = 3 * 86400;
 
@@ -288,7 +286,7 @@ export function computePlan(u: UniverseSettings, plan: AttackPlan, now: number):
   const flights = plan.fleets.map((f): { fleet: PlanFleet; duration: number | null } => {
     if (!target || f.g == null || f.s == null || f.p == null || f.status === 'withdrawn') return { fleet: f, duration: null };
     const drives = drivesFromResearch(f.drives?.research ?? {});
-    const slowest = slowestShip(f.ships, drives);
+    const slowest = slowestShip(f.ships, drives, units.value.drives);
     if (!slowest) return { fleet: f, duration: null };
     return { fleet: f, duration: flightDuration(u, distance(u, [f.g, f.s, f.p], target), slowest.speed, f.speed) };
   });
@@ -406,7 +404,7 @@ export function draftBody(d: PlanDraft) {
 
 /** Flying ships (no solar satellites) the planet of a hold plan has by `spy` (empire page or spy report). */
 export function spyShips(p: AttackPlan): Record<string, number> {
-  return Object.fromEntries(Object.keys(SHIPS).filter((id) => (p.spy?.values[id] ?? 0) > 0).map((id) => [id, p.spy!.values[id]]));
+  return Object.fromEntries(fleetShips().filter((id) => (p.spy?.values[id] ?? 0) > 0).map((id) => [id, p.spy!.values[id]]));
 }
 
 /**
@@ -417,7 +415,7 @@ export function holdPlanetValues(p: AttackPlan): Record<string, number> {
   const values = { ...(p.spy?.values ?? {}) };
   const ships = p.enemy?.planet_ships;
   if (ships) {
-    for (const id of Object.keys(SHIPS)) delete values[id];
+    for (const id of fleetShips()) delete values[id];
     Object.assign(values, ships);
   }
   return values;

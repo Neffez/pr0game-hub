@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Admin-Panel: Schiffe und Verteidigung pro Universum einstellbar – Kosten, Voraussetzungen, Ladung, Antriebe, Angriff, Schild und Rapidfire, auch neue Einheiten. Die Werte lassen sich aus Quelltexten von Werft, Verteidigung, Technologiebaum und Infoseiten einfügen. Bauen & Forschen, Flugzeiten, Raid-Planer, Kampfsimulator und Beuteabrechnung rechnen dann mit den Werten des Universums.',
+        en: 'Admin panel: ships and defense can be set per universe – costs, requirements, cargo, drives, attack, shield and rapidfire, new units too. The values can be pasted from the page sources of the shipyard, defense, tech tree and info pages. Build & research, flight times, raid planner, battle simulator and loot settlement then use the universe’s values.',
+      },
+      {
+        kind: 'new',
         de: 'Admin-Panel: Bestehende Konten lassen sich einer Allianz in einem weiteren Universum zuweisen, statt dort neue Mitglieder anzulegen. Der Ingame-Name wird übernommen und kann geändert werden.',
         en: 'Admin panel: existing accounts can be assigned to an alliance in another universe instead of creating new members there. The in-game name is taken over and can be changed.',
       },
