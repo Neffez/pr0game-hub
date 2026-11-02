@@ -2,6 +2,13 @@
 
 Every commit adds its changes here, newest first, grouped by date.
 
+## 2026-11-02
+
+- Admin: the universe settings open in a dialog (bottom sheet on mobile) instead of below the list. Settings are grouped
+  into collapsible sections (general, schedule, size & distance, speeds, economy, combat, noob protection, expedition
+  deck) laid out as a label/value table, each with a short summary in its header. "Create universe" is a button below
+  the list that opens its own dialog (with the optional start) and then goes straight to the new universe's settings.
+
 ## 2026-11-01
 
 - Universes can be scheduled: a global admin sets a start and an optional end (permanent universes have none) when

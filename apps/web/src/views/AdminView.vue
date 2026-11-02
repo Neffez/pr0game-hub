@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import Section from '../components/Section.vue';
+import Sheet from '../components/Sheet.vue';
 import Icon from '../components/Icon.vue';
 import SortBar from '../components/SortBar.vue';
 import SortMark from '../components/SortMark.vue';
@@ -14,7 +15,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import { api, loadMe, selectedGroup, session } from '../api';
-import { clockTime, coords, dateTime, STATS_CATEGORIES } from '../format';
+import { clockTime, coords, dateTime, fmt, STATS_CATEGORIES } from '../format';
 
 type FleetAttackRow = {
   userId: number;
@@ -41,9 +42,11 @@ const msg = ref('');
 // ---------------------------------------------------------------- universes
 const universes = ref<any[]>([]);
 const newUni = ref({ slug: '', name: '', startsAt: '' });
+const createOpen = ref(false);
 type DeckCard = { type: string; size: string; count: number };
 /** `startsAt`/`endedAt`: browser-local "YYYY-MM-DDTHH:mm" of the scheduled start and end, '' = none */
 const editUni = ref<{ slug: string; name: string; isDefault: boolean; startsAt: string; endedAt: string; settings: Record<string, any>; deck: DeckCard[] } | null>(null);
+const editOpen = computed({ get: () => !!editUni.value, set: (v) => { if (!v) editUni.value = null; } });
 /** the real time: inside an ended universe the hub's clock stands still at its end */
 const realNow = () => Math.floor(Date.now() / 1000);
 const isEnded = (u: { endedAt?: number | null }) => u.endedAt != null && u.endedAt <= realNow();
@@ -51,6 +54,80 @@ const isScheduled = (u: { startsAt?: number | null }) => u.startsAt != null && u
 const localOf = (epoch: number | null | undefined) => (epoch != null ? toLocalInput(epoch).slice(0, 16) : '');
 const epochOf = (local: string) => (local ? fromLocalInput(local) : null);
 const deckTotal = computed(() => editUni.value?.deck.reduce((sum, c) => sum + (Number(c.count) || 0), 0) ?? 0);
+
+/** One row of the universe settings: `key` in `settings`, label `admin.<label>`, tooltip `admin.<label>Hint` with `hint`. */
+type UniField = { key: string; label: string; hint?: boolean; type?: 'number' | 'text' | 'check'; min?: number; max?: number; step?: number | 'any'; placeholder?: string };
+type UniGroup = { id: string; hint?: string; fields: UniField[] };
+/** The settings dialog groups them like the game configuration; `general` also holds name and default flag, `deck` the deck table. */
+const UNI_GROUPS: UniGroup[] = [
+  { id: 'general', fields: [
+    { key: 'gameUrl', label: 'gameUrl', hint: true, type: 'text' },
+    { key: 'timezone', label: 'timezone', hint: true, type: 'text', placeholder: 'Europe/Berlin' },
+  ] },
+  { id: 'schedule', fields: [] },
+  { id: 'size', hint: 'admin.distanceHint', fields: [
+    { key: 'galaxies', label: 'galaxies', min: 1 },
+    { key: 'systems', label: 'systems', min: 1 },
+    { key: 'positions', label: 'positions', min: 1 },
+    { key: 'circularGalaxies', label: 'circularGalaxies', type: 'check' },
+    { key: 'circularSystems', label: 'circularSystems', type: 'check' },
+    { key: 'galaxyDistanceFactor', label: 'galaxyFactor', min: 0 },
+    { key: 'systemDistanceFactor', label: 'systemFactor', min: 0 },
+    { key: 'systemDistance', label: 'systemBase', min: 0 },
+    { key: 'planetDistanceFactor', label: 'planetFactor', min: 0 },
+    { key: 'planetDistance', label: 'planetBase', min: 0 },
+  ] },
+  { id: 'speed', fields: [
+    { key: 'fleetSpeed', label: 'fleetSpeed', hint: true, min: 1 },
+    { key: 'buildingSpeed', label: 'buildingSpeed', hint: true, min: 0 },
+    { key: 'researchSpeed', label: 'researchSpeed', hint: true, min: 0 },
+    { key: 'shipyardSpeed', label: 'shipyardSpeed', hint: true, min: 0 },
+  ] },
+  { id: 'economy', fields: [
+    { key: 'resourceMultiplier', label: 'resourceMultiplier', hint: true, min: 0 },
+    { key: 'storageMultiplier', label: 'storageMultiplier', hint: true, min: 1, step: 1, placeholder: '1' },
+    { key: 'universityFactor', label: 'universityFactor', hint: true, min: 0, max: 100 },
+  ] },
+  { id: 'combat', fields: [
+    { key: 'fleetDebrisPercent', label: 'fleetDebrisPercent', hint: true, min: 0, max: 100, placeholder: '40' },
+    { key: 'defenseDebrisPercent', label: 'defenseDebrisPercent', hint: true, min: 0, max: 100, placeholder: '0' },
+    { key: 'bigShields', label: 'bigShields', hint: true, type: 'check' },
+    { key: 'missileRangeFactor', label: 'missileRangeFactor', hint: true, min: 0, step: 'any', placeholder: '1' },
+  ] },
+  { id: 'noob', fields: [
+    { key: 'noobLimit', label: 'noobLimit', hint: true, min: 0, placeholder: '0' },
+    { key: 'noobFactor', label: 'noobFactor', min: 0, step: 'any', placeholder: '5' },
+    { key: 'noobInactives', label: 'noobInactives', hint: true, type: 'check' },
+  ] },
+  { id: 'deck', hint: 'admin.deckHint', fields: [] },
+];
+
+/** Speed values of the game configuration: 2500 = 1x; 0 or empty = unknown. */
+const speed = (v: unknown) => (Number(v) > 0 ? `×${+(Number(v) / 2500).toFixed(2)}` : '–');
+const orDefault = (v: unknown, def: string | number) => (v === '' || v == null ? def : v);
+/** Short state of a group, shown in its header so a closed group still tells what is set. */
+function groupSummary(id: string): string {
+  const s = editUni.value?.settings ?? {};
+  switch (id) {
+    case 'general': {
+      let host = '';
+      try { host = s.gameUrl ? new URL(s.gameUrl).host + new URL(s.gameUrl).pathname.replace(/\/$/, '') : ''; } catch { host = s.gameUrl; }
+      return [host, s.timezone].filter(Boolean).join(' · ');
+    }
+    case 'schedule': {
+      if (editedUni.value && isEnded(editedUni.value)) return t('admin.endedBadge');
+      const [from, to] = [editUni.value?.startsAt, editUni.value?.endedAt].map((v) => (v ? dateTime(epochOf(v)!) : '…'));
+      return from === '…' && to === '…' ? '–' : `${from} – ${to}`;
+    }
+    case 'size': return `${s.galaxies ?? '?'} × ${s.systems ?? '?'} × ${s.positions ?? '?'}`;
+    case 'speed': return [s.fleetSpeed, s.buildingSpeed, s.researchSpeed, s.shipyardSpeed].map(speed).join(' / ');
+    case 'economy': return `${speed(s.resourceMultiplier)} · ${orDefault(s.universityFactor, 8)} %`;
+    case 'combat': return `${orDefault(s.fleetDebrisPercent, 40)} % / ${orDefault(s.defenseDebrisPercent, 0)} %`;
+    case 'noob': return Number(s.noobLimit) > 0 ? fmt(Number(s.noobLimit)) : '–';
+    case 'deck': return String(deckTotal.value);
+  }
+  return '';
+}
 
 // ------------------------------------------------------------------- groups
 const groups = ref<any[]>([]);
@@ -122,15 +199,21 @@ onMounted(() =>
 );
 watch(groupId, () => run(loadGroup));
 
+/** a new universe opens in the settings right away: URL, size and speeds usually need adjusting */
 const createUni = () =>
   run(async () => {
     const { startsAt, ...rest } = newUni.value;
     await api('/admin/universes', { body: { ...rest, startsAt: epochOf(startsAt) } });
+    const slug = rest.slug;
     newUni.value = { slug: '', name: '', startsAt: '' };
+    createOpen.value = false;
     await loadAll();
+    const u = universes.value.find((x) => x.slug === slug);
+    if (u) startEdit(u);
   }, 'admin.universeCreated');
 
 function startEdit(u: any) {
+  error.value = msg.value = '';
   editUni.value = { slug: u.slug, name: u.name, isDefault: !!u.isDefault, startsAt: localOf(u.startsAt), endedAt: localOf(u.endedAt), settings: { ...u.settings }, deck: u.deck.map((c: DeckCard) => ({ ...c })) };
 }
 
@@ -360,152 +443,108 @@ const doMerge = () => run(async () => {
           </tr>
         </table>
         </div>
-        <form class="row" style="margin-top: 10px" @submit.prevent="createUni">
-          <input v-model="newUni.slug" :placeholder="t('admin.slugPlaceholder')" style="width: 120px" />
-          <input v-model="newUni.name" :placeholder="t('common.name')" />
-          <label>{{ t('admin.startTime') }} <Hint>{{ t('admin.startTimeHint') }}</Hint> <DateTimeInput v-model="newUni.startsAt" /></label>
-          <button class="primary">{{ t('admin.createUniverse') }}</button>
-        </form>
-        <div v-if="editUni" style="margin-top: 12px">
-          <h3>{{ t('admin.editTitle', { slug: editUni.slug }) }}</h3>
-          <div class="row">
-            <label>{{ t('common.name') }} <input v-model="editUni.name" /></label>
-            <label class="check">
-              <input v-model="editUni.isDefault" type="checkbox" />
-              {{ t('admin.defaultUniverse') }}
-              <Hint>{{ t('admin.defaultUniverseHint') }}</Hint>
-            </label>
-            <label>
-              {{ t('admin.gameUrl') }}
-              <Hint>{{ t('admin.gameUrlHint') }}</Hint>
-              <input v-model="editUni.settings.gameUrl" :placeholder="`https://pr0game.com/uni${editUni.slug.replace(/\D/g, '')}/`" style="width: 260px" />
-            </label>
-          </div>
-          <div class="row" style="margin-top: 8px">
-            <label>{{ t('admin.startTime') }} <Hint>{{ t('admin.startTimeHint') }}</Hint> <DateTimeInput v-model="editUni.startsAt" /></label>
-            <label>{{ t('admin.endTime') }} <Hint>{{ t('admin.endTimeHint') }}</Hint> <DateTimeInput v-model="editUni.endedAt" /></label>
-          </div>
-          <div class="row" style="margin-top: 8px">
-            <label>{{ t('admin.galaxies') }} <input v-model.number="editUni.settings.galaxies" type="number" min="1" style="width: 70px" /></label>
-            <label>{{ t('admin.systems') }} <input v-model.number="editUni.settings.systems" type="number" min="1" style="width: 80px" /></label>
-            <label>{{ t('admin.positions') }} <input v-model.number="editUni.settings.positions" type="number" min="1" style="width: 70px" /></label>
-            <label>
-              {{ t('admin.fleetSpeed') }}
-              <Hint>{{ t('admin.fleetSpeedHint') }}</Hint>
-              <input v-model.number="editUni.settings.fleetSpeed" type="number" min="1" style="width: 90px" />
-            </label>
-            <label>
-              {{ t('admin.buildingSpeed') }}
-              <Hint>{{ t('admin.buildingSpeedHint') }}</Hint>
-              <input v-model.number="editUni.settings.buildingSpeed" type="number" min="0" style="width: 90px" />
-            </label>
-            <label>
-              {{ t('admin.researchSpeed') }}
-              <Hint>{{ t('admin.researchSpeedHint') }}</Hint>
-              <input v-model.number="editUni.settings.researchSpeed" type="number" min="0" style="width: 90px" />
-            </label>
-            <label>
-              {{ t('admin.shipyardSpeed') }}
-              <Hint>{{ t('admin.shipyardSpeedHint') }}</Hint>
-              <input v-model.number="editUni.settings.shipyardSpeed" type="number" min="0" style="width: 90px" />
-            </label>
-            <label>
-              {{ t('admin.resourceMultiplier') }}
-              <Hint>{{ t('admin.resourceMultiplierHint') }}</Hint>
-              <input v-model.number="editUni.settings.resourceMultiplier" type="number" min="0" style="width: 90px" />
-            </label>
-            <label>
-              {{ t('admin.storageMultiplier') }}
-              <Hint>{{ t('admin.storageMultiplierHint') }}</Hint>
-              <input v-model.number="editUni.settings.storageMultiplier" type="number" min="1" step="1" placeholder="1" style="width: 70px" />
-            </label>
-            <label>
-              {{ t('admin.universityFactor') }}
-              <Hint>{{ t('admin.universityFactorHint') }}</Hint>
-              <input v-model.number="editUni.settings.universityFactor" type="number" min="0" max="100" style="width: 60px" />
-            </label>
-            <label>
-              {{ t('admin.missileRangeFactor') }}
-              <Hint>{{ t('admin.missileRangeFactorHint') }}</Hint>
-              <input v-model.number="editUni.settings.missileRangeFactor" type="number" min="0" step="any" placeholder="1" style="width: 70px" />
-            </label>
-            <label>
-              {{ t('admin.noobLimit') }}
-              <Hint>{{ t('admin.noobLimitHint') }}</Hint>
-              <input v-model.number="editUni.settings.noobLimit" type="number" min="0" placeholder="0" style="width: 110px" />
-            </label>
-            <label>
-              {{ t('admin.noobFactor') }}
-              <input v-model.number="editUni.settings.noobFactor" type="number" min="0" step="any" placeholder="5" style="width: 60px" />
-            </label>
-            <label>
-              <input v-model="editUni.settings.noobInactives" type="checkbox" /> {{ t('admin.noobInactives') }}
-              <Hint>{{ t('admin.noobInactivesHint') }}</Hint>
-            </label>
-            <label>
-              {{ t('admin.fleetDebrisPercent') }}
-              <Hint>{{ t('admin.fleetDebrisPercentHint') }}</Hint>
-              <input v-model.number="editUni.settings.fleetDebrisPercent" type="number" min="0" max="100" placeholder="40" style="width: 60px" />
-            </label>
-            <label>
-              {{ t('admin.defenseDebrisPercent') }}
-              <Hint>{{ t('admin.defenseDebrisPercentHint') }}</Hint>
-              <input v-model.number="editUni.settings.defenseDebrisPercent" type="number" min="0" max="100" placeholder="0" style="width: 60px" />
-            </label>
-            <label>
-              <input v-model="editUni.settings.bigShields" type="checkbox" /> {{ t('admin.bigShields') }}
-              <Hint>{{ t('admin.bigShieldsHint') }}</Hint>
-            </label>
-            <label>
-              {{ t('admin.timezone') }}
-              <Hint>{{ t('admin.timezoneHint') }}</Hint>
-              <input v-model="editUni.settings.timezone" style="width: 140px" />
-            </label>
-          </div>
-          <h4>
-            {{ t('admin.distance') }}
-            <Hint>{{ t('admin.distanceHint') }}</Hint>
-          </h4>
-          <div class="row">
-            <label><input v-model="editUni.settings.circularGalaxies" type="checkbox" /> {{ t('admin.circularGalaxies') }}</label>
-            <label><input v-model="editUni.settings.circularSystems" type="checkbox" /> {{ t('admin.circularSystems') }}</label>
-          </div>
-          <div class="row" style="margin-top: 8px">
-            <label>{{ t('admin.galaxyFactor') }} <input v-model.number="editUni.settings.galaxyDistanceFactor" type="number" min="0" style="width: 90px" /></label>
-            <label>{{ t('admin.systemFactor') }} <input v-model.number="editUni.settings.systemDistanceFactor" type="number" min="0" style="width: 70px" /></label>
-            <label>{{ t('admin.systemBase') }} <input v-model.number="editUni.settings.systemDistance" type="number" min="0" style="width: 80px" /></label>
-            <label>{{ t('admin.planetFactor') }} <input v-model.number="editUni.settings.planetDistanceFactor" type="number" min="0" style="width: 70px" /></label>
-            <label>{{ t('admin.planetBase') }} <input v-model.number="editUni.settings.planetDistance" type="number" min="0" style="width: 80px" /></label>
-          </div>
-          <h4>
-            {{ t('nav.deck') }}
-            <Hint>{{ t('admin.deckHint') }}</Hint>
-          </h4>
-          <div class="scroll-x">
-          <table class="data" style="width: auto">
-            <thead><tr><th>{{ t('expeditions.event') }}</th><th>{{ t('admin.cardSize') }}</th><th>{{ t('admin.count') }}</th></tr></thead>
-            <tbody>
-              <tr v-for="(c, i) in editUni.deck" :key="i">
-                <td>{{ c.type }}</td>
-                <td>{{ c.size }}</td>
-                <td><input v-model.number="c.count" type="number" min="0" style="width: 80px" /></td>
-              </tr>
-            </tbody>
-            <tfoot><tr><th colspan="2">{{ t('common.total') }}</th><th>{{ deckTotal }}</th></tr></tfoot>
-          </table>
-          </div>
-          <button style="margin: 6px 0 12px" @click="resetDeck">{{ t('admin.restoreDeck') }}</button>
-          <div>
-            <button class="primary" @click="saveUni">{{ t('common.save') }}</button>
-            <button @click="editUni = null">{{ t('common.cancel') }}</button>
-            <span class="grow" />
-            <template v-if="editedUni">
-              <button :class="{ danger: !isEnded(editedUni) }" @click="toggleEnded(editedUni)">{{ t(!isEnded(editedUni) ? 'admin.endUniverse' : 'admin.reopenUniverse') }}</button>
-              <Hint>{{ t('admin.endUniverseHint') }}</Hint>
-            </template>
-          </div>
+        <div class="row" style="margin-top: 10px">
+          <button class="primary" @click="error = msg = ''; createOpen = true">+ {{ t('admin.createUniverse') }}</button>
         </div>
       </Section>
+
+      <Sheet v-model="createOpen" :title="t('admin.createUniverse')">
+        <form id="uni-create" class="uni-create" @submit.prevent="createUni">
+          <div v-if="error" class="error">{{ error }}</div>
+          <label>Slug <input v-model="newUni.slug" :placeholder="t('admin.slugPlaceholder')" autocomplete="off" /></label>
+          <label>{{ t('common.name') }} <input v-model="newUni.name" :placeholder="newUni.slug || t('common.name')" /></label>
+          <label><span>{{ t('admin.startTime') }} <Hint>{{ t('admin.startTimeHint') }}</Hint></span> <DateTimeInput v-model="newUni.startsAt" /></label>
+          <p class="muted small">{{ t('admin.createUniverseHint') }}</p>
+        </form>
+        <template #footer>
+          <button type="button" @click="createOpen = false">{{ t('common.cancel') }}</button>
+          <button type="submit" form="uni-create" class="primary" :disabled="!newUni.slug.trim()">{{ t('common.create') }}</button>
+        </template>
+      </Sheet>
+
+      <Sheet v-if="editUni" v-model="editOpen" :title="t('admin.editTitle', { slug: editUni.slug })">
+        <div v-if="error" class="error">{{ error }}</div>
+        <Section
+          v-for="g in UNI_GROUPS"
+          :key="g.id"
+          :title="t(`admin.uniGroups.${g.id}`)"
+          :default-open="g.id === 'general'"
+          :store-key="`admin.uniCfg.${g.id}`"
+          class="uni-group"
+        >
+          <template v-if="g.hint" #hint><Hint>{{ t(g.hint) }}</Hint></template>
+          <template #actions><span class="muted small mono uni-summary">{{ groupSummary(g.id) }}</span></template>
+          <template v-if="g.id === 'deck'">
+            <table class="data uni-deck">
+              <thead><tr><th>{{ t('expeditions.event') }}</th><th>{{ t('admin.cardSize') }}</th><th class="num">{{ t('admin.count') }}</th></tr></thead>
+              <tbody>
+                <tr v-for="(c, i) in editUni.deck" :key="i">
+                  <td>{{ c.type }}</td>
+                  <td>{{ c.size }}</td>
+                  <td class="num"><input v-model.number="c.count" type="number" min="0" /></td>
+                </tr>
+              </tbody>
+              <tfoot><tr><th colspan="2">{{ t('common.total') }}</th><th class="num">{{ deckTotal }}</th></tr></tfoot>
+            </table>
+            <button style="margin-top: 8px" @click="resetDeck">{{ t('admin.restoreDeck') }}</button>
+          </template>
+          <table v-else class="uni-config">
+            <template v-if="g.id === 'general'">
+              <tr class="text-row">
+                <th><label for="uni-name">{{ t('common.name') }}</label></th>
+                <td><input id="uni-name" v-model="editUni.name" class="wide" /></td>
+              </tr>
+              <tr>
+                <th><label for="uni-isDefault">{{ t('admin.defaultUniverse') }}</label> <Hint>{{ t('admin.defaultUniverseHint') }}</Hint></th>
+                <td><input id="uni-isDefault" v-model="editUni.isDefault" type="checkbox" /></td>
+              </tr>
+            </template>
+            <template v-if="g.id === 'schedule'">
+              <tr>
+                <th><label>{{ t('admin.startTime') }}</label> <Hint>{{ t('admin.startTimeHint') }}</Hint></th>
+                <td><DateTimeInput v-model="editUni.startsAt" /></td>
+              </tr>
+              <tr>
+                <th><label>{{ t('admin.endTime') }}</label> <Hint>{{ t('admin.endTimeHint') }}</Hint></th>
+                <td><DateTimeInput v-model="editUni.endedAt" /></td>
+              </tr>
+              <tr v-if="editedUni">
+                <th><label>{{ isEnded(editedUni) ? t('admin.endedBadge') : t('admin.endUniverse') }}</label> <Hint>{{ t('admin.endUniverseHint') }}</Hint></th>
+                <td>
+                  <button :class="{ danger: !isEnded(editedUni) }" @click="toggleEnded(editedUni)">{{ t(!isEnded(editedUni) ? 'admin.endUniverse' : 'admin.reopenUniverse') }}</button>
+                </td>
+              </tr>
+            </template>
+            <tr v-for="f in g.fields" :key="f.key" :class="{ 'text-row': f.type === 'text' }">
+              <th><label :for="`uni-${f.key}`">{{ t(`admin.${f.label}`) }}</label> <Hint v-if="f.hint">{{ t(`admin.${f.label}Hint`) }}</Hint></th>
+              <td>
+                <input v-if="f.type === 'check'" :id="`uni-${f.key}`" v-model="editUni.settings[f.key]" type="checkbox" />
+                <input
+                  v-else-if="f.type === 'text'"
+                  :id="`uni-${f.key}`"
+                  v-model="editUni.settings[f.key]"
+                  class="wide"
+                  :placeholder="f.key === 'gameUrl' ? `https://pr0game.com/uni${editUni.slug.replace(/\D/g, '')}/` : f.placeholder"
+                />
+                <input
+                  v-else
+                  :id="`uni-${f.key}`"
+                  v-model.number="editUni.settings[f.key]"
+                  type="number"
+                  :min="f.min"
+                  :max="f.max"
+                  :step="f.step"
+                  :placeholder="f.placeholder"
+                />
+              </td>
+            </tr>
+          </table>
+        </Section>
+        <template #footer>
+          <button @click="editUni = null">{{ t('common.cancel') }}</button>
+          <button class="primary" @click="saveUni">{{ t('common.save') }}</button>
+        </template>
+      </Sheet>
     </template>
 
     <Section v-if="isAdmin || groups.length" :title="t('admin.accessRequests')" :count="access.requests.length" store-key="admin.access">
@@ -782,7 +821,34 @@ const doMerge = () => run(async () => {
 .invite-renew { flex-shrink: 0; width: 34px; padding: 0; }
 .actions { display: flex; gap: 6px; justify-content: flex-end; flex-wrap: nowrap; }
 table.ingests td.content { white-space: normal; min-width: 220px; }
+/* universe settings dialog: one card per group, label left and value right */
+.uni-create { display: flex; flex-direction: column; gap: 10px; }
+.uni-create label { display: flex; flex-direction: column; gap: 4px; }
+.uni-create input, .uni-create :deep(input) { width: 100%; box-sizing: border-box; margin: 0; }
+.uni-summary { max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+table.uni-config { width: 100%; border-collapse: collapse; }
+table.uni-config th, table.uni-config td { padding: 6px 0; border-bottom: 1px solid var(--border); vertical-align: middle; }
+table.uni-config tr:last-child > * { border-bottom: 0; }
+table.uni-config th { text-align: left; font-weight: 400; }
+table.uni-config td { width: 1%; padding-left: 12px; text-align: right; white-space: nowrap; }
+table.uni-config input[type='number'] { width: 110px; text-align: right; }
+table.uni-config input.wide { width: 300px; }
+table.uni-config input[type='checkbox'] { width: 18px; height: 18px; margin: 0; vertical-align: middle; }
+table.uni-deck { width: auto; }
+table.uni-deck input { width: 80px; text-align: right; }
 @media (max-width: 799px) {
+  /* text settings: input full width below the label */
+  table.uni-config, table.uni-config > tbody { display: block; }
+  table.uni-config tr { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 6px 0; border-bottom: 1px solid var(--border); }
+  table.uni-config tr:last-child { border-bottom: 0; }
+  table.uni-config th, table.uni-config td { padding: 0; border: 0; }
+  table.uni-config th { flex: 1; min-width: 0; }
+  table.uni-config td { width: auto; }
+  table.uni-config tr.text-row > td { flex-basis: 100%; text-align: left; }
+  table.uni-config tr.text-row input.wide { width: 100%; box-sizing: border-box; }
+  table.uni-config input[type='number'] { width: 96px; }
+  table.uni-deck { width: 100%; }
+  .uni-summary { max-width: 140px; }
   /* forms: one field per line, full width */
   .admin .row > input,
   .admin .row > select,

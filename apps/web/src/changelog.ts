@@ -16,6 +16,16 @@ export interface ChangelogDay {
 
 export const CHANGELOG: ChangelogDay[] = [
   {
+    date: '2026-11-02',
+    items: [
+      {
+        kind: 'new',
+        de: 'Admin: Die Universum-Einstellungen öffnen sich in einem eigenen Fenster, übersichtlich in aufklappbare Abschnitte gegliedert (auch auf dem Handy). „Universum anlegen“ ist ein Button unter der Liste.',
+        en: 'Admin: universe settings open in their own window, organized into collapsible sections (also on phones). “Create universe” is a button below the list.',
+      },
+    ],
+  },
+  {
     date: '2026-11-01',
     items: [
       {
