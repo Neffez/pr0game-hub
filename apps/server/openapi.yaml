@@ -229,7 +229,59 @@ components:
         fleets: { type: boolean, description: An own fleet the caller set an alert for arrives (or is about to, by the alert's lead) (default on) }
         storage: { type: boolean, description: 'A storage (metal, crystal, deuterium) on one of the caller''s planets is full (default on)' }
         settlements: { type: boolean, description: A loot settlement the caller takes part in was finalized and they have deliveries open (default on) }
+        buildOrder: { type: boolean, description: The next step of the caller's build order on a planet can start (default on) }
         leadMinutes: { type: integer, enum: [1, 2, 5, 10, 15, 30], description: Launch reminder this many minutes ahead (default 5) }
+    BuildOrderStep:
+      type: object
+      required: [id, kind]
+      description: >-
+        One step of a build order: +1 level of a building or research, `count` units of a ship or defense, a production
+        setting (`prod`) or a transport; its target level follows from the base and the steps before it.
+      properties:
+        id: { type: string, maxLength: 40, description: 'Stable id (letters, digits, _ and -), unique in the build order' }
+        kind: { type: string, enum: [building, research, ship, defense, prod, transport] }
+        element: { type: integer, description: Game element id (building, research, ship, defense) }
+        count: { type: integer, minimum: 1, description: Units (ship, defense) }
+        prod:
+          type: object
+          description: '`factors` producer id (1, 2, 3) -> 0 … 1; wait for the build slot, research or shipyard first; `wait` seconds afterwards'
+          properties:
+            factors: { type: object }
+            awaitBuilding: { type: boolean }
+            awaitResearch: { type: boolean }
+            awaitShipyard: { type: boolean }
+            wait: { type: integer }
+        transport:
+          type: object
+          description: 'Resources (901-903) leaving the planet, landing on `target` (hub planet key, null: none) after `flight` seconds'
+          properties:
+            target: { type: [string, 'null'] }
+            resources: { type: object }
+            flight: { type: integer }
+        deactivated: { type: boolean }
+        done: { type: boolean, description: Checked off by hand }
+    BuildOrder:
+      type: object
+      required: [base, planets]
+      properties:
+        base:
+          type: object
+          description: 'Start levels: `planets` (hub planet key `g:s:p:type` -> element id -> level or count) and `research` (id -> level)'
+          properties:
+            planets: { type: object }
+            research: { type: object }
+        planets:
+          type: object
+          description: Hub planet key -> steps in order
+          additionalProperties: { type: array, items: { $ref: '#/components/schemas/BuildOrderStep' } }
+    StoredBuildOrder:
+      type: [object, 'null']
+      required: [order, meta, createdAt, updatedAt]
+      properties:
+        order: { $ref: '#/components/schemas/BuildOrder' }
+        meta: { type: object, description: 'Where it came from, as the import sent it (e.g. the pr0plan settings and planet mapping)' }
+        createdAt: { type: integer, description: Unix seconds of the import }
+        updatedAt: { type: integer, description: Unix seconds of the last change }
     DiscordSettings:
       type: object
       required: [webhook, userId, prefs]
@@ -1962,6 +2014,95 @@ paths:
                 properties:
                   alerts: { type: array, items: { $ref: '#/components/schemas/BuildingAlert' } }
         '404': { description: 'Not an alert of the caller (`alert_not_found`)' }
+  /api/{uni}/build-order:
+    get:
+      tags: [Universe]
+      operationId: getBuildOrder
+      description: >-
+        The caller's build order in the group (imported from pr0plan, shown under build & research), null when none.
+        The next step of each planet notifies (`buildorder`, see `/api/{uni}/notifications`) once it can start.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  buildOrder: { $ref: '#/components/schemas/StoredBuildOrder' }
+    put:
+      tags: [Universe]
+      operationId: putBuildOrder
+      description: Imports a build order, replacing the caller's one in the group. The client maps the file's planets onto hub planets and sets the base.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [order]
+              properties:
+                order: { $ref: '#/components/schemas/BuildOrder' }
+                meta: { type: object, description: Kept as sent (at most 64 KiB) }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  buildOrder: { $ref: '#/components/schemas/StoredBuildOrder' }
+        '400': { description: 'Not a valid build order: unknown elements, duplicate step ids, bad planet keys, too many steps (`build_order_invalid`)' }
+    patch:
+      tags: [Universe]
+      operationId: patchBuildOrder
+      description: Replaces the steps (new order, done and deactivated flags, removed steps); base and meta stay.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [planets]
+              properties:
+                planets: { type: object, description: Hub planet key -> steps in order, additionalProperties: { type: array, items: { $ref: '#/components/schemas/BuildOrderStep' } } }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  buildOrder: { $ref: '#/components/schemas/StoredBuildOrder' }
+        '400': { description: 'Not valid steps (`build_order_invalid`)' }
+        '404': { description: 'The caller has no build order in the group (`build_order_not_found`)' }
+    delete:
+      tags: [Universe]
+      operationId: deleteBuildOrder
+      description: Deletes the caller's build order in the group.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  buildOrder: { $ref: '#/components/schemas/StoredBuildOrder' }
   /api/{uni}/market:
     get:
       tags: [Universe]
@@ -3023,7 +3164,9 @@ paths:
         `settlement` (a loot settlement the caller takes part in, finalized within 48 hours, while deliveries of the
         caller are open, neither ticked off nor delivered by transport messages, not for the member who finalized it
         nor for settlements saved before finalizing existed; `plan`, `sends`, `gets`, `member` who finalized it, `time`
-        when). Push notifications send
+        when) and `buildorder` (the next open step of the caller's build order on a planet can start by its timeline:
+        slot free, requirements met, resources there; `planet`, `step` with `id`, `kind`, `element`, `count` and
+        `target` level or count, `time` now; one per planet). Push notifications send
         the same entries (see `/api/push/subscriptions`).
       parameters:
         - { $ref: '#/components/parameters/Uni' }

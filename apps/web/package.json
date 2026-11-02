@@ -14,6 +14,7 @@
     "@pr0hub/core": "workspace:*",
     "@pr0hub/flight": "workspace:*",
     "@pr0hub/loot": "workspace:*",
+    "@pr0hub/planner": "workspace:*",
     "@vuepic/vue-datepicker": "14.0.0",
     "chart.js": "^4.6.1",
     "date-fns": "^4.4.0",

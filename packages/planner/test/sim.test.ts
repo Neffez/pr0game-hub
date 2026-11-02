@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { buildTime, buildingCost } from '@pr0hub/core/buildings';
 import { describe, expect, it } from 'vitest';
 import {
-  baseFromFile, baseFromHub, compareSettings, doneStateOf, ImportError, parsePr0plan, simulate, targetsOf, toBuildOrder, type BuildOrder, type HubPlanet,
+  baseFromFile, baseFromHub, compareSettings, doneStateOf, ImportError, parsePr0plan, simulate, targetsOf, toBuildOrder, validateBuildOrder, type BuildOrder, type HubPlanet,
   type HubState, type Step,
 } from '../src/index.js';
 
@@ -208,5 +208,25 @@ describe('simulate', () => {
     // 1000 metal at 3600/h: 1000 s, whatever the formula says
     expect(simulate(order, hubOf([poor({ 901: 3600 })]), { now: 0 }).steps[0].start).toBe(1000);
     expect(simulate(order, hubOf([poor({ 901: 3600 })], { resourceSpeed: null }), { now: 0 }).steps[0].start).toBe(1000);
+  });
+});
+
+describe('validateBuildOrder', () => {
+  it('accepts an imported order and cleans it', () => {
+    const imp = parsePr0plan(fixture('buildOrderWithSettings.json'));
+    const order = toBuildOrder(imp, { 1: HOME }, baseFromFile(imp, { 1: HOME }), id);
+    const res = validateBuildOrder(JSON.parse(JSON.stringify(order)));
+    expect(res).toEqual({ order });
+  });
+
+  it('rejects unknown elements, duplicate ids and bad keys', () => {
+    const base = { planets: {}, research: {} };
+    expect(validateBuildOrder({ base, planets: { [HOME]: [{ id: 'a', kind: 'building', element: 999 }] } })).toHaveProperty('error');
+    expect(validateBuildOrder({ base, planets: { [HOME]: [{ id: 'a', kind: 'ship', element: 401, count: 1 }] } })).toHaveProperty('error');
+    expect(validateBuildOrder({ base, planets: { [HOME]: [{ id: 'a', kind: 'building', element: 1 }, { id: 'a', kind: 'building', element: 1 }] } })).toHaveProperty('error');
+    expect(validateBuildOrder({ base, planets: { 'x': [] } })).toHaveProperty('error');
+    expect(validateBuildOrder({ base, planets: { [HOME]: [{ id: 'a', kind: 'transport', transport: { target: COLONY, resources: { 901: 5 }, flight: 60 }, extra: 1 }] } })).toEqual({
+      order: { base, planets: { [HOME]: [{ id: 'a', kind: 'transport', transport: { target: COLONY, resources: { 901: 5 }, flight: 60 } }] } },
+    });
   });
 });

@@ -4,6 +4,12 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-02
 
+- Build orders on the server: `GET`, `PUT` (import, replaces), `PATCH` (steps: order, done, deactivated, removed) and
+  `DELETE /api/{uni}/build-order`, one per member and group (table `build_orders`, migration 073), validated with
+  `@pr0hub/planner`. New notification kind `buildorder` (bell, push, Discord): the next open step of a planet can
+  start by the timeline from the member's hub state; the group's alert schedule plans the tick for the next step's
+  start. Push and Discord setting `buildOrder` (default on).
+
 - New package `@pr0hub/planner` for build orders:
   - `parsePr0plan` reads pr0plan exports (with or without settings; buildings, research, ships, defense, production
     settings, transports, deactivated actions) and maps pr0plan keys to game ids and hours to seconds;

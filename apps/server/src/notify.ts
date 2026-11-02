@@ -2,7 +2,7 @@ import { toUniverse, type Universe } from './context.js';
 import type { DB } from './db.js';
 import type { EventBus } from './events.js';
 import { nextFleetAlert } from './repo/fleetAlerts.js';
-import { nextBuildingAlert, nextStorageFull } from './repo/notifications.js';
+import { nextBuildingAlert, nextBuildOrderStep, nextStorageFull } from './repo/notifications.js';
 
 /**
  * What web push (push.ts) and Discord (discord.ts) share: delivery after data events of a group (bundled) and on a
@@ -18,7 +18,7 @@ export const TICK_MS = 30_000;
 /** Ticks look at plans landing within this time. */
 export const TICK_AHEAD = 48 * 3600;
 /** Data events that may bring a notification. */
-const TABLES = ['fleets', 'attack_plans', 'comments', 'group_members', 'empire', 'overview', 'buildings', 'research', 'building_alerts', 'fleet_alerts'];
+const TABLES = ['fleets', 'attack_plans', 'comments', 'group_members', 'empire', 'overview', 'buildings', 'research', 'building_alerts', 'fleet_alerts', 'build_orders'];
 
 /** Building and fleet alerts of a group are looked at again at least this often by the ticks (data events deliver anyway). */
 export const ALERT_RECHECK = 15 * 60;
@@ -41,7 +41,7 @@ export function storageWatchers(db: DB, groupId: number): number[] {
 }
 
 /**
- * When the ticks need to look at a group's building and fleet alerts and storages again: the earliest ready time of
+ * When the ticks need to look at a group's building and fleet alerts, build orders and storages again: the earliest ready time of
  * its open building alerts, reminder time of its fleet alerts or time a storage of a member gets full, at the latest
  * after `ALERT_RECHECK` while there are alerts. Every delivery of the group (data events, ticks) plans it anew, so the
  * ticks do not recompute every member's notifications every 30 seconds for a group that only waits; a group with
@@ -58,14 +58,16 @@ export class AlertSchedule {
 
   plan(groupId: number, universe: Universe, t: number) {
     const buildings = !!this.db.prepare('SELECT 1 FROM building_alerts WHERE group_id = ?').get(groupId);
-    const alerts = buildings || !!this.db.prepare('SELECT 1 FROM fleet_alerts WHERE group_id = ?').get(groupId);
+    const orders = !!this.db.prepare('SELECT 1 FROM build_orders WHERE group_id = ?').get(groupId);
+    const alerts = buildings || orders || !!this.db.prepare('SELECT 1 FROM fleet_alerts WHERE group_id = ?').get(groupId);
     const storage = nextStorageFull(this.db, universe, groupId, storageWatchers(this.db, groupId), t) ?? Infinity;
     if (!alerts) {
       this.next.set(groupId, storage);
       return;
     }
     const building = buildings ? nextBuildingAlert(this.db, universe, groupId, t) : null;
-    this.next.set(groupId, Math.min(t + ALERT_RECHECK, building ?? Infinity, nextFleetAlert(this.db, groupId, t) ?? Infinity, storage));
+    const order = orders ? nextBuildOrderStep(this.db, universe, groupId, t) : null;
+    this.next.set(groupId, Math.min(t + ALERT_RECHECK, building ?? Infinity, order ?? Infinity, nextFleetAlert(this.db, groupId, t) ?? Infinity, storage));
   }
 }
 

@@ -32,6 +32,8 @@ export interface PushPrefs {
   fleets: boolean;
   /** a storage on one of the user's planets is full */
   storage: boolean;
+  /** the next step of the user's build order on a planet can start */
+  buildOrder: boolean;
   /** a loot settlement the user takes part in was finalized and they have deliveries to send or get */
   settlements: boolean;
   /** someone requests access on the login page (global admins) */
@@ -40,9 +42,9 @@ export interface PushPrefs {
   leadMinutes: number;
 }
 
-export const PUSH_DEFAULTS: PushPrefs = { attackSelf: true, attackOthers: false, invites: true, comments: true, launch: true, buildings: true, fleets: true, storage: true, settlements: true, accessRequests: true, leadMinutes: 5 };
+export const PUSH_DEFAULTS: PushPrefs = { attackSelf: true, attackOthers: false, invites: true, comments: true, launch: true, buildings: true, fleets: true, storage: true, buildOrder: true, settlements: true, accessRequests: true, leadMinutes: 5 };
 export const LEAD_MINUTES = [1, 2, 5, 10, 15, 30];
-const FLAGS = ['attackSelf', 'attackOthers', 'invites', 'comments', 'launch', 'buildings', 'fleets', 'storage', 'settlements', 'accessRequests'] as const;
+const FLAGS = ['attackSelf', 'attackOthers', 'invites', 'comments', 'launch', 'buildings', 'fleets', 'storage', 'buildOrder', 'settlements', 'accessRequests'] as const;
 
 /** The user's settings for push (`push_prefs`) or for their Discord webhook (`discord_prefs`). */
 export function pushPrefs(db: DB, userId: number, column: 'push_prefs' | 'discord_prefs' = 'push_prefs'): PushPrefs {
@@ -267,6 +269,8 @@ export function wanted(n: Notification, prefs: PushPrefs, userId: number, t: num
       return prefs.storage;
     case 'settlement':
       return prefs.settlements;
+    case 'buildorder':
+      return prefs.buildOrder;
   }
 }
 
@@ -296,6 +300,12 @@ const DE = {
   building: (name: string, level: number) => `🏗 ${name} ${level} baubar`,
   research: (name: string, level: number) => `🔬 ${name} ${level} erforschbar`,
   buildingBody: (planet: string) => `Rohstoffe auf ${planet} reichen für die nächste Stufe`,
+  orderBuilding: (name: string, level: number) => `📋 ${name} ${level} jetzt bauen`,
+  orderResearch: (name: string, level: number) => `📋 ${name} ${level} jetzt forschen`,
+  orderUnits: (n: number, name: string) => `📋 ${n}× ${name} jetzt bauen`,
+  orderProd: '📋 Produktion jetzt umstellen',
+  orderTransport: '📋 Transport jetzt losschicken',
+  orderBody: (planet: string) => `Nächster Schritt der Bauliste auf ${planet}`,
   storage: (name: string) => `📦 ${name} voll`,
   storageBody: (planet: string, since: string) => `${planet} · seit ${since}, die Produktion steht`,
   accessRequest: (name: string) => `🔑 Zugangsanfrage von ${name}`,
@@ -333,6 +343,12 @@ const EN: typeof DE = {
   building: (name: string, level: number) => `🏗 ${name} ${level} can be built`,
   research: (name: string, level: number) => `🔬 ${name} ${level} can be researched`,
   buildingBody: (planet: string) => `Resources on ${planet} are enough for the next level`,
+  orderBuilding: (name: string, level: number) => `📋 Build ${name} ${level} now`,
+  orderResearch: (name: string, level: number) => `📋 Research ${name} ${level} now`,
+  orderUnits: (n: number, name: string) => `📋 Build ${n}× ${name} now`,
+  orderProd: '📋 Change the production now',
+  orderTransport: '📋 Send the transport now',
+  orderBody: (planet: string) => `Next step of the build order on ${planet}`,
   storage: (name: string) => `📦 ${name} full`,
   storageBody: (planet: string, since: string) => `${planet} · since ${since}, production has stopped`,
   accessRequest: (name: string) => `🔑 Access request from ${name}`,
@@ -423,6 +439,19 @@ export function payloadOf(n: Notification | ChannelNotification, lang: PushLang,
       const research = n.element >= 100;
       const title = (research ? L.research : L.building)(techName(n.element, lang), n.level);
       return { ...base, title, body: L.buildingBody(planet), url: link('build', { tab: research ? 'research' : 'buildings', c: `${p.g}:${p.s}:${p.p}`, type: p.type }) };
+    }
+    case 'buildorder': {
+      const p = n.planet;
+      const s = n.step;
+      const planet = `${p.name ? p.name + ' ' : ''}${coords(p.g, p.s, p.p, p.type === 'moon')}`;
+      const el = s.element != null ? techName(s.element, lang) : '';
+      const title =
+        s.kind === 'building' ? L.orderBuilding(el, s.target ?? 0)
+        : s.kind === 'research' ? L.orderResearch(el, s.target ?? 0)
+        : s.kind === 'ship' || s.kind === 'defense' ? L.orderUnits(s.count ?? 1, el)
+        : s.kind === 'prod' ? L.orderProd
+        : L.orderTransport;
+      return { ...base, title, body: L.orderBody(planet), url: link('build', { tab: 'order', c: `${p.g}:${p.s}:${p.p}`, type: p.type }) };
     }
     case 'settlement': {
       const p = n.plan;

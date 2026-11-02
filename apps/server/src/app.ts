@@ -26,6 +26,7 @@ import { DiscordService, type DiscordOptions } from './discord.js';
 import { deckRoutes } from './routes/deck.js';
 import { eventRoutes } from './routes/events.js';
 import { galaxyRoutes } from './routes/galaxy.js';
+import { buildOrderRoutes } from './routes/buildOrders.js';
 import { buildingsRoutes } from './routes/buildings.js';
 import { marketRoutes } from './routes/market.js';
 import { imperiumRoutes } from './routes/imperium.js';
@@ -132,7 +133,7 @@ export function buildApp(db: DB, opts: { logger?: boolean; push?: PushOptions; d
       notificationRoutes(scope, db);
       pushRoutes(scope, db, push);
       discordRoutes(scope, db, discord);
-      for (const routes of [overviewRoutes, playersRoutes, spyRoutes, galaxyRoutes, reportsRoutes, deckRoutes, imperiumRoutes, buildingsRoutes, messageRoutes, marketRoutes]) routes(scope, db);
+      for (const routes of [overviewRoutes, playersRoutes, spyRoutes, galaxyRoutes, reportsRoutes, deckRoutes, imperiumRoutes, buildingsRoutes, buildOrderRoutes, messageRoutes, marketRoutes]) routes(scope, db);
     },
     { prefix: config.basePath },
   );

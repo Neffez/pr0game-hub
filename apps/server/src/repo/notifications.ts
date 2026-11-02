@@ -2,6 +2,7 @@ import { distance, drivesFromResearch, flightDuration, launchFor, slowestShip } 
 import type { SessionUser } from '../auth.js';
 import { resolveGroup, universeNow, type GroupContext, type Universe } from '../context.js';
 import type { DB } from '../db.js';
+import { buildOrderOf, nextSteps } from './buildOrders.js';
 import { alertDone, alertsOf, buildingsState, planetElements, planetOf, storagesOf, type BuildingsState } from './buildings.js';
 import { FLEET_KEEP, openFleetAlerts } from './fleetAlerts.js';
 import { sharedFleets, type StoredFleet } from './fleets.js';
@@ -13,12 +14,13 @@ import { enemiesOf, followEnemies, launchedOf, planDrives, type LaunchFleet, typ
  * Something the members should notice: hostile fleets heading for a member (attack, spying, …) from outside the
  * alliance, the viewer's open invitations to a raid planner plan, new comments in threads the viewer wrote in, and the
  * launch of the viewer's own plan fleets, the next level of a building the viewer is waiting for being affordable, and
- * the arrival of own fleets the viewer set an alert for, and full storages on the viewer's planets.
+ * the arrival of own fleets the viewer set an alert for, full storages on the viewer's planets, and the next step of
+ * the viewer's build order on a planet that can start.
  * The bell lists them; push notifications send them (push.ts).
  */
 export type Notification =
   | AttackNotification | InviteNotification | CommentNotification | LaunchNotification | BuildingNotification | FleetNotification | StorageNotification
-  | SettlementNotification;
+  | SettlementNotification | BuildOrderNotification;
 
 interface Base {
   /** stable while the event lasts (the web app remembers which ones were seen, push sends each once) */
@@ -75,6 +77,17 @@ export interface BuildingNotification extends Base {
   planet: { g: number; s: number; p: number; type: 'planet' | 'moon'; name: string };
   element: number;
   level: number;
+}
+
+/**
+ * The next step of the viewer's build order on a planet can start: slot free, requirements met, resources there
+ * (`time`: now, the timeline starts at the moment it is looked at). A production setting or transport step is due
+ * once the steps before it started.
+ */
+export interface BuildOrderNotification extends Base {
+  kind: 'buildorder';
+  planet: { g: number; s: number; p: number; type: 'planet' | 'moon'; name: string };
+  step: { id: string; kind: 'building' | 'research' | 'ship' | 'defense' | 'prod' | 'transport'; element: number | null; count: number | null; target: number | null };
 }
 
 /**
@@ -152,7 +165,7 @@ export function notificationsFor(db: DB, ctx: GroupContext, t: number): Notifica
   const own = () => (state ??= buildingsState(db, ctx, ctx.user.id, t));
   return [
     ...attacks(db, ctx, t), ...invites(db, ctx, t), ...comments(db, ctx, t), ...launches(db, ctx, t), ...buildings(db, ctx, t, own), ...fleets(db, ctx, t),
-    ...storages(db, ctx, t, own), ...settlements(db, ctx, t),
+    ...storages(db, ctx, t, own), ...settlements(db, ctx, t), ...buildOrder(db, ctx, t, own),
   ].sort((a, b) => a.time - b.time);
 }
 
@@ -359,6 +372,45 @@ function buildings(db: DB, ctx: GroupContext, t: number, own: () => BuildingsSta
     });
   }
   return list;
+}
+
+/** The next steps of the viewer's build order that can start now (one per planet). */
+function buildOrder(db: DB, ctx: GroupContext, t: number, own: () => BuildingsState): BuildOrderNotification[] {
+  const stored = buildOrderOf(db, ctx, ctx.user.id);
+  if (!stored) return [];
+  const state = own();
+  if (!state.planets.length) return [];
+  const name = db.prepare(`SELECT ${DISPLAY} FROM users u LEFT JOIN group_members gm ON gm.group_id = ? AND gm.user_id = u.id WHERE u.id = ?`).pluck().get(ctx.groupId, ctx.user.id) as string;
+  return nextSteps(stored.order, state, t)
+    .filter((n) => n.result.state === 'planned' && n.result.start != null && n.result.start <= t)
+    .map(({ planet, step, result }) => ({
+      id: `buildorder:${planet.key}:${step.id}`, kind: 'buildorder' as const, userId: ctx.user.id, member: name, time: t,
+      planet: { ...planet.coords, type: planet.type, name: planet.name },
+      step: { id: step.id, kind: step.kind, element: step.element ?? null, count: step.count ?? null, target: result.target },
+    }));
+}
+
+/**
+ * The earliest time after `t` when the next step of a build order of the group can start, null when none will by
+ * what is known now.
+ */
+export function nextBuildOrderStep(db: DB, universe: Universe, groupId: number, t: number): number | null {
+  const users = db
+    .prepare('SELECT u.id, u.username, u.is_admin, u.lang, u.date_format FROM build_orders b JOIN users u ON u.id = b.user_id WHERE b.group_id = ?')
+    .all(groupId) as { id: number; username: string; is_admin: number; lang: string; date_format: string }[];
+  let next: number | null = null;
+  for (const u of users) {
+    const ctx = resolveGroup(db, { id: u.id, username: u.username, isAdmin: !!u.is_admin, lang: u.lang, dateFormat: u.date_format }, universe, groupId);
+    const stored = buildOrderOf(db, ctx, u.id);
+    const state = buildingsState(db, ctx, u.id, t);
+    if (!stored || !state.planets.length) continue;
+    for (const n of nextSteps(stored.order, state, t)) {
+      const at = n.result.start;
+      if (n.result.state !== 'planned' || at == null || at <= t) continue;
+      next = next == null ? at : Math.min(next, at);
+    }
+  }
+  return next;
 }
 
 /**
