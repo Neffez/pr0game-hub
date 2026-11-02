@@ -9,6 +9,7 @@
  */
 import { homeOf, launchFor } from './acs.js';
 import { distance, flightDuration, slowestShip, SPEED_PERCENTS, type Coords, type Drives, type Fleet, type Universe } from './flight.js';
+import { SHIPS, type ShipCatalog } from './ships.js';
 
 /** Time range in unix seconds, both ends included. */
 export interface TimeWindow {
@@ -49,8 +50,8 @@ export interface RetimeCandidate {
 }
 
 /** One candidate per speed step (100 % first); empty when no ship of the fleet is known. */
-export function retimeCandidates(u: Universe, fleet: EnemyFleet): RetimeCandidate[] {
-  const slowest = slowestShip(fleet.ships, fleet.drives);
+export function retimeCandidates(u: Universe, fleet: EnemyFleet, catalog: ShipCatalog = SHIPS): RetimeCandidate[] {
+  const slowest = slowestShip(fleet.ships, fleet.drives, catalog);
   if (!slowest) return [];
   const dist = distance(u, fleet.from, fleet.to);
   const dep = fleet.departure ?? null;

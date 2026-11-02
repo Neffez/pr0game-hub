@@ -1,7 +1,9 @@
 import type { FastifyInstance } from 'fastify';
 import { checkUsername, HttpError, randomToken, requireAdmin, requireUser, revokeAccessIfOrphaned } from '../auth.js';
 import { config, UNIVERSE_DEFAULTS } from '../config.js';
-import { toUniverse } from '../context.js';
+import { catalogOf, toUniverse } from '../context.js';
+import { parseUnitPage } from '@pr0hub/core';
+import { DEFAULT_UNIT_DEFS, isUnitId, validateUnits, type UnitOverrides } from '@pr0hub/core/units';
 import { now, type DB } from '../db.js';
 import { crawlerState, resumeCrawler } from '../crawler.js';
 import { events } from '../events.js';
@@ -135,7 +137,7 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
       for (const [key, value] of Object.entries(next)) if (value === null) delete next[key];
       db.prepare('UPDATE universes SET name = COALESCE(?, name), settings = ? WHERE slug = ?').run(name ?? null, JSON.stringify(next), req.params.slug);
       // retime targets were derived with the old distances and fleet speed
-      const moved = followUniverse(db, cur.id, { ...UNIVERSE_DEFAULTS, ...JSON.parse(cur.settings) }, { ...UNIVERSE_DEFAULTS, ...next });
+      const moved = followUniverse(db, cur.id, { ...UNIVERSE_DEFAULTS, ...JSON.parse(cur.settings) }, { ...UNIVERSE_DEFAULTS, ...next }, catalogOf(toUniverse(cur as never)).drives);
       for (const groupId of moved) events.publish(groupId, { type: 'data', tables: ['attack_plans', 'target_claims'] });
       if (isDefault !== undefined) {
         // at most one default universe
@@ -154,6 +156,49 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
       return { ok: true };
     },
   );
+
+  // Ships, defense and missiles of a universe: the defaults, its differences and the result.
+  const unitsOf = (slug: string) => {
+    const row = db.prepare('SELECT id, units FROM universes WHERE slug = ?').get(slug) as { id: number; units: string } | undefined;
+    if (!row) throw new HttpError(404, 'universe_not_found', 'Universe not found');
+    return { id: row.id, overrides: JSON.parse(row.units || '{}') as UnitOverrides };
+  };
+  const unitsView = (overrides: UnitOverrides) => ({ defaults: DEFAULT_UNIT_DEFS, overrides, units: catalogOf({ units: overrides }).units });
+
+  app.get<{ Params: { slug: string } }>('/api/admin/universes/:slug/units', async (req) => {
+    requireAdmin(req);
+    return unitsView(unitsOf(req.params.slug).overrides);
+  });
+
+  app.put<{ Params: { slug: string }; Body: { units?: unknown } }>('/api/admin/universes/:slug/units', async (req) => {
+    requireAdmin(req);
+    const { id } = unitsOf(req.params.slug);
+    const units = req.body?.units ?? {};
+    const problem = validateUnits(units);
+    if (problem != null) throw new HttpError(400, 'units_invalid', `Invalid units${problem ? `: ${problem}` : ''}`);
+    db.prepare('UPDATE universes SET units = ? WHERE id = ?').run(JSON.stringify(units), id);
+    const groups = db.prepare('SELECT id FROM groups WHERE universe_id = ?').pluck().all(id) as number[];
+    for (const groupId of groups) events.publish(groupId, { type: 'data', tables: ['universe'] });
+    return unitsView(units as UnitOverrides);
+  });
+
+  /** Unit values from a pasted game page source (shipyard, defense, tech tree, info page); nothing is stored. */
+  app.post<{ Params: { slug: string }; Body: { html?: unknown; names?: unknown } }>('/api/admin/universes/:slug/units/parse', async (req) => {
+    requireAdmin(req);
+    const { overrides } = unitsOf(req.params.slug);
+    const html = req.body?.html;
+    if (typeof html !== 'string' || !html.trim() || html.length > 5_000_000) throw new HttpError(400, 'units_page_invalid', 'Expected a page source');
+    // names of the universe's units and of pages pasted before (an info page has no id)
+    const names: Record<string, number> = {};
+    for (const u of Object.values(catalogOf({ units: overrides }).units)) for (const n of Object.values(u.name)) names[n] = u.id;
+    const extra = req.body?.names;
+    if (extra && typeof extra === 'object') {
+      for (const [n, id] of Object.entries(extra)) if (typeof id === 'number' && isUnitId(id) && n.length <= 64) names[n] = id;
+    }
+    const page = parseUnitPage(html, names);
+    if (!page) throw new HttpError(400, 'units_page_unknown', 'Not a shipyard, defense, tech tree or unit info page');
+    return page;
+  });
 
   // ----------------------------------------------------------------- users
 

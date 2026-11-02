@@ -1,4 +1,4 @@
-import { drivesFromResearch, retimeCandidates } from '@pr0hub/flight';
+import { drivesFromResearch, retimeCandidates, type ShipCatalog } from '@pr0hub/flight';
 import type { UniverseSettings } from '../config.js';
 import type { GroupContext } from '../context.js';
 import { now, type DB } from '../db.js';
@@ -235,7 +235,7 @@ export function followEnemies(db: DB, plans: Pick<PlanRow, 'id' | 'mission' | 't
  * Landing back home of a retime's enemy fleet as the retime panel derives it: followed fleet (the lead after a recall
  * of the whole ACS), chosen speed or full speed until one is chosen; null without a known ship.
  */
-export function retimeHome(u: UniverseSettings, e: EnemyRow): number | null {
+export function retimeHome(u: UniverseSettings, e: EnemyRow, ships?: ShipCatalog): number | null {
   const fleets = JSON.parse(e.fleets) as EnemyFleet[];
   const recall = e.recall_from != null && e.recall_to != null ? { from: e.recall_from, to: e.recall_to } : null;
   const fleet = fleets[recall && e.recall_lead ? 0 : e.follow] ?? fleets[0];
@@ -250,7 +250,7 @@ export function retimeHome(u: UniverseSettings, e: EnemyRow): number | null {
     acs: fleets.length > 1,
     departure: e.departure_from != null && e.departure_to != null ? { from: e.departure_from, to: e.departure_to } : null,
     recall,
-  }).find((x) => x.percent === (e.percent ?? 100));
+  }, ships).find((x) => x.percent === (e.percent ?? 100));
   return c ? (c.recallHome ? c.recallHome.from : c.home) : null;
 }
 
@@ -259,7 +259,7 @@ export function retimeHome(u: UniverseSettings, e: EnemyRow): number | null {
  * return home (a target set by hand keeps its offset), the claim follows. A phalanx return does not depend on them.
  * Returns the groups with moved plans.
  */
-export function followUniverse(db: DB, universeId: number, before: UniverseSettings, after: UniverseSettings): number[] {
+export function followUniverse(db: DB, universeId: number, before: UniverseSettings, after: UniverseSettings, ships?: ShipCatalog): number[] {
   const rows = db
     .prepare(
       `SELECT e.*, a.group_id FROM attack_plan_enemy e JOIN attack_plans a ON a.id = e.plan_id JOIN groups g ON g.id = a.group_id
@@ -269,8 +269,8 @@ export function followUniverse(db: DB, universeId: number, before: UniverseSetti
   const groups = new Set<number>();
   db.transaction(() => {
     for (const e of rows) {
-      const from = retimeHome(before, e);
-      const to = retimeHome(after, e);
+      const from = retimeHome(before, e, ships);
+      const to = retimeHome(after, e, ships);
       if (from == null || to == null || from === to) continue;
       db.prepare('UPDATE attack_plans SET target_time = target_time + ? WHERE id = ?').run(to - from, e.plan_id);
       db.prepare(

@@ -5,7 +5,8 @@ import {
   type ShipInfo,
 } from '@pr0hub/core/buildings';
 import { METAL, RESOURCES, STORAGE, storageCapacity } from '@pr0hub/core/tech';
-import type { GroupContext } from '../context.js';
+import type { UnitCatalog } from '@pr0hub/core/units';
+import { catalogOf, type GroupContext } from '../context.js';
 import { now, type DB } from '../db.js';
 import { latestEmpire } from './empire.js';
 import { sharedFleets, type StoredFleet } from './fleets.js';
@@ -62,6 +63,8 @@ export interface BuildingsState {
   storageFactor: number;
   empireTime: number | null;
   fleetsTime: number | null;
+  /** ships and defense of the universe */
+  units: UnitCatalog;
 }
 
 export interface BuildingAlert {
@@ -251,6 +254,7 @@ export function buildingsState(db: DB, ctx: GroupContext, userId: number, t = ct
     storageFactor,
     empireTime: empire?.time ?? null,
     fleetsTime: fleets?.time ?? null,
+    units: catalogOf(ctx.universe),
   };
 }
 
@@ -439,7 +443,7 @@ export function planetResearch(state: BuildingsState, bp: BuildingPlanet, now: n
 
 /** Ships, defense and missiles of a planet at `now`. */
 export function planetShips(state: BuildingsState, bp: BuildingPlanet, now: number): ShipInfo[] {
-  return shipsOf(bp.planet, { research: state.research, shipyardSpeed: state.shipyardSpeed, storageFactor: state.storageFactor, arrivals: bp.arrivals, now });
+  return shipsOf(bp.planet, { research: state.research, shipyardSpeed: state.shipyardSpeed, storageFactor: state.storageFactor, arrivals: bp.arrivals, now, units: state.units });
 }
 
 /** Buildings and research of a planet (for the alerts). */

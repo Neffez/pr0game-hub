@@ -57,7 +57,7 @@ export interface NextStep {
 
 /** The timeline of the build order from the member's hub state at `t`. */
 export function buildOrderTimeline(order: BuildOrder, state: BuildingsState, t: number): Simulation {
-  return simulate(order, state, { now: t });
+  return simulate(order, state, { now: t, units: state.units });
 }
 
 /** The next open step of every planet of the build order that is still a synced planet. */

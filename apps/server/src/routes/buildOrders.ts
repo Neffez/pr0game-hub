@@ -1,7 +1,8 @@
 import { validateBuildOrder } from '@pr0hub/planner';
 import type { FastifyInstance } from 'fastify';
 import { HttpError } from '../auth.js';
-import type { GroupContext } from '../context.js';
+import { withUnits } from '@pr0hub/core/units';
+import { catalogOf, type GroupContext } from '../context.js';
 import { now, type DB } from '../db.js';
 import { events } from '../events.js';
 import { buildOrderOf, syncBuildOrder } from '../repo/buildOrders.js';
@@ -31,7 +32,7 @@ export function buildOrderRoutes(app: FastifyInstance, db: DB) {
   /** Imports a build order: replaces the viewer's one in this group. */
   app.put<{ Params: { uni: string }; Body: { order?: unknown; meta?: unknown } }>('/api/:uni/build-order', async (req) => {
     const ctx = ctxOf(req);
-    const res = validateBuildOrder(req.body?.order);
+    const res = withUnits(catalogOf(ctx.universe), () => validateBuildOrder(req.body?.order));
     if ('error' in res) throw new HttpError(400, 'build_order_invalid', res.error);
     const meta = req.body?.meta ?? {};
     const metaJson = JSON.stringify(meta);
@@ -50,7 +51,7 @@ export function buildOrderRoutes(app: FastifyInstance, db: DB) {
     const ctx = ctxOf(req);
     const stored = buildOrderOf(db, ctx, ctx.user.id);
     if (!stored) throw new HttpError(404, 'build_order_not_found', 'No build order');
-    const res = validateBuildOrder({ base: stored.order.base, planets: req.body?.planets });
+    const res = withUnits(catalogOf(ctx.universe), () => validateBuildOrder({ base: stored.order.base, planets: req.body?.planets }));
     if ('error' in res) throw new HttpError(400, 'build_order_invalid', res.error);
     db.prepare('UPDATE build_orders SET data = ?, updated_at = ? WHERE group_id = ? AND user_id = ?').run(JSON.stringify(res.order), now(), ctx.groupId, ctx.user.id);
     changed(ctx);

@@ -1,5 +1,5 @@
 import { distance, flightDuration, slowestShip } from '@pr0hub/flight';
-import type { GroupContext } from '../context.js';
+import { catalogOf, type GroupContext } from '../context.js';
 import { now, type DB } from '../db.js';
 import { spyEmpire } from './empire.js';
 import { fleetHistory, sharedFleets, TOLERANCE, type StoredFleet } from './fleets.js';
@@ -92,12 +92,13 @@ export const PHALANX_KEEP = 86400;
  */
 export function hostileAttacks(db: DB, ctx: GroupContext): HostileAttack[] {
   const u = ctx.universe.settings;
+  const drives = catalogOf(ctx.universe).drives;
   const t = ctx.now;
   const byKey = new Map<string, HostileAttack>();
   const add = (g: AttackGroup, seen: number, who: Pick<HostileAttack, 'memberId' | 'member' | 'source' | 'reporter'>, home: number | null) => {
     const lead = g.fleets[0];
     const dist = distance(u, [g.from.g, g.from.s, g.from.p], [g.to.g, g.to.s, g.to.p]);
-    const longest = Math.max(...g.fleets.map((f) => flightDuration(u, dist, slowestShip(f.ships, NO_DRIVES)?.speed ?? 0, 10)));
+    const longest = Math.max(...g.fleets.map((f) => flightDuration(u, dist, slowestShip(f.ships, NO_DRIVES, drives)?.speed ?? 0, 10)));
     const until = home ?? Math.floor(lead.arrival + longest);
     if (until < t) return;
     const known = byKey.get(g.key);

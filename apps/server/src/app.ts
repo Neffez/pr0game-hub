@@ -4,7 +4,7 @@ import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify';
 import { existsSync } from 'node:fs';
 import { relative, sep } from 'node:path';
 import { bootstrapAdmin, HttpError, loadRequestUser } from './auth.js';
-import { requireRunning } from './context.js';
+import { catalogOf, requireRunning } from './context.js';
 import { catalogRoutes } from './routes/catalog.js';
 import { openapiRoutes } from './routes/openapi.js';
 import { config } from './config.js';
@@ -63,6 +63,8 @@ export function buildApp(db: DB, opts: { logger?: boolean; push?: PushOptions; d
   });
 
   app.register(fastifyCookie);
+  // unit names of every universe for the parsers (a universe may have units the defaults lack)
+  for (const units of db.prepare('SELECT units FROM universes').pluck().all() as string[]) catalogOf({ units: JSON.parse(units || '{}') });
   const push = new PushService(db, events, { log: app.log, ...opts.push });
   app.decorate('push', push);
   const discord = new DiscordService(db, events, { log: app.log, ...opts.discord });

@@ -3,7 +3,8 @@ import { localToEpoch } from '@pr0hub/core';
 import { isCombatSimulation, parseCombatReportText } from '@pr0hub/core/combat';
 import { applyOverrides, cleanState, diffOverrides, settle, stateChanges, type LootState } from '@pr0hub/loot';
 import { HttpError } from '../auth.js';
-import type { GroupContext } from '../context.js';
+import { withUnits } from '@pr0hub/core/units';
+import { catalogOf, type GroupContext } from '../context.js';
 import { now, type DB } from '../db.js';
 import { events } from '../events.js';
 import { ingest } from '../ingest.js';
@@ -111,7 +112,7 @@ export function settlementRoutes(app: FastifyInstance, db: DB) {
         const draft = settlementDraft(db, ctx, plan);
         missing = settlementChecks(plan.mission, draft.state, draft.sources).missing;
         stage = missing ? 'waiting' : 'ready';
-        deadline = settle(draft.state).deadline;
+        deadline = settle(draft.state, catalogOf(ctx.universe)).deadline;
       }
       return {
         id: p.id, mission: p.mission, g: p.g, s: p.s, p: p.p, planet_type: p.planet_type, target_time: p.target_time, status: p.status,
@@ -161,7 +162,7 @@ export function settlementRoutes(app: FastifyInstance, db: DB) {
     const live = applyOverrides(draft.state, overrides);
     const final = stored?.finalizedAt != null && stored.final ? stored.final : null;
     const state = final ?? live;
-    const result = settle(state);
+    const result = settle(state, catalogOf(ctx.universe));
     // deliveries of a finalized settlement the members' transport messages show
     const deliveries = final ? (finalizedSettlements(db, ctx).get(plan.id)?.deliveries ?? []) : [];
     return {
@@ -188,7 +189,7 @@ export function settlementRoutes(app: FastifyInstance, db: DB) {
   function correctionsFrom(ctx: GroupContext, plan: SettlementPlan, raw: unknown): { overrides: string; state: LootState } {
     if (raw == null || typeof raw !== 'object') throw new HttpError(400, 'settlement_invalid', 'Invalid settlement');
     const draft = settlementDraft(db, ctx, plan).state;
-    const overrides = diffOverrides(draft, cleanState(raw));
+    const overrides = withUnits(catalogOf(ctx.universe), () => diffOverrides(draft, cleanState(raw)));
     const json = JSON.stringify(overrides);
     if (json.length > 200_000) throw new HttpError(400, 'settlement_invalid', 'Settlement too large');
     return { overrides: json, state: applyOverrides(draft, overrides) };
@@ -243,7 +244,7 @@ export function settlementRoutes(app: FastifyInstance, db: DB) {
     }
     // finalized again after reopening: deliveries done before stay done when their amounts did not change
     const frozen = cleanState(JSON.parse(db.prepare('SELECT data FROM raid_settlements WHERE plan_id = ?').pluck().get(plan.id) as string));
-    const transfersNow = (frozen.transfers ?? settle(frozen).transfers).map((x) => ({ key: `${x.from}>${x.to}`, res: x.res }));
+    const transfersNow = (frozen.transfers ?? settle(frozen, catalogOf(ctx.universe)).transfers).map((x) => ({ key: `${x.from}>${x.to}`, res: x.res }));
     const kept = before
       ? (JSON.parse(before) as { key: string; res: { m: number; k: number; d: number } }[])
           .filter((d) => transfersNow.some((x) => x.key === d.key && x.res.m === d.res.m && x.res.k === d.res.k && x.res.d === d.res.d))

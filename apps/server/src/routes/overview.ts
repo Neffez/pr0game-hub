@@ -1,7 +1,8 @@
 import { CLASS_BUILDINGS, CLASS_DEFENSE, CLASS_FLEET, CLASS_RESOURCES, classOf, sectionPoints } from '@pr0hub/core/tech';
 import type { FastifyInstance } from 'fastify';
 import { config } from '../config.js';
-import type { GroupContext } from '../context.js';
+import { withUnits } from '@pr0hub/core/units';
+import { catalogOf, type GroupContext } from '../context.js';
 import { now, type DB } from '../db.js';
 import { scoreEntry, SLOT, SLOT_TOLERANCE, SLOTS, statSlots, TOLERANCE, TYPES, WINDOWS, type ScoreRow } from '../domain/stats.js';
 import { latestEmpire, latestEmpires } from '../repo/empire.js';
@@ -171,7 +172,7 @@ function planetRows(db: DB, ctx: GroupContext) {
     for (const r of sections) {
       const spy = rows.get(key(r.g, r.s, r.p, r.planet_type)).spy;
       const values = JSON.parse(r.v);
-      spy[field] = cls === CLASS_RESOURCES ? values : sectionPoints(values);
+      spy[field] = cls === CLASS_RESOURCES ? values : withUnits(catalogOf(ctx.universe), () => sectionPoints(values));
       spy[field + 'Time'] = r.report_time;
     }
   }
@@ -187,7 +188,7 @@ function planetRows(db: DB, ctx: GroupContext) {
       row.player_id ??= playerId;
       if (!row.name) row.name = pl.name;
       const part = (cls: number) => Object.fromEntries(Object.entries(pl.values).filter(([id]) => classOf(Number(id)) === cls));
-      row.own = { time, building: sectionPoints(part(0)), fleet: sectionPoints(part(200)), defense: sectionPoints(part(400)) };
+      row.own = withUnits(catalogOf(ctx.universe), () => ({ time, building: sectionPoints(part(0)), fleet: sectionPoints(part(200)), defense: sectionPoints(part(400)) }));
     }
   }
 

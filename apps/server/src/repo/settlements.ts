@@ -1,6 +1,7 @@
-import { CAPACITY, distance, drivesFromResearch, fleetConsumption, flightDuration, slowestShip } from '@pr0hub/flight';
+import { distance, drivesFromResearch, fleetConsumption, flightDuration, slowestShip } from '@pr0hub/flight';
 import { adoptKeys, cleanState, debrisSummary, diffOverrides, emptyState, marketRates, settle, MAX_PARTICIPANTS, SHARE_WITHIN, type Battle, type BattleFleet, type LootState, type Overrides, type Ships } from '@pr0hub/loot';
-import type { GroupContext } from '../context.js';
+import { withUnits } from '@pr0hub/core/units';
+import { catalogOf, type GroupContext } from '../context.js';
 import type { DB } from '../db.js';
 import { REPORT_SLACK } from '../store.js';
 import { fleetHistory, sameFleet, sharedFleets, type StoredFleet } from './fleets.js';
@@ -60,6 +61,10 @@ const lower = (s: string) => s.trim().toLowerCase();
  * lost ships; the attacker's loot is not theirs.
  */
 export function settlementDraft(db: DB, ctx: GroupContext, plan: PlanRow & { time_precision: string; guests: string | null }): { state: LootState; sources: DraftSources } {
+  return withUnits(catalogOf(ctx.universe), () => draftOf(db, ctx, plan));
+}
+
+function draftOf(db: DB, ctx: GroupContext, plan: PlanRow & { time_precision: string; guests: string | null }): { state: LootState; sources: DraftSources } {
   const state = emptyState();
   // the group's market rate as rates and as the reference (the settlement warns when rates typed in are far off)
   const market = latestMarketRate(db, ctx.groupId);
@@ -124,6 +129,7 @@ export function settlementDraft(db: DB, ctx: GroupContext, plan: PlanRow & { tim
 
   // flight deuterium of the plan fleets (as the game charges it at launch)
   const u = ctx.universe.settings;
+  const cat = catalogOf(ctx.universe);
   const drivesOf = planDrives(db, ctx);
   /** per plan fleet: what its flight costs, with the planned speed until its real flight time is known */
   const flights: { f: PlanFleet; ships: Ships; drives: ReturnType<typeof drivesFromResearch>; dist: number; deut: number; exact: boolean }[] = [];
@@ -141,10 +147,10 @@ export function settlementDraft(db: DB, ctx: GroupContext, plan: PlanRow & { tim
       if (f.g == null) continue;
       const ships = shipsOf(f);
       const drives = drivesFromResearch(drivesOf({ user_id: f.user_id, manual: f.manual, drives_time: f.drives_time })?.research ?? {});
-      const slowest = slowestShip(ships, drives);
+      const slowest = slowestShip(ships, drives, cat.drives);
       if (!slowest) continue;
       const dist = distance(u, [f.g, f.s!, f.p!], [plan.g, plan.s!, plan.p!]);
-      flights.push({ f, ships, drives, dist, deut: fleetConsumption(u, ships, flightDuration(u, dist, slowest.speed, f.speed), dist, drives), exact: false });
+      flights.push({ f, ships, drives, dist, deut: fleetConsumption(u, ships, flightDuration(u, dist, slowest.speed, f.speed), dist, drives, 1, cat.drives), exact: false });
     }
     sumFlights();
   }
@@ -239,7 +245,7 @@ export function settlementDraft(db: DB, ctx: GroupContext, plan: PlanRow & { tim
       const duration = back ? back.arrival - at : 0;
       if (!back || duration <= 0 || duration > 7 * 86400) continue;
       used.add(back);
-      x.deut = fleetConsumption(u, x.ships, duration, x.dist, x.drives);
+      x.deut = fleetConsumption(u, x.ships, duration, x.dist, x.drives, 1, cat.drives);
       x.exact = true;
     }
     sumFlights();
@@ -376,11 +382,11 @@ export function settlementDraft(db: DB, ctx: GroupContext, plan: PlanRow & { tim
       | { home_g: number; home_s: number; home_p: number; time: number }
       | undefined;
     if (!back) continue;
-    const ships = { 209: Math.max(1, Math.ceil((r.metal + r.crystal) / (CAPACITY[209] ?? 20000))) };
+    const ships = { 209: Math.max(1, Math.ceil((r.metal + r.crystal) / (cat.capacity[209] ?? 20000))) };
     const drives = drivesFromResearch(drivesOf({ user_id: r.user_id, manual: null, drives_time: null })?.research ?? {});
     const dist = distance(u, [back.home_g, back.home_s, back.home_p], [plan.g, plan.s!, plan.p!]);
     const id = memberKey(r.user_id);
-    const deut = fleetConsumption(u, ships, back.time - r.time, dist, drives);
+    const deut = fleetConsumption(u, ships, back.time - r.time, dist, drives, 1, cat.drives);
     sources.recDeut[id] = (sources.recDeut[id] ?? 0) + deut;
   }
   for (const p of [...state.participants, ...state.helpers]) if (sources.recDeut[p.id] != null) p.recDeut = sources.recDeut[p.id];
@@ -476,7 +482,7 @@ export function finalizedSettlements(db: DB, ctx: GroupContext, t = ctx.now): Ma
   const out = new Map<number, FinalizedSettlement>();
   for (const r of rows) {
     const state = cleanState(JSON.parse(r.data));
-    const result = settle(state);
+    const result = settle(state, catalogOf(ctx.universe));
     const manual = new Set(JSON.parse(r.done) as string[]);
     const deliveries = (state.transfers ?? result.transfers)
       .filter((x) => x.res.m + x.res.k + x.res.d > 0)

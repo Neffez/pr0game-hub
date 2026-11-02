@@ -2,7 +2,7 @@ import type { FastifyRequest } from 'fastify';
 import { HttpError, requireUser, type SessionUser } from './auth.js';
 import { UNIVERSE_DEFAULTS, type UniverseSettings } from './config.js';
 import { now, type DB } from './db.js';
-import { DEFAULT_DECK, type DeckCard } from '@pr0hub/core';
+import { DEFAULT_DECK, registerUnitNames, unitCatalog, type DeckCard, type UnitCatalog, type UnitOverrides } from '@pr0hub/core';
 
 export interface Universe {
   id: number;
@@ -10,6 +10,8 @@ export interface Universe {
   name: string;
   settings: UniverseSettings;
   deck: DeckCard[];
+  /** ships, defense and missiles that differ from the hub's defaults */
+  units: UnitOverrides;
   isDefault: boolean;
   /** scheduled start (epoch): before it the universe is announced but takes no data; null = active since creation */
   startsAt: number | null;
@@ -27,7 +29,7 @@ export interface GroupContext {
   now: number;
 }
 
-type UniverseRow = { id: number; slug: string; name: string; settings: string; deck_config: string | null; is_default?: number; starts_at?: number | null; ended_at?: number | null };
+type UniverseRow = { id: number; slug: string; name: string; settings: string; deck_config: string | null; units?: string | null; is_default?: number; starts_at?: number | null; ended_at?: number | null };
 
 export function toUniverse(row: UniverseRow): Universe {
   return {
@@ -36,10 +38,23 @@ export function toUniverse(row: UniverseRow): Universe {
     name: row.name,
     settings: { ...UNIVERSE_DEFAULTS, ...JSON.parse(row.settings || '{}') },
     deck: row.deck_config ? JSON.parse(row.deck_config) : DEFAULT_DECK,
+    units: row.units ? JSON.parse(row.units) : {},
     isDefault: !!row.is_default,
     startsAt: row.starts_at ?? null,
     endedAt: row.ended_at ?? null,
   };
+}
+
+const registered = new WeakSet<UnitCatalog>();
+
+/** Unit catalog of a universe; its unit names become known to the parsers. */
+export function catalogOf(u: Pick<Universe, 'units'>): UnitCatalog {
+  const catalog = unitCatalog(u.units);
+  if (!registered.has(catalog)) {
+    registerUnitNames(catalog);
+    registered.add(catalog);
+  }
+  return catalog;
 }
 
 /** The time of a universe: now, or the end of an ended universe. */

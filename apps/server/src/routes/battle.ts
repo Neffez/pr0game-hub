@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { HttpError } from '../auth.js';
 import { checkSize, flights, parseBattleRequest, planetFromSpy, runInWorker, simSettingsOf, throttle, toolsLink, type ApiSlot } from '../battle.js';
+import { catalogOf } from '../context.js';
 import type { DB } from '../db.js';
 import { contextOf, parseSections } from './util.js';
 
@@ -14,7 +15,8 @@ export function battleRoutes(app: FastifyInstance, db: DB) {
 
   app.post<{ Params: { uni: string } }>('/api/:uni/battle/simulate', { config: { allowToken: true } }, async (req) => {
     const ctx = ctxOf(req);
-    const body = parseBattleRequest(req.body);
+    const units = catalogOf(ctx.universe);
+    const body = parseBattleRequest(req.body, units);
     let planet = body.defenders[0];
     let resources = body.resources;
     let spyReport: { id: number; time: number; reporter: string | null; player: string | null } | null = null;
@@ -31,7 +33,7 @@ export function battleRoutes(app: FastifyInstance, db: DB) {
       const report = parseSections(row) as {
         id: number; report_time: number; reporter: string | null; player_name: string | null; sections: Record<string, Record<string, number>>;
       };
-      const fromSpy = planetFromSpy(Object.assign({}, ...Object.values(report.sections)), report.player_name);
+      const fromSpy = planetFromSpy(Object.assign({}, ...Object.values(report.sections)), report.player_name, units);
       planet = fromSpy.planet;
       resources ??= fromSpy.resources;
       spyReport = { id: report.id, time: report.report_time, reporter: report.reporter, player: report.player_name };
@@ -46,12 +48,12 @@ export function battleRoutes(app: FastifyInstance, db: DB) {
     throttle(ctx.user.id);
     const u = ctx.universe.settings;
     const settings = simSettingsOf(u, body.settings);
-    const { typical, ...summary } = await runInWorker(setup, body.runs, settings);
+    const { typical, ...summary } = await runInWorker(setup, body.runs, settings, ctx.universe.units);
     return {
       ...summary,
       settings,
       spyReport,
-      flights: flights(u, body.attackers, body.target, body.defenders.slice(1) as ApiSlot[]),
+      flights: flights(u, body.attackers, body.target, body.defenders.slice(1) as ApiSlot[], units),
       typical: { winner: typical.run.winner, rounds: typical.run.rounds, ...(body.report ? { engine: typical.output } : {}) },
       link: toolsLink(u, { ...body, resources }, planet, settings),
     };

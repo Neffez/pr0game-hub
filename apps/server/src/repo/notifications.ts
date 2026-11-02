@@ -1,6 +1,6 @@
 import { distance, drivesFromResearch, flightDuration, launchFor, slowestShip } from '@pr0hub/flight';
 import type { SessionUser } from '../auth.js';
-import { resolveGroup, universeNow, type GroupContext, type Universe } from '../context.js';
+import { catalogOf, resolveGroup, universeNow, type GroupContext, type Universe } from '../context.js';
 import type { DB } from '../db.js';
 import { buildOrderOf, nextSteps, syncBuildOrder } from './buildOrders.js';
 import { alertDone, alertsOf, buildingsState, planetElements, planetOf, storagesOf, type BuildingsState } from './buildings.js';
@@ -518,7 +518,7 @@ function launches(db: DB, ctx: GroupContext, t: number): LaunchNotification[] {
     const plan = plans.find((p) => p.id === f.plan_id)!;
     if (f.status !== 'invited' && f.status !== 'ready') continue;
     const drives = drivesOf({ user_id: f.user_id, manual: f.manual, drives_time: f.drives_time });
-    const slowest = slowestShip(JSON.parse(f.ships), drivesFromResearch(drives?.research ?? {}));
+    const slowest = slowestShip(JSON.parse(f.ships), drivesFromResearch(drives?.research ?? {}), catalogOf(ctx.universe).drives);
     if (!slowest) continue;
     const duration = flightDuration(u, distance(u, [f.g!, f.s!, f.p!], [plan.g!, plan.s!, plan.p!]), slowest.speed, f.speed);
     const launch = launchFor(plan.target_time, duration);

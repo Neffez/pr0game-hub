@@ -1,5 +1,7 @@
 import type { EmpireRecord } from '@pr0hub/core';
 import { CLASS_BUILDINGS, CLASS_DEFENSE, CLASS_FLEET, classOf, elementPoints } from '@pr0hub/core/tech';
+import { withUnits } from '@pr0hub/core/units';
+import { catalogOf } from '../context.js';
 import type { FastifyInstance } from 'fastify';
 import { HttpError } from '../auth.js';
 import { now, type DB } from '../db.js';
@@ -72,7 +74,7 @@ export function imperiumRoutes(app: FastifyInstance, db: DB) {
       : undefined;
     const leader = catchUpLeader(db, ctx.groupId);
     // ship points (on the planets and in flight) and all other points (buildings, defense, research) of an empire page
-    const empirePoints = (e: EmpireRecord) => {
+    const empirePoints = (e: EmpireRecord) => withUnits(catalogOf(ctx.universe), () => {
       let fleet = 0;
       let other = 0;
       for (const pl of e.planets) {
@@ -85,7 +87,7 @@ export function imperiumRoutes(app: FastifyInstance, db: DB) {
       for (const [id, n] of Object.entries(e.flyingShips ?? {})) fleet += elementPoints(id, n);
       for (const [id, n] of Object.entries(e.research ?? {})) other += elementPoints(id, n);
       return { fleet, other };
-    };
+    });
     const basePoints = fleetBase && empirePoints(JSON.parse(fleetBase.data) as EmpireRecord);
     // the stats fleet at the anchor update
     const anchorFleet = !anchor || !basePoints ? null : anchor.type === 2 ? anchor.points : anchor.points - basePoints.other;

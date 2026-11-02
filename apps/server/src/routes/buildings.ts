@@ -49,7 +49,8 @@ export function buildingsRoutes(app: FastifyInstance, db: DB) {
   app.get<{ Params: { uni: string } }>('/api/:uni/buildings', async (req) => {
     const ctx = ctxOf(req);
     const state = buildingsState(db, ctx, ctx.user.id);
-    return { ...state, alerts: pruneAlerts(db, ctx, state), hidden: hiddenBuildings(db, ctx.user.id) };
+    const { units: _, ...rest } = state;
+    return { ...rest, alerts: pruneAlerts(db, ctx, state), hidden: hiddenBuildings(db, ctx.user.id) };
   });
 
   /**

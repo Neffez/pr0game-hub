@@ -4,6 +4,15 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-02
 
+- Units per universe on the server: migration 074 adds `universes.units` (the universe's differences from the default
+  unit catalog, part of the universe in `GET /api/{uni}/context`). Ship lists and build order timelines, flight
+  times and deuterium (hostile attacks, launch reminders, retimes, battle API flights, settlements), cargo and costs of
+  loot settlements, the battle simulator API (its worker gets the universe's units), points of spy reports and empire
+  pages and the build order check use the universe's catalog; unit names of every universe are known to the parsers.
+  New admin endpoints `GET`/`PUT /api/admin/universes/{slug}/units` (`units_invalid`) and
+  `POST /api/admin/universes/{slug}/units/parse` (page source of the shipyard, defense, tech tree or an info page;
+  `units_page_invalid`, `units_page_unknown`).
+
 - `parseUnitPage` (`@pr0hub/core`) reads unit values from pasted page sources: shipyard and defense page (id, name,
   costs, requirements while unmet, once per planet), tech tree (requirements) and a unit's info page (structure, attack,
   shield, cargo, drives with their research thresholds, rapidfire against and from other units; the page has no id,

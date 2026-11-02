@@ -789,6 +789,43 @@ components:
             fleet: { type: integer }
             defense: { type: integer }
             resources: { type: integer }
+    UnitDef:
+      type: object
+      description: A ship (200-299), defense unit or missile (400-599) as the hub calculates with it; the hull is (metal + crystal) / 10.
+      required: [id, name, short, cost, req, one, attack, shield, rapidfire, capacity, drives]
+      properties:
+        id: { type: integer }
+        name: { type: object, properties: { de: { type: string }, en: { type: string } } }
+        short: { type: object, description: Short column label, properties: { de: { type: string }, en: { type: string } } }
+        cost: { type: array, description: 'Metal, crystal, deuterium of one unit', items: { type: integer }, minItems: 3, maxItems: 3 }
+        req: { type: object, description: 'Requirements, building or research id -> level', additionalProperties: { type: integer } }
+        one: { type: boolean, description: Once per planet (shield domes) }
+        attack: { type: number }
+        shield: { type: number }
+        rapidfire: { type: object, description: Target id -> shots, additionalProperties: { type: integer } }
+        capacity: { type: number, description: Cargo capacity }
+        drives:
+          type: [object, 'null']
+          description: >-
+            Per drive (combustion, impulse, hyperspace): base speed, research level from which it is used (0 none,
+            1 always) and deuterium consumption; null: does not fly
+          properties:
+            speed: { type: array, items: { type: integer } }
+            tech: { type: array, items: { type: integer } }
+            consumption: { type: array, items: { type: integer } }
+    UnitOverrides:
+      type: object
+      description: >-
+        Differences of a universe from the defaults by unit id: changed fields of `UnitDef` (without `id`), `hidden: true`
+        for a unit the universe does not have; a new id needs `name` and `cost`. At most 100 units.
+      additionalProperties: { type: object }
+    UnitsAdmin:
+      type: object
+      required: [defaults, overrides, units]
+      properties:
+        defaults: { type: object, description: The hub's units by id, additionalProperties: { $ref: '#/components/schemas/UnitDef' } }
+        overrides: { $ref: '#/components/schemas/UnitOverrides' }
+        units: { type: object, description: The universe's visible units by id, additionalProperties: { $ref: '#/components/schemas/UnitDef' } }
     Context:
       type: object
       description: Universe and alliance context for the selected group
@@ -808,7 +845,8 @@ components:
             `def_debris_percentage`, 0-100, default 40 and 0) and `bigShields` (boolean, default false: shield domes
             must fall before other units can be hit); passed on to the battle simulator. `startsAt`: scheduled start
             (epoch seconds; read-only before it), null = active since its creation. `endedAt`: end of the universe
-            (epoch seconds, may lie ahead; frozen and read-only from then on), null = no end.
+            (epoch seconds, may lie ahead; frozen and read-only from then on), null = no end. `units`: the universe's
+            differences from the hub's ships, defense and missiles (`UnitOverrides`, set by a hub admin).
         group:
           type: object
           properties:
@@ -1432,6 +1470,112 @@ paths:
               schema: { $ref: '#/components/schemas/Error' }
         '404':
           description: Not a member of the alliance (`member_not_found`) or no such attack (`attack_not_found`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /api/admin/universes/{slug}/units:
+    parameters:
+      - { name: slug, in: path, required: true, schema: { type: string } }
+    get:
+      tags: [Admin]
+      operationId: getUniverseUnits
+      description: Ships, defense and missiles of a universe for global admins - the defaults, its differences and the result.
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200':
+          description: Units of the universe
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UnitsAdmin' }
+        '403':
+          description: Not a global admin (`admin_only`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '404':
+          description: No such universe (`universe_not_found`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+    put:
+      tags: [Admin]
+      operationId: putUniverseUnits
+      description: >-
+        Replaces the differences of a universe (only differences are stored, so later changes of the hub's defaults
+        reach it). Every page of the universe's groups reloads its context.
+      security: [{ sessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                units: { $ref: '#/components/schemas/UnitOverrides' }
+      responses:
+        '200':
+          description: Stored
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UnitsAdmin' }
+        '400':
+          description: Invalid differences (`units_invalid`, the message names the first field)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '403':
+          description: Not a global admin (`admin_only`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /api/admin/universes/{slug}/units/parse:
+    parameters:
+      - { name: slug, in: path, required: true, schema: { type: string } }
+    post:
+      tags: [Admin]
+      operationId: parseUniverseUnits
+      description: >-
+        Unit values from a pasted page source of the game (shipyard or defense page, tech tree, a unit's info page);
+        nothing is stored. An info page has no id: its name is looked up in the units of the hub and of all universes
+        and in `names` (e.g. of a shipyard page pasted before).
+      security: [{ sessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [html]
+              properties:
+                html: { type: string, description: Page source }
+                names: { type: object, description: Further unit names -> id, additionalProperties: { type: integer } }
+      responses:
+        '200':
+          description: Values found per unit
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [kind, lang, units, unknown]
+                properties:
+                  kind: { type: string, enum: [shipyard, techtree, info] }
+                  lang: { type: string, enum: [de, en] }
+                  units:
+                    type: array
+                    items:
+                      type: object
+                      description: >-
+                        `id` plus what the page shows: `name` (page language), `cost`, `req`, `one`, `structure`,
+                        `attack`, `shield`, `capacity`, `drives`, `rapidfire` (target -> shots) and `rapidfireFrom`
+                        (shooter -> shots against this unit)
+                  unknown: { type: array, description: Names without a known id, items: { type: string } }
+        '400':
+          description: No page source (`units_page_invalid`) or not one of these pages (`units_page_unknown`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '403':
+          description: Not a global admin (`admin_only`)
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }

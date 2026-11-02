@@ -1,5 +1,6 @@
 import { Worker } from 'node:worker_threads';
-import { DEFENSE_IDS, encodeShare, SHIP_IDS, type BattleSetup, type SimSettings, type SimSummary } from '@pr0hub/battle';
+import { defenseIds, encodeShare, shipIds, type BattleSetup, type SimSettings, type SimSummary } from '@pr0hub/battle';
+import { DEFAULT_UNITS, type UnitCatalog, type UnitOverrides } from '@pr0hub/core/units';
 import { distance, drivesFromResearch, fleetConsumption, flightDuration, slowestShip } from '@pr0hub/flight';
 import { HttpError } from './auth.js';
 import { config, type UniverseSettings } from './config.js';
@@ -81,7 +82,9 @@ function slot(v: unknown, what: string, allowed: number[]): ApiSlot {
 }
 
 /** Checks and normalizes the request body. */
-export function parseBattleRequest(body: unknown): BattleRequest {
+export function parseBattleRequest(body: unknown, units: UnitCatalog = DEFAULT_UNITS): BattleRequest {
+  const SHIP_IDS = shipIds(units);
+  const DEFENSE_IDS = defenseIds(units);
   if (!isObject(body)) throw bad('JSON object expected');
   const attackerIds = SHIP_IDS.filter((id) => id !== 212);
   if (!Array.isArray(body.attackers) || !body.attackers.length || body.attackers.length > BATTLE_LIMITS.maxSlots) {
@@ -124,8 +127,12 @@ export function parseBattleRequest(body: unknown): BattleRequest {
 }
 
 /** The planet slot from spy report values: ships, defense, combat research; resources when the request has none. */
-export function planetFromSpy(values: Record<string, number>, name: string | null = null): { planet: ApiSlot; resources: BattleRequest['resources'] } {
-  const units = Object.fromEntries([...SHIP_IDS, ...DEFENSE_IDS].filter((id) => values[id] > 0).map((id) => [id, values[id]]));
+export function planetFromSpy(
+  values: Record<string, number>,
+  name: string | null = null,
+  catalog: UnitCatalog = DEFAULT_UNITS,
+): { planet: ApiSlot; resources: BattleRequest['resources'] } {
+  const units = Object.fromEntries([...shipIds(catalog), ...defenseIds(catalog)].filter((id) => values[id] > 0).map((id) => [id, values[id]]));
   const research = Object.fromEntries(COMBAT_TECHS.filter((id) => values[id] > 0).map((id) => [id, values[id]]));
   return {
     planet: { units, research, from: null, speed: 100, carried: 0, name },
@@ -158,17 +165,17 @@ export function checkSize(setup: BattleSetup, runs: number) {
 }
 
 /** Flight time and deuterium of the attackers and the fleets holding at the planet with a start (target known). */
-export function flights(u: UniverseSettings, attackers: ApiSlot[], target: Coords | null, holding: ApiSlot[] = []) {
+export function flights(u: UniverseSettings, attackers: ApiSlot[], target: Coords | null, holding: ApiSlot[] = [], catalog: UnitCatalog = DEFAULT_UNITS) {
   if (!target) return [];
   const fleets = [...attackers.map((a, slot) => ({ a, slot, side: 'attacker' })), ...holding.map((a, i) => ({ a, slot: i + 1, side: 'defender' }))];
   return fleets.flatMap(({ a, slot, side }) => {
     if (!a.from) return [];
     const drives = drivesFromResearch(a.research);
-    const slowest = slowestShip(a.units, drives);
+    const slowest = slowestShip(a.units, drives, catalog.drives);
     if (!slowest) return [];
     const dist = distance(u, a.from, target);
     const duration = flightDuration(u, dist, slowest.speed, a.speed);
-    return [{ side, slot, distance: dist, duration: Math.floor(duration), deuterium: fleetConsumption(u, a.units, duration, dist, drives) }];
+    return [{ side, slot, distance: dist, duration: Math.floor(duration), deuterium: fleetConsumption(u, a.units, duration, dist, drives, 1, catalog.drives) }];
   });
 }
 
@@ -208,10 +215,11 @@ export function throttle(userId: number, at = Date.now()) {
 }
 
 /** Runs the battle in a worker thread with a time limit (503 when it takes longer). */
-export function runInWorker(setup: BattleSetup, runs: number, settings: SimSettings): Promise<SimSummary> {
+/** `units`: the universe's differences of the unit catalog (the worker builds the catalog from them). */
+export function runInWorker(setup: BattleSetup, runs: number, settings: SimSettings, units: UnitOverrides = {}): Promise<SimSummary> {
   running++;
   return new Promise<SimSummary>((resolve, reject) => {
-    const worker = new Worker(new URL('../battle-worker.mjs', import.meta.url), { workerData: { setup, runs, settings } });
+    const worker = new Worker(new URL('../battle-worker.mjs', import.meta.url), { workerData: { setup, runs, settings, units } });
     const timer = setTimeout(() => {
       void worker.terminate();
       reject(new HttpError(503, 'battle_timeout', 'The simulation took too long'));
