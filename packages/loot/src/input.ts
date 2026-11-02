@@ -1,4 +1,4 @@
-import { CAPACITY } from '@pr0hub/flight';
+import { activeUnits } from '@pr0hub/core/units';
 import { MAX_HELPER_KEEP, MAX_PARTICIPANTS } from './settle.js';
 import type { Battle, BattleFleet, Debris, Helper, Participant, Recycling, Res, Settings, SettlementInput, Ships, Transfer } from './types.js';
 
@@ -125,7 +125,7 @@ export function cleanState(raw: unknown): LootState {
     rates: rates(s.rates, { ...DEFAULT_RATES }),
     refRates: isObj(s.refRates) ? rates(s.refRates, { ...DEFAULT_RATES }) : null,
     deficitMetalShare: s.deficitMetalShare == null ? DEFAULT_SETTINGS.deficitMetalShare : num(s.deficitMetalShare, 0, 1),
-    cargoShip: CAPACITY[int(s.cargoShip)] ? int(s.cargoShip) : DEFAULT_SETTINGS.cargoShip,
+    cargoShip: activeUnits().capacity[int(s.cargoShip)] ? int(s.cargoShip) : DEFAULT_SETTINGS.cargoShip,
     helperDeut: s.helperDeut === true,
   };
   const transfers = Array.isArray(raw.transfers)

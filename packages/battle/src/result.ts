@@ -1,4 +1,4 @@
-import { ELEMENT_COSTS } from '@pr0hub/core/tech';
+import { costOf } from '@pr0hub/core/tech';
 import type { BattleFleet } from './input.js';
 
 /** Per unit of a fleet in one round, as the engine reports it (`Roundstats`). */
@@ -110,17 +110,17 @@ export function battleResult(
   const lostValue = { attacker: 0, defender: 0 };
   const lostResources = { attacker: { metal: 0, crystal: 0, deuterium: 0 }, defender: { metal: 0, crystal: 0, deuterium: 0 } };
   const cost = (side: Resources3, id: number, amount: number) => {
-    const [metal, crystal, deuterium] = ELEMENT_COSTS[id] ?? [0, 0, 0];
+    const [metal, crystal, deuterium] = costOf(id) ?? [0, 0, 0];
     side.metal += metal * amount;
     side.crystal += crystal * amount;
     side.deuterium += deuterium * amount;
   };
   const add = (id: number, amount: number, percent: number) => {
-    const [metal, crystal] = ELEMENT_COSTS[id] ?? [0, 0];
+    const [metal, crystal] = costOf(id) ?? [0, 0];
     debris.metal += (metal * amount * percent) / 100;
     debris.crystal += (crystal * amount * percent) / 100;
   };
-  const value = (id: number, amount: number) => amount * ((ELEMENT_COSTS[id]?.[0] ?? 0) + (ELEMENT_COSTS[id]?.[1] ?? 0));
+  const value = (id: number, amount: number) => amount * ((costOf(id)?.[0] ?? 0) + (costOf(id)?.[1] ?? 0));
 
   for (const f of a) {
     for (const [key, n] of Object.entries(f.lost)) {

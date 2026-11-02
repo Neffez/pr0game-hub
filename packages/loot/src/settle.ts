@@ -1,3 +1,4 @@
+import { activeUnits, withUnits, type UnitCatalog } from '@pr0hub/core/units';
 import { ACS_LIMITS, fleetCapacity } from '@pr0hub/flight';
 import { add, apportion, deutValue, lostShips, rate, res, roundResTo, scale, shipCosts, sub, sum, total, ZERO } from './res.js';
 import { planTransfers } from './transfers.js';
@@ -29,7 +30,7 @@ export function lootShares(battle: Battle): Map<string, Res> {
   for (const f of known) out.set(f.participant, add(out.get(f.participant) ?? { ...ZERO }, round(res(f.loot))));
   const rest = sub(round(res(battle.loot)), sum(known.map((f) => round(res(f.loot)))));
   if (open.length) {
-    const space = open.map((f) => Math.max(0, fleetCapacity(f.end, true) - total(res(f.carried))));
+    const space = open.map((f) => Math.max(0, fleetCapacity(f.end, true, activeUnits().capacity) - total(res(f.carried))));
     const any = space.some((s) => s > 0);
     const parts = RES_KEYS.map((key) => (any ? apportion(Math.max(0, rest[key]), space) : open.map(() => 0)));
     open.forEach((f, i) => {
@@ -107,7 +108,12 @@ export function profitPercents(participants: Pick<Participant, 'sharePct'>[]): n
 }
 
 /** Settles an ACS: covers the costs of the participants and the helpers' parts, splits the profit, plans transfers. */
-export function settle(input: SettlementInput): SettlementResult {
+/** `units`: ships of the universe (costs, cargo); default the active catalog. */
+export function settle(input: SettlementInput, units?: UnitCatalog): SettlementResult {
+  return withUnits(units, () => settlement(input));
+}
+
+function settlement(input: SettlementInput): SettlementResult {
   const { participants, helpers, battles, recycling, settings } = input;
   const warnings = new Set<SettlementWarning>();
   if (participants.length > MAX_PARTICIPANTS) warnings.add('too_many_participants');

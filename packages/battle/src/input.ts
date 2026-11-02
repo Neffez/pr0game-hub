@@ -1,4 +1,4 @@
-import { UNITS } from './units.js';
+import { combatUnits } from './units.js';
 
 /** Weapons, shields and armour technology. */
 export const WEAPONS = 109;
@@ -44,6 +44,7 @@ export interface EngineOptions {
 
 function ships(fleet: BattleFleet, attacker: boolean, options: EngineOptions): EngineShip[] {
   const level = (id: number) => fleet.research[id] ?? 0;
+  const UNITS = combatUnits();
   return Object.entries(fleet.units)
     .filter(([id, n]) => n > 0 && UNITS[Number(id)])
     .map(([key, amount]) => {

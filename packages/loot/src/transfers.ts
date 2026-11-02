@@ -1,4 +1,4 @@
-import { CAPACITY } from '@pr0hub/flight';
+import { activeUnits } from '@pr0hub/core/units';
 import { add, deutValue, isZero, res, sub, total, ZERO } from './res.js';
 import type { Res, Transfer } from './types.js';
 import { RES_KEYS } from './types.js';
@@ -11,7 +11,8 @@ export interface Balance {
 
 /** Cargo ships needed for `amount` resources. */
 export function cargoShips(amount: number, cargoShip: number): number {
-  const capacity = CAPACITY[cargoShip] ?? CAPACITY[203];
+  const cap = activeUnits().capacity;
+  const capacity = cap[cargoShip] ?? cap[203] ?? 25000;
   return amount > 0 ? Math.ceil(amount / capacity) : 0;
 }
 

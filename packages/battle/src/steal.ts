@@ -1,3 +1,4 @@
+import { activeUnits } from '@pr0hub/core/units';
 import { fleetCapacity } from '@pr0hub/flight';
 
 export interface Resources {
@@ -14,7 +15,7 @@ export interface Resources {
  * simulation.
  */
 export function steal(fleets: { units: Record<string, number>; carried?: number }[], planet: Resources): Resources {
-  let capacity = fleets.reduce((sum, f) => sum + Math.max(0, fleetCapacity(f.units, true) - (f.carried ?? 0)), 0);
+  let capacity = fleets.reduce((sum, f) => sum + Math.max(0, fleetCapacity(f.units, true, activeUnits().capacity) - (f.carried ?? 0)), 0);
   if (capacity <= 0) return { metal: 0, crystal: 0, deuterium: 0 };
   const half = { metal: planet.metal / 2, crystal: planet.crystal / 2, deuterium: planet.deuterium / 2 };
 

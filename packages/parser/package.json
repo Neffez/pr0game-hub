@@ -29,6 +29,10 @@
     "./spy": {
       "types": "./dist/spy.d.ts",
       "default": "./dist/spy.js"
+    },
+    "./units": {
+      "types": "./dist/units.d.ts",
+      "default": "./dist/units.js"
     }
   },
   "scripts": {
@@ -39,7 +43,8 @@
   },
   "dependencies": {
     "cheerio": "^1.0.0",
-    "domhandler": "^5.0.3"
+    "domhandler": "^5.0.3",
+    "@pr0hub/flight": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^6.0.3",

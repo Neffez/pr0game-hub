@@ -109,5 +109,5 @@ for (const line of lines.slice(rfStart + 1)) {
   if (m && combat[m[1]]) combat[m[1]].rapidfire[m[2]] = Number(m[3]);
   if (line.trimEnd().endsWith(';')) break;
 }
-writeFileSync(new URL('../packages/battle/src/data/combat.json', import.meta.url), JSON.stringify(combat) + '\n');
+writeFileSync(new URL('../packages/parser/src/data/combat.json', import.meta.url), JSON.stringify(combat) + '\n');
 console.log(`${Object.keys(combat).length} combat units`);

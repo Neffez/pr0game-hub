@@ -1,4 +1,5 @@
-import { BUILDINGS, RESEARCH, SHIPS } from '@pr0hub/core/buildings';
+import { BUILDINGS, RESEARCH } from '@pr0hub/core/buildings';
+import { activeUnits } from '@pr0hub/core/units';
 import type { Base, BuildOrder, Step, StepKind } from './types.js';
 
 /** Limits of a stored build order. */
@@ -70,7 +71,7 @@ function validateStep(raw: unknown): Step | null {
     case 'research':
     case 'ship':
     case 'defense': {
-      const table = kind === 'building' ? BUILDINGS : kind === 'research' ? RESEARCH : SHIPS;
+      const table = kind === 'building' ? BUILDINGS : kind === 'research' ? RESEARCH : activeUnits().units;
       if (typeof element !== 'number' || !table[String(element)]) return null;
       if (kind === 'ship' && element >= 400) return null;
       if (kind === 'defense' && element < 400) return null;

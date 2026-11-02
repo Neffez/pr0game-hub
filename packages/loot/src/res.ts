@@ -1,4 +1,4 @@
-import { ELEMENT_COSTS } from '@pr0hub/core/tech';
+import { costOf } from '@pr0hub/core/tech';
 import type { Res, ResKey, Ships } from './types.js';
 import { RES_KEYS } from './types.js';
 
@@ -26,7 +26,7 @@ export function rate(rates: Res, key: ResKey): number {
 export function shipCosts(ships: Ships): Res {
   const out = { ...ZERO };
   for (const [id, amount] of Object.entries(ships)) {
-    const c = ELEMENT_COSTS[id];
+    const c = costOf(id);
     if (!c || !amount) continue;
     out.m += c[0] * amount;
     out.k += c[1] * amount;

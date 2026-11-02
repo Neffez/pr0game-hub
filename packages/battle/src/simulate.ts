@@ -1,3 +1,4 @@
+import { withUnits, type UnitCatalog } from '@pr0hub/core/units';
 import { engineInput, type BattleFleet } from './input.js';
 import { battleResult, DEFAULT_DEBRIS, moonChance, type BattleResult, type DebrisSettings, type EngineOutput } from './result.js';
 import { steal, type Resources } from './steal.js';
@@ -64,7 +65,11 @@ export interface SimSummary {
 const ZERO_RES: Resources = { metal: 0, crystal: 0, deuterium: 0 };
 
 /** One battle: engine, evaluation, loot of a won battle, moon chance. */
-export function runBattle(fight: Fight, setup: BattleSetup, settings: SimSettings = DEFAULT_SIM_SETTINGS, random = Math.random) {
+export function runBattle(fight: Fight, setup: BattleSetup, settings: SimSettings = DEFAULT_SIM_SETTINGS, random = Math.random, units?: UnitCatalog) {
+  return withUnits(units, () => battleRun(fight, setup, settings, random));
+}
+
+function battleRun(fight: Fight, setup: BattleSetup, settings: SimSettings, random: () => number) {
   const output = JSON.parse(fight(JSON.stringify(engineInput(setup.attackers, setup.defenders, { bigShields: settings.bigShields })))) as EngineOutput;
   const result = battleResult(output, setup.attackers, setup.defenders, settings, random);
   const loot =
@@ -128,7 +133,14 @@ export function summarize(runs: { run: RunResult; output: EngineOutput }[]): Sim
 }
 
 /** Runs the battle `runs` times and summarizes it (the tool's worker calls `runBattle` itself to report progress). */
-export function simulate(fight: Fight, setup: BattleSetup, runs: number, settings: SimSettings = DEFAULT_SIM_SETTINGS, random = Math.random): SimSummary {
-  const list = Array.from({ length: Math.max(1, Math.floor(runs)) }, () => runBattle(fight, setup, settings, random));
+export function simulate(
+  fight: Fight,
+  setup: BattleSetup,
+  runs: number,
+  settings: SimSettings = DEFAULT_SIM_SETTINGS,
+  random = Math.random,
+  units?: UnitCatalog,
+): SimSummary {
+  const list = Array.from({ length: Math.max(1, Math.floor(runs)) }, () => runBattle(fight, setup, settings, random, units));
   return summarize(list);
 }

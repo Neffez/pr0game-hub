@@ -1,6 +1,5 @@
-import { ELEMENT_COSTS } from '@pr0hub/core/tech';
-import combatData from './data/combat.json' with { type: 'json' };
-import { LIVE_BIGSHIELD, LIVE_RAPIDFIRE_AGAINST, LIVE_STUN, LIVE_UNITS } from './live.js';
+import { activeUnits, DEFAULT_UNITS, type UnitCatalog } from '@pr0hub/core/units';
+import { LIVE_BIGSHIELD, LIVE_STUN } from './live.js';
 
 /** Combat values of a unit before research (the game's `CombatCaps` plus the hull from the costs). */
 export interface CombatUnit {
@@ -16,34 +15,38 @@ export interface CombatUnit {
   bigshield: boolean;
 }
 
-type Raw = Record<string, { attack: number; shield: number; rapidfire: Record<string, number> }>;
+const cache = new WeakMap<UnitCatalog, Record<number, CombatUnit>>();
 
-/** Ships 202-215 and defense 401-408 from install.sql, the later ships and engine abilities from `live.ts`. */
-function build(): Record<number, CombatUnit> {
-  const units: Record<number, CombatUnit> = {};
-  const raw = combatData as Raw;
-  const ids = [...Object.keys(raw), ...Object.keys(LIVE_UNITS)].map(Number);
-  for (const id of ids) {
-    const base = raw[id];
-    const live = LIVE_UNITS[id];
-    const [metal, crystal] = ELEMENT_COSTS[id] ?? [0, 0];
+/**
+ * Units that fight (ships and defense, not missiles) of a unit catalog: attack, shield and rapidfire from the
+ * catalog, the hull from its costs, the engine abilities (stun, shield domes) from `live.ts`.
+ */
+export function combatUnits(catalog: UnitCatalog = activeUnits()): Record<number, CombatUnit> {
+  let units = cache.get(catalog);
+  if (units) return units;
+  units = {};
+  for (const u of Object.values(catalog.units)) {
+    if (u.id >= 500) continue;
     const rapidfire: Record<number, number> = {};
-    for (const [target, shots] of Object.entries(live?.rapidfire ?? base?.rapidfire ?? {})) rapidfire[Number(target)] = shots;
-    Object.assign(rapidfire, LIVE_RAPIDFIRE_AGAINST[id]);
-    units[id] = {
-      attack: live?.attack ?? base?.attack ?? 0,
-      shield: live?.shield ?? base?.shield ?? 0,
-      hull: (metal + crystal) / 10,
+    for (const [target, shots] of Object.entries(u.rapidfire)) rapidfire[Number(target)] = shots;
+    units[u.id] = {
+      attack: u.attack,
+      shield: u.shield,
+      hull: (u.cost[0] + u.cost[1]) / 10,
       rapidfire,
-      stun: LIVE_STUN[id] ?? 0,
-      bigshield: LIVE_BIGSHIELD.includes(id),
+      stun: LIVE_STUN[u.id] ?? 0,
+      bigshield: LIVE_BIGSHIELD.includes(u.id),
     };
   }
+  cache.set(catalog, units);
   return units;
 }
 
-export const UNITS: Record<number, CombatUnit> = build();
+/** Combat values of the default catalog. */
+export const UNITS: Record<number, CombatUnit> = combatUnits(DEFAULT_UNITS);
 
 /** Ships in the order of the game (solar satellite included: it fights as a defender). */
-export const SHIP_IDS = Object.keys(UNITS).map(Number).filter((id) => id < 300).sort((a, b) => a - b);
-export const DEFENSE_IDS = Object.keys(UNITS).map(Number).filter((id) => id >= 400).sort((a, b) => a - b);
+export const shipIds = (catalog: UnitCatalog = activeUnits()) => Object.keys(combatUnits(catalog)).map(Number).filter((id) => id < 300);
+export const defenseIds = (catalog: UnitCatalog = activeUnits()) => Object.keys(combatUnits(catalog)).map(Number).filter((id) => id >= 400);
+export const SHIP_IDS = shipIds(DEFAULT_UNITS);
+export const DEFENSE_IDS = defenseIds(DEFAULT_UNITS);

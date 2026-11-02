@@ -4,6 +4,14 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-02
 
+- Ships, defense and missiles are a unit catalog (`@pr0hub/core/units`): names, short labels, costs, requirements,
+  once per planet, cargo, drives, attack, shield and rapidfire per unit, defaults from the data the hub had (the
+  combat values moved from `@pr0hub/battle` into core). `unitCatalog(overrides)` merges a universe's differences
+  (changed fields, hidden units, new ids), `validateUnits` checks them. Costs, requirements, the ships tab, build
+  order timelines, battles (`simulate`/`runBattle` `units`), loot settlements (`settle(input, units)`) and names read
+  the active catalog or the one passed; `registerUnitNames` makes names of universe-only units known to the parsers.
+  No values changed.
+
 - Existing accounts can join alliances of other universes instead of getting a new placeholder account per universe:
   - `GET /api/admin/groups/{id}/candidates` lists the accounts an admin may add (global admins: all; alliance admins:
     members of the alliances they are admin of, in any universe), with their latest in-game name and alliances.

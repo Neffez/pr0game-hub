@@ -1,7 +1,8 @@
 import {
   BUILDINGS, buildingCost, buildTime, capacityOf, labLevels, LOCKED_BY, NANITE_FACTORY, RESEARCH, RESEARCH_LAB, RESEARCH_NETWORK, requirementsOf,
-  researchTime, resourceAt, ROBOT_FACTORY, SHIPS, SHIPYARD, shipyardTime, TECHNO_DOME,
+  researchTime, resourceAt, ROBOT_FACTORY, SHIPYARD, shipyardTime, TECHNO_DOME,
 } from '@pr0hub/core/buildings';
+import { activeUnits, withUnits, type UnitCatalog } from '@pr0hub/core/units';
 import { calibrate, productionOf } from '@pr0hub/core/production';
 import { STORAGE, storageCapacity } from '@pr0hub/core/tech';
 import { doneStateOf, targetsOf, type DoneState, type HubState } from './hub.js';
@@ -48,6 +49,8 @@ export interface SimulateOptions {
   horizon?: number;
   /** ignore storage capacities (comparisons with pr0plan, which has none) */
   noStorage?: boolean;
+  /** ships and defense of the universe (default: the active catalog) */
+  units?: UnitCatalog;
 }
 
 const RES = [901, 902, 903] as const;
@@ -90,6 +93,10 @@ interface Check {
 }
 
 export function simulate(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
+  return withUnits(o.units, () => run(order, hub, o));
+}
+
+function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
   const targets = targetsOf(order);
   const resultById = new Map<string, StepResult>();
   const results: StepResult[] = [];
@@ -279,7 +286,7 @@ export function simulate(order: BuildOrder, hub: HubState, o: SimulateOptions): 
       }
       case 'ship':
       case 'defense': {
-        if (!SHIPS[String(id)]) return { ok: false, wait: 'planet', never: true };
+        if (!activeUnits().units[String(id)]) return { ok: false, wait: 'planet', never: true };
         if (unmet(p, id)) return requirements(p, id);
         if (p.build.some((q) => q.id === SHIPYARD || q.id === NANITE_FACTORY)) return { ok: false, wait: 'shipyard' };
         break;
