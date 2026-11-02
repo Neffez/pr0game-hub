@@ -22,6 +22,7 @@ export * from './deck.js';
 export { looksLikeUniverseJson, UNIVERSE_JSON_STATUS } from './parsers/universeJson.js';
 export { isPhalanxText, parseFleetsText, phalanxPosition } from './parsers/fleets.js';
 export { estimateMarketRate } from './parsers/marketplace.js';
+export { parseUnitPage, type ParsedUnit, type UnitPage, type UnitPageKind } from './parsers/units.js';
 
 export interface ParseInput {
   /** text/html from the clipboard, a saved page or the page source */

@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-02
 
+- `parseUnitPage` (`@pr0hub/core`) reads unit values from pasted page sources: shipyard and defense page (id, name,
+  costs, requirements while unmet, once per planet), tech tree (requirements) and a unit's info page (structure, attack,
+  shield, cargo, drives with their research thresholds, rapidfire against and from other units; the page has no id,
+  so the name is matched, also against names passed from an earlier page). Fixtures built from the game's templates.
+
 - Ships, defense and missiles are a unit catalog (`@pr0hub/core/units`): names, short labels, costs, requirements,
   once per planet, cargo, drives, attack, shield and rapidfire per unit, defaults from the data the hub had (the
   combat values moved from `@pr0hub/battle` into core). `unitCatalog(overrides)` merges a universe's differences

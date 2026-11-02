@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<!-- Built from the game's template page.shipyard.default.tpl (no real page yet). -->
+<html lang="de">
+<head><title>Schiffswerft - Universe 7 - pr0game</title></head>
+<body id="shipyard">
+<div id="resources_mobile"><a href="#" onclick="return Dialog.info(901);"><div>Metall</div></a></div>
+<div class="planeto"><button id="ship1">Zivil</button> | <button id="ship2">Militär</button> | <button id="ship3" class="selected">Alle</button></div>
+<div class="infos " id="s202">
+  <div class="buildn"><a href="#" onclick="return Dialog.info(202)">Kleiner Transporter</a> <span id="val_202"> (Vorhanden:  1.234)</span></div>
+  <div class="buildl"><a href="#" onclick="return Dialog.info(202)"><img src="x/gebaeude/202.gif"></a>
+    Fehlende Rohstoffe:<br><p>Maximal baubar:<span style="font-weight:700"><br>12</p></div>
+  <div class="buildl"><span>
+    <a href='#' onclick='return Dialog.info(901)' class='tooltip' data-tooltip-content="<table><tr><th>Metall</th></tr></table>">Metall</a>: <b><span class="colorPositive">2.000</span></b>
+    <a href='#' onclick='return Dialog.info(902)' class='tooltip' data-tooltip-content="<table><tr><th>Kristall</th></tr></table>">Kristall</a>: <b><span class="colorPositive">2.000</span></b>
+  </span><br><br>
+  <span><form action="game.php?page=shipyard&amp;mode=fleet" method="post" id="s202"><input type="number" name="fmenge[202]"></form>
+  <p>Bauzeit <span class="statictime" timestamp="12"></span></p></span></div>
+</div>
+<div class="infos unavailable" id="s233">
+  <div class="buildn"><a href="#" onclick="return Dialog.info(233)">Sternenbrecher</a> <span id="val_233"></span></div>
+  <div class="buildl"><a href="#" onclick="return Dialog.info(233)"><img src="x/gebaeude/233.gif"></a>
+    Benötigt: </br>
+    <a href="#" onclick="return Dialog.info(21)"><span class="colorPositive">Raumschiffwerft (Stufe 12/10)</span></a><br>
+    <a href="#" onclick="return Dialog.info(118)"><span class="colorNeutral">Hyperraumantrieb (Stufe 7/9)</span></a>
+  </div>
+  <div class="buildl"><span>
+    <a href='#' onclick='return Dialog.info(901)' class='tooltip'>Metall</a>: <b><span class="colorNegative">1.500.000</span></b>
+    <a href='#' onclick='return Dialog.info(902)' class='tooltip'>Kristall</a>: <b><span class="colorNegative">750.000</span></b>
+    <a href='#' onclick='return Dialog.info(903)' class='tooltip'>Deuterium</a>: <b><span class="colorPositive">250.000</span></b>
+  </span><br><br><span><span class="colorNeutral">Voraussetzungen nicht erfüllt</span><p>Bauzeit <span class="statictime" timestamp="900"></span></p></span></div>
+</div>
+</body></html>
