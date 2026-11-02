@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Info-Hinweise werden in Dialogen nicht mehr abgeschnitten. Die Universumseinstellungen erklären jetzt auch Entfernungsfaktoren, runde Galaxien/Systeme und den Noobschutz-Faktor.',
+        en: 'Info tooltips are no longer cut off in dialogs. The universe settings now also explain the distance factors, circular galaxies/systems and the noob protection factor.',
+      },
+      {
+        kind: 'fix',
         de: 'Schiffe & Verteidigung: Schwerer Kreuzer, Optimierter Recycler, Behemoth und Void Titan zeigen jetzt ihre Voraussetzungen.',
         en: 'Ships & defense: heavy cruiser, optimized recycler, Behemoth and Void Titan now show their requirements.',
       },

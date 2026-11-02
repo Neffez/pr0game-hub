@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-02
 
+- Info tooltips for the universe settings that were not self-explanatory: distance factors and bases, positions,
+  circular galaxies/systems and the noob protection factor in the hub's admin dialog; distance factors, bases and the
+  highest moon chance in the tools' universe dialog. The hub's `Hint` bubble is now positioned against the viewport
+  (`position: fixed`, flipped above near the bottom edge), so scrolling dialogs and cards no longer cut it off.
+
 - Requirements of the heavy cruiser (222), optimized recycler (227, Universe 7 values), Behemoth (231) and Void Titan
   (232) from the pr0game wiki in `ships.json` (`gen:costs`): the ships & defense tab and build orders check them.
 
