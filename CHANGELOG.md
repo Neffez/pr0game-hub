@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-03
 
+- Raids: the claimed targets moved from their own menu entry into the planning tab, as a table between the current
+  and the past plans (component `ClaimedTargets.vue`; `/targets` redirects there). "Current plans" and "Targets" are
+  collapsible sections like the others. The unused flag icon is gone.
+
 - Raids: the empty plan list no longer repeats the "new plan" button of the actions row.
 
 - Web test of the raid planner's phalanx menu looks for it in the new actions row (`.plan-actions`).

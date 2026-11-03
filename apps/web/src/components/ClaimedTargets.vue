@@ -1,16 +1,14 @@
 <script setup lang="ts">
-import PageHeader from '../components/PageHeader.vue';
-import Icon from '../components/Icon.vue';
-import Hint from '../components/Hint.vue';
-import PlanetActions from '../components/PlanetActions.vue';
-import PlayerLink from '../components/PlayerLink.vue';
+import Icon from './Icon.vue';
+import PlanetActions from './PlanetActions.vue';
+import PlayerLink from './PlayerLink.vue';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { activeClaims, remaining } from '../claims';
 import { useUni, vStack } from '../composables';
 import { coords, dateTime } from '../format';
 
-/** Targets claimed by members of the alliance, the own ones first. */
+/** Targets claimed by members of the alliance, the own ones first (section of the raid planning tab). */
 const { t } = useI18n();
 const { uni, ctx } = useUni();
 
@@ -22,13 +20,8 @@ const browseLink = (c: { g: number; s: number }) => ({ path: `/${uni.value}/brow
 </script>
 
 <template>
-  <PageHeader :title="t('nav.targets')">
-    <template #hint>
-      <Hint>{{ t('claims.hint') }}</Hint>
-    </template>
-  </PageHeader>
-  <div v-if="!rows.length" class="card muted">{{ t('claims.none') }}</div>
-  <div v-else class="card table-wrap">
+  <p v-if="!rows.length" class="muted small">{{ t('claims.none') }}</p>
+  <div v-else class="table-wrap">
     <table v-stack class="data">
       <thead>
         <tr>

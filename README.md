@@ -35,7 +35,8 @@ External analysis tool for [pr0game](https://codeberg.org/pr0game/pr0game) based
 - **Alliance**: planets, fleets, fleet movements and research of all members (each member chooses which fleet
   missions they share)
 - **Targets**: members claim a planet or moon for a while (farming, attack, espionage) so nobody hits it twice;
-  the claim shows next to the target everywhere and runs out by itself
+  the claim shows next to the target everywhere and runs out by itself; the list of claims is a section of the
+  raids planning tab
 - **Raids**: one page with the tabs planning, settlements and statistics
 - **Raid planner**: own attacks, solo or ACS, landing at the second, also as retime on hostile attacks (return
   candidates per speed with departure and recall windows): launch times, lead, delays and ACS limits per

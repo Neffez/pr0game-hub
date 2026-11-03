@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Raids: Die reservierten Ziele sind kein eigener Menüpunkt mehr, sondern stehen im Tab Planung zwischen den aktuellen und den vergangenen Plänen. „Aktuelle Pläne“ und „Ziele“ lassen sich einklappen.',
+        en: 'Raids: the claimed targets are no longer a menu entry of their own but sit in the planning tab between the current and the past plans. "Current plans" and "Targets" can be collapsed.',
+      },
+      {
+        kind: 'new',
         de: 'Raids: wieder mit Fadenkreuz-Symbol; die Knöpfe der Planung stehen wie bei den Abrechnungen über dem Inhalt. In den Raid-Statistiken steht bei jedem Kampfbericht der Spieler des Ziels.',
         en: 'Raids: back to the crosshair icon; the planning buttons sit above the content like in the settlements. The raid statistics show the target player next to each battle report.',
       },

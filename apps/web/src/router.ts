@@ -41,7 +41,7 @@ export const router = createRouter({
         { path: 'raid-planner/:id/loot', component: () => import('./views/LootSettlementView.vue') },
         // raid statistics are a tab of the raid page now
         { path: 'raids', redirect: (to) => ({ path: `/${to.params.uni}/raid-planner`, query: { ...to.query, tab: 'stats' } }) },
-        { path: 'targets', component: () => import('./views/TargetsView.vue') },
+        { path: 'targets', redirect: (to) => ({ path: `/${to.params.uni}/raid-planner`, query: { tab: 'plans' } }) },
         { path: 'expeditions', component: () => import('./views/ExpeditionsView.vue') },
         { path: 'deck', component: () => import('./views/DeckView.vue') },
         { path: 'alliance', redirect: (to) => `/${to.params.uni}/planets` },

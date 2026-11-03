@@ -148,7 +148,6 @@ const links = [
   { to: 'fleet', label: 'fleet', icon: 'fleet' },
   { to: 'research', label: 'research', icon: 'research' },
   { section: 'combat' },
-  { to: 'targets', label: 'targets', icon: 'targets' },
   { to: 'raid-planner', label: 'raids', icon: 'raids' },
   { to: 'battle-hall', label: 'battleHall', icon: 'battleHall' },
   { to: 'expeditions', label: 'expeditions', icon: 'expeditions' },

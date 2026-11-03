@@ -2,6 +2,7 @@
 import { nowSec } from '../clock';
 import Loading from '../components/Loading.vue';
 import ActionMenu from '../components/ActionMenu.vue';
+import ClaimedTargets from '../components/ClaimedTargets.vue';
 import Countdown from '../components/Countdown.vue';
 import Hint from '../components/Hint.vue';
 import Icon from '../components/Icon.vue';
@@ -15,7 +16,7 @@ import Sheet from '../components/Sheet.vue';
 import { computed, reactive, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { uniApi } from '../api';
-import { loadClaims } from '../claims';
+import { activeClaims, loadClaims } from '../claims';
 import { useStored } from '../composables';
 import { coords, duration } from '../format';
 import { draftBody, newDraft, type AttackPlan, type HostileAttack, type OwnAttack } from '../plans';
@@ -236,39 +237,45 @@ const delay = (p: AttackPlan) => (rp.exact(p) ? (rp.views.value.get(p.id)?.acs?.
     </Section>
 
     <Loading v-if="!loaded" />
-    <h2 class="plans-head">{{ t('plans.current') }} <span v-if="current.length" class="badge">{{ current.length }}</span></h2>
-    <div v-if="loaded && !current.length" class="card muted">{{ t('plans.none') }}</div>
-    <div v-if="current.length" class="plan-list">
-      <RouterLink v-for="p in current" :id="`plan-${p.id}`" :key="p.id" :to="planLink(p.id)" class="plan-row" :class="{ mine: rp.myLaunch(p) }">
-        <div class="item-line">
-          <template v-if="rp.hasCoords(p)">
-            <span v-if="p.planet_type === 'moon'" class="moon-tag"><Icon name="moon" :size="12" :label="t('plans.moon')" /></span>
-            <b class="mono">{{ coords(p.g!, p.s!, p.p!) }}</b>
-            <span v-if="p.planet_name" class="muted">{{ p.planet_name }}</span>
-          </template>
-          <span v-else class="warn small">{{ t('plans.coordsMissing') }}</span>
-          <span v-if="p.player_name" class="player">{{ p.player_name }}</span>
-          <span class="grow" />
-          <span v-if="p.mission === 'hold'" class="badge mission-hold">{{ t('hold.badge') }}</span>
-          <span v-else-if="p.enemy" class="badge">{{ t('plans.retimeBadge') }}</span>
-          <span class="badge" :class="`st-${p.status}`">{{ t(`plans.status.${p.status}`) }}</span>
-        </div>
-        <div class="item-line small">
-          <span class="time">
-            <span class="mono">{{ rp.targetText(p) }}</span>
-            <Countdown v-if="p.time_precision !== 'day'" class="muted" :to="p.target_time" />
-          </span>
-          <span class="muted">{{ t('plans.fleetCount', { n: rp.flying(p) }, rp.flying(p)) }}</span>
-          <span v-if="rp.myLaunch(p) && rp.exact(p)" class="time my-launch">
-            {{ t('plans.myLaunch') }} <b class="mono">{{ rp.clock(rp.myLaunch(p)!) }}</b>
-          </span>
-          <span v-if="rp.lateFleet(p)" class="neg"><Icon name="warning" :size="12" /> {{ t('plans.late') }}</span>
-          <span v-else-if="delay(p)" class="warn"><Icon name="warning" :size="12" /> {{ t('plans.delayedBy', { t: duration(delay(p)) }) }}</span>
-          <span class="grow" />
-          <Icon name="chevronRight" class="muted chevron" />
-        </div>
-      </RouterLink>
-    </div>
+    <Section :title="t('plans.current')" :count="current.length || null" store-key="raidPlanner.current" class="current">
+      <p v-if="loaded && !current.length" class="muted small">{{ t('plans.none') }}</p>
+      <div v-if="current.length" class="plan-list flat">
+        <RouterLink v-for="p in current" :id="`plan-${p.id}`" :key="p.id" :to="planLink(p.id)" class="plan-row" :class="{ mine: rp.myLaunch(p) }">
+          <div class="item-line">
+            <template v-if="rp.hasCoords(p)">
+              <span v-if="p.planet_type === 'moon'" class="moon-tag"><Icon name="moon" :size="12" :label="t('plans.moon')" /></span>
+              <b class="mono">{{ coords(p.g!, p.s!, p.p!) }}</b>
+              <span v-if="p.planet_name" class="muted">{{ p.planet_name }}</span>
+            </template>
+            <span v-else class="warn small">{{ t('plans.coordsMissing') }}</span>
+            <span v-if="p.player_name" class="player">{{ p.player_name }}</span>
+            <span class="grow" />
+            <span v-if="p.mission === 'hold'" class="badge mission-hold">{{ t('hold.badge') }}</span>
+            <span v-else-if="p.enemy" class="badge">{{ t('plans.retimeBadge') }}</span>
+            <span class="badge" :class="`st-${p.status}`">{{ t(`plans.status.${p.status}`) }}</span>
+          </div>
+          <div class="item-line small">
+            <span class="time">
+              <span class="mono">{{ rp.targetText(p) }}</span>
+              <Countdown v-if="p.time_precision !== 'day'" class="muted" :to="p.target_time" />
+            </span>
+            <span class="muted">{{ t('plans.fleetCount', { n: rp.flying(p) }, rp.flying(p)) }}</span>
+            <span v-if="rp.myLaunch(p) && rp.exact(p)" class="time my-launch">
+              {{ t('plans.myLaunch') }} <b class="mono">{{ rp.clock(rp.myLaunch(p)!) }}</b>
+            </span>
+            <span v-if="rp.lateFleet(p)" class="neg"><Icon name="warning" :size="12" /> {{ t('plans.late') }}</span>
+            <span v-else-if="delay(p)" class="warn"><Icon name="warning" :size="12" /> {{ t('plans.delayedBy', { t: duration(delay(p)) }) }}</span>
+            <span class="grow" />
+            <Icon name="chevronRight" class="muted chevron" />
+          </div>
+        </RouterLink>
+      </div>
+    </Section>
+
+    <Section :title="t('nav.targets')" :count="activeClaims.length || null" store-key="raidPlanner.targets" class="targets">
+      <template #hint><Hint>{{ t('claims.hint') }}</Hint></template>
+      <ClaimedTargets />
+    </Section>
 
     <Section v-if="past.length" :title="t('plans.past')" :count="past.length" :default-open="false" store-key="raidPlanner.past" class="past">
       <div class="plan-list flat">
@@ -327,8 +334,6 @@ const delay = (p: AttackPlan) => (rp.exact(p) ? (rp.views.value.get(p.id)?.acs?.
 .item-actions { display: flex; align-items: center; gap: 6px; }
 .hidden-attack { opacity: .75; }
 .time { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
-.plans-head { display: flex; align-items: center; gap: 6px; }
-.plans-head .badge { margin: 0; }
 .plan-list { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); overflow: hidden; margin-bottom: 14px; }
 .plan-list.flat { border: 0; margin: 0; background: none; }
 .plan-row { display: flex; flex-direction: column; gap: 4px; padding: 10px 14px; border-top: 1px solid var(--border); color: var(--text); }
