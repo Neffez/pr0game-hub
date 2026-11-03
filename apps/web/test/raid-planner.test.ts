@@ -195,7 +195,7 @@ describe('raid planner: plan list', () => {
   });
 
   it('takes attacks from a pasted phalanx in a sheet', async () => {
-    await menuItem(root.querySelector('.page-head')!, 'Phalanx einfügen');
+    await menuItem(root.querySelector('.plan-actions')!, 'Phalanx einfügen');
     expect(document.body.querySelector('.phalanx-form textarea')).not.toBeNull();
     button(document.body.querySelector('.sheet')!, 'Abbrechen').click();
     await settle();

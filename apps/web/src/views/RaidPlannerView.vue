@@ -138,7 +138,7 @@ const delay = (p: AttackPlan) => (rp.exact(p) ? (rp.views.value.get(p.id)?.acs?.
   <RaidStats v-else-if="tab === 'stats'" />
   <template v-else>
     <!-- actions above the content like in the settlements tab -->
-    <div class="row" style="margin-bottom: 12px">
+    <div class="row plan-actions" style="margin-bottom: 12px">
       <span class="muted small">{{ t('plans.listHint') }}</span>
       <span class="grow" />
       <button class="primary btn-icon" @click="openForm()"><Icon name="plus" />{{ t('plans.new') }}</button>

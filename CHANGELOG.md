@@ -4,6 +4,8 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-03
 
+- Web test of the raid planner's phalanx menu looks for it in the new actions row (`.plan-actions`).
+
 - Raids: the page uses the crosshair icon again (the stopwatch icon is gone); the planning tab has its buttons (new
   plan, phalanx) with a short description in a row above the content like the settlements tab instead of in the page header. The raid
   statistics show the owner of the target (from the galaxy) next to each battle report, like for missile impacts
