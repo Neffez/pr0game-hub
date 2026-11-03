@@ -1537,6 +1537,7 @@ const en: typeof de = {
     tabPlans: 'Planning',
     tabSettlements: 'Settlements',
     tabStats: 'Statistics',
+    listHint: "Plan the alliance's attacks and holds, detected attacks and your own launches.",
     current: 'Current plans',
     toast: {
       created: 'Plan created.',

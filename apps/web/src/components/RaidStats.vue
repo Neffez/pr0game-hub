@@ -146,8 +146,9 @@ const targetLink = (r: any) => ({ path: `/${uni.value}/spy`, query: { c: `${r.g}
           <tr v-for="r in reportsLimit.shown.value" :key="r.id" :class="{ dim: r.defense }">
             <td class="small">{{ dateTime(r.time) }}</td>
             <td>{{ r.username }}</td>
-            <td class="mono">
-              <RouterLink :to="{ path: `/${uni}/spy`, query: { c: `${r.g}:${r.s}:${r.p}`, type: r.planet_type } }">{{ coords(r.g, r.s, r.p) }}</RouterLink>
+            <td>
+              <RouterLink class="mono" :to="{ path: `/${uni}/spy`, query: { c: `${r.g}:${r.s}:${r.p}`, type: r.planet_type } }">{{ coords(r.g, r.s, r.p) }}</RouterLink>
+              <span v-if="r.target_player_name" class="muted small target-player">{{ r.target_player_name }}</span>
             </td>
             <td class="small">
               <span v-if="r.defense" class="muted">{{ t('raids.defense') }}</span>
@@ -264,7 +265,7 @@ const targetLink = (r: any) => ({ path: `/${uni.value}/spy`, query: { c: `${r.g}
             <td>{{ r.username }}</td>
             <td>
               <RouterLink class="mono" :to="targetLink(r)">{{ coords(r.g, r.s, r.p) }}</RouterLink>
-              <span v-if="r.target_player_name" class="muted small"> {{ r.target_player_name }}</span>
+              <span v-if="r.target_player_name" class="muted small target-player">{{ r.target_player_name }}</span>
             </td>
             <td class="num">{{ fmt(r.count) }}</td>
             <td class="small">
@@ -283,3 +284,7 @@ const targetLink = (r: any) => ({ path: `/${uni.value}/spy`, query: { c: `${r.g}
     <ShowMore :limit="missilesLimit" />
   </template>
 </template>
+
+<style scoped>
+.target-player { margin-left: 6px; }
+</style>

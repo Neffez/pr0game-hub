@@ -432,6 +432,10 @@ describe('transport, missile and recycler return messages', () => {
         'Raketeneinschlag', '2. Nov 2026, 17:00:00',
         'Interplanetarraketen (10) von Mond [1:3:2] sind auf dem Planeten Ziel [1:4:5] eingeschlagen',
         '2 Raketen wurden abgefangen.', 'Raketenwerfer (- 1.200)', 'Interplanetarrakete (- 3)',
+        'Raketeneinschlag', '2. Nov 2026, 16:00:00',
+        'Interplanetarraketen (8) von Mond [1:3:2] sind auf dem Planeten Ziel [1:4:5] eingeschlagen', 'Alle Raketen wurden abgefangen.',
+        'Raketeneinschlag', '2. Nov 2026, 15:00:00',
+        'Interplanetarraketen (6) von Mond [1:3:2] sind auf dem Planeten Ziel [1:4:6] eingeschlagen', 'Der Planet hat keine Verteidigung',
       ].join('\n'),
     }).records;
     expect(records).toEqual([
@@ -454,6 +458,14 @@ describe('transport, missile and recycler return messages', () => {
       {
         kind: 'missileImpact', msgId: null, time: '2026-11-02 17:00:00', count: 10, from: { g: 1, s: 3, p: 2 }, target: { g: 1, s: 4, p: 5 },
         result: 'hit', intercepted: 2, losses: { 401: 1200, 503: 3 },
+      },
+      {
+        kind: 'missileImpact', msgId: null, time: '2026-11-02 16:00:00', count: 8, from: { g: 1, s: 3, p: 2 }, target: { g: 1, s: 4, p: 5 },
+        result: 'intercepted', intercepted: 8, losses: {},
+      },
+      {
+        kind: 'missileImpact', msgId: null, time: '2026-11-02 15:00:00', count: 6, from: { g: 1, s: 3, p: 2 }, target: { g: 1, s: 4, p: 6 },
+        result: 'noDefense', intercepted: null, losses: {},
       },
     ]);
   });

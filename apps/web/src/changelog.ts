@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Raids: wieder mit Fadenkreuz-Symbol; die Knöpfe der Planung stehen wie bei den Abrechnungen über dem Inhalt. In den Raid-Statistiken steht bei jedem Kampfbericht der Spieler des Ziels.',
+        en: 'Raids: back to the crosshair icon; the planning buttons sit above the content like in the settlements. The raid statistics show the target player next to each battle report.',
+      },
+      {
+        kind: 'new',
         de: 'Raid-Statistiken: Zu jedem Kampfbericht gibt es Links zum Bericht im Spiel und – wenn er synchronisiert ist – zum lokal gespeicherten Bericht, wie in der Battle Hall.',
         en: 'Raid statistics: every battle report links the report in the game and, once synced, the locally stored report, like the battle hall.',
       },

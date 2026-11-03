@@ -1539,6 +1539,7 @@ const de = {
     tabPlans: 'Planung',
     tabSettlements: 'Abrechnungen',
     tabStats: 'Statistiken',
+    listHint: 'Angriffe und Halte-Aktionen der Allianz planen, erkannte Angriffe und die eigenen Starts.',
     current: 'Aktuelle Pläne',
     toast: {
       created: 'Plan angelegt.',

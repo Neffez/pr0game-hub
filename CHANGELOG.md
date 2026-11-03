@@ -4,6 +4,12 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-03
 
+- Raids: the page uses the crosshair icon again (the stopwatch icon is gone); the planning tab has its buttons (new
+  plan, phalanx) with a short description in a row above the content like the settlements tab instead of in the page header. The raid
+  statistics show the owner of the target (from the galaxy) next to each battle report, like for missile impacts
+  (`target_player_name` in `GET /api/{uni}/raids`). Tests for the German missile texts "all intercepted" and "no
+  defense".
+
 - Raid statistics: each battle report links the report in the game and, when archived, the local copy (like the
   battle hall); `GET /api/{uni}/raids` returns `archived` per report.
 

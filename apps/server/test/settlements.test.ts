@@ -583,7 +583,10 @@ describe('missile attacks in the raid statistics', () => {
       [37, 'hit', 7, { 401: 100, 402: 6 }, false],
     ]);
     // the battle reports link their archived report
-    expect(body.reports.find((r: any) => r.report_id === 'r1')).toMatchObject({ archived: 1 });
+    expect(body.reports.find((r: any) => r.report_id === 'r1')).toMatchObject({ archived: 1, target_player_name: null });
+    db.prepare('INSERT INTO planets (group_id, g, s, p, name, player_id) VALUES (?, 2, 100, 8, ?, ?)').run(groupA, 'Ziel', player);
+    expect((await call('GET', '/raids?from=1&to=4000000000', as.dave)).json().reports.find((r: any) => r.report_id === 'r1'))
+      .toMatchObject({ target_player_name: ingame });
     expect(body.missilePerUser).toEqual([
       { userId: ids.carol, username: expect.any(String), attacks: 2, fired: 55, intercepted: 25, known: 55, losses: { 401: 100, 402: 6 } },
     ]);

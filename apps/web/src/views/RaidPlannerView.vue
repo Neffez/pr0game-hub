@@ -127,10 +127,6 @@ const delay = (p: AttackPlan) => (rp.exact(p) ? (rp.views.value.get(p.id)?.acs?.
 <template>
   <PageHeader :title="t('nav.raids')">
     <template #hint><Hint>{{ tab === 'stats' ? t('raids.hint') : t('plans.hint') }}</Hint></template>
-    <template v-if="tab === 'plans'">
-      <button class="primary btn-icon" @click="openForm()"><Icon name="plus" />{{ t('plans.new') }}</button>
-      <ActionMenu :items="[{ label: t('phalanx.paste'), icon: 'spy', hint: t('phalanx.menuHint'), onClick: () => (phalanx.open = true) }]" />
-    </template>
   </PageHeader>
   <div class="seg tab-seg">
     <button :class="{ active: tab === 'plans' }" @click="tab = 'plans'">{{ t('plans.tabPlans') }}</button>
@@ -141,6 +137,13 @@ const delay = (p: AttackPlan) => (rp.exact(p) ? (rp.views.value.get(p.id)?.acs?.
   <LootSettlementList v-if="tab === 'settlements'" />
   <RaidStats v-else-if="tab === 'stats'" />
   <template v-else>
+    <!-- actions above the content like in the settlements tab -->
+    <div class="row" style="margin-bottom: 12px">
+      <span class="muted small">{{ t('plans.listHint') }}</span>
+      <span class="grow" />
+      <button class="primary btn-icon" @click="openForm()"><Icon name="plus" />{{ t('plans.new') }}</button>
+      <ActionMenu :items="[{ label: t('phalanx.paste'), icon: 'spy', hint: t('phalanx.menuHint'), onClick: () => (phalanx.open = true) }]" />
+    </div>
     <div v-if="error" class="error">{{ error }}</div>
 
     <!-- what to do next: the viewer's own launches -->
