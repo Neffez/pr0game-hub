@@ -237,10 +237,7 @@ const delay = (p: AttackPlan) => (rp.exact(p) ? (rp.views.value.get(p.id)?.acs?.
 
     <Loading v-if="!loaded" />
     <h2 class="plans-head">{{ t('plans.current') }} <span v-if="current.length" class="badge">{{ current.length }}</span></h2>
-    <div v-if="loaded && !current.length" class="card muted empty">
-      {{ t('plans.none') }}
-      <button class="btn-icon" @click="openForm()"><Icon name="plus" />{{ t('plans.new') }}</button>
-    </div>
+    <div v-if="loaded && !current.length" class="card muted">{{ t('plans.none') }}</div>
     <div v-if="current.length" class="plan-list">
       <RouterLink v-for="p in current" :id="`plan-${p.id}`" :key="p.id" :to="planLink(p.id)" class="plan-row" :class="{ mine: rp.myLaunch(p) }">
         <div class="item-line">
@@ -332,7 +329,6 @@ const delay = (p: AttackPlan) => (rp.exact(p) ? (rp.views.value.get(p.id)?.acs?.
 .time { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; }
 .plans-head { display: flex; align-items: center; gap: 6px; }
 .plans-head .badge { margin: 0; }
-.empty { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
 .plan-list { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); overflow: hidden; margin-bottom: 14px; }
 .plan-list.flat { border: 0; margin: 0; background: none; }
 .plan-row { display: flex; flex-direction: column; gap: 4px; padding: 10px 14px; border-top: 1px solid var(--border); color: var(--text); }

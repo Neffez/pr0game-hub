@@ -4,6 +4,8 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-03
 
+- Raids: the empty plan list no longer repeats the "new plan" button of the actions row.
+
 - Web test of the raid planner's phalanx menu looks for it in the new actions row (`.plan-actions`).
 
 - Raids: the page uses the crosshair icon again (the stopwatch icon is gone); the planning tab has its buttons (new
