@@ -582,6 +582,8 @@ describe('missile attacks in the raid statistics', () => {
       [18, 'intercepted', 18, {}, false],
       [37, 'hit', 7, { 401: 100, 402: 6 }, false],
     ]);
+    // the battle reports link their archived report
+    expect(body.reports.find((r: any) => r.report_id === 'r1')).toMatchObject({ archived: 1 });
     expect(body.missilePerUser).toEqual([
       { userId: ids.carol, username: expect.any(String), attacks: 2, fired: 55, intercepted: 25, known: 55, losses: { 401: 100, 402: 6 } },
     ]);

@@ -516,7 +516,8 @@ const de = {
   },
   raids: {
     count: 'Raids',
-    hint: 'Kampfberichte aus den eingefügten Nachrichten aller Allianz-Mitglieder, wahlweise nur für ein Mitglied. Kämpfe auf eigenen Planeten (laut Imperium) zählen als Verteidigung und nicht in die Beute. Darunter das Recycling aus den Recyclerberichten (Transport-Nachrichten) und die Raketenangriffe aus den „Raketeneinschlag“-Nachrichten.',
+    report: 'Bericht',
+    hint: 'Kampfberichte aus den eingefügten Nachrichten aller Allianz-Mitglieder, wahlweise nur für ein Mitglied. Kämpfe auf eigenen Planeten (laut Imperium) zählen als Verteidigung und nicht in die Beute. Wurde der Kampfbericht synchronisiert, ist er im Spiel und lokal verlinkt. Darunter das Recycling aus den Recyclerberichten (Transport-Nachrichten) und die Raketenangriffe aus den „Raketeneinschlag“-Nachrichten.',
     wholeAlliance: 'ganze Allianz',
     onlyMine: 'nur meine',
     perRaid: 'Ø/Raid',

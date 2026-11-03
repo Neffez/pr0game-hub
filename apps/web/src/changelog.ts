@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Raid-Statistiken: Zu jedem Kampfbericht gibt es Links zum Bericht im Spiel und – wenn er synchronisiert ist – zum lokal gespeicherten Bericht, wie in der Battle Hall.',
+        en: 'Raid statistics: every battle report links the report in the game and, once synced, the locally stored report, like the battle hall.',
+      },
+      {
+        kind: 'new',
         de: 'Raids: Raid-Planer und Raid-Statistiken sind jetzt ein Menüpunkt „Raids“ mit den Tabs Planung, Abrechnungen und Statistiken.',
         en: 'Raids: raid planner and raid statistics are now one menu entry "Raids" with the tabs planning, settlements and statistics.',
       },

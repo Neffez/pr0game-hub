@@ -25,10 +25,14 @@ const member = useStored<number | null>('raids.member', null);
 
 const { data, error, load } = useLoader<any>(() => uniApi(uni.value, `/raids?from=${nowSec() - days.value * 86400}`));
 onMounted(load);
-useLiveReload(load, tables('battle_reports', 'recycle_reports', 'missile_impacts'));
+useLiveReload(load, tables('battle_reports', 'combat_reports', 'recycle_reports', 'missile_impacts'));
 watch(days, load);
 
 const total = (u: any) => u.metal + u.crystal + u.deuterium;
+/** Links to the battle report like the battle hall: in the game (its report id) and the locally archived copy. */
+const gameUrl = computed(() => ctx.value?.universe.settings.gameUrl?.replace(/\/?$/, '/') ?? '');
+const inGame = (r: any) => !!gameUrl.value && /^[0-9a-f]{32}$/i.test(r.report_id ?? '');
+const reportLink = (r: any) => `${gameUrl.value}game.php?page=raport&raport=${r.report_id}`;
 
 const perUser = computed(() =>
   [...(data.value?.perUser ?? [])].filter((u) => member.value == null || u.userId === member.value).sort((a, b) => total(b) - total(a)),
@@ -136,7 +140,7 @@ const targetLink = (r: any) => ({ path: `/${uni.value}/spy`, query: { c: `${r.g}
     <div class="table-wrap">
       <table v-stack="3" class="data">
         <thead>
-          <tr><th>{{ t('common.time') }}</th><th>{{ t('common.player') }}</th><th>{{ t('hostile.target') }}</th><th></th><th class="num">{{ t('raids.loot') }}</th><th class="num">{{ t('raids.lostAttacker') }}</th><th class="num">{{ t('raids.lostDefender') }}</th><th class="num">{{ t('game.debrisShort') }}</th></tr>
+          <tr><th>{{ t('common.time') }}</th><th>{{ t('common.player') }}</th><th>{{ t('hostile.target') }}</th><th></th><th class="num">{{ t('raids.loot') }}</th><th class="num">{{ t('raids.lostAttacker') }}</th><th class="num">{{ t('raids.lostDefender') }}</th><th class="num">{{ t('game.debrisShort') }}</th><th>{{ t('raids.report') }}</th></tr>
         </thead>
         <tbody>
           <tr v-for="r in reportsLimit.shown.value" :key="r.id" :class="{ dim: r.defense }">
@@ -153,6 +157,10 @@ const targetLink = (r: any) => ({ path: `/${uni.value}/spy`, query: { c: `${r.g}
             <td class="num">{{ fmt(r.lost_attacker) }}</td>
             <td class="num">{{ fmt(r.lost_defender) }}</td>
             <td class="num">{{ fmt(r.debris_metal + r.debris_crystal) }}</td>
+            <td class="small">
+              <a v-if="inGame(r)" :href="reportLink(r)" target="_blank" rel="noopener" :title="t('battleHall.reportInGame')">{{ t('battleHall.game') }}</a>
+              <template v-if="r.archived"><template v-if="inGame(r)"> · </template><RouterLink :to="`/${uni}/battle-hall/${r.report_id}`" :title="t('battleHall.localTitle')">{{ t('battleHall.local') }}</RouterLink></template>
+            </td>
           </tr>
         </tbody>
       </table>

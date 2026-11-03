@@ -87,7 +87,9 @@ export function reportsRoutes(app: FastifyInstance, db: DB) {
     const own = ownCoords(db, ctx);
     const rows = db
       .prepare(
-        `SELECT b.*, ${DISPLAY} AS username FROM battle_reports b LEFT JOIN users u ON u.id = b.user_id ${MEMBER('b')}
+        `SELECT b.*, ${DISPLAY} AS username,
+           EXISTS (SELECT 1 FROM combat_reports c WHERE c.group_id = b.group_id AND c.report_id = b.report_id) AS archived
+         FROM battle_reports b LEFT JOIN users u ON u.id = b.user_id ${MEMBER('b')}
          WHERE b.group_id = ? AND COALESCE(b.time, b.created_at) BETWEEN ? AND ? AND b.p <= ?
          ORDER BY COALESCE(b.time, b.created_at) DESC`,
       )

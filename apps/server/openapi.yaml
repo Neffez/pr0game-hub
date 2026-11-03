@@ -2853,7 +2853,8 @@ paths:
       tags: [Combat]
       operationId: getRaids
       description: >-
-        Raid statistics of the members in the time range: battle reports (`perUser`, `reports`), recycling
+        Raid statistics of the members in the time range: battle reports (`perUser`, `reports` with the game's
+        `report_id` and `archived` 1 when the full report is archived under `/combat-reports/{id}`), recycling
         (`recyclePerUser`, `recycling`) and interplanetary missile impacts (`missilePerUser`: per member their attacks,
         missiles fired, intercepted of those with a known result (`known`) and destroyed units by id; `missiles`: the
         impacts with `result` hit/intercepted/noDefense or null, `intercepted`, `losses` {unit id: count} and `defense`

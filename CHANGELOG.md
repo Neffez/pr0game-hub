@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-03
 
+- Raid statistics: each battle report links the report in the game and, when archived, the local copy (like the
+  battle hall); `GET /api/{uni}/raids` returns `archived` per report.
+
 - Raids: raid planner and raid statistics are one menu entry "Raids" with the tabs planning, settlements and
   statistics (`?tab=plans|settlements|stats` on `/raid-planner`; `/raids` redirects to the statistics tab). The
   statistics view is the component `RaidStats.vue`.

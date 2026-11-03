@@ -515,7 +515,8 @@ const en: typeof de = {
   },
   raids: {
     count: 'Raids',
-    hint: "Battle reports from the pasted messages of all alliance members, optionally for one member only. Battles on own planets (according to the empire page) count as defense and not as loot. Below that the recycling from the recycler reports (transport messages) and the missile attacks from the “Missile impact” messages.",
+    report: 'Report',
+    hint: "Battle reports from the pasted messages of all alliance members, optionally for one member only. Battles on own planets (according to the empire page) count as defense and not as loot. Synced battle reports are linked in the game and locally. Below that the recycling from the recycler reports (transport messages) and the missile attacks from the “Missile impact” messages.",
     wholeAlliance: 'whole alliance',
     onlyMine: 'only mine',
     perRaid: 'Ø/raid',
