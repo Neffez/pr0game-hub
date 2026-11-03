@@ -2852,6 +2852,12 @@ paths:
     get:
       tags: [Combat]
       operationId: getRaids
+      description: >-
+        Raid statistics of the members in the time range: battle reports (`perUser`, `reports`), recycling
+        (`recyclePerUser`, `recycling`) and interplanetary missile impacts (`missilePerUser`: per member their attacks,
+        missiles fired, intercepted of those with a known result (`known`) and destroyed units by id; `missiles`: the
+        impacts with `result` hit/intercepted/noDefense or null, `intercepted`, `losses` {unit id: count} and `defense`
+        true when the member's planet was the target).
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }

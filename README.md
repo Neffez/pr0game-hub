@@ -36,6 +36,7 @@ External analysis tool for [pr0game](https://codeberg.org/pr0game/pr0game) based
   missions they share)
 - **Targets**: members claim a planet or moon for a while (farming, attack, espionage) so nobody hits it twice;
   the claim shows next to the target everywhere and runs out by itself
+- **Raids**: one page with the tabs planning, settlements and statistics
 - **Raid planner**: own attacks, solo or ACS, landing at the second, also as retime on hostile attacks (return
   candidates per speed with departure and recall windows): launch times, lead, delays and ACS limits per
   member fleet, live for the whole alliance; the target is claimed as "attack"
@@ -43,7 +44,7 @@ External analysis tool for [pr0game](https://codeberg.org/pr0game/pr0game) based
   recycling, missile impacts, flight and recycler deuterium) and following later syncs, with corrections by hand kept
   on top; a data status shows who still has to sync what; "Finalize" freezes it for the deliveries, which transport
   reports tick off
-- **Raid statistics** (incl. recycling), **expeditions**, **expedition deck** (card counting), **battle hall** archive
+- **Raid statistics** (incl. recycling and interplanetary missile attacks: intercepted missiles, destroyed defense), **expeditions**, **expedition deck** (card counting), **battle hall** archive
 - **Admin**: universes (size, distance factors, fleet speed, time zone, deck; scheduled start and optional end; an ended universe is frozen read-only), groups, members (including placeholders by in-game name with claim links), ingest log with reparse, player merge
 - **Notifications**: bell with hostile fleets heading for members (from the synced fleet movements), raid planner
   invitations, new comments in your threads, your launch times, finalized loot settlements with your deliveries and

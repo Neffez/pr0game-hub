@@ -9,6 +9,7 @@ import LootSettlementList from '../components/LootSettlementList.vue';
 import PageHeader from '../components/PageHeader.vue';
 import PlanTargetForm from '../components/PlanTargetForm.vue';
 import PlayerLink from '../components/PlayerLink.vue';
+import RaidStats from '../components/RaidStats.vue';
 import Section from '../components/Section.vue';
 import Sheet from '../components/Sheet.vue';
 import { computed, reactive, watch } from 'vue';
@@ -31,11 +32,16 @@ const { t, uni, now, attacks, ownAttacks, loaded, error, current, past, run, cla
 const route = useRoute();
 const router = useRouter();
 
-/** plans, or the attacks and holds to settle (link: ?tab=settlements) */
-type PlannerTab = 'plans' | 'settlements';
+/** plans, the attacks and holds to settle, or the raid statistics (link: ?tab=settlements / stats) */
+const TABS = ['plans', 'settlements', 'stats'] as const;
+type PlannerTab = (typeof TABS)[number];
 const storedTab = useStored<PlannerTab>('raidPlanner.tab', 'plans');
 const tab = computed<PlannerTab>({
-  get: () => (route.query.tab === 'settlements' || route.query.tab === 'plans' ? route.query.tab : storedTab.value),
+  get: () => {
+    const q = route.query.tab as PlannerTab;
+    if (TABS.includes(q)) return q;
+    return TABS.includes(storedTab.value) ? storedTab.value : 'plans';
+  },
   set: (v) => {
     storedTab.value = v;
     router.replace({ query: { ...route.query, tab: v } });
@@ -119,17 +125,21 @@ const delay = (p: AttackPlan) => (rp.exact(p) ? (rp.views.value.get(p.id)?.acs?.
 </script>
 
 <template>
-  <PageHeader :title="t('nav.raidPlanner')">
-    <template #hint><Hint>{{ t('plans.hint') }}</Hint></template>
-    <button class="primary btn-icon" @click="openForm()"><Icon name="plus" />{{ t('plans.new') }}</button>
-    <ActionMenu :items="[{ label: t('phalanx.paste'), icon: 'spy', hint: t('phalanx.menuHint'), onClick: () => (phalanx.open = true) }]" />
+  <PageHeader :title="t('nav.raids')">
+    <template #hint><Hint>{{ tab === 'stats' ? t('raids.hint') : t('plans.hint') }}</Hint></template>
+    <template v-if="tab === 'plans'">
+      <button class="primary btn-icon" @click="openForm()"><Icon name="plus" />{{ t('plans.new') }}</button>
+      <ActionMenu :items="[{ label: t('phalanx.paste'), icon: 'spy', hint: t('phalanx.menuHint'), onClick: () => (phalanx.open = true) }]" />
+    </template>
   </PageHeader>
   <div class="seg tab-seg">
     <button :class="{ active: tab === 'plans' }" @click="tab = 'plans'">{{ t('plans.tabPlans') }}</button>
     <button :class="{ active: tab === 'settlements' }" @click="tab = 'settlements'">{{ t('plans.tabSettlements') }}</button>
+    <button :class="{ active: tab === 'stats' }" @click="tab = 'stats'">{{ t('plans.tabStats') }}</button>
   </div>
 
   <LootSettlementList v-if="tab === 'settlements'" />
+  <RaidStats v-else-if="tab === 'stats'" />
   <template v-else>
     <div v-if="error" class="error">{{ error }}</div>
 

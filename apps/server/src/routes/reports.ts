@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { HttpError } from '../auth.js';
 import type { DB } from '../db.js';
 import { ownCoords } from '../repo/empire.js';
+import { memberPlayers } from '../repo/members.js';
 import { battleHallParticipantFilter, Players } from '../repo/players.js';
 import { latestScores } from '../repo/stats.js';
 import { contextOf, DISPLAY, MEMBER, range, type Q } from './util.js';
@@ -119,9 +120,46 @@ export function reportsRoutes(app: FastifyInstance, db: DB) {
       e.left += Math.max(0, r.total_metal - r.metal) + Math.max(0, r.total_crystal - r.crystal);
       recyclePerUser.set(r.user_id, e);
     }
+    // interplanetary missile impacts: the member fired them (their planet the start) or was hit (their planet the
+    // target); without a known planet the member's copy counts as their attack
+    const players = memberPlayers(db, ctx);
+    const missileRows = db
+      .prepare(
+        `SELECT m.id, m.user_id, m.time, m.count, m.from_g, m.from_s, m.from_p, m.g, m.s, m.p, m.result, m.intercepted, m.losses,
+           ${DISPLAY} AS username, fp.player_id AS from_player_id, tp.player_id AS target_player_id, tpl.name AS target_player_name
+         FROM missile_impacts m LEFT JOIN users u ON u.id = m.user_id ${MEMBER('m')}
+         LEFT JOIN planets fp ON fp.group_id = m.group_id AND fp.g = m.from_g AND fp.s = m.from_s AND fp.p = m.from_p
+         LEFT JOIN planets tp ON tp.group_id = m.group_id AND tp.g = m.g AND tp.s = m.s AND tp.p = m.p
+         LEFT JOIN players tpl ON tpl.id = tp.player_id
+         WHERE m.group_id = ? AND COALESCE(m.time, m.created_at) BETWEEN ? AND ? ORDER BY COALESCE(m.time, m.created_at) DESC`,
+      )
+      .all(ctx.groupId, from, to) as any[];
+    const missiles = missileRows.map(({ from_player_id, target_player_id, ...r }) => {
+      const mine = own.get(r.user_id);
+      const player = players.get(r.user_id) ?? null;
+      const fired = mine?.has(`${r.from_g}:${r.from_s}:${r.from_p}`) || (player != null && from_player_id === player);
+      const hit = mine?.has(`${r.g}:${r.s}:${r.p}`) || (player != null && target_player_id === player);
+      return { ...r, losses: r.losses ? JSON.parse(r.losses) : null, defense: !fired && !!hit };
+    });
+    const missilePerUser = new Map<number | null, any>();
+    for (const r of missiles.filter((x) => !x.defense)) {
+      const e = missilePerUser.get(r.user_id) ?? {
+        userId: r.user_id, username: r.username, attacks: 0, fired: 0, intercepted: 0, known: 0, losses: {} as Record<string, number>,
+      };
+      e.attacks++;
+      e.fired += r.count;
+      // attacks with a known result: the share of intercepted missiles is taken from these
+      if (r.result) {
+        e.known += r.count;
+        e.intercepted += r.intercepted ?? 0;
+      }
+      for (const [id, n] of Object.entries((r.losses ?? {}) as Record<string, number>)) e.losses[id] = (e.losses[id] ?? 0) + n;
+      missilePerUser.set(r.user_id, e);
+    }
     return {
       from, to, perUser: [...perUser.values()], reports: raids.slice(0, 500),
       recyclePerUser: [...recyclePerUser.values()], recycling: recycling.slice(0, 500),
+      missilePerUser: [...missilePerUser.values()], missiles: missiles.slice(0, 500),
     };
   });
 

@@ -158,7 +158,7 @@ const planMenu = computed<MenuItem[]>(() => {
 </script>
 
 <template>
-  <BackLink :to="listLink" :label="t('nav.raidPlanner')" />
+  <BackLink :to="listLink" :label="t('nav.raids')" />
   <div v-if="error" class="error">{{ error }}</div>
   <Loading v-if="!loaded" :lines="4" />
   <div v-if="loaded && !plan" class="card muted">{{ t('plans.notFound') }}</div>

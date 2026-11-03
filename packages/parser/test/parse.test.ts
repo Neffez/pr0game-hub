@@ -378,7 +378,7 @@ describe('transport, missile and recycler return messages', () => {
         kind: 'transport', msgId: null, time: '2026-10-24 14:00:01', side: 'foreign', from: { g: 3, s: 200, p: 1 }, to: { g: 3, s: 26, p: 12 }, toType: null,
         metal: 1000, crystal: 0, deuterium: 5,
       },
-      { kind: 'missileImpact', msgId: null, time: '2026-10-24 12:50:00', count: 25, from: { g: 3, s: 200, p: 1 }, target: { g: 3, s: 195, p: 5 } },
+      { kind: 'missileImpact', msgId: null, time: '2026-10-24 12:50:00', count: 25, from: { g: 3, s: 200, p: 1 }, target: { g: 3, s: 195, p: 5 }, result: 'hit', intercepted: 3, losses: { 401: 120 } },
       { kind: 'recycleReturn', msgId: null, time: '2026-10-24 13:30:00', home: { g: 3, s: 200, p: 1 }, metal: 40219074, crystal: 19280927, deuterium: 0 },
     ]);
   });
@@ -412,6 +412,49 @@ describe('transport, missile and recycler return messages', () => {
       { kind: 'missileImpact', count: 4, from: { g: 1, s: 2, p: 3 } },
       { kind: 'recycleReturn', metal: 5, crystal: 6 },
       { kind: 'transport', toType: 'moon', deuterium: 3 },
+    ]);
+  });
+
+  it('reads the result of a missile impact: intercepted missiles and destroyed units', () => {
+    const records = parsePage({
+      text: [
+        'Fleet Command', 'Missile impact', '2 Nov 2026, 18:57:20',
+        'Interplanetary missiles (37) from Mondspender [1:3:2] have impacted at TOTO [1:177:11]', '',
+        '0 missiles were intercepted.', '',
+        'Heavy Laser Turret (- 54)', 'Gauss Cannon (- 22)', 'Ion Cannon (- 58)', 'Plasma Cannon (- 12)', 'Interplanetary missiles (- 2)',
+        'Fleet Command', 'Missile impact', '2 Nov 2026, 18:00:00',
+        'Interplanetary missiles (40) from Mondspender [1:3:2] have impacted at Colony [1:177:1]', '',
+        '30 missiles were intercepted.', '', 'Missile Launcher (- 1145)', 'Light Laser Turret (- 6)', 'Ion Cannon (- 83)',
+        'Fleet Command', 'Missile impact', '2 Nov 2026, 17:30:00',
+        'Interplanetary missiles (18) from Mondspender [1:3:2] have impacted at TOTO [1:177:11]', '', 'All missiles were intercepted.',
+        'Fleet Command', 'Missile impact', '2 Nov 2026, 17:10:33',
+        'Interplanetary missiles (40) from Mondspender [1:3:2] have impacted at Main Planet [1:2:6]', '', 'The planet does not have defences.',
+        'Raketeneinschlag', '2. Nov 2026, 17:00:00',
+        'Interplanetarraketen (10) von Mond [1:3:2] sind auf dem Planeten Ziel [1:4:5] eingeschlagen',
+        '2 Raketen wurden abgefangen.', 'Raketenwerfer (- 1.200)', 'Interplanetarrakete (- 3)',
+      ].join('\n'),
+    }).records;
+    expect(records).toEqual([
+      {
+        kind: 'missileImpact', msgId: null, time: '2026-11-02 18:57:20', count: 37, from: { g: 1, s: 3, p: 2 }, target: { g: 1, s: 177, p: 11 },
+        result: 'hit', intercepted: 0, losses: { 403: 54, 404: 22, 405: 58, 406: 12, 503: 2 },
+      },
+      {
+        kind: 'missileImpact', msgId: null, time: '2026-11-02 18:00:00', count: 40, from: { g: 1, s: 3, p: 2 }, target: { g: 1, s: 177, p: 1 },
+        result: 'hit', intercepted: 30, losses: { 401: 1145, 402: 6, 405: 83 },
+      },
+      {
+        kind: 'missileImpact', msgId: null, time: '2026-11-02 17:30:00', count: 18, from: { g: 1, s: 3, p: 2 }, target: { g: 1, s: 177, p: 11 },
+        result: 'intercepted', intercepted: 18, losses: {},
+      },
+      {
+        kind: 'missileImpact', msgId: null, time: '2026-11-02 17:10:33', count: 40, from: { g: 1, s: 3, p: 2 }, target: { g: 1, s: 2, p: 6 },
+        result: 'noDefense', intercepted: null, losses: {},
+      },
+      {
+        kind: 'missileImpact', msgId: null, time: '2026-11-02 17:00:00', count: 10, from: { g: 1, s: 3, p: 2 }, target: { g: 1, s: 4, p: 5 },
+        result: 'hit', intercepted: 2, losses: { 401: 1200, 503: 3 },
+      },
     ]);
   });
 

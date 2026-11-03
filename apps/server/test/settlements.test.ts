@@ -554,3 +554,36 @@ describe('raid settlements', () => {
     expect(db.prepare('SELECT COUNT(*) FROM combat_reports WHERE group_id = ? AND g IN (5, 6)').pluck().get(groupA)).toBe(2);
   });
 });
+
+describe('missile attacks in the raid statistics', () => {
+  it('stores what an impact did, fills it into an impact synced without it and sums the attacks per member', async () => {
+    db.prepare('DELETE FROM missile_impacts').run();
+    const head = ['Fleet Command', 'Missile impact', '2 Nov 2026, 18:57:20', 'Interplanetary missiles (37) from Heim [2:90:4] have impacted at Ziel [2:100:8]'];
+    // the start of the message only (older sync): no result yet
+    expect((await call('POST', '/ingest', as.carol, { text: head.join('\n') })).json().counts).toMatchObject({ missile_impacts: { new: 1 } });
+    const full = [
+      ...head, '', '7 missiles were intercepted.', '', 'Missile Launcher (- 100)', 'Light Laser Turret (- 6)',
+      'Fleet Command', 'Missile impact', '2 Nov 2026, 19:00:00',
+      'Interplanetary missiles (18) from Heim [2:90:4] have impacted at Ziel [2:100:8]', '', 'All missiles were intercepted.',
+      // an enemy's missiles on Carol's planet: defense
+      'Fleet Command', 'Missile impact', '2 Nov 2026, 19:10:00',
+      'Interplanetary missiles (5) from Feind [2:200:1] have impacted at Heim [2:90:4]', '', 'The planet does not have defences.',
+    ].join('\n');
+    expect((await call('POST', '/ingest', as.carol, { text: full })).json().counts).toMatchObject({ missile_impacts: { new: 2, duplicate: 1 } });
+    expect(db.prepare('SELECT COUNT(*) FROM missile_impacts').pluck().get()).toBe(3);
+    // Carol's planet: owned by her player (her in-game name, set by an earlier test)
+    const ingame = db.prepare('SELECT ingame_name FROM group_members WHERE group_id = ? AND user_id = ?').pluck().get(groupA, ids.carol) as string;
+    const player = Number(db.prepare('INSERT INTO players (group_id, name) VALUES (?, ?)').run(groupA, ingame).lastInsertRowid);
+    db.prepare('INSERT INTO planets (group_id, g, s, p, name, player_id) VALUES (?, 2, 90, 4, ?, ?)').run(groupA, 'Heim', player);
+
+    const body = (await call('GET', '/raids?from=1&to=4000000000', as.dave)).json();
+    expect(body.missiles.map((m: any) => [m.count, m.result, m.intercepted, m.losses, m.defense])).toEqual([
+      [5, 'noDefense', null, {}, true],
+      [18, 'intercepted', 18, {}, false],
+      [37, 'hit', 7, { 401: 100, 402: 6 }, false],
+    ]);
+    expect(body.missilePerUser).toEqual([
+      { userId: ids.carol, username: expect.any(String), attacks: 2, fired: 55, intercepted: 25, known: 55, losses: { 401: 100, 402: 6 } },
+    ]);
+  });
+});

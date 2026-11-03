@@ -1,6 +1,7 @@
 // Message parsers (no cheerio) for what a loot settlement needs beyond battles: transports between planets (the
 // deliveries), interplanetary missile impacts and recyclers coming home.
 import type { MissileImpactRecord, RecycleReturnRecord, TransportRecord } from '../types.js';
+import { idByName } from '../tech.js';
 import { parseNumber, type LocalDateTime } from '../util.js';
 
 const C = String.raw`\[(\d+):(\d+):(\d+)\]`;
@@ -39,18 +40,41 @@ export function parseTransportText(text: string, msgId: number | null, time: Loc
 
 /**
  * sys_irak_mess (sender's and target's copy): "Interplanetarraketen (5) von PLANET [g:s:p] sind auf dem Planeten
- * NAME [g:s:p] eingeschlagen", pirate language "Brandbomben … auf dem Hafen", EN "Interplanetary rockets (5) from
- * PLANET [g:s:p] are on the planet NAME [g:s:p]".
+ * NAME [g:s:p] eingeschlagen", pirate language "Brandbomben … auf dem Hafen", Ostfriesisch "Interplanetarrageten … uff
+ * dem Blanetne … eingeschlagne", EN "Interplanetary missiles (5) from PLANET [g:s:p] have impacted at NAME [g:s:p]"
+ * (older EN text: "Interplanetary rockets (5) from … are on the planet …").
+ * Then one of: sys_irak_no_att (all intercepted), sys_irak_no_def (no defense) or sys_irak_def ("N intercepted")
+ * followed by the destroyed units, one "NAME (- N)" per line.
  */
-const MISSILE_DE_RE = new RegExp(String.raw`(?:Interplanetarraketen|Brandbomben) \((\d+)\) von .*?${C}\s*sind auf dem \S+ .*?${C}\s*eingeschlagen`);
-const MISSILE_EN_RE = new RegExp(String.raw`Interplanetary rockets \((\d+)\) from .*?${C}\s*are on the planet .*?${C}`);
-export const MISSILE_START_RE = /(?:Interplanetarraketen \(|Brandbomben \(|Interplanetary rockets \()/;
+const MISSILE_DE_RE = new RegExp(
+  String.raw`(?:Interplanetarraketen|Interplanetarrageten|Brandbomben) \((\d+)\) von .*?${C}\s*sind (?:auf|uff) dem \S+ .*?${C}\s*eingeschlag`,
+);
+const MISSILE_EN_RE = new RegExp(String.raw`Interplanetary (?:rockets|missiles) \((\d+)\) from .*?${C}\s*(?:are on the planet|have impacted at) .*?${C}`);
+/** The count follows: "Interplanetary missiles (- 2)" in the destroyed units is no new message. */
+export const MISSILE_START_RE = /(?:Interplanetarraketen|Interplanetarrageten|Brandbomben|Interplanetary rockets|Interplanetary missiles) \(\d/;
+const MISSILE_ALL_RE = /(?:Alle (?:Raketen|Ragetne|Bomben) (?:wurden|wurdne) abgefangen|All missiles were intercepted)/;
+const MISSILE_NO_DEF_RE = /(?:Der (?:Planet|Blanet|Hafen) ha[td] (?:keine|geine) [VW]erteidigung|The planet does not have defences)/;
+const MISSILE_INTERCEPTED_RE = /(\d+) (?:Raketen|Ragetne|Bomben|missiles) (?:wurden|wurdne|were) (?:abgefangen|intercepted)\.?/;
+const MISSILE_LOSS_RE = /\s*([^()]+?)\s*\(-\s*([\d.,]+)\)/g;
 
 export function parseMissileImpactText(text: string, msgId: number | null, time: LocalDateTime | null): MissileImpactRecord | null {
   const flat = text.replace(/\s+/g, ' ');
   const m = flat.match(MISSILE_DE_RE) ?? flat.match(MISSILE_EN_RE);
   if (!m) return null;
-  return { kind: 'missileImpact', msgId, time, count: Number(m[1]), from: coords(m, 2), target: coords(m, 5) };
+  const count = Number(m[1]);
+  const rest = flat.slice((m.index ?? 0) + m[0].length);
+  const base = { kind: 'missileImpact' as const, msgId, time, count, from: coords(m, 2), target: coords(m, 5) };
+  if (MISSILE_ALL_RE.test(rest)) return { ...base, result: 'intercepted', intercepted: count, losses: {} };
+  if (MISSILE_NO_DEF_RE.test(rest)) return { ...base, result: 'noDefense', intercepted: null, losses: {} };
+  const ic = rest.match(MISSILE_INTERCEPTED_RE);
+  if (!ic) return { ...base, result: null, intercepted: null, losses: {} };
+  const losses: Record<number, number> = {};
+  for (const l of rest.slice((ic.index ?? 0) + ic[0].length).matchAll(MISSILE_LOSS_RE)) {
+    const id = idByName(l[1]);
+    if (id == null) continue;
+    losses[id] = (losses[id] ?? 0) + n(l[2]);
+  }
+  return { ...base, result: 'hit', intercepted: Number(ic[1]), losses };
 }
 
 /**

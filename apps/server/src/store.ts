@@ -578,14 +578,16 @@ export class Store {
   }
 
   /** Generic store of a message row: same content (also synced as HTML and as text) once, keyed by message id or content. */
-  private message(table: string, prefix: string, msgId: number | null, content: Record<string, unknown>) {
+  /** `fill`: details that are no part of the identity; an existing row without them gets them. */
+  private message(table: string, prefix: string, msgId: number | null, content: Record<string, unknown>, fill: Record<string, unknown> = {}) {
     const key = msgId ? `m${msgId}` : `${prefix}${fnv1a(JSON.stringify(Object.values(content)))}`;
     const row = { user_id: this.t.userId, ...content };
-    if (this.sameContent(table, row, msgId)) return this.count(table, false);
-    const cols = ['group_id', 'dedupe_key', 'msg_id', ...Object.keys(row)];
+    if (this.sameContent(table, row, msgId, fill)) return this.count(table, false);
+    const all = { ...row, ...fill };
+    const cols = ['group_id', 'dedupe_key', 'msg_id', ...Object.keys(all)];
     const res = this.db
       .prepare(`INSERT OR IGNORE INTO ${table} (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`)
-      .run(this.t.groupId, key, msgId, ...Object.values(row));
+      .run(this.t.groupId, key, msgId, ...Object.values(all));
     this.count(table, res.changes > 0);
   }
 
@@ -597,11 +599,14 @@ export class Store {
     });
   }
 
-  /** Interplanetary missiles that hit a planet. */
+  /** Interplanetary missiles that hit a planet, with what they did (filled into a row synced before without it). */
   private missileImpact(r: MissileImpactRecord) {
-    this.message('missile_impacts', 'i', r.msgId, {
-      time: this.epoch(r.time), count: r.count, from_g: r.from.g, from_s: r.from.s, from_p: r.from.p, g: r.target.g, s: r.target.s, p: r.target.p,
-    });
+    const fill = r.result ? { result: r.result, intercepted: r.intercepted, losses: JSON.stringify(r.losses) } : {};
+    this.message(
+      'missile_impacts', 'i', r.msgId,
+      { time: this.epoch(r.time), count: r.count, from_g: r.from.g, from_s: r.from.s, from_p: r.from.p, g: r.target.g, s: r.target.s, p: r.target.p },
+      fill,
+    );
   }
 
   /** Recyclers that came home. */

@@ -4,6 +4,17 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-03
 
+- Raids: raid planner and raid statistics are one menu entry "Raids" with the tabs planning, settlements and
+  statistics (`?tab=plans|settlements|stats` on `/raid-planner`; `/raids` redirects to the statistics tab). The
+  statistics view is the component `RaidStats.vue`.
+  - Missile attacks in the statistics: per member attacks, missiles fired, intercepted (share of the impacts with a
+    known result), destroyed units and their value at the universe's unit costs; below the list of impacts, those on
+    own planets greyed out as defense. `GET /api/{uni}/raids` returns `missilePerUser` and `missiles`.
+  - The missile impact parser reads the result: all intercepted, no defense, or the number intercepted and the
+    destroyed units ("NAME (- N)" lines); new fields `result`, `intercepted`, `losses` (migration 075). An impact
+    synced before without them gets them filled in on the next sync instead of a second row.
+  - Fix: the current English text ("Interplanetary missiles (N) from … have impacted at …") was not recognized.
+
 - Known units of the test server as the start of a new unit (`KNOWN_UNIT_IDS`, `emptyUnit` in `@pr0hub/core/units`):
   Bunker (412), Titan Laser (413) and Decoy (414) with names, costs and requirements; not in the defaults, so no
   universe shows them until they are added there (admin editor, tools, pasted pages).

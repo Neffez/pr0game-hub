@@ -20,6 +20,21 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Raids: Raid-Planer und Raid-Statistiken sind jetzt ein Menüpunkt „Raids“ mit den Tabs Planung, Abrechnungen und Statistiken.',
+        en: 'Raids: raid planner and raid statistics are now one menu entry "Raids" with the tabs planning, settlements and statistics.',
+      },
+      {
+        kind: 'new',
+        de: 'Raid-Statistiken: Raketenangriffe aus den eingefügten „Raketeneinschlag“-Nachrichten – je Mitglied Raketen, abgefangene Raketen, zerstörte Verteidigung und ihr Wert, dazu die Liste der Einschläge.',
+        en: 'Raid statistics: missile attacks from the pasted "Missile impact" messages – per member missiles, intercepted missiles, destroyed defense and its value, plus the list of impacts.',
+      },
+      {
+        kind: 'fix',
+        de: 'Englische Raketeneinschlag-Nachrichten werden jetzt erkannt (auch für die Beute-Abrechnung).',
+        en: 'English missile impact messages are recognized now (also for the loot settlement).',
+      },
+      {
+        kind: 'new',
         de: 'Schiffe & Verteidigung (Admin-Panel und pr0game-Tools): Bunker, Titan Laser und Decoy vom Testserver sind mit Kosten und Voraussetzungen hinterlegt. Wer sie anlegt oder ihre Seite einfügt, bekommt die Werte vorausgefüllt.',
         en: 'Ships & defense (admin panel and pr0game tools): Bunker, Titan Laser and Decoy of the test server are stored with costs and requirements. Adding them or pasting their page fills in the values.',
       },

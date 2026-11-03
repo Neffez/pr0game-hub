@@ -1,16 +1,21 @@
 <script setup lang="ts">
+/**
+ * Raid statistics (tab of the raid page): battle reports, recycling and interplanetary missile attacks of the members
+ * in a time range, for the whole alliance or one member.
+ */
+import { unitCost } from '@pr0hub/core/units';
 import { nowSec } from '../clock';
-import ShowMore from '../components/ShowMore.vue';
-import PageHeader from '../components/PageHeader.vue';
-import MemberSelect from '../components/MemberSelect.vue';
-import Hint from '../components/Hint.vue';
+import ShowMore from './ShowMore.vue';
+import MemberSelect from './MemberSelect.vue';
+import Hint from './Hint.vue';
 import { computed, onMounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
-import RangePicker from '../components/RangePicker.vue';
+import RangePicker from './RangePicker.vue';
 import { useLoader, useStored, useUni, vStack, useLimit } from '../composables';
 import { tables, useLiveReload } from '../live';
 import { coords, dateTime, fmt, name, short } from '../format';
+import { units } from '../units';
 
 const { t, te } = useI18n();
 const { uni, ctx } = useUni();
@@ -20,7 +25,7 @@ const member = useStored<number | null>('raids.member', null);
 
 const { data, error, load } = useLoader<any>(() => uniApi(uni.value, `/raids?from=${nowSec() - days.value * 86400}`));
 onMounted(load);
-useLiveReload(load, tables('battle_reports', 'recycle_reports'));
+useLiveReload(load, tables('battle_reports', 'recycle_reports', 'missile_impacts'));
 watch(days, load);
 
 const total = (u: any) => u.metal + u.crystal + u.deuterium;
@@ -56,14 +61,38 @@ const recycleSum = computed(() =>
   ),
 );
 const browseLink = (r: any) => ({ path: `/${uni.value}/browse`, query: { g: r.g, s: r.s } });
+
+// interplanetary missile attacks: the destroyed units valued at their costs in the open universe
+type Losses = Record<string, number> | null;
+const value = (losses: Losses) => {
+  void units.value; // recomputed when the universe's units change
+  return Object.entries(losses ?? {}).reduce((s, [id, n]) => s + (unitCost(id) ?? [0, 0, 0]).reduce((a, b) => a + b, 0) * n, 0);
+};
+const unitCount = (losses: Losses) => Object.values(losses ?? {}).reduce((a, b) => a + b, 0);
+const lossList = (losses: Losses) => Object.entries(losses ?? {}).map(([id, n]) => `${name(id)} −${fmt(n)}`).join(', ');
+const missileUsers = computed(() =>
+  [...(data.value?.missilePerUser ?? [])]
+    .filter((u: any) => shown(u.userId))
+    .map((u: any) => ({ ...u, units: unitCount(u.losses), value: value(u.losses) }))
+    .sort((a, b) => b.value - a.value || b.fired - a.fired),
+);
+const missiles = computed(() => (data.value?.missiles ?? []).filter((r: any) => shown(r.user_id)));
+const missilesLimit = useLimit<any>(missiles);
+const missileSum = computed(() =>
+  missileUsers.value.reduce(
+    (s, u) => ({
+      attacks: s.attacks + u.attacks, fired: s.fired + u.fired, known: s.known + u.known, intercepted: s.intercepted + u.intercepted,
+      units: s.units + u.units, value: s.value + u.value,
+    }),
+    { attacks: 0, fired: 0, known: 0, intercepted: 0, units: 0, value: 0 },
+  ),
+);
+/** Intercepted missiles as a share of those with a known result. */
+const interceptRate = (u: { known: number; intercepted: number }) => (u.known ? `${Math.round((u.intercepted / u.known) * 100)} %` : '–');
+const targetLink = (r: any) => ({ path: `/${uni.value}/spy`, query: { c: `${r.g}:${r.s}:${r.p}` } });
 </script>
 
 <template>
-  <PageHeader :title="t('nav.raids')">
-    <template #hint>
-      <Hint>{{ t('raids.hint') }}</Hint>
-    </template>
-  </PageHeader>
   <div class="card row">
     <RangePicker v-model="days" />
     <MemberSelect v-model="member" :all-label="t('raids.wholeAlliance')" />
@@ -182,5 +211,67 @@ const browseLink = (r: any) => ({ path: `/${uni.value}/browse`, query: { g: r.g,
       </table>
     </div>
     <ShowMore :limit="recyclingLimit" />
+
+    <h2>
+      {{ t('raids.missiles') }}
+      <Hint>{{ t('raids.missilesHint') }}</Hint>
+    </h2>
+    <div class="table-wrap flat">
+      <table v-stack class="data">
+        <thead>
+          <tr><th>{{ t('common.player') }}</th><th class="num">{{ t('raids.missileAttacks') }}</th><th class="num">{{ t('raids.missilesFired') }}</th><th class="num">{{ t('raids.intercepted') }}</th><th class="num">{{ t('raids.destroyedUnits') }}</th><th class="num">{{ t('raids.destroyedValue') }}</th><th class="num">{{ t('raids.perMissile') }}</th></tr>
+        </thead>
+        <tbody>
+          <tr v-for="u in missileUsers" :key="u.username">
+            <td>{{ u.username }}<span v-if="u.userId === ctx!.me.id" class="faint small"> {{ t('raids.you') }}</span></td>
+            <td class="num">{{ u.attacks }}</td>
+            <td class="num">{{ fmt(u.fired) }}</td>
+            <td class="num">{{ fmt(u.intercepted) }} <span class="muted small">({{ interceptRate(u) }})</span></td>
+            <td class="num">{{ fmt(u.units) }}</td>
+            <td class="num"><b>{{ short(u.value) }}</b></td>
+            <td class="num">{{ u.fired ? short(u.value / u.fired) : '' }}</td>
+          </tr>
+          <tr v-if="missileUsers.length > 1" style="font-weight: 600">
+            <td>{{ t('raids.allianceTotal') }}</td>
+            <td class="num">{{ missileSum.attacks }}</td>
+            <td class="num">{{ fmt(missileSum.fired) }}</td>
+            <td class="num">{{ fmt(missileSum.intercepted) }} <span class="muted small">({{ interceptRate(missileSum) }})</span></td>
+            <td class="num">{{ fmt(missileSum.units) }}</td>
+            <td class="num">{{ short(missileSum.value) }}</td>
+            <td class="num">{{ missileSum.fired ? short(missileSum.value / missileSum.fired) : '' }}</td>
+          </tr>
+          <tr v-if="!missileUsers.length"><td colspan="7" class="muted">{{ t('raids.noMissiles') }}</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div v-if="missiles.length" class="table-wrap">
+      <table v-stack="3" class="data">
+        <thead>
+          <tr><th>{{ t('common.time') }}</th><th>{{ t('common.player') }}</th><th>{{ t('hostile.target') }}</th><th class="num">{{ t('raids.missilesFired') }}</th><th>{{ t('raids.result') }}</th><th>{{ t('raids.destroyed') }}</th><th class="num">{{ t('raids.destroyedValue') }}</th></tr>
+        </thead>
+        <tbody>
+          <tr v-for="r in missilesLimit.shown.value" :key="r.id" :class="{ dim: r.defense }">
+            <td class="small">{{ dateTime(r.time ?? r.created_at) }}</td>
+            <td>{{ r.username }}</td>
+            <td>
+              <RouterLink class="mono" :to="targetLink(r)">{{ coords(r.g, r.s, r.p) }}</RouterLink>
+              <span v-if="r.target_player_name" class="muted small"> {{ r.target_player_name }}</span>
+            </td>
+            <td class="num">{{ fmt(r.count) }}</td>
+            <td class="small">
+              <span v-if="r.defense" class="muted">{{ t('raids.defense') }}: </span>
+              <span v-if="r.result === 'intercepted'" class="neg">{{ t('raids.allIntercepted') }}</span>
+              <span v-else-if="r.result === 'noDefense'" class="muted">{{ t('raids.noDefense') }}</span>
+              <span v-else-if="r.result === 'hit'">{{ t('raids.interceptedN', { n: fmt(r.intercepted ?? 0) }) }}</span>
+              <span v-else class="faint">–</span>
+            </td>
+            <td class="small">{{ lossList(r.losses) }}</td>
+            <td class="num">{{ unitCount(r.losses) ? fmt(value(r.losses)) : '' }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <ShowMore :limit="missilesLimit" />
   </template>
 </template>

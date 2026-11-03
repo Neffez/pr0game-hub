@@ -147,7 +147,11 @@ export interface TransportRecord {
   deuterium: number;
 }
 
-/** Interplanetary missiles hit a planet: how many, from which planet. */
+/**
+ * Interplanetary missiles hit a planet: how many, from which planet, and what they did: `hit` (some got through, the
+ * destroyed units in `losses`), `intercepted` (all of them), `noDefense` (nothing to destroy), null when the text
+ * ends before the result.
+ */
 export interface MissileImpactRecord {
   kind: 'missileImpact';
   msgId: number | null;
@@ -155,6 +159,11 @@ export interface MissileImpactRecord {
   count: number;
   from: Coords;
   target: Coords;
+  result: 'hit' | 'intercepted' | 'noDefense' | null;
+  /** missiles intercepted by anti-ballistic missiles; null when the message doesn't say */
+  intercepted: number | null;
+  /** destroyed units by id (defense and missiles) */
+  losses: Record<number, number>;
 }
 
 /** A recycler fleet came home with its cargo. */
