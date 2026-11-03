@@ -4,7 +4,7 @@ import { buildingCost, requirementsOf, shipsOf, type BuildPlanet } from '../src/
 import costs from '../src/data/costs.json' with { type: 'json' };
 import ships from '../src/data/ships.json' with { type: 'json' };
 import { costOf, idByName, registerUnitNames, techName } from '../src/tech.js';
-import { activeUnits, DEFAULT_UNITS, setActiveUnits, unitCatalog, unitPatch, validateUnits, withUnits } from '../src/units.js';
+import { activeUnits, DEFAULT_UNITS, emptyUnit, setActiveUnits, unitCatalog, unitPatch, validateUnits, withUnits } from '../src/units.js';
 
 describe('unit catalog', () => {
   it('keeps the values the hub had as defaults', () => {
@@ -90,5 +90,16 @@ describe('unit catalog input', () => {
     const c = unitCatalog(overrides);
     expect(Object.isFrozen(overrides[233].drives)).toBe(false);
     expect(c.units[233].drives).not.toBe(overrides[233].drives);
+  });
+});
+
+describe('known units', () => {
+  it('start a new unit of a known id with its values, not in the defaults', () => {
+    expect(DEFAULT_UNITS.units[412]).toBeUndefined();
+    const c = unitCatalog({ 412: { name: { de: 'Bunker', en: 'Bunker' }, cost: [9000, 1000, 0] }, 413: { name: { de: 'Titan Laser', en: 'Titan Laser' }, cost: [54000, 18000, 0] } });
+    expect(c.units[412].req).toEqual({ 21: 5, 111: 6 });
+    expect(c.units[413].req).toEqual({ 21: 7, 109: 6, 113: 6, 120: 6 });
+    expect(emptyUnit(414)).toMatchObject({ id: 414, name: { en: 'Decoy' }, cost: [100, 0, 0], req: { 21: 2 }, attack: 0 });
+    expect(emptyUnit(415).name.de).toBe('#415');
   });
 });

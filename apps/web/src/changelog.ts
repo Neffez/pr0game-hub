@@ -16,6 +16,16 @@ export interface ChangelogDay {
 
 export const CHANGELOG: ChangelogDay[] = [
   {
+    date: '2026-11-03',
+    items: [
+      {
+        kind: 'new',
+        de: 'Schiffe & Verteidigung (Admin-Panel und pr0game-Tools): Bunker, Titan Laser und Decoy vom Testserver sind mit Kosten und Voraussetzungen hinterlegt. Wer sie anlegt oder ihre Seite einfügt, bekommt die Werte vorausgefüllt.',
+        en: 'Ships & defense (admin panel and pr0game tools): Bunker, Titan Laser and Decoy of the test server are stored with costs and requirements. Adding them or pasting their page fills in the values.',
+      },
+    ],
+  },
+  {
     date: '2026-11-02',
     items: [
       {

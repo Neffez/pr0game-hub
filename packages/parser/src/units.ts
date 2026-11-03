@@ -111,8 +111,22 @@ function defaults(): Record<string, UnitDef> {
 /** The defaults by id, including units a universe may hide. */
 export const DEFAULT_UNIT_DEFS: Readonly<Record<string, UnitDef>> = defaults();
 
-/** A unit that is new in a universe starts empty. */
+/**
+ * Units some universes have but the defaults do not (test server, 2026-11): the start of a new unit with that id
+ * (admin, tools' editor, pasted pages). Names and costs from the test server's defense page, requirements given by
+ * the project owner; attack, shield and rapidfire still unknown (0, from the info pages once pasted).
+ */
+const KNOWN: Record<number, Pick<UnitDef, 'name' | 'short' | 'cost' | 'req'>> = {
+  412: { name: { de: 'Bunker', en: 'Bunker' }, short: { de: 'Bunk', en: 'Bunk' }, cost: [9000, 1000, 0], req: { 21: 5, 111: 6 } },
+  413: { name: { de: 'Titan Laser', en: 'Titan Laser' }, short: { de: 'TL', en: 'TL' }, cost: [54000, 18000, 0], req: { 21: 7, 109: 6, 113: 6, 120: 6 } },
+  414: { name: { de: 'Decoy', en: 'Decoy' }, short: { de: 'Decoy', en: 'Decoy' }, cost: [100, 0, 0], req: { 21: 2 } },
+};
+export const KNOWN_UNIT_IDS: readonly number[] = Object.keys(KNOWN).map(Number);
+
+/** A unit that is new in a universe: the known values of its id, else empty. */
 export function emptyUnit(id: number): UnitDef {
+  const known = KNOWN[id];
+  if (known) return { ...emptyUnit(0), ...JSON.parse(JSON.stringify(known)), id };
   return {
     id,
     name: { de: `#${id}`, en: `#${id}` },

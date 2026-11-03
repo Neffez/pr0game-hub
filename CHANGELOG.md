@@ -2,6 +2,12 @@
 
 Every commit adds its changes here, newest first, grouped by date.
 
+## 2026-11-03
+
+- Known units of the test server as the start of a new unit (`KNOWN_UNIT_IDS`, `emptyUnit` in `@pr0hub/core/units`):
+  Bunker (412), Titan Laser (413) and Decoy (414) with names, costs and requirements; not in the defaults, so no
+  universe shows them until they are added there (admin editor, tools, pasted pages).
+
 ## 2026-11-02
 
 - Tools: own values for ships, defense and missiles (`shared/units.js`, texts in `shared/unitsTexts.js`). One store
