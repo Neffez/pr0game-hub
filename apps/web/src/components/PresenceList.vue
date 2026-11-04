@@ -20,7 +20,9 @@ const online = computed(() => {
     .map((m) => ({ ...m, me: m.id === me, at: byId.get(m.id) ?? { userId: m.id, page: null, active: true } }))
     .sort((a, b) => Number(b.me) - Number(a.me));
 });
-const onlineHeading = computed(() => t('presence.online', { n: online.value.length, group: ctx.value?.group.name ?? '' }));
+/** The alliance's tag (its name where none is set); the tooltip shows the full name. */
+const onlineHeading = computed(() => t('presence.online', { n: online.value.length, group: ctx.value?.group.tag || ctx.value?.group.name || '' }));
+const onlineTitle = computed(() => t('presence.online', { n: online.value.length, group: ctx.value?.group.name ?? '' }));
 const offline = computed(() => {
   const ids = new Set(presence.value.map((p) => p.userId));
   return (ctx.value?.members ?? [])
@@ -48,7 +50,7 @@ function where(p: PresenceMember) {
 
 <template>
   <div class="presence">
-    <div class="section one-line" :title="onlineHeading">{{ onlineHeading }}</div>
+    <div class="section one-line" :title="onlineTitle">{{ onlineHeading }}</div>
     <div v-for="m in online" :key="m.id" class="member">
       <span class="dot" :class="{ away: !m.at.active }" :title="m.at.active ? t('presence.active') : t('presence.away')" />
       <span class="name" :class="roleClass(m)" :title="roleTitle(m)">{{ m.name }}<span v-if="m.me" class="muted"> ({{ t('presence.you') }})</span></span>

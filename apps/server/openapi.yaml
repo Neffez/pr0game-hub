@@ -757,6 +757,7 @@ components:
       properties:
         id: { type: integer }
         name: { type: string }
+        tag: { type: [string, 'null'], description: 'Short alliance tag (at most 10 characters) for narrow places; null = none, the name is shown instead' }
         role: { type: string, enum: [member, admin] }
         universe: { type: string }
         universe_name: { type: string }
@@ -875,6 +876,7 @@ components:
           properties:
             id: { type: integer }
             name: { type: string }
+            tag: { type: [string, 'null'], description: 'Short alliance tag (at most 10 characters) for narrow places; null = none, the name is shown instead' }
             role: { type: string }
         toolsUrl:
           type: string

@@ -31,7 +31,7 @@ export function overviewRoutes(app: FastifyInstance, db: DB) {
     const playerId = memberPlayer(db, ctx, ctx.user.id);
     return {
       universe: ctx.universe,
-      group: { id: ctx.groupId, name: ctx.groupName, role: ctx.role },
+      group: { id: ctx.groupId, name: ctx.groupName, tag: ctx.groupTag, role: ctx.role },
       toolsUrl: config.toolsUrl,
       marketRate: latestMarketRate(db, ctx.groupId),
       members,

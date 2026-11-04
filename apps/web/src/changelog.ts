@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Allianzen können ein Kürzel bekommen (Admin-Bereich, neben dem Allianznamen). Es steht in der Online-Anzeige im Menü; der volle Name erscheint beim Darüberfahren.',
+        en: 'Alliances can have a short tag (admin panel, next to the alliance name). It is shown in the online list in the menu; the full name appears on hover.',
+      },
+      {
+        kind: 'new',
         de: 'Tutorials: Beim ersten Öffnen von Übersicht, Seite einfügen, Bauen & Forschen und Raidplaner zeigt der Hub eine kurze Tour mit den wichtigsten Bereichen. Du kannst sie überspringen oder „Nicht mehr anzeigen“ wählen, mit dem „?“ neben der Überschrift neu starten und sie unter Konto ein- oder ausschalten.',
         en: 'Tutorials: the first time you open Overview, Paste a page, Build & research and Raid planner, the hub shows a short tour of the main areas. You can skip it or choose "Don\'t show again", restart it with the "?" next to the title and switch tutorials on or off under Account.',
       },

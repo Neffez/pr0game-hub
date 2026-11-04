@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-04
 
+- Alliance tag: an alliance can have a short tag (at most 10 characters; migration 077, `tag` in the context, `/api/auth/me`
+  and the admin alliance list, set via `POST`/`PUT /api/admin/groups`; OpenAPI updated). The admin panel has a field
+  next to the alliance name (when creating and editing). The online list heading in the sidebar shows the tag
+  ("3 online · SIW") with the full name as tooltip; without a tag it shows the name, cut off with "…" when too long.
+
 - Page tours: the first time a user opens overview, paste, build & research or the raid planner, a short guided tour
   (driver.js) explains the tabs and main controls.
   - Close or finish marks a tour as seen; "Don't show again" turns the automatic start off for all tours.

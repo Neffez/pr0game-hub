@@ -24,6 +24,7 @@ export interface GroupContext {
   universe: Universe;
   groupId: number;
   groupName: string;
+  groupTag: string | null;
   role: 'member' | 'admin';
   /** the time of the universe: now, or the end of an ended universe (reads show the data as it was then) */
   now: number;
@@ -97,11 +98,11 @@ export function groupContext(db: DB, req: FastifyRequest, uniSlug: string): Grou
 export function resolveGroup(db: DB, user: SessionUser, universe: Universe, wanted: number | null): GroupContext {
   const rows = db
     .prepare(
-      `SELECT g.id, g.name, m.role FROM groups g JOIN group_members m ON m.group_id = g.id
+      `SELECT g.id, g.name, g.tag, m.role FROM groups g JOIN group_members m ON m.group_id = g.id
        WHERE g.universe_id = ? AND m.user_id = ? ORDER BY g.id`,
     )
-    .all(universe.id, user.id) as { id: number; name: string; role: 'member' | 'admin' }[];
+    .all(universe.id, user.id) as { id: number; name: string; tag: string | null; role: 'member' | 'admin' }[];
   const row = wanted ? rows.find((r) => r.id === wanted) : rows[0];
   if (!row) throw new HttpError(403, 'no_group', 'No alliance in this universe');
-  return { user, universe, groupId: row.id, groupName: row.name, role: row.role, now: universeNow(universe) };
+  return { user, universe, groupId: row.id, groupName: row.name, groupTag: row.tag, role: row.role, now: universeNow(universe) };
 }

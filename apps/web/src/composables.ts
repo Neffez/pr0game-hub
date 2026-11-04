@@ -14,7 +14,7 @@ export interface MarketRate {
 
 export interface UniContext {
   universe: { id: number; slug: string; name: string; settings: UniverseSettings; deck: { type: string; size: string; count: number }[]; units?: UnitOverrides; startsAt: number | null; endedAt: number | null };
-  group: { id: number; name: string; role: string };
+  group: { id: number; name: string; tag: string | null; role: string };
   /** base URL of the pr0game tools (server setting `TOOLS_URL`) */
   toolsUrl?: string;
   /** the group's market rate (metal and crystal per 1 deuterium), newest synced or set by hand */

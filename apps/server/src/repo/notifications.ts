@@ -177,7 +177,7 @@ export function notificationsFor(db: DB, ctx: GroupContext, t: number): Notifica
 export function channelNotificationsFor(db: DB, universe: Universe, groupId: number, t: number): ChannelNotification[] {
   const group = db.prepare('SELECT name FROM groups WHERE id = ?').pluck().get(groupId) as string | undefined;
   if (group == null) return [];
-  const ctxOf = (user: SessionUser): GroupContext => ({ user, universe, groupId, groupName: group, role: 'member', now: universeNow(universe, t) });
+  const ctxOf = (user: SessionUser): GroupContext => ({ user, universe, groupId, groupName: group, groupTag: null, role: 'member', now: universeNow(universe, t) });
   const channel = ctxOf({ id: 0, username: '', isAdmin: false, lang: 'de', dateFormat: 'auto' });
   const launching = db
     .prepare(

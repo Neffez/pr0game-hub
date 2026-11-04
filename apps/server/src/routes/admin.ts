@@ -270,11 +270,18 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
 
   // ---------------------------------------------------------------- groups
 
+  /** The short tag of an alliance: trimmed, at most 10 characters, empty = none (the name is shown instead). */
+  const groupTag = (raw: unknown): string | null => {
+    const tag = String(raw ?? '').trim();
+    if (tag.length > 10) throw new HttpError(400, 'tag_too_long', 'Tag too long (at most 10 characters)');
+    return tag || null;
+  };
+
   app.get('/api/admin/groups', async (req) => {
     const user = requireUser(req);
     const groups = db
       .prepare(
-        `SELECT g.id, g.name, u.slug AS universe, (SELECT COUNT(*) FROM group_members WHERE group_id = g.id) AS members
+        `SELECT g.id, g.name, g.tag, u.slug AS universe, (SELECT COUNT(*) FROM group_members WHERE group_id = g.id) AS members
          FROM groups g JOIN universes u ON u.id = g.universe_id
          WHERE ? OR g.id IN (SELECT group_id FROM group_members WHERE user_id = ? AND role = 'admin')
          ORDER BY u.slug, g.name`,
@@ -283,14 +290,14 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
     return groups;
   });
 
-  app.post<{ Body: { universe: string; name: string } }>('/api/admin/groups', async (req) => {
+  app.post<{ Body: { universe: string; name: string; tag?: string | null } }>('/api/admin/groups', async (req) => {
     const user = requireAdmin(req);
     const uni = db.prepare('SELECT id FROM universes WHERE slug = ?').pluck().get(req.body?.universe) as number | undefined;
     if (!uni) throw new HttpError(404, 'universe_not_found', 'Universe not found');
     const name = String(req.body.name ?? '').trim();
     if (!name) throw new HttpError(400, 'name_missing', 'Name missing');
     if (db.prepare('SELECT 1 FROM groups WHERE universe_id = ? AND name = ?').get(uni, name)) throw new HttpError(409, 'group_exists', 'Alliance already exists');
-    const id = db.prepare('INSERT INTO groups (universe_id, name) VALUES (?, ?)').run(uni, name).lastInsertRowid;
+    const id = db.prepare('INSERT INTO groups (universe_id, name, tag) VALUES (?, ?, ?)').run(uni, name, groupTag(req.body.tag)).lastInsertRowid;
     db.prepare("INSERT INTO group_members (group_id, user_id, role) VALUES (?, ?, 'admin')").run(id, user.id);
     return { id: Number(id) };
   });
@@ -380,7 +387,7 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
     return { id: userId, token };
   });
 
-  app.put<{ Params: { id: string }; Body: { name?: string } }>('/api/admin/groups/:id', async (req) => {
+  app.put<{ Params: { id: string }; Body: { name?: string; tag?: string | null } }>('/api/admin/groups/:id', async (req) => {
     const groupId = Number(req.params.id);
     requireGroupAdmin(req, groupId);
     const name = String(req.body?.name ?? '').trim();
@@ -390,7 +397,7 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
     if (db.prepare('SELECT 1 FROM groups WHERE universe_id = ? AND name = ? AND id <> ?').get(uni, name, groupId)) {
       throw new HttpError(409, 'group_exists', 'Alliance already exists');
     }
-    db.prepare('UPDATE groups SET name = ? WHERE id = ?').run(name, groupId);
+    db.prepare('UPDATE groups SET name = ?, tag = ? WHERE id = ?').run(name, groupTag(req.body?.tag), groupId);
     return { ok: true };
   });
 

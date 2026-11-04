@@ -138,7 +138,7 @@ function groupSummary(id: string): string {
 
 // ------------------------------------------------------------------- groups
 const groups = ref<any[]>([]);
-const newGroup = ref({ universe: '', name: '' });
+const newGroup = ref({ universe: '', name: '', tag: '' });
 const groupId = ref<number | null>(null);
 const members = ref<any[]>([]);
 const ingests = ref<any[]>([]);
@@ -157,7 +157,8 @@ const candidateLabel = (c: Candidate) =>
 const merge = ref({ from: null as number | null, into: null as number | null });
 const group = computed(() => groups.value.find((g) => g.id === groupId.value));
 const groupName = ref('');
-watch(group, (g) => (groupName.value = g?.name ?? ''), { immediate: true });
+const groupTag = ref('');
+watch(group, (g) => { groupName.value = g?.name ?? ''; groupTag.value = g?.tag ?? ''; }, { immediate: true });
 
 /** The alliance's Discord channel (server: discord.ts): only the webhook's start comes back. */
 interface ChannelPrefs {
@@ -276,6 +277,7 @@ const createGroup = () =>
   run(async () => {
     const res = await api('/admin/groups', { body: newGroup.value });
     newGroup.value.name = '';
+    newGroup.value.tag = '';
     await loadAll();
     await loadMe();
     groupId.value = res.id;
@@ -283,7 +285,7 @@ const createGroup = () =>
 
 const renameGroup = () =>
   run(async () => {
-    await api(`/admin/groups/${groupId.value}`, { method: 'PUT', body: { name: groupName.value } });
+    await api(`/admin/groups/${groupId.value}`, { method: 'PUT', body: { name: groupName.value, tag: groupTag.value } });
     await loadAll();
     await loadMe();
   }, 'admin.groupRenamed');
@@ -603,7 +605,8 @@ const doMerge = () => run(async () => {
         </select>
         <form v-if="group" class="row" @submit.prevent="renameGroup">
           <input v-model="groupName" :placeholder="t('admin.groupName')" />
-          <button :disabled="!groupName.trim() || groupName.trim() === group.name">{{ t('admin.rename') }}</button>
+          <input v-model="groupTag" class="tag-input" maxlength="10" :placeholder="t('admin.groupTag')" :title="t('admin.groupTagHint')" />
+          <button :disabled="!groupName.trim() || (groupName.trim() === group.name && groupTag.trim() === (group.tag ?? ''))">{{ t('common.save') }}</button>
         </form>
       </div>
       <form v-if="isAdmin" class="row" style="margin-top: 10px" @submit.prevent="createGroup">
@@ -612,6 +615,7 @@ const doMerge = () => run(async () => {
           <option v-for="u in universes" :key="u.slug" :value="u.slug">{{ u.slug }}</option>
         </select>
         <input v-model="newGroup.name" :placeholder="t('admin.groupName')" />
+        <input v-model="newGroup.tag" class="tag-input" maxlength="10" :placeholder="t('admin.groupTag')" :title="t('admin.groupTagHint')" />
         <button class="primary">{{ t('admin.createGroup') }}</button>
       </form>
     </Section>
@@ -847,6 +851,7 @@ const doMerge = () => run(async () => {
 </template>
 
 <style scoped>
+.tag-input { width: 110px; }
 .access-request { padding: 8px 0; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 6px; }
 .access-request:first-of-type { border-top: 0; }
 .access-message { white-space: pre-wrap; overflow-wrap: anywhere; }
