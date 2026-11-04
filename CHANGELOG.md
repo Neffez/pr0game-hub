@@ -20,6 +20,9 @@ Every commit adds its changes here, newest first, grouped by date.
     `onDestroyed`).
   - "Don't show again" stores seen and off in one request; the account's tutorial switch and reset show errors.
 
+- Raid statistics: all six tables (per player, reports, recycling, recycling list, missiles, missile list) have sortable
+  columns (mobile: sort selection) and are collapsible sections remembered per device.
+
 - Alliance tag: the online list heading shows the tag only where the full alliance name does not fit on the line
   (measured against the sidebar width, tooltip with the full name either way).
 

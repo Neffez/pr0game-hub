@@ -30,6 +30,11 @@ export const CHANGELOG: ChangelogDay[] = [
       },
       {
         kind: 'new',
+        de: 'Raid-Statistiken: Alle Tabellen lassen sich nach Spalten sortieren (am Handy per Auswahl) und ein- und ausklappen.',
+        en: 'Raid statistics: all tables can be sorted by column (on phones via a selection) and collapsed.',
+      },
+      {
+        kind: 'new',
         de: 'Allianzen können ein Kürzel bekommen (Admin-Bereich, neben dem Allianznamen). Es steht in der Online-Anzeige im Menü, wenn der volle Name dort nicht in die Zeile passt; der volle Name erscheint beim Darüberfahren.',
         en: 'Alliances can have a short tag (admin panel, next to the alliance name). It is shown in the online list in the menu when the full name does not fit on the line; the full name appears on hover.',
       },
