@@ -35,6 +35,7 @@ provideUni(ctx);
 // set before the children render their tool links (they only render once the context is there)
 watch(ctx, (c) => setToolsUrl(c?.toolsUrl), { flush: 'sync', immediate: true });
 const toolsUrl = computed(() => toolsIndexUrl(ctx.value?.universe.settings));
+const gameUrl = computed(() => ctx.value?.universe.settings.gameUrl?.replace(/\/?$/, '/') ?? '');
 watch(() => ctx.value?.marketRate, setMarketRate, { flush: 'sync', immediate: true });
 // the universe's ships and defense; a change (admin) renders the page anew with them
 watch(
@@ -241,7 +242,10 @@ const tabs = [
         <NotificationBell v-if="ctx" class="sidebar-bell" />
         <button class="nav-close" :title="t('nav.closeMenu')" :aria-label="t('nav.closeMenu')" @click="navOpen = false"><Icon name="close" /></button>
       </div>
-      <div class="section">{{ ctx?.universe.name ?? uni }}</div>
+      <div class="section">
+        <a v-if="gameUrl" class="uni-link" :href="gameUrl" target="_blank" rel="noopener" :title="t('nav.universeInGame')">{{ ctx?.universe.name ?? uni }}<Icon name="external" :size="11" /></a>
+        <template v-else>{{ ctx?.universe.name ?? uni }}</template>
+      </div>
       <select v-if="groups.length > 1" v-model="group" @change="changeGroup">
         <option v-for="g in groups" :key="g.id" :value="g.id">{{ g.name }}</option>
       </select>

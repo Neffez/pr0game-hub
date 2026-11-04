@@ -93,6 +93,7 @@ const de = {
     player: 'Spieler',
     closeMenu: 'Menü schließen',
     toolsLink: 'Zu den pr0game-Tools',
+    universeInGame: 'Universum im Spiel öffnen',
     quickSync: 'Schnell synchronisieren',
     openSyncPage: 'Zur Sync-Seite',
     close: 'Schließen',

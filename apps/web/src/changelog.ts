@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Der Name des Universums oben im Menü führt jetzt direkt ins Spiel zu diesem Universum.',
+        en: 'The universe name at the top of the menu now leads straight to that universe in the game.',
+      },
+      {
+        kind: 'new',
         de: 'Expeditionen: Auswertung und Expo-Deck sind jetzt ein Menüpunkt „Expeditionen“ mit zwei Tabs. Alle Tabellen lassen sich per Klick auf die Spalte sortieren (am Handy über eine Auswahl), die Bereiche lassen sich einklappen.',
         en: 'Expeditions: statistics and expedition deck are now one menu entry "Expeditions" with two tabs. All tables sort with a click on a column (on mobile with a selection), the sections can be collapsed.',
       },

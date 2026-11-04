@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-04
 
+- Sidebar: the universe name above the menu links to the universe in the game (its configured game URL, new tab)
+  when the universe has one.
+
 - Expeditions: expedition statistics and expedition deck are one menu entry "Expeditions" with the tabs statistics and
   deck (`?tab=stats|deck` on `/expeditions`; `/deck` redirects to the deck tab). The views are the components
   `ExpeditionStats.vue` and `ExpeditionDeck.vue`; `DeckView.vue` and the deck icon are gone.

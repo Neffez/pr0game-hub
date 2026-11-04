@@ -49,6 +49,8 @@ h3 { font-size: 14px; margin: 14px 0 6px; color: var(--muted); }
 .sidebar nav a:hover > .icon, .sidebar nav a.router-link-active > .icon { color: inherit; }
 .sidebar nav a.router-link-active { background: var(--accent-soft); color: var(--accent); }
 .sidebar .section { color: var(--faint); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; padding: 12px 10px 4px; }
+.sidebar .section .uni-link { display: inline-flex; align-items: center; gap: 4px; color: inherit; }
+.sidebar .section .uni-link:hover { color: var(--accent); text-decoration: none; }
 .sidebar select { width: 100%; margin: 4px 0; }
 .main { flex: 1; min-width: 0; padding: 18px 22px 60px; }
 

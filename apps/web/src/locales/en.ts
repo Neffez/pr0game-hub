@@ -92,6 +92,7 @@ const en: typeof de = {
     player: 'Player',
     closeMenu: 'Close menu',
     toolsLink: 'Go to the pr0game tools',
+    universeInGame: 'Open the universe in the game',
     quickSync: 'Quick sync',
     openSyncPage: 'Open sync page',
     close: 'Close',
