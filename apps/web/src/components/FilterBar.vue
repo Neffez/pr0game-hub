@@ -16,6 +16,7 @@ export interface FilterChip {
  * `.filter-group`) open in a panel below it on desktop (remembered) and in a bottom sheet on mobile. Active filters
  * show as chips that clear them one by one; `reset` restores the defaults.
  */
+defineOptions({ inheritAttrs: false });
 const props = defineProps<{ storeKey: string; chips: FilterChip[] }>();
 const emit = defineEmits<{ reset: [] }>();
 const { t } = useI18n();
@@ -26,7 +27,7 @@ const toggle = () => (mobile.value ? (sheetOpen.value = true) : (panelOpen.value
 </script>
 
 <template>
-  <div class="filterbar card">
+  <div class="filterbar card" v-bind="$attrs">
     <div class="filterbar-row">
       <slot name="toolbar" />
       <button type="button" class="filter-btn" :class="{ active: chips.length || (panelOpen && !mobile) }" :aria-expanded="mobile ? sheetOpen : panelOpen" @click="toggle">

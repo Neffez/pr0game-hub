@@ -258,11 +258,11 @@ const costClass = (b: { missing: Record<number, number> }, res: number) => (b.mi
         <p>{{ t('buildings.hint3') }}</p>
       </Hint>
     </template>
-    <div class="seg" data-tour="build-tabs">
-      <button :class="{ active: tab === 'buildings' }" @click="tab = 'buildings'">{{ t('buildings.tabBuildings') }}</button>
-      <button :class="{ active: tab === 'research' }" @click="tab = 'research'">{{ t('buildings.tabResearch') }}</button>
-      <button :class="{ active: tab === 'ships' }" @click="tab = 'ships'">{{ t('buildings.tabShips') }}</button>
-      <button :class="{ active: tab === 'order' }" @click="tab = 'order'">{{ t('buildings.tabOrder') }}</button>
+    <div class="seg">
+      <button data-tour="build-tab-buildings" :class="{ active: tab === 'buildings' }" @click="tab = 'buildings'">{{ t('buildings.tabBuildings') }}</button>
+      <button data-tour="build-tab-research" :class="{ active: tab === 'research' }" @click="tab = 'research'">{{ t('buildings.tabResearch') }}</button>
+      <button data-tour="build-tab-ships" :class="{ active: tab === 'ships' }" @click="tab = 'ships'">{{ t('buildings.tabShips') }}</button>
+      <button data-tour="build-tab-order" :class="{ active: tab === 'order' }" @click="tab = 'order'">{{ t('buildings.tabOrder') }}</button>
     </div>
   </PageHeader>
 
@@ -330,7 +330,7 @@ const costClass = (b: { missing: Record<number, number> }, res: number) => (b.mi
 
     <BuildOrder v-if="tab === 'order'" :hub="data" :planet-key="current.key" :mobile="mobile" />
     <template v-else>
-    <div class="row bld-filters">
+    <div class="row bld-filters" data-tour="build-filter">
       <select v-if="mobile" v-model="filter" :aria-label="t('buildings.filterLabel')">
         <option v-for="f in FILTERS" :key="f" :value="f">{{ t(`buildings.filter.${f}`) }}</option>
       </select>
@@ -396,7 +396,7 @@ const costClass = (b: { missing: Record<number, number> }, res: number) => (b.mi
                 </div>
               </td>
               <td>
-                <button class="small bld-bell alert-btn" :title="isHidden(s) ? t('buildings.unhide') : t('buildings.hide')" :aria-label="isHidden(s) ? t('buildings.unhide') : t('buildings.hide')" @click="toggleHidden(s)">
+                <button class="small bld-bell alert-btn" data-tour="build-hide" :title="isHidden(s) ? t('buildings.unhide') : t('buildings.hide')" :aria-label="isHidden(s) ? t('buildings.unhide') : t('buildings.hide')" @click="toggleHidden(s)">
                   <Icon :name="isHidden(s) ? 'spy' : 'eyeOff'" :size="14" />
                 </button>
               </td>
@@ -411,7 +411,7 @@ const costClass = (b: { missing: Record<number, number> }, res: number) => (b.mi
             <b>{{ name(s.id) }}</b>
             <span class="muted small">{{ fmt(s.count) }}<template v-if="s.queued"> · {{ t('buildings.queued', { n: fmt(s.queued) }) }}</template></span>
             <span class="grow" />
-            <button class="small bld-bell alert-btn" :title="isHidden(s) ? t('buildings.unhide') : t('buildings.hide')" :aria-label="isHidden(s) ? t('buildings.unhide') : t('buildings.hide')" @click="toggleHidden(s)">
+            <button class="small bld-bell alert-btn" data-tour="build-hide" :title="isHidden(s) ? t('buildings.unhide') : t('buildings.hide')" :aria-label="isHidden(s) ? t('buildings.unhide') : t('buildings.hide')" @click="toggleHidden(s)">
               <Icon :name="isHidden(s) ? 'spy' : 'eyeOff'" :size="14" />
             </button>
           </div>
@@ -492,13 +492,14 @@ const costClass = (b: { missing: Record<number, number> }, res: number) => (b.mi
               <button
                 v-if="alertable(b) || alertOf(b)"
                 class="small bld-bell alert-btn"
+                data-tour="build-bell"
                 :class="{ active: alertOf(b) }"
                 :disabled="busy === b.id"
                 :title="alertOf(b) ? t('buildings.alertOff') : t('buildings.alertOn', { level: b.next })"
                 :aria-label="alertOf(b) ? t('buildings.alertOff') : t('buildings.alertOn', { level: b.next })"
                 @click="toggleAlert(b)"
               ><Icon :name="alertOf(b) ? 'bell' : 'bellOff'" :size="14" /></button>
-              <button class="small bld-bell alert-btn" :title="isHidden(b) ? t('buildings.unhide') : t('buildings.hide')" :aria-label="isHidden(b) ? t('buildings.unhide') : t('buildings.hide')" @click="toggleHidden(b)">
+              <button class="small bld-bell alert-btn" data-tour="build-hide" :title="isHidden(b) ? t('buildings.unhide') : t('buildings.hide')" :aria-label="isHidden(b) ? t('buildings.unhide') : t('buildings.hide')" @click="toggleHidden(b)">
                 <Icon :name="isHidden(b) ? 'spy' : 'eyeOff'" :size="14" />
               </button>
             </td>
@@ -518,13 +519,14 @@ const costClass = (b: { missing: Record<number, number> }, res: number) => (b.mi
           <button
             v-if="alertable(b) || alertOf(b)"
             class="small bld-bell alert-btn"
+            data-tour="build-bell"
             :class="{ active: alertOf(b) }"
             :disabled="busy === b.id"
             :title="alertOf(b) ? t('buildings.alertOff') : t('buildings.alertOn', { level: b.next })"
             :aria-label="alertOf(b) ? t('buildings.alertOff') : t('buildings.alertOn', { level: b.next })"
             @click="toggleAlert(b)"
           ><Icon :name="alertOf(b) ? 'bell' : 'bellOff'" :size="14" /></button>
-          <button class="small bld-bell alert-btn" :title="isHidden(b) ? t('buildings.unhide') : t('buildings.hide')" :aria-label="isHidden(b) ? t('buildings.unhide') : t('buildings.hide')" @click="toggleHidden(b)">
+          <button class="small bld-bell alert-btn" data-tour="build-hide" :title="isHidden(b) ? t('buildings.unhide') : t('buildings.hide')" :aria-label="isHidden(b) ? t('buildings.unhide') : t('buildings.hide')" @click="toggleHidden(b)">
             <Icon :name="isHidden(b) ? 'spy' : 'eyeOff'" :size="14" />
           </button>
         </div>

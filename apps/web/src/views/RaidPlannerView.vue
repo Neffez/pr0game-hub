@@ -132,10 +132,10 @@ const delay = (p: AttackPlan) => (rp.exact(p) ? (rp.views.value.get(p.id)?.acs?.
   <PageHeader :title="t('nav.raids')" tour="raids">
     <template #hint><Hint>{{ tab === 'stats' ? t('raids.hint') : t('plans.hint') }}</Hint></template>
   </PageHeader>
-  <div class="seg tab-seg" data-tour="raids-tabs">
-    <button :class="{ active: tab === 'plans' }" @click="tab = 'plans'">{{ t('plans.tabPlans') }}</button>
-    <button :class="{ active: tab === 'settlements' }" @click="tab = 'settlements'">{{ t('plans.tabSettlements') }}</button>
-    <button :class="{ active: tab === 'stats' }" @click="tab = 'stats'">{{ t('plans.tabStats') }}</button>
+  <div class="seg tab-seg">
+    <button data-tour="raids-tab-plans" :class="{ active: tab === 'plans' }" @click="tab = 'plans'">{{ t('plans.tabPlans') }}</button>
+    <button data-tour="raids-tab-settlements" :class="{ active: tab === 'settlements' }" @click="tab = 'settlements'">{{ t('plans.tabSettlements') }}</button>
+    <button data-tour="raids-tab-stats" :class="{ active: tab === 'stats' }" @click="tab = 'stats'">{{ t('plans.tabStats') }}</button>
   </div>
 
   <LootSettlementList v-if="tab === 'settlements'" />
@@ -146,7 +146,7 @@ const delay = (p: AttackPlan) => (rp.exact(p) ? (rp.views.value.get(p.id)?.acs?.
       <span class="muted small">{{ t('plans.listHint') }}</span>
       <span class="grow" />
       <button class="primary btn-icon" data-tour="raids-new" @click="openForm()"><Icon name="plus" />{{ t('plans.new') }}</button>
-      <ActionMenu :items="[{ label: t('phalanx.paste'), icon: 'spy', hint: t('phalanx.menuHint'), onClick: () => (phalanx.open = true) }]" />
+      <span data-tour="raids-phalanx"><ActionMenu :items="[{ label: t('phalanx.paste'), icon: 'spy', hint: t('phalanx.menuHint'), onClick: () => (phalanx.open = true) }]" /></span>
     </div>
     <div v-if="error" class="error">{{ error }}</div>
 
@@ -161,7 +161,7 @@ const delay = (p: AttackPlan) => (rp.exact(p) ? (rp.views.value.get(p.id)?.acs?.
       <Icon name="chevronRight" class="muted" />
     </RouterLink>
 
-    <Section v-if="shownAttacks.length || hiddenAttacks.length" :title="t('retime.attacks')" :count="shownAttacks.length" store-key="raidPlanner.attacks" class="attacks">
+    <Section v-if="shownAttacks.length || hiddenAttacks.length" :title="t('retime.attacks')" :count="shownAttacks.length" store-key="raidPlanner.attacks" class="attacks" data-tour="raids-attacks">
       <p v-if="!shownAttacks.length" class="muted small">{{ t('plans.noAttacks') }}</p>
       <div v-for="a in shownAttacks" :key="a.key" class="item attack">
         <div class="item-main">
@@ -212,7 +212,7 @@ const delay = (p: AttackPlan) => (rp.exact(p) ? (rp.views.value.get(p.id)?.acs?.
       </Section>
     </Section>
 
-    <Section v-if="ownAttacks.length" :title="t('ownAttacks.title')" :count="ownAttacks.length" store-key="raidPlanner.ownAttacks" class="own-attacks">
+    <Section v-if="ownAttacks.length" :title="t('ownAttacks.title')" :count="ownAttacks.length" store-key="raidPlanner.ownAttacks" class="own-attacks" data-tour="raids-own">
       <template #hint><Hint>{{ t('ownAttacks.hint') }}</Hint></template>
       <div v-for="a in ownAttacks" :key="a.key" class="item attack">
         <div class="item-main">
@@ -240,7 +240,7 @@ const delay = (p: AttackPlan) => (rp.exact(p) ? (rp.views.value.get(p.id)?.acs?.
     </Section>
 
     <Loading v-if="!loaded" />
-    <Section :title="t('plans.current')" :count="current.length || null" store-key="raidPlanner.current" class="current">
+    <Section :title="t('plans.current')" :count="current.length || null" store-key="raidPlanner.current" class="current" data-tour="raids-current">
       <p v-if="loaded && !current.length" class="muted small">{{ t('plans.none') }}</p>
       <div v-if="current.length" class="plan-list flat">
         <RouterLink v-for="p in current" :id="`plan-${p.id}`" :key="p.id" :to="planLink(p.id)" class="plan-row" :class="{ mine: rp.myLaunch(p) }">
@@ -275,7 +275,7 @@ const delay = (p: AttackPlan) => (rp.exact(p) ? (rp.views.value.get(p.id)?.acs?.
       </div>
     </Section>
 
-    <Section :title="t('nav.targets')" :count="activeClaims.length || null" store-key="raidPlanner.targets" class="targets">
+    <Section :title="t('nav.targets')" :count="activeClaims.length || null" store-key="raidPlanner.targets" class="targets" data-tour="raids-targets">
       <template #hint><Hint>{{ t('claims.hint') }}</Hint></template>
       <ClaimedTargets />
     </Section>

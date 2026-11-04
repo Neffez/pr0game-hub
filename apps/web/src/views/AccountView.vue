@@ -244,7 +244,11 @@ const saveDateFormat = () =>
   }, () => t('account.dateFormatChanged'));
 
 // page tours: stored on the account by tours.ts
-const saveTours = (enabled: boolean) => run(() => setToursEnabled(enabled), () => t('account.toursSaved'));
+async function saveTours(e: Event) {
+  const box = e.target as HTMLInputElement;
+  await run(() => setToursEnabled(box.checked), () => t('account.toursSaved'));
+  box.checked = tours.value.enabled;
+}
 const forgetTours = () => run(() => resetTours(), () => t('account.toursResetDone'));
 </script>
 
@@ -275,7 +279,7 @@ const forgetTours = () => run(() => resetTours(), () => t('account.toursResetDon
         </div>
         <div class="field">
           <span class="field-label">{{ t('account.tours') }} <Hint>{{ t('account.toursHint') }}</Hint></span>
-          <label class="check"><input :checked="tours.enabled" type="checkbox" @change="saveTours(($event.target as HTMLInputElement).checked)" /> {{ t('account.toursEnabled') }}</label>
+          <label class="check"><input :checked="tours.enabled" type="checkbox" @change="saveTours" /> {{ t('account.toursEnabled') }}</label>
           <button type="button" :disabled="!tours.seen.length" @click="forgetTours">{{ t('account.toursReset') }}</button>
         </div>
         <div v-if="showOnline" class="field">

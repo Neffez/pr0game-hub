@@ -508,9 +508,9 @@ const history = computed(() => {
 
   <FilterBar data-tour="overview-filter" store-key="overview" :chips="chips" @reset="resetFilters">
     <template #toolbar>
-      <div class="seg" data-tour="overview-mode">
-        <button :class="{ active: mode === 'planets' }" @click="mode = 'planets'">{{ t('player.planets') }}</button>
-        <button :class="{ active: mode === 'players' }" @click="mode = 'players'">{{ t('stats.players') }}</button>
+      <div class="seg">
+        <button data-tour="overview-planets" :class="{ active: mode === 'planets' }" @click="mode = 'planets'">{{ t('player.planets') }}</button>
+        <button data-tour="overview-players" :class="{ active: mode === 'players' }" @click="mode = 'players'">{{ t('stats.players') }}</button>
       </div>
       <input v-model="filter.text" data-tour="overview-search" type="search" class="search" :placeholder="t('overview.searchPlayer')" :aria-label="t('overview.searchPlayer')" />
     </template>
@@ -658,7 +658,7 @@ const history = computed(() => {
               <template v-else>{{ r.planet.g }}:{{ r.planet.s }}:{{ r.planet.p }}</template>
             </span>
             <span v-if="r.planet.type === 'moon'" class="moon-tag m-0"><Icon name="moon" :size="12" :label="t('common.moon')" /></span>
-            <PlanetActions :g="r.planet.g" :s="r.planet.s" :p="r.planet.p" :type="r.planet.type" :from="origin" />
+            <span data-tour="overview-actions"><PlanetActions :g="r.planet.g" :s="r.planet.s" :p="r.planet.p" :type="r.planet.type" :from="origin" /></span>
           </template>
           <span v-else class="faint small" :title="t('overview.noPlanets')">–</span>
         </div>
@@ -713,7 +713,7 @@ const history = computed(() => {
   </template>
 
   <!-- Planet view (like the FF-Hub overview) -->
-  <div v-else-if="mode === 'planets'" class="table-wrap">
+  <div v-else-if="mode === 'planets'" class="table-wrap" data-tour="overview-list">
     <table class="data">
       <thead>
         <tr>
@@ -759,7 +759,7 @@ const history = computed(() => {
             </template>
             <span v-else class="faint" :title="t('overview.noPlanets')">–</span>
           </td>
-          <td><PlanetActions v-if="r.planet" :g="r.planet.g" :s="r.planet.s" :p="r.planet.p" :type="r.planet.type" :from="origin" /></td>
+          <td><span v-if="r.planet" data-tour="overview-actions"><PlanetActions :g="r.planet.g" :s="r.planet.s" :p="r.planet.p" :type="r.planet.type" :from="origin" /></span></td>
           <td v-if="origin" class="num">{{ num(r.dist) }}</td>
           <td class="num" :title="r.player.scores[1] ? `${t('stats.rank')} ${r.player.scores[1].rank} · ${t('stats.asOf', { time: dateTime(r.player.scores[1].time) })}` : ''">
             {{ shortOrEmpty(r.player.scores[1]?.points) }}
@@ -796,7 +796,7 @@ const history = computed(() => {
   </div>
 
   <!-- Player view: all categories with the selected window -->
-  <div v-else class="table-wrap">
+  <div v-else class="table-wrap" data-tour="overview-list">
     <table class="data">
       <thead>
         <tr>

@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-04
 
+- Alliance tag: the online list heading shows the tag only where the full alliance name does not fit on the line
+  (measured against the sidebar width, tooltip with the full name either way).
+
 - Alliance tag: an alliance can have a short tag (at most 10 characters; migration 077, `tag` in the context, `/api/auth/me`
   and the admin alliance list, set via `POST`/`PUT /api/admin/groups`; OpenAPI updated). The admin panel has a field
   next to the alliance name (when creating and editing). The online list heading in the sidebar shows the tag

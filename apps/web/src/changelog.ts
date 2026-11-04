@@ -20,8 +20,8 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
-        de: 'Allianzen können ein Kürzel bekommen (Admin-Bereich, neben dem Allianznamen). Es steht in der Online-Anzeige im Menü; der volle Name erscheint beim Darüberfahren.',
-        en: 'Alliances can have a short tag (admin panel, next to the alliance name). It is shown in the online list in the menu; the full name appears on hover.',
+        de: 'Allianzen können ein Kürzel bekommen (Admin-Bereich, neben dem Allianznamen). Es steht in der Online-Anzeige im Menü, wenn der volle Name dort nicht in die Zeile passt; der volle Name erscheint beim Darüberfahren.',
+        en: 'Alliances can have a short tag (admin panel, next to the alliance name). It is shown in the online list in the menu when the full name does not fit on the line; the full name appears on hover.',
       },
       {
         kind: 'new',

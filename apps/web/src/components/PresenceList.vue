@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useUni } from '../composables';
 import { ago } from '../format';
@@ -20,9 +20,35 @@ const online = computed(() => {
     .map((m) => ({ ...m, me: m.id === me, at: byId.get(m.id) ?? { userId: m.id, page: null, active: true } }))
     .sort((a, b) => Number(b.me) - Number(a.me));
 });
-/** The alliance's tag (its name where none is set); the tooltip shows the full name. */
-const onlineHeading = computed(() => t('presence.online', { n: online.value.length, group: ctx.value?.group.tag || ctx.value?.group.name || '' }));
+/** Heading with the alliance's full name; the tag (if set) replaces it only where the name does not fit on the line. */
 const onlineTitle = computed(() => t('presence.online', { n: online.value.length, group: ctx.value?.group.name ?? '' }));
+const onlineTag = computed(() => {
+  const tag = ctx.value?.group.tag;
+  return tag ? t('presence.online', { n: online.value.length, group: tag }) : null;
+});
+const head = ref<HTMLElement | null>(null);
+const probe = ref<HTMLElement | null>(null);
+const fits = ref(true);
+const onlineHeading = computed(() => (fits.value || !onlineTag.value ? onlineTitle.value : onlineTag.value));
+/** Measures the full heading (hidden probe with the same text style) against the room the line has. */
+function measure() {
+  const el = head.value;
+  const pr = probe.value;
+  if (!el || !pr) return;
+  const css = getComputedStyle(el);
+  fits.value = pr.offsetWidth <= el.clientWidth - parseFloat(css.paddingLeft) - parseFloat(css.paddingRight);
+}
+let observer: ResizeObserver | undefined;
+onMounted(() => {
+  measure();
+  if (head.value && typeof ResizeObserver !== 'undefined') {
+    observer = new ResizeObserver(measure);
+    observer.observe(head.value);
+  }
+  document.fonts?.ready.then(measure);
+});
+onBeforeUnmount(() => observer?.disconnect());
+watch(onlineTitle, () => nextTick(measure));
 const offline = computed(() => {
   const ids = new Set(presence.value.map((p) => p.userId));
   return (ctx.value?.members ?? [])
@@ -50,7 +76,7 @@ function where(p: PresenceMember) {
 
 <template>
   <div class="presence">
-    <div class="section one-line" :title="onlineTitle">{{ onlineHeading }}</div>
+    <div ref="head" class="section one-line" :title="onlineTitle"><span ref="probe" class="probe" aria-hidden="true">{{ onlineTitle }}</span>{{ onlineHeading }}</div>
     <div v-for="m in online" :key="m.id" class="member">
       <span class="dot" :class="{ away: !m.at.active }" :title="m.at.active ? t('presence.active') : t('presence.away')" />
       <span class="name" :class="roleClass(m)" :title="roleTitle(m)">{{ m.name }}<span v-if="m.me" class="muted"> ({{ t('presence.you') }})</span></span>
@@ -69,6 +95,8 @@ function where(p: PresenceMember) {
 
 <style scoped>
 .presence { padding: 0 0 4px; }
+.presence .one-line { position: relative; }
+.presence .probe { position: absolute; visibility: hidden; white-space: nowrap; pointer-events: none; }
 .member { display: flex; align-items: center; gap: 6px; padding: 2px 10px; font-size: 12px; min-width: 0; }
 .name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .name.group-admin { color: var(--pos); }
