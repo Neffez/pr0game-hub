@@ -1461,6 +1461,19 @@ describe('review fixes', () => {
     expect(db.prepare("SELECT player_id FROM activity_log WHERE dedupe_key = 'merge'").pluck().get()).toBe(into);
   });
 
+  it('keeps raid plans of merged players', async () => {
+    const groupX = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', headers: admin, payload: { universe: 'u8', name: 'MergePlans' } })).json().id;
+    const add = (name: string) => Number(db.prepare('INSERT INTO players (group_id, name) VALUES (?, ?)').run(groupX, name).lastInsertRowid);
+    const [from, into] = [add('OldPlan'), add('NewPlan')];
+    const plan = Number(
+      db.prepare("INSERT INTO attack_plans (group_id, user_id, player_id, g, s, p, planet_type, target_time) VALUES (?, 1, ?, 1, 2, 3, 'planet', 1000)")
+        .run(groupX, from).lastInsertRowid,
+    );
+    const res = await app.inject({ method: 'POST', url: `/hub/api/admin/groups/${groupX}/players/merge`, headers: admin, payload: { from, into } });
+    expect(res.statusCode).toBe(200);
+    expect(db.prepare('SELECT player_id FROM attack_plans WHERE id = ?').pluck().get(plan)).toBe(into);
+  });
+
   it('clamps limits and validates notes and deck settings', async () => {
     const headers = { ...admin, 'x-hub-group': String(groupA) };
     const spyCount = db.prepare('SELECT COUNT(*) FROM spy_reports WHERE group_id = ?').pluck().get(groupA) as number;

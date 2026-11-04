@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Die Flottenliste aus dem Seitenquelltext wird auch gespeichert, wenn auf der Übersicht kein Planet ausgewählt ist. Unbekannte Schiffe oder Verteidigung in einem Bericht werden als Warnung angezeigt. Zusammenführen von Spielern behält Raidpläne. Der Optimierte Recycler braucht standardmäßig Werft/Schilde/Impuls 6.',
+        en: 'The fleet list from page source is stored even when the overview has no selected planet. Unknown ships or defense in a report show a warning. Merging players keeps raid plans. The Optimized Recycler defaults to shipyard/shields/impulse 6.',
+      },
+      {
+        kind: 'fix',
         de: 'Wenn der Kampfsimulator einmal hängen bleibt, blockiert er die nächsten Simulationen nicht mehr. Sehr viele Syncs hintereinander werden kurz abgewiesen.',
         en: 'If the battle simulator hangs once, it no longer blocks the next simulations. Very many syncs in a short time are refused for a moment.',
       },

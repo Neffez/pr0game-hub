@@ -896,6 +896,7 @@ const de = {
       galaxy_needs_html: 'Galaxieansicht bitte als HTML/Quelltext einfügen (Plaintext enthält keine Koordinaten).',
       stats_not_saved: 'Statistik ohne Kategorie oder Datum wurde nicht gespeichert.',
       battle_report_no_id: 'Kampfbericht ohne Bericht-ID und ohne Zielkoordinaten – nicht archiviert.',
+      unknown_unit: 'Unbekanntes Schiff oder Verteidigung in der Seite – Werte dazu fehlen.',
     },
     counts: {
       player_scores: 'Spieler-Punkte',

@@ -76,7 +76,7 @@ for (const line of lines.slice(reqStart + 1)) {
 const extraReq = {
   222: { 21: 7, 118: 5, 121: 7 }, // Schwerer Kreuzer
   225: { 21: 4, 111: 4, 115: 5 }, // Sturmtransporter
-  227: { 21: 8, 110: 8, 117: 9 }, // Optimierter Recycler (Universe 7; elsewhere 6/6/6)
+  227: { 21: 6, 110: 6, 117: 6 }, // Optimierter Recycler (common; Universe 7 stores 8/8/9 as an override)
   231: { 21: 12, 114: 6, 118: 7, 199: 1 }, // Behemoth
   232: { 21: 12, 114: 6, 118: 7, 199: 1 }, // Void Titan
 };

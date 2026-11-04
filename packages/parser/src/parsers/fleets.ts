@@ -1,5 +1,5 @@
 import type { CheerioAPI } from 'cheerio';
-import { idByName } from '../tech.js';
+import { idByName, noteUnknownUnit } from '../tech.js';
 import type { FleetBody, FleetMovement, FleetsRecord } from '../types.js';
 import { COORDS_RE, parseCoords, parseNumber } from '../util.js';
 import { pageTime } from './empire.js';
@@ -74,6 +74,7 @@ function amounts(list: string): Record<number, number> {
     if (!m) continue;
     const id = idByName(m[2]);
     const n = parseNumber(m[1]);
+    if (id == null) noteUnknownUnit(m[2]);
     if (id != null && n != null) out[id] = (out[id] ?? 0) + n;
   }
   return out;

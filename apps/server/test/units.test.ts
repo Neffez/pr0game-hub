@@ -16,7 +16,7 @@ const groups: Record<string, number> = {};
 const call = (method: string, url: string, payload?: object, headers = admin) =>
   app.inject({ method: method as 'GET', url: `/hub/api${url}`, headers, payload });
 
-/** Shipyard 8, shield tech 8, impulse 9 on [1:1:1]: the optimized recycler (227) by its U7 requirements. */
+/** Shipyard 6 on [1:1:1]: enough for the default Optimized Recycler (6/6/6), not for Universe 7's 8/8/9. */
 const empire = {
   kind: 'empire', research: { 110: 8, 117: 9 },
   planets: [{
@@ -48,15 +48,15 @@ describe('units per universe', () => {
   it('starts with the defaults', async () => {
     const res = (await call('GET', '/admin/universes/u8/units')).json();
     expect(res.overrides).toEqual({});
-    expect(res.units[227].req).toEqual({ 21: 8, 110: 8, 117: 9 });
+    expect(res.units[227].req).toEqual({ 21: 6, 110: 6, 117: 6 });
     expect(res.defaults[231].name.de).toBe('Behemoth');
   });
 
   it('stores validated changes of one universe and leaves the others alone', async () => {
     expect((await call('PUT', '/admin/universes/u8/units', { units: { 227: { cost: [1] } } })).json()).toMatchObject({ code: 'units_invalid' });
+    expect((await call('PUT', '/admin/universes/u7/units', { units: { 227: { req: { 21: 8, 110: 8, 117: 9 } } } })).statusCode).toBe(200);
     const res = await call('PUT', '/admin/universes/u8/units', {
       units: {
-        227: { req: { 21: 6, 110: 6, 117: 6 } },
         231: { hidden: true },
         233: { name: { de: 'Sternenbrecher', en: 'Star Breaker' }, cost: [1500000, 750000, 250000], req: { 21: 10 } },
       },
@@ -64,7 +64,7 @@ describe('units per universe', () => {
     expect(res.statusCode).toBe(200);
     expect(res.json().units[231]).toBeUndefined();
     expect(res.json().units[233].cost).toEqual([1500000, 750000, 250000]);
-    expect((await call('GET', '/admin/universes/u7/units')).json().overrides).toEqual({});
+    expect((await call('GET', '/admin/universes/u7/units')).json().units[227].req).toEqual({ 21: 8, 110: 8, 117: 9 });
     const ctx = (await call('GET', '/u8/context', undefined, { ...admin, 'x-hub-group': String(groups.u8) })).json();
     expect(ctx.universe.units[231]).toEqual({ hidden: true });
   });

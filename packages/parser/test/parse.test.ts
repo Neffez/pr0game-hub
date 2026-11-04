@@ -828,6 +828,20 @@ describe('fleet movements', () => {
     expect(rec.fleets[1]).toMatchObject({ ships: { 203: 7, 204: 68, 207: 4, 215: 2 }, resources: { 903: 180719 }, clock: null });
   });
 
+  it('keeps fleet HTML when the overview has no selected planet', () => {
+    const html = fixture('overview-fleets.html').replace(' selected="selected"', '');
+    const res = parsePage({ html });
+    expect(res.pageType).toBe('fleets');
+    expect(res.records[0]).toMatchObject({ kind: 'fleets' });
+    expect((res.records[0] as { fleets: unknown[] }).fleets.length).toBeGreaterThan(0);
+  });
+
+  it('warns when a fleet list names an unknown ship', () => {
+    const res = parsePage({ text: '00:01:00 | 1m 0s Eine deiner Flotten (5 Unbekanntes Schiff) vom Planet A [1:1:1] erreicht den Planet B [1:1:2]. Mission: Transportieren' });
+    expect(res.warnings).toContain('unknown_unit');
+    expect((res.records[0] as { fleets: { ships: Record<number, number> }[] }).fleets[0].ships).toEqual({});
+  });
+
   // A hostile ACS attack as copied by a member: the game writes attacks on the viewer without player name
   // ("Eine Flotten(…)") and the further ACS fleets below the lead without time.
   const acsText = [

@@ -1,7 +1,7 @@
 // Message parsers (no cheerio) for what a loot settlement needs beyond battles: transports between planets (the
 // deliveries), interplanetary missile impacts and recyclers coming home.
 import type { MissileImpactRecord, RecycleReturnRecord, TransportRecord } from '../types.js';
-import { idByName } from '../tech.js';
+import { idByName, noteUnknownUnit } from '../tech.js';
 import { parseNumber, type LocalDateTime } from '../util.js';
 
 const C = String.raw`\[(\d+):(\d+):(\d+)\]`;
@@ -71,7 +71,10 @@ export function parseMissileImpactText(text: string, msgId: number | null, time:
   const losses: Record<number, number> = {};
   for (const l of rest.slice((ic.index ?? 0) + ic[0].length).matchAll(MISSILE_LOSS_RE)) {
     const id = idByName(l[1]);
-    if (id == null) continue;
+    if (id == null) {
+      noteUnknownUnit(l[1]);
+      continue;
+    }
     losses[id] = (losses[id] ?? 0) + n(l[2]);
   }
   return { ...base, result: 'hit', intercepted: Number(ic[1]), losses };

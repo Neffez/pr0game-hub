@@ -11,6 +11,7 @@ import { isMarketplaceHtml, isMarketplaceText, parseMarketplaceHtml, parseMarket
 import { isCombatReportText, isCombatSimulation, parseCombatReportText } from './parsers/combatReport.js';
 import { isStatsText, parseStatsHtml, parseStatsText } from './parsers/stats.js';
 import type { HubRecord, PageType, ParseResult, StatsType } from './types.js';
+import { takeUnknownUnits } from './tech.js';
 import { detectLang, nodeToText, normalizeText } from './util.js';
 
 export * from './types.js';
@@ -57,6 +58,7 @@ export function parsePage(input: ParseInput): ParseResult {
   }
 
   const warnings: string[] = [];
+  takeUnknownUnits();
   // the document is loaded once and shared by the parsers (they only change clones). htmlparser2 instead of cheerio's
   // default parse5: the DOM takes less than half the memory (~11× the HTML instead of ~28×) and loads twice as fast;
   // it adds no missing <tbody>, which no parser relies on (rows are found by descendant or child selectors).
@@ -68,12 +70,14 @@ export function parsePage(input: ParseInput): ParseResult {
   if ($) {
     const res = parseHtml($, htmlText, input, warnings);
     if (res.records.length || !text) {
+      if (takeUnknownUnits().length) warnings.push('unknown_unit');
       return { ...res, lang, source: 'html', warnings };
     }
     warnings.push('html_no_data');
   }
 
   const res = parseText(plain, input, warnings);
+  if (takeUnknownUnits().length) warnings.push('unknown_unit');
   return { ...res, lang, source: 'text', warnings };
 }
 
@@ -137,11 +141,13 @@ function parseHtml($: cheerio.CheerioAPI, htmlText: string, input: ParseInput, w
     const r = parseEmpireHtml($);
     if (r) return { pageType: 'empire', records: [r] };
   }
+  const fleetsHtml = parseFleetsHtml($);
   if (page === 'overview' || isOverviewHtml($)) {
     const r = parseOverviewHtml($);
-    const fleets = parseFleetsHtml($);
-    if (r) return { pageType: 'overview', records: fleets ? [r, fleets] : [r] };
+    if (r) return { pageType: 'overview', records: fleetsHtml ? [r, fleetsHtml] : [r] };
+    if (fleetsHtml) return { pageType: 'fleets', records: [fleetsHtml] };
   }
+  if (fleetsHtml?.fleets.length) return { pageType: 'fleets', records: [fleetsHtml] };
   if (page === 'messages' || isMessagesHtml($)) {
     return { pageType: 'messages', records: parseMessagesHtml($) };
   }

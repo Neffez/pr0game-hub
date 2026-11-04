@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-04
 
+- Data: player merge remaps raid plans and every other `players` foreign key; the Optimized Recycler defaults to
+  shipyard/shields/impulse 6 (Universe 7 keeps 8/8/9 as an override); fleet HTML is stored even without a selected
+  planet; unknown ship or defense names on a pasted page produce a warning.
+
 - Availability: the battle worker releases its slot if it exits without a result; push subscriptions must use a known
   browser push host (FCM, Mozilla, Apple, Windows); paste and universe.json are rate-limited per user and group.
 

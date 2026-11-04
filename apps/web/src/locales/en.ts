@@ -894,6 +894,7 @@ const en: typeof de = {
       galaxy_needs_html: 'Please paste the galaxy view as HTML/page source (plain text has no coordinates).',
       stats_not_saved: 'Statistics without category or date were not saved.',
       battle_report_no_id: 'Battle report without report ID and without target coordinates – not archived.',
+      unknown_unit: 'Unknown ship or defense on the page – those values are missing.',
     },
     counts: {
       player_scores: 'Player points',

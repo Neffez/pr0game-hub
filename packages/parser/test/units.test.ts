@@ -18,6 +18,7 @@ describe('unit catalog', () => {
     expect(DEFAULT_UNITS.capacity).toEqual(CAPACITY);
     expect(DEFAULT_UNITS.drives).toEqual(DRIVES);
     expect(DEFAULT_UNITS.units[214].rapidfire[225]).toBe(140);
+    expect(DEFAULT_UNITS.units[227].req).toEqual({ 21: 6, 110: 6, 117: 6 });
     expect(DEFAULT_UNITS.units[222]).toMatchObject({ attack: 620, shield: 100, name: { de: 'Schwerer Kreuzer', en: 'Heavy Cruiser' }, short: { de: 'HXer' } });
     expect(DEFAULT_UNITS.ships).toContain(212);
     expect(DEFAULT_UNITS.defense).toEqual([401, 402, 403, 404, 405, 406, 407, 408, 502, 503]);

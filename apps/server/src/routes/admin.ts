@@ -478,11 +478,10 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
     if (!Number.isInteger(from) || !Number.isInteger(into) || both.length !== 2 || from === into) throw new HttpError(400, 'players_invalid', 'Invalid players');
     const src = both.find((p) => p.id === from)!;
     db.transaction(() => {
-      // Scores of the same snapshot: keep the target's.
-      db.prepare('UPDATE OR IGNORE player_scores SET player_id = ? WHERE player_id = ?').run(into, from);
-      for (const table of ['spy_reports', 'planets', 'comments']) db.prepare(`UPDATE ${table} SET player_id = ? WHERE player_id = ?`).run(into, from);
-      db.prepare('UPDATE OR IGNORE player_aliases SET player_id = ? WHERE player_id = ?').run(into, from);
-      for (const table of ['player_status_log', 'activity_log', 'player_activity']) db.prepare(`UPDATE ${table} SET player_id = ? WHERE player_id = ?`).run(into, from);
+      // Every table that references players (scores, spies, plans, comments, …). Conflicts keep the target's row.
+      for (const { table, column } of playerReferences(db)) {
+        db.prepare(`UPDATE OR IGNORE ${table} SET ${column} = ? WHERE ${column} = ?`).run(into, from);
+      }
       db.prepare('INSERT OR REPLACE INTO player_aliases (player_id, name, seen_until) VALUES (?, ?, ?)').run(into, src.name, src.last_seen);
       if (src.ingame_id) db.prepare('UPDATE players SET ingame_id = NULL WHERE id = ?').run(from);
       db.prepare('UPDATE players SET ingame_id = COALESCE(ingame_id, ?), first_seen = MIN(first_seen, ?) WHERE id = ?').run(src.ingame_id, src.first_seen, into);
@@ -659,6 +658,15 @@ function validateSettings(settings: object | undefined) {
     }
     if (!valid) throw new HttpError(400, 'setting_invalid', `Invalid setting: ${key}`);
   }
+}
+
+function playerReferences(db: DB): { table: string; column: string }[] {
+  const tables = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'").pluck().all() as string[];
+  return tables.flatMap((t) =>
+    (db.pragma(`foreign_key_list(${JSON.stringify(t)})`) as { table: string; from: string }[])
+      .filter((fk) => fk.table === 'players')
+      .map((fk) => ({ table: t, column: fk.from })),
+  );
 }
 
 function validateDeck(deck: unknown) {

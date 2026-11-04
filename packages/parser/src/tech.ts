@@ -73,6 +73,20 @@ export function idByName(name: string): number | null {
   return NAME_TO_ID.get(norm(name)) ?? null;
 }
 
+/** Names a parser expected to resolve as a unit and could not (drained into `unknown_unit` on parsePage). */
+const unknownUnits = new Set<string>();
+
+export function noteUnknownUnit(name: string) {
+  const n = name.replace(/\s+/g, ' ').trim();
+  if (n) unknownUnits.add(n);
+}
+
+export function takeUnknownUnits(): string[] {
+  const names = [...unknownUnits];
+  unknownUnits.clear();
+  return names;
+}
+
 /**
  * Makes the unit names of a universe known to the parsers (game ids are the same in every universe, so names are
  * looked up across all of them) and to `techName`. Names of the defaults keep their id.
@@ -145,5 +159,7 @@ for (const key of ['deShort', 'enShort', 'piShort']) {
 
 /** Element id by the short name used in battle reports ("Kl. Transporter"); falls back to the full name. */
 export function idByShortName(name: string): number | null {
-  return SHORT_TO_ID.get(norm(name)) ?? idByName(name);
+  const id = SHORT_TO_ID.get(norm(name)) ?? idByName(name);
+  if (id == null) noteUnknownUnit(name);
+  return id;
 }
