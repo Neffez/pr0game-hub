@@ -14,6 +14,10 @@ export interface TourStep {
   key: string;
   el?: string;
   side?: 'top' | 'bottom' | 'left' | 'right';
+  /** content of these tabs: in the whole tour only on them, else in the tab's own tour on its first visit */
+  tabs?: string[];
+  /** the button of this tab: also the first step of the tab's own tour */
+  head?: string;
 }
 export interface Tour {
   steps: TourStep[];
@@ -49,29 +53,40 @@ export const TOURS = {
   build: {
     steps: [
       { key: 'intro' },
-      { key: 'buildings', el: 'build-tab-buildings', side: 'bottom' },
-      { key: 'research', el: 'build-tab-research', side: 'bottom' },
-      { key: 'ships', el: 'build-tab-ships', side: 'bottom' },
-      { key: 'order', el: 'build-tab-order', side: 'bottom' },
+      { key: 'buildings', el: 'build-tab-buildings', side: 'bottom', head: 'buildings' },
+      { key: 'research', el: 'build-tab-research', side: 'bottom', head: 'research' },
+      { key: 'ships', el: 'build-tab-ships', side: 'bottom', head: 'ships' },
+      { key: 'order', el: 'build-tab-order', side: 'bottom', head: 'order' },
       { key: 'planet', el: 'build-planet', side: 'bottom' },
-      { key: 'filter', el: 'build-filter', side: 'bottom' },
-      { key: 'bell', el: 'build-bell', side: 'left' },
-      { key: 'hide', el: 'build-hide', side: 'left' },
+      { key: 'researchList', el: 'build-list', side: 'top', tabs: ['research'] },
+      { key: 'amount', el: 'build-amount', side: 'left', tabs: ['ships'] },
+      { key: 'orderHead', el: 'build-order-head', side: 'bottom', tabs: ['order'] },
+      { key: 'orderList', el: 'build-order-list', side: 'top', tabs: ['order'] },
+      { key: 'filter', el: 'build-filter', side: 'bottom', tabs: ['buildings', 'research', 'ships'] },
+      { key: 'bell', el: 'build-bell', side: 'left', tabs: ['buildings', 'research'] },
+      { key: 'hide', el: 'build-hide', side: 'left', tabs: ['buildings', 'research', 'ships'] },
       { key: 'outro' },
     ],
   },
   raids: {
     steps: [
       { key: 'intro' },
-      { key: 'plans', el: 'raids-tab-plans', side: 'bottom' },
-      { key: 'settlements', el: 'raids-tab-settlements', side: 'bottom' },
-      { key: 'stats', el: 'raids-tab-stats', side: 'bottom' },
-      { key: 'new', el: 'raids-new', side: 'bottom' },
-      { key: 'phalanx', el: 'raids-phalanx', side: 'left' },
-      { key: 'attacks', el: 'raids-attacks', side: 'top' },
-      { key: 'own', el: 'raids-own', side: 'top' },
-      { key: 'current', el: 'raids-current', side: 'top' },
-      { key: 'targets', el: 'raids-targets', side: 'top' },
+      { key: 'plans', el: 'raids-tab-plans', side: 'bottom', head: 'plans' },
+      { key: 'settlements', el: 'raids-tab-settlements', side: 'bottom', head: 'settlements' },
+      { key: 'stats', el: 'raids-tab-stats', side: 'bottom', head: 'stats' },
+      { key: 'new', el: 'raids-new', side: 'bottom', tabs: ['plans'] },
+      { key: 'phalanx', el: 'raids-phalanx', side: 'left', tabs: ['plans'] },
+      { key: 'attacks', el: 'raids-attacks', side: 'top', tabs: ['plans'] },
+      { key: 'own', el: 'raids-own', side: 'top', tabs: ['plans'] },
+      { key: 'current', el: 'raids-current', side: 'top', tabs: ['plans'] },
+      { key: 'targets', el: 'raids-targets', side: 'top', tabs: ['plans'] },
+      { key: 'settleTools', el: 'raids-settle-tools', side: 'bottom', tabs: ['settlements'] },
+      { key: 'settleList', el: 'raids-settle-list', side: 'top', tabs: ['settlements'] },
+      { key: 'statsFilter', el: 'raids-stats-filter', side: 'bottom', tabs: ['stats'] },
+      { key: 'statsPlayers', el: 'raids-stats-players', side: 'top', tabs: ['stats'] },
+      { key: 'statsReports', el: 'raids-stats-reports', side: 'top', tabs: ['stats'] },
+      { key: 'statsRecycling', el: 'raids-stats-recycling', side: 'top', tabs: ['stats'] },
+      { key: 'statsMissiles', el: 'raids-stats-missiles', side: 'top', tabs: ['stats'] },
       { key: 'outro' },
     ],
   },
@@ -172,7 +187,8 @@ export const TOURS = {
       { key: 'intro' },
       { key: 'tabs', el: 'alliance-fleet-tabs', side: 'bottom' },
       { key: 'freshness', el: 'alliance-freshness', side: 'bottom' },
-      { key: 'list', el: 'alliance-list', side: 'top' },
+      { key: 'list', el: 'alliance-list', side: 'top', tabs: ['movements'] },
+      { key: 'units', el: 'alliance-list', side: 'top', tabs: ['ships', 'defense'] },
     ],
   },
   research: {
@@ -195,14 +211,14 @@ export const TOURS = {
   expeditions: {
     steps: [
       { key: 'intro' },
-      { key: 'stats', el: 'expo-tab-stats', side: 'bottom' },
-      { key: 'yields', el: 'expo-yields', side: 'top' },
-      { key: 'distribution', el: 'expo-distribution', side: 'top' },
-      { key: 'recent', el: 'expo-recent', side: 'top' },
-      { key: 'deck', el: 'expo-tab-deck', side: 'bottom' },
-      { key: 'deckSummary', el: 'expo-deck-summary', side: 'bottom' },
-      { key: 'deckCards', el: 'expo-deck-cards', side: 'top' },
-      { key: 'deckAdd', el: 'expo-deck-add', side: 'top' },
+      { key: 'stats', el: 'expo-tab-stats', side: 'bottom', head: 'stats' },
+      { key: 'deck', el: 'expo-tab-deck', side: 'bottom', head: 'deck' },
+      { key: 'yields', el: 'expo-yields', side: 'top', tabs: ['stats'] },
+      { key: 'distribution', el: 'expo-distribution', side: 'top', tabs: ['stats'] },
+      { key: 'recent', el: 'expo-recent', side: 'top', tabs: ['stats'] },
+      { key: 'deckSummary', el: 'expo-deck-summary', side: 'bottom', tabs: ['deck'] },
+      { key: 'deckCards', el: 'expo-deck-cards', side: 'top', tabs: ['deck'] },
+      { key: 'deckAdd', el: 'expo-deck-add', side: 'top', tabs: ['deck'] },
     ],
   },
   account: {
@@ -240,7 +256,13 @@ type ToursState = { enabled: boolean; seen: string[] };
 /** Tour state of the logged-in user (defaults while the session is not loaded). */
 export const tours = computed<ToursState>(() => session.me?.user?.tours ?? { enabled: true, seen: [] });
 
+/** Seen id of a tab's content: a tour seen on one tab doesn't cover the others. */
+const tabSeenId = (id: TourId, tab: string) => `${id}-${tab}`;
+const isSeen = (seenId: string) => tours.value.seen.includes(seenId);
+
 let active: Driver | null = null;
+/** The open tab of each page with tabs, set by the view (`useAutoTour`), for the "?" button. */
+const openTab = new Map<TourId, () => string | undefined>();
 
 /** The first visible element of a `data-tour` attribute (desktop and mobile variants may both exist). */
 function findEl(name: string): HTMLElement | undefined {
@@ -252,10 +274,16 @@ async function post(body: { seen?: string; enabled?: boolean; reset?: true }) {
   const res = await api<ToursState>('/auth/tours', { body });
   if (session.me?.user) session.me.user.tours = res;
 }
-/** Marks a tour as seen, and with `never` switches the automatic start off (one request, so the state can't race). */
-async function finishTour(id: TourId, never: boolean) {
+/**
+ * Marks a tour (and the tab whose content it showed) as seen; with `never` also switches the automatic start off,
+ * in the first request so the state can't race.
+ */
+async function finishTour(seen: string[], never: boolean) {
+  // right away, so a tab switch just after closing doesn't start the same tour again
+  const user = session.me?.user;
+  if (user?.tours) user.tours = { enabled: never ? false : user.tours.enabled, seen: [...new Set([...user.tours.seen, ...seen])] };
   try {
-    await post(never ? { seen: id, enabled: false } : { seen: id });
+    for (const [i, s] of seen.entries()) await post(never && i === 0 ? { seen: s, enabled: false } : { seen: s });
   } catch (e) {
     console.warn('tours: could not be saved', e);
   }
@@ -272,27 +300,49 @@ export function stopTour() {
 }
 
 /**
- * Starts the tour; steps whose element is not on the page are dropped, and without any element left nothing starts.
- * `auto: false` (the "?" button) runs it even when tours are switched off. Closing or finishing marks it as seen,
- * leaving the page does not.
+ * The steps of a run. The whole tour: the general steps plus the content of the open tab. A tab's own tour
+ * (`tabOnly`): its tab button, then its content that no tour of another tab has shown yet.
  */
-export function startTour(id: TourId, opts: { auto?: boolean } = {}) {
-  if (opts.auto && !tours.value.enabled) return;
-  stopTour();
+function pickSteps(id: TourId, tab: string | undefined, tabOnly: boolean): TourStep[] {
+  const steps = TOURS[id].steps as TourStep[];
+  if (!tabOnly) return steps.filter((s) => !s.tabs || (tab != null && s.tabs.includes(tab)));
+  if (tab == null) return [];
+  return steps.filter((s) => s.head === tab || (s.tabs?.includes(tab) && !s.tabs.some((x) => x !== tab && isSeen(tabSeenId(id, x)))));
+}
+
+/**
+ * Starts the tour; steps whose element is not on the page are dropped, and without any element left (or, for a tab's
+ * own tour, without new content) nothing starts: returns whether it started. `auto: false` (the "?" button) runs it
+ * even when tours are switched off. Closing or finishing marks it as seen, leaving the page does not.
+ */
+export function startTour(id: TourId, opts: { auto?: boolean; tabOnly?: boolean; waitForTab?: boolean } = {}): boolean {
+  if (opts.auto && !tours.value.enabled) return false;
+  const tab = openTab.get(id)?.();
   const steps: DriveStep[] = [];
-  for (const s of TOURS[id].steps as TourStep[]) {
+  let content = false;
+  let tabContent = false;
+  const picked = pickSteps(id, tab, !!opts.tabOnly);
+  for (const s of picked) {
     const popover = { title: t(`tours.${id}.${s.key}.title`), description: t(`tours.${id}.${s.key}.text`), side: s.side };
     if (!s.el) {
       steps.push({ popover });
       continue;
     }
     const el = findEl(s.el);
-    if (el) steps.push({ element: el, popover });
+    if (!el) continue;
+    steps.push({ element: el, popover });
+    if (!opts.tabOnly || s.head !== tab) content = true;
+    if (s.tabs) tabContent = true;
   }
-  if (!steps.some((s) => s.element)) return;
+  if (!content) return false;
+  // the open tab's content may still be loading: `waitForTab` holds the start until some of it is there
+  if (opts.waitForTab && !tabContent && picked.some((s) => s.tabs)) return false;
+  stopTour();
+  const seen: string[] = opts.tabOnly ? [] : [id];
+  if (tab != null) seen.push(tabSeenId(id, tab));
   let ended = false;
   const finish = (never: boolean) => {
-    if (!ended) void finishTour(id, never);
+    if (!ended) void finishTour(seen, never);
     ended = true;
     if (active === drv) active = null;
     drv.destroy();
@@ -321,38 +371,55 @@ export function startTour(id: TourId, opts: { auto?: boolean } = {}) {
   });
   active = drv;
   drv.drive();
+  return true;
 }
 
 /**
  * In a view: starts the tour the first time `ready` is true if tours are on and this one is unseen; leaving the view
  * cancels a pending start and ends a running tour. `id` may change while the view stays (one view for several menu
- * pages): the running tour then ends and the new page's tour gets its own first start.
+ * pages): the running tour then ends and the new page's tour gets its own first start. With `tab` (the open tab of a
+ * page with tabs), the first visit of another tab after the tour starts that tab's own tour with what is new there.
  */
-export function useAutoTour(id: MaybeRefOrGetter<TourId>, ready: MaybeRefOrGetter<boolean>) {
-  const done = new Set<TourId>();
+export function useAutoTour(id: MaybeRefOrGetter<TourId>, ready: MaybeRefOrGetter<boolean>, tab?: MaybeRefOrGetter<string | undefined>) {
+  const done = new Set<string>();
   let timer: ReturnType<typeof setTimeout> | undefined;
   let alive = true;
-  const current = () => alive && toValue(id);
+  const tabOf = () => (tab == null ? undefined : toValue(tab));
+  const where = () => (alive ? `${toValue(id)}|${tabOf() ?? ''}` : '');
+  const registered: TourId[] = [];
   watch(
-    () => [toValue(id), toValue(ready) && !!session.me?.user] as const,
-    async ([tid, ok], old) => {
-      if (old && old[0] !== tid) {
-        clearTimeout(timer);
-        stopTour();
+    () => [toValue(id), tabOf(), toValue(ready) && !!session.me?.user] as const,
+    async ([tid, tb, ok], old) => {
+      if (tab != null && !openTab.has(tid)) {
+        openTab.set(tid, tabOf);
+        registered.push(tid);
       }
-      if (!ok || done.has(tid)) return;
-      done.add(tid);
-      if (!tours.value.enabled || tours.value.seen.includes(tid)) return;
+      if (old && (old[0] !== tid || old[1] !== tb)) {
+        clearTimeout(timer);
+        if (old[0] !== tid) stopTour();
+      }
+      const key = `${tid}|${tb ?? ''}`;
+      if (!ok || done.has(key)) return;
+      done.add(key);
+      if (!tours.value.enabled) return;
+      const tabOnly = isSeen(tid);
+      if (tabOnly && (tb == null || isSeen(tabSeenId(tid, tb)))) return;
       await nextTick();
-      if (current() !== tid) return;
-      // let lists and sections render before the elements are looked up
-      timer = setTimeout(() => current() === tid && startTour(tid, { auto: true }), 300);
+      // lists and sections (tabs load their own data) render a moment later: try for up to 3 seconds
+      let tries = 0;
+      const attempt = () => {
+        if (where() !== key) return;
+        if (startTour(tid, { auto: true, tabOnly, waitForTab: tries < 9 }) || ++tries >= 10) return;
+        timer = setTimeout(attempt, 300);
+      };
+      timer = setTimeout(attempt, 300);
     },
     { immediate: true },
   );
   onBeforeUnmount(() => {
     alive = false;
     clearTimeout(timer);
+    for (const tid of registered) if (openTab.get(tid) === tabOf) openTab.delete(tid);
     stopTour();
   });
 }

@@ -4,6 +4,16 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-04
 
+- Page tours per tab: on build & research, raid planner, expeditions and fleets the tour shows the general steps and
+  the open tab's content; the first visit of another tab later starts a short tour of what no tour has shown there
+  yet (its tab button, then its content), and nothing when there is nothing new.
+  - Steps declare `tabs` (content) and `head` (tab button); a tab counts as seen as `<tour>-<tab>` in the account's
+    seen list, and the "?" button runs the whole tour for the open tab.
+  - New content steps: research list, ship amount and build order on the build page; settlements list and its
+    filters plus every statistics table in the raid planner; ships and defense on the fleet page.
+  - The automatic start waits up to 3 seconds for a tab's content that loads on its own, and the seen state is taken
+    over locally right away, so a quick tab switch after closing doesn't repeat the tour.
+
 - Page tour for the admin panel, with a "?" in its title: universes, access requests, alliances, members (claim and
   password links), the alliance's Discord channel, fleet movements, battle report archive, system, activity log
   backfill, player merge and syncs; sections an alliance admin doesn't see are skipped.

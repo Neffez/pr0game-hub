@@ -79,7 +79,7 @@ const left = (e: Entry) => {
 </script>
 
 <template>
-  <div class="row" style="margin-bottom: 12px">
+  <div class="row" data-tour="raids-settle-tools" style="margin-bottom: 12px">
     <span class="muted small">{{ t('loot.listHint') }}</span>
     <span class="grow" />
     <label class="small row" style="gap: 4px"><input v-model="onlyMine" type="checkbox" /> {{ t('loot.onlyMine') }}</label>
@@ -111,7 +111,7 @@ const left = (e: Entry) => {
   </Sheet>
   <div v-if="error" class="error">{{ error }}</div>
   <div v-else-if="data && !shown.length" class="card muted">{{ t('loot.listEmpty') }}</div>
-  <div v-else-if="data" class="table-wrap flat">
+  <div v-else-if="data" class="table-wrap flat" data-tour="raids-settle-list">
     <table v-stack class="data">
       <thead>
         <tr>

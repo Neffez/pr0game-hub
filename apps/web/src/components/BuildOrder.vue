@@ -164,7 +164,7 @@ function onDrop(i: number) {
 
 <template>
   <div v-if="error" class="error">{{ error }}</div>
-  <div class="card">
+  <div class="card" data-tour="build-order-head">
     <div class="row small">
       <template v-if="stored">
         <span class="muted">{{ t('buildOrder.imported', { time: dateTime(stored.createdAt) }) }}</span>
@@ -200,7 +200,7 @@ function onDrop(i: number) {
         <label v-if="doneCount"><input v-model="showDone" type="checkbox" /> {{ t('buildOrder.showDone', { n: doneCount }) }}</label>
         <span v-if="invalidCount" class="neg">{{ t('buildOrder.invalidCount', { n: invalidCount }) }}</span>
       </div>
-      <div class="bo-list">
+      <div class="bo-list" data-tour="build-order-list">
         <div
           v-for="r in shownRows"
           :key="r.step.id"

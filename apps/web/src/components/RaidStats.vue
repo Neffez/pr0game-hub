@@ -160,13 +160,13 @@ const targetLink = (r: any) => ({ path: `/${uni.value}/spy`, query: { c: `${r.g}
 </script>
 
 <template>
-  <div class="card row">
+  <div class="card row" data-tour="raids-stats-filter">
     <RangePicker v-model="days" />
     <MemberSelect v-model="member" :all-label="t('raids.wholeAlliance')" />
   </div>
   <div v-if="error" class="error">{{ error }}</div>
   <template v-if="data">
-    <Section :title="t('raids.perPlayer')" :card="false" :level="2" store-key="raids.players">
+    <Section data-tour="raids-stats-players" :title="t('raids.perPlayer')" :card="false" :level="2" store-key="raids.players">
     <SortBar v-if="mobile" v-model:desc="perUserSort.descending.value" :sort-key="perUserSort.key.value" :options="perUserOptions" @sort="perUserSort.sortBy" />
     <div class="table-wrap flat">
       <table v-stack class="data">
@@ -202,7 +202,7 @@ const targetLink = (r: any) => ({ path: `/${uni.value}/spy`, query: { c: `${r.g}
     </div>
     </Section>
 
-    <Section :title="t('raids.reports')" :count="reports.length" :card="false" :level="2" store-key="raids.reports">
+    <Section data-tour="raids-stats-reports" :title="t('raids.reports')" :count="reports.length" :card="false" :level="2" store-key="raids.reports">
     <SortBar v-if="mobile" v-model:desc="reportSort.descending.value" :sort-key="reportSort.key.value" :options="reportOptions" @sort="reportSort.sortBy" />
     <div class="table-wrap">
       <table v-stack="3" class="data">
@@ -236,7 +236,7 @@ const targetLink = (r: any) => ({ path: `/${uni.value}/spy`, query: { c: `${r.g}
     <ShowMore :limit="reportsLimit" />
     </Section>
 
-    <Section :title="t('raids.recycling')" :count="recycling.length" :card="false" :level="2" store-key="raids.recycling">
+    <Section data-tour="raids-stats-recycling" :title="t('raids.recycling')" :count="recycling.length" :card="false" :level="2" store-key="raids.recycling">
     <template #hint><Hint>{{ t('raids.recyclingHint') }}</Hint></template>
     <SortBar v-if="mobile" v-model:desc="recyclerSort.descending.value" :sort-key="recyclerSort.key.value" :options="recyclerOptions" @sort="recyclerSort.sortBy" />
     <div class="table-wrap flat">
@@ -290,7 +290,7 @@ const targetLink = (r: any) => ({ path: `/${uni.value}/spy`, query: { c: `${r.g}
     <ShowMore :limit="recyclingLimit" />
     </Section>
 
-    <Section :title="t('raids.missiles')" :count="missiles.length" :card="false" :level="2" store-key="raids.missiles">
+    <Section data-tour="raids-stats-missiles" :title="t('raids.missiles')" :count="missiles.length" :card="false" :level="2" store-key="raids.missiles">
     <template #hint><Hint>{{ t('raids.missilesHint') }}</Hint></template>
     <SortBar v-if="mobile" v-model:desc="missileUserSort.descending.value" :sort-key="missileUserSort.key.value" :options="missileUserOptions" @sort="missileUserSort.sortBy" />
     <div class="table-wrap flat">

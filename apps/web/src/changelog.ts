@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Tutorials für Tabs: Wechselst du nach der ersten Tour in einen anderen Tab (Bauen & Forschen, Raidplaner, Expeditionen, Flotten), erklärt eine kurze Tour, was dort neu ist, etwa Abrechnungen und Raid-Statistiken.',
+        en: 'Tutorials for tabs: when you switch to another tab after the first tour (build & research, raid planner, expeditions, fleets), a short tour explains what is new there, such as settlements and raid statistics.',
+      },
+      {
+        kind: 'new',
         de: 'Auch das Admin-Panel hat jetzt ein Tutorial: Es erklärt Allianzen, Mitglieder mit Claim- und Passwort-Links, Zugangsanfragen und den Discord-Kanal, für Hub-Admins auch Universen und die Wartung.',
         en: 'The admin panel now has a tutorial too: it explains alliances, members with claim and password links, access requests and the Discord channel, for hub admins also universes and maintenance.',
       },

@@ -153,7 +153,7 @@ async function removeManual(e: any) {
   await uniApi(uni.value, `/deck/events/${e.id}`, { method: 'DELETE' });
   await load();
 }
-useAutoTour('expeditions', () => !!data.value);
+useAutoTour('expeditions', () => !!data.value, 'stats');
 </script>
 
 <template>

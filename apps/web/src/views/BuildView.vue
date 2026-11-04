@@ -113,7 +113,7 @@ watch(
   { immediate: true },
 );
 const allPlanets = computed(() => data.value?.planets ?? []);
-useAutoTour('build', () => !!data.value && allPlanets.value.length > 0);
+useAutoTour('build', () => !!data.value && allPlanets.value.length > 0, tab);
 /** research is started on planets (moons have no lab); build orders are for planets */
 const planets = computed(() => (tab.value === 'research' || tab.value === 'order' ? allPlanets.value.filter((p) => p.type === 'planet') : allPlanets.value));
 const current = computed(() => planets.value.find((p) => p.key === stored.value) ?? planets.value[0] ?? null);
@@ -389,7 +389,7 @@ const costClass = (b: { missing: Record<number, number> }, res: number) => (b.mi
               </td>
               <td class="num mono">{{ s.time != null ? countdown(s.time) : '–' }}</td>
               <td class="num small">
-                <input v-model.number="amounts[s.id]" type="number" min="1" class="bld-amount" :aria-label="t('buildings.amount')" placeholder="1" />
+                <input v-model.number="amounts[s.id]" data-tour="build-amount" type="number" min="1" class="bld-amount" :aria-label="t('buildings.amount')" placeholder="1" />
                 <div v-if="amountOf(s) > 1" class="faint">
                   <template v-for="id in RESOURCES" :key="id"><span v-if="s.cost[id]" class="bld-total">{{ short(s.cost[id] * amountOf(s)) }}</span></template>
                   <div v-if="s.time != null" class="mono">{{ countdown(s.time * amountOf(s)) }}</div>
@@ -434,7 +434,7 @@ const costClass = (b: { missing: Record<number, number> }, res: number) => (b.mi
             <span v-if="s.time != null" class="muted"><Icon name="timer" :size="13" :label="t('common.time')" /> <span class="mono">{{ countdown(s.time) }}</span></span>
           </div>
           <div class="row small">
-            <label>{{ t('buildings.amount') }} <input v-model.number="amounts[s.id]" type="number" min="1" class="bld-amount" placeholder="1" /></label>
+            <label>{{ t('buildings.amount') }} <input v-model.number="amounts[s.id]" data-tour="build-amount" type="number" min="1" class="bld-amount" placeholder="1" /></label>
             <span class="muted">
               <template v-for="id in RESOURCES" :key="id"><template v-if="s.cost[id]">{{ short(s.cost[id] * amountOf(s)) }} {{ name(id) }} · </template></template>
               <span v-if="s.time != null" class="mono">{{ countdown(s.time * amountOf(s)) }}</span>
@@ -445,7 +445,7 @@ const costClass = (b: { missing: Record<number, number> }, res: number) => (b.mi
     </template>
 
     <!-- desktop: one table row per building -->
-    <div v-else-if="!mobile" class="card scroll-x">
+    <div v-else-if="!mobile" class="card scroll-x" data-tour="build-list">
       <table class="data">
         <thead>
           <tr>
@@ -510,7 +510,7 @@ const costClass = (b: { missing: Record<number, number> }, res: number) => (b.mi
 
     <!-- mobile: one card per building -->
     <template v-else>
-      <div v-for="b in buildingRows" :key="b.id" class="card bld-card" :class="{ faded: b.state === 'requirements' || b.state === 'max', 'bld-hidden': isHidden(b) }">
+      <div v-for="b in buildingRows" :key="b.id" data-tour="build-list" class="card bld-card" :class="{ faded: b.state === 'requirements' || b.state === 'max', 'bld-hidden': isHidden(b) }">
         <div class="row">
           <b>{{ name(b.id) }}</b>
           <span class="muted small">{{ b.level }} <Icon name="arrowRight" :size="11" /> {{ b.next }}</span>

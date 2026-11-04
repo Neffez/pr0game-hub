@@ -50,7 +50,7 @@ const tab = computed<PlannerTab>({
   },
 });
 
-useAutoTour('raids', loaded);
+useAutoTour('raids', loaded, tab);
 
 const planLink = (id: number) => `/${uni.value}/raid-planner/${id}`;
 const openPlan = (id: number | null) => id && router.push(planLink(id));

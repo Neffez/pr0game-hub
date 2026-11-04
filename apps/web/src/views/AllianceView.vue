@@ -191,7 +191,7 @@ const total = computed(() => {
 });
 
 // one view for three pages: the tour follows the page
-useAutoTour(page, () => members.value.length > 0);
+useAutoTour(page, () => members.value.length > 0, () => (page.value === 'fleet' ? fleetTab.value : undefined));
 </script>
 
 <template>

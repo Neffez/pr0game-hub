@@ -118,7 +118,7 @@ const cardOptions = computed(() => [{ key: 'card', label: t('deck.card') }, ...c
 /** Bar width: the most likely card fills the column. */
 const maxProbability = computed(() => Math.max(0, ...deckCards.value.map((c: any) => c.nextProbability)));
 const progress = computed(() => (data.value ? data.value.state.drawnInDeck / data.value.state.deckSize : 0));
-useAutoTour('expeditions', () => !!data.value);
+useAutoTour('expeditions', () => !!data.value, 'deck');
 </script>
 
 <template>
