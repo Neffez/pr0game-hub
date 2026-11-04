@@ -19,17 +19,69 @@ export interface Tour {
   steps: TourStep[];
 }
 
-/** Registry; the texts are `tours.<id>.<key>.title` and `.text` in the locales. */
+/**
+ * Registry; the texts are `tours.<id>.<key>.title` and `.text` in the locales. Steps whose element is not on the
+ * page (other tab, empty list, no data yet) are skipped, so a step may point at something that only shows sometimes.
+ */
 export const TOURS = {
-  overview: { steps: [{ key: 'intro' }, { key: 'mode', el: 'overview-mode', side: 'bottom' }, { key: 'search', el: 'overview-search', side: 'bottom' }, { key: 'filter', el: 'overview-filter', side: 'bottom' }, { key: 'outro' }] },
-  paste: { steps: [{ key: 'intro' }, { key: 'sync', el: 'paste-sync', side: 'bottom' }, { key: 'json', el: 'paste-json', side: 'top' }, { key: 'outro' }] },
-  build: { steps: [{ key: 'intro' }, { key: 'tabs', el: 'build-tabs', side: 'bottom' }, { key: 'planet', el: 'build-planet', side: 'bottom' }, { key: 'outro' }] },
-  raids: { steps: [{ key: 'intro' }, { key: 'tabs', el: 'raids-tabs', side: 'bottom' }, { key: 'new', el: 'raids-new', side: 'bottom' }, { key: 'outro' }] },
+  overview: {
+    steps: [
+      { key: 'intro' },
+      { key: 'planets', el: 'overview-planets', side: 'bottom' },
+      { key: 'players', el: 'overview-players', side: 'bottom' },
+      { key: 'search', el: 'overview-search', side: 'bottom' },
+      { key: 'filter', el: 'overview-filter', side: 'bottom' },
+      { key: 'list', el: 'overview-list', side: 'top' },
+      { key: 'actions', el: 'overview-actions', side: 'left' },
+      { key: 'outro' },
+    ],
+  },
+  paste: {
+    steps: [
+      { key: 'intro' },
+      { key: 'copy', el: 'paste-sync', side: 'bottom' },
+      { key: 'pages', el: 'paste-sync', side: 'bottom' },
+      { key: 'source', el: 'paste-sync', side: 'bottom' },
+      { key: 'json', el: 'paste-json', side: 'top' },
+      { key: 'outro' },
+    ],
+  },
+  build: {
+    steps: [
+      { key: 'intro' },
+      { key: 'buildings', el: 'build-tab-buildings', side: 'bottom' },
+      { key: 'research', el: 'build-tab-research', side: 'bottom' },
+      { key: 'ships', el: 'build-tab-ships', side: 'bottom' },
+      { key: 'order', el: 'build-tab-order', side: 'bottom' },
+      { key: 'planet', el: 'build-planet', side: 'bottom' },
+      { key: 'filter', el: 'build-filter', side: 'bottom' },
+      { key: 'bell', el: 'build-bell', side: 'left' },
+      { key: 'hide', el: 'build-hide', side: 'left' },
+      { key: 'outro' },
+    ],
+  },
+  raids: {
+    steps: [
+      { key: 'intro' },
+      { key: 'plans', el: 'raids-tab-plans', side: 'bottom' },
+      { key: 'settlements', el: 'raids-tab-settlements', side: 'bottom' },
+      { key: 'stats', el: 'raids-tab-stats', side: 'bottom' },
+      { key: 'new', el: 'raids-new', side: 'bottom' },
+      { key: 'phalanx', el: 'raids-phalanx', side: 'left' },
+      { key: 'attacks', el: 'raids-attacks', side: 'top' },
+      { key: 'own', el: 'raids-own', side: 'top' },
+      { key: 'current', el: 'raids-current', side: 'top' },
+      { key: 'targets', el: 'raids-targets', side: 'top' },
+      { key: 'outro' },
+    ],
+  },
 } satisfies Record<string, Tour>;
 export type TourId = keyof typeof TOURS;
 
+type ToursState = { enabled: boolean; seen: string[] };
+
 /** Tour state of the logged-in user (defaults while the session is not loaded). */
-export const tours = computed(() => session.me?.user?.tours ?? { enabled: true, seen: [] as string[] });
+export const tours = computed<ToursState>(() => session.me?.user?.tours ?? { enabled: true, seen: [] });
 
 let active: Driver | null = null;
 
@@ -38,28 +90,34 @@ function findEl(name: string): HTMLElement | undefined {
   return [...document.querySelectorAll<HTMLElement>(`[data-tour="${name}"]`)].find((e) => e.offsetParent !== null || e.getClientRects().length > 0);
 }
 
-async function post(body: object) {
+/** Stores a change and takes the server's state; throws on failure. */
+async function post(body: { seen?: string; enabled?: boolean; reset?: true }) {
+  const res = await api<ToursState>('/auth/tours', { body });
+  if (session.me?.user) session.me.user.tours = res;
+}
+/** Marks a tour as seen, and with `never` switches the automatic start off (one request, so the state can't race). */
+async function finishTour(id: TourId, never: boolean) {
   try {
-    const res = await api<{ enabled: boolean; seen: string[] }>('/auth/tours', { body });
-    if (session.me?.user) session.me.user.tours = res;
+    await post(never ? { seen: id, enabled: false } : { seen: id });
   } catch (e) {
     console.warn('tours: could not be saved', e);
   }
 }
-export const markSeen = (id: TourId) => post({ seen: id });
 export const setToursEnabled = (enabled: boolean) => post({ enabled });
 export const resetTours = () => post({ reset: true });
 
-/** Destroys the running tour, if any (page change). */
+/** Ends the running tour without marking it as seen (page change: it comes back on the next visit). */
 export function stopTour() {
   const d = active;
   active = null;
+  // destroy() from code skips onDestroyStarted, so the tour is not marked as seen
   d?.destroy();
 }
 
 /**
- * Starts the tour; steps whose element is not on the page are dropped. `auto: false` (the "?" button) runs it even
- * when tours are switched off. Closing or finishing marks the tour as seen.
+ * Starts the tour; steps whose element is not on the page are dropped, and without any element left nothing starts.
+ * `auto: false` (the "?" button) runs it even when tours are switched off. Closing or finishing marks it as seen,
+ * leaving the page does not.
  */
 export function startTour(id: TourId, opts: { auto?: boolean } = {}) {
   if (opts.auto && !tours.value.enabled) return;
@@ -74,13 +132,13 @@ export function startTour(id: TourId, opts: { auto?: boolean } = {}) {
     const el = findEl(s.el);
     if (el) steps.push({ element: el, popover });
   }
-  if (!steps.some((s) => s.element) && steps.length < 2) return;
+  if (!steps.some((s) => s.element)) return;
   let ended = false;
   const finish = (never: boolean) => {
-    if (ended) return;
+    if (!ended) void finishTour(id, never);
     ended = true;
-    void markSeen(id);
-    if (never) void setToursEnabled(false);
+    if (active === drv) active = null;
+    drv.destroy();
   };
   const drv: Driver = driver({
     steps,
@@ -97,27 +155,25 @@ export function startTour(id: TourId, opts: { auto?: boolean } = {}) {
       never.type = 'button';
       never.className = 'hub-tour-never';
       never.textContent = t('tours.never');
-      never.addEventListener('click', () => {
-        finish(true);
-        drv.destroy();
-      });
+      never.addEventListener('click', () => finish(true));
       popover.footerButtons.prepend(never);
     },
-    onDestroyed: () => {
-      finish(false);
-      if (active === drv) active = null;
-    },
+    // the user ends the tour (close button, Escape, overlay click, done); onDestroyed would miss a close during the
+    // highlight animation, and also runs for destroy() from code
+    onDestroyStarted: () => finish(false),
   });
   active = drv;
   drv.drive();
 }
 
 /**
- * In a view: starts the tour the first time `ready` is true if tours are on and this one is unseen; a running tour
- * ends with the view.
+ * In a view: starts the tour the first time `ready` is true if tours are on and this one is unseen; leaving the view
+ * cancels a pending start and ends a running tour.
  */
 export function useAutoTour(id: TourId, ready: MaybeRefOrGetter<boolean>) {
   let done = false;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let alive = true;
   watch(
     () => toValue(ready) && !!session.me?.user,
     async (ok) => {
@@ -125,9 +181,15 @@ export function useAutoTour(id: TourId, ready: MaybeRefOrGetter<boolean>) {
       done = true;
       if (!tours.value.enabled || tours.value.seen.includes(id)) return;
       await nextTick();
-      setTimeout(() => startTour(id, { auto: true }), 300);
+      if (!alive) return;
+      // let lists and sections render before the elements are looked up
+      timer = setTimeout(() => alive && startTour(id, { auto: true }), 300);
     },
     { immediate: true },
   );
-  onBeforeUnmount(stopTour);
+  onBeforeUnmount(() => {
+    alive = false;
+    clearTimeout(timer);
+    stopTour();
+  });
 }

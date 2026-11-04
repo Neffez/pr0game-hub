@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Die Tutorials erklären jetzt jeden Tab und die wichtigsten Bedienelemente, im Raidplaner zum Beispiel, wie Abrechnungen aus synchronisierten Kampf-, Flottenrückkehr- und Recyclerberichten von selbst entstehen. Eine Tour, die du durch einen Seitenwechsel abbrichst, kommt beim nächsten Besuch wieder.',
+        en: 'The tutorials now explain every tab and the main controls, in the raid planner for example how settlements fill themselves in from synced combat, fleet return and recycler reports. A tour you leave by switching pages comes back on the next visit.',
+      },
+      {
+        kind: 'new',
         de: 'Allianzen können ein Kürzel bekommen (Admin-Bereich, neben dem Allianznamen). Es steht in der Online-Anzeige im Menü, wenn der volle Name dort nicht in die Zeile passt; der volle Name erscheint beim Darüberfahren.',
         en: 'Alliances can have a short tag (admin panel, next to the alliance name). It is shown in the online list in the menu when the full name does not fit on the line; the full name appears on hover.',
       },

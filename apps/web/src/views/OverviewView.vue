@@ -640,7 +640,7 @@ const history = computed(() => {
     />
     <SortBar v-else v-model:desc="playerSort.descending.value" :sort-key="playerSort.key.value" :options="playerSortOptions" @sort="playerSort.sortBy" />
 
-    <div v-if="mode === 'planets'" class="m-list">
+    <div v-if="mode === 'planets'" class="m-list" data-tour="overview-list">
       <div v-for="(r, i) in planetsShown" :key="r.key" class="m-item" :class="{ dim: r.player.status.includes('vacation'), moon: r.planet?.type === 'moon' }">
         <div class="m-line">
           <span class="faint small">{{ i + 1 }}</span>
@@ -684,7 +684,7 @@ const history = computed(() => {
     </div>
     <div v-if="mode === 'planets' && planetsMore" ref="planetSentinel" class="list-end" />
 
-    <div v-else class="m-list">
+    <div v-else class="m-list" data-tour="overview-list">
       <div v-for="r in playersShown" :key="r.id" class="m-item" :class="{ dim: r.status.includes('vacation') }">
         <div class="m-line">
           <span class="small muted">

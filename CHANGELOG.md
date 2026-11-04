@@ -4,6 +4,17 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-04
 
+- Page tours in more depth and fixed:
+  - Every tab and the main controls get their own step: the overview's planet and player lists, filters, Δ columns
+    and planet actions; paste with supported pages, page source and universe.json; each build tab, filter, bell and
+    hide; the raid planner's tabs (settlements filled in from synced combat, fleet return and recycler reports),
+    phalanx scan, detected and own attacks, current plans and claimed targets.
+  - The overview's filter step was always skipped: `FilterBar` (two root nodes) now passes its attributes to the bar.
+  - Leaving a page before its tour starts no longer starts it on the next page; leaving during a tour no longer marks
+    it as seen; closing during the highlight animation now does (driver.js `onDestroyStarted` instead of
+    `onDestroyed`).
+  - "Don't show again" stores seen and off in one request; the account's tutorial switch and reset show errors.
+
 - Alliance tag: the online list heading shows the tag only where the full alliance name does not fit on the line
   (measured against the sidebar width, tooltip with the full name either way).
 
