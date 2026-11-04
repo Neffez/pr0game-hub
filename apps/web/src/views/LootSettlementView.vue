@@ -19,6 +19,7 @@ import Hint from '../components/Hint.vue';
 import { useMobile, useUni, vStack } from '../composables';
 import { abbr, coords, dateTime, fmt, lootCalcLink, name, rateText, resText, short } from '../format';
 import { tables, useLiveReload } from '../live';
+import { useAutoTour } from '../tours';
 
 /** Where the hub took a value of the draft from (server `DraftSources`). */
 interface Sources {
@@ -108,6 +109,7 @@ function show(res: Response) {
   fill(res.state);
 }
 onMounted(() => load(true));
+useAutoTour('loot', () => !!data.value && !!state.value);
 useLiveReload(
   () => load(),
   tables('raid_settlements', 'battle_reports', 'combat_reports', 'recycle_reports', 'fleet_returns', 'transports', 'missile_impacts', 'recycle_returns', 'fleets'),
@@ -334,7 +336,7 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
 
 <template>
   <BackLink :to="`/${uni}/raid-planner?tab=settlements`" :label="t('loot.back')" />
-  <PageHeader :title="t('loot.title')">
+  <PageHeader :title="t('loot.title')" tour="loot">
     <template #hint>
       <span v-if="data" class="muted small" style="font-weight: 400">{{ target }} · {{ dateTime(data.plan.target_time) }}</span>
       <span v-if="data?.plan.mission === 'hold'" class="badge" style="margin-left: 6px">{{ t('hold.badge') }}</span>
@@ -345,7 +347,7 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
   <p v-if="route.query.existing" class="small warn">{{ t('loot.existingPlan') }}</p>
 
   <template v-if="data && state && result">
-    <div class="card bar" :class="finalized ? 'final' : 'live'">
+    <div class="card bar" :class="finalized ? 'final' : 'live'" data-tour="loot-status">
       <div class="row bar-row">
         <span v-if="finalized" class="badge ok-badge"><Icon name="check" :size="12" /> {{ t('loot.finalizedBadge') }}</span>
         <span v-else class="badge live-badge"><Icon name="sync" :size="12" /> {{ t('loot.liveBadge') }}</span>
@@ -378,7 +380,7 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
       <Hint>{{ t('loot.calculatorHint') }}</Hint>
     </div>
 
-    <Section v-if="checks && !finalized" :title="t('loot.dataStatus')" store-key="loot.dataStatus">
+    <Section v-if="checks && !finalized" data-tour="loot-data" :title="t('loot.dataStatus')" store-key="loot.dataStatus">
       <template #hint>
         <span v-if="checks.missing" class="small warn">{{ t('loot.dataMissing', { n: checks.missing }, checks.missing) }}</span>
         <span v-else class="small ok">{{ t('loot.dataComplete') }}</span>
@@ -402,7 +404,7 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
       </p>
     </Section>
 
-    <div v-if="myOpen.length" class="card mine">
+    <div v-if="myOpen.length" class="card mine" data-tour="loot-mine">
       <h3>{{ t('loot.myDeliveries') }}</h3>
       <div v-for="x in myOpen" :key="keyOf(x)" class="small">
         <b>{{ x.from === data.me ? t('loot.youSend', { to: personName(x.to) }) : t('loot.youGet', { from: personName(x.from) }) }}</b>
@@ -412,7 +414,7 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
 
     <div class="cols">
       <div class="col">
-        <Section :title="t('loot.settings')" store-key="loot.settings" :default-open-mobile="false">
+        <Section data-tour="loot-settings" :title="t('loot.settings')" store-key="loot.settings" :default-open-mobile="false">
           <fieldset :disabled="!editing" class="stack">
             <label class="row">
               <span class="lbl">{{ t('loot.mode') }} <Hint>{{ t('loot.modeHint') }}</Hint></span>
@@ -450,7 +452,7 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
           </fieldset>
         </Section>
 
-        <div class="card">
+        <div class="card" data-tour="loot-participants">
           <h3>{{ t('loot.participants') }}</h3>
           <div class="table-wrap">
             <table v-stack class="data">
@@ -485,7 +487,7 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
           </div>
         </div>
 
-        <div class="card">
+        <div class="card" data-tour="loot-battles">
           <h3>{{ t('loot.battles') }}</h3>
           <p v-if="!state.battles.length" class="muted small">{{ t('loot.noBattles') }}</p>
           <div v-for="(b, i) in state.battles" :key="i" class="battle">
@@ -542,7 +544,7 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
           </div>
         </Section>
 
-        <Section :title="t('loot.recycling')" store-key="loot.recycling" :default-open-mobile="false">
+        <Section data-tour="loot-recycling" :title="t('loot.recycling')" store-key="loot.recycling" :default-open-mobile="false">
           <div v-if="debris && (debris.field || debris.left)" class="debris small">
             <div v-if="debris.field">
               <span class="muted">{{ t('loot.debrisField') }}</span> {{ debrisText(debris.field) }}
@@ -619,7 +621,7 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
       </div>
 
       <div class="col">
-        <div class="card">
+        <div class="card" data-tour="loot-result">
           <h3>{{ t('loot.result') }}</h3>
           <div class="kpis">
             <div v-for="[label, r] in ([[t('loot.pot'), result.pot], [t('loot.costs'), result.costs], [t('loot.profit'), result.profit]] as [string, Res][])" :key="label" class="kpi">
@@ -698,7 +700,7 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
           </div>
         </div>
 
-        <div class="card">
+        <div class="card" data-tour="loot-transfers">
           <h3>{{ t('loot.transfers') }} <Hint>{{ t('loot.doneHint') }}</Hint></h3>
           <p v-if="!transfers.length" class="muted small">{{ t('loot.noTransfers') }}</p>
           <div v-else class="table-wrap">
@@ -729,12 +731,12 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
       </div>
     </div>
 
-    <Section v-if="result.pot.m + result.pot.k + result.pot.d > 0" :title="t('loot.flow.title')" store-key="loot.flow">
+    <Section v-if="result.pot.m + result.pot.k + result.pot.d > 0" data-tour="loot-flow" :title="t('loot.flow.title')" store-key="loot.flow">
       <template #hint><Hint>{{ t('loot.flow.hint') }}</Hint></template>
       <LootSankey :state="state" :result="result" />
     </Section>
 
-    <Section :title="t('comments.title')" store-key="loot.comments">
+    <Section data-tour="loot-comments" :title="t('comments.title')" store-key="loot.comments">
       <CommentThread :plan="data.plan.id" />
     </Section>
   </template>

@@ -75,6 +75,23 @@ export const TOURS = {
       { key: 'outro' },
     ],
   },
+  loot: {
+    steps: [
+      { key: 'intro' },
+      { key: 'status', el: 'loot-status', side: 'bottom' },
+      { key: 'data', el: 'loot-data', side: 'bottom' },
+      { key: 'mine', el: 'loot-mine', side: 'bottom' },
+      { key: 'settings', el: 'loot-settings', side: 'right' },
+      { key: 'participants', el: 'loot-participants', side: 'right' },
+      { key: 'battles', el: 'loot-battles', side: 'right' },
+      { key: 'recycling', el: 'loot-recycling', side: 'right' },
+      { key: 'result', el: 'loot-result', side: 'left' },
+      { key: 'transfers', el: 'loot-transfers', side: 'left' },
+      { key: 'flow', el: 'loot-flow', side: 'top' },
+      { key: 'comments', el: 'loot-comments', side: 'top' },
+      { key: 'outro' },
+    ],
+  },
 } satisfies Record<string, Tour>;
 export type TourId = keyof typeof TOURS;
 

@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-04
 
+- Page tour for the loot settlement: on the first visit it explains that everything is filled in from synced combat,
+  fleet return, recycler, transport and missile reports and can still be corrected by hand, then walks through live
+  and finalized, data status, own deliveries, settings, participants (check mark and pencil markers), battles,
+  recycling and helpers, result and balance, deliveries, distribution chart and comments.
+
 - Page tours in more depth and fixed:
   - Every tab and the main controls get their own step: the overview's planet and player lists, filters, Δ columns
     and planet actions; paste with supported pages, page source and universe.json; each build tab, filter, bell and

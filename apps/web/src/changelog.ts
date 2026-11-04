@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Beute abrechnen hat jetzt ein Tutorial: Beim ersten Besuch erklärt es, dass der Hub alles aus synchronisierten Berichten ausfüllt und du jeden Wert noch von Hand anpassen kannst, und geht alle Bereiche der Seite durch.',
+        en: 'Settle loot now has a tutorial: on the first visit it explains that the hub fills in everything from synced reports and that you can still adjust every value by hand, and walks through every part of the page.',
+      },
+      {
+        kind: 'new',
         de: 'Die Tutorials erklären jetzt jeden Tab und die wichtigsten Bedienelemente, im Raidplaner zum Beispiel, wie Abrechnungen aus synchronisierten Kampf-, Flottenrückkehr- und Recyclerberichten von selbst entstehen. Eine Tour, die du durch einen Seitenwechsel abbrichst, kommt beim nächsten Besuch wieder.',
         en: 'The tutorials now explain every tab and the main controls, in the raid planner for example how settlements fill themselves in from synced combat, fleet return and recycler reports. A tour you leave by switching pages comes back on the next visit.',
       },
