@@ -44,7 +44,7 @@ export class Store {
     private db: DB,
     private t: IngestTarget,
     private summary: IngestSummary,
-    private log?: IngestLog,
+    private ingestLog?: IngestLog,
   ) {
     this.players = new Players(db, t.groupId);
   }
@@ -53,7 +53,7 @@ export class Store {
     try {
       return JSON.parse(raw) as T;
     } catch (err) {
-      this.log?.warn({ err, what, groupId: this.t.groupId, userId: this.t.userId }, 'store_json');
+      this.ingestLog?.warn({ err, what, groupId: this.t.groupId, userId: this.t.userId }, 'store_json');
       throw err;
     }
   }
@@ -123,7 +123,7 @@ export class Store {
   private stats(r: StatsRecord) {
     if (!r.type || !r.statTime) {
       this.summary.warnings.push('stats_not_saved');
-      this.log?.warn({ groupId: this.t.groupId, userId: this.t.userId }, 'stats_not_saved');
+      this.ingestLog?.warn({ groupId: this.t.groupId, userId: this.t.userId }, 'stats_not_saved');
       return;
     }
     const db = this.db;

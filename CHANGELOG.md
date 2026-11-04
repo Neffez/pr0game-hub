@@ -4,6 +4,8 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-04
 
+- Store ingest warnings use a separate logger field so they do not collide with the activity-log helper.
+
 - OpenAPI lists every Fastify `/api` path (writes included). CI fails when a route and the YAML drift. Ingest logs
   group, page type, counts and duration; a statistics page without a time is logged; backups log to stderr.
 
