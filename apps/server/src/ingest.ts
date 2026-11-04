@@ -87,6 +87,9 @@ export function settlementsFor(db: DB, target: IngestTarget, records: HubRecord[
 
 export type PreviewItem = { kind: HubRecord['kind'] } & Record<string, string | number | boolean | null>;
 
+/** Pages another member may paste for you: reports they sent, not your empire, overview or fleets. */
+export const FOR_USER_PAGES = new Set<ParseResult['pageType']>(['messages', 'combatReport']);
+
 export function ingest(
   db: DB,
   target: IngestTarget,
@@ -96,6 +99,9 @@ export function ingest(
   const parsed = parsePage(input);
   if (foreignRecords(db, target, parsed.records)) {
     throw new HttpError(400, 'wrong_universe', 'The pasted page does not match the data of this universe');
+  }
+  if (target.syncedBy != null && !FOR_USER_PAGES.has(parsed.pageType)) {
+    throw new HttpError(400, 'ingest_for_user_page', 'Only messages and reports can be synced for another member');
   }
   const summary: IngestSummary = {
     pageType: parsed.pageType,

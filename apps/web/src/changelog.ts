@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Für ein anderes Mitglied kannst du nur noch Nachrichten und Berichte einfügen, nicht dessen Übersicht, Imperium oder Flottenliste.',
+        en: 'For another member you can now only paste messages and reports, not their overview, empire or fleet list.',
+      },
+      {
+        kind: 'fix',
         de: 'Raidpläne ändern sich nicht mehr allein durchs Öffnen der Liste. Neue Flotten, Rückrufe und eine verschobene Ankunft werden übernommen, wenn du eine Übersicht einfügst oder den Raidplaner öffnest.',
         en: 'Raid plans no longer change just by opening the list. New fleets, recalls and a moved arrival are applied when you paste an overview or open the raid planner.',
       },

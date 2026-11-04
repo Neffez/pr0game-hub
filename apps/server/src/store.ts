@@ -60,6 +60,10 @@ export class Store {
   }
 
   record(r: HubRecord) {
+    // a paste for another member never replaces their empire, overview, fleets or build pages
+    if (this.t.syncedBy != null && (r.kind === 'empire' || r.kind === 'overview' || r.kind === 'fleets' || r.kind === 'buildings' || r.kind === 'research')) {
+      return;
+    }
     switch (r.kind) {
       case 'stats':
         return this.stats(r);

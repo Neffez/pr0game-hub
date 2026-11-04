@@ -1793,6 +1793,13 @@ describe('admin: content of syncs', () => {
     expect(db.prepare('SELECT user_id, synced_by FROM raw_ingests WHERE group_id = ?').get(groupX)).toEqual({ user_id: frank, synced_by: adminId });
     const ingests = (await app.inject({ method: 'GET', url: `/hub/api/admin/groups/${groupX}/ingests`, headers: admin })).json();
     expect(ingests[0]).toMatchObject({ username: 'frank', synced_by: 'admin' });
+    // empire, overview and fleets stay that member's own sync
+    const empire = await app.inject({
+      method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { html: fixture('empire-real-source.html'), forUser: frank },
+    });
+    expect(empire.json().code).toBe('ingest_for_user_page');
+    expect(db.prepare('SELECT COUNT(*) FROM empire_snapshots WHERE group_id = ? AND user_id = ?').pluck().get(groupX, frank)).toBe(0);
+    expect((await ingest(frank)).statusCode).toBe(200);
     // oneself as the chosen member: an ordinary own sync
     await ingest(adminId);
     expect(db.prepare('SELECT synced_by FROM raw_ingests WHERE group_id = ? ORDER BY id DESC').pluck().get(groupX)).toBeNull();

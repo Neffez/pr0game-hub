@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-04
 
+- Paste: syncing for another member is limited to messages and combat reports. Their empire, overview and fleet list
+  can only be updated by that member.
+
 - Raid planner: listing plans (GET /plans) no longer writes. ACS joins, recalls, a moved impact and fleets seen in
   flight are applied when an overview is pasted and when the raid planner opens (POST /plans/sync).
 
