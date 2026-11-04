@@ -4,12 +4,14 @@ import UniverseJson from '../components/UniverseJson.vue';
 import Hint from '../components/Hint.vue';
 import SyncPanel from '../components/SyncPanel.vue';
 import { useI18n } from 'vue-i18n';
+import { useAutoTour } from '../tours';
 
 const { t } = useI18n();
+useAutoTour('paste', true);
 </script>
 
 <template>
-  <PageHeader :title="t('paste.title')">
+  <PageHeader :title="t('paste.title')" tour="paste">
     <template #hint>
       <Hint>
         <p>{{ t('paste.hint1') }}</p>
@@ -17,7 +19,7 @@ const { t } = useI18n();
       </Hint>
     </template>
   </PageHeader>
-  <SyncPanel />
+  <div data-tour="paste-sync"><SyncPanel /></div>
 
-  <UniverseJson />
+  <div data-tour="paste-json"><UniverseJson /></div>
 </template>

@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import {
   checkUsername, createApiToken, createSession, destroyOtherSessions, destroySession, hashPassword, HttpError, loginBlocked, loginFailed, loginSucceeded,
-  requireCookieSession, requireUser, verifyPassword, verifyPasswordOrDummy,
+  MAX_SEEN_TOURS, parseTours, requireCookieSession, requireUser, serializeTours, TOUR_ID, verifyPassword, verifyPasswordOrDummy,
 } from '../auth.js';
 import { now, type DB } from '../db.js';
 import { events } from '../events.js';
@@ -108,6 +108,25 @@ export function authRoutes(app: FastifyInstance, db: DB) {
     if (!['auto', 'dmy.', 'dmy/', 'ymd'].includes(dateFormat)) throw new HttpError(400, 'date_format_invalid', 'Invalid date format');
     db.prepare('UPDATE users SET date_format = ? WHERE id = ?').run(dateFormat, user.id);
     return { ok: true, dateFormat };
+  });
+
+  /** Page tours: switch them on/off, mark one as seen, or forget all seen tours. */
+  app.post<{ Body: { enabled?: unknown; seen?: unknown; reset?: unknown } }>('/api/auth/tours', async (req) => {
+    const user = requireUser(req);
+    const { enabled, seen, reset } = req.body ?? {};
+    const valid =
+      (enabled !== undefined || seen !== undefined || reset !== undefined) &&
+      (enabled === undefined || typeof enabled === 'boolean') &&
+      (seen === undefined || (typeof seen === 'string' && TOUR_ID.test(seen))) &&
+      (reset === undefined || reset === true);
+    if (!valid) throw new HttpError(400, 'tours_invalid', 'Invalid tour settings');
+    const row = db.prepare('SELECT tours FROM users WHERE id = ?').get(user.id) as { tours: string } | undefined;
+    const tours = parseTours(row?.tours);
+    if (reset) tours.seen = [];
+    if (typeof seen === 'string' && !tours.seen.includes(seen)) tours.seen = [...tours.seen, seen].slice(-MAX_SEEN_TOURS);
+    if (typeof enabled === 'boolean') tours.enabled = enabled;
+    db.prepare('UPDATE users SET tours = ? WHERE id = ?').run(serializeTours(tours), user.id);
+    return tours;
   });
 
   /** Which fleet movements the user shares with the other members of their groups. */

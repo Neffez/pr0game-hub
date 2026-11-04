@@ -15,6 +15,7 @@ import PageHeader from '../components/PageHeader.vue';
 import Ticker from '../components/Ticker.vue';
 import BuildOrder from '../components/BuildOrder.vue';
 import { useLoader, useMobile, useStored, useUni } from '../composables';
+import { useAutoTour } from '../tours';
 import { ago, dateTime, fmt, name, short } from '../format';
 import { tables, useLiveReload } from '../live';
 
@@ -112,6 +113,7 @@ watch(
   { immediate: true },
 );
 const allPlanets = computed(() => data.value?.planets ?? []);
+useAutoTour('build', () => !!data.value && allPlanets.value.length > 0);
 /** research is started on planets (moons have no lab); build orders are for planets */
 const planets = computed(() => (tab.value === 'research' || tab.value === 'order' ? allPlanets.value.filter((p) => p.type === 'planet') : allPlanets.value));
 const current = computed(() => planets.value.find((p) => p.key === stored.value) ?? planets.value[0] ?? null);
@@ -245,7 +247,7 @@ const costClass = (b: { missing: Record<number, number> }, res: number) => (b.mi
 </script>
 
 <template>
-  <PageHeader :title="t('buildings.title')">
+  <PageHeader :title="t('buildings.title')" tour="build">
     <template #hint>
       <Hint>
         <p>{{ t('buildings.hint1') }}</p>
@@ -256,7 +258,7 @@ const costClass = (b: { missing: Record<number, number> }, res: number) => (b.mi
         <p>{{ t('buildings.hint3') }}</p>
       </Hint>
     </template>
-    <div class="seg">
+    <div class="seg" data-tour="build-tabs">
       <button :class="{ active: tab === 'buildings' }" @click="tab = 'buildings'">{{ t('buildings.tabBuildings') }}</button>
       <button :class="{ active: tab === 'research' }" @click="tab = 'research'">{{ t('buildings.tabResearch') }}</button>
       <button :class="{ active: tab === 'ships' }" @click="tab = 'ships'">{{ t('buildings.tabShips') }}</button>
@@ -270,7 +272,7 @@ const costClass = (b: { missing: Record<number, number> }, res: number) => (b.mi
   <template v-if="data && current">
     <div class="card">
       <div class="row small">
-        <label>
+        <label data-tour="build-planet">
           {{ t('buildings.planet') }}
           <select :value="current.key" @change="stored = ($event.target as HTMLSelectElement).value">
             <option v-for="p in planets" :key="p.key" :value="p.key">{{ planetLabel(p) }}</option>

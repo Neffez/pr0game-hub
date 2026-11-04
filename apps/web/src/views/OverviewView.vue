@@ -17,6 +17,7 @@ import PlanetActions from '../components/PlanetActions.vue';
 import StatusBadges from '../components/StatusBadges.vue';
 import PointsStall from '../components/PointsStall.vue';
 import { useMobile, useProgressive, useProtection, useSort, useStored, useUni } from '../composables';
+import { useAutoTour } from '../tours';
 import { nowSec, upcoming, useClock } from '../clock';
 import { tables, useLiveReload } from '../live';
 import { ago, dateTime, distance, fmt, fmtSigned, name, short, STATS_SHORT, STATS_TYPES, type PointsStall as PointsStallInfo } from '../format';
@@ -477,6 +478,8 @@ const time = (epoch: number) =>
     : dateTime(epoch);
 
 /** How far back the total points history reaches (oldest reference over all players). */
+useAutoTour('overview', () => !loading.value && players.value.length > 0);
+
 const history = computed(() => {
   let oldest: number | null = null;
   for (const p of players.value) for (const d of Object.values(p.scores[1]?.deltas ?? {})) if (oldest == null || d.since < oldest) oldest = d.since;
@@ -485,7 +488,7 @@ const history = computed(() => {
 </script>
 
 <template>
-  <PageHeader :title="t('nav.overview')">
+  <PageHeader :title="t('nav.overview')" tour="overview">
     <template #hint>
       <Hint>
         <p>{{ t('overview.hint1') }}</p>
@@ -503,13 +506,13 @@ const history = computed(() => {
     />
   </PageHeader>
 
-  <FilterBar store-key="overview" :chips="chips" @reset="resetFilters">
+  <FilterBar data-tour="overview-filter" store-key="overview" :chips="chips" @reset="resetFilters">
     <template #toolbar>
-      <div class="seg">
+      <div class="seg" data-tour="overview-mode">
         <button :class="{ active: mode === 'planets' }" @click="mode = 'planets'">{{ t('player.planets') }}</button>
         <button :class="{ active: mode === 'players' }" @click="mode = 'players'">{{ t('stats.players') }}</button>
       </div>
-      <input v-model="filter.text" type="search" class="search" :placeholder="t('overview.searchPlayer')" :aria-label="t('overview.searchPlayer')" />
+      <input v-model="filter.text" data-tour="overview-search" type="search" class="search" :placeholder="t('overview.searchPlayer')" :aria-label="t('overview.searchPlayer')" />
     </template>
     <template #end>
       <label v-if="mode === 'players'" class="window">

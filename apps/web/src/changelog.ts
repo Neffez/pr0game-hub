@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Tutorials: Beim ersten Öffnen von Übersicht, Seite einfügen, Bauen & Forschen und Raidplaner zeigt der Hub eine kurze Tour mit den wichtigsten Bereichen. Du kannst sie überspringen oder „Nicht mehr anzeigen“ wählen, mit dem „?“ neben der Überschrift neu starten und sie unter Konto ein- oder ausschalten.',
+        en: 'Tutorials: the first time you open Overview, Paste a page, Build & research and Raid planner, the hub shows a short tour of the main areas. You can skip it or choose "Don\'t show again", restart it with the "?" next to the title and switch tutorials on or off under Account.',
+      },
+      {
+        kind: 'new',
         de: 'Das Menü oben ist aufgeräumter: Der Universumsname ist jetzt eine Überschrift (der Link ins Spiel zeigt sich beim Darüberfahren), und die Allianz steht bei der Online-Anzeige unten („3 online · Allianzname“).',
         en: 'The menu header is tidier: the universe name is now a heading (the link into the game shows on hover), and the alliance appears in the online list below ("3 online · alliance name").',
       },

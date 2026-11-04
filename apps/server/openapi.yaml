@@ -742,6 +742,16 @@ components:
           type: string
           enum: [auto, dmy., dmy/, ymd]
           description: Date format of the hub; `auto` follows `lang` (de DD.MM.YYYY, en DD/MM/YYYY)
+        tours: { $ref: '#/components/schemas/Tours' }
+    Tours:
+      type: object
+      description: Page tours of the hub (guided explanations shown on the first visit of a page)
+      properties:
+        enabled: { type: boolean, description: Whether tours start automatically on the first visit of a page }
+        seen:
+          type: array
+          items: { type: string }
+          description: Ids of the tours already seen or skipped
     GroupMembership:
       type: object
       properties:
@@ -1033,6 +1043,34 @@ paths:
                   dateFormat: { type: string }
         '400':
           description: Unknown date format (`date_format_invalid`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /api/auth/tours:
+    post:
+      tags: [Auth]
+      operationId: setTours
+      summary: Change the page tour settings
+      description: Switch tours on or off, mark one tour as seen, or forget all seen tours. At least one field is required; they apply in the order `reset`, `seen`, `enabled`.
+      security: [{ sessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                enabled: { type: boolean }
+                seen: { type: string, pattern: '^[a-z0-9-]{1,40}$', description: Tour id to mark as seen }
+                reset: { type: boolean, enum: [true], description: Forget all seen tours }
+      responses:
+        '200':
+          description: The new tour settings
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Tours' }
+        '400':
+          description: No or invalid field (`tours_invalid`)
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }

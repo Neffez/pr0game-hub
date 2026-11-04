@@ -4,6 +4,14 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-04
 
+- Page tours: the first time a user opens overview, paste, build & research or the raid planner, a short guided tour
+  (driver.js) explains the tabs and main controls.
+  - Close or finish marks a tour as seen; "Don't show again" turns the automatic start off for all tours.
+  - A "?" button in the page header starts the tour again at any time; the account page has a switch and
+    "Show all tutorials again".
+  - Stored on the account: `users.tours` (migration 076), `tours` on the user of `GET /api/auth/me`, new
+    `POST /api/auth/tours` (`enabled`, `seen`, `reset`), documented in the OpenAPI spec.
+
 - Sidebar header: the universe name is a real heading (larger, bold, no link icon); that it links into the game shows
   on hover (accent colour, underline, arrow). The alliance is no longer a "Alliance: …" line below it but part of the
   online list heading ("3 online · Alliance"); the alliance dropdown stays under the universe name only for users in

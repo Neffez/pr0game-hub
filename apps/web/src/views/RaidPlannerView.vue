@@ -22,6 +22,7 @@ import { coords, duration } from '../format';
 import { draftBody, newDraft, type AttackPlan, type HostileAttack, type OwnAttack } from '../plans';
 import { useRaidPlanner } from '../raidPlanner';
 import { toast } from '../toast';
+import { useAutoTour } from '../tours';
 
 /**
  * Raid planner: what needs attention first (own launches, hostile attacks, own attacks without a plan), then the
@@ -48,6 +49,8 @@ const tab = computed<PlannerTab>({
     router.replace({ query: { ...route.query, tab: v } });
   },
 });
+
+useAutoTour('raids', loaded);
 
 const planLink = (id: number) => `/${uni.value}/raid-planner/${id}`;
 const openPlan = (id: number | null) => id && router.push(planLink(id));
@@ -126,10 +129,10 @@ const delay = (p: AttackPlan) => (rp.exact(p) ? (rp.views.value.get(p.id)?.acs?.
 </script>
 
 <template>
-  <PageHeader :title="t('nav.raids')">
+  <PageHeader :title="t('nav.raids')" tour="raids">
     <template #hint><Hint>{{ tab === 'stats' ? t('raids.hint') : t('plans.hint') }}</Hint></template>
   </PageHeader>
-  <div class="seg tab-seg">
+  <div class="seg tab-seg" data-tour="raids-tabs">
     <button :class="{ active: tab === 'plans' }" @click="tab = 'plans'">{{ t('plans.tabPlans') }}</button>
     <button :class="{ active: tab === 'settlements' }" @click="tab = 'settlements'">{{ t('plans.tabSettlements') }}</button>
     <button :class="{ active: tab === 'stats' }" @click="tab = 'stats'">{{ t('plans.tabStats') }}</button>
@@ -142,7 +145,7 @@ const delay = (p: AttackPlan) => (rp.exact(p) ? (rp.views.value.get(p.id)?.acs?.
     <div class="row plan-actions" style="margin-bottom: 12px">
       <span class="muted small">{{ t('plans.listHint') }}</span>
       <span class="grow" />
-      <button class="primary btn-icon" @click="openForm()"><Icon name="plus" />{{ t('plans.new') }}</button>
+      <button class="primary btn-icon" data-tour="raids-new" @click="openForm()"><Icon name="plus" />{{ t('plans.new') }}</button>
       <ActionMenu :items="[{ label: t('phalanx.paste'), icon: 'spy', hint: t('phalanx.menuHint'), onClick: () => (phalanx.open = true) }]" />
     </div>
     <div v-if="error" class="error">{{ error }}</div>

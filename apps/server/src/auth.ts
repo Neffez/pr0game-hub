@@ -14,6 +14,37 @@ export interface SessionUser {
   lang: string;
   /** date format of the hub (auto: by language, dmy. / dmy/ / ymd) */
   dateFormat: string;
+  /** page tours of the web app (set when loaded from a session or token) */
+  tours?: Tours;
+}
+
+export interface Tours {
+  enabled: boolean;
+  seen: string[];
+}
+export const TOUR_ID = /^[a-z0-9-]{1,40}$/;
+export const MAX_SEEN_TOURS = 100;
+
+/** Parses users.tours defensively: invalid JSON or entries fall back to the defaults (enabled, nothing seen). */
+export function parseTours(raw: string | null | undefined): Tours {
+  const out: Tours = { enabled: true, seen: [] };
+  try {
+    const v = JSON.parse(raw ?? '{}');
+    if (v && typeof v === 'object') {
+      if (v.off === true) out.enabled = false;
+      if (Array.isArray(v.seen)) {
+        out.seen = [...new Set<string>(v.seen.filter((x: unknown): x is string => typeof x === 'string' && TOUR_ID.test(x)))].slice(-MAX_SEEN_TOURS);
+      }
+    }
+  } catch {
+    /* defaults */
+  }
+  return out;
+}
+
+/** Inverse of parseTours: `off` only when disabled, `seen` only when not empty. */
+export function serializeTours(t: Tours): string {
+  return JSON.stringify({ ...(t.enabled ? {} : { off: true }), ...(t.seen.length ? { seen: t.seen } : {}) });
 }
 
 export type AuthSource = 'cookie' | 'token' | null;
@@ -108,10 +139,10 @@ export function revokeAccessIfOrphaned(db: DB, userId: number) {
   db.prepare('DELETE FROM api_tokens WHERE user_id = ?').run(userId);
 }
 
-type UserRow = { id: number; username: string; is_admin: number; lang: string; date_format: string };
+type UserRow = { id: number; username: string; is_admin: number; lang: string; date_format: string; tours: string };
 
 function sessionUser(row: UserRow): SessionUser {
-  return { id: row.id, username: row.username, isAdmin: !!row.is_admin, lang: row.lang, dateFormat: row.date_format };
+  return { id: row.id, username: row.username, isAdmin: !!row.is_admin, lang: row.lang, dateFormat: row.date_format, tours: parseTours(row.tours) };
 }
 
 export function loadSessionUser(db: DB, req: FastifyRequest): SessionUser | null {
@@ -119,7 +150,7 @@ export function loadSessionUser(db: DB, req: FastifyRequest): SessionUser | null
   if (!token) return null;
   const row = db
     .prepare(
-      `SELECT u.id, u.username, u.is_admin, u.lang, u.date_format FROM sessions s JOIN users u ON u.id = s.user_id
+      `SELECT u.id, u.username, u.is_admin, u.lang, u.date_format, u.tours FROM sessions s JOIN users u ON u.id = s.user_id
        WHERE s.token_hash = ? AND s.expires_at > ?`,
     )
     .get(sha256(token), now()) as UserRow | undefined;
@@ -134,7 +165,7 @@ function loadBearerUser(db: DB, req: FastifyRequest): SessionUser | null {
   const hash = sha256(token);
   const row = db
     .prepare(
-      `SELECT u.id, u.username, u.is_admin, u.lang, u.date_format, t.id AS token_id FROM api_tokens t JOIN users u ON u.id = t.user_id
+      `SELECT u.id, u.username, u.is_admin, u.lang, u.date_format, u.tours, t.id AS token_id FROM api_tokens t JOIN users u ON u.id = t.user_id
        WHERE t.token_hash = ?`,
     )
     .get(hash) as (UserRow & { token_id: number }) | undefined;

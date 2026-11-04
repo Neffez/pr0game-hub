@@ -9,6 +9,7 @@ import { vStack } from '../composables';
 import { DATE_FORMATS, dateFormat, setDateFormat, type DateFormat } from '../format';
 import { currentLang, LANGS, setLocale, type Lang } from '../i18n';
 import { liveHints } from '../live';
+import { resetTours, setToursEnabled, tours } from '../tours';
 import { disablePush, enablePush, loadPushStatus, pushStatus, testPush } from '../push';
 
 const { t } = useI18n();
@@ -241,6 +242,10 @@ const saveDateFormat = () =>
     await api('/auth/date-format', { body: { dateFormat: format.value } });
     if (session.me?.user) session.me.user.dateFormat = format.value;
   }, () => t('account.dateFormatChanged'));
+
+// page tours: stored on the account by tours.ts
+const saveTours = (enabled: boolean) => run(() => setToursEnabled(enabled), () => t('account.toursSaved'));
+const forgetTours = () => run(() => resetTours(), () => t('account.toursResetDone'));
 </script>
 
 <template>
@@ -267,6 +272,11 @@ const saveDateFormat = () =>
         <div class="field">
           <span class="field-label">{{ t('account.hints') }}</span>
           <label class="check"><input v-model="liveHints" type="checkbox" /> {{ t('account.liveHints') }}</label>
+        </div>
+        <div class="field">
+          <span class="field-label">{{ t('account.tours') }} <Hint>{{ t('account.toursHint') }}</Hint></span>
+          <label class="check"><input :checked="tours.enabled" type="checkbox" @change="saveTours(($event.target as HTMLInputElement).checked)" /> {{ t('account.toursEnabled') }}</label>
+          <button type="button" :disabled="!tours.seen.length" @click="forgetTours">{{ t('account.toursReset') }}</button>
         </div>
         <div v-if="showOnline" class="field">
           <span class="field-label">{{ t('account.showOnline') }} <Hint>{{ t('account.showOnlineHint') }}</Hint></span>

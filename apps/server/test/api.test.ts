@@ -5,7 +5,7 @@ process.env.WEB_DIR = '/nonexistent';
 
 const { buildApp } = await import('../src/app.js');
 const { openDb, now } = await import('../src/db.js');
-const { hashPassword } = await import('../src/auth.js');
+const { hashPassword, parseTours, serializeTours } = await import('../src/auth.js');
 const { scoreEntry, statSlots } = await import('../src/domain/stats.js');
 
 /** Query for the lists that show the last 8 days by default: the fixtures' reports are dated in October 2026. */
@@ -1261,6 +1261,27 @@ describe('review fixes', () => {
     expect(await format()).toBe('ymd');
     expect((await setFormat('mdy')).json()).toEqual({ error: 'Invalid date format', code: 'date_format_invalid' });
     expect(await format()).toBe('ymd');
+
+    const tours = async () => (await app.inject({ method: 'GET', url: '/hub/api/auth/me', headers: d })).json().user.tours;
+    const setTours = (payload: unknown) => app.inject({ method: 'POST', url: '/hub/api/auth/tours', headers: d, payload: payload as any });
+    expect(await tours()).toEqual({ enabled: true, seen: [] });
+    expect((await setTours({ seen: 'build' })).json()).toEqual({ enabled: true, seen: ['build'] });
+    expect((await setTours({ seen: 'build' })).json()).toEqual({ enabled: true, seen: ['build'] });
+    expect((await setTours({ enabled: false })).json()).toEqual({ enabled: false, seen: ['build'] });
+    expect(await tours()).toEqual({ enabled: false, seen: ['build'] });
+    expect((await setTours({ reset: true, enabled: true })).json()).toEqual({ enabled: true, seen: [] });
+    for (const bad of [{}, { seen: 'Bad Id!' }, { enabled: 'yes' }, { reset: false }]) {
+      const res = await setTours(bad);
+      expect(res.statusCode).toBe(400);
+      expect(res.json().code).toBe('tours_invalid');
+    }
+  });
+
+  it('parses stored tour settings defensively', () => {
+    expect(parseTours(null)).toEqual({ enabled: true, seen: [] });
+    expect(parseTours('x')).toEqual({ enabled: true, seen: [] });
+    expect(parseTours('{"off":true,"seen":[1,"ok","ok","Bad Id"]}')).toEqual({ enabled: false, seen: ['ok'] });
+    expect(serializeTours({ enabled: true, seen: [] })).toBe('{}');
   });
 
   it('stores a message synced as HTML and as text once', async () => {
