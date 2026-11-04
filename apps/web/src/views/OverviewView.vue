@@ -15,10 +15,11 @@ import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
 import PlanetActions from '../components/PlanetActions.vue';
 import StatusBadges from '../components/StatusBadges.vue';
+import PointsStall from '../components/PointsStall.vue';
 import { useMobile, useProgressive, useProtection, useSort, useStored, useUni } from '../composables';
 import { nowSec, upcoming, useClock } from '../clock';
 import { tables, useLiveReload } from '../live';
-import { ago, dateTime, distance, fmt, fmtSigned, name, short, STATS_SHORT, STATS_TYPES } from '../format';
+import { ago, dateTime, distance, fmt, fmtSigned, name, short, STATS_SHORT, STATS_TYPES, type PointsStall as PointsStallInfo } from '../format';
 import { intlLocale } from '../i18n';
 
 interface Delta {
@@ -44,6 +45,8 @@ interface Player {
   ally_name: string | null;
   ally_tag: string | null;
   inactive_since: number | null;
+  /** no points since this stat update */
+  points_stall: PointsStallInfo | null;
   scores: Record<number, Score>;
   /** former names */
   aliases: string[];
@@ -642,6 +645,7 @@ const history = computed(() => {
           <PlayerLink :id="r.player.id" :name="r.player.name" />
           <span v-if="matchedAlias(r.player)" class="faint small">({{ t('player.aliases', { names: matchedAlias(r.player) }) }})</span>
           <StatusBadges :status="r.player.status" />
+          <PointsStall :stall="r.player.points_stall" :status="r.player.status" icon />
           <Icon v-if="r.player.note" name="edit" :size="12" class="faint" :label="r.player.note" />
           <span v-if="r.player.ally_tag ?? r.player.ally_name" class="muted small">[{{ r.player.ally_tag ?? r.player.ally_name }}]</span>
           <span class="grow" />
@@ -688,6 +692,7 @@ const history = computed(() => {
           <PlayerLink :id="r.id" :name="r.name" />
           <span v-if="matchedAlias(r)" class="faint small">({{ t('player.aliases', { names: matchedAlias(r) }) }})</span>
           <StatusBadges :status="r.status" />
+          <PointsStall :stall="r.points_stall" :status="r.status" icon />
           <Icon v-if="r.note" name="edit" :size="12" class="faint" :label="r.note" />
           <span class="grow" />
           <span class="muted small">{{ r.ally_tag ?? r.ally_name ?? '' }}</span>
@@ -740,6 +745,7 @@ const history = computed(() => {
             <PlayerLink :id="r.player.id" :name="r.player.name" />
             <span v-if="matchedAlias(r.player)" class="faint small"> ({{ t('player.aliases', { names: matchedAlias(r.player) }) }})</span>
             <StatusBadges :status="r.player.status" />
+            <PointsStall :stall="r.player.points_stall" :status="r.player.status" icon />
              <Icon v-if="r.player.note" name="edit" :size="12" class="faint" :label="r.player.note" />
           </td>
           <td class="mono small">
@@ -813,6 +819,7 @@ const history = computed(() => {
             <PlayerLink :id="r.id" :name="r.name" />
             <span v-if="matchedAlias(r)" class="faint small"> ({{ t('player.aliases', { names: matchedAlias(r) }) }})</span>
             <StatusBadges :status="r.status" />
+            <PointsStall :stall="r.points_stall" :status="r.status" icon />
              <Icon v-if="r.note" name="edit" :size="12" class="faint" :label="r.note" />
           </td>
           <td class="muted">{{ r.ally_tag ?? r.ally_name ?? '' }}</td>

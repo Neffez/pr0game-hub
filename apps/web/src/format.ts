@@ -170,7 +170,15 @@ export interface UniverseSettings {
   gameUrl: string;
   /** pr0plan, linked from the build order tab */
   pr0planUrl?: string;
+  /** days without login until the game flags a player inactive (default 7) */
+  inactiveDays?: number;
 }
+
+/** Days without login until the game flags a player inactive, when the universe does not set it. */
+export const INACTIVE_DAYS = 7;
+
+/** Stat update of a player's last points gain (server `pointsStalls`); `atLeast`: none seen, the first known update. */
+export type PointsStall = { time: number; atLeast: boolean };
 
 export { distance } from '@pr0hub/flight';
 

@@ -7,6 +7,16 @@ Every commit adds its changes here, newest first, grouped by date.
 - Sidebar: the universe name above the menu links to the universe in the game (its configured game URL, new tab)
   when the universe has one.
 
+- Upcoming inactivity: when the newest synced stat updates bring a player no gain in total points, the player profile
+  shows the update of the last gain and when the player turns inactive ("no points since the update on …, inactive
+  from …"; that update plus the universe's new setting `inactiveDays`, default 7, under general in the admin panel).
+  Overview and statistics mark such players with a "Zz" icon next to the name carrying the same text as tooltip
+  (left out once the game flags them inactive).
+  - The server computes it (`pointsStalls` in `repo/stats.ts`, one window query for many players) and returns
+    `points_stall` on overview players and statistics rows and `pointsStall` on the player page (schema
+    `PointsStall` in the OpenAPI). Lists look back twice `inactiveDays`; a player without any gain in that range is
+    shown as "since at least" the first update in it.
+
 - Expeditions: expedition statistics and expedition deck are one menu entry "Expeditions" with the tabs statistics and
   deck (`?tab=stats|deck` on `/expeditions`; `/deck` redirects to the deck tab). The views are the components
   `ExpeditionStats.vue` and `ExpeditionDeck.vue`; `DeckView.vue` and the deck icon are gone.

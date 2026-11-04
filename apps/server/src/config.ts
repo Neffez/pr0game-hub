@@ -83,7 +83,13 @@ export interface UniverseSettings {
   gameUrl: string;
   /** pr0plan (build order planner) linked from the build order tab */
   pr0planUrl: string;
+  /** days without login until the game flags a player inactive (default 7, see `inactiveDaysOf`) */
+  inactiveDays?: number;
 }
+
+/** Days without login until the game flags a player inactive, when the universe does not set it. */
+export const INACTIVE_DAYS = 7;
+export const inactiveDaysOf = (s: UniverseSettings) => Number(s.inactiveDays) || INACTIVE_DAYS;
 
 export const UNIVERSE_DEFAULTS: UniverseSettings = {
   galaxies: 4,

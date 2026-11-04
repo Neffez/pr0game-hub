@@ -14,6 +14,7 @@ import StatusBadges from '../components/StatusBadges.vue';
 import { useLoader, useUni, vStack } from '../composables';
 import { tables, useLiveReload } from '../live';
 import { ago, coords, dateTime, fmt, freshnessColor, name, numDate, phalanxRange, STATS_TYPES } from '../format';
+import PointsStall from './PointsStall.vue';
 
 Chart.register(...registerables);
 
@@ -154,6 +155,7 @@ onBeforeUnmount(() => chart?.destroy());
         {{ t('player.messages') }}
       </RouterLink>
     </p>
+    <PointsStall :stall="data.pointsStall" />
 
     <div class="card">
       <div class="row">

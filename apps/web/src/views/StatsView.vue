@@ -4,13 +4,14 @@ import Icon from '../components/Icon.vue';
 import Hint from '../components/Hint.vue';
 import PlayerLink from '../components/PlayerLink.vue';
 import StatusBadges from '../components/StatusBadges.vue';
+import PointsStall from '../components/PointsStall.vue';
 import { computed, onMounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
 import PageHeader from '../components/PageHeader.vue';
 import { useLoader, useMobile, useStored, useUni, vStack } from '../composables';
 import { tables, useLiveReload } from '../live';
-import { dateTime, fmt, fmtSigned, short, STATS_CATEGORIES, STATS_TYPES } from '../format';
+import { dateTime, fmt, fmtSigned, short, STATS_CATEGORIES, STATS_TYPES, type PointsStall as PointsStallInfo } from '../format';
 
 interface Category { who: string; type: number; stat_time: number; pages: number[] }
 interface Row {
@@ -24,6 +25,8 @@ interface Row {
   // players
   title?: string | null;
   status?: string[];
+  /** no points since this stat update */
+  points_stall?: PointsStallInfo | null;
   ally_id?: number | null;
   ally_name?: string | null;
   ally_tag?: string | null;
@@ -195,6 +198,7 @@ const SCORE_COLS = [4, 3, 2, 5] as const;
             <span v-if="r.title" class="honor">{{ r.title }}</span>
             <span :class="['pname', nameClass(r)]"><PlayerLink :id="r.id" :name="r.name" /></span>
             <StatusBadges :status="r.status ?? []" :points="r.scores?.[1] ?? null" />
+            <PointsStall :stall="r.points_stall" :status="r.status" icon />
           </td>
           <td>
             <span v-if="r.ally_id" :class="{ ally: r.ownAlly }">{{ r.ally_name ?? '' }}<span v-if="r.ally_tag" class="muted"> [{{ r.ally_tag }}]</span></span>

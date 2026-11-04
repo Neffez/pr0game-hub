@@ -1790,6 +1790,31 @@ describe('performance and system monitor', () => {
     expect(latestScores(db, groupA, [a]).size).toBe(0);
   });
 
+  it('finds the update of the last points gain of players without points since', async () => {
+    const { pointsStalls } = await import('../src/repo/stats.js');
+    const g = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', headers: admin, payload: { universe: 'u8', name: 'Stalls' } })).json().id;
+    const player = (name: string) => Number(db.prepare('INSERT INTO players (group_id, name) VALUES (?, ?)').run(g, name).lastInsertRowid);
+    const [quit, active, never, single] = [player('Quit'), player('Active'), player('Never'), player('Single')];
+    const snaps = [1000, 2000, 3000, 4000].map((t) =>
+      Number(db.prepare("INSERT INTO stat_snapshots (group_id, who, type, stat_time) VALUES (?, 'player', 1, ?)").run(g, t).lastInsertRowid));
+    const fleet = Number(db.prepare("INSERT INTO stat_snapshots (group_id, who, type, stat_time) VALUES (?, 'player', 2, 4000)").run(g).lastInsertRowid);
+    const score = (s: number, p: number, points: number) => db.prepare('INSERT INTO player_scores (snapshot_id, player_id, rank, points) VALUES (?, ?, 1, ?)').run(s, p, points);
+    // gain at 2000, nothing at 3000, raided at 4000 (other categories do not count)
+    [100, 150, 150, 120].forEach((pts, i) => score(snaps[i], quit, pts));
+    score(fleet, quit, 999);
+    [100, 90, 90, 95].forEach((pts, i) => score(snaps[i], active, pts));
+    [100, 100, 80, 80].forEach((pts, i) => score(snaps[i], never, pts));
+    score(snaps[3], single, 50);
+    const all = pointsStalls(db, g);
+    expect([...all.keys()].sort()).toEqual([quit, never].sort());
+    expect(all.get(quit)).toEqual({ time: 2000, atLeast: false });
+    expect(all.get(never)).toEqual({ time: 1000, atLeast: true });
+    // a later start leaves the gain before it unknown
+    expect(pointsStalls(db, g, { since: 2500 }).get(quit)).toEqual({ time: 3000, atLeast: true });
+    expect([...pointsStalls(db, g, { playerIds: [never] }).keys()]).toEqual([never]);
+    expect(pointsStalls(db, groupA, { playerIds: [quit] }).size).toBe(0);
+  });
+
   it('reports database, memory and request figures to global admins only', async () => {
     await app.inject({ method: 'GET', url: '/hub/api/u8/overview', headers: { ...admin, 'x-hub-group': String(groupA) } });
     const res = await app.inject({ method: 'GET', url: '/hub/api/admin/system', headers: admin });

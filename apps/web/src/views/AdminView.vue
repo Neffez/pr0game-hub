@@ -65,6 +65,7 @@ const UNI_GROUPS: UniGroup[] = [
     { key: 'gameUrl', label: 'gameUrl', hint: true, type: 'text' },
     { key: 'pr0planUrl', label: 'pr0planUrl', hint: true, type: 'text', placeholder: 'https://pr0sync.pages.dev/' },
     { key: 'timezone', label: 'timezone', hint: true, type: 'text', placeholder: 'Europe/Berlin' },
+    { key: 'inactiveDays', label: 'inactiveDays', hint: true, min: 0, step: 'any', placeholder: '7' },
   ] },
   { id: 'schedule', fields: [] },
   { id: 'size', hint: 'admin.distanceHint', fields: [

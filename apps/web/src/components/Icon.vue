@@ -93,6 +93,8 @@ const ICONS: Record<string, string[]> = {
   arrowDown: ['M12 5v14', 'M6 13l6 6 6-6'],
   // box with an arrow leaving it (opens elsewhere)
   external: ['M14 4h6v6', 'M20 4l-9 9', 'M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5'],
+  // "Zz": asleep (no points any more, inactive soon)
+  sleep: ['M4 10h7l-7 9h7', 'M14 4h6l-6 7h6'],
   // triangle with exclamation mark
   warning: ['M12 3.5 21.5 20h-19z', 'M12 10v4.5', 'M12 17.2v.01'],
   // pencil

@@ -25,6 +25,11 @@ export const CHANGELOG: ChangelogDay[] = [
       },
       {
         kind: 'new',
+        de: 'Bald inaktiv: Bekommt ein Spieler keine Punkte mehr, zeigt sein Profil, seit welchem Statistik-Update er keine Punkte mehr hatte und ab wann er inaktiv ist. In Übersicht und Statistik steht dann ein „Zz“ neben dem Namen, der Tooltip nennt dasselbe. Die Tage bis inaktiv stellt der Admin im Universum ein (Standard 7).',
+        en: 'Inactive soon: when a player stops gaining points, the profile shows since which stat update there were no points and when the player turns inactive. Overview and statistics show a "Zz" next to the name with the same in its tooltip. The admin sets the days until inactive in the universe (default 7).',
+      },
+      {
+        kind: 'new',
         de: 'Expeditionen: Auswertung und Expo-Deck sind jetzt ein Menüpunkt „Expeditionen“ mit zwei Tabs. Alle Tabellen lassen sich per Klick auf die Spalte sortieren (am Handy über eine Auswahl), die Bereiche lassen sich einklappen.',
         en: 'Expeditions: statistics and expedition deck are now one menu entry "Expeditions" with two tabs. All tables sort with a click on a column (on mobile with a selection), the sections can be collapsed.',
       },

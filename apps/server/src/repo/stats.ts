@@ -1,3 +1,5 @@
+import { inactiveDaysOf } from '../config.js';
+import type { GroupContext } from '../context.js';
 import type { DB } from '../db.js';
 
 export type Score = { points: number; rank: number; time: number };
@@ -18,6 +20,41 @@ export function latestScores(db: DB, groupId: number, playerIds: number[], types
   for (const r of rows) out.set(r.player_id, { ...out.get(r.player_id), [r.type]: { points: r.points, rank: r.rank, time: r.time } });
   return out;
 }
+
+/** Stat update of a player's last points gain; `atLeast`: no gain seen, the first known update (there may be older ones). */
+export type PointsStall = { time: number; atLeast: boolean };
+
+/**
+ * Players without a gain in total points since a synced stat update: player id → the update of the last gain.
+ * Each update (from `since` on) is compared to the one before; points only grow by spending resources, so the
+ * player was last online before that update. Players whose newest update still has a gain are left out.
+ * `playerIds` limits it to these players (all of the group otherwise).
+ */
+export function pointsStalls(db: DB, groupId: number, opts: { playerIds?: number[]; since?: number } = {}): Map<number, PointsStall> {
+  const rows = db
+    .prepare(
+      `WITH s AS (
+         SELECT ps.player_id, ps.stat_time, ps.points, LAG(ps.points) OVER (PARTITION BY ps.player_id ORDER BY ps.stat_time) AS prev
+         FROM players p JOIN player_scores ps ON ps.player_id = p.id AND ps.type = 1 AND ps.stat_time >= ?
+         WHERE p.group_id = ? AND (? IS NULL OR p.id IN (SELECT value FROM json_each(?)))
+       )
+       SELECT player_id, MAX(CASE WHEN prev IS NULL OR points > prev THEN stat_time END) AS time, MIN(stat_time) AS first,
+         MAX(stat_time) AS newest, COUNT(*) AS n
+       FROM s GROUP BY player_id`,
+    )
+    .all(opts.since ?? 0, groupId, opts.playerIds ? 1 : null, JSON.stringify(opts.playerIds ?? [])) as {
+    player_id: number; time: number; first: number; newest: number; n: number;
+  }[];
+  const out = new Map<number, PointsStall>();
+  for (const r of rows) if (r.n >= 2 && r.time < r.newest) out.set(r.player_id, { time: r.time, atLeast: r.time === r.first });
+  return out;
+}
+
+/**
+ * Lists look back twice the days until inactive from the newest update: enough for the upcoming inactivity, while
+ * the whole history of every player would take long. Older gains show as "at least since" the first update in it.
+ */
+export const stallSince = (ctx: GroupContext, newest: number) => newest - 2 * inactiveDaysOf(ctx.universe.settings) * 86400;
 
 /** Statistics categories of the catch-up bonus and their weight (game: buildings ×1, research ×0.8, fleet ×0.6). */
 export const CATCH_UP_WEIGHTS: Record<number, number> = { 4: 1, 3: 0.8, 2: 0.6 };

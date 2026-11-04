@@ -638,7 +638,7 @@ function validateSettings(settings: object | undefined) {
   if (s.gameUrl && !/^https?:\/\//i.test(String(s.gameUrl))) throw new HttpError(400, 'game_url_invalid', 'Game URL must start with http(s)://');
   if (s.pr0planUrl && !/^https?:\/\//i.test(String(s.pr0planUrl))) throw new HttpError(400, 'pr0plan_url_invalid', 'pr0plan URL must start with http(s)://');
   // sizes and distance factors feed the distance, flight time, phalanx and missile range calculations
-  const defaults: Record<string, unknown> = { ...UNIVERSE_DEFAULTS, phalanxRangeFactor: 1, missileRangeFactor: 1, noobLimit: 0, noobFactor: 5, noobInactives: false, fleetDebrisPercent: 40, defenseDebrisPercent: 0, bigShields: false };
+  const defaults: Record<string, unknown> = { ...UNIVERSE_DEFAULTS, phalanxRangeFactor: 1, missileRangeFactor: 1, noobLimit: 0, noobFactor: 5, noobInactives: false, inactiveDays: 7, fleetDebrisPercent: 40, defenseDebrisPercent: 0, bigShields: false };
   for (const [key, value] of Object.entries(s)) {
     if (value === null && !(key in UNIVERSE_DEFAULTS)) continue;
     let valid = true;

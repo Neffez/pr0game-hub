@@ -7,7 +7,7 @@ import { events } from '../events.js';
 import { ACTIVITY_DAYS, activityScores, addActivity, playerActivity } from '../repo/activity.js';
 import { latestEmpires } from '../repo/empire.js';
 import { memberPlayer, memberPlayers } from '../repo/members.js';
-import { latestScores } from '../repo/stats.js';
+import { latestScores, pointsStalls, stallSince } from '../repo/stats.js';
 import { contextOf, likeTerm, parseSections, type Q } from './util.js';
 
 export function playersRoutes(app: FastifyInstance, db: DB) {
@@ -95,6 +95,7 @@ export function playersRoutes(app: FastifyInstance, db: DB) {
         : [],
     );
     const points = latestPoints(rows.map((r) => r.id));
+    const stalls = pointsStalls(db, ctx.groupId, { playerIds: rows.map((r) => r.id), since: stallSince(ctx, snap.stat_time) });
     return {
       ...base,
       statTime: snap.stat_time,
@@ -108,6 +109,7 @@ export function playersRoutes(app: FastifyInstance, db: DB) {
         prev_rank: prev.get(r.id)?.rank ?? null,
         delta: prev.has(r.id) ? r.points - prev.get(r.id).points : null,
         scores: points.get(r.id) ?? {},
+        points_stall: stalls.get(r.id) ?? null,
       })),
     };
   });
@@ -177,6 +179,7 @@ export function playersRoutes(app: FastifyInstance, db: DB) {
     return {
       player: { ...player, status: JSON.parse(player.status) },
       history, ownHistory, planets, spyReports, statusLog, aliases, ...intel,
+      pointsStall: pointsStalls(db, ctx.groupId, { playerIds: [id] }).get(id) ?? null,
     };
   });
 

@@ -70,6 +70,17 @@ components:
       schema: { type: integer }
       description: Attack plan id
   schemas:
+    PointsStall:
+      type: object
+      nullable: true
+      description: >-
+        The player gained no total points since the synced stat update at `time` (Unix seconds), the update of the last
+        gain; each update is compared to the one before. `atLeast`: no gain seen, `time` is the first update looked at
+        (the gain lies before it). Null while the newest update still has a gain or fewer than two are known. Lists look
+        back twice the universe's `inactiveDays` from the newest update, the player page the whole history.
+      properties:
+        time: { type: integer }
+        atLeast: { type: boolean }
     MarketRate:
       type: object
       description: Market rate as metal (`m`) and crystal (`k`) per 1 deuterium
@@ -841,6 +852,8 @@ components:
             `missile_range_factor`, number ≥ 0, default 1; the missile factor is passed on to the IPM calculator),
             `noobLimit`, `noobFactor` and `noobInactives` (game config `noob_protection_time`, `noob_protection_multi` and
             `noob_inactives`, default 0 = unknown, 5 and false; weak/strong are derived from them and `player.points`),
+            `inactiveDays` (days without login until the game flags a player inactive, number ≥ 0, default 7; the player
+            page adds them to the last stat update with a points gain),
             `fleetDebrisPercent` and `defenseDebrisPercent` (game config `fleet_debris_percentage` and
             `def_debris_percentage`, 0-100, default 40 and 0) and `bigShields` (boolean, default false: shield domes
             must fall before other units can be hit); passed on to the battle simulator. `startsAt`: scheduled start
@@ -885,7 +898,12 @@ components:
     Overview:
       type: object
       properties:
-        players: { type: array, items: { type: object } }
+        players:
+          type: array
+          items:
+            type: object
+            properties:
+              points_stall: { $ref: '#/components/schemas/PointsStall' }
         planets:
           type: array
           items:
@@ -1899,6 +1917,8 @@ paths:
     get:
       tags: [Universe]
       operationId: getStats
+      description: >-
+        Latest synced statistics page of a category; player `rows` carry `points_stall` (see `PointsStall`).
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
@@ -1938,7 +1958,8 @@ paths:
       operationId: getPlayer
       description: >-
         One player: scores over time, `planets` (with `has_moon`, `moon_name`, `moon_diameter` in km or null, newest spy
-        report times), recent spy reports and further intelligence of the group.
+        report times), recent spy reports and further intelligence of the group; `pointsStall` (see `PointsStall`) from
+        the whole score history.
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
