@@ -90,11 +90,13 @@ export type PreviewItem = { kind: HubRecord['kind'] } & Record<string, string | 
 /** Pages another member may paste for you: reports they sent, not your empire, overview or fleets. */
 export const FOR_USER_PAGES = new Set<ParseResult['pageType']>(['messages', 'combatReport']);
 
+export type IngestLog = { info: (obj: object, msg: string) => void; warn: (obj: object, msg: string) => void };
+
 export function ingest(
   db: DB,
   target: IngestTarget,
   input: ParseInput & { source: 'paste' | 'upload' },
-  opts: { dryRun?: boolean; ctx?: GroupContext } = {},
+  opts: { dryRun?: boolean; ctx?: GroupContext; log?: IngestLog } = {},
 ): IngestSummary {
   const parsed = parsePage(input);
   if (foreignRecords(db, target, parsed.records)) {
@@ -113,9 +115,28 @@ export function ingest(
     preview: parsed.records.slice(0, 100).map(describe),
     settlements: settlementsFor(db, target, parsed.records),
   };
-  if (opts.dryRun) return summary;
+  const started = Date.now();
+  const logDone = () =>
+    opts.log?.info(
+      {
+        groupId: target.groupId,
+        userId: target.userId,
+        syncedBy: target.syncedBy,
+        pageType: parsed.pageType,
+        source: parsed.source,
+        dryRun: !!opts.dryRun,
+        counts: summary.counts,
+        warnings: summary.warnings,
+        ms: Date.now() - started,
+      },
+      'ingest',
+    );
+  if (opts.dryRun) {
+    logDone();
+    return summary;
+  }
 
-  const store = new Store(db, target, summary);
+  const store = new Store(db, target, summary, opts.log);
   // universe.json (several MB) isn't kept: a download builds it again from the hub's data
   const keep = parsed.source !== 'json';
   db.transaction(() => {
@@ -145,6 +166,7 @@ export function ingest(
   // without the member's consent the others' views still reload, but no hint names who synced
   const by = shareSyncsEnabled(db, target.userId) ? target.userId : undefined;
   events.publishIngest(target.groupId, by, publicCounts(db, target.userId, summary.counts), systems);
+  logDone();
   return summary;
 }
 

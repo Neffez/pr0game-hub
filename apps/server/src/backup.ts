@@ -18,4 +18,5 @@ db.close();
 
 const old = readdirSync(targetDir).filter((f) => /^hub-\d{8}-\d{6}\.db$/.test(f)).sort().reverse().slice(keep);
 for (const f of old) rmSync(join(targetDir, f));
+console.error(JSON.stringify({ msg: 'backup', file, keep, removed: old.length }));
 console.log(file);

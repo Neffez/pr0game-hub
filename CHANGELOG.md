@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-04
 
+- OpenAPI lists every Fastify `/api` path (writes included). CI fails when a route and the YAML drift. Ingest logs
+  group, page type, counts and duration; a statistics page without a time is logged; backups log to stderr.
+
 - Web: an expired session clears the local login, closes live events and sends the tab to login; a non-JSON error
   body is no longer a raw parse error; login `next` stays on the hub; a failed player note save shows the error; a
   non-numeric player id does not open the dialog.

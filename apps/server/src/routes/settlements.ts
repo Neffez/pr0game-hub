@@ -144,7 +144,7 @@ export function settlementRoutes(app: FastifyInstance, db: DB) {
     if (!report || time == null) throw new HttpError(400, 'report_invalid', 'No battle report recognised');
     if (isCombatSimulation(report)) throw new HttpError(400, 'report_simulation', 'A battle simulation is no battle (paste it into the raid plan)');
     if (!report.target) throw new HttpError(400, 'report_no_target', 'The battle report shows no coordinates (copy it while logged in)');
-    ingest(db, { groupId: ctx.groupId, userId: ctx.user.id, timezone: ctx.universe.settings.timezone }, { text, source: 'paste' });
+    ingest(db, { groupId: ctx.groupId, userId: ctx.user.id, timezone: ctx.universe.settings.timezone }, { text, source: 'paste' }, { ctx, log: req.log });
     const res = planFromReport(db, ctx, report, time, mission);
     if (!res.ok) throw new HttpError(400, res.code, 'No member of the group fought on that side of the battle');
     if (!res.existing) events.publish(ctx.groupId, { type: 'data', tables: ['attack_plans'], userId: ctx.user.id });

@@ -55,7 +55,7 @@ export function ingestRoutes(app: FastifyInstance, db: DB) {
       db,
       { groupId: ctx.groupId, userId: forUser ?? ctx.user.id, timezone: ctx.universe.settings.timezone, syncedBy: forUser != null ? ctx.user.id : undefined },
       { html: body.html, text: body.text, statsType: body.statsType, system: body.system, source: 'paste' },
-      { dryRun: !!body.dryRun, ctx },
+      { dryRun: !!body.dryRun, ctx, log: req.log },
     );
   });
 
@@ -80,6 +80,7 @@ export function ingestRoutes(app: FastifyInstance, db: DB) {
           db,
           { groupId: ctx.groupId, userId: ctx.user.id, timezone: ctx.universe.settings.timezone },
           { text, source: 'upload' },
+          { ctx, log: req.log },
         );
       } finally {
         universeJsonRunning--;

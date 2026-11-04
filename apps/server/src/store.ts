@@ -28,7 +28,7 @@ import {
 import { CLASS_BUILDINGS, PHALANX } from '@pr0hub/core/tech';
 import { keepOriginalNames, mergeCombatFleets } from './battleParticipants.js';
 import { now, type DB } from './db.js';
-import type { IngestSummary, IngestTarget } from './ingest.js';
+import type { IngestLog, IngestSummary, IngestTarget } from './ingest.js';
 import { fleetActivity, galaxyMark } from './repo/activity.js';
 import { FLEET_HISTORY } from './repo/fleets.js';
 import { Players } from './repo/players.js';
@@ -44,8 +44,18 @@ export class Store {
     private db: DB,
     private t: IngestTarget,
     private summary: IngestSummary,
+    private log?: IngestLog,
   ) {
     this.players = new Players(db, t.groupId);
+  }
+
+  private parseJson<T>(raw: string, what: string): T {
+    try {
+      return JSON.parse(raw) as T;
+    } catch (err) {
+      this.log?.warn({ err, what, groupId: this.t.groupId, userId: this.t.userId }, 'store_json');
+      throw err;
+    }
   }
 
   private count(kind: string, isNew: boolean) {
@@ -113,6 +123,7 @@ export class Store {
   private stats(r: StatsRecord) {
     if (!r.type || !r.statTime) {
       this.summary.warnings.push('stats_not_saved');
+      this.log?.warn({ groupId: this.t.groupId, userId: this.t.userId }, 'stats_not_saved');
       return;
     }
     const db = this.db;
@@ -876,7 +887,7 @@ export class Store {
     const prev = this.db
       .prepare('SELECT page_time AS time, data FROM fleet_snapshots WHERE group_id = ? AND user_id = ? AND page_time < ? ORDER BY page_time DESC, id DESC LIMIT 1')
       .get(this.t.groupId, this.t.userId, pageTime) as { time: number; data: string } | undefined;
-    fleetActivity(this.db, this.t.groupId, this.t.userId, prev ? { time: prev.time, data: JSON.parse(prev.data) } : null, { time: pageTime, data: fleets });
+    fleetActivity(this.db, this.t.groupId, this.t.userId, prev ? { time: prev.time, data: this.parseJson(prev.data, 'fleet_snapshot') } : null, { time: pageTime, data: fleets });
     this.db
       .prepare('INSERT INTO fleet_snapshots (group_id, user_id, page_time, data) VALUES (?, ?, ?, ?)')
       .run(this.t.groupId, this.t.userId, pageTime, JSON.stringify(fleets));

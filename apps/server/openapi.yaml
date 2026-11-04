@@ -1335,6 +1335,16 @@ paths:
   /api/admin/groups/{id}/members:
     parameters:
       - { name: id, in: path, required: true, schema: { type: integer }, description: Alliance group id }
+    get:
+      tags: [Admin]
+      operationId: listGroupMembers
+      description: Members of the alliance; alliance admins.
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: array, items: { type: object } }
     post:
       tags: [Admin]
       operationId: addGroupMember
@@ -2971,6 +2981,20 @@ paths:
           content:
             application/json:
               schema: { type: object }
+    put:
+      tags: [Combat]
+      operationId: putDeck
+      security: [{ sessionCookie: [] }]
+      description: Saves the expedition deck of a member.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
   /api/{uni}/plans:
     get:
       tags: [Combat]
@@ -3005,6 +3029,20 @@ paths:
           content:
             application/json:
               schema: { type: array, items: { type: object } }
+    post:
+      tags: [Combat]
+      operationId: createPlan
+      security: [{ sessionCookie: [] }]
+      description: Creates a raid plan and claims the target.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
   /api/{uni}/plans/sync:
     post:
       tags: [Combat]
@@ -3409,6 +3447,20 @@ paths:
           content:
             application/json:
               schema: { type: array, items: { type: object } }
+    post:
+      tags: [Social]
+      operationId: createClaim
+      security: [{ sessionCookie: [] }]
+      description: Claims a target for the alliance.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
   /api/{uni}/comments:
     get:
       tags: [Social]
@@ -3435,6 +3487,20 @@ paths:
           content:
             application/json:
               schema: { type: array, items: { type: object } }
+    post:
+      tags: [Social]
+      operationId: createComment
+      security: [{ sessionCookie: [] }]
+      description: Adds a comment on a player, loot settlement or planet.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
   /api/{uni}/comments/counts:
     get:
       tags: [Social]
@@ -3652,3 +3718,684 @@ paths:
           content:
             text/event-stream:
               schema: { type: string }
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      operationId: login
+      security: []
+      description: Browser login; sets the session cookie.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+  /api/auth/logout:
+    post:
+      tags: [Auth]
+      operationId: logout
+      security: [{ sessionCookie: [] }]
+      description: Clears the session cookie.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+  /api/auth/lang:
+    post:
+      tags: [Auth]
+      operationId: setLang
+      security: [{ sessionCookie: [] }]
+      description: Stores the hub UI language on the account.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+  /api/auth/username:
+    post:
+      tags: [Auth]
+      operationId: changeUsername
+      security: [{ sessionCookie: [] }]
+      description: Changes the hub username.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+  /api/auth/password:
+    post:
+      tags: [Auth]
+      operationId: changePassword
+      security: [{ sessionCookie: [] }]
+      description: Changes the password and revokes API tokens.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+  /api/auth/fleet-share:
+    get:
+      tags: [Auth]
+      operationId: getFleetShare
+      description: How the member shares their own fleets with the alliance.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+    post:
+      tags: [Auth]
+      operationId: setFleetShare
+      security: [{ sessionCookie: [] }]
+      description: Stores fleet sharing.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+  /api/auth/message-share:
+    get:
+      tags: [Auth]
+      operationId: getMessageShare
+      description: Whether the member shares in-game messages with the alliance.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+    post:
+      tags: [Auth]
+      operationId: setMessageShare
+      security: [{ sessionCookie: [] }]
+      description: Stores message sharing.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+  /api/auth/show-online:
+    get:
+      tags: [Auth]
+      operationId: getShowOnline
+      description: Whether the member appears in the online list.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+    post:
+      tags: [Auth]
+      operationId: setShowOnline
+      security: [{ sessionCookie: [] }]
+      description: Stores online visibility.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+  /api/auth/share-activity:
+    get:
+      tags: [Auth]
+      operationId: getShareActivity
+      description: Whether the member shares activity with the alliance.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+    post:
+      tags: [Auth]
+      operationId: setShareActivity
+      security: [{ sessionCookie: [] }]
+      description: Stores activity sharing.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+  /api/invites/{token}:
+    get:
+      tags: [Auth]
+      operationId: getInvite
+      security: []
+      description: Claim or recovery invite (the token in the link).
+      parameters:
+        - { name: token, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+  /api/invites/{token}/accept:
+    post:
+      tags: [Auth]
+      operationId: acceptInvite
+      security: []
+      description: Accepts a claim or recovery invite.
+      parameters:
+        - { name: token, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+  /api/admin/universes:
+    post:
+      tags: [Admin]
+      operationId: createUniverse
+      security: [{ sessionCookie: [] }]
+      description: Creates a universe; hub admins.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+  /api/admin/universes/{slug}:
+    put:
+      tags: [Admin]
+      operationId: updateUniverse
+      security: [{ sessionCookie: [] }]
+      description: Updates a universe's name, settings, deck or schedule; hub admins.
+      parameters:
+        - { name: slug, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+  /api/admin/users/{userId}:
+    put:
+      tags: [Admin]
+      operationId: renameUser
+      security: [{ sessionCookie: [] }]
+      description: Renames a hub account; hub admins.
+      parameters:
+        - { name: userId, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+  /api/admin/groups:
+    get:
+      tags: [Admin]
+      operationId: listGroups
+      security: [{ sessionCookie: [] }]
+      description: Alliances of every universe; hub and alliance admins see what they may manage.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: array, items: { type: object } }
+    post:
+      tags: [Admin]
+      operationId: createGroup
+      security: [{ sessionCookie: [] }]
+      description: Creates an alliance; hub admins.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+  /api/admin/groups/{id}:
+    put:
+      tags: [Admin]
+      operationId: updateGroup
+      security: [{ sessionCookie: [] }]
+      description: Updates the alliance name or tag; alliance admins.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+  /api/admin/groups/{id}/members/{userId}:
+    put:
+      tags: [Admin]
+      operationId: updateGroupMember
+      security: [{ sessionCookie: [] }]
+      description: Changes a member's role or in-game name; alliance admins.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+        - { name: userId, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+    delete:
+      tags: [Admin]
+      operationId: removeGroupMember
+      security: [{ sessionCookie: [] }]
+      description: Removes a member; alliance admins.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+        - { name: userId, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+  /api/admin/groups/{id}/members/{userId}/invite:
+    post:
+      tags: [Admin]
+      operationId: createMemberInvite
+      security: [{ sessionCookie: [] }]
+      description: Creates a claim invite for a placeholder member; alliance admins.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+        - { name: userId, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+  /api/admin/groups/{id}/players/merge:
+    post:
+      tags: [Admin]
+      operationId: mergePlayers
+      security: [{ sessionCookie: [] }]
+      description: Merges two player rows of the alliance; remaps every `players` foreign key.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+  /api/admin/groups/{id}/ingests:
+    get:
+      tags: [Admin]
+      operationId: listGroupIngests
+      security: [{ sessionCookie: [] }]
+      description: Recent pastes of the alliance; alliance admins.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: array, items: { type: object } }
+  /api/admin/groups/{id}/activity/backfill:
+    post:
+      tags: [Admin]
+      operationId: backfillGroupActivity
+      security: [{ sessionCookie: [] }]
+      description: Rebuilds the activity log from stored pages; hub admins.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+  /api/admin/crawler:
+    get:
+      tags: [Admin]
+      operationId: getCrawler
+      security: [{ sessionCookie: [] }]
+      description: Battle-hall crawler status; hub admins.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+  /api/admin/crawler/retry:
+    post:
+      tags: [Admin]
+      operationId: retryCrawler
+      security: [{ sessionCookie: [] }]
+      description: Resumes a crawler that gave up; hub admins.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+  /api/admin/ingests/{id}/reparse:
+    post:
+      tags: [Admin]
+      operationId: reparseIngest
+      security: [{ sessionCookie: [] }]
+      description: Parses a stored paste again; hub admins.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+  /api/admin/ingests/{id}/delete:
+    post:
+      tags: [Admin]
+      operationId: deleteIngest
+      security: [{ sessionCookie: [] }]
+      description: Deletes a stored paste (and optionally the data it created); hub admins.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+  /api/{uni}/ingest:
+    post:
+      tags: [Universe]
+      operationId: ingestPage
+      security: [{ sessionCookie: [] }]
+      description: >-
+        Stores a pasted game page. `forUser` may point to another member only for messages and combat reports,
+        not for empire, overview or fleets. `dryRun` returns the preview without storing.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+  /api/{uni}/universe-json:
+    get:
+      tags: [Universe]
+      operationId: downloadUniverseJson
+      description: universe.json built from the alliance's galaxy data.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+    post:
+      tags: [Universe]
+      operationId: uploadUniverseJson
+      security: [{ sessionCookie: [] }]
+      description: Uploads a universe.json (whole universe).
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+  /api/{uni}/phalanx:
+    post:
+      tags: [Combat]
+      operationId: ingestPhalanx
+      security: [{ sessionCookie: [] }]
+      description: Stores a phalanx scan for a retime plan.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+  /api/{uni}/plans/retime:
+    post:
+      tags: [Combat]
+      operationId: planRetime
+      security: [{ sessionCookie: [] }]
+      description: Retime plan for a hostile attack (`key` from `getHostileAttacks`).
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+  /api/{uni}/plans/hold:
+    post:
+      tags: [Combat]
+      operationId: planHold
+      security: [{ sessionCookie: [] }]
+      description: Hold plan for a hostile attack (`key` from `getHostileAttacks`).
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+  /api/{uni}/plans/{id}:
+    put:
+      tags: [Combat]
+      operationId: updatePlan
+      security: [{ sessionCookie: [] }]
+      description: Updates a raid plan (creator, or coordinates by a participant).
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/PlanId' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+    delete:
+      tags: [Combat]
+      operationId: deletePlan
+      security: [{ sessionCookie: [] }]
+      description: Deletes a raid plan; the creator.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/PlanId' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+  /api/{uni}/plans/{id}/phalanx:
+    delete:
+      tags: [Combat]
+      operationId: clearPlanPhalanx
+      security: [{ sessionCookie: [] }]
+      description: Drops the phalanx return stored on a retime plan.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/PlanId' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+  /api/{uni}/plans/{id}/enemy:
+    put:
+      tags: [Combat]
+      operationId: updatePlanEnemy
+      security: [{ sessionCookie: [] }]
+      description: Updates the enemy fleet of a retime or hold plan.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/PlanId' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+  /api/{uni}/plans/{id}/fleets:
+    post:
+      tags: [Combat]
+      operationId: addPlanFleet
+      security: [{ sessionCookie: [] }]
+      description: Adds a fleet to a raid plan.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/PlanId' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+  /api/{uni}/plans/{id}/fleets/{fleet}:
+    parameters:
+      - { $ref: '#/components/parameters/Uni' }
+      - { $ref: '#/components/parameters/PlanId' }
+      - { name: fleet, in: path, required: true, schema: { type: integer }, description: Plan fleet id }
+      - { $ref: '#/components/parameters/HubGroupHeader' }
+      - { $ref: '#/components/parameters/HubGroupQuery' }
+    put:
+      tags: [Combat]
+      operationId: updatePlanFleet
+      security: [{ sessionCookie: [] }]
+      description: Updates a plan fleet (owner, or the plan creator for some fields).
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+    delete:
+      tags: [Combat]
+      operationId: deletePlanFleet
+      security: [{ sessionCookie: [] }]
+      description: Removes a plan fleet.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+  /api/{uni}/claims/{id}:
+    put:
+      tags: [Social]
+      operationId: updateClaim
+      security: [{ sessionCookie: [] }]
+      description: Updates a target claim.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { name: id, in: path, required: true, schema: { type: integer } }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+    delete:
+      tags: [Social]
+      operationId: deleteClaim
+      security: [{ sessionCookie: [] }]
+      description: Releases a target claim.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { name: id, in: path, required: true, schema: { type: integer } }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+  /api/{uni}/comments/{id}:
+    put:
+      tags: [Social]
+      operationId: updateComment
+      security: [{ sessionCookie: [] }]
+      description: Edits a comment.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { name: id, in: path, required: true, schema: { type: integer } }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+    delete:
+      tags: [Social]
+      operationId: deleteComment
+      security: [{ sessionCookie: [] }]
+      description: Deletes a comment.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { name: id, in: path, required: true, schema: { type: integer } }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+  /api/{uni}/deck/events:
+    post:
+      tags: [Combat]
+      operationId: addDeckEvent
+      security: [{ sessionCookie: [] }]
+      description: Adds a drawn card or depletion event to the expedition deck.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+  /api/{uni}/deck/events/{id}:
+    delete:
+      tags: [Combat]
+      operationId: deleteDeckEvent
+      security: [{ sessionCookie: [] }]
+      description: Removes a deck event.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { name: id, in: path, required: true, schema: { type: integer } }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+  /api/{uni}/players/{id}/note:
+    put:
+      tags: [Intelligence]
+      operationId: putPlayerNote
+      security: [{ sessionCookie: [] }]
+      description: Saves the alliance note on a player.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { name: id, in: path, required: true, schema: { type: integer } }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
+  /api/{uni}/messages/{id}/share:
+    post:
+      tags: [Social]
+      operationId: shareMessage
+      security: [{ sessionCookie: [] }]
+      description: Shares or hides one in-game message for the alliance.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { name: id, in: path, required: true, schema: { type: integer } }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }

@@ -46,6 +46,23 @@ declare module 'fastify' {
   }
 }
 
+const apiOps = new WeakMap<FastifyInstance, { method: string; path: string }[]>();
+
+/** Fastify `/api` routes as OpenAPI paths (`:uni` → `{uni}`), without HEAD/OPTIONS. */
+export function listApiRoutes(app: FastifyInstance): { method: string; path: string }[] {
+  return [...(apiOps.get(app) ?? [])];
+}
+
+function trackApiRoute(app: FastifyInstance, route: { method: string | string[]; url: string }) {
+  const methods = (Array.isArray(route.method) ? route.method : [route.method]).filter((m) => m !== 'HEAD' && m !== 'OPTIONS');
+  let path = route.url.startsWith(config.basePath) ? route.url.slice(config.basePath.length) || '/' : route.url;
+  if (!path.startsWith('/api/')) return;
+  path = path.replace(/:([A-Za-z_][A-Za-z0-9_]*)/g, '{$1}');
+  const list = apiOps.get(app) ?? [];
+  if (!apiOps.has(app)) apiOps.set(app, list);
+  for (const method of methods) list.push({ method, path });
+}
+
 export function buildApp(db: DB, opts: { logger?: boolean; push?: PushOptions; discord?: DiscordOptions } = {}): FastifyInstance {
   const app = Fastify({
     bodyLimit: config.bodyLimit,
@@ -57,11 +74,18 @@ export function buildApp(db: DB, opts: { logger?: boolean; push?: PushOptions; d
         : {
             level: process.env.LOG_LEVEL ?? 'info',
             serializers: {
-              req: (req) => ({ method: req.method, url: req.url }),
+              req: (req) => ({
+                method: req.method,
+                url: req.url,
+                uni: (req.params as { uni?: string } | undefined)?.uni,
+                group: typeof req.headers['x-hub-group'] === 'string' ? req.headers['x-hub-group'] : undefined,
+              }),
             },
           },
   });
 
+  apiOps.set(app, []);
+  app.addHook('onRoute', (route) => trackApiRoute(app, route));
   app.register(fastifyCookie);
   // unit names of every universe for the parsers (a universe may have units the defaults lack)
   for (const units of db.prepare('SELECT units FROM universes').pluck().all() as string[]) catalogOf({ units: JSON.parse(units || '{}') });
