@@ -47,7 +47,7 @@ function where(p: PresenceMember) {
 
 <template>
   <div class="presence">
-    <div class="section">{{ t('presence.online', { n: online.length }) }}</div>
+    <div class="section">{{ t('presence.online', { n: online.length, group: ctx?.group.name ?? '' }) }}</div>
     <div v-for="m in online" :key="m.id" class="member">
       <span class="dot" :class="{ away: !m.at.active }" :title="m.at.active ? t('presence.active') : t('presence.away')" />
       <span class="name" :class="roleClass(m)" :title="roleTitle(m)">{{ m.name }}<span v-if="m.me" class="muted"> ({{ t('presence.you') }})</span></span>

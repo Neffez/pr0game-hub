@@ -242,14 +242,13 @@ const tabs = [
         <NotificationBell v-if="ctx" class="sidebar-bell" />
         <button class="nav-close" :title="t('nav.closeMenu')" :aria-label="t('nav.closeMenu')" @click="navOpen = false"><Icon name="close" /></button>
       </div>
-      <div class="section">
-        <a v-if="gameUrl" class="uni-link" :href="gameUrl" target="_blank" rel="noopener" :title="t('nav.universeInGame')">{{ ctx?.universe.name ?? uni }}<Icon name="external" :size="11" /></a>
+      <div class="section uni-head">
+        <a v-if="gameUrl" class="uni-link" :href="gameUrl" target="_blank" rel="noopener" :title="t('nav.universeInGame')">{{ ctx?.universe.name ?? uni }}</a>
         <template v-else>{{ ctx?.universe.name ?? uni }}</template>
+        <select v-if="groups.length > 1" v-model="group" class="uni-group" :title="t('nav.alliance')" :aria-label="t('nav.alliance')" @change="changeGroup">
+          <option v-for="g in groups" :key="g.id" :value="g.id">{{ g.name }}</option>
+        </select>
       </div>
-      <select v-if="groups.length > 1" v-model="group" @change="changeGroup">
-        <option v-for="g in groups" :key="g.id" :value="g.id">{{ g.name }}</option>
-      </select>
-      <div v-else-if="ctx" class="muted small" style="padding: 0 10px">{{ t('nav.allianceName', { name: ctx.group.name }) }}</div>
       <nav>
         <template v-for="l in links.filter((x) => running || x.to !== 'paste')" :key="l.to ?? l.section">
           <div v-if="l.section" class="section">{{ t(`nav.${l.section}`) }}</div>

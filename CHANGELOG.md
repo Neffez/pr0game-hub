@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-04
 
+- Sidebar header: the universe name is a real heading (larger, bold, no link icon); that it links into the game shows
+  on hover (accent colour, underline, arrow). The alliance is no longer a "Alliance: …" line below it but part of the
+  online list heading ("3 online · Alliance"); the alliance dropdown stays under the universe name only for users in
+  several alliances of the same universe (muted, border on hover).
+
 - Sidebar: the universe name above the menu links to the universe in the game (its configured game URL, new tab)
   when the universe has one.
 

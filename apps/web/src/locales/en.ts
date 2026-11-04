@@ -84,7 +84,6 @@ const en: typeof de = {
     admin: 'Admin panel',
     user: 'User',
     changelog: "What's new",
-    allianceName: 'Alliance: {name}',
     more: 'More',
     syncShort: 'Sync',
     imperiumShort: 'Empire',
@@ -1917,7 +1916,7 @@ const en: typeof de = {
   },
   presence: {
     you: 'you',
-    online: '{n} online',
+    online: '{n} online · {group}',
     offline: '{n} offline',
     active: 'active',
     away: 'away (in the background or idle for 5 minutes)',

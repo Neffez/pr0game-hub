@@ -85,7 +85,6 @@ const de = {
     admin: 'Admin-Panel',
     user: 'Benutzer',
     changelog: 'Neuigkeiten',
-    allianceName: 'Allianz: {name}',
     more: 'Mehr',
     syncShort: 'Sync',
     imperiumShort: 'Imperium',
@@ -1919,7 +1918,7 @@ const de = {
   },
   presence: {
     you: 'du',
-    online: '{n} online',
+    online: '{n} online · {group}',
     offline: '{n} offline',
     active: 'aktiv',
     away: 'abwesend (im Hintergrund oder seit 5 Minuten untätig)',

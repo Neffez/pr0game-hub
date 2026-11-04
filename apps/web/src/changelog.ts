@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Das Menü oben ist aufgeräumter: Der Universumsname ist jetzt eine Überschrift (der Link ins Spiel zeigt sich beim Darüberfahren), und die Allianz steht bei der Online-Anzeige unten („3 online · Allianzname“).',
+        en: 'The menu header is tidier: the universe name is now a heading (the link into the game shows on hover), and the alliance appears in the online list below ("3 online · alliance name").',
+      },
+      {
+        kind: 'new',
         de: 'Der Name des Universums oben im Menü führt jetzt direkt ins Spiel zu diesem Universum.',
         en: 'The universe name at the top of the menu now leads straight to that universe in the game.',
       },
