@@ -4,6 +4,8 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-04
 
+- Code review records the first series on `main` (`0b8434d..045e495`): closed findings, partial leftovers, and the next Wave 1 / catalog work.
+
 - Store ingest warnings use a separate logger field so they do not collide with the activity-log helper.
 
 - OpenAPI lists every Fastify `/api` path (writes included). CI fails when a route and the YAML drift. Ingest logs
