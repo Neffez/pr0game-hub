@@ -4,6 +4,13 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-04
 
+- Page tours for every other menu page: statistics, my empire, market, galaxy, espionage reports, hostile espionage,
+  activity log, in-game messages, planets, fleets, research, battle hall, expeditions (analysis and deck) and the
+  account, each with a step per tab, filter and main section.
+  - `useAutoTour` takes a changing tour id: planets, fleets and research share one view, and switching between them
+    ends the running tour and starts the new page's own one.
+  - The account page gets the "?" button in its title.
+
 - Loot settlement: the inputs in the participants table line up under their column headers again; every cell keeps
   room for the check mark or pencil marker instead of shifting its input by it.
 

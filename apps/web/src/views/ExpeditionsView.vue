@@ -31,7 +31,7 @@ const tab = computed<ExpoTab>({
 </script>
 
 <template>
-  <PageHeader :title="t('nav.expeditions')">
+  <PageHeader :title="t('nav.expeditions')" tour="expeditions">
     <template #hint>
       <Hint v-if="tab === 'deck'">
         <p>{{ t('deck.hint1', { n: ctx!.universe.deck.reduce((s, c) => s + c.count, 0) || 1000 }) }}</p>
@@ -45,8 +45,8 @@ const tab = computed<ExpoTab>({
     </template>
   </PageHeader>
   <div class="seg tab-seg">
-    <button :class="{ active: tab === 'stats' }" @click="tab = 'stats'">{{ t('expeditions.tabStats') }}</button>
-    <button :class="{ active: tab === 'deck' }" @click="tab = 'deck'">{{ t('expeditions.tabDeck') }}</button>
+    <button :class="{ active: tab === 'stats' }" data-tour="expo-tab-stats" @click="tab = 'stats'">{{ t('expeditions.tabStats') }}</button>
+    <button :class="{ active: tab === 'deck' }" data-tour="expo-tab-deck" @click="tab = 'deck'">{{ t('expeditions.tabDeck') }}</button>
   </div>
   <ExpeditionDeck v-if="tab === 'deck'" @show-stats="tab = 'stats'" />
   <ExpeditionStats v-else />

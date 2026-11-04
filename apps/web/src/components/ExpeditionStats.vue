@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useAutoTour } from '../tours';
 import { nowSec } from '../clock';
 import ShowMore from './ShowMore.vue';
 import MemberSelect from './MemberSelect.vue';
@@ -152,6 +153,7 @@ async function removeManual(e: any) {
   await uniApi(uni.value, `/deck/events/${e.id}`, { method: 'DELETE' });
   await load();
 }
+useAutoTour('expeditions', () => !!data.value);
 </script>
 
 <template>
@@ -162,7 +164,7 @@ async function removeManual(e: any) {
   </div>
   <div v-if="error" class="error">{{ error }}</div>
   <template v-if="data">
-    <Section :title="`${t('expeditions.yields')} (${rangeLabel(days)})`" :card="false" :level="2" store-key="expos.yields">
+    <Section data-tour="expo-yields" :title="`${t('expeditions.yields')} (${rangeLabel(days)})`" :card="false" :level="2" store-key="expos.yields">
       <SortBar v-if="mobile" v-model:desc="yieldDesc" :sort-key="yieldKey" :options="yieldOptions" @sort="yieldSort.sortBy" />
       <div class="table-wrap flat">
         <table v-stack class="data yields">
@@ -202,7 +204,7 @@ async function removeManual(e: any) {
       </div>
     </Section>
 
-    <Section :title="`${t('expeditions.distribution')} · ${memberLabel}`" :card="false" :level="2" store-key="expos.distribution">
+    <Section data-tour="expo-distribution" :title="`${t('expeditions.distribution')} · ${memberLabel}`" :card="false" :level="2" store-key="expos.distribution">
       <div v-if="!columns.length" class="card muted">{{ t('expeditions.empty') }}</div>
       <div v-else class="table-wrap flat">
         <table v-stack class="data dist">
@@ -250,7 +252,7 @@ async function removeManual(e: any) {
       </div>
     </Section>
 
-    <Section :title="`${t('expeditions.recent')} · ${memberLabel}`" :count="list.length" :card="false" :level="2" store-key="expos.recent">
+    <Section data-tour="expo-recent" :title="`${t('expeditions.recent')} · ${memberLabel}`" :count="list.length" :card="false" :level="2" store-key="expos.recent">
       <div v-if="!list.length" class="card muted">{{ t('expeditions.empty') }}</div>
       <template v-else>
         <SortBar v-if="mobile" v-model:desc="listDesc" :sort-key="listKey" :options="listOptions" @sort="listSort.sortBy" />

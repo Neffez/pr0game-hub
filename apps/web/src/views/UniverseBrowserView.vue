@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useAutoTour } from '../tours';
 import { nowSec } from '../clock';
 import PageHeader from '../components/PageHeader.vue';
 import Icon from '../components/Icon.vue';
@@ -244,10 +245,11 @@ function onStripUp() {
   if (scrub.value != null) s.value = scrub.value;
   scrub.value = null;
 }
+useAutoTour('browse', () => !!system.value);
 </script>
 
 <template>
-  <PageHeader :title="t('browse.title')">
+  <PageHeader :title="t('browse.title')" tour="browse">
     <template #hint>
       <Hint>
         <p>{{ t('browse.hint1') }}</p>
@@ -255,12 +257,14 @@ function onStripUp() {
         <p>{{ t('browse.hint3') }}</p>
       </Hint>
     </template>
-    <ActionMenu
-      :items="[{ label: t('browse.downloadJson'), icon: 'download', hint: t('universeJson.hintDownload'), onClick: () => downloadUniverseJson(uni) }]"
-    />
+    <span data-tour="browse-json">
+      <ActionMenu
+        :items="[{ label: t('browse.downloadJson'), icon: 'download', hint: t('universeJson.hintDownload'), onClick: () => downloadUniverseJson(uni) }]"
+      />
+    </span>
   </PageHeader>
 
-  <div class="card">
+  <div class="card" data-tour="browse-nav">
     <div v-if="mobile" class="row">
       <select v-model.number="g" :aria-label="t('nav.galaxy')">
         <option v-for="n in settings.galaxies" :key="n" :value="n">G{{ n }}</option>
@@ -288,6 +292,7 @@ function onStripUp() {
 
     <div
       ref="stripEl"
+      data-tour="browse-strip"
       class="strip"
       :title="`${t('nav.galaxy')} ${g}`"
       @pointerdown="onStripDown"
@@ -313,7 +318,7 @@ function onStripUp() {
   </div>
 
   <div v-if="error" class="error">{{ error }}</div>
-  <div v-else-if="system" class="card" style="padding: 0">
+  <div v-else-if="system" class="card" data-tour="browse-system" style="padding: 0">
     <div class="row system-head">
       <b>{{ t('browse.system', { g, s }) }}</b>
       <span class="muted small">{{ t('browse.occupied', { n: occupied, total: settings.positions }) }}</span>
@@ -422,7 +427,7 @@ function onStripUp() {
     </div>
   </div>
 
-  <Section v-if="system" class="phalanx" :title="t('browse.phalanxTitle', { g, s })" :count="system.phalanx.length" store-key="browse.phalanx" :default-open-mobile="false">
+  <Section v-if="system" data-tour="browse-phalanx" class="phalanx" :title="t('browse.phalanxTitle', { g, s })" :count="system.phalanx.length" store-key="browse.phalanx" :default-open-mobile="false">
     <template #hint>
       <Hint>
         <p>{{ t('browse.phalanxHint1') }}</p>

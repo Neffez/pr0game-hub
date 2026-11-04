@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useAutoTour } from '../tours';
 import PageHeader from '../components/PageHeader.vue';
 import Section from '../components/Section.vue';
 import Icon from '../components/Icon.vue';
@@ -189,10 +190,12 @@ const total = computed(() => {
   return { values, points: rows.value.reduce((s, r) => s + r.points, 0) };
 });
 
+// one view for three pages: the tour follows the page
+useAutoTour(page, () => members.value.length > 0);
 </script>
 
 <template>
-  <PageHeader :title="t(`nav.${page}`)">
+  <PageHeader :title="t(`nav.${page}`)" :tour="page">
     <template #hint>
       <Hint>
         <p>{{ t('alliance.hint') }}</p>
@@ -202,9 +205,9 @@ const total = computed(() => {
     </template>
   </PageHeader>
 
-  <div class="card toolbar">
+  <div class="card toolbar" data-tour="alliance-toolbar">
     <div class="row small">
-    <div v-if="page === 'fleet'" class="seg">
+    <div v-if="page === 'fleet'" class="seg" data-tour="alliance-fleet-tabs">
       <button :class="{ active: fleetTab === 'movements' }" @click="fleetTab = 'movements'">{{ t('imperium.fleets') }}</button>
       <button :class="{ active: fleetTab === 'ships' }" @click="fleetTab = 'ships'">{{ name(200) }}</button>
       <button :class="{ active: fleetTab === 'defense' }" @click="fleetTab = 'defense'">{{ t('game.sections.400') }}</button>
@@ -220,7 +223,7 @@ const total = computed(() => {
     <span v-else-if="missing.length" class="warn">{{ t('alliance.missing', { names: missing.map(memberName).join(', ') }) }}</span>
     </div>
     <!-- when each member last synced: folded, the list grows with the alliance -->
-    <Section :title="t('alliance.freshness')" :count="movements ? withFleets.length : withData.length" :card="false" :default-open="false" store-key="alliance.freshness" class="member-ages">
+    <Section data-tour="alliance-freshness" :title="t('alliance.freshness')" :count="movements ? withFleets.length : withData.length" :card="false" :default-open="false" store-key="alliance.freshness" class="member-ages">
       <div class="ages small">
         <template v-if="movements">
           <span v-for="m in withFleets" :key="m.key" class="muted" :title="dateTime(m.fleets!.time)">{{ memberName(m) }}: {{ ago(m.fleets!.time) }}</span>
@@ -235,7 +238,7 @@ const total = computed(() => {
   </div>
 
   <div v-if="error" class="error">{{ error }}</div>
-  <div v-else-if="movements" class="card">
+  <div v-else-if="movements" class="card" data-tour="alliance-list">
     <p v-if="!withFleets.length" class="muted small m-0">{{ t('alliance.fleetsEmpty') }}</p>
     <p v-else-if="!flights.length" class="muted small m-0">{{ t('imperium.fleetsNone') }}</p>
     <FleetList v-else :fleets="flights" />
@@ -248,7 +251,7 @@ const total = computed(() => {
   <!-- mobile: one card per planet/member with the levels as a grid -->
   <template v-else-if="mobile">
     <SortBar v-model:desc="descending" :sort-key="sortKey" :options="sortOptions" @sort="sortBy" />
-    <div v-for="r in [...sorted, ...(total ? [{ key: 'total', label: t('common.total'), ...total }] : [])]" :key="r.key" class="card al-card" :class="{ moon: 'type' in r && r.type === 'moon' }">
+    <div v-for="r in [...sorted, ...(total ? [{ key: 'total', label: t('common.total'), ...total }] : [])]" :key="r.key" data-tour="alliance-list" class="card al-card" :class="{ moon: 'type' in r && r.type === 'moon' }">
       <div class="al-head">
         <template v-if="'coords' in r && r.coords">
           <span class="mono small">{{ r.coords.g }}:{{ r.coords.s }}:{{ r.coords.p }}</span>
@@ -269,7 +272,7 @@ const total = computed(() => {
     </div>
   </template>
 
-  <div v-else class="table-wrap">
+  <div v-else class="table-wrap" data-tour="alliance-list">
     <table class="data">
       <thead>
         <tr>

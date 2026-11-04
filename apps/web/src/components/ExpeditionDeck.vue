@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useAutoTour } from '../tours';
 import Section from './Section.vue';
 import MemberSelect from './MemberSelect.vue';
 import Icon from './Icon.vue';
@@ -117,6 +118,7 @@ const cardOptions = computed(() => [{ key: 'card', label: t('deck.card') }, ...c
 /** Bar width: the most likely card fills the column. */
 const maxProbability = computed(() => Math.max(0, ...deckCards.value.map((c: any) => c.nextProbability)));
 const progress = computed(() => (data.value ? data.value.state.drawnInDeck / data.value.state.deckSize : 0));
+useAutoTour('expeditions', () => !!data.value);
 </script>
 
 <template>
@@ -127,7 +129,7 @@ const progress = computed(() => (data.value ? data.value.state.drawnInDeck / dat
   </div>
   <div v-if="error" class="error">{{ error }}</div>
   <template v-if="data">
-    <div class="card summary">
+    <div class="card summary" data-tour="expo-deck-summary">
       <div class="row">
         <span>{{ t('deck.drawn') }} <b>{{ fmtCount(data.state.drawnInDeck) }}</b> / {{ data.state.deckSize }}</span>
         <span>{{ t('deck.remaining') }} <b>{{ fmtCount(data.state.remainingTotal) }}</b></span>
@@ -138,7 +140,7 @@ const progress = computed(() => (data.value ? data.value.state.drawnInDeck / dat
       <div class="bar"><div :style="{ width: progress * 100 + '%' }" /></div>
     </div>
 
-    <Section :title="t('deck.cards')" :count="deckCards.length" :card="false" :level="2" store-key="deck.cards">
+    <Section data-tour="expo-deck-cards" :title="t('deck.cards')" :count="deckCards.length" :card="false" :level="2" store-key="deck.cards">
       <SortBar v-if="mobile" v-model:desc="cardDesc" :sort-key="cardKey" :options="cardOptions" @sort="cardSort.sortBy" />
       <div class="table-wrap flat">
         <table v-stack class="data">
@@ -165,7 +167,7 @@ const progress = computed(() => (data.value ? data.value.state.drawnInDeck / dat
       </div>
     </Section>
 
-    <Section v-if="isMe" :title="t('deck.addTitle')" store-key="deck.add">
+    <Section v-if="isMe" data-tour="expo-deck-add" :title="t('deck.addTitle')" store-key="deck.add">
       <template #hint>
         <Hint>
           <p>{{ t('deck.addHint1') }}</p>

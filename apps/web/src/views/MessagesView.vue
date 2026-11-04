@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useAutoTour } from '../tours';
 import FilterBar, { type FilterChip } from '../components/FilterBar.vue';
 import SortBar from '../components/SortBar.vue';
 import PageHeader from '../components/PageHeader.vue';
@@ -149,17 +150,18 @@ async function toggleShare(m: Message) {
     busy.value = null;
   }
 }
+useAutoTour('messages', () => !!data.value);
 </script>
 
 <template>
-  <PageHeader :title="t('nav.messages')">
+  <PageHeader :title="t('nav.messages')" tour="messages">
     <template #hint>
       <Hint>{{ t('messages.hint') }}</Hint>
     </template>
   </PageHeader>
-  <FilterBar store-key="messages" :chips="chips" @reset="resetFilters">
+  <FilterBar store-key="messages" data-tour="messages-filter" :chips="chips" @reset="resetFilters">
     <template #toolbar>
-      <div class="seg">
+      <div class="seg" data-tour="messages-mode">
         <button :class="{ active: mode === 'conversations' }" @click="mode = 'conversations'">{{ t('messages.modeConversations') }}</button>
         <button :class="{ active: mode === 'single' }" @click="mode = 'single'">{{ t('messages.modeSingle') }}</button>
       </div>
@@ -218,12 +220,12 @@ async function toggleShare(m: Message) {
   <div v-if="error || shareError" class="error">{{ error || shareError }}</div>
   <p v-if="data && !all.length" class="muted">{{ t('messages.empty') }}</p>
 
-  <div v-else-if="data && mode === 'single'" class="list">
+  <div v-else-if="data && mode === 'single'" class="list" data-tour="messages-list">
     <PlayerMessage v-for="m in shown" :key="m.id" :m="m" :busy="busy === m.id" @share="toggleShare" @partner="showPartner" />
     <div v-if="more" ref="sentinel" class="list-end" />
   </div>
 
-  <div v-else-if="data" class="list">
+  <div v-else-if="data" class="list" data-tour="messages-list">
     <section v-for="c in convsShown" :key="c.id" class="conv" :class="{ open: isOpen(c.id) }">
       <!-- not a <button>: it holds the profile links -->
       <div

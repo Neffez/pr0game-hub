@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useAutoTour } from '../tours';
 import Loading from '../components/Loading.vue';
 import Icon from '../components/Icon.vue';
 import Hint from '../components/Hint.vue';
@@ -108,10 +109,11 @@ function rankMove(r: Row): { n: number; game: boolean } | null {
 
 /** Score columns (stat type; header stats.col.<type>, full name as tooltip) */
 const SCORE_COLS = [4, 3, 2, 5] as const;
+useAutoTour('stats', () => !!data.value);
 </script>
 
 <template>
-  <PageHeader :title="t('nav.stats')">
+  <PageHeader :title="t('nav.stats')" tour="stats">
     <template #hint>
       <Hint>
         <p>{{ t('stats.hint1') }}</p>
@@ -125,7 +127,7 @@ const SCORE_COLS = [4, 3, 2, 5] as const;
 
   <div class="card">
     <div class="row">
-      <div class="seg">
+      <div class="seg" data-tour="stats-who">
         <button :class="{ active: who === 'player' }" @click="who = 'player'">{{ t('stats.players') }}</button>
         <button :class="{ active: who === 'alliance' }" @click="who = 'alliance'">{{ t('stats.alliances') }}</button>
       </div>
@@ -135,7 +137,7 @@ const SCORE_COLS = [4, 3, 2, 5] as const;
         <template v-if="data.prevTime"> · {{ t('stats.deltaSince', { time: dateTime(data.prevTime) }) }}</template>
       </span>
     </div>
-    <div v-if="mobile" class="cat-select">
+    <div v-if="mobile" class="cat-select" data-tour="stats-cats">
       <select v-model.number="type" :aria-label="t('stats.category')">
         <option v-for="(label, cat) in STATS_CATEGORIES" :key="cat" :value="Number(cat)">
           {{ label }}{{ data && !categoryOf(Number(cat)) ? ` (${t('stats.notSynced')})` : '' }}
@@ -145,7 +147,7 @@ const SCORE_COLS = [4, 3, 2, 5] as const;
         <i v-for="p in pageCount" :key="p" :class="{ ok: pageCurrent(type, p - 1) }" :title="pageTitle(type, p - 1)" />
       </span>
     </div>
-    <div v-else class="cats">
+    <div v-else class="cats" data-tour="stats-cats">
       <button
         v-for="(label, cat) in STATS_CATEGORIES"
         :key="cat"
@@ -168,7 +170,7 @@ const SCORE_COLS = [4, 3, 2, 5] as const;
   </p>
 
   <Loading v-else-if="!data" :lines="6" />
-  <div v-else-if="data" class="table-wrap">
+  <div v-else-if="data" class="table-wrap" data-tour="stats-table">
     <table v-if="who === 'player'" v-stack="4" class="data stats">
       <thead>
         <tr>

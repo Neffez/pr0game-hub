@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useAutoTour } from '../tours';
 import { nowSec } from '../clock';
 import ShowMore from '../components/ShowMore.vue';
 import PageHeader from '../components/PageHeader.vue';
@@ -22,21 +23,22 @@ const historyLimit = useLimit(computed<any[]>(() => data.value?.list ?? []));
 onMounted(load);
 useLiveReload(load, tables('hostile_spying'));
 watch(days, load);
+useAutoTour('hostile', () => !!data.value);
 </script>
 
 <template>
-  <PageHeader :title="t('nav.hostile')">
+  <PageHeader :title="t('nav.hostile')" tour="hostile">
     <template #hint>
       <Hint>{{ t('hostile.hint') }}</Hint>
     </template>
   </PageHeader>
-  <div class="card row">
+  <div class="card row" data-tour="hostile-range">
     <RangePicker v-model="days" />
   </div>
   <div v-if="error" class="error">{{ error }}</div>
   <template v-if="data">
     <h2>{{ t('hostile.whoSpies') }}</h2>
-    <div class="table-wrap" style="max-height: 40vh; margin-bottom: 14px">
+    <div class="table-wrap" data-tour="hostile-who" style="max-height: 40vh; margin-bottom: 14px">
       <table v-stack class="data">
         <thead><tr><th>{{ t('common.player') }}</th><th class="num">{{ t('hostile.count') }}</th><th class="num">{{ t('hostile.victims') }}</th><th>{{ t('hostile.last') }}</th></tr></thead>
         <tbody>
@@ -53,7 +55,7 @@ watch(days, load);
       </table>
     </div>
     <h2>{{ t('hostile.history') }}</h2>
-    <div class="table-wrap">
+    <div class="table-wrap" data-tour="hostile-history">
       <table v-stack class="data">
         <thead><tr><th>{{ t('common.time') }}</th><th>{{ t('hostile.spy') }}</th><th>{{ t('common.from') }}</th><th>{{ t('hostile.target') }}</th><th>{{ t('hostile.member') }}</th></tr></thead>
         <tbody>

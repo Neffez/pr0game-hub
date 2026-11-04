@@ -9,7 +9,7 @@ import { vStack } from '../composables';
 import { DATE_FORMATS, dateFormat, setDateFormat, type DateFormat } from '../format';
 import { currentLang, LANGS, setLocale, type Lang } from '../i18n';
 import { liveHints } from '../live';
-import { resetTours, setToursEnabled, tours } from '../tours';
+import { resetTours, setToursEnabled, startTour, tours, useAutoTour } from '../tours';
 import { disablePush, enablePush, loadPushStatus, pushStatus, testPush } from '../push';
 
 const { t } = useI18n();
@@ -22,6 +22,8 @@ const newPassword = ref('');
 const lang = ref<Lang>(currentLang());
 const msg = ref('');
 const error = ref('');
+/** the settings are loaded (the tour waits for the cards that depend on them) */
+const loaded = ref(false);
 
 async function run(fn: () => Promise<unknown>, ok: () => string) {
   msg.value = error.value = '';
@@ -198,6 +200,8 @@ onMounted(async () => {
     shareSyncs.value = syncs;
   } catch (e) {
     error.value = (e as Error).message;
+  } finally {
+    loaded.value = true;
   }
 });
 const saveShareActivity = () =>
@@ -250,16 +254,20 @@ async function saveTours(e: Event) {
   box.checked = tours.value.enabled;
 }
 const forgetTours = () => run(() => resetTours(), () => t('account.toursResetDone'));
+useAutoTour('account', loaded);
 </script>
 
 <template>
   <div class="account" :class="{ standalone: !inUni }">
     <BackLink v-if="!inUni" to="/" :label="t('common.back')" />
-    <h1>{{ t('account.title', { name: session.me?.user?.username }) }}</h1>
+    <h1>
+      {{ t('account.title', { name: session.me?.user?.username }) }}
+      <button type="button" class="tour-btn" :title="t('tours.start')" :aria-label="t('tours.start')" @click="startTour('account')">?</button>
+    </h1>
     <div v-if="msg" class="ok status">{{ msg }}</div>
     <div v-if="error" class="error status">{{ error }}</div>
     <div class="account-grid">
-      <section class="card">
+      <section class="card" data-tour="account-general">
         <h2>{{ t('account.general') }}</h2>
         <div class="field">
           <span class="field-label">{{ t('account.language') }} <Hint>{{ t('account.languageHint') }}</Hint></span>
@@ -295,7 +303,7 @@ const forgetTours = () => run(() => resetTours(), () => t('account.toursResetDon
           <label class="check"><input v-model="shareSyncs.enabled" type="checkbox" @change="saveShareSyncs" /> {{ t('account.shareSyncsEnabled') }}</label>
         </div>
       </section>
-      <section class="card">
+      <section class="card" data-tour="account-push">
         <h2>{{ t('account.push') }} <Hint>{{ t('account.pushHint') }}</Hint></h2>
         <div class="field">
           <span class="field-label">{{ t('account.pushDevice') }}</span>
@@ -322,7 +330,7 @@ const forgetTours = () => run(() => resetTours(), () => t('account.toursResetDon
         <p class="muted small">{{ t('account.pushPasted') }}</p>
         <p class="muted small">{{ t('account.pushIos') }}</p>
       </section>
-      <section v-if="discord" class="card">
+      <section v-if="discord" class="card" data-tour="account-discord">
         <h2>{{ t('account.discord') }} <Hint>{{ t('account.discordHint') }}</Hint></h2>
         <div class="field">
           <span class="field-label">{{ t('account.discordWebhook') }} <Hint>{{ t('account.discordWebhookHint') }}</Hint></span>
@@ -356,7 +364,7 @@ const forgetTours = () => run(() => resetTours(), () => t('account.toursResetDon
           </form>
         </div>
       </section>
-      <section v-if="share || messageShare" class="card">
+      <section v-if="share || messageShare" class="card" data-tour="account-sharing">
         <h2>{{ t('account.sharing') }}</h2>
         <div v-if="share" class="field">
           <span class="field-label">{{ t('account.fleetShare') }} <Hint>{{ t('account.fleetShareHint') }}</Hint></span>
@@ -376,7 +384,7 @@ const forgetTours = () => run(() => resetTours(), () => t('account.toursResetDon
           <label class="check"><input v-model="messageShare.enabled" type="checkbox" @change="saveMessageShare" /> {{ t('account.messageShareEnabled') }}</label>
         </div>
       </section>
-      <section class="card">
+      <section class="card" data-tour="account-login">
         <h2>{{ t('common.username') }}</h2>
         <form class="stack" @submit.prevent="saveUsername">
           <label>{{ t('account.newUsername') }} <input v-model="newUsername" autocomplete="username" /></label>
@@ -392,7 +400,7 @@ const forgetTours = () => run(() => resetTours(), () => t('account.toursResetDon
           <button class="primary">{{ t('common.change') }}</button>
         </form>
       </section>
-      <section class="card api-tokens">
+      <section class="card api-tokens" data-tour="account-tokens">
         <h2>{{ t('account.apiTokens') }} <Hint>{{ t('account.apiTokensHint') }}</Hint></h2>
         <p class="api-doc"><a :href="openapiUrl" target="_blank" rel="noopener">{{ t('account.apiOpenApi') }}</a></p>
         <div v-if="revealedToken" class="token-reveal">

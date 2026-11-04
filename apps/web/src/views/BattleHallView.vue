@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useAutoTour } from '../tours';
 import PageHeader from '../components/PageHeader.vue';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -51,10 +52,11 @@ const gameUrl = computed(() => ctx.value?.universe.settings.gameUrl?.replace(/\/
 const reportLink = (e: Entry) => `${gameUrl.value}game.php?page=raport&raport=${e.report_id}`;
 /** rank across all pages for the units sort */
 const rank = (i: number) => (page.value - 1) * 100 + i + 1;
+useAutoTour('battlehall', () => !!data.value);
 </script>
 
 <template>
-  <PageHeader :title="t('nav.battleHall')">
+  <PageHeader :title="t('nav.battleHall')" tour="battlehall">
     <template #hint>
       <Hint>
         <p>{{ t('battleHall.hint1') }}</p>
@@ -67,12 +69,12 @@ const rank = (i: number) => (page.value - 1) * 100 + i + 1;
   </PageHeader>
 
   <div class="card row">
-    <div class="tabs m-0">
+    <div class="tabs m-0" data-tour="battlehall-sort">
       <button :class="{ active: sort === 'units' }" @click="sort = 'units'">{{ t('battleHall.byUnits') }}</button>
       <button :class="{ active: sort === 'time' }" @click="sort = 'time'">{{ t('battleHall.byDate') }}</button>
     </div>
-    <input v-model="q" :placeholder="t('battleHall.searchHint')" style="width: 220px" />
-    <label class="small nowrap">
+    <input v-model="q" data-tour="battlehall-search" :placeholder="t('battleHall.searchHint')" style="width: 220px" />
+    <label class="small nowrap" data-tour="battlehall-memorial">
       {{ t('battleHall.memorial') }}
       <select v-model="memorial" :title="t('battleHall.memorialTitle')">
         <option value="hide">{{ t('battleHall.memorialHide') }}</option>
@@ -91,7 +93,7 @@ const rank = (i: number) => (page.value - 1) * 100 + i + 1;
   </div>
 
   <template v-else-if="data">
-    <div class="table-wrap">
+    <div class="table-wrap" data-tour="battlehall-list">
       <table v-stack="4" class="data">
         <thead>
           <tr><th class="num">#</th><th>{{ t('combat.attacker') }}</th><th /><th>{{ t('combat.defender') }}</th><th>{{ t('battleHall.date') }}</th><th class="num">{{ t('combat.units') }}</th><th /></tr>

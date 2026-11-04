@@ -92,6 +92,130 @@ export const TOURS = {
       { key: 'outro' },
     ],
   },
+  stats: {
+    steps: [
+      { key: 'intro' },
+      { key: 'who', el: 'stats-who', side: 'bottom' },
+      { key: 'cats', el: 'stats-cats', side: 'bottom' },
+      { key: 'table', el: 'stats-table', side: 'top' },
+    ],
+  },
+  imperium: {
+    steps: [
+      { key: 'intro' },
+      { key: 'member', el: 'imperium-member', side: 'bottom' },
+      { key: 'points', el: 'imperium-points', side: 'bottom' },
+      { key: 'fleets', el: 'imperium-fleets', side: 'top' },
+      { key: 'planets', el: 'imperium-planets', side: 'top' },
+    ],
+  },
+  market: {
+    steps: [
+      { key: 'intro' },
+      { key: 'rate', el: 'market-rate', side: 'bottom' },
+      { key: 'set', el: 'market-set', side: 'bottom' },
+      { key: 'offers', el: 'market-offers', side: 'top' },
+      { key: 'trades', el: 'market-trades', side: 'top' },
+    ],
+  },
+  browse: {
+    steps: [
+      { key: 'intro' },
+      { key: 'nav', el: 'browse-nav', side: 'bottom' },
+      { key: 'strip', el: 'browse-strip', side: 'bottom' },
+      { key: 'system', el: 'browse-system', side: 'top' },
+      { key: 'phalanx', el: 'browse-phalanx', side: 'top' },
+      { key: 'json', el: 'browse-json', side: 'left' },
+    ],
+  },
+  spy: {
+    steps: [
+      { key: 'intro' },
+      { key: 'form', el: 'spy-form', side: 'bottom' },
+      { key: 'recent', el: 'spy-recent', side: 'top' },
+    ],
+  },
+  hostile: {
+    steps: [
+      { key: 'intro' },
+      { key: 'range', el: 'hostile-range', side: 'bottom' },
+      { key: 'who', el: 'hostile-who', side: 'top' },
+      { key: 'history', el: 'hostile-history', side: 'top' },
+    ],
+  },
+  activity: {
+    steps: [
+      { key: 'intro' },
+      { key: 'range', el: 'activity-range', side: 'bottom' },
+      { key: 'kinds', el: 'activity-kinds', side: 'bottom' },
+      { key: 'days', el: 'activity-days', side: 'top' },
+    ],
+  },
+  messages: {
+    steps: [
+      { key: 'intro' },
+      { key: 'mode', el: 'messages-mode', side: 'bottom' },
+      { key: 'filter', el: 'messages-filter', side: 'bottom' },
+      { key: 'list', el: 'messages-list', side: 'top' },
+    ],
+  },
+  planets: {
+    steps: [
+      { key: 'intro' },
+      { key: 'toolbar', el: 'alliance-toolbar', side: 'bottom' },
+      { key: 'freshness', el: 'alliance-freshness', side: 'bottom' },
+      { key: 'list', el: 'alliance-list', side: 'top' },
+    ],
+  },
+  fleet: {
+    steps: [
+      { key: 'intro' },
+      { key: 'tabs', el: 'alliance-fleet-tabs', side: 'bottom' },
+      { key: 'freshness', el: 'alliance-freshness', side: 'bottom' },
+      { key: 'list', el: 'alliance-list', side: 'top' },
+    ],
+  },
+  research: {
+    steps: [
+      { key: 'intro' },
+      { key: 'toolbar', el: 'alliance-toolbar', side: 'bottom' },
+      { key: 'freshness', el: 'alliance-freshness', side: 'bottom' },
+      { key: 'list', el: 'alliance-list', side: 'top' },
+    ],
+  },
+  battlehall: {
+    steps: [
+      { key: 'intro' },
+      { key: 'sort', el: 'battlehall-sort', side: 'bottom' },
+      { key: 'search', el: 'battlehall-search', side: 'bottom' },
+      { key: 'memorial', el: 'battlehall-memorial', side: 'bottom' },
+      { key: 'list', el: 'battlehall-list', side: 'top' },
+    ],
+  },
+  expeditions: {
+    steps: [
+      { key: 'intro' },
+      { key: 'stats', el: 'expo-tab-stats', side: 'bottom' },
+      { key: 'yields', el: 'expo-yields', side: 'top' },
+      { key: 'distribution', el: 'expo-distribution', side: 'top' },
+      { key: 'recent', el: 'expo-recent', side: 'top' },
+      { key: 'deck', el: 'expo-tab-deck', side: 'bottom' },
+      { key: 'deckSummary', el: 'expo-deck-summary', side: 'bottom' },
+      { key: 'deckCards', el: 'expo-deck-cards', side: 'top' },
+      { key: 'deckAdd', el: 'expo-deck-add', side: 'top' },
+    ],
+  },
+  account: {
+    steps: [
+      { key: 'intro' },
+      { key: 'general', el: 'account-general', side: 'right' },
+      { key: 'push', el: 'account-push', side: 'left' },
+      { key: 'discord', el: 'account-discord', side: 'top' },
+      { key: 'sharing', el: 'account-sharing', side: 'top' },
+      { key: 'login', el: 'account-login', side: 'top' },
+      { key: 'tokens', el: 'account-tokens', side: 'top' },
+    ],
+  },
 } satisfies Record<string, Tour>;
 export type TourId = keyof typeof TOURS;
 
@@ -185,22 +309,28 @@ export function startTour(id: TourId, opts: { auto?: boolean } = {}) {
 
 /**
  * In a view: starts the tour the first time `ready` is true if tours are on and this one is unseen; leaving the view
- * cancels a pending start and ends a running tour.
+ * cancels a pending start and ends a running tour. `id` may change while the view stays (one view for several menu
+ * pages): the running tour then ends and the new page's tour gets its own first start.
  */
-export function useAutoTour(id: TourId, ready: MaybeRefOrGetter<boolean>) {
-  let done = false;
+export function useAutoTour(id: MaybeRefOrGetter<TourId>, ready: MaybeRefOrGetter<boolean>) {
+  const done = new Set<TourId>();
   let timer: ReturnType<typeof setTimeout> | undefined;
   let alive = true;
+  const current = () => alive && toValue(id);
   watch(
-    () => toValue(ready) && !!session.me?.user,
-    async (ok) => {
-      if (!ok || done) return;
-      done = true;
-      if (!tours.value.enabled || tours.value.seen.includes(id)) return;
+    () => [toValue(id), toValue(ready) && !!session.me?.user] as const,
+    async ([tid, ok], old) => {
+      if (old && old[0] !== tid) {
+        clearTimeout(timer);
+        stopTour();
+      }
+      if (!ok || done.has(tid)) return;
+      done.add(tid);
+      if (!tours.value.enabled || tours.value.seen.includes(tid)) return;
       await nextTick();
-      if (!alive) return;
+      if (current() !== tid) return;
       // let lists and sections render before the elements are looked up
-      timer = setTimeout(() => alive && startTour(id, { auto: true }), 300);
+      timer = setTimeout(() => current() === tid && startTour(tid, { auto: true }), 300);
     },
     { immediate: true },
   );

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useAutoTour } from '../tours';
 import MemberSelect from '../components/MemberSelect.vue';
 import PageHeader from '../components/PageHeader.vue';
 import Section from '../components/Section.vue';
@@ -338,10 +339,11 @@ const catchUp = computed(() => {
 const deltaClass = (d: number | null) => (d == null || d === 0 ? 'faint' : d > 0 ? 'pos' : 'neg');
 
 const memberName = (id: number | null) => ctx.value!.members.find((m) => m.id === id)?.name ?? '';
+useAutoTour('imperium', () => !!data.value);
 </script>
 
 <template>
-  <PageHeader :title="t('imperium.title')">
+  <PageHeader :title="t('imperium.title')" tour="imperium">
     <template #hint>
       <Hint>
         <p>{{ t('imperium.hint1') }}</p>
@@ -351,7 +353,7 @@ const memberName = (id: number | null) => ctx.value!.members.find((m) => m.id ==
     </template>
   </PageHeader>
 
-  <div class="card row small">
+  <div class="card row small" data-tour="imperium-member">
     <MemberSelect v-model="userId" />
     <span class="muted">
       {{ t('imperium.title') }}: <template v-if="empire">{{ dateTime(empire.time) }} ({{ ago(empire.time) }})</template><span v-else class="warn">{{ t('overview.missing') }}</span>
@@ -372,7 +374,7 @@ const memberName = (id: number | null) => ctx.value!.members.find((m) => m.id ==
     {{ t('imperium.noResources') }}
   </div>
 
-  <div v-if="!error && empire && livePoints" class="card live-points">
+  <div v-if="!error && empire && livePoints" class="card live-points" data-tour="imperium-points">
     <div class="row">
       <h3 class="m-0">
         {{ t('imperium.livePoints') }}
@@ -444,7 +446,7 @@ const memberName = (id: number | null) => ctx.value!.members.find((m) => m.id ==
     <p v-if="livePoints.finished.length" class="muted small" style="margin: 6px 0 0">{{ t('imperium.finished', { list: livePoints.finished.join(', ') }) }}</p>
   </div>
 
-  <Section v-if="!error && fleets" :title="t('imperium.fleets')" :count="flights.length" store-key="imperium.fleets">
+  <Section v-if="!error && fleets" data-tour="imperium-fleets" :title="t('imperium.fleets')" :count="flights.length" store-key="imperium.fleets">
     <template #hint>
       <Hint><p>{{ t('imperium.fleetsHint') }}</p></Hint>
       <span v-if="arrived" class="muted small">{{ t('imperium.fleetsArrived', { n: arrived }) }}</span>
@@ -459,7 +461,7 @@ const memberName = (id: number | null) => ctx.value!.members.find((m) => m.id ==
 
   <!-- mobile: totals first, then one card per planet (moons below their planet) -->
   <template v-if="!error && empire && hasLiveData && mobile">
-    <div class="card emp-card">
+    <div class="card emp-card" data-tour="imperium-planets">
       <div class="emp-head">
         <b>{{ t('common.total') }}</b>
         <span v-if="research && !research.coords" class="small muted">
@@ -532,7 +534,7 @@ const memberName = (id: number | null) => ctx.value!.members.find((m) => m.id ==
     </div>
   </template>
 
-  <div v-else-if="!error && empire && hasLiveData" class="table-wrap">
+  <div v-else-if="!error && empire && hasLiveData" class="table-wrap" data-tour="imperium-planets">
     <table class="data">
       <thead>
         <tr>

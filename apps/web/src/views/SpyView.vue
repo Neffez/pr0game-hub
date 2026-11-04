@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useAutoTour } from '../tours';
 import PageHeader from '../components/PageHeader.vue';
 import Icon from '../components/Icon.vue';
 import CommentThread from '../components/CommentThread.vue';
@@ -112,14 +113,15 @@ useLiveReload(() => {
 watch([type, limit], load);
 
 const res = (r: any, id: number) => r.sections['900']?.[id] ?? 0;
+useAutoTour('spy', () => recentDone.value || recent.value.length > 0);
 </script>
 
 <template>
-  <PageHeader :title="t('actions.spyHistory')">
+  <PageHeader :title="t('actions.spyHistory')" tour="spy">
     <template #hint><Hint>{{ t('spy.hint') }}</Hint></template>
   </PageHeader>
   <div class="card">
-    <form class="spy-form" @submit.prevent="load">
+    <form class="spy-form" data-tour="spy-form" @submit.prevent="load">
       <label class="field-v">
         <span>{{ t('common.coords') }}</span>
         <input v-model="target" class="mono" placeholder="1:234:5" />
@@ -164,7 +166,7 @@ const res = (r: any, id: number) => r.sections['900']?.[id] ?? 0;
   </div>
 
   <h2>{{ t('spy.recent') }}</h2>
-  <div v-if="mobile" class="m-list">
+  <div v-if="mobile" class="m-list" data-tour="spy-recent">
     <div v-for="r in recentShown" :key="r.id" class="m-item" role="button" tabindex="0" @click="open(r)" @keydown.enter="open(r)">
       <span class="m-line">
         <span class="mono">{{ coords(r.g, r.s, r.p) }}</span>
@@ -183,7 +185,7 @@ const res = (r: any, id: number) => r.sections['900']?.[id] ?? 0;
     </div>
     <div v-if="recentScrollMore" ref="recentSentinel" class="list-end" />
   </div>
-  <div v-else class="table-wrap flat">
+  <div v-else class="table-wrap flat" data-tour="spy-recent">
     <table class="data">
       <thead>
         <tr><th>{{ t('common.time') }}</th><th>{{ t('common.coords') }}</th><th>{{ t('common.player') }}</th><th>{{ t('common.planet') }}</th><th class="num">{{ name(901) }}</th><th class="num">{{ name(902) }}</th><th class="num">{{ t('game.deutShort') }}</th><th>{{ t('common.from') }}</th></tr>

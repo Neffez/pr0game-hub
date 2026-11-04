@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useAutoTour } from '../tours';
 import { nowSec } from '../clock';
 import PageHeader from '../components/PageHeader.vue';
 import Section from '../components/Section.vue';
@@ -92,10 +93,11 @@ function tone(o: Offer | Trade) {
   return shown > 100 ? 'pos' : shown < 100 ? 'neg' : '';
 }
 const offers = computed(() => (data.value?.offers ?? []).filter((o) => o.endsAt > now.value));
+useAutoTour('market', () => !!data.value);
 </script>
 
 <template>
-  <PageHeader :title="t('nav.market')">
+  <PageHeader :title="t('nav.market')" tour="market">
     <template #hint>
       <Hint>
         <p>{{ t('market.hint1') }}</p>
@@ -108,7 +110,7 @@ const offers = computed(() => (data.value?.offers ?? []).filter((o) => o.endsAt 
 
   <div v-if="error" class="error">{{ error }}</div>
   <template v-else-if="data">
-    <div class="card">
+    <div class="card" data-tour="market-rate">
       <h2 class="mt-0">{{ t('market.rate') }}</h2>
       <template v-if="data.rate">
         <p class="rate mono">{{ rateText(data.rate.m, data.rate.k) }}</p>
@@ -118,7 +120,7 @@ const offers = computed(() => (data.value?.offers ?? []).filter((o) => o.endsAt 
         </p>
       </template>
       <p v-else class="muted">{{ t('market.noRate') }}</p>
-      <form class="row set" @submit.prevent="save">
+      <form class="row set" data-tour="market-set" @submit.prevent="save">
         <label>{{ name(901) }} <input v-model.number="m" type="number" step="0.01" min="0.01" max="100" required /></label>
         <label>{{ name(902) }} <input v-model.number="k" type="number" step="0.01" min="0.01" max="100" required /></label>
         <span class="muted">{{ name(903) }} 1</span>
@@ -139,7 +141,7 @@ const offers = computed(() => (data.value?.offers ?? []).filter((o) => o.endsAt 
       </details>
     </div>
 
-    <div class="card">
+    <div class="card" data-tour="market-offers">
       <h2 class="mt-0">{{ t('market.offers') }}</h2>
       <p v-if="data.syncedAt" class="muted small">{{ t('market.syncedAt', { time: timeWithAge(data.syncedAt), by: data.syncedBy ?? '?' }) }}</p>
       <p v-if="!data.syncedAt" class="muted">{{ t('market.notSynced') }}</p>
@@ -170,7 +172,7 @@ const offers = computed(() => (data.value?.offers ?? []).filter((o) => o.endsAt 
       </div>
     </div>
 
-    <Section v-if="data.trades.length" :title="t('market.trades')" :count="data.trades.length" store-key="market.trades" :default-open="false">
+    <Section v-if="data.trades.length" data-tour="market-trades" :title="t('market.trades')" :count="data.trades.length" store-key="market.trades" :default-open="false">
       <p class="muted small mt-0">{{ t('market.tradesHint') }}</p>
       <div class="table-wrap flat offers">
         <table v-stack="3" class="data">

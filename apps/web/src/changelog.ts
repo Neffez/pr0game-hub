@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-04',
     items: [
       {
+        kind: 'new',
+        de: 'Tutorials gibt es jetzt für alle Menüpunkte: Statistik, Mein Imperium, Marktplatz, Galaxie, Spionageberichte, Fremdspionage, Aktivität, Ingame-Nachrichten, Planeten, Flotten, Forschung, Battle Hall, Expeditionen und Konto. Mit dem „?“ neben dem Titel startest du sie jederzeit wieder.',
+        en: 'Tutorials now exist for every menu page: statistics, my empire, market, galaxy, espionage reports, hostile espionage, activity, in-game messages, planets, fleets, research, battle hall, expeditions and account. The "?" next to the title starts them again at any time.',
+      },
+      {
         kind: 'fix',
         de: 'Beute abrechnen: In der Teilnehmertabelle stehen die Eingabefelder wieder genau unter ihren Spaltennamen.',
         en: 'Settle loot: in the participants table the input fields sit right under their column headers again.',

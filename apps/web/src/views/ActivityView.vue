@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { useAutoTour } from '../tours';
 import { nowSec } from '../clock';
 import PageHeader from '../components/PageHeader.vue';
 import Section from '../components/Section.vue';
@@ -140,10 +141,11 @@ function text(e: Entry) {
   }
   return e.kind;
 }
+useAutoTour('activity', () => !!data.value);
 </script>
 
 <template>
-  <PageHeader :title="t('activity.title')">
+  <PageHeader :title="t('activity.title')" tour="activity">
     <template #hint>
       <Hint>
         <p>{{ t('activity.hint1') }}</p>
@@ -161,7 +163,7 @@ function text(e: Entry) {
   </PageHeader>
 
   <div class="card">
-    <div class="row">
+    <div class="row" data-tour="activity-range">
       <RangePicker v-model="days" />
       <label v-if="!hidden.includes('no_growth')">
         {{ t('activity.noGrowthFrom') }}
@@ -170,7 +172,7 @@ function text(e: Entry) {
         </select>
       </label>
     </div>
-    <div class="row chips">
+    <div class="row chips" data-tour="activity-kinds">
       <button
         v-for="k in KINDS"
         :key="k.kind"
@@ -190,7 +192,7 @@ function text(e: Entry) {
   <div v-else-if="data && !entries.length" class="card muted">{{ t('activity.empty') }}</div>
 
   <!-- one section per day, the newest open -->
-  <Section v-for="(d, i) in days_" :key="d.day" :title="d.day" :count="d.entries.length" :card="false" :default-open="i === 0" class="day">
+  <Section v-for="(d, i) in days_" :key="d.day" data-tour="activity-days" :title="d.day" :count="d.entries.length" :card="false" :default-open="i === 0" class="day">
     <div class="card" style="padding: 4px 0">
       <div v-for="e in d.entries" :key="e.id" class="entry">
         <span class="mono small faint">{{ time(e.time) }}</span>
