@@ -216,6 +216,22 @@ export const TOURS = {
       { key: 'tokens', el: 'account-tokens', side: 'top' },
     ],
   },
+  admin: {
+    steps: [
+      { key: 'intro' },
+      { key: 'universes', el: 'admin-universes', side: 'top' },
+      { key: 'access', el: 'admin-access', side: 'top' },
+      { key: 'groups', el: 'admin-groups', side: 'top' },
+      { key: 'members', el: 'admin-members', side: 'top' },
+      { key: 'discord', el: 'admin-discord', side: 'top' },
+      { key: 'fleetAttacks', el: 'admin-fleet-attacks', side: 'top' },
+      { key: 'crawler', el: 'admin-crawler', side: 'top' },
+      { key: 'system', el: 'admin-system', side: 'top' },
+      { key: 'backfill', el: 'admin-backfill', side: 'top' },
+      { key: 'merge', el: 'admin-merge', side: 'top' },
+      { key: 'ingests', el: 'admin-ingests', side: 'top' },
+    ],
+  },
 } satisfies Record<string, Tour>;
 export type TourId = keyof typeof TOURS;
 

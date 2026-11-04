@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { startTour, useAutoTour } from '../tours';
 import Section from '../components/Section.vue';
 import Sheet from '../components/Sheet.vue';
 import UnitEditor from '../components/UnitEditor.vue';
@@ -218,6 +219,8 @@ onMounted(() =>
   }),
 );
 watch(groupId, () => run(loadGroup));
+// hub admins see the universes, alliance admins their alliances
+useAutoTour('admin', () => universes.value.length > 0 || groups.value.length > 0);
 
 /** a new universe opens in the settings right away: URL, size and speeds usually need adjusting */
 const createUni = () =>
@@ -455,12 +458,15 @@ const doMerge = () => run(async () => {
 <template>
   <div class="admin" :class="{ main: !uni }" style="max-width: 1100px" :style="{ margin: uni ? undefined : '0 auto' }">
     <BackLink v-if="!uni" to="/" :label="t('common.back')" />
-    <h1>{{ t('admin.title') }}</h1>
+    <h1>
+      {{ t('admin.title') }}
+      <button type="button" class="tour-btn" :title="t('tours.start')" :aria-label="t('tours.start')" @click="startTour('admin')">?</button>
+    </h1>
     <div v-if="error" class="error">{{ error }}</div>
     <div v-if="msg" class="ok">{{ msg }}</div>
 
     <template v-if="isAdmin">
-      <Section :title="t('nav.universes')" :count="universes.length" store-key="admin.universes">
+      <Section data-tour="admin-universes" :title="t('nav.universes')" :count="universes.length" store-key="admin.universes">
         <div class="scroll-x">
         <table v-stack class="data">
           <tr><th>Slug</th><th>{{ t('common.name') }}</th><th>{{ t('admin.gameUrl') }}</th><th>{{ t('admin.size') }}</th><th>{{ t('admin.timezone') }}</th><th /></tr>
@@ -579,7 +585,7 @@ const doMerge = () => run(async () => {
       </Sheet>
     </template>
 
-    <Section v-if="isAdmin || groups.length" :title="t('admin.accessRequests')" :count="access.requests.length" store-key="admin.access">
+    <Section v-if="isAdmin || groups.length" data-tour="admin-access" :title="t('admin.accessRequests')" :count="access.requests.length" store-key="admin.access">
       <template #hint><Hint>{{ t('admin.accessRequestsHint') }}</Hint></template>
       <p v-if="!access.requests.length" class="muted small">{{ t('admin.accessRequestsNone') }}</p>
       <div v-for="r in access.requests" :key="r.id" class="access-request">
@@ -598,7 +604,7 @@ const doMerge = () => run(async () => {
       </div>
     </Section>
 
-    <Section :title="t('stats.alliances')" :count="groups.length" store-key="admin.groups">
+    <Section data-tour="admin-groups" :title="t('stats.alliances')" :count="groups.length" store-key="admin.groups">
       <div class="row">
         <select v-model="groupId">
           <option v-for="g in groups" :key="g.id" :value="g.id">{{ g.universe }} · {{ g.name }} ({{ g.members }})</option>
@@ -621,7 +627,7 @@ const doMerge = () => run(async () => {
     </Section>
 
     <template v-if="group">
-      <Section v-if="discord" :title="t('admin.discord')" :default-open="false" store-key="admin.discord" class="discord">
+      <Section v-if="discord" data-tour="admin-discord" :title="t('admin.discord')" :default-open="false" store-key="admin.discord" class="discord">
         <template #hint><Hint>{{ t('admin.discordHint') }}</Hint></template>
         <p v-if="discord.webhook" class="muted small">{{ t('account.discordWebhookSet', { hint: discord.webhook }) }}</p>
         <form class="row" @submit.prevent="saveDiscord({ webhook: discordWebhook.trim() }, 'account.discordSaved')">
@@ -655,7 +661,7 @@ const doMerge = () => run(async () => {
         </template>
         <p class="muted small">{{ t('admin.discordMentions') }}</p>
       </Section>
-      <Section v-if="isAdmin" :title="t('admin.fleetAttacks')" :count="fleetAttacks.length" :default-open="false" store-key="admin.fleetAttacks">
+      <Section v-if="isAdmin" data-tour="admin-fleet-attacks" :title="t('admin.fleetAttacks')" :count="fleetAttacks.length" :default-open="false" store-key="admin.fleetAttacks">
         <template #hint><Hint>{{ t('admin.fleetAttacksHint') }}</Hint></template>
         <p v-if="!fleetAttacks.length" class="muted small">{{ t('admin.fleetAttacksNone') }}</p>
         <div v-else class="table-wrap">
@@ -684,7 +690,7 @@ const doMerge = () => run(async () => {
         </div>
       </Section>
 
-      <Section :title="t('admin.members', { name: group.name })" :count="memberSort.sorted.value.length" store-key="admin.members">
+      <Section data-tour="admin-members" :title="t('admin.members', { name: group.name })" :count="memberSort.sorted.value.length" store-key="admin.members">
       <form class="row" style="margin-bottom: 10px" @submit.prevent="addMember">
         <input v-model="newMemberName" :placeholder="t('admin.ingameName')" style="flex: 1; min-width: 140px" />
         <button class="primary" type="submit" :disabled="!newMemberName.trim()">{{ t('admin.addMember') }}</button>
@@ -752,7 +758,7 @@ const doMerge = () => run(async () => {
       </div>
       </Section>
 
-      <Section v-if="crawler" :title="t('admin.crawler')" :default-open="false" store-key="admin.crawler">
+      <Section v-if="crawler" data-tour="admin-crawler" :title="t('admin.crawler')" :default-open="false" store-key="admin.crawler">
         <template #hint><Hint>{{ t('admin.crawlerHint') }}</Hint></template>
         <div class="row">
           <span>{{ crawler.enabled ? t('admin.crawlerRunning') : t('admin.crawlerOff') }}</span>
@@ -769,19 +775,19 @@ const doMerge = () => run(async () => {
       </Section>
 
       <template v-if="isAdmin">
-      <Section :title="t('admin.system.title')" :default-open="false" store-key="admin.system">
+      <Section data-tour="admin-system" :title="t('admin.system.title')" :default-open="false" store-key="admin.system">
         <template #hint><Hint>{{ t('admin.system.hint') }}</Hint></template>
         <SystemMonitor />
       </Section>
 
-      <Section :title="t('admin.backfill')" :default-open="false" store-key="admin.backfill">
+      <Section data-tour="admin-backfill" :title="t('admin.backfill')" :default-open="false" store-key="admin.backfill">
         <template #hint><Hint>{{ t('admin.backfillHint') }}</Hint></template>
       <div class="row">
         <button @click="backfill">{{ t('admin.backfillButton') }}</button>
       </div>
       </Section>
 
-      <Section :title="t('admin.merge')" :default-open="false" store-key="admin.merge">
+      <Section data-tour="admin-merge" :title="t('admin.merge')" :default-open="false" store-key="admin.merge">
         <template #hint><Hint>{{ t('admin.mergeHint') }}</Hint></template>
       <div class="row">
         <label>{{ t('common.from') }} <input v-model.number="merge.from" type="number" /></label>
@@ -790,7 +796,7 @@ const doMerge = () => run(async () => {
       </div>
       </Section>
 
-      <Section :title="t('admin.ingests')" :default-open="false" store-key="admin.ingests">
+      <Section data-tour="admin-ingests" :title="t('admin.ingests')" :default-open="false" store-key="admin.ingests">
         <template #hint><Hint>{{ t('admin.ingestsHint') }}</Hint></template>
       <SortBar
         v-if="mobile"

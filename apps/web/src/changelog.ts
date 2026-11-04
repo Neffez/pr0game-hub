@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Auch das Admin-Panel hat jetzt ein Tutorial: Es erklärt Allianzen, Mitglieder mit Claim- und Passwort-Links, Zugangsanfragen und den Discord-Kanal, für Hub-Admins auch Universen und die Wartung.',
+        en: 'The admin panel now has a tutorial too: it explains alliances, members with claim and password links, access requests and the Discord channel, for hub admins also universes and maintenance.',
+      },
+      {
+        kind: 'new',
         de: 'Tutorials gibt es jetzt für alle Menüpunkte: Statistik, Mein Imperium, Marktplatz, Galaxie, Spionageberichte, Fremdspionage, Aktivität, Ingame-Nachrichten, Planeten, Flotten, Forschung, Battle Hall, Expeditionen und Konto. Mit dem „?“ neben dem Titel startest du sie jederzeit wieder.',
         en: 'Tutorials now exist for every menu page: statistics, my empire, market, galaxy, espionage reports, hostile espionage, activity, in-game messages, planets, fleets, research, battle hall, expeditions and account. The "?" next to the title starts them again at any time.',
       },

@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-04
 
+- Page tour for the admin panel, with a "?" in its title: universes, access requests, alliances, members (claim and
+  password links), the alliance's Discord channel, fleet movements, battle report archive, system, activity log
+  backfill, player merge and syncs; sections an alliance admin doesn't see are skipped.
+
 - Page tours for every other menu page: statistics, my empire, market, galaxy, espionage reports, hostile espionage,
   activity log, in-game messages, planets, fleets, research, battle hall, expeditions (analysis and deck) and the
   account, each with a step per tab, filter and main section.
