@@ -2,11 +2,13 @@ import { localToEpoch, parsePage, type HubRecord, type ParseInput, type ParseRes
 import { gunzipSync, gzipSync } from 'node:zlib';
 import { HttpError } from './auth.js';
 import { config } from './config.js';
+import { isRunning, type GroupContext } from './context.js';
 import { now, type DB } from './db.js';
 import { events } from './events.js';
 import { foreignRecords } from './plausibility.js';
 import { galaxyMark } from './repo/activity.js';
 import { messageShare } from './repo/messages.js';
+import { catchUpPlans } from './repo/plans.js';
 import { Players } from './repo/players.js';
 import { shareSyncsEnabled } from './repo/presence.js';
 import { Store } from './store.js';
@@ -89,7 +91,7 @@ export function ingest(
   db: DB,
   target: IngestTarget,
   input: ParseInput & { source: 'paste' | 'upload' },
-  opts: { dryRun?: boolean } = {},
+  opts: { dryRun?: boolean; ctx?: GroupContext } = {},
 ): IngestSummary {
   const parsed = parsePage(input);
   if (foreignRecords(db, target, parsed.records)) {
@@ -128,6 +130,11 @@ export function ingest(
       JSON.stringify({ counts: summary.counts, warnings: summary.warnings, about: aboutRecords(parsed.records) }),
     );
   })();
+  if (opts.ctx && (parsed.pageType === 'overview' || parsed.pageType === 'fleets') && isRunning(opts.ctx.universe)) {
+    const syncCtx = opts.ctx.user.id === target.userId ? opts.ctx : { ...opts.ctx, user: { ...opts.ctx.user, id: target.userId } };
+    const synced = catchUpPlans(db, syncCtx, 32);
+    if (synced.length) events.publish(target.groupId, { type: 'data', tables: ['attack_plans', 'target_claims'], userId: target.userId });
+  }
   const systems = parsed.records.flatMap((r) => (r.kind === 'galaxy' ? [`${r.g}:${r.s}`] : []));
   // without the member's consent the others' views still reload, but no hint names who synced
   const by = shareSyncsEnabled(db, target.userId) ? target.userId : undefined;

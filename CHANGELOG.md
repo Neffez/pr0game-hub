@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-04
 
+- Raid planner: listing plans (GET /plans) no longer writes. ACS joins, recalls, a moved impact and fleets seen in
+  flight are applied when an overview is pasted and when the raid planner opens (POST /plans/sync).
+
 - Data: player merge remaps raid plans and every other `players` foreign key; the Optimized Recycler defaults to
   shipyard/shields/impulse 6 (Universe 7 keeps 8/8/9 as an override); fleet HTML is stored even without a selected
   planet; unknown ship or defense names on a pasted page produce a warning.

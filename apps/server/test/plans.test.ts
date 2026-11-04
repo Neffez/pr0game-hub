@@ -532,6 +532,13 @@ describe('attack plans', () => {
       move({ owner: 'foreign', mission: 2, acs: 1, from: body(2, 50, 6), ships: { 214: 1 }, arrival: t0 + 3720 }),
     ]));
     await call('PUT', `/plans/${created.id}/fleets/${plan.fleets[1].id}`, dave, { ships: { 215: 3 } });
+    // GET is a pure read: the new fleet and moved arrival stay off the stored plan
+    expect((await call('GET', '/plans', admin)).json().find((p: any) => p.id === created.id).fleets).toHaveLength(2);
+    const token = (await app.inject({ method: 'POST', url: '/hub/api/auth/tokens', headers: admin, payload: { name: 'plans' } })).json().token;
+    const bearer = { authorization: `Bearer ${token}`, 'x-hub-group': String(groupA) };
+    expect((await app.inject({ method: 'GET', url: '/hub/api/u8/plans', headers: bearer })).json().find((p: any) => p.id === created.id).fleets).toHaveLength(2);
+    expect((await app.inject({ method: 'POST', url: '/hub/api/u8/plans/sync', headers: bearer })).statusCode).toBe(403);
+    expect((await call('POST', '/plans/sync', admin)).json()).toEqual({ ok: true });
     const synced = (await call('GET', '/plans', admin)).json().find((p: any) => p.id === created.id);
     expect(synced).toMatchObject({ target_time: t0 + 3720, guests: [] });
     expect(synced.fleets.map((f: any) => [f.user_id, f.s, f.p, f.ships, f.status])).toEqual([

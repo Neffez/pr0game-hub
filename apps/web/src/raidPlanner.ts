@@ -64,8 +64,10 @@ export function useRaidPlanner() {
   const ownAttacks = ref<OwnAttack[]>([]);
   const loaded = ref(false);
   const error = ref('');
-  async function load() {
+  async function load(opts?: { sync?: boolean }) {
     try {
+      // GET /plans is a pure read; opening the planner writes the catch-up from stored overviews
+      if (opts?.sync) await uniApi(uni.value, '/plans/sync', { body: {} });
       [plans.value, attacks.value, ownAttacks.value] = await Promise.all([
         uniApi<AttackPlan[]>(uni.value, '/plans'),
         uniApi<HostileAttack[]>(uni.value, '/hostile-attacks'),
@@ -78,8 +80,8 @@ export function useRaidPlanner() {
     loaded.value = true;
     scheduleStep();
   }
-  onMounted(load);
-  useLiveReload(load, tables('attack_plans', 'fleets', 'hidden_attacks'), 300);
+  onMounted(() => load({ sync: true }));
+  useLiveReload(() => load(), tables('attack_plans', 'fleets', 'hidden_attacks'), 300);
 
   /**
    * Runs a change; errors show at the top of the page, the live event reloads the plans (and here at once).

@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Raidpläne ändern sich nicht mehr allein durchs Öffnen der Liste. Neue Flotten, Rückrufe und eine verschobene Ankunft werden übernommen, wenn du eine Übersicht einfügst oder den Raidplaner öffnest.',
+        en: 'Raid plans no longer change just by opening the list. New fleets, recalls and a moved arrival are applied when you paste an overview or open the raid planner.',
+      },
+      {
+        kind: 'fix',
         de: 'Die Flottenliste aus dem Seitenquelltext wird auch gespeichert, wenn auf der Übersicht kein Planet ausgewählt ist. Unbekannte Schiffe oder Verteidigung in einem Bericht werden als Warnung angezeigt. Zusammenführen von Spielern behält Raidpläne. Der Optimierte Recycler braucht standardmäßig Werft/Schilde/Impuls 6.',
         en: 'The fleet list from page source is stored even when the overview has no selected planet. Unknown ships or defense in a report show a warning. Merging players keeps raid plans. The Optimized Recycler defaults to shipyard/shields/impulse 6.',
       },

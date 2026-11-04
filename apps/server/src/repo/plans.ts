@@ -1,6 +1,6 @@
 import { drivesFromResearch, retimeCandidates, type ShipCatalog } from '@pr0hub/flight';
 import type { UniverseSettings } from '../config.js';
-import type { GroupContext } from '../context.js';
+import { isRunning, type GroupContext } from '../context.js';
 import { now, type DB } from '../db.js';
 import { latestEmpires, spyEmpire } from './empire.js';
 import { fleetVisibility, sharedFleets, type StoredFleet } from './fleets.js';
@@ -114,9 +114,9 @@ export type LaunchSeen = { arrival: number; time: number; ships: Record<number, 
  * when another participant's overview shows it as a foreign fleet on the same route from a planet of that member (by
  * the galaxy data; both in one ACS, e.g. a lead that has not synced). Among equally good matches the one with the plan
  * fleet's ships wins. Returns the real arrival, the ships flying and the paste time per plan fleet; an invited or ready
- * fleet becomes launched.
+ * fleet becomes launched (`persist`: write that status; GET /plans passes false).
  */
-export function launchedOf(db: DB, ctx: GroupContext, plans: LaunchPlan[], fleets: LaunchFleet[]): Map<number, LaunchSeen> {
+export function launchedOf(db: DB, ctx: GroupContext, plans: LaunchPlan[], fleets: LaunchFleet[], persist = true): Map<number, LaunchSeen> {
   const out = new Map<number, LaunchSeen>();
   const players = memberPlayers(db, ctx);
   const snaps = new Map<number, { time: number; data: StoredFleet[]; used: Set<number> } | null>();
@@ -155,7 +155,7 @@ export function launchedOf(db: DB, ctx: GroupContext, plans: LaunchPlan[], fleet
       snap.used.add(best);
       out.set(f.id, { arrival: snap.data[best].arrival, time: snap.time, ships: snap.data[best].ships });
       if (f.status === 'invited' || f.status === 'ready') {
-        db.prepare("UPDATE attack_plan_fleets SET status = 'launched' WHERE id = ?").run(f.id);
+        if (persist) db.prepare("UPDATE attack_plan_fleets SET status = 'launched' WHERE id = ?").run(f.id);
         f.status = 'launched';
       }
       return true;
@@ -176,8 +176,9 @@ const followsImpact = (e: EnemyRow) => e.phalanx_home == null && e.recall_from =
 /**
  * Enemy fleets of plans; a newer overview paste of the same attack updates the arrival as seen (ACS delays), and an
  * attack that vanished from the attacked member's overview before it arrived suggests a recall window.
+ * `persist` writes the new arrival and moves a following retime (GET /plans passes false).
  */
-export function enemiesOf(db: DB, ctx: GroupContext, planIds: number[]): EnemyRow[] {
+export function enemiesOf(db: DB, ctx: GroupContext, planIds: number[], persist = true): EnemyRow[] {
   const rows = db
     .prepare(
       `SELECT e.*, COALESCE(gm.ingame_name, mu.username) AS member, COALESCE(gb.ingame_name, bu.username) AS updated_by
@@ -195,17 +196,19 @@ export function enemiesOf(db: DB, ctx: GroupContext, planIds: number[]): EnemyRo
     const latest = seen.get(key);
     if (latest && latest.arrival !== e.arrival) {
       e.moved = latest.arrival - e.arrival;
-      db.transaction(() => {
-        db.prepare('UPDATE attack_plan_enemy SET arrival = ? WHERE plan_id = ?').run(latest.arrival, e.plan_id);
-        // a retime lands after the return home
-        if (followsImpact(e)) {
-          db.prepare("UPDATE attack_plans SET target_time = target_time + ? WHERE id = ? AND mission <> 'hold'").run(e.moved, e.plan_id);
-          db.prepare(
-            `UPDATE target_claims SET expires_at = expires_at + ? WHERE id = (SELECT claim_id FROM attack_plans WHERE id = ? AND mission <> 'hold')
-               AND released_at IS NULL`,
-          ).run(e.moved, e.plan_id);
-        }
-      })();
+      if (persist) {
+        db.transaction(() => {
+          db.prepare('UPDATE attack_plan_enemy SET arrival = ? WHERE plan_id = ?').run(latest.arrival, e.plan_id);
+          // a retime lands after the return home
+          if (followsImpact(e)) {
+            db.prepare("UPDATE attack_plans SET target_time = target_time + ? WHERE id = ? AND mission <> 'hold'").run(e.moved, e.plan_id);
+            db.prepare(
+              `UPDATE target_claims SET expires_at = expires_at + ? WHERE id = (SELECT claim_id FROM attack_plans WHERE id = ? AND mission <> 'hold')
+                 AND released_at IS NULL`,
+            ).run(e.moved, e.plan_id);
+          }
+        })();
+      }
       e.arrival = latest.arrival;
     }
     e.recall_seen = !latest && e.member_id != null ? recallWindow(db, ctx.groupId, e.member_id, key) : null;
@@ -216,8 +219,9 @@ export function enemiesOf(db: DB, ctx: GroupContext, planIds: number[]): EnemyRo
 /**
  * Plans follow the impact of their enemy (also after a delay): a hold moves its target time to it; a retime was
  * already moved by `enemiesOf` with the return home, here only the loaded plans catch up.
+ * `persist` writes a hold's new target time (GET /plans passes false).
  */
-export function followEnemies(db: DB, plans: Pick<PlanRow, 'id' | 'mission' | 'target_time'>[], enemies: Map<number, EnemyRow>) {
+export function followEnemies(db: DB, plans: Pick<PlanRow, 'id' | 'mission' | 'target_time'>[], enemies: Map<number, EnemyRow>, persist = true) {
   for (const p of plans) {
     const e = enemies.get(p.id);
     if (!e) continue;
@@ -227,7 +231,7 @@ export function followEnemies(db: DB, plans: Pick<PlanRow, 'id' | 'mission' | 't
     }
     if (p.target_time === e.arrival + e.hold_offset) continue;
     p.target_time = e.arrival + e.hold_offset;
-    db.prepare('UPDATE attack_plans SET target_time = ? WHERE id = ?').run(p.target_time, p.id);
+    if (persist) db.prepare('UPDATE attack_plans SET target_time = ? WHERE id = ?').run(p.target_time, p.id);
   }
 }
 
@@ -502,5 +506,36 @@ export function syncOwnPlans(db: DB, ctx: GroupContext, maxFleets: number): numb
       if (touched) changed.push(plan.id);
     }
   })();
+  return changed;
+}
+
+/** Plans are listed and caught up up to a week after their target time (same window as GET /plans). */
+const CATCH_UP_KEEP = 7 * 86400;
+
+/**
+ * Writes the plan catch-up that GET /plans used to do: ACS joins and a moved arrival (`syncOwnPlans`), recalled
+ * fleets withdrawn (`recallOwnPlans`), enemy delays and hold/retime times, fleets seen in flight marked launched.
+ * Called after an overview/fleets paste and from POST /plans/sync. Returns the ids `syncOwnPlans` / `recallOwnPlans`
+ * changed (for live events); the other writes are silent like they were on GET.
+ */
+export function catchUpPlans(db: DB, ctx: GroupContext, maxFleets: number): number[] {
+  if (!isRunning(ctx.universe, ctx.now)) return [];
+  const changed = [...syncOwnPlans(db, ctx, maxFleets), ...recallOwnPlans(db, ctx)];
+  const plans = db
+    .prepare(
+      `SELECT id, g, s, p, planet_type, target_time, time_precision, mission, status FROM attack_plans
+       WHERE group_id = ? AND status IN ('planning', 'launched') AND target_time > ?`,
+    )
+    .all(ctx.groupId, ctx.now - CATCH_UP_KEEP) as LaunchPlan[];
+  if (!plans.length) return changed;
+  const fleets = db
+    .prepare(
+      `SELECT id, plan_id, user_id, g, s, p, planet_type, status, ships FROM attack_plan_fleets
+       WHERE plan_id IN (SELECT value FROM json_each(?))`,
+    )
+    .all(JSON.stringify(plans.map((p) => p.id))) as LaunchFleet[];
+  const enemies = new Map(enemiesOf(db, ctx, plans.map((p) => p.id)).map((e) => [e.plan_id, e]));
+  followEnemies(db, plans, enemies);
+  launchedOf(db, ctx, plans, fleets);
   return changed;
 }

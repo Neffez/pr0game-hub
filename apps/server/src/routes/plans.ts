@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { HttpError } from '../auth.js';
-import { isRunning, type GroupContext } from '../context.js';
+import type { GroupContext } from '../context.js';
 import { now, type DB } from '../db.js';
 import { events } from '../events.js';
 import { isPhalanxText, localToEpoch, nearestClock, parseFleetsText } from '@pr0hub/core';
@@ -10,7 +10,7 @@ import { attackKey, hostileAttacks, PHALANX_KEEP, type Body, type EnemyFleet, ty
 import { phalanxActivity } from '../repo/activity.js';
 import { latestEmpire, spyEmpire } from '../repo/empire.js';
 import {
-  enemiesOf, followEnemies, fromOf, launchedOf, guestsOfAttack, ownAttacks, planDrives, recallOwnPlans, syncOwnPlans, toOf, type EnemyRow, type LaunchFleet, type LaunchPlan, type OwnAttackFleet, type PlanRow,
+  catchUpPlans, enemiesOf, followEnemies, fromOf, launchedOf, guestsOfAttack, ownAttacks, planDrives, toOf, type EnemyRow, type LaunchFleet, type LaunchPlan, type OwnAttackFleet, type PlanRow,
 } from '../repo/plans.js';
 import { applySimulation, bodyKey, simResearch, withSim, type PlanSim } from '../repo/simPlan.js';
 import { contextOf, DISPLAY, MEMBER } from './util.js';
@@ -195,10 +195,6 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
   /** Plans of the group up to a week after their target time, with fleets and the members' drive levels. */
   app.get<{ Params: { uni: string } }>('/api/:uni/plans', async (req) => {
     const ctx = ctxOf(req);
-    // fleets that joined a running ACS and a moved arrival reach the plans made from it; recalled fleets are withdrawn
-    // (not before the start or after the end: the universe is read-only then)
-    const synced = !isRunning(ctx.universe) ? [] : [...syncOwnPlans(db, ctx, MAX_FLEETS), ...recallOwnPlans(db, ctx)];
-    if (synced.length) events.publish(ctx.groupId, { type: 'data', tables: ['attack_plans', 'target_claims'], userId: ctx.user.id });
     const plans = db
       .prepare(
         `SELECT a.id, a.user_id, ${DISPLAY} AS creator, a.g, a.s, a.p, a.planet_type, a.target_time, a.time_precision, a.note, a.status,
@@ -223,9 +219,10 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
       )
       .all(JSON.stringify(plans.map((p) => p.id))) as (LaunchFleet & Record<string, unknown> & { ships: string; manual: string | null; drives_time: number | null })[];
     const fleetDrives = planDrives(db, ctx);
-    const enemies = new Map(enemiesOf(db, ctx, plans.map((p) => p.id)).map((e) => [e.plan_id, e]));
-    followEnemies(db, plans as unknown as PlanRow[], enemies);
-    const launched = launchedOf(db, ctx, plans as unknown as LaunchPlan[], fleets);
+    // derived from the stored overviews; writes happen on ingest and POST /plans/sync
+    const enemies = new Map(enemiesOf(db, ctx, plans.map((p) => p.id), false).map((e) => [e.plan_id, e]));
+    followEnemies(db, plans as unknown as PlanRow[], enemies, false);
+    const launched = launchedOf(db, ctx, plans as unknown as LaunchPlan[], fleets, false);
     const sims = new Map(plans.map((p) => [p.id, p.sim != null ? (JSON.parse(p.sim as string) as PlanSim) : null]));
     const spies = new Map(
       plans.map((p) => [
@@ -409,6 +406,18 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
 
   /** Own attacks in flight (overview pastes) without a plan yet; only for their participants. */
   app.get<{ Params: { uni: string } }>('/api/:uni/own-attacks', async (req) => ownAttacks(db, ctxOf(req)));
+
+  /**
+   * Catch-up from the stored overviews: fleets that joined a running ACS, a moved arrival, recalled fleets withdrawn,
+   * hold and retime times following the impact, fleets seen in flight marked launched. GET /plans is a pure read; the
+   * raid planner calls this when it opens so the list is current without a new paste.
+   */
+  app.post<{ Params: { uni: string } }>('/api/:uni/plans/sync', async (req) => {
+    const ctx = ctxOf(req);
+    const synced = catchUpPlans(db, ctx, MAX_FLEETS);
+    if (synced.length) events.publish(ctx.groupId, { type: 'data', tables: ['attack_plans', 'target_claims'], userId: ctx.user.id });
+    return { ok: true };
+  });
 
   /**
    * Plan for an own attack in flight, by one of its participants: target and time from the overview, every member's
