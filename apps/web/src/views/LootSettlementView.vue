@@ -455,9 +455,9 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
         <div class="card" data-tour="loot-participants">
           <h3>{{ t('loot.participants') }}</h3>
           <div class="table-wrap">
-            <table v-stack class="data">
+            <table v-stack class="data parts">
               <thead>
-                <tr><th>{{ t('common.name') }}</th><th class="num">{{ t('loot.flightDeut') }}</th><th class="num">{{ t('loot.recDeut') }}</th><th class="num">{{ t('loot.missiles') }}</th>
+                <tr><th>{{ t('common.name') }}</th><th class="num marked">{{ t('loot.flightDeut') }}</th><th class="num marked">{{ t('loot.recDeut') }}</th><th class="num marked">{{ t('loot.missiles') }}</th>
                   <th v-if="byPercent" class="num">{{ t('loot.sharePct') }} <Hint>{{ t('loot.sharePctHint') }}</Hint></th></tr>
               </thead>
               <tbody>
@@ -474,6 +474,7 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
                     <span v-else-if="sourceOf(p.id, f)" class="src" :class="{ est: f === 'recDeut' || (f === 'flightDeut' && sources?.flightDeutFrom?.[p.id] !== 'fleet') }">
                       <Icon name="check" :size="12" :label="sourceOf(p.id, f)!" />
                     </span>
+                    <span v-else class="src" aria-hidden="true" />
                   </td>
                   <td v-if="byPercent" class="num">
                     <input
@@ -772,6 +773,9 @@ fieldset { border: 0; padding: 0; margin: 0; }
 .battle + .battle { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--border); }
 .battle .row { gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
 .src { color: var(--pos); margin-left: 4px; }
+/* every input cell keeps a slot for its source mark, so inputs line up under their right-aligned headers */
+.parts .src { display: inline-block; width: 12px; }
+.parts th.marked { padding-right: 24px; }
 .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-bottom: 10px; }
 .kpi { display: flex; flex-direction: column; padding: 8px 10px; border-radius: 8px; background: var(--surface-2); }
 tr.first td { border-top: 2px solid var(--border); }

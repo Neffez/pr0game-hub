@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-04
 
+- Loot settlement: the inputs in the participants table line up under their column headers again; every cell keeps
+  room for the check mark or pencil marker instead of shifting its input by it.
+
 - Page tour for the loot settlement: on the first visit it explains that everything is filled in from synced combat,
   fleet return, recycler, transport and missile reports and can still be corrected by hand, then walks through live
   and finalized, data status, own deliveries, settings, participants (check mark and pencil markers), battles,
