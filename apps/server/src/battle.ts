@@ -214,19 +214,37 @@ export function throttle(userId: number, at = Date.now()) {
   if (recent.size > 10000) for (const [k, v] of recent) if (!v.some((t) => at - t < 60_000)) recent.delete(k);
 }
 
-/** Runs the battle in a worker thread with a time limit (503 when it takes longer). */
-/** `units`: the universe's differences of the unit catalog (the worker builds the catalog from them). */
-export function runInWorker(setup: BattleSetup, runs: number, settings: SimSettings, units: UnitOverrides = {}): Promise<SimSummary> {
+/**
+ * Runs the battle in a worker thread with a time limit (503 when it takes longer).
+ * `units`: the universe's differences of the unit catalog (the worker builds the catalog from them).
+ * `workerUrl` is the battle worker; tests pass a worker that exits to check the slot is released.
+ */
+export function runInWorker(
+  setup: BattleSetup,
+  runs: number,
+  settings: SimSettings,
+  units: UnitOverrides = {},
+  workerUrl: URL | string = new URL('../battle-worker.mjs', import.meta.url),
+): Promise<SimSummary> {
   running++;
   return new Promise<SimSummary>((resolve, reject) => {
-    const worker = new Worker(new URL('../battle-worker.mjs', import.meta.url), { workerData: { setup, runs, settings, units } });
+    let settled = false;
+    const worker = new Worker(workerUrl, { workerData: { setup, runs, settings, units } });
+    const settle = (fn: () => void) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      fn();
+    };
     const timer = setTimeout(() => {
       void worker.terminate();
-      reject(new HttpError(503, 'battle_timeout', 'The simulation took too long'));
+      settle(() => reject(new HttpError(503, 'battle_timeout', 'The simulation took too long')));
     }, BATTLE_LIMITS.timeoutMs);
-    worker.once('message', (summary: SimSummary) => resolve(summary));
-    worker.once('error', (err) => reject(err));
-    worker.once('exit', () => clearTimeout(timer));
+    worker.once('message', (summary: SimSummary) => settle(() => resolve(summary)));
+    worker.once('error', (err) => settle(() => reject(err)));
+    worker.once('exit', (code) => {
+      settle(() => reject(new HttpError(503, 'battle_worker_exit', `The simulator worker exited (${code ?? 'unknown'})`)));
+    });
   }).finally(() => {
     running--;
   });

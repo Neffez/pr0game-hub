@@ -63,7 +63,7 @@ beforeAll(async () => {
   }
   db.prepare('INSERT INTO empire_snapshots (group_id, user_id, created_at, data) VALUES (?, ?, ?, ?)').run(group, ids.carol, T0, JSON.stringify(empire({ 1: 10, 2: 5 })));
   db.prepare('UPDATE users SET discord_webhook = ? WHERE id = ?').run(HOOK, ids.carol);
-  await call('POST', '/push/subscriptions', h.carol, { endpoint: 'https://push.example/carol', keys: { p256dh: 'B'.repeat(87), auth: 'a'.repeat(22) } });
+  await call('POST', '/push/subscriptions', h.carol, { endpoint: 'https://fcm.googleapis.com/fcm/send/carol', keys: { p256dh: 'B'.repeat(87), auth: 'a'.repeat(22) } });
 });
 
 beforeEach(() => {
@@ -306,14 +306,14 @@ describe('full storages', () => {
       { name: 'Mond', coords: { g: 2, s: 2, p: 2 }, type: 'moon', values: { 22: 0 }, resources: { 901: 10000, 902: 0, 903: 0 }, perHour: {}, building: null },
     ],
   });
-  const frankPushes = () => pushed.filter((p) => p.endpoint === 'https://push.example/frank').map((p) => p.payload.title);
+  const frankPushes = () => pushed.filter((p) => p.endpoint === 'https://fcm.googleapis.com/fcm/send/frank').map((p) => p.payload.title);
 
   beforeAll(async () => {
     db.prepare("INSERT INTO users (username, password_hash) VALUES ('frank', ?)").run(hashPassword('frankpass'));
     ids.frank = db.prepare("SELECT id FROM users WHERE username = 'frank'").pluck().get() as number;
     db.prepare("INSERT INTO group_members (group_id, user_id, ingame_name) VALUES (?, ?, 'Frank')").run(group, ids.frank);
     h.frank = { cookie: await login('frank'), 'x-hub-group': String(group) };
-    await call('POST', '/push/subscriptions', h.frank, { endpoint: 'https://push.example/frank', keys: { p256dh: 'B'.repeat(87), auth: 'a'.repeat(22) } });
+    await call('POST', '/push/subscriptions', h.frank, { endpoint: 'https://fcm.googleapis.com/fcm/send/frank', keys: { p256dh: 'B'.repeat(87), auth: 'a'.repeat(22) } });
     db.prepare('INSERT INTO empire_snapshots (group_id, user_id, created_at, data) VALUES (?, ?, ?, ?)').run(group, ids.frank, t, JSON.stringify(frankEmpire(CAP - 3600)));
   });
 
@@ -325,7 +325,7 @@ describe('full storages', () => {
     expect(frankPushes()).toEqual([]);
     await app.push.tick(t + 3601);
     expect(frankPushes()).toEqual(['📦 Metallspeicher voll']);
-    expect(pushed.find((p) => p.endpoint === 'https://push.example/frank')!.payload.url).toContain('/u8/build?tab=buildings&c=2%3A2%3A2&type=planet');
+    expect(pushed.find((p) => p.endpoint === 'https://fcm.googleapis.com/fcm/send/frank')!.payload.url).toContain('/u8/build?tab=buildings&c=2%3A2%3A2&type=planet');
     await app.push.tick(t + 7200);
     expect(frankPushes()).toEqual(['📦 Metallspeicher voll']);
   });

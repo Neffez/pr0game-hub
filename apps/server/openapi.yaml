@@ -1169,7 +1169,7 @@ paths:
               type: object
               required: [endpoint, keys]
               properties:
-                endpoint: { type: string, format: uri, description: HTTPS URL of the browser's push service }
+                endpoint: { type: string, format: uri, description: HTTPS URL of FCM, Mozilla, Apple or Windows push }
                 keys:
                   type: object
                   required: [p256dh, auth]

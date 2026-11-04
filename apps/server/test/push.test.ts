@@ -68,15 +68,17 @@ describe('push subscriptions and settings', () => {
     expect(db.prepare('SELECT COUNT(*) FROM push_vapid').pluck().get()).toBe(1);
 
     expect((await call('POST', '/push/subscriptions', h.carol, { endpoint: 'http://insecure', keys: {} })).statusCode).toBe(400);
-    expect((await subscribe('carol', 'https://push.example/carol')).statusCode).toBe(200);
-    expect((await subscribe('dave', 'https://push.example/shared')).statusCode).toBe(200);
-    expect((await subscribe('erin', 'https://push.example/shared')).statusCode).toBe(200);
-    expect(db.prepare("SELECT user_id FROM push_subscriptions WHERE endpoint = 'https://push.example/shared'").pluck().get()).toBe(ids.erin);
+    expect((await subscribe('carol', 'https://127.0.0.1/push')).statusCode).toBe(400);
+    expect((await subscribe('carol', 'https://evil.example/push')).statusCode).toBe(400);
+    expect((await subscribe('carol', 'https://fcm.googleapis.com/fcm/send/carol')).statusCode).toBe(200);
+    expect((await subscribe('dave', 'https://fcm.googleapis.com/fcm/send/shared')).statusCode).toBe(200);
+    expect((await subscribe('erin', 'https://fcm.googleapis.com/fcm/send/shared')).statusCode).toBe(200);
+    expect(db.prepare("SELECT user_id FROM push_subscriptions WHERE endpoint = 'https://fcm.googleapis.com/fcm/send/shared'").pluck().get()).toBe(ids.erin);
     // only own browsers can be removed
-    expect((await call('DELETE', '/push/subscriptions', h.dave, { endpoint: 'https://push.example/shared' })).json().removed).toBe(0);
-    expect((await call('DELETE', '/push/subscriptions', h.erin, { endpoint: 'https://push.example/shared' })).json().removed).toBe(1);
-    await subscribe('dave', 'https://push.example/dave');
-    await subscribe('erin', 'https://push.example/erin');
+    expect((await call('DELETE', '/push/subscriptions', h.dave, { endpoint: 'https://fcm.googleapis.com/fcm/send/shared' })).json().removed).toBe(0);
+    expect((await call('DELETE', '/push/subscriptions', h.erin, { endpoint: 'https://fcm.googleapis.com/fcm/send/shared' })).json().removed).toBe(1);
+    await subscribe('dave', 'https://fcm.googleapis.com/fcm/send/dave');
+    await subscribe('erin', 'https://fcm.googleapis.com/fcm/send/erin');
   });
 
   it('keeps the settings per user with defaults and validates the lead time', async () => {
@@ -90,7 +92,7 @@ describe('push subscriptions and settings', () => {
 
   it('sends a test to all devices of the user', async () => {
     expect((await call('POST', '/push/test', h.carol)).json()).toEqual({ devices: 1 });
-    expect(to('https://push.example/carol')[0].payload.title).toBe('pr0game Hub');
+    expect(to('https://fcm.googleapis.com/fcm/send/carol')[0].payload.title).toBe('pr0game Hub');
   });
 
   it('is off without a contact', async () => {
@@ -113,7 +115,7 @@ describe('push delivery', () => {
 
     await app.push.deliver(groupA, t);
     expect(sent).toHaveLength(1);
-    expect(sent[0].endpoint).toBe('https://push.example/carol');
+    expect(sent[0].endpoint).toBe('https://fcm.googleapis.com/fcm/send/carol');
     expect(sent[0].payload).toMatchObject({ title: '⚔ Angriff auf Carol', url: `/hub/u8/fleet?group=${groupA}` });
     expect(sent[0].payload.body).toContain('☾ [1:1:1]');
     expect(sent[0].payload.body).toContain('von Raider [2:100:4]');
@@ -123,10 +125,10 @@ describe('push delivery', () => {
     expect(sent).toHaveLength(1);
     await call('POST', '/auth/push-settings', h.dave, { attackOthers: true });
     await app.push.deliver(groupA, t);
-    expect(sent.map((s) => s.endpoint)).toEqual(['https://push.example/carol', 'https://push.example/dave']);
+    expect(sent.map((s) => s.endpoint)).toEqual(['https://fcm.googleapis.com/fcm/send/carol', 'https://fcm.googleapis.com/fcm/send/dave']);
     // nothing for the other alliance
     await app.push.deliver(groupB, t);
-    expect(to('https://push.example/erin')).toEqual([]);
+    expect(to('https://fcm.googleapis.com/fcm/send/erin')).toEqual([]);
   });
 
   it('lists new comments on the bell of the thread participants and pushes them, not while their hub is in front', async () => {
@@ -139,7 +141,7 @@ describe('push delivery', () => {
 
     await app.push.deliver(groupA, t);
     expect(sent).toMatchObject([
-      { endpoint: 'https://push.example/carol', payload: { title: '💬 Dave zu Victim', url: `/hub/u8/player/${playerA}?group=${groupA}` } },
+      { endpoint: 'https://fcm.googleapis.com/fcm/send/carol', payload: { title: '💬 Dave zu Victim', url: `/hub/u8/player/${playerA}?group=${groupA}` } },
     ]);
 
     // answered: gone from the bell
@@ -152,17 +154,17 @@ describe('push delivery', () => {
     await call('POST', '/u8/comments', h.dave, { player: playerA, body: 'Still there?' });
     sent.length = 0;
     await app.push.deliver(groupA, t);
-    expect(to('https://push.example/carol')).toEqual([]);
+    expect(to('https://fcm.googleapis.com/fcm/send/carol')).toEqual([]);
     off();
     await app.push.deliver(groupA, t);
-    expect(to('https://push.example/carol')).toEqual([]);
+    expect(to('https://fcm.googleapis.com/fcm/send/carol')).toEqual([]);
   });
 
   it('delivers by itself after a data event of the group', { timeout: 10_000 }, async () => {
     await call('POST', '/u8/comments', h.carol, { c: '1:50:7', type: 'planet', body: 'Farm' });
     await call('POST', '/u8/comments', h.dave, { c: '1:50:7', type: 'planet', body: 'Mine now' });
-    await vi.waitFor(() => expect(to('https://push.example/carol').length).toBeGreaterThan(0), { timeout: 5000, interval: 100 });
-    expect(to('https://push.example/carol')[0].payload.url).toBe(`/hub/u8/spy?c=1%3A50%3A7&type=planet&group=${groupA}`);
+    await vi.waitFor(() => expect(to('https://fcm.googleapis.com/fcm/send/carol').length).toBeGreaterThan(0), { timeout: 5000, interval: 100 });
+    expect(to('https://fcm.googleapis.com/fcm/send/carol')[0].payload.url).toBe(`/hub/u8/spy?c=1%3A50%3A7&type=planet&group=${groupA}`);
   });
 
   it('reminds of the own launch from the chosen lead time on, on the bell an hour ahead', async () => {
@@ -189,7 +191,7 @@ describe('push delivery', () => {
     await app.push.tick(launch - 301);
     expect(sent).toEqual([]);
     await app.push.tick(launch - 300);
-    expect(sent).toMatchObject([{ endpoint: 'https://push.example/carol', payload: { title: '🚀 Start in 5 Min', url: `/hub/u8/raid-planner?plan=${plan}&group=${groupA}` } }]);
+    expect(sent).toMatchObject([{ endpoint: 'https://fcm.googleapis.com/fcm/send/carol', payload: { title: '🚀 Start in 5 Min', url: `/hub/u8/raid-planner?plan=${plan}&group=${groupA}` } }]);
     expect(sent[0].payload.body).toContain('[1:10:3] → [1:20:8]');
 
     // no reminder for a withdrawn fleet or a plan without an exact time
@@ -201,7 +203,7 @@ describe('push delivery', () => {
   });
 
   it('drops subscriptions the push service no longer knows', async () => {
-    await subscribe('carol', 'https://push.example/gone');
+    await subscribe('carol', 'https://fcm.googleapis.com/fcm/send/gone');
     expect((await call('POST', '/push/test', h.carol)).json()).toEqual({ devices: 1 });
     expect(db.prepare("SELECT COUNT(*) FROM push_subscriptions WHERE endpoint LIKE '%gone'").pluck().get()).toBe(0);
   });

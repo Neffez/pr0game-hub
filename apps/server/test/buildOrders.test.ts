@@ -60,7 +60,7 @@ beforeAll(async () => {
     h[name] = { cookie: await login(name), 'x-hub-group': String(group) };
   }
   db.prepare('INSERT INTO empire_snapshots (group_id, user_id, created_at, data) VALUES (?, ?, ?, ?)').run(group, ids.carol, T0, JSON.stringify(empire));
-  await call('POST', '/push/subscriptions', h.carol, { endpoint: 'https://push.example/carol', keys: { p256dh: 'B'.repeat(87), auth: 'a'.repeat(22) } });
+  await call('POST', '/push/subscriptions', h.carol, { endpoint: 'https://fcm.googleapis.com/fcm/send/carol', keys: { p256dh: 'B'.repeat(87), auth: 'a'.repeat(22) } });
 });
 
 beforeEach(() => {

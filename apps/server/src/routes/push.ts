@@ -11,9 +11,33 @@ interface SubscriptionBody {
   keys?: { p256dh?: unknown; auth?: unknown };
 }
 
+/** Browser push services the hub will POST to (FCM, Mozilla, Apple, WNS). */
+const PUSH_HOSTS = [
+  /^fcm\.googleapis\.com$/i,
+  /^android\.googleapis\.com$/i,
+  /^updates\.push\.services\.mozilla\.com$/i,
+  /^push\.services\.mozilla\.com$/i,
+  /^web\.push\.apple\.com$/i,
+  /^[a-z0-9-]+\.push\.apple\.com$/i,
+  /^wns2?-[a-z0-9-]+\.notify\.windows\.com$/i,
+  /^[a-z0-9-]+\.notify\.windows\.com$/i,
+];
+
+/** HTTPS push endpoint on a known host; userinfo and raw IPs are refused (SSRF). */
+export function isPushEndpoint(endpoint: string): boolean {
+  if (!/^https:\/\/\S+$/.test(endpoint) || endpoint.length > 1000) return false;
+  let url: URL;
+  try {
+    url = new URL(endpoint);
+  } catch {
+    return false;
+  }
+  return url.protocol === 'https:' && !url.username && !url.password && PUSH_HOSTS.some((re) => re.test(url.hostname));
+}
+
 const endpointOf = (v: unknown) => {
   const endpoint = String(v ?? '');
-  if (!/^https:\/\/\S+$/.test(endpoint) || endpoint.length > 1000) throw new HttpError(400, 'push_endpoint_invalid', 'Invalid push endpoint');
+  if (!isPushEndpoint(endpoint)) throw new HttpError(400, 'push_endpoint_invalid', 'Invalid push endpoint');
   return endpoint;
 };
 

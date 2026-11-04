@@ -5,7 +5,8 @@ process.env.WEB_DIR = '/nonexistent';
 const { buildApp } = await import('../src/app.js');
 const { openDb } = await import('../src/db.js');
 const { hashPassword } = await import('../src/auth.js');
-const { decodeShare } = await import('@pr0hub/battle');
+const { decodeShare, DEFAULT_SIM_SETTINGS } = await import('@pr0hub/battle');
+const { runInWorker, throttle } = await import('../src/battle.js');
 
 const db = openDb(':memory:');
 const app = buildApp(db, { logger: false });
@@ -97,6 +98,14 @@ describe('battle simulator API', () => {
   it('is documented in the OpenAPI spec', async () => {
     const doc = (await app.inject({ method: 'GET', url: '/hub/api/openapi.json' })).json();
     expect(doc.paths['/api/{uni}/battle/simulate'].post.operationId).toBe('simulateBattle');
+  });
+
+  it('releases the worker slot when the worker exits without a result', async () => {
+    const setup = { attackers: [{ units: { 204: 1 }, research: {} }], defenders: [{ units: {}, research: {} }] };
+    const dying = new URL('./exit-worker.mjs', import.meta.url);
+    await expect(runInWorker(setup, 1, DEFAULT_SIM_SETTINGS, {}, dying)).rejects.toMatchObject({ code: 'battle_worker_exit' });
+    await expect(runInWorker(setup, 1, DEFAULT_SIM_SETTINGS, {}, dying)).rejects.toMatchObject({ code: 'battle_worker_exit' });
+    expect(() => throttle(99_001)).not.toThrow();
   });
 
   it('still refuses writes with a read-only token elsewhere', async () => {

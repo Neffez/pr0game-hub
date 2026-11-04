@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Wenn der Kampfsimulator einmal hängen bleibt, blockiert er die nächsten Simulationen nicht mehr. Sehr viele Syncs hintereinander werden kurz abgewiesen.',
+        en: 'If the battle simulator hangs once, it no longer blocks the next simulations. Very many syncs in a short time are refused for a moment.',
+      },
+      {
+        kind: 'fix',
         de: 'Wenn du dein Passwort änderst, gelten deine API-Tokens nicht mehr. Ein Passwort darf höchstens 256 Zeichen haben.',
         en: 'Changing your password now also revokes your API tokens. A password may be at most 256 characters.',
       },

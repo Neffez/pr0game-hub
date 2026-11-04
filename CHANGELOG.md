@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-04
 
+- Availability: the battle worker releases its slot if it exits without a result; push subscriptions must use a known
+  browser push host (FCM, Mozilla, Apple, Windows); paste and universe.json are rate-limited per user and group.
+
 - Auth: passwords are 8–256 characters (rejected before hashing); changing the password also revokes API tokens;
   logout clears the session cookie with the same flags it was set with; placeholder accounts (empty hash) take the
   same login time as unknown usernames.
