@@ -1,17 +1,23 @@
 <script setup lang="ts">
-import Section from '../components/Section.vue';
-import MemberSelect from '../components/MemberSelect.vue';
-import PageHeader from '../components/PageHeader.vue';
-import Icon from '../components/Icon.vue';
-import DateTimeInput from '../components/DateTimeInput.vue';
-import Hint from '../components/Hint.vue';
+import Section from './Section.vue';
+import MemberSelect from './MemberSelect.vue';
+import Icon from './Icon.vue';
+import DateTimeInput from './DateTimeInput.vue';
+import Hint from './Hint.vue';
+import SortBar from './SortBar.vue';
+import SortMark from './SortMark.vue';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
-import { useLoader, useUni, vStack } from '../composables';
+import { useLoader, useMobile, useSort, useUni, vStack } from '../composables';
 import { tables, useLiveReload } from '../live';
 import { cardLabel, dateTime, DEPLETION_LABEL, fmt, fmtCount } from '../format';
 
+/**
+ * Expedition deck (tab of the expeditions page): card counting per player, manually counted events and the deck
+ * settings. Adding and settings are collapsible sections; the card table sorts by any column.
+ */
+const emit = defineEmits<{ showStats: [] }>();
 const { t } = useI18n();
 const { uni, ctx } = useUni();
 const userId = ref(ctx.value!.me.id);
@@ -92,65 +98,80 @@ const beforeStart = computed(() => {
   return !!(addTime.value && start && new Date(addTime.value).getTime() / 1000 < start);
 });
 
-const cards = computed(() => [...(data.value?.state.cards ?? [])].sort((a: any, b: any) => b.nextProbability - a.nextProbability));
+// ------------------------------------------------- card table
+const cardSort = useSort<any>(
+  deckCards,
+  (c, k) => (k === 'card' ? cardLabel(c.key) : k === 'minMax' ? c.remainingMax - c.remainingMin : c[k]),
+  'nextProbability',
+);
+const cardCols = computed(() => [
+  { key: 'count', label: t('deck.inDeck') },
+  { key: 'remaining', label: t('combat.left') },
+  { key: 'minMax', label: t('deck.minMax') },
+  { key: 'nextProbability', label: t('deck.nextCard') },
+]);
+const { key: cardKey, descending: cardDesc } = cardSort;
+/** Column headers are hidden in the stacked mobile table: a sort selection instead. */
+const mobile = useMobile();
+const cardOptions = computed(() => [{ key: 'card', label: t('deck.card') }, ...cardCols.value.map((c) => ({ key: c.key, label: c.label }))]);
+/** Bar width: the most likely card fills the column. */
+const maxProbability = computed(() => Math.max(0, ...deckCards.value.map((c: any) => c.nextProbability)));
 const progress = computed(() => (data.value ? data.value.state.drawnInDeck / data.value.state.deckSize : 0));
 </script>
 
 <template>
-  <PageHeader :title="t('nav.deck')">
-    <template #hint>
-      <Hint>
-        <p>{{ t('deck.hint1', { n: data?.state.deckSize ?? 1000 }) }}</p>
-        <p>{{ t('deck.hint2') }}</p>
-      </Hint>
-    </template>
+  <div class="row toolbar">
     <MemberSelect v-model="userId" />
-  </PageHeader>
-
+    <span class="grow" />
+    <button v-if="isMe && data" @click="resetDeck">{{ t('deck.reset') }}</button>
+  </div>
   <div v-if="error" class="error">{{ error }}</div>
   <template v-if="data">
-    <div class="card">
+    <div class="card summary">
       <div class="row">
         <span>{{ t('deck.drawn') }} <b>{{ fmtCount(data.state.drawnInDeck) }}</b> / {{ data.state.deckSize }}</span>
         <span>{{ t('deck.remaining') }} <b>{{ fmtCount(data.state.remainingTotal) }}</b></span>
-        <span class="muted">{{ t('deck.counts', { resets: data.state.resets, events: data.state.events, uncertain: data.state.uncertainNothing }) }}</span>
+        <span class="muted small">{{ t('deck.counts', { resets: data.state.resets, events: data.state.events, uncertain: data.state.uncertainNothing }) }}</span>
         <span class="grow" />
         <span v-if="data.settings.startTime" class="muted small">{{ t('deck.start') }} {{ dateTime(data.settings.startTime) }}</span>
-        <button v-if="isMe" @click="resetDeck">{{ t('deck.reset') }}</button>
       </div>
-      <div style="height: 8px; background: var(--surface-2); border-radius: 4px; margin-top: 8px">
-        <div :style="{ width: progress * 100 + '%', height: '100%', background: 'var(--accent)', borderRadius: '4px' }" />
-      </div>
+      <div class="bar"><div :style="{ width: progress * 100 + '%' }" /></div>
     </div>
 
-    <div class="table-wrap flat">
-      <table v-stack class="data">
-        <thead>
-          <tr><th>{{ t('deck.card') }}</th><th class="num">{{ t('deck.inDeck') }}</th><th class="num">{{ t('combat.left') }}</th><th class="num">{{ t('deck.minMax') }}</th><th class="num">{{ t('deck.nextCard') }}</th><th style="width: 30%"></th></tr>
-        </thead>
-        <tbody>
-          <tr v-for="c in cards" :key="c.key">
-            <td>{{ cardLabel(c.key) }}</td>
-            <td class="num muted">{{ c.count }}</td>
-            <td class="num"><b>{{ fmtCount(c.remaining) }}</b></td>
-            <td class="num small muted">{{ c.remainingMin !== c.remainingMax ? `${fmtCount(c.remainingMin)}–${fmtCount(c.remainingMax)}` : '' }}</td>
-            <td class="num">{{ fmt(c.nextProbability * 100, 2) }} %</td>
-            <td class="m-hide">
-              <div :style="{ width: Math.min(100, c.nextProbability * 300) + '%', height: '6px', background: 'var(--accent)', borderRadius: '3px' }" />
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+    <Section :title="t('deck.cards')" :count="deckCards.length" :card="false" :level="2" store-key="deck.cards">
+      <SortBar v-if="mobile" v-model:desc="cardDesc" :sort-key="cardKey" :options="cardOptions" @sort="cardSort.sortBy" />
+      <div class="table-wrap flat">
+        <table v-stack class="data">
+          <thead>
+            <tr>
+              <th class="sortable" @click="cardSort.sortBy('card')">{{ t('deck.card') }}<SortMark :dir="cardSort.direction('card')" /></th>
+              <th v-for="c in cardCols" :key="c.key" class="sortable num" @click="cardSort.sortBy(c.key)">{{ c.label }}<SortMark :dir="cardSort.direction(c.key)" /></th>
+              <th class="m-hide bar-col" />
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="c in cardSort.sorted.value" :key="c.key" :class="{ dim: !c.remainingMax }">
+              <td>{{ cardLabel(c.key) }}</td>
+              <td class="num muted">{{ c.count }}</td>
+              <td class="num"><b>{{ fmtCount(c.remaining) }}</b></td>
+              <td class="num small muted">{{ c.remainingMin !== c.remainingMax ? `${fmtCount(c.remainingMin)}–${fmtCount(c.remainingMax)}` : '' }}</td>
+              <td class="num">{{ fmt(c.nextProbability * 100, 2) }} %</td>
+              <td class="m-hide">
+                <div class="bar thin"><div :style="{ width: (maxProbability ? (c.nextProbability / maxProbability) * 100 : 0) + '%' }" /></div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </Section>
 
-    <div v-if="isMe" class="card">
-      <h3 class="mt-0">
-        {{ t('deck.addTitle') }}
+    <Section v-if="isMe" :title="t('deck.addTitle')" store-key="deck.add">
+      <template #hint>
         <Hint>
           <p>{{ t('deck.addHint1') }}</p>
           <p>{{ t('deck.addHint2') }}</p>
         </Hint>
-      </h3>
+      </template>
       <div class="row">
         <label>
           {{ t('deck.when') }}
@@ -176,13 +197,11 @@ const progress = computed(() => (data.value ? data.value.state.drawnInDeck / dat
           <a href="#" @click.prevent="removeEvent(lastAdded.id)">{{ t('deck.undo') }}</a>
         </template>
         <span class="grow" />
-        <RouterLink :to="`/${uni}/expeditions`">{{ t('deck.allExpeditions') }} <Icon name="arrowRight" :size="12" /></RouterLink>
+        <a href="#" @click.prevent="emit('showStats')">{{ t('deck.allExpeditions') }} <Icon name="arrowRight" :size="12" /></a>
       </div>
-    </div>
+    </Section>
 
-
-    <div v-if="isMe" class="card">
-      <h3 class="mt-0">{{ t('home.settings') }}</h3>
+    <Section v-if="isMe" :title="t('home.settings')" :default-open="false" store-key="deck.settings">
       <div class="row">
         <label>
           {{ t('deck.start') }}
@@ -212,11 +231,17 @@ const progress = computed(() => (data.value ? data.value.state.drawnInDeck / dat
         <button class="primary" @click="save">{{ t('common.save') }}</button>
         <span class="ok small">{{ msg }}</span>
       </div>
-    </div>
+    </Section>
   </template>
 </template>
 
 <style scoped>
+.toolbar { margin-bottom: 12px; }
+.summary { margin-bottom: 4px; }
+.bar { height: 8px; margin-top: 8px; border-radius: 4px; background: var(--surface-2); overflow: hidden; }
+.bar > div { height: 100%; border-radius: 4px; background: var(--accent); }
+.bar.thin { height: 6px; margin-top: 0; border-radius: 3px; }
+.bar-col { width: 30%; }
 .correction :deep(.section-toggle) { font-weight: 400; font-size: 12px; color: var(--muted); }
 .add-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; margin-top: 10px; }
 .add-grid button { margin: 0; text-align: left; }

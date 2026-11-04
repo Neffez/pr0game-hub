@@ -59,7 +59,6 @@ const ICONS: Record<string, string[]> = {
   // envelope
   messages: ['M3.5 6.5h17v11h-17z', 'M3.5 6.5 12 13l8.5-6.5'],
   // two cards
-  deck: ['M8.5 3h9.5a2 2 0 0 1 2 2v12', 'M4 7a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z'],
   // four tiles
   universes: ['M4 4h6v6H4z', 'M14 4h6v6h-6z', 'M4 14h6v6H4z', 'M14 14h6v6h-6z'],
   // sliders

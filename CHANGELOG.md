@@ -2,6 +2,18 @@
 
 Every commit adds its changes here, newest first, grouped by date.
 
+## 2026-11-04
+
+- Expeditions: expedition statistics and expedition deck are one menu entry "Expeditions" with the tabs statistics and
+  deck (`?tab=stats|deck` on `/expeditions`; `/deck` redirects to the deck tab). The views are the components
+  `ExpeditionStats.vue` and `ExpeditionDeck.vue`; `DeckView.vue` and the deck icon are gone.
+  - Statistics: yields, distribution and latest expeditions are collapsible sections; every column sorts by a click on
+    its header (on mobile with a sort selection), sums of the distribution stay below the sorted rows. Range and member
+    filter sit in one row above; clicking the selected member in the yields again shows the whole alliance.
+  - Deck: the card table is a collapsible section sortable by every column, its bars scaled to the most likely card;
+    "Add an event" and the settings are collapsible cards (settings folded by default), player selection and reset
+    above the content.
+
 ## 2026-11-03
 
 - Raids: the claimed targets moved from their own menu entry into the planning tab, as a table between the current

@@ -43,7 +43,8 @@ export const router = createRouter({
         { path: 'raids', redirect: (to) => ({ path: `/${to.params.uni}/raid-planner`, query: { ...to.query, tab: 'stats' } }) },
         { path: 'targets', redirect: (to) => ({ path: `/${to.params.uni}/raid-planner`, query: { tab: 'plans' } }) },
         { path: 'expeditions', component: () => import('./views/ExpeditionsView.vue') },
-        { path: 'deck', component: () => import('./views/DeckView.vue') },
+        // the deck is a tab of the expeditions page now
+        { path: 'deck', redirect: (to) => ({ path: `/${to.params.uni}/expeditions`, query: { tab: 'deck' } }) },
         { path: 'alliance', redirect: (to) => `/${to.params.uni}/planets` },
         { path: 'hostile', component: () => import('./views/HostileView.vue') },
         { path: 'messages', component: () => import('./views/MessagesView.vue') },

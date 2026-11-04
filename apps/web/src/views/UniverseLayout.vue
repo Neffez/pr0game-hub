@@ -151,7 +151,6 @@ const links = [
   { to: 'raid-planner', label: 'raids', icon: 'raids' },
   { to: 'battle-hall', label: 'battleHall', icon: 'battleHall' },
   { to: 'expeditions', label: 'expeditions', icon: 'expeditions' },
-  { to: 'deck', label: 'deck', icon: 'deck' },
 ];
 
 /** Tell the other members where this tab is: page, galaxy system, player (page or dialog). */

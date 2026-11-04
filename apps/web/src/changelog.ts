@@ -16,6 +16,16 @@ export interface ChangelogDay {
 
 export const CHANGELOG: ChangelogDay[] = [
   {
+    date: '2026-11-04',
+    items: [
+      {
+        kind: 'new',
+        de: 'Expeditionen: Auswertung und Expo-Deck sind jetzt ein Menüpunkt „Expeditionen“ mit zwei Tabs. Alle Tabellen lassen sich per Klick auf die Spalte sortieren (am Handy über eine Auswahl), die Bereiche lassen sich einklappen.',
+        en: 'Expeditions: statistics and expedition deck are now one menu entry "Expeditions" with two tabs. All tables sort with a click on a column (on mobile with a selection), the sections can be collapsed.',
+      },
+    ],
+  },
+  {
     date: '2026-11-03',
     items: [
       {

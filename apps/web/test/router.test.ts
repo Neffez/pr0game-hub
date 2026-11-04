@@ -8,4 +8,11 @@ describe('routes', () => {
     expect(router.resolve('/u7/raid-planner/7/loot').matched.at(-1)?.path).toBe('/:uni/raid-planner/:id/loot');
     expect(router.resolve('/u7/raid-planner').matched.at(-1)?.path).toBe('/:uni/raid-planner');
   });
+
+  it('sends the old deck link to the deck tab of the expeditions page', () => {
+    const to = router.resolve('/u7/deck');
+    expect(to.path).toBe('/u7/deck');
+    const redirect = to.matched.at(-1)?.redirect as (to: unknown) => unknown;
+    expect(redirect(to)).toEqual({ path: '/u7/expeditions', query: { tab: 'deck' } });
+  });
 });
