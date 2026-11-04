@@ -1,7 +1,8 @@
 import type { FastifyInstance } from 'fastify';
 import {
-  checkUsername, createApiToken, createSession, destroyOtherSessions, destroySession, hashPassword, HttpError, loginBlocked, loginFailed, loginSucceeded,
-  MAX_SEEN_TOURS, parseTours, requireCookieSession, requireUser, serializeTours, TOUR_ID, verifyPassword, verifyPasswordOrDummy,
+  checkPassword, checkUsername, createApiToken, createSession, destroyOtherSessions, destroySession, hashPassword, HttpError, loginBlocked, loginFailed,
+  loginSucceeded, MAX_SEEN_TOURS, parseTours, passwordForVerify, requireCookieSession, requireUser, serializeTours, TOUR_ID, verifyPassword,
+  verifyPasswordOrDummy,
 } from '../auth.js';
 import { now, type DB } from '../db.js';
 import { events } from '../events.js';
@@ -25,7 +26,7 @@ export function authRoutes(app: FastifyInstance, db: DB) {
     const user = db.prepare('SELECT id, password_hash FROM users WHERE username = ?').get(String(username ?? '')) as
       | { id: number; password_hash: string }
       | undefined;
-    if (!(await verifyPasswordOrDummy(String(password ?? ''), user?.password_hash)) || !user) {
+    if (!(await verifyPasswordOrDummy(passwordForVerify(password), user?.password_hash)) || !user) {
       loginFailed(key);
       loginFailed(ipKey);
       throw new HttpError(401, 'login_failed', 'Wrong username or password');
@@ -78,17 +79,17 @@ export function authRoutes(app: FastifyInstance, db: DB) {
     const user = requireUser(req);
     const { oldPassword, newPassword } = req.body ?? ({} as never);
     const hash = db.prepare('SELECT password_hash FROM users WHERE id = ?').pluck().get(user.id) as string;
-    if (!(await verifyPassword(String(oldPassword ?? ''), hash))) throw new HttpError(400, 'old_password_wrong', 'Old password wrong');
-    if (String(newPassword ?? '').length < 8) throw new HttpError(400, 'password_too_short', 'Password must have at least 8 characters');
-    db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hashPassword(String(newPassword)), user.id);
+    if (!(await verifyPassword(passwordForVerify(oldPassword), hash))) throw new HttpError(400, 'old_password_wrong', 'Old password wrong');
+    db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hashPassword(checkPassword(newPassword)), user.id);
     destroyOtherSessions(db, user.id, req);
+    db.prepare('DELETE FROM api_tokens WHERE user_id = ?').run(user.id);
     return { ok: true };
   });
 
   app.post<{ Body: { username: string; password: string } }>('/api/auth/username', async (req) => {
     const user = requireUser(req);
     const hash = db.prepare('SELECT password_hash FROM users WHERE id = ?').pluck().get(user.id) as string;
-    if (!(await verifyPassword(String(req.body?.password ?? ''), hash))) throw new HttpError(400, 'password_wrong', 'Wrong password');
+    if (!(await verifyPassword(passwordForVerify(req.body?.password), hash))) throw new HttpError(400, 'password_wrong', 'Wrong password');
     const username = checkUsername(db, req.body?.username, user.id);
     db.prepare('UPDATE users SET username = ? WHERE id = ?').run(username, user.id);
     return { ok: true, username };
@@ -201,8 +202,7 @@ export function authRoutes(app: FastifyInstance, db: DB) {
     const key = `access|${req.ip}`;
     if (loginBlocked(key, ACCESS_REQUESTS_PER_IP)) throw new HttpError(429, 'too_many_attempts', 'Too many requests, please try again later');
     const username = checkUsername(db, req.body?.username);
-    const password = String(req.body?.password ?? '');
-    if (password.length < 8) throw new HttpError(400, 'password_too_short', 'Password must have at least 8 characters');
+    const password = checkPassword(req.body?.password);
     const message = String(req.body?.message ?? '').trim();
     if (!message) throw new HttpError(400, 'message_missing', 'Message missing');
     if (message.length > 500) throw new HttpError(400, 'message_too_long', 'Message: at most 500 characters');
@@ -265,8 +265,7 @@ export function authRoutes(app: FastifyInstance, db: DB) {
             mergeUser(db, inv.user_id, userId);
           } else {
             const username = checkUsername(db, req.body?.username, inv.user_id);
-            const password = String(req.body?.password ?? '');
-            if (password.length < 8) throw new HttpError(400, 'password_too_short', 'Password must have at least 8 characters');
+            const password = checkPassword(req.body?.password);
             db.prepare('UPDATE users SET username = ?, password_hash = ?, lang = ? WHERE id = ?').run(
               username,
               hashPassword(password),
@@ -280,8 +279,7 @@ export function authRoutes(app: FastifyInstance, db: DB) {
           if (userId && userId !== inv.user_id) {
             throw new HttpError(403, 'invite_wrong_account', 'Log out and open the link again, or use the account this link is for');
           }
-          const password = String(req.body?.password ?? '');
-          if (password.length < 8) throw new HttpError(400, 'password_too_short', 'Password must have at least 8 characters');
+          const password = checkPassword(req.body?.password);
           db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hashPassword(password), inv.user_id);
           // a recovered account may have been taken over: end its other sessions and revoke its API tokens
           if (req.user) destroyOtherSessions(db, inv.user_id, req);
@@ -293,8 +291,7 @@ export function authRoutes(app: FastifyInstance, db: DB) {
       } else {
         if (!userId) {
           const username = checkUsername(db, req.body?.username);
-          const password = String(req.body?.password ?? '');
-          if (password.length < 8) throw new HttpError(400, 'password_too_short', 'Password must have at least 8 characters');
+          const password = checkPassword(req.body?.password);
           userId = Number(
             db
               .prepare('INSERT INTO users (username, password_hash, is_admin, lang) VALUES (?, ?, 0, ?)')

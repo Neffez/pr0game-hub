@@ -2219,6 +2219,7 @@ const en: typeof de = {
     login_failed: 'Wrong username or password',
     old_password_wrong: 'Old password wrong',
     password_too_short: 'Password must have at least 8 characters',
+    password_too_long: 'Password must have at most 256 characters',
     password_wrong: 'Wrong password',
     invite_invalid: 'Invite invalid or expired',
     invite_wrong_account: 'Wrong user – log out and open the link again',

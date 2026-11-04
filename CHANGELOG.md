@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-04
 
+- Auth: passwords are 8–256 characters (rejected before hashing); changing the password also revokes API tokens;
+  logout clears the session cookie with the same flags it was set with; placeholder accounts (empty hash) take the
+  same login time as unknown usernames.
+
 - Page tours per tab: on build & research, raid planner, expeditions and fleets the tour shows the general steps and
   the open tab's content; the first visit of another tab later starts a short tour of what no tour has shown there
   yet (its tab button, then its content), and nothing when there is nothing new.

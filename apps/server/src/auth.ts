@@ -60,6 +60,24 @@ export const API_TOKEN_PREFIX = 'hubpat_';
 const MAX_API_TOKENS = 10;
 const tokenLastUsed = new Map<string, number>();
 
+export const MIN_PASSWORD_LENGTH = 8;
+export const MAX_PASSWORD_LENGTH = 256;
+
+/** New passwords: 8–256 characters. The upper bound is checked before scrypt so a huge body cannot stall the process. */
+export function checkPassword(raw: unknown): string {
+  const password = String(raw ?? '');
+  if (password.length < MIN_PASSWORD_LENGTH) throw new HttpError(400, 'password_too_short', 'Password must have at least 8 characters');
+  if (password.length > MAX_PASSWORD_LENGTH) throw new HttpError(400, 'password_too_long', 'Password must have at most 256 characters');
+  return password;
+}
+
+/** Login / old-password checks: refuse oversized strings before hashing. Short values still go through verify. */
+export function passwordForVerify(raw: unknown): string {
+  const password = String(raw ?? '');
+  if (password.length > MAX_PASSWORD_LENGTH) throw new HttpError(400, 'password_too_long', 'Password must have at most 256 characters');
+  return password;
+}
+
 export function hashPassword(password: string): string {
   const salt = randomBytes(16);
   const hash = scryptSync(password, salt, 64);
@@ -79,8 +97,16 @@ export async function verifyPassword(password: string, stored: string): Promise<
 
 /** Hash verified for unknown users so that login timing does not reveal which usernames exist. */
 const DUMMY_HASH = hashPassword(randomBytes(16).toString('hex'));
-export const verifyPasswordOrDummy = async (password: string, stored: string | undefined) =>
-  (await verifyPassword(password, stored ?? DUMMY_HASH)) && stored !== undefined;
+
+/** Placeholders (`password_hash = ''`) and broken hashes must pay the same scrypt as unknown usernames. */
+function usablePasswordHash(stored: string | undefined): string | undefined {
+  return stored && stored.startsWith('scrypt$') ? stored : undefined;
+}
+
+export const verifyPasswordOrDummy = async (password: string, stored: string | undefined) => {
+  const usable = usablePasswordHash(stored);
+  return (await verifyPassword(password, usable ?? DUMMY_HASH)) && usable !== undefined;
+};
 
 /**
  * In-memory brute-force limit: max `limit` failed logins per key within `windowSec`. Logins count per IP and
@@ -103,25 +129,30 @@ export const loginSucceeded = (key: string) => void failures.delete(key);
 export const randomToken = (bytes = 32) => randomBytes(bytes).toString('base64url');
 const sha256 = (s: string) => createHash('sha256').update(s).digest('hex');
 
+/** Flags of the session cookie; logout must send the same or some browsers keep the cookie. */
+function sessionCookie(extra: { maxAge?: number } = {}) {
+  return {
+    path: config.basePath || '/',
+    httpOnly: true,
+    sameSite: 'lax' as const,
+    secure: config.secureCookies,
+    ...extra,
+  };
+}
+
 export function createSession(db: DB, userId: number, reply: FastifyReply) {
   const token = randomToken();
   const expires = now() + config.sessionDays * 86400;
   db.prepare('DELETE FROM sessions WHERE expires_at <= ?').run(now());
   db.prepare('INSERT INTO sessions (token_hash, user_id, expires_at) VALUES (?, ?, ?)').run(sha256(token), userId, expires);
   db.prepare('UPDATE users SET last_login_at = ? WHERE id = ?').run(now(), userId);
-  reply.setCookie(SESSION_COOKIE, token, {
-    path: config.basePath || '/',
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: config.secureCookies,
-    maxAge: config.sessionDays * 86400,
-  });
+  reply.setCookie(SESSION_COOKIE, token, sessionCookie({ maxAge: config.sessionDays * 86400 }));
 }
 
 export function destroySession(db: DB, req: FastifyRequest, reply: FastifyReply) {
   const token = req.cookies[SESSION_COOKIE];
   if (token) db.prepare('DELETE FROM sessions WHERE token_hash = ?').run(sha256(token));
-  reply.clearCookie(SESSION_COOKIE, { path: config.basePath || '/' });
+  reply.clearCookie(SESSION_COOKIE, sessionCookie());
 }
 
 /** Ends all sessions of a user except the one of the current request. */

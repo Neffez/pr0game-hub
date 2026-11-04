@@ -2222,6 +2222,7 @@ const de = {
     login_failed: 'Benutzername oder Passwort falsch',
     old_password_wrong: 'Altes Passwort falsch',
     password_too_short: 'Passwort muss mindestens 8 Zeichen haben',
+    password_too_long: 'Passwort darf höchstens 256 Zeichen haben',
     password_wrong: 'Passwort falsch',
     invite_invalid: 'Einladung ungültig oder abgelaufen',
     invite_wrong_account: 'Falscher Benutzer – abmelden und Link erneut öffnen',

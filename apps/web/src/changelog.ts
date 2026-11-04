@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-04',
     items: [
       {
+        kind: 'fix',
+        de: 'Wenn du dein Passwort änderst, gelten deine API-Tokens nicht mehr. Ein Passwort darf höchstens 256 Zeichen haben.',
+        en: 'Changing your password now also revokes your API tokens. A password may be at most 256 characters.',
+      },
+      {
         kind: 'new',
         de: 'Tutorials für Tabs: Wechselst du nach der ersten Tour in einen anderen Tab (Bauen & Forschen, Raidplaner, Expeditionen, Flotten), erklärt eine kurze Tour, was dort neu ist, etwa Abrechnungen und Raid-Statistiken.',
         en: 'Tutorials for tabs: when you switch to another tab after the first tour (build & research, raid planner, expeditions, fleets), a short tour explains what is new there, such as settlements and raid statistics.',
