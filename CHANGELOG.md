@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-04
 
+- Web: an expired session clears the local login, closes live events and sends the tab to login; a non-JSON error
+  body is no longer a raw parse error; login `next` stays on the hub; a failed player note save shows the error; a
+  non-numeric player id does not open the dialog.
+
 - Paste: syncing for another member is limited to messages and combat reports. Their empire, overview and fleet list
   can only be updated by that member.
 

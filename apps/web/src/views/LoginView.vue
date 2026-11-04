@@ -2,7 +2,7 @@
 import { ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import { api, loadMe } from '../api';
+import { api, loadMe, safeNext } from '../api';
 
 const { t } = useI18n();
 const route = useRoute();
@@ -16,7 +16,7 @@ async function submit() {
   try {
     await api('/auth/login', { body: { username: username.value, password: password.value } });
     await loadMe();
-    router.replace(String(route.query.next ?? '/'));
+    router.replace(safeNext(route.query.next));
   } catch (e) {
     error.value = (e as Error).message;
   }

@@ -3,6 +3,11 @@ import { describe, expect, it } from 'vitest';
 import { router } from '../src/router';
 
 describe('routes', () => {
+  it('opens a player page only with a numeric id', () => {
+    expect(router.resolve('/u7/player/12').matched.at(-1)?.path).toBe(String.raw`/:uni/player/:id(\d+)`);
+    expect(router.resolve('/u7/player/foo').matched).toEqual([]);
+  });
+
   it("opens a raid plan's page by its id, the settlement below it", () => {
     expect(router.resolve('/u7/raid-planner/7').matched.at(-1)?.path).toBe(String.raw`/:uni/raid-planner/:id(\d+)`);
     expect(router.resolve('/u7/raid-planner/7/loot').matched.at(-1)?.path).toBe('/:uni/raid-planner/:id/loot');

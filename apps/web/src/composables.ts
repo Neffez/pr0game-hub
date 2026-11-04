@@ -175,10 +175,16 @@ export function useStored<T>(name: string, initial: T): Ref<T> {
  * Player dialog: the player id lives in the `player` query parameter, so the browser's back button
  * closes the dialog and a link to a page with the dialog open can be shared.
  */
+/** Positive integer player id from a route param or query; anything else is no player. */
+export function playerIdOf(v: unknown): number | null {
+  const n = Number(Array.isArray(v) ? v[0] : v);
+  return Number.isInteger(n) && n > 0 ? n : null;
+}
+
 export function usePlayerDialog() {
   const route = useRoute();
   const router = useRouter();
-  const id = computed(() => (route.query.player ? Number(route.query.player) : null));
+  const id = computed(() => playerIdOf(route.query.player));
   const open = (playerId: number) => router.push({ query: { ...route.query, player: String(playerId) } });
   const close = () => {
     const { player: _, ...rest } = route.query;

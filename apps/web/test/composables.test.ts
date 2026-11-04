@@ -1,6 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { nextTick, ref } from 'vue';
-import { useLoader, useProgressive, useSort } from '../src/composables';
+import { playerIdOf, useLoader, useProgressive, useSort } from '../src/composables';
+
+describe('playerIdOf', () => {
+  it('takes a positive integer and drops the rest', () => {
+    expect(playerIdOf('12')).toBe(12);
+    expect(playerIdOf(12)).toBe(12);
+    expect(playerIdOf(['12'])).toBe(12);
+    expect(playerIdOf('foo')).toBeNull();
+    expect(playerIdOf('12.5')).toBeNull();
+    expect(playerIdOf(0)).toBeNull();
+    expect(playerIdOf(undefined)).toBeNull();
+  });
+});
 
 describe('useSort', () => {
   const rows = ref([

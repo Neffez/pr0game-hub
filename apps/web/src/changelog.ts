@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Wenn deine Sitzung abläuft, kommst du zur Anmeldung. Eine Spielernotiz, die nicht gespeichert werden konnte, bleibt als Fehler sichtbar.',
+        en: 'When your session expires you are sent to login. A player note that could not be saved stays visible as an error.',
+      },
+      {
+        kind: 'fix',
         de: 'Für ein anderes Mitglied kannst du nur noch Nachrichten und Berichte einfügen, nicht dessen Übersicht, Imperium oder Flottenliste.',
         en: 'For another member you can now only paste messages and reports, not their overview, empire or fleet list.',
       },

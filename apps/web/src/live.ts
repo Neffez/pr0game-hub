@@ -87,7 +87,13 @@ export function startLive(uni: string, group: number | null) {
       emit({ type: 'resync' }, opened);
       opened = true;
     };
-    source.onmessage = (m) => emit(JSON.parse(m.data));
+    source.onmessage = (m) => {
+      try {
+        emit(JSON.parse(m.data));
+      } catch {
+        /* one bad event must not stop the stream */
+      }
+    };
     source.onerror = () => {
       // network errors reconnect by themselves; a refused stream (HTTP error) closes and is retried here
       if (source?.readyState !== EventSource.CLOSED) return;

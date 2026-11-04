@@ -25,6 +25,7 @@ const props = defineProps<{ id: number }>();
 const note = ref('');
 /** note as stored: a field still showing it takes over changes of other members */
 let savedNote = '';
+const noteError = ref('');
 const canvas = ref<HTMLCanvasElement | null>(null);
 let chart: Chart | null = null;
 
@@ -103,8 +104,13 @@ function draw() {
 }
 
 async function saveNote() {
-  await uniApi(uni.value, `/players/${props.id}/note`, { method: 'PUT', body: { note: note.value } });
-  savedNote = note.value;
+  noteError.value = '';
+  try {
+    await uniApi(uni.value, `/players/${props.id}/note`, { method: 'PUT', body: { note: note.value } });
+    savedNote = note.value;
+  } catch (e) {
+    noteError.value = (e as Error).message;
+  }
 }
 
 /** Research groups shown on the player page (combat, drives, others). */
@@ -191,6 +197,7 @@ onBeforeUnmount(() => chart?.destroy());
         <input v-model="note" class="grow" :aria-label="t('player.note')" />
         <button class="primary" @click="saveNote">{{ t('common.save') }}</button>
       </div>
+      <div v-if="noteError" class="error">{{ noteError }}</div>
     </div>
 
     <Section :title="t('comments.title')" store-key="player.comments">

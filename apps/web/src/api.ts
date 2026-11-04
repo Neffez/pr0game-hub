@@ -49,10 +49,36 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * In-app path for login `?next=`: a single path that stays on the hub. Arrays, protocol-relative URLs and
+ * anything with a scheme go to the start page.
+ */
+export function safeNext(v: unknown): string {
+  const s = typeof v === 'string' ? v : Array.isArray(v) && typeof v[0] === 'string' ? v[0] : '';
+  if (!s.startsWith('/') || s.startsWith('//') || s.includes('://')) return '/';
+  return s;
+}
+
 /** Server errors carry a stable `code`; translated when known, otherwise the server's (English) message. */
 function errorMessage(data: { error?: string; code?: string } | null, fallback: string) {
   const key = `errors.${data?.code}`;
   return data?.code && i18n.global.te(key) ? t(key) : (data?.error ?? fallback);
+}
+
+let sessionEnded = false;
+
+/** Cookie gone: drop the local session, close live, send the tab to login once. */
+function onUnauthorized(path: string) {
+  session.me = { user: null, groups: [] };
+  import('./live').then((m) => m.stopLive()).catch(() => {});
+  if (path === '/auth/login' || path === '/auth/me') return;
+  if (sessionEnded) return;
+  sessionEnded = true;
+  import('./router').then(({ router }) => {
+    const to = router.currentRoute.value;
+    if (to.meta.public) return;
+    router.replace({ path: '/login', query: { next: to.fullPath } });
+  }).catch(() => {});
 }
 
 /** `keepalive`: the request outlives the page (sent while the tab closes). */
@@ -70,7 +96,16 @@ export async function api<T = any>(path: string, opts: { method?: string; body?:
     credentials: 'same-origin',
     keepalive: opts.keepalive,
   });
-  const data = res.headers.get('content-type')?.includes('json') ? await res.json() : null;
+  let data: { error?: string; code?: string } | null = null;
+  if (res.headers.get('content-type')?.includes('json')) {
+    try {
+      data = await res.json();
+    } catch {
+      /* empty body or HTML from a proxy */
+    }
+  }
+  if (res.status === 401) onUnauthorized(path);
+  if (res.ok) sessionEnded = false;
   if (!res.ok) throw new ApiError(res.status, errorMessage(data, res.statusText), data?.code);
   return data as T;
 }
