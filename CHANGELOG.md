@@ -12,9 +12,10 @@ Every commit adds its changes here, newest first, grouped by date.
   - Stored on the account: `users.tours` (migration 076), `tours` on the user of `GET /api/auth/me`, new
     `POST /api/auth/tours` (`enabled`, `seen`, `reset`), documented in the OpenAPI spec.
 
-- Sidebar header: the universe name is a real heading (larger, bold, no link icon); that it links into the game shows
-  on hover (accent colour, underline, arrow). The alliance is no longer a "Alliance: …" line below it but part of the
-  online list heading ("3 online · Alliance"); the alliance dropdown stays under the universe name only for users in
+- Sidebar header: the universe name is a heading in the size of the menu sections (no link icon); that it links into
+  the game shows on hover (accent colour, underline, arrow). The alliance is no longer a "Alliance: …" line below it
+  but part of the online list heading ("3 online · Alliance", one line, shortened with "…" and the full text as
+  tooltip); the alliance dropdown stays under the universe name only for users in
   several alliances of the same universe (muted, border on hover).
 
 - Sidebar: the universe name above the menu links to the universe in the game (its configured game URL, new tab)

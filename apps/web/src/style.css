@@ -50,7 +50,8 @@ h3 { font-size: 14px; margin: 14px 0 6px; color: var(--muted); }
 .sidebar nav a.router-link-active { background: var(--accent-soft); color: var(--accent); }
 .sidebar .section { color: var(--faint); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; padding: 12px 10px 4px; }
 /* universe name: the sidebar's heading; when linked into the game, only hover shows it (accent, underline, arrow) */
-.sidebar .section.uni-head { color: var(--text); font-size: 16px; font-weight: 700; text-transform: none; letter-spacing: 0; padding: 14px 10px 6px; }
+.sidebar .section.uni-head { color: var(--muted); }
+.sidebar .section.one-line { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sidebar .uni-head .uni-link { color: inherit; text-decoration: none; border-bottom: 1px solid transparent; }
 .sidebar .uni-head .uni-link::after { content: '\2197'; margin-left: 5px; font-size: 12px; font-weight: 400; opacity: 0; transition: opacity .15s; }
 .sidebar .uni-head .uni-link:hover, .sidebar .uni-head .uni-link:focus-visible { color: var(--accent); border-bottom-color: currentColor; }
