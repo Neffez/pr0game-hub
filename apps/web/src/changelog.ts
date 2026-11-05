@@ -16,6 +16,16 @@ export interface ChangelogDay {
 
 export const CHANGELOG: ChangelogDay[] = [
   {
+    date: '2026-11-05',
+    items: [
+      {
+        kind: 'fix',
+        de: 'Ein Zugang lässt sich nicht mehr zweimal mit demselben Namen in anderer Groß-/Kleinschreibung beantragen.',
+        en: 'Access can no longer be requested twice with the same name in different upper/lower case.',
+      },
+    ],
+  },
+  {
     date: '2026-11-04',
     items: [
       {

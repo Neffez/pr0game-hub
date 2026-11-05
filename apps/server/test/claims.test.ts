@@ -84,8 +84,15 @@ describe('target claims', () => {
     db.prepare('UPDATE target_claims SET expires_at = ? WHERE id = ?').run(Math.floor(Date.now() / 1000) - 1, old.id);
     row = (await call('GET', '/claims', carol)).json().find((c: any) => c.id === old.id);
     expect(row).toBeUndefined();
-    // an expired claim doesn't block the target
+    // an expired claim doesn't block the target; it is closed at its expiry, one unreleased claim per target
     expect((await call('POST', '/claims', admin, { g: 2, s: 1, p: 2 })).statusCode).toBe(200);
+    const closed = db.prepare('SELECT released_at, expires_at FROM target_claims WHERE id = ?').get(old.id) as { released_at: number; expires_at: number };
+    expect(closed.released_at).toBe(closed.expires_at);
+    expect(() =>
+      db
+        .prepare("INSERT INTO target_claims (group_id, user_id, g, s, p, planet_type, kind, expires_at) VALUES (?, 1, 2, 1, 2, 'planet', 'farm', ?)")
+        .run(groupA, Math.floor(Date.now() / 1000) + 60),
+    ).toThrow(/UNIQUE/);
   });
 
   it('validates coordinates', async () => {

@@ -46,9 +46,10 @@ describe('access requests', () => {
     expect((await request({ username: 'bobby', password: 'longenough', message: 'x'.repeat(501) })).statusCode).toBe(400);
   });
 
-  it('is visible to global admins only and assigned to a player without an account', async () => {
+  it('needs a login to list, hides the password and is assigned to a player without an account', async () => {
     expect((await request({ username: 'bobby', password: 'longenough', message: 'Hi, I am Bob', lang: 'en' })).statusCode).toBe(200);
     expect((await request({ username: 'bobby', password: 'longenough', message: 'Hi' })).statusCode).toBe(409);
+    expect((await request({ username: 'Bobby', password: 'longenough', message: 'Hi' })).statusCode).toBe(409);
     expect((await call('GET', '/admin/access-requests', {})).statusCode).toBe(401);
 
     const list = (await call('GET', '/admin/access-requests', admin)).json();

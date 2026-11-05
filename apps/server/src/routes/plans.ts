@@ -13,7 +13,7 @@ import {
   catchUpPlans, enemiesOf, followEnemies, fromOf, launchedOf, guestsOfAttack, ownAttacks, planDrives, toOf, type EnemyRow, type LaunchFleet, type LaunchPlan, type OwnAttackFleet, type PlanRow,
 } from '../repo/plans.js';
 import { applySimulation, bodyKey, simResearch, withSim, type PlanSim } from '../repo/simPlan.js';
-import { contextOf, DISPLAY, MEMBER } from './util.js';
+import { contextOf, DISPLAY, MEMBER, releaseTargetClaims } from './util.js';
 
 const STATUSES = ['planning', 'launched', 'done', 'cancelled'];
 /** Plan fields a participant may change: the target coordinates. */
@@ -177,7 +177,7 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
       )
       .get(ctx.groupId, t.g, t.s, t.p, t.type, time) as { id: number; user_id: number; member: string } | undefined;
     if (held && held.user_id !== userId) return held.member;
-    if (held) db.prepare('UPDATE target_claims SET released_at = ? WHERE id = ?').run(time, held.id);
+    releaseTargetClaims(db, ctx.groupId, t, time);
     const id = db
       .prepare(
         `INSERT INTO target_claims (group_id, user_id, g, s, p, planet_type, kind, note, created_at, expires_at)

@@ -2,6 +2,12 @@
 
 Every commit adds its changes here, newest first, grouped by date.
 
+## 2026-11-05
+
+- Server: access-request usernames are unique regardless of case (like accounts; migration keeps the oldest of a
+  clash). A target has at most one unreleased claim (partial unique index); a new claim closes an expired one at its
+  expiry. The access-request test title now says what is checked: alliance admins see all requests by design.
+
 ## 2026-11-04
 
 - Code review records the first series on `main` (`0b8434d..045e495`): closed findings, partial leftovers, and the next Wave 1 / catalog work.

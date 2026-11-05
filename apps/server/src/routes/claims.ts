@@ -3,7 +3,7 @@ import { HttpError } from '../auth.js';
 import type { GroupContext } from '../context.js';
 import { now, type DB } from '../db.js';
 import { events } from '../events.js';
-import { contextOf, DISPLAY, MEMBER } from './util.js';
+import { contextOf, DISPLAY, MEMBER, releaseTargetClaims } from './util.js';
 
 const KINDS = ['farm', 'attack', 'spy'];
 /** Claim durations in minutes: default and limits. */
@@ -86,7 +86,7 @@ export function claimsRoutes(app: FastifyInstance, db: DB) {
         throw new HttpError(409, 'target_claimed', `Already claimed by ${held.member}`);
       }
       // claiming again (own or taken over) replaces the active claim
-      if (held) db.prepare('UPDATE target_claims SET released_at = ? WHERE id = ?').run(t, held.id);
+      releaseTargetClaims(db, ctx.groupId, { g: b.g as number, s: b.s as number, p: b.p as number, type }, t);
       const id = db
         .prepare(
           `INSERT INTO target_claims (group_id, user_id, g, s, p, planet_type, kind, note, created_at, expires_at)

@@ -19,6 +19,18 @@ export const DISPLAY = 'COALESCE(gm.ingame_name, u.username)';
 export const MEMBER = (t: string) => `LEFT JOIN group_members gm ON gm.group_id = ${t}.group_id AND gm.user_id = ${t}.user_id`;
 
 /** The request's group context (see `groupContext`) for the routes below /api/:uni. */
+/**
+ * Closes every unreleased claim of a target before a new one is inserted (at most one unreleased claim per target,
+ * see the unique index): an active one now, an expired one at its expiry.
+ */
+export const releaseTargetClaims = (db: DB, groupId: number, t: { g: number; s: number; p: number; type: string }, time: number) =>
+  db
+    .prepare(
+      `UPDATE target_claims SET released_at = MIN(expires_at, ?)
+       WHERE group_id = ? AND g = ? AND s = ? AND p = ? AND planet_type = ? AND released_at IS NULL`,
+    )
+    .run(time, groupId, t.g, t.s, t.p, t.type);
+
 export const contextOf = (db: DB) => (req: FastifyRequest<{ Params: { uni: string } }>) => groupContext(db, req, req.params.uni);
 
 /** Time range of a list (default: the last 8 days). */
