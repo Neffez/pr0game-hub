@@ -469,7 +469,7 @@ const doMerge = () => run(async () => {
       <Section data-tour="admin-universes" :title="t('nav.universes')" :count="universes.length" store-key="admin.universes">
         <div class="scroll-x">
         <table v-stack class="data">
-          <tr><th>Slug</th><th>{{ t('common.name') }}</th><th>{{ t('admin.gameUrl') }}</th><th>{{ t('admin.size') }}</th><th>{{ t('admin.timezone') }}</th><th /></tr>
+          <tr><th>{{ t('admin.slug') }}</th><th>{{ t('common.name') }}</th><th>{{ t('admin.gameUrl') }}</th><th>{{ t('admin.size') }}</th><th>{{ t('admin.timezone') }}</th><th /></tr>
           <tr v-for="u in universes" :key="u.slug">
             <td class="mono">{{ u.slug }}</td>
             <td>{{ u.name }}<span v-if="u.isDefault" class="badge" style="margin-left: 6px">{{ t('admin.defaultBadge') }}</span><span v-if="isEnded(u)" class="badge" style="margin-left: 6px" :title="t('admin.endedAt', { time: dateTime(u.endedAt) })">{{ t('admin.endedBadge') }}</span><span v-else-if="isScheduled(u)" class="badge" style="margin-left: 6px" :title="t('admin.startsAt', { time: dateTime(u.startsAt) })">{{ t('admin.scheduledBadge') }}</span><span v-if="!isEnded(u) && u.endedAt != null" class="muted small" style="margin-left: 6px">{{ t('admin.endsAt', { time: dateTime(u.endedAt) }) }}</span></td>
@@ -488,7 +488,7 @@ const doMerge = () => run(async () => {
       <Sheet v-model="createOpen" :title="t('admin.createUniverse')">
         <form id="uni-create" class="uni-create" @submit.prevent="createUni">
           <div v-if="error" class="error">{{ error }}</div>
-          <label>Slug <input v-model="newUni.slug" :placeholder="t('admin.slugPlaceholder')" autocomplete="off" /></label>
+          <label>{{ t('admin.slug') }} <input v-model="newUni.slug" :placeholder="t('admin.slugPlaceholder')" autocomplete="off" /></label>
           <label>{{ t('common.name') }} <input v-model="newUni.name" :placeholder="newUni.slug || t('common.name')" /></label>
           <label><span>{{ t('admin.startTime') }} <Hint>{{ t('admin.startTimeHint') }}</Hint></span> <DateTimeInput v-model="newUni.startsAt" /></label>
           <p class="muted small">{{ t('admin.createUniverseHint') }}</p>
@@ -886,7 +886,7 @@ table.uni-config input.wide { width: 300px; }
 table.uni-config input[type='checkbox'] { width: 18px; height: 18px; margin: 0; vertical-align: middle; }
 table.uni-deck { width: auto; }
 table.uni-deck input { width: 80px; text-align: right; }
-@media (max-width: 799px) {
+@media (max-width: 800px) {
   /* text settings: input full width below the label */
   table.uni-config, table.uni-config > tbody { display: block; }
   table.uni-config tr { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 6px 0; border-bottom: 1px solid var(--border); }

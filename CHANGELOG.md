@@ -4,6 +4,15 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-05
 
+- Web, planner and tools leftovers of the review:
+  - Build order: steps left when the simulation hits its event cap show "plan too long" (`aborted`) instead of "not
+    possible on this planet".
+  - Overview and alliance pages apply only the newest response, so an overlapping live reload cannot show older rows.
+  - After a deploy the chunk reload no longer loops when sessionStorage is blocked (no reload without it).
+  - Flight calculator: a link with own units only (`uo`) no longer opens a new tab with a "link loaded" toast.
+  - Admin: the universe "Slug" label is translated; admin and unit editor switch to mobile at 800 px like the rest.
+  - Loot calculator docs no longer claim the split is the game's `calculateSteal`.
+
 - Server: access-request usernames are unique regardless of case (like accounts; migration keeps the oldest of a
   clash). A target has at most one unreleased claim (partial unique index); a new claim closes an expired one at its
   expiry. The access-request test title now says what is checked: alliance admins see all requests by design.

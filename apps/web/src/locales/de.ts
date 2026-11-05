@@ -1216,6 +1216,7 @@ const de = {
       planet: 'auf diesem Planeten nicht möglich',
       nolab: 'wartet auf ein Forschungslabor',
       horizon: 'mehr als zwei Jahre entfernt',
+      aborted: 'Plan zu lang zum Berechnen',
     },
     never: {
       resources: 'Nie baubar: keine Produktion für die fehlenden Rohstoffe.',
@@ -1229,6 +1230,7 @@ const de = {
       planet: 'Auf diesem Planeten nicht baubar.',
       nolab: 'Nie erforschbar: der Planet hat kein Forschungslabor.',
       horizon: 'Erst in mehr als zwei Jahren.',
+      aborted: 'Nicht mehr berechnet: der Bauplan ist zu lang. Kürzer planen oder erledigte Schritte entfernen.',
     },
   },
   imperium: {
@@ -1359,6 +1361,7 @@ const de = {
     inactiveDaysHint: 'Nach wie vielen Tagen ohne Login das Spiel einen Spieler als inaktiv markiert, Standard 7. Das Spielerprofil rechnet damit ab dem letzten Statistik-Update mit Punktezuwachs aus, ab wann er inaktiv ist.',
     edit: 'Bearbeiten',
     yes: 'ja',
+    slug: 'Kürzel',
     slugPlaceholder: 'slug (z. B. u8)',
     createUniverse: 'Universum anlegen',
     editTitle: '{slug} bearbeiten',

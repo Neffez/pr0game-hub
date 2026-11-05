@@ -216,6 +216,20 @@ describe('simulate', () => {
   });
 });
 
+describe('simulate event cap', () => {
+  it('marks steps left at the event cap as aborted, not as a planet-type error', () => {
+    const hub = hubOf([planet(HOME)]);
+    const order = exampleOrder(hub);
+    const sim = simulate(order, hub, { now: 1000, maxEvents: 3 });
+    const left = sim.steps.filter((s) => s.state === 'invalid');
+    expect(left.length).toBeGreaterThan(0);
+    expect(left.every((s) => s.wait === 'aborted')).toBe(true);
+    // a list for a planet the hub doesn't have keeps the planet reason
+    const missing = simulate({ ...order, planets: { ...order.planets, '9:9:9:planet': [{ id: 'x', kind: 'building', element: 1 }] } }, hub, { now: 1000 });
+    expect(missing.steps.find((s) => s.id === 'x')).toMatchObject({ state: 'invalid', wait: 'planet' });
+  });
+});
+
 describe('validateBuildOrder', () => {
   it('accepts an imported order and cleans it', () => {
     const imp = parsePr0plan(fixture('buildOrderWithSettings.json'));

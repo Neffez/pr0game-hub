@@ -19,7 +19,7 @@ import type { BuildOrder, Step } from './types.js';
 
 export type StepState = 'done' | 'queued' | 'deactivated' | 'planned' | 'invalid';
 /** What a step waited for last before it started, or why it can never start. */
-export type WaitReason = 'resources' | 'slot' | 'research' | 'lab' | 'shipyard' | 'requirements' | 'storage' | 'max' | 'planet' | 'nolab' | 'horizon';
+export type WaitReason = 'resources' | 'slot' | 'research' | 'lab' | 'shipyard' | 'requirements' | 'storage' | 'max' | 'planet' | 'nolab' | 'horizon' | 'aborted';
 
 export interface StepResult {
   id: string;
@@ -51,6 +51,8 @@ export interface SimulateOptions {
   noStorage?: boolean;
   /** ships and defense of the universe (default: the active catalog) */
   units?: UnitCatalog;
+  /** safety cap of the event loop (default 200 000); steps left when it hits are invalid with wait 'aborted' */
+  maxEvents?: number;
 }
 
 const RES = [901, 902, 903] as const;
@@ -432,7 +434,8 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
   let t = o.now;
   let events = 0;
   complete(t);
-  while (events++ < MAX_EVENTS) {
+  const maxEvents = o.maxEvents ?? MAX_EVENTS;
+  while (events++ < maxEvents) {
     // start every head that can start now (one start may block or free another)
     let started = true;
     while (started) {
@@ -478,6 +481,8 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
     t = next;
     complete(t);
   }
+  // the event cap stopped the loop: the steps left are not a planet-type problem
+  for (const p of planets) while (p.head < p.steps.length) invalid(p, 'aborted');
 
   // steps in list order per planet
   const steps: StepResult[] = [];

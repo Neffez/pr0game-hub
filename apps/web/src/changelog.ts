@@ -20,6 +20,21 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Ein sehr langer Bauplan zeigt bei nicht mehr berechneten Schritten „Plan zu lang“ statt „auf diesem Planeten nicht möglich“.',
+        en: 'A very long build order shows "plan too long" for steps it no longer calculates instead of "not possible on this planet".',
+      },
+      {
+        kind: 'fix',
+        de: 'Übersicht und Allianz zeigen bei schnell aufeinanderfolgenden Aktualisierungen immer den neuesten Stand.',
+        en: 'Overview and alliance always show the latest data when updates come in quickly.',
+      },
+      {
+        kind: 'fix',
+        de: 'Flugrechner: ein Link nur mit eigenen Einheiten öffnet keinen neuen Tab mehr.',
+        en: 'Flight calculator: a link with own units only no longer opens a new tab.',
+      },
+      {
+        kind: 'fix',
         de: 'Ein Zugang lässt sich nicht mehr zweimal mit demselben Namen in anderer Groß-/Kleinschreibung beantragen.',
         en: 'Access can no longer be requested twice with the same name in different upper/lower case.',
       },

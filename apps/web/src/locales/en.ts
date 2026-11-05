@@ -1214,6 +1214,7 @@ const en: typeof de = {
       planet: 'not possible on this planet',
       nolab: 'waits for a research lab',
       horizon: 'more than two years away',
+      aborted: 'plan too long to calculate',
     },
     never: {
       resources: 'Never buildable: no production for the missing resources.',
@@ -1227,6 +1228,7 @@ const en: typeof de = {
       planet: 'Not buildable on this planet.',
       nolab: 'Never researchable: the planet has no research lab.',
       horizon: 'Only in more than two years.',
+      aborted: 'Not calculated: the build order is too long. Plan shorter or remove finished steps.',
     },
   },
   imperium: {
@@ -1357,6 +1359,7 @@ const en: typeof de = {
     inactiveDaysHint: 'After how many days without login the game flags a player inactive, default 7. The player profile adds them to the last stat update with a points gain to tell when the player turns inactive.',
     edit: 'Edit',
     yes: 'yes',
+    slug: 'Slug',
     slugPlaceholder: 'slug (e.g. u8)',
     createUniverse: 'Create universe',
     editTitle: 'Edit {slug}',

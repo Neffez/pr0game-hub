@@ -39,4 +39,15 @@ describe('flight calculator page', () => {
     (document.querySelector('#langSeg [data-lang="en"]') as HTMLButtonElement).click();
     expect(document.querySelector('[data-ship-box="222"] .ship-name strong')?.textContent).toBe('Heavy Cruiser');
   });
+
+  it('does not open a tab for a link with own units only', () => {
+    const tabs = () => document.querySelectorAll('#calcTabs .ctab').length;
+    const before = tabs();
+    location.hash = '#uo=x';
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+    expect(tabs()).toBe(before);
+    location.hash = '#sg=2&ss=3&sp=4';
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+    expect(tabs()).toBe(before + 1);
+  });
 });
