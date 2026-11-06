@@ -7,7 +7,8 @@ Every commit adds its changes here, newest first, grouped by date.
 - ACS loot calculator (tools) fills in a settlement from pasted pages like the hub does from synced data:
   - One paste field recognises a battle report (the same battle again replaces it, another target offers a new
     settlement), the messages page, an empire page and the marketplace.
-  - Fleet returns give the loot of each fleet and its real flight time; flight deuterium per fleet from the start
+  - Fleet returns give the loot of each fleet and its real flight time (with one battle at the target, like the
+    hub: a return names no ships, so waves cannot be told apart); flight deuterium per fleet from the start
     planet in the report, the drive levels (typed per person as `C/I/H` or from a pasted empire page) and the
     universe settings (new dialog, shared with the other tools), at 100 % speed without a return.
   - Missile impacts count per person; recycling reports are taken only at the target within 24 h of the first

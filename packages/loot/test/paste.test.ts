@@ -96,6 +96,17 @@ describe('pasted pages into a settlement', () => {
     expect(lootShares(state.battles[0]).get('p2')).toEqual({ m: 0, k: 603269, d: 309917 });
   });
 
+  it('uses fleet returns only with one battle at the target (waves cannot be told apart)', () => {
+    const { state, sync } = settled();
+    applyPaste(state, sync, report.replace('24. Okt 2026, 13:04:03', '24. Okt 2026, 13:20:00'));
+    expect(state.battles).toHaveLength(2);
+    applyPaste(state, sync, returns);
+    applyPaste(state, sync, empire);
+    const d = deriveFromSync(state, sync, U, DEFAULT_UNITS);
+    expect(d.loot).toEqual({});
+    expect(d.flightDeut.p2.exact).toBe(false);
+  });
+
   it('estimates the flight at 100 % speed without a return', () => {
     const { state, sync } = settled();
     applyPaste(state, sync, empire, { owner: { id: 'p1' } });
@@ -163,5 +174,21 @@ describe('pasted pages into a settlement', () => {
     pruneSync(state, sync);
     expect(sync.planets.p2).toBeUndefined();
     expect(sync.battles[state.battles[0].key!].fleets.every((f) => f.participant === 'p1')).toBe(true);
+  });
+  it('gives computed values back to 0 when their source is gone and forgets marks of removed battles', () => {
+    const { state, sync } = settled();
+    applyPaste(state, sync, returns);
+    applyPaste(state, sync, empire);
+    const key = state.battles[0].key!;
+    applyDerived(state, sync, deriveFromSync(state, sync, U, DEFAULT_UNITS));
+    expect(state.participants[1].flightDeut).toBeGreaterThan(0);
+    expect(state.participants[1].missiles).toBe(25);
+    setManual(sync, autoPath.loot(key, 'p1'), true);
+    state.battles.splice(0, 1);
+    pruneSync(state, sync);
+    expect(sync.manual).toEqual([]);
+    applyDerived(state, sync, deriveFromSync(state, sync, U, DEFAULT_UNITS));
+    expect(state.participants[1].flightDeut).toBe(0);
+    expect(state.participants[1].missiles).toBe(0);
   });
 });

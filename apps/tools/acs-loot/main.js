@@ -29,7 +29,7 @@ import {
 import { TEXTS } from './i18n.js';
 import { $, $$, applyTexts, bindLang, bindShare, bindTips, clearHash, copy, esc, initTexts, load, store, t, toast } from '../shared/shell.js';
 import { createTabs } from '../shared/tabs.js';
-import { BATTLE_LAYOUT_DEFAULTS, LS_UNI, fieldsetsHtml, openDialog, syncUniInputs, uniFieldGroups, uniSummary } from '../shared/uni.js';
+import { LS_UNI, fieldsetsHtml, openDialog, syncUniInputs, uniFieldGroups, uniSummary } from '../shared/uni.js';
 import { UNITS_HASH, initUnits, mountUnitsButton, onUnitsChange, unitsLinkValue } from '../shared/units.js';
 
 var LS_STATE = 'pr0loot.state.v1';
@@ -43,7 +43,7 @@ var UNI_KEYS = ['game_speed', 'honor_boost', 'max_galaxy', 'max_system', 'max_pl
 var S = emptyState();
 var Y = emptySync();
 /* universe settings, shared with the other tools */
-var U = Object.assign({}, DEFAULT_UNI, BATTLE_LAYOUT_DEFAULTS);
+var U = Object.assign({}, DEFAULT_UNI);
 var LANG = 'de';
 var lastResult = null;
 /* values the pasted pages gave in the last computation (paths), and what was missing */
@@ -795,9 +795,13 @@ var ACTIONS = {
   },
   /* the battle report of another target: a new settlement with the current settings */
   pasteNewTab: function () {
+    var old = P;
     var text = P.pending || '';
     var side = P.side;
     if (!TABS.open(newSettlement(S.settings), null, {sync: emptySync()})) return;
+    old.text = '';
+    old.pending = null;
+    old.msg = null;
     P.text = text;
     P.side = side;
     applyPasteText(true);
@@ -883,7 +887,7 @@ function bind() {
   $('#uniDialog').addEventListener('click', function (e) { if (e.target === e.currentTarget) e.currentTarget.close(); });
   $('#uniDialog').addEventListener('change', function (e) { if (e.target.matches('select[data-uni]')) onUni(e.target); });
   $('#uniReset').addEventListener('click', function () {
-    UNI_KEYS.forEach(function (k) { U[k] = Object.assign({}, DEFAULT_UNI, BATTLE_LAYOUT_DEFAULTS)[k]; });
+    UNI_KEYS.forEach(function (k) { U[k] = DEFAULT_UNI[k]; });
     syncUniInputs(U);
     syncUniSummary();
     storeUni();
@@ -977,7 +981,7 @@ function tabAutoName(tab) {
 
 /* Key result of a tab: the profit; red once the 24 hours to share it are over. */
 function tabSummary(tab) {
-  var r = tab === TABS.active && lastResult ? lastResult : settle(activeState(tab.state));
+  var r = tab === TABS.active && lastResult ? lastResult : tab.result || (tab.result = settle(activeState(tab.state)));
   var total = r.profit.m + r.profit.k + r.profit.d;
   if (!total && !r.costs.m && !r.costs.k && !r.costs.d) return null;
   return {text: t('tabProfit', {n: fmtShort(total, LANG)}), past: !!(r.deadline && r.deadline * 1000 < Date.now())};
@@ -987,7 +991,10 @@ var TABS = createTabs({
   autoName: tabAutoName,
   summary: tabSummary,
   onSwitch: function (tab, prev) {
-    if (prev) prev.paste = P;
+    if (prev) {
+      prev.paste = P;
+      prev.result = lastResult;
+    }
     S = tab.state;
     Y = tab.sync;
     P = tab.paste || freshPaste();
@@ -1039,15 +1046,18 @@ function linkState() {
 
 function init() {
   LANG = initTexts(TEXTS);
-  U = Object.assign({}, DEFAULT_UNI, BATTLE_LAYOUT_DEFAULTS, load(LS_UNI) || {});
+  U = Object.assign({}, DEFAULT_UNI, load(LS_UNI) || {});
   initUnits(null);
-  onUnitsChange(function () { buildInputs(); update(); });
+  onUnitsChange(function () {
+    TABS.list.forEach(function (tab) { tab.result = null; });
+    buildInputs();
+    update();
+  });
   var hadState = loadTabs();
   var fromLink = linkState();
   // a link opens in a new tab next to the stored ones (or fills the first one)
   if (fromLink) {
-    TABS.openAtStart(fromLink, hadState);
-    TABS.active.sync = emptySync();
+    TABS.openAtStart(fromLink, hadState, {sync: emptySync()});
   }
   S = TABS.active.state;
   Y = TABS.active.sync;

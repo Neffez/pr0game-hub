@@ -2,7 +2,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { battleFromReport, emptyState, encodeShare, fmtNum, fmtShort, recyclingFromReports } from '../src/loot';
+import { emptyState, emptySync, encodeShare, fmtNum, fmtShort, pasteInto } from '../src/loot';
 
 const report = [
   'The following fleets face each other on: 20 Oct 2026, 10:29:25',
@@ -22,31 +22,29 @@ describe('loot calculator glue', () => {
   it('takes a battle report: participants by name, fleets of one player summed up', () => {
     const state = emptyState();
     state.participants.push({ id: 'p0', name: '', flightDeut: 0, recDeut: 0, missiles: 0 });
-    const res = battleFromReport(state, report);
-    if (!res.ok) throw new Error('not parsed');
+    const res = pasteInto(state, emptySync(), report);
+    expect(res.kind).toBe('report');
     expect(state.participants.map((p) => p.name)).toEqual(['Alpha', 'Beta']);
-    expect(res.battle.loot).toEqual({ m: 120000, k: 60000, d: 30000 });
-    expect(res.battle.time).toBe(new Date(2026, 9, 20, 10, 29, 25).getTime() / 1000); // the player's local time
-    expect(res.battle.fleets[0]).toEqual({ participant: 'p0', start: { 203: 10, 207: 7 }, end: { 203: 10, 207: 6 } });
-    expect(battleFromReport(state, 'nothing')).toEqual({ ok: false });
+    expect(state.battles[0].loot).toEqual({ m: 120000, k: 60000, d: 30000 });
+    expect(state.battles[0].time).toBe(new Date(2026, 9, 20, 10, 29, 25).getTime() / 1000); // the player's local time
+    expect(state.battles[0].fleets[0]).toEqual({ participant: 'p0', start: { 203: 10, 207: 7 }, end: { 203: 10, 207: 6 } });
+    expect(pasteInto(state, emptySync(), 'nothing').kind).toBeNull();
   });
 
   it('takes a copied german report of an ACS with two fleets per player', () => {
     const text = readFileSync(resolve(import.meta.dirname, '../../../packages/parser/test/fixtures/combat-report-de.txt'), 'utf8');
     const state = emptyState();
-    const res = battleFromReport(state, text);
-    if (!res.ok) throw new Error('not parsed');
+    expect(pasteInto(state, emptySync(), text).kind).toBe('report');
     expect(state.participants.map((p) => p.name)).toEqual(['CVXII', 'Rudolf']);
-    expect(res.battle.loot).toEqual({ m: 0, k: 1343846, d: 690373 });
-    expect(res.battle.fleets.map((f) => f.start[207])).toEqual([11799, 2178]);
-    expect(res.battle.time).toBe(new Date(2026, 9, 24, 13, 4, 3).getTime() / 1000);
+    expect(state.battles[0].loot).toEqual({ m: 0, k: 1343846, d: 690373 });
+    expect(state.battles[0].fleets.map((f) => f.start[207])).toEqual([11799, 2178]);
+    expect(state.battles[0].time).toBe(new Date(2026, 9, 24, 13, 4, 3).getTime() / 1000);
 
     // the same report as a hold: the defender settles, without loot
     const hold = emptyState();
-    const def = battleFromReport(hold, text, 'defender');
-    if (!def.ok) throw new Error('not parsed');
+    pasteInto(hold, emptySync(), text, { side: 'defender' });
     expect(hold.participants.map((p) => p.name)).toEqual(['Hustensaftdealer']);
-    expect(def.battle.loot).toEqual({ m: 0, k: 0, d: 0 });
+    expect(hold.battles[0].loot).toEqual({ m: 0, k: 0, d: 0 });
   });
 
   it('formats numbers per language', () => {
@@ -66,12 +64,15 @@ const recycleReports = [
 ].join('\n');
 
 describe('recycling reports', () => {
-  it('takes every pasted recycling report', () => {
-    expect(recyclingFromReports(recycleReports)).toEqual([
-      { m: 40219074, k: 19280927, field: { m: 142823000, k: 68469000 } },
-      { m: 1000, k: 2000, field: { m: 5000, k: 6000 } },
+  it('takes every pasted recycling report for the chosen person, with its time and field', () => {
+    const state = emptyState();
+    state.participants.push({ id: 'a', name: 'Rolf', flightDeut: 0, recDeut: 0, missiles: 0 });
+    expect(pasteInto(state, emptySync(), recycleReports, { owner: { id: 'a' } }).added.recycling).toBe(2);
+    expect(state.recycling.map(({ by, m, k, field }) => ({ by, m, k, field }))).toEqual([
+      { by: 'a', m: 40219074, k: 19280927, field: { m: 142823000, k: 68469000 } },
+      { by: 'a', m: 1000, k: 2000, field: { m: 5000, k: 6000 } },
     ]);
-    expect(recyclingFromReports('nothing')).toEqual([]);
+    expect(state.recycling[0].time).toBe(new Date(2026, 9, 24, 13, 4, 12).getTime() / 1000);
   });
 });
 

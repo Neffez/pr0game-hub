@@ -6,7 +6,7 @@ import type { LootState } from './input.js';
 import { marketRates, sameBattle, sameRecycling } from './match.js';
 import { battleFromReport, localEpoch, newId, type ReportSide } from './report.js';
 import { SHARE_WITHIN } from './settle.js';
-import type { Battle, Res, Ships } from './types.js';
+import type { Battle, Helper, Participant, Res, Ships } from './types.js';
 
 /*
  * Settling from pasted game pages, without a hub: what the hub takes from its synced data (see the server's
@@ -75,7 +75,7 @@ export interface PasteSync {
   drives: Record<string, Drives>;
   /** values typed over by hand (see `autoPath`), the computed value does not replace them */
   manual: string[];
-  /** fleet loot set from return messages (removed again when they no longer apply) */
+  /** values set by the computation (see `autoPath`), cleared again when they no longer apply */
   auto: string[];
 }
 
@@ -241,7 +241,12 @@ export function applyPaste(state: LootState, sync: PasteSync, text: string, opts
     const battle = taken.battle;
     const target = report.target ? key(report.target.coords) : null;
     if (target && before.size && !before.has(target)) res.otherTarget = true;
-    let i = state.battles.findIndex((b) => !blankBattle(b) && battle.time != null && sameBattle(b, battle));
+    // the same battle: same time and (when both are known) the same target
+    const sameTarget = (b: Battle) => {
+      const other = b.key ? sync.battles[b.key]?.target : null;
+      return !target || !other || other === target;
+    };
+    let i = state.battles.findIndex((b) => !blankBattle(b) && battle.time != null && sameBattle(b, battle) && sameTarget(b));
     res.replaced = i >= 0;
     if (i < 0) i = state.battles.findIndex(blankBattle);
     const k = (i >= 0 && state.battles[i].key) || newBattleKey(state);
@@ -376,7 +381,8 @@ export interface Derived {
 /**
  * The values the pasted pages give (like the hub's settlement draft): flight deuterium of the attack fleets (one way
  * as charged at launch; the flight time from the fleet's return message, else at 100 % speed), the loot each fleet
- * brought home (dropped when they would be more than the battle's loot), missiles fired on the target from a day
+ * brought home (dropped when they would be more than the battle's loot; returns count only with one battle at the
+ * target, like the hub's draft), missiles fired on the target from a day
  * before the first until an hour after the last battle, and the deuterium of the recycler flights (the recyclers
  * needed for the cargo, the flight time from the report to the return).
  */
@@ -393,14 +399,21 @@ export function deriveFromSync(state: LootState, sync: PasteSync, u: Universe, u
   const used = new Set<SyncReturn>();
   const battles = state.battles.filter((b) => b.key && sync.battles[b.key]).sort((a, b) => (a.time ?? 0) - (b.time ?? 0));
 
+  const perTarget = new Map<CoordKey, number>();
+  for (const b of battles) {
+    const tg = sync.battles[b.key!].target;
+    if (tg) perTarget.set(tg, (perTarget.get(tg) ?? 0) + 1);
+  }
+  const single = new Set([...perTarget].filter(([, n]) => n === 1).map(([tg]) => tg));
   for (const b of battles) {
     const sb = sync.battles[b.key!];
     if (!sb.target) continue;
     const perFleet = new Map<string, { res: Res; open: number }>();
     for (const f of sb.fleets) {
       if (!f.from || !known.has(f.participant)) continue;
+      // like the hub, only with one battle at the target: a return names no ships, waves cannot be told apart
       const back =
-        b.time != null
+        b.time != null && single.has(sb.target)
           ? sync.returns
               .filter((r) => !used.has(r) && r.home === f.from && r.target === sb.target && r.time != null && r.time > b.time! && r.time <= b.time! + RETURN_WITHIN &&
                 (r.by ?? owners.get(r.home)) === f.participant)
@@ -449,7 +462,8 @@ export function deriveFromSync(state: LootState, sync: PasteSync, u: Universe, u
     const target = r.key ? sync.recycling[r.key] : undefined;
     if (!target || r.time == null || !known.has(r.by)) continue;
     const back = sync.recycleReturns
-      .filter((x) => !usedBack.has(x) && x.m === r.m && x.k === r.k && x.time != null && x.time > r.time! && x.time <= r.time! + RETURN_WITHIN)
+      .filter((x) => !usedBack.has(x) && x.m === r.m && x.k === r.k && x.time != null && x.time > r.time! && x.time <= r.time! + RETURN_WITHIN &&
+        (x.by ?? owners.get(x.home) ?? r.by) === r.by)
       .sort((a, b) => a.time! - b.time!)[0];
     if (!back) continue;
     usedBack.add(back);
@@ -466,25 +480,26 @@ export function deriveFromSync(state: LootState, sync: PasteSync, u: Universe, u
 /** Puts the derived values into the settlement, except those typed over by hand; returns the paths it set. */
 export function applyDerived(state: LootState, sync: PasteSync, d: Derived): Set<string> {
   const manual = new Set(sync.manual);
-  const set = new Set<string>();
-  for (const p of state.participants) {
-    const fd = d.flightDeut[p.id];
-    if (fd && !manual.has(autoPath.person(p.id, 'flightDeut'))) {
-      p.flightDeut = fd.deut;
-      set.add(autoPath.person(p.id, 'flightDeut'));
-    }
-    if (d.missiles[p.id] != null && !manual.has(autoPath.person(p.id, 'missiles'))) {
-      p.missiles = d.missiles[p.id];
-      set.add(autoPath.person(p.id, 'missiles'));
-    }
-  }
-  for (const p of [...state.participants, ...state.helpers]) {
-    if (d.recDeut[p.id] != null && !manual.has(autoPath.person(p.id, 'recDeut'))) {
-      p.recDeut = d.recDeut[p.id];
-      set.add(autoPath.person(p.id, 'recDeut'));
-    }
-  }
   const auto = new Set(sync.auto);
+  const set = new Set<string>();
+  // a person's value: set from the computation, back to 0 once the computation no longer gives it
+  const person = (p: Participant | Helper, field: 'flightDeut' | 'recDeut' | 'missiles', value: number | undefined) => {
+    const path = autoPath.person(p.id, field);
+    if (manual.has(path)) return;
+    if (value != null) {
+      (p as Participant)[field] = value;
+      auto.add(path);
+      set.add(path);
+    } else if (auto.has(path)) {
+      (p as Participant)[field] = 0;
+      auto.delete(path);
+    }
+  };
+  for (const p of state.participants) {
+    person(p, 'flightDeut', d.flightDeut[p.id]?.deut);
+    person(p, 'missiles', d.missiles[p.id]);
+  }
+  for (const p of [...state.participants, ...state.helpers]) person(p, 'recDeut', d.recDeut[p.id]);
   for (const b of state.battles) {
     if (!b.key) continue;
     for (const f of b.fleets) {
@@ -527,4 +542,11 @@ export function pruneSync(state: LootState, sync: PasteSync): void {
   sync.returns = sync.returns.filter(by);
   sync.recycleReturns = sync.recycleReturns.filter(by);
   sync.missiles = sync.missiles.filter(by);
+  // marks of values of people and battles no longer there (their ids and keys are given out again)
+  const live = (path: string) => {
+    const [a, b, c] = path.split('.');
+    return c == null ? ids.has(a) : keys.has(a) && ids.has(b);
+  };
+  sync.manual = sync.manual.filter(live);
+  sync.auto = sync.auto.filter(live);
 }

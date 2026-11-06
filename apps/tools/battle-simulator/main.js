@@ -986,8 +986,7 @@ function init() {
   var fromLink = linkState();
   // a link opens in a new tab next to the stored ones (or fills the first one)
   if (fromLink) {
-    TABS.openAtStart(fromLink, hadState);
-    Object.assign(TABS.active, tabExtra(TABS.active.wave), {last: null, stale: false});
+    TABS.openAtStart(fromLink, hadState, tabExtra(1));
   }
   S = TABS.active.state;
   buildUniDialog();

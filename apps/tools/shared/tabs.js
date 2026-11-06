@@ -212,14 +212,14 @@ export function createTabs(opts) {
     ctl.active = ctl.list[0];
   };
 
-  /* A link at page load: a new tab next to the stored ones, else it fills the only tab. */
-  ctl.openAtStart = function (state, hadState) {
+  /* A link at page load: a new tab next to the stored ones, else it fills the active tab; `extra`: the tab's own fields. */
+  ctl.openAtStart = function (state, hadState, extra) {
     if (hadState && ctl.list.length < max) {
-      var tab = ctl.make(state, null);
+      var tab = ctl.make(state, null, extra);
       ctl.list.splice(ctl.list.indexOf(ctl.active) + 1, 0, tab);
       ctl.active = tab;
     } else {
-      ctl.active.state = state;
+      Object.assign(ctl.active, extra || {}, {state: state});
     }
   };
 

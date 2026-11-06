@@ -1,11 +1,9 @@
 /* ACS loot calculator: glue between the page (../acs-loot/main.js) and @pr0hub/loot. */
-import { parseCombatReportText, parseRecycleReportsText } from '@pr0hub/core/combat';
 import { activeUnits } from '@pr0hub/core/units';
 import { DEFAULT_UNI, elementLabel, universe, type UniSettings } from './core';
 import {
   applyDerived,
   applyPaste,
-  battleFromReport as fromReport,
   deriveFromSync,
   localEpoch,
   type Derived,
@@ -13,7 +11,6 @@ import {
   type PasteOptions,
   type PasteResult,
   type PasteSync,
-  type ReportSide,
 } from '@pr0hub/loot';
 
 export {
@@ -49,22 +46,6 @@ export const lootShips = (): number[] => Object.keys(activeUnits().capacity).map
 /** Ship name in the page language (short name in tables). */
 export function shipName(id: number, lang: ToolLang, short = false): string {
   return elementLabel(id, lang, short);
-}
-
-export type ReportResult = ({ ok: true } & ReturnType<typeof fromReport>) | { ok: false };
-
-/**
- * Takes a pasted battle report into the state (see `battleFromReport` of @pr0hub/loot): the attackers, or the
- * defenders of a hold (ACS defence); times are read as the player's local time, as the game shows them.
- */
-export function battleFromReport(state: LootState, text: string, side: ReportSide = 'attacker'): ReportResult {
-  const report = parseCombatReportText(text, null);
-  return report ? { ok: true, ...fromReport(state, report, localEpoch, 'p', side) } : { ok: false };
-}
-
-/** Metal and crystal of every recycling report in a pasted text (one or more reports copied from the game), with the field it collected from. */
-export function recyclingFromReports(text: string): { m: number; k: number; field: { m: number; k: number } }[] {
-  return parseRecycleReportsText(text).map((r) => ({ m: r.metal, k: r.crystal, field: { m: r.totalMetal, k: r.totalCrystal } }));
 }
 
 /** Thousands separators like the game: 1.234.567 (German) or 1,234,567 (English). */
