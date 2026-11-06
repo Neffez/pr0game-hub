@@ -88,9 +88,11 @@ German and English, keep their input locally in the browser and put it into shar
   - **Counter-attack**: send times for your own fleet to land on the enemy home planet right after their fleet returns
   - Universe settings (galaxies, systems, distance factors, fleet speed) and drive research levels
 - **ACS loot calculator** (`/acs-loot/`): shares the loot and debris of an ACS among up to 5 participants over
-  several battles; a pasted battle report fills in participants, ships, losses and loot, recycling reports the
-  debris. Covers losses and deuterium first, splits the profit equally or by investment and suggests deliveries
-  with as few flights as possible.
+  several battles, several settlements in tabs. Pasted pages fill it in like the hub's synced data: battle reports
+  (participants, ships, losses, loot), the messages page (loot per fleet and flight time from fleet returns,
+  missiles, recycling reports and recycler returns), the empire page (drive levels for flight and recycler
+  deuterium) and the marketplace (rates). Covers losses and deuterium first, splits the profit equally or by
+  investment and suggests deliveries with as few flights as possible.
 - **IPM calculator** (`/ipm-calculator/`): interplanetary missiles against a planet's defense: destroyed and
   remaining defense per type (interceptors, primary target, weapons and armour as in the game), missiles needed,
   range, flight time and the cost against the value destroyed; a pasted spy report fills in the target.

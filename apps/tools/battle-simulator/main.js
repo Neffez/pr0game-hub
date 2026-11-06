@@ -29,6 +29,7 @@ import { TEXTS } from './i18n.js';
 import { $, $$, applyTexts, bindLang, bindShare, bindTips, clearHash, esc, fmtNum, initTexts, lang, load, store, t, toast } from '../shared/shell.js';
 import { UNITS_HASH, activeUnitOverrides, initUnits, mountUnitsButton, onUnitsChange, unitsLinkValue } from '../shared/units.js';
 import { BATTLE_LAYOUT_DEFAULTS, BATTLE_UNI_DEFAULTS, LS_UNI, UNI_HASH, fieldsetsHtml, openDialog, syncUniInputs, uniFieldGroups, uniSummary } from '../shared/uni.js';
+import { createTabs } from '../shared/tabs.js';
 
 var LS_STATE = 'pr0bs.state.v1';
 var LS_TABS = 'pr0bs.tabs.v1';
@@ -47,11 +48,6 @@ var worker = null;
 var job = null;
 var last = null;
 var stale = false;
-/* independent simulations: {id, name, wave, state, last, stale}; results stay in memory only */
-var TABS = [];
-var activeTab = null;
-var tabSeq = 0;
-var closedTab = null;
 
 /* ---------- helpers ---------- */
 
@@ -153,133 +149,67 @@ function uniHash() {
 }
 
 function persist() {
-  store(LS_TABS, {active: TABS.indexOf(activeTab), tabs: TABS.map(function (tab) { return {name: tab.name, wave: tab.wave, state: tab.state}; })});
+  store(LS_TABS, TABS.saved(function (tab) { return {name: tab.name, wave: tab.wave, state: tab.state}; }));
   store(LS_UNI, Object.assign({}, load(LS_UNI) || {}, U));
 }
 
 /* ---------- tabs ---------- */
 
-function newTab(state, name, wave) {
-  tabSeq += 1;
-  return {id: 't' + tabSeq, name: name || null, wave: wave > 1 ? Math.min(99, wave | 0) : 1, state: state, last: null, stale: false};
+/* independent simulations: {id, name, wave, state, last, stale}; results stay in memory only */
+var TABS = createTabs({
+  max: MAX_TABS,
+  autoName: tabAutoName,
+  label: function (tab, name) { return name + (tab.wave > 1 ? ' · ' + t('waveShort', {n: tab.wave}) : ''); },
+  /* the attacker's win chance */
+  summary: function (tab) {
+    var result = tab === TABS.active ? last : tab.last;
+    if (job && job.tab === tab) return t('tabRunning');
+    return result ? t('tabSum', {n: pct(result.summary.wins.attacker)}) : null;
+  },
+  onSwitch: function (tab, prev) {
+    if (prev) {
+      prev.last = last;
+      prev.stale = stale;
+    }
+    S = tab.state;
+    last = tab.last;
+    stale = tab.stale;
+    active = {att: 0, def: 0};
+    spyMsg = null;
+    $('#spyIn').value = '';
+    renderInputs();
+    renderSpyHint();
+    renderRun();
+    renderResult();
+  },
+  onClose: function (tab) {
+    if (job && job.tab === tab) cancel();
+    if (tab === TABS.active) {
+      tab.last = last;
+      tab.stale = stale;
+    }
+  },
+  onAdd: function () {
+    if (addTab(JSON.parse(JSON.stringify(S)), null)) toast(t('tabCopied'));
+  },
+  persist: function () { persist(); }
+});
+
+function tabExtra(wave) {
+  return {wave: wave > 1 ? Math.min(99, wave | 0) : 1, last: null, stale: false};
 }
 
 function tabAutoName(tab) {
   var player = tab.state.defenders[0] && tab.state.defenders[0].name;
   if (tab.state.target) return (player ? player + ' ' : '→ ') + fmtCoords(tab.state.target);
-  return player || t('tabSim', {n: TABS.indexOf(tab) + 1});
+  return player || t('tabSim', {n: TABS.list.indexOf(tab) + 1});
 }
 
-function renderCalcTabs() {
-  var html = TABS.map(function (tab) {
-    return '<div class="ctab' + (tab === activeTab ? ' active' : '') + '" data-tab="' + tab.id + '">'
-      + '<button type="button" class="ctab-main" role="tab" aria-selected="' + (tab === activeTab) + '" title="' + esc(t('tabRename')) + '">'
-      + '<span class="ctab-name"></span><span class="ctab-sum"></span></button>'
-      + (TABS.length > 1 ? '<button type="button" class="ctab-close" aria-label="' + esc(t('tabClose')) + '" title="' + esc(t('tabClose')) + '">×</button>' : '')
-      + '</div>';
-  }).join('');
-  if (TABS.length < MAX_TABS) {
-    html += '<button type="button" class="ctab-add" id="addTab" title="' + esc(t('tabNew')) + '" aria-label="' + esc(t('tabNewAria')) + '">+</button>';
-  }
-  $('#calcTabs').innerHTML = html;
-  updateCalcTabs();
-}
-
-/* Name and key result (the attacker's win chance) of each tab. */
-function updateCalcTabs() {
-  TABS.forEach(function (tab) {
-    var el = $('#calcTabs [data-tab="' + tab.id + '"]');
-    if (!el) return;
-    var name = el.querySelector('.ctab-name');
-    if (name) name.textContent = (tab.name || tabAutoName(tab)) + (tab.wave > 1 ? ' · ' + t('waveShort', {n: tab.wave}) : '');
-    var result = tab === activeTab ? last : tab.last;
-    var running = job && job.tab === tab;
-    el.querySelector('.ctab-sum').textContent = running ? t('tabRunning') : result ? t('tabSum', {n: pct(result.summary.wins.attacker)}) : '—';
-  });
-}
-
-function switchTab(tab) {
-  if (activeTab) {
-    activeTab.last = last;
-    activeTab.stale = stale;
-  }
-  activeTab = tab;
-  S = tab.state;
-  last = tab.last;
-  stale = tab.stale;
-  active = {att: 0, def: 0};
-  spyMsg = null;
-  $('#spyIn').value = '';
-  renderCalcTabs();
-  renderInputs();
-  renderSpyHint();
-  renderRun();
-  renderResult();
-  persist();
-}
+function renderCalcTabs() { TABS.render(); }
+function updateCalcTabs() { TABS.update(); }
 
 function addTab(state, name, wave) {
-  if (TABS.length >= MAX_TABS) {
-    toast(t('tabsMax', {n: MAX_TABS}));
-    return null;
-  }
-  var tab = newTab(state, name, wave);
-  TABS.splice(TABS.indexOf(activeTab) + 1, 0, tab);
-  switchTab(tab);
-  return tab;
-}
-
-function closeTab(tab) {
-  if (TABS.length < 2) return;
-  var index = TABS.indexOf(tab);
-  if (job && job.tab === tab) cancel();
-  TABS.splice(index, 1);
-  closedTab = {tab: tab, index: index};
-  if (tab === activeTab) {
-    tab.last = last;
-    tab.stale = stale;
-    activeTab = null;
-    switchTab(TABS[Math.min(index, TABS.length - 1)]);
-  } else {
-    renderCalcTabs();
-    persist();
-  }
-  toast(t('tabClosed'), {label: t('undo'), fn: function () {
-    if (!closedTab || TABS.length >= MAX_TABS) return;
-    TABS.splice(Math.min(closedTab.index, TABS.length), 0, closedTab.tab);
-    var restored = closedTab.tab;
-    closedTab = null;
-    switchTab(restored);
-  }});
-}
-
-function startRename(tab) {
-  var el = $('#calcTabs [data-tab="' + tab.id + '"] .ctab-name');
-  if (!el) return;
-  var input = document.createElement('input');
-  input.className = 'ctab-rename';
-  input.maxLength = 40;
-  input.value = tab.name || tabAutoName(tab);
-  input.setAttribute('aria-label', t('tabName'));
-  el.replaceWith(input);
-  input.focus();
-  input.select();
-  var done = false;
-  function finish(save) {
-    if (done) return;
-    done = true;
-    if (save) {
-      var value = input.value.trim();
-      tab.name = value && value !== tabAutoName(tab) ? value : null;
-      persist();
-    }
-    renderCalcTabs();
-  }
-  input.addEventListener('keydown', function (e) {
-    if (e.key === 'Enter') finish(true);
-    if (e.key === 'Escape') { e.stopPropagation(); finish(false); }
-  });
-  input.addEventListener('blur', function () { finish(true); });
+  return TABS.open(state, name, tabExtra(wave));
 }
 
 function renameSlot(side, i, button) {
@@ -312,36 +242,14 @@ function renameSlot(side, i, button) {
   input.addEventListener('blur', function () { finish(true); });
 }
 
-function bindCalcTabs() {
-  var bar = $('#calcTabs');
-  bar.addEventListener('click', function (e) {
-    if (e.target.closest('#addTab')) {
-      if (addTab(JSON.parse(JSON.stringify(S)), null)) toast(t('tabCopied'));
-      return;
-    }
-    var box = e.target.closest('[data-tab]');
-    if (!box || e.target.closest('.ctab-rename')) return;
-    var tab = TABS.filter(function (x) { return x.id === box.dataset.tab; })[0];
-    if (e.target.closest('.ctab-close')) closeTab(tab);
-    else if (tab !== activeTab) switchTab(tab);
-  });
-  bar.addEventListener('dblclick', function (e) {
-    var box = e.target.closest('[data-tab]');
-    if (box && !e.target.closest('.ctab-close')) startRename(TABS.filter(function (x) { return x.id === box.dataset.tab; })[0]);
-  });
-}
-
 /* Stored tabs, else the single state of the first version. */
 function loadTabs() {
-  var saved = load(LS_TABS);
-  if (saved && Array.isArray(saved.tabs) && saved.tabs.length) {
-    saved.tabs.slice(0, MAX_TABS).forEach(function (x) { TABS.push(newTab(cleanState(x.state), typeof x.name === 'string' ? x.name : null, x.wave)); });
-    activeTab = TABS[Math.min(Math.max(0, saved.active | 0), TABS.length - 1)];
-    return true;
-  }
+  var restored = TABS.restore(load(LS_TABS), function (x) {
+    return Object.assign(tabExtra(x.wave), {state: cleanState(x.state), name: x.name});
+  });
+  if (restored) return true;
   var legacy = load(LS_STATE);
-  TABS.push(newTab(cleanState(legacy), null));
-  activeTab = TABS[0];
+  TABS.start(cleanState(legacy), null, tabExtra(1));
   return !!legacy;
 }
 
@@ -510,7 +418,7 @@ function newWorker() {
       var result = {summary: msg.summary, slots: job.slots, setup: job.setup, labels: job.labels, state: job.state};
       var tab = job.tab;
       job = null;
-      if (tab === activeTab) {
+      if (tab === TABS.active) {
         last = result;
         stale = false;
         renderResult();
@@ -543,7 +451,7 @@ function run() {
   };
   // the inputs as simulated: the next wave starts from them, even when they were changed since
   var state = JSON.parse(JSON.stringify(S));
-  job = {id: Date.now() + Math.random(), runs: S.runs, slots: fighting, setup: setup, tab: activeTab, labels: labels, state: state, started: Date.now()};
+  job = {id: Date.now() + Math.random(), runs: S.runs, slots: fighting, setup: setup, tab: TABS.active, labels: labels, state: state, started: Date.now()};
   var started = job;
   setTimeout(function () { if (job === started) renderRun(); }, RUN_DELAY);
   worker.postMessage({id: job.id, setup: setup, runs: S.runs, settings: simSettings(U), units: activeUnitOverrides()});
@@ -569,7 +477,7 @@ function setProgress(share) {
 var RUN_DELAY = 200;
 
 function renderRun() {
-  var running = !!job && job.tab === activeTab && Date.now() - job.started >= RUN_DELAY;
+  var running = !!job && job.tab === TABS.active && Date.now() - job.started >= RUN_DELAY;
   $('#runBtn').hidden = running;
   $('#cancelBtn').hidden = !running;
   $('#waveBtn').hidden = running || !last;
@@ -600,7 +508,7 @@ function nextWave() {
   leftover(state.defenders, s.defenders, last.slots.defenders);
   ['metal', 'crystal', 'deuterium'].forEach(function (r) { state.resources[r] = Math.max(0, Math.round(state.resources[r] - s.loot[r])); });
   // the waves of a battle share its name: "Sim 1 · W2"
-  var tab = addTab(cleanState(state), activeTab.name || tabAutoName(activeTab), (activeTab.wave || 1) + 1);
+  var tab = addTab(cleanState(state), TABS.active.name || tabAutoName(TABS.active), (TABS.active.wave || 1) + 1);
   if (tab) toast(t('waveCreated', {n: tab.wave}));
 }
 
@@ -996,7 +904,7 @@ function bind() {
   $('#resetBtn').addEventListener('click', function () {
     if (!window.confirm(t('resetConfirm'))) return;
     S = emptyState();
-    activeTab.state = S;
+    TABS.active.state = S;
     active = {att: 0, def: 0};
     spyMsg = null;
     last = null;
@@ -1078,20 +986,14 @@ function init() {
   var fromLink = linkState();
   // a link opens in a new tab next to the stored ones (or fills the first one)
   if (fromLink) {
-    if (hadState && TABS.length < MAX_TABS) {
-      var tab = newTab(fromLink, null);
-      TABS.splice(TABS.indexOf(activeTab) + 1, 0, tab);
-      activeTab = tab;
-    } else {
-      activeTab.state = fromLink;
-    }
+    TABS.openAtStart(fromLink, hadState, tabExtra(1));
   }
-  S = activeTab.state;
+  S = TABS.active.state;
   buildUniDialog();
   syncUniSummary();
   mountUnitsButton();
   bind();
-  bindCalcTabs();
+  TABS.bind();
   bindTips();
   renderCalcTabs();
   renderInputs();

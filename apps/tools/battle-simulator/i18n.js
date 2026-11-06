@@ -1,26 +1,20 @@
 /* Texts of the battle simulator, German and English (same keys); the universe settings' texts come from
    ../shared/uni.js. */
+import { TABS_TEXTS } from '../shared/tabs.js';
 import { UNI_TEXTS } from '../shared/uni.js';
 
 export var TEXTS = {
   de: {
     ...UNI_TEXTS.de,
+    ...TABS_TEXTS.de,
     title: 'Kampfsimulator',
     reset: 'Neu',
     tabsAria: 'Simulationen',
     tabSim: 'Sim {n}',
     tabSum: 'A {n}',
     tabRunning: 'läuft …',
-    tabRename: 'Doppelklick zum Umbenennen',
-    tabClose: 'Tab schließen',
     tabNew: 'Neuer Tab (Kopie des aktuellen)',
-    tabNewAria: 'Neuer Tab',
-    tabName: 'Tab-Name',
-    tabsMax: 'Höchstens {n} Tabs',
-    tabClosed: 'Tab geschlossen',
-    undo: 'Rückgängig',
     tabCopied: 'Neuer Tab – Kopie des aktuellen',
-    linkNewTab: 'Link in neuem Tab geöffnet',
     nextWave: 'Nächste Welle →',
     nextWaveTitle: 'Neuer Tab mit diesen Eingaben, den übrigen Schiffen und der Verteidigung beider Seiten (gerundeter Durchschnitt) und den Ressourcen nach der Beute',
     waveShort: 'W{n}',
@@ -135,22 +129,15 @@ export var TEXTS = {
   },
   en: {
     ...UNI_TEXTS.en,
+    ...TABS_TEXTS.en,
     title: 'Battle Simulator',
     reset: 'New',
     tabsAria: 'Simulations',
     tabSim: 'Sim {n}',
     tabSum: 'A {n}',
     tabRunning: 'running …',
-    tabRename: 'Double-click to rename',
-    tabClose: 'Close tab',
     tabNew: 'New tab (copy of the current one)',
-    tabNewAria: 'New tab',
-    tabName: 'Tab name',
-    tabsMax: 'Maximum of {n} tabs reached',
-    tabClosed: 'Tab closed',
-    undo: 'Undo',
     tabCopied: 'New tab – copied from the current one',
-    linkNewTab: 'Link opened in a new tab',
     nextWave: 'Next wave →',
     nextWaveTitle: 'New tab with these inputs, the ships and defense left on both sides (rounded average) and the resources after the loot',
     waveShort: 'W{n}',

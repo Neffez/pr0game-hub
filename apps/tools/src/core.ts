@@ -174,7 +174,8 @@ export interface Coords {
 export type Techs = Drives;
 export type Amounts = Record<string, number | string>;
 
-function universe(cfg: UniSettings): Universe {
+/** Universe settings of the tools -> the universe of `@pr0hub/flight`. */
+export function universe(cfg: UniSettings): Universe {
   return {
     galaxies: Number(cfg.max_galaxy),
     systems: Number(cfg.max_system),

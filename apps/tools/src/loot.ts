@@ -1,11 +1,25 @@
 /* ACS loot calculator: glue between the page (../acs-loot/main.js) and @pr0hub/loot. */
-import { parseCombatReportText, parseRecycleReportsText } from '@pr0hub/core/combat';
 import { activeUnits } from '@pr0hub/core/units';
-import { elementLabel } from './core';
-import { battleFromReport as fromReport, localEpoch, type LootState, type ReportSide } from '@pr0hub/loot';
+import { DEFAULT_UNI, elementLabel, universe, type UniSettings } from './core';
+import {
+  applyDerived,
+  applyPaste,
+  deriveFromSync,
+  localEpoch,
+  type Derived,
+  type LootState,
+  type PasteOptions,
+  type PasteResult,
+  type PasteSync,
+} from '@pr0hub/loot';
 
 export {
+  autoPath,
   cleanState,
+  cleanSync,
+  emptySync,
+  pruneSync,
+  setManual,
   debrisSummary,
   decodeShare,
   DEFAULT_RATES,
@@ -22,7 +36,7 @@ export {
   settle,
   SHARE_WITHIN,
 } from '@pr0hub/loot';
-export { parseAmount } from './core';
+export { DEFAULT_UNI, parseAmount } from './core';
 
 export type ToolLang = 'de' | 'en';
 
@@ -32,22 +46,6 @@ export const lootShips = (): number[] => Object.keys(activeUnits().capacity).map
 /** Ship name in the page language (short name in tables). */
 export function shipName(id: number, lang: ToolLang, short = false): string {
   return elementLabel(id, lang, short);
-}
-
-export type ReportResult = ({ ok: true } & ReturnType<typeof fromReport>) | { ok: false };
-
-/**
- * Takes a pasted battle report into the state (see `battleFromReport` of @pr0hub/loot): the attackers, or the
- * defenders of a hold (ACS defence); times are read as the player's local time, as the game shows them.
- */
-export function battleFromReport(state: LootState, text: string, side: ReportSide = 'attacker'): ReportResult {
-  const report = parseCombatReportText(text, null);
-  return report ? { ok: true, ...fromReport(state, report, localEpoch, 'p', side) } : { ok: false };
-}
-
-/** Metal and crystal of every recycling report in a pasted text (one or more reports copied from the game), with the field it collected from. */
-export function recyclingFromReports(text: string): { m: number; k: number; field: { m: number; k: number } }[] {
-  return parseRecycleReportsText(text).map((r) => ({ m: r.metal, k: r.crystal, field: { m: r.totalMetal, k: r.totalCrystal } }));
 }
 
 /** Thousands separators like the game: 1.234.567 (German) or 1,234,567 (English). */
@@ -63,4 +61,19 @@ export function fmtShort(n: number, lang: ToolLang): string {
   if (a >= 1e6) return dec(Math.round(n / 1e5) / 10) + (lang === 'de' ? ' Mio' : 'M');
   if (a >= 1e4) return Math.round(n / 1e3) + 'k';
   return fmtNum(n, lang);
+}
+
+/** Takes a pasted page (battle report, messages, empire page, marketplace) into the settlement, times as local time. */
+export function pasteInto(state: LootState, sync: PasteSync, text: string, opts: Omit<PasteOptions, 'toEpoch'> = {}): PasteResult {
+  return applyPaste(state, sync, text, { ...opts, toEpoch: localEpoch });
+}
+
+/**
+ * Computes what the pasted pages give (flight and recycler deuterium, missiles, loot per fleet) with the universe
+ * settings and the active unit catalog and puts it into the settlement, except values typed by hand.
+ */
+export function deriveInto(state: LootState, sync: PasteSync, uni: Partial<UniSettings>): { derived: Derived; set: Set<string> } {
+  const cfg = { ...DEFAULT_UNI, ...uni };
+  const derived = deriveFromSync(state, sync, universe(cfg), activeUnits(), Number(cfg.honor_boost) || 1);
+  return { derived, set: applyDerived(state, sync, derived) };
 }
