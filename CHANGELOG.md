@@ -5,7 +5,9 @@ Every commit adds its changes here, newest first, grouped by date.
 ## 2026-11-06
 
 - Sync hints in the overview and the quick sync sheet fold away: a collapsible section with the number of hints,
-  folded by default on mobile (one line), open on desktop; the choice is remembered per device and page.
+  folded by default on mobile (one line), open on desktop; the choice is remembered per device and page. The title
+  row carries a warning mark with the number of hints, red with an important hint and yellow otherwise, so a
+  folded list stays noticeable; its tooltip lists the hints.
 
 - Farm finder (backlog B-1) and inactivity confidence (backlog B-3).
   - `@pr0hub/core/production`: `projectResources` (production since a spy report up to the storage capacity),

@@ -20,8 +20,8 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
-        de: '„Was soll ich als Nächstes einfügen?“ lässt sich in der Übersicht einklappen und startet auf dem Handy eingeklappt – nur eine Zeile mit der Anzahl der Hinweise.',
-        en: '"What should I paste next?" folds away in the overview and starts folded on phones – just one line with the number of hints.',
+        de: '„Was soll ich als Nächstes einfügen?“ lässt sich in der Übersicht einklappen und startet auf dem Handy eingeklappt – nur eine Zeile mit einer roten (wichtig) oder gelben (veraltet) Warnung und der Anzahl der Hinweise.',
+        en: '"What should I paste next?" folds away in the overview and starts folded on phones – just one line with a red (important) or yellow (outdated) warning and the number of hints.',
       },
       {
         kind: 'new',

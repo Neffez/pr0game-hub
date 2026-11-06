@@ -322,7 +322,8 @@ which hub feature gets better with it. Higher data quality is the base of every 
 - **Collapsible (follow-up, 2026-11-06):** the short list in the overview and the quick sync sheet is a `Section`
   with the number of hints as count, folded by default on mobile (just the title row; the link to all hints moves
   into the opened list) and open on desktop. The choice is remembered per device (`section.syncHints.overview`,
-  `section.syncHints.sheet`).
+  `section.syncHints.sheet`). Instead of a plain count the title row shows a warning mark with the number of hints,
+  red when one is important and yellow otherwise, so the list never goes unnoticed while folded.
 - **Tours:** new steps `paste.hints` and `overview.syncHints`. **Texts:** `syncHints.*` in `de.ts`/`en.ts`.
 - **Left for later:** the leaders' view of every member's freshness and the shared sync duties belong to D-1 and
   D-3.

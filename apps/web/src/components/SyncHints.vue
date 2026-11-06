@@ -30,6 +30,11 @@ useLiveReload(
 const BRIEF = 3;
 const all = computed(() => syncHints.value ?? []);
 const shown = computed(() => (props.brief ? all.value.filter((h) => h.level !== 'low').slice(0, BRIEF) : all.value));
+/** Header mark of the brief list, visible also when folded: red with an important hint, yellow otherwise. */
+const worst = computed(() => (shown.value.some((h) => h.level === 'high') ? 'high' : 'medium'));
+const markTitle = computed(() =>
+  shown.value.map((h) => `${title(h)} (${t(`syncHints.level.${h.level}`)})`).join('\n'),
+);
 const more = computed(() => (props.brief ? all.value.length - shown.value.length : 0));
 const ICON: Record<SyncHint['key'], string> = {
   empire: 'imperium', stats: 'stats', overview: 'fleet', galaxy: 'galaxy', buildings: 'buildings', research: 'research', messages: 'messages', market: 'market',
@@ -59,10 +64,14 @@ function title(h: SyncHint): string {
     v-if="brief && shown.length"
     class="sync-hints brief"
     :title="t('syncHints.title')"
-    :count="shown.length"
     :store-key="storeKey ?? 'syncHints'"
     :default-open-mobile="false"
   >
+    <template #hint>
+      <span class="badge sync-hints-mark" :class="`badge-${worst}`" :title="markTitle" :aria-label="markTitle">
+        <Icon name="warning" :size="12" /> {{ shown.length }}
+      </span>
+    </template>
     <template v-if="!mobile" #actions>
       <RouterLink :to="`/${uni}/paste`" class="small">{{ more ? t('syncHints.more', { n: more }, more) : t('syncHints.open') }}</RouterLink>
     </template>
@@ -109,5 +118,8 @@ function title(h: SyncHint): string {
 .badge-high { color: var(--neg); }
 .badge-medium { color: var(--warn); }
 .brief .sync-hint-list { gap: 6px; }
+.sync-hints-mark { display: inline-flex; align-items: center; gap: 3px; font-weight: 600; }
+.sync-hints-mark.badge-high { color: var(--neg); border-color: var(--neg); }
+.sync-hints-mark.badge-medium { color: var(--warn); border-color: var(--warn); }
 .sync-hints-more { display: inline-block; margin-top: 8px; }
 </style>
