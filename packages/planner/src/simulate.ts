@@ -234,17 +234,30 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
     return { ok: true, wait: overflow ? 'storage' : undefined };
   };
   const unmet = (p: Planet, id: number) => requirementsOf(id, p.levels, research).some((r) => r.own < r.need);
+  /** Open research steps of `id` still ahead in the lists of the other planets (each raises it by one level). */
+  const plannedResearch = (p: Planet, id: number) =>
+    planets.reduce(
+      (n, x) =>
+        x === p
+          ? n
+          : n +
+            x.steps
+              .slice(x.head)
+              .filter((s) => s.kind === 'research' && s.element === id && !s.deactivated && doneStateOf(s, targets.get(s.id) ?? undefined, x.key, hub) === 'open')
+              .length,
+      0,
+    );
   /**
-   * Requirements not met: whether what is running (build queue of the planet, research) or the next step of another
-   * planet's list can still meet them; else the step can never start in this order.
+   * Requirements not met: whether what is running (build queue of the planet, research) or the research steps still
+   * ahead in the other planets' lists can meet them; else the step can never start in this order. (Steps of other
+   * lists that are stuck themselves end as invalid once nothing changes any more.)
    */
   const requirements = (p: Planet, id: number): Check => {
     const pending = requirementsOf(id, p.levels, research)
       .filter((r) => r.own < r.need)
       .every((r) =>
         r.id >= 100
-          ? researchQueue.some((q) => q.id === r.id && q.level >= r.need) ||
-            planets.some((x) => x !== p && x.steps[x.head]?.kind === 'research' && x.steps[x.head].element === r.id && researchLevelOf(r.id) + 1 >= r.need)
+          ? researchLevelOf(r.id) + plannedResearch(p, r.id) >= r.need
           : p.build.some((q) => q.id === r.id && q.level >= r.need),
       );
     return { ok: false, wait: 'requirements', never: !pending };

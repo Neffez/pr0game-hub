@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Bauplan: Braucht ein Schritt eine Forschung, die ein anderer Planet über mehrere Stufen erforscht, wartet er darauf, statt als nicht möglich zu gelten.',
+        en: 'Build order: a step that needs research another planet brings up over several levels waits for it instead of counting as impossible.',
+      },
+      {
+        kind: 'fix',
         de: 'Tastatur: In Dialogen und im Benachrichtigungsfenster bleibt Tab im Fenster, Esc schließt auch die Benachrichtigungen, danach steht der Fokus wieder dort, wo er vorher war.',
         en: 'Keyboard: in dialogs and the notification panel Tab stays inside, Esc also closes the notifications, and the focus returns to where it was.',
       },

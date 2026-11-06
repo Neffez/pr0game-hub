@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-06
 
+- Build order: a step whose research requirement another planet's list brings up over several research steps waits
+  for them instead of being marked impossible (the planner counts the open research steps ahead in all other
+  lists, not only their next step).
+
 - Keyboard and screen reader: dialogs (form sheets, the player dialog, the notification panel) keep Tab inside,
   move the focus in and give it back on close (`useFocusTrap`); Esc closes the notification panel; the player
   dialog is labelled by the player's name; recent spy reports open with Space as well as Enter.

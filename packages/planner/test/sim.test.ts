@@ -196,6 +196,28 @@ describe('simulate', () => {
     expect(sim2.steps[2]).toMatchObject({ state: 'planned', start: sim2.steps[1].end, wait: 'shipyard' });
   });
 
+  it('waits for research that the list of another planet brings up over several steps', () => {
+    const rich = { resources: { 901: 1e7, 902: 1e7, 903: 1e7 } };
+    // the colony researches impulse drive 1 to 4, home builds a cruiser (impulse 4, shipyard 5, ion 2)
+    const order: BuildOrder = {
+      base: { planets: {}, research: {} },
+      planets: {
+        [HOME]: [{ id: 'cruiser', kind: 'ship', element: 206, count: 1 }],
+        [COLONY]: [1, 2, 3, 4].map((n) => ({ id: `i${n}`, kind: 'research' as const, element: 117 })),
+      },
+    };
+    const hub = hubOf([planet(HOME, { 21: 5, 31: 1 }, rich), planet(COLONY, { 31: 5 }, rich)], { research: { 113: 3, 121: 2 } });
+    const sim = simulate(order, hub, { now: 0 });
+    const cruiser = sim.steps.find((s) => s.id === 'cruiser')!;
+    const i4 = sim.steps.find((s) => s.id === 'i4')!;
+    expect(i4.state).toBe('planned');
+    expect(cruiser).toMatchObject({ state: 'planned', wait: 'requirements' });
+    expect(cruiser.start).toBe(i4.end);
+    // three research steps are not enough: never
+    const short: BuildOrder = { ...order, planets: { ...order.planets, [COLONY]: order.planets[COLONY].slice(0, 3) } };
+    expect(simulate(short, hub, { now: 0 }).steps.find((s) => s.id === 'cruiser')).toMatchObject({ state: 'invalid', wait: 'requirements' });
+  });
+
   it('applies production steps', () => {
     const steps: Step[] = [
       { id: 'p', kind: 'prod', prod: { factors: { 1: 0 }, awaitBuilding: false, awaitResearch: false, awaitShipyard: false, wait: 0 } },
