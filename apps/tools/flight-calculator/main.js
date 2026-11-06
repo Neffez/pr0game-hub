@@ -204,9 +204,14 @@ function num(value, fallback) {
   return isNaN(n) ? fallback : n;
 }
 
-/* Applies a share link; returns true when anything was taken over. */
+/* Hash keys of a flight link (besides the techs and universe settings); others, such as `uo`, belong elsewhere. */
+var FLIGHT_HASH_KEYS = ['sg', 'ss', 'sp', 'tg', 'ts', 'tp', 'ships', 'spd', 'mis', 'stay', 'm', 'mode', 'arr', 'ea', 'eo', 'eout',
+  'er', 'dep', 'abd', 'ak', 'rc', 'hm', 'ks', 'kship', 'kc', 'ki', 'kh', 'ko'];
+
+/* Applies a share link; returns true when it held a flight or universe key (own units alone are not a flight link). */
 function applyHash(state, h) {
-  if (!Object.keys(h).length) {
+  var known = FLIGHT_HASH_KEYS.concat(Object.values(TECH_HASH), Object.values(UNI_HASH));
+  if (!Object.keys(h).some(function (k) { return known.indexOf(k) !== -1; })) {
     return false;
   }
   var coordKeys = {sg: ['start', 'g'], ss: ['start', 's'], sp: ['start', 'p'], tg: ['target', 'g'], ts: ['target', 's'], tp: ['target', 'p']};

@@ -1,4 +1,5 @@
-import { parsePage, type CombatReportRecord } from '@pr0hub/core';
+import { parsePage, withUnits, type CombatReportRecord } from '@pr0hub/core';
+import { catalogOfGroup } from './context.js';
 import { config } from './config.js';
 import type { DB } from './db.js';
 import { events } from './events.js';
@@ -108,10 +109,12 @@ export async function step(db: DB, log: Log, fetcher = fetch): Promise<'done' | 
   }
   // the game answered with a report page: its universe is reachable again
   const done = () => (crawlerState.delete(job.universe), 'done' as const);
-  const parsed = parsePage({ html, url }).records[0] as CombatReportRecord | undefined;
+  // all halls are groups of the same universe: one catalog
+  const units = catalogOfGroup(db, job.group_id);
+  const parsed = parsePage({ html, url, units }).records[0] as CombatReportRecord | undefined;
   if (parsed?.kind === 'combatReport') {
     // the hall time is the local game time; the public page shows UTC
-    const stored = db.transaction(() => halls.filter((h) => storeCombatReport(db, h.group_id, parsed, h.time)))();
+    const stored = withUnits(units, () => db.transaction(() => halls.filter((h) => storeCombatReport(db, h.group_id, parsed, h.time)))());
     for (const h of stored) events.publish(h.group_id, { type: 'data', tables: ['combat_reports'] });
     log.info({ report: job.report_id }, 'battle report archived');
     return done();

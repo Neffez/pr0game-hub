@@ -1,9 +1,9 @@
 import type { FastifyInstance } from 'fastify';
 import { HttpError } from '../auth.js';
-import type { GroupContext } from '../context.js';
+import { catalogOf, type GroupContext } from '../context.js';
 import { now, type DB } from '../db.js';
 import { events } from '../events.js';
-import { isPhalanxText, localToEpoch, nearestClock, parseFleetsText } from '@pr0hub/core';
+import { isPhalanxText, localToEpoch, nearestClock, parseFleetsText, withUnits } from '@pr0hub/core';
 import { isCombatReportText, parseCombatReportText } from '@pr0hub/core/combat';
 import { CLASS_RESEARCH } from '@pr0hub/core/tech';
 import { attackKey, hostileAttacks, PHALANX_KEEP, type Body, type EnemyFleet, type HostileAttack } from '../repo/hostile.js';
@@ -13,7 +13,7 @@ import {
   catchUpPlans, enemiesOf, followEnemies, fromOf, launchedOf, guestsOfAttack, ownAttacks, planDrives, toOf, type EnemyRow, type LaunchFleet, type LaunchPlan, type OwnAttackFleet, type PlanRow,
 } from '../repo/plans.js';
 import { applySimulation, bodyKey, simResearch, withSim, type PlanSim } from '../repo/simPlan.js';
-import { contextOf, DISPLAY, MEMBER } from './util.js';
+import { contextOf, DISPLAY, MEMBER, releaseTargetClaims } from './util.js';
 
 const STATUSES = ['planning', 'launched', 'done', 'cancelled'];
 /** Plan fields a participant may change: the target coordinates. */
@@ -177,7 +177,7 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
       )
       .get(ctx.groupId, t.g, t.s, t.p, t.type, time) as { id: number; user_id: number; member: string } | undefined;
     if (held && held.user_id !== userId) return held.member;
-    if (held) db.prepare('UPDATE target_claims SET released_at = ? WHERE id = ?').run(time, held.id);
+    releaseTargetClaims(db, ctx.groupId, t, time);
     const id = db
       .prepare(
         `INSERT INTO target_claims (group_id, user_id, g, s, p, planet_type, kind, note, created_at, expires_at)
@@ -544,7 +544,7 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
     const text = String(req.body?.text ?? '');
     // an own overview here would list the member's own attacks as hostile ones
     if (!isPhalanxText(text)) throw new HttpError(400, 'phalanx_not_phalanx', 'Not a phalanx result (no "Scan Position" line)');
-    const rec = parseFleetsText(text);
+    const rec = withUnits(catalogOf(ctx.universe), () => parseFleetsText(text));
     if (!rec?.fleets.length) throw new HttpError(400, 'phalanx_empty', 'No fleet movements in the text');
     const pageTime = (rec.pageTime ? localToEpoch(rec.pageTime, tz, now()) : null) ?? now();
     const fleets = rec.fleets.map((f) => ({ ...f, arrival: f.clock ? nearestClock(pageTime + f.seconds, f.clock, tz) : pageTime + f.seconds }));
@@ -574,7 +574,7 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
     const ctx = ctxOf(req);
     const plan = simPlanOf(ctx, Number(req.params.id));
     const text = String(req.body?.text ?? '');
-    const report = isCombatReportText(text) ? parseCombatReportText(text, null) : null;
+    const report = isCombatReportText(text) ? withUnits(catalogOf(ctx.universe), () => parseCombatReportText(text, null)) : null;
     if (!report?.fleets.length) throw new HttpError(400, 'plan_sim_invalid', 'Not a battle simulation (no "Folgende Flotten stehen sich gegenüber" … result)');
     const res = db.transaction(() => applySimulation(db, ctx, plan.id, report))();
     changed(ctx);

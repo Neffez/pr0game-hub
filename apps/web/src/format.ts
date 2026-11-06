@@ -1,6 +1,7 @@
 import { encodeShare as encodeBattleShare } from '@pr0hub/battle';
 import { techName } from '@pr0hub/core/tech';
-import { units } from './units';
+import { OPTIONAL_DEFAULTS, toolsHash, UNITS_HASH, type UniverseSettings } from '@pr0hub/core/universe';
+import { units, unitsLinkValue } from './units';
 import { missileSystemDistance, SHIPS, type Coords } from '@pr0hub/flight';
 import { encodeShare, type LootState } from '@pr0hub/loot';
 import { compressToEncodedURIComponent } from 'lz-string';
@@ -147,35 +148,8 @@ export const cardLabel = (key: string) => {
   return size && size !== 'None' ? t('game.card', { event, size: SIZE_LABEL[size] ?? size }) : event;
 };
 
-export interface UniverseSettings {
-  galaxies: number;
-  systems: number;
-  positions: number;
-  circularGalaxies: boolean;
-  circularSystems: boolean;
-  galaxyDistanceFactor: number;
-  systemDistanceFactor: number;
-  systemDistance: number;
-  planetDistanceFactor: number;
-  planetDistance: number;
-  fleetSpeed: number;
-  /** game config building_speed (2500 = 1x), 0 unknown */
-  buildingSpeed: number;
-  researchSpeed: number;
-  shipyardSpeed: number;
-  resourceMultiplier: number;
-  storageMultiplier: number;
-  universityFactor: number;
-  timezone: string;
-  gameUrl: string;
-  /** pr0plan, linked from the build order tab */
-  pr0planUrl?: string;
-  /** days without login until the game flags a player inactive (default 7) */
-  inactiveDays?: number;
-}
-
-/** Days without login until the game flags a player inactive, when the universe does not set it. */
-export const INACTIVE_DAYS = 7;
+// One contract for server, web app, admin form and tools.
+export { INACTIVE_DAYS, type UniverseSettings } from '@pr0hub/core/universe';
 
 /** Stat update of a player's last points gain (server `pointsStalls`); `atLeast`: none seen, the first known update. */
 export type PointsStall = { time: number; atLeast: boolean };
@@ -272,19 +246,13 @@ export function flightCalcLink(
   for (const [key, id] of [['c', 115], ['i', 117], ['h', 118], ['fe', 134], ['ex', 124]] as const) {
     if (research[id] != null) p.set(key, String(research[id]));
   }
-  p.set('ut', u.circularGalaxies ? '1' : '0');
-  p.set('gt', u.circularSystems ? '1' : '0');
-  p.set('mg', String(u.galaxies));
-  p.set('ms', String(u.systems));
-  p.set('mp', String(u.positions));
-  p.set('gdf', String(u.galaxyDistanceFactor));
-  p.set('sdf', String(u.systemDistanceFactor));
-  p.set('sd', String(u.systemDistance));
-  p.set('pdf', String(u.planetDistanceFactor));
-  p.set('pd', String(u.planetDistance));
-  p.set('gs', String(u.fleetSpeed / 2500));
+  // layout and fleet speed (the calculator has no battle values)
+  const { fd: _fd, dd: _dd, bs: _bs, ...layout } = toolsHash(u);
+  for (const [key, value] of Object.entries(layout)) p.set(key, String(value));
   for (const [key, value] of Object.entries(extra)) p.set(key, String(value));
-  const base = (u as UniverseSettings & { flightCalculatorUrl?: string }).flightCalculatorUrl || FLIGHT_CALCULATOR_URL();
+  const uo = unitsLinkValue();
+  if (uo) p.set(UNITS_HASH, uo);
+  const base = u.flightCalculatorUrl || FLIGHT_CALCULATOR_URL();
   return `${base}#${p.toString()}`;
 }
 
@@ -360,7 +328,7 @@ export function simLinks(
 
 /** The public battle simulator, next to the flight calculator of the universe. */
 export function battleSimUrl(u: UniverseSettings): string {
-  const flight = (u as UniverseSettings & { flightCalculatorUrl?: string }).flightCalculatorUrl;
+  const flight = u.flightCalculatorUrl;
   return flight ? new URL('../battle-simulator/', flight.split('#')[0]).href : `${toolsBase}battle-simulator/`;
 }
 
@@ -379,30 +347,25 @@ export function battleSimLink(
   u: UniverseSettings, values: Record<string, number>, attackers: SimFleet[] = [], target: Coords3 | null = null, defenders: SimFleet[] = [],
   planetName: string | null = null,
 ): string {
-  const s = u as UniverseSettings & { fleetDebrisPercent?: number; defenseDebrisPercent?: number; bigShields?: boolean };
   const research = (r: Record<string, number>) => pick(r, (id) => SLOT_TECHS.includes(id));
-  const units = (v: Record<string, number>) => pick(v, (id) => (id >= 202 && id < 300) || (id >= 401 && id <= 408));
-  const uni: Record<string, number> = {
-    ut: u.circularGalaxies ? 1 : 0, gt: u.circularSystems ? 1 : 0, mg: u.galaxies, ms: u.systems, mp: u.positions,
-    gdf: u.galaxyDistanceFactor, sdf: u.systemDistanceFactor, sd: u.systemDistance, pdf: u.planetDistanceFactor,
-    pd: u.planetDistance, gs: u.fleetSpeed / 2500,
-  };
-  if (s.fleetDebrisPercent != null) uni.fd = s.fleetDebrisPercent;
-  if (s.defenseDebrisPercent != null) uni.dd = s.defenseDebrisPercent;
-  if (s.bigShields != null) uni.bs = s.bigShields ? 1 : 0;
+  // ships and defense of the universe's catalog (its own units included), not the missiles
+  const catalog = units.value.units;
+  const fleet = (v: Record<string, number>) => pick(v, (id) => !!catalog[id] && id < 500);
+  const uni: Record<string, number> = { ...toolsHash(u) };
   if (marketRate) {
     uni.rm = Math.round(marketRate.m * 1000) / 1000;
     uni.rk = Math.round(marketRate.k * 1000) / 1000;
   }
   const hash = encodeBattleShare({
-    attackers: attackers.map((a) => ({ units: units(a.ships), research: research(a.research), from: a.from ?? null, speed: a.speed ?? 100, name: a.name })),
+    attackers: attackers.map((a) => ({ units: fleet(a.ships), research: research(a.research), from: a.from ?? null, speed: a.speed ?? 100, name: a.name })),
     defenders: [
-      { units: units(values), research: pick(values, (id) => COMBAT_TECHS.includes(id)), name: planetName },
-      ...defenders.map((d) => ({ units: units(d.ships), research: research(d.research), from: d.from ?? null, speed: d.speed ?? 100, name: d.name })),
+      { units: fleet(values), research: pick(values, (id) => COMBAT_TECHS.includes(id)), name: planetName },
+      ...defenders.map((d) => ({ units: fleet(d.ships), research: research(d.research), from: d.from ?? null, speed: d.speed ?? 100, name: d.name })),
     ],
     target,
     resources: { metal: values[901] ?? 0, crystal: values[902] ?? 0, deuterium: values[903] ?? 0 },
     uni,
+    uo: unitsLinkValue(),
   });
   return `${battleSimUrl(u)}#${hash}`;
 }
@@ -420,12 +383,12 @@ export function freshnessColor(age: number | null) {
 
 /** Phalanx range in systems: (level² − 1) × factor (ShowPhalanxPage::GetPhalanxRange). */
 export function phalanxRange(level: number, u: UniverseSettings) {
-  const factor = (u as UniverseSettings & { phalanxRangeFactor?: number }).phalanxRangeFactor ?? 1;
+  const factor = u.phalanxRangeFactor ?? OPTIONAL_DEFAULTS.phalanxRangeFactor;
   return level <= 1 ? 0 : Math.floor((level * level - 1) * factor);
 }
 
 /** Optional universe settings of the noob protection (game config noob_protection_time, _multi, noob_inactives). */
-export type NoobSettings = { noobLimit?: number; noobFactor?: number; noobInactives?: boolean };
+export type NoobSettings = Pick<UniverseSettings, 'noobLimit' | 'noobFactor' | 'noobInactives'>;
 
 /**
  * Status with weak (`noob`) and strong derived from the own and the target's total points, like the game's
@@ -433,9 +396,9 @@ export type NoobSettings = { noobLimit?: number; noobFactor?: number; noobInacti
  * the synced status stays (weak/strong as seen by the member who synced it).
  */
 export function protectionStatus(u: UniverseSettings, own: number | null | undefined, target: number | null | undefined, status: string[]): string[] {
-  const { noobLimit: limit, noobFactor, noobInactives } = u as UniverseSettings & NoobSettings;
+  const { noobLimit: limit, noobFactor, noobInactives } = u;
   if (!limit || own == null || target == null) return status;
-  const factor = noobFactor || 5;
+  const factor = noobFactor || OPTIONAL_DEFAULTS.noobFactor;
   const rest = status.filter((s) => s !== 'noob' && s !== 'strong');
   const inactive = status.includes('inactive') || status.includes('longinactive');
   if (status.includes('banned') || (inactive && !noobInactives)) return rest;
@@ -446,25 +409,25 @@ export function protectionStatus(u: UniverseSettings, own: number | null | undef
 
 /** Index of the public tools (pr0game-tools), the parent of the flight calculator of the universe. */
 export function toolsIndexUrl(u?: UniverseSettings | null): string {
-  const flight = (u as (UniverseSettings & { flightCalculatorUrl?: string }) | null | undefined)?.flightCalculatorUrl;
+  const flight = u?.flightCalculatorUrl;
   return flight ? new URL('../', flight.split('#')[0]).href : toolsBase;
 }
 
 /** The public ACS loot calculator, next to the flight calculator of the universe. */
 export function lootCalcUrl(u: UniverseSettings): string {
-  const flight = (u as UniverseSettings & { flightCalculatorUrl?: string }).flightCalculatorUrl;
+  const flight = u.flightCalculatorUrl;
   return flight ? new URL('../acs-loot/', flight.split('#')[0]).href : `${toolsBase}acs-loot/`;
 }
 
 /** The public interplanetary missile calculator, next to the flight calculator of the universe. */
 export function ipmCalcUrl(u: UniverseSettings): string {
-  const flight = (u as UniverseSettings & { flightCalculatorUrl?: string }).flightCalculatorUrl;
+  const flight = u.flightCalculatorUrl;
   return flight ? new URL('../ipm-calculator/', flight.split('#')[0]).href : `${toolsBase}ipm-calculator/`;
 }
 
 /** The public moon destruction calculator, next to the flight calculator of the universe. */
 export function moonCalcUrl(u: UniverseSettings): string {
-  const flight = (u as UniverseSettings & { flightCalculatorUrl?: string }).flightCalculatorUrl;
+  const flight = u.flightCalculatorUrl;
   return flight ? new URL('../moon-destruction/', flight.split('#')[0]).href : `${toolsBase}moon-destruction/`;
 }
 
@@ -526,8 +489,10 @@ export function ipmCalcLink(u: UniverseSettings, input: IpmLinkInput): string {
   p.set('ms', String(u.systems));
   p.set('gt', u.circularSystems ? '1' : '0');
   p.set('gs', String(u.fleetSpeed / 2500));
-  const factor = (u as UniverseSettings & { missileRangeFactor?: number }).missileRangeFactor;
+  const factor = u.missileRangeFactor;
   if (factor != null && factor !== 1) p.set('mrf', String(factor));
+  const uo = unitsLinkValue();
+  if (uo) p.set(UNITS_HASH, uo);
   return `${ipmCalcUrl(u)}#${p.toString()}`;
 }
 

@@ -19,7 +19,7 @@ import type { BuildOrder, Step } from './types.js';
 
 export type StepState = 'done' | 'queued' | 'deactivated' | 'planned' | 'invalid';
 /** What a step waited for last before it started, or why it can never start. */
-export type WaitReason = 'resources' | 'slot' | 'research' | 'lab' | 'shipyard' | 'requirements' | 'storage' | 'max' | 'planet' | 'nolab' | 'horizon';
+export type WaitReason = 'resources' | 'slot' | 'research' | 'lab' | 'shipyard' | 'requirements' | 'storage' | 'max' | 'planet' | 'nolab' | 'horizon' | 'aborted';
 
 export interface StepResult {
   id: string;
@@ -51,6 +51,8 @@ export interface SimulateOptions {
   noStorage?: boolean;
   /** ships and defense of the universe (default: the active catalog) */
   units?: UnitCatalog;
+  /** safety cap of the event loop (default 200 000); steps left when it hits are invalid with wait 'aborted' */
+  maxEvents?: number;
 }
 
 const RES = [901, 902, 903] as const;
@@ -232,17 +234,30 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
     return { ok: true, wait: overflow ? 'storage' : undefined };
   };
   const unmet = (p: Planet, id: number) => requirementsOf(id, p.levels, research).some((r) => r.own < r.need);
+  /** Open research steps of `id` still ahead in the lists of the other planets (each raises it by one level). */
+  const plannedResearch = (p: Planet, id: number) =>
+    planets.reduce(
+      (n, x) =>
+        x === p
+          ? n
+          : n +
+            x.steps
+              .slice(x.head)
+              .filter((s) => s.kind === 'research' && s.element === id && !s.deactivated && doneStateOf(s, targets.get(s.id) ?? undefined, x.key, hub) === 'open')
+              .length,
+      0,
+    );
   /**
-   * Requirements not met: whether what is running (build queue of the planet, research) or the next step of another
-   * planet's list can still meet them; else the step can never start in this order.
+   * Requirements not met: whether what is running (build queue of the planet, research) or the research steps still
+   * ahead in the other planets' lists can meet them; else the step can never start in this order. (Steps of other
+   * lists that are stuck themselves end as invalid once nothing changes any more.)
    */
   const requirements = (p: Planet, id: number): Check => {
     const pending = requirementsOf(id, p.levels, research)
       .filter((r) => r.own < r.need)
       .every((r) =>
         r.id >= 100
-          ? researchQueue.some((q) => q.id === r.id && q.level >= r.need) ||
-            planets.some((x) => x !== p && x.steps[x.head]?.kind === 'research' && x.steps[x.head].element === r.id && researchLevelOf(r.id) + 1 >= r.need)
+          ? researchLevelOf(r.id) + plannedResearch(p, r.id) >= r.need
           : p.build.some((q) => q.id === r.id && q.level >= r.need),
       );
     return { ok: false, wait: 'requirements', never: !pending };
@@ -432,7 +447,8 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
   let t = o.now;
   let events = 0;
   complete(t);
-  while (events++ < MAX_EVENTS) {
+  const maxEvents = o.maxEvents ?? MAX_EVENTS;
+  while (events++ < maxEvents) {
     // start every head that can start now (one start may block or free another)
     let started = true;
     while (started) {
@@ -478,6 +494,8 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
     t = next;
     complete(t);
   }
+  // the event cap stopped the loop: the steps left are not a planet-type problem
+  for (const p of planets) while (p.head < p.steps.length) invalid(p, 'aborted');
 
   // steps in list order per planet
   const steps: StepResult[] = [];

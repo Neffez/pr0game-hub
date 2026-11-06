@@ -23,6 +23,8 @@ export interface ShareState {
   /** universe values by their hash key (`fd`/`dd` debris percent, layout and speed keys of the flight calculator) */
   uni?: Record<string, number>;
   runs?: number;
+  /** the universe's own unit values (`uo`, `encodeUnitOverrides` of @pr0hub/core/universe; read by the tools' unit store) */
+  uo?: string;
 }
 
 /**
@@ -79,6 +81,7 @@ export function encodeShare(state: ShareState): string {
   if (r && (r.metal || r.crystal || r.deuterium)) p.set('res', [r.metal, r.crystal, r.deuterium].map((n) => Math.floor(n)).join(','));
   if (state.runs) p.set('n', String(state.runs));
   for (const key of UNI_KEYS) if (state.uni?.[key] != null) p.set(key, String(state.uni[key]));
+  if (state.uo) p.set('uo', state.uo);
   // URLSearchParams escapes ":" and ","; both are safe in a hash and keep the link readable
   return p.toString().replace(/%3A/g, ':').replace(/%2C/g, ',');
 }
@@ -117,5 +120,6 @@ export function decodeShare(hash: string): ShareState {
     resources: res.length === 3 && res.every((n) => Number.isFinite(n) && n >= 0) ? { metal: res[0], crystal: res[1], deuterium: res[2] } : null,
     uni,
     runs: runs > 0 ? runs : undefined,
+    ...(p.get('uo') ? { uo: p.get('uo')! } : {}),
   };
 }

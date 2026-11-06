@@ -211,13 +211,23 @@ export function setActiveUnits(catalog: UnitCatalog | null | undefined): void {
   active = catalog ?? DEFAULT_UNITS;
 }
 
-/** Runs `fn` synchronously with `catalog` as the active catalog (server: one universe per call). */
+const isThenable = (v: unknown): boolean => !!v && (typeof v === 'object' || typeof v === 'function') && typeof (v as { then?: unknown }).then === 'function';
+
+/**
+ * Runs `fn` synchronously with `catalog` as the active catalog (server: one universe per call). `fn` must not be
+ * async: after an `await` the catalog would already be reset, or leak into other requests meanwhile. A promise
+ * returned by `fn` throws.
+ */
 export function withUnits<T>(catalog: UnitCatalog | null | undefined, fn: () => T): T {
-  if (!catalog || catalog === active) return fn();
+  const check = (out: T): T => {
+    if (isThenable(out)) throw new Error('withUnits: fn must be synchronous (the active catalog does not survive an await)');
+    return out;
+  };
+  if (!catalog || catalog === active) return check(fn());
   const before = active;
   active = catalog;
   try {
-    return fn();
+    return check(fn());
   } finally {
     active = before;
   }

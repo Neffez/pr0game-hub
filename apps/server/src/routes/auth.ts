@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import {
   checkPassword, checkUsername, createApiToken, createSession, destroyOtherSessions, destroySession, hashPassword, HttpError, loginBlocked, loginFailed,
   loginSucceeded, MAX_SEEN_TOURS, parseTours, passwordForVerify, requireCookieSession, requireUser, serializeTours, TOUR_ID, verifyPassword,
-  verifyPasswordOrDummy,
+  tokenHash, verifyPasswordOrDummy,
 } from '../auth.js';
 import { now, type DB } from '../db.js';
 import { events } from '../events.js';
@@ -313,8 +313,9 @@ export function authRoutes(app: FastifyInstance, db: DB) {
 
 type InviteRow = { token: string; group_id: number | null; role: string; expires_at: number; used_at: number | null; user_id: number | null };
 
+/** The open invite of a link (stored as its hash). */
 function openInvite(db: DB, token: string): InviteRow {
-  const inv = db.prepare('SELECT * FROM invites WHERE token = ?').get(token) as InviteRow | undefined;
+  const inv = db.prepare('SELECT * FROM invites WHERE token = ?').get(tokenHash(token)) as InviteRow | undefined;
   if (!inv || inv.used_at || inv.expires_at < now()) throw new HttpError(404, 'invite_invalid', 'Invite invalid or expired');
   return inv;
 }

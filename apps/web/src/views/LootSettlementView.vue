@@ -91,16 +91,21 @@ function fill(s: LootState, isDirty = false) {
 
 /** New hub data while editing: shown, taken in once the corrections are saved or discarded. */
 const stale = ref(false);
+/** only the newest answer is applied (a live reload can overlap a slow load, like `useLoader`) */
+let latest = 0;
 async function load(force = false) {
   if (dirty.value && !force) {
     stale.value = true;
     return;
   }
+  const id = ++latest;
   try {
-    show(await uniApi<Response>(uni.value, `/plans/${planId.value}/settlement`));
+    const res = await uniApi<Response>(uni.value, `/plans/${planId.value}/settlement`);
+    if (id !== latest) return;
+    show(res);
     error.value = '';
   } catch (e) {
-    error.value = (e as Error).message;
+    if (id === latest) error.value = (e as Error).message;
   }
 }
 function show(res: Response) {

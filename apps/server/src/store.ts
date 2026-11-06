@@ -161,7 +161,7 @@ export class Store {
   private spy(r: SpyReportRecord) {
     const time = this.epoch(r.reportTime);
     if (!time) return;
-    const playerId = r.playerName ? this.players.byName(r.playerName) : null;
+    const playerId = r.playerName ? this.players.byName(r.playerName, time) : null;
     const res = this.db
       .prepare(
         `INSERT OR IGNORE INTO spy_reports (group_id, user_id, msg_id, g, s, p, planet_type, planet_name, player_name, player_id,

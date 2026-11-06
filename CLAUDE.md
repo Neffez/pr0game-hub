@@ -44,6 +44,8 @@ pnpm build
   Ships, defense and missiles are a catalog per universe (`units.ts`: defaults from the generated data, `liveUnits.ts`
   and `@pr0hub/flight`'s drives and cargo; a universe stores only its differences). Code for one universe sets the
   active catalog (web) or passes it (`units` options, `withUnits` around synchronous code on the server).
+  Universe settings are one contract in `universe.ts` (`@pr0hub/core/universe`: type, defaults, validation, the
+  tools' hash keys and the `uo` unit link value); server, web, admin form and tools import it.
 - `packages/flight` (`@pr0hub/flight`): flight math ported from the game's `FleetFunctions` (distance, ship speed,
   duration, consumption, recall), ACS planning (`acs.ts`), retime candidates (`retime.ts`) and interplanetary
   missiles (`missile.ts`: range, flight time, `calculateMIPAttack`); must stay second-exact with the game and the
@@ -58,7 +60,7 @@ pnpm build
   steps and the settings check against the hub (`hub.ts`), the timeline from the hub's state (`simulate.ts`, like
   pr0plan's `GameReducer` with storage, synced fleets and production from `@pr0hub/core/production`); used by the
   web app and the server's notifications.
-- `apps/server`: Fastify + SQLite; migrations in `migrations/` (numbered SQL files); every game-data query goes through `groupContext` so data stays within its group; OpenAPI spec in `openapi.yaml`. The battle simulator API (`src/battle.ts`, `src/routes/battle.ts`) runs `battle-worker.mjs` (plain JS next to `src/` and `dist/`) in a worker thread; it is the only POST allowed with read-only tokens (route config `allowToken`).
+- `apps/server`: Fastify + SQLite; migrations in `migrations/` (numbered SQL files); every game-data query goes through `groupContext` so data stays within its group (`test/groupScope.test.ts` fails on SQL on a group table without `group_id` or a key); OpenAPI spec in `openapi.yaml`. The battle simulator API (`src/battle.ts`, `src/routes/battle.ts`) runs `battle-worker.mjs` (plain JS next to `src/` and `dist/`) in a worker thread; it is the only POST allowed with read-only tokens (route config `allowToken`).
 - `apps/tools`: static tools (Vite, no framework): `index.html`, `flight-calculator/` (UI in `main.js`, calculation
   in `src/core.ts` on top of `@pr0hub/flight`), `acs-loot/` (glue in `src/loot.ts` on top of `@pr0hub/loot`) and
   `ipm-calculator/` (glue in `src/missile.ts` on top of `@pr0hub/flight`) and `battle-simulator/` (glue in

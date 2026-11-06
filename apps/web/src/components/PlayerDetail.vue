@@ -21,7 +21,8 @@ Chart.register(...registerables);
 const { t, locale } = useI18n();
 const { uni, ctx } = useUni();
 /** Player details (chart, note, planets, status history): page and dialog. */
-const props = defineProps<{ id: number }>();
+/** `titleId`: id of the heading (a dialog's `aria-labelledby`) */
+const props = defineProps<{ id: number; titleId?: string }>();
 const note = ref('');
 /** note as stored: a field still showing it takes over changes of other members */
 let savedNote = '';
@@ -146,7 +147,7 @@ onBeforeUnmount(() => chart?.destroy());
 <template>
   <div v-if="error" class="error">{{ error }}</div>
   <template v-if="data">
-    <h1>
+    <h1 :id="titleId">
       {{ data.player.name }}
       <StatusBadges :status="data.player.status" :points="latest[1]?.points ?? null" />
       <span v-if="data.player.ally_name" class="muted"> [{{ data.player.ally_tag ?? data.player.ally_name }}]</span>

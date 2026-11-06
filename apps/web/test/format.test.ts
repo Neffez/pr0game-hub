@@ -121,6 +121,29 @@ describe('format', () => {
     expect(decodeShare(battleSimLink({ ...u, fleetDebrisPercent: undefined, defenseDebrisPercent: undefined } as never, values).split('#')[1]).uni.fd).toBeUndefined();
   });
 
+  it('takes the own units of the universe into the tool links (catalog and uo)', async () => {
+    const { battleSimLink, flightCalcLink } = await import('../src/format');
+    const { applyUnits } = await import('../src/units');
+    const { decodeShare } = await import('@pr0hub/battle');
+    const { decodeUnitOverrides, UNIVERSE_DEFAULTS } = await import('@pr0hub/core/universe');
+    const { emptyUnit } = await import('@pr0hub/core/units');
+    const { id: _, ...bunker } = emptyUnit(412);
+    const overrides = { 412: bunker };
+    applyUnits(overrides);
+    try {
+      const s = decodeShare(battleSimLink(UNIVERSE_DEFAULTS, { 401: 5, 412: 3, 503: 2 }).split('#')[1]);
+      expect(s.defenders[0].units).toEqual({ 401: 5, 412: 3 });
+      expect(decodeUnitOverrides(s.uo)).toEqual(JSON.parse(JSON.stringify(overrides)));
+      const flight = new URLSearchParams(flightCalcLink(UNIVERSE_DEFAULTS, null, [1, 2, 3]).split('#')[1]);
+      expect(decodeUnitOverrides(flight.get('uo'))).toEqual(JSON.parse(JSON.stringify(overrides)));
+      expect(flight.get('mg')).toBe('4');
+      expect(flight.has('fd')).toBe(false);
+    } finally {
+      applyUnits(null);
+    }
+    expect(new URLSearchParams(flightCalcLink(UNIVERSE_DEFAULTS, null, [1, 2, 3]).split('#')[1]).has('uo')).toBe(false);
+  });
+
   it('writes the TrashSim export string like TrashSim itself', () => {
     // spy report and attacker of a real TrashSim export (uni 7)
     const spy = {

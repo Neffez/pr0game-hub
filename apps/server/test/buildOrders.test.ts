@@ -122,6 +122,13 @@ describe('build order', () => {
     };
     db.prepare('INSERT INTO fleet_snapshots (group_id, user_id, page_time, data) VALUES (?, ?, ?, ?)').run(group, ids.carol, t, JSON.stringify([fleet]));
     expect((await call('GET', '/u8/build-order', h.carol)).json().buildOrder.order.planets[HOME][0]).toMatchObject({ id: 't', done: true });
+    // GET is a read: stored only by the catch-up after a paste
+    const stored = () => JSON.parse(db.prepare('SELECT data FROM build_orders WHERE user_id = ?').pluck().get(ids.carol) as string).planets[HOME][0];
+    expect(stored().done).toBeUndefined();
+    const { catchUpBuildState } = await import('../src/repo/buildOrders.js');
+    const { resolveGroup, getUniverse } = await import('../src/context.js');
+    catchUpBuildState(db, resolveGroup(db, { id: ids.carol, username: 'carol', isAdmin: false } as never, getUniverse(db, 'u8'), group));
+    expect(stored().done).toBe(true);
     db.prepare('DELETE FROM fleet_snapshots').run();
     expect((await call('GET', '/u8/build-order', h.carol)).json().buildOrder.order.planets[HOME][0].done).toBe(true);
   });

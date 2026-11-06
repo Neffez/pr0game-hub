@@ -882,7 +882,10 @@ row(1, 'aa'.repeat(16), 'Alpha', 'Beta', '01. Nov 2026, 10:00:00', '9.000.000'))
     expect((await app.inject({ method: 'POST', url: `${ga}/members`, headers: member1, payload: { name: 'Other' } })).json().code).toBe('group_admin_only');
 
     expect(add.json().token).toBeTruthy();
-    expect(ph.invite).toBe(add.json().token);
+    // the link is returned once; the list only knows that one is open, the database only its hash
+    expect(ph.invite).toBeUndefined();
+    expect(ph.invite_expires_at).toBeGreaterThan(Math.floor(Date.now() / 1000));
+    expect(db.prepare('SELECT COUNT(*) FROM invites WHERE token = ?').pluck().get(add.json().token)).toBe(0);
     const accept = await app.inject({
       method: 'POST',
       url: `/hub/api/invites/${add.json().token}/accept`,
@@ -952,9 +955,9 @@ row(1, 'aa'.repeat(16), 'Alpha', 'Beta', '01. Nov 2026, 10:00:00', '9.000.000'))
     expect((await app.inject({ method: 'POST', url: `${ga}/members/${ownerId}/invite`, headers: allyAdmin })).statusCode).toBe(403);
     const token = (await app.inject({ method: 'POST', url: `${ga}/members/${uid}/invite`, headers: admin })).json().token;
     const seen = (await app.inject({ method: 'GET', url: `${ga}/members`, headers: allyAdmin })).json();
-    expect(seen.find((m: { id: number }) => m.id === uid).invite).toBeNull();
+    expect(seen.find((m: { id: number }) => m.id === uid).invite_expires_at).toBeNull();
     const seenByAdmin = (await app.inject({ method: 'GET', url: `${ga}/members`, headers: admin })).json();
-    expect(seenByAdmin.find((m: { id: number }) => m.id === uid).invite).toBe(token);
+    expect(seenByAdmin.find((m: { id: number }) => m.id === uid).invite_expires_at).toBeGreaterThan(0);
     const info = (await app.inject({ method: 'GET', url: `/hub/api/invites/${token}` })).json();
     expect(info.recovery).toBe(true);
     expect(info.username).toBe('forgotten');
@@ -1380,8 +1383,8 @@ describe('review fixes', () => {
     const headers = { ...admin, 'x-hub-group': String(groupX) };
     const add = (name: string) => Number(db.prepare('INSERT INTO players (group_id, name) VALUES (?, ?)').run(groupX, name).lastInsertRowid);
     const [alpha, owner] = [add('Former'), add('Owner')];
-    // "Alpha" of the report is a former name
-    db.prepare("INSERT INTO player_aliases (player_id, name, seen_until) VALUES (?, 'Alpha', 1)").run(alpha);
+    // "Alpha" of the report is a former name (renamed after the report)
+    db.prepare("INSERT INTO player_aliases (player_id, name, seen_until) VALUES (?, 'Alpha', ?)").run(alpha, Math.floor(Date.now() / 1000));
     const ingest = () => app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { html: fixture('messages.html') } });
     const planet = () => db.prepare('SELECT name, player_id FROM planets WHERE group_id = ? AND g = 1 AND s = 234 AND p = 5').get(groupX) as any;
 

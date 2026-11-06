@@ -1,4 +1,4 @@
-import { distance, flightDuration, shipSpeed } from '@pr0hub/flight';
+import { SHIPS, distance, flightDuration, shipSpeed } from '@pr0hub/flight';
 import { describe, expect, it } from 'vitest';
 import type { UniverseSettings } from '../src/format';
 import { computePlan, seenShipsDiffer, draftBody, draftOf, enemyCalcLink, fleetCalcLink, fromLocalInput, holdPlanetValues, holdRating, planCounts, isCurrent, newDraft, parseTarget, spyShips, toLocalInput, type AttackPlan, type PlanEnemy, type PlanFleet } from '../src/plans';
@@ -21,7 +21,7 @@ const plan = (fleets: PlanFleet[]): AttackPlan => ({
 describe('attack plans in the web app', () => {
   it('computes flight times and launches, the slowest fleet leads', () => {
     const view = computePlan(u, plan([fleet(1, 1, [1, 40, 5], { 204: 10 }), fleet(2, 2, [2, 100, 3], { 207: 5 }, 50), fleet(3, 3, null, {})]), 1_999_000_000);
-    const d2 = flightDuration(u, distance(u, [2, 100, 3], [1, 41, 1]), shipSpeed(207, { combustion: 10, impulse: 8, hyperspace: 6 }), 50);
+    const d2 = flightDuration(u, distance(u, [2, 100, 3], [1, 41, 1]), shipSpeed(207, { combustion: 10, impulse: 8, hyperspace: 6 }, SHIPS), 50);
     expect(view.fleets[1].duration).toBe(d2);
     expect(view.fleets[1].plan).toMatchObject({ launch: 2_000_000_000 - Math.floor(d2), late: false });
     expect(view.acs).toMatchObject({ lead: '2', arrival: 2_000_000_000, delay: 0 });
@@ -82,7 +82,7 @@ describe('attack plans in the web app', () => {
   it('lets every fleet of a hold land on its own, without ACS or delays', () => {
     const view = computePlan(u, { ...plan([fleet(1, 1, [1, 40, 5], { 204: 10 }), fleet(2, 2, [2, 100, 3], { 207: 5 }, 50)]), mission: 'hold' }, 2_000_000_000 - 60);
     expect(view.acs).toBeNull();
-    const d1 = flightDuration(u, distance(u, [1, 40, 5], [1, 41, 1]), shipSpeed(204, { combustion: 10, impulse: 8, hyperspace: 6 }), 100);
+    const d1 = flightDuration(u, distance(u, [1, 40, 5], [1, 41, 1]), shipSpeed(204, { combustion: 10, impulse: 8, hyperspace: 6 }, SHIPS), 100);
     expect(view.fleets[0].plan).toMatchObject({ launch: 2_000_000_000 - Math.floor(d1), delays: false, beforeLead: false, outside: false });
     // the slow fleet can no longer make it: it is late, but pushes nothing back
     expect(view.fleets[1].plan).toMatchObject({ late: true, delays: false });

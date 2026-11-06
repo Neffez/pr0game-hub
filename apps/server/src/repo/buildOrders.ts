@@ -1,7 +1,7 @@
 import { detectDone, simulate, type BuildOrder, type OwnFleet, type Simulation, type Step, type StepResult } from '@pr0hub/planner';
 import type { GroupContext } from '../context.js';
 import type { DB } from '../db.js';
-import type { BuildingPlanet, BuildingsState } from './buildings.js';
+import { buildingsState, pruneAlerts, type BuildingPlanet, type BuildingsState } from './buildings.js';
 import { fleetHistory, sharedFleets, type StoredFleet } from './fleets.js';
 
 /**
@@ -37,14 +37,16 @@ function ownFleets(db: DB, groupId: number, userId: number, since: number): OwnF
  * transports after the import) and keeps that, so it stays when the setting changes again or the fleet drops out of
  * the history. Returns the build order as stored now.
  */
-export function syncBuildOrder(db: DB, ctx: Pick<GroupContext, 'groupId'>, userId: number, stored: StoredBuildOrder, state: BuildingsState): StoredBuildOrder {
+export function syncBuildOrder(
+  db: DB, ctx: Pick<GroupContext, 'groupId'>, userId: number, stored: StoredBuildOrder, state: BuildingsState, persist = true,
+): StoredBuildOrder {
   const ids = new Set(detectDone(stored.order, state, ownFleets(db, ctx.groupId, userId, stored.createdAt), stored.createdAt));
   if (!ids.size) return stored;
   const planets = Object.fromEntries(
     Object.entries(stored.order.planets).map(([key, steps]) => [key, steps.map((s): Step => (ids.has(s.id) ? { ...s, done: true } : s))]),
   );
   const order = { ...stored.order, planets };
-  db.prepare('UPDATE build_orders SET data = ? WHERE group_id = ? AND user_id = ?').run(JSON.stringify(order), ctx.groupId, userId);
+  if (persist) db.prepare('UPDATE build_orders SET data = ? WHERE group_id = ? AND user_id = ?').run(JSON.stringify(order), ctx.groupId, userId);
   return { ...stored, order };
 }
 
@@ -71,4 +73,15 @@ export function nextSteps(order: BuildOrder, state: BuildingsState, t: number): 
     if (planet && step && result) out.push({ planet, step, result });
   }
   return out;
+}
+
+/**
+ * Stores what the member's synced pages now show (after a paste): build order steps seen done are checked off and
+ * alerts of built or queued levels are removed. The GETs only show this, they do not write.
+ */
+export function catchUpBuildState(db: DB, ctx: GroupContext): void {
+  const state = buildingsState(db, ctx, ctx.user.id);
+  pruneAlerts(db, ctx, state);
+  const stored = buildOrderOf(db, ctx, ctx.user.id);
+  if (stored && state.planets.length) syncBuildOrder(db, ctx, ctx.user.id, stored, state);
 }

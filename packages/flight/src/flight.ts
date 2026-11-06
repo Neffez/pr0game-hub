@@ -83,7 +83,7 @@ function driveIndex(ship: ShipDrives, drives: Drives): 0 | 1 | 2 {
 const DRIVE_BONUS = [0.1, 0.2, 0.3];
 
 /** FleetFunctions::getShipSpeed; 0 for unknown ships. */
-export function shipSpeed(id: number | string, drives: Drives, catalog: ShipCatalog = SHIPS): number {
+export function shipSpeed(id: number | string, drives: Drives, catalog: ShipCatalog): number {
   const ship = catalog[id];
   if (!ship) return 0;
   const i = driveIndex(ship, drives);
@@ -92,7 +92,7 @@ export function shipSpeed(id: number | string, drives: Drives, catalog: ShipCata
 }
 
 /** Slowest ship of a fleet (FleetFunctions::getFleetMaxSpeed); null when no known ship is in it. */
-export function slowestShip(fleet: Fleet, drives: Drives, catalog: ShipCatalog = SHIPS): { id: string; speed: number } | null {
+export function slowestShip(fleet: Fleet, drives: Drives, catalog: ShipCatalog): { id: string; speed: number } | null {
   let best: { id: string; speed: number } | null = null;
   for (const [id, amount] of Object.entries(fleet)) {
     const speed = shipSpeed(id, drives, catalog);
@@ -120,7 +120,7 @@ export function fleetConsumption(
   dist: number,
   drives: Drives,
   honorBoost = 1,
-  catalog: ShipCatalog = SHIPS,
+  catalog: ShipCatalog,
 ): number {
   const gameSpeed = u.fleetSpeed / 2500;
   let consumption = 0;

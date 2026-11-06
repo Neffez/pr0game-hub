@@ -239,7 +239,7 @@ export function followEnemies(db: DB, plans: Pick<PlanRow, 'id' | 'mission' | 't
  * Landing back home of a retime's enemy fleet as the retime panel derives it: followed fleet (the lead after a recall
  * of the whole ACS), chosen speed or full speed until one is chosen; null without a known ship.
  */
-export function retimeHome(u: UniverseSettings, e: EnemyRow, ships?: ShipCatalog): number | null {
+export function retimeHome(u: UniverseSettings, e: EnemyRow, ships: ShipCatalog): number | null {
   const fleets = JSON.parse(e.fleets) as EnemyFleet[];
   const recall = e.recall_from != null && e.recall_to != null ? { from: e.recall_from, to: e.recall_to } : null;
   const fleet = fleets[recall && e.recall_lead ? 0 : e.follow] ?? fleets[0];
@@ -263,7 +263,7 @@ export function retimeHome(u: UniverseSettings, e: EnemyRow, ships?: ShipCatalog
  * return home (a target set by hand keeps its offset), the claim follows. A phalanx return does not depend on them.
  * Returns the groups with moved plans.
  */
-export function followUniverse(db: DB, universeId: number, before: UniverseSettings, after: UniverseSettings, ships?: ShipCatalog): number[] {
+export function followUniverse(db: DB, universeId: number, before: UniverseSettings, after: UniverseSettings, ships: ShipCatalog): number[] {
   const rows = db
     .prepare(
       `SELECT e.*, a.group_id FROM attack_plan_enemy e JOIN attack_plans a ON a.id = e.plan_id JOIN groups g ON g.id = a.group_id

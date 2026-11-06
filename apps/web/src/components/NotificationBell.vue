@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
-import { useUni } from '../composables';
+import { useFocusTrap, useUni } from '../composables';
 import { accessRequests, attacks, loadAccessRequests, markSeen, notifications, unseen, type BuildOrderNotification, type CommentNotification, type Notification } from '../notifications';
 import { abbr, fmt, name, resText } from '../format';
 import Icon from './Icon.vue';
@@ -13,6 +13,14 @@ const { t, locale } = useI18n();
 const { uni } = useUni();
 const router = useRouter();
 const open = ref(false);
+const panel = ref<HTMLElement | null>(null);
+// a dialog above a backdrop: Esc closes it, the keyboard stays inside, the focus returns to the bell
+useFocusTrap(panel, open);
+function onKey(e: KeyboardEvent) {
+  if (open.value && e.key === 'Escape') open.value = false;
+}
+onMounted(() => window.addEventListener('keydown', onKey));
+onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
 
 function toggle() {
   open.value = !open.value;
@@ -121,7 +129,7 @@ function left(sec: number) {
     <!-- in the body: above everything of the page (the sidebar's stacking context would keep it below the content) -->
     <Teleport v-if="open" to="body">
       <div class="bell-backdrop" @click="open = false" />
-      <div class="bell-panel card" role="dialog" :aria-label="t('notify.title')">
+      <div ref="panel" class="bell-panel card" role="dialog" aria-modal="true" :aria-label="t('notify.title')" tabindex="-1">
         <div class="row" style="margin-bottom: 6px">
           <b>{{ t('notify.title') }}</b>
           <span class="grow" />

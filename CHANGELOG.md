@@ -2,6 +2,85 @@
 
 Every commit adds its changes here, newest first, grouped by date.
 
+## 2026-11-06
+
+- Statement cache: a plucked statement stays plucked when the same SQL is prepared again elsewhere (plucked and
+  plain statements are cached separately instead of resetting `pluck` on the shared one).
+
+- Server tests check group isolation: every SQL statement on a table with `group_id` filters by it or addresses rows
+  by a key looked up in the group; the few cross-group statements (monitor, retention, crawler, data migration) are
+  listed with their reason, a new one without a group filter fails the test.
+
+- `withUnits` throws when its function returns a promise: the active catalog does not survive an `await`.
+
+- Code review: C-10d closed as not needed (pr0plan does not support the Heavy Cruiser, Optimized Recycler,
+  Behemoth and Void Titan for now).
+
+- Code review records the third series (Wave 2) and what is still open.
+
+- Push subscriptions on a known push host must use its default port. The admin page (alliance switch) and the loot
+  settlement (live reload) apply only the newest response, like the overview and alliance pages.
+
+- `@pr0hub/flight` no longer falls back to its built-in ship table: `shipSpeed`, `slowestShip`, `fleetConsumption`,
+  `retimeCandidates` and `fleetCapacity` require the drives/capacity of the universe's catalog, so a missing
+  catalog fails the typecheck instead of silently using the defaults. Server retime helpers require it too.
+
+- Build order: a step whose research requirement another planet's list brings up over several research steps waits
+  for them instead of being marked impossible (the planner counts the open research steps ahead in all other
+  lists, not only their next step).
+
+- Keyboard and screen reader: dialogs (form sheets, the player dialog, the notification panel) keep Tab inside,
+  move the focus in and give it back on close (`useFocusTrap`); Esc closes the notification panel; the player
+  dialog is labelled by the player's name; recent spy reports open with Space as well as Enter.
+
+- Invite and recovery links are stored as their SHA-256 hash like sessions and API tokens (a one-time data
+  migration hashes open links, they keep working). The link is returned only when created; the admin member list
+  shows `invite_expires_at` instead of the token and offers a new link. Migrations can now run one-time JS data steps.
+
+- GET `/build-order`, `/buildings` and `/notifications` are pure reads (read-only tokens and links no longer change
+  anything): build order steps seen done and finished building alerts are stored when a page that changes them is
+  pasted (empire, overview, buildings, research, fleets, messages); since when a storage is full is kept by the push
+  and Discord senders.
+
+- Players: a page that names a player without an id matches a former name only for data from the time the player
+  still had it (alias `seen_until` at or after the data). A newer player who took over an abandoned name becomes
+  their own player (the id is attached once known) instead of being merged into the old one with scores, planets
+  and spy reports. Lookups without a time (search, display) still find any former name.
+
+- Universe settings are one contract in `@pr0hub/core/universe`: the full `UniverseSettings` type (optional game
+  values such as phalanx/missile range, noob protection and debris included), defaults, validation (admin API),
+  the tools' hash keys (`TOOL_HASH`, `toolsHash`) and the `uo` encoding of unit overrides. Server, web app and tools
+  import it instead of keeping their own copies; the casts for optional settings are gone.
+  - Hub links into the flight calculator, IPM calculator and battle simulator carry the universe's own units
+    (`uo`); the battle simulator link takes ships and defense from the universe's catalog (custom defense such as
+    the Bunker included) instead of a fixed id range. The server's battle API link does the same.
+  - Admin: new field for the phalanx range factor (already used for the phalanx coverage).
+  - OpenAPI: `UniverseSettings` schema for the context and the admin universe endpoints.
+
+- Unit names resolve by the catalog of the universe: `idByName` / `idByShortName` take a catalog (default: the active
+  one) and look at its units first; `parsePage` takes `units`. The server parses and stores every paste, re-parse,
+  undo, backfill, crawled report, phalanx and simulation with its universe's catalog, so two universes can give the
+  same custom name to different units and pasted costs/points follow the universe. Units a universe added are found
+  by their short in battle reports (after the game's shorts). `registerUnitNames` only labels (`techName`); the admin
+  unit-page parser still looks up names of the other universes explicitly.
+
+## 2026-11-05
+
+- Code review records the second series (Wave 1 leftovers) and what is still open.
+
+- Web, planner and tools leftovers of the review:
+  - Build order: steps left when the simulation hits its event cap show "plan too long" (`aborted`) instead of "not
+    possible on this planet".
+  - Overview and alliance pages apply only the newest response, so an overlapping live reload cannot show older rows.
+  - After a deploy the chunk reload no longer loops when sessionStorage is blocked (no reload without it).
+  - Flight calculator: a link with own units only (`uo`) no longer opens a new tab with a "link loaded" toast.
+  - Admin: the universe "Slug" label is translated; admin and unit editor switch to mobile at 800 px like the rest.
+  - Loot calculator docs no longer claim the split is the game's `calculateSteal`.
+
+- Server: access-request usernames are unique regardless of case (like accounts; migration keeps the oldest of a
+  clash). A target has at most one unreleased claim (partial unique index); a new claim closes an expired one at its
+  expiry. The access-request test title now says what is checked: alliance admins see all requests by design.
+
 ## 2026-11-04
 
 - Code review records the first series on `main` (`0b8434d..045e495`): closed findings, partial leftovers, and the next Wave 1 / catalog work.

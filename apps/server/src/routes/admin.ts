@@ -1,7 +1,8 @@
 import type { FastifyInstance } from 'fastify';
-import { checkUsername, HttpError, randomToken, requireAdmin, requireUser, revokeAccessIfOrphaned } from '../auth.js';
+import { checkUsername, HttpError, randomToken, requireAdmin, requireUser, revokeAccessIfOrphaned, tokenHash } from '../auth.js';
 import { config, UNIVERSE_DEFAULTS } from '../config.js';
-import { catalogOf, toUniverse } from '../context.js';
+import { settingsError } from '@pr0hub/core/universe';
+import { catalogOf, catalogOfGroup, toUniverse } from '../context.js';
 import { parseUnitPage } from '@pr0hub/core';
 import { DEFAULT_UNIT_DEFS, isUnitId, validateUnits, type UnitOverrides } from '@pr0hub/core/units';
 import { now, type DB } from '../db.js';
@@ -43,14 +44,17 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
     return hash === '';
   };
 
-  /** Open claim invite for a placeholder member of the group (replaces any previous unused one). */
+  /**
+   * Open claim invite for a placeholder member of the group (replaces any previous unused one). Only its hash is
+   * stored: the link is returned here once.
+   */
   const createClaimInvite = (groupId: number, targetUserId: number, createdBy: number) => {
     const role =
       (db.prepare('SELECT role FROM group_members WHERE group_id = ? AND user_id = ?').pluck().get(groupId, targetUserId) as string | undefined) ?? 'member';
     db.prepare('DELETE FROM invites WHERE user_id = ? AND used_at IS NULL').run(targetUserId);
     const token = randomToken(24);
     db.prepare('INSERT INTO invites (token, group_id, role, created_by, expires_at, user_id) VALUES (?, ?, ?, ?, ?, ?)').run(
-      token,
+      tokenHash(token),
       groupId,
       role,
       createdBy,
@@ -188,8 +192,12 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
     const { overrides } = unitsOf(req.params.slug);
     const html = req.body?.html;
     if (typeof html !== 'string' || !html.trim() || html.length > 5_000_000) throw new HttpError(400, 'units_page_invalid', 'Expected a page source');
-    // names of the universe's units and of pages pasted before (an info page has no id)
+    // names of the other universes' units (ids are the same in every universe), then of this one and of pages pasted
+    // before (an info page has no id); later entries win
     const names: Record<string, number> = {};
+    for (const raw of db.prepare('SELECT units FROM universes WHERE slug <> ?').pluck().all(req.params.slug) as string[]) {
+      for (const u of Object.values(catalogOf({ units: JSON.parse(raw || '{}') }).units)) for (const n of Object.values(u.name)) names[n] ??= u.id;
+    }
     for (const u of Object.values(catalogOf({ units: overrides }).units)) for (const n of Object.values(u.name)) names[n] = u.id;
     const extra = req.body?.names;
     if (extra && typeof extra === 'object') {
@@ -311,17 +319,18 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
         `SELECT u.id, u.username, m.role, m.ingame_name, m.joined_at, u.last_login_at, u.is_admin AS global_admin,
            (u.password_hash <> '') AS account,
            (SELECT COUNT(*) FROM group_members o WHERE o.user_id = u.id AND o.group_id <> m.group_id) AS other_groups,
-           (SELECT token FROM invites WHERE user_id = u.id AND used_at IS NULL AND expires_at > ? LIMIT 1) AS invite
+           (SELECT MAX(expires_at) FROM invites WHERE user_id = u.id AND used_at IS NULL AND expires_at > ?) AS invite_expires_at
          FROM group_members m JOIN users u ON u.id = m.user_id WHERE m.group_id = ? ORDER BY u.username`,
       )
       .all(t, groupId)
-      // a member's invite for an existing account is a password recovery link: only global admins see it
+      // a member's invite for an existing account is a password recovery link: only global admins learn of it; the
+      // link itself is only shown when created
       .map((m: any) => ({
         ...m,
         account: !!m.account,
         global_admin: !!m.global_admin,
         owner: m.id === owner(),
-        invite: m.account && !user.isAdmin ? null : m.invite,
+        invite_expires_at: m.account && !user.isAdmin ? null : m.invite_expires_at,
       }));
   });
 
@@ -538,7 +547,7 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
       const summary = r.summary ? JSON.parse(r.summary) : {};
       if (!summary.about && (r.html_size || r.text_size)) {
         try {
-          summary.about = aboutRecords(parseRaw(raw.get(r.id) as RawIngest).records);
+          summary.about = aboutRecords(parseRaw(raw.get(r.id) as RawIngest, catalogOfGroup(db, groupId)).records);
         } catch {
           summary.about = [];
         }
@@ -632,32 +641,8 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
 }
 
 function validateSettings(settings: object | undefined) {
-  if (!settings) return;
-  const s = settings as Record<string, unknown>;
-  if (s.timezone !== undefined) {
-    try {
-      new Intl.DateTimeFormat('en-US', { timeZone: String(s.timezone) });
-    } catch {
-      throw new HttpError(400, 'timezone_invalid', 'Invalid time zone');
-    }
-  }
-  if (s.gameUrl && !/^https?:\/\//i.test(String(s.gameUrl))) throw new HttpError(400, 'game_url_invalid', 'Game URL must start with http(s)://');
-  if (s.pr0planUrl && !/^https?:\/\//i.test(String(s.pr0planUrl))) throw new HttpError(400, 'pr0plan_url_invalid', 'pr0plan URL must start with http(s)://');
-  // sizes and distance factors feed the distance, flight time, phalanx and missile range calculations
-  const defaults: Record<string, unknown> = { ...UNIVERSE_DEFAULTS, phalanxRangeFactor: 1, missileRangeFactor: 1, noobLimit: 0, noobFactor: 5, noobInactives: false, inactiveDays: 7, fleetDebrisPercent: 40, defenseDebrisPercent: 0, bigShields: false };
-  for (const [key, value] of Object.entries(s)) {
-    if (value === null && !(key in UNIVERSE_DEFAULTS)) continue;
-    let valid = true;
-    if (typeof defaults[key] === 'boolean') valid = typeof value === 'boolean';
-    else if (typeof defaults[key] === 'number') {
-      valid = typeof value === 'number' && Number.isFinite(value) && value >= 0;
-      if (['galaxies', 'systems', 'positions', 'fleetSpeed'].includes(key)) valid &&= Number.isInteger(value) && (value as number) >= 1;
-      if (key === 'storageMultiplier') valid &&= Number.isInteger(value) && (value as number) >= 1;
-      // a percentage per TechnoDome level: above 100 research times turn negative
-      if (['universityFactor', 'fleetDebrisPercent', 'defenseDebrisPercent'].includes(key)) valid &&= (value as number) <= 100;
-    }
-    if (!valid) throw new HttpError(400, 'setting_invalid', `Invalid setting: ${key}`);
-  }
+  const err = settingsError(settings);
+  if (err) throw new HttpError(400, err.code, err.message);
 }
 
 function playerReferences(db: DB): { table: string; column: string }[] {

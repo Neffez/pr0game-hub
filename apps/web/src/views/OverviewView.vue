@@ -16,7 +16,7 @@ import { uniApi } from '../api';
 import PlanetActions from '../components/PlanetActions.vue';
 import StatusBadges from '../components/StatusBadges.vue';
 import PointsStall from '../components/PointsStall.vue';
-import { useMobile, useProgressive, useProtection, useSort, useStored, useUni } from '../composables';
+import { useLoader, useMobile, useProgressive, useProtection, useSort, useStored, useUni } from '../composables';
 import { useAutoTour } from '../tours';
 import { nowSec, upcoming, useClock } from '../clock';
 import { tables, useLiveReload } from '../live';
@@ -156,23 +156,21 @@ const players = ref<Player[]>([]);
 const planets = ref<PlanetRow[]>([]);
 const coverage = ref<{ type: number; stat_time: number; rows: number; min_rank: number; max_rank: number }[]>([]);
 const loading = ref(false);
-const error = ref('');
+// only the newest answer is applied: the live reload can overlap a slow load
+const loader = useLoader(() => uniApi(uni.value, '/overview'));
+const error = loader.error;
+let pending = 0;
 
 async function load() {
-  loading.value = true;
-  error.value = '';
-  try {
-    const res = await uniApi(uni.value, '/overview');
-    // weak/strong from the own points where the universe's noob protection is set, instead of the syncing member's view
-    players.value = (res.players as Player[]).map((p) => ({ ...p, status: protection(p.status, p.scores[1]?.points) }));
-    planets.value = res.planets;
-    coverage.value = res.coverage;
-    sections.value = res.slots ?? [];
-  } catch (e) {
-    error.value = (e as Error).message;
-  } finally {
-    loading.value = false;
-  }
+  loading.value = ++pending > 0;
+  const res = await loader.load();
+  loading.value = --pending > 0;
+  if (!res) return;
+  // weak/strong from the own points where the universe's noob protection is set, instead of the syncing member's view
+  players.value = (res.players as Player[]).map((p) => ({ ...p, status: protection(p.status, p.scores[1]?.points) }));
+  planets.value = res.planets;
+  coverage.value = res.coverage;
+  sections.value = res.slots ?? [];
 }
 onMounted(load);
 // the heaviest page: waits a little longer for further syncs

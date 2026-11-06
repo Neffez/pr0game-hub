@@ -97,6 +97,7 @@ const UNI_GROUPS: UniGroup[] = [
     { key: 'defenseDebrisPercent', label: 'defenseDebrisPercent', hint: true, min: 0, max: 100, placeholder: '0' },
     { key: 'bigShields', label: 'bigShields', hint: true, type: 'check' },
     { key: 'missileRangeFactor', label: 'missileRangeFactor', hint: true, min: 0, step: 'any', placeholder: '1' },
+    { key: 'phalanxRangeFactor', label: 'phalanxRangeFactor', hint: true, min: 0, step: 'any', placeholder: '1' },
   ] },
   { id: 'noob', fields: [
     { key: 'noobLimit', label: 'noobLimit', hint: true, min: 0, placeholder: '0' },
@@ -194,9 +195,12 @@ async function loadAll() {
   }
 }
 
+/** only the answer for the newest group selection is applied (switching alliances quickly, like `useLoader`) */
+let groupLoad = 0;
 async function loadGroup() {
   if (!groupId.value) return;
-  [members.value, ingests.value, discord.value, fleetAttacks.value, candidates.value] = await Promise.all([
+  const id = ++groupLoad;
+  const res = await Promise.all([
     api(`/admin/groups/${groupId.value}/members`),
     // sync history is technical administration: global admins only
     isAdmin.value ? api(`/admin/groups/${groupId.value}/ingests`) : [],
@@ -204,6 +208,8 @@ async function loadGroup() {
     isAdmin.value ? api<FleetAttackRow[]>(`/admin/groups/${groupId.value}/fleet-attacks`) : [],
     api<Candidate[]>(`/admin/groups/${groupId.value}/candidates`),
   ]);
+  if (id !== groupLoad) return;
+  [members.value, ingests.value, discord.value, fleetAttacks.value, candidates.value] = res;
   if (!candidates.value.some((c) => c.id === assignUserId.value)) assignUserId.value = null;
   discordWebhook.value = '';
   undo.value = null;
@@ -336,7 +342,8 @@ const renameUser = (m: any) => run(async () => {
 }, 'account.usernameChanged');
 const addMember = () =>
   run(async () => {
-    await api(`/admin/groups/${groupId.value}/members`, { body: { name: newMemberName.value } });
+    const res = await api<{ id: number; token: string }>(`/admin/groups/${groupId.value}/members`, { body: { name: newMemberName.value } });
+    freshInvites.value = { ...freshInvites.value, [res.id]: res.token };
     newMemberName.value = '';
     await loadGroup();
   }, 'deck.saved');
@@ -349,9 +356,12 @@ const assignMember = () =>
     await loadGroup();
   }, 'deck.saved');
 
+/** Links created in this session by member id: the server keeps only their hash, so it shows them only once. */
+const freshInvites = ref<Record<number, string>>({});
 const memberInvite = (m: any) =>
   run(async () => {
     const res = await api<{ token: string }>(`/admin/groups/${groupId.value}/members/${m.id}/invite`, { body: {} });
+    freshInvites.value = { ...freshInvites.value, [m.id]: res.token };
     copy(inviteUrl(res.token));
     await loadGroup();
   });
@@ -469,7 +479,7 @@ const doMerge = () => run(async () => {
       <Section data-tour="admin-universes" :title="t('nav.universes')" :count="universes.length" store-key="admin.universes">
         <div class="scroll-x">
         <table v-stack class="data">
-          <tr><th>Slug</th><th>{{ t('common.name') }}</th><th>{{ t('admin.gameUrl') }}</th><th>{{ t('admin.size') }}</th><th>{{ t('admin.timezone') }}</th><th /></tr>
+          <tr><th>{{ t('admin.slug') }}</th><th>{{ t('common.name') }}</th><th>{{ t('admin.gameUrl') }}</th><th>{{ t('admin.size') }}</th><th>{{ t('admin.timezone') }}</th><th /></tr>
           <tr v-for="u in universes" :key="u.slug">
             <td class="mono">{{ u.slug }}</td>
             <td>{{ u.name }}<span v-if="u.isDefault" class="badge" style="margin-left: 6px">{{ t('admin.defaultBadge') }}</span><span v-if="isEnded(u)" class="badge" style="margin-left: 6px" :title="t('admin.endedAt', { time: dateTime(u.endedAt) })">{{ t('admin.endedBadge') }}</span><span v-else-if="isScheduled(u)" class="badge" style="margin-left: 6px" :title="t('admin.startsAt', { time: dateTime(u.startsAt) })">{{ t('admin.scheduledBadge') }}</span><span v-if="!isEnded(u) && u.endedAt != null" class="muted small" style="margin-left: 6px">{{ t('admin.endsAt', { time: dateTime(u.endedAt) }) }}</span></td>
@@ -488,7 +498,7 @@ const doMerge = () => run(async () => {
       <Sheet v-model="createOpen" :title="t('admin.createUniverse')">
         <form id="uni-create" class="uni-create" @submit.prevent="createUni">
           <div v-if="error" class="error">{{ error }}</div>
-          <label>Slug <input v-model="newUni.slug" :placeholder="t('admin.slugPlaceholder')" autocomplete="off" /></label>
+          <label>{{ t('admin.slug') }} <input v-model="newUni.slug" :placeholder="t('admin.slugPlaceholder')" autocomplete="off" /></label>
           <label>{{ t('common.name') }} <input v-model="newUni.name" :placeholder="newUni.slug || t('common.name')" /></label>
           <label><span>{{ t('admin.startTime') }} <Hint>{{ t('admin.startTimeHint') }}</Hint></span> <DateTimeInput v-model="newUni.startsAt" /></label>
           <p class="muted small">{{ t('admin.createUniverseHint') }}</p>
@@ -737,8 +747,14 @@ const doMerge = () => run(async () => {
               <td class="small">{{ dateTime(m.joined_at) }}</td>
               <td class="small">{{ m.account ? dateTime(m.last_login_at) : '–' }}</td>
               <td class="invite-col">
-                <div v-if="m.invite" class="invite-row">
-                  <CopyField :value="inviteUrl(m.invite)" @copied="msg = t('admin.linkCopied')" />
+                <div v-if="m.invite_expires_at && freshInvites[m.id]" class="invite-row">
+                  <CopyField :value="inviteUrl(freshInvites[m.id])" @copied="msg = t('admin.linkCopied')" />
+                  <button type="button" class="small invite-renew" :title="t('admin.renewInvite')" :aria-label="t('admin.renewInvite')" @click="memberInvite(m)">
+                    <Icon name="sync" />
+                  </button>
+                </div>
+                <div v-else-if="m.invite_expires_at" class="invite-row">
+                  <span class="small muted" :title="t('admin.inviteOpenHint')">{{ t('admin.inviteOpen', { date: dateTime(m.invite_expires_at) }) }}</span>
                   <button type="button" class="small invite-renew" :title="t('admin.renewInvite')" :aria-label="t('admin.renewInvite')" @click="memberInvite(m)">
                     <Icon name="sync" />
                   </button>
@@ -886,7 +902,7 @@ table.uni-config input.wide { width: 300px; }
 table.uni-config input[type='checkbox'] { width: 18px; height: 18px; margin: 0; vertical-align: middle; }
 table.uni-deck { width: auto; }
 table.uni-deck input { width: 80px; text-align: right; }
-@media (max-width: 799px) {
+@media (max-width: 800px) {
   /* text settings: input full width below the label */
   table.uni-config, table.uni-config > tbody { display: block; }
   table.uni-config tr { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; padding: 6px 0; border-bottom: 1px solid var(--border); }

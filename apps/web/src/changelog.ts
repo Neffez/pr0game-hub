@@ -16,6 +16,76 @@ export interface ChangelogDay {
 
 export const CHANGELOG: ChangelogDay[] = [
   {
+    date: '2026-11-06',
+    items: [
+      {
+        kind: 'fix',
+        de: 'Admin und Beuteabrechnung zeigen beim schnellen Wechseln oder bei Live-Updates immer den neuesten Stand.',
+        en: 'Admin and loot settlement always show the latest data when switching quickly or on live updates.',
+      },
+      {
+        kind: 'fix',
+        de: 'Bauplan: Braucht ein Schritt eine Forschung, die ein anderer Planet über mehrere Stufen erforscht, wartet er darauf, statt als nicht möglich zu gelten.',
+        en: 'Build order: a step that needs research another planet brings up over several levels waits for it instead of counting as impossible.',
+      },
+      {
+        kind: 'fix',
+        de: 'Tastatur: In Dialogen und im Benachrichtigungsfenster bleibt Tab im Fenster, Esc schließt auch die Benachrichtigungen, danach steht der Fokus wieder dort, wo er vorher war.',
+        en: 'Keyboard: in dialogs and the notification panel Tab stays inside, Esc also closes the notifications, and the focus returns to where it was.',
+      },
+      {
+        kind: 'fix',
+        de: 'Admin: Claim- und Passwort-Links werden nur noch beim Erzeugen angezeigt und sicher gespeichert. Für einen offenen Link steht „offen bis …“, ein neuer Link lässt sich jederzeit erzeugen.',
+        en: 'Admin: claim and password links are only shown when created and stored securely. An open link shows "open until …"; a new link can be created at any time.',
+      },
+      {
+        kind: 'fix',
+        de: 'Übernimmt ein neuer Spieler den alten Namen eines anderen, landen seine Berichte und Punkte nicht mehr beim früheren Namensträger.',
+        en: 'When a new player takes over another player\'s old name, their reports and points no longer end up with the former owner of the name.',
+      },
+      {
+        kind: 'new',
+        de: 'Links in den Kampfsimulator, Flug- und IRak-Rechner nehmen die eigenen Schiffe und Verteidigung des Universums mit, auch neue Einheiten wie den Bunker.',
+        en: 'Links into the battle simulator, flight and IPM calculator take the universe\'s own ships and defense along, including new units such as the Bunker.',
+      },
+      {
+        kind: 'new',
+        de: 'Admin: der Phalanx-Reichweitenfaktor des Universums lässt sich einstellen.',
+        en: 'Admin: the phalanx range factor of the universe can be set.',
+      },
+      {
+        kind: 'fix',
+        de: 'Eigene Schiffe und Verteidigung eines Universums werden in eingefügten Seiten und Kampfberichten richtig erkannt, auch wenn ein anderes Universum denselben Namen für eine andere Einheit verwendet.',
+        en: 'Own ships and defense of a universe are recognised correctly in pasted pages and battle reports, even when another universe uses the same name for a different unit.',
+      },
+    ],
+  },
+  {
+    date: '2026-11-05',
+    items: [
+      {
+        kind: 'fix',
+        de: 'Ein sehr langer Bauplan zeigt bei nicht mehr berechneten Schritten „Plan zu lang“ statt „auf diesem Planeten nicht möglich“.',
+        en: 'A very long build order shows "plan too long" for steps it no longer calculates instead of "not possible on this planet".',
+      },
+      {
+        kind: 'fix',
+        de: 'Übersicht und Allianz zeigen bei schnell aufeinanderfolgenden Aktualisierungen immer den neuesten Stand.',
+        en: 'Overview and alliance always show the latest data when updates come in quickly.',
+      },
+      {
+        kind: 'fix',
+        de: 'Flugrechner: ein Link nur mit eigenen Einheiten öffnet keinen neuen Tab mehr.',
+        en: 'Flight calculator: a link with own units only no longer opens a new tab.',
+      },
+      {
+        kind: 'fix',
+        de: 'Ein Zugang lässt sich nicht mehr zweimal mit demselben Namen in anderer Groß-/Kleinschreibung beantragen.',
+        en: 'Access can no longer be requested twice with the same name in different upper/lower case.',
+      },
+    ],
+  },
+  {
     date: '2026-11-04',
     items: [
       {

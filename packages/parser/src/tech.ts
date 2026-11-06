@@ -69,8 +69,47 @@ const LEGACY_NAMES: Record<string, number> = {
 };
 for (const [name, id] of Object.entries(LEGACY_NAMES)) if (!NAME_TO_ID.has(name)) NAME_TO_ID.set(name, id);
 
-export function idByName(name: string): number | null {
-  return NAME_TO_ID.get(norm(name)) ?? null;
+/** Names and short names of a catalog's units (lowercased), built once per catalog. */
+interface CatalogNames {
+  names: Map<string, number>;
+  shorts: Map<string, number>;
+}
+const catalogNames = new WeakMap<UnitCatalog, CatalogNames>();
+
+function namesOf(catalog: UnitCatalog): CatalogNames {
+  let c = catalogNames.get(catalog);
+  if (c) return c;
+  c = { names: new Map(), shorts: new Map() };
+  const placeholder = (id: number, s: string) => !s || s === `#${id}`;
+  for (const unit of Object.values(catalog.units)) {
+    for (const l of ['de', 'en'] as const) {
+      if (!placeholder(unit.id, unit.name[l])) {
+        const key = norm(unit.name[l]);
+        if (!c.names.has(key)) c.names.set(key, unit.id);
+      }
+    }
+  }
+  for (const unit of Object.values(catalog.units)) {
+    for (const l of ['de', 'en'] as const) {
+      if (placeholder(unit.id, unit.short[l])) continue;
+      const key = norm(unit.short[l]);
+      // a short that is the full name of another element stays that element (see SHORT_TO_ID)
+      const full = c.names.get(key) ?? NAME_TO_ID.get(key);
+      if (full != null && full !== unit.id) continue;
+      if (!c.shorts.has(key)) c.shorts.set(key, unit.id);
+    }
+  }
+  catalogNames.set(catalog, c);
+  return c;
+}
+
+/**
+ * Element id by name (German, English or pirate language). Units resolve by the catalog first (default: the active
+ * one), so a universe's own names win over the defaults and never leak into another universe.
+ */
+export function idByName(name: string, catalog: UnitCatalog = activeUnits()): number | null {
+  const key = norm(name);
+  return namesOf(catalog).names.get(key) ?? NAME_TO_ID.get(key) ?? null;
 }
 
 /** Names a parser expected to resolve as a unit and could not (drained into `unknown_unit` on parsePage). */
@@ -88,8 +127,8 @@ export function takeUnknownUnits(): string[] {
 }
 
 /**
- * Makes the unit names of a universe known to the parsers (game ids are the same in every universe, so names are
- * looked up across all of them) and to `techName`. Names of the defaults keep their id.
+ * Makes the unit names of a universe known to `techName` when another catalog is active (lists across universes).
+ * Parsers do not use these: they resolve names by the catalog of the universe (`idByName`).
  */
 export function registerUnitNames(catalog: UnitCatalog): void {
   for (const unit of Object.values(catalog.units)) {
@@ -97,8 +136,6 @@ export function registerUnitNames(catalog: UnitCatalog): void {
       const name = unit.name[l];
       if (!name || name === `#${unit.id}`) continue;
       if (TECH_NAMES[l][String(unit.id)] !== name) EXTRA_NAMES[l][String(unit.id)] = name;
-      const key = norm(name);
-      if (!NAME_TO_ID.has(key)) NAME_TO_ID.set(key, unit.id);
     }
   }
 }
@@ -157,9 +194,14 @@ for (const key of ['deShort', 'enShort', 'piShort']) {
   }
 }
 
-/** Element id by the short name used in battle reports ("Kl. Transporter"); falls back to the full name. */
-export function idByShortName(name: string): number | null {
-  const id = SHORT_TO_ID.get(norm(name)) ?? idByName(name);
+/**
+ * Element id by the short name used in battle reports ("Kl. Transporter"): the game's shorts first, then the
+ * catalog's (default: the active one; units a universe added, such as "Bunk"), then the full name. The catalog's
+ * shorts are column labels, so they never override the game's battle-report shorts.
+ */
+export function idByShortName(name: string, catalog: UnitCatalog = activeUnits()): number | null {
+  const key = norm(name);
+  const id = SHORT_TO_ID.get(key) ?? namesOf(catalog).shorts.get(key) ?? idByName(name, catalog);
   if (id == null) noteUnknownUnit(name);
   return id;
 }

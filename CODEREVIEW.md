@@ -4,7 +4,7 @@
 **Scope:** Whole monorepo — `packages/parser` (`@pr0hub/core`), `packages/flight`, `packages/loot`, `packages/battle`, `packages/planner`, `apps/server`, `apps/web`, `apps/tools`
 **Method:** Four passes (architecture, clean code, bugs, improvements), then a verification pass against the current source. Findings are evidence-based. Theoretical items are marked as such. Line numbers refer to this tree at review time.
 
-**Progress:** The suggested first commit series is **done** and on `main` (`0b8434d..045e495`, 2026-11-04). Typecheck and the full test suite passed before push. Evidence and line numbers below are the review-time snapshot; a **Status** line on a finding says what landed afterwards. Remaining work starts at Wave 1 leftovers and Wave 2 catalog / settings.
+**Progress:** The suggested first commit series is **done** and on `main` (`0b8434d..045e495`, 2026-11-04). Typecheck and the full test suite passed before push. Evidence and line numbers below are the review-time snapshot; a **Status** line on a finding says what landed afterwards. The second series (Wave 1 leftovers) landed on 2026-11-05, the third (Wave 2) on 2026-11-06. Remaining: A-01 / C-02 typed client, Wave 3.
 
 ### How to read a finding
 
@@ -82,6 +82,8 @@ None of this requires a rewrite. The recommended order at the end does the remai
 
 **Status:** Partial (`8437595`). GET `/plans` no longer writes (`persist=false` on the in-memory catch-up). `catchUpPlans` runs after an overview or fleets paste (as the stored user) and on cookie `POST /api/:uni/plans/sync`. Token POST stays 403. GET `/build-order` and GET `/buildings` still write.
 
+**Status:** Done (2026-11-06). GET `/build-order`, `/buildings` and `/notifications` (which also wrote `storage_full`) are pure reads: `syncBuildOrder` / `pruneAlerts` / `notificationsFor` take `persist`; `catchUpBuildState` runs after empire, overview, buildings, research, fleets and messages pastes; the push and Discord senders persist storage state.
+
 ---
 
 ### A-03 — Group isolation is a convention, not an API
@@ -97,6 +99,8 @@ None of this requires a rewrite. The recommended order at the end does the remai
 | High | Medium | High (wrapper); Low (grep test for game tables without `group_id`) |
 
 **Fix:** A `GroupDb` that injects `group_id` (or requires `GroupContext` on every export). Ban raw `db.prepare` in `routes/` except admin. Add a test that greps route SQL for game tables without `group_id`. Do not add a framework.
+
+**Status:** Partial (2026-11-06): the grep test is in (`test/groupScope.test.ts`): statements on group tables need `group_id` or a key (`id`, `plan_id`, `player_id`, …); cross-group statements are an allow-list with reasons. A `GroupDb` API is still open.
 
 ---
 
@@ -115,6 +119,8 @@ None of this requires a rewrite. The recommended order at the end does the remai
 | Medium–High | Medium | Medium |
 
 **Fix:** Pass `UnitCatalog` into `parsePage` / `idByName` / `idByShortName`. Register shorts from the catalog. On the server, prefer an explicit `catalog` argument over `withUnits`. Keep `setActiveUnits` for the single-universe web/tools UIs.
+
+**Status:** Mostly done (`c790280`). `idByName` / `idByShortName` take a catalog (default active) and look at its units first; `parsePage` takes `units`; every server parse path (ingest, reparse, undo, backfill, crawler, phalanx, plan sim, settlement from report) runs with the universe's catalog. `registerUnitNames` no longer feeds the parsers. `withUnits` throws when `fn` returns a promise (no `AsyncLocalStorage` needed while the server keeps it synchronous).
 
 ---
 
@@ -146,6 +152,8 @@ None of this requires a rewrite. The recommended order at the end does the remai
 
 **Fix:** Short term: include pluck in the cache key; do not share plucked statements across a loop. Medium: parse/store universe.json in a worker with its own connection, or chunk the transaction. Keep the single-process EventBus unless you add a real bus.
 
+**Status:** Partial (2026-11-06): the cache keeps plain and plucked statements apart (`pluck(true)` hands out a second cached statement), so a kept plucked statement never turns back. universe.json in a worker is still open.
+
 ---
 
 ### A-07 — Universe settings and tool links are four contracts
@@ -161,6 +169,8 @@ None of this requires a rewrite. The recommended order at the end does the remai
 | High | High | Medium |
 
 **Fix:** One `UniverseSettings` in `@pr0hub/core` (or a tiny uni module) with defaults, validation, hash encoding, and tool-key mapping. Server `toUniverse`, Admin field list, OpenAPI schema, and tools `UNI_FIELDS` import it. Build tool links from `catalogOf` and put overrides on the hash (`uo`).
+
+**Status:** Done (2026-11-06). `@pr0hub/core/universe` holds the type (all optional settings typed), defaults, `settingsError` (admin API), `TOOL_HASH` / `toolsHash` and the `uo` encoding. Server `config.ts` re-exports it, web `format.ts` uses it without casts, tools `UNI_HASH` is `TOOL_HASH`. Hub and server battle links pick units from the catalog and carry `uo`. The admin field list stays UI-side; OpenAPI has a `UniverseSettings` schema (hand-written).
 
 ---
 
@@ -189,6 +199,8 @@ None of this requires a rewrite. The recommended order at the end does the remai
 | Medium | High (silent wrong cargo/speed) | Medium |
 
 **Fix:** No implicit default catalog in flight, or a single injected `ShipCatalog`. Do not keep a second handwritten table as the implicit universe.
+
+**Status:** Done (2026-11-06). The catalog parameters of `shipSpeed`, `slowestShip`, `fleetConsumption`, `retimeCandidates` and `fleetCapacity` have no default; `retimeHome` / `followUniverse` require it. `SHIPS` / `CAPACITY` stay as the source of the catalog defaults (and TrashSim's columns), no longer as an implicit universe.
 
 ---
 
@@ -359,6 +371,8 @@ This split is **intentional** for a no-login static origin. The cost is every se
 | C-10f | `packages/parser` two short-name tables | Catalog `unit.short` (`HXer`) vs `tech.json` `deShort` (`Schwerer Kreuzer`); parsers use tech.json only | Medium | Medium | Low |
 | C-10g | Folder `parser` / package `@pr0hub/core` | See A-08 | Low | Low | Low |
 
+**Status:** C-10a/b/c done (`3795d0c`). C-10d closed as not needed: pr0plan does not support 222 / 227 / 231 / 232 for now; should it export them, the import lists their keys as skipped.
+
 ---
 
 ### C-11 — Test structure: two characterization dumps, thin UI coverage
@@ -473,6 +487,8 @@ This is **confirmed**. The writes are not arbitrary — they follow fleet snapsh
 
 **Fix:** Do not resolve name-only pastes via aliases when creating/attaching a live player. Keep aliases for search/display only, or require extra signals (coords + id).
 
+**Status:** Done (2026-11-06). Name-only matches use a former name only when the data is not newer than the alias's `seen_until` (`aliasAt`); `byName(name, at)` for spy reports and galaxy backfill, any alias without a time (search, display). Test `test/players.test.ts`.
+
 ---
 
 ### B-07 — Battle worker can hang and leak the global slot
@@ -518,7 +534,7 @@ export function runInWorker(...): Promise<SimSummary> {
 
 **Fix:** Allow-list known push hosts (FCM, Mozilla, Apple, Windows). Block link-local / private / metadata ranges even on HTTPS.
 
-**Status:** Partial (`812e450`). Subscriptions must use a known push host (FCM, Mozilla, Apple, WNS). Private/link-local/metadata ranges are not blocked beyond that host list.
+**Status:** Done (`812e450`, `687501c`). Subscriptions must use a known push host (FCM, Mozilla, Apple, WNS) on its default port, without userinfo. The hosts are fixed public names, so an address range check adds nothing.
 
 ---
 
@@ -582,6 +598,8 @@ export function runInWorker(...): Promise<SimSummary> {
 
 **Fix:** `UNIQUE (username COLLATE NOCASE)` on `access_requests`.
 
+**Status:** Done (`0dc7539`). Migration 078 rebuilds `access_requests` with `UNIQUE COLLATE NOCASE` (oldest of a clash kept).
+
 ---
 
 ### B-13 — Invite tokens stored and returned in plaintext
@@ -595,6 +613,8 @@ export function runInWorker(...): Promise<SimSummary> {
 | Medium if the DB leaks | Low–Medium | Medium |
 
 **Fix:** Store `token_hash` like sessions; look up by hash. Return the secret only once at creation.
+
+**Status:** Done (2026-11-06). `invites.token` holds the SHA-256 (`tokenHash`); a one-time data migration (`js:hash_invite_tokens` in `db.ts`) hashed existing rows. The token is returned only by `addGroupMember` / `createMemberInvite`; the member list has `invite_expires_at`, the admin UI shows a fresh link for the session and "open until" otherwise.
 
 ---
 
@@ -612,6 +632,8 @@ export function runInWorker(...): Promise<SimSummary> {
 
 **Fix:** Partial unique index on active rows.
 
+**Status:** Done (`0dc7539`). Partial unique index on unreleased claims; a new claim releases the target's unreleased claims (an expired one at its expiry).
+
 ---
 
 ### B-15 — Access-request messages are visible to every alliance admin
@@ -627,6 +649,8 @@ Confirmed behavior; may be a product decision. The test name is wrong.
 | Low–Medium (privacy on a multi-alliance hub) | Low if intended | Low |
 
 **Fix:** If unintended, restrict the list to global admins. If intended, fix the test title.
+
+**Status:** Done (`0dc7539`): intended. Alliance admins see all requests (they carry no alliance); the test title now says so.
 
 ---
 
@@ -658,7 +682,7 @@ Confirmed behavior; may be a product decision. The test name is wrong.
 
 **Fix:** Same `unknown` list as unit pages; push e.g. `unknown_unit` on `parsePage`. Register catalog shorts (A-04).
 
-**Status:** Partial (`c925738`). Unknown names become `unknown_unit` (`idByShortName`, fleet amounts, logistics missile losses). Catalog shorts and passing the universe catalog into parse remain A-04.
+**Status:** Done (`c925738`, `c790280`). Unknown names become `unknown_unit`; a universe's added units resolve by their catalog short after the game's shorts.
 
 ---
 
@@ -675,6 +699,8 @@ Concrete miss: planet B list Impulse 1→2→3→4, planet A next step Cruiser (
 | Medium | Medium | Medium |
 
 **Fix:** Look ahead at remaining research steps on all planets (sum of queued + planned levels), or only set `never` when every list is stuck.
+
+**Status:** Done (2026-11-06). A research requirement is pending while the current level (queue included) plus the open research steps ahead in all other lists reach it (`plannedResearch`); test with impulse 1→4 on one planet and a cruiser on another.
 
 ---
 
@@ -705,6 +731,8 @@ Concrete miss: planet B list Impulse 1→2→3→4, planet A next step Cruiser (
 | Low | Low | Low |
 
 **Fix:** After the loop, mark leftover heads `horizon` or a dedicated `aborted` reason.
+
+**Status:** Done (`3795d0c`). Leftover heads after the event cap get `wait: 'aborted'` (own DE/EN texts); `planet` stays for lists without a hub planet.
 
 ---
 
@@ -816,6 +844,8 @@ Concrete miss: planet B list Impulse 1→2→3→4, planet A next step Cruiser (
 
 **Fix:** In-memory fallback flag; cap at one reload per session even without storage.
 
+**Status:** Done (`3795d0c`). Reload only when sessionStorage keeps the mark; without storage no reload (an in-memory flag would not survive the reload).
+
 ---
 
 ### B-28 — Overview / Alliance overlapping loads
@@ -829,6 +859,8 @@ Concrete miss: planet B list Impulse 1→2→3→4, planet A next step Cruiser (
 | Medium (wrong rows until the next event) | Medium on a busy alliance | Low |
 
 **Fix:** Switch those views to `useLoader`.
+
+**Status:** Done (`3795d0c` for Overview and Alliance; `687501c` for Admin `loadGroup` and the loot settlement with a newest-request token).
 
 ---
 
@@ -844,6 +876,8 @@ Concrete miss: planet B list Impulse 1→2→3→4, planet A next step Cruiser (
 
 **Fix:** Return true only when a known flight/uni key was consumed; ignore `uo` (already handled by `initUnits`).
 
+**Status:** Done (`3795d0c`). `applyHash` returns true only for flight, tech or universe keys; test with a `uo`-only hash.
+
 ---
 
 ### B-30 — Modal dialogs do not trap focus (a11y)
@@ -857,6 +891,8 @@ Concrete miss: planet B list Impulse 1→2→3→4, planet A next step Cruiser (
 | High for keyboard / SR users; Low for others | Medium | Medium (shared trap); Low (Esc on the bell) |
 
 **Fix:** Shared focus trap; `aria-labelledby` on the player `h1`; Esc on the bell; Space on spy cards.
+
+**Status:** Done (2026-11-06). `useFocusTrap` (Tab cycle, focus in, focus back) in Sheet, PlayerDialog and the notification panel; Esc and `aria-modal` on the panel; `aria-labelledby` on the player dialog's heading; Space on spy cards.
 
 ---
 
@@ -938,6 +974,8 @@ Tools: widespread `innerHTML` plus `esc()` on sampled name/user paths. `t()` doe
 
 **Fix:** Add the field to the admin form once settings live in one type. Drop or document `flightCalculatorUrl` (prefer `toolsUrl` only).
 
+**Status:** Done (2026-11-06). Admin field for `phalanxRangeFactor`. `flightCalculatorUrl` is typed and documented as legacy (no admin field; `TOOLS_URL` preferred).
+
 ---
 
 ### I-05 — `/:uni` swallows unknown paths; no 404
@@ -962,6 +1000,8 @@ Tools: widespread `innerHTML` plus `esc()` on sampled name/user paths. `t()` doe
 |---|---|---|
 | Medium | Medium | Medium |
 
+**Status:** Done for the universe keys (2026-11-06): one table `TOOL_HASH` for tools and hub, `toolsHash` builds the hub's values, `uo` on hub links. Per-tool keys of positions/fleets stay in each builder.
+
 ---
 
 ### I-07 — Characterization tests that would have caught the bugs above
@@ -983,7 +1023,7 @@ Missing at review time (would lock the fixes). After the first series:
 13. **Open.** Flight `uo`-only hash does not count as a flight share.
 14. **Done.** OpenAPI `paths` vs Fastify `/api` routes (including `/api/auth/login` and `/api/{uni}/ingest`).
 
-**Status:** Partial. The first-series items above have tests; leftover characterization (alias attach, catalog shorts, planner research, `uo`-only hash) is still open.
+**Status:** Done. The first-series items have tests; the leftovers landed with their fixes: alias attach (`test/players.test.ts`), catalog shorts (`units.test.ts`), planner research (`sim.test.ts`), `uo`-only hash (`flight-calculator.test.ts`).
 
 ---
 
@@ -1018,26 +1058,26 @@ Cheap, local, high confidence. Most are a few hours and a test.
 | 4 | B-11 | Dummy scrypt for empty/invalid hashes | Low | Done `1e1c280` |
 | 5 | B-07 | Settle the battle-worker Promise on `exit` | Low | Done `812e450` |
 | 6 | B-05 | Remap `attack_plans.player_id` (and other `REFERENCES players`) on merge | Low | Done `c925738` |
-| 7 | B-08 | Allow-list push endpoints | Low | Partial `812e450` (hosts; not private ranges) |
+| 7 | B-08 | Allow-list push endpoints | Low | Done `812e450`, `687501c` (default port) |
 | 8 | B-21 | Allowlist login `next` | Low | Done `99da344` |
 | 9 | B-23 | `api()` JSON parse → `ApiError` | Low | Done `99da344` |
 | 10 | B-24 | Player note try/catch | Low | Done `99da344` |
 | 11 | B-25 | Integer player ids | Low | Done `99da344` |
 | 12 | B-26 | Live `JSON.parse` try/catch | Low | Done `99da344` |
-| 13 | B-27 | One chunk-reload even without `sessionStorage` | Low | Open |
-| 14 | B-28 | Overview/Alliance on `useLoader` | Low | Open |
-| 15 | B-29 | Flight `applyHash` only on known keys | Low | Open |
+| 13 | B-27 | One chunk-reload even without `sessionStorage` | Low | Done `3795d0c` |
+| 14 | B-28 | Overview/Alliance on `useLoader` | Low | Done `3795d0c` |
+| 15 | B-29 | Flight `applyHash` only on known keys | Low | Done `3795d0c` |
 | 16 | B-16 | Fleet HTML fallback when overview is null | Low | Done `c925738` |
-| 17 | B-17 | `unknown_unit` warnings | Low | Partial `c925738` (warnings; catalog shorts still A-04) |
+| 17 | B-17 | `unknown_unit` warnings | Low | Done `c925738`, `c790280` |
 | 18 | B-19 | ORec defaults 6/6/6; 8/8/9 on U7 | Low | Done `c925738` |
-| 19 | B-20 | Planner event-cap → `horizon` / `aborted` | Low | Open |
-| 20 | B-12 | `access_requests` `COLLATE NOCASE` | Low | Open |
-| 21 | C-10a / C-10b | Admin “Slug” i18n; 800 px breakpoint | Low | Open |
-| 22 | C-10c / C-10d | Drop the false `calculateSteal` claim; extend `PR0PLAN_SHIPS` | Low | Open |
+| 19 | B-20 | Planner event-cap → `horizon` / `aborted` | Low | Done `3795d0c` |
+| 20 | B-12 | `access_requests` `COLLATE NOCASE` | Low | Done `0dc7539` |
+| 21 | C-10a / C-10b | Admin “Slug” i18n; 800 px breakpoint | Low | Done `3795d0c` |
+| 22 | C-10c / C-10d | Drop the false `calculateSteal` claim; extend `PR0PLAN_SHIPS` | Low | Done `3795d0c` (C-10c; C-10d not needed: pr0plan does not support those ships) |
 | 23 | I-02 | Ingest / Store structured logs | Low | Done `eb8ef15` / `045e495` |
 | 24 | B-09 | Ingest rate limit | Low | Done `812e450` |
-| 25 | B-14 | Partial unique index on active claims | Low | Open |
-| 26 | B-15 | Access-request visibility: decide and fix the test title | Low | Open |
+| 25 | B-14 | Partial unique index on active claims | Low | Done `0dc7539` |
+| 26 | B-15 | Access-request visibility: decide and fix the test title | Low | Done `0dc7539` (intended; title fixed) |
 
 ### Wave 2 — Critical (do next)
 
@@ -1045,18 +1085,18 @@ These are the contract and correctness issues. They take more than an afternoon,
 
 | Order | ID | What | Effort | Status |
 |---|---|---|---|---|
-| 1 | B-01 / A-02 | Stop writes on GET `/plans` (and decide for build-order / buildings). This also fixes the token story and the CSRF-via-GET case. | Medium | Partial `8437595` (`/plans` done; build-order / buildings still write) |
+| 1 | B-01 / A-02 | Stop writes on GET `/plans` (and decide for build-order / buildings). This also fixes the token story and the CSRF-via-GET case. | Medium | Done (`8437595`, 2026-11-06 for build-order / buildings / notifications) |
 | 2 | B-04 | Lock down `forUser` to message-like pages | Medium | Done `19fb73e` |
-| 3 | A-04 / B-17 | Pass the universe catalog into parse/name/short lookup; register shorts | Medium | Open |
-| 4 | B-06 | Stop attaching name-only pastes via aliases | Medium | Open |
+| 3 | A-04 / B-17 | Pass the universe catalog into parse/name/short lookup; register shorts | Medium | Done `c790280` (+ `withUnits` await guard) |
+| 4 | B-06 | Stop attaching name-only pastes via aliases | Medium | Done (2026-11-06; aliases by time) |
 | 5 | B-22 | Central 401 → clear session, close live, login | Medium | Done `99da344` |
-| 6 | A-07 / I-04 / I-06 | One `UniverseSettings` + hash mapping; admin `phalanxRangeFactor`; tool `uo` on hub links | Medium | Open |
+| 6 | A-07 / I-04 / I-06 | One `UniverseSettings` + hash mapping; admin `phalanxRangeFactor`; tool `uo` on hub links | Medium | Done (2026-11-06) |
 | 7 | A-01 / I-01 / C-02 | OpenAPI path check in CI; type the web client on the token-facing GETs | Medium | Partial `eb8ef15` (path CI done; typed client open) |
-| 8 | B-18 | Planner cross-planet multi-level research | Medium | Open |
-| 9 | A-09 | Kill flight’s implicit `SHIPS` default (pass the catalog) | Medium | Open |
-| 10 | I-07 | Characterization tests for the Wave 1–2 fixes | Medium | Partial (landed with the first series; leftover items still open) |
-| 11 | B-13 | Hash invite tokens | Medium | Open |
-| 12 | B-30 | Shared focus trap + Esc on the notification panel | Medium | Open |
+| 8 | B-18 | Planner cross-planet multi-level research | Medium | Done (2026-11-06) |
+| 9 | A-09 | Kill flight’s implicit `SHIPS` default (pass the catalog) | Medium | Done (2026-11-06) |
+| 10 | I-07 | Characterization tests for the Wave 1–2 fixes | Medium | Done (with each fix) |
+| 11 | B-13 | Hash invite tokens | Medium | Done (2026-11-06) |
+| 12 | B-30 | Shared focus trap + Esc on the notification panel | Medium | Done (2026-11-06) |
 
 ### Wave 3 — Nice to have (last)
 
@@ -1064,9 +1104,9 @@ Structural work. Do it when you next touch the file, not as a dedicated rewrite.
 
 | Order | ID | What | Effort |
 |---|---|---|---|
-| 1 | A-03 | `GroupDb` / grep test for `group_id` | High / Low for the grep |
+| 1 | A-03 | `GroupDb` / grep test for `group_id` | High / Low for the grep (grep test done 2026-11-06) |
 | 2 | A-05 / C-01 | Split `store.ts`, `plans.ts`, AdminView, locales when touching them | High |
-| 3 | A-06 | universe.json off the event loop; pluck in the statement cache key | High / Low |
+| 3 | A-06 | universe.json off the event loop; pluck in the statement cache key | High / Low (pluck done 2026-11-06) |
 | 4 | A-08 / A-10 / C-09 | Slimmer core exports; tools TS incrementally; typed tool i18n | High |
 | 5 | C-03 / C-04 / C-06 / C-08 | Typed rows, camelCase on the wire, split `format.ts`, shared validation | Medium |
 | 6 | C-05 / C-07 | Shared compact numbers and phalanx formula; one live-unit overlay | Medium |
@@ -1099,4 +1139,27 @@ Shipped on `main` as `0b8434d..045e495` (author Neffez). Typecheck and the full 
 
 **Partial:** A-01 / I-01 (path CI, not schemas or a typed client), A-02 (GET `/build-order` / `/buildings` still write), B-08 (hosts, not private ranges), B-17 (warnings, not catalog shorts), I-07 (tests for the series, not the leftover list).
 
-**Next:** remaining Wave 1 (B-12, B-14, B-15, B-20, B-27–B-29, C-10), then catalog/`withUnits` (A-04) and one `UniverseSettings` module (A-07) — the two refactors that prevent the next year of silent drift.
+### Second commit series — Wave 1 leftovers, 2026-11-05
+
+| # | SHA | What landed |
+|---|---|---|
+| 1 | `0dc7539` | Server: `access_requests` NOCASE (B-12), one unreleased claim per target (B-14), B-15 decided as intended |
+| 2 | `3795d0c` | Planner `aborted` (B-20), chunk reload (B-27), Overview/Alliance `useLoader` (B-28), flight `uo` hash (B-29), C-10a/b/c |
+
+### Third commit series — Wave 2, 2026-11-06
+
+| # | SHA | What landed |
+|---|---|---|
+| 1 | `c790280` | Unit names by the universe's catalog when parsing (A-04, rest of B-17) |
+| 2 | `323e0b7` | One `UniverseSettings` contract in `@pr0hub/core/universe`; tool hash keys, `uo` on hub links, admin phalanx factor (A-07, I-04, I-06) |
+| 3 | `3d418ae` | Former names match only for data of their time (B-06) |
+| 4 | `7f86c6a` | GET `/build-order`, `/buildings`, `/notifications` are reads; catch-up on paste (A-02) |
+| 5 | `75d7dfc` | Invite links stored as hash, shown once (B-13) |
+| 6 | `73cec6f` | Focus trap for dialogs, Esc on the bell (B-30) |
+| 7 | `0f06789` | Planner counts research steps ahead in all lists (B-18) |
+| 8 | `13ea365` | No implicit ship table in `@pr0hub/flight` (A-09) |
+| 9 | `687501c` | Push endpoint default port, newest-response guard for admin and loot settlement (B-08, B-28) |
+
+**Still open:** A-01 / C-02 (typed responses / generated web client; the path CI is done) and the rest of Wave 3 (A-03 grep test and the A-06 pluck fix are done).
+
+**Next:** Wave 3, when the files are touched anyway.

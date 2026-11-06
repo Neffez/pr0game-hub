@@ -68,18 +68,20 @@ router.beforeEach(async (to) => {
   if (!to.meta.public && !session.me?.user) return { path: '/login', query: { next: to.fullPath } };
 });
 
-// After a deploy an already open tab may reference asset chunks that no longer exist: reload once.
+// After a deploy an already open tab may reference asset chunks that no longer exist: reload once. The mark of the
+// reload must survive it, so without sessionStorage there is no reload at all (else a broken chunk loops forever).
 router.onError((err, to) => {
   const msg = String((err as Error)?.message ?? err);
   if (/dynamically imported module|Importing a module script failed|error loading dynamically/i.test(msg)) {
     const key = 'hub.chunkReload';
-    let last: string | null = null;
+    let reload = false;
     try {
-      last = sessionStorage.getItem(key);
+      reload = sessionStorage.getItem(key) !== to.fullPath;
       sessionStorage.setItem(key, to.fullPath);
+      reload &&= sessionStorage.getItem(key) === to.fullPath;
     } catch {
-      /* storage unavailable */
+      reload = false;
     }
-    if (last !== to.fullPath) location.assign(import.meta.env.BASE_URL.replace(/\/$/, '') + to.fullPath);
+    if (reload) location.assign(import.meta.env.BASE_URL.replace(/\/$/, '') + to.fullPath);
   }
 });

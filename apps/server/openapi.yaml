@@ -848,6 +848,43 @@ components:
         defaults: { type: object, description: The hub's units by id, additionalProperties: { $ref: '#/components/schemas/UnitDef' } }
         overrides: { $ref: '#/components/schemas/UnitOverrides' }
         units: { type: object, description: The universe's visible units by id, additionalProperties: { $ref: '#/components/schemas/UnitDef' } }
+    UniverseSettings:
+      type: object
+      description: >-
+        Settings of a universe (one contract with `@pr0hub/core/universe`): stored values over the defaults. Optional
+        settings without a value stand for their default (battle values: the tool's own value).
+      additionalProperties: true
+      properties:
+        galaxies: { type: integer, minimum: 1, default: 4 }
+        systems: { type: integer, minimum: 1, default: 400 }
+        positions: { type: integer, minimum: 1, default: 15 }
+        circularGalaxies: { type: boolean, default: true, description: Galaxy distance wraps around (game config uni_type 1) }
+        circularSystems: { type: boolean, default: true, description: System distance wraps around (game config galaxy_type 1) }
+        galaxyDistanceFactor: { type: number, minimum: 0, default: 20000 }
+        systemDistanceFactor: { type: number, minimum: 0, default: 95 }
+        systemDistance: { type: number, minimum: 0, default: 2700 }
+        planetDistanceFactor: { type: number, minimum: 0, default: 5 }
+        planetDistance: { type: number, minimum: 0, default: 1000 }
+        fleetSpeed: { type: integer, minimum: 1, default: 2500, description: Game config fleet_speed (2500 = 1×) }
+        buildingSpeed: { type: number, minimum: 0, default: 0, description: Game config building_speed (2500 = 1×), 0 unknown }
+        researchSpeed: { type: number, minimum: 0, default: 0, description: Game config research_speed (2500 = 1×), 0 unknown }
+        shipyardSpeed: { type: number, minimum: 0, default: 0, description: Game config shipyard_speed (2500 = 1×), 0 unknown }
+        resourceMultiplier: { type: number, minimum: 0, default: 0, description: Game config resource_multiplier (2500 = 1×), 0 unknown }
+        storageMultiplier: { type: integer, minimum: 1, default: 1, description: Game config storage_multiplier }
+        universityFactor: { type: number, minimum: 0, maximum: 100, default: 8, description: Game config factor_university (research time −% per TechnoDome level) }
+        timezone: { type: string, default: Europe/Berlin, description: 'IANA time zone of the game clock (`timezone_invalid` otherwise)' }
+        gameUrl: { type: string, default: '', description: 'Game base URL incl. universe path (`game_url_invalid` when not http(s))' }
+        pr0planUrl: { type: string, default: 'https://pr0sync.pages.dev/', description: 'pr0plan linked from the build order tab (`pr0plan_url_invalid` when not http(s))' }
+        inactiveDays: { type: [number, 'null'], minimum: 0, description: Days without login until the game flags a player inactive (default 7) }
+        phalanxRangeFactor: { type: [number, 'null'], minimum: 0, description: Game config phalanx_range_factor (default 1; phalanx coverage) }
+        missileRangeFactor: { type: [number, 'null'], minimum: 0, description: Game config missile_range_factor (default 1; passed on to the IPM calculator) }
+        noobLimit: { type: [number, 'null'], minimum: 0, description: Game config noob_protection_time (default 0 = unknown) }
+        noobFactor: { type: [number, 'null'], minimum: 0, description: Game config noob_protection_multi (default 5) }
+        noobInactives: { type: [boolean, 'null'], description: Game config noob_inactives (default false) }
+        fleetDebrisPercent: { type: [number, 'null'], minimum: 0, maximum: 100, description: Game config fleet_debris_percentage (default 40) }
+        defenseDebrisPercent: { type: [number, 'null'], minimum: 0, maximum: 100, description: Game config def_debris_percentage (default 0) }
+        bigShields: { type: [boolean, 'null'], description: Shield domes must fall before other units can be hit (default false) }
+        flightCalculatorUrl: { type: string, description: 'Legacy: flight calculator of the tools, their base is taken from it (prefer the server setting `TOOLS_URL`)' }
     Context:
       type: object
       description: Universe and alliance context for the selected group
@@ -871,6 +908,8 @@ components:
             (epoch seconds; read-only before it), null = active since its creation. `endedAt`: end of the universe
             (epoch seconds, may lie ahead; frozen and read-only from then on), null = no end. `units`: the universe's
             differences from the hub's ships, defense and missiles (`UnitOverrides`, set by a hub admin).
+          properties:
+            settings: { $ref: '#/components/schemas/UniverseSettings' }
         group:
           type: object
           properties:
@@ -1344,7 +1383,22 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: array, items: { type: object } }
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id: { type: integer }
+                    username: { type: string }
+                    role: { type: string }
+                    ingame_name: { type: [string, 'null'] }
+                    account: { type: boolean, description: The member has a password (false = placeholder) }
+                    invite_expires_at:
+                      type: [integer, 'null']
+                      description: >-
+                        Expiry of the member's open claim or recovery link, null without one (recovery links only for
+                        global admins). Links are stored as their hash: the link itself is only returned when created
+                        (`addGroupMember`, `createMemberInvite`).
     post:
       tags: [Admin]
       operationId: addGroupMember
@@ -1373,7 +1427,7 @@ paths:
                 required: [id]
                 properties:
                   id: { type: integer, description: User id of the member }
-                  token: { type: string, description: Claim invite token (only for a new placeholder) }
+                  token: { type: string, description: 'Claim invite token (only for a new placeholder); returned only here, the hub keeps its hash' }
         '400':
           description: Neither `name` nor `userId` (`name_missing`)
           content:
@@ -2220,8 +2274,9 @@ paths:
         cost and build time of the next level as a buildings page showed them (`shown`, valid while `next` is still the
         next level) and the resources of fleets landing on it (`arrivals`); plus research, the catch-up bonus, the
         building speed (derived from a buildings page or the universe setting `buildingSpeed`, null when unknown), the
-        storage factor, the caller's building alerts (alerts whose level is built or queued are removed) and the
-        buildings the caller hid (`hidden`, kept in the account).
+        storage factor, the caller's building alerts (alerts whose level is built or queued are left out; they are
+        deleted when a page is pasted, this read writes nothing) and the buildings the caller hid (`hidden`, kept in
+        the account).
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
@@ -2320,7 +2375,8 @@ paths:
       operationId: getBuildOrder
       description: >-
         The caller's build order in the group (imported from pr0plan, shown under build & research), null when none.
-        The next step of each planet notifies (`buildorder`, see `/api/{uni}/notifications`) once it can start.
+        Steps the synced pages show as done are returned checked off; this read writes nothing (they are stored as done
+        when a page is pasted). The next step of each planet notifies (`buildorder`, see `/api/{uni}/notifications`) once it can start.
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
@@ -3537,7 +3593,8 @@ paths:
       tags: [Social]
       operationId: getNotifications
       description: |
-        Current notifications, earliest first (none before the start or after the end of the universe): `attack` (hostile fleets heading for a member, from the members' shared
+        Current notifications, earliest first (none before the start or after the end of the universe; a read that
+        writes nothing, the push and Discord senders keep since when a storage is full): `attack` (hostile fleets heading for a member, from the members' shared
         fleet lists; `fleet`, `fleets`), `invite` (the caller's open invitations to a raid planner plan in planning;
         `plan`, `member` is who invited, `time` its target time, valid until the end of its day or hour by
         `plan.time_precision`), `comment` (comments of others of the last 48 hours in a thread the caller wrote in, after
@@ -3885,6 +3942,15 @@ paths:
       operationId: createUniverse
       security: [{ sessionCookie: [] }]
       description: Creates a universe; hub admins.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                settings:
+                  allOf: [{ $ref: '#/components/schemas/UniverseSettings' }]
+                  description: 'Changed settings; `null` resets an optional one. `setting_invalid` names the first invalid key.'
       responses:
         '200':
           content:
@@ -3898,6 +3964,15 @@ paths:
       description: Updates a universe's name, settings, deck or schedule; hub admins.
       parameters:
         - { name: slug, in: path, required: true, schema: { type: string } }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                settings:
+                  allOf: [{ $ref: '#/components/schemas/UniverseSettings' }]
+                  description: 'Changed settings; `null` resets an optional one. `setting_invalid` names the first invalid key.'
       responses:
         '200':
           content:
@@ -3982,7 +4057,10 @@ paths:
       tags: [Admin]
       operationId: createMemberInvite
       security: [{ sessionCookie: [] }]
-      description: Creates a claim invite for a placeholder member; alliance admins.
+      description: >-
+        Creates a claim invite for a placeholder member (alliance admins) or a password recovery link for a member with
+        an account (global admins); an unused earlier link of the member stops working. The token is returned only
+        here, the hub stores its hash.
       parameters:
         - { name: id, in: path, required: true, schema: { type: integer } }
         - { name: userId, in: path, required: true, schema: { type: integer } }
@@ -3990,7 +4068,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema: { type: object, properties: { token: { type: string } } }
   /api/admin/groups/{id}/players/merge:
     post:
       tags: [Admin]

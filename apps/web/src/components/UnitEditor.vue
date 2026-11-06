@@ -456,7 +456,7 @@ defineExpose({ save, dirty, changedCount });
 .badge.new { color: var(--pos); }
 .badge.hidden { color: var(--faint); }
 .warn { color: var(--warn); }
-@media (max-width: 799px) {
+@media (max-width: 800px) {
   .units-new { margin-left: 0; }
   .units-drive { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .units-drive b { grid-column: 1 / -1; }

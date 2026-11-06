@@ -48,7 +48,7 @@ export function toUniverse(row: UniverseRow): Universe {
 
 const registered = new WeakSet<UnitCatalog>();
 
-/** Unit catalog of a universe; its unit names become known to the parsers. */
+/** Unit catalog of a universe; its unit names become known to `techName` (parsers take the catalog itself). */
 export function catalogOf(u: Pick<Universe, 'units'>): UnitCatalog {
   const catalog = unitCatalog(u.units);
   if (!registered.has(catalog)) {
@@ -56,6 +56,15 @@ export function catalogOf(u: Pick<Universe, 'units'>): UnitCatalog {
     registered.add(catalog);
   }
   return catalog;
+}
+
+/** Unit catalog of the universe a group plays in (for code that has a group but no request context). */
+export function catalogOfGroup(db: DB, groupId: number): UnitCatalog {
+  const units = db.prepare('SELECT u.units FROM groups g JOIN universes u ON u.id = g.universe_id WHERE g.id = ?').pluck().get(groupId) as
+    | string
+    | null
+    | undefined;
+  return catalogOf({ units: units ? JSON.parse(units) : {} });
 }
 
 /** The time of a universe: now, or the end of an ended universe. */

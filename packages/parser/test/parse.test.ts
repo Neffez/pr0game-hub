@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { computeDeck, DEFAULT_DECK, estimateMarketRate, isPhalanxText, localToEpoch, nearestClock, parseFleetsText, parsePage, phalanxPosition, type DeckEvent } from '../src/index.js';
 import { isCombatSimulation, parseCombatReportText, parseRecycleReportsText } from '../src/combat.js';
 import { elementPoints, idByName, idByShortName, sectionPoints } from '../src/tech.js';
+import { unitCatalog } from '../src/units.js';
 
 const fixture = (name: string) => readFileSync(new URL(`./fixtures/${name}`, import.meta.url), 'utf8');
 
@@ -840,6 +841,15 @@ describe('fleet movements', () => {
     const res = parsePage({ text: '00:01:00 | 1m 0s Eine deiner Flotten (5 Unbekanntes Schiff) vom Planet A [1:1:1] erreicht den Planet B [1:1:2]. Mission: Transportieren' });
     expect(res.warnings).toContain('unknown_unit');
     expect((res.records[0] as { fleets: { ships: Record<number, number> }[] }).fleets[0].ships).toEqual({});
+  });
+
+  it('resolves the own ship names of a universe with the catalog passed to parsePage', () => {
+    const text = '00:01:00 | 1m 0s Eine deiner Flotten (5 Wächter) vom Planet A [1:1:1] erreicht den Planet B [1:1:2]. Mission: Transportieren';
+    const units = unitCatalog({ 233: { name: { de: 'Wächter', en: 'Warden' }, cost: [1, 1, 1] } });
+    const res = parsePage({ text, units });
+    expect(res.warnings).not.toContain('unknown_unit');
+    expect((res.records[0] as { fleets: { ships: Record<number, number> }[] }).fleets[0].ships).toEqual({ 233: 5 });
+    expect(parsePage({ text }).warnings).toContain('unknown_unit');
   });
 
   // A hostile ACS attack as copied by a member: the game writes attacks on the viewer without player name

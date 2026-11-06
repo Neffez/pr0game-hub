@@ -12,6 +12,7 @@ import { isCombatReportText, isCombatSimulation, parseCombatReportText } from '.
 import { isStatsText, parseStatsHtml, parseStatsText } from './parsers/stats.js';
 import type { HubRecord, PageType, ParseResult, StatsType } from './types.js';
 import { takeUnknownUnits } from './tech.js';
+import { withUnits, type UnitCatalog } from './units.js';
 import { detectLang, nodeToText, normalizeText } from './util.js';
 
 export * from './types.js';
@@ -19,6 +20,7 @@ export * from './util.js';
 export * from './tech.js';
 export * from './buildings.js';
 export * from './units.js';
+export * from './universe.js';
 export * from './deck.js';
 export { looksLikeUniverseJson, UNIVERSE_JSON_STATUS } from './parsers/universeJson.js';
 export { isPhalanxText, parseFleetsText, phalanxPosition } from './parsers/fleets.js';
@@ -36,6 +38,8 @@ export interface ParseInput {
   statsType?: StatsType | null;
   /** user input "g:s" for a galaxy view whose galaxy/system are not part of the copy */
   system?: string | null;
+  /** ships and defense of the universe the page is from (default: the active catalog) */
+  units?: UnitCatalog | null;
 }
 
 /** Page source pasted into the text field is treated as HTML. */
@@ -43,7 +47,12 @@ function looksLikeHtml(s: string): boolean {
   return /<(html|body|div|table|tr)[\s>]/i.test(s.slice(0, 20000));
 }
 
+/** Parses a pasted page; names and costs of units come from `input.units` (default: the active catalog). */
 export function parsePage(input: ParseInput): ParseResult {
+  return withUnits(input.units, () => parse(input));
+}
+
+function parse(input: ParseInput): ParseResult {
   let html = input.html?.trim() || null;
   let text = input.text?.trim() || null;
   if (text && looksLikeUniverseJson(text)) {

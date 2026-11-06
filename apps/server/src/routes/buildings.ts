@@ -4,7 +4,7 @@ import { HttpError } from '../auth.js';
 import type { GroupContext } from '../context.js';
 import { now, type DB } from '../db.js';
 import { events } from '../events.js';
-import { alertDone, alertsOf, buildingsState, planetElements, planetOf, type BuildingAlert, type BuildingsState } from '../repo/buildings.js';
+import { alertsOf, buildingsState, planetElements, planetOf, pruneAlerts } from '../repo/buildings.js';
 import { contextOf } from './util.js';
 
 interface AlertBody {
@@ -14,25 +14,6 @@ interface AlertBody {
   type?: string;
   id?: number;
   level?: number;
-}
-
-/** Removes the viewer's alerts whose level is built or queued (or whose planet is gone); returns the others. */
-export function pruneAlerts(db: DB, ctx: GroupContext, state: BuildingsState, t = ctx.now): BuildingAlert[] {
-  const done: number[] = [];
-  const open = alertsOf(db, ctx, ctx.user.id).filter((a) => {
-    const bp = planetOf(state, a);
-    if (bp && !alertDone(a, planetElements(state, bp, t).find((b) => b.id === a.element_id))) return true;
-    // without any synced page the alert stays (nothing to judge by)
-    if (!state.planets.length) return true;
-    done.push(a.id);
-    return false;
-  });
-  if (done.length) {
-    db.prepare('DELETE FROM building_alerts WHERE id IN (SELECT value FROM json_each(?))').run(JSON.stringify(done));
-    // the bell of the viewer's other tabs and devices drops them too
-    events.publish(ctx.groupId, { type: 'data', tables: ['building_alerts'], userId: ctx.user.id });
-  }
-  return open;
 }
 
 /** Buildings the user hid on the buildings page (all planets and universes). */
@@ -50,7 +31,8 @@ export function buildingsRoutes(app: FastifyInstance, db: DB) {
     const ctx = ctxOf(req);
     const state = buildingsState(db, ctx, ctx.user.id);
     const { units: _, ...rest } = state;
-    return { ...rest, alerts: pruneAlerts(db, ctx, state), hidden: hiddenBuildings(db, ctx.user.id) };
+    // a read: finished alerts are left out here and removed when a page is pasted
+    return { ...rest, alerts: pruneAlerts(db, ctx, state, ctx.now, false), hidden: hiddenBuildings(db, ctx.user.id) };
   });
 
   /**

@@ -19,9 +19,10 @@ export const MISSILE = 503;
 const round = (r: Res): Res => ({ m: Math.round(r.m), k: Math.round(r.k), d: Math.round(r.d) });
 
 /**
- * Loot per participant of one battle, as the game shares it (`calculateSteal`): by the free cargo space of the
- * surviving ships (spy probes left out, resources already carried taken off). Fleets with a known `loot` keep it, the
- * rest of the battle's loot goes to the others.
+ * Loot per participant of one battle, an estimate: each resource of the battle's loot is split in proportion to the
+ * free cargo space of the surviving ships (spy probes left out, resources already carried taken off). This is not the
+ * game's `calculateSteal` (metal first, then crystal, then deuterium, see `@pr0hub/battle`'s `steal()`); fleets
+ * with a known `loot` from their return message keep it, and only the rest of the battle's loot is split.
  */
 export function lootShares(battle: Battle): Map<string, Res> {
   const out = new Map<string, Res>();

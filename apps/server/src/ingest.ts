@@ -1,13 +1,14 @@
-import { localToEpoch, parsePage, type HubRecord, type ParseInput, type ParseResult, type SpyReportRecord } from '@pr0hub/core';
+import { localToEpoch, parsePage, withUnits, type HubRecord, type ParseInput, type ParseResult, type SpyReportRecord, type UnitCatalog } from '@pr0hub/core';
 import { gunzipSync, gzipSync } from 'node:zlib';
 import { HttpError } from './auth.js';
 import { config } from './config.js';
-import { isRunning, type GroupContext } from './context.js';
+import { catalogOf, catalogOfGroup, isRunning, type GroupContext } from './context.js';
 import { now, type DB } from './db.js';
 import { events } from './events.js';
 import { foreignRecords } from './plausibility.js';
 import { galaxyMark } from './repo/activity.js';
 import { messageShare } from './repo/messages.js';
+import { catchUpBuildState } from './repo/buildOrders.js';
 import { catchUpPlans } from './repo/plans.js';
 import { Players } from './repo/players.js';
 import { shareSyncsEnabled } from './repo/presence.js';
@@ -87,17 +88,23 @@ export function settlementsFor(db: DB, target: IngestTarget, records: HubRecord[
 
 export type PreviewItem = { kind: HubRecord['kind'] } & Record<string, string | number | boolean | null>;
 
+/** Pages that change a member's buildings, research, queues or fleets: build order and alerts are caught up after them. */
+const BUILD_PAGES = new Set<ParseResult['pageType']>(['empire', 'overview', 'buildings', 'research', 'fleets', 'messages']);
+
 /** Pages another member may paste for you: reports they sent, not your empire, overview or fleets. */
 export const FOR_USER_PAGES = new Set<ParseResult['pageType']>(['messages', 'combatReport']);
 
 export type IngestLog = { info: (obj: object, msg: string) => void; warn: (obj: object, msg: string) => void };
 
-export function ingest(
-  db: DB,
-  target: IngestTarget,
-  input: ParseInput & { source: 'paste' | 'upload' },
-  opts: { dryRun?: boolean; ctx?: GroupContext; log?: IngestLog } = {},
-): IngestSummary {
+type IngestOptions = { dryRun?: boolean; ctx?: GroupContext; log?: IngestLog };
+
+/** Parses and stores a page with the unit catalog of the group's universe (names, costs, points). */
+export function ingest(db: DB, target: IngestTarget, input: ParseInput & { source: 'paste' | 'upload' }, opts: IngestOptions = {}): IngestSummary {
+  const units = opts.ctx?.groupId === target.groupId ? catalogOf(opts.ctx.universe) : catalogOfGroup(db, target.groupId);
+  return withUnits(units, () => ingestWith(db, target, { ...input, units }, opts));
+}
+
+function ingestWith(db: DB, target: IngestTarget, input: ParseInput & { source: 'paste' | 'upload' }, opts: IngestOptions): IngestSummary {
   const parsed = parsePage(input);
   if (foreignRecords(db, target, parsed.records)) {
     throw new HttpError(400, 'wrong_universe', 'The pasted page does not match the data of this universe');
@@ -157,10 +164,14 @@ export function ingest(
       JSON.stringify({ counts: summary.counts, warnings: summary.warnings, about: aboutRecords(parsed.records) }),
     );
   })();
-  if (opts.ctx && (parsed.pageType === 'overview' || parsed.pageType === 'fleets') && isRunning(opts.ctx.universe)) {
+  if (opts.ctx && isRunning(opts.ctx.universe)) {
+    // as the member the data counts for
     const syncCtx = opts.ctx.user.id === target.userId ? opts.ctx : { ...opts.ctx, user: { ...opts.ctx.user, id: target.userId } };
-    const synced = catchUpPlans(db, syncCtx, 32);
-    if (synced.length) events.publish(target.groupId, { type: 'data', tables: ['attack_plans', 'target_claims'], userId: target.userId });
+    if (parsed.pageType === 'overview' || parsed.pageType === 'fleets') {
+      const synced = catchUpPlans(db, syncCtx, 32);
+      if (synced.length) events.publish(target.groupId, { type: 'data', tables: ['attack_plans', 'target_claims'], userId: target.userId });
+    }
+    if (BUILD_PAGES.has(parsed.pageType)) catchUpBuildState(db, syncCtx);
   }
   const systems = parsed.records.flatMap((r) => (r.kind === 'galaxy' ? [`${r.g}:${r.s}`] : []));
   // without the member's consent the others' views still reload, but no hint names who synced
@@ -196,12 +207,13 @@ export interface RawIngest {
   created_at: number;
 }
 
-/** Parses a stored sync again. */
-export function parseRaw(row: RawIngest): ParseResult {
+/** Parses a stored sync again, with the unit catalog of its universe. */
+export function parseRaw(row: RawIngest, units: UnitCatalog): ParseResult {
   return parsePage({
     html: row.html_gz ? gunzipSync(row.html_gz).toString('utf8') : null,
     text: row.text_gz ? gunzipSync(row.text_gz).toString('utf8') : null,
     url: row.url,
+    units,
   });
 }
 
@@ -209,7 +221,12 @@ export function parseRaw(row: RawIngest): ParseResult {
 export function reparse(db: DB, rawId: number, timezone: string): IngestSummary {
   const row = db.prepare('SELECT * FROM raw_ingests WHERE id = ?').get(rawId) as RawIngest | undefined;
   if (!row) throw new Error('raw ingest not found');
-  const parsed = parseRaw(row);
+  const units = catalogOfGroup(db, row.group_id);
+  return withUnits(units, () => reparseWith(db, row, units, timezone));
+}
+
+function reparseWith(db: DB, row: RawIngest, units: UnitCatalog, timezone: string): IngestSummary {
+  const parsed = parseRaw(row, units);
   const summary: IngestSummary = {
     pageType: parsed.pageType, source: parsed.source, lang: parsed.lang, warnings: parsed.warnings, counts: {}, preview: [],
   };
@@ -248,7 +265,8 @@ export function backfillActivity(db: DB, groupId: number, timezone: string): num
   const before = count();
   const summary: IngestSummary = { pageType: 'unknown', source: 'text', lang: 'de', warnings: [], counts: {}, preview: [] };
   const store = new Store(db, { groupId, userId: 0, timezone }, summary);
-  db.transaction(() => {
+  const units = catalogOfGroup(db, groupId);
+  withUnits(units, () => db.transaction(() => {
     const scores = db
       .prepare(
         // status at that time from the status log; unknown counts as active
@@ -299,18 +317,19 @@ export function backfillActivity(db: DB, groupId: number, timezone: string): num
     const byIngameId = db.prepare('SELECT id FROM players WHERE group_id = ? AND ingame_id = ?').pluck();
     const raws = db.prepare("SELECT * FROM raw_ingests WHERE group_id = ? AND page_type = 'galaxy' ORDER BY created_at").all(groupId) as RawIngest[];
     for (const raw of raws) {
-      for (const r of parseRaw(raw).records) {
+      for (const r of parseRaw(raw, units).records) {
         if (r.kind !== 'galaxy') continue;
         for (const row of r.rows) {
           if (row.activity == null) continue;
+          const seenAt = store.galaxySeenAt(r, raw.created_at);
           const playerId =
             (row.playerId != null ? (byIngameId.get(groupId, row.playerId) as number | undefined) : undefined) ??
-            (row.playerName ? players.byName(row.playerName) : null);
-          if (playerId) galaxyMark(db, groupId, playerId, { g: r.g, s: r.s, p: row.position }, row.activity, store.galaxySeenAt(r, raw.created_at));
+            (row.playerName ? players.byName(row.playerName, seenAt) : null);
+          if (playerId) galaxyMark(db, groupId, playerId, { g: r.g, s: r.s, p: row.position }, row.activity, seenAt);
         }
       }
     }
-  })();
+  })());
   return count() - before;
 }
 

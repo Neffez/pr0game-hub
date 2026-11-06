@@ -13,7 +13,7 @@ import { uniApi } from '../api';
 import { past, upcoming, useClock } from '../clock';
 import FleetList, { FLEET_HISTORY, type Fleet } from '../components/FleetList.vue';
 import Hint from '../components/Hint.vue';
-import { useMobile, useSort, useUni } from '../composables';
+import { useLoader, useMobile, useSort, useUni } from '../composables';
 import { tables, useLiveReload } from '../live';
 import { abbr, ago, dateTime, fmt, name, scaleColor } from '../format';
 
@@ -56,19 +56,12 @@ const route = useRoute();
 const page = computed(() => route.meta.page as Page);
 const { uni } = useUni();
 const mobile = useMobile();
-const members = ref<Member[]>([]);
-const error = ref('');
+const { data, error, load } = useLoader(() => uniApi(uni.value, '/alliance') as Promise<Member[]>);
+const members = computed(() => data.value ?? []);
 const fleetTab = ref<'movements' | 'ships' | 'defense'>('movements');
 /** fleet page, tab with the fleet movements instead of the empire tables */
 const movements = computed(() => page.value === 'fleet' && fleetTab.value === 'movements');
 
-async function load() {
-  try {
-    members.value = await uniApi(uni.value, '/alliance');
-  } catch (e) {
-    error.value = (e as Error).message;
-  }
-}
 const now = useClock();
 onMounted(load);
 useLiveReload(load, tables('empire', 'fleets', 'spy_reports', 'group_members'));
