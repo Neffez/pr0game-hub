@@ -23,7 +23,10 @@ const PUSH_HOSTS = [
   /^[a-z0-9-]+\.notify\.windows\.com$/i,
 ];
 
-/** HTTPS push endpoint on a known host; userinfo and raw IPs are refused (SSRF). */
+/**
+ * HTTPS push endpoint on a known host and its default port; userinfo, other ports and raw IPs are refused (SSRF).
+ * The hosts are fixed public names, so no address range check is needed beyond this list.
+ */
 export function isPushEndpoint(endpoint: string): boolean {
   if (!/^https:\/\/\S+$/.test(endpoint) || endpoint.length > 1000) return false;
   let url: URL;
@@ -32,7 +35,7 @@ export function isPushEndpoint(endpoint: string): boolean {
   } catch {
     return false;
   }
-  return url.protocol === 'https:' && !url.username && !url.password && PUSH_HOSTS.some((re) => re.test(url.hostname));
+  return url.protocol === 'https:' && !url.username && !url.password && !url.port && PUSH_HOSTS.some((re) => re.test(url.hostname));
 }
 
 const endpointOf = (v: unknown) => {

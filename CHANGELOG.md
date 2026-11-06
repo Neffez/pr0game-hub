@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-06
 
+- Push subscriptions on a known push host must use its default port. The admin page (alliance switch) and the loot
+  settlement (live reload) apply only the newest response, like the overview and alliance pages.
+
 - `@pr0hub/flight` no longer falls back to its built-in ship table: `shipSpeed`, `slowestShip`, `fleetConsumption`,
   `retimeCandidates` and `fleetCapacity` require the drives/capacity of the universe's catalog, so a missing
   catalog fails the typecheck instead of silently using the defaults. Server retime helpers require it too.

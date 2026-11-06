@@ -195,9 +195,12 @@ async function loadAll() {
   }
 }
 
+/** only the answer for the newest group selection is applied (switching alliances quickly, like `useLoader`) */
+let groupLoad = 0;
 async function loadGroup() {
   if (!groupId.value) return;
-  [members.value, ingests.value, discord.value, fleetAttacks.value, candidates.value] = await Promise.all([
+  const id = ++groupLoad;
+  const res = await Promise.all([
     api(`/admin/groups/${groupId.value}/members`),
     // sync history is technical administration: global admins only
     isAdmin.value ? api(`/admin/groups/${groupId.value}/ingests`) : [],
@@ -205,6 +208,8 @@ async function loadGroup() {
     isAdmin.value ? api<FleetAttackRow[]>(`/admin/groups/${groupId.value}/fleet-attacks`) : [],
     api<Candidate[]>(`/admin/groups/${groupId.value}/candidates`),
   ]);
+  if (id !== groupLoad) return;
+  [members.value, ingests.value, discord.value, fleetAttacks.value, candidates.value] = res;
   if (!candidates.value.some((c) => c.id === assignUserId.value)) assignUserId.value = null;
   discordWebhook.value = '';
   undo.value = null;

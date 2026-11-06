@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Admin und Beuteabrechnung zeigen beim schnellen Wechseln oder bei Live-Updates immer den neuesten Stand.',
+        en: 'Admin and loot settlement always show the latest data when switching quickly or on live updates.',
+      },
+      {
+        kind: 'fix',
         de: 'Bauplan: Braucht ein Schritt eine Forschung, die ein anderer Planet über mehrere Stufen erforscht, wartet er darauf, statt als nicht möglich zu gelten.',
         en: 'Build order: a step that needs research another planet brings up over several levels waits for it instead of counting as impossible.',
       },
