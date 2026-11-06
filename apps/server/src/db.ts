@@ -1,4 +1,5 @@
 import Database from 'better-sqlite3';
+import { createHash } from 'node:crypto';
 import { mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -49,7 +50,17 @@ function migrate(db: DB) {
   const applied = new Set(db.prepare('SELECT name FROM schema_migrations').pluck().all() as string[]);
   const files = readdirSync(MIGRATIONS_DIR).filter((f) => f.endsWith('.sql')).sort();
   const pending = files.filter((f) => !applied.has(f));
-  if (!pending.length) return;
+  if (pending.length) runSqlMigrations(db, pending);
+  for (const [name, run] of Object.entries(DATA_MIGRATIONS)) {
+    if (applied.has(name)) continue;
+    db.transaction(() => {
+      run(db);
+      db.prepare('INSERT INTO schema_migrations (name, applied_at) VALUES (?, unixepoch())').run(name);
+    })();
+  }
+}
+
+function runSqlMigrations(db: DB, pending: string[]) {
   // Foreign keys off while migrating so tables can be rebuilt (SQLite's way to change constraints)
   // without cascading deletes; checked again before each commit. Cannot change inside a transaction.
   db.pragma('foreign_keys = OFF');
@@ -67,5 +78,15 @@ function migrate(db: DB) {
     db.pragma('foreign_keys = ON');
   }
 }
+
+/** Data changes SQL can't do (run once after the SQL migrations, recorded like them). */
+const DATA_MIGRATIONS: Record<string, (db: DB) => void> = {
+  // invite links are stored as SHA-256 like sessions and API tokens; open links keep working
+  'js:hash_invite_tokens': (db) => {
+    const rows = db.prepare('SELECT rowid, token FROM invites').all() as { rowid: number; token: string }[];
+    const set = db.prepare('UPDATE invites SET token = ? WHERE rowid = ?');
+    for (const r of rows) set.run(createHash('sha256').update(r.token).digest('hex'), r.rowid);
+  },
+};
 
 export const now = () => Math.floor(Date.now() / 1000);

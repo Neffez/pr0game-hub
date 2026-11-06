@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-06
 
+- Invite and recovery links are stored as their SHA-256 hash like sessions and API tokens (a one-time data
+  migration hashes open links, they keep working). The link is returned only when created; the admin member list
+  shows `invite_expires_at` instead of the token and offers a new link. Migrations can now run one-time JS data steps.
+
 - GET `/build-order`, `/buildings` and `/notifications` are pure reads (read-only tokens and links no longer change
   anything): build order steps seen done and finished building alerts are stored when a page that changes them is
   pasted (empire, overview, buildings, research, fleets, messages); since when a storage is full is kept by the push

@@ -608,6 +608,8 @@ export function runInWorker(...): Promise<SimSummary> {
 
 **Fix:** Store `token_hash` like sessions; look up by hash. Return the secret only once at creation.
 
+**Status:** Done (2026-11-06). `invites.token` holds the SHA-256 (`tokenHash`); a one-time data migration (`js:hash_invite_tokens` in `db.ts`) hashed existing rows. The token is returned only by `addGroupMember` / `createMemberInvite`; the member list has `invite_expires_at`, the admin UI shows a fresh link for the session and "open until" otherwise.
+
 ---
 
 ### B-14 — Active claims have no uniqueness constraint
@@ -1083,7 +1085,7 @@ These are the contract and correctness issues. They take more than an afternoon,
 | 8 | B-18 | Planner cross-planet multi-level research | Medium | Open |
 | 9 | A-09 | Kill flight’s implicit `SHIPS` default (pass the catalog) | Medium | Open |
 | 10 | I-07 | Characterization tests for the Wave 1–2 fixes | Medium | Partial (landed with the first series; leftover items still open) |
-| 11 | B-13 | Hash invite tokens | Medium | Open |
+| 11 | B-13 | Hash invite tokens | Medium | Done (2026-11-06) |
 | 12 | B-30 | Shared focus trap + Esc on the notification panel | Medium | Open |
 
 ### Wave 3 — Nice to have (last)

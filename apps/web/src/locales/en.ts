@@ -1521,6 +1521,8 @@ const en: typeof de = {
     memberInvite: 'Claim link',
     passwordInvite: 'Password link',
     renewInvite: 'Create new link',
+    inviteOpen: 'Link open until {date}',
+    inviteOpenHint: 'The link is only shown when it is created. Create a new one to copy it again (the old one stops working).',
     copyInvite: 'Copy link',
     forMember: 'for {name}',
     removePlaceholderConfirm: 'Remove {name} and delete their planned data from the hub?',

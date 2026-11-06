@@ -128,6 +128,8 @@ export const loginSucceeded = (key: string) => void failures.delete(key);
 
 export const randomToken = (bytes = 32) => randomBytes(bytes).toString('base64url');
 const sha256 = (s: string) => createHash('sha256').update(s).digest('hex');
+/** Stored form of a secret token (sessions, API tokens, invite links): SHA-256, hex. */
+export const tokenHash = sha256;
 
 /** Flags of the session cookie; logout must send the same or some browsers keep the cookie. */
 function sessionCookie(extra: { maxAge?: number } = {}) {

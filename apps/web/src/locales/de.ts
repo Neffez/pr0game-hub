@@ -1523,6 +1523,8 @@ const de = {
     memberInvite: 'Claim-Link',
     passwordInvite: 'Passwort-Link',
     renewInvite: 'Link neu erzeugen',
+    inviteOpen: 'Link offen bis {date}',
+    inviteOpenHint: 'Der Link wird nur beim Erzeugen angezeigt. Neu erzeugen, um ihn erneut zu kopieren (der alte gilt dann nicht mehr).',
     copyInvite: 'Link kopieren',
     forMember: 'für {name}',
     removePlaceholderConfirm: '{name} entfernen und geplante Daten im Hub löschen?',

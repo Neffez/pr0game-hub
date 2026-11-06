@@ -1383,7 +1383,22 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: array, items: { type: object } }
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id: { type: integer }
+                    username: { type: string }
+                    role: { type: string }
+                    ingame_name: { type: [string, 'null'] }
+                    account: { type: boolean, description: The member has a password (false = placeholder) }
+                    invite_expires_at:
+                      type: [integer, 'null']
+                      description: >-
+                        Expiry of the member's open claim or recovery link, null without one (recovery links only for
+                        global admins). Links are stored as their hash: the link itself is only returned when created
+                        (`addGroupMember`, `createMemberInvite`).
     post:
       tags: [Admin]
       operationId: addGroupMember
@@ -1412,7 +1427,7 @@ paths:
                 required: [id]
                 properties:
                   id: { type: integer, description: User id of the member }
-                  token: { type: string, description: Claim invite token (only for a new placeholder) }
+                  token: { type: string, description: 'Claim invite token (only for a new placeholder); returned only here, the hub keeps its hash' }
         '400':
           description: Neither `name` nor `userId` (`name_missing`)
           content:
@@ -4042,7 +4057,10 @@ paths:
       tags: [Admin]
       operationId: createMemberInvite
       security: [{ sessionCookie: [] }]
-      description: Creates a claim invite for a placeholder member; alliance admins.
+      description: >-
+        Creates a claim invite for a placeholder member (alliance admins) or a password recovery link for a member with
+        an account (global admins); an unused earlier link of the member stops working. The token is returned only
+        here, the hub stores its hash.
       parameters:
         - { name: id, in: path, required: true, schema: { type: integer } }
         - { name: userId, in: path, required: true, schema: { type: integer } }
@@ -4050,7 +4068,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema: { type: object, properties: { token: { type: string } } }
   /api/admin/groups/{id}/players/merge:
     post:
       tags: [Admin]

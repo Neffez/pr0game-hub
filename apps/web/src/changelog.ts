@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Admin: Claim- und Passwort-Links werden nur noch beim Erzeugen angezeigt und sicher gespeichert. Für einen offenen Link steht „offen bis …“, ein neuer Link lässt sich jederzeit erzeugen.',
+        en: 'Admin: claim and password links are only shown when created and stored securely. An open link shows "open until …"; a new link can be created at any time.',
+      },
+      {
+        kind: 'fix',
         de: 'Übernimmt ein neuer Spieler den alten Namen eines anderen, landen seine Berichte und Punkte nicht mehr beim früheren Namensträger.',
         en: 'When a new player takes over another player\'s old name, their reports and points no longer end up with the former owner of the name.',
       },

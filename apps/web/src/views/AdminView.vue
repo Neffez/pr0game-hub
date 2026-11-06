@@ -337,7 +337,8 @@ const renameUser = (m: any) => run(async () => {
 }, 'account.usernameChanged');
 const addMember = () =>
   run(async () => {
-    await api(`/admin/groups/${groupId.value}/members`, { body: { name: newMemberName.value } });
+    const res = await api<{ id: number; token: string }>(`/admin/groups/${groupId.value}/members`, { body: { name: newMemberName.value } });
+    freshInvites.value = { ...freshInvites.value, [res.id]: res.token };
     newMemberName.value = '';
     await loadGroup();
   }, 'deck.saved');
@@ -350,9 +351,12 @@ const assignMember = () =>
     await loadGroup();
   }, 'deck.saved');
 
+/** Links created in this session by member id: the server keeps only their hash, so it shows them only once. */
+const freshInvites = ref<Record<number, string>>({});
 const memberInvite = (m: any) =>
   run(async () => {
     const res = await api<{ token: string }>(`/admin/groups/${groupId.value}/members/${m.id}/invite`, { body: {} });
+    freshInvites.value = { ...freshInvites.value, [m.id]: res.token };
     copy(inviteUrl(res.token));
     await loadGroup();
   });
@@ -738,8 +742,14 @@ const doMerge = () => run(async () => {
               <td class="small">{{ dateTime(m.joined_at) }}</td>
               <td class="small">{{ m.account ? dateTime(m.last_login_at) : '–' }}</td>
               <td class="invite-col">
-                <div v-if="m.invite" class="invite-row">
-                  <CopyField :value="inviteUrl(m.invite)" @copied="msg = t('admin.linkCopied')" />
+                <div v-if="m.invite_expires_at && freshInvites[m.id]" class="invite-row">
+                  <CopyField :value="inviteUrl(freshInvites[m.id])" @copied="msg = t('admin.linkCopied')" />
+                  <button type="button" class="small invite-renew" :title="t('admin.renewInvite')" :aria-label="t('admin.renewInvite')" @click="memberInvite(m)">
+                    <Icon name="sync" />
+                  </button>
+                </div>
+                <div v-else-if="m.invite_expires_at" class="invite-row">
+                  <span class="small muted" :title="t('admin.inviteOpenHint')">{{ t('admin.inviteOpen', { date: dateTime(m.invite_expires_at) }) }}</span>
                   <button type="button" class="small invite-renew" :title="t('admin.renewInvite')" :aria-label="t('admin.renewInvite')" @click="memberInvite(m)">
                     <Icon name="sync" />
                   </button>

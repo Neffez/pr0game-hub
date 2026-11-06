@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { checkUsername, HttpError, randomToken, requireAdmin, requireUser, revokeAccessIfOrphaned } from '../auth.js';
+import { checkUsername, HttpError, randomToken, requireAdmin, requireUser, revokeAccessIfOrphaned, tokenHash } from '../auth.js';
 import { config, UNIVERSE_DEFAULTS } from '../config.js';
 import { settingsError } from '@pr0hub/core/universe';
 import { catalogOf, catalogOfGroup, toUniverse } from '../context.js';
@@ -44,14 +44,17 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
     return hash === '';
   };
 
-  /** Open claim invite for a placeholder member of the group (replaces any previous unused one). */
+  /**
+   * Open claim invite for a placeholder member of the group (replaces any previous unused one). Only its hash is
+   * stored: the link is returned here once.
+   */
   const createClaimInvite = (groupId: number, targetUserId: number, createdBy: number) => {
     const role =
       (db.prepare('SELECT role FROM group_members WHERE group_id = ? AND user_id = ?').pluck().get(groupId, targetUserId) as string | undefined) ?? 'member';
     db.prepare('DELETE FROM invites WHERE user_id = ? AND used_at IS NULL').run(targetUserId);
     const token = randomToken(24);
     db.prepare('INSERT INTO invites (token, group_id, role, created_by, expires_at, user_id) VALUES (?, ?, ?, ?, ?, ?)').run(
-      token,
+      tokenHash(token),
       groupId,
       role,
       createdBy,
@@ -316,17 +319,18 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
         `SELECT u.id, u.username, m.role, m.ingame_name, m.joined_at, u.last_login_at, u.is_admin AS global_admin,
            (u.password_hash <> '') AS account,
            (SELECT COUNT(*) FROM group_members o WHERE o.user_id = u.id AND o.group_id <> m.group_id) AS other_groups,
-           (SELECT token FROM invites WHERE user_id = u.id AND used_at IS NULL AND expires_at > ? LIMIT 1) AS invite
+           (SELECT MAX(expires_at) FROM invites WHERE user_id = u.id AND used_at IS NULL AND expires_at > ?) AS invite_expires_at
          FROM group_members m JOIN users u ON u.id = m.user_id WHERE m.group_id = ? ORDER BY u.username`,
       )
       .all(t, groupId)
-      // a member's invite for an existing account is a password recovery link: only global admins see it
+      // a member's invite for an existing account is a password recovery link: only global admins learn of it; the
+      // link itself is only shown when created
       .map((m: any) => ({
         ...m,
         account: !!m.account,
         global_admin: !!m.global_admin,
         owner: m.id === owner(),
-        invite: m.account && !user.isAdmin ? null : m.invite,
+        invite_expires_at: m.account && !user.isAdmin ? null : m.invite_expires_at,
       }));
   });
 
