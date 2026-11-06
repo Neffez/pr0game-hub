@@ -4,6 +4,8 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-06
 
+- Code review records the third series (Wave 2) and what is still open.
+
 - Push subscriptions on a known push host must use its default port. The admin page (alliance switch) and the loot
   settlement (live reload) apply only the newest response, like the overview and alliance pages.
 

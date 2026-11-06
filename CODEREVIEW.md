@@ -4,7 +4,7 @@
 **Scope:** Whole monorepo — `packages/parser` (`@pr0hub/core`), `packages/flight`, `packages/loot`, `packages/battle`, `packages/planner`, `apps/server`, `apps/web`, `apps/tools`
 **Method:** Four passes (architecture, clean code, bugs, improvements), then a verification pass against the current source. Findings are evidence-based. Theoretical items are marked as such. Line numbers refer to this tree at review time.
 
-**Progress:** The suggested first commit series is **done** and on `main` (`0b8434d..045e495`, 2026-11-04). Typecheck and the full test suite passed before push. Evidence and line numbers below are the review-time snapshot; a **Status** line on a finding says what landed afterwards. The second series (Wave 1 leftovers, `0dc7539..`) landed on 2026-11-05. Remaining work starts at Wave 2 catalog / settings.
+**Progress:** The suggested first commit series is **done** and on `main` (`0b8434d..045e495`, 2026-11-04). Typecheck and the full test suite passed before push. Evidence and line numbers below are the review-time snapshot; a **Status** line on a finding says what landed afterwards. The second series (Wave 1 leftovers) landed on 2026-11-05, the third (Wave 2) on 2026-11-06. Remaining: C-10d, A-01 / C-02 typed client, Wave 3.
 
 ### How to read a finding
 
@@ -118,7 +118,7 @@ None of this requires a rewrite. The recommended order at the end does the remai
 
 **Fix:** Pass `UnitCatalog` into `parsePage` / `idByName` / `idByShortName`. Register shorts from the catalog. On the server, prefer an explicit `catalog` argument over `withUnits`. Keep `setActiveUnits` for the single-universe web/tools UIs.
 
-**Status:** Mostly done (A-04 commit, 2026-11-06). `idByName` / `idByShortName` take a catalog (default active) and look at its units first; `parsePage` takes `units`; every server parse path (ingest, reparse, undo, backfill, crawler, phalanx, plan sim, settlement from report) runs with the universe's catalog. `registerUnitNames` no longer feeds the parsers. Still open: `withUnits` is sync-only with nothing guarding an `await` inside.
+**Status:** Mostly done (`c790280`). `idByName` / `idByShortName` take a catalog (default active) and look at its units first; `parsePage` takes `units`; every server parse path (ingest, reparse, undo, backfill, crawler, phalanx, plan sim, settlement from report) runs with the universe's catalog. `registerUnitNames` no longer feeds the parsers. Still open: `withUnits` is sync-only with nothing guarding an `await` inside.
 
 ---
 
@@ -530,7 +530,7 @@ export function runInWorker(...): Promise<SimSummary> {
 
 **Fix:** Allow-list known push hosts (FCM, Mozilla, Apple, Windows). Block link-local / private / metadata ranges even on HTTPS.
 
-**Status:** Partial (`812e450`). Subscriptions must use a known push host (FCM, Mozilla, Apple, WNS). Private/link-local/metadata ranges are not blocked beyond that host list.
+**Status:** Done (`812e450`, `687501c`). Subscriptions must use a known push host (FCM, Mozilla, Apple, WNS) on its default port, without userinfo. The hosts are fixed public names, so an address range check adds nothing.
 
 ---
 
@@ -678,7 +678,7 @@ Confirmed behavior; may be a product decision. The test name is wrong.
 
 **Fix:** Same `unknown` list as unit pages; push e.g. `unknown_unit` on `parsePage`. Register catalog shorts (A-04).
 
-**Status:** Done (`c925738`, A-04 commit). Unknown names become `unknown_unit`; a universe's added units resolve by their catalog short after the game's shorts.
+**Status:** Done (`c925738`, `c790280`). Unknown names become `unknown_unit`; a universe's added units resolve by their catalog short after the game's shorts.
 
 ---
 
@@ -856,7 +856,7 @@ Concrete miss: planet B list Impulse 1→2→3→4, planet A next step Cruiser (
 
 **Fix:** Switch those views to `useLoader`.
 
-**Status:** Done (`3795d0c`) for Overview and Alliance. Admin and loot settlement still roll their own `load()`.
+**Status:** Done (`3795d0c` for Overview and Alliance; `687501c` for Admin `loadGroup` and the loot settlement with a newest-request token).
 
 ---
 
@@ -1019,7 +1019,7 @@ Missing at review time (would lock the fixes). After the first series:
 13. **Open.** Flight `uo`-only hash does not count as a flight share.
 14. **Done.** OpenAPI `paths` vs Fastify `/api` routes (including `/api/auth/login` and `/api/{uni}/ingest`).
 
-**Status:** Partial. The first-series items above have tests; leftover characterization (alias attach, catalog shorts, planner research, `uo`-only hash) is still open.
+**Status:** Done. The first-series items have tests; the leftovers landed with their fixes: alias attach (`test/players.test.ts`), catalog shorts (`units.test.ts`), planner research (`sim.test.ts`), `uo`-only hash (`flight-calculator.test.ts`).
 
 ---
 
@@ -1054,7 +1054,7 @@ Cheap, local, high confidence. Most are a few hours and a test.
 | 4 | B-11 | Dummy scrypt for empty/invalid hashes | Low | Done `1e1c280` |
 | 5 | B-07 | Settle the battle-worker Promise on `exit` | Low | Done `812e450` |
 | 6 | B-05 | Remap `attack_plans.player_id` (and other `REFERENCES players`) on merge | Low | Done `c925738` |
-| 7 | B-08 | Allow-list push endpoints | Low | Partial `812e450` (hosts; not private ranges) |
+| 7 | B-08 | Allow-list push endpoints | Low | Done `812e450`, `687501c` (default port) |
 | 8 | B-21 | Allowlist login `next` | Low | Done `99da344` |
 | 9 | B-23 | `api()` JSON parse → `ApiError` | Low | Done `99da344` |
 | 10 | B-24 | Player note try/catch | Low | Done `99da344` |
@@ -1064,7 +1064,7 @@ Cheap, local, high confidence. Most are a few hours and a test.
 | 14 | B-28 | Overview/Alliance on `useLoader` | Low | Done `3795d0c` |
 | 15 | B-29 | Flight `applyHash` only on known keys | Low | Done `3795d0c` |
 | 16 | B-16 | Fleet HTML fallback when overview is null | Low | Done `c925738` |
-| 17 | B-17 | `unknown_unit` warnings | Low | Partial `c925738` (warnings; catalog shorts still A-04) |
+| 17 | B-17 | `unknown_unit` warnings | Low | Done `c925738`, `c790280` |
 | 18 | B-19 | ORec defaults 6/6/6; 8/8/9 on U7 | Low | Done `c925738` |
 | 19 | B-20 | Planner event-cap → `horizon` / `aborted` | Low | Done `3795d0c` |
 | 20 | B-12 | `access_requests` `COLLATE NOCASE` | Low | Done `0dc7539` |
@@ -1083,14 +1083,14 @@ These are the contract and correctness issues. They take more than an afternoon,
 |---|---|---|---|---|
 | 1 | B-01 / A-02 | Stop writes on GET `/plans` (and decide for build-order / buildings). This also fixes the token story and the CSRF-via-GET case. | Medium | Done (`8437595`, 2026-11-06 for build-order / buildings / notifications) |
 | 2 | B-04 | Lock down `forUser` to message-like pages | Medium | Done `19fb73e` |
-| 3 | A-04 / B-17 | Pass the universe catalog into parse/name/short lookup; register shorts | Medium | Done (2026-11-06; `withUnits` await guard open) |
+| 3 | A-04 / B-17 | Pass the universe catalog into parse/name/short lookup; register shorts | Medium | Done `c790280` (`withUnits` await guard open) |
 | 4 | B-06 | Stop attaching name-only pastes via aliases | Medium | Done (2026-11-06; aliases by time) |
 | 5 | B-22 | Central 401 → clear session, close live, login | Medium | Done `99da344` |
 | 6 | A-07 / I-04 / I-06 | One `UniverseSettings` + hash mapping; admin `phalanxRangeFactor`; tool `uo` on hub links | Medium | Done (2026-11-06) |
 | 7 | A-01 / I-01 / C-02 | OpenAPI path check in CI; type the web client on the token-facing GETs | Medium | Partial `eb8ef15` (path CI done; typed client open) |
 | 8 | B-18 | Planner cross-planet multi-level research | Medium | Done (2026-11-06) |
 | 9 | A-09 | Kill flight’s implicit `SHIPS` default (pass the catalog) | Medium | Done (2026-11-06) |
-| 10 | I-07 | Characterization tests for the Wave 1–2 fixes | Medium | Partial (landed with the first series; leftover items still open) |
+| 10 | I-07 | Characterization tests for the Wave 1–2 fixes | Medium | Done (with each fix) |
 | 11 | B-13 | Hash invite tokens | Medium | Done (2026-11-06) |
 | 12 | B-30 | Shared focus trap + Esc on the notification panel | Medium | Done (2026-11-06) |
 
@@ -1142,6 +1142,20 @@ Shipped on `main` as `0b8434d..045e495` (author Neffez). Typecheck and the full 
 | 1 | `0dc7539` | Server: `access_requests` NOCASE (B-12), one unreleased claim per target (B-14), B-15 decided as intended |
 | 2 | `3795d0c` | Planner `aborted` (B-20), chunk reload (B-27), Overview/Alliance `useLoader` (B-28), flight `uo` hash (B-29), C-10a/b/c |
 
-**Still open from Wave 1:** C-10d (needs pr0plan's export keys for 222/227/231/232), B-08 private ranges, B-28 for Admin / loot settlement.
+### Third commit series — Wave 2, 2026-11-06
 
-**Next:** catalog/`withUnits` (A-04) and one `UniverseSettings` module (A-07) — the two refactors that prevent the next year of silent drift; then B-06 (name-only alias attach).
+| # | SHA | What landed |
+|---|---|---|
+| 1 | `c790280` | Unit names by the universe's catalog when parsing (A-04, rest of B-17) |
+| 2 | `323e0b7` | One `UniverseSettings` contract in `@pr0hub/core/universe`; tool hash keys, `uo` on hub links, admin phalanx factor (A-07, I-04, I-06) |
+| 3 | `3d418ae` | Former names match only for data of their time (B-06) |
+| 4 | `7f86c6a` | GET `/build-order`, `/buildings`, `/notifications` are reads; catch-up on paste (A-02) |
+| 5 | `75d7dfc` | Invite links stored as hash, shown once (B-13) |
+| 6 | `73cec6f` | Focus trap for dialogs, Esc on the bell (B-30) |
+| 7 | `0f06789` | Planner counts research steps ahead in all lists (B-18) |
+| 8 | `13ea365` | No implicit ship table in `@pr0hub/flight` (A-09) |
+| 9 | `687501c` | Push endpoint default port, newest-response guard for admin and loot settlement (B-08, B-28) |
+
+**Still open:** C-10d (pr0plan's export keys for 222/227/231/232), A-01 / C-02 (typed responses / generated web client; the path CI is done), the `withUnits` await guard (A-04), and Wave 3.
+
+**Next:** Wave 3, when the files are touched anyway.
