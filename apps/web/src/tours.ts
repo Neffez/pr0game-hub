@@ -38,6 +38,7 @@ export const TOURS = {
       { key: 'filter', el: 'overview-filter', side: 'bottom' },
       { key: 'list', el: 'overview-list', side: 'top' },
       { key: 'actions', el: 'overview-actions', side: 'left' },
+      { key: 'globalSearch', el: 'global-search', side: 'right' },
       { key: 'outro' },
     ],
   },

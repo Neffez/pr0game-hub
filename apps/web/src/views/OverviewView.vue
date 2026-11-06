@@ -10,8 +10,9 @@ import SortMark from '../components/SortMark.vue';
 import { RESOURCES } from '@pr0hub/core/tech';
 import PlayerLink from '../components/PlayerLink.vue';
 import Hint from '../components/Hint.vue';
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRoute, useRouter } from 'vue-router';
 import { uniApi } from '../api';
 import PlanetActions from '../components/PlanetActions.vue';
 import StatusBadges from '../components/StatusBadges.vue';
@@ -153,6 +154,20 @@ const filter = useStored('overview.filter', { ...FILTER_DEFAULTS });
   delete old.onlyInactive;
   filter.value = { ...FILTER_DEFAULTS, ...old, inactive };
 }
+// an alliance from the global search (also while the overview is open): its players, the other filters as they are
+const route = useRoute();
+const router = useRouter();
+watch(
+  () => route.query.ally,
+  (q) => {
+    const ally = typeof q === 'string' ? q.trim() : '';
+    if (!ally) return;
+    filter.value = { ...filter.value, ally, text: '' };
+    mode.value = 'players';
+    void router.replace({ query: { ...route.query, ally: undefined } });
+  },
+  { immediate: true },
+);
 const players = ref<Player[]>([]);
 const planets = ref<PlanetRow[]>([]);
 const coverage = ref<{ type: number; stat_time: number; rows: number; min_rank: number; max_rank: number }[]>([]);

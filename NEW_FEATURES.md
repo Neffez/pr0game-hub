@@ -11,6 +11,7 @@ source (`pr0game`: pages, missions, achievements, advanced stats).
 | Item | Status | Date | Where |
 |---|---|---|---|
 | E-1 What should I paste next? | Done | 2026-11-06 | sync page, overview, quick sync sheet |
+| F-1 Global search (Ctrl+K) | Done | 2026-11-06 | every page of a universe (sidebar, mobile top bar) |
 
 Each finished item carries a **Status** block below its description: what was built and how.
 
@@ -308,6 +309,23 @@ parser sample. Today the admin sees it in the ingest log, the member only sees t
 
 One search field for players (also former names), alliances, coordinates (`3:120:8` jumps to the spy history or
 the galaxy) and hub pages. On mobile behind the search icon of the header.
+
+**Status: done (2026-11-06).** How it was built:
+
+- **Server:** `GET /api/:uni/search?q=` (`apps/server/src/routes/players.ts`, `globalSearch` in `openapi.yaml`).
+  Coordinates (`1:120:8`, with or without brackets) return only the planet there with name, moon and owner (or just
+  the position when the hub does not know it). Other terms (2 characters or more) return up to 8 players by name or
+  former name (`alias` names the former name that matched) and up to 5 alliances by name or tag; exact matches
+  first, then names starting with the term, then the most recently seen. Scoped to the group; tests in
+  `apps/server/test/search.test.ts`.
+- **Web:** `GlobalSearch.vue`, a dialog opened by `Ctrl+K`/`⌘K`, `/` outside text fields, the search field in the
+  sidebar or the search icon in the mobile top bar. Results are grouped (coordinates, players, alliances, pages),
+  arrow keys and Enter pick one, Esc closes. Players open in the player dialog above the current page, alliances
+  open the overview with the alliance filter (new query parameter `?ally=`, also while the overview is open),
+  coordinates lead to the spy history of the planet or moon, the galaxy system or the owner. Pages are matched
+  client-side against the menu labels in the current language.
+- **Tours:** new step `overview.globalSearch` pointing at the search field. **Texts:** `search.*` in `de.ts`/`en.ts`.
+- **Left for later:** search in comments and notes, recent searches.
 
 ### F-2 Personal statistics
 **Value:** Medium · **Effort:** M · **Builds on:** statistics history, empire syncs, raid and expedition statistics

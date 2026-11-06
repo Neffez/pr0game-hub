@@ -2092,6 +2092,64 @@ paths:
               schema:
                 type: array
                 items: { type: object }
+  /api/{uni}/search:
+    get:
+      tags: [Universe]
+      operationId: globalSearch
+      description: >-
+        Global search of the hub (Ctrl+K). For coordinates (`1:120:8`, with or without brackets) only `planet` is
+        filled: the known planet there with its owner, or just the position when the hub knows nothing about it.
+        Otherwise (at least 2 characters) up to 8 `players` by name or former name (`alias`: the former name that
+        matched) and up to 5 `alliances` by name or tag, best matches first (exact, then starting with the term).
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 100 }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [players, alliances, planet]
+                properties:
+                  players:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: integer }
+                        name: { type: string }
+                        status: { type: array, items: { type: string } }
+                        ally_tag: { type: [string, 'null'] }
+                        ally_name: { type: [string, 'null'] }
+                        alias: { type: [string, 'null'], description: Former name that matched (null when the current name matched) }
+                  alliances:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: integer }
+                        name: { type: string }
+                        tag: { type: [string, 'null'] }
+                        players: { type: integer, description: Known players of the alliance }
+                  planet:
+                    type: [object, 'null']
+                    description: Only for coordinates; owner fields are missing when the position is unknown
+                    properties:
+                      g: { type: integer }
+                      s: { type: integer }
+                      p: { type: integer }
+                      name: { type: [string, 'null'] }
+                      has_moon: { type: boolean }
+                      moon_name: { type: [string, 'null'] }
+                      destroyed: { type: boolean }
+                      player_id: { type: [integer, 'null'] }
+                      player_name: { type: [string, 'null'] }
+                      ally_tag: { type: [string, 'null'] }
   /api/{uni}/players/{id}:
     get:
       tags: [Universe]

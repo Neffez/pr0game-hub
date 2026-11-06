@@ -126,6 +126,51 @@ export function playersRoutes(app: FastifyInstance, db: DB) {
       .all(ctx.groupId, q, q);
   });
 
+  /**
+   * Global search (Ctrl+K): players by name or former name, alliances by name or tag, and for coordinates the
+   * planet there with its owner. Best matches first: exact, then starting with the term, then containing it.
+   */
+  app.get<{ Params: { uni: string }; Querystring: Q }>('/api/:uni/search', async (req) => {
+    const ctx = ctxOf(req);
+    const term = (req.query.q ?? '').trim().slice(0, 100);
+    const out = { players: [] as unknown[], alliances: [] as unknown[], planet: null as unknown };
+    const pos = term.match(/^\[?(\d{1,2})\s*:\s*(\d{1,3})\s*:\s*(\d{1,2})\]?$/);
+    if (pos) {
+      const row = db
+        .prepare(
+          `SELECT pl.g, pl.s, pl.p, pl.name, pl.has_moon, pl.moon_name, pl.destroyed, p.id AS player_id, p.name AS player_name, a.tag AS ally_tag
+           FROM planets pl LEFT JOIN players p ON p.id = pl.player_id LEFT JOIN alliances a ON a.id = p.alliance_id
+           WHERE pl.group_id = ? AND pl.g = ? AND pl.s = ? AND pl.p = ?`,
+        )
+        .get(ctx.groupId, Number(pos[1]), Number(pos[2]), Number(pos[3])) as Record<string, unknown> | undefined;
+      out.planet = row ? { ...row, has_moon: !!row.has_moon, destroyed: !!row.destroyed } : { g: Number(pos[1]), s: Number(pos[2]), p: Number(pos[3]) };
+      return out;
+    }
+    if (term.length < 2) return out;
+    const like = likeTerm(term);
+    const starts = `${term.replace(/[\\%_]/g, '\\$&')}%`;
+    out.players = (
+      db
+        .prepare(
+          `SELECT p.id, p.name, p.status, a.tag AS ally_tag, a.name AS ally_name,
+             CASE WHEN p.name LIKE ? ESCAPE '\\' THEN NULL
+               ELSE (SELECT x.name FROM player_aliases x WHERE x.player_id = p.id AND x.name LIKE ? ESCAPE '\\' ORDER BY x.seen_until DESC LIMIT 1) END AS alias
+           FROM players p LEFT JOIN alliances a ON a.id = p.alliance_id
+           WHERE p.group_id = ? AND (p.name LIKE ? ESCAPE '\\' OR p.id IN (SELECT player_id FROM player_aliases WHERE name LIKE ? ESCAPE '\\'))
+           ORDER BY p.name = ? COLLATE NOCASE DESC, p.name LIKE ? ESCAPE '\\' DESC, p.last_seen DESC, p.name COLLATE NOCASE LIMIT 8`,
+        )
+        .all(like, like, ctx.groupId, like, like, term, starts) as { status: string }[]
+    ).map((r) => ({ ...r, status: JSON.parse(r.status || '[]') }));
+    out.alliances = db
+      .prepare(
+        `SELECT a.id, a.name, a.tag, (SELECT COUNT(*) FROM players p WHERE p.alliance_id = a.id) AS players
+         FROM alliances a WHERE a.group_id = ? AND (a.name LIKE ? ESCAPE '\\' OR a.tag LIKE ? ESCAPE '\\')
+         ORDER BY a.tag = ? COLLATE NOCASE DESC, a.name = ? COLLATE NOCASE DESC, players DESC LIMIT 5`,
+      )
+      .all(ctx.groupId, like, like, term, term);
+    return out;
+  });
+
   app.get<{ Params: { uni: string; id: string } }>('/api/:uni/players/:id', async (req) => {
     const ctx = ctxOf(req);
     const id = Number(req.params.id);

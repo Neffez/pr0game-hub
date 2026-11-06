@@ -34,6 +34,8 @@ External analysis tool for [pr0game](https://codeberg.org/pr0game/pr0game) based
 - **Comments**: the alliance discusses a player or a planet/moon in a thread (player details, spy history), with a
   💬 count next to the planet
 - **Galaxy browser** with phalanx coverage and a freshness heat map
+- **Global search** (`Ctrl+K`/`⌘K`, `/` or the search field in the menu): players (also former names), alliances,
+  coordinates (spy history, galaxy, owner) and the hub's pages, with keyboard navigation
 - **Spy history** with a diff per coordinate, **hostile spying**, **activity log**
 - **In-game messages**: synced player messages as conversations per partner (chat view) or single, sortable and
   filterable by sender and recipient; private unless the member shares them (account setting or per message)

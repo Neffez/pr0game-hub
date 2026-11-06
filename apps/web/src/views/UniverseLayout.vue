@@ -7,6 +7,7 @@ import NotificationBell from '../components/NotificationBell.vue';
 import PresenceList from '../components/PresenceList.vue';
 import PlayerDialog from '../components/PlayerDialog.vue';
 import SyncSheet from '../components/SyncSheet.vue';
+import GlobalSearch from '../components/GlobalSearch.vue';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
@@ -182,14 +183,37 @@ const pageLabel = (page: string | null) => {
 
 /** Mobile: sidebar as flyout drawer ("More" in the tab bar), sync as bottom sheet. */
 const navOpen = ref(false);
+/** Shortcut of the search as the platform writes it. */
+const shortcut = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent) ? '⌘K' : 'Ctrl K';
 const syncOpen = ref(false);
 useScrollLock(navOpen);
 watch(() => route.path, () => {
   navOpen.value = false;
   syncOpen.value = false;
 });
+/** Global search: Ctrl+K / Cmd+K anywhere, "/" outside of text fields. */
+const searchOpen = ref(false);
+const searchPages = computed(() => [
+  ...links.filter((l): l is { to: string; label: string; icon: string } => !!l.to && (running.value || l.to !== 'paste')),
+  { to: 'account', label: 'user', icon: 'user' },
+  { to: 'changelog', label: 'changelog', icon: 'changelog' },
+  ...(session.me?.user?.isAdmin || ctx.value?.group.role === 'admin' ? [{ to: 'admin', label: 'admin', icon: 'admin' }] : []),
+]);
+function openSearch() {
+  navOpen.value = false;
+  searchOpen.value = true;
+}
+const typing = (el: EventTarget | null) => el instanceof HTMLElement && (el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName));
 function onKey(e: KeyboardEvent) {
   if (navOpen.value && e.key === 'Escape') navOpen.value = false;
+  if (!ctx.value || searchOpen.value) return;
+  if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'k') {
+    e.preventDefault();
+    openSearch();
+  } else if (e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey && !typing(e.target)) {
+    e.preventDefault();
+    openSearch();
+  }
 }
 onMounted(() => window.addEventListener('keydown', onKey));
 onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
@@ -229,6 +253,7 @@ const tabs = [
     <header class="topbar">
       <a class="brand" :href="toolsUrl" :title="t('nav.toolsLink')">pr0game <span>Hub</span></a>
       <span class="topbar-title">{{ pageTitle }}</span>
+      <button v-if="ctx" class="icon-btn topbar-search" data-tour="global-search" :title="t('search.open')" :aria-label="t('search.open')" @click="openSearch"><Icon name="search" /></button>
       <NotificationBell v-if="ctx" />
     </header>
     <div v-if="navOpen" class="nav-backdrop" @click="navOpen = false" />
@@ -251,6 +276,9 @@ const tabs = [
           <option v-for="g in groups" :key="g.id" :value="g.id">{{ g.name }}</option>
         </select>
       </div>
+      <button v-if="ctx" type="button" class="sidebar-search" data-tour="global-search" :title="t('search.open')" @click="openSearch">
+        <Icon name="search" :size="15" /><span>{{ t('search.button') }}</span><kbd>{{ shortcut }}</kbd>
+      </button>
       <nav>
         <template v-for="l in links.filter((x) => running || x.to !== 'paste')" :key="l.to ?? l.section">
           <div v-if="l.section" class="section">{{ t(`nav.${l.section}`) }}</div>
@@ -284,6 +312,7 @@ const tabs = [
         <RouterView v-else :key="reloadKey" />
         <PlayerDialog />
         <SyncSheet v-if="running" v-model="syncOpen" />
+        <GlobalSearch v-model="searchOpen" :pages="searchPages" />
         <LiveToasts />
       </template>
       <Loading v-else :lines="5" />

@@ -4,6 +4,13 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-06
 
+- Global search (backlog F-1): `Ctrl+K`/`⌘K`, `/` or the search field in the sidebar (mobile: search icon in the
+  top bar) opens one search for players (also former names), alliances, coordinates and the hub's pages, with
+  arrow keys and Enter.
+  - Server: `GET /api/:uni/search` (players and alliances by best match, the planet and owner for coordinates).
+  - Web: players open in the player dialog, alliances as the overview's alliance filter (`?ally=`), coordinates in
+    the spy history (planet or moon) or the galaxy. Tour step in the overview tour.
+
 - "What should I paste next?" (backlog E-1): a personal list of missing or outdated pages with what each one
   improves and where to find it in the game, most important first.
   - Server: `GET /api/:uni/sync-hints` checks the member's empire, overview/fleet page, galaxy systems ±2 around
