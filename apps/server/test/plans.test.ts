@@ -278,7 +278,8 @@ describe('attack plans', () => {
     // the universe gets its real fleet speed: the target time moves with the return home (offset by hand kept)
     const row = db.prepare('SELECT * FROM attack_plan_enemy WHERE plan_id = ?').get(created.id) as any;
     const fast = { ...UNIVERSE_DEFAULTS, fleetSpeed: 5000 };
-    const shift = retimeHome(fast, row)! - retimeHome(UNIVERSE_DEFAULTS, row)!;
+    const { DEFAULT_UNITS } = await import('@pr0hub/core/units');
+    const shift = retimeHome(fast, row, DEFAULT_UNITS.drives)! - retimeHome(UNIVERSE_DEFAULTS, row, DEFAULT_UNITS.drives)!;
     expect(shift).toBeLessThan(-60);
     const setSpeed = (fleetSpeed: number) =>
       app.inject({ method: 'PUT', url: '/hub/api/admin/universes/u8', headers: admin, payload: { settings: { fleetSpeed } } });

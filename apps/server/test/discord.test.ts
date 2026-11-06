@@ -1,4 +1,4 @@
-import { distance, flightDuration, slowestShip, drivesFromResearch } from '@pr0hub/flight';
+import { SHIPS, distance, flightDuration, slowestShip, drivesFromResearch } from '@pr0hub/flight';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 process.env.WEB_DIR = '/nonexistent';
@@ -121,7 +121,7 @@ describe('discord delivery', () => {
 
   it('posts new plans and the launch reminders of the members to the channel', async () => {
     const ships = { 202: 3 };
-    const duration = flightDuration(UNIVERSE_DEFAULTS, distance(UNIVERSE_DEFAULTS, [1, 10, 3], [1, 20, 8]), slowestShip(ships, drivesFromResearch({}))!.speed, 100);
+    const duration = flightDuration(UNIVERSE_DEFAULTS, distance(UNIVERSE_DEFAULTS, [1, 10, 3], [1, 20, 8]), slowestShip(ships, drivesFromResearch({}), SHIPS)!.speed, 100);
     const launch = t + 1800;
     const plan = Number(
       db.prepare("INSERT INTO attack_plans (group_id, user_id, g, s, p, planet_type, target_time, time_precision, created_at) VALUES (?, ?, 1, 20, 8, 'planet', ?, 'exact', ?)")

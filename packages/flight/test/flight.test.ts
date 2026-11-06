@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  CAPACITY,
+  SHIPS,
   fleetCapacity,
   delayedFlightTimes,
   distance,
@@ -58,19 +60,19 @@ describe('distance', () => {
 
 describe('ship speed', () => {
   it('switches drives by research level', () => {
-    expect(shipSpeed(210, noDrives)).toBe(100000000);
-    expect(shipSpeed(202, noDrives)).toBe(5000);
-    expect(shipSpeed(202, { combustion: 0, impulse: 5, hyperspace: 0 })).toBe(20000);
-    expect(shipSpeed(209, { combustion: 10, impulse: 16, hyperspace: 14 })).toBe(4000);
-    expect(shipSpeed(209, { combustion: 10, impulse: 17, hyperspace: 14 })).toBe(4000 * (1 + 0.2 * 17));
-    expect(shipSpeed(209, { combustion: 10, impulse: 17, hyperspace: 15 })).toBeCloseTo(6000 * (1 + 0.3 * 15));
-    expect(shipSpeed(222, { combustion: 10, impulse: 10, hyperspace: 10 })).toBe(7500 * 4);
-    expect(shipSpeed(999, noDrives)).toBe(0);
+    expect(shipSpeed(210, noDrives, SHIPS)).toBe(100000000);
+    expect(shipSpeed(202, noDrives, SHIPS)).toBe(5000);
+    expect(shipSpeed(202, { combustion: 0, impulse: 5, hyperspace: 0 }, SHIPS)).toBe(20000);
+    expect(shipSpeed(209, { combustion: 10, impulse: 16, hyperspace: 14 }, SHIPS)).toBe(4000);
+    expect(shipSpeed(209, { combustion: 10, impulse: 17, hyperspace: 14 }, SHIPS)).toBe(4000 * (1 + 0.2 * 17));
+    expect(shipSpeed(209, { combustion: 10, impulse: 17, hyperspace: 15 }, SHIPS)).toBeCloseTo(6000 * (1 + 0.3 * 15));
+    expect(shipSpeed(222, { combustion: 10, impulse: 10, hyperspace: 10 }, SHIPS)).toBe(7500 * 4);
+    expect(shipSpeed(999, noDrives, SHIPS)).toBe(0);
   });
 
   it('finds the slowest ship of a fleet', () => {
-    expect(slowestShip({ 202: 5, 203: 1, 210: 0 }, noDrives)).toEqual({ id: '202', speed: 5000 });
-    expect(slowestShip({ 210: 0 }, noDrives)).toBeNull();
+    expect(slowestShip({ 202: 5, 203: 1, 210: 0 }, noDrives, SHIPS)).toEqual({ id: '202', speed: 5000 });
+    expect(slowestShip({ 210: 0 }, noDrives, SHIPS)).toBeNull();
   });
 
   it('reads drive levels from research', () => {
@@ -88,7 +90,7 @@ describe('duration and consumption', () => {
 
   it('computes deuterium like getFleetConsumption', () => {
     const d = flightDuration(uni, 2795, 5000);
-    expect(fleetConsumption(uni, { 202: 10 }, d, 2795, noDrives)).toBe(Math.round((10 * 10 * 2795) / 35000 * 4) + 1);
+    expect(fleetConsumption(uni, { 202: 10 }, d, 2795, noDrives, 1, SHIPS)).toBe(Math.round((10 * 10 * 2795) / 35000 * 4) + 1);
   });
 });
 
@@ -144,8 +146,8 @@ describe('recall', () => {
 
 describe('cargo capacity', () => {
   it('sums the capacity, without spy probes on raids', () => {
-    expect(fleetCapacity({ 202: 2, 203: 1, 210: 10 })).toBe(35050);
-    expect(fleetCapacity({ 202: 2, 203: 1, 210: 10 }, true)).toBe(35000);
-    expect(fleetCapacity({ 227: 1, 999: 5 })).toBe(35000);
+    expect(fleetCapacity({ 202: 2, 203: 1, 210: 10 }, false, CAPACITY)).toBe(35050);
+    expect(fleetCapacity({ 202: 2, 203: 1, 210: 10 }, true, CAPACITY)).toBe(35000);
+    expect(fleetCapacity({ 227: 1, 999: 5 }, false, CAPACITY)).toBe(35000);
   });
 });

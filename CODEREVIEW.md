@@ -196,6 +196,8 @@ None of this requires a rewrite. The recommended order at the end does the remai
 
 **Fix:** No implicit default catalog in flight, or a single injected `ShipCatalog`. Do not keep a second handwritten table as the implicit universe.
 
+**Status:** Done (2026-11-06). The catalog parameters of `shipSpeed`, `slowestShip`, `fleetConsumption`, `retimeCandidates` and `fleetCapacity` have no default; `retimeHome` / `followUniverse` require it. `SHIPS` / `CAPACITY` stay as the source of the catalog defaults (and TrashSim's columns), no longer as an implicit universe.
+
 ---
 
 ### A-10 — Tools and hub share math, not UI or settings
@@ -1087,7 +1089,7 @@ These are the contract and correctness issues. They take more than an afternoon,
 | 6 | A-07 / I-04 / I-06 | One `UniverseSettings` + hash mapping; admin `phalanxRangeFactor`; tool `uo` on hub links | Medium | Done (2026-11-06) |
 | 7 | A-01 / I-01 / C-02 | OpenAPI path check in CI; type the web client on the token-facing GETs | Medium | Partial `eb8ef15` (path CI done; typed client open) |
 | 8 | B-18 | Planner cross-planet multi-level research | Medium | Done (2026-11-06) |
-| 9 | A-09 | Kill flight’s implicit `SHIPS` default (pass the catalog) | Medium | Open |
+| 9 | A-09 | Kill flight’s implicit `SHIPS` default (pass the catalog) | Medium | Done (2026-11-06) |
 | 10 | I-07 | Characterization tests for the Wave 1–2 fixes | Medium | Partial (landed with the first series; leftover items still open) |
 | 11 | B-13 | Hash invite tokens | Medium | Done (2026-11-06) |
 | 12 | B-30 | Shared focus trap + Esc on the notification panel | Medium | Done (2026-11-06) |

@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-06
 
+- `@pr0hub/flight` no longer falls back to its built-in ship table: `shipSpeed`, `slowestShip`, `fleetConsumption`,
+  `retimeCandidates` and `fleetCapacity` require the drives/capacity of the universe's catalog, so a missing
+  catalog fails the typecheck instead of silently using the defaults. Server retime helpers require it too.
+
 - Build order: a step whose research requirement another planet's list brings up over several research steps waits
   for them instead of being marked impossible (the planner counts the open research steps ahead in all other
   lists, not only their next step).

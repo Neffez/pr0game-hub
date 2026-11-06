@@ -65,7 +65,7 @@ export const CAPACITY: Record<number, number> = {
 };
 
 /** Cargo capacity of a fleet. `raid`: without spy probes, as the game counts it for loot. */
-export function fleetCapacity(fleet: Record<number | string, number>, raid = false, capacity: Record<number, number> = CAPACITY): number {
+export function fleetCapacity(fleet: Record<number | string, number>, raid = false, capacity: Record<number, number>): number {
   let total = 0;
   for (const [id, amount] of Object.entries(fleet)) {
     if (raid && id === '210') continue;

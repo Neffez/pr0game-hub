@@ -50,7 +50,7 @@ export interface RetimeCandidate {
 }
 
 /** One candidate per speed step (100 % first); empty when no ship of the fleet is known. */
-export function retimeCandidates(u: Universe, fleet: EnemyFleet, catalog: ShipCatalog = SHIPS): RetimeCandidate[] {
+export function retimeCandidates(u: Universe, fleet: EnemyFleet, catalog: ShipCatalog): RetimeCandidate[] {
   const slowest = slowestShip(fleet.ships, fleet.drives, catalog);
   if (!slowest) return [];
   const dist = distance(u, fleet.from, fleet.to);

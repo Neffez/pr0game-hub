@@ -1,4 +1,4 @@
-import { distance, flightDuration, slowestShip, drivesFromResearch } from '@pr0hub/flight';
+import { SHIPS, distance, flightDuration, slowestShip, drivesFromResearch } from '@pr0hub/flight';
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 process.env.WEB_DIR = '/nonexistent';
@@ -169,7 +169,7 @@ describe('push delivery', () => {
 
   it('reminds of the own launch from the chosen lead time on, on the bell an hour ahead', async () => {
     const ships = { 202: 3 };
-    const duration = flightDuration(UNIVERSE_DEFAULTS, distance(UNIVERSE_DEFAULTS, [1, 10, 3], [1, 20, 8]), slowestShip(ships, drivesFromResearch({}))!.speed, 100);
+    const duration = flightDuration(UNIVERSE_DEFAULTS, distance(UNIVERSE_DEFAULTS, [1, 10, 3], [1, 20, 8]), slowestShip(ships, drivesFromResearch({}), SHIPS)!.speed, 100);
     const launch = t + 1800;
     const target = launch + Math.floor(duration);
     const plan = Number(
