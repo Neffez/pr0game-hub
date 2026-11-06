@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-06
 
+- Code review: C-10d closed as not needed (pr0plan does not support the Heavy Cruiser, Optimized Recycler,
+  Behemoth and Void Titan for now).
+
 - Code review records the third series (Wave 2) and what is still open.
 
 - Push subscriptions on a known push host must use its default port. The admin page (alliance switch) and the loot

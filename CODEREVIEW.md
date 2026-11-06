@@ -4,7 +4,7 @@
 **Scope:** Whole monorepo — `packages/parser` (`@pr0hub/core`), `packages/flight`, `packages/loot`, `packages/battle`, `packages/planner`, `apps/server`, `apps/web`, `apps/tools`
 **Method:** Four passes (architecture, clean code, bugs, improvements), then a verification pass against the current source. Findings are evidence-based. Theoretical items are marked as such. Line numbers refer to this tree at review time.
 
-**Progress:** The suggested first commit series is **done** and on `main` (`0b8434d..045e495`, 2026-11-04). Typecheck and the full test suite passed before push. Evidence and line numbers below are the review-time snapshot; a **Status** line on a finding says what landed afterwards. The second series (Wave 1 leftovers) landed on 2026-11-05, the third (Wave 2) on 2026-11-06. Remaining: C-10d, A-01 / C-02 typed client, Wave 3.
+**Progress:** The suggested first commit series is **done** and on `main` (`0b8434d..045e495`, 2026-11-04). Typecheck and the full test suite passed before push. Evidence and line numbers below are the review-time snapshot; a **Status** line on a finding says what landed afterwards. The second series (Wave 1 leftovers) landed on 2026-11-05, the third (Wave 2) on 2026-11-06. Remaining: A-01 / C-02 typed client, Wave 3.
 
 ### How to read a finding
 
@@ -367,7 +367,7 @@ This split is **intentional** for a no-login static origin. The cost is every se
 | C-10f | `packages/parser` two short-name tables | Catalog `unit.short` (`HXer`) vs `tech.json` `deShort` (`Schwerer Kreuzer`); parsers use tech.json only | Medium | Medium | Low |
 | C-10g | Folder `parser` / package `@pr0hub/core` | See A-08 | Low | Low | Low |
 
-**Status:** C-10a/b/c done (`3795d0c`). C-10d open: pr0plan's export keys for 222/227/231/232 need checking against pr0plan.
+**Status:** C-10a/b/c done (`3795d0c`). C-10d closed as not needed: pr0plan does not support 222 / 227 / 231 / 232 for now; should it export them, the import lists their keys as skipped.
 
 ---
 
@@ -1069,7 +1069,7 @@ Cheap, local, high confidence. Most are a few hours and a test.
 | 19 | B-20 | Planner event-cap → `horizon` / `aborted` | Low | Done `3795d0c` |
 | 20 | B-12 | `access_requests` `COLLATE NOCASE` | Low | Done `0dc7539` |
 | 21 | C-10a / C-10b | Admin “Slug” i18n; 800 px breakpoint | Low | Done `3795d0c` |
-| 22 | C-10c / C-10d | Drop the false `calculateSteal` claim; extend `PR0PLAN_SHIPS` | Low | Partial `3795d0c` (C-10c; C-10d needs pr0plan's key names) |
+| 22 | C-10c / C-10d | Drop the false `calculateSteal` claim; extend `PR0PLAN_SHIPS` | Low | Done `3795d0c` (C-10c; C-10d not needed: pr0plan does not support those ships) |
 | 23 | I-02 | Ingest / Store structured logs | Low | Done `eb8ef15` / `045e495` |
 | 24 | B-09 | Ingest rate limit | Low | Done `812e450` |
 | 25 | B-14 | Partial unique index on active claims | Low | Done `0dc7539` |
@@ -1156,6 +1156,6 @@ Shipped on `main` as `0b8434d..045e495` (author Neffez). Typecheck and the full 
 | 8 | `13ea365` | No implicit ship table in `@pr0hub/flight` (A-09) |
 | 9 | `687501c` | Push endpoint default port, newest-response guard for admin and loot settlement (B-08, B-28) |
 
-**Still open:** C-10d (pr0plan's export keys for 222/227/231/232), A-01 / C-02 (typed responses / generated web client; the path CI is done), the `withUnits` await guard (A-04), and Wave 3.
+**Still open:** A-01 / C-02 (typed responses / generated web client; the path CI is done), the `withUnits` await guard (A-04), and Wave 3.
 
 **Next:** Wave 3, when the files are touched anyway.
