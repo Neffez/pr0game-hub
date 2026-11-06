@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-06
 
+- Product backlog `NEW_FEATURES.md`: missing features and improvements from a product point of view (defense
+  and fleet save, farming, economy advice, alliance management, sync experience, search and export), each with
+  value, effort and what it builds on, plus a suggested roadmap and success measures.
+
 - Statement cache: a plucked statement stays plucked when the same SQL is prepared again elsewhere (plucked and
   plain statements are cached separately instead of resetting `pluck` on the shared one).
 
