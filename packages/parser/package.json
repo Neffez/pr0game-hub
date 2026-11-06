@@ -41,6 +41,10 @@
     "./universe": {
       "types": "./dist/universe.d.ts",
       "default": "./dist/universe.js"
+    },
+    "./messages": {
+      "types": "./dist/messages.d.ts",
+      "default": "./dist/messages.js"
     }
   },
   "scripts": {

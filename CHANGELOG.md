@@ -4,6 +4,23 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-06
 
+- ACS loot calculator (tools) fills in a settlement from pasted pages like the hub does from synced data:
+  - One paste field recognises a battle report (the same battle again replaces it, another target offers a new
+    settlement), the messages page, an empire page and the marketplace.
+  - Fleet returns give the loot of each fleet and its real flight time; flight deuterium per fleet from the start
+    planet in the report, the drive levels (typed per person as `C/I/H` or from a pasted empire page) and the
+    universe settings (new dialog, shared with the other tools), at 100 % speed without a return.
+  - Missile impacts count per person; recycling reports are taken only at the target within 24 h of the first
+    battle, without duplicates, the recycler found by the home planet of the recyclers' return (else "Messages of",
+    a new helper if needed); recycler deuterium from report and return.
+  - Computed values show their source; a value typed over stays and ↺ restores the computed one.
+  - Several settlements in tabs (`pr0loot.tabs.v1`, the single stored settlement is migrated); a new tab is empty
+    and keeps the settings, links open in a new tab.
+- `@pr0hub/loot` `paste.ts` (`applyPaste`, `deriveFromSync`, `applyDerived`, `PasteSync`) holds that logic;
+  `@pr0hub/core/messages` exports the cheerio-free message, empire and marketplace text parsers.
+- Tools: the tab bar of the flight calculator and battle simulator moved into `shared/tabs.js` (`createTabs`), now
+  also used by the loot calculator; behavior and stored tabs are unchanged.
+
 - Statement cache: a plucked statement stays plucked when the same SQL is prepared again elsewhere (plucked and
   plain statements are cached separately instead of resetting `pluck` on the shared one).
 

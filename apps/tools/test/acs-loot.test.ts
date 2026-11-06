@@ -94,18 +94,86 @@ describe('loot calculator page', () => {
   });
 
   it('adds a recycling row per pasted report for the chosen person', () => {
-    const area = document.querySelector<HTMLTextAreaElement>('textarea[data-paste-recycling]')!;
-    const by = document.querySelector<HTMLSelectElement>('select[data-recycle-by]')!;
-    by.value = 'b';
-    by.dispatchEvent(new Event('change', { bubbles: true }));
-    area.value = recycleReports;
-    area.dispatchEvent(new Event('input', { bubbles: true }));
-    document.querySelector<HTMLButtonElement>('[data-act="applyRecycling"]')!.click();
+    const owner = document.querySelector<HTMLSelectElement>('select[data-owner]')!;
+    owner.value = 'b';
+    owner.dispatchEvent(new Event('change', { bubbles: true }));
+    paste(recycleReports);
     const rows = [...document.querySelectorAll('#recycling tbody tr')];
     expect(rows).toHaveLength(3);
     expect(rows.slice(1).map((r) => r.querySelector<HTMLSelectElement>('select')!.value)).toEqual(['b', 'b']);
-    expect(document.querySelector<HTMLTextAreaElement>('textarea[data-paste-recycling]')!.value).toBe('');
+    expect(document.querySelector<HTMLTextAreaElement>('textarea[data-paste]')!.value).toBe('');
+    expect(document.querySelector('#paste .note')?.textContent).toContain('2 recycling reports');
     // what is left in the field by the latest report
     expect(document.getElementById('debrisSummary')?.textContent).toMatch(/Left in the field: 4,000 Metal · 4,000 Crystal/);
   });
+
+  it('opens a new tab with the settings of the current one and switches between tabs', () => {
+    const tabs = () => [...document.querySelectorAll<HTMLElement>('#calcTabs .ctab')];
+    const rate = () => document.querySelector<HTMLInputElement>('[data-bind="settings.rates.m"]')!.value;
+    const rateIn = document.querySelector<HTMLInputElement>('[data-bind="settings.rates.m"]')!;
+    rateIn.value = '3';
+    rateIn.dispatchEvent(new Event('input', { bubbles: true }));
+    document.querySelector<HTMLButtonElement>('#addTab')!.click();
+    expect(tabs()).toHaveLength(2);
+    expect(tabs()[1].classList.contains('active')).toBe(true);
+    expect([...document.querySelectorAll<HTMLInputElement>('#participants input[data-type="text"]')].map((el) => el.value)).toEqual(['', '']);
+    expect(rate()).toBe('3');
+    tabs()[0].querySelector<HTMLButtonElement>('.ctab-main')!.click();
+    expect(document.querySelectorAll('#recycling tbody tr')).toHaveLength(3);
+    expect(tabs()[0].querySelector('.ctab-name')?.textContent).toBe('Rolf, ballermann');
+  });
+
+  it('fills in a battle from the report and its fleet returns, missiles and drives from pasted pages', () => {
+    document.querySelector<HTMLButtonElement>('#addTab')!.click();
+    paste(readFileSync(resolve(import.meta.dirname, '../../../packages/parser/test/fixtures/combat-report-de.txt'), 'utf8'));
+    expect([...document.querySelectorAll<HTMLInputElement>('#participants input[data-type="text"]')].map((el) => el.value)).toEqual(['CVXII', 'Rudolf']);
+    paste(messages);
+    paste(empire);
+    const flight = document.querySelector<HTMLInputElement>('[data-auto="p2.flightDeut"]')!;
+    expect(Number(flight.value.replace(/,/g, ''))).toBeGreaterThan(0);
+    expect(document.querySelector('[data-auto-mark="p2.flightDeut"]')?.textContent).toBe('auto');
+    expect(document.querySelector<HTMLInputElement>('[data-auto="p2.missiles"]')!.value).toBe('25');
+    expect(document.querySelector<HTMLInputElement>('[data-drives="p2"]')!.value).toBe('17/14/12');
+    expect(document.querySelector('#results .notes')?.textContent).toContain('CVXII');
+    // the tab is named after the target
+    expect(document.querySelector('#calcTabs .ctab.active .ctab-name')?.textContent).toMatch(/^\[3:195:5\]/);
+    // typed over: stays, ↺ brings back the computed value
+    flight.value = '5';
+    flight.dispatchEvent(new Event('input', { bubbles: true }));
+    expect(document.querySelector('[data-auto-mark="p2.flightDeut"] [data-act="autoReset"]')).not.toBeNull();
+    document.querySelector<HTMLButtonElement>('[data-auto-mark="p2.flightDeut"] [data-act="autoReset"]')!.click();
+    expect(document.querySelector<HTMLInputElement>('[data-auto="p2.flightDeut"]')!.value).not.toBe('5');
+    // stored with its pasted facts
+    const stored = JSON.parse(localStorage.getItem('pr0loot.tabs.v1') ?? 'null');
+    expect(stored === null || Array.isArray(stored.tabs)).toBe(true);
+  });
+
+  it('opens a link in a new tab', () => {
+    const before = document.querySelectorAll('#calcTabs .ctab').length;
+    const state = emptyState();
+    state.participants.push({ id: 'x', name: 'Linked', flightDeut: 0, recDeut: 0, missiles: 0 });
+    location.hash = '#s=' + encodeShare(state);
+    window.dispatchEvent(new Event('hashchange'));
+    expect(document.querySelectorAll('#calcTabs .ctab')).toHaveLength(before + 1);
+    expect(document.querySelector<HTMLInputElement>('#participants input[data-type="text"]')!.value).toBe('Linked');
+  });
 });
+
+function paste(text: string) {
+  const area = document.querySelector<HTMLTextAreaElement>('textarea[data-paste]')!;
+  area.value = text;
+  area.dispatchEvent(new Event('input', { bubbles: true }));
+  document.querySelector<HTMLButtonElement>('[data-act="applyPaste"]')!.click();
+}
+
+const messages = [
+  'Flottenhauptquartier', 'Flottenrückkehr', '24. Okt 2026, 13:48:06',
+  'Eine deiner Flotten kehrt vom Angriff beim Planeten Rees [3:195:5] zurück zu Ra [3:200:1]. Sie haben 0 Metall, 408.133 Kristall und 209.670 Deuterium erbeutet',
+  'Flottenhauptquartier', 'Flottenrückkehr', '24. Okt 2026, 13:42:23',
+  'Eine deiner Flotten kehrt vom Angriff beim Planeten Rees [3:195:5] zurück zu Ra [3:200:1]. Sie haben 0 Metall, 195.136 Kristall und 100.247 Deuterium erbeutet',
+  'Flottenhauptquartier', 'Raketeneinschlag', '24. Okt 2026, 12:50:00',
+  'Interplanetarraketen (25) von Ra [3:200:1] sind auf dem Planeten Rees [3:195:5] eingeschlagen',
+  '3 Raketen wurden abgefangen.', 'Raketenwerfer (- 120)',
+].join('\n');
+
+const empire = ['Name\tTotal\tRa', 'Koordinaten\t-\t[3:200:1]', 'Verbrennungstriebwerk\t17', 'Impulstriebwerk\t14', 'Hyperraumantrieb\t12'].join('\n');

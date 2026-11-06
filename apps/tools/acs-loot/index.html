@@ -49,7 +49,22 @@ td input:focus, td select:focus { border-color: var(--accent); background: var(-
   border: 1px solid transparent; background: transparent; color: var(--faint);
 }
 .x:hover { color: var(--danger); border-color: var(--border); }
-.row-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.row-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; }
+/* central paste field */
+#paste textarea { min-height: 84px; }
+#paste .owner { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); }
+#paste .owner select { width: auto; }
+#paste .owner-name { width: 150px; }
+/* computed values: the input and where it comes from */
+.auto-cell { display: flex; align-items: center; gap: 4px; }
+.auto-mark { flex: none; font-size: 10.5px; color: var(--faint); white-space: nowrap; }
+.auto-mark:empty { display: none; }
+.auto-mark .auto-on { color: var(--accent-text); }
+.auto-mark .auto-miss { color: var(--warn, #d29922); }
+.auto-reset { border: 0; background: transparent; color: var(--faint); padding: 0 2px; font-size: 13px; }
+.auto-reset:hover { color: var(--accent); }
+td input.drives { min-width: 92px; }
+.auto-cell input { min-width: 100px; }
 th { padding: 8px 10px; }
 td { padding: 6px 10px; vertical-align: middle; }
 td .tag { font-family: var(--sans); font-size: 11px; color: var(--faint); margin-left: 6px; font-weight: 400; }
@@ -88,17 +103,26 @@ pre.text {
         <button type="button" data-lang="en">EN</button>
         <button type="button" data-lang="de">DE</button>
       </div>
+      <button class="uni-chip" id="uniChip" type="button" data-t-title="uniSettings">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/></svg>
+        <span id="uniSummary"></span>
+      </button>
       <button type="button" class="btn share-btn" id="shareBtn" data-t-title="shareTitle">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
         <span class="lbl" data-t="share">Share link</span>
       </button>
       <button type="button" class="btn ghost" id="resetBtn" data-t="reset">New</button>
+      <button class="icon-btn" id="settingsBtn" type="button" data-t-title="uniSettings" data-t-aria="uniSettings">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
     </div>
   </header>
   <p class="intro" data-t="intro"></p>
+  <div class="calc-tabs" id="calcTabs" role="tablist" data-t-aria="tabsAria"></div>
 
   <div class="layout">
     <div class="col">
+      <section class="card" id="paste"></section>
       <section class="card" id="settings"></section>
       <section class="card" id="participants"></section>
       <section class="card" id="battles"></section>
@@ -113,6 +137,21 @@ pre.text {
   <footer class="foot"><span data-t="footer"></span> · <a href="https://github.com/Neffez/pr0game-hub" target="_blank" rel="noopener" data-t="source">Source code</a></footer>
 </div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
+<dialog id="uniDialog" aria-labelledby="uniTitle">
+  <form method="dialog" class="dlg">
+    <div class="dlg-head">
+      <div><h2 id="uniTitle" data-t="uniSettings">Universe settings</h2><p data-t="uniDialogHint">Stored locally in your browser.</p></div>
+      <button class="icon-btn" value="close" data-t-aria="close">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div class="dlg-body" id="uniFields"></div>
+    <div class="dlg-foot">
+      <button type="button" class="btn ghost" id="uniReset" data-t="defaults">Defaults</button>
+      <button class="btn primary" value="close" data-t="done">Done</button>
+    </div>
+  </form>
+</dialog>
 <script type="module" src="./main.js"></script>
 </body>
 </html>

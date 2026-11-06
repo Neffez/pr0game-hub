@@ -51,7 +51,8 @@ pnpm build
   missiles (`missile.ts`: range, flight time, `calculateMIPAttack`); must stay second-exact with the game and the
   flight calculator.
 - `packages/loot` (`@pr0hub/loot`): ACS loot settlement (loot shares like the game's `calculateSteal`, covering
-  costs, profit split, transfers), used by the loot calculator in `apps/tools` and by the hub.
+  costs, profit split, transfers), used by the loot calculator in `apps/tools` and by the hub; `paste.ts` fills a
+  settlement from pasted pages (battle report, messages, empire, marketplace via `@pr0hub/core/messages`) for the tool.
 - `packages/battle` (`@pr0hub/battle`): battle simulation on Battlerust, the game's Rust engine as WebAssembly
   (`pnpm build:battle` exports it to `wasm/` via the `battle-wasm` Docker stage): engine input like the game's
   `createRustJson` (`input.ts`), evaluation like `parseRustJson` (`result.ts`), loot (`steal.ts`), runs and summary
@@ -67,7 +68,8 @@ pnpm build
   `src/battle.ts` on top of `@pr0hub/battle`, battles in a Web Worker `worker.js`) and `moon-destruction/`
   (calculation in `src/moon.ts`, formulas of the game's `MissionCaseDestruction`); each tool has its UI in `main.js`
   and its texts DE/EN in `i18n.js`. All pages share `shared/tools.css` and `shared/shell.js` (header with language
-  switch and share link, texts via `data-t*`, toast, tooltips); the universe settings dialog (fields, hash keys,
+  switch and share link, texts via `data-t*`, toast, tooltips); tabs of independent calculations (flight calculator,
+  battle simulator, loot calculator) are `shared/tabs.js`; the universe settings dialog (fields, hash keys,
   texts, one localStorage key for all tools) is `shared/uni.js`. Own values for ships and defense (one store for all tools, editor with
   pasted game pages, link key `uo`) are `shared/units.js` on top of `@pr0hub/core/units`. Docker target `tools`.
 - `apps/web`: Vue 3 SPA; the mobile layout starts below 800 px (`useMobile` in `composables.ts`, same breakpoint in `style.css`).

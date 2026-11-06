@@ -1,11 +1,28 @@
 /* ACS loot calculator: glue between the page (../acs-loot/main.js) and @pr0hub/loot. */
 import { parseCombatReportText, parseRecycleReportsText } from '@pr0hub/core/combat';
 import { activeUnits } from '@pr0hub/core/units';
-import { elementLabel } from './core';
-import { battleFromReport as fromReport, localEpoch, type LootState, type ReportSide } from '@pr0hub/loot';
+import { DEFAULT_UNI, elementLabel, universe, type UniSettings } from './core';
+import {
+  applyDerived,
+  applyPaste,
+  battleFromReport as fromReport,
+  deriveFromSync,
+  localEpoch,
+  type Derived,
+  type LootState,
+  type PasteOptions,
+  type PasteResult,
+  type PasteSync,
+  type ReportSide,
+} from '@pr0hub/loot';
 
 export {
+  autoPath,
   cleanState,
+  cleanSync,
+  emptySync,
+  pruneSync,
+  setManual,
   debrisSummary,
   decodeShare,
   DEFAULT_RATES,
@@ -22,7 +39,7 @@ export {
   settle,
   SHARE_WITHIN,
 } from '@pr0hub/loot';
-export { parseAmount } from './core';
+export { DEFAULT_UNI, parseAmount } from './core';
 
 export type ToolLang = 'de' | 'en';
 
@@ -63,4 +80,19 @@ export function fmtShort(n: number, lang: ToolLang): string {
   if (a >= 1e6) return dec(Math.round(n / 1e5) / 10) + (lang === 'de' ? ' Mio' : 'M');
   if (a >= 1e4) return Math.round(n / 1e3) + 'k';
   return fmtNum(n, lang);
+}
+
+/** Takes a pasted page (battle report, messages, empire page, marketplace) into the settlement, times as local time. */
+export function pasteInto(state: LootState, sync: PasteSync, text: string, opts: Omit<PasteOptions, 'toEpoch'> = {}): PasteResult {
+  return applyPaste(state, sync, text, { ...opts, toEpoch: localEpoch });
+}
+
+/**
+ * Computes what the pasted pages give (flight and recycler deuterium, missiles, loot per fleet) with the universe
+ * settings and the active unit catalog and puts it into the settlement, except values typed by hand.
+ */
+export function deriveInto(state: LootState, sync: PasteSync, uni: Partial<UniSettings>): { derived: Derived; set: Set<string> } {
+  const cfg = { ...DEFAULT_UNI, ...uni };
+  const derived = deriveFromSync(state, sync, universe(cfg), activeUnits(), Number(cfg.honor_boost) || 1);
+  return { derived, set: applyDerived(state, sync, derived) };
 }

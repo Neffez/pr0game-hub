@@ -2,6 +2,7 @@ export * from './debris.js';
 export * from './input.js';
 export * from './match.js';
 export * from './overrides.js';
+export * from './paste.js';
 export * from './report.js';
 export * from './res.js';
 export * from './settle.js';
