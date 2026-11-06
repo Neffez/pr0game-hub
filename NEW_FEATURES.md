@@ -354,8 +354,10 @@ which hub feature gets better with it. Higher data quality is the base of every 
   are missing or wrong without it, `medium`: noticeably outdated, `low`: better with it), a `scope` (`me` for the
   member's own pages, `group` for shared data) and the time of the newest sync. Checked are:
   - empire page (none or older than 3 days: high, older than 1 day: medium),
-  - the game's latest statistics update per category (0, 6, 12, 18 o'clock in the universe's time zone, 10 minutes
-    grace; nothing at all: high, total points missing: medium, other categories: low),
+  - statistics (nothing at all: high): categories missing in the newest synced update (total points: medium, others:
+    low), or a newer update due after the interval learned from the synced updates (`statInterval`: the shortest gap
+    seen at least twice; medium), or older than a day while no interval is known (medium). Never fixed hours or a
+    fixed interval (see the fixes below),
   - overview or fleet page (none or older than 1 day: medium, older than 12 h: low),
   - galaxy systems ±2 around the own planets older than 3 days (all: medium, some: low),
   - planets and moons of the empire without a buildings page, no research page at all, no messages page in the
@@ -377,6 +379,9 @@ which hub feature gets better with it. Higher data quality is the base of every 
 - **Fix (2026-11-06):** the expected statistics update comes from the 6-hour grid of the newest synced update
   (`expectedStatUpdate`), not from 0/6/12/18 o'clock local time: servers run it at their own configured hours, and on
   U7 they moved to 23/5/11/17 o'clock with the switch to winter time (seen in the inactivity check's timestamps).
+- **Fix (2026-11-06, follow-up):** no assumed interval either. The 6-hour grid is gone: the interval is learned from
+  the synced updates (`statInterval`), the default hours are no fallback any more. Rule in `CLAUDE.md`: never assume
+  fixed statistics hours or intervals.
 
 ### E-2 Several pages at once
 **Value:** Medium · **Effort:** S · **Builds on:** sync panel file upload, ingest preview

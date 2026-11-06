@@ -74,7 +74,8 @@ export const INACTIVITY = {
 
 const HOUR = 3600;
 const DAY = 24 * HOUR;
-const STAT_SLOT = 6 * HOUR;
+/** Page times of the same statistics update may differ by a few minutes. */
+const SAME_UPDATE = 15 * 60;
 
 export const inactivityLevel = (score: number): Inactivity['level'] =>
   score >= 85 ? 'inactive' : score >= 50 ? 'likely' : score >= 20 ? 'possible' : 'active';
@@ -268,7 +269,8 @@ function statSeries(db: DB, groupId: number, from: number, asOf: number): StatSe
     if (!byTime.has(r.time)) byTime.set(r.time, []);
     byTime.get(r.time)!.push({ id: r.player_id, rank: r.rank, gain: r.points - before });
   }
-  for (const r of rows) if (r.time >= out.newest - STAT_SLOT / 2) out.players.get(r.player_id)!.inNewest = true;
+  // in the newest synced update (not a window of assumed hours: servers set their own schedule)
+  for (const r of rows) if (r.time >= out.newest - SAME_UPDATE) out.players.get(r.player_id)!.inNewest = true;
   const w = INACTIVITY.rankWindow;
   for (const [time, list] of [...byTime].sort((a, b) => a[0] - b[0])) {
     list.sort((a, b) => a.rank - b.rank);

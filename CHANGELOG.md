@@ -4,6 +4,12 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-06
 
+- Statistics times are never assumed: sync hints no longer expect updates at fixed hours or every 6 hours. They name
+  the categories missing in the newest synced update (known for sure) and expect a newer update only after the
+  interval learned from the synced updates (the shortest gap seen at least twice); without one, statistics older than
+  a day count as outdated. The inactivity score's "in the newest statistics" means the newest synced update. Overview
+  texts no longer name fixed update hours. New rule in `CLAUDE.md`.
+
 - Sync hints expect the game's statistics update on the grid of the newest synced update instead of 0/6/12/18 o'clock
   local time: servers run it at their own hours, and on U7 those moved to 23/5/11/17 o'clock with the switch to
   winter time, so the hint asked for an update that never comes.

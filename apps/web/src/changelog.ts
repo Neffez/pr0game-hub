@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: '„Was soll ich als Nächstes einfügen?“ rechnet nicht mehr mit festen Statistik-Zeiten, sondern lernt aus den eingefügten Updates, wann dein Server aktualisiert. Fehlt einer Kategorie das neueste Update, steht das genau so da.',
+        en: '"What should I paste next?" no longer assumes fixed statistics times but learns from the pasted updates when your server updates. When a category lacks the newest update, it says exactly that.',
+      },
+      {
+        kind: 'fix',
         de: '„Was soll ich als Nächstes einfügen?“ kennt die Uhrzeiten der Statistik-Updates deines Servers und verlangt nach der Zeitumstellung kein Update mehr, das es nicht gibt.',
         en: '"What should I paste next?" knows the hours of your server\'s statistics updates and no longer asks for an update that does not exist after the clock change.',
       },

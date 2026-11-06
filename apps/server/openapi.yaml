@@ -80,8 +80,10 @@ components:
         time: { type: [integer, 'null'], description: 'Epoch seconds of the newest sync of this page (galaxy: the oldest system), null when there is none' }
         count: { type: integer, description: 'buildings: planets without a buildings page; galaxy: outdated systems around the own planets' }
         total: { type: integer, description: Of how many planets or systems }
-        update: { type: integer, description: 'stats: epoch seconds of the game''s statistics update that is missing' }
-        types: { type: array, items: { type: integer }, description: 'stats: missing categories (1 total, 2 fleet, 3 research, 4 buildings, 5 defense)' }
+        update: { type: integer, description: 'stats: epoch seconds of the missing update: the newest synced one (categories lacking it) or, with `estimated`, the one expected after `interval`' }
+        estimated: { type: boolean, description: 'stats: `update` is expected from the interval learned from the synced updates (never fixed hours), no member synced it yet' }
+        interval: { type: integer, description: 'stats: interval of the statistics updates in seconds, learned from the synced updates (the shortest gap seen at least twice)' }
+        types: { type: array, items: { type: integer }, description: 'stats: categories without that update (1 total, 2 fleet, 3 research, 4 buildings, 5 defense); empty: just outdated (older than a day, interval unknown)' }
     PointsStall:
       type: object
       nullable: true
@@ -2100,8 +2102,9 @@ paths:
       description: >-
         What the member should paste next, most important first (an empty list: the hub is up to date). Own pages
         that are missing or old (empire, overview or fleet page, the galaxy systems around the own planets, buildings
-        pages per planet, a research page, messages) and the group's shared data (the game's latest statistics update
-        per category, the market rate). `messagesDays`: how many days a messages page counts (raw pages are kept that
+        pages per planet, a research page, messages) and the group's shared data (statistics: categories missing in
+        the newest synced update, or a newer update due after the interval learned from the synced ones; the market
+        rate). `messagesDays`: how many days a messages page counts (raw pages are kept that
         long).
       parameters:
         - { $ref: '#/components/parameters/Uni' }

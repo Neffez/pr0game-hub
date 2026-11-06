@@ -1,7 +1,6 @@
-import { localToEpoch } from '@pr0hub/core';
 import type { GroupContext } from '../context.js';
 import type { DB } from '../db.js';
-import { TOLERANCE, TYPES } from '../domain/stats.js';
+import { TYPES } from '../domain/stats.js';
 import { latestEmpire } from './empire.js';
 import { latestMarketRate } from './market.js';
 
@@ -20,8 +19,11 @@ export interface SyncHint {
   count?: number;
   /** of how many (planets, systems) */
   total?: number;
-  /** stats: the statistics update that is missing and its categories (1 total … 5 defense) */
+  /** stats: the update that is missing (`estimated`: expected after the learned `interval`, not synced by anyone yet) */
   update?: number;
+  estimated?: boolean;
+  interval?: number;
+  /** stats: categories (1 total … 5 defense) without that update; empty: just outdated */
   types?: number[];
 }
 
@@ -35,36 +37,29 @@ const GALAXY_STALE = 3 * DAY;
 const MARKET_STALE = 3 * DAY;
 const LEVELS = { high: 0, medium: 1, low: 2 };
 
-/**
- * The game's statistics update at or before `t` by the default grid: 0, 6, 12 and 18 o'clock in the universe's time
- * zone. Only the fallback without any synced update: servers run the update at their own configured hours, and one
- * whose clock ignores daylight saving moves by an hour against local time in winter (see `expectedStatUpdate`).
- */
-export function lastStatUpdate(t: number, timeZone: string): number {
-  const parts = Object.fromEntries(
-    new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hourCycle: 'h23' })
-      .formatToParts(new Date(t * 1000))
-      .map((p) => [p.type, p.value]),
-  );
-  const hour = String(Math.floor(Number(parts.hour) / 6) * 6).padStart(2, '0');
-  const at = localToEpoch(`${parts.year}-${parts.month}-${parts.day} ${hour}:00:00`, timeZone, t);
-  // a repeated hour in autumn may give the later instant: the update before then
-  return at > t ? lastStatUpdate(t - HOUR, timeZone) : at;
-}
-
-/** Interval of the game's statistics updates. */
-const STAT_INTERVAL = 6 * HOUR;
+/** Updates within this many seconds are one (several pages of the same update, page times a few minutes off). */
+const SAME_UPDATE = 15 * 60;
+/** Gaps shorter than this are no schedule (pages of one update pasted separately). */
+const MIN_INTERVAL = 30 * 60;
+/** Without a known interval, statistics older than this count as outdated. */
+const STATS_STALE = DAY;
 
 /**
- * The game's latest statistics update at or before `t`: on the 6-hour grid of the newest synced update (the server's
- * own hours, also across a daylight saving switch), or the default grid without one.
+ * Interval of the game's statistics updates, learned from the synced ones: the shortest gap between two synced updates
+ * that occurs at least twice (within `SAME_UPDATE`). Missed syncs only make gaps longer (multiples), a single short gap
+ * may be an update off the schedule. The hub never assumes fixed hours or a fixed interval: servers configure them,
+ * and their clock may ignore daylight saving. Null while the history doesn't tell.
  */
-export function expectedStatUpdate(t: number, newestSynced: number | null, timeZone: string): number {
-  if (newestSynced == null) return lastStatUpdate(t, timeZone);
-  if (newestSynced >= t) return newestSynced;
-  // the update time of a page may lie a few minutes after the grid point: keep the phase of the full hour
-  const anchor = Math.round(newestSynced / HOUR) * HOUR;
-  return anchor + Math.floor((t - anchor) / STAT_INTERVAL) * STAT_INTERVAL;
+export function statInterval(updates: number[]): number | null {
+  const times = [...new Set(updates)].sort((a, b) => a - b);
+  const distinct: number[] = [];
+  for (const t of times) if (!distinct.length || t - distinct[distinct.length - 1] > SAME_UPDATE) distinct.push(t);
+  const gaps = distinct.slice(1).map((t, i) => t - distinct[i]).filter((g) => g >= MIN_INTERVAL).sort((a, b) => a - b);
+  for (let i = 0; i < gaps.length; i++) {
+    const twice = gaps.filter((g) => Math.abs(g - gaps[i]) <= SAME_UPDATE);
+    if (twice.length >= 2) return Math.round(twice.reduce((a, b) => a + b, 0) / twice.length / 60) * 60;
+  }
+  return null;
 }
 
 /**
@@ -85,23 +80,34 @@ export function syncHints(db: DB, ctx: GroupContext): SyncHint[] {
   else if (t - empireTime > 3 * DAY) hints.push({ key: 'empire', level: 'high', scope: 'me', time: empireTime });
   else if (t - empireTime > DAY) hints.push({ key: 'empire', level: 'medium', scope: 'me', time: empireTime });
 
-  // statistics of the group: the newest update per category against the game's latest update
-  const newestAny = max("SELECT MAX(stat_time) FROM stat_snapshots WHERE group_id = ? AND who = 'player'", g);
-  const update = expectedStatUpdate(t - STATS_GRACE, newestAny, ctx.universe.settings.timezone);
+  // statistics of the group: every category should have the newest synced update; a newer one is expected after the
+  // interval learned from the synced updates (never from fixed hours)
   const newest = new Map<number, number | null>(
     TYPES.map((type) => [type, max("SELECT MAX(stat_time) FROM stat_snapshots WHERE group_id = ? AND who = 'player' AND type = ?", g, type)]),
   );
-  const missing = TYPES.filter((type) => (newest.get(type) ?? 0) < update - TOLERANCE);
-  if (missing.length) {
-    const any = [...newest.values()].some((v) => v != null);
-    hints.push({
-      key: 'stats',
-      level: !any ? 'high' : missing.includes(1) ? 'medium' : 'low',
-      scope: 'group',
-      time: newest.get(1) ?? null,
-      update,
-      types: missing,
-    });
+  const newestAny = Math.max(0, ...[...newest.values()].map((v) => v ?? 0)) || null;
+  if (newestAny == null) {
+    hints.push({ key: 'stats', level: 'high', scope: 'group', time: null, types: [...TYPES] });
+  } else {
+    const interval = statInterval(
+      db
+        .prepare("SELECT DISTINCT stat_time FROM stat_snapshots WHERE group_id = ? AND who = 'player' AND stat_time >= ?")
+        .pluck()
+        .all(g, newestAny - 14 * DAY) as number[],
+    );
+    const next = interval != null ? newestAny + interval : null;
+    if (next != null && t - STATS_GRACE >= next) {
+      // a newer update than any synced one is due: estimated from the interval
+      hints.push({ key: 'stats', level: 'medium', scope: 'group', time: newestAny, update: next, estimated: true, interval: interval ?? undefined, types: [...TYPES] });
+    } else {
+      const missing = TYPES.filter((type) => (newest.get(type) ?? 0) < newestAny - SAME_UPDATE);
+      if (missing.length) {
+        // known for sure: the newest synced update lacks these categories
+        hints.push({ key: 'stats', level: missing.includes(1) ? 'medium' : 'low', scope: 'group', time: newest.get(1) ?? null, update: newestAny, estimated: false, types: missing });
+      } else if (interval == null && t - newestAny > STATS_STALE) {
+        hints.push({ key: 'stats', level: 'medium', scope: 'group', time: newestAny, types: [] });
+      }
+    }
   }
 
   // overview or fleet page: build queues and fleet movements (raid planner, attack warnings)
