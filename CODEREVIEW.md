@@ -100,6 +100,8 @@ None of this requires a rewrite. The recommended order at the end does the remai
 
 **Fix:** A `GroupDb` that injects `group_id` (or requires `GroupContext` on every export). Ban raw `db.prepare` in `routes/` except admin. Add a test that greps route SQL for game tables without `group_id`. Do not add a framework.
 
+**Status:** Partial (2026-11-06): the grep test is in (`test/groupScope.test.ts`): statements on group tables need `group_id` or a key (`id`, `plan_id`, `player_id`, …); cross-group statements are an allow-list with reasons. A `GroupDb` API is still open.
+
 ---
 
 ### A-04 — Unit catalog and name maps are process-global; ingest does not use the request universe
@@ -1100,7 +1102,7 @@ Structural work. Do it when you next touch the file, not as a dedicated rewrite.
 
 | Order | ID | What | Effort |
 |---|---|---|---|
-| 1 | A-03 | `GroupDb` / grep test for `group_id` | High / Low for the grep |
+| 1 | A-03 | `GroupDb` / grep test for `group_id` | High / Low for the grep (grep test done 2026-11-06) |
 | 2 | A-05 / C-01 | Split `store.ts`, `plans.ts`, AdminView, locales when touching them | High |
 | 3 | A-06 | universe.json off the event loop; pluck in the statement cache key | High / Low |
 | 4 | A-08 / A-10 / C-09 | Slimmer core exports; tools TS incrementally; typed tool i18n | High |

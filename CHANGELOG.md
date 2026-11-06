@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-06
 
+- Server tests check group isolation: every SQL statement on a table with `group_id` filters by it or addresses rows
+  by a key looked up in the group; the few cross-group statements (monitor, retention, crawler, data migration) are
+  listed with their reason, a new one without a group filter fails the test.
+
 - `withUnits` throws when its function returns a promise: the active catalog does not survive an `await`.
 
 - Code review: C-10d closed as not needed (pr0plan does not support the Heavy Cruiser, Optimized Recycler,
