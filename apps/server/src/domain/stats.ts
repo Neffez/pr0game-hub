@@ -11,7 +11,10 @@ export const WINDOWS: Record<string, number> = {
 
 export const TOLERANCE = 900;
 
-/** Statistics interval of pr0game (0, 6, 12 and 18 o'clock) and the number of Δ columns in the planet view. */
+/**
+ * Width of a Δ column section, counted back from the newest synced update, and the number of Δ columns. A display
+ * grid only: the game's update hours and interval are set per server (never assume them, see `statInterval`).
+ */
 export const SLOT = 6 * 3600;
 
 export const SLOTS = 4;

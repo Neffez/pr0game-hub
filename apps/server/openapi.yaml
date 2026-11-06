@@ -80,8 +80,10 @@ components:
         time: { type: [integer, 'null'], description: 'Epoch seconds of the newest sync of this page (galaxy: the oldest system), null when there is none' }
         count: { type: integer, description: 'buildings: planets without a buildings page; galaxy: outdated systems around the own planets' }
         total: { type: integer, description: Of how many planets or systems }
-        update: { type: integer, description: 'stats: epoch seconds of the game''s statistics update that is missing' }
-        types: { type: array, items: { type: integer }, description: 'stats: missing categories (1 total, 2 fleet, 3 research, 4 buildings, 5 defense)' }
+        update: { type: integer, description: 'stats: epoch seconds of the missing update: the newest synced one (categories lacking it) or, with `estimated`, the one expected after `interval`' }
+        estimated: { type: boolean, description: 'stats: `update` is expected from the interval learned from the synced updates (never fixed hours), no member synced it yet' }
+        interval: { type: integer, description: 'stats: interval of the statistics updates in seconds, learned from the synced updates (the shortest gap seen at least twice)' }
+        types: { type: array, items: { type: integer }, description: 'stats: categories without that update (1 total, 2 fleet, 3 research, 4 buildings, 5 defense); empty: just outdated (older than a day, interval unknown)' }
     PointsStall:
       type: object
       nullable: true
@@ -2100,8 +2102,9 @@ paths:
       description: >-
         What the member should paste next, most important first (an empty list: the hub is up to date). Own pages
         that are missing or old (empire, overview or fleet page, the galaxy systems around the own planets, buildings
-        pages per planet, a research page, messages) and the group's shared data (the game's latest statistics update
-        per category, the market rate). `messagesDays`: how many days a messages page counts (raw pages are kept that
+        pages per planet, a research page, messages) and the group's shared data (statistics: categories missing in
+        the newest synced update, or a newer update due after the interval learned from the synced ones; the market
+        rate). `messagesDays`: how many days a messages page counts (raw pages are kept that
         long).
       parameters:
         - { $ref: '#/components/parameters/Uni' }
@@ -2267,8 +2270,9 @@ paths:
       operationId: getInactivityCheck
       description: >-
         Alliance admins: how well the inactivity score (see `Inactivity`) fits the group's data. Players the game
-        flagged `inactive` in the last 45 days (at most 40, the flag's appearance known within 2 days) were last online
-        the universe's inactive days before; the score is replayed 12, 24, 48, 72 and 120 hours after that (only data
+        flagged `inactive` in the last 45 days (at most 40) were last online the universe's inactive days before the
+        flag appeared; that login lies between the sightings without and with the flag (at most 7 days apart), or
+        after a proof of activity before it, and is used when known within 2 days; the score is replayed 12, 24, 48, 72 and 120 hours after that (only data
         up to then): `detection` gives per offset the players evaluated, the share scored at least likely (≥ 50) and
         inactive (≥ 85) and the median score. `falseAlarms` samples the score once a day over 30 days and counts scores
         of at least likely that were followed by proof of activity or a relevant points gain within 3 days, with up to
@@ -2292,6 +2296,7 @@ paths:
                   weights: { type: object, additionalProperties: { type: number } }
                   events: { type: integer }
                   skipped: { type: integer }
+                  narrowed: { type: integer, description: Used events whose last login a proof of activity narrowed down }
                   detection:
                     type: array
                     items:
@@ -2309,6 +2314,9 @@ paths:
                       positives: { type: integer }
                       contradicted: { type: integer }
                       rate: { type: [number, 'null'] }
+                      players: { type: integer, description: Players with a score of at least likely on some sampled day }
+                      playersContradicted: { type: integer }
+                      causes: { type: object, additionalProperties: { type: integer }, description: 'Contradictions by cause: gain or the proof source' }
                       examples:
                         type: array
                         items:
@@ -2319,6 +2327,7 @@ paths:
                             time: { type: integer }
                             score: { type: integer }
                             activeAt: { type: integer }
+                            cause: { type: string, description: 'gain or the proof source (attack, spy, message, fleet, recall, manual, fleetGone)' }
         '403': { description: Not an alliance admin }
   /api/{uni}/players/{id}:
     get:

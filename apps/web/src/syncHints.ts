@@ -10,6 +10,9 @@ export interface SyncHint {
   count?: number;
   total?: number;
   update?: number;
+  /** stats: `update` is expected after the interval learned from the synced updates, not synced yet */
+  estimated?: boolean;
+  interval?: number;
   types?: number[];
 }
 

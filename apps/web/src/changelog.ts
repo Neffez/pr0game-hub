@@ -19,6 +19,16 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-06',
     items: [
       {
+        kind: 'fix',
+        de: '„Was soll ich als Nächstes einfügen?“ rechnet nicht mehr mit festen Statistik-Zeiten, sondern lernt aus den eingefügten Updates, wann dein Server aktualisiert. Fehlt einer Kategorie das neueste Update, steht das genau so da.',
+        en: '"What should I paste next?" no longer assumes fixed statistics times but learns from the pasted updates when your server updates. When a category lacks the newest update, it says exactly that.',
+      },
+      {
+        kind: 'fix',
+        de: '„Was soll ich als Nächstes einfügen?“ kennt die Uhrzeiten der Statistik-Updates deines Servers und verlangt nach der Zeitumstellung kein Update mehr, das es nicht gibt.',
+        en: '"What should I paste next?" knows the hours of your server\'s statistics updates and no longer asks for an update that does not exist after the clock change.',
+      },
+      {
         kind: 'new',
         de: 'Inaktivität genauer: Angriffe, Spionage, Nachrichten und verschickte Flotten zählen als Beweis für Aktivität, kleine Punktezuwächse aus Bauschleifen nicht mehr. Galaxie-Aktivität durch Angriffe anderer macht Farmziele nicht mehr „aktiv“. Der Tooltip zeigt die Gründe. Allianz-Admins können den Score im Admin-Panel an den eigenen Daten prüfen.',
         en: 'More precise inactivity: attacks, espionage, messages and fleets sent away count as proof of activity, small points gains from build queues no longer do. Galaxy activity caused by others attacking no longer makes farm targets "active". The tooltip shows the reasons. Alliance admins can check the score on their own data in the admin panel.',

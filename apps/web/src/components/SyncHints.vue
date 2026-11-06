@@ -5,7 +5,7 @@ import { computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useMobile, useUni } from '../composables';
 import { tables, useLiveReload } from '../live';
-import { ago, clockTime, STATS_CATEGORIES } from '../format';
+import { ago, dateTime, STATS_CATEGORIES } from '../format';
 import { loadSyncHints, messagesDays, refreshSyncHints, syncHints, type SyncHint } from '../syncHints';
 
 /**
@@ -46,7 +46,9 @@ function title(h: SyncHint): string {
   switch (h.key) {
     case 'stats':
       if (h.level === 'high') return t(`${k}.never`);
-      return t(`${k}.missing`, { time: clockTime(new Date(h.update! * 1000)), categories: (h.types ?? []).map((c) => STATS_CATEGORIES[c]).join(', ') });
+      if (h.estimated) return t(`${k}.expected`, { time: dateTime(h.update) });
+      if (!h.types?.length) return t(`${k}.old`, { age: ago(h.time) });
+      return t(`${k}.missing`, { time: dateTime(h.update), categories: h.types.map((c) => STATS_CATEGORIES[c]).join(', ') });
     case 'galaxy':
       return t(h.count === h.total ? `${k}.none` : `${k}.stale`, { n: h.count, total: h.total });
     case 'buildings':

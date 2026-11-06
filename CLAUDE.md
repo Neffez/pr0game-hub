@@ -26,6 +26,9 @@ Guidance for Claude Code in this repository. See `README.md` for features, setup
   (served as `/api/openapi.json` and `.yaml`). Any commit that adds, removes or changes HTTP API behavior—paths,
   methods, auth, query/header parameters, or response shape—must update that file in the same commit so it stays
   accurate (paths, `operationId`s, security, and schemas for affected operations; descriptions in English).
+- **Game times are not fixed.** Never assume fixed statistics hours (0, 6, 12, 18 o'clock) or a fixed update
+  interval: each server configures them and its clock may ignore daylight saving. Learn them from synced data (e.g.
+  `statInterval` in `apps/server/src/repo/syncHints.ts`) or work relative to the synced updates.
 - **Personal rules** of a contributor go into `CLAUDE.local.md` (gitignored, loaded in addition to this file).
 
 ## Commands

@@ -5,7 +5,7 @@ process.env.WEB_DIR = '/nonexistent';
 const { buildApp } = await import('../src/app.js');
 const { openDb, now } = await import('../src/db.js');
 const { hashPassword } = await import('../src/auth.js');
-const { lastStatUpdate } = await import('../src/repo/syncHints.js');
+const { statInterval } = await import('../src/repo/syncHints.js');
 const { localToEpoch } = await import('@pr0hub/core');
 
 const db = openDb(':memory:');
@@ -41,14 +41,19 @@ beforeAll(async () => {
   carol = { cookie: await login('carol', 'carolpass'), 'x-hub-group': String(group) };
 });
 
-describe('lastStatUpdate', () => {
-  it('is the latest 0, 6, 12 or 18 o’clock of the time zone', () => {
-    const at = (local: string) => localToEpoch(local, 'Europe/Berlin');
-    expect(lastStatUpdate(at('2026-11-06 17:59:59'), 'Europe/Berlin')).toBe(at('2026-11-06 12:00:00'));
-    expect(lastStatUpdate(at('2026-11-06 18:00:00'), 'Europe/Berlin')).toBe(at('2026-11-06 18:00:00'));
-    expect(lastStatUpdate(at('2026-11-07 03:10:00'), 'Europe/Berlin')).toBe(at('2026-11-07 00:00:00'));
-    // summer time: still the local hour
-    expect(lastStatUpdate(at('2026-07-01 07:00:00'), 'Europe/Berlin')).toBe(at('2026-07-01 06:00:00'));
+describe('statInterval', () => {
+  const H = 3600;
+  it('learns the interval from synced updates, whatever their hours', () => {
+    // updates at 23, 5, 11 o'clock (a server ignoring daylight saving), one missed: the gap of 12 h is a multiple
+    expect(statInterval([0, 6 * H, 12 * H, 24 * H].map((x) => 1_000_000 + x))).toBe(6 * H);
+    // a server updating every 4 hours, page times a few minutes off, two pages of the same update
+    expect(statInterval([0, 4 * H + 120, 4 * H + 300, 8 * H + 60, 16 * H])).toBe(4 * H + 60);
+  });
+
+  it('knows nothing from a single gap or none', () => {
+    expect(statInterval([0, 6 * H])).toBeNull();
+    expect(statInterval([0, 6 * H, 18 * H])).toBeNull();
+    expect(statInterval([])).toBeNull();
   });
 });
 
@@ -84,13 +89,24 @@ describe('sync hints', () => {
     expect(list.find((h) => h.key === 'overview')).toMatchObject({ level: 'low', time: t - 13 * 3600 });
   });
 
-  it('names the missing categories of the latest statistics update', async () => {
-    const update = lastStatUpdate(now() - 600, 'Europe/Berlin');
-    for (const [type, time] of [[1, update], [2, update - 6 * 3600]]) {
-      db.prepare("INSERT INTO stat_snapshots (group_id, who, type, stat_time) VALUES (?, 'player', ?, ?)").run(group, type, time);
-    }
-    const stats = (await hints()).find((h) => h.key === 'stats');
-    expect(stats).toMatchObject({ level: 'low', scope: 'group', update, types: [2, 3, 4, 5], time: update });
+  it('names the categories missing in the newest synced update, and expects a newer one only after the learned interval', async () => {
+    const t = now();
+    const snap = (type: number, time: number) => db.prepare("INSERT INTO stat_snapshots (group_id, who, type, stat_time) VALUES (?, 'player', ?, ?)").run(group, type, time);
+    // one synced update an hour ago (total points only): the other categories lack it; no interval known yet
+    snap(1, t - 3600);
+    let stats = (await hints()).find((h) => h.key === 'stats');
+    expect(stats).toMatchObject({ level: 'low', update: t - 3600, estimated: false, types: [2, 3, 4, 5] });
+    for (const type of [2, 3, 4, 5]) snap(type, t - 3600);
+    expect((await hints()).find((h) => h.key === 'stats')).toBeUndefined();
+    // two earlier updates 5 h apart each: the interval is 5 h, the next update is not due yet
+    snap(1, t - 6 * 3600);
+    snap(1, t - 11 * 3600);
+    expect((await hints()).find((h) => h.key === 'stats')).toBeUndefined();
+    // 5 h (plus the grace) after the newest: a newer one is expected (all categories, estimated)
+    db.prepare('UPDATE stat_snapshots SET stat_time = -stat_time WHERE group_id = ?').run(group);
+    db.prepare('UPDATE stat_snapshots SET stat_time = -stat_time - 5 * 3600 WHERE group_id = ?').run(group);
+    stats = (await hints()).find((h) => h.key === 'stats');
+    expect(stats).toMatchObject({ level: 'medium', estimated: true, interval: 5 * 3600, update: t - 3600, types: [1, 2, 3, 4, 5] });
   });
 
   it('keeps the hints of one group to that group', async () => {
