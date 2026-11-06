@@ -44,6 +44,8 @@ pnpm build
   Ships, defense and missiles are a catalog per universe (`units.ts`: defaults from the generated data, `liveUnits.ts`
   and `@pr0hub/flight`'s drives and cargo; a universe stores only its differences). Code for one universe sets the
   active catalog (web) or passes it (`units` options, `withUnits` around synchronous code on the server).
+  Universe settings are one contract in `universe.ts` (`@pr0hub/core/universe`: type, defaults, validation, the
+  tools' hash keys and the `uo` unit link value); server, web, admin form and tools import it.
 - `packages/flight` (`@pr0hub/flight`): flight math ported from the game's `FleetFunctions` (distance, ship speed,
   duration, consumption, recall), ACS planning (`acs.ts`), retime candidates (`retime.ts`) and interplanetary
   missiles (`missile.ts`: range, flight time, `calculateMIPAttack`); must stay second-exact with the game and the

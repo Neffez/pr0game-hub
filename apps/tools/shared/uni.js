@@ -1,6 +1,7 @@
 /* Universe settings shared by the tools with a settings dialog (flight calculator, battle simulator): fields, hash
    keys, texts and the dialog's fields. All tools store them under one key, so a universe set up once fits them all;
    each tool keeps the keys of the others. */
+import { TOOL_HASH } from '@pr0hub/core/universe';
 import { esc, t } from './shell.js';
 
 export var LS_UNI = 'pr0fc.uni.v1';
@@ -41,15 +42,8 @@ export var BATTLE_UNI_DEFAULTS = {fleet_debris: 40, defense_debris: 0, moon_fact
    keeps DEFAULT_UNI. */
 export var BATTLE_LAYOUT_DEFAULTS = {max_galaxy: 1, max_system: 400, uni_type: 1, galaxy_type: 0};
 
-/* Hash keys (compatible with the in-game calculator links and the hub's links). */
-export var UNI_HASH = {
-  uni_type: 'ut', galaxy_type: 'gt', max_galaxy: 'mg', max_system: 'ms', max_planets: 'mp',
-  galaxy_distance_factor: 'gdf', system_distance_factor: 'sdf', system_distance: 'sd',
-  planet_distance_factor: 'pdf', planet_distance: 'pd', game_speed: 'gs',
-  expo_hold_multiplier: 'ehm', honor_boost: 'hb',
-  fleet_debris: 'fd', defense_debris: 'dd', moon_factor: 'mf', max_moon_chance: 'mc', big_shields: 'bs',
-  rate_metal: 'rm', rate_crystal: 'rk'
-};
+/* Hash keys (compatible with the in-game calculator links); the hub builds its links from the same table. */
+export var UNI_HASH = TOOL_HASH;
 
 export var UNI_TEXTS = {
   de: {

@@ -19,6 +19,16 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-06',
     items: [
       {
+        kind: 'new',
+        de: 'Links in den Kampfsimulator, Flug- und IRak-Rechner nehmen die eigenen Schiffe und Verteidigung des Universums mit, auch neue Einheiten wie den Bunker.',
+        en: 'Links into the battle simulator, flight and IPM calculator take the universe\'s own ships and defense along, including new units such as the Bunker.',
+      },
+      {
+        kind: 'new',
+        de: 'Admin: der Phalanx-Reichweitenfaktor des Universums lässt sich einstellen.',
+        en: 'Admin: the phalanx range factor of the universe can be set.',
+      },
+      {
         kind: 'fix',
         de: 'Eigene Schiffe und Verteidigung eines Universums werden in eingefügten Seiten und Kampfberichten richtig erkannt, auch wenn ein anderes Universum denselben Namen für eine andere Einheit verwendet.',
         en: 'Own ships and defense of a universe are recognised correctly in pasted pages and battle reports, even when another universe uses the same name for a different unit.',

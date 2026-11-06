@@ -164,6 +164,8 @@ None of this requires a rewrite. The recommended order at the end does the remai
 
 **Fix:** One `UniverseSettings` in `@pr0hub/core` (or a tiny uni module) with defaults, validation, hash encoding, and tool-key mapping. Server `toUniverse`, Admin field list, OpenAPI schema, and tools `UNI_FIELDS` import it. Build tool links from `catalogOf` and put overrides on the hash (`uo`).
 
+**Status:** Done (2026-11-06). `@pr0hub/core/universe` holds the type (all optional settings typed), defaults, `settingsError` (admin API), `TOOL_HASH` / `toolsHash` and the `uo` encoding. Server `config.ts` re-exports it, web `format.ts` uses it without casts, tools `UNI_HASH` is `TOOL_HASH`. Hub and server battle links pick units from the catalog and carry `uo`. The admin field list stays UI-side; OpenAPI has a `UniverseSettings` schema (hand-written).
+
 ---
 
 ### A-08 — `@pr0hub/core` is a kitchen-sink; the folder is still called `parser`
@@ -956,6 +958,8 @@ Tools: widespread `innerHTML` plus `esc()` on sampled name/user paths. `t()` doe
 
 **Fix:** Add the field to the admin form once settings live in one type. Drop or document `flightCalculatorUrl` (prefer `toolsUrl` only).
 
+**Status:** Done (2026-11-06). Admin field for `phalanxRangeFactor`. `flightCalculatorUrl` is typed and documented as legacy (no admin field; `TOOLS_URL` preferred).
+
 ---
 
 ### I-05 — `/:uni` swallows unknown paths; no 404
@@ -979,6 +983,8 @@ Tools: widespread `innerHTML` plus `esc()` on sampled name/user paths. `t()` doe
 | Impact | Risk | Effort |
 |---|---|---|
 | Medium | Medium | Medium |
+
+**Status:** Done for the universe keys (2026-11-06): one table `TOOL_HASH` for tools and hub, `toolsHash` builds the hub's values, `uo` on hub links. Per-tool keys of positions/fleets stay in each builder.
 
 ---
 
@@ -1068,7 +1074,7 @@ These are the contract and correctness issues. They take more than an afternoon,
 | 3 | A-04 / B-17 | Pass the universe catalog into parse/name/short lookup; register shorts | Medium | Done (2026-11-06; `withUnits` await guard open) |
 | 4 | B-06 | Stop attaching name-only pastes via aliases | Medium | Open |
 | 5 | B-22 | Central 401 → clear session, close live, login | Medium | Done `99da344` |
-| 6 | A-07 / I-04 / I-06 | One `UniverseSettings` + hash mapping; admin `phalanxRangeFactor`; tool `uo` on hub links | Medium | Open |
+| 6 | A-07 / I-04 / I-06 | One `UniverseSettings` + hash mapping; admin `phalanxRangeFactor`; tool `uo` on hub links | Medium | Done (2026-11-06) |
 | 7 | A-01 / I-01 / C-02 | OpenAPI path check in CI; type the web client on the token-facing GETs | Medium | Partial `eb8ef15` (path CI done; typed client open) |
 | 8 | B-18 | Planner cross-planet multi-level research | Medium | Open |
 | 9 | A-09 | Kill flight’s implicit `SHIPS` default (pass the catalog) | Medium | Open |

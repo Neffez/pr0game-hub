@@ -4,6 +4,16 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-06
 
+- Universe settings are one contract in `@pr0hub/core/universe`: the full `UniverseSettings` type (optional game
+  values such as phalanx/missile range, noob protection and debris included), defaults, validation (admin API),
+  the tools' hash keys (`TOOL_HASH`, `toolsHash`) and the `uo` encoding of unit overrides. Server, web app and tools
+  import it instead of keeping their own copies; the casts for optional settings are gone.
+  - Hub links into the flight calculator, IPM calculator and battle simulator carry the universe's own units
+    (`uo`); the battle simulator link takes ships and defense from the universe's catalog (custom defense such as
+    the Bunker included) instead of a fixed id range. The server's battle API link does the same.
+  - Admin: new field for the phalanx range factor (already used for the phalanx coverage).
+  - OpenAPI: `UniverseSettings` schema for the context and the admin universe endpoints.
+
 - Unit names resolve by the catalog of the universe: `idByName` / `idByShortName` take a catalog (default: the active
   one) and look at its units first; `parsePage` takes `units`. The server parses and stores every paste, re-parse,
   undo, backfill, crawled report, phalanx and simulation with its universe's catalog, so two universes can give the

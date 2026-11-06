@@ -1,6 +1,7 @@
 import { Worker } from 'node:worker_threads';
 import { defenseIds, encodeShare, shipIds, type BattleSetup, type SimSettings, type SimSummary } from '@pr0hub/battle';
 import { DEFAULT_UNITS, type UnitCatalog, type UnitOverrides } from '@pr0hub/core/units';
+import { encodeUnitOverrides, toolsHash } from '@pr0hub/core/universe';
 import { distance, drivesFromResearch, fleetConsumption, flightDuration, slowestShip } from '@pr0hub/flight';
 import { HttpError } from './auth.js';
 import { config, type UniverseSettings } from './config.js';
@@ -179,22 +180,21 @@ export function flights(u: UniverseSettings, attackers: ApiSlot[], target: Coord
   });
 }
 
-/** Link into the battle simulator page with the same battle (like the hub's `battleSimLink`). */
-export function toolsLink(u: UniverseSettings, req: BattleRequest, planet: ApiSlot, settings: SimSettings): string {
-  const flightUrl = (u as UniverseSettings & { flightCalculatorUrl?: string }).flightCalculatorUrl;
-  const base = flightUrl ? new URL('../battle-simulator/', flightUrl.split('#')[0]).href : `${config.toolsUrl}battle-simulator/`;
+/** Link into the battle simulator page with the same battle and the universe's own units (like the hub's `battleSimLink`). */
+export function toolsLink(u: UniverseSettings, req: BattleRequest, planet: ApiSlot, settings: SimSettings, overrides: UnitOverrides = {}): string {
+  const base = u.flightCalculatorUrl ? new URL('../battle-simulator/', u.flightCalculatorUrl.split('#')[0]).href : `${config.toolsUrl}battle-simulator/`;
   const hash = encodeShare({
     attackers: req.attackers.map((a) => ({ units: a.units, research: a.research, from: a.from, speed: a.speed, name: a.name })),
     defenders: [planet, ...(req.defenders.slice(1) as ApiSlot[])].map((d, i) => ({ units: d.units, research: d.research, name: d.name, ...(i ? { from: d.from, speed: d.speed } : {}) })),
     target: req.target,
     resources: req.resources,
+    // the battle values used (universe with the request's overrides) over the universe's layout and speed
     uni: {
+      ...toolsHash(u),
       fd: settings.fleetDebris, dd: settings.defenseDebris, mf: settings.moonFactor, mc: settings.maxMoonChance, bs: settings.bigShields ? 1 : 0,
-      ut: u.circularGalaxies ? 1 : 0, gt: u.circularSystems ? 1 : 0, mg: u.galaxies, ms: u.systems, mp: u.positions,
-      gdf: u.galaxyDistanceFactor, sdf: u.systemDistanceFactor, sd: u.systemDistance, pdf: u.planetDistanceFactor, pd: u.planetDistance,
-      gs: u.fleetSpeed / 2500,
     },
     runs: req.runs,
+    uo: encodeUnitOverrides(overrides),
   });
   return `${base}#${hash}`;
 }

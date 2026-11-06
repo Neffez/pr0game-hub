@@ -97,6 +97,7 @@ const UNI_GROUPS: UniGroup[] = [
     { key: 'defenseDebrisPercent', label: 'defenseDebrisPercent', hint: true, min: 0, max: 100, placeholder: '0' },
     { key: 'bigShields', label: 'bigShields', hint: true, type: 'check' },
     { key: 'missileRangeFactor', label: 'missileRangeFactor', hint: true, min: 0, step: 'any', placeholder: '1' },
+    { key: 'phalanxRangeFactor', label: 'phalanxRangeFactor', hint: true, min: 0, step: 'any', placeholder: '1' },
   ] },
   { id: 'noob', fields: [
     { key: 'noobLimit', label: 'noobLimit', hint: true, min: 0, placeholder: '0' },

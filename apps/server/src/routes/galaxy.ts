@@ -1,3 +1,4 @@
+import { OPTIONAL_DEFAULTS } from '@pr0hub/core/universe';
 import { CLASS_BUILDINGS, CLASS_RESOURCES, PHALANX } from '@pr0hub/core/tech';
 import type { FastifyInstance } from 'fastify';
 import type { GroupContext } from '../context.js';
@@ -100,8 +101,7 @@ export function galaxyRoutes(app: FastifyInstance, db: DB) {
  * report with buildings or the alliance members' empire pages, whichever is newer.
  */
 function phalanxCoverage(db: DB, ctx: GroupContext, g: number, s: number) {
-  const settings = ctx.universe.settings as typeof ctx.universe.settings & { phalanxRangeFactor?: number };
-  const factor = settings.phalanxRangeFactor ?? 1;
+  const factor = ctx.universe.settings.phalanxRangeFactor ?? OPTIONAL_DEFAULTS.phalanxRangeFactor;
   type Moon = { s: number; p: number; level: number; time: number; source: 'spy' | 'empire'; playerId: number | null; playerName: string | null };
   const moons = new Map<string, Moon>();
 

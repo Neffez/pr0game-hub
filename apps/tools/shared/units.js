@@ -6,11 +6,12 @@
 import { BUILDINGS, RESEARCH } from '@pr0hub/core/buildings';
 import { registerUnitNames, techName } from '@pr0hub/core/tech';
 import { DEFAULT_UNIT_DEFS, emptyUnit, isUnitId, setActiveUnits, unitCatalog, unitPatch, validateUnits } from '@pr0hub/core/units';
+import { decodeUnitOverrides, encodeUnitOverrides, UNITS_HASH as HASH_KEY } from '@pr0hub/core/universe';
 import { $, applyTexts, esc, fmtNum, lang, load, store, t, toast } from './shell.js';
 
 export var LS_UNITS = 'pr0tools.units.v1';
 /* hash key of the share links */
-export var UNITS_HASH = 'uo';
+export var UNITS_HASH = HASH_KEY;
 
 var stored = {};
 var fromLink = null;
@@ -26,25 +27,9 @@ function apply() {
   syncButton();
 }
 
-/* base64url of the JSON (UTF-8) */
-function encode(value) {
-  var bytes = new TextEncoder().encode(JSON.stringify(value));
-  var bin = '';
-  for (var i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
-  return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-
-function decode(text) {
-  try {
-    var bin = atob(String(text).replace(/-/g, '+').replace(/_/g, '/'));
-    var bytes = new Uint8Array(bin.length);
-    for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-    var value = JSON.parse(new TextDecoder().decode(bytes));
-    return validateUnits(value) == null ? value : null;
-  } catch (e) {
-    return null;
-  }
-}
+/* base64url of the JSON (UTF-8), the same format as the hub's links */
+var encode = encodeUnitOverrides;
+var decode = decodeUnitOverrides;
 
 /* Loads the stored values and, from a share link, its values for this session. `extra`: units of an older format
    (the flight calculator's custom ships) to keep. */

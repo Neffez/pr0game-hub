@@ -37,6 +37,10 @@
     "./unitPages": {
       "types": "./dist/parsers/units.d.ts",
       "default": "./dist/parsers/units.js"
+    },
+    "./universe": {
+      "types": "./dist/universe.d.ts",
+      "default": "./dist/universe.js"
     }
   },
   "scripts": {

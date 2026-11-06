@@ -20,6 +20,7 @@ export * from './util.js';
 export * from './tech.js';
 export * from './buildings.js';
 export * from './units.js';
+export * from './universe.js';
 export * from './deck.js';
 export { looksLikeUniverseJson, UNIVERSE_JSON_STATUS } from './parsers/universeJson.js';
 export { isPhalanxText, parseFleetsText, phalanxPosition } from './parsers/fleets.js';

@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { checkUsername, HttpError, randomToken, requireAdmin, requireUser, revokeAccessIfOrphaned } from '../auth.js';
 import { config, UNIVERSE_DEFAULTS } from '../config.js';
+import { settingsError } from '@pr0hub/core/universe';
 import { catalogOf, catalogOfGroup, toUniverse } from '../context.js';
 import { parseUnitPage } from '@pr0hub/core';
 import { DEFAULT_UNIT_DEFS, isUnitId, validateUnits, type UnitOverrides } from '@pr0hub/core/units';
@@ -636,32 +637,8 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
 }
 
 function validateSettings(settings: object | undefined) {
-  if (!settings) return;
-  const s = settings as Record<string, unknown>;
-  if (s.timezone !== undefined) {
-    try {
-      new Intl.DateTimeFormat('en-US', { timeZone: String(s.timezone) });
-    } catch {
-      throw new HttpError(400, 'timezone_invalid', 'Invalid time zone');
-    }
-  }
-  if (s.gameUrl && !/^https?:\/\//i.test(String(s.gameUrl))) throw new HttpError(400, 'game_url_invalid', 'Game URL must start with http(s)://');
-  if (s.pr0planUrl && !/^https?:\/\//i.test(String(s.pr0planUrl))) throw new HttpError(400, 'pr0plan_url_invalid', 'pr0plan URL must start with http(s)://');
-  // sizes and distance factors feed the distance, flight time, phalanx and missile range calculations
-  const defaults: Record<string, unknown> = { ...UNIVERSE_DEFAULTS, phalanxRangeFactor: 1, missileRangeFactor: 1, noobLimit: 0, noobFactor: 5, noobInactives: false, inactiveDays: 7, fleetDebrisPercent: 40, defenseDebrisPercent: 0, bigShields: false };
-  for (const [key, value] of Object.entries(s)) {
-    if (value === null && !(key in UNIVERSE_DEFAULTS)) continue;
-    let valid = true;
-    if (typeof defaults[key] === 'boolean') valid = typeof value === 'boolean';
-    else if (typeof defaults[key] === 'number') {
-      valid = typeof value === 'number' && Number.isFinite(value) && value >= 0;
-      if (['galaxies', 'systems', 'positions', 'fleetSpeed'].includes(key)) valid &&= Number.isInteger(value) && (value as number) >= 1;
-      if (key === 'storageMultiplier') valid &&= Number.isInteger(value) && (value as number) >= 1;
-      // a percentage per TechnoDome level: above 100 research times turn negative
-      if (['universityFactor', 'fleetDebrisPercent', 'defenseDebrisPercent'].includes(key)) valid &&= (value as number) <= 100;
-    }
-    if (!valid) throw new HttpError(400, 'setting_invalid', `Invalid setting: ${key}`);
-  }
+  const err = settingsError(settings);
+  if (err) throw new HttpError(400, err.code, err.message);
 }
 
 function playerReferences(db: DB): { table: string; column: string }[] {
