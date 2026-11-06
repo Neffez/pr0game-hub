@@ -145,6 +145,8 @@ const ICONS: Record<string, string[]> = {
   sparkle: ['M12 3c.8 5 2.9 7.2 9 9-6.1 1.8-8.2 4-9 9-.8-5-2.9-7.2-9-9 6.1-1.8 8.2-4 9-9z'],
   // funnel (filters)
   filter: ['M4 5h16l-6.2 7.5V19l-3.6 1.5v-8z'],
+  // magnifying glass
+  search: ['M17 10.5a6.5 6.5 0 1 1-13 0a6.5 6.5 0 1 1 13 0', 'M15.2 15.2L20 20'],
   // arrow into a tray (download)
   download: ['M12 4v11', 'M7 10.5l5 5 5-5', 'M4 15.5V20h16v-4.5'],
   // log out

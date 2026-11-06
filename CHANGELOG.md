@@ -4,6 +4,48 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-06
 
+- Inactivity score, second version: latest sign of activity, then the absence seen since.
+  - Proof of activity: attacks (combat reports, battle hall), espionage on members, messages, fleet launches and
+    recalls, reports by hand, and a fleet that shrank between two spy reports without a battle there.
+  - Points gains count only when they reach a share of what the active players around the same rank gained (smaller
+    ones are build queues running out); fleet or defense lost and not rebuilt and spy reports matching the resource
+    projection of the report before raise the score.
+  - Galaxy activity marks lower the score instead of capping it (the game also sets them when others spy on or
+    attack the planet). The score grows on a curve with the idle time; `reasons` explain it (API and tooltip).
+  - Admin panel: "Check the inactivity score" replays the score after the last login of players the game flagged
+    inactive later (`GET /api/:uni/inactivity-check`) and counts false alarms over 30 days.
+
+- Sync hints in the overview and the quick sync sheet fold away: a collapsible section with the number of hints,
+  folded by default on mobile (one line), open on desktop; the choice is remembered per device and page. The title
+  row carries a warning mark with the number of hints, red with an important hint and yellow otherwise, so a
+  folded list stays noticeable; its tooltip lists the hints.
+
+- Farm finder (backlog B-1) and inactivity confidence (backlog B-3).
+  - `@pr0hub/core/production`: `projectResources` (production since a spy report up to the storage capacity),
+    `positionTemp` (default temperature of a position) and `deriveResourceSpeed` (resource multiplier from synced
+    empire production).
+  - Server: `GET /api/:uni/farm` lists spied targets outside the own alliance with resources expected now, loot,
+    fleet and defense risk and inactivity; `repo/inactivity.ts` scores how likely a player is inactive (game flag,
+    points stall, activity seen after the last gain), also returned on `/overview` players and `/players/:id`.
+  - Web: new page "Farm finder" under Combat & expeditions (ranked by loot per flight hour, flight time, ships and
+    fuel from the nearest own planet, filters, claim and game links via the actions menu) with its own tour;
+    inactivity badge in the overview and player details.
+
+- Global search (backlog F-1): `Ctrl+K`/`⌘K`, `/` or the search field in the sidebar (mobile: search icon in the
+  top bar) opens one search for players (also former names), alliances, coordinates and the hub's pages, with
+  arrow keys and Enter.
+  - Server: `GET /api/:uni/search` (players and alliances by best match, the planet and owner for coordinates).
+  - Web: players open in the player dialog, alliances as the overview's alliance filter (`?ally=`), coordinates in
+    the spy history (planet or moon) or the galaxy. Tour step in the overview tour.
+
+- "What should I paste next?" (backlog E-1): a personal list of missing or outdated pages with what each one
+  improves and where to find it in the game, most important first.
+  - Server: `GET /api/:uni/sync-hints` checks the member's empire, overview/fleet page, galaxy systems ±2 around
+    the own planets, buildings pages per planet, research page and messages, and the group's latest statistics
+    update per category (0/6/12/18 o'clock in the universe's time zone) and market rate; levels high, medium, low.
+  - Web: full list on the sync page, the important ones in short on the overview and in the quick sync sheet;
+    reloaded after every save and on live data events. Tour steps on the sync page and the overview.
+
 - ACS loot calculator (tools) fills in a settlement from pasted pages like the hub does from synced data:
   - One paste field recognises a battle report (the same battle again replaces it, another target offers a new
     settlement), the messages page, an empire page and the marketplace.

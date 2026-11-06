@@ -70,6 +70,18 @@ components:
       schema: { type: integer }
       description: Attack plan id
   schemas:
+    SyncHint:
+      type: object
+      required: [key, level, scope, time]
+      properties:
+        key: { type: string, enum: [empire, stats, overview, galaxy, buildings, research, messages, market] }
+        level: { type: string, enum: [high, medium, low], description: 'high: features are missing or wrong without it; medium: noticeably outdated; low: better with it' }
+        scope: { type: string, enum: [me, group], description: The member's own pages or the group's shared data }
+        time: { type: [integer, 'null'], description: 'Epoch seconds of the newest sync of this page (galaxy: the oldest system), null when there is none' }
+        count: { type: integer, description: 'buildings: planets without a buildings page; galaxy: outdated systems around the own planets' }
+        total: { type: integer, description: Of how many planets or systems }
+        update: { type: integer, description: 'stats: epoch seconds of the game''s statistics update that is missing' }
+        types: { type: array, items: { type: integer }, description: 'stats: missing categories (1 total, 2 fleet, 3 research, 4 buildings, 5 defense)' }
     PointsStall:
       type: object
       nullable: true
@@ -81,6 +93,82 @@ components:
       properties:
         time: { type: integer }
         atLeast: { type: boolean }
+    Inactivity:
+      type: [object, 'null']
+      description: >-
+        How sure the hub is that the player is inactive, before or with the game's flag (`inactive` 95, `longinactive`
+        100). Without the flag the score grows with the time since the latest sign of activity (`since`): proven
+        activity (attacks in combat reports or the battle hall, espionage on members, messages a member synced and may
+        share, fleet launches and recalls seen, reports by hand, a fleet sent away between two spy reports) or a
+        relevant gain in total points (gains below a small share of what the active players around the same rank gained
+        are builds finishing from a queue and don't count). Spy reports whose resources match the projection of the
+        report before and fleet or defense points lost and not rebuilt raise it; galaxy activity marks lower it (others'
+        attacks and espionage set them too). At most 94 without the game's flag. `reasons` lists what the score is made
+        of. Null for players the hub doesn't know.
+      required: [score, level, since, atLeast, status, stall, lastActive, reasons]
+      properties:
+        score: { type: integer, minimum: 0, maximum: 100 }
+        level: { type: string, enum: [inactive, likely, possible, active, unknown], description: 'inactive ≥ 85, likely ≥ 50, possible ≥ 20; unknown without current statistics' }
+        since: { type: [integer, 'null'], description: Probably inactive since (Unix seconds) }
+        atLeast: { type: boolean, description: '`since` is the start of the window looked at (twice the inactive days); the player may have stopped earlier' }
+        status: { type: [string, 'null'], enum: [inactive, longinactive, null] }
+        stall: { type: [integer, 'null'], description: Statistics update of the last relevant points gain }
+        lastActive: { type: [integer, 'null'], description: Newest proven activity }
+        reasons:
+          type: array
+          items:
+            type: object
+            required: [code]
+            description: >-
+              `flag` (status, time), `proven` (source attack|spy|message|fleet|recall|manual|fleetGone, time), `gain`
+              (time), `noGain` (since, atLeast), `weakGains` (n), `galaxy` (n, time of the newest), `idleSpy` (n),
+              `losses`
+            properties:
+              code: { type: string, enum: [flag, proven, gain, noGain, weakGains, galaxy, idleSpy, losses] }
+    FarmTarget:
+      type: object
+      properties:
+        g: { type: integer }
+        s: { type: integer }
+        p: { type: integer }
+        type: { type: string, enum: [planet, moon] }
+        name: { type: [string, 'null'] }
+        player:
+          type: object
+          properties:
+            id: { type: integer }
+            name: { type: string }
+            status: { type: array, items: { type: string } }
+            ally_tag: { type: [string, 'null'] }
+            points: { type: [number, 'null'] }
+        report:
+          type: object
+          description: Newest spy report with resources (901 metal, 902 crystal, 903 deuterium) and the number of reports
+          properties:
+            time: { type: integer }
+            resources: { type: object, additionalProperties: { type: number } }
+            count: { type: integer }
+        levels:
+          type: [object, 'null']
+          description: Building levels of the newest report with buildings (plus solar satellites, 212); null for moons and when no report showed them
+          properties:
+            time: { type: integer }
+            values: { type: object, additionalProperties: { type: number } }
+        projected: { type: object, additionalProperties: { type: number }, description: Expected resources now (production since the report, capped by the storages) }
+        perHour: { type: object, additionalProperties: { type: number } }
+        full: { type: object, additionalProperties: { type: boolean }, description: Storage full per resource }
+        loot: { type: object, additionalProperties: { type: number }, description: 'Loot of a won attack: half of each projected resource' }
+        fleet: { $ref: '#/components/schemas/FarmSection' }
+        defense: { $ref: '#/components/schemas/FarmSection' }
+        lastBattle: { type: [integer, 'null'] }
+        inactivity: { $ref: '#/components/schemas/Inactivity' }
+    FarmSection:
+      type: [object, 'null']
+      description: Newest spy report section (null when no report showed it)
+      properties:
+        time: { type: integer }
+        points: { type: [number, 'null'] }
+        units: { type: integer, description: Units that fight (solar satellites, spy probes and missiles left out) }
     MarketRate:
       type: object
       description: Market rate as metal (`m`) and crystal (`k`) per 1 deuterium
@@ -955,6 +1043,7 @@ components:
             type: object
             properties:
               points_stall: { $ref: '#/components/schemas/PointsStall' }
+              inactivity: { $ref: '#/components/schemas/Inactivity' }
         planets:
           type: array
           items:
@@ -2004,6 +2093,64 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Context' }
+  /api/{uni}/sync-hints:
+    get:
+      tags: [Universe]
+      operationId: getSyncHints
+      description: >-
+        What the member should paste next, most important first (an empty list: the hub is up to date). Own pages
+        that are missing or old (empire, overview or fleet page, the galaxy systems around the own planets, buildings
+        pages per planet, a research page, messages) and the group's shared data (the game's latest statistics update
+        per category, the market rate). `messagesDays`: how many days a messages page counts (raw pages are kept that
+        long).
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [hints, messagesDays]
+                properties:
+                  hints: { type: array, items: { $ref: '#/components/schemas/SyncHint' } }
+                  messagesDays: { type: integer }
+  /api/{uni}/farm:
+    get:
+      tags: [Universe]
+      operationId: getFarmTargets
+      description: >-
+        Farm finder: every spied planet or moon of players outside the own alliance (members and the in-game alliance
+        of the viewer's player) with a spy report showing resources within `days`, with the expected resources now.
+        The production since the report comes from the mine, power plant and storage levels of the newest report with
+        buildings (formulas of the game's `ResourceUpdate`), the position's default temperature, the mining research
+        of the player's newest report with research and the resource multiplier (`resourceSpeed` as a factor;
+        `speedSource`: `settings` from the universe, `empire` derived from the members' synced production, `default`
+        1 when neither tells). Positions that changed owner or were destroyed since the report are left out. Sorting
+        and flight math are up to the client.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+        - name: days
+          in: query
+          description: Age of the newest report with resources in days (1–30, default 7)
+          schema: { type: integer, minimum: 1, maximum: 30, default: 7 }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  targets: { type: array, items: { $ref: '#/components/schemas/FarmTarget' } }
+                  resourceSpeed: { type: number }
+                  speedSource: { type: string, enum: [settings, empire, default] }
+                  storageFactor: { type: number }
+                  days: { type: integer }
+                  now: { type: integer, description: Time of the universe the projection is for (Unix seconds) }
   /api/{uni}/overview:
     get:
       tags: [Universe]
@@ -2056,6 +2203,123 @@ paths:
               schema:
                 type: array
                 items: { type: object }
+  /api/{uni}/search:
+    get:
+      tags: [Universe]
+      operationId: globalSearch
+      description: >-
+        Global search of the hub (Ctrl+K). For coordinates (`1:120:8`, with or without brackets) only `planet` is
+        filled: the known planet there with its owner, or just the position when the hub knows nothing about it.
+        Otherwise (at least 2 characters) up to 8 `players` by name or former name (`alias`: the former name that
+        matched) and up to 5 `alliances` by name or tag, best matches first (exact, then starting with the term).
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+        - name: q
+          in: query
+          schema: { type: string, maxLength: 100 }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [players, alliances, planet]
+                properties:
+                  players:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: integer }
+                        name: { type: string }
+                        status: { type: array, items: { type: string } }
+                        ally_tag: { type: [string, 'null'] }
+                        ally_name: { type: [string, 'null'] }
+                        alias: { type: [string, 'null'], description: Former name that matched (null when the current name matched) }
+                  alliances:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: integer }
+                        name: { type: string }
+                        tag: { type: [string, 'null'] }
+                        players: { type: integer, description: Known players of the alliance }
+                  planet:
+                    type: [object, 'null']
+                    description: Only for coordinates; owner fields are missing when the position is unknown
+                    properties:
+                      g: { type: integer }
+                      s: { type: integer }
+                      p: { type: integer }
+                      name: { type: [string, 'null'] }
+                      has_moon: { type: boolean }
+                      moon_name: { type: [string, 'null'] }
+                      destroyed: { type: boolean }
+                      player_id: { type: [integer, 'null'] }
+                      player_name: { type: [string, 'null'] }
+                      ally_tag: { type: [string, 'null'] }
+  /api/{uni}/inactivity-check:
+    get:
+      tags: [Universe]
+      operationId: getInactivityCheck
+      description: >-
+        Alliance admins: how well the inactivity score (see `Inactivity`) fits the group's data. Players the game
+        flagged `inactive` in the last 45 days (at most 40, the flag's appearance known within 2 days) were last online
+        the universe's inactive days before; the score is replayed 12, 24, 48, 72 and 120 hours after that (only data
+        up to then): `detection` gives per offset the players evaluated, the share scored at least likely (≥ 50) and
+        inactive (≥ 85) and the median score. `falseAlarms` samples the score once a day over 30 days and counts scores
+        of at least likely that were followed by proof of activity or a relevant points gain within 3 days, with up to
+        15 examples. `weights` are the weights in use. Computed in steps and kept for 15 minutes; `fresh=1` computes
+        anew.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+        - name: fresh
+          in: query
+          schema: { type: string, enum: ['1'] }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  generatedAt: { type: integer }
+                  weights: { type: object, additionalProperties: { type: number } }
+                  events: { type: integer }
+                  skipped: { type: integer }
+                  detection:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        hours: { type: integer }
+                        n: { type: integer }
+                        likely: { type: number }
+                        inactive: { type: number }
+                        median: { type: [number, 'null'] }
+                  falseAlarms:
+                    type: object
+                    properties:
+                      days: { type: integer }
+                      positives: { type: integer }
+                      contradicted: { type: integer }
+                      rate: { type: [number, 'null'] }
+                      examples:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            playerId: { type: integer }
+                            name: { type: string }
+                            time: { type: integer }
+                            score: { type: integer }
+                            activeAt: { type: integer }
+        '403': { description: Not an alliance admin }
   /api/{uni}/players/{id}:
     get:
       tags: [Universe]
@@ -2063,7 +2327,7 @@ paths:
       description: >-
         One player: scores over time, `planets` (with `has_moon`, `moon_name`, `moon_diameter` in km or null, newest spy
         report times), recent spy reports and further intelligence of the group; `pointsStall` (see `PointsStall`) from
-        the whole score history.
+        the whole score history; `inactivity` (see `Inactivity`).
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }

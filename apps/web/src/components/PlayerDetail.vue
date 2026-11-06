@@ -15,6 +15,7 @@ import { useLoader, useUni, vStack } from '../composables';
 import { tables, useLiveReload } from '../live';
 import { ago, coords, dateTime, fmt, freshnessColor, name, numDate, phalanxRange, STATS_TYPES } from '../format';
 import PointsStall from './PointsStall.vue';
+import InactivityBadge from './InactivityBadge.vue';
 
 Chart.register(...registerables);
 
@@ -163,6 +164,7 @@ onBeforeUnmount(() => chart?.destroy());
       </RouterLink>
     </p>
     <PointsStall :stall="data.pointsStall" />
+    <InactivityBadge :value="data.inactivity" />
 
     <div class="card">
       <div class="row">

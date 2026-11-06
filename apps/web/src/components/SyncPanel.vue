@@ -4,6 +4,7 @@ import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
 import { useUni } from '../composables';
+import { refreshSyncHints } from '../syncHints';
 import { cardLabel, coords, dateTime, DEPLETION_LABEL, fmt, rateText, STATS_CATEGORIES } from '../format';
 
 interface Summary {
@@ -181,6 +182,7 @@ async function run(dryRun: boolean) {
       saved.value = null;
     } else {
       saved.value = res;
+      refreshSyncHints(uni.value);
       savedFor.value = others.value.find((m) => m.id === forUser.value)?.name ?? null;
       if (res.pageType === 'galaxy' && system.value) nextSystem();
       preview.value = null;

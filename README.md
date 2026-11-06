@@ -11,6 +11,9 @@ External analysis tool for [pr0game](https://codeberg.org/pr0game/pr0game) based
     impacts, hostile spying, player messages
   - Galaxy, empire, game overview (build queues, fleet movements), buildings and research pages, fleet movements on their own, battle hall, marketplace
   - universe.json import and export
+  - **What to paste next**: a personal list of missing or old pages (empire, statistics update, overview, galaxy
+    around the own planets, buildings and research pages, messages, market rate), each with what it improves and
+    where to find it in the game; on the sync page, in short on the overview and in the quick sync sheet
 - **Tutorials**: a short guided tour the first time a page is opened (skippable, switchable in the account settings,
   restartable with the "?" in the page header).
 - **Overview**: points per category with deltas per statistics update, rank changes, status, filters
@@ -31,11 +34,18 @@ External analysis tool for [pr0game](https://codeberg.org/pr0game/pr0game) based
 - **Comments**: the alliance discusses a player or a planet/moon in a thread (player details, spy history), with a
   💬 count next to the planet
 - **Galaxy browser** with phalanx coverage and a freshness heat map
+- **Global search** (`Ctrl+K`/`⌘K`, `/` or the search field in the menu): players (also former names), alliances,
+  coordinates (spy history, galaxy, owner) and the hub's pages, with keyboard navigation
 - **Spy history** with a diff per coordinate, **hostile spying**, **activity log**
 - **In-game messages**: synced player messages as conversations per partner (chat view) or single, sortable and
   filterable by sender and recipient; private unless the member shares them (account setting or per message)
 - **Alliance**: planets, fleets, fleet movements and research of all members (each member chooses which fleet
   missions they share)
+- **Farm finder**: spied targets outside the own alliance ranked by loot per flight hour: the resources of the
+  newest spy report plus the production since then (capped by the storages), ships, fuel and flight time from the
+  nearest own planet, defense and fleet risk and an inactivity score (game flag, latest proven activity, relevant
+  points gains against the players around the same rank, spy history, lost fleet or defense; checkable against the
+  game's own flags in the admin panel)
 - **Targets**: members claim a planet or moon for a while (farming, attack, espionage) so nobody hits it twice;
   the claim shows next to the target everywhere and runs out by itself; the list of claims is a section of the
   raids planning tab

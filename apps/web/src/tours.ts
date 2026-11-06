@@ -31,12 +31,14 @@ export const TOURS = {
   overview: {
     steps: [
       { key: 'intro' },
+      { key: 'syncHints', el: 'overview-sync-hints', side: 'bottom' },
       { key: 'planets', el: 'overview-planets', side: 'bottom' },
       { key: 'players', el: 'overview-players', side: 'bottom' },
       { key: 'search', el: 'overview-search', side: 'bottom' },
       { key: 'filter', el: 'overview-filter', side: 'bottom' },
       { key: 'list', el: 'overview-list', side: 'top' },
       { key: 'actions', el: 'overview-actions', side: 'left' },
+      { key: 'globalSearch', el: 'global-search', side: 'right' },
       { key: 'outro' },
     ],
   },
@@ -46,6 +48,7 @@ export const TOURS = {
       { key: 'copy', el: 'paste-sync', side: 'bottom' },
       { key: 'pages', el: 'paste-sync', side: 'bottom' },
       { key: 'source', el: 'paste-sync', side: 'bottom' },
+      { key: 'hints', el: 'paste-hints', side: 'top' },
       { key: 'json', el: 'paste-json', side: 'top' },
       { key: 'outro' },
     ],
@@ -208,6 +211,19 @@ export const TOURS = {
       { key: 'list', el: 'battlehall-list', side: 'top' },
     ],
   },
+  farm: {
+    steps: [
+      { key: 'intro' },
+      { key: 'flight', el: 'farm-flight', side: 'bottom' },
+      { key: 'days', el: 'farm-days', side: 'bottom' },
+      { key: 'filter', el: 'farm-filter', side: 'bottom' },
+      { key: 'loot', el: 'farm-loot', side: 'bottom' },
+      { key: 'rank', el: 'farm-rank', side: 'bottom' },
+      { key: 'inactivity', el: 'farm-inactivity', side: 'bottom' },
+      { key: 'risk', el: 'farm-risk', side: 'left' },
+      { key: 'list', el: 'farm-list', side: 'top' },
+    ],
+  },
   expeditions: {
     steps: [
       { key: 'intro' },
@@ -241,6 +257,7 @@ export const TOURS = {
       { key: 'members', el: 'admin-members', side: 'top' },
       { key: 'discord', el: 'admin-discord', side: 'top' },
       { key: 'fleetAttacks', el: 'admin-fleet-attacks', side: 'top' },
+      { key: 'inactivity', el: 'admin-inactivity', side: 'top' },
       { key: 'crawler', el: 'admin-crawler', side: 'top' },
       { key: 'system', el: 'admin-system', side: 'top' },
       { key: 'backfill', el: 'admin-backfill', side: 'top' },

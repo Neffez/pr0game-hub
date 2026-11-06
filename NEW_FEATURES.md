@@ -6,6 +6,17 @@ existing features could do more.
 **Basis:** the hub as of `main` on 2026-11-06 (README, CHANGELOG, web views, server routes, parsers) and the game
 source (`pr0game`: pages, missions, achievements, advanced stats).
 
+## Implementation status
+
+| Item | Status | Date | Where |
+|---|---|---|---|
+| E-1 What should I paste next? | Done | 2026-11-06 | sync page, overview, quick sync sheet |
+| F-1 Global search (Ctrl+K) | Done | 2026-11-06 | every page of a universe (sidebar, mobile top bar) |
+| B-1 Farm finder with projected resources | Done | 2026-11-06 | new menu item "Farm finder" under Combat & expeditions |
+| B-3 Inactivity confidence | Done (second version) | 2026-11-06 | farm finder, overview, player details, check in the admin panel |
+
+Each finished item carries a **Status** block below its description: what was built and how.
+
 ## Guardrails
 
 Every idea below respects the project's rules:
@@ -116,6 +127,38 @@ Improvement over today: the overview shows the resources of the last report as t
 hours old on a planet with high mines is worth far more than its numbers, and an inactive planet with full storage
 is worth no more than the storage.
 
+**Status: done (2026-11-06).** How it was built:
+
+- **Game math in `@pr0hub/core/production`** (shared with the tools): `projectResources` adds the production since
+  the report to its resources like the game's `ResourceUpdate` (mines, power plants and solar satellites with the
+  energy factor, mining research, resource multiplier, basic income) and stops at the storage capacity
+  (`storageCapacity` with the universe's storage factor); resources already above it stay. `positionTemp` takes the
+  middle of the game's default temperature range of the position (`planet_data` in `install.sql`), since a spy report
+  shows no temperature. `deriveResourceSpeed` finds the resource multiplier from the production per hour of synced
+  empire pages when the universe setting is 0 (only planets with enough energy for the known levels count). Tests in
+  `packages/parser/test/production.test.ts`.
+- **Server:** `GET /api/:uni/farm?days=7` (`apps/server/src/repo/farm.ts`, `getFarmTargets` in `openapi.yaml`). Per
+  spied planet or moon of a player outside the own alliance (members' players and the viewer's in-game alliance)
+  with a report showing resources within `days` (1–30): the newest resources, the levels from the newest report with
+  buildings, the player's newest research, fleet and defense from the newest reports showing them (units that fight,
+  without solar satellites, spy probes and missiles, plus points), the expected resources now, production per hour,
+  full storages, loot (half of each resource), the last battle and the inactivity (B-3). Moons keep the resources of
+  the report (no mines); positions destroyed or owned by someone else since the report are left out. The response
+  says where the resource multiplier comes from (`settings`, `empire` or `default` 1x). Tests in
+  `apps/server/test/farm.test.ts`.
+- **Web:** `FarmView.vue` at `/:uni/farm`, menu item "Farm finder" under Combat & expeditions. Flight time, ships
+  and fuel are computed in the browser with `@pr0hub/flight` (`flightDuration`, `fleetConsumption`, the own drives
+  from the empire) from the nearest own planet or a chosen start, for small or large cargo and a speed. The table is
+  ranked by loot per flight hour (round trip), also sortable by loot, flight time, report age and inactivity; filters
+  (remembered per device): report age, only probably inactive, without defense or fleet, vacation mode, targets
+  claimed by others, minimum loot, galaxy. Tooltips show each resource, full storages, production per hour, report
+  times and the risk details; the actions menu (`PlanetActions`) spies or attacks in the game by hand, opens the
+  flight calculator and claims the target. Mobile: cards with a sort bar.
+- **Tours:** new tour `farm` (ship and speed, report age, filters, loot, loot per hour, inactivity, risk, actions).
+  **Texts:** `farm.*`, `nav.farm` and `tours.farm.*` in `de.ts`/`en.ts`.
+- **Left for later:** a quick battle simulation per target instead of the defense/fleet flags, B-2 (spy priority
+  list) on top of the same data, weighting the loot with the market rate.
+
 ### B-2 Spy priority list
 **Value:** Medium · **Effort:** S · **Builds on:** B-1, spy history, galaxy freshness
 
@@ -129,6 +172,57 @@ activity marks, fleet movements
 The game's inactivity flags come late. Combine the signals the hub already has: points unchanged over several
 statistics updates, no galaxy activity, no fleets seen, no messages. Show one score ("probably inactive since …")
 in the overview, the farm finder and player details.
+
+**Status: done (2026-11-06).** How it was built:
+
+- **Server:** `apps/server/src/repo/inactivity.ts` with `inactivityOf` (pure scoring) and `inactivities` (one query
+  for the group's players). Signals: the game's flag (`inactive` 95, `longinactive` 100, since the first inactive
+  status in the status log), the points stall (no gain in total points across synced statistics updates, from
+  `pointsStalls`: up to 85 after 3 days), and the newest activity the hub has seen (galaxy activity marks, fleet
+  launches and recalls, reports by hand from `player_activity`, espionage on members from `hostile_spying`); activity
+  after the last points gain caps the score at 15. Levels: inactive ≥ 85, likely ≥ 50, possible ≥ 20, otherwise
+  active; unknown for players without current statistics. Exposed as `inactivity` (schema `Inactivity` in
+  `openapi.yaml`) on `/overview` players, `/players/:id` and the farm finder's targets. Tests in
+  `apps/server/test/farm.test.ts`.
+- **Web:** `InactivityBadge.vue`: in lists a small badge with the score (tooltip: level, since when and the signals),
+  in the player details a line of text. In the overview it replaces the points stall icon when it has something to
+  say and the game does not flag the player yet; the farm finder has it as a sortable column and a filter.
+- **Texts:** `inactivity.*` in `de.ts`/`en.ts`; tour step `farm.inactivity`.
+- **Left for later:** fleets seen in members' overviews and messages as further activity signals (done in the second
+  version below).
+
+**Second version (2026-11-06).** The first version capped the score at 15 whenever a galaxy activity mark followed
+the last points gain. The game sets that mark also when others spy on or attack the planet (`MissionCaseSpy` and
+`MissionCaseAttack` call `ResourceUpdate::CalcResource` on the target, which sets `last_update`, the base of the
+galaxy's activity), and the hub only filtered the members' own actions, so targets farmed by other alliances looked
+active. The score was rebuilt as "latest sign of activity (`t0`), then the absence seen since":
+
+- **Proof of activity** (`provenActivity`): the player as attacker in combat reports and the battle hall, espionage
+  on members, messages a member synced (only those the viewer may see), fleet launches and recalls from members'
+  overviews and phalanx scans, reports by hand; from the spy history a fleet that shrank between two reports without
+  a battle at the planet (sent away; time: the earlier report).
+- **Relevant points gains** (`statSeries`): per statistics update the gain of every player is compared with the median
+  gain of the active players within ±25 ranks; a gain below 15 % of it is a build queue running out and doesn't count
+  (`weakGains` in the reasons).
+- **Absence since `t0`**: score = 94 · (1 − e^(−idle / 36 h)) (24 h ≈ 46, 48 h ≈ 69, 72 h ≈ 82); +4 per spy interval
+  whose metal and crystal match the projection of the earlier report (`projectResources`, nothing else changed,
+  at most +12); +5 when fleet or defense points were lost after `t0` and not rebuilt (category statistics); each
+  galaxy mark after `t0` multiplies by 0.7 (down to 0.35) instead of capping. 95/100 with the game's flag.
+- **Reasons**: `Inactivity.reasons` lists the signals (`flag`, `proven`, `gain`, `noGain`, `weakGains`, `galaxy`,
+  `idleSpy`, `losses`); the tooltip of `InactivityBadge.vue` shows them in plain words.
+- **Replay at a time** (`inactivities(db, ctx, ids, asOf)`): every query only uses data up to `asOf`, the game's status
+  comes from the status log then.
+- **Check in the admin panel** (`apps/server/src/repo/inactivityCheck.ts`, `GET /api/:uni/inactivity-check`, alliance
+  admins, section "Check the inactivity score"): players the game flagged inactive in the last 45 days were last
+  online the universe's inactive days before the flag appeared (known within 2 days from the status log); the score is
+  replayed 12, 24, 48, 72 and 120 hours after that and shown as detection rate (likely, inactive) and median score.
+  False alarms: the score once a day over 30 days, scores of at least likely followed by proof or a relevant gain
+  within 3 days, with examples. It runs in steps (the server stays responsive) and is kept for 15 minutes. This
+  replaces a backtest against the production database, which nobody can access from here: the deployment's admin
+  opens the panel instead.
+- **Tuning**: the weights are one object (`INACTIVITY` in `repo/inactivity.ts`), shown in the check. Change them when
+  the check shows late detection (lower `tau`) or many false alarms (raise `tau`, `weakGain`).
+- Tests in `apps/server/test/inactivity.test.ts` and `apps/server/test/inactivityCheck.test.ts`.
 
 ### B-4 Debris field tracker
 **Value:** Medium · **Effort:** S · **Builds on:** galaxy parser (debris), battle reports, recycling reports
@@ -240,6 +334,34 @@ A short personal list on the home page and in the sync panel: "Empire is 2 days 
 missing", "Research page never pasted (build times of research are estimates)". Each line explains in one sentence
 which hub feature gets better with it. Higher data quality is the base of every other feature.
 
+**Status: done (2026-11-06).** How it was built:
+
+- **Server:** `GET /api/:uni/sync-hints` (`apps/server/src/repo/syncHints.ts`, documented in `openapi.yaml` as
+  `getSyncHints`) returns a list of hints, most important first. Each hint has a `key`, a `level` (`high`: features
+  are missing or wrong without it, `medium`: noticeably outdated, `low`: better with it), a `scope` (`me` for the
+  member's own pages, `group` for shared data) and the time of the newest sync. Checked are:
+  - empire page (none or older than 3 days: high, older than 1 day: medium),
+  - the game's latest statistics update per category (0, 6, 12, 18 o'clock in the universe's time zone, 10 minutes
+    grace; nothing at all: high, total points missing: medium, other categories: low),
+  - overview or fleet page (none or older than 1 day: medium, older than 12 h: low),
+  - galaxy systems ±2 around the own planets older than 3 days (all: medium, some: low),
+  - planets and moons of the empire without a buildings page, no research page at all, no messages page in the
+    last day (low),
+  - the group's market rate missing or older than 3 days (low).
+  All queries go through `groupContext`; tests in `apps/server/test/syncHints.test.ts`.
+- **Web:** `SyncHints.vue` with the shared state in `syncHints.ts` (one request for all places). The sync page shows
+  the full list with the reason and where to find the page in the game; the overview and the quick sync sheet show
+  at most three high/medium hints and a link to the rest, and nothing when the data is fine. The list reloads after
+  every save in the sync panel and on live data events, and is cleared when switching alliance.
+- **Collapsible (follow-up, 2026-11-06):** the short list in the overview and the quick sync sheet is a `Section`
+  with the number of hints as count, folded by default on mobile (just the title row; the link to all hints moves
+  into the opened list) and open on desktop. The choice is remembered per device (`section.syncHints.overview`,
+  `section.syncHints.sheet`). Instead of a plain count the title row shows a warning mark with the number of hints,
+  red when one is important and yellow otherwise, so the list never goes unnoticed while folded.
+- **Tours:** new steps `paste.hints` and `overview.syncHints`. **Texts:** `syncHints.*` in `de.ts`/`en.ts`.
+- **Left for later:** the leaders' view of every member's freshness and the shared sync duties belong to D-1 and
+  D-3.
+
 ### E-2 Several pages at once
 **Value:** Medium · **Effort:** S · **Builds on:** sync panel file upload, ingest preview
 
@@ -277,6 +399,23 @@ parser sample. Today the admin sees it in the ingest log, the member only sees t
 
 One search field for players (also former names), alliances, coordinates (`3:120:8` jumps to the spy history or
 the galaxy) and hub pages. On mobile behind the search icon of the header.
+
+**Status: done (2026-11-06).** How it was built:
+
+- **Server:** `GET /api/:uni/search?q=` (`apps/server/src/routes/players.ts`, `globalSearch` in `openapi.yaml`).
+  Coordinates (`1:120:8`, with or without brackets) return only the planet there with name, moon and owner (or just
+  the position when the hub does not know it). Other terms (2 characters or more) return up to 8 players by name or
+  former name (`alias` names the former name that matched) and up to 5 alliances by name or tag; exact matches
+  first, then names starting with the term, then the most recently seen. Scoped to the group; tests in
+  `apps/server/test/search.test.ts`.
+- **Web:** `GlobalSearch.vue`, a dialog opened by `Ctrl+K`/`⌘K`, `/` outside text fields, the search field in the
+  sidebar or the search icon in the mobile top bar. Results are grouped (coordinates, players, alliances, pages),
+  arrow keys and Enter pick one, Esc closes. Players open in the player dialog above the current page, alliances
+  open the overview with the alliance filter (new query parameter `?ally=`, also while the overview is open),
+  coordinates lead to the spy history of the planet or moon, the galaxy system or the owner. Pages are matched
+  client-side against the menu labels in the current language.
+- **Tours:** new step `overview.globalSearch` pointing at the search field. **Texts:** `search.*` in `de.ts`/`en.ts`.
+- **Left for later:** search in comments and notes, recent searches.
 
 ### F-2 Personal statistics
 **Value:** Medium · **Effort:** M · **Builds on:** statistics history, empire syncs, raid and expedition statistics

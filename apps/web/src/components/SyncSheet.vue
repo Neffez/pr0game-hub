@@ -3,6 +3,7 @@ import { useI18n } from 'vue-i18n';
 import { useUni } from '../composables';
 import Sheet from './Sheet.vue';
 import SyncPanel from './SyncPanel.vue';
+import SyncHints from './SyncHints.vue';
 
 /** Quick sync from the bottom tab bar (mobile): paste a game page without leaving the current page. */
 const { t } = useI18n();
@@ -17,5 +18,6 @@ const open = defineModel<boolean>({ required: true });
     </template>
     <!-- remounted on every open: no stale preview from the last sync -->
     <SyncPanel compact />
+    <SyncHints brief store-key="syncHints.sheet" />
   </Sheet>
 </template>

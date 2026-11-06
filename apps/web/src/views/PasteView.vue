@@ -3,6 +3,7 @@ import PageHeader from '../components/PageHeader.vue';
 import UniverseJson from '../components/UniverseJson.vue';
 import Hint from '../components/Hint.vue';
 import SyncPanel from '../components/SyncPanel.vue';
+import SyncHints from '../components/SyncHints.vue';
 import { useI18n } from 'vue-i18n';
 import { useAutoTour } from '../tours';
 
@@ -20,6 +21,8 @@ useAutoTour('paste', true);
     </template>
   </PageHeader>
   <div data-tour="paste-sync"><SyncPanel /></div>
+
+  <div data-tour="paste-hints"><SyncHints /></div>
 
   <div data-tour="paste-json"><UniverseJson /></div>
 </template>

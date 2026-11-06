@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { calibrate, productionOf } from '../src/production.js';
+import { calibrate, deriveResourceSpeed, positionTemp, productionOf, projectResources } from '../src/production.js';
+import { storageCapacity } from '../src/tech.js';
 import { missileSpace, requirementsOf, shipsOf, shipyardTime, type BuildPlanet } from '../src/buildings.js';
 
 describe('productionOf', () => {
@@ -88,5 +89,54 @@ describe('shipyard', () => {
     expect(lf.busy).toEqual({ by: 'building', until: 5000 });
     expect(lf.state).toBe('busy');
     expect(lf.readyAt).toBe(5000);
+  });
+});
+
+describe('positionTemp', () => {
+  it('is the middle of the default range of the position', () => {
+    expect(positionTemp(1)).toBe(240);
+    expect(positionTemp(8)).toBe(50);
+    expect(positionTemp(15)).toBe(-110);
+    expect(positionTemp(99)).toBe(50);
+  });
+});
+
+describe('projectResources', () => {
+  const levels = { 1: 20, 2: 15, 3: 10, 4: 22, 22: 5, 23: 4, 24: 3 };
+  const base = { levels, research: {}, temp: 50, resourceSpeed: 1 };
+
+  it('adds the production since the report', () => {
+    const perHour = productionOf(base);
+    const p = projectResources({ ...base, resources: { 901: 1000, 902: 500, 903: 0 }, hours: 2 });
+    expect(p.perHour[901]).toBeCloseTo(perHour[901]);
+    expect(p.resources[901]).toBeCloseTo(1000 + 2 * perHour[901]);
+    expect(p.resources[903]).toBeCloseTo(2 * perHour[903]);
+    expect(p.full[901]).toBe(false);
+  });
+
+  it('stops at the storage and keeps resources above it', () => {
+    const cap = storageCapacity(5);
+    const p = projectResources({ ...base, resources: { 901: cap - 10, 902: storageCapacity(4) + 5000, 903: 0 }, hours: 10 });
+    expect(p.resources[901]).toBe(cap);
+    expect(p.full[901]).toBe(true);
+    expect(p.resources[902]).toBe(storageCapacity(4) + 5000);
+    expect(p.capacity[903]).toBe(storageCapacity(3));
+  });
+
+  it('scales the storage with the universe factor and never goes back in time', () => {
+    const p = projectResources({ ...base, resources: { 901: 0, 902: 0, 903: 0 }, hours: -5, storageFactor: 2 });
+    expect(p.resources).toEqual({ 901: 0, 902: 0, 903: 0 });
+    expect(p.capacity[901]).toBe(2 * storageCapacity(5));
+  });
+});
+
+describe('deriveResourceSpeed', () => {
+  it('compares the shown metal production with the formula at 1x', () => {
+    const levels = { 1: 20, 2: 15, 3: 10, 4: 22 };
+    const shown = productionOf({ levels, research: {}, temp: 50, resourceSpeed: 3 });
+    expect(deriveResourceSpeed([{ levels, research: {}, temp: 50, perHour: { 901: shown[901] } }])).toBe(3);
+    expect(deriveResourceSpeed([{ levels, research: {}, temp: null, perHour: { 901: shown[901] } }, { levels: {}, research: {}, temp: 50, perHour: { 901: 60 } }])).toBeNull();
+    // a page without the power plants: the formula's mines get no energy, the planet tells nothing
+    expect(deriveResourceSpeed([{ levels: { 1: 25 }, research: {}, temp: 42, perHour: { 901: 38_369 } }])).toBeNull();
   });
 });

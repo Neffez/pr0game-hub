@@ -20,6 +20,36 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Inaktivität genauer: Angriffe, Spionage, Nachrichten und verschickte Flotten zählen als Beweis für Aktivität, kleine Punktezuwächse aus Bauschleifen nicht mehr. Galaxie-Aktivität durch Angriffe anderer macht Farmziele nicht mehr „aktiv“. Der Tooltip zeigt die Gründe. Allianz-Admins können den Score im Admin-Panel an den eigenen Daten prüfen.',
+        en: 'More precise inactivity: attacks, espionage, messages and fleets sent away count as proof of activity, small points gains from build queues no longer do. Galaxy activity caused by others attacking no longer makes farm targets "active". The tooltip shows the reasons. Alliance admins can check the score on their own data in the admin panel.',
+      },
+      {
+        kind: 'new',
+        de: '„Was soll ich als Nächstes einfügen?“ lässt sich in der Übersicht einklappen und startet auf dem Handy eingeklappt – nur eine Zeile mit einer roten (wichtig) oder gelben (veraltet) Warnung und der Anzahl der Hinweise.',
+        en: '"What should I paste next?" folds away in the overview and starts folded on phones – just one line with a red (important) or yellow (outdated) warning and the number of hints.',
+      },
+      {
+        kind: 'new',
+        de: 'Farm-Finder (unter Kämpfe & Expos): Welche Ziele lohnen sich jetzt? Der Hub rechnet die Rohstoffe der Spionageberichte bis heute hoch und sortiert nach Beute pro Flugstunde, mit Schiffen, Treibstoff, Flugzeit und Risiko.',
+        en: 'Farm finder (under Combat & expeditions): which targets pay off now? The hub projects the resources of the spy reports to today and ranks them by loot per flight hour, with ships, fuel, flight time and risk.',
+      },
+      {
+        kind: 'new',
+        de: 'Inaktivität: Übersicht, Spielerdetails und Farm-Finder zeigen, wie sicher ein Spieler inaktiv ist – oft Tage bevor das Spiel ihn markiert.',
+        en: 'Inactivity: the overview, player details and the farm finder show how likely a player is inactive – often days before the game flags them.',
+      },
+      {
+        kind: 'new',
+        de: 'Suche: Mit Strg+K (Mac: ⌘K), „/“ oder dem Suchfeld im Menü findest du von jeder Seite aus Spieler (auch frühere Namen), Allianzen, Koordinaten und Seiten des Hubs.',
+        en: 'Search: with Ctrl+K (Mac: ⌘K), "/" or the search field in the menu you find players (also former names), alliances, coordinates and pages of the hub from every page.',
+      },
+      {
+        kind: 'new',
+        de: '„Was soll ich als Nächstes einfügen?“: Die Sync-Seite zeigt, welche deiner Seiten fehlen oder alt sind (Imperium, Statistik, Übersicht, Galaxie, Gebäude, Forschung, Nachrichten, Marktkurs), was damit besser wird und wo du sie im Spiel findest. Das Wichtigste steht kurz auch in der Übersicht.',
+        en: '"What should I paste next?": the sync page shows which of your pages are missing or old (empire, statistics, overview, galaxy, buildings, research, messages, market rate), what they improve and where to find them in the game. The most important ones also show in short on the overview.',
+      },
+      {
+        kind: 'new',
         de: 'AKS-Beuterechner (Tools): Kampfbericht, Nachrichten, Imperium und Marktplatz einfach einfügen – Flug- und Recycler-Deut, Raketen, die Beute jeder Flotte und die Recycler werden ausgefüllt. Mehrere Abrechnungen nebeneinander in Tabs.',
         en: 'ACS loot calculator (tools): just paste the battle report, messages, empire and marketplace – flight and recycler deuterium, missiles, the loot of each fleet and the recyclers are filled in. Several settlements side by side in tabs.',
       },
