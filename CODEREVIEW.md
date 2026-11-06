@@ -118,7 +118,7 @@ None of this requires a rewrite. The recommended order at the end does the remai
 
 **Fix:** Pass `UnitCatalog` into `parsePage` / `idByName` / `idByShortName`. Register shorts from the catalog. On the server, prefer an explicit `catalog` argument over `withUnits`. Keep `setActiveUnits` for the single-universe web/tools UIs.
 
-**Status:** Mostly done (`c790280`). `idByName` / `idByShortName` take a catalog (default active) and look at its units first; `parsePage` takes `units`; every server parse path (ingest, reparse, undo, backfill, crawler, phalanx, plan sim, settlement from report) runs with the universe's catalog. `registerUnitNames` no longer feeds the parsers. Still open: `withUnits` is sync-only with nothing guarding an `await` inside.
+**Status:** Mostly done (`c790280`). `idByName` / `idByShortName` take a catalog (default active) and look at its units first; `parsePage` takes `units`; every server parse path (ingest, reparse, undo, backfill, crawler, phalanx, plan sim, settlement from report) runs with the universe's catalog. `registerUnitNames` no longer feeds the parsers. `withUnits` throws when `fn` returns a promise (no `AsyncLocalStorage` needed while the server keeps it synchronous).
 
 ---
 
@@ -1083,7 +1083,7 @@ These are the contract and correctness issues. They take more than an afternoon,
 |---|---|---|---|---|
 | 1 | B-01 / A-02 | Stop writes on GET `/plans` (and decide for build-order / buildings). This also fixes the token story and the CSRF-via-GET case. | Medium | Done (`8437595`, 2026-11-06 for build-order / buildings / notifications) |
 | 2 | B-04 | Lock down `forUser` to message-like pages | Medium | Done `19fb73e` |
-| 3 | A-04 / B-17 | Pass the universe catalog into parse/name/short lookup; register shorts | Medium | Done `c790280` (`withUnits` await guard open) |
+| 3 | A-04 / B-17 | Pass the universe catalog into parse/name/short lookup; register shorts | Medium | Done `c790280` (+ `withUnits` await guard) |
 | 4 | B-06 | Stop attaching name-only pastes via aliases | Medium | Done (2026-11-06; aliases by time) |
 | 5 | B-22 | Central 401 → clear session, close live, login | Medium | Done `99da344` |
 | 6 | A-07 / I-04 / I-06 | One `UniverseSettings` + hash mapping; admin `phalanxRangeFactor`; tool `uo` on hub links | Medium | Done (2026-11-06) |
@@ -1156,6 +1156,6 @@ Shipped on `main` as `0b8434d..045e495` (author Neffez). Typecheck and the full 
 | 8 | `13ea365` | No implicit ship table in `@pr0hub/flight` (A-09) |
 | 9 | `687501c` | Push endpoint default port, newest-response guard for admin and loot settlement (B-08, B-28) |
 
-**Still open:** A-01 / C-02 (typed responses / generated web client; the path CI is done), the `withUnits` await guard (A-04), and Wave 3.
+**Still open:** A-01 / C-02 (typed responses / generated web client; the path CI is done) and Wave 3.
 
 **Next:** Wave 3, when the files are touched anyway.

@@ -72,6 +72,16 @@ describe('unit catalog', () => {
     expect(techName(202, 'de')).toBe('Kleiner Transporter');
   });
 
+  it('refuses async work inside withUnits', async () => {
+    const c = unitCatalog({ 233: { name: { de: 'X', en: 'X' }, cost: [1, 1, 1] } });
+    const pending = Promise.resolve(1);
+    expect(() => withUnits(c, () => pending)).toThrow(/synchronous/);
+    expect(() => withUnits(null, async () => 1)).toThrow(/synchronous/);
+    // the active catalog is back after the throw
+    expect(activeUnits()).toBe(DEFAULT_UNITS);
+    expect(withUnits(c, () => activeUnits())).toBe(c);
+  });
+
   it('keeps the same custom name apart in two universes, and resolves added units by their short', () => {
     const a = unitCatalog({ 233: { name: { de: 'Wächter', en: 'Warden' }, cost: [1, 1, 1] } });
     const b = unitCatalog({ 234: { name: { de: 'Wächter', en: 'Warden' }, cost: [1, 1, 1] } });

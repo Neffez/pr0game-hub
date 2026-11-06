@@ -4,6 +4,8 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-06
 
+- `withUnits` throws when its function returns a promise: the active catalog does not survive an `await`.
+
 - Code review: C-10d closed as not needed (pr0plan does not support the Heavy Cruiser, Optimized Recycler,
   Behemoth and Void Titan for now).
 
