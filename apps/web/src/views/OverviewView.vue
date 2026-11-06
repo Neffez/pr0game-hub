@@ -16,6 +16,7 @@ import { uniApi } from '../api';
 import PlanetActions from '../components/PlanetActions.vue';
 import StatusBadges from '../components/StatusBadges.vue';
 import PointsStall from '../components/PointsStall.vue';
+import SyncHints from '../components/SyncHints.vue';
 import { useLoader, useMobile, useProgressive, useProtection, useSort, useStored, useUni } from '../composables';
 import { useAutoTour } from '../tours';
 import { nowSec, upcoming, useClock } from '../clock';
@@ -503,6 +504,8 @@ const history = computed(() => {
       :items="[{ label: desktopView ? t('overview.layoutMobile') : t('overview.layoutDesktop'), hint: t('overview.layoutTitle'), onClick: () => (desktopView = !desktopView) }]"
     />
   </PageHeader>
+
+  <SyncHints data-tour="overview-sync-hints" brief />
 
   <FilterBar data-tour="overview-filter" store-key="overview" :chips="chips" @reset="resetFilters">
     <template #toolbar>

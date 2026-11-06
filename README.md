@@ -11,6 +11,9 @@ External analysis tool for [pr0game](https://codeberg.org/pr0game/pr0game) based
     impacts, hostile spying, player messages
   - Galaxy, empire, game overview (build queues, fleet movements), buildings and research pages, fleet movements on their own, battle hall, marketplace
   - universe.json import and export
+  - **What to paste next**: a personal list of missing or old pages (empire, statistics update, overview, galaxy
+    around the own planets, buildings and research pages, messages, market rate), each with what it improves and
+    where to find it in the game; on the sync page, in short on the overview and in the quick sync sheet
 - **Tutorials**: a short guided tour the first time a page is opened (skippable, switchable in the account settings,
   restartable with the "?" in the page header).
 - **Overview**: points per category with deltas per statistics update, rank changes, status, filters

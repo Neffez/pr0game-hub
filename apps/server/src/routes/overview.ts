@@ -11,6 +11,7 @@ import { sharedFleets } from '../repo/fleets.js';
 import { pointsStalls, stallSince } from '../repo/stats.js';
 import { memberPlayer, memberPlayers } from '../repo/members.js';
 import { latestScores } from '../repo/stats.js';
+import { syncHints } from '../repo/syncHints.js';
 import { contextOf, groupBy } from './util.js';
 
 export function overviewRoutes(app: FastifyInstance, db: DB) {
@@ -45,6 +46,12 @@ export function overviewRoutes(app: FastifyInstance, db: DB) {
           }
         : null,
     };
+  });
+
+  /** What the member should paste next: own pages that are missing or old, the group's statistics and market rate. */
+  app.get<{ Params: { uni: string } }>('/api/:uni/sync-hints', async (req) => {
+    const ctx = ctxOf(req);
+    return { hints: syncHints(db, ctx), messagesDays: config.rawRetentionDays };
   });
 
   app.get<{ Params: { uni: string } }>('/api/:uni/overview', async (req) => {

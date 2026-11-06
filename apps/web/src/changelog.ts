@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-06',
     items: [
       {
+        kind: 'new',
+        de: '„Was soll ich als Nächstes einfügen?“: Die Sync-Seite zeigt, welche deiner Seiten fehlen oder alt sind (Imperium, Statistik, Übersicht, Galaxie, Gebäude, Forschung, Nachrichten, Marktkurs), was damit besser wird und wo du sie im Spiel findest. Das Wichtigste steht kurz auch in der Übersicht.',
+        en: '"What should I paste next?": the sync page shows which of your pages are missing or old (empire, statistics, overview, galaxy, buildings, research, messages, market rate), what they improve and where to find them in the game. The most important ones also show in short on the overview.',
+      },
+      {
         kind: 'fix',
         de: 'Admin und Beuteabrechnung zeigen beim schnellen Wechseln oder bei Live-Updates immer den neuesten Stand.',
         en: 'Admin and loot settlement always show the latest data when switching quickly or on live updates.',

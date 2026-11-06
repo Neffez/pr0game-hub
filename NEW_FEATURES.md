@@ -6,6 +6,14 @@ existing features could do more.
 **Basis:** the hub as of `main` on 2026-11-06 (README, CHANGELOG, web views, server routes, parsers) and the game
 source (`pr0game`: pages, missions, achievements, advanced stats).
 
+## Implementation status
+
+| Item | Status | Date | Where |
+|---|---|---|---|
+| E-1 What should I paste next? | Done | 2026-11-06 | sync page, overview, quick sync sheet |
+
+Each finished item carries a **Status** block below its description: what was built and how.
+
 ## Guardrails
 
 Every idea below respects the project's rules:
@@ -239,6 +247,29 @@ phones show launch times in the calendar.
 A short personal list on the home page and in the sync panel: "Empire is 2 days old", "Statistics of 18:00 are
 missing", "Research page never pasted (build times of research are estimates)". Each line explains in one sentence
 which hub feature gets better with it. Higher data quality is the base of every other feature.
+
+**Status: done (2026-11-06).** How it was built:
+
+- **Server:** `GET /api/:uni/sync-hints` (`apps/server/src/repo/syncHints.ts`, documented in `openapi.yaml` as
+  `getSyncHints`) returns a list of hints, most important first. Each hint has a `key`, a `level` (`high`: features
+  are missing or wrong without it, `medium`: noticeably outdated, `low`: better with it), a `scope` (`me` for the
+  member's own pages, `group` for shared data) and the time of the newest sync. Checked are:
+  - empire page (none or older than 3 days: high, older than 1 day: medium),
+  - the game's latest statistics update per category (0, 6, 12, 18 o'clock in the universe's time zone, 10 minutes
+    grace; nothing at all: high, total points missing: medium, other categories: low),
+  - overview or fleet page (none or older than 1 day: medium, older than 12 h: low),
+  - galaxy systems ±2 around the own planets older than 3 days (all: medium, some: low),
+  - planets and moons of the empire without a buildings page, no research page at all, no messages page in the
+    last day (low),
+  - the group's market rate missing or older than 3 days (low).
+  All queries go through `groupContext`; tests in `apps/server/test/syncHints.test.ts`.
+- **Web:** `SyncHints.vue` with the shared state in `syncHints.ts` (one request for all places). The sync page shows
+  the full list with the reason and where to find the page in the game; the overview and the quick sync sheet show
+  at most three high/medium hints and a link to the rest, and nothing when the data is fine. The list reloads after
+  every save in the sync panel and on live data events, and is cleared when switching alliance.
+- **Tours:** new steps `paste.hints` and `overview.syncHints`. **Texts:** `syncHints.*` in `de.ts`/`en.ts`.
+- **Left for later:** the leaders' view of every member's freshness and the shared sync duties belong to D-1 and
+  D-3.
 
 ### E-2 Several pages at once
 **Value:** Medium · **Effort:** S · **Builds on:** sync panel file upload, ingest preview

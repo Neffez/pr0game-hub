@@ -70,6 +70,18 @@ components:
       schema: { type: integer }
       description: Attack plan id
   schemas:
+    SyncHint:
+      type: object
+      required: [key, level, scope, time]
+      properties:
+        key: { type: string, enum: [empire, stats, overview, galaxy, buildings, research, messages, market] }
+        level: { type: string, enum: [high, medium, low], description: 'high: features are missing or wrong without it; medium: noticeably outdated; low: better with it' }
+        scope: { type: string, enum: [me, group], description: The member's own pages or the group's shared data }
+        time: { type: [integer, 'null'], description: 'Epoch seconds of the newest sync of this page (galaxy: the oldest system), null when there is none' }
+        count: { type: integer, description: 'buildings: planets without a buildings page; galaxy: outdated systems around the own planets' }
+        total: { type: integer, description: Of how many planets or systems }
+        update: { type: integer, description: 'stats: epoch seconds of the game''s statistics update that is missing' }
+        types: { type: array, items: { type: integer }, description: 'stats: missing categories (1 total, 2 fleet, 3 research, 4 buildings, 5 defense)' }
     PointsStall:
       type: object
       nullable: true
@@ -2004,6 +2016,30 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Context' }
+  /api/{uni}/sync-hints:
+    get:
+      tags: [Universe]
+      operationId: getSyncHints
+      description: >-
+        What the member should paste next, most important first (an empty list: the hub is up to date). Own pages
+        that are missing or old (empire, overview or fleet page, the galaxy systems around the own planets, buildings
+        pages per planet, a research page, messages) and the group's shared data (the game's latest statistics update
+        per category, the market rate). `messagesDays`: how many days a messages page counts (raw pages are kept that
+        long).
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [hints, messagesDays]
+                properties:
+                  hints: { type: array, items: { $ref: '#/components/schemas/SyncHint' } }
+                  messagesDays: { type: integer }
   /api/{uni}/overview:
     get:
       tags: [Universe]

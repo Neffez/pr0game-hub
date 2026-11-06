@@ -4,6 +4,14 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-06
 
+- "What should I paste next?" (backlog E-1): a personal list of missing or outdated pages with what each one
+  improves and where to find it in the game, most important first.
+  - Server: `GET /api/:uni/sync-hints` checks the member's empire, overview/fleet page, galaxy systems ±2 around
+    the own planets, buildings pages per planet, research page and messages, and the group's latest statistics
+    update per category (0/6/12/18 o'clock in the universe's time zone) and market rate; levels high, medium, low.
+  - Web: full list on the sync page, the important ones in short on the overview and in the quick sync sheet;
+    reloaded after every save and on live data events. Tour steps on the sync page and the overview.
+
 - Product backlog `NEW_FEATURES.md`: missing features and improvements from a product point of view (defense
   and fleet save, farming, economy advice, alliance management, sync experience, search and export), each with
   value, effort and what it builds on, plus a suggested roadmap and success measures.

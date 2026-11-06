@@ -14,6 +14,7 @@ import { selectGroup, selectedGroup, session, uniApi } from '../api';
 import { provideUni, useLoader, useScrollLock, type UniContext } from '../composables';
 import { applyUnits } from '../units';
 import { clearClaims, loadClaims } from '../claims';
+import { clearSyncHints } from '../syncHints';
 import { dateTime, setMarketRate, setToolsUrl, toolsIndexUrl } from '../format';
 import { freezeClock, useClock } from '../clock';
 import Countdown from '../components/Countdown.vue';
@@ -71,6 +72,7 @@ function load() {
   group.value = selectedGroup(uni.value);
   startLive(uni.value, group.value);
   clearClaims();
+  clearSyncHints();
   loadClaims(uni.value);
   clearCommentCounts();
   loadCommentCounts(uni.value);

@@ -31,6 +31,7 @@ export const TOURS = {
   overview: {
     steps: [
       { key: 'intro' },
+      { key: 'syncHints', el: 'overview-sync-hints', side: 'bottom' },
       { key: 'planets', el: 'overview-planets', side: 'bottom' },
       { key: 'players', el: 'overview-players', side: 'bottom' },
       { key: 'search', el: 'overview-search', side: 'bottom' },
@@ -46,6 +47,7 @@ export const TOURS = {
       { key: 'copy', el: 'paste-sync', side: 'bottom' },
       { key: 'pages', el: 'paste-sync', side: 'bottom' },
       { key: 'source', el: 'paste-sync', side: 'bottom' },
+      { key: 'hints', el: 'paste-hints', side: 'top' },
       { key: 'json', el: 'paste-json', side: 'top' },
       { key: 'outro' },
     ],
