@@ -4,6 +4,8 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-05
 
+- Code review records the second series (Wave 1 leftovers) and what is still open.
+
 - Web, planner and tools leftovers of the review:
   - Build order: steps left when the simulation hits its event cap show "plan too long" (`aborted`) instead of "not
     possible on this planet".

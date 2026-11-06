@@ -4,7 +4,7 @@
 **Scope:** Whole monorepo — `packages/parser` (`@pr0hub/core`), `packages/flight`, `packages/loot`, `packages/battle`, `packages/planner`, `apps/server`, `apps/web`, `apps/tools`
 **Method:** Four passes (architecture, clean code, bugs, improvements), then a verification pass against the current source. Findings are evidence-based. Theoretical items are marked as such. Line numbers refer to this tree at review time.
 
-**Progress:** The suggested first commit series is **done** and on `main` (`0b8434d..045e495`, 2026-11-04). Typecheck and the full test suite passed before push. Evidence and line numbers below are the review-time snapshot; a **Status** line on a finding says what landed afterwards. Remaining work starts at Wave 1 leftovers and Wave 2 catalog / settings.
+**Progress:** The suggested first commit series is **done** and on `main` (`0b8434d..045e495`, 2026-11-04). Typecheck and the full test suite passed before push. Evidence and line numbers below are the review-time snapshot; a **Status** line on a finding says what landed afterwards. The second series (Wave 1 leftovers, `0dc7539..`) landed on 2026-11-05. Remaining work starts at Wave 2 catalog / settings.
 
 ### How to read a finding
 
@@ -359,6 +359,8 @@ This split is **intentional** for a no-login static origin. The cost is every se
 | C-10f | `packages/parser` two short-name tables | Catalog `unit.short` (`HXer`) vs `tech.json` `deShort` (`Schwerer Kreuzer`); parsers use tech.json only | Medium | Medium | Low |
 | C-10g | Folder `parser` / package `@pr0hub/core` | See A-08 | Low | Low | Low |
 
+**Status:** C-10a/b/c done (`3795d0c`). C-10d open: pr0plan's export keys for 222/227/231/232 need checking against pr0plan.
+
 ---
 
 ### C-11 — Test structure: two characterization dumps, thin UI coverage
@@ -582,6 +584,8 @@ export function runInWorker(...): Promise<SimSummary> {
 
 **Fix:** `UNIQUE (username COLLATE NOCASE)` on `access_requests`.
 
+**Status:** Done (`0dc7539`). Migration 078 rebuilds `access_requests` with `UNIQUE COLLATE NOCASE` (oldest of a clash kept).
+
 ---
 
 ### B-13 — Invite tokens stored and returned in plaintext
@@ -612,6 +616,8 @@ export function runInWorker(...): Promise<SimSummary> {
 
 **Fix:** Partial unique index on active rows.
 
+**Status:** Done (`0dc7539`). Partial unique index on unreleased claims; a new claim releases the target's unreleased claims (an expired one at its expiry).
+
 ---
 
 ### B-15 — Access-request messages are visible to every alliance admin
@@ -627,6 +633,8 @@ Confirmed behavior; may be a product decision. The test name is wrong.
 | Low–Medium (privacy on a multi-alliance hub) | Low if intended | Low |
 
 **Fix:** If unintended, restrict the list to global admins. If intended, fix the test title.
+
+**Status:** Done (`0dc7539`): intended. Alliance admins see all requests (they carry no alliance); the test title now says so.
 
 ---
 
@@ -705,6 +713,8 @@ Concrete miss: planet B list Impulse 1→2→3→4, planet A next step Cruiser (
 | Low | Low | Low |
 
 **Fix:** After the loop, mark leftover heads `horizon` or a dedicated `aborted` reason.
+
+**Status:** Done (`3795d0c`). Leftover heads after the event cap get `wait: 'aborted'` (own DE/EN texts); `planet` stays for lists without a hub planet.
 
 ---
 
@@ -816,6 +826,8 @@ Concrete miss: planet B list Impulse 1→2→3→4, planet A next step Cruiser (
 
 **Fix:** In-memory fallback flag; cap at one reload per session even without storage.
 
+**Status:** Done (`3795d0c`). Reload only when sessionStorage keeps the mark; without storage no reload (an in-memory flag would not survive the reload).
+
 ---
 
 ### B-28 — Overview / Alliance overlapping loads
@@ -830,6 +842,8 @@ Concrete miss: planet B list Impulse 1→2→3→4, planet A next step Cruiser (
 
 **Fix:** Switch those views to `useLoader`.
 
+**Status:** Done (`3795d0c`) for Overview and Alliance. Admin and loot settlement still roll their own `load()`.
+
 ---
 
 ### B-29 — Flight `applyHash` is true for any hash keys, including `uo` only
@@ -843,6 +857,8 @@ Concrete miss: planet B list Impulse 1→2→3→4, planet A next step Cruiser (
 | Medium (spurious tab + toast) | Medium | Low |
 
 **Fix:** Return true only when a known flight/uni key was consumed; ignore `uo` (already handled by `initUnits`).
+
+**Status:** Done (`3795d0c`). `applyHash` returns true only for flight, tech or universe keys; test with a `uo`-only hash.
 
 ---
 
@@ -1024,20 +1040,20 @@ Cheap, local, high confidence. Most are a few hours and a test.
 | 10 | B-24 | Player note try/catch | Low | Done `99da344` |
 | 11 | B-25 | Integer player ids | Low | Done `99da344` |
 | 12 | B-26 | Live `JSON.parse` try/catch | Low | Done `99da344` |
-| 13 | B-27 | One chunk-reload even without `sessionStorage` | Low | Open |
-| 14 | B-28 | Overview/Alliance on `useLoader` | Low | Open |
-| 15 | B-29 | Flight `applyHash` only on known keys | Low | Open |
+| 13 | B-27 | One chunk-reload even without `sessionStorage` | Low | Done `3795d0c` |
+| 14 | B-28 | Overview/Alliance on `useLoader` | Low | Done `3795d0c` |
+| 15 | B-29 | Flight `applyHash` only on known keys | Low | Done `3795d0c` |
 | 16 | B-16 | Fleet HTML fallback when overview is null | Low | Done `c925738` |
 | 17 | B-17 | `unknown_unit` warnings | Low | Partial `c925738` (warnings; catalog shorts still A-04) |
 | 18 | B-19 | ORec defaults 6/6/6; 8/8/9 on U7 | Low | Done `c925738` |
-| 19 | B-20 | Planner event-cap → `horizon` / `aborted` | Low | Open |
-| 20 | B-12 | `access_requests` `COLLATE NOCASE` | Low | Open |
-| 21 | C-10a / C-10b | Admin “Slug” i18n; 800 px breakpoint | Low | Open |
-| 22 | C-10c / C-10d | Drop the false `calculateSteal` claim; extend `PR0PLAN_SHIPS` | Low | Open |
+| 19 | B-20 | Planner event-cap → `horizon` / `aborted` | Low | Done `3795d0c` |
+| 20 | B-12 | `access_requests` `COLLATE NOCASE` | Low | Done `0dc7539` |
+| 21 | C-10a / C-10b | Admin “Slug” i18n; 800 px breakpoint | Low | Done `3795d0c` |
+| 22 | C-10c / C-10d | Drop the false `calculateSteal` claim; extend `PR0PLAN_SHIPS` | Low | Partial `3795d0c` (C-10c; C-10d needs pr0plan's key names) |
 | 23 | I-02 | Ingest / Store structured logs | Low | Done `eb8ef15` / `045e495` |
 | 24 | B-09 | Ingest rate limit | Low | Done `812e450` |
-| 25 | B-14 | Partial unique index on active claims | Low | Open |
-| 26 | B-15 | Access-request visibility: decide and fix the test title | Low | Open |
+| 25 | B-14 | Partial unique index on active claims | Low | Done `0dc7539` |
+| 26 | B-15 | Access-request visibility: decide and fix the test title | Low | Done `0dc7539` (intended; title fixed) |
 
 ### Wave 2 — Critical (do next)
 
@@ -1099,4 +1115,13 @@ Shipped on `main` as `0b8434d..045e495` (author Neffez). Typecheck and the full 
 
 **Partial:** A-01 / I-01 (path CI, not schemas or a typed client), A-02 (GET `/build-order` / `/buildings` still write), B-08 (hosts, not private ranges), B-17 (warnings, not catalog shorts), I-07 (tests for the series, not the leftover list).
 
-**Next:** remaining Wave 1 (B-12, B-14, B-15, B-20, B-27–B-29, C-10), then catalog/`withUnits` (A-04) and one `UniverseSettings` module (A-07) — the two refactors that prevent the next year of silent drift.
+### Second commit series — Wave 1 leftovers, 2026-11-05
+
+| # | SHA | What landed |
+|---|---|---|
+| 1 | `0dc7539` | Server: `access_requests` NOCASE (B-12), one unreleased claim per target (B-14), B-15 decided as intended |
+| 2 | `3795d0c` | Planner `aborted` (B-20), chunk reload (B-27), Overview/Alliance `useLoader` (B-28), flight `uo` hash (B-29), C-10a/b/c |
+
+**Still open from Wave 1:** C-10d (needs pr0plan's export keys for 222/227/231/232), B-08 private ranges, B-28 for Admin / loot settlement.
+
+**Next:** catalog/`withUnits` (A-04) and one `UniverseSettings` module (A-07) — the two refactors that prevent the next year of silent drift; then B-06 (name-only alias attach).
