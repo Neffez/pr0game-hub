@@ -313,10 +313,11 @@ export function backfillActivity(db: DB, groupId: number, timezone: string): num
         if (r.kind !== 'galaxy') continue;
         for (const row of r.rows) {
           if (row.activity == null) continue;
+          const seenAt = store.galaxySeenAt(r, raw.created_at);
           const playerId =
             (row.playerId != null ? (byIngameId.get(groupId, row.playerId) as number | undefined) : undefined) ??
-            (row.playerName ? players.byName(row.playerName) : null);
-          if (playerId) galaxyMark(db, groupId, playerId, { g: r.g, s: r.s, p: row.position }, row.activity, store.galaxySeenAt(r, raw.created_at));
+            (row.playerName ? players.byName(row.playerName, seenAt) : null);
+          if (playerId) galaxyMark(db, groupId, playerId, { g: r.g, s: r.s, p: row.position }, row.activity, seenAt);
         }
       }
     }

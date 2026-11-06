@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-06',
     items: [
       {
+        kind: 'fix',
+        de: 'Übernimmt ein neuer Spieler den alten Namen eines anderen, landen seine Berichte und Punkte nicht mehr beim früheren Namensträger.',
+        en: 'When a new player takes over another player\'s old name, their reports and points no longer end up with the former owner of the name.',
+      },
+      {
         kind: 'new',
         de: 'Links in den Kampfsimulator, Flug- und IRak-Rechner nehmen die eigenen Schiffe und Verteidigung des Universums mit, auch neue Einheiten wie den Bunker.',
         en: 'Links into the battle simulator, flight and IPM calculator take the universe\'s own ships and defense along, including new units such as the Bunker.',

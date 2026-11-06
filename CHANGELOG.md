@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-06
 
+- Players: a page that names a player without an id matches a former name only for data from the time the player
+  still had it (alias `seen_until` at or after the data). A newer player who took over an abandoned name becomes
+  their own player (the id is attached once known) instead of being merged into the old one with scores, planets
+  and spy reports. Lookups without a time (search, display) still find any former name.
+
 - Universe settings are one contract in `@pr0hub/core/universe`: the full `UniverseSettings` type (optional game
   values such as phalanx/missile range, noob protection and debris included), defaults, validation (admin API),
   the tools' hash keys (`TOOL_HASH`, `toolsHash`) and the `uo` encoding of unit overrides. Server, web app and tools

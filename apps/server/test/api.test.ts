@@ -1380,8 +1380,8 @@ describe('review fixes', () => {
     const headers = { ...admin, 'x-hub-group': String(groupX) };
     const add = (name: string) => Number(db.prepare('INSERT INTO players (group_id, name) VALUES (?, ?)').run(groupX, name).lastInsertRowid);
     const [alpha, owner] = [add('Former'), add('Owner')];
-    // "Alpha" of the report is a former name
-    db.prepare("INSERT INTO player_aliases (player_id, name, seen_until) VALUES (?, 'Alpha', 1)").run(alpha);
+    // "Alpha" of the report is a former name (renamed after the report)
+    db.prepare("INSERT INTO player_aliases (player_id, name, seen_until) VALUES (?, 'Alpha', ?)").run(alpha, Math.floor(Date.now() / 1000));
     const ingest = () => app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { html: fixture('messages.html') } });
     const planet = () => db.prepare('SELECT name, player_id FROM planets WHERE group_id = ? AND g = 1 AND s = 234 AND p = 5').get(groupX) as any;
 

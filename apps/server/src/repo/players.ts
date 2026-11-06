@@ -46,6 +46,8 @@ export class Players {
   /**
    * Finds or creates a player. With an in-game id the id is authoritative (renames
    * are recorded as aliases); a name-only player gets the id attached once known.
+   * A name-only page matches a former name only for data of the time the player still had it (see `aliasAt`):
+   * a newer player who took over an abandoned name is not merged into the old one.
    */
   player(ingameId: number | null, name: string, seenAt: number): number {
     const db = this.db;
@@ -64,12 +66,8 @@ export class Players {
       row = db
         .prepare('SELECT id, name, ingame_id, last_seen FROM players WHERE group_id = ? AND name = ? COLLATE NOCASE ORDER BY last_seen DESC')
         .get(g, name) as Row | undefined;
-      row ??= db
-        .prepare(
-          `SELECT p.id, p.name, p.ingame_id, p.last_seen FROM player_aliases a JOIN players p ON p.id = a.player_id
-           WHERE p.group_id = ? AND a.name = ? COLLATE NOCASE ORDER BY a.seen_until DESC`,
-        )
-        .get(g, name) as Row | undefined;
+      const alias = this.aliasAt(name, seenAt);
+      if (alias != null) row = db.prepare('SELECT id, name, ingame_id, last_seen FROM players WHERE id = ?').get(alias) as Row;
     }
     if (row) {
       if (ingameId && row.name !== name && row.name === placeholderPlayer(ingameId)) {
@@ -115,22 +113,42 @@ export class Players {
     this.db.prepare('INSERT INTO player_status_log (player_id, status, seen_at) VALUES (?, ?, ?)').run(playerId, json, seenAt);
   }
 
-  /** Current or former name (like `player()`), without creating a player. */
-  byName(name: string): number | null {
-    const db = this.db;
+  /**
+   * Player who had `name` as a former name at time `at`: the alias was still seen then (`seen_until` is the time of
+   * the first data with the new name). The earliest such alias wins (the era `at` falls into).
+   */
+  private aliasAt(name: string, at: number): number | null {
     return (
-      (db
-        .prepare('SELECT id FROM players WHERE group_id = ? AND name = ? COLLATE NOCASE ORDER BY last_seen DESC')
+      (this.db
+        .prepare(
+          `SELECT p.id FROM player_aliases a JOIN players p ON p.id = a.player_id
+           WHERE p.group_id = ? AND a.name = ? COLLATE NOCASE AND a.seen_until >= ? ORDER BY a.seen_until LIMIT 1`,
+        )
         .pluck()
-        .get(this.groupId, name) as number | undefined) ??
+        .get(this.groupId, name, at) as number | undefined) ?? null
+    );
+  }
+
+  /**
+   * Current or former name, without creating a player. With `at` (time of the data) a former name only counts like
+   * in `player()`; without it (search, display) any former name does, the newest first.
+   */
+  byName(name: string, at?: number): number | null {
+    const db = this.db;
+    const current = db
+      .prepare('SELECT id FROM players WHERE group_id = ? AND name = ? COLLATE NOCASE ORDER BY last_seen DESC')
+      .pluck()
+      .get(this.groupId, name) as number | undefined;
+    if (current != null) return current;
+    if (at != null) return this.aliasAt(name, at);
+    return (
       (db
         .prepare(
           `SELECT p.id FROM player_aliases a JOIN players p ON p.id = a.player_id
            WHERE p.group_id = ? AND a.name = ? COLLATE NOCASE ORDER BY a.seen_until DESC`,
         )
         .pluck()
-        .get(this.groupId, name) as number | undefined) ??
-      null
+        .get(this.groupId, name) as number | undefined) ?? null
     );
   }
 }

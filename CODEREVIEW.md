@@ -479,6 +479,8 @@ This is **confirmed**. The writes are not arbitrary — they follow fleet snapsh
 
 **Fix:** Do not resolve name-only pastes via aliases when creating/attaching a live player. Keep aliases for search/display only, or require extra signals (coords + id).
 
+**Status:** Done (2026-11-06). Name-only matches use a former name only when the data is not newer than the alias's `seen_until` (`aliasAt`); `byName(name, at)` for spy reports and galaxy backfill, any alias without a time (search, display). Test `test/players.test.ts`.
+
 ---
 
 ### B-07 — Battle worker can hang and leak the global slot
@@ -1072,7 +1074,7 @@ These are the contract and correctness issues. They take more than an afternoon,
 | 1 | B-01 / A-02 | Stop writes on GET `/plans` (and decide for build-order / buildings). This also fixes the token story and the CSRF-via-GET case. | Medium | Partial `8437595` (`/plans` done; build-order / buildings still write) |
 | 2 | B-04 | Lock down `forUser` to message-like pages | Medium | Done `19fb73e` |
 | 3 | A-04 / B-17 | Pass the universe catalog into parse/name/short lookup; register shorts | Medium | Done (2026-11-06; `withUnits` await guard open) |
-| 4 | B-06 | Stop attaching name-only pastes via aliases | Medium | Open |
+| 4 | B-06 | Stop attaching name-only pastes via aliases | Medium | Done (2026-11-06; aliases by time) |
 | 5 | B-22 | Central 401 → clear session, close live, login | Medium | Done `99da344` |
 | 6 | A-07 / I-04 / I-06 | One `UniverseSettings` + hash mapping; admin `phalanxRangeFactor`; tool `uo` on hub links | Medium | Done (2026-11-06) |
 | 7 | A-01 / I-01 / C-02 | OpenAPI path check in CI; type the web client on the token-facing GETs | Medium | Partial `eb8ef15` (path CI done; typed client open) |
