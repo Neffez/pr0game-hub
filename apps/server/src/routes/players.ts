@@ -9,6 +9,8 @@ import { latestEmpires } from '../repo/empire.js';
 import { memberPlayer, memberPlayers } from '../repo/members.js';
 import { latestScores, pointsStalls, stallSince } from '../repo/stats.js';
 import { inactivities } from '../repo/inactivity.js';
+import { inactivityCheck } from '../repo/inactivityCheck.js';
+import { requireGroupAdminOf } from './admin.js';
 import { contextOf, likeTerm, parseSections, type Q } from './util.js';
 
 export function playersRoutes(app: FastifyInstance, db: DB) {
@@ -170,6 +172,13 @@ export function playersRoutes(app: FastifyInstance, db: DB) {
       )
       .all(ctx.groupId, like, like, term, term);
     return out;
+  });
+
+  /** Check of the inactivity score against the game's flag on the group's data (alliance admins; see `inactivityCheck`). */
+  app.get<{ Params: { uni: string }; Querystring: Q }>('/api/:uni/inactivity-check', async (req) => {
+    const ctx = ctxOf(req);
+    requireGroupAdminOf(db, req, ctx.groupId);
+    return inactivityCheck(db, ctx, req.query.fresh === '1');
   });
 
   app.get<{ Params: { uni: string; id: string } }>('/api/:uni/players/:id', async (req) => {

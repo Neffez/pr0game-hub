@@ -13,7 +13,7 @@ source (`pr0game`: pages, missions, achievements, advanced stats).
 | E-1 What should I paste next? | Done | 2026-11-06 | sync page, overview, quick sync sheet |
 | F-1 Global search (Ctrl+K) | Done | 2026-11-06 | every page of a universe (sidebar, mobile top bar) |
 | B-1 Farm finder with projected resources | Done | 2026-11-06 | new menu item "Farm finder" under Combat & expeditions |
-| B-3 Inactivity confidence | Done | 2026-11-06 | farm finder, overview, player details |
+| B-3 Inactivity confidence | Done (second version) | 2026-11-06 | farm finder, overview, player details, check in the admin panel |
 
 Each finished item carries a **Status** block below its description: what was built and how.
 
@@ -188,7 +188,41 @@ in the overview, the farm finder and player details.
   in the player details a line of text. In the overview it replaces the points stall icon when it has something to
   say and the game does not flag the player yet; the farm finder has it as a sortable column and a filter.
 - **Texts:** `inactivity.*` in `de.ts`/`en.ts`; tour step `farm.inactivity`.
-- **Left for later:** fleets seen in members' overviews and messages as further activity signals.
+- **Left for later:** fleets seen in members' overviews and messages as further activity signals (done in the second
+  version below).
+
+**Second version (2026-11-06).** The first version capped the score at 15 whenever a galaxy activity mark followed
+the last points gain. The game sets that mark also when others spy on or attack the planet (`MissionCaseSpy` and
+`MissionCaseAttack` call `ResourceUpdate::CalcResource` on the target, which sets `last_update`, the base of the
+galaxy's activity), and the hub only filtered the members' own actions, so targets farmed by other alliances looked
+active. The score was rebuilt as "latest sign of activity (`t0`), then the absence seen since":
+
+- **Proof of activity** (`provenActivity`): the player as attacker in combat reports and the battle hall, espionage
+  on members, messages a member synced (only those the viewer may see), fleet launches and recalls from members'
+  overviews and phalanx scans, reports by hand; from the spy history a fleet that shrank between two reports without
+  a battle at the planet (sent away; time: the earlier report).
+- **Relevant points gains** (`statSeries`): per statistics update the gain of every player is compared with the median
+  gain of the active players within ±25 ranks; a gain below 15 % of it is a build queue running out and doesn't count
+  (`weakGains` in the reasons).
+- **Absence since `t0`**: score = 94 · (1 − e^(−idle / 36 h)) (24 h ≈ 46, 48 h ≈ 69, 72 h ≈ 82); +4 per spy interval
+  whose metal and crystal match the projection of the earlier report (`projectResources`, nothing else changed,
+  at most +12); +5 when fleet or defense points were lost after `t0` and not rebuilt (category statistics); each
+  galaxy mark after `t0` multiplies by 0.7 (down to 0.35) instead of capping. 95/100 with the game's flag.
+- **Reasons**: `Inactivity.reasons` lists the signals (`flag`, `proven`, `gain`, `noGain`, `weakGains`, `galaxy`,
+  `idleSpy`, `losses`); the tooltip of `InactivityBadge.vue` shows them in plain words.
+- **Replay at a time** (`inactivities(db, ctx, ids, asOf)`): every query only uses data up to `asOf`, the game's status
+  comes from the status log then.
+- **Check in the admin panel** (`apps/server/src/repo/inactivityCheck.ts`, `GET /api/:uni/inactivity-check`, alliance
+  admins, section "Check the inactivity score"): players the game flagged inactive in the last 45 days were last
+  online the universe's inactive days before the flag appeared (known within 2 days from the status log); the score is
+  replayed 12, 24, 48, 72 and 120 hours after that and shown as detection rate (likely, inactive) and median score.
+  False alarms: the score once a day over 30 days, scores of at least likely followed by proof or a relevant gain
+  within 3 days, with examples. It runs in steps (the server stays responsive) and is kept for 15 minutes. This
+  replaces a backtest against the production database, which nobody can access from here: the deployment's admin
+  opens the panel instead.
+- **Tuning**: the weights are one object (`INACTIVITY` in `repo/inactivity.ts`), shown in the check. Change them when
+  the check shows late detection (lower `tau`) or many false alarms (raise `tau`, `weakGain`).
+- Tests in `apps/server/test/inactivity.test.ts` and `apps/server/test/inactivityCheck.test.ts`.
 
 ### B-4 Debris field tracker
 **Value:** Medium · **Effort:** S · **Builds on:** galaxy parser (debris), battle reports, recycling reports

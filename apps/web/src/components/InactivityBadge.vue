@@ -13,7 +13,17 @@ export interface Inactivity {
   status: 'inactive' | 'longinactive' | null;
   stall: number | null;
   lastActive: number | null;
+  reasons?: InactivityReason[];
 }
+export type InactivityReason =
+  | { code: 'flag'; status: 'inactive' | 'longinactive'; time: number | null }
+  | { code: 'proven'; source: string; time: number }
+  | { code: 'gain'; time: number }
+  | { code: 'noGain'; since: number; atLeast: boolean }
+  | { code: 'weakGains'; n: number }
+  | { code: 'galaxy'; n: number; time: number }
+  | { code: 'idleSpy'; n: number }
+  | { code: 'losses' };
 
 /**
  * The inactivity score: `chip` a small badge with the percentage (lists; hidden for active players and, with
@@ -33,13 +43,23 @@ const summary = computed(() => {
   const since = v.since ? t(v.atLeast ? 'inactivity.sinceAtLeast' : 'inactivity.since', { time: dateTime(v.since) }) : '';
   return `${t(`inactivity.level.${v.level}`, { score: v.score })}${since ? ` ${since}` : ''}`;
 });
+/** One line per signal the score is made of. */
+function reasonText(r: InactivityReason): string {
+  switch (r.code) {
+    case 'flag': return t(`inactivity.status.${r.status}`);
+    case 'proven': return t(`inactivity.proven.${r.source}`, { time: dateTime(r.time) });
+    case 'gain': return t('inactivity.gain', { time: dateTime(r.time) });
+    case 'noGain': return t(r.atLeast ? 'inactivity.noGainAtLeast' : 'inactivity.noGain', { time: dateTime(r.since) });
+    case 'weakGains': return t('inactivity.weakGains', { n: r.n }, r.n);
+    case 'galaxy': return t('inactivity.galaxy', { n: r.n, time: dateTime(r.time) }, r.n);
+    case 'idleSpy': return t('inactivity.idleSpy', { n: r.n }, r.n);
+    case 'losses': return t('inactivity.losses');
+  }
+}
 const reasons = computed(() => {
   const v = props.value!;
-  return [
-    v.status ? t(`inactivity.status.${v.status}`) : '',
-    v.stall ? t('inactivity.stall', { time: dateTime(v.stall) }) : '',
-    v.lastActive ? t('inactivity.lastActive', { time: dateTime(v.lastActive) }) : '',
-  ].filter(Boolean);
+  if (v.reasons) return v.reasons.map(reasonText);
+  return [v.status ? t(`inactivity.status.${v.status}`) : '', v.stall ? t('inactivity.gain', { time: dateTime(v.stall) }) : ''].filter(Boolean);
 });
 const title = computed(() => (shown.value ? [summary.value, ...reasons.value].join('\n') : ''));
 </script>

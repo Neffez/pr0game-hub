@@ -43,7 +43,9 @@ External analysis tool for [pr0game](https://codeberg.org/pr0game/pr0game) based
   missions they share)
 - **Farm finder**: spied targets outside the own alliance ranked by loot per flight hour: the resources of the
   newest spy report plus the production since then (capped by the storages), ships, fuel and flight time from the
-  nearest own planet, defense and fleet risk and an inactivity score (game flag, points stall, activity seen)
+  nearest own planet, defense and fleet risk and an inactivity score (game flag, latest proven activity, relevant
+  points gains against the players around the same rank, spy history, lost fleet or defense; checkable against the
+  game's own flags in the admin panel)
 - **Targets**: members claim a planet or moon for a while (farming, attack, espionage) so nobody hits it twice;
   the claim shows next to the target everywhere and runs out by itself; the list of claims is a section of the
   raids planning tab

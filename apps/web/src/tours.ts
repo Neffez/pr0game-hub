@@ -257,6 +257,7 @@ export const TOURS = {
       { key: 'members', el: 'admin-members', side: 'top' },
       { key: 'discord', el: 'admin-discord', side: 'top' },
       { key: 'fleetAttacks', el: 'admin-fleet-attacks', side: 'top' },
+      { key: 'inactivity', el: 'admin-inactivity', side: 'top' },
       { key: 'crawler', el: 'admin-crawler', side: 'top' },
       { key: 'system', el: 'admin-system', side: 'top' },
       { key: 'backfill', el: 'admin-backfill', side: 'top' },

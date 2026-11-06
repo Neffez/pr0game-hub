@@ -4,6 +4,17 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-06
 
+- Inactivity score, second version: latest sign of activity, then the absence seen since.
+  - Proof of activity: attacks (combat reports, battle hall), espionage on members, messages, fleet launches and
+    recalls, reports by hand, and a fleet that shrank between two spy reports without a battle there.
+  - Points gains count only when they reach a share of what the active players around the same rank gained (smaller
+    ones are build queues running out); fleet or defense lost and not rebuilt and spy reports matching the resource
+    projection of the report before raise the score.
+  - Galaxy activity marks lower the score instead of capping it (the game also sets them when others spy on or
+    attack the planet). The score grows on a curve with the idle time; `reasons` explain it (API and tooltip).
+  - Admin panel: "Check the inactivity score" replays the score after the last login of players the game flagged
+    inactive later (`GET /api/:uni/inactivity-check`) and counts false alarms over 30 days.
+
 - Sync hints in the overview and the quick sync sheet fold away: a collapsible section with the number of hints,
   folded by default on mobile (one line), open on desktop; the choice is remembered per device and page. The title
   row carries a warning mark with the number of hints, red with an important hint and yellow otherwise, so a

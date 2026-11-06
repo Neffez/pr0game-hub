@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Inaktivität genauer: Angriffe, Spionage, Nachrichten und verschickte Flotten zählen als Beweis für Aktivität, kleine Punktezuwächse aus Bauschleifen nicht mehr. Galaxie-Aktivität durch Angriffe anderer macht Farmziele nicht mehr „aktiv“. Der Tooltip zeigt die Gründe. Allianz-Admins können den Score im Admin-Panel an den eigenen Daten prüfen.',
+        en: 'More precise inactivity: attacks, espionage, messages and fleets sent away count as proof of activity, small points gains from build queues no longer do. Galaxy activity caused by others attacking no longer makes farm targets "active". The tooltip shows the reasons. Alliance admins can check the score on their own data in the admin panel.',
+      },
+      {
+        kind: 'new',
         de: '„Was soll ich als Nächstes einfügen?“ lässt sich in der Übersicht einklappen und startet auf dem Handy eingeklappt – nur eine Zeile mit einer roten (wichtig) oder gelben (veraltet) Warnung und der Anzahl der Hinweise.',
         en: '"What should I paste next?" folds away in the overview and starts folded on phones – just one line with a red (important) or yellow (outdated) warning and the number of hints.',
       },

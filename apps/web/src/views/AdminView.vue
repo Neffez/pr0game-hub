@@ -12,6 +12,7 @@ import CopyField from '../components/CopyField.vue';
 import Hint from '../components/Hint.vue';
 import DateTimeInput from '../components/DateTimeInput.vue';
 import { fromLocalInput, toLocalInput } from '../plans';
+import InactivityCheck from '../components/InactivityCheck.vue';
 import SystemMonitor from '../components/SystemMonitor.vue';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -772,6 +773,11 @@ const doMerge = () => run(async () => {
           </tbody>
         </table>
       </div>
+      </Section>
+
+      <Section v-if="group" data-tour="admin-inactivity" :title="t('inactivityCheck.title')" :default-open="false" store-key="admin.inactivity">
+        <template #hint><Hint>{{ t('inactivityCheck.hint') }}</Hint></template>
+        <InactivityCheck :key="group.id" :universe="group.universe" :group-id="group.id" />
       </Section>
 
       <Section v-if="crawler" data-tour="admin-crawler" :title="t('admin.crawler')" :default-open="false" store-key="admin.crawler">

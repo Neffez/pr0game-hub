@@ -1,10 +1,9 @@
 import { CLASS_BUILDINGS, CLASS_DEFENSE, CLASS_FLEET, CLASS_RESEARCH, CLASS_RESOURCES, sectionPoints } from '@pr0hub/core/tech';
-import { deriveResourceSpeed, positionTemp, projectResources, SOLAR_SATELLITE } from '@pr0hub/core/production';
+import { positionTemp, projectResources, SOLAR_SATELLITE } from '@pr0hub/core/production';
 import { withUnits } from '@pr0hub/core/units';
 import { catalogOf, type GroupContext } from '../context.js';
 import type { DB } from '../db.js';
-import { storageFactorOf } from './buildings.js';
-import { latestEmpire, latestEmpires } from './empire.js';
+import { economyOf } from './economy.js';
 import { inactivities, type Inactivity } from './inactivity.js';
 import { memberPlayer, memberPlayers } from './members.js';
 import { latestScores } from './stats.js';
@@ -55,18 +54,7 @@ export function farmTargets(db: DB, ctx: GroupContext, days: number) {
   const catalog = catalogOf(ctx.universe);
   const since = ctx.now - days * DAY;
 
-  // resource multiplier: the universe setting, else from the members' empire pages (production per hour shown)
-  let resourceSpeed = settings.resourceMultiplier ? settings.resourceMultiplier / 2500 : null;
-  let speedSource: 'settings' | 'empire' | 'default' = 'settings';
-  if (resourceSpeed == null) {
-    resourceSpeed = deriveResourceSpeed(
-      latestEmpires(db, ctx).flatMap((e) => e.rec.planets.filter((p) => p.type === 'planet').map((p) => ({ levels: p.values, research: e.rec.research, temp: p.temp, perHour: p.perHour }))),
-    );
-    speedSource = resourceSpeed != null ? 'empire' : 'default';
-    resourceSpeed ??= 1;
-  }
-  const own = latestEmpire(db, ctx, ctx.user.id);
-  const storageFactor = storageFactorOf(own?.rec ?? null, null) ?? settings.storageMultiplier ?? 1;
+  const { resourceSpeed, speedSource, storageFactor } = economyOf(db, ctx);
 
   // the own alliance: members' players and the in-game alliance of the viewer's player
   const members = new Set([...memberPlayers(db, ctx).values()].filter((id): id is number => id != null));

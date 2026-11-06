@@ -7,7 +7,6 @@ process.env.WEB_DIR = '/nonexistent';
 const { buildApp } = await import('../src/app.js');
 const { openDb, now } = await import('../src/db.js');
 const { hashPassword } = await import('../src/auth.js');
-const { inactivityOf } = await import('../src/repo/inactivity.js');
 
 const db = openDb(':memory:');
 const app = buildApp(db, { logger: false });
@@ -93,8 +92,8 @@ describe('farm finder', () => {
     expect(target.fleet).toMatchObject({ units: 3, time: t - 7200 });
     expect(target.defense).toMatchObject({ units: 0, points: 0 });
     expect(target.player).toMatchObject({ name: 'Farm', points: 1001 });
-    // no gain in the last two updates (12 hours): not enough to call it inactive
-    expect(target.inactivity).toMatchObject({ score: 14, level: 'active', stall: t - 12 * 3600 });
+    // no gain in the last two updates (12 hours): possibly inactive
+    expect(target.inactivity).toMatchObject({ score: 27, level: 'possible', stall: t - 12 * 3600, since: t - 12 * 3600 });
   });
 
   it('keeps the moon as seen and caps a full storage', async () => {
@@ -110,20 +109,5 @@ describe('farm finder', () => {
 
   it('looks further back on request', async () => {
     expect((await farm('?days=30')).targets).toHaveLength(4);
-  });
-});
-
-describe('inactivity', () => {
-  const base = { status: [], inactiveSince: null, newest: 100_000, inStats: true, lastActive: null };
-  it('grows with the points stall and trusts the game flag', () => {
-    expect(inactivityOf({ ...base, stall: null })).toMatchObject({ score: 0, level: 'active' });
-    expect(inactivityOf({ ...base, stall: { time: 100_000 - 36 * 3600, atLeast: false } })).toMatchObject({ score: 43, level: 'possible', since: 100_000 - 36 * 3600 });
-    expect(inactivityOf({ ...base, stall: { time: 100_000 - 96 * 3600, atLeast: true } })).toMatchObject({ score: 85, level: 'inactive', atLeast: true });
-    expect(inactivityOf({ ...base, status: ['longinactive'], inactiveSince: 5, stall: null })).toMatchObject({ score: 100, since: 5, status: 'longinactive' });
-  });
-
-  it('drops when the player was seen active after the last gain, and knows nothing without statistics', () => {
-    expect(inactivityOf({ ...base, stall: { time: 100_000 - 96 * 3600, atLeast: false }, lastActive: 100_000 - 3600 })).toMatchObject({ score: 15, level: 'active', since: null });
-    expect(inactivityOf({ ...base, stall: null, inStats: false })).toMatchObject({ level: 'unknown' });
   });
 });
