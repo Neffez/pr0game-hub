@@ -2,6 +2,15 @@
 
 Every commit adds its changes here, newest first, grouped by date.
 
+## 2026-11-06
+
+- Unit names resolve by the catalog of the universe: `idByName` / `idByShortName` take a catalog (default: the active
+  one) and look at its units first; `parsePage` takes `units`. The server parses and stores every paste, re-parse,
+  undo, backfill, crawled report, phalanx and simulation with its universe's catalog, so two universes can give the
+  same custom name to different units and pasted costs/points follow the universe. Units a universe added are found
+  by their short in battle reports (after the game's shorts). `registerUnitNames` only labels (`techName`); the admin
+  unit-page parser still looks up names of the other universes explicitly.
+
 ## 2026-11-05
 
 - Code review records the second series (Wave 1 leftovers) and what is still open.

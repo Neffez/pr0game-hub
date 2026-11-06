@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { checkUsername, HttpError, randomToken, requireAdmin, requireUser, revokeAccessIfOrphaned } from '../auth.js';
 import { config, UNIVERSE_DEFAULTS } from '../config.js';
-import { catalogOf, toUniverse } from '../context.js';
+import { catalogOf, catalogOfGroup, toUniverse } from '../context.js';
 import { parseUnitPage } from '@pr0hub/core';
 import { DEFAULT_UNIT_DEFS, isUnitId, validateUnits, type UnitOverrides } from '@pr0hub/core/units';
 import { now, type DB } from '../db.js';
@@ -188,8 +188,12 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
     const { overrides } = unitsOf(req.params.slug);
     const html = req.body?.html;
     if (typeof html !== 'string' || !html.trim() || html.length > 5_000_000) throw new HttpError(400, 'units_page_invalid', 'Expected a page source');
-    // names of the universe's units and of pages pasted before (an info page has no id)
+    // names of the other universes' units (ids are the same in every universe), then of this one and of pages pasted
+    // before (an info page has no id); later entries win
     const names: Record<string, number> = {};
+    for (const raw of db.prepare('SELECT units FROM universes WHERE slug <> ?').pluck().all(req.params.slug) as string[]) {
+      for (const u of Object.values(catalogOf({ units: JSON.parse(raw || '{}') }).units)) for (const n of Object.values(u.name)) names[n] ??= u.id;
+    }
     for (const u of Object.values(catalogOf({ units: overrides }).units)) for (const n of Object.values(u.name)) names[n] = u.id;
     const extra = req.body?.names;
     if (extra && typeof extra === 'object') {
@@ -538,7 +542,7 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
       const summary = r.summary ? JSON.parse(r.summary) : {};
       if (!summary.about && (r.html_size || r.text_size)) {
         try {
-          summary.about = aboutRecords(parseRaw(raw.get(r.id) as RawIngest).records);
+          summary.about = aboutRecords(parseRaw(raw.get(r.id) as RawIngest, catalogOfGroup(db, groupId)).records);
         } catch {
           summary.about = [];
         }

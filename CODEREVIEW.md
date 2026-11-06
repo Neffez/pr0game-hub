@@ -116,6 +116,8 @@ None of this requires a rewrite. The recommended order at the end does the remai
 
 **Fix:** Pass `UnitCatalog` into `parsePage` / `idByName` / `idByShortName`. Register shorts from the catalog. On the server, prefer an explicit `catalog` argument over `withUnits`. Keep `setActiveUnits` for the single-universe web/tools UIs.
 
+**Status:** Mostly done (A-04 commit, 2026-11-06). `idByName` / `idByShortName` take a catalog (default active) and look at its units first; `parsePage` takes `units`; every server parse path (ingest, reparse, undo, backfill, crawler, phalanx, plan sim, settlement from report) runs with the universe's catalog. `registerUnitNames` no longer feeds the parsers. Still open: `withUnits` is sync-only with nothing guarding an `await` inside.
+
 ---
 
 ### A-05 — Route / repo / domain split is uneven
@@ -666,7 +668,7 @@ Confirmed behavior; may be a product decision. The test name is wrong.
 
 **Fix:** Same `unknown` list as unit pages; push e.g. `unknown_unit` on `parsePage`. Register catalog shorts (A-04).
 
-**Status:** Partial (`c925738`). Unknown names become `unknown_unit` (`idByShortName`, fleet amounts, logistics missile losses). Catalog shorts and passing the universe catalog into parse remain A-04.
+**Status:** Done (`c925738`, A-04 commit). Unknown names become `unknown_unit`; a universe's added units resolve by their catalog short after the game's shorts.
 
 ---
 
@@ -1063,7 +1065,7 @@ These are the contract and correctness issues. They take more than an afternoon,
 |---|---|---|---|---|
 | 1 | B-01 / A-02 | Stop writes on GET `/plans` (and decide for build-order / buildings). This also fixes the token story and the CSRF-via-GET case. | Medium | Partial `8437595` (`/plans` done; build-order / buildings still write) |
 | 2 | B-04 | Lock down `forUser` to message-like pages | Medium | Done `19fb73e` |
-| 3 | A-04 / B-17 | Pass the universe catalog into parse/name/short lookup; register shorts | Medium | Open |
+| 3 | A-04 / B-17 | Pass the universe catalog into parse/name/short lookup; register shorts | Medium | Done (2026-11-06; `withUnits` await guard open) |
 | 4 | B-06 | Stop attaching name-only pastes via aliases | Medium | Open |
 | 5 | B-22 | Central 401 → clear session, close live, login | Medium | Done `99da344` |
 | 6 | A-07 / I-04 / I-06 | One `UniverseSettings` + hash mapping; admin `phalanxRangeFactor`; tool `uo` on hub links | Medium | Open |

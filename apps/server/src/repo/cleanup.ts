@@ -2,6 +2,7 @@ import { localToEpoch, type HubRecord } from '@pr0hub/core';
 import { HttpError } from '../auth.js';
 import { UNIVERSE_DEFAULTS } from '../config.js';
 import type { DB } from '../db.js';
+import { catalogOfGroup } from '../context.js';
 import { parseRaw, type RawIngest } from '../ingest.js';
 
 export interface UndoResult {
@@ -62,7 +63,7 @@ export function undoIngest(db: DB, rawId: number, dryRun: boolean): UndoResult {
   const result: UndoResult = {
     snapshots: 0, scores: 0, activity: 0, players: [], alliances: [], kept: [], empires: 0, overviews: 0, fleets: 0, spyReports: 0, skipped: [],
   };
-  const records = parseRaw(row).records;
+  const records = parseRaw(row, catalogOfGroup(db, g)).records;
   result.skipped = [...new Set(records.map((r) => r.kind).filter((k) => !UNDOABLE.has(k)))];
 
   const rollback = new Error('dry run');

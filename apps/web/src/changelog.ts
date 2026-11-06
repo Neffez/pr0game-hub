@@ -16,6 +16,16 @@ export interface ChangelogDay {
 
 export const CHANGELOG: ChangelogDay[] = [
   {
+    date: '2026-11-06',
+    items: [
+      {
+        kind: 'fix',
+        de: 'Eigene Schiffe und Verteidigung eines Universums werden in eingefügten Seiten und Kampfberichten richtig erkannt, auch wenn ein anderes Universum denselben Namen für eine andere Einheit verwendet.',
+        en: 'Own ships and defense of a universe are recognised correctly in pasted pages and battle reports, even when another universe uses the same name for a different unit.',
+      },
+    ],
+  },
+  {
     date: '2026-11-05',
     items: [
       {

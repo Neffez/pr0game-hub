@@ -1,8 +1,8 @@
-import { localToEpoch, parsePage, type HubRecord, type ParseInput, type ParseResult, type SpyReportRecord } from '@pr0hub/core';
+import { localToEpoch, parsePage, withUnits, type HubRecord, type ParseInput, type ParseResult, type SpyReportRecord, type UnitCatalog } from '@pr0hub/core';
 import { gunzipSync, gzipSync } from 'node:zlib';
 import { HttpError } from './auth.js';
 import { config } from './config.js';
-import { isRunning, type GroupContext } from './context.js';
+import { catalogOf, catalogOfGroup, isRunning, type GroupContext } from './context.js';
 import { now, type DB } from './db.js';
 import { events } from './events.js';
 import { foreignRecords } from './plausibility.js';
@@ -92,12 +92,15 @@ export const FOR_USER_PAGES = new Set<ParseResult['pageType']>(['messages', 'com
 
 export type IngestLog = { info: (obj: object, msg: string) => void; warn: (obj: object, msg: string) => void };
 
-export function ingest(
-  db: DB,
-  target: IngestTarget,
-  input: ParseInput & { source: 'paste' | 'upload' },
-  opts: { dryRun?: boolean; ctx?: GroupContext; log?: IngestLog } = {},
-): IngestSummary {
+type IngestOptions = { dryRun?: boolean; ctx?: GroupContext; log?: IngestLog };
+
+/** Parses and stores a page with the unit catalog of the group's universe (names, costs, points). */
+export function ingest(db: DB, target: IngestTarget, input: ParseInput & { source: 'paste' | 'upload' }, opts: IngestOptions = {}): IngestSummary {
+  const units = opts.ctx?.groupId === target.groupId ? catalogOf(opts.ctx.universe) : catalogOfGroup(db, target.groupId);
+  return withUnits(units, () => ingestWith(db, target, { ...input, units }, opts));
+}
+
+function ingestWith(db: DB, target: IngestTarget, input: ParseInput & { source: 'paste' | 'upload' }, opts: IngestOptions): IngestSummary {
   const parsed = parsePage(input);
   if (foreignRecords(db, target, parsed.records)) {
     throw new HttpError(400, 'wrong_universe', 'The pasted page does not match the data of this universe');
@@ -196,12 +199,13 @@ export interface RawIngest {
   created_at: number;
 }
 
-/** Parses a stored sync again. */
-export function parseRaw(row: RawIngest): ParseResult {
+/** Parses a stored sync again, with the unit catalog of its universe. */
+export function parseRaw(row: RawIngest, units: UnitCatalog): ParseResult {
   return parsePage({
     html: row.html_gz ? gunzipSync(row.html_gz).toString('utf8') : null,
     text: row.text_gz ? gunzipSync(row.text_gz).toString('utf8') : null,
     url: row.url,
+    units,
   });
 }
 
@@ -209,7 +213,12 @@ export function parseRaw(row: RawIngest): ParseResult {
 export function reparse(db: DB, rawId: number, timezone: string): IngestSummary {
   const row = db.prepare('SELECT * FROM raw_ingests WHERE id = ?').get(rawId) as RawIngest | undefined;
   if (!row) throw new Error('raw ingest not found');
-  const parsed = parseRaw(row);
+  const units = catalogOfGroup(db, row.group_id);
+  return withUnits(units, () => reparseWith(db, row, units, timezone));
+}
+
+function reparseWith(db: DB, row: RawIngest, units: UnitCatalog, timezone: string): IngestSummary {
+  const parsed = parseRaw(row, units);
   const summary: IngestSummary = {
     pageType: parsed.pageType, source: parsed.source, lang: parsed.lang, warnings: parsed.warnings, counts: {}, preview: [],
   };
@@ -248,7 +257,8 @@ export function backfillActivity(db: DB, groupId: number, timezone: string): num
   const before = count();
   const summary: IngestSummary = { pageType: 'unknown', source: 'text', lang: 'de', warnings: [], counts: {}, preview: [] };
   const store = new Store(db, { groupId, userId: 0, timezone }, summary);
-  db.transaction(() => {
+  const units = catalogOfGroup(db, groupId);
+  withUnits(units, () => db.transaction(() => {
     const scores = db
       .prepare(
         // status at that time from the status log; unknown counts as active
@@ -299,7 +309,7 @@ export function backfillActivity(db: DB, groupId: number, timezone: string): num
     const byIngameId = db.prepare('SELECT id FROM players WHERE group_id = ? AND ingame_id = ?').pluck();
     const raws = db.prepare("SELECT * FROM raw_ingests WHERE group_id = ? AND page_type = 'galaxy' ORDER BY created_at").all(groupId) as RawIngest[];
     for (const raw of raws) {
-      for (const r of parseRaw(raw).records) {
+      for (const r of parseRaw(raw, units).records) {
         if (r.kind !== 'galaxy') continue;
         for (const row of r.rows) {
           if (row.activity == null) continue;
@@ -310,7 +320,7 @@ export function backfillActivity(db: DB, groupId: number, timezone: string): num
         }
       }
     }
-  })();
+  })());
   return count() - before;
 }
 

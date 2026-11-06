@@ -139,7 +139,7 @@ export function settlementRoutes(app: FastifyInstance, db: DB) {
     const ctx = ctxOf(req);
     const text = typeof req.body?.text === 'string' ? req.body.text : '';
     const mission = req.body?.mission === 'attack' || req.body?.mission === 'hold' ? req.body.mission : null;
-    const report = parseCombatReportText(text, null);
+    const report = withUnits(catalogOf(ctx.universe), () => parseCombatReportText(text, null));
     const time = report?.time ? localToEpoch(report.time, ctx.universe.settings.timezone) : null;
     if (!report || time == null) throw new HttpError(400, 'report_invalid', 'No battle report recognised');
     if (isCombatSimulation(report)) throw new HttpError(400, 'report_simulation', 'A battle simulation is no battle (paste it into the raid plan)');

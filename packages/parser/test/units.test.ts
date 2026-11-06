@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { buildingCost, requirementsOf, shipsOf, type BuildPlanet } from '../src/buildings.js';
 import costs from '../src/data/costs.json' with { type: 'json' };
 import ships from '../src/data/ships.json' with { type: 'json' };
-import { costOf, idByName, registerUnitNames, techName } from '../src/tech.js';
+import { costOf, idByName, idByShortName, registerUnitNames, takeUnknownUnits, techName } from '../src/tech.js';
 import { activeUnits, DEFAULT_UNITS, emptyUnit, setActiveUnits, unitCatalog, unitPatch, validateUnits, withUnits } from '../src/units.js';
 
 describe('unit catalog', () => {
@@ -57,16 +57,32 @@ describe('unit catalog', () => {
     expect(shipsOf(p, { research: {}, now: 0, units: c }).find((s) => s.id === 227)?.state).not.toBe('requirements');
   });
 
-  it('names: the active catalog, registered universe names for the parsers', () => {
+  it('names: parsers resolve by the catalog of the universe, registered names only label', () => {
     const c = unitCatalog({ 233: { name: { de: 'Sternenbrecher', en: 'Star Breaker' }, cost: [1, 1, 1] } });
     expect(idByName('Sternenbrecher')).toBeNull();
+    expect(idByName('star breaker', c)).toBe(233);
+    expect(withUnits(c, () => idByName('Sternenbrecher'))).toBe(233);
     registerUnitNames(c);
-    expect(idByName('star breaker')).toBe(233);
+    // registering does not make the name known to other universes' parsers
+    expect(idByName('star breaker')).toBeNull();
     expect(techName(233, 'en')).toBe('Star Breaker');
     setActiveUnits(unitCatalog({ 202: { name: { de: 'KT', en: 'SC' } } }));
     expect(techName(202, 'de')).toBe('KT');
     setActiveUnits(null);
     expect(techName(202, 'de')).toBe('Kleiner Transporter');
+  });
+
+  it('keeps the same custom name apart in two universes, and resolves added units by their short', () => {
+    const a = unitCatalog({ 233: { name: { de: 'Wächter', en: 'Warden' }, cost: [1, 1, 1] } });
+    const b = unitCatalog({ 234: { name: { de: 'Wächter', en: 'Warden' }, cost: [1, 1, 1] } });
+    expect(idByName('Wächter', a)).toBe(233);
+    expect(idByName('Wächter', b)).toBe(234);
+    const bunker = unitCatalog({ 412: emptyUnit(412) });
+    expect(idByShortName('Bunk', bunker)).toBe(412);
+    expect(idByShortName('Bunk')).toBeNull();
+    takeUnknownUnits();
+    // the game's battle-report shorts stay first
+    expect(idByShortName('Fregatte', bunker)).toBe(215);
   });
 
   it('validates stored overrides and diffs a form against its default', () => {

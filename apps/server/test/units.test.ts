@@ -102,6 +102,21 @@ describe('units per universe', () => {
     expect((await call('POST', '/admin/universes/u8/units/parse', { html: '<p>x</p>' })).json()).toMatchObject({ code: 'units_page_unknown' });
   });
 
+  it('pastes resolve unit names by the universe of the group, never by another one', async () => {
+    const { ingest } = await import('../src/ingest.js');
+    // u7 calls a different new ship like u8's 233
+    expect((await call('PUT', '/admin/universes/u7/units', { units: { 227: { req: { 21: 8, 110: 8, 117: 9 } }, 234: { name: { de: 'Sternenbrecher', en: 'Star Breaker' }, cost: [1, 1, 1] } } })).statusCode).toBe(200);
+    const text = '00:01:00 | 1m 0s Eine deiner Flotten (5 Sternenbrecher) vom Planet A [1:1:1] erreicht den Planet B [1:1:2]. Mission: Transportieren';
+    const shipsOf = (slug: string) => {
+      const summary = ingest(db, { groupId: groups[slug], userId: 1, timezone: 'UTC' }, { text, source: 'paste' });
+      expect(summary.warnings).not.toContain('unknown_unit');
+      const data = db.prepare('SELECT data FROM fleet_snapshots WHERE group_id = ? ORDER BY id DESC LIMIT 1').pluck().get(groups[slug]) as string;
+      return JSON.parse(data)[0].ships;
+    };
+    expect(shipsOf('u8')).toEqual({ 233: 5 });
+    expect(shipsOf('u7')).toEqual({ 234: 5 });
+  });
+
   it('needs a global admin', async () => {
     db.prepare('INSERT INTO users (username, password_hash, is_admin) VALUES (?, ?, 0)').run('carol', hashPassword('carolpass'));
     const login = await app.inject({ method: 'POST', url: '/hub/api/auth/login', payload: { username: 'carol', password: 'carolpass' } });
