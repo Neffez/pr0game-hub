@@ -4,6 +4,12 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-06
 
+- Inactivity check reads better: false alarms by how soon the player showed activity (within 12, 24 and 72 hours; the
+  24-hour share is the false alarm rate, a player back after days really was inactive when scored) and by score band
+  (50–69, 70–84, 85+), per player too. Examples show the time of what disproved them first and, for a points gain,
+  its size, its share of the median around the rank and the categories that grew. In an ended universe the last
+  7 days before the end are counted apart. The score's gain reason carries the gain's size and ratio.
+
 - Statistics times are never assumed: sync hints no longer expect updates at fixed hours or every 6 hours. They name
   the categories missing in the newest synced update (known for sure) and expect a newer update only after the
   interval learned from the synced updates (the shortest gap seen at least twice); without one, statistics older than

@@ -237,6 +237,19 @@ before a universe closes. Conclusions and changes:
   measurement shows whether build queues finishing (gains) or real returns dominate.
 - Weights unchanged until a running universe (U8) gives more events; a closing universe overstates false alarms.
 
+**Second U7 run** (with causes): per player 26 of 89 high scores were followed by activity within 3 days (29 %); 28
+of 35 contradictions were points gains, 4 attacks, 3 espionage. Most came 2–3 days after the high score, so the
+3-day window counted players who simply came back after a real break. The check was changed accordingly:
+
+- false alarms by horizon (12, 24, 72 hours, the earliest one with activity; the score is replayed at each), the
+  24-hour share is the false alarm rate;
+- per score band (50–69, 70–84, 85+), to see whether `tau` is too short (middle band) or the high scores are wrong;
+- examples with the time of what disproved them first (before, the later of proof and gain was shown) and, for a
+  gain, its size, its ratio to the median around the rank and the categories that grew (research or buildings: a
+  queue running out; fleet or defense: a player back building);
+- an ended universe counts samples whose follow-up reaches into its last 7 days apart (`endPhase`).
+- **Next:** measure on U8 after 2–3 weeks of running, then tune `tau` and `weakGain`.
+
 ### B-4 Debris field tracker
 **Value:** Medium · **Effort:** S · **Builds on:** galaxy parser (debris), battle reports, recycling reports
 

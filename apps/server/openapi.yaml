@@ -70,6 +70,29 @@ components:
       schema: { type: integer }
       description: Attack plan id
   schemas:
+    FalseAlarmSummary:
+      type: object
+      properties:
+        days: { type: integer, description: Days sampled }
+        positives: { type: integer, description: Scores of at least likely (player-days) }
+        players: { type: integer }
+        horizons:
+          type: array
+          items:
+            type: object
+            properties:
+              hours: { type: integer, enum: [12, 24, 72] }
+              contradicted: { type: integer }
+              players: { type: integer }
+              rate: { type: [number, 'null'] }
+        bands:
+          type: array
+          items:
+            type: object
+            properties:
+              band: { type: string, enum: ['50-69', '70-84', '85+'] }
+              positives: { type: integer }
+              within: { type: object, additionalProperties: { type: integer }, description: Disproved within that many hours }
     SyncHint:
       type: object
       required: [key, level, scope, time]
@@ -2308,26 +2331,41 @@ paths:
                         inactive: { type: number }
                         median: { type: [number, 'null'] }
                   falseAlarms:
-                    type: object
-                    properties:
-                      days: { type: integer }
-                      positives: { type: integer }
-                      contradicted: { type: integer }
-                      rate: { type: [number, 'null'] }
-                      players: { type: integer, description: Players with a score of at least likely on some sampled day }
-                      playersContradicted: { type: integer }
-                      causes: { type: object, additionalProperties: { type: integer }, description: 'Contradictions by cause: gain or the proof source' }
-                      examples:
-                        type: array
-                        items:
-                          type: object
-                          properties:
-                            playerId: { type: integer }
-                            name: { type: string }
-                            time: { type: integer }
-                            score: { type: integer }
-                            activeAt: { type: integer }
-                            cause: { type: string, description: 'gain or the proof source (attack, spy, message, fleet, recall, manual, fleetGone)' }
+                    allOf:
+                      - { $ref: '#/components/schemas/FalseAlarmSummary' }
+                      - type: object
+                        properties:
+                          rate: { type: [number, 'null'], description: 'Share of high scores disproved within 24 hours (the false alarm rate)' }
+                          causes: { type: object, additionalProperties: { type: integer }, description: 'Disproved within 72 hours, by what came first: gain or the proof source' }
+                          examples:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                playerId: { type: integer }
+                                name: { type: string }
+                                time: { type: integer }
+                                score: { type: integer }
+                                hours: { type: integer, description: Earliest horizon within which activity showed }
+                                activeAt: { type: integer, description: Time of the cause }
+                                cause: { type: string, description: 'gain or the proof source (attack, spy, message, fleet, recall, manual, fleetGone)' }
+                                gain:
+                                  type: [object, 'null']
+                                  properties:
+                                    size: { type: [number, 'null'], description: Points of the gain }
+                                    ratio: { type: [number, 'null'], description: Share of the median gain of the active players around the rank }
+                                    categories: { type: object, additionalProperties: { type: number }, description: 'Categories that grew in that update (2 fleet, 3 research, 4 buildings, 5 defense) and by how much' }
+                  endPhase:
+                    description: >-
+                      Ended universe: samples whose 72 hours of follow-up reach into the last 7 days before the end,
+                      counted apart (players come back before a universe closes); null for a running universe
+                    oneOf:
+                      - allOf:
+                          - { $ref: '#/components/schemas/FalseAlarmSummary' }
+                          - type: object
+                            properties:
+                              ended: { type: integer }
+                      - { type: 'null' }
         '403': { description: Not an alliance admin }
   /api/{uni}/players/{id}:
     get:

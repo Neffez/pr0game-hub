@@ -43,7 +43,8 @@ export type ProofSource = 'attack' | 'spy' | 'message' | 'fleet' | 'recall' | 'm
 export type InactivityReason =
   | { code: 'flag'; status: 'inactive' | 'longinactive'; time: number | null }
   | { code: 'proven'; source: ProofSource; time: number }
-  | { code: 'gain'; time: number }
+  /** `size`: points gained in that update, `ratio`: against the median gain of the active players around the rank */
+  | { code: 'gain'; time: number; size?: number; ratio?: number | null }
   | { code: 'noGain'; since: number; atLeast: boolean }
   | { code: 'weakGains'; n: number }
   | { code: 'galaxy'; n: number; time: number }
@@ -92,6 +93,9 @@ export interface InactivitySignals {
   firstUpdate: number | null;
   /** statistics update of the last relevant gain, null when none in the window */
   lastGain: number | null;
+  /** points of that gain and its share of the median gain of the active players around the same rank */
+  lastGainSize?: number;
+  lastGainRatio?: number | null;
   /** gains after `lastGain` too small to count */
   weakGains: number;
   proven: { time: number; source: ProofSource } | null;
@@ -123,7 +127,7 @@ export function inactivityOf(s: InactivitySignals, asOf: number): Inactivity {
   const candidates = [s.proven?.time ?? null, s.lastGain].filter((t): t is number => t != null);
   const atLeast = !candidates.length;
   const t0 = atLeast ? (s.firstUpdate ?? s.newest) : Math.max(...candidates);
-  if (s.lastGain != null) reasons.push({ code: 'gain', time: s.lastGain });
+  if (s.lastGain != null) reasons.push({ code: 'gain', time: s.lastGain, size: s.lastGainSize, ratio: s.lastGainRatio ?? null });
   else reasons.push({ code: 'noGain', since: t0, atLeast });
   if (s.weakGains) reasons.push({ code: 'weakGains', n: s.weakGains });
 
@@ -238,7 +242,7 @@ interface StatSeries {
   newest: number | null;
   first: number | null;
   /** per player: last relevant gain, weak gains after it, in the newest update */
-  players: Map<number, { lastGain: number | null; weakGains: number; inNewest: boolean }>;
+  players: Map<number, { lastGain: number | null; lastGainSize?: number; lastGainRatio?: number | null; weakGains: number; inNewest: boolean }>;
 }
 
 /**
@@ -283,6 +287,8 @@ function statSeries(db: DB, groupId: number, from: number, asOf: number): StatSe
       if (median > 0 && x.gain < INACTIVITY.weakGain * median) p.weakGains++;
       else {
         p.lastGain = time;
+        p.lastGainSize = x.gain;
+        p.lastGainRatio = median > 0 ? Math.round((x.gain / median) * 100) / 100 : null;
         p.weakGains = 0;
       }
     }
@@ -455,6 +461,8 @@ function compute(db: DB, ctx: GroupContext, asOf: number): Map<number, Inactivit
           inStats: !!st?.inNewest,
           firstUpdate: stats.first,
           lastGain: st?.lastGain ?? null,
+          lastGainSize: st?.lastGainSize,
+          lastGainRatio: st?.lastGainRatio,
           weakGains: st?.weakGains ?? 0,
           proven: best,
           galaxy: galaxy.get(p.id) ?? [],

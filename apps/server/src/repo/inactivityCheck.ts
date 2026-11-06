@@ -9,7 +9,8 @@ import { INACTIVITY, inactivities, namesOf, provenActivity, type ProofSource } f
  * when that was (between the last sighting without the flag and the first with it), so it can replay the score as it
  * would have been some hours after that last login (only data up to then counts) and see whether it caught the
  * player. The other way round, it samples the score once a day and counts how often a high score was followed by
- * proof of activity or a relevant points gain within three days (a false alarm).
+ * proof of activity or a relevant points gain within 12, 24 and 72 hours, per score band; within a day it is a false
+ * alarm (the player was not inactive when scored), later the player may simply have come back.
  */
 export interface InactivityCheck {
   generatedAt: number;
@@ -24,20 +25,54 @@ export interface InactivityCheck {
   narrowed: number;
   /** per hours after the last login: players evaluated, share at least likely, share inactive, median score */
   detection: { hours: number; n: number; likely: number; inactive: number; median: number | null }[];
-  falseAlarms: {
-    /** days sampled and scores of at least "likely" among them */
-    days: number;
-    positives: number;
-    /** of those: proof of activity or a relevant gain within the next 3 days */
-    contradicted: number;
-    rate: number | null;
-    /** the same counted per player (a player scored high on several days counts once) */
-    players: number;
-    playersContradicted: number;
-    /** contradictions by what disproved them: `gain` or the kind of proof */
-    causes: Record<string, number>;
-    examples: { playerId: number; name: string; time: number; score: number; activeAt: number; cause: 'gain' | ProofSource }[];
-  };
+  falseAlarms: FalseAlarms;
+  /**
+   * an ended universe: samples whose 3 days of follow-up reach into its last `END_PHASE_DAYS` days, counted apart
+   * (players come back to spend before a universe closes); null for a running universe
+   */
+  endPhase: (FalseAlarmSummary & { ended: number }) | null;
+}
+
+/** Disproving activity by how soon after the high score it came. */
+export const HORIZONS = [12, 24, 72] as const;
+const BANDS = [
+  { band: '50-69', min: 50, max: 69 },
+  { band: '70-84', min: 70, max: 84 },
+  { band: '85+', min: 85, max: 100 },
+] as const;
+const END_PHASE_DAYS = 7;
+
+export interface FalseAlarmSummary {
+  /** days sampled and scores of at least "likely" among them (player-days) */
+  days: number;
+  positives: number;
+  /** players with such a score on some sampled day */
+  players: number;
+  /** per horizon: player-days and players with proof of activity or a relevant gain within that many hours */
+  horizons: { hours: number; contradicted: number; players: number; rate: number | null }[];
+  /** per score band: player-days and how many were disproved within each horizon (hours → count) */
+  bands: { band: string; positives: number; within: Record<number, number> }[];
+}
+
+export interface FalseAlarmExample {
+  playerId: number;
+  name: string;
+  time: number;
+  score: number;
+  /** the earliest horizon within which activity showed, and when (the time of the cause) */
+  hours: number;
+  activeAt: number;
+  cause: 'gain' | ProofSource;
+  /** for a gain: points, share of the median gain around the rank, and the categories that grew (2 fleet … 5 defense) */
+  gain: { size: number | null; ratio: number | null; categories: Record<number, number> } | null;
+}
+
+export interface FalseAlarms extends FalseAlarmSummary {
+  /** the 24-hour horizon: a player active within a day was not inactive when scored */
+  rate: number | null;
+  /** contradictions within 72 hours by what disproved them first: `gain` or the kind of proof */
+  causes: Record<string, number>;
+  examples: FalseAlarmExample[];
 }
 
 const HOUR = 3600;
@@ -50,7 +85,7 @@ const MAX_EVENTS = 40;
 const MAX_GAP = 2 * DAY;
 const MAX_SIGHTING_GAP = 7 * DAY;
 const SAMPLE_DAYS = 30;
-const FOLLOW = 3 * DAY;
+const FOLLOW = HORIZONS[HORIZONS.length - 1] * 3600;
 
 const median = (xs: number[]) => (xs.length ? [...xs].sort((a, b) => a - b)[Math.floor(xs.length / 2)] : null);
 const pause = () => new Promise<void>((resolve) => setImmediate(resolve));
@@ -140,40 +175,86 @@ async function run(db: DB, ctx: GroupContext): Promise<InactivityCheck> {
     });
   }
 
-  // false alarms: once a day; contradicted when the score three days later knows newer activity
+  // false alarms: once a day at a statistics update; for each high score, the earliest horizon within which the score
+  // as of then knows newer activity (proof or a relevant gain)
   const playerNames = new Map((db.prepare('SELECT id, name FROM players WHERE group_id = ?').all(g) as { id: number; name: string }[]).map((p) => [p.id, p.name]));
-  let positives = 0;
-  let contradicted = 0;
-  const positivePlayers = new Set<number>();
-  const contradictedPlayers = new Set<number>();
-  const causes: Record<string, number> = {};
-  let sampled = 0;
-  const examples: InactivityCheck['falseAlarms']['examples'] = [];
+  const ended = ctx.universe.endedAt != null && ctx.universe.endedAt <= now ? ctx.universe.endedAt : null;
+  type Sample = { id: number; t: number; score: number; hours: number | null; end: boolean; example: Omit<FalseAlarmExample, 'name' | 'gain'> | null; gainAt: number | null };
+  const samples: Sample[] = [];
+  const sampledDays = { normal: 0, end: 0 };
   const seen = new Set<number>();
   for (let d = SAMPLE_DAYS; d >= 0; d--) {
     const t = at(now - d * DAY - FOLLOW);
-    const later = t == null ? null : at(t + FOLLOW);
-    if (t == null || later == null || later <= t || seen.has(t)) continue;
+    if (t == null || t + FOLLOW > now || seen.has(t)) continue;
     seen.add(t);
-    sampled++;
+    const end = ended != null && t + FOLLOW > ended - END_PHASE_DAYS * DAY;
+    sampledDays[end ? 'end' : 'normal']++;
     const before = await scores(t);
-    const after = await scores(later);
+    const later: typeof before[] = [];
+    for (const h of HORIZONS) later.push(await scores(t + h * HOUR));
     for (const [id, v] of before) {
       if (v.status || v.score < 50) continue;
-      positives++;
-      positivePlayers.add(id);
-      const next = after.get(id);
-      const activeAt = Math.max(next?.lastActive ?? 0, next?.stall ?? 0);
-      if (activeAt > t) {
-        contradicted++;
-        contradictedPlayers.add(id);
-        const proof = next?.lastActive != null && next.lastActive > t ? next.reasons.find((r) => r.code === 'proven') : undefined;
-        const cause = proof && proof.code === 'proven' ? proof.source : 'gain';
-        causes[cause] = (causes[cause] ?? 0) + 1;
-        if (examples.length < 15) examples.push({ playerId: id, name: playerNames.get(id) ?? '?', time: t, score: v.score, activeAt, cause });
+      let hours: number | null = null;
+      let example: Sample['example'] = null;
+      let gainAt: number | null = null;
+      for (const [k, h] of HORIZONS.entries()) {
+        const next = later[k].get(id);
+        const proof = next?.lastActive != null && next.lastActive > t ? next.lastActive : null;
+        const gain = next?.stall != null && next.stall > t ? next.stall : null;
+        if (proof == null && gain == null) continue;
+        hours = h;
+        // the earlier of the two is the activity that disproved the score first
+        const byProof = proof != null && (gain == null || proof <= gain);
+        const source = next!.reasons.find((r) => r.code === 'proven');
+        const cause = byProof && source?.code === 'proven' ? source.source : 'gain';
+        gainAt = cause === 'gain' ? gain : null;
+        example = { playerId: id, time: t, score: v.score, hours: h, activeAt: (byProof ? proof : gain)!, cause };
+        break;
       }
+      samples.push({ id, t, score: v.score, hours, end, example, gainAt });
     }
   }
+
+  const summarize = (list: Sample[], days: number): FalseAlarmSummary => ({
+    days,
+    positives: list.length,
+    players: new Set(list.map((x) => x.id)).size,
+    horizons: HORIZONS.map((h) => {
+      const hit = list.filter((x) => x.hours != null && x.hours <= h);
+      return { hours: h, contradicted: hit.length, players: new Set(hit.map((x) => x.id)).size, rate: list.length ? hit.length / list.length : null };
+    }),
+    bands: BANDS.map((b) => {
+      const inBand = list.filter((x) => x.score >= b.min && x.score <= b.max);
+      return { band: b.band, positives: inBand.length, within: Object.fromEntries(HORIZONS.map((h) => [h, inBand.filter((x) => x.hours != null && x.hours <= h).length])) };
+    }),
+  });
+  /** points per category of a player at a statistics update against their update before (only those that grew) */
+  const grew = (playerId: number, time: number): Record<number, number> => {
+    const rows = db
+      .prepare(
+        `SELECT ps.type, ps.points, (SELECT p2.points FROM player_scores p2 WHERE p2.player_id = ps.player_id AND p2.type = ps.type AND p2.stat_time < ps.stat_time
+           ORDER BY p2.stat_time DESC LIMIT 1) AS before
+         FROM player_scores ps JOIN players p ON p.id = ps.player_id WHERE p.group_id = ? AND ps.player_id = ? AND ps.type IN (2, 3, 4, 5) AND ps.stat_time = ?`,
+      )
+      .all(g, playerId, time) as { type: number; points: number; before: number | null }[];
+    return Object.fromEntries(rows.filter((r) => r.before != null && r.points > r.before).map((r) => [r.type, r.points - r.before!]));
+  };
+  const normal = samples.filter((x) => !x.end);
+  const base = summarize(normal, sampledDays.normal);
+  const causes: Record<string, number> = {};
+  for (const x of normal) if (x.example) causes[x.example.cause] = (causes[x.example.cause] ?? 0) + 1;
+  const examples: FalseAlarmExample[] = normal
+    .filter((x) => x.example)
+    .sort((a, b) => a.hours! - b.hours! || b.score - a.score)
+    .slice(0, 15)
+    .map((x) => ({ ...x.example!, name: playerNames.get(x.id) ?? '?', gain: x.gainAt != null ? gainDetail(x.id, x.t, x.example!.hours, x.gainAt) : null }));
+  function gainDetail(id: number, t: number, hours: number, time: number): FalseAlarmExample['gain'] {
+    const r = inactivities(db, ctx, [id], t + hours * HOUR).get(id)?.reasons.find((x) => x.code === 'gain');
+    return { size: r?.code === 'gain' ? (r.size ?? null) : null, ratio: r?.code === 'gain' ? (r.ratio ?? null) : null, categories: grew(id, time) };
+  }
+  const h24 = base.horizons.find((h) => h.hours === 24)!;
+  const endSamples = samples.filter((x) => x.end);
+
   return {
     generatedAt: now,
     weights: INACTIVITY,
@@ -181,15 +262,7 @@ async function run(db: DB, ctx: GroupContext): Promise<InactivityCheck> {
     skipped,
     narrowed: used.filter((e) => e.narrowed).length,
     detection,
-    falseAlarms: {
-      days: sampled,
-      positives,
-      contradicted,
-      rate: positives ? contradicted / positives : null,
-      players: positivePlayers.size,
-      playersContradicted: contradictedPlayers.size,
-      causes,
-      examples,
-    },
+    falseAlarms: { ...base, rate: h24.rate, causes, examples },
+    endPhase: ended != null ? { ...summarize(endSamples, sampledDays.end), ended } : null,
   };
 }
