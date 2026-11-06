@@ -27,6 +27,7 @@ import { DEFAULT_UNIT_DEFS } from '@pr0hub/core/units';
 import { LS_UNITS, UNITS_HASH, initUnits, mountUnitsButton, onUnitsChange, unitsLinkValue } from '../shared/units.js';
 import { TEXTS } from './i18n.js';
 import { LS_UNI, UNI_HASH, fieldsetsHtml, openDialog, syncUniInputs, uniFieldGroups, uniSummary } from '../shared/uni.js';
+import { createTabs } from '../shared/tabs.js';
 import { $, $$, applyTexts, bindLang, bindTips, clearHash, copy as copyText, esc, fmtNum as fmtNumLang, initTexts, lang, load, store, t as tr, toast } from '../shared/shell.js';
 
 
@@ -324,7 +325,7 @@ var saveTimer = null;
 function persist() {
   clearTimeout(saveTimer);
   saveTimer = setTimeout(function () {
-    store(LS_TABS, {active: TABS.indexOf(activeTab), tabs: TABS.map(function (t) { return {name: t.name, state: t.state}; })});
+    store(LS_TABS, TABS.saved(function (t) { return {name: t.name, state: t.state}; }));
     store(LS_UNI, U);
   }, 250);
 }
@@ -668,8 +669,8 @@ function renderInputsMeta(c) {
 }
 
 function render() {
-  if (TABS.length) {
-    updateTabs();
+  if (TABS.list.length) {
+    TABS.update();
   }
   var c = context();
   renderInputsMeta(c);
@@ -917,17 +918,25 @@ function rebuildShipUi() {
 /* ---------- calculation tabs ---------- */
 
 var LS_TABS = 'pr0fc.tabs.v1';
-var MAX_TABS = 12;
 var MODE_NAMES = {flight: 'tabFlight', timing: 'tabTiming', retime: 'tabRetime', abort: 'tabAbort'};
-var TABS = [];
-var activeTab = null;
-var tabSeq = 0;
-var closedTab = null;
-
-function newTab(state, name) {
-  tabSeq += 1;
-  return {id: 't' + tabSeq, name: name || null, state: state};
-}
+var TABS = createTabs({
+  autoName: function (tab) { return tabAutoName(tab.state); },
+  summary: function (tab) {
+    var sum = tabSummary(tab);
+    return sum ? {text: sum.label + ' ' + fmtClock(sum.at), past: !!(sum.due && sum.at < sum.now)} : null;
+  },
+  onSwitch: function (tab) {
+    S = tab.state;
+    syncAll();
+    update();
+  },
+  onAdd: function () {
+    if (TABS.open(cloneState(S), null)) {
+      toast(tr('tabCopied'));
+    }
+  },
+  persist: function () { persist(); }
+});
 
 function tabAutoName(state) {
   var coords = state.mode === 'retime' ? state.start : state.target;
@@ -963,157 +972,16 @@ function tabSummary(tab) {
   }
 }
 
-function renderTabs() {
-  var html = TABS.map(function (tab) {
-    return '<div class="ctab' + (tab === activeTab ? ' active' : '') + '" data-tab="' + tab.id + '">'
-      + '<button type="button" class="ctab-main" role="tab" aria-selected="' + (tab === activeTab) + '" title="' + esc(tr('tabRename')) + '">'
-      + '<span class="ctab-name"></span><span class="ctab-sum"></span></button>'
-      + (TABS.length > 1 ? '<button type="button" class="ctab-close" aria-label="' + esc(tr('tabClose')) + '" title="' + esc(tr('tabClose')) + '">×</button>' : '')
-      + '</div>';
-  }).join('');
-  html += TABS.length < MAX_TABS
-    ? '<button type="button" class="ctab-add" id="addTab" title="' + esc(tr('tabNew')) + '" aria-label="' + esc(tr('tabNewAria')) + '">+</button>'
-    : '';
-  $('#calcTabs').innerHTML = html;
-  updateTabs();
-}
-
-function updateTabs() {
-  TABS.forEach(function (tab) {
-    var el = $('#calcTabs [data-tab="' + tab.id + '"]');
-    if (!el) {
-      return;
-    }
-    var nameEl = el.querySelector('.ctab-name');
-    if (nameEl) {
-      nameEl.textContent = tab.name || tabAutoName(tab.state);
-    }
-    var sum = tabSummary(tab);
-    var sumEl = el.querySelector('.ctab-sum');
-    sumEl.textContent = sum ? sum.label + ' ' + fmtClock(sum.at) : '—';
-    sumEl.classList.toggle('past', !!(sum && sum.due && sum.at < sum.now));
-  });
-}
-
-function switchTab(tab) {
-  activeTab = tab;
-  S = tab.state;
-  syncAll();
-  renderTabs();
-  update();
-}
-
-function addTab(state, name) {
-  if (TABS.length >= MAX_TABS) {
-    toast(tr('tabsMax', {n: MAX_TABS}));
-    return null;
-  }
-  var tab = newTab(state, name);
-  TABS.splice(TABS.indexOf(activeTab) + 1, 0, tab);
-  switchTab(tab);
-  var el = $('#calcTabs [data-tab="' + tab.id + '"]');
-  if (el && el.scrollIntoView) {
-    el.scrollIntoView({block: 'nearest', inline: 'nearest'});
-  }
-  return tab;
-}
-
-function closeTab(tab) {
-  if (TABS.length < 2) {
-    return;
-  }
-  var index = TABS.indexOf(tab);
-  TABS.splice(index, 1);
-  closedTab = {tab: tab, index: index};
-  if (tab === activeTab) {
-    switchTab(TABS[Math.min(index, TABS.length - 1)]);
-  } else {
-    renderTabs();
-    persist();
-  }
-  toast(tr('tabClosed'), {label: tr('undo'), fn: function () {
-    if (!closedTab || TABS.length >= MAX_TABS) {
-      return;
-    }
-    TABS.splice(Math.min(closedTab.index, TABS.length), 0, closedTab.tab);
-    var restored = closedTab.tab;
-    closedTab = null;
-    switchTab(restored);
-  }});
-}
-
-function startRename(tab) {
-  var el = $('#calcTabs [data-tab="' + tab.id + '"] .ctab-name');
-  if (!el) {
-    return;
-  }
-  var input = document.createElement('input');
-  input.className = 'ctab-rename';
-  input.maxLength = 40;
-  input.value = tab.name || tabAutoName(tab.state);
-  input.setAttribute('aria-label', tr('tabName'));
-  el.replaceWith(input);
-  input.focus();
-  input.select();
-  var done = false;
-  function finish(save) {
-    if (done) {
-      return;
-    }
-    done = true;
-    if (save) {
-      var value = input.value.trim();
-      tab.name = value && value !== tabAutoName(tab.state) ? value : null;
-      persist();
-    }
-    renderTabs();
-  }
-  input.addEventListener('keydown', function (e) {
-    if (e.key === 'Enter') { finish(true); }
-    if (e.key === 'Escape') { e.stopPropagation(); finish(false); }
-  });
-  input.addEventListener('blur', function () { finish(true); });
-}
-
 /* Deep copy without shared references between tabs. */
 function cloneState(state) {
   return JSON.parse(JSON.stringify(state));
 }
 
-function bindTabs() {
-  var bar = $('#calcTabs');
-  bar.addEventListener('click', function (e) {
-    if (e.target.closest('#addTab')) {
-      addTab(cloneState(S), null);
-      toast(tr('tabCopied'));
-      return;
-    }
-    var box = e.target.closest('[data-tab]');
-    if (!box || e.target.closest('.ctab-rename')) {
-      return;
-    }
-    var tab = TABS.filter(function (t) { return t.id === box.dataset.tab; })[0];
-    if (e.target.closest('.ctab-close')) {
-      closeTab(tab);
-    } else if (tab !== activeTab) {
-      switchTab(tab);
-    }
-  });
-  bar.addEventListener('dblclick', function (e) {
-    var box = e.target.closest('[data-tab]');
-    if (box && !e.target.closest('.ctab-close')) {
-      startRename(TABS.filter(function (t) { return t.id === box.dataset.tab; })[0]);
-    }
-  });
-}
-
 function loadTabs(now) {
-  var saved = load(LS_TABS);
-  if (saved && Array.isArray(saved.tabs) && saved.tabs.length) {
-    saved.tabs.slice(0, MAX_TABS).forEach(function (t) {
-      TABS.push(newTab(mergeSaved(defaultState(now), t.state, now), typeof t.name === 'string' ? t.name : null));
-    });
-    activeTab = TABS[Math.min(Math.max(0, saved.active | 0), TABS.length - 1)];
+  var restored = TABS.restore(load(LS_TABS), function (t) {
+    return {state: mergeSaved(defaultState(now), t.state, now), name: t.name};
+  });
+  if (restored) {
     return true;
   }
   /* Migrate the single state of earlier versions. */
@@ -1122,8 +990,7 @@ function loadTabs(now) {
   if (!legacy) {
     state.ships = {204: 1};
   }
-  TABS.push(newTab(state, null));
-  activeTab = TABS[0];
+  TABS.start(state, null);
   return !!legacy;
 }
 
@@ -1407,8 +1274,9 @@ function bind() {
     if (applyHash(state, h)) {
       clearHash();
       rebuildShipUi();
-      addTab(state, null);
-      toast(tr('linkNewTab'));
+      if (TABS.open(state, null)) {
+        toast(tr('linkNewTab'));
+      }
     }
   });
 }
@@ -1423,7 +1291,7 @@ function relabel() {
   buildShips();
   buildUniDialog();
   syncAll();
-  renderTabs();
+  TABS.render();
   render();
 }
 
@@ -1449,19 +1317,14 @@ function init() {
     update();
   });
   var hadState = loadTabs(nowUnix());
-  TABS.forEach(function (tab) { remapLegacy(tab.state); });
+  TABS.list.forEach(function (tab) { remapLegacy(tab.state); });
   var linkState = defaultState(nowUnix());
   var fromLink = applyHash(linkState, hash);
   if (fromLink) {
     clearHash();
-    if (hadState && TABS.length < MAX_TABS) {
-      TABS.splice(TABS.indexOf(activeTab) + 1, 0, newTab(linkState, null));
-      activeTab = TABS[TABS.indexOf(activeTab) + 1];
-    } else {
-      activeTab.state = linkState;
-    }
+    TABS.openAtStart(linkState, hadState);
   }
-  S = activeTab.state;
+  S = TABS.active.state;
   buildTimeFields();
   buildShips();
   buildSpeedSeg();
@@ -1469,9 +1332,9 @@ function init() {
   mountUnitsButton();
   bind();
   bindTips();
-  bindTabs();
+  TABS.bind();
   syncAll();
-  renderTabs();
+  TABS.render();
   render();
   persist();
   tickClock();

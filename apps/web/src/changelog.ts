@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-06',
     items: [
       {
+        kind: 'new',
+        de: 'AKS-Beuterechner (Tools): Kampfbericht, Nachrichten, Imperium und Marktplatz einfach einfügen – Flug- und Recycler-Deut, Raketen, die Beute jeder Flotte und die Recycler werden ausgefüllt. Mehrere Abrechnungen nebeneinander in Tabs.',
+        en: 'ACS loot calculator (tools): just paste the battle report, messages, empire and marketplace – flight and recycler deuterium, missiles, the loot of each fleet and the recyclers are filled in. Several settlements side by side in tabs.',
+      },
+      {
         kind: 'fix',
         de: 'Admin und Beuteabrechnung zeigen beim schnellen Wechseln oder bei Live-Updates immer den neuesten Stand.',
         en: 'Admin and loot settlement always show the latest data when switching quickly or on live updates.',

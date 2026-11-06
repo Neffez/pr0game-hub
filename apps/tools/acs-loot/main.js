@@ -1,41 +1,59 @@
 /* ACS loot calculator UI. Calculation lives in @pr0hub/loot, glue in ../src/loot.ts. */
 import {
-  lootShips,
-  MAX_HELPER_KEEP,
-  MAX_PARTICIPANTS,
-  battleFromReport,
+  autoPath,
   cleanState,
+  cleanSync,
   debrisSummary,
   decodeShare,
+  DEFAULT_UNI,
+  deriveInto,
   emptyState,
+  emptySync,
   encodeShare,
   fmtNum,
   fmtShort,
   lootShares,
+  lootShips,
+  MAX_HELPER_KEEP,
+  MAX_PARTICIPANTS,
   newId,
   parseAmount,
+  pasteInto,
   profitPercents,
-  recyclingFromReports,
+  pruneSync,
   remaining,
+  setManual,
   settle,
   shipName,
 } from '../src/loot.ts';
 import { TEXTS } from './i18n.js';
-import { $, $$, applyTexts, bindLang, bindShare, bindTips, clearHash, copy, esc, initTexts, load, store, t } from '../shared/shell.js';
+import { $, $$, applyTexts, bindLang, bindShare, bindTips, clearHash, copy, esc, initTexts, load, store, t, toast } from '../shared/shell.js';
+import { createTabs } from '../shared/tabs.js';
+import { LS_UNI, fieldsetsHtml, openDialog, syncUniInputs, uniFieldGroups, uniSummary } from '../shared/uni.js';
 import { UNITS_HASH, initUnits, mountUnitsButton, onUnitsChange, unitsLinkValue } from '../shared/units.js';
 
 var LS_STATE = 'pr0loot.state.v1';
+var LS_TABS = 'pr0loot.tabs.v1';
 var RES = ['m', 'k', 'd'];
+/* universe values the flight math needs (the dialog shows only these) */
+var UNI_KEYS = ['game_speed', 'honor_boost', 'max_galaxy', 'max_system', 'max_planets', 'uni_type', 'galaxy_type',
+  'galaxy_distance_factor', 'system_distance_factor', 'system_distance', 'planet_distance_factor', 'planet_distance'];
 
+/* the active tab's settlement and the facts of its pasted pages */
 var S = emptyState();
+var Y = emptySync();
+/* universe settings, shared with the other tools */
+var U = Object.assign({}, DEFAULT_UNI);
 var LANG = 'de';
 var lastResult = null;
-var pasteText = {};
-/* per battle: we were the attackers or the defenders (a hold) */
-var pasteSide = {};
-var reportMsg = {};
-/* pasted recycling reports: the text, who recycled, and the result of the last apply */
-var recyclePaste = {text: '', by: null, msg: null};
+/* values the pasted pages gave in the last computation (paths), and what was missing */
+var derived = {set: new Set(), missingDrives: [], exact: {}};
+/* paste field of the active tab: text, side of a battle report, owner of messages, result of the last paste */
+var P = freshPaste();
+
+function freshPaste() {
+  return {text: '', side: 'attacker', owner: 'auto', helper: '', msg: null, pending: null};
+}
 
 /* ---------- helpers ---------- */
 
@@ -48,6 +66,29 @@ function signed(n) {
 function personName(id) {
   var p = S.participants.concat(S.helpers).find(function (x) { return x.id === id; });
   return p ? (p.name || '?') : '?';
+}
+
+function drivesText(id) {
+  var d = Y.drives[id];
+  return d ? d.combustion + '/' + d.impulse + '/' + d.hyperspace : '';
+}
+
+/* Drive levels "17/14/12" (combustion/impulse/hyperspace); null when not three numbers. */
+function parseDrives(raw) {
+  var m = String(raw).trim().match(/^(\d{1,2})\s*[\/ ,;]\s*(\d{1,2})\s*[\/ ,;]\s*(\d{1,2})$/);
+  return m ? {combustion: Number(m[1]), impulse: Number(m[2]), hyperspace: Number(m[3]), fuelEfficiency: 0} : null;
+}
+
+function drivesInput(id) {
+  return '<input class="num drives" inputmode="numeric" autocomplete="off" data-drives="' + esc(id) + '" value="' + esc(drivesText(id)) +
+    '" placeholder="V/I/H" aria-label="' + esc(t('drives')) + '">';
+}
+
+/* A computed value: the input, plus a mark where it comes from (and back to the computed value after typing). */
+function autoInput(bind, value, id, field) {
+  var p = autoPath.person(id, field);
+  return '<div class="auto-cell">' + amountInput(bind, value, ' data-auto="' + esc(p) + '"') +
+    '<span class="auto-mark" data-auto-mark="' + esc(p) + '"></span></div>';
 }
 
 function people() {
@@ -93,7 +134,9 @@ function battleShips(battle) {
 
 function persist() {
   clearTimeout(persist.timer);
-  persist.timer = setTimeout(function () { store(LS_STATE, S); }, 250);
+  persist.timer = setTimeout(function () {
+    store(LS_TABS, TABS.saved(function (tab) { return {name: tab.name, state: tab.state, sync: tab.sync}; }));
+  }, 250);
 }
 
 /* ---------- build: input cards ---------- */
@@ -140,9 +183,10 @@ function buildParticipants() {
     var base = 'participants.' + i + '.';
     return '<tr>' +
       '<td><input data-bind="' + base + 'name" data-type="text" value="' + esc(p.name) + '" placeholder="' + esc(t('name')) + '"></td>' +
-      '<td>' + amountInput(base + 'flightDeut', p.flightDeut) + '</td>' +
-      '<td>' + amountInput(base + 'recDeut', p.recDeut) + '</td>' +
-      '<td>' + amountInput(base + 'missiles', p.missiles) + '</td>' +
+      '<td>' + drivesInput(p.id) + '</td>' +
+      '<td>' + autoInput(base + 'flightDeut', p.flightDeut, p.id, 'flightDeut') + '</td>' +
+      '<td>' + autoInput(base + 'recDeut', p.recDeut, p.id, 'recDeut') + '</td>' +
+      '<td>' + autoInput(base + 'missiles', p.missiles, p.id, 'missiles') + '</td>' +
       (byPercent ? '<td><input class="num" inputmode="decimal" autocomplete="off" data-bind="' + base + 'sharePct" data-type="sharePct" data-share-of="' +
         esc(p.id) + '" aria-label="' + esc(t('sharePct') + ' ' + (p.name || '')) + '" value="' +
         (p.sharePct == null ? '' : esc(String(p.sharePct).replace('.', LANG === 'de' ? ',' : '.'))) + '"></td>' : '') +
@@ -152,7 +196,8 @@ function buildParticipants() {
   $('#participants').innerHTML =
     '<div class="card-title">' + esc(t('participants')) + '<span class="spacer"></span><span class="hint">' + S.participants.length + ' / ' + MAX_PARTICIPANTS + '</span></div>' +
     '<p class="card-hint">' + esc(t('participantsHint')) + '</p>' +
-    (rows ? '<div class="table-wrap"><table><thead><tr><th>' + esc(t('name')) + '</th><th>' + esc(t('flightDeut')) + '</th><th>' +
+    (rows ? '<div class="table-wrap"><table><thead><tr><th>' + esc(t('name')) + '</th><th>' + esc(t('drives')) +
+      ' <button type="button" class="tip" aria-label="' + esc(t('info')) + '" data-tip="' + esc(t('drivesHint')) + '"></button></th><th>' + esc(t('flightDeut')) + '</th><th>' +
       esc(t('recDeut')) + '</th><th>' + esc(t('missiles')) + '</th>' +
       (byPercent ? '<th>' + esc(t('sharePct')) + ' <button type="button" class="tip" aria-label="' + esc(t('info')) + '" data-tip="' + esc(t('sharePctHint')) + '"></button></th>' : '') +
       '<th></th></tr></thead><tbody>' + rows + '</tbody></table></div>' : '') +
@@ -167,7 +212,8 @@ function buildHelpers() {
     return '<tr>' +
       '<td><input data-bind="' + base + 'name" data-type="text" value="' + esc(h.name) + '" placeholder="' + esc(t('name')) + '"></td>' +
       '<td><input class="num" inputmode="decimal" data-bind="' + base + 'keepPct" data-type="pct" value="' + esc(h.keepPct) + '"></td>' +
-      (deut ? '<td>' + amountInput(base + 'recDeut', h.recDeut) + '</td>' : '') +
+      '<td>' + drivesInput(h.id) + '</td>' +
+      (deut ? '<td>' + autoInput(base + 'recDeut', h.recDeut, h.id, 'recDeut') + '</td>' : '') +
       '<td><button type="button" class="x" data-act="delHelper" data-i="' + i + '" title="' + esc(t('remove')) + '">✕</button></td>' +
       '</tr>';
   }).join('');
@@ -179,7 +225,7 @@ function buildHelpers() {
     '<button type="button" data-act="helperDeut" data-on="0" aria-pressed="' + !deut + '">' + esc(t('helperDeutOff')) + '</button>' +
     '<button type="button" data-act="helperDeut" data-on="1" aria-pressed="' + deut + '">' + esc(t('helperDeutOn')) + '</button>' +
     '</div><span class="hint">' + esc(t('helperDeutHint')) + '</span></div>' +
-    (rows ? '<div class="table-wrap"><table><thead><tr><th>' + esc(t('name')) + '</th><th>' + esc(t('keepPct')) + '</th>' +
+    (rows ? '<div class="table-wrap"><table><thead><tr><th>' + esc(t('name')) + '</th><th>' + esc(t('keepPct')) + '</th><th>' + esc(t('drives')) + '</th>' +
       (deut ? '<th>' + esc(t('recDeut')) + '</th>' : '') + '<th></th></tr></thead><tbody>' + rows + '</tbody></table></div>' : '') +
     '<div class="row-actions"><button type="button" class="btn" data-act="addHelper">' + esc(t('addHelper')) + '</button></div>';
 }
@@ -209,26 +255,17 @@ function buildBattles() {
         return '<td class="gl" colspan="2"><div class="grid3">' + RES.map(function (r) {
           return '<input class="num" inputmode="numeric" data-bind="battles.' + bi + '.' + p.id + '.' + r + '" data-type="loot" data-loot-of="' +
             bi + ':' + p.id + ':' + r + '" value="' + (f && f.loot ? num(f.loot[r]) : '') + '" title="' + esc(t('lootOverride')) + '">';
-        }).join('') + '</div></td>';
+        }).join('') + '</div>' + (b.key ? '<span class="auto-mark" data-auto-mark="' + esc(autoPath.loot(b.key, p.id)) + '"></span>' : '') + '</td>';
       }).join('') + '</tr>';
     var options = lootShips().filter(function (id) { return ships.indexOf(id) < 0; }).map(function (id) {
       return '<option value="' + id + '">' + esc(shipName(id, LANG)) + '</option>';
     }).join('');
     var when = b.time ? new Date(b.time * 1000).toLocaleString(LANG === 'de' ? 'de-DE' : 'en-GB') : '';
-    var msg = reportMsg[bi];
+    var target = b.key && Y.battles[b.key] && Y.battles[b.key].target;
     return '<div class="sub">' +
-      '<div class="sub-title">' + esc(t('battle')) + ' ' + (bi + 1) + (when ? ' <span class="meta">' + esc(when) + '</span>' : '') +
+      '<div class="sub-title">' + esc(t('battle')) + ' ' + (bi + 1) + (when || target ? ' <span class="meta">' + esc([target ? '[' + target + ']' : '', when].filter(Boolean).join(' · ')) + '</span>' : '') +
       '<span class="spacer"></span><button type="button" class="x" data-act="delBattle" data-i="' + bi + '" title="' + esc(t('remove')) + '">✕</button></div>' +
       '<div class="stack">' +
-      '<div class="field"><label>' + esc(t('paste')) + '</label><textarea data-paste="' + bi + '" placeholder="' + esc(t('pastePlaceholder')) + '">' +
-      esc(pasteText[bi] || '') + '</textarea>' +
-      '<div class="row-actions" style="margin-top:6px">' +
-      '<div class="seg small" role="group">' +
-      '<button type="button" data-act="pasteSide" data-i="' + bi + '" data-side="attacker" aria-pressed="' + (pasteSide[bi] !== 'defender') + '">' + esc(t('sideAttacker')) + '</button>' +
-      '<button type="button" data-act="pasteSide" data-i="' + bi + '" data-side="defender" aria-pressed="' + (pasteSide[bi] === 'defender') + '">' + esc(t('sideDefender')) + '</button>' +
-      '</div>' +
-      '<button type="button" class="btn small" data-act="applyReport" data-i="' + bi + '">' + esc(t('apply')) + '</button>' +
-      (msg ? '<span class="hint ' + (msg.ok ? 'ok' : 'err') + '">' + esc(msg.text) + '</span>' : '') + '</div></div>' +
       '<div class="field"><span class="field-label">' + esc(t('loot')) + '</span><div class="grid3">' +
       RES.map(function (r) {
         return '<div class="field"><label>' + esc(t(r === 'm' ? 'metal' : r === 'k' ? 'crystal' : 'deut')) + '</label>' +
@@ -268,23 +305,95 @@ function buildRecycling() {
     (rows ? '<div class="table-wrap"><table class="stack-table"><thead><tr><th>' + esc(t('by')) + '</th><th>' + esc(t('metal')) + '</th><th>' +
       esc(t('crystal')) + '</th><th></th></tr></thead><tbody>' + rows + '</tbody></table></div>' : '') +
     '<div class="row-actions"><button type="button" class="btn" data-act="addRecycling"' + (people().length ? '' : ' disabled') + '>' +
-    esc(t('addRecycling')) + '</button></div>' + recyclePasteField();
+    esc(t('addRecycling')) + '</button></div>';
 }
 
-/* Pasting recycling reports adds a row per report for the chosen person. */
-function recyclePasteField() {
-  if (!people().length) return '';
-  if (!people().some(function (p) { return p.id === recyclePaste.by; })) recyclePaste.by = people()[0].id;
-  var msg = recyclePaste.msg;
-  return '<div class="field" style="margin-top:10px"><label>' + esc(t('pasteRecycling')) + '</label>' +
-    '<textarea data-paste-recycling placeholder="' + esc(t('pasteRecyclingPlaceholder')) + '">' + esc(recyclePaste.text) + '</textarea>' +
-    '<div class="row-actions" style="margin-top:6px">' +
-    '<select class="input" style="width:auto" data-recycle-by aria-label="' + esc(t('by')) + '">' + personOptions(recyclePaste.by) + '</select>' +
-    '<button type="button" class="btn small" data-act="applyRecycling">' + esc(t('apply')) + '</button>' +
-    (msg ? '<span class="hint ' + (msg.ok ? 'ok' : 'err') + '">' + esc(msg.text) + '</span>' : '') + '</div></div>';
+/* ---------- paste field ---------- */
+
+/* Who the pasted messages belong to: found by planet, a person, or a new helper. */
+function ownerOptions() {
+  return '<option value="auto"' + (P.owner === 'auto' ? ' selected' : '') + '>' + esc(t('ownerAuto')) + '</option>' +
+    people().map(function (p) {
+      return '<option value="' + esc(p.id) + '"' + (p.id === P.owner ? ' selected' : '') + '>' + esc(p.name || '?') +
+        (p.helper ? ' (' + esc(t('helper')) + ')' : '') + '</option>';
+    }).join('') +
+    '<option value="new"' + (P.owner === 'new' ? ' selected' : '') + '>' + esc(t('ownerNewHelper')) + '</option>';
+}
+
+function buildPaste() {
+  if (P.owner !== 'auto' && P.owner !== 'new' && !people().some(function (p) { return p.id === P.owner; })) P.owner = 'auto';
+  var msg = P.msg;
+  $('#paste').innerHTML =
+    '<div class="card-title">' + esc(t('pasteTitle')) + '</div>' +
+    '<p class="card-hint">' + esc(t('pasteHint')) + '</p>' +
+    '<textarea data-paste placeholder="' + esc(t('pastePlaceholder')) + '" aria-label="' + esc(t('pasteTitle')) + '">' + esc(P.text) + '</textarea>' +
+    '<div class="row-actions">' +
+    '<div class="seg small" role="group" aria-label="' + esc(t('sideLabel')) + '">' +
+    '<button type="button" data-act="pasteSide" data-side="attacker" aria-pressed="' + (P.side !== 'defender') + '">' + esc(t('sideAttacker')) + '</button>' +
+    '<button type="button" data-act="pasteSide" data-side="defender" aria-pressed="' + (P.side === 'defender') + '">' + esc(t('sideDefender')) + '</button>' +
+    '</div>' +
+    '<label class="owner">' + esc(t('owner')) + ' <select class="input" data-owner>' + ownerOptions() + '</select></label>' +
+    (P.owner === 'new' ? '<input class="input owner-name" data-owner-name placeholder="' + esc(t('name')) + '" value="' + esc(P.helper) + '" aria-label="' + esc(t('ownerNewHelper')) + '">' : '') +
+    '<button type="button" class="btn small" data-act="applyPaste">' + esc(t('apply')) + '</button>' +
+    '</div>' +
+    (msg ? '<div class="note ' + (msg.ok ? '' : 'warn') + '" style="margin-top:10px">' + esc(msg.text) +
+      (P.pending ? '<div class="row-actions"><button type="button" class="btn small" data-act="pasteNewTab">' + esc(t('pasteNewTab')) + '</button>' +
+        '<button type="button" class="btn small ghost" data-act="pasteHere">' + esc(t('pasteHere')) + '</button></div>' : '') +
+      '</div>' : '');
+}
+
+/* What a paste brought, as one line. */
+function pasteMessage(r) {
+  if (!r.kind) return {ok: false, text: t('pasteFailed')};
+  var parts = [];
+  if (r.kind === 'report') parts.push(t(r.replaced ? 'pasteReplaced' : 'pasteBattle', {n: r.battle + 1}));
+  if (r.kind === 'empire') parts.push(r.added.drives ? t('pasteDrives', {name: personName(r.added.drives)}) : '');
+  if (r.kind === 'marketplace') parts.push(t(r.added.rates ? 'pasteRates' : 'pasteNoRates'));
+  var a = r.added;
+  [['recycling', 'pasteRecycling'], ['returns', 'pasteReturns'], ['missiles', 'pasteMissiles'], ['recycleReturns', 'pasteRecycleReturns']].forEach(function (x) {
+    if (a[x[0]]) parts.push(t(x[1], {n: a[x[0]]}));
+  });
+  if (r.kind === 'messages' && !parts.length) parts.push(t('pasteNothingNew'));
+  var warn = [];
+  if (r.skipped.length) warn.push(t('reportSkipped') + r.skipped.join(', '));
+  if (r.unassigned) warn.push(t(r.kind === 'empire' ? 'pasteEmpireUnassigned' : 'pasteUnassigned', {n: r.unassigned}));
+  if (r.outside) warn.push(t('pasteOutside', {n: r.outside}));
+  if (r.missingReports.length) {
+    warn.push(t('pasteMissingReports', {times: r.missingReports.map(function (x) { return new Date(x * 1000).toLocaleString(LANG === 'de' ? 'de-DE' : 'en-GB'); }).join(', ')}));
+  }
+  return {ok: !warn.length, text: '✓ ' + parts.filter(Boolean).join(' · ') + (warn.length ? ' · ' + warn.join(' · ') : '')};
+}
+
+function pasteOwner() {
+  if (P.owner === 'auto') return {auto: true};
+  if (P.owner === 'new') return P.helper.trim() ? {helper: P.helper} : {auto: true};
+  return {id: P.owner};
+}
+
+/* Takes the paste field into the active tab; a battle report of another target asks first (`force`: take it here). */
+function applyPasteText(force) {
+  var before = JSON.stringify({s: S, y: Y});
+  var r = pasteInto(S, Y, P.text, {side: P.side, owner: pasteOwner()});
+  if (r.otherTarget && !force) {
+    var old = JSON.parse(before);
+    S = TABS.active.state = old.s;
+    Y = TABS.active.sync = cleanSync(old.y);
+    P.pending = P.text;
+    P.msg = {ok: false, text: t('pasteOtherTarget')};
+  } else {
+    P.pending = null;
+    P.msg = pasteMessage(r);
+    if (r.kind) P.text = '';
+    if (P.owner === 'new' && r.kind && P.helper.trim()) {
+      var h = S.helpers.find(function (x) { return x.name.toLowerCase() === P.helper.trim().toLowerCase(); });
+      if (h) { P.owner = h.id; P.helper = ''; }
+    }
+  }
+  buildInputs();
 }
 
 function buildInputs() {
+  buildPaste();
   buildSettings();
   buildParticipants();
   buildBattles();
@@ -416,16 +525,17 @@ function renderLootHints() {
 }
 
 /* The state without blank rows (no name and nothing entered), which would otherwise get a share. */
-function activeState() {
+function activeState(state) {
+  state = state || S;
   var used = {};
-  S.battles.forEach(function (b) {
+  state.battles.forEach(function (b) {
     b.fleets.forEach(function (f) {
       if (Object.keys(f.start).some(function (id) { return f.start[id] > 0; }) || f.loot) used[f.participant] = true;
     });
   });
-  S.recycling.forEach(function (r) { if (r.m || r.k) used[r.by] = true; });
+  state.recycling.forEach(function (r) { if (r.m || r.k) used[r.by] = true; });
   var keep = function (p) { return p.name || used[p.id] || p.flightDeut || p.recDeut || p.missiles; };
-  return Object.assign({}, S, {participants: S.participants.filter(keep), helpers: S.helpers.filter(keep)});
+  return Object.assign({}, state, {participants: state.participants.filter(keep), helpers: state.helpers.filter(keep)});
 }
 
 /* The profit percent that applies now as placeholder of the share inputs (blank rows get none). */
@@ -439,13 +549,76 @@ function renderShareHints() {
   });
 }
 
+/* The values of the pasted pages into the settlement (not over values typed by hand), shown in their inputs. */
+function refreshDerived() {
+  var r = deriveInto(S, Y, U);
+  var d = r.derived;
+  var avail = {};
+  Object.keys(d.flightDeut).forEach(function (id) { avail[autoPath.person(id, 'flightDeut')] = true; });
+  Object.keys(d.recDeut).forEach(function (id) { avail[autoPath.person(id, 'recDeut')] = true; });
+  Object.keys(d.missiles).forEach(function (id) { avail[autoPath.person(id, 'missiles')] = true; });
+  Object.keys(d.loot).forEach(function (k) { Object.keys(d.loot[k]).forEach(function (id) { avail[autoPath.loot(k, id)] = true; }); });
+  var exact = {};
+  Object.keys(d.flightDeut).forEach(function (id) { exact[id] = d.flightDeut[id].exact; });
+  derived = {set: r.set, avail: avail, missingDrives: d.missingDrives, exact: exact};
+  // inputs of computed values (unless being typed in)
+  $$('input[data-auto]').forEach(function (el) {
+    if (document.activeElement === el || !r.set.has(el.getAttribute('data-auto'))) return;
+    var v = getPath(el.getAttribute('data-bind'));
+    el.value = v ? num(v) : '';
+  });
+  S.battles.forEach(function (b, bi) {
+    if (!b.key) return;
+    b.fleets.forEach(function (f) {
+      if (!r.set.has(autoPath.loot(b.key, f.participant))) return;
+      RES.forEach(function (k) {
+        var el = $('[data-loot-of="' + bi + ':' + f.participant + ':' + k + '"]');
+        if (el && document.activeElement !== el) el.value = f.loot ? num(f.loot[k]) : '';
+      });
+    });
+  });
+  renderAutoMarks();
+}
+
+/* Next to a computed value: where it comes from, or ↺ to get it back after typing over it. */
+function renderAutoMarks() {
+  var manual = {};
+  Y.manual.forEach(function (x) { manual[x] = true; });
+  $$('[data-auto-mark]').forEach(function (el) {
+    var path = el.getAttribute('data-auto-mark');
+    var id = path.split('.')[0];
+    var field = path.split('.').pop();
+    var html = '';
+    if (manual[path] && derived.avail[path]) {
+      html = '<button type="button" class="auto-reset" data-act="autoReset" data-path="' + esc(path) + '" title="' + esc(t('autoReset')) + '" aria-label="' +
+        esc(t('autoReset')) + '">↺</button>';
+    } else if (derived.set.has(path)) {
+      var title = field === 'flightDeut' ? t(derived.exact[id] ? 'autoExact' : 'autoEstimate') : t(field === 'loot' ? 'autoLoot' : 'autoFrom');
+      html = '<span class="auto-on" title="' + esc(title) + '">' + esc(field === 'flightDeut' && !derived.exact[id] ? t('autoShortEstimate') : t('autoShort')) + '</span>';
+    } else if ((field === 'flightDeut' || field === 'recDeut') && derived.missingDrives.indexOf(id) >= 0) {
+      html = '<span class="auto-miss" title="' + esc(t('drivesMissing')) + '">' + esc(t('autoShortMissing')) + '</span>';
+    }
+    el.innerHTML = html;
+  });
+}
+
 function render() {
+  refreshDerived();
   lastResult = settle(activeState());
   renderResults(lastResult);
   renderTransfers(lastResult);
   renderLootHints();
   renderShareHints();
   renderDebris();
+  renderNotesSync();
+  TABS.update();
+}
+
+/* Missing drive levels below the results. */
+function renderNotesSync() {
+  var box = $('#results .notes');
+  if (!box || !derived.missingDrives.length) return;
+  box.insertAdjacentHTML('beforeend', '<div class="note warn">' + esc(t('drivesMissingNote', {names: derived.missingDrives.map(personName).join(', ')})) + '</div>');
 }
 
 /* Debris field: how much was recycled, what is left, and what others took of an emptied field. */
@@ -523,6 +696,8 @@ function onInput(el) {
   var n = raw.trim() === '' ? 0 : parseAmount(raw);
   el.classList.toggle('invalid', !Number.isFinite(n));
   if (!Number.isFinite(n)) return;
+  // typed over a computed value: it stays (↺ gives the computed one back)
+  if (el.hasAttribute('data-auto')) setManual(Y, el.getAttribute('data-auto'), true);
   if (type === 'sent' || type === 'lost' || type === 'loot') {
     var parts = path.split('.');
     var battle = S.battles[Number(parts[1])];
@@ -534,6 +709,7 @@ function onInput(el) {
       var inputs = RES.map(function (k) { return $('[data-loot-of="' + parts[1] + ':' + parts[2] + ':' + k + '"]'); });
       var empty = inputs.every(function (x) { return !x || x.value.trim() === ''; });
       if (empty) delete f.loot; else f.loot = cur;
+      if (battle.key) setManual(Y, autoPath.loot(battle.key, f.participant), !empty);
     } else {
       var id = Number(parts[3]);
       var start = f.start[id] || 0;
@@ -580,7 +756,7 @@ function onChange(el) {
     renderTransfers(lastResult);
     return;
   }
-  if (el.matches('select[data-recycle-by]')) { recyclePaste.by = el.value; return; }
+  if (el.matches('select[data-owner]')) { P.owner = el.value; buildPaste(); return; }
   if (el.matches('select[data-bind]')) onInput(el);
 }
 
@@ -604,27 +780,34 @@ var ACTIONS = {
     buildBattles();
   },
   delBattle: function (el) {
-    var i = Number(el.getAttribute('data-i'));
-    S.battles.splice(i, 1);
-    pasteText = {};
-    pasteSide = {};
-    reportMsg = {};
+    S.battles.splice(Number(el.getAttribute('data-i')), 1);
+    pruneSync(S, Y);
     buildBattles();
   },
   pasteSide: function (el) {
-    pasteSide[el.getAttribute('data-i')] = el.getAttribute('data-side');
-    buildBattles();
+    P.side = el.getAttribute('data-side');
+    buildPaste();
   },
-  applyReport: function (el) {
-    var i = Number(el.getAttribute('data-i'));
-    var res = battleFromReport(S, pasteText[i] || '', pasteSide[i] === 'defender' ? 'defender' : 'attacker');
-    if (!res.ok) {
-      reportMsg[i] = {ok: false, text: t('reportFailed')};
-    } else {
-      S.battles[i] = res.battle;
-      pasteText[i] = '';
-      reportMsg[i] = res.skipped.length ? {ok: false, text: t('reportSkipped') + res.skipped.join(', ')} : {ok: true, text: '✓'};
-    }
+  applyPaste: function () { applyPasteText(false); },
+  pasteHere: function () {
+    P.text = P.pending || '';
+    applyPasteText(true);
+  },
+  /* the battle report of another target: a new settlement with the current settings */
+  pasteNewTab: function () {
+    var old = P;
+    var text = P.pending || '';
+    var side = P.side;
+    if (!TABS.open(newSettlement(S.settings), null, {sync: emptySync()})) return;
+    old.text = '';
+    old.pending = null;
+    old.msg = null;
+    P.text = text;
+    P.side = side;
+    applyPasteText(true);
+  },
+  autoReset: function (el) {
+    setManual(Y, el.getAttribute('data-path'), false);
     buildInputs();
   },
   addRecycling: function () {
@@ -633,18 +816,7 @@ var ACTIONS = {
     S.recycling.push({by: first.id, m: 0, k: 0});
     buildRecycling();
   },
-  applyRecycling: function () {
-    var rows = recyclingFromReports(recyclePaste.text);
-    if (!rows.length) {
-      recyclePaste.msg = {ok: false, text: t('recyclingFailed')};
-    } else {
-      rows.forEach(function (r) { S.recycling.push({by: recyclePaste.by, m: r.m, k: r.k, field: r.field}); });
-      recyclePaste.text = '';
-      recyclePaste.msg = {ok: true, text: '✓ ' + rows.length};
-    }
-    buildRecycling();
-  },
-  delRecycling: function (el) { S.recycling.splice(Number(el.getAttribute('data-i')), 1); buildRecycling(); },
+  delRecycling: function (el) { S.recycling.splice(Number(el.getAttribute('data-i')), 1); pruneSync(S, Y); buildRecycling(); },
   useSuggestion: function () { S.transfers = null; },
   addTransfer: function () {
     if (!S.transfers) S.transfers = currentTransfers(lastResult);
@@ -663,14 +835,17 @@ function removePerson(p) {
   S.battles.forEach(function (b) { b.fleets = b.fleets.filter(function (f) { return f.participant !== p.id; }); });
   S.recycling = S.recycling.filter(function (r) { return r.by !== p.id; });
   if (S.transfers) S.transfers = S.transfers.filter(function (x) { return x.from !== p.id && x.to !== p.id; });
+  pruneSync(S, Y);
   buildInputs();
 }
 
 function bind() {
   document.addEventListener('input', function (e) {
     var el = e.target;
-    if (el.matches('textarea[data-paste]')) { pasteText[el.getAttribute('data-paste')] = el.value; return; }
-    if (el.matches('textarea[data-paste-recycling]')) { recyclePaste.text = el.value; return; }
+    if (el.matches('textarea[data-paste]')) { P.text = el.value; return; }
+    if (el.matches('input[data-owner-name]')) { P.helper = el.value; return; }
+    if (el.matches('input[data-drives]')) { onDrives(el); return; }
+    if (el.matches('input[data-uni]')) { onUni(el); return; }
     if (el.matches('input[data-bind]')) onInput(el);
   });
   document.addEventListener('change', function (e) { onChange(e.target); });
@@ -681,20 +856,13 @@ function bind() {
       if (Number.isFinite(n) && el.value.trim() !== '') el.value = n ? num(n) : '';
     }
   });
+  // pasting into the field takes it in at once
   document.addEventListener('paste', function (e) {
     var el = e.target;
-    if (el.matches && el.matches('textarea[data-paste-recycling]')) {
-      setTimeout(function () {
-        recyclePaste.text = el.value;
-        ACTIONS.applyRecycling();
-        update();
-      }, 0);
-      return;
-    }
     if (!el.matches || !el.matches('textarea[data-paste]')) return;
     setTimeout(function () {
-      pasteText[el.getAttribute('data-paste')] = el.value;
-      ACTIONS.applyReport(el.closest('.sub').querySelector('[data-act="applyReport"]'));
+      P.text = el.value;
+      applyPasteText(false);
       update();
     }, 0);
   });
@@ -708,8 +876,23 @@ function bind() {
   });
   bindLang(function (lang) {
     LANG = lang;
+    buildUniDialog();
+    syncUniSummary();
+    TABS.render();
     buildInputs();
     render();
+  });
+  $('#settingsBtn').addEventListener('click', openSettings);
+  $('#uniChip').addEventListener('click', openSettings);
+  $('#uniDialog').addEventListener('click', function (e) { if (e.target === e.currentTarget) e.currentTarget.close(); });
+  $('#uniDialog').addEventListener('change', function (e) { if (e.target.matches('select[data-uni]')) onUni(e.target); });
+  $('#uniReset').addEventListener('click', function () {
+    UNI_KEYS.forEach(function (k) { U[k] = DEFAULT_UNI[k]; });
+    syncUniInputs(U);
+    syncUniSummary();
+    storeUni();
+    update();
+    toast(t('uniReset'));
   });
   bindShare(function () {
     var units = unitsLinkValue(usedUnits());
@@ -717,16 +900,125 @@ function bind() {
   });
   $('#resetBtn').addEventListener('click', function () {
     if (!window.confirm(t('resetConfirm'))) return;
-    S = emptyState();
-    pasteText = {};
-    recyclePaste = {text: '', by: null, msg: null};
-    reportMsg = {};
+    S = TABS.active.state = newSettlement(S.settings);
+    Y = TABS.active.sync = emptySync();
+    P = TABS.active.paste = freshPaste();
     buildInputs();
     update();
   });
+  // a link opened while the page is open: a new tab
   window.addEventListener('hashchange', function () {
-    if (loadHash()) { buildInputs(); update(); }
+    var state = linkState();
+    if (state && TABS.open(state, null, {sync: emptySync()})) toast(t('linkNewTab'));
   });
+}
+
+function onDrives(el) {
+  var raw = el.value.trim();
+  var d = parseDrives(raw);
+  el.classList.toggle('invalid', raw !== '' && !d);
+  var id = el.getAttribute('data-drives');
+  if (raw === '') delete Y.drives[id];
+  else if (d) Y.drives[id] = Object.assign({}, Y.drives[id] || {}, d, {fuelEfficiency: (Y.drives[id] && Y.drives[id].fuelEfficiency) || 0});
+  else return;
+  update();
+}
+
+/* ---------- universe settings ---------- */
+
+function buildUniDialog() {
+  $('#uniFields').innerHTML = fieldsetsHtml(uniFieldGroups(['groupSpeed', 'groupLayout', 'groupDistances'], ['expo_hold_multiplier']));
+}
+
+function syncUniSummary() {
+  $('#uniSummary').textContent = uniSummary(U);
+}
+
+function openSettings() {
+  syncUniInputs(U);
+  openDialog($('#uniDialog'));
+}
+
+/* All tools share one stored universe: keep the values of the others. */
+function storeUni() {
+  var out = Object.assign({}, load(LS_UNI) || {});
+  UNI_KEYS.forEach(function (k) { out[k] = U[k]; });
+  store(LS_UNI, out);
+}
+
+function onUni(el) {
+  var v = parseFloat(el.value);
+  if (!Number.isFinite(v)) return;
+  U[el.getAttribute('data-uni')] = v;
+  syncUniSummary();
+  storeUni();
+  update();
+}
+
+/* ---------- tabs ---------- */
+
+/* An empty settlement (two participants, one battle) with the given settings. */
+function newSettlement(settings) {
+  var state = emptyState();
+  if (settings) state.settings = JSON.parse(JSON.stringify(settings));
+  state.participants.push({id: newId(state, 'p'), name: '', flightDeut: 0, recDeut: 0, missiles: 0});
+  state.participants.push({id: newId(state, 'p'), name: '', flightDeut: 0, recDeut: 0, missiles: 0});
+  state.battles.push({time: null, loot: {m: 0, k: 0, d: 0}, fleets: []});
+  return state;
+}
+
+function tabAutoName(tab) {
+  var st = tab.state;
+  var first = st.battles.find(function (b) { return b.key && tab.sync && tab.sync.battles[b.key] && tab.sync.battles[b.key].target; });
+  var target = first ? tab.sync.battles[first.key].target : null;
+  var times = st.battles.map(function (b) { return b.time; }).filter(Boolean);
+  var when = times.length ? new Date(Math.min.apply(null, times) * 1000).toLocaleDateString(LANG === 'de' ? 'de-DE' : 'en-GB', {day: '2-digit', month: '2-digit'}) : '';
+  var names = st.participants.map(function (p) { return p.name; }).filter(Boolean);
+  if (target) return '[' + target + ']' + (when ? ' ' + when : '');
+  if (names.length) return names.slice(0, 2).join(', ') + (names.length > 2 ? ' …' : '') + (when ? ' ' + when : '');
+  return t('tabSettlement', {n: TABS.list.indexOf(tab) + 1});
+}
+
+/* Key result of a tab: the profit; red once the 24 hours to share it are over. */
+function tabSummary(tab) {
+  var r = tab === TABS.active && lastResult ? lastResult : tab.result || (tab.result = settle(activeState(tab.state)));
+  var total = r.profit.m + r.profit.k + r.profit.d;
+  if (!total && !r.costs.m && !r.costs.k && !r.costs.d) return null;
+  return {text: t('tabProfit', {n: fmtShort(total, LANG)}), past: !!(r.deadline && r.deadline * 1000 < Date.now())};
+}
+
+var TABS = createTabs({
+  autoName: tabAutoName,
+  summary: tabSummary,
+  onSwitch: function (tab, prev) {
+    if (prev) {
+      prev.paste = P;
+      prev.result = lastResult;
+    }
+    S = tab.state;
+    Y = tab.sync;
+    P = tab.paste || freshPaste();
+    lastResult = null;
+    buildInputs();
+    render();
+  },
+  onAdd: function () {
+    if (TABS.open(newSettlement(S.settings), null, {sync: emptySync()})) toast(t('tabCreated'));
+  },
+  persist: function () { persist(); }
+});
+
+/* Stored tabs, else the single settlement of earlier versions. */
+function loadTabs() {
+  var restored = TABS.restore(load(LS_TABS), function (x) {
+    return {state: cleanState(x.state), name: x.name, sync: cleanSync(x.sync)};
+  });
+  if (restored) return true;
+  var legacy = load(LS_STATE);
+  var state = legacy ? cleanState(legacy) : newSettlement(null);
+  if (!state.participants.length && !state.battles.length) state = newSettlement(state.settings);
+  TABS.start(state, null, {sync: emptySync()});
+  return !!legacy;
 }
 
 /* Ship ids of all fleets (their own values go into the share link). */
@@ -740,37 +1032,47 @@ function usedUnits() {
   return Object.keys(ids).map(Number);
 }
 
-function loadHash() {
+/* The settlement of a share link (or the hub's link), null without one. */
+function linkState() {
   var m = location.hash.match(/^#s=([\w-]+)/);
-  if (!m) return false;
+  if (!m) return null;
   var uo = location.hash.match(/[&#]uo=([\w-]+)/);
   if (uo) initUnits(uo[1]);
   var state = decodeShare(m[1]);
-  if (!state) return false;
-  S = state;
+  if (!state) return null;
   clearHash();
-  return true;
+  return state;
 }
 
 function init() {
   LANG = initTexts(TEXTS);
+  U = Object.assign({}, DEFAULT_UNI, load(LS_UNI) || {});
   initUnits(null);
-  onUnitsChange(function () { buildInputs(); update(); });
-  if (!loadHash()) {
-    var saved = load(LS_STATE);
-    if (saved) S = cleanState(saved);
+  onUnitsChange(function () {
+    TABS.list.forEach(function (tab) { tab.result = null; });
+    buildInputs();
+    update();
+  });
+  var hadState = loadTabs();
+  var fromLink = linkState();
+  // a link opens in a new tab next to the stored ones (or fills the first one)
+  if (fromLink) {
+    TABS.openAtStart(fromLink, hadState, {sync: emptySync()});
   }
-  if (!S.participants.length && !S.battles.length) {
-    S.participants.push({id: newId(S, 'p'), name: '', flightDeut: 0, recDeut: 0, missiles: 0});
-    S.participants.push({id: newId(S, 'p'), name: '', flightDeut: 0, recDeut: 0, missiles: 0});
-    S.battles.push({time: null, loot: {m: 0, k: 0, d: 0}, fleets: []});
-  }
+  S = TABS.active.state;
+  Y = TABS.active.sync;
   applyTexts();
+  buildUniDialog();
+  syncUniSummary();
   mountUnitsButton();
   buildInputs();
   bind();
+  TABS.bind();
   bindTips();
+  TABS.render();
   render();
+  persist();
+  if (fromLink) toast(t(hadState ? 'linkNewTab' : 'linkLoaded'));
 }
 
 init();

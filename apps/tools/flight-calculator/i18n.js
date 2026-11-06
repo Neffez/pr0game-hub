@@ -1,10 +1,12 @@
 /* Texts of the flight calculator, German and English (same keys); the universe settings' texts come from
    ../shared/uni.js. */
+import { TABS_TEXTS } from '../shared/tabs.js';
 import { UNI_TEXTS } from '../shared/uni.js';
 
 export var TEXTS = {
   de: {
     ...UNI_TEXTS.de,
+    ...TABS_TEXTS.de,
     title: 'Flugzeitrechner',
     clockTitle: 'Aktuelle Zeit (inklusive Uhr-Versatz aus den Einstellungen)',
     tabsAria: 'Berechnungen',
@@ -155,22 +157,15 @@ export var TEXTS = {
     weekdays: 'So,Mo,Di,Mi,Do,Fr,Sa',
     // tabs
     tabFlight: 'Flug', tabTiming: 'Timing', tabRetime: 'Retime', tabAbort: 'Rückruf',
-    tabRename: 'Doppelklick zum Umbenennen',
-    tabClose: 'Tab schließen',
     tabNew: 'Neuer Tab (Kopie des aktuellen)',
-    tabNewAria: 'Neuer Tab',
-    tabName: 'Tab-Name',
-    tabsMax: 'Höchstens {n} Tabs',
-    tabClosed: 'Tab geschlossen',
-    undo: 'Rückgängig',
     tabCopied: 'Neuer Tab – Kopie des aktuellen',
     sumArrival: 'Ankunft', sumSend: 'Losschicken', sumEnemyHome: 'Gegner zu Hause', sumRecall: 'Rückruf', sumBack: 'Zurück',
-    linkNewTab: 'Link in neuem Tab geöffnet',
     // universe settings
     clockCompare: 'Dein Gerät: <strong id="clockLocal"></strong> · der Rechner nutzt: <strong id="clockAdjusted"></strong>',
   },
   en: {
     ...UNI_TEXTS.en,
+    ...TABS_TEXTS.en,
     title: 'Flight Calculator',
     clockTitle: 'Current time (including the clock offset from the settings)',
     tabsAria: 'Calculations',
@@ -319,17 +314,9 @@ export var TEXTS = {
     enemyReturning: 'recall after impact – impossible',
     weekdays: 'Sun,Mon,Tue,Wed,Thu,Fri,Sat',
     tabFlight: 'Flight', tabTiming: 'Timing', tabRetime: 'Retime', tabAbort: 'Recall',
-    tabRename: 'Double-click to rename',
-    tabClose: 'Close tab',
     tabNew: 'New tab (copy of the current one)',
-    tabNewAria: 'New tab',
-    tabName: 'Tab name',
-    tabsMax: 'Maximum of {n} tabs reached',
-    tabClosed: 'Tab closed',
-    undo: 'Undo',
     tabCopied: 'New tab – copied from the current one',
     sumArrival: 'Arrival', sumSend: 'Send', sumEnemyHome: 'Enemy home', sumRecall: 'Recall', sumBack: 'Back',
-    linkNewTab: 'Link opened in a new tab',
     clockCompare: 'Your device: <strong id="clockLocal"></strong> · calculator uses: <strong id="clockAdjusted"></strong>',
   },
 };
