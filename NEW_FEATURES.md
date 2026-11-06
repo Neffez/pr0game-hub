@@ -319,6 +319,10 @@ which hub feature gets better with it. Higher data quality is the base of every 
   the full list with the reason and where to find the page in the game; the overview and the quick sync sheet show
   at most three high/medium hints and a link to the rest, and nothing when the data is fine. The list reloads after
   every save in the sync panel and on live data events, and is cleared when switching alliance.
+- **Collapsible (follow-up, 2026-11-06):** the short list in the overview and the quick sync sheet is a `Section`
+  with the number of hints as count, folded by default on mobile (just the title row; the link to all hints moves
+  into the opened list) and open on desktop. The choice is remembered per device (`section.syncHints.overview`,
+  `section.syncHints.sheet`).
 - **Tours:** new steps `paste.hints` and `overview.syncHints`. **Texts:** `syncHints.*` in `de.ts`/`en.ts`.
 - **Left for later:** the leaders' view of every member's freshness and the shared sync duties belong to D-1 and
   D-3.

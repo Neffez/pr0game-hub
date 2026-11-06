@@ -222,7 +222,7 @@ const en: typeof de = {
     progress: '{current} / {total}',
     overview: {
       intro: { title: 'Overview', text: 'All players and planets of the universe your alliance has synced: points, growth, status and activity at a glance. The data comes from the statistics, galaxy and espionage reports of all members.' },
-      syncHints: { title: 'What to paste?', text: 'When an important page of yours is missing or old (empire, statistics, overview), it shows up here. The link leads to all hints on the sync page.' },
+      syncHints: { title: 'What to paste?', text: 'When an important page of yours is missing or old (empire, statistics, overview), it shows up here. Tap the title to fold it in or out (on phones it starts folded); the link leads to all hints on the sync page.' },
       planets: { title: 'Planets', text: 'One row per known planet or moon (from galaxy views and espionage reports), with the player\'s points and the building, fleet and defense points on that planet.' },
       players: { title: 'Players', text: 'One row per player with all point categories and their change in the chosen period, e.g. to spot growing fleets.' },
       search: { title: 'Find a player', text: 'Filters by player name; former names are found too.' },

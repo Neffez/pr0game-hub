@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-06
 
+- Sync hints in the overview and the quick sync sheet fold away: a collapsible section with the number of hints,
+  folded by default on mobile (one line), open on desktop; the choice is remembered per device and page.
+
 - Farm finder (backlog B-1) and inactivity confidence (backlog B-3).
   - `@pr0hub/core/production`: `projectResources` (production since a spy report up to the storage capacity),
     `positionTemp` (default temperature of a position) and `deriveResourceSpeed` (resource multiplier from synced

@@ -524,7 +524,7 @@ const history = computed(() => {
     />
   </PageHeader>
 
-  <SyncHints data-tour="overview-sync-hints" brief />
+  <SyncHints data-tour="overview-sync-hints" brief store-key="syncHints.overview" />
 
   <FilterBar data-tour="overview-filter" store-key="overview" :chips="chips" @reset="resetFilters">
     <template #toolbar>

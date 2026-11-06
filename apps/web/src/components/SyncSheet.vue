@@ -18,6 +18,6 @@ const open = defineModel<boolean>({ required: true });
     </template>
     <!-- remounted on every open: no stale preview from the last sync -->
     <SyncPanel compact />
-    <SyncHints brief />
+    <SyncHints brief store-key="syncHints.sheet" />
   </Sheet>
 </template>

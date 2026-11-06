@@ -223,7 +223,7 @@ const de = {
     progress: '{current} / {total}',
     overview: {
       intro: { title: 'Übersicht', text: 'Alle Spieler und Planeten des Universums, die deine Allianz synchronisiert hat: Punkte, Wachstum, Status und Aktivität auf einen Blick. Die Daten kommen aus Statistik, Galaxie und Spionageberichten aller Mitglieder.' },
-      syncHints: { title: 'Was soll ich einfügen?', text: 'Fehlt dir eine wichtige Seite oder ist sie alt (Imperium, Statistik, Übersicht), steht das hier. Der Link führt zu allen Hinweisen auf der Sync-Seite.' },
+      syncHints: { title: 'Was soll ich einfügen?', text: 'Fehlt dir eine wichtige Seite oder ist sie alt (Imperium, Statistik, Übersicht), steht das hier. Ein Tipp auf den Titel klappt es ein oder aus (auf dem Handy startet es eingeklappt), der Link führt zu allen Hinweisen auf der Sync-Seite.' },
       planets: { title: 'Planeten', text: 'Eine Zeile pro bekanntem Planet oder Mond (aus Galaxie-Ansichten und Spionageberichten), mit den Punkten des Spielers und Gebäude-, Flotten- und Verteidigungspunkten auf diesem Planeten.' },
       players: { title: 'Spieler', text: 'Eine Zeile pro Spieler mit allen Punktekategorien und ihrer Veränderung im gewählten Zeitraum, z. B. um wachsende Flotten zu erkennen.' },
       search: { title: 'Spieler suchen', text: 'Filtert nach dem Spielernamen; auch frühere Namen werden gefunden.' },

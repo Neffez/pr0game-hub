@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: '„Was soll ich als Nächstes einfügen?“ lässt sich in der Übersicht einklappen und startet auf dem Handy eingeklappt – nur eine Zeile mit der Anzahl der Hinweise.',
+        en: '"What should I paste next?" folds away in the overview and starts folded on phones – just one line with the number of hints.',
+      },
+      {
+        kind: 'new',
         de: 'Farm-Finder (unter Kämpfe & Expos): Welche Ziele lohnen sich jetzt? Der Hub rechnet die Rohstoffe der Spionageberichte bis heute hoch und sortiert nach Beute pro Flugstunde, mit Schiffen, Treibstoff, Flugzeit und Risiko.',
         en: 'Farm finder (under Combat & expeditions): which targets pay off now? The hub projects the resources of the spy reports to today and ranks them by loot per flight hour, with ships, fuel, flight time and risk.',
       },
