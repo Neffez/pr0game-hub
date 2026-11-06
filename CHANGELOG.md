@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-06
 
+- Keyboard and screen reader: dialogs (form sheets, the player dialog, the notification panel) keep Tab inside,
+  move the focus in and give it back on close (`useFocusTrap`); Esc closes the notification panel; the player
+  dialog is labelled by the player's name; recent spy reports open with Space as well as Enter.
+
 - Invite and recovery links are stored as their SHA-256 hash like sessions and API tokens (a one-time data
   migration hashes open links, they keep working). The link is returned only when created; the admin member list
   shows `invite_expires_at` instead of the token and offers a new link. Migrations can now run one-time JS data steps.

@@ -884,6 +884,8 @@ Concrete miss: planet B list Impulse 1→2→3→4, planet A next step Cruiser (
 
 **Fix:** Shared focus trap; `aria-labelledby` on the player `h1`; Esc on the bell; Space on spy cards.
 
+**Status:** Done (2026-11-06). `useFocusTrap` (Tab cycle, focus in, focus back) in Sheet, PlayerDialog and the notification panel; Esc and `aria-modal` on the panel; `aria-labelledby` on the player dialog's heading; Space on spy cards.
+
 ---
 
 ### XSS (web / tools)
@@ -1086,7 +1088,7 @@ These are the contract and correctness issues. They take more than an afternoon,
 | 9 | A-09 | Kill flight’s implicit `SHIPS` default (pass the catalog) | Medium | Open |
 | 10 | I-07 | Characterization tests for the Wave 1–2 fixes | Medium | Partial (landed with the first series; leftover items still open) |
 | 11 | B-13 | Hash invite tokens | Medium | Done (2026-11-06) |
-| 12 | B-30 | Shared focus trap + Esc on the notification panel | Medium | Open |
+| 12 | B-30 | Shared focus trap + Esc on the notification panel | Medium | Done (2026-11-06) |
 
 ### Wave 3 — Nice to have (last)
 

@@ -209,6 +209,54 @@ export function useScrollLock(active: Ref<boolean>) {
   onBeforeUnmount(() => set(false));
 }
 
+const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]):not([type=hidden]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+/**
+ * Keeps the keyboard inside a dialog while `active`: Tab and Shift+Tab cycle through its focusable elements, focus
+ * moves into it when it opens (unless something inside has it already) and back to where it was when it closes.
+ */
+export function useFocusTrap(container: Ref<HTMLElement | null>, active: Ref<boolean>) {
+  let before: HTMLElement | null = null;
+  const focusables = () =>
+    [...(container.value?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? [])].filter((el) => el.offsetParent !== null || el === document.activeElement);
+  function onKey(e: KeyboardEvent) {
+    if (!active.value || e.key !== 'Tab' || !container.value) return;
+    const items = focusables();
+    if (!items.length) {
+      e.preventDefault();
+      container.value.focus();
+      return;
+    }
+    const first = items[0];
+    const last = items[items.length - 1];
+    const inside = container.value.contains(document.activeElement);
+    if (e.shiftKey && (document.activeElement === first || !inside)) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && (document.activeElement === last || !inside)) {
+      e.preventDefault();
+      first.focus();
+    }
+  }
+  watch(
+    active,
+    async (on) => {
+      if (on) {
+        before = document.activeElement as HTMLElement | null;
+        document.addEventListener('keydown', onKey);
+        await nextTick();
+        if (container.value && !container.value.contains(document.activeElement)) (focusables()[0] ?? container.value).focus({ preventScroll: true });
+      } else {
+        document.removeEventListener('keydown', onKey);
+        if (before?.isConnected) before.focus({ preventScroll: true });
+        before = null;
+      }
+    },
+    { immediate: true },
+  );
+  onBeforeUnmount(() => document.removeEventListener('keydown', onKey));
+}
+
 /** Reactive media query, e.g. the mobile layout breakpoint. */
 export function useMediaQuery(query: string): Ref<boolean> {
   const mq = window.matchMedia(query);

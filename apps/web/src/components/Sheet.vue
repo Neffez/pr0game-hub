@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useScrollLock } from '../composables';
+import { useFocusTrap, useScrollLock } from '../composables';
 import Icon from './Icon.vue';
 
 /**
  * Dialog for forms: a centred dialog on desktop, a bottom sheet on mobile. Esc and a click on the backdrop close it;
- * the first field gets the focus. `footer`: the actions, sticky at the bottom (cancel left, primary right).
+ * the first field gets the focus, Tab stays inside and the focus returns to where it was on close. `footer`: the actions, sticky at the bottom (cancel left, primary right).
  */
 withDefaults(defineProps<{ title: string; wide?: boolean }>(), { wide: false });
 const open = defineModel<boolean>({ required: true });
@@ -14,6 +14,7 @@ const { t } = useI18n();
 const panel = ref<HTMLElement | null>(null);
 
 useScrollLock(open);
+useFocusTrap(panel, open);
 function onKey(e: KeyboardEvent) {
   if (open.value && e.key === 'Escape') open.value = false;
 }
@@ -30,7 +31,7 @@ watch(open, async (v) => {
 <template>
   <Teleport to="body">
     <div v-if="open" class="sheet-backdrop" @click.self="open = false">
-      <div ref="panel" class="sheet" :class="{ wide }" role="dialog" aria-modal="true" :aria-label="title">
+      <div ref="panel" class="sheet" :class="{ wide }" role="dialog" aria-modal="true" :aria-label="title" tabindex="-1">
         <div class="sheet-head">
           <b class="sheet-title">{{ title }}</b>
           <slot name="head" />

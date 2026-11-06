@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Tastatur: In Dialogen und im Benachrichtigungsfenster bleibt Tab im Fenster, Esc schließt auch die Benachrichtigungen, danach steht der Fokus wieder dort, wo er vorher war.',
+        en: 'Keyboard: in dialogs and the notification panel Tab stays inside, Esc also closes the notifications, and the focus returns to where it was.',
+      },
+      {
+        kind: 'fix',
         de: 'Admin: Claim- und Passwort-Links werden nur noch beim Erzeugen angezeigt und sicher gespeichert. Für einen offenen Link steht „offen bis …“, ein neuer Link lässt sich jederzeit erzeugen.',
         en: 'Admin: claim and password links are only shown when created and stored securely. An open link shows "open until …"; a new link can be created at any time.',
       },

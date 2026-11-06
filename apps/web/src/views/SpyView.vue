@@ -167,7 +167,7 @@ useAutoTour('spy', () => recentDone.value || recent.value.length > 0);
 
   <h2>{{ t('spy.recent') }}</h2>
   <div v-if="mobile" class="m-list" data-tour="spy-recent">
-    <div v-for="r in recentShown" :key="r.id" class="m-item" role="button" tabindex="0" @click="open(r)" @keydown.enter="open(r)">
+    <div v-for="r in recentShown" :key="r.id" class="m-item" role="button" tabindex="0" @click="open(r)" @keydown.enter="open(r)" @keydown.space.prevent="open(r)">
       <span class="m-line">
         <span class="mono">{{ coords(r.g, r.s, r.p) }}</span>
         <span v-if="r.planet_type === 'moon'" class="moon-tag m-0"><Icon name="moon" :size="12" :label="t('common.moon')" /></span>

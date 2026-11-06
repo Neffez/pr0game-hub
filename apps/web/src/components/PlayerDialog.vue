@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import Icon from './Icon.vue';
-import { computed, onBeforeUnmount, onMounted } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { usePlayerDialog, useScrollLock, useUni } from '../composables';
+import { useFocusTrap, usePlayerDialog, useScrollLock, useUni } from '../composables';
 import PlayerDetail from './PlayerDetail.vue';
 
 /** Player details as a dialog above the current page (opened by PlayerLink). */
@@ -15,19 +15,22 @@ function onKey(e: KeyboardEvent) {
 }
 onMounted(() => window.addEventListener('keydown', onKey));
 onBeforeUnmount(() => window.removeEventListener('keydown', onKey));
-// no page scrolling behind the dialog
-useScrollLock(computed(() => id.value != null));
+const shown = computed(() => id.value != null);
+const panel = ref<HTMLElement | null>(null);
+// no page scrolling behind the dialog, the keyboard stays inside
+useScrollLock(shown);
+useFocusTrap(panel, shown);
 </script>
 
 <template>
   <Teleport to="body">
     <div v-if="id != null" class="modal-backdrop" @click.self="close">
-      <div class="modal" role="dialog" aria-modal="true">
+      <div ref="panel" class="modal" role="dialog" aria-modal="true" aria-labelledby="player-dialog-title" tabindex="-1">
         <div class="modal-tools">
           <RouterLink :to="`/${uni}/player/${id}`" class="small" :title="t('playerDialog.openPageTitle')">{{ t('playerDialog.openPage') }} <Icon name="external" :size="12" /></RouterLink>
           <button class="icon-btn" :title="t('playerDialog.close')" :aria-label="t('playerDialog.close')" @click="close"><Icon name="close" /></button>
         </div>
-        <PlayerDetail :id="id" />
+        <PlayerDetail :id="id" title-id="player-dialog-title" />
       </div>
     </div>
   </Teleport>
