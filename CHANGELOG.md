@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-06
 
+- Statement cache: a plucked statement stays plucked when the same SQL is prepared again elsewhere (plucked and
+  plain statements are cached separately instead of resetting `pluck` on the shared one).
+
 - Server tests check group isolation: every SQL statement on a table with `group_id` filters by it or addresses rows
   by a key looked up in the group; the few cross-group statements (monitor, retention, crawler, data migration) are
   listed with their reason, a new one without a group filter fails the test.

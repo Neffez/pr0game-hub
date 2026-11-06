@@ -26,21 +26,40 @@ const STATEMENT_CACHE = 1000;
 
 /**
  * better-sqlite3 compiles the SQL on every `prepare()`, and the code prepares inline, also in loops
- * (per planet of a universe.json). Caches statements by their SQL instead. A cached statement is
- * handed out with `pluck` reset, since `.pluck()` changes the statement itself.
+ * (per planet of a universe.json). Caches statements by their SQL instead. `.pluck()` changes a statement itself, so
+ * a cached reader never gets plucked: its `pluck(true)` hands out a second cached statement of the same SQL that
+ * always plucks, and `pluck(false)` on that one the plain one. A plucked statement kept by one caller stays plucked
+ * whatever others prepare.
  */
 function cacheStatements(db: DB) {
-  const cache = new Map<string, Database.Statement>();
+  const plain = new Map<string, Database.Statement>();
+  const plucked = new Map<string, Database.Statement>();
   const prepare = db.prepare.bind(db);
+  const pair = (sql: string, stmt: Database.Statement) => {
+    if (!stmt.reader) return stmt;
+    const pluckedOf = () => {
+      let p = plucked.get(sql);
+      if (!p) {
+        p = prepare(sql);
+        p.pluck(true);
+        // the plucked one never turns back either
+        p.pluck = ((on = true) => (on ? p! : stmt)) as Database.Statement['pluck'];
+        plucked.set(sql, p);
+      }
+      return p;
+    };
+    stmt.pluck = ((on = true) => (on ? pluckedOf() : stmt)) as Database.Statement['pluck'];
+    return stmt;
+  };
   db.prepare = ((sql: string) => {
-    let stmt = cache.get(sql);
-    if (stmt) {
-      if (stmt.reader) stmt.pluck(false);
-      return stmt;
+    let stmt = plain.get(sql);
+    if (stmt) return stmt;
+    stmt = pair(sql, prepare(sql));
+    if (plain.size >= STATEMENT_CACHE) {
+      plain.clear();
+      plucked.clear();
     }
-    stmt = prepare(sql);
-    if (cache.size >= STATEMENT_CACHE) cache.clear();
-    cache.set(sql, stmt);
+    plain.set(sql, stmt);
     return stmt;
   }) as DB['prepare'];
 }

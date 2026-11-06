@@ -152,6 +152,8 @@ None of this requires a rewrite. The recommended order at the end does the remai
 
 **Fix:** Short term: include pluck in the cache key; do not share plucked statements across a loop. Medium: parse/store universe.json in a worker with its own connection, or chunk the transaction. Keep the single-process EventBus unless you add a real bus.
 
+**Status:** Partial (2026-11-06): the cache keeps plain and plucked statements apart (`pluck(true)` hands out a second cached statement), so a kept plucked statement never turns back. universe.json in a worker is still open.
+
 ---
 
 ### A-07 — Universe settings and tool links are four contracts
@@ -1104,7 +1106,7 @@ Structural work. Do it when you next touch the file, not as a dedicated rewrite.
 |---|---|---|---|
 | 1 | A-03 | `GroupDb` / grep test for `group_id` | High / Low for the grep (grep test done 2026-11-06) |
 | 2 | A-05 / C-01 | Split `store.ts`, `plans.ts`, AdminView, locales when touching them | High |
-| 3 | A-06 | universe.json off the event loop; pluck in the statement cache key | High / Low |
+| 3 | A-06 | universe.json off the event loop; pluck in the statement cache key | High / Low (pluck done 2026-11-06) |
 | 4 | A-08 / A-10 / C-09 | Slimmer core exports; tools TS incrementally; typed tool i18n | High |
 | 5 | C-03 / C-04 / C-06 / C-08 | Typed rows, camelCase on the wire, split `format.ts`, shared validation | Medium |
 | 6 | C-05 / C-07 | Shared compact numbers and phalanx formula; one live-unit overlay | Medium |
@@ -1158,6 +1160,6 @@ Shipped on `main` as `0b8434d..045e495` (author Neffez). Typecheck and the full 
 | 8 | `13ea365` | No implicit ship table in `@pr0hub/flight` (A-09) |
 | 9 | `687501c` | Push endpoint default port, newest-response guard for admin and loot settlement (B-08, B-28) |
 
-**Still open:** A-01 / C-02 (typed responses / generated web client; the path CI is done) and Wave 3.
+**Still open:** A-01 / C-02 (typed responses / generated web client; the path CI is done) and the rest of Wave 3 (A-03 grep test and the A-06 pluck fix are done).
 
 **Next:** Wave 3, when the files are touched anyway.
