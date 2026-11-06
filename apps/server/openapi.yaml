@@ -2259,8 +2259,9 @@ paths:
         cost and build time of the next level as a buildings page showed them (`shown`, valid while `next` is still the
         next level) and the resources of fleets landing on it (`arrivals`); plus research, the catch-up bonus, the
         building speed (derived from a buildings page or the universe setting `buildingSpeed`, null when unknown), the
-        storage factor, the caller's building alerts (alerts whose level is built or queued are removed) and the
-        buildings the caller hid (`hidden`, kept in the account).
+        storage factor, the caller's building alerts (alerts whose level is built or queued are left out; they are
+        deleted when a page is pasted, this read writes nothing) and the buildings the caller hid (`hidden`, kept in
+        the account).
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
@@ -2359,7 +2360,8 @@ paths:
       operationId: getBuildOrder
       description: >-
         The caller's build order in the group (imported from pr0plan, shown under build & research), null when none.
-        The next step of each planet notifies (`buildorder`, see `/api/{uni}/notifications`) once it can start.
+        Steps the synced pages show as done are returned checked off; this read writes nothing (they are stored as done
+        when a page is pasted). The next step of each planet notifies (`buildorder`, see `/api/{uni}/notifications`) once it can start.
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
@@ -3576,7 +3578,8 @@ paths:
       tags: [Social]
       operationId: getNotifications
       description: |
-        Current notifications, earliest first (none before the start or after the end of the universe): `attack` (hostile fleets heading for a member, from the members' shared
+        Current notifications, earliest first (none before the start or after the end of the universe; a read that
+        writes nothing, the push and Discord senders keep since when a storage is full): `attack` (hostile fleets heading for a member, from the members' shared
         fleet lists; `fleet`, `fleets`), `invite` (the caller's open invitations to a raid planner plan in planning;
         `plan`, `member` is who invited, `time` its target time, valid until the end of its day or hour by
         `plan.time_precision`), `comment` (comments of others of the last 48 hours in a thread the caller wrote in, after

@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-06
 
+- GET `/build-order`, `/buildings` and `/notifications` are pure reads (read-only tokens and links no longer change
+  anything): build order steps seen done and finished building alerts are stored when a page that changes them is
+  pasted (empire, overview, buildings, research, fleets, messages); since when a storage is full is kept by the push
+  and Discord senders.
+
 - Players: a page that names a player without an id matches a former name only for data from the time the player
   still had it (alias `seen_until` at or after the data). A newer player who took over an abandoned name becomes
   their own player (the id is attached once known) instead of being merged into the old one with scores, planets

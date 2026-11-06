@@ -8,6 +8,7 @@ import { METAL, RESOURCES, STORAGE, storageCapacity } from '@pr0hub/core/tech';
 import type { UnitCatalog } from '@pr0hub/core/units';
 import { catalogOf, type GroupContext } from '../context.js';
 import { now, type DB } from '../db.js';
+import { events } from '../events.js';
 import { latestEmpire } from './empire.js';
 import { sharedFleets, type StoredFleet } from './fleets.js';
 import { memberPlayer } from './members.js';
@@ -482,3 +483,25 @@ export function alertDone(a: BuildingAlert, info: BuildingInfo | undefined): boo
 
 export const planetOf = (state: BuildingsState, a: Pick<BuildingAlert, 'g' | 's' | 'p' | 'planet_type'>) =>
   state.planets.find((bp) => same(bp.coords, a) && bp.type === a.planet_type);
+
+/**
+ * The viewer's alerts whose level is not built or queued yet (and whose planet still exists). With `persist` the
+ * others are deleted (ingest); without it (GET) they are only left out.
+ */
+export function pruneAlerts(db: DB, ctx: GroupContext, state: BuildingsState, t = ctx.now, persist = true): BuildingAlert[] {
+  const done: number[] = [];
+  const open = alertsOf(db, ctx, ctx.user.id).filter((a) => {
+    const bp = planetOf(state, a);
+    if (bp && !alertDone(a, planetElements(state, bp, t).find((b) => b.id === a.element_id))) return true;
+    // without any synced page the alert stays (nothing to judge by)
+    if (!state.planets.length) return true;
+    done.push(a.id);
+    return false;
+  });
+  if (persist && done.length) {
+    db.prepare('DELETE FROM building_alerts WHERE id IN (SELECT value FROM json_each(?))').run(JSON.stringify(done));
+    // the bell of the viewer's other tabs and devices drops them too
+    events.publish(ctx.groupId, { type: 'data', tables: ['building_alerts'], userId: ctx.user.id });
+  }
+  return open;
+}

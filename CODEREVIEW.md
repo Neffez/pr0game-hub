@@ -82,6 +82,8 @@ None of this requires a rewrite. The recommended order at the end does the remai
 
 **Status:** Partial (`8437595`). GET `/plans` no longer writes (`persist=false` on the in-memory catch-up). `catchUpPlans` runs after an overview or fleets paste (as the stored user) and on cookie `POST /api/:uni/plans/sync`. Token POST stays 403. GET `/build-order` and GET `/buildings` still write.
 
+**Status:** Done (2026-11-06). GET `/build-order`, `/buildings` and `/notifications` (which also wrote `storage_full`) are pure reads: `syncBuildOrder` / `pruneAlerts` / `notificationsFor` take `persist`; `catchUpBuildState` runs after empire, overview, buildings, research, fleets and messages pastes; the push and Discord senders persist storage state.
+
 ---
 
 ### A-03 — Group isolation is a convention, not an API
@@ -1071,7 +1073,7 @@ These are the contract and correctness issues. They take more than an afternoon,
 
 | Order | ID | What | Effort | Status |
 |---|---|---|---|---|
-| 1 | B-01 / A-02 | Stop writes on GET `/plans` (and decide for build-order / buildings). This also fixes the token story and the CSRF-via-GET case. | Medium | Partial `8437595` (`/plans` done; build-order / buildings still write) |
+| 1 | B-01 / A-02 | Stop writes on GET `/plans` (and decide for build-order / buildings). This also fixes the token story and the CSRF-via-GET case. | Medium | Done (`8437595`, 2026-11-06 for build-order / buildings / notifications) |
 | 2 | B-04 | Lock down `forUser` to message-like pages | Medium | Done `19fb73e` |
 | 3 | A-04 / B-17 | Pass the universe catalog into parse/name/short lookup; register shorts | Medium | Done (2026-11-06; `withUnits` await guard open) |
 | 4 | B-06 | Stop attaching name-only pastes via aliases | Medium | Done (2026-11-06; aliases by time) |

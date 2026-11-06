@@ -159,13 +159,17 @@ function friends(db: DB, ctx: GroupContext) {
   return (f: StoredFleet) => (!!f.player && ally.names.has(f.player.toLowerCase())) || ally.coords.has(`${f.from.coords.g}:${f.from.coords.s}:${f.from.coords.p}`);
 }
 
-/** Current notifications of the group for the viewer (`ctx.user`) at `t`, the next first; members' fleets as they share them. */
-export function notificationsFor(db: DB, ctx: GroupContext, t: number): Notification[] {
+/**
+ * Current notifications of the group for the viewer (`ctx.user`) at `t`, the next first; members' fleets as they share
+ * them. `persist` (push and Discord senders) keeps since when storages are full and stores build order steps seen
+ * done; without it (GET) nothing is written.
+ */
+export function notificationsFor(db: DB, ctx: GroupContext, t: number, persist = true): Notification[] {
   let state: BuildingsState | undefined;
   const own = () => (state ??= buildingsState(db, ctx, ctx.user.id, t));
   return [
     ...attacks(db, ctx, t), ...invites(db, ctx, t), ...comments(db, ctx, t), ...launches(db, ctx, t), ...buildings(db, ctx, t, own), ...fleets(db, ctx, t),
-    ...storages(db, ctx, t, own), ...settlements(db, ctx, t), ...buildOrder(db, ctx, t, own),
+    ...storages(db, ctx, t, own, persist), ...settlements(db, ctx, t), ...buildOrder(db, ctx, t, own, persist),
   ].sort((a, b) => a.time - b.time);
 }
 
@@ -375,12 +379,12 @@ function buildings(db: DB, ctx: GroupContext, t: number, own: () => BuildingsSta
 }
 
 /** The next steps of the viewer's build order that can start now (one per planet). */
-function buildOrder(db: DB, ctx: GroupContext, t: number, own: () => BuildingsState): BuildOrderNotification[] {
+function buildOrder(db: DB, ctx: GroupContext, t: number, own: () => BuildingsState, persist: boolean): BuildOrderNotification[] {
   const found = buildOrderOf(db, ctx, ctx.user.id);
   if (!found) return [];
   const state = own();
   if (!state.planets.length) return [];
-  const stored = syncBuildOrder(db, ctx, ctx.user.id, found, state);
+  const stored = syncBuildOrder(db, ctx, ctx.user.id, found, state, persist);
   const name = db.prepare(`SELECT ${DISPLAY} FROM users u LEFT JOIN group_members gm ON gm.group_id = ? AND gm.user_id = u.id WHERE u.id = ?`).pluck().get(ctx.groupId, ctx.user.id) as string;
   return nextSteps(stored.order, state, t)
     .filter((n) => n.result.state === 'planned' && n.result.start != null && n.result.start <= t)
@@ -420,7 +424,7 @@ export function nextBuildOrderStep(db: DB, universe: Universe, groupId: number, 
  * when (the newest page of a full storage shows it full already at its sync time), a storage no longer full is
  * removed from it, so it notifies again the next time it runs full.
  */
-function storages(db: DB, ctx: GroupContext, t: number, own: () => BuildingsState): StorageNotification[] {
+function storages(db: DB, ctx: GroupContext, t: number, own: () => BuildingsState, persist: boolean): StorageNotification[] {
   const state = own();
   const full = state.planets.flatMap((bp) => storagesOf(state, bp, t).filter((x) => x.full).map((x) => ({ bp, resource: x.resource, at: x.at! })));
   const known = db
@@ -430,7 +434,7 @@ function storages(db: DB, ctx: GroupContext, t: number, own: () => BuildingsStat
   const since = new Map(known.map((r) => [keyOf(r, r.resource), r.since]));
   const still = new Set(full.map((f) => keyOf(f.bp.coords, f.resource)));
   const drop = db.prepare('DELETE FROM storage_full WHERE group_id = ? AND user_id = ? AND g = ? AND s = ? AND p = ? AND resource = ?');
-  for (const r of known) if (!still.has(keyOf(r, r.resource))) drop.run(ctx.groupId, ctx.user.id, r.g, r.s, r.p, r.resource);
+  if (persist) for (const r of known) if (!still.has(keyOf(r, r.resource))) drop.run(ctx.groupId, ctx.user.id, r.g, r.s, r.p, r.resource);
   const add = db.prepare('INSERT OR IGNORE INTO storage_full (group_id, user_id, g, s, p, resource, since) VALUES (?, ?, ?, ?, ?, ?, ?)');
   const list: StorageNotification[] = [];
   let name: string | undefined;
@@ -440,7 +444,7 @@ function storages(db: DB, ctx: GroupContext, t: number, own: () => BuildingsStat
     let from = since.get(key);
     if (from == null) {
       from = f.at;
-      add.run(ctx.groupId, ctx.user.id, c.g, c.s, c.p, f.resource, from);
+      if (persist) add.run(ctx.groupId, ctx.user.id, c.g, c.s, c.p, f.resource, from);
     }
     if (from < t - STORAGE_KEEP) continue;
     name ??= db.prepare(`SELECT ${DISPLAY} FROM users u LEFT JOIN group_members gm ON gm.group_id = ? AND gm.user_id = u.id WHERE u.id = ?`).pluck().get(ctx.groupId, ctx.user.id) as string;

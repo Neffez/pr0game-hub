@@ -147,6 +147,11 @@ describe('buildings page', () => {
       .run(group, ids.carol, t - 30, JSON.stringify(empire({ 1: 10, 2: 5 }, { id: 1, level: 11 })));
     const res = (await call('GET', '/u8/buildings', h.carol)).json();
     expect(res.alerts).toEqual([]);
+    // GET is a read: the alert is removed by the catch-up after a paste
+    expect(db.prepare('SELECT COUNT(*) FROM building_alerts').pluck().get()).toBe(1);
+    const { catchUpBuildState } = await import('../src/repo/buildOrders.js');
+    const { resolveGroup, getUniverse } = await import('../src/context.js');
+    catchUpBuildState(db, resolveGroup(db, { id: ids.carol, username: 'carol', isAdmin: false } as never, getUniverse(db, 'u8'), group));
     expect(db.prepare('SELECT COUNT(*) FROM building_alerts').pluck().get()).toBe(0);
   });
 
@@ -352,6 +357,21 @@ describe('full storages', () => {
     await app.push.deliver(group, t + 200);
     await app.push.tick(t + 120 + 7201);
     expect(frankPushes()).toEqual(['📦 Metallspeicher voll']);
+  });
+
+  it('lists full storages for a read without writing their state', async () => {
+    const { notificationsFor } = await import('../src/repo/notifications.js');
+    const { resolveGroup } = await import('../src/context.js');
+    const { groupUniverse } = await import('../src/notify.js');
+    const user = { id: ids.frank, username: 'frank', isAdmin: false, lang: 'de', dateFormat: 'auto' };
+    db.prepare('DELETE FROM storage_full WHERE user_id = ?').run(ids.frank);
+    // full from this page on
+    db.prepare('INSERT INTO empire_snapshots (group_id, user_id, created_at, data) VALUES (?, ?, ?, ?)').run(group, ids.frank, t + 300, JSON.stringify(frankEmpire(CAP)));
+    const read = notificationsFor(db, resolveGroup(db, user, groupUniverse(db, group)!, group), t + 400, false);
+    expect(read.some((n) => n.kind === 'storage')).toBe(true);
+    expect(db.prepare('SELECT COUNT(*) FROM storage_full WHERE user_id = ?').pluck().get(ids.frank)).toBe(0);
+    expect((await call('GET', '/u8/notifications', h.frank)).statusCode).toBe(200);
+    expect(db.prepare('SELECT COUNT(*) FROM storage_full WHERE user_id = ?').pluck().get(ids.frank)).toBe(0);
   });
 
   it('respects the setting', async () => {

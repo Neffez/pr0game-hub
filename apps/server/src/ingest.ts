@@ -8,6 +8,7 @@ import { events } from './events.js';
 import { foreignRecords } from './plausibility.js';
 import { galaxyMark } from './repo/activity.js';
 import { messageShare } from './repo/messages.js';
+import { catchUpBuildState } from './repo/buildOrders.js';
 import { catchUpPlans } from './repo/plans.js';
 import { Players } from './repo/players.js';
 import { shareSyncsEnabled } from './repo/presence.js';
@@ -87,6 +88,9 @@ export function settlementsFor(db: DB, target: IngestTarget, records: HubRecord[
 
 export type PreviewItem = { kind: HubRecord['kind'] } & Record<string, string | number | boolean | null>;
 
+/** Pages that change a member's buildings, research, queues or fleets: build order and alerts are caught up after them. */
+const BUILD_PAGES = new Set<ParseResult['pageType']>(['empire', 'overview', 'buildings', 'research', 'fleets', 'messages']);
+
 /** Pages another member may paste for you: reports they sent, not your empire, overview or fleets. */
 export const FOR_USER_PAGES = new Set<ParseResult['pageType']>(['messages', 'combatReport']);
 
@@ -160,10 +164,14 @@ function ingestWith(db: DB, target: IngestTarget, input: ParseInput & { source: 
       JSON.stringify({ counts: summary.counts, warnings: summary.warnings, about: aboutRecords(parsed.records) }),
     );
   })();
-  if (opts.ctx && (parsed.pageType === 'overview' || parsed.pageType === 'fleets') && isRunning(opts.ctx.universe)) {
+  if (opts.ctx && isRunning(opts.ctx.universe)) {
+    // as the member the data counts for
     const syncCtx = opts.ctx.user.id === target.userId ? opts.ctx : { ...opts.ctx, user: { ...opts.ctx.user, id: target.userId } };
-    const synced = catchUpPlans(db, syncCtx, 32);
-    if (synced.length) events.publish(target.groupId, { type: 'data', tables: ['attack_plans', 'target_claims'], userId: target.userId });
+    if (parsed.pageType === 'overview' || parsed.pageType === 'fleets') {
+      const synced = catchUpPlans(db, syncCtx, 32);
+      if (synced.length) events.publish(target.groupId, { type: 'data', tables: ['attack_plans', 'target_claims'], userId: target.userId });
+    }
+    if (BUILD_PAGES.has(parsed.pageType)) catchUpBuildState(db, syncCtx);
   }
   const systems = parsed.records.flatMap((r) => (r.kind === 'galaxy' ? [`${r.g}:${r.s}`] : []));
   // without the member's consent the others' views still reload, but no hint names who synced

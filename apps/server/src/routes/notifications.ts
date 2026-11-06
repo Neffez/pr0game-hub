@@ -11,6 +11,7 @@ export function notificationRoutes(app: FastifyInstance, db: DB) {
   app.get<{ Params: { uni: string } }>('/api/:uni/notifications', async (req) => {
     const ctx = ctxOf(req);
     // nothing is due before the start or after the end of the universe
-    return !isRunning(ctx.universe) ? [] : notificationsFor(db, ctx, ctx.now);
+    // a read: the push and Discord senders keep the stored state (full storages, build order steps done)
+    return !isRunning(ctx.universe) ? [] : notificationsFor(db, ctx, ctx.now, false);
   });
 }
