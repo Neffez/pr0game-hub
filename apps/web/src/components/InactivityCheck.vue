@@ -10,8 +10,18 @@ interface Check {
   weights: Record<string, number>;
   events: number;
   skipped: number;
+  narrowed: number;
   detection: { hours: number; n: number; likely: number; inactive: number; median: number | null }[];
-  falseAlarms: { days: number; positives: number; contradicted: number; rate: number | null; examples: { playerId: number; name: string; time: number; score: number; activeAt: number }[] };
+  falseAlarms: {
+    days: number;
+    positives: number;
+    contradicted: number;
+    rate: number | null;
+    players: number;
+    playersContradicted: number;
+    causes: Record<string, number>;
+    examples: { playerId: number; name: string; time: number; score: number; activeAt: number; cause: string }[];
+  };
 }
 
 const props = defineProps<{ universe: string; groupId: number }>();
@@ -31,6 +41,13 @@ async function run(fresh: boolean) {
     busy.value = false;
   }
 }
+const causeLabel = (c: string) => t(`inactivityCheck.cause.${c}`);
+const causes = computed(() =>
+  Object.entries(data.value?.falseAlarms.causes ?? {})
+    .sort((a, b) => b[1] - a[1])
+    .map(([c, n]) => `${causeLabel(c)} ${n}×`)
+    .join(' · '),
+);
 const pct = (x: number | null | undefined) => (x == null ? '–' : `${Math.round(x * 100)} %`);
 const weights = computed(() =>
   data.value
@@ -55,7 +72,7 @@ const weights = computed(() =>
     <div v-if="error" class="error">{{ error }}</div>
     <template v-if="data">
       <h4>{{ t('inactivityCheck.detection') }}</h4>
-      <p class="small muted">{{ t('inactivityCheck.events', { n: data.events, skipped: data.skipped }) }}</p>
+      <p class="small muted">{{ t('inactivityCheck.events', { n: data.events, skipped: data.skipped, narrowed: data.narrowed }) }}</p>
       <div class="table-wrap">
         <table class="data" style="width: auto">
           <thead>
@@ -82,9 +99,13 @@ const weights = computed(() =>
       <p class="small">
         {{ t('inactivityCheck.falseAlarmsText', { days: data.falseAlarms.days, positives: fmt(data.falseAlarms.positives), contradicted: fmt(data.falseAlarms.contradicted), rate: pct(data.falseAlarms.rate) }, data.falseAlarms.days) }}
       </p>
+      <p v-if="data.falseAlarms.players" class="small">
+        {{ t('inactivityCheck.perPlayer', { players: fmt(data.falseAlarms.players), contradicted: fmt(data.falseAlarms.playersContradicted) }) }}
+        <template v-if="causes"><br />{{ t('inactivityCheck.causes') }} {{ causes }}</template>
+      </p>
       <ul v-if="data.falseAlarms.examples.length" class="small">
         <li v-for="e in data.falseAlarms.examples" :key="`${e.playerId}:${e.time}`">
-          {{ t('inactivityCheck.example', { name: e.name, score: e.score, time: dateTime(e.time), active: dateTime(e.activeAt) }) }}
+          {{ t('inactivityCheck.example', { name: e.name, score: e.score, time: dateTime(e.time), active: dateTime(e.activeAt), cause: causeLabel(e.cause) }) }}
         </li>
       </ul>
       <p class="small muted">{{ t('inactivityCheck.weights') }} {{ weights }}</p>

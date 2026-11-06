@@ -149,10 +149,10 @@ export function inactivityOf(s: InactivitySignals, asOf: number): Inactivity {
   return { ...base, score, level, status: null, since: level === 'active' ? null : t0, atLeast: level !== 'active' && atLeast, reasons };
 }
 
-type Names = Map<string, number>;
+export type Names = Map<string, number>;
 
 /** Player id by lower-case name and former names. */
-function namesOf(db: DB, groupId: number): Names {
+export function namesOf(db: DB, groupId: number): Names {
   const rows = db
     .prepare('SELECT id, name FROM players WHERE group_id = ? UNION ALL SELECT a.player_id, a.name FROM player_aliases a JOIN players p ON p.id = a.player_id WHERE p.group_id = ?')
     .all(groupId, groupId) as { id: number; name: string }[];
@@ -163,7 +163,7 @@ function namesOf(db: DB, groupId: number): Names {
 }
 
 /** Newest proven activity per player up to `asOf`. */
-function provenActivity(db: DB, ctx: GroupContext, names: Names, from: number, asOf: number): Map<number, { time: number; source: ProofSource }> {
+export function provenActivity(db: DB, ctx: GroupContext, names: Names, from: number, asOf: number): Map<number, { time: number; source: ProofSource }> {
   const g = ctx.groupId;
   const out = new Map<number, { time: number; source: ProofSource }>();
   const add = (id: number | undefined, time: number | null, source: ProofSource) => {

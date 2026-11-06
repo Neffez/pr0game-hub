@@ -43,7 +43,7 @@ beforeAll(async () => {
   admin = { cookie: await login('lead', 'leadpass'), 'x-hub-group': String(group) };
   carol = { cookie: await login('carol', 'carolpass'), 'x-hub-group': String(group) };
 
-  for (const n of ['Busy1', 'Busy2', 'Gone', 'Flaky']) ids[n] = Number(db.prepare('INSERT INTO players (group_id, name) VALUES (?, ?)').run(group, n).lastInsertRowid);
+  for (const n of ['Busy1', 'Busy2', 'Gone', 'Flaky', 'Spier', 'Vague']) ids[n] = Number(db.prepare('INSERT INTO players (group_id, name) VALUES (?, ?)').run(group, n).lastInsertRowid);
   for (let time = T - 40 * D; time <= T; time += 6 * H) {
     const i = (time - (T - 40 * D)) / (6 * H);
     score(ids.Busy1, time, 50_000 + i * 1000, 1);
@@ -54,9 +54,18 @@ beforeAll(async () => {
     const quietTo = T - 7 * D;
     const active = time < quietFrom ? time : time < quietTo ? quietFrom : time - (quietTo - quietFrom);
     score(ids.Flaky, time, 30_000 + (active - (T - 40 * D)) / 50, 4);
+    score(ids.Spier, time, 20_000, 5);
+    score(ids.Vague, time, 10_000, 6);
   }
   db.prepare('INSERT INTO player_status_log (player_id, status, seen_at) VALUES (?, ?, ?), (?, ?, ?)').run(ids.Gone, '[]', FLAG - 6 * H, ids.Gone, '["inactive"]', FLAG);
   db.prepare("UPDATE players SET status = '[\"inactive\"]' WHERE id = ?").run(ids.Gone);
+  // Spier: sightings 5 days apart, but a spy on a member shortly before the latest possible login narrows it down
+  db.prepare('INSERT INTO player_status_log (player_id, status, seen_at) VALUES (?, ?, ?), (?, ?, ?)').run(ids.Spier, '[]', FLAG - 5 * D, ids.Spier, '["inactive"]', FLAG);
+  db.prepare(
+    "INSERT INTO hostile_spying (group_id, dedupe_key, time, from_player, from_g, from_s, from_p, from_type, target_g, target_s, target_p, target_type) VALUES (?, 'k1', ?, 'Spier', 1, 1, 1, 'planet', 2, 2, 2, 'planet')",
+  ).run(group, FLAG - 7 * D - 12 * H);
+  // Vague: sightings 5 days apart and nothing else: skipped
+  db.prepare('INSERT INTO player_status_log (player_id, status, seen_at) VALUES (?, ?, ?), (?, ?, ?)').run(ids.Vague, '[]', FLAG - 5 * D, ids.Vague, '["inactive"]', FLAG);
 });
 
 describe('inactivity check', () => {
@@ -66,11 +75,11 @@ describe('inactivity check', () => {
 
   it('replays the score after the last login of players the game flagged later', async () => {
     const res = (await app.inject({ method: 'GET', url: '/hub/api/u8/inactivity-check', headers: admin })).json();
-    expect(res).toMatchObject({ events: 1, skipped: 0 });
+    expect(res).toMatchObject({ events: 2, skipped: 1, narrowed: 1 });
     const by = Object.fromEntries(res.detection.map((d: any) => [d.hours, d]));
-    expect(by[12]).toMatchObject({ n: 1, likely: 0 });
-    expect(by[48]).toMatchObject({ n: 1, likely: 1 });
-    expect(by[120]).toMatchObject({ n: 1, likely: 1, inactive: 1 });
+    expect(by[12].likely).toBe(0);
+    expect(by[48]).toMatchObject({ n: 2, likely: 1 });
+    expect(by[120]).toMatchObject({ likely: 1 });
   });
 
   it('counts a high score followed by points gains as a false alarm', async () => {
@@ -80,5 +89,10 @@ describe('inactivity check', () => {
     expect(res.falseAlarms.examples.map((e: any) => e.name)).toContain('Flaky');
     expect(res.falseAlarms.examples.map((e: any) => e.name)).not.toContain('Gone');
     expect(res.weights.tau).toBe(36 * H);
+    // Flaky came back with points gains, Spier spied on a member after days without a gain
+    expect(Object.values(res.falseAlarms.causes).reduce((a: number, b: any) => a + b, 0)).toBe(res.falseAlarms.contradicted);
+    expect(res.falseAlarms.examples.find((e: any) => e.name === 'Flaky').cause).toBe('gain');
+    expect(res.falseAlarms.examples.find((e: any) => e.name === 'Spier').cause).toBe('spy');
+    expect(res.falseAlarms.playersContradicted).toBeLessThanOrEqual(res.falseAlarms.players);
   });
 });

@@ -35,7 +35,11 @@ const GALAXY_STALE = 3 * DAY;
 const MARKET_STALE = 3 * DAY;
 const LEVELS = { high: 0, medium: 1, low: 2 };
 
-/** The game's statistics update at or before `t` (0, 6, 12 and 18 o'clock in the universe's time zone). */
+/**
+ * The game's statistics update at or before `t` by the default grid: 0, 6, 12 and 18 o'clock in the universe's time
+ * zone. Only the fallback without any synced update: servers run the update at their own configured hours, and one
+ * whose clock ignores daylight saving moves by an hour against local time in winter (see `expectedStatUpdate`).
+ */
 export function lastStatUpdate(t: number, timeZone: string): number {
   const parts = Object.fromEntries(
     new Intl.DateTimeFormat('en-CA', { timeZone, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hourCycle: 'h23' })
@@ -46,6 +50,21 @@ export function lastStatUpdate(t: number, timeZone: string): number {
   const at = localToEpoch(`${parts.year}-${parts.month}-${parts.day} ${hour}:00:00`, timeZone, t);
   // a repeated hour in autumn may give the later instant: the update before then
   return at > t ? lastStatUpdate(t - HOUR, timeZone) : at;
+}
+
+/** Interval of the game's statistics updates. */
+const STAT_INTERVAL = 6 * HOUR;
+
+/**
+ * The game's latest statistics update at or before `t`: on the 6-hour grid of the newest synced update (the server's
+ * own hours, also across a daylight saving switch), or the default grid without one.
+ */
+export function expectedStatUpdate(t: number, newestSynced: number | null, timeZone: string): number {
+  if (newestSynced == null) return lastStatUpdate(t, timeZone);
+  if (newestSynced >= t) return newestSynced;
+  // the update time of a page may lie a few minutes after the grid point: keep the phase of the full hour
+  const anchor = Math.round(newestSynced / HOUR) * HOUR;
+  return anchor + Math.floor((t - anchor) / STAT_INTERVAL) * STAT_INTERVAL;
 }
 
 /**
@@ -67,7 +86,8 @@ export function syncHints(db: DB, ctx: GroupContext): SyncHint[] {
   else if (t - empireTime > DAY) hints.push({ key: 'empire', level: 'medium', scope: 'me', time: empireTime });
 
   // statistics of the group: the newest update per category against the game's latest update
-  const update = lastStatUpdate(t - STATS_GRACE, ctx.universe.settings.timezone);
+  const newestAny = max("SELECT MAX(stat_time) FROM stat_snapshots WHERE group_id = ? AND who = 'player'", g);
+  const update = expectedStatUpdate(t - STATS_GRACE, newestAny, ctx.universe.settings.timezone);
   const newest = new Map<number, number | null>(
     TYPES.map((type) => [type, max("SELECT MAX(stat_time) FROM stat_snapshots WHERE group_id = ? AND who = 'player' AND type = ?", g, type)]),
   );

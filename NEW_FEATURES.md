@@ -224,6 +224,19 @@ active. The score was rebuilt as "latest sign of activity (`t0`), then the absen
   the check shows late detection (lower `tau`) or many false alarms (raise `tau`, `weakGain`).
 - Tests in `apps/server/test/inactivity.test.ts` and `apps/server/test/inactivityCheck.test.ts`.
 
+**First measurement (U7, closed, data as of 01.11.26).** 6 flagged players evaluated, 57 skipped; detection 0 % "likely"
+at 12 h and 24 h (median 20 and 41, so the bare curve), 100 % at 48 h and 72 h, 50 % "inactive" at 120 h (n = 1–2,
+not meaningful yet). False alarms: 343 high scores (player-days) over 8 days, 35 followed by activity (10 %); the
+examples are all points gains at statistics updates in the last week before the end, when players come back to spend
+before a universe closes. Conclusions and changes:
+
+- Too few events: the flag is seen only when someone syncs the player's galaxy or statistics, so the sightings around
+  it were often more than 2 days apart. The check now accepts up to 7 days when a proof of activity narrows the last
+  login down to 2 days (`narrowed` in the response).
+- The report now counts false alarms per player as well and names the cause (gain or the kind of proof), so the next
+  measurement shows whether build queues finishing (gains) or real returns dominate.
+- Weights unchanged until a running universe (U8) gives more events; a closing universe overstates false alarms.
+
 ### B-4 Debris field tracker
 **Value:** Medium · **Effort:** S · **Builds on:** galaxy parser (debris), battle reports, recycling reports
 
@@ -361,6 +374,9 @@ which hub feature gets better with it. Higher data quality is the base of every 
 - **Tours:** new steps `paste.hints` and `overview.syncHints`. **Texts:** `syncHints.*` in `de.ts`/`en.ts`.
 - **Left for later:** the leaders' view of every member's freshness and the shared sync duties belong to D-1 and
   D-3.
+- **Fix (2026-11-06):** the expected statistics update comes from the 6-hour grid of the newest synced update
+  (`expectedStatUpdate`), not from 0/6/12/18 o'clock local time: servers run it at their own configured hours, and on
+  U7 they moved to 23/5/11/17 o'clock with the switch to winter time (seen in the inactivity check's timestamps).
 
 ### E-2 Several pages at once
 **Value:** Medium · **Effort:** S · **Builds on:** sync panel file upload, ingest preview

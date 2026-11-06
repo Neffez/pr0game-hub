@@ -5,7 +5,7 @@ process.env.WEB_DIR = '/nonexistent';
 const { buildApp } = await import('../src/app.js');
 const { openDb, now } = await import('../src/db.js');
 const { hashPassword } = await import('../src/auth.js');
-const { lastStatUpdate } = await import('../src/repo/syncHints.js');
+const { lastStatUpdate, expectedStatUpdate } = await import('../src/repo/syncHints.js');
 const { localToEpoch } = await import('@pr0hub/core');
 
 const db = openDb(':memory:');
@@ -49,6 +49,20 @@ describe('lastStatUpdate', () => {
     expect(lastStatUpdate(at('2026-11-07 03:10:00'), 'Europe/Berlin')).toBe(at('2026-11-07 00:00:00'));
     // summer time: still the local hour
     expect(lastStatUpdate(at('2026-07-01 07:00:00'), 'Europe/Berlin')).toBe(at('2026-07-01 06:00:00'));
+  });
+});
+
+describe('expectedStatUpdate', () => {
+  const at = (local: string) => localToEpoch(local, 'Europe/Berlin');
+  it('keeps the hours of the synced updates, also when the server ignores daylight saving', () => {
+    // the server updates at 22:00 UTC: midnight in summer, 23:00 in winter
+    const synced = at('2026-10-25 23:00:00');
+    expect(expectedStatUpdate(at('2026-10-26 10:59:00'), synced, 'Europe/Berlin')).toBe(at('2026-10-26 05:00:00'));
+    expect(expectedStatUpdate(at('2026-10-26 11:00:00'), synced, 'Europe/Berlin')).toBe(at('2026-10-26 11:00:00'));
+    // a page time a few minutes after the grid point
+    expect(expectedStatUpdate(at('2026-10-26 18:00:00'), synced + 180, 'Europe/Berlin')).toBe(at('2026-10-26 17:00:00'));
+    // without synced updates: the default grid
+    expect(expectedStatUpdate(at('2026-10-26 18:00:00'), null, 'Europe/Berlin')).toBe(at('2026-10-26 18:00:00'));
   });
 });
 

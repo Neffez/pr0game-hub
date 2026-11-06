@@ -4,6 +4,13 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-06
 
+- Sync hints expect the game's statistics update on the grid of the newest synced update instead of 0/6/12/18 o'clock
+  local time: servers run it at their own hours, and on U7 those moved to 23/5/11/17 o'clock with the switch to
+  winter time, so the hint asked for an update that never comes.
+- Inactivity check: more flagged players count (the sightings around the flag may lie up to 7 days apart when a proof
+  of activity before the latest possible login narrows the last login down to 2 days); false alarms are also counted
+  per player and broken down by what disproved them (points gain or the kind of proof), also in the examples.
+
 - Inactivity score, second version: latest sign of activity, then the absence seen since.
   - Proof of activity: attacks (combat reports, battle hall), espionage on members, messages, fleet launches and
     recalls, reports by hand, and a fleet that shrank between two spy reports without a battle there.
