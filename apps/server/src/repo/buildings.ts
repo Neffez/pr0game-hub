@@ -393,7 +393,7 @@ function derivedResearchSpeed(
 }
 
 /** Storage factor from a resource bar (storage shown against the metal storage level), null when unknown. */
-function storageFactorOf(empire: EmpireRecord | null, page: BuildingsRecord | null): number | null {
+export function storageFactorOf(empire: EmpireRecord | null, page: BuildingsRecord | null): number | null {
   const active = empire?.active;
   const planet = active && empire!.planets.find((p) => same(p.coords, active.coords) && p.type === active.type);
   if (planet && active.storage[METAL]) {

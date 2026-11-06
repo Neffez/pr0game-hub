@@ -4,6 +4,17 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-06
 
+- Farm finder (backlog B-1) and inactivity confidence (backlog B-3).
+  - `@pr0hub/core/production`: `projectResources` (production since a spy report up to the storage capacity),
+    `positionTemp` (default temperature of a position) and `deriveResourceSpeed` (resource multiplier from synced
+    empire production).
+  - Server: `GET /api/:uni/farm` lists spied targets outside the own alliance with resources expected now, loot,
+    fleet and defense risk and inactivity; `repo/inactivity.ts` scores how likely a player is inactive (game flag,
+    points stall, activity seen after the last gain), also returned on `/overview` players and `/players/:id`.
+  - Web: new page "Farm finder" under Combat & expeditions (ranked by loot per flight hour, flight time, ships and
+    fuel from the nearest own planet, filters, claim and game links via the actions menu) with its own tour;
+    inactivity badge in the overview and player details.
+
 - Global search (backlog F-1): `Ctrl+K`/`⌘K`, `/` or the search field in the sidebar (mobile: search icon in the
   top bar) opens one search for players (also former names), alliances, coordinates and the hub's pages, with
   arrow keys and Enter.

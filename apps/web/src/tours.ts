@@ -211,6 +211,19 @@ export const TOURS = {
       { key: 'list', el: 'battlehall-list', side: 'top' },
     ],
   },
+  farm: {
+    steps: [
+      { key: 'intro' },
+      { key: 'flight', el: 'farm-flight', side: 'bottom' },
+      { key: 'days', el: 'farm-days', side: 'bottom' },
+      { key: 'filter', el: 'farm-filter', side: 'bottom' },
+      { key: 'loot', el: 'farm-loot', side: 'bottom' },
+      { key: 'rank', el: 'farm-rank', side: 'bottom' },
+      { key: 'inactivity', el: 'farm-inactivity', side: 'bottom' },
+      { key: 'risk', el: 'farm-risk', side: 'left' },
+      { key: 'list', el: 'farm-list', side: 'top' },
+    ],
+  },
   expeditions: {
     steps: [
       { key: 'intro' },

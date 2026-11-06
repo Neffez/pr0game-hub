@@ -12,6 +12,8 @@ source (`pr0game`: pages, missions, achievements, advanced stats).
 |---|---|---|---|
 | E-1 What should I paste next? | Done | 2026-11-06 | sync page, overview, quick sync sheet |
 | F-1 Global search (Ctrl+K) | Done | 2026-11-06 | every page of a universe (sidebar, mobile top bar) |
+| B-1 Farm finder with projected resources | Done | 2026-11-06 | new menu item "Farm finder" under Combat & expeditions |
+| B-3 Inactivity confidence | Done | 2026-11-06 | farm finder, overview, player details |
 
 Each finished item carries a **Status** block below its description: what was built and how.
 
@@ -125,6 +127,38 @@ Improvement over today: the overview shows the resources of the last report as t
 hours old on a planet with high mines is worth far more than its numbers, and an inactive planet with full storage
 is worth no more than the storage.
 
+**Status: done (2026-11-06).** How it was built:
+
+- **Game math in `@pr0hub/core/production`** (shared with the tools): `projectResources` adds the production since
+  the report to its resources like the game's `ResourceUpdate` (mines, power plants and solar satellites with the
+  energy factor, mining research, resource multiplier, basic income) and stops at the storage capacity
+  (`storageCapacity` with the universe's storage factor); resources already above it stay. `positionTemp` takes the
+  middle of the game's default temperature range of the position (`planet_data` in `install.sql`), since a spy report
+  shows no temperature. `deriveResourceSpeed` finds the resource multiplier from the production per hour of synced
+  empire pages when the universe setting is 0 (only planets with enough energy for the known levels count). Tests in
+  `packages/parser/test/production.test.ts`.
+- **Server:** `GET /api/:uni/farm?days=7` (`apps/server/src/repo/farm.ts`, `getFarmTargets` in `openapi.yaml`). Per
+  spied planet or moon of a player outside the own alliance (members' players and the viewer's in-game alliance)
+  with a report showing resources within `days` (1–30): the newest resources, the levels from the newest report with
+  buildings, the player's newest research, fleet and defense from the newest reports showing them (units that fight,
+  without solar satellites, spy probes and missiles, plus points), the expected resources now, production per hour,
+  full storages, loot (half of each resource), the last battle and the inactivity (B-3). Moons keep the resources of
+  the report (no mines); positions destroyed or owned by someone else since the report are left out. The response
+  says where the resource multiplier comes from (`settings`, `empire` or `default` 1x). Tests in
+  `apps/server/test/farm.test.ts`.
+- **Web:** `FarmView.vue` at `/:uni/farm`, menu item "Farm finder" under Combat & expeditions. Flight time, ships
+  and fuel are computed in the browser with `@pr0hub/flight` (`flightDuration`, `fleetConsumption`, the own drives
+  from the empire) from the nearest own planet or a chosen start, for small or large cargo and a speed. The table is
+  ranked by loot per flight hour (round trip), also sortable by loot, flight time, report age and inactivity; filters
+  (remembered per device): report age, only probably inactive, without defense or fleet, vacation mode, targets
+  claimed by others, minimum loot, galaxy. Tooltips show each resource, full storages, production per hour, report
+  times and the risk details; the actions menu (`PlanetActions`) spies or attacks in the game by hand, opens the
+  flight calculator and claims the target. Mobile: cards with a sort bar.
+- **Tours:** new tour `farm` (ship and speed, report age, filters, loot, loot per hour, inactivity, risk, actions).
+  **Texts:** `farm.*`, `nav.farm` and `tours.farm.*` in `de.ts`/`en.ts`.
+- **Left for later:** a quick battle simulation per target instead of the defense/fleet flags, B-2 (spy priority
+  list) on top of the same data, weighting the loot with the market rate.
+
 ### B-2 Spy priority list
 **Value:** Medium · **Effort:** S · **Builds on:** B-1, spy history, galaxy freshness
 
@@ -138,6 +172,23 @@ activity marks, fleet movements
 The game's inactivity flags come late. Combine the signals the hub already has: points unchanged over several
 statistics updates, no galaxy activity, no fleets seen, no messages. Show one score ("probably inactive since …")
 in the overview, the farm finder and player details.
+
+**Status: done (2026-11-06).** How it was built:
+
+- **Server:** `apps/server/src/repo/inactivity.ts` with `inactivityOf` (pure scoring) and `inactivities` (one query
+  for the group's players). Signals: the game's flag (`inactive` 95, `longinactive` 100, since the first inactive
+  status in the status log), the points stall (no gain in total points across synced statistics updates, from
+  `pointsStalls`: up to 85 after 3 days), and the newest activity the hub has seen (galaxy activity marks, fleet
+  launches and recalls, reports by hand from `player_activity`, espionage on members from `hostile_spying`); activity
+  after the last points gain caps the score at 15. Levels: inactive ≥ 85, likely ≥ 50, possible ≥ 20, otherwise
+  active; unknown for players without current statistics. Exposed as `inactivity` (schema `Inactivity` in
+  `openapi.yaml`) on `/overview` players, `/players/:id` and the farm finder's targets. Tests in
+  `apps/server/test/farm.test.ts`.
+- **Web:** `InactivityBadge.vue`: in lists a small badge with the score (tooltip: level, since when and the signals),
+  in the player details a line of text. In the overview it replaces the points stall icon when it has something to
+  say and the game does not flag the player yet; the farm finder has it as a sortable column and a filter.
+- **Texts:** `inactivity.*` in `de.ts`/`en.ts`; tour step `farm.inactivity`.
+- **Left for later:** fleets seen in members' overviews and messages as further activity signals.
 
 ### B-4 Debris field tracker
 **Value:** Medium · **Effort:** S · **Builds on:** galaxy parser (debris), battle reports, recycling reports

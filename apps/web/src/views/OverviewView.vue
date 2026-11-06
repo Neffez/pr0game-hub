@@ -18,6 +18,7 @@ import PlanetActions from '../components/PlanetActions.vue';
 import StatusBadges from '../components/StatusBadges.vue';
 import PointsStall from '../components/PointsStall.vue';
 import SyncHints from '../components/SyncHints.vue';
+import InactivityBadge, { type Inactivity } from '../components/InactivityBadge.vue';
 import { useLoader, useMobile, useProgressive, useProtection, useSort, useStored, useUni } from '../composables';
 import { useAutoTour } from '../tours';
 import { nowSec, upcoming, useClock } from '../clock';
@@ -50,6 +51,7 @@ interface Player {
   inactive_since: number | null;
   /** no points since this stat update */
   points_stall: PointsStallInfo | null;
+  inactivity?: Inactivity | null;
   scores: Record<number, Score>;
   /** former names */
   aliases: string[];
@@ -225,6 +227,8 @@ function playerMatches(p: Player) {
 }
 
 const filteredPlayers = computed(() => players.value.filter(playerMatches));
+/** The inactivity score is shown next to the name (and replaces the points stall icon, which it includes). */
+const scored = (v: Inactivity | null | undefined) => !!v && !v.status && (v.level === 'inactive' || v.level === 'likely' || v.level === 'possible');
 
 /** Galaxies of the universe; a stored galaxy filter outside of them (other universe) is ignored. */
 const galaxies = computed(() => ctx.value!.universe.settings.galaxies ?? 1);
@@ -664,7 +668,7 @@ const history = computed(() => {
           <PlayerLink :id="r.player.id" :name="r.player.name" />
           <span v-if="matchedAlias(r.player)" class="faint small">({{ t('player.aliases', { names: matchedAlias(r.player) }) }})</span>
           <StatusBadges :status="r.player.status" />
-          <PointsStall :stall="r.player.points_stall" :status="r.player.status" icon />
+          <InactivityBadge :value="r.player.inactivity" chip hide-flagged /><PointsStall v-if="!scored(r.player.inactivity)" :stall="r.player.points_stall" :status="r.player.status" icon />
           <Icon v-if="r.player.note" name="edit" :size="12" class="faint" :label="r.player.note" />
           <span v-if="r.player.ally_tag ?? r.player.ally_name" class="muted small">[{{ r.player.ally_tag ?? r.player.ally_name }}]</span>
           <span class="grow" />
@@ -711,7 +715,7 @@ const history = computed(() => {
           <PlayerLink :id="r.id" :name="r.name" />
           <span v-if="matchedAlias(r)" class="faint small">({{ t('player.aliases', { names: matchedAlias(r) }) }})</span>
           <StatusBadges :status="r.status" />
-          <PointsStall :stall="r.points_stall" :status="r.status" icon />
+          <InactivityBadge :value="r.inactivity" chip hide-flagged /><PointsStall v-if="!scored(r.inactivity)" :stall="r.points_stall" :status="r.status" icon />
           <Icon v-if="r.note" name="edit" :size="12" class="faint" :label="r.note" />
           <span class="grow" />
           <span class="muted small">{{ r.ally_tag ?? r.ally_name ?? '' }}</span>
@@ -764,7 +768,7 @@ const history = computed(() => {
             <PlayerLink :id="r.player.id" :name="r.player.name" />
             <span v-if="matchedAlias(r.player)" class="faint small"> ({{ t('player.aliases', { names: matchedAlias(r.player) }) }})</span>
             <StatusBadges :status="r.player.status" />
-            <PointsStall :stall="r.player.points_stall" :status="r.player.status" icon />
+            <InactivityBadge :value="r.player.inactivity" chip hide-flagged /><PointsStall v-if="!scored(r.player.inactivity)" :stall="r.player.points_stall" :status="r.player.status" icon />
              <Icon v-if="r.player.note" name="edit" :size="12" class="faint" :label="r.player.note" />
           </td>
           <td class="mono small">
@@ -838,7 +842,7 @@ const history = computed(() => {
             <PlayerLink :id="r.id" :name="r.name" />
             <span v-if="matchedAlias(r)" class="faint small"> ({{ t('player.aliases', { names: matchedAlias(r) }) }})</span>
             <StatusBadges :status="r.status" />
-            <PointsStall :stall="r.points_stall" :status="r.status" icon />
+            <InactivityBadge :value="r.inactivity" chip hide-flagged /><PointsStall v-if="!scored(r.inactivity)" :stall="r.points_stall" :status="r.status" icon />
              <Icon v-if="r.note" name="edit" :size="12" class="faint" :label="r.note" />
           </td>
           <td class="muted">{{ r.ally_tag ?? r.ally_name ?? '' }}</td>

@@ -42,6 +42,7 @@ export const router = createRouter({
         // raid statistics are a tab of the raid page now
         { path: 'raids', redirect: (to) => ({ path: `/${to.params.uni}/raid-planner`, query: { ...to.query, tab: 'stats' } }) },
         { path: 'targets', redirect: (to) => ({ path: `/${to.params.uni}/raid-planner`, query: { tab: 'plans' } }) },
+        { path: 'farm', component: () => import('./views/FarmView.vue') },
         { path: 'expeditions', component: () => import('./views/ExpeditionsView.vue') },
         // the deck is a tab of the expeditions page now
         { path: 'deck', redirect: (to) => ({ path: `/${to.params.uni}/expeditions`, query: { tab: 'deck' } }) },

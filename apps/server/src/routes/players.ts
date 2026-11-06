@@ -8,6 +8,7 @@ import { ACTIVITY_DAYS, activityScores, addActivity, playerActivity } from '../r
 import { latestEmpires } from '../repo/empire.js';
 import { memberPlayer, memberPlayers } from '../repo/members.js';
 import { latestScores, pointsStalls, stallSince } from '../repo/stats.js';
+import { inactivities } from '../repo/inactivity.js';
 import { contextOf, likeTerm, parseSections, type Q } from './util.js';
 
 export function playersRoutes(app: FastifyInstance, db: DB) {
@@ -225,6 +226,7 @@ export function playersRoutes(app: FastifyInstance, db: DB) {
       player: { ...player, status: JSON.parse(player.status) },
       history, ownHistory, planets, spyReports, statusLog, aliases, ...intel,
       pointsStall: pointsStalls(db, ctx.groupId, { playerIds: [id] }).get(id) ?? null,
+      inactivity: inactivities(db, ctx, [id]).get(id) ?? null,
     };
   });
 

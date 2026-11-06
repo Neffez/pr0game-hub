@@ -12,7 +12,9 @@ import { pointsStalls, stallSince } from '../repo/stats.js';
 import { memberPlayer, memberPlayers } from '../repo/members.js';
 import { latestScores } from '../repo/stats.js';
 import { syncHints } from '../repo/syncHints.js';
-import { contextOf, groupBy } from './util.js';
+import { farmTargets } from '../repo/farm.js';
+import { inactivities } from '../repo/inactivity.js';
+import { clampInt, contextOf, groupBy, type Q } from './util.js';
 
 export function overviewRoutes(app: FastifyInstance, db: DB) {
   const ctxOf = contextOf(db);
@@ -52,6 +54,13 @@ export function overviewRoutes(app: FastifyInstance, db: DB) {
   app.get<{ Params: { uni: string } }>('/api/:uni/sync-hints', async (req) => {
     const ctx = ctxOf(req);
     return { hints: syncHints(db, ctx), messagesDays: config.rawRetentionDays };
+  });
+
+  /** Farm finder: spied targets outside the own alliance with their expected resources now (see `farmTargets`). */
+  app.get<{ Params: { uni: string }; Querystring: Q }>('/api/:uni/farm', async (req) => {
+    const ctx = ctxOf(req);
+    const days = clampInt(req.query.days, 7, 1, 30);
+    return { ...farmTargets(db, ctx, days), days, now: ctx.now };
   });
 
   app.get<{ Params: { uni: string } }>('/api/:uni/overview', async (req) => {
@@ -114,8 +123,10 @@ export function overviewRoutes(app: FastifyInstance, db: DB) {
     // every known player (also from galaxy views and spy reports), with the latest synced points they have, if any
     const newestTotal = db.prepare("SELECT MAX(stat_time) FROM stat_snapshots WHERE group_id = ? AND who = 'player' AND type = 1").pluck().get(ctx.groupId) as number | null;
     const stalls = newestTotal == null ? new Map() : pointsStalls(db, ctx.groupId, { since: stallSince(ctx, newestTotal) });
+    const inactive = inactivities(db, ctx);
     const result = info.map((p) => ({
       ...p, status: JSON.parse(p.status), aliases: JSON.parse(p.aliases), scores: players.get(p.id)?.scores ?? {}, points_stall: stalls.get(p.id) ?? null,
+      inactivity: inactive.get(p.id) ?? null,
     }));
 
     return { players: result, planets: planetRows(db, ctx), coverage: coverage(db, ctx), slots: sections[1] };

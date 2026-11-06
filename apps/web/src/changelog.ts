@@ -20,6 +20,16 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Farm-Finder (unter Kämpfe & Expos): Welche Ziele lohnen sich jetzt? Der Hub rechnet die Rohstoffe der Spionageberichte bis heute hoch und sortiert nach Beute pro Flugstunde, mit Schiffen, Treibstoff, Flugzeit und Risiko.',
+        en: 'Farm finder (under Combat & expeditions): which targets pay off now? The hub projects the resources of the spy reports to today and ranks them by loot per flight hour, with ships, fuel, flight time and risk.',
+      },
+      {
+        kind: 'new',
+        de: 'Inaktivität: Übersicht, Spielerdetails und Farm-Finder zeigen, wie sicher ein Spieler inaktiv ist – oft Tage bevor das Spiel ihn markiert.',
+        en: 'Inactivity: the overview, player details and the farm finder show how likely a player is inactive – often days before the game flags them.',
+      },
+      {
+        kind: 'new',
         de: 'Suche: Mit Strg+K (Mac: ⌘K), „/“ oder dem Suchfeld im Menü findest du von jeder Seite aus Spieler (auch frühere Namen), Allianzen, Koordinaten und Seiten des Hubs.',
         en: 'Search: with Ctrl+K (Mac: ⌘K), "/" or the search field in the menu you find players (also former names), alliances, coordinates and pages of the hub from every page.',
       },

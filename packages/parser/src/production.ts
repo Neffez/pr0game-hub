@@ -5,6 +5,8 @@
  * from synced pages; this is for planning levels that are not built yet (build orders).
  */
 
+import { STORAGE, storageCapacity } from './tech.js';
+
 export const METAL_MINE = 1;
 export const CRYSTAL_MINE = 2;
 export const DEUTERIUM_SYNTHESIZER = 3;
@@ -94,4 +96,90 @@ export function calibrate(synced: Record<string, number>, formula: Production): 
     out[r] = s != null && p > 0 && s > 0 ? s / p : 1;
   }
   return out;
+}
+
+/**
+ * Max temperature range per position as the game's default `planet_data` (install.sql): a new colony gets a random
+ * max temperature within it, the min temperature is 40 °C lower.
+ */
+export const POSITION_TEMP: Record<number, readonly [number, number]> = {
+  1: [220, 260], 2: [170, 210], 3: [120, 160], 4: [70, 110], 5: [60, 100], 6: [50, 90], 7: [40, 80], 8: [30, 70],
+  9: [20, 60], 10: [10, 50], 11: [0, 40], 12: [-10, 30], 13: [-50, -10], 14: [-90, -50], 15: [-130, -90],
+};
+
+/** Expected max temperature of a planet at `position` (the middle of its range; unknown positions count as 8). */
+export function positionTemp(position: number): number {
+  const [min, max] = POSITION_TEMP[position] ?? POSITION_TEMP[8];
+  return Math.floor((min + max) / 2);
+}
+
+export interface ProjectionInput {
+  /** metal, crystal, deuterium seen (e.g. in a spy report) */
+  resources: Record<number, number>;
+  /** building levels and the number of solar satellites (212) */
+  levels: Record<string, number>;
+  /** research levels (113 energy, 131-133 mining); unknown = 0 */
+  research?: Record<string, number>;
+  /** max temperature; `positionTemp` when unknown */
+  temp: number;
+  /** resource multiplier as a factor (game `resource_multiplier` / 2500) */
+  resourceSpeed: number;
+  /** storage capacity factor of the universe (game `storage_multiplier`), default 1 */
+  storageFactor?: number;
+  /** hours since the resources were seen */
+  hours: number;
+  /** production setting per producer, 0 … 1; default 1 (inactive players rarely change it) */
+  factors?: Record<string, number>;
+}
+
+export interface Projection {
+  /** expected metal, crystal, deuterium after `hours` */
+  resources: Record<901 | 902 | 903, number>;
+  /** production per hour used */
+  perHour: Record<901 | 902 | 903, number>;
+  /** storage capacity per resource */
+  capacity: Record<901 | 902 | 903, number>;
+  /** the storage is full (production stopped) */
+  full: Record<901 | 902 | 903, boolean>;
+}
+
+/**
+ * Resources of a planet some hours after they were seen, like the game's `ResourceUpdate`: production per hour from
+ * the levels, which stops at the storage capacity; resources already above it (loot, transports) stay.
+ */
+export function projectResources(i: ProjectionInput): Projection {
+  const prod = productionOf({ levels: i.levels, research: i.research ?? {}, temp: i.temp, factors: i.factors, resourceSpeed: i.resourceSpeed });
+  const hours = Math.max(0, i.hours);
+  const out: Projection = { resources: { 901: 0, 902: 0, 903: 0 }, perHour: { 901: 0, 902: 0, 903: 0 }, capacity: { 901: 0, 902: 0, 903: 0 }, full: { 901: false, 902: false, 903: false } };
+  for (const r of [901, 902, 903] as const) {
+    const seen = Math.max(0, i.resources[r] ?? 0);
+    const capacity = storageCapacity(i.levels[STORAGE[r]] ?? 0, i.storageFactor ?? 1);
+    const perHour = Math.max(0, prod[r]);
+    out.perHour[r] = perHour;
+    out.capacity[r] = capacity;
+    out.resources[r] = seen >= capacity ? seen : Math.min(capacity, seen + perHour * hours);
+    out.full[r] = out.resources[r] >= capacity;
+  }
+  return out;
+}
+
+/**
+ * The universe's resource multiplier (as a factor) from synced production: per planet the metal per hour a page
+ * showed against the formula at 1x for the same levels; the median of the planets, rounded to 0.01. Null without
+ * a planet that tells (no production shown, no temperature, no metal mine, not enough energy for the known levels).
+ */
+export function deriveResourceSpeed(planets: { levels: Record<string, number>; research: Record<string, number>; temp?: number | null; perHour?: Record<number, number> }[]): number | null {
+  const ratios: number[] = [];
+  for (const p of planets) {
+    const shown = p.perHour?.[901];
+    if (shown == null || shown <= 0 || p.temp == null || !(p.levels[METAL_MINE] > 0)) continue;
+    // the production settings are unknown here: only full production on every producer tells, and only with enough
+    // energy (a page without the power plants would make the formula's mines produce nothing)
+    const formula = productionOf({ levels: p.levels, research: p.research, temp: p.temp, resourceSpeed: 1 });
+    if (formula.energyUsed > 0 && formula.energy >= formula.energyUsed && formula[901] > 0) ratios.push(shown / formula[901]);
+  }
+  if (!ratios.length) return null;
+  ratios.sort((a, b) => a - b);
+  const mid = ratios[Math.floor(ratios.length / 2)];
+  return Math.round(mid * 100) / 100;
 }
