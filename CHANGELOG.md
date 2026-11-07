@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-07
 
+- Backlog (`NEW_FEATURES.md`): item C-3 is refined as an alliance trade board (internal offers on the marketplace,
+  states from open to closed, delivery matched by transfer reports); the status table lists A-5 and C-3 as open;
+  the A-3 leftover now matches the fleet save view.
+
 - Tours for the new tabs: the farm finder's tour has a step per tab button (targets, spy priority, debris finder) and
   steps for the spy priority (reasons, probes, priority) and the debris finder (period and filters, debris now,
   nearest member, recycle and claim); the planets tour has the tabs planets and colonize and steps for the
