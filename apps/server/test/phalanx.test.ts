@@ -155,3 +155,17 @@ describe('debris fields', () => {
     ]);
   });
 });
+
+describe('free positions', () => {
+  it('lists the free positions of seen systems, destroyed planets count as taken', async () => {
+    db.prepare('INSERT INTO galaxy_views (group_id, g, s, seen_at) VALUES (?, 1, 100, ?), (?, 1, 101, ?), (?, 2, 5, ?)').run(group, t - 60, group, t - 120, group, t);
+    db.prepare('INSERT INTO planets (group_id, g, s, p, player_id, destroyed) VALUES (?, 1, 101, 7, NULL, 1)').run(group);
+    const res = await get('/free-positions?g=1,9,x');
+    expect(Object.keys(res.systems)).toEqual(['1']);
+    const all = Array.from({ length: 15 }, (_, i) => i + 1);
+    expect(res.systems[1]).toEqual([
+      { s: 100, free: all.filter((p) => p !== 8), seen: t - 60 },
+      { s: 101, free: all.filter((p) => p !== 2 && p !== 7), seen: t - 120 },
+    ]);
+  });
+});

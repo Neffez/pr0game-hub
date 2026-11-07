@@ -2735,6 +2735,37 @@ paths:
                           sure: { type: boolean }
                           time: { type: integer, description: Newest sign of the field (Unix seconds) }
                   cleanup: { type: integer, description: The last run of the weekly debris cleaner (Unix seconds) }
+  /api/{uni}/free-positions:
+    get:
+      tags: [Universe]
+      operationId: getFreePositions
+      description: >-
+        Free positions of up to 10 galaxies by the group's galaxy data (fleet save targets by colonization): per system
+        seen in the galaxy the positions without a planet (destroyed planets count as taken) and when it was seen.
+        Systems without a free position and systems never seen are left out.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+        - { name: g, in: query, required: true, schema: { type: string }, description: 'Galaxies, comma separated (`1,3`)' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  systems:
+                    type: object
+                    description: Per galaxy the systems with free positions
+                    additionalProperties:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          s: { type: integer }
+                          free: { type: array, items: { type: integer } }
+                          seen: { type: integer, description: When the galaxy showed the system (Unix seconds) }
   /api/{uni}/alliance-health:
     get:
       tags: [Universe]
