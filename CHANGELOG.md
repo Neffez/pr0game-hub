@@ -4,6 +4,18 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-07
 
+- Explain failed pastes (backlog item E-4): when a paste gives no data, the preview says why in plain words instead
+  of "no data": almost nothing pasted, not a page of the game, a language the hub does not read, a game page the hub
+  does not read (which one), a page the hub reads but found nothing in (a parser gap), or an unknown game page
+  (`explainNoData` in `@pr0hub/core`: the page from `<body id>` or the URL's `page=`, the language from
+  `<html lang>`, for copied text the menu titles of the game in German, English and its other languages; `explain`
+  in the ingest response). Collected pages show the same.
+  - Parser samples: the member can send such a page to the hub's admins (`POST /api/:uni/ingest/sample`, with a
+    note). It is stored anonymized (`parser_samples`, migration `081_parser_samples.sql`: scripts, styles, form
+    values, session tokens in links, e-mail addresses and the sender's own names removed) for the retention of raw
+    syncs. Hub admins list, download and delete them in the admin panel (section "Parser samples",
+    `/api/admin/parser-samples`).
+
 - Several pages at once (backlog item E-2): the sync panel takes several saved pages at once (file input with
   `multiple`, drag and drop of files or a whole folder, read recursively via `webkitGetAsEntry`) and has a collect
   mode ("Collect" moves the pasted page into the collection and frees the box for the next). Each page of the

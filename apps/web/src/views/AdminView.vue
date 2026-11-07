@@ -148,6 +148,17 @@ const newGroup = ref({ universe: '', name: '', tag: '' });
 const groupId = ref<number | null>(null);
 const members = ref<any[]>([]);
 const ingests = ref<any[]>([]);
+/** Parser samples members sent (E-4, hub admins). */
+interface Sample { id: number; group_name: string; universe: string; username: string | null; code: string; page: string | null; note: string | null; created_at: number }
+const samples = ref<Sample[]>([]);
+const BASE_URL = import.meta.env.BASE_URL;
+const loadSamples = async () => {
+  if (isAdmin.value) samples.value = await api<Sample[]>('/admin/parser-samples');
+};
+async function deleteSample(id: number) {
+  await api(`/admin/parser-samples/${id}`, { method: 'DELETE' });
+  await loadSamples();
+}
 const fleetAttacks = ref<FleetAttackRow[]>([]);
 const newMemberName = ref('');
 /** existing accounts (e.g. from the alliance in another universe) that can join this alliance */
@@ -414,6 +425,7 @@ const loadCrawler = async () => {
   if (isAdmin.value) crawler.value = await api('/admin/crawler');
 };
 onMounted(() => run(loadCrawler));
+onMounted(() => run(loadSamples));
 const retryCrawler = () =>
   run(async () => {
     const res = await api('/admin/crawler/retry', { body: {} });
@@ -803,6 +815,36 @@ const doMerge = () => run(async () => {
       <Section data-tour="admin-system" :title="t('admin.system.title')" :default-open="false" store-key="admin.system">
         <template #hint><Hint>{{ t('admin.system.hint') }}</Hint></template>
         <SystemMonitor />
+      </Section>
+
+      <Section :title="t('admin.samples.title')" :count="samples.length" :default-open="false" store-key="admin.samples">
+        <template #hint><Hint>{{ t('admin.samples.hint') }}</Hint></template>
+        <p v-if="!samples.length" class="muted small">{{ t('admin.samples.none') }}</p>
+        <div v-else class="table-wrap">
+          <table v-stack class="data">
+            <thead>
+              <tr>
+                <th>{{ t('admin.samples.when') }}</th>
+                <th>{{ t('admin.samples.from') }}</th>
+                <th>{{ t('admin.samples.why') }}</th>
+                <th>{{ t('admin.samples.note') }}</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="x in samples" :key="x.id">
+                <td class="nowrap">{{ dateTime(x.created_at) }}</td>
+                <td>{{ x.username ?? '?' }} <span class="muted small">{{ x.group_name }} · {{ x.universe }}</span></td>
+                <td>{{ x.code }}<span v-if="x.page" class="mono small"> {{ x.page }}</span></td>
+                <td class="m-wide">{{ x.note ?? '' }}</td>
+                <td class="nowrap">
+                  <a :href="`${BASE_URL}api/admin/parser-samples/${x.id}`" download>{{ t('admin.samples.download') }}</a>
+                  <button class="danger" style="margin-left: 6px" @click="deleteSample(x.id)">{{ t('admin.samples.delete') }}</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </Section>
 
       <Section data-tour="admin-backfill" :title="t('admin.backfill')" :default-open="false" store-key="admin.backfill">

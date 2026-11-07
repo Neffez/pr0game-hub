@@ -24,6 +24,7 @@ source (`pr0game`: pages, missions, achievements, advanced stats).
 | B-2 Spy priority list | Done | 2026-11-07 | farm finder: tab "Spy priority" |
 | B-4 Debris finder | Done | 2026-11-07 | new menu item "Debris finder" under Combat & expeditions, debris claims |
 | E-2 Several pages at once | Done | 2026-11-07 | sync page: several files, drag and drop, collect mode |
+| E-4 Explain failed pastes | Done | 2026-11-07 | sync preview, parser samples in the admin panel |
 
 Each finished item carries a **Status** block below its description: what was built and how.
 
@@ -658,6 +659,27 @@ Pages of the game that the hub does not read yet and that would feed features ab
 When a paste is not recognized, say why in plain words ("this looks like the fleet page, which is not supported" or
 "the page is in a language the hub does not know") and offer to send the page anonymized to the admins as a
 parser sample. Today the admin sees it in the ingest log, the member only sees that nothing happened.
+
+**Status: done (2026-11-07).** How it was built:
+
+- **Explanation** (`packages/parser/src/explain.ts`, `explainNoData`, tests in `packages/parser/test/explain.test.ts`):
+  codes `too_short`, `not_game`, `language` (with `lang`), `unsupported_page` (with the game's `page` id),
+  `parse_failed` (a page the hub reads, nothing found) and `unknown_game_page`. In HTML the game marks the page
+  (`<body id="{page}">`, `<html lang>`, the game's `main.header.tpl`); the URL's `page=` wins. For copied text the menu
+  titles of the game's language files decide: two of them mark a game page, a title of an unsupported page counts
+  only when it appears twice (menu entry and heading); titles of the game's other languages (es, fr, pl, pt, ru, tr)
+  mark the language.
+- **Server:** the ingest response carries `explain` for pages of type `unknown` (`openapi.yaml`: schema
+  `Explanation`). `POST /api/:uni/ingest/sample` stores the page anonymized (`repo/samples.ts`, `anonymizePage`:
+  scripts, styles, form values, session tokens in links, e-mail addresses and the sender's names: account, in-game
+  name, linked player) in `parser_samples` (migration `081_parser_samples.sql`), at most 4 MB, deleted after the
+  retention of raw syncs; the explanation is worked out again on the server. Hub admins: `GET/DELETE
+  /api/admin/parser-samples[/:id]` (download as `.html` or `.txt`). Tests in `apps/server/test/samples.test.ts`.
+- **Web:** the sync preview (and every page of a collection) shows the explanation in words with the page's name;
+  below it "Send to admins" with an optional note, except for `too_short` and `not_game`. Admin panel: section "Parser
+  samples" (hub admins) with download and delete.
+- **Texts:** `paste.explain.*`, `paste.pages.*`, `paste.sample.*`, `admin.samples.*`.
+- **Left for later:** a notification to the hub admins when a sample arrives.
 
 ---
 

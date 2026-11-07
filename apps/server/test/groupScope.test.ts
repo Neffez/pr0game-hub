@@ -22,6 +22,7 @@ const ALLOWED: Record<string, string> = {
   'src/monitor.ts|DELETE FROM player_activity WHERE time': 'retention cleanup across all groups',
   'src/monitor.ts|DELETE FROM member_online WHERE slot': 'retention cleanup across all groups',
   'src/routes/admin.ts|SELECT SUM(CASE WHEN report_status': 'crawler statistics (global admins)',
+  'src/repo/samples.ts|DELETE FROM parser_samples WHERE created_at': 'retention cleanup across all groups',
   'src/routes/plans.ts|UPDATE attack_plans SET ${cols': 'dynamic columns, WHERE id = ? of a plan of the group',
   'src/routes/reports.ts|SELECT COUNT(*) FROM battle_hall h WHERE ${where}': '`where` starts with h.group_id = ?',
 };

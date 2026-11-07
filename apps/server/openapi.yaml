@@ -195,6 +195,13 @@ components:
             it is synced. Used by the spy priority list.
           additionalProperties: { type: [number, 'null'] }
         espionage: { type: [integer, 'null'], description: "Espionage level of the player from the newest report with research" }
+    Explanation:
+      type: object
+      description: Why a pasted page gave no data (`explainNoData` of `@pr0hub/core`)
+      properties:
+        code: { type: string, enum: [too_short, not_game, language, unsupported_page, parse_failed, unknown_game_page] }
+        page: { type: string, description: "The game's page id (`page=` of its URL) when known" }
+        lang: { type: string, description: Language of the page when the hub does not read it }
     FarmSection:
       type: [object, 'null']
       description: Newest spy report section (null when no report showed it)
@@ -4925,6 +4932,57 @@ paths:
           content:
             application/json:
               schema: { type: object }
+  /api/admin/parser-samples:
+    get:
+      tags: [Admin]
+      operationId: listParserSamples
+      security: [{ sessionCookie: [] }]
+      description: Parser samples sent by members of all alliances (newest 200); hub admins.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id: { type: integer }
+                    group_id: { type: integer }
+                    group_name: { type: string }
+                    universe: { type: string }
+                    username: { type: [string, 'null'] }
+                    code: { type: string }
+                    page: { type: [string, 'null'] }
+                    note: { type: [string, 'null'] }
+                    created_at: { type: integer }
+                    html_size: { type: [integer, 'null'], description: Compressed size }
+                    text_size: { type: [integer, 'null'], description: Compressed size }
+  /api/admin/parser-samples/{id}:
+    get:
+      tags: [Admin]
+      operationId: downloadParserSample
+      security: [{ sessionCookie: [] }]
+      description: The anonymized page of a sample as a download (HTML when there is one, else text); hub admins.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          content:
+            text/html: { schema: { type: string } }
+            text/plain: { schema: { type: string } }
+    delete:
+      tags: [Admin]
+      operationId: deleteParserSample
+      security: [{ sessionCookie: [] }]
+      description: Deletes a sample; hub admins.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
   /api/admin/groups/{id}/ingests:
     get:
       tags: [Admin]
@@ -5006,7 +5064,10 @@ paths:
       security: [{ sessionCookie: [] }]
       description: >-
         Stores a pasted game page. `forUser` may point to another member only for messages and combat reports,
-        not for empire, overview or fleets. `dryRun` returns the preview without storing.
+        not for empire, overview or fleets. `dryRun` returns the preview without storing. When nothing was recognized
+        (`pageType` `unknown`), `explain` says why: `code` one of `too_short`, `not_game`, `language` (with `lang`),
+        `unsupported_page` (with the game's `page` id), `parse_failed` (a page the hub reads, nothing found) or
+        `unknown_game_page`.
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
@@ -5015,7 +5076,33 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema:
+                type: object
+                properties:
+                  explain: { $ref: '#/components/schemas/Explanation' }
+  /api/{uni}/ingest/sample:
+    post:
+      tags: [Universe]
+      operationId: sendParserSample
+      security: [{ sessionCookie: [] }]
+      description: >-
+        Sends a page the hub found nothing in to the hub's admins as a parser sample. Body: `html` and/or `text` (at
+        most 4 MB together), `note` (up to 500 characters). Stored anonymized (scripts, styles, form values, session
+        tokens in links, e-mail addresses and the sender's own names removed) for the retention of raw syncs; the
+        explanation is worked out again on the server. Counts against the paste rate limit.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: integer }
+                  explain: { $ref: '#/components/schemas/Explanation' }
   /api/{uni}/universe-json:
     get:
       tags: [Universe]

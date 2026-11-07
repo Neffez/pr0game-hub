@@ -17,6 +17,8 @@ interface Summary {
   preview: ({ kind: string } & Record<string, any>)[];
   /** loot settlements the messages count for */
   settlements?: { id: number; mission: string; g: number; s: number; p: number; planet_type: string; target_time: number; kinds: string[] }[];
+  /** why nothing was recognized (pages of type unknown) */
+  explain?: { code: string; page?: string; lang?: string };
 }
 
 /** Paste a game page and save it (sync page; `compact` = quick sync sheet on mobile, with clipboard button and series mode). */
@@ -209,6 +211,26 @@ function previewText(p: Summary['preview'][number]) {
   return te(`paste.preview.${p.kind}`) ? t(`paste.preview.${p.kind}`, p) : JSON.stringify(p);
 }
 
+/** Plain words for a page without data (backlog E-4). */
+function explainText(x: NonNullable<Summary['explain']>) {
+  const page = x.page ? (te(`paste.pages.${x.page}`) ? t(`paste.pages.${x.page}`) : x.page) : '';
+  return t(`paste.explain.${x.code}`, { page, lang: x.lang ?? '' });
+}
+/** Sending the page as a parser sample: state of the current preview. */
+const sample = ref<{ note: string; sent: boolean; busy: boolean; error: string }>({ note: '', sent: false, busy: false, error: '' });
+async function sendSample() {
+  sample.value.busy = true;
+  sample.value.error = '';
+  try {
+    await uniApi(uni.value, '/ingest/sample', { body: { html: html.value, text: html.value && text.value.startsWith(FILE_MARK) ? null : text.value, note: sample.value.note || null } });
+    sample.value.sent = true;
+  } catch (e) {
+    sample.value.error = (e as Error).message;
+  } finally {
+    sample.value.busy = false;
+  }
+}
+
 const needsType = computed(() => preview.value?.warnings.includes('stats_category_unknown') ?? false);
 const needsSystem = computed(
   () => !!preview.value && (preview.value.warnings.includes('galaxy_position_missing') || (preview.value.pageType === 'galaxy' && !!system.value)),
@@ -311,6 +333,7 @@ async function run(dryRun: boolean) {
     if (dryRun) {
       preview.value = res;
       saved.value = null;
+      sample.value = { note: '', sent: false, busy: false, error: '' };
     } else {
       saved.value = res;
       refreshSyncHints(uni.value);
@@ -432,7 +455,7 @@ function next() {
           <li v-for="(p, i) in b.preview.preview.slice(0, 5)" :key="i">{{ previewText(p) }}</li>
           <li v-if="b.preview.preview.length > 5" class="muted">… {{ t('paste.more', { n: b.preview.preview.length - 5 }) }}</li>
         </ul>
-        <p v-else class="error small">{{ t('paste.noData') }}</p>
+        <p v-else class="error small">{{ b.preview.explain ? explainText(b.preview.explain) : t('paste.noData') }}</p>
       </template>
     </div>
   </div>
@@ -445,7 +468,20 @@ function next() {
       <li v-for="(p, i) in preview.preview.slice(0, 50)" :key="i">{{ previewText(p) }}</li>
       <li v-if="preview.preview.length > 50" class="muted">… {{ t('paste.more', { n: preview.preview.length - 50 }) }}</li>
     </ul>
-    <p v-else class="error">{{ t('paste.noData') }}</p>
+    <template v-else>
+      <p class="error">{{ preview.explain ? explainText(preview.explain) : t('paste.noData') }}</p>
+      <div v-if="preview.explain && preview.explain.code !== 'too_short' && preview.explain.code !== 'not_game'" class="sample">
+        <p v-if="sample.sent" class="ok small"><Icon name="check" :size="12" /> {{ t('paste.sample.sent') }}</p>
+        <template v-else>
+          <p class="muted small">{{ t('paste.sample.hint') }}</p>
+          <div class="row">
+            <input v-model="sample.note" class="grow" maxlength="500" :placeholder="t('paste.sample.note')" />
+            <button :disabled="sample.busy" @click="sendSample">{{ t('paste.sample.send') }}</button>
+          </div>
+          <p v-if="sample.error" class="error small">{{ sample.error }}</p>
+        </template>
+      </div>
+    </template>
     <ul v-if="preview.settlements?.length" class="settlements small">
       <li v-for="x in preview.settlements" :key="x.id">
         <Icon name="raids" :size="14" />
@@ -491,4 +527,6 @@ function next() {
 .batch-name { overflow-wrap: anywhere; }
 .batch-lines { margin: 4px 0 0; padding-left: 18px; }
 .small-btn { padding: 1px 6px; }
+.sample { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); }
+.sample p { margin: 0 0 6px; }
 </style>

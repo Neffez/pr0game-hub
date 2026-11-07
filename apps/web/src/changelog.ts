@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Erkennt der Hub eine eingefügte Seite nicht, sagt er jetzt warum – etwa „das ist die Schiffswerft, die liest der Hub noch nicht“ oder „die Seite ist auf Französisch“. Solche Seiten kannst du den Admins anonymisiert als Probe schicken, damit sie den Hub verbessern.',
+        en: 'When the hub does not recognize a pasted page, it now says why – e.g. "this is the shipyard, which the hub does not read yet" or "the page is in French". You can send such pages to the admins, anonymized, as a sample so they can improve the hub.',
+      },
+      {
+        kind: 'new',
         de: 'Synchronisieren: mehrere gespeicherte Seiten auf einmal hochladen oder hineinziehen (auch einen ganzen Ordner), oder Seiten nacheinander einfügen und sammeln. Jede Seite bekommt ihre eigene Vorschau, gespeichert wird alles mit einem Klick.',
         en: 'Sync: upload or drop several saved pages at once (a whole folder too), or paste pages one after the other and collect them. Each page gets its own preview, one click saves them all.',
       },
