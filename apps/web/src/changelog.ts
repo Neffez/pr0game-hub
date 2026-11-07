@@ -16,6 +16,16 @@ export interface ChangelogDay {
 
 export const CHANGELOG: ChangelogDay[] = [
   {
+    date: '2026-11-07',
+    items: [
+      {
+        kind: 'fix',
+        de: 'Sicherheit: Spieler ohne Konto, die in mehreren Allianzen eingetragen sind, kann nur noch ein Admin aller dieser Allianzen per Einladungslink oder Zugangsanfrage vergeben. So kommt niemand über einen solchen Spieler an die Daten einer fremden Allianz.',
+        en: 'Security: players without an account who are in several alliances can only be handed out by invite link or access request by an admin of all those alliances. Nobody gets at another alliance\'s data through such a player.',
+      },
+    ],
+  },
+  {
     date: '2026-11-06',
     items: [
       {

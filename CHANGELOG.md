@@ -2,6 +2,13 @@
 
 Every commit adds its changes here, newest first, grouped by date.
 
+## 2026-11-07
+
+- Security: alliance admins can no longer get into another alliance through a placeholder member that is in several
+  alliances (e.g. added to the alliance of a new universe). Claim links and access request assignments for such a
+  placeholder need a global admin or an admin of every alliance it belongs to (whoever takes it over becomes a member
+  of all of them); the access request list only offers alliance admins placeholders that are in their alliances only.
+
 ## 2026-11-06
 
 - Inactivity check reads better: false alarms by how soon the player showed activity (within 12, 24 and 72 hours; the
