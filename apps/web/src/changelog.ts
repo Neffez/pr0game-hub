@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Bauen und Forschen: Die Planetenauswahl ragt auf dem Handy nicht mehr über den Bildschirmrand hinaus.',
+        en: 'Build and research: the planet selection no longer runs past the screen edge on phones.',
+      },
+      {
+        kind: 'fix',
         de: 'Farm-Finder: Der Tab Spionage-Priorität zeigt nur noch seinen eigenen Hinweis, nicht zusätzlich den vom Tab Ziele.',
         en: 'Farm finder: the spy priority tab now shows only its own hint, no longer the one of the targets tab as well.',
       },

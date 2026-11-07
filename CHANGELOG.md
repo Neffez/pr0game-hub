@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-07
 
+- Build page (buildings, research and the other tabs): on mobile the planet select takes the full row and shrinks to the
+  screen instead of running past its edge with long planet names.
+
 - Farm finder: the spy priority tab shows only its own info hint, no longer the targets tab's as well.
 
 - Fleet save by colonization (colony save): with a colony ship in the fleet, the fleet save planner and the attack

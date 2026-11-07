@@ -283,7 +283,7 @@ const costClass = (b: { missing: Record<number, number> }, res: number) => (b.mi
   <template v-if="data && current">
     <div class="card">
       <div class="row small">
-        <label data-tour="build-planet">
+        <label class="bld-planet" data-tour="build-planet">
           {{ t('buildings.planet') }}
           <select :value="current.key" @change="stored = ($event.target as HTMLSelectElement).value">
             <option v-for="p in planets" :key="p.key" :value="p.key">{{ planetLabel(p) }}</option>
@@ -585,7 +585,12 @@ const costClass = (b: { missing: Record<number, number> }, res: number) => (b.mi
 .bld-search { width: 180px; }
 .bld-amount { width: 72px; text-align: right; }
 .bld-total + .bld-total::before { content: ' · '; }
+/* the planet select is as wide as its longest name: on narrow screens it takes the row and shrinks to fit */
+.bld-planet { display: inline-flex; align-items: center; max-width: 100%; min-width: 0; }
+.bld-planet select { min-width: 0; max-width: 100%; text-overflow: ellipsis; }
 @media (max-width: 800px) {
+  .bld-planet { flex: 1 1 100%; }
+  .bld-planet select { flex: 1 1 auto; width: 0; }
   .bld-filters select, .bld-search { flex: 1 1 140px; width: auto; min-width: 0; }
 }
 .bld-hidden { opacity: 0.45; }
