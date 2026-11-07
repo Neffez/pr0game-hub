@@ -24,7 +24,8 @@ External analysis tool for [pr0game](https://codeberg.org/pr0game/pr0game) based
   requirements, cost of the next level, missing resources and when they are there (production up to the storage plus
   resources of landing fleets), build and research time (catch-up bonus, robot/nanite factories, labs with the research
   network, TechnoDome), locks like the game; a bell per element notifies (hub bell, push, Discord) once the next level is
-  possible
+  possible; the **upgrade advisor** ranks the next mine, energy and production research levels by payback time (market
+  rate, energy that has to come along) and puts a step into the build order in one click
 - **Marketplace**: the alliance's market rate (exact from the page source, estimated from a copied page, or set by
   hand) with its history and the open offers of the latest sync; the rate feeds the loot settlement and battle
   simulator links, new offers show up in the activity log

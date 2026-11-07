@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Upgrade-Berater unter Bauen & Forschen: Minen, Energie und Produktionsforschung sortiert danach, wie schnell sie sich amortisieren (zum Marktkurs der Allianz) – mit einem Klick in die Bauliste. Im Gebäude-Reiter steht der beste nächste Schritt.',
+        en: 'Upgrade advisor under Build & research: mines, energy and production research ranked by how fast they pay back (at the alliance\'s market rate) – into the build order in one click. The buildings tab shows the best next step.',
+      },
+      {
+        kind: 'new',
         de: 'Fleetsave mit Recyclern: Flotten mit Recycler bekommen zusätzlich „Abbauen“ zu einem Trümmerfeld und zurück – mit viel feiner abgestuften Flugzeiten.',
         en: 'Fleet save with recyclers: fleets with a recycler also get "Recycle" to a debris field and back – with much finer flight times.',
       },

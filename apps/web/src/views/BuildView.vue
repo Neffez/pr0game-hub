@@ -5,7 +5,7 @@ import {
   type BuildingInfo, type BuildPlanet, type ShipInfo,
 } from '@pr0hub/core/buildings';
 import { RESOURCES } from '@pr0hub/core/tech';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import { uniApi } from '../api';
@@ -14,6 +14,7 @@ import Hint from '../components/Hint.vue';
 import PageHeader from '../components/PageHeader.vue';
 import Ticker from '../components/Ticker.vue';
 import BuildOrder from '../components/BuildOrder.vue';
+import UpgradeAdvisor from '../components/UpgradeAdvisor.vue';
 import { useLoader, useMobile, useStored, useUni } from '../composables';
 import { useAutoTour } from '../tours';
 import { ago, dateTime, fmt, name, short } from '../format';
@@ -80,8 +81,8 @@ const { data, error, load } = useLoader(() => uniApi<Data>(uni.value, '/building
 onMounted(load);
 useLiveReload(load, tables('empire', 'overview', 'buildings', 'research', 'fleets', 'building_alerts'));
 
-type Tab = 'buildings' | 'research' | 'ships' | 'order';
-const TABS: Tab[] = ['buildings', 'research', 'ships', 'order'];
+type Tab = 'buildings' | 'research' | 'ships' | 'order' | 'advisor';
+const TABS: Tab[] = ['buildings', 'research', 'ships', 'order', 'advisor'];
 const storedTab = useStored<Tab>('build.tab', 'buildings');
 /** the tab from the link (push notification, bell), else the last one */
 const tab = computed<Tab>({
@@ -114,8 +115,14 @@ watch(
 );
 const allPlanets = computed(() => data.value?.planets ?? []);
 useAutoTour('build', () => !!data.value && allPlanets.value.length > 0, tab);
+// narrow screens: the tabs scroll sideways, keep the active one in view
+watch(
+  tab,
+  () => nextTick(() => document.querySelector('.build-tabs button.active')?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' })),
+  { immediate: true },
+);
 /** research is started on planets (moons have no lab); build orders are for planets */
-const planets = computed(() => (tab.value === 'research' || tab.value === 'order' ? allPlanets.value.filter((p) => p.type === 'planet') : allPlanets.value));
+const planets = computed(() => (tab.value === 'research' || tab.value === 'order' || tab.value === 'advisor' ? allPlanets.value.filter((p) => p.type === 'planet') : allPlanets.value));
 const current = computed(() => planets.value.find((p) => p.key === stored.value) ?? planets.value[0] ?? null);
 
 const now = useClock();
@@ -258,11 +265,12 @@ const costClass = (b: { missing: Record<number, number> }, res: number) => (b.mi
         <p>{{ t('buildings.hint3') }}</p>
       </Hint>
     </template>
-    <div class="seg">
+    <div class="seg build-tabs">
       <button data-tour="build-tab-buildings" :class="{ active: tab === 'buildings' }" @click="tab = 'buildings'">{{ t('buildings.tabBuildings') }}</button>
       <button data-tour="build-tab-research" :class="{ active: tab === 'research' }" @click="tab = 'research'">{{ t('buildings.tabResearch') }}</button>
       <button data-tour="build-tab-ships" :class="{ active: tab === 'ships' }" @click="tab = 'ships'">{{ t('buildings.tabShips') }}</button>
       <button data-tour="build-tab-order" :class="{ active: tab === 'order' }" @click="tab = 'order'">{{ t('buildings.tabOrder') }}</button>
+      <button data-tour="build-tab-advisor" :class="{ active: tab === 'advisor' }" @click="tab = 'advisor'">{{ t('buildings.tabAdvisor') }}</button>
     </div>
   </PageHeader>
 
@@ -300,6 +308,7 @@ const costClass = (b: { missing: Record<number, number> }, res: number) => (b.mi
         <span v-if="tab === 'buildings' && current.planet.fields" class="muted">{{ t('buildings.fields', { used: current.planet.fields.used, max: current.planet.fields.max }) }}</span>
       </div>
       <p v-if="missingPerHour" class="warn small" style="margin: 8px 0 0">{{ t('imperium.perHourMissing') }}</p>
+      <UpgradeAdvisor v-if="tab === 'buildings' && current.type === 'planet'" compact :hub="data" :planet-key="current.key" :mobile="mobile" @open="tab = 'advisor'" />
       <p v-if="tab === 'research' && !(current.planet.values[RESEARCH_LAB] ?? 0)" class="warn small" style="margin: 8px 0 0">{{ t('buildings.noLab') }}</p>
       <Ticker v-if="tab === 'research' && data.researchQueue.length" v-slot="{ now: n }">
         <div class="small" style="margin-top: 6px">
@@ -329,6 +338,7 @@ const costClass = (b: { missing: Record<number, number> }, res: number) => (b.mi
     </div>
 
     <BuildOrder v-if="tab === 'order'" :hub="data" :planet-key="current.key" :mobile="mobile" />
+    <UpgradeAdvisor v-else-if="tab === 'advisor'" :hub="data" :planet-key="current.key" :mobile="mobile" />
     <template v-else>
     <div class="row bld-filters" data-tour="build-filter">
       <select v-if="mobile" v-model="filter" :aria-label="t('buildings.filterLabel')">
@@ -558,6 +568,9 @@ const costClass = (b: { missing: Record<number, number> }, res: number) => (b.mi
 </template>
 
 <style scoped>
+/* five tabs: they scroll sideways on narrow screens instead of running over the edge */
+.build-tabs { max-width: calc(100vw - 32px); overflow-x: auto; scrollbar-width: none; }
+.build-tabs button { white-space: nowrap; flex: none; }
 .bld-res { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 10px; }
 .bld-res > div { display: flex; flex-direction: column; }
 .bld-arrival { margin-left: 8px; white-space: nowrap; }

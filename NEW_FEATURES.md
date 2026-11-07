@@ -17,6 +17,7 @@ source (`pr0game`: pages, missions, achievements, advanced stats).
 | A-3 Hostile phalanx exposure | Done | 2026-11-07 | My empire (section and marks), notifications (bell, push, Discord) |
 | A-2 Fleet save planner | Done | 2026-11-07 | new menu item "Fleet save" under Combat & expeditions |
 | A-1 Incoming attack assistant | Done | 2026-11-07 | page per attack, opened from bell, push, Discord and the raid planner |
+| C-1 Upgrade advisor | Done | 2026-11-07 | Build & research: tab "Advisor", best next step in the buildings tab |
 
 Each finished item carries a **Status** block below its description: what was built and how.
 
@@ -370,6 +371,27 @@ the build order.
 
 Improvement over today: the build view tells *when* a level is possible, not *which* level is worth it.
 
+**Status: done (2026-11-07).** How it was built:
+
+- **Game math in `@pr0hub/core/advisor`** (`upgradeAdvice`): per planet the next level of each mine; the energy for it
+  when the new level would run short (solar plant or fusion reactor up to 5 levels more, or the solar satellites that
+  close the gap; the combination with the shortest payback); energy alone (one level, or the satellites) only while
+  the mines are short of it; account wide the mining research 131-133 (pr0game's +2 % per level instead of a plasma
+  technology) and energy technology 113, summed over all planets. Gains with `productionOf` (energy factor, fusion
+  deuterium use, resource multiplier), scaled per resource with `calibrate` to what the synced empire page showed
+  (production settings, bonuses); costs with `buildingCost` and the catch-up bonus, satellites from the unit catalog.
+  Payback = cost value / gain value per hour, both in deuterium with the market rate (default 3 : 2 : 1).
+  Requirements and maximum levels like the game. Tests in `packages/parser/test/advisor.test.ts`.
+- **Web:** `UpgradeAdvisor.vue` in a new tab "Advisor" of `BuildView.vue` (all planets or only the chosen one; cards
+  on mobile) and as one line "best next step" in the buildings tab. Data of `/buildings` (levels after the build
+  queue, research queue, resource multiplier, catch-up bonus) and the group's market rate; no new API.
+- **Build order:** "Add to build order" inserts the step(s) (+1 level each, satellites as one ship step, research on the
+  chosen planet) after the steps checked off (`PATCH /build-order`), or starts a build order from the current levels
+  (`PUT`, `meta.source: advisor`). Tests in `apps/web/test/advisor.test.ts`.
+- **Tours:** steps `build.advisor`, `build.advisorList`. **Texts:** `advisor.*`, `buildings.tabAdvisor`.
+- **Left for later:** storage levels when a storage limits the production, build time as a second criterion, a
+  forecast over several steps (the build order's timeline does that already).
+
 ### C-2 Resource logistics planner
 **Value:** Medium · **Effort:** M · **Builds on:** build order (`transport` steps), empire page, flight math
 
@@ -586,8 +608,8 @@ E-1 What to paste next · F-1 Global search · B-1 Farm finder · B-3 Inactivity
 exposure (all done)
 
 **Next:**
-A-1 Incoming attack assistant (done) · A-2 Fleet save planner (done) · C-1 Upgrade advisor · D-1 Alliance health
-dashboard · F-3 Export
+A-1 Incoming attack assistant (done) · A-2 Fleet save planner (done) · C-1 Upgrade advisor (done) · D-1 Alliance
+health dashboard · F-3 Export
 
 **Later:**
 A-4 Defense advisor · C-2 Logistics planner · C-3 Resource requests · C-4 Expedition planner · D-2 War dashboard ·

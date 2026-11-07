@@ -4,6 +4,16 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-07
 
+- Upgrade advisor (backlog item C-1): new tab "Advisor" under Build & research and a "best next step" line in the
+  buildings tab. `upgradeAdvice` in `@pr0hub/core/advisor` ranks the next level of each mine, the energy for it
+  (solar plant, fusion reactor, solar satellites; a mine short of energy comes with the cheapest energy that covers
+  the gap, energy alone only while the mines are short of it) and the account's production research (mining research
+  131-133 on all planets, energy technology for the fusion reactor) by payback time: cost (with the catch-up bonus)
+  against the extra production per hour, both valued in deuterium with the group's market rate (3 : 2 : 1 without
+  one). Production as the game computes it, scaled per resource to the synced empire page, from the levels after the
+  build queue. "Add to build order" inserts the steps after the steps checked off, or starts a build order.
+  Build & research tabs scroll sideways on narrow screens.
+
 - Fleet save by recycling: fleets with a recycler also get "Recycle" options to the debris field of an occupied
   position and back home (the game offers recycling there also without debris), in the fleet save planner (switchable)
   and the attack assistant. One target per distance keeps it to a few hundred. New `GET /api/:uni/positions?g=`
