@@ -4,6 +4,13 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-07
 
+- Export (backlog item F-3): `GET /api/:uni/export` (JSON of the group's data: players with alliance, status and
+  newest points per category, galaxy planets with moon and debris, spy and battle reports and expeditions of the last
+  `days` (default 30), deliveries of finalized loot settlements) and `GET /api/:uni/export/:dataset.csv` (one dataset,
+  UTF-8 with BOM, separator comma, semicolon or tab). Both are attachments and work with read-only API tokens. CSV
+  buttons in the overview (players or planets), statistics, spy reports, expeditions and the raids' settlements and
+  statistics; JSON links per alliance under Account → API tokens.
+
 - Alliance health (backlog item D-1): new page "Health" under Alliance for alliance admins
   (`GET /api/:uni/alliance-health`, `repo/health.ts`, 403 for others). Per member: total points, rank and growth over
   7 days (from the newest statistics update at or before the start), last visit in the hub, the newest sync per page

@@ -103,6 +103,18 @@ const en: typeof de = {
       away: 'Not in the hub for 3 days',
     },
   },
+  export: {
+    heading: 'Export data',
+    hint: 'Your alliance\'s data as JSON (players, planets, spy and battle reports, expeditions of the last 30 days, loot settlements). CSV is next to the tables. Both work with an API token too, e.g. for spreadsheets.',
+    title: {
+      players: 'Players with alliance, status and points as CSV',
+      planets: 'Planets of the galaxy data with moon and debris field as CSV',
+      'spy-reports': 'Spy reports of the last 30 days as CSV',
+      'battle-reports': 'Battle reports of the last 30 days as CSV',
+      expeditions: 'Expeditions of the last 30 days as CSV',
+      settlements: 'Deliveries of the finalized loot settlements as CSV',
+    },
+  },
   attack: {
     open: 'Open the attack assistant',
     title: 'Attack on {member}',

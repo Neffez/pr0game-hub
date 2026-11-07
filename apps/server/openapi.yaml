@@ -2597,6 +2597,59 @@ paths:
                         openDeliveries: { type: integer }
                         flags: { type: array, items: { type: string, enum: [behind, noEmpire, noStats, away] } }
         '403': { description: 'Not an alliance admin (`group_admin_only`)' }
+  /api/{uni}/export:
+    get:
+      tags: [Universe]
+      operationId: exportGroupData
+      description: >-
+        The group's data as one JSON file (attachment): `players` (with alliance, status, newest points and rank per
+        category), `planets` (galaxy data with moon and debris), `spy-reports`, `battle-reports` and `expeditions` of
+        the last `days` (default 30), and the deliveries of finalized loot settlements. Only what every member sees in
+        the hub. Works with a read-only API token.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+        - { name: days, in: query, schema: { type: integer, minimum: 1, maximum: 365 }, description: 'Reports, battles and expeditions this many days back (default 30)' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  universe: { type: string }
+                  group: { type: string }
+                  exportedAt: { type: integer }
+                  since: { type: integer }
+                  players: { type: array, items: { type: object } }
+                  planets: { type: array, items: { type: object } }
+                  spy-reports: { type: array, items: { type: object } }
+                  battle-reports: { type: array, items: { type: object } }
+                  expeditions: { type: array, items: { type: object } }
+                  settlements: { type: array, items: { type: object } }
+        '400': { description: 'Invalid `days` (`export_invalid`)' }
+  /api/{uni}/export/{dataset}:
+    get:
+      tags: [Universe]
+      operationId: exportDatasetCsv
+      description: >-
+        One dataset of `/api/{uni}/export` as CSV (attachment, UTF-8 with BOM, header row, times as Unix seconds,
+        numbers unformatted). `dataset` may end in `.csv`. Works with a read-only API token.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+        - { name: dataset, in: path, required: true, schema: { type: string, enum: [players, planets, spy-reports, battle-reports, expeditions, settlements] } }
+        - { name: days, in: query, schema: { type: integer, minimum: 1, maximum: 365 }, description: 'Like `/api/{uni}/export`' }
+        - { name: sep, in: query, schema: { type: string, enum: [comma, semicolon, tab] }, description: 'Separator (default comma; semicolon for spreadsheets with a decimal comma)' }
+      responses:
+        '200':
+          content:
+            text/csv:
+              schema: { type: string }
+        '400': { description: 'Invalid `days` (`export_invalid`)' }
+        '404': { description: 'Unknown dataset (`export_unknown`)' }
   /api/{uni}/attack-assist:
     get:
       tags: [Universe]

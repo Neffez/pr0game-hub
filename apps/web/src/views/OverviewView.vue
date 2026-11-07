@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import CsvButton from '../components/CsvButton.vue';
 import Loading from '../components/Loading.vue';
 import ActionMenu from '../components/ActionMenu.vue';
 import FilterBar, { type FilterChip } from '../components/FilterBar.vue';
@@ -518,6 +519,7 @@ const history = computed(() => {
       </Hint>
       <Hint v-if="players.length && !history" warn>{{ t('overview.needTwoStands') }}</Hint>
     </template>
+    <CsvButton :dataset="mode === 'players' ? 'players' : 'planets'" />
     <ActionMenu
       v-if="narrow"
       :items="[{ label: desktopView ? t('overview.layoutMobile') : t('overview.layoutDesktop'), hint: t('overview.layoutTitle'), onClick: () => (desktopView = !desktopView) }]"

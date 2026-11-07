@@ -104,6 +104,18 @@ const de = {
       away: 'Seit 3 Tagen nicht im Hub',
     },
   },
+  export: {
+    heading: 'Daten exportieren',
+    hint: 'Die Daten deiner Allianz als JSON (Spieler, Planeten, Spionage- und Kampfberichte, Expeditionen der letzten 30 Tage, Beuteabrechnungen). CSV gibt es an den Tabellen. Beides geht auch mit einem API-Token, etwa für Tabellenkalkulationen.',
+    title: {
+      players: 'Spieler mit Allianz, Status und Punkten als CSV',
+      planets: 'Planeten der Galaxie-Daten mit Mond und Trümmerfeld als CSV',
+      'spy-reports': 'Spionageberichte der letzten 30 Tage als CSV',
+      'battle-reports': 'Kampfberichte der letzten 30 Tage als CSV',
+      expeditions: 'Expeditionen der letzten 30 Tage als CSV',
+      settlements: 'Lieferungen der festgeschriebenen Beuteabrechnungen als CSV',
+    },
+  },
   attack: {
     open: 'Angriffs-Assistent öffnen',
     title: 'Angriff auf {member}',

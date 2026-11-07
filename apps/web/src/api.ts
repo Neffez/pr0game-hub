@@ -35,6 +35,16 @@ export function downloadUniverseJson(uni: string) {
   location.href = `${import.meta.env.BASE_URL}api/${uni}/universe-json${group ? `?group=${group}` : ''}`;
 }
 
+/** Download link of the group's data: all as JSON (`dataset` omitted) or one dataset as CSV (attachments). */
+export function exportUrl(uni: string, dataset?: string, opts: { days?: number; sep?: 'comma' | 'semicolon' | 'tab' } = {}) {
+  const q = new URLSearchParams();
+  const group = selectedGroup(uni);
+  if (group) q.set('group', String(group));
+  if (opts.days) q.set('days', String(opts.days));
+  if (dataset && opts.sep && opts.sep !== 'comma') q.set('sep', opts.sep);
+  return `${import.meta.env.BASE_URL}api/${uni}/export${dataset ? `/${dataset}.csv` : ''}${q.size ? `?${q}` : ''}`;
+}
+
 export function selectGroup(uni: string, id: number) {
   try {
     localStorage.setItem(GROUP_KEY + uni, String(id));

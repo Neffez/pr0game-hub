@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useAutoTour } from '../tours';
+import CsvButton from '../components/CsvButton.vue';
 import Loading from '../components/Loading.vue';
 import Icon from '../components/Icon.vue';
 import Hint from '../components/Hint.vue';
@@ -123,6 +124,7 @@ useAutoTour('stats', () => !!data.value);
         <p>{{ t('stats.hint5') }}</p>
       </Hint>
     </template>
+    <CsvButton dataset="players" />
   </PageHeader>
 
   <div class="card">

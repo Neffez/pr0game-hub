@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Export: CSV-Knopf an Übersicht, Statistik, Spionageberichten, Expeditionen und Raids, und alle Daten deiner Allianz als JSON unter Konto. Mit einem API-Token holt sich auch eine Tabellenkalkulation die Daten.',
+        en: 'Export: a CSV button on overview, statistics, spy reports, expeditions and raids, and all your alliance\'s data as JSON under Account. With an API token a spreadsheet can fetch the data too.',
+      },
+      {
+        kind: 'new',
         de: 'Allianz-Gesundheit für Allianz-Admins: je Mitglied Wachstum der Woche gegen den Median, letzter Besuch, wann welche Seite eingefügt wurde, Kämpfe, Expeditionen und offene Lieferungen. Wer zurückfällt, kein Imperium mehr einfügt oder nicht mehr vorbeischaut, ist markiert.',
         en: 'Alliance health for alliance admins: per member the growth of the week against the median, last visit, when which page was pasted, battles, expeditions and open deliveries. Members who fall behind, stop pasting their empire page or stay away are flagged.',
       },

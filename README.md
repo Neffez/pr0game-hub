@@ -47,6 +47,8 @@ External analysis tool for [pr0game](https://codeberg.org/pr0game/pr0game) based
 - **Alliance health** (alliance admins): per member points and growth over 7 days against the alliance median, last
   visit in the hub, the last sync per page type, battles and expeditions of the week, open loot deliveries, and flags
   for members who fall behind, sync no empire page or stay away
+- **Export**: CSV next to the large tables (players, planets, spy and battle reports, expeditions, loot deliveries) and
+  the whole group's data as JSON under Account; both work with a read-only API token (spreadsheets, scripts)
 - **Farm finder**: spied targets outside the own alliance ranked by loot per flight hour: the resources of the
   newest spy report plus the production since then (capped by the storages), ships, fuel and flight time from the
   nearest own planet, defense and fleet risk and an inactivity score (game flag, latest proven activity, relevant

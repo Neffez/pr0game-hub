@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import CsvButton from '../components/CsvButton.vue';
 import ExpeditionDeck from '../components/ExpeditionDeck.vue';
 import ExpeditionStats from '../components/ExpeditionStats.vue';
 import Hint from '../components/Hint.vue';
@@ -43,6 +44,7 @@ const tab = computed<ExpoTab>({
         <p>{{ t('expeditions.hint3') }}</p>
       </Hint>
     </template>
+    <CsvButton v-if="tab !== 'deck'" dataset="expeditions" />
   </PageHeader>
   <div class="seg tab-seg">
     <button :class="{ active: tab === 'stats' }" data-tour="expo-tab-stats" @click="tab = 'stats'">{{ t('expeditions.tabStats') }}</button>

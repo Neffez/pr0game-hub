@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { nowSec } from '../clock';
+import CsvButton from '../components/CsvButton.vue';
 import Loading from '../components/Loading.vue';
 import ActionMenu from '../components/ActionMenu.vue';
 import ClaimedTargets from '../components/ClaimedTargets.vue';
@@ -132,6 +133,7 @@ const delay = (p: AttackPlan) => (rp.exact(p) ? (rp.views.value.get(p.id)?.acs?.
 <template>
   <PageHeader :title="t('nav.raids')" tour="raids">
     <template #hint><Hint>{{ tab === 'stats' ? t('raids.hint') : t('plans.hint') }}</Hint></template>
+    <CsvButton v-if="tab === 'settlements' || tab === 'stats'" :dataset="tab === 'settlements' ? 'settlements' : 'battle-reports'" />
   </PageHeader>
   <div class="seg tab-seg">
     <button data-tour="raids-tab-plans" :class="{ active: tab === 'plans' }" @click="tab = 'plans'">{{ t('plans.tabPlans') }}</button>

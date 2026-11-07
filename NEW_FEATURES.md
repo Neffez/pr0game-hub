@@ -19,6 +19,7 @@ source (`pr0game`: pages, missions, achievements, advanced stats).
 | A-1 Incoming attack assistant | Done | 2026-11-07 | page per attack, opened from bell, push, Discord and the raid planner |
 | C-1 Upgrade advisor | Done | 2026-11-07 | Build & research: tab "Advisor", best next step in the buildings tab |
 | D-1 Alliance health dashboard | Done | 2026-11-07 | new menu item "Health" under Alliance (alliance admins) |
+| F-3 Export | Done | 2026-11-07 | CSV buttons at the large tables, JSON under Account; API tokens work |
 
 Each finished item carries a **Status** block below its description: what was built and how.
 
@@ -592,6 +593,20 @@ CSV download of every large table (overview, statistics, spy reports, loot settl
 documented JSON export of the group's own data. Many alliances keep spreadsheets; the hub should feed them instead
 of competing with them.
 
+**Status: done (2026-11-07).** How it was built:
+
+- **Server:** `apps/server/src/repo/export.ts` builds one table per dataset (`players`, `planets`, `spy-reports`,
+  `battle-reports`, `expeditions`, `settlements`) from the group's data only (no private messages or unshared fleets);
+  reports, battles and expeditions of the last `days` (1-365, default 30). `GET /api/:uni/export` returns all of them
+  as JSON objects, `GET /api/:uni/export/:dataset(.csv)` one as CSV (RFC 4180, UTF-8 with BOM, `sep` comma, semicolon or
+  tab, times as Unix seconds, numbers unformatted); both as attachments, GET, so read-only API tokens may call them.
+  `exportGroupData` and `exportDatasetCsv` in `openapi.yaml`, tests in `apps/server/test/export.test.ts`.
+- **Web:** `CsvButton.vue` in the page header of the overview (players or planets by mode), statistics, spy reports,
+  expeditions and the raids (settlements: deliveries, statistics: battle reports), semicolons in German for
+  spreadsheets with a decimal comma; JSON links per alliance under Account → API tokens. **Texts:** `export.*`.
+- **Left for later:** a token in the URL for spreadsheet functions that cannot send headers (e.g. `IMPORTDATA`), which
+  needs a decision on tokens in URLs (they end up in logs), and the filters of a view in its CSV.
+
 ### F-4 Discord commands
 **Value:** Medium · **Effort:** M · **Builds on:** Discord integration, battle simulation API, player API
 
@@ -629,7 +644,7 @@ exposure (all done)
 
 **Next:**
 A-1 Incoming attack assistant (done) · A-2 Fleet save planner (done) · C-1 Upgrade advisor (done) · D-1 Alliance
-health dashboard (done) · F-3 Export
+health dashboard (done) · F-3 Export (done)
 
 **Later:**
 A-4 Defense advisor · C-2 Logistics planner · C-3 Resource requests · C-4 Expedition planner · D-2 War dashboard ·
