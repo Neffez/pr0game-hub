@@ -15,6 +15,8 @@ source (`pr0game`: pages, missions, achievements, advanced stats).
 | B-1 Farm finder with projected resources | Done | 2026-11-06 | new menu item "Farm finder" under Combat & expeditions |
 | B-3 Inactivity confidence | Done (second version) | 2026-11-06 | farm finder, overview, player details, check in the admin panel |
 | A-3 Hostile phalanx exposure | Done | 2026-11-07 | My empire (section and marks), notifications (bell, push, Discord) |
+| A-5 Who threatens me | Open (not started) | — | — |
+| C-3 Alliance trade board | Open (refined, not started) | 2026-11-07 | Marketplace page, tab "Alliance" (planned) |
 | A-2 Fleet save planner | Done | 2026-11-07 | new menu item "Fleet save" under Combat & expeditions |
 | A-1 Incoming attack assistant | Done | 2026-11-07 | page per attack, opened from bell, push, Discord and the raid planner |
 | C-1 Upgrade advisor | Done | 2026-11-07 | Build & research: tab "Advisor", best next step in the buildings tab |
@@ -191,7 +193,8 @@ creates a notification.
   `imperium.phalanx`. **Texts:** `imperium.phalanx*`, `notify.phalanx*`, `account.pushKind.phalanx`.
 - **Galaxy browser:** its phalanx coverage now uses `phalanxMoons` (same data, destroyed moons left out).
 - Tests in `apps/server/test/phalanx.test.ts` and `apps/web/test/imperium.test.ts`.
-- **Left for later:** the marks in a fleet save view (A-2 does not exist yet); the phalanx moon's deuterium and the
+- **Left for later:** a mark per fleet save option that starts from a planet in phalanx reach (today the fleet save view
+  shows one hint per planet); the phalanx moon's deuterium and the
   noob protection between the players (the game checks both) are unknown to the hub, so a listed phalanx may not be
   usable right now.
 
@@ -432,7 +435,8 @@ harvesting to catch a fleet saved on it is a different feature (B-7 below). How 
   `PlanetActions` with `type="debris"`: recycle in the game (mission 8), flight time, galaxy, claim.
 - **Texts:** `debris.*`, `nav.debris`, `actions.recycle`, `claims.kinds.recycle`, `claims.debris`.
 - **Left for later:** the weekly debris cleaner (an empty field may be gone, see `/debris-fields`) only matters for
-  fleet saves, not for fields with debris; a tour for the page.
+  fleet saves, not for fields with debris. The tour is done: the tab step `farm.debris` and the content steps
+  `farm.debrisFilter` to `farm.debrisList` in the farm finder's tour.
 
 ### B-5 Raid profitability over time
 **Value:** Medium · **Effort:** S · **Builds on:** raid statistics, loot settlement
@@ -516,11 +520,72 @@ For a goal on one planet (a build order step, a fleet to build), gather the miss
 planets: how much from where, which cargo ships, departure and arrival, so that the resources arrive when the step
 is due. The member sends the transports by hand; transport reports tick them off.
 
-### C-3 Alliance resource requests
-**Value:** Medium · **Effort:** M · **Builds on:** loot settlement deliveries, transport reports, notifications
+### C-3 Alliance trade board (internal market)
+**Value:** Medium · **Effort:** M · **Builds on:** Marketplace page (`MarketView.vue`, group market rate, trade
+history), loot settlement deliveries and transport/transfer reports, notifications (bell, push, Discord)
 
-A member asks for resources ("need 2 M crystal on 3:120:8 until Sunday"), others pledge an amount, transport
-reports tick deliveries off like in the loot settlement. Optional: account per member (who gave how much over time).
+**Idea.** Members put resources on the alliance's marketplace in the hub and say what they want in return. The hub
+replicates the game's marketplace (give X, want Y, exchange ratio, expiry), but the trade is **internal**: the
+counterparty is a member of the same group, and the trade is agreed in the hub and then carried out directly in the
+game by a transfer, not via the game's marketplace (no public offer, no fleet for the offer, no market fees or
+exposure to the market rate of other alliances).
+
+**Why.** Alliance members have uneven production and needs (one has surplus deuterium, another needs metal for a
+build order). Today they find each other in chat or in the game's public market, where the offer is visible to
+everyone and the trade is slow. The hub already knows the group's market rate, the trade history and the members'
+planets, so it can price and match offers.
+
+**Scope of the Marketplace page.**
+- The existing view becomes the tab **"Game"** (the game's offers, rate and history as today).
+- A new tab **"Alliance"** holds the internal board. Members see the open offers, their own offers and their
+  trades. Tour steps and a `head` step for the new tab, per the project rules.
+
+**Offers.**
+- A member gives an amount of one resource (metal, crystal, deuterium) and asks for an amount of another. The
+  ratio is computed from the two amounts; the form starts from the group's current market rate.
+- Optional: delivery planet or moon (coordinates) where the buyer wants the resources, a note, and an expiry
+  (e.g. 1, 3 or 7 days; default 3).
+- Optional: address a specific member ("only to X"). Default: open to all members.
+- Price guard: an offer far from the group's market rate (threshold in universe settings, default ±25 %) gets a
+  warning, not a block. The page shows the last game trades at the current rate for comparison.
+- Edit or cancel as long as nobody accepted; the creator can close it at any time. Admins can remove any offer.
+
+**Flow (states).**
+1. `open`: listed; accepts or expires.
+2. `accepted`: a member takes the offer (in full; partial takes if the seller allows them). Both are notified
+   (seller: "X accepted your offer, send Y to Z"). The hub shows the transfer as a to-do with the planet, the amount
+   and the in-game path (Transfer mission, the same instructions as the loot settlement deliveries).
+3. `delivered`: the hub ticks the delivery off when a transfer or transport report of the seller's planet shows the
+   amount sent to the buyer's planet (the same matching as deliveries in the loot settlement). If no report comes,
+   the seller or the buyer marks it by hand.
+4. `closed` (delivered and confirmed) or `cancelled` / `expired`.
+
+The hub never sends resources and never automates the game: the transfer is done by the member by hand. This keeps
+the project's copy-and-paste rule; the hub only tracks what the members agreed and what the reports show.
+
+**Trust.** Nothing is escrowed, so the hub records the outcome and does not enforce it. Trade counts per member
+(completed, cancelled, overdue deliveries) show as a reliability line on the offer. Overdue deliveries (no report
+after a set time, e.g. 48 h) notify the buyer and the seller once.
+
+**Notifications.** New offer addressed to me, offer accepted (seller), transfer due (both), delivery shown (both),
+offer expiring (creator, once). Push and Discord settings get one kind for the trade board (default on for
+addressed offers and accepted ones).
+
+**Data (group scope, `groupContext`).** One table for offers (give, want, planet, addressed member, state, creator,
+taker, times) and one for its events (state changes, delivery matches), so the history stays auditable. Migration
+and OpenAPI entries follow the project rules.
+
+**Left for later.**
+- Account per member (who gave and got how much over time, balance per pair of members) as a second view on the
+  same table. This is the "resource requests" idea of the earlier draft and needs the deliveries first.
+- Requests without an offer ("I need 2 M crystal until Sunday", others pledge an amount). Likely a separate tab
+  that reuses the same table with `kind = request`.
+- Statistics per alliance (volume by resource per week) and a read-only export (F-3).
+
+**Open decisions (to confirm before building).**
+- Is a partial take allowed by default, or only if the creator enables it per offer?
+- Should unanswered addressed offers expire faster than open ones?
+- Does the balance ledger come with the first release or later (current proposal: later)?
 
 ### C-4 Expedition planner
 **Value:** Medium · **Effort:** M · **Builds on:** expedition statistics, deck, universe settings
