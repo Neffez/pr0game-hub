@@ -133,3 +133,29 @@ export function colonizeSystems(db: DB, ctx: GroupContext, range: number) {
   }
   return { systems, own: own.length, seenSystems: seen.length, totalSystems: G * S, range };
 }
+
+/**
+ * Free positions of galaxies by the group's galaxy data (fleet save by colonization): per system seen in the galaxy
+ * the positions without a planet, destroyed ones count as taken (the game refuses colonizing a position with any
+ * planet row). `seen`: when the galaxy showed the system.
+ */
+export function freePositions(db: DB, ctx: GroupContext, galaxies: number[]) {
+  const g = ctx.groupId;
+  const { systems: S, positions } = ctx.universe.settings;
+  return Object.fromEntries(
+    galaxies.map((gal) => {
+      const taken = new Map<number, Set<number>>();
+      for (const p of db.prepare('SELECT s, p FROM planets WHERE group_id = ? AND g = ? AND (player_id IS NOT NULL OR destroyed)').all(g, gal) as { s: number; p: number }[]) {
+        (taken.get(p.s) ?? taken.set(p.s, new Set()).get(p.s)!).add(p.p);
+      }
+      const out: { s: number; free: number[]; seen: number }[] = [];
+      for (const v of db.prepare('SELECT s, seen_at FROM galaxy_views WHERE group_id = ? AND g = ? AND s <= ? ORDER BY s').all(g, gal, S) as { s: number; seen_at: number }[]) {
+        const busy = taken.get(v.s);
+        const free: number[] = [];
+        for (let p = 1; p <= positions; p++) if (!busy?.has(p)) free.push(p);
+        if (free.length) out.push({ s: v.s, free, seen: v.seen_at });
+      }
+      return [gal, out];
+    }),
+  );
+}

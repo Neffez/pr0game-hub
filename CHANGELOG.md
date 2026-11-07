@@ -4,6 +4,13 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-07
 
+- Fleet save by colonization (colony save): with a colony ship in the fleet, the fleet save planner and the attack
+  assistant offer a colonization of a free position and back home (timing and fuel like a transport; with the
+  maximum number of planets the game's `MissionCaseColonisation` sends the whole fleet back on arrival). Free
+  positions come from the group's galaxy data, one per distance, the most recently seen system first; the planner has
+  a "Colony save" switch (on by default) with a tour step. `@pr0hub/flight`: save kind `colonize`, target type
+  `free`, `COLONY_SHIP`; new endpoint `GET /api/{uni}/free-positions?g=` (OpenAPI `getFreePositions`).
+
 - Tours for the new tabs: the farm finder's tour has a step per tab button (targets, spy priority, debris finder) and
   steps for the spy priority (reasons, probes, priority) and the debris finder (period and filters, debris now,
   nearest member, recycle and claim); the planets tour has the tabs planets and colonize and steps for the

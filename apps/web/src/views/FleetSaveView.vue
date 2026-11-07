@@ -4,7 +4,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
 import { useClock } from '../clock';
-import FleetSaveOptions, { type DebrisField } from '../components/FleetSaveOptions.vue';
+import FleetSaveOptions, { type DebrisField, type FreeSystem } from '../components/FleetSaveOptions.vue';
 import Hint from '../components/Hint.vue';
 import Icon from '../components/Icon.vue';
 import PageHeader from '../components/PageHeader.vue';
@@ -41,10 +41,12 @@ const DEFAULT_PRESETS: Preset[] = [
 ];
 const presets = useStored<Preset[]>('fleetsave.presets', DEFAULT_PRESETS);
 const win = useStored<{ from: string; to: string }>('fleetsave.window', { from: DEFAULT_PRESETS[0].from, to: DEFAULT_PRESETS[0].to });
-const kinds = useStored<{ deploy: boolean; transport: boolean; harvest?: boolean }>('fleetsave.kinds', { deploy: true, transport: true, harvest: true });
+const kinds = useStored<{ deploy: boolean; transport: boolean; harvest?: boolean; colonize?: boolean }>('fleetsave.kinds', { deploy: true, transport: true, harvest: true, colonize: true });
 /** existing debris fields of the own galaxies: recycling targets */
 const fields = ref<Record<string, DebrisField[]>>({});
 const cleanup = ref<number | null>(null);
+/** free positions of the own galaxies: colonization targets */
+const free = ref<Record<string, FreeSystem[]>>({});
 async function loadFields() {
   const gs = [...new Set((data.value?.empire?.data.planets ?? []).map((b) => b.coords.g))];
   if (!gs.length) return;
@@ -52,6 +54,11 @@ async function loadFields() {
     ({ fields: fields.value, cleanup: cleanup.value } = await uniApi<{ fields: Record<string, DebrisField[]>; cleanup: number }>(uni.value, `/debris-fields?g=${gs.join(',')}`));
   } catch {
     /* without them no recycling */
+  }
+  try {
+    ({ systems: free.value } = await uniApi<{ systems: Record<string, FreeSystem[]> }>(uni.value, `/free-positions?g=${gs.join(',')}`));
+  } catch {
+    /* without them no colonization */
   }
 }
 watch(data, loadFields);
@@ -115,7 +122,7 @@ const rows = computed(() =>
   })),
 );
 const withShips = computed(() => rows.value.filter((r) => r.ships.length));
-const kindList = computed(() => (['deploy', 'transport', 'harvest'] as const).filter((k) => kinds.value[k] ?? true));
+const kindList = computed(() => (['deploy', 'transport', 'harvest', 'colonize'] as const).filter((k) => kinds.value[k] ?? true));
 </script>
 
 <template>
@@ -139,6 +146,7 @@ const kindList = computed(() => (['deploy', 'transport', 'harvest'] as const).fi
     <label class="check small"><input v-model="kinds.deploy" type="checkbox" /> {{ t('fleetsave.kinds.deploy') }}</label>
     <label class="check small"><input v-model="kinds.transport" type="checkbox" /> {{ t('fleetsave.kinds.transport') }}</label>
     <label class="check small" :title="t('fleetsave.harvestTitle')"><input v-model="kinds.harvest" type="checkbox" /> {{ t('fleetsave.kinds.harvest') }}</label>
+    <label class="check small" :title="t('fleetsave.colonizeTitle')" data-tour="fleetsave-colonize"><input v-model="kinds.colonize" type="checkbox" /> {{ t('fleetsave.kinds.colonize') }}</label>
   </div>
   <div class="card fs-presets small" data-tour="fleetsave-presets">
     <b>{{ t('fleetsave.presets') }}</b>
@@ -169,7 +177,7 @@ const kindList = computed(() => (['deploy', 'transport', 'harvest'] as const).fi
     </p>
     <FleetSaveOptions
       :from="r.from" :values="r.b.values" :research="research" :deuterium="deuterium(r.b)" :targets="targets"
-      :now="now" :latest="offline.latest" :back="offline.back" :kinds="kindList" :fields="fields" :cleanup="cleanup"
+      :now="now" :latest="offline.latest" :back="offline.back" :kinds="kindList" :fields="fields" :free="free" :cleanup="cleanup"
     />
   </div>
   <p v-if="withShips.length" class="muted small" data-tour="fleetsave-remind">

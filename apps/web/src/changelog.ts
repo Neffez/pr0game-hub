@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Fleetsave-Planer und Angriffsassistent kennen jetzt den Kolo-Save: Mit maximaler Anzahl an Planeten schickst du die ganze Flotte mit einem Kolonieschiff auf einen freien Platz aus der Galaxieansicht, und sie kommt zurück – mit Abflugzeit, Rückkehr und Deuterium wie bei den anderen Saves.',
+        en: 'The fleet save planner and the attack assistant now know the colony save: with the maximum number of planets, send the whole fleet with a colony ship to a free position from the galaxy view, and it comes back – with departure, return and deuterium like the other saves.',
+      },
+      {
+        kind: 'new',
         de: 'Spionage-Priorität, TF-Finder und Kolonisieren haben jetzt eine eigene Tour, die beim ersten Öffnen des Tabs startet (oder über das „?“).',
         en: 'Spy priority, debris finder and colonize now have their own tour, started the first time you open the tab (or from the "?").',
       },
