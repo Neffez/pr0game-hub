@@ -128,3 +128,13 @@ describe('hostile phalanx exposure', () => {
     expect(res.phalanx.map((m: any) => `${m.s}:${m.p}`).sort()).toEqual(['100:8', '101:2', '104:3', '95:4']);
   });
 });
+
+describe('occupied positions', () => {
+  it('lists the occupied positions of the asked galaxies', async () => {
+    const res = await get('/positions?g=1,9,x');
+    expect(Object.keys(res.positions)).toEqual(['1']);
+    // destroyed positions are left out, players' planets in order
+    expect(res.positions[1]).toEqual(expect.arrayContaining([[95, 4], [100, 8], [104, 3], [120, 1]]));
+    expect(res.positions[1].some(([s, p]: number[]) => s === 99 && p === 9)).toBe(true);
+  });
+});

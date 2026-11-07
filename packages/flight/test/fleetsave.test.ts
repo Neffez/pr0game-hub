@@ -67,3 +67,19 @@ describe('fleet save', () => {
     expect(r.rest).toBeGreaterThanOrEqual(back);
   });
 });
+
+describe('fleet save by recycling', () => {
+  const field = { coords: [1, 112, 3] as [number, number, number], type: 'debris' as const };
+  it('recycles at a debris field and back home only with a recycler in the fleet', () => {
+    const now = 1_800_000_000;
+    const input = { ...base, targets: [home, moon, far, field], now, latest: now, back: now + 600, speeds: [100], kinds: ['deploy', 'transport', 'harvest'] as ('deploy' | 'transport' | 'harvest')[] };
+    expect(fleetSaveOptions(input).some((o) => o.kind === 'harvest' || o.target === field)).toBe(false);
+    const list = fleetSaveOptions({ ...input, fleet: { ...fleet, 209: 10 } });
+    const harvest = list.filter((o) => o.kind === 'harvest');
+    expect(harvest.map((o) => o.target)).toEqual([field]);
+    expect(harvest[0].rest - harvest[0].departure).toBe(2 * Math.floor(harvest[0].duration));
+    expect(harvest[0].cost).toBe(harvest[0].fuel);
+    // no deploy or transport to a debris field
+    expect(list.some((o) => o.kind !== 'harvest' && o.target === field)).toBe(false);
+  });
+});

@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Fleetsave mit Recyclern: Flotten mit Recycler bekommen zusätzlich „Abbauen“ zu einem Trümmerfeld und zurück – mit viel feiner abgestuften Flugzeiten.',
+        en: 'Fleet save with recyclers: fleets with a recycler also get "Recycle" to a debris field and back – with much finer flight times.',
+      },
+      {
+        kind: 'new',
         de: 'Angriffs-Assistent: Schiffe, die du nach dem letzten Imperium weggeschickt hast, zählen im Kampfergebnis nicht mehr mit. Zeigt die Flottenbewegung keine Schiffe, schätzt der Hub die Angriffsflotte aus dem letzten Spionagebericht des Angreifers.',
         en: 'Attack assistant: ships you sent away after your latest empire page no longer count in the battle result. When the fleet movement shows no ships, the hub estimates the attacking fleet from the attacker\'s latest spy report.',
       },

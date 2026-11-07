@@ -95,6 +95,19 @@ const simLink = computed(() => {
 // ---- fleet save of the attacked body
 const from = computed<SaveTarget | null>(() => (data.value?.target ? { coords: [data.value.target.g, data.value.target.s, data.value.target.p], type: data.value.target.type, name: data.value.target.name } : null));
 const targets = computed<SaveTarget[]>(() => (data.value?.bodies ?? []).map((b) => ({ coords: [b.g, b.s, b.p], type: b.type, name: b.name })));
+/** occupied positions of the target's galaxy: recycling targets */
+const fields = ref<Record<string, [number, number][]>>({});
+watch(
+  () => data.value?.target?.g,
+  async (g) => {
+    if (g == null) return;
+    try {
+      fields.value = (await uniApi<{ positions: Record<string, [number, number][]> }>(uni.value, `/positions?g=${g}`)).positions;
+    } catch {
+      /* without them no recycling */
+    }
+  },
+);
 const deuterium = computed(() => {
   const x = data.value?.target;
   if (!x || x.deuterium == null) return null;
@@ -227,7 +240,7 @@ const openHelpers = computed(() => (data.value?.helpers ?? []).filter((h) => h.l
       <p v-else-if="!from" class="muted small m-0">{{ t('attack.noEmpire') }}</p>
       <FleetSaveOptions
         v-else :from="from" :values="data.target!.values" :research="data.research" :deuterium="deuterium" :targets="targets"
-        :now="now" :latest="a.arrival - 1" :back="a.arrival + 1" :kinds="['deploy', 'transport', 'recall']"
+        :now="now" :latest="a.arrival - 1" :back="a.arrival + 1" :kinds="['deploy', 'transport', 'harvest', 'recall']" :fields="fields"
       />
     </Section>
 

@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-07
 
+- Fleet save by recycling: fleets with a recycler also get "Recycle" options to the debris field of an occupied
+  position and back home (the game offers recycling there also without debris), in the fleet save planner (switchable)
+  and the attack assistant. One target per distance keeps it to a few hundred. New `GET /api/:uni/positions?g=`
+  (occupied positions of the group's galaxy data); `@pr0hub/flight` has the `harvest` kind and `RECYCLERS`.
+
 - Attack assistant: ships the member sent away from the attacked planet after their newest empire page (in a newer
   fleet list, not in one from up to the empire page) and that are not back by the impact are taken off the planet in
   the simulation and named (`away`); return flights are matched by their ships, so two flights on one route stay

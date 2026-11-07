@@ -15,7 +15,7 @@ const empire = {
   data: {
     research,
     planets: [
-      { name: 'Ares', coords: { g: 1, s: 100, p: 12 }, type: 'planet', values: { 202: 50, 203: 20, 401: 10 }, resources: { 903: 50_000 }, perHour: { 903: 0 } },
+      { name: 'Ares', coords: { g: 1, s: 100, p: 12 }, type: 'planet', values: { 202: 50, 203: 20, 209: 5, 401: 10 }, resources: { 903: 50_000 }, perHour: { 903: 0 } },
       { name: 'Ares', coords: { g: 1, s: 100, p: 12 }, type: 'moon', values: {} },
       { name: 'Zeus', coords: { g: 1, s: 180, p: 4 }, type: 'planet', values: {} },
     ],
@@ -89,7 +89,7 @@ describe('fleet save and attack assistant', () => {
     setLocale('de');
     localStorage.clear();
     vi.stubGlobal('fetch', async (url: string) => {
-      const body = url.includes('/attack-assist') ? assist : url.includes('/imperium') ? imperium : [];
+      const body = url.includes('/attack-assist') ? assist : url.includes('/imperium') ? imperium : url.includes('/positions') ? { positions: { 1: [[100, 5], [130, 9]] } } : [];
       return new Response(JSON.stringify(body), { headers: { 'content-type': 'application/json' } });
     });
   });
@@ -102,7 +102,11 @@ describe('fleet save and attack assistant', () => {
     expect(bodies).toHaveLength(1);
     expect(bodies[0].querySelector('.fs-phalanx')!.textContent).toBe(' Phalanx: Enemy 1:104:3');
     expect(bodies[0].querySelectorAll('.fso-table tbody tr').length).toBeGreaterThan(0);
-    expect(bodies[0].querySelector('.fso-table tbody td b')!.textContent).toMatch(/Stationieren|Transport/);
+    expect(bodies[0].querySelector('.fso-table tbody td b')!.textContent).toMatch(/Stationieren|Transport|Abbauen/);
+    // with a recycler the debris fields of occupied positions are targets too
+    (bodies[0].querySelector('.fso button.link') as HTMLButtonElement).click();
+    await settle();
+    expect(bodies[0].textContent).toContain('TF [1:130:9]');
   });
 
   it('shows the verdict, the loot, fleet saves before the impact and the helpers', async () => {

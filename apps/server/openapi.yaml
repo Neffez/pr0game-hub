@@ -2520,6 +2520,29 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Imperium' }
+  /api/{uni}/positions:
+    get:
+      tags: [Universe]
+      operationId: getPositions
+      description: >-
+        Occupied positions (with a player, not destroyed) of up to 10 galaxies from the group's galaxy data, as
+        `[system, position]` pairs per galaxy. The game offers recycling at their debris fields (also empty ones) with
+        a recycler in the fleet: fleet save targets.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+        - { name: g, in: query, required: true, schema: { type: string }, description: 'Galaxies, comma separated (`1,3`)' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  positions:
+                    type: object
+                    additionalProperties: { type: array, items: { type: array, items: { type: integer } } }
   /api/{uni}/attack-assist:
     get:
       tags: [Universe]

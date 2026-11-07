@@ -138,7 +138,10 @@ back. Typical windows ("night", "work") are saved as presets.
 - **Reminder:** after sending, the member pastes the overview and sets the bell on the fleet in My empire (the
   existing fleet alerts, push and Discord included); the page says so.
 - **Tour** `fleetsave`; **texts** `fleetsave.*`, `nav.fleetsave`; web tests in `apps/web/test/fleetsave-attack.test.ts`.
-- **Left for later:** recycler flights to debris fields (needs recyclers and a field), presets synced across devices,
+- **Follow-up (2026-11-07):** recycling as fleet save (`harvest`): with a recycler in the fleet, to the debris field of
+  any occupied position and back (the game's `getAvailableMissions` only needs a planet there, debris may be zero);
+  targets from `GET /api/:uni/positions?g=`, deduplicated by distance in the browser. Also in the attack assistant.
+- **Left for later:** presets synced across devices,
   a reminder without pasting the overview.
 
 ### A-3 Hostile phalanx exposure

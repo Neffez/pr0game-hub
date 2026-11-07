@@ -6,19 +6,26 @@
 import { distance, fleetConsumption, flightDuration, flightTimes, recallFor, slowestShip, SPEED_PERCENTS, type Coords, type Drives, type Fleet, type Universe } from './flight.js';
 import type { ShipCatalog } from './ships.js';
 
-/** Where the fleet can go: an own planet or moon. */
+/** Ships that make the recycling mission available (the game's ship type `recycler`). */
+export const RECYCLERS = [209];
+
+/**
+ * Where the fleet can go: an own planet or moon, or the debris field of an occupied position (the game offers recycling
+ * there with a recycler in the fleet, also when the field is empty).
+ */
 export interface SaveTarget {
   coords: Coords;
-  type: 'planet' | 'moon';
+  type: 'planet' | 'moon' | 'debris';
   name?: string | null;
 }
 
 /**
  * `deploy`: one way, the fleet stays at the target (rest = arrival). `transport`: there and back home (rest = landing
  * home; a transport to an own planet unloads and returns). `recall`: deploy far away and recall it so it lands back
- * home at the wanted time (needs the owner online at the recall).
+ * home at the wanted time (needs the owner online at the recall). `harvest`: recycling at a debris field and back home
+ * (needs a recycler in the fleet).
  */
-export type SaveKind = 'deploy' | 'transport' | 'recall';
+export type SaveKind = 'deploy' | 'transport' | 'recall' | 'harvest';
 
 export interface FleetSaveOption {
   kind: SaveKind;
@@ -31,7 +38,7 @@ export interface FleetSaveOption {
   arrival: number;
   /** recall only: when to recall the fleet */
   recall: number | null;
-  /** when the fleet is at rest again (deploy: arrival, transport and recall: home) */
+  /** when the fleet is at rest again (deploy: arrival, transport, harvest and recall: home) */
   rest: number;
   /** seconds after the wanted time (`rest - back`, ≥ 0) */
   late: number;
@@ -73,11 +80,14 @@ export function fleetSaveOptions(input: FleetSaveInput): FleetSaveOption[] {
   if (!slowest || slowest.speed <= 0 || latest < now) return [];
   const out: FleetSaveOption[] = [];
   const fuelOf = (duration: number, dist: number) => fleetConsumption(u, fleet, duration, dist, drives, 1, catalog);
+  const recyclers = RECYCLERS.some((id) => (fleet[id] ?? 0) > 0);
   for (const target of input.targets) {
     if (same(target, from)) continue;
     const dist = distance(u, from.coords, target.coords);
     for (const kind of kinds) {
       if (kind === 'recall') continue;
+      // recycling only at debris fields and with a recycler, the other missions only to own bodies
+      if ((kind === 'harvest') !== (target.type === 'debris') || (kind === 'harvest' && !recyclers)) continue;
       for (const speed of speeds) {
         const duration = flightDuration(u, dist, slowest.speed, speed);
         const span = (start: number) => {
@@ -101,7 +111,7 @@ export function fleetSaveOptions(input: FleetSaveInput): FleetSaveOption[] {
     // the farthest target at full speed: the longest outbound flight leaves the most room for the recall
     let far: { target: SaveTarget; dist: number } | null = null;
     for (const target of input.targets) {
-      if (same(target, from)) continue;
+      if (same(target, from) || target.type === 'debris') continue;
       const dist = distance(u, from.coords, target.coords);
       if (!far || dist > far.dist) far = { target, dist };
     }

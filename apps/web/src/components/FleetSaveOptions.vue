@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { drivesFromResearch, fleetSaveOptions, shipSpeed, type SaveKind, type SaveTarget } from '@pr0hub/flight';
+import { distance, drivesFromResearch, fleetSaveOptions, shipSpeed, type SaveKind, type SaveTarget } from '@pr0hub/flight';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useMobile, useUni } from '../composables';
@@ -21,6 +21,8 @@ const props = withDefaults(
     /** deuterium on the body now */
     deuterium: number | null;
     targets: SaveTarget[];
+    /** occupied positions per galaxy ([system, position]): debris fields to recycle at (`harvest`) */
+    fields?: Record<string, [number, number][]>;
     now: number;
     latest: number;
     back: number;
@@ -46,18 +48,37 @@ const fleet = computed(() => {
   return out;
 });
 const capacity = computed(() => Object.entries(fleet.value).reduce((s, [id, n]) => s + (units.value.capacity[Number(id)] ?? 0) * n, 0));
+/**
+ * Debris fields of the start's galaxy as targets, one per distance (the flight time only depends on it): a few hundred
+ * instead of thousands of positions.
+ */
+const fieldTargets = computed<SaveTarget[]>(() => {
+  if (!props.kinds.includes('harvest') || !props.fields) return [];
+  const u = ctx.value!.universe.settings;
+  const [g] = props.from.coords;
+  const seen = new Set<number>();
+  const out: SaveTarget[] = [];
+  for (const [s, p] of props.fields[g] ?? []) {
+    const coords: [number, number, number] = [g, s, p];
+    const d = distance(u, props.from.coords, coords);
+    if (seen.has(d)) continue;
+    seen.add(d);
+    out.push({ coords, type: 'debris' });
+  }
+  return out;
+});
 const options = computed(() =>
   Object.keys(fleet.value).length
     ? fleetSaveOptions({
         universe: ctx.value!.universe.settings, catalog: units.value.drives, drives: drives.value, from: props.from, fleet: fleet.value,
-        now: props.now, latest: props.latest, back: props.back, targets: props.targets, kinds: props.kinds,
+        now: props.now, latest: props.latest, back: props.back, targets: [...props.targets, ...fieldTargets.value], kinds: props.kinds,
       })
     : [],
 );
 const shown = computed(() => (all.value ? options.value : options.value.slice(0, props.limit)));
 /** clock time today, otherwise with the date (cards on mobile) */
 const when = (e: number) => (new Date(e * 1000).toDateString() === new Date().toDateString() ? clockTime(new Date(e * 1000)) : dateTime(e));
-const label = (x: SaveTarget) => `${x.type === 'moon' ? t('common.moon') + ' ' : ''}${x.name ? x.name + ' ' : ''}[${x.coords.join(':')}]`;
+const label = (x: SaveTarget) => `${x.type === 'moon' ? t('common.moon') + ' ' : x.type === 'debris' ? t('fleetsave.field') + ' ' : ''}${x.name ? x.name + ' ' : ''}[${x.coords.join(':')}]`;
 defineExpose({ fleet, options });
 </script>
 

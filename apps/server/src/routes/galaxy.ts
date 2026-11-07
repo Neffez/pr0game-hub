@@ -20,6 +20,20 @@ export function galaxyRoutes(app: FastifyInstance, db: DB) {
       .all(ctx.groupId);
   });
 
+  /**
+   * Occupied positions of galaxies (`g=1,2`) from the group's galaxy data: the game offers recycling at their debris
+   * fields (also empty ones) with a recycler in the fleet, so they are fleet save targets.
+   */
+  app.get<{ Params: { uni: string }; Querystring: { g?: string } }>('/api/:uni/positions', async (req) => {
+    const ctx = ctxOf(req);
+    const max = ctx.universe.settings.galaxies;
+    const galaxies = [...new Set(String(req.query.g ?? '').split(',').map(Number).filter((g) => Number.isInteger(g) && g >= 1 && g <= max))].slice(0, 10);
+    const stmt = db.prepare('SELECT s, p FROM planets WHERE group_id = ? AND g = ? AND player_id IS NOT NULL AND destroyed = 0 ORDER BY s, p');
+    return {
+      positions: Object.fromEntries(galaxies.map((g) => [g, (stmt.all(ctx.groupId, g) as { s: number; p: number }[]).map((r) => [r.s, r.p])])),
+    };
+  });
+
   /** Per system of a galaxy: occupied positions, own/alliance planets and when it was last seen (navigation strip). */
   app.get<{ Params: { uni: string; g: string } }>('/api/:uni/browse/:g', async (req) => {
     const ctx = ctxOf(req);

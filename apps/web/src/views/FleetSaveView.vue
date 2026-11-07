@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { SaveTarget } from '@pr0hub/flight';
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
 import { useClock } from '../clock';
@@ -41,7 +41,19 @@ const DEFAULT_PRESETS: Preset[] = [
 ];
 const presets = useStored<Preset[]>('fleetsave.presets', DEFAULT_PRESETS);
 const win = useStored<{ from: string; to: string }>('fleetsave.window', { from: DEFAULT_PRESETS[0].from, to: DEFAULT_PRESETS[0].to });
-const kinds = useStored<{ deploy: boolean; transport: boolean }>('fleetsave.kinds', { deploy: true, transport: true });
+const kinds = useStored<{ deploy: boolean; transport: boolean; harvest?: boolean }>('fleetsave.kinds', { deploy: true, transport: true, harvest: true });
+/** occupied positions of the own galaxies: recycling targets */
+const fields = ref<Record<string, [number, number][]>>({});
+async function loadFields() {
+  const gs = [...new Set((data.value?.empire?.data.planets ?? []).map((b) => b.coords.g))];
+  if (!gs.length) return;
+  try {
+    fields.value = (await uniApi<{ positions: Record<string, [number, number][]> }>(uni.value, `/positions?g=${gs.join(',')}`)).positions;
+  } catch {
+    /* without them no recycling */
+  }
+}
+watch(data, loadFields);
 const presetName = ref('');
 
 const clock = useClock();
@@ -102,7 +114,7 @@ const rows = computed(() =>
   })),
 );
 const withShips = computed(() => rows.value.filter((r) => r.ships.length));
-const kindList = computed(() => (['deploy', 'transport'] as const).filter((k) => kinds.value[k]));
+const kindList = computed(() => (['deploy', 'transport', 'harvest'] as const).filter((k) => kinds.value[k] ?? true));
 </script>
 
 <template>
@@ -125,6 +137,7 @@ const kindList = computed(() => (['deploy', 'transport'] as const).filter((k) =>
     <span class="grow" />
     <label class="check small"><input v-model="kinds.deploy" type="checkbox" /> {{ t('fleetsave.kinds.deploy') }}</label>
     <label class="check small"><input v-model="kinds.transport" type="checkbox" /> {{ t('fleetsave.kinds.transport') }}</label>
+    <label class="check small" :title="t('fleetsave.harvestTitle')"><input v-model="kinds.harvest" type="checkbox" /> {{ t('fleetsave.kinds.harvest') }}</label>
   </div>
   <div class="card fs-presets small" data-tour="fleetsave-presets">
     <b>{{ t('fleetsave.presets') }}</b>
@@ -155,7 +168,7 @@ const kindList = computed(() => (['deploy', 'transport'] as const).filter((k) =>
     </p>
     <FleetSaveOptions
       :from="r.from" :values="r.b.values" :research="research" :deuterium="deuterium(r.b)" :targets="targets"
-      :now="now" :latest="offline.latest" :back="offline.back" :kinds="kindList"
+      :now="now" :latest="offline.latest" :back="offline.back" :kinds="kindList" :fields="fields"
     />
   </div>
   <p v-if="withShips.length" class="muted small" data-tour="fleetsave-remind">
