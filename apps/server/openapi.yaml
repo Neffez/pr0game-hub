@@ -2758,7 +2758,9 @@ paths:
         members and the own alliance are left out. Each comes with the strongest fleet known (spy report, battle
         report or fleet movement; spy probes and solar satellites left out), the newest fleet points of the
         statistics, the research of the newest spy report (else the caller's levels as an estimate) and the flight
-        (one way at full speed from where the fleet was seen, else the owner's nearest planet) with its deuterium.
+        (one way at full speed from where the fleet was seen, else the owner's nearest planet) with its deuterium, and
+        `heavy`: only the fleet's heavy ships (hull of a battleship and up), as raiders send against defense and solar
+        satellites; each threat is searched in both variants (search key `<key>:heavy` for the heavy one).
         `advice` runs the search in the battle worker (counts as one simulation of the simulator's rate limit): the
         attacker's profit of one attack is loot + debris field (with `debris`) − ships lost − fuel in deuterium by the
         group's market rate (default 3 : 2 : 1); the defense types that cut the worst attacker's profit most per
@@ -2810,7 +2812,8 @@ paths:
                         fleetPoints: { type: [object, 'null'], description: '`points` and `time` of the newest fleet statistics' }
                         research: { type: object, description: '`values`, `known` (from a spy report), `time`' }
                         flight: { type: [object, 'null'], description: '`from`, `distance`, `duration` (seconds), `fuel` (deuterium)' }
-                  simulated: { type: array, items: { type: string }, description: Keys of the threats given to the search }
+                        heavy: { type: [object, 'null'], description: 'Heavy ships only: `units`, `points`, `flight`; null without heavy ships or when the fleet has nothing else' }
+                  simulated: { type: array, items: { type: string }, description: 'Search keys of the threat variants given to the search (`<key>` and `<key>:heavy`)' }
                   advice:
                     type: [object, 'null']
                     description: >-
@@ -2821,6 +2824,49 @@ paths:
                   now: { type: integer }
         '400': { description: 'Invalid `planet` (`planet_invalid`)' }
         '404': { description: 'Not one of the caller''s synced planets (`planet_not_found`)' }
+  /api/{uni}/defense-risk:
+    get:
+      tags: [Universe]
+      operationId: getDefenseRisk
+      description: >-
+        Raid risk of all the caller's planets and moons: per body the known threats of `/api/{uni}/defense-advice`
+        (full fleet and heavy ships only) against the body as it is, a few runs each within an engine budget; the most
+        profitable attack is the body's risk. Runs in the battle worker (one simulation of the simulator's rate limit);
+        the result is kept for 30 minutes while the input stays the same (`cached`).
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+        - { name: ships, in: query, schema: { type: string, enum: ['0', '1'] }, description: '`0`: the ships are away; default `1`' }
+        - { name: debris, in: query, schema: { type: string, enum: ['0', '1'] }, description: '`0`: the debris field does not count as profit; default `1`' }
+        - { name: loot, in: query, schema: { type: string, enum: [now, full] }, description: 'Resources: projected to now (default) or full storages' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  planets:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        key: { type: string }
+                        name: { type: string }
+                        coords: { type: object }
+                        type: { type: string, enum: [planet, moon] }
+                        threats: { type: integer, description: Known threats of the body }
+                        skipped: { type: integer, description: Attacks left out for the engine budget }
+                        worst:
+                          type: [object, 'null']
+                          description: 'The most profitable attack: threat `key`, `player`, `heavy` (heavy ships only), `profit` in deuterium, `wins` share, average `loot`, `debris`, `lost`, `fuel`'
+                  runs: { type: [integer, 'null'], description: Runs per attack }
+                  battles: { type: [integer, 'null'] }
+                  cached: { type: boolean }
+                  error: { type: [string, 'null'], description: 'Simulator busy or missing (`battle_busy`, `battle_rate_limit`, …)' }
+                  rate: { type: object, description: '`m`, `k`: metal and crystal per deuterium' }
+                  now: { type: integer }
   /api/{uni}/fleets/alerts:
     put:
       tags: [Universe]

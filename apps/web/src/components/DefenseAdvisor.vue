@@ -7,6 +7,7 @@ import { useStored, useUni } from '../composables';
 import { abbr, ago, battleSimLink, dateTime, duration, fmt, name, short, STATUS_LABEL } from '../format';
 import Hint from './Hint.vue';
 import PlayerLink from './PlayerLink.vue';
+import RaidRisk from './RaidRisk.vue';
 
 /**
  * Defense advisor (server: repo/defense.ts, search: `defenseAdvice` of @pr0hub/battle): the attackers the hub knows for
@@ -24,8 +25,10 @@ interface Threat {
   fleet: { units: Record<string, number>; points: number; source: 'spy' | 'combat' | 'incoming'; time: number; from: C3 | null };
   fleetPoints: { points: number; time: number } | null;
   research: { values: Record<string, number>; known: boolean; time: number | null };
-  flight: { from: C3; distance: number; duration: number; fuel: number } | null;
+  flight: Flight | null;
+  heavy: { units: Record<string, number>; points: number; flight: Flight | null } | null;
 }
+type Flight = { from: C3; distance: number; duration: number; fuel: number };
 interface Outcome { key: string; profit: number; loot: Res; debris: { metal: number; crystal: number }; lost: Res; defenderLost: Res; fuel: number; wins: number }
 interface Advice {
   error: string | null;
@@ -122,6 +125,11 @@ const reasonText = (r: Threat['reasons'][number]) => t(`defense.reason.${r.kind}
 /** statistics show clearly more fleet points than the fleet known: it may be larger now */
 const grown = (x: Threat) => !!x.fleetPoints && x.fleetPoints.points > x.fleet.points * 1.3 + 10;
 const outcomeOf = (list: Outcome[] | null | undefined, key: string) => list?.find((o) => o.key === key) ?? null;
+const HEAVY = ':heavy';
+/** the ways a threat attacks: full fleet, and heavy ships only when it has others too */
+const variants = (x: Threat) => [{ key: x.key, heavy: false }, ...(x.heavy ? [{ key: `${x.key}${HEAVY}`, heavy: true }] : [])];
+/** the result shows a variant (it was calculated) */
+const shown = (key: string) => !!outcomeOf(advice.value?.before, key);
 const profitText = (o: Outcome | null) => (o ? `${o.profit > 0 ? '+' : ''}${short(Math.round(o.profit))} D` : '–');
 const profitTitle = (o: Outcome | null) =>
   o
@@ -129,6 +137,7 @@ const profitTitle = (o: Outcome | null) =>
         `${t('defense.loot')}: ${short(o.loot.metal)} / ${short(o.loot.crystal)} / ${short(o.loot.deuterium)}`,
         `${t('defense.debris')}: ${short(o.debris.metal)} / ${short(o.debris.crystal)}${debris.value ? '' : ` (${t('defense.notCounted')})`}`,
         `${t('defense.lost')}: ${short(o.lost.metal)} / ${short(o.lost.crystal)} / ${short(o.lost.deuterium)}`,
+        `${t('defense.defenderLost')}: ${short(o.defenderLost.metal)} / ${short(o.defenderLost.crystal)} / ${short(o.defenderLost.deuterium)}`,
         `${t('defense.fuel')}: ${short(o.fuel)}`,
         `${t('defense.wins')}: ${fmt(o.wins * 100)} %`,
       ].join('\n')
@@ -142,13 +151,15 @@ const simLink = computed(() => {
   const d = data.value;
   if (!d || !ctx.value) return null;
   const key = [...(advice.value?.after ?? advice.value?.before ?? [])].sort((a, b) => b.profit - a.profit)[0]?.key;
-  const x = d.threats.find((th) => th.key === key) ?? chosen.value[0];
+  const heavy = !!key?.endsWith(HEAVY);
+  const x = d.threats.find((th) => th.key === key?.replace(HEAVY, '')) ?? chosen.value[0];
   if (!x) return null;
+  const ships = heavy && x.heavy ? x.heavy.units : x.fleet.units;
   const values: Record<string, number> = { ...d.planet.units, ...d.planet.research, 901: d.planet.resources.metal, 902: d.planet.resources.crystal, 903: d.planet.resources.deuterium };
   for (const [id, n] of Object.entries(advice.value?.add ?? {})) values[id] = (values[id] ?? 0) + n;
   const from = x.flight?.from ?? x.fleet.from;
   return battleSimLink(
-    ctx.value.universe.settings, values, [{ ships: x.fleet.units, research: x.research.values, from: from ? [from.g, from.s, from.p] : null, name: x.player.name }],
+    ctx.value.universe.settings, values, [{ ships, research: x.research.values, from: from ? [from.g, from.s, from.p] : null, name: x.player.name }],
     [d.planet.coords.g, d.planet.coords.s, d.planet.coords.p], [], d.planet.name,
   );
 });
@@ -173,6 +184,13 @@ async function addToOrder() {
 </script>
 
 <template>
+  <div class="card" data-tour="build-defense-risk">
+    <div class="row small def-head">
+      <b>{{ t('risk.title') }}</b>
+      <Hint><p>{{ t('risk.hint1') }}</p><p>{{ t('risk.hint2') }}</p></Hint>
+    </div>
+    <RaidRisk auto :ships="ships" :debris="debris" :loot="loot" :current="planetKey" />
+  </div>
   <div class="card" data-tour="build-defense">
     <div class="row small def-head">
       <b>{{ t('defense.title') }}</b>
@@ -209,10 +227,13 @@ async function addToOrder() {
               <input type="checkbox" :checked="!off.has(x.key)" @change="toggle(x.key)" />
               <PlayerLink v-if="x.player.id" :id="x.player.id" :name="x.player.name" /><b v-else>{{ x.player.name }}</b>
             </label>
-            <b v-if="outcomeOf(advice?.before, x.key)">
-              <span :class="outcomeOf(advice?.before, x.key)!.profit > 0 ? 'neg' : 'pos'" :title="profitTitle(outcomeOf(advice?.before, x.key))">{{ profitText(outcomeOf(advice?.before, x.key)) }}</span>
+          </div>
+          <div v-for="v in variants(x).filter((v) => shown(v.key))" :key="v.key" class="def-line">
+            <span class="muted">{{ v.heavy ? t('defense.heavyOnly') : t('defense.fullFleet') }}</span>
+            <b>
+              <span :class="outcomeOf(advice?.before, v.key)!.profit > 0 ? 'neg' : 'pos'" :title="profitTitle(outcomeOf(advice?.before, v.key))">{{ profitText(outcomeOf(advice?.before, v.key)) }}</span>
               <template v-if="advice?.after">
-                → <span :class="(outcomeOf(advice.after, x.key)?.profit ?? 0) > 0 ? 'neg' : 'pos'" :title="profitTitle(outcomeOf(advice.after, x.key))">{{ profitText(outcomeOf(advice.after, x.key)) }}</span>
+                → <span :class="(outcomeOf(advice.after, v.key)?.profit ?? 0) > 0 ? 'neg' : 'pos'" :title="profitTitle(outcomeOf(advice.after, v.key))">{{ profitText(outcomeOf(advice.after, v.key)) }}</span>
               </template>
             </b>
           </div>
@@ -221,6 +242,9 @@ async function addToOrder() {
           <div class="faint">
             {{ t(`defense.source.${x.fleet.source}`, { time: ago(x.fleet.time) }) }} · {{ short(x.fleet.points) }} {{ t('defense.points') }}
             <span v-if="grown(x)" class="warn"> · {{ t('defense.grown', { n: short(x.fleetPoints!.points) }) }}</span>
+          </div>
+          <div v-if="x.heavy" class="faint" :title="shipsTitle(x.heavy.units)">
+            {{ t('defense.heavyOnly') }}: {{ shipsText(x.heavy.units) }}<template v-if="x.heavy.flight"> · {{ duration(x.heavy.flight.duration) }} · {{ short(x.heavy.flight.fuel) }} {{ abbr(903) }}</template>
           </div>
           <div v-if="!x.research.known || x.flight" class="faint">
             <span v-if="!x.research.known" class="warn">{{ t('defense.researchEstimated') }}</span>
@@ -257,19 +281,26 @@ async function addToOrder() {
                   <span v-if="grown(x)" class="warn" :title="dateTime(x.fleetPoints!.time)"> · {{ t('defense.grown', { n: short(x.fleetPoints!.points) }) }}</span>
                   <span v-if="!x.research.known" class="warn"> · {{ t('defense.researchEstimated') }}</span>
                 </div>
+                <div v-if="x.heavy" class="faint" :title="shipsTitle(x.heavy.units)">{{ t('defense.heavyOnly') }}: {{ shipsText(x.heavy.units) }}</div>
               </td>
               <td class="num small">
                 <template v-if="x.flight">
                   <span class="mono">{{ duration(x.flight.duration) }}</span>
                   <div class="faint">{{ short(x.flight.fuel) }} {{ abbr(903) }}</div>
+                  <div v-if="x.heavy?.flight" class="faint" :title="`${t('defense.heavyOnly')}: ${duration(x.heavy.flight.duration)}`">{{ t('defense.heavyShort') }} {{ short(x.heavy.flight.fuel) }} {{ abbr(903) }}</div>
                 </template>
                 <span v-else class="faint">–</span>
               </td>
               <td class="num">
-                <template v-if="outcomeOf(advice?.before, x.key)">
-                  <b :class="outcomeOf(advice?.before, x.key)!.profit > 0 ? 'neg' : 'pos'" :title="profitTitle(outcomeOf(advice?.before, x.key))">{{ profitText(outcomeOf(advice?.before, x.key)) }}</b>
-                  <div v-if="advice?.after" class="small" :title="profitTitle(outcomeOf(advice.after, x.key))">
-                    → <span :class="(outcomeOf(advice.after, x.key)?.profit ?? 0) > 0 ? 'neg' : 'pos'">{{ profitText(outcomeOf(advice.after, x.key)) }}</span>
+                <template v-if="shown(x.key)">
+                  <div v-for="v in variants(x).filter((v) => shown(v.key))" :key="v.key" class="def-profit">
+                    <div>
+                      <span v-if="x.heavy" class="faint small">{{ v.heavy ? t('defense.heavyShort') : t('defense.fullShort') }} </span>
+                      <b :class="outcomeOf(advice?.before, v.key)!.profit > 0 ? 'neg' : 'pos'" :title="profitTitle(outcomeOf(advice?.before, v.key))">{{ profitText(outcomeOf(advice?.before, v.key)) }}</b>
+                    </div>
+                    <div v-if="advice?.after" class="small" :title="profitTitle(outcomeOf(advice.after, v.key))">
+                      → <span :class="(outcomeOf(advice.after, v.key)?.profit ?? 0) > 0 ? 'neg' : 'pos'">{{ profitText(outcomeOf(advice.after, v.key)) }}</span>
+                    </div>
                   </div>
                 </template>
                 <span v-else class="faint">–</span>
@@ -324,6 +355,8 @@ async function addToOrder() {
 .def-build { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 4px 0 6px; }
 .def-cards { display: flex; flex-direction: column; gap: 6px; }
 .def-card { display: flex; flex-direction: column; gap: 3px; padding: 8px; border-radius: 6px; background: var(--surface-2); }
+.def-profit { white-space: nowrap; }
+.def-profit + .def-profit { margin-top: 4px; }
 .def-line { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .off { opacity: 0.5; }
 </style>

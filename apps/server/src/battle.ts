@@ -1,5 +1,5 @@
 import { Worker } from 'node:worker_threads';
-import { defenseIds, encodeShare, shipIds, type BattleSetup, type DefenseAdvice, type DefenseSearch, type SimSettings, type SimSummary } from '@pr0hub/battle';
+import { defenseIds, encodeShare, shipIds, type BattleSetup, type DefenseAdvice, type DefenseSearch, type RiskInput, type RiskResult, type SimSettings, type SimSummary } from '@pr0hub/battle';
 import { DEFAULT_UNITS, type UnitCatalog, type UnitOverrides } from '@pr0hub/core/units';
 import { encodeUnitOverrides, toolsHash } from '@pr0hub/core/universe';
 import { distance, drivesFromResearch, fleetConsumption, flightDuration, slowestShip } from '@pr0hub/flight';
@@ -212,6 +212,11 @@ export function throttle(userId: number, at = Date.now()) {
   list.push(at);
   recent.set(userId, list);
   if (recent.size > 10000) for (const [k, v] of recent) if (!v.some((t) => at - t < 60_000)) recent.delete(k);
+}
+
+/** The raid risk of all bodies in the battle worker (one slot of `concurrent`, the defense advisor's time limit). */
+export function runRiskInWorker(input: RiskInput, settings: SimSettings, units: UnitOverrides = {}, workerUrl: URL | string = WORKER): Promise<RiskResult> {
+  return inWorker<RiskResult>({ job: 'risk', search: input, settings, units }, DEFENSE_TIMEOUT_MS, workerUrl);
 }
 
 const WORKER = new URL('../battle-worker.mjs', import.meta.url);

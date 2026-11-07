@@ -50,3 +50,17 @@ export const shipIds = (catalog: UnitCatalog = activeUnits()) => Object.keys(com
 export const defenseIds = (catalog: UnitCatalog = activeUnits()) => Object.keys(combatUnits(catalog)).map(Number).filter((id) => id >= 400);
 export const SHIP_IDS = shipIds(DEFAULT_UNITS);
 export const DEFENSE_IDS = defenseIds(DEFAULT_UNITS);
+
+/** The battleship: ships from its hull up count as heavy. */
+const BATTLESHIP = 207;
+
+/**
+ * The heavy ships of a fleet: ships that fight with at least the hull of a battleship (battleship, battlecruiser,
+ * bomber, destroyer, deathstar and the universe's own large ships). Raiders often send only these against defense and
+ * solar satellites: fewer losses and less deuterium, but less cargo space.
+ */
+export function heavyShips(fleet: Record<string, number>, catalog: UnitCatalog = activeUnits()): Record<string, number> {
+  const units = combatUnits(catalog);
+  const min = units[BATTLESHIP]?.hull ?? 6000;
+  return Object.fromEntries(Object.entries(fleet).filter(([id, n]) => n > 0 && Number(id) < 300 && (units[Number(id)]?.attack ?? 0) > 0 && (units[Number(id)]?.hull ?? 0) >= min));
+}

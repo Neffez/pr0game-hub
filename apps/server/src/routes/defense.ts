@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { HttpError } from '../auth.js';
 import type { DB } from '../db.js';
-import { defenseAdvice, defenseInput } from '../repo/defense.js';
+import { defenseAdvice, defenseInput, HEAVY, raidRiskInput, raidRiskOf } from '../repo/defense.js';
 import { contextOf } from './util.js';
 
 /** Defense advisor (see repo/defense.ts): the attackers of one of the viewer's planets and the defense against them. */
@@ -27,4 +27,33 @@ export function defenseRoutes(app: FastifyInstance, db: DB) {
       return { ...rest, simulated: search.threats.map((t) => t.key), advice, now: ctx.now };
     },
   );
+
+  /** Raid risk of all the viewer's bodies: the most profitable known attack on each as it is (cached while nothing changes). */
+  app.get<{ Params: { uni: string }; Querystring: { ships?: string; debris?: string; loot?: string } }>('/api/:uni/defense-risk', async (req) => {
+    const ctx = ctxOf(req);
+    const q = req.query;
+    const input = raidRiskInput(db, ctx, { ships: q.ships !== '0', debris: q.debris !== '0', loot: q.loot === 'full' ? 'full' : 'now' });
+    const run = input.input.planets.some((p) => p.threats.length) ? await raidRiskOf(ctx, input) : null;
+    const result = run && 'result' in run ? run.result : null;
+    return {
+      planets: input.bodies.map((b) => {
+        const r = result?.planets.find((p) => p.key === b.bp.key) ?? null;
+        const worst = r?.worst ?? null;
+        const base = worst ? worst.key.replace(HEAVY, '') : null;
+        const threat = base ? b.threats.find((x) => x.key === base) : undefined;
+        return {
+          key: b.bp.key, name: b.bp.name, coords: b.bp.coords, type: b.bp.type, threats: b.threats.length, skipped: r?.skipped ?? 0,
+          worst: worst && threat
+            ? { key: base, player: threat.player, heavy: worst.key.endsWith(HEAVY), profit: Math.round(worst.profit), wins: worst.wins, loot: worst.loot, debris: worst.debris, lost: worst.lost, fuel: worst.fuel }
+            : null,
+        };
+      }),
+      runs: result?.runs ?? null,
+      battles: result?.battles ?? null,
+      cached: run && 'result' in run ? run.cached : false,
+      error: run && 'error' in run ? run.error : null,
+      rate: input.input.rate,
+      now: ctx.now,
+    };
+  });
 }

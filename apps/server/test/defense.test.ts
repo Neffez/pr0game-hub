@@ -56,7 +56,7 @@ beforeAll(async () => {
   ).run(group, t - 86400, JSON.stringify([[0, 'Basher', [[204, 500, 480], [202, 50, 50]]], [1, 'Carol', [[401, 10, 0]]]]));
   // Farmer is nearby with a fleet; Far in another galaxy; Dave is a member (no threat); an old report doesn't count
   const farmer = player('Farmer', [1, 90, 5]);
-  spy.run(group, 1, 90, 5, farmer, 'Farmer', t - 600, JSON.stringify({ 200: { 207: 50 } }));
+  spy.run(group, 1, 90, 5, farmer, 'Farmer', t - 600, JSON.stringify({ 200: { 207: 50, 203: 100 } }));
   const far = player('Far', [2, 90, 5]);
   spy.run(group, 2, 90, 5, far, 'Far', t - 600, JSON.stringify({ 200: { 207: 500 } }));
   const dave = player('Dave', [1, 95, 5]);
@@ -100,6 +100,10 @@ describe('defense advisor', () => {
     expect(raider.research).toMatchObject({ known: true, values: { 109: 8 } });
     expect(raider.flight.fuel).toBeGreaterThan(0);
     expect(farmer.reasons[0].kind).toBe('nearby');
+    // the heavy ships alone as a second way to attack (a fleet without others has none)
+    expect(farmer.heavy).toMatchObject({ units: { 207: 50 } });
+    expect(farmer.heavy.flight.fuel).toBeLessThan(farmer.flight.fuel);
+    expect(raider.heavy).toBeNull();
     // buildable defense: requirements met, the large shield dome is built already
     expect(a.candidates).toEqual(expect.arrayContaining([401, 402, 403, 404, 405, 406, 407]));
     expect(a.candidates).not.toContain(408);
@@ -122,11 +126,32 @@ describe('defense advisor', () => {
     const raiderKey = a.threats.find((x: any) => x.player.name === 'Raider').key;
     const b = (await get(`/defense-advice?planet=${HOME}&threats=${raiderKey}`)).json();
     expect(b.simulated).toEqual([raiderKey]);
+    const farmerKey = a.threats.find((x: any) => x.player.name === 'Farmer').key;
+    const f = (await get(`/defense-advice?planet=${HOME}&threats=${farmerKey}&sim=0`)).json();
+    expect(f.simulated).toEqual([farmerKey, `${farmerKey}:heavy`]);
     expect(b.advice.error).toBeNull();
     expect(b.advice.before).toHaveLength(1);
     expect(b.advice.before[0].profit).toBeGreaterThan(0);
     expect(b.advice.status).toBe('found');
     expect(b.advice.after[0].profit).toBeLessThanOrEqual(0);
     expect(b.advice.costValue).toBeGreaterThan(0);
+  });
+
+  it.skipIf(!wasm)('scores the raid risk of every body and caches it while nothing changes', async () => {
+    const res = await get('/defense-risk');
+    expect(res.statusCode).toBe(200);
+    const r = res.json();
+    expect(r.error).toBeNull();
+    expect(r.cached).toBe(false);
+    expect(r.planets.map((p: any) => p.key)).toEqual([HOME, '1:140:6:planet']);
+    const home = r.planets[0];
+    expect(home.threats).toBe(3);
+    // 2 million metal and more lying around: someone profits
+    expect(home.worst.profit).toBeGreaterThan(0);
+    expect(['Basher', 'Raider', 'Farmer']).toContain(home.worst.player.name);
+    expect(r.battles).toBeGreaterThan(0);
+    const again = (await get('/defense-risk')).json();
+    expect(again.cached).toBe(true);
+    expect(again.planets[0].worst.profit).toBe(home.worst.profit);
   });
 });

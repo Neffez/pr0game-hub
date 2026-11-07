@@ -5,3 +5,4 @@ export * from './steal.js';
 export * from './simulate.js';
 export * from './share.js';
 export * from './defense.js';
+export * from './risk.js';

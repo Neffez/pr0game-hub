@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Raid-Risiko: Für jeden deiner Planeten und Monde siehst du, wie viel ein Angreifer dort jetzt holen könnte – im Verteidigungsberater und in deinem Imperium. Der Verteidigungsberater rechnet außerdem jeden Angreifer auch mit nur schweren Schiffen, wie Raider es oft machen.',
+        en: 'Raid risk: for each of your planets and moons you see how much an attacker could get there right now – in the defense advisor and in your empire. The defense advisor also calculates every attacker with heavy ships only, as raiders often do.',
+      },
+      {
+        kind: 'new',
         de: 'Verteidigungsberater unter Bauen & Forschen: zeigt, wer deinen Planeten angreifen könnte (Spionage, Angriffe, Flotten im Anflug, starke Flotten in der Nähe), was ihm ein Angriff einbringt und welche Verteidigung den Angriff zum Verlustgeschäft macht. Die Einheiten kommen mit einem Klick in die Bauliste.',
         en: 'Defense advisor under Build & research: shows who could attack your planet (spying, attacks, fleets on their way, strong fleets nearby), what an attack would bring them and which defense turns it into a loss. The units go into the build order in one click.',
       },

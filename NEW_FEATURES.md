@@ -20,7 +20,7 @@ source (`pr0game`: pages, missions, achievements, advanced stats).
 | C-1 Upgrade advisor | Done | 2026-11-07 | Build & research: tab "Advisor", best next step in the buildings tab |
 | D-1 Alliance health dashboard | Done | 2026-11-07 | new menu item "Health" under Alliance (every member) |
 | F-3 Export | Done | 2026-11-07 | CSV buttons at the large tables, JSON under Account; API tokens work |
-| A-4 Defense advisor | Done | 2026-11-07 | Build & research: tab "Defense advisor" per planet and moon |
+| A-4 Defense advisor | Done | 2026-11-07 | Build & research: tab "Defense advisor" per planet and moon, raid risk there and in My empire |
 
 Each finished item carries a **Status** block below its description: what was built and how.
 
@@ -220,9 +220,14 @@ planet in the empire view.
   profit before → after per attacker, the units to build with their cost, "Add to build order" (shipyard steps,
   shared `buildOrderAdd.ts` with the upgrade advisor) and a battle simulator link. Cards on mobile. Web test
   `apps/web/test/defense.test.ts`. **Tours:** `build.defense`, `build.defenseList`; **texts** `defense.*`.
-- **Left for later:** the raid risk score per own planet in the empire view (one search per planet is too heavy for a
-  page load; it needs a cached or batched variant), attackers sending only part of their fleet, defense against
-  interplanetary missiles (interceptors).
+- **Follow-up (2026-11-07):** each attacker in two variants, the full fleet and only its heavy ships (hull of a
+  battleship and up, `heavyShips`), as raiders send against defense and solar satellites, with its own fuel; both go
+  into the search. **Raid risk:** `GET /api/:uni/defense-risk` runs `raidRisk` (`@pr0hub/battle/src/risk.ts`) in the
+  battle worker: every own body against its threats in both variants as it is, few runs within one engine budget, the
+  most profitable attack is the score; kept 30 minutes per hash of the input. Shown on top of the defense advisor tab
+  and as a section in the own empire view (on a click).
+- **Left for later:** attackers sending other parts of their fleet (e.g. only cargos against an empty planet),
+  defense against interplanetary missiles (interceptors), a risk mark in the empire's planet table.
 
 ### A-5 Who threatens me
 **Value:** Medium · **Effort:** M · **Builds on:** hostile spying, battle reports, statistics, flight math

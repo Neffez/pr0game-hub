@@ -1,14 +1,15 @@
-import { defenseIds, valueIn, type DefenseAdvice, type DefenseSearch } from '@pr0hub/battle';
+import { createHash } from 'node:crypto';
+import { defenseIds, heavyShips, valueIn, type DefenseAdvice, type DefenseSearch, type DefenseThreat, type RiskResult } from '@pr0hub/battle';
 import { DEFAULT_RATE } from '@pr0hub/core/advisor';
 import { capacityOf, resourceAt } from '@pr0hub/core/buildings';
 import { CLASS_FLEET, elementPoints } from '@pr0hub/core/tech';
-import { unitCost, withUnits } from '@pr0hub/core/units';
+import { unitCost, withUnits, type UnitCatalog } from '@pr0hub/core/units';
 import { distance, drivesFromResearch, fleetConsumption, flightDuration, slowestShip } from '@pr0hub/flight';
 import { HttpError } from '../auth.js';
-import { runDefenseInWorker, simSettingsOf, throttle } from '../battle.js';
+import { runDefenseInWorker, runRiskInWorker, simSettingsOf, throttle } from '../battle.js';
 import { catalogOf, type GroupContext } from '../context.js';
 import type { DB } from '../db.js';
-import { buildingsState, planetShips, type BuildingPlanet } from './buildings.js';
+import { buildingsState, planetShips, type BuildingPlanet, type BuildingsState } from './buildings.js';
 import { spyEmpire } from './empire.js';
 import { hostileAttacks } from './hostile.js';
 import { latestMarketRate } from './market.js';
@@ -48,8 +49,16 @@ export interface DefenseThreatInfo {
   fleetPoints: { points: number; time: number } | null;
   /** research of the newest spy report; unknown: the viewer's own levels stand in */
   research: { values: Record<string, number>; known: boolean; time: number | null };
-  flight: { from: Coords; distance: number; duration: number; fuel: number } | null;
+  flight: Flight | null;
+  /** only the heavy ships of the fleet (battleship and up): raids on defense and solar satellites; null without them or when the fleet has nothing else */
+  heavy: { units: Record<string, number>; points: number; flight: Flight | null } | null;
 }
+
+type Flight = { from: Coords; distance: number; duration: number; fuel: number };
+
+/** Memo of one request over several planets (raid risk): spy empires by player. */
+export type ThreatMemo = { spy: Map<string, ReturnType<typeof spyEmpire>> };
+export const threatMemo = (): ThreatMemo => ({ spy: new Map() });
 
 const fleetPoints = (units: Record<string, number>) => Math.round(Object.entries(units).reduce((s, [id, n]) => s + elementPoints(id, n), 0));
 const attacking = (units: Record<string, number>) => Object.fromEntries(Object.entries(units).filter(([id, n]) => n > 0 && !NOT_ATTACKING.has(id)));
@@ -66,7 +75,9 @@ function planetOfKey(db: DB, ctx: GroupContext, key: string) {
  * The attackers of a planet: candidates by name (spying on the viewer, battles at the viewer's bodies, attacks on the
  * way, players with a known fleet in the same galaxy), each with the strongest fleet known within `THREAT_DAYS`.
  */
-export function defenseThreats(db: DB, ctx: GroupContext, bp: BuildingPlanet, own: { coords: Coords[]; research: Record<string, number> }): DefenseThreatInfo[] {
+export function defenseThreats(
+  db: DB, ctx: GroupContext, bp: BuildingPlanet, own: { coords: Coords[]; research: Record<string, number> }, memo: ThreatMemo = threatMemo(),
+): DefenseThreatInfo[] {
   const units = catalogOf(ctx.universe);
   const u = ctx.universe.settings;
   const since = ctx.now - THREAT_DAYS * 86400;
@@ -144,7 +155,9 @@ export function defenseThreats(db: DB, ctx: GroupContext, bp: BuildingPlanet, ow
 
     // fleets from the spy reports, research, owners' planets
     const withSpy = (c: Cand) => {
-      const spy = spyEmpire(db, ctx, c.id ?? -1, c.name);
+      const memoKey = `${c.id ?? ''}|${c.name.toLowerCase()}`;
+      if (!memo.spy.has(memoKey)) memo.spy.set(memoKey, spyEmpire(db, ctx, c.id ?? -1, c.name));
+      const spy = memo.spy.get(memoKey)!;
       for (const pl of spy?.planets ?? []) {
         if (pl.time < since) continue;
         const ships = attacking(Object.fromEntries(Object.entries(pl.values).filter(([id]) => Number(id) >= 200 && Number(id) < 300)));
@@ -180,16 +193,20 @@ export function defenseThreats(db: DB, ctx: GroupContext, bp: BuildingPlanet, ow
         fleet.from ??
         homes.map((h) => ({ h, d: distance(u, [h.g, h.s, h.p], target) })).sort((a, b) => a.d - b.d)[0]?.h ??
         null;
-      let flight: DefenseThreatInfo['flight'] = null;
-      if (start) {
+      const flightOf = (ships: Record<string, number>): Flight | null => {
+        if (!start) return null;
         const drives = drivesFromResearch(research);
-        const slowest = slowestShip(fleet.units, drives, units.drives);
-        if (slowest && slowest.speed > 0) {
-          const dist = distance(u, [start.g, start.s, start.p], target);
-          const duration = flightDuration(u, dist, slowest.speed, 100);
-          flight = { from: start, distance: dist, duration: Math.floor(duration), fuel: Math.ceil(fleetConsumption(u, fleet.units, duration, dist, drives, 1, units.drives)) };
-        }
-      }
+        const slowest = slowestShip(ships, drives, units.drives);
+        if (!slowest || slowest.speed <= 0) return null;
+        const dist = distance(u, [start.g, start.s, start.p], target);
+        const duration = flightDuration(u, dist, slowest.speed, 100);
+        return { from: start, distance: dist, duration: Math.floor(duration), fuel: Math.ceil(fleetConsumption(u, ships, duration, dist, drives, 1, units.drives)) };
+      };
+      const heavyUnits = heavyShips(fleet.units, units);
+      const heavy =
+        Object.keys(heavyUnits).length && Object.keys(heavyUnits).length < Object.keys(fleet.units).length
+          ? { units: heavyUnits, points: fleetPoints(heavyUnits), flight: flightOf(heavyUnits) }
+          : null;
       const row = c.id != null ? info.get(c.id) : undefined;
       const fp = c.id != null ? scores.get(c.id)?.[2] : undefined;
       return {
@@ -199,7 +216,8 @@ export function defenseThreats(db: DB, ctx: GroupContext, bp: BuildingPlanet, ow
         fleet,
         fleetPoints: fp ? { points: fp.points, time: fp.time } : null,
         research: { values: research, known, time: spy?.researchTime ?? null },
-        flight,
+        flight: flightOf(fleet.units),
+        heavy,
       };
     });
     const order: Reason[] = ['incoming', 'attacked', 'spied', 'nearby'];
@@ -220,53 +238,71 @@ export interface DefenseOptions {
   threats: string[] | null;
 }
 
+/** Suffix of the search key of a threat's heavy ships variant. */
+export const HEAVY = ':heavy';
+
+/** Both ways a threat attacks: the whole fleet and only its heavy ships (when it has others too). */
+export function variantsOf(x: DefenseThreatInfo): DefenseThreat[] {
+  const full = { key: x.key, units: x.fleet.units, research: x.research.values, fuel: x.flight?.fuel ?? 0 };
+  return x.heavy ? [full, { key: `${x.key}${HEAVY}`, units: x.heavy.units, research: x.research.values, fuel: x.heavy.flight?.fuel ?? 0 }] : [full];
+}
+
+type Options = Omit<DefenseOptions, 'key' | 'threats'>;
+
+/** The planet as it defends: units (ships with `ships`, the shipyard queue as built), combat research, resources at the attack, buildable defense. */
+function planetSetup(state: BuildingsState, bp: BuildingPlanet, o: Options, t: number, catalog: UnitCatalog) {
+  const p = bp.planet;
+  const research = state.research;
+  const combat = Object.fromEntries(['109', '110', '111'].map((id) => [id, research[id] ?? 0]));
+  const ids = new Set(defenseIds(catalog).map(String));
+  const units: Record<string, number> = {};
+  for (const [id, n] of Object.entries(p.values)) {
+    const num = Number(id);
+    if (!(n > 0)) continue;
+    if (ids.has(id) || num === 212 || (o.ships && num >= 200 && num < 300)) units[id] = n;
+  }
+  for (const [id, n] of Object.entries(p.shipyard ?? {})) if (ids.has(id) && n > 0) units[id] = (units[id] ?? 0) + n;
+
+  const res = [901, 902, 903].map((r) => {
+    const cap = capacityOf(p, r, state.storageFactor);
+    const arrivals = bp.arrivals.map((a) => ({ at: a.at, amount: a.resources[r] ?? 0 })).filter((a) => a.amount > 0 && a.at <= t);
+    const nowAmount = Math.floor(resourceAt(p.resources[r] ?? 0, p.perHour[r] ?? 0, cap, p.time, Math.max(t, p.time), arrivals));
+    return o.loot === 'full' && bp.type === 'planet' ? Math.max(nowAmount, Math.floor(cap)) : nowAmount;
+  });
+  const resources = { metal: res[0], crystal: res[1], deuterium: res[2] };
+
+  // buildable defense: requirements met; shield domes once
+  const candidates = planetShips(state, bp, t)
+    .filter((s) => ids.has(String(s.id)) && s.requirements.every((r) => r.own >= r.need))
+    .flatMap((s) => {
+      const one = catalog.units[String(s.id)]?.one;
+      if (one) return s.count + s.queued > 0 ? [] : [{ id: s.id, max: 1 }];
+      return [{ id: s.id, max: 1_000_000 }];
+    });
+  return { ids, units, combat, resources, candidates };
+}
+
+function rateOf(db: DB, ctx: GroupContext) {
+  const rate = latestMarketRate(db, ctx.groupId);
+  const value = rate && rate.m > 0 && rate.k > 0 ? { m: rate.m, k: rate.k } : DEFAULT_RATE;
+  return { value, source: rate ? ('market' as const) : ('default' as const) };
+}
+
 /** The planet, the threats and the search input of the advice. */
 export function defenseInput(db: DB, ctx: GroupContext, o: DefenseOptions) {
   const catalog = catalogOf(ctx.universe);
   const { state, bp } = planetOfKey(db, ctx, o.key);
-  const t = ctx.now;
   return withUnits(catalog, () => {
-    const p = bp.planet;
-    const research = state.research;
-    const combat = Object.fromEntries(['109', '110', '111'].map((id) => [id, research[id] ?? 0]));
-    const ids = new Set(defenseIds(catalog).map(String));
-    // units on the planet, the shipyard queue counted as built
-    const units: Record<string, number> = {};
-    for (const [id, n] of Object.entries(p.values)) {
-      const num = Number(id);
-      if (!(n > 0)) continue;
-      if (ids.has(id) || num === 212 || (o.ships && num >= 200 && num < 300)) units[id] = n;
-    }
-    for (const [id, n] of Object.entries(p.shipyard ?? {})) if (ids.has(id) && n > 0) units[id] = (units[id] ?? 0) + n;
-
-    const res = [901, 902, 903].map((r) => {
-      const cap = capacityOf(p, r, state.storageFactor);
-      const arrivals = bp.arrivals.map((a) => ({ at: a.at, amount: a.resources[r] ?? 0 })).filter((a) => a.amount > 0 && a.at <= t);
-      const nowAmount = Math.floor(resourceAt(p.resources[r] ?? 0, p.perHour[r] ?? 0, cap, p.time, Math.max(t, p.time), arrivals));
-      return o.loot === 'full' && bp.type === 'planet' ? Math.max(nowAmount, Math.floor(cap)) : nowAmount;
-    });
-    const resources = { metal: res[0], crystal: res[1], deuterium: res[2] };
-
-    // buildable defense: requirements met; shield domes once
-    const candidates = planetShips(state, bp, t)
-      .filter((s) => ids.has(String(s.id)) && s.requirements.every((r) => r.own >= r.need))
-      .flatMap((s) => {
-        const one = catalog.units[String(s.id)]?.one;
-        if (one) return s.count + s.queued > 0 ? [] : [{ id: s.id, max: 1 }];
-        return [{ id: s.id, max: 1_000_000 }];
-      });
-
-    const ownCoords = state.planets.map((x) => x.coords);
-    const threats = defenseThreats(db, ctx, bp, { coords: ownCoords, research });
-    const rate = latestMarketRate(db, ctx.groupId);
-    const valueRate = rate && rate.m > 0 && rate.k > 0 ? { m: rate.m, k: rate.k } : DEFAULT_RATE;
+    const { ids, units, combat, resources, candidates } = planetSetup(state, bp, o, ctx.now, catalog);
+    const threats = defenseThreats(db, ctx, bp, { coords: state.planets.map((x) => x.coords), research: state.research });
+    const rate = rateOf(db, ctx);
     const chosen = threats.filter((x) => (o.threats ? o.threats.includes(x.key) : true));
     const search: DefenseSearch = {
       planet: { units, research: combat },
       resources,
-      threats: chosen.map((x) => ({ key: x.key, units: x.fleet.units, research: x.research.values, fuel: x.flight?.fuel ?? 0 })),
+      threats: chosen.flatMap(variantsOf),
       candidates,
-      rate: valueRate,
+      rate: rate.value,
       debris: o.debris,
       maxFactor: MAX_FACTOR,
       runs: RUNS,
@@ -274,19 +310,69 @@ export function defenseInput(db: DB, ctx: GroupContext, o: DefenseOptions) {
     };
     const unitValue = (id: number) => {
       const c = unitCost(id);
-      return c ? valueIn({ metal: c[0], crystal: c[1], deuterium: c[2] }, valueRate) : 0;
+      return c ? valueIn({ metal: c[0], crystal: c[1], deuterium: c[2] }, rate.value) : 0;
     };
     return {
       planet: {
-        key: bp.key, name: bp.name, coords: bp.coords, type: bp.type, time: p.time, units, research: combat, resources,
+        key: bp.key, name: bp.name, coords: bp.coords, type: bp.type, time: bp.planet.time, units, research: combat, resources,
         defenseValue: Math.round(Object.entries(units).filter(([id]) => ids.has(id)).reduce((s, [id, n]) => s + n * unitValue(Number(id)), 0)),
       },
-      rate: { ...valueRate, source: rate ? 'market' : 'default' },
+      rate: { ...rate.value, source: rate.source },
       candidates: candidates.map((c) => c.id),
       threats,
       search,
     };
   });
+}
+
+// ---- raid risk: every own body against its known threats as it is ------------------------------------------------
+
+/** Runs per battle and engine budget of the raid risk of all bodies (about 10 s at most). */
+const RISK_RUNS = 4;
+const RISK_WORK = 40_000_000;
+const RISK_TTL = 30 * 60;
+const riskCache = new Map<string, { at: number; result: RiskResult }>();
+
+/** The raid risk input of all the viewer's bodies, and a hash of it (same input, same result from the cache). */
+export function raidRiskInput(db: DB, ctx: GroupContext, o: Options) {
+  const catalog = catalogOf(ctx.universe);
+  const state = buildingsState(db, ctx, ctx.user.id);
+  return withUnits(catalog, () => {
+    const memo = threatMemo();
+    const own = { coords: state.planets.map((x) => x.coords), research: state.research };
+    const rate = rateOf(db, ctx);
+    const bodies = state.planets.map((bp) => {
+      const { units, combat, resources } = planetSetup(state, bp, o, ctx.now, catalog);
+      const threats = defenseThreats(db, ctx, bp, own, memo);
+      return { bp, units, combat, resources, threats };
+    });
+    const input = {
+      planets: bodies.map((b) => ({ key: b.bp.key, planet: { units: b.units, research: b.combat }, resources: b.resources, threats: b.threats.flatMap(variantsOf) })),
+      rate: rate.value,
+      debris: o.debris,
+      runs: RISK_RUNS,
+      work: RISK_WORK,
+    };
+    // resources grow every second: the hash takes them in steps of about 2 % (enough for a score)
+    const rounded = input.planets.map((p) => ({ ...p, resources: Object.fromEntries(Object.entries(p.resources).map(([k, v]) => [k, Math.round(Math.log10(v + 1) * 100)])) }));
+    const hash = createHash('sha256').update(JSON.stringify([ctx.groupId, ctx.user.id, rounded, input.rate, input.debris, ctx.universe.settings, ctx.universe.units])).digest('hex');
+    return { bodies, input, hash };
+  });
+}
+
+/** The raid risk from the cache or the battle worker (one simulation of the rate limit when it runs). */
+export async function raidRiskOf(ctx: GroupContext, input: ReturnType<typeof raidRiskInput>): Promise<{ result: RiskResult; cached: boolean } | { error: string }> {
+  const hit = riskCache.get(input.hash);
+  if (hit && ctx.now - hit.at < RISK_TTL) return { result: hit.result, cached: true };
+  try {
+    throttle(ctx.user.id);
+    const result = await runRiskInWorker(input.input, simSettingsOf(ctx.universe.settings, {}), ctx.universe.units);
+    for (const [k, v] of riskCache) if (ctx.now - v.at >= RISK_TTL || riskCache.size > 500) riskCache.delete(k);
+    riskCache.set(input.hash, { at: ctx.now, result });
+    return { result, cached: false };
+  } catch (err) {
+    return { error: (err as { code?: string }).code ?? 'sim_failed' };
+  }
 }
 
 /** The advice for the chosen threats (null without threats); the search runs in the battle worker. */

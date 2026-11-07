@@ -138,6 +138,42 @@ const plus = (a: Record<string, number>, b: Record<number, number>) => {
   return out;
 };
 
+/**
+ * One attacker against a planet: averages over `n` runs of loot, debris (the defender's ships lost count in it), the
+ * losses of both sides and the attacker's profit (loot + debris when `debris` − ships lost − fuel, by the rate).
+ */
+export function threatOutcome(
+  fight: Fight,
+  planet: BattleFleet,
+  resources: Resources,
+  t: DefenseThreat,
+  n: number,
+  rate: DefenseRate,
+  debris: boolean,
+  settings: SimSettings = DEFAULT_SIM_SETTINGS,
+  units?: UnitCatalog,
+): ThreatOutcome {
+  const random = seeded(0x5eed);
+  const sum = { loot: { ...ZERO }, debris: { metal: 0, crystal: 0 }, lost: { ...ZERO }, defenderLost: { ...ZERO }, wins: 0 };
+  for (let i = 0; i < n; i++) {
+    const { run } = runBattle(fight, { attackers: [{ units: t.units, research: t.research }], defenders: [planet], resources }, settings, random, units);
+    for (const k of ['metal', 'crystal', 'deuterium'] as const) {
+      sum.loot[k] += run.loot[k];
+      sum.lost[k] += run.lostResources.attacker[k];
+      sum.defenderLost[k] += run.lostResources.defender[k];
+    }
+    sum.debris.metal += run.debris.metal;
+    sum.debris.crystal += run.debris.crystal;
+    if (run.winner === 'attacker') sum.wins++;
+  }
+  const avg = <T extends Record<string, number>>(r: T) => Object.fromEntries(Object.entries(r).map(([k, v]) => [k, v / n])) as T;
+  const loot = avg(sum.loot);
+  const field = avg(sum.debris);
+  const lost = avg(sum.lost);
+  const profit = valueIn(loot, rate) + (debris ? valueIn(field, rate) : 0) - valueIn(lost, rate) - t.fuel;
+  return { key: t.key, profit, loot, debris: field, lost, defenderLost: avg(sum.defenderLost), fuel: t.fuel, wins: sum.wins / n };
+}
+
 /** Runs the search (synchronously: in a worker on the server). `units`: the universe's unit catalog. */
 export function defenseAdvice(fight: Fight, search: DefenseSearch, settings: SimSettings = DEFAULT_SIM_SETTINGS, units?: UnitCatalog): DefenseAdvice {
   return withUnits(units, () => adviceOf(fight, search, settings, units));
@@ -148,30 +184,6 @@ function adviceOf(fight: Fight, s: DefenseSearch, settings: SimSettings, units?:
   let work = 0;
   let runs = Math.max(1, Math.floor(s.runs));
   let outOfBudget = false;
-
-  /** One attacker against the planet with `extra` defense: the average profit over the runs. */
-  function outcome(t: DefenseThreat, extra: Record<number, number>, n: number): ThreatOutcome {
-    const planet = { units: plus(s.planet.units, extra), research: s.planet.research };
-    const random = seeded(0x5eed);
-    const sum = { loot: { ...ZERO }, debris: { metal: 0, crystal: 0 }, lost: { ...ZERO }, defenderLost: { ...ZERO }, wins: 0 };
-    for (let i = 0; i < n; i++) {
-      const { run } = runBattle(fight, { attackers: [{ units: t.units, research: t.research }], defenders: [planet], resources: s.resources }, settings, random, units);
-      for (const k of ['metal', 'crystal', 'deuterium'] as const) {
-        sum.loot[k] += run.loot[k];
-        sum.lost[k] += run.lostResources.attacker[k];
-        sum.defenderLost[k] += run.lostResources.defender[k];
-      }
-      sum.debris.metal += run.debris.metal;
-      sum.debris.crystal += run.debris.crystal;
-      if (run.winner === 'attacker') sum.wins++;
-    }
-    const avg = <T extends Record<string, number>>(r: T) => Object.fromEntries(Object.entries(r).map(([k, v]) => [k, v / n])) as T;
-    const loot = avg(sum.loot);
-    const debris = avg(sum.debris);
-    const lost = avg(sum.lost);
-    const profit = valueIn(loot, s.rate) + (s.debris ? valueIn(debris, s.rate) : 0) - valueIn(lost, s.rate) - t.fuel;
-    return { key: t.key, profit, loot, debris, lost, defenderLost: avg(sum.defenderLost), fuel: t.fuel, wins: sum.wins / n };
-  }
 
   /** All `threats` against the planet with `extra` (`factor` × the runs); null when the engine budget is used up. */
   function evaluate(threats: DefenseThreat[], extra: Record<number, number>, factor = 1): ThreatOutcome[] | null {
@@ -186,7 +198,8 @@ function adviceOf(fight: Fight, s: DefenseSearch, settings: SimSettings, units?:
     }
     work += per * n;
     battles += threats.length * n;
-    return threats.map((t) => outcome(t, extra, n));
+    const planet = { units: plus(s.planet.units, extra), research: s.planet.research };
+    return threats.map((t) => threatOutcome(fight, planet, s.resources, t, n, s.rate, s.debris, settings, units));
   }
   const worst = (list: ThreatOutcome[]) => Math.max(...list.map((o) => o.profit));
 

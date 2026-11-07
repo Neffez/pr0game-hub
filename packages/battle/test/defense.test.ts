@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { initSync, wasm_fight_battle_rounds } from '../wasm/battlerust.js';
-import { defenseAdvice, valueIn, type DefenseSearch } from '../src/index.js';
+import { defenseAdvice, heavyShips, raidRisk, valueIn, type DefenseSearch } from '../src/index.js';
 
 initSync({ module: readFileSync(new URL('../wasm/battlerust_bg.wasm', import.meta.url)) });
 const fight = wasm_fight_battle_rounds;
@@ -63,5 +63,40 @@ describe('defense advisor', () => {
   it('builds only the candidates', () => {
     const a = defenseAdvice(fight, search({ candidates: [{ id: 401, max: 1_000_000 }] }));
     expect(Object.keys(a.add)).toEqual(['401']);
+  });
+});
+
+describe('raid risk', () => {
+  it('ranks the planets by the most profitable attack on them as they are', () => {
+    const threats = [{ key: 'raider', units: { 203: 300, 205: 100 }, research, fuel: 2000 }, { key: 'raider:heavy', units: { 205: 100 }, research, fuel: 500 }];
+    const r = raidRisk(fight, {
+      planets: [
+        { key: 'open', planet: { units: { 401: 5 }, research }, resources: { metal: 2_000_000, crystal: 1_000_000, deuterium: 0 }, threats },
+        { key: 'bunker', planet: { units: { 401: 3000, 402: 2000, 406: 50 }, research }, resources: { metal: 100_000, crystal: 0, deuterium: 0 }, threats },
+        { key: 'none', planet: { units: {}, research }, resources: { metal: 0, crystal: 0, deuterium: 0 }, threats: [] },
+      ],
+      rate, debris: true, runs: 4, work: 20_000_000,
+    });
+    expect(r.runs).toBe(4);
+    const [open, bunker, none] = r.planets;
+    expect(open.outcomes).toHaveLength(2);
+    expect(open.worst!.profit).toBeGreaterThan(0);
+    expect(bunker.worst!.profit).toBeLessThan(0);
+    expect(none.worst).toBeNull();
+  });
+
+  it('leaves out battles over the engine budget', () => {
+    const r = raidRisk(fight, {
+      planets: [{ key: 'p', planet: { units: { 401: 10 }, research }, resources: { metal: 1000, crystal: 0, deuterium: 0 }, threats: [{ key: 'x', units: { 204: 100 }, research, fuel: 0 }] }],
+      rate, debris: true, runs: 4, work: 10,
+    });
+    expect(r.planets[0].skipped).toBe(1);
+    expect(r.planets[0].worst).toBeNull();
+  });
+});
+
+describe('heavy ships', () => {
+  it('keeps the ships from the battleship up', () => {
+    expect(heavyShips({ 202: 10, 203: 5, 204: 100, 206: 20, 207: 30, 209: 4, 210: 3, 211: 2, 213: 1, 214: 1, 215: 7 })).toEqual({ 207: 30, 211: 2, 213: 1, 214: 1, 215: 7 });
   });
 });
