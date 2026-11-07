@@ -7,6 +7,7 @@ import { planetFromSpy, runInWorker, simSettingsOf, throttle, type ApiSlot } fro
 import { catalogOf, type GroupContext } from '../context.js';
 import type { DB } from '../db.js';
 import { latestEmpire, latestEmpires, spyEmpire } from './empire.js';
+import { CLASS_FLEET } from '@pr0hub/core/tech';
 import { sharedFleets, TOLERANCE, type StoredFleet } from './fleets.js';
 import { hostileAttacks, type HostileAttack } from './hostile.js';
 import { phalanxExposure } from './phalanx.js';
@@ -93,6 +94,60 @@ function holdFleets(db: DB, ctx: GroupContext, attack: HostileAttack, names: Map
   return [...out.values()];
 }
 
+/** Ships of the member that left the attacked body after their newest empire page and are not back by the impact. */
+export interface SentAway {
+  ships: Record<string, number>;
+  fleets: number;
+  /** no fleet list from before the empire page: fleets in flight may have been away already then (nothing taken off) */
+  unknown: boolean;
+}
+
+/**
+ * Own fleets of the member started from the attacked body that are still away at the impact (outbound, holding, or on
+ * the way back landing after it; a deploy elsewhere stays away), from their newest fleet list synced after the empire
+ * page. Fleets already in a fleet list synced up to the empire page were away then and are not in its numbers anyway.
+ */
+function sentAway(db: DB, ctx: GroupContext, memberId: number, body: { g: number; s: number; p: number; type: string }, impact: number, empireTime: number): SentAway {
+  const none = { ships: {}, fleets: 0, unknown: false };
+  const newest = sharedFleets(db, ctx.groupId, memberId, ctx.user.id);
+  if (!newest || newest.time <= empireTime) return none;
+  const before = db
+    .prepare('SELECT data FROM fleet_snapshots WHERE group_id = ? AND user_id = ? AND page_time <= ? ORDER BY page_time DESC, id DESC LIMIT 1')
+    .pluck()
+    .get(ctx.groupId, memberId, empireTime + 60) as string | undefined;
+  const old = before ? (JSON.parse(before) as StoredFleet[]) : null;
+  const same = (a: StoredFleet, b: StoredFleet) =>
+    b.owner === 'own' && a.mission === b.mission && a.phase === b.phase && Math.abs(a.arrival - b.arrival) <= TOLERANCE &&
+    at(b.from, { ...a.from.coords, type: a.from.type ?? 'planet' });
+  const list = newest.data.filter((f) => f.owner === 'own');
+  const used = new Set<StoredFleet>();
+  const ships: Record<string, number> = {};
+  let fleets = 0;
+  for (const f of list) {
+    if (used.has(f)) continue;
+    // the flight's lines from its first one: outbound or holding from the body, or only the way back to it
+    const starts = (f.phase === 'out' || f.phase === 'hold') && at(f.from, body);
+    const back = f.phase === 'return' && at(f.to, body);
+    if (!starts && !back) continue;
+    // later lines of the same flight: same mission and ships, between the same ends, the next of each phase
+    const shipsOf = (x: StoredFleet) => JSON.stringify(Object.entries(x.ships).filter(([, n]) => n > 0).sort());
+    const later = (phase: StoredFleet['phase']) =>
+      list
+        .filter((x) => !used.has(x) && x !== f && x.phase === phase && x.mission === f.mission && x.arrival > f.arrival && shipsOf(x) === shipsOf(f) &&
+          (phase === 'return' ? at(x.from, { ...f.to!.coords, type: f.to!.type ?? 'planet' }) && at(x.to, body) : at(x.from, body)))
+        .sort((x, y) => x.arrival - y.arrival)[0];
+    const lines = starts ? [f, ...(f.phase === 'out' ? [later('hold')] : []), ...(f.to ? [later('return')] : [])].filter((x): x is StoredFleet => !!x) : [f];
+    lines.forEach((x) => used.add(x));
+    const home = lines.find((x) => x.phase === 'return' && at(x.to, body));
+    if (home ? home.arrival <= impact : f.mission !== 4 && !starts) continue;
+    if (old?.some((o) => lines.some((x) => same(x, o)))) continue;
+    if (!old) return { ships: {}, fleets: 0, unknown: true };
+    fleets++;
+    for (const [id, n] of Object.entries(f.ships)) if (n > 0) ships[id] = (ships[id] ?? 0) + n;
+  }
+  return { ships, fleets, unknown: false };
+}
+
 /** The attack by its key, or by member, arrival (± the fleet tolerance) and origin. */
 export function findAttack(db: DB, ctx: GroupContext, q: { key?: string; member?: number; arrival?: number; from?: string }): HostileAttack | null {
   const list = hostileAttacks(db, ctx);
@@ -125,12 +180,31 @@ export function attackAssist(db: DB, ctx: GroupContext, attack: HostileAttack) {
       };
       resources = { metal: at(901), crystal: at(902), deuterium: at(903) };
     }
-    const planet: ApiSlot | null = body ? planetFromSpy({ ...body.values, 109: research[109] ?? 0, 110: research[110] ?? 0, 111: research[111] ?? 0 }, attack.member, units).planet : null;
+    // ships that left the body since the empire page and are not back by the impact don't defend
+    const away = body && attack.memberId != null ? sentAway(db, ctx, attack.memberId, attack.to, attack.arrival, empire!.time) : null;
+    const values = body ? { ...body.values } : {};
+    for (const [id, n] of Object.entries(away?.ships ?? {})) values[Number(id)] = Math.max(0, (values[Number(id)] ?? 0) - n);
+    const planet: ApiSlot | null = body ? planetFromSpy({ ...values, 109: research[109] ?? 0, 110: research[110] ?? 0, 111: research[111] ?? 0 }, attack.member, units).planet : null;
 
     // ---- attacker: the fleets of the movement with the research of the newest spy reports
     const spy = attack.player ? spyEmpire(db, ctx, attack.player.id, attack.player.name) : null;
     const attackerResearch = spy?.researchTime ? spy.research : {};
-    const fleets = attack.fleets.filter((f) => Object.values(f.ships).some((n) => n > 0));
+    let fleets = attack.fleets.filter((f) => Object.values(f.ships).some((n) => n > 0));
+    // the movement shows no ships: the fleet of the newest spy report of the origin (flying ships only) as an estimate
+    let estimated: { time: number } | null = null;
+    if (!fleets.length) {
+      const row = db
+        .prepare(
+          `SELECT report_time, json_extract(sections, '$."${CLASS_FLEET}"') AS fleet FROM spy_reports WHERE group_id = ? AND g = ? AND s = ? AND p = ? AND planet_type = ?
+             AND json_extract(sections, '$."${CLASS_FLEET}"') IS NOT NULL ORDER BY report_time DESC LIMIT 1`,
+        )
+        .get(ctx.groupId, attack.from.g, attack.from.s, attack.from.p, attack.from.type) as { report_time: number; fleet: string } | undefined;
+      const ships = row ? Object.fromEntries(Object.entries(JSON.parse(row.fleet) as Record<string, number>).filter(([id, n]) => n > 0 && (units.drives[id]?.speed.some((v) => v > 0) ?? false))) : {};
+      if (Object.keys(ships).length) {
+        fleets = [{ mission: attack.fleets[0]?.mission ?? null, ships }];
+        estimated = { time: row!.report_time };
+      }
+    }
     const attackers: ApiSlot[] = fleets.map((f) => ({
       units: Object.fromEntries(Object.entries(f.ships).filter(([, n]) => n > 0)), research: attackerResearch, from: [attack.from.g, attack.from.s, attack.from.p],
       speed: 100, carried: 0, name: attack.player?.name ?? null,
@@ -186,12 +260,15 @@ export function attackAssist(db: DB, ctx: GroupContext, attack: HostileAttack) {
       attacker: {
         player: attack.player,
         research: spy?.researchTime ? { values: spy.research, time: spy.researchTime } : null,
+        /** ships estimated from the newest spy report of the origin (the movement shows none) */
+        estimated,
         ships: attackers.reduce<Record<string, number>>((sum, a) => {
           for (const [id, n] of Object.entries(a.units)) sum[id] = (sum[id] ?? 0) + n;
           return sum;
         }, {}),
       },
       loot,
+      away,
       helpers: helpers.slice(0, MAX_HELPERS),
       holds,
       holdPlan: plan ?? null,

@@ -105,8 +105,11 @@ four tools.
   the member gets an invitation in the bell and by push). Cards instead of tables on mobile.
 - **Entry points:** attack notifications in the bell, push and Discord open the assistant; the raid planner's
   detected attacks have "Open the attack assistant" in their menu. **Tour:** `attack`.
-- **Left for later:** the attacker's fleet estimated from spy reports
-  when the movement shows no ships, the member's own fleet save reminder from the assistant.
+- **Follow-up (2026-11-07):** ships sent away from the planet after the empire page and not back by the impact are
+  taken off (`sentAway`: the member's newest fleet list against the one up to the empire page; return lines matched
+  by ships); when the movement shows no ships, the flying ships of the origin's newest spy report stand in
+  (`attacker.estimated`).
+- **Left for later:** the member's own fleet save reminder from the assistant.
 
 ### A-2 Fleet save planner (sleep and offline windows)
 **Value:** High · **Effort:** M · **Builds on:** `@pr0hub/flight` (recall, duration), notifications, empire page

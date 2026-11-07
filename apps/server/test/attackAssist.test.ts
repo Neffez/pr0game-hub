@@ -132,6 +132,38 @@ describe('incoming attack assistant', () => {
     expect(a.helpers.map((h: any) => h.from.name)).not.toContain('Near');
   });
 
+  it('takes off ships sent away after the empire page and estimates unseen attackers from spy reports', async () => {
+    const own = (phase: string, arrival: number, ships: Record<number, number>, mission = 3) => ({
+      owner: 'own', player: null, mission, missionName: 'Transport', phase, acs: null, ships, resources: null, arrival,
+      from: { coords: phase === 'return' ? { g: 1, s: 140, p: 6 } : { g: 1, s: 100, p: 8 }, type: 'planet', name: null },
+      to: { coords: phase === 'return' ? { g: 1, s: 100, p: 8 } : { g: 1, s: 140, p: 6 }, type: 'planet', name: null },
+    });
+    const ghost = { ...hostile, ships: {}, arrival: t + 4 * 3600, from: { coords: { g: 1, s: 160, p: 2 }, type: 'planet', name: null } };
+    // a transport already in the fleet list before the empire page (away then: not taken off again)
+    const early = own('out', t + 300, { 203: 5 });
+    db.prepare('INSERT INTO fleet_snapshots (group_id, user_id, page_time, data) VALUES (?, ?, ?, ?)').run(group, carolId, t - 900, JSON.stringify([hostile, early]));
+    db.prepare('INSERT INTO fleet_snapshots (group_id, user_id, page_time, data) VALUES (?, ?, ?, ?)').run(group, carolId, t, JSON.stringify([
+      hostile, ghost, early, own('return', t + 600, { 203: 5 }),
+      // new since the empire page: the small cargos are back only after the impact, the deploy stays away
+      own('out', t + 3600, { 202: 15 }), own('return', hostile.arrival + 600, { 202: 15 }),
+      own('out', t + 1800, { 203: 2 }, 4),
+      // back before the impact: defends again
+      own('out', t + 1200, { 202: 5 }), own('return', t + 2400, { 202: 5 }),
+    ]));
+    const raider = db.prepare("SELECT id FROM players WHERE name = 'Raider'").pluck().get();
+    db.prepare(
+      `INSERT INTO spy_reports (group_id, g, s, p, planet_type, player_id, player_name, report_time, sections) VALUES (?, 1, 160, 2, 'planet', ?, 'Raider', ?, ?)`,
+    ).run(group, raider, t - 3600, JSON.stringify({ 900: {}, 200: { 207: 40, 212: 100, 210: 5 } }));
+
+    const a = (await get(`/attack-assist?member=${carolId}&arrival=${hostile.arrival}&from=1:150:4&sim=0`)).json();
+    expect(a.away).toEqual({ ships: { 202: 15, 203: 2 }, fleets: 2, unknown: false });
+    const b = (await get(`/attack-assist?member=${carolId}&arrival=${ghost.arrival}&from=1:160:2&sim=0`)).json();
+    // solar satellites cannot fly
+    expect(b.attacker.ships).toEqual({ 207: 40, 210: 5 });
+    expect(b.attacker.estimated).toEqual({ time: t - 3600 });
+    expect(b.simulated).toBe(true);
+  });
+
   it('answers 404 for an unknown attack', async () => {
     expect((await get(`/attack-assist?member=${carolId}&arrival=${t + 99}&from=9:9:9`)).statusCode).toBe(404);
   });

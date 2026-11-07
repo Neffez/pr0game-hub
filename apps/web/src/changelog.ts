@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Angriffs-Assistent: Schiffe, die du nach dem letzten Imperium weggeschickt hast, zählen im Kampfergebnis nicht mehr mit. Zeigt die Flottenbewegung keine Schiffe, schätzt der Hub die Angriffsflotte aus dem letzten Spionagebericht des Angreifers.',
+        en: 'Attack assistant: ships you sent away after your latest empire page no longer count in the battle result. When the fleet movement shows no ships, the hub estimates the attacking fleet from the attacker\'s latest spy report.',
+      },
+      {
+        kind: 'new',
         de: 'Angriffs-Assistent: „Voraussichtliches Kampfergebnis“ kompakt in zwei Zeilen, und Halteflotten von Mitgliedern, die zum Einschlag auf dem Planeten stehen, kämpfen in der Simulation mit. Weniger Text, besser lesbar auf dem Handy.',
         en: 'Attack assistant: "Expected battle result" in two compact lines, and members\' hold fleets that are on the planet at the impact join the simulation. Less text, easier to read on phones.',
       },

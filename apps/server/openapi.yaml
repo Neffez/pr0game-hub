@@ -2565,6 +2565,7 @@ paths:
                       player: { type: [object, 'null'] }
                       research: { type: [object, 'null'], description: '`values` and `time` of the newest spy report showing research' }
                       ships: { type: object, description: Ships of all fleets of the attack }
+                      estimated: { type: [object, 'null'], description: 'When the movement shows no ships: `time` of the spy report of the origin whose flying ships are used instead' }
                   loot: { type: [object, 'null'], description: 'Resources the surviving attackers could take (`metal`, `crystal`, `deuterium`)' }
                   helpers:
                     type: array
@@ -2579,6 +2580,16 @@ paths:
                         duration: { type: integer, description: One-way seconds at full speed }
                         launch: { type: integer, description: Latest launch (Unix seconds) }
                   holdPlan: { type: [integer, 'null'], description: Id of an open hold plan for the attack }
+                  away:
+                    type: [object, 'null']
+                    description: >-
+                      Ships of the member that left the attacked body after their newest empire page (newer fleet list,
+                      not in a fleet list from up to the empire page) and are not back by the impact; taken off the
+                      planet in the simulation. `unknown` when no fleet list from before the empire page exists.
+                    properties:
+                      ships: { type: object }
+                      fleets: { type: integer }
+                      unknown: { type: boolean }
                   holds:
                     type: array
                     description: Hold fleets at the planet at the impact (they defend in the simulation)

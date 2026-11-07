@@ -35,7 +35,8 @@ interface Assist {
   target: (C3 & { type: 'planet' | 'moon'; name: string; values: Record<string, number>; resources: Res | null; empireTime: number; deuterium: number | null; perHour: Record<string, number> | null }) | null;
   bodies: (C3 & { type: 'planet' | 'moon'; name: string })[];
   research: Record<string, number>;
-  attacker: { player: { id: number; name: string } | null; research: { values: Record<string, number>; time: number } | null; ships: Record<string, number> };
+  attacker: { player: { id: number; name: string } | null; research: { values: Record<string, number>; time: number } | null; ships: Record<string, number>; estimated: { time: number } | null };
+  away: { ships: Record<string, number>; fleets: number; unknown: boolean } | null;
   loot: Res | null;
   helpers: { userId: number; member: string; from: C3 & { type: 'planet' | 'moon'; name: string }; ships: Record<string, number>; points: number; duration: number; launch: number }[];
   holdPlan: number | null;
@@ -165,7 +166,10 @@ const openHelpers = computed(() => (data.value?.helpers ?? []).filter((h) => h.l
         <span class="muted">{{ t('attack.target') }}</span>
         <span>{{ data.target?.name ?? '' }} <span class="mono">{{ c(a.to) }}</span><template v-if="a.to.type === 'moon'"> ({{ t('common.moon') }})</template></span>
         <span class="muted">{{ t('attack.ships') }}</span>
-        <span :title="shipsTitle(data.attacker.ships)">{{ shipsText(data.attacker.ships) || t('attack.shipsUnknown') }}</span>
+        <span :title="shipsTitle(data.attacker.ships)">
+          {{ shipsText(data.attacker.ships) || t('attack.shipsUnknown') }}
+          <span v-if="data.attacker.estimated" class="warn"> ({{ t('attack.estimated', { time: dateTime(data.attacker.estimated.time) }) }})</span>
+        </span>
         <span class="muted">{{ t('attack.research') }}</span>
         <span>
           <template v-if="data.attacker.research">
@@ -193,6 +197,8 @@ const openHelpers = computed(() => (data.value?.helpers ?? []).filter((h) => h.l
         </div>
       </template>
       <p v-else-if="arrived" class="muted small m-0">{{ t('attack.simArrived') }}</p>
+      <p v-if="data.away?.fleets" class="small at-holds muted" :title="shipsTitle(data.away.ships)">{{ t('attack.away', { ships: shipsText(data.away.ships) }) }}</p>
+      <p v-else-if="data.away?.unknown" class="small at-holds muted">{{ t('attack.awayUnknown') }}</p>
       <p v-if="data.holds.length" class="small at-holds">
         {{ t('attack.holds') }}:
         <span v-for="(h, i) in data.holds" :key="i" :title="shipsTitle(h.ships)">{{ i ? ', ' : '' }}{{ h.member ?? h.player ?? '?' }} ({{ fmt(Object.values(h.ships).reduce((s, n) => s + n, 0)) }})</span>

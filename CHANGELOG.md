@@ -4,6 +4,12 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-07
 
+- Attack assistant: ships the member sent away from the attacked planet after their newest empire page (in a newer
+  fleet list, not in one from up to the empire page) and that are not back by the impact are taken off the planet in
+  the simulation and named (`away`); return flights are matched by their ships, so two flights on one route stay
+  apart. When the movement shows no ships, the flying ships of the newest spy report of the origin stand in as an
+  estimate (`attacker.estimated`).
+
 - Attack assistant: the section is now "Expected battle result" with one compact line (outcome, win shares) and one
   line of losses and debris. Hold fleets in the members' synced fleet lists that are at the planet at the impact
   (landed before, still holding after) defend in the simulation and in the battle simulator link and are listed
