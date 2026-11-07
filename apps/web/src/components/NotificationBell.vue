@@ -61,6 +61,8 @@ function target(n: Notification) {
       return 'player' in n.thread
         ? `/${uni.value}/player/${n.thread.player}`
         : { path: `/${uni.value}/spy`, query: { c: `${n.thread.g}:${n.thread.s}:${n.thread.p}`, type: n.thread.type } };
+    case 'attack':
+      return { path: `/${uni.value}/attack`, query: { member: n.userId, arrival: n.time, from: `${n.fleet.from.coords.g}:${n.fleet.from.coords.s}:${n.fleet.from.coords.p}` } };
     default:
       return `/${uni.value}/fleet`;
   }

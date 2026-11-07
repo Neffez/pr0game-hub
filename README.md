@@ -48,6 +48,13 @@ External analysis tool for [pr0game](https://codeberg.org/pr0game/pr0game) based
   nearest own planet, defense and fleet risk and an inactivity score (game flag, latest proven activity, relevant
   points gains against the players around the same rank, spy history, lost fleet or defense; checkable against the
   game's own flags in the admin panel)
+- **Incoming attack assistant**: one page per hostile attack (from the bell, push, Discord or the raid planner):
+  countdown, a battle simulation of the attacking ships against the planet, resources and loot at risk, fleet saves
+  before the impact (also with a recall) and the members who can still hold in time, invited to a hold plan in one
+  click
+- **Fleet save planner**: enter when you are offline (presets); per planet and moon the deploys and transports to own
+  bodies that land right when you are back, with departure, speed, deuterium and free cargo, and a hint when a hostile
+  phalanx sees the planet
 - **Targets**: members claim a planet or moon for a while (farming, attack, espionage) so nobody hits it twice;
   the claim shows next to the target everywhere and runs out by itself; the list of claims is a section of the
   raids planning tab

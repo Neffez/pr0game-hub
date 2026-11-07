@@ -15,6 +15,8 @@ source (`pr0game`: pages, missions, achievements, advanced stats).
 | B-1 Farm finder with projected resources | Done | 2026-11-06 | new menu item "Farm finder" under Combat & expeditions |
 | B-3 Inactivity confidence | Done (second version) | 2026-11-06 | farm finder, overview, player details, check in the admin panel |
 | A-3 Hostile phalanx exposure | Done | 2026-11-07 | My empire (section and marks), notifications (bell, push, Discord) |
+| A-2 Fleet save planner | Done | 2026-11-07 | new menu item "Fleet save" under Combat & expeditions |
+| A-1 Incoming attack assistant | Done | 2026-11-07 | page per attack, opened from bell, push, Discord and the raid planner |
 
 Each finished item carries a **Status** block below its description: what was built and how.
 
@@ -79,6 +81,29 @@ When a hostile fleet heads for a member, the notification opens a page for this 
 Why: this is the moment where a hub decides whether a member loses a fleet. Today the member has to switch between
 four tools.
 
+**Status: done (2026-11-07).** How it was built:
+
+- **Server:** `apps/server/src/repo/attackAssist.ts` on top of `hostileAttacks` (the attacks of the raid planner:
+  members' fleet lists and phalanx results, ACS fleets as one attack). `GET /api/:uni/attack-assist` finds an attack
+  by `key` (with `arrival` for waves) or by `member`, `arrival` (± 5 s) and `from` (what the bell knows), and returns:
+  the attacked body from the member's newest empire page (units, resources projected to the impact with production up
+  to the storages), the attacker's research (`spyEmpire`), the summed ships, the loot (`steal` of `@pr0hub/battle`),
+  the member's bodies and research for the fleet save, helpers (other members' bodies whose slowest ship at 100 % lands
+  1 s before the impact: latest launch, fleet points; strongest first), an open hold plan and the hostile phalanxes
+  reaching the planet (A-3). The battle runs 20 times in the battle worker (`runInWorker`, same throttle as the
+  simulator API); `sim=0` skips it, errors come back as `{ error }`. `getAttackAssist` in `openapi.yaml`, tests in
+  `apps/server/test/attackAssist.test.ts`.
+- **Web:** `AttackView.vue` at `/:uni/attack`: countdown, attacker, mission, ships and combat research; "Will it
+  hold?" with a verdict (holds ≥ 90 % defender wins, falls ≥ 90 % attacker wins, draw, uncertain), win shares, losses,
+  debris and a link into the battle simulator (`battleSimLink`); resources at risk; fleet saves with
+  `FleetSaveOptions.vue` (latest departure 1 s before the impact, at rest 1 s after it, incl. deploy + recall); help
+  from the alliance: "Create hold plan" (`POST /plans/hold`), "Invite" per helper or all (`POST /plans/:id/fleets`,
+  the member gets an invitation in the bell and by push). Cards instead of tables on mobile.
+- **Entry points:** attack notifications in the bell, push and Discord open the assistant; the raid planner's
+  detected attacks have "Open the attack assistant" in their menu. **Tour:** `attack`.
+- **Left for later:** fleets holding at the planet in the simulation, the attacker's fleet estimated from spy reports
+  when the movement shows no ships, the member's own fleet save reminder from the assistant.
+
 ### A-2 Fleet save planner (sleep and offline windows)
 **Value:** High · **Effort:** M · **Builds on:** `@pr0hub/flight` (recall, duration), notifications, empire page
 
@@ -86,6 +111,28 @@ The member enters "I am offline from 23:30 to 07:15". Per planet the hub suggest
 returns at the wake-up time (deploy to own moon/planet, transport with resources, recycler to a debris field),
 with speed setting, fuel and the exact departure. A push or Discord reminder fires a few minutes before the fleet is
 back. Typical windows ("night", "work") are saved as presets.
+
+**Status: done (2026-11-07).** How it was built:
+
+- **Game math in `@pr0hub/flight`** (`fleetsave.ts`, shared with the attack assistant): `fleetSaveOptions` takes a
+  fleet, its body, the own bodies as targets, the earliest (`now`) and latest departure and the time it must not be at
+  rest before (`back`). Per target, mission (deploy: rest at arrival; transport: rest back home) and speed (10–100 %)
+  it departs as late as needed to rest at `back` (never before now, never after the latest departure, timestamps
+  floored like `flightTimes`) and keeps options that rest at `back` or later, sorted by lateness, then net deuterium.
+  Fuel like ShowFleetStep3Page (charged once, takes cargo space); a deploy gets half back (MissionCaseStay). `recall`:
+  deploy to the farthest own target at full speed and recall it (`recallFor`) so it lands home at `back`. Tests in
+  `packages/flight/test/fleetsave.test.ts`.
+- **Web:** `FleetSaveView.vue` at `/:uni/fleetsave` (menu "Fleet save"): offline from/until (time of day; a start up to
+  6 h ago means "offline now"), presets in local storage ("Night" 23:30–07:15, "Work" 07:45–17:00 built in), deploy
+  and transport switchable. Per own planet and moon with ships that can fly (newest empire page) the best three
+  options of `FleetSaveOptions.vue` (more on request): mission, target, speed, departure with countdown, at rest from
+  (lateness), deuterium (red above the body's projected deuterium), free cargo. Planets in reach of a hostile phalanx
+  (A-3) get a hint to start from the moon. No new API: the page reads `/imperium`.
+- **Reminder:** after sending, the member pastes the overview and sets the bell on the fleet in My empire (the
+  existing fleet alerts, push and Discord included); the page says so.
+- **Tour** `fleetsave`; **texts** `fleetsave.*`, `nav.fleetsave`; web tests in `apps/web/test/fleetsave-attack.test.ts`.
+- **Left for later:** recycler flights to debris fields (needs recyclers and a field), presets synced across devices,
+  a reminder without pasting the overview.
 
 ### A-3 Hostile phalanx exposure
 **Value:** Medium · **Effort:** S · **Builds on:** phalanx coverage in the galaxy browser, spy reports of moons
@@ -529,8 +576,8 @@ E-1 What to paste next · F-1 Global search · B-1 Farm finder · B-3 Inactivity
 exposure (all done)
 
 **Next:**
-A-1 Incoming attack assistant · A-2 Fleet save planner · C-1 Upgrade advisor · D-1 Alliance health dashboard ·
-F-3 Export
+A-1 Incoming attack assistant (done) · A-2 Fleet save planner (done) · C-1 Upgrade advisor · D-1 Alliance health
+dashboard · F-3 Export
 
 **Later:**
 A-4 Defense advisor · C-2 Logistics planner · C-3 Resource requests · C-4 Expedition planner · D-2 War dashboard ·

@@ -2520,6 +2520,67 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Imperium' }
+  /api/{uni}/attack-assist:
+    get:
+      tags: [Universe]
+      operationId: getAttackAssist
+      description: >-
+        Incoming attack assistant for one hostile attack on a member (from the members' fleet lists or a phalanx result,
+        like `/api/{uni}/hostile-attacks`), found by `key` (optionally with `arrival` for waves) or by `member`,
+        `arrival` (± 5 s) and `from`. Returns the attack, the attacked body from the member's newest empire page (units,
+        resources projected to the impact), the attacker's ships and research (newest spy reports), the loot the attack
+        can take, the member's bodies and research for a fleet save, the members' bodies with ships that can still land
+        a hold 1 s before the impact (latest launch at full speed, strongest first), an open hold plan for it and the
+        hostile phalanxes reaching the planet. `sim` is a battle simulation of 20 runs on the game's engine (null with
+        `sim=0`, after the impact or without known ships or planet; `{ error }` when the simulator is busy or missing).
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+        - { name: key, in: query, schema: { type: string }, description: Key of the attack (route and lead ships) }
+        - { name: member, in: query, schema: { type: integer }, description: Attacked member's user id }
+        - { name: arrival, in: query, schema: { type: integer }, description: Impact (Unix seconds) }
+        - { name: from, in: query, schema: { type: string }, description: 'Origin `g:s:p`' }
+        - { name: sim, in: query, schema: { type: string, enum: ['0', '1'] }, description: '`0` skips the simulation' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  attack: { type: object, description: 'The hostile attack (`key`, `arrival`, `from`, `to`, `fleets`, `player`, `drives`, …)' }
+                  member: { type: [object, 'null'], properties: { id: { type: integer }, name: { type: string } } }
+                  target:
+                    type: [object, 'null']
+                    description: 'The attacked body: `g`, `s`, `p`, `type`, `name`, `values` (levels and units), `resources` at the impact (`metal`, `crystal`, `deuterium`), `empireTime`, `deuterium` and `perHour` of the empire page'
+                  bodies: { type: array, items: { type: object }, description: 'The member''s planets and moons (`g`, `s`, `p`, `type`, `name`)' }
+                  research: { type: object, description: The member's research levels }
+                  attacker:
+                    type: object
+                    properties:
+                      player: { type: [object, 'null'] }
+                      research: { type: [object, 'null'], description: '`values` and `time` of the newest spy report showing research' }
+                      ships: { type: object, description: Ships of all fleets of the attack }
+                  loot: { type: [object, 'null'], description: 'Resources the surviving attackers could take (`metal`, `crystal`, `deuterium`)' }
+                  helpers:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        userId: { type: integer }
+                        member: { type: string }
+                        from: { type: object }
+                        ships: { type: object }
+                        points: { type: integer }
+                        duration: { type: integer, description: One-way seconds at full speed }
+                        launch: { type: integer, description: Latest launch (Unix seconds) }
+                  holdPlan: { type: [integer, 'null'], description: Id of an open hold plan for the attack }
+                  phalanx: { type: array, items: { type: object }, description: Hostile phalanxes reaching the planet (like `PhalanxExposure.threats`) }
+                  simulated: { type: boolean, description: Ships and planet are known (a simulation is possible) }
+                  sim: { type: [object, 'null'], description: 'Simulation summary (`wins`, `rounds`, `attackers`, `defenders`, `loot`, `debris`, `lostResources`, …) or `{ error }`' }
+                  now: { type: integer }
+        '404': { description: 'No such hostile attack (`attack_not_found`)' }
   /api/{uni}/fleets/alerts:
     put:
       tags: [Universe]

@@ -116,7 +116,7 @@ describe('push delivery', () => {
     await app.push.deliver(groupA, t);
     expect(sent).toHaveLength(1);
     expect(sent[0].endpoint).toBe('https://fcm.googleapis.com/fcm/send/carol');
-    expect(sent[0].payload).toMatchObject({ title: '⚔ Angriff auf Carol', url: `/hub/u8/fleet?group=${groupA}` });
+    expect(sent[0].payload).toMatchObject({ title: '⚔ Angriff auf Carol', url: `/hub/u8/attack?member=${ids.carol}&arrival=${t + 3600}&from=2%3A100%3A4&group=${groupA}` });
     expect(sent[0].payload.body).toContain('☾ [1:1:1]');
     expect(sent[0].payload.body).toContain('von Raider [2:100:4]');
 

@@ -212,6 +212,26 @@ export const TOURS = {
       { key: 'list', el: 'battlehall-list', side: 'top' },
     ],
   },
+  attack: {
+    steps: [
+      { key: 'intro' },
+      { key: 'head', el: 'attack-head', side: 'bottom' },
+      { key: 'sim', el: 'attack-sim', side: 'top' },
+      { key: 'loot', el: 'attack-loot', side: 'top' },
+      { key: 'save', el: 'attack-save', side: 'top' },
+      { key: 'help', el: 'attack-help', side: 'top' },
+    ],
+  },
+  fleetsave: {
+    steps: [
+      { key: 'intro' },
+      { key: 'window', el: 'fleetsave-window', side: 'bottom' },
+      { key: 'presets', el: 'fleetsave-presets', side: 'bottom' },
+      { key: 'body', el: 'fleetsave-body', side: 'top' },
+      { key: 'phalanx', el: 'fleetsave-phalanx', side: 'bottom' },
+      { key: 'remind', el: 'fleetsave-remind', side: 'top' },
+    ],
+  },
   farm: {
     steps: [
       { key: 'intro' },

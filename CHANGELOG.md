@@ -4,6 +4,27 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-07
 
+- Incoming attack assistant (backlog item A-1): a page per hostile attack (`/:uni/attack`, opened from the bell, push
+  and Discord notifications of attacks and from the raid planner's detected attacks):
+  - Countdown, attacker with combat research from the newest spy reports, mission, ships and target.
+  - "Will it hold?": a battle simulation (20 runs on the game's engine) of the attacking ships against the planet from
+    the member's newest empire page, with a verdict, losses, debris and a link into the battle simulator.
+  - Resources at risk at the impact (production up to the storages) and the loot the attackers can take
+    (`@pr0hub/battle` `steal`).
+  - Fleet saves before the impact (deploy, transport, deploy + recall) with the shared fleet save math; hostile
+    phalanxes reaching the planet are named.
+  - Help from the alliance: other members' bodies with ships that can still hold 1 s before the impact at full speed
+    (latest launch, strongest first); "Invite" creates the hold plan and invites the member.
+  - `GET /api/:uni/attack-assist` (`repo/attackAssist.ts`, `getAttackAssist` in `openapi.yaml`); push and Discord
+    links of attacks open the assistant.
+- Fleet save planner (backlog item A-2): new page "Fleet save" under Combat & expeditions. The member enters when they
+  go offline and are back (presets per device, "Night" and "Work" built in); per planet and moon with ships the hub
+  suggests deploys and transports to the own bodies that are in the air at the start and at rest again at the wake-up
+  time or just after, with departure, speed, deuterium (red when the body has too little), net cost and free cargo.
+  Planets in reach of a hostile phalanx get a hint to start from the moon. Math in `@pr0hub/flight` (`fleetsave.ts`:
+  game timing, fuel charged once for there and back, half back for a deploy, recalls); the reminder before the landing
+  uses the existing fleet alerts.
+
 - Hostile phalanx exposure (backlog item A-3):
   - My empire shows per planet the moons outside the own alliance whose sensor phalanx reaches it (level from the
     newest moon spy report with buildings, range like the game's `allowPhalanx` incl. circular galaxies and level 1

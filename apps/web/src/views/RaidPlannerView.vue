@@ -119,6 +119,7 @@ const myLaunches = computed(() =>
 );
 const attackTarget = (a: HostileAttack | OwnAttack) => `${coords(a.to.g, a.to.s, a.to.p)}${a.to.type === 'moon' ? ` (${t('common.moon')})` : ''}`;
 const attackMenu = (a: HostileAttack) => [
+  a.arrival > now.value && { label: t('attack.open'), icon: 'attack', to: { path: `/${uni.value}/attack`, query: { key: a.key, arrival: a.arrival } } },
   a.holdPlanId
     ? { label: t('plans.openHold'), icon: 'arrowRight', to: planLink(a.holdPlanId) }
     : a.arrival > now.value && { label: t('hold.plan'), icon: 'pause', onClick: async () => openPlan(await rp.planHold(a)) },

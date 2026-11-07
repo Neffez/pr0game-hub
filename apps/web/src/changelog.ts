@@ -20,6 +20,16 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Angriffs-Assistent: Ein Klick auf einen Angriff in der Glocke öffnet eine Seite mit Countdown, Simulation „Hält die Verteidigung?“, den Rohstoffen in Gefahr, Fleetsave-Möglichkeiten vor dem Einschlag und den Mitgliedern, die noch rechtzeitig halten können – einladen mit einem Klick.',
+        en: 'Attack assistant: a click on an attack in the bell opens a page with a countdown, a "Will it hold?" simulation, the resources at risk, fleet save options before the impact and the members who can still hold in time – invite them in one click.',
+      },
+      {
+        kind: 'new',
+        de: 'Fleetsave-Planer: Sag, wann du offline bist, und der Hub schlägt je Planet und Mond einen Flug vor, der genau zu deiner Rückkehr landet – mit Abflugzeit, Tempo und Deuterium. Vorlagen wie „Nacht“ oder „Arbeit“ mit einem Klick.',
+        en: 'Fleet save planner: say when you are offline and the hub suggests a flight per planet and moon that lands right when you are back – with departure, speed and deuterium. Presets like "Night" or "Work" in one click.',
+      },
+      {
+        kind: 'new',
         de: 'Feindliche Phalanx: Im Imperium siehst du je Planet, welche Monde anderer Allianzen ihn mit der Sensorphalanx sehen können und seit wann das bekannt ist; Planeten in Reichweite tragen ein Auge. Wird eine neue Phalanx in Reichweite bekannt, meldet sich die Glocke (auch per Push und Discord).',
         en: 'Hostile phalanx: My empire shows per planet which moons of other alliances can watch it with their sensor phalanx and since when that is known; planets in range carry an eye. When a new phalanx in range becomes known, the bell tells you (also by push and Discord).',
       },

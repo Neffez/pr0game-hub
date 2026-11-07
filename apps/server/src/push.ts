@@ -423,7 +423,9 @@ export function payloadOf(n: Notification | ChannelNotification, lang: PushLang,
       const to = f.to ? coords(f.to.coords.g, f.to.coords.s, f.to.coords.p, f.to.type === 'moon') : '';
       const who = f.player ?? f.fromPlayer?.name;
       const from = `${L.from} ${who ? who + ' ' : ''}${coords(f.from.coords.g, f.from.coords.s, f.from.coords.p, f.from.type === 'moon')}`;
-      return { ...base, title: L.attack(n.member), body: [clock(n.time), to, what, from].filter(Boolean).join(' · '), url: link('fleet') };
+      // opens the incoming attack assistant
+      const url = link('attack', { member: n.userId, arrival: n.time, from: `${f.from.coords.g}:${f.from.coords.s}:${f.from.coords.p}` });
+      return { ...base, title: L.attack(n.member), body: [clock(n.time), to, what, from].filter(Boolean).join(' · '), url };
     }
     case 'invite': {
       return { ...base, title: L.invite(n.member), body: planLine(n.plan, n.time), url: link('raid-planner', { plan: n.plan.id }) };
