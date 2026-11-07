@@ -13,6 +13,7 @@ import { memberPlayer, memberPlayers } from '../repo/members.js';
 import { latestScores } from '../repo/stats.js';
 import { syncHints } from '../repo/syncHints.js';
 import { farmTargets } from '../repo/farm.js';
+import { myOnboarding } from '../repo/onboarding.js';
 import { inactivities } from '../repo/inactivity.js';
 import { clampInt, contextOf, groupBy, type Q } from './util.js';
 
@@ -55,6 +56,9 @@ export function overviewRoutes(app: FastifyInstance, db: DB) {
     const ctx = ctxOf(req);
     return { hints: syncHints(db, ctx), messagesDays: config.rawRetentionDays };
   });
+
+  /** Onboarding checklist of the viewer (first syncs, see `myOnboarding`). */
+  app.get<{ Params: { uni: string } }>('/api/:uni/onboarding', async (req) => myOnboarding(db, ctxOf(req)));
 
   /** Farm finder: spied targets outside the own alliance with their expected resources now (see `farmTargets`). */
   app.get<{ Params: { uni: string }; Querystring: Q }>('/api/:uni/farm', async (req) => {

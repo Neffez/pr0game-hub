@@ -187,6 +187,22 @@ components:
         defense: { $ref: '#/components/schemas/FarmSection' }
         lastBattle: { type: [integer, 'null'] }
         inactivity: { $ref: '#/components/schemas/Inactivity' }
+        changes:
+          type: object
+          description: >-
+            Points gained per statistics category since the report (keys 1 total, 2 fleet, 5 defense): newest score
+            minus the score of the last update before the report; null when no update after the report or none before
+            it is synced. Used by the spy priority list.
+          additionalProperties: { type: [number, 'null'] }
+        espionage: { type: [integer, 'null'], description: "Espionage level of the player from the newest report with research" }
+        moonDiameter: { type: [integer, 'null'], description: 'Moons only: the diameter from the galaxy view (moon destruction calculator)' }
+    Explanation:
+      type: object
+      description: Why a pasted page gave no data (`explainNoData` of `@pr0hub/core`)
+      properties:
+        code: { type: string, enum: [too_short, not_game, language, unsupported_page, parse_failed, unknown_game_page] }
+        page: { type: string, description: "The game's page id (`page=` of its URL) when known" }
+        lang: { type: string, description: Language of the page when the hub does not read it }
     FarmSection:
       type: [object, 'null']
       description: Newest spy report section (null when no report showed it)
@@ -998,6 +1014,13 @@ components:
         noobLimit: { type: [number, 'null'], minimum: 0, description: Game config noob_protection_time (default 0 = unknown) }
         noobFactor: { type: [number, 'null'], minimum: 0, description: Game config noob_protection_multi (default 5) }
         noobInactives: { type: [boolean, 'null'], description: Game config noob_inactives (default false) }
+        planetSizeFactor: { type: [number, 'null'], minimum: 0, description: Game config planet_size_factor (default 1; fields of new colonies in the colonization planner) }
+        positionBonus:
+          type: [object, 'null']
+          description: >-
+            Production bonus of new colonies per position in percent (the game's `planet_data` bonus columns, active with
+            `planet_ressource_bonus`): position → [metal, crystal, deuterium], each −100 to 1000. Colonization planner.
+          additionalProperties: { type: array, items: { type: number }, minItems: 3, maxItems: 3 }
         fleetDebrisPercent: { type: [number, 'null'], minimum: 0, maximum: 100, description: Game config fleet_debris_percentage (default 40) }
         defenseDebrisPercent: { type: [number, 'null'], minimum: 0, maximum: 100, description: Game config def_debris_percentage (default 0) }
         bigShields: { type: [boolean, 'null'], description: Shield domes must fall before other units can be hit (default false) }
@@ -1550,6 +1573,10 @@ paths:
                     role: { type: string }
                     ingame_name: { type: [string, 'null'] }
                     account: { type: boolean, description: The member has a password (false = placeholder) }
+                    onboarding:
+                      type: array
+                      items: { type: string, enum: [empire, stats, overview, research, galaxy, messages, buildings] }
+                      description: Onboarding steps the member has done (first sync of each kind of page)
                     invite_expires_at:
                       type: [integer, 'null']
                       description: >-
@@ -2187,6 +2214,34 @@ paths:
                 properties:
                   hints: { type: array, items: { $ref: '#/components/schemas/SyncHint' } }
                   messagesDays: { type: integer }
+  /api/{uni}/onboarding:
+    get:
+      tags: [Universe]
+      operationId: getOnboarding
+      description: >-
+        Onboarding checklist of the viewer: the first syncs of a new member in order (`empire`, `stats`, `overview`,
+        `research`, `galaxy`, `messages`, `buildings`), each with the time the member first synced such a page (null
+        while open). Pages synced for another member count for the one who pasted them.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  steps:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        key: { type: string, enum: [empire, stats, overview, research, galaxy, messages, buildings] }
+                        time: { type: [integer, 'null'] }
+                  done: { type: integer }
+                  total: { type: integer }
   /api/{uni}/farm:
     get:
       tags: [Universe]
@@ -2523,6 +2578,126 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Imperium' }
+  /api/{uni}/debris:
+    get:
+      tags: [Universe]
+      operationId: getDebrisFinder
+      description: >-
+        Debris finder: open debris fields of the group's data with the debris expected now, largest first. The last
+        known amount is the newer of the galaxy view and a member's recycling report (`base`, the exact rest); battles
+        at the position after it (synced battle and combat reports, once per battle) add their debris (`battles`).
+        Fields whose newest information (`time`) is older than `days` are left out. `recyclers`: recyclers of the
+        members per planet and moon from their newest empire pages with the recycler speed of their drives;
+        `capacity`: cargo of one recycler in this universe. Distance and flight time are up to the client.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+        - name: days
+          in: query
+          description: Age of the newest information about a field in days (1–30, default 7)
+          schema: { type: integer, minimum: 1, maximum: 30, default: 7 }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  fields:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        g: { type: integer }
+                        s: { type: integer }
+                        p: { type: integer }
+                        metal: { type: integer }
+                        crystal: { type: integer }
+                        time: { type: integer }
+                        base:
+                          type: [object, 'null']
+                          properties:
+                            source: { type: string, enum: [galaxy, recycle] }
+                            time: { type: integer }
+                            metal: { type: integer }
+                            crystal: { type: integer }
+                            by: { type: [string, 'null'], description: Member whose recyclers left the rest }
+                        battles:
+                          type: array
+                          items:
+                            type: object
+                            properties: { time: { type: integer }, metal: { type: integer }, crystal: { type: integer } }
+                        owner:
+                          type: [object, 'null']
+                          description: Owner of the planet at the position; `member` when it is one of the group's members
+                          properties:
+                            id: { type: integer }
+                            name: { type: string }
+                            ally_tag: { type: [string, 'null'] }
+                            member: { type: boolean }
+                  recyclers:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        userId: { type: integer }
+                        member: { type: string }
+                        g: { type: integer }
+                        s: { type: integer }
+                        p: { type: integer }
+                        type: { type: string, enum: [planet, moon] }
+                        recyclers: { type: integer }
+                        speed: { type: integer }
+                        time: { type: integer }
+                  capacity: { type: [integer, 'null'] }
+                  days: { type: integer }
+                  now: { type: integer }
+  /api/{uni}/colonize:
+    get:
+      tags: [Universe]
+      operationId: getColonizeSystems
+      description: >-
+        Colonization planner: every system seen in the group's galaxy data with free positions (no planet, not
+        destroyed) and what a colony there adds for the viewer. `coverage`: by how much a planet there shortens the mean
+        distance (game formula between system centres) from every system of the universe to the viewer's nearest
+        planet, as a share of the mean now (1 without own planets); `nearest`: distance to the viewer's nearest planet;
+        within `range` systems of the same galaxy: `members` (planets of other members and in-game alliance mates),
+        `targets` (planets of other players), `inactive` (of them flagged by the game), `targetPoints` (total points of
+        those players, each once) and `systemPoints` (of the players in the system). The position itself (astrophysics,
+        fields, temperature, bonus) comes from `@pr0hub/core/colonize` with the universe settings.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+        - { name: range, in: query, description: Range in systems (1–200, default 25), schema: { type: integer, minimum: 1, maximum: 200, default: 25 } }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  systems:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        g: { type: integer }
+                        s: { type: integer }
+                        free: { type: array, items: { type: integer } }
+                        seen: { type: integer }
+                        coverage: { type: number }
+                        nearest: { type: [number, 'null'] }
+                        members: { type: integer }
+                        targets: { type: integer }
+                        inactive: { type: integer }
+                        targetPoints: { type: integer }
+                        systemPoints: { type: integer }
+                  own: { type: integer, description: The viewer's planets (newest empire page) }
+                  seenSystems: { type: integer }
+                  totalSystems: { type: integer }
+                  range: { type: integer }
   /api/{uni}/debris-fields:
     get:
       tags: [Universe]
@@ -4206,7 +4381,11 @@ paths:
       tags: [Social]
       operationId: createClaim
       security: [{ sessionCookie: [] }]
-      description: Claims a target for the alliance.
+      description: >-
+        Claims a target for the alliance. Body: `g`, `s`, `p`, `type` (`planet`, `moon` or `debris` for the debris field
+        at the position), `kind` (`farm`, `attack`, `spy`; always `recycle` for a debris field), `minutes` (1–1440,
+        default 120), `note`, `force` (group admins take over). A claim of the debris field and one of the planet at
+        the same position don't block each other.
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
@@ -4287,6 +4466,66 @@ paths:
           content:
             application/json:
               schema: { type: object }
+  /api/{uni}/moon-chances:
+    get:
+      tags: [Universe]
+      operationId: getMoonChances
+      description: >-
+        Moon chances: battles of the group's combat reports within `days` (1–365, default 30) that had a moon chance or
+        created a moon, newest first, with the chance in percent (plus the cascading `extra`, capped at 100), the
+        sides, the side a member fought on (by in-game names) and the moon at the position now (galaxy); per member the
+        battles, the expected moons (sum of the chances) and the moons created; `newMoons`: moons that appeared at
+        members' planets in the galaxy within the period. Reports stored before the moon chance was read are missing.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+        - { name: days, in: query, schema: { type: integer, minimum: 1, maximum: 365, default: 30 } }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  battles:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        reportId: { type: string }
+                        time: { type: integer }
+                        g: { type: [integer, 'null'] }
+                        s: { type: [integer, 'null'] }
+                        p: { type: [integer, 'null'] }
+                        chance: { type: integer }
+                        extra: { type: integer }
+                        created: { type: boolean }
+                        attackers: { type: array, items: { type: string } }
+                        defenders: { type: array, items: { type: string } }
+                        memberSide: { type: [string, 'null'], enum: [attacker, defender, null] }
+                        moon: { type: [object, 'null'], properties: { diameter: { type: [integer, 'null'] } } }
+                  members:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name: { type: string }
+                        battles: { type: integer }
+                        expected: { type: number }
+                        created: { type: integer }
+                  newMoons:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        time: { type: integer }
+                        g: { type: integer }
+                        s: { type: integer }
+                        p: { type: integer }
+                        player: { type: string }
+                        diameter: { type: [integer, 'null'] }
+                  days: { type: integer }
   /api/{uni}/notifications:
     get:
       tags: [Social]
@@ -4297,8 +4536,9 @@ paths:
         fleet lists; `fleet`, `fleets`), `invite` (the caller's open invitations to a raid planner plan in planning;
         `plan`, `member` is who invited, `time` its target time, valid until the end of its day or hour by
         `plan.time_precision`), `comment` (comments of others of the last 48 hours in a thread the caller wrote in, after
-        the caller's last comment there, one entry per thread; `thread`, `excerpt`, `count`, `member`/`userId` the newest
-        author, `time` the newest comment), `launch` (a fleet of the caller in a plan with an exact target time,
+        the caller's last comment there, or anywhere when they mention the caller as `@` with their in-game name or
+        username, one entry per thread; `thread`, `excerpt`, `count`, `mention` (true when one of them mentions the
+        caller), `member`/`userId` the newest author, `time` the newest comment), `launch` (a fleet of the caller in a plan with an exact target time,
         invited or ready, that launches within the next hour; `plan`, `from`, `time` the launch) and `building` (the
         resources for the level of a building or research alert are there, listed 24 hours; `alert`, `planet`, `element`, `level`,
         `time` since when) and `fleet` (an own fleet with a fleet alert, due `lead` minutes before its arrival, listed
@@ -4401,6 +4641,7 @@ paths:
                             type: { type: string, enum: [planet, moon] }
                             owner: { type: [string, 'null'] }
                     excerpt: { type: string, description: 'comment only: the newest comment, shortened' }
+                    mention: { type: boolean, description: 'comment only: one of the comments mentions the caller (`@name`)' }
                     count: { type: integer, description: 'comment only: new comments in the thread' }
                     from:
                       type: object
@@ -4838,6 +5079,57 @@ paths:
           content:
             application/json:
               schema: { type: object }
+  /api/admin/parser-samples:
+    get:
+      tags: [Admin]
+      operationId: listParserSamples
+      security: [{ sessionCookie: [] }]
+      description: Parser samples sent by members of all alliances (newest 200); hub admins.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id: { type: integer }
+                    group_id: { type: integer }
+                    group_name: { type: string }
+                    universe: { type: string }
+                    username: { type: [string, 'null'] }
+                    code: { type: string }
+                    page: { type: [string, 'null'] }
+                    note: { type: [string, 'null'] }
+                    created_at: { type: integer }
+                    html_size: { type: [integer, 'null'], description: Compressed size }
+                    text_size: { type: [integer, 'null'], description: Compressed size }
+  /api/admin/parser-samples/{id}:
+    get:
+      tags: [Admin]
+      operationId: downloadParserSample
+      security: [{ sessionCookie: [] }]
+      description: The anonymized page of a sample as a download (HTML when there is one, else text); hub admins.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          content:
+            text/html: { schema: { type: string } }
+            text/plain: { schema: { type: string } }
+    delete:
+      tags: [Admin]
+      operationId: deleteParserSample
+      security: [{ sessionCookie: [] }]
+      description: Deletes a sample; hub admins.
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { type: object }
   /api/admin/groups/{id}/ingests:
     get:
       tags: [Admin]
@@ -4919,7 +5211,10 @@ paths:
       security: [{ sessionCookie: [] }]
       description: >-
         Stores a pasted game page. `forUser` may point to another member only for messages and combat reports,
-        not for empire, overview or fleets. `dryRun` returns the preview without storing.
+        not for empire, overview or fleets. `dryRun` returns the preview without storing. When nothing was recognized
+        (`pageType` `unknown`), `explain` says why: `code` one of `too_short`, `not_game`, `language` (with `lang`),
+        `unsupported_page` (with the game's `page` id), `parse_failed` (a page the hub reads, nothing found) or
+        `unknown_game_page`.
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
@@ -4928,7 +5223,33 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema:
+                type: object
+                properties:
+                  explain: { $ref: '#/components/schemas/Explanation' }
+  /api/{uni}/ingest/sample:
+    post:
+      tags: [Universe]
+      operationId: sendParserSample
+      security: [{ sessionCookie: [] }]
+      description: >-
+        Sends a page the hub found nothing in to the hub's admins as a parser sample. Body: `html` and/or `text` (at
+        most 4 MB together), `note` (up to 500 characters). Stored anonymized (scripts, styles, form values, session
+        tokens in links, e-mail addresses and the sender's own names removed) for the retention of raw syncs; the
+        explanation is worked out again on the server. Counts against the paste rate limit.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: integer }
+                  explain: { $ref: '#/components/schemas/Explanation' }
   /api/{uni}/universe-json:
     get:
       tags: [Universe]

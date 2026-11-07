@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { parseSpyReportsText, spyValues } from '../src/spy.js';
+import { parseSpyReportsText, spyProbes, spyValues } from '../src/spy.js';
 
 const fixture = (name: string) => readFileSync(new URL(`./fixtures/${name}`, import.meta.url), 'utf8');
 
@@ -25,5 +25,19 @@ describe('spy report text entry (static tools)', () => {
     expect(reports).toHaveLength(1);
     expect(reports[0].coords).toEqual({ g: 1, s: 234, p: 5 });
     expect(parseSpyReportsText('nothing here')).toEqual([]);
+  });
+});
+
+describe('spyProbes (MissionCaseSpy)', () => {
+  it('needs one probe for every section at the same level, plus the extras', () => {
+    expect(spyProbes(8, 8)).toEqual({ fleet: 1, defense: 1, buildings: 3, research: 5 });
+  });
+  it('needs the square of the difference more when the target is ahead', () => {
+    expect(spyProbes(6, 8)).toEqual({ fleet: 4, defense: 5, buildings: 7, research: 9 });
+  });
+  it('needs fewer when the sender is ahead, at least one', () => {
+    expect(spyProbes(10, 8)).toEqual({ fleet: 1, defense: 1, buildings: 1, research: 1 });
+    expect(spyProbes(9, 8)).toEqual({ fleet: 1, defense: 1, buildings: 2, research: 4 });
+    expect(spyProbes(0, 0)).toEqual({ fleet: 1, defense: 1, buildings: 3, research: 5 });
   });
 });

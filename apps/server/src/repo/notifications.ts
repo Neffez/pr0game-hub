@@ -2,6 +2,7 @@ import { distance, drivesFromResearch, flightDuration, launchFor, slowestShip } 
 import type { SessionUser } from '../auth.js';
 import { catalogOf, resolveGroup, universeNow, type GroupContext, type Universe } from '../context.js';
 import type { DB } from '../db.js';
+import { mentions } from '../domain/mentions.js';
 import { buildOrderOf, nextSteps, syncBuildOrder } from './buildOrders.js';
 import { alertDone, alertsOf, buildingsState, planetElements, planetOf, storagesOf, type BuildingsState } from './buildings.js';
 import { FLEET_KEEP, openFleetAlerts } from './fleetAlerts.js';
@@ -59,6 +60,8 @@ export interface CommentNotification extends Base {
   excerpt: string;
   /** new comments in the thread */
   count: number;
+  /** one of them mentions the viewer (`@name`), also in threads the viewer never wrote in */
+  mention?: boolean;
 }
 
 /** A fleet of the viewer in a plan to the second has to start soon (`time`: the launch). */
@@ -345,22 +348,46 @@ function comments(db: DB, ctx: GroupContext, t: number): CommentNotification[] {
        LEFT JOIN planets pl ON c.player_id IS NULL AND c.plan_id IS NULL AND pl.group_id = c.group_id AND pl.g = c.g AND pl.s = c.s AND pl.p = c.p
        LEFT JOIN players op ON op.id = pl.player_id
        WHERE c.group_id = ? AND c.deleted_at IS NULL AND c.created_at > ? AND c.user_id IS NOT ?
-         AND c.id > (
+         AND (c.id > (
            SELECT MAX(o.id) FROM comments o
            WHERE o.group_id = c.group_id AND o.user_id = ? AND o.deleted_at IS NULL
              AND (CASE WHEN c.player_id IS NOT NULL THEN o.player_id = c.player_id
                   WHEN c.plan_id IS NOT NULL THEN o.plan_id = c.plan_id
                   ELSE o.g = c.g AND o.s = c.s AND o.p = c.p AND o.planet_type = c.planet_type END)
-         )
+         ) OR instr(c.body, '@') > 0)
        ORDER BY c.created_at, c.id`,
     )
     .all(ctx.groupId, t - COMMENT_KEEP, ctx.user.id, ctx.user.id) as {
     id: number; user_id: number | null; author: string | null; body: string; created_at: number; player_id: number | null; player_name: string | null; plan_id: number | null;
     g: number | null; s: number | null; p: number | null; planet_type: 'planet' | 'moon' | null; owner: string | null;
   }[];
+  // threads the viewer wrote in: every newer comment; elsewhere only comments that mention the viewer
+  const wrote = new Set(
+    (db
+      .prepare(
+        `SELECT DISTINCT COALESCE('p' || player_id, 'plan' || plan_id, g || ':' || s || ':' || p || ':' || planet_type) FROM comments
+         WHERE group_id = ? AND user_id = ? AND deleted_at IS NULL`,
+      )
+      .pluck()
+      .all(ctx.groupId, ctx.user.id) as string[]),
+  );
+  const names = [
+    ctx.user.username,
+    db.prepare('SELECT ingame_name FROM group_members WHERE group_id = ? AND user_id = ?').pluck().get(ctx.groupId, ctx.user.id) as string | null,
+  ];
+  const lastOwn = db.prepare(
+    `SELECT MAX(id) FROM comments WHERE group_id = ? AND user_id = ? AND deleted_at IS NULL
+       AND COALESCE('p' || player_id, 'plan' || plan_id, g || ':' || s || ':' || p || ':' || planet_type) = ?`,
+  ).pluck();
   const threads = new Map<string, CommentNotification>();
+  const last = new Map<string, number | null>();
   for (const r of rows) {
     const key = r.player_id != null ? `p${r.player_id}` : r.plan_id != null ? `plan${r.plan_id}` : `${r.g}:${r.s}:${r.p}:${r.planet_type}`;
+    if (!last.has(key)) last.set(key, wrote.has(key) ? ((lastOwn.get(ctx.groupId, ctx.user.id, key) as number | null) ?? 0) : null);
+    const own = last.get(key) ?? null;
+    // after the viewer's last comment there: every comment in their threads, a mention anywhere
+    const mention = r.id > (own ?? 0) && mentions(r.body, names);
+    if (!mention && !(own != null && r.id > own)) continue;
     const known = threads.get(key);
     const excerpt = r.body.length > EXCERPT ? r.body.slice(0, EXCERPT - 1).trimEnd() + '…' : r.body;
     const thread: CommentNotification['thread'] =
@@ -371,7 +398,7 @@ function comments(db: DB, ctx: GroupContext, t: number): CommentNotification[] {
           : { g: r.g!, s: r.s!, p: r.p!, type: r.planet_type!, owner: r.owner };
     threads.set(key, {
       id: `comment:${key}:${r.id}`, kind: 'comment', userId: r.user_id ?? 0, member: r.author ?? '?', time: r.created_at,
-      thread, excerpt, count: (known?.count ?? 0) + 1,
+      thread, excerpt, count: (known?.count ?? 0) + 1, ...(mention || known?.mention ? { mention: true } : {}),
     });
   }
   return [...threads.values()];

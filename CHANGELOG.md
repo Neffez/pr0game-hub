@@ -4,6 +4,101 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-07
 
+- Tours for the new tabs: the farm finder's tour has a step per tab button (targets, spy priority, debris finder) and
+  steps for the spy priority (reasons, probes, priority) and the debris finder (period and filters, debris now,
+  nearest member, recycle and claim); the planets tour has the tabs planets and colonize and steps for the
+  colonization planner (profile, range and filters, astrophysics, coverage, members, score). Members who saw a page
+  tour get the tab's own tour on its first visit. CLAUDE.md now asks for a tour for every new page and tab.
+
+- The colonization planner is now the second tab of the alliance's planets page (`/:uni/planets?tab=colonize`)
+  instead of its own menu item; `/:uni/colonize` leads there. The planets tab comes from the link (`?tab=`) and is
+  remembered per device; the profile switch moved into the planner's filter bar.
+
+- User changelog: the debris finder entry names its place as a tab of the farm finder (one entry instead of two).
+
+- The debris finder is now the third tab of the farm finder (`/:uni/farm?tab=debris`) instead of its own menu item;
+  `/:uni/debris` leads there. The farm finder's tab comes from the link (`?tab=`) and is remembered per device; the
+  targets only load on their tabs.
+
+- README: the features of this day (spy priority, debris finder, colonization planner, moon chances, mentions,
+  debris claims, several pages and explained pastes in the sync, onboarding) in the feature list.
+
+- Colonization planner (backlog item C-5): new page "Colonize" under Start (`/:uni/colonize`, `ColonizeView.vue`)
+  with `GET /api/:uni/colonize?range=25` (`repo/colonize.ts`, `getColonizeSystems`). Per system with free positions
+  in the group's galaxy data: coverage (by how much a planet there shortens the mean distance, game formula, from
+  every system of the universe to the viewer's nearest planet), other members and alliance mates within the range,
+  other players' planets, inactive ones and their points (each player once) nearby and in the system. The position
+  itself comes from the new `@pr0hub/core/colonize` (`positionInfo`: astrophysics needed after the game's
+  `allowPlanetPosition`, fields and temperature after `createPlanet` with the default `planet_data`, deuterium factor,
+  position bonus). Two profiles weight the parts: fleeter (coverage, points nearby) and miner (fields, temperature,
+  bonus); both avoid many members nearby. Filters: range, only colonizable with the own astrophysics, at most members
+  in range, galaxy.
+  - New optional universe settings `planetSizeFactor` (game `planet_size_factor`) and `positionBonus` (position →
+    metal, crystal, deuterium bonus in %, validated −100 … 1000), set in the admin panel's new group "Colonization".
+
+- Moon chances (backlog item B-6): battle reports now keep their moon chance, the extra of the cascading moon
+  chance and whether the battle created a moon (`moonChance`, `moonExtra`, `moonCreated` of the combat report parser,
+  German, English and the pirate theme; columns in `combat_reports`, migration `083_combat_moon_chance.sql`).
+  `GET /api/:uni/moon-chances?days=30` (`repo/moons.ts`) lists the battles with a moon chance or a new moon, the side a
+  member fought on and the moon at the position now, per member the battles, expected moons (sum of the chances) and
+  moons created, and moons that appeared at members' planets in the galaxy. Shown as section "Moon chances" in the
+  battle hall, with the moon destruction calculator (diameter from the galaxy) for a moon at a battle's position. The
+  farm finder passes the galaxy diameter of a moon target to its actions menu (`moonDiameter`).
+
+- Comments with mentions (backlog item G-8): `@name` (in-game name or username, a whole name, case ignored;
+  `domain/mentions.ts`) in a comment notifies that member on the bell, by push and Discord, also in threads they never
+  wrote in (`mention` on comment notifications, push title "📣 … mentioned you on …"); answering in the thread clears
+  it as before. In comment threads mentions are highlighted (the own ones stronger), coordinates (`1:234:5`,
+  `[1:234:5]`) link to the galaxy view, and typing `@` suggests member names (`apps/web/src/commentText.ts`).
+
+- Onboarding of new members (backlog item D-4): a checklist of the first syncs (empire, statistics, overview,
+  research, galaxy, messages, buildings) with a tick when the member first synced such a page and where to find it in
+  the game, on the sync page (full list) and the overview (progress and next step); it disappears when everything is
+  done or the member hides it. The admin panel's member list has a column "Onboarding" (done steps, the open ones in
+  the tooltip). `GET /api/:uni/onboarding`, `onboarding` in `/api/admin/groups/:id/members`; the ingest records the
+  first sync per kind of page for the member who pasted it (`onboarding_steps`, migration `082_onboarding.sql`, filled
+  for existing members from their stored pages).
+
+- Explain failed pastes (backlog item E-4): when a paste gives no data, the preview says why in plain words instead
+  of "no data": almost nothing pasted, not a page of the game, a language the hub does not read, a game page the hub
+  does not read (which one), a page the hub reads but found nothing in (a parser gap), or an unknown game page
+  (`explainNoData` in `@pr0hub/core`: the page from `<body id>` or the URL's `page=`, the language from
+  `<html lang>`, for copied text the menu titles of the game in German, English and its other languages; `explain`
+  in the ingest response). Collected pages show the same.
+  - Parser samples: the member can send such a page to the hub's admins (`POST /api/:uni/ingest/sample`, with a
+    note). It is stored anonymized (`parser_samples`, migration `081_parser_samples.sql`: scripts, styles, form
+    values, session tokens in links, e-mail addresses and the sender's own names removed) for the retention of raw
+    syncs. Hub admins list, download and delete them in the admin panel (section "Parser samples",
+    `/api/admin/parser-samples`).
+
+- Several pages at once (backlog item E-2): the sync panel takes several saved pages at once (file input with
+  `multiple`, drag and drop of files or a whole folder, read recursively via `webkitGetAsEntry`) and has a collect
+  mode ("Collect" moves the pasted page into the collection and frees the box for the next). Each page of the
+  collection gets its own preview (dry run) with its warnings, a statistics category or galaxy system where the page
+  needs one, and can be removed; "Save all" saves the ready pages one after another. A single file still goes into
+  the box as before. Files other than `.html`, `.htm`, `.txt` or above 8 MB are skipped with a note.
+
+- Debris finder (backlog item B-4): new page "Debris finder" under Combat & expeditions (`/:uni/debris`,
+  `DebrisView.vue`) with `GET /api/:uni/debris?days=7` (`repo/debris.ts`, `getDebrisFinder` in `openapi.yaml`). Per
+  open debris field the debris expected now: the newer of the galaxy view and a member's recycling report (exact
+  rest) plus the debris of battles at the position after it (battle and combat reports, once per battle), the owner
+  of the planet there, and the members' recyclers per planet and moon from their newest empire pages with their
+  recycler speed. The web app shows recyclers needed, the own flight time and amount per flight hour, and the nearest
+  member with enough recyclers.
+  - Debris fields can be claimed for recycling: claims take `type: debris` (kind always `recycle`); migration
+    `080_debris_claims.sql` rebuilds `target_claims` with the new CHECKs. A debris claim and a farm claim on the planet
+    at the same position don't block each other. `PlanetActions` with `type="debris"` offers recycling in the game
+    (mission 8), the flight time, the galaxy and the claim; the claims list marks debris claims.
+
+- Spy priority list (backlog item B-2): new tab "Spy priority" in the farm finder on the same data with every report
+  of the last 30 days. Each target's need for a new report grows with the report's age (1 − e^(−age/12 h)) and with
+  signs that it no longer holds: fleet, defense or other points gained since the report, a battle at the planet
+  after it, no buildings or no fleet/defense known (`spyPriority` in `apps/web/src/spyPriority.ts`, weights in
+  `SPY_WEIGHTS`); the priority is that need times the loot expected now. The probes column shows how many probes a
+  report with buildings needs (`spyProbes` in `@pr0hub/core/spy`, the game's `MissionCaseSpy` formula). The farm
+  finder's targets now carry `changes` (points gained per category since the report) and `espionage` (the player's
+  espionage level) in `GET /api/:uni/farm`. Tour step `farm.tabs`.
+
 - Defense advisor: every attacker is calculated twice, with the full fleet and with its heavy ships only (hull of a
   battleship and up: battleship, battlecruiser, bomber, destroyer, deathstar; `heavyShips` in `@pr0hub/battle`), as
   raiders send against defense and solar satellites; the heavy variant has its own fuel and goes into the search as

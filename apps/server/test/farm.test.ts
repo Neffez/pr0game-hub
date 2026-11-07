@@ -29,10 +29,10 @@ const spy = (g: number, s: number, p: number, playerId: number, time: number, se
   db
     .prepare('INSERT INTO spy_reports (group_id, g, s, p, planet_type, player_id, player_name, report_time, sections) VALUES (?, ?, ?, ?, ?, ?, (SELECT name FROM players WHERE id = ?), ?, ?)')
     .run(group, g, s, p, type, playerId, playerId, time, JSON.stringify(sections));
-const score = (playerId: number, time: number, points: number) => {
-  db.prepare("INSERT OR IGNORE INTO stat_snapshots (group_id, who, type, stat_time) VALUES (?, 'player', 1, ?)").run(group, time);
-  const snap = db.prepare("SELECT id FROM stat_snapshots WHERE group_id = ? AND who = 'player' AND type = 1 AND stat_time = ?").pluck().get(group, time);
-  db.prepare('INSERT INTO player_scores (snapshot_id, player_id, type, stat_time, points, rank) VALUES (?, ?, 1, ?, ?, 1)').run(snap, playerId, time, points);
+const score = (playerId: number, time: number, points: number, type = 1) => {
+  db.prepare("INSERT OR IGNORE INTO stat_snapshots (group_id, who, type, stat_time) VALUES (?, 'player', ?, ?)").run(group, type, time);
+  const snap = db.prepare("SELECT id FROM stat_snapshots WHERE group_id = ? AND who = 'player' AND type = ? AND stat_time = ?").pluck().get(group, type, time);
+  db.prepare('INSERT INTO player_scores (snapshot_id, player_id, type, stat_time, points, rank) VALUES (?, ?, ?, ?, ?, 1)').run(snap, playerId, type, time, points);
 };
 
 const MINES = { 1: 20, 2: 15, 3: 10, 4: 22, 22: 3, 23: 3, 24: 3 };
@@ -72,6 +72,8 @@ beforeAll(async () => {
     score(ids.Farm, time, i < 2 ? 1000 + i : 1001);
     score(ids.Sleepy, time, 50);
     score(ids.Carol, time, 100 + i);
+    // Sleepy built defense after the report (t - 600) only in the newest update
+    score(ids.Sleepy, time, i < 3 ? 10 : 25, 5);
   }
 });
 
@@ -105,6 +107,15 @@ describe('farm finder', () => {
     expect(sleepy.projected[901]).toBe(storageCapacity(3) + 1);
     expect(sleepy.defense).toMatchObject({ units: 10 });
     expect(sleepy.inactivity).toMatchObject({ level: 'inactive', score: 95, status: 'inactive' });
+  });
+
+  it('tells the points gained since the report and the espionage level (spy priority)', async () => {
+    const res = await farm();
+    const sleepy = res.targets.find((x: any) => x.s === 101);
+    expect(sleepy.changes).toEqual({ 1: 0, 2: null, 5: 15 });
+    const target = res.targets.find((x: any) => x.s === 100 && x.type === 'planet');
+    expect(target.changes).toEqual({ 1: 0, 2: null, 5: null });
+    expect(target.espionage).toBeNull();
   });
 
   it('looks further back on request', async () => {

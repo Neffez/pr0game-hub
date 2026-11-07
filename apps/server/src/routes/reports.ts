@@ -5,7 +5,8 @@ import { ownCoords } from '../repo/empire.js';
 import { memberPlayers } from '../repo/members.js';
 import { battleHallParticipantFilter, Players } from '../repo/players.js';
 import { latestScores } from '../repo/stats.js';
-import { contextOf, DISPLAY, MEMBER, range, type Q } from './util.js';
+import { clampInt, contextOf, DISPLAY, MEMBER, range, type Q } from './util.js';
+import { moonChances } from '../repo/moons.js';
 
 export function reportsRoutes(app: FastifyInstance, db: DB) {
   const ctxOf = contextOf(db);
@@ -57,6 +58,13 @@ export function reportsRoutes(app: FastifyInstance, db: DB) {
   });
 
   /** Activity log, newest first; `kinds` filters (comma separated). */
+  /** Moon chances of the group's battles and moons created at members' planets (see `moonChances`). */
+  app.get<{ Params: { uni: string }; Querystring: Q }>('/api/:uni/moon-chances', async (req) => {
+    const ctx = ctxOf(req);
+    const days = clampInt(req.query.days, 30, 1, 365);
+    return { ...moonChances(db, ctx, days), days };
+  });
+
   app.get<{ Params: { uni: string }; Querystring: Q }>('/api/:uni/activity', async (req) => {
     const ctx = ctxOf(req);
     const { from, to } = range(req.query);

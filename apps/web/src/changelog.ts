@@ -20,6 +20,51 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Spionage-Priorität, TF-Finder und Kolonisieren haben jetzt eine eigene Tour, die beim ersten Öffnen des Tabs startet (oder über das „?“).',
+        en: 'Spy priority, debris finder and colonize now have their own tour, started the first time you open the tab (or from the "?").',
+      },
+      {
+        kind: 'new',
+        de: 'Neuer Kolonisierungsplaner als Tab bei Planeten (Allianz): freie Positionen aus der Galaxie, bewertet als Fleeter (gute Abdeckung des Universums, viele Punkte von Zielen in der Nähe) oder Miner (Felder, Temperatur, Positionsbonus) – Positionen mit vielen Mitgliedern in der Nähe rutschen nach hinten. Er zeigt auch, ab welcher Astrophysik-Stufe eine Position besiedelbar ist.',
+        en: 'New colonization planner as a tab of the planets page (alliance): free positions from the galaxy, rated as a fleeter (good coverage of the universe, many points of targets nearby) or a miner (fields, temperature, position bonus) – positions with many members nearby move down. It also shows from which astrophysics level a position can be colonized.',
+      },
+      {
+        kind: 'new',
+        de: 'Mondchancen: Der Hub merkt sich die Mondchance jedes Kampfberichts und ob ein Mond entstanden ist. In der Battle Hall siehst du je Mitglied, wie viele Monde zu erwarten waren und wie viele entstanden sind, dazu neue Monde an Planeten von Mitgliedern und den Mondzerstörungsrechner mit dem Durchmesser des Mondes.',
+        en: 'Moon chances: the hub keeps the moon chance of every battle report and whether a moon was created. In the battle hall you see per member how many moons were to be expected and how many were created, new moons at members\' planets, and the moon destruction calculator with the moon\'s diameter.',
+      },
+      {
+        kind: 'new',
+        de: 'Kommentare: Mit @Name erwähnst du ein Mitglied – es bekommt eine Benachrichtigung (Glocke, Push, Discord), auch wenn es in dem Thread noch nichts geschrieben hat. Beim Tippen von @ schlägt der Hub Namen vor, Koordinaten im Text führen direkt in die Galaxie.',
+        en: 'Comments: @name mentions a member – they get a notification (bell, push, Discord), even if they never wrote in that thread. Typing @ suggests names, coordinates in the text lead straight to the galaxy.',
+      },
+      {
+        kind: 'new',
+        de: 'Neue Mitglieder sehen eine Checkliste „Erste Schritte“: welche Seiten sie zuerst einfügen sollten, wo sie sie im Spiel finden und einen Haken, sobald eine Seite angekommen ist. Allianz-Admins sehen in der Mitgliederliste, wer schon fertig ist.',
+        en: 'New members see a "First steps" checklist: which pages to paste first, where to find them in the game and a tick as soon as a page arrived. Alliance admins see in the member list who is done.',
+      },
+      {
+        kind: 'new',
+        de: 'Erkennt der Hub eine eingefügte Seite nicht, sagt er jetzt warum – etwa „das ist die Schiffswerft, die liest der Hub noch nicht“ oder „die Seite ist auf Französisch“. Solche Seiten kannst du den Admins anonymisiert als Probe schicken, damit sie den Hub verbessern.',
+        en: 'When the hub does not recognize a pasted page, it now says why – e.g. "this is the shipyard, which the hub does not read yet" or "the page is in French". You can send such pages to the admins, anonymized, as a sample so they can improve the hub.',
+      },
+      {
+        kind: 'new',
+        de: 'Synchronisieren: mehrere gespeicherte Seiten auf einmal hochladen oder hineinziehen (auch einen ganzen Ordner), oder Seiten nacheinander einfügen und sammeln. Jede Seite bekommt ihre eigene Vorschau, gespeichert wird alles mit einem Klick.',
+        en: 'Sync: upload or drop several saved pages at once (a whole folder too), or paste pages one after the other and collect them. Each page gets its own preview, one click saves them all.',
+      },
+      {
+        kind: 'new',
+        de: 'Neuer TF-Finder als Tab im Farm-Finder: alle offenen Trümmerfelder mit der Menge jetzt (auch direkt nach einem Kampf eines Mitglieds), nötigen Recyclern, deiner Flugzeit und dem nächsten Mitglied mit genug Recyclern. Trümmerfelder lassen sich zum Abbauen reservieren, unabhängig vom Planeten dort.',
+        en: 'New debris finder as a tab of the farm finder: every open debris field with its amount now (also right after a member\'s battle), the recyclers needed, your flight time and the nearest member with enough recyclers. Debris fields can be claimed for recycling, apart from the planet there.',
+      },
+      {
+        kind: 'new',
+        de: 'Farm-Finder: neuer Tab „Spionage-Priorität“. Er zeigt, welche Ziele jetzt eine Sonde wert sind – weil ihr Bericht alt ist, seitdem Flotte oder Verteidigung gebaut wurde oder dort gekämpft wurde – und wie viele Sonden du für einen Bericht mit Gebäuden brauchst.',
+        en: 'Farm finder: new tab "Spy priority". It shows which targets are worth a probe now – because their report is old, fleet or defense was built since or there was a battle – and how many probes you need for a report with buildings.',
+      },
+      {
+        kind: 'new',
         de: 'Raid-Risiko: Für jeden deiner Planeten und Monde siehst du, wie viel ein Angreifer dort jetzt holen könnte – im Verteidigungsberater und in deinem Imperium. Der Verteidigungsberater rechnet außerdem jeden Angreifer auch mit nur schweren Schiffen, wie Raider es oft machen.',
         en: 'Raid risk: for each of your planets and moons you see how much an attacker could get there right now – in the defense advisor and in your empire. The defense advisor also calculates every attacker with heavy ships only, as raiders often do.',
       },

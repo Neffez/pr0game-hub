@@ -1,4 +1,4 @@
-import { localToEpoch, parsePage, withUnits, type HubRecord, type ParseInput, type ParseResult, type SpyReportRecord, type UnitCatalog } from '@pr0hub/core';
+import { explainNoData, localToEpoch, parsePage, withUnits, type HubRecord, type ParseInput, type ParseResult, type SpyReportRecord, type Explanation, type UnitCatalog } from '@pr0hub/core';
 import { gunzipSync, gzipSync } from 'node:zlib';
 import { HttpError } from './auth.js';
 import { config } from './config.js';
@@ -9,6 +9,7 @@ import { foreignRecords } from './plausibility.js';
 import { galaxyMark } from './repo/activity.js';
 import { messageShare } from './repo/messages.js';
 import { catchUpBuildState } from './repo/buildOrders.js';
+import { recordOnboarding } from './repo/onboarding.js';
 import { catchUpPlans } from './repo/plans.js';
 import { Players } from './repo/players.js';
 import { shareSyncsEnabled } from './repo/presence.js';
@@ -34,6 +35,8 @@ export interface IngestSummary {
   preview: PreviewItem[];
   /** loot settlements (raid plans) the messages count for: battles, fleet returns, recycling and missiles at their target */
   settlements?: SettlementHit[];
+  /** why nothing was found (no records), see `explainNoData` */
+  explain?: Explanation;
 }
 
 export interface SettlementHit {
@@ -98,6 +101,9 @@ export type IngestLog = { info: (obj: object, msg: string) => void; warn: (obj: 
 
 type IngestOptions = { dryRun?: boolean; ctx?: GroupContext; log?: IngestLog };
 
+/** Rough text of a page for the explanation of a page without data. */
+const stripTags = (html: string) => html.replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' ').replace(/<[^>]+>/g, '\n').replace(/\n\s*\n+/g, '\n');
+
 /** Parses and stores a page with the unit catalog of the group's universe (names, costs, points). */
 export function ingest(db: DB, target: IngestTarget, input: ParseInput & { source: 'paste' | 'upload' }, opts: IngestOptions = {}): IngestSummary {
   const units = opts.ctx?.groupId === target.groupId ? catalogOf(opts.ctx.universe) : catalogOfGroup(db, target.groupId);
@@ -122,6 +128,7 @@ function ingestWith(db: DB, target: IngestTarget, input: ParseInput & { source: 
     preview: parsed.records.slice(0, 100).map(describe),
     settlements: settlementsFor(db, target, parsed.records),
   };
+  if (!parsed.records.length && parsed.pageType === 'unknown') summary.explain = explainNoData({ html: input.html, text: input.text || stripTags(input.html ?? ''), url: input.url });
   const started = Date.now();
   const logDone = () =>
     opts.log?.info(
@@ -148,6 +155,8 @@ function ingestWith(db: DB, target: IngestTarget, input: ParseInput & { source: 
   const keep = parsed.source !== 'json';
   db.transaction(() => {
     for (const rec of parsed.records) store.record(rec);
+    // onboarding: the member who synced it did this kind of page
+    if (parsed.records.length) recordOnboarding(db, target.groupId, target.syncedBy ?? target.userId, parsed.pageType, now());
     db.prepare('DELETE FROM raw_ingests WHERE group_id = ? AND created_at < ?').run(target.groupId, now() - config.rawRetentionDays * 86400);
     db.prepare(
       `INSERT INTO raw_ingests (group_id, user_id, synced_by, source, page_type, url, html_gz, text_gz, summary)

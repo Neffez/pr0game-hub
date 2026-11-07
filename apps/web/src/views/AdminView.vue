@@ -108,6 +108,9 @@ const UNI_GROUPS: UniGroup[] = [
     { key: 'noobFactor', label: 'noobFactor', hint: true, min: 0, step: 'any', placeholder: '5' },
     { key: 'noobInactives', label: 'noobInactives', hint: true, type: 'check' },
   ] },
+  { id: 'colonize', hint: 'admin.colonizeHint', fields: [
+    { key: 'planetSizeFactor', label: 'planetSizeFactor', hint: true, min: 0, step: 'any', placeholder: '1' },
+  ] },
   { id: 'deck', hint: 'admin.deckHint', fields: [] },
   { id: 'units', hint: 'admin.unitsHint', fields: [] },
 ];
@@ -136,6 +139,10 @@ function groupSummary(id: string): string {
     case 'economy': return `${speed(s.resourceMultiplier)} · ${orDefault(s.universityFactor, 8)} %`;
     case 'combat': return `${orDefault(s.fleetDebrisPercent, 40)} % / ${orDefault(s.defenseDebrisPercent, 0)} %`;
     case 'noob': return Number(s.noobLimit) > 0 ? fmt(Number(s.noobLimit)) : '–';
+    case 'colonize': {
+      const n = bonusRows.value.filter((r) => r.some((x) => Number(x))).length;
+      return n ? t('admin.bonusSummary', { n }) : '–';
+    }
     case 'deck': return String(deckTotal.value);
     case 'units': return unitEditor.value?.changedCount ? t('admin.units.summary', { n: unitEditor.value.changedCount }) : '–';
   }
@@ -148,6 +155,17 @@ const newGroup = ref({ universe: '', name: '', tag: '' });
 const groupId = ref<number | null>(null);
 const members = ref<any[]>([]);
 const ingests = ref<any[]>([]);
+/** Parser samples members sent (E-4, hub admins). */
+interface Sample { id: number; group_name: string; universe: string; username: string | null; code: string; page: string | null; note: string | null; created_at: number }
+const samples = ref<Sample[]>([]);
+const BASE_URL = import.meta.env.BASE_URL;
+const loadSamples = async () => {
+  if (isAdmin.value) samples.value = await api<Sample[]>('/admin/parser-samples');
+};
+async function deleteSample(id: number) {
+  await api(`/admin/parser-samples/${id}`, { method: 'DELETE' });
+  await loadSamples();
+}
 const fleetAttacks = ref<FleetAttackRow[]>([]);
 const newMemberName = ref('');
 /** existing accounts (e.g. from the alliance in another universe) that can join this alliance */
@@ -248,13 +266,23 @@ const createUni = () =>
 function startEdit(u: any) {
   error.value = msg.value = '';
   editUni.value = { slug: u.slug, name: u.name, isDefault: !!u.isDefault, startsAt: localOf(u.startsAt), endedAt: localOf(u.endedAt), settings: { ...u.settings }, deck: u.deck.map((c: DeckCard) => ({ ...c })) };
+  // position bonuses as one row per position (colonization planner)
+  const stored = (u.settings.positionBonus ?? {}) as Record<string, number[]>;
+  bonusRows.value = Array.from({ length: Number(u.settings.positions) || 15 }, (_, i) => [...(stored[String(i + 1)] ?? [0, 0, 0])]);
 }
 
+/** Production bonus per position (metal, crystal, deuterium in %) of the universe being edited. */
+const bonusRows = ref<number[][]>([]);
 const saveUni = () =>
   run(async () => {
     const e = editUni.value!;
     // a cleared optional number field (v-model.number leaves '') is removed and falls back to its default
-    const settings = { ...Object.fromEntries(Object.entries(e.settings).map(([k, v]) => [k, v === '' ? null : v])), gameUrl: String(e.settings.gameUrl ?? '').trim(), pr0planUrl: String(e.settings.pr0planUrl ?? '').trim() };
+    const bonus = Object.fromEntries(bonusRows.value.map((r, i) => [String(i + 1), r.map((x) => Number(x) || 0)]).filter(([, r]) => (r as number[]).some((x) => x !== 0)));
+    const settings = {
+      ...Object.fromEntries(Object.entries(e.settings).map(([k, v]) => [k, v === '' ? null : v])),
+      gameUrl: String(e.settings.gameUrl ?? '').trim(), pr0planUrl: String(e.settings.pr0planUrl ?? '').trim(),
+      positionBonus: Object.keys(bonus).length ? bonus : null,
+    };
     await api(`/admin/universes/${e.slug}`, { method: 'PUT', body: { name: e.name, settings, deck: e.deck, isDefault: e.isDefault, startsAt: epochOf(e.startsAt), endedAt: epochOf(e.endedAt) } });
     if (unitEditor.value?.dirty) await unitEditor.value.save();
     editUni.value = null;
@@ -312,11 +340,17 @@ const sendTestDiscord = () => run(() => api(`/admin/groups/${groupId.value}/disc
 
 const memberSort = useSort(
   members,
-  (m: any, k) => ({ user: m.username.toLowerCase(), role: m.role, ingame: m.ingame_name?.toLowerCase(), joined: m.joined_at, login: m.last_login_at })[k],
+  (m: any, k) => ({ user: m.username.toLowerCase(), role: m.role, ingame: m.ingame_name?.toLowerCase(), joined: m.joined_at, login: m.last_login_at, onboarding: m.onboarding?.length ?? 0 })[k],
   'user',
   false,
 );
 
+/** Onboarding steps (D-4): done ones per member, the open ones in the tooltip. */
+const ONBOARDING = ['empire', 'stats', 'overview', 'research', 'galaxy', 'messages', 'buildings'];
+const onboardingTitle = (m: { onboarding?: string[] }) => {
+  const open = ONBOARDING.filter((k) => !m.onboarding?.includes(k));
+  return open.length ? t('onboarding.open', { steps: open.map((k) => t(`onboarding.steps.${k}`)).join(', ') }) : t('onboarding.finished');
+};
 const inviteUrl = (token: string) => `${location.origin}${import.meta.env.BASE_URL}invite/${token}`;
 const copy = (text: string) => navigator.clipboard?.writeText(text).then(() => (msg.value = t('admin.linkCopied')));
 
@@ -414,6 +448,7 @@ const loadCrawler = async () => {
   if (isAdmin.value) crawler.value = await api('/admin/crawler');
 };
 onMounted(() => run(loadCrawler));
+onMounted(() => run(loadSamples));
 const retryCrawler = () =>
   run(async () => {
     const res = await api('/admin/crawler/retry', { body: {} });
@@ -564,6 +599,22 @@ const doMerge = () => run(async () => {
                 <th><label>{{ isEnded(editedUni) ? t('admin.endedBadge') : t('admin.endUniverse') }}</label> <Hint>{{ t('admin.endUniverseHint') }}</Hint></th>
                 <td>
                   <button :class="{ danger: !isEnded(editedUni) }" @click="toggleEnded(editedUni)">{{ t(!isEnded(editedUni) ? 'admin.endUniverse' : 'admin.reopenUniverse') }}</button>
+                </td>
+              </tr>
+            </template>
+            <template v-if="g.id === 'colonize'">
+              <tr>
+                <th>{{ t('admin.positionBonus') }} <Hint>{{ t('admin.positionBonusHint') }}</Hint></th>
+                <td>
+                  <table class="data uni-bonus">
+                    <thead><tr><th>{{ t('colonize.position') }}</th><th>{{ t('colonize.res.901') }}</th><th>{{ t('colonize.res.902') }}</th><th>{{ t('colonize.res.903') }}</th></tr></thead>
+                    <tbody>
+                      <tr v-for="(r, i) in bonusRows" :key="i">
+                        <td class="num">{{ i + 1 }}</td>
+                        <td v-for="j in 3" :key="j"><input v-model.number="r[j - 1]" type="number" min="-100" max="1000" step="any" :aria-label="`${i + 1} ${t(`colonize.res.${900 + j}`)}`" /></td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </td>
               </tr>
             </template>
@@ -728,6 +779,7 @@ const doMerge = () => run(async () => {
               <th class="sortable" @click="memberSort.sortBy('ingame')">{{ t('admin.ingameName') }}<SortMark :dir="memberSort.direction('ingame')" /></th>
               <th class="sortable" @click="memberSort.sortBy('joined')">{{ t('admin.joined') }}<SortMark :dir="memberSort.direction('joined')" /></th>
               <th class="sortable" @click="memberSort.sortBy('login')">{{ t('admin.login') }}<SortMark :dir="memberSort.direction('login')" /></th>
+              <th class="sortable" :title="t('onboarding.adminHint')" @click="memberSort.sortBy('onboarding')">{{ t('onboarding.column') }}<SortMark :dir="memberSort.direction('onboarding')" /></th>
               <th class="invite-col">{{ t('admin.memberInvite') }}</th>
               <th />
             </tr>
@@ -750,6 +802,7 @@ const doMerge = () => run(async () => {
               <td><input v-model="m.ingame_name" style="width: 140px" @change="setIngame(m)" /></td>
               <td class="small">{{ dateTime(m.joined_at) }}</td>
               <td class="small">{{ m.account ? dateTime(m.last_login_at) : '–' }}</td>
+              <td class="small" :title="onboardingTitle(m)" :class="{ ok: m.onboarding?.length === ONBOARDING.length }">{{ m.onboarding?.length ?? 0 }}/{{ ONBOARDING.length }}</td>
               <td class="invite-col">
                 <div v-if="m.invite_expires_at && freshInvites[m.id]" class="invite-row">
                   <CopyField :value="inviteUrl(freshInvites[m.id])" @copied="msg = t('admin.linkCopied')" />
@@ -803,6 +856,36 @@ const doMerge = () => run(async () => {
       <Section data-tour="admin-system" :title="t('admin.system.title')" :default-open="false" store-key="admin.system">
         <template #hint><Hint>{{ t('admin.system.hint') }}</Hint></template>
         <SystemMonitor />
+      </Section>
+
+      <Section :title="t('admin.samples.title')" :count="samples.length" :default-open="false" store-key="admin.samples">
+        <template #hint><Hint>{{ t('admin.samples.hint') }}</Hint></template>
+        <p v-if="!samples.length" class="muted small">{{ t('admin.samples.none') }}</p>
+        <div v-else class="table-wrap">
+          <table v-stack class="data">
+            <thead>
+              <tr>
+                <th>{{ t('admin.samples.when') }}</th>
+                <th>{{ t('admin.samples.from') }}</th>
+                <th>{{ t('admin.samples.why') }}</th>
+                <th>{{ t('admin.samples.note') }}</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="x in samples" :key="x.id">
+                <td class="nowrap">{{ dateTime(x.created_at) }}</td>
+                <td>{{ x.username ?? '?' }} <span class="muted small">{{ x.group_name }} · {{ x.universe }}</span></td>
+                <td>{{ x.code }}<span v-if="x.page" class="mono small"> {{ x.page }}</span></td>
+                <td class="m-wide">{{ x.note ?? '' }}</td>
+                <td class="nowrap">
+                  <a :href="`${BASE_URL}api/admin/parser-samples/${x.id}`" download>{{ t('admin.samples.download') }}</a>
+                  <button class="danger" style="margin-left: 6px" @click="deleteSample(x.id)">{{ t('admin.samples.delete') }}</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </Section>
 
       <Section data-tour="admin-backfill" :title="t('admin.backfill')" :default-open="false" store-key="admin.backfill">
@@ -939,4 +1022,5 @@ table.uni-deck input { width: 80px; text-align: right; }
   .admin .sortbar > label { flex: 1 1 auto; display: flex; align-items: center; gap: 8px; }
   .admin .sortbar select { width: auto !important; flex: 1; }
 }
+.uni-bonus input { width: 70px; }
 </style>

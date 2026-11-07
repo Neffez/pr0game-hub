@@ -26,6 +26,11 @@ Guidance for Claude Code in this repository. See `README.md` for features, setup
   (served as `/api/openapi.json` and `.yaml`). Any commit that adds, removes or changes HTTP API behavior—paths,
   methods, auth, query/header parameters, or response shape—must update that file in the same commit so it stays
   accurate (paths, `operationId`s, security, and schemas for affected operations; descriptions in English).
+- **A tour for every page and tab.** Each new page (menu item) and each new tab gets tour steps in
+  `apps/web/src/tours.ts` with texts `tours.<id>.<key>` in `de.ts` and `en.ts`: a page its own tour, started with
+  `useAutoTour`; a tab a `head` step on its button plus steps for its content with `tabs: ['<tab>']`, the open tab
+  passed to `useAutoTour` (members who saw the page tour get the tab's own tour on its first visit). Steps point at
+  `data-tour` attributes. Moving a page into a tab of another page moves its steps into that page's tour.
 - **Game times are not fixed.** Never assume fixed statistics hours (0, 6, 12, 18 o'clock) or a fixed update
   interval: each server configures them and its clock may ignore daylight saving. Learn them from synced data (e.g.
   `statInterval` in `apps/server/src/repo/syncHints.ts`) or work relative to the synced updates.

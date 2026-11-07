@@ -160,6 +160,21 @@ describe('push delivery', () => {
     expect(to('https://fcm.googleapis.com/fcm/send/carol')).toEqual([]);
   });
 
+  it('notifies a mentioned member in a thread they never wrote in, once they answered no more', async () => {
+    await call('POST', '/u8/comments', h.dave, { c: '1:60:3', type: 'moon', body: '@carol phalanx here? @Carolina is someone else' });
+    const bell = (await call('GET', '/u8/notifications', h.carol)).json().filter((n: any) => n.kind === 'comment' && n.thread.s === 60);
+    expect(bell).toMatchObject([{ member: 'Dave', mention: true, count: 1 }]);
+    sent.length = 0;
+    await app.push.deliver(groupA, t);
+    expect(to('https://fcm.googleapis.com/fcm/send/carol')).toMatchObject([{ payload: { title: '📣 Dave erwähnt dich zu ☾ [1:60:3]' } }]);
+    // no mention: nothing for Carol in a thread she never wrote in
+    await call('POST', '/u8/comments', h.dave, { c: '1:61:3', type: 'planet', body: 'no mention @Carolina' });
+    expect((await call('GET', '/u8/notifications', h.carol)).json().filter((n: any) => n.kind === 'comment' && n.thread.s === 61)).toEqual([]);
+    // answered: gone
+    await call('POST', '/u8/comments', h.carol, { c: '1:60:3', type: 'moon', body: 'yes' });
+    expect((await call('GET', '/u8/notifications', h.carol)).json().filter((n: any) => n.kind === 'comment' && n.thread.s === 60)).toEqual([]);
+  });
+
   it('delivers by itself after a data event of the group', { timeout: 10_000 }, async () => {
     await call('POST', '/u8/comments', h.carol, { c: '1:50:7', type: 'planet', body: 'Farm' });
     await call('POST', '/u8/comments', h.dave, { c: '1:50:7', type: 'planet', body: 'Mine now' });

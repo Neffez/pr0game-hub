@@ -8,6 +8,8 @@ import { DEFAULT_UNIT_DEFS, isUnitId, validateUnits, type UnitOverrides } from '
 import { now, type DB } from '../db.js';
 import { crawlerState, resumeCrawler } from '../crawler.js';
 import { events } from '../events.js';
+import { listSamples, sampleContent } from '../repo/samples.js';
+import { ONBOARDING_STEPS, onboardingOf } from '../repo/onboarding.js';
 import { aboutRecords, backfillActivity, parseRaw, reparse, type RawIngest } from '../ingest.js';
 import { systemInfo, vacuum } from '../monitor.js';
 import { undoIngest } from '../repo/cleanup.js';
@@ -336,6 +338,7 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
     const groupId = Number(req.params.id);
     const user = requireGroupAdmin(req, groupId);
     const t = now();
+    const onboarding = onboardingOf(db, groupId);
     return db
       .prepare(
         `SELECT u.id, u.username, m.role, m.ingame_name, m.joined_at, u.last_login_at, u.is_admin AS global_admin,
@@ -349,6 +352,7 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
       // link itself is only shown when created
       .map((m: any) => ({
         ...m,
+        onboarding: ONBOARDING_STEPS.filter((k) => onboarding.get(m.id)?.[k] != null),
         account: !!m.account,
         global_admin: !!m.global_admin,
         owner: m.id === owner(),
@@ -551,6 +555,29 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
     if (!snapshots) throw new HttpError(404, 'attack_not_found', 'No such attack in stored fleet lists');
     events.publish(groupId, { type: 'data', tables: ['fleets', 'hidden_attacks'] });
     return { snapshots };
+  });
+
+  /** Parser samples members sent for pages the hub found nothing in (all groups, hub admins). */
+  app.get('/api/admin/parser-samples', async (req) => {
+    requireAdmin(req);
+    return listSamples(db);
+  });
+
+  app.get<{ Params: { id: string } }>('/api/admin/parser-samples/:id', async (req, reply) => {
+    requireAdmin(req);
+    const c = sampleContent(db, Number(req.params.id));
+    if (!c) throw new HttpError(404, 'sample_not_found', 'Sample not found');
+    const html = c.html != null;
+    return reply
+      .header('content-type', html ? 'text/html; charset=utf-8' : 'text/plain; charset=utf-8')
+      .header('content-disposition', `attachment; filename="sample-${Number(req.params.id)}.${html ? 'html' : 'txt'}"`)
+      .send(c.html ?? c.text ?? '');
+  });
+
+  app.delete<{ Params: { id: string } }>('/api/admin/parser-samples/:id', async (req) => {
+    requireAdmin(req);
+    db.prepare('DELETE FROM parser_samples WHERE id = ?').run(Number(req.params.id));
+    return { ok: true };
   });
 
   app.get<{ Params: { id: string } }>('/api/admin/groups/:id/ingests', async (req) => {

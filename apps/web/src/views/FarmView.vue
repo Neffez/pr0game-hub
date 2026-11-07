@@ -10,9 +10,11 @@ import PlayerLink from '../components/PlayerLink.vue';
 import PlanetActions from '../components/PlanetActions.vue';
 import StatusBadges from '../components/StatusBadges.vue';
 import InactivityBadge, { type Inactivity } from '../components/InactivityBadge.vue';
+import DebrisFinder from '../components/DebrisFinder.vue';
 import { distance, drivesFromResearch, fleetConsumption, flightDuration, shipSpeed } from '@pr0hub/flight';
 import { computed, onMounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRoute, useRouter } from 'vue-router';
 import { uniApi } from '../api';
 import { claimOf, remaining } from '../claims';
 import { useLoader, useMobile, useProgressive, useSort, useStored, useUni } from '../composables';
@@ -20,6 +22,8 @@ import { tables, useLiveReload } from '../live';
 import { ago, coords, dateTime, duration, fmt, name, short } from '../format';
 import { useAutoTour } from '../tours';
 import { units } from '../units';
+import { spyPriority, type SpyReason } from '../spyPriority';
+import { spyProbes } from '@pr0hub/core/spy';
 
 /** Farm finder (backlog B-1): spied targets ranked by what they are worth now (server: repo/farm.ts). */
 interface Section { time: number; points: number | null; units: number }
@@ -40,6 +44,9 @@ interface Target {
   defense: Section | null;
   lastBattle: number | null;
   inactivity: Inactivity | null;
+  changes: Record<1 | 2 | 5, number | null>;
+  espionage: number | null;
+  moonDiameter?: number | null;
 }
 interface FarmResponse { targets: Target[]; resourceSpeed: number; speedSource: 'settings' | 'empire' | 'default'; storageFactor: number; days: number; now: number }
 interface Row extends Target {
@@ -54,6 +61,8 @@ interface Row extends Target {
   /** loot per hour of the round trip */
   perFlightHour: number | null;
   risk: 'none' | 'defense' | 'fleet' | 'both' | 'unknown';
+  /** spy priority (B-2): loot now times the need for a new report */
+  spy: { score: number; reasons: SpyReason[]; probes: number | null };
 }
 
 const { t } = useI18n();
@@ -80,16 +89,40 @@ const FILTER_DEFAULTS = {
 const filter = useStored('farm.filter', { ...FILTER_DEFAULTS });
 filter.value = { ...FILTER_DEFAULTS, ...filter.value };
 
-const { data, error, load } = useLoader(() => uniApi<FarmResponse>(uni.value, `/farm?days=${filter.value.days}`));
+/**
+ * Targets to raid, the spy priority list (B-2) on the same data with every report of the last 30 days, or the debris
+ * finder (B-4, its own data). The tab from the link (`?tab=debris`), else the last one.
+ */
+type Tab = 'targets' | 'spy' | 'debris';
+const TABS: Tab[] = ['targets', 'spy', 'debris'];
+const route = useRoute();
+const router = useRouter();
+const storedTab = useStored<Tab>('farm.tab', 'targets');
+const tab = computed<Tab>({
+  get: () => (TABS.includes(route.query.tab as Tab) ? (route.query.tab as Tab) : TABS.includes(storedTab.value) ? storedTab.value : 'targets'),
+  set: (v) => {
+    storedTab.value = v;
+    router.replace({ query: { ...route.query, tab: v } });
+  },
+});
+const SPY_DAYS = 30;
+const days = computed(() => (tab.value === 'spy' ? SPY_DAYS : filter.value.days));
+
+// the debris tab has its own data: the targets load when one of their tabs is shown
+const { data, error, load } = useLoader<FarmResponse | null>((): Promise<FarmResponse | null> =>
+  tab.value === 'debris' ? Promise.resolve(data.value) : uniApi<FarmResponse>(uni.value, `/farm?days=${days.value}`),
+);
 onMounted(load);
-watch(() => filter.value.days, () => load());
+watch(days, () => load());
+watch(tab, (v) => v !== 'debris' && !data.value && load());
 useLiveReload(load, tables('spy_reports', 'player_scores', 'battle_reports', 'galaxy_systems'));
-useAutoTour('farm', computed(() => !!data.value));
+useAutoTour('farm', computed(() => tab.value === 'debris' || !!data.value), tab);
 
 const settings = computed(() => ctx.value!.universe.settings);
 const ownPlanets = computed(() => ctx.value?.own?.planets ?? []);
 const drives = computed(() => drivesFromResearch(ctx.value?.own?.research ?? {}));
 const capacity = computed(() => units.value.capacity[filter.value.ship] ?? 0);
+const ownEspionage = computed(() => (ctx.value?.own?.research as Record<number, number> | undefined)?.[106] ?? null);
 
 /** Start of the flight: the chosen own planet or the nearest one. */
 function startFor(target: [number, number, number]) {
@@ -126,6 +159,14 @@ const rows = computed<Row[]>(() =>
       fuel,
       perFlightHour: flight ? lootSum / ((2 * flight) / 3600) : null,
       risk,
+      spy: {
+        ...spyPriority(
+          { lootSum, reportTime: x.report.time, levels: !!x.levels, fleetKnown: !!x.fleet, defenseKnown: !!x.defense, changes: x.changes, lastBattle: x.lastBattle },
+          data.value!.now,
+        ),
+        // probes for a report with buildings (needed for the projection), when both espionage levels are known
+        probes: ownEspionage.value != null && x.espionage != null ? spyProbes(ownEspionage.value, x.espionage).buildings : null,
+      },
     };
   }),
 );
@@ -156,11 +197,22 @@ const sortValue = (r: Row, key: string): unknown => {
     case 'age': return -r.report.time;
     case 'inactivity': return r.inactivity?.score ?? null;
     case 'player': return r.player.name.toLowerCase();
+    case 'spy': return r.spy.score;
   }
   return null;
 };
 const sort = useSort(filtered, sortValue, 'perFlightHour');
+// each tab starts with its own ranking
+watch(
+  tab,
+  (v) => {
+    sort.key.value = v === 'spy' ? 'spy' : 'perFlightHour';
+    sort.descending.value = true;
+  },
+  { immediate: true },
+);
 const sortOptions = computed(() => [
+  ...(tab.value === 'spy' ? [{ key: 'spy', label: t('farm.spy.priority') }] : []),
   { key: 'perFlightHour', label: t('farm.perFlightHour') },
   { key: 'loot', label: t('farm.loot') },
   { key: 'flight', label: t('farm.flight') },
@@ -199,6 +251,15 @@ const riskTitle = (r: Row) =>
   ].join('\n');
 const flightTitle = (r: Row) =>
   r.from ? t('farm.flightTitle', { from: r.from.label, ship: name(filter.value.ship), speed: filter.value.speed }) : t('farm.noStart');
+const spyTitle = (r: Row) =>
+  [
+    t('farm.spy.needTitle'),
+    ...(r.spy.reasons.length ? r.spy.reasons.map((x) => `• ${t(`farm.spy.reason.${x}`, { n: fmt(r.changes[x === 'fleet' ? 2 : x === 'defense' ? 5 : 1] ?? 0) })}`) : [`• ${t('farm.spy.reason.fresh')}`]),
+  ].join('\n');
+const probesTitle = (r: Row) =>
+  ownEspionage.value != null && r.espionage != null
+    ? t('farm.spy.probesTitle', { own: ownEspionage.value, target: r.espionage, ...spyProbes(ownEspionage.value, r.espionage) })
+    : t('farm.spy.probesUnknown');
 const anyFull = (r: Row) => r.full[901] || r.full[902] || r.full[903];
 const claimText = (r: Row) => {
   const c = claimOf(r.g, r.s, r.p, r.type);
@@ -209,18 +270,31 @@ const claimText = (r: Row) => {
 <template>
   <PageHeader :title="t('nav.farm')" tour="farm">
     <template #hint>
-      <Hint>
+      <Hint v-if="tab === 'debris'">
+        <p>{{ t('debris.hint1') }}</p>
+        <p>{{ t('debris.hint2') }}</p>
+      </Hint>
+      <Hint v-else>
         <p>{{ t('farm.hint1') }}</p>
         <p>{{ t('farm.hint2') }}</p>
         <p>{{ t('farm.hint3') }}</p>
       </Hint>
-      <Hint v-if="data && data.speedSource === 'default'" warn>{{ t('farm.speedUnknown') }}</Hint>
+      <Hint v-if="tab !== 'debris' && data && data.speedSource === 'default'" warn>{{ t('farm.speedUnknown') }}</Hint>
+      <Hint v-if="tab === 'spy'">{{ t('farm.spy.hint', { days: SPY_DAYS }) }}</Hint>
     </template>
+    <div class="seg">
+      <button data-tour="farm-tab-targets" :class="{ active: tab === 'targets' }" @click="tab = 'targets'">{{ t('farm.tabTargets') }}</button>
+      <button data-tour="farm-tab-spy" :class="{ active: tab === 'spy' }" @click="tab = 'spy'">{{ t('farm.tabSpy') }}</button>
+      <button data-tour="farm-tab-debris" :class="{ active: tab === 'debris' }" @click="tab = 'debris'">{{ t('farm.tabDebris') }}</button>
+    </div>
   </PageHeader>
+
+  <DebrisFinder v-if="tab === 'debris'" />
+  <template v-else>
 
   <FilterBar data-tour="farm-filter" store-key="farm" :chips="chips" @reset="resetFilters">
     <template #toolbar>
-      <label class="field-inline" data-tour="farm-days">
+      <label v-if="tab === 'targets'" class="field-inline" data-tour="farm-days">
         {{ t('farm.days') }}
         <select v-model.number="filter.days">
           <option v-for="d in DAYS" :key="d" :value="d">{{ t('farm.daysOption', { n: d }, d) }}</option>
@@ -281,7 +355,77 @@ const claimText = (r: Row) => {
   <template v-else>
     <p v-if="!ownPlanets.length" class="warn small">{{ t('farm.noEmpire') }}</p>
 
-    <template v-if="mobile">
+    <template v-if="mobile && tab === 'spy'">
+      <SortBar :sort-key="sort.key.value" :options="sortOptions" v-model:desc="sort.descending.value" @sort="sort.sortBy" />
+      <div class="farm-cards">
+        <div v-for="r in shown" :key="r.key" class="card farm-card">
+          <div class="farm-card-head">
+            <span class="mono">{{ coords(r.g, r.s, r.p) }}<span v-if="r.type === 'moon'"> ({{ t('common.moon') }})</span></span>
+            <PlayerLink :id="r.player.id" :name="r.player.name" />
+            <StatusBadges :status="r.player.status" :points="r.player.points" />
+            <span class="grow" />
+            <PlanetActions :g="r.g" :s="r.s" :p="r.p" :type="r.type" :from="r.from?.c ?? null" :diameter="r.moonDiameter ?? null" />
+          </div>
+          <div class="farm-card-grid small">
+            <span class="muted">{{ t('farm.spy.priority') }}</span><span :title="spyTitle(r)"><b>{{ short(r.spy.score) }}</b></span>
+            <span class="muted">{{ t('farm.loot') }}</span><span :title="resTitle(r)">{{ short(r.lootSum) }}</span>
+            <span class="muted">{{ t('farm.report') }}</span><span :title="reportTitle(r)">{{ ago(r.report.time) }}</span>
+            <span class="muted">{{ t('farm.spy.probes') }}</span><span :title="probesTitle(r)">{{ r.spy.probes ?? '?' }}</span>
+          </div>
+          <div v-if="r.spy.reasons.length" class="spy-reasons small">
+            <span v-for="x in r.spy.reasons" :key="x" class="badge" :class="`spy-${x}`">{{ t(`farm.spy.short.${x}`) }}</span>
+          </div>
+          <div v-if="claimText(r)" class="small warn">{{ claimText(r) }}</div>
+        </div>
+        <div v-if="more" ref="sentinel" />
+      </div>
+    </template>
+
+    <div v-else-if="tab === 'spy'" class="table-wrap">
+      <table class="data farm-table">
+        <thead>
+          <tr>
+            <th>{{ t('farm.target') }}</th>
+            <th class="sortable" @click="sort.sortBy('player')">{{ t('common.player') }}<SortMark :dir="sort.direction('player')" /></th>
+            <th class="sortable" @click="sort.sortBy('inactivity')">{{ t('farm.inactivity') }}<SortMark :dir="sort.direction('inactivity')" /></th>
+            <th class="sortable num" @click="sort.sortBy('loot')">{{ t('farm.loot') }}<SortMark :dir="sort.direction('loot')" /></th>
+            <th class="sortable num" @click="sort.sortBy('age')">{{ t('farm.report') }}<SortMark :dir="sort.direction('age')" /></th>
+            <th data-tour="farm-spy-why">{{ t('farm.spy.why') }}</th>
+            <th class="num" data-tour="farm-spy-probes">{{ t('farm.spy.probes') }}</th>
+            <th class="sortable num" @click="sort.sortBy('flight')">{{ t('farm.flight') }}<SortMark :dir="sort.direction('flight')" /></th>
+            <th class="sortable num" data-tour="farm-spy-rank" @click="sort.sortBy('spy')">{{ t('farm.spy.priority') }}<SortMark :dir="sort.direction('spy')" /></th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="r in shown" :key="r.key">
+            <td class="nowrap">
+              <span class="mono">{{ coords(r.g, r.s, r.p) }}</span>
+              <span v-if="r.type === 'moon'" class="badge">{{ t('common.moon') }}</span>
+              <div v-if="claimText(r)" class="small warn">{{ claimText(r) }}</div>
+            </td>
+            <td class="nowrap">
+              <PlayerLink :id="r.player.id" :name="r.player.name" />
+              <span v-if="r.player.ally_tag" class="muted small"> [{{ r.player.ally_tag }}]</span>
+              <StatusBadges :status="r.player.status" :points="r.player.points" />
+            </td>
+            <td><InactivityBadge :value="r.inactivity" chip /></td>
+            <td class="num" :title="resTitle(r)">{{ short(r.lootSum) }}</td>
+            <td class="num" :title="reportTitle(r)">{{ ago(r.report.time) }}</td>
+            <td :title="spyTitle(r)">
+              <span v-for="x in r.spy.reasons" :key="x" class="badge" :class="`spy-${x}`">{{ t(`farm.spy.short.${x}`) }}</span>
+            </td>
+            <td class="num" :title="probesTitle(r)">{{ r.spy.probes ?? '?' }}</td>
+            <td class="num" :title="flightTitle(r)">{{ r.flight == null ? '–' : duration(Math.floor(r.flight)) }}</td>
+            <td class="num" :title="spyTitle(r)"><b>{{ short(r.spy.score) }}</b></td>
+            <td><PlanetActions :g="r.g" :s="r.s" :p="r.p" :type="r.type" :from="r.from?.c ?? null" :diameter="r.moonDiameter ?? null" /></td>
+          </tr>
+        </tbody>
+      </table>
+      <div v-if="more" ref="sentinel" />
+    </div>
+
+    <template v-else-if="mobile">
       <SortBar :sort-key="sort.key.value" :options="sortOptions" v-model:desc="sort.descending.value" @sort="sort.sortBy" />
       <div data-tour="farm-list" class="farm-cards">
         <div v-for="r in shown" :key="r.key" class="card farm-card">
@@ -291,7 +435,7 @@ const claimText = (r: Row) => {
             <StatusBadges :status="r.player.status" :points="r.player.points" />
             <InactivityBadge :value="r.inactivity" chip hide-flagged />
             <span class="grow" />
-            <PlanetActions :g="r.g" :s="r.s" :p="r.p" :type="r.type" :from="r.from?.c ?? null" />
+            <PlanetActions :g="r.g" :s="r.s" :p="r.p" :type="r.type" :from="r.from?.c ?? null" :diameter="r.moonDiameter ?? null" />
           </div>
           <div class="farm-card-grid small">
             <span class="muted">{{ t('farm.loot') }}</span><span :title="resTitle(r)"><b>{{ short(r.lootSum) }}</b><Icon v-if="anyFull(r)" name="warning" :size="12" class="warn" /></span>
@@ -346,12 +490,13 @@ const claimText = (r: Row) => {
             <td class="num">{{ r.fuel == null ? '–' : short(r.fuel) }}</td>
             <td class="num"><b>{{ r.perFlightHour == null ? '–' : short(r.perFlightHour) }}</b></td>
             <td :class="`risk-${r.risk}`" :title="riskTitle(r)">{{ t(`farm.riskLevel.${r.risk}`) }}</td>
-            <td><PlanetActions :g="r.g" :s="r.s" :p="r.p" :type="r.type" :from="r.from?.c ?? null" /></td>
+            <td><PlanetActions :g="r.g" :s="r.s" :p="r.p" :type="r.type" :from="r.from?.c ?? null" :diameter="r.moonDiameter ?? null" /></td>
           </tr>
         </tbody>
       </table>
       <div v-if="more" ref="sentinel" />
     </div>
+  </template>
   </template>
 </template>
 
@@ -367,4 +512,9 @@ const claimText = (r: Row) => {
 .farm-card { padding: 10px 12px; }
 .farm-card-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 6px; }
 .farm-card-grid { display: grid; grid-template-columns: auto 1fr auto 1fr; gap: 3px 10px; }
+.spy-reasons { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.badge + .badge { margin-left: 3px; }
+.spy-reasons .badge + .badge { margin-left: 0; }
+.spy-fleet, .spy-defense { color: var(--neg); }
+.spy-battle, .spy-points { color: var(--warn); }
 </style>

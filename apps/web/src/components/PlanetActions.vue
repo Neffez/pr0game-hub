@@ -11,9 +11,11 @@ import Icon from './Icon.vue';
 
 /**
  * Action menu for a planet/moon: links into the game, the flight, IPM and (moons) moon destruction calculators and the
- * spy history; claiming the target. `diameter` is the moon's diameter from the galaxy view.
+ * spy history; claiming the target. `diameter` is the moon's diameter from the galaxy view. For a debris field
+ * (`type` debris): recycling in the game, the flight time, the galaxy and a claim for recycling.
  */
-const props = defineProps<{ g: number; s: number; p: number; type: 'planet' | 'moon'; from?: Coords3 | null; label?: string; diameter?: number | null }>();
+const props = defineProps<{ g: number; s: number; p: number; type: 'planet' | 'moon' | 'debris'; from?: Coords3 | null; label?: string; diameter?: number | null }>();
+const debris = computed(() => props.type === 'debris');
 
 const { t } = useI18n();
 const { ctx, uni } = useUni();
@@ -35,10 +37,20 @@ const start = computed<{ c: Coords3; label: string } | null>(() => {
 });
 
 const fleet = (mission: number) =>
-  `${gameUrl.value}game.php?page=fleetTable&galaxy=${props.g}&system=${props.s}&planet=${props.p}&planettype=${props.type === 'moon' ? 3 : 1}&target_mission=${mission}`;
+  `${gameUrl.value}game.php?page=fleetTable&galaxy=${props.g}&system=${props.s}&planet=${props.p}&planettype=${props.type === 'moon' ? 3 : props.type === 'debris' ? 2 : 1}&target_mission=${mission}`;
 
 const items = computed(() => {
   const list: MenuItem[] = [];
+  if (debris.value) {
+    if (gameUrl.value) list.push({ label: t('actions.recycle'), href: fleet(8), hint: t('actions.fleetPage') });
+    list.push({
+      label: t('actions.flightTime'),
+      href: flightCalcLink(settings.value, start.value?.c ?? null, target.value, ctx.value?.own?.research),
+      hint: start.value ? t('actions.flightFrom', { from: start.value.label }) : t('actions.flightNoStart'),
+    });
+    if (gameUrl.value) list.push({ label: t('actions.galaxy'), href: `${gameUrl.value}game.php?page=galaxy&galaxy=${props.g}&system=${props.s}`, hint: t('actions.inGame') });
+    return list;
+  }
   if (gameUrl.value) {
     list.push({ label: t('actions.spy'), href: fleet(6), hint: t('actions.fleetPage') });
     list.push({ label: t('actions.attack'), href: fleet(1), hint: t('actions.fleetPage') });
@@ -66,7 +78,7 @@ const items = computed(() => {
   }
   list.push({ label: t('actions.planAttack'), to: { path: `/${uni.value}/raid-planner`, query: { new: `${props.g}:${props.s}:${props.p}`, type: props.type } } });
   if (gameUrl.value) list.push({ label: t('actions.galaxy'), href: `${gameUrl.value}game.php?page=galaxy&galaxy=${props.g}&system=${props.s}`, hint: t('actions.inGame') });
-  const comments = planetComments(props.g, props.s, props.p, props.type);
+  const comments = planetComments(props.g, props.s, props.p, props.type as 'planet' | 'moon');
   list.push({
     label: comments ? t('actions.spyHistoryComments', { n: comments }) : t('actions.spyHistory'),
     to: { path: `/${uni.value}/spy`, query: { c: `${props.g}:${props.s}:${props.p}`, type: props.type } },
@@ -77,9 +89,10 @@ const items = computed(() => {
 /** Claim of this target (by anyone in the alliance); shown on the button and managed in the menu. */
 const claim = computed(() => claimOf(props.g, props.s, props.p, props.type));
 const mine = computed(() => claim.value?.user_id === ctx.value?.me.id);
-const commentCount = computed(() => planetComments(props.g, props.s, props.p, props.type));
+const commentCount = computed(() => (debris.value ? 0 : planetComments(props.g, props.s, props.p, props.type as 'planet' | 'moon')));
 const isAdmin = computed(() => ctx.value?.group.role === 'admin' || ctx.value?.me.isAdmin);
-const kind = ref<(typeof CLAIM_KINDS)[number]>('farm');
+const kinds = computed(() => (debris.value ? (['recycle'] as const) : CLAIM_KINDS));
+const kind = ref<(typeof CLAIM_KINDS)[number] | 'recycle'>(props.type === 'debris' ? 'recycle' : 'farm');
 const minutes = ref(120);
 const note = ref('');
 const claimError = ref('');
@@ -150,7 +163,7 @@ const durationLabel = (m: number) => (m < 60 ? `${m} min` : `${m / 60} h`);
       <template v-if="!claim || (!mine && isAdmin)">
         <div class="claim-row">
           <select v-model="kind" :aria-label="t('claims.kind')">
-            <option v-for="k in CLAIM_KINDS" :key="k" :value="k">{{ t(`claims.kinds.${k}`) }}</option>
+            <option v-for="k in kinds" :key="k" :value="k">{{ t(`claims.kinds.${k}`) }}</option>
           </select>
           <select v-model.number="minutes" :aria-label="t('claims.duration')">
             <option v-for="m in CLAIM_MINUTES" :key="m" :value="m">{{ durationLabel(m) }}</option>

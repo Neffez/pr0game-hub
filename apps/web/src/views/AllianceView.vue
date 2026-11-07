@@ -8,12 +8,13 @@ import SortMark from '../components/SortMark.vue';
 import { classOf, elementPoints } from '@pr0hub/core/tech';
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useRoute } from 'vue-router';
+import { useRoute, useRouter } from 'vue-router';
 import { uniApi } from '../api';
 import { past, upcoming, useClock } from '../clock';
 import FleetList, { FLEET_HISTORY, type Fleet } from '../components/FleetList.vue';
+import ColonizePlanner from '../components/ColonizePlanner.vue';
 import Hint from '../components/Hint.vue';
-import { useLoader, useMobile, useSort, useUni } from '../composables';
+import { useLoader, useMobile, useSort, useStored, useUni } from '../composables';
 import { tables, useLiveReload } from '../live';
 import { abbr, ago, dateTime, fmt, name, scaleColor } from '../format';
 
@@ -59,6 +60,18 @@ const mobile = useMobile();
 const { data, error, load } = useLoader(() => uniApi(uni.value, '/alliance') as Promise<Member[]>);
 const members = computed(() => data.value ?? []);
 const fleetTab = ref<'movements' | 'ships' | 'defense'>('movements');
+/** planets page: the members' planets, or the colonization planner (backlog C-5); from the link (`?tab=colonize`), else the last one */
+type PlanetsTab = 'planets' | 'colonize';
+const router = useRouter();
+const storedPlanetsTab = useStored<PlanetsTab>('planets.tab', 'planets');
+const planetsTab = computed<PlanetsTab>({
+  get: () => (route.query.tab === 'colonize' || route.query.tab === 'planets' ? (route.query.tab as PlanetsTab) : storedPlanetsTab.value === 'colonize' ? 'colonize' : 'planets'),
+  set: (v) => {
+    storedPlanetsTab.value = v;
+    router.replace({ query: { ...route.query, tab: v } });
+  },
+});
+const colonize = computed(() => page.value === 'planets' && planetsTab.value === 'colonize');
 /** fleet page, tab with the fleet movements instead of the empire tables */
 const movements = computed(() => page.value === 'fleet' && fleetTab.value === 'movements');
 
@@ -184,19 +197,31 @@ const total = computed(() => {
 });
 
 // one view for three pages: the tour follows the page
-useAutoTour(page, () => members.value.length > 0, () => (page.value === 'fleet' ? fleetTab.value : undefined));
+useAutoTour(page, () => members.value.length > 0 || colonize.value, () => (page.value === 'fleet' ? fleetTab.value : page.value === 'planets' ? planetsTab.value : undefined));
 </script>
 
 <template>
   <PageHeader :title="t(`nav.${page}`)" :tour="page">
     <template #hint>
-      <Hint>
+      <Hint v-if="colonize">
+        <p>{{ t('colonize.hint1') }}</p>
+        <p>{{ t('colonize.hint2') }}</p>
+        <p>{{ t('colonize.hint3') }}</p>
+      </Hint>
+      <Hint v-else>
         <p>{{ t('alliance.hint') }}</p>
         <p>{{ t(`alliance.hint_${page}`) }}</p>
         <p>{{ t('alliance.hintColumns') }}</p>
       </Hint>
     </template>
+    <div v-if="page === 'planets'" class="seg">
+      <button data-tour="planets-tab-planets" :class="{ active: planetsTab === 'planets' }" @click="planetsTab = 'planets'">{{ t('nav.planets') }}</button>
+      <button data-tour="planets-tab-colonize" :class="{ active: planetsTab === 'colonize' }" @click="planetsTab = 'colonize'">{{ t('colonize.tab') }}</button>
+    </div>
   </PageHeader>
+
+  <ColonizePlanner v-if="colonize" />
+  <template v-else>
 
   <div class="card toolbar" data-tour="alliance-toolbar">
     <div class="row small">
@@ -305,6 +330,7 @@ useAutoTour(page, () => members.value.length > 0, () => (page.value === 'fleet' 
       </tbody>
     </table>
   </div>
+  </template>
 </template>
 
 <style scoped>

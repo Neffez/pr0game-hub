@@ -10,8 +10,9 @@ export interface Claim {
   g: number;
   s: number;
   p: number;
-  planet_type: 'planet' | 'moon';
-  kind: 'farm' | 'attack' | 'spy';
+  /** debris: the debris field at the position, claimed for recycling */
+  planet_type: 'planet' | 'moon' | 'debris';
+  kind: 'farm' | 'attack' | 'spy' | 'recycle';
   note: string | null;
   created_at: number;
   expires_at: number;
@@ -46,7 +47,7 @@ export function clearClaims() {
   claims.value = [];
 }
 
-export const claimOf = (g: number, s: number, p: number, type: 'planet' | 'moon') =>
+export const claimOf = (g: number, s: number, p: number, type: 'planet' | 'moon' | 'debris') =>
   activeClaims.value.find((c) => c.g === g && c.s === s && c.p === p && c.planet_type === type) ?? null;
 
 /** Time left, "1:05 h" or "25 min". */

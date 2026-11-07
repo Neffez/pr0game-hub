@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { useAutoTour } from '../tours';
 import PageHeader from '../components/PageHeader.vue';
+import Section from '../components/Section.vue';
+import MoonChances from '../components/MoonChances.vue';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
@@ -127,6 +129,11 @@ useAutoTour('battlehall', () => !!data.value);
       <button :disabled="page >= data.pages" :title="t('battleHall.last')" :aria-label="t('battleHall.last')" @click="page = data.pages">»</button>
     </div>
   </template>
+
+  <Section :title="t('moons.title')" :default-open="false" store-key="battlehall.moons">
+    <template #hint><Hint>{{ t('moons.hint') }}</Hint></template>
+    <MoonChances />
+  </Section>
 </template>
 
 <style scoped>

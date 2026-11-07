@@ -1,10 +1,11 @@
-import { looksLikeUniverseJson, type StatsType } from '@pr0hub/core';
+import { explainNoData, looksLikeUniverseJson, type StatsType } from '@pr0hub/core';
 import type { FastifyInstance } from 'fastify';
 import { HttpError } from '../auth.js';
 import { groupContext } from '../context.js';
 import type { DB } from '../db.js';
 import { foreignUniverse, ingest } from '../ingest.js';
 import { buildUniverseJson } from '../universeJson.js';
+import { SAMPLE_MAX, saveSample } from '../repo/samples.js';
 
 /** Caps paste/upload cost: parse + gzip + a transaction of an 8–16 MiB body. */
 export const INGEST_LIMITS = { perUserPerMinute: 120, perGroupPerMinute: 200, universeJsonConcurrent: 1 };
@@ -57,6 +58,22 @@ export function ingestRoutes(app: FastifyInstance, db: DB) {
       { html: body.html, text: body.text, statsType: body.statsType, system: body.system, source: 'paste' },
       { dryRun: !!body.dryRun, ctx, log: req.log },
     );
+  });
+
+  /**
+   * A page the hub found nothing in, sent to the hub's admins as a parser sample (anonymized, see `saveSample`). The
+   * explanation is worked out here again, not taken from the client.
+   */
+  app.post<{ Params: { uni: string }; Body: { html?: string | null; text?: string | null; note?: string | null } }>('/api/:uni/ingest/sample', async (req) => {
+    const ctx = groupContext(db, req, req.params.uni);
+    takeIngestSlot(ctx.user.id, ctx.groupId);
+    const html = req.body?.html || null;
+    const text = req.body?.text || null;
+    if (!html && !text) throw new HttpError(400, 'nothing_pasted', 'Nothing pasted');
+    if ((html?.length ?? 0) + (text?.length ?? 0) > SAMPLE_MAX) throw new HttpError(413, 'sample_too_large', 'Page too large for a sample');
+    const note = req.body?.note ? String(req.body.note).trim().slice(0, 500) || null : null;
+    const why = explainNoData({ html, text: text ?? (html ?? '').replace(/<[^>]+>/g, '\n') });
+    return { id: saveSample(db, ctx, { html, text, code: why.code, page: why.page ?? null, note }), explain: why };
   });
 
   /**
