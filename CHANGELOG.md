@@ -4,6 +4,13 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-07
 
+- Alliance health (backlog item D-1): new page "Health" under Alliance for alliance admins
+  (`GET /api/:uni/alliance-health`, `repo/health.ts`, 403 for others). Per member: total points, rank and growth over
+  7 days (from the newest statistics update at or before the start), last visit in the hub, the newest sync per page
+  type (kept pages and snapshot tables), battle reports and expeditions synced in 7 days with the loot, open
+  deliveries of finalized loot settlements; flags for falling behind (below half the median growth), no empire page
+  for 3 days, no statistics and not in the hub for 3 days. Flagged members first, cards on mobile.
+
 - Fleet save by recycling only to debris fields that exist: recyclers need a field at the target (harvested empty is
   fine, but the game deletes the fields once a week). `GET /api/:uni/debris-fields` replaces `/positions`: fields
   the galaxy shows now, and fields with a sign in the last 7 days (debris seen or cleared, a battle leaving debris, a

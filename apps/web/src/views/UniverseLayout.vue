@@ -151,6 +151,7 @@ const links = [
   { to: 'planets', label: 'planets', icon: 'planets' },
   { to: 'fleet', label: 'fleet', icon: 'fleet' },
   { to: 'research', label: 'research', icon: 'research' },
+  { to: 'health', label: 'health', icon: 'freshness', admin: true },
   { section: 'combat' },
   { to: 'raid-planner', label: 'raids', icon: 'raids' },
   { to: 'farm', label: 'farm', icon: 'target' },
@@ -193,10 +194,12 @@ watch(() => route.path, () => {
   navOpen.value = false;
   syncOpen.value = false;
 });
+/** global or alliance admin: sees the alliance health */
+const leader = computed(() => !!session.me?.user?.isAdmin || ctx.value?.group.role === 'admin');
 /** Global search: Ctrl+K / Cmd+K anywhere, "/" outside of text fields. */
 const searchOpen = ref(false);
 const searchPages = computed(() => [
-  ...links.filter((l): l is { to: string; label: string; icon: string } => !!l.to && (running.value || l.to !== 'paste')),
+  ...links.filter((l): l is { to: string; label: string; icon: string } => !!l.to && (running.value || l.to !== 'paste') && (!l.admin || leader.value)),
   { to: 'account', label: 'user', icon: 'user' },
   { to: 'changelog', label: 'changelog', icon: 'changelog' },
   ...(session.me?.user?.isAdmin || ctx.value?.group.role === 'admin' ? [{ to: 'admin', label: 'admin', icon: 'admin' }] : []),
@@ -282,7 +285,7 @@ const tabs = [
         <Icon name="search" :size="15" /><span>{{ t('search.button') }}</span><kbd>{{ shortcut }}</kbd>
       </button>
       <nav>
-        <template v-for="l in links.filter((x) => running || x.to !== 'paste')" :key="l.to ?? l.section">
+        <template v-for="l in links.filter((x) => (running || x.to !== 'paste') && (!x.admin || leader))" :key="l.to ?? l.section">
           <div v-if="l.section" class="section">{{ t(`nav.${l.section}`) }}</div>
           <RouterLink v-else :to="`/${uni}/${l.to}`">
             <Icon :name="l.icon!" />{{ t(`nav.${l.label}`) }}

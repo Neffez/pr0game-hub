@@ -214,6 +214,13 @@ export const TOURS = {
       { key: 'list', el: 'battlehall-list', side: 'top' },
     ],
   },
+  health: {
+    steps: [
+      { key: 'intro' },
+      { key: 'summary', el: 'health-summary', side: 'bottom' },
+      { key: 'list', el: 'health-list', side: 'top' },
+    ],
+  },
   attack: {
     steps: [
       { key: 'intro' },

@@ -2552,6 +2552,51 @@ paths:
                           p: { type: integer }
                           visible: { type: boolean }
                           time: { type: integer, description: Newest sign of the field (Unix seconds) }
+  /api/{uni}/alliance-health:
+    get:
+      tags: [Universe]
+      operationId: getAllianceHealth
+      description: >-
+        Alliance health for alliance admins (403 otherwise): per member the total points, rank and their growth over 7
+        days (from the newest statistics update at or before the start, `partial` when the history is shorter), the
+        newest sync per page type (kept pages of 14 days and the snapshot tables), the last visit in the hub, battle
+        reports and expeditions they synced in 7 days with the loot, open deliveries of finalized loot settlements, and
+        flags: `behind` (growth below half the alliance median), `noEmpire` (no empire page for 3 days), `noStats` (no
+        statistics), `away` (not in the hub for 3 days).
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  medianGrowth: { type: [number, 'null'] }
+                  window: { type: integer, description: Seconds the growth and activity cover }
+                  members:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        userId: { type: integer }
+                        name: { type: string }
+                        role: { type: string }
+                        lastSeen: { type: [integer, 'null'] }
+                        player: { type: [object, 'null'] }
+                        points: { type: [integer, 'null'] }
+                        rank: { type: [integer, 'null'] }
+                        growth: { type: [integer, 'null'] }
+                        partial: { type: boolean }
+                        syncs: { type: object, description: 'Page type (empire, overview, fleets, buildings, research, galaxy, stats, messages, …) → Unix seconds' }
+                        battles: { type: integer }
+                        loot: { type: integer }
+                        expeditions: { type: integer }
+                        openDeliveries: { type: integer }
+                        flags: { type: array, items: { type: string, enum: [behind, noEmpire, noStats, away] } }
+        '403': { description: 'Not an alliance admin (`group_admin_only`)' }
   /api/{uni}/attack-assist:
     get:
       tags: [Universe]

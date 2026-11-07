@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Allianz-Gesundheit für Allianz-Admins: je Mitglied Wachstum der Woche gegen den Median, letzter Besuch, wann welche Seite eingefügt wurde, Kämpfe, Expeditionen und offene Lieferungen. Wer zurückfällt, kein Imperium mehr einfügt oder nicht mehr vorbeischaut, ist markiert.',
+        en: 'Alliance health for alliance admins: per member the growth of the week against the median, last visit, when which page was pasted, battles, expeditions and open deliveries. Members who fall behind, stop pasting their empire page or stay away are flagged.',
+      },
+      {
+        kind: 'new',
         de: 'Upgrade-Berater unter Bauen & Forschen: Minen, Energie und Produktionsforschung sortiert danach, wie schnell sie sich amortisieren (zum Marktkurs der Allianz) – mit einem Klick in die Bauliste. Im Gebäude-Reiter steht der beste nächste Schritt.',
         en: 'Upgrade advisor under Build & research: mines, energy and production research ranked by how fast they pay back (at the alliance\'s market rate) – into the build order in one click. The buildings tab shows the best next step.',
       },

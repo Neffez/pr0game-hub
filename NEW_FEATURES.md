@@ -18,6 +18,7 @@ source (`pr0game`: pages, missions, achievements, advanced stats).
 | A-2 Fleet save planner | Done | 2026-11-07 | new menu item "Fleet save" under Combat & expeditions |
 | A-1 Incoming attack assistant | Done | 2026-11-07 | page per attack, opened from bell, push, Discord and the raid planner |
 | C-1 Upgrade advisor | Done | 2026-11-07 | Build & research: tab "Advisor", best next step in the buildings tab |
+| D-1 Alliance health dashboard | Done | 2026-11-07 | new menu item "Health" under Alliance (alliance admins) |
 
 Each finished item carries a **Status** block below its description: what was built and how.
 
@@ -431,6 +432,23 @@ A page for leaders: per member points and growth against the alliance median, la
 seen in the hub, raids and expeditions in the last week, open deliveries. Flags: "falls behind", "no empire sync in
 3 days", "no statistics in the hub". Helps to find members who need help or have quit.
 
+**Status: done (2026-11-07).** How it was built:
+
+- **Server:** `apps/server/src/repo/health.ts`, `GET /api/:uni/alliance-health` (alliance admins and global admins,
+  `getAllianceHealth` in `openapi.yaml`). Per member: the member's player (`memberPlayers`) with the newest total points
+  and rank; growth = points now minus the newest update at or before 7 days ago (else the oldest after it, `partial`);
+  the alliance median of the growths. Newest sync per page type from `raw_ingests` (kept 14 days) and the snapshot
+  tables (empire, overview, fleets, buildings, research, galaxy views; all of the time). Battle reports and expeditions
+  the member synced in 7 days (with the loot of the reports), open deliveries of finalized loot settlements
+  (`finalizedSettlements`). Flags: `behind` (below half the median growth, median above 0), `noEmpire` (3 days),
+  `noStats`, `away` (no hub visit for 3 days, `group_members.last_seen_at`). Tests in `apps/server/test/health.test.ts`.
+- **Web:** `HealthView.vue` at `/:uni/health`, menu item "Health" under Alliance only for admins (also in the global
+  search). Summary (members, flagged, median growth, "flagged only"), a table with the flags under the name and the sync
+  ages coloured by freshness; cards on mobile. **Tour** `health`; **texts** `health.*`, `nav.health`; web test
+  `apps/web/test/health.test.ts`.
+- **Left for later:** reminders to members (D-3 sync duties), a trend over several weeks, raids from the raid planner
+  instead of synced battle reports.
+
 ### D-2 War dashboard (alliance vs alliance)
 **Value:** Medium · **Effort:** M · **Builds on:** battle reports, battle hall archive, statistics
 
@@ -611,7 +629,7 @@ exposure (all done)
 
 **Next:**
 A-1 Incoming attack assistant (done) · A-2 Fleet save planner (done) · C-1 Upgrade advisor (done) · D-1 Alliance
-health dashboard · F-3 Export
+health dashboard (done) · F-3 Export
 
 **Later:**
 A-4 Defense advisor · C-2 Logistics planner · C-3 Resource requests · C-4 Expedition planner · D-2 War dashboard ·

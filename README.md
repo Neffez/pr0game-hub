@@ -44,6 +44,9 @@ External analysis tool for [pr0game](https://codeberg.org/pr0game/pr0game) based
   filterable by sender and recipient; private unless the member shares them (account setting or per message)
 - **Alliance**: planets, fleets, fleet movements and research of all members (each member chooses which fleet
   missions they share)
+- **Alliance health** (alliance admins): per member points and growth over 7 days against the alliance median, last
+  visit in the hub, the last sync per page type, battles and expeditions of the week, open loot deliveries, and flags
+  for members who fall behind, sync no empire page or stay away
 - **Farm finder**: spied targets outside the own alliance ranked by loot per flight hour: the resources of the
   newest spy report plus the production since then (capped by the storages), ships, fuel and flight time from the
   nearest own planet, defense and fleet risk and an inactivity score (game flag, latest proven activity, relevant
