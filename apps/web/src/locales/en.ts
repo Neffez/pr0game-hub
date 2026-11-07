@@ -550,6 +550,18 @@ const en: typeof de = {
       outro: { title: 'Learn more', text: 'The "i" next to the title explains every column in detail; the "?" starts this tour again.' },
     },
     paste: {
+    batch: {
+      title: 'Collection: {n} pages',
+      collect: 'Collect',
+      collectHint: 'Puts the pasted page into the collection; the box is free for the next one. Everything is saved together.',
+      fileHint: 'Several files at once work too',
+      dropHint: 'Drop saved pages here (several or a folder too), or paste pages one after the other and press "Collect" after each.',
+      pasted: 'Pasted page {n}',
+      saveAll: 'Save all ({n})',
+      saved: 'saved, {n} new',
+      remove: 'Remove from the collection',
+      skipped: '{n} files skipped (not .html/.htm/.txt or larger than 8 MB)',
+    },
       intro: { title: 'Paste a page', text: 'This is how data gets from the game into the hub: copy a page in the game and paste it here. Nothing runs automatically in the game.' },
       copy: { title: 'Copy and paste', text: 'Open the page in the game, press Ctrl+A and Ctrl+C and Ctrl+V here. The hub recognises the page by itself and shows a preview before saving. You can also choose a saved page as a file.' },
       pages: { title: 'Which pages?', text: 'Statistics (players and alliances), messages (espionage, combat, expedition and recycler reports), galaxy, empire, marketplace, buildings, research and the overview with build queues and fleet movements.' },

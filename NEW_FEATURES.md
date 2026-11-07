@@ -23,6 +23,7 @@ source (`pr0game`: pages, missions, achievements, advanced stats).
 | A-4 Defense advisor | Done | 2026-11-07 | Build & research: tab "Defense advisor" per planet and moon, raid risk there and in My empire |
 | B-2 Spy priority list | Done | 2026-11-07 | farm finder: tab "Spy priority" |
 | B-4 Debris finder | Done | 2026-11-07 | new menu item "Debris finder" under Combat & expeditions, debris claims |
+| E-2 Several pages at once | Done | 2026-11-07 | sync page: several files, drag and drop, collect mode |
 
 Each finished item carries a **Status** block below its description: what was built and how.
 
@@ -623,6 +624,19 @@ which hub feature gets better with it. Higher data quality is the base of every 
 The file upload takes one file. Accept several saved pages (multiple files or drag and drop of a folder) and show
 one preview per page before saving. Also: several pages pasted one after the other into the same box before saving
 ("collect mode").
+
+**Status: done (2026-11-07).** How it was built:
+
+- **Web only** (`SyncPanel.vue`, the server's `/ingest` is called once per page as before): the file input takes several
+  files; dropping files or a folder on the paste card reads them (folders recursively via `webkitGetAsEntry`); the
+  button "Collect" moves the pasted page into the collection and clears the box. One file without a collection still
+  goes into the box as before.
+- **Collection:** one entry per page with its own dry-run preview (page type, warnings, first lines), a statistics
+  category or galaxy system where the page needs one, remove; "Save all" saves the ready pages one after another and
+  shows the new records per page. Files other than `.html`/`.htm`/`.txt` or larger than 8 MB (the default body limit)
+  are skipped with a note. The member chosen in "for member" applies to all pages.
+- **Texts:** `paste.batch.*`.
+- **Left for later:** the quick sync sheet on mobile keeps its series mode (no collection there).
 
 ### E-3 Parser gaps for game pages
 **Value:** Medium · **Effort:** M per page · **Builds on:** parser framework and fixtures

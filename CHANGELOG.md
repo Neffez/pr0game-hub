@@ -4,6 +4,13 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-07
 
+- Several pages at once (backlog item E-2): the sync panel takes several saved pages at once (file input with
+  `multiple`, drag and drop of files or a whole folder, read recursively via `webkitGetAsEntry`) and has a collect
+  mode ("Collect" moves the pasted page into the collection and frees the box for the next). Each page of the
+  collection gets its own preview (dry run) with its warnings, a statistics category or galaxy system where the page
+  needs one, and can be removed; "Save all" saves the ready pages one after another. A single file still goes into
+  the box as before. Files other than `.html`, `.htm`, `.txt` or above 8 MB are skipped with a note.
+
 - Debris finder (backlog item B-4): new page "Debris finder" under Combat & expeditions (`/:uni/debris`,
   `DebrisView.vue`) with `GET /api/:uni/debris?days=7` (`repo/debris.ts`, `getDebrisFinder` in `openapi.yaml`). Per
   open debris field the debris expected now: the newer of the galaxy view and a member's recycling report (exact

@@ -41,6 +41,130 @@ const saved = ref<Summary | null>(null);
 const error = ref('');
 const busy = ref(false);
 
+/**
+ * Collection of several pages (backlog E-2): saved files (several at once, dropped files or folders) and pages pasted
+ * one after the other ("collect"). Each page gets its own preview; "save all" saves them one after another.
+ */
+interface BatchItem {
+  id: number;
+  name: string;
+  html: string | null;
+  text: string;
+  statsType: number | null;
+  system: string;
+  preview: Summary | null;
+  saved: Summary | null;
+  error: string;
+  busy: boolean;
+}
+const batch = ref<BatchItem[]>([]);
+let batchIds = 0;
+const PAGE_FILE = /\.(html?|txt)$/i;
+/** Files above the server's body limit are left out early (8 MB by default). */
+const MAX_FILE = 8 * 1024 * 1024;
+const dragging = ref(false);
+const batchBusy = ref(false);
+
+const itemNeedsType = (b: BatchItem) => b.preview?.warnings.includes('stats_category_unknown') ?? false;
+const itemNeedsSystem = (b: BatchItem) => b.preview?.warnings.includes('galaxy_position_missing') ?? false;
+const itemReady = (b: BatchItem) =>
+  !b.saved && !!b.preview?.preview.length && (!itemNeedsType(b) || b.statsType != null) && (!itemNeedsSystem(b) || !!b.system.trim());
+const readyCount = computed(() => batch.value.filter(itemReady).length);
+
+function bodyOf(b: { html: string | null; text: string; statsType: number | null; system: string }, dryRun: boolean) {
+  return {
+    html: b.html,
+    text: b.html && b.text.startsWith(FILE_MARK) ? null : b.text,
+    statsType: b.statsType,
+    system: b.system.trim() || null,
+    forUser: forUser.value,
+    dryRun,
+  };
+}
+
+async function runItem(b: BatchItem, dryRun: boolean) {
+  b.busy = true;
+  b.error = '';
+  try {
+    const res = await uniApi<Summary>(uni.value, '/ingest', { body: bodyOf(b, dryRun) });
+    if (dryRun) b.preview = res;
+    else b.saved = res;
+  } catch (e) {
+    b.error = (e as Error).message;
+  } finally {
+    b.busy = false;
+  }
+}
+
+/** Adds pages to the collection and previews them one after another. */
+async function addToBatch(items: { name: string; html: string | null; text: string }[]) {
+  const added = items.map((x) => {
+    batch.value.push({ id: ++batchIds, ...x, statsType: null, system: '', preview: null, saved: null, error: '', busy: false });
+    return batch.value[batch.value.length - 1];
+  });
+  for (const b of added) await runItem(b, true);
+}
+
+async function addFiles(files: File[]) {
+  error.value = '';
+  const pages = files.filter((f) => PAGE_FILE.test(f.name));
+  const tooBig = pages.filter((f) => f.size > MAX_FILE);
+  if (pages.length < files.length || tooBig.length) error.value = t('paste.batch.skipped', { n: files.length - pages.length + tooBig.length });
+  const items = [];
+  for (const f of pages.filter((x) => x.size <= MAX_FILE).sort((a, b) => a.name.localeCompare(b.name))) {
+    items.push({ name: f.name, html: await f.text(), text: `${FILE_MARK}${f.name}, ${Math.round(f.size / 1024)} KB]` });
+  }
+  await addToBatch(items);
+}
+
+/** The current paste goes into the collection, the box is free for the next page. */
+function collect() {
+  if (!html.value && !text.value.trim()) return;
+  const name = text.value.startsWith(FILE_MARK) ? text.value.slice(FILE_MARK.length, -1) : t('paste.batch.pasted', { n: batch.value.length + 1 });
+  const item = { name, html: html.value, text: text.value };
+  clear();
+  addToBatch([item]);
+}
+
+/** Files of a drop, folders included (read recursively where the browser allows it). */
+async function droppedFiles(dt: DataTransfer): Promise<File[]> {
+  const entries = [...dt.items].map((i) => (i.kind === 'file' ? (i as DataTransferItem & { webkitGetAsEntry?: () => FileSystemEntry | null }).webkitGetAsEntry?.() : null));
+  if (!entries.some((e) => e?.isDirectory)) return [...dt.files];
+  const out: File[] = [];
+  const walk = async (e: FileSystemEntry): Promise<void> => {
+    if (e.isFile) out.push(await new Promise<File>((res, rej) => (e as FileSystemFileEntry).file(res, rej)));
+    else if (e.isDirectory) {
+      const reader = (e as FileSystemDirectoryEntry).createReader();
+      // readEntries returns the entries in chunks until an empty one
+      for (;;) {
+        const chunk = await new Promise<FileSystemEntry[]>((res, rej) => reader.readEntries(res, rej));
+        if (!chunk.length) break;
+        for (const c of chunk) await walk(c);
+      }
+    }
+  };
+  for (const e of entries) if (e) await walk(e);
+  return out;
+}
+
+async function onDrop(e: DragEvent) {
+  dragging.value = false;
+  if (!e.dataTransfer) return;
+  const files = await droppedFiles(e.dataTransfer);
+  if (files.length === 1 && !batch.value.length) return readFile(files[0]);
+  if (files.length) await addFiles(files);
+}
+
+async function saveAll() {
+  batchBusy.value = true;
+  for (const b of batch.value.filter(itemReady)) await runItem(b, false);
+  batchBusy.value = false;
+  refreshSyncHints(uni.value);
+}
+const removeItem = (b: BatchItem) => (batch.value = batch.value.filter((x) => x !== b));
+const clearBatch = () => (batch.value = []);
+const savedCount = (b: BatchItem) => Object.values(b.saved?.counts ?? {}).reduce((n, c) => n + c.new, 0);
+
 /** Translated label for a key of message group `group`, otherwise the key itself. */
 const label = (group: string, key: string) => (te(`${group}.${key}`) ? t(`${group}.${key}`) : key);
 
@@ -137,12 +261,19 @@ async function pasteClipboard() {
 /** Placeholder text for a chosen file (its content is sent as HTML). */
 const FILE_MARK = '[file: ';
 
-async function onFile(e: Event) {
-  const file = (e.target as HTMLInputElement).files?.[0];
-  if (!file) return;
+async function readFile(file: File) {
   html.value = await file.text();
   text.value = `${FILE_MARK}${file.name}, ${Math.round(file.size / 1024)} KB]`;
   run(true);
+}
+
+/** One file: into the box as before; several: into the collection. */
+async function onFile(e: Event) {
+  const input = e.target as HTMLInputElement;
+  const files = [...(input.files ?? [])];
+  input.value = '';
+  if (files.length === 1 && !batch.value.length) return readFile(files[0]);
+  if (files.length) await addFiles(files);
 }
 
 function clear() {
@@ -219,7 +350,14 @@ function next() {
 </script>
 
 <template>
-  <div v-if="!(compact && saved)" class="card">
+  <div
+    v-if="!(compact && saved)"
+    class="card"
+    :class="{ dragging }"
+    @dragover.prevent="dragging = !compact"
+    @dragleave="dragging = false"
+    @drop.prevent="onDrop"
+  >
     <button v-if="compact && canReadClipboard" class="primary paste-btn" :disabled="busy" @click="pasteClipboard">{{ t('paste.fromClipboard') }}</button>
     <textarea
       v-model="text"
@@ -231,7 +369,7 @@ function next() {
     />
     <div class="row" style="margin-top: 8px">
       <span v-if="html" class="badge" style="color: var(--pos)">{{ t('paste.htmlDetected', { kb: Math.round(html.length / 1024) }) }}</span>
-      <label v-if="!compact">{{ t('paste.file') }} <input type="file" accept=".html,.htm,.txt" @change="onFile" /></label>
+      <label v-if="!compact" :title="t('paste.batch.fileHint')">{{ t('paste.file') }} <input type="file" accept=".html,.htm,.txt" multiple @change="onFile" /></label>
       <label v-if="!compact || needsType">
         {{ t('paste.statsCategory') }}
         <select v-model="statsType">
@@ -252,9 +390,51 @@ function next() {
       </label>
       <span class="grow" />
       <button class="primary" :disabled="busy || !preview || !preview.preview.length || (needsType && !statsType)" @click="run(false)">{{ t('common.save') }}</button>
+      <button v-if="!compact" :disabled="!html && !text.trim()" :title="t('paste.batch.collectHint')" @click="collect">{{ t('paste.batch.collect') }}</button>
       <button @click="clear">{{ t('paste.clear') }}</button>
     </div>
+    <p v-if="!compact && !batch.length" class="muted small drop-hint">{{ t('paste.batch.dropHint') }}</p>
     <div v-if="error" class="error">{{ error }}</div>
+  </div>
+
+  <div v-if="batch.length" class="card">
+    <div class="row">
+      <h2 class="mt-0 grow">{{ t('paste.batch.title', { n: batch.length }) }}</h2>
+      <button class="primary" :disabled="batchBusy || !readyCount" @click="saveAll">{{ t('paste.batch.saveAll', { n: readyCount }) }}</button>
+      <button :disabled="batchBusy" @click="clearBatch">{{ t('paste.clear') }}</button>
+    </div>
+    <div v-for="b in batch" :key="b.id" class="batch-item" :class="{ done: !!b.saved }">
+      <div class="row batch-head">
+        <b class="batch-name">{{ b.name }}</b>
+        <span v-if="b.preview" class="muted small">{{ t('paste.detected', { page: b.preview.pageType, source: b.preview.source, lang: b.preview.lang }) }}</span>
+        <span class="grow" />
+        <span v-if="b.busy" class="muted small">…</span>
+        <span v-else-if="b.saved" class="ok small"><Icon name="check" :size="12" /> {{ t('paste.batch.saved', { n: savedCount(b) }) }}</span>
+        <button v-if="!b.saved" class="small-btn" :aria-label="t('paste.batch.remove')" :title="t('paste.batch.remove')" @click="removeItem(b)"><Icon name="close" :size="12" /></button>
+      </div>
+      <div v-if="b.error" class="error small">{{ b.error }}</div>
+      <template v-else-if="b.preview && !b.saved">
+        <p v-for="w in b.preview.warnings" :key="w" class="warn small"><Icon name="warning" :size="12" /> {{ label('paste.warnings', w) }}</p>
+        <div v-if="itemNeedsType(b) || itemNeedsSystem(b)" class="row small">
+          <label v-if="itemNeedsType(b)">
+            {{ t('paste.statsCategory') }}
+            <select v-model="b.statsType" @change="runItem(b, true)">
+              <option :value="null">{{ t('paste.auto') }}</option>
+              <option v-for="(lbl, id) in STATS_CATEGORIES" :key="id" :value="Number(id)">{{ lbl }}</option>
+            </select>
+          </label>
+          <label v-if="itemNeedsSystem(b)">
+            {{ t('paste.system') }}
+            <input v-model="b.system" placeholder="1:234" size="7" @change="runItem(b, true)" />
+          </label>
+        </div>
+        <ul v-if="b.preview.preview.length" class="small batch-lines">
+          <li v-for="(p, i) in b.preview.preview.slice(0, 5)" :key="i">{{ previewText(p) }}</li>
+          <li v-if="b.preview.preview.length > 5" class="muted">… {{ t('paste.more', { n: b.preview.preview.length - 5 }) }}</li>
+        </ul>
+        <p v-else class="error small">{{ t('paste.noData') }}</p>
+      </template>
+    </div>
   </div>
 
   <div v-if="preview" class="card">
@@ -303,4 +483,12 @@ function next() {
 .for-other { border-color: var(--warn); }
 .settlements { list-style: none; padding: 0; margin: 10px 0 0; display: flex; flex-direction: column; gap: 4px; }
 .settlements li { display: flex; align-items: center; gap: 6px; }
+.dragging { outline: 2px dashed var(--accent); outline-offset: -4px; }
+.drop-hint { margin: 6px 0 0; }
+.batch-item { border-top: 1px solid var(--border); padding: 8px 0; }
+.batch-item.done { opacity: 0.75; }
+.batch-head { align-items: center; gap: 8px; }
+.batch-name { overflow-wrap: anywhere; }
+.batch-lines { margin: 4px 0 0; padding-left: 18px; }
+.small-btn { padding: 1px 6px; }
 </style>

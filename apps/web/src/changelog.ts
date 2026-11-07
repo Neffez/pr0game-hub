@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Synchronisieren: mehrere gespeicherte Seiten auf einmal hochladen oder hineinziehen (auch einen ganzen Ordner), oder Seiten nacheinander einfügen und sammeln. Jede Seite bekommt ihre eigene Vorschau, gespeichert wird alles mit einem Klick.',
+        en: 'Sync: upload or drop several saved pages at once (a whole folder too), or paste pages one after the other and collect them. Each page gets its own preview, one click saves them all.',
+      },
+      {
+        kind: 'new',
         de: 'Neuer TF-Finder unter Kampf & Expeditionen: alle offenen Trümmerfelder mit der Menge jetzt (auch direkt nach einem Kampf eines Mitglieds), nötigen Recyclern, deiner Flugzeit und dem nächsten Mitglied mit genug Recyclern. Trümmerfelder lassen sich zum Abbauen reservieren, unabhängig vom Planeten dort.',
         en: 'New debris finder under Combat & expeditions: every open debris field with its amount now (also right after a member\'s battle), the recyclers needed, your flight time and the nearest member with enough recyclers. Debris fields can be claimed for recycling, apart from the planet there.',
       },

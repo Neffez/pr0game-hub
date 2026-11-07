@@ -551,6 +551,18 @@ const de = {
       outro: { title: 'Mehr erfahren', text: 'Das „i“ neben der Überschrift erklärt alle Spalten im Detail, das „?“ startet diese Tour erneut.' },
     },
     paste: {
+    batch: {
+      title: 'Sammlung: {n} Seiten',
+      collect: 'Sammeln',
+      collectHint: 'Legt die eingefügte Seite in die Sammlung; das Feld ist frei für die nächste. Gespeichert wird alles zusammen.',
+      fileHint: 'Auch mehrere Dateien auf einmal',
+      dropHint: 'Gespeicherte Seiten (auch mehrere oder ein Ordner) hierher ziehen, oder Seiten nacheinander einfügen und jeweils „Sammeln“ drücken.',
+      pasted: 'Eingefügte Seite {n}',
+      saveAll: 'Alle speichern ({n})',
+      saved: 'gespeichert, {n} neu',
+      remove: 'Aus der Sammlung entfernen',
+      skipped: '{n} Dateien übersprungen (keine .html/.htm/.txt oder größer als 8 MB)',
+    },
       intro: { title: 'Seite einfügen', text: 'So kommen Daten aus dem Spiel in den Hub: Du kopierst eine Seite im Spiel und fügst sie hier ein. Es läuft nichts automatisch im Spiel.' },
       copy: { title: 'Kopieren und einfügen', text: 'Öffne die Seite im Spiel, drücke Strg+A und Strg+C und hier Strg+V. Der Hub erkennt selbst, welche Seite es ist, und zeigt vor dem Speichern eine Vorschau. Eine gespeicherte Seite kannst du auch als Datei wählen.' },
       pages: { title: 'Welche Seiten?', text: 'Statistik (Spieler und Allianz), Nachrichten (Spionage-, Kampf-, Expeditions- und Recyclerberichte), Galaxie, Imperium, Marktplatz, Gebäude, Forschung und die Übersicht mit Bauschleifen und Flottenbewegungen.' },
