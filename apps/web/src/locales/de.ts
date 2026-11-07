@@ -128,7 +128,7 @@ const de = {
   fleetsave: {
     title: 'Fleetsave-Planer',
     hint1: 'Sag, wann du offline bist: Der Hub schlägt je Planet und Mond einen Flug zu einem anderen eigenen Planeten oder Mond vor, der unterwegs ist, wenn du gehst, und erst wieder ruht, wenn du zurück bist. Abflug so spät wie nötig, nie nach deinem Offline-Beginn.',
-    hint2: 'Stationieren bleibt am Ziel (die Hälfte des Deuteriums kommt bei Ankunft zurück), Transport fliegt hin und wieder heim, Abbauen mit Recyclern zum Trümmerfeld eines besetzten Platzes und zurück. Schiffe, Deuterium und Forschung stammen aus deiner letzten Imperium-Seite; Zeiten wie im Spiel auf die Sekunde.',
+    hint2: 'Stationieren bleibt am Ziel (die Hälfte des Deuteriums kommt bei Ankunft zurück), Transport fliegt hin und wieder heim, Abbauen mit Recyclern zu einem bestehenden Trümmerfeld und zurück (TF? = nur früher gesehen, das Spiel löscht Trümmerfelder wöchentlich). Schiffe, Deuterium und Forschung stammen aus deiner letzten Imperium-Seite; Zeiten wie im Spiel auf die Sekunde.',
     hint3: 'Du verschickst die Flotte im Spiel selbst. Danach die Übersicht einfügen: Mit der Glocke an der Flotte im Imperium erinnert dich der Hub vor der Landung (auch per Push und Discord).',
     offlineFrom: 'Offline ab',
     offlineTo: 'zurück um',
@@ -160,7 +160,8 @@ const de = {
     recallAt: 'Rückruf {time}',
     kinds: { deploy: 'Stationieren', transport: 'Transport', recall: 'Stationieren + Rückruf', harvest: 'Abbauen' },
     field: 'TF',
-    harvestTitle: 'Mit Recyclern zum Trümmerfeld eines besetzten Platzes und zurück (geht auch ohne Trümmer)',
+    harvestTitle: 'Mit Recyclern zu einem bestehenden Trümmerfeld und zurück (auch abgebaut, aber es muss existieren)',
+    fieldUnsure: 'Trümmerfeld zuletzt gesehen {time} – kann beim wöchentlichen Löschen verschwunden sein',
     phalanx: 'Phalanx: {list}',
     remind: 'Erinnerung: nach dem Verschicken die Übersicht einfügen, dann Glocke an der Flotte in',
   },

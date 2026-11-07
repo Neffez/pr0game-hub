@@ -129,12 +129,19 @@ describe('hostile phalanx exposure', () => {
   });
 });
 
-describe('occupied positions', () => {
-  it('lists the occupied positions of the asked galaxies', async () => {
-    const res = await get('/positions?g=1,9,x');
-    expect(Object.keys(res.positions)).toEqual(['1']);
-    // destroyed positions are left out, players' planets in order
-    expect(res.positions[1]).toEqual(expect.arrayContaining([[95, 4], [100, 8], [104, 3], [120, 1]]));
-    expect(res.positions[1].some(([s, p]: number[]) => s === 99 && p === 9)).toBe(true);
+describe('debris fields', () => {
+  it('lists the debris fields that exist: visible now or seen within a week', async () => {
+    const debris = JSON.stringify({ metal: '1.2K', crystal: '300' });
+    db.prepare('UPDATE planets SET debris = ? WHERE group_id = ? AND g = 1 AND s = 120 AND p = 1').run(debris, group);
+    db.prepare("INSERT INTO activity_log (group_id, time, kind, g, s, p, data, dedupe_key) VALUES (?, ?, 'debris_cleared', 1, 101, 2, '{}', 'a')").run(group, t - 86400);
+    db.prepare("INSERT INTO activity_log (group_id, time, kind, g, s, p, data, dedupe_key) VALUES (?, ?, 'debris_cleared', 1, 95, 4, '{}', 'b')").run(group, t - 9 * 86400);
+    db.prepare(
+      `INSERT INTO battle_reports (group_id, dedupe_key, g, s, p, planet_type, time, lost_attacker, lost_defender, loot_metal, loot_crystal, loot_deuterium, debris_metal, debris_crystal)
+       VALUES (?, 'r1', 1, 104, 3, 'planet', ?, 0, 0, 0, 0, 0, 5000, 2000)`,
+    ).run(group, t - 3600);
+    const res = await get('/debris-fields?g=1,9,x');
+    expect(Object.keys(res.fields)).toEqual(['1']);
+    expect(res.fields[1].map((f: any) => [f.s, f.p, f.visible])).toEqual([[101, 2, false], [104, 3, false], [120, 1, true]]);
+    expect(res.fields[1][0].time).toBe(t - 86400);
   });
 });

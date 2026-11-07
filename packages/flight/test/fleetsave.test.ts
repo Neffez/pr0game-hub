@@ -79,6 +79,8 @@ describe('fleet save by recycling', () => {
     expect(harvest.map((o) => o.target)).toEqual([field]);
     expect(harvest[0].rest - harvest[0].departure).toBe(2 * Math.floor(harvest[0].duration));
     expect(harvest[0].cost).toBe(harvest[0].fuel);
+    // the optimized recycler (227) makes recycling available too
+    expect(fleetSaveOptions({ ...input, fleet: { ...fleet, 227: 3 } }).some((o) => o.kind === 'harvest')).toBe(true);
     // no deploy or transport to a debris field
     expect(list.some((o) => o.kind !== 'harvest' && o.target === field)).toBe(false);
   });

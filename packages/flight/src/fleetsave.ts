@@ -6,12 +6,12 @@
 import { distance, fleetConsumption, flightDuration, flightTimes, recallFor, slowestShip, SPEED_PERCENTS, type Coords, type Drives, type Fleet, type Universe } from './flight.js';
 import type { ShipCatalog } from './ships.js';
 
-/** Ships that make the recycling mission available (the game's ship type `recycler`). */
-export const RECYCLERS = [209];
+/** Ships that make the recycling mission available (the game's ship type `recycler`: recycler, optimized recycler). */
+export const RECYCLERS = [209, 227];
 
 /**
- * Where the fleet can go: an own planet or moon, or the debris field of an occupied position (the game offers recycling
- * there with a recycler in the fleet, also when the field is empty).
+ * Where the fleet can go: an own planet or moon, or an existing debris field (the game offers recycling with a
+ * recycler in the fleet; the field may be harvested empty, but it has to exist).
  */
 export interface SaveTarget {
   coords: Coords;

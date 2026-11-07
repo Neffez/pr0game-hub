@@ -4,7 +4,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
 import { useClock } from '../clock';
-import FleetSaveOptions from '../components/FleetSaveOptions.vue';
+import FleetSaveOptions, { type DebrisField } from '../components/FleetSaveOptions.vue';
 import Hint from '../components/Hint.vue';
 import Icon from '../components/Icon.vue';
 import PageHeader from '../components/PageHeader.vue';
@@ -42,13 +42,13 @@ const DEFAULT_PRESETS: Preset[] = [
 const presets = useStored<Preset[]>('fleetsave.presets', DEFAULT_PRESETS);
 const win = useStored<{ from: string; to: string }>('fleetsave.window', { from: DEFAULT_PRESETS[0].from, to: DEFAULT_PRESETS[0].to });
 const kinds = useStored<{ deploy: boolean; transport: boolean; harvest?: boolean }>('fleetsave.kinds', { deploy: true, transport: true, harvest: true });
-/** occupied positions of the own galaxies: recycling targets */
-const fields = ref<Record<string, [number, number][]>>({});
+/** existing debris fields of the own galaxies: recycling targets */
+const fields = ref<Record<string, DebrisField[]>>({});
 async function loadFields() {
   const gs = [...new Set((data.value?.empire?.data.planets ?? []).map((b) => b.coords.g))];
   if (!gs.length) return;
   try {
-    fields.value = (await uniApi<{ positions: Record<string, [number, number][]> }>(uni.value, `/positions?g=${gs.join(',')}`)).positions;
+    fields.value = (await uniApi<{ fields: Record<string, DebrisField[]> }>(uni.value, `/debris-fields?g=${gs.join(',')}`)).fields;
   } catch {
     /* without them no recycling */
   }

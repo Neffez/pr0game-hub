@@ -2520,14 +2520,15 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Imperium' }
-  /api/{uni}/positions:
+  /api/{uni}/debris-fields:
     get:
       tags: [Universe]
-      operationId: getPositions
+      operationId: getDebrisFields
       description: >-
-        Occupied positions (with a player, not destroyed) of up to 10 galaxies from the group's galaxy data, as
-        `[system, position]` pairs per galaxy. The game offers recycling at their debris fields (also empty ones) with
-        a recycler in the fleet: fleet save targets.
+        Debris fields of up to 10 galaxies that exist by the group's data, per galaxy: `visible` when the galaxy shows
+        debris there now, otherwise the newest sign of the last 7 days (debris seen or cleared, a battle leaving
+        debris, a recycling report; the game deletes the fields once a week, so such a field may be gone). Recyclers
+        can fly to a field only while it exists (also harvested empty): fleet save targets.
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
@@ -2540,9 +2541,17 @@ paths:
               schema:
                 type: object
                 properties:
-                  positions:
+                  fields:
                     type: object
-                    additionalProperties: { type: array, items: { type: array, items: { type: integer } } }
+                    additionalProperties:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          s: { type: integer }
+                          p: { type: integer }
+                          visible: { type: boolean }
+                          time: { type: integer, description: Newest sign of the field (Unix seconds) }
   /api/{uni}/attack-assist:
     get:
       tags: [Universe]

@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-07
 
+- Fleet save by recycling only to debris fields that exist: recyclers need a field at the target (harvested empty is
+  fine, but the game deletes the fields once a week). `GET /api/:uni/debris-fields` replaces `/positions`: fields
+  the galaxy shows now, and fields with a sign in the last 7 days (debris seen or cleared, a battle leaving debris, a
+  recycling report), which are marked as unsure ("DF?"). The optimized recycler (227) counts as a recycler.
+
 - Upgrade advisor (backlog item C-1): new tab "Advisor" under Build & research and a "best next step" line in the
   buildings tab. `upgradeAdvice` in `@pr0hub/core/advisor` ranks the next level of each mine, the energy for it
   (solar plant, fusion reactor, solar satellites; a mine short of energy comes with the cheapest energy that covers
@@ -14,10 +19,9 @@ Every commit adds its changes here, newest first, grouped by date.
   build queue. "Add to build order" inserts the steps after the steps checked off, or starts a build order.
   Build & research tabs scroll sideways on narrow screens.
 
-- Fleet save by recycling: fleets with a recycler also get "Recycle" options to the debris field of an occupied
-  position and back home (the game offers recycling there also without debris), in the fleet save planner (switchable)
-  and the attack assistant. One target per distance keeps it to a few hundred. New `GET /api/:uni/positions?g=`
-  (occupied positions of the group's galaxy data); `@pr0hub/flight` has the `harvest` kind and `RECYCLERS`.
+- Fleet save by recycling: fleets with a recycler also get "Recycle" options to a debris field and back home, in the
+  fleet save planner (switchable) and the attack assistant. One target per distance; `@pr0hub/flight` has the
+  `harvest` kind and `RECYCLERS`.
 
 - Attack assistant: ships the member sent away from the attacked planet after their newest empire page (in a newer
   fleet list, not in one from up to the empire page) and that are not back by the impact are taken off the planet in

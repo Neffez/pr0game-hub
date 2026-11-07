@@ -139,9 +139,11 @@ back. Typical windows ("night", "work") are saved as presets.
 - **Reminder:** after sending, the member pastes the overview and sets the bell on the fleet in My empire (the
   existing fleet alerts, push and Discord included); the page says so.
 - **Tour** `fleetsave`; **texts** `fleetsave.*`, `nav.fleetsave`; web tests in `apps/web/test/fleetsave-attack.test.ts`.
-- **Follow-up (2026-11-07):** recycling as fleet save (`harvest`): with a recycler in the fleet, to the debris field of
-  any occupied position and back (the game's `getAvailableMissions` only needs a planet there, debris may be zero);
-  targets from `GET /api/:uni/positions?g=`, deduplicated by distance in the browser. Also in the attack assistant.
+- **Follow-up (2026-11-07):** recycling as fleet save (`harvest`): with a recycler (209, optimized recycler 227) in the
+  fleet, to an existing debris field and back. A field must exist (harvested empty is fine); the game deletes the
+  fields once a week. Targets from `GET /api/:uni/debris-fields?g=`: fields the galaxy shows now, and fields with a sign
+  within 7 days (debris seen or cleared, battle with debris, recycling report), shown as unsure ("DF?").
+  Deduplicated by distance in the browser. Also in the attack assistant.
 - **Left for later:** presets synced across devices,
   a reminder without pasting the overview.
 

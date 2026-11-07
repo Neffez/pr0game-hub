@@ -89,7 +89,7 @@ describe('fleet save and attack assistant', () => {
     setLocale('de');
     localStorage.clear();
     vi.stubGlobal('fetch', async (url: string) => {
-      const body = url.includes('/attack-assist') ? assist : url.includes('/imperium') ? imperium : url.includes('/positions') ? { positions: { 1: [[100, 5], [130, 9]] } } : [];
+      const body = url.includes('/attack-assist') ? assist : url.includes('/imperium') ? imperium : url.includes('/debris-fields') ? { fields: { 1: [{ s: 100, p: 5, visible: true, time: now }, { s: 130, p: 9, visible: false, time: now - 86400 }] } } : [];
       return new Response(JSON.stringify(body), { headers: { 'content-type': 'application/json' } });
     });
   });
@@ -103,10 +103,10 @@ describe('fleet save and attack assistant', () => {
     expect(bodies[0].querySelector('.fs-phalanx')!.textContent).toBe(' Phalanx: Enemy 1:104:3');
     expect(bodies[0].querySelectorAll('.fso-table tbody tr').length).toBeGreaterThan(0);
     expect(bodies[0].querySelector('.fso-table tbody td b')!.textContent).toMatch(/Stationieren|Transport|Abbauen/);
-    // with a recycler the debris fields of occupied positions are targets too
+    // with a recycler existing debris fields are targets too; one only seen before is marked
     (bodies[0].querySelector('.fso button.link') as HTMLButtonElement).click();
     await settle();
-    expect(bodies[0].textContent).toContain('TF [1:130:9]');
+    expect(bodies[0].textContent).toContain('TF? [1:130:9]');
   });
 
   it('shows the verdict, the loot, fleet saves before the impact and the helpers', async () => {

@@ -7,7 +7,7 @@ import { uniApi } from '../api';
 import { useClock } from '../clock';
 import BackLink from '../components/BackLink.vue';
 import Countdown from '../components/Countdown.vue';
-import FleetSaveOptions from '../components/FleetSaveOptions.vue';
+import FleetSaveOptions, { type DebrisField } from '../components/FleetSaveOptions.vue';
 import Hint from '../components/Hint.vue';
 import Icon from '../components/Icon.vue';
 import PageHeader from '../components/PageHeader.vue';
@@ -95,14 +95,14 @@ const simLink = computed(() => {
 // ---- fleet save of the attacked body
 const from = computed<SaveTarget | null>(() => (data.value?.target ? { coords: [data.value.target.g, data.value.target.s, data.value.target.p], type: data.value.target.type, name: data.value.target.name } : null));
 const targets = computed<SaveTarget[]>(() => (data.value?.bodies ?? []).map((b) => ({ coords: [b.g, b.s, b.p], type: b.type, name: b.name })));
-/** occupied positions of the target's galaxy: recycling targets */
-const fields = ref<Record<string, [number, number][]>>({});
+/** existing debris fields of the target's galaxy: recycling targets */
+const fields = ref<Record<string, DebrisField[]>>({});
 watch(
   () => data.value?.target?.g,
   async (g) => {
     if (g == null) return;
     try {
-      fields.value = (await uniApi<{ positions: Record<string, [number, number][]> }>(uni.value, `/positions?g=${g}`)).positions;
+      fields.value = (await uniApi<{ fields: Record<string, DebrisField[]> }>(uni.value, `/debris-fields?g=${g}`)).fields;
     } catch {
       /* without them no recycling */
     }

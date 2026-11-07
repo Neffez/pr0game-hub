@@ -127,7 +127,7 @@ const en: typeof de = {
   fleetsave: {
     title: 'Fleet save planner',
     hint1: 'Say when you are offline: per planet and moon the hub suggests a flight to another own planet or moon that is in the air when you leave and at rest again only when you are back. Departure as late as needed, never after the start of your offline time.',
-    hint2: 'Deploy stays at the target (half of the deuterium comes back on arrival), transport flies there and back home, recycle goes with recyclers to the debris field of an occupied position and back. Ships, deuterium and research come from your latest empire page; times to the second like the game.',
+    hint2: 'Deploy stays at the target (half of the deuterium comes back on arrival), transport flies there and back home, recycle goes with recyclers to an existing debris field and back (DF? = only seen before, the game deletes debris fields weekly). Ships, deuterium and research come from your latest empire page; times to the second like the game.',
     hint3: 'You send the fleet in the game yourself. Then paste the overview: with the bell on the fleet in My empire the hub reminds you before it lands (also by push and Discord).',
     offlineFrom: 'Offline from',
     offlineTo: 'back at',
@@ -159,7 +159,8 @@ const en: typeof de = {
     recallAt: 'recall {time}',
     kinds: { deploy: 'Deploy', transport: 'Transport', recall: 'Deploy + recall', harvest: 'Recycle' },
     field: 'DF',
-    harvestTitle: 'With recyclers to the debris field of an occupied position and back (works without debris too)',
+    harvestTitle: 'With recyclers to an existing debris field and back (also harvested, but it has to exist)',
+    fieldUnsure: 'Debris field last seen {time} – the weekly deletion may have removed it',
     phalanx: 'Phalanx: {list}',
     remind: 'Reminder: after sending, paste the overview, then the bell on the fleet in',
   },

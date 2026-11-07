@@ -7,6 +7,14 @@ import { abbr, clockTime, dateTime, duration, fmt, short } from '../format';
 import { fleetShips, units } from '../units';
 import Ticker from './Ticker.vue';
 
+/** An existing debris field (server: `/debris-fields`): shown in the galaxy now, or seen within the last week. */
+export interface DebrisField {
+  s: number;
+  p: number;
+  visible: boolean;
+  time: number;
+}
+
 /**
  * Fleet save options of one planet or moon (math: `fleetSaveOptions` of @pr0hub/flight): the fleet on it flies to
  * another own body so that it is in the air from `latest` on and at rest again at `back` or a little later. Used by
@@ -21,8 +29,8 @@ const props = withDefaults(
     /** deuterium on the body now */
     deuterium: number | null;
     targets: SaveTarget[];
-    /** occupied positions per galaxy ([system, position]): debris fields to recycle at (`harvest`) */
-    fields?: Record<string, [number, number][]>;
+    /** existing debris fields per galaxy (`/debris-fields`): recycling targets (`harvest`) */
+    fields?: Record<string, DebrisField[]>;
     now: number;
     latest: number;
     back: number;
@@ -49,8 +57,8 @@ const fleet = computed(() => {
 });
 const capacity = computed(() => Object.entries(fleet.value).reduce((s, [id, n]) => s + (units.value.capacity[Number(id)] ?? 0) * n, 0));
 /**
- * Debris fields of the start's galaxy as targets, one per distance (the flight time only depends on it): a few hundred
- * instead of thousands of positions.
+ * Debris fields of the start's galaxy as targets, one per distance (the flight time only depends on it), fields the
+ * galaxy shows now before those only seen in the last days.
  */
 const fieldTargets = computed<SaveTarget[]>(() => {
   if (!props.kinds.includes('harvest') || !props.fields) return [];
@@ -58,8 +66,8 @@ const fieldTargets = computed<SaveTarget[]>(() => {
   const [g] = props.from.coords;
   const seen = new Set<number>();
   const out: SaveTarget[] = [];
-  for (const [s, p] of props.fields[g] ?? []) {
-    const coords: [number, number, number] = [g, s, p];
+  for (const f of [...(props.fields[g] ?? [])].sort((a, b) => Number(b.visible) - Number(a.visible))) {
+    const coords: [number, number, number] = [g, f.s, f.p];
     const d = distance(u, props.from.coords, coords);
     if (seen.has(d)) continue;
     seen.add(d);
@@ -67,6 +75,12 @@ const fieldTargets = computed<SaveTarget[]>(() => {
   }
   return out;
 });
+/** a debris field only seen before (harvested or older): the weekly deletion may have removed it */
+const unsure = (x: SaveTarget) => x.type === 'debris' && !props.fields?.[x.coords[0]]?.find((f) => f.s === x.coords[1] && f.p === x.coords[2])?.visible;
+const fieldTitle = (x: SaveTarget) => {
+  const f = props.fields?.[x.coords[0]]?.find((y) => y.s === x.coords[1] && y.p === x.coords[2]);
+  return f && !f.visible ? t('fleetsave.fieldUnsure', { time: dateTime(f.time) }) : undefined;
+};
 const options = computed(() =>
   Object.keys(fleet.value).length
     ? fleetSaveOptions({
@@ -78,7 +92,7 @@ const options = computed(() =>
 const shown = computed(() => (all.value ? options.value : options.value.slice(0, props.limit)));
 /** clock time today, otherwise with the date (cards on mobile) */
 const when = (e: number) => (new Date(e * 1000).toDateString() === new Date().toDateString() ? clockTime(new Date(e * 1000)) : dateTime(e));
-const label = (x: SaveTarget) => `${x.type === 'moon' ? t('common.moon') + ' ' : x.type === 'debris' ? t('fleetsave.field') + ' ' : ''}${x.name ? x.name + ' ' : ''}[${x.coords.join(':')}]`;
+const label = (x: SaveTarget) => `${x.type === 'moon' ? t('common.moon') + ' ' : x.type === 'debris' ? t('fleetsave.field') + (unsure(x) ? '?' : '') + ' ' : ''}${x.name ? x.name + ' ' : ''}[${x.coords.join(':')}]`;
 defineExpose({ fleet, options });
 </script>
 
@@ -88,7 +102,7 @@ defineExpose({ fleet, options });
     <p v-else-if="!options.length" class="warn small m-0">{{ t('fleetsave.noOption') }}</p>
     <div v-else-if="mobile" class="fso-cards">
       <div v-for="(o, i) in shown" :key="i" class="fso-card small">
-        <div><b>{{ t(`fleetsave.kinds.${o.kind}`) }}</b> → {{ label(o.target) }} · {{ o.speed }} %</div>
+        <div><b>{{ t(`fleetsave.kinds.${o.kind}`) }}</b> → <span :class="{ warn: unsure(o.target) }" :title="fieldTitle(o.target)">{{ label(o.target) }}</span> · {{ o.speed }} %</div>
         <div class="mono">
           {{ when(o.departure) }} → {{ when(o.rest) }}
           <span class="muted">{{ o.late > 0 ? '+' + duration(o.late) : t('fleetsave.onTime') }}</span>
@@ -119,7 +133,7 @@ defineExpose({ fleet, options });
               <b>{{ t(`fleetsave.kinds.${o.kind}`) }}</b>
               <span v-if="o.recall != null" class="small muted"> · {{ t('fleetsave.recallAt', { time: dateTime(o.recall) }) }}</span>
             </td>
-            <td class="small">{{ label(o.target) }}</td>
+            <td class="small" :class="{ warn: unsure(o.target) }" :title="fieldTitle(o.target)">{{ label(o.target) }}</td>
             <td class="num">{{ o.speed }} %</td>
             <td class="mono small">
               {{ dateTime(o.departure) }}
