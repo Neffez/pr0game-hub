@@ -28,6 +28,7 @@ source (`pr0game`: pages, missions, achievements, advanced stats).
 | D-4 Onboarding of new members | Done | 2026-11-07 | sync page and overview (checklist), admin panel (column in the members list) |
 | G-8 Comments with mentions | Done | 2026-11-07 | comment threads, notifications (bell, push, Discord) |
 | B-6 Moon chance tracking | Done | 2026-11-07 | battle hall: section "Moon chances", moon destruction calculator with the diameter |
+| C-5 Colonization planner | Done | 2026-11-07 | new menu item "Colonize" under Start, universe settings for position bonuses |
 
 Each finished item carries a **Status** block below its description: what was built and how.
 
@@ -533,6 +534,37 @@ free fleet slots. Today the statistics show what happened, not what to send.
 
 Free positions near the member's planets with the expected size and temperature range per position (as in the
 game), distance to the main planet and to the alliance. Helps new members place colonies close to each other.
+
+**Status: done (2026-11-07), reworked with the product owner's input.** Colonizing close to the own planets is
+usually not the goal: a fleeter spreads planets for coverage, a miner cares about the planet itself; close to the
+alliance is good only while there are enough targets for everyone; positions 1 and 15 come last (astrophysics 8) and
+are interesting for their bonus. How it was built:
+
+- **Position** (`packages/parser/src/colonize.ts`, `@pr0hub/core/colonize`, tests in
+  `packages/parser/test/colonize.test.ts`): astrophysics needed like the game's `allowPlanetPosition` (1/15: 8, 2/14: 6,
+  3/13: 4, else 1, relative to the universe's positions), fields and temperature like `createPlanet` with the default
+  `planet_data` and its row mapping (`ceil(position / (max_planets / 15))`; the second planet gets the middle, further
+  ones a random value), the planet size factor, the deuterium factor `1.44 − 0.004 · temp` and the position bonus.
+- **Universe settings:** optional `planetSizeFactor` and `positionBonus` (position → [metal, crystal, deuterium] in %;
+  the game keeps them in `planet_data`, no page shows them), validated in `settingsError`; admin panel group
+  "Colonization" with a table per position.
+- **Server:** `GET /api/:uni/colonize?range=25` (`apps/server/src/repo/colonize.ts`): every system seen in the galaxy
+  with free positions (no planet, not destroyed); `coverage`: the mean distance (game formula between system centres,
+  wrap-around as configured, from a distance table per galaxy and system difference) from every system of the
+  universe to the viewer's nearest planet, how much a planet there shortens it as a share; within the range of the
+  same galaxy the planets of other members and in-game alliance mates (competition), other players' planets, the
+  inactive ones and the total points of those players (each once) and in the system itself. Tests in
+  `apps/server/test/colonize.test.ts`.
+- **Web:** `ColonizeView.vue`, menu item "Colonize" under Start. Profiles: fleeter (coverage 40 %, points nearby 30 %,
+  little competition 15 %, position 15 %) and miner (position 65 %, little competition 15 %, coverage and points 10 %
+  each); points count by square root (a few big players don't drown everything), the position by fields, deuterium
+  and bonus. Columns: position (link to the galaxy), astrophysics needed (marked when above the own level), fields,
+  temperature, bonus (when the universe has any), coverage, points and targets nearby, members nearby, age of the
+  galaxy view, score with the parts in the tooltip. Filters: range, only colonizable with the own astrophysics, at
+  most members in range, galaxy.
+- **Texts:** `colonize.*`, `nav.colonize`, `admin.colonizeHint`, `admin.planetSizeFactor*`, `admin.positionBonus*`.
+- **Left for later:** systems nobody pasted are not rated (shown as "n of m systems known"); the number of colonies
+  allowed (`max_initial_planets`, `planets_per_tech` of the game configuration) is not a hub setting.
 
 ---
 

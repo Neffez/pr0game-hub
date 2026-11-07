@@ -108,6 +108,9 @@ const UNI_GROUPS: UniGroup[] = [
     { key: 'noobFactor', label: 'noobFactor', hint: true, min: 0, step: 'any', placeholder: '5' },
     { key: 'noobInactives', label: 'noobInactives', hint: true, type: 'check' },
   ] },
+  { id: 'colonize', hint: 'admin.colonizeHint', fields: [
+    { key: 'planetSizeFactor', label: 'planetSizeFactor', hint: true, min: 0, step: 'any', placeholder: '1' },
+  ] },
   { id: 'deck', hint: 'admin.deckHint', fields: [] },
   { id: 'units', hint: 'admin.unitsHint', fields: [] },
 ];
@@ -136,6 +139,10 @@ function groupSummary(id: string): string {
     case 'economy': return `${speed(s.resourceMultiplier)} · ${orDefault(s.universityFactor, 8)} %`;
     case 'combat': return `${orDefault(s.fleetDebrisPercent, 40)} % / ${orDefault(s.defenseDebrisPercent, 0)} %`;
     case 'noob': return Number(s.noobLimit) > 0 ? fmt(Number(s.noobLimit)) : '–';
+    case 'colonize': {
+      const n = bonusRows.value.filter((r) => r.some((x) => Number(x))).length;
+      return n ? t('admin.bonusSummary', { n }) : '–';
+    }
     case 'deck': return String(deckTotal.value);
     case 'units': return unitEditor.value?.changedCount ? t('admin.units.summary', { n: unitEditor.value.changedCount }) : '–';
   }
@@ -259,13 +266,23 @@ const createUni = () =>
 function startEdit(u: any) {
   error.value = msg.value = '';
   editUni.value = { slug: u.slug, name: u.name, isDefault: !!u.isDefault, startsAt: localOf(u.startsAt), endedAt: localOf(u.endedAt), settings: { ...u.settings }, deck: u.deck.map((c: DeckCard) => ({ ...c })) };
+  // position bonuses as one row per position (colonization planner)
+  const stored = (u.settings.positionBonus ?? {}) as Record<string, number[]>;
+  bonusRows.value = Array.from({ length: Number(u.settings.positions) || 15 }, (_, i) => [...(stored[String(i + 1)] ?? [0, 0, 0])]);
 }
 
+/** Production bonus per position (metal, crystal, deuterium in %) of the universe being edited. */
+const bonusRows = ref<number[][]>([]);
 const saveUni = () =>
   run(async () => {
     const e = editUni.value!;
     // a cleared optional number field (v-model.number leaves '') is removed and falls back to its default
-    const settings = { ...Object.fromEntries(Object.entries(e.settings).map(([k, v]) => [k, v === '' ? null : v])), gameUrl: String(e.settings.gameUrl ?? '').trim(), pr0planUrl: String(e.settings.pr0planUrl ?? '').trim() };
+    const bonus = Object.fromEntries(bonusRows.value.map((r, i) => [String(i + 1), r.map((x) => Number(x) || 0)]).filter(([, r]) => (r as number[]).some((x) => x !== 0)));
+    const settings = {
+      ...Object.fromEntries(Object.entries(e.settings).map(([k, v]) => [k, v === '' ? null : v])),
+      gameUrl: String(e.settings.gameUrl ?? '').trim(), pr0planUrl: String(e.settings.pr0planUrl ?? '').trim(),
+      positionBonus: Object.keys(bonus).length ? bonus : null,
+    };
     await api(`/admin/universes/${e.slug}`, { method: 'PUT', body: { name: e.name, settings, deck: e.deck, isDefault: e.isDefault, startsAt: epochOf(e.startsAt), endedAt: epochOf(e.endedAt) } });
     if (unitEditor.value?.dirty) await unitEditor.value.save();
     editUni.value = null;
@@ -582,6 +599,22 @@ const doMerge = () => run(async () => {
                 <th><label>{{ isEnded(editedUni) ? t('admin.endedBadge') : t('admin.endUniverse') }}</label> <Hint>{{ t('admin.endUniverseHint') }}</Hint></th>
                 <td>
                   <button :class="{ danger: !isEnded(editedUni) }" @click="toggleEnded(editedUni)">{{ t(!isEnded(editedUni) ? 'admin.endUniverse' : 'admin.reopenUniverse') }}</button>
+                </td>
+              </tr>
+            </template>
+            <template v-if="g.id === 'colonize'">
+              <tr>
+                <th>{{ t('admin.positionBonus') }} <Hint>{{ t('admin.positionBonusHint') }}</Hint></th>
+                <td>
+                  <table class="data uni-bonus">
+                    <thead><tr><th>{{ t('colonize.position') }}</th><th>{{ t('colonize.res.901') }}</th><th>{{ t('colonize.res.902') }}</th><th>{{ t('colonize.res.903') }}</th></tr></thead>
+                    <tbody>
+                      <tr v-for="(r, i) in bonusRows" :key="i">
+                        <td class="num">{{ i + 1 }}</td>
+                        <td v-for="j in 3" :key="j"><input v-model.number="r[j - 1]" type="number" min="-100" max="1000" step="any" :aria-label="`${i + 1} ${t(`colonize.res.${900 + j}`)}`" /></td>
+                      </tr>
+                    </tbody>
+                  </table>
                 </td>
               </tr>
             </template>
@@ -989,4 +1022,5 @@ table.uni-deck input { width: 80px; text-align: right; }
   .admin .sortbar > label { flex: 1 1 auto; display: flex; align-items: center; gap: 8px; }
   .admin .sortbar select { width: auto !important; flex: 1; }
 }
+.uni-bonus input { width: 70px; }
 </style>

@@ -3,6 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import type { GroupContext } from '../context.js';
 import type { DB } from '../db.js';
 import { phalanxRange } from '../domain/phalanx.js';
+import { colonizeSystems } from '../repo/colonize.js';
 import { debrisFields } from '../repo/debris.js';
 import { ownCoords } from '../repo/empire.js';
 import { ownerOf, phalanxFactor, phalanxMoons, systemDistance } from '../repo/phalanx.js';
@@ -70,6 +71,12 @@ export function galaxyRoutes(app: FastifyInstance, db: DB) {
     const ctx = ctxOf(req);
     const days = clampInt(req.query.days, 7, 1, 30);
     return { ...debrisFields(db, ctx, days), days, now: ctx.now };
+  });
+
+  /** Colonization planner: systems with free positions and what a colony there adds (see `colonizeSystems`). */
+  app.get<{ Params: { uni: string }; Querystring: { range?: string } }>('/api/:uni/colonize', async (req) => {
+    const ctx = ctxOf(req);
+    return colonizeSystems(db, ctx, clampInt(req.query.range, 25, 1, 200));
   });
 
   /** Per system of a galaxy: occupied positions, own/alliance planets and when it was last seen (navigation strip). */

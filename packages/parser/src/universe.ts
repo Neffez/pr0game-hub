@@ -65,6 +65,13 @@ export interface UniverseSettings {
   defenseDebrisPercent?: number;
   /** shield domes must fall before other units can be hit */
   bigShields?: boolean;
+  /** game config planet_size_factor: fields of new colonies (colonization planner) */
+  planetSizeFactor?: number;
+  /**
+   * Production bonus of new colonies per position in percent, metal, crystal, deuterium (the game's `planet_data`
+   * bonus columns, only with `planet_ressource_bonus`; not on any page players see): position → [m, k, d].
+   */
+  positionBonus?: Record<string, [number, number, number]>;
   /** legacy: the flight calculator of the tools (their base is taken from it); the server's TOOLS_URL is preferred */
   flightCalculatorUrl?: string;
 }
@@ -106,6 +113,7 @@ export const OPTIONAL_DEFAULTS = {
   fleetDebrisPercent: 40,
   defenseDebrisPercent: 0,
   bigShields: false,
+  planetSizeFactor: 1,
 } satisfies Partial<Record<keyof UniverseSettings, number | boolean>>;
 
 /** Days without login until the game flags a player inactive, when the universe does not set it. */
@@ -170,7 +178,18 @@ export function settingsError(settings: object | null | undefined): SettingError
     }
   }
   for (const [key, err] of Object.entries(URLS)) if (s[key] && !/^https?:\/\//i.test(String(s[key]))) return err;
+  if (s.positionBonus != null) {
+    const pb = s.positionBonus as Record<string, unknown>;
+    const valid =
+      typeof pb === 'object' &&
+      !Array.isArray(pb) &&
+      Object.entries(pb).every(
+        ([pos, v]) => /^\d{1,2}$/.test(pos) && Array.isArray(v) && v.length === 3 && v.every((x) => typeof x === 'number' && Number.isFinite(x) && x >= -100 && x <= 1000),
+      );
+    if (!valid) return { code: 'setting_invalid', message: 'Invalid setting: positionBonus' };
+  }
   for (const [key, value] of Object.entries(s)) {
+    if (key === 'positionBonus') continue;
     if (value === null && !(key in UNIVERSE_DEFAULTS)) continue;
     let valid = true;
     if (typeof KNOWN[key] === 'boolean') valid = typeof value === 'boolean';

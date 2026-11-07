@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Neuer Kolonisierungsplaner: freie Positionen aus der Galaxie, bewertet als Fleeter (gute Abdeckung des Universums, viele Punkte von Zielen in der Nähe) oder Miner (Felder, Temperatur, Positionsbonus) – Positionen mit vielen Mitgliedern in der Nähe rutschen nach hinten. Er zeigt auch, ab welcher Astrophysik-Stufe eine Position besiedelbar ist.',
+        en: 'New colonization planner: free positions from the galaxy, rated as a fleeter (good coverage of the universe, many points of targets nearby) or a miner (fields, temperature, position bonus) – positions with many members nearby move down. It also shows from which astrophysics level a position can be colonized.',
+      },
+      {
+        kind: 'new',
         de: 'Mondchancen: Der Hub merkt sich die Mondchance jedes Kampfberichts und ob ein Mond entstanden ist. In der Battle Hall siehst du je Mitglied, wie viele Monde zu erwarten waren und wie viele entstanden sind, dazu neue Monde an Planeten von Mitgliedern und den Mondzerstörungsrechner mit dem Durchmesser des Mondes.',
         en: 'Moon chances: the hub keeps the moon chance of every battle report and whether a moon was created. In the battle hall you see per member how many moons were to be expected and how many were created, new moons at members\' planets, and the moon destruction calculator with the moon\'s diameter.',
       },

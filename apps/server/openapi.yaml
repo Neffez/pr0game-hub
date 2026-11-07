@@ -1014,6 +1014,13 @@ components:
         noobLimit: { type: [number, 'null'], minimum: 0, description: Game config noob_protection_time (default 0 = unknown) }
         noobFactor: { type: [number, 'null'], minimum: 0, description: Game config noob_protection_multi (default 5) }
         noobInactives: { type: [boolean, 'null'], description: Game config noob_inactives (default false) }
+        planetSizeFactor: { type: [number, 'null'], minimum: 0, description: Game config planet_size_factor (default 1; fields of new colonies in the colonization planner) }
+        positionBonus:
+          type: [object, 'null']
+          description: >-
+            Production bonus of new colonies per position in percent (the game's `planet_data` bonus columns, active with
+            `planet_ressource_bonus`): position → [metal, crystal, deuterium], each −100 to 1000. Colonization planner.
+          additionalProperties: { type: array, items: { type: number }, minItems: 3, maxItems: 3 }
         fleetDebrisPercent: { type: [number, 'null'], minimum: 0, maximum: 100, description: Game config fleet_debris_percentage (default 40) }
         defenseDebrisPercent: { type: [number, 'null'], minimum: 0, maximum: 100, description: Game config def_debris_percentage (default 0) }
         bigShields: { type: [boolean, 'null'], description: Shield domes must fall before other units can be hit (default false) }
@@ -2646,6 +2653,51 @@ paths:
                   capacity: { type: [integer, 'null'] }
                   days: { type: integer }
                   now: { type: integer }
+  /api/{uni}/colonize:
+    get:
+      tags: [Universe]
+      operationId: getColonizeSystems
+      description: >-
+        Colonization planner: every system seen in the group's galaxy data with free positions (no planet, not
+        destroyed) and what a colony there adds for the viewer. `coverage`: by how much a planet there shortens the mean
+        distance (game formula between system centres) from every system of the universe to the viewer's nearest
+        planet, as a share of the mean now (1 without own planets); `nearest`: distance to the viewer's nearest planet;
+        within `range` systems of the same galaxy: `members` (planets of other members and in-game alliance mates),
+        `targets` (planets of other players), `inactive` (of them flagged by the game), `targetPoints` (total points of
+        those players, each once) and `systemPoints` (of the players in the system). The position itself (astrophysics,
+        fields, temperature, bonus) comes from `@pr0hub/core/colonize` with the universe settings.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+        - { name: range, in: query, description: Range in systems (1–200, default 25), schema: { type: integer, minimum: 1, maximum: 200, default: 25 } }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  systems:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        g: { type: integer }
+                        s: { type: integer }
+                        free: { type: array, items: { type: integer } }
+                        seen: { type: integer }
+                        coverage: { type: number }
+                        nearest: { type: [number, 'null'] }
+                        members: { type: integer }
+                        targets: { type: integer }
+                        inactive: { type: integer }
+                        targetPoints: { type: integer }
+                        systemPoints: { type: integer }
+                  own: { type: integer, description: The viewer's planets (newest empire page) }
+                  seenSystems: { type: integer }
+                  totalSystems: { type: integer }
+                  range: { type: integer }
   /api/{uni}/debris-fields:
     get:
       tags: [Universe]

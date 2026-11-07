@@ -49,6 +49,10 @@
     "./messages": {
       "types": "./dist/messages.d.ts",
       "default": "./dist/messages.js"
+    },
+    "./colonize": {
+      "types": "./dist/colonize.d.ts",
+      "default": "./dist/colonize.js"
     }
   },
   "scripts": {

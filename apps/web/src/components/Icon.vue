@@ -128,6 +128,8 @@ const ICONS: Record<string, string[]> = {
   return: ['M9 14 4 9l5-5', 'M4 9h10.5a5.5 5.5 0 0 1 0 11H11'],
   // speech bubble
   comment: ['M4 5.5h16v10.5H10l-4.5 4v-4H4z'],
+  // flag on a pole (colonization)
+  flag: ['M6 21V4', 'M6 4.5h11l-2.5 4 2.5 4H6'],
   // scattered fragments (debris field)
   debris: ['M4 9.5 7.5 7l2.5 3-3.5 2.5z', 'M13.5 4.5l4.5 1-1.5 3.5-3.5-1z', 'M11 14.5l3.5-1.5 2 3.5-3.5 2z', 'F:M5.6 17.4a1.4 1.4 0 1 1-2.8 0a1.4 1.4 0 1 1 2.8 0z', 'F:M20.6 12.6a1.2 1.2 0 1 1-2.4 0a1.2 1.2 0 1 1 2.4 0z'],
   // bullseye

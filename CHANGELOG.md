@@ -4,6 +4,19 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-07
 
+- Colonization planner (backlog item C-5): new page "Colonize" under Start (`/:uni/colonize`, `ColonizeView.vue`)
+  with `GET /api/:uni/colonize?range=25` (`repo/colonize.ts`, `getColonizeSystems`). Per system with free positions
+  in the group's galaxy data: coverage (by how much a planet there shortens the mean distance, game formula, from
+  every system of the universe to the viewer's nearest planet), other members and alliance mates within the range,
+  other players' planets, inactive ones and their points (each player once) nearby and in the system. The position
+  itself comes from the new `@pr0hub/core/colonize` (`positionInfo`: astrophysics needed after the game's
+  `allowPlanetPosition`, fields and temperature after `createPlanet` with the default `planet_data`, deuterium factor,
+  position bonus). Two profiles weight the parts: fleeter (coverage, points nearby) and miner (fields, temperature,
+  bonus); both avoid many members nearby. Filters: range, only colonizable with the own astrophysics, at most members
+  in range, galaxy.
+  - New optional universe settings `planetSizeFactor` (game `planet_size_factor`) and `positionBonus` (position →
+    metal, crystal, deuterium bonus in %, validated −100 … 1000), set in the admin panel's new group "Colonization".
+
 - Moon chances (backlog item B-6): battle reports now keep their moon chance, the extra of the cascading moon
   chance and whether the battle created a moon (`moonChance`, `moonExtra`, `moonCreated` of the combat report parser,
   German, English and the pirate theme; columns in `combat_reports`, migration `083_combat_moon_chance.sql`).
