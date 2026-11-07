@@ -3,7 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import type { GroupContext } from '../context.js';
 import type { DB } from '../db.js';
 import { phalanxRange } from '../domain/phalanx.js';
-import { colonizeSystems } from '../repo/colonize.js';
+import { colonizeSystems, freePositions } from '../repo/colonize.js';
 import { debrisFields } from '../repo/debris.js';
 import { ownCoords } from '../repo/empire.js';
 import { ownerOf, phalanxFactor, phalanxMoons, systemDistance } from '../repo/phalanx.js';
@@ -64,6 +64,14 @@ export function galaxyRoutes(app: FastifyInstance, db: DB) {
       }),
     );
     return { fields, cleanup };
+  });
+
+  /** Free positions of galaxies (`g=1,2`) by the group's galaxy data: fleet save targets by colonization. */
+  app.get<{ Params: { uni: string }; Querystring: { g?: string } }>('/api/:uni/free-positions', async (req) => {
+    const ctx = ctxOf(req);
+    const max = ctx.universe.settings.galaxies;
+    const galaxies = [...new Set(String(req.query.g ?? '').split(',').map(Number).filter((g) => Number.isInteger(g) && g >= 1 && g <= max))].slice(0, 10);
+    return { systems: freePositions(db, ctx, galaxies) };
   });
 
   /** Debris finder: open debris fields with the debris expected now and the members' recyclers (see `debrisFields`). */

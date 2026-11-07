@@ -7,7 +7,7 @@ import { uniApi } from '../api';
 import { useClock } from '../clock';
 import BackLink from '../components/BackLink.vue';
 import Countdown from '../components/Countdown.vue';
-import FleetSaveOptions, { type DebrisField } from '../components/FleetSaveOptions.vue';
+import FleetSaveOptions, { type DebrisField, type FreeSystem } from '../components/FleetSaveOptions.vue';
 import Hint from '../components/Hint.vue';
 import Icon from '../components/Icon.vue';
 import PageHeader from '../components/PageHeader.vue';
@@ -98,6 +98,8 @@ const targets = computed<SaveTarget[]>(() => (data.value?.bodies ?? []).map((b) 
 /** existing debris fields of the target's galaxy: recycling targets */
 const fields = ref<Record<string, DebrisField[]>>({});
 const cleanup = ref<number | null>(null);
+/** free positions of the target's galaxy: colonization targets */
+const free = ref<Record<string, FreeSystem[]>>({});
 watch(
   () => data.value?.target?.g,
   async (g) => {
@@ -106,6 +108,11 @@ watch(
       ({ fields: fields.value, cleanup: cleanup.value } = await uniApi<{ fields: Record<string, DebrisField[]>; cleanup: number }>(uni.value, `/debris-fields?g=${g}`));
     } catch {
       /* without them no recycling */
+    }
+    try {
+      ({ systems: free.value } = await uniApi<{ systems: Record<string, FreeSystem[]> }>(uni.value, `/free-positions?g=${g}`));
+    } catch {
+      /* without them no colonization */
     }
   },
 );
@@ -241,7 +248,7 @@ const openHelpers = computed(() => (data.value?.helpers ?? []).filter((h) => h.l
       <p v-else-if="!from" class="muted small m-0">{{ t('attack.noEmpire') }}</p>
       <FleetSaveOptions
         v-else :from="from" :values="data.target!.values" :research="data.research" :deuterium="deuterium" :targets="targets"
-        :now="now" :latest="a.arrival - 1" :back="a.arrival + 1" :kinds="['deploy', 'transport', 'harvest', 'recall']" :fields="fields" :cleanup="cleanup"
+        :now="now" :latest="a.arrival - 1" :back="a.arrival + 1" :kinds="['deploy', 'transport', 'harvest', 'colonize', 'recall']" :fields="fields" :free="free" :cleanup="cleanup"
       />
     </Section>
 

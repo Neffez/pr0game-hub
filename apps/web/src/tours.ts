@@ -246,6 +246,7 @@ export const TOURS = {
     steps: [
       { key: 'intro' },
       { key: 'window', el: 'fleetsave-window', side: 'bottom' },
+      { key: 'colonize', el: 'fleetsave-colonize', side: 'bottom' },
       { key: 'presets', el: 'fleetsave-presets', side: 'bottom' },
       { key: 'body', el: 'fleetsave-body', side: 'top' },
       { key: 'phalanx', el: 'fleetsave-phalanx', side: 'bottom' },

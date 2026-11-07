@@ -274,13 +274,13 @@ const claimText = (r: Row) => {
         <p>{{ t('debris.hint1') }}</p>
         <p>{{ t('debris.hint2') }}</p>
       </Hint>
+      <Hint v-else-if="tab === 'spy'">{{ t('farm.spy.hint', { days: SPY_DAYS }) }}</Hint>
       <Hint v-else>
         <p>{{ t('farm.hint1') }}</p>
         <p>{{ t('farm.hint2') }}</p>
         <p>{{ t('farm.hint3') }}</p>
       </Hint>
       <Hint v-if="tab !== 'debris' && data && data.speedSource === 'default'" warn>{{ t('farm.speedUnknown') }}</Hint>
-      <Hint v-if="tab === 'spy'">{{ t('farm.spy.hint', { days: SPY_DAYS }) }}</Hint>
     </template>
     <div class="seg">
       <button data-tour="farm-tab-targets" :class="{ active: tab === 'targets' }" @click="tab = 'targets'">{{ t('farm.tabTargets') }}</button>

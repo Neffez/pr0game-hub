@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { distance, drivesFromResearch, fleetSaveOptions, shipSpeed, type SaveKind, type SaveTarget } from '@pr0hub/flight';
+import { COLONY_SHIP, distance, drivesFromResearch, fleetSaveOptions, shipSpeed, type SaveKind, type SaveTarget } from '@pr0hub/flight';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useMobile, useUni } from '../composables';
@@ -19,6 +19,14 @@ export interface DebrisField {
   time: number;
 }
 
+/** A system with free positions by the galaxy view (server: `/free-positions`): colonization targets. */
+export interface FreeSystem {
+  s: number;
+  free: number[];
+  /** when the galaxy showed the system */
+  seen: number;
+}
+
 /**
  * Fleet save options of one planet or moon (math: `fleetSaveOptions` of @pr0hub/flight): the fleet on it flies to
  * another own body so that it is in the air from `latest` on and at rest again at `back` or a little later. Used by
@@ -35,6 +43,8 @@ const props = withDefaults(
     targets: SaveTarget[];
     /** existing debris fields per galaxy (`/debris-fields`): recycling targets (`harvest`) */
     fields?: Record<string, DebrisField[]>;
+    /** free positions per galaxy (`/free-positions`): colonization targets (`colonize`) */
+    free?: Record<string, FreeSystem[]>;
     /** the last run of the weekly debris cleaner (`/debris-fields`) */
     cleanup?: number | null;
     now: number;
@@ -81,9 +91,30 @@ const fieldTargets = computed<SaveTarget[]>(() => {
   }
   return out;
 });
+/**
+ * Free positions of the loaded galaxies as colonization targets, one per distance (the flight time only depends on
+ * it), the most recently seen system first: the position has to be free still when the fleet is sent.
+ */
+const seenOf = (x: SaveTarget) => props.free?.[x.coords[0]]?.find((f) => f.s === x.coords[1])?.seen ?? 0;
+const freeTargets = computed<SaveTarget[]>(() => {
+  if (!props.kinds.includes('colonize') || !props.free || !fleet.value[COLONY_SHIP]) return [];
+  const u = ctx.value!.universe.settings;
+  const best = new Map<number, { target: SaveTarget; seen: number }>();
+  for (const [g, list] of Object.entries(props.free)) {
+    for (const f of list) {
+      for (const p of f.free) {
+        const coords: [number, number, number] = [Number(g), f.s, p];
+        const d = distance(u, props.from.coords, coords);
+        if ((best.get(d)?.seen ?? -1) < f.seen) best.set(d, { target: { coords, type: 'free' }, seen: f.seen });
+      }
+    }
+  }
+  return [...best.values()].map((x) => x.target);
+});
 /** debris only seen before the weekly cleaner: harvested since, the empty field could no longer be flown to */
 const unsure = (x: SaveTarget) => x.type === 'debris' && !props.fields?.[x.coords[0]]?.find((f) => f.s === x.coords[1] && f.p === x.coords[2])?.sure;
 const fieldTitle = (x: SaveTarget) => {
+  if (x.type === 'free') return t('fleetsave.freeTitle', { time: dateTime(seenOf(x)) });
   const f = props.fields?.[x.coords[0]]?.find((y) => y.s === x.coords[1] && y.p === x.coords[2]);
   return f && !f.sure ? t('fleetsave.fieldUnsure', { time: dateTime(f.time), cleanup: props.cleanup ? dateTime(props.cleanup) : '–' }) : undefined;
 };
@@ -91,14 +122,14 @@ const options = computed(() =>
   Object.keys(fleet.value).length
     ? fleetSaveOptions({
         universe: ctx.value!.universe.settings, catalog: units.value.drives, drives: drives.value, from: props.from, fleet: fleet.value,
-        now: props.now, latest: props.latest, back: props.back, targets: [...props.targets, ...fieldTargets.value], kinds: props.kinds,
+        now: props.now, latest: props.latest, back: props.back, targets: [...props.targets, ...fieldTargets.value, ...freeTargets.value], kinds: props.kinds,
       })
     : [],
 );
 const shown = computed(() => (all.value ? options.value : options.value.slice(0, props.limit)));
 /** clock time today, otherwise with the date (cards on mobile) */
 const when = (e: number) => (new Date(e * 1000).toDateString() === new Date().toDateString() ? clockTime(new Date(e * 1000)) : dateTime(e));
-const label = (x: SaveTarget) => `${x.type === 'moon' ? t('common.moon') + ' ' : x.type === 'debris' ? t('fleetsave.field') + (unsure(x) ? '?' : '') + ' ' : ''}${x.name ? x.name + ' ' : ''}[${x.coords.join(':')}]`;
+const label = (x: SaveTarget) => `${x.type === 'moon' ? t('common.moon') + ' ' : x.type === 'debris' ? t('fleetsave.field') + (unsure(x) ? '?' : '') + ' ' : x.type === 'free' ? t('fleetsave.free') + ' ' : ''}${x.name ? x.name + ' ' : ''}[${x.coords.join(':')}]`;
 defineExpose({ fleet, options });
 </script>
 
@@ -108,7 +139,7 @@ defineExpose({ fleet, options });
     <p v-else-if="!options.length" class="warn small m-0">{{ t('fleetsave.noOption') }}</p>
     <div v-else-if="mobile" class="fso-cards">
       <div v-for="(o, i) in shown" :key="i" class="fso-card small">
-        <div><b>{{ t(`fleetsave.kinds.${o.kind}`) }}</b> → <span :class="{ warn: unsure(o.target) }" :title="fieldTitle(o.target)">{{ label(o.target) }}</span> · {{ o.speed }} %</div>
+        <div><b :title="o.kind === 'colonize' ? t('fleetsave.colonizeTitle') : undefined">{{ t(`fleetsave.kinds.${o.kind}`) }}</b> → <span :class="{ warn: unsure(o.target) }" :title="fieldTitle(o.target)">{{ label(o.target) }}</span> · {{ o.speed }} %</div>
         <div class="mono">
           {{ when(o.departure) }} → {{ when(o.rest) }}
           <span class="muted">{{ o.late > 0 ? '+' + duration(o.late) : t('fleetsave.onTime') }}</span>
@@ -136,7 +167,7 @@ defineExpose({ fleet, options });
         <tbody>
           <tr v-for="(o, i) in shown" :key="i">
             <td>
-              <b>{{ t(`fleetsave.kinds.${o.kind}`) }}</b>
+              <b :title="o.kind === 'colonize' ? t('fleetsave.colonizeTitle') : undefined">{{ t(`fleetsave.kinds.${o.kind}`) }}</b>
               <span v-if="o.recall != null" class="small muted"> · {{ t('fleetsave.recallAt', { time: dateTime(o.recall) }) }}</span>
             </td>
             <td class="small" :class="{ warn: unsure(o.target) }" :title="fieldTitle(o.target)">{{ label(o.target) }}</td>

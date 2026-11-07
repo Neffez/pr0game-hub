@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { distance, fleetConsumption, fleetSaveOptions, flightDuration, SHIPS, type Universe } from '../src/index.js';
+import { distance, fleetConsumption, fleetSaveOptions, flightDuration, SHIPS, type SaveKind, type Universe } from '../src/index.js';
 
 const uni: Universe = {
   galaxies: 4, systems: 400, circularGalaxies: true, circularSystems: true, galaxyDistanceFactor: 20000, systemDistanceFactor: 95,
@@ -83,5 +83,25 @@ describe('fleet save by recycling', () => {
     expect(fleetSaveOptions({ ...input, fleet: { ...fleet, 227: 3 } }).some((o) => o.kind === 'harvest')).toBe(true);
     // no deploy or transport to a debris field
     expect(list.some((o) => o.kind !== 'harvest' && o.target === field)).toBe(false);
+  });
+});
+
+describe('fleet save by colonization', () => {
+  const spot = { coords: [1, 104, 11] as [number, number, number], type: 'free' as const };
+  it('colonizes a free position and back home only with a colony ship in the fleet', () => {
+    const now = 1_800_000_000;
+    const kinds: SaveKind[] = ['deploy', 'transport', 'colonize', 'recall'];
+    const input = { ...base, targets: [home, moon, far, spot], now, latest: now, back: now + 600, speeds: [100], kinds };
+    expect(fleetSaveOptions(input).some((o) => o.kind === 'colonize' || o.target === spot)).toBe(false);
+    const list = fleetSaveOptions({ ...input, fleet: { ...fleet, 208: 1 } });
+    const colonize = list.filter((o) => o.kind === 'colonize');
+    expect(colonize.map((o) => o.target)).toEqual([spot]);
+    const c = colonize[0];
+    // the colony ship is the slowest (impulse 2500 × (1 + 0.2 × 8)); there and back like a transport, the fuel charged in full
+    expect(c.duration).toBe(flightDuration(uni, distance(uni, home.coords, spot.coords), 6500, 100));
+    expect(c.rest - c.departure).toBe(2 * Math.floor(c.duration));
+    expect(c.cost).toBe(c.fuel);
+    // no deploy, transport or recall to a free position
+    expect(list.some((o) => o.kind !== 'colonize' && o.target === spot)).toBe(false);
   });
 });
