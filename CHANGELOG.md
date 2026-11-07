@@ -4,6 +4,12 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-07
 
+- Alliance health is open to every member of the alliance (menu item for everyone, `GET /api/:uni/alliance-health`
+  without the admin check). The last hub visit and the `away` flag of members who hide their online status are only
+  shown to themselves and to admins (`onlineHidden`), like on the player page.
+- README: a Google Apps Script example that imports export datasets into a sheet with a read-only token in the header
+  (no tokens in URLs); the battle simulator `curl` example shows its line breaks again.
+
 - Export (backlog item F-3): `GET /api/:uni/export` (JSON of the group's data: players with alliance, status and
   newest points per category, galaxy planets with moon and debris, spy and battle reports and expeditions of the last
   `days` (default 30), deliveries of finalized loot settlements) and `GET /api/:uni/export/:dataset.csv` (one dataset,

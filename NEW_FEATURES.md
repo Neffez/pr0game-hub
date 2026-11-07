@@ -18,7 +18,7 @@ source (`pr0game`: pages, missions, achievements, advanced stats).
 | A-2 Fleet save planner | Done | 2026-11-07 | new menu item "Fleet save" under Combat & expeditions |
 | A-1 Incoming attack assistant | Done | 2026-11-07 | page per attack, opened from bell, push, Discord and the raid planner |
 | C-1 Upgrade advisor | Done | 2026-11-07 | Build & research: tab "Advisor", best next step in the buildings tab |
-| D-1 Alliance health dashboard | Done | 2026-11-07 | new menu item "Health" under Alliance (alliance admins) |
+| D-1 Alliance health dashboard | Done | 2026-11-07 | new menu item "Health" under Alliance (every member) |
 | F-3 Export | Done | 2026-11-07 | CSV buttons at the large tables, JSON under Account; API tokens work |
 
 Each finished item carries a **Status** block below its description: what was built and how.
@@ -447,6 +447,9 @@ seen in the hub, raids and expeditions in the last week, open deliveries. Flags:
   search). Summary (members, flagged, median growth, "flagged only"), a table with the flags under the name and the sync
   ages coloured by freshness; cards on mobile. **Tour** `health`; **texts** `health.*`, `nav.health`; web test
   `apps/web/test/health.test.ts`.
+- **Follow-up (2026-11-07):** open to every member (no admin check, menu item for all); the last hub visit and `away`
+  follow the member's online setting (`show_online`): hidden from the others unless the viewer is an admin
+  (`onlineHidden`), like the player page's activity.
 - **Left for later:** reminders to members (D-3 sync duties), a trend over several weeks, raids from the raid planner
   instead of synced battle reports.
 
@@ -604,8 +607,9 @@ of competing with them.
 - **Web:** `CsvButton.vue` in the page header of the overview (players or planets by mode), statistics, spy reports,
   expeditions and the raids (settlements: deliveries, statistics: battle reports), semicolons in German for
   spreadsheets with a decimal comma; JSON links per alliance under Account → API tokens. **Texts:** `export.*`.
-- **Left for later:** a token in the URL for spreadsheet functions that cannot send headers (e.g. `IMPORTDATA`), which
-  needs a decision on tokens in URLs (they end up in logs), and the filters of a view in its CSV.
+- **Spreadsheets:** no tokens in URLs (decided 2026-11-07: they end up in logs and in the sheet); the README has a
+  Google Apps Script example that sends the token in the header and refreshes sheets on a trigger.
+- **Left for later:** the filters of a view in its CSV.
 
 ### F-4 Discord commands
 **Value:** Medium · **Effort:** M · **Builds on:** Discord integration, battle simulation API, player API

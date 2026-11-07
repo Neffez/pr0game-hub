@@ -44,9 +44,9 @@ External analysis tool for [pr0game](https://codeberg.org/pr0game/pr0game) based
   filterable by sender and recipient; private unless the member shares them (account setting or per message)
 - **Alliance**: planets, fleets, fleet movements and research of all members (each member chooses which fleet
   missions they share)
-- **Alliance health** (alliance admins): per member points and growth over 7 days against the alliance median, last
+- **Alliance health** (every member): per member points and growth over 7 days against the alliance median, last
   visit in the hub, the last sync per page type, battles and expeditions of the week, open loot deliveries, and flags
-  for members who fall behind, sync no empire page or stay away
+  for members who fall behind, sync no empire page or stay away; the last visit follows the member's online setting
 - **Export**: CSV next to the large tables (players, planets, spy and battle reports, expeditions, loot deliveries) and
   the whole group's data as JSON under Account; both work with a read-only API token (spreadsheets, scripts)
 - **Farm finder**: spied targets outside the own alliance ranked by loot per flight hour: the resources of the
@@ -202,8 +202,47 @@ group's newest spy report of the target. It writes nothing, so read-only tokens 
 (`simulateBattle`) for the request and the limits.
 
 ```bash
-curl -H "Authorization: Bearer hubpat_…" -H 'X-Hub-Group: 1' -H 'Content-Type: application/json' \n  -d '{"attackers":[{"units":{"207":200,"203":50},"research":{"109":12,"110":12,"111":12}}],"target":"1:110:8"}' \n  https://hub.example/hub/api/u8/battle/simulate
+curl -H "Authorization: Bearer hubpat_…" -H 'X-Hub-Group: 1' -H 'Content-Type: application/json' \
+  -d '{"attackers":[{"units":{"207":200,"203":50},"research":{"109":12,"110":12,"111":12}}],"target":"1:110:8"}' \
+  https://hub.example/hub/api/u8/battle/simulate
 ```
+
+### Export into Google Sheets
+
+`GET /hub/api/{uni}/export/{dataset}.csv` gives one dataset of the group as CSV (`players`, `planets`, `spy-reports`,
+`battle-reports`, `expeditions`, `settlements`; `days` for the reports, default 30), `GET /hub/api/{uni}/export` all of
+them as JSON. Spreadsheet formulas like `IMPORTDATA` cannot send the token header, and the hub takes no tokens in the URL
+(they would end up in logs and in the sheet). Google Apps Script can send it:
+
+1. In the sheet: **Extensions → Apps Script**, paste the script below and fill in `HUB` (your hub's address with the
+   universe) and `GROUP` (the alliance's group id: the JSON link under Account → API tokens ends in `?group=…`).
+2. **Project settings → Script properties**: add `HUB_TOKEN` with a read-only token from Account → API tokens.
+3. Run `importAll` once (Google asks for permission), then add a time-driven trigger (**Triggers → Add trigger**, e.g.
+   hourly) to keep the sheets up to date.
+
+```js
+const HUB = 'https://hub.example/hub/api/u8';
+const GROUP = 1;
+
+/** Replaces the sheet `sheetName` with one dataset of the hub's export. */
+function importHub(dataset, sheetName = dataset) {
+  const token = PropertiesService.getScriptProperties().getProperty('HUB_TOKEN');
+  const res = UrlFetchApp.fetch(`${HUB}/export/${dataset}.csv?group=${GROUP}`, { headers: { Authorization: `Bearer ${token}` } });
+  const rows = Utilities.parseCsv(res.getContentText().replace(/^\uFEFF/, ''));
+  const book = SpreadsheetApp.getActive();
+  const sheet = book.getSheetByName(sheetName) || book.insertSheet(sheetName);
+  sheet.clearContents();
+  if (rows.length) sheet.getRange(1, 1, rows.length, rows[0].length).setValues(rows);
+}
+
+function importAll() {
+  ['players', 'planets', 'spy-reports'].forEach((d) => importHub(d));
+}
+```
+
+Times are Unix seconds (`=EPOCHTODATE(A2)` shows them as a date). Everyone who can edit the script can read its
+properties: use your own token in a sheet only you edit, and revoke it under Account when the sheet is shared or
+no longer used.
 
 Changes are recorded in [CHANGELOG.md](CHANGELOG.md). Contributions are welcome, see [CONTRIBUTING.md](CONTRIBUTING.md).
 

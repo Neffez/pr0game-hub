@@ -11,13 +11,13 @@ const health = {
   medianGrowth: 400,
   window: 604800,
   members: [
-    { userId: 1, name: 'Busy', role: 'admin', lastSeen: now - 60, player: { id: 1, name: 'Busy' }, points: 5000, rank: 1, growth: 600, partial: false, syncs: { empire: now - 3600 }, battles: 2, loot: 900, expeditions: 1, openDeliveries: 0, flags: [] },
-    { userId: 2, name: 'Slow', role: 'member', lastSeen: now - 5 * 86400, player: { id: 2, name: 'Slow' }, points: 2000, rank: 2, growth: 50, partial: false, syncs: {}, battles: 0, loot: 0, expeditions: 0, openDeliveries: 1, flags: ['behind', 'noEmpire', 'away'] },
+    { userId: 1, name: 'Busy', role: 'admin', lastSeen: now - 60, onlineHidden: false, player: { id: 1, name: 'Busy' }, points: 5000, rank: 1, growth: 600, partial: false, syncs: { empire: now - 3600 }, battles: 2, loot: 900, expeditions: 1, openDeliveries: 0, flags: [] },
+    { userId: 2, name: 'Slow', role: 'member', lastSeen: now - 5 * 86400, onlineHidden: false, player: { id: 2, name: 'Slow' }, points: 2000, rank: 2, growth: 50, partial: false, syncs: {}, battles: 0, loot: 0, expeditions: 0, openDeliveries: 1, flags: ['behind', 'noEmpire', 'away'] },
   ],
 };
 const ctx = {
   universe: { id: 1, slug: 'u8', name: 'U8', deck: [], settings: { galaxies: 9, systems: 400, positions: 15, fleetSpeed: 2500, timezone: 'Europe/Berlin', gameUrl: '' } },
-  group: { id: 1, name: 'A', role: 'admin' }, members: [], me: { id: 1, username: 'busy', isAdmin: false }, own: null,
+  group: { id: 1, name: 'A', role: 'member' }, members: [], me: { id: 1, username: 'busy', isAdmin: false }, own: null,
 } as unknown as UniContext;
 
 describe('alliance health page', () => {

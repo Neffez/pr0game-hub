@@ -5,9 +5,10 @@ import { finalizedSettlements, memberKey } from './settlements.js';
 import { latestScores } from './stats.js';
 
 /**
- * Alliance health for its leaders: per member the points and their growth over a week against the alliance median,
+ * Alliance health, for every member of the group: per member the points and their growth over a week against the alliance median,
  * the last sync of each page type, when they were last in the hub, raids and expeditions of the week and open loot
- * deliveries, with flags for who falls behind or no longer syncs.
+ * deliveries, with flags for who falls behind or no longer syncs. The last hub visit follows the member's online
+ * setting (like the player page): hidden from the others unless the viewer is an admin.
  */
 
 /** Growth and activity are counted over this time. */
@@ -23,8 +24,10 @@ export interface MemberHealth {
   userId: number;
   name: string;
   role: string;
-  /** last request in the hub (page open), null when never */
+  /** last request in the hub (page open), null when never or hidden */
   lastSeen: number | null;
+  /** the member hides their online status from the viewer (no last visit, no `away` flag) */
+  onlineHidden: boolean;
   player: { id: number; name: string } | null;
   points: number | null;
   rank: number | null;
@@ -47,10 +50,12 @@ export function allianceHealth(db: DB, ctx: GroupContext): { members: MemberHeal
   const since = t - HEALTH_WINDOW;
   const rows = db
     .prepare(
-      `SELECT m.user_id, COALESCE(m.ingame_name, u.username) AS name, m.role, m.last_seen_at FROM group_members m JOIN users u ON u.id = m.user_id
+      `SELECT m.user_id, COALESCE(m.ingame_name, u.username) AS name, m.role, m.last_seen_at, u.show_online FROM group_members m JOIN users u ON u.id = m.user_id
        WHERE m.group_id = ? ORDER BY name COLLATE NOCASE`,
     )
-    .all(ctx.groupId) as { user_id: number; name: string; role: string; last_seen_at: number | null }[];
+    .all(ctx.groupId) as { user_id: number; name: string; role: string; last_seen_at: number | null; show_online: number }[];
+  // admins see every last visit, the others only those of members who show their online status
+  const privileged = ctx.user.isAdmin || ctx.role === 'admin';
   const players = memberPlayers(db, ctx);
   const ids = [...new Set([...players.values()].filter((id): id is number => id != null))];
   const scores = latestScores(db, ctx.groupId, ids, [1]);
@@ -107,8 +112,9 @@ export function allianceHealth(db: DB, ctx: GroupContext): { members: MemberHeal
       partial = before.get(playerId, since) == null;
       if (start != null) growth = score.points - start;
     }
+    const onlineHidden = !privileged && r.user_id !== ctx.user.id && !r.show_online;
     return {
-      userId: r.user_id, name: r.name, role: r.role, lastSeen: r.last_seen_at,
+      userId: r.user_id, name: r.name, role: r.role, lastSeen: onlineHidden ? null : r.last_seen_at, onlineHidden,
       player: playerId != null ? { id: playerId, name: names.get(playerId) ?? r.name } : null,
       points: score?.points ?? null, rank: score?.rank ?? null, growth, partial,
       syncs: syncs.get(r.user_id) ?? {},
@@ -122,7 +128,7 @@ export function allianceHealth(db: DB, ctx: GroupContext): { members: MemberHeal
     if (medianGrowth != null && medianGrowth > 0 && m.growth != null && m.growth < medianGrowth * BEHIND) m.flags.push('behind');
     if ((m.syncs.empire ?? 0) < t - STALE) m.flags.push('noEmpire');
     if (m.points == null) m.flags.push('noStats');
-    if ((m.lastSeen ?? 0) < t - STALE) m.flags.push('away');
+    if (!m.onlineHidden && (m.lastSeen ?? 0) < t - STALE) m.flags.push('away');
   }
   return { members, medianGrowth, window: HEALTH_WINDOW };
 }

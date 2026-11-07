@@ -72,8 +72,9 @@ const en: typeof de = {
   },
   health: {
     title: 'Alliance health',
-    hint1: 'For alliance admins: per member the points and their growth over the last 7 days against the alliance median, when they were last in the hub and which pages they pasted when, battles and expeditions of the week and open deliveries of loot settlements.',
-    hint2: 'Flagged: falls behind (less than half the median growth), no empire page for 3 days, no statistics in the hub, not in the hub for 3 days.',
+    hint1: 'For everyone in the alliance: per member the points and their growth over the last 7 days against the alliance median, when they were last in the hub and which pages they pasted when, battles and expeditions of the week and open deliveries of loot settlements.',
+    hint2: 'Flagged: falls behind (less than half the median growth), no empire page for 3 days, no statistics in the hub, not in the hub for 3 days. The last visit of members who hide their online status (Account) is shown to admins only.',
+    hidden: 'Online status hidden',
     members: '{n} members',
     flagged: '{n} flagged',
     median: 'median growth {n} / 7 d',
@@ -575,7 +576,7 @@ const en: typeof de = {
       list: { title: 'Battles', text: 'Green = winner, red = loser. "Game" opens the report in the game, "local" the report archived in the hub, even after the game has deleted it.' },
     },
     health: {
-      intro: { title: 'Alliance health', text: 'Who grows, who falls behind, who still syncs – everything for the alliance leaders on one page.' },
+      intro: { title: 'Alliance health', text: 'Who grows, who falls behind, who still syncs – the whole alliance on one page.' },
       summary: { title: 'Overview', text: 'How many members are flagged and the median growth of the week. "flagged only" hides the rest.' },
       list: { title: 'Per member', text: 'Points and growth, last visit, when which page was pasted (colour = age), battles, expeditions and open deliveries.' },
     },

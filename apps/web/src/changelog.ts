@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Die Allianz-Gesundheit sieht jetzt jedes Mitglied. Wer seinen Online-Status ausgeblendet hat, dessen letzten Besuch sehen weiterhin nur Admins.',
+        en: 'Every member can now see the alliance health. The last visit of members who hide their online status stays visible to admins only.',
+      },
+      {
+        kind: 'new',
         de: 'Export: CSV-Knopf an Übersicht, Statistik, Spionageberichten, Expeditionen und Raids, und alle Daten deiner Allianz als JSON unter Konto. Mit einem API-Token holt sich auch eine Tabellenkalkulation die Daten.',
         en: 'Export: a CSV button on overview, statistics, spy reports, expeditions and raids, and all your alliance\'s data as JSON under Account. With an API token a spreadsheet can fetch the data too.',
       },

@@ -73,8 +73,9 @@ const de = {
   },
   health: {
     title: 'Allianz-Gesundheit',
-    hint1: 'Für Allianz-Admins: je Mitglied Punkte und Wachstum der letzten 7 Tage gegen den Median der Allianz, wann es zuletzt im Hub war und welche Seiten es wann eingefügt hat, Kämpfe und Expeditionen der Woche und offene Lieferungen aus Beuteabrechnungen.',
-    hint2: 'Markiert wird: fällt zurück (weniger als die Hälfte des Median-Wachstums), seit 3 Tagen kein Imperium, keine Statistik im Hub, seit 3 Tagen nicht im Hub.',
+    hint1: 'Für alle in der Allianz: je Mitglied Punkte und Wachstum der letzten 7 Tage gegen den Median der Allianz, wann es zuletzt im Hub war und welche Seiten es wann eingefügt hat, Kämpfe und Expeditionen der Woche und offene Lieferungen aus Beuteabrechnungen.',
+    hint2: 'Markiert wird: fällt zurück (weniger als die Hälfte des Median-Wachstums), seit 3 Tagen kein Imperium, keine Statistik im Hub, seit 3 Tagen nicht im Hub. Wer seinen Online-Status ausblendet (Konto), dessen letzten Besuch sehen nur Admins.',
+    hidden: 'Online-Status ausgeblendet',
     members: '{n} Mitglieder',
     flagged: '{n} auffällig',
     median: 'Median-Wachstum {n} / 7 T',
@@ -576,7 +577,7 @@ const de = {
       list: { title: 'Kämpfe', text: 'Grün = Gewinner, rot = Verlierer. „Spiel“ öffnet den Bericht im Spiel, „lokal“ den im Hub archivierten Bericht, auch wenn das Spiel ihn gelöscht hat.' },
     },
     health: {
-      intro: { title: 'Allianz-Gesundheit', text: 'Wer wächst, wer fällt zurück, wer synchronisiert noch – alles für die Allianzführung auf einer Seite.' },
+      intro: { title: 'Allianz-Gesundheit', text: 'Wer wächst, wer fällt zurück, wer synchronisiert noch – die ganze Allianz auf einer Seite.' },
       summary: { title: 'Überblick', text: 'Wie viele Mitglieder auffällig sind und das Median-Wachstum der Woche. „nur auffällige“ blendet den Rest aus.' },
       list: { title: 'Je Mitglied', text: 'Punkte und Wachstum, letzter Besuch, wann welche Seite eingefügt wurde (Farbe = Alter), Kämpfe, Expeditionen und offene Lieferungen.' },
     },

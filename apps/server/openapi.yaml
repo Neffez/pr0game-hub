@@ -2557,12 +2557,13 @@ paths:
       tags: [Universe]
       operationId: getAllianceHealth
       description: >-
-        Alliance health for alliance admins (403 otherwise): per member the total points, rank and their growth over 7
+        Alliance health for every member of the group: per member the total points, rank and their growth over 7
         days (from the newest statistics update at or before the start, `partial` when the history is shorter), the
         newest sync per page type (kept pages of 14 days and the snapshot tables), the last visit in the hub, battle
         reports and expeditions they synced in 7 days with the loot, open deliveries of finalized loot settlements, and
         flags: `behind` (growth below half the alliance median), `noEmpire` (no empire page for 3 days), `noStats` (no
-        statistics), `away` (not in the hub for 3 days).
+        statistics), `away` (not in the hub for 3 days). The last visit (`lastSeen`, and `away`) of members who hide their
+        online status is only shown to themselves and to admins (`onlineHidden`).
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
@@ -2585,6 +2586,7 @@ paths:
                         name: { type: string }
                         role: { type: string }
                         lastSeen: { type: [integer, 'null'] }
+                        onlineHidden: { type: boolean, description: The member hides their online status from the caller }
                         player: { type: [object, 'null'] }
                         points: { type: [integer, 'null'] }
                         rank: { type: [integer, 'null'] }
@@ -2596,7 +2598,6 @@ paths:
                         expeditions: { type: integer }
                         openDeliveries: { type: integer }
                         flags: { type: array, items: { type: string, enum: [behind, noEmpire, noStats, away] } }
-        '403': { description: 'Not an alliance admin (`group_admin_only`)' }
   /api/{uni}/export:
     get:
       tags: [Universe]

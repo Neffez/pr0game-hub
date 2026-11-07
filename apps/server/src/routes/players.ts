@@ -176,12 +176,8 @@ export function playersRoutes(app: FastifyInstance, db: DB) {
   });
 
   /** Check of the inactivity score against the game's flag on the group's data (alliance admins; see `inactivityCheck`). */
-  /** Alliance health for the alliance admins (see repo/health.ts). */
-  app.get<{ Params: { uni: string } }>('/api/:uni/alliance-health', async (req) => {
-    const ctx = ctxOf(req);
-    requireGroupAdminOf(db, req, ctx.groupId);
-    return allianceHealth(db, ctx);
-  });
+  /** Alliance health for every member of the group (see repo/health.ts). */
+  app.get<{ Params: { uni: string } }>('/api/:uni/alliance-health', async (req) => allianceHealth(db, ctxOf(req)));
 
   app.get<{ Params: { uni: string }; Querystring: Q }>('/api/:uni/inactivity-check', async (req) => {
     const ctx = ctxOf(req);

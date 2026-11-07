@@ -12,7 +12,7 @@ import { tables, useLiveReload } from '../live';
 import { useAutoTour } from '../tours';
 
 /**
- * Alliance health for the alliance admins (server: repo/health.ts): who grows, who falls behind, who still syncs and
+ * Alliance health for every member (server: repo/health.ts): who grows, who falls behind, who still syncs and
  * visits the hub, raids and expeditions of the week and open loot deliveries.
  */
 type Flag = 'behind' | 'noEmpire' | 'noStats' | 'away';
@@ -21,6 +21,8 @@ interface Member {
   name: string;
   role: string;
   lastSeen: number | null;
+  /** hides the online status from the viewer */
+  onlineHidden: boolean;
   player: { id: number; name: string } | null;
   points: number | null;
   rank: number | null;
@@ -108,7 +110,7 @@ const flagged = computed(() => (data.value?.members ?? []).filter((m) => m.flags
           </span>
         </div>
         <div class="muted">
-          {{ t('health.hub') }} {{ m.lastSeen ? ago(m.lastSeen) : '–' }} · {{ t('health.battlesShort', { n: m.battles }) }} · {{ t('health.expeditionsShort', { n: m.expeditions }) }}
+          <span :title="m.onlineHidden ? t('health.hidden') : undefined">{{ t('health.hub') }} {{ m.lastSeen ? ago(m.lastSeen) : '–' }}</span> · {{ t('health.battlesShort', { n: m.battles }) }} · {{ t('health.expeditionsShort', { n: m.expeditions }) }}
           <span v-if="m.openDeliveries" class="warn"> · {{ t('health.deliveries', { n: m.openDeliveries }) }}</span>
         </div>
       </div>
@@ -141,7 +143,7 @@ const flagged = computed(() => (data.value?.members ?? []).filter((m) => m.flags
             <td class="num" :class="growthClass(m)" :title="m.partial ? t('health.partial') : undefined">
               {{ m.growth != null ? fmtSigned(m.growth) : '–' }}<span v-if="m.partial" class="faint">*</span>
             </td>
-            <td class="small" :style="age(m.lastSeen) ? { color: age(m.lastSeen)!.color } : undefined" :title="age(m.lastSeen)?.title">{{ age(m.lastSeen)?.text ?? '–' }}</td>
+            <td class="small" :style="age(m.lastSeen) ? { color: age(m.lastSeen)!.color } : undefined" :title="m.onlineHidden ? t('health.hidden') : age(m.lastSeen)?.title">{{ age(m.lastSeen)?.text ?? '–' }}</td>
             <td v-for="c in COLUMNS" :key="c.key" class="small" :title="age(syncOf(m, c.types))?.title">
               <span v-if="age(syncOf(m, c.types))" :style="{ color: age(syncOf(m, c.types))!.color }">{{ age(syncOf(m, c.types))!.text }}</span>
               <span v-else class="faint">–</span>

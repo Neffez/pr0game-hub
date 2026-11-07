@@ -51,8 +51,17 @@ beforeAll(async () => {
 });
 
 describe('alliance health', () => {
-  it('is for alliance admins only', async () => {
-    expect((await app.inject({ method: 'GET', url: '/hub/api/u8/alliance-health', headers: headers.busy })).statusCode).toBe(403);
+  it('is for every member; a hidden online status stays hidden from the others', async () => {
+    db.prepare('UPDATE users SET show_online = 0 WHERE id = ?').run(ids.gone);
+    const res = await app.inject({ method: 'GET', url: '/hub/api/u8/alliance-health', headers: headers.busy });
+    expect(res.statusCode).toBe(200);
+    const gone = res.json().members.find((m: any) => m.name === 'gone');
+    expect(gone).toMatchObject({ lastSeen: null, onlineHidden: true });
+    expect(gone.flags).toEqual(['noEmpire', 'noStats']);
+    // the alliance admin still sees it
+    const lead = (await app.inject({ method: 'GET', url: '/hub/api/u8/alliance-health', headers: headers.lead })).json().members.find((m: any) => m.name === 'gone');
+    expect(lead).toMatchObject({ lastSeen: t - 5 * 86400, onlineHidden: false });
+    db.prepare('UPDATE users SET show_online = 1 WHERE id = ?').run(ids.gone);
   });
 
   it('shows growth against the median, syncs, activity and flags per member', async () => {
