@@ -164,9 +164,9 @@ const nearTitle = (r: Row) => t('colonize.nearTitle', { range: data.value?.range
 </script>
 
 <template>
-  <FilterBar store-key="colonize" :chips="chips" @reset="resetFilters">
+  <FilterBar data-tour="colonize-filter" store-key="colonize" :chips="chips" @reset="resetFilters">
     <template #toolbar>
-      <div class="seg">
+      <div class="seg" data-tour="colonize-profile">
         <button :class="{ active: filter.profile === 'fleeter' }" @click="filter.profile = 'fleeter'">{{ t('colonize.profiles.fleeter') }}</button>
         <button :class="{ active: filter.profile === 'miner' }" @click="filter.profile = 'miner'">{{ t('colonize.profiles.miner') }}</button>
       </div>
@@ -235,16 +235,16 @@ const nearTitle = (r: Row) => t('colonize.nearTitle', { range: data.value?.range
         <thead>
           <tr>
             <th class="sortable" @click="sort.sortBy('coords')">{{ t('colonize.position') }}<SortMark :dir="sort.direction('coords')" /></th>
-            <th class="num">{{ t('colonize.astroCol') }}</th>
+            <th class="num" data-tour="colonize-astro">{{ t('colonize.astroCol') }}</th>
             <th class="sortable num" @click="sort.sortBy('fields')">{{ t('colonize.fields') }}<SortMark :dir="sort.direction('fields')" /></th>
             <th class="sortable num" @click="sort.sortBy('temp')">{{ t('colonize.temp') }}<SortMark :dir="sort.direction('temp')" /></th>
             <th v-if="hasBonus">{{ t('colonize.bonus') }}</th>
-            <th class="sortable num" :title="t('colonize.coverageTitle')" @click="sort.sortBy('coverage')">{{ t('colonize.coverage') }}<SortMark :dir="sort.direction('coverage')" /></th>
+            <th class="sortable num" data-tour="colonize-coverage" :title="t('colonize.coverageTitle')" @click="sort.sortBy('coverage')">{{ t('colonize.coverage') }}<SortMark :dir="sort.direction('coverage')" /></th>
             <th class="sortable num" @click="sort.sortBy('points')">{{ t('colonize.points') }}<SortMark :dir="sort.direction('points')" /></th>
             <th class="num">{{ t('colonize.targets') }}</th>
-            <th class="sortable num" :title="t('colonize.membersTitle')" @click="sort.sortBy('members')">{{ t('colonize.members') }}<SortMark :dir="sort.direction('members')" /></th>
+            <th class="sortable num" data-tour="colonize-members" :title="t('colonize.membersTitle')" @click="sort.sortBy('members')">{{ t('colonize.members') }}<SortMark :dir="sort.direction('members')" /></th>
             <th class="num">{{ t('colonize.seen') }}</th>
-            <th class="sortable num" @click="sort.sortBy('score')">{{ t('colonize.score') }}<SortMark :dir="sort.direction('score')" /></th>
+            <th class="sortable num" data-tour="colonize-score" @click="sort.sortBy('score')">{{ t('colonize.score') }}<SortMark :dir="sort.direction('score')" /></th>
           </tr>
         </thead>
         <tbody>

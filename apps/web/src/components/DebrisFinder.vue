@@ -168,7 +168,7 @@ const claimText = (r: Row) => {
 </script>
 
 <template>
-  <FilterBar store-key="debris" :chips="chips" @reset="resetFilters">
+  <FilterBar data-tour="debris-filter" store-key="debris" :chips="chips" @reset="resetFilters">
     <template #toolbar>
       <label class="field-inline">
         {{ t('debris.days') }}
@@ -236,18 +236,18 @@ const claimText = (r: Row) => {
       </div>
     </template>
 
-    <div v-else class="table-wrap">
+    <div v-else class="table-wrap" data-tour="debris-list">
       <table class="data">
         <thead>
           <tr>
             <th class="sortable" @click="sort.sortBy('coords')">{{ t('debris.field') }}<SortMark :dir="sort.direction('coords')" /></th>
             <th>{{ t('debris.owner') }}</th>
-            <th class="sortable num" @click="sort.sortBy('total')">{{ t('debris.total') }}<SortMark :dir="sort.direction('total')" /></th>
+            <th class="sortable num" data-tour="debris-total" @click="sort.sortBy('total')">{{ t('debris.total') }}<SortMark :dir="sort.direction('total')" /></th>
             <th class="num">{{ t('debris.recyclers') }}</th>
             <th class="sortable num" @click="sort.sortBy('age')">{{ t('debris.seen') }}<SortMark :dir="sort.direction('age')" /></th>
             <th class="sortable num" @click="sort.sortBy('flight')">{{ t('debris.flight') }}<SortMark :dir="sort.direction('flight')" /></th>
             <th class="sortable num" @click="sort.sortBy('perHour')">{{ t('debris.perHour') }}<SortMark :dir="sort.direction('perHour')" /></th>
-            <th class="sortable" @click="sort.sortBy('nearest')">{{ t('debris.nearest') }}<SortMark :dir="sort.direction('nearest')" /></th>
+            <th class="sortable" data-tour="debris-nearest" @click="sort.sortBy('nearest')">{{ t('debris.nearest') }}<SortMark :dir="sort.direction('nearest')" /></th>
             <th></th>
           </tr>
         </thead>

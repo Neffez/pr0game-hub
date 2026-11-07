@@ -197,7 +197,7 @@ const total = computed(() => {
 });
 
 // one view for three pages: the tour follows the page
-useAutoTour(page, () => members.value.length > 0 && !colonize.value, () => (page.value === 'fleet' ? fleetTab.value : undefined));
+useAutoTour(page, () => members.value.length > 0 || colonize.value, () => (page.value === 'fleet' ? fleetTab.value : page.value === 'planets' ? planetsTab.value : undefined));
 </script>
 
 <template>
@@ -215,8 +215,8 @@ useAutoTour(page, () => members.value.length > 0 && !colonize.value, () => (page
       </Hint>
     </template>
     <div v-if="page === 'planets'" class="seg">
-      <button :class="{ active: planetsTab === 'planets' }" @click="planetsTab = 'planets'">{{ t('nav.planets') }}</button>
-      <button :class="{ active: planetsTab === 'colonize' }" @click="planetsTab = 'colonize'">{{ t('colonize.tab') }}</button>
+      <button data-tour="planets-tab-planets" :class="{ active: planetsTab === 'planets' }" @click="planetsTab = 'planets'">{{ t('nav.planets') }}</button>
+      <button data-tour="planets-tab-colonize" :class="{ active: planetsTab === 'colonize' }" @click="planetsTab = 'colonize'">{{ t('colonize.tab') }}</button>
     </div>
   </PageHeader>
 

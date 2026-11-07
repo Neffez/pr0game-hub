@@ -4,6 +4,12 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-07
 
+- Tours for the new tabs: the farm finder's tour has a step per tab button (targets, spy priority, debris finder) and
+  steps for the spy priority (reasons, probes, priority) and the debris finder (period and filters, debris now,
+  nearest member, recycle and claim); the planets tour has the tabs planets and colonize and steps for the
+  colonization planner (profile, range and filters, astrophysics, coverage, members, score). Members who saw a page
+  tour get the tab's own tour on its first visit. CLAUDE.md now asks for a tour for every new page and tab.
+
 - The colonization planner is now the second tab of the alliance's planets page (`/:uni/planets?tab=colonize`)
   instead of its own menu item; `/:uni/colonize` leads there. The planets tab comes from the link (`?tab=`) and is
   remembered per device; the profile switch moved into the planner's filter bar.

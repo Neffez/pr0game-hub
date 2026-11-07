@@ -116,7 +116,7 @@ onMounted(load);
 watch(days, () => load());
 watch(tab, (v) => v !== 'debris' && !data.value && load());
 useLiveReload(load, tables('spy_reports', 'player_scores', 'battle_reports', 'galaxy_systems'));
-useAutoTour('farm', computed(() => !!data.value));
+useAutoTour('farm', computed(() => tab.value === 'debris' || !!data.value), tab);
 
 const settings = computed(() => ctx.value!.universe.settings);
 const ownPlanets = computed(() => ctx.value?.own?.planets ?? []);
@@ -282,10 +282,10 @@ const claimText = (r: Row) => {
       <Hint v-if="tab !== 'debris' && data && data.speedSource === 'default'" warn>{{ t('farm.speedUnknown') }}</Hint>
       <Hint v-if="tab === 'spy'">{{ t('farm.spy.hint', { days: SPY_DAYS }) }}</Hint>
     </template>
-    <div class="seg" data-tour="farm-tabs">
-      <button :class="{ active: tab === 'targets' }" @click="tab = 'targets'">{{ t('farm.tabTargets') }}</button>
-      <button :class="{ active: tab === 'spy' }" @click="tab = 'spy'">{{ t('farm.tabSpy') }}</button>
-      <button :class="{ active: tab === 'debris' }" @click="tab = 'debris'">{{ t('farm.tabDebris') }}</button>
+    <div class="seg">
+      <button data-tour="farm-tab-targets" :class="{ active: tab === 'targets' }" @click="tab = 'targets'">{{ t('farm.tabTargets') }}</button>
+      <button data-tour="farm-tab-spy" :class="{ active: tab === 'spy' }" @click="tab = 'spy'">{{ t('farm.tabSpy') }}</button>
+      <button data-tour="farm-tab-debris" :class="{ active: tab === 'debris' }" @click="tab = 'debris'">{{ t('farm.tabDebris') }}</button>
     </div>
   </PageHeader>
 
@@ -390,10 +390,10 @@ const claimText = (r: Row) => {
             <th class="sortable" @click="sort.sortBy('inactivity')">{{ t('farm.inactivity') }}<SortMark :dir="sort.direction('inactivity')" /></th>
             <th class="sortable num" @click="sort.sortBy('loot')">{{ t('farm.loot') }}<SortMark :dir="sort.direction('loot')" /></th>
             <th class="sortable num" @click="sort.sortBy('age')">{{ t('farm.report') }}<SortMark :dir="sort.direction('age')" /></th>
-            <th>{{ t('farm.spy.why') }}</th>
-            <th class="num">{{ t('farm.spy.probes') }}</th>
+            <th data-tour="farm-spy-why">{{ t('farm.spy.why') }}</th>
+            <th class="num" data-tour="farm-spy-probes">{{ t('farm.spy.probes') }}</th>
             <th class="sortable num" @click="sort.sortBy('flight')">{{ t('farm.flight') }}<SortMark :dir="sort.direction('flight')" /></th>
-            <th class="sortable num" @click="sort.sortBy('spy')">{{ t('farm.spy.priority') }}<SortMark :dir="sort.direction('spy')" /></th>
+            <th class="sortable num" data-tour="farm-spy-rank" @click="sort.sortBy('spy')">{{ t('farm.spy.priority') }}<SortMark :dir="sort.direction('spy')" /></th>
             <th></th>
           </tr>
         </thead>
