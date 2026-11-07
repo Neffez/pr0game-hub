@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-07',
     items: [
       {
+        kind: 'new',
+        de: 'Der Hub ist schneller: Seiten und Daten werden komprimiert übertragen, beim Start wird nur deine Sprache geladen, und Übersicht, Allianz und Planung laden die Imperien der Mitglieder deutlich schneller.',
+        en: 'The hub is faster: pages and data are sent compressed, only your language is loaded at the start, and overview, alliance and planning load the members\' empires much faster.',
+      },
+      {
         kind: 'fix',
         de: 'Sicherheit: Spieler ohne Konto, die in mehreren Allianzen eingetragen sind, kann nur noch ein Admin aller dieser Allianzen per Einladungslink oder Zugangsanfrage vergeben. So kommt niemand über einen solchen Spieler an die Daten einer fremden Allianz.',
         en: 'Security: players without an account who are in several alliances can only be handed out by invite link or access request by an admin of all those alliances. Nobody gets at another alliance\'s data through such a player.',

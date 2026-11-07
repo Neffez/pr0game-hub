@@ -5,7 +5,7 @@ import Icon from './Icon.vue';
 import ActivityPattern from './ActivityPattern.vue';
 import CommentThread from './CommentThread.vue';
 import PresenceBadge from './PresenceBadge.vue';
-import { Chart, registerables } from 'chart.js';
+import { Chart } from '../chart';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
@@ -17,7 +17,6 @@ import { ago, coords, dateTime, fmt, freshnessColor, name, numDate, phalanxRange
 import PointsStall from './PointsStall.vue';
 import InactivityBadge from './InactivityBadge.vue';
 
-Chart.register(...registerables);
 
 const { t, locale } = useI18n();
 const { uni, ctx } = useUni();

@@ -7,20 +7,67 @@ export type LatestEmpire = { userId: number; time: number; rec: EmpireRecord };
 
 const empireCache = new WeakMap<GroupContext, LatestEmpire[]>();
 
-/** Newest empire page of every member, loaded and parsed once per request (the context is per request). */
+/** Parsed empire pages kept across requests (newest used ones last). */
+const PARSED_KEEP = 500;
+
+/**
+ * Parsed empire pages by snapshot id. A snapshot row is never changed after its insert (only deleted), so a parsed
+ * page stays valid as long as its id is current. Which ids are current comes from the database on every call with the
+ * request's group (see `latestEmpires`); the entry's group is checked again, so a page is only ever handed out for
+ * the group that owns it. The records are frozen: a caller that changes one would fail instead of changing it for
+ * every later request.
+ */
+const parsed = new Map<number, { groupId: number; rec: EmpireRecord }>();
+
+function deepFreeze<T>(value: T): T {
+  if (value && typeof value === 'object' && !Object.isFrozen(value)) {
+    Object.freeze(value);
+    for (const v of Object.values(value)) deepFreeze(v);
+  }
+  return value;
+}
+
+/** Drops the parsed pages kept across requests (tests). */
+export function clearEmpireCache() {
+  parsed.clear();
+}
+
+/**
+ * Newest empire page of every member, once per request (the context is per request). The ids of the newest pages come
+ * from the index alone; only pages not parsed before are read in full.
+ */
 export function latestEmpires(db: DB, ctx: GroupContext): LatestEmpire[] {
   let list = empireCache.get(ctx);
-  if (!list) {
+  if (list) return list;
+  const newest = db
+    .prepare(
+      `SELECT e.id, e.user_id, e.created_at FROM empire_snapshots e
+       JOIN (SELECT id, ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY created_at DESC, id DESC) AS n FROM empire_snapshots WHERE group_id = ?) l
+         ON l.id = e.id
+       WHERE l.n = 1 AND e.group_id = ?`,
+    )
+    .all(ctx.groupId, ctx.groupId) as { id: number; user_id: number; created_at: number }[];
+  const missing = newest.filter((r) => parsed.get(r.id)?.groupId !== ctx.groupId).map((r) => r.id);
+  if (missing.length) {
     const rows = db
-      .prepare(
-        `SELECT user_id, created_at, data FROM (SELECT user_id, created_at, data,
-           ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY created_at DESC, id DESC) AS n FROM empire_snapshots WHERE group_id = ?)
-         WHERE n = 1`,
-      )
-      .all(ctx.groupId) as { user_id: number; created_at: number; data: string }[];
-    list = rows.map((r) => ({ userId: r.user_id, time: r.created_at, rec: JSON.parse(r.data) as EmpireRecord }));
-    empireCache.set(ctx, list);
+      .prepare('SELECT id, data FROM empire_snapshots WHERE group_id = ? AND id IN (SELECT value FROM json_each(?))')
+      .all(ctx.groupId, JSON.stringify(missing)) as { id: number; data: string }[];
+    for (const r of rows) parsed.set(r.id, { groupId: ctx.groupId, rec: deepFreeze(JSON.parse(r.data) as EmpireRecord) });
   }
+  list = [];
+  for (const r of newest) {
+    const hit = parsed.get(r.id);
+    if (!hit || hit.groupId !== ctx.groupId) continue;
+    // used again: to the end of the eviction order
+    parsed.delete(r.id);
+    parsed.set(r.id, hit);
+    list.push({ userId: r.user_id, time: r.created_at, rec: hit.rec });
+  }
+  for (const id of parsed.keys()) {
+    if (parsed.size <= PARSED_KEEP) break;
+    parsed.delete(id);
+  }
+  empireCache.set(ctx, list);
   return list;
 }
 

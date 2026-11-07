@@ -1,3 +1,4 @@
+import fastifyCompress from '@fastify/compress';
 import fastifyCookie from '@fastify/cookie';
 import fastifyStatic from '@fastify/static';
 import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify';
@@ -38,6 +39,13 @@ import { reportsRoutes } from './routes/reports.js';
 import { spyRoutes } from './routes/spy.js';
 
 declare module 'fastify' {
+  // route options read by the preHandler below (named here since @fastify/compress adds options of its own)
+  interface FastifyContextConfig {
+    /** writes nothing: also allowed with a read-only API token (and in an ended universe) */
+    allowToken?: boolean;
+    /** writes no game data: also allowed before the start and after the end of a universe */
+    allowEnded?: boolean;
+  }
   interface FastifyInstance {
     /** web push of the notifications (main.ts starts its launch reminders) */
     push: PushService;
@@ -87,6 +95,9 @@ export function buildApp(db: DB, opts: { logger?: boolean; push?: PushOptions; d
   apiOps.set(app, []);
   app.addHook('onRoute', (route) => trackApiRoute(app, route));
   app.register(fastifyCookie);
+  // nothing in front compresses: API answers on the fly (brotli at the plugin's fast default quality, from 1 KB);
+  // the web app's files come precompressed from its build (`preCompressed` below), the event stream is hijacked
+  app.register(fastifyCompress, { encodings: ['br', 'gzip'], threshold: 1024 });
   // unit names of every universe for the parsers (a universe may have units the defaults lack)
   for (const units of db.prepare('SELECT units FROM universes').pluck().all() as string[]) catalogOf({ units: JSON.parse(units || '{}') });
   const push = new PushService(db, events, { log: app.log, ...opts.push });
@@ -131,12 +142,12 @@ export function buildApp(db: DB, opts: { logger?: boolean; push?: PushOptions; d
         if (m === 'GET' || m === 'HEAD' || m === 'OPTIONS') return;
         if (crossOrigin(req)) throw new HttpError(403, 'cross_origin', 'Cross-origin requests are not allowed');
         // routes that write nothing (the battle simulator) may be called with a read-only token
-        const allowToken = (req.routeOptions.config as { allowToken?: boolean } | undefined)?.allowToken;
+        const allowToken = req.routeOptions.config?.allowToken;
         if (req.authSource === 'token' && !allowToken) throw new HttpError(403, 'read_only_token', 'API tokens are read-only');
         // a universe before its start or after its end is read-only: only routes that write no game data
         // (`allowToken`, `allowEnded`) go on
         const uni = (req.params as { uni?: unknown } | undefined)?.uni;
-        const allowEnded = (req.routeOptions.config as { allowEnded?: boolean } | undefined)?.allowEnded;
+        const allowEnded = req.routeOptions.config?.allowEnded;
         if (typeof uni === 'string' && !allowToken && !allowEnded) {
           const row = db.prepare('SELECT starts_at AS startsAt, ended_at AS endedAt FROM universes WHERE slug = ?').get(uni) as
             | { startsAt: number | null; endedAt: number | null }
@@ -171,6 +182,8 @@ export function buildApp(db: DB, opts: { logger?: boolean; push?: PushOptions; d
       prefix: config.basePath + '/',
       wildcard: false,
       index: ['index.html'],
+      // `.br`/`.gz` next to the files, written by the web app's build
+      preCompressed: true,
       // Hashed assets may be cached forever; files with fixed names (index.html, the service worker, the manifest,
       // icons) must be revalidated after a deploy. Without `cacheControl: false` the plugin overwrites the header.
       cacheControl: false,

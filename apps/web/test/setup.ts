@@ -15,3 +15,7 @@ if (typeof localStorage === 'undefined') globalThis.localStorage = {
 if (typeof document === 'undefined') {
   globalThis.document = { documentElement: { lang: '' }, createElement: () => ({}) } as unknown as Document;
 }
+
+// the app loads the texts of a language when it is used; the tests switch languages synchronously
+const { loadLocale } = await import('../src/i18n');
+await Promise.all([loadLocale('de'), loadLocale('en')]);

@@ -230,6 +230,9 @@ Live updates use Server-Sent Events (`GET /hub/api/:uni/events`): a reverse prox
 that response (the hub sends `X-Accel-Buffering: no` for nginx) and should allow idle connections longer than the
 25 s heartbeat.
 
+The hub compresses itself (no proxy setup needed): API answers of 1 KB and more with brotli or gzip, the web app's files
+are compressed once by its build (`.br`/`.gz` next to them) and sent as they are. The event stream stays uncompressed.
+
 CI (`.github/workflows/ci.yml`): typecheck, tests and build on every push and pull request. After green tests on `main` it can
 send a `repository_dispatch` to a deployment repository (secrets `DISPATCH_REPO` = `owner/name` and `DISPATCH_TOKEN` = a token
 with write access to its contents); without the secrets this step is skipped.
