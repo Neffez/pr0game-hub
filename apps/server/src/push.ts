@@ -34,6 +34,8 @@ export interface PushPrefs {
   storage: boolean;
   /** the next step of the user's build order on a planet can start */
   buildOrder: boolean;
+  /** a hostile sensor phalanx newly known to reach one of the user's planets */
+  phalanx: boolean;
   /** a loot settlement the user takes part in was finalized and they have deliveries to send or get */
   settlements: boolean;
   /** someone requests access on the login page (global admins) */
@@ -42,9 +44,9 @@ export interface PushPrefs {
   leadMinutes: number;
 }
 
-export const PUSH_DEFAULTS: PushPrefs = { attackSelf: true, attackOthers: false, invites: true, comments: true, launch: true, buildings: true, fleets: true, storage: true, buildOrder: true, settlements: true, accessRequests: true, leadMinutes: 5 };
+export const PUSH_DEFAULTS: PushPrefs = { attackSelf: true, attackOthers: false, invites: true, comments: true, launch: true, buildings: true, fleets: true, storage: true, buildOrder: true, phalanx: true, settlements: true, accessRequests: true, leadMinutes: 5 };
 export const LEAD_MINUTES = [1, 2, 5, 10, 15, 30];
-const FLAGS = ['attackSelf', 'attackOthers', 'invites', 'comments', 'launch', 'buildings', 'fleets', 'storage', 'buildOrder', 'settlements', 'accessRequests'] as const;
+const FLAGS = ['attackSelf', 'attackOthers', 'invites', 'comments', 'launch', 'buildings', 'fleets', 'storage', 'buildOrder', 'phalanx', 'settlements', 'accessRequests'] as const;
 
 /** The user's settings for push (`push_prefs`) or for their Discord webhook (`discord_prefs`). */
 export function pushPrefs(db: DB, userId: number, column: 'push_prefs' | 'discord_prefs' = 'push_prefs'): PushPrefs {
@@ -223,7 +225,7 @@ export class PushService {
         outbox.push({
           userId: user.id,
           payload: payloadOf(n, user.lang === 'en' ? 'en' : 'de', universe.slug, universe.settings.timezone, groupId, t),
-          ttl: Math.max(60, n.kind === 'comment' || n.kind === 'building' || n.kind === 'storage' || n.kind === 'settlement' ? 86400 : n.time - t),
+          ttl: Math.max(60, n.kind === 'comment' || n.kind === 'building' || n.kind === 'storage' || n.kind === 'settlement' || n.kind === 'phalanx' ? 86400 : n.time - t),
           urgency: n.kind === 'attack' || n.kind === 'launch' || n.kind === 'fleet' ? 'high' : 'normal',
         });
       }
@@ -273,6 +275,8 @@ export function wanted(n: Notification, prefs: PushPrefs, userId: number, t: num
       return prefs.settlements;
     case 'buildorder':
       return prefs.buildOrder;
+    case 'phalanx':
+      return prefs.phalanx;
   }
 }
 
@@ -310,6 +314,8 @@ const DE = {
   orderBody: (planet: string) => `Nächster Schritt der Bauliste auf ${planet}`,
   storage: (name: string) => `📦 ${name} voll`,
   storageBody: (planet: string, since: string) => `${planet} · seit ${since}, die Produktion steht`,
+  phalanx: (who: string) => `🔭 Phalanx von ${who} erreicht dich`,
+  phalanxBody: (moon: string, level: number, planets: string) => `Mond ${moon}, Stufe ${level} · erreicht ${planets}`,
   accessRequest: (name: string) => `🔑 Zugangsanfrage von ${name}`,
   fleetArrived: (what: string) => `✈ ${what}: Flotte angekommen`,
   fleetBack: (what: string) => `↩ ${what}: Flotte zurück`,
@@ -353,6 +359,8 @@ const EN: typeof DE = {
   orderBody: (planet: string) => `Next step of the build order on ${planet}`,
   storage: (name: string) => `📦 ${name} full`,
   storageBody: (planet: string, since: string) => `${planet} · since ${since}, production has stopped`,
+  phalanx: (who: string) => `🔭 Phalanx of ${who} reaches you`,
+  phalanxBody: (moon: string, level: number, planets: string) => `Moon ${moon}, level ${level} · reaches ${planets}`,
   accessRequest: (name: string) => `🔑 Access request from ${name}`,
   fleetArrived: (what: string) => `✈ ${what}: fleet arrived`,
   fleetBack: (what: string) => `↩ ${what}: fleet is back`,
@@ -415,7 +423,9 @@ export function payloadOf(n: Notification | ChannelNotification, lang: PushLang,
       const to = f.to ? coords(f.to.coords.g, f.to.coords.s, f.to.coords.p, f.to.type === 'moon') : '';
       const who = f.player ?? f.fromPlayer?.name;
       const from = `${L.from} ${who ? who + ' ' : ''}${coords(f.from.coords.g, f.from.coords.s, f.from.coords.p, f.from.type === 'moon')}`;
-      return { ...base, title: L.attack(n.member), body: [clock(n.time), to, what, from].filter(Boolean).join(' · '), url: link('fleet') };
+      // opens the incoming attack assistant
+      const url = link('attack', { member: n.userId, arrival: n.time, from: `${f.from.coords.g}:${f.from.coords.s}:${f.from.coords.p}` });
+      return { ...base, title: L.attack(n.member), body: [clock(n.time), to, what, from].filter(Boolean).join(' · '), url };
     }
     case 'invite': {
       return { ...base, title: L.invite(n.member), body: planLine(n.plan, n.time), url: link('raid-planner', { plan: n.plan.id }) };
@@ -470,6 +480,12 @@ export function payloadOf(n: Notification | ChannelNotification, lang: PushLang,
         ...base, title: L.storage(techName(STORAGE[n.resource], lang)), body: L.storageBody(planet, since),
         url: link('build', { tab: 'buildings', c: `${p.g}:${p.s}:${p.p}`, type: 'planet' }),
       };
+    }
+    case 'phalanx': {
+      const m = n.moon;
+      const who = n.player ? `${n.player.name}${n.player.ally ? ` [${n.player.ally}]` : ''}` : '?';
+      const planets = n.planets.map((p) => `${p.name ? p.name + ' ' : ''}${coords(p.g, p.s, p.p, false)}`).join(', ');
+      return { ...base, title: L.phalanx(who), body: L.phalanxBody(coords(m.g, m.s, m.p, false), n.level, planets), url: link('imperium') };
     }
     case 'fleet': {
       const f = n.fleet;

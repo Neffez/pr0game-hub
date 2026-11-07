@@ -99,6 +99,9 @@ const UNI_GROUPS: UniGroup[] = [
     { key: 'bigShields', label: 'bigShields', hint: true, type: 'check' },
     { key: 'missileRangeFactor', label: 'missileRangeFactor', hint: true, min: 0, step: 'any', placeholder: '1' },
     { key: 'phalanxRangeFactor', label: 'phalanxRangeFactor', hint: true, min: 0, step: 'any', placeholder: '1' },
+    { key: 'debrisCleanupDay', label: 'debrisCleanupDay', hint: true, min: 0, max: 6, placeholder: '6' },
+    { key: 'debrisCleanupHour', label: 'debrisCleanupHour', hint: true, min: 0, max: 23, placeholder: '2' },
+    { key: 'debrisCleanupMinute', label: 'debrisCleanupMinute', hint: true, min: 0, max: 59, placeholder: '45' },
   ] },
   { id: 'noob', fields: [
     { key: 'noobLimit', label: 'noobLimit', hint: true, min: 0, placeholder: '0' },

@@ -214,6 +214,8 @@ const FLIGHT_CALCULATOR_URL = () => `${toolsBase}flight-calculator/`;
 
 /** The group's market rate (metal and crystal per deuterium) for the value in deuterium of tool links; null: the tools' default. */
 let marketRate: { m: number; k: number } | null = null;
+/** The group's market rate (metal and crystal per 1 deuterium), null when none is known. */
+export const currentMarketRate = () => marketRate;
 export function setMarketRate(rate: { m: number; k: number } | null | undefined): void {
   marketRate = rate ? { m: rate.m, k: rate.k } : null;
 }

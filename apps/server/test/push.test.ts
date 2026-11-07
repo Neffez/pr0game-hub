@@ -83,7 +83,7 @@ describe('push subscriptions and settings', () => {
 
   it('keeps the settings per user with defaults and validates the lead time', async () => {
     expect((await call('GET', '/auth/push-settings', h.dave)).json()).toEqual({
-      attackSelf: true, attackOthers: false, invites: true, comments: true, launch: true, buildings: true, fleets: true, storage: true, buildOrder: true, settlements: true, accessRequests: true, leadMinutes: 5,
+      attackSelf: true, attackOthers: false, invites: true, comments: true, launch: true, buildings: true, fleets: true, storage: true, buildOrder: true, phalanx: true, settlements: true, accessRequests: true, leadMinutes: 5,
     });
     expect((await call('POST', '/auth/push-settings', h.dave, { leadMinutes: 7 })).statusCode).toBe(400);
     expect((await call('POST', '/auth/push-settings', h.dave, { leadMinutes: 10, invites: false })).json()).toMatchObject({ leadMinutes: 10, invites: false, comments: true });
@@ -116,7 +116,7 @@ describe('push delivery', () => {
     await app.push.deliver(groupA, t);
     expect(sent).toHaveLength(1);
     expect(sent[0].endpoint).toBe('https://fcm.googleapis.com/fcm/send/carol');
-    expect(sent[0].payload).toMatchObject({ title: '⚔ Angriff auf Carol', url: `/hub/u8/fleet?group=${groupA}` });
+    expect(sent[0].payload).toMatchObject({ title: '⚔ Angriff auf Carol', url: `/hub/u8/attack?member=${ids.carol}&arrival=${t + 3600}&from=2%3A100%3A4&group=${groupA}` });
     expect(sent[0].payload.body).toContain('☾ [1:1:1]');
     expect(sent[0].payload.body).toContain('von Raider [2:100:4]');
 

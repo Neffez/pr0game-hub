@@ -151,9 +151,11 @@ const links = [
   { to: 'planets', label: 'planets', icon: 'planets' },
   { to: 'fleet', label: 'fleet', icon: 'fleet' },
   { to: 'research', label: 'research', icon: 'research' },
+  { to: 'health', label: 'health', icon: 'freshness' },
   { section: 'combat' },
   { to: 'raid-planner', label: 'raids', icon: 'raids' },
   { to: 'farm', label: 'farm', icon: 'target' },
+  { to: 'fleetsave', label: 'fleetsave', icon: 'return' },
   { to: 'battle-hall', label: 'battleHall', icon: 'battleHall' },
   { to: 'expeditions', label: 'expeditions', icon: 'expeditions' },
 ];

@@ -18,6 +18,10 @@
       "types": "./dist/buildings.d.ts",
       "default": "./dist/buildings.js"
     },
+    "./advisor": {
+      "types": "./dist/advisor.d.ts",
+      "default": "./dist/advisor.js"
+    },
     "./production": {
       "types": "./dist/production.d.ts",
       "default": "./dist/production.js"

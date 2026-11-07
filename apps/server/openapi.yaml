@@ -354,6 +354,7 @@ components:
         storage: { type: boolean, description: 'A storage (metal, crystal, deuterium) on one of the caller''s planets is full (default on)' }
         settlements: { type: boolean, description: A loot settlement the caller takes part in was finalized and they have deliveries open (default on) }
         buildOrder: { type: boolean, description: The next step of the caller's build order on a planet can start (default on) }
+        phalanx: { type: boolean, description: A sensor phalanx outside the own alliance is newly known to reach one of the caller's planets (default on) }
         leadMinutes: { type: integer, enum: [1, 2, 5, 10, 15, 30], description: Launch reminder this many minutes ahead (default 5) }
     BuildOrderStep:
       type: object
@@ -990,6 +991,9 @@ components:
         pr0planUrl: { type: string, default: 'https://pr0sync.pages.dev/', description: 'pr0plan linked from the build order tab (`pr0plan_url_invalid` when not http(s))' }
         inactiveDays: { type: [number, 'null'], minimum: 0, description: Days without login until the game flags a player inactive (default 7) }
         phalanxRangeFactor: { type: [number, 'null'], minimum: 0, description: Game config phalanx_range_factor (default 1; phalanx coverage) }
+        debrisCleanupDay: { type: [integer, 'null'], minimum: 0, maximum: 6, description: 'Weekday of the game''s weekly debris cleaner (CleanerCronjob), 0 Sunday … 6 Saturday (default 6)' }
+        debrisCleanupHour: { type: [integer, 'null'], minimum: 0, maximum: 23, description: Hour of the debris cleaner in the universe's time zone (default 2) }
+        debrisCleanupMinute: { type: [integer, 'null'], minimum: 0, maximum: 59, description: Minute of the debris cleaner (default 45) }
         missileRangeFactor: { type: [number, 'null'], minimum: 0, description: Game config missile_range_factor (default 1; passed on to the IPM calculator) }
         noobLimit: { type: [number, 'null'], minimum: 0, description: Game config noob_protection_time (default 0 = unknown) }
         noobFactor: { type: [number, 'null'], minimum: 0, description: Game config noob_protection_multi (default 5) }
@@ -1115,6 +1119,45 @@ components:
         player: { type: object, nullable: true }
         fleetBase: { type: object, nullable: true }
         leader: { type: object, nullable: true }
+        phalanx:
+          type: array
+          description: >-
+            The member's planets (newest empire page, else the galaxy's planets of their player) that a known sensor
+            phalanx of a moon outside the own alliance reaches, with the moons nearest first. Levels from the newest moon
+            spy report showing the buildings; moons the galaxy shows destroyed since are left out.
+          items: { $ref: '#/components/schemas/PhalanxExposure' }
+    MemberPlanet:
+      type: object
+      properties:
+        g: { type: integer }
+        s: { type: integer }
+        p: { type: integer }
+        name: { type: [string, 'null'] }
+    PhalanxOwner:
+      type: [object, 'null']
+      description: Owner of the moon now (galaxy data, else the spy report)
+      properties:
+        id: { type: [integer, 'null'] }
+        name: { type: string }
+        ally: { type: [string, 'null'], description: Alliance tag (or name) }
+        vacation: { type: boolean, description: In vacation mode (cannot use the phalanx) }
+    PhalanxExposure:
+      type: object
+      properties:
+        planet: { $ref: '#/components/schemas/MemberPlanet' }
+        threats:
+          type: array
+          items:
+            type: object
+            properties:
+              moon: { type: object, description: '`g`, `s`, `p` of the moon' }
+              level: { type: integer }
+              range: { type: integer, description: Range in systems (`(level² − 1) × phalanxRangeFactor`, level 1 its own system) }
+              distance: { type: integer, description: Systems between moon and planet (circular galaxies wrap around) }
+              time: { type: integer, description: Report time of the newest level }
+              since: { type: integer, description: Game time since when the phalanx is known to reach the planet (oldest report of the newest run reaching it) }
+              known: { type: integer, description: When that report reached the hub }
+              player: { $ref: '#/components/schemas/PhalanxOwner' }
     AllianceMember:
       type: object
       properties:
@@ -2480,6 +2523,229 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Imperium' }
+  /api/{uni}/debris-fields:
+    get:
+      tags: [Universe]
+      operationId: getDebrisFields
+      description: >-
+        Debris fields of up to 10 galaxies that recyclers can fly to by the group's data (fleet save targets). The game
+        allows recycling while a field holds debris or is active: a battle left debris there since its weekly cleaner
+        (the universe's `debrisCleanup*` settings, default Saturday 02:45), which marks all fields inactive. `visible`:
+        the galaxy shows debris there; `active`: debris was created since the last cleaner run (battle report, debris
+        appearing or growing); `sure`: active, or the debris was seen after the run (otherwise it may have been
+        harvested since and the empty field is gone); `time`: the newest sign; `cleanup`: the last cleaner run.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+        - { name: g, in: query, required: true, schema: { type: string }, description: 'Galaxies, comma separated (`1,3`)' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  fields:
+                    type: object
+                    additionalProperties:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          s: { type: integer }
+                          p: { type: integer }
+                          visible: { type: boolean }
+                          active: { type: boolean }
+                          sure: { type: boolean }
+                          time: { type: integer, description: Newest sign of the field (Unix seconds) }
+                  cleanup: { type: integer, description: The last run of the weekly debris cleaner (Unix seconds) }
+  /api/{uni}/alliance-health:
+    get:
+      tags: [Universe]
+      operationId: getAllianceHealth
+      description: >-
+        Alliance health for every member of the group: per member the total points, rank and their growth over 7
+        days (from the newest statistics update at or before the start, `partial` when the history is shorter), the
+        newest sync per page type (kept pages of 14 days and the snapshot tables), the last visit in the hub, battle
+        reports and expeditions they synced in 7 days with the loot, open deliveries of finalized loot settlements, and
+        flags: `behind` (growth below half the alliance median), `noEmpire` (no empire page for 3 days), `noStats` (no
+        statistics), `away` (not in the hub for 3 days). The last visit (`lastSeen`, and `away`) of members who hide their
+        online status is only shown to themselves and to admins (`onlineHidden`).
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  medianGrowth: { type: [number, 'null'] }
+                  window: { type: integer, description: Seconds the growth and activity cover }
+                  members:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        userId: { type: integer }
+                        name: { type: string }
+                        role: { type: string }
+                        lastSeen: { type: [integer, 'null'] }
+                        onlineHidden: { type: boolean, description: The member hides their online status from the caller }
+                        player: { type: [object, 'null'] }
+                        points: { type: [integer, 'null'] }
+                        rank: { type: [integer, 'null'] }
+                        growth: { type: [integer, 'null'] }
+                        partial: { type: boolean }
+                        syncs: { type: object, description: 'Page type (empire, overview, fleets, buildings, research, galaxy, stats, messages, …) → Unix seconds' }
+                        battles: { type: integer }
+                        loot: { type: integer }
+                        expeditions: { type: integer }
+                        openDeliveries: { type: integer }
+                        flags: { type: array, items: { type: string, enum: [behind, noEmpire, noStats, away] } }
+  /api/{uni}/export:
+    get:
+      tags: [Universe]
+      operationId: exportGroupData
+      description: >-
+        The group's data as one JSON file (attachment): `players` (with alliance, status, newest points and rank per
+        category), `planets` (galaxy data with moon and debris), `spy-reports`, `battle-reports` and `expeditions` of
+        the last `days` (default 30), and the deliveries of finalized loot settlements. Only what every member sees in
+        the hub. Works with a read-only API token.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+        - { name: days, in: query, schema: { type: integer, minimum: 1, maximum: 365 }, description: 'Reports, battles and expeditions this many days back (default 30)' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  universe: { type: string }
+                  group: { type: string }
+                  exportedAt: { type: integer }
+                  since: { type: integer }
+                  players: { type: array, items: { type: object } }
+                  planets: { type: array, items: { type: object } }
+                  spy-reports: { type: array, items: { type: object } }
+                  battle-reports: { type: array, items: { type: object } }
+                  expeditions: { type: array, items: { type: object } }
+                  settlements: { type: array, items: { type: object } }
+        '400': { description: 'Invalid `days` (`export_invalid`)' }
+  /api/{uni}/export/{dataset}:
+    get:
+      tags: [Universe]
+      operationId: exportDatasetCsv
+      description: >-
+        One dataset of `/api/{uni}/export` as CSV (attachment, UTF-8 with BOM, header row, times as Unix seconds,
+        numbers unformatted). `dataset` may end in `.csv`. Works with a read-only API token.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+        - { name: dataset, in: path, required: true, schema: { type: string, enum: [players, planets, spy-reports, battle-reports, expeditions, settlements] } }
+        - { name: days, in: query, schema: { type: integer, minimum: 1, maximum: 365 }, description: 'Like `/api/{uni}/export`' }
+        - { name: sep, in: query, schema: { type: string, enum: [comma, semicolon, tab] }, description: 'Separator (default comma; semicolon for spreadsheets with a decimal comma)' }
+      responses:
+        '200':
+          content:
+            text/csv:
+              schema: { type: string }
+        '400': { description: 'Invalid `days` (`export_invalid`)' }
+        '404': { description: 'Unknown dataset (`export_unknown`)' }
+  /api/{uni}/attack-assist:
+    get:
+      tags: [Universe]
+      operationId: getAttackAssist
+      description: >-
+        Incoming attack assistant for one hostile attack on a member (from the members' fleet lists or a phalanx result,
+        like `/api/{uni}/hostile-attacks`), found by `key` (optionally with `arrival` for waves) or by `member`,
+        `arrival` (± 5 s) and `from`. Returns the attack, the attacked body from the member's newest empire page (units,
+        resources projected to the impact), the attacker's ships and research (newest spy reports), the loot the attack
+        can take, the member's bodies and research for a fleet save, the members' bodies with ships that can still land
+        a hold 1 s before the impact (latest launch at full speed, strongest first), an open hold plan for it and the
+        hostile phalanxes reaching the planet, and the hold fleets there at the impact (hold flights in the members'
+        synced fleet lists that land before it and still hold after it; members' bodies holding are no helpers).
+        `sim` is a battle simulation of 20 runs on the game's engine: the attacking ships with the attacker's research
+        against the planet's ships and defense with the member's combat research, plus the hold fleets (null with
+        `sim=0`, after the impact or without known ships or planet; `{ error }` when the simulator is busy or missing).
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+        - { name: key, in: query, schema: { type: string }, description: Key of the attack (route and lead ships) }
+        - { name: member, in: query, schema: { type: integer }, description: Attacked member's user id }
+        - { name: arrival, in: query, schema: { type: integer }, description: Impact (Unix seconds) }
+        - { name: from, in: query, schema: { type: string }, description: 'Origin `g:s:p`' }
+        - { name: sim, in: query, schema: { type: string, enum: ['0', '1'] }, description: '`0` skips the simulation' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  attack: { type: object, description: 'The hostile attack (`key`, `arrival`, `from`, `to`, `fleets`, `player`, `drives`, …)' }
+                  member: { type: [object, 'null'], properties: { id: { type: integer }, name: { type: string } } }
+                  target:
+                    type: [object, 'null']
+                    description: 'The attacked body: `g`, `s`, `p`, `type`, `name`, `values` (levels and units), `resources` at the impact (`metal`, `crystal`, `deuterium`), `empireTime`, `deuterium` and `perHour` of the empire page'
+                  bodies: { type: array, items: { type: object }, description: 'The member''s planets and moons (`g`, `s`, `p`, `type`, `name`)' }
+                  research: { type: object, description: The member's research levels }
+                  attacker:
+                    type: object
+                    properties:
+                      player: { type: [object, 'null'] }
+                      research: { type: [object, 'null'], description: '`values` and `time` of the newest spy report showing research' }
+                      ships: { type: object, description: Ships of all fleets of the attack }
+                      estimated: { type: [object, 'null'], description: 'When the movement shows no ships: `time` of the spy report of the origin whose flying ships are used instead' }
+                  loot: { type: [object, 'null'], description: 'Resources the surviving attackers could take (`metal`, `crystal`, `deuterium`)' }
+                  helpers:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        userId: { type: integer }
+                        member: { type: string }
+                        from: { type: object }
+                        ships: { type: object }
+                        points: { type: integer }
+                        duration: { type: integer, description: One-way seconds at full speed }
+                        launch: { type: integer, description: Latest launch (Unix seconds) }
+                  holdPlan: { type: [integer, 'null'], description: Id of an open hold plan for the attack }
+                  away:
+                    type: [object, 'null']
+                    description: >-
+                      Ships of the member that left the attacked body after their newest empire page (newer fleet list,
+                      not in a fleet list from up to the empire page) and are not back by the impact; taken off the
+                      planet in the simulation. `unknown` when no fleet list from before the empire page exists.
+                    properties:
+                      ships: { type: object }
+                      fleets: { type: integer }
+                      unknown: { type: boolean }
+                  holds:
+                    type: array
+                    description: Hold fleets at the planet at the impact (they defend in the simulation)
+                    items:
+                      type: object
+                      properties:
+                        member: { type: [string, 'null'], description: Member it belongs to (by fleet list or start planet) }
+                        player: { type: [string, 'null'] }
+                        from: { type: object }
+                        ships: { type: object }
+                        research: { type: object, description: The member's research (empty for others) }
+                        arrival: { type: [integer, 'null'], description: Landing at the planet; null when holding there already }
+                  phalanx: { type: array, items: { type: object }, description: Hostile phalanxes reaching the planet (like `PhalanxExposure.threats`) }
+                  simulated: { type: boolean, description: Ships and planet are known (a simulation is possible) }
+                  sim: { type: [object, 'null'], description: 'Simulation summary (`wins`, `rounds`, `attackers`, `defenders`, `loot`, `debris`, `lostResources`, …) or `{ error }`' }
+                  now: { type: integer }
+        '404': { description: 'No such hostile attack (`attack_not_found`)' }
   /api/{uni}/fleets/alerts:
     put:
       tags: [Universe]
@@ -3921,7 +4187,10 @@ paths:
         nor for settlements saved before finalizing existed; `plan`, `sends`, `gets`, `member` who finalized it, `time`
         when) and `buildorder` (the next open step of the caller's build order on a planet can start by its timeline:
         slot free, requirements met, resources there; `planet`, `step` with `id`, `kind`, `element`, `count` and
-        `target` level or count, `time` now; one per planet). Push notifications send
+        `target` level or count, `time` now; one per planet) and `phalanx` (a sensor phalanx of a moon outside the own
+        alliance reaches planets of the caller, by a spy report of the moon that reached the hub within 24 hours; one per
+        moon; `moon`, `level`, `range`, `since` the game time of that report, `player` the moon's owner, `planets` the
+        caller's planets in reach, `time` when the report reached the hub). Push notifications send
         the same entries (see `/api/push/subscriptions`).
       parameters:
         - { $ref: '#/components/parameters/Uni' }
@@ -3938,8 +4207,8 @@ paths:
                   required: [id, kind, userId, member, time]
                   properties:
                     id: { type: string, description: Stable while the event lasts }
-                    kind: { type: string, enum: [attack, invite, comment, launch, building, fleet, storage, settlement] }
-                    userId: { type: integer, description: 'attack: the attacked member; invite: who invited; comment: the newest author; launch, building, fleet and storage: the caller; settlement: who finalized it' }
+                    kind: { type: string, enum: [attack, invite, comment, launch, building, fleet, storage, settlement, buildorder, phalanx] }
+                    userId: { type: integer, description: 'attack: the attacked member; invite: who invited; comment: the newest author; launch, building, fleet, storage, buildorder and phalanx: the caller; settlement: who finalized it' }
                     member: { type: string }
                     time: { type: integer, description: Unix seconds (arrival, plan target time, newest comment, launch, since when a building level is affordable, arrival of an alerted fleet, since when a storage is full, or when a settlement was finalized) }
                     alert: { type: integer, description: 'building and fleet: id of the building or fleet alert' }
@@ -3954,7 +4223,15 @@ paths:
                         type: { type: string, enum: [planet, moon] }
                         name: { type: string }
                     element: { type: integer, description: 'building only: building id' }
-                    level: { type: integer, description: 'building only: the affordable level' }
+                    level: { type: integer, description: 'building: the affordable level; phalanx: the sensor phalanx level' }
+                    moon: { type: object, description: 'phalanx only: the moon with the phalanx (`g`, `s`, `p`)' }
+                    range: { type: integer, description: 'phalanx only: range in systems' }
+                    since: { type: integer, description: 'phalanx only: game time of the oldest spy report of the newest run that shows the phalanx reaching the planets' }
+                    player: { $ref: '#/components/schemas/PhalanxOwner' }
+                    planets:
+                      type: array
+                      description: 'phalanx only: the caller''s planets in reach'
+                      items: { $ref: '#/components/schemas/MemberPlanet' }
                     resource: { type: integer, enum: [901, 902, 903], description: 'storage only: the full storage''s resource (metal, crystal, deuterium)' }
                     fleet: { type: object, description: 'attack: the fleet (for an ACS the lead fleet with all ships); fleet: the own fleet of the alert' }
                     fleets: { type: integer, description: 'attack only: number of fleets of an ACS' }

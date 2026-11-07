@@ -1,12 +1,15 @@
-import { OPTIONAL_DEFAULTS } from '@pr0hub/core/universe';
-import { CLASS_BUILDINGS, CLASS_RESOURCES, PHALANX } from '@pr0hub/core/tech';
+import { CLASS_RESOURCES } from '@pr0hub/core/tech';
 import type { FastifyInstance } from 'fastify';
 import type { GroupContext } from '../context.js';
 import type { DB } from '../db.js';
 import { phalanxRange } from '../domain/phalanx.js';
-import { latestEmpires, ownCoords } from '../repo/empire.js';
+import { ownCoords } from '../repo/empire.js';
+import { ownerOf, phalanxFactor, phalanxMoons, systemDistance } from '../repo/phalanx.js';
 import { latestScores } from '../repo/stats.js';
 import { contextOf, DISPLAY, MEMBER } from './util.js';
+import { debrisAmount } from '@pr0hub/core';
+import { lastDebrisCleanup } from '@pr0hub/core/universe';
+
 
 export function galaxyRoutes(app: FastifyInstance, db: DB) {
   const ctxOf = contextOf(db);
@@ -18,6 +21,47 @@ export function galaxyRoutes(app: FastifyInstance, db: DB) {
         `SELECT v.g, v.s, v.seen_at, ${DISPLAY} AS username FROM galaxy_views v LEFT JOIN users u ON u.id = v.user_id ${MEMBER('v')} WHERE v.group_id = ?`,
       )
       .all(ctx.groupId);
+  });
+
+  /**
+   * Debris fields of galaxies (`g=1,2`) that recyclers can fly to by the group's data. The game allows it while the
+   * field holds debris or is active (a battle left debris there since its weekly cleaner, `lastDebrisCleanup`; the
+   * cleaner marks all fields inactive, harvesting empties a field but keeps it active). `sure`: active since the last
+   * cleaner run, or the galaxy showed debris after it; otherwise the galaxy showed debris before the run, which may be
+   * harvested since (then the empty field is gone).
+   */
+  app.get<{ Params: { uni: string }; Querystring: { g?: string } }>('/api/:uni/debris-fields', async (req) => {
+    const ctx = ctxOf(req);
+    const max = ctx.universe.settings.galaxies;
+    const galaxies = [...new Set(String(req.query.g ?? '').split(',').map(Number).filter((g) => Number.isInteger(g) && g >= 1 && g <= max))].slice(0, 10);
+    const cleanup = lastDebrisCleanup(ctx.universe.settings, ctx.now);
+    const fields = Object.fromEntries(
+      galaxies.map((g) => {
+        const out = new Map<string, { s: number; p: number; visible: boolean; active: boolean; time: number; sure: boolean }>();
+        const get = (s: number, p: number) => out.get(`${s}:${p}`) ?? { s, p, visible: false, active: false, time: 0, sure: false };
+        for (const r of db.prepare('SELECT s, p, debris, updated_at FROM planets WHERE group_id = ? AND g = ? AND debris IS NOT NULL').all(ctx.groupId, g) as
+          { s: number; p: number; debris: string; updated_at: number }[]) {
+          const d = JSON.parse(r.debris) as { metal: string; crystal: string };
+          if (debrisAmount(d.metal) + debrisAmount(d.crystal) <= 0) continue;
+          const f = get(r.s, r.p);
+          out.set(`${r.s}:${r.p}`, { ...f, visible: true, time: Math.max(f.time, r.updated_at) });
+        }
+        // debris created since the cleaner: battles leaving debris, debris appearing or growing in the galaxy
+        const created = db
+          .prepare(
+            `SELECT s, p, time FROM activity_log WHERE group_id = ? AND g = ? AND kind IN ('debris_new', 'debris_grown') AND time >= ?
+             UNION ALL SELECT s, p, COALESCE(time, created_at) FROM battle_reports WHERE group_id = ? AND g = ? AND debris_metal + debris_crystal > 0 AND COALESCE(time, created_at) >= ?`,
+          )
+          .all(ctx.groupId, g, cleanup, ctx.groupId, g, cleanup) as { s: number; p: number; time: number }[];
+        for (const r of created) {
+          const f = get(r.s, r.p);
+          out.set(`${r.s}:${r.p}`, { ...f, active: true, time: Math.max(f.time, r.time) });
+        }
+        const list = [...out.values()].map((f) => ({ ...f, sure: f.active || (f.visible && f.time >= cleanup) }));
+        return [g, list.sort((a, b) => a.s - b.s || a.p - b.p)];
+      }),
+    );
+    return { fields, cleanup };
   });
 
   /** Per system of a galaxy: occupied positions, own/alliance planets and when it was last seen (navigation strip). */
@@ -101,56 +145,20 @@ export function galaxyRoutes(app: FastifyInstance, db: DB) {
  * report with buildings or the alliance members' empire pages, whichever is newer.
  */
 function phalanxCoverage(db: DB, ctx: GroupContext, g: number, s: number) {
-  const factor = ctx.universe.settings.phalanxRangeFactor ?? OPTIONAL_DEFAULTS.phalanxRangeFactor;
-  type Moon = { s: number; p: number; level: number; time: number; source: 'spy' | 'empire'; playerId: number | null; playerName: string | null };
-  const moons = new Map<string, Moon>();
-
-  const reports = db
-    .prepare(
-      `SELECT s, p, report_time, sections, player_id, player_name FROM spy_reports
-       WHERE group_id = ? AND g = ? AND planet_type = 'moon' ORDER BY report_time DESC`,
-    )
-    .all(ctx.groupId, g) as { s: number; p: number; report_time: number; sections: string; player_id: number | null; player_name: string }[];
-  for (const r of reports) {
-    const key = `${r.s}:${r.p}`;
-    if (moons.has(key)) continue;
-    const buildings = (JSON.parse(r.sections) as Record<string, Record<string, number>>)[CLASS_BUILDINGS];
-    // only reports that show the buildings tell the phalanx level
-    if (!buildings) continue;
-    moons.set(key, { s: r.s, p: r.p, level: buildings[PHALANX] ?? 0, time: r.report_time, source: 'spy', playerId: r.player_id, playerName: r.player_name });
-  }
-
-  for (const e of latestEmpires(db, ctx)) {
-    for (const pl of e.rec.planets) {
-      if (pl.type !== 'moon' || pl.coords.g !== g) continue;
-      const key = `${pl.coords.s}:${pl.coords.p}`;
-      const cur = moons.get(key);
-      if (cur && cur.time > e.time) continue;
-      moons.set(key, { s: pl.coords.s, p: pl.coords.p, level: pl.values[PHALANX] ?? 0, time: e.time, source: 'empire', playerId: cur?.playerId ?? null, playerName: cur?.playerName ?? null });
-    }
-  }
-
+  const factor = phalanxFactor(ctx);
   const systems = ctx.universe.settings.systems;
   const own = new Set([...ownCoords(db, ctx).values()].flatMap((set) => [...set]));
+  const wrap = (x: number) => (ctx.universe.settings.circularSystems ? ((x - 1 + systems) % systems) + 1 : Math.min(systems, Math.max(1, x)));
   const out = [];
-  for (const m of moons.values()) {
-    const range = phalanxRange(m.level, factor);
+  for (const m of phalanxMoons(db, ctx, g)) {
     if (!m.level) continue;
-    const d = Math.abs(m.s - s);
-    const dist = ctx.universe.settings.circularSystems ? Math.min(d, systems - d) : d;
+    const range = phalanxRange(m.level, factor);
+    const dist = systemDistance(ctx, m.s, s);
     if (dist > range) continue;
-    // current owner from the galaxy data, falling back to the spy report
-    const owner = db
-      .prepare(
-        `SELECT p.id, p.name, p.status, a.name AS ally_name, a.tag AS ally_tag FROM planets pl JOIN players p ON p.id = pl.player_id
-         LEFT JOIN alliances a ON a.id = p.alliance_id WHERE pl.group_id = ? AND pl.g = ? AND pl.s = ? AND pl.p = ?`,
-      )
-      .get(ctx.groupId, g, m.s, m.p) as { id: number; name: string; status: string | null; ally_name: string | null; ally_tag: string | null } | undefined;
-    const wrap = (x: number) => (ctx.universe.settings.circularSystems ? ((x - 1 + systems) % systems) + 1 : Math.min(systems, Math.max(1, x)));
     out.push({
       g, s: m.s, p: m.p, level: m.level, range, from: wrap(m.s - range), to: wrap(m.s + range), distance: dist,
       time: m.time, source: m.source, own: own.has(`${g}:${m.s}:${m.p}`),
-      player: owner ? { id: owner.id, name: owner.name, ally: owner.ally_tag ?? owner.ally_name, vacation: (JSON.parse(owner.status || '[]') as string[]).includes('vacation') } : m.playerName ? { id: m.playerId, name: m.playerName, ally: null } : null,
+      player: ownerOf(db, ctx, m),
     });
   }
   return out.sort((a, b) => b.time - a.time);

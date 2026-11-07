@@ -68,11 +68,12 @@ interface PushPrefs {
   fleets: boolean;
   storage: boolean;
   buildOrder: boolean;
+  phalanx: boolean;
   settlements: boolean;
   accessRequests: boolean;
   leadMinutes: number;
 }
-const ALL_PUSH_KINDS = ['attackSelf', 'attackOthers', 'invites', 'comments', 'buildings', 'buildOrder', 'storage', 'fleets', 'launch', 'settlements', 'accessRequests'] as const;
+const ALL_PUSH_KINDS = ['attackSelf', 'attackOthers', 'invites', 'comments', 'buildings', 'buildOrder', 'storage', 'phalanx', 'fleets', 'launch', 'settlements', 'accessRequests'] as const;
 /** access requests only concern global admins */
 const PUSH_KINDS = computed(() => ALL_PUSH_KINDS.filter((k) => k !== 'accessRequests' || session.me?.user?.isAdmin));
 const LEAD_MINUTES = [1, 2, 5, 10, 15, 30];
@@ -137,6 +138,8 @@ interface ApiTokenRow {
   createdAt: number;
   lastUsedAt: number | null;
 }
+/** JSON export of one alliance (group) of the user: the link names the group, so it does not depend on the selected one. */
+const groupExportUrl = (g: { id: number; universe: string }) => `${import.meta.env.BASE_URL}api/${g.universe}/export?group=${g.id}`;
 const apiTokens = ref<ApiTokenRow[]>([]);
 const newTokenName = ref('');
 const revealedToken = ref<string | null>(null);
@@ -403,6 +406,12 @@ useAutoTour('account', loaded);
       <section class="card api-tokens" data-tour="account-tokens">
         <h2>{{ t('account.apiTokens') }} <Hint>{{ t('account.apiTokensHint') }}</Hint></h2>
         <p class="api-doc"><a :href="openapiUrl" target="_blank" rel="noopener">{{ t('account.apiOpenApi') }}</a></p>
+        <div v-if="session.me?.groups.length" class="api-export small">
+          <b>{{ t('export.heading') }}</b> <Hint>{{ t('export.hint') }}</Hint>
+          <span v-for="g in session.me.groups" :key="g.id">
+            <a :href="groupExportUrl(g)" download>{{ g.universe_name }} · {{ g.name }} (JSON)</a>
+          </span>
+        </div>
         <div v-if="revealedToken" class="token-reveal">
           <p>{{ t('account.apiTokenReveal') }}</p>
           <code class="token-value">{{ revealedToken }}</code>
@@ -461,6 +470,7 @@ useAutoTour('account', loaded);
 .stack { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
 .stack label { display: flex; flex-direction: column; gap: 4px; width: 100%; }
 .stack input { width: 100%; }
+.api-export { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: baseline; margin: 0 0 10px; }
 .api-doc { margin: 0 0 12px; }
 .token-reveal {
   margin: 0 0 14px;

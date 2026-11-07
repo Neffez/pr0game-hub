@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useAutoTour } from '../tours';
+import CsvButton from '../components/CsvButton.vue';
 import PageHeader from '../components/PageHeader.vue';
 import Icon from '../components/Icon.vue';
 import CommentThread from '../components/CommentThread.vue';
@@ -119,6 +120,7 @@ useAutoTour('spy', () => recentDone.value || recent.value.length > 0);
 <template>
   <PageHeader :title="t('actions.spyHistory')" tour="spy">
     <template #hint><Hint>{{ t('spy.hint') }}</Hint></template>
+    <CsvButton dataset="spy-reports" />
   </PageHeader>
   <div class="card">
     <form class="spy-form" data-tour="spy-form" @submit.prevent="load">

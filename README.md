@@ -17,12 +17,15 @@ External analysis tool for [pr0game](https://codeberg.org/pr0game/pr0game) based
 - **Tutorials**: a short guided tour the first time a page is opened (skippable, switchable in the account settings,
   restartable with the "?" in the page header).
 - **Overview**: points per category with deltas per statistics update, rank changes, status, filters
-- **My empire**: live points from the latest empire page plus finished builds and research, fleets in flight
+- **My empire**: live points from the latest empire page plus finished builds and research, fleets in flight,
+  **hostile phalanx exposure** (per planet the moons outside the own alliance whose sensor phalanx reaches it, by the
+  newest moon spy reports, and since when that is known; planets in reach are marked)
 - **Build & research**: per own planet/moon like the game's buildings and research pages (two tabs): level,
   requirements, cost of the next level, missing resources and when they are there (production up to the storage plus
   resources of landing fleets), build and research time (catch-up bonus, robot/nanite factories, labs with the research
   network, TechnoDome), locks like the game; a bell per element notifies (hub bell, push, Discord) once the next level is
-  possible
+  possible; the **upgrade advisor** ranks the next mine, energy and production research levels by payback time (market
+  rate, energy that has to come along) and puts a step into the build order in one click
 - **Marketplace**: the alliance's market rate (exact from the page source, estimated from a copied page, or set by
   hand) with its history and the open offers of the latest sync; the rate feeds the loot settlement and battle
   simulator links, new offers show up in the activity log
@@ -41,11 +44,23 @@ External analysis tool for [pr0game](https://codeberg.org/pr0game/pr0game) based
   filterable by sender and recipient; private unless the member shares them (account setting or per message)
 - **Alliance**: planets, fleets, fleet movements and research of all members (each member chooses which fleet
   missions they share)
+- **Alliance health** (every member): per member points and growth over 7 days against the alliance median, last
+  visit in the hub, the last sync per page type, battles and expeditions of the week, open loot deliveries, and flags
+  for members who fall behind, sync no empire page or stay away; the last visit follows the member's online setting
+- **Export**: CSV next to the large tables (players, planets, spy and battle reports, expeditions, loot deliveries) and
+  the whole group's data as JSON under Account; both work with a read-only API token (spreadsheets, scripts)
 - **Farm finder**: spied targets outside the own alliance ranked by loot per flight hour: the resources of the
   newest spy report plus the production since then (capped by the storages), ships, fuel and flight time from the
   nearest own planet, defense and fleet risk and an inactivity score (game flag, latest proven activity, relevant
   points gains against the players around the same rank, spy history, lost fleet or defense; checkable against the
   game's own flags in the admin panel)
+- **Incoming attack assistant**: one page per hostile attack (from the bell, push, Discord or the raid planner):
+  countdown, a battle simulation of the attacking ships against the planet, resources and loot at risk, fleet saves
+  before the impact (also with a recall) and the members who can still hold in time, invited to a hold plan in one
+  click
+- **Fleet save planner**: enter when you are offline (presets); per planet and moon the deploys and transports to own
+  bodies that land right when you are back, with departure, speed, deuterium and free cargo, and a hint when a hostile
+  phalanx sees the planet
 - **Targets**: members claim a planet or moon for a while (farming, attack, espionage) so nobody hits it twice;
   the claim shows next to the target everywhere and runs out by itself; the list of claims is a section of the
   raids planning tab
@@ -60,8 +75,8 @@ External analysis tool for [pr0game](https://codeberg.org/pr0game/pr0game) based
 - **Raid statistics** (incl. recycling and interplanetary missile attacks: intercepted missiles, destroyed defense), **expeditions** (statistics and the expedition deck for card counting as tabs), **battle hall** archive
 - **Admin**: universes (size, distance factors, fleet speed, time zone, deck; scheduled start and optional end; an ended universe is frozen read-only), groups, members (including placeholders by in-game name with claim links), ingest log with reparse, player merge
 - **Notifications**: bell with hostile fleets heading for members (from the synced fleet movements), raid planner
-  invitations, new comments in your threads, your launch times, finalized loot settlements with your deliveries and
-  full storages on your planets (by the production
+  invitations, new comments in your threads, your launch times, finalized loot settlements with your deliveries, a
+  hostile phalanx newly known to reach your planets and full storages on your planets (by the production
   and landing fleets since the last synced page); also as **push notifications** on desktop and phone
   (switched on per device under Account, each kind can be chosen) and to **Discord**: a personal webhook per user
   (own settings) and an alliance channel set by the alliance admins (attacks on members, new raid plans, launch
@@ -187,8 +202,47 @@ group's newest spy report of the target. It writes nothing, so read-only tokens 
 (`simulateBattle`) for the request and the limits.
 
 ```bash
-curl -H "Authorization: Bearer hubpat_…" -H 'X-Hub-Group: 1' -H 'Content-Type: application/json' \n  -d '{"attackers":[{"units":{"207":200,"203":50},"research":{"109":12,"110":12,"111":12}}],"target":"1:110:8"}' \n  https://hub.example/hub/api/u8/battle/simulate
+curl -H "Authorization: Bearer hubpat_…" -H 'X-Hub-Group: 1' -H 'Content-Type: application/json' \
+  -d '{"attackers":[{"units":{"207":200,"203":50},"research":{"109":12,"110":12,"111":12}}],"target":"1:110:8"}' \
+  https://hub.example/hub/api/u8/battle/simulate
 ```
+
+### Export into Google Sheets
+
+`GET /hub/api/{uni}/export/{dataset}.csv` gives one dataset of the group as CSV (`players`, `planets`, `spy-reports`,
+`battle-reports`, `expeditions`, `settlements`; `days` for the reports, default 30), `GET /hub/api/{uni}/export` all of
+them as JSON. Spreadsheet formulas like `IMPORTDATA` cannot send the token header, and the hub takes no tokens in the URL
+(they would end up in logs and in the sheet). Google Apps Script can send it:
+
+1. In the sheet: **Extensions → Apps Script**, paste the script below and fill in `HUB` (your hub's address with the
+   universe) and `GROUP` (the alliance's group id: the JSON link under Account → API tokens ends in `?group=…`).
+2. **Project settings → Script properties**: add `HUB_TOKEN` with a read-only token from Account → API tokens.
+3. Run `importAll` once (Google asks for permission), then add a time-driven trigger (**Triggers → Add trigger**, e.g.
+   hourly) to keep the sheets up to date.
+
+```js
+const HUB = 'https://hub.example/hub/api/u8';
+const GROUP = 1;
+
+/** Replaces the sheet `sheetName` with one dataset of the hub's export. */
+function importHub(dataset, sheetName = dataset) {
+  const token = PropertiesService.getScriptProperties().getProperty('HUB_TOKEN');
+  const res = UrlFetchApp.fetch(`${HUB}/export/${dataset}.csv?group=${GROUP}`, { headers: { Authorization: `Bearer ${token}` } });
+  const rows = Utilities.parseCsv(res.getContentText().replace(/^\uFEFF/, ''));
+  const book = SpreadsheetApp.getActive();
+  const sheet = book.getSheetByName(sheetName) || book.insertSheet(sheetName);
+  sheet.clearContents();
+  if (rows.length) sheet.getRange(1, 1, rows.length, rows[0].length).setValues(rows);
+}
+
+function importAll() {
+  ['players', 'planets', 'spy-reports'].forEach((d) => importHub(d));
+}
+```
+
+Times are Unix seconds (`=EPOCHTODATE(A2)` shows them as a date). Everyone who can edit the script can read its
+properties: use your own token in a sheet only you edit, and revoke it under Account when the sheet is shared or
+no longer used.
 
 Changes are recorded in [CHANGELOG.md](CHANGELOG.md). Contributions are welcome, see [CONTRIBUTING.md](CONTRIBUTING.md).
 

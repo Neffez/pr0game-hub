@@ -14,6 +14,8 @@ import { adminRoutes } from './routes/admin.js';
 import { authRoutes } from './routes/auth.js';
 import { claimsRoutes } from './routes/claims.js';
 import { plansRoutes } from './routes/plans.js';
+import { attackAssistRoutes } from './routes/attackAssist.js';
+import { exportRoutes } from './routes/export.js';
 import { battleRoutes } from './routes/battle.js';
 import { settlementRoutes } from './routes/settlements.js';
 import { commentsRoutes } from './routes/comments.js';
@@ -165,6 +167,8 @@ export function buildApp(db: DB, opts: { logger?: boolean; push?: PushOptions; d
       claimsRoutes(scope, db);
       plansRoutes(scope, db);
       battleRoutes(scope, db);
+      attackAssistRoutes(scope, db);
+      exportRoutes(scope, db);
       settlementRoutes(scope, db);
       commentsRoutes(scope, db);
       notificationRoutes(scope, db);

@@ -45,3 +45,27 @@ describe('universe settings', () => {
     expect(decodeUnitOverrides(encodeUnitOverrides({ 100: { hidden: true } }))).toBeNull();
   });
 });
+
+describe('weekly debris cleaner', () => {
+  it('finds the newest run at or before a time in the universe time zone', async () => {
+    const { lastDebrisCleanup } = await import('../src/universe.js');
+    const berlin = { timezone: 'Europe/Berlin' };
+    // Saturday 7 Nov 2026, 12:00 Berlin (winter time, UTC+1): this morning 02:45
+    const sat = Date.UTC(2026, 10, 7, 11, 0) / 1000;
+    expect(lastDebrisCleanup(berlin, sat)).toBe(Date.UTC(2026, 10, 7, 1, 45) / 1000);
+    // Saturday 02:00, before the run: last week's
+    expect(lastDebrisCleanup(berlin, Date.UTC(2026, 10, 7, 1, 0) / 1000)).toBe(Date.UTC(2026, 9, 31, 1, 45) / 1000);
+    // exactly at the run
+    expect(lastDebrisCleanup(berlin, Date.UTC(2026, 10, 7, 1, 45) / 1000)).toBe(Date.UTC(2026, 10, 7, 1, 45) / 1000);
+    // own settings: Sunday 04:10
+    expect(lastDebrisCleanup({ ...berlin, debrisCleanupDay: 0, debrisCleanupHour: 4, debrisCleanupMinute: 10 }, sat)).toBe(Date.UTC(2026, 10, 1, 3, 10) / 1000);
+  });
+
+  it('validates the cleaner settings', async () => {
+    const { settingsError } = await import('../src/universe.js');
+    expect(settingsError({ debrisCleanupDay: 6, debrisCleanupHour: 2, debrisCleanupMinute: 45 })).toBeNull();
+    expect(settingsError({ debrisCleanupDay: 7 })?.code).toBe('setting_invalid');
+    expect(settingsError({ debrisCleanupHour: 2.5 })?.code).toBe('setting_invalid');
+    expect(settingsError({ debrisCleanupMinute: null })).toBeNull();
+  });
+});

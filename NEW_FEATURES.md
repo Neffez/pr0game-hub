@@ -14,6 +14,12 @@ source (`pr0game`: pages, missions, achievements, advanced stats).
 | F-1 Global search (Ctrl+K) | Done | 2026-11-06 | every page of a universe (sidebar, mobile top bar) |
 | B-1 Farm finder with projected resources | Done | 2026-11-06 | new menu item "Farm finder" under Combat & expeditions |
 | B-3 Inactivity confidence | Done (second version) | 2026-11-06 | farm finder, overview, player details, check in the admin panel |
+| A-3 Hostile phalanx exposure | Done | 2026-11-07 | My empire (section and marks), notifications (bell, push, Discord) |
+| A-2 Fleet save planner | Done | 2026-11-07 | new menu item "Fleet save" under Combat & expeditions |
+| A-1 Incoming attack assistant | Done | 2026-11-07 | page per attack, opened from bell, push, Discord and the raid planner |
+| C-1 Upgrade advisor | Done | 2026-11-07 | Build & research: tab "Advisor", best next step in the buildings tab |
+| D-1 Alliance health dashboard | Done | 2026-11-07 | new menu item "Health" under Alliance (every member) |
+| F-3 Export | Done | 2026-11-07 | CSV buttons at the large tables, JSON under Account; API tokens work |
 
 Each finished item carries a **Status** block below its description: what was built and how.
 
@@ -78,6 +84,36 @@ When a hostile fleet heads for a member, the notification opens a page for this 
 Why: this is the moment where a hub decides whether a member loses a fleet. Today the member has to switch between
 four tools.
 
+**Status: done (2026-11-07).** How it was built:
+
+- **Server:** `apps/server/src/repo/attackAssist.ts` on top of `hostileAttacks` (the attacks of the raid planner:
+  members' fleet lists and phalanx results, ACS fleets as one attack). `GET /api/:uni/attack-assist` finds an attack
+  by `key` (with `arrival` for waves) or by `member`, `arrival` (± 5 s) and `from` (what the bell knows), and returns:
+  the attacked body from the member's newest empire page (units, resources projected to the impact with production up
+  to the storages), the attacker's research (`spyEmpire`), the summed ships, the loot (`steal` of `@pr0hub/battle`),
+  the member's bodies and research for the fleet save, helpers (other members' bodies whose slowest ship at 100 % lands
+  1 s before the impact: latest launch, fleet points; strongest first), an open hold plan and the hostile phalanxes
+  reaching the planet (A-3), and the hold fleets at the planet at the impact (`holdFleets`: per member's fleet list the
+  hold flights to the body, outbound line landing before the impact and holding line ending after it; the same fleet
+  in the sender's and the attacked member's list counts once; research from the owner's empire page; members' bodies
+  holding are left out of the helpers). The battle runs 20 times in the battle worker (`runInWorker`, same throttle as the
+  simulator API) with the attacking ships and the attacker's research against the planet's ships and defense plus the
+  hold fleets; `sim=0` skips it, errors come back as `{ error }`. `getAttackAssist` in `openapi.yaml`, tests in
+  `apps/server/test/attackAssist.test.ts`.
+- **Web:** `AttackView.vue` at `/:uni/attack`: countdown, attacker, mission, ships and combat research; "Will it
+  hold?", later renamed "Expected battle result": one line with the outcome (≥ 90 % of the runs, else uncertain) and
+  the win shares, one with losses and debris, the hold fleets, and a link into the battle simulator (`battleSimLink`); resources at risk; fleet saves with
+  `FleetSaveOptions.vue` (latest departure 1 s before the impact, at rest 1 s after it, incl. deploy + recall); help
+  from the alliance: "Create hold plan" (`POST /plans/hold`), "Invite" per helper or all (`POST /plans/:id/fleets`,
+  the member gets an invitation in the bell and by push). Cards instead of tables on mobile.
+- **Entry points:** attack notifications in the bell, push and Discord open the assistant; the raid planner's
+  detected attacks have "Open the attack assistant" in their menu. **Tour:** `attack`.
+- **Follow-up (2026-11-07):** ships sent away from the planet after the empire page and not back by the impact are
+  taken off (`sentAway`: the member's newest fleet list against the one up to the empire page; return lines matched
+  by ships); when the movement shows no ships, the flying ships of the origin's newest spy report stand in
+  (`attacker.estimated`).
+- **Left for later:** the member's own fleet save reminder from the assistant.
+
 ### A-2 Fleet save planner (sleep and offline windows)
 **Value:** High · **Effort:** M · **Builds on:** `@pr0hub/flight` (recall, duration), notifications, empire page
 
@@ -86,6 +122,34 @@ returns at the wake-up time (deploy to own moon/planet, transport with resources
 with speed setting, fuel and the exact departure. A push or Discord reminder fires a few minutes before the fleet is
 back. Typical windows ("night", "work") are saved as presets.
 
+**Status: done (2026-11-07).** How it was built:
+
+- **Game math in `@pr0hub/flight`** (`fleetsave.ts`, shared with the attack assistant): `fleetSaveOptions` takes a
+  fleet, its body, the own bodies as targets, the earliest (`now`) and latest departure and the time it must not be at
+  rest before (`back`). Per target, mission (deploy: rest at arrival; transport: rest back home) and speed (10–100 %)
+  it departs as late as needed to rest at `back` (never before now, never after the latest departure, timestamps
+  floored like `flightTimes`) and keeps options that rest at `back` or later, sorted by lateness, then net deuterium.
+  Fuel like ShowFleetStep3Page (charged once, takes cargo space); a deploy gets half back (MissionCaseStay). `recall`:
+  deploy to the farthest own target at full speed and recall it (`recallFor`) so it lands home at `back`. Tests in
+  `packages/flight/test/fleetsave.test.ts`.
+- **Web:** `FleetSaveView.vue` at `/:uni/fleetsave` (menu "Fleet save"): offline from/until (time of day; a start up to
+  6 h ago means "offline now"), presets in local storage ("Night" 23:30–07:15, "Work" 07:45–17:00 built in), deploy
+  and transport switchable. Per own planet and moon with ships that can fly (newest empire page) the best three
+  options of `FleetSaveOptions.vue` (more on request): mission, target, speed, departure with countdown, at rest from
+  (lateness), deuterium (red above the body's projected deuterium), free cargo. Planets in reach of a hostile phalanx
+  (A-3) get a hint to start from the moon. No new API: the page reads `/imperium`.
+- **Reminder:** after sending, the member pastes the overview and sets the bell on the fleet in My empire (the
+  existing fleet alerts, push and Discord included); the page says so.
+- **Tour** `fleetsave`; **texts** `fleetsave.*`, `nav.fleetsave`; web tests in `apps/web/test/fleetsave-attack.test.ts`.
+- **Follow-up (2026-11-07):** recycling as fleet save (`harvest`): with a recycler (209, optimized recycler 227) in the
+  fleet, to a debris field the game lets recyclers fly to: it holds debris, or it is active (a battle left debris since
+  the weekly `CleanerCronjob`, which marks all fields inactive; Saturday 02:45 by default, universe settings
+  `debrisCleanup*`). Targets from `GET /api/:uni/debris-fields?g=`: `sure` when debris was created since the last
+  cleaner run or seen after it; debris seen only before it is shown as unsure ("DF?"). Deduplicated by distance in the
+  browser. Also in the attack assistant.
+- **Left for later:** presets synced across devices,
+  a reminder without pasting the overview.
+
 ### A-3 Hostile phalanx exposure
 **Value:** Medium · **Effort:** S · **Builds on:** phalanx coverage in the galaxy browser, spy reports of moons
 
@@ -93,6 +157,34 @@ The galaxy browser shows which phalanxes reach a system. The reverse view is mis
 moons of other alliances can phalanx it, and since when that is known. Planets in reach are marked in the empire
 and fleet save views ("fleet save via moon, a phalanx sees planet fleets"). A new known hostile phalanx in range
 creates a notification.
+
+**Status: done (2026-11-07).** How it was built:
+
+- **Server:** `apps/server/src/repo/phalanx.ts`. `phalanxMoons` collects the known phalanx moons once for the galaxy
+  browser and the exposure: the newest level per moon from the moon spy reports with buildings or the members' empire
+  pages, with the report history; moons the galaxy shows destroyed since are left out (like the farm finder).
+  `phalanxExposure` checks per planet of a member (`memberPlanets`: newest empire page, else the galaxy's planets of
+  their player; moons are no phalanx targets) the moons of the same galaxy outside the own alliance (`alliance`:
+  members, their players, their in-game alliances) like the game's `ShowPhalanxPage::allowPhalanx`: range
+  `(level² − 1) × phalanx_range_factor`, level 1 reaches its own system, circular galaxies wrap around. **Since** is
+  the oldest report of the newest run of reports whose level reaches the planet (`since`, game time; `known`: when that
+  report reached the hub). The owner comes from the galaxy, else the report, with alliance tag and vacation mode (a
+  player in vacation cannot use the phalanx; shown, not hidden).
+- **API:** `GET /api/:uni/imperium` returns `phalanx` (planets in reach with their moons, nearest first); schemas
+  `PhalanxExposure`, `PhalanxOwner`, `MemberPlanet` in `openapi.yaml`.
+- **Notification** `phalanx` (`repo/notifications.ts`): one per moon with every planet of the viewer it reaches, while
+  the report that brought the knowledge reached the hub within 24 hours (a report pasted late is new knowledge too);
+  a later report bringing more planets in reach is a new one. Push and the personal Discord webhook send it (setting
+  `phalanx`, default on; texts in `push.ts`), it opens My empire. Spy report syncs trigger the delivery now.
+- **Web:** `ImperiumView.vue`: section "Hostile phalanx" (owner, moon with a link to the galaxy browser, level,
+  distance of range, since), an eye with the moons as tooltip next to planets in reach (table and mobile cards); bell
+  entry in `NotificationBell.vue`, the kind in the account's push and Discord settings. **Tours:** step
+  `imperium.phalanx`. **Texts:** `imperium.phalanx*`, `notify.phalanx*`, `account.pushKind.phalanx`.
+- **Galaxy browser:** its phalanx coverage now uses `phalanxMoons` (same data, destroyed moons left out).
+- Tests in `apps/server/test/phalanx.test.ts` and `apps/web/test/imperium.test.ts`.
+- **Left for later:** the marks in a fleet save view (A-2 does not exist yet); the phalanx moon's deuterium and the
+  noob protection between the players (the game checks both) are unknown to the hub, so a listed phalanx may not be
+  usable right now.
 
 ### A-4 Defense advisor: make a planet unprofitable
 **Value:** Medium · **Effort:** L · **Builds on:** battle simulator, loot math, empire page, statistics
@@ -284,6 +376,27 @@ the build order.
 
 Improvement over today: the build view tells *when* a level is possible, not *which* level is worth it.
 
+**Status: done (2026-11-07).** How it was built:
+
+- **Game math in `@pr0hub/core/advisor`** (`upgradeAdvice`): per planet the next level of each mine; the energy for it
+  when the new level would run short (solar plant or fusion reactor up to 5 levels more, or the solar satellites that
+  close the gap; the combination with the shortest payback); energy alone (one level, or the satellites) only while
+  the mines are short of it; account wide the mining research 131-133 (pr0game's +2 % per level instead of a plasma
+  technology) and energy technology 113, summed over all planets. Gains with `productionOf` (energy factor, fusion
+  deuterium use, resource multiplier), scaled per resource with `calibrate` to what the synced empire page showed
+  (production settings, bonuses); costs with `buildingCost` and the catch-up bonus, satellites from the unit catalog.
+  Payback = cost value / gain value per hour, both in deuterium with the market rate (default 3 : 2 : 1).
+  Requirements and maximum levels like the game. Tests in `packages/parser/test/advisor.test.ts`.
+- **Web:** `UpgradeAdvisor.vue` in a new tab "Advisor" of `BuildView.vue` (all planets or only the chosen one; cards
+  on mobile) and as one line "best next step" in the buildings tab. Data of `/buildings` (levels after the build
+  queue, research queue, resource multiplier, catch-up bonus) and the group's market rate; no new API.
+- **Build order:** "Add to build order" inserts the step(s) (+1 level each, satellites as one ship step, research on the
+  chosen planet) after the steps checked off (`PATCH /build-order`), or starts a build order from the current levels
+  (`PUT`, `meta.source: advisor`). Tests in `apps/web/test/advisor.test.ts`.
+- **Tours:** steps `build.advisor`, `build.advisorList`. **Texts:** `advisor.*`, `buildings.tabAdvisor`.
+- **Left for later:** storage levels when a storage limits the production, build time as a second criterion, a
+  forecast over several steps (the build order's timeline does that already).
+
 ### C-2 Resource logistics planner
 **Value:** Medium · **Effort:** M · **Builds on:** build order (`transport` steps), empire page, flight math
 
@@ -320,6 +433,26 @@ game), distance to the main planet and to the alliance. Helps new members place 
 A page for leaders: per member points and growth against the alliance median, last sync of each page type, last
 seen in the hub, raids and expeditions in the last week, open deliveries. Flags: "falls behind", "no empire sync in
 3 days", "no statistics in the hub". Helps to find members who need help or have quit.
+
+**Status: done (2026-11-07).** How it was built:
+
+- **Server:** `apps/server/src/repo/health.ts`, `GET /api/:uni/alliance-health` (alliance admins and global admins,
+  `getAllianceHealth` in `openapi.yaml`). Per member: the member's player (`memberPlayers`) with the newest total points
+  and rank; growth = points now minus the newest update at or before 7 days ago (else the oldest after it, `partial`);
+  the alliance median of the growths. Newest sync per page type from `raw_ingests` (kept 14 days) and the snapshot
+  tables (empire, overview, fleets, buildings, research, galaxy views; all of the time). Battle reports and expeditions
+  the member synced in 7 days (with the loot of the reports), open deliveries of finalized loot settlements
+  (`finalizedSettlements`). Flags: `behind` (below half the median growth, median above 0), `noEmpire` (3 days),
+  `noStats`, `away` (no hub visit for 3 days, `group_members.last_seen_at`). Tests in `apps/server/test/health.test.ts`.
+- **Web:** `HealthView.vue` at `/:uni/health`, menu item "Health" under Alliance only for admins (also in the global
+  search). Summary (members, flagged, median growth, "flagged only"), a table with the flags under the name and the sync
+  ages coloured by freshness; cards on mobile. **Tour** `health`; **texts** `health.*`, `nav.health`; web test
+  `apps/web/test/health.test.ts`.
+- **Follow-up (2026-11-07):** open to every member (no admin check, menu item for all); the last hub visit and `away`
+  follow the member's online setting (`show_online`): hidden from the others unless the viewer is an admin
+  (`onlineHidden`), like the player page's activity.
+- **Left for later:** reminders to members (D-3 sync duties), a trend over several weeks, raids from the raid planner
+  instead of synced battle reports.
 
 ### D-2 War dashboard (alliance vs alliance)
 **Value:** Medium · **Effort:** M · **Builds on:** battle reports, battle hall archive, statistics
@@ -464,6 +597,21 @@ CSV download of every large table (overview, statistics, spy reports, loot settl
 documented JSON export of the group's own data. Many alliances keep spreadsheets; the hub should feed them instead
 of competing with them.
 
+**Status: done (2026-11-07).** How it was built:
+
+- **Server:** `apps/server/src/repo/export.ts` builds one table per dataset (`players`, `planets`, `spy-reports`,
+  `battle-reports`, `expeditions`, `settlements`) from the group's data only (no private messages or unshared fleets);
+  reports, battles and expeditions of the last `days` (1-365, default 30). `GET /api/:uni/export` returns all of them
+  as JSON objects, `GET /api/:uni/export/:dataset(.csv)` one as CSV (RFC 4180, UTF-8 with BOM, `sep` comma, semicolon or
+  tab, times as Unix seconds, numbers unformatted); both as attachments, GET, so read-only API tokens may call them.
+  `exportGroupData` and `exportDatasetCsv` in `openapi.yaml`, tests in `apps/server/test/export.test.ts`.
+- **Web:** `CsvButton.vue` in the page header of the overview (players or planets by mode), statistics, spy reports,
+  expeditions and the raids (settlements: deliveries, statistics: battle reports), semicolons in German for
+  spreadsheets with a decimal comma; JSON links per alliance under Account → API tokens. **Texts:** `export.*`.
+- **Spreadsheets:** no tokens in URLs (decided 2026-11-07: they end up in logs and in the sheet); the README has a
+  Google Apps Script example that sends the token in the header and refreshes sheets on a trigger.
+- **Left for later:** the filters of a view in its CSV.
+
 ### F-4 Discord commands
 **Value:** Medium · **Effort:** M · **Builds on:** Discord integration, battle simulation API, player API
 
@@ -497,11 +645,11 @@ deliveries open), what is planned. For members who turn off single push notifica
 
 **Now (highest value per effort):**
 E-1 What to paste next · F-1 Global search · B-1 Farm finder · B-3 Inactivity confidence · A-3 Hostile phalanx
-exposure
+exposure (all done)
 
 **Next:**
-A-1 Incoming attack assistant · A-2 Fleet save planner · C-1 Upgrade advisor · D-1 Alliance health dashboard ·
-F-3 Export
+A-1 Incoming attack assistant (done) · A-2 Fleet save planner (done) · C-1 Upgrade advisor (done) · D-1 Alliance
+health dashboard (done) · F-3 Export (done)
 
 **Later:**
 A-4 Defense advisor · C-2 Logistics planner · C-3 Resource requests · C-4 Expedition planner · D-2 War dashboard ·

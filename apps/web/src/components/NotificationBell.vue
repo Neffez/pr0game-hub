@@ -43,6 +43,7 @@ function target(n: Notification) {
     case 'launch':
       return { path: `/${uni.value}/raid-planner`, query: { plan: n.plan.id } };
     case 'fleet':
+    case 'phalanx':
       return `/${uni.value}/imperium`;
     case 'settlement':
       return `/${uni.value}/raid-planner/${n.plan.id}/loot`;
@@ -60,6 +61,8 @@ function target(n: Notification) {
       return 'player' in n.thread
         ? `/${uni.value}/player/${n.thread.player}`
         : { path: `/${uni.value}/spy`, query: { c: `${n.thread.g}:${n.thread.s}:${n.thread.p}`, type: n.thread.type } };
+    case 'attack':
+      return { path: `/${uni.value}/attack`, query: { member: n.userId, arrival: n.time, from: `${n.fleet.from.coords.g}:${n.fleet.from.coords.s}:${n.fleet.from.coords.p}` } };
     default:
       return `/${uni.value}/fleet`;
   }
@@ -170,6 +173,11 @@ function left(sec: number) {
             <span class="bell-title"><Icon name="cargo" :size="14" /><b>{{ t('notify.storage', { name: name(storageOf(n.resource)) }) }}</b></span>
             <span class="small">{{ n.planet.name ? n.planet.name + ' ' : '' }}{{ coords(n.planet, false) }} · {{ t('notify.storageSince', { t: since(n.time) }) }}</span>
           </button>
+          <button v-else-if="n.kind === 'phalanx'" class="bell-item phalanx" @click="show(n)">
+            <span class="bell-title"><Icon name="eye" :size="14" /><b>{{ t('notify.phalanx', { who: n.player ? n.player.name + (n.player.ally ? ` [${n.player.ally}]` : '') : t('common.unknown') }) }}</b></span>
+            <span class="small">{{ t('notify.phalanxMoon', { moon: coords(n.moon, true), level: n.level, range: n.range }) }}</span>
+            <span class="small muted">{{ t('notify.phalanxPlanets', { list: n.planets.map((p) => (p.name ? p.name + ' ' : '') + coords(p, false)).join(', ') }) }}</span>
+          </button>
           <button v-else-if="n.kind === 'settlement'" class="bell-item settlement" @click="show(n)">
             <span class="bell-title"><Icon name="cargo" :size="14" /><b>{{ t('notify.settlementFinalized', { at: coords(n.plan, n.plan.planet_type === 'moon') }) }}</b></span>
             <span v-for="(x, i) in n.sends" :key="`s${i}`" class="small">{{ t('loot.youSend', { to: x.to }) }} {{ resText(x.res) }}</span>
@@ -234,6 +242,7 @@ function left(sec: number) {
 .bell-item.building { --c: var(--pos); }
 .bell-item.storage, .bell-item.launch { --c: var(--warn); }
 .bell-item.fleet { --c: var(--accent); }
+.bell-item.phalanx { --c: var(--warn); }
 .bell-title { display: inline-flex; align-items: baseline; gap: 6px; }
 .bell-title .icon { align-self: center; color: var(--c); }
 @media (max-width: 800px) {

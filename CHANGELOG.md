@@ -4,6 +4,101 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-07
 
+- Debris fields for recycling follow the game's weekly cleaner (`CleanerCronjob`, Saturday 02:45 server time by
+  default): it marks all fields inactive, and a harvested empty field can be flown to again only after a battle
+  leaves debris there. New universe settings `debrisCleanupDay` (0 Sunday … 6 Saturday), `debrisCleanupHour` and
+  `debrisCleanupMinute` (admin panel, combat section; `lastDebrisCleanup` in `@pr0hub/core/universe`).
+  `/debris-fields` now returns `active` (debris created since the last run: battle report, debris appearing or
+  growing), `sure` (active, or debris seen after the run) and `cleanup`; debris seen only before the run is "DF?". The
+  7-day window and recycling reports as signs are gone.
+
+- Alliance health is open to every member of the alliance (menu item for everyone, `GET /api/:uni/alliance-health`
+  without the admin check). The last hub visit and the `away` flag of members who hide their online status are only
+  shown to themselves and to admins (`onlineHidden`), like on the player page.
+- README: a Google Apps Script example that imports export datasets into a sheet with a read-only token in the header
+  (no tokens in URLs); the battle simulator `curl` example shows its line breaks again.
+
+- Export (backlog item F-3): `GET /api/:uni/export` (JSON of the group's data: players with alliance, status and
+  newest points per category, galaxy planets with moon and debris, spy and battle reports and expeditions of the last
+  `days` (default 30), deliveries of finalized loot settlements) and `GET /api/:uni/export/:dataset.csv` (one dataset,
+  UTF-8 with BOM, separator comma, semicolon or tab). Both are attachments and work with read-only API tokens. CSV
+  buttons in the overview (players or planets), statistics, spy reports, expeditions and the raids' settlements and
+  statistics; JSON links per alliance under Account → API tokens.
+
+- Alliance health (backlog item D-1): new page "Health" under Alliance for alliance admins
+  (`GET /api/:uni/alliance-health`, `repo/health.ts`, 403 for others). Per member: total points, rank and growth over
+  7 days (from the newest statistics update at or before the start), last visit in the hub, the newest sync per page
+  type (kept pages and snapshot tables), battle reports and expeditions synced in 7 days with the loot, open
+  deliveries of finalized loot settlements; flags for falling behind (below half the median growth), no empire page
+  for 3 days, no statistics and not in the hub for 3 days. Flagged members first, cards on mobile.
+
+- Fleet save by recycling only to debris fields that exist: recyclers need a field at the target (harvested empty is
+  fine, but the game deletes the fields once a week). `GET /api/:uni/debris-fields` replaces `/positions`: fields
+  the galaxy shows now, and fields with a sign in the last 7 days (debris seen or cleared, a battle leaving debris, a
+  recycling report), which are marked as unsure ("DF?"). The optimized recycler (227) counts as a recycler.
+
+- Upgrade advisor (backlog item C-1): new tab "Advisor" under Build & research and a "best next step" line in the
+  buildings tab. `upgradeAdvice` in `@pr0hub/core/advisor` ranks the next level of each mine, the energy for it
+  (solar plant, fusion reactor, solar satellites; a mine short of energy comes with the cheapest energy that covers
+  the gap, energy alone only while the mines are short of it) and the account's production research (mining research
+  131-133 on all planets, energy technology for the fusion reactor) by payback time: cost (with the catch-up bonus)
+  against the extra production per hour, both valued in deuterium with the group's market rate (3 : 2 : 1 without
+  one). Production as the game computes it, scaled per resource to the synced empire page, from the levels after the
+  build queue. "Add to build order" inserts the steps after the steps checked off, or starts a build order.
+  Build & research tabs scroll sideways on narrow screens.
+
+- Fleet save by recycling: fleets with a recycler also get "Recycle" options to a debris field and back home, in the
+  fleet save planner (switchable) and the attack assistant. One target per distance; `@pr0hub/flight` has the
+  `harvest` kind and `RECYCLERS`.
+
+- Attack assistant: ships the member sent away from the attacked planet after their newest empire page (in a newer
+  fleet list, not in one from up to the empire page) and that are not back by the impact are taken off the planet in
+  the simulation and named (`away`); return flights are matched by their ships, so two flights on one route stay
+  apart. When the movement shows no ships, the flying ships of the newest spy report of the origin stand in as an
+  estimate (`attacker.estimated`).
+
+- Attack assistant: the section is now "Expected battle result" with one compact line (outcome, win shares) and one
+  line of losses and debris. Hold fleets in the members' synced fleet lists that are at the planet at the impact
+  (landed before, still holding after) defend in the simulation and in the battle simulator link and are listed
+  (`holds` in `GET /api/:uni/attack-assist`); members' bodies holding are no longer offered as helpers. Shorter texts
+  throughout the assistant and the fleet save planner, cards on mobile without repeated labels.
+- Phalanx texts no longer claim what a phalanx sees (fleet save planner, assistant, bell, push, empire hint): they name
+  the phalanx only.
+
+- Incoming attack assistant (backlog item A-1): a page per hostile attack (`/:uni/attack`, opened from the bell, push
+  and Discord notifications of attacks and from the raid planner's detected attacks):
+  - Countdown, attacker with combat research from the newest spy reports, mission, ships and target.
+  - "Will it hold?": a battle simulation (20 runs on the game's engine) of the attacking ships against the planet from
+    the member's newest empire page, with a verdict, losses, debris and a link into the battle simulator.
+  - Resources at risk at the impact (production up to the storages) and the loot the attackers can take
+    (`@pr0hub/battle` `steal`).
+  - Fleet saves before the impact (deploy, transport, deploy + recall) with the shared fleet save math; hostile
+    phalanxes reaching the planet are named.
+  - Help from the alliance: other members' bodies with ships that can still hold 1 s before the impact at full speed
+    (latest launch, strongest first); "Invite" creates the hold plan and invites the member.
+  - `GET /api/:uni/attack-assist` (`repo/attackAssist.ts`, `getAttackAssist` in `openapi.yaml`); push and Discord
+    links of attacks open the assistant.
+- Fleet save planner (backlog item A-2): new page "Fleet save" under Combat & expeditions. The member enters when they
+  go offline and are back (presets per device, "Night" and "Work" built in); per planet and moon with ships the hub
+  suggests deploys and transports to the own bodies that are in the air at the start and at rest again at the wake-up
+  time or just after, with departure, speed, deuterium (red when the body has too little), net cost and free cargo.
+  Planets in reach of a hostile phalanx get a hint to start from the moon. Math in `@pr0hub/flight` (`fleetsave.ts`:
+  game timing, fuel charged once for there and back, half back for a deploy, recalls); the reminder before the landing
+  uses the existing fleet alerts.
+
+- Hostile phalanx exposure (backlog item A-3):
+  - My empire shows per planet the moons outside the own alliance whose sensor phalanx reaches it (level from the
+    newest moon spy report with buildings, range like the game's `allowPhalanx` incl. circular galaxies and level 1
+    reaching its own system), with owner, distance, range and since when it is known (oldest report of the newest run
+    reaching the planet). Planets in reach carry an eye in the table and on the mobile cards; new tour step.
+  - `GET /api/:uni/imperium` returns `phalanx` (schemas `PhalanxExposure`, `PhalanxOwner`, `MemberPlanet`); members
+    without an empire page use the galaxy's planets of their player.
+  - New notification `phalanx` (bell, push, Discord webhook, setting `phalanx`, default on): a spy report that reached
+    the hub within 24 hours shows a hostile phalanx reaching the viewer's planets, one per moon. Spy report syncs now
+    trigger notification delivery.
+  - The galaxy browser's phalanx coverage uses the same moon list (`repo/phalanx.ts`) and leaves out moons the galaxy
+    shows destroyed since the report.
+
 - Security: changing the password or the username checks the current password at most 10 times wrong per account
   within 15 minutes (both share the count, attempts count from their start, a correct password clears it); before,
   a stolen session could try out the password without limit. The OpenAPI spec documents their 400, 409 and 429.

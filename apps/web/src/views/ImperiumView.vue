@@ -12,10 +12,11 @@ import { uniApi } from '../api';
 import { past, upcoming, useClock } from '../clock';
 import FleetList, { alertFor, FLEET_HISTORY, type Fleet, type FleetAlert } from '../components/FleetList.vue';
 import Hint from '../components/Hint.vue';
+import PlayerLink from '../components/PlayerLink.vue';
 import Ticker from '../components/Ticker.vue';
 import { useLoader, useMobile, useStored, useUni } from '../composables';
 import { tables, useLiveReload } from '../live';
-import { abbr, ago, dateTime, fmt, fmtSigned, name, short, STATS_TYPES } from '../format';
+import { abbr, ago, dateTime, fmt, fmtSigned, name, short, STATS_TYPES, STATUS_LABEL, STATUS_TITLE } from '../format';
 
 /**
  * Live view of a member's own planets (like the FF-Hub overview): resources are projected from the
@@ -48,6 +49,18 @@ interface Queue {
   destroy: boolean;
   seconds: number;
 }
+/** A moon outside the own alliance whose sensor phalanx reaches a planet of the member (server: repo/phalanx.ts). */
+interface PhalanxThreat {
+  moon: C3;
+  level: number;
+  range: number;
+  distance: number;
+  /** report time of the newest level */
+  time: number;
+  /** since when it is known to reach the planet (game time) */
+  since: number;
+  player: { id: number | null; name: string; ally: string | null; vacation: boolean } | null;
+}
 interface Data {
   empire: {
     time: number;
@@ -76,6 +89,8 @@ interface Data {
   fleetBase: { time: number; points: number; stat: number } | null;
   /** player with the most catch-up points (buildings ×1, research ×0.8, fleet ×0.6) in the latest statistics */
   leader: { name: string; weighted: number } | null;
+  /** the member's planets in reach of a known hostile phalanx */
+  phalanx?: { planet: C3 & { name: string | null }; threats: PhalanxThreat[] }[];
 }
 
 const RES = RESOURCES;
@@ -338,6 +353,14 @@ const catchUp = computed(() => {
 });
 const deltaClass = (d: number | null) => (d == null || d === 0 ? 'faint' : d > 0 ? 'pos' : 'neg');
 
+/** Hostile phalanxes per planet ("g:s:p"); moons are no phalanx targets. */
+const phalanx = computed(() => data.value?.phalanx ?? []);
+const phalanxByPlanet = computed(() => new Map(phalanx.value.map((e) => [`${e.planet.g}:${e.planet.s}:${e.planet.p}`, e.threats])));
+const threatsOf = (p: EmpirePlanet) => (p.type === 'planet' ? (phalanxByPlanet.value.get(`${p.coords.g}:${p.coords.s}:${p.coords.p}`) ?? []) : []);
+const ownerText = (x: PhalanxThreat) => (x.player ? `${x.player.name}${x.player.ally ? ` [${x.player.ally}]` : ''}` : t('common.unknown'));
+const phalanxTitle = (list: PhalanxThreat[]) =>
+  [t('imperium.phalanxMark', { n: list.length }, list.length), ...list.map((x) => `${ownerText(x)} · ${x.moon.g}:${x.moon.s}:${x.moon.p} · ${t('player.level')} ${x.level}`)].join('\n');
+
 const memberName = (id: number | null) => ctx.value!.members.find((m) => m.id === id)?.name ?? '';
 useAutoTour('imperium', () => !!data.value);
 </script>
@@ -446,6 +469,42 @@ useAutoTour('imperium', () => !!data.value);
     <p v-if="livePoints.finished.length" class="muted small" style="margin: 6px 0 0">{{ t('imperium.finished', { list: livePoints.finished.join(', ') }) }}</p>
   </div>
 
+  <Section
+    v-if="!error && data && (empire || phalanx.length)" data-tour="imperium-phalanx" class="phalanx" :title="t('imperium.phalanxTitle')" :count="phalanx.length"
+    store-key="imperium.phalanx" :default-open-mobile="false"
+  >
+    <template #hint>
+      <Hint>
+        <p>{{ t('imperium.phalanxHint1') }}</p>
+        <p>{{ t('imperium.phalanxHint3') }}</p>
+      </Hint>
+    </template>
+    <p v-if="!phalanx.length" class="muted small m-0">{{ t('imperium.phalanxNone') }}</p>
+    <div v-for="e in phalanx" :key="`${e.planet.g}:${e.planet.s}:${e.planet.p}`" class="phx-planet">
+      <div class="phx-head">
+        <Icon name="eye" :size="14" class="warn" />
+        <b>{{ e.planet.name }}</b>
+        <span class="mono small">{{ e.planet.g }}:{{ e.planet.s }}:{{ e.planet.p }}</span>
+      </div>
+      <div v-for="x in e.threats" :key="`${x.moon.g}:${x.moon.s}:${x.moon.p}`" class="phx-row small">
+        <span class="phx-who">
+          <PlayerLink v-if="x.player?.id" :id="x.player.id" :name="x.player.name" />
+          <span v-else>{{ x.player?.name ?? t('common.unknown') }}</span>
+          <span v-if="x.player?.ally" class="muted"> [{{ x.player.ally }}]</span>
+          <span v-if="x.player?.vacation" class="badge vacation" :title="STATUS_TITLE.vacation">{{ STATUS_LABEL.vacation }}</span>
+        </span>
+        <RouterLink class="mono" :to="{ path: `/${uni}/browse`, query: { g: x.moon.g, s: x.moon.s } }" :title="t('imperium.phalanxShow')">
+          <Icon name="moon" :size="12" /> {{ x.moon.g }}:{{ x.moon.s }}:{{ x.moon.p }}
+        </RouterLink>
+        <span>{{ t('player.level') }} <b>{{ x.level }}</b></span>
+        <span class="muted">{{ t('imperium.phalanxDistance', { distance: x.distance, range: x.range }) }}</span>
+        <span class="muted" :title="`${t('imperium.phalanxSinceTitle')}\n${t('imperium.phalanxLevelTime', { time: dateTime(x.time) })}`">
+          {{ t('imperium.phalanxSince', { time: dateTime(x.since), ago: ago(x.since) }) }}
+        </span>
+      </div>
+    </div>
+  </Section>
+
   <Section v-if="!error && fleets" data-tour="imperium-fleets" :title="t('imperium.fleets')" :count="flights.length" store-key="imperium.fleets">
     <template #hint>
       <Hint><p>{{ t('imperium.fleetsHint') }}</p></Hint>
@@ -488,6 +547,7 @@ useAutoTour('imperium', () => !!data.value);
         <span class="mono small">{{ r.p.coords.g }}:{{ r.p.coords.s }}:{{ r.p.coords.p }}</span>
         <span v-if="r.p.type === 'moon'" class="moon-tag"><Icon name="moon" :size="12" :label="t('common.moon')" /></span>
         <b class="emp-name">{{ r.p.name }}</b>
+        <Icon v-if="threatsOf(r.p).length" name="eye" :size="14" class="warn" :label="phalanxTitle(threatsOf(r.p))" />
         <span v-if="r.energy != null" class="small" :class="r.energy < 0 ? 'neg' : 'muted'"><Icon name="bolt" :size="12" :label="name(911)" /> {{ fmt(r.energy) }}</span>
       </div>
       <div class="emp-queues small">
@@ -554,6 +614,7 @@ useAutoTour('imperium', () => !!data.value);
             <span class="mono small">{{ r.p.coords.g }}:{{ r.p.coords.s }}:{{ r.p.coords.p }}</span>
             <span v-if="r.p.type === 'moon'" class="moon-tag" style="margin-left: 4px"><Icon name="moon" :size="12" :label="t('common.moon')" /></span>
             {{ r.p.name }}
+            <Icon v-if="threatsOf(r.p).length" name="eye" :size="13" class="warn" :label="phalanxTitle(threatsOf(r.p))" />
           </td>
           <td class="small">
             <template v-if="r.building">
@@ -624,6 +685,14 @@ useAutoTour('imperium', () => !!data.value);
 </template>
 
 <style scoped>
+/* hostile phalanxes per planet */
+.phx-planet + .phx-planet { margin-top: 10px; }
+.phx-head { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+.phx-row { display: grid; grid-template-columns: minmax(140px, 1.3fr) 90px 70px 150px minmax(150px, 1fr); align-items: center; gap: 10px; padding: 4px 8px; border-radius: 6px; }
+.phx-row:nth-child(even) { background: var(--surface-2); }
+@media (max-width: 800px) {
+  .phx-row { grid-template-columns: 1fr 1fr; gap: 2px 10px; }
+}
 /* mobile planet cards */
 .emp-card { display: flex; flex-direction: column; gap: 10px; padding: 12px; margin-bottom: 10px; }
 .emp-card.moon { border-left: 3px solid var(--info); background: color-mix(in srgb, var(--info) 7%, var(--surface)); }

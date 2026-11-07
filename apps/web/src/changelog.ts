@@ -20,6 +20,61 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Fleetsave mit Recyclern kennt jetzt das wöchentliche Löschen der Trümmerfelder (Standard Samstag 02:45, im Admin-Panel einstellbar): Abgebaute Felder zählen nur, wenn seitdem dort gekämpft wurde.',
+        en: 'Fleet save with recyclers now knows the weekly cleanup of debris fields (Saturday 02:45 by default, set in the admin panel): harvested fields only count when there was a battle since.',
+      },
+      {
+        kind: 'new',
+        de: 'Die Allianz-Gesundheit sieht jetzt jedes Mitglied. Wer seinen Online-Status ausgeblendet hat, dessen letzten Besuch sehen weiterhin nur Admins.',
+        en: 'Every member can now see the alliance health. The last visit of members who hide their online status stays visible to admins only.',
+      },
+      {
+        kind: 'new',
+        de: 'Export: CSV-Knopf an Übersicht, Statistik, Spionageberichten, Expeditionen und Raids, und alle Daten deiner Allianz als JSON unter Konto. Mit einem API-Token holt sich auch eine Tabellenkalkulation die Daten.',
+        en: 'Export: a CSV button on overview, statistics, spy reports, expeditions and raids, and all your alliance\'s data as JSON under Account. With an API token a spreadsheet can fetch the data too.',
+      },
+      {
+        kind: 'new',
+        de: 'Allianz-Gesundheit für Allianz-Admins: je Mitglied Wachstum der Woche gegen den Median, letzter Besuch, wann welche Seite eingefügt wurde, Kämpfe, Expeditionen und offene Lieferungen. Wer zurückfällt, kein Imperium mehr einfügt oder nicht mehr vorbeischaut, ist markiert.',
+        en: 'Alliance health for alliance admins: per member the growth of the week against the median, last visit, when which page was pasted, battles, expeditions and open deliveries. Members who fall behind, stop pasting their empire page or stay away are flagged.',
+      },
+      {
+        kind: 'new',
+        de: 'Upgrade-Berater unter Bauen & Forschen: Minen, Energie und Produktionsforschung sortiert danach, wie schnell sie sich amortisieren (zum Marktkurs der Allianz) – mit einem Klick in die Bauliste. Im Gebäude-Reiter steht der beste nächste Schritt.',
+        en: 'Upgrade advisor under Build & research: mines, energy and production research ranked by how fast they pay back (at the alliance\'s market rate) – into the build order in one click. The buildings tab shows the best next step.',
+      },
+      {
+        kind: 'new',
+        de: 'Fleetsave mit Recyclern: Flotten mit Recycler bekommen zusätzlich „Abbauen“ zu einem Trümmerfeld und zurück – mit viel feiner abgestuften Flugzeiten.',
+        en: 'Fleet save with recyclers: fleets with a recycler also get "Recycle" to a debris field and back – with much finer flight times.',
+      },
+      {
+        kind: 'new',
+        de: 'Angriffs-Assistent: Schiffe, die du nach dem letzten Imperium weggeschickt hast, zählen im Kampfergebnis nicht mehr mit. Zeigt die Flottenbewegung keine Schiffe, schätzt der Hub die Angriffsflotte aus dem letzten Spionagebericht des Angreifers.',
+        en: 'Attack assistant: ships you sent away after your latest empire page no longer count in the battle result. When the fleet movement shows no ships, the hub estimates the attacking fleet from the attacker\'s latest spy report.',
+      },
+      {
+        kind: 'new',
+        de: 'Angriffs-Assistent: „Voraussichtliches Kampfergebnis“ kompakt in zwei Zeilen, und Halteflotten von Mitgliedern, die zum Einschlag auf dem Planeten stehen, kämpfen in der Simulation mit. Weniger Text, besser lesbar auf dem Handy.',
+        en: 'Attack assistant: "Expected battle result" in two compact lines, and members\' hold fleets that are on the planet at the impact join the simulation. Less text, easier to read on phones.',
+      },
+      {
+        kind: 'new',
+        de: 'Angriffs-Assistent: Ein Klick auf einen Angriff in der Glocke öffnet eine Seite mit Countdown, Simulation „Hält die Verteidigung?“, den Rohstoffen in Gefahr, Fleetsave-Möglichkeiten vor dem Einschlag und den Mitgliedern, die noch rechtzeitig halten können – einladen mit einem Klick.',
+        en: 'Attack assistant: a click on an attack in the bell opens a page with a countdown, a "Will it hold?" simulation, the resources at risk, fleet save options before the impact and the members who can still hold in time – invite them in one click.',
+      },
+      {
+        kind: 'new',
+        de: 'Fleetsave-Planer: Sag, wann du offline bist, und der Hub schlägt je Planet und Mond einen Flug vor, der genau zu deiner Rückkehr landet – mit Abflugzeit, Tempo und Deuterium. Vorlagen wie „Nacht“ oder „Arbeit“ mit einem Klick.',
+        en: 'Fleet save planner: say when you are offline and the hub suggests a flight per planet and moon that lands right when you are back – with departure, speed and deuterium. Presets like "Night" or "Work" in one click.',
+      },
+      {
+        kind: 'new',
+        de: 'Feindliche Phalanx: Im Imperium siehst du je Planet, welche Monde anderer Allianzen ihn mit der Sensorphalanx sehen können und seit wann das bekannt ist; Planeten in Reichweite tragen ein Auge. Wird eine neue Phalanx in Reichweite bekannt, meldet sich die Glocke (auch per Push und Discord).',
+        en: 'Hostile phalanx: My empire shows per planet which moons of other alliances can watch it with their sensor phalanx and since when that is known; planets in range carry an eye. When a new phalanx in range becomes known, the bell tells you (also by push and Discord).',
+      },
+      {
+        kind: 'fix',
         de: 'Sicherheit: Beim Ändern von Passwort oder Benutzernamen sind nur noch 10 falsche Eingaben des aktuellen Passworts in 15 Minuten möglich, danach wird gesperrt.',
         en: 'Security: when changing the password or username, only 10 wrong entries of the current password are allowed within 15 minutes, then it locks.',
       },

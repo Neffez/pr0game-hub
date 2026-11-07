@@ -10,6 +10,7 @@ import { latestEmpire, spyEmpire, type SpyEmpire } from '../repo/empire.js';
 import { openFleetAlerts } from '../repo/fleetAlerts.js';
 import { chooseFleetShare, FLEET_HISTORY, fleetHistory, flightLines, sameFleet, sharedFleets, type StoredFleet } from '../repo/fleets.js';
 import { memberPlayer, memberPlayers } from '../repo/members.js';
+import { memberPlanets, phalanxExposure } from '../repo/phalanx.js';
 import { catchUpLeader, latestScores } from '../repo/stats.js';
 import { contextOf, type Q } from './util.js';
 
@@ -103,6 +104,8 @@ export function imperiumRoutes(app: FastifyInstance, db: DB) {
       player: player ? { ...player, stats: Object.fromEntries(stats.map((s) => [s.type, s])) } : null,
       fleetBase: fleetBase && basePoints && anchorFleet != null ? { time: fleetBase.time, points: basePoints.fleet, stat: anchorFleet } : null,
       leader: leader ? { name: leader.name, buildings: leader.buildings, research: leader.research, fleet: leader.fleet, weighted: leader.weighted } : null,
+      // the member's planets in reach of a known hostile phalanx
+      phalanx: phalanxExposure(db, ctx, memberPlanets(db, ctx, userId)).filter((e) => e.threats.length),
     };
   });
 
