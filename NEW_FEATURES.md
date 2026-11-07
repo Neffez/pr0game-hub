@@ -435,7 +435,8 @@ harvesting to catch a fleet saved on it is a different feature (B-7 below). How 
   `PlanetActions` with `type="debris"`: recycle in the game (mission 8), flight time, galaxy, claim.
 - **Texts:** `debris.*`, `nav.debris`, `actions.recycle`, `claims.kinds.recycle`, `claims.debris`.
 - **Left for later:** the weekly debris cleaner (an empty field may be gone, see `/debris-fields`) only matters for
-  fleet saves, not for fields with debris; a tour for the page.
+  fleet saves, not for fields with debris. The tour is done: the tab step `farm.debris` and the content steps
+  `farm.debrisFilter` to `farm.debrisList` in the farm finder's tour.
 
 ### B-5 Raid profitability over time
 **Value:** Medium · **Effort:** S · **Builds on:** raid statistics, loot settlement

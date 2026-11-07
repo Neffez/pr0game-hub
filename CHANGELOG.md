@@ -4,7 +4,8 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-07
 
-- Backlog (`NEW_FEATURES.md`): item C-3 is refined as an alliance trade board (internal offers on the marketplace,
+- Backlog (`NEW_FEATURES.md`): item B-4 lists its tour as done (the debris finder's tab steps in the farm finder's
+  tour); item C-3 is refined as an alliance trade board (internal offers on the marketplace,
   states from open to closed, delivery matched by transfer reports); the status table lists A-5 and C-3 as open;
   the A-3 leftover now matches the fleet save view.
 
