@@ -113,6 +113,25 @@ describe('incoming attack assistant', () => {
     expect(a.sim.wins.attacker + a.sim.wins.defender + a.sim.wins.draw).toBeCloseTo(1);
   });
 
+  it('counts fleets holding at the planet at the impact and leaves them out of the helpers', async () => {
+    const hold = (phase: string, arrival: number, from: [number, number, number], ships: Record<number, number>) => ({
+      owner: 'own', player: null, mission: 5, missionName: 'Halten', phase, acs: null, ships, resources: null, arrival,
+      from: { coords: { g: from[0], s: from[1], p: from[2] }, type: 'planet', name: null }, to: { coords: { g: 1, s: 100, p: 8 }, type: 'planet', name: 'Home' },
+    });
+    db.prepare('INSERT INTO fleet_snapshots (group_id, user_id, page_time, data) VALUES (?, ?, ?, ?)').run(group, daveId, t, JSON.stringify([
+      // lands before the impact and holds 8 hours: counts
+      hold('out', hostile.arrival - 600, [1, 102, 3], { 204: 300, 206: 20 }),
+      hold('hold', hostile.arrival - 600 + 8 * 3600, [1, 102, 3], { 204: 300, 206: 20 }),
+      // lands after the impact: too late
+      hold('out', hostile.arrival + 60, [3, 300, 3], { 204: 10 }),
+    ]));
+    const a = (await get(`/attack-assist?member=${carolId}&arrival=${hostile.arrival}&from=1:150:4&sim=0`)).json();
+    expect(a.holds).toEqual([
+      { member: 'Dave', player: null, from: { g: 1, s: 102, p: 3, type: 'planet' }, ships: { 204: 300, 206: 20 }, research: { 115: 10, 117: 8, 118: 6 }, arrival: hostile.arrival - 600 },
+    ]);
+    expect(a.helpers.map((h: any) => h.from.name)).not.toContain('Near');
+  });
+
   it('answers 404 for an unknown attack', async () => {
     expect((await get(`/attack-assist?member=${carolId}&arrival=${t + 99}&from=9:9:9`)).statusCode).toBe(404);
   });

@@ -119,7 +119,7 @@ describe('hostile phalanx exposure', () => {
     });
     const push = payloadOf(enemy, 'en', 'u8', 'Europe/Berlin', group, t);
     expect(push.title).toBe('🔭 Phalanx of Enemy [FEI] reaches you');
-    expect(push.body).toBe('Moon [1:104:3], level 3 · sees fleets from and to Home [1:100:8]');
+    expect(push.body).toBe('Moon [1:104:3], level 3 · reaches Home [1:100:8]');
     expect(push.url).toContain('/u8/imperium?');
   });
 

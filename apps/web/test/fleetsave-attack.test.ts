@@ -39,6 +39,7 @@ const assist = {
   loot: { metal: 50_000, crystal: 25_000, deuterium: 10_000 },
   helpers: [{ userId: 2, member: 'Dave', from: { g: 1, s: 102, p: 3, type: 'planet', name: 'Near' }, ships: { 204: 300 }, points: 1200, duration: 1800, launch: arrival - 1801 }],
   holdPlan: null,
+  holds: [{ member: 'Erin', player: null, from: { g: 1, s: 101, p: 1, type: 'planet' }, ships: { 206: 40 }, research: {}, arrival: arrival - 300 }],
   phalanx: [],
   simulated: true,
   sim: {
@@ -99,7 +100,7 @@ describe('fleet save and attack assistant', () => {
     const bodies = root.querySelectorAll('.fs-body');
     // only the planet has ships
     expect(bodies).toHaveLength(1);
-    expect(bodies[0].querySelector('.fs-phalanx')!.textContent).toContain('starte lieber vom Mond');
+    expect(bodies[0].querySelector('.fs-phalanx')!.textContent).toBe(' Phalanx: Enemy 1:104:3');
     expect(bodies[0].querySelectorAll('.fso-table tbody tr').length).toBeGreaterThan(0);
     expect(bodies[0].querySelector('.fso-table tbody td b')!.textContent).toMatch(/Stationieren|Transport/);
   });
@@ -108,8 +109,11 @@ describe('fleet save and attack assistant', () => {
     const root = await mount(AttackView, `/u8/attack?member=1&arrival=${arrival}&from=1:104:3`);
     const text = root.textContent!.replace(/\s+/g, ' ');
     expect(text).toContain('Angriff auf Carol');
-    expect(text).toContain('Fällt: der Angreifer gewinnt fast immer.');
-    expect(text).toContain('nimmt er bis zu 85');
+    expect(text).toContain('Voraussichtliches Kampfergebnis');
+    expect(root.querySelector('[data-tour="attack-sim"] .at-stats b.neg')!.textContent).toBe('Angreifer gewinnt');
+    expect(text).toContain('Angreifer 100 %');
+    expect(text).toContain('Mit Halteflotten: Erin (40)');
+    expect(text).toContain('Beute, falls der Angreifer gewinnt: 85');
     expect(root.querySelectorAll('.fso-table tbody tr').length).toBeGreaterThan(0);
     const helper = [...root.querySelectorAll('table.data tbody tr')].find((r) => r.textContent!.includes('Dave'))!;
     expect(helper.textContent).toContain('Near');

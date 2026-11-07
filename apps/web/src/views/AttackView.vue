@@ -39,6 +39,7 @@ interface Assist {
   loot: Res | null;
   helpers: { userId: number; member: string; from: C3 & { type: 'planet' | 'moon'; name: string }; ships: Record<string, number>; points: number; duration: number; launch: number }[];
   holdPlan: number | null;
+  holds: { member: string | null; player: string | null; from: C3 & { type: string | null }; ships: Record<string, number>; research: Record<string, number>; arrival: number | null }[];
   phalanx: { moon: C3; level: number; player: { name: string; ally: string | null } | null }[];
   simulated: boolean;
   sim: null | { error: string } | {
@@ -86,7 +87,8 @@ const simLink = computed(() => {
   const values = { ...d.target.values, 109: d.research[109] ?? 0, 110: d.research[110] ?? 0, 111: d.research[111] ?? 0, ...(r ? { 901: r.metal, 902: r.crystal, 903: r.deuterium } : {}) };
   const from: [number, number, number] = [d.attack.from.g, d.attack.from.s, d.attack.from.p];
   const attackers = d.attack.fleets.filter((f) => Object.keys(f.ships).length).map((f) => ({ ships: f.ships, research: d.attacker.research?.values ?? {}, from, name: d.attacker.player?.name ?? null }));
-  return battleSimLink(ctx.value!.universe.settings, values, attackers, [d.target.g, d.target.s, d.target.p], [], d.member?.name ?? null);
+  const holds = d.holds.map((h) => ({ ships: h.ships, research: h.research, from: [h.from.g, h.from.s, h.from.p] as [number, number, number], name: h.member ?? h.player }));
+  return battleSimLink(ctx.value!.universe.settings, values, attackers, [d.target.g, d.target.s, d.target.p], holds, d.member?.name ?? null);
 });
 
 // ---- fleet save of the attacked body
@@ -175,21 +177,26 @@ const openHelpers = computed(() => (data.value?.helpers ?? []).filter((h) => h.l
       </div>
     </div>
 
-    <Section :title="t('attack.holdTitle')" store-key="attack.sim" data-tour="attack-sim">
+    <Section :title="t('attack.resultTitle')" store-key="attack.sim" data-tour="attack-sim">
       <p v-if="!data.simulated" class="muted small m-0">{{ data.target ? t('attack.noShips') : t('attack.noEmpire') }}</p>
       <p v-else-if="data.sim && data.sim.error" class="warn small m-0">{{ t('attack.simError', { code: data.sim.error }) }}</p>
       <template v-else-if="sim && verdict">
-        <p class="at-verdict" :class="verdict.cls"><b>{{ t(`attack.verdict.${verdict.key}`, { rounds: sim.rounds }) }}</b></p>
         <div class="at-stats small">
+          <b :class="verdict.cls">{{ t(`attack.verdict.${verdict.key}`) }}</b>
           <span>{{ t('attack.winsDefender') }} <b>{{ pct(sim.wins.defender) }}</b></span>
           <span>{{ t('attack.winsAttacker') }} <b>{{ pct(sim.wins.attacker) }}</b></span>
           <span>{{ t('attack.draw') }} <b>{{ pct(sim.wins.draw) }}</b></span>
-          <span>{{ t('attack.lostDefender') }} <b>{{ short(resSum(sim.lostResources.defender)) }}</b></span>
-          <span>{{ t('attack.lostAttacker') }} <b>{{ short(resSum(sim.lostResources.attacker)) }}</b></span>
+        </div>
+        <div class="at-stats small muted">
+          <span>{{ t('attack.losses') }}: {{ t('attack.winsDefender') }} <b>{{ short(resSum(sim.lostResources.defender)) }}</b> · {{ t('attack.winsAttacker') }} <b>{{ short(resSum(sim.lostResources.attacker)) }}</b></span>
           <span>{{ t('attack.debris') }} <b>{{ short(sim.debris.metal.avg + sim.debris.crystal.avg) }}</b></span>
         </div>
       </template>
       <p v-else-if="arrived" class="muted small m-0">{{ t('attack.simArrived') }}</p>
+      <p v-if="data.holds.length" class="small at-holds">
+        {{ t('attack.holds') }}:
+        <span v-for="(h, i) in data.holds" :key="i" :title="shipsTitle(h.ships)">{{ i ? ', ' : '' }}{{ h.member ?? h.player ?? '?' }} ({{ fmt(Object.values(h.ships).reduce((s, n) => s + n, 0)) }})</span>
+      </p>
       <a v-if="simLink" :href="simLink" target="_blank" rel="noopener" class="small">{{ t('attack.openSim') }} <Icon name="external" :size="12" /></a>
     </Section>
 
@@ -202,7 +209,7 @@ const openHelpers = computed(() => (data.value?.helpers ?? []).filter((h) => h.l
             <span v-if="data.loot" class="neg at-loot">−{{ short(data.loot[k]) }}</span>
           </span>
         </div>
-        <p class="small muted m-0">{{ data.loot ? t('attack.lootText', { sum: short(resSum(data.loot)) }) : t('attack.lootUnknown') }}</p>
+        <p v-if="data.loot" class="small muted m-0">{{ t('attack.lootText', { sum: short(resSum(data.loot)) }) }}</p>
       </template>
     </Section>
 
@@ -280,7 +287,7 @@ const openHelpers = computed(() => (data.value?.helpers ?? []).filter((h) => h.l
 .at-count { display: flex; flex-direction: column; gap: 2px; min-width: 180px; }
 .at-count b { font-size: 26px; }
 .at-grid { display: grid; grid-template-columns: auto 1fr; gap: 3px 12px; align-items: baseline; }
-.at-verdict { margin: 0 0 6px; font-size: 16px; }
+.at-holds { margin: 0 0 6px; }
 .at-stats { display: flex; flex-wrap: wrap; gap: 4px 18px; margin-bottom: 6px; }
 .at-plan { margin-bottom: 8px; }
 .at-from, .at-loot { margin-left: 6px; }

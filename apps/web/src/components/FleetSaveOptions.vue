@@ -3,7 +3,7 @@ import { drivesFromResearch, fleetSaveOptions, shipSpeed, type SaveKind, type Sa
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useMobile, useUni } from '../composables';
-import { dateTime, duration, fmt, short } from '../format';
+import { abbr, clockTime, dateTime, duration, fmt, short } from '../format';
 import { fleetShips, units } from '../units';
 import Ticker from './Ticker.vue';
 
@@ -55,6 +55,8 @@ const options = computed(() =>
     : [],
 );
 const shown = computed(() => (all.value ? options.value : options.value.slice(0, props.limit)));
+/** clock time today, otherwise with the date (cards on mobile) */
+const when = (e: number) => (new Date(e * 1000).toDateString() === new Date().toDateString() ? clockTime(new Date(e * 1000)) : dateTime(e));
 const label = (x: SaveTarget) => `${x.type === 'moon' ? t('common.moon') + ' ' : ''}${x.name ? x.name + ' ' : ''}[${x.coords.join(':')}]`;
 defineExpose({ fleet, options });
 </script>
@@ -67,13 +69,13 @@ defineExpose({ fleet, options });
       <div v-for="(o, i) in shown" :key="i" class="fso-card small">
         <div><b>{{ t(`fleetsave.kinds.${o.kind}`) }}</b> → {{ label(o.target) }} · {{ o.speed }} %</div>
         <div class="mono">
-          {{ t('fleetsave.departure') }} {{ dateTime(o.departure) }}
-          <Ticker v-slot="{ now: n }"><span v-if="o.departure > n" class="muted"> ({{ t('fleetsave.in', { time: duration(o.departure - n) }) }})</span></Ticker>
+          {{ when(o.departure) }} → {{ when(o.rest) }}
+          <span class="muted">{{ o.late > 0 ? '+' + duration(o.late) : t('fleetsave.onTime') }}</span>
         </div>
-        <div v-if="o.recall != null" class="mono">{{ t('fleetsave.recallAt', { time: dateTime(o.recall) }) }}</div>
-        <div class="mono">{{ t('fleetsave.rest') }} {{ dateTime(o.rest) }} <span class="muted">({{ o.late > 0 ? '+' + duration(o.late) : t('fleetsave.onTime') }})</span></div>
+        <div v-if="o.recall != null" class="mono">{{ t('fleetsave.recallAt', { time: when(o.recall) }) }}</div>
         <div class="muted">
-          {{ t('fleetsave.fuel') }} <span :class="{ neg: deuterium != null && o.fuel > deuterium }">{{ short(o.fuel) }}</span> · {{ t('fleetsave.cargo') }} {{ short(Math.max(0, capacity - o.fuel)) }}
+          <Ticker v-slot="{ now: n }"><span v-if="o.departure > n">{{ t('fleetsave.in', { time: duration(o.departure - n) }) }} · </span></Ticker>
+          <span :class="{ neg: deuterium != null && o.fuel > deuterium }">{{ short(o.fuel) }} {{ abbr(903) }}</span>
         </div>
       </div>
     </div>

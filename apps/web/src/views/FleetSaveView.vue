@@ -99,7 +99,6 @@ const rows = computed(() =>
     from: { coords: [b.coords.g, b.coords.s, b.coords.p], type: b.type, name: b.name } as SaveTarget,
     ships: ships(b),
     phalanx: b.type === 'planet' ? (phalanxOf.value.get(key(b.coords)) ?? []) : [],
-    hasMoon: b.type === 'planet' && bodies.value.some((x) => x.type === 'moon' && key(x.coords) === key(b.coords)),
   })),
 );
 const withShips = computed(() => rows.value.filter((r) => r.ships.length));
@@ -152,7 +151,7 @@ const kindList = computed(() => (['deploy', 'transport'] as const).filter((k) =>
     </div>
     <p v-if="r.phalanx.length" class="warn small fs-phalanx" :data-tour="i === 0 ? 'fleetsave-phalanx' : undefined">
       <Icon name="eye" :size="13" />
-      {{ t(r.hasMoon ? 'fleetsave.phalanxMoon' : 'fleetsave.phalanx', { list: r.phalanx.map((x) => `${x.player?.name ?? '?'} ${x.moon.g}:${x.moon.s}:${x.moon.p}`).join(', ') }) }}
+      {{ t('fleetsave.phalanx', { list: r.phalanx.map((x) => `${x.player?.name ?? '?'} ${x.moon.g}:${x.moon.s}:${x.moon.p}`).join(', ') }) }}
     </p>
     <FleetSaveOptions
       :from="r.from" :values="r.b.values" :research="research" :deuterium="deuterium(r.b)" :targets="targets"

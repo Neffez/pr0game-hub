@@ -4,6 +4,14 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-07
 
+- Attack assistant: the section is now "Expected battle result" with one compact line (outcome, win shares) and one
+  line of losses and debris. Hold fleets in the members' synced fleet lists that are at the planet at the impact
+  (landed before, still holding after) defend in the simulation and in the battle simulator link and are listed
+  (`holds` in `GET /api/:uni/attack-assist`); members' bodies holding are no longer offered as helpers. Shorter texts
+  throughout the assistant and the fleet save planner, cards on mobile without repeated labels.
+- Phalanx texts no longer claim what a phalanx sees (fleet save planner, assistant, bell, push, empire hint): they name
+  the phalanx only.
+
 - Incoming attack assistant (backlog item A-1): a page per hostile attack (`/:uni/attack`, opened from the bell, push
   and Discord notifications of attacks and from the raid planner's detected attacks):
   - Countdown, attacker with combat research from the newest spy reports, mission, ships and target.

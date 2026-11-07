@@ -90,18 +90,22 @@ four tools.
   to the storages), the attacker's research (`spyEmpire`), the summed ships, the loot (`steal` of `@pr0hub/battle`),
   the member's bodies and research for the fleet save, helpers (other members' bodies whose slowest ship at 100 % lands
   1 s before the impact: latest launch, fleet points; strongest first), an open hold plan and the hostile phalanxes
-  reaching the planet (A-3). The battle runs 20 times in the battle worker (`runInWorker`, same throttle as the
-  simulator API); `sim=0` skips it, errors come back as `{ error }`. `getAttackAssist` in `openapi.yaml`, tests in
+  reaching the planet (A-3), and the hold fleets at the planet at the impact (`holdFleets`: per member's fleet list the
+  hold flights to the body, outbound line landing before the impact and holding line ending after it; the same fleet
+  in the sender's and the attacked member's list counts once; research from the owner's empire page; members' bodies
+  holding are left out of the helpers). The battle runs 20 times in the battle worker (`runInWorker`, same throttle as the
+  simulator API) with the attacking ships and the attacker's research against the planet's ships and defense plus the
+  hold fleets; `sim=0` skips it, errors come back as `{ error }`. `getAttackAssist` in `openapi.yaml`, tests in
   `apps/server/test/attackAssist.test.ts`.
 - **Web:** `AttackView.vue` at `/:uni/attack`: countdown, attacker, mission, ships and combat research; "Will it
-  hold?" with a verdict (holds ≥ 90 % defender wins, falls ≥ 90 % attacker wins, draw, uncertain), win shares, losses,
-  debris and a link into the battle simulator (`battleSimLink`); resources at risk; fleet saves with
+  hold?", later renamed "Expected battle result": one line with the outcome (≥ 90 % of the runs, else uncertain) and
+  the win shares, one with losses and debris, the hold fleets, and a link into the battle simulator (`battleSimLink`); resources at risk; fleet saves with
   `FleetSaveOptions.vue` (latest departure 1 s before the impact, at rest 1 s after it, incl. deploy + recall); help
   from the alliance: "Create hold plan" (`POST /plans/hold`), "Invite" per helper or all (`POST /plans/:id/fleets`,
   the member gets an invitation in the bell and by push). Cards instead of tables on mobile.
 - **Entry points:** attack notifications in the bell, push and Discord open the assistant; the raid planner's
   detected attacks have "Open the attack assistant" in their menu. **Tour:** `attack`.
-- **Left for later:** fleets holding at the planet in the simulation, the attacker's fleet estimated from spy reports
+- **Left for later:** the attacker's fleet estimated from spy reports
   when the movement shows no ships, the member's own fleet save reminder from the assistant.
 
 ### A-2 Fleet save planner (sleep and offline windows)

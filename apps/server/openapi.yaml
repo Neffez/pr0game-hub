@@ -2531,7 +2531,10 @@ paths:
         resources projected to the impact), the attacker's ships and research (newest spy reports), the loot the attack
         can take, the member's bodies and research for a fleet save, the members' bodies with ships that can still land
         a hold 1 s before the impact (latest launch at full speed, strongest first), an open hold plan for it and the
-        hostile phalanxes reaching the planet. `sim` is a battle simulation of 20 runs on the game's engine (null with
+        hostile phalanxes reaching the planet, and the hold fleets there at the impact (hold flights in the members'
+        synced fleet lists that land before it and still hold after it; members' bodies holding are no helpers).
+        `sim` is a battle simulation of 20 runs on the game's engine: the attacking ships with the attacker's research
+        against the planet's ships and defense with the member's combat research, plus the hold fleets (null with
         `sim=0`, after the impact or without known ships or planet; `{ error }` when the simulator is busy or missing).
       parameters:
         - { $ref: '#/components/parameters/Uni' }
@@ -2576,6 +2579,18 @@ paths:
                         duration: { type: integer, description: One-way seconds at full speed }
                         launch: { type: integer, description: Latest launch (Unix seconds) }
                   holdPlan: { type: [integer, 'null'], description: Id of an open hold plan for the attack }
+                  holds:
+                    type: array
+                    description: Hold fleets at the planet at the impact (they defend in the simulation)
+                    items:
+                      type: object
+                      properties:
+                        member: { type: [string, 'null'], description: Member it belongs to (by fleet list or start planet) }
+                        player: { type: [string, 'null'] }
+                        from: { type: object }
+                        ships: { type: object }
+                        research: { type: object, description: The member's research (empty for others) }
+                        arrival: { type: [integer, 'null'], description: Landing at the planet; null when holding there already }
                   phalanx: { type: array, items: { type: object }, description: Hostile phalanxes reaching the planet (like `PhalanxExposure.threats`) }
                   simulated: { type: boolean, description: Ships and planet are known (a simulation is possible) }
                   sim: { type: [object, 'null'], description: 'Simulation summary (`wins`, `rounds`, `attackers`, `defenders`, `loot`, `debris`, `lostResources`, …) or `{ error }`' }

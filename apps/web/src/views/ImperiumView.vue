@@ -476,7 +476,6 @@ useAutoTour('imperium', () => !!data.value);
     <template #hint>
       <Hint>
         <p>{{ t('imperium.phalanxHint1') }}</p>
-        <p>{{ t('imperium.phalanxHint2') }}</p>
         <p>{{ t('imperium.phalanxHint3') }}</p>
       </Hint>
     </template>

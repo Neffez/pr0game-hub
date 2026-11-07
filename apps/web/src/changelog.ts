@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Angriffs-Assistent: „Voraussichtliches Kampfergebnis“ kompakt in zwei Zeilen, und Halteflotten von Mitgliedern, die zum Einschlag auf dem Planeten stehen, kämpfen in der Simulation mit. Weniger Text, besser lesbar auf dem Handy.',
+        en: 'Attack assistant: "Expected battle result" in two compact lines, and members\' hold fleets that are on the planet at the impact join the simulation. Less text, easier to read on phones.',
+      },
+      {
+        kind: 'new',
         de: 'Angriffs-Assistent: Ein Klick auf einen Angriff in der Glocke öffnet eine Seite mit Countdown, Simulation „Hält die Verteidigung?“, den Rohstoffen in Gefahr, Fleetsave-Möglichkeiten vor dem Einschlag und den Mitgliedern, die noch rechtzeitig halten können – einladen mit einem Klick.',
         en: 'Attack assistant: a click on an attack in the bell opens a page with a countdown, a "Will it hold?" simulation, the resources at risk, fleet save options before the impact and the members who can still hold in time – invite them in one click.',
       },
