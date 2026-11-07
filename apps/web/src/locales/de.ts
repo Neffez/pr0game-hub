@@ -470,7 +470,6 @@ const de = {
     targets: 'Ziele',
     raids: 'Raids',
     farm: 'Farm-Finder',
-    colonize: 'Kolonisieren',
     fleetsave: 'Fleetsave',
     health: 'Gesundheit',
     battleHall: 'Battle Hall',
@@ -1309,6 +1308,7 @@ const de = {
     allyHint: '„Allianz“: Angebot aus der eigenen Allianz oder von einer Allianz mit Main-, Wing-, Bündnis- oder Handelsbündnis-Vertrag (im Spiel grün markiert).',
   },
   colonize: {
+    tab: 'Kolonisieren',
     hint1: 'Freie Positionen aus den Galaxiedaten der Allianz, sortiert nach deinem Profil. Fleeter: Abdeckung (wie stark ein Planet dort die Wege von jedem System des Universums zu deinem nächsten Planeten verkürzt) und viele Punkte von Zielen in der Nähe zählen viel. Miner: Felder, Temperatur (Deuterium) und der Positionsbonus zählen viel.',
     hint2: 'Beide meiden Positionen, an denen schon viele Mitglieder sitzen und sich die Ziele teilen müssten. Ziele und Punkte: andere Spieler im gewählten Umkreis derselben Galaxie (jeder Spieler einmal) und im System selbst.',
     hint3: 'Position: Felder und Temperatur wie die Standarddaten des Spiels (der zweite Planet bekommt den Mittelwert, weitere einen Zufallswert im Bereich), die Positionen 1/15 brauchen Astrophysik 8, 2/14 Stufe 6, 3/13 Stufe 4. Positionsboni trägt ein Admin in den Universums-Einstellungen ein. Nur Systeme, die die Allianz in der Galaxie eingefügt hat.',

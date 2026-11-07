@@ -62,7 +62,7 @@ External analysis tool for [pr0game](https://codeberg.org/pr0game/pr0game) based
 - **Debris finder** (tab of the farm finder): open debris fields with the debris expected now (galaxy view or a member's recycling report plus
   battles since), recyclers needed, the own flight time and the nearest member with enough recyclers; debris fields
   can be claimed for recycling
-- **Colonization planner**: free positions of the known galaxy rated as a fleeter (coverage of the universe, points
+- **Colonization planner** (tab of the alliance planets): free positions of the known galaxy rated as a fleeter (coverage of the universe, points
   of targets nearby) or a miner (fields, temperature, position bonus), avoiding many members nearby, with the
   astrophysics level each position needs
 - **Moon chances** (battle hall): battles with a moon chance, expected against created moons per member, new moons at

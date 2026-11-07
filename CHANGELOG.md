@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-07
 
+- The colonization planner is now the second tab of the alliance's planets page (`/:uni/planets?tab=colonize`)
+  instead of its own menu item; `/:uni/colonize` leads there. The planets tab comes from the link (`?tab=`) and is
+  remembered per device; the profile switch moved into the planner's filter bar.
+
 - User changelog: the debris finder entry names its place as a tab of the farm finder (one entry instead of two).
 
 - The debris finder is now the third tab of the farm finder (`/:uni/farm?tab=debris`) instead of its own menu item;

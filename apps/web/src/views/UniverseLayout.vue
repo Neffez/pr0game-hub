@@ -141,7 +141,6 @@ const links = [
   { to: 'imperium', label: 'imperium', icon: 'imperium' },
   { to: 'build', label: 'build', icon: 'buildings' },
   { to: 'market', label: 'market', icon: 'market' },
-  { to: 'colonize', label: 'colonize', icon: 'flag' },
   { section: 'recon' },
   { to: 'browse', label: 'galaxy', icon: 'galaxy' },
   { to: 'spy', label: 'spy', icon: 'spy' },

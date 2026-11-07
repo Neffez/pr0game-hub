@@ -469,7 +469,6 @@ const en: typeof de = {
     targets: 'Targets',
     raids: 'Raids',
     farm: 'Farm finder',
-    colonize: 'Colonize',
     fleetsave: 'Fleet save',
     health: 'Health',
     battleHall: 'Hall of Fame',
@@ -1308,6 +1307,7 @@ const en: typeof de = {
     allyHint: '"Alliance": offered by the own alliance or by an alliance with a main, wing, alliance or trade alliance pact (marked green in the game).',
   },
   colonize: {
+    tab: 'Colonize',
     hint1: "Free positions from the alliance's galaxy data, ranked by your profile. Fleeter: coverage (how much a planet there shortens the way from every system of the universe to your nearest planet) and many points of targets nearby count most. Miner: fields, temperature (deuterium) and the position bonus count most.",
     hint2: 'Both avoid positions where many members already sit and would have to share the targets. Targets and points: other players within the chosen range of the same galaxy (each player once) and in the system itself.',
     hint3: "Position: fields and temperature like the game's default data (the second planet gets the middle, further ones a random value in the range); positions 1/15 need astrophysics 8, 2/14 level 6, 3/13 level 4. Position bonuses are set by an admin in the universe settings. Only systems the alliance pasted in the galaxy.",

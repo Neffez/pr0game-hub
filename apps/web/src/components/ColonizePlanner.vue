@@ -1,10 +1,8 @@
 <script setup lang="ts">
-import PageHeader from '../components/PageHeader.vue';
-import Hint from '../components/Hint.vue';
-import Loading from '../components/Loading.vue';
-import FilterBar, { type FilterChip } from '../components/FilterBar.vue';
-import SortBar from '../components/SortBar.vue';
-import SortMark from '../components/SortMark.vue';
+import Loading from './Loading.vue';
+import FilterBar, { type FilterChip } from './FilterBar.vue';
+import SortBar from './SortBar.vue';
+import SortMark from './SortMark.vue';
 import { positionInfo, type PositionInfo } from '@pr0hub/core/colonize';
 import { computed, onMounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -14,7 +12,7 @@ import { tables, useLiveReload } from '../live';
 import { ago, coords, fmt, short } from '../format';
 
 /**
- * Colonization planner (backlog C-5): free positions of the known galaxy ranked by profile. A fleeter wants coverage
+ * Colonization planner (backlog C-5), a tab of the alliance's planets page: free positions of the known galaxy ranked by profile. A fleeter wants coverage
  * of the universe and targets with many points nearby, a miner fields, temperature and the position bonus; both avoid
  * positions where many members compete for the same targets. Server: repo/colonize.ts, positions: @pr0hub/core/colonize.
  */
@@ -166,22 +164,12 @@ const nearTitle = (r: Row) => t('colonize.nearTitle', { range: data.value?.range
 </script>
 
 <template>
-  <PageHeader :title="t('nav.colonize')">
-    <template #hint>
-      <Hint>
-        <p>{{ t('colonize.hint1') }}</p>
-        <p>{{ t('colonize.hint2') }}</p>
-        <p>{{ t('colonize.hint3') }}</p>
-      </Hint>
-    </template>
-    <div class="seg">
-      <button :class="{ active: filter.profile === 'fleeter' }" @click="filter.profile = 'fleeter'">{{ t('colonize.profiles.fleeter') }}</button>
-      <button :class="{ active: filter.profile === 'miner' }" @click="filter.profile = 'miner'">{{ t('colonize.profiles.miner') }}</button>
-    </div>
-  </PageHeader>
-
   <FilterBar store-key="colonize" :chips="chips" @reset="resetFilters">
     <template #toolbar>
+      <div class="seg">
+        <button :class="{ active: filter.profile === 'fleeter' }" @click="filter.profile = 'fleeter'">{{ t('colonize.profiles.fleeter') }}</button>
+        <button :class="{ active: filter.profile === 'miner' }" @click="filter.profile = 'miner'">{{ t('colonize.profiles.miner') }}</button>
+      </div>
       <label class="field-inline">
         {{ t('colonize.range') }}
         <select v-model.number="filter.range">

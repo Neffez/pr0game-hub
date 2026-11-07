@@ -20,8 +20,8 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
-        de: 'Neuer Kolonisierungsplaner: freie Positionen aus der Galaxie, bewertet als Fleeter (gute Abdeckung des Universums, viele Punkte von Zielen in der Nähe) oder Miner (Felder, Temperatur, Positionsbonus) – Positionen mit vielen Mitgliedern in der Nähe rutschen nach hinten. Er zeigt auch, ab welcher Astrophysik-Stufe eine Position besiedelbar ist.',
-        en: 'New colonization planner: free positions from the galaxy, rated as a fleeter (good coverage of the universe, many points of targets nearby) or a miner (fields, temperature, position bonus) – positions with many members nearby move down. It also shows from which astrophysics level a position can be colonized.',
+        de: 'Neuer Kolonisierungsplaner als Tab bei Planeten (Allianz): freie Positionen aus der Galaxie, bewertet als Fleeter (gute Abdeckung des Universums, viele Punkte von Zielen in der Nähe) oder Miner (Felder, Temperatur, Positionsbonus) – Positionen mit vielen Mitgliedern in der Nähe rutschen nach hinten. Er zeigt auch, ab welcher Astrophysik-Stufe eine Position besiedelbar ist.',
+        en: 'New colonization planner as a tab of the planets page (alliance): free positions from the galaxy, rated as a fleeter (good coverage of the universe, many points of targets nearby) or a miner (fields, temperature, position bonus) – positions with many members nearby move down. It also shows from which astrophysics level a position can be colonized.',
       },
       {
         kind: 'new',

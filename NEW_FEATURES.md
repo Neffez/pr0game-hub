@@ -28,7 +28,7 @@ source (`pr0game`: pages, missions, achievements, advanced stats).
 | D-4 Onboarding of new members | Done | 2026-11-07 | sync page and overview (checklist), admin panel (column in the members list) |
 | G-8 Comments with mentions | Done | 2026-11-07 | comment threads, notifications (bell, push, Discord) |
 | B-6 Moon chance tracking | Done | 2026-11-07 | battle hall: section "Moon chances", moon destruction calculator with the diameter |
-| C-5 Colonization planner | Done | 2026-11-07 | new menu item "Colonize" under Start, universe settings for position bonuses |
+| C-5 Colonization planner | Done | 2026-11-07 | alliance planets page: tab "Colonize", universe settings for position bonuses |
 
 Each finished item carries a **Status** block below its description: what was built and how.
 
@@ -555,7 +555,7 @@ are interesting for their bonus. How it was built:
   same galaxy the planets of other members and in-game alliance mates (competition), other players' planets, the
   inactive ones and the total points of those players (each once) and in the system itself. Tests in
   `apps/server/test/colonize.test.ts`.
-- **Web:** `ColonizeView.vue`, menu item "Colonize" under Start. Profiles: fleeter (coverage 40 %, points nearby 30 %,
+- **Web:** `ColonizePlanner.vue`, the second tab of the alliance's planets page (`/:uni/planets?tab=colonize`; `/:uni/colonize` leads there); the profile switch sits in its filter bar. Profiles: fleeter (coverage 40 %, points nearby 30 %,
   little competition 15 %, position 15 %) and miner (position 65 %, little competition 15 %, coverage and points 10 %
   each); points count by square root (a few big players don't drown everything), the position by fields, deuterium
   and bonus. Columns: position (link to the galaxy), astrophysics needed (marked when above the own level), fields,
