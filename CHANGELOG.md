@@ -4,6 +4,8 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-07
 
+- Farm finder: the spy priority tab shows only its own info hint, no longer the targets tab's as well.
+
 - Fleet save by colonization (colony save): with a colony ship in the fleet, the fleet save planner and the attack
   assistant offer a colonization of a free position and back home (timing and fuel like a transport; with the
   maximum number of planets the game's `MissionCaseColonisation` sends the whole fleet back on arrival). Free

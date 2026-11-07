@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-07',
     items: [
       {
+        kind: 'fix',
+        de: 'Farm-Finder: Der Tab Spionage-Priorität zeigt nur noch seinen eigenen Hinweis, nicht zusätzlich den vom Tab Ziele.',
+        en: 'Farm finder: the spy priority tab now shows only its own hint, no longer the one of the targets tab as well.',
+      },
+      {
         kind: 'new',
         de: 'Fleetsave-Planer und Angriffsassistent kennen jetzt den Kolo-Save: Mit maximaler Anzahl an Planeten schickst du die ganze Flotte mit einem Kolonieschiff auf einen freien Platz aus der Galaxieansicht, und sie kommt zurück – mit Abflugzeit, Rückkehr und Deuterium wie bei den anderen Saves.',
         en: 'The fleet save planner and the attack assistant now know the colony save: with the maximum number of planets, send the whole fleet with a colony ship to a free position from the galaxy view, and it comes back – with departure, return and deuterium like the other saves.',
