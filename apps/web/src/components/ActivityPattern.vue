@@ -4,7 +4,7 @@ import Section from './Section.vue';
 import Hint from './Hint.vue';
 import Icon from './Icon.vue';
 import DateTimeInput from './DateTimeInput.vue';
-import { Chart, registerables, type ChartDataset } from 'chart.js';
+import { Chart, type ChartDataset } from '../chart';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
@@ -15,7 +15,6 @@ import { dateTime } from '../format';
 import { fromLocalInput, toLocalInput } from '../plans';
 import { toast } from '../toast';
 
-Chart.register(...registerables);
 
 /** Activity pattern of a player over the day (player page), with the manual "online now" reports. */
 const props = defineProps<{ player: number }>();

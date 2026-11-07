@@ -20,6 +20,21 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Sicherheit: Beim Ändern von Passwort oder Benutzernamen sind nur noch 10 falsche Eingaben des aktuellen Passworts in 15 Minuten möglich, danach wird gesperrt.',
+        en: 'Security: when changing the password or username, only 10 wrong entries of the current password are allowed within 15 minutes, then it locks.',
+      },
+      {
+        kind: 'fix',
+        de: 'Sicherheit: Die Sperre nach zu vielen falschen Passwörtern lässt sich nicht mehr umgehen, indem viele Anmeldeversuche gleichzeitig geschickt werden.',
+        en: 'Security: the lock after too many wrong passwords can no longer be bypassed by sending many login attempts at once.',
+      },
+      {
+        kind: 'new',
+        de: 'Der Hub ist schneller: Seiten und Daten werden komprimiert übertragen, beim Start wird nur deine Sprache geladen, und Übersicht, Allianz und Planung laden die Imperien der Mitglieder deutlich schneller.',
+        en: 'The hub is faster: pages and data are sent compressed, only your language is loaded at the start, and overview, alliance and planning load the members\' empires much faster.',
+      },
+      {
+        kind: 'fix',
         de: 'Sicherheit: Spieler ohne Konto, die in mehreren Allianzen eingetragen sind, kann nur noch ein Admin aller dieser Allianzen per Einladungslink oder Zugangsanfrage vergeben. So kommt niemand über einen solchen Spieler an die Daten einer fremden Allianz.',
         en: 'Security: players without an account who are in several alliances can only be handed out by invite link or access request by an admin of all those alliances. Nobody gets at another alliance\'s data through such a player.',
       },

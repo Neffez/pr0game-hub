@@ -75,7 +75,10 @@ export class AlertSchedule {
 export class GroupDebounce {
   private timers = new Map<number, ReturnType<typeof setTimeout>>();
 
-  constructor(private run: (groupId: number) => void) {}
+  constructor(
+    private run: (groupId: number) => void,
+    private delayMs = DEBOUNCE_MS,
+  ) {}
 
   /** Starts listening; returns the unsubscribe. */
   listen(bus: EventBus): () => void {
@@ -87,7 +90,7 @@ export class GroupDebounce {
         setTimeout(() => {
           this.timers.delete(groupId);
           this.run(groupId);
-        }, DEBOUNCE_MS),
+        }, this.delayMs),
       );
     });
   }

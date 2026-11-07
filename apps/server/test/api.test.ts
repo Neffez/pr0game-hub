@@ -999,10 +999,10 @@ row(1, 'aa'.repeat(16), 'Alpha', 'Beta', '01. Nov 2026, 10:00:00', '9.000.000'))
         headers: { 'x-forwarded-for': `198.51.100.${n}, 203.0.113.7` },
         payload: { username: `nobody${n}`, password: 'wrongpass' },
       });
-    const codes: number[] = [];
-    for (let n = 0; n < 31; n++) codes.push((await attempt(n)).statusCode);
-    expect(codes.slice(0, 30).every((c) => c === 401)).toBe(true);
-    expect(codes[30]).toBe(429);
+    // the failed attempts side by side: each costs a scrypt, which runs in the thread pool
+    const codes = (await Promise.all(Array.from({ length: 30 }, (_, n) => attempt(n)))).map((r) => r.statusCode);
+    expect(codes.every((c) => c === 401)).toBe(true);
+    expect((await attempt(30)).statusCode).toBe(429);
   });
 
   it('ingests a galaxy view and needs a session', async () => {
@@ -1022,17 +1022,30 @@ row(1, 'aa'.repeat(16), 'Alpha', 'Beta', '01. Nov 2026, 10:00:00', '9.000.000'))
 
 describe('review fixes', () => {
   it('rate limits failed logins', async () => {
-    let last = 0;
-    for (let i = 0; i < 11; i++) {
-      last = (await app.inject({ method: 'POST', url: '/hub/api/auth/login', payload: { username: 'nobody', password: 'x' } })).statusCode;
+    const attempt = async () => (await app.inject({ method: 'POST', url: '/hub/api/auth/login', payload: { username: 'nobody', password: 'x' } })).statusCode;
+    expect(await Promise.all(Array.from({ length: 10 }, attempt))).toEqual(Array(10).fill(401));
+    expect(await attempt()).toBe(429);
+  });
+
+  it('counts attempts sent side by side before their password check ends', async () => {
+    const attempt = async (username: string, password: string, remoteAddress: string) =>
+      (await app.inject({ method: 'POST', url: '/hub/api/auth/login', remoteAddress, payload: { username, password } })).statusCode;
+    // a burst for one username: only the first 10 get to the password check
+    const codes = await Promise.all(Array.from({ length: 25 }, () => attempt('burst', 'x', '10.0.0.21')));
+    expect(codes.filter((c) => c === 401)).toHaveLength(10);
+    expect(codes.filter((c) => c === 429)).toHaveLength(15);
+    // successful logins take their count back once done: 40 in rounds of 10 never use up the IP's budget of 30
+    for (let round = 0; round < 4; round++) {
+      expect(await Promise.all(Array.from({ length: 10 }, () => attempt('admin', 'adminpass', '10.0.0.22')))).toEqual(Array(10).fill(200));
     }
-    expect(last).toBe(429);
+    expect(await attempt('nobody', 'x', '10.0.0.22')).toBe(401);
   });
 
   it('rate limits failed logins per IP across usernames', async () => {
     const attempt = async (username: string) =>
       (await app.inject({ method: 'POST', url: '/hub/api/auth/login', remoteAddress: '10.0.0.9', payload: { username, password: 'x' } })).statusCode;
-    for (let i = 0; i < 30; i++) expect(await attempt(`user${i}`)).toBe(401);
+    // side by side: each failed attempt costs a scrypt, which runs in the thread pool
+    expect(await Promise.all(Array.from({ length: 30 }, (_, i) => attempt(`user${i}`)))).toEqual(Array(30).fill(401));
     expect(await attempt('another')).toBe(429);
   });
 

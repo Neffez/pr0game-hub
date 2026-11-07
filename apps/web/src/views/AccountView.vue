@@ -233,7 +233,7 @@ const saveMessageShare = () =>
 // switch right away, then store it on the account (applies on other devices after the next login/reload)
 const saveLang = () =>
   run(async () => {
-    setLocale(lang.value);
+    await setLocale(lang.value);
     await api('/auth/lang', { body: { lang: lang.value } });
     if (session.me?.user) session.me.user.lang = lang.value;
   }, () => t('account.languageChanged'));

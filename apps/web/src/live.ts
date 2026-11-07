@@ -1,5 +1,5 @@
 import { onBeforeUnmount, ref } from 'vue';
-import { uniApi } from './api';
+import { session, uniApi } from './api';
 import { useStored } from './composables';
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, '') + '/api';
@@ -212,9 +212,11 @@ export const tables =
 
 /**
  * Reloads a view when matching data arrives: debounced (a paste of many messages, several members syncing at
- * once), and in a hidden tab only once it is shown again. Reloads after a reconnect too.
+ * once), and in a hidden tab only once it is shown again. Reloads after a reconnect too. Another member's sync reaches
+ * every open tab of the group at once: up to `spread` ms more at random keep their reloads from hitting the server
+ * all in the same moment (an own sync reloads after `delay`).
  */
-export function useLiveReload(load: () => unknown, match: (e: DataEvent) => boolean, delay = 1000) {
+export function useLiveReload(load: () => unknown, match: (e: DataEvent) => boolean, delay = 1000, spread = 1500) {
   let timer: ReturnType<typeof setTimeout> | undefined;
   let dirty = false;
   const run = () => {
@@ -229,8 +231,9 @@ export function useLiveReload(load: () => unknown, match: (e: DataEvent) => bool
   };
   useLive((e) => {
     if (!(e.type === 'resync' || (e.type === 'data' && match(e)))) return;
+    const own = e.type === 'data' && e.userId != null && e.userId === session.me?.user?.id;
     clearTimeout(timer);
-    timer = setTimeout(run, delay);
+    timer = setTimeout(run, delay + (own ? 0 : Math.random() * spread));
   });
   document.addEventListener('visibilitychange', onVisible);
   onBeforeUnmount(() => {

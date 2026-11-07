@@ -4,6 +4,39 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-07
 
+- Security: changing the password or the username checks the current password at most 10 times wrong per account
+  within 15 minutes (both share the count, attempts count from their start, a correct password clears it); before,
+  a stolen session could try out the password without limit. The OpenAPI spec documents their 400, 409 and 429.
+
+- Security: the login limit can no longer be bypassed with attempts sent side by side. An attempt counted only once
+  its password check (scrypt, tens of milliseconds) had failed, so a burst passed the check before the first of them
+  counted; now it counts from its start and a successful login takes its count back. The OpenAPI spec documents the
+  login's 401 and 429.
+
+- Faster tests (about 7 s less in total): the empire page and raid planner tests move a fake second clock on instead
+  of waiting 2.2 s, the push test shortens the delivery debounce (new `debounceMs` option of the push service, default
+  still 2 s), and the login rate limit tests send their failed attempts side by side.
+
+- Performance:
+  - The hub compresses its answers: API responses from 1 KB with brotli (fast level) or gzip via `@fastify/compress`,
+    the web app's files precompressed by its build (`.br` and `.gz` at the highest level, a small Vite plugin) and
+    served by `@fastify/static` with `preCompressed`. The event stream is hijacked and stays uncompressed.
+  - Newest empire page per member (`latestEmpires`, used by the overview, members, plans, settlements, players,
+    galaxy and imperium): the ids come from the index alone, the pages themselves are only read when not parsed
+    before. Before, every page of the last week was read with its data on each call (about 8× faster in a benchmark
+    with 40 members and 100 pages each). Parsed pages are kept across requests by snapshot id (500 at most); the
+    current ids are read with the request's group every time and an entry is only used for its own group, so neither
+    stale pages nor pages of another group can come out. The kept records are frozen.
+  - Only the language in use is downloaded: German and English texts are chunks of their own, loaded before the app
+    starts and on a language switch (the start chunk with Vue and the texts shrinks from 143 to 46 KB gzip, plus
+    about 50 KB for the one language).
+  - Charts register only the Chart.js parts they use (line and scatter, linear scales, legend, tooltip, fill).
+  - Live reloads after another member's sync wait up to 1.5 s more at random, so the open tabs of a group don't all
+    reload in the same moment; an own sync reloads as before.
+  - New indexes: players by alliance (the alliance search counted players with a full scan per alliance), activity
+    log and attack plans by player (merging/deleting players, taking a sync back), attack plans by target time (launch
+    reminders), sent push/Discord notifications by age, loot settlements by group.
+
 - Security: alliance admins can no longer get into another alliance through a placeholder member that is in several
   alliances (e.g. added to the alliance of a new universe). Claim links and access request assignments for such a
   placeholder need a global admin or an admin of every alliance it belongs to (whoever takes it over becomes a member

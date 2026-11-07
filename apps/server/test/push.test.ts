@@ -18,7 +18,7 @@ const sender = vi.fn(async (target: { endpoint: string }, payload: string) => {
 });
 
 const db = openDb(':memory:');
-const app = buildApp(db, { logger: false, push: { contact: 'mailto:hub@example.com', sender } });
+const app = buildApp(db, { logger: false, push: { contact: 'mailto:hub@example.com', sender, debounceMs: 50 } });
 let groupA = 0;
 let groupB = 0;
 let playerA = 0;
@@ -163,7 +163,7 @@ describe('push delivery', () => {
   it('delivers by itself after a data event of the group', { timeout: 10_000 }, async () => {
     await call('POST', '/u8/comments', h.carol, { c: '1:50:7', type: 'planet', body: 'Farm' });
     await call('POST', '/u8/comments', h.dave, { c: '1:50:7', type: 'planet', body: 'Mine now' });
-    await vi.waitFor(() => expect(to('https://fcm.googleapis.com/fcm/send/carol').length).toBeGreaterThan(0), { timeout: 5000, interval: 100 });
+    await vi.waitFor(() => expect(to('https://fcm.googleapis.com/fcm/send/carol').length).toBeGreaterThan(0), { timeout: 5000, interval: 20 });
     expect(to('https://fcm.googleapis.com/fcm/send/carol')[0].payload.url).toBe(`/hub/u8/spy?c=1%3A50%3A7&type=planet&group=${groupA}`);
   });
 

@@ -110,7 +110,9 @@ export const verifyPasswordOrDummy = async (password: string, stored: string | u
 
 /**
  * In-memory brute-force limit: max `limit` failed logins per key within `windowSec`. Logins count per IP and
- * username and, with a higher limit, per IP alone (rotating usernames).
+ * username and, with a higher limit, per IP alone (rotating usernames). A login counts as failed from its start
+ * (`loginFailed` before the password check, which waits for scrypt) and is taken back when it succeeds: attempts sent
+ * side by side can't all pass the check before the first of them counts.
  */
 const failures = new Map<string, { n: number; reset: number }>();
 export function loginBlocked(key: string, limit = 10): boolean {
@@ -125,6 +127,12 @@ export function loginFailed(key: string, windowSec = 900) {
   if (failures.size > 10000) for (const [k, v] of failures) if (v.reset <= now()) failures.delete(k);
 }
 export const loginSucceeded = (key: string) => void failures.delete(key);
+/** Takes back one attempt counted by `loginFailed` (it succeeded). */
+export function loginRetracted(key: string) {
+  const e = failures.get(key);
+  if (!e) return;
+  if (--e.n <= 0) failures.delete(key);
+}
 
 export const randomToken = (bytes = 32) => randomBytes(bytes).toString('base64url');
 const sha256 = (s: string) => createHash('sha256').update(s).digest('hex');
