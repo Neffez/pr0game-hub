@@ -8,9 +8,8 @@ import { ownerOf, phalanxFactor, phalanxMoons, systemDistance } from '../repo/ph
 import { latestScores } from '../repo/stats.js';
 import { contextOf, DISPLAY, MEMBER } from './util.js';
 import { debrisAmount } from '@pr0hub/core';
+import { lastDebrisCleanup } from '@pr0hub/core/universe';
 
-/** Signs of a debris field count this long (the game deletes the fields once a week). */
-const DEBRIS_KEEP = 7 * 86400;
 
 export function galaxyRoutes(app: FastifyInstance, db: DB) {
   const ctxOf = contextOf(db);
@@ -25,40 +24,44 @@ export function galaxyRoutes(app: FastifyInstance, db: DB) {
   });
 
   /**
-   * Debris fields of galaxies (`g=1,2`) that exist by the group's data: recyclers can only fly to an existing field (it
-   * may be harvested and invisible, the game deletes the fields once a week). `visible`: the galaxy shows debris there
-   * now; otherwise the newest sign within `DEBRIS_KEEP` (debris seen or cleared, a battle leaving debris, a recycling
-   * report), which the weekly deletion may have removed since. Fleet save targets for recyclers.
+   * Debris fields of galaxies (`g=1,2`) that recyclers can fly to by the group's data. The game allows it while the
+   * field holds debris or is active (a battle left debris there since its weekly cleaner, `lastDebrisCleanup`; the
+   * cleaner marks all fields inactive, harvesting empties a field but keeps it active). `sure`: active since the last
+   * cleaner run, or the galaxy showed debris after it; otherwise the galaxy showed debris before the run, which may be
+   * harvested since (then the empty field is gone).
    */
   app.get<{ Params: { uni: string }; Querystring: { g?: string } }>('/api/:uni/debris-fields', async (req) => {
     const ctx = ctxOf(req);
     const max = ctx.universe.settings.galaxies;
     const galaxies = [...new Set(String(req.query.g ?? '').split(',').map(Number).filter((g) => Number.isInteger(g) && g >= 1 && g <= max))].slice(0, 10);
-    const since = ctx.now - DEBRIS_KEEP;
+    const cleanup = lastDebrisCleanup(ctx.universe.settings, ctx.now);
     const fields = Object.fromEntries(
       galaxies.map((g) => {
-        const out = new Map<string, { s: number; p: number; visible: boolean; time: number }>();
-        const seen = (s: number, p: number, time: number, visible = false) => {
-          const cur = out.get(`${s}:${p}`);
-          out.set(`${s}:${p}`, { s, p, visible: visible || !!cur?.visible, time: Math.max(time, cur?.time ?? 0) });
-        };
+        const out = new Map<string, { s: number; p: number; visible: boolean; active: boolean; time: number; sure: boolean }>();
+        const get = (s: number, p: number) => out.get(`${s}:${p}`) ?? { s, p, visible: false, active: false, time: 0, sure: false };
         for (const r of db.prepare('SELECT s, p, debris, updated_at FROM planets WHERE group_id = ? AND g = ? AND debris IS NOT NULL').all(ctx.groupId, g) as
           { s: number; p: number; debris: string; updated_at: number }[]) {
           const d = JSON.parse(r.debris) as { metal: string; crystal: string };
-          if (debrisAmount(d.metal) + debrisAmount(d.crystal) > 0) seen(r.s, r.p, r.updated_at, true);
+          if (debrisAmount(d.metal) + debrisAmount(d.crystal) <= 0) continue;
+          const f = get(r.s, r.p);
+          out.set(`${r.s}:${r.p}`, { ...f, visible: true, time: Math.max(f.time, r.updated_at) });
         }
-        const signs = db
+        // debris created since the cleaner: battles leaving debris, debris appearing or growing in the galaxy
+        const created = db
           .prepare(
-            `SELECT s, p, time FROM activity_log WHERE group_id = ? AND g = ? AND kind LIKE 'debris_%' AND time >= ?
-             UNION ALL SELECT s, p, COALESCE(time, created_at) FROM battle_reports WHERE group_id = ? AND g = ? AND debris_metal + debris_crystal > 0 AND COALESCE(time, created_at) >= ?
-             UNION ALL SELECT s, p, COALESCE(time, created_at) FROM recycle_reports WHERE group_id = ? AND g = ? AND COALESCE(time, created_at) >= ?`,
+            `SELECT s, p, time FROM activity_log WHERE group_id = ? AND g = ? AND kind IN ('debris_new', 'debris_grown') AND time >= ?
+             UNION ALL SELECT s, p, COALESCE(time, created_at) FROM battle_reports WHERE group_id = ? AND g = ? AND debris_metal + debris_crystal > 0 AND COALESCE(time, created_at) >= ?`,
           )
-          .all(ctx.groupId, g, since, ctx.groupId, g, since, ctx.groupId, g, since) as { s: number; p: number; time: number }[];
-        for (const r of signs) seen(r.s, r.p, r.time);
-        return [g, [...out.values()].sort((a, b) => a.s - b.s || a.p - b.p)];
+          .all(ctx.groupId, g, cleanup, ctx.groupId, g, cleanup) as { s: number; p: number; time: number }[];
+        for (const r of created) {
+          const f = get(r.s, r.p);
+          out.set(`${r.s}:${r.p}`, { ...f, active: true, time: Math.max(f.time, r.time) });
+        }
+        const list = [...out.values()].map((f) => ({ ...f, sure: f.active || (f.visible && f.time >= cleanup) }));
+        return [g, list.sort((a, b) => a.s - b.s || a.p - b.p)];
       }),
     );
-    return { fields };
+    return { fields, cleanup };
   });
 
   /** Per system of a galaxy: occupied positions, own/alliance planets and when it was last seen (navigation strip). */

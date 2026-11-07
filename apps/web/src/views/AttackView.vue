@@ -97,12 +97,13 @@ const from = computed<SaveTarget | null>(() => (data.value?.target ? { coords: [
 const targets = computed<SaveTarget[]>(() => (data.value?.bodies ?? []).map((b) => ({ coords: [b.g, b.s, b.p], type: b.type, name: b.name })));
 /** existing debris fields of the target's galaxy: recycling targets */
 const fields = ref<Record<string, DebrisField[]>>({});
+const cleanup = ref<number | null>(null);
 watch(
   () => data.value?.target?.g,
   async (g) => {
     if (g == null) return;
     try {
-      fields.value = (await uniApi<{ fields: Record<string, DebrisField[]> }>(uni.value, `/debris-fields?g=${g}`)).fields;
+      ({ fields: fields.value, cleanup: cleanup.value } = await uniApi<{ fields: Record<string, DebrisField[]>; cleanup: number }>(uni.value, `/debris-fields?g=${g}`));
     } catch {
       /* without them no recycling */
     }
@@ -240,7 +241,7 @@ const openHelpers = computed(() => (data.value?.helpers ?? []).filter((h) => h.l
       <p v-else-if="!from" class="muted small m-0">{{ t('attack.noEmpire') }}</p>
       <FleetSaveOptions
         v-else :from="from" :values="data.target!.values" :research="data.research" :deuterium="deuterium" :targets="targets"
-        :now="now" :latest="a.arrival - 1" :back="a.arrival + 1" :kinds="['deploy', 'transport', 'harvest', 'recall']" :fields="fields"
+        :now="now" :latest="a.arrival - 1" :back="a.arrival + 1" :kinds="['deploy', 'transport', 'harvest', 'recall']" :fields="fields" :cleanup="cleanup"
       />
     </Section>
 

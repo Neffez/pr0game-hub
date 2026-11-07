@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-07',
     items: [
       {
+        kind: 'fix',
+        de: 'Fleetsave mit Recyclern kennt jetzt das wöchentliche Löschen der Trümmerfelder (Standard Samstag 02:45, im Admin-Panel einstellbar): Abgebaute Felder zählen nur, wenn seitdem dort gekämpft wurde.',
+        en: 'Fleet save with recyclers now knows the weekly cleanup of debris fields (Saturday 02:45 by default, set in the admin panel): harvested fields only count when there was a battle since.',
+      },
+      {
         kind: 'new',
         de: 'Die Allianz-Gesundheit sieht jetzt jedes Mitglied. Wer seinen Online-Status ausgeblendet hat, dessen letzten Besuch sehen weiterhin nur Admins.',
         en: 'Every member can now see the alliance health. The last visit of members who hide their online status stays visible to admins only.',

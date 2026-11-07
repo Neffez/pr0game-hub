@@ -89,7 +89,7 @@ describe('fleet save and attack assistant', () => {
     setLocale('de');
     localStorage.clear();
     vi.stubGlobal('fetch', async (url: string) => {
-      const body = url.includes('/attack-assist') ? assist : url.includes('/imperium') ? imperium : url.includes('/debris-fields') ? { fields: { 1: [{ s: 100, p: 5, visible: true, time: now }, { s: 130, p: 9, visible: false, time: now - 86400 }] } } : [];
+      const body = url.includes('/attack-assist') ? assist : url.includes('/imperium') ? imperium : url.includes('/debris-fields') ? { cleanup: now - 3600, fields: { 1: [{ s: 100, p: 5, visible: true, active: false, sure: true, time: now }, { s: 130, p: 9, visible: true, active: false, sure: false, time: now - 86400 }] } } : [];
       return new Response(JSON.stringify(body), { headers: { 'content-type': 'application/json' } });
     });
   });

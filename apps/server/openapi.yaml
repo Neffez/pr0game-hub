@@ -991,6 +991,9 @@ components:
         pr0planUrl: { type: string, default: 'https://pr0sync.pages.dev/', description: 'pr0plan linked from the build order tab (`pr0plan_url_invalid` when not http(s))' }
         inactiveDays: { type: [number, 'null'], minimum: 0, description: Days without login until the game flags a player inactive (default 7) }
         phalanxRangeFactor: { type: [number, 'null'], minimum: 0, description: Game config phalanx_range_factor (default 1; phalanx coverage) }
+        debrisCleanupDay: { type: [integer, 'null'], minimum: 0, maximum: 6, description: 'Weekday of the game''s weekly debris cleaner (CleanerCronjob), 0 Sunday … 6 Saturday (default 6)' }
+        debrisCleanupHour: { type: [integer, 'null'], minimum: 0, maximum: 23, description: Hour of the debris cleaner in the universe's time zone (default 2) }
+        debrisCleanupMinute: { type: [integer, 'null'], minimum: 0, maximum: 59, description: Minute of the debris cleaner (default 45) }
         missileRangeFactor: { type: [number, 'null'], minimum: 0, description: Game config missile_range_factor (default 1; passed on to the IPM calculator) }
         noobLimit: { type: [number, 'null'], minimum: 0, description: Game config noob_protection_time (default 0 = unknown) }
         noobFactor: { type: [number, 'null'], minimum: 0, description: Game config noob_protection_multi (default 5) }
@@ -2525,10 +2528,12 @@ paths:
       tags: [Universe]
       operationId: getDebrisFields
       description: >-
-        Debris fields of up to 10 galaxies that exist by the group's data, per galaxy: `visible` when the galaxy shows
-        debris there now, otherwise the newest sign of the last 7 days (debris seen or cleared, a battle leaving
-        debris, a recycling report; the game deletes the fields once a week, so such a field may be gone). Recyclers
-        can fly to a field only while it exists (also harvested empty): fleet save targets.
+        Debris fields of up to 10 galaxies that recyclers can fly to by the group's data (fleet save targets). The game
+        allows recycling while a field holds debris or is active: a battle left debris there since its weekly cleaner
+        (the universe's `debrisCleanup*` settings, default Saturday 02:45), which marks all fields inactive. `visible`:
+        the galaxy shows debris there; `active`: debris was created since the last cleaner run (battle report, debris
+        appearing or growing); `sure`: active, or the debris was seen after the run (otherwise it may have been
+        harvested since and the empty field is gone); `time`: the newest sign; `cleanup`: the last cleaner run.
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
@@ -2551,7 +2556,10 @@ paths:
                           s: { type: integer }
                           p: { type: integer }
                           visible: { type: boolean }
+                          active: { type: boolean }
+                          sure: { type: boolean }
                           time: { type: integer, description: Newest sign of the field (Unix seconds) }
+                  cleanup: { type: integer, description: The last run of the weekly debris cleaner (Unix seconds) }
   /api/{uni}/alliance-health:
     get:
       tags: [Universe]

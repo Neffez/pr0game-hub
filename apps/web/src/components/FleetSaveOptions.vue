@@ -12,6 +12,10 @@ export interface DebrisField {
   s: number;
   p: number;
   visible: boolean;
+  /** debris created since the weekly cleaner: flyable also when harvested empty */
+  active: boolean;
+  /** active, or debris seen after the cleaner */
+  sure: boolean;
   time: number;
 }
 
@@ -31,6 +35,8 @@ const props = withDefaults(
     targets: SaveTarget[];
     /** existing debris fields per galaxy (`/debris-fields`): recycling targets (`harvest`) */
     fields?: Record<string, DebrisField[]>;
+    /** the last run of the weekly debris cleaner (`/debris-fields`) */
+    cleanup?: number | null;
     now: number;
     latest: number;
     back: number;
@@ -66,7 +72,7 @@ const fieldTargets = computed<SaveTarget[]>(() => {
   const [g] = props.from.coords;
   const seen = new Set<number>();
   const out: SaveTarget[] = [];
-  for (const f of [...(props.fields[g] ?? [])].sort((a, b) => Number(b.visible) - Number(a.visible))) {
+  for (const f of [...(props.fields[g] ?? [])].sort((a, b) => Number(b.sure) - Number(a.sure))) {
     const coords: [number, number, number] = [g, f.s, f.p];
     const d = distance(u, props.from.coords, coords);
     if (seen.has(d)) continue;
@@ -75,11 +81,11 @@ const fieldTargets = computed<SaveTarget[]>(() => {
   }
   return out;
 });
-/** a debris field only seen before (harvested or older): the weekly deletion may have removed it */
-const unsure = (x: SaveTarget) => x.type === 'debris' && !props.fields?.[x.coords[0]]?.find((f) => f.s === x.coords[1] && f.p === x.coords[2])?.visible;
+/** debris only seen before the weekly cleaner: harvested since, the empty field could no longer be flown to */
+const unsure = (x: SaveTarget) => x.type === 'debris' && !props.fields?.[x.coords[0]]?.find((f) => f.s === x.coords[1] && f.p === x.coords[2])?.sure;
 const fieldTitle = (x: SaveTarget) => {
   const f = props.fields?.[x.coords[0]]?.find((y) => y.s === x.coords[1] && y.p === x.coords[2]);
-  return f && !f.visible ? t('fleetsave.fieldUnsure', { time: dateTime(f.time) }) : undefined;
+  return f && !f.sure ? t('fleetsave.fieldUnsure', { time: dateTime(f.time), cleanup: props.cleanup ? dateTime(props.cleanup) : '–' }) : undefined;
 };
 const options = computed(() =>
   Object.keys(fleet.value).length

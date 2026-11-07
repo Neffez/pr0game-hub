@@ -130,18 +130,28 @@ describe('hostile phalanx exposure', () => {
 });
 
 describe('debris fields', () => {
-  it('lists the debris fields that exist: visible now or seen within a week', async () => {
+  it('lists the fields recyclers can fly to: debris seen or a battle since the weekly cleaner', async () => {
+    const { lastDebrisCleanup } = await import('@pr0hub/core/universe');
+    const cleanup = lastDebrisCleanup({ timezone: 'Europe/Berlin' }, now());
     const debris = JSON.stringify({ metal: '1.2K', crystal: '300' });
-    db.prepare('UPDATE planets SET debris = ? WHERE group_id = ? AND g = 1 AND s = 120 AND p = 1').run(debris, group);
-    db.prepare("INSERT INTO activity_log (group_id, time, kind, g, s, p, data, dedupe_key) VALUES (?, ?, 'debris_cleared', 1, 101, 2, '{}', 'a')").run(group, t - 86400);
-    db.prepare("INSERT INTO activity_log (group_id, time, kind, g, s, p, data, dedupe_key) VALUES (?, ?, 'debris_cleared', 1, 95, 4, '{}', 'b')").run(group, t - 9 * 86400);
-    db.prepare(
+    // seen after the cleaner run: sure; seen only before it: may be harvested and gone since
+    db.prepare('UPDATE planets SET debris = ?, updated_at = ? WHERE group_id = ? AND g = 1 AND s = 120 AND p = 1').run(debris, cleanup + 1, group);
+    db.prepare('UPDATE planets SET debris = ?, updated_at = ? WHERE group_id = ? AND g = 1 AND s = 95 AND p = 4').run(debris, cleanup - 3600, group);
+    // harvested empty: active only with a battle since the cleaner (a cleared field alone does not count)
+    db.prepare("INSERT INTO activity_log (group_id, time, kind, g, s, p, data, dedupe_key) VALUES (?, ?, 'debris_cleared', 1, 101, 2, '{}', 'a')").run(group, cleanup + 1);
+    const battle = db.prepare(
       `INSERT INTO battle_reports (group_id, dedupe_key, g, s, p, planet_type, time, lost_attacker, lost_defender, loot_metal, loot_crystal, loot_deuterium, debris_metal, debris_crystal)
-       VALUES (?, 'r1', 1, 104, 3, 'planet', ?, 0, 0, 0, 0, 0, 5000, 2000)`,
-    ).run(group, t - 3600);
+       VALUES (?, ?, 1, ?, 3, 'planet', ?, 0, 0, 0, 0, 0, 5000, 2000)`,
+    );
+    battle.run(group, 'r1', 104, cleanup + 1);
+    battle.run(group, 'r2', 110, cleanup - 60);
     const res = await get('/debris-fields?g=1,9,x');
     expect(Object.keys(res.fields)).toEqual(['1']);
-    expect(res.fields[1].map((f: any) => [f.s, f.p, f.visible])).toEqual([[101, 2, false], [104, 3, false], [120, 1, true]]);
-    expect(res.fields[1][0].time).toBe(t - 86400);
+    expect(res.cleanup).toBe(cleanup);
+    expect(res.fields[1].map((f: any) => [f.s, f.p, f.visible, f.active, f.sure])).toEqual([
+      [95, 4, true, false, false],
+      [104, 3, false, true, true],
+      [120, 1, true, false, true],
+    ]);
   });
 });

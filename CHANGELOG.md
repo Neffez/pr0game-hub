@@ -4,6 +4,14 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-07
 
+- Debris fields for recycling follow the game's weekly cleaner (`CleanerCronjob`, Saturday 02:45 server time by
+  default): it marks all fields inactive, and a harvested empty field can be flown to again only after a battle
+  leaves debris there. New universe settings `debrisCleanupDay` (0 Sunday … 6 Saturday), `debrisCleanupHour` and
+  `debrisCleanupMinute` (admin panel, combat section; `lastDebrisCleanup` in `@pr0hub/core/universe`).
+  `/debris-fields` now returns `active` (debris created since the last run: battle report, debris appearing or
+  growing), `sure` (active, or debris seen after the run) and `cleanup`; debris seen only before the run is "DF?". The
+  7-day window and recycling reports as signs are gone.
+
 - Alliance health is open to every member of the alliance (menu item for everyone, `GET /api/:uni/alliance-health`
   without the admin check). The last hub visit and the `away` flag of members who hide their online status are only
   shown to themselves and to admins (`onlineHidden`), like on the player page.

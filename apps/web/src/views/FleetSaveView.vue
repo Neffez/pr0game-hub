@@ -44,11 +44,12 @@ const win = useStored<{ from: string; to: string }>('fleetsave.window', { from: 
 const kinds = useStored<{ deploy: boolean; transport: boolean; harvest?: boolean }>('fleetsave.kinds', { deploy: true, transport: true, harvest: true });
 /** existing debris fields of the own galaxies: recycling targets */
 const fields = ref<Record<string, DebrisField[]>>({});
+const cleanup = ref<number | null>(null);
 async function loadFields() {
   const gs = [...new Set((data.value?.empire?.data.planets ?? []).map((b) => b.coords.g))];
   if (!gs.length) return;
   try {
-    fields.value = (await uniApi<{ fields: Record<string, DebrisField[]> }>(uni.value, `/debris-fields?g=${gs.join(',')}`)).fields;
+    ({ fields: fields.value, cleanup: cleanup.value } = await uniApi<{ fields: Record<string, DebrisField[]>; cleanup: number }>(uni.value, `/debris-fields?g=${gs.join(',')}`));
   } catch {
     /* without them no recycling */
   }
@@ -168,7 +169,7 @@ const kindList = computed(() => (['deploy', 'transport', 'harvest'] as const).fi
     </p>
     <FleetSaveOptions
       :from="r.from" :values="r.b.values" :research="research" :deuterium="deuterium(r.b)" :targets="targets"
-      :now="now" :latest="offline.latest" :back="offline.back" :kinds="kindList" :fields="fields"
+      :now="now" :latest="offline.latest" :back="offline.back" :kinds="kindList" :fields="fields" :cleanup="cleanup"
     />
   </div>
   <p v-if="withShips.length" class="muted small" data-tour="fleetsave-remind">

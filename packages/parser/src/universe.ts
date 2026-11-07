@@ -4,6 +4,7 @@
  */
 import type { UnitOverrides } from './units.js';
 import { validateUnits } from './units.js';
+import { localToEpoch } from './util.js';
 
 export interface UniverseSettings {
   galaxies: number;
@@ -42,6 +43,14 @@ export interface UniverseSettings {
   inactiveDays?: number;
   /** game config phalanx_range_factor */
   phalanxRangeFactor?: number;
+  /**
+   * The game's weekly cleaner (`CleanerCronjob`, default Saturday 02:45 server time): it marks all debris fields
+   * inactive, so a harvested empty field can no longer be flown to until a battle leaves debris there again. Weekday
+   * like cron (0 Sunday … 6 Saturday), hour and minute in the universe's time zone.
+   */
+  debrisCleanupDay?: number;
+  debrisCleanupHour?: number;
+  debrisCleanupMinute?: number;
   /** game config missile_range_factor (passed on to the IPM calculator) */
   missileRangeFactor?: number;
   /** game config noob_protection_time (points; 0 unknown) */
@@ -87,6 +96,9 @@ export const UNIVERSE_DEFAULTS: UniverseSettings = {
 export const OPTIONAL_DEFAULTS = {
   inactiveDays: 7,
   phalanxRangeFactor: 1,
+  debrisCleanupDay: 6,
+  debrisCleanupHour: 2,
+  debrisCleanupMinute: 45,
   missileRangeFactor: 1,
   noobLimit: 0,
   noobFactor: 5,
@@ -100,6 +112,29 @@ export const OPTIONAL_DEFAULTS = {
 export const INACTIVE_DAYS = OPTIONAL_DEFAULTS.inactiveDays;
 export const inactiveDaysOf = (s: Pick<UniverseSettings, 'inactiveDays'>) => Number(s.inactiveDays) || INACTIVE_DAYS;
 
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+/**
+ * The newest run of the game's weekly debris cleaner at or before `t` (Unix seconds), by the universe's
+ * `debrisCleanup*` settings in its time zone: empty debris fields known to be active (a battle left debris) only count
+ * after it.
+ */
+export function lastDebrisCleanup(s: Pick<UniverseSettings, 'timezone' | 'debrisCleanupDay' | 'debrisCleanupHour' | 'debrisCleanupMinute'>, t: number): number {
+  const day = s.debrisCleanupDay ?? OPTIONAL_DEFAULTS.debrisCleanupDay;
+  const hour = s.debrisCleanupHour ?? OPTIONAL_DEFAULTS.debrisCleanupHour;
+  const minute = s.debrisCleanupMinute ?? OPTIONAL_DEFAULTS.debrisCleanupMinute;
+  const tz = s.timezone || 'Europe/Berlin';
+  const format = new Intl.DateTimeFormat('en-US', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit', weekday: 'short' });
+  const pad = (n: number) => String(n).padStart(2, '0');
+  for (let back = 0; back <= 8; back++) {
+    const parts = Object.fromEntries(format.formatToParts(new Date((t - back * 86400) * 1000)).map((p) => [p.type, p.value]));
+    if (WEEKDAYS.indexOf(parts.weekday) !== day) continue;
+    const at = localToEpoch(`${parts.year}-${parts.month}-${parts.day} ${pad(hour)}:${pad(minute)}:00`, tz);
+    if (at <= t) return at;
+  }
+  return t - 7 * 86400;
+}
+
 /** Stored settings over the defaults (unknown keys are kept, like the stored JSON). */
 export const universeSettings = (stored: Partial<UniverseSettings> | null | undefined): UniverseSettings => ({ ...UNIVERSE_DEFAULTS, ...(stored ?? {}) });
 
@@ -111,6 +146,8 @@ export interface SettingError {
 const KNOWN: Record<string, unknown> = { ...UNIVERSE_DEFAULTS, ...OPTIONAL_DEFAULTS };
 /** at least 1 and whole */
 const COUNTS = ['galaxies', 'systems', 'positions', 'fleetSpeed', 'storageMultiplier'];
+/** whole numbers with an upper bound */
+const BOUNDED: Record<string, number> = { debrisCleanupDay: 6, debrisCleanupHour: 23, debrisCleanupMinute: 59 };
 /** percentages */
 const PERCENT = ['universityFactor', 'fleetDebrisPercent', 'defenseDebrisPercent'];
 const URLS: Record<string, SettingError> = {
@@ -142,6 +179,7 @@ export function settingsError(settings: object | null | undefined): SettingError
       if (COUNTS.includes(key)) valid &&= Number.isInteger(value) && (value as number) >= 1;
       // above 100 % research times turn negative / more than everything goes into the debris field
       if (PERCENT.includes(key)) valid &&= (value as number) <= 100;
+      if (key in BOUNDED) valid &&= Number.isInteger(value) && (value as number) <= BOUNDED[key];
     }
     if (!valid) return { code: 'setting_invalid', message: `Invalid setting: ${key}` };
   }

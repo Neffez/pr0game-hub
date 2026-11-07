@@ -142,10 +142,11 @@ back. Typical windows ("night", "work") are saved as presets.
   existing fleet alerts, push and Discord included); the page says so.
 - **Tour** `fleetsave`; **texts** `fleetsave.*`, `nav.fleetsave`; web tests in `apps/web/test/fleetsave-attack.test.ts`.
 - **Follow-up (2026-11-07):** recycling as fleet save (`harvest`): with a recycler (209, optimized recycler 227) in the
-  fleet, to an existing debris field and back. A field must exist (harvested empty is fine); the game deletes the
-  fields once a week. Targets from `GET /api/:uni/debris-fields?g=`: fields the galaxy shows now, and fields with a sign
-  within 7 days (debris seen or cleared, battle with debris, recycling report), shown as unsure ("DF?").
-  Deduplicated by distance in the browser. Also in the attack assistant.
+  fleet, to a debris field the game lets recyclers fly to: it holds debris, or it is active (a battle left debris since
+  the weekly `CleanerCronjob`, which marks all fields inactive; Saturday 02:45 by default, universe settings
+  `debrisCleanup*`). Targets from `GET /api/:uni/debris-fields?g=`: `sure` when debris was created since the last
+  cleaner run or seen after it; debris seen only before it is shown as unsure ("DF?"). Deduplicated by distance in the
+  browser. Also in the attack assistant.
 - **Left for later:** presets synced across devices,
   a reminder without pasting the overview.
 
