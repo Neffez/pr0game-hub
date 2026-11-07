@@ -1027,6 +1027,20 @@ describe('review fixes', () => {
     expect(await attempt()).toBe(429);
   });
 
+  it('counts attempts sent side by side before their password check ends', async () => {
+    const attempt = async (username: string, password: string, remoteAddress: string) =>
+      (await app.inject({ method: 'POST', url: '/hub/api/auth/login', remoteAddress, payload: { username, password } })).statusCode;
+    // a burst for one username: only the first 10 get to the password check
+    const codes = await Promise.all(Array.from({ length: 25 }, () => attempt('burst', 'x', '10.0.0.21')));
+    expect(codes.filter((c) => c === 401)).toHaveLength(10);
+    expect(codes.filter((c) => c === 429)).toHaveLength(15);
+    // successful logins take their count back once done: 40 in rounds of 10 never use up the IP's budget of 30
+    for (let round = 0; round < 4; round++) {
+      expect(await Promise.all(Array.from({ length: 10 }, () => attempt('admin', 'adminpass', '10.0.0.22')))).toEqual(Array(10).fill(200));
+    }
+    expect(await attempt('nobody', 'x', '10.0.0.22')).toBe(401);
+  });
+
   it('rate limits failed logins per IP across usernames', async () => {
     const attempt = async (username: string) =>
       (await app.inject({ method: 'POST', url: '/hub/api/auth/login', remoteAddress: '10.0.0.9', payload: { username, password: 'x' } })).statusCode;

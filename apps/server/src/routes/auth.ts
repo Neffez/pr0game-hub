@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import {
   checkPassword, checkUsername, createApiToken, createSession, destroyOtherSessions, destroySession, hashPassword, HttpError, loginBlocked, loginFailed,
-  loginSucceeded, MAX_SEEN_TOURS, parseTours, passwordForVerify, requireCookieSession, requireUser, serializeTours, TOUR_ID, verifyPassword,
+  loginRetracted, loginSucceeded, MAX_SEEN_TOURS, parseTours, passwordForVerify, requireCookieSession, requireUser, serializeTours, TOUR_ID, verifyPassword,
   tokenHash, verifyPasswordOrDummy,
 } from '../auth.js';
 import { now, type DB } from '../db.js';
@@ -23,15 +23,17 @@ export function authRoutes(app: FastifyInstance, db: DB) {
     const key = `${req.ip}|${String(username ?? '').toLowerCase()}`;
     const ipKey = `${req.ip}|`;
     if (loginBlocked(key) || loginBlocked(ipKey, IP_LIMIT)) throw new HttpError(429, 'too_many_attempts', 'Too many failed attempts, please try again later');
+    // counted before the password check (scrypt runs while other requests come in), taken back on success
+    loginFailed(key);
+    loginFailed(ipKey);
     const user = db.prepare('SELECT id, password_hash FROM users WHERE username = ?').get(String(username ?? '')) as
       | { id: number; password_hash: string }
       | undefined;
     if (!(await verifyPasswordOrDummy(passwordForVerify(password), user?.password_hash)) || !user) {
-      loginFailed(key);
-      loginFailed(ipKey);
       throw new HttpError(401, 'login_failed', 'Wrong username or password');
     }
     loginSucceeded(key);
+    loginRetracted(ipKey);
     createSession(db, user.id, reply);
     return { ok: true };
   });

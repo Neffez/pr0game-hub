@@ -4092,12 +4092,25 @@ paths:
       tags: [Auth]
       operationId: login
       security: []
-      description: Browser login; sets the session cookie.
+      description: >-
+        Browser login; sets the session cookie. Failed attempts are limited per IP and username (10) and per IP (30)
+        within 15 minutes; an attempt counts from its start (also while others are still being checked) and a
+        successful one is taken back.
       responses:
         '200':
           content:
             application/json:
               schema: { type: object }
+        '401':
+          description: Wrong username or password (`login_failed`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '429':
+          description: Too many failed or pending attempts (`too_many_attempts`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
   /api/auth/logout:
     post:
       tags: [Auth]

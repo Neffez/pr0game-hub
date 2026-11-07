@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-07',
     items: [
       {
+        kind: 'fix',
+        de: 'Sicherheit: Die Sperre nach zu vielen falschen Passwörtern lässt sich nicht mehr umgehen, indem viele Anmeldeversuche gleichzeitig geschickt werden.',
+        en: 'Security: the lock after too many wrong passwords can no longer be bypassed by sending many login attempts at once.',
+      },
+      {
         kind: 'new',
         de: 'Der Hub ist schneller: Seiten und Daten werden komprimiert übertragen, beim Start wird nur deine Sprache geladen, und Übersicht, Allianz und Planung laden die Imperien der Mitglieder deutlich schneller.',
         en: 'The hub is faster: pages and data are sent compressed, only your language is loaded at the start, and overview, alliance and planning load the members\' empires much faster.',
