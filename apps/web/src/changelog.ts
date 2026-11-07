@@ -20,11 +20,6 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
-        de: 'Der TF-Finder ist jetzt ein Tab im Farm-Finder (neben Ziele und Spionage-Priorität) statt eines eigenen Menüpunkts.',
-        en: 'The debris finder is now a tab of the farm finder (next to targets and spy priority) instead of its own menu item.',
-      },
-      {
-        kind: 'new',
         de: 'Neuer Kolonisierungsplaner: freie Positionen aus der Galaxie, bewertet als Fleeter (gute Abdeckung des Universums, viele Punkte von Zielen in der Nähe) oder Miner (Felder, Temperatur, Positionsbonus) – Positionen mit vielen Mitgliedern in der Nähe rutschen nach hinten. Er zeigt auch, ab welcher Astrophysik-Stufe eine Position besiedelbar ist.',
         en: 'New colonization planner: free positions from the galaxy, rated as a fleeter (good coverage of the universe, many points of targets nearby) or a miner (fields, temperature, position bonus) – positions with many members nearby move down. It also shows from which astrophysics level a position can be colonized.',
       },
@@ -55,8 +50,8 @@ export const CHANGELOG: ChangelogDay[] = [
       },
       {
         kind: 'new',
-        de: 'Neuer TF-Finder unter Kampf & Expeditionen: alle offenen Trümmerfelder mit der Menge jetzt (auch direkt nach einem Kampf eines Mitglieds), nötigen Recyclern, deiner Flugzeit und dem nächsten Mitglied mit genug Recyclern. Trümmerfelder lassen sich zum Abbauen reservieren, unabhängig vom Planeten dort.',
-        en: 'New debris finder under Combat & expeditions: every open debris field with its amount now (also right after a member\'s battle), the recyclers needed, your flight time and the nearest member with enough recyclers. Debris fields can be claimed for recycling, apart from the planet there.',
+        de: 'Neuer TF-Finder als Tab im Farm-Finder: alle offenen Trümmerfelder mit der Menge jetzt (auch direkt nach einem Kampf eines Mitglieds), nötigen Recyclern, deiner Flugzeit und dem nächsten Mitglied mit genug Recyclern. Trümmerfelder lassen sich zum Abbauen reservieren, unabhängig vom Planeten dort.',
+        en: 'New debris finder as a tab of the farm finder: every open debris field with its amount now (also right after a member\'s battle), the recyclers needed, your flight time and the nearest member with enough recyclers. Debris fields can be claimed for recycling, apart from the planet there.',
       },
       {
         kind: 'new',
