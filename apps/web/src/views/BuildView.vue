@@ -15,6 +15,7 @@ import PageHeader from '../components/PageHeader.vue';
 import Ticker from '../components/Ticker.vue';
 import BuildOrder from '../components/BuildOrder.vue';
 import UpgradeAdvisor from '../components/UpgradeAdvisor.vue';
+import DefenseAdvisor from '../components/DefenseAdvisor.vue';
 import { useLoader, useMobile, useStored, useUni } from '../composables';
 import { useAutoTour } from '../tours';
 import { ago, dateTime, fmt, name, short } from '../format';
@@ -81,8 +82,8 @@ const { data, error, load } = useLoader(() => uniApi<Data>(uni.value, '/building
 onMounted(load);
 useLiveReload(load, tables('empire', 'overview', 'buildings', 'research', 'fleets', 'building_alerts'));
 
-type Tab = 'buildings' | 'research' | 'ships' | 'order' | 'advisor';
-const TABS: Tab[] = ['buildings', 'research', 'ships', 'order', 'advisor'];
+type Tab = 'buildings' | 'research' | 'ships' | 'order' | 'advisor' | 'defense';
+const TABS: Tab[] = ['buildings', 'research', 'ships', 'order', 'advisor', 'defense'];
 const storedTab = useStored<Tab>('build.tab', 'buildings');
 /** the tab from the link (push notification, bell), else the last one */
 const tab = computed<Tab>({
@@ -261,6 +262,7 @@ const costClass = (b: { missing: Record<number, number> }, res: number) => (b.mi
         <p>{{ t('buildings.hintResearch') }}</p>
         <p>{{ t('buildings.hintShips') }}</p>
         <p>{{ t('buildings.hintOrder') }}</p>
+        <p>{{ t('buildings.hintDefense') }}</p>
         <p>{{ t('buildings.hint2') }}</p>
         <p>{{ t('buildings.hint3') }}</p>
       </Hint>
@@ -271,6 +273,7 @@ const costClass = (b: { missing: Record<number, number> }, res: number) => (b.mi
       <button data-tour="build-tab-ships" :class="{ active: tab === 'ships' }" @click="tab = 'ships'">{{ t('buildings.tabShips') }}</button>
       <button data-tour="build-tab-order" :class="{ active: tab === 'order' }" @click="tab = 'order'">{{ t('buildings.tabOrder') }}</button>
       <button data-tour="build-tab-advisor" :class="{ active: tab === 'advisor' }" @click="tab = 'advisor'">{{ t('buildings.tabAdvisor') }}</button>
+      <button data-tour="build-tab-defense" :class="{ active: tab === 'defense' }" @click="tab = 'defense'">{{ t('buildings.tabDefense') }}</button>
     </div>
   </PageHeader>
 
@@ -339,6 +342,7 @@ const costClass = (b: { missing: Record<number, number> }, res: number) => (b.mi
 
     <BuildOrder v-if="tab === 'order'" :hub="data" :planet-key="current.key" :mobile="mobile" />
     <UpgradeAdvisor v-else-if="tab === 'advisor'" :hub="data" :planet-key="current.key" :mobile="mobile" />
+    <DefenseAdvisor v-else-if="tab === 'defense'" :hub="data" :planet-key="current.key" :mobile="mobile" />
     <template v-else>
     <div class="row bld-filters" data-tour="build-filter">
       <select v-if="mobile" v-model="filter" :aria-label="t('buildings.filterLabel')">
@@ -568,7 +572,7 @@ const costClass = (b: { missing: Record<number, number> }, res: number) => (b.mi
 </template>
 
 <style scoped>
-/* five tabs: they scroll sideways on narrow screens instead of running over the edge */
+/* six tabs: they scroll sideways on narrow screens instead of running over the edge */
 .build-tabs { max-width: calc(100vw - 32px); overflow-x: auto; scrollbar-width: none; }
 .build-tabs button { white-space: nowrap; flex: none; }
 .bld-res { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 10px; }

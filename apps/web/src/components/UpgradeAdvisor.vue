@@ -4,10 +4,9 @@ import { levelAfter, type BuildPlanet } from '@pr0hub/core/buildings';
 import { positionTemp } from '@pr0hub/core/production';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { uniApi } from '../api';
+import { addToBuildOrder, type NewStep } from '../buildOrderAdd';
 import { useStored, useUni } from '../composables';
 import { currentMarketRate, fmt, name, short } from '../format';
-import type { StoredBuildOrder } from './BuildOrder.vue';
 import Hint from './Hint.vue';
 
 /**
@@ -78,17 +77,16 @@ const busy = ref<Advice | null>(null);
 const added = ref(new Set<Advice>());
 const message = ref<string | null>(null);
 /** "+1 level" steps (several for energy that needs more levels), satellites as one ship step */
-function stepsOf(a: Advice, levels: Record<string, number>) {
-  const stamp = Date.now().toString(36);
-  const out: { id: string; kind: 'building' | 'research' | 'ship'; element: number; count?: number }[] = [];
+function stepsOf(a: Advice, levels: Record<string, number>): NewStep[] {
+  const out: NewStep[] = [];
   for (const s of [...a.with, a.step]) {
-    if (s.kind === 'satellites') out.push({ id: '', kind: 'ship', element: s.element, count: s.level });
+    if (s.kind === 'satellites') out.push({ kind: 'ship', element: s.element, count: s.level });
     else {
       const from = s.kind === 'research' ? (research.value[s.element] ?? 0) : (levels[s.element] ?? 0);
-      for (let l = from + 1; l <= s.level; l++) out.push({ id: '', kind: s.kind, element: s.element });
+      for (let l = from + 1; l <= s.level; l++) out.push({ kind: s.kind, element: s.element });
     }
   }
-  return out.map((s, i) => ({ ...s, id: `adv-${stamp}-${i}` }));
+  return out;
 }
 async function addToOrder(a: Advice) {
   busy.value = a;
@@ -97,19 +95,8 @@ async function addToOrder(a: Advice) {
   const key = a.key ?? props.planetKey;
   const planet = planets.value.find((p) => p.key === key);
   try {
-    const steps = stepsOf(a, planet ? levelsOf(planet) : {});
-    const { buildOrder } = await uniApi<{ buildOrder: StoredBuildOrder | null }>(uni.value, '/build-order');
-    if (buildOrder) {
-      // after the steps checked off: next in line
-      const list = [...(buildOrder.order.planets[key] ?? [])];
-      let at = 0;
-      while (at < list.length && list[at].done) at++;
-      list.splice(at, 0, ...steps);
-      await uniApi(uni.value, '/build-order', { method: 'PATCH', body: { planets: { ...buildOrder.order.planets, [key]: list } } });
-    } else {
-      const base = { planets: Object.fromEntries(props.hub.planets.map((p) => [p.key, levelsOf(p)])), research: research.value };
-      await uniApi(uni.value, '/build-order', { method: 'PUT', body: { order: { base, planets: { [key]: steps } }, meta: { source: 'advisor' } } });
-    }
+    const base = () => ({ planets: Object.fromEntries(props.hub.planets.map((p) => [p.key, levelsOf(p)])), research: research.value });
+    await addToBuildOrder(uni.value, key, stepsOf(a, planet ? levelsOf(planet) : {}), base, 'advisor');
     added.value = new Set([...added.value, a]);
   } catch (e) {
     message.value = (e as Error).message;

@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-07',
     items: [
       {
+        kind: 'new',
+        de: 'Verteidigungsberater unter Bauen & Forschen: zeigt, wer deinen Planeten angreifen könnte (Spionage, Angriffe, Flotten im Anflug, starke Flotten in der Nähe), was ihm ein Angriff einbringt und welche Verteidigung den Angriff zum Verlustgeschäft macht. Die Einheiten kommen mit einem Klick in die Bauliste.',
+        en: 'Defense advisor under Build & research: shows who could attack your planet (spying, attacks, fleets on their way, strong fleets nearby), what an attack would bring them and which defense turns it into a loss. The units go into the build order in one click.',
+      },
+      {
         kind: 'fix',
         de: 'Fleetsave mit Recyclern kennt jetzt das wöchentliche Löschen der Trümmerfelder (Standard Samstag 02:45, im Admin-Panel einstellbar): Abgebaute Felder zählen nur, wenn seitdem dort gekämpft wurde.',
         en: 'Fleet save with recyclers now knows the weekly cleanup of debris fields (Saturday 02:45 by default, set in the admin panel): harvested fields only count when there was a battle since.',

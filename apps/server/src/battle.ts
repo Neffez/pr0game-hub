@@ -1,5 +1,5 @@
 import { Worker } from 'node:worker_threads';
-import { defenseIds, encodeShare, shipIds, type BattleSetup, type SimSettings, type SimSummary } from '@pr0hub/battle';
+import { defenseIds, encodeShare, shipIds, type BattleSetup, type DefenseAdvice, type DefenseSearch, type SimSettings, type SimSummary } from '@pr0hub/battle';
 import { DEFAULT_UNITS, type UnitCatalog, type UnitOverrides } from '@pr0hub/core/units';
 import { encodeUnitOverrides, toolsHash } from '@pr0hub/core/universe';
 import { distance, drivesFromResearch, fleetConsumption, flightDuration, slowestShip } from '@pr0hub/flight';
@@ -214,6 +214,11 @@ export function throttle(userId: number, at = Date.now()) {
   if (recent.size > 10000) for (const [k, v] of recent) if (!v.some((t) => at - t < 60_000)) recent.delete(k);
 }
 
+const WORKER = new URL('../battle-worker.mjs', import.meta.url);
+
+/** Time limit of a defense advice in the worker (many battles, see `@pr0hub/battle`'s `defenseAdvice`). */
+export const DEFENSE_TIMEOUT_MS = 30_000;
+
 /**
  * Runs the battle in a worker thread with a time limit (503 when it takes longer).
  * `units`: the universe's differences of the unit catalog (the worker builds the catalog from them).
@@ -224,12 +229,21 @@ export function runInWorker(
   runs: number,
   settings: SimSettings,
   units: UnitOverrides = {},
-  workerUrl: URL | string = new URL('../battle-worker.mjs', import.meta.url),
+  workerUrl: URL | string = WORKER,
 ): Promise<SimSummary> {
+  return inWorker<SimSummary>({ setup, runs, settings, units }, BATTLE_LIMITS.timeoutMs, workerUrl);
+}
+
+/** The defense advisor's search in the battle worker (one slot of `concurrent`, longer time limit). */
+export function runDefenseInWorker(search: DefenseSearch, settings: SimSettings, units: UnitOverrides = {}, workerUrl: URL | string = WORKER): Promise<DefenseAdvice> {
+  return inWorker<DefenseAdvice>({ job: 'defense', search, settings, units }, DEFENSE_TIMEOUT_MS, workerUrl);
+}
+
+function inWorker<T>(workerData: Record<string, unknown>, timeoutMs: number, workerUrl: URL | string): Promise<T> {
   running++;
-  return new Promise<SimSummary>((resolve, reject) => {
+  return new Promise<T>((resolve, reject) => {
     let settled = false;
-    const worker = new Worker(workerUrl, { workerData: { setup, runs, settings, units } });
+    const worker = new Worker(workerUrl, { workerData });
     const settle = (fn: () => void) => {
       if (settled) return;
       settled = true;
@@ -239,8 +253,8 @@ export function runInWorker(
     const timer = setTimeout(() => {
       void worker.terminate();
       settle(() => reject(new HttpError(503, 'battle_timeout', 'The simulation took too long')));
-    }, BATTLE_LIMITS.timeoutMs);
-    worker.once('message', (summary: SimSummary) => settle(() => resolve(summary)));
+    }, timeoutMs);
+    worker.once('message', (result: T) => settle(() => resolve(result)));
     worker.once('error', (err) => settle(() => reject(err)));
     worker.once('exit', (code) => {
       settle(() => reject(new HttpError(503, 'battle_worker_exit', `The simulator worker exited (${code ?? 'unknown'})`)));

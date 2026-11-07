@@ -2746,6 +2746,81 @@ paths:
                   sim: { type: [object, 'null'], description: 'Simulation summary (`wins`, `rounds`, `attackers`, `defenders`, `loot`, `debris`, `lostResources`, …) or `{ error }`' }
                   now: { type: integer }
         '404': { description: 'No such hostile attack (`attack_not_found`)' }
+  /api/{uni}/defense-advice:
+    get:
+      tags: [Universe]
+      operationId: getDefenseAdvice
+      description: >-
+        Defense advisor for one of the caller's planets or moons (from the buildings page state: levels, units and
+        resources of the newest empire, buildings or overview page). Lists the attackers the hub knows for it (at most
+        8): players who spied on the caller or attacked one of the caller's bodies in the last 14 days, hostile fleets
+        on their way to the caller, and the 5 strongest players with a fleet in a spy report of the planet's galaxy;
+        members and the own alliance are left out. Each comes with the strongest fleet known (spy report, battle
+        report or fleet movement; spy probes and solar satellites left out), the newest fleet points of the
+        statistics, the research of the newest spy report (else the caller's levels as an estimate) and the flight
+        (one way at full speed from where the fleet was seen, else the owner's nearest planet) with its deuterium.
+        `advice` runs the search in the battle worker (counts as one simulation of the simulator's rate limit): the
+        attacker's profit of one attack is loot + debris field (with `debris`) − ships lost − fuel in deuterium by the
+        group's market rate (default 3 : 2 : 1); the defense types that cut the worst attacker's profit most per
+        resource are mixed and scaled until no chosen attacker profits (status `found`), `safe` when none profits
+        already, `limit` when no buildable defense does it for up to 20 times the profit, `budget` when the battles
+        are too large for the engine budget. Shield domes are added once when they help; the shipyard queue counts as
+        built. Null with `sim=0` or without threats; `{ error }` when the simulator is busy or missing.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+        - { name: planet, in: query, required: true, schema: { type: string }, description: 'The caller''s body `g:s:p:planet` or `g:s:p:moon`' }
+        - { name: ships, in: query, schema: { type: string, enum: ['0', '1'] }, description: '`0`: the planet''s ships are away (only defense and solar satellites defend); default `1`' }
+        - { name: debris, in: query, schema: { type: string, enum: ['0', '1'] }, description: '`0`: the debris field does not count as profit; default `1`' }
+        - { name: loot, in: query, schema: { type: string, enum: [now, full] }, description: 'Resources at the attack: projected to now (default) or full storages' }
+        - { name: threats, in: query, schema: { type: string }, description: 'Comma-separated `key`s of the threats to simulate (default: all listed)' }
+        - { name: sim, in: query, schema: { type: string, enum: ['0', '1'] }, description: '`0` lists the threats without the search' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  planet:
+                    type: object
+                    description: >-
+                      `key`, `name`, `coords`, `type`, `time` of the state, `units` defending (ships with `ships`,
+                      defense incl. the shipyard queue, solar satellites), combat `research`, `resources` at the attack,
+                      `defenseValue` (defense in deuterium by the rate)
+                  rate: { type: object, description: '`m` and `k` (metal and crystal per deuterium) and `source` (`market` or `default`)' }
+                  candidates: { type: array, items: { type: integer }, description: Defense units the planet can build (requirements met; shield domes not built yet) }
+                  threats:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        key: { type: string, description: Id for `threats` }
+                        player: { type: object, description: '`id` (null when unknown), `name`, `status`, `allyTag`' }
+                        reasons:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              kind: { type: string, enum: [spied, attacked, incoming, nearby] }
+                              count: { type: integer }
+                              last: { type: [integer, 'null'] }
+                        fleet: { type: object, description: '`units`, `points`, `source` (`spy`, `combat`, `incoming`), `time`, `from` (null when unknown)' }
+                        fleetPoints: { type: [object, 'null'], description: '`points` and `time` of the newest fleet statistics' }
+                        research: { type: object, description: '`values`, `known` (from a spy report), `time`' }
+                        flight: { type: [object, 'null'], description: '`from`, `distance`, `duration` (seconds), `fuel` (deuterium)' }
+                  simulated: { type: array, items: { type: string }, description: Keys of the threats given to the search }
+                  advice:
+                    type: [object, 'null']
+                    description: >-
+                      `status` (`safe`, `found`, `limit`, `budget`), `before` and `after` (per threat `key`, `profit` in
+                      deuterium, average `loot`, `debris`, `lost` and `defenderLost` resources, `fuel`, `wins` share of
+                      the attacker), `add` (defense units to build), `cost`, `costValue`, `battles` and `runs` per
+                      battle; or `{ error }`
+                  now: { type: integer }
+        '400': { description: 'Invalid `planet` (`planet_invalid`)' }
+        '404': { description: 'Not one of the caller''s synced planets (`planet_not_found`)' }
   /api/{uni}/fleets/alerts:
     put:
       tags: [Universe]

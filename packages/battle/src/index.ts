@@ -4,3 +4,4 @@ export * from './result.js';
 export * from './steal.js';
 export * from './simulate.js';
 export * from './share.js';
+export * from './defense.js';
