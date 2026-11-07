@@ -86,3 +86,29 @@ describe('assigning existing accounts', () => {
     expect(db.prepare('SELECT 1 FROM users WHERE id = ?').get(placeholder)).toBeUndefined();
   });
 });
+
+describe('placeholders shared by several alliances', () => {
+  it('are handed out only by admins of all their alliances', async () => {
+    // "Eve" in A of u7 and A of u8; "solo" is admin of A in u8 only
+    const shared = (await call('POST', `/admin/groups/${oldGroup}/members`, admin, { name: 'Eve' })).json().id as number;
+    expect((await call('POST', `/admin/groups/${newGroup}/members`, lead, { userId: shared })).statusCode).toBe(200);
+    const soloId = Number(db.prepare("INSERT INTO users (username, password_hash) VALUES ('solo', ?)").run(hashPassword('solopass')).lastInsertRowid);
+    db.prepare("INSERT INTO group_members (group_id, user_id, role) VALUES (?, ?, 'admin')").run(newGroup, soloId);
+    const solo = await login('solo', 'solopass');
+
+    // a claim link would make its user a member of A in u7 too
+    expect((await call('POST', `/admin/groups/${newGroup}/members/${shared}/invite`, solo)).statusCode).toBe(403);
+    expect(db.prepare('SELECT COUNT(*) FROM invites WHERE user_id = ? AND used_at IS NULL').pluck().get(shared)).toBe(1);
+    expect((await call('POST', `/admin/groups/${newGroup}/members/${shared}/invite`, lead)).statusCode).toBe(200);
+
+    // the same for access requests: not offered, not assignable
+    const asked = await app.inject({ method: 'POST', url: '/hub/api/access-requests', payload: { username: 'evelyn', password: 'longenough', message: 'Eve here' } });
+    expect(asked.statusCode).toBe(200);
+    const list = (await call('GET', '/admin/access-requests', solo)).json() as { requests: { id: number }[]; placeholders: { id: number }[] };
+    expect(list.placeholders.map((p) => p.id)).not.toContain(shared);
+    const requestId = list.requests[0].id;
+    expect((await call('POST', `/admin/access-requests/${requestId}/assign`, solo, { userId: shared })).statusCode).toBe(403);
+    expect((await call('GET', '/admin/access-requests', lead)).json().placeholders.map((p: { id: number }) => p.id)).toContain(shared);
+    expect((await call('POST', `/admin/access-requests/${requestId}/assign`, lead, { userId: shared })).statusCode).toBe(200);
+  });
+});

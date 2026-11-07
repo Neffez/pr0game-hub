@@ -1915,7 +1915,8 @@ paths:
       operationId: listAccessRequests
       description: |
         Open access requests and the players without an account they can be assigned to. Global admins get all players,
-        alliance admins the players of the alliances they are admin of (and see all requests, which carry no alliance).
+        alliance admins the players who are only in alliances they are admin of (and see all requests, which carry no
+        alliance).
       security: [{ sessionCookie: [] }]
       responses:
         '200':
@@ -1955,7 +1956,7 @@ paths:
       description: |
         Gives the request's username, password and language to a player without an account, who can log in with them
         from then on; the request is removed and open claim links of the player are revoked. Global admins, or alliance
-        admins for players of their own alliances.
+        admins for players who are only in alliances they are admin of (the player stays a member of all of them).
       security: [{ sessionCookie: [] }]
       parameters:
         - { name: id, in: path, required: true, schema: { type: integer } }
@@ -1983,7 +1984,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
         '403':
-          description: Not an admin, or an alliance admin and the player is not in their alliances (`group_admin_only`)
+          description: Not an admin, or an alliance admin and the player is also in an alliance they are not admin of (`group_admin_only`)
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
@@ -4370,8 +4371,9 @@ paths:
       security: [{ sessionCookie: [] }]
       description: >-
         Creates a claim invite for a placeholder member (alliance admins) or a password recovery link for a member with
-        an account (global admins); an unused earlier link of the member stops working. The token is returned only
-        here, the hub stores its hash.
+        an account (global admins); an unused earlier link of the member stops working. A placeholder that is also in
+        other alliances needs an admin of all of them (whoever claims it becomes a member of each). The token is
+        returned only here, the hub stores its hash.
       parameters:
         - { name: id, in: path, required: true, schema: { type: integer } }
         - { name: userId, in: path, required: true, schema: { type: integer } }
@@ -4380,6 +4382,13 @@ paths:
           content:
             application/json:
               schema: { type: object, properties: { token: { type: string } } }
+        '403':
+          description: >-
+            Not an admin of the alliance, a member with an account and no global admin, or a placeholder also in an
+            alliance the caller is not admin of (`group_admin_only`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
   /api/admin/groups/{id}/players/merge:
     post:
       tags: [Admin]

@@ -45,6 +45,20 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
   };
 
   /**
+   * Whoever takes over a placeholder (claim link, access request) becomes a member of every alliance it belongs to:
+   * alliance admins may hand it out only when they are admin of all of them (else an alliance admin could get into an
+   * alliance of another universe through a shared placeholder).
+   */
+  const adminOfAllGroups = (user: { id: number; isAdmin: boolean }, userId: number) =>
+    user.isAdmin ||
+    !db
+      .prepare(
+        `SELECT 1 FROM group_members m WHERE m.user_id = ?
+           AND NOT EXISTS (SELECT 1 FROM group_members a WHERE a.group_id = m.group_id AND a.user_id = ? AND a.role = 'admin')`,
+      )
+      .get(userId, user.id);
+
+  /**
    * Open claim invite for a placeholder member of the group (replaces any previous unused one). Only its hash is
    * stored: the link is returned here once.
    */
@@ -240,15 +254,21 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
       .prepare(
         `SELECT u.id, COALESCE(m.ingame_name, u.username) AS name, g.name AS "group", un.slug AS universe
          FROM users u JOIN group_members m ON m.user_id = u.id JOIN groups g ON g.id = m.group_id JOIN universes un ON un.id = g.universe_id
-         WHERE u.password_hash = '' ${groups ? `AND g.id IN (${groups.map(() => '?').join(',')})` : ''} ORDER BY un.slug, g.name, name`,
+         WHERE u.password_hash = '' ${
+           groups
+             ? `AND g.id IN (${groups.map(() => '?').join(',')})
+                AND NOT EXISTS (SELECT 1 FROM group_members o WHERE o.user_id = u.id AND o.group_id NOT IN (${groups.map(() => '?').join(',')}))`
+             : ''
+         } ORDER BY un.slug, g.name, name`,
       )
-      .all(...(groups ?? []));
+      .all(...(groups ?? []), ...(groups ?? []));
     return { requests, placeholders };
   });
 
   /** The request's username and password go to the placeholder member, who can log in with them from then on. */
   app.post<{ Params: { id: string }; Body: { userId?: number } }>('/api/admin/access-requests/:id/assign', async (req) => {
-    const groups = assignableGroups(requireUser(req));
+    const user = requireUser(req);
+    const groups = assignableGroups(user);
     const request = db.prepare('SELECT * FROM access_requests WHERE id = ?').get(Number(req.params.id)) as
       | { id: number; username: string; password_hash: string; lang: string }
       | undefined;
@@ -259,8 +279,10 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
     }
     const username = checkUsername(db, request.username, userId);
     const memberOf = db.prepare('SELECT group_id FROM group_members WHERE user_id = ?').pluck().all(userId) as number[];
-    // alliance admins only take over players of their own alliances
-    if (groups && !memberOf.some((g) => groups.includes(g))) throw new HttpError(403, 'group_admin_only', 'Alliance admins only');
+    // alliance admins only hand out players who are in their own alliances only
+    if (groups && (!memberOf.some((g) => groups.includes(g)) || !adminOfAllGroups(user, userId))) {
+      throw new HttpError(403, 'group_admin_only', 'Alliance admins only');
+    }
     db.transaction(() => {
       db.prepare('UPDATE users SET username = ?, password_hash = ?, lang = ? WHERE id = ?').run(username, request.password_hash, request.lang, userId);
       db.prepare('DELETE FROM invites WHERE user_id = ? AND used_at IS NULL').run(userId);
@@ -467,6 +489,7 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
     }
     // a link for an existing account resets its password: that would let alliance admins take over any account
     if (!isPlaceholder(target)) requireAdmin(req);
+    else if (!adminOfAllGroups(user, target)) throw new HttpError(403, 'group_admin_only', 'The player is also in alliances you are not admin of');
     return { token: createClaimInvite(groupId, target, user.id) };
   });
 
