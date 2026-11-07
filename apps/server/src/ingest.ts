@@ -9,6 +9,7 @@ import { foreignRecords } from './plausibility.js';
 import { galaxyMark } from './repo/activity.js';
 import { messageShare } from './repo/messages.js';
 import { catchUpBuildState } from './repo/buildOrders.js';
+import { recordOnboarding } from './repo/onboarding.js';
 import { catchUpPlans } from './repo/plans.js';
 import { Players } from './repo/players.js';
 import { shareSyncsEnabled } from './repo/presence.js';
@@ -154,6 +155,8 @@ function ingestWith(db: DB, target: IngestTarget, input: ParseInput & { source: 
   const keep = parsed.source !== 'json';
   db.transaction(() => {
     for (const rec of parsed.records) store.record(rec);
+    // onboarding: the member who synced it did this kind of page
+    if (parsed.records.length) recordOnboarding(db, target.groupId, target.syncedBy ?? target.userId, parsed.pageType, now());
     db.prepare('DELETE FROM raw_ingests WHERE group_id = ? AND created_at < ?').run(target.groupId, now() - config.rawRetentionDays * 86400);
     db.prepare(
       `INSERT INTO raw_ingests (group_id, user_id, synced_by, source, page_type, url, html_gz, text_gz, summary)

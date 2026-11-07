@@ -9,6 +9,7 @@ import { now, type DB } from '../db.js';
 import { crawlerState, resumeCrawler } from '../crawler.js';
 import { events } from '../events.js';
 import { listSamples, sampleContent } from '../repo/samples.js';
+import { ONBOARDING_STEPS, onboardingOf } from '../repo/onboarding.js';
 import { aboutRecords, backfillActivity, parseRaw, reparse, type RawIngest } from '../ingest.js';
 import { systemInfo, vacuum } from '../monitor.js';
 import { undoIngest } from '../repo/cleanup.js';
@@ -337,6 +338,7 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
     const groupId = Number(req.params.id);
     const user = requireGroupAdmin(req, groupId);
     const t = now();
+    const onboarding = onboardingOf(db, groupId);
     return db
       .prepare(
         `SELECT u.id, u.username, m.role, m.ingame_name, m.joined_at, u.last_login_at, u.is_admin AS global_admin,
@@ -350,6 +352,7 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
       // link itself is only shown when created
       .map((m: any) => ({
         ...m,
+        onboarding: ONBOARDING_STEPS.filter((k) => onboarding.get(m.id)?.[k] != null),
         account: !!m.account,
         global_admin: !!m.global_admin,
         owner: m.id === owner(),

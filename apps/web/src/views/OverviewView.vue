@@ -19,6 +19,7 @@ import PlanetActions from '../components/PlanetActions.vue';
 import StatusBadges from '../components/StatusBadges.vue';
 import PointsStall from '../components/PointsStall.vue';
 import SyncHints from '../components/SyncHints.vue';
+import OnboardingCard from '../components/OnboardingCard.vue';
 import InactivityBadge, { type Inactivity } from '../components/InactivityBadge.vue';
 import { useLoader, useMobile, useProgressive, useProtection, useSort, useStored, useUni } from '../composables';
 import { useAutoTour } from '../tours';
@@ -526,6 +527,7 @@ const history = computed(() => {
     />
   </PageHeader>
 
+  <OnboardingCard brief />
   <SyncHints data-tour="overview-sync-hints" brief store-key="syncHints.overview" />
 
   <FilterBar data-tour="overview-filter" store-key="overview" :chips="chips" @reset="resetFilters">

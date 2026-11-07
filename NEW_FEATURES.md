@@ -25,6 +25,7 @@ source (`pr0game`: pages, missions, achievements, advanced stats).
 | B-4 Debris finder | Done | 2026-11-07 | new menu item "Debris finder" under Combat & expeditions, debris claims |
 | E-2 Several pages at once | Done | 2026-11-07 | sync page: several files, drag and drop, collect mode |
 | E-4 Explain failed pastes | Done | 2026-11-07 | sync preview, parser samples in the admin panel |
+| D-4 Onboarding of new members | Done | 2026-11-07 | sync page and overview (checklist), admin panel (column in the members list) |
 
 Each finished item carries a **Status** block below its description: what was built and how.
 
@@ -564,6 +565,21 @@ shared routine.
 After the claim link: a checklist of the first syncs (statistics, empire, overview, research, galaxy around the own
 planets) with a tick when each page arrived, and short explanations where to find the page in the game. The
 alliance admin sees who finished onboarding.
+
+**Status: done (2026-11-07).** How it was built:
+
+- **Steps** (`apps/server/src/repo/onboarding.ts`): empire, statistics, overview (or fleet page), research, galaxy,
+  messages (or a battle report), buildings. A step is done once the member synced such a page: the ingest records the
+  first sync per kind of page in `onboarding_steps` (migration `082_onboarding.sql`) for the member who pasted it
+  (also when pasting for another member). Existing members got the steps their stored pages show.
+- **Server:** `GET /api/:uni/onboarding` (`getOnboarding`), the members list of the admin panel carries `onboarding`
+  (done steps). Tests in `apps/server/test/onboarding.test.ts`.
+- **Web:** `OnboardingCard.vue`: on the sync page the checklist with ticks and, for open steps, why and where in the
+  game (the texts of the sync hints); on the overview the progress and the next step with a link. Hidden when all is
+  done or when the member hides it (per device). Admin panel: column "Onboarding" in the members list (sortable, open
+  steps in the tooltip).
+- **Texts:** `onboarding.*`.
+- **Left for later:** a reminder for admins about members who stay unfinished after a few days.
 
 ### D-5 Alliance calendar
 **Value:** Medium · **Effort:** S · **Builds on:** raid plans, launch times, build completions, universe start/end

@@ -4,6 +4,14 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-07
 
+- Onboarding of new members (backlog item D-4): a checklist of the first syncs (empire, statistics, overview,
+  research, galaxy, messages, buildings) with a tick when the member first synced such a page and where to find it in
+  the game, on the sync page (full list) and the overview (progress and next step); it disappears when everything is
+  done or the member hides it. The admin panel's member list has a column "Onboarding" (done steps, the open ones in
+  the tooltip). `GET /api/:uni/onboarding`, `onboarding` in `/api/admin/groups/:id/members`; the ingest records the
+  first sync per kind of page for the member who pasted it (`onboarding_steps`, migration `082_onboarding.sql`, filled
+  for existing members from their stored pages).
+
 - Explain failed pastes (backlog item E-4): when a paste gives no data, the preview says why in plain words instead
   of "no data": almost nothing pasted, not a page of the game, a language the hub does not read, a game page the hub
   does not read (which one), a page the hub reads but found nothing in (a parser gap), or an unknown game page

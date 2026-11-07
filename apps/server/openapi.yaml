@@ -1565,6 +1565,10 @@ paths:
                     role: { type: string }
                     ingame_name: { type: [string, 'null'] }
                     account: { type: boolean, description: The member has a password (false = placeholder) }
+                    onboarding:
+                      type: array
+                      items: { type: string, enum: [empire, stats, overview, research, galaxy, messages, buildings] }
+                      description: Onboarding steps the member has done (first sync of each kind of page)
                     invite_expires_at:
                       type: [integer, 'null']
                       description: >-
@@ -2202,6 +2206,34 @@ paths:
                 properties:
                   hints: { type: array, items: { $ref: '#/components/schemas/SyncHint' } }
                   messagesDays: { type: integer }
+  /api/{uni}/onboarding:
+    get:
+      tags: [Universe]
+      operationId: getOnboarding
+      description: >-
+        Onboarding checklist of the viewer: the first syncs of a new member in order (`empire`, `stats`, `overview`,
+        `research`, `galaxy`, `messages`, `buildings`), each with the time the member first synced such a page (null
+        while open). Pages synced for another member count for the one who pasted them.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  steps:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        key: { type: string, enum: [empire, stats, overview, research, galaxy, messages, buildings] }
+                        time: { type: [integer, 'null'] }
+                  done: { type: integer }
+                  total: { type: integer }
   /api/{uni}/farm:
     get:
       tags: [Universe]

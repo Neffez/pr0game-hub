@@ -323,11 +323,17 @@ const sendTestDiscord = () => run(() => api(`/admin/groups/${groupId.value}/disc
 
 const memberSort = useSort(
   members,
-  (m: any, k) => ({ user: m.username.toLowerCase(), role: m.role, ingame: m.ingame_name?.toLowerCase(), joined: m.joined_at, login: m.last_login_at })[k],
+  (m: any, k) => ({ user: m.username.toLowerCase(), role: m.role, ingame: m.ingame_name?.toLowerCase(), joined: m.joined_at, login: m.last_login_at, onboarding: m.onboarding?.length ?? 0 })[k],
   'user',
   false,
 );
 
+/** Onboarding steps (D-4): done ones per member, the open ones in the tooltip. */
+const ONBOARDING = ['empire', 'stats', 'overview', 'research', 'galaxy', 'messages', 'buildings'];
+const onboardingTitle = (m: { onboarding?: string[] }) => {
+  const open = ONBOARDING.filter((k) => !m.onboarding?.includes(k));
+  return open.length ? t('onboarding.open', { steps: open.map((k) => t(`onboarding.steps.${k}`)).join(', ') }) : t('onboarding.finished');
+};
 const inviteUrl = (token: string) => `${location.origin}${import.meta.env.BASE_URL}invite/${token}`;
 const copy = (text: string) => navigator.clipboard?.writeText(text).then(() => (msg.value = t('admin.linkCopied')));
 
@@ -740,6 +746,7 @@ const doMerge = () => run(async () => {
               <th class="sortable" @click="memberSort.sortBy('ingame')">{{ t('admin.ingameName') }}<SortMark :dir="memberSort.direction('ingame')" /></th>
               <th class="sortable" @click="memberSort.sortBy('joined')">{{ t('admin.joined') }}<SortMark :dir="memberSort.direction('joined')" /></th>
               <th class="sortable" @click="memberSort.sortBy('login')">{{ t('admin.login') }}<SortMark :dir="memberSort.direction('login')" /></th>
+              <th class="sortable" :title="t('onboarding.adminHint')" @click="memberSort.sortBy('onboarding')">{{ t('onboarding.column') }}<SortMark :dir="memberSort.direction('onboarding')" /></th>
               <th class="invite-col">{{ t('admin.memberInvite') }}</th>
               <th />
             </tr>
@@ -762,6 +769,7 @@ const doMerge = () => run(async () => {
               <td><input v-model="m.ingame_name" style="width: 140px" @change="setIngame(m)" /></td>
               <td class="small">{{ dateTime(m.joined_at) }}</td>
               <td class="small">{{ m.account ? dateTime(m.last_login_at) : '–' }}</td>
+              <td class="small" :title="onboardingTitle(m)" :class="{ ok: m.onboarding?.length === ONBOARDING.length }">{{ m.onboarding?.length ?? 0 }}/{{ ONBOARDING.length }}</td>
               <td class="invite-col">
                 <div v-if="m.invite_expires_at && freshInvites[m.id]" class="invite-row">
                   <CopyField :value="inviteUrl(freshInvites[m.id])" @copied="msg = t('admin.linkCopied')" />

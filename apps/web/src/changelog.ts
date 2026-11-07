@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Neue Mitglieder sehen eine Checkliste „Erste Schritte“: welche Seiten sie zuerst einfügen sollten, wo sie sie im Spiel finden und einen Haken, sobald eine Seite angekommen ist. Allianz-Admins sehen in der Mitgliederliste, wer schon fertig ist.',
+        en: 'New members see a "First steps" checklist: which pages to paste first, where to find them in the game and a tick as soon as a page arrived. Alliance admins see in the member list who is done.',
+      },
+      {
+        kind: 'new',
         de: 'Erkennt der Hub eine eingefügte Seite nicht, sagt er jetzt warum – etwa „das ist die Schiffswerft, die liest der Hub noch nicht“ oder „die Seite ist auf Französisch“. Solche Seiten kannst du den Admins anonymisiert als Probe schicken, damit sie den Hub verbessern.',
         en: 'When the hub does not recognize a pasted page, it now says why – e.g. "this is the shipyard, which the hub does not read yet" or "the page is in French". You can send such pages to the admins, anonymized, as a sample so they can improve the hub.',
       },
