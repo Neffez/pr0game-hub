@@ -247,6 +247,7 @@ export const TOURS = {
   farm: {
     steps: [
       { key: 'intro' },
+      { key: 'tabs', el: 'farm-tabs', side: 'bottom' },
       { key: 'flight', el: 'farm-flight', side: 'bottom' },
       { key: 'days', el: 'farm-days', side: 'bottom' },
       { key: 'filter', el: 'farm-filter', side: 'bottom' },

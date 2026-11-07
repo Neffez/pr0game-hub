@@ -4,6 +4,15 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-07
 
+- Spy priority list (backlog item B-2): new tab "Spy priority" in the farm finder on the same data with every report
+  of the last 30 days. Each target's need for a new report grows with the report's age (1 − e^(−age/12 h)) and with
+  signs that it no longer holds: fleet, defense or other points gained since the report, a battle at the planet
+  after it, no buildings or no fleet/defense known (`spyPriority` in `apps/web/src/spyPriority.ts`, weights in
+  `SPY_WEIGHTS`); the priority is that need times the loot expected now. The probes column shows how many probes a
+  report with buildings needs (`spyProbes` in `@pr0hub/core/spy`, the game's `MissionCaseSpy` formula). The farm
+  finder's targets now carry `changes` (points gained per category since the report) and `espionage` (the player's
+  espionage level) in `GET /api/:uni/farm`. Tour step `farm.tabs`.
+
 - Defense advisor: every attacker is calculated twice, with the full fleet and with its heavy ships only (hull of a
   battleship and up: battleship, battlecruiser, bomber, destroyer, deathstar; `heavyShips` in `@pr0hub/battle`), as
   raiders send against defense and solar satellites; the heavy variant has its own fuel and goes into the search as

@@ -187,6 +187,14 @@ components:
         defense: { $ref: '#/components/schemas/FarmSection' }
         lastBattle: { type: [integer, 'null'] }
         inactivity: { $ref: '#/components/schemas/Inactivity' }
+        changes:
+          type: object
+          description: >-
+            Points gained per statistics category since the report (keys 1 total, 2 fleet, 5 defense): newest score
+            minus the score of the last update before the report; null when no update after the report or none before
+            it is synced. Used by the spy priority list.
+          additionalProperties: { type: [number, 'null'] }
+        espionage: { type: [integer, 'null'], description: "Espionage level of the player from the newest report with research" }
     FarmSection:
       type: [object, 'null']
       description: Newest spy report section (null when no report showed it)

@@ -11,6 +11,8 @@ import { latestScores } from './stats.js';
 /** Units that don't defend a planet in the farm finder's quick check: solar satellites, spy probes, missiles. */
 const HARMLESS = new Set([210, 212, 502, 503]);
 const DAY = 86400;
+/** Espionage technology */
+const ESPIONAGE = 106;
 
 export interface FarmSection {
   time: number;
@@ -41,6 +43,10 @@ export interface FarmTarget {
   defense: FarmSection | null;
   lastBattle: number | null;
   inactivity: Inactivity | null;
+  /** points gained per category (1 total, 2 fleet, 5 defense) since the report, null without statistics on both sides */
+  changes: Record<1 | 2 | 5, number | null>;
+  /** the player's espionage level from the newest report with research */
+  espionage: number | null;
 }
 
 /**
@@ -125,7 +131,23 @@ export function farmTargets(db: DB, ctx: GroupContext, days: number) {
       )
       .all(JSON.stringify(ids), g) as { id: number; name: string; status: string; alliance_id: number | null; ally_tag: string | null }[]).map((p) => [p.id, p]),
   );
-  const scores = latestScores(db, g, ids, [1]);
+  const scores = latestScores(db, g, ids, [1, 2, 5]);
+  // the score of a category at the last statistics update before a report (index player_scores_history)
+  const scoreAt = db.prepare(
+    `SELECT ps.points FROM player_scores ps JOIN players p ON p.id = ps.player_id AND p.group_id = ?
+     WHERE ps.player_id = ? AND ps.type = ? AND ps.stat_time <= ? ORDER BY ps.stat_time DESC LIMIT 1`,
+  ).pluck();
+  const changesOf = (playerId: number, time: number) => {
+    const now = scores.get(playerId);
+    const out = { 1: null, 2: null, 5: null } as Record<1 | 2 | 5, number | null>;
+    for (const type of [1, 2, 5] as const) {
+      const cur = now?.[type];
+      if (!cur || cur.time <= time) continue;
+      const before = scoreAt.get(g, playerId, type, time) as number | undefined;
+      if (before != null) out[type] = cur.points - before;
+    }
+    return out;
+  };
   const inactive = inactivities(db, ctx, ids);
 
   const sectionOf = (s: { time: number; values: Record<string, number> } | undefined): FarmSection | null =>
@@ -170,6 +192,8 @@ export function farmTargets(db: DB, ctx: GroupContext, days: number) {
       defense: sectionOf(defenses.get(k)),
       lastBattle: battles.get(k) ?? null,
       inactivity: inactive.get(player.id) ?? null,
+      changes: changesOf(player.id, r.report_time),
+      espionage: research.get(player.id)?.[ESPIONAGE] ?? null,
     });
   }
   return { targets, resourceSpeed, speedSource, storageFactor };

@@ -21,6 +21,7 @@ source (`pr0game`: pages, missions, achievements, advanced stats).
 | D-1 Alliance health dashboard | Done | 2026-11-07 | new menu item "Health" under Alliance (every member) |
 | F-3 Export | Done | 2026-11-07 | CSV buttons at the large tables, JSON under Account; API tokens work |
 | A-4 Defense advisor | Done | 2026-11-07 | Build & research: tab "Defense advisor" per planet and moon, raid risk there and in My empire |
+| B-2 Spy priority list | Done | 2026-11-07 | farm finder: tab "Spy priority" |
 
 Each finished item carries a **Status** block below its description: what was built and how.
 
@@ -291,6 +292,24 @@ is worth no more than the storage.
 
 Which targets are worth a probe now: high projected value and an old report, or a recent change in points
 (defense or fleet built). Gives a member a short "spy these ten" list instead of browsing the galaxy.
+
+**Status: done (2026-11-07).** How it was built:
+
+- **Where:** a second tab "Spy priority" in the farm finder (same filters, start planet and actions; the report age
+  filter gives way to every report of the last 30 days, since old reports are what this list is about).
+- **Server:** the farm finder's targets carry `changes` (points gained per statistics category, total, fleet and
+  defense, since the report: newest score minus the score of the last update before the report) and `espionage` (the
+  player's espionage level from the newest report with research), in `repo/farm.ts` and `openapi.yaml`.
+- **Score** (`apps/web/src/spyPriority.ts`, tests in `apps/web/test/spy-priority.test.ts`): need = 1 − e^(−age/12 h)
+  plus 0.6 for fleet points and 0.6 for defense points gained since the report, 0.3 for other points (buildings or
+  research, only without fleet/defense growth), 0.3 for a battle at the planet after the report, 0.4 without known
+  buildings, 0.3 without known fleet or defense (`SPY_WEIGHTS`); priority = need × loot expected now. The reasons
+  show as badges with a tooltip in words.
+- **Probes:** `spyProbes` in `@pr0hub/core/spy` (the game's `MissionCaseSpy`: the minimum is the square of the
+  espionage difference, negative when the sender is ahead; fleet at the minimum, defense +1, buildings +3, research
+  +5, at least one). The column shows the probes for a report with buildings, the tooltip all four.
+- **Texts:** `farm.tabTargets`, `farm.tabSpy`, `farm.spy.*`, tour step `tours.farm.tabs`.
+- **Left for later:** planets of known players that were never spied (only spied targets are listed).
 
 ### B-3 Inactivity confidence
 **Value:** Medium · **Effort:** S · **Builds on:** points stall (`PointsStall`), activity pattern, galaxy

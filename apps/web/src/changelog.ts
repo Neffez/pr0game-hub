@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Farm-Finder: neuer Tab „Spionage-Priorität“. Er zeigt, welche Ziele jetzt eine Sonde wert sind – weil ihr Bericht alt ist, seitdem Flotte oder Verteidigung gebaut wurde oder dort gekämpft wurde – und wie viele Sonden du für einen Bericht mit Gebäuden brauchst.',
+        en: 'Farm finder: new tab "Spy priority". It shows which targets are worth a probe now – because their report is old, fleet or defense was built since or there was a battle – and how many probes you need for a report with buildings.',
+      },
+      {
+        kind: 'new',
         de: 'Raid-Risiko: Für jeden deiner Planeten und Monde siehst du, wie viel ein Angreifer dort jetzt holen könnte – im Verteidigungsberater und in deinem Imperium. Der Verteidigungsberater rechnet außerdem jeden Angreifer auch mit nur schweren Schiffen, wie Raider es oft machen.',
         en: 'Raid risk: for each of your planets and moons you see how much an attacker could get there right now – in the defense advisor and in your empire. The defense advisor also calculates every attacker with heavy ships only, as raiders often do.',
       },
