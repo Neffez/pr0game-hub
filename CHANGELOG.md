@@ -4,6 +4,15 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-07
 
+- Moon chances (backlog item B-6): battle reports now keep their moon chance, the extra of the cascading moon
+  chance and whether the battle created a moon (`moonChance`, `moonExtra`, `moonCreated` of the combat report parser,
+  German, English and the pirate theme; columns in `combat_reports`, migration `083_combat_moon_chance.sql`).
+  `GET /api/:uni/moon-chances?days=30` (`repo/moons.ts`) lists the battles with a moon chance or a new moon, the side a
+  member fought on and the moon at the position now, per member the battles, expected moons (sum of the chances) and
+  moons created, and moons that appeared at members' planets in the galaxy. Shown as section "Moon chances" in the
+  battle hall, with the moon destruction calculator (diameter from the galaxy) for a moon at a battle's position. The
+  farm finder passes the galaxy diameter of a moon target to its actions menu (`moonDiameter`).
+
 - Comments with mentions (backlog item G-8): `@name` (in-game name or username, a whole name, case ignored;
   `domain/mentions.ts`) in a comment notifies that member on the bell, by push and Discord, also in threads they never
   wrote in (`mention` on comment notifications, push title "📣 … mentioned you on …"); answering in the thread clears

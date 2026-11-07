@@ -195,6 +195,7 @@ components:
             it is synced. Used by the spy priority list.
           additionalProperties: { type: [number, 'null'] }
         espionage: { type: [integer, 'null'], description: "Espionage level of the player from the newest report with research" }
+        moonDiameter: { type: [integer, 'null'], description: 'Moons only: the diameter from the galaxy view (moon destruction calculator)' }
     Explanation:
       type: object
       description: Why a pasted page gave no data (`explainNoData` of `@pr0hub/core`)
@@ -4413,6 +4414,66 @@ paths:
           content:
             application/json:
               schema: { type: object }
+  /api/{uni}/moon-chances:
+    get:
+      tags: [Universe]
+      operationId: getMoonChances
+      description: >-
+        Moon chances: battles of the group's combat reports within `days` (1–365, default 30) that had a moon chance or
+        created a moon, newest first, with the chance in percent (plus the cascading `extra`, capped at 100), the
+        sides, the side a member fought on (by in-game names) and the moon at the position now (galaxy); per member the
+        battles, the expected moons (sum of the chances) and the moons created; `newMoons`: moons that appeared at
+        members' planets in the galaxy within the period. Reports stored before the moon chance was read are missing.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+        - { name: days, in: query, schema: { type: integer, minimum: 1, maximum: 365, default: 30 } }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  battles:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        reportId: { type: string }
+                        time: { type: integer }
+                        g: { type: [integer, 'null'] }
+                        s: { type: [integer, 'null'] }
+                        p: { type: [integer, 'null'] }
+                        chance: { type: integer }
+                        extra: { type: integer }
+                        created: { type: boolean }
+                        attackers: { type: array, items: { type: string } }
+                        defenders: { type: array, items: { type: string } }
+                        memberSide: { type: [string, 'null'], enum: [attacker, defender, null] }
+                        moon: { type: [object, 'null'], properties: { diameter: { type: [integer, 'null'] } } }
+                  members:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name: { type: string }
+                        battles: { type: integer }
+                        expected: { type: number }
+                        created: { type: integer }
+                  newMoons:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        time: { type: integer }
+                        g: { type: integer }
+                        s: { type: integer }
+                        p: { type: integer }
+                        player: { type: string }
+                        diameter: { type: [integer, 'null'] }
+                  days: { type: integer }
   /api/{uni}/notifications:
     get:
       tags: [Social]

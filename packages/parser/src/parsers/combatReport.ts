@@ -110,6 +110,8 @@ export function parseCombatReportText(text: string, reportId: string | null): Co
   const num = (re: RegExp) => parseNumber(tail.match(re)?.[1]) ?? 0;
   const winText = end[1];
   const loot = tail.match(LOOT_RE);
+  // "Die Chance einer Mondentstehung beträgt: 20 % + 5 %" (pirate theme: Inselentstehung), "Moon Chance: 40 %"
+  const moon = tail.match(/(?:Die Chance einer (?:Mond|Insel)entstehung beträgt:|Moon Chance:)\s*(\d+)\s*%(?:\s*\+\s*(\d+)\s*%)?/);
   return {
     kind: 'combatReport',
     moonDestruction: isMoonDestructionCombatText(text),
@@ -128,6 +130,9 @@ export function parseCombatReportText(text: string, reportId: string | null): Co
     },
     target,
     loot: { metal: parseNumber(loot?.[1]) ?? 0, crystal: parseNumber(loot?.[2]) ?? 0, deuterium: parseNumber(loot?.[3]) ?? 0 },
+    moonChance: moon ? Number(moon[1]) : null,
+    ...(moon?.[2] ? { moonExtra: Number(moon[2]) } : {}),
+    moonCreated: /(?:formen einen Trabanten|eine Insel bildet sich|form a satellite around the planet)/.test(tail),
     fleets,
   };
 }

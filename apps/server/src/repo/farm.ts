@@ -47,6 +47,8 @@ export interface FarmTarget {
   changes: Record<1 | 2 | 5, number | null>;
   /** the player's espionage level from the newest report with research */
   espionage: number | null;
+  /** moons: the diameter from the galaxy view (moon destruction calculator), null when unknown */
+  moonDiameter?: number | null;
 }
 
 /**
@@ -104,8 +106,8 @@ export function farmTargets(db: DB, ctx: GroupContext, days: number) {
       .all(`$."${CLASS_RESEARCH}"`, g, `$."${CLASS_RESEARCH}"`) as { player_id: number; v: string }[]).map((r) => [r.player_id, JSON.parse(r.v) as Record<string, number>]),
   );
   const positions = new Map(
-    (db.prepare('SELECT g, s, p, player_id, destroyed, has_moon FROM planets WHERE group_id = ?').all(g) as {
-      g: number; s: number; p: number; player_id: number | null; destroyed: number; has_moon: number;
+    (db.prepare('SELECT g, s, p, player_id, destroyed, has_moon, moon_diameter FROM planets WHERE group_id = ?').all(g) as {
+      g: number; s: number; p: number; player_id: number | null; destroyed: number; has_moon: number; moon_diameter: number | null;
     }[]).map((r) => [`${r.g}:${r.s}:${r.p}`, r]),
   );
   const battles = new Map(
@@ -194,6 +196,7 @@ export function farmTargets(db: DB, ctx: GroupContext, days: number) {
       inactivity: inactive.get(player.id) ?? null,
       changes: changesOf(player.id, r.report_time),
       espionage: research.get(player.id)?.[ESPIONAGE] ?? null,
+      ...(r.planet_type === 'moon' ? { moonDiameter: positions.get(`${r.g}:${r.s}:${r.p}`)?.moon_diameter ?? null } : {}),
     });
   }
   return { targets, resourceSpeed, speedSource, storageFactor };

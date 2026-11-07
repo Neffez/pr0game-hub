@@ -270,7 +270,7 @@ describe('combat report', () => {
     expect(res.records[0]).toMatchObject({
       reportId: '93a44dd012ff05992739d1afd749df1d', time: '2026-10-20 10:29:25', winner: 'attacker', rounds: 1,
       lost: { attacker: 3280000, defender: 22261000 }, debris: { metal: 3560500, crystal: 1890000 },
-      loot: { metal: 252190, crystal: 376570, deuterium: 225792 }, target: null,
+      loot: { metal: 252190, crystal: 376570, deuterium: 225792 }, target: null, moonChance: 40, moonCreated: true,
       fleets: [
         { side: 'attacker', name: 'pUsteblUme', start: { 207: 6445, 215: 2245 }, end: { 207: 6402, 215: 2235 } },
         { side: 'defender', name: 'Arys', start: { 203: 42, 207: 20, 401: 607 }, end: { 203: 0, 401: 0 } },
@@ -282,6 +282,8 @@ describe('combat report', () => {
     const text = fixture('combat-report-moon-de.txt');
     expect(parseCombatReportText(text, null)).toMatchObject({
       moonDestruction: true,
+      moonChance: null,
+      moonCreated: false,
       time: '2026-10-24 16:05:37',
       winner: 'defender',
       lost: { attacker: 69000000, defender: 3676000 },
@@ -298,6 +300,10 @@ describe('combat report', () => {
   it('parses a copied german battle report of an ACS (logged in, coordinates shown)', () => {
     const text = fixture('combat-report-de.txt');
     const r = parseCombatReportText(text, null);
+    expect(r).toMatchObject({ moonChance: 0, moonCreated: false });
+    // cascading moon chance and a moon created (pirate theme words as well)
+    const cascade = text.replace('Die Chance einer Mondentstehung beträgt: 0 %', 'Die Chance einer Inselentstehung beträgt: 20 % + 5 %\nDie enormen Mengen an freiem Holz und Gold schwimmen auf einen Haufen und eine Insel bildet sich !');
+    expect(parseCombatReportText(cascade, null)).toMatchObject({ moonChance: 20, moonExtra: 5, moonCreated: true });
     expect(r).toMatchObject({
       kind: 'combatReport', reportId: null, time: '2026-10-24 13:04:03', winner: 'attacker', rounds: 3,
       lost: { attacker: 11114000, defender: 411433000 }, debris: { metal: 142823000, crystal: 68450500 },

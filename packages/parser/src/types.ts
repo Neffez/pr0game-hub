@@ -501,6 +501,12 @@ export interface CombatReportRecord {
   /** resources the attackers captured (all fleets together; 0 when the attacker did not win) */
   loot: { metal: number; crystal: number; deuterium: number };
   fleets: CombatFleet[];
+  /** moon chance of the battle in percent (`sys_moonproba`), null when the report shows none (moon destruction) */
+  moonChance?: number | null;
+  /** extra chance of the cascading moon chance (`additionalChance`, "… % + 5 %") */
+  moonExtra?: number;
+  /** the battle created a moon (`sys_moonbuilt`) */
+  moonCreated?: boolean;
 }
 
 export type HubRecord =

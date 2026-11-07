@@ -27,6 +27,7 @@ source (`pr0game`: pages, missions, achievements, advanced stats).
 | E-4 Explain failed pastes | Done | 2026-11-07 | sync preview, parser samples in the admin panel |
 | D-4 Onboarding of new members | Done | 2026-11-07 | sync page and overview (checklist), admin panel (column in the members list) |
 | G-8 Comments with mentions | Done | 2026-11-07 | comment threads, notifications (bell, push, Discord) |
+| B-6 Moon chance tracking | Done | 2026-11-07 | battle hall: section "Moon chances", moon destruction calculator with the diameter |
 
 Each finished item carries a **Status** block below its description: what was built and how.
 
@@ -443,6 +444,24 @@ Helps members see whether their farming pays off and leaders see who carries the
 
 Record moon chances from battle reports and the moons created by members, and link the moon destruction
 calculator with the diameter from the galaxy data for a known hostile moon.
+
+**Status: done (2026-11-07).** How it was built:
+
+- **Parser:** the combat report parser reads the moon chance (`sys_moonproba`: "Die Chance einer Mondentstehung
+  beträgt: 20 % + 5 %", "Moon Chance: 40 %", pirate theme "Inselentstehung"), the cascading extra and the sentence of a
+  moon created (`sys_moonbuilt`), from the game's `shared.mission.raport.tpl`; null for moon destructions.
+- **Server:** columns `moon_chance`, `moon_extra`, `moon_created` in `combat_reports` (migration
+  `083_combat_moon_chance.sql`, filled for reports stored or archived again). `GET /api/:uni/moon-chances?days=30`
+  (`repo/moons.ts`, `getMoonChances`): battles with a moon chance or a new moon, the side a member fought on (by
+  in-game, hub and player names), the moon at the position now; per member battles, expected moons (sum of the
+  chances) and moons created; moons that appeared at members' planets (`moon_new` of the activity log). Tests in
+  `apps/server/test/moons.test.ts`.
+- **Web:** section "Moon chances" in the battle hall (`MoonChances.vue`): period, only battles with members, the
+  members' expected against created moons, the battles with a link to the report and, for a moon at the position, the
+  moon destruction calculator with the diameter from the galaxy. The farm finder passes a moon target's diameter to its
+  actions menu (galaxy view and player details did already).
+- **Texts:** `moons.*`.
+- **Left for later:** reports archived before this change keep no moon chance (their raw pages are not kept).
 
 ### B-7 Debris field tracker (fleet save detection)
 **Value:** Medium · **Effort:** M · **Builds on:** debris finder (B-4), galaxy syncs, recycling reports, retime

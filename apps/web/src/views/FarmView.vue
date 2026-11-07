@@ -44,6 +44,7 @@ interface Target {
   inactivity: Inactivity | null;
   changes: Record<1 | 2 | 5, number | null>;
   espionage: number | null;
+  moonDiameter?: number | null;
 }
 interface FarmResponse { targets: Target[]; resourceSpeed: number; speedSource: 'settings' | 'empire' | 'default'; storageFactor: number; days: number; now: number }
 interface Row extends Target {
@@ -336,7 +337,7 @@ const claimText = (r: Row) => {
             <PlayerLink :id="r.player.id" :name="r.player.name" />
             <StatusBadges :status="r.player.status" :points="r.player.points" />
             <span class="grow" />
-            <PlanetActions :g="r.g" :s="r.s" :p="r.p" :type="r.type" :from="r.from?.c ?? null" />
+            <PlanetActions :g="r.g" :s="r.s" :p="r.p" :type="r.type" :from="r.from?.c ?? null" :diameter="r.moonDiameter ?? null" />
           </div>
           <div class="farm-card-grid small">
             <span class="muted">{{ t('farm.spy.priority') }}</span><span :title="spyTitle(r)"><b>{{ short(r.spy.score) }}</b></span>
@@ -390,7 +391,7 @@ const claimText = (r: Row) => {
             <td class="num" :title="probesTitle(r)">{{ r.spy.probes ?? '?' }}</td>
             <td class="num" :title="flightTitle(r)">{{ r.flight == null ? '–' : duration(Math.floor(r.flight)) }}</td>
             <td class="num" :title="spyTitle(r)"><b>{{ short(r.spy.score) }}</b></td>
-            <td><PlanetActions :g="r.g" :s="r.s" :p="r.p" :type="r.type" :from="r.from?.c ?? null" /></td>
+            <td><PlanetActions :g="r.g" :s="r.s" :p="r.p" :type="r.type" :from="r.from?.c ?? null" :diameter="r.moonDiameter ?? null" /></td>
           </tr>
         </tbody>
       </table>
@@ -407,7 +408,7 @@ const claimText = (r: Row) => {
             <StatusBadges :status="r.player.status" :points="r.player.points" />
             <InactivityBadge :value="r.inactivity" chip hide-flagged />
             <span class="grow" />
-            <PlanetActions :g="r.g" :s="r.s" :p="r.p" :type="r.type" :from="r.from?.c ?? null" />
+            <PlanetActions :g="r.g" :s="r.s" :p="r.p" :type="r.type" :from="r.from?.c ?? null" :diameter="r.moonDiameter ?? null" />
           </div>
           <div class="farm-card-grid small">
             <span class="muted">{{ t('farm.loot') }}</span><span :title="resTitle(r)"><b>{{ short(r.lootSum) }}</b><Icon v-if="anyFull(r)" name="warning" :size="12" class="warn" /></span>
@@ -462,7 +463,7 @@ const claimText = (r: Row) => {
             <td class="num">{{ r.fuel == null ? '–' : short(r.fuel) }}</td>
             <td class="num"><b>{{ r.perFlightHour == null ? '–' : short(r.perFlightHour) }}</b></td>
             <td :class="`risk-${r.risk}`" :title="riskTitle(r)">{{ t(`farm.riskLevel.${r.risk}`) }}</td>
-            <td><PlanetActions :g="r.g" :s="r.s" :p="r.p" :type="r.type" :from="r.from?.c ?? null" /></td>
+            <td><PlanetActions :g="r.g" :s="r.s" :p="r.p" :type="r.type" :from="r.from?.c ?? null" :diameter="r.moonDiameter ?? null" /></td>
           </tr>
         </tbody>
       </table>

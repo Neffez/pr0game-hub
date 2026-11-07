@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Mondchancen: Der Hub merkt sich die Mondchance jedes Kampfberichts und ob ein Mond entstanden ist. In der Battle Hall siehst du je Mitglied, wie viele Monde zu erwarten waren und wie viele entstanden sind, dazu neue Monde an Planeten von Mitgliedern und den Mondzerstörungsrechner mit dem Durchmesser des Mondes.',
+        en: 'Moon chances: the hub keeps the moon chance of every battle report and whether a moon was created. In the battle hall you see per member how many moons were to be expected and how many were created, new moons at members\' planets, and the moon destruction calculator with the moon\'s diameter.',
+      },
+      {
+        kind: 'new',
         de: 'Kommentare: Mit @Name erwähnst du ein Mitglied – es bekommt eine Benachrichtigung (Glocke, Push, Discord), auch wenn es in dem Thread noch nichts geschrieben hat. Beim Tippen von @ schlägt der Hub Namen vor, Koordinaten im Text führen direkt in die Galaxie.',
         en: 'Comments: @name mentions a member – they get a notification (bell, push, Discord), even if they never wrote in that thread. Typing @ suggests names, coordinates in the text lead straight to the galaxy.',
       },

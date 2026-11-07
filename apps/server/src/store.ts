@@ -941,12 +941,14 @@ export function storeCombatReport(db: DB, groupId: number, r: CombatReportRecord
   const res = db
     .prepare(
       `INSERT INTO combat_reports (group_id, report_id, time, winner, rounds, lost_attacker, lost_defender, debris_metal, debris_crystal, fleets,
-         loot_metal, loot_crystal, loot_deuterium, g, s, p, planet_type, moon_destruction)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         loot_metal, loot_crystal, loot_deuterium, g, s, p, planet_type, moon_destruction, moon_chance, moon_extra, moon_created)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT (group_id, report_id) DO UPDATE SET
          g = COALESCE(g, excluded.g), s = COALESCE(s, excluded.s), p = COALESCE(p, excluded.p),
          planet_type = COALESCE(planet_type, excluded.planet_type),
          moon_destruction = MAX(moon_destruction, excluded.moon_destruction),
+         moon_chance = COALESCE(moon_chance, excluded.moon_chance), moon_extra = MAX(moon_extra, excluded.moon_extra),
+         moon_created = MAX(moon_created, excluded.moon_created),
          fleets = excluded.fleets,
          loot_metal = IIF(loot_metal + loot_crystal + loot_deuterium = 0, excluded.loot_metal, loot_metal),
          loot_crystal = IIF(loot_metal + loot_crystal + loot_deuterium = 0, excluded.loot_crystal, loot_crystal),
@@ -954,12 +956,13 @@ export function storeCombatReport(db: DB, groupId: number, r: CombatReportRecord
        WHERE (g IS NULL AND excluded.g IS NOT NULL)
          OR (loot_metal + loot_crystal + loot_deuterium = 0 AND excluded.loot_metal + excluded.loot_crystal + excluded.loot_deuterium > 0)
          OR (moon_destruction = 0 AND excluded.moon_destruction = 1)
+         OR (moon_chance IS NULL AND excluded.moon_chance IS NOT NULL)
          OR fleets <> excluded.fleets`,
     )
     .run(
       groupId, r.reportId, time, r.winner, r.rounds, r.lost.attacker, r.lost.defender, r.debris.metal, r.debris.crystal, fleetsJson,
       r.loot.metal, r.loot.crystal, r.loot.deuterium, r.target?.coords.g ?? null, r.target?.coords.s ?? null, r.target?.coords.p ?? null,
-      r.target?.type ?? null, r.moonDestruction ? 1 : 0,
+      r.target?.type ?? null, r.moonDestruction ? 1 : 0, r.moonChance ?? null, r.moonExtra ?? 0, r.moonCreated ? 1 : 0,
     );
   db.prepare("UPDATE battle_hall SET report_status = 'archived' WHERE group_id = ? AND report_id = ?").run(groupId, r.reportId);
   return renamed || res.changes > 0;
