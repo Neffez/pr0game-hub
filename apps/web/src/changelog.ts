@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-06',
     items: [
       {
+        kind: 'new',
+        de: 'Admin-Panel: Die Prüfung des Inaktivitäts-Scores zeigt Fehlalarme nach Zeitabstand (12, 24, 72 Stunden) und Score-Höhe, bei Punktezuwächsen deren Größe und Kategorie, und zählt die letzten Tage vor dem Ende eines Universums getrennt.',
+        en: 'Admin panel: the inactivity score check shows false alarms by how soon (12, 24, 72 hours) and by score, for points gains their size and category, and counts the last days before a universe ends apart.',
+      },
+      {
         kind: 'fix',
         de: '„Was soll ich als Nächstes einfügen?“ rechnet nicht mehr mit festen Statistik-Zeiten, sondern lernt aus den eingefügten Updates, wann dein Server aktualisiert. Fehlt einer Kategorie das neueste Update, steht das genau so da.',
         en: '"What should I paste next?" no longer assumes fixed statistics times but learns from the pasted updates when your server updates. When a category lacks the newest update, it says exactly that.',

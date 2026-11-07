@@ -85,14 +85,35 @@ describe('inactivity check', () => {
   it('counts a high score followed by points gains as a false alarm', async () => {
     const res = (await app.inject({ method: 'GET', url: '/hub/api/u8/inactivity-check?fresh=1', headers: admin })).json();
     expect(res.falseAlarms.days).toBeGreaterThan(20);
-    expect(res.falseAlarms.contradicted).toBeGreaterThanOrEqual(1);
+    const [h12, h24, h72] = res.falseAlarms.horizons;
+    expect([h12.hours, h24.hours, h72.hours]).toEqual([12, 24, 72]);
+    expect(h72.contradicted).toBeGreaterThanOrEqual(1);
+    expect(h12.contradicted).toBeLessThanOrEqual(h24.contradicted);
+    expect(h24.contradicted).toBeLessThanOrEqual(h72.contradicted);
+    expect(res.falseAlarms.rate).toBe(h24.rate);
+    // the bands split the positives
+    expect(res.falseAlarms.bands.reduce((n: number, b: any) => n + b.positives, 0)).toBe(res.falseAlarms.positives);
+    expect(res.endPhase).toBeNull();
     expect(res.falseAlarms.examples.map((e: any) => e.name)).toContain('Flaky');
     expect(res.falseAlarms.examples.map((e: any) => e.name)).not.toContain('Gone');
     expect(res.weights.tau).toBe(36 * H);
     // Flaky came back with points gains, Spier spied on a member after days without a gain
-    expect(Object.values(res.falseAlarms.causes).reduce((a: number, b: any) => a + b, 0)).toBe(res.falseAlarms.contradicted);
-    expect(res.falseAlarms.examples.find((e: any) => e.name === 'Flaky').cause).toBe('gain');
+    expect(Object.values(res.falseAlarms.causes).reduce((a: number, b: any) => a + b, 0)).toBe(h72.contradicted);
+    const flaky = res.falseAlarms.examples.find((e: any) => e.name === 'Flaky');
+    expect(flaky).toMatchObject({ cause: 'gain', gain: { categories: {} } });
+    expect(flaky.gain.size).toBeGreaterThan(0);
+    expect(flaky.activeAt).toBeGreaterThan(flaky.time);
+    expect(flaky.activeAt - flaky.time).toBeLessThanOrEqual(flaky.hours * H);
     expect(res.falseAlarms.examples.find((e: any) => e.name === 'Spier').cause).toBe('spy');
-    expect(res.falseAlarms.playersContradicted).toBeLessThanOrEqual(res.falseAlarms.players);
+    expect(h72.players).toBeLessThanOrEqual(res.falseAlarms.players);
+  });
+
+  it('counts the last days of an ended universe apart', async () => {
+    db.prepare("UPDATE universes SET ended_at = ? WHERE slug = 'u8'").run(T);
+    const res = (await app.inject({ method: 'GET', url: '/hub/api/u8/inactivity-check?fresh=1', headers: admin })).json();
+    db.prepare("UPDATE universes SET ended_at = NULL WHERE slug = 'u8'").run();
+    expect(res.endPhase).toMatchObject({ ended: T });
+    expect(res.endPhase.days).toBeGreaterThan(0);
+    expect(res.endPhase.days + res.falseAlarms.days).toBeGreaterThan(20);
   });
 });
