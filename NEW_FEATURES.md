@@ -142,7 +142,7 @@ back. Typical windows ("night", "work") are saved as presets.
   deploy to the farthest own target at full speed and recall it (`recallFor`) so it lands home at `back`. Tests in
   `packages/flight/test/fleetsave.test.ts`.
 - **Web:** `FleetSaveView.vue` at `/:uni/fleetsave` (menu "Fleet save"): offline from/until (time of day; a start up to
-  6 h ago means "offline now"), presets in local storage ("Night" 23:30–07:15, "Work" 07:45–17:00 built in), deploy
+  6 h ago means "offline now"), presets ("Night" 23:30–07:15, "Work" 07:45–17:00 built in; stored with the account since the follow-up below), deploy
   and transport switchable. Per own planet and moon with ships that can fly (newest empire page) the best three
   options of `FleetSaveOptions.vue` (more on request): mission, target, speed, departure with countdown, at rest from
   (lateness), deuterium (red above the body's projected deuterium), free cargo. Planets in reach of a hostile phalanx
@@ -156,8 +156,12 @@ back. Typical windows ("night", "work") are saved as presets.
   `debrisCleanup*`). Targets from `GET /api/:uni/debris-fields?g=`: `sure` when debris was created since the last
   cleaner run or seen after it; debris seen only before it is shown as unsure ("DF?"). Deduplicated by distance in the
   browser. Also in the attack assistant.
-- **Left for later:** presets synced across devices,
-  a reminder without pasting the overview.
+- **Follow-up (2026-11-07):** presets with the account instead of the device's local storage: column
+  `users.fleetsave_presets` (migration 084, NULL until changed, then the built-ins are no longer shown), `GET`/`POST
+  /api/auth/fleetsave-presets` (OpenAPI `getFleetSavePresets`, `setFleetSavePresets`; at most 20, names 1–40
+  characters and unique, times `HH:MM`). Presets a device kept before are taken over into the account on its first
+  visit when the account has none. The current window and the mission switches stay per device.
+- **Left for later:** a reminder without pasting the overview.
 
 ### A-3 Hostile phalanx exposure
 **Value:** Medium · **Effort:** S · **Builds on:** phalanx coverage in the galaxy browser, spy reports of moons

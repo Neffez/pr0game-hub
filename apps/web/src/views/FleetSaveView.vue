@@ -2,7 +2,7 @@
 import type { SaveTarget } from '@pr0hub/flight';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { uniApi } from '../api';
+import { api, uniApi } from '../api';
 import { useClock } from '../clock';
 import FleetSaveOptions, { type DebrisField, type FreeSystem } from '../components/FleetSaveOptions.vue';
 import Hint from '../components/Hint.vue';
@@ -11,6 +11,7 @@ import PageHeader from '../components/PageHeader.vue';
 import { useLoader, useStored, useUni } from '../composables';
 import { abbr, dateTime, duration, fmt, name } from '../format';
 import { tables, useLiveReload } from '../live';
+import { toast } from '../toast';
 import { useAutoTour } from '../tours';
 import { fleetShips } from '../units';
 
@@ -39,7 +40,56 @@ const DEFAULT_PRESETS: Preset[] = [
   { name: t('fleetsave.presetNight'), from: '23:30', to: '07:15' },
   { name: t('fleetsave.presetWork'), from: '07:45', to: '17:00' },
 ];
-const presets = useStored<Preset[]>('fleetsave.presets', DEFAULT_PRESETS);
+/** the member's presets, stored with their account (the same on every device); the built-ins until changed */
+const presets = ref<Preset[]>(DEFAULT_PRESETS);
+/** where earlier versions kept the presets, on this device only */
+const LOCAL_PRESETS = 'hub.fleetsave.presets';
+function localPresets(): Preset[] | null {
+  try {
+    const raw = localStorage.getItem(LOCAL_PRESETS);
+    return raw ? (JSON.parse(raw) as Preset[]) : null;
+  } catch {
+    return null;
+  }
+}
+function dropLocalPresets() {
+  try {
+    localStorage.removeItem(LOCAL_PRESETS);
+  } catch {
+    /* storage unavailable */
+  }
+}
+const postPresets = (list: Preset[]) => api<{ presets: Preset[] }>('/auth/fleetsave-presets', { body: { presets: list } });
+async function loadPresets() {
+  try {
+    const { presets: stored } = await api<{ presets: Preset[] | null }>('/auth/fleetsave-presets');
+    if (stored) {
+      presets.value = stored;
+      dropLocalPresets();
+      return;
+    }
+    // presets of this device from before: take them over into the account once
+    const local = localPresets();
+    if (local) {
+      presets.value = (await postPresets(local)).presets;
+      dropLocalPresets();
+    }
+  } catch {
+    /* the built-ins stay */
+  }
+}
+onMounted(loadPresets);
+/** Shows the change at once and stores it; back to the previous presets when that fails. */
+async function storePresets(list: Preset[]) {
+  const before = presets.value;
+  presets.value = list;
+  try {
+    presets.value = (await postPresets(list)).presets;
+  } catch {
+    presets.value = before;
+    toast(t('fleetsave.presetsFailed'), 'warn');
+  }
+}
 const win = useStored<{ from: string; to: string }>('fleetsave.window', { from: DEFAULT_PRESETS[0].from, to: DEFAULT_PRESETS[0].to });
 const kinds = useStored<{ deploy: boolean; transport: boolean; harvest?: boolean; colonize?: boolean }>('fleetsave.kinds', { deploy: true, transport: true, harvest: true, colonize: true });
 /** existing debris fields of the own galaxies: recycling targets */
@@ -90,11 +140,11 @@ function usePreset(p: Preset) {
 }
 function savePreset() {
   const label = presetName.value.trim() || `${win.value.from}–${win.value.to}`;
-  presets.value = [...presets.value.filter((p) => p.name !== label), { name: label, ...win.value }];
   presetName.value = '';
+  void storePresets([...presets.value.filter((p) => p.name !== label), { name: label, ...win.value }]);
 }
 function removePreset(p: Preset) {
-  presets.value = presets.value.filter((x) => x !== p);
+  void storePresets(presets.value.filter((x) => x !== p));
 }
 
 const research = computed(() => data.value?.empire?.data.research ?? {});
@@ -154,7 +204,7 @@ const kindList = computed(() => (['deploy', 'transport', 'harvest', 'colonize'] 
       <button class="small" @click="usePreset(p)">{{ p.name }} <span class="muted">{{ p.from }}–{{ p.to }}</span></button>
       <button class="icon-btn small" :title="t('fleetsave.removePreset')" :aria-label="t('fleetsave.removePreset')" @click="removePreset(p)"><Icon name="close" :size="12" /></button>
     </span>
-    <input v-model="presetName" class="fs-name" :placeholder="t('fleetsave.presetName')" @keydown.enter="savePreset" />
+    <input v-model="presetName" class="fs-name" maxlength="40" :placeholder="t('fleetsave.presetName')" @keydown.enter="savePreset" />
     <button class="small" @click="savePreset"><Icon name="plus" :size="12" /> {{ t('fleetsave.savePreset') }}</button>
   </div>
 

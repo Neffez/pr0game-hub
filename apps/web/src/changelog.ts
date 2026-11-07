@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-07',
     items: [
       {
+        kind: 'new',
+        de: 'Fleetsave: Deine Vorlagen für Offline-Zeiten werden jetzt in deinem Konto gespeichert und sind auf jedem Gerät gleich. Vorlagen, die bisher nur auf einem Gerät lagen, werden beim nächsten Besuch übernommen.',
+        en: 'Fleet save: your offline window presets are now stored with your account and are the same on every device. Presets that were kept on one device so far are taken over on your next visit.',
+      },
+      {
         kind: 'fix',
         de: 'Bauen und Forschen: Die Planetenauswahl ragt auf dem Handy nicht mehr über den Bildschirmrand hinaus.',
         en: 'Build and research: the planet selection no longer runs past the screen edge on phones.',

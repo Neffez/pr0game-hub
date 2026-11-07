@@ -71,7 +71,7 @@ External analysis tool for [pr0game](https://codeberg.org/pr0game/pr0game) based
   countdown, a battle simulation of the attacking ships against the planet, resources and loot at risk, fleet saves
   before the impact (also with a recall) and the members who can still hold in time, invited to a hold plan in one
   click
-- **Fleet save planner**: enter when you are offline (presets); per planet and moon the deploys and transports to own
+- **Fleet save planner**: enter when you are offline (presets stored with the account); per planet and moon the deploys and transports to own
   bodies that land right when you are back, with departure, speed, deuterium and free cargo, and a hint when a hostile
   phalanx sees the planet
 - **Targets**: members claim a planet, moon or debris field for a while (farming, attack, espionage, recycling) so nobody hits it twice;

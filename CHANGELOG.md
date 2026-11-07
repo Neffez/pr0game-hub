@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-07
 
+- Fleet save planner: the offline window presets are stored with the account instead of the browser, so they are the
+  same on every device. New column `users.fleetsave_presets` (migration 084) and endpoints `GET`/`POST
+  /api/auth/fleetsave-presets` (OpenAPI `getFleetSavePresets`, `setFleetSavePresets`); presets a device kept locally
+  are taken over into the account on its first visit. The current window and the mission switches stay per device.
+
 - Build page (buildings, research and the other tabs): on mobile the planet select takes the full row and shrinks to the
   screen instead of running past its edge with long planet names.
 

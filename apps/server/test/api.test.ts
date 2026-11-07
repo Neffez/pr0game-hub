@@ -1293,6 +1293,27 @@ describe('review fixes', () => {
     }
   });
 
+  it('stores the fleet save presets per user', async () => {
+    db.prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)').run('fsuser', hashPassword('fsuserpass1'));
+    const f = await login('fsuser', 'fsuserpass1');
+    const get = async () => (await app.inject({ method: 'GET', url: '/hub/api/auth/fleetsave-presets', headers: f })).json().presets;
+    const set = (presets: unknown) => app.inject({ method: 'POST', url: '/hub/api/auth/fleetsave-presets', headers: f, payload: { presets } as any });
+    expect(await get()).toBeNull();
+    const night = { name: ' Night ', from: '23:30', to: '07:15' };
+    const res = await set([night, { name: 'Work', from: '07:45', to: '17:00' }, { name: 'Night', from: '22:00', to: '06:00' }]);
+    expect(res.json()).toEqual({ presets: [{ name: 'Work', from: '07:45', to: '17:00' }, { name: 'Night', from: '22:00', to: '06:00' }] });
+    expect(await get()).toEqual([{ name: 'Work', from: '07:45', to: '17:00' }, { name: 'Night', from: '22:00', to: '06:00' }]);
+    expect((await set([])).json()).toEqual({ presets: [] });
+    expect(await get()).toEqual([]);
+    for (const bad of [undefined, 'x', [{ ...night, from: '24:00' }], [{ ...night, name: ' ' }], [{ ...night, name: 'x'.repeat(41) }], Array(21).fill(night)]) {
+      const r = await set(bad);
+      expect(r.statusCode).toBe(400);
+      expect(r.json().code).toBe('presets_invalid');
+    }
+    expect(await get()).toEqual([]);
+    expect((await app.inject({ method: 'GET', url: '/hub/api/auth/fleetsave-presets' })).statusCode).toBe(401);
+  });
+
   it('parses stored tour settings defensively', () => {
     expect(parseTours(null)).toEqual({ enabled: true, seen: [] });
     expect(parseTours('x')).toEqual({ enabled: true, seen: [] });
