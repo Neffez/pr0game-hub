@@ -20,6 +20,7 @@ source (`pr0game`: pages, missions, achievements, advanced stats).
 | C-1 Upgrade advisor | Done | 2026-11-07 | Build & research: tab "Advisor", best next step in the buildings tab |
 | D-1 Alliance health dashboard | Done | 2026-11-07 | new menu item "Health" under Alliance (every member) |
 | F-3 Export | Done | 2026-11-07 | CSV buttons at the large tables, JSON under Account; API tokens work |
+| A-4 Defense advisor | Done | 2026-11-07 | Build & research: tab "Defense advisor" per planet and moon, raid risk there and in My empire |
 
 Each finished item carries a **Status** block below its description: what was built and how.
 
@@ -193,6 +194,40 @@ For a chosen planet: given the fleets of active attackers in range (from battle 
 additional defense makes an attack cost more than it brings in (losses + fuel > loot + debris)? Output: a short
 build list with costs and the expected profit of an attacker before and after. Also a "raid risk" score per own
 planet in the empire view.
+
+**Status: done (2026-11-07).** How it was built:
+
+- **Search in `@pr0hub/battle`** (`defenseAdvice`, `src/defense.ts`): the attacker's profit of one attack = loot +
+  debris field (option) − ships lost − fuel, in deuterium by the market rate, averaged over the runs with the same
+  random numbers for every variant. Shield domes are tried first (kept when they help); each buildable defense type is
+  probed for about the worst profit; the two types that cut it most per resource are mixed by their efficiency and
+  scaled (doubling, then four bisection steps) until no chosen attacker profits. Status `safe`, `found`, `limit`
+  (nothing helps for up to 20 × the profit) or `budget` (pieces × runs over the engine budget, about 10 s). The three
+  most profitable attackers are searched together; all chosen ones are shown before and after. Tests in
+  `packages/battle/test/defense.test.ts`.
+- **Server:** `apps/server/src/repo/defense.ts`, `GET /api/:uni/defense-advice` (`getDefenseAdvice` in `openapi.yaml`).
+  The planet from the buildings page state (units, the shipyard queue as built, resources now or full storages,
+  requirements for the candidates). Threats (at most 8): hostile spying on the viewer and battle reports at the
+  viewer's bodies of 14 days, hostile attacks on their way, the 5 strongest players with a fleet in a spy report of
+  the planet's galaxy; members and the own alliance left out. Per threat the strongest fleet known (spy report, battle
+  report, fleet movement; no probes or satellites), fleet points of the statistics, research of the newest spy report
+  (else the viewer's as an estimate), the flight from where the fleet was seen or the owner's nearest planet with its
+  deuterium. The search runs in the battle worker (`runDefenseInWorker`, job `defense`, 30 s, same throttle as the
+  simulator API); `sim=0` lists the threats only. Tests in `apps/server/test/defense.test.ts`.
+- **Web:** `DefenseAdvisor.vue` in a new tab "Defense advisor" of `BuildView.vue` (planets and moons): options (ships
+  stay, attacker recycles, resources now or full), the threats with why, fleet, source and age, a warning when the
+  statistics show more fleet points than the fleet known, flight and fuel; "Calculate defense" for the chosen ones,
+  profit before → after per attacker, the units to build with their cost, "Add to build order" (shipyard steps,
+  shared `buildOrderAdd.ts` with the upgrade advisor) and a battle simulator link. Cards on mobile. Web test
+  `apps/web/test/defense.test.ts`. **Tours:** `build.defense`, `build.defenseList`; **texts** `defense.*`.
+- **Follow-up (2026-11-07):** each attacker in two variants, the full fleet and only its heavy ships (hull of a
+  battleship and up, `heavyShips`), as raiders send against defense and solar satellites, with its own fuel; both go
+  into the search. **Raid risk:** `GET /api/:uni/defense-risk` runs `raidRisk` (`@pr0hub/battle/src/risk.ts`) in the
+  battle worker: every own body against its threats in both variants as it is, few runs within one engine budget, the
+  most profitable attack is the score; kept 30 minutes per hash of the input. Shown on top of the defense advisor tab
+  and as a section in the own empire view (on a click).
+- **Left for later:** attackers sending other parts of their fleet (e.g. only cargos against an empty planet),
+  defense against interplanetary missiles (interceptors), a risk mark in the empire's planet table.
 
 ### A-5 Who threatens me
 **Value:** Medium · **Effort:** M · **Builds on:** hostile spying, battle reports, statistics, flight math
@@ -652,7 +687,7 @@ A-1 Incoming attack assistant (done) · A-2 Fleet save planner (done) · C-1 Upg
 health dashboard (done) · F-3 Export (done)
 
 **Later:**
-A-4 Defense advisor · C-2 Logistics planner · C-3 Resource requests · C-4 Expedition planner · D-2 War dashboard ·
+A-4 Defense advisor (done) · C-2 Logistics planner · C-3 Resource requests · C-4 Expedition planner · D-2 War dashboard ·
 D-5 Calendar · F-4 Discord commands · E-3 parser gaps · G items as capacity allows
 
 Reasoning: the "Now" items mostly reuse data and math the hub already has and raise data quality (E-1) or daily

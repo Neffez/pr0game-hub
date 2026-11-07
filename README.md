@@ -25,7 +25,10 @@ External analysis tool for [pr0game](https://codeberg.org/pr0game/pr0game) based
   resources of landing fleets), build and research time (catch-up bonus, robot/nanite factories, labs with the research
   network, TechnoDome), locks like the game; a bell per element notifies (hub bell, push, Discord) once the next level is
   possible; the **upgrade advisor** ranks the next mine, energy and production research levels by payback time (market
-  rate, energy that has to come along) and puts a step into the build order in one click
+  rate, energy that has to come along) and puts a step into the build order in one click; the **defense advisor**
+  lists the attackers the hub knows for a planet (spying, battle reports, fleets on their way, strong fleets nearby)
+  (full fleet and heavy ships only) and finds by battle simulation the defense that makes their attacks cost more
+  than they bring in, with a raid risk per planet and moon (also in the own empire view)
 - **Marketplace**: the alliance's market rate (exact from the page source, estimated from a copied page, or set by
   hand) with its history and the open offers of the latest sync; the rate feeds the loot settlement and battle
   simulator links, new offers show up in the activity log

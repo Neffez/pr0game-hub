@@ -4,6 +4,36 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-07
 
+- Defense advisor: every attacker is calculated twice, with the full fleet and with its heavy ships only (hull of a
+  battleship and up: battleship, battlecruiser, bomber, destroyer, deathstar; `heavyShips` in `@pr0hub/battle`), as
+  raiders send against defense and solar satellites; the heavy variant has its own fuel and goes into the search as
+  `<key>:heavy`, the profit column shows both. The tooltip shows the defender's losses (the ships on the planet are
+  in the debris field). Shared `threatOutcome` in `@pr0hub/battle`.
+- Raid risk (rest of backlog item A-4): `GET /api/:uni/defense-risk` (`getDefenseRisk`) runs `raidRisk` of
+  `@pr0hub/battle` in the battle worker (job `risk`): per own planet and moon the known threats in both variants
+  against the body as it is, runs within an engine budget (at most 4); the most profitable attack is the risk. Kept
+  30 minutes in memory per hash of the input (resources in steps of about 2 %). Shown on top of the defense advisor tab
+  (riskiest first, a row selects the body) and as a section "Raid risk" in the own empire view (calculated on a
+  click). Tour step `build.defenseRisk`, texts `risk.*`.
+
+- Defense advisor (backlog item A-4): new tab "Defense advisor" in Build & research for each own planet and moon
+  (`GET /api/:uni/defense-advice`, `repo/defense.ts`, `getDefenseAdvice` in `openapi.yaml`).
+  - Threats: players who spied on the viewer or attacked one of the viewer's bodies in the last 14 days, hostile
+    fleets on their way to the viewer and the 5 strongest players with a fleet in a spy report of the planet's galaxy
+    (members and the own alliance left out), each with the strongest fleet known (spy report, battle report, fleet
+    movement), the newest fleet points of the statistics, the research of the newest spy report (else the viewer's
+    levels as an estimate) and the flight with its deuterium.
+  - Search in `@pr0hub/battle` (`defenseAdvice`, `src/defense.ts`): the attacker's profit of one attack is loot +
+    debris field − ships lost − fuel, valued with the market rate; shield domes are tried first, then the two defense
+    types that cut the worst attacker's profit most per resource are mixed and scaled (doubling, then bisection) until
+    no chosen attacker profits; capped at 20 times the profit and an engine budget, with the same random numbers for
+    every variant. It runs in the battle worker (`runDefenseInWorker`, job `defense`, 30 s limit, one simulation of
+    the rate limit). Options: ships stay or are saved, the attacker recycles or not, resources now or full storages.
+  - The advised units go into the build order as shipyard steps; a link opens the strongest attacker against the
+    planet with the advice in the battle simulator. Tour steps `build.defense`, `build.defenseList`; texts
+    `defense.*`, `buildings.tabDefense`, `buildings.hintDefense`.
+  - Build order insertion of the upgrade advisor and the defense advisor shares `buildOrderAdd.ts`.
+
 - Debris fields for recycling follow the game's weekly cleaner (`CleanerCronjob`, Saturday 02:45 server time by
   default): it marks all fields inactive, and a harvested empty field can be flown to again only after a battle
   leaves debris there. New universe settings `debrisCleanupDay` (0 Sunday … 6 Saturday), `debrisCleanupHour` and

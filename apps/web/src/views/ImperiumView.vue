@@ -3,6 +3,7 @@ import { useAutoTour } from '../tours';
 import MemberSelect from '../components/MemberSelect.vue';
 import PageHeader from '../components/PageHeader.vue';
 import Section from '../components/Section.vue';
+import RaidRisk from '../components/RaidRisk.vue';
 import Icon from '../components/Icon.vue';
 import { resourceAt } from '@pr0hub/core/buildings';
 import { classOf, elementPoints, METAL, RESOURCES, STORAGE, storageCapacity } from '@pr0hub/core/tech';
@@ -505,6 +506,12 @@ useAutoTour('imperium', () => !!data.value);
     </div>
   </Section>
 
+  <Section v-if="!error && data && empire && mine" data-tour="imperium-risk" :title="t('risk.title')" store-key="imperium.risk" :default-open="false">
+    <template #hint>
+      <Hint><p>{{ t('risk.hint1') }}</p><p>{{ t('risk.hint2') }}</p></Hint>
+    </template>
+    <RaidRisk />
+  </Section>
   <Section v-if="!error && fleets" data-tour="imperium-fleets" :title="t('imperium.fleets')" :count="flights.length" store-key="imperium.fleets">
     <template #hint>
       <Hint><p>{{ t('imperium.fleetsHint') }}</p></Hint>
