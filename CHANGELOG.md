@@ -4,6 +4,18 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-07
 
+- Debris finder (backlog item B-4): new page "Debris finder" under Combat & expeditions (`/:uni/debris`,
+  `DebrisView.vue`) with `GET /api/:uni/debris?days=7` (`repo/debris.ts`, `getDebrisFinder` in `openapi.yaml`). Per
+  open debris field the debris expected now: the newer of the galaxy view and a member's recycling report (exact
+  rest) plus the debris of battles at the position after it (battle and combat reports, once per battle), the owner
+  of the planet there, and the members' recyclers per planet and moon from their newest empire pages with their
+  recycler speed. The web app shows recyclers needed, the own flight time and amount per flight hour, and the nearest
+  member with enough recyclers.
+  - Debris fields can be claimed for recycling: claims take `type: debris` (kind always `recycle`); migration
+    `080_debris_claims.sql` rebuilds `target_claims` with the new CHECKs. A debris claim and a farm claim on the planet
+    at the same position don't block each other. `PlanetActions` with `type="debris"` offers recycling in the game
+    (mission 8), the flight time, the galaxy and the claim; the claims list marks debris claims.
+
 - Spy priority list (backlog item B-2): new tab "Spy priority" in the farm finder on the same data with every report
   of the last 30 days. Each target's need for a new report grows with the report's age (1 − e^(−age/12 h)) and with
   signs that it no longer holds: fleet, defense or other points gained since the report, a battle at the planet

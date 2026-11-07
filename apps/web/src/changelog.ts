@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Neuer TF-Finder unter Kampf & Expeditionen: alle offenen Trümmerfelder mit der Menge jetzt (auch direkt nach einem Kampf eines Mitglieds), nötigen Recyclern, deiner Flugzeit und dem nächsten Mitglied mit genug Recyclern. Trümmerfelder lassen sich zum Abbauen reservieren, unabhängig vom Planeten dort.',
+        en: 'New debris finder under Combat & expeditions: every open debris field with its amount now (also right after a member\'s battle), the recyclers needed, your flight time and the nearest member with enough recyclers. Debris fields can be claimed for recycling, apart from the planet there.',
+      },
+      {
+        kind: 'new',
         de: 'Farm-Finder: neuer Tab „Spionage-Priorität“. Er zeigt, welche Ziele jetzt eine Sonde wert sind – weil ihr Bericht alt ist, seitdem Flotte oder Verteidigung gebaut wurde oder dort gekämpft wurde – und wie viele Sonden du für einen Bericht mit Gebäuden brauchst.',
         en: 'Farm finder: new tab "Spy priority". It shows which targets are worth a probe now – because their report is old, fleet or defense was built since or there was a battle – and how many probes you need for a report with buildings.',
       },

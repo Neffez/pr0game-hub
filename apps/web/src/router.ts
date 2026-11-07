@@ -43,6 +43,7 @@ export const router = createRouter({
         { path: 'raids', redirect: (to) => ({ path: `/${to.params.uni}/raid-planner`, query: { ...to.query, tab: 'stats' } }) },
         { path: 'targets', redirect: (to) => ({ path: `/${to.params.uni}/raid-planner`, query: { tab: 'plans' } }) },
         { path: 'farm', component: () => import('./views/FarmView.vue') },
+        { path: 'debris', component: () => import('./views/DebrisView.vue') },
         { path: 'fleetsave', component: () => import('./views/FleetSaveView.vue') },
         { path: 'attack', component: () => import('./views/AttackView.vue') },
         { path: 'health', component: () => import('./views/HealthView.vue') },

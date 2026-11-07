@@ -22,6 +22,7 @@ source (`pr0game`: pages, missions, achievements, advanced stats).
 | F-3 Export | Done | 2026-11-07 | CSV buttons at the large tables, JSON under Account; API tokens work |
 | A-4 Defense advisor | Done | 2026-11-07 | Build & research: tab "Defense advisor" per planet and moon, raid risk there and in My empire |
 | B-2 Spy priority list | Done | 2026-11-07 | farm finder: tab "Spy priority" |
+| B-4 Debris finder | Done | 2026-11-07 | new menu item "Debris finder" under Combat & expeditions, debris claims |
 
 Each finished item carries a **Status** block below its description: what was built and how.
 
@@ -396,12 +397,36 @@ of 35 contradictions were points gains, 4 attacks, 3 espionage. Most came 2–3 
 - an ended universe counts samples whose follow-up reaches into its last 7 days apart (`endPhase`).
 - **Next:** measure on U8 after 2–3 weeks of running, then tune `tau` and `weakGain`.
 
-### B-4 Debris field tracker
+### B-4 Debris finder (harvesting debris fields)
 **Value:** Medium · **Effort:** S · **Builds on:** galaxy parser (debris), battle reports, recycling reports
 
 Debris is parsed but not tracked as a list. Show open debris fields of the group's galaxy data with size, age,
 recyclers needed and the nearest member with recyclers. A battle of a member that leaves debris shows up here at
 once; a recycling report clears it. Claims of kind "recycle" avoid double flights.
+
+**Status: done (2026-11-07), as "Debris finder".** The item is about harvesting debris fields; watching a field for
+harvesting to catch a fleet saved on it is a different feature (B-7 below). How it was built:
+
+- **Server:** `GET /api/:uni/debris?days=7` (`apps/server/src/repo/debris.ts`, `getDebrisFinder` in `openapi.yaml`).
+  Last known amount (`base`): the newer of the galaxy view (`planets.debris` at the system's `galaxy_views.seen_at`)
+  and a member's recycling report (`debris_shrunk`/`debris_cleared` with a `recycle:` key in the activity log, the
+  exact rest and who recycled). Battles at the position after it (battle messages and full combat reports, once per
+  battle) add their debris, so a member's battle shows up at once; a recycling report clears it. Fields whose newest
+  information is older than `days` (1–30) are left out. Also the members' recyclers per planet and moon from their
+  newest empire pages, with the recycler speed of their drives, and the recycler capacity of the universe. Tests in
+  `apps/server/test/debris.test.ts`.
+- **Claims:** a debris field is its own claim target (`type: debris`, kind `recycle`); migration `080_debris_claims.sql`
+  rebuilds `target_claims` with the new CHECKs (ids kept for raid plans). A debris claim and a farm claim on the planet
+  at the same position don't block each other.
+- **Web:** `DebrisView.vue` at `/:uni/debris`, menu item "Debris finder" under Combat & expeditions. Columns: field (a
+  badge when a battle came after the last galaxy view), owner of the planet (members marked), debris (tooltip: metal,
+  crystal, where the amount comes from and each battle), recyclers needed, age, own flight time with recyclers from the
+  nearest own planet or moon, amount per flight hour, nearest member with enough recyclers (else the nearest with any,
+  marked). Filters: age, speed, hide claimed by others, hide fields at members' planets, minimum debris, galaxy.
+  `PlanetActions` with `type="debris"`: recycle in the game (mission 8), flight time, galaxy, claim.
+- **Texts:** `debris.*`, `nav.debris`, `actions.recycle`, `claims.kinds.recycle`, `claims.debris`.
+- **Left for later:** the weekly debris cleaner (an empty field may be gone, see `/debris-fields`) only matters for
+  fleet saves, not for fields with debris; a tour for the page.
 
 ### B-5 Raid profitability over time
 **Value:** Medium · **Effort:** S · **Builds on:** raid statistics, loot settlement
@@ -414,6 +439,15 @@ Helps members see whether their farming pays off and leaders see who carries the
 
 Record moon chances from battle reports and the moons created by members, and link the moon destruction
 calculator with the diameter from the galaxy data for a known hostile moon.
+
+### B-7 Debris field tracker (fleet save detection)
+**Value:** Medium · **Effort:** M · **Builds on:** debris finder (B-4), galaxy syncs, recycling reports, retime
+
+Fleeters save their fleet by sending recyclers (with the fleet) to a debris field. Watch a hostile debris field: when
+it shrinks between two galaxy syncs (or the debris is gone), someone harvested it. From the time window of the change
+and the owner's planets and moons in range, compute when the recyclers left and when they come back (flight math of
+`@pr0hub/flight`, the owner's drives from spy reports), and hand the return window to the retime of the raid planner.
+Needs frequent galaxy syncs of the watched system, so it pairs with a "watch this field" reminder.
 
 ---
 

@@ -2531,6 +2531,81 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Imperium' }
+  /api/{uni}/debris:
+    get:
+      tags: [Universe]
+      operationId: getDebrisFinder
+      description: >-
+        Debris finder: open debris fields of the group's data with the debris expected now, largest first. The last
+        known amount is the newer of the galaxy view and a member's recycling report (`base`, the exact rest); battles
+        at the position after it (synced battle and combat reports, once per battle) add their debris (`battles`).
+        Fields whose newest information (`time`) is older than `days` are left out. `recyclers`: recyclers of the
+        members per planet and moon from their newest empire pages with the recycler speed of their drives;
+        `capacity`: cargo of one recycler in this universe. Distance and flight time are up to the client.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+        - name: days
+          in: query
+          description: Age of the newest information about a field in days (1–30, default 7)
+          schema: { type: integer, minimum: 1, maximum: 30, default: 7 }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  fields:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        g: { type: integer }
+                        s: { type: integer }
+                        p: { type: integer }
+                        metal: { type: integer }
+                        crystal: { type: integer }
+                        time: { type: integer }
+                        base:
+                          type: [object, 'null']
+                          properties:
+                            source: { type: string, enum: [galaxy, recycle] }
+                            time: { type: integer }
+                            metal: { type: integer }
+                            crystal: { type: integer }
+                            by: { type: [string, 'null'], description: Member whose recyclers left the rest }
+                        battles:
+                          type: array
+                          items:
+                            type: object
+                            properties: { time: { type: integer }, metal: { type: integer }, crystal: { type: integer } }
+                        owner:
+                          type: [object, 'null']
+                          description: Owner of the planet at the position; `member` when it is one of the group's members
+                          properties:
+                            id: { type: integer }
+                            name: { type: string }
+                            ally_tag: { type: [string, 'null'] }
+                            member: { type: boolean }
+                  recyclers:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        userId: { type: integer }
+                        member: { type: string }
+                        g: { type: integer }
+                        s: { type: integer }
+                        p: { type: integer }
+                        type: { type: string, enum: [planet, moon] }
+                        recyclers: { type: integer }
+                        speed: { type: integer }
+                        time: { type: integer }
+                  capacity: { type: [integer, 'null'] }
+                  days: { type: integer }
+                  now: { type: integer }
   /api/{uni}/debris-fields:
     get:
       tags: [Universe]
@@ -4214,7 +4289,11 @@ paths:
       tags: [Social]
       operationId: createClaim
       security: [{ sessionCookie: [] }]
-      description: Claims a target for the alliance.
+      description: >-
+        Claims a target for the alliance. Body: `g`, `s`, `p`, `type` (`planet`, `moon` or `debris` for the debris field
+        at the position), `kind` (`farm`, `attack`, `spy`; always `recycle` for a debris field), `minutes` (1–1440,
+        default 120), `note`, `force` (group admins take over). A claim of the debris field and one of the planet at
+        the same position don't block each other.
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }

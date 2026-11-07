@@ -6,6 +6,8 @@ import { events } from '../events.js';
 import { contextOf, DISPLAY, MEMBER, releaseTargetClaims } from './util.js';
 
 const KINDS = ['farm', 'attack', 'spy'];
+/** Debris fields (`type` debris) are claimed for recycling only. */
+const TYPES = ['planet', 'moon', 'debris'];
 /** Claim durations in minutes: default and limits. */
 const DEFAULT_MINUTES = 120;
 const MAX_MINUTES = 24 * 60;
@@ -72,8 +74,8 @@ export function claimsRoutes(app: FastifyInstance, db: DB) {
     const { galaxies, systems, positions } = ctx.universe.settings;
     const inRange = (v: unknown, max: number) => Number.isInteger(v) && (v as number) >= 1 && (v as number) <= max;
     if (!inRange(b.g, galaxies) || !inRange(b.s, systems) || !inRange(b.p, positions)) throw new HttpError(400, 'coords_invalid', 'Invalid coordinates');
-    const type = b.type === 'moon' ? 'moon' : 'planet';
-    const kind = KINDS.includes(String(b.kind)) ? String(b.kind) : 'farm';
+    const type = TYPES.includes(String(b.type)) ? String(b.type) : 'planet';
+    const kind = type === 'debris' ? 'recycle' : KINDS.includes(String(b.kind)) ? String(b.kind) : 'farm';
     const minutes = minutesOf(b.minutes);
     const note = noteOf(b.note);
     return db.transaction(() => {
