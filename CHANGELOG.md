@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-07
 
+- README: the features of this day (spy priority, debris finder, colonization planner, moon chances, mentions,
+  debris claims, several pages and explained pastes in the sync, onboarding) in the feature list.
+
 - Colonization planner (backlog item C-5): new page "Colonize" under Start (`/:uni/colonize`, `ColonizeView.vue`)
   with `GET /api/:uni/colonize?range=25` (`repo/colonize.ts`, `getColonizeSystems`). Per system with free positions
   in the group's galaxy data: coverage (by how much a planet there shortens the mean distance, game formula, from

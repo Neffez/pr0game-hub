@@ -38,7 +38,8 @@ External analysis tool for [pr0game](https://codeberg.org/pr0game/pr0game) based
   reports and, for alliance players, their syncs and hub presence),
   planets, status history, notes
 - **Comments**: the alliance discusses a player or a planet/moon in a thread (player details, spy history), with a
-  💬 count next to the planet
+  💬 count next to the planet; `@name` mentions a member (notified like a comment in their own threads), coordinates
+  link to the galaxy
 - **Galaxy browser** with phalanx coverage and a freshness heat map
 - **Global search** (`Ctrl+K`/`⌘K`, `/` or the search field in the menu): players (also former names), alliances,
   coordinates (spy history, galaxy, owner) and the hub's pages, with keyboard navigation
@@ -56,7 +57,16 @@ External analysis tool for [pr0game](https://codeberg.org/pr0game/pr0game) based
   newest spy report plus the production since then (capped by the storages), ships, fuel and flight time from the
   nearest own planet, defense and fleet risk and an inactivity score (game flag, latest proven activity, relevant
   points gains against the players around the same rank, spy history, lost fleet or defense; checkable against the
-  game's own flags in the admin panel)
+  game's own flags in the admin panel); a second tab **spy priority** ranks the targets worth a probe now (old
+  report, fleet or defense built since, a battle at the planet) with the probes a report with buildings needs
+- **Debris finder**: open debris fields with the debris expected now (galaxy view or a member's recycling report plus
+  battles since), recyclers needed, the own flight time and the nearest member with enough recyclers; debris fields
+  can be claimed for recycling
+- **Colonization planner**: free positions of the known galaxy rated as a fleeter (coverage of the universe, points
+  of targets nearby) or a miner (fields, temperature, position bonus), avoiding many members nearby, with the
+  astrophysics level each position needs
+- **Moon chances** (battle hall): battles with a moon chance, expected against created moons per member, new moons at
+  members' planets and the moon destruction calculator with the moon's diameter
 - **Incoming attack assistant**: one page per hostile attack (from the bell, push, Discord or the raid planner):
   countdown, a battle simulation of the attacking ships against the planet, resources and loot at risk, fleet saves
   before the impact (also with a recall) and the members who can still hold in time, invited to a hold plan in one
@@ -64,7 +74,7 @@ External analysis tool for [pr0game](https://codeberg.org/pr0game/pr0game) based
 - **Fleet save planner**: enter when you are offline (presets); per planet and moon the deploys and transports to own
   bodies that land right when you are back, with departure, speed, deuterium and free cargo, and a hint when a hostile
   phalanx sees the planet
-- **Targets**: members claim a planet or moon for a while (farming, attack, espionage) so nobody hits it twice;
+- **Targets**: members claim a planet, moon or debris field for a while (farming, attack, espionage, recycling) so nobody hits it twice;
   the claim shows next to the target everywhere and runs out by itself; the list of claims is a section of the
   raids planning tab
 - **Raids**: one page with the tabs planning, settlements and statistics
@@ -87,6 +97,10 @@ External analysis tool for [pr0game](https://codeberg.org/pr0game/pr0game) based
 - **Live**: what a member syncs shows up in the open hub tabs of the alliance without reloading, with a short hint
   who synced what (can be turned off in the account settings); who of the alliance is online and where (page, galaxy
   system, player), and when the others were last online
+- **Sync**: paste a page, choose saved pages (several at once, drag and drop of files or a folder) or collect pasted
+  pages one after the other, each with its own preview; a page the hub can't read says why (unsupported page, other
+  language, not a game page) and can be sent to the admins as an anonymized parser sample; new members follow a
+  checklist of their first syncs, the admin panel shows who finished
 - German and English UI, per user; mobile layout with a bottom tab bar and quick sync from the clipboard
 
 Player IDs, alliance IDs and rank changes are only available in HTML/page source. With plain text, players are matched by name.
