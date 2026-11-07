@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-07',
     items: [
       {
+        kind: 'new',
+        de: 'Feindliche Phalanx: Im Imperium siehst du je Planet, welche Monde anderer Allianzen ihn mit der Sensorphalanx sehen können und seit wann das bekannt ist; Planeten in Reichweite tragen ein Auge. Wird eine neue Phalanx in Reichweite bekannt, meldet sich die Glocke (auch per Push und Discord).',
+        en: 'Hostile phalanx: My empire shows per planet which moons of other alliances can watch it with their sensor phalanx and since when that is known; planets in range carry an eye. When a new phalanx in range becomes known, the bell tells you (also by push and Discord).',
+      },
+      {
         kind: 'fix',
         de: 'Sicherheit: Beim Ändern von Passwort oder Benutzernamen sind nur noch 10 falsche Eingaben des aktuellen Passworts in 15 Minuten möglich, danach wird gesperrt.',
         en: 'Security: when changing the password or username, only 10 wrong entries of the current password are allowed within 15 minutes, then it locks.',

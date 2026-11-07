@@ -4,6 +4,19 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-07
 
+- Hostile phalanx exposure (backlog item A-3):
+  - My empire shows per planet the moons outside the own alliance whose sensor phalanx reaches it (level from the
+    newest moon spy report with buildings, range like the game's `allowPhalanx` incl. circular galaxies and level 1
+    reaching its own system), with owner, distance, range and since when it is known (oldest report of the newest run
+    reaching the planet). Planets in reach carry an eye in the table and on the mobile cards; new tour step.
+  - `GET /api/:uni/imperium` returns `phalanx` (schemas `PhalanxExposure`, `PhalanxOwner`, `MemberPlanet`); members
+    without an empire page use the galaxy's planets of their player.
+  - New notification `phalanx` (bell, push, Discord webhook, setting `phalanx`, default on): a spy report that reached
+    the hub within 24 hours shows a hostile phalanx reaching the viewer's planets, one per moon. Spy report syncs now
+    trigger notification delivery.
+  - The galaxy browser's phalanx coverage uses the same moon list (`repo/phalanx.ts`) and leaves out moons the galaxy
+    shows destroyed since the report.
+
 - Security: changing the password or the username checks the current password at most 10 times wrong per account
   within 15 minutes (both share the count, attempts count from their start, a correct password clears it); before,
   a stolen session could try out the password without limit. The OpenAPI spec documents their 400, 409 and 429.

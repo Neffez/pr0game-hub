@@ -68,11 +68,12 @@ interface PushPrefs {
   fleets: boolean;
   storage: boolean;
   buildOrder: boolean;
+  phalanx: boolean;
   settlements: boolean;
   accessRequests: boolean;
   leadMinutes: number;
 }
-const ALL_PUSH_KINDS = ['attackSelf', 'attackOthers', 'invites', 'comments', 'buildings', 'buildOrder', 'storage', 'fleets', 'launch', 'settlements', 'accessRequests'] as const;
+const ALL_PUSH_KINDS = ['attackSelf', 'attackOthers', 'invites', 'comments', 'buildings', 'buildOrder', 'storage', 'phalanx', 'fleets', 'launch', 'settlements', 'accessRequests'] as const;
 /** access requests only concern global admins */
 const PUSH_KINDS = computed(() => ALL_PUSH_KINDS.filter((k) => k !== 'accessRequests' || session.me?.user?.isAdmin));
 const LEAD_MINUTES = [1, 2, 5, 10, 15, 30];

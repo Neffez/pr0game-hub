@@ -34,6 +34,14 @@ const imperium = {
   player: null,
   fleetBase: null,
   leader: null,
+  phalanx: [
+    {
+      planet: { g: 1, s: 100, p: 12, name: 'Ares' },
+      threats: [
+        { moon: { g: 1, s: 104, p: 3 }, level: 3, range: 8, distance: 4, time: now - 3600, since: now - 86400, player: { id: 7, name: 'Enemy', ally: 'FEI', vacation: false } },
+      ],
+    },
+  ],
 };
 const ctx: UniContext = {
   universe: {
@@ -90,6 +98,15 @@ describe('empire page', () => {
   afterAll(() => {
     vi.unstubAllGlobals();
     vi.useRealTimers();
+  });
+
+  it('marks planets in reach of a hostile phalanx and lists the moons', () => {
+    const mark = root.querySelector('.table-wrap td svg.i-eye title');
+    expect(mark?.textContent).toBe('In Reichweite einer feindlichen Phalanx\nEnemy [FEI] · 1:104:3 · Stufe 3');
+    const row = root.querySelector('.phx-row')!.textContent!.replace(/\s+/g, ' ');
+    expect(row).toContain('Enemy [FEI]');
+    expect(row).toContain('1:104:3');
+    expect(row).toContain('4 von 8 Systemen');
   });
 
   it('ticks resources, queues and fleets every second without rendering the page again', async () => {

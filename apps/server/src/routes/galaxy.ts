@@ -1,10 +1,10 @@
-import { OPTIONAL_DEFAULTS } from '@pr0hub/core/universe';
-import { CLASS_BUILDINGS, CLASS_RESOURCES, PHALANX } from '@pr0hub/core/tech';
+import { CLASS_RESOURCES } from '@pr0hub/core/tech';
 import type { FastifyInstance } from 'fastify';
 import type { GroupContext } from '../context.js';
 import type { DB } from '../db.js';
 import { phalanxRange } from '../domain/phalanx.js';
-import { latestEmpires, ownCoords } from '../repo/empire.js';
+import { ownCoords } from '../repo/empire.js';
+import { ownerOf, phalanxFactor, phalanxMoons, systemDistance } from '../repo/phalanx.js';
 import { latestScores } from '../repo/stats.js';
 import { contextOf, DISPLAY, MEMBER } from './util.js';
 
@@ -101,56 +101,20 @@ export function galaxyRoutes(app: FastifyInstance, db: DB) {
  * report with buildings or the alliance members' empire pages, whichever is newer.
  */
 function phalanxCoverage(db: DB, ctx: GroupContext, g: number, s: number) {
-  const factor = ctx.universe.settings.phalanxRangeFactor ?? OPTIONAL_DEFAULTS.phalanxRangeFactor;
-  type Moon = { s: number; p: number; level: number; time: number; source: 'spy' | 'empire'; playerId: number | null; playerName: string | null };
-  const moons = new Map<string, Moon>();
-
-  const reports = db
-    .prepare(
-      `SELECT s, p, report_time, sections, player_id, player_name FROM spy_reports
-       WHERE group_id = ? AND g = ? AND planet_type = 'moon' ORDER BY report_time DESC`,
-    )
-    .all(ctx.groupId, g) as { s: number; p: number; report_time: number; sections: string; player_id: number | null; player_name: string }[];
-  for (const r of reports) {
-    const key = `${r.s}:${r.p}`;
-    if (moons.has(key)) continue;
-    const buildings = (JSON.parse(r.sections) as Record<string, Record<string, number>>)[CLASS_BUILDINGS];
-    // only reports that show the buildings tell the phalanx level
-    if (!buildings) continue;
-    moons.set(key, { s: r.s, p: r.p, level: buildings[PHALANX] ?? 0, time: r.report_time, source: 'spy', playerId: r.player_id, playerName: r.player_name });
-  }
-
-  for (const e of latestEmpires(db, ctx)) {
-    for (const pl of e.rec.planets) {
-      if (pl.type !== 'moon' || pl.coords.g !== g) continue;
-      const key = `${pl.coords.s}:${pl.coords.p}`;
-      const cur = moons.get(key);
-      if (cur && cur.time > e.time) continue;
-      moons.set(key, { s: pl.coords.s, p: pl.coords.p, level: pl.values[PHALANX] ?? 0, time: e.time, source: 'empire', playerId: cur?.playerId ?? null, playerName: cur?.playerName ?? null });
-    }
-  }
-
+  const factor = phalanxFactor(ctx);
   const systems = ctx.universe.settings.systems;
   const own = new Set([...ownCoords(db, ctx).values()].flatMap((set) => [...set]));
+  const wrap = (x: number) => (ctx.universe.settings.circularSystems ? ((x - 1 + systems) % systems) + 1 : Math.min(systems, Math.max(1, x)));
   const out = [];
-  for (const m of moons.values()) {
-    const range = phalanxRange(m.level, factor);
+  for (const m of phalanxMoons(db, ctx, g)) {
     if (!m.level) continue;
-    const d = Math.abs(m.s - s);
-    const dist = ctx.universe.settings.circularSystems ? Math.min(d, systems - d) : d;
+    const range = phalanxRange(m.level, factor);
+    const dist = systemDistance(ctx, m.s, s);
     if (dist > range) continue;
-    // current owner from the galaxy data, falling back to the spy report
-    const owner = db
-      .prepare(
-        `SELECT p.id, p.name, p.status, a.name AS ally_name, a.tag AS ally_tag FROM planets pl JOIN players p ON p.id = pl.player_id
-         LEFT JOIN alliances a ON a.id = p.alliance_id WHERE pl.group_id = ? AND pl.g = ? AND pl.s = ? AND pl.p = ?`,
-      )
-      .get(ctx.groupId, g, m.s, m.p) as { id: number; name: string; status: string | null; ally_name: string | null; ally_tag: string | null } | undefined;
-    const wrap = (x: number) => (ctx.universe.settings.circularSystems ? ((x - 1 + systems) % systems) + 1 : Math.min(systems, Math.max(1, x)));
     out.push({
       g, s: m.s, p: m.p, level: m.level, range, from: wrap(m.s - range), to: wrap(m.s + range), distance: dist,
       time: m.time, source: m.source, own: own.has(`${g}:${m.s}:${m.p}`),
-      player: owner ? { id: owner.id, name: owner.name, ally: owner.ally_tag ?? owner.ally_name, vacation: (JSON.parse(owner.status || '[]') as string[]).includes('vacation') } : m.playerName ? { id: m.playerId, name: m.playerName, ally: null } : null,
+      player: ownerOf(db, ctx, m),
     });
   }
   return out.sort((a, b) => b.time - a.time);

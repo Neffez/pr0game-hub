@@ -14,6 +14,7 @@ source (`pr0game`: pages, missions, achievements, advanced stats).
 | F-1 Global search (Ctrl+K) | Done | 2026-11-06 | every page of a universe (sidebar, mobile top bar) |
 | B-1 Farm finder with projected resources | Done | 2026-11-06 | new menu item "Farm finder" under Combat & expeditions |
 | B-3 Inactivity confidence | Done (second version) | 2026-11-06 | farm finder, overview, player details, check in the admin panel |
+| A-3 Hostile phalanx exposure | Done | 2026-11-07 | My empire (section and marks), notifications (bell, push, Discord) |
 
 Each finished item carries a **Status** block below its description: what was built and how.
 
@@ -93,6 +94,34 @@ The galaxy browser shows which phalanxes reach a system. The reverse view is mis
 moons of other alliances can phalanx it, and since when that is known. Planets in reach are marked in the empire
 and fleet save views ("fleet save via moon, a phalanx sees planet fleets"). A new known hostile phalanx in range
 creates a notification.
+
+**Status: done (2026-11-07).** How it was built:
+
+- **Server:** `apps/server/src/repo/phalanx.ts`. `phalanxMoons` collects the known phalanx moons once for the galaxy
+  browser and the exposure: the newest level per moon from the moon spy reports with buildings or the members' empire
+  pages, with the report history; moons the galaxy shows destroyed since are left out (like the farm finder).
+  `phalanxExposure` checks per planet of a member (`memberPlanets`: newest empire page, else the galaxy's planets of
+  their player; moons are no phalanx targets) the moons of the same galaxy outside the own alliance (`alliance`:
+  members, their players, their in-game alliances) like the game's `ShowPhalanxPage::allowPhalanx`: range
+  `(level² − 1) × phalanx_range_factor`, level 1 reaches its own system, circular galaxies wrap around. **Since** is
+  the oldest report of the newest run of reports whose level reaches the planet (`since`, game time; `known`: when that
+  report reached the hub). The owner comes from the galaxy, else the report, with alliance tag and vacation mode (a
+  player in vacation cannot use the phalanx; shown, not hidden).
+- **API:** `GET /api/:uni/imperium` returns `phalanx` (planets in reach with their moons, nearest first); schemas
+  `PhalanxExposure`, `PhalanxOwner`, `MemberPlanet` in `openapi.yaml`.
+- **Notification** `phalanx` (`repo/notifications.ts`): one per moon with every planet of the viewer it reaches, while
+  the report that brought the knowledge reached the hub within 24 hours (a report pasted late is new knowledge too);
+  a later report bringing more planets in reach is a new one. Push and the personal Discord webhook send it (setting
+  `phalanx`, default on; texts in `push.ts`), it opens My empire. Spy report syncs trigger the delivery now.
+- **Web:** `ImperiumView.vue`: section "Hostile phalanx" (owner, moon with a link to the galaxy browser, level,
+  distance of range, since), an eye with the moons as tooltip next to planets in reach (table and mobile cards); bell
+  entry in `NotificationBell.vue`, the kind in the account's push and Discord settings. **Tours:** step
+  `imperium.phalanx`. **Texts:** `imperium.phalanx*`, `notify.phalanx*`, `account.pushKind.phalanx`.
+- **Galaxy browser:** its phalanx coverage now uses `phalanxMoons` (same data, destroyed moons left out).
+- Tests in `apps/server/test/phalanx.test.ts` and `apps/web/test/imperium.test.ts`.
+- **Left for later:** the marks in a fleet save view (A-2 does not exist yet); the phalanx moon's deuterium and the
+  noob protection between the players (the game checks both) are unknown to the hub, so a listed phalanx may not be
+  usable right now.
 
 ### A-4 Defense advisor: make a planet unprofitable
 **Value:** Medium · **Effort:** L · **Builds on:** battle simulator, loot math, empire page, statistics
@@ -497,7 +526,7 @@ deliveries open), what is planned. For members who turn off single push notifica
 
 **Now (highest value per effort):**
 E-1 What to paste next · F-1 Global search · B-1 Farm finder · B-3 Inactivity confidence · A-3 Hostile phalanx
-exposure
+exposure (all done)
 
 **Next:**
 A-1 Incoming attack assistant · A-2 Fleet save planner · C-1 Upgrade advisor · D-1 Alliance health dashboard ·

@@ -8,6 +8,7 @@ import { FLEET_KEEP, openFleetAlerts } from './fleetAlerts.js';
 import { sharedFleets, type StoredFleet } from './fleets.js';
 import { alliance } from './members.js';
 import { finalizedSettlements, memberKey } from './settlements.js';
+import { memberPlanets, phalanxExposure, type MemberPlanet, type PhalanxOwner } from './phalanx.js';
 import { enemiesOf, followEnemies, launchedOf, planDrives, type LaunchFleet, type LaunchPlan, type PlanRow } from './plans.js';
 
 /**
@@ -15,12 +16,13 @@ import { enemiesOf, followEnemies, launchedOf, planDrives, type LaunchFleet, typ
  * alliance, the viewer's open invitations to a raid planner plan, new comments in threads the viewer wrote in, and the
  * launch of the viewer's own plan fleets, the next level of a building the viewer is waiting for being affordable, and
  * the arrival of own fleets the viewer set an alert for, full storages on the viewer's planets, and the next step of
- * the viewer's build order on a planet that can start.
+ * the viewer's build order on a planet that can start, and a hostile sensor phalanx newly known to reach the viewer's
+ * planets.
  * The bell lists them; push notifications send them (push.ts).
  */
 export type Notification =
   | AttackNotification | InviteNotification | CommentNotification | LaunchNotification | BuildingNotification | FleetNotification | StorageNotification
-  | SettlementNotification | BuildOrderNotification;
+  | SettlementNotification | BuildOrderNotification | PhalanxNotification;
 
 interface Base {
   /** stable while the event lasts (the web app remembers which ones were seen, push sends each once) */
@@ -125,6 +127,22 @@ export interface SettlementNotification extends Base {
   gets: { from: string; res: { m: number; k: number; d: number } }[];
 }
 
+/**
+ * The group newly knows that a sensor phalanx of a moon outside the own alliance reaches planets of the viewer
+ * (`time`: when the spy report that showed it reached the hub, listed `PHALANX_NOTIFY_KEEP`; `since`: its game time).
+ * A phalanx shows the fleets flying from and to these planets.
+ */
+export interface PhalanxNotification extends Base {
+  kind: 'phalanx';
+  moon: { g: number; s: number; p: number };
+  level: number;
+  range: number;
+  since: number;
+  player: PhalanxOwner | null;
+  /** the viewer's planets it reaches */
+  planets: MemberPlanet[];
+}
+
 /** A member created a plan (channel only, not on the bell; `userId`/`member`: the creator, `time`: its creation). */
 export interface PlanNotification extends Base {
   kind: 'plan';
@@ -146,6 +164,8 @@ export const BUILDING_KEEP = 24 * 3600;
 export const STORAGE_KEEP = 24 * 3600;
 /** Finalized settlements remind of open deliveries this long (the game's 24 hours to share, with slack). */
 export const SETTLEMENT_KEEP = 2 * 86400;
+/** A hostile phalanx newly known to reach the viewer's planets is listed this long. */
+export const PHALANX_NOTIFY_KEEP = 24 * 3600;
 /** New plans are posted to the channel this long after their creation. */
 export const PLAN_KEEP = 3600;
 const EXCERPT = 80;
@@ -169,7 +189,7 @@ export function notificationsFor(db: DB, ctx: GroupContext, t: number, persist =
   const own = () => (state ??= buildingsState(db, ctx, ctx.user.id, t));
   return [
     ...attacks(db, ctx, t), ...invites(db, ctx, t), ...comments(db, ctx, t), ...launches(db, ctx, t), ...buildings(db, ctx, t, own), ...fleets(db, ctx, t),
-    ...storages(db, ctx, t, own, persist), ...settlements(db, ctx, t), ...buildOrder(db, ctx, t, own, persist),
+    ...storages(db, ctx, t, own, persist), ...settlements(db, ctx, t), ...buildOrder(db, ctx, t, own, persist), ...phalanxes(db, ctx, t),
   ].sort((a, b) => a.time - b.time);
 }
 
@@ -222,6 +242,34 @@ function settlements(db: DB, ctx: GroupContext, t: number): SettlementNotificati
     });
   }
   return list;
+}
+
+/**
+ * Hostile phalanxes that reach the viewer's planets and became known within `PHALANX_NOTIFY_KEEP` (one per moon with
+ * every planet it reaches; a later report bringing more planets in reach is a new notification).
+ */
+function phalanxes(db: DB, ctx: GroupContext, t: number): PhalanxNotification[] {
+  const exposure = phalanxExposure(db, ctx, memberPlanets(db, ctx, ctx.user.id));
+  const byMoon = new Map<string, PhalanxNotification>();
+  let name: string | undefined;
+  for (const { planet, threats } of exposure) {
+    for (const x of threats) {
+      if (x.known <= t - PHALANX_NOTIFY_KEEP || x.known > t) continue;
+      const key = `${x.moon.g}:${x.moon.s}:${x.moon.p}`;
+      const known = byMoon.get(key);
+      if (known) {
+        known.planets.push(planet);
+        if (x.known > known.time) Object.assign(known, { id: `phalanx:${key}:${x.known}`, time: x.known, since: x.since });
+        continue;
+      }
+      name ??= db.prepare(`SELECT ${DISPLAY} FROM users u LEFT JOIN group_members gm ON gm.group_id = ? AND gm.user_id = u.id WHERE u.id = ?`).pluck().get(ctx.groupId, ctx.user.id) as string;
+      byMoon.set(key, {
+        id: `phalanx:${key}:${x.known}`, kind: 'phalanx', userId: ctx.user.id, member: name, time: x.known,
+        moon: x.moon, level: x.level, range: x.range, since: x.since, player: x.player, planets: [planet],
+      });
+    }
+  }
+  return [...byMoon.values()];
 }
 
 /** Plans of the group created within `PLAN_KEEP` that are still being planned. */

@@ -123,6 +123,7 @@ export const TOURS = {
       { key: 'intro' },
       { key: 'member', el: 'imperium-member', side: 'bottom' },
       { key: 'points', el: 'imperium-points', side: 'bottom' },
+      { key: 'phalanx', el: 'imperium-phalanx', side: 'top' },
       { key: 'fleets', el: 'imperium-fleets', side: 'top' },
       { key: 'planets', el: 'imperium-planets', side: 'top' },
     ],

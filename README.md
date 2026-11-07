@@ -17,7 +17,9 @@ External analysis tool for [pr0game](https://codeberg.org/pr0game/pr0game) based
 - **Tutorials**: a short guided tour the first time a page is opened (skippable, switchable in the account settings,
   restartable with the "?" in the page header).
 - **Overview**: points per category with deltas per statistics update, rank changes, status, filters
-- **My empire**: live points from the latest empire page plus finished builds and research, fleets in flight
+- **My empire**: live points from the latest empire page plus finished builds and research, fleets in flight,
+  **hostile phalanx exposure** (per planet the moons outside the own alliance whose sensor phalanx reaches it, by the
+  newest moon spy reports, and since when that is known; planets in reach are marked)
 - **Build & research**: per own planet/moon like the game's buildings and research pages (two tabs): level,
   requirements, cost of the next level, missing resources and when they are there (production up to the storage plus
   resources of landing fleets), build and research time (catch-up bonus, robot/nanite factories, labs with the research
@@ -60,8 +62,8 @@ External analysis tool for [pr0game](https://codeberg.org/pr0game/pr0game) based
 - **Raid statistics** (incl. recycling and interplanetary missile attacks: intercepted missiles, destroyed defense), **expeditions** (statistics and the expedition deck for card counting as tabs), **battle hall** archive
 - **Admin**: universes (size, distance factors, fleet speed, time zone, deck; scheduled start and optional end; an ended universe is frozen read-only), groups, members (including placeholders by in-game name with claim links), ingest log with reparse, player merge
 - **Notifications**: bell with hostile fleets heading for members (from the synced fleet movements), raid planner
-  invitations, new comments in your threads, your launch times, finalized loot settlements with your deliveries and
-  full storages on your planets (by the production
+  invitations, new comments in your threads, your launch times, finalized loot settlements with your deliveries, a
+  hostile phalanx newly known to reach your planets and full storages on your planets (by the production
   and landing fleets since the last synced page); also as **push notifications** on desktop and phone
   (switched on per device under Account, each kind can be chosen) and to **Discord**: a personal webhook per user
   (own settings) and an alliance channel set by the alliance admins (attacks on members, new raid plans, launch
