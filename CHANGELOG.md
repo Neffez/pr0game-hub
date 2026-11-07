@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-07
 
+- Faster tests (about 7 s less in total): the empire page and raid planner tests move a fake second clock on instead
+  of waiting 2.2 s, the push test shortens the delivery debounce (new `debounceMs` option of the push service, default
+  still 2 s), and the login rate limit tests send their failed attempts side by side.
+
 - Performance:
   - The hub compresses its answers: API responses from 1 KB with brotli (fast level) or gzip via `@fastify/compress`,
     the web app's files precompressed by its build (`.br` and `.gz` at the highest level, a small Vite plugin) and

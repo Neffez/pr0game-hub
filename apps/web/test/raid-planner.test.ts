@@ -126,6 +126,8 @@ function recordCalls(answer?: (url: string) => unknown) {
 }
 
 beforeAll(async () => {
+  // the second clock runs on fake intervals and time: tests move it on instead of waiting
+  vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] });
   setLocale('de');
   vi.stubGlobal('confirm', () => true);
   vi.stubGlobal('fetch', async (url: string) => {
@@ -158,7 +160,10 @@ beforeAll(async () => {
   app.mount(root);
   await settle();
 });
-afterAll(() => vi.unstubAllGlobals());
+afterAll(() => {
+  vi.unstubAllGlobals();
+  vi.useRealTimers();
+});
 
 describe('raid planner: plan list', () => {
   it('opens the new plan sheet prefilled from the action menu link', async () => {
@@ -267,7 +272,8 @@ describe('raid planner: a plan', () => {
     const countdown = () => root.querySelector('.plan-card .time .muted')!.textContent;
     const before = countdown();
     pageUpdates = 0;
-    await new Promise((r) => setTimeout(r, 2200));
+    vi.advanceTimersByTime(2200);
+    await settle();
     expect(countdown()).not.toBe(before);
     expect(pageUpdates).toBe(0);
   });

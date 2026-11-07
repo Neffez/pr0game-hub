@@ -102,6 +102,8 @@ export interface PushOptions {
   contact?: string;
   sender?: PushSender;
   log?: Pick<FastifyBaseLogger, 'warn' | 'info'>;
+  /** wait after a group's last data event before delivering (default 2 s; tests shorten it) */
+  debounceMs?: number;
 }
 
 export class PushService {
@@ -122,7 +124,7 @@ export class PushService {
     this.sender = opts.sender ?? webPushSender;
     this.log = opts.log;
     if (this.enabled) this.vapid = { subject: contact, ...this.keys() };
-    this.debounce = new GroupDebounce((groupId) => this.deliver(groupId).catch((err) => this.log?.warn({ err, groupId }, 'push delivery failed')));
+    this.debounce = new GroupDebounce((groupId) => this.deliver(groupId).catch((err) => this.log?.warn({ err, groupId }, 'push delivery failed')), opts.debounceMs);
     this.alerts = new AlertSchedule(db);
   }
 

@@ -61,6 +61,8 @@ const settle = async () => {
 
 describe('empire page', () => {
   beforeAll(async () => {
+    // the second clock runs on fake intervals and time: the test moves it on instead of waiting
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] });
     setLocale('de');
     vi.stubGlobal('fetch', async (url: string) => {
       const body = url.includes('/imperium') ? imperium : [];
@@ -85,7 +87,10 @@ describe('empire page', () => {
     app.mount(root);
     await settle();
   });
-  afterAll(() => vi.unstubAllGlobals());
+  afterAll(() => {
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
 
   it('ticks resources, queues and fleets every second without rendering the page again', async () => {
     const texts = () => ({
@@ -103,7 +108,8 @@ describe('empire page', () => {
       await settle();
     }
     pageUpdates = 0;
-    await new Promise((r) => setTimeout(r, 2200));
+    vi.advanceTimersByTime(2200);
+    await settle();
     const after = texts();
     expect(after.metal).not.toBe(before.metal);
     expect(after.building).not.toBe(before.building);
