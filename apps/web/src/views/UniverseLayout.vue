@@ -156,7 +156,6 @@ const links = [
   { section: 'combat' },
   { to: 'raid-planner', label: 'raids', icon: 'raids' },
   { to: 'farm', label: 'farm', icon: 'target' },
-  { to: 'debris', label: 'debris', icon: 'debris' },
   { to: 'fleetsave', label: 'fleetsave', icon: 'return' },
   { to: 'battle-hall', label: 'battleHall', icon: 'battleHall' },
   { to: 'expeditions', label: 'expeditions', icon: 'expeditions' },

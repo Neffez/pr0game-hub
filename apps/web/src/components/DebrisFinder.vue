@@ -1,12 +1,10 @@
 <script setup lang="ts">
-import PageHeader from '../components/PageHeader.vue';
-import Hint from '../components/Hint.vue';
-import Loading from '../components/Loading.vue';
-import FilterBar, { type FilterChip } from '../components/FilterBar.vue';
-import SortBar from '../components/SortBar.vue';
-import SortMark from '../components/SortMark.vue';
-import PlayerLink from '../components/PlayerLink.vue';
-import PlanetActions from '../components/PlanetActions.vue';
+import Loading from './Loading.vue';
+import FilterBar, { type FilterChip } from './FilterBar.vue';
+import SortBar from './SortBar.vue';
+import SortMark from './SortMark.vue';
+import PlayerLink from './PlayerLink.vue';
+import PlanetActions from './PlanetActions.vue';
 import { distance, drivesFromResearch, flightDuration, shipSpeed } from '@pr0hub/flight';
 import { computed, onMounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -17,7 +15,7 @@ import { tables, useLiveReload } from '../live';
 import { ago, coords, dateTime, duration, fmt, name, short } from '../format';
 import { units } from '../units';
 
-/** Debris finder (backlog B-4): open debris fields to recycle, with recyclers needed and the nearest member with recyclers (server: repo/debris.ts). */
+/** Debris finder (backlog B-4), a tab of the farm finder: open debris fields to recycle, with recyclers needed and the nearest member with recyclers (server: repo/debris.ts). */
 interface Field {
   g: number;
   s: number;
@@ -170,15 +168,6 @@ const claimText = (r: Row) => {
 </script>
 
 <template>
-  <PageHeader :title="t('nav.debris')">
-    <template #hint>
-      <Hint>
-        <p>{{ t('debris.hint1') }}</p>
-        <p>{{ t('debris.hint2') }}</p>
-      </Hint>
-    </template>
-  </PageHeader>
-
   <FilterBar store-key="debris" :chips="chips" @reset="resetFilters">
     <template #toolbar>
       <label class="field-inline">

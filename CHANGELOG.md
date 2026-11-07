@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-07
 
+- The debris finder is now the third tab of the farm finder (`/:uni/farm?tab=debris`) instead of its own menu item;
+  `/:uni/debris` leads there. The farm finder's tab comes from the link (`?tab=`) and is remembered per device; the
+  targets only load on their tabs.
+
 - README: the features of this day (spy priority, debris finder, colonization planner, moon chances, mentions,
   debris claims, several pages and explained pastes in the sync, onboarding) in the feature list.
 

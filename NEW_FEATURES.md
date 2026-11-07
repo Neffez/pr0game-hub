@@ -22,7 +22,7 @@ source (`pr0game`: pages, missions, achievements, advanced stats).
 | F-3 Export | Done | 2026-11-07 | CSV buttons at the large tables, JSON under Account; API tokens work |
 | A-4 Defense advisor | Done | 2026-11-07 | Build & research: tab "Defense advisor" per planet and moon, raid risk there and in My empire |
 | B-2 Spy priority list | Done | 2026-11-07 | farm finder: tab "Spy priority" |
-| B-4 Debris finder | Done | 2026-11-07 | new menu item "Debris finder" under Combat & expeditions, debris claims |
+| B-4 Debris finder | Done | 2026-11-07 | farm finder: tab "Debris finder", debris claims |
 | E-2 Several pages at once | Done | 2026-11-07 | sync page: several files, drag and drop, collect mode |
 | E-4 Explain failed pastes | Done | 2026-11-07 | sync preview, parser samples in the admin panel |
 | D-4 Onboarding of new members | Done | 2026-11-07 | sync page and overview (checklist), admin panel (column in the members list) |
@@ -424,7 +424,7 @@ harvesting to catch a fleet saved on it is a different feature (B-7 below). How 
 - **Claims:** a debris field is its own claim target (`type: debris`, kind `recycle`); migration `080_debris_claims.sql`
   rebuilds `target_claims` with the new CHECKs (ids kept for raid plans). A debris claim and a farm claim on the planet
   at the same position don't block each other.
-- **Web:** `DebrisView.vue` at `/:uni/debris`, menu item "Debris finder" under Combat & expeditions. Columns: field (a
+- **Web:** `DebrisFinder.vue`, the third tab of the farm finder (`/:uni/farm?tab=debris`; `/:uni/debris` leads there). Columns: field (a
   badge when a battle came after the last galaxy view), owner of the planet (members marked), debris (tooltip: metal,
   crystal, where the amount comes from and each battle), recyclers needed, age, own flight time with recyclers from the
   nearest own planet or moon, amount per flight hour, nearest member with enough recyclers (else the nearest with any,

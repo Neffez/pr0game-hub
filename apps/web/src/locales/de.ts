@@ -324,6 +324,7 @@ const de = {
     claimed: 'Reserviert von {member} ({left})',
     tabTargets: 'Ziele',
     tabSpy: 'Spionage-Priorität',
+    tabDebris: 'TF-Finder',
     spy: {
       hint: 'Welche Ziele jetzt eine Sonde wert sind: die erwartete Beute mal dem Bedarf an einem neuen Bericht. Der Bedarf wächst mit dem Alter des Berichts (nach 12 Stunden ist er zu zwei Dritteln veraltet) und mit Zeichen, dass er nicht mehr stimmt: Flotten-, Verteidigungs- oder sonstige Punkte seit dem Bericht (aus den Statistiken), ein Kampf am Planeten seitdem, keine Gebäude oder kein Risiko bekannt. Berücksichtigt alle Berichte der letzten {days} Tage.',
       priority: 'Priorität',
@@ -469,7 +470,6 @@ const de = {
     targets: 'Ziele',
     raids: 'Raids',
     farm: 'Farm-Finder',
-    debris: 'TF-Finder',
     colonize: 'Kolonisieren',
     fleetsave: 'Fleetsave',
     health: 'Gesundheit',
@@ -717,7 +717,7 @@ const de = {
     },
     farm: {
       intro: { title: 'Farm-Finder', text: 'Welche Ziele lohnen sich jetzt? Der Hub rechnet die Rohstoffe jedes Spionageberichts bis heute hoch und sortiert nach Beute pro Flugstunde. Angreifen tust du wie immer selbst im Spiel.' },
-      tabs: { title: 'Ziele und Spionage', text: 'Ziele: was sich jetzt zu farmen lohnt. Spionage-Priorität: welche Ziele eine neue Sonde wert sind, weil ihr Bericht alt ist oder sich seitdem etwas geändert hat (Flotte oder Verteidigung gebaut, Kampf am Planeten).' },
+      tabs: { title: 'Ziele und Spionage', text: 'Ziele: was sich jetzt zu farmen lohnt. Spionage-Priorität: welche Ziele eine neue Sonde wert sind, weil ihr Bericht alt ist oder sich seitdem etwas geändert hat (Flotte oder Verteidigung gebaut, Kampf am Planeten). TF-Finder: offene Trümmerfelder zum Abbauen.' },
       flight: { title: 'Schiff und Geschwindigkeit', text: 'Mit diesem Schiff und dieser Geschwindigkeit rechnen Flugzeit, Anzahl Schiffe und Treibstoff – ab deinem nächsten Planeten oder dem gewählten Start.' },
       days: { title: 'Alter der Berichte', text: 'Nur Ziele mit einem Bericht mit Rohstoffen aus diesem Zeitraum. Ältere Berichte werden ungenauer, die Speicher deckeln die Hochrechnung aber.' },
       filter: { title: 'Filter', text: 'Nur wahrscheinlich Inaktive, ohne Verteidigung oder Flotte, ohne Urlaubsmodus oder von anderen reservierte Ziele.' },

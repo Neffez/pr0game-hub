@@ -323,6 +323,7 @@ const en: typeof de = {
     claimed: 'Claimed by {member} ({left})',
     tabTargets: 'Targets',
     tabSpy: 'Spy priority',
+    tabDebris: 'Debris finder',
     spy: {
       hint: 'Which targets are worth a probe now: the loot expected now times the need for a new report. The need grows with the age of the report (after 12 hours it is two thirds out of date) and with signs that it no longer holds: fleet, defense or other points gained since the report (from the statistics), a battle at the planet since, no buildings or no risk known. Uses every report of the last {days} days.',
       priority: 'Priority',
@@ -468,7 +469,6 @@ const en: typeof de = {
     targets: 'Targets',
     raids: 'Raids',
     farm: 'Farm finder',
-    debris: 'Debris finder',
     colonize: 'Colonize',
     fleetsave: 'Fleet save',
     health: 'Health',
@@ -716,7 +716,7 @@ const en: typeof de = {
     },
     farm: {
       intro: { title: 'Farm finder', text: 'Which targets pay off now? The hub projects the resources of every spy report to today and ranks the targets by loot per flight hour. You attack in the game yourself, as always.' },
-      tabs: { title: 'Targets and espionage', text: 'Targets: what pays off to farm now. Spy priority: which targets are worth a new probe because their report is old or something changed since (fleet or defense built, a battle at the planet).' },
+      tabs: { title: 'Targets and espionage', text: 'Targets: what pays off to farm now. Spy priority: which targets are worth a new probe because their report is old or something changed since (fleet or defense built, a battle at the planet). Debris finder: open debris fields to recycle.' },
       flight: { title: 'Ship and speed', text: 'Flight time, number of ships and fuel use this ship and speed – from your nearest planet or the chosen start.' },
       days: { title: 'Age of the reports', text: 'Only targets with a report with resources from this period. Older reports get less exact, but the storages cap the projection.' },
       filter: { title: 'Filters', text: 'Only probably inactive players, no defense or fleet, no vacation mode or targets claimed by others.' },

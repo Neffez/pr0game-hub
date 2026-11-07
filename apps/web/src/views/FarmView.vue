@@ -10,9 +10,11 @@ import PlayerLink from '../components/PlayerLink.vue';
 import PlanetActions from '../components/PlanetActions.vue';
 import StatusBadges from '../components/StatusBadges.vue';
 import InactivityBadge, { type Inactivity } from '../components/InactivityBadge.vue';
+import DebrisFinder from '../components/DebrisFinder.vue';
 import { distance, drivesFromResearch, fleetConsumption, flightDuration, shipSpeed } from '@pr0hub/flight';
 import { computed, onMounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRoute, useRouter } from 'vue-router';
 import { uniApi } from '../api';
 import { claimOf, remaining } from '../claims';
 import { useLoader, useMobile, useProgressive, useSort, useStored, useUni } from '../composables';
@@ -87,15 +89,32 @@ const FILTER_DEFAULTS = {
 const filter = useStored('farm.filter', { ...FILTER_DEFAULTS });
 filter.value = { ...FILTER_DEFAULTS, ...filter.value };
 
-/** Targets to raid, or the spy priority list (B-2) on the same data with every report of the last 30 days. */
-type Tab = 'targets' | 'spy';
-const tab = useStored<Tab>('farm.tab', 'targets');
+/**
+ * Targets to raid, the spy priority list (B-2) on the same data with every report of the last 30 days, or the debris
+ * finder (B-4, its own data). The tab from the link (`?tab=debris`), else the last one.
+ */
+type Tab = 'targets' | 'spy' | 'debris';
+const TABS: Tab[] = ['targets', 'spy', 'debris'];
+const route = useRoute();
+const router = useRouter();
+const storedTab = useStored<Tab>('farm.tab', 'targets');
+const tab = computed<Tab>({
+  get: () => (TABS.includes(route.query.tab as Tab) ? (route.query.tab as Tab) : TABS.includes(storedTab.value) ? storedTab.value : 'targets'),
+  set: (v) => {
+    storedTab.value = v;
+    router.replace({ query: { ...route.query, tab: v } });
+  },
+});
 const SPY_DAYS = 30;
 const days = computed(() => (tab.value === 'spy' ? SPY_DAYS : filter.value.days));
 
-const { data, error, load } = useLoader(() => uniApi<FarmResponse>(uni.value, `/farm?days=${days.value}`));
+// the debris tab has its own data: the targets load when one of their tabs is shown
+const { data, error, load } = useLoader<FarmResponse | null>((): Promise<FarmResponse | null> =>
+  tab.value === 'debris' ? Promise.resolve(data.value) : uniApi<FarmResponse>(uni.value, `/farm?days=${days.value}`),
+);
 onMounted(load);
 watch(days, () => load());
+watch(tab, (v) => v !== 'debris' && !data.value && load());
 useLiveReload(load, tables('spy_reports', 'player_scores', 'battle_reports', 'galaxy_systems'));
 useAutoTour('farm', computed(() => !!data.value));
 
@@ -251,19 +270,27 @@ const claimText = (r: Row) => {
 <template>
   <PageHeader :title="t('nav.farm')" tour="farm">
     <template #hint>
-      <Hint>
+      <Hint v-if="tab === 'debris'">
+        <p>{{ t('debris.hint1') }}</p>
+        <p>{{ t('debris.hint2') }}</p>
+      </Hint>
+      <Hint v-else>
         <p>{{ t('farm.hint1') }}</p>
         <p>{{ t('farm.hint2') }}</p>
         <p>{{ t('farm.hint3') }}</p>
       </Hint>
-      <Hint v-if="data && data.speedSource === 'default'" warn>{{ t('farm.speedUnknown') }}</Hint>
+      <Hint v-if="tab !== 'debris' && data && data.speedSource === 'default'" warn>{{ t('farm.speedUnknown') }}</Hint>
       <Hint v-if="tab === 'spy'">{{ t('farm.spy.hint', { days: SPY_DAYS }) }}</Hint>
     </template>
     <div class="seg" data-tour="farm-tabs">
       <button :class="{ active: tab === 'targets' }" @click="tab = 'targets'">{{ t('farm.tabTargets') }}</button>
       <button :class="{ active: tab === 'spy' }" @click="tab = 'spy'">{{ t('farm.tabSpy') }}</button>
+      <button :class="{ active: tab === 'debris' }" @click="tab = 'debris'">{{ t('farm.tabDebris') }}</button>
     </div>
   </PageHeader>
+
+  <DebrisFinder v-if="tab === 'debris'" />
+  <template v-else>
 
   <FilterBar data-tour="farm-filter" store-key="farm" :chips="chips" @reset="resetFilters">
     <template #toolbar>
@@ -469,6 +496,7 @@ const claimText = (r: Row) => {
       </table>
       <div v-if="more" ref="sentinel" />
     </div>
+  </template>
   </template>
 </template>
 

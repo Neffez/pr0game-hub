@@ -59,7 +59,7 @@ External analysis tool for [pr0game](https://codeberg.org/pr0game/pr0game) based
   points gains against the players around the same rank, spy history, lost fleet or defense; checkable against the
   game's own flags in the admin panel); a second tab **spy priority** ranks the targets worth a probe now (old
   report, fleet or defense built since, a battle at the planet) with the probes a report with buildings needs
-- **Debris finder**: open debris fields with the debris expected now (galaxy view or a member's recycling report plus
+- **Debris finder** (tab of the farm finder): open debris fields with the debris expected now (galaxy view or a member's recycling report plus
   battles since), recyclers needed, the own flight time and the nearest member with enough recyclers; debris fields
   can be claimed for recycling
 - **Colonization planner**: free positions of the known galaxy rated as a fleeter (coverage of the universe, points
