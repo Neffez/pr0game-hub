@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Sicherheit: Beim Ändern von Passwort oder Benutzernamen sind nur noch 10 falsche Eingaben des aktuellen Passworts in 15 Minuten möglich, danach wird gesperrt.',
+        en: 'Security: when changing the password or username, only 10 wrong entries of the current password are allowed within 15 minutes, then it locks.',
+      },
+      {
+        kind: 'fix',
         de: 'Sicherheit: Die Sperre nach zu vielen falschen Passwörtern lässt sich nicht mehr umgehen, indem viele Anmeldeversuche gleichzeitig geschickt werden.',
         en: 'Security: the lock after too many wrong passwords can no longer be bypassed by sending many login attempts at once.',
       },

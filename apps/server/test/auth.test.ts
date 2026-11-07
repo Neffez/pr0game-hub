@@ -76,6 +76,30 @@ describe('auth', () => {
     expect((await login('changer', 'newpass12')).cookie).toBeTruthy();
   });
 
+  it('limits wrong current passwords per account, also with a session', async () => {
+    db.prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)').run('guessed', hashPassword('rightpass1'));
+    db.prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)').run('bystander', hashPassword('rightpass2'));
+    const headers = await login('guessed', 'rightpass1');
+    const change = (oldPassword: string) =>
+      app.inject({ method: 'POST', url: '/hub/api/auth/password', headers, payload: { oldPassword, newPassword: 'newpass123' } });
+    const rename = (password: string, username = 'guessed2') => app.inject({ method: 'POST', url: '/hub/api/auth/username', headers, payload: { username, password } });
+
+    // a correct password clears the count
+    for (let i = 0; i < 9; i++) expect((await rename('wrong')).statusCode).toBe(400);
+    expect((await rename('rightpass1')).statusCode).toBe(200);
+    // both routes share one count; attempts side by side count from their start
+    const codes = await Promise.all([...Array.from({ length: 6 }, () => change('wrong')), ...Array.from({ length: 6 }, () => rename('wrong', 'guessed3'))]);
+    expect(codes.map((r) => r.statusCode).sort()).toEqual([...Array(10).fill(400), 429, 429]);
+    // blocked now, even with the right password
+    const blocked = await change('rightpass1');
+    expect(blocked.statusCode).toBe(429);
+    expect(blocked.json().code).toBe('too_many_attempts');
+    // other accounts are not affected
+    const other = await login('bystander', 'rightpass2');
+    const ok = await app.inject({ method: 'POST', url: '/hub/api/auth/username', headers: other, payload: { username: 'bystander2', password: 'rightpass2' } });
+    expect(ok.statusCode).toBe(200);
+  });
+
   it('clears the session cookie with the same flags it was set with', async () => {
     const signedIn = await app.inject({ method: 'POST', url: '/hub/api/auth/login', payload: { username: 'admin', password: 'adminpass' } });
     const set = signedIn.cookies.find((c) => c.name === 'hub_session')!;

@@ -4138,23 +4138,48 @@ paths:
       tags: [Auth]
       operationId: changeUsername
       security: [{ sessionCookie: [] }]
-      description: Changes the hub username.
+      description: Changes the hub username; needs the current password. Wrong current passwords are limited to 10 per account within 15 minutes.
       responses:
         '200':
           content:
             application/json:
               schema: { type: object }
+        '400':
+          description: Wrong password or invalid username (`password_wrong`, `username_invalid`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '409':
+          description: Username taken (`username_taken`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '429':
+          description: Too many wrong passwords for this account (`too_many_attempts`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
   /api/auth/password:
     post:
       tags: [Auth]
       operationId: changePassword
       security: [{ sessionCookie: [] }]
-      description: Changes the password and revokes API tokens.
+      description: Changes the password and revokes API tokens; needs the old password. Wrong current passwords are limited to 10 per account within 15 minutes.
       responses:
         '200':
           content:
             application/json:
               schema: { type: object }
+        '400':
+          description: Old password wrong or new one invalid (`old_password_wrong`, `password_too_short`, `password_too_long`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '429':
+          description: Too many wrong passwords for this account (`too_many_attempts`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
   /api/auth/fleet-share:
     get:
       tags: [Auth]

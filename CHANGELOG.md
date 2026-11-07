@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-07
 
+- Security: changing the password or the username checks the current password at most 10 times wrong per account
+  within 15 minutes (both share the count, attempts count from their start, a correct password clears it); before,
+  a stolen session could try out the password without limit. The OpenAPI spec documents their 400, 409 and 429.
+
 - Security: the login limit can no longer be bypassed with attempts sent side by side. An attempt counted only once
   its password check (scrypt, tens of milliseconds) had failed, so a burst passed the check before the first of them
   counted; now it counts from its start and a successful login takes its count back. The OpenAPI spec documents the

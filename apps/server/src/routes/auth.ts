@@ -17,7 +17,23 @@ const IP_LIMIT = 30;
 const ACCESS_REQUESTS_PER_IP = 5;
 const MAX_ACCESS_REQUESTS = 100;
 
+/** Wrong current passwords per account (changing password or username) within the window, like logins per username. */
+const OWN_PASSWORD_LIMIT = 10;
+
 export function authRoutes(app: FastifyInstance, db: DB) {
+  /**
+   * Checks the signed-in user's current password before a change. Limited per account (not per IP): a stolen session
+   * must not be usable to try out the password. Counted from the start like logins; a correct one clears the count.
+   */
+  async function checkOwnPassword(userId: number, password: unknown, code: string, message: string) {
+    const key = `own-password|${userId}`;
+    if (loginBlocked(key, OWN_PASSWORD_LIMIT)) throw new HttpError(429, 'too_many_attempts', 'Too many failed attempts, please try again later');
+    loginFailed(key);
+    const hash = db.prepare('SELECT password_hash FROM users WHERE id = ?').pluck().get(userId) as string;
+    if (!(await verifyPassword(passwordForVerify(password), hash))) throw new HttpError(400, code, message);
+    loginSucceeded(key);
+  }
+
   app.post<{ Body: { username: string; password: string } }>('/api/auth/login', async (req, reply) => {
     const { username, password } = req.body ?? ({} as never);
     const key = `${req.ip}|${String(username ?? '').toLowerCase()}`;
@@ -80,8 +96,7 @@ export function authRoutes(app: FastifyInstance, db: DB) {
   app.post<{ Body: { oldPassword: string; newPassword: string } }>('/api/auth/password', async (req) => {
     const user = requireUser(req);
     const { oldPassword, newPassword } = req.body ?? ({} as never);
-    const hash = db.prepare('SELECT password_hash FROM users WHERE id = ?').pluck().get(user.id) as string;
-    if (!(await verifyPassword(passwordForVerify(oldPassword), hash))) throw new HttpError(400, 'old_password_wrong', 'Old password wrong');
+    await checkOwnPassword(user.id, oldPassword, 'old_password_wrong', 'Old password wrong');
     db.prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(hashPassword(checkPassword(newPassword)), user.id);
     destroyOtherSessions(db, user.id, req);
     db.prepare('DELETE FROM api_tokens WHERE user_id = ?').run(user.id);
@@ -90,8 +105,7 @@ export function authRoutes(app: FastifyInstance, db: DB) {
 
   app.post<{ Body: { username: string; password: string } }>('/api/auth/username', async (req) => {
     const user = requireUser(req);
-    const hash = db.prepare('SELECT password_hash FROM users WHERE id = ?').pluck().get(user.id) as string;
-    if (!(await verifyPassword(passwordForVerify(req.body?.password), hash))) throw new HttpError(400, 'password_wrong', 'Wrong password');
+    await checkOwnPassword(user.id, req.body?.password, 'password_wrong', 'Wrong password');
     const username = checkUsername(db, req.body?.username, user.id);
     db.prepare('UPDATE users SET username = ? WHERE id = ?').run(username, user.id);
     return { ok: true, username };
