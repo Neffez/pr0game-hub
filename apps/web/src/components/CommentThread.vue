@@ -5,6 +5,7 @@ import { uniApi } from '../api';
 import { useLoader, useUni } from '../composables';
 import { dateTime } from '../format';
 import { tables, useLiveReload } from '../live';
+import { commentParts, mentionSuggestions } from '../commentText';
 
 /** Alliance discussion on a player, a plan's loot settlement or a planet/moon: oldest first, the own comments editable. */
 const props = defineProps<{ player?: number; plan?: number; g?: number; s?: number; p?: number; type?: 'planet' | 'moon' }>();
@@ -30,6 +31,18 @@ const text = ref('');
 const editing = ref<number | null>(null);
 const editText = ref('');
 const actionError = ref('');
+/** `@name` of members and coordinates are highlighted and linked (G-8); typing `@` suggests member names. */
+const members = computed(() => ctx.value?.members ?? []);
+// the server notifies by in-game name or username
+const mentionNames = computed(() => members.value.flatMap((m) => [m.name, m.username]));
+const myNames = computed(() => members.value.filter((m) => m.id === ctx.value?.me.id).flatMap((m) => [m.name, m.username]).map((n) => n.toLowerCase()));
+const parts = (body: string) => commentParts(body, mentionNames.value, ctx.value!.universe.settings);
+const suggest = computed(() => mentionSuggestions(text.value, members.value.map((m) => m.name)));
+function complete(name: string) {
+  const sug = suggest.value;
+  if (!sug) return;
+  text.value = `${text.value.slice(0, text.value.length - sug.prefix.length)}${name} `;
+}
 const isAdmin = computed(() => ctx.value?.group.role === 'admin' || ctx.value?.me.isAdmin);
 const mine = (c: Comment) => c.user_id === ctx.value?.me.id;
 
@@ -81,10 +94,19 @@ const remove = (c: Comment) => confirm(t('comments.confirmDelete')) && run(() =>
           <button type="button" @click="editing = null">{{ t('common.cancel') }}</button>
         </div>
       </form>
-      <div v-else class="body">{{ c.body }}</div>
+      <div v-else class="body">
+        <template v-for="(x, i) in parts(c.body)" :key="i">
+          <span v-if="x.kind === 'mention'" class="mention" :class="{ me: myNames.includes(x.name.toLowerCase()) }">{{ x.text }}</span>
+          <RouterLink v-else-if="x.kind === 'coords'" class="mono" :to="{ path: `/${uni}/browse`, query: { g: x.g, s: x.s } }">{{ x.text }}</RouterLink>
+          <template v-else>{{ x.text }}</template>
+        </template>
+      </div>
     </div>
     <form class="edit" @submit.prevent="post">
       <textarea v-model="text" rows="2" maxlength="2000" :placeholder="t('comments.placeholder')" />
+      <div v-if="suggest" class="suggest small" role="listbox" :aria-label="t('comments.mention')">
+        <button v-for="n in suggest.names" :key="n" type="button" class="badge" @click="complete(n)">@{{ n }}</button>
+      </div>
       <div class="row">
         <button class="primary" :disabled="!text.trim()">{{ t('comments.post') }}</button>
         <span v-if="actionError" class="error small">{{ actionError }}</span>
@@ -99,6 +121,10 @@ const remove = (c: Comment) => confirm(t('comments.confirmDelete')) && run(() =>
 .body { margin-top: 4px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .edit { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
 .edit textarea { width: 100%; resize: vertical; }
+.mention { color: var(--accent); font-weight: 600; }
+.mention.me { background: color-mix(in srgb, var(--accent) 18%, transparent); border-radius: 3px; padding: 0 2px; }
+.suggest { display: flex; flex-wrap: wrap; gap: 4px; }
+.suggest .badge { cursor: pointer; border: 1px solid var(--border); }
 button.link { padding: 0; border: 0; background: none; color: var(--muted); font-size: 12px; }
 button.link:hover { color: var(--accent); }
 button.link.danger:hover { color: var(--neg); }

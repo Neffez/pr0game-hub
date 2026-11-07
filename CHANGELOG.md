@@ -4,6 +4,12 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-07
 
+- Comments with mentions (backlog item G-8): `@name` (in-game name or username, a whole name, case ignored;
+  `domain/mentions.ts`) in a comment notifies that member on the bell, by push and Discord, also in threads they never
+  wrote in (`mention` on comment notifications, push title "📣 … mentioned you on …"); answering in the thread clears
+  it as before. In comment threads mentions are highlighted (the own ones stronger), coordinates (`1:234:5`,
+  `[1:234:5]`) link to the galaxy view, and typing `@` suggests member names (`apps/web/src/commentText.ts`).
+
 - Onboarding of new members (backlog item D-4): a checklist of the first syncs (empire, statistics, overview,
   research, galaxy, messages, buildings) with a tick when the member first synced such a page and where to find it in
   the game, on the sync page (full list) and the overview (progress and next step); it disappears when everything is

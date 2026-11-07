@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Kommentare: Mit @Name erwähnst du ein Mitglied – es bekommt eine Benachrichtigung (Glocke, Push, Discord), auch wenn es in dem Thread noch nichts geschrieben hat. Beim Tippen von @ schlägt der Hub Namen vor, Koordinaten im Text führen direkt in die Galaxie.',
+        en: 'Comments: @name mentions a member – they get a notification (bell, push, Discord), even if they never wrote in that thread. Typing @ suggests names, coordinates in the text lead straight to the galaxy.',
+      },
+      {
+        kind: 'new',
         de: 'Neue Mitglieder sehen eine Checkliste „Erste Schritte“: welche Seiten sie zuerst einfügen sollten, wo sie sie im Spiel finden und einen Haken, sobald eine Seite angekommen ist. Allianz-Admins sehen in der Mitgliederliste, wer schon fertig ist.',
         en: 'New members see a "First steps" checklist: which pages to paste first, where to find them in the game and a tick as soon as a page arrived. Alliance admins see in the member list who is done.',
       },

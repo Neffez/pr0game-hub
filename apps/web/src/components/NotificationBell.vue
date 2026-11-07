@@ -193,7 +193,7 @@ function left(sec: number) {
             <span v-if="Object.keys(n.fleet.ships).length" class="small muted" :title="shipsTitle(n.fleet.ships)">{{ ships(n.fleet.ships) }}</span>
           </button>
           <button v-else-if="n.kind === 'comment'" class="bell-item comment" @click="show(n)">
-            <span class="bell-title"><Icon name="comment" :size="14" /><b>{{ t('notify.comment', { member: n.member, on: threadOf(n) }) }}</b><template v-if="n.count > 1"> · {{ t('notify.comments', { n: n.count }) }}</template></span>
+            <span class="bell-title"><Icon name="comment" :size="14" /><b>{{ t(n.mention ? 'notify.mention' : 'notify.comment', { member: n.member, on: threadOf(n) }) }}</b><template v-if="n.count > 1"> · {{ t('notify.comments', { n: n.count }) }}</template></span>
             <span class="small muted">{{ n.excerpt }}</span>
           </button>
           <button v-else class="bell-item attack" @click="show(n)">

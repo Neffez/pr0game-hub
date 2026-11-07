@@ -4423,8 +4423,9 @@ paths:
         fleet lists; `fleet`, `fleets`), `invite` (the caller's open invitations to a raid planner plan in planning;
         `plan`, `member` is who invited, `time` its target time, valid until the end of its day or hour by
         `plan.time_precision`), `comment` (comments of others of the last 48 hours in a thread the caller wrote in, after
-        the caller's last comment there, one entry per thread; `thread`, `excerpt`, `count`, `member`/`userId` the newest
-        author, `time` the newest comment), `launch` (a fleet of the caller in a plan with an exact target time,
+        the caller's last comment there, or anywhere when they mention the caller as `@` with their in-game name or
+        username, one entry per thread; `thread`, `excerpt`, `count`, `mention` (true when one of them mentions the
+        caller), `member`/`userId` the newest author, `time` the newest comment), `launch` (a fleet of the caller in a plan with an exact target time,
         invited or ready, that launches within the next hour; `plan`, `from`, `time` the launch) and `building` (the
         resources for the level of a building or research alert are there, listed 24 hours; `alert`, `planet`, `element`, `level`,
         `time` since when) and `fleet` (an own fleet with a fleet alert, due `lead` minutes before its arrival, listed
@@ -4527,6 +4528,7 @@ paths:
                             type: { type: string, enum: [planet, moon] }
                             owner: { type: [string, 'null'] }
                     excerpt: { type: string, description: 'comment only: the newest comment, shortened' }
+                    mention: { type: boolean, description: 'comment only: one of the comments mentions the caller (`@name`)' }
                     count: { type: integer, description: 'comment only: new comments in the thread' }
                     from:
                       type: object

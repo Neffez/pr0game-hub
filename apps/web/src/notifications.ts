@@ -44,6 +44,8 @@ export interface CommentNotification extends Base {
   thread: { player: number; name: string } | { plan: number; g: number; s: number; p: number; type: 'planet' | 'moon' } | { g: number; s: number; p: number; type: 'planet' | 'moon'; owner: string | null };
   excerpt: string;
   count: number;
+  /** one of them mentions the viewer (`@name`) */
+  mention?: boolean;
 }
 
 /** A fleet of the viewer in a plan has to launch at `time`. */

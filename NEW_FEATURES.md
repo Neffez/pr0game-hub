@@ -26,6 +26,7 @@ source (`pr0game`: pages, missions, achievements, advanced stats).
 | E-2 Several pages at once | Done | 2026-11-07 | sync page: several files, drag and drop, collect mode |
 | E-4 Explain failed pastes | Done | 2026-11-07 | sync preview, parser samples in the admin panel |
 | D-4 Onboarding of new members | Done | 2026-11-07 | sync page and overview (checklist), admin panel (column in the members list) |
+| G-8 Comments with mentions | Done | 2026-11-07 | comment threads, notifications (bell, push, Discord) |
 
 Each finished item carries a **Status** block below its description: what was built and how.
 
@@ -778,6 +779,13 @@ deliveries open), what is planned. For members who turn off single push notifica
 | G-6 | **Group self-service**: an alliance admin creates their group and invites members without the hub admin (today universes and groups are admin work) | Medium | M |
 | G-7 | **Performance on large universes**: paginated or virtualized overview and statistics tables, measured on a full universe | Medium | M |
 | G-8 | **Comments with mentions**: `@member` in a comment thread notifies that member, links to coordinates are clickable | Low | S |
+
+**G-8 status: done (2026-11-07).** `@name` (in-game name or username, whole name, case ignored; `mentions` in
+`apps/server/src/domain/mentions.ts`) makes a comment notification for the mentioned member also in threads they
+never wrote in (`mention: true`; push and Discord title "📣 … mentioned you on …"); answering in the thread clears it.
+In the threads mentions are highlighted, coordinates link to the galaxy view and typing `@` suggests member names
+(`apps/web/src/commentText.ts`). Tests: `apps/server/test/mentions.test.ts`, `apps/server/test/push.test.ts`,
+`apps/web/test/comment-text.test.ts`.
 
 ---
 
