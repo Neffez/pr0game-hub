@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-07
 
+- Fleet save planner: the offline window presets are stored with the account instead of the browser, so they are the
+  same on every device. New column `users.fleetsave_presets` (migration 084) and endpoints `GET`/`POST
+  /api/auth/fleetsave-presets` (OpenAPI `getFleetSavePresets`, `setFleetSavePresets`); presets a device kept locally
+  are taken over into the account on its first visit. The current window and the mission switches stay per device.
+
 - Backlog (`NEW_FEATURES.md`): item B-4 lists its tour as done (the debris finder's tab steps in the farm finder's
   tour); item C-3 is refined as an alliance trade board (internal offers on the marketplace,
   states from open to closed, delivery matched by transfer reports); the status table lists A-5 and C-3 as open;

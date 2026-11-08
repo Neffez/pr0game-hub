@@ -7,6 +7,7 @@ import {
 import { now, type DB } from '../db.js';
 import { events } from '../events.js';
 import { fleetShare, SHARE_MISSIONS } from '../repo/fleets.js';
+import { fleetSavePresets, parseFleetSavePresets, setFleetSavePresets } from '../repo/fleetsavePresets.js';
 import { messageShare } from '../repo/messages.js';
 import { shareActivityEnabled, shareSyncsEnabled, showOnlineEnabled } from '../repo/presence.js';
 import { mergeUser } from '../repo/members.js';
@@ -144,6 +145,17 @@ export function authRoutes(app: FastifyInstance, db: DB) {
     if (typeof enabled === 'boolean') tours.enabled = enabled;
     db.prepare('UPDATE users SET tours = ? WHERE id = ?').run(serializeTours(tours), user.id);
     return tours;
+  });
+
+  /** Offline window presets of the fleet save planner, the same on every device; null until changed. */
+  app.get('/api/auth/fleetsave-presets', async (req) => ({ presets: fleetSavePresets(db, requireUser(req).id) }));
+
+  app.post<{ Body: { presets?: unknown } }>('/api/auth/fleetsave-presets', async (req) => {
+    const user = requireUser(req);
+    const presets = parseFleetSavePresets(req.body?.presets);
+    if (!presets) throw new HttpError(400, 'presets_invalid', 'Invalid presets');
+    setFleetSavePresets(db, user.id, presets);
+    return { presets };
   });
 
   /** Which fleet movements the user shares with the other members of their groups. */
