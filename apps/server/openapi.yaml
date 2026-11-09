@@ -373,12 +373,6 @@ components:
         phalanx: { type: boolean, description: A sensor phalanx outside the own alliance is newly known to reach one of the caller's planets (default on) }
         leadMinutes: { type: integer, enum: [1, 2, 5, 10, 15, 30], description: Launch reminder this many minutes ahead (default 5) }
         spying: { type: boolean, description: 'Hostile espionage (mission 6) counts for `attackSelf` and `attackOthers` (default on); off: only fleets that are not spying' }
-        attackOthersMinPoints:
-          type: integer
-          minimum: 0
-          description: >-
-            `attackOthers` only for attackers with at least this many fleet points in the newest statistics (default 0:
-            all); an attacker the hub has no points of always notifies
         mentionsOnly: { type: boolean, description: '`comments` only when a comment mentions the caller (default off)' }
         quiet:
           oneOf: [{ $ref: '#/components/schemas/QuietHours' }, { type: 'null' }]
@@ -471,7 +465,6 @@ components:
         leadMinutes: { type: integer, enum: [1, 2, 5, 10, 15, 30], description: Launch reminder this many minutes ahead (default 5) }
         lang: { type: string, enum: [de, en], description: Language of the channel's messages (default de) }
         spying: { type: boolean, description: 'Hostile espionage (mission 6) counts for `attacks` (default on)' }
-        attackMinPoints: { type: integer, minimum: 0, description: '`attacks` only for attackers with at least this many fleet points in the newest statistics (default 0: all); unknown points are always posted' }
     Threat:
       type: object
       required: [key, player, score, spied, attacked, incoming, fleetPoints, reach, planets, hours, peak, targets]
@@ -1530,7 +1523,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/PushSettings' }
         '400':
-          description: Lead time not one of the allowed values or an invalid points threshold (`push_settings_invalid`)
+          description: Lead time not one of the allowed values (`push_settings_invalid`)
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }

@@ -768,7 +768,7 @@ const de = {
     account: {
       intro: { title: 'Konto', text: 'Deine Einstellungen. Bis auf Push gelten sie für dein Konto auf allen Geräten.' },
       general: { title: 'Allgemein', text: 'Sprache, Datumsformat, Hinweise und diese Tutorials (aus- oder einschalten, alle erneut zeigen). Dazu, was andere von dir sehen: Online-Status, auf welcher Seite du bist, deine Synchronisierungen.' },
-      push: { title: 'Push', text: 'Benachrichtigungen auf diesem Gerät, auch wenn der Hub nicht offen ist: Angriffe, Einladungen, Kommentare und Starttermine. Welche Arten du bekommst, stellst du darunter ein, mit Regeln (Spionage, Mindestpunkte des Angreifers, nur Erwähnungen, Lager pro Planet) und Ruhezeiten für dieses Gerät.' },
+      push: { title: 'Push', text: 'Benachrichtigungen auf diesem Gerät, auch wenn der Hub nicht offen ist: Angriffe, Einladungen, Kommentare und Starttermine. Welche Arten du bekommst, stellst du darunter ein, mit Regeln (Spionage, nur Erwähnungen, Lager pro Planet) und Ruhezeiten für dieses Gerät.' },
       discord: { title: 'Discord', text: 'Deine Benachrichtigungen zusätzlich in einem Discord-Kanal deiner Wahl, mit eigenen Einstellungen. Mit deiner Discord-User-ID erwähnt dich der Hub im Kanal deiner Allianz.' },
       sharing: { title: 'Freigaben', text: 'Ob die Allianz deine Flotten und deine Spielernachrichten sieht. Einzelne Flotten und Nachrichten gibst du im Imperium bzw. unter Ingame-Nachrichten abweichend frei.' },
       login: { title: 'Anmeldung', text: 'Benutzernamen und Passwort ändern.' },
@@ -876,8 +876,6 @@ const de = {
     pushLead: 'Vorlauf',
     rules: {
       spying: 'Auch feindliche Spionage melden',
-      minPoints: 'Nur Angreifer ab Flottenpunkten',
-      minPointsHint: 'Angriffe auf andere werden nur gemeldet, wenn der Angreifer laut Statistik mindestens so viele Flottenpunkte hat. 0 = alle. Kennt der Hub die Punkte des Angreifers nicht, wird gemeldet.',
       mentionsOnly: "Nur wenn ich erwähnt werde ({'@'}Name)",
       storagePlanets: 'Lager melden für',
       storagePlanetsHint: 'Planeten dieser Allianz ohne Haken melden ein volles Lager weder per Push noch über Discord. Die Glocke im Hub zeigt sie weiterhin.',
@@ -2041,7 +2039,6 @@ const de = {
   admin: {
     discord: 'Discord-Kanal',
     discordHint: 'Der Hub postet Angriffe auf Mitglieder, neue Raid-Pläne und Starttermine in einen Discord-Kanal der Allianz. Gedacht für einen Kanal, den nur Allianzmitglieder sehen. Webhook in Discord anlegen: Servereinstellungen → Integrationen → Webhooks.',
-    discordMinPoints: 'Angriffe nur von Angreifern ab Flottenpunkten',
     discordKind: {
       attacks: 'Angriffe auf Mitglieder',
       plans: 'Neue Pläne im Raid-Planer',

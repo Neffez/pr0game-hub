@@ -928,13 +928,14 @@ In the threads mentions are highlighted, coordinates link to the galaxy view and
 **G-4 status: done (2026-11-09).** Quiet hours per push device (`push_subscriptions.quiet`) and for the personal
 Discord webhook (`discord_prefs.quiet`): what they hold back (`notify_held`, helpers in `apps/server/src/notify.ts`)
 is sent by the tick when they end, unless it expired meanwhile; attacks on the user, launch reminders and fleet alerts
-break them by default. Thresholds in the settings (`wanted` in `push.ts`): espionage as an attack, fleet points of the
-attacker for attacks on others (statistics, `attackerFleetPoints` on the notification), comments only when mentioned;
-the alliance channel has the first two. Full storages can be muted per planet (`storage_muted`,
+break them by default. Rules in the settings (`wanted` in `push.ts`): espionage as an attack, comments only when mentioned; the alliance
+channel has the first. A fleet points threshold for attacks on others was built and removed the same day: the
+attacker's points in the statistics say little about one attack (a weak player's cargos on an undefended planet
+matter too); `attackerFleetPoints` stays on the notification as information. Full storages can be muted per planet (`storage_muted`,
 `/api/{uni}/storage-alerts`) instead of "only the main planet", which the hub cannot tell. Web: `NotifyKinds.vue`,
-`QuietHours.vue` in the account page. Tests: `apps/server/test/notifyRules.test.ts`. **Left for later:** a threshold
-for attacks on the user by the size of the incoming fleet (ships are often not visible), quiet hours for the alliance
-channel.
+`QuietHours.vue` in the account page. Tests: `apps/server/test/notifyRules.test.ts`. **Left for later:** a filter
+by whether an attack gets through (needs the attack assistant's simulation before sending, and the incoming ships are
+often not visible), quiet hours for the alliance channel.
 
 ---
 

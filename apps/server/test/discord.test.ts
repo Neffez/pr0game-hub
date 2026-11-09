@@ -67,7 +67,7 @@ describe('discord settings', () => {
     const res = await call('POST', '/auth/discord', h.carol, { webhook: HOOK.carol, userId: '200000000000000001' });
     expect(res.json()).toEqual({
       webhook: 'discord.com/api/webhooks/100000…', userId: '200000000000000001',
-      prefs: { attackSelf: true, attackOthers: false, invites: true, comments: true, launch: true, buildings: true, fleets: true, storage: true, buildOrder: true, phalanx: true, settlements: true, accessRequests: true, leadMinutes: 5, spying: true, attackOthersMinPoints: 0, mentionsOnly: false, quiet: null },
+      prefs: { attackSelf: true, attackOthers: false, invites: true, comments: true, launch: true, buildings: true, fleets: true, storage: true, buildOrder: true, phalanx: true, settlements: true, accessRequests: true, leadMinutes: 5, spying: true, mentionsOnly: false, quiet: null },
     });
     expect(JSON.stringify((await call('GET', '/auth/discord', h.carol)).json())).not.toContain('TTTT');
     expect((await call('POST', '/auth/discord', h.carol, { userId: '@carol' })).json().code).toBe('discord_user_id_invalid');
@@ -82,7 +82,7 @@ describe('discord settings', () => {
     expect((await call('PUT', `/admin/groups/${groupA}/discord`, h.carol, { webhook: 'https://x.org' })).statusCode).toBe(400);
     expect((await call('PUT', `/admin/groups/${groupA}/discord`, h.carol, { prefs: { lang: 'fr' } })).statusCode).toBe(400);
     const res = await call('PUT', `/admin/groups/${groupA}/discord`, h.carol, { webhook: HOOK.groupA });
-    expect(res.json()).toEqual({ webhook: 'discord.com/api/webhooks/100000…', prefs: { attacks: true, plans: true, launch: true, leadMinutes: 5, lang: 'de', spying: true, attackMinPoints: 0 } });
+    expect(res.json()).toEqual({ webhook: 'discord.com/api/webhooks/100000…', prefs: { attacks: true, plans: true, launch: true, leadMinutes: 5, lang: 'de', spying: true } });
     await call('PUT', `/admin/groups/${groupB}/discord`, h.admin, { webhook: HOOK.groupB });
   });
 

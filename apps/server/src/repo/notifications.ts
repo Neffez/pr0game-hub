@@ -321,7 +321,7 @@ function attacks(db: DB, ctx: GroupContext, t: number): AttackNotification[] {
       list.push(n);
     }
   }
-  // the attackers' fleet points for the thresholds of push and Discord: the owner of the origin, else the name shown
+  // the attackers' fleet points (shown with the attack): the owner of the origin, else the name shown
   if (list.length) {
     const players = new Players(db, ctx.groupId);
     const idOf = (f: StoredFleet) => f.fromPlayer?.id ?? (f.player ? players.byName(f.player) : null);

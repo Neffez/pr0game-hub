@@ -25,8 +25,8 @@ export const CHANGELOG: ChangelogDay[] = [
       },
       {
         kind: 'new',
-        de: 'Benachrichtigungen mit Regeln (Konto): Ruhezeiten pro Gerät und für deinen Discord-Webhook – was zurückgehalten wurde, kommt am Ende der Ruhezeit, Angriffe auf dich, Starttermine und Flottenankünfte auf Wunsch sofort. Dazu: Spionage nicht als Angriff melden, Angriffe auf andere nur ab einer Flottenpunktzahl des Angreifers, Kommentare nur bei Erwähnung und volle Lager nur für ausgewählte Planeten. Allianz-Admins können Spionage und schwache Angreifer auch im Discord-Kanal ausblenden.',
-        en: 'Notifications with rules (Account): quiet hours per device and for your Discord webhook – what was held back arrives when they end; attacks on you, launch times and fleet arrivals come at once if you like. Also: do not report espionage as an attack, attacks on others only from a fleet points threshold of the attacker, comments only when you are mentioned, and full storages only for chosen planets. Alliance admins can hide espionage and weak attackers in the Discord channel too.',
+        de: 'Benachrichtigungen mit Regeln (Konto): Ruhezeiten pro Gerät und für deinen Discord-Webhook – was zurückgehalten wurde, kommt am Ende der Ruhezeit, Angriffe auf dich, Starttermine und Flottenankünfte auf Wunsch sofort. Dazu: Spionage nicht als Angriff melden, Kommentare nur bei Erwähnung und volle Lager nur für ausgewählte Planeten. Allianz-Admins können Spionage auch im Discord-Kanal ausblenden.',
+        en: 'Notifications with rules (Account): quiet hours per device and for your Discord webhook – what was held back arrives when they end; attacks on you, launch times and fleet arrivals come at once if you like. Also: do not report espionage as an attack, comments only when you are mentioned, and full storages only for chosen planets. Alliance admins can hide espionage in the Discord channel too.',
       },
     ],
   },

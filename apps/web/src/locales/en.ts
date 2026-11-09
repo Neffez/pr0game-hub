@@ -767,7 +767,7 @@ const en: typeof de = {
     account: {
       intro: { title: 'Account', text: 'Your settings. Except for push they apply to your account on all devices.' },
       general: { title: 'General', text: 'Language, date format, hints and these tutorials (switch them off or on, show all again). Also what others see of you: online status, which page you are on, your syncs.' },
-      push: { title: 'Push', text: 'Notifications on this device, even when the hub is not open: attacks, invitations, comments and launch times. Below you choose which kinds you get, with rules (espionage, minimum points of the attacker, mentions only, storages per planet) and quiet hours for this device.' },
+      push: { title: 'Push', text: 'Notifications on this device, even when the hub is not open: attacks, invitations, comments and launch times. Below you choose which kinds you get, with rules (espionage, mentions only, storages per planet) and quiet hours for this device.' },
       discord: { title: 'Discord', text: 'Your notifications also in a Discord channel of your choice, with their own settings. With your Discord user ID the hub mentions you in your alliance\'s channel.' },
       sharing: { title: 'Sharing', text: 'Whether the alliance sees your fleets and your player messages. Single fleets and messages can be shared differently in the empire or under in-game messages.' },
       login: { title: 'Login', text: 'Change username and password.' },
@@ -875,8 +875,6 @@ const en: typeof de = {
     pushLead: 'Lead time',
     rules: {
       spying: 'Also report hostile espionage',
-      minPoints: 'Only attackers from fleet points',
-      minPointsHint: 'Attacks on others are only reported when the attacker has at least this many fleet points in the statistics. 0 = all. An attacker whose points the hub does not know is reported.',
       mentionsOnly: "Only when I am mentioned ({'@'}name)",
       storagePlanets: 'Report storages of',
       storagePlanetsHint: 'Planets of this alliance without a tick report a full storage neither by push nor through Discord. The bell in the hub still lists them.',
@@ -2039,7 +2037,6 @@ const en: typeof de = {
   admin: {
     discord: 'Discord channel',
     discordHint: 'The hub posts attacks on members, new raid plans and launch times to a Discord channel of the alliance. Meant for a channel only alliance members can see. Create the webhook in Discord: Server Settings → Integrations → Webhooks.',
-    discordMinPoints: 'Attacks only from attackers from fleet points',
     discordKind: {
       attacks: 'Attacks on members',
       plans: 'New raid planner plans',

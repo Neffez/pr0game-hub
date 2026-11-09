@@ -84,7 +84,7 @@ describe('push subscriptions and settings', () => {
   it('keeps the settings per user with defaults and validates the lead time', async () => {
     expect((await call('GET', '/auth/push-settings', h.dave)).json()).toEqual({
       attackSelf: true, attackOthers: false, invites: true, comments: true, launch: true, buildings: true, fleets: true, storage: true, buildOrder: true, phalanx: true, settlements: true, accessRequests: true, leadMinutes: 5,
-      spying: true, attackOthersMinPoints: 0, mentionsOnly: false, quiet: null,
+      spying: true, mentionsOnly: false, quiet: null,
     });
     expect((await call('POST', '/auth/push-settings', h.dave, { leadMinutes: 7 })).statusCode).toBe(400);
     expect((await call('POST', '/auth/push-settings', h.dave, { leadMinutes: 10, invites: false })).json()).toMatchObject({ leadMinutes: 10, invites: false, comments: true });

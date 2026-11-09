@@ -6,7 +6,7 @@ import { now, type DB } from './db.js';
 import type { EventBus } from './events.js';
 import { AlertSchedule, GroupDebounce, groupUniverse, heldBy, heldTargets, hold, quietBreakOf, SENT_KEEP, storageMuted, takeHeld, TICK_AHEAD, TICK_MS } from './notify.js';
 import {
-  accessRequestAdmins, accessRequestPayload, LEAD_MINUTES, parsePoints, payloadOf, pushPrefs, SPY_MISSION, strongEnough, testPayload, wanted, type PushLang, type PushPayload,
+  accessRequestAdmins, accessRequestPayload, LEAD_MINUTES, payloadOf, pushPrefs, SPY_MISSION, testPayload, wanted, type PushLang, type PushPayload,
 } from './push.js';
 import { channelNotificationsFor, notificationsFor, type ChannelNotification, type Notification } from './repo/notifications.js';
 
@@ -27,11 +27,9 @@ export interface ChannelPrefs {
   lang: PushLang;
   /** hostile espionage counts as an attack */
   spying: boolean;
-  /** attacks only from attackers with at least this many fleet points (statistics); 0: all, unknown points are posted */
-  attackMinPoints: number;
 }
 
-export const CHANNEL_DEFAULTS: ChannelPrefs = { attacks: true, plans: true, launch: true, leadMinutes: 5, lang: 'de', spying: true, attackMinPoints: 0 };
+export const CHANNEL_DEFAULTS: ChannelPrefs = { attacks: true, plans: true, launch: true, leadMinutes: 5, lang: 'de', spying: true };
 const CHANNEL_FLAGS = ['attacks', 'plans', 'launch', 'spying'] as const;
 
 export function channelPrefs(db: DB, groupId: number): ChannelPrefs {
@@ -46,11 +44,6 @@ export function parseChannelPrefs(before: ChannelPrefs, body: Record<string, unk
   if (body.leadMinutes !== undefined) {
     if (!LEAD_MINUTES.includes(Number(body.leadMinutes))) return null;
     next.leadMinutes = Number(body.leadMinutes);
-  }
-  if (body.attackMinPoints !== undefined) {
-    const min = parsePoints(body.attackMinPoints);
-    if (min == null) return null;
-    next.attackMinPoints = min;
   }
   if (body.lang !== undefined) {
     if (body.lang !== 'de' && body.lang !== 'en') return null;
@@ -320,7 +313,7 @@ export class DiscordService {
 function channelWants(n: ChannelNotification, prefs: ChannelPrefs, t: number): boolean {
   switch (n.kind) {
     case 'attack':
-      return prefs.attacks && (prefs.spying || n.fleet.mission !== SPY_MISSION) && strongEnough(n, prefs.attackMinPoints);
+      return prefs.attacks && (prefs.spying || n.fleet.mission !== SPY_MISSION);
     case 'plan':
       return prefs.plans;
     case 'launch':

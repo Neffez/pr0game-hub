@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-09
 
+- Notification rules: the fleet points threshold for attacks on other members and in the alliance's Discord channel
+  (`attackOthersMinPoints`, `attackMinPoints`, added earlier today) is removed again. The attacker's points in the
+  statistics say little about one attack: a weak player's cargos on an undefended planet matter too.
+
 - Who threatens me (backlog item A-5): the hostile spying page has a first tab "Who threatens me" with the viewer's
   own ranking of players who spied on them, fought at their planets or have an attack on its way (the alliance's
   spying is the second tab). Per player: counts and last time, the fleet points with their change in the period, the
@@ -20,15 +24,14 @@ Every commit adds its changes here, newest first, grouped by date.
     hours end or are switched off, as long as they still matter (an attack that landed meanwhile is dropped, at most
     the newest 20). Attacks on the user, their launch reminders and their fleet alerts come through at once unless
     unticked.
-  - **Thresholds** in the push and Discord settings: `spying` (hostile espionage counts as an attack, default on),
-    `attackOthersMinPoints` (attacks on other members only from attackers with that many fleet points in the
-    statistics; unknown points notify) and `mentionsOnly` (comments only when they mention the user). The alliance's
-    Discord channel has `spying` and `attackMinPoints`. Attack notifications carry `attackerFleetPoints`.
+  - **Rules per kind** in the push and Discord settings: `spying` (hostile espionage counts as an attack, default on)
+    and `mentionsOnly` (comments only when they mention the user). The alliance's Discord channel has `spying`.
+    Attack notifications carry `attackerFleetPoints` (information only).
   - **Storages per planet**: `GET`/`PUT /api/{uni}/storage-alerts` (`getStorageAlerts`, `setStorageAlerts`, table
     `storage_muted`) mute the full storage notifications of single planets for push and Discord; the bell still lists
     them.
   - Migration 085; the account page shows the rules below their kinds (shared `NotifyKinds.vue`, `QuietHours.vue`),
-    the admin panel the channel's two rules. Tests in `apps/server/test/notifyRules.test.ts`.
+    the admin panel the channel's espionage switch. Tests in `apps/server/test/notifyRules.test.ts`.
 
 ## 2026-11-07
 

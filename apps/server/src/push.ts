@@ -47,8 +47,6 @@ export interface PushPrefs {
   leadMinutes: number;
   /** hostile espionage counts as an attack (off: only fleets that are not spying) */
   spying: boolean;
-  /** attacks on other members only from attackers with at least this many fleet points (statistics); 0: all, unknown points notify */
-  attackOthersMinPoints: number;
   /** comments only when they mention the user */
   mentionsOnly: boolean;
   /** quiet hours of the user's Discord webhook; push devices keep their own (`push_subscriptions.quiet`), always null there */
@@ -57,20 +55,12 @@ export interface PushPrefs {
 
 export const PUSH_DEFAULTS: PushPrefs = {
   attackSelf: true, attackOthers: false, invites: true, comments: true, launch: true, buildings: true, fleets: true, storage: true, buildOrder: true, phalanx: true, settlements: true, accessRequests: true, leadMinutes: 5,
-  spying: true, attackOthersMinPoints: 0, mentionsOnly: false, quiet: null,
+  spying: true, mentionsOnly: false, quiet: null,
 };
 export const LEAD_MINUTES = [1, 2, 5, 10, 15, 30];
 const FLAGS = [
   'attackSelf', 'attackOthers', 'invites', 'comments', 'launch', 'buildings', 'fleets', 'storage', 'buildOrder', 'phalanx', 'settlements', 'accessRequests', 'spying', 'mentionsOnly',
 ] as const;
-/** Upper bound of a points threshold. */
-export const MAX_POINTS = 1e12;
-
-/** A points threshold from a request body: a whole number from 0 on, null when invalid. */
-export function parsePoints(v: unknown): number | null {
-  const n = Number(v);
-  return v !== null && v !== '' && Number.isInteger(n) && n >= 0 && n <= MAX_POINTS ? n : null;
-}
 
 /** The user's settings for push (`push_prefs`) or for their Discord webhook (`discord_prefs`). */
 export function pushPrefs(db: DB, userId: number, column: 'push_prefs' | 'discord_prefs' = 'push_prefs'): PushPrefs {
@@ -79,16 +69,11 @@ export function pushPrefs(db: DB, userId: number, column: 'push_prefs' | 'discor
 }
 
 /**
- * Settings from a request body: booleans, a lead time from `LEAD_MINUTES` and a points threshold, the rest as before.
+ * Settings from a request body: booleans and a lead time from `LEAD_MINUTES`, the rest as before.
  * `quiet`: the quiet hours are part of these settings (Discord webhook).
  */
 export function parsePushPrefs(before: PushPrefs, body: Record<string, unknown>, quiet = false): PushPrefs | null {
   const next = { ...before };
-  if (body.attackOthersMinPoints !== undefined) {
-    const min = parsePoints(body.attackOthersMinPoints);
-    if (min == null) return null;
-    next.attackOthersMinPoints = min;
-  }
   if (quiet && body.quiet !== undefined) {
     const q = parseQuiet(body.quiet);
     if (q === undefined) return null;
@@ -325,7 +310,7 @@ export function wanted(n: Notification, prefs: PushPrefs, userId: number, t: num
     case 'attack':
       if (!prefs.spying && n.fleet.mission === SPY_MISSION) return false;
       if (n.userId === userId) return prefs.attackSelf;
-      return prefs.attackOthers && strongEnough(n, prefs.attackOthersMinPoints);
+      return prefs.attackOthers;
     case 'invite':
       return prefs.invites;
     case 'comment':
@@ -349,9 +334,6 @@ export function wanted(n: Notification, prefs: PushPrefs, userId: number, t: num
 
 /** The game's espionage mission. */
 export const SPY_MISSION = 6;
-
-/** Whether the attacker has at least `min` fleet points in the statistics; an attacker the hub has no points of counts. */
-export const strongEnough = (n: { attackerFleetPoints?: number | null }, min: number) => min <= 0 || n.attackerFleetPoints == null || n.attackerFleetPoints >= min;
 
 /** Amount in a short form (1,2 Mio. / 1.2M). */
 const short = (v: number, lang: string) => new Intl.NumberFormat(lang, { notation: 'compact', maximumFractionDigits: 1 }).format(v);

@@ -192,13 +192,6 @@ interface ChannelPrefs {
   leadMinutes: number;
   lang: 'de' | 'en';
   spying: boolean;
-  attackMinPoints: number;
-}
-/** Whole points from 0 on; anything else means no threshold. */
-function setChannelMinPoints(e: Event) {
-  const n = Math.floor(Number((e.target as HTMLInputElement).value));
-  discord.value!.prefs.attackMinPoints = Number.isFinite(n) && n > 0 ? Math.min(n, 1e12) : 0;
-  saveDiscord({ prefs: discord.value!.prefs }, 'account.pushSaved');
 }
 const CHANNEL_KINDS = ['attacks', 'plans', 'launch'] as const;
 const LEAD_MINUTES = [1, 2, 5, 10, 15, 30];
@@ -719,13 +712,6 @@ const doMerge = () => run(async () => {
           <label class="check" :class="{ off: !discord.prefs.attacks }">
             <input v-model="discord.prefs.spying" type="checkbox" :disabled="!discord.prefs.attacks" @change="saveDiscord({ prefs: discord.prefs }, 'account.pushSaved')" /> {{ t('account.rules.spying') }}
           </label>
-          <div class="row">
-            <label :class="{ off: !discord.prefs.attacks }">
-              {{ t('admin.discordMinPoints') }}
-              <input type="number" min="0" step="1000" inputmode="numeric" style="width: 9em" :value="discord.prefs.attackMinPoints" :disabled="!discord.prefs.attacks" @change="setChannelMinPoints" />
-            </label>
-            <Hint>{{ t('account.rules.minPointsHint') }}</Hint>
-          </div>
           <div class="row">
             <label :class="{ off: !discord.prefs.launch }">
               {{ t('account.pushLead') }}

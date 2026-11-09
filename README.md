@@ -94,7 +94,7 @@ External analysis tool for [pr0game](https://codeberg.org/pr0game/pr0game) based
   hostile phalanx newly known to reach your planets and full storages on your planets (by the production
   and landing fleets since the last synced page); also as **push notifications** on desktop and phone
   (switched on per device under Account, each kind can be chosen, with rules: quiet hours per device that deliver
-  afterwards, espionage or weak attackers left out, comments only when mentioned, storages per planet) and to **Discord**: a personal webhook per user
+  afterwards, espionage left out, comments only when mentioned, storages per planet) and to **Discord**: a personal webhook per user
   (own settings) and an alliance channel set by the alliance admins (attacks on members, new raid plans, launch
   reminders, members mentioned by their Discord user ID)
 - **Live**: what a member syncs shows up in the open hub tabs of the alliance without reloading, with a short hint

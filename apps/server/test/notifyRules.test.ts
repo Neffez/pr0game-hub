@@ -7,7 +7,7 @@ const { openDb } = await import('../src/db.js');
 const { hashPassword } = await import('../src/auth.js');
 const { inQuiet, parseQuiet } = await import('../src/notify.js');
 
-/** Notification rules (G-4): quiet hours per push device and Discord webhook, thresholds, muted storages. */
+/** Notification rules (G-4): quiet hours per push device and Discord webhook, rules per kind, muted storages. */
 type Push = { endpoint: string; payload: { title: string; body: string; url: string; tag: string } };
 const pushed: Push[] = [];
 const pushSender = vi.fn(async (target: { endpoint: string }, payload: string) => {
@@ -166,7 +166,7 @@ describe('quiet hours', () => {
   });
 });
 
-describe('thresholds', () => {
+describe('rules per kind', () => {
   it('leaves espionage out when the user does not count it as an attack', async () => {
     await call('POST', '/auth/push-settings', h.dave, { spying: false });
     fleets('dave', t, [hostile(6, t + 300, 'Spy', { g: 3, s: 1, p: 1 })]);
@@ -178,33 +178,23 @@ describe('thresholds', () => {
     await call('POST', '/auth/push-settings', h.dave, { spying: true });
   });
 
-  it('pushes attacks on others only from attackers above the fleet points threshold', async () => {
+  it('carries the fleet points of the attacker with the attack, without filtering by them', async () => {
     const small = Number(db.prepare("INSERT INTO players (group_id, name) VALUES (?, 'Small')").run(group).lastInsertRowid);
-    const big = Number(db.prepare("INSERT INTO players (group_id, name) VALUES (?, 'Big')").run(group).lastInsertRowid);
     const snap = Number(db.prepare("INSERT INTO stat_snapshots (group_id, who, type, stat_time) VALUES (?, 'player', 2, ?)").run(group, t - 3600).lastInsertRowid);
-    const score = db.prepare('INSERT INTO player_scores (snapshot_id, player_id, points, rank) VALUES (?, ?, ?, 1)');
-    score.run(snap, small, 500);
-    score.run(snap, big, 50_000);
-    expect((await call('POST', '/auth/push-settings', h.dave, { attackOthersMinPoints: -1 })).statusCode).toBe(400);
-    expect((await call('POST', '/auth/push-settings', h.dave, { attackOthers: true, attackOthersMinPoints: 10_000 })).json()).toMatchObject({ attackOthersMinPoints: 10_000 });
-    fleets('carol', t, [hostile(1, t + 5000, 'Small', { g: 4, s: 1, p: 1 })]);
+    db.prepare('INSERT INTO player_scores (snapshot_id, player_id, points, rank) VALUES (?, ?, 500, 1)').run(snap, small);
+    await call('POST', '/auth/push-settings', h.dave, { attackOthers: true });
+    fleets('carol', t, [hostile(1, t + 5001, 'Small', { g: 4, s: 1, p: 2 }), hostile(1, t + 5002, 'Nobody', { g: 4, s: 1, p: 3 })]);
     await app.push.deliver(group, t);
-    expect(titles(DAVE)).toEqual([]);
-    // a strong attacker and one the hub has no points of both notify
-    fleets('carol', t, [hostile(1, t + 5001, 'Big', { g: 4, s: 1, p: 2 }), hostile(1, t + 5002, 'Nobody', { g: 4, s: 1, p: 3 })]);
-    await app.push.deliver(group, t);
+    // a weak attacker is reported like any other
     expect(titles(DAVE)).toEqual(['⚔ Angriff auf Carol', '⚔ Angriff auf Carol']);
     const bell = (await call('GET', '/u8/notifications', h.dave)).json().filter((n: any) => n.kind === 'attack' && n.userId === ids.carol);
-    expect(bell.map((n: any) => n.attackerFleetPoints)).toEqual([50_000, null]);
-    await call('POST', '/auth/push-settings', h.dave, { attackOthers: false, attackOthersMinPoints: 0 });
+    expect(bell.map((n: any) => n.attackerFleetPoints)).toEqual([500, null]);
+    await call('POST', '/auth/push-settings', h.dave, { attackOthers: false });
   });
 
-  it('applies espionage and the threshold to the alliance channel', async () => {
-    expect((await call('PUT', `/admin/groups/${group}/discord`, h.carol, { webhook: HOOK.group, prefs: { spying: false, attackMinPoints: 10_000 } })).json().prefs).toMatchObject({
-      spying: false, attackMinPoints: 10_000,
-    });
-    expect((await call('PUT', `/admin/groups/${group}/discord`, h.carol, { prefs: { attackMinPoints: 1.5 } })).statusCode).toBe(400);
-    fleets('carol', t, [hostile(6, t + 6000, 'Big', { g: 5, s: 1, p: 1 }), hostile(1, t + 6001, 'Small', { g: 5, s: 1, p: 2 }), hostile(1, t + 6002, 'Big', { g: 5, s: 1, p: 3 })]);
+  it('leaves espionage out of the alliance channel when it is switched off there', async () => {
+    expect((await call('PUT', `/admin/groups/${group}/discord`, h.carol, { webhook: HOOK.group, prefs: { spying: false } })).json().prefs).toMatchObject({ spying: false });
+    fleets('carol', t, [hostile(6, t + 6000, 'Big', { g: 5, s: 1, p: 1 }), hostile(1, t + 6001, 'Small', { g: 5, s: 1, p: 2 })]);
     await app.discord.deliver(group, t);
     expect(embeds(HOOK.group)).toEqual(['⚔ Angriff auf Carol']);
     expect(posted.find((s) => s.url === HOOK.group)!.message.embeds).toHaveLength(1);
