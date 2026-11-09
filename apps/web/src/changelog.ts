@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Allianz-Gesundheit: Auf dem Handy steht hinter dem Wachstum auch auf Englisch die richtige Einheit.',
+        en: 'Alliance health: on mobile the unit behind the growth is now correct in English too.',
+      },
+      {
+        kind: 'fix',
         de: 'Kolonisationsplaner: Ein geleertes Feld „höchstens Mitglieder“ filtert nicht mehr wie eine 0.',
         en: 'Colonization planner: an emptied "at most members" field no longer filters like a 0.',
       },

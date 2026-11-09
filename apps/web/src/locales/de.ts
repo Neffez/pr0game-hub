@@ -148,6 +148,7 @@ const de = {
     admin: 'Admin',
     points: 'Punkte',
     growth: '+7 T',
+    perWeek: '/ 7 T',
     growthTitle: 'Gesamtpunkte seit dem letzten Statistik-Update vor 7 Tagen',
     partial: 'Kürzere Statistik-Historie als 7 Tage',
     hub: 'Im Hub',

@@ -100,7 +100,7 @@ const flagged = computed(() => (data.value?.members ?? []).filter((m) => m.flags
         </div>
         <div>
           <template v-if="m.points != null">{{ fmt(m.points) }} <span class="muted">#{{ m.rank }}</span> · </template>
-          <span :class="growthClass(m)">{{ m.growth != null ? fmtSigned(m.growth) : '–' }}</span> <span class="muted">/ 7 T</span>
+          <span :class="growthClass(m)">{{ m.growth != null ? fmtSigned(m.growth) : '–' }}</span> <span class="muted">{{ t('health.perWeek') }}</span>
         </div>
         <div class="hl-syncs">
           <span v-for="c in COLUMNS" :key="c.key">

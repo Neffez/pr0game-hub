@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-09
 
+- Code review B-7: the mobile cards of the alliance health showed a hard-coded "/ 7 T" behind the growth; it is a text
+  now (`health.perWeek`).
+
 - Code review B-3: clearing the "at most members" field of the colonization planner acted as 0 (the emptied number
   field yields `''`) and left a chip without a number. Everything that is not a number now means "no filter", for the
   list and the chip.

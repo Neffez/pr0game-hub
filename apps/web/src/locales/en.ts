@@ -147,6 +147,7 @@ const en: typeof de = {
     admin: 'admin',
     points: 'Points',
     growth: '+7 d',
+    perWeek: '/ 7 d',
     growthTitle: 'Total points since the last statistics update 7 days ago',
     partial: 'Statistics history shorter than 7 days',
     hub: 'In hub',
