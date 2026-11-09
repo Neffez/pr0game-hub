@@ -13,14 +13,14 @@
   "dependencies": {
     "@fastify/compress": "^8.3.1",
     "@fastify/cookie": "^11.1.5",
-    "@fastify/static": "^10.1.8",
+    "@fastify/static": "^10.1.10",
     "@pr0hub/battle": "workspace:*",
     "@pr0hub/core": "workspace:*",
     "@pr0hub/flight": "workspace:*",
     "@pr0hub/loot": "workspace:*",
     "@pr0hub/planner": "workspace:*",
     "better-sqlite3": "^12.11.1",
-    "fastify": "^5.1.0",
+    "fastify": "^5.12.8",
     "web-push": "^3.6.7",
     "yaml": "^2.6.1"
   },
@@ -30,7 +30,7 @@
     "@types/web-push": "^3.6.4",
     "tsx": "^4.19.2",
     "typescript": "^6.0.3",
-    "vitest": "^5.0.5"
+    "vitest": "^5.1.0"
   },
   "files": [
     "battle-worker.mjs",
