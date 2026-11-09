@@ -124,7 +124,7 @@ const en: typeof de = {
     hint1: 'For each of your planets and moons: the most profitable known attack on it as it is now – with the full fleet or with heavy ships only (battleship and up), as raiders often do against defense and solar satellites. Shown is the attacker\'s expected profit in deuterium.',
     hint2: 'When your ships are on the planet, their debris counts as profit – often the biggest part. Few battles per attack, so a guide; the result is kept until your data or the attackers change. A click opens the defense advisor for the body.',
     run: 'Calculate raid risk',
-    runHint: 'Simulates the known attackers against all your planets (a few seconds).',
+    runHint: 'Simulates the known attackers against all your planets (a few seconds). Afterwards planets at risk carry a sword in the table above.',
     wins: '{n} % wins',
     noThreats: 'no known attackers',
     skipped: 'battles too large, not calculated',
@@ -132,6 +132,7 @@ const en: typeof de = {
     basis: '{battles} battles, {runs} per attack',
     cached: 'stored',
     reload: 'reload',
+    mark: 'Raid risk {level}: {profit} deuterium profit for {player}',
   },
   health: {
     title: 'Alliance health',
@@ -178,6 +179,7 @@ const en: typeof de = {
       expeditions: 'Expeditions of the last 30 days as CSV',
       settlements: 'Deliveries of the finalized loot settlements as CSV',
     },
+    filtered: 'with the filters of this view (name, alliance, inactive, vacation, points, galaxy)',
   },
   attack: {
     open: 'Open the attack assistant',
@@ -275,6 +277,7 @@ const en: typeof de = {
     harvestTitle: 'With recyclers to an existing debris field and back (also harvested, but it has to exist)',
     fieldUnsure: 'Debris last seen {time}, before the weekly cleaner on {cleanup}: harvested, the field could no longer be flown to',
     phalanx: 'Phalanx: {list}',
+    targetWatched: 'Target in reach of a hostile phalanx: a scan of the target planet shows this flight.',
     remind: 'Reminder: after sending, paste the overview, then the bell on the fleet in',
   },
   farm: {
@@ -871,6 +874,7 @@ const en: typeof de = {
       buildOrder: 'Next step of my build order possible (build & research → build order)',
       phalanx: 'A hostile phalanx newly reaches one of my planets',
       accessRequests: 'Access requests from the login page (admins)',
+      parserSamples: 'New parser samples from members (admins)',
     },
     pushLead: 'Lead time',
     rules: {
@@ -1098,6 +1102,8 @@ const en: typeof de = {
     hoursHint: 'Espionage and attacks by hour of the day (0–23, time zone {tz}). From 5 events on: the 4 hours with the most.',
     peak: '{from}–{to} h ({share} %)',
     targets: 'Targets',
+    openAssist: 'Open the attack assistant for this attack',
+    openAdvisor: 'Open the defense advisor for this planet',
   },
   hostile: {
     hint: 'From pasted "Counterintelligence report" messages: who spied on whom and when.',

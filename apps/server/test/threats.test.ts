@@ -90,7 +90,7 @@ describe('who threatens me', () => {
     expect(res).toMatchObject({ days: 30, ownPlanets: 2 });
     expect(res.threats.map((x: any) => x.player.name)).toEqual(['Raider', 'Snoop']);
     const [raider, snoop] = res.threats;
-    expect(raider).toMatchObject({ spied: { count: 2, last: t - DAY }, attacked: { count: 1, last: t - 2 * DAY }, incoming: { count: 0, next: null }, planets: 2 });
+    expect(raider).toMatchObject({ spied: { count: 2, last: t - DAY }, attacked: { count: 1, last: t - 2 * DAY }, incoming: { count: 0, next: null, key: null }, planets: 2 });
     expect(raider.targets).toEqual([{ g: 1, s: 100, p: 5, count: 2 }, { g: 2, s: 50, p: 8, count: 1 }]);
     expect(snoop).toMatchObject({ spied: { count: 6 }, attacked: { count: 0, last: null }, reach: null, planets: 0 });
     expect(raider.score).toBeGreaterThan(snoop.score);
@@ -120,6 +120,8 @@ describe('who threatens me', () => {
     db.prepare('INSERT INTO fleet_snapshots (group_id, user_id, page_time, data) VALUES (?, ?, ?, ?)').run(group, ids.carol, t, JSON.stringify([fleet]));
     const res = (await call('/u8/threats?days=7', h.carol)).json();
     expect(res.threats[0]).toMatchObject({ player: { name: 'Raider' }, incoming: { count: 1, next: t + 3600 } });
+    // the key opens the attack assistant for this attack
+    expect((await call(`/u8/attack-assist?key=${encodeURIComponent(res.threats[0].incoming.key)}&arrival=${t + 3600}&sim=0`, h.carol)).statusCode).toBe(200);
     expect((await call('/u8/threats?days=0', h.carol)).statusCode).toBe(400);
     expect((await call('/u8/threats?days=x', h.carol)).statusCode).toBe(400);
   });

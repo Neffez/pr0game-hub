@@ -20,7 +20,7 @@ export interface Threat {
   score: number;
   spied: { count: number; last: number | null };
   attacked: { count: number; last: number | null };
-  incoming: { count: number; next: number | null };
+  incoming: { count: number; next: number | null; key: string | null };
   fleetPoints: { points: number; time: number; before: { points: number; time: number } | null } | null;
   reach: { from: C; to: C; duration: number; ship: number; shipKnown: boolean; researchKnown: boolean } | null;
   planets: number;
@@ -52,6 +52,9 @@ const bars = (hours: number[]) => {
   const max = Math.max(1, ...hours);
   return hours.map((n) => Math.round((n / max) * 100));
 };
+/** The attack assistant for the attack on its way, the defense advisor for one of the own planets they came for. */
+const assist = (x: Threat) => ({ path: `/${uni.value}/attack`, query: { key: x.incoming.key ?? '', arrival: x.incoming.next ?? 0 } });
+const advisor = (c: C) => ({ path: `/${uni.value}/build`, query: { tab: 'defense', c: `${c.g}:${c.s}:${c.p}`, type: 'planet' } });
 const trend = (x: Threat) => (x.fleetPoints?.before ? x.fleetPoints.points - x.fleetPoints.before.points : null);
 </script>
 
@@ -80,9 +83,9 @@ const trend = (x: Threat) => (x.fleetPoints?.before ? x.fleetPoints.points - x.f
               <span v-else>{{ x.player.name }}</span>
               <span v-if="x.player.allyTag" class="muted"> [{{ x.player.allyTag }}]</span>
               <StatusBadges :status="x.player.status" />
-              <div v-if="x.incoming.next != null" class="incoming">
+              <RouterLink v-if="x.incoming.next != null" class="incoming" :to="assist(x)" :title="t('threats.openAssist')">
                 ⚔ {{ t('threats.incoming', x.incoming.count) }} <Countdown :to="x.incoming.next" />
-              </div>
+              </RouterLink>
             </td>
             <td class="num">
               <template v-if="x.spied.count">{{ fmt(x.spied.count) }} <span class="muted small">{{ ago(x.spied.last) }}</span></template>
@@ -118,7 +121,9 @@ const trend = (x: Threat) => (x.fleetPoints?.before ? x.fleetPoints.points - x.f
               <div v-if="x.peak" class="small">{{ peakText(x) }}</div>
             </td>
             <td class="mono small">
-              <div v-for="c in x.targets.slice(0, 3)" :key="`${c.g}:${c.s}:${c.p}`">{{ coords(c.g, c.s, c.p) }} <span class="muted">×{{ c.count }}</span></div>
+              <div v-for="c in x.targets.slice(0, 3)" :key="`${c.g}:${c.s}:${c.p}`">
+                <RouterLink :to="advisor(c)" :title="t('threats.openAdvisor')">{{ coords(c.g, c.s, c.p) }}</RouterLink> <span class="muted">×{{ c.count }}</span>
+              </div>
             </td>
           </tr>
         </tbody>
@@ -128,7 +133,7 @@ const trend = (x: Threat) => (x.fleetPoints?.before ? x.fleetPoints.points - x.f
 </template>
 
 <style scoped>
-.incoming { color: var(--neg); font-weight: 600; font-size: 12px; }
+.incoming { display: block; color: var(--neg); font-weight: 600; font-size: 12px; }
 .up { color: var(--neg); }
 .down { color: var(--pos); }
 /* column headers explained by their tooltip (a Hint inside would end up in the labels of the mobile cards) */

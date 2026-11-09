@@ -229,6 +229,14 @@ function playerMatches(p: Player) {
 }
 
 const filteredPlayers = computed(() => players.value.filter(playerMatches));
+/** The filters the CSV export knows (the others depend on the viewer or on what is shown here). */
+const csvFilter = computed(() => {
+  const f = filter.value;
+  return {
+    q: f.text.trim(), ally: f.ally.trim(), inactive: f.inactive === 'all' ? null : f.inactive, vacation: f.hideVacation ? '0' : null,
+    minPoints: bound(f.minPoints), maxPoints: bound(f.maxPoints), galaxy: mode.value === 'planets' ? galaxy.value : null,
+  };
+});
 /** The inactivity score is shown next to the name (and replaces the points stall icon, which it includes). */
 const scored = (v: Inactivity | null | undefined) => !!v && !v.status && (v.level === 'inactive' || v.level === 'likely' || v.level === 'possible');
 
@@ -520,7 +528,7 @@ const history = computed(() => {
       </Hint>
       <Hint v-if="players.length && !history" warn>{{ t('overview.needTwoStands') }}</Hint>
     </template>
-    <CsvButton :dataset="mode === 'players' ? 'players' : 'planets'" />
+    <CsvButton :dataset="mode === 'players' ? 'players' : 'planets'" :filter="csvFilter" />
     <ActionMenu
       v-if="narrow"
       :items="[{ label: desktopView ? t('overview.layoutMobile') : t('overview.layoutDesktop'), hint: t('overview.layoutTitle'), onClick: () => (desktopView = !desktopView) }]"

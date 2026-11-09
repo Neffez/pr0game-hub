@@ -4,6 +4,20 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-09
 
+- Five follow-ups of finished backlog items:
+  - **Raid risk in the empire table (A-4):** once the raid risk was calculated (empire section or defense advisor),
+    planets and moons where a known attack pays off carry a sword at their name (red: the attacker mostly wins); the
+    result is kept while the hub tab stays open (`apps/web/src/raidRisk.ts`).
+  - **Phalanx mark per fleet save option (A-3):** an option whose target is an own planet in reach of a hostile phalanx
+    carries an eye (a scan of the target shows the flight), next to the existing hint for the start planet.
+  - **Who threatens me (A-5):** an attack on its way opens the attack assistant (`incoming.key` in
+    `GET /api/{uni}/threats`), the own planets they came for open the defense advisor.
+  - **Parser samples (E-4):** the hub admins hear about a new sample by push and Discord (setting `parserSamples`,
+    default on, admins only; texts in `push.ts`).
+  - **CSV with the view's filters (F-3):** `GET /api/{uni}/export/players` and `/planets` take `q`, `ally`,
+    `inactive`, `vacation`, `minPoints`, `maxPoints` and (planets) `galaxy`; the overview's CSV button passes its
+    filters and says so. Filters that depend on the viewer (noob, strong, distance, points change) are not exported.
+
 - Notification rules: the fleet points threshold for attacks on other members and in the alliance's Discord channel
   (`attackOthersMinPoints`, `attackMinPoints`, added earlier today) is removed again. The attacker's points in the
   statistics say little about one attack: a weak player's cargos on an undefended planet matter too.

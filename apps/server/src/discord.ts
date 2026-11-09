@@ -6,7 +6,7 @@ import { now, type DB } from './db.js';
 import type { EventBus } from './events.js';
 import { AlertSchedule, GroupDebounce, groupUniverse, heldBy, heldTargets, hold, quietBreakOf, SENT_KEEP, storageMuted, takeHeld, TICK_AHEAD, TICK_MS } from './notify.js';
 import {
-  accessRequestAdmins, accessRequestPayload, LEAD_MINUTES, payloadOf, pushPrefs, SPY_MISSION, testPayload, wanted, type PushLang, type PushPayload,
+  accessRequestAdmins, accessRequestPayload, LEAD_MINUTES, payloadOf, pushPrefs, samplePayload, SPY_MISSION, testPayload, wanted, type ParserSample, type PushLang, type PushPayload,
 } from './push.js';
 import { channelNotificationsFor, notificationsFor, type ChannelNotification, type Notification } from './repo/notifications.js';
 
@@ -244,6 +244,14 @@ export class DiscordService {
     for (const a of accessRequestAdmins(this.db, 'discord_prefs', 'discord_webhook IS NOT NULL')) {
       const url = this.db.prepare('SELECT discord_webhook FROM users WHERE id = ?').pluck().get(a.id) as string;
       await this.send(this.userTarget(a.id, url), [{ kind: 'access', payload: accessRequestPayload(a.lang === 'en' ? 'en' : 'de', request) }]);
+    }
+  }
+
+  /** Tells the global admins with a webhook about a new parser sample. */
+  async notifySample(sample: ParserSample) {
+    for (const a of accessRequestAdmins(this.db, 'discord_prefs', 'discord_webhook IS NOT NULL', 'parserSamples')) {
+      const url = this.db.prepare('SELECT discord_webhook FROM users WHERE id = ?').pluck().get(a.id) as string;
+      await this.send(this.userTarget(a.id, url), [{ kind: 'access', payload: samplePayload(a.lang === 'en' ? 'en' : 'de', sample) }]);
     }
   }
 

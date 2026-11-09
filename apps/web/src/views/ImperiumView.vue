@@ -4,6 +4,7 @@ import MemberSelect from '../components/MemberSelect.vue';
 import PageHeader from '../components/PageHeader.vue';
 import Section from '../components/Section.vue';
 import RaidRisk from '../components/RaidRisk.vue';
+import { lastRisk, riskLevel, type RiskBody } from '../raidRisk';
 import Icon from '../components/Icon.vue';
 import { resourceAt } from '@pr0hub/core/buildings';
 import { classOf, elementPoints, METAL, RESOURCES, STORAGE, storageCapacity } from '@pr0hub/core/tech';
@@ -357,6 +358,17 @@ const deltaClass = (d: number | null) => (d == null || d === 0 ? 'faint' : d > 0
 /** Hostile phalanxes per planet ("g:s:p"); moons are no phalanx targets. */
 const phalanx = computed(() => data.value?.phalanx ?? []);
 const phalanxByPlanet = computed(() => new Map(phalanx.value.map((e) => [`${e.planet.g}:${e.planet.s}:${e.planet.p}`, e.threats])));
+/**
+ * Raid risk per own body ("g:s:p:type") once the member calculated it (section below or the defense advisor): bodies
+ * where a known attack pays off get a mark at their name.
+ */
+const riskByBody = computed(() => {
+  const r = lastRisk.value;
+  const own = mine.value && r?.scope === `${uni.value}:${ctx.value?.group.id}`;
+  return new Map((own ? r!.bodies : []).filter((b) => ['high', 'medium'].includes(riskLevel(b))).map((b) => [b.key, b]));
+});
+const riskOf = (p: EmpirePlanet): RiskBody | undefined => riskByBody.value.get(`${p.coords.g}:${p.coords.s}:${p.coords.p}:${p.type}`);
+const riskTitle = (b: RiskBody) => t('risk.mark', { level: t(`risk.level.${riskLevel(b)}`), profit: short(b.worst!.profit), player: b.worst!.player.name });
 const threatsOf = (p: EmpirePlanet) => (p.type === 'planet' ? (phalanxByPlanet.value.get(`${p.coords.g}:${p.coords.s}:${p.coords.p}`) ?? []) : []);
 const ownerText = (x: PhalanxThreat) => (x.player ? `${x.player.name}${x.player.ally ? ` [${x.player.ally}]` : ''}` : t('common.unknown'));
 const phalanxTitle = (list: PhalanxThreat[]) =>
@@ -555,6 +567,7 @@ useAutoTour('imperium', () => !!data.value);
         <span v-if="r.p.type === 'moon'" class="moon-tag"><Icon name="moon" :size="12" :label="t('common.moon')" /></span>
         <b class="emp-name">{{ r.p.name }}</b>
         <Icon v-if="threatsOf(r.p).length" name="eye" :size="14" class="warn" :label="phalanxTitle(threatsOf(r.p))" />
+        <Icon v-if="riskOf(r.p)" name="attack" :size="14" :class="riskLevel(riskOf(r.p)!) === 'high' ? 'neg' : 'warn'" :label="riskTitle(riskOf(r.p)!)" />
         <span v-if="r.energy != null" class="small" :class="r.energy < 0 ? 'neg' : 'muted'"><Icon name="bolt" :size="12" :label="name(911)" /> {{ fmt(r.energy) }}</span>
       </div>
       <div class="emp-queues small">
@@ -622,6 +635,7 @@ useAutoTour('imperium', () => !!data.value);
             <span v-if="r.p.type === 'moon'" class="moon-tag" style="margin-left: 4px"><Icon name="moon" :size="12" :label="t('common.moon')" /></span>
             {{ r.p.name }}
             <Icon v-if="threatsOf(r.p).length" name="eye" :size="13" class="warn" :label="phalanxTitle(threatsOf(r.p))" />
+            <Icon v-if="riskOf(r.p)" name="attack" :size="13" :class="riskLevel(riskOf(r.p)!) === 'high' ? 'neg' : 'warn'" :label="riskTitle(riskOf(r.p)!)" />
           </td>
           <td class="small">
             <template v-if="r.building">

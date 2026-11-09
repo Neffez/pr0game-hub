@@ -125,7 +125,7 @@ const de = {
     hint1: 'Für jeden deiner Planeten und Monde: der lohnendste bekannte Angriff auf ihn, so wie er jetzt dasteht – mit voller Flotte oder nur mit schweren Schiffen (Schlachtschiff aufwärts), wie Raider es gegen Verteidigung und Solarsatelliten oft machen. Gezeigt wird der erwartete Gewinn des Angreifers in Deuterium.',
     hint2: 'Stehen deine Schiffe auf dem Planeten, zählt ihr Trümmerfeld zum Gewinn – oft der größte Posten. Wenige Kämpfe je Angriff, also ein Richtwert; das Ergebnis bleibt gespeichert, bis sich deine Daten oder die Angreifer ändern. Ein Klick öffnet den Verteidigungsberater für den Körper.',
     run: 'Raid-Risiko berechnen',
-    runHint: 'Simuliert die bekannten Angreifer gegen alle deine Planeten (einige Sekunden).',
+    runHint: 'Simuliert die bekannten Angreifer gegen alle deine Planeten (einige Sekunden). Danach tragen gefährdete Planeten in der Tabelle oben ein Schwert.',
     wins: '{n} % Siege',
     noThreats: 'keine bekannten Angreifer',
     skipped: 'zu große Kämpfe, nicht berechnet',
@@ -133,6 +133,7 @@ const de = {
     basis: '{battles} Kämpfe, {runs} je Angriff',
     cached: 'gespeichert',
     reload: 'neu laden',
+    mark: 'Raid-Risiko {level}: {profit} Deuterium Gewinn für {player}',
   },
   health: {
     title: 'Allianz-Gesundheit',
@@ -179,6 +180,7 @@ const de = {
       expeditions: 'Expeditionen der letzten 30 Tage als CSV',
       settlements: 'Lieferungen der festgeschriebenen Beuteabrechnungen als CSV',
     },
+    filtered: 'mit den Filtern dieser Ansicht (Name, Allianz, Inaktive, Urlaub, Punkte, Galaxie)',
   },
   attack: {
     open: 'Angriffs-Assistent öffnen',
@@ -276,6 +278,7 @@ const de = {
     harvestTitle: 'Mit Recyclern zu einem bestehenden Trümmerfeld und zurück (auch abgebaut, aber es muss existieren)',
     fieldUnsure: 'Trümmer zuletzt gesehen {time}, vor dem wöchentlichen Löschen am {cleanup}: abgebaut wäre das Feld nicht mehr anfliegbar',
     phalanx: 'Phalanx: {list}',
+    targetWatched: 'Ziel in Reichweite einer feindlichen Phalanx: Ein Scan des Zielplaneten zeigt diesen Flug.',
     remind: 'Erinnerung: nach dem Verschicken die Übersicht einfügen, dann Glocke an der Flotte in',
   },
   farm: {
@@ -872,6 +875,7 @@ const de = {
       buildOrder: 'Nächster Schritt meiner Bauliste möglich (Bauen & Forschen → Bauliste)',
       phalanx: 'Eine feindliche Phalanx erreicht neu einen meiner Planeten',
       accessRequests: 'Zugangsanfragen von der Anmeldeseite (Admins)',
+      parserSamples: 'Neue Parser-Beispiele von Mitgliedern (Admins)',
     },
     pushLead: 'Vorlauf',
     rules: {
@@ -1099,6 +1103,8 @@ const de = {
     hoursHint: 'Spionagen und Angriffe nach Stunde des Tages (0–23 Uhr, Zeitzone {tz}). Ab 5 Ereignissen: die 4 Stunden mit den meisten.',
     peak: '{from}–{to} Uhr ({share} %)',
     targets: 'Ziele',
+    openAssist: 'Angriffsassistent für diesen Angriff öffnen',
+    openAdvisor: 'Verteidigungsberater für diesen Planeten öffnen',
   },
   hostile: {
     hint: 'Aus eingefügten „Spionage-Aktivität“-Nachrichten: wer wen wann spioniert hat.',

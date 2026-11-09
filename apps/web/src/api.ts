@@ -36,12 +36,14 @@ export function downloadUniverseJson(uni: string) {
 }
 
 /** Download link of the group's data: all as JSON (`dataset` omitted) or one dataset as CSV (attachments). */
-export function exportUrl(uni: string, dataset?: string, opts: { days?: number; sep?: 'comma' | 'semicolon' | 'tab' } = {}) {
+export function exportUrl(uni: string, dataset?: string, opts: { days?: number; sep?: 'comma' | 'semicolon' | 'tab'; filter?: Record<string, string | number | null | undefined> } = {}) {
   const q = new URLSearchParams();
   const group = selectedGroup(uni);
   if (group) q.set('group', String(group));
   if (opts.days) q.set('days', String(opts.days));
   if (dataset && opts.sep && opts.sep !== 'comma') q.set('sep', opts.sep);
+  // filters of the view the button sits in (players and planets)
+  for (const [k, v] of Object.entries(opts.filter ?? {})) if (v != null && v !== '') q.set(k, String(v));
   return `${import.meta.env.BASE_URL}api/${uni}/export${dataset ? `/${dataset}.csv` : ''}${q.size ? `?${q}` : ''}`;
 }
 

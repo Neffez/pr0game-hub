@@ -366,6 +366,7 @@ components:
         launch: { type: boolean, description: Launch reminders of the caller's plan fleets (default on) }
         buildings: { type: boolean, description: The next level of a building the caller waits for is affordable (default on) }
         accessRequests: { type: boolean, description: Access requests from the login page; only global admins get them (default on) }
+        parserSamples: { type: boolean, description: 'A member sent a page the hub could not read as a parser sample (`/api/{uni}/ingest/sample`); only global admins get them (default on)' }
         fleets: { type: boolean, description: An own fleet the caller set an alert for arrives (or is about to, by the alert's lead) (default on) }
         storage: { type: boolean, description: 'A storage (metal, crystal, deuterium) on one of the caller''s planets is full (default on)' }
         settlements: { type: boolean, description: A loot settlement the caller takes part in was finalized and they have deliveries open (default on) }
@@ -496,6 +497,7 @@ components:
           properties:
             count: { type: integer }
             next: { type: [integer, 'null'], description: The first arrival }
+            key: { type: [string, 'null'], description: 'Key of that attack for `/api/{uni}/attack-assist`' }
         fleetPoints:
           type: [object, 'null']
           description: Fleet points of the newest statistics; `before` at the start of the period (else the oldest update within it), null without an older update
@@ -3065,7 +3067,9 @@ paths:
       operationId: exportDatasetCsv
       description: >-
         One dataset of `/api/{uni}/export` as CSV (attachment, UTF-8 with BOM, header row, times as Unix seconds,
-        numbers unformatted). `dataset` may end in `.csv`. Works with a read-only API token.
+        numbers unformatted). `dataset` may end in `.csv`. Works with a read-only API token. The `players` and
+        `planets` datasets take the overview's filters (`q`, `ally`, `inactive`, `vacation`, `minPoints`, `maxPoints`,
+        for planets also `galaxy`); planets follow their owner's filters. Other datasets ignore them.
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
@@ -3073,12 +3077,19 @@ paths:
         - { name: dataset, in: path, required: true, schema: { type: string, enum: [players, planets, spy-reports, battle-reports, expeditions, settlements] } }
         - { name: days, in: query, schema: { type: integer, minimum: 1, maximum: 365 }, description: 'Like `/api/{uni}/export`' }
         - { name: sep, in: query, schema: { type: string, enum: [comma, semicolon, tab] }, description: 'Separator (default comma; semicolon for spreadsheets with a decimal comma)' }
+        - { name: q, in: query, schema: { type: string, maxLength: 100 }, description: Player name contains this text (case ignored) }
+        - { name: ally, in: query, schema: { type: string, maxLength: 100 }, description: Alliance name or tag contains this text (case ignored) }
+        - { name: inactive, in: query, schema: { type: string, enum: [hide, only] }, description: 'Players the game flags inactive: left out, or only them' }
+        - { name: vacation, in: query, schema: { type: string, enum: ['0'] }, description: '`0`: players in vacation mode are left out' }
+        - { name: minPoints, in: query, schema: { type: number, minimum: 0 }, description: Total points at least }
+        - { name: maxPoints, in: query, schema: { type: number, minimum: 0 }, description: Total points at most }
+        - { name: galaxy, in: query, schema: { type: integer, minimum: 1 }, description: 'Planets of this galaxy (`planets` only)' }
       responses:
         '200':
           content:
             text/csv:
               schema: { type: string }
-        '400': { description: 'Invalid `days` (`export_invalid`)' }
+        '400': { description: 'Invalid `days` or filter (`export_invalid`)' }
         '404': { description: 'Unknown dataset (`export_unknown`)' }
   /api/{uni}/attack-assist:
     get:

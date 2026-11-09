@@ -43,6 +43,8 @@ export interface PushPrefs {
   settlements: boolean;
   /** someone requests access on the login page (global admins) */
   accessRequests: boolean;
+  /** a member sent a page the hub could not read as a parser sample (global admins) */
+  parserSamples: boolean;
   /** launch reminder this many minutes before */
   leadMinutes: number;
   /** hostile espionage counts as an attack (off: only fleets that are not spying) */
@@ -54,12 +56,12 @@ export interface PushPrefs {
 }
 
 export const PUSH_DEFAULTS: PushPrefs = {
-  attackSelf: true, attackOthers: false, invites: true, comments: true, launch: true, buildings: true, fleets: true, storage: true, buildOrder: true, phalanx: true, settlements: true, accessRequests: true, leadMinutes: 5,
+  attackSelf: true, attackOthers: false, invites: true, comments: true, launch: true, buildings: true, fleets: true, storage: true, buildOrder: true, phalanx: true, settlements: true, accessRequests: true, parserSamples: true, leadMinutes: 5,
   spying: true, mentionsOnly: false, quiet: null,
 };
 export const LEAD_MINUTES = [1, 2, 5, 10, 15, 30];
 const FLAGS = [
-  'attackSelf', 'attackOthers', 'invites', 'comments', 'launch', 'buildings', 'fleets', 'storage', 'buildOrder', 'phalanx', 'settlements', 'accessRequests', 'spying', 'mentionsOnly',
+  'attackSelf', 'attackOthers', 'invites', 'comments', 'launch', 'buildings', 'fleets', 'storage', 'buildOrder', 'phalanx', 'settlements', 'accessRequests', 'parserSamples', 'spying', 'mentionsOnly',
 ] as const;
 
 /** The user's settings for push (`push_prefs`) or for their Discord webhook (`discord_prefs`). */
@@ -213,6 +215,13 @@ export class PushService {
     if (!this.enabled) return;
     const admins = accessRequestAdmins(this.db, 'push_prefs', 'EXISTS (SELECT 1 FROM push_subscriptions s WHERE s.user_id = users.id)');
     for (const a of admins) await this.sendTo(a.id, accessRequestPayload(a.lang === 'en' ? 'en' : 'de', request), { ttl: 86400, urgency: 'normal' }, { t: now(), kind: 'access', breaks: null });
+  }
+
+  /** Tells the global admins with a subscription about a new parser sample. */
+  async notifySample(sample: ParserSample) {
+    if (!this.enabled) return;
+    const admins = accessRequestAdmins(this.db, 'push_prefs', 'EXISTS (SELECT 1 FROM push_subscriptions s WHERE s.user_id = users.id)', 'parserSamples');
+    for (const a of admins) await this.sendTo(a.id, samplePayload(a.lang === 'en' ? 'en' : 'de', sample), { ttl: 86400, urgency: 'normal' }, { t: now(), kind: 'access', breaks: null });
   }
 
   /**
@@ -373,6 +382,8 @@ const DE = {
   phalanx: (who: string) => `🔭 Phalanx von ${who} erreicht dich`,
   phalanxBody: (moon: string, level: number, planets: string) => `Mond ${moon}, Stufe ${level} · erreicht ${planets}`,
   accessRequest: (name: string) => `🔑 Zugangsanfrage von ${name}`,
+  sample: (name: string) => `🧩 Parser-Beispiel von ${name}`,
+  sampleBody: (why: string) => `Nicht erkannte Seite (${why}), unter Admin → Parser-Beispiele`,
   fleetArrived: (what: string) => `✈ ${what}: Flotte angekommen`,
   fleetBack: (what: string) => `↩ ${what}: Flotte zurück`,
   fleetSoon: (what: string, min: number) => `⏰ ${what}: Ankunft in ${min} Min`,
@@ -419,6 +430,8 @@ const EN: typeof DE = {
   phalanx: (who: string) => `🔭 Phalanx of ${who} reaches you`,
   phalanxBody: (moon: string, level: number, planets: string) => `Moon ${moon}, level ${level} · reaches ${planets}`,
   accessRequest: (name: string) => `🔑 Access request from ${name}`,
+  sample: (name: string) => `🧩 Parser sample from ${name}`,
+  sampleBody: (why: string) => `Page not recognized (${why}), under Admin → Parser samples`,
   fleetArrived: (what: string) => `✈ ${what}: fleet arrived`,
   fleetBack: (what: string) => `↩ ${what}: fleet is back`,
   fleetSoon: (what: string, min: number) => `⏰ ${what}: arrival in ${min} min`,
@@ -443,10 +456,27 @@ export const accessRequestPayload = (lang: PushLang, request: { id: number; user
   tag: `access:${request.id}`,
 });
 
-/** Global admins (id and language) with `where` who want to hear about access requests by the settings in `column`. */
-export function accessRequestAdmins(db: DB, column: 'push_prefs' | 'discord_prefs', where: string) {
+/** A page sent as a parser sample: who sent it, why the hub found nothing (`code`, the game's `page` when known) and their note. */
+export interface ParserSample {
+  id: number;
+  username: string;
+  code: string;
+  page: string | null;
+  note: string | null;
+}
+
+/** A new parser sample (global admins): opens the admin page. */
+export const samplePayload = (lang: PushLang, s: ParserSample): PushPayload => ({
+  title: TEXT[lang].sample(s.username),
+  body: [TEXT[lang].sampleBody(s.page ? `${s.code}: ${s.page}` : s.code), s.note].filter(Boolean).join(' · '),
+  url: `${config.basePath}/admin`,
+  tag: `sample:${s.id}`,
+});
+
+/** Global admins (id and language) with `where` who want to hear about access requests (or `flag`) by the settings in `column`. */
+export function accessRequestAdmins(db: DB, column: 'push_prefs' | 'discord_prefs', where: string, flag: 'accessRequests' | 'parserSamples' = 'accessRequests') {
   const admins = db.prepare(`SELECT id, lang FROM users WHERE is_admin = 1 AND ${where}`).all() as { id: number; lang: string }[];
-  return admins.filter((a) => pushPrefs(db, a.id, column).accessRequests);
+  return admins.filter((a) => pushPrefs(db, a.id, column)[flag]);
 }
 
 const coords = (g: number, s: number, p: number, moon: boolean) => `${moon ? '☾ ' : ''}[${g}:${s}:${p}]`;

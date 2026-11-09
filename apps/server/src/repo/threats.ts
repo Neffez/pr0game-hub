@@ -37,8 +37,8 @@ export interface Threat {
   score: number;
   spied: { count: number; last: number | null };
   attacked: { count: number; last: number | null };
-  /** attacks on their way to the viewer now (`next`: the first arrival) */
-  incoming: { count: number; next: number | null };
+  /** attacks on their way to the viewer now (`next`: the first arrival, `key`: that attack for the attack assistant) */
+  incoming: { count: number; next: number | null; key: string | null };
   /** fleet points of the statistics now and at the start of the period (else the oldest update within it) */
   fleetPoints: { points: number; time: number; before: { points: number; time: number } | null } | null;
   /** the player's known planet nearest to one of the viewer's: one-way flight at 100 % */
@@ -96,7 +96,7 @@ export function threatsOf(db: DB, ctx: GroupContext, days: number): Threats {
     if (friends.names.has(lower) || lower === selfName) return null;
     let c = cands.get(lower);
     if (!c) {
-      c = { name, id: id ?? players.byName(name), score: 0, spied: { count: 0, last: null }, attacked: { count: 0, last: null }, incoming: { count: 0, next: null }, hours: new Array<number>(24).fill(0), targets: new Map() };
+      c = { name, id: id ?? players.byName(name), score: 0, spied: { count: 0, last: null }, attacked: { count: 0, last: null }, incoming: { count: 0, next: null, key: null }, hours: new Array<number>(24).fill(0), targets: new Map() };
       cands.set(lower, c);
     }
     return c;
@@ -137,7 +137,7 @@ export function threatsOf(db: DB, ctx: GroupContext, days: number): Threats {
     const c = cand(a.player.name, a.player.id);
     if (!c) continue;
     c.incoming.count++;
-    if (c.incoming.next == null || a.arrival < c.incoming.next) c.incoming.next = a.arrival;
+    if (c.incoming.next == null || a.arrival < c.incoming.next) Object.assign(c.incoming, { next: a.arrival, key: a.key });
     c.score += THREAT_WEIGHTS.incoming;
   }
 

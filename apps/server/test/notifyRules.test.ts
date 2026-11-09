@@ -213,6 +213,25 @@ describe('rules per kind', () => {
   });
 });
 
+describe('parser samples', () => {
+  it('tells the hub admins by push about a page a member sent as a sample', async () => {
+    const ADMIN = 'https://fcm.googleapis.com/fcm/send/admin';
+    await call('POST', '/push/subscriptions', h.admin, { endpoint: ADMIN, keys: { p256dh: 'B'.repeat(87), auth: 'a'.repeat(22) } });
+    const res = await call('POST', '/u8/ingest/sample', h.carol, { text: 'Some page of another site with enough text to be looked at. '.repeat(5), note: 'new page?' });
+    expect(res.statusCode).toBe(200);
+    await vi.waitFor(() => expect(titles(ADMIN)).toEqual(['🧩 Parser-Beispiel von carol']));
+    expect(pushed.find((s) => s.endpoint === ADMIN)!.payload).toMatchObject({ url: '/hub/admin', tag: `sample:${res.json().id}` });
+    expect(pushed.find((s) => s.endpoint === ADMIN)!.payload.body).toContain('new page?');
+    // members hear nothing, and admins who switched it off neither
+    expect(titles(DESK)).toEqual([]);
+    pushed.length = 0;
+    await call('POST', '/auth/push-settings', h.admin, { parserSamples: false });
+    await call('POST', '/u8/ingest/sample', h.carol, { text: 'Another page of another site with enough text to be looked at. '.repeat(5) });
+    await new Promise((r) => setTimeout(r, 50));
+    expect(titles(ADMIN)).toEqual([]);
+  });
+});
+
 describe('muted storages', () => {
   it('stores the muted planets per member and alliance and validates the coordinates', async () => {
     expect((await call('GET', '/u8/storage-alerts', h.carol)).json()).toEqual({ planets: [] });

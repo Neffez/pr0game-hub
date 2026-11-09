@@ -73,7 +73,11 @@ export function ingestRoutes(app: FastifyInstance, db: DB) {
     if ((html?.length ?? 0) + (text?.length ?? 0) > SAMPLE_MAX) throw new HttpError(413, 'sample_too_large', 'Page too large for a sample');
     const note = req.body?.note ? String(req.body.note).trim().slice(0, 500) || null : null;
     const why = explainNoData({ html, text: text ?? (html ?? '').replace(/<[^>]+>/g, '\n') });
-    return { id: saveSample(db, ctx, { html, text, code: why.code, page: why.page ?? null, note }), explain: why };
+    const id = saveSample(db, ctx, { html, text, code: why.code, page: why.page ?? null, note });
+    // the hub's admins hear about it by push and Discord, when set up
+    const sample = { id, username: ctx.user.username, code: why.code, page: why.page ?? null, note };
+    for (const service of [app.push, app.discord]) service.notifySample(sample).catch((err) => req.log.warn({ err }, 'parser sample notification failed'));
+    return { id, explain: why };
   });
 
   /**

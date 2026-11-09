@@ -198,8 +198,9 @@ creates a notification.
   `imperium.phalanx`. **Texts:** `imperium.phalanx*`, `notify.phalanx*`, `account.pushKind.phalanx`.
 - **Galaxy browser:** its phalanx coverage now uses `phalanxMoons` (same data, destroyed moons left out).
 - Tests in `apps/server/test/phalanx.test.ts` and `apps/web/test/imperium.test.ts`.
-- **Left for later:** a mark per fleet save option that starts from a planet in phalanx reach (today the fleet save view
-  shows one hint per planet); the phalanx moon's deuterium and the
+- **Follow-up (2026-11-09):** fleet save options whose target is an own planet in phalanx reach carry an eye
+  (`watched` of `FleetSaveOptions.vue`); the start planet keeps its hint.
+- **Left for later:** the phalanx moon's deuterium and the
   noob protection between the players (the game checks both) are unknown to the hub, so a listed phalanx may not be
   usable right now.
 
@@ -242,8 +243,10 @@ planet in the empire view.
   battle worker: every own body against its threats in both variants as it is, few runs within one engine budget, the
   most profitable attack is the score; kept 30 minutes per hash of the input. Shown on top of the defense advisor tab
   and as a section in the own empire view (on a click).
+- **Follow-up (2026-11-09):** bodies where a known attack pays off carry a sword in the empire's planet table once the
+  risk was calculated (`apps/web/src/raidRisk.ts` keeps the newest result while the tab is open).
 - **Left for later:** attackers sending other parts of their fleet (e.g. only cargos against an empty planet),
-  defense against interplanetary missiles (interceptors), a risk mark in the empire's planet table.
+  defense against interplanetary missiles (interceptors).
 
 ### A-5 Who threatens me
 **Value:** Medium · **Effort:** M · **Builds on:** hostile spying, battle reports, statistics, flight math
@@ -266,8 +269,8 @@ data is spread across "Hostile spying", "Player details" and the activity log.
 - **Web:** `ThreatList.vue` as the first tab of `HostileView.vue` (`?tab=me`, the alliance's spying is `?tab=alliance`);
   cards on mobile. **Tour** `hostile` with a step per tab and the steps `threatEvents` to `threatHours`; **texts**
   `threats.*`.
-- **Left for later:** a threat's row opening the defense advisor or the attack assistant, every planet in reach (only
-  the nearest is shown), the same list for another member (leaders).
+- **Follow-up (2026-11-09):** an attack on its way opens the attack assistant, the target planets the defense advisor.
+- **Left for later:** every planet in reach (only the nearest is shown), the same list for another member (leaders).
 
 ---
 
@@ -834,7 +837,8 @@ parser sample. Today the admin sees it in the ingest log, the member only sees t
   below it "Send to admins" with an optional note, except for `too_short` and `not_game`. Admin panel: section "Parser
   samples" (hub admins) with download and delete.
 - **Texts:** `paste.explain.*`, `paste.pages.*`, `paste.sample.*`, `admin.samples.*`.
-- **Left for later:** a notification to the hub admins when a sample arrives.
+- **Follow-up (2026-11-09):** the hub admins get a push and Discord message for a new sample (setting
+  `parserSamples`).
 
 ---
 
@@ -889,7 +893,9 @@ of competing with them.
   spreadsheets with a decimal comma; JSON links per alliance under Account → API tokens. **Texts:** `export.*`.
 - **Spreadsheets:** no tokens in URLs (decided 2026-11-07: they end up in logs and in the sheet); the README has a
   Google Apps Script example that sends the token in the header and refreshes sheets on a trigger.
-- **Left for later:** the filters of a view in its CSV.
+- **Follow-up (2026-11-09):** the overview's CSV follows its filters (name, alliance, inactive, vacation, points range,
+  galaxy; `ExportFilter` in `repo/export.ts`). The other views have no filters beyond the period.
+- **Left for later:** filters that depend on the viewer (noob and strong protection, distance, points change).
 
 ### F-4 Discord commands
 **Value:** Medium · **Effort:** M · **Builds on:** Discord integration, battle simulation API, player API

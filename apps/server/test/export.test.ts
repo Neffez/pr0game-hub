@@ -54,6 +54,28 @@ describe('export', () => {
     expect((await app.inject({ method: 'GET', url: '/hub/api/u8/export/secrets', headers })).statusCode).toBe(404);
   });
 
+  it('applies the overview filters to the players and planets tables', async () => {
+    const beta = Number(db.prepare("INSERT INTO players (group_id, name, status) VALUES (?, 'Beta', '[\"vacation\"]')").run(group).lastInsertRowid);
+    db.prepare("INSERT INTO planets (group_id, player_id, g, s, p, name) VALUES (?, ?, 2, 7, 7, 'Betaheim')").run(group, beta);
+    const names = async (dataset: string, query: string, col: number) =>
+      (await app.inject({ method: 'GET', url: `/hub/api/u8/export/${dataset}?${query}`, headers })).body.replace(/^\uFEFF/, '').trim().split('\r\n').slice(1).map((r) => r.split(',')[col]);
+    expect(await names('players', '', 2)).toEqual(['Alpha', 'Beta']);
+    expect(await names('players', 'inactive=hide', 2)).toEqual(['Beta']);
+    expect(await names('players', 'inactive=only', 2)).toEqual(['Alpha']);
+    expect(await names('players', 'vacation=0', 2)).toEqual(['Alpha']);
+    expect(await names('players', 'q=ET', 2)).toEqual(['Beta']);
+    expect(await names('players', 'ally=dga', 2)).toEqual(['Alpha']);
+    expect(await names('players', 'minPoints=1', 2)).toEqual(['Alpha']);
+    // planets follow their owner and the galaxy
+    expect(await names('planets', 'q=beta', 4)).toEqual(['Beta']);
+    expect(await names('planets', 'galaxy=2', 4)).toEqual(['Beta']);
+    expect(await names('planets', 'galaxy=2&vacation=0', 4)).toEqual([]);
+    expect((await app.inject({ method: 'GET', url: '/hub/api/u8/export/players?inactive=maybe', headers })).statusCode).toBe(400);
+    expect((await app.inject({ method: 'GET', url: '/hub/api/u8/export/players?minPoints=x', headers })).statusCode).toBe(400);
+    db.prepare('DELETE FROM planets WHERE player_id = ?').run(beta);
+    db.prepare('DELETE FROM players WHERE id = ?').run(beta);
+  });
+
   it('exports everything as JSON objects', async () => {
     const res = await app.inject({ method: 'GET', url: '/hub/api/u8/export', headers });
     const all = JSON.parse(res.body);
