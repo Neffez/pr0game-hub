@@ -366,12 +366,33 @@ components:
         launch: { type: boolean, description: Launch reminders of the caller's plan fleets (default on) }
         buildings: { type: boolean, description: The next level of a building the caller waits for is affordable (default on) }
         accessRequests: { type: boolean, description: Access requests from the login page; only global admins get them (default on) }
+        parserSamples: { type: boolean, description: 'A member sent a page the hub could not read as a parser sample (`/api/{uni}/ingest/sample`); only global admins get them (default on)' }
         fleets: { type: boolean, description: An own fleet the caller set an alert for arrives (or is about to, by the alert's lead) (default on) }
         storage: { type: boolean, description: 'A storage (metal, crystal, deuterium) on one of the caller''s planets is full (default on)' }
         settlements: { type: boolean, description: A loot settlement the caller takes part in was finalized and they have deliveries open (default on) }
         buildOrder: { type: boolean, description: The next step of the caller's build order on a planet can start (default on) }
         phalanx: { type: boolean, description: A sensor phalanx outside the own alliance is newly known to reach one of the caller's planets (default on) }
         leadMinutes: { type: integer, enum: [1, 2, 5, 10, 15, 30], description: Launch reminder this many minutes ahead (default 5) }
+        spying: { type: boolean, description: 'Hostile espionage (mission 6) counts for `attackSelf` and `attackOthers` (default on); off: only fleets that are not spying' }
+        mentionsOnly: { type: boolean, description: '`comments` only when a comment mentions the caller (default off)' }
+        quiet:
+          oneOf: [{ $ref: '#/components/schemas/QuietHours' }, { type: 'null' }]
+          description: Quiet hours of the caller's Discord webhook (`/api/auth/discord`); always null in the push settings, where each device has its own (`/api/push/subscriptions/quiet`)
+    QuietHours:
+      type: object
+      required: [from, to, tz]
+      description: >-
+        Quiet hours of a push device or a Discord webhook: between `from` and `to` nothing is sent. What they hold back
+        is sent when they end (or are switched off), as long as it still matters: an attack that landed meanwhile is
+        dropped, the rest is kept a day; at most the newest 20 per device.
+      properties:
+        from: { type: string, pattern: '^([01]\d|2[0-3]):[0-5]\d$', description: 'Start, time of day `HH:MM` in `tz`' }
+        to: { type: string, pattern: '^([01]\d|2[0-3]):[0-5]\d$', description: 'End (earlier than `from`: over midnight; must differ from `from`)' }
+        tz: { type: string, description: 'IANA time zone of the device, e.g. `Europe/Berlin`' }
+        except:
+          type: array
+          items: { type: string, enum: [attackSelf, launch, fleets] }
+          description: 'Kinds that come through at once: attacks on the caller, their launch reminders, their fleet alerts (default: all three)'
     BuildOrderStep:
       type: object
       required: [id, kind]
@@ -444,6 +465,97 @@ components:
         launch: { type: boolean, description: Launch reminders of the members' plan fleets (default on) }
         leadMinutes: { type: integer, enum: [1, 2, 5, 10, 15, 30], description: Launch reminder this many minutes ahead (default 5) }
         lang: { type: string, enum: [de, en], description: Language of the channel's messages (default de) }
+        spying: { type: boolean, description: 'Hostile espionage (mission 6) counts for `attacks` (default on)' }
+    Threat:
+      type: object
+      required: [key, player, score, spied, attacked, incoming, fleetPoints, reach, planets, hours, peak, targets]
+      properties:
+        key: { type: string }
+        player:
+          type: object
+          required: [id, name, status, allyTag]
+          properties:
+            id: { type: [integer, 'null'], description: Null when the hub only knows the name }
+            name: { type: string }
+            status: { type: array, items: { type: string } }
+            allyTag: { type: [string, 'null'] }
+        score: { type: number }
+        spied:
+          type: object
+          properties:
+            count: { type: integer }
+            last: { type: [integer, 'null'] }
+        attacked:
+          type: object
+          description: Battle reports at the caller's bodies with the player among the attackers
+          properties:
+            count: { type: integer }
+            last: { type: [integer, 'null'] }
+        incoming:
+          type: object
+          description: Attacks on their way to the caller now
+          properties:
+            count: { type: integer }
+            next: { type: [integer, 'null'], description: The first arrival }
+            key: { type: [string, 'null'], description: 'Key of that attack for `/api/{uni}/attack-assist`' }
+        fleetPoints:
+          type: [object, 'null']
+          description: Fleet points of the newest statistics; `before` at the start of the period (else the oldest update within it), null without an older update
+          properties:
+            points: { type: integer }
+            time: { type: integer }
+            before:
+              type: [object, 'null']
+              properties:
+                points: { type: integer }
+                time: { type: integer }
+        reach:
+          type: [object, 'null']
+          description: >-
+            The player's known planet nearest to one of the caller's planets with the one-way flight time at 100 %: by
+            the slowest ship of the largest fleet seen in spy reports (`shipKnown`), else a battleship; drives from the
+            newest spy report with research (`researchKnown`), else none
+          properties:
+            from: { type: object, properties: { g: { type: integer }, s: { type: integer }, p: { type: integer } } }
+            to: { type: object, properties: { g: { type: integer }, s: { type: integer }, p: { type: integer } } }
+            duration: { type: integer, description: Seconds }
+            ship: { type: integer }
+            shipKnown: { type: boolean }
+            researchKnown: { type: boolean }
+        planets: { type: integer, description: Known planets of the player }
+        hours: { type: array, minItems: 24, maxItems: 24, items: { type: integer }, description: 'Espionage and battles per hour of the day (0 to 23) in the universe''s time zone' }
+        peak:
+          type: [object, 'null']
+          description: The 4 hours with the most events (from 5 events on); `to` is exclusive and may lie past midnight
+          properties:
+            from: { type: integer }
+            to: { type: integer }
+            share: { type: number, description: Share of the events in these hours (0 to 1) }
+        targets:
+          type: array
+          description: The caller's bodies the player came for, the most often first
+          items:
+            type: object
+            properties:
+              g: { type: integer }
+              s: { type: integer }
+              p: { type: integer }
+              count: { type: integer }
+    StorageAlerts:
+      type: object
+      required: [planets]
+      properties:
+        planets:
+          type: array
+          items:
+            type: object
+            required: [g, s, p, name, muted]
+            properties:
+              g: { type: integer }
+              s: { type: integer }
+              p: { type: integer }
+              name: { type: string }
+              muted: { type: boolean, description: A full storage on this planet sends no push and no Discord message }
     BuildingAlert:
       type: object
       required: [id, g, s, p, planet_type, element_id, level, created_at]
@@ -1465,6 +1577,9 @@ paths:
                 type: object
                 properties:
                   ok: { type: boolean }
+                  quiet:
+                    oneOf: [{ $ref: '#/components/schemas/QuietHours' }, { type: 'null' }]
+                    description: Quiet hours of this browser (kept when it registers again, dropped when it moves to another user)
         '400':
           description: Invalid endpoint or keys (`push_endpoint_invalid`, `push_keys_invalid`)
           content:
@@ -1516,6 +1631,47 @@ paths:
                   devices: { type: integer, description: Browsers the push services accepted it for }
         '409':
           description: Push is not set up on this hub (`push_disabled`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /api/push/subscriptions/quiet:
+    put:
+      tags: [Auth]
+      operationId: setPushQuietHours
+      description: |
+        Quiet hours of one of the caller's browsers: while they last, this device gets no push except the kinds in
+        `except`; what was held back is sent when they end. `quiet: null` switches them off (held notifications go out
+        within half a minute).
+      security: [{ sessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [endpoint, quiet]
+              properties:
+                endpoint: { type: string, format: uri, description: Endpoint of the registered browser }
+                quiet:
+                  oneOf: [{ $ref: '#/components/schemas/QuietHours' }, { type: 'null' }]
+      responses:
+        '200':
+          description: Stored quiet hours
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [quiet]
+                properties:
+                  quiet:
+                    oneOf: [{ $ref: '#/components/schemas/QuietHours' }, { type: 'null' }]
+        '400':
+          description: Invalid endpoint or quiet hours (`push_endpoint_invalid`, `quiet_hours_invalid`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '404':
+          description: The browser is not registered for the caller (`push_subscription_unknown`)
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
@@ -2911,7 +3067,9 @@ paths:
       operationId: exportDatasetCsv
       description: >-
         One dataset of `/api/{uni}/export` as CSV (attachment, UTF-8 with BOM, header row, times as Unix seconds,
-        numbers unformatted). `dataset` may end in `.csv`. Works with a read-only API token.
+        numbers unformatted). `dataset` may end in `.csv`. Works with a read-only API token. The `players` and
+        `planets` datasets take the overview's filters (`q`, `ally`, `inactive`, `vacation`, `minPoints`, `maxPoints`,
+        for planets also `galaxy`); planets follow their owner's filters. Other datasets ignore them.
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
@@ -2919,12 +3077,19 @@ paths:
         - { name: dataset, in: path, required: true, schema: { type: string, enum: [players, planets, spy-reports, battle-reports, expeditions, settlements] } }
         - { name: days, in: query, schema: { type: integer, minimum: 1, maximum: 365 }, description: 'Like `/api/{uni}/export`' }
         - { name: sep, in: query, schema: { type: string, enum: [comma, semicolon, tab] }, description: 'Separator (default comma; semicolon for spreadsheets with a decimal comma)' }
+        - { name: q, in: query, schema: { type: string, maxLength: 100 }, description: Player name contains this text (case ignored) }
+        - { name: ally, in: query, schema: { type: string, maxLength: 100 }, description: Alliance name or tag contains this text (case ignored) }
+        - { name: inactive, in: query, schema: { type: string, enum: [hide, only] }, description: 'Players the game flags inactive: left out, or only them' }
+        - { name: vacation, in: query, schema: { type: string, enum: ['0'] }, description: '`0`: players in vacation mode are left out' }
+        - { name: minPoints, in: query, schema: { type: number, minimum: 0 }, description: Total points at least }
+        - { name: maxPoints, in: query, schema: { type: number, minimum: 0 }, description: Total points at most }
+        - { name: galaxy, in: query, schema: { type: integer, minimum: 1 }, description: 'Planets of this galaxy (`planets` only)' }
       responses:
         '200':
           content:
             text/csv:
               schema: { type: string }
-        '400': { description: 'Invalid `days` (`export_invalid`)' }
+        '400': { description: 'Invalid `days` or filter (`export_invalid`)' }
         '404': { description: 'Unknown dataset (`export_unknown`)' }
   /api/{uni}/attack-assist:
     get:
@@ -3091,6 +3256,42 @@ paths:
                   now: { type: integer }
         '400': { description: 'Invalid `planet` (`planet_invalid`)' }
         '404': { description: 'Not one of the caller''s synced planets (`planet_not_found`)' }
+  /api/{uni}/threats:
+    get:
+      tags: [Universe]
+      operationId: getThreats
+      description: >-
+        Who threatens the caller: the players outside the own alliance who spied on the caller (hostile spying), fought
+        as attackers at the caller's planets or moons (battle reports) or have an attack on its way, within `days`.
+        Ranked by `score`: every event weighted by kind (espionage 1, battle 4, attack on its way 6) and halved per 7
+        days of age. With the trend of their fleet points, their known planet nearest to one of the caller's and the
+        hours of the day they usually come at.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+        - { name: days, in: query, schema: { type: integer, minimum: 1, maximum: 3650, default: 30 }, description: Period in days }
+      responses:
+        '200':
+          description: The threats, the highest score first
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [days, timezone, ownPlanets, threats, now]
+                properties:
+                  days: { type: integer }
+                  timezone: { type: string, description: Time zone of the universe (`hours` and `peak` are in it) }
+                  ownPlanets: { type: integer, description: 'Planets of the caller the hub knows (0: battles and flight times cannot be found)' }
+                  now: { type: integer }
+                  threats:
+                    type: array
+                    items: { $ref: '#/components/schemas/Threat' }
+        '400':
+          description: Invalid period (`days_invalid`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
   /api/{uni}/defense-risk:
     get:
       tags: [Universe]
@@ -3252,6 +3453,52 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Buildings' }
+  /api/{uni}/storage-alerts:
+    get:
+      tags: [Economy]
+      operationId: getStorageAlerts
+      description: |
+        The caller's planets (buildings page state, no moons) with whether a full storage there notifies by push and
+        Discord: `muted` planets stay silent, the bell (`/api/{uni}/notifications`) lists them all the same.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      responses:
+        '200':
+          description: Planets and their mute state
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StorageAlerts' }
+    put:
+      tags: [Economy]
+      operationId: setStorageAlerts
+      description: Replaces the caller's muted planets in this alliance.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [muted]
+              properties:
+                muted: { type: array, maxItems: 200, items: { type: string, pattern: '^\d{1,3}:\d{1,4}:\d{1,3}$' }, description: 'Planet coordinates `g:s:p`' }
+      responses:
+        '200':
+          description: Planets and their mute state
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StorageAlerts' }
+        '400':
+          description: Invalid list (`storage_alerts_invalid`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
   /api/{uni}/buildings/alerts:
     put:
       tags: [Universe]
@@ -4625,7 +4872,8 @@ paths:
       description: |
         Current notifications, earliest first (none before the start or after the end of the universe; a read that
         writes nothing, the push and Discord senders keep since when a storage is full): `attack` (hostile fleets heading for a member, from the members' shared
-        fleet lists; `fleet`, `fleets`), `invite` (the caller's open invitations to a raid planner plan in planning;
+        fleet lists; `fleet`, `fleets`, `attackerFleetPoints`: the newest fleet points of the origin's owner in the
+        statistics, null when unknown), `invite` (the caller's open invitations to a raid planner plan in planning;
         `plan`, `member` is who invited, `time` its target time, valid until the end of its day or hour by
         `plan.time_precision`), `comment` (comments of others of the last 48 hours in a thread the caller wrote in, after
         the caller's last comment there, or anywhere when they mention the caller as `@` with their in-game name or

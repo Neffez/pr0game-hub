@@ -4,8 +4,10 @@ import { config } from './config.js';
 import { isRunning, resolveGroup } from './context.js';
 import { now, type DB } from './db.js';
 import type { EventBus } from './events.js';
-import { AlertSchedule, GroupDebounce, groupUniverse, SENT_KEEP, TICK_AHEAD, TICK_MS } from './notify.js';
-import { accessRequestAdmins, accessRequestPayload, LEAD_MINUTES, payloadOf, pushPrefs, testPayload, wanted, type PushLang, type PushPayload } from './push.js';
+import { AlertSchedule, GroupDebounce, groupUniverse, heldBy, heldTargets, hold, quietBreakOf, SENT_KEEP, storageMuted, takeHeld, TICK_AHEAD, TICK_MS } from './notify.js';
+import {
+  accessRequestAdmins, accessRequestPayload, LEAD_MINUTES, payloadOf, pushPrefs, samplePayload, SPY_MISSION, testPayload, wanted, type ParserSample, type PushLang, type PushPayload,
+} from './push.js';
 import { channelNotificationsFor, notificationsFor, type ChannelNotification, type Notification } from './repo/notifications.js';
 
 /**
@@ -23,10 +25,12 @@ export interface ChannelPrefs {
   /** launch reminder this many minutes before */
   leadMinutes: number;
   lang: PushLang;
+  /** hostile espionage counts as an attack */
+  spying: boolean;
 }
 
-export const CHANNEL_DEFAULTS: ChannelPrefs = { attacks: true, plans: true, launch: true, leadMinutes: 5, lang: 'de' };
-const CHANNEL_FLAGS = ['attacks', 'plans', 'launch'] as const;
+export const CHANNEL_DEFAULTS: ChannelPrefs = { attacks: true, plans: true, launch: true, leadMinutes: 5, lang: 'de', spying: true };
+const CHANNEL_FLAGS = ['attacks', 'plans', 'launch', 'spying'] as const;
 
 export function channelPrefs(db: DB, groupId: number): ChannelPrefs {
   const raw = db.prepare('SELECT discord_prefs FROM groups WHERE id = ?').pluck().get(groupId) as string | null | undefined;
@@ -97,6 +101,8 @@ const COLORS: Record<ChannelNotification['kind'] | Notification['kind'] | 'acces
 };
 
 type Item = { kind: keyof typeof COLORS; payload: PushPayload; mention?: string | null };
+/** Held notifications are sent at the end of the quiet hours when they last at least this long (seconds). */
+const HELD_TTL = 86400;
 type Target = { key: string; url: string; clear: () => void };
 
 export interface DiscordOptions {
@@ -138,6 +144,7 @@ export class DiscordService {
   }
 
   async tick(t = now()) {
+    await this.flushHeld(t);
     const groups = this.db
       .prepare(
         `SELECT DISTINCT a.group_id FROM attack_plans a JOIN attack_plan_fleets f ON f.plan_id = a.id JOIN groups g ON g.id = a.group_id
@@ -189,11 +196,15 @@ export class DiscordService {
       const prefs = pushPrefs(this.db, user.id, 'discord_prefs');
       const lang = user.lang === 'en' ? 'en' : 'de';
       const items: Item[] = [];
+      const rules = { storageMuted: storageMuted(this.db, groupId, user.id) };
       for (const n of notificationsFor(this.db, ctx, t)) {
-        if (!wanted(n, prefs, user.id, t)) continue;
+        if (!wanted(n, prefs, user.id, t, rules)) continue;
         if (!mark.run(`u:${user.id}`, n.id, t).changes) continue;
         if ((n.kind === 'comment' || n.kind === 'invite') && watching.has(user.id)) continue;
-        items.push({ kind: n.kind, payload: payloadOf(n, lang, universe.slug, tz, groupId, t) });
+        const payload = payloadOf(n, lang, universe.slug, tz, groupId, t);
+        // quiet hours of the webhook: kept until they end, while the notification still matters
+        if (heldBy(prefs.quiet, quietBreakOf(n, user.id), t)) hold(this.db, `u:${user.id}`, n.kind, payload, t + heldTtl(n, t), t);
+        else items.push({ kind: n.kind, payload });
       }
       if (items.length) outbox.push({ target: this.userTarget(user.id, row.discord_webhook), items });
     }
@@ -216,11 +227,31 @@ export class DiscordService {
     for (const m of outbox) await this.send(m.target, m.items);
   }
 
+  /** Sends what the quiet hours of a member's webhook held back, once they are over (or were switched off). */
+  async flushHeld(t = now()) {
+    for (const target of heldTargets(this.db, 'u')) {
+      const userId = Number(target.slice(2));
+      const url = this.db.prepare('SELECT discord_webhook FROM users WHERE id = ?').pluck().get(userId) as string | null | undefined;
+      if (url && heldBy(pushPrefs(this.db, userId, 'discord_prefs').quiet, null, t)) continue;
+      const rows = takeHeld(this.db, target, t);
+      if (!url || !rows.length) continue;
+      await this.send(this.userTarget(userId, url), rows.map((r) => ({ kind: r.kind in COLORS ? (r.kind as Item['kind']) : 'comment', payload: JSON.parse(r.payload) as PushPayload })));
+    }
+  }
+
   /** Tells the global admins with a webhook about a new access request. */
   async notifyAccessRequest(request: { id: number; username: string; message: string }) {
     for (const a of accessRequestAdmins(this.db, 'discord_prefs', 'discord_webhook IS NOT NULL')) {
       const url = this.db.prepare('SELECT discord_webhook FROM users WHERE id = ?').pluck().get(a.id) as string;
       await this.send(this.userTarget(a.id, url), [{ kind: 'access', payload: accessRequestPayload(a.lang === 'en' ? 'en' : 'de', request) }]);
+    }
+  }
+
+  /** Tells the global admins with a webhook about a new parser sample. */
+  async notifySample(sample: ParserSample) {
+    for (const a of accessRequestAdmins(this.db, 'discord_prefs', 'discord_webhook IS NOT NULL', 'parserSamples')) {
+      const url = this.db.prepare('SELECT discord_webhook FROM users WHERE id = ?').pluck().get(a.id) as string;
+      await this.send(this.userTarget(a.id, url), [{ kind: 'access', payload: samplePayload(a.lang === 'en' ? 'en' : 'de', sample) }]);
     }
   }
 
@@ -290,10 +321,15 @@ export class DiscordService {
 function channelWants(n: ChannelNotification, prefs: ChannelPrefs, t: number): boolean {
   switch (n.kind) {
     case 'attack':
-      return prefs.attacks;
+      return prefs.attacks && (prefs.spying || n.fleet.mission !== SPY_MISSION);
     case 'plan':
       return prefs.plans;
     case 'launch':
       return prefs.launch && n.time - prefs.leadMinutes * 60 <= t;
   }
+}
+
+/** How long a notification held back by quiet hours still matters: events with a time until then, the rest a day. */
+function heldTtl(n: Notification, t: number): number {
+  return Math.max(60, n.kind === 'attack' || n.kind === 'launch' || n.kind === 'invite' || n.kind === 'fleet' ? n.time - t : HELD_TTL);
 }

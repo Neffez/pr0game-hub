@@ -7,7 +7,10 @@ import { config } from './config.js';
 import { isRunning, resolveGroup } from './context.js';
 import { now, type DB } from './db.js';
 import type { EventBus } from './events.js';
-import { AlertSchedule, GroupDebounce, groupUniverse, SENT_KEEP, TICK_AHEAD, TICK_MS } from './notify.js';
+import {
+  AlertSchedule, GroupDebounce, groupUniverse, heldBy, heldTargets, hold, parseQuiet, quietBreakOf, SENT_KEEP, storageMuted, storedQuiet, takeHeld, TICK_AHEAD, TICK_MS,
+  type QuietBreak, type QuietHours,
+} from './notify.js';
 import { notificationsFor, type ChannelNotification, type Notification } from './repo/notifications.js';
 
 /**
@@ -40,13 +43,26 @@ export interface PushPrefs {
   settlements: boolean;
   /** someone requests access on the login page (global admins) */
   accessRequests: boolean;
+  /** a member sent a page the hub could not read as a parser sample (global admins) */
+  parserSamples: boolean;
   /** launch reminder this many minutes before */
   leadMinutes: number;
+  /** hostile espionage counts as an attack (off: only fleets that are not spying) */
+  spying: boolean;
+  /** comments only when they mention the user */
+  mentionsOnly: boolean;
+  /** quiet hours of the user's Discord webhook; push devices keep their own (`push_subscriptions.quiet`), always null there */
+  quiet: QuietHours | null;
 }
 
-export const PUSH_DEFAULTS: PushPrefs = { attackSelf: true, attackOthers: false, invites: true, comments: true, launch: true, buildings: true, fleets: true, storage: true, buildOrder: true, phalanx: true, settlements: true, accessRequests: true, leadMinutes: 5 };
+export const PUSH_DEFAULTS: PushPrefs = {
+  attackSelf: true, attackOthers: false, invites: true, comments: true, launch: true, buildings: true, fleets: true, storage: true, buildOrder: true, phalanx: true, settlements: true, accessRequests: true, parserSamples: true, leadMinutes: 5,
+  spying: true, mentionsOnly: false, quiet: null,
+};
 export const LEAD_MINUTES = [1, 2, 5, 10, 15, 30];
-const FLAGS = ['attackSelf', 'attackOthers', 'invites', 'comments', 'launch', 'buildings', 'fleets', 'storage', 'buildOrder', 'phalanx', 'settlements', 'accessRequests'] as const;
+const FLAGS = [
+  'attackSelf', 'attackOthers', 'invites', 'comments', 'launch', 'buildings', 'fleets', 'storage', 'buildOrder', 'phalanx', 'settlements', 'accessRequests', 'parserSamples', 'spying', 'mentionsOnly',
+] as const;
 
 /** The user's settings for push (`push_prefs`) or for their Discord webhook (`discord_prefs`). */
 export function pushPrefs(db: DB, userId: number, column: 'push_prefs' | 'discord_prefs' = 'push_prefs'): PushPrefs {
@@ -54,9 +70,18 @@ export function pushPrefs(db: DB, userId: number, column: 'push_prefs' | 'discor
   return { ...PUSH_DEFAULTS, ...(raw ? (JSON.parse(raw) as Partial<PushPrefs>) : {}) };
 }
 
-/** Settings from a request body: booleans and a lead time from `LEAD_MINUTES`, the rest as before. */
-export function parsePushPrefs(before: PushPrefs, body: Record<string, unknown>): PushPrefs | null {
+/**
+ * Settings from a request body: booleans and a lead time from `LEAD_MINUTES`, the rest as before.
+ * `quiet`: the quiet hours are part of these settings (Discord webhook).
+ */
+export function parsePushPrefs(before: PushPrefs, body: Record<string, unknown>, quiet = false): PushPrefs | null {
   const next = { ...before };
+  if (quiet && body.quiet !== undefined) {
+    const q = parseQuiet(body.quiet);
+    if (q === undefined) return null;
+    next.quiet = q;
+  }
+  if (!quiet) next.quiet = null;
   for (const k of FLAGS) if (body[k] !== undefined) next[k] = body[k] === true;
   if (body.leadMinutes !== undefined) {
     if (!LEAD_MINUTES.includes(Number(body.leadMinutes))) return null;
@@ -97,7 +122,7 @@ const webPushSender: PushSender = async (target, payload, opts) => {
   return res.statusCode;
 };
 
-type Subscription = { id: number; endpoint: string; p256dh: string; auth: string };
+type Subscription = { id: number; endpoint: string; p256dh: string; auth: string; quiet: string | null };
 
 export interface PushOptions {
   /** `mailto:` or `https:` contact for the push services; empty: push is off */
@@ -162,6 +187,7 @@ export class PushService {
   }
 
   async tick(t = now()) {
+    await this.flushHeld(t);
     const groups = this.db
       .prepare(
         `SELECT DISTINCT a.group_id FROM attack_plans a JOIN attack_plan_fleets f ON f.plan_id = a.id
@@ -188,7 +214,14 @@ export class PushService {
   async notifyAccessRequest(request: { id: number; username: string; message: string }) {
     if (!this.enabled) return;
     const admins = accessRequestAdmins(this.db, 'push_prefs', 'EXISTS (SELECT 1 FROM push_subscriptions s WHERE s.user_id = users.id)');
-    for (const a of admins) await this.sendTo(a.id, accessRequestPayload(a.lang === 'en' ? 'en' : 'de', request), { ttl: 86400, urgency: 'normal' });
+    for (const a of admins) await this.sendTo(a.id, accessRequestPayload(a.lang === 'en' ? 'en' : 'de', request), { ttl: 86400, urgency: 'normal' }, { t: now(), kind: 'access', breaks: null });
+  }
+
+  /** Tells the global admins with a subscription about a new parser sample. */
+  async notifySample(sample: ParserSample) {
+    if (!this.enabled) return;
+    const admins = accessRequestAdmins(this.db, 'push_prefs', 'EXISTS (SELECT 1 FROM push_subscriptions s WHERE s.user_id = users.id)', 'parserSamples');
+    for (const a of admins) await this.sendTo(a.id, samplePayload(a.lang === 'en' ? 'en' : 'de', sample), { ttl: 86400, urgency: 'normal' }, { t: now(), kind: 'access', breaks: null });
   }
 
   /**
@@ -212,13 +245,14 @@ export class PushService {
     const watching = new Set(this.bus.presence(groupId).filter((m) => m.active).map((m) => m.userId));
     const mark = this.db.prepare('INSERT OR IGNORE INTO push_sent (user_id, key, sent_at) VALUES (?, ?, ?)');
     this.db.prepare('DELETE FROM push_sent WHERE sent_at < ?').run(t - SENT_KEEP);
-    const outbox: { userId: number; payload: PushPayload; ttl: number; urgency: 'normal' | 'high' }[] = [];
+    const outbox: { userId: number; payload: PushPayload; ttl: number; urgency: 'normal' | 'high'; quiet: Quiet }[] = [];
     for (const row of users) {
       const user: SessionUser = { id: row.id, username: row.username, isAdmin: !!row.is_admin, lang: row.lang, dateFormat: row.date_format };
       const ctx = resolveGroup(this.db, user, universe, groupId);
       const prefs = pushPrefs(this.db, user.id);
+      const rules = { storageMuted: storageMuted(this.db, groupId, user.id) };
       for (const n of notificationsFor(this.db, ctx, t)) {
-        if (!wanted(n, prefs, user.id, t)) continue;
+        if (!wanted(n, prefs, user.id, t, rules)) continue;
         // marked first: a delivery running at the same time (event and tick) sends it only once
         if (!mark.run(user.id, n.id, t).changes) continue;
         if ((n.kind === 'comment' || n.kind === 'invite') && watching.has(user.id)) continue;
@@ -227,42 +261,69 @@ export class PushService {
           payload: payloadOf(n, user.lang === 'en' ? 'en' : 'de', universe.slug, universe.settings.timezone, groupId, t),
           ttl: Math.max(60, n.kind === 'comment' || n.kind === 'building' || n.kind === 'storage' || n.kind === 'settlement' || n.kind === 'phalanx' ? 86400 : n.time - t),
           urgency: n.kind === 'attack' || n.kind === 'launch' || n.kind === 'fleet' ? 'high' : 'normal',
+          quiet: { t, kind: n.kind, breaks: quietBreakOf(n, user.id) },
         });
       }
     }
-    for (const m of outbox) await this.sendTo(m.userId, m.payload, m);
+    for (const m of outbox) await this.sendTo(m.userId, m.payload, m, m.quiet);
   }
 
-  /** Sends to all devices of a user; subscriptions the push service no longer knows are removed. Returns the devices reached. */
-  async sendTo(userId: number, payload: PushPayload, opts: { ttl: number; urgency: 'normal' | 'high' } = { ttl: 3600, urgency: 'normal' }): Promise<number> {
+  /**
+   * Sends to all devices of a user; subscriptions the push service no longer knows are removed. With `quiet`, a device
+   * in its quiet hours gets it when they end (unless it breaks them). Returns the devices reached now.
+   */
+  async sendTo(userId: number, payload: PushPayload, opts: { ttl: number; urgency: 'normal' | 'high' } = { ttl: 3600, urgency: 'normal' }, quiet?: Quiet): Promise<number> {
     if (!this.vapid) return 0;
-    const subs = this.db.prepare('SELECT id, endpoint, p256dh, auth FROM push_subscriptions WHERE user_id = ?').all(userId) as Subscription[];
+    const subs = this.db.prepare('SELECT id, endpoint, p256dh, auth, quiet FROM push_subscriptions WHERE user_id = ?').all(userId) as Subscription[];
     const body = JSON.stringify(payload);
     let reached = 0;
     for (const s of subs) {
-      try {
-        await this.sender({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, body, { ...opts, vapid: this.vapid });
-        this.db.prepare('UPDATE push_subscriptions SET last_ok_at = ? WHERE id = ?').run(now(), s.id);
-        reached++;
-      } catch (err) {
-        const status = (err as { statusCode?: number }).statusCode;
-        if (status === 404 || status === 410) this.db.prepare('DELETE FROM push_subscriptions WHERE id = ?').run(s.id);
-        else this.log?.warn({ status, err: (err as Error).message }, 'push send failed');
-      }
+      if (quiet && heldBy(storedQuiet(s.quiet), quiet.breaks, quiet.t)) hold(this.db, `p:${s.id}`, quiet.kind, payload, quiet.t + opts.ttl, quiet.t);
+      else if (await this.sendSub(s, body, opts)) reached++;
     }
     return reached;
   }
+
+  private async sendSub(s: Subscription, body: string, opts: { ttl: number; urgency: 'normal' | 'high' }): Promise<boolean> {
+    try {
+      await this.sender({ endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } }, body, { ...opts, vapid: this.vapid! });
+      this.db.prepare('UPDATE push_subscriptions SET last_ok_at = ? WHERE id = ?').run(now(), s.id);
+      return true;
+    } catch (err) {
+      const status = (err as { statusCode?: number }).statusCode;
+      if (status === 404 || status === 410) this.db.prepare('DELETE FROM push_subscriptions WHERE id = ?').run(s.id);
+      else this.log?.warn({ status, err: (err as Error).message }, 'push send failed');
+      return false;
+    }
+  }
+
+  /** Sends what the quiet hours of a device held back, once they are over (or were switched off). */
+  async flushHeld(t = now()) {
+    if (!this.vapid) return;
+    for (const target of heldTargets(this.db, 'p')) {
+      const s = this.db.prepare('SELECT id, endpoint, p256dh, auth, quiet FROM push_subscriptions WHERE id = ?').get(Number(target.slice(2))) as Subscription | undefined;
+      if (s && heldBy(storedQuiet(s.quiet), null, t)) continue;
+      const rows = takeHeld(this.db, target, t);
+      if (!s) continue;
+      for (const r of rows) await this.sendSub(s, r.payload, { ttl: Math.max(60, r.expires_at - t), urgency: 'normal' });
+    }
+  }
 }
 
+/** For quiet hours: the time, the kind of the notification and the exception it falls under. */
+type Quiet = { t: number; kind: string; breaks: QuietBreak | null };
+
 /** Whether the user wants this notification pushed now (launch reminders and fleet alerts from their lead time on). */
-export function wanted(n: Notification, prefs: PushPrefs, userId: number, t: number): boolean {
+export function wanted(n: Notification, prefs: PushPrefs, userId: number, t: number, rules: { storageMuted?: Set<string> } = {}): boolean {
   switch (n.kind) {
     case 'attack':
-      return n.userId === userId ? prefs.attackSelf : prefs.attackOthers;
+      if (!prefs.spying && n.fleet.mission === SPY_MISSION) return false;
+      if (n.userId === userId) return prefs.attackSelf;
+      return prefs.attackOthers;
     case 'invite':
       return prefs.invites;
     case 'comment':
-      return prefs.comments;
+      return prefs.comments && (!prefs.mentionsOnly || !!n.mention);
     case 'launch':
       return prefs.launch && n.time - prefs.leadMinutes * 60 <= t;
     case 'building':
@@ -270,7 +331,7 @@ export function wanted(n: Notification, prefs: PushPrefs, userId: number, t: num
     case 'fleet':
       return prefs.fleets && n.time - n.lead * 60 <= t;
     case 'storage':
-      return prefs.storage;
+      return prefs.storage && !rules.storageMuted?.has(`${n.planet.g}:${n.planet.s}:${n.planet.p}`);
     case 'settlement':
       return prefs.settlements;
     case 'buildorder':
@@ -279,6 +340,9 @@ export function wanted(n: Notification, prefs: PushPrefs, userId: number, t: num
       return prefs.phalanx;
   }
 }
+
+/** The game's espionage mission. */
+export const SPY_MISSION = 6;
 
 /** Amount in a short form (1,2 Mio. / 1.2M). */
 const short = (v: number, lang: string) => new Intl.NumberFormat(lang, { notation: 'compact', maximumFractionDigits: 1 }).format(v);
@@ -318,6 +382,8 @@ const DE = {
   phalanx: (who: string) => `🔭 Phalanx von ${who} erreicht dich`,
   phalanxBody: (moon: string, level: number, planets: string) => `Mond ${moon}, Stufe ${level} · erreicht ${planets}`,
   accessRequest: (name: string) => `🔑 Zugangsanfrage von ${name}`,
+  sample: (name: string) => `🧩 Parser-Beispiel von ${name}`,
+  sampleBody: (why: string) => `Nicht erkannte Seite (${why}), unter Admin → Parser-Beispiele`,
   fleetArrived: (what: string) => `✈ ${what}: Flotte angekommen`,
   fleetBack: (what: string) => `↩ ${what}: Flotte zurück`,
   fleetSoon: (what: string, min: number) => `⏰ ${what}: Ankunft in ${min} Min`,
@@ -364,6 +430,8 @@ const EN: typeof DE = {
   phalanx: (who: string) => `🔭 Phalanx of ${who} reaches you`,
   phalanxBody: (moon: string, level: number, planets: string) => `Moon ${moon}, level ${level} · reaches ${planets}`,
   accessRequest: (name: string) => `🔑 Access request from ${name}`,
+  sample: (name: string) => `🧩 Parser sample from ${name}`,
+  sampleBody: (why: string) => `Page not recognized (${why}), under Admin → Parser samples`,
   fleetArrived: (what: string) => `✈ ${what}: fleet arrived`,
   fleetBack: (what: string) => `↩ ${what}: fleet is back`,
   fleetSoon: (what: string, min: number) => `⏰ ${what}: arrival in ${min} min`,
@@ -388,10 +456,27 @@ export const accessRequestPayload = (lang: PushLang, request: { id: number; user
   tag: `access:${request.id}`,
 });
 
-/** Global admins (id and language) with `where` who want to hear about access requests by the settings in `column`. */
-export function accessRequestAdmins(db: DB, column: 'push_prefs' | 'discord_prefs', where: string) {
+/** A page sent as a parser sample: who sent it, why the hub found nothing (`code`, the game's `page` when known) and their note. */
+export interface ParserSample {
+  id: number;
+  username: string;
+  code: string;
+  page: string | null;
+  note: string | null;
+}
+
+/** A new parser sample (global admins): opens the admin page. */
+export const samplePayload = (lang: PushLang, s: ParserSample): PushPayload => ({
+  title: TEXT[lang].sample(s.username),
+  body: [TEXT[lang].sampleBody(s.page ? `${s.code}: ${s.page}` : s.code), s.note].filter(Boolean).join(' · '),
+  url: `${config.basePath}/admin`,
+  tag: `sample:${s.id}`,
+});
+
+/** Global admins (id and language) with `where` who want to hear about access requests (or `flag`) by the settings in `column`. */
+export function accessRequestAdmins(db: DB, column: 'push_prefs' | 'discord_prefs', where: string, flag: 'accessRequests' | 'parserSamples' = 'accessRequests') {
   const admins = db.prepare(`SELECT id, lang FROM users WHERE is_admin = 1 AND ${where}`).all() as { id: number; lang: string }[];
-  return admins.filter((a) => pushPrefs(db, a.id, column).accessRequests);
+  return admins.filter((a) => pushPrefs(db, a.id, column)[flag]);
 }
 
 const coords = (g: number, s: number, p: number, moon: boolean) => `${moon ? '☾ ' : ''}[${g}:${s}:${p}]`;

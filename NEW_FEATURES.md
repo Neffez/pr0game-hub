@@ -15,7 +15,7 @@ source (`pr0game`: pages, missions, achievements, advanced stats).
 | B-1 Farm finder with projected resources | Done | 2026-11-06 | new menu item "Farm finder" under Combat & expeditions |
 | B-3 Inactivity confidence | Done (second version) | 2026-11-06 | farm finder, overview, player details, check in the admin panel |
 | A-3 Hostile phalanx exposure | Done | 2026-11-07 | My empire (section and marks), notifications (bell, push, Discord) |
-| A-5 Who threatens me | Open (not started) | — | — |
+| A-5 Who threatens me | Done | 2026-11-09 | hostile spying page: first tab "Who threatens me" |
 | C-3 Alliance trade board | Open (refined, not started) | 2026-11-07 | Marketplace page, tab "Alliance" (planned) |
 | A-2 Fleet save planner | Done | 2026-11-07 | new menu item "Fleet save" under Combat & expeditions |
 | A-1 Incoming attack assistant | Done | 2026-11-07 | page per attack, opened from bell, push, Discord and the raid planner |
@@ -31,6 +31,8 @@ source (`pr0game`: pages, missions, achievements, advanced stats).
 | G-8 Comments with mentions | Done | 2026-11-07 | comment threads, notifications (bell, push, Discord) |
 | B-6 Moon chance tracking | Done | 2026-11-07 | battle hall: section "Moon chances", moon destruction calculator with the diameter |
 | C-5 Colonization planner | Done | 2026-11-07 | alliance planets page: tab "Colonize", universe settings for position bonuses |
+| D-3 Sync coverage duties | Dropped | 2026-11-09 | — |
+| G-4 Notification rules | Done | 2026-11-09 | Account: rules below the push and Discord kinds, quiet hours; admin panel: Discord channel |
 
 Each finished item carries a **Status** block below its description: what was built and how.
 
@@ -197,8 +199,9 @@ creates a notification.
   `imperium.phalanx`. **Texts:** `imperium.phalanx*`, `notify.phalanx*`, `account.pushKind.phalanx`.
 - **Galaxy browser:** its phalanx coverage now uses `phalanxMoons` (same data, destroyed moons left out).
 - Tests in `apps/server/test/phalanx.test.ts` and `apps/web/test/imperium.test.ts`.
-- **Left for later:** a mark per fleet save option that starts from a planet in phalanx reach (today the fleet save view
-  shows one hint per planet); the phalanx moon's deuterium and the
+- **Follow-up (2026-11-09):** fleet save options whose target is an own planet in phalanx reach carry an eye
+  (`watched` of `FleetSaveOptions.vue`); the start planet keeps its hint.
+- **Left for later:** the phalanx moon's deuterium and the
   noob protection between the players (the game checks both) are unknown to the hub, so a listed phalanx may not be
   usable right now.
 
@@ -241,8 +244,10 @@ planet in the empire view.
   battle worker: every own body against its threats in both variants as it is, few runs within one engine budget, the
   most profitable attack is the score; kept 30 minutes per hash of the input. Shown on top of the defense advisor tab
   and as a section in the own empire view (on a click).
+- **Follow-up (2026-11-09):** bodies where a known attack pays off carry a sword in the empire's planet table once the
+  risk was calculated (`apps/web/src/raidRisk.ts` keeps the newest result while the tab is open).
 - **Left for later:** attackers sending other parts of their fleet (e.g. only cargos against an empty planet),
-  defense against interplanetary missiles (interceptors), a risk mark in the empire's planet table.
+  defense against interplanetary missiles (interceptors).
 
 ### A-5 Who threatens me
 **Value:** Medium · **Effort:** M · **Builds on:** hostile spying, battle reports, statistics, flight math
@@ -250,6 +255,23 @@ planet in the empire view.
 A ranking per member of the players who spy on or attack them most often, with their fleet points trend, their
 reachable planets (flight time to the member's planets) and the activity pattern (when they usually hit). Today the
 data is spread across "Hostile spying", "Player details" and the activity log.
+
+**Status: done (2026-11-09).** How it was built:
+
+- **Server:** `apps/server/src/repo/threats.ts`, `GET /api/:uni/threats?days=30` (`getThreats` in `openapi.yaml`).
+  Candidates by name outside the own alliance: hostile spying on the viewer, attackers in battle reports at the
+  viewer's planets and moons (`memberPlanets`), attacks on their way (`hostileAttacks`). Score = events weighted by
+  kind (`THREAT_WEIGHTS`: espionage 1, battle 4, on its way 6), halved per 7 days. Fleet points: newest statistics
+  against the newest update up to the start of the period (else the oldest within it). Reach: the player's planets of
+  the galaxy data against the viewer's, shortest one-way flight at 100 % with the slowest ship of the largest fleet
+  in the spy reports (else a battleship, marked as an estimate) and the drives of the newest report with research.
+  Hours: events per hour of the day in the universe's time zone; from 5 events on the densest 4 hours (`peakOf`).
+  Tests in `apps/server/test/threats.test.ts`.
+- **Web:** `ThreatList.vue` as the first tab of `HostileView.vue` (`?tab=me`, the alliance's spying is `?tab=alliance`);
+  cards on mobile. **Tour** `hostile` with a step per tab and the steps `threatEvents` to `threatHours`; **texts**
+  `threats.*`.
+- **Follow-up (2026-11-09):** an attack on its way opens the attack assistant, the target planets the defense advisor.
+- **Left for later:** every planet in reach (only the nearest is shown), the same list for another member (leaders).
 
 ---
 
@@ -663,7 +685,7 @@ seen in the hub, raids and expeditions in the last week, open deliveries. Flags:
 - **Follow-up (2026-11-07):** open to every member (no admin check, menu item for all); the last hub visit and `away`
   follow the member's online setting (`show_online`): hidden from the others unless the viewer is an admin
   (`onlineHidden`), like the player page's activity.
-- **Left for later:** reminders to members (D-3 sync duties), a trend over several weeks, raids from the raid planner
+- **Left for later:** a trend over several weeks, raids from the raid planner
   instead of synced battle reports.
 
 ### D-2 War dashboard (alliance vs alliance)
@@ -674,11 +696,9 @@ points trend of both alliances, the most active players on each side, the member
 a read-only summary with a war partner group.
 
 ### D-3 Sync coverage duties
-**Value:** Medium · **Effort:** S · **Builds on:** galaxy freshness heat map, statistics coverage
-
-Members take responsibility for a galaxy range or a statistics category ("I paste galaxy 3 every day"). The heat map
-shows the owner of each range, a reminder fires when their range gets stale. Turns the freshness view into a
-shared routine.
+**Dropped (2026-11-09, product owner).** Members would have taken responsibility for a galaxy range or a statistics
+category, with a reminder when their range gets stale. Not wanted; the freshness heat map and the sync hints (E-1)
+stay as they are.
 
 ### D-4 Onboarding of new members
 **Value:** Medium · **Effort:** S · **Builds on:** tours, claim links
@@ -747,8 +767,7 @@ which hub feature gets better with it. Higher data quality is the base of every 
   `section.syncHints.sheet`). Instead of a plain count the title row shows a warning mark with the number of hints,
   red when one is important and yellow otherwise, so the list never goes unnoticed while folded.
 - **Tours:** new steps `paste.hints` and `overview.syncHints`. **Texts:** `syncHints.*` in `de.ts`/`en.ts`.
-- **Left for later:** the leaders' view of every member's freshness and the shared sync duties belong to D-1 and
-  D-3.
+- The leaders' view of every member's freshness is D-1 (done); shared sync duties (D-3) were dropped.
 - **Fix (2026-11-06):** the expected statistics update comes from the 6-hour grid of the newest synced update
   (`expectedStatUpdate`), not from 0/6/12/18 o'clock local time: servers run it at their own configured hours, and on
   U7 they moved to 23/5/11/17 o'clock with the switch to winter time (seen in the inactivity check's timestamps).
@@ -816,7 +835,8 @@ parser sample. Today the admin sees it in the ingest log, the member only sees t
   below it "Send to admins" with an optional note, except for `too_short` and `not_game`. Admin panel: section "Parser
   samples" (hub admins) with download and delete.
 - **Texts:** `paste.explain.*`, `paste.pages.*`, `paste.sample.*`, `admin.samples.*`.
-- **Left for later:** a notification to the hub admins when a sample arrives.
+- **Follow-up (2026-11-09):** the hub admins get a push and Discord message for a new sample (setting
+  `parserSamples`).
 
 ---
 
@@ -871,7 +891,9 @@ of competing with them.
   spreadsheets with a decimal comma; JSON links per alliance under Account → API tokens. **Texts:** `export.*`.
 - **Spreadsheets:** no tokens in URLs (decided 2026-11-07: they end up in logs and in the sheet); the README has a
   Google Apps Script example that sends the token in the header and refreshes sheets on a trigger.
-- **Left for later:** the filters of a view in its CSV.
+- **Follow-up (2026-11-09):** the overview's CSV follows its filters (name, alliance, inactive, vacation, points range,
+  galaxy; `ExportFilter` in `repo/export.ts`). The other views have no filters beyond the period.
+- **Left for later:** filters that depend on the viewer (noob and strong protection, distance, points change).
 
 ### F-4 Discord commands
 **Value:** Medium · **Effort:** M · **Builds on:** Discord integration, battle simulation API, player API
@@ -907,6 +929,18 @@ In the threads mentions are highlighted, coordinates link to the galaxy view and
 (`apps/web/src/commentText.ts`). Tests: `apps/server/test/mentions.test.ts`, `apps/server/test/push.test.ts`,
 `apps/web/test/comment-text.test.ts`.
 
+**G-4 status: done (2026-11-09).** Quiet hours per push device (`push_subscriptions.quiet`) and for the personal
+Discord webhook (`discord_prefs.quiet`): what they hold back (`notify_held`, helpers in `apps/server/src/notify.ts`)
+is sent by the tick when they end, unless it expired meanwhile; attacks on the user, launch reminders and fleet alerts
+break them by default. Rules in the settings (`wanted` in `push.ts`): espionage as an attack, comments only when mentioned; the alliance
+channel has the first. A fleet points threshold for attacks on others was built and removed the same day: the
+attacker's points in the statistics say little about one attack (a weak player's cargos on an undefended planet
+matter too); `attackerFleetPoints` stays on the notification as information. Full storages can be muted per planet (`storage_muted`,
+`/api/{uni}/storage-alerts`) instead of "only the main planet", which the hub cannot tell. Web: `NotifyKinds.vue`,
+`QuietHours.vue` in the account page. Tests: `apps/server/test/notifyRules.test.ts`. **Left for later:** a filter
+by whether an attack gets through (needs the attack assistant's simulation before sending, and the incoming ships are
+often not visible), quiet hours for the alliance channel.
+
 ---
 
 ## Suggested roadmap
@@ -920,8 +954,8 @@ A-1 Incoming attack assistant (done) · A-2 Fleet save planner (done) · C-1 Upg
 health dashboard (done) · F-3 Export (done)
 
 **Later:**
-A-4 Defense advisor (done) · C-2 Logistics planner · C-3 Resource requests · C-4 Expedition planner · D-2 War dashboard ·
-D-5 Calendar · F-4 Discord commands · E-3 parser gaps · G items as capacity allows
+A-4 Defense advisor (done) · A-5 Who threatens me (done) · C-2 Logistics planner · C-3 Alliance trade board · C-4 Expedition planner · D-2 War dashboard ·
+D-5 Calendar · F-4 Discord commands · E-3 parser gaps · G-4 Notification rules (done) · other G items as capacity allows
 
 Reasoning: the "Now" items mostly reuse data and math the hub already has and raise data quality (E-1) or daily
 use (F-1, B-1). The defense items in "Next" are the biggest gap in value, but need the battle and flight packages
@@ -930,7 +964,7 @@ combined on one page and careful wording of advice.
 ## How to measure success
 
 - **Sync freshness:** share of members with an empire page younger than 24 h and statistics coverage per update
-  (target for E-1 and D-3).
+  (target for E-1).
 - **Weekly active members** per group and pages opened per visit (F-1, F-2).
 - **Fleets lost to attacks** on members, from battle reports, before and after A-1/A-2.
 - **Raid profit per flight hour** from the loot settlements, before and after B-1.

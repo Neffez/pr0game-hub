@@ -27,7 +27,58 @@ const res = (raw: string | null | undefined) => {
   return [r[901] ?? 0, r[902] ?? 0, r[903] ?? 0];
 };
 
-export function exportTable(db: DB, ctx: GroupContext, dataset: Dataset, since: number): Table {
+/**
+ * Filters of the overview for the `players` and `planets` tables: name and alliance (name or tag) contain the text,
+ * inactive players hidden or only them, players in vacation mode hidden, total points within a range, one galaxy
+ * (planets). Planets follow their owner's filters.
+ */
+export interface ExportFilter {
+  q?: string;
+  ally?: string;
+  inactive?: 'hide' | 'only';
+  vacation?: boolean;
+  minPoints?: number;
+  maxPoints?: number;
+  galaxy?: number;
+}
+
+export const hasFilter = (f: ExportFilter) => Object.values(f).some((v) => v !== undefined);
+
+/** Whether a row of the players table passes the filter (columns by name). */
+function playerPasses(columns: string[], row: unknown[], f: ExportFilter): boolean {
+  const col = (name: string) => row[columns.indexOf(name)];
+  const text = (name: string) => String(col(name) ?? '').toLowerCase();
+  if (f.q && !text('name').includes(f.q.toLowerCase())) return false;
+  if (f.ally && !`${text('alliance')} ${text('alliance_tag')}`.includes(f.ally.toLowerCase())) return false;
+  const status = text('status').split(' ');
+  const inactive = status.includes('inactive') || status.includes('longinactive');
+  if (f.inactive === 'hide' && inactive) return false;
+  if (f.inactive === 'only' && !inactive) return false;
+  if (f.vacation === false && status.includes('vacation')) return false;
+  const points = Number(col('points_1') ?? 0);
+  if (f.minPoints != null && points < f.minPoints) return false;
+  if (f.maxPoints != null && points > f.maxPoints) return false;
+  return true;
+}
+
+export function exportTable(db: DB, ctx: GroupContext, dataset: Dataset, since: number, filter: ExportFilter = {}): Table {
+  const table = unfiltered(db, ctx, dataset, since);
+  if (!hasFilter(filter) || (dataset !== 'players' && dataset !== 'planets')) return table;
+  const players = dataset === 'players' ? table : unfiltered(db, ctx, 'players', since);
+  const { galaxy: _, ...ofPlayer } = filter;
+  const passing = hasFilter(ofPlayer) ? players.rows.filter((r) => playerPasses(players.columns, r, filter)) : players.rows;
+  if (dataset === 'players') return { columns: table.columns, rows: passing };
+  // planets of the players that pass (planets without a known owner only without player filters), in the galaxy asked
+  const names = hasFilter(ofPlayer) ? new Set(passing.map((r) => String(r[players.columns.indexOf('name')]).toLowerCase())) : null;
+  const owner = table.columns.indexOf('player');
+  const g = table.columns.indexOf('galaxy');
+  return {
+    columns: table.columns,
+    rows: table.rows.filter((r) => (filter.galaxy == null || r[g] === filter.galaxy) && (!names || (r[owner] != null && names.has(String(r[owner]).toLowerCase())))),
+  };
+}
+
+function unfiltered(db: DB, ctx: GroupContext, dataset: Dataset, since: number): Table {
   const g = ctx.groupId;
   switch (dataset) {
     case 'players': {

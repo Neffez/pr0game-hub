@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n';
 import { useMobile, useUni } from '../composables';
 import { abbr, clockTime, dateTime, duration, fmt, short } from '../format';
 import { fleetShips, units } from '../units';
+import Icon from './Icon.vue';
 import Ticker from './Ticker.vue';
 
 /** An existing debris field (server: `/debris-fields`): shown in the galaxy now, or seen within the last week. */
@@ -51,6 +52,8 @@ const props = withDefaults(
     latest: number;
     back: number;
     kinds?: SaveKind[];
+    /** own planets ("g:s:p") in reach of a hostile phalanx: a flight to one of them shows in a scan of it */
+    watched?: string[];
     /** options shown before "more" */
     limit?: number;
   }>(),
@@ -130,6 +133,8 @@ const shown = computed(() => (all.value ? options.value : options.value.slice(0,
 /** clock time today, otherwise with the date (cards on mobile) */
 const when = (e: number) => (new Date(e * 1000).toDateString() === new Date().toDateString() ? clockTime(new Date(e * 1000)) : dateTime(e));
 const label = (x: SaveTarget) => `${x.type === 'moon' ? t('common.moon') + ' ' : x.type === 'debris' ? t('fleetsave.field') + (unsure(x) ? '?' : '') + ' ' : x.type === 'free' ? t('fleetsave.free') + ' ' : ''}${x.name ? x.name + ' ' : ''}[${x.coords.join(':')}]`;
+/** the target is an own planet a hostile phalanx reaches (moons and debris fields are no phalanx targets) */
+const seen = (x: SaveTarget) => x.type === 'planet' && !!props.watched?.includes(x.coords.join(':'));
 defineExpose({ fleet, options });
 </script>
 
@@ -139,7 +144,9 @@ defineExpose({ fleet, options });
     <p v-else-if="!options.length" class="warn small m-0">{{ t('fleetsave.noOption') }}</p>
     <div v-else-if="mobile" class="fso-cards">
       <div v-for="(o, i) in shown" :key="i" class="fso-card small">
-        <div><b :title="o.kind === 'colonize' ? t('fleetsave.colonizeTitle') : undefined">{{ t(`fleetsave.kinds.${o.kind}`) }}</b> → <span :class="{ warn: unsure(o.target) }" :title="fieldTitle(o.target)">{{ label(o.target) }}</span> · {{ o.speed }} %</div>
+        <div><b :title="o.kind === 'colonize' ? t('fleetsave.colonizeTitle') : undefined">{{ t(`fleetsave.kinds.${o.kind}`) }}</b> → <span :class="{ warn: unsure(o.target) }" :title="fieldTitle(o.target)">{{ label(o.target) }}</span>
+          <Icon v-if="seen(o.target)" name="eye" :size="13" class="warn" :label="t('fleetsave.targetWatched')" /> · {{ o.speed }} %
+        </div>
         <div class="mono">
           {{ when(o.departure) }} → {{ when(o.rest) }}
           <span class="muted">{{ o.late > 0 ? '+' + duration(o.late) : t('fleetsave.onTime') }}</span>
@@ -170,7 +177,10 @@ defineExpose({ fleet, options });
               <b :title="o.kind === 'colonize' ? t('fleetsave.colonizeTitle') : undefined">{{ t(`fleetsave.kinds.${o.kind}`) }}</b>
               <span v-if="o.recall != null" class="small muted"> · {{ t('fleetsave.recallAt', { time: dateTime(o.recall) }) }}</span>
             </td>
-            <td class="small" :class="{ warn: unsure(o.target) }" :title="fieldTitle(o.target)">{{ label(o.target) }}</td>
+            <td class="small" :class="{ warn: unsure(o.target) }" :title="fieldTitle(o.target)">
+              {{ label(o.target) }}
+              <Icon v-if="seen(o.target)" name="eye" :size="13" class="warn" :label="t('fleetsave.targetWatched')" />
+            </td>
             <td class="num">{{ o.speed }} %</td>
             <td class="mono small">
               {{ dateTime(o.departure) }}

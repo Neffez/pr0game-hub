@@ -4,6 +4,52 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-09
 
+- Backlog (`NEW_FEATURES.md`): item D-3 (sync coverage duties) is dropped by the product owner; the status table
+  says so and the references to it are gone.
+
+- Five follow-ups of finished backlog items:
+  - **Raid risk in the empire table (A-4):** once the raid risk was calculated (empire section or defense advisor),
+    planets and moons where a known attack pays off carry a sword at their name (red: the attacker mostly wins); the
+    result is kept while the hub tab stays open (`apps/web/src/raidRisk.ts`).
+  - **Phalanx mark per fleet save option (A-3):** an option whose target is an own planet in reach of a hostile phalanx
+    carries an eye (a scan of the target shows the flight), next to the existing hint for the start planet.
+  - **Who threatens me (A-5):** an attack on its way opens the attack assistant (`incoming.key` in
+    `GET /api/{uni}/threats`), the own planets they came for open the defense advisor.
+  - **Parser samples (E-4):** the hub admins hear about a new sample by push and Discord (setting `parserSamples`,
+    default on, admins only; texts in `push.ts`).
+  - **CSV with the view's filters (F-3):** `GET /api/{uni}/export/players` and `/planets` take `q`, `ally`,
+    `inactive`, `vacation`, `minPoints`, `maxPoints` and (planets) `galaxy`; the overview's CSV button passes its
+    filters and says so. Filters that depend on the viewer (noob, strong, distance, points change) are not exported.
+
+- Notification rules: the fleet points threshold for attacks on other members and in the alliance's Discord channel
+  (`attackOthersMinPoints`, `attackMinPoints`, added earlier today) is removed again. The attacker's points in the
+  statistics say little about one attack: a weak player's cargos on an undefended planet matter too.
+
+- Who threatens me (backlog item A-5): the hostile spying page has a first tab "Who threatens me" with the viewer's
+  own ranking of players who spied on them, fought at their planets or have an attack on its way (the alliance's
+  spying is the second tab). Per player: counts and last time, the fleet points with their change in the period, the
+  known planet nearest to one of the viewer's with the one-way flight time (slowest ship of the largest fleet in spy
+  reports, else a battleship) and the hours of the day they come at, with the four densest hours from five events
+  on. New endpoint `GET /api/{uni}/threats?days=` (OpenAPI `getThreats`, `apps/server/src/repo/threats.ts`); ranking:
+  espionage 1, battle 4, attack on its way 6, halved per 7 days of age. Tour steps for both tabs; tests in
+  `apps/server/test/threats.test.ts`.
+
+- Notification rules for push and Discord (backlog item G-4):
+  - **Quiet hours** per push device (`push_subscriptions.quiet`, `PUT /api/push/subscriptions/quiet`, OpenAPI
+    `setPushQuietHours`) and for the personal Discord webhook (`quiet` in the Discord settings): two times of day in
+    the device's time zone, also over midnight. Notifications are held back (`notify_held`) and sent when the quiet
+    hours end or are switched off, as long as they still matter (an attack that landed meanwhile is dropped, at most
+    the newest 20). Attacks on the user, their launch reminders and their fleet alerts come through at once unless
+    unticked.
+  - **Rules per kind** in the push and Discord settings: `spying` (hostile espionage counts as an attack, default on)
+    and `mentionsOnly` (comments only when they mention the user). The alliance's Discord channel has `spying`.
+    Attack notifications carry `attackerFleetPoints` (information only).
+  - **Storages per planet**: `GET`/`PUT /api/{uni}/storage-alerts` (`getStorageAlerts`, `setStorageAlerts`, table
+    `storage_muted`) mute the full storage notifications of single planets for push and Discord; the bell still lists
+    them.
+  - Migration 085; the account page shows the rules below their kinds (shared `NotifyKinds.vue`, `QuietHours.vue`),
+    the admin panel the channel's espionage switch. Tests in `apps/server/test/notifyRules.test.ts`.
+
 - Code review of the 20 finished backlog features (`CODEREVIEW_NEW_FEATURES.md`): 12 bugs and 10 display and UX
   items, each with how it was found and a concrete fix; nothing is changed in the code yet.
 

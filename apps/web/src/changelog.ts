@@ -16,6 +16,26 @@ export interface ChangelogDay {
 
 export const CHANGELOG: ChangelogDay[] = [
   {
+    date: '2026-11-09',
+    items: [
+      {
+        kind: 'new',
+        de: 'Kleine Ergänzungen: Im Imperium tragen gefährdete Planeten ein Schwert, sobald du das Raid-Risiko berechnet hast. Der Fleetsave-Planer markiert Flüge zu eigenen Planeten, die eine feindliche Phalanx sieht. Unter „Wer bedroht mich“ öffnet ein Angriff im Anflug den Angriffsassistenten und ein Zielplanet den Verteidigungsberater. Der CSV-Download der Übersicht übernimmt deine Filter (Name, Allianz, Inaktive, Urlaub, Punkte, Galaxie).',
+        en: 'Small additions: in the empire, planets at risk carry a sword once you calculated the raid risk. The fleet save planner marks flights to own planets a hostile phalanx sees. Under "Who threatens me" an attack on its way opens the attack assistant and a target planet the defense advisor. The CSV download of the overview follows your filters (name, alliance, inactive, vacation, points, galaxy).',
+      },
+      {
+        kind: 'new',
+        de: 'Wer bedroht mich: Die Seite Fremdspionage beginnt jetzt mit deiner persönlichen Rangliste der Spieler, die dich ausspioniert oder angegriffen haben oder gerade im Anflug sind – mit der Entwicklung ihrer Flottenpunkte, ihrem nächsten Planeten samt Flugzeit und den Uhrzeiten, zu denen sie üblicherweise kommen. Die Spionagen auf die ganze Allianz stehen im Tab „Allianz“.',
+        en: 'Who threatens me: the hostile espionage page now starts with your personal ranking of the players who spied on or attacked you or are on their way – with the trend of their fleet points, their nearest planet with the flight time and the hours they usually come at. Espionage on the whole alliance is in the "Alliance" tab.',
+      },
+      {
+        kind: 'new',
+        de: 'Benachrichtigungen mit Regeln (Konto): Ruhezeiten pro Gerät und für deinen Discord-Webhook – was zurückgehalten wurde, kommt am Ende der Ruhezeit, Angriffe auf dich, Starttermine und Flottenankünfte auf Wunsch sofort. Dazu: Spionage nicht als Angriff melden, Kommentare nur bei Erwähnung und volle Lager nur für ausgewählte Planeten. Allianz-Admins können Spionage auch im Discord-Kanal ausblenden.',
+        en: 'Notifications with rules (Account): quiet hours per device and for your Discord webhook – what was held back arrives when they end; attacks on you, launch times and fleet arrivals come at once if you like. Also: do not report espionage as an attack, comments only when you are mentioned, and full storages only for chosen planets. Alliance admins can hide espionage in the Discord channel too.',
+      },
+    ],
+  },
+  {
     date: '2026-11-07',
     items: [
       {

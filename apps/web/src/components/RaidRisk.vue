@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
 import { useUni } from '../composables';
 import { fmt, short } from '../format';
+import { lastRisk, riskLevel, type RiskBody } from '../raidRisk';
 import PlayerLink from './PlayerLink.vue';
 
 /**
@@ -11,21 +12,12 @@ import PlayerLink from './PlayerLink.vue';
  * full fleet or heavy ships only. A row opens the defense advisor for the body. `auto` loads at once (defense tab);
  * otherwise a button starts it (empire page), since the first calculation runs many battles.
  */
-interface C3 { g: number; s: number; p: number }
-interface Body {
-  key: string;
-  name: string;
-  coords: C3;
-  type: 'planet' | 'moon';
-  threats: number;
-  skipped: number;
-  worst: { key: string; player: { id: number | null; name: string }; heavy: boolean; profit: number; wins: number } | null;
-}
+type Body = RiskBody;
 interface Risk { planets: Body[]; runs: number | null; battles: number | null; cached: boolean; error: string | null }
 
 const props = defineProps<{ auto?: boolean; ships?: boolean; debris?: boolean; loot?: 'now' | 'full'; current?: string | null }>();
 const { t } = useI18n();
-const { uni } = useUni();
+const { uni, ctx } = useUni();
 const data = ref<Risk | null>(null);
 const error = ref<string | null>(null);
 const loading = ref(false);
@@ -36,6 +28,8 @@ async function load() {
   try {
     const q = new URLSearchParams({ ships: props.ships === false ? '0' : '1', debris: props.debris === false ? '0' : '1', loot: props.loot ?? 'now' });
     data.value = await uniApi<Risk>(uni.value, `/defense-risk?${q}`);
+    // the empire's planet table marks the bodies at risk from this
+    if (!data.value.error) lastRisk.value = { scope: `${uni.value}:${ctx.value?.group.id}`, bodies: data.value.planets };
   } catch (e) {
     error.value = (e as Error).message;
   } finally {
@@ -46,7 +40,7 @@ watch([() => props.ships, () => props.debris, () => props.loot], () => (props.au
 
 /** the bodies by risk, the most profitable attack first; bodies without threats last */
 const rows = computed(() => [...(data.value?.planets ?? [])].sort((a, b) => (b.worst?.profit ?? -Infinity) - (a.worst?.profit ?? -Infinity)));
-const level = (b: Body) => (!b.worst ? 'none' : b.worst.profit <= 0 ? 'low' : b.worst.wins >= 0.5 ? 'high' : 'medium');
+const level = riskLevel;
 const link = (b: Body) => ({ path: `/${uni.value}/build`, query: { tab: 'defense', c: `${b.coords.g}:${b.coords.s}:${b.coords.p}`, type: b.type } });
 </script>
 

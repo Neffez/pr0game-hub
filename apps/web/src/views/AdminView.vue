@@ -191,6 +191,7 @@ interface ChannelPrefs {
   launch: boolean;
   leadMinutes: number;
   lang: 'de' | 'en';
+  spying: boolean;
 }
 const CHANNEL_KINDS = ['attacks', 'plans', 'launch'] as const;
 const LEAD_MINUTES = [1, 2, 5, 10, 15, 30];
@@ -707,6 +708,9 @@ const doMerge = () => run(async () => {
           </div>
           <label v-for="k in CHANNEL_KINDS" :key="k" class="check">
             <input v-model="discord.prefs[k]" type="checkbox" @change="saveDiscord({ prefs: discord.prefs }, 'account.pushSaved')" /> {{ t(`admin.discordKind.${k}`) }}
+          </label>
+          <label class="check" :class="{ off: !discord.prefs.attacks }">
+            <input v-model="discord.prefs.spying" type="checkbox" :disabled="!discord.prefs.attacks" @change="saveDiscord({ prefs: discord.prefs }, 'account.pushSaved')" /> {{ t('account.rules.spying') }}
           </label>
           <div class="row">
             <label :class="{ off: !discord.prefs.launch }">

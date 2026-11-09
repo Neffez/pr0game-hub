@@ -151,6 +151,8 @@ const research = computed(() => data.value?.empire?.data.research ?? {});
 const bodies = computed(() => data.value?.empire?.data.planets ?? []);
 const targets = computed<SaveTarget[]>(() => bodies.value.map((b) => ({ coords: [b.coords.g, b.coords.s, b.coords.p], type: b.type, name: b.name })));
 const key = (c: C3) => `${c.g}:${c.s}:${c.p}`;
+/** own planets in reach of a hostile phalanx: flights to them are marked per option */
+const watched = computed(() => (data.value?.phalanx ?? []).map((e) => key(e.planet)));
 const phalanxOf = computed(() => new Map((data.value?.phalanx ?? []).map((e) => [key(e.planet), e.threats])));
 /** deuterium on the body now: the empire page's plus the production since */
 function deuterium(b: Body) {
@@ -227,7 +229,7 @@ const kindList = computed(() => (['deploy', 'transport', 'harvest', 'colonize'] 
     </p>
     <FleetSaveOptions
       :from="r.from" :values="r.b.values" :research="research" :deuterium="deuterium(r.b)" :targets="targets"
-      :now="now" :latest="offline.latest" :back="offline.back" :kinds="kindList" :fields="fields" :free="free" :cleanup="cleanup"
+      :now="now" :latest="offline.latest" :back="offline.back" :kinds="kindList" :fields="fields" :free="free" :cleanup="cleanup" :watched="watched"
     />
   </div>
   <p v-if="withShips.length" class="muted small" data-tour="fleetsave-remind">

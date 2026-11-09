@@ -1,20 +1,23 @@
 <script setup lang="ts">
 import BackLink from '../components/BackLink.vue';
-import { computed, onMounted, ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
-import { api, loadMe, session } from '../api';
+import { api, loadMe, session, uniApi } from '../api';
 import Hint from '../components/Hint.vue';
+import NotifyKinds, { type NotifyPrefs } from '../components/NotifyKinds.vue';
+import QuietHours, { type QuietHours as Quiet } from '../components/QuietHours.vue';
 import { vStack } from '../composables';
 import { DATE_FORMATS, dateFormat, setDateFormat, type DateFormat } from '../format';
 import { currentLang, LANGS, setLocale, type Lang } from '../i18n';
 import { liveHints } from '../live';
 import { resetTours, setToursEnabled, startTour, tours, useAutoTour } from '../tours';
-import { disablePush, enablePush, loadPushStatus, pushStatus, testPush } from '../push';
+import { deviceQuiet, disablePush, enablePush, loadPushStatus, pushStatus, setDeviceQuiet, testPush } from '../push';
 
 const { t } = useI18n();
 /** opened inside a universe: the sidebar stays, no back link */
-const inUni = !!useRoute().params.uni;
+const uni = String(useRoute().params.uni ?? '');
+const inUni = !!uni;
 const newUsername = ref(session.me?.user?.username ?? '');
 const usernamePassword = ref('');
 const oldPassword = ref('');
@@ -58,25 +61,7 @@ const shareActivity = ref<{ enabled: boolean } | null>(null);
 const shareSyncs = ref<{ enabled: boolean } | null>(null);
 
 /** Which notifications are pushed (all devices of the user, server: push.ts); this browser is switched on separately. */
-interface PushPrefs {
-  attackSelf: boolean;
-  attackOthers: boolean;
-  invites: boolean;
-  comments: boolean;
-  launch: boolean;
-  buildings: boolean;
-  fleets: boolean;
-  storage: boolean;
-  buildOrder: boolean;
-  phalanx: boolean;
-  settlements: boolean;
-  accessRequests: boolean;
-  leadMinutes: number;
-}
-const ALL_PUSH_KINDS = ['attackSelf', 'attackOthers', 'invites', 'comments', 'buildings', 'buildOrder', 'storage', 'phalanx', 'fleets', 'launch', 'settlements', 'accessRequests'] as const;
-/** access requests only concern global admins */
-const PUSH_KINDS = computed(() => ALL_PUSH_KINDS.filter((k) => k !== 'accessRequests' || session.me?.user?.isAdmin));
-const LEAD_MINUTES = [1, 2, 5, 10, 15, 30];
+type PushPrefs = NotifyPrefs;
 const pushPrefs = ref<PushPrefs | null>(null);
 const pushBusy = ref(false);
 const savePushPrefs = () =>
@@ -100,6 +85,24 @@ async function togglePush() {
     pushBusy.value = false;
   }
 }
+/** Quiet hours of this browser (the other devices keep their own). */
+const saveDeviceQuiet = (quiet: Quiet | null) => run(() => setDeviceQuiet(quiet), () => t('account.pushSaved'));
+
+/** Planets of the alliance opened here whose full storages stay silent (push and Discord). */
+interface StoragePlanet {
+  g: number;
+  s: number;
+  p: number;
+  name: string;
+  muted: boolean;
+}
+const storagePlanets = ref<StoragePlanet[]>([]);
+const saveStorageAlerts = () =>
+  run(async () => {
+    const muted = storagePlanets.value.filter((x) => x.muted).map((x) => `${x.g}:${x.s}:${x.p}`);
+    storagePlanets.value = (await uniApi<{ planets: StoragePlanet[] }>(uni, '/storage-alerts', { method: 'PUT', body: { muted } })).planets;
+  }, () => t('account.pushSaved'));
+
 const sendTestPush = () =>
   run(async () => {
     const devices = await testPush();
@@ -126,6 +129,7 @@ const saveDiscordWebhook = () => saveDiscord({ webhook: discordWebhook.value.tri
 const removeDiscordWebhook = () => saveDiscord({ webhook: null }, 'account.discordRemoved');
 const saveDiscordUserId = () => saveDiscord({ userId: discordUserId.value.trim() || null }, 'account.discordSaved');
 const saveDiscordPrefs = () => saveDiscord({ prefs: discord.value!.prefs }, 'account.pushSaved');
+const saveDiscordQuiet = (quiet: Quiet | null) => saveDiscord({ prefs: { quiet } }, 'account.pushSaved');
 const sendTestDiscord = () => run(() => api('/auth/discord/test', { method: 'POST' }), () => t('account.discordTestSent'));
 
 const apiBase = import.meta.env.BASE_URL.replace(/\/$/, '') + '/api';
@@ -195,6 +199,8 @@ onMounted(async () => {
     ]);
     pushPrefs.value = prefs;
     discord.value = discordSettings;
+    // optional: the planets of the alliance opened here (none outside a universe or before the first sync)
+    if (inUni) uniApi<{ planets: StoragePlanet[] }>(uni, '/storage-alerts').then((r) => (storagePlanets.value = r.planets)).catch(() => {});
     discordUserId.value = discordSettings.userId ?? '';
     share.value = fleetShare;
     messageShare.value = messages;
@@ -320,15 +326,21 @@ useAutoTour('account', loaded);
         </div>
         <div v-if="pushPrefs && pushStatus !== 'disabled'" class="field">
           <span class="field-label">{{ t('account.pushKinds') }} <Hint>{{ t('account.pushKindsHint') }}</Hint></span>
-          <label v-for="k in PUSH_KINDS" :key="k" class="check">
-            <input v-model="pushPrefs[k]" type="checkbox" @change="savePushPrefs" /> {{ t(`account.pushKind.${k}`) }}
-          </label>
-          <label class="push-lead" :class="{ off: !pushPrefs.launch }">
-            {{ t('account.pushLead') }}
-            <select v-model.number="pushPrefs.leadMinutes" :disabled="!pushPrefs.launch" @change="savePushPrefs">
-              <option v-for="m in LEAD_MINUTES" :key="m" :value="m">{{ t('account.pushLeadMinutes', { n: m }) }}</option>
-            </select>
-          </label>
+          <NotifyKinds :prefs="pushPrefs" @change="savePushPrefs">
+            <template v-if="storagePlanets.length" #storage>
+              <div class="storage-planets" :class="{ off: !pushPrefs.storage && !discord?.prefs.storage }">
+                <span class="small">{{ t('account.rules.storagePlanets') }} <Hint>{{ t('account.rules.storagePlanetsHint') }}</Hint></span>
+                <label v-for="pl in storagePlanets" :key="`${pl.g}:${pl.s}:${pl.p}`" class="check">
+                  <input type="checkbox" :checked="!pl.muted" @change="pl.muted = !pl.muted; saveStorageAlerts()" />
+                  <span class="mono">[{{ pl.g }}:{{ pl.s }}:{{ pl.p }}]</span> {{ pl.name }}
+                </label>
+              </div>
+            </template>
+          </NotifyKinds>
+        </div>
+        <div v-if="pushStatus === 'on'" class="field">
+          <span class="field-label">{{ t('account.quiet.title') }} <Hint>{{ t('account.quiet.hint') }}</Hint></span>
+          <QuietHours :model-value="deviceQuiet" @update:model-value="saveDeviceQuiet" />
         </div>
         <p class="muted small">{{ t('account.pushPasted') }}</p>
         <p class="muted small">{{ t('account.pushIos') }}</p>
@@ -349,15 +361,11 @@ useAutoTour('account', loaded);
         </div>
         <div v-if="discord.webhook" class="field">
           <span class="field-label">{{ t('account.pushKinds') }}</span>
-          <label v-for="k in PUSH_KINDS" :key="k" class="check">
-            <input v-model="discord.prefs[k]" type="checkbox" @change="saveDiscordPrefs" /> {{ t(`account.pushKind.${k}`) }}
-          </label>
-          <label class="push-lead" :class="{ off: !discord.prefs.launch }">
-            {{ t('account.pushLead') }}
-            <select v-model.number="discord.prefs.leadMinutes" :disabled="!discord.prefs.launch" @change="saveDiscordPrefs">
-              <option v-for="m in LEAD_MINUTES" :key="m" :value="m">{{ t('account.pushLeadMinutes', { n: m }) }}</option>
-            </select>
-          </label>
+          <NotifyKinds :prefs="discord.prefs" @change="saveDiscordPrefs" />
+        </div>
+        <div v-if="discord.webhook" class="field">
+          <span class="field-label">{{ t('account.quiet.title') }} <Hint>{{ t('account.quiet.hintDiscord') }}</Hint></span>
+          <QuietHours :model-value="discord.prefs.quiet" @update:model-value="saveDiscordQuiet" />
         </div>
         <div class="field">
           <span class="field-label">{{ t('account.discordUserId') }} <Hint>{{ t('account.discordUserIdHint') }}</Hint></span>
@@ -464,8 +472,8 @@ useAutoTour('account', loaded);
 .field-label { display: block; margin-bottom: 6px; font-weight: 600; }
 .check { display: flex; gap: 8px; align-items: center; }
 .share-missions { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 2px 12px; margin: 8px 0 0 24px; }
-.share-missions.off, .check.off, .push-lead.off { opacity: 0.5; }
-.push-lead { display: flex; gap: 8px; align-items: center; margin: 4px 0 0 24px; }
+.share-missions.off, .check.off, .storage-planets.off { opacity: 0.5; }
+.storage-planets { margin: 2px 0 4px 24px; }
 .push-status { margin: 0 0 6px; }
 .stack { display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
 .stack label { display: flex; flex-direction: column; gap: 4px; width: 100%; }
