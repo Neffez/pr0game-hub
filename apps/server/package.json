@@ -21,7 +21,7 @@
     "@pr0hub/planner": "workspace:*",
     "better-sqlite3": "^12.11.1",
     "fastify": "^5.12.8",
-    "web-push": "^3.6.7",
+    "web-push": "^4.0.0",
     "yaml": "^2.6.1"
   },
   "devDependencies": {
