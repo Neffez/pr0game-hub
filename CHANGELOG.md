@@ -46,6 +46,8 @@ Every commit adds its changes here, newest first, grouped by date.
     them.
   - Migration 085; the account page shows the rules below their kinds (shared `NotifyKinds.vue`, `QuietHours.vue`),
     the admin panel the channel's espionage switch. Tests in `apps/server/test/notifyRules.test.ts`.
+- Code review of the 20 finished backlog features (`CODEREVIEW_NEW_FEATURES.md`): 12 bugs and 10 display and UX
+  items, each with how it was found and a concrete fix; nothing is changed in the code yet.
 
 ## 2026-11-07
 
