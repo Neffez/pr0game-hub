@@ -114,7 +114,8 @@ const { data, error, load } = useLoader<FarmResponse | null>((): Promise<FarmRes
 );
 onMounted(load);
 watch(days, () => load());
-watch(tab, (v) => v !== 'debris' && !data.value && load());
+// coming back from the debris tab the data may be the one of the other tab's period (spy: 30 days)
+watch(tab, (v) => v !== 'debris' && (!data.value || data.value.days !== days.value) && load());
 useLiveReload(load, tables('spy_reports', 'player_scores', 'battle_reports', 'galaxy_systems'));
 useAutoTour('farm', computed(() => tab.value === 'debris' || !!data.value), tab);
 

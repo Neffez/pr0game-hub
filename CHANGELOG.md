@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-09
 
+- Code review B-2: the farm finder kept the 30-day data of the spy priority when the targets tab was opened by way of
+  the debris finder, while "7 days" was selected. The tab change now reloads when the loaded period
+  (`FarmResponse.days`) differs from the selected one; `apps/web/test/farm-tabs.test.ts` covers the tab sequence.
+
 - Code review B-1: the texts of the admin panel's "Parser samples" section sat inside `tours.admin` instead of
   `admin`, so the section showed its keys (`admin.samples.title`, …). They are moved in `de.ts` and `en.ts`; a new
   test (`apps/web/test/locale-keys.test.ts`) collects the static `t('…')` keys of the web app and fails on a key

@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Farm-Finder: Wer von der Spionage-Priorität über den TF-Finder zu den Zielen wechselte, sah weiter die Berichte der letzten 30 Tage statt des gewählten Zeitraums.',
+        en: 'Farm finder: switching from the spy priority by way of the debris finder to the targets kept showing the reports of the last 30 days instead of the chosen period.',
+      },
+      {
+        kind: 'fix',
         de: 'Admin-Panel: Der Abschnitt „Parser-Proben“ zeigt wieder seine Texte statt interner Schlüssel.',
         en: 'Admin panel: the "Parser samples" section shows its texts again instead of internal keys.',
       },
