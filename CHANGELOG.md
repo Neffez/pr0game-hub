@@ -2,6 +2,11 @@
 
 Every commit adds its changes here, newest first, grouped by date.
 
+## 2026-11-09
+
+- Code review of the 20 finished backlog features (`CODEREVIEW_NEW_FEATURES.md`): 12 bugs and 10 display and UX
+  items, each with how it was found and a concrete fix; nothing is changed in the code yet.
+
 ## 2026-11-07
 
 - Fleet save planner: the offline window presets are stored with the account instead of the browser, so they are the
