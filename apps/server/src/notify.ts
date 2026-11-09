@@ -2,7 +2,7 @@ import { toUniverse, type Universe } from './context.js';
 import type { DB } from './db.js';
 import type { EventBus } from './events.js';
 import { nextFleetAlert } from './repo/fleetAlerts.js';
-import { nextBuildingAlert, nextBuildOrderStep, nextStorageFull } from './repo/notifications.js';
+import { nextBuildingAlert, nextBuildOrderStep, nextStorageFull, type ChannelNotification, type Notification } from './repo/notifications.js';
 
 /**
  * What web push (push.ts) and Discord (discord.ts) share: delivery after data events of a group (bundled) and on a
@@ -108,4 +108,110 @@ export function groupUniverse(db: DB, groupId: number): Universe | null {
     .prepare('SELECT u.id, u.slug, u.name, u.settings, u.deck_config, u.units, u.starts_at, u.ended_at FROM groups g JOIN universes u ON u.id = g.universe_id WHERE g.id = ?')
     .get(groupId) as Parameters<typeof toUniverse>[0] | undefined;
   return row ? toUniverse(row) : null;
+}
+
+/**
+ * Quiet hours of a push device or a Discord webhook: between `from` and `to` (time of day `HH:MM` in the time zone
+ * `tz`, over midnight when `from` is later) nothing is sent; it is held back and sent when the quiet hours end, as
+ * long as it still matters. The kinds in `except` come through at once.
+ */
+export interface QuietHours {
+  from: string;
+  to: string;
+  /** IANA time zone of the device (the browser tells it) */
+  tz: string;
+  except: QuietBreak[];
+}
+
+/** What may break the quiet hours: attacks on the user, their launch reminders and the alerts they set on own fleets. */
+export const QUIET_BREAKS = ['attackSelf', 'launch', 'fleets'] as const;
+export type QuietBreak = (typeof QUIET_BREAKS)[number];
+export const QUIET_DEFAULT_EXCEPT: QuietBreak[] = ['attackSelf', 'launch', 'fleets'];
+/** A device or webhook gets at most this many held notifications when its quiet hours end (the newest). */
+export const HELD_MAX = 20;
+
+const CLOCK = /^([01]\d|2[0-3]):[0-5]\d$/;
+const clocks = new Map<string, Intl.DateTimeFormat>();
+function clockOf(tz: string): Intl.DateTimeFormat {
+  let f = clocks.get(tz);
+  if (!f) clocks.set(tz, (f = new Intl.DateTimeFormat('en-GB', { timeZone: tz, hourCycle: 'h23', hour: '2-digit', minute: '2-digit' })));
+  return f;
+}
+
+/** Quiet hours from a request body: null switches them off, undefined when invalid. */
+export function parseQuiet(v: unknown): QuietHours | null | undefined {
+  if (v === null) return null;
+  if (typeof v !== 'object') return undefined;
+  const q = v as Record<string, unknown>;
+  if (typeof q.from !== 'string' || typeof q.to !== 'string' || !CLOCK.test(q.from) || !CLOCK.test(q.to) || q.from === q.to) return undefined;
+  if (typeof q.tz !== 'string' || q.tz.length > 64) return undefined;
+  try {
+    clockOf(q.tz);
+  } catch {
+    return undefined;
+  }
+  const except = q.except === undefined ? QUIET_DEFAULT_EXCEPT : q.except;
+  if (!Array.isArray(except) || except.some((k) => !QUIET_BREAKS.includes(k))) return undefined;
+  return { from: q.from, to: q.to, tz: q.tz, except: QUIET_BREAKS.filter((k) => except.includes(k)) };
+}
+
+/** Stored quiet hours (JSON); null for none or a value no longer valid. */
+export function storedQuiet(raw: string | null | undefined): QuietHours | null {
+  if (!raw) return null;
+  try {
+    return parseQuiet(JSON.parse(raw)) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Whether `t` lies in the quiet hours. */
+export function inQuiet(q: QuietHours | null, t: number): boolean {
+  if (!q) return false;
+  const parts = clockOf(q.tz).formatToParts(new Date(t * 1000));
+  const clock = `${parts.find((p) => p.type === 'hour')!.value}:${parts.find((p) => p.type === 'minute')!.value}`;
+  return q.from < q.to ? clock >= q.from && clock < q.to : clock >= q.from || clock < q.to;
+}
+
+/** Which exception of the quiet hours a notification falls under for the user, null for none. */
+export function quietBreakOf(n: Notification | ChannelNotification, userId: number): QuietBreak | null {
+  if (n.kind === 'attack') return n.userId === userId ? 'attackSelf' : null;
+  if (n.kind === 'launch') return 'launch';
+  if (n.kind === 'fleet') return 'fleets';
+  return null;
+}
+
+/** Whether the quiet hours hold a notification back at `t`. */
+export const heldBy = (q: QuietHours | null, kind: QuietBreak | null, t: number) => inQuiet(q, t) && !(kind && q!.except.includes(kind));
+
+export interface HeldRow {
+  id: number;
+  kind: string;
+  payload: string;
+  expires_at: number;
+}
+
+/** Keeps a notification for the end of the quiet hours of `target`; one with the same tag is replaced. */
+export function hold(db: DB, target: string, kind: string, payload: { tag: string }, expiresAt: number, t: number) {
+  db.prepare(
+    `INSERT INTO notify_held (target, tag, kind, payload, expires_at, held_at) VALUES (?, ?, ?, ?, ?, ?)
+     ON CONFLICT (target, tag) DO UPDATE SET kind = excluded.kind, payload = excluded.payload, expires_at = excluded.expires_at, held_at = excluded.held_at`,
+  ).run(target, payload.tag, kind, JSON.stringify(payload), expiresAt, t);
+}
+
+/** Targets (`p:…` push devices or `u:…` Discord webhooks) with held notifications. */
+export const heldTargets = (db: DB, prefix: 'p' | 'u') =>
+  db.prepare("SELECT DISTINCT target FROM notify_held WHERE target LIKE ? || ':%'").pluck().all(prefix) as string[];
+
+/** Takes the held notifications of a target out: the newest `HELD_MAX` that have not expired, oldest first. */
+export function takeHeld(db: DB, target: string, t: number): HeldRow[] {
+  const rows = db.prepare('SELECT id, kind, payload, expires_at FROM notify_held WHERE target = ? ORDER BY held_at, id').all(target) as HeldRow[];
+  db.prepare('DELETE FROM notify_held WHERE target = ?').run(target);
+  return rows.filter((r) => r.expires_at > t).slice(-HELD_MAX);
+}
+
+/** Planets ("g:s:p") whose full storages the member muted for push and Discord. */
+export function storageMuted(db: DB, groupId: number, userId: number): Set<string> {
+  const rows = db.prepare('SELECT g, s, p FROM storage_muted WHERE group_id = ? AND user_id = ?').all(groupId, userId) as { g: number; s: number; p: number }[];
+  return new Set(rows.map((r) => `${r.g}:${r.s}:${r.p}`));
 }

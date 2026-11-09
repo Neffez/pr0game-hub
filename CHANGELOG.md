@@ -2,6 +2,25 @@
 
 Every commit adds its changes here, newest first, grouped by date.
 
+## 2026-11-09
+
+- Notification rules for push and Discord (backlog item G-4):
+  - **Quiet hours** per push device (`push_subscriptions.quiet`, `PUT /api/push/subscriptions/quiet`, OpenAPI
+    `setPushQuietHours`) and for the personal Discord webhook (`quiet` in the Discord settings): two times of day in
+    the device's time zone, also over midnight. Notifications are held back (`notify_held`) and sent when the quiet
+    hours end or are switched off, as long as they still matter (an attack that landed meanwhile is dropped, at most
+    the newest 20). Attacks on the user, their launch reminders and their fleet alerts come through at once unless
+    unticked.
+  - **Thresholds** in the push and Discord settings: `spying` (hostile espionage counts as an attack, default on),
+    `attackOthersMinPoints` (attacks on other members only from attackers with that many fleet points in the
+    statistics; unknown points notify) and `mentionsOnly` (comments only when they mention the user). The alliance's
+    Discord channel has `spying` and `attackMinPoints`. Attack notifications carry `attackerFleetPoints`.
+  - **Storages per planet**: `GET`/`PUT /api/{uni}/storage-alerts` (`getStorageAlerts`, `setStorageAlerts`, table
+    `storage_muted`) mute the full storage notifications of single planets for push and Discord; the bell still lists
+    them.
+  - Migration 085; the account page shows the rules below their kinds (shared `NotifyKinds.vue`, `QuietHours.vue`),
+    the admin panel the channel's two rules. Tests in `apps/server/test/notifyRules.test.ts`.
+
 ## 2026-11-07
 
 - Fleet save planner: the offline window presets are stored with the account instead of the browser, so they are the

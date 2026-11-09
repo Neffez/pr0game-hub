@@ -10,6 +10,15 @@ export type PushStatus = 'loading' | 'unsupported' | 'disabled' | 'denied' | 'of
 
 export const pushStatus = ref<PushStatus>('loading');
 
+/** Quiet hours of this browser (server: notify.ts), null for none; known once the browser is registered. */
+export interface DeviceQuiet {
+  from: string;
+  to: string;
+  tz: string;
+  except: string[];
+}
+export const deviceQuiet = ref<DeviceQuiet | null>(null);
+
 const BASE = import.meta.env.BASE_URL;
 const supported = () => typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
 
@@ -69,7 +78,7 @@ export async function loadPushStatus() {
     const sub = await (await registration()).pushManager.getSubscription();
     if (sub && Notification.permission === 'granted') {
       // re-registers the browser (the hub may have dropped it, e.g. after an error of the push service)
-      await api('/push/subscriptions', { body: sub.toJSON() });
+      deviceQuiet.value = (await api<{ quiet: DeviceQuiet | null }>('/push/subscriptions', { body: sub.toJSON() })).quiet ?? null;
       return (pushStatus.value = 'on');
     }
     return (pushStatus.value = 'off');
@@ -91,7 +100,7 @@ export async function enablePush() {
   if (permission !== 'granted') return (pushStatus.value = permission === 'denied' ? 'denied' : 'off');
   const reg = await registration();
   const sub = (await reg.pushManager.getSubscription()) ?? (await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(key) }));
-  await api('/push/subscriptions', { body: sub.toJSON() });
+  deviceQuiet.value = (await api<{ quiet: DeviceQuiet | null }>('/push/subscriptions', { body: sub.toJSON() })).quiet ?? null;
   setOwner(session.me?.user?.id ?? null);
   return (pushStatus.value = 'on');
 }
@@ -106,9 +115,17 @@ export async function disablePush() {
   } finally {
     await sub.unsubscribe();
     setOwner(null);
+    deviceQuiet.value = null;
     if (pushStatus.value === 'on') pushStatus.value = 'off';
   }
 }
 
 /** Test notification to all devices of the user; returns how many were reached. */
 export const testPush = () => api<{ devices: number }>('/push/test', { body: {} }).then((r) => r.devices);
+
+/** Sets or clears (null) the quiet hours of this browser. */
+export async function setDeviceQuiet(quiet: DeviceQuiet | null) {
+  const sub = await (await navigator.serviceWorker.getRegistration(BASE))?.pushManager.getSubscription();
+  if (!sub) return;
+  deviceQuiet.value = (await api<{ quiet: DeviceQuiet | null }>('/push/subscriptions/quiet', { method: 'PUT', body: { endpoint: sub.endpoint, quiet } })).quiet;
+}

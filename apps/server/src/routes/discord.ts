@@ -49,7 +49,7 @@ export function discordRoutes(app: FastifyInstance, db: DB, discord: DiscordServ
       discordId = body.userId === null || body.userId === '' ? null : String(body.userId).trim();
       if (discordId !== null && !DISCORD_ID.test(discordId)) throw new HttpError(400, 'discord_user_id_invalid', 'Invalid Discord user id');
     }
-    const prefs = body.prefs ? parsePushPrefs(pushPrefs(db, user.id, 'discord_prefs'), body.prefs) : undefined;
+    const prefs = body.prefs ? parsePushPrefs(pushPrefs(db, user.id, 'discord_prefs'), body.prefs, true) : undefined;
     if (prefs === null) throw new HttpError(400, 'discord_settings_invalid', 'Invalid Discord settings');
     db.transaction(() => {
       if (webhook !== undefined) db.prepare('UPDATE users SET discord_webhook = ? WHERE id = ?').run(webhook, user.id);

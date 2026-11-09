@@ -10,6 +10,8 @@ import { sharedFleets, type StoredFleet } from './fleets.js';
 import { alliance } from './members.js';
 import { finalizedSettlements, memberKey } from './settlements.js';
 import { memberPlanets, phalanxExposure, type MemberPlanet, type PhalanxOwner } from './phalanx.js';
+import { Players } from './players.js';
+import { latestScores } from './stats.js';
 import { enemiesOf, followEnemies, launchedOf, planDrives, type LaunchFleet, type LaunchPlan, type PlanRow } from './plans.js';
 
 /**
@@ -40,6 +42,8 @@ export interface AttackNotification extends Base {
   fleet: StoredFleet;
   /** number of fleets of an ACS, 1 for a single fleet */
   fleets: number;
+  /** newest fleet points (statistics) of the owner of the origin, null when unknown */
+  attackerFleetPoints: number | null;
 }
 
 /** The viewer is invited to a plan (`userId`/`member`: who invited, for older invitations the plan's creator). */
@@ -155,6 +159,8 @@ export interface PlanNotification extends Base {
 /** What a group's Discord channel gets: attacks on members, new plans and the members' launches. */
 export type ChannelNotification = AttackNotification | PlanNotification | LaunchNotification;
 
+/** Statistics category of the fleet points. */
+const FLEET_POINTS = 2;
 /** How long a plan's target time lasts by its precision. */
 const PRECISION_SPAN = { day: 86400, hour: 3600, exact: 0 };
 /** New comments are listed this long. */
@@ -309,10 +315,20 @@ function attacks(db: DB, ctx: GroupContext, t: number): AttackNotification[] {
       const c = f.from.coords;
       const n: AttackNotification = {
         id: `attack:${m.user_id}:${f.arrival}:${c.g}:${c.s}:${c.p}`, kind: 'attack', userId: m.user_id, member: m.name, time: f.arrival,
-        fleet: { ...f, ships: { ...f.ships } }, fleets: 1,
+        fleet: { ...f, ships: { ...f.ships } }, fleets: 1, attackerFleetPoints: null,
       };
       if (f.acs != null) acs.set(f.acs, n);
       list.push(n);
+    }
+  }
+  // the attackers' fleet points for the thresholds of push and Discord: the owner of the origin, else the name shown
+  if (list.length) {
+    const players = new Players(db, ctx.groupId);
+    const idOf = (f: StoredFleet) => f.fromPlayer?.id ?? (f.player ? players.byName(f.player) : null);
+    const scores = latestScores(db, ctx.groupId, [...new Set(list.map((n) => idOf(n.fleet)).filter((id): id is number => id != null))], [FLEET_POINTS]);
+    for (const n of list) {
+      const id = idOf(n.fleet);
+      n.attackerFleetPoints = (id != null ? scores.get(id)?.[FLEET_POINTS]?.points : null) ?? null;
     }
   }
   return list;

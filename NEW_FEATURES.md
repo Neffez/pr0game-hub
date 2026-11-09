@@ -31,6 +31,7 @@ source (`pr0game`: pages, missions, achievements, advanced stats).
 | G-8 Comments with mentions | Done | 2026-11-07 | comment threads, notifications (bell, push, Discord) |
 | B-6 Moon chance tracking | Done | 2026-11-07 | battle hall: section "Moon chances", moon destruction calculator with the diameter |
 | C-5 Colonization planner | Done | 2026-11-07 | alliance planets page: tab "Colonize", universe settings for position bonuses |
+| G-4 Notification rules | Done | 2026-11-09 | Account: rules below the push and Discord kinds, quiet hours; admin panel: Discord channel |
 
 Each finished item carries a **Status** block below its description: what was built and how.
 
@@ -906,6 +907,17 @@ never wrote in (`mention: true`; push and Discord title "📣 … mentioned you 
 In the threads mentions are highlighted, coordinates link to the galaxy view and typing `@` suggests member names
 (`apps/web/src/commentText.ts`). Tests: `apps/server/test/mentions.test.ts`, `apps/server/test/push.test.ts`,
 `apps/web/test/comment-text.test.ts`.
+
+**G-4 status: done (2026-11-09).** Quiet hours per push device (`push_subscriptions.quiet`) and for the personal
+Discord webhook (`discord_prefs.quiet`): what they hold back (`notify_held`, helpers in `apps/server/src/notify.ts`)
+is sent by the tick when they end, unless it expired meanwhile; attacks on the user, launch reminders and fleet alerts
+break them by default. Thresholds in the settings (`wanted` in `push.ts`): espionage as an attack, fleet points of the
+attacker for attacks on others (statistics, `attackerFleetPoints` on the notification), comments only when mentioned;
+the alliance channel has the first two. Full storages can be muted per planet (`storage_muted`,
+`/api/{uni}/storage-alerts`) instead of "only the main planet", which the hub cannot tell. Web: `NotifyKinds.vue`,
+`QuietHours.vue` in the account page. Tests: `apps/server/test/notifyRules.test.ts`. **Left for later:** a threshold
+for attacks on the user by the size of the incoming fleet (ships are often not visible), quiet hours for the alliance
+channel.
 
 ---
 

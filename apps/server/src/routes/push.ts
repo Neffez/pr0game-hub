@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { HttpError, requireUser } from '../auth.js';
 import { now, type DB } from '../db.js';
+import { parseQuiet, storedQuiet } from '../notify.js';
 import { parsePushPrefs, pushPrefs, testPayload, type PushService } from '../push.js';
 
 /** Subscriptions per user (browsers and phones); the oldest goes when a new one comes beyond this. */
@@ -64,14 +65,29 @@ export function pushRoutes(app: FastifyInstance, db: DB, push: PushService) {
       db.prepare(
         `INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth, user_agent, created_at) VALUES (?, ?, ?, ?, ?, ?)
          ON CONFLICT (endpoint) DO UPDATE SET user_id = excluded.user_id, p256dh = excluded.p256dh, auth = excluded.auth,
-           user_agent = excluded.user_agent, created_at = excluded.created_at`,
+           user_agent = excluded.user_agent, created_at = excluded.created_at,
+           quiet = CASE WHEN push_subscriptions.user_id = excluded.user_id THEN push_subscriptions.quiet END`,
       ).run(user.id, endpoint, p256dh, auth, agent, now());
       db.prepare(
         `DELETE FROM push_subscriptions WHERE user_id = ? AND id NOT IN
            (SELECT id FROM push_subscriptions WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT ${MAX_SUBSCRIPTIONS})`,
       ).run(user.id, user.id);
     })();
-    return { ok: true };
+    return { ok: true, quiet: quietOf(user.id, endpoint) };
+  });
+
+  const quietOf = (userId: number, endpoint: string) =>
+    storedQuiet(db.prepare('SELECT quiet FROM push_subscriptions WHERE user_id = ? AND endpoint = ?').pluck().get(userId, endpoint) as string | null | undefined);
+
+  /** Quiet hours of one of the user's browsers (`quiet: null` switches them off); what they held back goes out then. */
+  app.put<{ Body: SubscriptionBody & { quiet?: unknown } }>('/api/push/subscriptions/quiet', async (req) => {
+    const user = requireUser(req);
+    const endpoint = endpointOf(req.body?.endpoint);
+    const quiet = parseQuiet(req.body?.quiet);
+    if (quiet === undefined) throw new HttpError(400, 'quiet_hours_invalid', 'Invalid quiet hours');
+    const res = db.prepare('UPDATE push_subscriptions SET quiet = ? WHERE user_id = ? AND endpoint = ?').run(quiet ? JSON.stringify(quiet) : null, user.id, endpoint);
+    if (!res.changes) throw new HttpError(404, 'push_subscription_unknown', 'This browser is not registered for push');
+    return { quiet };
   });
 
   /** Unregisters a browser of the user (switched off, or before logging out). */

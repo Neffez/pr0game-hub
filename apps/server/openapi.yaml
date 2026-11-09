@@ -372,6 +372,32 @@ components:
         buildOrder: { type: boolean, description: The next step of the caller's build order on a planet can start (default on) }
         phalanx: { type: boolean, description: A sensor phalanx outside the own alliance is newly known to reach one of the caller's planets (default on) }
         leadMinutes: { type: integer, enum: [1, 2, 5, 10, 15, 30], description: Launch reminder this many minutes ahead (default 5) }
+        spying: { type: boolean, description: 'Hostile espionage (mission 6) counts for `attackSelf` and `attackOthers` (default on); off: only fleets that are not spying' }
+        attackOthersMinPoints:
+          type: integer
+          minimum: 0
+          description: >-
+            `attackOthers` only for attackers with at least this many fleet points in the newest statistics (default 0:
+            all); an attacker the hub has no points of always notifies
+        mentionsOnly: { type: boolean, description: '`comments` only when a comment mentions the caller (default off)' }
+        quiet:
+          oneOf: [{ $ref: '#/components/schemas/QuietHours' }, { type: 'null' }]
+          description: Quiet hours of the caller's Discord webhook (`/api/auth/discord`); always null in the push settings, where each device has its own (`/api/push/subscriptions/quiet`)
+    QuietHours:
+      type: object
+      required: [from, to, tz]
+      description: >-
+        Quiet hours of a push device or a Discord webhook: between `from` and `to` nothing is sent. What they hold back
+        is sent when they end (or are switched off), as long as it still matters: an attack that landed meanwhile is
+        dropped, the rest is kept a day; at most the newest 20 per device.
+      properties:
+        from: { type: string, pattern: '^([01]\d|2[0-3]):[0-5]\d$', description: 'Start, time of day `HH:MM` in `tz`' }
+        to: { type: string, pattern: '^([01]\d|2[0-3]):[0-5]\d$', description: 'End (earlier than `from`: over midnight; must differ from `from`)' }
+        tz: { type: string, description: 'IANA time zone of the device, e.g. `Europe/Berlin`' }
+        except:
+          type: array
+          items: { type: string, enum: [attackSelf, launch, fleets] }
+          description: 'Kinds that come through at once: attacks on the caller, their launch reminders, their fleet alerts (default: all three)'
     BuildOrderStep:
       type: object
       required: [id, kind]
@@ -444,6 +470,23 @@ components:
         launch: { type: boolean, description: Launch reminders of the members' plan fleets (default on) }
         leadMinutes: { type: integer, enum: [1, 2, 5, 10, 15, 30], description: Launch reminder this many minutes ahead (default 5) }
         lang: { type: string, enum: [de, en], description: Language of the channel's messages (default de) }
+        spying: { type: boolean, description: 'Hostile espionage (mission 6) counts for `attacks` (default on)' }
+        attackMinPoints: { type: integer, minimum: 0, description: '`attacks` only for attackers with at least this many fleet points in the newest statistics (default 0: all); unknown points are always posted' }
+    StorageAlerts:
+      type: object
+      required: [planets]
+      properties:
+        planets:
+          type: array
+          items:
+            type: object
+            required: [g, s, p, name, muted]
+            properties:
+              g: { type: integer }
+              s: { type: integer }
+              p: { type: integer }
+              name: { type: string }
+              muted: { type: boolean, description: A full storage on this planet sends no push and no Discord message }
     BuildingAlert:
       type: object
       required: [id, g, s, p, planet_type, element_id, level, created_at]
@@ -1413,7 +1456,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/PushSettings' }
         '400':
-          description: Lead time not one of the allowed values (`push_settings_invalid`)
+          description: Lead time not one of the allowed values or an invalid points threshold (`push_settings_invalid`)
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
@@ -1465,6 +1508,9 @@ paths:
                 type: object
                 properties:
                   ok: { type: boolean }
+                  quiet:
+                    oneOf: [{ $ref: '#/components/schemas/QuietHours' }, { type: 'null' }]
+                    description: Quiet hours of this browser (kept when it registers again, dropped when it moves to another user)
         '400':
           description: Invalid endpoint or keys (`push_endpoint_invalid`, `push_keys_invalid`)
           content:
@@ -1516,6 +1562,47 @@ paths:
                   devices: { type: integer, description: Browsers the push services accepted it for }
         '409':
           description: Push is not set up on this hub (`push_disabled`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /api/push/subscriptions/quiet:
+    put:
+      tags: [Auth]
+      operationId: setPushQuietHours
+      description: |
+        Quiet hours of one of the caller's browsers: while they last, this device gets no push except the kinds in
+        `except`; what was held back is sent when they end. `quiet: null` switches them off (held notifications go out
+        within half a minute).
+      security: [{ sessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [endpoint, quiet]
+              properties:
+                endpoint: { type: string, format: uri, description: Endpoint of the registered browser }
+                quiet:
+                  oneOf: [{ $ref: '#/components/schemas/QuietHours' }, { type: 'null' }]
+      responses:
+        '200':
+          description: Stored quiet hours
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [quiet]
+                properties:
+                  quiet:
+                    oneOf: [{ $ref: '#/components/schemas/QuietHours' }, { type: 'null' }]
+        '400':
+          description: Invalid endpoint or quiet hours (`push_endpoint_invalid`, `quiet_hours_invalid`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '404':
+          description: The browser is not registered for the caller (`push_subscription_unknown`)
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
@@ -3252,6 +3339,52 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Buildings' }
+  /api/{uni}/storage-alerts:
+    get:
+      tags: [Economy]
+      operationId: getStorageAlerts
+      description: |
+        The caller's planets (buildings page state, no moons) with whether a full storage there notifies by push and
+        Discord: `muted` planets stay silent, the bell (`/api/{uni}/notifications`) lists them all the same.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      responses:
+        '200':
+          description: Planets and their mute state
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StorageAlerts' }
+    put:
+      tags: [Economy]
+      operationId: setStorageAlerts
+      description: Replaces the caller's muted planets in this alliance.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [muted]
+              properties:
+                muted: { type: array, maxItems: 200, items: { type: string, pattern: '^\d{1,3}:\d{1,4}:\d{1,3}$' }, description: 'Planet coordinates `g:s:p`' }
+      responses:
+        '200':
+          description: Planets and their mute state
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/StorageAlerts' }
+        '400':
+          description: Invalid list (`storage_alerts_invalid`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
   /api/{uni}/buildings/alerts:
     put:
       tags: [Universe]
@@ -4625,7 +4758,8 @@ paths:
       description: |
         Current notifications, earliest first (none before the start or after the end of the universe; a read that
         writes nothing, the push and Discord senders keep since when a storage is full): `attack` (hostile fleets heading for a member, from the members' shared
-        fleet lists; `fleet`, `fleets`), `invite` (the caller's open invitations to a raid planner plan in planning;
+        fleet lists; `fleet`, `fleets`, `attackerFleetPoints`: the newest fleet points of the origin's owner in the
+        statistics, null when unknown), `invite` (the caller's open invitations to a raid planner plan in planning;
         `plan`, `member` is who invited, `time` its target time, valid until the end of its day or hour by
         `plan.time_precision`), `comment` (comments of others of the last 48 hours in a thread the caller wrote in, after
         the caller's last comment there, or anywhere when they mention the caller as `@` with their in-game name or
