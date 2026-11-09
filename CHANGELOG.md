@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-09
 
+- Code review B-3: clearing the "at most members" field of the colonization planner acted as 0 (the emptied number
+  field yields `''`) and left a chip without a number. Everything that is not a number now means "no filter", for the
+  list and the chip.
+
 - Code review B-2: the farm finder kept the 30-day data of the spy priority when the targets tab was opened by way of
   the debris finder, while "7 days" was selected. The tab change now reloads when the loaded period
   (`FarmResponse.days`) differs from the selected one; `apps/web/test/farm-tabs.test.ts` covers the tab sequence.

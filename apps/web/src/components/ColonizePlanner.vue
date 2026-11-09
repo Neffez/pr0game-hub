@@ -94,12 +94,17 @@ const rows = computed<Row[]>(() => {
 });
 
 const galaxies = computed(() => settings.value.galaxies ?? 1);
+/** "At most members" as a number; an emptied field (`''` from `v-model.number`) is no filter. */
+const memberLimit = computed(() => {
+  const v: unknown = filter.value.maxMembers;
+  return typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : null;
+});
 const filtered = computed(() =>
   rows.value.filter((r) => {
     const f = filter.value;
     if (f.galaxy && r.sys.g !== f.galaxy) return false;
     if (f.onlyNow && r.locked) return false;
-    if (f.maxMembers != null && f.maxMembers >= 0 && r.sys.members > f.maxMembers) return false;
+    if (memberLimit.value != null && r.sys.members > memberLimit.value) return false;
     return true;
   }),
 );
@@ -132,7 +137,7 @@ const chips = computed<FilterChip[]>(() => {
   const add = (key: keyof typeof FILTER_DEFAULTS, label: string) => out.push({ key, label, clear: () => ((filter.value as Record<string, unknown>)[key] = FILTER_DEFAULTS[key]) });
   if (f.galaxy) add('galaxy', `${t('nav.galaxy')} ${f.galaxy}`);
   if (f.onlyNow) add('onlyNow', t('colonize.onlyNow'));
-  if (f.maxMembers != null) add('maxMembers', t('colonize.maxMembersChip', { n: f.maxMembers }));
+  if (memberLimit.value != null) add('maxMembers', t('colonize.maxMembersChip', { n: memberLimit.value }));
   return out;
 });
 const resetFilters = () => (filter.value = { ...FILTER_DEFAULTS, profile: filter.value.profile, range: filter.value.range });

@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Kolonisationsplaner: Ein geleertes Feld „höchstens Mitglieder“ filtert nicht mehr wie eine 0.',
+        en: 'Colonization planner: an emptied "at most members" field no longer filters like a 0.',
+      },
+      {
+        kind: 'fix',
         de: 'Farm-Finder: Wer von der Spionage-Priorität über den TF-Finder zu den Zielen wechselte, sah weiter die Berichte der letzten 30 Tage statt des gewählten Zeitraums.',
         en: 'Farm finder: switching from the spy priority by way of the debris finder to the targets kept showing the reports of the last 30 days instead of the chosen period.',
       },
