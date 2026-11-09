@@ -233,7 +233,7 @@ const openHelpers = computed(() => (data.value?.helpers ?? []).filter((h) => h.l
         <div class="at-stats small">
           <span v-for="k in (['metal', 'crystal', 'deuterium'] as const)" :key="k">
             {{ name({ metal: 901, crystal: 902, deuterium: 903 }[k]) }}: <b>{{ short(data.target.resources[k]) }}</b>
-            <span v-if="data.loot" class="neg at-loot">−{{ short(data.loot[k]) }}</span>
+            <span v-if="data.loot && data.loot[k] > 0" class="neg at-loot">−{{ short(data.loot[k]) }}</span>
           </span>
         </div>
         <p v-if="data.loot" class="small muted m-0">{{ t('attack.lootText', { sum: short(resSum(data.loot)) }) }}</p>

@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-09
 
+- Code review U-6: the attack assistant showed a red "−0" for resources the attacker cannot loot; the loot shows only
+  above zero.
+
 - Code review B-7: the mobile cards of the alliance health showed a hard-coded "/ 7 T" behind the growth; it is a text
   now (`health.perWeek`).
 

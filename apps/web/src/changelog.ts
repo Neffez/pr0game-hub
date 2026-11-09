@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Angriffsassistent: Bei Rohstoffen ohne Beute steht kein rotes „−0“ mehr.',
+        en: 'Attack assistant: resources without loot no longer show a red "−0".',
+      },
+      {
+        kind: 'fix',
         de: 'Allianz-Gesundheit: Auf dem Handy steht hinter dem Wachstum auch auf Englisch die richtige Einheit.',
         en: 'Alliance health: on mobile the unit behind the growth is now correct in English too.',
       },
