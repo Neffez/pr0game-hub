@@ -87,6 +87,8 @@ External analysis tool for [pr0game](https://codeberg.org/pr0game/pr0game) based
   reports tick off
 - **Raid statistics** (incl. recycling and interplanetary missile attacks: intercepted missiles, destroyed defense), **expeditions** (statistics and the expedition deck for card counting as tabs), **battle hall** archive
 - **Admin**: universes (size, distance factors, fleet speed, time zone, deck; scheduled start and optional end; an ended universe is frozen read-only), groups, members (including placeholders by in-game name with claim links), ingest log with reparse, player merge
+- **Who threatens me**: on the hostile spying page a personal ranking of the players who spied on or attacked you,
+  with their fleet points trend, nearest planet and flight time, and the hours they usually come at
 - **Notifications**: bell with hostile fleets heading for members (from the synced fleet movements), raid planner
   invitations, new comments in your threads, your launch times, finalized loot settlements with your deliveries, a
   hostile phalanx newly known to reach your planets and full storages on your planets (by the production

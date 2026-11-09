@@ -472,6 +472,80 @@ components:
         lang: { type: string, enum: [de, en], description: Language of the channel's messages (default de) }
         spying: { type: boolean, description: 'Hostile espionage (mission 6) counts for `attacks` (default on)' }
         attackMinPoints: { type: integer, minimum: 0, description: '`attacks` only for attackers with at least this many fleet points in the newest statistics (default 0: all); unknown points are always posted' }
+    Threat:
+      type: object
+      required: [key, player, score, spied, attacked, incoming, fleetPoints, reach, planets, hours, peak, targets]
+      properties:
+        key: { type: string }
+        player:
+          type: object
+          required: [id, name, status, allyTag]
+          properties:
+            id: { type: [integer, 'null'], description: Null when the hub only knows the name }
+            name: { type: string }
+            status: { type: array, items: { type: string } }
+            allyTag: { type: [string, 'null'] }
+        score: { type: number }
+        spied:
+          type: object
+          properties:
+            count: { type: integer }
+            last: { type: [integer, 'null'] }
+        attacked:
+          type: object
+          description: Battle reports at the caller's bodies with the player among the attackers
+          properties:
+            count: { type: integer }
+            last: { type: [integer, 'null'] }
+        incoming:
+          type: object
+          description: Attacks on their way to the caller now
+          properties:
+            count: { type: integer }
+            next: { type: [integer, 'null'], description: The first arrival }
+        fleetPoints:
+          type: [object, 'null']
+          description: Fleet points of the newest statistics; `before` at the start of the period (else the oldest update within it), null without an older update
+          properties:
+            points: { type: integer }
+            time: { type: integer }
+            before:
+              type: [object, 'null']
+              properties:
+                points: { type: integer }
+                time: { type: integer }
+        reach:
+          type: [object, 'null']
+          description: >-
+            The player's known planet nearest to one of the caller's planets with the one-way flight time at 100 %: by
+            the slowest ship of the largest fleet seen in spy reports (`shipKnown`), else a battleship; drives from the
+            newest spy report with research (`researchKnown`), else none
+          properties:
+            from: { type: object, properties: { g: { type: integer }, s: { type: integer }, p: { type: integer } } }
+            to: { type: object, properties: { g: { type: integer }, s: { type: integer }, p: { type: integer } } }
+            duration: { type: integer, description: Seconds }
+            ship: { type: integer }
+            shipKnown: { type: boolean }
+            researchKnown: { type: boolean }
+        planets: { type: integer, description: Known planets of the player }
+        hours: { type: array, minItems: 24, maxItems: 24, items: { type: integer }, description: 'Espionage and battles per hour of the day (0 to 23) in the universe''s time zone' }
+        peak:
+          type: [object, 'null']
+          description: The 4 hours with the most events (from 5 events on); `to` is exclusive and may lie past midnight
+          properties:
+            from: { type: integer }
+            to: { type: integer }
+            share: { type: number, description: Share of the events in these hours (0 to 1) }
+        targets:
+          type: array
+          description: The caller's bodies the player came for, the most often first
+          items:
+            type: object
+            properties:
+              g: { type: integer }
+              s: { type: integer }
+              p: { type: integer }
+              count: { type: integer }
     StorageAlerts:
       type: object
       required: [planets]
@@ -3178,6 +3252,42 @@ paths:
                   now: { type: integer }
         '400': { description: 'Invalid `planet` (`planet_invalid`)' }
         '404': { description: 'Not one of the caller''s synced planets (`planet_not_found`)' }
+  /api/{uni}/threats:
+    get:
+      tags: [Universe]
+      operationId: getThreats
+      description: >-
+        Who threatens the caller: the players outside the own alliance who spied on the caller (hostile spying), fought
+        as attackers at the caller's planets or moons (battle reports) or have an attack on its way, within `days`.
+        Ranked by `score`: every event weighted by kind (espionage 1, battle 4, attack on its way 6) and halved per 7
+        days of age. With the trend of their fleet points, their known planet nearest to one of the caller's and the
+        hours of the day they usually come at.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+        - { name: days, in: query, schema: { type: integer, minimum: 1, maximum: 3650, default: 30 }, description: Period in days }
+      responses:
+        '200':
+          description: The threats, the highest score first
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [days, timezone, ownPlanets, threats, now]
+                properties:
+                  days: { type: integer }
+                  timezone: { type: string, description: Time zone of the universe (`hours` and `peak` are in it) }
+                  ownPlanets: { type: integer, description: 'Planets of the caller the hub knows (0: battles and flight times cannot be found)' }
+                  now: { type: integer }
+                  threats:
+                    type: array
+                    items: { $ref: '#/components/schemas/Threat' }
+        '400':
+          description: Invalid period (`days_invalid`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
   /api/{uni}/defense-risk:
     get:
       tags: [Universe]

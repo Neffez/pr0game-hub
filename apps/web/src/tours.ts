@@ -162,9 +162,15 @@ export const TOURS = {
   hostile: {
     steps: [
       { key: 'intro' },
+      { key: 'me', el: 'hostile-tab-me', side: 'bottom', head: 'me' },
+      { key: 'alliance', el: 'hostile-tab-alliance', side: 'bottom', head: 'alliance' },
       { key: 'range', el: 'hostile-range', side: 'bottom' },
-      { key: 'who', el: 'hostile-who', side: 'top' },
-      { key: 'history', el: 'hostile-history', side: 'top' },
+      { key: 'threatEvents', el: 'threats-events', side: 'bottom', tabs: ['me'] },
+      { key: 'threatFleet', el: 'threats-fleet', side: 'bottom', tabs: ['me'] },
+      { key: 'threatReach', el: 'threats-reach', side: 'bottom', tabs: ['me'] },
+      { key: 'threatHours', el: 'threats-hours', side: 'left', tabs: ['me'] },
+      { key: 'who', el: 'hostile-who', side: 'top', tabs: ['alliance'] },
+      { key: 'history', el: 'hostile-history', side: 'top', tabs: ['alliance'] },
     ],
   },
   activity: {

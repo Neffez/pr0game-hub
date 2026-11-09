@@ -2,11 +2,19 @@ import type { FastifyInstance } from 'fastify';
 import { HttpError } from '../auth.js';
 import type { DB } from '../db.js';
 import { defenseAdvice, defenseInput, HEAVY, raidRiskInput, raidRiskOf } from '../repo/defense.js';
+import { threatsOf } from '../repo/threats.js';
 import { contextOf } from './util.js';
 
 /** Defense advisor (see repo/defense.ts): the attackers of one of the viewer's planets and the defense against them. */
 export function defenseRoutes(app: FastifyInstance, db: DB) {
   const ctxOf = contextOf(db);
+
+  /** Who threatens me: the players who spied on or attacked the viewer within `days` (1-3650, default 30), see repo/threats.ts. */
+  app.get<{ Params: { uni: string }; Querystring: { days?: string } }>('/api/:uni/threats', async (req) => {
+    const days = req.query.days == null ? 30 : Number(req.query.days);
+    if (!Number.isInteger(days) || days < 1 || days > 3650) throw new HttpError(400, 'days_invalid', 'days: 1 to 3650');
+    return threatsOf(db, ctxOf(req), days);
+  });
 
   app.get<{ Params: { uni: string }; Querystring: { planet?: string; ships?: string; debris?: string; loot?: string; threats?: string; sim?: string } }>(
     '/api/:uni/defense-advice',

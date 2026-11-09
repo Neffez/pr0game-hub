@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Wer bedroht mich: Die Seite Fremdspionage beginnt jetzt mit deiner persönlichen Rangliste der Spieler, die dich ausspioniert oder angegriffen haben oder gerade im Anflug sind – mit der Entwicklung ihrer Flottenpunkte, ihrem nächsten Planeten samt Flugzeit und den Uhrzeiten, zu denen sie üblicherweise kommen. Die Spionagen auf die ganze Allianz stehen im Tab „Allianz“.',
+        en: 'Who threatens me: the hostile espionage page now starts with your personal ranking of the players who spied on or attacked you or are on their way – with the trend of their fleet points, their nearest planet with the flight time and the hours they usually come at. Espionage on the whole alliance is in the "Alliance" tab.',
+      },
+      {
+        kind: 'new',
         de: 'Benachrichtigungen mit Regeln (Konto): Ruhezeiten pro Gerät und für deinen Discord-Webhook – was zurückgehalten wurde, kommt am Ende der Ruhezeit, Angriffe auf dich, Starttermine und Flottenankünfte auf Wunsch sofort. Dazu: Spionage nicht als Angriff melden, Angriffe auf andere nur ab einer Flottenpunktzahl des Angreifers, Kommentare nur bei Erwähnung und volle Lager nur für ausgewählte Planeten. Allianz-Admins können Spionage und schwache Angreifer auch im Discord-Kanal ausblenden.',
         en: 'Notifications with rules (Account): quiet hours per device and for your Discord webhook – what was held back arrives when they end; attacks on you, launch times and fleet arrivals come at once if you like. Also: do not report espionage as an attack, attacks on others only from a fleet points threshold of the attacker, comments only when you are mentioned, and full storages only for chosen planets. Alliance admins can hide espionage and weak attackers in the Discord channel too.',
       },

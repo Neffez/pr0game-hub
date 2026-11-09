@@ -4,6 +4,15 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-09
 
+- Who threatens me (backlog item A-5): the hostile spying page has a first tab "Who threatens me" with the viewer's
+  own ranking of players who spied on them, fought at their planets or have an attack on its way (the alliance's
+  spying is the second tab). Per player: counts and last time, the fleet points with their change in the period, the
+  known planet nearest to one of the viewer's with the one-way flight time (slowest ship of the largest fleet in spy
+  reports, else a battleship) and the hours of the day they come at, with the four densest hours from five events
+  on. New endpoint `GET /api/{uni}/threats?days=` (OpenAPI `getThreats`, `apps/server/src/repo/threats.ts`); ranking:
+  espionage 1, battle 4, attack on its way 6, halved per 7 days of age. Tour steps for both tabs; tests in
+  `apps/server/test/threats.test.ts`.
+
 - Notification rules for push and Discord (backlog item G-4):
   - **Quiet hours** per push device (`push_subscriptions.quiet`, `PUT /api/push/subscriptions/quiet`, OpenAPI
     `setPushQuietHours`) and for the personal Discord webhook (`quiet` in the Discord settings): two times of day in

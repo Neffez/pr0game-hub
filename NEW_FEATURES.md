@@ -15,7 +15,7 @@ source (`pr0game`: pages, missions, achievements, advanced stats).
 | B-1 Farm finder with projected resources | Done | 2026-11-06 | new menu item "Farm finder" under Combat & expeditions |
 | B-3 Inactivity confidence | Done (second version) | 2026-11-06 | farm finder, overview, player details, check in the admin panel |
 | A-3 Hostile phalanx exposure | Done | 2026-11-07 | My empire (section and marks), notifications (bell, push, Discord) |
-| A-5 Who threatens me | Open (not started) | — | — |
+| A-5 Who threatens me | Done | 2026-11-09 | hostile spying page: first tab "Who threatens me" |
 | C-3 Alliance trade board | Open (refined, not started) | 2026-11-07 | Marketplace page, tab "Alliance" (planned) |
 | A-2 Fleet save planner | Done | 2026-11-07 | new menu item "Fleet save" under Combat & expeditions |
 | A-1 Incoming attack assistant | Done | 2026-11-07 | page per attack, opened from bell, push, Discord and the raid planner |
@@ -251,6 +251,23 @@ planet in the empire view.
 A ranking per member of the players who spy on or attack them most often, with their fleet points trend, their
 reachable planets (flight time to the member's planets) and the activity pattern (when they usually hit). Today the
 data is spread across "Hostile spying", "Player details" and the activity log.
+
+**Status: done (2026-11-09).** How it was built:
+
+- **Server:** `apps/server/src/repo/threats.ts`, `GET /api/:uni/threats?days=30` (`getThreats` in `openapi.yaml`).
+  Candidates by name outside the own alliance: hostile spying on the viewer, attackers in battle reports at the
+  viewer's planets and moons (`memberPlanets`), attacks on their way (`hostileAttacks`). Score = events weighted by
+  kind (`THREAT_WEIGHTS`: espionage 1, battle 4, on its way 6), halved per 7 days. Fleet points: newest statistics
+  against the newest update up to the start of the period (else the oldest within it). Reach: the player's planets of
+  the galaxy data against the viewer's, shortest one-way flight at 100 % with the slowest ship of the largest fleet
+  in the spy reports (else a battleship, marked as an estimate) and the drives of the newest report with research.
+  Hours: events per hour of the day in the universe's time zone; from 5 events on the densest 4 hours (`peakOf`).
+  Tests in `apps/server/test/threats.test.ts`.
+- **Web:** `ThreatList.vue` as the first tab of `HostileView.vue` (`?tab=me`, the alliance's spying is `?tab=alliance`);
+  cards on mobile. **Tour** `hostile` with a step per tab and the steps `threatEvents` to `threatHours`; **texts**
+  `threats.*`.
+- **Left for later:** a threat's row opening the defense advisor or the attack assistant, every planet in reach (only
+  the nearest is shown), the same list for another member (leaders).
 
 ---
 
@@ -932,8 +949,8 @@ A-1 Incoming attack assistant (done) · A-2 Fleet save planner (done) · C-1 Upg
 health dashboard (done) · F-3 Export (done)
 
 **Later:**
-A-4 Defense advisor (done) · C-2 Logistics planner · C-3 Resource requests · C-4 Expedition planner · D-2 War dashboard ·
-D-5 Calendar · F-4 Discord commands · E-3 parser gaps · G items as capacity allows
+A-4 Defense advisor (done) · A-5 Who threatens me (done) · C-2 Logistics planner · C-3 Alliance trade board · C-4 Expedition planner · D-2 War dashboard ·
+D-5 Calendar · F-4 Discord commands · E-3 parser gaps · G-4 Notification rules (done) · other G items as capacity allows
 
 Reasoning: the "Now" items mostly reuse data and math the hub already has and raise data quality (E-1) or daily
 use (F-1, B-1). The defense items in "Next" are the biggest gap in value, but need the battle and flight packages
