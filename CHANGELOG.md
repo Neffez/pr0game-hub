@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-09
 
+- Backlog (`NEW_FEATURES.md`): item D-3 (sync coverage duties) is dropped by the product owner; the status table
+  says so and the references to it are gone.
+
 - Five follow-ups of finished backlog items:
   - **Raid risk in the empire table (A-4):** once the raid risk was calculated (empire section or defense advisor),
     planets and moons where a known attack pays off carry a sword at their name (red: the attacker mostly wins); the
@@ -46,6 +49,7 @@ Every commit adds its changes here, newest first, grouped by date.
     them.
   - Migration 085; the account page shows the rules below their kinds (shared `NotifyKinds.vue`, `QuietHours.vue`),
     the admin panel the channel's espionage switch. Tests in `apps/server/test/notifyRules.test.ts`.
+
 - Code review of the 20 finished backlog features (`CODEREVIEW_NEW_FEATURES.md`): 12 bugs and 10 display and UX
   items, each with how it was found and a concrete fix; nothing is changed in the code yet.
 

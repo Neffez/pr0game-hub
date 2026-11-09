@@ -31,6 +31,7 @@ source (`pr0game`: pages, missions, achievements, advanced stats).
 | G-8 Comments with mentions | Done | 2026-11-07 | comment threads, notifications (bell, push, Discord) |
 | B-6 Moon chance tracking | Done | 2026-11-07 | battle hall: section "Moon chances", moon destruction calculator with the diameter |
 | C-5 Colonization planner | Done | 2026-11-07 | alliance planets page: tab "Colonize", universe settings for position bonuses |
+| D-3 Sync coverage duties | Dropped | 2026-11-09 | — |
 | G-4 Notification rules | Done | 2026-11-09 | Account: rules below the push and Discord kinds, quiet hours; admin panel: Discord channel |
 
 Each finished item carries a **Status** block below its description: what was built and how.
@@ -684,7 +685,7 @@ seen in the hub, raids and expeditions in the last week, open deliveries. Flags:
 - **Follow-up (2026-11-07):** open to every member (no admin check, menu item for all); the last hub visit and `away`
   follow the member's online setting (`show_online`): hidden from the others unless the viewer is an admin
   (`onlineHidden`), like the player page's activity.
-- **Left for later:** reminders to members (D-3 sync duties), a trend over several weeks, raids from the raid planner
+- **Left for later:** a trend over several weeks, raids from the raid planner
   instead of synced battle reports.
 
 ### D-2 War dashboard (alliance vs alliance)
@@ -695,11 +696,9 @@ points trend of both alliances, the most active players on each side, the member
 a read-only summary with a war partner group.
 
 ### D-3 Sync coverage duties
-**Value:** Medium · **Effort:** S · **Builds on:** galaxy freshness heat map, statistics coverage
-
-Members take responsibility for a galaxy range or a statistics category ("I paste galaxy 3 every day"). The heat map
-shows the owner of each range, a reminder fires when their range gets stale. Turns the freshness view into a
-shared routine.
+**Dropped (2026-11-09, product owner).** Members would have taken responsibility for a galaxy range or a statistics
+category, with a reminder when their range gets stale. Not wanted; the freshness heat map and the sync hints (E-1)
+stay as they are.
 
 ### D-4 Onboarding of new members
 **Value:** Medium · **Effort:** S · **Builds on:** tours, claim links
@@ -768,8 +767,7 @@ which hub feature gets better with it. Higher data quality is the base of every 
   `section.syncHints.sheet`). Instead of a plain count the title row shows a warning mark with the number of hints,
   red when one is important and yellow otherwise, so the list never goes unnoticed while folded.
 - **Tours:** new steps `paste.hints` and `overview.syncHints`. **Texts:** `syncHints.*` in `de.ts`/`en.ts`.
-- **Left for later:** the leaders' view of every member's freshness and the shared sync duties belong to D-1 and
-  D-3.
+- The leaders' view of every member's freshness is D-1 (done); shared sync duties (D-3) were dropped.
 - **Fix (2026-11-06):** the expected statistics update comes from the 6-hour grid of the newest synced update
   (`expectedStatUpdate`), not from 0/6/12/18 o'clock local time: servers run it at their own configured hours, and on
   U7 they moved to 23/5/11/17 o'clock with the switch to winter time (seen in the inactivity check's timestamps).
@@ -966,7 +964,7 @@ combined on one page and careful wording of advice.
 ## How to measure success
 
 - **Sync freshness:** share of members with an empire page younger than 24 h and statistics coverage per update
-  (target for E-1 and D-3).
+  (target for E-1).
 - **Weekly active members** per group and pages opened per visit (F-1, F-2).
 - **Fleets lost to attacks** on members, from battle reports, before and after A-1/A-2.
 - **Raid profit per flight hour** from the loot settlements, before and after B-1.
