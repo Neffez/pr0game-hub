@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-09
 
+- Code review B-1: the texts of the admin panel's "Parser samples" section sat inside `tours.admin` instead of
+  `admin`, so the section showed its keys (`admin.samples.title`, …). They are moved in `de.ts` and `en.ts`; a new
+  test (`apps/web/test/locale-keys.test.ts`) collects the static `t('…')` keys of the web app and fails on a key
+  without a text in either language.
+
 - Backlog (`NEW_FEATURES.md`): item D-3 (sync coverage duties) is dropped by the product owner; the status table
   says so and the references to it are gone.
 

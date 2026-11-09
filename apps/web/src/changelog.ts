@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-09',
     items: [
       {
+        kind: 'fix',
+        de: 'Admin-Panel: Der Abschnitt „Parser-Proben“ zeigt wieder seine Texte statt interner Schlüssel.',
+        en: 'Admin panel: the "Parser samples" section shows its texts again instead of internal keys.',
+      },
+      {
         kind: 'new',
         de: 'Kleine Ergänzungen: Im Imperium tragen gefährdete Planeten ein Schwert, sobald du das Raid-Risiko berechnet hast. Der Fleetsave-Planer markiert Flüge zu eigenen Planeten, die eine feindliche Phalanx sieht. Unter „Wer bedroht mich“ öffnet ein Angriff im Anflug den Angriffsassistenten und ein Zielplanet den Verteidigungsberater. Der CSV-Download der Übersicht übernimmt deine Filter (Name, Allianz, Inaktive, Urlaub, Punkte, Galaxie).',
         en: 'Small additions: in the empire, planets at risk carry a sword once you calculated the raid risk. The fleet save planner marks flights to own planets a hostile phalanx sees. Under "Who threatens me" an attack on its way opens the attack assistant and a target planet the defense advisor. The CSV download of the overview follows your filters (name, alliance, inactive, vacation, points, galaxy).',

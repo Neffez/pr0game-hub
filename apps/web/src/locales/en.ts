@@ -777,17 +777,6 @@ const en: typeof de = {
       tokens: { title: 'API tokens', text: 'Read-only access to the alliance data you see in the hub, e.g. for your own analyses.' },
     },
     admin: {
-    samples: {
-      title: 'Parser samples',
-      hint: 'Pages the hub found nothing in that members sent while syncing (anonymized). Deleted after the retention of raw syncs.',
-      none: 'No samples.',
-      when: 'When',
-      from: 'From',
-      why: 'Recognized as',
-      note: 'Note',
-      download: 'Download',
-      delete: 'Delete',
-    },
       intro: { title: 'Admin panel', text: 'This is where you manage alliances and their members. What you see depends on your role: alliance admins manage their alliance, hub admins also the universes and the running hub.' },
       universes: { title: 'Universes', text: 'Every universe with game URL, size and time zone. "Edit" opens the settings; enter size and speeds as in the game\'s configuration, otherwise flight times and calculations are off.' },
       access: { title: 'Access requests', text: 'Anyone without an account can request access on the login page. Assign the request to a player without an account, then they log in with the name and password they asked for.' },
@@ -2041,6 +2030,17 @@ const en: typeof de = {
     swipeHint: 'Swipe: change system',
   },
   admin: {
+    samples: {
+      title: 'Parser samples',
+      hint: 'Pages the hub found nothing in that members sent while syncing (anonymized). Deleted after the retention of raw syncs.',
+      none: 'No samples.',
+      when: 'When',
+      from: 'From',
+      why: 'Recognized as',
+      note: 'Note',
+      download: 'Download',
+      delete: 'Delete',
+    },
     discord: 'Discord channel',
     discordHint: 'The hub posts attacks on members, new raid plans and launch times to a Discord channel of the alliance. Meant for a channel only alliance members can see. Create the webhook in Discord: Server Settings → Integrations → Webhooks.',
     discordKind: {

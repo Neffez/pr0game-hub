@@ -778,17 +778,6 @@ const de = {
       tokens: { title: 'API-Token', text: 'Nur-Lese-Zugriff auf die Allianz-Daten, die du im Hub siehst, z. B. für eigene Auswertungen.' },
     },
     admin: {
-    samples: {
-      title: 'Parser-Proben',
-      hint: 'Seiten, in denen der Hub nichts gefunden hat und die Mitglieder beim Synchronisieren geschickt haben (anonymisiert). Sie werden nach der Aufbewahrungszeit der Rohdaten gelöscht.',
-      none: 'Keine Proben.',
-      when: 'Wann',
-      from: 'Von',
-      why: 'Erkannt als',
-      note: 'Notiz',
-      download: 'Herunterladen',
-      delete: 'Löschen',
-    },
       intro: { title: 'Admin-Panel', text: 'Hier verwaltest du Allianzen und ihre Mitglieder. Was du siehst, hängt von deiner Rolle ab: Allianz-Admins verwalten ihre Allianz, Hub-Admins zusätzlich Universen und den Betrieb des Hubs.' },
       universes: { title: 'Universen', text: 'Jedes Universum mit Spiel-URL, Größe und Zeitzone. „Bearbeiten“ öffnet die Einstellungen; Größe und Geschwindigkeiten wie in der Spielkonfiguration eintragen, sonst stimmen Flugzeiten und Berechnungen nicht.' },
       access: { title: 'Zugangsanfragen', text: 'Wer noch kein Konto hat, kann auf der Anmeldeseite Zugang anfragen. Weise die Anfrage einem Spieler ohne Konto zu, dann meldet er sich mit seinem gewünschten Namen und Passwort an.' },
@@ -2043,6 +2032,17 @@ const de = {
     swipeHint: 'Wischen: System wechseln',
   },
   admin: {
+    samples: {
+      title: 'Parser-Proben',
+      hint: 'Seiten, in denen der Hub nichts gefunden hat und die Mitglieder beim Synchronisieren geschickt haben (anonymisiert). Sie werden nach der Aufbewahrungszeit der Rohdaten gelöscht.',
+      none: 'Keine Proben.',
+      when: 'Wann',
+      from: 'Von',
+      why: 'Erkannt als',
+      note: 'Notiz',
+      download: 'Herunterladen',
+      delete: 'Löschen',
+    },
     discord: 'Discord-Kanal',
     discordHint: 'Der Hub postet Angriffe auf Mitglieder, neue Raid-Pläne und Starttermine in einen Discord-Kanal der Allianz. Gedacht für einen Kanal, den nur Allianzmitglieder sehen. Webhook in Discord anlegen: Servereinstellungen → Integrationen → Webhooks.',
     discordKind: {
