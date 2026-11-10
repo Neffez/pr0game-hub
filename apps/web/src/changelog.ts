@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-10',
     items: [
       {
+        kind: 'fix',
+        de: 'Verteidigungsberater: Der Status eines Angreifers (inaktiv, Urlaub …) erscheint als Badge wie auf den anderen Seiten.',
+        en: 'Defense advisor: an attacker\'s status (inactive, vacation …) shows as a badge like on the other pages.',
+      },
+      {
         kind: 'new',
         de: 'Fleetsave-Vorschläge: Die ersten Zeilen zeigen jetzt verschiedene Ziele und Missionen statt desselben Ziels mit mehreren Geschwindigkeiten. Beim Kolo-Save steht die Warnung (unter dem Planetenmaximum wird kolonisiert) sichtbar unter den Vorschlägen.',
         en: 'Fleet save suggestions: the first rows now show different targets and missions instead of one target at several speeds. For a colony save the warning (below the planet limit it founds a colony) is visible under the suggestions.',

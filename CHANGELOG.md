@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-10
 
+- Code review U-4: the defense advisor showed the status of an attacker as plain text glued to the alliance tag
+  ("[BAD]I"); it uses the status badges of the farm finder and the overview, also on the mobile card (which now shows
+  the alliance tag too).
+
 - Code review U-2 and U-3, fleet save options (planner and attack assistant): the rows before "more" are the best
   option of every mission and target instead of one target at 60/70/80 % speed (the sorting of `fleetSaveOptions` is
   unchanged, the rest follows behind "more"). When a colony save is among the shown options, its risk (below the

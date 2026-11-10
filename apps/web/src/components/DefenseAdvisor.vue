@@ -5,10 +5,11 @@ import { uniApi } from '../api';
 import { useClock } from '../clock';
 import { addToBuildOrder } from '../buildOrderAdd';
 import { useStored, useUni } from '../composables';
-import { abbr, ago, battleSimLink, dateTime, duration, fmt, name, short, STATUS_LABEL } from '../format';
+import { abbr, ago, battleSimLink, dateTime, duration, fmt, name, short } from '../format';
 import Hint from './Hint.vue';
 import PlayerLink from './PlayerLink.vue';
 import RaidRisk from './RaidRisk.vue';
+import StatusBadges from './StatusBadges.vue';
 
 /**
  * Defense advisor (server: repo/defense.ts, search: `defenseAdvice` of @pr0hub/battle): the attackers the hub knows for
@@ -245,6 +246,9 @@ async function addToOrder() {
               <input type="checkbox" :checked="!off.has(x.key)" :disabled="running" @change="toggle(x.key)" />
               <PlayerLink v-if="x.player.id" :id="x.player.id" :name="x.player.name" /><b v-else>{{ x.player.name }}</b>
             </label>
+            <span v-if="x.player.allyTag" class="faint">[{{ x.player.allyTag }}]</span>
+            <StatusBadges :status="x.player.status" />
+            <span class="grow" />
           </div>
           <div v-for="v in variants(x).filter((v) => shown(v.key))" :key="v.key" class="def-line">
             <span class="muted">{{ v.heavy ? t('defense.heavyOnly') : t('defense.fullFleet') }}</span>
@@ -289,7 +293,7 @@ async function addToOrder() {
               <td>
                 <PlayerLink v-if="x.player.id" :id="x.player.id" :name="x.player.name" /><b v-else>{{ x.player.name }}</b>
                 <span v-if="x.player.allyTag" class="faint small"> [{{ x.player.allyTag }}]</span>
-                <span v-for="s in x.player.status" :key="s" class="faint small"> {{ STATUS_LABEL[s] ?? s }}</span>
+                <StatusBadges :status="x.player.status" />
               </td>
               <td class="num">
                 <template v-if="shown(x.key)">
