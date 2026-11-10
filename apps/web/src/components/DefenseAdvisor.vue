@@ -277,10 +277,10 @@ async function addToOrder() {
             <tr>
               <th />
               <th>{{ t('defense.attacker') }}</th>
+              <th class="num" :title="t('defense.profitTitle')">{{ t('defense.profit') }}</th>
               <th>{{ t('defense.why') }}</th>
               <th>{{ t('defense.fleet') }}</th>
               <th class="num">{{ t('defense.flight') }}</th>
-              <th class="num" :title="t('defense.profitTitle')">{{ t('defense.profit') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -291,8 +291,22 @@ async function addToOrder() {
                 <span v-if="x.player.allyTag" class="faint small"> [{{ x.player.allyTag }}]</span>
                 <span v-for="s in x.player.status" :key="s" class="faint small"> {{ STATUS_LABEL[s] ?? s }}</span>
               </td>
-              <td class="small muted">{{ x.reasons.map(reasonText).join(' · ') }}</td>
-              <td class="small">
+              <td class="num">
+                <template v-if="shown(x.key)">
+                  <div v-for="v in variants(x).filter((v) => shown(v.key))" :key="v.key" class="def-profit">
+                    <div>
+                      <span v-if="x.heavy" class="faint small">{{ v.heavy ? t('defense.heavyShort') : t('defense.fullShort') }} </span>
+                      <b :class="outcomeOf(advice?.before, v.key)!.profit > 0 ? 'neg' : 'pos'" :title="profitTitle(outcomeOf(advice?.before, v.key))">{{ profitText(outcomeOf(advice?.before, v.key)) }}</b>
+                    </div>
+                    <div v-if="advice?.after" class="small" :title="profitTitle(outcomeOf(advice.after, v.key))">
+                      → <span :class="(outcomeOf(advice.after, v.key)?.profit ?? 0) > 0 ? 'neg' : 'pos'">{{ profitText(outcomeOf(advice.after, v.key)) }}</span>
+                    </div>
+                  </div>
+                </template>
+                <span v-else class="faint">–</span>
+              </td>
+              <td class="small muted def-why">{{ x.reasons.map(reasonText).join(' · ') }}</td>
+              <td class="small def-fleet">
                 <div :title="shipsTitle(x.fleet.units)">{{ shipsText(x.fleet.units) }}</div>
                 <div class="faint">
                   {{ t(`defense.source.${x.fleet.source}`, { time: ago(x.fleet.time) }) }} · {{ short(x.fleet.points) }} {{ t('defense.points') }}
@@ -306,20 +320,6 @@ async function addToOrder() {
                   <span class="mono">{{ duration(x.flight.duration) }}</span>
                   <div class="faint">{{ short(x.flight.fuel) }} {{ abbr(903) }}</div>
                   <div v-if="x.heavy?.flight" class="faint" :title="`${t('defense.heavyOnly')}: ${duration(x.heavy.flight.duration)}`">{{ t('defense.heavyShort') }} {{ short(x.heavy.flight.fuel) }} {{ abbr(903) }}</div>
-                </template>
-                <span v-else class="faint">–</span>
-              </td>
-              <td class="num">
-                <template v-if="shown(x.key)">
-                  <div v-for="v in variants(x).filter((v) => shown(v.key))" :key="v.key" class="def-profit">
-                    <div>
-                      <span v-if="x.heavy" class="faint small">{{ v.heavy ? t('defense.heavyShort') : t('defense.fullShort') }} </span>
-                      <b :class="outcomeOf(advice?.before, v.key)!.profit > 0 ? 'neg' : 'pos'" :title="profitTitle(outcomeOf(advice?.before, v.key))">{{ profitText(outcomeOf(advice?.before, v.key)) }}</b>
-                    </div>
-                    <div v-if="advice?.after" class="small" :title="profitTitle(outcomeOf(advice.after, v.key))">
-                      → <span :class="(outcomeOf(advice.after, v.key)?.profit ?? 0) > 0 ? 'neg' : 'pos'">{{ profitText(outcomeOf(advice.after, v.key)) }}</span>
-                    </div>
-                  </div>
                 </template>
                 <span v-else class="faint">–</span>
               </td>
@@ -374,6 +374,9 @@ async function addToOrder() {
 .def-cards { display: flex; flex-direction: column; gap: 6px; }
 .def-card { display: flex; flex-direction: column; gap: 3px; padding: 8px; border-radius: 6px; background: var(--surface-2); }
 .def-profit { white-space: nowrap; }
+/* a large fleet wraps instead of pushing the flight out of view */
+table.data td.def-fleet { white-space: normal; min-width: 220px; max-width: 420px; }
+table.data td.def-why { white-space: normal; min-width: 120px; max-width: 220px; }
 .def-profit + .def-profit { margin-top: 4px; }
 .def-line { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .off { opacity: 0.5; }

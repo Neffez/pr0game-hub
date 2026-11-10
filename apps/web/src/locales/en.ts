@@ -311,6 +311,7 @@ const en: typeof de = {
     flight: 'Flight',
     ships: 'Ships',
     fuel: 'Fuel',
+    shipsTitle: 'Ships for the loot · fuel of the flight',
     perFlightHour: 'Loot/h',
     risk: 'Risk',
     riskLevel: { none: 'none', defense: 'defense', fleet: 'fleet', both: 'fleet + def.', unknown: 'unknown' },

@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-10
 
+- Code review U-1: at 1280 px the farm finder cut off "Risk" and the actions, the defense advisor "Flight" and
+  "Profit". Farm finder: ships and fuel share one column (as on mobile), long player names are shortened with the full
+  name as tooltip. Defense advisor: "Profit" follows the attacker, the fleet and the reasons wrap.
+
 - Code review B-12: the farm finder stores its start planet for all universes; in a second universe no own planet
   matched, every flight time showed "–" and the select was empty. A start planet that is none of the own planets now
   counts as "nearest" and is forgotten once the own planets are loaded. The same for the stored galaxy of the farm

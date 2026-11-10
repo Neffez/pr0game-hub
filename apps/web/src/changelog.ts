@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Farm-Finder und Verteidigungsberater: Risiko, Aktionen und Gewinn rutschen auf kleineren Bildschirmen nicht mehr aus dem sichtbaren Bereich (Schiffe und Treibstoff teilen sich eine Spalte, der Gewinn steht direkt beim Angreifer).',
+        en: 'Farm finder and defense advisor: risk, actions and profit no longer slide out of view on smaller screens (ships and fuel share a column, the profit sits next to the attacker).',
+      },
+      {
+        kind: 'fix',
         de: 'Farm-Finder: Ein in einem anderen Universum gewählter Startplanet führt nicht mehr zu leeren Flugzeiten; es zählt dann wieder der nächste eigene Planet.',
         en: 'Farm finder: a start planet chosen in another universe no longer leaves the flight times empty; the nearest own planet counts again.',
       },

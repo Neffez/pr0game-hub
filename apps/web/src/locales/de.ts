@@ -312,6 +312,7 @@ const de = {
     flight: 'Flug',
     ships: 'Schiffe',
     fuel: 'Treibstoff',
+    shipsTitle: 'Schiffe für die Beute · Treibstoff des Flugs',
     perFlightHour: 'Beute/h',
     risk: 'Risiko',
     riskLevel: { none: 'keins', defense: 'Verteidigung', fleet: 'Flotte', both: 'Flotte + Vert.', unknown: 'unbekannt' },

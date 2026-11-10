@@ -19,7 +19,7 @@ import { uniApi } from '../api';
 import { claimOf, remaining } from '../claims';
 import { useLoader, useMobile, useProgressive, useSort, useStored, useUni } from '../composables';
 import { tables, useLiveReload } from '../live';
-import { ago, coords, dateTime, duration, fmt, name, short } from '../format';
+import { abbr, ago, coords, dateTime, duration, fmt, name, short } from '../format';
 import { useAutoTour } from '../tours';
 import { units } from '../units';
 import { spyPriority, type SpyReason } from '../spyPriority';
@@ -416,7 +416,7 @@ const claimText = (r: Row) => {
               <div v-if="claimText(r)" class="small warn">{{ claimText(r) }}</div>
             </td>
             <td class="nowrap">
-              <PlayerLink :id="r.player.id" :name="r.player.name" />
+              <span class="farm-player" :title="r.player.name"><PlayerLink :id="r.player.id" :name="r.player.name" /></span>
               <span v-if="r.player.ally_tag" class="muted small"> [{{ r.player.ally_tag }}]</span>
               <StatusBadges :status="r.player.status" :points="r.player.points" />
             </td>
@@ -472,8 +472,7 @@ const claimText = (r: Row) => {
             <th class="sortable num" data-tour="farm-loot" @click="sort.sortBy('loot')">{{ t('farm.loot') }}<SortMark :dir="sort.direction('loot')" /></th>
             <th class="sortable num" @click="sort.sortBy('age')">{{ t('farm.report') }}<SortMark :dir="sort.direction('age')" /></th>
             <th class="sortable num" @click="sort.sortBy('flight')">{{ t('farm.flight') }}<SortMark :dir="sort.direction('flight')" /></th>
-            <th class="num">{{ t('farm.ships') }}</th>
-            <th class="num">{{ t('farm.fuel') }}</th>
+            <th class="num" :title="t('farm.shipsTitle')">{{ t('farm.ships') }}</th>
             <th class="sortable num" data-tour="farm-rank" @click="sort.sortBy('perFlightHour')">{{ t('farm.perFlightHour') }}<SortMark :dir="sort.direction('perFlightHour')" /></th>
             <th data-tour="farm-risk">{{ t('farm.risk') }}</th>
             <th></th>
@@ -487,7 +486,7 @@ const claimText = (r: Row) => {
               <div v-if="claimText(r)" class="small warn">{{ claimText(r) }}</div>
             </td>
             <td class="nowrap">
-              <PlayerLink :id="r.player.id" :name="r.player.name" />
+              <span class="farm-player" :title="r.player.name"><PlayerLink :id="r.player.id" :name="r.player.name" /></span>
               <span v-if="r.player.ally_tag" class="muted small"> [{{ r.player.ally_tag }}]</span>
               <StatusBadges :status="r.player.status" :points="r.player.points" />
             </td>
@@ -497,8 +496,9 @@ const claimText = (r: Row) => {
             </td>
             <td class="num" :title="reportTitle(r)">{{ ago(r.report.time) }}<Icon v-if="!r.levels" name="warning" :size="12" class="muted full-mark" /></td>
             <td class="num" :title="flightTitle(r)">{{ r.flight == null ? '–' : duration(Math.floor(r.flight)) }}</td>
-            <td class="num">{{ r.ships == null ? '–' : fmt(r.ships) }}</td>
-            <td class="num">{{ r.fuel == null ? '–' : short(r.fuel) }}</td>
+            <td class="num" :title="r.fuel == null ? undefined : `${t('farm.fuel')}: ${fmt(r.fuel)} ${name(903)}`">
+              {{ r.ships == null ? '–' : fmt(r.ships) }}<span v-if="r.fuel != null" class="faint"> · {{ short(r.fuel) }} {{ abbr(903) }}</span>
+            </td>
             <td class="num"><b>{{ r.perFlightHour == null ? '–' : short(r.perFlightHour) }}</b></td>
             <td :class="`risk-${r.risk}`" :title="riskTitle(r)">{{ t(`farm.riskLevel.${r.risk}`) }}</td>
             <td><PlanetActions :g="r.g" :s="r.s" :p="r.p" :type="r.type" :from="r.from?.c ?? null" :diameter="r.moonDiameter ?? null" /></td>
@@ -514,6 +514,8 @@ const claimText = (r: Row) => {
 <style scoped>
 .field-inline { display: inline-flex; align-items: center; gap: 6px; }
 .nowrap { white-space: nowrap; }
+/* long names must not push risk and actions out of view (full name as title) */
+.farm-player { display: inline-block; max-width: 16ch; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
 .full-mark { margin-left: 3px; vertical-align: -1px; }
 .risk-none { color: var(--pos); }
 .risk-defense, .risk-both { color: var(--neg); }
