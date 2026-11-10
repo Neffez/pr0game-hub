@@ -91,7 +91,7 @@ const de = {
     flight: 'Flug',
     profit: 'Gewinn',
     profitTitle: 'Erwarteter Gewinn eines Angriffs in Deuterium: vorher → mit der empfohlenen Verteidigung',
-    reason: { spied: '{n}× spioniert', attacked: '{n}× angegriffen', incoming: 'im Anflug', nearby: 'in der Nähe' },
+    reason: { spied: '{n}× spioniert', attacked: '{n}× angegriffen', incoming: 'im Anflug', incomingIn: 'im Anflug · trifft in {time} ein', nearby: 'in der Nähe' },
     source: { spy: 'Spionagebericht {time}', combat: 'Kampfbericht {time}', incoming: 'Flottenbewegung {time}' },
     points: 'Punkte',
     grown: 'Flottenpunkte jetzt {n}',

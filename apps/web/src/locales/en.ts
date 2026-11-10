@@ -90,7 +90,7 @@ const en: typeof de = {
     flight: 'Flight',
     profit: 'Profit',
     profitTitle: 'Expected profit of one attack in deuterium: before → with the advised defense',
-    reason: { spied: 'spied {n}×', attacked: 'attacked {n}×', incoming: 'on the way', nearby: 'nearby' },
+    reason: { spied: 'spied {n}×', attacked: 'attacked {n}×', incoming: 'on the way', incomingIn: 'on the way · lands in {time}', nearby: 'nearby' },
     source: { spy: 'spy report {time}', combat: 'battle report {time}', incoming: 'fleet movement {time}' },
     points: 'points',
     grown: 'fleet points now {n}',

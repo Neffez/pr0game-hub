@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
+import { useClock } from '../clock';
 import { addToBuildOrder } from '../buildOrderAdd';
 import { useStored, useUni } from '../composables';
 import { abbr, ago, battleSimLink, dateTime, duration, fmt, name, short, STATUS_LABEL } from '../format';
@@ -76,17 +77,26 @@ const query = (sim: boolean) => {
   else q.set('threats', chosen.value.map((x) => x.key).join(','));
   return `/defense-advice?${q}`;
 };
+/**
+ * Requests of `load` and `calculate` are counted together (like `useLoader`): only the answer to the newest one is
+ * applied, so a calculation that ends after the planet or an option changed cannot overwrite the new data.
+ */
+let latest = 0;
 async function load() {
+  const id = ++latest;
   loading.value = true;
+  running.value = false;
   error.value = null;
   advice.value = null;
   try {
-    data.value = await uniApi<Data>(uni.value, query(false));
+    const d = await uniApi<Data>(uni.value, query(false));
+    if (id === latest) data.value = d;
   } catch (e) {
+    if (id !== latest) return;
     error.value = (e as Error).message;
     data.value = null;
   } finally {
-    loading.value = false;
+    if (id === latest) loading.value = false;
   }
 }
 watch(() => props.planetKey, () => (off.value = new Set()));
@@ -94,6 +104,7 @@ watch([() => props.planetKey, ships, debris, loot], load, { immediate: true });
 
 const chosen = computed(() => (data.value?.threats ?? []).filter((x) => !off.value.has(x.key)));
 function toggle(key: string) {
+  if (running.value) return;
   const next = new Set(off.value);
   if (next.has(key)) next.delete(key);
   else next.add(key);
@@ -102,17 +113,19 @@ function toggle(key: string) {
 }
 async function calculate() {
   if (!chosen.value.length) return;
+  const id = ++latest;
   running.value = true;
   error.value = null;
   added.value = false;
   try {
     const d = await uniApi<Data>(uni.value, query(true));
+    if (id !== latest) return;
     data.value = d;
     advice.value = d.advice;
   } catch (e) {
-    error.value = (e as Error).message;
+    if (id === latest) error.value = (e as Error).message;
   } finally {
-    running.value = false;
+    if (id === latest) running.value = false;
   }
 }
 
@@ -121,7 +134,12 @@ const shipsText = (s: Record<string, number>) => Object.entries(s).filter(([, n]
 const shipsTitle = (s: Record<string, number>) => Object.entries(s).filter(([, n]) => n > 0).map(([id, n]) => `${fmt(n)} ${name(id)}`).join('\n');
 const RES = [['metal', 901], ['crystal', 902], ['deuterium', 903]] as const;
 const resTitle = (r: Res) => RES.filter(([k]) => r[k]).map(([k, id]) => `${fmt(Math.round(r[k]))} ${name(id)}`).join('\n');
-const reasonText = (r: Threat['reasons'][number]) => t(`defense.reason.${r.kind}`, { n: r.count }) + (r.last ? ` · ${ago(r.last)}` : '');
+const clock = useClock();
+/** an attack on its way lands at `last` (time left); the other kinds happened then */
+const reasonText = (r: Threat['reasons'][number]) => {
+  if (r.kind === 'incoming') return r.last && r.last > clock.value ? t('defense.reason.incomingIn', { time: duration(r.last - clock.value) }) : t('defense.reason.incoming');
+  return t(`defense.reason.${r.kind}`, { n: r.count }) + (r.last ? ` · ${ago(r.last)}` : '');
+};
 /** statistics show clearly more fleet points than the fleet known: it may be larger now */
 const grown = (x: Threat) => !!x.fleetPoints && x.fleetPoints.points > x.fleet.points * 1.3 + 10;
 const outcomeOf = (list: Outcome[] | null | undefined, key: string) => list?.find((o) => o.key === key) ?? null;
@@ -200,11 +218,11 @@ async function addToOrder() {
         <p>{{ t('defense.hint3') }}</p>
       </Hint>
       <span class="grow" />
-      <label class="check" :title="t('defense.shipsTitle')"><input v-model="ships" type="checkbox" /> {{ t('defense.ships') }}</label>
-      <label class="check" :title="t('defense.debrisTitle')"><input v-model="debris" type="checkbox" /> {{ t('defense.countDebris') }}</label>
+      <label class="check" :title="t('defense.shipsTitle')"><input v-model="ships" type="checkbox" :disabled="running" /> {{ t('defense.ships') }}</label>
+      <label class="check" :title="t('defense.debrisTitle')"><input v-model="debris" type="checkbox" :disabled="running" /> {{ t('defense.countDebris') }}</label>
       <label>
         {{ t('defense.resources') }}
-        <select v-model="loot">
+        <select v-model="loot" :disabled="running">
           <option value="now">{{ t('defense.lootNow') }}</option>
           <option value="full">{{ t('defense.lootFull') }}</option>
         </select>
@@ -224,7 +242,7 @@ async function addToOrder() {
         <div v-for="x in data.threats" :key="x.key" class="def-card small" :class="{ off: off.has(x.key) }">
           <div class="def-line">
             <label class="check">
-              <input type="checkbox" :checked="!off.has(x.key)" @change="toggle(x.key)" />
+              <input type="checkbox" :checked="!off.has(x.key)" :disabled="running" @change="toggle(x.key)" />
               <PlayerLink v-if="x.player.id" :id="x.player.id" :name="x.player.name" /><b v-else>{{ x.player.name }}</b>
             </label>
           </div>
@@ -267,7 +285,7 @@ async function addToOrder() {
           </thead>
           <tbody>
             <tr v-for="x in data.threats" :key="x.key" :class="{ off: off.has(x.key) }">
-              <td><input type="checkbox" :checked="!off.has(x.key)" :aria-label="x.player.name" @change="toggle(x.key)" /></td>
+              <td><input type="checkbox" :checked="!off.has(x.key)" :disabled="running" :aria-label="x.player.name" @change="toggle(x.key)" /></td>
               <td>
                 <PlayerLink v-if="x.player.id" :id="x.player.id" :name="x.player.name" /><b v-else>{{ x.player.name }}</b>
                 <span v-if="x.player.allyTag" class="faint small"> [{{ x.player.allyTag }}]</span>

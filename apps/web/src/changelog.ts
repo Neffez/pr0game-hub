@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Verteidigungsberater: Wechselst du während der Berechnung den Planeten, erscheint nicht mehr das Ergebnis des alten. Bei Angriffen im Anflug steht die Zeit bis zum Eintreffen statt „gerade eben“.',
+        en: 'Defense advisor: changing the planet during the calculation no longer shows the old planet\'s result. Attacks on their way show the time until they land instead of "just now".',
+      },
+      {
+        kind: 'fix',
         de: 'Angriffsassistent: Der Link in den Kampfsimulator enthält jetzt auch eine aus dem Spionagebericht geschätzte Angreiferflotte, und Simulator-Link wie Fleetsave-Vorschläge rechnen ohne die Schiffe, die den Planeten seit der Imperiumsseite verlassen haben.',
         en: 'Attack assistant: the link into the battle simulator now carries an attacker fleet estimated from the spy report too, and both the simulator link and the fleet save suggestions leave out the ships that left the planet since the empire page.',
       },
