@@ -2,6 +2,14 @@
 
 Every commit adds its changes here, newest first, grouped by date.
 
+## 2026-11-10
+
+- Code review B-5 and B-6, attack assistant: `GET /api/{uni}/attack-assist` returns `target.present`, the planet's
+  values without the ships sent away since the empire page (`target.values` stays what the page showed). The fleet
+  save options and the simulator link use it, so they no longer suggest saving ships that are gone or show another
+  battle than the page. The simulator link takes the attackers the server simulated: when the movement shows no ships,
+  the fleet estimated from the spy report instead of no attacker.
+
 ## 2026-11-09
 
 - Code review U-6: the attack assistant showed a red "−0" for resources the attacker cannot loot; the loot shows only

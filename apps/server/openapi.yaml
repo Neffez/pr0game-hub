@@ -3127,7 +3127,7 @@ paths:
                   member: { type: [object, 'null'], properties: { id: { type: integer }, name: { type: string } } }
                   target:
                     type: [object, 'null']
-                    description: 'The attacked body: `g`, `s`, `p`, `type`, `name`, `values` (levels and units), `resources` at the impact (`metal`, `crystal`, `deuterium`), `empireTime`, `deuterium` and `perHour` of the empire page'
+                    description: 'The attacked body: `g`, `s`, `p`, `type`, `name`, `values` (levels and units of the empire page), `present` (`values` without the ships of `away`: what defends in the simulation and can still be saved), `resources` at the impact (`metal`, `crystal`, `deuterium`), `empireTime`, `deuterium` and `perHour` of the empire page'
                   bodies: { type: array, items: { type: object }, description: 'The member''s planets and moons (`g`, `s`, `p`, `type`, `name`)' }
                   research: { type: object, description: The member's research levels }
                   attacker:

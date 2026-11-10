@@ -32,7 +32,7 @@ interface Assist {
     fleets: { mission: number | null; ships: Record<string, number> }[]; player: { id: number; name: string } | null; member: string | null;
   };
   member: { id: number; name: string | null } | null;
-  target: (C3 & { type: 'planet' | 'moon'; name: string; values: Record<string, number>; resources: Res | null; empireTime: number; deuterium: number | null; perHour: Record<string, number> | null }) | null;
+  target: (C3 & { type: 'planet' | 'moon'; name: string; values: Record<string, number>; present: Record<string, number>; resources: Res | null; empireTime: number; deuterium: number | null; perHour: Record<string, number> | null }) | null;
   bodies: (C3 & { type: 'planet' | 'moon'; name: string })[];
   research: Record<string, number>;
   attacker: { player: { id: number; name: string } | null; research: { values: Record<string, number>; time: number } | null; ships: Record<string, number>; estimated: { time: number } | null };
@@ -85,9 +85,12 @@ const simLink = computed(() => {
   const d = data.value;
   if (!d?.target || !Object.keys(d.attacker.ships).length) return null;
   const r = d.target.resources;
-  const values = { ...d.target.values, 109: d.research[109] ?? 0, 110: d.research[110] ?? 0, 111: d.research[111] ?? 0, ...(r ? { 901: r.metal, 902: r.crystal, 903: r.deuterium } : {}) };
+  // the defender as the server simulated it: without the ships sent away since the empire page
+  const values = { ...d.target.present, 109: d.research[109] ?? 0, 110: d.research[110] ?? 0, 111: d.research[111] ?? 0, ...(r ? { 901: r.metal, 902: r.crystal, 903: r.deuterium } : {}) };
   const from: [number, number, number] = [d.attack.from.g, d.attack.from.s, d.attack.from.p];
-  const attackers = d.attack.fleets.filter((f) => Object.keys(f.ships).length).map((f) => ({ ships: f.ships, research: d.attacker.research?.values ?? {}, from, name: d.attacker.player?.name ?? null }));
+  // the attackers as simulated: the fleets of the movement, or the ships estimated from a spy report when it shows none
+  const fleets = d.attack.fleets.map((f) => f.ships).filter((ships) => Object.values(ships).some((n) => n > 0));
+  const attackers = (fleets.length ? fleets : [d.attacker.ships]).map((ships) => ({ ships, research: d.attacker.research?.values ?? {}, from, name: d.attacker.player?.name ?? null }));
   const holds = d.holds.map((h) => ({ ships: h.ships, research: h.research, from: [h.from.g, h.from.s, h.from.p] as [number, number, number], name: h.member ?? h.player }));
   return battleSimLink(ctx.value!.universe.settings, values, attackers, [d.target.g, d.target.s, d.target.p], holds, d.member?.name ?? null);
 });
@@ -247,7 +250,7 @@ const openHelpers = computed(() => (data.value?.helpers ?? []).filter((h) => h.l
       <p v-if="arrived" class="muted small m-0">{{ t('attack.simArrived') }}</p>
       <p v-else-if="!from" class="muted small m-0">{{ t('attack.noEmpire') }}</p>
       <FleetSaveOptions
-        v-else :from="from" :values="data.target!.values" :research="data.research" :deuterium="deuterium" :targets="targets"
+        v-else :from="from" :values="data.target!.present" :research="data.research" :deuterium="deuterium" :targets="targets"
         :now="now" :latest="a.arrival - 1" :back="a.arrival + 1" :kinds="['deploy', 'transport', 'harvest', 'colonize', 'recall']" :fields="fields" :free="free" :cleanup="cleanup"
       />
     </Section>

@@ -252,7 +252,12 @@ export function attackAssist(db: DB, ctx: GroupContext, attack: HostileAttack) {
       attack,
       member: attack.memberId != null ? { id: attack.memberId, name: names.get(attack.memberId) ?? attack.member } : null,
       target: body
-        ? { ...attack.to, name: body.name, values: body.values, resources, empireTime: empire!.time, deuterium: body.resources?.[903] ?? null, perHour: body.perHour ?? null }
+        ? {
+            ...attack.to, name: body.name, values: body.values,
+            /** `values` without the ships sent away since the empire page: what defends in the simulation and can still be saved */
+            present: values,
+            resources, empireTime: empire!.time, deuterium: body.resources?.[903] ?? null, perHour: body.perHour ?? null,
+          }
         : null,
       /** the member's bodies (fleet save targets) and research (drives) */
       bodies: (empire?.rec.planets ?? []).map((p) => ({ ...p.coords, type: p.type, name: p.name })),

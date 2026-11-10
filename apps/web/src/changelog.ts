@@ -16,6 +16,16 @@ export interface ChangelogDay {
 
 export const CHANGELOG: ChangelogDay[] = [
   {
+    date: '2026-11-10',
+    items: [
+      {
+        kind: 'fix',
+        de: 'Angriffsassistent: Der Link in den Kampfsimulator enthält jetzt auch eine aus dem Spionagebericht geschätzte Angreiferflotte, und Simulator-Link wie Fleetsave-Vorschläge rechnen ohne die Schiffe, die den Planeten seit der Imperiumsseite verlassen haben.',
+        en: 'Attack assistant: the link into the battle simulator now carries an attacker fleet estimated from the spy report too, and both the simulator link and the fleet save suggestions leave out the ships that left the planet since the empire page.',
+      },
+    ],
+  },
+  {
     date: '2026-11-09',
     items: [
       {
