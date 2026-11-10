@@ -4,6 +4,12 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-10
 
+- Code review U-2 and U-3, fleet save options (planner and attack assistant): the rows before "more" are the best
+  option of every mission and target instead of one target at 60/70/80 % speed (the sorting of `fleetSaveOptions` is
+  unchanged, the rest follows behind "more"). When a colony save is among the shown options, its risk (below the
+  planet limit the colony ship founds a colony) is a visible warning line; it was only a tooltip, which touch devices
+  do not show.
+
 - Code review U-1: at 1280 px the farm finder cut off "Risk" and the actions, the defense advisor "Flight" and
   "Profit". Farm finder: ships and fuel share one column (as on mobile), long player names are shortened with the full
   name as tooltip. Defense advisor: "Profit" follows the attacker, the fleet and the reasons wrap.

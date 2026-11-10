@@ -110,6 +110,10 @@ describe('fleet save and attack assistant', () => {
     expect(bodies[0].querySelector('.fs-phalanx')!.textContent).toBe(' Phalanx: Enemy 1:104:3');
     expect(bodies[0].querySelectorAll('.fso-table tbody tr').length).toBeGreaterThan(0);
     expect(bodies[0].querySelector('.fso-table tbody td b')!.textContent).toMatch(/Stationieren|Transport|Abbauen/);
+    // the rows before "more" are different missions or targets, not one target at several speeds
+    const routes = [...bodies[0].querySelectorAll('.fso-table tbody tr')].map((r) => `${r.children[0].textContent!.trim()} → ${r.children[1].textContent!.trim()}`);
+    expect(routes).toHaveLength(3);
+    expect(new Set(routes).size).toBe(3);
     // with a recycler existing debris fields are targets too; one only seen before is marked
     (bodies[0].querySelector('.fso button.link') as HTMLButtonElement).click();
     await settle();

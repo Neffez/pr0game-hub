@@ -129,7 +129,29 @@ const options = computed(() =>
       })
     : [],
 );
-const shown = computed(() => (all.value ? options.value : options.value.slice(0, props.limit)));
+type Option = (typeof options.value)[number];
+const routeOf = (o: Option) => `${o.kind}:${o.target.coords.join(':')}:${o.target.type}`;
+const optionKey = (o: Option) => `${routeOf(o)}:${o.speed}`;
+/**
+ * The best option of every mission and target first (the sorted list mostly starts with one target at several
+ * speeds), then the rest in its order: the first rows show the choices, "more" the speeds.
+ */
+const ordered = computed(() => {
+  const routes = new Set<string>();
+  const first: Option[] = [];
+  const rest: Option[] = [];
+  for (const o of options.value) {
+    if (routes.has(routeOf(o))) rest.push(o);
+    else {
+      routes.add(routeOf(o));
+      first.push(o);
+    }
+  }
+  return [...first, ...rest];
+});
+const shown = computed(() => (all.value ? ordered.value : ordered.value.slice(0, props.limit)));
+/** a colony save founds a colony below the planet limit: said in the open, a tooltip does not show on touch devices */
+const colonizeShown = computed(() => shown.value.some((o) => o.kind === 'colonize'));
 /** clock time today, otherwise with the date (cards on mobile) */
 const when = (e: number) => (new Date(e * 1000).toDateString() === new Date().toDateString() ? clockTime(new Date(e * 1000)) : dateTime(e));
 const label = (x: SaveTarget) => `${x.type === 'moon' ? t('common.moon') + ' ' : x.type === 'debris' ? t('fleetsave.field') + (unsure(x) ? '?' : '') + ' ' : x.type === 'free' ? t('fleetsave.free') + ' ' : ''}${x.name ? x.name + ' ' : ''}[${x.coords.join(':')}]`;
@@ -143,7 +165,7 @@ defineExpose({ fleet, options });
     <p v-if="!Object.keys(fleet).length" class="muted small m-0">{{ t('fleetsave.noShips') }}</p>
     <p v-else-if="!options.length" class="warn small m-0">{{ t('fleetsave.noOption') }}</p>
     <div v-else-if="mobile" class="fso-cards">
-      <div v-for="(o, i) in shown" :key="i" class="fso-card small">
+      <div v-for="o in shown" :key="optionKey(o)" class="fso-card small">
         <div><b :title="o.kind === 'colonize' ? t('fleetsave.colonizeTitle') : undefined">{{ t(`fleetsave.kinds.${o.kind}`) }}</b> → <span :class="{ warn: unsure(o.target) }" :title="fieldTitle(o.target)">{{ label(o.target) }}</span>
           <Icon v-if="seen(o.target)" name="eye" :size="13" class="warn" :label="t('fleetsave.targetWatched')" /> · {{ o.speed }} %
         </div>
@@ -172,7 +194,7 @@ defineExpose({ fleet, options });
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(o, i) in shown" :key="i">
+          <tr v-for="o in shown" :key="optionKey(o)">
             <td>
               <b :title="o.kind === 'colonize' ? t('fleetsave.colonizeTitle') : undefined">{{ t(`fleetsave.kinds.${o.kind}`) }}</b>
               <span v-if="o.recall != null" class="small muted"> · {{ t('fleetsave.recallAt', { time: dateTime(o.recall) }) }}</span>
@@ -199,6 +221,7 @@ defineExpose({ fleet, options });
         </tbody>
       </table>
     </div>
+    <p v-if="colonizeShown" class="warn small fso-colonize"><Icon name="warning" :size="12" /> {{ t('fleetsave.colonizeTitle') }}</p>
     <button v-if="options.length > limit" class="small link" style="margin-top: 4px" @click="all = !all">
       {{ all ? t('fleetsave.less') : t('fleetsave.more', { n: options.length - limit }) }}
     </button>
@@ -207,6 +230,7 @@ defineExpose({ fleet, options });
 
 <style scoped>
 .fso-table td { white-space: nowrap; }
+.fso-colonize { margin: 6px 0 0; }
 .fso-cards { display: flex; flex-direction: column; gap: 6px; }
 .fso-card { display: flex; flex-direction: column; gap: 2px; padding: 6px 8px; border-radius: 6px; background: var(--surface-2); }
 </style>
