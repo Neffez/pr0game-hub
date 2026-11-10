@@ -65,6 +65,13 @@ export interface UniverseSettings {
   defenseDebrisPercent?: number;
   /** shield domes must fall before other units can be hit */
   bigShields?: boolean;
+  /**
+   * Resources of a new planet (game config metal_start, crystal_start, deuterium_start): build orders planned before
+   * the start or for planets without coordinates begin with them.
+   */
+  metalStart?: number;
+  crystalStart?: number;
+  deuteriumStart?: number;
   /** game config planet_size_factor: fields of new colonies (colonization planner) */
   planetSizeFactor?: number;
   /**
@@ -122,6 +129,9 @@ export const OPTIONAL_DEFAULTS = {
   defenseDebrisPercent: 0,
   bigShields: false,
   planetSizeFactor: 1,
+  metalStart: 5000,
+  crystalStart: 1500,
+  deuteriumStart: 0,
   // game defaults, for validation and the admin form's placeholders only (see `planetLimit`)
   maxInitialPlanets: 1,
   maxAdditionalPlanets: 11,
@@ -155,6 +165,13 @@ export function lastDebrisCleanup(s: Pick<UniverseSettings, 'timezone' | 'debris
   return t - 7 * 86400;
 }
 
+/** Resources of a new planet (901-903) by the universe's settings. */
+export const startResourcesOf = (s: Pick<UniverseSettings, 'metalStart' | 'crystalStart' | 'deuteriumStart'>): Record<number, number> => ({
+  901: s.metalStart ?? OPTIONAL_DEFAULTS.metalStart,
+  902: s.crystalStart ?? OPTIONAL_DEFAULTS.crystalStart,
+  903: s.deuteriumStart ?? OPTIONAL_DEFAULTS.deuteriumStart,
+});
+
 /** Astrophysics: its level raises the planet limit. */
 export const ASTROPHYSICS = 124;
 
@@ -181,7 +198,7 @@ const KNOWN: Record<string, unknown> = { ...UNIVERSE_DEFAULTS, ...OPTIONAL_DEFAU
 /** at least 1 and whole */
 const COUNTS = ['galaxies', 'systems', 'positions', 'fleetSpeed', 'storageMultiplier'];
 /** whole numbers from 0 */
-const WHOLE = ['maxInitialPlanets', 'maxAdditionalPlanets'];
+const WHOLE = ['maxInitialPlanets', 'maxAdditionalPlanets', 'metalStart', 'crystalStart', 'deuteriumStart'];
 /** whole numbers with an upper bound */
 const BOUNDED: Record<string, number> = { debrisCleanupDay: 6, debrisCleanupHour: 23, debrisCleanupMinute: 59 };
 /** percentages */

@@ -7,8 +7,8 @@ import type { BuildOrder, Step } from './types.js';
  * id. They are simulated as fresh planets from the build order's base and are later assigned to a synced planet.
  */
 
-/** Resources of a new planet (game config `metal_start`, `crystal_start`, `deuterium_start` defaults). */
-export const START_RESOURCES: Record<number, number> = { 901: 500, 902: 500, 903: 0 };
+/** Resources of a new planet when the universe sets none (the hub's default of `startResourcesOf`). */
+export const START_RESOURCES: Record<number, number> = { 901: 5000, 902: 1500, 903: 0 };
 /** Max temperature of a planet when nothing better is known (game config `initial_temp` default). */
 export const START_TEMP = 50;
 
@@ -24,10 +24,12 @@ export function plannedNumber(key: string): number | null {
 export const isPlannedKey = (key: string) => PLANNED.test(key);
 
 /**
- * A planned planet as the hub would have it: the base's levels, start resources, no production synced (the formula
- * is used), resources counted from `time` on (the universe's start, or now).
+ * A planned planet as the hub would have it: the base's levels, the universe's start resources, no production synced
+ * (the formula is used), resources counted from `time` on (the universe's start, or now).
  */
-export function plannedPlanet(order: BuildOrder, key: string, time: number, opts: { name?: string | null; temp?: number | null } = {}): HubPlanet {
+export function plannedPlanet(
+  order: BuildOrder, key: string, time: number, opts: { name?: string | null; temp?: number | null; resources?: Record<number, number> } = {},
+): HubPlanet {
   const n = plannedNumber(key) ?? 0;
   return {
     key,
@@ -36,7 +38,7 @@ export function plannedPlanet(order: BuildOrder, key: string, time: number, opts
     type: 'planet',
     temp: opts.temp ?? START_TEMP,
     arrivals: [],
-    planet: { type: 'planet', values: { ...(order.base.planets[key] ?? {}) }, resources: { ...START_RESOURCES }, perHour: {}, time, queue: [] },
+    planet: { type: 'planet', values: { ...(order.base.planets[key] ?? {}) }, resources: { ...(opts.resources ?? START_RESOURCES) }, perHour: {}, time, queue: [] },
   };
 }
 

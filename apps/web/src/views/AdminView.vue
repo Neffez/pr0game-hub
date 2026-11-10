@@ -92,6 +92,9 @@ const UNI_GROUPS: UniGroup[] = [
     { key: 'resourceMultiplier', label: 'resourceMultiplier', hint: true, min: 0 },
     { key: 'storageMultiplier', label: 'storageMultiplier', hint: true, min: 1, step: 1, placeholder: '1' },
     { key: 'universityFactor', label: 'universityFactor', hint: true, min: 0, max: 100 },
+    { key: 'metalStart', label: 'metalStart', hint: true, min: 0, placeholder: '5000' },
+    { key: 'crystalStart', label: 'crystalStart', hint: true, min: 0, placeholder: '1500' },
+    { key: 'deuteriumStart', label: 'deuteriumStart', hint: true, min: 0, placeholder: '0' },
   ] },
   { id: 'combat', fields: [
     { key: 'fleetDebrisPercent', label: 'fleetDebrisPercent', hint: true, min: 0, max: 100, placeholder: '40' },

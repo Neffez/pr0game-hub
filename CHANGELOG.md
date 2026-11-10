@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-10
 
+- Universe settings: start resources of a new planet (`metalStart`, `crystalStart`, `deuteriumStart`, hub default
+  5000/1500/0, `startResourcesOf` in `@pr0hub/core/universe`) under economy in the admin dialog; planned planets of
+  a build order begin with them instead of fixed 500/500/0.
+
 - Universes before their start: the menu shows only what works without synced data (build & research with the
   build order, sync, account, admin, what's new); the sync and every other page show when the universe starts and
   that nothing can be synced until then, with a link to the build order.

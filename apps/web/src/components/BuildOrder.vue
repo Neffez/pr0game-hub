@@ -15,6 +15,7 @@ import {
   compareSettings, isPlannedKey, plannedNumber, plannedPlanet, simulate, type HubState, type Pr0planImport, type Step, type StepResult,
 } from '@pr0hub/planner';
 import { RESOURCES } from '@pr0hub/core/tech';
+import { startResourcesOf } from '@pr0hub/core/universe';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
@@ -58,12 +59,14 @@ const plannedName = (key: string) => {
   const n = plannedNumber(key);
   return stored.value?.meta.names?.[String(n)] || t('buildOrder.plannedPlanet', { n });
 };
+/** resources of a new planet in this universe (admin setting) */
+const startResources = computed(() => startResourcesOf(ctx.value?.universe.settings ?? {}));
 /** the hub's planets plus the planned ones as new planets (start resources, the file's temperature) */
 const hubAll = computed<HubState>(() => {
   const s = stored.value;
   if (!s || !plannedKeys.value.length) return props.hub;
   const settings = s.meta.settings as Pr0planImport['settings'] | undefined;
-  const planned = plannedKeys.value.map((k) => plannedPlanet(s.order, k, minute.value, { name: plannedName(k), temp: settings?.planets[String(plannedNumber(k))]?.temp }));
+  const planned = plannedKeys.value.map((k) => plannedPlanet(s.order, k, minute.value, { name: plannedName(k), temp: settings?.planets[String(plannedNumber(k))]?.temp, resources: startResources.value }));
   return { ...props.hub, planets: [...props.hub.planets, ...planned] };
 });
 /** a planned planet picked to look at; a planet chosen on the page shows that one again */
@@ -237,7 +240,7 @@ function onDrop(i: number) {
       <span class="muted">{{ t('buildOrder.hubWins') }}</span>
     </div>
     <div v-if="plannedKeys.length" class="small bo-planned" data-tour="build-order-planned">
-      <p class="muted" style="margin: 0">{{ assignable.length ? t('buildOrder.plannedAssignHint') : t('buildOrder.plannedHint') }}</p>
+      <p class="muted" style="margin: 0">{{ assignable.length ? t('buildOrder.plannedAssignHint') : t('buildOrder.plannedHint', { m: fmt(startResources[901]), k: fmt(startResources[902]), d: fmt(startResources[903]) }) }}</p>
       <div class="row bo-planned-row">
         <button v-if="props.planetKey" class="small" :class="{ primary: planetKey === props.planetKey }" @click="picked = null">{{ planetLabel(props.planetKey) }}</button>
         <button v-for="k in plannedKeys" :key="k" class="small" :class="{ primary: k === planetKey }" @click="picked = k">

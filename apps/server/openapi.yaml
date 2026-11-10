@@ -1137,6 +1137,9 @@ components:
         noobLimit: { type: [number, 'null'], minimum: 0, description: Game config noob_protection_time (default 0 = unknown) }
         noobFactor: { type: [number, 'null'], minimum: 0, description: Game config noob_protection_multi (default 5) }
         noobInactives: { type: [boolean, 'null'], description: Game config noob_inactives (default false) }
+        metalStart: { type: [integer, 'null'], minimum: 0, description: 'Game config metal_start (default 5000): metal of a new planet; build orders planned before the start or for planets without coordinates begin with it' }
+        crystalStart: { type: [integer, 'null'], minimum: 0, description: Game config crystal_start (default 1500) }
+        deuteriumStart: { type: [integer, 'null'], minimum: 0, description: Game config deuterium_start (default 0) }
         planetSizeFactor: { type: [number, 'null'], minimum: 0, description: Game config planet_size_factor (default 1; fields of new colonies in the colonization planner) }
         maxInitialPlanets: { type: [integer, 'null'], minimum: 0, description: 'Game config max_initial_planets. With `maxAdditionalPlanets` and `planetsPerTech` the planet limit of a player (`ceil(initial + min(additional, astrophysics × perTech))`, 0 initial planets lifts the cap); not assumed when unset: the fleet save planner then warns of every colony save' }
         maxAdditionalPlanets: { type: [integer, 'null'], minimum: 0, description: Game config max_additional_planets (planets astrophysics can add at most) }

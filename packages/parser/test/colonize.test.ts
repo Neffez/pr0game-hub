@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { astroForPosition, positionInfo, positionRow } from '../src/colonize.js';
-import { planetLimit, settingsError } from '../src/universe.js';
+import { planetLimit, settingsError, startResourcesOf } from '../src/universe.js';
 
 describe('colonization (C-5)', () => {
   it('needs astrophysics 8 for the outer positions, 6 and 4 for the next ones', () => {
@@ -42,5 +42,9 @@ describe('colonization (C-5)', () => {
     expect(settingsError({ maxInitialPlanets: null, planetsPerTech: null })).toBeNull();
     expect(settingsError({ maxAdditionalPlanets: 2.5 })?.code).toBe('setting_invalid');
     expect(settingsError({ planetsPerTech: -1 })?.code).toBe('setting_invalid');
+    expect(settingsError({ metalStart: 10000, crystalStart: null })).toBeNull();
+    expect(settingsError({ metalStart: 1.5 })?.code).toBe('setting_invalid');
+    expect(startResourcesOf({})).toEqual({ 901: 5000, 902: 1500, 903: 0 });
+    expect(startResourcesOf({ metalStart: 500, crystalStart: 500 })).toEqual({ 901: 500, 902: 500, 903: 0 });
   });
 });

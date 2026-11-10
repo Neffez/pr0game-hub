@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Admins können die Startressourcen neuer Planeten pro Universum eintragen (Standard 5.000 Metall, 1.500 Kristall). Die Bauliste vor dem Start rechnet damit.',
+        en: 'Admins can set the start resources of new planets per universe (default 5,000 metal, 1,500 crystal). The build order before the start uses them.',
+      },
+      {
+        kind: 'new',
         de: 'Universum vor dem Start: Du kannst deine pr0plan-Bauliste schon importieren und dir den Zeitplan ab dem Start anzeigen lassen. Nach dem ersten Sync ordnest du die Planeten der Liste deinen echten Planeten zu. Im Menü steht bis zum Start nur, was schon geht; Synchronisieren zeigt, wann das Universum startet.',
         en: 'Universe before its start: you can already import your pr0plan build order and see its timeline from the start. After your first sync you assign the planets of the list to your real planets. Until the start the menu shows only what already works; Sync tells you when the universe starts.',
       },

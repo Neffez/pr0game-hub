@@ -21,7 +21,8 @@ describe('planned planets', () => {
     const key = plannedKey(1);
     const order: BuildOrder = { base: { planets: { [key]: { 4: 1 } }, research: {} }, planets: { [key]: [{ id: 'm', kind: 'building', element: 1 }, { id: 'm2', kind: 'building', element: 1 }] } };
     const start = 1_000_000;
-    const sim = simulate(order, hub([plannedPlanet(order, key, start)]), { now: start });
+    const sim = simulate(order, hub([plannedPlanet(order, key, start, { resources: { 901: 500, 902: 500, 903: 0 } })]), { now: start });
+    expect(plannedPlanet(order, key, start).planet.resources).toEqual({ 901: 5000, 902: 1500, 903: 0 });
     // metal mine 1 costs 60/15: affordable with the start resources right away
     expect(sim.steps[0]).toMatchObject({ state: 'planned', target: 1, start });
     expect(sim.steps[1]).toMatchObject({ state: 'planned', target: 2 });
