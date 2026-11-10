@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import {
-  baseFromFile, baseFromHub, compareSettings, ImportError, parsePr0plan, toBuildOrder, type Base, type HubState, type Pr0planImport,
+  baseFromFile, baseFromHub, compareSettings, ImportError, parsePr0plan, plannedKey, toBuildOrder, type Base, type HubState, type Pr0planImport,
 } from '@pr0hub/planner';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -12,7 +12,8 @@ import type { StoredBuildOrder } from './BuildOrder.vue';
 /**
  * Import of a pr0plan build order (its JSON download, with or without settings): file or pasted text, each pr0plan
  * planet onto one of the viewer's planets, where the start levels come from, and the differences between the file's
- * settings and the hub (the hub's values are used).
+ * settings and the hub (the hub's values are used). A planet without coordinates yet (before the start, or a colony
+ * to come) is imported as a planned planet and assigned to a synced one later.
  */
 type HubPlanetLike = HubState['planets'][number];
 const props = defineProps<{ hub: HubState; replaces: boolean }>();
@@ -48,11 +49,16 @@ const imp = computed(() => (parsed.value && 'imp' in parsed.value ? parsed.value
 /** the viewer's planets (research and production need planets, not moons) */
 const planets = computed(() => props.hub.planets.filter((p) => p.type === 'planet'));
 const label = (p: HubPlanetLike) => `${p.name ? p.name + ' ' : ''}[${p.coords.g}:${p.coords.s}:${p.coords.p}]`;
-/** pr0plan planet id -> hub planet key; by order (pr0plan's planet 1 is the home planet, the first of the empire) */
+/**
+ * pr0plan planet id -> hub planet key; by order (pr0plan's planet 1 is the home planet, the first of the empire),
+ * planets beyond the synced ones as planned planets (`plannedKey`)
+ */
 const mapping = ref<Record<string, string | null>>({});
+/** pr0plan numbers its planets: those can become planned planets */
+const canPlan = (id: string) => /^\d{1,2}$/.test(id);
 watch(imp, (i) => {
   if (!i) return;
-  mapping.value = Object.fromEntries(i.planets.map((p, n) => [p.id, planets.value[n]?.key ?? null]));
+  mapping.value = Object.fromEntries(i.planets.map((p, n) => [p.id, planets.value[n]?.key ?? (canPlan(p.id) ? plannedKey(p.id) : null)]));
   basis.value = i.settings ? 'file' : 'hub';
 });
 type Basis = 'file' | 'hub' | 'zero';
@@ -116,6 +122,7 @@ async function submit() {
           <select v-model="mapping[p.id]" :aria-label="t('buildOrder.mapTo')">
             <option :value="null">{{ t('buildOrder.skipPlanet') }}</option>
             <option v-for="h in planets" :key="h.key" :value="h.key">{{ label(h) }}</option>
+            <option v-if="canPlan(p.id)" :value="plannedKey(p.id)">{{ t('buildOrder.plannedOption') }}</option>
           </select>
         </div>
         <p v-if="mappedTwice" class="warn small">{{ t('buildOrder.mappedTwice') }}</p>

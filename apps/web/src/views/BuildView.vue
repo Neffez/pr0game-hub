@@ -27,6 +27,7 @@ import { tables, useLiveReload } from '../live';
  * resources and when they are there (production per hour up to the storage, plus fleets landing on the planet), build
  * or research time. An alert per element notifies (bell, push, Discord) once the next level is affordable. A third tab
  * lists ships, defense and missiles like the shipyard: count, cost and time per unit, how many fit now.
+ * Before the universe starts only the build order is there (imported from pr0plan, planned without synced planets).
  */
 interface C3 {
   g: number;
@@ -74,7 +75,7 @@ interface Data {
 }
 
 const { t, locale } = useI18n();
-const { uni } = useUni();
+const { uni, ctx } = useUni();
 const route = useRoute();
 const router = useRouter();
 const mobile = useMobile();
@@ -85,9 +86,12 @@ useLiveReload(load, tables('empire', 'overview', 'buildings', 'research', 'fleet
 type Tab = 'buildings' | 'research' | 'ships' | 'order' | 'advisor' | 'defense';
 const TABS: Tab[] = ['buildings', 'research', 'ships', 'order', 'advisor', 'defense'];
 const storedTab = useStored<Tab>('build.tab', 'buildings');
+const clockNow = useClock();
+/** before the start nothing is synced: only the build order can be planned */
+const started = computed(() => (ctx.value?.universe.startsAt ?? 0) <= clockNow.value);
 /** the tab from the link (push notification, bell), else the last one */
 const tab = computed<Tab>({
-  get: () => (TABS.includes(route.query.tab as Tab) ? (route.query.tab as Tab) : storedTab.value),
+  get: () => (!started.value ? 'order' : TABS.includes(route.query.tab as Tab) ? (route.query.tab as Tab) : storedTab.value),
   set: (v) => {
     storedTab.value = v;
     router.replace({ query: { ...route.query, tab: v } });
@@ -268,17 +272,19 @@ const costClass = (b: { missing: Record<number, number> }, res: number) => (b.mi
       </Hint>
     </template>
     <div class="seg build-tabs">
-      <button data-tour="build-tab-buildings" :class="{ active: tab === 'buildings' }" @click="tab = 'buildings'">{{ t('buildings.tabBuildings') }}</button>
-      <button data-tour="build-tab-research" :class="{ active: tab === 'research' }" @click="tab = 'research'">{{ t('buildings.tabResearch') }}</button>
-      <button data-tour="build-tab-ships" :class="{ active: tab === 'ships' }" @click="tab = 'ships'">{{ t('buildings.tabShips') }}</button>
+      <button v-if="started" data-tour="build-tab-buildings" :class="{ active: tab === 'buildings' }" @click="tab = 'buildings'">{{ t('buildings.tabBuildings') }}</button>
+      <button v-if="started" data-tour="build-tab-research" :class="{ active: tab === 'research' }" @click="tab = 'research'">{{ t('buildings.tabResearch') }}</button>
+      <button v-if="started" data-tour="build-tab-ships" :class="{ active: tab === 'ships' }" @click="tab = 'ships'">{{ t('buildings.tabShips') }}</button>
       <button data-tour="build-tab-order" :class="{ active: tab === 'order' }" @click="tab = 'order'">{{ t('buildings.tabOrder') }}</button>
-      <button data-tour="build-tab-advisor" :class="{ active: tab === 'advisor' }" @click="tab = 'advisor'">{{ t('buildings.tabAdvisor') }}</button>
-      <button data-tour="build-tab-defense" :class="{ active: tab === 'defense' }" @click="tab = 'defense'">{{ t('buildings.tabDefense') }}</button>
+      <button v-if="started" data-tour="build-tab-advisor" :class="{ active: tab === 'advisor' }" @click="tab = 'advisor'">{{ t('buildings.tabAdvisor') }}</button>
+      <button v-if="started" data-tour="build-tab-defense" :class="{ active: tab === 'defense' }" @click="tab = 'defense'">{{ t('buildings.tabDefense') }}</button>
     </div>
   </PageHeader>
 
   <div v-if="error" class="error">{{ error }}</div>
-  <div v-else-if="data && !planets.length" class="card muted">{{ t('buildings.empty') }}</div>
+  <div v-else-if="data && !planets.length && tab !== 'order'" class="card muted">{{ t('buildings.empty') }}</div>
+  <!-- no synced planet (before the start): the build order with its planned planets -->
+  <BuildOrder v-if="data && !current && tab === 'order'" :hub="data" :planet-key="null" :mobile="mobile" />
 
   <template v-if="data && current">
     <div class="card">

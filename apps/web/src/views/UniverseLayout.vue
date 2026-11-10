@@ -58,9 +58,16 @@ const clock = useClock();
 const ended = computed(() => endedAt.value != null && clock.value >= endedAt.value);
 const started = computed(() => startsAt.value == null || clock.value >= startsAt.value);
 const running = computed(() => started.value && !ended.value);
-/** pages of the account and the hub that work before the start (alliance admins set up their members there) */
-const OPEN_BEFORE_START = ['admin', 'account', 'changelog'];
-const waiting = computed(() => !started.value && !OPEN_BEFORE_START.includes(route.path.split('/')[2] ?? ''));
+/**
+ * Pages that work before the start: the account and the hub (alliance admins set up their members there) and what
+ * needs no synced data (build & research: the build order from pr0plan). The menu shows only these and the sync,
+ * which tells when syncing becomes possible.
+ */
+const OPEN_BEFORE_START = ['admin', 'account', 'changelog', 'build'];
+const page = computed(() => route.path.split('/')[2] ?? '');
+const waiting = computed(() => !started.value && !OPEN_BEFORE_START.includes(page.value));
+/** a sidebar entry is there: before the start only the pages that work then (and the sync with its notice) */
+const shown = (to: string) => (started.value ? running.value || to !== 'paste' : to === 'paste' || OPEN_BEFORE_START.includes(to));
 
 function load() {
   // a link with the group (push notification) opens that alliance
@@ -196,8 +203,16 @@ watch(() => route.path, () => {
 });
 /** Global search: Ctrl+K / Cmd+K anywhere, "/" outside of text fields. */
 const searchOpen = ref(false);
+/** sidebar entries; a section without entries is left out */
+const visibleLinks = computed(() =>
+  links.filter((l, i) => (l.to ? shown(l.to) : links.slice(i + 1, nextSection(i)).some((x) => x.to && shown(x.to)))),
+);
+function nextSection(i: number) {
+  const n = links.findIndex((x, j) => j > i && x.section);
+  return n < 0 ? links.length : n;
+}
 const searchPages = computed(() => [
-  ...links.filter((l): l is { to: string; label: string; icon: string } => !!l.to && (running.value || l.to !== 'paste')),
+  ...links.filter((l): l is { to: string; label: string; icon: string } => !!l.to && shown(l.to)),
   { to: 'account', label: 'user', icon: 'user' },
   { to: 'changelog', label: 'changelog', icon: 'changelog' },
   ...(session.me?.user?.isAdmin || ctx.value?.group.role === 'admin' ? [{ to: 'admin', label: 'admin', icon: 'admin' }] : []),
@@ -244,11 +259,13 @@ const moreTitle = computed(() =>
     planCount.value.planning ? t('nav.plansPlanning', { n: planCount.value.planning }, planCount.value.planning) : '',
   ].filter(Boolean).join(' · ') || undefined,
 );
-const tabs = [
+const TABS = [
   { to: 'overview', label: 'overview', icon: 'overview' },
   { to: 'imperium', label: 'imperiumShort', icon: 'imperium' },
   { to: 'activity', label: 'activity', icon: 'activity' },
 ];
+/** before the start: the sync (with its notice) and build & research instead */
+const tabs = computed(() => (started.value ? TABS : [{ to: 'paste', label: 'syncShort', icon: 'sync' }, { to: 'build', label: 'build', icon: 'buildings' }]));
 </script>
 
 <template>
@@ -283,7 +300,7 @@ const tabs = [
         <Icon name="search" :size="15" /><span>{{ t('search.button') }}</span><kbd>{{ shortcut }}</kbd>
       </button>
       <nav>
-        <template v-for="l in links.filter((x) => running || x.to !== 'paste')" :key="l.to ?? l.section">
+        <template v-for="l in visibleLinks" :key="l.to ?? l.section">
           <div v-if="l.section" class="section">{{ t(`nav.${l.section}`) }}</div>
           <RouterLink v-else :to="`/${uni}/${l.to}`">
             <Icon :name="l.icon!" />{{ t(`nav.${l.label}`) }}
@@ -309,8 +326,12 @@ const tabs = [
         <div v-else-if="!started && !waiting" class="warn ended-banner">{{ t('nav.universeStarts', { time: dateTime(startsAt) }) }}</div>
         <div v-if="waiting" class="card starts-card">
           <h2>{{ ctx.universe.name }}</h2>
+          <p class="starts-countdown">{{ t('nav.startsIn') }} <Countdown :to="startsAt!" /></p>
           <p>{{ t('nav.universeStarts', { time: dateTime(startsAt) }) }}</p>
-          <p class="starts-countdown"><Countdown :to="startsAt!" /></p>
+          <p class="muted">
+            {{ t('nav.beforeStartOpen') }}
+            <RouterLink :to="{ path: `/${uni}/build`, query: { tab: 'order' } }">{{ t('nav.beforeStartBuildOrder') }}</RouterLink>
+          </p>
         </div>
         <RouterView v-else :key="reloadKey" />
         <PlayerDialog />

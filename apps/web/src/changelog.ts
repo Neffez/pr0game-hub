@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Universum vor dem Start: Du kannst deine pr0plan-Bauliste schon importieren und dir den Zeitplan ab dem Start anzeigen lassen. Nach dem ersten Sync ordnest du die Planeten der Liste deinen echten Planeten zu. Im Menü steht bis zum Start nur, was schon geht; Synchronisieren zeigt, wann das Universum startet.',
+        en: 'Universe before its start: you can already import your pr0plan build order and see its timeline from the start. After your first sync you assign the planets of the list to your real planets. Until the start the menu shows only what already works; Sync tells you when the universe starts.',
+      },
+      {
+        kind: 'new',
         de: 'Galaxie-Browser: Die Balken über den Systemen zeigen auf Wunsch statt der Anzahl Planeten die Summe der Gesamtpunkte der Spieler im System. Umschalten mit „Planeten“ / „Punkte“ über der Leiste.',
         en: 'Galaxy browser: the bars above the systems can show the summed total points of the players in the system instead of the number of planets. Switch with "Planets" / "Points" above the bar.',
       },

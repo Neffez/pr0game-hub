@@ -14,7 +14,9 @@ info:
     optional; both epoch seconds in the universe). Before the start, other requests than GET to its routes are refused
     with 409 (`universe_not_started`). From the end on it is frozen: GET requests keep working and show the data as at
     that time; other requests are refused with 409 (`universe_ended`). Exceptions in both cases:
-    the battle simulator and the presence and hidden-buildings routes, which store no game data.
+    the battle simulator and the presence and hidden-buildings routes, which store no game data. The caller's build
+    order (`/api/{uni}/build-order` and `/api/{uni}/build-order/assign`) can also be changed before the start, but not
+    after the end.
 
     **Group scope:** For universe routes, send `X-Hub-Group` with the alliance group id, or `group` as a query parameter.
     If omitted, the first group you belong to in that universe is used.
@@ -3610,7 +3612,10 @@ paths:
     put:
       tags: [Universe]
       operationId: putBuildOrder
-      description: Imports a build order, replacing the caller's one in the group. The client maps the file's planets onto hub planets and sets the base.
+      description: >-
+        Imports a build order, replacing the caller's one in the group. The client maps the file's planets onto hub
+        planets and sets the base. Planets without coordinates yet (before the start, or a colony still to come) use the
+        planned key `0:0:<n>:planet` (n: pr0plan planet id) and are later moved with `/api/{uni}/build-order/assign`.
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
@@ -3677,6 +3682,38 @@ paths:
                 type: object
                 properties:
                   buildOrder: { $ref: '#/components/schemas/StoredBuildOrder' }
+  /api/{uni}/build-order/assign:
+    post:
+      tags: [Universe]
+      operationId: assignBuildOrderPlanet
+      description: >-
+        Assigns a planned planet of the caller's build order (key `0:0:<n>:planet`) to a planet: its steps and base and
+        the transports to it move to `to`; the import's planet mapping in `meta` follows.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [from, to]
+              properties:
+                from: { type: string, description: 'Planned planet key, `0:0:<n>:planet`', example: '0:0:1:planet' }
+                to: { type: string, description: 'Hub planet key `g:s:p:type`', example: '1:100:8:planet' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  buildOrder: { $ref: '#/components/schemas/StoredBuildOrder' }
+        '400': { description: 'No planned planet as `from` or no valid planet key as `to` (`build_order_invalid`)' }
+        '404': { description: 'The caller has no build order in the group (`build_order_not_found`)' }
+        '409': { description: '`from` is not in the build order or `to` already has steps (`build_order_planet_taken`)' }
   /api/{uni}/market:
     get:
       tags: [Universe]

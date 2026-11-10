@@ -92,6 +92,10 @@ describe('ended universe', () => {
     expect(me.groups[0].universe_starts_at).toBe(t + 3600);
     expect((await ingest(html)).json().code).toBe('universe_not_started');
     expect((await app.inject({ method: 'GET', url: '/hub/api/u8/notifications', headers })).json()).toEqual([]);
+    // the own build order can already be planned (planned planets without coordinates)
+    const planned = { base: { planets: {}, research: {} }, planets: { '0:0:1:planet': [{ id: 'a', kind: 'building', element: 1 }] } };
+    expect((await app.inject({ method: 'PUT', url: '/hub/api/u8/build-order', headers, payload: { order: planned } })).statusCode).toBe(200);
+    expect((await app.inject({ method: 'DELETE', url: '/hub/api/u8/build-order', headers })).statusCode).toBe(200);
 
     // the end must come after the start; nothing is changed then
     const bad = await put({ endedAt: t + 60 });
@@ -107,6 +111,7 @@ describe('ended universe', () => {
     // the end has come: frozen
     expect((await put({ endedAt: t - 1 })).statusCode).toBe(200);
     expect((await ingest(html)).json().code).toBe('universe_ended');
+    expect((await app.inject({ method: 'DELETE', url: '/hub/api/u8/build-order', headers })).json().code).toBe('universe_ended');
     // without an end (permanent universe) and start it runs again
     expect((await put({ startsAt: null, endedAt: null })).statusCode).toBe(200);
     expect(await context()).toMatchObject({ startsAt: null, endedAt: null });

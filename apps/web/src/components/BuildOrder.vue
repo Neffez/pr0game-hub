@@ -11,9 +11,11 @@ export interface StoredBuildOrder {
 </script>
 
 <script setup lang="ts">
-import { compareSettings, simulate, type HubState, type Pr0planImport, type Step, type StepResult } from '@pr0hub/planner';
+import {
+  compareSettings, isPlannedKey, plannedNumber, plannedPlanet, simulate, type HubState, type Pr0planImport, type Step, type StepResult,
+} from '@pr0hub/planner';
 import { RESOURCES } from '@pr0hub/core/tech';
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
 import { useClock } from '../clock';
@@ -28,8 +30,10 @@ import Ticker from './Ticker.vue';
  * Build order tab of build & research: the steps of the chosen planet in order with their timeline from the hub's
  * state (start, end, what they wait for), the next one highlighted; reorder by dragging (desktop) or the arrows,
  * check off, deactivate, remove. Import from pr0plan in a dialog; the file's settings are compared with the hub's.
+ * Planned planets (no coordinates yet: before the start, or a colony to come) are simulated as new planets from the
+ * universe's start and are assigned to a synced planet later. `planetKey` null: no synced planet (yet).
  */
-const props = defineProps<{ hub: HubState; planetKey: string; mobile: boolean }>();
+const props = defineProps<{ hub: HubState; planetKey: string | null; mobile: boolean }>();
 const { t, locale } = useI18n();
 const { ctx, uni } = useUni();
 /** pr0plan as the universe settings link it (empty: none) */
@@ -43,12 +47,34 @@ const importOpen = ref(false);
 const showDone = useStored('buildOrder.showDone', false);
 
 const now = useClock();
-/** the timeline is planned anew every minute (and on every change) */
-const minute = computed(() => Math.floor(now.value / 60) * 60);
-const sim = computed(() => (stored.value ? simulate(stored.value.order, props.hub, { now: minute.value }) : null));
+/** the timeline is planned anew every minute (and on every change); before the start it begins at the start */
+const minute = computed(() => Math.max(Math.floor(now.value / 60) * 60, ctx.value?.universe.startsAt ?? 0));
+
+/** planets of the build order without coordinates yet, by their pr0plan number */
+const plannedKeys = computed(() =>
+  Object.keys(stored.value?.order.planets ?? {}).filter(isPlannedKey).sort((a, b) => plannedNumber(a)! - plannedNumber(b)!),
+);
+const plannedName = (key: string) => {
+  const n = plannedNumber(key);
+  return stored.value?.meta.names?.[String(n)] || t('buildOrder.plannedPlanet', { n });
+};
+/** the hub's planets plus the planned ones as new planets (start resources, the file's temperature) */
+const hubAll = computed<HubState>(() => {
+  const s = stored.value;
+  if (!s || !plannedKeys.value.length) return props.hub;
+  const settings = s.meta.settings as Pr0planImport['settings'] | undefined;
+  const planned = plannedKeys.value.map((k) => plannedPlanet(s.order, k, minute.value, { name: plannedName(k), temp: settings?.planets[String(plannedNumber(k))]?.temp }));
+  return { ...props.hub, planets: [...props.hub.planets, ...planned] };
+});
+/** a planned planet picked to look at; a planet chosen on the page shows that one again */
+const picked = ref<string | null>(null);
+watch(() => props.planetKey, () => (picked.value = null));
+const planetKey = computed(() => (picked.value && plannedKeys.value.includes(picked.value) ? picked.value : (props.planetKey ?? plannedKeys.value[0] ?? '')));
+
+const sim = computed(() => (stored.value ? simulate(stored.value.order, hubAll.value, { now: minute.value }) : null));
 const resultOf = computed(() => new Map((sim.value?.steps ?? []).map((r) => [r.id, r])));
-const steps = computed<Step[]>(() => stored.value?.order.planets[props.planetKey] ?? []);
-const nextId = computed(() => sim.value?.next[props.planetKey] ?? null);
+const steps = computed<Step[]>(() => stored.value?.order.planets[planetKey.value] ?? []);
+const nextId = computed(() => sim.value?.next[planetKey.value] ?? null);
 interface Row {
   step: Step;
   result: StepResult | undefined;
@@ -61,17 +87,41 @@ const shownRows = computed(() => (showDone.value ? rows.value : rows.value.filte
 const end = computed(() => Math.max(0, ...rows.value.map((r) => r.result?.end ?? 0)) || null);
 const invalidCount = computed(() => rows.value.filter((r) => r.result?.state === 'invalid').length);
 
-/** planets of the build order the hub has no synced data for */
-const missingPlanets = computed(() => Object.keys(stored.value?.order.planets ?? {}).filter((k) => !props.hub.planets.some((p) => p.key === k)));
+/** planets of the build order the hub has no synced data for (planned planets are simulated instead) */
+const missingPlanets = computed(() => Object.keys(stored.value?.order.planets ?? {}).filter((k) => !isPlannedKey(k) && !props.hub.planets.some((p) => p.key === k)));
+const openOf = (list: Step[]) => list.filter((s) => { const r = resultOf.value.get(s.id); return r && r.state !== 'done' && r.state !== 'queued'; }).length;
 const otherPlanets = computed(() =>
   Object.entries(stored.value?.order.planets ?? {})
-    .filter(([k, list]) => k !== props.planetKey && list.length && props.hub.planets.some((p) => p.key === k))
-    .map(([k, list]) => ({ key: k, open: list.filter((s) => { const r = resultOf.value.get(s.id); return r && r.state !== 'done' && r.state !== 'queued'; }).length })),
+    .filter(([k, list]) => k !== planetKey.value && list.length && props.hub.planets.some((p) => p.key === k))
+    .map(([k, list]) => ({ key: k, open: openOf(list) })),
 );
 const planetLabel = (key: string) => {
+  if (isPlannedKey(key)) return plannedName(key);
   const p = props.hub.planets.find((x) => x.key === key);
   return p ? `${p.name ? p.name + ' ' : ''}[${p.coords.g}:${p.coords.s}:${p.coords.p}]` : key;
 };
+
+/** synced planets a planned planet can be assigned to: planets without steps of their own */
+const assignable = computed(() => props.hub.planets.filter((p) => p.type === 'planet' && !stored.value?.order.planets[p.key]?.length));
+const assignTo = ref<Record<string, string | null>>({});
+watch([plannedKeys, assignable], () => {
+  // suggested by order: pr0plan's planet 1 is the home planet, the first one of the empire
+  const free = assignable.value.map((p) => p.key);
+  assignTo.value = Object.fromEntries(plannedKeys.value.map((k) => [k, free.includes(assignTo.value[k] ?? '') ? assignTo.value[k] : (free[plannedNumber(k)! - 1] ?? null)]));
+}, { immediate: true });
+async function assign(from: string) {
+  const to = assignTo.value[from];
+  if (!to) return;
+  saving.value = true;
+  try {
+    data.value = await uniApi<{ buildOrder: StoredBuildOrder | null }>(uni.value, '/build-order/assign', { method: 'POST', body: { from, to } });
+    picked.value = null;
+  } catch (e) {
+    error.value = (e as Error).message;
+  } finally {
+    saving.value = false;
+  }
+}
 const diffs = computed(() => {
   const s = stored.value;
   if (!s?.meta.settings || !s.meta.mapping) return [];
@@ -114,7 +164,7 @@ const saving = ref(false);
 async function save(list: Step[]) {
   const s = stored.value;
   if (!s) return;
-  const planets = { ...s.order.planets, [props.planetKey]: list };
+  const planets = { ...s.order.planets, [planetKey.value]: list };
   // right away on the page, then on the server
   data.value = { buildOrder: { ...s, order: { ...s.order, planets } } };
   saving.value = true;
@@ -185,6 +235,24 @@ function onDrop(i: number) {
         {{ d.key === 'temp' ? t('buildOrder.diff.temp', { planet: planetLabel(d.planet!), file: d.file, hub: d.hub }) : t(`buildOrder.diff.${d.key}`, { file: d.file, hub: d.hub }) }}
       </span>
       <span class="muted">{{ t('buildOrder.hubWins') }}</span>
+    </div>
+    <div v-if="plannedKeys.length" class="small bo-planned" data-tour="build-order-planned">
+      <p class="muted" style="margin: 0">{{ assignable.length ? t('buildOrder.plannedAssignHint') : t('buildOrder.plannedHint') }}</p>
+      <div class="row bo-planned-row">
+        <button v-if="props.planetKey" class="small" :class="{ primary: planetKey === props.planetKey }" @click="picked = null">{{ planetLabel(props.planetKey) }}</button>
+        <button v-for="k in plannedKeys" :key="k" class="small" :class="{ primary: k === planetKey }" @click="picked = k">
+          {{ plannedName(k) }} ({{ t('buildOrder.open', { n: openOf(stored!.order.planets[k]) }) }})
+        </button>
+      </div>
+      <div v-for="k in assignable.length ? plannedKeys : []" :key="`a-${k}`" class="row bo-planned-row">
+        <span>{{ plannedName(k) }}</span>
+        <span class="muted">→</span>
+        <select v-model="assignTo[k]" :aria-label="t('buildOrder.mapTo')">
+          <option :value="null">{{ t('buildOrder.assignPick') }}</option>
+          <option v-for="p in assignable" :key="p.key" :value="p.key">{{ planetLabel(p.key) }}</option>
+        </select>
+        <button class="small" :disabled="!assignTo[k] || saving" @click="assign(k)">{{ t('buildOrder.assign') }}</button>
+      </div>
     </div>
     <p v-if="missingPlanets.length" class="warn small" style="margin: 8px 0 0">{{ t('buildOrder.missingPlanets', { list: missingPlanets.join(', ') }) }}</p>
     <p v-if="otherPlanets.length" class="small muted" style="margin: 8px 0 0">
@@ -266,6 +334,8 @@ function onDrop(i: number) {
 .bo-warn { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 8px; padding: 8px 10px; border: 1px solid var(--warn, #c90); border-radius: 8px; }
 .bo-diff { white-space: nowrap; }
 .bo-other { margin-left: 8px; white-space: nowrap; }
+.bo-planned { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+.bo-planned-row { gap: 6px; flex-wrap: wrap; }
 .bo-filters { margin: 0 0 8px; }
 .bo-step { margin-bottom: 6px; padding: 8px 12px; }
 .bo-step.next { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }

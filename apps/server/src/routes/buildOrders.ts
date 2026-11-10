@@ -1,4 +1,4 @@
-import { validateBuildOrder } from '@pr0hub/planner';
+import { assignPlanet, isPlannedKey, validateBuildOrder } from '@pr0hub/planner';
 import type { FastifyInstance } from 'fastify';
 import { HttpError } from '../auth.js';
 import { withUnits } from '@pr0hub/core/units';
@@ -11,6 +11,8 @@ import { contextOf } from './util.js';
 
 /** Meta data of an import (file settings, mapping) is kept as sent, up to this size. */
 const META_MAX = 64 * 1024;
+/** the build order is the member's own planning: it can be set up before the universe starts */
+const beforeStart = { config: { allowBeforeStart: true } };
 
 /**
  * The viewer's build order (imported from pr0plan, shown under build & research): read, import or replace, change
@@ -33,7 +35,7 @@ export function buildOrderRoutes(app: FastifyInstance, db: DB) {
   });
 
   /** Imports a build order: replaces the viewer's one in this group. */
-  app.put<{ Params: { uni: string }; Body: { order?: unknown; meta?: unknown } }>('/api/:uni/build-order', async (req) => {
+  app.put<{ Params: { uni: string }; Body: { order?: unknown; meta?: unknown } }>('/api/:uni/build-order', beforeStart, async (req) => {
     const ctx = ctxOf(req);
     const res = withUnits(catalogOf(ctx.universe), () => validateBuildOrder(req.body?.order));
     if ('error' in res) throw new HttpError(400, 'build_order_invalid', res.error);
@@ -50,7 +52,7 @@ export function buildOrderRoutes(app: FastifyInstance, db: DB) {
   });
 
   /** Replaces the steps (new order, done and deactivated flags, removed steps); base and meta stay. */
-  app.patch<{ Params: { uni: string }; Body: { planets?: unknown } }>('/api/:uni/build-order', async (req) => {
+  app.patch<{ Params: { uni: string }; Body: { planets?: unknown } }>('/api/:uni/build-order', beforeStart, async (req) => {
     const ctx = ctxOf(req);
     const stored = buildOrderOf(db, ctx, ctx.user.id);
     if (!stored) throw new HttpError(404, 'build_order_not_found', 'No build order');
@@ -61,7 +63,30 @@ export function buildOrderRoutes(app: FastifyInstance, db: DB) {
     return result(ctx);
   });
 
-  app.delete<{ Params: { uni: string } }>('/api/:uni/build-order', async (req) => {
+  /**
+   * Assigns a planned planet (key `0:0:<n>:planet`, imported before its coordinates were known) to a planet: its
+   * steps, base and the transports to it move there.
+   */
+  app.post<{ Params: { uni: string }; Body: { from?: unknown; to?: unknown } }>('/api/:uni/build-order/assign', beforeStart, async (req) => {
+    const ctx = ctxOf(req);
+    const { from, to } = req.body ?? {};
+    if (typeof from !== 'string' || typeof to !== 'string' || !isPlannedKey(from)) throw new HttpError(400, 'build_order_invalid', 'Expected a planned planet and a target');
+    const stored = buildOrderOf(db, ctx, ctx.user.id);
+    if (!stored) throw new HttpError(404, 'build_order_not_found', 'No build order');
+    const order = assignPlanet(stored.order, from, to);
+    if (!order) throw new HttpError(409, 'build_order_planet_taken', 'The planet is not in the build order or the target already has steps');
+    const res = withUnits(catalogOf(ctx.universe), () => validateBuildOrder(order));
+    if ('error' in res) throw new HttpError(400, 'build_order_invalid', res.error);
+    const meta = stored.meta as { mapping?: Record<string, string | null> };
+    if (meta.mapping) meta.mapping = Object.fromEntries(Object.entries(meta.mapping).map(([id, k]) => [id, k === from ? to : k]));
+    db.prepare('UPDATE build_orders SET data = ?, meta = ?, updated_at = ? WHERE group_id = ? AND user_id = ?').run(
+      JSON.stringify(res.order), JSON.stringify(meta), now(), ctx.groupId, ctx.user.id,
+    );
+    changed(ctx);
+    return result(ctx);
+  });
+
+  app.delete<{ Params: { uni: string } }>('/api/:uni/build-order', beforeStart, async (req) => {
     const ctx = ctxOf(req);
     db.prepare('DELETE FROM build_orders WHERE group_id = ? AND user_id = ?').run(ctx.groupId, ctx.user.id);
     changed(ctx);

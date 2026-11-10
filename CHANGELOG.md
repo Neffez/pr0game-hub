@@ -4,6 +4,17 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-10
 
+- Universes before their start: the menu shows only what works without synced data (build & research with the
+  build order, sync, account, admin, what's new); the sync and every other page show when the universe starts and
+  that nothing can be synced until then, with a link to the build order.
+  - Build order before the start: a pr0plan file can be imported without synced planets. Planets without
+    coordinates get the planned key `0:0:<n>:planet` (`@pr0hub/planner` `planned.ts`) and are simulated as new
+    planets from the universe's start (game defaults: 500 metal, 500 crystal, temperature from the file or 50);
+    build & research shows only the build order tab until the start.
+  - After the first sync a planned planet is assigned to a synced planet (suggested by order) with the new
+    `POST /api/{uni}/build-order/assign`; steps, base, transports to it and the import's mapping move along.
+  - Build order routes carry the new route option `allowBeforeStart`: writable before the start, not after the end.
+
 - Galaxy browser: the points mode of the system strip scales the bars linearly to the galaxy's top system instead
   of on a square-root scale.
 

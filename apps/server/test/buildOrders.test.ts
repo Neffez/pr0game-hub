@@ -133,6 +133,20 @@ describe('build order', () => {
     expect((await call('GET', '/u8/build-order', h.carol)).json().buildOrder.order.planets[HOME][0].done).toBe(true);
   });
 
+  it('assigns a planned planet to a synced one', async () => {
+    const P1 = '0:0:1:planet';
+    const planned = { base: { planets: { [P1]: { 1: 10 } }, research: {} }, planets: { [P1]: [{ id: 'p', kind: 'building', element: 1 }] } };
+    await call('PUT', '/u8/build-order', h.dave, { order: planned, meta: { mapping: { 1: P1 } } });
+    // no notification for a planet without coordinates
+    expect((await call('GET', '/u8/notifications', h.dave)).json().filter((n: { kind: string }) => n.kind === 'buildorder')).toEqual([]);
+    expect((await call('POST', '/u8/build-order/assign', h.dave, { from: HOME, to: P1 })).statusCode).toBe(400);
+    expect((await call('POST', '/u8/build-order/assign', h.dave, { from: '0:0:2:planet', to: HOME })).json().code).toBe('build_order_planet_taken');
+    const res = (await call('POST', '/u8/build-order/assign', h.dave, { from: P1, to: HOME })).json();
+    expect(res.buildOrder.order).toEqual({ base: { planets: { [HOME]: { 1: 10 } }, research: {} }, planets: { [HOME]: planned.planets[P1] } });
+    expect(res.buildOrder.meta.mapping).toEqual({ 1: HOME });
+    await call('DELETE', '/u8/build-order', h.dave);
+  });
+
   it('respects the setting and deletes', async () => {
     expect((await call('POST', '/auth/push-settings', h.carol, { buildOrder: false })).json()).toMatchObject({ buildOrder: false });
     await call('PATCH', '/u8/build-order', h.carol, { planets: { [HOME]: [{ id: 'c', kind: 'building', element: 22 }] } });

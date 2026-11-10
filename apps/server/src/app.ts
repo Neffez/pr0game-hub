@@ -5,7 +5,7 @@ import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify';
 import { existsSync } from 'node:fs';
 import { relative, sep } from 'node:path';
 import { bootstrapAdmin, HttpError, loadRequestUser } from './auth.js';
-import { catalogOf, requireRunning } from './context.js';
+import { catalogOf, isStarted, requireRunning } from './context.js';
 import { catalogRoutes } from './routes/catalog.js';
 import { openapiRoutes } from './routes/openapi.js';
 import { config } from './config.js';
@@ -48,6 +48,8 @@ declare module 'fastify' {
     allowToken?: boolean;
     /** writes no game data: also allowed before the start and after the end of a universe */
     allowEnded?: boolean;
+    /** writes only the member's own planning (build order): also allowed before the start, not after the end */
+    allowBeforeStart?: boolean;
   }
   interface FastifyInstance {
     /** web push of the notifications (main.ts starts its launch reminders) */
@@ -155,7 +157,7 @@ export function buildApp(db: DB, opts: { logger?: boolean; push?: PushOptions; d
           const row = db.prepare('SELECT starts_at AS startsAt, ended_at AS endedAt FROM universes WHERE slug = ?').get(uni) as
             | { startsAt: number | null; endedAt: number | null }
             | undefined;
-          if (row) requireRunning(row);
+          if (row && !(req.routeOptions.config?.allowBeforeStart && !isStarted(row))) requireRunning(row);
         }
       });
       scope.get('/api/health', async () => ({ ok: true }));
