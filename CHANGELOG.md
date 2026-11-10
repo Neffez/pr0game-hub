@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-10
 
+- Code review of the new features (`CODEREVIEW_NEW_FEATURES.md`): a status section says that all findings are fixed,
+  which of two offered ways was taken and what stays open (colony save only at the planet limit).
+
 - Code review U-10, four small items: the colonization planner writes "(1 inactive)" instead of "(1 i)"
   (`colonize.inactiveShort`). The built-in fleet save presets "Night"/"Work" carry a mark (`builtin: night | work`,
   accepted and returned by `/api/auth/fleetsave-presets`) and show in the viewer's language instead of the one active
