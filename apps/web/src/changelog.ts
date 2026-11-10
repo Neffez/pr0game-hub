@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'CSV-Export: Namen, die wie eine Formel beginnen (z. B. mit „=“), bekommen ein Hochkomma vorangestellt, damit eine Tabellenkalkulation sie nicht ausführt.',
+        en: 'CSV export: names that start like a formula (e.g. with "=") get a leading apostrophe so a spreadsheet does not run them.',
+      },
+      {
+        kind: 'fix',
         de: 'Verteidigungsberater: Wechselst du während der Berechnung den Planeten, erscheint nicht mehr das Ergebnis des alten. Bei Angriffen im Anflug steht die Zeit bis zum Eintreffen statt „gerade eben“.',
         en: 'Defense advisor: changing the planet during the calculation no longer shows the old planet\'s result. Attacks on their way show the time until they land instead of "just now".',
       },

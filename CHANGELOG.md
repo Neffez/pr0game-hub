@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-10
 
+- Code review B-9: the CSV export (`GET /api/{uni}/export/{dataset}`) prefixes texts starting with `=`, `+`, `-`, `@`,
+  tab or carriage return with `'`. Player, planet and alliance names come from other players and would otherwise run
+  as a formula when the file is opened in a spreadsheet. Numbers are unchanged.
+
 - Code review B-4 and B-8, defense advisor: the list and the calculation count their requests together and apply only
   the newest answer, so a long calculation no longer overwrites the data of a planet or option chosen meanwhile;
   options and attacker checkboxes are locked while it runs. An attack on its way shows the time until it lands ("on

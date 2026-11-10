@@ -45,6 +45,31 @@ describe('export', () => {
     expect(row).toContain(';Alpha;DGA;"Die ""Großen""; Allianz";inactive;12345;7;');
   });
 
+  it('neutralizes texts a spreadsheet would read as a formula', async () => {
+    const { toCsv } = await import('../src/repo/export.js');
+    const csv = toCsv({
+      columns: ['name', 'points'],
+      rows: [['=HYPERLINK("http://x";"y")', -5], ['+1', 1], ['-2+3', 2], ['@SUM(A1)', 3], ['\tcmd', 4], ['Alpha-1', 5], [null, -7.5]],
+    });
+    expect(csv.split('\r\n')).toEqual([
+      'name,points',
+      // quoted for its quotes and separator, the apostrophe inside the quotes; the number stays negative
+      `"'=HYPERLINK(""http://x"";""y"")",-5`,
+      "'+1,1",
+      "'-2+3,2",
+      "'@SUM(A1),3",
+      `"'\tcmd",4`,
+      'Alpha-1,5',
+      ',-7.5',
+      '',
+    ]);
+    // a player name from the game in the download
+    db.prepare("INSERT INTO players (group_id, name) VALUES (?, '=1+1')").run(group);
+    const body = (await app.inject({ method: 'GET', url: '/hub/api/u8/export/players.csv', headers })).body;
+    expect(body).toContain(",'=1+1,");
+    db.prepare("DELETE FROM players WHERE group_id = ? AND name = '=1+1'").run(group);
+  });
+
   it('keeps reports to the asked days and the group', async () => {
     const csv = (await app.inject({ method: 'GET', url: '/hub/api/u8/export/spy-reports', headers })).body.trim().split('\r\n');
     expect(csv).toHaveLength(2);

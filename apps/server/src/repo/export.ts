@@ -185,11 +185,16 @@ export function exportAll(db: DB, ctx: GroupContext, since: number) {
   };
 }
 
-/** CSV (RFC 4180) with `sep` as separator; times stay Unix seconds, numbers unformatted. */
+/**
+ * CSV (RFC 4180) with `sep` as separator; times stay Unix seconds, numbers unformatted. Texts come from other players
+ * (player, planet and alliance names): one that a spreadsheet would read as a formula (starting with `=`, `+`, `-`,
+ * `@`, tab or carriage return) gets a leading `'`. Numbers are untouched.
+ */
 export function toCsv(t: Table, sep = ','): string {
   const cell = (v: Cell) => {
     if (v == null) return '';
-    const s = typeof v === 'boolean' ? (v ? '1' : '0') : String(v);
+    let s = typeof v === 'boolean' ? (v ? '1' : '0') : String(v);
+    if (typeof v === 'string' && /^[=+\-@\t\r]/.test(s)) s = `'${s}`;
     return /[",\n\r;\t]/.test(s) || s.includes(sep) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   return [t.columns, ...t.rows].map((r) => r.map(cell).join(sep)).join('\r\n') + '\r\n';

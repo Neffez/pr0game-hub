@@ -3067,7 +3067,8 @@ paths:
       operationId: exportDatasetCsv
       description: >-
         One dataset of `/api/{uni}/export` as CSV (attachment, UTF-8 with BOM, header row, times as Unix seconds,
-        numbers unformatted). `dataset` may end in `.csv`. Works with a read-only API token. The `players` and
+        numbers unformatted). Texts starting with `=`, `+`, `-`, `@`, tab or carriage return get a leading `'`, so a
+        spreadsheet does not read a name as a formula. `dataset` may end in `.csv`. Works with a read-only API token. The `players` and
         `planets` datasets take the overview's filters (`q`, `ally`, `inactive`, `vacation`, `minPoints`, `maxPoints`,
         for planets also `galaxy`); planets follow their owner's filters. Other datasets ignore them.
       parameters:
