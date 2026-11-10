@@ -94,12 +94,19 @@ const rows = computed<Row[]>(() => {
 });
 
 const galaxies = computed(() => settings.value.galaxies ?? 1);
+// the filter is stored for all universes: a galaxy this universe does not have is no filter
+watch(galaxies, (n) => filter.value.galaxy != null && filter.value.galaxy > n && (filter.value.galaxy = null), { immediate: true });
+/** "At most members" as a number; an emptied field (`''` from `v-model.number`) is no filter. */
+const memberLimit = computed(() => {
+  const v: unknown = filter.value.maxMembers;
+  return typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : null;
+});
 const filtered = computed(() =>
   rows.value.filter((r) => {
     const f = filter.value;
     if (f.galaxy && r.sys.g !== f.galaxy) return false;
     if (f.onlyNow && r.locked) return false;
-    if (f.maxMembers != null && f.maxMembers >= 0 && r.sys.members > f.maxMembers) return false;
+    if (memberLimit.value != null && r.sys.members > memberLimit.value) return false;
     return true;
   }),
 );
@@ -132,7 +139,7 @@ const chips = computed<FilterChip[]>(() => {
   const add = (key: keyof typeof FILTER_DEFAULTS, label: string) => out.push({ key, label, clear: () => ((filter.value as Record<string, unknown>)[key] = FILTER_DEFAULTS[key]) });
   if (f.galaxy) add('galaxy', `${t('nav.galaxy')} ${f.galaxy}`);
   if (f.onlyNow) add('onlyNow', t('colonize.onlyNow'));
-  if (f.maxMembers != null) add('maxMembers', t('colonize.maxMembersChip', { n: f.maxMembers }));
+  if (memberLimit.value != null) add('maxMembers', t('colonize.maxMembersChip', { n: memberLimit.value }));
   return out;
 });
 const resetFilters = () => (filter.value = { ...FILTER_DEFAULTS, profile: filter.value.profile, range: filter.value.range });
@@ -258,7 +265,7 @@ const nearTitle = (r: Row) => t('colonize.nearTitle', { range: data.value?.range
             <td v-if="hasBonus" class="small">{{ bonusText(r.info) }}</td>
             <td class="num">{{ pct(r.sys.coverage) }} %</td>
             <td class="num" :title="nearTitle(r)">{{ short(r.sys.targetPoints) }}</td>
-            <td class="num" :title="nearTitle(r)">{{ r.sys.targets }}<span v-if="r.sys.inactive" class="muted small"> ({{ r.sys.inactive }} i)</span></td>
+            <td class="num" :title="nearTitle(r)">{{ r.sys.targets }}<span v-if="r.sys.inactive" class="muted small"> ({{ t('colonize.inactiveShort', { n: r.sys.inactive }) }})</span></td>
             <td class="num">{{ r.sys.members }}</td>
             <td class="num small muted">{{ ago(r.sys.seen) }}</td>
             <td class="num" :title="scoreTitle(r)"><b>{{ Math.round(r.score) }}</b></td>

@@ -2,7 +2,102 @@
 
 Every commit adds its changes here, newest first, grouped by date.
 
+## 2026-11-10
+
+- Planet limit for the colony save (follow-up of code review U-3): three optional universe settings
+  `maxInitialPlanets`, `maxAdditionalPlanets` and `planetsPerTech` (game config of the same names; admin panel under
+  "Colonization", `openapi.yaml`) and `planetLimit` in `@pr0hub/core/universe` (like the game's
+  `PlayerUtil::maxPlanetCount`). With them the fleet save options (planner and attack assistant) compare the planets
+  of the empire page with the limit for its astrophysics level: below it a red warning says that the colony save
+  founds a colony, at it a note says that the fleet comes back. The colony save is offered either way; without the
+  three values (they are not assumed) the general warning stays.
+
+- Code review of the new features (`CODEREVIEW_NEW_FEATURES.md`): a status section says that all findings are fixed,
+  which of two offered ways was taken and what stays open (colony save only at the planet limit).
+
+- Code review U-10, four small items: the colonization planner writes "(1 inactive)" instead of "(1 i)"
+  (`colonize.inactiveShort`). The built-in fleet save presets "Night"/"Work" carry a mark (`builtin: night | work`,
+  accepted and returned by `/api/auth/fleetsave-presets`) and show in the viewer's language instead of the one active
+  at the first change; presets stored before under a built-in's name and times count as built-in. A hidden onboarding
+  checklist can be shown again from the sync page while steps are open. The unit "D" of values in deuterium is one
+  text (`common.deutShort`) in the upgrade advisor, defense advisor and raid risk.
+
+- Code review U-9: four things of the desktop tables were missing on the mobile cards and are there now: the "missed"
+  mark of a fleet save option, the "battle" badge of the debris finder, the alliance tag in the farm finder and the
+  inactivity badge in the spy priority.
+
+- Code review U-7 and U-8: the fleet save planner, the attack assistant, the alliance health and the moon chances show
+  the loading placeholder until their data is there, like the farm finder. The moon chances remember period and
+  "members only" (`moons.filter`) and say so when the filter hides every battle (`moons.emptyFiltered`) instead of
+  leaving only the filter row.
+
+- Code review U-5: the alliance health flagged an outdated empire page as "no empire", next to its age ("5 d"). `GET
+  /api/{uni}/alliance-health` now returns `noEmpire` only when no empire page is known and the new flag `staleEmpire`
+  when the newest one is older than 3 days (texts `health.flag.staleEmpire`, `health.flagTitle.staleEmpire`).
+
+- Code review U-4: the defense advisor showed the status of an attacker as plain text glued to the alliance tag
+  ("[BAD]I"); it uses the status badges of the farm finder and the overview, also on the mobile card (which now shows
+  the alliance tag too).
+
+- Code review U-2 and U-3, fleet save options (planner and attack assistant): the rows before "more" are the best
+  option of every mission and target instead of one target at 60/70/80 % speed (the sorting of `fleetSaveOptions` is
+  unchanged, the rest follows behind "more"). When a colony save is among the shown options, its risk (below the
+  planet limit the colony ship founds a colony) is a visible warning line; it was only a tooltip, which touch devices
+  do not show.
+
+- Code review U-1: at 1280 px the farm finder cut off "Risk" and the actions, the defense advisor "Flight" and
+  "Profit". Farm finder: ships and fuel share one column (as on mobile), long player names are shortened with the full
+  name as tooltip. Defense advisor: "Profit" follows the attacker, the fleet and the reasons wrap.
+
+- Code review B-12: the farm finder stores its start planet for all universes; in a second universe no own planet
+  matched, every flight time showed "–" and the select was empty. A start planet that is none of the own planets now
+  counts as "nearest" and is forgotten once the own planets are loaded. The same for the stored galaxy of the farm
+  finder, debris finder and colonization planner when the universe has fewer galaxies.
+
+- Code review B-11: the upgrade advisor remembered added steps by their object in a computed list; a live reload
+  created new objects, the mark was gone and the same step could be added again. The state and the rows are keyed by
+  planet, kind, element and level.
+
+- Code review B-10: the upgrade advisor compared the production of the synced page (from before the build queue) with
+  the formula at the levels after the queue; with a mine in the queue the factor was too low and every gain of that
+  planet underrated. `upgradeAdvice` takes `syncedLevels` per planet and `syncedResearch` and calibrates at those, the
+  advice still starts after the queues.
+
+- Code review B-9: the CSV export (`GET /api/{uni}/export/{dataset}`) prefixes texts starting with `=`, `+`, `-`, `@`,
+  tab or carriage return with `'`. Player, planet and alliance names come from other players and would otherwise run
+  as a formula when the file is opened in a spreadsheet. Numbers are unchanged.
+
+- Code review B-4 and B-8, defense advisor: the list and the calculation count their requests together and apply only
+  the newest answer, so a long calculation no longer overwrites the data of a planet or option chosen meanwhile;
+  options and attacker checkboxes are locked while it runs. An attack on its way shows the time until it lands ("on
+  the way · lands in 2:10:00", `defense.reason.incomingIn`) instead of "just now".
+
+- Code review B-5 and B-6, attack assistant: `GET /api/{uni}/attack-assist` returns `target.present`, the planet's
+  values without the ships sent away since the empire page (`target.values` stays what the page showed). The fleet
+  save options and the simulator link use it, so they no longer suggest saving ships that are gone or show another
+  battle than the page. The simulator link takes the attackers the server simulated: when the movement shows no ships,
+  the fleet estimated from the spy report instead of no attacker.
+
 ## 2026-11-09
+
+- Code review U-6: the attack assistant showed a red "−0" for resources the attacker cannot loot; the loot shows only
+  above zero.
+
+- Code review B-7: the mobile cards of the alliance health showed a hard-coded "/ 7 T" behind the growth; it is a text
+  now (`health.perWeek`).
+
+- Code review B-3: clearing the "at most members" field of the colonization planner acted as 0 (the emptied number
+  field yields `''`) and left a chip without a number. Everything that is not a number now means "no filter", for the
+  list and the chip.
+
+- Code review B-2: the farm finder kept the 30-day data of the spy priority when the targets tab was opened by way of
+  the debris finder, while "7 days" was selected. The tab change now reloads when the loaded period
+  (`FarmResponse.days`) differs from the selected one; `apps/web/test/farm-tabs.test.ts` covers the tab sequence.
+
+- Code review B-1: the texts of the admin panel's "Parser samples" section sat inside `tours.admin` instead of
+  `admin`, so the section showed its keys (`admin.samples.title`, …). They are moved in `de.ts` and `en.ts`; a new
+  test (`apps/web/test/locale-keys.test.ts`) collects the static `t('…')` keys of the web app and fails on a key
+  without a text in either language.
 
 - Backlog (`NEW_FEATURES.md`): item D-3 (sync coverage duties) is dropped by the product owner; the status table
   says so and the references to it are gone.

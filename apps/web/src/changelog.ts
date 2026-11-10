@@ -16,8 +16,108 @@ export interface ChangelogDay {
 
 export const CHANGELOG: ChangelogDay[] = [
   {
+    date: '2026-11-10',
+    items: [
+      {
+        kind: 'new',
+        de: 'Kolo-Save: Hat ein Admin das Planetenmaximum des Universums eingetragen, sagt der Fleetsave-Planer klar, ob du mit deiner Astrophysik-Stufe am Maximum bist (die Flotte kommt zurück) oder darunter (es würde eine Kolonie gegründet). Angeboten wird der Kolo-Save in beiden Fällen.',
+        en: 'Colony save: once an admin entered the planet limit of the universe, the fleet save planner says clearly whether you are at the limit with your astrophysics level (the fleet comes back) or below it (a colony would be founded). The colony save is offered in both cases.',
+      },
+      {
+        kind: 'fix',
+        de: 'Kleinigkeiten: Der Kolonisationsplaner schreibt „inaktiv“ aus, die Fleetsave-Vorlagen „Nacht“ und „Arbeit“ folgen deiner Sprache, und eine ausgeblendete „Erste Schritte“-Liste lässt sich auf der Synchronisieren-Seite wieder einblenden.',
+        en: 'Small things: the colonization planner spells out "inactive", the fleet save presets "Night" and "Work" follow your language, and a hidden "first steps" list can be shown again on the sync page.',
+      },
+      {
+        kind: 'fix',
+        de: 'Handy-Ansicht: Verpasste Fleetsave-Abflüge, das Kampf-Badge im TF-Finder, das Allianzkürzel im Farm-Finder und die Inaktivität in der Spionage-Priorität stehen jetzt auch auf den Karten.',
+        en: 'Mobile view: missed fleet save departures, the battle badge in the debris finder, the alliance tag in the farm finder and the inactivity in the spy priority now show on the cards too.',
+      },
+      {
+        kind: 'fix',
+        de: 'Fleetsave-Planer, Angriffsassistent, Allianz-Gesundheit und Mondchancen zeigen beim Laden einen Platzhalter statt einer leeren Seite. Die Mondchancen merken sich Zeitraum und Filter und sagen, wenn der Filter alle Kämpfe ausblendet.',
+        en: 'Fleet save planner, attack assistant, alliance health and moon chances show a placeholder while loading instead of an empty page. The moon chances remember period and filter and say when the filter hides every battle.',
+      },
+      {
+        kind: 'fix',
+        de: 'Allianz-Gesundheit: Eine alte Imperium-Seite heißt jetzt „Imperium veraltet“; „kein Imperium“ steht nur noch, wenn nie eine eingefügt wurde.',
+        en: 'Alliance health: an old empire page is now called "empire outdated"; "no empire" only shows when none was ever pasted.',
+      },
+      {
+        kind: 'fix',
+        de: 'Verteidigungsberater: Der Status eines Angreifers (inaktiv, Urlaub …) erscheint als Badge wie auf den anderen Seiten.',
+        en: 'Defense advisor: an attacker\'s status (inactive, vacation …) shows as a badge like on the other pages.',
+      },
+      {
+        kind: 'new',
+        de: 'Fleetsave-Vorschläge: Die ersten Zeilen zeigen jetzt verschiedene Ziele und Missionen statt desselben Ziels mit mehreren Geschwindigkeiten. Beim Kolo-Save steht die Warnung (unter dem Planetenmaximum wird kolonisiert) sichtbar unter den Vorschlägen.',
+        en: 'Fleet save suggestions: the first rows now show different targets and missions instead of one target at several speeds. For a colony save the warning (below the planet limit it founds a colony) is visible under the suggestions.',
+      },
+      {
+        kind: 'fix',
+        de: 'Farm-Finder und Verteidigungsberater: Risiko, Aktionen und Gewinn rutschen auf kleineren Bildschirmen nicht mehr aus dem sichtbaren Bereich (Schiffe und Treibstoff teilen sich eine Spalte, der Gewinn steht direkt beim Angreifer).',
+        en: 'Farm finder and defense advisor: risk, actions and profit no longer slide out of view on smaller screens (ships and fuel share a column, the profit sits next to the attacker).',
+      },
+      {
+        kind: 'fix',
+        de: 'Farm-Finder: Ein in einem anderen Universum gewählter Startplanet führt nicht mehr zu leeren Flugzeiten; es zählt dann wieder der nächste eigene Planet.',
+        en: 'Farm finder: a start planet chosen in another universe no longer leaves the flight times empty; the nearest own planet counts again.',
+      },
+      {
+        kind: 'fix',
+        de: 'Upgrade-Berater: Ein in die Bauliste gelegter Schritt bleibt als „in der Bauliste“ markiert, auch wenn die Seite im Hintergrund neu lädt.',
+        en: 'Upgrade advisor: a step put into the build order stays marked as added when the page reloads in the background.',
+      },
+      {
+        kind: 'fix',
+        de: 'Upgrade-Berater: Mit einer Mine oder Forschung in der Bauschleife wurden die Erträge des Planeten zu niedrig geschätzt.',
+        en: 'Upgrade advisor: with a mine or research in the queue the gains of that planet were estimated too low.',
+      },
+      {
+        kind: 'fix',
+        de: 'CSV-Export: Namen, die wie eine Formel beginnen (z. B. mit „=“), bekommen ein Hochkomma vorangestellt, damit eine Tabellenkalkulation sie nicht ausführt.',
+        en: 'CSV export: names that start like a formula (e.g. with "=") get a leading apostrophe so a spreadsheet does not run them.',
+      },
+      {
+        kind: 'fix',
+        de: 'Verteidigungsberater: Wechselst du während der Berechnung den Planeten, erscheint nicht mehr das Ergebnis des alten. Bei Angriffen im Anflug steht die Zeit bis zum Eintreffen statt „gerade eben“.',
+        en: 'Defense advisor: changing the planet during the calculation no longer shows the old planet\'s result. Attacks on their way show the time until they land instead of "just now".',
+      },
+      {
+        kind: 'fix',
+        de: 'Angriffsassistent: Der Link in den Kampfsimulator enthält jetzt auch eine aus dem Spionagebericht geschätzte Angreiferflotte, und Simulator-Link wie Fleetsave-Vorschläge rechnen ohne die Schiffe, die den Planeten seit der Imperiumsseite verlassen haben.',
+        en: 'Attack assistant: the link into the battle simulator now carries an attacker fleet estimated from the spy report too, and both the simulator link and the fleet save suggestions leave out the ships that left the planet since the empire page.',
+      },
+    ],
+  },
+  {
     date: '2026-11-09',
     items: [
+      {
+        kind: 'fix',
+        de: 'Angriffsassistent: Bei Rohstoffen ohne Beute steht kein rotes „−0“ mehr.',
+        en: 'Attack assistant: resources without loot no longer show a red "−0".',
+      },
+      {
+        kind: 'fix',
+        de: 'Allianz-Gesundheit: Auf dem Handy steht hinter dem Wachstum auch auf Englisch die richtige Einheit.',
+        en: 'Alliance health: on mobile the unit behind the growth is now correct in English too.',
+      },
+      {
+        kind: 'fix',
+        de: 'Kolonisationsplaner: Ein geleertes Feld „höchstens Mitglieder“ filtert nicht mehr wie eine 0.',
+        en: 'Colonization planner: an emptied "at most members" field no longer filters like a 0.',
+      },
+      {
+        kind: 'fix',
+        de: 'Farm-Finder: Wer von der Spionage-Priorität über den TF-Finder zu den Zielen wechselte, sah weiter die Berichte der letzten 30 Tage statt des gewählten Zeitraums.',
+        en: 'Farm finder: switching from the spy priority by way of the debris finder to the targets kept showing the reports of the last 30 days instead of the chosen period.',
+      },
+      {
+        kind: 'fix',
+        de: 'Admin-Panel: Der Abschnitt „Parser-Proben“ zeigt wieder seine Texte statt interner Schlüssel.',
+        en: 'Admin panel: the "Parser samples" section shows its texts again instead of internal keys.',
+      },
       {
         kind: 'new',
         de: 'Kleine Ergänzungen: Im Imperium tragen gefährdete Planeten ein Schwert, sobald du das Raid-Risiko berechnet hast. Der Fleetsave-Planer markiert Flüge zu eigenen Planeten, die eine feindliche Phalanx sieht. Unter „Wer bedroht mich“ öffnet ein Angriff im Anflug den Angriffsassistenten und ein Zielplanet den Verteidigungsberater. Der CSV-Download der Übersicht übernimmt deine Filter (Name, Allianz, Inaktive, Urlaub, Punkte, Galaxie).',

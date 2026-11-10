@@ -19,7 +19,7 @@ import { uniApi } from '../api';
 import { claimOf, remaining } from '../claims';
 import { useLoader, useMobile, useProgressive, useSort, useStored, useUni } from '../composables';
 import { tables, useLiveReload } from '../live';
-import { ago, coords, dateTime, duration, fmt, name, short } from '../format';
+import { abbr, ago, coords, dateTime, duration, fmt, name, short } from '../format';
 import { useAutoTour } from '../tours';
 import { units } from '../units';
 import { spyPriority, type SpyReason } from '../spyPriority';
@@ -114,7 +114,8 @@ const { data, error, load } = useLoader<FarmResponse | null>((): Promise<FarmRes
 );
 onMounted(load);
 watch(days, () => load());
-watch(tab, (v) => v !== 'debris' && !data.value && load());
+// coming back from the debris tab the data may be the one of the other tab's period (spy: 30 days)
+watch(tab, (v) => v !== 'debris' && (!data.value || data.value.days !== days.value) && load());
 useLiveReload(load, tables('spy_reports', 'player_scores', 'battle_reports', 'galaxy_systems'));
 useAutoTour('farm', computed(() => tab.value === 'debris' || !!data.value), tab);
 
@@ -124,9 +125,17 @@ const drives = computed(() => drivesFromResearch(ctx.value?.own?.research ?? {})
 const capacity = computed(() => units.value.capacity[filter.value.ship] ?? 0);
 const ownEspionage = computed(() => (ctx.value?.own?.research as Record<number, number> | undefined)?.[106] ?? null);
 
+const planetKey = (p: { coords: { g: number; s: number; p: number } }) => `${p.coords.g}:${p.coords.s}:${p.coords.p}`;
+/**
+ * The stored start planet, when it is one of the own planets here: the filter is stored for all universes, and the
+ * planet of another universe means "nearest" (and is forgotten once the own planets are known).
+ */
+const from = computed(() => (filter.value.from && ownPlanets.value.some((p) => planetKey(p) === filter.value.from) ? filter.value.from : ''));
+watch(ownPlanets, (list) => list.length && filter.value.from && !from.value && (filter.value.from = ''), { immediate: true });
+
 /** Start of the flight: the chosen own planet or the nearest one. */
 function startFor(target: [number, number, number]) {
-  const list = ownPlanets.value.filter((p) => !filter.value.from || `${p.coords.g}:${p.coords.s}:${p.coords.p}` === filter.value.from);
+  const list = ownPlanets.value.filter((p) => !from.value || planetKey(p) === from.value);
   let best: { label: string; c: [number, number, number]; d: number } | null = null;
   for (const p of list) {
     const c: [number, number, number] = [p.coords.g, p.coords.s, p.coords.p];
@@ -172,6 +181,8 @@ const rows = computed<Row[]>(() =>
 );
 
 const galaxies = computed(() => settings.value.galaxies ?? 1);
+// the filter is stored for all universes: a galaxy this universe does not have is no filter
+watch(galaxies, (n) => filter.value.galaxy != null && filter.value.galaxy > n && (filter.value.galaxy = null), { immediate: true });
 const filtered = computed(() => {
   const f = filter.value;
   return rows.value.filter((r) => {
@@ -362,7 +373,9 @@ const claimText = (r: Row) => {
           <div class="farm-card-head">
             <span class="mono">{{ coords(r.g, r.s, r.p) }}<span v-if="r.type === 'moon'"> ({{ t('common.moon') }})</span></span>
             <PlayerLink :id="r.player.id" :name="r.player.name" />
+            <span v-if="r.player.ally_tag" class="muted small">[{{ r.player.ally_tag }}]</span>
             <StatusBadges :status="r.player.status" :points="r.player.points" />
+            <InactivityBadge :value="r.inactivity" chip hide-flagged />
             <span class="grow" />
             <PlanetActions :g="r.g" :s="r.s" :p="r.p" :type="r.type" :from="r.from?.c ?? null" :diameter="r.moonDiameter ?? null" />
           </div>
@@ -405,7 +418,7 @@ const claimText = (r: Row) => {
               <div v-if="claimText(r)" class="small warn">{{ claimText(r) }}</div>
             </td>
             <td class="nowrap">
-              <PlayerLink :id="r.player.id" :name="r.player.name" />
+              <span class="farm-player" :title="r.player.name"><PlayerLink :id="r.player.id" :name="r.player.name" /></span>
               <span v-if="r.player.ally_tag" class="muted small"> [{{ r.player.ally_tag }}]</span>
               <StatusBadges :status="r.player.status" :points="r.player.points" />
             </td>
@@ -432,6 +445,7 @@ const claimText = (r: Row) => {
           <div class="farm-card-head">
             <span class="mono">{{ coords(r.g, r.s, r.p) }}<span v-if="r.type === 'moon'"> ({{ t('common.moon') }})</span></span>
             <PlayerLink :id="r.player.id" :name="r.player.name" />
+            <span v-if="r.player.ally_tag" class="muted small">[{{ r.player.ally_tag }}]</span>
             <StatusBadges :status="r.player.status" :points="r.player.points" />
             <InactivityBadge :value="r.inactivity" chip hide-flagged />
             <span class="grow" />
@@ -461,8 +475,7 @@ const claimText = (r: Row) => {
             <th class="sortable num" data-tour="farm-loot" @click="sort.sortBy('loot')">{{ t('farm.loot') }}<SortMark :dir="sort.direction('loot')" /></th>
             <th class="sortable num" @click="sort.sortBy('age')">{{ t('farm.report') }}<SortMark :dir="sort.direction('age')" /></th>
             <th class="sortable num" @click="sort.sortBy('flight')">{{ t('farm.flight') }}<SortMark :dir="sort.direction('flight')" /></th>
-            <th class="num">{{ t('farm.ships') }}</th>
-            <th class="num">{{ t('farm.fuel') }}</th>
+            <th class="num" :title="t('farm.shipsTitle')">{{ t('farm.ships') }}</th>
             <th class="sortable num" data-tour="farm-rank" @click="sort.sortBy('perFlightHour')">{{ t('farm.perFlightHour') }}<SortMark :dir="sort.direction('perFlightHour')" /></th>
             <th data-tour="farm-risk">{{ t('farm.risk') }}</th>
             <th></th>
@@ -476,7 +489,7 @@ const claimText = (r: Row) => {
               <div v-if="claimText(r)" class="small warn">{{ claimText(r) }}</div>
             </td>
             <td class="nowrap">
-              <PlayerLink :id="r.player.id" :name="r.player.name" />
+              <span class="farm-player" :title="r.player.name"><PlayerLink :id="r.player.id" :name="r.player.name" /></span>
               <span v-if="r.player.ally_tag" class="muted small"> [{{ r.player.ally_tag }}]</span>
               <StatusBadges :status="r.player.status" :points="r.player.points" />
             </td>
@@ -486,8 +499,9 @@ const claimText = (r: Row) => {
             </td>
             <td class="num" :title="reportTitle(r)">{{ ago(r.report.time) }}<Icon v-if="!r.levels" name="warning" :size="12" class="muted full-mark" /></td>
             <td class="num" :title="flightTitle(r)">{{ r.flight == null ? '–' : duration(Math.floor(r.flight)) }}</td>
-            <td class="num">{{ r.ships == null ? '–' : fmt(r.ships) }}</td>
-            <td class="num">{{ r.fuel == null ? '–' : short(r.fuel) }}</td>
+            <td class="num" :title="r.fuel == null ? undefined : `${t('farm.fuel')}: ${fmt(r.fuel)} ${name(903)}`">
+              {{ r.ships == null ? '–' : fmt(r.ships) }}<span v-if="r.fuel != null" class="faint"> · {{ short(r.fuel) }} {{ abbr(903) }}</span>
+            </td>
             <td class="num"><b>{{ r.perFlightHour == null ? '–' : short(r.perFlightHour) }}</b></td>
             <td :class="`risk-${r.risk}`" :title="riskTitle(r)">{{ t(`farm.riskLevel.${r.risk}`) }}</td>
             <td><PlanetActions :g="r.g" :s="r.s" :p="r.p" :type="r.type" :from="r.from?.c ?? null" :diameter="r.moonDiameter ?? null" /></td>
@@ -503,6 +517,8 @@ const claimText = (r: Row) => {
 <style scoped>
 .field-inline { display: inline-flex; align-items: center; gap: 6px; }
 .nowrap { white-space: nowrap; }
+/* long names must not push risk and actions out of view (full name as title) */
+.farm-player { display: inline-block; max-width: 16ch; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
 .full-mark { margin-left: 3px; vertical-align: -1px; }
 .risk-none { color: var(--pos); }
 .risk-defense, .risk-both { color: var(--neg); }

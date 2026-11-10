@@ -43,6 +43,26 @@ describe('upgrade advisor', () => {
     expect(half.gain[901]).toBeCloseTo(full.gain[901] / 2);
   });
 
+  it('calibrates against the levels the synced page showed, not the ones after the build queue', () => {
+    // the page showed metal mine 20 at exactly the formula's production; mine 21 is in the queue
+    const synced = { 1: 20, 2: 18, 3: 15, 4: 30 };
+    const queued = { ...synced, 1: 21 };
+    const perHour = productionOf({ levels: synced, research, temp: 40, resourceSpeed: 1 });
+    const plain = upgradeAdvice(input([planet(queued)])).find((a) => a.step.element === 1)!;
+    const calibrated = upgradeAdvice(input([planet(queued, { perHour, syncedLevels: synced })])).find((a) => a.step.element === 1)!;
+    // the advice is the level after the queue, its gain is not scaled down by the queued mine
+    expect(calibrated.step.level).toBe(22);
+    expect(calibrated.gain[901]).toBeCloseTo(plain.gain[901]);
+    // without the synced levels the page's production is compared with mine 21: the gain is underrated
+    const wrong = upgradeAdvice(input([planet(queued, { perHour })])).find((a) => a.step.element === 1)!;
+    expect(wrong.gain[901]).toBeLessThan(plain.gain[901] * 0.95);
+    // research in the queue: the page's production belongs to the research before it
+    const more = { ...research, 131: 3 };
+    const queuedResearch = upgradeAdvice({ ...input([planet(synced, { perHour, syncedLevels: synced })]), research: more, syncedResearch: research }).find((a) => a.step.element === 1)!;
+    const plainResearch = upgradeAdvice({ ...input([planet(synced)]), research: more }).find((a) => a.step.element === 1)!;
+    expect(queuedResearch.gain[901]).toBeCloseTo(plainResearch.gain[901]);
+  });
+
   it('counts the mining research on every planet', () => {
     const levels = { 1: 20, 2: 18, 3: 15, 4: 30, 31: 4 };
     const one = upgradeAdvice(input([planet(levels)])).find((a) => a.step.element === 131);

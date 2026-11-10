@@ -1002,6 +1002,7 @@ components:
         name: { type: string, minLength: 1, maxLength: 40 }
         from: { type: string, pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$', description: Offline from (time of day) }
         to: { type: string, pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$', description: Back at (time of day) }
+        builtin: { type: string, enum: [night, work], description: 'Marks one of the web app''s built-in presets: it is shown under its name in the viewer''s language, `name` is the fallback' }
     GroupMembership:
       type: object
       properties:
@@ -1135,6 +1136,9 @@ components:
         noobFactor: { type: [number, 'null'], minimum: 0, description: Game config noob_protection_multi (default 5) }
         noobInactives: { type: [boolean, 'null'], description: Game config noob_inactives (default false) }
         planetSizeFactor: { type: [number, 'null'], minimum: 0, description: Game config planet_size_factor (default 1; fields of new colonies in the colonization planner) }
+        maxInitialPlanets: { type: [integer, 'null'], minimum: 0, description: 'Game config max_initial_planets. With `maxAdditionalPlanets` and `planetsPerTech` the planet limit of a player (`ceil(initial + min(additional, astrophysics × perTech))`, 0 initial planets lifts the cap); not assumed when unset: the fleet save planner then warns of every colony save' }
+        maxAdditionalPlanets: { type: [integer, 'null'], minimum: 0, description: Game config max_additional_planets (planets astrophysics can add at most) }
+        planetsPerTech: { type: [number, 'null'], minimum: 0, description: Game config planets_per_tech (planets per astrophysics level) }
         positionBonus:
           type: [object, 'null']
           description: >-
@@ -1437,7 +1441,7 @@ paths:
       tags: [Auth]
       operationId: setFleetSavePresets
       summary: Store the fleet save presets
-      description: Replaces all presets of the signed-in user. Names are trimmed; of two entries with the same name the later one is kept at its place.
+      description: Replaces all presets of the signed-in user. Names are trimmed; of two entries with the same name the later one is kept at its place. An unknown `builtin` is invalid.
       security: [{ sessionCookie: [] }]
       requestBody:
         required: true
@@ -2992,8 +2996,8 @@ paths:
         days (from the newest statistics update at or before the start, `partial` when the history is shorter), the
         newest sync per page type (kept pages of 14 days and the snapshot tables), the last visit in the hub, battle
         reports and expeditions they synced in 7 days with the loot, open deliveries of finalized loot settlements, and
-        flags: `behind` (growth below half the alliance median), `noEmpire` (no empire page for 3 days), `noStats` (no
-        statistics), `away` (not in the hub for 3 days). The last visit (`lastSeen`, and `away`) of members who hide their
+        flags: `behind` (growth below half the alliance median), `noEmpire` (no empire page known), `staleEmpire`
+        (the newest empire page is older than 3 days), `noStats` (no statistics), `away` (not in the hub for 3 days). The last visit (`lastSeen`, and `away`) of members who hide their
         online status is only shown to themselves and to admins (`onlineHidden`).
       parameters:
         - { $ref: '#/components/parameters/Uni' }
@@ -3028,7 +3032,7 @@ paths:
                         loot: { type: integer }
                         expeditions: { type: integer }
                         openDeliveries: { type: integer }
-                        flags: { type: array, items: { type: string, enum: [behind, noEmpire, noStats, away] } }
+                        flags: { type: array, items: { type: string, enum: [behind, noEmpire, staleEmpire, noStats, away] } }
   /api/{uni}/export:
     get:
       tags: [Universe]
@@ -3067,7 +3071,8 @@ paths:
       operationId: exportDatasetCsv
       description: >-
         One dataset of `/api/{uni}/export` as CSV (attachment, UTF-8 with BOM, header row, times as Unix seconds,
-        numbers unformatted). `dataset` may end in `.csv`. Works with a read-only API token. The `players` and
+        numbers unformatted). Texts starting with `=`, `+`, `-`, `@`, tab or carriage return get a leading `'`, so a
+        spreadsheet does not read a name as a formula. `dataset` may end in `.csv`. Works with a read-only API token. The `players` and
         `planets` datasets take the overview's filters (`q`, `ally`, `inactive`, `vacation`, `minPoints`, `maxPoints`,
         for planets also `galaxy`); planets follow their owner's filters. Other datasets ignore them.
       parameters:
@@ -3127,7 +3132,7 @@ paths:
                   member: { type: [object, 'null'], properties: { id: { type: integer }, name: { type: string } } }
                   target:
                     type: [object, 'null']
-                    description: 'The attacked body: `g`, `s`, `p`, `type`, `name`, `values` (levels and units), `resources` at the impact (`metal`, `crystal`, `deuterium`), `empireTime`, `deuterium` and `perHour` of the empire page'
+                    description: 'The attacked body: `g`, `s`, `p`, `type`, `name`, `values` (levels and units of the empire page), `present` (`values` without the ships of `away`: what defends in the simulation and can still be saved), `resources` at the impact (`metal`, `crystal`, `deuterium`), `empireTime`, `deuterium` and `perHour` of the empire page'
                   bodies: { type: array, items: { type: object }, description: 'The member''s planets and moons (`g`, `s`, `p`, `type`, `name`)' }
                   research: { type: object, description: The member's research levels }
                   attacker:

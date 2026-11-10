@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { astroForPosition, positionInfo, positionRow } from '../src/colonize.js';
-import { settingsError } from '../src/universe.js';
+import { planetLimit, settingsError } from '../src/universe.js';
 
 describe('colonization (C-5)', () => {
   it('needs astrophysics 8 for the outer positions, 6 and 4 for the next ones', () => {
@@ -26,5 +26,21 @@ describe('colonization (C-5)', () => {
     expect(settingsError({ positionBonus: { 1: [10, 0] } })?.code).toBe('setting_invalid');
     expect(settingsError({ positionBonus: [1, 2, 3] })?.code).toBe('setting_invalid');
     expect(settingsError({ planetSizeFactor: 1.2 })).toBeNull();
+  });
+
+  it('computes the planet limit like the game, only from values an admin set', () => {
+    const u = { maxInitialPlanets: 1, maxAdditionalPlanets: 11, planetsPerTech: 0.5 };
+    expect(planetLimit(u, 0)).toBe(1);
+    expect(planetLimit(u, 5)).toBe(4); // ceil(1 + 2.5)
+    expect(planetLimit(u, 8)).toBe(5);
+    expect(planetLimit(u, 40)).toBe(12); // capped at the additional planets
+    // 0 initial planets lifts the cap
+    expect(planetLimit({ ...u, maxInitialPlanets: 0 }, 40)).toBe(20);
+    expect(planetLimit({ maxInitialPlanets: 1, planetsPerTech: 0.5 }, 8)).toBeNull();
+    expect(planetLimit({}, 8)).toBeNull();
+    expect(settingsError(u)).toBeNull();
+    expect(settingsError({ maxInitialPlanets: null, planetsPerTech: null })).toBeNull();
+    expect(settingsError({ maxAdditionalPlanets: 2.5 })?.code).toBe('setting_invalid');
+    expect(settingsError({ planetsPerTech: -1 })?.code).toBe('setting_invalid');
   });
 });

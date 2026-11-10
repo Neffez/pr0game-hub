@@ -51,9 +51,10 @@ const planets = computed(() => props.hub.planets.filter((p) => p.type === 'plane
 const advice = computed(() =>
   upgradeAdvice({
     planets: planets.value.map((p) => ({
-      key: p.key, name: p.name, levels: levelsOf(p), temp: p.temp ?? positionTemp(p.coords.p), factors: p.factors ?? null, perHour: p.planet.perHour,
+      key: p.key, name: p.name, levels: levelsOf(p), syncedLevels: p.planet.values, temp: p.temp ?? positionTemp(p.coords.p), factors: p.factors ?? null, perHour: p.planet.perHour,
     })),
     research: research.value,
+    syncedResearch: props.hub.research,
     resourceSpeed: (props.hub.resourceSpeed || ctx.value!.universe.settings.resourceMultiplier || 2500) / 2500,
     rate: currentMarketRate(),
     catchUp: props.hub.catchUp ?? 0,
@@ -73,8 +74,13 @@ const costTitle = (a: Advice) => [901, 902, 903].filter((r) => a.cost[r]).map((r
 const gainTitle = (a: Advice) => [901, 902, 903].filter((r) => Math.abs(a.gain[r] ?? 0) >= 1).map((r) => `${a.gain[r] > 0 ? '+' : ''}${fmt(Math.round(a.gain[r]))} ${name(r)}/h`).join('\n');
 
 // ---- into the build order
-const busy = ref<Advice | null>(null);
-const added = ref(new Set<Advice>());
+/**
+ * A step by what it is, not by its object: the list is computed again on every live reload, and the "added" mark
+ * has to survive that (else the same step could be added twice).
+ */
+const keyOf = (a: Advice) => `${a.key ?? 'account'}:${a.step.kind}:${a.step.element}:${a.step.level}`;
+const busy = ref<string | null>(null);
+const added = ref(new Set<string>());
 const message = ref<string | null>(null);
 /** "+1 level" steps (several for energy that needs more levels), satellites as one ship step */
 function stepsOf(a: Advice, levels: Record<string, number>): NewStep[] {
@@ -89,7 +95,7 @@ function stepsOf(a: Advice, levels: Record<string, number>): NewStep[] {
   return out;
 }
 async function addToOrder(a: Advice) {
-  busy.value = a;
+  busy.value = keyOf(a);
   message.value = null;
   // research runs on a planet: the planet chosen above
   const key = a.key ?? props.planetKey;
@@ -97,7 +103,7 @@ async function addToOrder(a: Advice) {
   try {
     const base = () => ({ planets: Object.fromEntries(props.hub.planets.map((p) => [p.key, levelsOf(p)])), research: research.value });
     await addToBuildOrder(uni.value, key, stepsOf(a, planet ? levelsOf(planet) : {}), base, 'advisor');
-    added.value = new Set([...added.value, a]);
+    added.value = new Set([...added.value, keyOf(a)]);
   } catch (e) {
     message.value = (e as Error).message;
   } finally {
@@ -127,15 +133,15 @@ async function addToOrder(a: Advice) {
     <p v-if="message" class="error small">{{ message }}</p>
     <p v-if="!list.length" class="muted small m-0">{{ t('advisor.none') }}</p>
     <div v-else-if="mobile" class="adv-cards">
-      <div v-for="(a, i) in shown" :key="i" class="adv-card small">
+      <div v-for="a in shown" :key="keyOf(a)" class="adv-card small">
         <div><b>{{ title(a) }}</b> <span class="muted">· {{ planetName(a.key) }}</span></div>
         <div class="adv-line">
           <span>
             <b>{{ payback(a.payback) }}</b>
-            <span class="muted" :title="costTitle(a)"> · {{ short(a.costValue) }} D</span>
-            <span class="muted" :title="gainTitle(a)"> · +{{ short(a.gainValue) }} D/h</span>
+            <span class="muted" :title="costTitle(a)"> · {{ short(a.costValue) }} {{ t('common.deutShort') }}</span>
+            <span class="muted" :title="gainTitle(a)"> · +{{ short(a.gainValue) }} {{ t('common.deutShort') }}/h</span>
           </span>
-          <span v-if="added.has(a)" class="pos">{{ t('advisor.added') }}</span>
+          <span v-if="added.has(keyOf(a))" class="pos">{{ t('advisor.added') }}</span>
           <button v-else class="small" :disabled="!!busy" @click="addToOrder(a)">{{ t('advisor.add') }}</button>
         </div>
       </div>
@@ -153,14 +159,14 @@ async function addToOrder(a: Advice) {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(a, i) in shown" :key="i">
+          <tr v-for="a in shown" :key="keyOf(a)">
             <td><b>{{ title(a) }}</b></td>
             <td class="small">{{ planetName(a.key) }}</td>
-            <td class="num" :title="costTitle(a)">{{ short(a.costValue) }} D</td>
-            <td class="num" :title="gainTitle(a)">+{{ short(a.gainValue) }} D/h</td>
+            <td class="num" :title="costTitle(a)">{{ short(a.costValue) }} {{ t('common.deutShort') }}</td>
+            <td class="num" :title="gainTitle(a)">+{{ short(a.gainValue) }} {{ t('common.deutShort') }}/h</td>
             <td class="num"><b>{{ payback(a.payback) }}</b></td>
             <td>
-              <span v-if="added.has(a)" class="pos small">{{ t('advisor.added') }}</span>
+              <span v-if="added.has(keyOf(a))" class="pos small">{{ t('advisor.added') }}</span>
               <button v-else class="small" :disabled="!!busy" @click="addToOrder(a)">{{ t('advisor.add') }}</button>
             </td>
           </tr>

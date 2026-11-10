@@ -3,7 +3,8 @@
  * them run (solar plant, fusion reactor, solar satellites) and, account wide, the research that raises production
  * (mining research 131-133, energy technology 113 for the fusion reactor), each ranked by its payback time: the cost
  * against the extra production per hour, both valued with a market rate. Production as the game computes it
- * (`productionOf`), scaled per resource to what the synced pages showed (`calibrate`: production settings, bonuses).
+ * (`productionOf`), scaled per resource to what the synced pages showed (`calibrate`: production settings, bonuses);
+ * the advice starts from the levels after the build queue, the scaling compares at the levels the pages showed.
  */
 
 import { buildingCost, BUILDINGS, requirementsOf, RESEARCH } from './buildings.js';
@@ -19,6 +20,8 @@ export interface AdvisorPlanet {
   name: string;
   /** building levels after the build queue, and the number of solar satellites (212) */
   levels: Record<string, number>;
+  /** levels as the synced page showed them (before the build queue), which `perHour` belongs to; default `levels` */
+  syncedLevels?: Record<string, number> | null;
   /** max temperature */
   temp: number;
   /** production settings of the producers (0 … 1), default 1 */
@@ -39,6 +42,8 @@ export const DEFAULT_RATE: ValueRate = { m: 3, k: 2 };
 export interface AdvisorInput {
   planets: AdvisorPlanet[];
   research: Record<string, number>;
+  /** research as the synced pages showed it (before the research queue), which `perHour` belongs to; default `research` */
+  syncedResearch?: Record<string, number> | null;
   /** resource multiplier as a factor (`resource_multiplier` / 2500) */
   resourceSpeed: number;
   energySpeed?: number;
@@ -97,10 +102,13 @@ export function upgradeAdvice(i: AdvisorInput): Advice[] {
   const out: Advice[] = [];
   const prod = (p: AdvisorPlanet, levels: Record<string, number>, research: Record<string, number>): Production =>
     productionOf({ levels, research, temp: p.temp, factors: p.factors ?? undefined, resourceSpeed: i.resourceSpeed, energySpeed: i.energySpeed });
-  // per planet: the formula's production now and the factors to what the synced page showed
+  // per planet: the formula's production now (after the queues) and the factors to what the synced page showed.
+  // The page's production is from before the queues: the factors compare it with the formula at those levels,
+  // otherwise a mine in the queue would lower them and underrate every gain of the planet
   const base = i.planets.map((p) => {
     const now = prod(p, p.levels, i.research);
-    return { p, now, calib: p.perHour ? calibrate(p.perHour, now) : { 901: 1, 902: 1, 903: 1 } };
+    const synced = p.syncedLevels || i.syncedResearch ? prod(p, p.syncedLevels ?? p.levels, i.syncedResearch ?? i.research) : now;
+    return { p, now, calib: p.perHour ? calibrate(p.perHour, synced) : { 901: 1, 902: 1, 903: 1 } };
   });
   const delta = (b: (typeof base)[number], next: Production) => {
     const g: Record<number, number> = {};

@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
-import { useLoader, useUni } from '../composables';
+import { useLoader, useStored, useUni } from '../composables';
+import Loading from './Loading.vue';
 import { tables, useLiveReload } from '../live';
 import { coords, dateTime, fmt, moonCalcLink } from '../format';
 
@@ -25,8 +26,11 @@ interface MoonResponse {
 const { t } = useI18n();
 const { ctx, uni } = useUni();
 const DAYS = [7, 30, 90, 365];
-const days = ref(30);
-const membersOnly = ref(true);
+/** period and filter are remembered like on the other pages */
+const filter = useStored('moons.filter', { days: 30, membersOnly: true });
+if (!DAYS.includes(filter.value.days)) filter.value.days = 30;
+const days = computed({ get: () => filter.value.days, set: (v) => (filter.value.days = v) });
+const membersOnly = computed({ get: () => filter.value.membersOnly, set: (v) => (filter.value.membersOnly = v) });
 const { data, error, load } = useLoader(() => uniApi<MoonResponse>(uni.value, `/moon-chances?days=${days.value}`));
 onMounted(load);
 watch(days, load);
@@ -40,7 +44,8 @@ const pct = (n: number) => `${fmt(n)} %`;
 
 <template>
   <div v-if="error" class="error">{{ error }}</div>
-  <template v-else-if="data">
+  <Loading v-else-if="!data" :lines="6" />
+  <template v-else>
     <div class="row small moon-filters">
       <label>
         {{ t('moons.period') }}
@@ -52,6 +57,7 @@ const pct = (n: number) => `${fmt(n)} %`;
     </div>
 
     <p v-if="!data.battles.length && !data.newMoons.length" class="muted small">{{ t('moons.empty', { days: data.days }) }}</p>
+    <p v-else-if="data.battles.length && !battles.length" class="muted small">{{ t('moons.emptyFiltered', { days: data.days }) }}</p>
 
     <div v-if="data.members.length" class="table-wrap">
       <table class="data moon-members">

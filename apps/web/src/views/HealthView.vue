@@ -3,6 +3,7 @@ import { computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
 import Hint from '../components/Hint.vue';
+import Loading from '../components/Loading.vue';
 import PageHeader from '../components/PageHeader.vue';
 import PlayerLink from '../components/PlayerLink.vue';
 import { useClock } from '../clock';
@@ -15,7 +16,7 @@ import { useAutoTour } from '../tours';
  * Alliance health for every member (server: repo/health.ts): who grows, who falls behind, who still syncs and
  * visits the hub, raids and expeditions of the week and open loot deliveries.
  */
-type Flag = 'behind' | 'noEmpire' | 'noStats' | 'away';
+type Flag = 'behind' | 'noEmpire' | 'staleEmpire' | 'noStats' | 'away';
 interface Member {
   userId: number;
   name: string;
@@ -83,6 +84,7 @@ const flagged = computed(() => (data.value?.members ?? []).filter((m) => m.flags
   </PageHeader>
 
   <div v-if="error" class="error">{{ error }}</div>
+  <Loading v-else-if="!data" :lines="6" />
   <template v-else-if="data">
     <div class="card row small" data-tour="health-summary">
       <span>{{ t('health.members', { n: data.members.length }) }}</span>
@@ -100,7 +102,7 @@ const flagged = computed(() => (data.value?.members ?? []).filter((m) => m.flags
         </div>
         <div>
           <template v-if="m.points != null">{{ fmt(m.points) }} <span class="muted">#{{ m.rank }}</span> · </template>
-          <span :class="growthClass(m)">{{ m.growth != null ? fmtSigned(m.growth) : '–' }}</span> <span class="muted">/ 7 T</span>
+          <span :class="growthClass(m)">{{ m.growth != null ? fmtSigned(m.growth) : '–' }}</span> <span class="muted">{{ t('health.perWeek') }}</span>
         </div>
         <div class="hl-syncs">
           <span v-for="c in COLUMNS" :key="c.key">

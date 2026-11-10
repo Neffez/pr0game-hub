@@ -110,6 +110,9 @@ const UNI_GROUPS: UniGroup[] = [
   ] },
   { id: 'colonize', hint: 'admin.colonizeHint', fields: [
     { key: 'planetSizeFactor', label: 'planetSizeFactor', hint: true, min: 0, step: 'any', placeholder: '1' },
+    { key: 'maxInitialPlanets', label: 'maxInitialPlanets', hint: true, min: 0, placeholder: '1' },
+    { key: 'maxAdditionalPlanets', label: 'maxAdditionalPlanets', hint: true, min: 0, placeholder: '11' },
+    { key: 'planetsPerTech', label: 'planetsPerTech', hint: true, min: 0, step: 'any', placeholder: '0.5' },
   ] },
   { id: 'deck', hint: 'admin.deckHint', fields: [] },
   { id: 'units', hint: 'admin.unitsHint', fields: [] },

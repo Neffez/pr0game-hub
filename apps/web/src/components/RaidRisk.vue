@@ -62,7 +62,7 @@ const link = (b: Body) => ({ path: `/${uni.value}/build`, query: { tab: 'defense
           </span>
           <span class="risk-score">
             <template v-if="b.worst">
-              <b :class="b.worst.profit > 0 ? 'neg' : 'pos'">{{ b.worst.profit > 0 ? '+' : '' }}{{ short(b.worst.profit) }} D</b>
+              <b :class="b.worst.profit > 0 ? 'neg' : 'pos'">{{ b.worst.profit > 0 ? '+' : '' }}{{ short(b.worst.profit) }} {{ t('common.deutShort') }}</b>
               <span class="muted">
                 · <PlayerLink v-if="b.worst.player.id" :id="b.worst.player.id" :name="b.worst.player.name" /><template v-else>{{ b.worst.player.name }}</template>
                 <template v-if="b.worst.heavy"> ({{ t('defense.heavyShort') }})</template>

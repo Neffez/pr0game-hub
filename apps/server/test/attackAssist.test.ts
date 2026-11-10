@@ -157,6 +157,10 @@ describe('incoming attack assistant', () => {
 
     const a = (await get(`/attack-assist?member=${carolId}&arrival=${hostile.arrival}&from=1:150:4&sim=0`)).json();
     expect(a.away).toEqual({ ships: { 202: 15, 203: 2 }, fleets: 2, unknown: false });
+    // the empire page's numbers stay, `present` is what is left at the planet
+    expect(a.target.present[202]).toBe(a.target.values[202] - 15);
+    expect(a.target.present[203]).toBe(a.target.values[203] - 2);
+    expect(a.target.present[401]).toBe(a.target.values[401]);
     const b = (await get(`/attack-assist?member=${carolId}&arrival=${ghost.arrival}&from=1:160:2&sim=0`)).json();
     // solar satellites cannot fly
     expect(b.attacker.ships).toEqual({ 207: 40, 210: 5 });

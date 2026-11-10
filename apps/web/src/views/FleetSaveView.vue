@@ -7,6 +7,7 @@ import { useClock } from '../clock';
 import FleetSaveOptions, { type DebrisField, type FreeSystem } from '../components/FleetSaveOptions.vue';
 import Hint from '../components/Hint.vue';
 import Icon from '../components/Icon.vue';
+import Loading from '../components/Loading.vue';
 import PageHeader from '../components/PageHeader.vue';
 import { useLoader, useStored, useUni } from '../composables';
 import { abbr, dateTime, duration, fmt, name } from '../format';
@@ -27,7 +28,8 @@ interface Data {
   empire: { time: number; data: { planets: Body[]; research?: Record<string, number> } } | null;
   phalanx?: { planet: C3 & { name: string | null }; threats: { moon: C3; level: number; player: { name: string; ally: string | null } | null }[] }[];
 }
-interface Preset { name: string; from: string; to: string }
+type Builtin = 'night' | 'work';
+interface Preset { name: string; from: string; to: string; builtin?: Builtin }
 
 const { t } = useI18n();
 const { uni, ctx } = useUni();
@@ -36,10 +38,28 @@ onMounted(load);
 useLiveReload(load, tables('empire'));
 useAutoTour('fleetsave', () => !!data.value);
 
+/**
+ * The built-in presets carry a mark and are shown in the viewer's language; `name` (stored with the account at the
+ * first change) is only the fallback for other clients.
+ */
+const BUILTIN_TEXT: Record<Builtin, string> = { night: 'fleetsave.presetNight', work: 'fleetsave.presetWork' };
 const DEFAULT_PRESETS: Preset[] = [
-  { name: t('fleetsave.presetNight'), from: '23:30', to: '07:15' },
-  { name: t('fleetsave.presetWork'), from: '07:45', to: '17:00' },
+  { name: 'Night', from: '23:30', to: '07:15', builtin: 'night' },
+  { name: 'Work', from: '07:45', to: '17:00', builtin: 'work' },
 ];
+/** names the built-ins were stored under before they had a mark (the language active at the first change) */
+const LEGACY_NAMES: Record<string, Builtin> = { Nacht: 'night', Night: 'night', Arbeit: 'work', Work: 'work' };
+/** the built-in a preset is: by its mark, or stored before the mark under a built-in's name with its times */
+function builtinOf(p: Preset): Builtin | null {
+  if (p.builtin) return p.builtin;
+  const legacy = LEGACY_NAMES[p.name];
+  const d = legacy && DEFAULT_PRESETS.find((x) => x.builtin === legacy);
+  return d && d.from === p.from && d.to === p.to ? legacy : null;
+}
+const presetLabel = (p: Preset) => {
+  const b = builtinOf(p);
+  return b ? t(BUILTIN_TEXT[b]) : p.name;
+};
 /** the member's presets, stored with their account (the same on every device); the built-ins until changed */
 const presets = ref<Preset[]>(DEFAULT_PRESETS);
 /** where earlier versions kept the presets, on this device only */
@@ -141,7 +161,8 @@ function usePreset(p: Preset) {
 function savePreset() {
   const label = presetName.value.trim() || `${win.value.from}–${win.value.to}`;
   presetName.value = '';
-  void storePresets([...presets.value.filter((p) => p.name !== label), { name: label, ...win.value }]);
+  // replaces a preset shown under this name (a built-in under its translated one)
+  void storePresets([...presets.value.filter((p) => p.name !== label && presetLabel(p) !== label), { name: label, ...win.value }]);
 }
 function removePreset(p: Preset) {
   void storePresets(presets.value.filter((x) => x !== p));
@@ -149,6 +170,8 @@ function removePreset(p: Preset) {
 
 const research = computed(() => data.value?.empire?.data.research ?? {});
 const bodies = computed(() => data.value?.empire?.data.planets ?? []);
+/** own planets by the empire page (for the planet limit of a colony save) */
+const planetCount = computed(() => bodies.value.filter((b) => b.type === 'planet').length);
 const targets = computed<SaveTarget[]>(() => bodies.value.map((b) => ({ coords: [b.coords.g, b.coords.s, b.coords.p], type: b.type, name: b.name })));
 const key = (c: C3) => `${c.g}:${c.s}:${c.p}`;
 /** own planets in reach of a hostile phalanx: flights to them are marked per option */
@@ -203,7 +226,7 @@ const kindList = computed(() => (['deploy', 'transport', 'harvest', 'colonize'] 
   <div class="card fs-presets small" data-tour="fleetsave-presets">
     <b>{{ t('fleetsave.presets') }}</b>
     <span v-for="p in presets" :key="p.name" class="fs-preset" :class="{ active: p.from === win.from && p.to === win.to }">
-      <button class="small" @click="usePreset(p)">{{ p.name }} <span class="muted">{{ p.from }}–{{ p.to }}</span></button>
+      <button class="small" @click="usePreset(p)">{{ presetLabel(p) }} <span class="muted">{{ p.from }}–{{ p.to }}</span></button>
       <button class="icon-btn small" :title="t('fleetsave.removePreset')" :aria-label="t('fleetsave.removePreset')" @click="removePreset(p)"><Icon name="close" :size="12" /></button>
     </span>
     <input v-model="presetName" class="fs-name" maxlength="40" :placeholder="t('fleetsave.presetName')" @keydown.enter="savePreset" />
@@ -211,6 +234,7 @@ const kindList = computed(() => (['deploy', 'transport', 'harvest', 'colonize'] 
   </div>
 
   <div v-if="error" class="error">{{ error }}</div>
+  <Loading v-else-if="!data" :lines="6" />
   <div v-else-if="data && !data.empire" class="card muted">{{ t('fleetsave.noEmpire') }}</div>
   <div v-else-if="data && !withShips.length" class="card muted">{{ t('fleetsave.noFleet') }}</div>
 
@@ -229,7 +253,7 @@ const kindList = computed(() => (['deploy', 'transport', 'harvest', 'colonize'] 
     </p>
     <FleetSaveOptions
       :from="r.from" :values="r.b.values" :research="research" :deuterium="deuterium(r.b)" :targets="targets"
-      :now="now" :latest="offline.latest" :back="offline.back" :kinds="kindList" :fields="fields" :free="free" :cleanup="cleanup" :watched="watched"
+      :now="now" :latest="offline.latest" :back="offline.back" :kinds="kindList" :fields="fields" :free="free" :cleanup="cleanup" :watched="watched" :planets="planetCount"
     />
   </div>
   <p v-if="withShips.length" class="muted small" data-tour="fleetsave-remind">

@@ -19,6 +19,8 @@ const ctx = {
   universe: { id: 1, slug: 'u8', name: 'U8', deck: [], settings: { galaxies: 9, systems: 400, positions: 15, circularGalaxies: true, circularSystems: true, galaxyDistanceFactor: 20000, systemDistanceFactor: 95, systemDistance: 2700, planetDistanceFactor: 5, planetDistance: 1000, fleetSpeed: 2500, timezone: 'Europe/Berlin', gameUrl: '' } },
   group: { id: 1, name: 'A', role: 'member' }, members: [], me: { id: 1, username: 'carol', isAdmin: false }, own: null,
 } as unknown as UniContext;
+/** the data as the page holds it: a live reload replaces it by a new object */
+const live = ref(hub);
 const calls: { url: string; method: string; body: any }[] = [];
 const settle = async () => {
   for (let i = 0; i < 6; i++) {
@@ -40,7 +42,7 @@ describe('upgrade advisor', () => {
     await router.push('/u8/build');
     root = document.createElement('div');
     document.body.append(root);
-    const Shell = defineComponent({ setup: () => { provideUni(ref(ctx)); return () => h(UpgradeAdvisor, { hub, planetKey: '1:100:8:planet', mobile: false }); } });
+    const Shell = defineComponent({ setup: () => { provideUni(ref(ctx)); return () => h(UpgradeAdvisor, { hub: live.value, planetKey: '1:100:8:planet', mobile: false }); } });
     createApp(Shell).use(router).use(i18n).mount(root);
     await settle();
   });
@@ -60,5 +62,14 @@ describe('upgrade advisor', () => {
     expect(steps.length).toBeGreaterThan(0);
     expect(steps.every((s) => /^adv-/.test(s.id))).toBe(true);
     expect(rows[0].textContent).toContain('in der Bauliste');
+  });
+
+  it('keeps the added mark when a live reload brings the data again', async () => {
+    live.value = JSON.parse(JSON.stringify(hub));
+    await settle();
+    const first = root.querySelector('tbody tr')!;
+    expect(first.textContent).toContain('in der Bauliste');
+    expect(first.querySelector('button')).toBeNull();
+    expect(root.querySelectorAll('tbody tr button').length).toBeGreaterThan(0);
   });
 });

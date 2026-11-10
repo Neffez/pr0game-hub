@@ -91,6 +91,8 @@ const rows = computed<Row[]>(() =>
 );
 
 const galaxies = computed(() => settings.value.galaxies ?? 1);
+// the filter is stored for all universes: a galaxy this universe does not have is no filter
+watch(galaxies, (n) => filter.value.galaxy != null && filter.value.galaxy > n && (filter.value.galaxy = null), { immediate: true });
 const filtered = computed(() => {
   const f = filter.value;
   return rows.value.filter((r) => {
@@ -217,6 +219,7 @@ const claimText = (r: Row) => {
         <div v-for="r in shown" :key="r.key" class="card debris-card">
           <div class="debris-card-head">
             <span class="mono">{{ coords(r.g, r.s, r.p) }}</span>
+            <span v-if="r.battles.length" class="badge" :title="t('debris.battleBadge')">{{ t('debris.newBattle') }}</span>
             <PlayerLink v-if="r.owner" :id="r.owner.id" :name="r.owner.name" />
             <span v-if="r.owner?.member" class="badge">{{ t('debris.member') }}</span>
             <span class="grow" />

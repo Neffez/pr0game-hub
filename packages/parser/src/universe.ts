@@ -68,6 +68,14 @@ export interface UniverseSettings {
   /** game config planet_size_factor: fields of new colonies (colonization planner) */
   planetSizeFactor?: number;
   /**
+   * Planet limit of the game (`PlayerUtil::maxPlanetCount`): game config max_initial_planets, max_additional_planets
+   * and planets_per_tech. Unlike the other optional settings they are not assumed when unset: `planetLimit` only
+   * answers when an admin entered all three (a wrong guess would hide the warning of a colony save).
+   */
+  maxInitialPlanets?: number;
+  maxAdditionalPlanets?: number;
+  planetsPerTech?: number;
+  /**
    * Production bonus of new colonies per position in percent, metal, crystal, deuterium (the game's `planet_data`
    * bonus columns, only with `planet_ressource_bonus`; not on any page players see): position → [m, k, d].
    */
@@ -114,6 +122,10 @@ export const OPTIONAL_DEFAULTS = {
   defenseDebrisPercent: 0,
   bigShields: false,
   planetSizeFactor: 1,
+  // game defaults, for validation and the admin form's placeholders only (see `planetLimit`)
+  maxInitialPlanets: 1,
+  maxAdditionalPlanets: 11,
+  planetsPerTech: 0.5,
 } satisfies Partial<Record<keyof UniverseSettings, number | boolean>>;
 
 /** Days without login until the game flags a player inactive, when the universe does not set it. */
@@ -143,6 +155,20 @@ export function lastDebrisCleanup(s: Pick<UniverseSettings, 'timezone' | 'debris
   return t - 7 * 86400;
 }
 
+/** Astrophysics: its level raises the planet limit. */
+export const ASTROPHYSICS = 124;
+
+/**
+ * Most planets a player with astrophysics level `astro` may own, like the game's `PlayerUtil::maxPlanetCount`
+ * (0 initial planets lifts the cap of the additional ones). A colonization arriving at or above it founds nothing
+ * and the fleet flies home. Null when the universe does not set all three values.
+ */
+export function planetLimit(s: Pick<UniverseSettings, 'maxInitialPlanets' | 'maxAdditionalPlanets' | 'planetsPerTech'>, astro: number): number | null {
+  if (s.maxInitialPlanets == null || s.maxAdditionalPlanets == null || s.planetsPerTech == null) return null;
+  const additional = s.maxInitialPlanets === 0 ? 999 : s.maxAdditionalPlanets;
+  return Math.ceil(s.maxInitialPlanets + Math.min(additional, astro * s.planetsPerTech));
+}
+
 /** Stored settings over the defaults (unknown keys are kept, like the stored JSON). */
 export const universeSettings = (stored: Partial<UniverseSettings> | null | undefined): UniverseSettings => ({ ...UNIVERSE_DEFAULTS, ...(stored ?? {}) });
 
@@ -154,6 +180,8 @@ export interface SettingError {
 const KNOWN: Record<string, unknown> = { ...UNIVERSE_DEFAULTS, ...OPTIONAL_DEFAULTS };
 /** at least 1 and whole */
 const COUNTS = ['galaxies', 'systems', 'positions', 'fleetSpeed', 'storageMultiplier'];
+/** whole numbers from 0 */
+const WHOLE = ['maxInitialPlanets', 'maxAdditionalPlanets'];
 /** whole numbers with an upper bound */
 const BOUNDED: Record<string, number> = { debrisCleanupDay: 6, debrisCleanupHour: 23, debrisCleanupMinute: 59 };
 /** percentages */
@@ -198,6 +226,7 @@ export function settingsError(settings: object | null | undefined): SettingError
       if (COUNTS.includes(key)) valid &&= Number.isInteger(value) && (value as number) >= 1;
       // above 100 % research times turn negative / more than everything goes into the debris field
       if (PERCENT.includes(key)) valid &&= (value as number) <= 100;
+      if (WHOLE.includes(key)) valid &&= Number.isInteger(value);
       if (key in BOUNDED) valid &&= Number.isInteger(value) && (value as number) <= BOUNDED[key];
     }
     if (!valid) return { code: 'setting_invalid', message: `Invalid setting: ${key}` };

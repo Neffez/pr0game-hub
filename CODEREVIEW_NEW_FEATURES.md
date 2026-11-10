@@ -17,6 +17,19 @@ Each finding names how it was found:
 
 The earlier review of the whole repository is [`CODEREVIEW.md`](CODEREVIEW.md).
 
+## Status
+
+All findings are fixed (2026-11-09 and 2026-11-10, see [`CHANGELOG.md`](CHANGELOG.md), each entry names its finding).
+Where a finding offered two ways:
+
+- **B-4:** the requests are counted and the options locked during the calculation; no `AbortController`.
+- **B-12:** a stored start planet or galaxy that does not fit the universe counts as no filter and is reset; the
+  filters are still stored once for all universes.
+- **U-3:** the visible warning line, and the planet limit: with the universe settings `maxInitialPlanets`,
+  `maxAdditionalPlanets` and `planetsPerTech` (admin panel) the options say whether a colony save founds a colony
+  (planets below the limit, a red warning) or comes back (limit reached). The colony save is offered in both cases.
+- **U-1:** changed as described, not looked at in a browser again.
+
 ## Not covered
 
 - The result displays of the battle simulation (attack assistant, defense advisor, raid risk): the WebAssembly module

@@ -4,6 +4,7 @@ import { createApp, defineComponent, h, nextTick, ref, type Component } from 'vu
 import { createMemoryHistory, createRouter } from 'vue-router';
 import { provideUni, type UniContext } from '../src/composables';
 import { i18n, setLocale } from '../src/i18n';
+import { decodeShare } from '@pr0hub/battle';
 import AttackView from '../src/views/AttackView.vue';
 import FleetSaveView from '../src/views/FleetSaveView.vue';
 
@@ -32,7 +33,7 @@ const assist = {
     fleets: [{ mission: 1, ships: { 207: 100 } }], player: { id: 7, name: 'Enemy' }, member: 'Carol',
   },
   member: { id: 1, name: 'Carol' },
-  target: { g: 1, s: 100, p: 12, type: 'planet', name: 'Ares', values: empire.data.planets[0].values, resources: { metal: 100_000, crystal: 50_000, deuterium: 50_000 }, empireTime: now - 600, deuterium: 50_000, perHour: null },
+  target: { g: 1, s: 100, p: 12, type: 'planet', name: 'Ares', values: empire.data.planets[0].values, present: { ...empire.data.planets[0].values, 202: 10 }, resources: { metal: 100_000, crystal: 50_000, deuterium: 50_000 }, empireTime: now - 600, deuterium: 50_000, perHour: null },
   bodies: empire.data.planets.map((p) => ({ ...p.coords, type: p.type, name: p.name })),
   research,
   attacker: { player: { id: 7, name: 'Enemy' }, research: { values: { 109: 10, 110: 10, 111: 10 }, time: now - 3600 }, ships: { 207: 100 } },
@@ -48,6 +49,12 @@ const assist = {
     lostResources: { attacker: { metal: 0, crystal: 0, deuterium: 0 }, defender: { metal: 200_000, crystal: 50_000, deuterium: 0 } },
   },
   now,
+};
+/** the movement shows no ships: the server estimated them from a spy report of the origin */
+const estimatedAssist = {
+  ...assist,
+  attack: { ...assist.attack, fleets: [{ mission: 1, ships: {} }] },
+  attacker: { ...assist.attacker, ships: { 207: 40, 215: 5 }, estimated: { time: now - 3600 } },
 };
 const ctx: UniContext = {
   universe: {
@@ -89,7 +96,7 @@ describe('fleet save and attack assistant', () => {
     setLocale('de');
     localStorage.clear();
     vi.stubGlobal('fetch', async (url: string) => {
-      const body = url.includes('/attack-assist') ? assist : url.includes('/imperium') ? imperium : url.includes('/debris-fields') ? { cleanup: now - 3600, fields: { 1: [{ s: 100, p: 5, visible: true, active: false, sure: true, time: now }, { s: 130, p: 9, visible: true, active: false, sure: false, time: now - 86400 }] } } : [];
+      const body = url.includes('from=1%3A160%3A2') ? estimatedAssist : url.includes('/attack-assist') ? assist : url.includes('/imperium') ? imperium : url.includes('/debris-fields') ? { cleanup: now - 3600, fields: { 1: [{ s: 100, p: 5, visible: true, active: false, sure: true, time: now }, { s: 130, p: 9, visible: true, active: false, sure: false, time: now - 86400 }] } } : [];
       return new Response(JSON.stringify(body), { headers: { 'content-type': 'application/json' } });
     });
   });
@@ -98,11 +105,17 @@ describe('fleet save and attack assistant', () => {
   it('suggests fleet saves per body with ships and warns about a phalanx', async () => {
     const root = await mount(FleetSaveView, '/u8/fleetsave');
     const bodies = root.querySelectorAll('.fs-body');
+    // the built-in presets show in the viewer's language, not under their stored name
+    expect([...root.querySelectorAll('.fs-preset')].map((x) => x.textContent!.trim().split(' ')[0])).toEqual(['Nacht', 'Arbeit']);
     // only the planet has ships
     expect(bodies).toHaveLength(1);
     expect(bodies[0].querySelector('.fs-phalanx')!.textContent).toBe(' Phalanx: Enemy 1:104:3');
     expect(bodies[0].querySelectorAll('.fso-table tbody tr').length).toBeGreaterThan(0);
     expect(bodies[0].querySelector('.fso-table tbody td b')!.textContent).toMatch(/Stationieren|Transport|Abbauen/);
+    // the rows before "more" are different missions or targets, not one target at several speeds
+    const routes = [...bodies[0].querySelectorAll('.fso-table tbody tr')].map((r) => `${r.children[0].textContent!.trim()} → ${r.children[1].textContent!.trim()}`);
+    expect(routes).toHaveLength(3);
+    expect(new Set(routes).size).toBe(3);
     // with a recycler existing debris fields are targets too; one only seen before is marked
     (bodies[0].querySelector('.fso button.link') as HTMLButtonElement).click();
     await settle();
@@ -122,5 +135,20 @@ describe('fleet save and attack assistant', () => {
     const helper = [...root.querySelectorAll('table.data tbody tr')].find((r) => r.textContent!.includes('Dave'))!;
     expect(helper.textContent).toContain('Near');
     expect(helper.querySelector('button')!.textContent).toContain('Einladen');
+  });
+
+  it('opens the simulator with the fleets the server simulated', async () => {
+    const link = async (from: string) => {
+      const root = await mount(AttackView, `/u8/attack?member=1&arrival=${arrival}&from=${from}`);
+      const href = root.querySelector<HTMLAnchorElement>('[data-tour="attack-sim"] a[target="_blank"]')!.href;
+      return decodeShare(href.slice(href.indexOf('#') + 1));
+    };
+    const seen = await link('1:104:3');
+    expect(seen.attackers.map((a) => a.units)).toEqual([{ 207: 100 }]);
+    // the planet without the ships sent away since the empire page (`target.present`)
+    expect(seen.defenders[0].units).toEqual({ 202: 10, 203: 20, 209: 5, 401: 10 });
+    // no ships in the movement: the estimated fleet attacks, not nobody
+    const estimated = await link('1:160:2');
+    expect(estimated.attackers.map((a) => a.units)).toEqual([{ 207: 40, 215: 5 }]);
   });
 });
