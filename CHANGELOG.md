@@ -4,6 +4,13 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-10
 
+- Code review U-10, four small items: the colonization planner writes "(1 inactive)" instead of "(1 i)"
+  (`colonize.inactiveShort`). The built-in fleet save presets "Night"/"Work" carry a mark (`builtin: night | work`,
+  accepted and returned by `/api/auth/fleetsave-presets`) and show in the viewer's language instead of the one active
+  at the first change; presets stored before under a built-in's name and times count as built-in. A hidden onboarding
+  checklist can be shown again from the sync page while steps are open. The unit "D" of values in deuterium is one
+  text (`common.deutShort`) in the upgrade advisor, defense advisor and raid risk.
+
 - Code review U-9: four things of the desktop tables were missing on the mobile cards and are there now: the "missed"
   mark of a fleet save option, the "battle" badge of the debris finder, the alliance tag in the farm finder and the
   inactivity badge in the spy priority.

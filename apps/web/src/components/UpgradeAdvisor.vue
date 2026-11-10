@@ -138,8 +138,8 @@ async function addToOrder(a: Advice) {
         <div class="adv-line">
           <span>
             <b>{{ payback(a.payback) }}</b>
-            <span class="muted" :title="costTitle(a)"> · {{ short(a.costValue) }} D</span>
-            <span class="muted" :title="gainTitle(a)"> · +{{ short(a.gainValue) }} D/h</span>
+            <span class="muted" :title="costTitle(a)"> · {{ short(a.costValue) }} {{ t('common.deutShort') }}</span>
+            <span class="muted" :title="gainTitle(a)"> · +{{ short(a.gainValue) }} {{ t('common.deutShort') }}/h</span>
           </span>
           <span v-if="added.has(keyOf(a))" class="pos">{{ t('advisor.added') }}</span>
           <button v-else class="small" :disabled="!!busy" @click="addToOrder(a)">{{ t('advisor.add') }}</button>
@@ -162,8 +162,8 @@ async function addToOrder(a: Advice) {
           <tr v-for="a in shown" :key="keyOf(a)">
             <td><b>{{ title(a) }}</b></td>
             <td class="small">{{ planetName(a.key) }}</td>
-            <td class="num" :title="costTitle(a)">{{ short(a.costValue) }} D</td>
-            <td class="num" :title="gainTitle(a)">+{{ short(a.gainValue) }} D/h</td>
+            <td class="num" :title="costTitle(a)">{{ short(a.costValue) }} {{ t('common.deutShort') }}</td>
+            <td class="num" :title="gainTitle(a)">+{{ short(a.gainValue) }} {{ t('common.deutShort') }}/h</td>
             <td class="num"><b>{{ payback(a.payback) }}</b></td>
             <td>
               <span v-if="added.has(keyOf(a))" class="pos small">{{ t('advisor.added') }}</span>

@@ -3,6 +3,8 @@ import type de from './de';
 /** English UI texts (same keys as de.ts). Game terms follow the game's language files (pr0game/language/en). */
 const en: typeof de = {
   common: {
+    /** unit of values converted to deuterium by the market rate */
+    deutShort: 'D',
     back: 'back',
     save: 'Save',
     change: 'Change',
@@ -1375,6 +1377,7 @@ const en: typeof de = {
     allyHint: '"Alliance": offered by the own alliance or by an alliance with a main, wing, alliance or trade alliance pact (marked green in the game).',
   },
   colonize: {
+    inactiveShort: '{n} inactive',
     tab: 'Colonize',
     hint1: "Free positions from the alliance's galaxy data, ranked by your profile. Fleeter: coverage (how much a planet there shortens the way from every system of the universe to your nearest planet) and many points of targets nearby count most. Miner: fields, temperature (deuterium) and the position bonus count most.",
     hint2: 'Both avoid positions where many members already sit and would have to share the targets. Targets and points: other players within the chosen range of the same galaxy (each player once) and in the system itself.',
@@ -1439,6 +1442,7 @@ const en: typeof de = {
     next: 'Next:',
     toSync: 'To the sync page',
     hide: 'Hide',
+    showAgain: 'Show the first steps again',
     doneAt: 'done {time}',
     column: 'Onboarding',
     adminHint: "The member's first syncs (empire, statistics, overview, research, galaxy, messages, buildings)",

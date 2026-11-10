@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Kleinigkeiten: Der Kolonisationsplaner schreibt „inaktiv“ aus, die Fleetsave-Vorlagen „Nacht“ und „Arbeit“ folgen deiner Sprache, und eine ausgeblendete „Erste Schritte“-Liste lässt sich auf der Synchronisieren-Seite wieder einblenden.',
+        en: 'Small things: the colonization planner spells out "inactive", the fleet save presets "Night" and "Work" follow your language, and a hidden "first steps" list can be shown again on the sync page.',
+      },
+      {
+        kind: 'fix',
         de: 'Handy-Ansicht: Verpasste Fleetsave-Abflüge, das Kampf-Badge im TF-Finder, das Allianzkürzel im Farm-Finder und die Inaktivität in der Spionage-Priorität stehen jetzt auch auf den Karten.',
         en: 'Mobile view: missed fleet save departures, the battle badge in the debris finder, the alliance tag in the farm finder and the inactivity in the spy priority now show on the cards too.',
       },

@@ -4,6 +4,8 @@
  */
 const de = {
   common: {
+    /** unit of values converted to deuterium by the market rate */
+    deutShort: 'D',
     back: 'zurück',
     save: 'Speichern',
     change: 'Ändern',
@@ -1376,6 +1378,7 @@ const de = {
     allyHint: '„Allianz“: Angebot aus der eigenen Allianz oder von einer Allianz mit Main-, Wing-, Bündnis- oder Handelsbündnis-Vertrag (im Spiel grün markiert).',
   },
   colonize: {
+    inactiveShort: '{n} inaktiv',
     tab: 'Kolonisieren',
     hint1: 'Freie Positionen aus den Galaxiedaten der Allianz, sortiert nach deinem Profil. Fleeter: Abdeckung (wie stark ein Planet dort die Wege von jedem System des Universums zu deinem nächsten Planeten verkürzt) und viele Punkte von Zielen in der Nähe zählen viel. Miner: Felder, Temperatur (Deuterium) und der Positionsbonus zählen viel.',
     hint2: 'Beide meiden Positionen, an denen schon viele Mitglieder sitzen und sich die Ziele teilen müssten. Ziele und Punkte: andere Spieler im gewählten Umkreis derselben Galaxie (jeder Spieler einmal) und im System selbst.',
@@ -1440,6 +1443,7 @@ const de = {
     next: 'Als Nächstes:',
     toSync: 'Zum Einfügen',
     hide: 'Ausblenden',
+    showAgain: 'Erste Schritte wieder anzeigen',
     doneAt: 'erledigt {time}',
     column: 'Onboarding',
     adminHint: 'Erste Synchronisierungen des Mitglieds (Imperium, Statistik, Übersicht, Forschung, Galaxie, Nachrichten, Gebäude)',

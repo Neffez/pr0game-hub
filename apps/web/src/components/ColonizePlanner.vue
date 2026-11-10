@@ -265,7 +265,7 @@ const nearTitle = (r: Row) => t('colonize.nearTitle', { range: data.value?.range
             <td v-if="hasBonus" class="small">{{ bonusText(r.info) }}</td>
             <td class="num">{{ pct(r.sys.coverage) }} %</td>
             <td class="num" :title="nearTitle(r)">{{ short(r.sys.targetPoints) }}</td>
-            <td class="num" :title="nearTitle(r)">{{ r.sys.targets }}<span v-if="r.sys.inactive" class="muted small"> ({{ r.sys.inactive }} i)</span></td>
+            <td class="num" :title="nearTitle(r)">{{ r.sys.targets }}<span v-if="r.sys.inactive" class="muted small"> ({{ t('colonize.inactiveShort', { n: r.sys.inactive }) }})</span></td>
             <td class="num">{{ r.sys.members }}</td>
             <td class="num small muted">{{ ago(r.sys.seen) }}</td>
             <td class="num" :title="scoreTitle(r)"><b>{{ Math.round(r.score) }}</b></td>

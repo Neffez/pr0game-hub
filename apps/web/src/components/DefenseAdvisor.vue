@@ -149,7 +149,7 @@ const HEAVY = ':heavy';
 const variants = (x: Threat) => [{ key: x.key, heavy: false }, ...(x.heavy ? [{ key: `${x.key}${HEAVY}`, heavy: true }] : [])];
 /** the result shows a variant (it was calculated) */
 const shown = (key: string) => !!outcomeOf(advice.value?.before, key);
-const profitText = (o: Outcome | null) => (o ? `${o.profit > 0 ? '+' : ''}${short(Math.round(o.profit))} D` : '–');
+const profitText = (o: Outcome | null) => (o ? `${o.profit > 0 ? '+' : ''}${short(Math.round(o.profit))} ${t('common.deutShort')}` : '–');
 const profitTitle = (o: Outcome | null) =>
   o
     ? [
@@ -352,7 +352,7 @@ async function addToOrder() {
             </div>
             <p class="small">
               {{ t('defense.cost') }}: <b :title="resTitle(advice.cost)">{{ short(advice.cost.metal) }} / {{ short(advice.cost.crystal) }} / {{ short(advice.cost.deuterium) }}</b>
-              <span class="muted"> · {{ short(Math.round(advice.costValue)) }} D</span>
+              <span class="muted"> · {{ short(Math.round(advice.costValue)) }} {{ t('common.deutShort') }}</span>
             </p>
             <div class="row small">
               <template v-if="data.planet.type === 'planet'">

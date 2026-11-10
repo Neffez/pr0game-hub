@@ -1002,6 +1002,7 @@ components:
         name: { type: string, minLength: 1, maxLength: 40 }
         from: { type: string, pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$', description: Offline from (time of day) }
         to: { type: string, pattern: '^([01][0-9]|2[0-3]):[0-5][0-9]$', description: Back at (time of day) }
+        builtin: { type: string, enum: [night, work], description: 'Marks one of the web app''s built-in presets: it is shown under its name in the viewer''s language, `name` is the fallback' }
     GroupMembership:
       type: object
       properties:
@@ -1437,7 +1438,7 @@ paths:
       tags: [Auth]
       operationId: setFleetSavePresets
       summary: Store the fleet save presets
-      description: Replaces all presets of the signed-in user. Names are trimmed; of two entries with the same name the later one is kept at its place.
+      description: Replaces all presets of the signed-in user. Names are trimmed; of two entries with the same name the later one is kept at its place. An unknown `builtin` is invalid.
       security: [{ sessionCookie: [] }]
       requestBody:
         required: true

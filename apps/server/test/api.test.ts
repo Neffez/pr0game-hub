@@ -1303,9 +1303,13 @@ describe('review fixes', () => {
     const res = await set([night, { name: 'Work', from: '07:45', to: '17:00' }, { name: 'Night', from: '22:00', to: '06:00' }]);
     expect(res.json()).toEqual({ presets: [{ name: 'Work', from: '07:45', to: '17:00' }, { name: 'Night', from: '22:00', to: '06:00' }] });
     expect(await get()).toEqual([{ name: 'Work', from: '07:45', to: '17:00' }, { name: 'Night', from: '22:00', to: '06:00' }]);
+    // the mark of a built-in preset is kept (the web app translates its name)
+    const builtin = [{ name: 'Nacht', from: '23:30', to: '07:15', builtin: 'night' }, { name: 'Late', from: '01:00', to: '09:00' }];
+    expect((await set(builtin)).json()).toEqual({ presets: builtin });
+    expect(await get()).toEqual(builtin);
     expect((await set([])).json()).toEqual({ presets: [] });
     expect(await get()).toEqual([]);
-    for (const bad of [undefined, 'x', [{ ...night, from: '24:00' }], [{ ...night, name: ' ' }], [{ ...night, name: 'x'.repeat(41) }], Array(21).fill(night)]) {
+    for (const bad of [undefined, 'x', [{ ...night, builtin: 'lunch' }], [{ ...night, from: '24:00' }], [{ ...night, name: ' ' }], [{ ...night, name: 'x'.repeat(41) }], Array(21).fill(night)]) {
       const r = await set(bad);
       expect(r.statusCode).toBe(400);
       expect(r.json().code).toBe('presets_invalid');

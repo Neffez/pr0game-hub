@@ -105,6 +105,8 @@ describe('fleet save and attack assistant', () => {
   it('suggests fleet saves per body with ships and warns about a phalanx', async () => {
     const root = await mount(FleetSaveView, '/u8/fleetsave');
     const bodies = root.querySelectorAll('.fs-body');
+    // the built-in presets show in the viewer's language, not under their stored name
+    expect([...root.querySelectorAll('.fs-preset')].map((x) => x.textContent!.trim().split(' ')[0])).toEqual(['Nacht', 'Arbeit']);
     // only the planet has ships
     expect(bodies).toHaveLength(1);
     expect(bodies[0].querySelector('.fs-phalanx')!.textContent).toBe(' Phalanx: Enemy 1:104:3');
