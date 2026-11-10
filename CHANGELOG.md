@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-10
 
+- Code review U-7 and U-8: the fleet save planner, the attack assistant, the alliance health and the moon chances show
+  the loading placeholder until their data is there, like the farm finder. The moon chances remember period and
+  "members only" (`moons.filter`) and say so when the filter hides every battle (`moons.emptyFiltered`) instead of
+  leaving only the filter row.
+
 - Code review U-5: the alliance health flagged an outdated empire page as "no empire", next to its age ("5 d"). `GET
   /api/{uni}/alliance-health` now returns `noEmpire` only when no empire page is known and the new flag `staleEmpire`
   when the newest one is older than 3 days (texts `health.flag.staleEmpire`, `health.flagTitle.staleEmpire`).

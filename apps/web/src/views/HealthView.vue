@@ -3,6 +3,7 @@ import { computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
 import Hint from '../components/Hint.vue';
+import Loading from '../components/Loading.vue';
 import PageHeader from '../components/PageHeader.vue';
 import PlayerLink from '../components/PlayerLink.vue';
 import { useClock } from '../clock';
@@ -83,6 +84,7 @@ const flagged = computed(() => (data.value?.members ?? []).filter((m) => m.flags
   </PageHeader>
 
   <div v-if="error" class="error">{{ error }}</div>
+  <Loading v-else-if="!data" :lines="6" />
   <template v-else-if="data">
     <div class="card row small" data-tour="health-summary">
       <span>{{ t('health.members', { n: data.members.length }) }}</span>

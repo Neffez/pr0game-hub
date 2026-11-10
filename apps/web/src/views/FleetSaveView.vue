@@ -7,6 +7,7 @@ import { useClock } from '../clock';
 import FleetSaveOptions, { type DebrisField, type FreeSystem } from '../components/FleetSaveOptions.vue';
 import Hint from '../components/Hint.vue';
 import Icon from '../components/Icon.vue';
+import Loading from '../components/Loading.vue';
 import PageHeader from '../components/PageHeader.vue';
 import { useLoader, useStored, useUni } from '../composables';
 import { abbr, dateTime, duration, fmt, name } from '../format';
@@ -211,6 +212,7 @@ const kindList = computed(() => (['deploy', 'transport', 'harvest', 'colonize'] 
   </div>
 
   <div v-if="error" class="error">{{ error }}</div>
+  <Loading v-else-if="!data" :lines="6" />
   <div v-else-if="data && !data.empire" class="card muted">{{ t('fleetsave.noEmpire') }}</div>
   <div v-else-if="data && !withShips.length" class="card muted">{{ t('fleetsave.noFleet') }}</div>
 

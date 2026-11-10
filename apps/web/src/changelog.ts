@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Fleetsave-Planer, Angriffsassistent, Allianz-Gesundheit und Mondchancen zeigen beim Laden einen Platzhalter statt einer leeren Seite. Die Mondchancen merken sich Zeitraum und Filter und sagen, wenn der Filter alle Kämpfe ausblendet.',
+        en: 'Fleet save planner, attack assistant, alliance health and moon chances show a placeholder while loading instead of an empty page. The moon chances remember period and filter and say when the filter hides every battle.',
+      },
+      {
+        kind: 'fix',
         de: 'Allianz-Gesundheit: Eine alte Imperium-Seite heißt jetzt „Imperium veraltet“; „kein Imperium“ steht nur noch, wenn nie eine eingefügt wurde.',
         en: 'Alliance health: an old empire page is now called "empire outdated"; "no empire" only shows when none was ever pasted.',
       },

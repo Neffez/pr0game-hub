@@ -1420,6 +1420,7 @@ const de = {
     period: 'Zeitraum',
     membersOnly: 'Nur Kämpfe mit Mitgliedern',
     empty: 'Keine Kämpfe mit Mondchance in den letzten {days} Tagen.',
+    emptyFiltered: 'Keine Kämpfe mit Mitgliedern in den letzten {days} Tagen. Ohne den Filter „Nur Kämpfe mit Mitgliedern“ gibt es Kämpfe mit Mondchance.',
     member: 'Mitglied',
     battles: 'Kämpfe',
     expected: 'Erwartet',

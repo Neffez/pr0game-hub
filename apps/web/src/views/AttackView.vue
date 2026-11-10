@@ -10,6 +10,7 @@ import Countdown from '../components/Countdown.vue';
 import FleetSaveOptions, { type DebrisField, type FreeSystem } from '../components/FleetSaveOptions.vue';
 import Hint from '../components/Hint.vue';
 import Icon from '../components/Icon.vue';
+import Loading from '../components/Loading.vue';
 import PageHeader from '../components/PageHeader.vue';
 import PlayerLink from '../components/PlayerLink.vue';
 import Section from '../components/Section.vue';
@@ -170,6 +171,7 @@ const openHelpers = computed(() => (data.value?.helpers ?? []).filter((h) => h.l
   </PageHeader>
 
   <div v-if="error" class="error">{{ error }}</div>
+  <Loading v-else-if="!data" :lines="6" />
   <template v-else-if="data && a">
     <div class="card at-head" :class="{ arrived }" data-tour="attack-head">
       <div class="at-count">

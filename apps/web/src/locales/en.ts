@@ -1419,6 +1419,7 @@ const en: typeof de = {
     period: 'Period',
     membersOnly: 'Only battles with members',
     empty: 'No battles with a moon chance in the last {days} days.',
+    emptyFiltered: 'No battles with members in the last {days} days. Without the filter "Only battles with members" there are battles with a moon chance.',
     member: 'Member',
     battles: 'Battles',
     expected: 'Expected',
