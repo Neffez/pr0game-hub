@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-10
 
+- Code review B-12: the farm finder stores its start planet for all universes; in a second universe no own planet
+  matched, every flight time showed "–" and the select was empty. A start planet that is none of the own planets now
+  counts as "nearest" and is forgotten once the own planets are loaded. The same for the stored galaxy of the farm
+  finder, debris finder and colonization planner when the universe has fewer galaxies.
+
 - Code review B-11: the upgrade advisor remembered added steps by their object in a computed list; a live reload
   created new objects, the mark was gone and the same step could be added again. The state and the rows are keyed by
   planet, kind, element and level.

@@ -125,9 +125,17 @@ const drives = computed(() => drivesFromResearch(ctx.value?.own?.research ?? {})
 const capacity = computed(() => units.value.capacity[filter.value.ship] ?? 0);
 const ownEspionage = computed(() => (ctx.value?.own?.research as Record<number, number> | undefined)?.[106] ?? null);
 
+const planetKey = (p: { coords: { g: number; s: number; p: number } }) => `${p.coords.g}:${p.coords.s}:${p.coords.p}`;
+/**
+ * The stored start planet, when it is one of the own planets here: the filter is stored for all universes, and the
+ * planet of another universe means "nearest" (and is forgotten once the own planets are known).
+ */
+const from = computed(() => (filter.value.from && ownPlanets.value.some((p) => planetKey(p) === filter.value.from) ? filter.value.from : ''));
+watch(ownPlanets, (list) => list.length && filter.value.from && !from.value && (filter.value.from = ''), { immediate: true });
+
 /** Start of the flight: the chosen own planet or the nearest one. */
 function startFor(target: [number, number, number]) {
-  const list = ownPlanets.value.filter((p) => !filter.value.from || `${p.coords.g}:${p.coords.s}:${p.coords.p}` === filter.value.from);
+  const list = ownPlanets.value.filter((p) => !from.value || planetKey(p) === from.value);
   let best: { label: string; c: [number, number, number]; d: number } | null = null;
   for (const p of list) {
     const c: [number, number, number] = [p.coords.g, p.coords.s, p.coords.p];
@@ -173,6 +181,8 @@ const rows = computed<Row[]>(() =>
 );
 
 const galaxies = computed(() => settings.value.galaxies ?? 1);
+// the filter is stored for all universes: a galaxy this universe does not have is no filter
+watch(galaxies, (n) => filter.value.galaxy != null && filter.value.galaxy > n && (filter.value.galaxy = null), { immediate: true });
 const filtered = computed(() => {
   const f = filter.value;
   return rows.value.filter((r) => {

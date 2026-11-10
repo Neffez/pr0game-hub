@@ -9,7 +9,8 @@ import FarmView from '../src/views/FarmView.vue';
 const now = Math.floor(Date.now() / 1000);
 const ctx = {
   universe: { id: 1, slug: 'u8', name: 'U8', deck: [], settings: { galaxies: 9, systems: 400, positions: 15, fleetSpeed: 2500, timezone: 'Europe/Berlin', gameUrl: '' } },
-  group: { id: 1, name: 'A', role: 'member' }, members: [], me: { id: 1, username: 'me', isAdmin: false }, own: null,
+  group: { id: 1, name: 'A', role: 'member' }, members: [], me: { id: 1, username: 'me', isAdmin: false },
+  own: { research: {}, planets: [{ name: 'Ares', type: 'planet', coords: { g: 1, s: 100, p: 12 } }] },
 } as unknown as UniContext;
 
 async function settle() {
@@ -28,6 +29,7 @@ describe('farm finder tabs (B-2 of the review)', () => {
     await loadLocale('de');
     setLocale('de');
     localStorage.clear();
+    localStorage.setItem('hub.farm.filter', JSON.stringify({ from: '4:20:7', galaxy: 12 }));
     vi.stubGlobal('fetch', async (input: RequestInfo | URL) => {
       const url = String(input);
       const json = (body: unknown) => new Response(JSON.stringify(body), { headers: { 'content-type': 'application/json' } });
@@ -58,6 +60,16 @@ describe('farm finder tabs (B-2 of the review)', () => {
     expect(farmCalls).toEqual([30, 7]);
     // the empty text names the period of the data shown
     expect(root.textContent).toContain('in den letzten 7 Tagen');
+  });
+
+  it('ignores a stored start planet that is not an own planet here (another universe)', async () => {
+    // set before the page was mounted: see beforeAll
+    const stored = JSON.parse(localStorage.getItem('hub.farm.filter')!);
+    expect(stored.from).toBe('');
+    // a galaxy the universe does not have (9 galaxies)
+    expect(stored.galaxy).toBeNull();
+    const select = [...root.querySelectorAll('select')].find((x) => [...x.options].some((o) => o.textContent!.includes('Ares')))!;
+    expect(select.value).toBe('');
   });
 
   it('does not load again when the data already fits', async () => {

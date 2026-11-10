@@ -91,6 +91,8 @@ const rows = computed<Row[]>(() =>
 );
 
 const galaxies = computed(() => settings.value.galaxies ?? 1);
+// the filter is stored for all universes: a galaxy this universe does not have is no filter
+watch(galaxies, (n) => filter.value.galaxy != null && filter.value.galaxy > n && (filter.value.galaxy = null), { immediate: true });
 const filtered = computed(() => {
   const f = filter.value;
   return rows.value.filter((r) => {

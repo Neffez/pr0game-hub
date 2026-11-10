@@ -94,6 +94,8 @@ const rows = computed<Row[]>(() => {
 });
 
 const galaxies = computed(() => settings.value.galaxies ?? 1);
+// the filter is stored for all universes: a galaxy this universe does not have is no filter
+watch(galaxies, (n) => filter.value.galaxy != null && filter.value.galaxy > n && (filter.value.galaxy = null), { immediate: true });
 /** "At most members" as a number; an emptied field (`''` from `v-model.number`) is no filter. */
 const memberLimit = computed(() => {
   const v: unknown = filter.value.maxMembers;

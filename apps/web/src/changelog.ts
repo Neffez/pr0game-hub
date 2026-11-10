@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Farm-Finder: Ein in einem anderen Universum gewählter Startplanet führt nicht mehr zu leeren Flugzeiten; es zählt dann wieder der nächste eigene Planet.',
+        en: 'Farm finder: a start planet chosen in another universe no longer leaves the flight times empty; the nearest own planet counts again.',
+      },
+      {
+        kind: 'fix',
         de: 'Upgrade-Berater: Ein in die Bauliste gelegter Schritt bleibt als „in der Bauliste“ markiert, auch wenn die Seite im Hintergrund neu lädt.',
         en: 'Upgrade advisor: a step put into the build order stays marked as added when the page reloads in the background.',
       },
