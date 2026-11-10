@@ -169,9 +169,9 @@ const stripCells = computed(() =>
     const seen = strip.value?.seen[sys] ?? null;
     const planets = strip.value?.planets[sys] ?? 0;
     const points = strip.value?.points?.[sys] ?? 0;
-    // points on a square-root scale of the galaxy's top system, so a few big players do not flatten the rest
+    // points linear to the galaxy's top system
     const height = stripMode.value === 'points'
-      ? 15 + (maxPoints.value ? Math.sqrt(points / maxPoints.value) * 85 : 0)
+      ? 15 + (maxPoints.value ? (points / maxPoints.value) * 85 : 0)
       : Math.min(100, 15 + planets * 6);
     return {
       s: sys,
