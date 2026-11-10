@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-10
 
+- Code review U-9: four things of the desktop tables were missing on the mobile cards and are there now: the "missed"
+  mark of a fleet save option, the "battle" badge of the debris finder, the alliance tag in the farm finder and the
+  inactivity badge in the spy priority.
+
 - Code review U-7 and U-8: the fleet save planner, the attack assistant, the alliance health and the moon chances show
   the loading placeholder until their data is there, like the farm finder. The moon chances remember period and
   "members only" (`moons.filter`) and say so when the filter hides every battle (`moons.emptyFiltered`) instead of

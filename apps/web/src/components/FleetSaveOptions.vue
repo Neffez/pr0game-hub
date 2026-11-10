@@ -175,7 +175,10 @@ defineExpose({ fleet, options });
         </div>
         <div v-if="o.recall != null" class="mono">{{ t('fleetsave.recallAt', { time: when(o.recall) }) }}</div>
         <div class="muted">
-          <Ticker v-slot="{ now: n }"><span v-if="o.departure > n">{{ t('fleetsave.in', { time: duration(o.departure - n) }) }} · </span></Ticker>
+          <Ticker v-slot="{ now: n }">
+            <span v-if="o.departure > n">{{ t('fleetsave.in', { time: duration(o.departure - n) }) }} · </span>
+            <span v-else-if="o.departure < n - 60" class="neg">{{ t('fleetsave.missed') }} · </span>
+          </Ticker>
           <span :class="{ neg: deuterium != null && o.fuel > deuterium }">{{ short(o.fuel) }} {{ abbr(903) }}</span>
         </div>
       </div>

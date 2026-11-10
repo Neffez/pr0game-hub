@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Handy-Ansicht: Verpasste Fleetsave-Abflüge, das Kampf-Badge im TF-Finder, das Allianzkürzel im Farm-Finder und die Inaktivität in der Spionage-Priorität stehen jetzt auch auf den Karten.',
+        en: 'Mobile view: missed fleet save departures, the battle badge in the debris finder, the alliance tag in the farm finder and the inactivity in the spy priority now show on the cards too.',
+      },
+      {
+        kind: 'fix',
         de: 'Fleetsave-Planer, Angriffsassistent, Allianz-Gesundheit und Mondchancen zeigen beim Laden einen Platzhalter statt einer leeren Seite. Die Mondchancen merken sich Zeitraum und Filter und sagen, wenn der Filter alle Kämpfe ausblendet.',
         en: 'Fleet save planner, attack assistant, alliance health and moon chances show a placeholder while loading instead of an empty page. The moon chances remember period and filter and say when the filter hides every battle.',
       },

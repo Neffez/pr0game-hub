@@ -373,7 +373,9 @@ const claimText = (r: Row) => {
           <div class="farm-card-head">
             <span class="mono">{{ coords(r.g, r.s, r.p) }}<span v-if="r.type === 'moon'"> ({{ t('common.moon') }})</span></span>
             <PlayerLink :id="r.player.id" :name="r.player.name" />
+            <span v-if="r.player.ally_tag" class="muted small">[{{ r.player.ally_tag }}]</span>
             <StatusBadges :status="r.player.status" :points="r.player.points" />
+            <InactivityBadge :value="r.inactivity" chip hide-flagged />
             <span class="grow" />
             <PlanetActions :g="r.g" :s="r.s" :p="r.p" :type="r.type" :from="r.from?.c ?? null" :diameter="r.moonDiameter ?? null" />
           </div>
@@ -443,6 +445,7 @@ const claimText = (r: Row) => {
           <div class="farm-card-head">
             <span class="mono">{{ coords(r.g, r.s, r.p) }}<span v-if="r.type === 'moon'"> ({{ t('common.moon') }})</span></span>
             <PlayerLink :id="r.player.id" :name="r.player.name" />
+            <span v-if="r.player.ally_tag" class="muted small">[{{ r.player.ally_tag }}]</span>
             <StatusBadges :status="r.player.status" :points="r.player.points" />
             <InactivityBadge :value="r.inactivity" chip hide-flagged />
             <span class="grow" />
