@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-10
 
+- Code review B-11: the upgrade advisor remembered added steps by their object in a computed list; a live reload
+  created new objects, the mark was gone and the same step could be added again. The state and the rows are keyed by
+  planet, kind, element and level.
+
 - Code review B-10: the upgrade advisor compared the production of the synced page (from before the build queue) with
   the formula at the levels after the queue; with a mine in the queue the factor was too low and every gain of that
   planet underrated. `upgradeAdvice` takes `syncedLevels` per planet and `syncedResearch` and calibrates at those, the

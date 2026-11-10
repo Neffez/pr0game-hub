@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Upgrade-Berater: Ein in die Bauliste gelegter Schritt bleibt als „in der Bauliste“ markiert, auch wenn die Seite im Hintergrund neu lädt.',
+        en: 'Upgrade advisor: a step put into the build order stays marked as added when the page reloads in the background.',
+      },
+      {
+        kind: 'fix',
         de: 'Upgrade-Berater: Mit einer Mine oder Forschung in der Bauschleife wurden die Erträge des Planeten zu niedrig geschätzt.',
         en: 'Upgrade advisor: with a mine or research in the queue the gains of that planet were estimated too low.',
       },
