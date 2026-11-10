@@ -252,7 +252,7 @@ const openHelpers = computed(() => (data.value?.helpers ?? []).filter((h) => h.l
       <p v-if="arrived" class="muted small m-0">{{ t('attack.simArrived') }}</p>
       <p v-else-if="!from" class="muted small m-0">{{ t('attack.noEmpire') }}</p>
       <FleetSaveOptions
-        v-else :from="from" :values="data.target!.present" :research="data.research" :deuterium="deuterium" :targets="targets"
+        v-else :from="from" :values="data.target!.present" :research="data.research" :planets="data.bodies.filter((b) => b.type === 'planet').length" :deuterium="deuterium" :targets="targets"
         :now="now" :latest="a.arrival - 1" :back="a.arrival + 1" :kinds="['deploy', 'transport', 'harvest', 'colonize', 'recall']" :fields="fields" :free="free" :cleanup="cleanup"
       />
     </Section>

@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-10',
     items: [
       {
+        kind: 'new',
+        de: 'Kolo-Save: Hat ein Admin das Planetenmaximum des Universums eingetragen, sagt der Fleetsave-Planer klar, ob du mit deiner Astrophysik-Stufe am Maximum bist (die Flotte kommt zurück) oder darunter (es würde eine Kolonie gegründet). Angeboten wird der Kolo-Save in beiden Fällen.',
+        en: 'Colony save: once an admin entered the planet limit of the universe, the fleet save planner says clearly whether you are at the limit with your astrophysics level (the fleet comes back) or below it (a colony would be founded). The colony save is offered in both cases.',
+      },
+      {
         kind: 'fix',
         de: 'Kleinigkeiten: Der Kolonisationsplaner schreibt „inaktiv“ aus, die Fleetsave-Vorlagen „Nacht“ und „Arbeit“ folgen deiner Sprache, und eine ausgeblendete „Erste Schritte“-Liste lässt sich auf der Synchronisieren-Seite wieder einblenden.',
         en: 'Small things: the colonization planner spells out "inactive", the fleet save presets "Night" and "Work" follow your language, and a hidden "first steps" list can be shown again on the sync page.',

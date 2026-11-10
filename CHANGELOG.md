@@ -4,6 +4,14 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-10
 
+- Planet limit for the colony save (follow-up of code review U-3): three optional universe settings
+  `maxInitialPlanets`, `maxAdditionalPlanets` and `planetsPerTech` (game config of the same names; admin panel under
+  "Colonization", `openapi.yaml`) and `planetLimit` in `@pr0hub/core/universe` (like the game's
+  `PlayerUtil::maxPlanetCount`). With them the fleet save options (planner and attack assistant) compare the planets
+  of the empire page with the limit for its astrophysics level: below it a red warning says that the colony save
+  founds a colony, at it a note says that the fleet comes back. The colony save is offered either way; without the
+  three values (they are not assumed) the general warning stays.
+
 - Code review of the new features (`CODEREVIEW_NEW_FEATURES.md`): a status section says that all findings are fixed,
   which of two offered ways was taken and what stays open (colony save only at the planet limit).
 

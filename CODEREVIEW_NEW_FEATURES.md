@@ -25,9 +25,9 @@ Where a finding offered two ways:
 - **B-4:** the requests are counted and the options locked during the calculation; no `AbortController`.
 - **B-12:** a stored start planet or galaxy that does not fit the universe counts as no filter and is reset; the
   filters are still stored once for all universes.
-- **U-3:** the visible warning line. Offering the colony save only at the planet limit is open: the limit depends on
-  the game configuration (`max_initial_planets`, `max_additional_planets`, `planets_per_tech`), which the universe
-  settings of the hub do not hold.
+- **U-3:** the visible warning line, and the planet limit: with the universe settings `maxInitialPlanets`,
+  `maxAdditionalPlanets` and `planetsPerTech` (admin panel) the options say whether a colony save founds a colony
+  (planets below the limit, a red warning) or comes back (limit reached). The colony save is offered in both cases.
 - **U-1:** changed as described, not looked at in a browser again.
 
 ## Not covered

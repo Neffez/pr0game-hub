@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { COLONY_SHIP, distance, drivesFromResearch, fleetSaveOptions, shipSpeed, type SaveKind, type SaveTarget } from '@pr0hub/flight';
+import { ASTROPHYSICS, planetLimit } from '@pr0hub/core/universe';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useMobile, useUni } from '../composables';
@@ -54,6 +55,8 @@ const props = withDefaults(
     kinds?: SaveKind[];
     /** own planets ("g:s:p") in reach of a hostile phalanx: a flight to one of them shows in a scan of it */
     watched?: string[];
+    /** planets the owner of the fleet has by the empire page (moons do not count): for the planet limit of a colony save */
+    planets?: number | null;
     /** options shown before "more" */
     limit?: number;
   }>(),
@@ -152,6 +155,17 @@ const ordered = computed(() => {
 const shown = computed(() => (all.value ? ordered.value : ordered.value.slice(0, props.limit)));
 /** a colony save founds a colony below the planet limit: said in the open, a tooltip does not show on touch devices */
 const colonizeShown = computed(() => shown.value.some((o) => o.kind === 'colonize'));
+/**
+ * Planets against the game's limit (universe settings and astrophysics of the empire page): below it a colony save
+ * founds a colony, at it the fleet comes back. Null when the universe has no limit values or the planets or the
+ * research are unknown; the general warning shows then. The colony save is offered in every case.
+ */
+const colony = computed(() => {
+  if (props.planets == null || !Object.keys(props.research).length) return null;
+  const astro = props.research[ASTROPHYSICS] ?? 0;
+  const limit = planetLimit(ctx.value!.universe.settings, astro);
+  return limit == null ? null : { planets: props.planets, limit, astro, below: props.planets < limit };
+});
 /** clock time today, otherwise with the date (cards on mobile) */
 const when = (e: number) => (new Date(e * 1000).toDateString() === new Date().toDateString() ? clockTime(new Date(e * 1000)) : dateTime(e));
 const label = (x: SaveTarget) => `${x.type === 'moon' ? t('common.moon') + ' ' : x.type === 'debris' ? t('fleetsave.field') + (unsure(x) ? '?' : '') + ' ' : x.type === 'free' ? t('fleetsave.free') + ' ' : ''}${x.name ? x.name + ' ' : ''}[${x.coords.join(':')}]`;
@@ -224,7 +238,11 @@ defineExpose({ fleet, options });
         </tbody>
       </table>
     </div>
-    <p v-if="colonizeShown" class="warn small fso-colonize"><Icon name="warning" :size="12" /> {{ t('fleetsave.colonizeTitle') }}</p>
+    <template v-if="colonizeShown">
+      <p v-if="!colony" class="warn small fso-colonize"><Icon name="warning" :size="12" /> {{ t('fleetsave.colonizeTitle') }}</p>
+      <p v-else-if="colony.below" class="neg small fso-colonize"><Icon name="warning" :size="12" /> {{ t('fleetsave.colonizeBelow', colony) }}</p>
+      <p v-else class="muted small fso-colonize">{{ t('fleetsave.colonizeAtLimit', colony) }}</p>
+    </template>
     <button v-if="options.length > limit" class="small link" style="margin-top: 4px" @click="all = !all">
       {{ all ? t('fleetsave.less') : t('fleetsave.more', { n: options.length - limit }) }}
     </button>
