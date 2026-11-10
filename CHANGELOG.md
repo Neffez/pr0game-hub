@@ -4,6 +4,8 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-10
 
+- Dependencies: `web-push` 3.6.7 → 4.0.0 (ESM-only, imported as a namespace in `push.ts`) and `@fastify/compress`
+  8.3.1 → 9.3.0 in the server, merged from the two Dependabot branches into one.
 - Galaxy browser: a toggle above the system strip switches the bar height between the number of planets (default)
   and the summed total points of the players in the system (each player once, square-root scale of the galaxy's top
   system); the choice is remembered and the bubble/tooltip shows both values. `/api/:uni/browse/:g` returns the new

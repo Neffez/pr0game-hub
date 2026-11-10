@@ -1,7 +1,7 @@
 import type { FleetBody } from '@pr0hub/core';
 import { STORAGE, techName } from '@pr0hub/core/tech';
 import type { FastifyBaseLogger } from 'fastify';
-import webpush from 'web-push';
+import * as webpush from 'web-push';
 import type { SessionUser } from './auth.js';
 import { config } from './config.js';
 import { isRunning, resolveGroup } from './context.js';
