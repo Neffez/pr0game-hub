@@ -162,10 +162,11 @@ const de = {
     battlesShort: '{n} Kämpfe',
     expeditionsShort: '{n} Expos',
     deliveries: '{n} offene Lieferungen',
-    flag: { behind: 'fällt zurück', noEmpire: 'kein Imperium', noStats: 'keine Statistik', away: 'nicht im Hub' },
+    flag: { behind: 'fällt zurück', noEmpire: 'kein Imperium', staleEmpire: 'Imperium veraltet', noStats: 'keine Statistik', away: 'nicht im Hub' },
     flagTitle: {
       behind: 'Weniger als die Hälfte des Median-Wachstums der Allianz in 7 Tagen',
-      noEmpire: 'Seit 3 Tagen keine Imperium-Seite eingefügt',
+      noEmpire: 'Noch keine Imperium-Seite eingefügt',
+      staleEmpire: 'Seit 3 Tagen keine Imperium-Seite eingefügt',
       noStats: 'Kein Spieler mit Statistik zugeordnet (Ingame-Name im Admin-Panel prüfen)',
       away: 'Seit 3 Tagen nicht im Hub',
     },

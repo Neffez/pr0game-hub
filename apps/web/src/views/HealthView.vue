@@ -15,7 +15,7 @@ import { useAutoTour } from '../tours';
  * Alliance health for every member (server: repo/health.ts): who grows, who falls behind, who still syncs and
  * visits the hub, raids and expeditions of the week and open loot deliveries.
  */
-type Flag = 'behind' | 'noEmpire' | 'noStats' | 'away';
+type Flag = 'behind' | 'noEmpire' | 'staleEmpire' | 'noStats' | 'away';
 interface Member {
   userId: number;
   name: string;

@@ -2992,8 +2992,8 @@ paths:
         days (from the newest statistics update at or before the start, `partial` when the history is shorter), the
         newest sync per page type (kept pages of 14 days and the snapshot tables), the last visit in the hub, battle
         reports and expeditions they synced in 7 days with the loot, open deliveries of finalized loot settlements, and
-        flags: `behind` (growth below half the alliance median), `noEmpire` (no empire page for 3 days), `noStats` (no
-        statistics), `away` (not in the hub for 3 days). The last visit (`lastSeen`, and `away`) of members who hide their
+        flags: `behind` (growth below half the alliance median), `noEmpire` (no empire page known), `staleEmpire`
+        (the newest empire page is older than 3 days), `noStats` (no statistics), `away` (not in the hub for 3 days). The last visit (`lastSeen`, and `away`) of members who hide their
         online status is only shown to themselves and to admins (`onlineHidden`).
       parameters:
         - { $ref: '#/components/parameters/Uni' }
@@ -3028,7 +3028,7 @@ paths:
                         loot: { type: integer }
                         expeditions: { type: integer }
                         openDeliveries: { type: integer }
-                        flags: { type: array, items: { type: string, enum: [behind, noEmpire, noStats, away] } }
+                        flags: { type: array, items: { type: string, enum: [behind, noEmpire, staleEmpire, noStats, away] } }
   /api/{uni}/export:
     get:
       tags: [Universe]

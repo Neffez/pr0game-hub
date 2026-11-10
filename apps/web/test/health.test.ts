@@ -12,7 +12,7 @@ const health = {
   window: 604800,
   members: [
     { userId: 1, name: 'Busy', role: 'admin', lastSeen: now - 60, onlineHidden: false, player: { id: 1, name: 'Busy' }, points: 5000, rank: 1, growth: 600, partial: false, syncs: { empire: now - 3600 }, battles: 2, loot: 900, expeditions: 1, openDeliveries: 0, flags: [] },
-    { userId: 2, name: 'Slow', role: 'member', lastSeen: now - 5 * 86400, onlineHidden: false, player: { id: 2, name: 'Slow' }, points: 2000, rank: 2, growth: 50, partial: false, syncs: {}, battles: 0, loot: 0, expeditions: 0, openDeliveries: 1, flags: ['behind', 'noEmpire', 'away'] },
+    { userId: 2, name: 'Slow', role: 'member', lastSeen: now - 5 * 86400, onlineHidden: false, player: { id: 2, name: 'Slow' }, points: 2000, rank: 2, growth: 50, partial: false, syncs: { empire: now - 5 * 86400 }, battles: 0, loot: 0, expeditions: 0, openDeliveries: 1, flags: ['behind', 'staleEmpire', 'away'] },
   ],
 };
 const ctx = {
@@ -41,7 +41,7 @@ describe('alliance health page', () => {
   it('lists flagged members first with their flags', () => {
     const rows = [...root.querySelectorAll('tbody tr')];
     expect(rows.map((r) => r.querySelector('td a, td span')!.textContent)).toEqual(['Slow', 'Busy']);
-    expect([...rows[0].querySelectorAll('.badge')].map((b) => b.textContent)).toEqual(['fällt zurück', 'kein Imperium', 'nicht im Hub']);
+    expect([...rows[0].querySelectorAll('.badge')].map((b) => b.textContent)).toEqual(['fällt zurück', 'Imperium veraltet', 'nicht im Hub']);
     expect(root.textContent).toContain('1 auffällig');
   });
 });

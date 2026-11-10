@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Allianz-Gesundheit: Eine alte Imperium-Seite heißt jetzt „Imperium veraltet“; „kein Imperium“ steht nur noch, wenn nie eine eingefügt wurde.',
+        en: 'Alliance health: an old empire page is now called "empire outdated"; "no empire" only shows when none was ever pasted.',
+      },
+      {
+        kind: 'fix',
         de: 'Verteidigungsberater: Der Status eines Angreifers (inaktiv, Urlaub …) erscheint als Badge wie auf den anderen Seiten.',
         en: 'Defense advisor: an attacker\'s status (inactive, vacation …) shows as a badge like on the other pages.',
       },

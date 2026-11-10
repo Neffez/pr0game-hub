@@ -13,12 +13,12 @@ import { latestScores } from './stats.js';
 
 /** Growth and activity are counted over this time. */
 export const HEALTH_WINDOW = 7 * 86400;
-/** Without an empire page (or a hub visit) this long a member is flagged. */
+/** With an empire page (or a hub visit) older than this a member is flagged. */
 export const STALE = 3 * 86400;
 /** Growth below this share of the alliance median counts as falling behind. */
 export const BEHIND = 0.5;
 
-export type HealthFlag = 'behind' | 'noEmpire' | 'noStats' | 'away';
+export type HealthFlag = 'behind' | 'noEmpire' | 'staleEmpire' | 'noStats' | 'away';
 
 export interface MemberHealth {
   userId: number;
@@ -126,7 +126,9 @@ export function allianceHealth(db: DB, ctx: GroupContext): { members: MemberHeal
   const medianGrowth = growths.length ? (growths.length % 2 ? growths[(growths.length - 1) / 2] : (growths[growths.length / 2 - 1] + growths[growths.length / 2]) / 2) : null;
   for (const m of members) {
     if (medianGrowth != null && medianGrowth > 0 && m.growth != null && m.growth < medianGrowth * BEHIND) m.flags.push('behind');
-    if ((m.syncs.empire ?? 0) < t - STALE) m.flags.push('noEmpire');
+    // never pasted, or pasted but outdated: two flags, "no empire" next to an age would contradict it
+    if (m.syncs.empire == null) m.flags.push('noEmpire');
+    else if (m.syncs.empire < t - STALE) m.flags.push('staleEmpire');
     if (m.points == null) m.flags.push('noStats');
     if (!m.onlineHidden && (m.lastSeen ?? 0) < t - STALE) m.flags.push('away');
   }

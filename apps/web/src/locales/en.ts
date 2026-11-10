@@ -161,10 +161,11 @@ const en: typeof de = {
     battlesShort: '{n} battles',
     expeditionsShort: '{n} expos',
     deliveries: '{n} open deliveries',
-    flag: { behind: 'falls behind', noEmpire: 'no empire', noStats: 'no statistics', away: 'not in hub' },
+    flag: { behind: 'falls behind', noEmpire: 'no empire', staleEmpire: 'empire outdated', noStats: 'no statistics', away: 'not in hub' },
     flagTitle: {
       behind: 'Less than half the alliance\'s median growth in 7 days',
-      noEmpire: 'No empire page pasted for 3 days',
+      noEmpire: 'No empire page pasted yet',
+      staleEmpire: 'No empire page pasted for 3 days',
       noStats: 'No player with statistics linked (check the in-game name in the admin panel)',
       away: 'Not in the hub for 3 days',
     },

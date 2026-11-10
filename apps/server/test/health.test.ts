@@ -72,7 +72,8 @@ describe('alliance health', () => {
     const by = Object.fromEntries(h.members.map((m: any) => [m.name, m]));
     expect(by.busy).toMatchObject({ points: 1800, growth: 800, partial: false, battles: 1, loot: 1600, expeditions: 1, flags: [] });
     expect(by.busy.syncs).toMatchObject({ empire: t - 3600, stats: t - 7200 });
-    expect(by.slow.flags).toEqual(['behind', 'noEmpire']);
+    // slow pasted an empire page four days ago: outdated, not missing
+    expect(by.slow.flags).toEqual(['behind', 'staleEmpire']);
     expect(by.lead.flags).toEqual(['noEmpire']);
     expect(by.gone).toMatchObject({ points: null, growth: null });
     expect(by.gone.flags).toEqual(['noEmpire', 'noStats', 'away']);

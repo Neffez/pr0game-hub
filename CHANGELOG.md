@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-10
 
+- Code review U-5: the alliance health flagged an outdated empire page as "no empire", next to its age ("5 d"). `GET
+  /api/{uni}/alliance-health` now returns `noEmpire` only when no empire page is known and the new flag `staleEmpire`
+  when the newest one is older than 3 days (texts `health.flag.staleEmpire`, `health.flagTitle.staleEmpire`).
+
 - Code review U-4: the defense advisor showed the status of an attacker as plain text glued to the alliance tag
   ("[BAD]I"); it uses the status badges of the farm finder and the overview, also on the mobile card (which now shows
   the alliance tag too).
