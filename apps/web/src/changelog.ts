@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Galaxie-Browser: Die Balken über den Systemen zeigen auf Wunsch statt der Anzahl Planeten die Summe der Gesamtpunkte der Spieler im System. Umschalten mit „Planeten“ / „Punkte“ über der Leiste.',
+        en: 'Galaxy browser: the bars above the systems can show the summed total points of the players in the system instead of the number of planets. Switch with "Planets" / "Points" above the bar.',
+      },
+      {
+        kind: 'new',
         de: 'Kolo-Save: Hat ein Admin das Planetenmaximum des Universums eingetragen, sagt der Fleetsave-Planer klar, ob du mit deiner Astrophysik-Stufe am Maximum bist (die Flotte kommt zurück) oder darunter (es würde eine Kolonie gegründet). Angeboten wird der Kolo-Save in beiden Fällen.',
         en: 'Colony save: once an admin entered the planet limit of the universe, the fleet save planner says clearly whether you are at the limit with your astrophysics level (the fleet comes back) or below it (a colony would be founded). The colony save is offered in both cases.',
       },

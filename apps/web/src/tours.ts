@@ -147,6 +147,7 @@ export const TOURS = {
       { key: 'intro' },
       { key: 'nav', el: 'browse-nav', side: 'bottom' },
       { key: 'strip', el: 'browse-strip', side: 'bottom' },
+      { key: 'stripMode', el: 'browse-strip-mode', side: 'bottom' },
       { key: 'system', el: 'browse-system', side: 'top' },
       { key: 'phalanx', el: 'browse-phalanx', side: 'top' },
       { key: 'json', el: 'browse-json', side: 'left' },

@@ -85,7 +85,7 @@ const { data: system, error, load: fetchSystem } = useLoader(() =>
   uniApi<{ view: { seen_at: number; username: string } | null; rows: Row[]; phalanx: Phalanx[] }>(uni.value, `/browse/${g.value}/${s.value}`),
 );
 const { data: strip, load: loadStrip } = useLoader(() =>
-  uniApi<{ planets: Record<string, number>; seen: Record<string, number>; own: number[] }>(uni.value, `/browse/${g.value}`),
+  uniApi<{ planets: Record<string, number>; points: Record<string, number>; seen: Record<string, number>; own: number[] }>(uni.value, `/browse/${g.value}`),
 );
 function loadSystem() {
   now.value = nowSec();
@@ -160,18 +160,31 @@ const positions = computed(() => {
 });
 const occupied = computed(() => (system.value?.rows ?? []).filter((r) => r.player_id).length);
 
+/** What the bar height of the strip shows: occupied positions or the summed total points of the players there. */
+const stripMode = useStored<'planets' | 'points'>('browse.stripMode', 'planets');
+const maxPoints = computed(() => Math.max(0, ...Object.values(strip.value?.points ?? {})));
 const stripCells = computed(() =>
   Array.from({ length: settings.value.systems }, (_, i) => {
     const sys = i + 1;
     const seen = strip.value?.seen[sys] ?? null;
+    const planets = strip.value?.planets[sys] ?? 0;
+    const points = strip.value?.points?.[sys] ?? 0;
+    // points on a square-root scale of the galaxy's top system, so a few big players do not flatten the rest
+    const height = stripMode.value === 'points'
+      ? 15 + (maxPoints.value ? Math.sqrt(points / maxPoints.value) * 85 : 0)
+      : Math.min(100, 15 + planets * 6);
     return {
       s: sys,
-      planets: strip.value?.planets[sys] ?? 0,
+      planets,
+      points,
+      height,
       age: seen ? now.value - seen : null,
       own: strip.value?.own.includes(sys) ?? false,
     };
   }),
 );
+/** Bubble/tooltip text of a strip cell: planets and points. */
+const cellInfo = (c: { planets: number; points: number }) => `${t('browse.planets', { n: c.planets })} · ${t('browse.stripPointsN', { n: short(c.points) })}`;
 
 const gameUrl = computed(() => settings.value.gameUrl?.replace(/\/?$/, '/') ?? '');
 const inactive = (r: Row) => r.status.includes('inactive') || r.status.includes('longinactive');
@@ -290,6 +303,14 @@ useAutoTour('browse', () => !!system.value);
       </form>
     </div>
 
+    <div class="row strip-mode" data-tour="browse-strip-mode">
+      <span class="grow" />
+      <div class="tabs m-0 small" role="group" :aria-label="t('browse.stripMode')">
+        <button :class="{ active: stripMode === 'planets' }" @click="stripMode = 'planets'">{{ t('browse.stripPlanets') }}</button>
+        <button :class="{ active: stripMode === 'points' }" @click="stripMode = 'points'">{{ t('browse.stripPoints') }}</button>
+      </div>
+    </div>
+
     <div
       ref="stripEl"
       data-tour="browse-strip"
@@ -301,7 +322,7 @@ useAutoTour('browse', () => !!system.value);
       @pointercancel="scrub = null"
     >
       <div v-if="scrubCell" class="scrub-bubble small" :style="{ left: `${((scrubCell.s - 0.5) / settings.systems) * 100}%` }">
-        <b class="mono">{{ g }}:{{ scrubCell.s }}</b> · {{ t('browse.planets', { n: scrubCell.planets }) }} ·
+        <b class="mono">{{ g }}:{{ scrubCell.s }}</b> · {{ cellInfo(scrubCell) }} ·
         {{ scrubCell.age == null ? t('browse.neverSeen') : ago(now - scrubCell.age) }}
       </div>
       <div
@@ -309,9 +330,9 @@ useAutoTour('browse', () => !!system.value);
         :key="c.s"
         class="strip-cell"
         :class="{ current: c.s === (scrub ?? s) }"
-        :title="`${g}:${c.s} · ${t('browse.planets', { n: c.planets })} · ${c.age == null ? t('browse.neverSeen') : t('browse.seenAgo', { ago: ago(now - c.age) })}${c.own ? ' · ' + t('common.alliance') : ''}`"
+        :title="`${g}:${c.s} · ${cellInfo(c)} · ${c.age == null ? t('browse.neverSeen') : t('browse.seenAgo', { ago: ago(now - c.age) })}${c.own ? ' · ' + t('common.alliance') : ''}`"
       >
-        <div class="bar" :style="{ height: `${Math.min(100, 15 + c.planets * 6)}%`, background: freshnessColor(c.age) }" />
+        <div class="bar" :style="{ height: `${c.height}%`, background: freshnessColor(c.age) }" />
         <div v-if="c.own" class="own-dot" />
       </div>
     </div>
@@ -485,7 +506,9 @@ useAutoTour('browse', () => !!system.value);
 @media (max-width: 900px) {
   .ph-row { grid-template-columns: 1fr 1fr; }
 }
-.strip { position: relative; display: flex; align-items: flex-end; gap: 0; height: 46px; margin-top: 12px; cursor: pointer; touch-action: none; user-select: none; }
+.strip-mode { margin-top: 10px; }
+.strip-mode .tabs button { padding: 2px 10px; }
+.strip { position: relative; display: flex; align-items: flex-end; gap: 0; height: 46px; margin-top: 6px; cursor: pointer; touch-action: none; user-select: none; }
 .scrub-bubble {
   position: absolute; bottom: calc(100% + 6px); transform: translateX(-50%); z-index: 5; padding: 4px 8px; white-space: nowrap; pointer-events: none;
   background: var(--surface-2); border: 1px solid var(--border-strong); border-radius: 6px; box-shadow: 0 4px 14px rgba(0, 0, 0, .4);

@@ -125,8 +125,14 @@ describe('api', () => {
     const sys = (await app.inject({ method: 'GET', url: '/hub/api/u8/browse/1/234', headers })).json();
     expect(sys.view.seen_at).toBe(1792570000);
     expect(sys.rows.find((r: any) => r.p === 5)).toMatchObject({ name: 'Heimat', has_moon: 1, player_name: 'Alpha', ally_name: 'Die Allianz' });
+    // total points for the players of 1:234, counted once per player in the strip
+    const owners = [...new Set(sys.rows.map((r: any) => r.player_id).filter(Boolean))] as number[];
+    const snap = Number(db.prepare("INSERT INTO stat_snapshots (group_id, who, type, stat_time) VALUES (?, 'player', 1, 1792600000)").run(groupA).lastInsertRowid);
+    owners.forEach((id, i) => db.prepare('INSERT INTO player_scores (snapshot_id, player_id, rank, points) VALUES (?, ?, ?, ?)').run(snap, id, i + 1, 1000 * (i + 1)));
     const strip = (await app.inject({ method: 'GET', url: '/hub/api/u8/browse/1', headers })).json();
     expect(strip.planets['234']).toBe(2);
+    expect(strip.points['234']).toBe(owners.reduce((sum, _, i) => sum + 1000 * (i + 1), 0));
+    expect(strip.points['234']).toBeGreaterThan(0);
     expect(strip.seen['235']).toBe(1792483200);
     res = await app.inject({ method: 'POST', url: '/hub/api/u8/universe-json', headers, payload: { text: '{}' } });
     expect(res.statusCode).toBe(400);

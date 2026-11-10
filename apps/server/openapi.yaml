@@ -3810,6 +3810,10 @@ paths:
     get:
       tags: [Intelligence]
       operationId: browseGalaxy
+      description: >-
+        Navigation strip of one galaxy, keyed by system: `planets` (occupied positions), `points` (sum of the newest
+        total points of the players with a planet in the system, each player once), `seen` (time of the newest synced
+        galaxy view) and `own` (systems with a planet of an alliance member).
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
@@ -3822,7 +3826,13 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema:
+                type: object
+                properties:
+                  planets: { type: object, additionalProperties: { type: integer } }
+                  points: { type: object, additionalProperties: { type: number } }
+                  seen: { type: object, additionalProperties: { type: integer } }
+                  own: { type: array, items: { type: integer } }
   /api/{uni}/browse/{g}/{s}:
     get:
       tags: [Intelligence]

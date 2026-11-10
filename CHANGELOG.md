@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-10
 
+- Galaxy browser: a toggle above the system strip switches the bar height between the number of planets (default)
+  and the summed total points of the players in the system (each player once, square-root scale of the galaxy's top
+  system); the choice is remembered and the bubble/tooltip shows both values. `/api/:uni/browse/:g` returns the new
+  `points` per system (documented in `openapi.yaml`); the galaxy tour has a step for the toggle.
+
 - Planet limit for the colony save (follow-up of code review U-3): three optional universe settings
   `maxInitialPlanets`, `maxAdditionalPlanets` and `planetsPerTech` (game config of the same names; admin panel under
   "Colonization", `openapi.yaml`) and `planetLimit` in `@pr0hub/core/universe` (like the game's

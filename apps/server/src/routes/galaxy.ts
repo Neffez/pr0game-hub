@@ -87,18 +87,28 @@ export function galaxyRoutes(app: FastifyInstance, db: DB) {
     return colonizeSystems(db, ctx, clampInt(req.query.range, 25, 1, 200));
   });
 
-  /** Per system of a galaxy: occupied positions, own/alliance planets and when it was last seen (navigation strip). */
+  /**
+   * Per system of a galaxy: occupied positions, the summed newest total points of the players there (each player once),
+   * own/alliance planets and when it was last seen (navigation strip).
+   */
   app.get<{ Params: { uni: string; g: string } }>('/api/:uni/browse/:g', async (req) => {
     const ctx = ctxOf(req);
     const g = Number(req.params.g);
     const planets = db
       .prepare('SELECT s, COUNT(player_id) AS planets FROM planets WHERE group_id = ? AND g = ? AND player_id IS NOT NULL GROUP BY s')
       .all(ctx.groupId, g) as { s: number; planets: number }[];
+    const owners = db
+      .prepare('SELECT DISTINCT s, player_id FROM planets WHERE group_id = ? AND g = ? AND player_id IS NOT NULL')
+      .all(ctx.groupId, g) as { s: number; player_id: number }[];
+    const scores = latestScores(db, ctx.groupId, [...new Set(owners.map((r) => r.player_id))], [1]);
+    const points: Record<number, number> = {};
+    for (const r of owners) points[r.s] = (points[r.s] ?? 0) + (scores.get(r.player_id)?.[1]?.points ?? 0);
     const views = db.prepare('SELECT s, seen_at FROM galaxy_views WHERE group_id = ? AND g = ?').all(ctx.groupId, g) as { s: number; seen_at: number }[];
     const own = new Set<number>();
     for (const set of ownCoords(db, ctx).values()) for (const c of set) if (c.startsWith(`${g}:`)) own.add(Number(c.split(':')[1]));
     return {
       planets: Object.fromEntries(planets.map((r) => [r.s, r.planets])),
+      points,
       seen: Object.fromEntries(views.map((r) => [r.s, r.seen_at])),
       own: [...own],
     };
