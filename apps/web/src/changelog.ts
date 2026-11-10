@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Upgrade-Berater: Mit einer Mine oder Forschung in der Bauschleife wurden die Erträge des Planeten zu niedrig geschätzt.',
+        en: 'Upgrade advisor: with a mine or research in the queue the gains of that planet were estimated too low.',
+      },
+      {
+        kind: 'fix',
         de: 'CSV-Export: Namen, die wie eine Formel beginnen (z. B. mit „=“), bekommen ein Hochkomma vorangestellt, damit eine Tabellenkalkulation sie nicht ausführt.',
         en: 'CSV export: names that start like a formula (e.g. with "=") get a leading apostrophe so a spreadsheet does not run them.',
       },

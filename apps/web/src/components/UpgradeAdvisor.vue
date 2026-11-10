@@ -51,9 +51,10 @@ const planets = computed(() => props.hub.planets.filter((p) => p.type === 'plane
 const advice = computed(() =>
   upgradeAdvice({
     planets: planets.value.map((p) => ({
-      key: p.key, name: p.name, levels: levelsOf(p), temp: p.temp ?? positionTemp(p.coords.p), factors: p.factors ?? null, perHour: p.planet.perHour,
+      key: p.key, name: p.name, levels: levelsOf(p), syncedLevels: p.planet.values, temp: p.temp ?? positionTemp(p.coords.p), factors: p.factors ?? null, perHour: p.planet.perHour,
     })),
     research: research.value,
+    syncedResearch: props.hub.research,
     resourceSpeed: (props.hub.resourceSpeed || ctx.value!.universe.settings.resourceMultiplier || 2500) / 2500,
     rate: currentMarketRate(),
     catchUp: props.hub.catchUp ?? 0,

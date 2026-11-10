@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-10
 
+- Code review B-10: the upgrade advisor compared the production of the synced page (from before the build queue) with
+  the formula at the levels after the queue; with a mine in the queue the factor was too low and every gain of that
+  planet underrated. `upgradeAdvice` takes `syncedLevels` per planet and `syncedResearch` and calibrates at those, the
+  advice still starts after the queues.
+
 - Code review B-9: the CSV export (`GET /api/{uni}/export/{dataset}`) prefixes texts starting with `=`, `+`, `-`, `@`,
   tab or carriage return with `'`. Player, planet and alliance names come from other players and would otherwise run
   as a formula when the file is opened in a spreadsheet. Numbers are unchanged.
