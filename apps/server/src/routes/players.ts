@@ -26,7 +26,7 @@ export function playersRoutes(app: FastifyInstance, db: DB) {
   app.get<{ Params: { uni: string }; Querystring: Q }>('/api/:uni/stats', async (req) => {
     const ctx = ctxOf(req);
     const who = req.query.who === 'alliance' ? 'alliance' : 'player';
-    const type = [1, 2, 3, 4, 5, 6].includes(Number(req.query.type)) ? Number(req.query.type) : 1;
+    const type = [1, 2, 3, 4, 5, 6, 7].includes(Number(req.query.type)) ? Number(req.query.type) : 1;
     const scoreTable = (w: string) => (w === 'player' ? 'player_scores' : 'alliance_scores');
 
     // per category: newest stand and which pages of 100 ranks it contains (sync overview)

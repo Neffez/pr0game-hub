@@ -41,6 +41,7 @@ const TYPE_NAMES: Record<string, StatsType> = {
   'gebäude': 4, building: 4, buildings: 4,
   verteidigung: 5, defense: 5,
   ehrenpunkte: 6, honorpoints: 6, 'honor points': 6,
+  units: 7,
 };
 
 export function isStatsText(text: string): boolean {
@@ -58,7 +59,7 @@ export function parseStatsHtml($: CheerioAPI): StatsRecord | null {
 
   const whoVal = $('select#who option[selected], select[name=who] option[selected]').attr('value');
   const typeVal = $('select#type option[selected], select[name=type] option[selected]').attr('value');
-  const type = typeVal && /^[1-6]$/.test(typeVal) ? (Number(typeVal) as StatsType) : null;
+  const type = typeVal && /^[1-7]$/.test(typeVal) ? (Number(typeVal) as StatsType) : null;
 
   const rows: StatsRow[] = [];
   let who: 'player' | 'alliance' = whoVal === '2' ? 'alliance' : 'player';
@@ -185,6 +186,6 @@ export function splitNameStatus(cell: string): { name: string; status: PlayerSta
  * "... von Flotte auf den Positionen ..." / "by Fleet in ranks".
  */
 function detectTypeFromText(text: string): StatsType | null {
-  const m = text.match(/(?:\bvon|\bby)\s*\t?\s*(Punkte|Points|Flotte|Fleet|Forschung|Research|Gebäude|Buildings?|Verteidigung|Defense|Ehrenpunkte|Honorpoints|Honor points)\b/i);
+  const m = text.match(/(?:\bvon|\bby)\s*\t?\s*(Punkte|Points|Flotte|Fleet|Forschung|Research|Gebäude|Buildings?|Verteidigung|Defense|Ehrenpunkte|Honorpoints|Honor points|Units)\b/i);
   return m ? TYPE_NAMES[m[1].toLowerCase()] ?? null : null;
 }

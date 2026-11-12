@@ -117,8 +117,8 @@ function translated<K extends string | number>(prefix: string, keys: readonly K[
 
 export const STATS_TYPES: Record<number, string> = translated('game.stats', [1, 2, 3, 4, 5]);
 export const STATS_SHORT: Record<number, string> = translated('game.statsShort', [1, 2, 3, 4, 5]);
-/** All ranking categories of the game's statistics page (6 = honor points, not part of the score columns). */
-export const STATS_CATEGORIES: Record<number, string> = translated('game.stats', [1, 2, 3, 4, 5, 6]);
+/** All ranking categories (6 honor, 7 units in the game; UI order matches the dropdown: units before honor). */
+export const STATS_CATEGORIES: Record<number, string> = translated('game.stats', [1, 2, 3, 4, 5, 7, 6]);
 
 /** Galaxy status letters as in the game (gl_short_*). */
 export const STATUS_LABEL: Record<string, string> = translated('game.status', ['inactive', 'longinactive', 'vacation', 'banned', 'noob', 'strong']);

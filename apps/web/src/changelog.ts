@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Statistik: Kategorie „Units“ (Universum 8+) einlesen und anzeigen wie Flotte oder Verteidigung.',
+        en: 'Statistics: paste and view the Units category (universe 8+) like fleet or defense.',
+      },
+      {
+        kind: 'new',
         de: 'Neuigkeiten: Zweiter Tab „Über den Hub“ mit den Mehrwerten für eure Allianz auf einen Blick.',
         en: "What's new: second tab \"About the hub\" with the benefits for your alliance at a glance.",
       },

@@ -2,8 +2,8 @@ import type { Coords, Lang, LocalDateTime } from './util.js';
 
 export type PlanetType = 'planet' | 'moon';
 
-/** 1 total, 2 fleet, 3 research, 4 buildings, 5 defense, 6 honor points (game `type` parameter). */
-export type StatsType = 1 | 2 | 3 | 4 | 5 | 6;
+/** 1 total, 2 fleet, 3 research, 4 buildings, 5 defense, 6 honor, 7 units (game `type`; dropdown lists units before honor). */
+export type StatsType = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 export const STATS_TYPES: Record<StatsType, string> = {
   1: 'total',
   2: 'fleet',
@@ -11,6 +11,7 @@ export const STATS_TYPES: Record<StatsType, string> = {
   4: 'buildings',
   5: 'defense',
   6: 'honor',
+  7: 'units',
 };
 
 /** Normalized status flags (language independent). */

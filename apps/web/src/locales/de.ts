@@ -3125,7 +3125,7 @@ const de = {
       1: 'Angreifen', 2: 'Verbandsangriff', 3: 'Transport', 4: 'Stationieren', 5: 'Halten', 6: 'Spionage', 7: 'Kolonisieren',
       8: 'Abbauen', 9: 'Zerstören', 10: 'Raketenangriff', 15: 'Expedition', 16: 'Marktplatz', 17: 'Transfer',
     },
-    stats: { 1: 'Gesamt', 2: 'Flotte', 3: 'Forschung', 4: 'Gebäude', 5: 'Verteidigung', 6: 'Ehrenpunkte' },
+    stats: { 1: 'Gesamt', 2: 'Flotte', 3: 'Forschung', 4: 'Gebäude', 5: 'Verteidigung', 6: 'Ehrenpunkte', 7: 'Units' },
     statsShort: { 1: 'Σ', 2: 'F', 3: 'R', 4: 'B', 5: 'D' },
     status: { inactive: 'i', longinactive: 'I', vacation: 'u', banned: 'g', noob: 'n', strong: 's' },
     statusTitle: {

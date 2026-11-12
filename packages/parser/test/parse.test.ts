@@ -24,6 +24,16 @@ describe('stats', () => {
     ]);
   });
 
+  it('parses the units ranking (type 7, universe 8) with negative points', () => {
+    const rec = parsePage({ html: fixture('stats-units.html') }).records[0];
+    if (rec.kind !== 'stats') throw new Error('expected stats');
+    expect(rec).toMatchObject({ who: 'player', type: 7, statTime: '2026-11-12 17:01:27' });
+    expect(rec.rows.map((r) => [r.rank, r.ingameId, r.name, r.points])).toEqual([
+      [1, 312, 'Hansebanger', 3940972400],
+      [2, 58, 'Loser', -79000],
+    ]);
+  });
+
   it('parses the honor points ranking with titles and negative points', () => {
     const rec = parsePage({ html: fixture('stats-honor.html') }).records[0];
     if (rec.kind !== 'stats') throw new Error('expected stats');
