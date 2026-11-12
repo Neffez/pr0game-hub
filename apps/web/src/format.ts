@@ -117,8 +117,10 @@ function translated<K extends string | number>(prefix: string, keys: readonly K[
 
 export const STATS_TYPES: Record<number, string> = translated('game.stats', [1, 2, 3, 4, 5]);
 export const STATS_SHORT: Record<number, string> = translated('game.statsShort', [1, 2, 3, 4, 5]);
-/** All ranking categories (6 honor, 7 units in the game; UI order matches the dropdown: units before honor). */
-export const STATS_CATEGORIES: Record<number, string> = translated('game.stats', [1, 2, 3, 4, 5, 7, 6]);
+/** Game stat types 6 = honor, 7 = units; labels for every category. */
+export const STATS_CATEGORIES: Record<number, string> = translated('game.stats', [1, 2, 3, 4, 5, 6, 7]);
+/** Tab/dropdown order like the in-game statistics page (units before honor). */
+export const STATS_CATEGORY_ORDER = [1, 2, 3, 4, 5, 7, 6] as const;
 
 /** Galaxy status letters as in the game (gl_short_*). */
 export const STATUS_LABEL: Record<string, string> = translated('game.status', ['inactive', 'longinactive', 'vacation', 'banned', 'noob', 'strong']);

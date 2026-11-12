@@ -1080,6 +1080,10 @@ describe('review fixes', () => {
     // the admin plays "Gottkaiser" in this alliance
     await app.inject({ method: 'PUT', url: `/hub/api/admin/groups/${groupX}/members/1`, headers: admin, payload: { ingameName: 'Gottkaiser' } });
 
+    expect((await ingest(fixture('stats-units.html'))).warnings).toEqual([]);
+    const units = (await app.inject({ method: 'GET', url: '/hub/api/u8/stats?who=player&type=7', headers })).json();
+    expect(units.rows[0]).toMatchObject({ rank: 1, name: 'Hansebanger', points: 3940972400 });
+
     expect((await ingest(fixture('stats-honor.html'))).warnings).toEqual([]);
     const honor = (await app.inject({ method: 'GET', url: '/hub/api/u8/stats?who=player&type=6', headers })).json();
     expect(honor.rows.map((r: any) => [r.rank, r.rank_change, r.name, r.title, r.points])).toEqual([

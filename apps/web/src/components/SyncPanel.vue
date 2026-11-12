@@ -5,7 +5,7 @@ import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
 import { useUni } from '../composables';
 import { refreshSyncHints } from '../syncHints';
-import { cardLabel, coords, dateTime, DEPLETION_LABEL, fmt, rateText, STATS_CATEGORIES } from '../format';
+import { cardLabel, coords, dateTime, DEPLETION_LABEL, fmt, rateText, STATS_CATEGORIES, STATS_CATEGORY_ORDER } from '../format';
 
 interface Summary {
   pageType: string;
@@ -397,7 +397,7 @@ function next() {
         {{ t('paste.statsCategory') }}
         <select v-model="statsType">
           <option :value="null">{{ t('paste.auto') }}</option>
-          <option v-for="(label, id) in STATS_CATEGORIES" :key="id" :value="Number(id)">{{ label }}</option>
+          <option v-for="id in STATS_CATEGORY_ORDER" :key="id" :value="id">{{ STATS_CATEGORIES[id] }}</option>
         </select>
       </label>
       <label v-if="others.length" :title="t('paste.forMemberHint')">
@@ -443,7 +443,7 @@ function next() {
             {{ t('paste.statsCategory') }}
             <select v-model="b.statsType" @change="runItem(b, true)">
               <option :value="null">{{ t('paste.auto') }}</option>
-              <option v-for="(lbl, id) in STATS_CATEGORIES" :key="id" :value="Number(id)">{{ lbl }}</option>
+              <option v-for="id in STATS_CATEGORY_ORDER" :key="id" :value="id">{{ STATS_CATEGORIES[id] }}</option>
             </select>
           </label>
           <label v-if="itemNeedsSystem(b)">

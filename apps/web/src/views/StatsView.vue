@@ -13,7 +13,7 @@ import { uniApi } from '../api';
 import PageHeader from '../components/PageHeader.vue';
 import { useLoader, useMobile, useStored, useUni, vStack } from '../composables';
 import { tables, useLiveReload } from '../live';
-import { dateTime, fmt, fmtSigned, short, STATS_CATEGORIES, STATS_TYPES, type PointsStall as PointsStallInfo } from '../format';
+import { dateTime, fmt, fmtSigned, short, STATS_CATEGORIES, STATS_CATEGORY_ORDER, STATS_TYPES, type PointsStall as PointsStallInfo } from '../format';
 
 interface Category { who: string; type: number; stat_time: number; pages: number[] }
 interface Row {
@@ -141,8 +141,8 @@ useAutoTour('stats', () => !!data.value);
     </div>
     <div v-if="mobile" class="cat-select" data-tour="stats-cats">
       <select v-model.number="type" :aria-label="t('stats.category')">
-        <option v-for="(label, cat) in STATS_CATEGORIES" :key="cat" :value="Number(cat)">
-          {{ label }}{{ data && !categoryOf(Number(cat)) ? ` (${t('stats.notSynced')})` : '' }}
+        <option v-for="cat in STATS_CATEGORY_ORDER" :key="cat" :value="cat">
+          {{ STATS_CATEGORIES[cat] }}{{ data && !categoryOf(cat) ? ` (${t('stats.notSynced')})` : '' }}
         </option>
       </select>
       <span class="pages" :title="t('stats.category')">
@@ -151,16 +151,16 @@ useAutoTour('stats', () => !!data.value);
     </div>
     <div v-else class="cats" data-tour="stats-cats">
       <button
-        v-for="(label, cat) in STATS_CATEGORIES"
+        v-for="cat in STATS_CATEGORY_ORDER"
         :key="cat"
         class="cat"
-        :class="{ active: type === Number(cat), empty: data && !categoryOf(Number(cat)) }"
-        :title="categoryOf(Number(cat)) ? t('stats.asOf', { time: dateTime(categoryOf(Number(cat))!.stat_time) }) : t('stats.notSynced')"
-        @click="type = Number(cat)"
+        :class="{ active: type === cat, empty: data && !categoryOf(cat) }"
+        :title="categoryOf(cat) ? t('stats.asOf', { time: dateTime(categoryOf(cat)!.stat_time) }) : t('stats.notSynced')"
+        @click="type = cat"
       >
-        <span>{{ label }}</span>
+        <span>{{ STATS_CATEGORIES[cat] }}</span>
         <span class="pages">
-          <i v-for="p in pageCount" :key="p" :class="{ ok: pageCurrent(Number(cat), p - 1) }" :title="pageTitle(Number(cat), p - 1)" />
+          <i v-for="p in pageCount" :key="p" :class="{ ok: pageCurrent(cat, p - 1) }" :title="pageTitle(cat, p - 1)" />
         </span>
       </button>
     </div>

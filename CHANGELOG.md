@@ -6,6 +6,8 @@ Every commit adds its changes here, newest first, grouped by date.
 
 - Statistics: the **Units** ranking of universes that have it (game `type` 7, since universe 8) can be pasted and
   viewed like the other categories; the category list matches the game dropdown (units before honor points).
+- Fix storing Units statistics: migration extends `stat_snapshots` type check to 7 (saving had failed with an
+  internal error).
 - What's new: tabs **What's new** (default) and **About the hub** with alliance-facing benefits (DE/EN); page tour for the tabs (`changelog` in `tours.ts`).
 - Public **`/about`** (benefits only, no changelog) with a link on the login page; `PUBLIC_PATHS` and a web test list the only public hub routes besides invite tokens.
 
