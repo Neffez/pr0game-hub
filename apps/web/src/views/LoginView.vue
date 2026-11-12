@@ -34,6 +34,11 @@ async function submit() {
       <div v-if="error" class="error">{{ error }}</div>
       <button class="primary" type="submit">{{ t('login.submit') }}</button>
     </form>
-    <p class="muted small">{{ t('login.inviteOnly') }} <router-link to="/request-access">{{ t('login.requestAccess') }}</router-link></p>
+    <p class="muted small">
+      {{ t('login.inviteOnly') }}
+      <router-link to="/request-access">{{ t('login.requestAccess') }}</router-link>
+      ·
+      <router-link to="/about">{{ t('login.about') }}</router-link>
+    </p>
   </div>
 </template>

@@ -511,6 +511,7 @@ const en: typeof de = {
     submit: 'Log in',
     inviteOnly: 'Access by invite link only.',
     requestAccess: 'Request access',
+    about: 'About the hub',
   },
   requestAccess: {
     title: 'Request access',
@@ -542,10 +543,66 @@ const en: typeof de = {
   },
   changelog: {
     title: "What's new",
+    tabNews: "What's new",
+    tabAbout: 'About the hub',
     intro: 'New features and fixes in the hub, newest first.',
     new: 'New',
     fix: 'Fixed',
     source: 'Source Code',
+    about: {
+      summary:
+        'In short: you share knowledge and plan together – less duplicated work, fairer raids, faster reactions to attacks, better target and build decisions. The effort: paste your game pages into the hub regularly so the alliance benefits.',
+      universe: {
+        title: 'One shared picture of the universe',
+        i0: 'See points, ranks, growth and activity of friends and foes in one place, not scattered screenshots',
+        i1: 'Galaxy and spy history for the whole alliance – you know what is already known where and how targets evolve',
+        i2: 'Judge players: history, activity, planets – less guesswork before an attack or espionage',
+      },
+      farm: {
+        title: 'More profit, less guesswork when farming',
+        i0: 'Farm finder: where a hit is really worth it (loot per flight hour)',
+        i1: 'Debris finder: find big fields and match recycler capacity in the alliance',
+        i2: 'Claims: no double attack on the same target',
+        i3: 'Spy priorities: where a fresh report makes the difference',
+      },
+      raids: {
+        title: 'Plan raids and settle loot fairly',
+        i0: 'Land times and ACS to the second – visible to everyone',
+        i1: 'Retime on hostile attacks with calculated windows',
+        i2: 'Loot settlement from your reports: who gets and delivers what, without endless Discord spreadsheets',
+        i3: 'Raid statistics: who brings what in and what it costs',
+      },
+      defense: {
+        title: 'Fewer surprises when attacked',
+        i0: 'Incoming attacks in one place: what threatens you, what is at stake, what you can still save',
+        i1: 'Who can still hold – with an invite to the hold plan',
+        i2: 'Fleet save planner: launches so the fleet is back when you are online again',
+        i3: 'Defense tips and raid risk per planet/moon from what the alliance already knows',
+      },
+      build: {
+        title: 'Smarter upgrades on your planets',
+        i0: 'Next sensible mines/energy/research by yield and payback',
+        i1: 'Warning when a foreign phalanx can see your planets',
+        i2: 'Reminder when the next upgrade is possible (also mobile/push)',
+      },
+      alliance: {
+        title: 'Alliance coordination without chaos',
+        i0: 'Planets, fleets (what you share), research – who can do what when',
+        i1: 'One market rate for everyone – loot, simulators, internal calculations',
+        i2: 'Comments and mentions on the player/planet instead of lost chats',
+        i3: '“Who threatens me?” and hostile espionage at a glance',
+        i4: 'Alliance health: who is growing, who falls behind – act early instead of surprise inactivity',
+      },
+      expo: {
+        title: 'Expeditions & moons',
+        i0: 'Expeditions and deck counting (if you play that)',
+        i1: 'Moon chances and moon destruction from known data – fewer mysteries',
+      },
+      notify: {
+        title: 'Informed in time',
+        i0: 'Attacks, raid invites, full storages, new phalanx danger – bell, push or Discord instead of hammering F5 in the game',
+      },
+    },
   },
   tours: {
     start: 'Explain this page',
@@ -786,6 +843,24 @@ const en: typeof de = {
       sharing: { title: 'Sharing', text: 'Whether the alliance sees your fleets and your player messages. Single fleets and messages can be shared differently in the empire or under in-game messages.' },
       login: { title: 'Login', text: 'Change username and password.' },
       tokens: { title: 'API tokens', text: 'Read-only access to the alliance data you see in the hub, e.g. for your own analyses.' },
+    },
+    changelog: {
+      intro: {
+        title: "What's new",
+        text: 'What changes in the hub and why it helps the alliance – in two tabs.',
+      },
+      news: {
+        title: "What's new",
+        text: 'New features and fixes by date – for hub updates.',
+      },
+      about: {
+        title: 'About the hub',
+        text: 'The benefits for your alliance in short: what you gain together when you paste pages.',
+      },
+      outro: {
+        title: 'Done',
+        text: 'More detail is on the individual pages; "?" there explains them.',
+      },
     },
     admin: {
       intro: { title: 'Admin panel', text: 'This is where you manage alliances and their members. What you see depends on your role: alliance admins manage their alliance, hub admins also the universes and the running hub.' },

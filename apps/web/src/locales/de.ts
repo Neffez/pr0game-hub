@@ -512,6 +512,7 @@ const de = {
     submit: 'Anmelden',
     inviteOnly: 'Zugang nur per Einladungslink.',
     requestAccess: 'Zugang anfragen',
+    about: 'Über den Hub',
   },
   requestAccess: {
     title: 'Zugang anfragen',
@@ -543,10 +544,66 @@ const de = {
   },
   changelog: {
     title: 'Neuigkeiten',
+    tabNews: 'Neuigkeiten',
+    tabAbout: 'Über den Hub',
     intro: 'Neue Funktionen und Fehlerbehebungen im Hub, die neuesten zuerst.',
     new: 'Neu',
     fix: 'Behoben',
     source: 'Source Code',
+    about: {
+      summary:
+        'Kurz: Ihr teilt Wissen und plant gemeinsam – weniger Doppelarbeit, fairere Raids, schnellere Reaktion bei Angriffen, bessere Ziel- und Bauentscheidungen. Der Aufwand ist: regelmäßig eure Spielseiten in den Hub geben, damit die Allianz davon profitiert.',
+      universe: {
+        title: 'Gemeinsames Bild des Universums',
+        i0: 'Seht Punkte, Ränge, Wachstum und Aktivität von Freund und Feind aus einer Quelle, nicht aus verstreuten Screenshots',
+        i1: 'Galaxie und Spionagehistorie der ganzen Allianz – ihr wisst, was wo schon bekannt ist und wie sich Ziele entwickeln',
+        i2: 'Spieler einordnen: Verlauf, Aktivität, Planeten – weniger Rätselraten vor Angriff oder Spionage',
+      },
+      farm: {
+        title: 'Mehr Ertrag, weniger Blindflug beim Farmen',
+        i0: 'Farm-Finder: wo lohnt sich ein Anflug wirklich (Loot pro Flugstunde)',
+        i1: 'Trümmer-Finder: große Felder finden, Recycler-Kapazität in der Allianz abgleichen',
+        i2: 'Reservierungen: kein Doppelangriff auf dasselbe Ziel',
+        i3: 'Prioritäten für Spionage: wo ein neuer Bericht den Unterschied macht',
+      },
+      raids: {
+        title: 'Raids planen und fair abrechnen',
+        i0: 'Landezeiten und AKS auf die Sekunde planen – für alle sichtbar',
+        i1: 'Retime auf feindliche Angriffe mit durchgerechneten Fenstern',
+        i2: 'Beuteabrechnung aus euren Berichten: wer was bekommt und liefert, ohne endlose Tabellen in Discord',
+        i3: 'Raid-Statistik: wer bringt was ein, was kostet es',
+      },
+      defense: {
+        title: 'Weniger Überraschungen bei Angriffen',
+        i0: 'Eingehende Angriffe gebündelt: was droht, was steht auf dem Spiel, was kann man noch retten',
+        i1: 'Wer kann noch halten – mit Einladung zum Halteplan',
+        i2: 'Fleetsave-Planer: Abflüge so, dass die Flotte zurück ist, wenn ihr wieder da seid',
+        i3: 'Verteidigungstipps und Raid-Risiko pro Planet/Mond aus dem, was die Allianz ohnehin weiß',
+      },
+      build: {
+        title: 'Eigene Planeten schlauer ausbauen',
+        i0: 'Nächste sinnvolle Minen/Energie/Forschung nach Ertrag und Amortisation',
+        i1: 'Warnung, wenn fremde Phalanx eure Planeten sieht',
+        i2: 'Erinnerung, wenn der nächste Ausbau möglich ist (auch mobil/push)',
+      },
+      alliance: {
+        title: 'Allianz-Koordination ohne Chaos',
+        i0: 'Planeten, Flotten (was ihr teilt), Forschung – wer kann was wann',
+        i1: 'Marktkurs für alle gleich – Beute, Simulator, interne Kalkulationen',
+        i2: 'Kommentare und Erwähnungen direkt am Spieler/Planeten statt verlorene Chats',
+        i3: '„Wer bedroht mich?“ und feindliche Spionage im Überblick',
+        i4: 'Allianzgesundheit: wer brummt, wer hinkt nach – früh eingreifen statt überraschend inaktiv',
+      },
+      expo: {
+        title: 'Expedition & Monde',
+        i0: 'Expeditionen und Deck mitzählen (wenn ihr das spielt)',
+        i1: 'Mondchancen und Mondzerstörung aus bekannten Daten – weniger Rätsel',
+      },
+      notify: {
+        title: 'Rechtzeitig informiert',
+        i0: 'Angriffe, Raid-Einladungen, volle Speicher, neue Phalanx-Gefahr – Glocke, Push oder Discord, statt ständig F5 im Spiel',
+      },
+    },
   },
   tours: {
     start: 'Diese Seite erklären',
@@ -787,6 +844,24 @@ const de = {
       sharing: { title: 'Freigaben', text: 'Ob die Allianz deine Flotten und deine Spielernachrichten sieht. Einzelne Flotten und Nachrichten gibst du im Imperium bzw. unter Ingame-Nachrichten abweichend frei.' },
       login: { title: 'Anmeldung', text: 'Benutzernamen und Passwort ändern.' },
       tokens: { title: 'API-Token', text: 'Nur-Lese-Zugriff auf die Allianz-Daten, die du im Hub siehst, z. B. für eigene Auswertungen.' },
+    },
+    changelog: {
+      intro: {
+        title: 'Neuigkeiten',
+        text: 'Was sich im Hub ändert, und warum er der Allianz nützt – in zwei Reitern.',
+      },
+      news: {
+        title: 'Neuigkeiten',
+        text: 'Neue Funktionen und Behobenes, nach Datum sortiert – für Updates im Hub.',
+      },
+      about: {
+        title: 'Über den Hub',
+        text: 'Die Mehrwerte für eure Allianz in Kurzform: was ihr gemeinsam rausholt, wenn ihr Seiten einfügt.',
+      },
+      outro: {
+        title: 'Fertig',
+        text: 'Mehr Details gibt es auf den einzelnen Seiten; das „?“ dort erklärt sie.',
+      },
     },
     admin: {
       intro: { title: 'Admin-Panel', text: 'Hier verwaltest du Allianzen und ihre Mitglieder. Was du siehst, hängt von deiner Rolle ab: Allianz-Admins verwalten ihre Allianz, Hub-Admins zusätzlich Universen und den Betrieb des Hubs.' },

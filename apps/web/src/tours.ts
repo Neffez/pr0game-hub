@@ -307,6 +307,14 @@ export const TOURS = {
       { key: 'tokens', el: 'account-tokens', side: 'top' },
     ],
   },
+  changelog: {
+    steps: [
+      { key: 'intro' },
+      { key: 'news', el: 'changelog-tab-news', side: 'bottom', head: 'news' },
+      { key: 'about', el: 'changelog-tab-about', side: 'bottom', head: 'about' },
+      { key: 'outro' },
+    ],
+  },
   admin: {
     steps: [
       { key: 'intro' },

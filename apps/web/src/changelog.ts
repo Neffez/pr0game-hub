@@ -16,6 +16,21 @@ export interface ChangelogDay {
 
 export const CHANGELOG: ChangelogDay[] = [
   {
+    date: '2026-11-12',
+    items: [
+      {
+        kind: 'new',
+        de: 'Neuigkeiten: Zweiter Tab „Über den Hub“ mit den Mehrwerten für eure Allianz auf einen Blick.',
+        en: "What's new: second tab \"About the hub\" with the benefits for your alliance at a glance.",
+      },
+      {
+        kind: 'new',
+        de: '„Über den Hub“ ist ohne Login unter /about erreichbar; auf der Anmeldeseite gibt es dazu einen Link.',
+        en: '“About the hub” is available without logging in at /about; the login page links to it.',
+      },
+    ],
+  },
+  {
     date: '2026-11-10',
     items: [
       {

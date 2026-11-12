@@ -1,8 +1,16 @@
 // @vitest-environment happy-dom
 import { describe, expect, it } from 'vitest';
-import { router } from '../src/router';
+import { PUBLIC_PATHS, router } from '../src/router';
 
 describe('routes', () => {
+  it('marks only login, request access, invite and about as public', () => {
+    const publicPaths = new Set<string>();
+    for (const r of router.getRoutes()) {
+      if (!r.meta.public || !r.path.startsWith('/') || r.path.includes(':')) continue;
+      publicPaths.add(r.path);
+    }
+    expect([...publicPaths].sort()).toEqual([...PUBLIC_PATHS].sort());
+  });
   it('opens a player page only with a numeric id', () => {
     expect(router.resolve('/u7/player/12').matched.at(-1)?.path).toBe(String.raw`/:uni/player/:id(\d+)`);
     expect(router.resolve('/u7/player/foo').matched).toEqual([]);

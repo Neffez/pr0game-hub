@@ -1,11 +1,24 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import { loadMe, session } from './api';
 
+declare module 'vue-router' {
+  interface RouteMeta {
+    /** Route works without a logged-in user (login, invite, about). */
+    public?: boolean;
+    /** Public `/about`: benefits text only, no changelog. */
+    aboutOnly?: boolean;
+  }
+}
+
+/** Only these top-level paths are reachable without a session; everything else redirects to login. */
+export const PUBLIC_PATHS = ['/login', '/request-access', '/about'] as const;
+
 export const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
     { path: '/login', component: () => import('./views/LoginView.vue'), meta: { public: true } },
     { path: '/request-access', component: () => import('./views/RequestAccessView.vue'), meta: { public: true } },
+    { path: '/about', component: () => import('./views/ChangelogView.vue'), meta: { public: true, aboutOnly: true } },
     { path: '/invite/:token', component: () => import('./views/InviteView.vue'), meta: { public: true } },
     { path: '/', component: () => import('./views/HomeView.vue') },
     { path: '/admin', component: () => import('./views/AdminView.vue') },

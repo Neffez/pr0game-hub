@@ -2,6 +2,11 @@
 
 Every commit adds its changes here, newest first, grouped by date.
 
+## 2026-11-12
+
+- What's new: tabs **What's new** (default) and **About the hub** with alliance-facing benefits (DE/EN); page tour for the tabs (`changelog` in `tours.ts`).
+- Public **`/about`** (benefits only, no changelog) with a link on the login page; `PUBLIC_PATHS` and a web test list the only public hub routes besides invite tokens.
+
 ## 2026-11-10
 
 - Universe settings: start resources of a new planet (`metalStart`, `crystalStart`, `deuteriumStart`, hub default
