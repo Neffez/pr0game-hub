@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-13',
     items: [
       {
+        kind: 'fix',
+        de: 'Umlaute in der Online-Liste: statt Bananenfürst stand dort Bananenf_rst (der Login-Name ohne Umlaute). Der Anzeigename behält die Buchstaben.',
+        en: 'Umlauts in the online list: Bananenfürst showed as Bananenf_rst (the login name without umlauts). The display name keeps the letters.',
+      },
+      {
         kind: 'new',
         de: 'Anzeigename im Konto: so sehen dich die anderen im Hub (Online-Liste, Kommentare). Benutzername und Ingame-Name bleiben getrennt.',
         en: 'Display name on the account: how others see you in the hub (online list, comments). Username and in-game name stay separate.',

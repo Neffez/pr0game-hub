@@ -3,6 +3,9 @@ import { createHash } from 'node:crypto';
 import { mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { backfillDisplayNamesFromIngame } from './displayName.js';
+
+export { backfillDisplayNamesFromIngame } from './displayName.js';
 
 export type DB = Database.Database;
 
@@ -106,6 +109,8 @@ const DATA_MIGRATIONS: Record<string, (db: DB) => void> = {
     const set = db.prepare('UPDATE invites SET token = ? WHERE rowid = ?');
     for (const r of rows) set.run(createHash('sha256').update(r.token).digest('hex'), r.rowid);
   },
+  // login usernames are ASCII; umlauts in the in-game name became `_` and showed in the online list
+  'js:display_name_from_sanitized_ingame': backfillDisplayNamesFromIngame,
 };
 
 export const now = () => Math.floor(Date.now() / 1000);

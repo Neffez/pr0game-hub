@@ -3,7 +3,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 process.env.WEB_DIR = '/nonexistent';
 
 const { buildApp } = await import('../src/app.js');
-const { openDb } = await import('../src/db.js');
+const { backfillDisplayNamesFromIngame, openDb } = await import('../src/db.js');
 const { hashPassword } = await import('../src/auth.js');
 
 const db = openDb(':memory:');
@@ -64,6 +64,42 @@ describe('display name', () => {
     expect((await call('GET', '/auth/display-name', carol)).json()).toEqual({ displayName: 'Ärzte Nick_1' });
     const ctx = (await call('GET', '/u8/context', dave)).json();
     expect(ctx.members.find((m: { id: number }) => m.id === carolId).name).toBe('Ärzte Nick_1');
+    expect((await call('POST', '/auth/display-name', carol, { displayName: 'Bananenfürst' })).json()).toEqual({ displayName: 'Bananenfürst' });
+    expect((await call('GET', '/u8/context', dave)).json().members.find((m: { id: number }) => m.id === carolId).name).toBe(
+      'Bananenfürst',
+    );
+    // combining diaeresis (NFD), as some apps paste it: store NFC so the online list and @mentions match
+    expect((await call('POST', '/auth/display-name', carol, { displayName: 'Bananenf\u0075\u0308rst' })).json()).toEqual({
+      displayName: 'Bananenfürst',
+    });
+  });
+
+  it('keeps umlauts of a new member visible in the online list, not replaced by _ in the login username', async () => {
+    const added = await call('POST', `/admin/groups/${group}/members`, lead, { name: 'Bananenfürst' });
+    expect(added.statusCode).toBe(200);
+    const id = added.json().id as number;
+    expect(db.prepare('SELECT username, display_name FROM users WHERE id = ?').get(id)).toEqual({
+      username: 'Bananenf_rst',
+      display_name: 'Bananenfürst',
+    });
+    expect((await call('GET', '/u8/context', carol)).json().members.find((m: { id: number }) => m.id === id).name).toBe(
+      'Bananenfürst',
+    );
+  });
+
+  it('restores a display name when the login username was the in-game name with umlauts turned into _', async () => {
+    const id = Number(
+      db.prepare("INSERT INTO users (username, password_hash) VALUES ('K_nigin', ?)").run(hashPassword('passpass')).lastInsertRowid,
+    );
+    db.prepare("INSERT INTO group_members (group_id, user_id, role, ingame_name) VALUES (?, ?, 'member', 'Königin')").run(
+      group,
+      id,
+    );
+    backfillDisplayNamesFromIngame(db);
+    expect(db.prepare('SELECT display_name FROM users WHERE id = ?').pluck().get(id)).toBe('Königin');
+    expect((await call('GET', '/u8/context', carol)).json().members.find((m: { id: number }) => m.id === id).name).toBe(
+      'Königin',
+    );
   });
 
   it('allows the same display name twice and clears back to the username', async () => {

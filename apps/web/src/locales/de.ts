@@ -3019,6 +3019,7 @@ const de = {
     admin_only: 'Nur für globale Admins',
     group_admin_only: 'Nur für Allianz-Admins',
     username_invalid: 'Benutzername: 3–32 Zeichen (Buchstaben, Zahlen, . _ -)',
+    display_name_invalid: 'Anzeigename: 1–32 Zeichen (Buchstaben, Zahlen, Leerzeichen, . _ -), kein @',
     username_taken: 'Benutzername vergeben',
     universe_not_found: 'Universum nicht gefunden',
     no_group: 'Keine Allianz in diesem Universum',

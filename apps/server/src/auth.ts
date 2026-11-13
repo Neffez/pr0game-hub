@@ -3,6 +3,7 @@ import { promisify } from 'node:util';
 import type { FastifyReply, FastifyRequest } from 'fastify';
 import { config } from './config.js';
 import { now, type DB } from './db.js';
+import { parseDisplayName } from './displayName.js';
 
 export const SESSION_COOKIE = 'hub_session';
 
@@ -290,15 +291,17 @@ export function checkUsername(db: DB, raw: unknown, exceptUserId = 0, placeholde
 
 /**
  * Validates a hub display name. Empty or whitespace becomes null (the username is shown instead). Not unique.
- * Letters, digits, spaces, `. _ -`; no `@` (comment mentions) and no control characters; at most 32 characters.
+ * Letters of any language (including umlauts), combining marks, digits, spaces, `. _ -`; no `@` (comment mentions)
+ * and no control characters; at most 32 characters. Stored in Unicode NFC so `@mentions` and the online list match
+ * what people type.
  */
 export function checkDisplayName(raw: unknown): string | null {
-  const name = String(raw ?? '').trim();
-  if (!name) return null;
-  if (name.length > 32 || /@/.test(name) || /[\p{Cc}\p{Cs}]/u.test(name) || !/^[\p{L}\p{N}._\- ]+$/u.test(name)) {
+  const parsed = parseDisplayName(raw);
+  if (parsed.status === 'empty') return null;
+  if (parsed.status === 'invalid') {
     throw new HttpError(400, 'display_name_invalid', 'Display name: 1–32 characters (letters, digits, spaces, . _ -), no @');
   }
-  return name;
+  return parsed.name;
 }
 
 /** Creates the bootstrap admin on first start when configured and no user exists yet. */

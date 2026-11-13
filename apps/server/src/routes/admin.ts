@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { checkDisplayName, checkUsername, HttpError, randomToken, requireAdmin, requireUser, revokeAccessIfOrphaned, tokenHash } from '../auth.js';
+import { loginUsernameBase } from '../displayName.js';
 import { config, UNIVERSE_DEFAULTS } from '../config.js';
 import { settingsError } from '@pr0hub/core/universe';
 import { catalogOf, catalogOfGroup, toUniverse } from '../context.js';
@@ -83,9 +84,7 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
   };
 
   const usernameFromName = (name: string) => {
-    let base = name.replace(/[^\w.\- ]/g, '_').replace(/\s+/g, ' ').trim();
-    if (base.length < 3) base = base.padEnd(3, '_');
-    if (base.length > 32) base = base.slice(0, 32);
+    const base = loginUsernameBase(name);
     if (!db.prepare('SELECT 1 FROM users WHERE username = ?').get(base)) return checkUsername(db, base);
     for (let n = 2; n < 1000; n++) {
       const suffix = `-${n}`;
@@ -94,6 +93,16 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
       if (!db.prepare('SELECT 1 FROM users WHERE username = ?').get(candidate)) return checkUsername(db, candidate);
     }
     throw new HttpError(409, 'username_taken', 'Username already taken');
+  };
+
+  /** Original name when it is a valid display name and differs from the ASCII login username (umlauts, etc.). */
+  const displayNameFromMemberName = (name: string, username: string): string | null => {
+    try {
+      const display = checkDisplayName(name);
+      return display && display !== username ? display : null;
+    } catch {
+      return null;
+    }
   };
 
   // ------------------------------------------------------------- universes
@@ -415,8 +424,13 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
       throw new HttpError(409, 'member_exists', 'A member with this in-game name already exists');
     }
     const username = usernameFromName(name);
+    const displayName = displayNameFromMemberName(name, username);
     const userId = Number(
-      db.prepare('INSERT INTO users (username, password_hash, is_admin) VALUES (?, ?, 0)').run(username, '').lastInsertRowid,
+      db.prepare('INSERT INTO users (username, password_hash, is_admin, display_name) VALUES (?, ?, 0, ?)').run(
+        username,
+        '',
+        displayName,
+      ).lastInsertRowid,
     );
     db.prepare("INSERT INTO group_members (group_id, user_id, role, ingame_name) VALUES (?, ?, 'member', ?)").run(groupId, userId, name);
     const token = createClaimInvite(groupId, userId, user.id);

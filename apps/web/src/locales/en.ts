@@ -3016,6 +3016,7 @@ const en: typeof de = {
     admin_only: 'Global admins only',
     group_admin_only: 'Alliance admins only',
     username_invalid: 'Username: 3–32 characters (letters, digits, . _ -)',
+    display_name_invalid: 'Display name: 1–32 characters (letters, digits, spaces, . _ -), no @',
     username_taken: 'Username already taken',
     universe_not_found: 'Universe not found',
     no_group: 'No alliance in this universe',

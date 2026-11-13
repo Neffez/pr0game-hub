@@ -5231,8 +5231,8 @@ paths:
       operationId: setDisplayName
       security: [{ sessionCookie: [] }]
       description: >-
-        Sets the hub display name (1–32 letters, digits, spaces, `. _ -`, no `@`). Empty or whitespace clears it
-        (the username is shown). Not unique. No password.
+        Sets the hub display name (1–32 letters of any language including umlauts, digits, spaces, `. _ -`, no `@`;
+        stored NFC). Empty or whitespace clears it (the username is shown). Not unique. No password.
       requestBody:
         required: true
         content:
