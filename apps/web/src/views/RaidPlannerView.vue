@@ -132,7 +132,7 @@ const delay = (p: AttackPlan) => (rp.exact(p) ? (rp.views.value.get(p.id)?.acs?.
 
 <template>
   <PageHeader :title="t('nav.raids')" tour="raids">
-    <template #hint><Hint>{{ tab === 'stats' ? t('raids.hint') : t('plans.hint') }}</Hint></template>
+    <template #hint><Hint>{{ tab === 'stats' ? t('raids.hint') : tab === 'settlements' ? t('plans.hintSettlements') : t('plans.hint') }}</Hint></template>
     <CsvButton v-if="tab === 'settlements' || tab === 'stats'" :dataset="tab === 'settlements' ? 'settlements' : 'battle-reports'" />
   </PageHeader>
   <div class="seg tab-seg">

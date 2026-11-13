@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Lange Info-Hinweise auf dem Handy werden nicht mehr oben abgeschnitten, man kann darin scrollen. Unter Bauen & Forschen, Übersicht und Raidplaner erklärt der Hinweis nur den offenen Tab.',
+        en: 'Long info hints on the phone are no longer cut off at the top; you can scroll them. On Build & Research, Overview and the Raid planner the hint explains only the open tab.',
+      },
+      {
+        kind: 'fix',
         de: 'Namen mit Umlauten werden in der Online-Liste wieder korrekt angezeigt.',
         en: 'Names with umlauts are shown correctly in the online list.',
       },

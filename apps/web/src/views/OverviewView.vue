@@ -519,12 +519,18 @@ const history = computed(() => {
   <PageHeader :title="t('nav.overview')" tour="overview">
     <template #hint>
       <Hint>
-        <p>{{ t('overview.hint1') }}</p>
-        <p>{{ t('overview.hint2') }}</p>
-        <p>{{ t('overview.hint3') }}</p>
-        <p>{{ t('overview.hint4') }}</p>
-        <p>{{ t('overview.hint5') }}</p>
-        <p>{{ t('overview.hint6') }}</p>
+        <template v-if="mode === 'planets'">
+          <p>{{ t('overview.hint1') }}</p>
+          <p>{{ t('overview.hint2') }}</p>
+          <p>{{ t('overview.hint3') }}</p>
+          <p>{{ t('overview.hint4') }}</p>
+          <p>{{ t('overview.hint5') }}</p>
+        </template>
+        <template v-else>
+          <p>{{ t('overview.hint6') }}</p>
+          <p>{{ t('overview.hint2') }}</p>
+          <p>{{ t('overview.hint5') }}</p>
+        </template>
       </Hint>
       <Hint v-if="players.length && !history" warn>{{ t('overview.needTwoStands') }}</Hint>
     </template>

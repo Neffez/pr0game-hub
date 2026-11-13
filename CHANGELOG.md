@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-13
 
+- Long info hints on phones stay inside the screen and scroll when needed. Build & Research, Overview and the Raid
+  planner explain only the open tab (not every tab at once).
+
 - Fix names with umlauts in the online list (they showed with `_` in place of the umlaut). Combining characters are
   stored NFC; new members keep the original letters as display name; existing accounts whose login username was the
   in-game name with umlauts turned into `_` get that name as display name.

@@ -262,13 +262,14 @@ const costClass = (b: { missing: Record<number, number> }, res: number) => (b.mi
   <PageHeader :title="t('buildings.title')" tour="build">
     <template #hint>
       <Hint>
-        <p>{{ t('buildings.hint1') }}</p>
-        <p>{{ t('buildings.hintResearch') }}</p>
-        <p>{{ t('buildings.hintShips') }}</p>
-        <p>{{ t('buildings.hintOrder') }}</p>
-        <p>{{ t('buildings.hintDefense') }}</p>
-        <p>{{ t('buildings.hint2') }}</p>
-        <p>{{ t('buildings.hint3') }}</p>
+        <p v-if="tab === 'buildings'">{{ t('buildings.hint1') }}</p>
+        <p v-if="tab === 'research'">{{ t('buildings.hintResearch') }}</p>
+        <p v-if="tab === 'ships'">{{ t('buildings.hintShips') }}</p>
+        <p v-if="tab === 'order'">{{ t('buildings.hintOrder') }}</p>
+        <p v-if="tab === 'advisor'">{{ t('buildings.hintAdvisor') }}</p>
+        <p v-if="tab === 'defense'">{{ t('buildings.hintDefense') }}</p>
+        <p v-if="tab === 'buildings' || tab === 'research'">{{ t('buildings.hint2') }}</p>
+        <p v-if="tab === 'buildings' || tab === 'research'">{{ t('buildings.hint3') }}</p>
       </Hint>
     </template>
     <div class="seg build-tabs">

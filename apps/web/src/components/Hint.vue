@@ -19,11 +19,16 @@ function place() {
     b.style.cssText = '';
     return;
   }
-  b.style.cssText = 'position: fixed; left: 0; top: 0; display: block';
+  b.style.cssText = 'position: fixed; left: 0; top: 0; display: block; max-height: none; overflow: visible';
   const r = el.getBoundingClientRect();
   const w = b.offsetWidth;
   const h = b.offsetHeight;
   const left = Math.max(8, Math.min(r.left - 10, window.innerWidth - w - 8));
+  const maxH = window.innerHeight - 16;
+  if (h > maxH) {
+    b.style.cssText = `position: fixed; left: ${left}px; top: 8px; max-height: ${maxH}px; overflow-y: auto`;
+    return;
+  }
   let top = r.bottom + 6;
   if (top + h > window.innerHeight - 8) top = Math.max(8, r.top - h - 6);
   b.style.cssText = `position: fixed; left: ${left}px; top: ${top}px`;

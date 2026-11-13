@@ -252,6 +252,8 @@ table.data tr.moon td { background: color-mix(in srgb, var(--info) 7%, transpare
   .hint-body {
     position: fixed; top: auto; left: 12px; right: 12px; bottom: calc(var(--tabbar-h) + 12px + env(safe-area-inset-bottom));
     max-width: none; width: auto; z-index: 60; font-size: 13px;
+    max-height: calc(100dvh - var(--topbar-h) - var(--tabbar-h) - 24px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    overflow-y: auto; overscroll-behavior: contain;
   }
 }
 .scroll-x { overflow-x: auto; }
