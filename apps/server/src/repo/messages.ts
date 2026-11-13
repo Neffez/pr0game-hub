@@ -1,4 +1,5 @@
 import type { DB } from '../db.js';
+import { DISPLAY } from '../routes/util.js';
 
 /** Whether the user shares their player messages with the other members of their groups (off by default). */
 export function messageShare(db: DB, userId: number): boolean {
@@ -41,7 +42,7 @@ export function visibleMessages(db: DB, groupId: number, viewerId: number, limit
   const rows = db
     .prepare(
       `SELECT MIN(pm.id) AS id, pm.time, pm.from_name, pm.from_coords, pm.recipients, pm.subject, pm.body,
-         json_group_array(DISTINCT COALESCE(gm.ingame_name, u.username)) AS synced_by,
+         json_group_array(DISTINCT ${DISPLAY}) AS synced_by,
          MAX(pm.user_id = ?) AS own, MAX(pm.user_id = ? AND ${SHARED}) AS own_shared, MAX(${SHARED}) AS shared,
          json_group_array(DISTINCT pm.user_id) AS owners,
          json_group_array(DISTINCT pm.user_id || ':' || pm.thread) AS threads,

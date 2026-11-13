@@ -2,6 +2,7 @@ import { debrisAmount } from '@pr0hub/core';
 import { drivesFromResearch, shipSpeed } from '@pr0hub/flight';
 import { catalogOf, type GroupContext } from '../context.js';
 import type { DB } from '../db.js';
+import { DISPLAY } from '../routes/util.js';
 import { latestEmpires } from './empire.js';
 import { memberPlayers } from './members.js';
 
@@ -147,7 +148,7 @@ export function debrisFields(db: DB, ctx: GroupContext, days: number) {
   const catalog = catalogOf(ctx.universe);
   const names = new Map(
     (db
-      .prepare('SELECT m.user_id, COALESCE(m.ingame_name, u.username) AS name FROM group_members m JOIN users u ON u.id = m.user_id WHERE m.group_id = ?')
+      .prepare(`SELECT m.user_id, ${DISPLAY} AS name FROM group_members m JOIN users u ON u.id = m.user_id WHERE m.group_id = ?`)
       .all(g) as { user_id: number; name: string }[]).map((r) => [r.user_id, r.name]),
   );
   const recyclers: RecyclerStock[] = [];

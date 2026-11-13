@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-13',
     items: [
       {
+        kind: 'new',
+        de: 'Anzeigename im Konto: so sehen dich die anderen im Hub (Online-Liste, Kommentare). Benutzername und Ingame-Name bleiben getrennt.',
+        en: 'Display name on the account: how others see you in the hub (online list, comments). Username and in-game name stay separate.',
+      },
+      {
         kind: 'fix',
         de: 'Zugang anfragen: Ein Benutzername, der nur einem Platzhalter-Mitglied ohne Konto gehört, wird nicht mehr als vergeben abgewiesen.',
         en: 'Request access: a username that only belongs to a placeholder member without an account is no longer rejected as taken.',

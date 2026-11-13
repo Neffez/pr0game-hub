@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-13
 
+- Hub display name on the account (what others see in the online list, comments and similar); login username and
+  in-game name stay separate. Empty falls back to the username. Alliance admins can set it per member.
+
 - Fix access requests: requesting a username that only belongs to a placeholder member (no password yet) no longer
   returns “username taken”; real accounts and open requests still block the name.
 

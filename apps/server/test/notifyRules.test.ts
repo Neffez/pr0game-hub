@@ -131,11 +131,11 @@ describe('quiet hours', () => {
     await call('POST', '/auth/push-settings', h.carol, { attackOthers: true });
     await app.push.deliver(group, t);
     // the attack on Carol breaks the quiet hours, the one on Dave is held on the phone
-    expect(titles(PHONE)).toEqual(['⚔ Angriff auf Carol']);
-    expect(titles(DESK).sort()).toEqual(['⚔ Angriff auf Carol', '⚔ Angriff auf Dave']);
+    expect(titles(PHONE)).toEqual(['⚔ Angriff auf carol']);
+    expect(titles(DESK).sort()).toEqual(['⚔ Angriff auf carol', '⚔ Angriff auf dave']);
     // it landed before the quiet hours ended: not sent late
     await app.push.flushHeld(OVER);
-    expect(titles(PHONE)).toEqual(['⚔ Angriff auf Carol']);
+    expect(titles(PHONE)).toEqual(['⚔ Angriff auf carol']);
     expect(db.prepare('SELECT COUNT(*) FROM notify_held').pluck().get()).toBe(0);
     await call('POST', '/auth/push-settings', h.carol, { attackOthers: false });
   });
@@ -161,7 +161,7 @@ describe('quiet hours', () => {
     await app.discord.flushHeld(t + 1800);
     expect(embeds(HOOK.carol)).toEqual([]);
     await app.discord.flushHeld(OVER);
-    expect(embeds(HOOK.carol).sort()).toEqual(['⚔ Angriff auf Carol', '💬 Dave zu [1:50:7]']);
+    expect(embeds(HOOK.carol).sort()).toEqual(['⚔ Angriff auf carol', '💬 dave zu [1:50:7]']);
     await call('POST', '/auth/discord', h.carol, { prefs: { quiet: null } });
   });
 });
@@ -174,7 +174,7 @@ describe('rules per kind', () => {
     expect(titles(DAVE)).toEqual([]);
     fleets('dave', t, [hostile(6, t + 300, 'Spy', { g: 3, s: 1, p: 1 }), hostile(1, t + 400, 'Spy', { g: 3, s: 1, p: 2 })]);
     await app.push.deliver(group, t);
-    expect(titles(DAVE)).toEqual(['⚔ Angriff auf Dave']);
+    expect(titles(DAVE)).toEqual(['⚔ Angriff auf dave']);
     await call('POST', '/auth/push-settings', h.dave, { spying: true });
   });
 
@@ -186,7 +186,7 @@ describe('rules per kind', () => {
     fleets('carol', t, [hostile(1, t + 5001, 'Small', { g: 4, s: 1, p: 2 }), hostile(1, t + 5002, 'Nobody', { g: 4, s: 1, p: 3 })]);
     await app.push.deliver(group, t);
     // a weak attacker is reported like any other
-    expect(titles(DAVE)).toEqual(['⚔ Angriff auf Carol', '⚔ Angriff auf Carol']);
+    expect(titles(DAVE)).toEqual(['⚔ Angriff auf carol', '⚔ Angriff auf carol']);
     const bell = (await call('GET', '/u8/notifications', h.dave)).json().filter((n: any) => n.kind === 'attack' && n.userId === ids.carol);
     expect(bell.map((n: any) => n.attackerFleetPoints)).toEqual([500, null]);
     await call('POST', '/auth/push-settings', h.dave, { attackOthers: false });
@@ -196,7 +196,7 @@ describe('rules per kind', () => {
     expect((await call('PUT', `/admin/groups/${group}/discord`, h.carol, { webhook: HOOK.group, prefs: { spying: false } })).json().prefs).toMatchObject({ spying: false });
     fleets('carol', t, [hostile(6, t + 6000, 'Big', { g: 5, s: 1, p: 1 }), hostile(1, t + 6001, 'Small', { g: 5, s: 1, p: 2 })]);
     await app.discord.deliver(group, t);
-    expect(embeds(HOOK.group)).toEqual(['⚔ Angriff auf Carol']);
+    expect(embeds(HOOK.group)).toEqual(['⚔ Angriff auf carol']);
     expect(posted.find((s) => s.url === HOOK.group)!.message.embeds).toHaveLength(1);
   });
 
@@ -208,7 +208,7 @@ describe('rules per kind', () => {
     expect(titles(DESK)).toEqual([]);
     await call('POST', '/u8/comments', h.dave, { c: '1:60:7', type: 'planet', body: '@Carol look' });
     await app.push.deliver(group, t);
-    expect(titles(DESK)).toEqual(['📣 Dave erwähnt dich zu [1:60:7]']);
+    expect(titles(DESK)).toEqual(['📣 dave erwähnt dich zu [1:60:7]']);
     await call('POST', '/auth/push-settings', h.carol, { mentionsOnly: false });
   });
 });

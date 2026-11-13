@@ -33,9 +33,15 @@ const editText = ref('');
 const actionError = ref('');
 /** `@name` of members and coordinates are highlighted and linked (G-8); typing `@` suggests member names. */
 const members = computed(() => ctx.value?.members ?? []);
-// the server notifies by in-game name or username
-const mentionNames = computed(() => members.value.flatMap((m) => [m.name, m.username]));
-const myNames = computed(() => members.value.filter((m) => m.id === ctx.value?.me.id).flatMap((m) => [m.name, m.username]).map((n) => n.toLowerCase()));
+// the server notifies by display name, in-game name or username
+const mentionNames = computed(() => members.value.flatMap((m) => [m.name, m.ingame_name, m.username]).filter((n): n is string => !!n));
+const myNames = computed(() =>
+  members.value
+    .filter((m) => m.id === ctx.value?.me.id)
+    .flatMap((m) => [m.name, m.ingame_name, m.username])
+    .filter((n): n is string => !!n)
+    .map((n) => n.toLowerCase()),
+);
 const parts = (body: string) => commentParts(body, mentionNames.value, ctx.value!.universe.settings);
 const suggest = computed(() => mentionSuggestions(text.value, members.value.map((m) => m.name)));
 function complete(name: string) {

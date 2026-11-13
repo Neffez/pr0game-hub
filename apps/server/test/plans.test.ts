@@ -64,15 +64,15 @@ describe('attack plans', () => {
 
     const list = (await call('GET', '/plans', dave)).json();
     expect(list).toHaveLength(1);
-    expect(list[0]).toMatchObject({ g: 1, s: 41, p: 1, planet_type: 'moon', creator: 'Carol', note: 'Konter', status: 'planning', claim_user_id: carolId, fleets: [] });
+    expect(list[0]).toMatchObject({ g: 1, s: 41, p: 1, planet_type: 'moon', creator: 'carol', note: 'Konter', status: 'planning', claim_user_id: carolId, fleets: [] });
     const claims = (await call('GET', '/claims', dave)).json();
-    expect(claims).toEqual([expect.objectContaining({ g: 1, s: 41, p: 1, planet_type: 'moon', kind: 'attack', member: 'Carol' })]);
+    expect(claims).toEqual([expect.objectContaining({ g: 1, s: 41, p: 1, planet_type: 'moon', kind: 'attack', member: 'carol' })]);
     expect(claims[0].expires_at - list[0].target_time).toBe(600);
     expect((await call('GET', '/plans', carolB)).json()).toEqual([]);
 
     // a target claimed by someone else: the plan comes without claim
     const other = (await call('POST', '/plans', dave, { g: 1, s: 41, p: 1, type: 'moon', target_time: soon() })).json();
-    expect(other.claimedBy).toBe('Carol');
+    expect(other.claimedBy).toBe('carol');
     await call('DELETE', `/plans/${other.id}`, dave);
   });
 
@@ -89,17 +89,17 @@ describe('attack plans', () => {
     expect((await call('POST', `/plans/${plan.id}/fleets`, carol, { user_id: daveId })).statusCode).toBe(200);
     // the invitations ring the invited member's bell, naming who invited
     expect((await call('GET', '/notifications', dave)).json()).toEqual([
-      expect.objectContaining({ id: `invite:${plan.id}`, kind: 'invite', userId: carolId, member: 'Carol', time: plan.target_time, plan: expect.objectContaining({ id: plan.id, g: 1, s: 41, p: 1, planet_type: 'moon', mission: 'attack' }) }),
+      expect.objectContaining({ id: `invite:${plan.id}`, kind: 'invite', userId: carolId, member: 'carol', time: plan.target_time, plan: expect.objectContaining({ id: plan.id, g: 1, s: 41, p: 1, planet_type: 'moon', mission: 'attack' }) }),
     ]);
-    expect((await call('GET', '/notifications', carol)).json()).toEqual([expect.objectContaining({ id: `invite:${plan.id}`, userId: daveId, member: 'Dave' })]);
-    const carolInvite = (await call('GET', '/plans', carol)).json()[0].fleets.find((f: any) => f.member === 'Carol' && f.status === 'invited');
+    expect((await call('GET', '/notifications', carol)).json()).toEqual([expect.objectContaining({ id: `invite:${plan.id}`, userId: daveId, member: 'dave' })]);
+    const carolInvite = (await call('GET', '/plans', carol)).json()[0].fleets.find((f: any) => f.member === 'carol' && f.status === 'invited');
     expect((await call('DELETE', `/plans/${plan.id}/fleets/${carolInvite.id}`, carol)).statusCode).toBe(200);
 
     const fleets = (await call('GET', '/plans', dave)).json()[0].fleets;
     expect(fleets.map((f: any) => [f.member, f.status, f.speed, f.ships])).toEqual([
-      ['Carol', 'ready', 90, { 207: 1773, 215: 2 }],
-      ['Dave', 'ready', 100, { 204: 100 }],
-      ['Dave', 'invited', 100, {}],
+      ['carol', 'ready', 90, { 207: 1773, 215: 2 }],
+      ['dave', 'ready', 100, { 204: 100 }],
+      ['dave', 'invited', 100, {}],
     ]);
     expect(fleets[0]).toMatchObject({ g: 1, s: 40, p: 5, planet_type: 'planet', drives: { time: 1893456000, research: { 115: 10, 117: 8, 118: 6, 134: 0 } } });
     expect(fleets[1].drives).toBeNull();
@@ -112,12 +112,12 @@ describe('attack plans', () => {
     expect((await call('GET', '/notifications', dave)).json()).toEqual([]);
     expect((await call('DELETE', `/plans/${plan.id}/fleets/${fleets[2].id}`, dave)).statusCode).toBe(200);
     const after = (await call('GET', '/plans', carol)).json()[0].fleets;
-    expect(after.map((f: any) => [f.member, f.speed, f.ships])).toEqual([['Carol', 90, { 207: 1773, 215: 2 }], ['Dave', 50, { 204: 120 }]]);
+    expect(after.map((f: any) => [f.member, f.speed, f.ships])).toEqual([['carol', 90, { 207: 1773, 215: 2 }], ['dave', 50, { 204: 120 }]]);
   });
 
   it("takes a member's drives from the spy reports without an empire page, or by hand; the newest counts", async () => {
     const plan = (await call('GET', '/plans', carol)).json()[0];
-    const daveFleet = () => (call('GET', '/plans', carol) as Promise<any>).then((r) => r.json()[0].fleets.find((f: any) => f.member === 'Dave'));
+    const daveFleet = () => (call('GET', '/plans', carol) as Promise<any>).then((r) => r.json()[0].fleets.find((f: any) => f.member === 'dave'));
     expect((await daveFleet()).drives).toBeNull();
     // a spy report of Dave's player (by name) with research
     const t0 = Math.floor(Date.now() / 1000) - 3600;
@@ -220,7 +220,7 @@ describe('attack plans', () => {
     const attacks = (await call('GET', '/hostile-attacks', dave)).json();
     expect(attacks).toHaveLength(1);
     expect(attacks[0]).toMatchObject({
-      member: 'Carol', from: { g: 1, s: 41, p: 1, type: 'moon' }, to: { g: 1, s: 100, p: 12, type: 'planet' }, planId: null,
+      member: 'carol', from: { g: 1, s: 41, p: 1, type: 'moon' }, to: { g: 1, s: 100, p: 12, type: 'planet' }, planId: null,
       fleets: [{ mission: 1, ships: { 210: 1 } }, { mission: 2, ships: { 207: 1773, 215: 2 } }],
     });
     expect(attacks[0].arrival - Math.floor(Date.now() / 1000)).toBeGreaterThan(3 * 3600 - 60);
@@ -230,7 +230,7 @@ describe('attack plans', () => {
     expect(attacks[0].hidden).toBeNull();
     expect((await call('POST', '/hostile-attacks/hide', dave, { key: 'nope' })).json().code).toBe('attack_not_found');
     expect((await call('POST', '/hostile-attacks/hide', dave, { key: attacks[0].key })).statusCode).toBe(200);
-    expect((await call('GET', '/hostile-attacks', carol)).json()[0].hidden).toMatchObject({ by: 'Dave' });
+    expect((await call('GET', '/hostile-attacks', carol)).json()[0].hidden).toMatchObject({ by: 'dave' });
     expect((await call('GET', '/hostile-attacks', carolB)).json()).toEqual([]);
     // a later attack of the same fleet on the same route (after the hidden one's latest return) is shown again
     db.prepare('UPDATE hidden_attacks SET until = ? WHERE group_id = ?').run(attacks[0].arrival - 1, groupA);
@@ -242,8 +242,8 @@ describe('attack plans', () => {
     const created = (await call('POST', '/plans/retime', dave, { key: attacks[0].key, follow: 1, target_time: attacks[0].arrival + 7200 })).json();
     expect((await call('GET', '/hostile-attacks', carol)).json()[0].planId).toBe(created.id);
     let plan = (await call('GET', '/plans', carol)).json().find((p: any) => p.id === created.id);
-    expect(plan).toMatchObject({ g: 1, s: 41, p: 1, planet_type: 'moon', time_precision: 'exact', creator: 'Dave', claim_user_id: daveId });
-    expect(plan.enemy).toMatchObject({ member: 'Carol', follow: 1, buffer: 1, percent: null, first_seen: attacks[0].arrival, arrival: attacks[0].arrival, recall: null });
+    expect(plan).toMatchObject({ g: 1, s: 41, p: 1, planet_type: 'moon', time_precision: 'exact', creator: 'dave', claim_user_id: daveId });
+    expect(plan.enemy).toMatchObject({ member: 'carol', follow: 1, buffer: 1, percent: null, first_seen: attacks[0].arrival, arrival: attacks[0].arrival, recall: null });
 
     // a participant changes the inputs and the derived target time; someone outside the plan may not
     await call('POST', `/plans/${created.id}/fleets`, carol, { ships: { 204: 5 } });
@@ -254,7 +254,7 @@ describe('attack plans', () => {
     expect((await call('PUT', `/plans/${created.id}/enemy`, carol, { departure_from: dep })).json().code).toBe('plan_time_invalid');
     plan = (await call('GET', '/plans', dave)).json().find((p: any) => p.id === created.id);
     expect(plan.target_time).toBe(attacks[0].arrival + 5000);
-    expect(plan.enemy).toMatchObject({ drives: { 115: 10, 117: 8, 118: 7 }, drives_source: 'manual', departure: { from: dep, to: dep + 300 }, percent: 70, buffer: 3, updated_by: 'Carol' });
+    expect(plan.enemy).toMatchObject({ drives: { 115: 10, 117: 8, 118: 7 }, drives_source: 'manual', departure: { from: dep, to: dep + 300 }, percent: 70, buffer: 3, updated_by: 'carol' });
 
     // the ACS was delayed: the new paste moves the arrival, the first seen one stays
     await call('POST', '/ingest', carol, { text: acs(4) });
@@ -383,7 +383,7 @@ describe('attack plans', () => {
     expect((await call('POST', '/phalanx', dave, { text: phalanx })).json()).toEqual({ attacks: 2 });
     const list = (await call('GET', '/hostile-attacks', carol)).json().filter((x: any) => x.source === 'phalanx');
     const onScanned = list.find((x: any) => x.to.g === 5 && x.to.s === 50)!;
-    expect(onScanned).toMatchObject({ memberId: null, member: 'Opfer', reporter: 'Dave', home: null, fleets: [{ mission: 1, ships: { 205: 40 } }] });
+    expect(onScanned).toMatchObject({ memberId: null, member: 'Opfer', reporter: 'dave', home: null, fleets: [{ mission: 1, ships: { 205: 40 } }] });
     const own = list.find((x: any) => x.from.g === 5 && x.from.s === 50)!;
     const t0 = Math.floor(Date.now() / 1000);
     expect(Math.abs(own.home - (t0 + 4 * 3600))).toBeLessThanOrEqual(2);
@@ -461,7 +461,7 @@ describe('attack plans', () => {
     db.prepare('UPDATE fleet_snapshots SET page_time = ?, data = ? WHERE id = ?').run(row.page_time - 600, JSON.stringify(data), row.id);
     db.prepare("INSERT INTO fleet_snapshots (group_id, user_id, page_time, data) VALUES (?, ?, ?, '[]')").run(groupA, carolId, Math.floor(Date.now() / 1000));
     const a = (await call('GET', '/hostile-attacks', dave)).json().find((x: any) => x.from.s === 3);
-    expect(a).toMatchObject({ member: 'Carol', arrival: data[0].arrival, planId: null });
+    expect(a).toMatchObject({ member: 'carol', arrival: data[0].arrival, planId: null });
     expect((await call('POST', '/plans/hold', dave, { key: a.key })).json().code).toBe('attack_arrived');
     const { id } = (await call('POST', '/plans/retime', dave, { key: a.key, target_time: a.arrival + 3600 })).json();
     const plan = (await call('GET', '/plans', dave)).json().find((p: any) => p.id === id);
@@ -501,8 +501,8 @@ describe('attack plans', () => {
     expect(his[0]).toMatchObject({
       arrival: t0 + 3600, to: { g: 4, s: 200, p: 7, type: 'planet' },
       fleets: [
-        { memberId: carolId, member: 'Carol', from: { g: 1, s: 40, p: 5, type: 'moon' }, ships: { 207: 10 } },
-        { memberId: daveId, member: 'Dave', player: { id: davePlayer, name: 'Dave' }, ships: { 215: 4 } },
+        { memberId: carolId, member: 'carol', from: { g: 1, s: 40, p: 5, type: 'moon' }, ships: { 207: 10 } },
+        { memberId: daveId, member: 'dave', player: { id: davePlayer, name: 'Dave' }, ships: { 215: 4 } },
         { memberId: null, member: null, player: { name: 'Angreifer' }, ships: { 213: 2 } },
       ],
     });
@@ -516,7 +516,7 @@ describe('attack plans', () => {
     expect((await call('POST', '/plans/own', dave, { key: his[0].key })).json().code).toBe('attack_not_found');
     const plan = (await call('GET', '/plans', admin)).json().find((p: any) => p.id === created.id);
     expect(plan).toMatchObject({
-      g: 4, s: 200, p: 7, planet_type: 'planet', target_time: t0 + 3600, time_precision: 'exact', status: 'launched', creator: 'Dave', claim_user_id: daveId,
+      g: 4, s: 200, p: 7, planet_type: 'planet', target_time: t0 + 3600, time_precision: 'exact', status: 'launched', creator: 'dave', claim_user_id: daveId,
       guests: [{ player: { name: 'Angreifer' }, from: { g: 1, s: 41, p: 1, type: 'planet' }, mission: 2, ships: { 213: 2 }, research: null }],
     });
     expect(plan.fleets.map((f: any) => [f.user_id, f.g, f.s, f.p, f.planet_type, f.ships, f.speed, f.status])).toEqual([
@@ -608,7 +608,7 @@ describe('attack plans', () => {
     const res = await call('POST', `/plans/${id}/sim`, dave, { text });
     expect(res.json()).toEqual({ defender: true, attackers: 3, identified: 1, updated: 1 });
     let plan = (await call('GET', '/plans', carol)).json().find((p: any) => p.id === id);
-    expect(plan.sim).toMatchObject({ by: 'Dave', defender: true });
+    expect(plan.sim).toMatchObject({ by: 'dave', defender: true });
     expect(plan.spy).toMatchObject({ source: 'sim', values: { 901: 500, 202: 884, 204: 1548, 225: 8708, 109: 15, 110: 14, 111: 14 } });
     expect(plan.spy.values[401]).toBeUndefined();
     expect(plan.fleets.map((f: any) => f.ships)).toEqual([{ 225: 9000 }, { 202: 5 }]);

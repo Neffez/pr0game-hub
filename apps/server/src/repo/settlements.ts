@@ -9,6 +9,7 @@ import { shipsKey } from './hostile.js';
 import { latestMarketRate } from './market.js';
 import { latestEmpires } from './empire.js';
 import { memberPlayers } from './members.js';
+import { DISPLAY, displayOf } from '../routes/util.js';
 import { launchedOf, planDrives, type LaunchFleet, type PlanRow } from './plans.js';
 
 /** Battles count for a plan from an hour before its time until an hour after its (day/hour) window. */
@@ -45,7 +46,7 @@ export interface DraftSources {
   recycling: { by: string; time: number | null }[];
 }
 
-type PlanFleet = LaunchFleet & { member: string; speed: number; manual: string | null; drives_time: number | null };
+type PlanFleet = LaunchFleet & { member: string; ingame_name: string | null; speed: number; manual: string | null; drives_time: number | null };
 /** `name`: a guest taken from a battle report whose player is not in the galaxy data */
 type Guest = { player: { id: number; name: string } | null; name?: string; ships: Record<number, number> };
 const guestName = (g: Guest) => g.player?.name ?? g.name ?? null;
@@ -78,7 +79,7 @@ function draftOf(db: DB, ctx: GroupContext, plan: PlanRow & { time_precision: st
   };
   const fleets = db
     .prepare(
-      `SELECT f.id, f.plan_id, f.user_id, COALESCE(gm.ingame_name, u.username) AS member, f.g, f.s, f.p, f.planet_type, f.ships, f.speed, f.status,
+      `SELECT f.id, f.plan_id, f.user_id, ${DISPLAY} AS member, gm.ingame_name, f.g, f.s, f.p, f.planet_type, f.ships, f.speed, f.status,
          f.drives AS manual, f.drives_time
        FROM attack_plan_fleets f JOIN users u ON u.id = f.user_id LEFT JOIN group_members gm ON gm.group_id = ? AND gm.user_id = f.user_id
        WHERE f.plan_id = ? AND f.status <> 'withdrawn' ORDER BY f.id`,
@@ -99,10 +100,10 @@ function draftOf(db: DB, ctx: GroupContext, plan: PlanRow & { time_precision: st
   const attacked = hold
     ? (db
         .prepare(
-          `SELECT e.member_id AS id, COALESCE(gm.ingame_name, u.username) AS name FROM attack_plan_enemy e JOIN users u ON u.id = e.member_id
+          `SELECT e.member_id AS id, ${DISPLAY} AS name, gm.ingame_name FROM attack_plan_enemy e JOIN users u ON u.id = e.member_id
            LEFT JOIN group_members gm ON gm.group_id = ? AND gm.user_id = e.member_id WHERE e.plan_id = ?`,
         )
-        .get(ctx.groupId, plan.id) as { id: number; name: string } | undefined)
+        .get(ctx.groupId, plan.id) as { id: number; name: string; ingame_name: string | null } | undefined)
     : undefined;
   if (attacked && !state.participants.some((p) => p.id === memberKey(attacked.id)) && state.participants.length < MAX_PARTICIPANTS) {
     state.participants.push({ id: memberKey(attacked.id), name: attacked.name, flightDeut: 0, recDeut: 0, missiles: 0 });
@@ -124,8 +125,14 @@ function draftOf(db: DB, ctx: GroupContext, plan: PlanRow & { time_precision: st
     if (name) names.set(lower(name), p.id);
   }
   const username = db.prepare('SELECT username FROM users WHERE id = ?').pluck();
-  for (const f of fleets) names.set(lower(username.get(f.user_id) as string), memberKey(f.user_id));
-  if (attacked) names.set(lower(username.get(attacked.id) as string), memberKey(attacked.id));
+  for (const f of fleets) {
+    names.set(lower(username.get(f.user_id) as string), memberKey(f.user_id));
+    if (f.ingame_name) names.set(lower(f.ingame_name), memberKey(f.user_id));
+  }
+  if (attacked) {
+    names.set(lower(username.get(attacked.id) as string), memberKey(attacked.id));
+    if (attacked.ingame_name) names.set(lower(attacked.ingame_name), memberKey(attacked.id));
+  }
 
   // flight deuterium of the plan fleets (as the game charges it at launch)
   const u = ctx.universe.settings;
@@ -352,7 +359,7 @@ function draftOf(db: DB, ctx: GroupContext, plan: PlanRow & { time_precision: st
   const from = state.battles[0]?.time ?? plan.target_time - BATTLE_SLACK;
   const recycled = db
     .prepare(
-      `SELECT r.id, r.user_id, COALESCE(gm.ingame_name, u.username) AS member, r.time, r.metal, r.crystal, r.total_metal, r.total_crystal
+      `SELECT r.id, r.user_id, ${DISPLAY} AS member, r.time, r.metal, r.crystal, r.total_metal, r.total_crystal
        FROM recycle_reports r JOIN users u ON u.id = r.user_id LEFT JOIN group_members gm ON gm.group_id = r.group_id AND gm.user_id = r.user_id
        WHERE r.group_id = ? AND r.g = ? AND r.s = ? AND r.p = ? AND r.time BETWEEN ? AND ? ORDER BY r.time, r.id`,
     )
@@ -589,8 +596,8 @@ export interface StoredSettlement {
 export function storedSettlement(db: DB, ctx: GroupContext, planId: number): StoredSettlement | null {
   const row = db
     .prepare(
-      `SELECT s.data, s.overrides, s.done, s.updated_at, s.finalized_at, COALESCE(gm.ingame_name, u.username) AS updated_by,
-         COALESCE(gf.ingame_name, uf.username) AS finalized_by
+      `SELECT s.data, s.overrides, s.done, s.updated_at, s.finalized_at, ${DISPLAY} AS updated_by,
+         ${displayOf('uf')} AS finalized_by
        FROM raid_settlements s LEFT JOIN users u ON u.id = s.updated_by LEFT JOIN group_members gm ON gm.group_id = s.group_id AND gm.user_id = s.updated_by
        LEFT JOIN users uf ON uf.id = s.finalized_by LEFT JOIN group_members gf ON gf.group_id = s.group_id AND gf.user_id = s.finalized_by
        WHERE s.plan_id = ? AND s.group_id = ?`,

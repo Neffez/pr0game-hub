@@ -50,7 +50,7 @@ describe('moon chances (B-6)', () => {
     expect(res.battles.map((b: any) => b.reportId)).toEqual(['a', 'b']);
     expect(res.battles[0]).toMatchObject({ chance: 25, extra: 5, created: false, memberSide: 'attacker', attackers: ['Carol', 'Other'], moon: { diameter: 8000 } });
     expect(res.battles[1]).toMatchObject({ chance: 15, created: true, memberSide: 'defender' });
-    expect(res.members).toEqual([{ name: 'Carol', battles: 2, expected: 0.4, created: 1 }]);
+    expect(res.members).toEqual([{ name: 'carol', battles: 2, expected: 0.4, created: 1 }]);
     expect(res.newMoons).toEqual([{ time: t - 600, g: 1, s: 10, p: 4, player: 'Carol', diameter: 8000 }]);
   });
 

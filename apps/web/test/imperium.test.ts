@@ -51,9 +51,10 @@ const ctx: UniContext = {
       systemDistanceFactor: 95, systemDistance: 2700, planetDistanceFactor: 5, planetDistance: 1000, fleetSpeed: 2500, timezone: 'Europe/Berlin', gameUrl: '',
     },
   },
-  group: { id: 1, name: 'A', role: 'member' },
-  members: [{ id: 1, username: 'carol', name: 'Carol', role: 'member', ingame_name: null, last_seen_at: null }],
+  group: { id: 1, name: 'A', tag: null, role: 'member' },
+  members: [{ id: 1, username: 'carol', name: 'Carol', display_name: null, role: 'member', global_admin: 0, ingame_name: null, last_seen_at: null }],
   me: { id: 1, username: 'carol', isAdmin: false },
+  player: null,
   own: null,
 };
 

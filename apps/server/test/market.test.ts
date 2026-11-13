@@ -70,10 +70,10 @@ describe('marketplace', () => {
     expect(rates()).toEqual([{ metal: 4.055148796006, crystal: 1.43283508019, source: 'source' }]);
 
     const market = (await call('GET', '/market', carol)).json();
-    expect(market.rate).toMatchObject({ m: 4.055148796006, k: 1.43283508019, source: 'source', by: 'Carol' });
+    expect(market.rate).toMatchObject({ m: 4.055148796006, k: 1.43283508019, source: 'source', by: 'carol' });
     // the text copy is the later view of the market
     expect(market.syncedAt).toBe(htmlSeen + 219);
-    expect(market.syncedBy).toBe('Carol');
+    expect(market.syncedBy).toBe('carol');
     expect(market.trades.map((x: any) => x.time)).toEqual([1793112911, localToEpoch('2026-10-27 10:17:53', 'Europe/Berlin'), 1792997617]);
     expect(market.trades[0]).toMatchObject({ give: { res: 'k', amount: 2_000_000 }, want: { res: 'd', amount: 1_300_000 } });
     expect((await call('GET', '/context', carol)).json().marketRate).toMatchObject({ m: 4.055148796006, source: 'source' });
@@ -99,7 +99,7 @@ describe('marketplace', () => {
     expect((await call('PUT', '/market/rate', carol, { m: 'x', k: 1.5 })).statusCode).toBe(400);
     const res = await call('PUT', '/market/rate', carol, { m: 3.5, k: 1.5 });
     expect(res.statusCode).toBe(200);
-    expect(res.json()).toMatchObject({ m: 3.5, k: 1.5, source: 'manual', by: 'Carol' });
+    expect(res.json()).toMatchObject({ m: 3.5, k: 1.5, source: 'manual', by: 'carol' });
     expect((await call('GET', '/market', carol)).json().rate).toMatchObject({ m: 3.5, k: 1.5, source: 'manual' });
   });
 });

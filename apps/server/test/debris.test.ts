@@ -98,7 +98,7 @@ describe('debris finder', () => {
     const res = (await call('GET', '/debris?days=30')).json();
     expect(res.fields.map((f: any) => `${f.g}:${f.s}:${f.p}`)).toContain('2:1:1');
     expect(res.capacity).toBe(20_000);
-    expect(res.recyclers).toEqual([expect.objectContaining({ member: 'Carol', g: 1, s: 12, p: 8, type: 'moon', recyclers: 40 })]);
+    expect(res.recyclers).toEqual([expect.objectContaining({ member: 'carol', g: 1, s: 12, p: 8, type: 'moon', recyclers: 40 })]);
     expect(res.recyclers[0].speed).toBeGreaterThan(2000);
   });
 

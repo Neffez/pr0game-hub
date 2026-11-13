@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { checkUsername, HttpError, randomToken, requireAdmin, requireUser, revokeAccessIfOrphaned, tokenHash } from '../auth.js';
+import { checkDisplayName, checkUsername, HttpError, randomToken, requireAdmin, requireUser, revokeAccessIfOrphaned, tokenHash } from '../auth.js';
 import { config, UNIVERSE_DEFAULTS } from '../config.js';
 import { settingsError } from '@pr0hub/core/universe';
 import { catalogOf, catalogOfGroup, toUniverse } from '../context.js';
@@ -15,6 +15,8 @@ import { systemInfo, vacuum } from '../monitor.js';
 import { undoIngest } from '../repo/cleanup.js';
 import { followUniverse } from '../repo/plans.js';
 import { memberFleetAttacks, removeStoredAttack } from '../repo/hostile.js';
+import { publishIdentity } from './auth.js';
+import { DISPLAY } from './util.js';
 
 /**
  * Global admins manage universes, groups and the technical side (syncs, player merges, activity backfill, crawler).
@@ -341,7 +343,7 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
     const onboarding = onboardingOf(db, groupId);
     return db
       .prepare(
-        `SELECT u.id, u.username, m.role, m.ingame_name, m.joined_at, u.last_login_at, u.is_admin AS global_admin,
+        `SELECT u.id, u.username, u.display_name, m.role, m.ingame_name, m.joined_at, u.last_login_at, u.is_admin AS global_admin,
            (u.password_hash <> '') AS account,
            (SELECT COUNT(*) FROM group_members o WHERE o.user_id = u.id AND o.group_id <> m.group_id) AS other_groups,
            (SELECT MAX(expires_at) FROM invites WHERE user_id = u.id AND used_at IS NULL AND expires_at > ?) AS invite_expires_at
@@ -436,16 +438,17 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
     return { ok: true };
   });
 
-  app.put<{ Params: { id: string; userId: string }; Body: { role?: string; ingameName?: string | null } }>(
+  app.put<{ Params: { id: string; userId: string }; Body: { role?: string; ingameName?: string | null; displayName?: string | null } }>(
     '/api/admin/groups/:id/members/:userId',
     async (req) => {
       const groupId = Number(req.params.id);
       const user = requireGroupAdmin(req, groupId);
       const role = req.body?.role;
       if (role && role !== 'member' && role !== 'admin') throw new HttpError(400, 'role_invalid', 'Invalid role');
+      const target = Number(req.params.userId);
       if (role === 'member') {
-        if (Number(req.params.userId) === owner()) throw new HttpError(400, 'owner_protected', 'The hub owner stays admin');
-        keepLastAdmin(user, groupId, Number(req.params.userId));
+        if (target === owner()) throw new HttpError(400, 'owner_protected', 'The hub owner stays admin');
+        keepLastAdmin(user, groupId, target);
       }
       const hasName = req.body !== undefined && req.body !== null && 'ingameName' in req.body;
       db.prepare('UPDATE group_members SET role = COALESCE(?, role), ingame_name = CASE WHEN ? THEN ? ELSE ingame_name END WHERE group_id = ? AND user_id = ?').run(
@@ -453,8 +456,15 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
         hasName ? 1 : 0,
         String(req.body?.ingameName ?? '').trim() || null,
         groupId,
-        Number(req.params.userId),
+        target,
       );
+      if (req.body !== undefined && req.body !== null && 'displayName' in req.body) {
+        if (!db.prepare('SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?').get(groupId, target)) {
+          throw new HttpError(404, 'user_not_found', 'User not found');
+        }
+        db.prepare('UPDATE users SET display_name = ? WHERE id = ?').run(checkDisplayName(req.body.displayName), target);
+        publishIdentity(db, target);
+      }
       return { ok: true };
     },
   );
@@ -533,7 +543,7 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
     const groupId = Number(req.params.id);
     const members = db
       .prepare(
-        `SELECT m.user_id, COALESCE(m.ingame_name, u.username) AS name FROM group_members m JOIN users u ON u.id = m.user_id WHERE m.group_id = ? ORDER BY name`,
+        `SELECT m.user_id, ${DISPLAY} AS name FROM group_members m JOIN users u ON u.id = m.user_id WHERE m.group_id = ? ORDER BY name`,
       )
       .all(groupId) as { user_id: number; name: string }[];
     return members.flatMap((m) =>

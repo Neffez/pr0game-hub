@@ -20,6 +20,7 @@ const uni = String(useRoute().params.uni ?? '');
 const inUni = !!uni;
 const newUsername = ref(session.me?.user?.username ?? '');
 const usernamePassword = ref('');
+const displayName = ref('');
 const oldPassword = ref('');
 const newPassword = ref('');
 const lang = ref<Lang>(currentLang());
@@ -44,6 +45,12 @@ const saveUsername = () =>
     usernamePassword.value = '';
     await loadMe();
   }, () => t('account.usernameChanged'));
+
+const saveDisplayName = () =>
+  run(async () => {
+    const res = await api<{ displayName: string | null }>('/auth/display-name', { body: { displayName: displayName.value } });
+    displayName.value = res.displayName ?? '';
+  }, () => t('account.displayNameChanged'));
 
 const savePassword = () =>
   run(async () => {
@@ -186,7 +193,7 @@ function formatTokenTime(sec: number | null) {
 
 onMounted(async () => {
   try {
-    const [fleetShare, messages, online, activity, syncs, prefs, discordSettings] = await Promise.all([
+    const [fleetShare, messages, online, activity, syncs, prefs, discordSettings, display] = await Promise.all([
       api('/auth/fleet-share'),
       api('/auth/message-share'),
       api('/auth/show-online'),
@@ -194,9 +201,11 @@ onMounted(async () => {
       api<{ enabled: boolean }>('/auth/share-syncs'),
       api<PushPrefs>('/auth/push-settings'),
       api<DiscordSettings>('/auth/discord'),
+      api<{ displayName: string | null }>('/auth/display-name'),
       loadApiTokens(),
       loadPushStatus(),
     ]);
+    displayName.value = display.displayName ?? '';
     pushPrefs.value = prefs;
     discord.value = discordSettings;
     // optional: the planets of the alliance opened here (none outside a universe or before the first sync)
@@ -278,6 +287,13 @@ useAutoTour('account', loaded);
     <div class="account-grid">
       <section class="card" data-tour="account-general">
         <h2>{{ t('account.general') }}</h2>
+        <div class="field">
+          <span class="field-label">{{ t('account.displayName') }} <Hint>{{ t('account.displayNameHint') }}</Hint></span>
+          <form class="row" @submit.prevent="saveDisplayName">
+            <input v-model="displayName" maxlength="32" :placeholder="session.me?.user?.username" />
+            <button class="primary">{{ t('common.save') }}</button>
+          </form>
+        </div>
         <div class="field">
           <span class="field-label">{{ t('account.language') }} <Hint>{{ t('account.languageHint') }}</Hint></span>
           <select v-model="lang" @change="saveLang">

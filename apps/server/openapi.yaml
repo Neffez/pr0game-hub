@@ -942,7 +942,7 @@ components:
       type: object
       properties:
         userId: { type: integer }
-        member: { type: string, description: In-game name or hub username }
+        member: { type: string, description: Hub display name, or the username when none is set }
         key: { type: string }
         owner: { type: string, enum: [own, hostile, foreign], description: Fleet owner as seen by the member }
         arrival: { type: integer, description: Epoch seconds }
@@ -1198,7 +1198,21 @@ components:
           oneOf:
             - { $ref: '#/components/schemas/MarketRate' }
             - { type: 'null' }
-        members: { type: array, items: { type: object } }
+        members:
+          type: array
+          description: Alliance members. `name` is the hub display name, falling back to the username.
+          items:
+            type: object
+            required: [id, username, name, role]
+            properties:
+              id: { type: integer }
+              username: { type: string }
+              name: { type: string, description: Display name, or the username when none is set }
+              display_name: { type: [string, 'null'], description: Stored display name; null when unset }
+              role: { type: string }
+              global_admin: { type: integer }
+              ingame_name: { type: [string, 'null'] }
+              last_seen_at: { type: [integer, 'null'] }
         me: { $ref: '#/components/schemas/User' }
         player:
           type: object
@@ -1316,6 +1330,7 @@ components:
         key: { type: string }
         user_id: { type: integer, nullable: true }
         username: { type: string }
+        display_name: { type: [string, 'null'], description: Hub display name; null when unset or for spy-only players }
         ingame_name: { type: string, nullable: true }
         player_id: { type: integer, nullable: true }
         source: { type: string, enum: [empire, spy], nullable: true }
@@ -3023,7 +3038,8 @@ paths:
                       type: object
                       properties:
                         userId: { type: integer }
-                        name: { type: string }
+                        name: { type: string, description: Hub display name, or the username when none is set }
+                        ingameName: { type: [string, 'null'], description: In-game name when it differs from `name` }
                         role: { type: string }
                         lastSeen: { type: [integer, 'null'] }
                         onlineHidden: { type: boolean, description: The member hides their online status from the caller }
@@ -5193,6 +5209,52 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
+  /api/auth/display-name:
+    get:
+      tags: [Auth]
+      operationId: getDisplayName
+      security: [{ sessionCookie: [] }]
+      description: >-
+        The hub display name of the signed-in user (what others see in the online list and comments). Null when unset;
+        the username is shown then.
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [displayName]
+                properties:
+                  displayName: { type: [string, 'null'] }
+    post:
+      tags: [Auth]
+      operationId: setDisplayName
+      security: [{ sessionCookie: [] }]
+      description: >-
+        Sets the hub display name (1–32 letters, digits, spaces, `. _ -`, no `@`). Empty or whitespace clears it
+        (the username is shown). Not unique. No password.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                displayName: { type: [string, 'null'] }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [displayName]
+                properties:
+                  displayName: { type: [string, 'null'] }
+        '400':
+          description: Invalid display name (`display_name_invalid`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
   /api/auth/password:
     post:
       tags: [Auth]
@@ -5414,15 +5476,31 @@ paths:
       tags: [Admin]
       operationId: updateGroupMember
       security: [{ sessionCookie: [] }]
-      description: Changes a member's role or in-game name; alliance admins.
+      description: >-
+        Changes a member's role, in-game name or hub display name (`displayName`, global on the account); alliance
+        admins. Empty `displayName` clears it.
       parameters:
         - { name: id, in: path, required: true, schema: { type: integer } }
         - { name: userId, in: path, required: true, schema: { type: integer } }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                role: { type: string, enum: [member, admin] }
+                ingameName: { type: [string, 'null'] }
+                displayName: { type: [string, 'null'], description: Hub display name of the account (all universes) }
       responses:
         '200':
           content:
             application/json:
               schema: { type: object }
+        '400':
+          description: Invalid display name (`display_name_invalid`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
     delete:
       tags: [Admin]
       operationId: removeGroupMember

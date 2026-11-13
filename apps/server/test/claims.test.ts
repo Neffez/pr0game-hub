@@ -45,7 +45,7 @@ describe('target claims', () => {
     expect(res.statusCode).toBe(200);
     const list = (await call('GET', '/claims', admin)).json();
     expect(list).toHaveLength(1);
-    expect(list[0]).toMatchObject({ g: 1, s: 234, p: 5, planet_type: 'planet', kind: 'farm', member: 'Carol', note: 'Deff weg' });
+    expect(list[0]).toMatchObject({ g: 1, s: 234, p: 5, planet_type: 'planet', kind: 'farm', member: 'carol', note: 'Deff weg' });
     expect(list[0].expires_at - list[0].created_at).toBe(3600);
 
     // the moon is another target; the planet is taken

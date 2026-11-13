@@ -50,7 +50,7 @@ describe('comments', () => {
     expect((await call('POST', '/comments', carol, { c: '1:234:5', type: 'moon', body: 'Moon with jump gate' })).statusCode).toBe(200);
 
     const thread = (await call('GET', `/comments?player=${playerA}`, admin)).json();
-    expect(thread.map((c: any) => [c.member, c.body])).toEqual([['Carol', 'Saved fleet at 3 am'], ['admin', 'Has a phalanx']]);
+    expect(thread.map((c: any) => [c.member, c.body])).toEqual([['carol', 'Saved fleet at 3 am'], ['admin', 'Has a phalanx']]);
     expect((await call('GET', '/comments?c=1:234:5&type=moon', admin)).json()).toHaveLength(1);
     expect((await call('GET', '/comments?c=1:234:5', admin)).json()).toEqual([]);
     expect((await call('GET', '/comments/counts', admin)).json()).toEqual({ players: { [playerA]: 2 }, plans: {}, planets: { '1:234:5:moon': 1 } });

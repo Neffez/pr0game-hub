@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import {
-  checkPassword, checkUsername, createApiToken, createSession, destroyOtherSessions, destroySession, hashPassword, HttpError, loginBlocked, loginFailed,
+  checkDisplayName, checkPassword, checkUsername, createApiToken, createSession, destroyOtherSessions, destroySession, hashPassword, HttpError, loginBlocked, loginFailed,
   loginRetracted, loginSucceeded, MAX_SEEN_TOURS, parseTours, passwordForVerify, requireCookieSession, requireUser, serializeTours, TOUR_ID, verifyPassword,
   tokenHash, verifyPasswordOrDummy,
 } from '../auth.js';
@@ -11,6 +11,14 @@ import { fleetSavePresets, parseFleetSavePresets, setFleetSavePresets } from '..
 import { messageShare } from '../repo/messages.js';
 import { shareActivityEnabled, shareSyncsEnabled, showOnlineEnabled } from '../repo/presence.js';
 import { mergeUser } from '../repo/members.js';
+
+/** Hub name or presence of this user changed: alliance lists and the online list reload. */
+export function publishIdentity(db: DB, userId: number) {
+  for (const g of db.prepare('SELECT group_id FROM group_members WHERE user_id = ?').pluck().all(userId) as number[]) {
+    events.publish(g, { type: 'data', tables: ['group_members'] });
+    events.refreshPresence(g);
+  }
+}
 
 /** Failed logins per IP (any username) within the window; the per-username limit is 10. */
 const IP_LIMIT = 30;
@@ -110,6 +118,21 @@ export function authRoutes(app: FastifyInstance, db: DB) {
     const username = checkUsername(db, req.body?.username, user.id);
     db.prepare('UPDATE users SET username = ? WHERE id = ?').run(username, user.id);
     return { ok: true, username };
+  });
+
+  /** Hub display name (what others see in the online list and comments); empty falls back to the username. */
+  app.get('/api/auth/display-name', async (req) => {
+    const user = requireUser(req);
+    const displayName = (db.prepare('SELECT display_name FROM users WHERE id = ?').pluck().get(user.id) as string | null) ?? null;
+    return { displayName };
+  });
+
+  app.post<{ Body: { displayName?: string | null } }>('/api/auth/display-name', async (req) => {
+    const user = requireUser(req);
+    const displayName = checkDisplayName(req.body?.displayName);
+    db.prepare('UPDATE users SET display_name = ? WHERE id = ?').run(displayName, user.id);
+    publishIdentity(db, user.id);
+    return { displayName };
   });
 
   app.post<{ Body: { lang: string } }>('/api/auth/lang', async (req) => {

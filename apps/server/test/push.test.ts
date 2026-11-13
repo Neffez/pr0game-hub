@@ -117,7 +117,7 @@ describe('push delivery', () => {
     await app.push.deliver(groupA, t);
     expect(sent).toHaveLength(1);
     expect(sent[0].endpoint).toBe('https://fcm.googleapis.com/fcm/send/carol');
-    expect(sent[0].payload).toMatchObject({ title: '⚔ Angriff auf Carol', url: `/hub/u8/attack?member=${ids.carol}&arrival=${t + 3600}&from=2%3A100%3A4&group=${groupA}` });
+    expect(sent[0].payload).toMatchObject({ title: '⚔ Angriff auf carol', url: `/hub/u8/attack?member=${ids.carol}&arrival=${t + 3600}&from=2%3A100%3A4&group=${groupA}` });
     expect(sent[0].payload.body).toContain('☾ [1:1:1]');
     expect(sent[0].payload.body).toContain('von Raider [2:100:4]');
 
@@ -136,13 +136,13 @@ describe('push delivery', () => {
     await call('POST', '/u8/comments', h.carol, { player: playerA, body: 'Saved fleet at 3 am' });
     await call('POST', '/u8/comments', h.dave, { player: playerA, body: 'Has a phalanx on the moon' });
     const bell = (await call('GET', '/u8/notifications', h.carol)).json().filter((n: any) => n.kind === 'comment');
-    expect(bell).toMatchObject([{ member: 'Dave', excerpt: 'Has a phalanx on the moon', count: 1, thread: { player: playerA, name: 'Victim' } }]);
+    expect(bell).toMatchObject([{ member: 'dave', excerpt: 'Has a phalanx on the moon', count: 1, thread: { player: playerA, name: 'Victim' } }]);
     // the author and members outside the thread get nothing
     expect((await call('GET', '/u8/notifications', h.dave)).json().filter((n: any) => n.kind === 'comment')).toEqual([]);
 
     await app.push.deliver(groupA, t);
     expect(sent).toMatchObject([
-      { endpoint: 'https://fcm.googleapis.com/fcm/send/carol', payload: { title: '💬 Dave zu Victim', url: `/hub/u8/player/${playerA}?group=${groupA}` } },
+      { endpoint: 'https://fcm.googleapis.com/fcm/send/carol', payload: { title: '💬 dave zu Victim', url: `/hub/u8/player/${playerA}?group=${groupA}` } },
     ]);
 
     // answered: gone from the bell
@@ -164,10 +164,10 @@ describe('push delivery', () => {
   it('notifies a mentioned member in a thread they never wrote in, once they answered no more', async () => {
     await call('POST', '/u8/comments', h.dave, { c: '1:60:3', type: 'moon', body: '@carol phalanx here? @Carolina is someone else' });
     const bell = (await call('GET', '/u8/notifications', h.carol)).json().filter((n: any) => n.kind === 'comment' && n.thread.s === 60);
-    expect(bell).toMatchObject([{ member: 'Dave', mention: true, count: 1 }]);
+    expect(bell).toMatchObject([{ member: 'dave', mention: true, count: 1 }]);
     sent.length = 0;
     await app.push.deliver(groupA, t);
-    expect(to('https://fcm.googleapis.com/fcm/send/carol')).toMatchObject([{ payload: { title: '📣 Dave erwähnt dich zu ☾ [1:60:3]' } }]);
+    expect(to('https://fcm.googleapis.com/fcm/send/carol')).toMatchObject([{ payload: { title: '📣 dave erwähnt dich zu ☾ [1:60:3]' } }]);
     // no mention: nothing for Carol in a thread she never wrote in
     await call('POST', '/u8/comments', h.dave, { c: '1:61:3', type: 'planet', body: 'no mention @Carolina' });
     expect((await call('GET', '/u8/notifications', h.carol)).json().filter((n: any) => n.kind === 'comment' && n.thread.s === 61)).toEqual([]);
@@ -202,7 +202,7 @@ describe('push delivery', () => {
 
     // the invitation goes out at once, the reminder 5 minutes before the launch
     await app.push.deliver(groupA, t);
-    expect(sent.map((s) => s.payload.title)).toEqual(['✉ Einladung von Dave']);
+    expect(sent.map((s) => s.payload.title)).toEqual(['✉ Einladung von dave']);
     sent.length = 0;
     await app.push.tick(launch - 301);
     expect(sent).toEqual([]);

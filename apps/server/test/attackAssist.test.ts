@@ -73,7 +73,7 @@ describe('incoming attack assistant', () => {
     const res = await get(`/attack-assist?member=${carolId}&arrival=${hostile.arrival + 2}&from=1:150:4&sim=0`);
     expect(res.statusCode).toBe(200);
     const a = res.json();
-    expect(a.member).toEqual({ id: carolId, name: 'Carol' });
+    expect(a.member).toEqual({ id: carolId, name: 'carol' });
     expect(a.attack).toMatchObject({ arrival: hostile.arrival, to: { g: 1, s: 100, p: 8, type: 'planet' }, player: { name: 'Raider' } });
     expect(a.attacker.ships).toEqual({ 202: 100, 204: 200 });
     expect(a.attacker.research.values).toMatchObject({ 109: 8, 110: 8, 111: 8 });
@@ -91,7 +91,7 @@ describe('incoming attack assistant', () => {
   it('lists the members who can still hold before the impact', async () => {
     const a = (await get(`/attack-assist?key=${encodeURIComponent((await get(`/attack-assist?member=${carolId}&arrival=${hostile.arrival}&from=1:150:4&sim=0`)).json().attack.key)}&sim=0`)).json();
     // the far planet would need longer than the three hours left, the empty one has no ships
-    expect(a.helpers.map((h: any) => `${h.member} ${h.from.name}`)).toEqual(['Dave Near']);
+     expect(a.helpers.map((h: any) => `${h.member} ${h.from.name}`)).toEqual(['dave Near']);
     const near = a.helpers[0];
     expect(near.launch + near.duration).toBe(hostile.arrival - 1);
     expect(near.launch).toBeGreaterThan(t);
@@ -127,7 +127,7 @@ describe('incoming attack assistant', () => {
     ]));
     const a = (await get(`/attack-assist?member=${carolId}&arrival=${hostile.arrival}&from=1:150:4&sim=0`)).json();
     expect(a.holds).toEqual([
-      { member: 'Dave', player: null, from: { g: 1, s: 102, p: 3, type: 'planet' }, ships: { 204: 300, 206: 20 }, research: { 115: 10, 117: 8, 118: 6 }, arrival: hostile.arrival - 600 },
+      { member: 'dave', player: null, from: { g: 1, s: 102, p: 3, type: 'planet' }, ships: { 204: 300, 206: 20 }, research: { 115: 10, 117: 8, 118: 6 }, arrival: hostile.arrival - 600 },
     ]);
     expect(a.helpers.map((h: any) => h.from.name)).not.toContain('Near');
   });

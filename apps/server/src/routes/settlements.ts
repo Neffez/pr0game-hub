@@ -11,7 +11,7 @@ import { ingest } from '../ingest.js';
 import { planFromReport } from '../repo/reportPlan.js';
 import type { PlanRow } from '../repo/plans.js';
 import { correctionsOf, finalizedSettlements, forgetFinalized, memberKey, settlementChecks, settlementDraft, storedSettlement } from '../repo/settlements.js';
-import { clampInt, contextOf, DISPLAY, MEMBER, type Q } from './util.js';
+import { clampInt, contextOf, DISPLAY, displayOf, MEMBER, type Q } from './util.js';
 
 /** Battles count for a plan from an hour before its time until an hour after (as in the draft). */
 const BATTLE_SLACK = 3600;
@@ -56,7 +56,7 @@ export function settlementRoutes(app: FastifyInstance, db: DB) {
       .prepare(
         `SELECT a.id, a.mission, a.g, a.s, a.p, a.planet_type, a.target_time, a.time_precision, a.status, ${DISPLAY} AS creator,
            COALESCE(a.player_id, pl.player_id) AS player_id, pr.name AS player_name, s.plan_id AS stored, s.data, s.done, s.updated_at, s.finalized_at,
-           COALESCE(gb.ingame_name, ub.username) AS updated_by
+           ${displayOf('ub')} AS updated_by
          FROM attack_plans a JOIN users u ON u.id = a.user_id ${MEMBER('a')}
          LEFT JOIN planets pl ON pl.group_id = a.group_id AND pl.g = a.g AND pl.s = a.s AND pl.p = a.p
          LEFT JOIN players pr ON pr.id = COALESCE(a.player_id, pl.player_id)
@@ -70,9 +70,9 @@ export function settlementRoutes(app: FastifyInstance, db: DB) {
       updated_at: number | null; finalized_at: number | null; updated_by: string | null;
     })[];
     const members = db.prepare(
-      `SELECT DISTINCT COALESCE(gm.ingame_name, u.username) FROM attack_plan_fleets f JOIN users u ON u.id = f.user_id
+      `SELECT DISTINCT ${DISPLAY} FROM attack_plan_fleets f JOIN users u ON u.id = f.user_id
        LEFT JOIN group_members gm ON gm.group_id = ? AND gm.user_id = f.user_id WHERE f.plan_id = ? AND f.status <> 'withdrawn'
-       UNION SELECT COALESCE(gm.ingame_name, u.username) FROM attack_plan_enemy e JOIN users u ON u.id = e.member_id
+       UNION SELECT ${DISPLAY} FROM attack_plan_enemy e JOIN users u ON u.id = e.member_id
        LEFT JOIN group_members gm ON gm.group_id = ? AND gm.user_id = e.member_id WHERE e.plan_id = ? AND (SELECT mission FROM attack_plans WHERE id = ?) = 'hold'`,
     ).pluck();
     const battle = db.prepare(

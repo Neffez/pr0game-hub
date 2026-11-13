@@ -71,9 +71,9 @@ describe('raid settlements', () => {
     expect(body.state).toEqual(body.draft.state);
     const { state, sources } = body.draft;
     const { result } = body;
-    expect(state.participants.map((p: { id: string; name: string }) => [p.id, p.name])).toEqual([[`u${ids.carol}`, 'Carol'], [`u${ids.dave}`, 'Dave']]);
+    expect(state.participants.map((p: { id: string; name: string }) => [p.id, p.name])).toEqual([[`u${ids.carol}`, 'carol'], [`u${ids.dave}`, 'dave']]);
     expect(state.participants[0].flightDeut).toBeGreaterThan(0);
-    expect(state.helpers).toEqual([{ id: `u${ids.erin}`, name: 'Erin', keepPct: 20, recDeut: 0 }]);
+    expect(state.helpers).toEqual([{ id: `u${ids.erin}`, name: 'erin', keepPct: 20, recDeut: 0 }]);
     expect(state.battles).toHaveLength(1);
     expect(state.battles[0]).toMatchObject({ key: 'r1', time: target, loot: { m: 400000, k: 200000, d: 50000 } });
     expect(state.battles[0].fleets).toEqual([
@@ -98,7 +98,7 @@ describe('raid settlements', () => {
     const saved = await call('PUT', `/plans/${planId}/settlement`, as.dave, { state: { ...draft, settings: { ...draft.settings, mode: 'investment' }, junk: 1 } });
     expect(saved.statusCode).toBe(200);
     // only the correction is stored
-    expect(saved.json()).toMatchObject({ corrected: { updated_by: 'Dave' }, overrides: { settings: { mode: 'investment' } }, finalized: null, state: { settings: { mode: 'investment' } } });
+    expect(saved.json()).toMatchObject({ corrected: { updated_by: 'dave' }, overrides: { settings: { mode: 'investment' } }, finalized: null, state: { settings: { mode: 'investment' } } });
     expect('junk' in saved.json().state).toBe(false);
     expect((await call('GET', `/plans/${planId}/settlement`, as.carolB)).statusCode).toBe(404);
 
@@ -107,7 +107,7 @@ describe('raid settlements', () => {
     expect((await call('PUT', `/plans/${planId}/settlement/done`, as.erin, { key })).statusCode).toBe(404);
     expect((await call('POST', `/plans/${planId}/settlement/finalize`, as.erin, {})).statusCode).toBe(403);
     const final = (await call('POST', `/plans/${planId}/settlement/finalize`, as.carol, {})).json();
-    expect(final.finalized).toMatchObject({ by: 'Carol', changes: { people: 0, battles: 0, recycling: 0, settings: 0 } });
+    expect(final.finalized).toMatchObject({ by: 'carol', changes: { people: 0, battles: 0, recycling: 0, settings: 0 } });
     expect((await call('PUT', `/plans/${planId}/settlement`, as.dave, { state: draft })).json().code).toBe('settlement_finalized');
     // a helper may mark their own delivery, not others'
     expect((await call('PUT', `/plans/${planId}/settlement/done`, as.erin, { key })).json()).toEqual({ done: [key] });
@@ -159,7 +159,7 @@ describe('raid settlements', () => {
       'INSERT INTO raid_settlements (plan_id, group_id, data, updated_by, updated_at, finalized_at, finalized_by, migrated) VALUES (?, ?, ?, ?, 100, 100, ?, 1)',
     ).run(planId, groupA, JSON.stringify(old), ids.carol, ids.carol);
     let body = (await call('GET', url, as.carol)).json();
-    expect(body.finalized).toMatchObject({ at: 100, by: 'Carol' });
+    expect(body.finalized).toMatchObject({ at: 100, by: 'carol' });
     expect(body.state.battles[0].loot.m).toBe(5);
     // the frozen state has no keys: matched to the live rows (which carry its loot as a correction), no false changes
     expect(body.finalized.changes).toEqual({ people: 0, battles: 0, recycling: 0, settings: 0 });
@@ -474,11 +474,11 @@ describe('raid settlements', () => {
     const attack = list.find((x: { id: number }) => x.id === planId);
     expect(attack).toMatchObject({ mission: 'attack', g: 2, s: 100, p: 8, status: 'launched', battle: true, saved: null, stage: 'waiting', missing: 2, mine: [] });
     expect(attack.deadline).toBe(target + 86400);
-    expect(attack.members.sort()).toEqual(['CVXII', 'Rudolf']);
+    expect(attack.members.sort()).toEqual(['carol', 'dave']);
     await call('PUT', `/plans/${planId}/settlement`, as.carol, { state: (await call('GET', `/plans/${planId}/settlement`, as.carol)).json().draft.state });
     const entry = async () => (await call('GET', '/settlements', as.carol)).json().find((x: { id: number }) => x.id === planId).saved;
     // open: its deliveries still follow the data
-    expect(await entry()).toMatchObject({ updated_by: 'CVXII', finalized_at: null, deliveries: 0, done: 0 });
+    expect(await entry()).toMatchObject({ updated_by: 'carol', finalized_at: null, deliveries: 0, done: 0 });
     await call('POST', `/plans/${planId}/settlement/finalize`, as.carol, {});
     const saved = await entry();
     expect(saved).toMatchObject({ finalized_at: expect.any(Number), done: 0 });
@@ -487,7 +487,7 @@ describe('raid settlements', () => {
     expect(finalized).toMatchObject({ stage: 'delivering', missing: null });
     // the caller's open deliveries, by name
     expect(finalized.mine.length).toBeGreaterThan(0);
-    expect(finalized.mine.every((x: { from: string; to: string }) => x.from === 'CVXII' || x.to === 'CVXII')).toBe(true);
+    expect(finalized.mine.every((x: { from: string; to: string }) => x.from === 'carol' || x.to === 'carol')).toBe(true);
     // the bell (and push) tells the members what they send and get, not the one who finalized it
     const settlementsOf = async (h: Record<string, string>) => (await call('GET', '/notifications', h)).json().filter((n: { kind: string }) => n.kind === 'settlement');
     expect(await settlementsOf(as.carol)).toEqual([]);
@@ -495,7 +495,7 @@ describe('raid settlements', () => {
     expect(daveMine.length).toBeGreaterThan(0);
     const bell = await settlementsOf(as.dave);
     expect(bell).toHaveLength(1);
-    expect(bell[0]).toMatchObject({ member: 'CVXII', plan: { id: planId, g: 2, s: 100, p: 8 } });
+    expect(bell[0]).toMatchObject({ member: 'carol', plan: { id: planId, g: 2, s: 100, p: 8 } });
     expect(bell[0].sends.length + bell[0].gets.length).toBe(daveMine.length);
     const { payloadOf } = await import('../src/push.js');
     const push = payloadOf(bell[0], 'de', 'u8', 'Europe/Berlin', groupA);
@@ -529,7 +529,7 @@ describe('raid settlements', () => {
     expect(plan.fleets.map((f: any) => [f.user_id, f.g, f.s, f.p, f.status, f.ships])).toEqual([[ids.carol, 5, 10, 3, 'launched', { 207: 100 }]]);
     expect(plan.guests).toMatchObject([{ player: null, name: 'Gast', from: { g: 5, s: 20, p: 1, type: 'moon' }, ships: { 207: 50 } }]);
     const { state } = (await call('GET', `/plans/${id}/settlement`, as.carol)).json().draft;
-    expect(state.participants.map((p: { id: string; name: string }) => [p.id, p.name])).toEqual([[`u${ids.carol}`, 'CVXII'], ['g1', 'Gast']]);
+    expect(state.participants.map((p: { id: string; name: string }) => [p.id, p.name])).toEqual([[`u${ids.carol}`, 'carol'], ['g1', 'Gast']]);
     expect(state.participants[0].flightDeut).toBeGreaterThan(0);
     expect(state.battles).toEqual([{
       key: expect.any(String), time: expect.any(Number), loot: { m: 1000, k: 2000, d: 3000 },

@@ -105,12 +105,12 @@ describe('discord delivery', () => {
     db.prepare('INSERT INTO fleet_snapshots (group_id, user_id, page_time, data) VALUES (?, ?, ?, ?)').run(groupA, ids.carol, t, JSON.stringify([hostile, own]));
 
     await app.discord.deliver(groupA, t);
-    expect(to(HOOK.carol)).toEqual(['⚔ Angriff auf Carol']);
-    expect(to(HOOK.dave)).toEqual(['⚔ Angriff auf Carol']);
+    expect(to(HOOK.carol)).toEqual(['⚔ Angriff auf carol']);
+    expect(to(HOOK.dave)).toEqual(['⚔ Angriff auf carol']);
     const channel = sent.filter((s) => s.url === HOOK.groupA);
     expect(channel).toHaveLength(1);
     expect(channel[0].message).toMatchObject({ content: '<@200000000000000001>', allowed_mentions: { parse: [], users: ['200000000000000001'] } });
-    expect(channel[0].message.embeds.map((e) => e.title)).toEqual(['⚔ Angriff auf Carol']);
+    expect(channel[0].message.embeds.map((e) => e.title)).toEqual(['⚔ Angriff auf carol']);
     expect(channel[0].message.embeds[0].description).toContain('von Raider [2:100:4]');
 
     sent.length = 0;
@@ -131,15 +131,15 @@ describe('discord delivery', () => {
       .run(plan, ids.carol, JSON.stringify(ships));
 
     await app.discord.deliver(groupA, t);
-    expect(to(HOOK.groupA)).toEqual(['📋 Neuer Plan von Dave']);
-    expect(to(HOOK.carol)).toEqual(['✉ Einladung von Dave']);
+    expect(to(HOOK.groupA)).toEqual(['📋 Neuer Plan von dave']);
+    expect(to(HOOK.carol)).toEqual(['✉ Einladung von dave']);
     expect(sent.find((s) => s.url === HOOK.groupA)!.message.content).toBeUndefined();
 
     sent.length = 0;
     await app.discord.tick(launch - 301);
     expect(sent).toEqual([]);
     await app.discord.tick(launch - 300);
-    expect(to(HOOK.groupA)).toEqual(['🚀 Carol: Start in 5 Min']);
+    expect(to(HOOK.groupA)).toEqual(['🚀 carol: Start in 5 Min']);
     expect(to(HOOK.carol)).toEqual(['🚀 Start in 5 Min']);
     expect(sent.find((s) => s.url === HOOK.groupA)!.message.content).toBe('<@200000000000000001>');
 

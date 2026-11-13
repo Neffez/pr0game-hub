@@ -28,6 +28,7 @@ import {
 import { CLASS_BUILDINGS, PHALANX } from '@pr0hub/core/tech';
 import { keepOriginalNames, mergeCombatFleets } from './battleParticipants.js';
 import { now, type DB } from './db.js';
+import { DISPLAY } from './routes/util.js';
 import type { IngestLog, IngestSummary, IngestTarget } from './ingest.js';
 import { fleetActivity, galaxyMark } from './repo/activity.js';
 import { FLEET_HISTORY } from './repo/fleets.js';
@@ -635,7 +636,7 @@ export class Store {
   recycleEvent(r: RecycleRecord, time: number, userId: number | null, key: string) {
     const left = { metal: Math.max(0, r.totalMetal - r.metal), crystal: Math.max(0, r.totalCrystal - r.crystal) };
     const by = this.db
-      .prepare('SELECT COALESCE(m.ingame_name, u.username) FROM group_members m JOIN users u ON u.id = m.user_id WHERE m.group_id = ? AND m.user_id = ?')
+      .prepare(`SELECT ${DISPLAY} FROM group_members m JOIN users u ON u.id = m.user_id WHERE m.group_id = ? AND m.user_id = ?`)
       .pluck()
       .get(this.t.groupId, userId) as string | undefined;
     const data = { ...left, before: { metal: r.totalMetal, crystal: r.totalCrystal }, collected: { metal: r.metal, crystal: r.crystal }, by: by ?? null };

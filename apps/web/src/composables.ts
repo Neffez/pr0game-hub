@@ -19,8 +19,8 @@ export interface UniContext {
   toolsUrl?: string;
   /** the group's market rate (metal and crystal per 1 deuterium), newest synced or set by hand */
   marketRate?: MarketRate | null;
-  /** name = in-game name, falls back to the hub username; global_admin = hub admin (1/0) */
-  members: { id: number; username: string; name: string; role: string; global_admin: number; ingame_name: string | null; last_seen_at: number | null }[];
+  /** name = display name, falls back to the hub username; global_admin = hub admin (1/0) */
+  members: { id: number; username: string; name: string; display_name: string | null; role: string; global_admin: number; ingame_name: string | null; last_seen_at: number | null }[];
   me: { id: number; username: string; isAdmin: boolean };
   /** own player with the newest synced total points */
   player: { id: number; points: number | null } | null;

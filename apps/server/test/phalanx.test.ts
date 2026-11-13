@@ -114,7 +114,7 @@ describe('hostile phalanx exposure', () => {
     expect(list.map((n: any) => `${n.moon.s}:${n.moon.p}`).sort()).toEqual(['104:3', '398:7']);
     const enemy = list.find((n: any) => n.moon.s === 104);
     expect(enemy).toMatchObject({
-      id: `phalanx:1:104:3:${t - 86400 + 60}`, userId: carolId, member: 'Carol', time: t - 86400 + 60, level: 3, range: 8, since: t - 86400,
+      id: `phalanx:1:104:3:${t - 86400 + 60}`, userId: carolId, member: 'carol', time: t - 86400 + 60, level: 3, range: 8, since: t - 86400,
       planets: [{ g: 1, s: 100, p: 8, name: 'Home' }],
     });
     const push = payloadOf(enemy, 'en', 'u8', 'Europe/Berlin', group, t);

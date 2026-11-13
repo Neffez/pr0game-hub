@@ -288,6 +288,19 @@ export function checkUsername(db: DB, raw: unknown, exceptUserId = 0, placeholde
   return username;
 }
 
+/**
+ * Validates a hub display name. Empty or whitespace becomes null (the username is shown instead). Not unique.
+ * Letters, digits, spaces, `. _ -`; no `@` (comment mentions) and no control characters; at most 32 characters.
+ */
+export function checkDisplayName(raw: unknown): string | null {
+  const name = String(raw ?? '').trim();
+  if (!name) return null;
+  if (name.length > 32 || /@/.test(name) || /[\p{Cc}\p{Cs}]/u.test(name) || !/^[\p{L}\p{N}._\- ]+$/u.test(name)) {
+    throw new HttpError(400, 'display_name_invalid', 'Display name: 1–32 characters (letters, digits, spaces, . _ -), no @');
+  }
+  return name;
+}
+
 /** Creates the bootstrap admin on first start when configured and no user exists yet. */
 export function bootstrapAdmin(db: DB, log: { info: (msg: string) => void }) {
   const { username, password } = config.adminBootstrap;

@@ -65,7 +65,7 @@ const ctx: UniContext = {
     },
   },
   group: { id: 1, name: 'A', role: 'member' },
-  members: [{ id: 1, username: 'carol', name: 'Carol', role: 'member', ingame_name: null, last_seen_at: null }],
+  members: [{ id: 1, username: 'carol', name: 'Carol', display_name: null, role: 'member', global_admin: 0, ingame_name: null, last_seen_at: null }],
   me: { id: 1, username: 'carol', isAdmin: false },
   own: null,
 };

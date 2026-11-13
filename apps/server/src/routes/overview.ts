@@ -15,7 +15,7 @@ import { syncHints } from '../repo/syncHints.js';
 import { farmTargets } from '../repo/farm.js';
 import { myOnboarding } from '../repo/onboarding.js';
 import { inactivities } from '../repo/inactivity.js';
-import { clampInt, contextOf, groupBy, type Q } from './util.js';
+import { clampInt, contextOf, DISPLAY, groupBy, type Q } from './util.js';
 
 export function overviewRoutes(app: FastifyInstance, db: DB) {
   const ctxOf = contextOf(db);
@@ -24,7 +24,7 @@ export function overviewRoutes(app: FastifyInstance, db: DB) {
     const ctx = ctxOf(req);
     const members = db
       .prepare(
-        `SELECT u.id, u.username, COALESCE(m.ingame_name, u.username) AS name, m.role, u.is_admin AS global_admin, m.ingame_name, m.last_seen_at
+        `SELECT u.id, u.username, ${DISPLAY} AS name, u.display_name, m.role, u.is_admin AS global_admin, m.ingame_name, m.last_seen_at
          FROM group_members m JOIN users u ON u.id = m.user_id WHERE m.group_id = ? ORDER BY name COLLATE NOCASE`,
       )
       .all(ctx.groupId);
@@ -233,7 +233,7 @@ function planetRows(db: DB, ctx: GroupContext) {
   // arrival and who flies. Without a report afterwards the flight counts as recalled, so arrived flights are left out.
   const t = ctx.now;
   const names = db
-    .prepare('SELECT m.user_id, COALESCE(m.ingame_name, u.username) AS name FROM group_members m JOIN users u ON u.id = m.user_id WHERE m.group_id = ?')
+    .prepare(`SELECT m.user_id, ${DISPLAY} AS name FROM group_members m JOIN users u ON u.id = m.user_id WHERE m.group_id = ?`)
     .all(ctx.groupId) as { user_id: number; name: string }[];
   for (const m of names) {
     for (const f of sharedFleets(db, ctx.groupId, m.user_id, ctx.user.id)?.data ?? []) {

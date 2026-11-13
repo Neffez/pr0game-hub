@@ -239,6 +239,7 @@ async function loadGroup() {
   ]);
   if (id !== groupLoad) return;
   [members.value, ingests.value, discord.value, fleetAttacks.value, candidates.value] = res;
+  members.value = members.value.map((m: { display_name: string | null }) => ({ ...m, display_name: m.display_name ?? '' }));
   if (!candidates.value.some((c) => c.id === assignUserId.value)) assignUserId.value = null;
   discordWebhook.value = '';
   undo.value = null;
@@ -347,7 +348,7 @@ const sendTestDiscord = () => run(() => api(`/admin/groups/${groupId.value}/disc
 
 const memberSort = useSort(
   members,
-  (m: any, k) => ({ user: m.username.toLowerCase(), role: m.role, ingame: m.ingame_name?.toLowerCase(), joined: m.joined_at, login: m.last_login_at, onboarding: m.onboarding?.length ?? 0 })[k],
+  (m: any, k) => ({ user: m.username.toLowerCase(), display: m.display_name?.toLowerCase(), role: m.role, ingame: m.ingame_name?.toLowerCase(), joined: m.joined_at, login: m.last_login_at, onboarding: m.onboarding?.length ?? 0 })[k],
   'user',
   false,
 );
@@ -377,6 +378,7 @@ const setRole = (m: any, role: string) => run(async () => {
   await loadGroup();
 });
 const setIngame = (m: any) => run(() => api(`/admin/groups/${groupId.value}/members/${m.id}`, { method: 'PUT', body: { ingameName: m.ingame_name } }), 'deck.saved');
+const setDisplay = (m: any) => run(() => api(`/admin/groups/${groupId.value}/members/${m.id}`, { method: 'PUT', body: { displayName: m.display_name } }), 'deck.saved');
 const renameUser = (m: any) => run(async () => {
   try {
     await api(`/admin/users/${m.id}`, { method: 'PUT', body: { username: m.username } });
@@ -785,6 +787,7 @@ const doMerge = () => run(async () => {
           <thead>
             <tr>
               <th class="sortable" @click="memberSort.sortBy('user')">{{ t('nav.user') }}<SortMark :dir="memberSort.direction('user')" /></th>
+              <th class="sortable" @click="memberSort.sortBy('display')">{{ t('admin.displayName') }}<SortMark :dir="memberSort.direction('display')" /></th>
               <th class="sortable" @click="memberSort.sortBy('role')">{{ t('admin.role') }}<SortMark :dir="memberSort.direction('role')" /></th>
               <th class="sortable" @click="memberSort.sortBy('ingame')">{{ t('admin.ingameName') }}<SortMark :dir="memberSort.direction('ingame')" /></th>
               <th class="sortable" @click="memberSort.sortBy('joined')">{{ t('admin.joined') }}<SortMark :dir="memberSort.direction('joined')" /></th>
@@ -802,6 +805,8 @@ const doMerge = () => run(async () => {
                 <span class="badge faint">{{ t('admin.noAccount') }}</span>
               </td>
               <td v-else>{{ m.username }}</td>
+              <td v-if="m.account"><input v-model="m.display_name" style="width: 140px" @change="setDisplay(m)" /></td>
+              <td v-else class="muted">–</td>
               <td>
                 <span v-if="m.global_admin">{{ t('admin.hubAdmin') }}</span>
                 <select v-else :value="m.role" :disabled="m.owner" @change="setRole(m, ($event.target as HTMLSelectElement).value)">

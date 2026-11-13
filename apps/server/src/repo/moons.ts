@@ -1,5 +1,6 @@
 import type { GroupContext } from '../context.js';
 import type { DB } from '../db.js';
+import { DISPLAY } from '../routes/util.js';
 import { memberPlayers } from './members.js';
 
 const DAY = 86400;
@@ -40,19 +41,20 @@ export interface MoonMember {
 export function moonChances(db: DB, ctx: GroupContext, days: number) {
   const g = ctx.groupId;
   const since = ctx.now - days * DAY;
-  // members by their in-game name, hub name and linked player: lower-case name -> display name
+  // members by their in-game name, hub username and linked player: lower-case game name -> hub display name
   const players = memberPlayers(db, ctx);
   const memberIds = [...players.values()].filter((id): id is number => id != null);
   const names = new Map<string, string>();
   for (const r of db
     .prepare(
-      `SELECT m.user_id, COALESCE(m.ingame_name, u.username) AS name, u.username FROM group_members m JOIN users u ON u.id = m.user_id WHERE m.group_id = ?`,
+      `SELECT m.user_id, m.ingame_name, u.username, ${DISPLAY} AS display FROM group_members m JOIN users u ON u.id = m.user_id WHERE m.group_id = ?`,
     )
-    .all(g) as { user_id: number; name: string; username: string }[]) {
-    names.set(r.name.toLowerCase(), r.name);
+    .all(g) as { user_id: number; ingame_name: string | null; username: string; display: string }[]) {
+    names.set(r.username.toLowerCase(), r.display);
+    if (r.ingame_name) names.set(r.ingame_name.toLowerCase(), r.display);
     const player = players.get(r.user_id);
     const playerName = player != null ? (db.prepare('SELECT name FROM players WHERE id = ? AND group_id = ?').pluck().get(player, g) as string | undefined) : undefined;
-    if (playerName) names.set(playerName.toLowerCase(), r.name);
+    if (playerName) names.set(playerName.toLowerCase(), r.display);
   }
 
   const rows = db

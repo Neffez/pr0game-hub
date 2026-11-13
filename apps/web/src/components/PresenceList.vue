@@ -60,6 +60,12 @@ const offline = computed(() => {
 const roleClass = (m: { role: string; global_admin: number }) => (m.global_admin ? 'global-admin' : m.role === 'admin' ? 'group-admin' : '');
 const roleTitle = (m: { role: string; global_admin: number }) =>
   m.global_admin ? t('presence.globalAdmin') : m.role === 'admin' ? t('admin.roles.admin') : undefined;
+/** Role stays in the title; the in-game name is added when it differs from the display name. */
+const nameTitle = (m: { role: string; global_admin: number; name: string; ingame_name: string | null }) => {
+  const role = roleTitle(m);
+  const ingame = m.ingame_name && m.ingame_name !== m.name ? m.ingame_name : null;
+  return [role, ingame].filter(Boolean).join(' · ') || undefined;
+};
 
 /** Where a member is, as text and link to the same place. */
 function where(p: PresenceMember) {
@@ -79,14 +85,14 @@ function where(p: PresenceMember) {
     <div ref="head" class="section one-line" :title="onlineTitle"><span ref="probe" class="probe" aria-hidden="true">{{ onlineTitle }}</span>{{ onlineHeading }}</div>
     <div v-for="m in online" :key="m.id" class="member">
       <span class="dot" :class="{ away: !m.at.active }" :title="m.at.active ? t('presence.active') : t('presence.away')" />
-      <span class="name" :class="roleClass(m)" :title="roleTitle(m)">{{ m.name }}<span v-if="m.me" class="muted"> ({{ t('presence.you') }})</span></span>
+      <span class="name" :class="roleClass(m)" :title="nameTitle(m)">{{ m.name }}<span v-if="m.me" class="muted"> ({{ t('presence.you') }})</span></span>
       <RouterLink v-if="!m.me && where(m.at)" class="where" :to="where(m.at)!.to" @click="emit('navigate')">{{ where(m.at)!.text }}</RouterLink>
     </div>
     <details v-if="offline.length" class="offline">
       <summary class="muted small">{{ t('presence.offline', { n: offline.length }) }}</summary>
       <div v-for="m in offline" :key="m.id" class="member muted">
         <span class="dot off" />
-        <span class="name" :class="roleClass(m)" :title="roleTitle(m)">{{ m.name }}</span>
+        <span class="name" :class="roleClass(m)" :title="nameTitle(m)">{{ m.name }}</span>
         <span class="where">{{ m.last_seen_at ? t('presence.lastSeen', { ago: ago(m.last_seen_at) }) : '' }}</span>
       </div>
     </details>

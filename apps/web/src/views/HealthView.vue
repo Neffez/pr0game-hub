@@ -20,6 +20,8 @@ type Flag = 'behind' | 'noEmpire' | 'staleEmpire' | 'noStats' | 'away';
 interface Member {
   userId: number;
   name: string;
+  /** in-game name when it differs from the display name */
+  ingameName: string | null;
   role: string;
   lastSeen: number | null;
   /** hides the online status from the viewer */
@@ -98,6 +100,7 @@ const flagged = computed(() => (data.value?.members ?? []).filter((m) => m.flags
       <div v-for="m in rows" :key="m.userId" class="card hl-card small">
         <div class="row">
           <b>{{ m.name }}</b>
+          <span v-if="m.ingameName" class="muted small">{{ m.ingameName }}</span>
           <span v-for="f in m.flags" :key="f" class="badge" :class="f === 'behind' ? 'neg' : 'warn'">{{ t(`health.flag.${f}`) }}</span>
         </div>
         <div>
@@ -137,6 +140,7 @@ const flagged = computed(() => (data.value?.members ?? []).filter((m) => m.flags
               <PlayerLink v-if="m.player" :id="m.player.id" :name="m.name" />
               <span v-else>{{ m.name }}</span>
               <span v-if="m.role === 'admin'" class="faint small"> · {{ t('health.admin') }}</span>
+              <div v-if="m.ingameName" class="muted small">{{ m.ingameName }}</div>
               <div v-if="m.flags.length" class="hl-flags">
                 <span v-for="f in m.flags" :key="f" class="badge" :class="f === 'behind' ? 'neg' : 'warn'" :title="t(`health.flagTitle.${f}`)">{{ t(`health.flag.${f}`) }}</span>
               </div>

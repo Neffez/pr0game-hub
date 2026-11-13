@@ -312,8 +312,8 @@ describe('player activity', () => {
     expect((await call('POST', `/players/${alpha}/activity`, admin, { time: t - 8 * 86400 })).json().code).toBe('activity_time_invalid');
 
     const manual = (await activity()).filter((e) => e.source === 'manual');
-    expect(manual.map((e) => [e.reporter, e.mine])).toEqual([['admin', true], ['Carol', false]]);
-    const carols = manual.find((e) => e.reporter === 'Carol');
+    expect(manual.map((e) => [e.reporter, e.mine])).toEqual([['admin', true], ['carol', false]]);
+    const carols = manual.find((e) => e.reporter === 'carol');
     expect((await call('DELETE', `/players/${alpha}/activity/${carols.id}`, admin)).statusCode).toBe(404);
     expect((await call('DELETE', `/players/${alpha}/activity/${carols.id}`, carol)).statusCode).toBe(200);
     expect((await activity()).filter((e) => e.source === 'manual')).toHaveLength(1);

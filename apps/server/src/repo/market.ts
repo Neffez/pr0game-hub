@@ -1,4 +1,5 @@
 import type { DB } from '../db.js';
+import { DISPLAY } from '../routes/util.js';
 
 /** Metal and crystal per 1 deuterium; source 'source' (page source), 'text' (estimated from a text copy) or 'manual'. */
 export interface MarketRate {
@@ -9,7 +10,7 @@ export interface MarketRate {
   by: string | null;
 }
 
-const RATE_SELECT = `SELECT r.metal AS m, r.crystal AS k, r.source, r.time, COALESCE(gm.ingame_name, u.username) AS by
+const RATE_SELECT = `SELECT r.metal AS m, r.crystal AS k, r.source, r.time, ${DISPLAY} AS by
   FROM market_rates r LEFT JOIN users u ON u.id = r.user_id LEFT JOIN group_members gm ON gm.group_id = r.group_id AND gm.user_id = r.user_id
   WHERE r.group_id = ? ORDER BY r.time DESC, r.id DESC`;
 
@@ -51,7 +52,7 @@ export function marketTrades(db: DB, groupId: number, limit = 200): MarketTradeR
 export function latestMarket(db: DB, groupId: number, at: number): { syncedAt: number; syncedBy: string | null; offers: MarketOfferRow[] } | null {
   const sync = db
     .prepare(
-      `SELECT s.seen_at, COALESCE(gm.ingame_name, u.username) AS name FROM market_syncs s LEFT JOIN users u ON u.id = s.user_id
+      `SELECT s.seen_at, ${DISPLAY} AS name FROM market_syncs s LEFT JOIN users u ON u.id = s.user_id
        LEFT JOIN group_members gm ON gm.group_id = s.group_id AND gm.user_id = s.user_id WHERE s.group_id = ?`,
     )
     .get(groupId) as { seen_at: number; name: string | null } | undefined;

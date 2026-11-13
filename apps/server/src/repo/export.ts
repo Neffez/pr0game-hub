@@ -1,6 +1,7 @@
 import { debrisAmount } from '@pr0hub/core';
 import type { GroupContext } from '../context.js';
 import type { DB } from '../db.js';
+import { DISPLAY } from '../routes/util.js';
 import { finalizedSettlements } from './settlements.js';
 import { latestScores } from './stats.js';
 
@@ -142,7 +143,7 @@ function unfiltered(db: DB, ctx: GroupContext, dataset: Dataset, since: number):
     case 'expeditions': {
       const rows = db
         .prepare(
-          `SELECT COALESCE(e.time, e.created_at) AS time, COALESCE(gm.ingame_name, u.username) AS member, e.g, e.s, e.p, e.event, e.size, e.found_resources, e.found_ships
+          `SELECT COALESCE(e.time, e.created_at) AS time, ${DISPLAY} AS member, e.g, e.s, e.p, e.event, e.size, e.found_resources, e.found_ships
            FROM expeditions e LEFT JOIN users u ON u.id = e.user_id LEFT JOIN group_members gm ON gm.group_id = e.group_id AND gm.user_id = e.user_id
            WHERE e.group_id = ? AND COALESCE(e.time, e.created_at) >= ? ORDER BY 1 DESC`,
         )

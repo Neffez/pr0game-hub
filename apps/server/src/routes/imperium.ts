@@ -175,12 +175,12 @@ export function imperiumRoutes(app: FastifyInstance, db: DB) {
   app.get<{ Params: { uni: string } }>('/api/:uni/alliance', async (req) => {
     const ctx = ctxOf(req);
     const rows = db
-      .prepare('SELECT u.id AS user_id, u.username, m.ingame_name FROM group_members m JOIN users u ON u.id = m.user_id WHERE m.group_id = ? ORDER BY u.username')
-      .all(ctx.groupId) as { user_id: number; username: string; ingame_name: string | null }[];
+      .prepare('SELECT u.id AS user_id, u.username, u.display_name, m.ingame_name FROM group_members m JOIN users u ON u.id = m.user_id WHERE m.group_id = ? ORDER BY u.username')
+      .all(ctx.groupId) as { user_id: number; username: string; display_name: string | null; ingame_name: string | null }[];
     const players = memberPlayers(db, ctx);
     const playerName = db.prepare('SELECT name FROM players WHERE id = ?').pluck();
     const members: {
-      key: string; user_id: number | null; username: string; ingame_name: string | null; player_id: number | null;
+      key: string; user_id: number | null; username: string; display_name: string | null; ingame_name: string | null; player_id: number | null;
       source: 'empire' | 'spy' | null; created_at: number | null; data: EmpireRecord | SpyEmpire | null; fleets: ReturnType<typeof sharedFleets>;
       fleetHistory: StoredFleet[];
     }[] = rows.map((r) => {
@@ -207,7 +207,7 @@ export function imperiumRoutes(app: FastifyInstance, db: DB) {
       const spy = spyEmpire(db, ctx, p.id, p.name);
       if (!spy) continue;
       members.push({
-        key: `p${p.id}`, user_id: null, username: p.name, ingame_name: null, player_id: p.id, source: 'spy',
+        key: `p${p.id}`, user_id: null, username: p.name, display_name: null, ingame_name: null, player_id: p.id, source: 'spy',
         created_at: spy.time, data: spy, fleets: null, fleetHistory: [],
       });
     }

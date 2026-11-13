@@ -26,6 +26,7 @@ interface Member {
   /** null for players of the in-game alliance who are not in the hub */
   user_id: number | null;
   username: string;
+  display_name: string | null;
   ingame_name: string | null;
   /** empire page of the member or put together from spy reports (planets and research then have their own report time) */
   source: 'empire' | 'spy' | null;
@@ -81,7 +82,9 @@ useLiveReload(load, tables('empire', 'fleets', 'spy_reports', 'group_members'));
 
 const withData = computed(() => members.value.filter((m) => m.data));
 const missing = computed(() => members.value.filter((m) => !m.data));
-const memberName = (m: Member) => m.ingame_name || m.username;
+const memberName = (m: Member) => (m.user_id != null ? m.display_name || m.username : m.username);
+const memberIngame = (m: Member) => (m.ingame_name && m.ingame_name !== memberName(m) ? m.ingame_name : null);
+const memberLabel = (m: Member) => (memberIngame(m) ? `${memberName(m)} (${memberIngame(m)})` : memberName(m));
 
 /** Fleets of all members (or the chosen one) still in flight, next arrival first. */
 const fleetMember = ref<number | null>(null);
@@ -234,21 +237,21 @@ useAutoTour(page, () => members.value.length > 0 || colonize.value, () => (page.
     <template v-if="movements">
       <select v-if="withFleets.length > 1" v-model="fleetMember">
         <option :value="null">{{ t('imperium.allMembers') }}</option>
-        <option v-for="m in withFleets" :key="m.key" :value="m.user_id">{{ memberName(m) }}</option>
+        <option v-for="m in withFleets" :key="m.key" :value="m.user_id">{{ memberLabel(m) }}</option>
       </select>
       <Hint><p>{{ t('alliance.fleetsHint') }}</p></Hint>
     </template>
-    <span v-else-if="missing.length" class="warn">{{ t('alliance.missing', { names: missing.map(memberName).join(', ') }) }}</span>
+    <span v-else-if="missing.length" class="warn">{{ t('alliance.missing', { names: missing.map(memberLabel).join(', ') }) }}</span>
     </div>
     <!-- when each member last synced: folded, the list grows with the alliance -->
     <Section data-tour="alliance-freshness" :title="t('alliance.freshness')" :count="movements ? withFleets.length : withData.length" :card="false" :default-open="false" store-key="alliance.freshness" class="member-ages">
       <div class="ages small">
         <template v-if="movements">
-          <span v-for="m in withFleets" :key="m.key" class="muted" :title="dateTime(m.fleets!.time)">{{ memberName(m) }}: {{ ago(m.fleets!.time) }}</span>
+          <span v-for="m in withFleets" :key="m.key" class="muted" :title="dateTime(m.fleets!.time)">{{ memberLabel(m) }}: {{ ago(m.fleets!.time) }}</span>
         </template>
         <template v-else>
           <span v-for="m in withData" :key="m.key" class="muted" :title="dateTime(m.created_at)">
-            {{ memberName(m) }}: {{ ago(m.created_at) }}<template v-if="m.source === 'spy'"> ({{ t('alliance.spy') }})</template>
+            {{ memberLabel(m) }}: {{ ago(m.created_at) }}<template v-if="m.source === 'spy'"> ({{ t('alliance.spy') }})</template>
           </span>
         </template>
       </div>
@@ -277,7 +280,9 @@ useAutoTour(page, () => members.value.length > 0 || colonize.value, () => (page.
         </template>
         <b class="al-name">{{ r.label }}</b>
         <span v-if="'spy' in r && r.spy" class="spy-tag" :title="t('alliance.spyTitle', { time: dateTime(r.spy) })">{{ t('alliance.spy') }}</span>
-        <span v-if="page === 'planets' && 'member' in r" class="muted small">{{ memberName(r.member) }}</span>
+        <span v-if="page === 'planets' && 'member' in r" class="muted small">
+          {{ memberName(r.member) }}<template v-if="memberIngame(r.member)"> ({{ memberIngame(r.member) }})</template>
+        </span>
         <span class="mono small" :class="{ sorted: sortKey === 'points' }" :style="{ color: r.key === 'total' ? undefined : scaleColor(r.points, max.points) }">{{ fmt(r.points) }}</span>
       </div>
       <!-- fleets have large counts: two wide columns with full names -->
@@ -313,10 +318,14 @@ useAutoTour(page, () => members.value.length > 0 || colonize.value, () => (page.
               {{ r.label }}
               <span v-if="r.spy" class="spy-tag" :title="t('alliance.spyTitle', { time: dateTime(r.spy) })">{{ t('alliance.spy') }}</span>
             </td>
-            <td class="muted">{{ memberName(r.member) }}</td>
+            <td class="muted">
+              {{ memberName(r.member) }}
+              <div v-if="memberIngame(r.member)" class="small">{{ memberIngame(r.member) }}</div>
+            </td>
           </template>
           <td v-else>
             {{ r.label }}
+            <div v-if="memberIngame(r.member)" class="muted small">{{ memberIngame(r.member) }}</div>
             <span v-if="r.spy" class="spy-tag" :title="t('alliance.spyTitle', { time: dateTime(r.spy) })">{{ t('alliance.spy') }}</span>
           </td>
           <td class="num" :style="{ color: scaleColor(r.points, max.points) }">{{ fmt(r.points) }}</td>

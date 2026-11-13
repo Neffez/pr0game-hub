@@ -3,7 +3,7 @@ import { HttpError } from '../auth.js';
 import { checkSize, flights, parseBattleRequest, planetFromSpy, runInWorker, simSettingsOf, throttle, toolsLink, type ApiSlot } from '../battle.js';
 import { catalogOf } from '../context.js';
 import type { DB } from '../db.js';
-import { contextOf, parseSections } from './util.js';
+import { contextOf, DISPLAY, parseSections } from './util.js';
 
 /**
  * Battle simulator for scripts and AI agents: the battle on the game's engine (Battlerust) many times, summarized. It
@@ -24,7 +24,7 @@ export function battleRoutes(app: FastifyInstance, db: DB) {
       const [g, s, p] = body.target!;
       const row = db
         .prepare(
-          `SELECT sr.id, sr.report_time, sr.sections, sr.player_name, COALESCE(gm.ingame_name, u.username) AS reporter FROM spy_reports sr
+          `SELECT sr.id, sr.report_time, sr.sections, sr.player_name, ${DISPLAY} AS reporter FROM spy_reports sr
            LEFT JOIN users u ON u.id = sr.user_id LEFT JOIN group_members gm ON gm.group_id = sr.group_id AND gm.user_id = sr.user_id
            WHERE sr.group_id = ? AND sr.g = ? AND sr.s = ? AND sr.p = ? AND sr.planet_type = ? ORDER BY sr.report_time DESC LIMIT 1`,
         )

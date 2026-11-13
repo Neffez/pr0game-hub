@@ -3,6 +3,7 @@ import type { SessionUser } from '../auth.js';
 import { catalogOf, resolveGroup, universeNow, type GroupContext, type Universe } from '../context.js';
 import type { DB } from '../db.js';
 import { mentions } from '../domain/mentions.js';
+import { DISPLAY } from '../routes/util.js';
 import { buildOrderOf, nextSteps, syncBuildOrder } from './buildOrders.js';
 import { alertDone, alertsOf, buildingsState, planetElements, planetOf, storagesOf, type BuildingsState } from './buildings.js';
 import { FLEET_KEEP, openFleetAlerts } from './fleetAlerts.js';
@@ -179,8 +180,6 @@ export const PHALANX_NOTIFY_KEEP = 24 * 3600;
 export const PLAN_KEEP = 3600;
 const EXCERPT = 80;
 
-const DISPLAY = 'COALESCE(gm.ingame_name, u.username)';
-
 /** Fleets of the own alliance's players (by name or planet): their "attacks" on a member are moon attempts or shooting
  * debris for saving, no alarm. */
 function friends(db: DB, ctx: GroupContext) {
@@ -296,7 +295,7 @@ function plans(db: DB, groupId: number, t: number): PlanNotification[] {
 
 function attacks(db: DB, ctx: GroupContext, t: number): AttackNotification[] {
   const members = db
-    .prepare('SELECT m.user_id, COALESCE(m.ingame_name, u.username) AS name FROM group_members m JOIN users u ON u.id = m.user_id WHERE m.group_id = ?')
+    .prepare(`SELECT m.user_id, ${DISPLAY} AS name FROM group_members m JOIN users u ON u.id = m.user_id WHERE m.group_id = ?`)
     .all(ctx.groupId) as { user_id: number; name: string }[];
   const friendly = friends(db, ctx);
   const list: AttackNotification[] = [];
@@ -389,6 +388,7 @@ function comments(db: DB, ctx: GroupContext, t: number): CommentNotification[] {
   );
   const names = [
     ctx.user.username,
+    db.prepare('SELECT display_name FROM users WHERE id = ?').pluck().get(ctx.user.id) as string | null,
     db.prepare('SELECT ingame_name FROM group_members WHERE group_id = ? AND user_id = ?').pluck().get(ctx.groupId, ctx.user.id) as string | null,
   ];
   const lastOwn = db.prepare(

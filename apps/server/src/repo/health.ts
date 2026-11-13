@@ -1,5 +1,6 @@
 import type { GroupContext } from '../context.js';
 import type { DB } from '../db.js';
+import { DISPLAY } from '../routes/util.js';
 import { memberPlayers } from './members.js';
 import { finalizedSettlements, memberKey } from './settlements.js';
 import { latestScores } from './stats.js';
@@ -23,6 +24,8 @@ export type HealthFlag = 'behind' | 'noEmpire' | 'staleEmpire' | 'noStats' | 'aw
 export interface MemberHealth {
   userId: number;
   name: string;
+  /** in-game name when it differs from `name`, for a muted subtitle */
+  ingameName: string | null;
   role: string;
   /** last request in the hub (page open), null when never or hidden */
   lastSeen: number | null;
@@ -50,10 +53,10 @@ export function allianceHealth(db: DB, ctx: GroupContext): { members: MemberHeal
   const since = t - HEALTH_WINDOW;
   const rows = db
     .prepare(
-      `SELECT m.user_id, COALESCE(m.ingame_name, u.username) AS name, m.role, m.last_seen_at, u.show_online FROM group_members m JOIN users u ON u.id = m.user_id
+      `SELECT m.user_id, ${DISPLAY} AS name, m.ingame_name, m.role, m.last_seen_at, u.show_online FROM group_members m JOIN users u ON u.id = m.user_id
        WHERE m.group_id = ? ORDER BY name COLLATE NOCASE`,
     )
-    .all(ctx.groupId) as { user_id: number; name: string; role: string; last_seen_at: number | null; show_online: number }[];
+    .all(ctx.groupId) as { user_id: number; name: string; ingame_name: string | null; role: string; last_seen_at: number | null; show_online: number }[];
   // admins see every last visit, the others only those of members who show their online status
   const privileged = ctx.user.isAdmin || ctx.role === 'admin';
   const players = memberPlayers(db, ctx);
@@ -114,7 +117,7 @@ export function allianceHealth(db: DB, ctx: GroupContext): { members: MemberHeal
     }
     const onlineHidden = !privileged && r.user_id !== ctx.user.id && !r.show_online;
     return {
-      userId: r.user_id, name: r.name, role: r.role, lastSeen: onlineHidden ? null : r.last_seen_at, onlineHidden,
+      userId: r.user_id, name: r.name, ingameName: r.ingame_name && r.ingame_name !== r.name ? r.ingame_name : null, role: r.role, lastSeen: onlineHidden ? null : r.last_seen_at, onlineHidden,
       player: playerId != null ? { id: playerId, name: names.get(playerId) ?? r.name } : null,
       points: score?.points ?? null, rank: score?.rank ?? null, growth, partial,
       syncs: syncs.get(r.user_id) ?? {},

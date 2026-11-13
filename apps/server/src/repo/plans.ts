@@ -6,6 +6,7 @@ import { latestEmpires, spyEmpire } from './empire.js';
 import { fleetVisibility, sharedFleets, type StoredFleet } from './fleets.js';
 import { attackKey, hostileAttacks, recallWindow, shipsKey, type Body, type EnemyFleet } from './hostile.js';
 import { memberPlayers } from './members.js';
+import { DISPLAY, displayOf } from '../routes/util.js';
 
 /** Research ids of the plan fleets: drives and fuel efficiency (flight times), weapons, shields, armour (simulator). */
 export const RESEARCH_IDS = [115, 117, 118, 134, 109, 110, 111];
@@ -181,7 +182,7 @@ const followsImpact = (e: EnemyRow) => e.phalanx_home == null && e.recall_from =
 export function enemiesOf(db: DB, ctx: GroupContext, planIds: number[], persist = true): EnemyRow[] {
   const rows = db
     .prepare(
-      `SELECT e.*, COALESCE(gm.ingame_name, mu.username) AS member, COALESCE(gb.ingame_name, bu.username) AS updated_by
+      `SELECT e.*, ${displayOf('mu')} AS member, ${displayOf('bu')} AS updated_by
        FROM attack_plan_enemy e JOIN attack_plans a ON a.id = e.plan_id
        LEFT JOIN users mu ON mu.id = e.member_id LEFT JOIN group_members gm ON gm.group_id = a.group_id AND gm.user_id = e.member_id
        LEFT JOIN users bu ON bu.id = e.updated_by LEFT JOIN group_members gb ON gb.group_id = a.group_id AND gb.user_id = e.updated_by
@@ -338,7 +339,7 @@ function collectOwnAttacks(db: DB, ctx: GroupContext): (OwnAttack & { viewers: S
   const memberOf = new Map<number, number>();
   for (const [userId, playerId] of players) if (playerId != null && !memberOf.has(playerId)) memberOf.set(playerId, userId);
   const members = db
-    .prepare('SELECT m.user_id, COALESCE(m.ingame_name, u.username) AS name FROM group_members m JOIN users u ON u.id = m.user_id WHERE m.group_id = ?')
+    .prepare(`SELECT m.user_id, ${DISPLAY} AS name FROM group_members m JOIN users u ON u.id = m.user_id WHERE m.group_id = ?`)
     .all(ctx.groupId) as { user_id: number; name: string }[];
   const names = new Map(members.map((m) => [m.user_id, m.name]));
   const playerName = db.prepare('SELECT name FROM players WHERE id = ?').pluck();
