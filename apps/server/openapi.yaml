@@ -5684,7 +5684,8 @@ paths:
       security: [{ sessionCookie: [] }]
       description: >-
         Stores a pasted game page. `forUser` may point to another member only for messages and combat reports,
-        not for empire, overview or fleets. `dryRun` returns the preview without storing. When nothing was recognized
+        not for empire, overview or fleets. Player profiles (`page=playerCard`, the in-game popup) store the home
+        planet. `dryRun` returns the preview without storing. When nothing was recognized
         (`pageType` `unknown`), `explain` says why: `code` one of `too_short`, `not_game`, `language` (with `lang`),
         `unsupported_page` (with the game's `page` id), `parse_failed` (a page the hub reads, nothing found) or
         `unknown_game_page`.

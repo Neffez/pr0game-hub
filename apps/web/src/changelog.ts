@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-13',
     items: [
       {
+        kind: 'new',
+        de: 'Spielerinformationen aus dem Spiel (das Popup) einfügen: der Hub übernimmt den Heimatplaneten. Im Popup die Tabelle markieren – Strg+A kopiert die Seite dahinter.',
+        en: 'Paste a player profile from the game (the popup): the hub takes the home planet. Select the table in the popup – Ctrl+A copies the page behind it.',
+      },
+      {
         kind: 'fix',
         de: 'Lange Info-Hinweise auf dem Handy werden nicht mehr oben abgeschnitten, man kann darin scrollen. Unter Bauen & Forschen, Übersicht und Raidplaner erklärt der Hinweis nur den offenen Tab.',
         en: 'Long info hints on the phone are no longer cut off at the top; you can scroll them. On Build & Research, Overview and the Raid planner the hint explains only the open tab.',

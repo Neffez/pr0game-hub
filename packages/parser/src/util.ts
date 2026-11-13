@@ -166,8 +166,8 @@ export function normalizeText(text: string): string {
 
 export function detectLang(text: string): Lang {
   // German incl. the German based pirate language of the SetSail theme ("Papageienbericht", "Treibgut-Feld", …)
-  const de = /(Spionagebericht|Papageienbericht|Statistiken|Aktualisiert am|Kampfbericht|Expeditionsbericht|Imperiumsübersicht|Sonnensystem|Spieler|Treibgut-Feld|Wahrscheinlichkeit)/;
-  const en = /(Intelligence report|Spy report|Statistics|Updated|Fight report|Expedition report|Empire|Solar system|Player)/;
+  const de = /(Spionagebericht|Papageienbericht|Statistiken|Aktualisiert am|Kampfbericht|Expeditionsbericht|Imperiumsübersicht|Sonnensystem|Spieler|Heimatplanet|Treibgut-Feld|Wahrscheinlichkeit)/;
+  const en = /(Intelligence report|Spy report|Statistics|Updated|Fight report|Expedition report|Empire|Solar system|Player|Home planet)/;
   const d = (text.match(new RegExp(de, 'g')) ?? []).length;
   const e = (text.match(new RegExp(en, 'g')) ?? []).length;
   return e > d ? 'en' : 'de';

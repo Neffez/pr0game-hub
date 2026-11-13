@@ -1,0 +1,38 @@
+Playercard
+Username	Captain Joe
+Heimatplanet	Boeing 747-8i [1:9:8]
+Allianz	-
+	Punkte	Rank
+	Gebäude	-
+	Forschung	-
+	Flotte	-
+	Defensive	-
+	Gesamt	0	100%	1
+Kampfstatistik
+	Kämpfe	Kampfquote
+	Siege	-
+	Unentschieden	-
+	Verloren	-
+	Gesamtkämpfe	-
+Ehrenpunkte:
+	Ehrenpunkte	-
+	Ehrenpunkte Rang	-
+honorfights:
+		-
+	Ehrenhafte Kämpfe	-
+	Unehrenhafte Kämpfe	-
+	Neutrale Kämpfe	-
+Captain Joe war an folgenden Zerstörungen beteiligt:
+	Geschossene Units	-
+	Verlorene Units	-
+	Gesamt Trümmerfeld Metall	-
+	Gesamt Trümmerfeld Kristall	-
+Captain Joe hat real folgendes selbst zerstört:
+	Geschossene Units	-
+	Verlorene Units	-
+	Gesamt Trümmerfeld Metall	-
+	Gesamt Trümmerfeld Kristall	-
+Kontakt
+	Freundschaftsanfrage stellen	Private Nachricht
+	Handel blockieren	PN blockieren
+Achievements:

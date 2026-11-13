@@ -1928,3 +1928,60 @@ describe('performance and system monitor', () => {
     expect(vac.json()).toMatchObject({ ok: true, before: expect.any(Number), after: expect.any(Number) });
   });
 });
+
+describe('player card ingest', () => {
+  it('stores the home planet from a copied player card', async () => {
+    const group = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', payload: { universe: 'u8', name: 'Playercard' }, headers: admin })).json().id;
+    const headers = { ...admin, 'x-hub-group': String(group) };
+    const res = await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { text: fixture('playercard.txt') } });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({
+      pageType: 'playerCard',
+      preview: [{ kind: 'playerCard', player: 'Captain Joe', coords: '[1:9:8]', planet: 'Boeing 747-8i' }],
+      counts: { player_cards: { new: 1, duplicate: 0 } },
+    });
+    const ov = (await app.inject({ method: 'GET', url: '/hub/api/u8/overview', headers })).json();
+    const joe = ov.players.find((p: { name: string }) => p.name === 'Captain Joe');
+    expect(joe).toBeTruthy();
+    expect(ov.planets).toEqual(expect.arrayContaining([expect.objectContaining({ g: 1, s: 9, p: 8, name: 'Boeing 747-8i', player_id: joe.id, type: 'planet' })]));
+
+    const again = await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { text: fixture('playercard.txt') } });
+    expect(again.json().counts.player_cards).toEqual({ new: 0, duplicate: 1 });
+  });
+
+  it('does not overwrite a planet the galaxy already mapped', async () => {
+    const group = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', payload: { universe: 'u8', name: 'PlayercardGalaxy' }, headers: admin })).json().id;
+    const other = Number(db.prepare('INSERT INTO players (group_id, name) VALUES (?, ?)').run(group, 'Other').lastInsertRowid);
+    db.prepare('INSERT INTO planets (group_id, g, s, p, name, player_id) VALUES (?, 1, 9, 8, ?, ?)').run(group, 'Taken', other);
+    const headers = { ...admin, 'x-hub-group': String(group) };
+    await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { text: fixture('playercard.txt') } });
+    const row = db.prepare('SELECT name, player_id FROM planets WHERE group_id = ? AND g = 1 AND s = 9 AND p = 8').get(group) as { name: string; player_id: number };
+    expect(row).toEqual({ name: 'Taken', player_id: other });
+  });
+
+  it('skips an empty slot of a system the galaxy already showed', async () => {
+    const group = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', payload: { universe: 'u8', name: 'PlayercardEmpty' }, headers: admin })).json().id;
+    db.prepare('INSERT INTO galaxy_views (group_id, g, s, seen_at, user_id) VALUES (?, 1, 9, ?, 1)').run(group, now());
+    const headers = { ...admin, 'x-hub-group': String(group) };
+    await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { text: fixture('playercard.txt') } });
+    expect(db.prepare('SELECT COUNT(*) FROM planets WHERE group_id = ? AND g = 1 AND s = 9 AND p = 8').pluck().get(group)).toBe(0);
+  });
+
+  it('stores the in-game id from the popup HTML', async () => {
+    const group = (await app.inject({ method: 'POST', url: '/hub/api/admin/groups', payload: { universe: 'u8', name: 'PlayercardHtml' }, headers: admin })).json().id;
+    const headers = { ...admin, 'x-hub-group': String(group) };
+    const res = await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { html: fixture('playercard.html') } });
+    expect(res.json()).toMatchObject({
+      pageType: 'playerCard',
+      counts: { player_cards: { new: 1, duplicate: 0 } },
+    });
+    const joe = db.prepare('SELECT ingame_id, alliance_id FROM players WHERE group_id = ? AND name = ?').get(group, 'Captain Joe') as {
+      ingame_id: number;
+      alliance_id: number | null;
+    };
+    expect(joe.ingame_id).toBe(42);
+    expect(joe.alliance_id).toBeTruthy();
+    const ally = db.prepare('SELECT ingame_id, name FROM alliances WHERE id = ?').get(joe.alliance_id) as { ingame_id: number; name: string };
+    expect(ally).toEqual({ ingame_id: 7, name: 'Foo' });
+  });
+});

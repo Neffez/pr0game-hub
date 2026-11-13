@@ -421,6 +421,9 @@ export function aboutRecords(records: HubRecord[]): About[] {
       case 'marketplace':
         add(`${r.offers.length} offers`);
         break;
+      case 'playerCard':
+        add(`${r.name} ${c(r.coords)}`);
+        break;
     }
   }
   return [...kinds.values()];
@@ -470,5 +473,7 @@ function describe(r: HubRecord): PreviewItem {
       return { kind: r.kind, coords: c(r.home), amount: r.metal + r.crystal + r.deuterium };
     case 'playerMessage':
       return { kind: r.kind, from: r.from.name, to: r.to.map((p) => p.name).join(', '), subject: r.subject, time: r.time };
+    case 'playerCard':
+      return { kind: r.kind, player: r.name, coords: c(r.coords), planet: r.planetName };
   }
 }

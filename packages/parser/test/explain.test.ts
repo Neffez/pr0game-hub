@@ -7,6 +7,7 @@ describe('explainNoData (E-4)', () => {
   it('tells the page from the HTML body id and the language from <html lang>', () => {
     expect(explainNoData({ html: '<html lang="de"><body id="shipyard" class="x"><div>…</div></body></html>', text: 'x' })).toEqual({ code: 'unsupported_page', page: 'shipyard' });
     expect(explainNoData({ html: '<html lang="de"><body id="galaxy">', text: 'x' })).toEqual({ code: 'parse_failed', page: 'galaxy' });
+    expect(explainNoData({ html: '<html lang="de"><body id="playerCard">', text: 'x' })).toEqual({ code: 'parse_failed', page: 'playercard' });
     expect(explainNoData({ html: '<html lang="fr"><body id="galaxy">', text: 'x' })).toEqual({ code: 'language', lang: 'fr', page: 'galaxy' });
     expect(explainNoData({ html: '<div>x</div>', text: 'Schiffswerft', url: 'https://pr0game.com/uni8/game.php?page=records' })).toEqual({ code: 'unsupported_page', page: 'records' });
   });

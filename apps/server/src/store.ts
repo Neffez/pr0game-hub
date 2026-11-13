@@ -17,6 +17,7 @@ import {
   type HubRecord,
   type MarketplaceRecord,
   type MissileImpactRecord,
+  type PlayerCardRecord,
   type OverviewRecord,
   type PlayerMessageRecord,
   type RecycleRecord,
@@ -116,6 +117,8 @@ export class Store {
         return this.combatReport(r);
       case 'marketplace':
         return this.marketplace(r);
+      case 'playerCard':
+        return this.playerCard(r);
     }
   }
 
@@ -277,6 +280,28 @@ export class Store {
            updated_at = unixepoch()`,
       )
       .run(this.t.groupId, g, s, p, v.name, v.moonName ?? null, v.playerId, v.hasMoon);
+  }
+
+  /**
+   * Player profile popup: the player's home planet only. A galaxy view of that system wins (it already mapped the
+   * slot, or showed it empty); a planet of another player is left alone.
+   */
+  private playerCard(r: PlayerCardRecord) {
+    const time = now();
+    const { g, s, p } = r.coords;
+    const playerId = this.players.player(r.ingameId, r.name, time);
+    const allyId = this.players.alliance(r.allyId, r.allyName);
+    if (allyId) this.db.prepare('UPDATE players SET alliance_id = ? WHERE id = ? AND last_seen <= ?').run(allyId, playerId, time);
+
+    const viewed = this.db.prepare('SELECT 1 FROM galaxy_views WHERE group_id = ? AND g = ? AND s = ?').get(this.t.groupId, g, s);
+    const planet = this.db
+      .prepare('SELECT player_id, name FROM planets WHERE group_id = ? AND g = ? AND s = ? AND p = ?')
+      .get(this.t.groupId, g, s, p) as { player_id: number | null; name: string | null } | undefined;
+    if (!planet && viewed) return this.count('player_cards', false);
+    if (planet?.player_id != null && planet.player_id !== playerId) return this.count('player_cards', false);
+    const same = planet != null && planet.player_id === playerId && (r.planetName == null || r.planetName === planet.name);
+    if (!same) this.upsertPlanet(g, s, p, { name: r.planetName, playerId, hasMoon: null });
+    this.count('player_cards', !same);
   }
 
   /**

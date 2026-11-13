@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-13
 
+- Sync: a copied **player profile** (the in-game popup) stores the player's home planet in the overview. Select the
+  table in the popup; Ctrl+A copies the page behind it.
+
 - Long info hints on phones stay inside the screen and scroll when needed. Build & Research, Overview and the Raid
   planner explain only the open tab (not every tab at once).
 

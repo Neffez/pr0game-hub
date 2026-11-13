@@ -510,6 +510,17 @@ export interface CombatReportRecord {
   moonCreated?: boolean;
 }
 
+/** Player profile popup (`page=playerCard`): home planet only, not the whole colony list. */
+export interface PlayerCardRecord {
+  kind: 'playerCard';
+  ingameId: number | null;
+  name: string;
+  planetName: string | null;
+  coords: Coords;
+  allyId: number | null;
+  allyName: string | null;
+}
+
 export type HubRecord =
   | StatsRecord
   | SpyReportRecord
@@ -530,9 +541,10 @@ export type HubRecord =
   | FleetsRecord
   | BattleHallRecord
   | CombatReportRecord
-  | MarketplaceRecord;
+  | MarketplaceRecord
+  | PlayerCardRecord;
 
-export type PageType = 'stats' | 'messages' | 'galaxy' | 'empire' | 'overview' | 'buildings' | 'research' | 'fleets' | 'phalanx' | 'battleHall' | 'combatReport' | 'marketplace' | 'unknown';
+export type PageType = 'stats' | 'messages' | 'galaxy' | 'empire' | 'overview' | 'buildings' | 'research' | 'fleets' | 'phalanx' | 'battleHall' | 'combatReport' | 'marketplace' | 'playerCard' | 'unknown';
 
 export interface ParseResult {
   pageType: PageType;

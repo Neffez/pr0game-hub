@@ -1231,3 +1231,74 @@ describe('marketplace', () => {
     expect(estimateMarketRate([])).toBeNull();
   });
 });
+
+describe('player card', () => {
+  it('parses a copied German player card from the popup (no page source)', () => {
+    const res = parsePage({ text: fixture('playercard.txt') });
+    expect(res).toMatchObject({ pageType: 'playerCard', source: 'text', lang: 'de', warnings: ['plaintext_players_by_name'] });
+    expect(res.records[0]).toEqual({
+      kind: 'playerCard',
+      ingameId: null,
+      name: 'Captain Joe',
+      planetName: 'Boeing 747-8i',
+      coords: { g: 1, s: 9, p: 8 },
+      allyId: null,
+      allyName: null,
+    });
+  });
+
+  it('parses a copied English player card', () => {
+    const rec = parsePage({ text: fixture('playercard-en.txt') }).records[0];
+    expect(rec).toEqual({
+      kind: 'playerCard',
+      ingameId: null,
+      name: 'Alice',
+      planetName: 'Home',
+      coords: { g: 2, s: 10, p: 4 },
+      allyId: null,
+      allyName: 'The Alliance',
+    });
+  });
+
+  it('parses the popup HTML with player id and alliance id', () => {
+    const res = parsePage({ html: fixture('playercard.html') });
+    expect(res).toMatchObject({ pageType: 'playerCard', source: 'html', lang: 'de', warnings: [] });
+    expect(res.records[0]).toEqual({
+      kind: 'playerCard',
+      ingameId: 42,
+      name: 'Captain Joe',
+      planetName: 'Boeing 747-8i',
+      coords: { g: 1, s: 9, p: 8 },
+      allyId: 7,
+      allyName: 'Foo',
+    });
+  });
+
+  it('parses a copied HTML table fragment without the popup body', () => {
+    const html = [
+      '<table><tr><td>Username</td><td>Bob</td></tr>',
+      '<tr><td>Heimatplanet</td><td>Kolonie [3:4:5]</td></tr>',
+      '<tr><td>Allianz</td><td>-</td></tr></table>',
+    ].join('');
+    const rec = parsePage({ html }).records[0];
+    expect(rec).toMatchObject({ kind: 'playerCard', name: 'Bob', coords: { g: 3, s: 4, p: 5 }, allyName: null, ingameId: null });
+  });
+
+  it('parses a player card copied with spaces instead of tabs', () => {
+    const text = ['Playercard', 'Username Captain Joe', 'Heimatplanet Boeing 747-8i [1:9:8]', 'Allianz -'].join('\n');
+    const res = parsePage({ text });
+    expect(res.pageType).toBe('playerCard');
+    expect(res.records[0]).toMatchObject({
+      kind: 'playerCard',
+      name: 'Captain Joe',
+      planetName: 'Boeing 747-8i',
+      coords: { g: 1, s: 9, p: 8 },
+    });
+  });
+
+  it('falls back to the copied table text when the clipboard HTML is not the popup', () => {
+    const res = parsePage({ html: '<div>not a game page</div>', text: fixture('playercard.txt') });
+    expect(res).toMatchObject({ pageType: 'playerCard', source: 'text', warnings: ['html_no_data', 'plaintext_players_by_name'] });
+    expect(res.records[0]).toMatchObject({ name: 'Captain Joe', coords: { g: 1, s: 9, p: 8 } });
+  });
+});

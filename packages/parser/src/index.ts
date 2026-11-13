@@ -10,6 +10,7 @@ import { isBattleHallHtml, parseBattleHallHtml } from './parsers/battleHall.js';
 import { isMarketplaceHtml, isMarketplaceText, parseMarketplaceHtml, parseMarketplaceText } from './parsers/marketplace.js';
 import { isCombatReportText, isCombatSimulation, parseCombatReportText } from './parsers/combatReport.js';
 import { isStatsText, parseStatsHtml, parseStatsText } from './parsers/stats.js';
+import { isPlayerCardHtml, isPlayerCardText, parsePlayerCardHtml, parsePlayerCardText } from './parsers/playerCard.js';
 import type { HubRecord, PageType, ParseResult, StatsType } from './types.js';
 import { takeUnknownUnits } from './tech.js';
 import { withUnits, type UnitCatalog } from './units.js';
@@ -104,6 +105,10 @@ function parseHtml($: cheerio.CheerioAPI, htmlText: string, input: ParseInput, w
   const url = input.url ?? undefined;
   const page = queryParam(url, 'page')?.toLowerCase() ?? null;
 
+  if (page === 'playercard' || isPlayerCardHtml($)) {
+    const r = parsePlayerCardHtml($);
+    if (r) return { pageType: 'playerCard', records: [r] };
+  }
   if (page === 'raport' || isCombatReportText(htmlText)) {
     const reportId = queryParam(url, 'raport');
     const r = parseCombatReportText(htmlText, reportId);
@@ -182,6 +187,13 @@ function parseText(text: string, input: ParseInput, warnings: string[]): { pageT
   }
   if (isMarketplaceText(text)) {
     return { pageType: 'marketplace', records: [parseMarketplaceText(text)] };
+  }
+  if (isPlayerCardText(text)) {
+    const r = parsePlayerCardText(text);
+    if (r) {
+      if (r.ingameId == null) warnings.push('plaintext_players_by_name');
+      return { pageType: 'playerCard', records: [r] };
+    }
   }
   if (isStatsText(text)) {
     const r = parseStatsText(text);

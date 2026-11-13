@@ -29,7 +29,7 @@ export interface Explanation {
 /** Game pages the hub reads (`page=` ids), see `parsePage`. */
 export const SUPPORTED_PAGES = new Set([
   'overview', 'empire', 'imperium', 'galaxy', 'messages', 'statistics', 'buildings', 'research', 'marketplace', 'battlehall', 'raport',
-  'fleettable', 'phalanx',
+  'fleettable', 'phalanx', 'playercard',
 ]);
 
 /** Pages the hub does not read with the titles of their menu entries (German, English) in the game's language files. */
@@ -48,12 +48,12 @@ const UNSUPPORTED: { page: string; titles: string[] }[] = [
   { page: 'repairdock', titles: ['Reparaturdock', 'Repair dock'] },
   { page: 'battlesimulator', titles: ['Kampfsimulator', 'Simulator'] },
   { page: 'banlist', titles: ['Pranger', 'Banned'] },
-  { page: 'playercard', titles: ['Spielerinformationen', 'Player Profile'] },
 ];
 /** Menu titles of the game (German and English): two of them mark a page of the game. */
 const MENU = [
   'Übersicht', 'Overview', 'Imperium', 'Empire', 'Galaxie', 'Galaxy', 'Nachrichten', 'Messages', 'Flotte', 'Fleet', 'Forschung', 'Research',
-  'Gebäude', 'Buildings', 'Statistik', 'Statistics', 'Marktplatz', 'Battle Hall', ...UNSUPPORTED.flatMap((u) => u.titles),
+  'Gebäude', 'Buildings', 'Statistik', 'Statistics', 'Marktplatz', 'Battle Hall', 'Spielerinformationen', 'Player Profile',
+  ...UNSUPPORTED.flatMap((u) => u.titles),
 ];
 const LANGS = new Set(['de', 'en']);
 /** Menu titles in the game's other languages (galaxy, messages, research, buildings, from the INGAME.yaml of each language). */

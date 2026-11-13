@@ -1,0 +1,10 @@
+Player Profile
+Username	Alice
+Home planet	Home [2:10:4]
+Alliance	The Alliance
+	Points	Rank
+	Buildings	-
+	Research	-
+	Fleet	-
+	Defenses	-
+	Total	0	100%	12
