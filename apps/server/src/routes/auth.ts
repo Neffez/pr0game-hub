@@ -229,7 +229,7 @@ export function authRoutes(app: FastifyInstance, db: DB) {
   app.post<{ Body: { username?: string; password?: string; message?: string; lang?: string } }>('/api/access-requests', async (req) => {
     const key = `access|${req.ip}`;
     if (loginBlocked(key, ACCESS_REQUESTS_PER_IP)) throw new HttpError(429, 'too_many_attempts', 'Too many requests, please try again later');
-    const username = checkUsername(db, req.body?.username);
+    const username = checkUsername(db, req.body?.username, 0, true);
     const password = checkPassword(req.body?.password);
     const message = String(req.body?.message ?? '').trim();
     if (!message) throw new HttpError(400, 'message_missing', 'Message missing');

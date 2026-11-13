@@ -2196,7 +2196,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
         '409':
-          description: Username taken by an account or an open request (`username_taken`)
+          description: Username taken by an account with a password or an open request (`username_taken`; placeholder members without a password do not block the name)
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }

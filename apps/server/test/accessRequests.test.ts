@@ -46,6 +46,12 @@ describe('access requests', () => {
     expect((await request({ username: 'bobby', password: 'longenough', message: 'x'.repeat(501) })).statusCode).toBe(400);
   });
 
+  it('allows a username reserved for a placeholder member', async () => {
+    expect((await request({ username: 'Bob', password: 'longenough', message: 'Bob here' })).statusCode).toBe(200);
+    const [open] = (await call('GET', '/admin/access-requests', admin)).json().requests.filter((r: { username: string }) => r.username === 'Bob');
+    expect((await call('DELETE', `/admin/access-requests/${open.id}`, admin)).statusCode).toBe(200);
+  });
+
   it('needs a login to list, hides the password and is assigned to a player without an account', async () => {
     expect((await request({ username: 'bobby', password: 'longenough', message: 'Hi, I am Bob', lang: 'en' })).statusCode).toBe(200);
     expect((await request({ username: 'bobby', password: 'longenough', message: 'Hi' })).statusCode).toBe(409);
@@ -53,16 +59,16 @@ describe('access requests', () => {
     expect((await call('GET', '/admin/access-requests', {})).statusCode).toBe(401);
 
     const list = (await call('GET', '/admin/access-requests', admin)).json();
-    expect(list.requests).toHaveLength(1);
-    expect(list.requests[0]).toMatchObject({ username: 'bobby', message: 'Hi, I am Bob' });
-    expect(list.requests[0].password_hash).toBeUndefined();
+    const bobby = list.requests.find((r: { username: string }) => r.username === 'bobby');
+    expect(bobby).toMatchObject({ username: 'bobby', message: 'Hi, I am Bob' });
+    expect(bobby.password_hash).toBeUndefined();
     expect(list.placeholders.map((p: { id: number }) => p.id)).toContain(placeholder);
 
     // players with an account can't be taken over
     const adminId = db.prepare("SELECT id FROM users WHERE username = 'admin'").pluck().get();
-    expect((await call('POST', `/admin/access-requests/${list.requests[0].id}/assign`, admin, { userId: adminId })).statusCode).toBe(400);
+    expect((await call('POST', `/admin/access-requests/${bobby.id}/assign`, admin, { userId: adminId })).statusCode).toBe(400);
 
-    expect((await call('POST', `/admin/access-requests/${list.requests[0].id}/assign`, admin, { userId: placeholder })).statusCode).toBe(200);
+    expect((await call('POST', `/admin/access-requests/${bobby.id}/assign`, admin, { userId: placeholder })).statusCode).toBe(200);
     expect((await call('GET', '/admin/access-requests', admin)).json().requests).toHaveLength(0);
     // the claim link of the player is gone, the requested login works
     expect(db.prepare('SELECT COUNT(*) FROM invites WHERE user_id = ?').pluck().get(placeholder)).toBe(0);

@@ -16,6 +16,16 @@ export interface ChangelogDay {
 
 export const CHANGELOG: ChangelogDay[] = [
   {
+    date: '2026-11-13',
+    items: [
+      {
+        kind: 'fix',
+        de: 'Zugang anfragen: Ein Benutzername, der nur einem Platzhalter-Mitglied ohne Konto gehört, wird nicht mehr als vergeben abgewiesen.',
+        en: 'Request access: a username that only belongs to a placeholder member without an account is no longer rejected as taken.',
+      },
+    ],
+  },
+  {
     date: '2026-11-12',
     items: [
       {

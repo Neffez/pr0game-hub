@@ -274,11 +274,17 @@ export function requireAdmin(req: FastifyRequest): SessionUser {
   return user;
 }
 
-/** Validates a username and checks that no other user has it (case-insensitive). */
-export function checkUsername(db: DB, raw: unknown, exceptUserId = 0): string {
+/**
+ * Validates a username and checks that no other user has it (case-insensitive).
+ * With `placeholdersOk`, only accounts with a password block the name (reserved usernames of placeholder members).
+ */
+export function checkUsername(db: DB, raw: unknown, exceptUserId = 0, placeholdersOk = false): string {
   const username = String(raw ?? '').trim();
   if (!/^[\w.\- ]{3,32}$/.test(username)) throw new HttpError(400, 'username_invalid', 'Username: 3–32 characters (letters, digits, . _ -)');
-  if (db.prepare('SELECT 1 FROM users WHERE username = ? AND id != ?').get(username, exceptUserId)) throw new HttpError(409, 'username_taken', 'Username already taken');
+  const taken = placeholdersOk
+    ? db.prepare("SELECT 1 FROM users WHERE username = ? AND id != ? AND password_hash != ''").get(username, exceptUserId)
+    : db.prepare('SELECT 1 FROM users WHERE username = ? AND id != ?').get(username, exceptUserId);
+  if (taken) throw new HttpError(409, 'username_taken', 'Username already taken');
   return username;
 }
 

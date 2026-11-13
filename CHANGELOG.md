@@ -2,6 +2,11 @@
 
 Every commit adds its changes here, newest first, grouped by date.
 
+## 2026-11-13
+
+- Fix access requests: requesting a username that only belongs to a placeholder member (no password yet) no longer
+  returns “username taken”; real accounts and open requests still block the name.
+
 ## 2026-11-12
 
 - Statistics: the **Units** ranking of universes that have it (game `type` 7, since universe 8) can be pasted and
