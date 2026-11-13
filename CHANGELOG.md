@@ -4,9 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-13
 
-- Fix umlauts in the online list: a display name like “Bananenfürst” stayed “Bananenf_rst” (the ASCII login username).
-  Combining characters are stored NFC; new members keep the original letters as display name; existing accounts whose
-  username was that name with umlauts turned into `_` get the in-game name as display name.
+- Fix names with umlauts in the online list (they showed with `_` in place of the umlaut). Combining characters are
+  stored NFC; new members keep the original letters as display name; existing accounts whose login username was the
+  in-game name with umlauts turned into `_` get that name as display name.
 
 - Hub display name on the account (what others see in the online list, comments and similar); login username and
   in-game name stay separate. Empty falls back to the username. Alliance admins can set it per member.

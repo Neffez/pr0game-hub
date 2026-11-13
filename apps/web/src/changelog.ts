@@ -20,8 +20,8 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
-        de: 'Umlaute in der Online-Liste: statt Bananenfürst stand dort Bananenf_rst (der Login-Name ohne Umlaute). Der Anzeigename behält die Buchstaben.',
-        en: 'Umlauts in the online list: Bananenfürst showed as Bananenf_rst (the login name without umlauts). The display name keeps the letters.',
+        de: 'Namen mit Umlauten werden in der Online-Liste wieder korrekt angezeigt.',
+        en: 'Names with umlauts are shown correctly in the online list.',
       },
       {
         kind: 'new',
