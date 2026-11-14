@@ -107,6 +107,12 @@ describe('build order', () => {
     const res = (await call('PATCH', '/u8/build-order', h.carol, { planets: swapped })).json();
     expect(res.buildOrder.order).toEqual({ base: order.base, planets: swapped });
     expect((await call('PATCH', '/u8/build-order', h.carol, { planets: { [HOME]: [{ id: 'z', kind: 'nope' }] } })).statusCode).toBe(400);
+    // an added step can bring its start level along; a bad base is refused and changes nothing
+    expect((await call('PATCH', '/u8/build-order', h.carol, { planets: swapped, base: { planets: { [HOME]: { 1: -1 } }, research: {} } })).statusCode).toBe(400);
+    const added = { [HOME]: [...swapped[HOME], { id: 'd', kind: 'building', element: 4 }] };
+    const base = { planets: { [HOME]: { ...order.base.planets[HOME], 4: 12 } }, research: {} };
+    expect((await call('PATCH', '/u8/build-order', h.carol, { planets: added, base })).json().buildOrder.order).toEqual({ base, planets: added });
+    expect((await call('PATCH', '/u8/build-order', h.carol, { planets: swapped })).json().buildOrder.order.base).toEqual(base);
     // crystal mine 6 is next now and affordable
     const bell = (await call('GET', '/u8/notifications', h.carol)).json().filter((n: { kind: string }) => n.kind === 'buildorder');
     expect(bell).toMatchObject([{ id: 'buildorder:1:1:1:planet:b', planet: { g: 1, s: 1, p: 1, name: 'Home' }, step: { id: 'b', kind: 'building', element: 2, target: 6 } }]);

@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-14
 
+- Build order: steps can be added by hand (buildings, research, ships, defense; several levels or units at once, at
+  any position), also without a pr0plan import, which starts a build order from the hub's levels.
+  - `insertSteps` in `@pr0hub/planner` inserts the steps and starts an element without steps yet from the hub's
+    level (queues included), so existing steps keep their levels.
+  - `PATCH /api/{uni}/build-order` takes an optional `base` (start levels of the added elements).
 - Fix overview sync: the planet picture is its own block in the game HTML; the parser only looked at that
   first block and missed the running build/research/shipyard. A following overview ingest then cleared the
   build queue (the planet looked idle).

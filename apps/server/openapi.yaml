@@ -3632,8 +3632,8 @@ paths:
       tags: [Universe]
       operationId: putBuildOrder
       description: >-
-        Imports a build order, replacing the caller's one in the group. The client maps the file's planets onto hub
-        planets and sets the base. Planets without coordinates yet (before the start, or a colony still to come) use the
+        Imports a build order, replacing the caller's one in the group (also used to start one by hand, `meta.source`
+        `hub`). The client maps the file's planets onto hub planets and sets the base. Planets without coordinates yet (before the start, or a colony still to come) use the
         planned key `0:0:<n>:planet` (n: pr0plan planet id) and are later moved with `/api/{uni}/build-order/assign`.
       parameters:
         - { $ref: '#/components/parameters/Uni' }
@@ -3661,7 +3661,9 @@ paths:
     patch:
       tags: [Universe]
       operationId: patchBuildOrder
-      description: Replaces the steps (new order, done and deactivated flags, removed steps); base and meta stay.
+      description: >-
+        Replaces the steps (new order, done and deactivated flags, removed or added steps). The base is replaced only
+        when `base` is sent (the client sets the start levels of elements added by hand); meta stays.
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
@@ -3675,6 +3677,12 @@ paths:
               required: [planets]
               properties:
                 planets: { type: object, description: Hub planet key -> steps in order, additionalProperties: { type: array, items: { $ref: '#/components/schemas/BuildOrderStep' } } }
+                base:
+                  type: object
+                  description: 'Optional new start levels, as `BuildOrder.base` (`planets`, `research`); omitted keeps the stored base'
+                  properties:
+                    planets: { type: object }
+                    research: { type: object }
       responses:
         '200':
           content:
