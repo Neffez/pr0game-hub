@@ -43,9 +43,14 @@ export function parseOverviewHtml($: CheerioAPI): OverviewRecord | null {
   };
 
   // Current planet: "<a href=…page=buildings>Gebäude:</a> Metallmine (25)<br><div class="timer" data-time="…">"
+  // The image is its own `.planeth`; the name and queues are the next one (page.overview.default.tpl, shared by
+  // every theme — only `$dpath` differs). `.first()` is only the picture and would miss every queue, then ingest
+  // treats the planet as idle.
+  const box = $('.planeth').toArray().find((el) => $(el).find('a[href*="page=buildings"], .timer').length)
+    ?? $('.planeth').get(0);
   let kind: OverviewQueue['kind'] | null = null;
   let text = '';
-  for (const node of $('.planeth').first().contents().toArray()) {
+  for (const node of (box ? $(box).contents().toArray() : [])) {
     if (node.type === 'text') {
       text += (node as unknown as { data: string }).data;
       continue;

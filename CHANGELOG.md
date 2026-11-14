@@ -2,6 +2,12 @@
 
 Every commit adds its changes here, newest first, grouped by date.
 
+## 2026-11-14
+
+- Fix overview sync: the planet picture is its own block in the game HTML; the parser only looked at that
+  first block and missed the running build/research/shipyard. A following overview ingest then cleared the
+  build queue (the planet looked idle).
+
 ## 2026-11-13
 
 - Sync: a copied **player profile** (the in-game popup) stores the player's home planet in the overview. Select the

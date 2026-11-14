@@ -16,6 +16,16 @@ export interface ChangelogDay {
 
 export const CHANGELOG: ChangelogDay[] = [
   {
+    date: '2026-11-14',
+    items: [
+      {
+        kind: 'fix',
+        de: 'Übersicht: laufende Bauten, Forschung und Werft gehen beim Sync nicht mehr verloren (das Planetenbild steht im Spiel in einem eigenen Block).',
+        en: 'Overview: running builds, research and the shipyard are no longer dropped on sync (the planet picture is its own block in the game).',
+      },
+    ],
+  },
+  {
     date: '2026-11-13',
     items: [
       {

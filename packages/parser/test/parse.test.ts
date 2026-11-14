@@ -654,6 +654,34 @@ describe('galaxy + empire', () => {
 });
 
 describe('overview', () => {
+  it.each(['community', 'nova'])('reads the current planet queues when the image is a separate .planeth (%s theme)', (theme) => {
+    // live overview template (shared by every theme, only $dpath differs): first .planeth is the picture
+    const html = `<!DOCTYPE html><html lang="de"><body id="overview">
+      <select id="planetSelector"><option selected="selected">Amaterasu [1:194:11]</option></select>
+      <div class="planeto">Übersicht</div>
+      <div class="planeth">
+        <img src="./styles/theme/${theme}/planeten/normaltempplanet04.jpg" alt="Amaterasu">
+      </div>
+      <div class="planeth">
+        Amaterasu
+        <br>
+        <a href="game.php?page=buildings">Gebäude:</a> Deuteriumsynthetisierer (2)
+        <br>
+        <div class="timer" data-umode="0" data-time="126">2m 6s</div>
+        <a href="game.php?page=research">Forschung: Frei</a>
+        <br>
+        <a href="game.php?page=shipyard&amp;mode=fleet">Schiffswerft: Frei</a>
+        <br>
+      </div>
+    </body></html>`;
+    const rec = parsePage({ html }).records[0] as any;
+    expect(rec.kind).toBe('overview');
+    expect(rec.current).toEqual({ coords: { g: 1, s: 194, p: 11 }, type: 'planet' });
+    expect(rec.queues).toEqual([
+      { kind: 'building', coords: { g: 1, s: 194, p: 11 }, type: 'planet', id: 3, level: 2, destroy: false, seconds: 126 },
+    ]);
+  });
+
   it('parses build, research and shipyard queues with remaining time', () => {
     const res = parsePage({ text: fixture('overview.html') });
     expect(res.pageType).toBe('overview');
