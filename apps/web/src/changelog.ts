@@ -25,6 +25,11 @@ export const CHANGELOG: ChangelogDay[] = [
       },
       {
         kind: 'fix',
+        de: 'Kommentare bei Spielern, Planeten und Plänen werden wieder angezeigt, auch das Eingabefeld.',
+        en: 'Comments on players, planets and plans show again, including the input box.',
+      },
+      {
+        kind: 'fix',
         de: 'Übersicht: laufende Bauten, Forschung und Werft gehen beim Sync nicht mehr verloren (das Planetenbild steht im Spiel in einem eigenen Block).',
         en: 'Overview: running builds, research and the shipyard are no longer dropped on sync (the planet picture is its own block in the game).',
       },

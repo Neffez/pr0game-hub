@@ -9,6 +9,9 @@ Every commit adds its changes here, newest first, grouped by date.
   - `insertSteps` in `@pr0hub/planner` inserts the steps and starts an element without steps yet from the hub's
     level (queues included), so existing steps keep their levels.
   - `PATCH /api/{uni}/build-order` takes an optional `base` (start levels of the added elements).
+- Fix comment threads (players, plans, planets) rendering nothing, not even the input: the placeholder named
+  `@name` with a bare `@`, which vue-i18n reads as a linked message and fails to compile. The `@` is now escaped
+  there and in the display name error; a new test compiles every DE/EN text so such a text fails the tests.
 - Fix overview sync: the planet picture is its own block in the game HTML; the parser only looked at that
   first block and missed the running build/research/shipyard. A following overview ingest then cleared the
   build queue (the planet looked idle).
