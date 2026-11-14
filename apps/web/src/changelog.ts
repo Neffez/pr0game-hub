@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-14',
     items: [
       {
+        kind: 'new',
+        de: 'Bauliste: Gebäude, Forschungen, Schiffe und Verteidigung lassen sich jetzt von Hand hinzufügen – mehrere Stufen auf einmal und an beliebiger Position. Das geht auch ohne pr0plan-Import, dann startet die Liste beim aktuellen Stand.',
+        en: 'Build order: add buildings, research, ships and defense by hand – several levels at once and at any position. This also works without a pr0plan import; the list then starts from your current levels.',
+      },
+      {
         kind: 'fix',
         de: 'Kommentare bei Spielern, Planeten und Plänen werden wieder angezeigt, auch das Eingabefeld.',
         en: 'Comments on players, planets and plans show again, including the input box.',

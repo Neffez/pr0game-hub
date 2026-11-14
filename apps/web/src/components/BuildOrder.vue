@@ -12,8 +12,10 @@ export interface StoredBuildOrder {
 
 <script setup lang="ts">
 import {
-  compareSettings, isPlannedKey, plannedNumber, plannedPlanet, simulate, type HubState, type Pr0planImport, type Step, type StepResult,
+  baseFromHub, compareSettings, insertSteps, isPlannedKey, plannedNumber, plannedPlanet, simulate, targetsOf, type HubState, type NewStep,
+  type Pr0planImport, type Step, type StepResult,
 } from '@pr0hub/planner';
+import { buildingsFor, RESEARCH } from '@pr0hub/core/buildings';
 import { RESOURCES } from '@pr0hub/core/tech';
 import { startResourcesOf } from '@pr0hub/core/universe';
 import { computed, onMounted, ref, watch } from 'vue';
@@ -26,11 +28,14 @@ import { tables, useLiveReload } from '../live';
 import BuildOrderImport from './BuildOrderImport.vue';
 import Icon from './Icon.vue';
 import Ticker from './Ticker.vue';
+import { units } from '../units';
 
 /**
  * Build order tab of build & research: the steps of the chosen planet in order with their timeline from the hub's
  * state (start, end, what they wait for), the next one highlighted; reorder by dragging (desktop) or the arrows,
- * check off, deactivate, remove. Import from pr0plan in a dialog; the file's settings are compared with the hub's.
+ * check off, deactivate, remove, add buildings, research, ships and defense by hand (also without an import: that
+ * starts a build order from the hub's levels). Import from pr0plan in a dialog; the file's settings are compared with
+ * the hub's.
  * Planned planets (no coordinates yet: before the start, or a colony to come) are simulated as new planets from the
  * universe's start and are assigned to a synced planet later. `planetKey` null: no synced planet (yet).
  */
@@ -205,6 +210,66 @@ async function removeAll() {
   }
 }
 
+// ------------------------------------------------------------------ adding steps
+type AddKind = NewStep['kind'];
+const ADD_KINDS: AddKind[] = ['building', 'research', 'ship', 'defense'];
+const addOpen = ref(false);
+const addKind = ref<AddKind>('building');
+const addElement = ref<number | null>(null);
+/** levels (building, research) or units (ship, defense) */
+const addCount = ref(1);
+/** 1-based position the first new step gets; past the end appends */
+const addAt = ref(1);
+const planetType = computed(() => props.hub.planets.find((p) => p.key === planetKey.value)?.type ?? 'planet');
+const elementsOf = (kind: AddKind): number[] =>
+  kind === 'building' ? buildingsFor(planetType.value) : kind === 'research' ? Object.keys(RESEARCH).map(Number) : [...(kind === 'ship' ? units.value.ships : units.value.defense)];
+const addElements = computed(() => elementsOf(addKind.value));
+const isUnit = computed(() => addKind.value === 'ship' || addKind.value === 'defense');
+watch([addKind, addElements], () => {
+  if (!addElements.value.includes(addElement.value ?? -1)) addElement.value = addElements.value[0] ?? null;
+}, { immediate: true });
+watch(isUnit, () => (addCount.value = 1));
+/** appends by default; the position follows the list while the form is open */
+watch([() => steps.value.length, planetKey, addOpen], () => (addAt.value = steps.value.length + 1), { immediate: true });
+const countMax = computed(() => (isUnit.value ? 1e7 : 50));
+const addValid = computed(() => !!planetKey.value && addElement.value != null && Number.isInteger(addCount.value) && addCount.value >= 1 && addCount.value <= countMax.value);
+
+const newId = () =>
+  typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+const emptyOrder = (): Order => ({ base: baseFromHub(hubAll.value, []), planets: {} });
+/** the build order with the new steps (ids prefixed `new-` for the preview) */
+function withAdded(id: () => string): Order | null {
+  if (!addValid.value) return null;
+  const el = addElement.value!;
+  const add: NewStep[] = isUnit.value ? [{ kind: addKind.value, element: el, count: addCount.value }] : Array.from({ length: addCount.value }, () => ({ kind: addKind.value, element: el }));
+  return insertSteps(stored.value?.order ?? emptyOrder(), planetKey.value, add, addAt.value - 1, hubAll.value, id);
+}
+/** what the new steps reach: "Metallmine 12–14", "5× Leichter Jäger (8)" */
+const addPreview = computed(() => {
+  let n = 0;
+  const order = withAdded(() => `new-${n++}`);
+  if (!order) return null;
+  const targets = targetsOf(order);
+  const levels = order.planets[planetKey.value].filter((s) => s.id.startsWith('new-')).map((s) => targets.get(s.id) ?? 0);
+  const first = levels[0];
+  const last = levels[levels.length - 1];
+  return { from: first, to: last };
+});
+async function addSteps() {
+  const order = withAdded(newId);
+  if (!order) return;
+  saving.value = true;
+  try {
+    data.value = stored.value
+      ? await uniApi<{ buildOrder: StoredBuildOrder | null }>(uni.value, '/build-order', { method: 'PATCH', body: { planets: order.planets, base: order.base } })
+      : await uniApi<{ buildOrder: StoredBuildOrder | null }>(uni.value, '/build-order', { method: 'PUT', body: { order, meta: { source: 'hub' } } });
+  } catch (e) {
+    error.value = (e as Error).message;
+  } finally {
+    saving.value = false;
+  }
+}
+
 // drag and drop (desktop)
 const dragFrom = ref<number | null>(null);
 const dragOver = ref<number | null>(null);
@@ -220,7 +285,7 @@ function onDrop(i: number) {
   <div class="card" data-tour="build-order-head">
     <div class="row small">
       <template v-if="stored">
-        <span class="muted">{{ t('buildOrder.imported', { time: dateTime(stored.createdAt) }) }}</span>
+        <span class="muted">{{ t(stored.meta.source === 'pr0plan' ? 'buildOrder.imported' : 'buildOrder.created', { time: dateTime(stored.createdAt) }) }}</span>
         <span v-if="end" class="muted">{{ t('buildOrder.doneAt', { time: clock(end) }) }}</span>
         <span v-if="saving" class="faint">{{ t('buildOrder.saving') }}</span>
       </template>
@@ -229,6 +294,7 @@ function onDrop(i: number) {
       <a v-if="pr0planUrl" :href="pr0planUrl" target="_blank" rel="noopener" class="small" :title="t('buildOrder.pr0planTitle')">
         {{ t('buildOrder.pr0plan') }} <Icon name="external" :size="12" />
       </a>
+      <button v-if="planetKey" class="small" :class="{ active: addOpen }" data-tour="build-order-add" @click="addOpen = !addOpen"><Icon name="plus" :size="14" /> {{ t('buildOrder.add') }}</button>
       <button class="primary small" @click="importOpen = true"><Icon name="plus" :size="14" /> {{ t('buildOrder.import') }}</button>
       <button v-if="stored" class="small" @click="removeAll">{{ t('buildOrder.delete') }}</button>
     </div>
@@ -257,6 +323,26 @@ function onDrop(i: number) {
         <button class="small" :disabled="!assignTo[k] || saving" @click="assign(k)">{{ t('buildOrder.assign') }}</button>
       </div>
     </div>
+    <form v-if="addOpen && planetKey" class="bo-add small" @submit.prevent="addSteps">
+      <p class="muted" style="margin: 0">{{ t('buildOrder.addHint', { planet: planetLabel(planetKey) }) }}</p>
+      <div class="row bo-add-row">
+        <select v-model="addKind" :aria-label="t('buildOrder.addKind')">
+          <option v-for="k in ADD_KINDS" :key="k" :value="k">{{ t(`buildOrder.kind.${k}`) }}</option>
+        </select>
+        <select v-model="addElement" :aria-label="t('buildOrder.addElement')">
+          <option v-for="id in addElements" :key="id" :value="id">{{ name(id) }}</option>
+        </select>
+        <label>{{ isUnit ? t('buildOrder.addUnits') : t('buildOrder.addLevels') }}
+          <input v-model.number="addCount" type="number" min="1" :max="countMax" step="1" class="bo-num-input" />
+        </label>
+        <label>{{ t('buildOrder.addAt') }}
+          <input v-model.number="addAt" type="number" min="1" :max="steps.length + 1" step="1" class="bo-num-input" />
+        </label>
+        <span v-if="addPreview" class="muted">→ {{ isUnit ? t('buildOrder.addPreviewUnits', { n: fmt(addCount), total: fmt(addPreview.to) }) : addPreview.from === addPreview.to ? t('buildOrder.addPreviewLevel', { level: addPreview.to }) : t('buildOrder.addPreviewLevels', { from: addPreview.from, to: addPreview.to }) }}</span>
+        <button type="submit" class="primary small" :disabled="!addValid || saving">{{ t('buildOrder.addButton') }}</button>
+      </div>
+      <p v-if="!stored" class="faint" style="margin: 0">{{ t('buildOrder.addStarts') }}</p>
+    </form>
     <p v-if="missingPlanets.length" class="warn small" style="margin: 8px 0 0">{{ t('buildOrder.missingPlanets', { list: missingPlanets.join(', ') }) }}</p>
     <p v-if="otherPlanets.length" class="small muted" style="margin: 8px 0 0">
       {{ t('buildOrder.otherPlanets') }}
@@ -340,6 +426,10 @@ function onDrop(i: number) {
 .bo-planned { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
 .bo-planned-row { gap: 6px; flex-wrap: wrap; }
 .bo-filters { margin: 0 0 8px; }
+.bo-add { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border: 1px solid var(--border, #444); border-radius: 8px; }
+.bo-add-row { gap: 6px 10px; flex-wrap: wrap; }
+.bo-num-input { width: 6em; margin-left: 4px; }
+button.active { border-color: var(--accent); color: var(--accent); }
 .bo-step { margin-bottom: 6px; padding: 8px 12px; }
 .bo-step.next { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
 .bo-step.over { border-top: 2px solid var(--accent); }

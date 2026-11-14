@@ -15,8 +15,8 @@ const META_MAX = 64 * 1024;
 const beforeStart = { config: { allowBeforeStart: true } };
 
 /**
- * The viewer's build order (imported from pr0plan, shown under build & research): read, import or replace, change
- * the steps (order, done, deactivated, removed), delete. The next step of each planet notifies once it can start.
+ * The viewer's build order (imported from pr0plan or started by hand, shown under build & research): read, import or
+ * replace, change the steps (order, done, deactivated, removed, added), delete. The next step of each planet notifies once it can start.
  */
 export function buildOrderRoutes(app: FastifyInstance, db: DB) {
   const ctxOf = contextOf(db);
@@ -34,7 +34,7 @@ export function buildOrderRoutes(app: FastifyInstance, db: DB) {
     return { buildOrder: syncBuildOrder(db, ctx, ctx.user.id, stored, buildingsState(db, ctx, ctx.user.id), false) };
   });
 
-  /** Imports a build order: replaces the viewer's one in this group. */
+  /** Imports a build order (or starts one by hand): replaces the viewer's one in this group. */
   app.put<{ Params: { uni: string }; Body: { order?: unknown; meta?: unknown } }>('/api/:uni/build-order', beforeStart, async (req) => {
     const ctx = ctxOf(req);
     const res = withUnits(catalogOf(ctx.universe), () => validateBuildOrder(req.body?.order));
@@ -51,12 +51,16 @@ export function buildOrderRoutes(app: FastifyInstance, db: DB) {
     return result(ctx);
   });
 
-  /** Replaces the steps (new order, done and deactivated flags, removed steps); base and meta stay. */
-  app.patch<{ Params: { uni: string }; Body: { planets?: unknown } }>('/api/:uni/build-order', beforeStart, async (req) => {
+  /**
+   * Replaces the steps (new order, done and deactivated flags, removed or added steps); the base only when sent (start
+   * levels of elements added by hand), meta stays.
+   */
+  app.patch<{ Params: { uni: string }; Body: { planets?: unknown; base?: unknown } }>('/api/:uni/build-order', beforeStart, async (req) => {
     const ctx = ctxOf(req);
     const stored = buildOrderOf(db, ctx, ctx.user.id);
     if (!stored) throw new HttpError(404, 'build_order_not_found', 'No build order');
-    const res = withUnits(catalogOf(ctx.universe), () => validateBuildOrder({ base: stored.order.base, planets: req.body?.planets }));
+    const base = req.body?.base ?? stored.order.base;
+    const res = withUnits(catalogOf(ctx.universe), () => validateBuildOrder({ base, planets: req.body?.planets }));
     if ('error' in res) throw new HttpError(400, 'build_order_invalid', res.error);
     db.prepare('UPDATE build_orders SET data = ?, updated_at = ? WHERE group_id = ? AND user_id = ?').run(JSON.stringify(res.order), now(), ctx.groupId, ctx.user.id);
     changed(ctx);
