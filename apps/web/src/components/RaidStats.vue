@@ -3,6 +3,7 @@
  * Raid statistics (tab of the raid page): battle reports, recycling and interplanetary missile attacks of the members
  * in a time range, for the whole alliance or one member.
  */
+import type { Raids, RaidReport, RaidsPerUser } from '../apiTypes';
 import { unitCost } from '@pr0hub/core/units';
 import { nowSec } from '../clock';
 import ShowMore from './ShowMore.vue';
@@ -15,7 +16,7 @@ import { computed, onMounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
 import RangePicker from './RangePicker.vue';
-import { useLoader, useStored, useUni, useMobile, useSort, vStack, useLimit } from '../composables';
+import { fieldOf, useLoader, useStored, useUni, useMobile, useSort, vStack, useLimit } from '../composables';
 import { tables, useLiveReload } from '../live';
 import { coords, dateTime, fmt, name, short } from '../format';
 import { units } from '../units';
@@ -28,25 +29,25 @@ const days = useStored('raids.days', 7);
 /** null = whole alliance, otherwise one member */
 const member = useStored<number | null>('raids.member', null);
 
-const { data, error, load } = useLoader<any>(() => uniApi(uni.value, `/raids?from=${nowSec() - days.value * 86400}`));
+const { data, error, load } = useLoader<Raids>(() => uniApi<Raids>(uni.value, `/raids?from=${nowSec() - days.value * 86400}`));
 onMounted(load);
 useLiveReload(load, tables('battle_reports', 'combat_reports', 'recycle_reports', 'missile_impacts'));
 watch(days, load);
 
-const total = (u: any) => u.metal + u.crystal + u.deuterium;
+const total = (u: Pick<RaidsPerUser, 'metal' | 'crystal' | 'deuterium'>) => u.metal + u.crystal + u.deuterium;
 /** Links to the battle report like the battle hall: in the game (its report id) and the locally archived copy. */
 const gameUrl = computed(() => ctx.value?.universe.settings.gameUrl?.replace(/\/?$/, '/') ?? '');
-const inGame = (r: any) => !!gameUrl.value && /^[0-9a-f]{32}$/i.test(r.report_id ?? '');
-const reportLink = (r: any) => `${gameUrl.value}game.php?page=raport&raport=${r.report_id}`;
+const inGame = (r: RaidReport) => !!gameUrl.value && /^[0-9a-f]{32}$/i.test(r.report_id ?? '');
+const reportLink = (r: RaidReport) => `${gameUrl.value}game.php?page=raport&raport=${r.report_id}`;
 
-const perUserRows = computed(() => (data.value?.perUser ?? []).filter((u: any) => member.value == null || u.userId === member.value));
-const perUserSort = useSort<any>(
+const perUserRows = computed(() => (data.value?.perUser ?? []).filter((u) => member.value == null || u.userId === member.value));
+const perUserSort = useSort(
   perUserRows,
-  (u, k) => (k === 'name' ? u.username : k === 'total' ? total(u) : k === 'perRaid' ? total(u) / u.raids : u[k]),
+  (u, k) => (k === 'name' ? u.username : k === 'total' ? total(u) : k === 'perRaid' ? total(u) / u.raids : fieldOf(u, k)),
   'total',
 );
 const perUser = perUserSort.sorted;
-const reports = computed(() => (data.value?.reports ?? []).filter((r: any) => member.value == null || r.user_id === member.value));
+const reports = computed(() => (data.value?.reports ?? []).filter((r) => member.value == null || r.user_id === member.value));
 /** Sum over the shown members (alliance total). */
 const sum = computed(() =>
   perUser.value.reduce(
@@ -59,17 +60,17 @@ const sum = computed(() =>
 );
 
 // recycling reports (debris collected by the members' recyclers)
-const shown = (userId: number) => member.value == null || userId === member.value;
-const recyclerRows = computed(() => (data.value?.recyclePerUser ?? []).filter((u: any) => shown(u.userId)));
-const recyclerSort = useSort<any>(
+const shown = (userId: number | null) => member.value == null || userId === member.value;
+const recyclerRows = computed(() => (data.value?.recyclePerUser ?? []).filter((u) => shown(u.userId)));
+const recyclerSort = useSort(
   recyclerRows,
-  (u, k) => (k === 'name' ? u.username : k === 'total' ? u.metal + u.crystal : k === 'perRun' ? (u.metal + u.crystal) / u.runs : u[k]),
+  (u, k) => (k === 'name' ? u.username : k === 'total' ? u.metal + u.crystal : k === 'perRun' ? (u.metal + u.crystal) / u.runs : fieldOf(u, k)),
   'total',
 );
 const recyclers = recyclerSort.sorted;
-const recycling = computed(() => (data.value?.recycling ?? []).filter((r: any) => shown(r.user_id)));
+const recycling = computed(() => (data.value?.recycling ?? []).filter((r) => shown(r.user_id)));
 /** Long report lists: the newest 20 first. */
-const reportSort = useSort<any>(
+const reportSort = useSort(
   reports,
   (r, k) => {
     if (k === 'player') return r.username;
@@ -81,7 +82,7 @@ const reportSort = useSort<any>(
   },
   'time',
 );
-const recyclingSort = useSort<any>(
+const recyclingSort = useSort(
   recycling,
   (r, k) => {
     if (k === 'time') return r.time ?? r.created_at;
@@ -89,12 +90,12 @@ const recyclingSort = useSort<any>(
     if (k === 'target') return r.g * 1e6 + r.s * 100 + r.p;
     if (k === 'before') return r.total_metal + r.total_crystal;
     if (k === 'rest') return Math.max(0, r.total_metal - r.metal) + Math.max(0, r.total_crystal - r.crystal);
-    return r[k];
+    return fieldOf(r, k);
   },
   'time',
 );
-const reportsLimit = useLimit<any>(reportSort.sorted);
-const recyclingLimit = useLimit<any>(recyclingSort.sorted);
+const reportsLimit = useLimit(reportSort.sorted);
+const recyclingLimit = useLimit(recyclingSort.sorted);
 const recycleSum = computed(() =>
   recyclers.value.reduce(
     (s, u) => ({ runs: s.runs + u.runs, metal: s.metal + u.metal, crystal: s.crystal + u.crystal, left: s.left + u.left }),
@@ -109,7 +110,7 @@ const recyclerOptions = opts([['name', t('common.player')], ['runs', t('raids.ru
 const recyclingOptions = opts([['time', t('common.time')], ['player', t('common.player')], ['target', t('combat.debris')], ['metal', name(901)], ['crystal', name(902)], ['before', t('raids.debrisBefore')], ['rest', t('raids.rest')]]);
 const missileUserOptions = opts([['name', t('common.player')], ['attacks', t('raids.missileAttacks')], ['fired', t('raids.missilesFired')], ['intercepted', t('raids.intercepted')], ['units', t('raids.destroyedUnits')], ['value', t('raids.destroyedValue')], ['perMissile', t('raids.perMissile')]]);
 const missileOptions = opts([['time', t('common.time')], ['player', t('common.player')], ['target', t('hostile.target')], ['count', t('raids.missilesFired')], ['result', t('raids.result')], ['destroyed', t('raids.destroyed')], ['value', t('raids.destroyedValue')]]);
-const browseLink = (r: any) => ({ path: `/${uni.value}/browse`, query: { g: r.g, s: r.s } });
+const browseLink = (r: { g: number; s: number }) => ({ path: `/${uni.value}/browse`, query: { g: r.g, s: r.s } });
 
 // interplanetary missile attacks: the destroyed units valued at their costs in the open universe
 type Losses = Record<string, number> | null;
@@ -121,17 +122,17 @@ const unitCount = (losses: Losses) => Object.values(losses ?? {}).reduce((a, b) 
 const lossList = (losses: Losses) => Object.entries(losses ?? {}).map(([id, n]) => `${name(id)} −${fmt(n)}`).join(', ');
 const missileRows = computed(() =>
   (data.value?.missilePerUser ?? [])
-    .filter((u: any) => shown(u.userId))
-    .map((u: any) => ({ ...u, units: unitCount(u.losses), value: value(u.losses) })),
+    .filter((u) => shown(u.userId))
+    .map((u) => ({ ...u, units: unitCount(u.losses), value: value(u.losses) })),
 );
-const missileUserSort = useSort<any>(
+const missileUserSort = useSort(
   missileRows,
-  (u, k) => (k === 'name' ? u.username : k === 'perMissile' ? (u.fired ? u.value / u.fired : null) : u[k]),
+  (u, k) => (k === 'name' ? u.username : k === 'perMissile' ? (u.fired ? u.value / u.fired : null) : fieldOf(u, k)),
   'value',
 );
 const missileUsers = missileUserSort.sorted;
-const missiles = computed(() => (data.value?.missiles ?? []).filter((r: any) => shown(r.user_id)));
-const missileSort = useSort<any>(
+const missiles = computed(() => (data.value?.missiles ?? []).filter((r) => shown(r.user_id)));
+const missileSort = useSort(
   missiles,
   (r, k) => {
     if (k === 'time') return r.time ?? r.created_at;
@@ -140,11 +141,11 @@ const missileSort = useSort<any>(
     if (k === 'result') return r.result;
     if (k === 'destroyed') return unitCount(r.losses);
     if (k === 'value') return value(r.losses);
-    return r[k];
+    return fieldOf(r, k);
   },
   'time',
 );
-const missilesLimit = useLimit<any>(missileSort.sorted);
+const missilesLimit = useLimit(missileSort.sorted);
 const missileSum = computed(() =>
   missileUsers.value.reduce(
     (s, u) => ({
@@ -156,7 +157,7 @@ const missileSum = computed(() =>
 );
 /** Intercepted missiles as a share of those with a known result. */
 const interceptRate = (u: { known: number; intercepted: number }) => (u.known ? `${Math.round((u.intercepted / u.known) * 100)} %` : '–');
-const targetLink = (r: any) => ({ path: `/${uni.value}/spy`, query: { c: `${r.g}:${r.s}:${r.p}` } });
+const targetLink = (r: { g: number; s: number; p: number }) => ({ path: `/${uni.value}/spy`, query: { c: `${r.g}:${r.s}:${r.p}` } });
 </script>
 
 <template>
@@ -174,7 +175,7 @@ const targetLink = (r: any) => ({ path: `/${uni.value}/spy`, query: { c: `${r.g}
           <tr><th class="sortable" @click="perUserSort.sortBy('name')">{{ t('common.player') }}<SortMark :dir="perUserSort.direction('name')" /></th><th class="sortable num" @click="perUserSort.sortBy('raids')">{{ t('raids.count') }}<SortMark :dir="perUserSort.direction('raids')" /></th><th class="sortable num" @click="perUserSort.sortBy('metal')">{{ name(901) }}<SortMark :dir="perUserSort.direction('metal')" /></th><th class="sortable num" @click="perUserSort.sortBy('crystal')">{{ name(902) }}<SortMark :dir="perUserSort.direction('crystal')" /></th><th class="sortable num" @click="perUserSort.sortBy('deuterium')">{{ t('game.deutShort') }}<SortMark :dir="perUserSort.direction('deuterium')" /></th><th class="sortable num" @click="perUserSort.sortBy('total')">{{ t('common.total') }}<SortMark :dir="perUserSort.direction('total')" /></th><th class="sortable num" @click="perUserSort.sortBy('perRaid')">{{ t('raids.perRaid') }}<SortMark :dir="perUserSort.direction('perRaid')" /></th><th class="sortable num" @click="perUserSort.sortBy('lost')">{{ t('raids.losses') }}<SortMark :dir="perUserSort.direction('lost')" /></th><th class="sortable num" @click="perUserSort.sortBy('debris')">{{ t('game.debrisShort') }}<SortMark :dir="perUserSort.direction('debris')" /></th></tr>
         </thead>
         <tbody>
-          <tr v-for="u in perUser" :key="u.username">
+          <tr v-for="u in perUser" :key="u.userId ?? u.username ?? ''">
             <td>{{ u.username }}<span v-if="u.userId === ctx!.me.id" class="faint small"> {{ t('raids.you') }}</span></td>
             <td class="num">{{ u.raids }}</td>
             <td class="num">{{ short(u.metal) }}</td>
@@ -245,7 +246,7 @@ const targetLink = (r: any) => ({ path: `/${uni.value}/spy`, query: { c: `${r.g}
           <tr><th class="sortable" @click="recyclerSort.sortBy('name')">{{ t('common.player') }}<SortMark :dir="recyclerSort.direction('name')" /></th><th class="sortable num" @click="recyclerSort.sortBy('runs')">{{ t('raids.runs') }}<SortMark :dir="recyclerSort.direction('runs')" /></th><th class="sortable num" @click="recyclerSort.sortBy('metal')">{{ name(901) }}<SortMark :dir="recyclerSort.direction('metal')" /></th><th class="sortable num" @click="recyclerSort.sortBy('crystal')">{{ name(902) }}<SortMark :dir="recyclerSort.direction('crystal')" /></th><th class="sortable num" @click="recyclerSort.sortBy('total')">{{ t('common.total') }}<SortMark :dir="recyclerSort.direction('total')" /></th><th class="sortable num" @click="recyclerSort.sortBy('perRun')">{{ t('raids.perRun') }}<SortMark :dir="recyclerSort.direction('perRun')" /></th><th class="sortable num" @click="recyclerSort.sortBy('left')">{{ t('raids.leftInDebris') }}<SortMark :dir="recyclerSort.direction('left')" /></th></tr>
         </thead>
         <tbody>
-          <tr v-for="u in recyclers" :key="u.username">
+          <tr v-for="u in recyclers" :key="u.userId ?? u.username ?? ''">
             <td>{{ u.username }}<span v-if="u.userId === ctx!.me.id" class="faint small"> {{ t('raids.you') }}</span></td>
             <td class="num">{{ u.runs }}</td>
             <td class="num">{{ short(u.metal) }}</td>
@@ -299,7 +300,7 @@ const targetLink = (r: any) => ({ path: `/${uni.value}/spy`, query: { c: `${r.g}
           <tr><th class="sortable" @click="missileUserSort.sortBy('name')">{{ t('common.player') }}<SortMark :dir="missileUserSort.direction('name')" /></th><th class="sortable num" @click="missileUserSort.sortBy('attacks')">{{ t('raids.missileAttacks') }}<SortMark :dir="missileUserSort.direction('attacks')" /></th><th class="sortable num" @click="missileUserSort.sortBy('fired')">{{ t('raids.missilesFired') }}<SortMark :dir="missileUserSort.direction('fired')" /></th><th class="sortable num" @click="missileUserSort.sortBy('intercepted')">{{ t('raids.intercepted') }}<SortMark :dir="missileUserSort.direction('intercepted')" /></th><th class="sortable num" @click="missileUserSort.sortBy('units')">{{ t('raids.destroyedUnits') }}<SortMark :dir="missileUserSort.direction('units')" /></th><th class="sortable num" @click="missileUserSort.sortBy('value')">{{ t('raids.destroyedValue') }}<SortMark :dir="missileUserSort.direction('value')" /></th><th class="sortable num" @click="missileUserSort.sortBy('perMissile')">{{ t('raids.perMissile') }}<SortMark :dir="missileUserSort.direction('perMissile')" /></th></tr>
         </thead>
         <tbody>
-          <tr v-for="u in missileUsers" :key="u.username">
+          <tr v-for="u in missileUsers" :key="u.userId ?? u.username ?? ''">
             <td>{{ u.username }}<span v-if="u.userId === ctx!.me.id" class="faint small"> {{ t('raids.you') }}</span></td>
             <td class="num">{{ u.attacks }}</td>
             <td class="num">{{ fmt(u.fired) }}</td>

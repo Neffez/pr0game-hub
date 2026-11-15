@@ -138,7 +138,7 @@ export function reportsRoutes(app: FastifyInstance, db: DB) {
     const players = memberPlayers(db, ctx);
     const missileRows = db
       .prepare(
-        `SELECT m.id, m.user_id, m.time, m.count, m.from_g, m.from_s, m.from_p, m.g, m.s, m.p, m.result, m.intercepted, m.losses,
+        `SELECT m.id, m.user_id, m.time, m.created_at, m.count, m.from_g, m.from_s, m.from_p, m.g, m.s, m.p, m.result, m.intercepted, m.losses,
            ${DISPLAY} AS username, fp.player_id AS from_player_id, tp.player_id AS target_player_id, tpl.name AS target_player_name
          FROM missile_impacts m LEFT JOIN users u ON u.id = m.user_id
          LEFT JOIN planets fp ON fp.group_id = m.group_id AND fp.g = m.from_g AND fp.s = m.from_s AND fp.p = m.from_p

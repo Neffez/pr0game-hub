@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { PlayerDetails, PlayerScore } from '../apiTypes';
 import { nowSec } from '../clock';
 import Section from './Section.vue';
 import Icon from './Icon.vue';
@@ -32,15 +33,15 @@ let chart: Chart | null = null;
 
 /** Planets with their moons as separate rows (each has its own actions). */
 const planetRows = computed(() =>
-  (data.value?.planets ?? []).flatMap((p: any) => [
-    { ...p, type: 'planet', spy: p.last_spy },
-    ...(p.has_moon ? [{ ...p, type: 'moon', name: p.moon_name, spy: p.last_spy_moon }] : []),
+  (data.value?.planets ?? []).flatMap((p) => [
+    { ...p, type: 'planet' as const, spy: p.last_spy },
+    ...(p.has_moon ? [{ ...p, type: 'moon' as const, name: p.moon_name, spy: p.last_spy_moon }] : []),
   ]),
 );
 
 const COLORS: Record<number, string> = { 1: '#f2683c', 2: '#58a6ff', 3: '#a371f7', 4: '#3fb950', 5: '#d29922' };
 
-const { data, error, load: fetchPlayer } = useLoader<any>(() => uniApi(uni.value, `/players/${props.id}`));
+const { data, error, load: fetchPlayer } = useLoader<PlayerDetails>(() => uniApi<PlayerDetails>(uni.value, `/players/${props.id}`));
 async function load() {
   const d = await fetchPlayer();
   if (!d) return;
@@ -50,11 +51,12 @@ async function load() {
 }
 
 function draw() {
-  if (!canvas.value || !data.value) return;
+  const d = data.value;
+  if (!canvas.value || !d) return;
   chart?.destroy();
   const datasets = [1, 2, 3, 4, 5].map((type) => ({
     label: STATS_TYPES[type],
-    data: data.value.history.filter((h: any) => h.type === type).map((h: any) => ({ x: h.time * 1000, y: h.points })),
+    data: d.history.filter((h) => h.type === type).map((h) => ({ x: h.time * 1000, y: h.points })),
     borderColor: COLORS[type],
     backgroundColor: COLORS[type],
     pointRadius: 2,
@@ -63,11 +65,11 @@ function draw() {
   }));
   // own total and fleet points as dashed lines for comparison (toggle via the legend like the others)
   for (const type of [1, 2]) {
-    const points = (data.value.ownHistory ?? []).filter((h: any) => h.type === type);
+    const points = (d.ownHistory ?? []).filter((h) => h.type === type);
     if (!points.length) continue;
     datasets.push({
       label: t('player.own', { type: STATS_TYPES[type] }),
-      data: points.map((h: any) => ({ x: h.time * 1000, y: h.points })),
+      data: points.map((h) => ({ x: h.time * 1000, y: h.points })),
       borderColor: COLORS[type],
       backgroundColor: COLORS[type],
       borderDash: [6, 4],
@@ -124,7 +126,7 @@ const sourceName = (source: string) => (source === 'spy' ? t('player.sourceSpy')
 const sourceText = (k: { time: number; source: string }) => t('player.sourceText', { source: sourceName(k.source), time: dateTime(k.time), ago: ago(k.time) });
 
 const latest = computed(() => {
-  const out: Record<number, any> = {};
+  const out: Record<number, PlayerScore> = {};
   for (const h of data.value?.history ?? []) out[h.type] = h;
   return out;
 });
@@ -156,9 +158,9 @@ onBeforeUnmount(() => chart?.destroy());
     <p class="muted small">
       <template v-if="data.player.ingame_id">ID {{ data.player.ingame_id }} · </template>
       {{ t('player.lastSeen', { time: dateTime(data.player.last_seen) }) }}
-      <template v-if="data.aliases.length"> · {{ t('player.aliases', { names: data.aliases.map((a: any) => a.name).join(', ') }) }}</template>
+      <template v-if="data.aliases.length"> · {{ t('player.aliases', { names: data.aliases.map((a) => a.name).join(', ') }) }}</template>
       ·
-      <RouterLink :to="{ path: `/${uni}/messages`, query: { partner: String(data.player.id), with: [data.player.name, ...data.aliases.map((a: any) => a.name)] } }">
+      <RouterLink :to="{ path: `/${uni}/messages`, query: { partner: String(data.player.id), with: [data.player.name, ...data.aliases.map((a) => a.name)] } }">
         {{ t('player.messages') }}
       </RouterLink>
     </p>

@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Raid-Statistik: Raketenangriffe ohne Zeit im Bericht zeigen wieder ein Datum (wann sie synchronisiert wurden).',
+        en: 'Raid statistics: missile attacks without a time in the report show a date again (when they were synced).',
+      },
+      {
+        kind: 'fix',
         de: 'Ohne Verbindung zum Hub erscheint jetzt eine verständliche Meldung statt „Failed to fetch“.',
         en: 'Without a connection to the hub you now get a clear message instead of "Failed to fetch".',
       },

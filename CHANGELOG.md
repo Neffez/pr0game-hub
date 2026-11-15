@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-15
 
+- The web app's last untyped loaders are typed (C-02 of the review): `apiTypes.ts` holds the responses of
+  `/raids`, `/expeditions`, `/deck` and `/players/{id}`; `useSort`/`useLimit` infer the row types and fall back to
+  `fieldOf(row, key)`; no `useLoader<any>` is left.
+  - Fix found by it: the missile impacts of `GET /api/{uni}/raids` now carry `created_at`, so an impact without a
+    time in the report shows and sorts by its sync time instead of an empty date.
 - Universe settings refuse keys that are no setting (C-03 of the review): `settingsError` answers
   `setting_unknown` for them, `SETTING_KEYS` in `@pr0hub/core/universe` lists every key (a test compares it with
   `UniverseSettings`), and the data migration `js:drop_unknown_universe_settings` removes such keys stored before,

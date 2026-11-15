@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { Expedition, Expeditions, ExpeditionsPerUser } from '../apiTypes';
 import { useAutoTour } from '../tours';
 import { nowSec } from '../clock';
 import ShowMore from './ShowMore.vue';
@@ -34,7 +35,7 @@ const memberLabel = computed(() =>
   member.value == null ? t('raids.wholeAlliance') : (ctx.value!.members.find((m) => m.id === member.value)?.name ?? '?'),
 );
 
-const { data, error, load } = useLoader<any>(() => uniApi(uni.value, `/expeditions?from=${nowSec() - days.value * 86400}`));
+const { data, error, load } = useLoader<Expeditions>(() => uniApi<Expeditions>(uni.value, `/expeditions?from=${nowSec() - days.value * 86400}`));
 onMounted(load);
 useLiveReload(load, tables('expeditions'));
 watch(days, load);
@@ -55,7 +56,7 @@ const rangeLabel = (d: number) => (d === 1 ? t('expeditions.last24h') : d >= 365
 interface Yield { userId: number; name: string; count: number; metal: number; crystal: number; deut: number; shipPoints: number; points: number; perExpo: number | null }
 const shipPoints = (ships: Record<string, number>) => Object.entries(ships).reduce((sum, [id, n]) => sum + elementPoints(id, n), 0);
 const yields = computed<Yield[]>(() => {
-  const byUser = new Map<number, any>((data.value?.perUser ?? []).map((u: any) => [u.userId, u]));
+  const byUser = new Map<number, ExpeditionsPerUser>((data.value?.perUser ?? []).map((u) => [u.userId, u]));
   return ctx.value!.members.map((m) => {
     const u = byUser.get(m.id);
     const metal = u?.resources[METAL] ?? 0;
@@ -89,7 +90,7 @@ const yieldTotal = computed(() =>
 const pickMember = (id: number) => (member.value = member.value === id ? null : id);
 
 // ------------------------------------------- distribution: events × members
-const shown = computed(() => (data.value?.perUser ?? []).filter((u: any) => member.value == null || u.userId === member.value));
+const shown = computed(() => (data.value?.perUser ?? []).filter((u) => member.value == null || u.userId === member.value));
 /** Columns: each member, plus the alliance total when several are shown. */
 const columns = computed(() => {
   const list = [...shown.value];
@@ -97,7 +98,7 @@ const columns = computed(() => {
   const add = (into: Record<string, number>, from: Record<string, number>) => {
     for (const [k, n] of Object.entries(from)) into[k] = (into[k] ?? 0) + n;
   };
-  const total = { userId: -1, username: t('raids.allianceTotal'), total: 0, events: {}, resources: {}, ships: {} };
+  const total: ExpeditionsPerUser = { userId: -1, username: t('raids.allianceTotal'), total: 0, events: {}, resources: {}, ships: {} };
   for (const u of list) {
     total.total += u.total;
     add(total.events, u.events);
@@ -113,24 +114,24 @@ const distSort = useSort(
   (row, s) => {
     if (s === 'order') return row.i;
     if (s === 'event') return cardLabel(row.k);
-    if (s === 'deck') return data.value.expected[row.k];
-    const u = columns.value.find((c: any) => `u${c.userId}` === s);
+    if (s === 'deck') return data.value!.expected[row.k];
+    const u = columns.value.find((c) => `u${c.userId}` === s);
     return u ? (u.events[row.k] ?? 0) : null;
   },
   'order',
   false,
 );
-const sumRes = (u: any) => Object.values(u.resources as Record<string, number>).reduce((a, b) => a + b, 0);
+const sumRes = (u: ExpeditionsPerUser) => Object.values(u.resources).reduce((a, b) => a + b, 0);
 
 // ------------------------------------------- latest expeditions
-const list = computed(() => (data.value?.list ?? []).filter((e: any) => member.value == null || e.user_id === member.value));
-const foundRes = (e: any) => Object.values((e.found_resources ?? {}) as Record<string, number>).reduce((a, b) => a + b, 0);
+const list = computed(() => (data.value?.list ?? []).filter((e) => member.value == null || e.user_id === member.value));
+const foundRes = (e: Expedition) => Object.values(e.found_resources ?? {}).reduce((a, b) => a + b, 0);
 const listSort = useSort(
   list,
-  (e: any, k) => {
+  (e, k) => {
     if (k === 'time') return e.time;
     if (k === 'player') return e.username;
-    if (k === 'target') return e.g ? e.g * 1e6 + e.s * 100 + e.p : null;
+    if (k === 'target') return e.g ? e.g * 1e6 + (e.s ?? 0) * 100 + (e.p ?? 0) : null;
     if (k === 'event') return cardLabel(`${e.event}:${e.size}`);
     if (k === 'found') return foundRes(e) / 1000 + shipPoints(e.found_ships ?? {});
     return null;
@@ -145,10 +146,10 @@ const listOptions = computed(() => [
   { key: 'event', label: t('expeditions.event') },
   { key: 'found', label: t('expeditions.found') },
 ]);
-const listLimit = useLimit<any>(listSort.sorted);
-const isManual = (e: any) => String(e.dedupe_key).startsWith('manual:');
+const listLimit = useLimit(listSort.sorted);
+const isManual = (e: Expedition) => String(e.dedupe_key).startsWith('manual:');
 /** Own manually counted entries (deck tab) can be removed again. */
-async function removeManual(e: any) {
+async function removeManual(e: Expedition) {
   if (!confirm(t('expeditions.deleteConfirm', { event: cardLabel(`${e.event}:${e.size}`), time: dateTime(e.time) }))) return;
   await uniApi(uni.value, `/deck/events/${e.id}`, { method: 'DELETE' });
   await load();
@@ -273,7 +274,7 @@ useAutoTour('expeditions', () => !!data.value, 'stats');
               <tr v-for="e in listLimit.shown.value" :key="e.id">
                 <td class="small">{{ dateTime(e.time) }}</td>
                 <td>{{ e.username }}</td>
-                <td class="mono">{{ e.g ? coords(e.g, e.s, e.p) : '' }}</td>
+                <td class="mono">{{ e.g ? coords(e.g, e.s ?? 0, e.p ?? 0) : '' }}</td>
                 <td>
                   {{ cardLabel(`${e.event}:${e.size}`) }}<span v-if="e.factor" class="faint"> ×{{ e.factor }}</span>
                   <span v-if="isManual(e)" class="badge" :title="t('expeditions.manualTitle')">{{ t('expeditions.manual') }}</span>

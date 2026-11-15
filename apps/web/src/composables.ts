@@ -56,6 +56,9 @@ export function useProtection() {
     ctx?.value ? protectionStatus(ctx.value.universe.settings, ctx.value.player?.points, points, status) : status;
 }
 
+/** A column of a typed row by its sort key (for `useSort` getters that fall back to the key itself). */
+export const fieldOf = (row: object, key: string): unknown => (row as Record<string, unknown>)[key];
+
 /** Client-side table sorting. `get` maps a row and key to a sortable value. */
 export function useSort<T>(rows: Ref<T[]>, get: (row: T, key: string) => unknown, initial: string, desc = true) {
   const key = ref(initial);
