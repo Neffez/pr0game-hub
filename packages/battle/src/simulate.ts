@@ -1,6 +1,6 @@
 import { withUnits, type UnitCatalog } from '@pr0hub/core/units';
 import { engineInput, type BattleFleet } from './input.js';
-import { battleResult, DEFAULT_DEBRIS, moonChance, type BattleResult, type DebrisSettings, type EngineOutput } from './result.js';
+import { battleResult, DEFAULT_DEBRIS, moonChance, type BattleResult, type DebrisSettings, type EngineOutput, type Resources3 } from './result.js';
 import { steal, type Resources } from './steal.js';
 
 /** The engine call: Battlerust's `fight_battle_rounds` (WASM in the browser and in Node). */
@@ -80,59 +80,131 @@ function battleRun(fight: Fight, setup: BattleSetup, settings: SimSettings, rand
   return { run, output };
 }
 
-function range(values: number[]): Range {
-  if (!values.length) return { avg: 0, min: 0, max: 0 };
-  return { avg: values.reduce((a, b) => a + b, 0) / values.length, min: Math.min(...values), max: Math.max(...values) };
+/** Average, least and most of values added one by one; values left out count as 0. */
+class Tally {
+  private sum = 0;
+  private min = Infinity;
+  private max = -Infinity;
+  private count = 0;
+
+  add(value: number) {
+    this.sum += value;
+    this.min = Math.min(this.min, value);
+    this.max = Math.max(this.max, value);
+    this.count++;
+  }
+
+  range(runs: number): Range {
+    if (!runs) return { avg: 0, min: 0, max: 0 };
+    const zero = this.count < runs;
+    return { avg: this.sum / runs, min: zero ? Math.min(this.min, 0) : this.min, max: zero ? Math.max(this.max, 0) : this.max };
+  }
 }
 
-function fleetSummary(fleets: { lost: Record<number, number>; repaired: Record<number, number>; remaining: Record<number, number> }[]): FleetSummary {
-  const out: FleetSummary = { lost: {}, repaired: {}, remaining: {}, lossChance: {} };
-  for (const key of ['lost', 'repaired', 'remaining'] as const) {
-    const ids = new Set(fleets.flatMap((f) => Object.keys(f[key]).map(Number)));
-    for (const id of ids) out[key][id] = range(fleets.map((f) => f[key][id] ?? 0));
+type FleetRun = RunResult['attackers'][number];
+
+class FleetTally {
+  private tallies = { lost: new Map<number, Tally>(), repaired: new Map<number, Tally>(), remaining: new Map<number, Tally>() };
+  private losses = new Map<number, number>();
+
+  add(fleet: FleetRun) {
+    for (const key of ['lost', 'repaired', 'remaining'] as const) {
+      for (const [id, n] of Object.entries(fleet[key])) {
+        let tally = this.tallies[key].get(Number(id));
+        if (!tally) this.tallies[key].set(Number(id), (tally = new Tally()));
+        tally.add(n);
+      }
+    }
+    for (const [id, n] of Object.entries(fleet.lost)) {
+      if (n - (fleet.repaired[Number(id)] ?? 0) > 0) this.losses.set(Number(id), (this.losses.get(Number(id)) ?? 0) + 1);
+    }
   }
-  for (const id of Object.keys(out.remaining).map(Number)) {
-    out.lossChance[id] = fleets.filter((f) => (f.lost[id] ?? 0) - (f.repaired[id] ?? 0) > 0).length / fleets.length;
+
+  summary(runs: number): FleetSummary {
+    const out: FleetSummary = { lost: {}, repaired: {}, remaining: {}, lossChance: {} };
+    for (const key of ['lost', 'repaired', 'remaining'] as const) {
+      for (const [id, tally] of this.tallies[key]) out[key][id] = tally.range(runs);
+    }
+    for (const id of Object.keys(out.remaining).map(Number)) out.lossChance[id] = (this.losses.get(id) ?? 0) / runs;
+    return out;
   }
-  return out;
 }
 
 /**
- * Summary of many runs of the same battle. `extra` are further runs kept without the engine's rounds: they count
- * like the others, the typical run is one of `runs`.
+ * Sums up runs of the same battle one by one, so many runs need no memory: a kept run costs kilobytes (its unit
+ * records are keyed by element id).
  */
-export function summarize(runs: { run: RunResult; output: EngineOutput }[], extra: RunResult[] = []): SimSummary {
-  const results = runs.map((r) => r.run).concat(extra);
-  const n = results.length;
-  const share = (w: string) => results.filter((r) => r.winner === w).length / n;
-  const lost = range(results.map((r) => r.lostValue.attacker + r.lostValue.defender));
-  const typical = runs.reduce((best, r) =>
-    Math.abs(r.run.lostValue.attacker + r.run.lostValue.defender - lost.avg) <
-    Math.abs(best.run.lostValue.attacker + best.run.lostValue.defender - lost.avg)
-      ? r
-      : best,
-  );
-  const avg = (f: (r: RunResult) => number) => results.reduce((a, r) => a + f(r), 0) / n;
-  return {
-    runs: n,
-    wins: { attacker: share('attacker'), defender: share('defender'), draw: share('draw') },
-    rounds: range(results.map((r) => r.rounds)),
-    roundShares: results.reduce<Record<number, number>>((acc, r) => {
-      acc[r.rounds] = (acc[r.rounds] ?? 0) + 1 / n;
-      return acc;
-    }, {}),
-    attackers: results[0].attackers.map((_, i) => fleetSummary(results.map((r) => r.attackers[i]))),
-    defenders: results[0].defenders.map((_, i) => fleetSummary(results.map((r) => r.defenders[i]))),
-    debris: { metal: range(results.map((r) => r.debris.metal)), crystal: range(results.map((r) => r.debris.crystal)) },
-    loot: { metal: avg((r) => r.loot.metal), crystal: avg((r) => r.loot.crystal), deuterium: avg((r) => r.loot.deuterium) },
-    moonChance: range(results.map((r) => r.moonChance)),
-    lostValue: { attacker: range(results.map((r) => r.lostValue.attacker)), defender: range(results.map((r) => r.lostValue.defender)) },
-    lostResources: {
-      attacker: { metal: avg((r) => r.lostResources.attacker.metal), crystal: avg((r) => r.lostResources.attacker.crystal), deuterium: avg((r) => r.lostResources.attacker.deuterium) },
-      defender: { metal: avg((r) => r.lostResources.defender.metal), crystal: avg((r) => r.lostResources.defender.crystal), deuterium: avg((r) => r.lostResources.defender.deuterium) },
-    },
-    typical,
-  };
+export class SimTally {
+  private runs = 0;
+  private wins = { attacker: 0, defender: 0, draw: 0 };
+  private rounds = new Tally();
+  private roundCounts: Record<number, number> = {};
+  private attackers: FleetTally[] = [];
+  private defenders: FleetTally[] = [];
+  private debris = { metal: new Tally(), crystal: new Tally() };
+  private loot = { metal: 0, crystal: 0, deuterium: 0 };
+  private moonChance = new Tally();
+  private lostValue = { attacker: new Tally(), defender: new Tally() };
+  private lostResources = { attacker: { metal: 0, crystal: 0, deuterium: 0 }, defender: { metal: 0, crystal: 0, deuterium: 0 } };
+
+  get count() {
+    return this.runs;
+  }
+
+  add(run: RunResult) {
+    this.runs++;
+    this.wins[run.winner]++;
+    this.rounds.add(run.rounds);
+    this.roundCounts[run.rounds] = (this.roundCounts[run.rounds] ?? 0) + 1;
+    run.attackers.forEach((f, i) => (this.attackers[i] ??= new FleetTally()).add(f));
+    run.defenders.forEach((f, i) => (this.defenders[i] ??= new FleetTally()).add(f));
+    this.debris.metal.add(run.debris.metal);
+    this.debris.crystal.add(run.debris.crystal);
+    this.moonChance.add(run.moonChance);
+    for (const r of ['metal', 'crystal', 'deuterium'] as const) {
+      this.loot[r] += run.loot[r];
+      this.lostResources.attacker[r] += run.lostResources.attacker[r];
+      this.lostResources.defender[r] += run.lostResources.defender[r];
+    }
+    this.lostValue.attacker.add(run.lostValue.attacker);
+    this.lostValue.defender.add(run.lostValue.defender);
+  }
+
+  /** The widest margin of the loss chances so far. */
+  lossMargin(): number {
+    const n = this.runs;
+    const chances = [...this.attackers, ...this.defenders].flatMap((f) => Object.values(f.summary(n).lossChance));
+    return chances.reduce((max, c) => Math.max(max, chanceMargin(c, n)), 0);
+  }
+
+  /** The summary; the typical run is the one of `kept` closest to the average losses of all runs. */
+  summary(kept: { run: RunResult; output: EngineOutput }[]): SimSummary {
+    const n = this.runs;
+    const avg = (res: Resources3) => ({ metal: res.metal / n, crystal: res.crystal / n, deuterium: res.deuterium / n });
+    const lostAvg = this.lostValue.attacker.range(n).avg + this.lostValue.defender.range(n).avg;
+    const off = (r: { run: RunResult }) => Math.abs(r.run.lostValue.attacker + r.run.lostValue.defender - lostAvg);
+    return {
+      runs: n,
+      wins: { attacker: this.wins.attacker / n, defender: this.wins.defender / n, draw: this.wins.draw / n },
+      rounds: this.rounds.range(n),
+      roundShares: Object.fromEntries(Object.entries(this.roundCounts).map(([rounds, count]) => [rounds, count / n])),
+      attackers: this.attackers.map((f) => f.summary(n)),
+      defenders: this.defenders.map((f) => f.summary(n)),
+      debris: { metal: this.debris.metal.range(n), crystal: this.debris.crystal.range(n) },
+      loot: avg(this.loot),
+      moonChance: this.moonChance.range(n),
+      lostValue: { attacker: this.lostValue.attacker.range(n), defender: this.lostValue.defender.range(n) },
+      lostResources: { attacker: avg(this.lostResources.attacker), defender: avg(this.lostResources.defender) },
+      typical: kept.reduce((best, r) => (off(r) < off(best) ? r : best)),
+    };
+  }
+}
+
+/** Summary of many runs of the same battle. */
+export function summarize(runs: { run: RunResult; output: EngineOutput }[]): SimSummary {
+  const tally = new SimTally();
+  for (const r of runs) tally.add(r.run);
+  return tally.summary(runs);
 }
 
 /** Runs the battle `runs` times and summarizes it (the tool's worker calls `runBattle` itself to report progress). */
@@ -193,16 +265,16 @@ export function simulateRefined(
   const { refine = DEFAULT_REFINE, random = Math.random, units, now = Date.now, progress } = options;
   const base = Math.max(1, Math.floor(runs));
   const start = now();
-  const list: ReturnType<typeof runBattle>[] = [];
-  // runs beyond the ones asked for are kept without the engine's rounds, they would fill the memory
-  const extra: RunResult[] = [];
-  // the margin is checked when the runs have doubled, so summarizing stays cheap
+  // the runs asked for are kept for the typical run, further ones are only counted
+  const kept: ReturnType<typeof runBattle>[] = [];
+  const tally = new SimTally();
+  // the margin is checked when the runs have doubled
   let check = base;
   for (;;) {
     const battle = runBattle(fight, setup, settings, random, units);
-    if (list.length < base) list.push(battle);
-    else extra.push(battle.run);
-    const n = list.length + extra.length;
+    if (kept.length < base) kept.push(battle);
+    tally.add(battle.run);
+    const n = tally.count;
     if (n < base) {
       progress?.(n / base);
       continue;
@@ -210,10 +282,10 @@ export function simulateRefined(
     const spent = (now() - start) / refine.budgetMs;
     if (n >= refine.maxRuns || spent >= 1) break;
     if (n >= check) {
-      if (lossMargin(summarize(list, extra)) <= refine.margin) break;
+      if (tally.lossMargin() <= refine.margin) break;
       check = Math.min(refine.maxRuns, n * 2);
     }
     progress?.(Math.max(spent, n / refine.maxRuns));
   }
-  return summarize(list, extra);
+  return tally.summary(kept);
 }
