@@ -99,9 +99,9 @@ async function runItem(b: BatchItem, dryRun: boolean) {
 }
 
 /** Adds pages to the collection and previews them one after another. */
-async function addToBatch(items: { name: string; html: string | null; text: string }[]) {
+async function addToBatch(items: { name: string; html: string | null; text: string; statsType?: number | null; system?: string }[]) {
   const added = items.map((x) => {
-    batch.value.push({ id: ++batchIds, ...x, statsType: null, system: '', preview: null, saved: null, error: '', busy: false });
+    batch.value.push({ statsType: null, system: '', ...x, id: ++batchIds, preview: null, saved: null, error: '', busy: false });
     return batch.value[batch.value.length - 1];
   });
   for (const b of added) await runItem(b, true);
@@ -123,7 +123,8 @@ async function addFiles(files: File[]) {
 function collect() {
   if (!html.value && !text.value.trim()) return;
   const name = text.value.startsWith(FILE_MARK) ? text.value.slice(FILE_MARK.length, -1) : t('paste.batch.pasted', { n: batch.value.length + 1 });
-  const item = { name, html: html.value, text: text.value };
+  // the category and system chosen for this page go along, so they need not be picked again in the collection
+  const item = { name, html: html.value, text: text.value, statsType: statsType.value, system: system.value };
   clear();
   addToBatch([item]);
 }

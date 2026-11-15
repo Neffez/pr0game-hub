@@ -16,6 +16,16 @@ export interface ChangelogDay {
 
 export const CHANGELOG: ChangelogDay[] = [
   {
+    date: '2026-11-15',
+    items: [
+      {
+        kind: 'fix',
+        de: 'Sync: Eine vor „Sammeln“ gewählte Statistik-Kategorie (und das Galaxie-System) bleibt für die gesammelte Seite erhalten und muss in der Liste nicht erneut gewählt werden.',
+        en: 'Sync: a statistics category (and galaxy system) chosen before “Collect” is kept for the collected page and need not be picked again in the list.',
+      },
+    ],
+  },
+  {
     date: '2026-11-14',
     items: [
       {
