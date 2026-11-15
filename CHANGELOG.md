@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-15
 
+- `openapi.yaml` describes the answers of `GET /api/{uni}/raids`, `/expeditions`, `/deck` and `/players/{id}` in full
+  (new schemas `Raids`, `Expeditions`, `Deck`, `PlayerDetails` and their rows, with required fields), so the contract
+  check verifies them; a test now also reads `/expeditions`.
 - Contract check of the API (step 1 of A-01): every 2xx JSON answer the server tests receive is validated against its
   response schema in `openapi.yaml` (`test/contract.ts`, hooked into every test app by `test/contractSetup.ts`, Ajv
   with JSON Schema 2020-12); a mismatch fails the test file. `CONTRACT_REPORT=1 vitest run --reporter=verbose` lists

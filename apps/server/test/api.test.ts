@@ -91,6 +91,9 @@ describe('api', () => {
 
     const deck = (await app.inject({ method: 'GET', url: '/hub/api/u8/deck', headers })).json();
     expect(deck.state.drawnInDeck).toBe(3);
+    const expeditions = (await app.inject({ method: 'GET', url: `/hub/api/u8/expeditions?${EVER}`, headers })).json();
+    expect(expeditions.perUser[0].total).toBe(3);
+    expect(expeditions.list).toHaveLength(3);
 
     const raids = (await app.inject({ method: 'GET', url: `/hub/api/u8/raids?${EVER}`, headers })).json();
     expect(raids.perUser[0]).toMatchObject({ raids: 1, metal: 600000 });
