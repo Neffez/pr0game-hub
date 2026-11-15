@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-15
 
+- Errors read the same everywhere (C-08 of the review).
+  - Web: `readError(e)` in `api.ts` replaces the 52 `(e as Error).message` of the views and components; a request
+    that never reaches the hub (offline, connection reset) throws `ApiError` with code `network` and a translated
+    message instead of the browser's "Failed to fetch".
+  - Server: the battle hall's `page` uses `clampInt` like the other lists (no fractional offsets).
 - One source for unit shorts and the phalanx range (C-07, C-10e of the review).
   - The web's `ABBR` keeps buildings and research only; ships, defense and missiles take their shorts from the unit
     catalog.

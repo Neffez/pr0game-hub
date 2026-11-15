@@ -2,7 +2,7 @@
 import { ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import { api, loadMe, safeNext } from '../api';
+import { api, loadMe, readError, safeNext } from '../api';
 
 const { t } = useI18n();
 const route = useRoute();
@@ -18,7 +18,7 @@ async function submit() {
     await loadMe();
     router.replace(safeNext(route.query.next));
   } catch (e) {
-    error.value = (e as Error).message;
+    error.value = readError(e);
   }
 }
 </script>

@@ -3,7 +3,7 @@ import BackLink from '../components/BackLink.vue';
 import { onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
-import { api, loadMe, session, uniApi } from '../api';
+import { api, loadMe, readError, session, uniApi } from '../api';
 import Hint from '../components/Hint.vue';
 import NotifyKinds, { type NotifyPrefs } from '../components/NotifyKinds.vue';
 import QuietHours, { type QuietHours as Quiet } from '../components/QuietHours.vue';
@@ -35,7 +35,7 @@ async function run(fn: () => Promise<unknown>, ok: () => string) {
     await fn();
     msg.value = ok();
   } catch (e) {
-    error.value = (e as Error).message;
+    error.value = readError(e);
   }
 }
 
@@ -84,7 +84,7 @@ async function togglePush() {
       try {
         status = await enablePush();
       } catch (e) {
-        throw new Error(t('account.pushSubscribeFailed', { error: (e as Error).message }));
+        throw new Error(t('account.pushSubscribeFailed', { error: readError(e) }));
       }
       if (status === 'denied') throw new Error(t('account.pushDeniedHint'));
     }, () => t(pushStatus.value === 'on' ? 'account.pushEnabledMsg' : 'account.pushDisabledMsg'));
@@ -217,7 +217,7 @@ onMounted(async () => {
     shareActivity.value = activity;
     shareSyncs.value = syncs;
   } catch (e) {
-    error.value = (e as Error).message;
+    error.value = readError(e);
   } finally {
     loaded.value = true;
   }

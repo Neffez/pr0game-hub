@@ -5,7 +5,7 @@ import PageHeader from '../components/PageHeader.vue';
 import Section from '../components/Section.vue';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { uniApi } from '../api';
+import { readError, uniApi } from '../api';
 import Hint from '../components/Hint.vue';
 import Icon from '../components/Icon.vue';
 import { useLoader, useUni, vStack, type MarketRate } from '../composables';
@@ -70,7 +70,7 @@ async function save() {
     toast(t('market.saved'));
     await load();
   } catch (e) {
-    toast((e as Error).message, 'warn');
+    toast(readError(e), 'warn');
   } finally {
     busy.value = false;
   }

@@ -8,7 +8,7 @@ import PresenceBadge from './PresenceBadge.vue';
 import { Chart } from '../chart';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { uniApi } from '../api';
+import { readError, uniApi } from '../api';
 import PlanetActions from '../components/PlanetActions.vue';
 import StatusBadges from '../components/StatusBadges.vue';
 import { useLoader, useUni, vStack } from '../composables';
@@ -110,7 +110,7 @@ async function saveNote() {
     await uniApi(uni.value, `/players/${props.id}/note`, { method: 'PUT', body: { note: note.value } });
     savedNote = note.value;
   } catch (e) {
-    noteError.value = (e as Error).message;
+    noteError.value = readError(e);
   }
 }
 

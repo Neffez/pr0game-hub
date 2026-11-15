@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { uniApi } from '../api';
+import { readError, uniApi } from '../api';
 import { useClock } from '../clock';
 import { addToBuildOrder } from '../buildOrderAdd';
 import { useStored, useUni } from '../composables';
@@ -94,7 +94,7 @@ async function load() {
     if (id === latest) data.value = d;
   } catch (e) {
     if (id !== latest) return;
-    error.value = (e as Error).message;
+    error.value = readError(e);
     data.value = null;
   } finally {
     if (id === latest) loading.value = false;
@@ -124,7 +124,7 @@ async function calculate() {
     data.value = d;
     advice.value = d.advice;
   } catch (e) {
-    if (id === latest) error.value = (e as Error).message;
+    if (id === latest) error.value = readError(e);
   } finally {
     if (id === latest) running.value = false;
   }
@@ -195,7 +195,7 @@ async function addToOrder() {
     await addToBuildOrder(uni.value, props.planetKey, addList.value.map((a) => ({ kind: 'ship' as const, element: a.id, count: a.n })), base, 'defense');
     added.value = true;
   } catch (e) {
-    error.value = (e as Error).message;
+    error.value = readError(e);
   } finally {
     adding.value = false;
   }

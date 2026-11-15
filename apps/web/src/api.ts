@@ -77,6 +77,16 @@ function errorMessage(data: { error?: string; code?: string } | null, fallback: 
   return data?.code && i18n.global.te(key) ? t(key) : (data?.error ?? fallback);
 }
 
+/**
+ * The text of a caught error for the page: the translated server error of an `ApiError`, the message of any other
+ * error, and something readable for a thrown non-error.
+ */
+export function readError(e: unknown): string {
+  if (e instanceof Error) return e.message || e.name;
+  if (typeof e === 'string') return e;
+  return t('errors.internal');
+}
+
 let sessionEnded = false;
 
 /** Cookie gone: drop the local session, close live, send the tab to login once. */
@@ -101,13 +111,19 @@ export async function api<T = any>(path: string, opts: { method?: string; body?:
     const g = selectedGroup(opts.uni);
     if (g) headers['x-hub-group'] = String(g);
   }
-  const res = await fetch(BASE + path, {
-    method: opts.method ?? (opts.body !== undefined ? 'POST' : 'GET'),
-    headers,
-    body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
-    credentials: 'same-origin',
-    keepalive: opts.keepalive,
-  });
+  let res: Response;
+  try {
+    res = await fetch(BASE + path, {
+      method: opts.method ?? (opts.body !== undefined ? 'POST' : 'GET'),
+      headers,
+      body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
+      credentials: 'same-origin',
+      keepalive: opts.keepalive,
+    });
+  } catch {
+    // offline, DNS, connection reset: the browser's own message ("Failed to fetch") says nothing to the user
+    throw new ApiError(0, t('errors.network'), 'network');
+  }
   let data: { error?: string; code?: string } | null = null;
   if (res.headers.get('content-type')?.includes('json')) {
     try {

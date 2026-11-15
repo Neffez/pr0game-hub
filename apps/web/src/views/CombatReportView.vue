@@ -3,7 +3,7 @@ import BackLink from '../components/BackLink.vue';
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
-import { uniApi } from '../api';
+import { readError, uniApi } from '../api';
 import { useMobile, useUni } from '../composables';
 import { abbr, coords, dateTime, fmt, name, short } from '../format';
 
@@ -40,7 +40,7 @@ onMounted(async () => {
   try {
     report.value = await uniApi(uni.value, `/combat-reports/${route.params.id}`);
   } catch (e) {
-    error.value = (e as Error).message;
+    error.value = readError(e);
   }
 });
 

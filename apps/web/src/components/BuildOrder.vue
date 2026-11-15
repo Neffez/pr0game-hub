@@ -20,7 +20,7 @@ import { RESOURCES } from '@pr0hub/core/tech';
 import { startResourcesOf } from '@pr0hub/core/universe';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { uniApi } from '../api';
+import { readError, uniApi } from '../api';
 import { useClock } from '../clock';
 import { useLoader, useStored, useUni } from '../composables';
 import { dateTime, fmt, name, short } from '../format';
@@ -125,7 +125,7 @@ async function assign(from: string) {
     data.value = await uniApi<{ buildOrder: StoredBuildOrder | null }>(uni.value, '/build-order/assign', { method: 'POST', body: { from, to } });
     picked.value = null;
   } catch (e) {
-    error.value = (e as Error).message;
+    error.value = readError(e);
   } finally {
     saving.value = false;
   }
@@ -179,7 +179,7 @@ async function save(list: Step[]) {
   try {
     data.value = await uniApi<{ buildOrder: StoredBuildOrder | null }>(uni.value, '/build-order', { method: 'PATCH', body: { planets } });
   } catch (e) {
-    error.value = (e as Error).message;
+    error.value = readError(e);
     load();
   } finally {
     saving.value = false;
@@ -206,7 +206,7 @@ async function removeAll() {
   try {
     data.value = await uniApi<{ buildOrder: null }>(uni.value, '/build-order', { method: 'DELETE' });
   } catch (e) {
-    error.value = (e as Error).message;
+    error.value = readError(e);
   }
 }
 
@@ -264,7 +264,7 @@ async function addSteps() {
       ? await uniApi<{ buildOrder: StoredBuildOrder | null }>(uni.value, '/build-order', { method: 'PATCH', body: { planets: order.planets, base: order.base } })
       : await uniApi<{ buildOrder: StoredBuildOrder | null }>(uni.value, '/build-order', { method: 'PUT', body: { order, meta: { source: 'hub' } } });
   } catch (e) {
-    error.value = (e as Error).message;
+    error.value = readError(e);
   } finally {
     saving.value = false;
   }

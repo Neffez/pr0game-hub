@@ -3037,6 +3037,7 @@ const en: typeof de = {
     report_no_target: 'The battle report shows no coordinates: copy it while logged in to the game',
     report_no_member: 'No member of the group fought on that side of the battle',
     internal: 'Internal error',
+    network: 'No connection to the hub. Please try again later.',
     not_logged_in: 'Not logged in',
     admin_only: 'Global admins only',
     group_admin_only: 'Alliance admins only',

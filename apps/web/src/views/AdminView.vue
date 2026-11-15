@@ -17,7 +17,7 @@ import SystemMonitor from '../components/SystemMonitor.vue';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
-import { api, loadMe, selectedGroup, session } from '../api';
+import { api, loadMe, readError, selectedGroup, session } from '../api';
 import { clockTime, coords, dateTime, fmt, STATS_CATEGORIES } from '../format';
 
 type FleetAttackRow = {
@@ -211,7 +211,7 @@ async function run(fn: () => Promise<unknown>, ok = '') {
     await fn();
     msg.value = ok && t(ok);
   } catch (e) {
-    error.value = (e as Error).message;
+    error.value = readError(e);
   }
 }
 

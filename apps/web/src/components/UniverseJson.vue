@@ -2,7 +2,7 @@
 import Icon from './Icon.vue';
 import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { downloadUniverseJson, uniApi } from '../api';
+import { downloadUniverseJson, readError, uniApi } from '../api';
 import Hint from './Hint.vue';
 import { useUni } from '../composables';
 import { fmt } from '../format';
@@ -48,7 +48,7 @@ async function upload() {
     }
     result.value = await uniApi(uni.value, '/universe-json', { body: { text } });
   } catch (e) {
-    error.value = (e as Error).message;
+    error.value = readError(e);
   } finally {
     busy.value = false;
   }

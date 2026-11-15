@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { uniApi } from '../api';
+import { readError, uniApi } from '../api';
 import { useUni } from '../composables';
 import { abbr, coords, fmt, name, numDate } from '../format';
 import { fleetShips } from '../units';
@@ -183,7 +183,7 @@ async function save() {
     open.value = false;
     emit('saved');
   } catch (e) {
-    error.value = (e as Error).message;
+    error.value = readError(e);
   } finally {
     busy.value = false;
   }

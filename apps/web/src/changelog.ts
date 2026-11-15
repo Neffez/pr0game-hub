@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Ohne Verbindung zum Hub erscheint jetzt eine verständliche Meldung statt „Failed to fetch“.',
+        en: 'Without a connection to the hub you now get a clear message instead of "Failed to fetch".',
+      },
+      {
+        kind: 'fix',
         de: 'Admin: Eine Zugangsanfrage mit dem Benutzernamen eines Mitglieds ohne Konto ist jetzt diesem Mitglied vorausgewählt; bei einem anderen Mitglied sagt die Meldung, wem sie gehört.',
         en: 'Admin: an access request with the username of a member without an account now has that member preselected; for another member the message says whose it is.',
       },

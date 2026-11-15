@@ -3040,6 +3040,7 @@ const de = {
     report_no_target: 'Der Kampfbericht zeigt keine Koordinaten: im Spiel eingeloggt kopieren',
     report_no_member: 'Auf dieser Seite des Kampfs war kein Mitglied der Gruppe',
     internal: 'Interner Fehler',
+    network: 'Keine Verbindung zum Hub. Bitte später erneut versuchen.',
     not_logged_in: 'Nicht angemeldet',
     admin_only: 'Nur für globale Admins',
     group_admin_only: 'Nur für Allianz-Admins',

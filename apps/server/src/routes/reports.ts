@@ -17,7 +17,7 @@ export function reportsRoutes(app: FastifyInstance, db: DB) {
    */
   app.get<{ Params: { uni: string }; Querystring: Q }>('/api/:uni/battle-hall', async (req) => {
     const ctx = ctxOf(req);
-    const page = Math.max(1, Number(req.query.page) || 1);
+    const page = clampInt(req.query.page, 1, 1, 1_000_000);
     const order = req.query.sort === 'time' ? 'time DESC' : 'units DESC';
     const q = (req.query.q ?? '').trim();
     const participant = q ? battleHallParticipantFilter(db, ctx.groupId, q) : null;

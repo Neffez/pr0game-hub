@@ -7,7 +7,7 @@ import DateTimeInput from './DateTimeInput.vue';
 import { Chart, type ChartDataset } from '../chart';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { uniApi } from '../api';
+import { readError, uniApi } from '../api';
 import { activityCurve, minuteOfDay, pointsRate, type ActivityEvent, type ActivitySource } from '../activity';
 import { useLoader, useStored, useUni } from '../composables';
 import { tables, useLiveReload } from '../live';
@@ -163,7 +163,7 @@ async function report(time: number | null) {
     reporting.value = false;
     await reload();
   } catch (e) {
-    toast((e as Error).message, 'warn');
+    toast(readError(e), 'warn');
   }
 }
 async function remove(e: ActivityEvent) {
@@ -171,7 +171,7 @@ async function remove(e: ActivityEvent) {
     await uniApi(uni.value, `/players/${props.player}/activity/${e.id}`, { method: 'DELETE' });
     await reload();
   } catch (err) {
-    toast((err as Error).message, 'warn');
+    toast(readError(err), 'warn');
   }
 }
 

@@ -1,3 +1,4 @@
+import { readError } from './api';
 import { computed, inject, nextTick, onBeforeUnmount, provide, ref, watch, type Directive, type InjectionKey, type Ref, type WatchSource } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import type { UnitOverrides } from '@pr0hub/core/units';
@@ -140,7 +141,7 @@ export function useLoader<T>(fetch: () => Promise<T>) {
       error.value = '';
       return res;
     } catch (e) {
-      if (id === latest) error.value = (e as Error).message;
+      if (id === latest) error.value = readError(e);
       return undefined;
     }
   }

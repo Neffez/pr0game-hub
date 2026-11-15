@@ -8,7 +8,7 @@ import { RESOURCES } from '@pr0hub/core/tech';
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
-import { uniApi } from '../api';
+import { readError, uniApi } from '../api';
 import { useClock } from '../clock';
 import Hint from '../components/Hint.vue';
 import PageHeader from '../components/PageHeader.vue';
@@ -170,7 +170,7 @@ async function saveHidden(ids: number[]) {
   try {
     data.value!.hidden = (await uniApi<{ hidden: number[] }>(uni.value, '/buildings/hidden', { method: 'PUT', body: { ids } })).hidden;
   } catch (e) {
-    error.value = (e as Error).message;
+    error.value = readError(e);
   }
 }
 const toggleHidden = (b: { id: number }) => saveHidden(isHidden(b) ? hidden.value.filter((id) => id !== b.id) : [...hidden.value, b.id]);
@@ -232,7 +232,7 @@ async function toggleAlert(b: BuildingInfo) {
       : await uniApi<{ alerts: Alert[] }>(uni.value, '/buildings/alerts', { method: 'PUT', body: { ...p.coords, type: p.type, id: b.id, level: b.next } });
     data.value!.alerts = res.alerts;
   } catch (e) {
-    error.value = (e as Error).message;
+    error.value = readError(e);
   } finally {
     busy.value = null;
   }

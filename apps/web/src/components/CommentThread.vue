@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { uniApi } from '../api';
+import { readError, uniApi } from '../api';
 import { useLoader, useUni } from '../composables';
 import { dateTime } from '../format';
 import { tables, useLiveReload } from '../live';
@@ -58,7 +58,7 @@ async function run(fn: () => Promise<unknown>) {
     await fn();
     await load();
   } catch (e) {
-    actionError.value = (e as Error).message;
+    actionError.value = readError(e);
   }
 }
 const target = () => (props.player ? { player: props.player } : props.plan ? { plan: props.plan } : { c: `${props.g}:${props.s}:${props.p}`, type: props.type ?? 'planet' });
