@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Aktivitätsmuster: Gemeldete Online- und Offlinezeiten zeigen nur noch die letzten drei, der Rest ist über „Alle anzeigen“ erreichbar.',
+        en: 'Activity pattern: reported online and offline times show only the latest three; the rest is behind “Show all”.',
+      },
+      {
+        kind: 'new',
         de: 'Bauliste: Läuft ein Speicher voll, während ein Schritt auf Rohstoffe wartet, zeigt der Schritt seit wann und wie viel Produktion dabei verloren geht. So sieht man, wo ein größerer Speicher Zeit spart.',
         en: 'Build order: when a storage runs full while a step waits for resources, the step shows since when and how much production is lost. This shows where a bigger storage saves time.',
       },

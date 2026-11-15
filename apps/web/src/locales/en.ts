@@ -1122,6 +1122,8 @@ const en: typeof de = {
       reported: 'Online time reported',
       reportedOffline: 'Offline time reported',
       manual: 'Reported',
+      showAll: 'Show all {n}',
+      showLess: 'Show less',
       withdraw: 'Withdraw report',
       spread: '± {min} min',
       sources: {

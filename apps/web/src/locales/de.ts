@@ -1124,6 +1124,8 @@ const de = {
       reportedOffline: 'Offlinezeit gemeldet',
       manual: 'Gemeldet',
       withdraw: 'Meldung zurückziehen',
+      showAll: 'Alle {n} anzeigen',
+      showLess: 'Weniger anzeigen',
       spread: '± {min} min',
       sources: {
         spy: 'Spionage', attack: 'Angriff', defense: 'Verteidigung', message: 'Nachricht', galaxy: 'Galaxie-Aktivität',

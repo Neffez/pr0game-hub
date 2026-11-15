@@ -4,6 +4,8 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-15
 
+- Player activity pattern: the member reports under the chart show only the latest three; a button expands the
+  rest.
 - Build order: a step shows when a storage runs full while the list waits for it (resource, since when, production
   lost beyond the capacity until it starts), so delays from full storages are visible; pr0plan has no storage
   limits and cannot show them. The planner's `StepResult` has a new `full` field.

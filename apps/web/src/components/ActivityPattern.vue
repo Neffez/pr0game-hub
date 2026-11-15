@@ -38,6 +38,9 @@ const shown = computed(() => {
   return (data.value?.events ?? []).filter((e) => e.time >= from);
 });
 const memberReports = computed(() => shown.value.filter((e) => e.source === 'manual' || e.source === 'offline').reverse());
+const REPORTS_SHOWN = 3;
+const allReports = ref(false);
+const visibleReports = computed(() => (allReports.value ? memberReports.value : memberReports.value.slice(0, REPORTS_SHOWN)));
 /** point gain per stat window over the day (coarse: 6-hour blocks) */
 const rate = computed(() => pointsRate(data.value?.scores ?? [], nowSec(), days.value));
 const empty = computed(() => !shown.value.length && !rate.value.length);
@@ -206,14 +209,17 @@ onBeforeUnmount(() => chart?.destroy());
     <p v-else-if="data && empty" class="muted small m-0">{{ t('player.activity.empty') }}</p>
     <div v-show="!empty" class="chart"><canvas ref="canvas" /></div>
 
-    <div v-if="memberReports.length" class="manual small">
+    <div v-if="memberReports.length" class="manual small" :class="{ scroll: allReports }">
       <span class="muted">{{ t('player.activity.manual') }}:</span>
-      <span v-for="e in memberReports" :key="e.id" class="chip">
+      <span v-for="e in visibleReports" :key="e.id" class="chip">
         {{ sourceLabel(e.source) }} · {{ dateTime(e.time) }} <span class="faint">{{ e.reporter }}</span>
         <button v-if="e.mine" type="button" class="icon-btn small" :title="t('player.activity.withdraw')" @click="remove(e)">
           <Icon name="close" :size="11" :label="t('player.activity.withdraw')" />
         </button>
       </span>
+      <button v-if="memberReports.length > REPORTS_SHOWN" type="button" class="small" @click="allReports = !allReports">
+        {{ allReports ? t('player.activity.showLess') : t('player.activity.showAll', { n: memberReports.length }) }}
+      </button>
     </div>
   </Section>
 </template>
@@ -222,5 +228,6 @@ onBeforeUnmount(() => chart?.destroy());
 .chart { height: 220px; }
 .report { margin-bottom: 10px; }
 .manual { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; }
+.manual.scroll { max-height: 140px; overflow-y: auto; }
 .manual .chip { display: inline-flex; align-items: center; gap: 6px; }
 </style>
