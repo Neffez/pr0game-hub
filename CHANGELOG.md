@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-15
 
+- Stricter compiler checks (I-03 of the review): `noUnusedLocals` in the shared TypeScript config and the tools
+  (the web app stays without it, vue-tsc counts template refs by name as unused), the unused imports it found are
+  gone; `@pr0hub/flight` compiles with `noUncheckedIndexedAccess` (missile attack and ship speed fall back to 0 on a
+  missing entry). `@pr0hub/loot` stays without it: its 56 hits are all bounded parallel-array accesses.
 - A link to a universe that does not exist, or one without an alliance of the member, shows its own page with the
   member's universes and a link to the start page instead of the bare API error (I-05 of the review).
 - The web app's last untyped loaders are typed (C-02 of the review): `apiTypes.ts` holds the responses of

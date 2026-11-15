@@ -5,7 +5,7 @@ import type { GroupContext } from '../context.js';
 import { now, type DB } from '../db.js';
 import { events } from '../events.js';
 import { storageMuted } from '../notify.js';
-import { alertsOf, buildingsState, planetElements, planetOf, pruneAlerts } from '../repo/buildings.js';
+import { alertsOf, buildingsState, planetOf, pruneAlerts } from '../repo/buildings.js';
 import { contextOf } from './util.js';
 
 interface AlertBody {

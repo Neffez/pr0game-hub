@@ -3,7 +3,7 @@ import type { FastifyInstance } from 'fastify';
 import { config } from '../config.js';
 import { withUnits } from '@pr0hub/core/units';
 import { catalogOf, type GroupContext } from '../context.js';
-import { now, type DB } from '../db.js';
+import type { DB } from '../db.js';
 import { scoreEntry, SLOT, SLOT_TOLERANCE, SLOTS, statSlots, TOLERANCE, TYPES, WINDOWS, type ScoreRow } from '../domain/stats.js';
 import { latestEmpire, latestEmpires } from '../repo/empire.js';
 import { latestMarketRate } from '../repo/market.js';

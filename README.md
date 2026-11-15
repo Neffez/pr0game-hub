@@ -193,7 +193,7 @@ pnpm --filter @pr0hub/tools dev
 ```
 
 ```bash
-pnpm typecheck   # tsc / vue-tsc in all packages
+pnpm typecheck   # tsc / vue-tsc in all packages; unused locals fail it (not in the web app: vue-tsc misses template refs)
 pnpm test        # vitest in all packages
 pnpm build       # all packages and apps
 ```

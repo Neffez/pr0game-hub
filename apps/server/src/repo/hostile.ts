@@ -1,6 +1,6 @@
 import { distance, flightDuration, slowestShip } from '@pr0hub/flight';
 import { catalogOf, type GroupContext } from '../context.js';
-import { now, type DB } from '../db.js';
+import type { DB } from '../db.js';
 import { DISPLAY } from './sql.js';
 import { spyEmpire } from './empire.js';
 import { fleetHistory, sharedFleets, TOLERANCE, type StoredFleet } from './fleets.js';
