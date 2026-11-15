@@ -2,7 +2,7 @@ import { encodeShare as encodeBattleShare } from '@pr0hub/battle';
 import { techName } from '@pr0hub/core/tech';
 import { OPTIONAL_DEFAULTS, toolsHash, UNITS_HASH, type UniverseSettings } from '@pr0hub/core/universe';
 import { units, unitsLinkValue } from './units';
-import { missileSystemDistance, SHIPS, type Coords } from '@pr0hub/flight';
+import { missileSystemDistance, phalanxRange as flightPhalanxRange, SHIPS, type Coords } from '@pr0hub/flight';
 import { encodeShare, type LootState } from '@pr0hub/loot';
 import { compressToEncodedURIComponent } from 'lz-string';
 import { ref } from 'vue';
@@ -166,25 +166,22 @@ export function duration(sec: number): string {
   return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
-/** Short column labels for element tables (full name as tooltip). English ones follow the game's English names. */
+/**
+ * Short column labels of buildings and research (full name as tooltip); ships, defense and missiles take theirs from the
+ * unit catalog. English ones follow the game's English names.
+ */
 const ABBR: Record<'de' | 'en', Record<number, string>> = {
   de: {
     1: 'MM', 2: 'KM', 3: 'DS', 4: 'SKW', 6: 'TD', 12: 'FKW', 14: 'RF', 15: 'NF', 21: 'WE', 22: 'MSp', 23: 'KSp', 24: 'DTk',
     31: 'FL', 33: 'TF', 34: 'AD', 35: 'RD', 41: 'MB', 42: 'PH', 43: 'ST', 44: 'RS',
     106: 'Spio', 108: 'Comp', 109: 'Waff', 110: 'Schi', 111: 'Panz', 113: 'Ener', 114: 'Hyp', 115: 'Verb', 117: 'Imp', 118: 'HRA',
     120: 'Las', 121: 'Ion', 122: 'Plas', 123: 'IFN', 124: 'Astro', 131: 'PM-M', 132: 'PM-K', 133: 'PM-D', 134: 'TE', 199: 'Grav',
-    202: 'KT', 203: 'GT', 204: 'LJ', 205: 'SJ', 206: 'Xer', 207: 'SS', 208: 'Kolo', 209: 'Rec', 210: 'Spy', 211: 'B', 212: 'Sat',
-    213: 'Zerri', 214: 'RIP', 215: 'SXer', 222: 'HXer', 225: 'ST', 227: 'ORec', 231: 'Beh', 232: 'VT',
-    401: 'RW', 402: 'LL', 403: 'SL', 404: 'Gauß', 405: 'Ion', 406: 'Plas', 407: 'kSK', 408: 'gSK', 502: 'AR', 503: 'IPR',
   },
   en: {
     1: 'MM', 2: 'CM', 3: 'DR', 4: 'SPP', 6: 'Uni', 12: 'FPP', 14: 'RF', 15: 'NF', 21: 'SY', 22: 'MSt', 23: 'CSt', 24: 'DSt',
     31: 'Lab', 33: 'TF', 34: 'AD', 35: 'RD', 41: 'MB', 42: 'PH', 43: 'JG', 44: 'MS',
     106: 'Spy', 108: 'Comp', 109: 'Weap', 110: 'Shld', 111: 'Arm', 113: 'Ener', 114: 'Hyp', 115: 'Comb', 117: 'Imp', 118: 'HE',
     120: 'Las', 121: 'Ion', 122: 'Plas', 123: 'IRN', 124: 'Astro', 131: 'MP', 132: 'CP', 133: 'DP', 134: 'FE', 199: 'Grav',
-    202: 'LC', 203: 'HC', 204: 'LF', 205: 'HF', 206: 'Cr', 207: 'BS', 208: 'Col', 209: 'Rec', 210: 'Probe', 211: 'Bomb', 212: 'Sat',
-    213: 'Dest', 214: 'RIP', 215: 'BC', 222: 'HCr', 225: 'ST', 227: 'ORec', 231: 'Beh', 232: 'VT',
-    401: 'ML', 402: 'LL', 403: 'HL', 404: 'Gauss', 405: 'Ion', 406: 'Plas', 407: 'SSD', 408: 'LSD', 502: 'ABM', 503: 'IPM',
   },
 };
 export const abbr = (id: number) => units.value.units[id]?.short[currentLang()] ?? ABBR[currentLang()][id] ?? name(id);
@@ -385,11 +382,8 @@ export function freshnessColor(age: number | null) {
   return '#f8514933';
 }
 
-/** Phalanx range in systems: (level² − 1) × factor (ShowPhalanxPage::GetPhalanxRange). */
-export function phalanxRange(level: number, u: UniverseSettings) {
-  const factor = u.phalanxRangeFactor ?? OPTIONAL_DEFAULTS.phalanxRangeFactor;
-  return level <= 1 ? 0 : Math.floor((level * level - 1) * factor);
-}
+/** Phalanx range in systems with the universe's factor (`phalanxRange` of @pr0hub/flight). */
+export const phalanxRange = (level: number, u: UniverseSettings) => flightPhalanxRange(level, u.phalanxRangeFactor ?? OPTIONAL_DEFAULTS.phalanxRangeFactor);
 
 /** Optional universe settings of the noob protection (game config noob_protection_time, _multi, noob_inactives). */
 export type NoobSettings = Pick<UniverseSettings, 'noobLimit' | 'noobFactor' | 'noobInactives'>;

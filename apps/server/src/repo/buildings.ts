@@ -7,7 +7,7 @@ import {
 import { METAL, RESOURCES, STORAGE, storageCapacity } from '@pr0hub/core/tech';
 import type { UnitCatalog } from '@pr0hub/core/units';
 import { catalogOf, type GroupContext } from '../context.js';
-import { now, type DB } from '../db.js';
+import type { DB } from '../db.js';
 import { events } from '../events.js';
 import { latestEmpire } from './empire.js';
 import { sharedFleets, type StoredFleet } from './fleets.js';

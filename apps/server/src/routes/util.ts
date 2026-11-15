@@ -4,20 +4,14 @@ import type { DB } from '../db.js';
 
 export type Q = Record<string, string | undefined>;
 
-/** Integer query parameter within [min, max]; missing or invalid values give the default. */
+/** An integer query parameter within `min`..`max`; missing, empty or not a number gives `def`. */
 export const clampInt = (v: string | undefined, def: number, min: number, max: number) => {
-  const n = Math.trunc(Number(v ?? def));
+  const n = v == null || v.trim() === '' ? def : Math.trunc(Number(v));
   return Number.isFinite(n) ? Math.min(Math.max(n, min), max) : def;
 };
 
-/** Escapes LIKE wildcards of user input (use with ESCAPE '\\'). */
-export const likeTerm = (s: string) => `%${s.replace(/[\\%_]/g, '\\$&')}%`;
-
-/** Hub identity: display name, falling back to the username (not the in-game name). Alias `u` is the users table. */
-export const DISPLAY = "COALESCE(NULLIF(u.display_name, ''), u.username)";
-export const displayOf = (userAlias: string) => `COALESCE(NULLIF(${userAlias}.display_name, ''), ${userAlias}.username)`;
-
-export const MEMBER = (t: string) => `LEFT JOIN group_members gm ON gm.group_id = ${t}.group_id AND gm.user_id = ${t}.user_id`;
+// SQL fragments of the data layer, for the routes (see repo/sql.ts for the identity rule)
+export { DISPLAY, displayNameOf, displayOf, likeTerm } from '../repo/sql.js';
 
 /** The request's group context (see `groupContext`) for the routes below /api/:uni. */
 /**

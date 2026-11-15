@@ -4,6 +4,91 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-15
 
+- `openapi.yaml` describes `GET /api/{uni}/stats`, `/browse/{g}/{s}` and `/players` in full, so every JSON GET that
+  read-only tokens reach is checked by the contract test (export and live events are CSV and SSE, `universe-json` the
+  game's format); a test now also calls the player search. `CLAUDE.md` asks for complete schemas and a calling test
+  for new endpoints.
+- `openapi.yaml` describes the answers of `GET /api/{uni}/hostile-attacks`, `/battle-hall`, `/combat-reports/{id}`,
+  `/claims`, `/messages` and `/plans` (new schemas `HostileAttack`, `BattleHall`, `CombatReport`, `Claim`, `Messages`,
+  `Plan`, `PlanFleet`); the contract check showed that a plan fleet's start (`g`, `s`, `p`, `planet_type`) is null
+  until the member picks one.
+- `openapi.yaml` describes the answers of `GET /api/universes`, `/galaxy-views`, `/spy-reports`, `/comments`,
+  `/comments/counts` and the sharing settings under `/api/auth` (`FleetShare`, `Enabled`) in full.
+- `openapi.yaml` describes the answers of `GET /api/{uni}/raids`, `/expeditions`, `/deck` and `/players/{id}` in full
+  (new schemas `Raids`, `Expeditions`, `Deck`, `PlayerDetails` and their rows, with required fields), so the contract
+  check verifies them; a test now also reads `/expeditions`.
+- Contract check of the API (step 1 of A-01): every 2xx JSON answer the server tests receive is validated against its
+  response schema in `openapi.yaml` (`test/contract.ts`, hooked into every test app by `test/contractSetup.ts`, Ajv
+  with JSON Schema 2020-12); a mismatch fails the test file. `CONTRACT_REPORT=1 vitest run --reporter=verbose` lists
+  the violations and the operations covered (170 of 185).
+  - Spec fixes it found: the 26 `nullable: true` of OpenAPI 3.0 (ignored in 3.1) are `type: [X, 'null']`; the
+    members' `fleets` of `/alliance` and `/imperium` are an object (`SharedFleets`: time, data, private), not an
+    array; `/overview` `slots` is an array of sections; `/universe-json` answers an array.
+- Migration 090 adds a `(group_id, time)` index on `combat_reports` for "who threatens me" (the one of migration 083 is
+  partial); `CODEREVIEW.md` marks the small carried-over findings as fixed.
+- Stricter compiler checks (I-03 of the review): `noUnusedLocals` in the shared TypeScript config and the tools
+  (the web app stays without it, vue-tsc counts template refs by name as unused), the unused imports it found are
+  gone; `@pr0hub/flight` compiles with `noUncheckedIndexedAccess` (missile attack and ship speed fall back to 0 on a
+  missing entry). `@pr0hub/loot` stays without it: its 56 hits are all bounded parallel-array accesses.
+- A link to a universe that does not exist, or one without an alliance of the member, shows its own page with the
+  member's universes and a link to the start page instead of the bare API error (I-05 of the review).
+- The web app's last untyped loaders are typed (C-02 of the review): `apiTypes.ts` holds the responses of
+  `/raids`, `/expeditions`, `/deck` and `/players/{id}`; `useSort`/`useLimit` infer the row types and fall back to
+  `fieldOf(row, key)`; no `useLoader<any>` is left.
+  - Fix found by it: the missile impacts of `GET /api/{uni}/raids` now carry `created_at`, so an impact without a
+    time in the report shows and sorts by its sync time instead of an empty date.
+- Universe settings refuse keys that are no setting (C-03 of the review): `settingsError` answers
+  `setting_unknown` for them, `SETTING_KEYS` in `@pr0hub/core/universe` lists every key (a test compares it with
+  `UniverseSettings`), and the data migration `js:drop_unknown_universe_settings` removes such keys stored before,
+  so the admin form, which sends the stored settings back, keeps saving.
+- Errors read the same everywhere (C-08 of the review).
+  - Web: `readError(e)` in `api.ts` replaces the 52 `(e as Error).message` of the views and components; a request
+    that never reaches the hub (offline, connection reset) throws `ApiError` with code `network` and a translated
+    message instead of the browser's "Failed to fetch".
+  - Server: the battle hall's `page` uses `clampInt` like the other lists (no fractional offsets).
+- One source for unit shorts and the phalanx range (C-07, C-10e of the review).
+  - The web's `ABBR` keeps buildings and research only; ships, defense and missiles take their shorts from the unit
+    catalog.
+  - `phalanxRange(level, factor)` lives in `@pr0hub/flight` (with a test); the server's `domain/phalanx.ts` is gone
+    and the web's helper only adds the universe's factor.
+  - `MISSILE_TARGETS` of `@pr0hub/flight` drops the giant shield domes 409–411, which pr0game does not have and the
+    unit catalog leaves out.
+- `CODEREVIEW.md`: findings N-01 to N-11 of the 2026-11-15 review are fixed and listed as such; the verification
+  table shows the runs with and without the WASM build.
+- Planned planets of a build order take their default start resources from `startResourcesOf` and their temperature
+  from the new `INITIAL_TEMP` of `@pr0hub/core/production` instead of own copies; the hostile spying page types its
+  API response.
+- Server cleanup without behavior change.
+  - `DISPLAY`, `displayOf`, `likeTerm` and a new `displayNameOf` live in `repo/sql.ts`; `store.ts` and the repos no
+    longer import from `routes/` (`routes/util.ts` re-exports them).
+  - Dropped `MEMBER()` and the `LEFT JOIN group_members` that only existed for the in-game name before the display
+    name change (about 30 statements; the joins that still read `ingame_name`, and the inner joins that filter by
+    membership, stay).
+  - The identity rule (hub name where a member acts in the hub, in-game name where the game is matched) is written
+    down in `repo/sql.ts` and in README.
+- `pnpm typecheck` and `pnpm test` pass on a fresh clone without the Battlerust WASM build: the module's types are
+  committed in `packages/battle/wasm-types/` (the `@pr0hub/battle/wasm` export points there), and the suites that run
+  the engine (battle package, the tools' battle simulator page, the server's simulations) are skipped with a warning
+  when `packages/battle/wasm/` is missing; README explains it next to `pnpm build:battle`.
+- Server checks tightened after the 2026-11-15 review.
+  - Admin: an access request that carries the login name of a member without an account can only be assigned to
+    that member; assigning it to another one answers `409 username_of_placeholder` naming them (was
+    `username_taken`), and `GET /api/admin/access-requests` gives that member as `placeholder`, which the admin page
+    preselects.
+  - `GET /api/{uni}/threats` clamps `days` like the other lists (empty or invalid is the default 30, no more
+    `400 days_invalid`); `clampInt` treats an empty parameter as missing everywhere.
+  - `PUT /api/{uni}/storage-alerts` keeps only the caller's synced planets; `POST /api/{uni}/build-order/assign`
+    needs one of the caller's synced planets as `to` (`400 build_order_target_invalid` for a moon, a planned
+    planet or someone else's planet).
+  - Migration 089 drops the duplicate `stat_snapshots_time` index that migration 086 recreated; a new schema test
+    fails on two indexes over the same columns of a table.
+- Held notifications (quiet hours) are no longer lost or misdelivered.
+  - They are deleted only after their delivery: a push service or Discord webhook that fails keeps them for the
+    next flush (until they expire); one flush runs at a time.
+  - Migration 088 adds triggers that delete the held rows of a push subscription when it is deleted (unsubscribe,
+    prune, push service 404/410, user deletion) or moves to another user (the same browser registered by someone
+    else), and the held Discord rows of a deleted user; a reused subscription id can no longer receive another
+    member's notifications.
 - Fix sync collection: a statistics category (and galaxy system) chosen in the paste box before "Collect" is
   kept for the collected page instead of being asked for again in the list.
 - Code review of this week's changes in `CODEREVIEW.md`: the closed findings of the 2026-11-04 review are removed, the

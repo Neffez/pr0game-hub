@@ -7,7 +7,7 @@ import Icon from '../components/Icon.vue';
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
-import { uniApi } from '../api';
+import { readError, uniApi } from '../api';
 import Hint from '../components/Hint.vue';
 import PlayerMessage from '../components/PlayerMessage.vue';
 import ProfileLink from '../components/ProfileLink.vue';
@@ -145,7 +145,7 @@ async function toggleShare(m: Message) {
     m.own_shared = m.shared = shared;
     await load();
   } catch (e) {
-    shareError.value = (e as Error).message;
+    shareError.value = readError(e);
   } finally {
     busy.value = null;
   }

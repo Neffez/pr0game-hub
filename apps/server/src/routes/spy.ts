@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import type { DB } from '../db.js';
-import { clampInt, contextOf, DISPLAY, MEMBER, parseSections, type Q } from './util.js';
+import { clampInt, contextOf, DISPLAY, parseSections, type Q } from './util.js';
 
 export function spyRoutes(app: FastifyInstance, db: DB) {
   const ctxOf = contextOf(db);
@@ -12,7 +12,7 @@ export function spyRoutes(app: FastifyInstance, db: DB) {
     const reports = db
       .prepare(
         `SELECT sr.id, sr.planet_name, sr.player_name, sr.player_id, sr.report_time, sr.sections, sr.destroy_chance, ${DISPLAY} AS reporter
-         FROM spy_reports sr LEFT JOIN users u ON u.id = sr.user_id ${MEMBER('sr')}
+         FROM spy_reports sr LEFT JOIN users u ON u.id = sr.user_id
          WHERE sr.group_id = ? AND sr.g = ? AND sr.s = ? AND sr.p = ? AND sr.planet_type = ?
          ORDER BY sr.report_time DESC LIMIT ?`,
       )
@@ -37,7 +37,7 @@ export function spyRoutes(app: FastifyInstance, db: DB) {
       .prepare(
         `SELECT sr.id, sr.g, sr.s, sr.p, sr.planet_type, sr.planet_name, sr.player_name, sr.player_id, sr.report_time, sr.sections,
            ${DISPLAY} AS reporter
-         FROM spy_reports sr LEFT JOIN users u ON u.id = sr.user_id ${MEMBER('sr')}
+         FROM spy_reports sr LEFT JOIN users u ON u.id = sr.user_id
          WHERE sr.group_id = ? ${after} ORDER BY sr.report_time DESC, sr.id DESC LIMIT ? OFFSET ?`,
       )
       .all(ctx.groupId, ...args, limit, before ? 0 : offset)

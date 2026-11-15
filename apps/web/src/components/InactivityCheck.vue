@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { api } from '../api';
+import { api, readError } from '../api';
 import { dateTime, fmt, short, STATS_SHORT } from '../format';
 
 /** Admin panel: how well the inactivity score fits the alliance's data (server: repo/inactivityCheck.ts). */
@@ -42,7 +42,7 @@ async function run(fresh: boolean) {
   try {
     data.value = await api<Check>(`/${props.universe}/inactivity-check?group=${props.groupId}${fresh ? '&fresh=1' : ''}`);
   } catch (e) {
-    error.value = (e as Error).message;
+    error.value = readError(e);
   } finally {
     busy.value = false;
   }

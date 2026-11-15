@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { readError } from '../api';
 import { upgradeAdvice, type Advice, type AdviceStep } from '@pr0hub/core/advisor';
 import { levelAfter, type BuildPlanet } from '@pr0hub/core/buildings';
 import { positionTemp } from '@pr0hub/core/production';
@@ -105,7 +106,7 @@ async function addToOrder(a: Advice) {
     await addToBuildOrder(uni.value, key, stepsOf(a, planet ? levelsOf(planet) : {}), base, 'advisor');
     added.value = new Set([...added.value, keyOf(a)]);
   } catch (e) {
-    message.value = (e as Error).message;
+    message.value = readError(e);
   } finally {
     busy.value = null;
   }

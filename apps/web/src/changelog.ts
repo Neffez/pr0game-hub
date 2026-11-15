@@ -20,6 +20,31 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Ein Link auf ein Universum, das es nicht gibt (oder in dem du in keiner Allianz bist), zeigt jetzt eine klare Seite mit deinen Universen.',
+        en: 'A link to a universe that does not exist (or where you are in no alliance) now shows a clear page with your universes.',
+      },
+      {
+        kind: 'fix',
+        de: 'Raid-Statistik: Raketenangriffe ohne Zeit im Bericht zeigen wieder ein Datum (wann sie synchronisiert wurden).',
+        en: 'Raid statistics: missile attacks without a time in the report show a date again (when they were synced).',
+      },
+      {
+        kind: 'fix',
+        de: 'Ohne Verbindung zum Hub erscheint jetzt eine verständliche Meldung statt „Failed to fetch“.',
+        en: 'Without a connection to the hub you now get a clear message instead of "Failed to fetch".',
+      },
+      {
+        kind: 'fix',
+        de: 'Admin: Eine Zugangsanfrage mit dem Benutzernamen eines Mitglieds ohne Konto ist jetzt diesem Mitglied vorausgewählt; bei einem anderen Mitglied sagt die Meldung, wem sie gehört.',
+        en: 'Admin: an access request with the username of a member without an account now has that member preselected; for another member the message says whose it is.',
+      },
+      {
+        kind: 'fix',
+        de: 'Ruhezeiten: zurückgehaltene Benachrichtigungen gehen nicht mehr verloren, wenn der Versand danach fehlschlägt, und landen nie bei einem anderen Mitglied, das denselben Browser nutzt.',
+        en: 'Quiet hours: held notifications are no longer lost when sending them fails afterwards, and never reach another member using the same browser.',
+      },
+      {
+        kind: 'fix',
         de: 'Sync: Eine vor „Sammeln“ gewählte Statistik-Kategorie (und das Galaxie-System) bleibt für die gesammelte Seite erhalten und muss in der Liste nicht erneut gewählt werden.',
         en: 'Sync: a statistics category (and galaxy system) chosen before “Collect” is kept for the collected page and need not be picked again in the list.',
       },

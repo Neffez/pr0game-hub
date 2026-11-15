@@ -1,7 +1,7 @@
 import { distance, flightDuration, slowestShip } from '@pr0hub/flight';
 import { catalogOf, type GroupContext } from '../context.js';
-import { now, type DB } from '../db.js';
-import { DISPLAY } from '../routes/util.js';
+import type { DB } from '../db.js';
+import { DISPLAY } from './sql.js';
 import { spyEmpire } from './empire.js';
 import { fleetHistory, sharedFleets, TOLERANCE, type StoredFleet } from './fleets.js';
 
@@ -130,7 +130,7 @@ export function hostileAttacks(db: DB, ctx: GroupContext): HostileAttack[] {
   const pastes = db
     .prepare(
       `SELECT p.page_time AS time, p.data, ${DISPLAY} AS reporter FROM phalanx_snapshots p
-       LEFT JOIN users u ON u.id = p.user_id LEFT JOIN group_members gm ON gm.group_id = p.group_id AND gm.user_id = p.user_id
+       LEFT JOIN users u ON u.id = p.user_id
        WHERE p.group_id = ? AND p.page_time > ? ORDER BY p.page_time, p.id`,
     )
     .all(ctx.groupId, t - PHALANX_KEEP) as { time: number; data: string; reporter: string | null }[];

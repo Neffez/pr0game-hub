@@ -87,6 +87,11 @@ External analysis tool for [pr0game](https://codeberg.org/pr0game/pr0game) based
   reports tick off
 - **Raid statistics** (incl. recycling and interplanetary missile attacks: intercepted missiles, destroyed defense), **expeditions** (statistics and the expedition deck for card counting as tabs), **battle hall** archive
 - **Admin**: universes (size, distance factors, fleet speed, time zone, deck; scheduled start and optional end; an ended universe is frozen read-only), groups, members (including placeholders by in-game name with claim links), ingest log with reparse, player merge
+- **Member names**: three names per member. The login username, the in-game name per alliance (how the hub
+  matches the member's synced pages and the game's players) and an optional hub display name. Wherever a member acts
+  in the hub (lists, comments, notifications, CSV `member` columns, settlements) the display name is shown, falling
+  back to the username; the in-game name is used where the game is matched (placeholders for access requests, match
+  keys) and as a hint (health page, online list tooltip)
 - **Who threatens me**: on the hostile spying page a personal ranking of the players who spied on or attacked you,
   with their fleet points trend, nearest planet and flight time, and the hours they usually come at
 - **Notifications**: bell with hostile fleets heading for members (from the synced fleet movements), raid planner
@@ -188,7 +193,7 @@ pnpm --filter @pr0hub/tools dev
 ```
 
 ```bash
-pnpm typecheck   # tsc / vue-tsc in all packages
+pnpm typecheck   # tsc / vue-tsc in all packages; unused locals fail it (not in the web app: vue-tsc misses template refs)
 pnpm test        # vitest in all packages
 pnpm build       # all packages and apps
 ```
@@ -204,8 +209,10 @@ checked out next to this repository: `pnpm gen:tech` and `pnpm gen:costs`. Comba
 
 The battle simulator uses the game's battle engine [Battlerust](https://github.com/Tsaranoga/Battlerust) (Rust, by
 Tsaranoga, used with permission), built to WebAssembly at a pinned commit in the `battle-wasm` stage of the
-`Dockerfile`. `pnpm build:battle` exports it to `packages/battle/wasm/` (needs Docker, no Rust toolchain); the battle
-package's tests and the tools build need it.
+`Dockerfile`. `pnpm build:battle` exports it to `packages/battle/wasm/` (needs Docker, no Rust toolchain); the tools
+build and the battle simulator API need it. `pnpm typecheck` and `pnpm test` pass without it: the module's types are
+committed (`packages/battle/wasm-types/`, update them with the pinned engine), and the suites that run the engine
+(battle package, the tools' battle simulator page, the server's simulations) are skipped with a warning.
 
 First start: log in with the bootstrap admin and create a universe (e.g. `u8`) and a group under **Admin**, then add members (claim links appear in the members table).
 

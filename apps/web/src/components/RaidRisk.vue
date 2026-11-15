@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { uniApi } from '../api';
+import { readError, uniApi } from '../api';
 import { useUni } from '../composables';
 import { fmt, short } from '../format';
 import { lastRisk, riskLevel, type RiskBody } from '../raidRisk';
@@ -31,7 +31,7 @@ async function load() {
     // the empire's planet table marks the bodies at risk from this
     if (!data.value.error) lastRisk.value = { scope: `${uni.value}:${ctx.value?.group.id}`, bodies: data.value.planets };
   } catch (e) {
-    error.value = (e as Error).message;
+    error.value = readError(e);
   } finally {
     loading.value = false;
   }

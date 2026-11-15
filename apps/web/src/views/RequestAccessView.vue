@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { api } from '../api';
+import { api, readError } from '../api';
 import { currentLang } from '../i18n';
 
 const { t } = useI18n();
@@ -17,7 +17,7 @@ async function submit() {
     await api('/access-requests', { body: { username: username.value, password: password.value, message: message.value, lang: currentLang() } });
     sent.value = true;
   } catch (e) {
-    error.value = (e as Error).message;
+    error.value = readError(e);
   }
 }
 </script>

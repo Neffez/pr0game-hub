@@ -1,6 +1,6 @@
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { uniApi } from './api';
+import { readError, uniApi } from './api';
 import { loadClaims } from './claims';
 import { useUni } from './composables';
 import { abbr, battleSimLink, clockTime, coords, duration, fmt, ipmCalcLink, ipmStart, numDate, simLinks, timeWithAge, weekday, type Coords3, type SimFleet } from './format';
@@ -75,7 +75,7 @@ export function useRaidPlanner() {
       ]);
       now.value = nowSec();
     } catch (e) {
-      error.value = (e as Error).message;
+      error.value = readError(e);
     }
     loaded.value = true;
     scheduleStep();
@@ -95,7 +95,7 @@ export function useRaidPlanner() {
       if (done) toast(done);
       return true;
     } catch (e) {
-      error.value = (e as Error).message;
+      error.value = readError(e);
       return false;
     }
   }

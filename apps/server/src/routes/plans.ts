@@ -13,7 +13,7 @@ import {
   catchUpPlans, enemiesOf, followEnemies, fromOf, launchedOf, guestsOfAttack, ownAttacks, planDrives, toOf, type EnemyRow, type LaunchFleet, type LaunchPlan, type OwnAttackFleet, type PlanRow,
 } from '../repo/plans.js';
 import { applySimulation, bodyKey, simResearch, withSim, type PlanSim } from '../repo/simPlan.js';
-import { contextOf, DISPLAY, MEMBER, releaseTargetClaims } from './util.js';
+import { contextOf, DISPLAY, displayNameOf, releaseTargetClaims } from './util.js';
 
 const STATUSES = ['planning', 'launched', 'done', 'cancelled'];
 /** Plan fields a participant may change: the target coordinates. */
@@ -172,7 +172,7 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
     const time = now();
     const held = db
       .prepare(
-        `SELECT c.id, c.user_id, ${DISPLAY} AS member FROM target_claims c JOIN users u ON u.id = c.user_id ${MEMBER('c')}
+        `SELECT c.id, c.user_id, ${DISPLAY} AS member FROM target_claims c JOIN users u ON u.id = c.user_id
          WHERE c.group_id = ? AND c.g = ? AND c.s = ? AND c.p = ? AND c.planet_type = ? AND c.released_at IS NULL AND c.expires_at > ?`,
       )
       .get(ctx.groupId, t.g, t.s, t.p, t.type, time) as { id: number; user_id: number; member: string } | undefined;
@@ -201,7 +201,7 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
            a.mission, a.guests, a.sim, a.created_at, a.updated_at, c.user_id AS claim_user_id, COALESCE(a.player_id, pl.player_id) AS player_id, pr.name AS player_name,
            CASE WHEN a.planet_type = 'moon' THEN pl.moon_name ELSE pl.name END AS planet_name
          FROM attack_plans a
-         JOIN users u ON u.id = a.user_id ${MEMBER('a')}
+         JOIN users u ON u.id = a.user_id
          LEFT JOIN target_claims c ON c.id = a.claim_id AND c.released_at IS NULL AND c.expires_at > ?
          LEFT JOIN planets pl ON pl.group_id = a.group_id AND pl.g = a.g AND pl.s = a.s AND pl.p = a.p
          LEFT JOIN players pr ON pr.id = COALESCE(a.player_id, pl.player_id)
@@ -214,7 +214,7 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
         `SELECT f.id, f.plan_id, f.user_id, ${DISPLAY} AS member, f.g, f.s, f.p, f.planet_type, f.ships, f.speed, f.status, f.recalled_at, f.updated_at,
            f.drives AS manual, f.drives_time
          FROM attack_plan_fleets f JOIN attack_plans a ON a.id = f.plan_id
-         JOIN users u ON u.id = f.user_id LEFT JOIN group_members gm ON gm.group_id = a.group_id AND gm.user_id = f.user_id
+         JOIN users u ON u.id = f.user_id
          WHERE f.plan_id IN (SELECT value FROM json_each(?)) ORDER BY f.id`,
       )
       .all(JSON.stringify(plans.map((p) => p.id))) as (LaunchFleet & Record<string, unknown> & { ships: string; manual: string | null; drives_time: number | null })[];
@@ -322,10 +322,7 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
   /** When and by whom a simulation was taken over into the plan. */
   function simOut(ctx: GroupContext, sim: PlanSim | null) {
     if (!sim) return null;
-    const by = db
-      .prepare(`SELECT ${DISPLAY} FROM users u LEFT JOIN group_members gm ON gm.group_id = ? AND gm.user_id = u.id WHERE u.id = ?`)
-      .pluck()
-      .get(ctx.groupId, sim.user_id) as string | undefined;
+    const by = displayNameOf(db, sim.user_id);
     return { time: sim.time, by: by ?? null, defender: sim.values != null };
   }
 
@@ -368,7 +365,7 @@ export function plansRoutes(app: FastifyInstance, db: DB) {
     const holds = new Map(rows.filter((e) => e.mission === 'hold').map((e) => [keyOf(e), e.plan_id]));
     const hidden = new Map(
       (db
-        .prepare(`SELECT h.attack_key, h.until, h.created_at, ${DISPLAY} AS name FROM hidden_attacks h LEFT JOIN users u ON u.id = h.user_id ${MEMBER('h')} WHERE h.group_id = ?`)
+        .prepare(`SELECT h.attack_key, h.until, h.created_at, ${DISPLAY} AS name FROM hidden_attacks h LEFT JOIN users u ON u.id = h.user_id WHERE h.group_id = ?`)
         .all(ctx.groupId) as { attack_key: string; until: number; created_at: number; name: string | null }[]).map((h) => [h.attack_key, h]),
     );
     return hostileAttacks(db, ctx).map((a) => {

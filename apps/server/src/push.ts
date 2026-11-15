@@ -8,7 +8,7 @@ import { isRunning, resolveGroup } from './context.js';
 import { now, type DB } from './db.js';
 import type { EventBus } from './events.js';
 import {
-  AlertSchedule, GroupDebounce, groupUniverse, heldBy, heldTargets, hold, parseQuiet, quietBreakOf, SENT_KEEP, storageMuted, storedQuiet, takeHeld, TICK_AHEAD, TICK_MS,
+  AlertSchedule, GroupDebounce, groupUniverse, dropHeld, dueHeld, heldBy, heldTargets, hold, parseQuiet, quietBreakOf, sentHeld, SENT_KEEP, storageMuted, storedQuiet, TICK_AHEAD, TICK_MS,
   type QuietBreak, type QuietHours,
 } from './notify.js';
 import { notificationsFor, type ChannelNotification, type Notification } from './repo/notifications.js';
@@ -297,15 +297,29 @@ export class PushService {
     }
   }
 
-  /** Sends what the quiet hours of a device held back, once they are over (or were switched off). */
+  private flushing = false;
+
+  /**
+   * Sends what the quiet hours of a device held back, once they are over (or were switched off). A row is deleted after
+   * its delivery only; one flush at a time, so a slow push service cannot send a row twice.
+   */
   async flushHeld(t = now()) {
-    if (!this.vapid) return;
-    for (const target of heldTargets(this.db, 'p')) {
-      const s = this.db.prepare('SELECT id, endpoint, p256dh, auth, quiet FROM push_subscriptions WHERE id = ?').get(Number(target.slice(2))) as Subscription | undefined;
-      if (s && heldBy(storedQuiet(s.quiet), null, t)) continue;
-      const rows = takeHeld(this.db, target, t);
-      if (!s) continue;
-      for (const r of rows) await this.sendSub(s, r.payload, { ttl: Math.max(60, r.expires_at - t), urgency: 'normal' });
+    if (!this.vapid || this.flushing) return;
+    this.flushing = true;
+    try {
+      for (const target of heldTargets(this.db, 'p')) {
+        const s = this.db.prepare('SELECT id, endpoint, p256dh, auth, quiet FROM push_subscriptions WHERE id = ?').get(Number(target.slice(2))) as Subscription | undefined;
+        if (!s) {
+          dropHeld(this.db, target);
+          continue;
+        }
+        if (heldBy(storedQuiet(s.quiet), null, t)) continue;
+        for (const r of dueHeld(this.db, target, t)) {
+          if (await this.sendSub(s, r.payload, { ttl: Math.max(60, r.expires_at - t), urgency: 'normal' })) sentHeld(this.db, [r]);
+        }
+      }
+    } finally {
+      this.flushing = false;
     }
   }
 }

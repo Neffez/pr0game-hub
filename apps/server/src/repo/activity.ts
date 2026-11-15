@@ -1,6 +1,6 @@
 import type { GroupContext } from '../context.js';
 import type { DB } from '../db.js';
-import { DISPLAY, MEMBER } from '../routes/util.js';
+import { DISPLAY } from './sql.js';
 import type { StoredFleet } from './fleets.js';
 import { shipsKey } from './hostile.js';
 import { memberPlayers } from './members.js';
@@ -343,7 +343,7 @@ export function playerActivity(db: DB, ctx: GroupContext, playerId: number, from
   const stored = db
     .prepare(
       `SELECT pa.id, pa.time, pa.spread, pa.created_at, pa.source, pa.g, pa.s, pa.p, pa.planet_type, pa.user_id, ${DISPLAY} AS reporter FROM player_activity pa
-       LEFT JOIN users u ON u.id = pa.user_id ${MEMBER('pa')}
+       LEFT JOIN users u ON u.id = pa.user_id
        WHERE pa.player_id = ? AND pa.time >= ? AND pa.group_id = ?`,
     )
     // galaxy marks count by their sync, at most an hour after the mark: the time bound stays on the index

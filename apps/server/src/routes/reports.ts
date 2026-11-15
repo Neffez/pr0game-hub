@@ -5,7 +5,7 @@ import { ownCoords } from '../repo/empire.js';
 import { memberPlayers } from '../repo/members.js';
 import { battleHallParticipantFilter, Players } from '../repo/players.js';
 import { latestScores } from '../repo/stats.js';
-import { clampInt, contextOf, DISPLAY, MEMBER, range, type Q } from './util.js';
+import { clampInt, contextOf, DISPLAY, range, type Q } from './util.js';
 import { moonChances } from '../repo/moons.js';
 
 export function reportsRoutes(app: FastifyInstance, db: DB) {
@@ -17,7 +17,7 @@ export function reportsRoutes(app: FastifyInstance, db: DB) {
    */
   app.get<{ Params: { uni: string }; Querystring: Q }>('/api/:uni/battle-hall', async (req) => {
     const ctx = ctxOf(req);
-    const page = Math.max(1, Number(req.query.page) || 1);
+    const page = clampInt(req.query.page, 1, 1, 1_000_000);
     const order = req.query.sort === 'time' ? 'time DESC' : 'units DESC';
     const q = (req.query.q ?? '').trim();
     const participant = q ? battleHallParticipantFilter(db, ctx.groupId, q) : null;
@@ -98,7 +98,7 @@ export function reportsRoutes(app: FastifyInstance, db: DB) {
         `SELECT b.*, ${DISPLAY} AS username,
            EXISTS (SELECT 1 FROM combat_reports c WHERE c.group_id = b.group_id AND c.report_id = b.report_id) AS archived,
            tpl.name AS target_player_name
-         FROM battle_reports b LEFT JOIN users u ON u.id = b.user_id ${MEMBER('b')}
+         FROM battle_reports b LEFT JOIN users u ON u.id = b.user_id
          LEFT JOIN planets tp ON tp.group_id = b.group_id AND tp.g = b.g AND tp.s = b.s AND tp.p = b.p
          LEFT JOIN players tpl ON tpl.id = tp.player_id
          WHERE b.group_id = ? AND COALESCE(b.time, b.created_at) BETWEEN ? AND ? AND b.p <= ?
@@ -120,7 +120,7 @@ export function reportsRoutes(app: FastifyInstance, db: DB) {
     }
     const recycling = db
       .prepare(
-        `SELECT r.*, ${DISPLAY} AS username FROM recycle_reports r LEFT JOIN users u ON u.id = r.user_id ${MEMBER('r')}
+        `SELECT r.*, ${DISPLAY} AS username FROM recycle_reports r LEFT JOIN users u ON u.id = r.user_id
          WHERE r.group_id = ? AND COALESCE(r.time, r.created_at) BETWEEN ? AND ? ORDER BY COALESCE(r.time, r.created_at) DESC`,
       )
       .all(ctx.groupId, from, to) as any[];
@@ -138,9 +138,9 @@ export function reportsRoutes(app: FastifyInstance, db: DB) {
     const players = memberPlayers(db, ctx);
     const missileRows = db
       .prepare(
-        `SELECT m.id, m.user_id, m.time, m.count, m.from_g, m.from_s, m.from_p, m.g, m.s, m.p, m.result, m.intercepted, m.losses,
+        `SELECT m.id, m.user_id, m.time, m.created_at, m.count, m.from_g, m.from_s, m.from_p, m.g, m.s, m.p, m.result, m.intercepted, m.losses,
            ${DISPLAY} AS username, fp.player_id AS from_player_id, tp.player_id AS target_player_id, tpl.name AS target_player_name
-         FROM missile_impacts m LEFT JOIN users u ON u.id = m.user_id ${MEMBER('m')}
+         FROM missile_impacts m LEFT JOIN users u ON u.id = m.user_id
          LEFT JOIN planets fp ON fp.group_id = m.group_id AND fp.g = m.from_g AND fp.s = m.from_s AND fp.p = m.from_p
          LEFT JOIN planets tp ON tp.group_id = m.group_id AND tp.g = m.g AND tp.s = m.s AND tp.p = m.p
          LEFT JOIN players tpl ON tpl.id = tp.player_id
@@ -181,7 +181,7 @@ export function reportsRoutes(app: FastifyInstance, db: DB) {
     const { from, to } = range(req.query);
     const rows = db
       .prepare(
-        `SELECT e.*, ${DISPLAY} AS username FROM expeditions e JOIN users u ON u.id = e.user_id ${MEMBER('e')}
+        `SELECT e.*, ${DISPLAY} AS username FROM expeditions e JOIN users u ON u.id = e.user_id
          WHERE e.group_id = ? AND COALESCE(e.time, e.created_at) BETWEEN ? AND ? ORDER BY COALESCE(e.time, e.created_at) DESC`,
       )
       .all(ctx.groupId, from, to) as any[];
@@ -226,7 +226,7 @@ export function reportsRoutes(app: FastifyInstance, db: DB) {
             WHERE pl.group_id = h.group_id AND pl.g = h.from_g AND pl.s = h.from_s AND pl.p = h.from_p
               AND (o.name = h.from_player COLLATE NOCASE
                 OR EXISTS (SELECT 1 FROM player_aliases a WHERE a.player_id = o.id AND a.name = h.from_player COLLATE NOCASE))) AS owner_id
-         FROM hostile_spying h LEFT JOIN users u ON u.id = h.user_id ${MEMBER('h')}
+         FROM hostile_spying h LEFT JOIN users u ON u.id = h.user_id
          WHERE h.group_id = ? AND (h.time IS NULL OR h.time BETWEEN ? AND ?) ORDER BY h.time DESC LIMIT 1000`,
       )
       .all(ctx.groupId, from, to) as { from_player: string; owner_id: number | null }[];

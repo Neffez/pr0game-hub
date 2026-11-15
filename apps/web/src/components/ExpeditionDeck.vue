@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { Deck } from '../apiTypes';
 import { useAutoTour } from '../tours';
 import Section from './Section.vue';
 import MemberSelect from './MemberSelect.vue';
@@ -10,7 +11,7 @@ import SortMark from './SortMark.vue';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
-import { useLoader, useMobile, useSort, useUni, vStack } from '../composables';
+import { fieldOf, useLoader, useMobile, useSort, useUni, vStack } from '../composables';
 import { tables, useLiveReload } from '../live';
 import { cardLabel, dateTime, DEPLETION_LABEL, fmt, fmtCount } from '../format';
 
@@ -29,7 +30,7 @@ const msg = ref('');
 
 const isMe = computed(() => userId.value === ctx.value!.me.id);
 
-const { data, error, load: fetchDeck } = useLoader<any>(() => uniApi(uni.value, `/deck?user=${userId.value}`));
+const { data, error, load: fetchDeck } = useLoader<Deck>(() => uniApi<Deck>(uni.value, `/deck?user=${userId.value}`));
 async function load() {
   const d = await fetchDeck();
   if (!d) return;
@@ -100,9 +101,9 @@ const beforeStart = computed(() => {
 });
 
 // ------------------------------------------------- card table
-const cardSort = useSort<any>(
+const cardSort = useSort(
   deckCards,
-  (c, k) => (k === 'card' ? cardLabel(c.key) : k === 'minMax' ? c.remainingMax - c.remainingMin : c[k]),
+  (c, k) => (k === 'card' ? cardLabel(c.key) : k === 'minMax' ? c.remainingMax - c.remainingMin : fieldOf(c, k)),
   'nextProbability',
 );
 const cardCols = computed(() => [
@@ -116,7 +117,7 @@ const { key: cardKey, descending: cardDesc } = cardSort;
 const mobile = useMobile();
 const cardOptions = computed(() => [{ key: 'card', label: t('deck.card') }, ...cardCols.value.map((c) => ({ key: c.key, label: c.label }))]);
 /** Bar width: the most likely card fills the column. */
-const maxProbability = computed(() => Math.max(0, ...deckCards.value.map((c: any) => c.nextProbability)));
+const maxProbability = computed(() => Math.max(0, ...deckCards.value.map((c) => c.nextProbability)));
 const progress = computed(() => (data.value ? data.value.state.drawnInDeck / data.value.state.deckSize : 0));
 useAutoTour('expeditions', () => !!data.value, 'deck');
 </script>

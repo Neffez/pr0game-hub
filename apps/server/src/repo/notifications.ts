@@ -3,7 +3,7 @@ import type { SessionUser } from '../auth.js';
 import { catalogOf, resolveGroup, universeNow, type GroupContext, type Universe } from '../context.js';
 import type { DB } from '../db.js';
 import { mentions } from '../domain/mentions.js';
-import { DISPLAY } from '../routes/util.js';
+import { DISPLAY, displayNameOf } from './sql.js';
 import { buildOrderOf, nextSteps, syncBuildOrder } from './buildOrders.js';
 import { alertDone, alertsOf, buildingsState, planetElements, planetOf, storagesOf, type BuildingsState } from './buildings.js';
 import { FLEET_KEEP, openFleetAlerts } from './fleetAlerts.js';
@@ -233,7 +233,6 @@ function settlements(db: DB, ctx: GroupContext, t: number): SettlementNotificati
   );
   if (!recent.length) return [];
   const plan = db.prepare('SELECT a.g, a.s, a.p, a.planet_type, a.mission FROM attack_plans a WHERE a.id = ? AND a.g IS NOT NULL');
-  const who = db.prepare(`SELECT ${DISPLAY} FROM users u LEFT JOIN group_members gm ON gm.group_id = ? AND gm.user_id = u.id WHERE u.id = ?`).pluck();
   const list: SettlementNotification[] = [];
   for (const f of recent) {
     const open = f.deliveries.filter((x) => !x.done && (x.from === me || x.to === me));
@@ -243,7 +242,7 @@ function settlements(db: DB, ctx: GroupContext, t: number): SettlementNotificati
     const nameOf = (id: string) => people.find((x) => x.id === id)?.name ?? '?';
     list.push({
       id: `settlement:${f.planId}:${f.finalizedAt}`, kind: 'settlement', userId: f.finalizedBy ?? 0,
-      member: (f.finalizedBy != null ? (who.get(ctx.groupId, f.finalizedBy) as string | undefined) : undefined) ?? '?', time: f.finalizedAt,
+      member: (f.finalizedBy != null ? displayNameOf(db, f.finalizedBy) : undefined) ?? '?', time: f.finalizedAt,
       plan: { id: f.planId, ...target },
       sends: open.filter((x) => x.from === me).map((x) => ({ to: nameOf(x.to), res: x.res })),
       gets: open.filter((x) => x.to === me).map((x) => ({ from: nameOf(x.from), res: x.res })),
@@ -270,7 +269,7 @@ function phalanxes(db: DB, ctx: GroupContext, t: number): PhalanxNotification[] 
         if (x.known > known.time) Object.assign(known, { id: `phalanx:${key}:${x.known}`, time: x.known, since: x.since });
         continue;
       }
-      name ??= db.prepare(`SELECT ${DISPLAY} FROM users u LEFT JOIN group_members gm ON gm.group_id = ? AND gm.user_id = u.id WHERE u.id = ?`).pluck().get(ctx.groupId, ctx.user.id) as string;
+      name ??= displayNameOf(db, ctx.user.id)!;
       byMoon.set(key, {
         id: `phalanx:${key}:${x.known}`, kind: 'phalanx', userId: ctx.user.id, member: name, time: x.known,
         moon: x.moon, level: x.level, range: x.range, since: x.since, player: x.player, planets: [planet],
@@ -285,7 +284,7 @@ function plans(db: DB, groupId: number, t: number): PlanNotification[] {
   const rows = db
     .prepare(
       `SELECT a.id, a.user_id, ${DISPLAY} AS creator, a.g, a.s, a.p, a.planet_type, a.mission, a.target_time, a.time_precision, a.created_at
-       FROM attack_plans a JOIN users u ON u.id = a.user_id LEFT JOIN group_members gm ON gm.group_id = a.group_id AND gm.user_id = u.id
+       FROM attack_plans a JOIN users u ON u.id = a.user_id
        WHERE a.group_id = ? AND a.status = 'planning' AND a.created_at > ?
          AND a.target_time + CASE a.time_precision WHEN 'day' THEN ${PRECISION_SPAN.day} WHEN 'hour' THEN ${PRECISION_SPAN.hour} ELSE 0 END > ?`,
     )
@@ -339,7 +338,7 @@ function invites(db: DB, ctx: GroupContext, t: number): InviteNotification[] {
     .prepare(
       `SELECT a.id, u.id AS user_id, ${DISPLAY} AS inviter, a.g, a.s, a.p, a.planet_type, a.mission, a.target_time, a.time_precision, MAX(f.id) AS newest
        FROM attack_plan_fleets f JOIN attack_plans a ON a.id = f.plan_id
-       JOIN users u ON u.id = COALESCE(f.invited_by, a.user_id) LEFT JOIN group_members gm ON gm.group_id = a.group_id AND gm.user_id = u.id
+       JOIN users u ON u.id = COALESCE(f.invited_by, a.user_id)
        WHERE a.group_id = ? AND f.user_id = ? AND f.status = 'invited' AND a.status = 'planning'
          AND a.target_time + CASE a.time_precision WHEN 'day' THEN ${PRECISION_SPAN.day} WHEN 'hour' THEN ${PRECISION_SPAN.hour} ELSE 0 END > ?
        GROUP BY a.id`,
@@ -357,7 +356,7 @@ function comments(db: DB, ctx: GroupContext, t: number): CommentNotification[] {
       `SELECT c.id, c.user_id, ${DISPLAY} AS author, c.body, c.created_at, c.player_id, pr.name AS player_name, c.plan_id, COALESCE(c.g, ap.g) AS g, COALESCE(c.s, ap.s) AS s,
          COALESCE(c.p, ap.p) AS p, COALESCE(c.planet_type, ap.planet_type) AS planet_type, op.name AS owner
        FROM comments c
-       LEFT JOIN users u ON u.id = c.user_id LEFT JOIN group_members gm ON gm.group_id = c.group_id AND gm.user_id = c.user_id
+       LEFT JOIN users u ON u.id = c.user_id
        LEFT JOIN players pr ON pr.id = c.player_id
        LEFT JOIN attack_plans ap ON ap.id = c.plan_id
        LEFT JOIN planets pl ON c.player_id IS NULL AND c.plan_id IS NULL AND pl.group_id = c.group_id AND pl.g = c.g AND pl.s = c.s AND pl.p = c.p
@@ -453,7 +452,7 @@ function buildings(db: DB, ctx: GroupContext, t: number, own: () => BuildingsSta
   const alerts = alertsOf(db, ctx, ctx.user.id);
   if (!alerts.length) return [];
   const state = own();
-  const name = db.prepare(`SELECT ${DISPLAY} FROM users u LEFT JOIN group_members gm ON gm.group_id = ? AND gm.user_id = u.id WHERE u.id = ?`).pluck().get(ctx.groupId, ctx.user.id) as string;
+  const name = displayNameOf(db, ctx.user.id)!;
   const list: BuildingNotification[] = [];
   for (const a of alerts) {
     const bp = planetOf(state, a);
@@ -476,7 +475,7 @@ function buildOrder(db: DB, ctx: GroupContext, t: number, own: () => BuildingsSt
   const state = own();
   if (!state.planets.length) return [];
   const stored = syncBuildOrder(db, ctx, ctx.user.id, found, state, persist);
-  const name = db.prepare(`SELECT ${DISPLAY} FROM users u LEFT JOIN group_members gm ON gm.group_id = ? AND gm.user_id = u.id WHERE u.id = ?`).pluck().get(ctx.groupId, ctx.user.id) as string;
+  const name = displayNameOf(db, ctx.user.id)!;
   return nextSteps(stored.order, state, t)
     .filter((n) => n.result.state === 'planned' && n.result.start != null && n.result.start <= t)
     .map(({ planet, step, result }) => ({
@@ -538,7 +537,7 @@ function storages(db: DB, ctx: GroupContext, t: number, own: () => BuildingsStat
       if (persist) add.run(ctx.groupId, ctx.user.id, c.g, c.s, c.p, f.resource, from);
     }
     if (from < t - STORAGE_KEEP) continue;
-    name ??= db.prepare(`SELECT ${DISPLAY} FROM users u LEFT JOIN group_members gm ON gm.group_id = ? AND gm.user_id = u.id WHERE u.id = ?`).pluck().get(ctx.groupId, ctx.user.id) as string;
+    name ??= displayNameOf(db, ctx.user.id)!;
     list.push({
       id: `storage:${key}:${from}`, kind: 'storage', userId: ctx.user.id, member: name, time: from,
       planet: { g: c.g, s: c.s, p: c.p, name: f.bp.name }, resource: f.resource,
@@ -574,7 +573,7 @@ export function nextStorageFull(db: DB, universe: Universe, groupId: number, use
 function fleets(db: DB, ctx: GroupContext, t: number): FleetNotification[] {
   const alerts = openFleetAlerts(db, ctx, ctx.user.id, t).filter((a) => a.arrival - a.lead * 60 - LAUNCH_AHEAD <= t && a.arrival + FLEET_KEEP > t);
   if (!alerts.length) return [];
-  const name = db.prepare(`SELECT ${DISPLAY} FROM users u LEFT JOIN group_members gm ON gm.group_id = ? AND gm.user_id = u.id WHERE u.id = ?`).pluck().get(ctx.groupId, ctx.user.id) as string;
+  const name = displayNameOf(db, ctx.user.id)!;
   // the id stays when the arrival moves by a second on a newer fleet list or the lead changes (sent once); alert ids
   // are never reused
   return alerts.map((a) => ({
@@ -607,7 +606,7 @@ function launches(db: DB, ctx: GroupContext, t: number): LaunchNotification[] {
   launchedOf(db, ctx, plans, fleets);
   const drivesOf = planDrives(db, ctx);
   const u = ctx.universe.settings;
-  const name = db.prepare(`SELECT ${DISPLAY} FROM users u LEFT JOIN group_members gm ON gm.group_id = ? AND gm.user_id = u.id WHERE u.id = ?`).pluck().get(ctx.groupId, ctx.user.id) as string;
+  const name = displayNameOf(db, ctx.user.id)!;
   const list: LaunchNotification[] = [];
   for (const f of fleets) {
     const plan = plans.find((p) => p.id === f.plan_id)!;

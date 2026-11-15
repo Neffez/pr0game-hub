@@ -1,3 +1,4 @@
+import { readError } from './api';
 import { computed, inject, nextTick, onBeforeUnmount, provide, ref, watch, type Directive, type InjectionKey, type Ref, type WatchSource } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import type { UnitOverrides } from '@pr0hub/core/units';
@@ -54,6 +55,9 @@ export function useProtection() {
   return (status: string[], points: number | null | undefined) =>
     ctx?.value ? protectionStatus(ctx.value.universe.settings, ctx.value.player?.points, points, status) : status;
 }
+
+/** A column of a typed row by its sort key (for `useSort` getters that fall back to the key itself). */
+export const fieldOf = (row: object, key: string): unknown => (row as Record<string, unknown>)[key];
 
 /** Client-side table sorting. `get` maps a row and key to a sortable value. */
 export function useSort<T>(rows: Ref<T[]>, get: (row: T, key: string) => unknown, initial: string, desc = true) {
@@ -140,7 +144,7 @@ export function useLoader<T>(fetch: () => Promise<T>) {
       error.value = '';
       return res;
     } catch (e) {
-      if (id === latest) error.value = (e as Error).message;
+      if (id === latest) error.value = readError(e);
       return undefined;
     }
   }

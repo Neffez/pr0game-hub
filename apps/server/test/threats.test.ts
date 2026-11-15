@@ -122,8 +122,11 @@ describe('who threatens me', () => {
     expect(res.threats[0]).toMatchObject({ player: { name: 'Raider' }, incoming: { count: 1, next: t + 3600 } });
     // the key opens the attack assistant for this attack
     expect((await call(`/u8/attack-assist?key=${encodeURIComponent(res.threats[0].incoming.key)}&arrival=${t + 3600}&sim=0`, h.carol)).statusCode).toBe(200);
-    expect((await call('/u8/threats?days=0', h.carol)).statusCode).toBe(400);
-    expect((await call('/u8/threats?days=x', h.carol)).statusCode).toBe(400);
+    // like the other lists: out of range is clamped, empty or not a number is the default
+    expect((await call('/u8/threats?days=0', h.carol)).json().days).toBe(1);
+    expect((await call('/u8/threats?days=99999', h.carol)).json().days).toBe(3650);
+    expect((await call('/u8/threats?days=', h.carol)).json().days).toBe(30);
+    expect((await call('/u8/threats?days=x', h.carol)).json().days).toBe(30);
   });
 
   it('finds the densest hours of the day, also over midnight', () => {

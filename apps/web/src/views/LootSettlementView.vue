@@ -12,7 +12,7 @@ import {
   adoptKeys, battleFromReport, cleanState, debrisSummary, decodeShare, diffOverrides, lootShares, marketRates, MAX_HELPER_KEEP, overriddenPaths, profitPercents,
   settle, type Battle, type Participant, type LootState, type Overrides, type Res, type SettlementResult, type StateChanges, type TransferInput,
 } from '@pr0hub/loot';
-import { uniApi } from '../api';
+import { readError, uniApi } from '../api';
 import CommentThread from '../components/CommentThread.vue';
 import LootSankey from '../components/LootSankey.vue';
 import Hint from '../components/Hint.vue';
@@ -105,7 +105,7 @@ async function load(force = false) {
     show(res);
     error.value = '';
   } catch (e) {
-    if (id === latest) error.value = (e as Error).message;
+    if (id === latest) error.value = readError(e);
   }
 }
 function show(res: Response) {
@@ -174,7 +174,7 @@ async function run(fn: () => Promise<unknown>) {
     await fn();
     error.value = '';
   } catch (e) {
-    error.value = (e as Error).message;
+    error.value = readError(e);
   } finally {
     busy.value = false;
   }

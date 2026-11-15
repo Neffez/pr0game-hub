@@ -13,7 +13,7 @@ import PlayerLink from '../components/PlayerLink.vue';
 import RetimePanel from '../components/RetimePanel.vue';
 import Section from '../components/Section.vue';
 import Sheet from '../components/Sheet.vue';
-import { computed, reactive, ref } from 'vue';
+import { computed, reactive } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { uniApi } from '../api';
 import { loadClaims } from '../claims';

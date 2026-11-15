@@ -126,7 +126,7 @@ const NUM_KEYS: [string, 'impulse' | 'weapons' | 'silo' | 'missiles' | 'primary'
 
 /**
  * Hash of a share link (keys like the flight calculator's: sg/ss/sp, tg/ts/tp, i, ms, gt, gs; plus m (moon), w, a,
- * sl, n, pt, ic, d401…d411 and d503, mrf, sf). Only what differs from the defaults is written.
+ * sl, n, pt, ic, d401…d408 (and the universe's further defense) and d503, mrf, sf). Only what differs from the defaults is written.
  */
 export function encodeHash(s: MissileState): string {
   const p = new URLSearchParams();

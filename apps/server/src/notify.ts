@@ -203,12 +203,28 @@ export function hold(db: DB, target: string, kind: string, payload: { tag: strin
 export const heldTargets = (db: DB, prefix: 'p' | 'u') =>
   db.prepare("SELECT DISTINCT target FROM notify_held WHERE target LIKE ? || ':%'").pluck().all(prefix) as string[];
 
-/** Takes the held notifications of a target out: the newest `HELD_MAX` that have not expired, oldest first. */
-export function takeHeld(db: DB, target: string, t: number): HeldRow[] {
+/**
+ * The held notifications of a target that are due: the newest `HELD_MAX` that have not expired, oldest first. What
+ * expired or fell out of the limit is deleted; the rest stays until `sentHeld` confirms its delivery, so a failed send
+ * is tried again on the next flush (until it expires).
+ */
+export function dueHeld(db: DB, target: string, t: number): HeldRow[] {
   const rows = db.prepare('SELECT id, kind, payload, expires_at FROM notify_held WHERE target = ? ORDER BY held_at, id').all(target) as HeldRow[];
-  db.prepare('DELETE FROM notify_held WHERE target = ?').run(target);
-  return rows.filter((r) => r.expires_at > t).slice(-HELD_MAX);
+  const due = rows.filter((r) => r.expires_at > t).slice(-HELD_MAX);
+  const keep = new Set(due.map((r) => r.id));
+  const drop = db.prepare('DELETE FROM notify_held WHERE id = ?');
+  for (const r of rows) if (!keep.has(r.id)) drop.run(r.id);
+  return due;
 }
+
+/** Deletes held notifications after their delivery; a row replaced by a newer one (same tag) meanwhile stays. */
+export function sentHeld(db: DB, rows: HeldRow[]) {
+  const drop = db.prepare('DELETE FROM notify_held WHERE id = ? AND payload = ?');
+  for (const r of rows) drop.run(r.id, r.payload);
+}
+
+/** Deletes all held notifications of a target (it is gone). */
+export const dropHeld = (db: DB, target: string) => db.prepare('DELETE FROM notify_held WHERE target = ?').run(target);
 
 /** Planets ("g:s:p") whose full storages the member muted for push and Discord. */
 export function storageMuted(db: DB, groupId: number, userId: number): Set<string> {

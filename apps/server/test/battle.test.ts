@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { beforeAll, describe, expect, it } from 'vitest';
 
 process.env.WEB_DIR = '/nonexistent';
@@ -7,6 +8,10 @@ const { openDb } = await import('../src/db.js');
 const { hashPassword } = await import('../src/auth.js');
 const { decodeShare, DEFAULT_SIM_SETTINGS } = await import('@pr0hub/battle');
 const { runInWorker, throttle } = await import('../src/battle.js');
+
+/** The worker runs the Battlerust engine, built by `pnpm build:battle` (Docker); without it the simulations are skipped. */
+const hasEngine = existsSync(new URL('../../../packages/battle/wasm/battlerust_bg.wasm', import.meta.url));
+if (!hasEngine) console.warn('packages/battle/wasm is missing: battle simulations skipped (build it with `pnpm build:battle`, needs Docker)');
 
 const db = openDb(':memory:');
 const app = buildApp(db, { logger: false });
@@ -38,7 +43,7 @@ beforeAll(async () => {
 });
 
 describe('battle simulator API', () => {
-  it('simulates with a read-only token and the newest spy report of the group', async () => {
+  it.skipIf(!hasEngine)('simulates with a read-only token and the newest spy report of the group', async () => {
     const res = await post({
       attackers: [{ units: { 207: 200, 203: 50 }, research: { 109: 12, 110: 12, 111: 12, 118: 8 }, from: '1:100:5', speed: 100 }],
       target: '1:110:8',
@@ -62,7 +67,7 @@ describe('battle simulator API', () => {
     expect(link.uni).toMatchObject({ fd: 50, dd: 10 });
   });
 
-  it('takes a planet from the request and returns the rounds on request', async () => {
+  it.skipIf(!hasEngine)('takes a planet from the request and returns the rounds on request', async () => {
     const res = await post({
       attackers: [{ units: { 204: 10 } }],
       defenders: [{ units: { 405: 20 } }],

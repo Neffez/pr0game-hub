@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import { api, loadMe, session } from '../api';
+import { api, loadMe, readError, session } from '../api';
 import { currentLang } from '../i18n';
 
 const { t } = useI18n();
@@ -29,7 +29,7 @@ onMounted(async () => {
     info.value = await api(`/invites/${token}`);
     if (info.value?.member?.name && !info.value.recovery && !session.me?.user) username.value = info.value.member.name;
   } catch (e) {
-    error.value = (e as Error).message;
+    error.value = readError(e);
   }
 });
 
@@ -48,7 +48,7 @@ async function accept() {
     await loadMe();
     router.replace('/');
   } catch (e) {
-    error.value = (e as Error).message;
+    error.value = readError(e);
   }
 }
 </script>

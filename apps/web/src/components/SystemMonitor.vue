@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { api } from '../api';
+import { api, readError } from '../api';
 import { useLimit } from '../composables';
 import { dateTime, fmt } from '../format';
 import ShowMore from './ShowMore.vue';
@@ -19,7 +19,7 @@ const load = async () => {
   try {
     sys.value = await api('/admin/system');
   } catch (e) {
-    error.value = (e as Error).message;
+    error.value = readError(e);
   } finally {
     loading.value = false;
   }
@@ -35,7 +35,7 @@ const vacuum = async () => {
     msg.value = t('admin.system.vacuumDone', { before: bytes(res.before), after: bytes(res.after), sec: (res.ms / 1000).toFixed(1) });
     await load();
   } catch (e) {
-    error.value = (e as Error).message;
+    error.value = readError(e);
     loading.value = false;
   }
 };

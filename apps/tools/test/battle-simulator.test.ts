@@ -1,8 +1,7 @@
 // @vitest-environment happy-dom
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { encodeShare, runBattle, summarize } from '@pr0hub/battle';
-import { initSync, wasm_fight_battle_rounds } from '@pr0hub/battle/wasm';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { applySpyReport, balance, battleSetup, cleanState, defaultDebrisTo, emptyState, fightingSlots, shareFromState, slotFlight, stateFromShare } from '../src/battle';
 import { DEFAULT_UNI } from '../src/core';
@@ -94,9 +93,17 @@ describe('battle simulator balance', () => {
   });
 });
 
-describe('battle simulator page', () => {
+/** The engine is built by `pnpm build:battle` (Docker); without it the page suite is skipped. */
+const ENGINE = resolve(import.meta.dirname, '../../../packages/battle/wasm/battlerust_bg.wasm');
+const hasEngine = existsSync(ENGINE);
+if (!hasEngine) console.warn('packages/battle/wasm is missing: battle simulator page suite skipped (build it with `pnpm build:battle`, needs Docker)');
+
+describe.skipIf(!hasEngine)('battle simulator page', () => {
   beforeAll(async () => {
-    initSync({ module: readFileSync(resolve(import.meta.dirname, '../../../packages/battle/wasm/battlerust_bg.wasm')) });
+    // a variable specifier: Vite resolves literal imports when it loads the file, also in a skipped suite
+    const engine = '@pr0hub/battle/wasm';
+    const { initSync, wasm_fight_battle_rounds } = (await import(/* @vite-ignore */ engine)) as typeof import('@pr0hub/battle/wasm');
+    initSync({ module: readFileSync(ENGINE) });
     // the worker runs the engine in the test's thread
     class FakeWorker {
       onmessage: ((e: { data: unknown }) => void) | null = null;

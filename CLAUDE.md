@@ -25,7 +25,9 @@ Guidance for Claude Code in this repository. See `README.md` for features, setup
 - **OpenAPI with API changes.** The public contract is [`apps/server/openapi.yaml`](apps/server/openapi.yaml)
   (served as `/api/openapi.json` and `.yaml`). Any commit that adds, removes or changes HTTP API behavior—paths,
   methods, auth, query/header parameters, or response shape—must update that file in the same commit so it stays
-  accurate (paths, `operationId`s, security, and schemas for affected operations; descriptions in English).
+  accurate (paths, `operationId`s, security, and schemas for affected operations; descriptions in English). The server
+  tests check every 2xx JSON answer against it (`test/contract.ts`): describe new answers with `required` fields and
+  `type: [X, 'null']` (OpenAPI 3.1, no `nullable`), and give new endpoints a test that calls them.
 - **A tour for every page and tab.** Each new page (menu item) and each new tab gets tour steps in
   `apps/web/src/tours.ts` with texts `tours.<id>.<key>` in `de.ts` and `en.ts`: a page its own tour, started with
   `useAutoTour`; a tab a `head` step on its button plus steps for its content with `tabs: ['<tab>']`, the open tab

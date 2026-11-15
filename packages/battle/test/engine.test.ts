@@ -1,13 +1,10 @@
-import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { initSync, wasm_fight_battle_rounds } from '../wasm/battlerust.js';
 import { runBattle, simulate, type BattleSetup } from '../src/index.js';
+import { fight, hasEngine } from './wasm.js';
 
-initSync({ module: readFileSync(new URL('../wasm/battlerust_bg.wasm', import.meta.url)) });
-const fight = wasm_fight_battle_rounds;
 const none = { 109: 0, 110: 0, 111: 0 };
 
-describe('Battlerust engine (WASM)', () => {
+describe.skipIf(!hasEngine)('Battlerust engine (WASM)', () => {
   it('lets a lone light fighter lose against a hundred rocket launchers', () => {
     const setup: BattleSetup = { attackers: [{ units: { 204: 1 }, research: none }], defenders: [{ units: { 401: 100 }, research: none }] };
     const s = simulate(fight, setup, 10);

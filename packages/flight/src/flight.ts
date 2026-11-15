@@ -3,7 +3,7 @@
  * getFleetConsumption, sendFleetBack) and the send/ACS timing of ShowFleetStep3Page / setACSTime.
  * Durations stay float, timestamps are floored like on the server.
  */
-import { SHIPS, type ShipCatalog, type ShipDrives } from './ships.js';
+import type { ShipCatalog, ShipDrives } from './ships.js';
 
 export const MIN_FLEET_TIME = 5;
 
@@ -80,15 +80,15 @@ function driveIndex(ship: ShipDrives, drives: Drives): 0 | 1 | 2 {
   return 0;
 }
 
-const DRIVE_BONUS = [0.1, 0.2, 0.3];
+const DRIVE_BONUS = [0.1, 0.2, 0.3] as const;
 
 /** FleetFunctions::getShipSpeed; 0 for unknown ships. */
 export function shipSpeed(id: number | string, drives: Drives, catalog: ShipCatalog): number {
   const ship = catalog[id];
   if (!ship) return 0;
   const i = driveIndex(ship, drives);
-  const level = [drives.combustion, drives.impulse, drives.hyperspace][i];
-  return ship.speed[i] * (1 + DRIVE_BONUS[i] * level);
+  const level = ([drives.combustion, drives.impulse, drives.hyperspace] as const)[i];
+  return (ship.speed[i] ?? 0) * (1 + DRIVE_BONUS[i] * level);
 }
 
 /** Slowest ship of a fleet (FleetFunctions::getFleetMaxSpeed); null when no known ship is in it. */

@@ -2,7 +2,7 @@ import { CLASS_BUILDINGS, PHALANX } from '@pr0hub/core/tech';
 import { OPTIONAL_DEFAULTS } from '@pr0hub/core/universe';
 import type { GroupContext } from '../context.js';
 import type { DB } from '../db.js';
-import { phalanxRange } from '../domain/phalanx.js';
+import { phalanxRange } from '@pr0hub/flight';
 import { latestEmpire, latestEmpires } from './empire.js';
 import { alliance, memberPlayer } from './members.js';
 

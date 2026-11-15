@@ -3,7 +3,7 @@ import type { SaveTarget } from '@pr0hub/flight';
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
-import { uniApi } from '../api';
+import { readError, uniApi } from '../api';
 import { useClock } from '../clock';
 import BackLink from '../components/BackLink.vue';
 import Countdown from '../components/Countdown.vue';
@@ -151,7 +151,7 @@ async function invite(list: Assist['helpers']) {
       invited.add(helperKey(h));
     }
   } catch (e) {
-    actionError.value = (e as Error).message;
+    actionError.value = readError(e);
   } finally {
     busy.value = false;
   }

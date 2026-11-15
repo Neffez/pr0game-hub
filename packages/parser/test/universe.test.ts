@@ -1,6 +1,7 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
-  decodeUnitOverrides, encodeUnitOverrides, inactiveDaysOf, OPTIONAL_DEFAULTS, settingsError, TOOL_HASH, toolsHash, UNIVERSE_DEFAULTS, universeSettings,
+  decodeUnitOverrides, encodeUnitOverrides, inactiveDaysOf, OPTIONAL_DEFAULTS, SETTING_KEYS, settingsError, TOOL_HASH, toolsHash, UNIVERSE_DEFAULTS, universeSettings,
 } from '../src/universe.js';
 
 describe('universe settings', () => {
@@ -24,6 +25,18 @@ describe('universe settings', () => {
     expect(settingsError({ bigShields: 1 })?.code).toBe('setting_invalid');
     // a required setting cannot be reset
     expect(settingsError({ galaxies: null })?.code).toBe('setting_invalid');
+    // no setting at all (a typo, a removed setting): refused instead of stored
+    expect(settingsError({ galaxys: 5 })).toEqual({ code: 'setting_unknown', message: 'Unknown setting: galaxys' });
+    expect(settingsError({ positionBonus: { 8: [10, 0, 0] }, flightCalculatorUrl: 'https://example.com/' })).toBeNull();
+  });
+
+  it('knows every key of UniverseSettings', () => {
+    const src = readFileSync(new URL('../src/universe.ts', import.meta.url), 'utf8');
+    const start = src.indexOf('export interface UniverseSettings {');
+    const body = src.slice(start, src.indexOf('\n}\n', start));
+    const keys = [...body.matchAll(/^  (\w+)\??:/gm)].map((m) => m[1]);
+    expect(keys.length).toBeGreaterThan(20);
+    expect([...SETTING_KEYS].sort()).toEqual([...new Set(keys)].sort());
   });
 
   it('gives the tools layout and speed, battle values only when set', () => {

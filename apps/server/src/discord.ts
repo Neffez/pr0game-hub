@@ -4,7 +4,7 @@ import { config } from './config.js';
 import { isRunning, resolveGroup } from './context.js';
 import { now, type DB } from './db.js';
 import type { EventBus } from './events.js';
-import { AlertSchedule, GroupDebounce, groupUniverse, heldBy, heldTargets, hold, quietBreakOf, SENT_KEEP, storageMuted, takeHeld, TICK_AHEAD, TICK_MS } from './notify.js';
+import { AlertSchedule, GroupDebounce, groupUniverse, dropHeld, dueHeld, heldBy, heldTargets, hold, quietBreakOf, sentHeld, SENT_KEEP, storageMuted, TICK_AHEAD, TICK_MS } from './notify.js';
 import {
   accessRequestAdmins, accessRequestPayload, LEAD_MINUTES, payloadOf, pushPrefs, samplePayload, SPY_MISSION, testPayload, wanted, type ParserSample, type PushLang, type PushPayload,
 } from './push.js';
@@ -227,15 +227,33 @@ export class DiscordService {
     for (const m of outbox) await this.send(m.target, m.items);
   }
 
-  /** Sends what the quiet hours of a member's webhook held back, once they are over (or were switched off). */
+  private flushing = false;
+
+  /**
+   * Sends what the quiet hours of a member's webhook held back, once they are over (or were switched off). Rows are
+   * deleted per message after Discord accepted it; one flush at a time.
+   */
   async flushHeld(t = now()) {
-    for (const target of heldTargets(this.db, 'u')) {
-      const userId = Number(target.slice(2));
-      const url = this.db.prepare('SELECT discord_webhook FROM users WHERE id = ?').pluck().get(userId) as string | null | undefined;
-      if (url && heldBy(pushPrefs(this.db, userId, 'discord_prefs').quiet, null, t)) continue;
-      const rows = takeHeld(this.db, target, t);
-      if (!url || !rows.length) continue;
-      await this.send(this.userTarget(userId, url), rows.map((r) => ({ kind: r.kind in COLORS ? (r.kind as Item['kind']) : 'comment', payload: JSON.parse(r.payload) as PushPayload })));
+    if (this.flushing) return;
+    this.flushing = true;
+    try {
+      for (const target of heldTargets(this.db, 'u')) {
+        const userId = Number(target.slice(2));
+        const url = this.db.prepare('SELECT discord_webhook FROM users WHERE id = ?').pluck().get(userId) as string | null | undefined;
+        if (!url) {
+          dropHeld(this.db, target);
+          continue;
+        }
+        if (heldBy(pushPrefs(this.db, userId, 'discord_prefs').quiet, null, t)) continue;
+        const rows = dueHeld(this.db, target, t);
+        for (let i = 0; i < rows.length; i += EMBEDS_PER_MESSAGE) {
+          const chunk = rows.slice(i, i + EMBEDS_PER_MESSAGE);
+          const items = chunk.map((r) => ({ kind: r.kind in COLORS ? (r.kind as Item['kind']) : 'comment', payload: JSON.parse(r.payload) as PushPayload }));
+          if (await this.send(this.userTarget(userId, url), items)) sentHeld(this.db, chunk);
+        }
+      }
+    } finally {
+      this.flushing = false;
     }
   }
 

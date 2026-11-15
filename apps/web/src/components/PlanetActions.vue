@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { uniApi } from '../api';
+import { readError, uniApi } from '../api';
 import { CLAIM_KINDS, CLAIM_MINUTES, claimOf, loadClaims, remaining } from '../claims';
 import { planetComments } from '../comments';
 import { useUni } from '../composables';
@@ -103,7 +103,7 @@ async function claimRequest(fn: () => Promise<unknown>) {
     await fn();
     await loadClaims(uni.value);
   } catch (e) {
-    claimError.value = (e as Error).message;
+    claimError.value = readError(e);
   }
 }
 const claimTarget = (force = false) =>

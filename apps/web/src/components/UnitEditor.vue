@@ -4,7 +4,7 @@ import { techName } from '@pr0hub/core/tech';
 import { DEFAULT_UNIT_DEFS, emptyUnit, isUnitId, unitCatalog, unitPatch, type ShipDrives, type UnitDef, type UnitOverrides } from '@pr0hub/core/units';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { api } from '../api';
+import { api, readError } from '../api';
 import { fmt } from '../format';
 import Icon from './Icon.vue';
 
@@ -50,7 +50,7 @@ async function load() {
     saved.value = res.overrides;
     overrides.value = structuredClone(res.overrides);
   } catch (e) {
-    error.value = (e as Error).message;
+    error.value = readError(e);
   } finally {
     loading.value = false;
   }
@@ -204,7 +204,7 @@ async function parse() {
     pasted.value = [...pasted.value, t(`admin.units.kind.${page.kind}`, { n: page.units.length })];
     pasteHtml.value = '';
   } catch (e) {
-    error.value = (e as Error).message;
+    error.value = readError(e);
   } finally {
     parsing.value = false;
   }

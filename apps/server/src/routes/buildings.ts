@@ -5,7 +5,7 @@ import type { GroupContext } from '../context.js';
 import { now, type DB } from '../db.js';
 import { events } from '../events.js';
 import { storageMuted } from '../notify.js';
-import { alertsOf, buildingsState, planetElements, planetOf, pruneAlerts } from '../repo/buildings.js';
+import { alertsOf, buildingsState, planetOf, pruneAlerts } from '../repo/buildings.js';
 import { contextOf } from './util.js';
 
 interface AlertBody {
@@ -55,10 +55,12 @@ export function buildingsRoutes(app: FastifyInstance, db: DB) {
     if (!Array.isArray(list) || list.length > 200 || list.some((c) => typeof c !== 'string' || !/^\d{1,3}:\d{1,4}:\d{1,3}$/.test(c))) {
       throw new HttpError(400, 'storage_alerts_invalid', 'muted: list of planet coordinates "g:s:p"');
     }
+    // only the viewer's synced planets (what GET lists); other coordinates are left out
+    const own = new Set(storageAlerts(ctx).planets.map((p) => `${p.g}:${p.s}:${p.p}`));
     db.transaction(() => {
       db.prepare('DELETE FROM storage_muted WHERE group_id = ? AND user_id = ?').run(ctx.groupId, ctx.user.id);
       const add = db.prepare('INSERT OR IGNORE INTO storage_muted (group_id, user_id, g, s, p) VALUES (?, ?, ?, ?, ?)');
-      for (const c of list as string[]) add.run(ctx.groupId, ctx.user.id, ...c.split(':').map(Number));
+      for (const c of (list as string[]).filter((c) => own.has(c))) add.run(ctx.groupId, ctx.user.id, ...c.split(':').map(Number));
     })();
     return storageAlerts(ctx);
   });

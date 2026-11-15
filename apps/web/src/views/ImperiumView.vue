@@ -10,7 +10,7 @@ import { resourceAt } from '@pr0hub/core/buildings';
 import { classOf, elementPoints, METAL, RESOURCES, STORAGE, storageCapacity } from '@pr0hub/core/tech';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { uniApi } from '../api';
+import { readError, uniApi } from '../api';
 import { past, upcoming, useClock } from '../clock';
 import FleetList, { alertFor, FLEET_HISTORY, type Fleet, type FleetAlert } from '../components/FleetList.vue';
 import Hint from '../components/Hint.vue';
@@ -137,7 +137,7 @@ async function setAlert(f: Fleet, lead: number | null) {
           });
     data.value!.fleetAlerts = res.alerts;
   } catch (e) {
-    alertError.value = (e as Error).message;
+    alertError.value = readError(e);
   } finally {
     alertBusy.value = null;
   }
@@ -155,7 +155,7 @@ async function setShare(list: Fleet[], shared: boolean) {
     }
     await load();
   } catch (e) {
-    alertError.value = (e as Error).message;
+    alertError.value = readError(e);
   } finally {
     shareBusy.value = null;
   }

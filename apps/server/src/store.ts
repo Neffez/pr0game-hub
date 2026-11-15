@@ -29,7 +29,7 @@ import {
 import { CLASS_BUILDINGS, PHALANX } from '@pr0hub/core/tech';
 import { keepOriginalNames, mergeCombatFleets } from './battleParticipants.js';
 import { now, type DB } from './db.js';
-import { DISPLAY } from './routes/util.js';
+import { DISPLAY } from './repo/sql.js';
 import type { IngestLog, IngestSummary, IngestTarget } from './ingest.js';
 import { fleetActivity, galaxyMark } from './repo/activity.js';
 import { FLEET_HISTORY } from './repo/fleets.js';

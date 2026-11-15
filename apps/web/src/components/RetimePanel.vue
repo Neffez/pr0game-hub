@@ -7,7 +7,7 @@ import Hint from './Hint.vue';
 import Section from './Section.vue';
 import { computed, reactive, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { uniApi } from '../api';
+import { readError, uniApi } from '../api';
 import { useUni } from '../composables';
 import { abbr, duration, fmt, numDate } from '../format';
 import { intlLocale } from '../i18n';
@@ -83,7 +83,7 @@ async function dropPhalanx() {
     await uniApi(uni.value, `/plans/${props.plan.id}/phalanx`, { method: 'DELETE' });
     emit('saved');
   } catch (e) {
-    emit('error', (e as Error).message);
+    emit('error', readError(e));
   }
 }
 
@@ -154,7 +154,7 @@ async function save() {
     dirty.value = false;
     emit('saved');
   } catch (e) {
-    emit('error', (e as Error).message);
+    emit('error', readError(e));
   }
 }
 </script>

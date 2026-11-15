@@ -2,7 +2,7 @@
 import Icon from './Icon.vue';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { uniApi } from '../api';
+import { readError, uniApi } from '../api';
 import { useUni } from '../composables';
 import { refreshSyncHints } from '../syncHints';
 import { cardLabel, coords, dateTime, DEPLETION_LABEL, fmt, rateText, STATS_CATEGORIES, STATS_CATEGORY_ORDER } from '../format';
@@ -92,7 +92,7 @@ async function runItem(b: BatchItem, dryRun: boolean) {
     if (dryRun) b.preview = res;
     else b.saved = res;
   } catch (e) {
-    b.error = (e as Error).message;
+    b.error = readError(e);
   } finally {
     b.busy = false;
   }
@@ -226,7 +226,7 @@ async function sendSample() {
     await uniApi(uni.value, '/ingest/sample', { body: { html: html.value, text: html.value && text.value.startsWith(FILE_MARK) ? null : text.value, note: sample.value.note || null } });
     sample.value.sent = true;
   } catch (e) {
-    sample.value.error = (e as Error).message;
+    sample.value.error = readError(e);
   } finally {
     sample.value.busy = false;
   }
@@ -345,7 +345,7 @@ async function run(dryRun: boolean) {
       text.value = '';
     }
   } catch (e) {
-    if (current === runs) error.value = (e as Error).message;
+    if (current === runs) error.value = readError(e);
   } finally {
     if (current === runs) busy.value = false;
   }

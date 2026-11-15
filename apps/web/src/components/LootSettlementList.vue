@@ -5,7 +5,7 @@ import Icon from './Icon.vue';
 import { computed, onMounted, reactive, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
-import { uniApi } from '../api';
+import { readError, uniApi } from '../api';
 import Hint from './Hint.vue';
 import PlayerLink from './PlayerLink.vue';
 import { useLoader, useStored, useUni, vStack } from '../composables';
@@ -60,7 +60,7 @@ async function createFromReport() {
     Object.assign(fromReport, { open: false, text: '', mission: '' });
     router.push({ path: `/${uni.value}/raid-planner/${res.id}/loot`, query: res.existing ? { existing: '1' } : {} });
   } catch (e) {
-    fromReport.error = (e as Error).message;
+    fromReport.error = readError(e);
   } finally {
     fromReport.busy = false;
   }

@@ -190,11 +190,17 @@ export function planetLimit(s: Pick<UniverseSettings, 'maxInitialPlanets' | 'max
 export const universeSettings = (stored: Partial<UniverseSettings> | null | undefined): UniverseSettings => ({ ...UNIVERSE_DEFAULTS, ...(stored ?? {}) });
 
 export interface SettingError {
-  code: 'timezone_invalid' | 'game_url_invalid' | 'pr0plan_url_invalid' | 'setting_invalid';
+  code: 'timezone_invalid' | 'game_url_invalid' | 'pr0plan_url_invalid' | 'setting_invalid' | 'setting_unknown';
   message: string;
 }
 
 const KNOWN: Record<string, unknown> = { ...UNIVERSE_DEFAULTS, ...OPTIONAL_DEFAULTS };
+/**
+ * Every key of `UniverseSettings`: the ones with a default plus the optional ones without (a test compares the list
+ * with the interface). Other keys are refused by `settingsError`.
+ */
+export const SETTING_KEYS: readonly string[] = [...Object.keys(KNOWN), 'positionBonus', 'flightCalculatorUrl'];
+const SETTING_KEY_SET = new Set(SETTING_KEYS);
 /** at least 1 and whole */
 const COUNTS = ['galaxies', 'systems', 'positions', 'fleetSpeed', 'storageMultiplier'];
 /** whole numbers from 0 */
@@ -210,11 +216,14 @@ const URLS: Record<string, SettingError> = {
 
 /**
  * Checks settings an admin sends (all or some of them): types by the defaults, counts ≥ 1, numbers ≥ 0, percentages
- * ≤ 100, a known time zone and http(s) URLs. `null` (reset) is allowed for the optional settings. Null when valid.
+ * ≤ 100, a known time zone and http(s) URLs. `null` (reset) is allowed for the optional settings; keys that are no
+ * setting are refused (`setting_unknown`). Null when valid.
  */
 export function settingsError(settings: object | null | undefined): SettingError | null {
   if (!settings) return null;
   const s = settings as Record<string, unknown>;
+  const unknown = Object.keys(s).find((k) => !SETTING_KEY_SET.has(k));
+  if (unknown !== undefined) return { code: 'setting_unknown', message: `Unknown setting: ${unknown}` };
   if (s.timezone !== undefined) {
     try {
       new Intl.DateTimeFormat('en-US', { timeZone: String(s.timezone) });

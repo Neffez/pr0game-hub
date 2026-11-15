@@ -16,7 +16,9 @@ export const MISSILE_COST = { m: 12500, k: 2500, d: 10000 } as const;
 /**
  * What a missile can hit, in the game's order (element id ascending): the defense and the target's own
  * interplanetary missiles, with their costs (metal, crystal, deuterium as in the game's vars). Metal plus crystal
- * gives the structure points.
+ * gives the structure points. The game's vars still define the giant shield domes 409–411; pr0game has none and the
+ * unit catalog of @pr0hub/core leaves them out, so they are not listed here either (a universe that has them brings
+ * them in its catalog, the tools' `missileTargets`).
  */
 export const MISSILE_TARGETS: Record<number, readonly [number, number, number]> = {
   401: [2000, 0, 0],
@@ -27,9 +29,6 @@ export const MISSILE_TARGETS: Record<number, readonly [number, number, number]> 
   406: [50000, 50000, 30000],
   407: [10000, 10000, 0],
   408: [50000, 50000, 0],
-  409: [10000000, 5000000, 2500000],
-  410: [15000000, 15000000, 0],
-  411: [5000000000, 2000000000, 500000000],
   503: [12500, 2500, 10000],
 };
 export const MISSILE_TARGET_IDS: number[] = Object.keys(MISSILE_TARGETS).map(Number).sort((a, b) => a - b);
@@ -138,7 +137,10 @@ export function missileAttack(input: MissileAttackInput): MissileAttackResult {
   const interceptors = Math.max(0, Math.floor(input.interceptors));
   const remaining: Record<number, number> = {};
   const targets = input.targets ?? MISSILE_TARGETS;
-  for (const id of idsOf(targets)) if ((input.defense[id] ?? 0) > 0) remaining[id] = input.defense[id];
+  for (const id of idsOf(targets)) {
+    const n = input.defense[id] ?? 0;
+    if (n > 0) remaining[id] = n;
+  }
   const destroyed: Record<number, number> = {};
   if (interceptors >= missiles) {
     return { intercepted: missiles, effective: 0, interceptorsLeft: interceptors - missiles, destroyed, remaining, damageLeft: 0 };
@@ -147,11 +149,11 @@ export function missileAttack(input: MissileAttackInput): MissileAttackResult {
   let damage = missileDamage(effective, input.weapons);
   for (const id of targetOrder(input.defense, primaryTarget(input.primary, targets), targets)) {
     const points = structurePoints(id, input.armor, targets);
-    const count = Math.min(Math.floor(damage / points), remaining[id]);
+    const count = Math.min(Math.floor(damage / points), remaining[id] ?? 0);
     damage -= count * points;
     if (count > 0) {
       destroyed[id] = count;
-      remaining[id] -= count;
+      remaining[id] = (remaining[id] ?? 0) - count;
       if (!remaining[id]) delete remaining[id];
     }
     if (damage <= 0) break;
@@ -168,7 +170,7 @@ export function missilesNeeded(input: Omit<MissileAttackInput, 'missiles'>, goal
   const primary = primaryTarget(input.primary, targets);
   const ids = goal === 'all' ? targetOrder(input.defense, primary, targets) : (input.defense[primary] ?? 0) > 0 ? [primary] : [];
   if (!ids.length) return null;
-  const points = ids.reduce((sum, id) => sum + input.defense[id] * structurePoints(id, input.armor, targets), 0);
+  const points = ids.reduce((sum, id) => sum + (input.defense[id] ?? 0) * structurePoints(id, input.armor, targets), 0);
   const interceptors = Math.max(0, Math.floor(input.interceptors));
   const done = (n: number) => {
     const r = missileAttack({ ...input, missiles: n });

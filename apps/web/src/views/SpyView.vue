@@ -10,7 +10,7 @@ import Hint from '../components/Hint.vue';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
-import { uniApi } from '../api';
+import { readError, uniApi } from '../api';
 import SpyHistory, { type SpyReport } from '../components/SpyHistory.vue';
 import { useLoader, useMobile, useProgressive, useUni } from '../composables';
 import { tables, useLiveReload } from '../live';
@@ -82,7 +82,7 @@ async function appendRecent() {
     recent.value.push(...batch.filter((r) => !have.has(r.id)));
     if (batch.length < RECENT_BATCH) recentDone.value = true;
   } catch (e) {
-    if (gen === recentGen) error.value = (e as Error).message;
+    if (gen === recentGen) error.value = readError(e);
   } finally {
     if (gen === recentGen) recentLoading = false;
   }

@@ -2,7 +2,7 @@ import { debrisAmount } from '@pr0hub/core';
 import { drivesFromResearch, shipSpeed } from '@pr0hub/flight';
 import { catalogOf, type GroupContext } from '../context.js';
 import type { DB } from '../db.js';
-import { DISPLAY } from '../routes/util.js';
+import { DISPLAY } from './sql.js';
 import { latestEmpires } from './empire.js';
 import { memberPlayers } from './members.js';
 

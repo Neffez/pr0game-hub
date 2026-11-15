@@ -4,7 +4,7 @@ import {
 } from '@pr0hub/planner';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { uniApi } from '../api';
+import { readError, uniApi } from '../api';
 import { useUni } from '../composables';
 import Sheet from './Sheet.vue';
 import type { StoredBuildOrder } from './BuildOrder.vue';
@@ -97,7 +97,7 @@ async function submit() {
     text.value = '';
     open.value = false;
   } catch (e) {
-    error.value = (e as Error).message;
+    error.value = readError(e);
   } finally {
     busy.value = false;
   }

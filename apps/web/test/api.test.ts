@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ApiError, api, safeNext, selectedGroup, selectGroup, session } from '../src/api';
+import { ApiError, api, readError, safeNext, selectedGroup, selectGroup, session } from '../src/api';
 
 describe('selectedGroup', () => {
   beforeEach(() => {
@@ -63,5 +63,25 @@ describe('api', () => {
     );
     await expect(api('/u8/overview')).rejects.toBeInstanceOf(ApiError);
     expect(session.me?.user).toBeNull();
+  });
+});
+
+describe('readError', () => {
+  it('reads API errors, other errors and thrown non-errors', () => {
+    expect(readError(new ApiError(409, 'Benutzername vergeben', 'username_taken'))).toBe('Benutzername vergeben');
+    expect(readError(new Error('boom'))).toBe('boom');
+    expect(readError('plain')).toBe('plain');
+    expect(readError(undefined)).toBeTruthy();
+  });
+
+  it('turns a failed request into a network error with its own code', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => {
+      throw new TypeError('Failed to fetch');
+    }));
+    const e = await api('/auth/me').catch((err: unknown) => err);
+    expect(e).toBeInstanceOf(ApiError);
+    expect(e).toMatchObject({ status: 0, code: 'network' });
+    expect(readError(e)).not.toContain('Failed to fetch');
+    vi.unstubAllGlobals();
   });
 });

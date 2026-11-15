@@ -11,7 +11,7 @@ import GlobalSearch from '../components/GlobalSearch.vue';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
-import { selectGroup, selectedGroup, session, uniApi } from '../api';
+import { ApiError, selectGroup, selectedGroup, session, uniApi } from '../api';
 import { provideUni, useLoader, useScrollLock, type UniContext } from '../composables';
 import { applyUnits } from '../units';
 import { clearClaims, loadClaims } from '../claims';
@@ -28,7 +28,19 @@ const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
 const uni = computed(() => String(route.params.uni));
-const { data: ctx, error, load: fetchContext } = useLoader(() => uniApi<UniContext>(uni.value, '/context'));
+/** `universe_not_found` / `no_group` of `/context`: the path names no universe of the member (typo, old link). */
+const missing = ref<'universe_not_found' | 'no_group' | null>(null);
+const { data: ctx, error, load: fetchContext } = useLoader(async () => {
+  missing.value = null;
+  try {
+    return await uniApi<UniContext>(uni.value, '/context');
+  } catch (e) {
+    if (e instanceof ApiError && (e.code === 'universe_not_found' || e.code === 'no_group')) missing.value = e.code;
+    throw e;
+  }
+});
+/** The member's universes, offered when the path names none of them. */
+const ownUniverses = computed(() => [...new Map((session.me?.groups ?? []).map((g) => [g.universe, g.universe_name])).entries()]);
 const groups = computed(() => session.me?.groups.filter((g) => g.universe === uni.value) ?? []);
 const group = ref<number | null>(null);
 const reloadKey = ref(0);
@@ -320,7 +332,16 @@ const tabs = computed(() => (started.value ? TABS : [{ to: 'paste', label: 'sync
       <PresenceList v-if="ctx" :page-label="pageLabel" @navigate="navOpen = false" />
     </aside>
     <main class="main">
-      <div v-if="error" class="error">{{ error }}</div>
+      <div v-if="missing" class="card" style="max-width: 560px">
+        <h2>{{ t(missing === 'universe_not_found' ? 'nav.universeMissing' : 'nav.universeNoGroup', { uni }) }}</h2>
+        <p class="muted">{{ t(missing === 'universe_not_found' ? 'nav.universeMissingHint' : 'nav.universeNoGroupHint') }}</p>
+        <p v-if="ownUniverses.length" style="margin-bottom: 0">{{ t('nav.universeOwn') }}</p>
+        <ul v-if="ownUniverses.length" style="margin: 8px 0 12px; padding-left: 18px">
+          <li v-for="[slug, name] in ownUniverses" :key="slug"><RouterLink :to="`/${slug}/overview`">{{ name }}</RouterLink></li>
+        </ul>
+        <RouterLink to="/">{{ t('nav.toHome') }}</RouterLink>
+      </div>
+      <div v-else-if="error" class="error">{{ error }}</div>
       <template v-else-if="ctx">
         <div v-if="ended" class="warn ended-banner">{{ t('nav.universeEnded', { time: dateTime(endedAt) }) }}</div>
         <div v-else-if="!started && !waiting" class="warn ended-banner">{{ t('nav.universeStarts', { time: dateTime(startsAt) }) }}</div>

@@ -9,7 +9,7 @@
  */
 import { homeOf, launchFor } from './acs.js';
 import { distance, flightDuration, slowestShip, SPEED_PERCENTS, type Coords, type Drives, type Fleet, type Universe } from './flight.js';
-import { SHIPS, type ShipCatalog } from './ships.js';
+import type { ShipCatalog } from './ships.js';
 
 /** Time range in unix seconds, both ends included. */
 export interface TimeWindow {
