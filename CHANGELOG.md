@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-15
 
+- `openapi.yaml` describes the answers of `GET /api/{uni}/hostile-attacks`, `/battle-hall`, `/combat-reports/{id}`,
+  `/claims`, `/messages` and `/plans` (new schemas `HostileAttack`, `BattleHall`, `CombatReport`, `Claim`, `Messages`,
+  `Plan`, `PlanFleet`); the contract check showed that a plan fleet's start (`g`, `s`, `p`, `planet_type`) is null
+  until the member picks one.
 - `openapi.yaml` describes the answers of `GET /api/universes`, `/galaxy-views`, `/spy-reports`, `/comments`,
   `/comments/counts` and the sharing settings under `/api/auth` (`FleetShare`, `Enabled`) in full.
 - `openapi.yaml` describes the answers of `GET /api/{uni}/raids`, `/expeditions`, `/deck` and `/players/{id}` in full

@@ -1701,6 +1701,248 @@ components:
         enabled: { type: boolean, description: Fleets are shared with the alliance by default }
         hidden: { type: array, items: { type: integer }, description: Missions never shared }
         history: { type: boolean, description: The own fleets also show in the history of past movements }
+    Coords:
+      type: object
+      required: [g, s, p, type]
+      properties:
+        g: { type: integer }
+        s: { type: integer }
+        p: { type: integer }
+        type: { type: string, enum: [planet, moon] }
+    HostileAttack:
+      description: A hostile attack (single fleet or ACS) from the members' overview pastes or a phalanx result.
+      type: object
+      required: [key, memberId, member, source, reporter, home, seen, arrival, from, to, fleets, player, drives, until, planId, holdPlanId, hidden]
+      properties:
+        key: { type: string, description: "Stable while the attack lasts: route and the lead fleet's ships" }
+        memberId: { type: [integer, 'null'], description: Member it heads for (overview); null when only seen in a phalanx }
+        member: { type: [string, 'null'], description: That member, or the attacked player by the galaxy data (phalanx) }
+        source: { type: string, enum: [overview, phalanx] }
+        reporter: { type: [string, 'null'], description: Member who pasted the phalanx }
+        home: { type: [integer, 'null'], description: "Landing back home when a phalanx of the attacker's planet shows the return" }
+        seen: { type: integer, description: Page time of the overview it was seen on }
+        arrival: { type: integer }
+        from: { $ref: '#/components/schemas/Coords' }
+        to: { $ref: '#/components/schemas/Coords' }
+        fleets:
+          type: array
+          description: The lead first
+          items:
+            type: object
+            required: [mission, ships]
+            properties:
+              mission: { type: [integer, 'null'] }
+              ships: { type: object, additionalProperties: { type: integer } }
+        player:
+          type: [object, 'null']
+          description: Owner of the origin according to the galaxy data
+          required: [id, name]
+          properties: { id: { type: integer }, name: { type: string } }
+        drives:
+          type: [object, 'null']
+          description: "Owner's drive research from the newest spy report showing research"
+          required: [research, time]
+          properties:
+            research: { type: object, additionalProperties: { type: integer } }
+            time: { type: [integer, 'null'] }
+        until: { type: integer, description: 'Latest possible return: slowest speed without any drive research' }
+        planId: { type: [integer, 'null'], description: Retime plan against it }
+        holdPlanId: { type: [integer, 'null'], description: Hold plan against it }
+        hidden:
+          type: [object, 'null']
+          description: Hidden in the raid planner by a member, until its latest return
+          required: [by, at]
+          properties: { by: { type: [string, 'null'] }, at: { type: integer } }
+    BattleHallEntry:
+      type: object
+      required: [id, report_id, time, attackers, defenders, winner, units, created_at, report_status, report_tries, memorial, archived, moon_destruction]
+      properties:
+        id: { type: integer }
+        group_id: { type: integer }
+        report_id: { type: string }
+        time: { type: [integer, 'null'] }
+        attackers: { type: array, items: { type: string } }
+        defenders: { type: array, items: { type: string } }
+        winner: { type: [string, 'null'] }
+        units: { type: integer }
+        created_at: { type: integer }
+        report_status: { type: [string, 'null'], description: State of the crawler fetching the full report }
+        report_tries: { type: integer }
+        memorial: { type: [integer, 'null'], description: 1 for a farewell battle }
+        archived: { type: integer, enum: [0, 1] }
+        moon_destruction: { type: integer, enum: [0, 1] }
+    BattleHall:
+      type: object
+      required: [total, page, pages, memorials, entries]
+      properties:
+        total: { type: integer }
+        page: { type: integer }
+        pages: { type: integer }
+        memorials: { type: integer }
+        entries: { type: array, maxItems: 100, items: { $ref: '#/components/schemas/BattleHallEntry' } }
+    CombatReport:
+      description: An archived battle report, fleets expanded to element id with the amount before and after.
+      type: object
+      required: [report_id, time, winner, rounds, lost_attacker, lost_defender, debris_metal, debris_crystal, fleets, loot_metal, loot_crystal, loot_deuterium, g, s, p, planet_type, moon_destruction, moon_chance, moon_extra, moon_created, units]
+      properties:
+        group_id: { type: integer }
+        report_id: { type: string }
+        time: { type: [integer, 'null'] }
+        winner: { type: string }
+        rounds: { type: integer }
+        lost_attacker: { type: integer }
+        lost_defender: { type: integer }
+        debris_metal: { type: integer }
+        debris_crystal: { type: integer }
+        loot_metal: { type: integer }
+        loot_crystal: { type: integer }
+        loot_deuterium: { type: integer }
+        g: { type: [integer, 'null'] }
+        s: { type: [integer, 'null'] }
+        p: { type: [integer, 'null'] }
+        planet_type: { type: [string, 'null'], enum: [planet, moon, null] }
+        moon_destruction: { type: integer, enum: [0, 1] }
+        moon_chance: { type: [integer, 'null'], description: Moon chance in percent }
+        moon_extra: { type: integer }
+        moon_created: { type: integer, enum: [0, 1] }
+        units: { type: [integer, 'null'], description: Units of the battle hall entry, null without one }
+        fleets:
+          type: array
+          items:
+            type: object
+            required: [side, name, ships]
+            properties:
+              side: { type: string, enum: [attacker, defender] }
+              name: { type: string }
+              ships:
+                type: array
+                items:
+                  type: object
+                  required: [id, before, after]
+                  properties: { id: { type: integer }, before: { type: integer }, after: { type: integer } }
+    Claim:
+      type: object
+      required: [id, user_id, member, g, s, p, planet_type, kind, note, created_at, expires_at, player_id, player_name, planet_name]
+      properties:
+        id: { type: integer }
+        user_id: { type: integer }
+        member: { type: string }
+        g: { type: integer }
+        s: { type: integer }
+        p: { type: integer }
+        planet_type: { type: string, enum: [planet, moon, debris] }
+        kind: { type: string, enum: [farm, attack, spy, recycle] }
+        note: { type: [string, 'null'] }
+        created_at: { type: integer }
+        expires_at: { type: integer }
+        player_id: { type: [integer, 'null'], description: "Target's owner by the galaxy data" }
+        player_name: { type: [string, 'null'] }
+        planet_name: { type: [string, 'null'] }
+    MessageParty:
+      type: object
+      required: [name, coords, ally, player]
+      properties:
+        name: { type: string }
+        coords: { type: [string, 'null'] }
+        ally: { type: boolean, description: Player of the own alliance }
+        player: { type: [integer, 'null'], description: Hub player, when known }
+    Messages:
+      type: object
+      required: [share, messages, conversations]
+      properties:
+        share: { type: boolean, description: "The caller's account setting: own messages are shared with the alliance" }
+        messages:
+          type: array
+          items:
+            type: object
+            required: [id, time, from_name, from_coords, subject, body, synced_by, own, own_shared, shared, from, recipients, conversation, out]
+            properties:
+              id: { type: integer }
+              time: { type: integer }
+              from_name: { type: string }
+              from_coords: { type: [string, 'null'] }
+              subject: { type: string }
+              body: { type: string }
+              synced_by: { type: array, items: { type: string }, description: Members who synced it (visible to the caller) }
+              own: { type: boolean, description: The caller synced it }
+              own_shared: { type: boolean, description: "The caller's copy is shared" }
+              shared: { type: boolean, description: The alliance sees it }
+              from: { $ref: '#/components/schemas/MessageParty' }
+              recipients: { type: array, items: { $ref: '#/components/schemas/MessageParty' } }
+              conversation: { type: string }
+              out: { type: boolean, description: 'Written by the caller, or by a member in a conversation without the caller' }
+        conversations:
+          type: array
+          items:
+            type: object
+            required: [id, parties, count, last]
+            properties:
+              id: { type: string }
+              parties:
+                type: array
+                items:
+                  allOf: [{ $ref: '#/components/schemas/MessageParty' }]
+                  type: object
+                  required: [self, member]
+                  properties: { self: { type: boolean }, member: { type: boolean } }
+              count: { type: integer }
+              last: { type: integer }
+    PlanFleet:
+      type: object
+      required: [id, user_id, member, g, s, p, planet_type, ships, speed, status, recalled_at, updated_at, drives, sim_research, seen]
+      properties:
+        id: { type: integer }
+        user_id: { type: integer }
+        member: { type: string }
+        g: { type: [integer, 'null'], description: Start planet; null while not chosen (an invited member) }
+        s: { type: [integer, 'null'] }
+        p: { type: [integer, 'null'] }
+        planet_type: { type: [string, 'null'], enum: [planet, moon, null] }
+        ships: { type: object, additionalProperties: { type: integer } }
+        speed: { type: integer, description: Speed in percent }
+        status: { type: string, enum: [invited, ready, launched, withdrawn] }
+        recalled_at: { type: [integer, 'null'] }
+        updated_at: { type: integer }
+        drives: { type: [object, 'null'], description: Drive research of the member (synced or entered by hand) }
+        sim_research: { type: [object, 'null'], description: Combat research from a taken-over simulation where the member's is unknown }
+        seen: { type: [object, 'null'], description: The launch as seen in the member's newest fleet list }
+    Plan:
+      type: object
+      required: [id, user_id, creator, g, s, p, planet_type, target_time, time_precision, note, status, mission, guests, created_at, updated_at, claim_user_id, player_id, player_name, planet_name, sim, fleets, enemy, spy]
+      properties:
+        id: { type: integer }
+        user_id: { type: integer }
+        creator: { type: string }
+        g: { type: [integer, 'null'] }
+        s: { type: [integer, 'null'] }
+        p: { type: [integer, 'null'] }
+        planet_type: { type: [string, 'null'], enum: [planet, moon, null] }
+        target_time: { type: integer }
+        time_precision: { type: string, enum: [day, hour, exact] }
+        note: { type: [string, 'null'] }
+        status: { type: string, enum: [planning, launched, done, cancelled] }
+        mission: { type: string, enum: [attack, hold] }
+        guests: { type: array, items: { type: object }, description: Fleets of players outside the hub taking part (simulator) }
+        created_at: { type: integer }
+        updated_at: { type: integer }
+        claim_user_id: { type: [integer, 'null'], description: Member holding the active claim of the target }
+        player_id: { type: [integer, 'null'] }
+        player_name: { type: [string, 'null'] }
+        planet_name: { type: [string, 'null'] }
+        sim:
+          type: [object, 'null']
+          description: When and by whom a simulation was taken over into the plan
+          required: [time, by, defender]
+          properties: { time: { type: integer }, by: { type: [string, 'null'] }, defender: { type: boolean } }
+        fleets: { type: array, items: { $ref: '#/components/schemas/PlanFleet' } }
+        enemy: { type: [object, 'null'], description: The hostile fleet a retime or hold plan is about }
+        spy:
+          type: [object, 'null']
+          description: "Newest spy values of the target (or the attacker for a hold) for the simulators"
+          required: [time, values]
+          properties:
+            time: { type: integer }
+            values: { type: object, additionalProperties: { type: number } }
     SharedFleets:
       type: [object, 'null']
       description: >-
@@ -4525,7 +4767,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: array, items: { type: object } }
+              schema: { type: array, items: { $ref: '#/components/schemas/HostileAttack' } }
   /api/{uni}/hostile-attacks/hide:
     post:
       tags: [Combat]
@@ -4628,7 +4870,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema: { $ref: '#/components/schemas/BattleHall' }
   /api/{uni}/combat-reports/{id}:
     get:
       tags: [Combat]
@@ -4653,7 +4895,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema: { $ref: '#/components/schemas/CombatReport' }
   /api/{uni}/raids:
     get:
       tags: [Combat]
@@ -4764,7 +5006,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: array, items: { type: object } }
+              schema: { type: array, items: { $ref: '#/components/schemas/Plan' } }
     post:
       tags: [Combat]
       operationId: createPlan
@@ -5182,7 +5424,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: array, items: { type: object } }
+              schema: { type: array, items: { $ref: '#/components/schemas/Claim' } }
     post:
       tags: [Social]
       operationId: createClaim
@@ -5271,7 +5513,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema: { $ref: '#/components/schemas/Messages' }
   /api/{uni}/moon-chances:
     get:
       tags: [Universe]
