@@ -117,7 +117,7 @@ Evidence re-checked against this tree; sizes updated. Only what is still open is
 
 | ID | Finding | Evidence now | Impact | Risk | Effort | Fix |
 |---|---|---|---|---|---|---|
-| A-01 | OpenAPI is hand-written; no Fastify `schema:`, no typed client | Path drift and `operationId` uniqueness are tested in CI (`test/openapi-paths.test.ts`); `grep schema: routes/*.ts` finds none; responses are `object` in many places; web client is `api<T = any>` | High | Medium | Medium | JSON schemas on the token-facing GETs and `/battle`; generate types from the YAML for the web (`packages/api-types`) and use them in the heavy views (C-02) |
+| A-01 | OpenAPI is hand-written; no typed client | Since 2026-11-15 the server tests validate every 2xx JSON answer against the spec (`test/contract.ts`, 171 of 185 operations called) and the token-facing GETs are described in full; 51 answers, mostly admin and write endpoints, are still `type: object`; web client is `api<T = any>` | High | Low | Medium | Fill the remaining schemas when an endpoint is touched; generate types from the YAML for the web and replace `apiTypes.ts` (C-02) |
 | A-03 | Group isolation is a convention plus a grep test, not an API | `test/groupScope.test.ts` enforces `group_id` or a key per statement (all week's statements pass); no `GroupDb` | High | Medium | High | A `GroupDb` that injects `group_id`; ban raw `db.prepare` in `routes/` except admin. Do when touching a repo anyway |
 | A-05 | Route / repo / domain split is uneven | `store.ts` 995 lines, `routes/plans.ts` 823, `routes/admin.ts` 740; plan writes and catch-up live in the route; the repos no longer import `routes/` (N-05 fixed) | Medium | Medium | High (incremental) | Move plan writes next to `repo/plans.ts`; routes = auth + `groupContext` + HTTP mapping |
 | A-06 | One synchronous SQLite connection; `universe.json` parses on the event loop | Pluck cache fixed; no worker for the 16 MB ingest; crawler, hall poller, SSE and push share the loop | Medium | Medium | High | Parse/store `universe.json` in a worker with its own connection, or chunk the transaction. Keep the in-memory bus |
@@ -188,7 +188,7 @@ C-08 query parameters and errors, C-10e, I-03 checks, I-05, N-T2 index) are fixe
 
 | Order | ID | What | Effort |
 |---|---|---|---|
-| 1 | A-01 / C-02 | Schemas on the token surface, generated types for the web | Medium |
+| 1 | A-01 / C-02 | Generated types for the web from the checked spec; remaining schemas | Medium |
 | 2 | A-05 / C-01 | Split `store.ts`, `plans.ts`, AdminView, locales | High |
 | 3 | A-03 | `GroupDb` | High |
 | 4 | A-06 | `universe.json` off the event loop | High |

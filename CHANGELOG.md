@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-15
 
+- `openapi.yaml` describes `GET /api/{uni}/stats`, `/browse/{g}/{s}` and `/players` in full, so every JSON GET that
+  read-only tokens reach is checked by the contract test (export and live events are CSV and SSE, `universe-json` the
+  game's format); a test now also calls the player search. `CLAUDE.md` asks for complete schemas and a calling test
+  for new endpoints.
 - `openapi.yaml` describes the answers of `GET /api/{uni}/hostile-attacks`, `/battle-hall`, `/combat-reports/{id}`,
   `/claims`, `/messages` and `/plans` (new schemas `HostileAttack`, `BattleHall`, `CombatReport`, `Claim`, `Messages`,
   `Plan`, `PlanFleet`); the contract check showed that a plan fleet's start (`g`, `s`, `p`, `planet_type`) is null

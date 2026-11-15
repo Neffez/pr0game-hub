@@ -1072,6 +1072,9 @@ describe('review fixes', () => {
     expect(stats.rows.map((r: any) => [r.rank, r.name])).toEqual([[1, 'reflex'], [2, 'Gottkaiser'], [11, 'Virus'], [88, 'test123']]);
     expect(stats.rows[1]).toMatchObject({ ally_name: 'F1337erB0yz', points: 449037461141982, status: [] });
     expect(stats.categories).toEqual([{ who: 'player', type: 1, stat_time: stats.statTime, pages: [0] }]);
+    // player search (name or former name)
+    const found = (await app.inject({ method: 'GET', url: '/hub/api/u8/players?q=gottk', headers })).json();
+    expect(found).toEqual([expect.objectContaining({ name: 'Gottkaiser', ingame_id: 214, ally_name: 'F1337erB0yz' })]);
     const empty = (await app.inject({ method: 'GET', url: '/hub/api/u8/stats?who=alliance&type=2', headers })).json();
     expect(empty).toMatchObject({ statTime: null, rows: [] });
   });

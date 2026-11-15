@@ -1943,6 +1943,133 @@ components:
           properties:
             time: { type: integer }
             values: { type: object, additionalProperties: { type: number } }
+    Stats:
+      type: object
+      required: [who, type, categories, me, statTime, prevTime, rows]
+      properties:
+        who: { type: string, enum: [player, alliance] }
+        type: { type: integer, minimum: 1, maximum: 7 }
+        categories:
+          type: array
+          description: Per category the newest stand and which pages of 100 ranks it holds (sync overview)
+          items:
+            type: object
+            required: [who, type, stat_time, pages]
+            properties:
+              who: { type: string, enum: [player, alliance] }
+              type: { type: integer }
+              stat_time: { type: integer }
+              pages: { type: array, items: { type: integer } }
+        me:
+          type: [object, 'null']
+          description: "The caller's player, its alliance and newest points per category"
+          required: [id, allyId, points]
+          properties:
+            id: { type: integer }
+            allyId: { type: [integer, 'null'] }
+            points: { type: object, additionalProperties: { type: number } }
+        statTime: { type: [integer, 'null'] }
+        prevTime: { type: [integer, 'null'] }
+        rows:
+          type: array
+          description: Players (`who=player`) or alliances (`who=alliance`) of the newest stand, by rank
+          items:
+            type: object
+            required: [rank, points, id, name, own, prev_rank, delta]
+            properties:
+              rank: { type: integer }
+              rank_change: { type: [integer, 'null'] }
+              points: { type: number }
+              id: { type: integer }
+              name: { type: string }
+              own: { type: boolean }
+              prev_rank: { type: [integer, 'null'] }
+              delta: { type: [number, 'null'], description: Points since the stand before }
+              title: { type: [string, 'null'] }
+              status: { type: array, items: { type: string } }
+              ally_id: { type: [integer, 'null'] }
+              ally_name: { type: [string, 'null'] }
+              ally_tag: { type: [string, 'null'] }
+              planet_count: { type: integer }
+              first_planet: { type: [string, 'null'] }
+              member: { type: integer, enum: [0, 1] }
+              ownAlly: { type: boolean }
+              scores: { type: object, additionalProperties: { type: number } }
+              points_stall: { $ref: '#/components/schemas/PointsStall' }
+              members: { type: [integer, 'null'], description: Alliances only }
+              tag: { type: [string, 'null'], description: Alliances only }
+    GalaxySystem:
+      type: object
+      required: [view, phalanx, rows]
+      properties:
+        view:
+          type: [object, 'null']
+          description: The newest galaxy view of the system
+          required: [seen_at, username]
+          properties: { seen_at: { type: integer }, username: { type: [string, 'null'] } }
+        phalanx:
+          type: array
+          description: Moons whose sensor phalanx reaches the system, newest knowledge first
+          items:
+            type: object
+            required: [g, s, p, level, range, from, to, distance, time, source, own]
+            properties:
+              g: { type: integer }
+              s: { type: integer }
+              p: { type: integer }
+              level: { type: integer }
+              range: { type: integer }
+              from: { type: integer }
+              to: { type: integer }
+              distance: { type: integer }
+              time: { type: integer }
+              source: { type: string, enum: [spy, empire] }
+              own: { type: boolean }
+              player: { type: [object, 'null'] }
+        rows:
+          type: array
+          items:
+            type: object
+            required: [p, has_moon, destroyed, updated_at, player_id, status, points, rank, own, spy_planet, spy_moon]
+            properties:
+              p: { type: integer }
+              name: { type: [string, 'null'] }
+              has_moon: { type: integer, enum: [0, 1] }
+              moon_name: { type: [string, 'null'] }
+              moon_diameter: { type: [integer, 'null'] }
+              destroyed: { type: integer, enum: [0, 1] }
+              debris: { type: [object, 'null'], description: Debris field (metal, crystal) }
+              updated_at: { type: [integer, 'null'] }
+              player_id: { type: [integer, 'null'] }
+              ingame_id: { type: [integer, 'null'] }
+              player_name: { type: [string, 'null'] }
+              status: { type: array, items: { type: string } }
+              note: { type: [string, 'null'] }
+              ally_id: { type: [integer, 'null'] }
+              ally_name: { type: [string, 'null'] }
+              ally_tag: { type: [string, 'null'] }
+              last_battle: { type: [integer, 'null'] }
+              points: { type: [number, 'null'] }
+              rank: { type: [integer, 'null'] }
+              own: { type: boolean, description: Planet of an alliance member }
+              spy_planet: { $ref: '#/components/schemas/SpyMark' }
+              spy_moon: { $ref: '#/components/schemas/SpyMark' }
+    SpyMark:
+      type: [object, 'null']
+      description: The newest spy report of the position and the resources the newest report showing them had
+      required: [time, res, resTime]
+      properties:
+        time: { type: integer }
+        res: { type: [object, 'null'], additionalProperties: { type: number } }
+        resTime: { type: [integer, 'null'] }
+    PlayerMatch:
+      type: object
+      required: [id, ingame_id, name, ally_name]
+      properties:
+        id: { type: integer }
+        ingame_id: { type: [integer, 'null'] }
+        name: { type: string }
+        ally_name: { type: [string, 'null'] }
     SharedFleets:
       type: [object, 'null']
       description: >-
@@ -3184,7 +3311,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema: { $ref: '#/components/schemas/Stats' }
   /api/{uni}/players:
     get:
       tags: [Universe]
@@ -3200,9 +3327,7 @@ paths:
         '200':
           content:
             application/json:
-              schema:
-                type: array
-                items: { type: object }
+              schema: { type: array, maxItems: 50, items: { $ref: '#/components/schemas/PlayerMatch' } }
   /api/{uni}/search:
     get:
       tags: [Universe]
@@ -4550,7 +4675,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema: { $ref: '#/components/schemas/GalaxySystem' }
   /api/{uni}/battle/simulate:
     post:
       tags: [Combat]
