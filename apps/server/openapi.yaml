@@ -957,6 +957,7 @@ components:
         code: { type: string, description: Stable key for clients }
     Enabled:
       type: object
+      required: [enabled]
       properties:
         enabled: { type: boolean }
     ActivityEvent:
@@ -1631,6 +1632,75 @@ components:
             properties: { level: { type: integer } }
         pointsStall: { $ref: '#/components/schemas/PointsStall' }
         inactivity: { $ref: '#/components/schemas/Inactivity' }
+    Universe:
+      type: object
+      required: [id, slug, name, settings, deck, units, isDefault, startsAt, endedAt]
+      properties:
+        id: { type: integer }
+        slug: { type: string }
+        name: { type: string }
+        settings: { $ref: '#/components/schemas/UniverseSettings' }
+        deck:
+          type: array
+          description: The expedition deck (cards per event and size)
+          items:
+            type: object
+            required: [type, size, count]
+            properties:
+              type: { type: string }
+              size: { type: string }
+              count: { type: integer }
+        units: { type: object, description: 'Own values of ships and defense: differences from the default catalog per unit id' }
+        isDefault: { type: boolean }
+        startsAt: { type: [integer, 'null'] }
+        endedAt: { type: [integer, 'null'] }
+    GalaxyView:
+      type: object
+      required: [g, s, seen_at, username]
+      properties:
+        g: { type: integer }
+        s: { type: integer }
+        seen_at: { type: integer }
+        username: { type: [string, 'null'], description: Hub name of the member who synced the system last }
+    SpyReportRow:
+      type: object
+      required: [id, g, s, p, planet_type, player_name, player_id, report_time, sections, reporter]
+      properties:
+        id: { type: integer }
+        g: { type: integer }
+        s: { type: integer }
+        p: { type: integer }
+        planet_type: { type: string, enum: [planet, moon] }
+        planet_name: { type: [string, 'null'] }
+        player_name: { type: [string, 'null'] }
+        player_id: { type: [integer, 'null'] }
+        report_time: { type: integer }
+        sections: { type: object, description: 'Values per element class (900 resources, 0 buildings, 100 research, 200 fleet, 400 defense)' }
+        reporter: { type: [string, 'null'], description: Hub name of the member who synced it }
+    Comment:
+      type: object
+      required: [id, user_id, member, body, created_at, edited_at]
+      properties:
+        id: { type: integer }
+        user_id: { type: [integer, 'null'] }
+        member: { type: [string, 'null'], description: Hub name of the author }
+        body: { type: string }
+        created_at: { type: integer }
+        edited_at: { type: [integer, 'null'] }
+    CommentCounts:
+      type: object
+      required: [players, plans, planets]
+      properties:
+        players: { type: object, additionalProperties: { type: integer }, description: Comments per player id }
+        plans: { type: object, additionalProperties: { type: integer }, description: Comments per plan id }
+        planets: { type: object, additionalProperties: { type: integer }, description: 'Comments per planet `g:s:p:type`' }
+    FleetShare:
+      type: object
+      required: [enabled, hidden, history]
+      properties:
+        enabled: { type: boolean, description: Fleets are shared with the alliance by default }
+        hidden: { type: array, items: { type: integer }, description: Missions never shared }
+        history: { type: boolean, description: The own fleets also show in the history of past movements }
     SharedFleets:
       type: [object, 'null']
       description: >-
@@ -2738,9 +2808,7 @@ paths:
           description: 'Universes the user can access; each carries `isDefault` (the universe the start page forwards to) and `startsAt`/`endedAt` (scheduled start and end, epoch seconds or null)'
           content:
             application/json:
-              schema:
-                type: array
-                items: { type: object }
+              schema: { type: array, items: { $ref: '#/components/schemas/Universe' } }
   /api/{uni}/context:
     get:
       tags: [Universe]
@@ -4188,7 +4256,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: array, items: { type: object } }
+              schema: { type: array, items: { $ref: '#/components/schemas/GalaxyView' } }
   /api/{uni}/browse/{g}:
     get:
       tags: [Intelligence]
@@ -4362,7 +4430,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: array, items: { type: object } }
+              schema: { type: array, items: { $ref: '#/components/schemas/SpyReportRow' } }
   /api/{uni}/activity:
     get:
       tags: [Intelligence]
@@ -5158,7 +5226,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: array, items: { type: object } }
+              schema: { type: array, items: { $ref: '#/components/schemas/Comment' } }
     post:
       tags: [Social]
       operationId: createComment
@@ -5186,7 +5254,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema: { $ref: '#/components/schemas/CommentCounts' }
   /api/{uni}/messages:
     get:
       tags: [Social]
@@ -5613,7 +5681,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema: { $ref: '#/components/schemas/FleetShare' }
     post:
       tags: [Auth]
       operationId: setFleetShare
@@ -5623,7 +5691,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema: { $ref: '#/components/schemas/FleetShare' }
   /api/auth/message-share:
     get:
       tags: [Auth]
@@ -5633,7 +5701,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema: { $ref: '#/components/schemas/Enabled' }
     post:
       tags: [Auth]
       operationId: setMessageShare
@@ -5643,7 +5711,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema: { $ref: '#/components/schemas/Enabled' }
   /api/auth/show-online:
     get:
       tags: [Auth]
@@ -5653,7 +5721,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema: { $ref: '#/components/schemas/Enabled' }
     post:
       tags: [Auth]
       operationId: setShowOnline
@@ -5663,7 +5731,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema: { $ref: '#/components/schemas/Enabled' }
   /api/auth/share-activity:
     get:
       tags: [Auth]
@@ -5673,7 +5741,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema: { $ref: '#/components/schemas/Enabled' }
     post:
       tags: [Auth]
       operationId: setShareActivity
@@ -5683,7 +5751,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema: { $ref: '#/components/schemas/Enabled' }
   /api/invites/{token}:
     get:
       tags: [Auth]
