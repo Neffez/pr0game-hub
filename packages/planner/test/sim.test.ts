@@ -178,6 +178,25 @@ describe('simulate', () => {
     expect(sim.steps.find((s) => s.id === 'b')!.start!).toBeLessThanOrEqual(3600);
   });
 
+  it('reports storages that run full while a step waits, with the lost production', () => {
+    const order: BuildOrder = {
+      base: { planets: { [HOME]: { 1: 10 } }, research: {} },
+      planets: { [HOME]: [{ id: 'mine', kind: 'building', element: 1 }, { id: 'mine2', kind: 'building', element: 1 }] },
+    };
+    // deuterium almost full, the mine waits for metal
+    const hub = hubOf([planet(HOME, { 1: 10, 3: 10, 4: 15 }, { resources: { 901: 0, 902: 1e5, 903: 9000 } })]);
+    const sim = simulate(order, hub, { now: 0 });
+    const [mine, mine2] = sim.steps;
+    const full = mine.full![903];
+    expect(full.since).toBeGreaterThan(0);
+    expect(full.since).toBeLessThan(mine.start!);
+    expect(full.lost).toBeGreaterThan(0);
+    expect(mine.full![901]).toBeUndefined();
+    // counted again for the next step only while it waits
+    expect(mine2.full?.[903]?.since ?? mine.start!).toBeGreaterThanOrEqual(mine.start!);
+    expect(simulate(order, hub, { now: 0, noStorage: true }).steps[0].full).toBeNull();
+  });
+
   it('builds ships in the shipyard and waits for its requirements', () => {
     const order: BuildOrder = {
       base: { planets: { [HOME]: { 21: 1 } }, research: {} },

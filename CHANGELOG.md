@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-15
 
+- Build order: a step shows when a storage runs full while the list waits for it (resource, since when, production
+  lost beyond the capacity until it starts), so delays from full storages are visible; pr0plan has no storage
+  limits and cannot show them. The planner's `StepResult` has a new `full` field.
 - `openapi.yaml` describes `GET /api/{uni}/stats`, `/browse/{g}/{s}` and `/players` in full, so every JSON GET that
   read-only tokens reach is checked by the contract test (export and live events are CSV and SSE, `universe-json` the
   game's format); a test now also calls the player search. `CLAUDE.md` asks for complete schemas and a calling test
