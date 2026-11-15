@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-15
 
+- Battle simulator (tools): steady loss risk for small battles. After the runs asked for, the worker goes on while
+  the battle is quick (up to 10,000 runs or 2 seconds) until every loss risk is exact to half a percentage point;
+  large battles stay at the runs asked for. A risk that is still open by a point or more shows its margin ("4 % ±2",
+  95 %, Wilson interval). `@pr0hub/battle` has `simulateRefined`, `chanceMargin` and `lossMargin` for it.
 - Player activity pattern: the member reports under the chart show only the latest three; a button expands the
   rest.
 - Build order: a step shows when a storage runs full while the list waits for it (resource, since when, production

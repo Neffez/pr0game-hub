@@ -110,6 +110,7 @@ body .wrap { max-width: 1680px; }
 .loss td.name { white-space: normal; }
 .slot-tag.block { display: block; margin: 1px 0 0; white-space: nowrap; }
 .loss th, .loss td { padding-left: 8px; padding-right: 8px; }
+.loss .margin { color: var(--faint); font-size: 12px; cursor: help; }
 .table-wrap tr.gone td:first-child { color: var(--faint); }
 .slot-tag { font-family: var(--mono); font-size: 11px; color: var(--accent-text); margin-left: 6px; }
 .round-side .slot-tag { margin: 0 4px 0 0; }
@@ -207,7 +208,7 @@ body .wrap { max-width: 1680px; }
     <section class="card" id="results" aria-live="off">
       <h2 class="card-title" data-t="result">Result</h2>
       <div class="run-row">
-        <div class="field"><label for="runsIn" data-t="runs">Simulations</label><input id="runsIn" type="number" min="1" step="1" inputmode="numeric"></div>
+        <div class="field" data-t-title="runsTitle"><label for="runsIn" data-t="runs">Simulations</label><input id="runsIn" type="number" min="1" step="1" inputmode="numeric"></div>
         <button type="button" class="btn primary" id="runBtn" data-t="run">Simulate</button>
         <button type="button" class="btn" id="cancelBtn" data-t="cancel" hidden>Cancel</button>
         <button type="button" class="btn" id="waveBtn" data-t="nextWave" data-t-title="nextWaveTitle" hidden>Next wave →</button>

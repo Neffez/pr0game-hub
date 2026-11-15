@@ -97,9 +97,12 @@ function fleetSummary(fleets: { lost: Record<number, number>; repaired: Record<n
   return out;
 }
 
-/** Summary of many runs of the same battle. */
-export function summarize(runs: { run: RunResult; output: EngineOutput }[]): SimSummary {
-  const results = runs.map((r) => r.run);
+/**
+ * Summary of many runs of the same battle. `extra` are further runs kept without the engine's rounds: they count
+ * like the others, the typical run is one of `runs`.
+ */
+export function summarize(runs: { run: RunResult; output: EngineOutput }[], extra: RunResult[] = []): SimSummary {
+  const results = runs.map((r) => r.run).concat(extra);
   const n = results.length;
   const share = (w: string) => results.filter((r) => r.winner === w).length / n;
   const lost = range(results.map((r) => r.lostValue.attacker + r.lostValue.defender));
@@ -143,4 +146,74 @@ export function simulate(
 ): SimSummary {
   const list = Array.from({ length: Math.max(1, Math.floor(runs)) }, () => runBattle(fight, setup, settings, random, units));
   return summarize(list);
+}
+
+/**
+ * 95 % margin of a share measured over `runs` runs (Wilson score interval): how far the true chance is likely off at
+ * most. A share of 0 or 1 keeps a margin too: 20 runs without a loss still allow a chance of 16 %.
+ */
+export function chanceMargin(share: number, runs: number): number {
+  if (!(runs > 0)) return 1;
+  const z = 1.96;
+  const center = (share + (z * z) / (2 * runs)) / (1 + (z * z) / runs);
+  const half = (z * Math.sqrt((share * (1 - share)) / runs + (z * z) / (4 * runs * runs))) / (1 + (z * z) / runs);
+  return Math.max(center + half - share, share - (center - half));
+}
+
+/** The widest margin of the loss chances of a summary. */
+export function lossMargin(summary: SimSummary): number {
+  const chances = [...summary.attackers, ...summary.defenders].flatMap((f) => Object.values(f.lossChance));
+  return chances.reduce((max, c) => Math.max(max, chanceMargin(c, summary.runs)), 0);
+}
+
+/** Refining of the loss chances: more runs than asked for while the battle is quick. */
+export interface Refine {
+  /** margin (0-1) the loss chances are refined to */
+  margin: number;
+  /** most runs in total */
+  maxRuns: number;
+  /** refining ends this long after the start, the runs asked for always finish */
+  budgetMs: number;
+}
+
+export const DEFAULT_REFINE: Refine = { margin: 0.005, maxRuns: 10000, budgetMs: 2000 };
+
+/**
+ * Runs the battle at least `runs` times and goes on while the loss chances are less exact than `refine.margin` and
+ * the time budget lasts: small battles, where one lost ship matters, get a steady chance, large ones stay at `runs`.
+ * `progress` gets the share done (0-1) after every run.
+ */
+export function simulateRefined(
+  fight: Fight,
+  setup: BattleSetup,
+  runs: number,
+  settings: SimSettings = DEFAULT_SIM_SETTINGS,
+  options: { refine?: Refine; random?: () => number; units?: UnitCatalog; now?: () => number; progress?: (share: number) => void } = {},
+): SimSummary {
+  const { refine = DEFAULT_REFINE, random = Math.random, units, now = Date.now, progress } = options;
+  const base = Math.max(1, Math.floor(runs));
+  const start = now();
+  const list: ReturnType<typeof runBattle>[] = [];
+  // runs beyond the ones asked for are kept without the engine's rounds, they would fill the memory
+  const extra: RunResult[] = [];
+  // the margin is checked when the runs have doubled, so summarizing stays cheap
+  let check = base;
+  for (;;) {
+    const battle = runBattle(fight, setup, settings, random, units);
+    if (list.length < base) list.push(battle);
+    else extra.push(battle.run);
+    const n = list.length + extra.length;
+    if (n < base) {
+      progress?.(n / base);
+      continue;
+    }
+    const spent = (now() - start) / refine.budgetMs;
+    if (n >= refine.maxRuns || spent >= 1) break;
+    if (n >= check) {
+      if (lossMargin(summarize(list, extra)) <= refine.margin) break;
+      check = Math.min(refine.maxRuns, n * 2);
+    }
+    progress?.(Math.max(spent, n / refine.maxRuns));
+  }
+  return summarize(list, extra);
 }

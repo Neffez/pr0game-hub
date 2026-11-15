@@ -137,7 +137,7 @@ German and English, keep their input locally in the browser and put it into shar
   remaining defense per type (interceptors, primary target, weapons and armour as in the game), missiles needed,
   range, flight time and the cost against the value destroyed; a pasted spy report fills in the target.
 - **Battle simulator** (`/battle-simulator/`): runs a battle many times on the game's own battle engine (Battlerust,
-  with stun of ion cannons and shield domes): win chance, losses per unit (average and range), rebuilt defense, debris
+  with stun of ion cannons and shield domes): win chance, losses per unit (average, range and loss risk, refined with extra runs for small battles), rebuilt defense, debris
   field and recyclers, loot and moon chance, flight time and fuel per attacker, and the rounds of a typical battle.
   ACS with several attacking and holding fleets; a pasted spy report fills in the planet; debris percentages and moon
   chance are universe settings.
