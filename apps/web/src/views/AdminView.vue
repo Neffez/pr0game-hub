@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { ApiResponse, Schema } from '../apiTypes';
 import { startTour, useAutoTour } from '../tours';
 import Section from '../components/Section.vue';
 import Sheet from '../components/Sheet.vue';
@@ -230,10 +231,10 @@ async function loadGroup() {
   if (!groupId.value) return;
   const id = ++groupLoad;
   const res = await Promise.all([
-    api(`/admin/groups/${groupId.value}/members`),
+    api<ApiResponse<'/api/admin/groups/{id}/members'>>(`/admin/groups/${groupId.value}/members`),
     // sync history is technical administration: global admins only
-    isAdmin.value ? api(`/admin/groups/${groupId.value}/ingests`) : [],
-    api(`/admin/groups/${groupId.value}/discord`),
+    isAdmin.value ? api<ApiResponse<'/api/admin/groups/{id}/ingests'>>(`/admin/groups/${groupId.value}/ingests`) : [],
+    api<ApiResponse<'/api/admin/groups/{id}/discord'>>(`/admin/groups/${groupId.value}/discord`),
     isAdmin.value ? api<FleetAttackRow[]>(`/admin/groups/${groupId.value}/fleet-attacks`) : [],
     api<Candidate[]>(`/admin/groups/${groupId.value}/candidates`),
   ]);
@@ -324,7 +325,7 @@ const resetDeck = () =>
 
 const createGroup = () =>
   run(async () => {
-    const res = await api('/admin/groups', { body: newGroup.value });
+    const res = await api<Schema<'Created'>>('/admin/groups', { body: newGroup.value });
     newGroup.value.name = '';
     newGroup.value.tag = '';
     await loadAll();
@@ -453,7 +454,7 @@ const rejectRequest = (r: AccessRequests['requests'][number]) => {
   });
 };
 const reparse = (id: number) => run(async () => {
-  const res = await api(`/admin/ingests/${id}/reparse`, { body: {} });
+  const res = await api<Schema<'IngestSummary'>>(`/admin/ingests/${id}/reparse`, { body: {} });
   msg.value = 'Reparse: ' + JSON.stringify(res.counts);
 });
 /** battle report crawler status (global admins) */
@@ -465,13 +466,13 @@ onMounted(() => run(loadCrawler));
 onMounted(() => run(loadSamples));
 const retryCrawler = () =>
   run(async () => {
-    const res = await api('/admin/crawler/retry', { body: {} });
+    const res = await api<ApiResponse<'/api/admin/crawler/retry', 'post'>>('/admin/crawler/retry', { body: {} });
     await loadCrawler();
     msg.value = t('admin.crawlerRetried', { n: res.reset });
   });
 const backfill = () =>
   run(async () => {
-    const res = await api(`/admin/groups/${groupId.value}/activity/backfill`, { body: {} });
+    const res = await api<ApiResponse<'/api/admin/groups/{id}/activity/backfill', 'post'>>(`/admin/groups/${groupId.value}/activity/backfill`, { body: {} });
     msg.value = t('admin.backfillDone', { n: res.added });
   });
 /** content of a sync per record kind: "Statistik Spieler · Punkte (100): A, B, C" */

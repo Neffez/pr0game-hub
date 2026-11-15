@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { Schema } from '../apiTypes';
 import CsvButton from '../components/CsvButton.vue';
 import Loading from '../components/Loading.vue';
 import ActionMenu from '../components/ActionMenu.vue';
@@ -58,43 +59,10 @@ interface Player {
   /** former names */
   aliases: string[];
 }
-interface Spy {
-  time: number;
-  count: number;
-  res?: Record<string, number>;
-  resTime?: number;
-  building?: number;
-  buildingTime?: number;
-  fleet?: number;
-  fleetTime?: number;
-  defense?: number;
-  defenseTime?: number;
-}
-/** Points from the member's own empire page (alliance planets). */
-interface Own {
-  time: number;
-  building: number | null;
-  fleet: number | null;
-  defense: number | null;
-}
-interface PlanetRow {
-  g: number;
-  s: number;
-  p: number;
-  type: 'planet' | 'moon';
-  name: string | null;
-  player_id: number;
-  spy: Spy | null;
-  own: Own | null;
-  last_battle: number | null;
-  /** attack (also ACS, destroy) and spying of members still flying here */
-  next_attack: Flight | null;
-  next_spy: Flight | null;
-}
-interface Flight {
-  arrival: number;
-  members: string[];
-}
+/** A planet or moon of the overview, from the generated API types (`own`: points from the member's empire page). */
+type PlanetRow = Schema<'Overview'>['planets'][number];
+type Spy = NonNullable<PlanetRow['spy']>;
+type Flight = NonNullable<PlanetRow['next_attack']>;
 interface Row {
   key: string;
   player: Player;
@@ -174,10 +142,10 @@ watch(
 );
 const players = ref<Player[]>([]);
 const planets = ref<PlanetRow[]>([]);
-const coverage = ref<{ type: number; stat_time: number; rows: number; min_rank: number; max_rank: number }[]>([]);
+const coverage = ref<Schema<'Overview'>['coverage']>([]);
 const loading = ref(false);
 // only the newest answer is applied: the live reload can overlap a slow load
-const loader = useLoader(() => uniApi(uni.value, '/overview'));
+const loader = useLoader(() => uniApi<Schema<'Overview'>>(uni.value, '/overview'));
 const error = loader.error;
 let pending = 0;
 
@@ -256,6 +224,8 @@ const planetRows = computed<Row[]>(() => {
   const u = ctx.value!.universe.settings;
   const byPlayer = new Map<number, PlanetRow[]>();
   for (const pl of planets.value) {
+    // a planet without a known owner (destroyed, not in the galaxy data) belongs to no row
+    if (pl.player_id == null) continue;
     const list = byPlayer.get(pl.player_id);
     if (list) list.push(pl);
     else byPlayer.set(pl.player_id, [pl]);
@@ -481,10 +451,10 @@ const latest = computed(() => {
   const by: Record<number, { time: number; rows: number; max: number }> = {};
   for (const c of coverage.value) {
     const cur = by[c.type];
-    if (!cur || c.stat_time > cur.time) by[c.type] = { time: c.stat_time, rows: c.rows, max: c.max_rank };
+    if (!cur || c.stat_time > cur.time) by[c.type] = { time: c.stat_time, rows: c.rows, max: c.max_rank ?? 0 };
     else if (c.stat_time === cur.time) {
       cur.rows += c.rows;
-      cur.max = Math.max(cur.max, c.max_rank);
+      cur.max = Math.max(cur.max, c.max_rank ?? 0);
     }
   }
   return by;

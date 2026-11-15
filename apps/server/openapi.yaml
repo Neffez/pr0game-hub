@@ -116,6 +116,7 @@ components:
         gain; each update is compared to the one before. `atLeast`: no gain seen, `time` is the first update looked at
         (the gain lies before it). Null while the newest update still has a gain or fewer than two are known. Lists look
         back twice the universe's `inactiveDays` from the newest update, the player page the whole history.
+      required: [time, atLeast]
       properties:
         time: { type: integer }
         atLeast: { type: boolean }
@@ -142,15 +143,61 @@ components:
         lastActive: { type: [integer, 'null'], description: Newest proven activity }
         reasons:
           type: array
+          description: What the score is made of
           items:
-            type: object
-            required: [code]
-            description: >-
-              `flag` (status, time), `proven` (source attack|spy|message|fleet|recall|manual|fleetGone, time), `gain`
-              (time), `noGain` (since, atLeast), `weakGains` (n), `galaxy` (n, time of the newest), `idleSpy` (n),
-              `losses`
-            properties:
-              code: { type: string, enum: [flag, proven, gain, noGain, weakGains, galaxy, idleSpy, losses] }
+            oneOf:
+              - type: object
+                description: The game's flag
+                required: [code, status, time]
+                properties:
+                  code: { const: flag }
+                  status: { type: string, enum: [inactive, longinactive] }
+                  time: { type: [integer, 'null'] }
+              - type: object
+                description: Newest proven activity
+                required: [code, source, time]
+                properties:
+                  code: { const: proven }
+                  source: { type: string, enum: [attack, spy, message, fleet, recall, manual, fleetGone] }
+                  time: { type: integer }
+              - type: object
+                description: 'A relevant points gain: `size` the points of that update, `ratio` against the median gain of the active players around the rank'
+                required: [code, time]
+                properties:
+                  code: { const: gain }
+                  time: { type: integer }
+                  size: { type: number }
+                  ratio: { type: [number, 'null'] }
+              - type: object
+                required: [code, since, atLeast]
+                properties:
+                  code: { const: noGain }
+                  since: { type: integer }
+                  atLeast: { type: boolean }
+              - type: object
+                description: Gains too small to count (builds finishing from a queue)
+                required: [code, n]
+                properties:
+                  code: { const: weakGains }
+                  n: { type: integer }
+              - type: object
+                description: Galaxy activity marks, `time` of the newest
+                required: [code, n, time]
+                properties:
+                  code: { const: galaxy }
+                  n: { type: integer }
+                  time: { type: integer }
+              - type: object
+                description: Spy reports whose resources match the projection of the report before
+                required: [code, n]
+                properties:
+                  code: { const: idleSpy }
+                  n: { type: integer }
+              - type: object
+                description: Fleet or defense points lost and not rebuilt
+                required: [code]
+                properties:
+                  code: { const: losses }
     FarmTarget:
       type: object
       properties:
@@ -457,7 +504,10 @@ components:
       required: [webhook, prefs]
       properties:
         webhook: { type: [string, 'null'], description: 'Start of the channel''s webhook URL (the URL itself is never returned), null when none is set' }
-        prefs: { $ref: '#/components/schemas/DiscordChannelPrefs' }
+        prefs:
+          description: All settings, the defaults filled in
+          allOf: [{ $ref: '#/components/schemas/DiscordChannelPrefs' }]
+          required: [attacks, plans, launch, leadMinutes, lang, spying]
     DiscordChannelPrefs:
       type: object
       properties:
@@ -1229,6 +1279,7 @@ components:
             `name`, `coords`, `type` (planet/moon), `silo` (missile silo level) and `ipm` (interplanetary missiles).
     Overview:
       type: object
+      required: [players, planets, coverage, slots]
       properties:
         players:
           type: array
@@ -1239,25 +1290,70 @@ components:
               inactivity: { $ref: '#/components/schemas/Inactivity' }
         planets:
           type: array
+          description: Planets and moons of other players the alliance spied on, and the members' own
           items:
             type: object
+            required: [g, s, p, type, name, player_id, spy, own, last_battle, next_attack, next_spy]
             properties:
+              g: { type: integer }
+              s: { type: integer }
+              p: { type: integer }
+              type: { type: string, enum: [planet, moon] }
+              name: { type: [string, 'null'] }
+              player_id: { type: [integer, 'null'] }
+              spy:
+                type: [object, 'null']
+                description: 'Newest spy report: `count` reports in all; resources, building, fleet and defense points of the newest report showing them'
+                required: [time, count]
+                properties:
+                  time: { type: integer }
+                  count: { type: integer }
+                  res: { type: object, additionalProperties: { type: number } }
+                  resTime: { type: integer }
+                  building: { type: number }
+                  buildingTime: { type: integer }
+                  fleet: { type: number }
+                  fleetTime: { type: integer }
+                  defense: { type: number }
+                  defenseTime: { type: integer }
+              own:
+                type: [object, 'null']
+                description: "A member's own planet: points of buildings, fleet and defense from the newest empire page"
+                required: [time, building, fleet, defense]
+                properties:
+                  time: { type: integer }
+                  building: { type: [number, 'null'] }
+                  fleet: { type: [number, 'null'] }
+                  defense: { type: [number, 'null'] }
               last_battle: { type: [integer, 'null'], description: Unix seconds of the newest battle report at the position }
               next_attack:
                 type: [object, 'null']
                 description: >-
                   Attack, ACS attack or destroy of members still flying to this planet/moon (from their newest fleet
                   list, as far as they share it): next `arrival` (Unix seconds) and the `members` flying
+                required: [arrival, members]
                 properties:
                   arrival: { type: integer }
                   members: { type: array, items: { type: string } }
               next_spy:
                 type: [object, 'null']
                 description: Spying of members still flying to this planet/moon, like `next_attack`
+                required: [arrival, members]
                 properties:
                   arrival: { type: integer }
                   members: { type: array, items: { type: string } }
-        coverage: { type: array, items: { type: object } }
+        coverage:
+          type: array
+          description: The synced player statistics of the last two days per category and update (which ranks they cover)
+          items:
+            type: object
+            required: [type, stat_time, rows, min_rank, max_rank]
+            properties:
+              type: { type: integer }
+              stat_time: { type: integer }
+              rows: { type: integer }
+              min_rank: { type: [integer, 'null'] }
+              max_rank: { type: [integer, 'null'] }
         slots:
           type: array
           description: The Δ column sections of the total points (synced updates on the statistics grid), null for a section without one
@@ -2070,6 +2166,52 @@ components:
         ingame_id: { type: [integer, 'null'] }
         name: { type: string }
         ally_name: { type: [string, 'null'] }
+    IngestSummary:
+      type: object
+      description: What a sync stored (or would store with `dryRun`), per record kind
+      required: [pageType, source, lang, warnings, counts, preview]
+      properties:
+        pageType: { type: string }
+        source: { type: [string, 'null'] }
+        lang: { type: [string, 'null'] }
+        warnings: { type: array, items: { type: string }, description: Stable codes, translated by the web app }
+        counts:
+          type: object
+          additionalProperties:
+            type: object
+            required: [new, duplicate]
+            properties: { new: { type: integer }, duplicate: { type: integer } }
+        preview: { type: array, items: { type: object }, description: Short description per record for the preview }
+        settlements: { type: array, items: { type: object }, description: Loot settlements (raid plans) the messages count for }
+        explain: { $ref: '#/components/schemas/Explanation' }
+    Created:
+      type: object
+      required: [id]
+      properties:
+        id: { type: integer }
+    CrawlerStatus:
+      type: object
+      required: [enabled, universes]
+      properties:
+        enabled: { type: boolean }
+        universes:
+          type: array
+          description: Universes whose game is failing (paused or stopped)
+          items:
+            type: object
+            required: [universe, failures, failingSince, nextAttempt, stopped, lastError]
+            properties:
+              universe: { type: string }
+              failures: { type: integer }
+              failingSince: { type: integer }
+              nextAttempt: { type: integer }
+              stopped: { type: boolean }
+              lastError: { type: string }
+        archived: { type: [integer, 'null'] }
+        gone: { type: [integer, 'null'] }
+        lost: { type: [integer, 'null'] }
+        pending: { type: [integer, 'null'] }
+        failed: { type: [integer, 'null'] }
     SharedFleets:
       type: [object, 'null']
       description: >-
@@ -2916,6 +3058,7 @@ paths:
             application/json:
               schema:
                 type: object
+                required: [ok, before, after, ms]
                 properties:
                   ok: { type: boolean }
                   before: { type: integer, description: File size before (bytes) }
@@ -6220,7 +6363,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema: { $ref: '#/components/schemas/Created' }
   /api/admin/groups/{id}:
     put:
       tags: [Admin]
@@ -6391,7 +6534,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema: { type: object, required: [added], properties: { added: { type: integer, description: Activity entries added } } }
   /api/admin/crawler:
     get:
       tags: [Admin]
@@ -6402,7 +6545,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema: { $ref: '#/components/schemas/CrawlerStatus' }
   /api/admin/crawler/retry:
     post:
       tags: [Admin]
@@ -6413,7 +6556,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema: { type: object, required: [reset], properties: { reset: { type: integer, description: Reports given new tries } } }
   /api/admin/ingests/{id}/reparse:
     post:
       tags: [Admin]
@@ -6426,7 +6569,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema: { $ref: '#/components/schemas/IngestSummary' }
   /api/admin/ingests/{id}/delete:
     post:
       tags: [Admin]
@@ -6460,10 +6603,7 @@ paths:
         '200':
           content:
             application/json:
-              schema:
-                type: object
-                properties:
-                  explain: { $ref: '#/components/schemas/Explanation' }
+              schema: { $ref: '#/components/schemas/IngestSummary' }
   /api/{uni}/ingest/sample:
     post:
       tags: [Universe]
@@ -6742,7 +6882,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema: { $ref: '#/components/schemas/Created' }
   /api/{uni}/deck/events/{id}:
     delete:
       tags: [Combat]

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { Deck } from '../apiTypes';
+import type { Deck, Schema } from '../apiTypes';
 import { useAutoTour } from '../tours';
 import Section from './Section.vue';
 import MemberSelect from './MemberSelect.vue';
@@ -76,7 +76,7 @@ const lastAdded = ref<{ id: number; label: string } | null>(null);
 const deckCards = computed(() => data.value?.state.cards ?? []);
 
 async function addEvent(c: { key: string; type: string; size: string }) {
-  const res = await uniApi(uni.value, '/deck/events', {
+  const res = await uniApi<Schema<'Created'>>(uni.value, '/deck/events', {
     body: {
       event: c.type,
       size: c.size,

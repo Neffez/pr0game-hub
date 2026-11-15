@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { ApiResponse } from '../apiTypes';
 import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { api, readError } from '../api';
@@ -31,7 +32,7 @@ const vacuum = async () => {
   loading.value = true;
   msg.value = error.value = '';
   try {
-    const res = await api('/admin/system/vacuum', { body: {} });
+    const res = await api<ApiResponse<'/api/admin/system/vacuum', 'post'>>('/admin/system/vacuum', { body: {} });
     msg.value = t('admin.system.vacuumDone', { before: bytes(res.before), after: bytes(res.after), sec: (res.ms / 1000).toFixed(1) });
     await load();
   } catch (e) {
