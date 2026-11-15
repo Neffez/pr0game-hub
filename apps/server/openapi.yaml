@@ -110,8 +110,7 @@ components:
         interval: { type: integer, description: 'stats: interval of the statistics updates in seconds, learned from the synced updates (the shortest gap seen at least twice)' }
         types: { type: array, items: { type: integer }, description: 'stats: categories without that update (1 total, 2 fleet, 3 research, 4 buildings, 5 defense); empty: just outdated (older than a day, interval unknown)' }
     PointsStall:
-      type: object
-      nullable: true
+      type: [object, 'null']
       description: >-
         The player gained no total points since the synced stat update at `time` (Unix seconds), the update of the last
         gain; each update is compared to the one before. `atLeast`: no gain seen, `time` is the first update looked at
@@ -1031,7 +1030,7 @@ components:
         name: { type: string }
         prefix: { type: string }
         createdAt: { type: integer, description: Unix seconds }
-        lastUsedAt: { type: integer, nullable: true }
+        lastUsedAt: { type: [integer, 'null'] }
     ApiTokenCreated:
       allOf:
         - { $ref: '#/components/schemas/ApiTokenMeta' }
@@ -1215,17 +1214,15 @@ components:
               last_seen_at: { type: [integer, 'null'] }
         me: { $ref: '#/components/schemas/User' }
         player:
-          type: object
-          nullable: true
+          type: [object, 'null']
           description: >-
             Hub player of the requesting member (`id`) with the newest synced total `points` (null if unknown); the
             pages derive weak/strong (noob protection) from them
           properties:
             id: { type: integer }
-            points: { type: integer, nullable: true }
+            points: { type: [integer, 'null'] }
         own:
-          type: object
-          nullable: true
+          type: [object, 'null']
           description: >-
             Own data from the newest own empire page: `time`, `research` (element id → level) and `planets` with
             `name`, `coords`, `type` (planet/moon), `silo` (missile silo level) and `ipm` (interplanetary missiles).
@@ -1244,10 +1241,9 @@ components:
           items:
             type: object
             properties:
-              last_battle: { type: integer, nullable: true, description: Unix seconds of the newest battle report at the position }
+              last_battle: { type: [integer, 'null'], description: Unix seconds of the newest battle report at the position }
               next_attack:
-                type: object
-                nullable: true
+                type: [object, 'null']
                 description: >-
                   Attack, ACS attack or destroy of members still flying to this planet/moon (from their newest fleet
                   list, as far as they share it): next `arrival` (Unix seconds) and the `members` flying
@@ -1255,36 +1251,41 @@ components:
                   arrival: { type: integer }
                   members: { type: array, items: { type: string } }
               next_spy:
-                type: object
-                nullable: true
+                type: [object, 'null']
                 description: Spying of members still flying to this planet/moon, like `next_attack`
                 properties:
                   arrival: { type: integer }
                   members: { type: array, items: { type: string } }
         coverage: { type: array, items: { type: object } }
-        slots: { type: object }
+        slots:
+          type: array
+          description: The Δ column sections of the total points (synced updates on the statistics grid), null for a section without one
+          items:
+            type: [object, 'null']
+            required: [from, to]
+            properties:
+              from: { type: integer }
+              to: { type: integer }
     Imperium:
       type: object
       properties:
         userId: { type: integer }
-        empire: { type: object, nullable: true }
+        empire: { type: [object, 'null'] }
         spy:
-          type: object
-          nullable: true
+          type: [object, 'null']
           description: Without an empire page, the empire put together from the spy reports of the member's player (planets with buildings, fleet and defense per newest report; research with `researchTime`).
-        overview: { type: object, nullable: true }
-        fleets: { type: array, items: { type: object }, nullable: true }
+        overview: { type: [object, 'null'] }
+        fleets: { $ref: '#/components/schemas/SharedFleets' }
         fleetHistory: { type: array, items: { type: object } }
         fleetAlerts:
-          type: array
-          nullable: true
+          type: [array, 'null']
           items: { $ref: '#/components/schemas/FleetAlert' }
           description: >-
             The caller's fleet alerts, only when the member is the caller (null otherwise). Alerts whose fleet is missing
             from a newer fleet list before its arrival (recalled) and alerts arrived more than 10 minutes ago are removed.
-        player: { type: object, nullable: true }
-        fleetBase: { type: object, nullable: true }
-        leader: { type: object, nullable: true }
+        player: { type: [object, 'null'] }
+        fleetBase: { type: [object, 'null'] }
+        leader: { type: [object, 'null'] }
         phalanx:
           type: array
           description: >-
@@ -1324,19 +1325,29 @@ components:
               since: { type: integer, description: Game time since when the phalanx is known to reach the planet (oldest report of the newest run reaching it) }
               known: { type: integer, description: When that report reached the hub }
               player: { $ref: '#/components/schemas/PhalanxOwner' }
+    SharedFleets:
+      type: [object, 'null']
+      description: >-
+        The member's newest synced fleet movements as far as they share them with the caller; null without a synced
+        fleet list.
+      required: [time, data, private]
+      properties:
+        time: { type: integer, description: Unix seconds of the synced page }
+        data: { type: array, items: { type: object }, description: Fleets (own, friendly, hostile) the caller may see }
+        private: { type: boolean, description: 'The member shares no fleets by default (`fleetShare` off); single fleets may still be shared' }
     AllianceMember:
       type: object
       properties:
         key: { type: string }
-        user_id: { type: integer, nullable: true }
+        user_id: { type: [integer, 'null'] }
         username: { type: string }
         display_name: { type: [string, 'null'], description: Hub display name; null when unset or for spy-only players }
-        ingame_name: { type: string, nullable: true }
-        player_id: { type: integer, nullable: true }
-        source: { type: string, enum: [empire, spy], nullable: true }
-        created_at: { type: integer, nullable: true }
-        data: { type: object, nullable: true }
-        fleets: { type: array, items: { type: object }, nullable: true }
+        ingame_name: { type: [string, 'null'] }
+        player_id: { type: [integer, 'null'] }
+        source: { type: [string, 'null'], enum: [empire, spy, null] }
+        created_at: { type: [integer, 'null'] }
+        data: { type: [object, 'null'] }
+        fleets: { $ref: '#/components/schemas/SharedFleets' }
         fleetHistory: { type: array, items: { type: object } }
 paths:
   /api/health:
@@ -4111,7 +4122,7 @@ paths:
                       type: object
                       properties:
                         from_player: { type: string }
-                        from_player_id: { type: integer, nullable: true, description: Hub player id of the spy when known }
+                        from_player_id: { type: [integer, 'null'], description: Hub player id of the spy when known }
                   bySpy:
                     type: array
                     description: Aggregated by spy name
@@ -4119,10 +4130,10 @@ paths:
                       type: object
                       properties:
                         from_player: { type: string }
-                        from_player_id: { type: integer, nullable: true }
+                        from_player_id: { type: [integer, 'null'] }
                         count: { type: integer }
                         victims: { type: integer }
-                        last: { type: integer, nullable: true }
+                        last: { type: [integer, 'null'] }
   /api/{uni}/hostile-attacks:
     get:
       tags: [Combat]
@@ -5748,7 +5759,7 @@ paths:
         '200':
           content:
             application/json:
-              schema: { type: object }
+              schema: { type: array, description: 'universe.json as the game tools read it: [universe, players, alliances]' }
     post:
       tags: [Universe]
       operationId: uploadUniverseJson

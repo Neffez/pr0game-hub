@@ -4,6 +4,13 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-15
 
+- Contract check of the API (step 1 of A-01): every 2xx JSON answer the server tests receive is validated against its
+  response schema in `openapi.yaml` (`test/contract.ts`, hooked into every test app by `test/contractSetup.ts`, Ajv
+  with JSON Schema 2020-12); a mismatch fails the test file. `CONTRACT_REPORT=1 vitest run --reporter=verbose` lists
+  the violations and the operations covered (170 of 185).
+  - Spec fixes it found: the 26 `nullable: true` of OpenAPI 3.0 (ignored in 3.1) are `type: [X, 'null']`; the
+    members' `fleets` of `/alliance` and `/imperium` are an object (`SharedFleets`: time, data, private), not an
+    array; `/overview` `slots` is an array of sections; `/universe-json` answers an array.
 - Migration 090 adds a `(group_id, time)` index on `combat_reports` for "who threatens me" (the one of migration 083 is
   partial); `CODEREVIEW.md` marks the small carried-over findings as fixed.
 - Stricter compiler checks (I-03 of the review): `noUnusedLocals` in the shared TypeScript config and the tools
