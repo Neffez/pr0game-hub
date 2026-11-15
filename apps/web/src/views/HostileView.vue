@@ -37,12 +37,48 @@ const tab = computed<Tab>({
 });
 const threats = ref<{ ready: boolean }>();
 
-const { data, error, load: loadSpying } = useLoader<any>(() => uniApi(uni.value, `/hostile?from=${nowSec() - days.value * 86400}`));
+type PlanetType = 'planet' | 'moon';
+/** One espionage of a member by a player outside the alliance (`GET /api/{uni}/hostile`). */
+interface HostileSpying {
+  id: number;
+  user_id: number | null;
+  /** hub name of the member who synced it */
+  username: string | null;
+  time: number | null;
+  from_player: string;
+  from_player_id: number | null;
+  from_planet: string | null;
+  from_g: number;
+  from_s: number;
+  from_p: number;
+  from_type: PlanetType;
+  target_planet: string | null;
+  target_g: number;
+  target_s: number;
+  target_p: number;
+  target_type: PlanetType;
+}
+/** Espionages per spying player. */
+interface HostileSpy {
+  from_player: string;
+  from_player_id: number | null;
+  count: number;
+  last: number | null;
+  victims: number;
+}
+interface Hostile {
+  from: number;
+  to: number;
+  list: HostileSpying[];
+  bySpy: HostileSpy[];
+}
+
+const { data, error, load: loadSpying } = useLoader<Hostile>(() => uniApi<Hostile>(uni.value, `/hostile?from=${nowSec() - days.value * 86400}`));
 /** The alliance's spying loads when its tab is shown. */
 const load = () => (tab.value === 'alliance' ? loadSpying() : Promise.resolve());
 watch(tab, (v) => v === 'alliance' && !data.value && loadSpying());
 /** The newest 20 spyings of the history first. */
-const historyLimit = useLimit(computed<any[]>(() => data.value?.list ?? []));
+const historyLimit = useLimit(computed(() => data.value?.list ?? []));
 onMounted(load);
 useLiveReload(load, tables('hostile_spying'));
 watch(days, load);

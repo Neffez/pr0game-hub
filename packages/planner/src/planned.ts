@@ -1,3 +1,5 @@
+import { INITIAL_TEMP } from '@pr0hub/core/production';
+import { startResourcesOf } from '@pr0hub/core/universe';
 import type { HubPlanet } from './hub.js';
 import type { BuildOrder, Step } from './types.js';
 
@@ -6,11 +8,6 @@ import type { BuildOrder, Step } from './types.js';
  * colony still to come). Their key is `0:0:<n>:planet` (galaxy 0 does not exist in the game), `n` the pr0plan planet
  * id. They are simulated as fresh planets from the build order's base and are later assigned to a synced planet.
  */
-
-/** Resources of a new planet when the universe sets none (the hub's default of `startResourcesOf`). */
-export const START_RESOURCES: Record<number, number> = { 901: 5000, 902: 1500, 903: 0 };
-/** Max temperature of a planet when nothing better is known (game config `initial_temp` default). */
-export const START_TEMP = 50;
 
 const PLANNED = /^0:0:(\d{1,2}):planet$/;
 
@@ -24,7 +21,8 @@ export function plannedNumber(key: string): number | null {
 export const isPlannedKey = (key: string) => PLANNED.test(key);
 
 /**
- * A planned planet as the hub would have it: the base's levels, the universe's start resources, no production synced
+ * A planned planet as the hub would have it: the base's levels, the universe's start resources (the game's defaults
+ * of `startResourcesOf` when none are passed), no production synced
  * (the formula is used), resources counted from `time` on (the universe's start, or now).
  */
 export function plannedPlanet(
@@ -36,9 +34,9 @@ export function plannedPlanet(
     name: opts.name ?? '',
     coords: { g: 0, s: 0, p: n },
     type: 'planet',
-    temp: opts.temp ?? START_TEMP,
+    temp: opts.temp ?? INITIAL_TEMP,
     arrivals: [],
-    planet: { type: 'planet', values: { ...(order.base.planets[key] ?? {}) }, resources: { ...(opts.resources ?? START_RESOURCES) }, perHour: {}, time, queue: [] },
+    planet: { type: 'planet', values: { ...(order.base.planets[key] ?? {}) }, resources: opts.resources ? { ...opts.resources } : startResourcesOf({}), perHour: {}, time, queue: [] },
   };
 }
 

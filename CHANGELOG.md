@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-15
 
+- `CODEREVIEW.md`: findings N-01 to N-11 of the 2026-11-15 review are fixed and listed as such; the verification
+  table shows the runs with and without the WASM build.
+- Planned planets of a build order take their default start resources from `startResourcesOf` and their temperature
+  from the new `INITIAL_TEMP` of `@pr0hub/core/production` instead of own copies; the hostile spying page types its
+  API response.
 - Server cleanup without behavior change.
   - `DISPLAY`, `displayOf`, `likeTerm` and a new `displayNameOf` live in `repo/sql.ts`; `store.ts` and the repos no
     longer import from `routes/` (`routes/util.ts` re-exports them).

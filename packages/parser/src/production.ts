@@ -107,6 +107,9 @@ export const POSITION_TEMP: Record<number, readonly [number, number]> = {
   9: [20, 60], 10: [10, 50], 11: [0, 40], 12: [-10, 30], 13: [-50, -10], 14: [-90, -50], 15: [-130, -90],
 };
 
+/** Max temperature of a planet when nothing better is known (the game's `initial_temp` config default). */
+export const INITIAL_TEMP = 50;
+
 /** Expected max temperature of a planet at `position` (the middle of its range; unknown positions count as 8). */
 export function positionTemp(position: number): number {
   const [min, max] = POSITION_TEMP[position] ?? POSITION_TEMP[8];
