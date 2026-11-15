@@ -2,6 +2,13 @@
 
 Every commit adds its changes here, newest first, grouped by date.
 
+## 2026-11-15
+
+- Code review of this week's changes in `CODEREVIEW.md`: the closed findings of the 2026-11-04 review are removed, the
+  still open ones re-verified, and the new findings documented (held notifications tied to the push subscription id and
+  deleted before delivery, the duplicate `stat_snapshots` index of migration 086, access requests on a placeholder's
+  username, `DISPLAY` in the routes layer with dead member joins, the WASM dependency of `pnpm typecheck`).
+
 ## 2026-11-14
 
 - Build order: steps can be added by hand (buildings, research, ships, defense; several levels or units at once, at
