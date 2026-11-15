@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Ein Link auf ein Universum, das es nicht gibt (oder in dem du in keiner Allianz bist), zeigt jetzt eine klare Seite mit deinen Universen.',
+        en: 'A link to a universe that does not exist (or where you are in no alliance) now shows a clear page with your universes.',
+      },
+      {
+        kind: 'fix',
         de: 'Raid-Statistik: Raketenangriffe ohne Zeit im Bericht zeigen wieder ein Datum (wann sie synchronisiert wurden).',
         en: 'Raid statistics: missile attacks without a time in the report show a date again (when they were synced).',
       },

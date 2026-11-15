@@ -458,6 +458,12 @@ const de = {
     alliancePlayers: '{n} Spieler | {n} Spieler',
   },
   nav: {
+    universeMissing: 'Kein Universum „{uni}“',
+    universeMissingHint: 'Der Link ist vielleicht vertippt oder das Universum wurde umbenannt.',
+    universeNoGroup: 'Du bist in „{uni}“ in keiner Allianz',
+    universeNoGroupHint: 'Ein Allianz-Admin kann dich hinzufügen.',
+    universeOwn: 'Deine Universen:',
+    toHome: 'Zur Startseite',
     startsIn: 'Startet',
     beforeStartOpen: 'Bis zum Start kannst du schon deine',
     beforeStartBuildOrder: 'Bauliste aus pr0plan importieren',

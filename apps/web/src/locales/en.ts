@@ -457,6 +457,12 @@ const en: typeof de = {
     alliancePlayers: '{n} player | {n} players',
   },
   nav: {
+    universeMissing: 'No universe "{uni}"',
+    universeMissingHint: 'The link may have a typo or the universe was renamed.',
+    universeNoGroup: 'You are in no alliance in "{uni}"',
+    universeNoGroupHint: 'An alliance admin can add you.',
+    universeOwn: 'Your universes:',
+    toHome: 'To the start page',
     startsIn: 'Starts',
     beforeStartOpen: 'Until the start you can already',
     beforeStartBuildOrder: 'import your build order from pr0plan',

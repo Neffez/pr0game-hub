@@ -4,6 +4,8 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-15
 
+- A link to a universe that does not exist, or one without an alliance of the member, shows its own page with the
+  member's universes and a link to the start page instead of the bare API error (I-05 of the review).
 - The web app's last untyped loaders are typed (C-02 of the review): `apiTypes.ts` holds the responses of
   `/raids`, `/expeditions`, `/deck` and `/players/{id}`; `useSort`/`useLimit` infer the row types and fall back to
   `fieldOf(row, key)`; no `useLoader<any>` is left.
