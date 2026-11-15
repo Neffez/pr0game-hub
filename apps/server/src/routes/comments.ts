@@ -3,7 +3,7 @@ import { HttpError } from '../auth.js';
 import type { GroupContext } from '../context.js';
 import { now, type DB } from '../db.js';
 import { events, type DataEvent } from '../events.js';
-import { contextOf, DISPLAY, MEMBER, type Q } from './util.js';
+import { contextOf, DISPLAY, type Q } from './util.js';
 
 const MAX_LENGTH = 2000;
 
@@ -69,7 +69,7 @@ export function commentsRoutes(app: FastifyInstance, db: DB) {
     return db
       .prepare(
         `SELECT c.id, c.user_id, ${DISPLAY} AS member, c.body, c.created_at, c.edited_at FROM comments c
-         LEFT JOIN users u ON u.id = c.user_id ${MEMBER('c')}
+         LEFT JOIN users u ON u.id = c.user_id
          WHERE c.group_id = ? AND ${w.sql} AND c.deleted_at IS NULL ORDER BY c.created_at, c.id`,
       )
       .all(ctx.groupId, ...w.args);

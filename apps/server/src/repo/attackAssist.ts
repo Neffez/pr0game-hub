@@ -6,7 +6,7 @@ import { distance, drivesFromResearch, flightDuration, launchFor, slowestShip } 
 import { planetFromSpy, runInWorker, simSettingsOf, throttle, type ApiSlot } from '../battle.js';
 import { catalogOf, type GroupContext } from '../context.js';
 import type { DB } from '../db.js';
-import { DISPLAY } from '../routes/util.js';
+import { DISPLAY } from './sql.js';
 import { latestEmpire, latestEmpires, spyEmpire } from './empire.js';
 import { CLASS_FLEET } from '@pr0hub/core/tech';
 import { sharedFleets, TOLERANCE, type StoredFleet } from './fleets.js';

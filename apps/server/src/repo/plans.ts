@@ -6,7 +6,7 @@ import { latestEmpires, spyEmpire } from './empire.js';
 import { fleetVisibility, sharedFleets, type StoredFleet } from './fleets.js';
 import { attackKey, hostileAttacks, recallWindow, shipsKey, type Body, type EnemyFleet } from './hostile.js';
 import { memberPlayers } from './members.js';
-import { DISPLAY, displayOf } from '../routes/util.js';
+import { DISPLAY, displayOf } from './sql.js';
 
 /** Research ids of the plan fleets: drives and fuel efficiency (flight times), weapons, shields, armour (simulator). */
 export const RESEARCH_IDS = [115, 117, 118, 134, 109, 110, 111];
@@ -184,8 +184,8 @@ export function enemiesOf(db: DB, ctx: GroupContext, planIds: number[], persist 
     .prepare(
       `SELECT e.*, ${displayOf('mu')} AS member, ${displayOf('bu')} AS updated_by
        FROM attack_plan_enemy e JOIN attack_plans a ON a.id = e.plan_id
-       LEFT JOIN users mu ON mu.id = e.member_id LEFT JOIN group_members gm ON gm.group_id = a.group_id AND gm.user_id = e.member_id
-       LEFT JOIN users bu ON bu.id = e.updated_by LEFT JOIN group_members gb ON gb.group_id = a.group_id AND gb.user_id = e.updated_by
+       LEFT JOIN users mu ON mu.id = e.member_id
+       LEFT JOIN users bu ON bu.id = e.updated_by
        WHERE e.plan_id IN (SELECT value FROM json_each(?))`,
     )
     .all(JSON.stringify(planIds)) as EnemyRow[];

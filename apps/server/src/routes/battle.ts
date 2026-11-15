@@ -25,7 +25,7 @@ export function battleRoutes(app: FastifyInstance, db: DB) {
       const row = db
         .prepare(
           `SELECT sr.id, sr.report_time, sr.sections, sr.player_name, ${DISPLAY} AS reporter FROM spy_reports sr
-           LEFT JOIN users u ON u.id = sr.user_id LEFT JOIN group_members gm ON gm.group_id = sr.group_id AND gm.user_id = sr.user_id
+           LEFT JOIN users u ON u.id = sr.user_id
            WHERE sr.group_id = ? AND sr.g = ? AND sr.s = ? AND sr.p = ? AND sr.planet_type = ? ORDER BY sr.report_time DESC LIMIT 1`,
         )
         .get(ctx.groupId, g, s, p, body.planetType);

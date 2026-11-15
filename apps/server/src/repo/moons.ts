@@ -1,6 +1,6 @@
 import type { GroupContext } from '../context.js';
 import type { DB } from '../db.js';
-import { DISPLAY } from '../routes/util.js';
+import { DISPLAY } from './sql.js';
 import { memberPlayers } from './members.js';
 
 const DAY = 86400;

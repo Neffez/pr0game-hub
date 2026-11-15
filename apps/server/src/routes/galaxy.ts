@@ -8,7 +8,7 @@ import { debrisFields } from '../repo/debris.js';
 import { ownCoords } from '../repo/empire.js';
 import { ownerOf, phalanxFactor, phalanxMoons, systemDistance } from '../repo/phalanx.js';
 import { latestScores } from '../repo/stats.js';
-import { clampInt, contextOf, DISPLAY, MEMBER } from './util.js';
+import { clampInt, contextOf, DISPLAY } from './util.js';
 import { debrisAmount } from '@pr0hub/core';
 import { lastDebrisCleanup } from '@pr0hub/core/universe';
 
@@ -20,7 +20,7 @@ export function galaxyRoutes(app: FastifyInstance, db: DB) {
     const ctx = ctxOf(req);
     return db
       .prepare(
-        `SELECT v.g, v.s, v.seen_at, ${DISPLAY} AS username FROM galaxy_views v LEFT JOIN users u ON u.id = v.user_id ${MEMBER('v')} WHERE v.group_id = ?`,
+        `SELECT v.g, v.s, v.seen_at, ${DISPLAY} AS username FROM galaxy_views v LEFT JOIN users u ON u.id = v.user_id WHERE v.group_id = ?`,
       )
       .all(ctx.groupId);
   });
@@ -121,7 +121,7 @@ export function galaxyRoutes(app: FastifyInstance, db: DB) {
     const s = Number(req.params.s);
     const view = db
       .prepare(
-        `SELECT v.seen_at, ${DISPLAY} AS username FROM galaxy_views v LEFT JOIN users u ON u.id = v.user_id ${MEMBER('v')}
+        `SELECT v.seen_at, ${DISPLAY} AS username FROM galaxy_views v LEFT JOIN users u ON u.id = v.user_id
          WHERE v.group_id = ? AND v.g = ? AND v.s = ?`,
       )
       .get(ctx.groupId, g, s);

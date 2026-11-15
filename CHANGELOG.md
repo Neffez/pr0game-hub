@@ -4,6 +4,14 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-15
 
+- Server cleanup without behavior change.
+  - `DISPLAY`, `displayOf`, `likeTerm` and a new `displayNameOf` live in `repo/sql.ts`; `store.ts` and the repos no
+    longer import from `routes/` (`routes/util.ts` re-exports them).
+  - Dropped `MEMBER()` and the `LEFT JOIN group_members` that only existed for the in-game name before the display
+    name change (about 30 statements; the joins that still read `ingame_name`, and the inner joins that filter by
+    membership, stay).
+  - The identity rule (hub name where a member acts in the hub, in-game name where the game is matched) is written
+    down in `repo/sql.ts` and in README.
 - `pnpm typecheck` and `pnpm test` pass on a fresh clone without the Battlerust WASM build: the module's types are
   committed in `packages/battle/wasm-types/` (the `@pr0hub/battle/wasm` export points there), and the suites that run
   the engine (battle package, the tools' battle simulator page, the server's simulations) are skipped with a warning

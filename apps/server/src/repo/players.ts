@@ -1,5 +1,5 @@
 import { now, type DB } from '../db.js';
-import { likeTerm } from '../routes/util.js';
+import { likeTerm } from './sql.js';
 
 /**
  * Names of players/alliances only known by id (universe.json without names). Replaced by the real name once

@@ -87,6 +87,11 @@ External analysis tool for [pr0game](https://codeberg.org/pr0game/pr0game) based
   reports tick off
 - **Raid statistics** (incl. recycling and interplanetary missile attacks: intercepted missiles, destroyed defense), **expeditions** (statistics and the expedition deck for card counting as tabs), **battle hall** archive
 - **Admin**: universes (size, distance factors, fleet speed, time zone, deck; scheduled start and optional end; an ended universe is frozen read-only), groups, members (including placeholders by in-game name with claim links), ingest log with reparse, player merge
+- **Member names**: three names per member. The login username, the in-game name per alliance (how the hub
+  matches the member's synced pages and the game's players) and an optional hub display name. Wherever a member acts
+  in the hub (lists, comments, notifications, CSV `member` columns, settlements) the display name is shown, falling
+  back to the username; the in-game name is used where the game is matched (placeholders for access requests, match
+  keys) and as a hint (health page, online list tooltip)
 - **Who threatens me**: on the hostile spying page a personal ranking of the players who spied on or attacked you,
   with their fleet points trend, nearest planet and flight time, and the hours they usually come at
 - **Notifications**: bell with hostile fleets heading for members (from the synced fleet movements), raid planner

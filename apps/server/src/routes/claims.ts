@@ -3,7 +3,7 @@ import { HttpError } from '../auth.js';
 import type { GroupContext } from '../context.js';
 import { now, type DB } from '../db.js';
 import { events } from '../events.js';
-import { contextOf, DISPLAY, MEMBER, releaseTargetClaims } from './util.js';
+import { contextOf, DISPLAY, releaseTargetClaims } from './util.js';
 
 const KINDS = ['farm', 'attack', 'spy'];
 /** Debris fields (`type` debris) are claimed for recycling only. */
@@ -60,7 +60,7 @@ export function claimsRoutes(app: FastifyInstance, db: DB) {
         `SELECT c.id, c.user_id, ${DISPLAY} AS member, c.g, c.s, c.p, c.planet_type, c.kind, c.note, c.created_at, c.expires_at,
            pl.player_id, pr.name AS player_name, CASE WHEN c.planet_type = 'moon' THEN pl.moon_name ELSE pl.name END AS planet_name
          FROM target_claims c
-         JOIN users u ON u.id = c.user_id ${MEMBER('c')}
+         JOIN users u ON u.id = c.user_id
          LEFT JOIN planets pl ON pl.group_id = c.group_id AND pl.g = c.g AND pl.s = c.s AND pl.p = c.p
          LEFT JOIN players pr ON pr.id = pl.player_id
          WHERE c.group_id = ? AND ${ACTIVE} ORDER BY c.expires_at`,
@@ -81,7 +81,7 @@ export function claimsRoutes(app: FastifyInstance, db: DB) {
     return db.transaction(() => {
       const t = now();
       const held = db
-        .prepare(`SELECT c.id, c.user_id, ${DISPLAY} AS member FROM target_claims c JOIN users u ON u.id = c.user_id ${MEMBER('c')}
+        .prepare(`SELECT c.id, c.user_id, ${DISPLAY} AS member FROM target_claims c JOIN users u ON u.id = c.user_id
                   WHERE c.group_id = ? AND c.g = ? AND c.s = ? AND c.p = ? AND c.planet_type = ? AND ${ACTIVE}`)
         .get(ctx.groupId, b.g, b.s, b.p, type, t) as { id: number; user_id: number; member: string } | undefined;
       if (held && held.user_id !== ctx.user.id && !(b.force && isAdmin(ctx))) {

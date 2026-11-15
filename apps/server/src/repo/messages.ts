@@ -1,5 +1,5 @@
 import type { DB } from '../db.js';
-import { DISPLAY } from '../routes/util.js';
+import { DISPLAY } from './sql.js';
 
 /** Whether the user shares their player messages with the other members of their groups (off by default). */
 export function messageShare(db: DB, userId: number): boolean {

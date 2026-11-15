@@ -9,7 +9,7 @@ import { shipsKey } from './hostile.js';
 import { latestMarketRate } from './market.js';
 import { latestEmpires } from './empire.js';
 import { memberPlayers } from './members.js';
-import { DISPLAY, displayOf } from '../routes/util.js';
+import { DISPLAY, displayOf } from './sql.js';
 import { launchedOf, planDrives, type LaunchFleet, type PlanRow } from './plans.js';
 
 /** Battles count for a plan from an hour before its time until an hour after its (day/hour) window. */
@@ -360,7 +360,7 @@ function draftOf(db: DB, ctx: GroupContext, plan: PlanRow & { time_precision: st
   const recycled = db
     .prepare(
       `SELECT r.id, r.user_id, ${DISPLAY} AS member, r.time, r.metal, r.crystal, r.total_metal, r.total_crystal
-       FROM recycle_reports r JOIN users u ON u.id = r.user_id LEFT JOIN group_members gm ON gm.group_id = r.group_id AND gm.user_id = r.user_id
+       FROM recycle_reports r JOIN users u ON u.id = r.user_id
        WHERE r.group_id = ? AND r.g = ? AND r.s = ? AND r.p = ? AND r.time BETWEEN ? AND ? ORDER BY r.time, r.id`,
     )
     .all(ctx.groupId, plan.g, plan.s, plan.p, from - 60, from + SHARE_WITHIN) as {
@@ -598,8 +598,8 @@ export function storedSettlement(db: DB, ctx: GroupContext, planId: number): Sto
     .prepare(
       `SELECT s.data, s.overrides, s.done, s.updated_at, s.finalized_at, ${DISPLAY} AS updated_by,
          ${displayOf('uf')} AS finalized_by
-       FROM raid_settlements s LEFT JOIN users u ON u.id = s.updated_by LEFT JOIN group_members gm ON gm.group_id = s.group_id AND gm.user_id = s.updated_by
-       LEFT JOIN users uf ON uf.id = s.finalized_by LEFT JOIN group_members gf ON gf.group_id = s.group_id AND gf.user_id = s.finalized_by
+       FROM raid_settlements s LEFT JOIN users u ON u.id = s.updated_by
+       LEFT JOIN users uf ON uf.id = s.finalized_by
        WHERE s.plan_id = ? AND s.group_id = ?`,
     )
     .get(planId, ctx.groupId) as

@@ -11,7 +11,7 @@ import { ingest } from '../ingest.js';
 import { planFromReport } from '../repo/reportPlan.js';
 import type { PlanRow } from '../repo/plans.js';
 import { correctionsOf, finalizedSettlements, forgetFinalized, memberKey, settlementChecks, settlementDraft, storedSettlement } from '../repo/settlements.js';
-import { clampInt, contextOf, DISPLAY, displayOf, MEMBER, type Q } from './util.js';
+import { clampInt, contextOf, DISPLAY, displayOf, type Q } from './util.js';
 
 /** Battles count for a plan from an hour before its time until an hour after (as in the draft). */
 const BATTLE_SLACK = 3600;
@@ -57,11 +57,11 @@ export function settlementRoutes(app: FastifyInstance, db: DB) {
         `SELECT a.id, a.mission, a.g, a.s, a.p, a.planet_type, a.target_time, a.time_precision, a.status, ${DISPLAY} AS creator,
            COALESCE(a.player_id, pl.player_id) AS player_id, pr.name AS player_name, s.plan_id AS stored, s.data, s.done, s.updated_at, s.finalized_at,
            ${displayOf('ub')} AS updated_by
-         FROM attack_plans a JOIN users u ON u.id = a.user_id ${MEMBER('a')}
+         FROM attack_plans a JOIN users u ON u.id = a.user_id
          LEFT JOIN planets pl ON pl.group_id = a.group_id AND pl.g = a.g AND pl.s = a.s AND pl.p = a.p
          LEFT JOIN players pr ON pr.id = COALESCE(a.player_id, pl.player_id)
          LEFT JOIN raid_settlements s ON s.plan_id = a.id
-         LEFT JOIN users ub ON ub.id = s.updated_by LEFT JOIN group_members gb ON gb.group_id = a.group_id AND gb.user_id = s.updated_by
+         LEFT JOIN users ub ON ub.id = s.updated_by
          WHERE a.group_id = ? AND a.g IS NOT NULL AND a.target_time BETWEEN ? AND ? AND (a.status IN ('launched', 'done') OR s.plan_id IS NOT NULL)
          ORDER BY a.target_time DESC`,
       )
@@ -71,9 +71,9 @@ export function settlementRoutes(app: FastifyInstance, db: DB) {
     })[];
     const members = db.prepare(
       `SELECT DISTINCT ${DISPLAY} FROM attack_plan_fleets f JOIN users u ON u.id = f.user_id
-       LEFT JOIN group_members gm ON gm.group_id = ? AND gm.user_id = f.user_id WHERE f.plan_id = ? AND f.status <> 'withdrawn'
+       WHERE f.plan_id = ? AND f.status <> 'withdrawn'
        UNION SELECT ${DISPLAY} FROM attack_plan_enemy e JOIN users u ON u.id = e.member_id
-       LEFT JOIN group_members gm ON gm.group_id = ? AND gm.user_id = e.member_id WHERE e.plan_id = ? AND (SELECT mission FROM attack_plans WHERE id = ?) = 'hold'`,
+       WHERE e.plan_id = ? AND (SELECT mission FROM attack_plans WHERE id = ?) = 'hold'`,
     ).pluck();
     const battle = db.prepare(
       `SELECT EXISTS (SELECT 1 FROM battle_reports WHERE group_id = @group AND g = @g AND s = @s AND p = @p AND planet_type = @type AND time BETWEEN @from AND @to)
@@ -117,7 +117,7 @@ export function settlementRoutes(app: FastifyInstance, db: DB) {
       return {
         id: p.id, mission: p.mission, g: p.g, s: p.s, p: p.p, planet_type: p.planet_type, target_time: p.target_time, status: p.status,
         creator: p.creator, player_id: p.player_id, player_name: p.player_name,
-        members: members.all(ctx.groupId, p.id, ctx.groupId, p.id, p.id) as string[],
+        members: members.all(p.id, p.id, p.id) as string[],
         battle: !!battle.get({
           group: ctx.groupId, g: p.g, s: p.s, p: p.p, type: p.planet_type, from: p.target_time - BATTLE_SLACK, to: p.target_time + window + BATTLE_SLACK,
         }),
