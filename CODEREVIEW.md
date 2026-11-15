@@ -92,13 +92,18 @@ when the files are touched.
 | N-09 | Hand-rolled validation of the new endpoints | `threats` uses `clampInt` (which now treats an empty parameter as missing); `storage-alerts` keeps the caller's planets only; `build-order/assign` needs a synced planet of the caller (`build_order_target_invalid`) |
 | N-10 | `pnpm typecheck` and tests depended on the Docker WASM build | Committed module types (`packages/battle/wasm-types/`, checked against the generated `battlerust.d.ts`); engine suites `skipIf` the binary is missing, with a warning; README note |
 | N-11 | `HostileView` kept `useLoader<any>` | Typed `/hostile` response |
+| N-T2 | `threatsOf` scanned every combat report of the group | Migration 090: `combat_reports (group_id, time)` (the index of 083 is partial); the query plan uses it |
+
+The carried-over C-02 (the last four loaders), C-03 (setting keys), C-07 (`ABBR`, `phalanxRange`), C-08 (query
+parameters, `readError`), C-10e, I-03 (`noUnusedLocals`, `noUncheckedIndexedAccess` on flight) and I-05 were fixed the
+same day; their rows below show what is left of them. Typing the loaders also found a bug: `/raids` missile impacts
+lacked the `created_at` the list falls back to.
 
 ### Theoretical (this week)
 
 | ID | Issue | Why theoretical |
 |---|---|---|
 | N-T1 | `Store.playerCard` overwrites a slot kept for a destroyed planet or debris field (`player_id` NULL) in a viewed system with the card's home planet | Home planets cannot be destroyed or abandoned in the game; the row is the player's own former slot |
-| N-T2 | `threatsOf` reads every `combat_reports` row of the group within `days` (up to 3650) and parses its `fleets` JSON, then `spyEmpire` per candidate, on every request and live reload | Groups have hundreds, not millions of reports; the `/hostile` list already works this way. Add a `(group_id, time)` index and a cap when a group notices |
 | N-T3 | `GET /api/:uni/browse/:g` loads the newest scores of every player in the galaxy per request | One `json_each` query; bounded by systems × positions |
 | N-T4 | `QuietHours.vue` stores the device time zone at the last change; a device that travels keeps the old zone until the user touches the setting | Documented in the component; the shown `tz` makes it visible |
 
@@ -124,15 +129,14 @@ Evidence re-checked against this tree; sizes updated. Only what is still open is
 | ID | Finding | Evidence now | Impact | Risk | Effort | Fix |
 |---|---|---|---|---|---|---|
 | C-01 | God files | `store.ts` 995, `routes/plans.ts` 823, `routes/admin.ts` 740, `AdminView.vue` 1041, `OverviewView.vue` 916, `locales/de.ts` 3189 (each), `flight-calculator/main.js` 1351, `test/api.test.ts` 1987 | High (velocity) | Medium | High (split when touching) | `store/*.ts` by ingest kind, `routes/plans` → CRUD / fleets / enemy, AdminView → Universes / Groups / Ingests / System, locales by namespace with the same `typeof de` check |
-| C-02 | API client defaults to `any` | `api<T = any>` in `api.ts` line 97; four components keep `useLoader<any>` (`ExpeditionDeck`, `ExpeditionStats`, `RaidStats`, `PlayerDetail`; `HostileView` typed, N-11) | High | High | Medium | Make `T` required; type `/overview`, `/raids`, `/expeditions`, `/context`, admin lists first |
-| C-03 | SQL rows and JSON columns are untyped blobs | `SELECT *` + `as any[]` on reports/galaxy; most `JSON.parse` undefended; unknown universe setting keys are stored (`settingsError` checks known keys only) | High | High | Medium | Typed row interfaces per table; one `parseJson<T>`; reject unknown setting keys |
+| C-02 | API client defaults to `any` | `api<T = any>` in `api.ts`; no `useLoader<any>` is left (the last four typed in `apiTypes.ts`, 2026-11-15), but most `uniApi` calls still pass no type | High | High | Medium | Make `T` required; generate the types from `openapi.yaml` (A-01) instead of `apiTypes.ts` by hand |
+| C-03 | SQL rows and JSON columns are untyped blobs | `SELECT *` + `as any[]` on reports/galaxy; most `JSON.parse` undefended (unknown universe setting keys are refused since 2026-11-15) | High | High | Medium | Typed row interfaces per table; one `parseJson<T>` |
 | C-04 | Mixed `user_id` / `userId`, snake / camel in one payload | `/raids` aggregates `userId`, raw rows `user_id`; plan types snake_case on the web, others camelCase | Medium | Medium | Medium | CamelCase at the HTTP boundary; map in the route; update OpenAPI and web types together |
 | C-05 | Three text pipelines, two compact-number formats | `CHANGELOG.md` + `changelog.ts`, `push.ts` strings, locales, tools `i18n.js`; `push.ts` `short()` (Intl compact) vs hub Mio/Mrd | Medium | Low–Medium | Medium | Share compact numbers and mission labels from core; keep push strings server-side |
 | C-06 | `format.ts` and `composables.ts` are kitchen sinks | unchanged | Medium | Low | Medium | `format/` (numbers, dates, labels) vs `toolLinks.ts` vs `protection.ts`; one file per composable |
-| C-07 | Duplicated catalogs and formulas | `ABBR` in `format.ts` 170 still lists 200/400 ids the catalog has; `phalanxRange` in `domain/phalanx.ts` and `format.ts` 389; live overlays in `liveUnits.ts`, `battle/live.ts`, `flight/ships.ts`, `gen-costs.mjs` (start resources and temperature unified, N-08) | Medium | Medium | Low–Medium | Delete 200/400 from `ABBR`; `phalanxRange` into flight or core; one live overlay for costs/combat/drives/cargo |
-| C-08 | Validation and errors are ad-hoc | `clampInt` not used consistently in older routes (the new ones fixed, N-09); body validation per route; views swallow errors into strings | Medium | Medium | Medium | Use `clampInt` everywhere; a `readError(e)` helper; schemas on the token surface (A-01) |
+| C-07 | Duplicated catalogs and formulas | Live overlays in `liveUnits.ts`, `battle/live.ts`, `flight/ships.ts`, `gen-costs.mjs` (`ABBR`, `phalanxRange`, start resources unified 2026-11-15) | Medium | Medium | Medium | One live overlay for costs/combat/drives/cargo |
+| C-08 | Validation is ad-hoc | Body validation per route (`clampInt` on every numeric list parameter and `readError` in the web since 2026-11-15; export keeps its documented `400 export_invalid`) | Medium | Medium | Medium | Schemas on the token surface (A-01) |
 | C-09 | Tools UI is a second, untyped stack | `tsc` never sees `main.js` / `units.js` / `i18n.js`; `t()` interpolates raw; `kpi()` copied per tool | High (velocity, XSS footgun) | Medium | Low (type `TEXTS`, name `kpi(label, valueHtml)`) / High (migrate) | JSDoc + `checkJs` on `shared/*.js` first; `Object.keys(de)` equals `Object.keys(en)` per tool; keep HTML out of `TEXTS` |
-| C-10e | `MISSILE_TARGETS` keeps 409–411 | `packages/flight/src/missile.ts` 30–32; the catalog strips them | Low | Low | Low | Drop them or document why the flight package keeps them |
 | C-10f | Two short-name tables in the parser | Catalog `unit.short` vs `tech.json` `deShort`; parsers use tech.json first, catalog second | Medium | Medium | Low | One source for shorts (catalog), tech.json as the fallback only |
 | C-10g | Folder `parser` / package `@pr0hub/core` | see A-08 | Low | Low | Low | document |
 | C-11 | Test structure: two characterization dumps, thin UI coverage | `api.test.ts` 1987 lines on one in-memory world; `parse.test.ts` 1332; web has 24 suites, the heaviest views (Overview, Admin, Loot, Messages) untested; `noUncheckedIndexedAccess` off | High (confidence) | Medium | Medium | Split `api.test.ts` by domain (the new suites `threats`, `notifyRules`, `displayName` show the pattern); `store/*.test.ts` on parsed fixtures; Overview/Admin smoke tests; `noUncheckedIndexedAccess` on `flight` and `loot` |
@@ -141,8 +145,7 @@ Evidence re-checked against this tree; sizes updated. Only what is still open is
 
 | ID | Finding | Evidence now | Impact | Risk | Effort | Fix |
 |---|---|---|---|---|---|---|
-| I-03 | DX: no lint, packages must be built first, tools JS outside `tsc` | No `lint` script in root `package.json`; web/server import `dist/` of workspace packages (the typecheck no longer needs the WASM build, N-10) | Medium | Low–Medium | Low–Medium | Root `lint` (even `tsc --noUnusedLocals` first); workspace "source" condition or `dev` watch; `checkJs` for tools `shared/*.js` |
-| I-05 | `/:uni` swallows unknown paths; no 404 | `router.ts` 28 `path: '/:uni'`; `UniverseLayout.vue` shows the API error of `/context` | Low | Medium | Low | Dedicated empty state when `/context` is 404; optional `/:uni(\\w+)` |
+| I-03 | DX: packages must be built first, tools JS outside `tsc` | `noUnusedLocals` fails the typecheck (not in the web app: vue-tsc misses template refs), `noUncheckedIndexedAccess` on `flight` (`loot` left out: only bounded parallel-array accesses); web/server import `dist/` of workspace packages | Medium | Low–Medium | Low–Medium | Workspace "source" condition or `dev` watch; `checkJs` for tools `shared/*.js` |
 
 ### XSS posture (unchanged)
 
@@ -178,7 +181,8 @@ interpolations (C-09).
 
 ### Now
 
-Nothing: N-01 to N-11 are fixed (2026-11-15).
+Nothing: N-01 to N-11 and the small carried-over items (C-02 loaders, C-03 setting keys, C-07 shorts and phalanx range,
+C-08 query parameters and errors, C-10e, I-03 checks, I-05, N-T2 index) are fixed (2026-11-15).
 
 ### When the files are touched (Wave 3 of the 2026-11-04 review)
 
@@ -189,10 +193,9 @@ Nothing: N-01 to N-11 are fixed (2026-11-15).
 | 3 | A-03 | `GroupDb` | High |
 | 4 | A-06 | `universe.json` off the event loop | High |
 | 5 | A-08 / A-10 / C-09 | Slimmer core exports; tools TS incrementally; typed tool i18n | High |
-| 6 | C-03 / C-04 / C-06 / C-08 | Typed rows, camelCase on the wire, split `format.ts`, shared validation | Medium |
-| 7 | C-05 / C-07 / C-10e-g | Shared compact numbers and formulas; one live-unit overlay; one shorts table | Medium |
-| 8 | C-11 / I-03 | Split `api.test.ts`, Store tests, lint, `noUncheckedIndexedAccess` on packages | Medium |
-| 9 | I-05 | Dedicated 404 for unknown universes | Low |
+| 6 | C-03 / C-04 / C-06 / C-08 | Typed rows, camelCase on the wire, split `format.ts`, schemas | Medium |
+| 7 | C-05 / C-07 / C-10f-g | Shared compact numbers; one live-unit overlay; one shorts table | Medium |
+| 8 | C-11 / I-03 | Split `api.test.ts`, Store tests, source condition for workspace packages | Medium |
 
 ### What not to do
 

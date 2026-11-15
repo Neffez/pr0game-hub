@@ -4,6 +4,8 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-15
 
+- Migration 090 adds a `(group_id, time)` index on `combat_reports` for "who threatens me" (the one of migration 083 is
+  partial); `CODEREVIEW.md` marks the small carried-over findings as fixed.
 - Stricter compiler checks (I-03 of the review): `noUnusedLocals` in the shared TypeScript config and the tools
   (the web app stays without it, vue-tsc counts template refs by name as unused), the unused imports it found are
   gone; `@pr0hub/flight` compiles with `noUncheckedIndexedAccess` (missile attack and ship speed fall back to 0 on a
