@@ -69,6 +69,8 @@ Every commit adds its changes here, newest first, grouped by date.
     prune, push service 404/410, user deletion) or moves to another user (the same browser registered by someone
     else), and the held Discord rows of a deleted user; a reused subscription id can no longer receive another
     member's notifications.
+- Fix sync collection: a statistics category (and galaxy system) chosen in the paste box before "Collect" is
+  kept for the collected page instead of being asked for again in the list.
 - Code review of this week's changes in `CODEREVIEW.md`: the closed findings of the 2026-11-04 review are removed, the
   still open ones re-verified, and the new findings documented (held notifications tied to the push subscription id and
   deleted before delivery, the duplicate `stat_snapshots` index of migration 086, access requests on a placeholder's

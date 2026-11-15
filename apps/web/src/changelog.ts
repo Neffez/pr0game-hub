@@ -43,6 +43,11 @@ export const CHANGELOG: ChangelogDay[] = [
         de: 'Ruhezeiten: zurückgehaltene Benachrichtigungen gehen nicht mehr verloren, wenn der Versand danach fehlschlägt, und landen nie bei einem anderen Mitglied, das denselben Browser nutzt.',
         en: 'Quiet hours: held notifications are no longer lost when sending them fails afterwards, and never reach another member using the same browser.',
       },
+      {
+        kind: 'fix',
+        de: 'Sync: Eine vor „Sammeln“ gewählte Statistik-Kategorie (und das Galaxie-System) bleibt für die gesammelte Seite erhalten und muss in der Liste nicht erneut gewählt werden.',
+        en: 'Sync: a statistics category (and galaxy system) chosen before “Collect” is kept for the collected page and need not be picked again in the list.',
+      },
     ],
   },
   {
