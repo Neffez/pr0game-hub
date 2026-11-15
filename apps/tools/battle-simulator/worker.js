@@ -2,7 +2,7 @@
    progress; the page terminates it to cancel. */
 import init, { wasm_fight_battle_rounds } from '@pr0hub/battle/wasm';
 import wasmUrl from '@pr0hub/battle/wasm/battlerust_bg.wasm?url';
-import { runBattle, summarize } from '@pr0hub/battle';
+import { simulateRefined } from '@pr0hub/battle';
 import { unitCatalog } from '@pr0hub/core/units';
 
 var ready = init({ module_or_path: wasmUrl });
@@ -10,17 +10,18 @@ var ready = init({ module_or_path: wasmUrl });
 self.onmessage = function (e) {
   var job = e.data;
   ready.then(function () {
-    var list = [];
     var units = unitCatalog(job.units || {});
     var last = Date.now();
-    for (var i = 0; i < job.runs; i++) {
-      list.push(runBattle(wasm_fight_battle_rounds, job.setup, job.settings, Math.random, units));
-      if (Date.now() - last > 100) {
+    // small battles run longer than asked for, until their loss chances are steady
+    var summary = simulateRefined(wasm_fight_battle_rounds, job.setup, job.runs, job.settings, {
+      units: units,
+      progress: function (share) {
+        if (Date.now() - last <= 100) return;
         last = Date.now();
-        self.postMessage({ id: job.id, type: 'progress', done: i + 1 });
-      }
-    }
-    self.postMessage({ id: job.id, type: 'done', summary: summarize(list) });
+        self.postMessage({ id: job.id, type: 'progress', share: share });
+      },
+    });
+    self.postMessage({ id: job.id, type: 'done', summary: summary });
   }).catch(function (err) {
     self.postMessage({ id: job.id, type: 'error', message: String(err && err.message || err) });
   });

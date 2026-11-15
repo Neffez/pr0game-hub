@@ -1,5 +1,5 @@
 /* Battle simulator UI. The battles run in ./worker.js on Battlerust (@pr0hub/battle), glue in ../src/battle.ts. */
-import { decodeShare, encodeShare } from '@pr0hub/battle';
+import { chanceMargin, decodeShare, encodeShare } from '@pr0hub/battle';
 import {
   COMBAT_TECHS,
   DRIVE_TECHS,
@@ -97,6 +97,14 @@ function risk(share) {
   if (share < 0.01) return '<1 %';
   if (share > 0.99 && share < 1) return '>99 %';
   return Math.round(share * 100) + ' %';
+}
+
+/* How exact the loss risk is: "±2" (percentage points, 95 %) when the runs leave at least one point open. */
+function riskMargin(share, runs) {
+  // never or always lost stays plain: its margin would only repeat the number of runs
+  if (!share || share >= 1) return '';
+  var points = Math.round(chanceMargin(share, runs) * 100);
+  return points >= 1 ? ' <span class="margin" title="' + esc(t('riskMarginTitle', {n: num(runs)})) + '">±' + points + '</span>' : '';
 }
 
 /* The most likely number of rounds with its share, the average and the range. */
@@ -413,7 +421,7 @@ function newWorker() {
     var msg = e.data;
     if (!job || msg.id !== job.id) return;
     if (msg.type === 'progress') {
-      setProgress(msg.done / job.runs);
+      setProgress(msg.share);
     } else if (msg.type === 'done') {
       var result = {summary: msg.summary, slots: job.slots, setup: job.setup, labels: job.labels, state: job.state};
       var tab = job.tab;
@@ -526,7 +534,7 @@ function lossRows(side, fleets, slotIdx, initial) {
       rows += '<tr class="' + (left.avg > 0 ? '' : 'gone') + '"><td class="name">' + esc(elementName(id, lang())) + '<span class="slot-tag block">' + esc(label) + '</span></td>'
         + '<td>' + num(units[id]) + '</td><td class="' + (lost.avg ? 'neg' : 'dim') + '">' + avgRange(lost) + '</td>'
         + '<td>' + avg(left.avg) + '</td>'
-        + '<td class="' + (chance ? 'neg' : 'dim') + '" title="' + esc(t('colRiskTitle')) + '">' + risk(chance) + '</td>'
+        + '<td class="' + (chance ? 'neg' : 'dim') + '" title="' + esc(t('colRiskTitle')) + '">' + risk(chance) + riskMargin(chance, last.summary.runs) + '</td>'
         + (side === 'def' ? '<td>' + (rep ? avgRange(rep) : '') + '</td>' : '') + '</tr>';
     });
   });

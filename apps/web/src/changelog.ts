@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'pr0game-Tools: Der Kampfsimulator simuliert kleine Kämpfe automatisch so oft, bis das Verlustrisiko feststeht, statt bei jedem Lauf einen anderen Wert zu zeigen. Ist ein Risiko noch ungenau, steht die Spanne dabei (z. B. „4 % ±2“).',
+        en: 'pr0game tools: the battle simulator repeats small battles automatically until the loss risk is steady instead of showing a different value on every run. A risk that is still inexact shows its range (e.g. “4 % ±2”).',
+      },
+      {
+        kind: 'new',
         de: 'Aktivitätsmuster: Gemeldete Online- und Offlinezeiten zeigen nur noch die letzten drei, der Rest ist über „Alle anzeigen“ erreichbar.',
         en: 'Activity pattern: reported online and offline times show only the latest three; the rest is behind “Show all”.',
       },
