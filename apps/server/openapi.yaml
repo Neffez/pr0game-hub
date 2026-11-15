@@ -5406,7 +5406,7 @@ paths:
               properties:
                 settings:
                   allOf: [{ $ref: '#/components/schemas/UniverseSettings' }]
-                  description: 'Changed settings; `null` resets an optional one. `setting_invalid` names the first invalid key.'
+                  description: 'Changed settings; `null` resets an optional one. `setting_invalid` names the first invalid key, `setting_unknown` the first key that is no setting.'
       responses:
         '200':
           content:
@@ -5428,7 +5428,7 @@ paths:
               properties:
                 settings:
                   allOf: [{ $ref: '#/components/schemas/UniverseSettings' }]
-                  description: 'Changed settings; `null` resets an optional one. `setting_invalid` names the first invalid key.'
+                  description: 'Changed settings; `null` resets an optional one. `setting_invalid` names the first invalid key, `setting_unknown` the first key that is no setting.'
       responses:
         '200':
           content:

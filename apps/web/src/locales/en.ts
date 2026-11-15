@@ -3117,6 +3117,7 @@ const en: typeof de = {
     timezone_invalid: 'Invalid time zone',
     game_url_invalid: 'Game URL must start with http(s)://',
     setting_invalid: 'Invalid setting (numbers ≥ 0, sizes whole numbers ≥ 1)',
+    setting_unknown: 'Unknown setting',
     deck_not_array: 'Deck must be an array',
     deck_entry_invalid: "Invalid deck entry: {'{'}type, size, count{'}'}",
     lang_invalid: 'Invalid language',

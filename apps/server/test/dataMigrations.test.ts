@@ -27,4 +27,15 @@ describe('data migrations', () => {
     expect(db.prepare('SELECT token FROM invites').pluck().all()).toEqual([sha]);
     db.close();
   });
+
+  it('drops stored universe settings that are no setting, and keeps the rest', () => {
+    const file = join(dir, 'settings.db');
+    let db = openDb(file);
+    db.prepare("INSERT INTO universes (slug, name, settings) VALUES ('u1', 'U1', ?)").run(JSON.stringify({ galaxies: 4, oldSetting: true, positionBonus: { 8: [1, 0, 0] } }));
+    db.prepare("DELETE FROM schema_migrations WHERE name = 'js:drop_unknown_universe_settings'").run();
+    db.close();
+    db = openDb(file);
+    expect(JSON.parse(db.prepare("SELECT settings FROM universes WHERE slug = 'u1'").pluck().get() as string)).toEqual({ galaxies: 4, positionBonus: { 8: [1, 0, 0] } });
+    db.close();
+  });
 });

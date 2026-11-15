@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-15
 
+- Universe settings refuse keys that are no setting (C-03 of the review): `settingsError` answers
+  `setting_unknown` for them, `SETTING_KEYS` in `@pr0hub/core/universe` lists every key (a test compares it with
+  `UniverseSettings`), and the data migration `js:drop_unknown_universe_settings` removes such keys stored before,
+  so the admin form, which sends the stored settings back, keeps saving.
 - Errors read the same everywhere (C-08 of the review).
   - Web: `readError(e)` in `api.ts` replaces the 52 `(e as Error).message` of the views and components; a request
     that never reaches the hub (offline, connection reset) throws `ApiError` with code `network` and a translated

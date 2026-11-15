@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { SETTING_KEYS } from '@pr0hub/core/universe';
 import { backfillDisplayNamesFromIngame } from './displayName.js';
 
 export { backfillDisplayNamesFromIngame } from './displayName.js';
@@ -111,6 +112,16 @@ const DATA_MIGRATIONS: Record<string, (db: DB) => void> = {
   },
   // login usernames are ASCII; umlauts in the in-game name became `_` and showed in the online list
   'js:display_name_from_sanitized_ingame': backfillDisplayNamesFromIngame,
+  // unknown setting keys are refused from now on; drop the ones stored before, so the admin form saves again
+  'js:drop_unknown_universe_settings': (db) => {
+    const known = new Set(SETTING_KEYS);
+    const set = db.prepare('UPDATE universes SET settings = ? WHERE id = ?');
+    for (const u of db.prepare('SELECT id, settings FROM universes').all() as { id: number; settings: string }[]) {
+      const stored = JSON.parse(u.settings) as Record<string, unknown>;
+      const kept = Object.fromEntries(Object.entries(stored).filter(([k]) => known.has(k)));
+      if (Object.keys(kept).length !== Object.keys(stored).length) set.run(JSON.stringify(kept), u.id);
+    }
+  },
 };
 
 export const now = () => Math.floor(Date.now() / 1000);
