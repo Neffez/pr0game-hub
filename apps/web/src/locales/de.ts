@@ -3046,6 +3046,8 @@ const de = {
     username_invalid: 'Benutzername: 3–32 Zeichen (Buchstaben, Zahlen, . _ -)',
     display_name_invalid: "Anzeigename: 1–32 Zeichen (Buchstaben, Zahlen, Leerzeichen, . _ -), kein {'@'}",
     username_taken: 'Benutzername vergeben',
+    username_of_placeholder: 'Der Benutzername gehört einem anderen Mitglied ohne Konto: die Anfrage diesem Mitglied zuordnen',
+    build_order_target_invalid: 'Das Ziel ist keiner deiner synchronisierten Planeten',
     universe_not_found: 'Universum nicht gefunden',
     no_group: 'Keine Allianz in diesem Universum',
     nothing_pasted: 'Nichts eingefügt',

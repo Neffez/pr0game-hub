@@ -262,7 +262,15 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
   /** Open requests plus the placeholder members (no account yet) they can be assigned to. */
   app.get('/api/admin/access-requests', async (req) => {
     const groups = assignableGroups(requireUser(req));
-    const requests = db.prepare('SELECT id, username, message, created_at FROM access_requests ORDER BY id').all();
+    // a request may carry the login name of a placeholder (allowed on purpose): it can only go to that member
+    const requests = db
+      .prepare(
+        `SELECT r.id, r.username, r.message, r.created_at,
+           (SELECT u.id FROM users u WHERE u.username = r.username AND u.password_hash = '') AS placeholder
+         FROM access_requests r ORDER BY r.id`,
+      )
+      .all();
+    // a match list for the request (who is this in the game?): the in-game name, not the hub display name
     const placeholders = db
       .prepare(
         `SELECT u.id, COALESCE(m.ingame_name, u.username) AS name, g.name AS "group", un.slug AS universe
@@ -289,6 +297,12 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
     const userId = Number(req.body?.userId);
     if (!db.prepare("SELECT 1 FROM users WHERE id = ? AND password_hash = ''").get(userId)) {
       throw new HttpError(400, 'not_placeholder', 'The player already has an account');
+    }
+    const owner = db
+      .prepare("SELECT u.id, COALESCE(NULLIF(u.display_name, ''), u.username) AS name FROM users u WHERE u.username = ? AND u.id != ? AND u.password_hash = ''")
+      .get(request.username, userId) as { id: number; name: string } | undefined;
+    if (owner) {
+      throw new HttpError(409, 'username_of_placeholder', `The username belongs to the member without an account "${owner.name}": assign the request to them`);
     }
     const username = checkUsername(db, request.username, userId);
     const memberOf = db.prepare('SELECT group_id FROM group_members WHERE user_id = ?').pluck().all(userId) as number[];

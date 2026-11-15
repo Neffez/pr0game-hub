@@ -3043,6 +3043,8 @@ const en: typeof de = {
     username_invalid: 'Username: 3–32 characters (letters, digits, . _ -)',
     display_name_invalid: "Display name: 1–32 characters (letters, digits, spaces, . _ -), no {'@'}",
     username_taken: 'Username already taken',
+    username_of_placeholder: 'The username belongs to another member without an account: assign the request to that member',
+    build_order_target_invalid: 'The target is not one of your synced planets',
     universe_not_found: 'Universe not found',
     no_group: 'No alliance in this universe',
     nothing_pasted: 'Nothing pasted',

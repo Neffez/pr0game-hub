@@ -75,6 +75,9 @@ export function buildOrderRoutes(app: FastifyInstance, db: DB) {
     const ctx = ctxOf(req);
     const { from, to } = req.body ?? {};
     if (typeof from !== 'string' || typeof to !== 'string' || !isPlannedKey(from)) throw new HttpError(400, 'build_order_invalid', 'Expected a planned planet and a target');
+    // the target is one of the viewer's synced planets (not a moon, not another planned planet)
+    const own = buildingsState(db, ctx, ctx.user.id).planets.some((p) => p.type === 'planet' && `${p.coords.g}:${p.coords.s}:${p.coords.p}:planet` === to);
+    if (!own) throw new HttpError(400, 'build_order_target_invalid', 'The target is not one of your synced planets');
     const stored = buildOrderOf(db, ctx, ctx.user.id);
     if (!stored) throw new HttpError(404, 'build_order_not_found', 'No build order');
     const order = assignPlanet(stored.order, from, to);

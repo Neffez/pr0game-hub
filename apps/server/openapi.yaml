@@ -2246,6 +2246,11 @@ paths:
                         username: { type: string }
                         message: { type: string }
                         created_at: { type: integer }
+                        placeholder:
+                          type: [integer, 'null']
+                          description: |
+                            The player without an account whose login name the request carries; the request can only be
+                            assigned to them (`username_of_placeholder` otherwise)
                   placeholders:
                     type: array
                     items:
@@ -2305,7 +2310,9 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
         '409':
-          description: The username has been taken meanwhile (`username_taken`)
+          description: |
+            The username has been taken meanwhile (`username_taken`), or it is the login name of another player
+            without an account, who is the one to assign the request to (`username_of_placeholder`)
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
@@ -3296,7 +3303,7 @@ paths:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
         - { $ref: '#/components/parameters/HubGroupQuery' }
-        - { name: days, in: query, schema: { type: integer, minimum: 1, maximum: 3650, default: 30 }, description: Period in days }
+        - { name: days, in: query, schema: { type: integer, minimum: 1, maximum: 3650, default: 30 }, description: 'Period in days (clamped to 1-3650; missing, empty or not a number: 30)' }
       responses:
         '200':
           description: The threats, the highest score first
@@ -3313,11 +3320,6 @@ paths:
                   threats:
                     type: array
                     items: { $ref: '#/components/schemas/Threat' }
-        '400':
-          description: Invalid period (`days_invalid`)
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/Error' }
   /api/{uni}/defense-risk:
     get:
       tags: [Universe]
@@ -3513,7 +3515,7 @@ paths:
               type: object
               required: [muted]
               properties:
-                muted: { type: array, maxItems: 200, items: { type: string, pattern: '^\d{1,3}:\d{1,4}:\d{1,3}$' }, description: 'Planet coordinates `g:s:p`' }
+                muted: { type: array, maxItems: 200, items: { type: string, pattern: '^\d{1,3}:\d{1,4}:\d{1,3}$' }, description: 'Planet coordinates `g:s:p`; only the caller''s synced planets are kept, others are left out' }
       responses:
         '200':
           description: Planets and their mute state
@@ -3738,7 +3740,7 @@ paths:
                 type: object
                 properties:
                   buildOrder: { $ref: '#/components/schemas/StoredBuildOrder' }
-        '400': { description: 'No planned planet as `from` or no valid planet key as `to` (`build_order_invalid`)' }
+        '400': { description: 'No planned planet as `from` (`build_order_invalid`), or `to` is not one of the caller''s synced planets (moons and planned planets included, `build_order_target_invalid`)' }
         '404': { description: 'The caller has no build order in the group (`build_order_not_found`)' }
         '409': { description: '`from` is not in the build order or `to` already has steps (`build_order_planet_taken`)' }
   /api/{uni}/market:

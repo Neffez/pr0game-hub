@@ -425,14 +425,19 @@ const removeMember = (m: any) => {
 };
 /** access requests from the login page (global admins) and the players without an account to assign them to */
 type AccessRequests = {
-  requests: { id: number; username: string; message: string; created_at: number }[];
+  /** placeholder: the player without an account whose login name the request carries (the only one it can go to) */
+  requests: { id: number; username: string; message: string; created_at: number; placeholder: number | null }[];
   placeholders: { id: number; name: string; group: string; universe: string }[];
 };
 const access = ref<AccessRequests>({ requests: [], placeholders: [] });
 const accessTarget = ref<Record<number, number | ''>>({});
 /** alliance admins assign requests to players of their alliances; rejecting is up to global admins */
 const loadAccess = async () => {
-  if (isAdmin.value || groups.value.length) access.value = await api('/admin/access-requests');
+  if (!isAdmin.value && !groups.value.length) return;
+  access.value = await api<AccessRequests>('/admin/access-requests');
+  for (const r of access.value.requests) {
+    if (r.placeholder && !accessTarget.value[r.id] && access.value.placeholders.some((p) => p.id === r.placeholder)) accessTarget.value[r.id] = r.placeholder;
+  }
 };
 const assignRequest = (r: AccessRequests['requests'][number]) =>
   run(async () => {

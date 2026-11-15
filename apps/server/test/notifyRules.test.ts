@@ -286,10 +286,19 @@ describe('parser samples', () => {
 describe('muted storages', () => {
   it('stores the muted planets per member and alliance and validates the coordinates', async () => {
     expect((await call('GET', '/u8/storage-alerts', h.carol)).json()).toEqual({ planets: [] });
+    const planet = (p: number) => ({
+      name: `P${p}`, coords: { g: 1, s: 2, p }, type: 'planet', values: {}, fields: { used: 0, max: 163 },
+      resources: { 901: 0, 902: 0, 903: 0 }, perHour: { 901: 0, 902: 0, 903: 0 }, building: null, temp: 40,
+    });
+    const empire = { kind: 'empire', research: {}, planets: [planet(3), planet(4)] };
+    db.prepare('INSERT INTO empire_snapshots (group_id, user_id, created_at, data) VALUES (?, ?, ?, ?)').run(group, ids.carol, t, JSON.stringify(empire));
     expect((await call('PUT', '/u8/storage-alerts', h.carol, { muted: ['1:2'] })).statusCode).toBe(400);
-    expect((await call('PUT', '/u8/storage-alerts', h.carol, { muted: ['1:2:3', '1:2:3'] })).statusCode).toBe(200);
+    // only the own planets are kept
+    const res = await call('PUT', '/u8/storage-alerts', h.carol, { muted: ['1:2:3', '1:2:3', '9:9:9'] });
+    expect(res.json().planets.map((p: { p: number; muted: boolean }) => [p.p, p.muted])).toEqual([[3, true], [4, false]]);
     expect(db.prepare('SELECT g, s, p FROM storage_muted WHERE group_id = ? AND user_id = ?').all(group, ids.carol)).toEqual([{ g: 1, s: 2, p: 3 }]);
     expect(db.prepare('SELECT COUNT(*) FROM storage_muted WHERE user_id = ?').pluck().get(ids.dave)).toBe(0);
+    db.prepare('DELETE FROM empire_snapshots WHERE user_id = ?').run(ids.carol);
   });
 
   it('does not push a full storage of a muted planet', async () => {

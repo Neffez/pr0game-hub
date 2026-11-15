@@ -49,6 +49,14 @@ describe('access requests', () => {
   it('allows a username reserved for a placeholder member', async () => {
     expect((await request({ username: 'Bob', password: 'longenough', message: 'Bob here' })).statusCode).toBe(200);
     const [open] = (await call('GET', '/admin/access-requests', admin)).json().requests.filter((r: { username: string }) => r.username === 'Bob');
+    // it can only go to that placeholder (the list says which), another one gets its own error
+    expect(open.placeholder).toBe(placeholder);
+    const other = (await call('POST', `/admin/groups/${groupId}/members`, admin, { name: 'Carl' })).json().id as number;
+    const refused = await call('POST', `/admin/access-requests/${open.id}/assign`, admin, { userId: other });
+    expect(refused.statusCode).toBe(409);
+    expect(refused.json()).toMatchObject({ code: 'username_of_placeholder' });
+    expect(refused.json().error).toContain('"Bob"');
+    expect((await call('DELETE', `/admin/groups/${groupId}/members/${other}`, admin)).statusCode).toBe(200);
     expect((await call('DELETE', `/admin/access-requests/${open.id}`, admin)).statusCode).toBe(200);
   });
 
@@ -60,7 +68,7 @@ describe('access requests', () => {
 
     const list = (await call('GET', '/admin/access-requests', admin)).json();
     const bobby = list.requests.find((r: { username: string }) => r.username === 'bobby');
-    expect(bobby).toMatchObject({ username: 'bobby', message: 'Hi, I am Bob' });
+    expect(bobby).toMatchObject({ username: 'bobby', message: 'Hi, I am Bob', placeholder: null });
     expect(bobby.password_hash).toBeUndefined();
     expect(list.placeholders.map((p: { id: number }) => p.id)).toContain(placeholder);
 

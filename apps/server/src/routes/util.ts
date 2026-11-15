@@ -5,8 +5,9 @@ import type { DB } from '../db.js';
 export type Q = Record<string, string | undefined>;
 
 /** Integer query parameter within [min, max]; missing or invalid values give the default. */
+/** An integer query parameter within `min`..`max`; missing, empty or not a number gives `def`. */
 export const clampInt = (v: string | undefined, def: number, min: number, max: number) => {
-  const n = Math.trunc(Number(v ?? def));
+  const n = v == null || v.trim() === '' ? def : Math.trunc(Number(v));
   return Number.isFinite(n) ? Math.min(Math.max(n, min), max) : def;
 };
 

@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Admin: Eine Zugangsanfrage mit dem Benutzernamen eines Mitglieds ohne Konto ist jetzt diesem Mitglied vorausgewählt; bei einem anderen Mitglied sagt die Meldung, wem sie gehört.',
+        en: 'Admin: an access request with the username of a member without an account now has that member preselected; for another member the message says whose it is.',
+      },
+      {
+        kind: 'fix',
         de: 'Ruhezeiten: zurückgehaltene Benachrichtigungen gehen nicht mehr verloren, wenn der Versand danach fehlschlägt, und landen nie bei einem anderen Mitglied, das denselben Browser nutzt.',
         en: 'Quiet hours: held notifications are no longer lost when sending them fails afterwards, and never reach another member using the same browser.',
       },

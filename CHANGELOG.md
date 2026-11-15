@@ -4,6 +4,18 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-15
 
+- Server checks tightened after the 2026-11-15 review.
+  - Admin: an access request that carries the login name of a member without an account can only be assigned to
+    that member; assigning it to another one answers `409 username_of_placeholder` naming them (was
+    `username_taken`), and `GET /api/admin/access-requests` gives that member as `placeholder`, which the admin page
+    preselects.
+  - `GET /api/{uni}/threats` clamps `days` like the other lists (empty or invalid is the default 30, no more
+    `400 days_invalid`); `clampInt` treats an empty parameter as missing everywhere.
+  - `PUT /api/{uni}/storage-alerts` keeps only the caller's synced planets; `POST /api/{uni}/build-order/assign`
+    needs one of the caller's synced planets as `to` (`400 build_order_target_invalid` for a moon, a planned
+    planet or someone else's planet).
+  - Migration 089 drops the duplicate `stat_snapshots_time` index that migration 086 recreated; a new schema test
+    fails on two indexes over the same columns of a table.
 - Held notifications (quiet hours) are no longer lost or misdelivered.
   - They are deleted only after their delivery: a push service or Discord webhook that fails keeps them for the
     next flush (until they expire); one flush runs at a time.

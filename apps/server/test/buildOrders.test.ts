@@ -146,11 +146,17 @@ describe('build order', () => {
     // no notification for a planet without coordinates
     expect((await call('GET', '/u8/notifications', h.dave)).json().filter((n: { kind: string }) => n.kind === 'buildorder')).toEqual([]);
     expect((await call('POST', '/u8/build-order/assign', h.dave, { from: HOME, to: P1 })).statusCode).toBe(400);
+    // the target must be one of the viewer's synced planets: not a planet of someone else, a moon or a planned planet
+    expect((await call('POST', '/u8/build-order/assign', h.dave, { from: P1, to: HOME })).json().code).toBe('build_order_target_invalid');
+    db.prepare('INSERT INTO empire_snapshots (group_id, user_id, created_at, data) VALUES (?, ?, ?, ?)').run(group, ids.dave, T0, JSON.stringify(empire));
+    expect((await call('POST', '/u8/build-order/assign', h.dave, { from: P1, to: '1:1:1:moon' })).json().code).toBe('build_order_target_invalid');
+    expect((await call('POST', '/u8/build-order/assign', h.dave, { from: P1, to: '0:0:2:planet' })).json().code).toBe('build_order_target_invalid');
     expect((await call('POST', '/u8/build-order/assign', h.dave, { from: '0:0:2:planet', to: HOME })).json().code).toBe('build_order_planet_taken');
     const res = (await call('POST', '/u8/build-order/assign', h.dave, { from: P1, to: HOME })).json();
     expect(res.buildOrder.order).toEqual({ base: { planets: { [HOME]: { 1: 10 } }, research: {} }, planets: { [HOME]: planned.planets[P1] } });
     expect(res.buildOrder.meta.mapping).toEqual({ 1: HOME });
     await call('DELETE', '/u8/build-order', h.dave);
+    db.prepare('DELETE FROM empire_snapshots WHERE user_id = ?').run(ids.dave);
   });
 
   it('respects the setting and deletes', async () => {
