@@ -1,10 +1,7 @@
-import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { initSync, wasm_fight_battle_rounds } from '../wasm/battlerust.js';
 import { defenseAdvice, heavyShips, raidRisk, valueIn, type DefenseSearch } from '../src/index.js';
+import { fight, hasEngine } from './wasm.js';
 
-initSync({ module: readFileSync(new URL('../wasm/battlerust_bg.wasm', import.meta.url)) });
-const fight = wasm_fight_battle_rounds;
 const research = { 109: 8, 110: 8, 111: 8 };
 const rate = { m: 3, k: 2 };
 const candidates = [401, 402, 403, 404, 405, 406].map((id) => ({ id, max: 1_000_000 })).concat([{ id: 407, max: 1 }, { id: 408, max: 1 }]);
@@ -22,7 +19,7 @@ const search = (over: Partial<DefenseSearch> = {}): DefenseSearch => ({
   ...over,
 });
 
-describe('defense advisor', () => {
+describe.skipIf(!hasEngine)('defense advisor', () => {
   it('values resources in deuterium by the rate', () => {
     expect(valueIn({ metal: 300, crystal: 200, deuterium: 100 }, rate)).toBe(300);
   });
@@ -66,7 +63,7 @@ describe('defense advisor', () => {
   });
 });
 
-describe('raid risk', () => {
+describe.skipIf(!hasEngine)('raid risk', () => {
   it('ranks the planets by the most profitable attack on them as they are', () => {
     const threats = [{ key: 'raider', units: { 203: 300, 205: 100 }, research, fuel: 2000 }, { key: 'raider:heavy', units: { 205: 100 }, research, fuel: 500 }];
     const r = raidRisk(fight, {
@@ -95,7 +92,7 @@ describe('raid risk', () => {
   });
 });
 
-describe('heavy ships', () => {
+describe.skipIf(!hasEngine)('heavy ships', () => {
   it('keeps the ships from the battleship up', () => {
     expect(heavyShips({ 202: 10, 203: 5, 204: 100, 206: 20, 207: 30, 209: 4, 210: 3, 211: 2, 213: 1, 214: 1, 215: 7 })).toEqual({ 207: 30, 211: 2, 213: 1, 214: 1, 215: 7 });
   });

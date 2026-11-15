@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-15
 
+- `pnpm typecheck` and `pnpm test` pass on a fresh clone without the Battlerust WASM build: the module's types are
+  committed in `packages/battle/wasm-types/` (the `@pr0hub/battle/wasm` export points there), and the suites that run
+  the engine (battle package, the tools' battle simulator page, the server's simulations) are skipped with a warning
+  when `packages/battle/wasm/` is missing; README explains it next to `pnpm build:battle`.
 - Server checks tightened after the 2026-11-15 review.
   - Admin: an access request that carries the login name of a member without an account can only be assigned to
     that member; assigning it to another one answers `409 username_of_placeholder` naming them (was

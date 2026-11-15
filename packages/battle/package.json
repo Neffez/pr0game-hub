@@ -11,7 +11,7 @@
       "default": "./dist/index.js"
     },
     "./wasm": {
-      "types": "./wasm/battlerust.d.ts",
+      "types": "./wasm-types/battlerust.d.ts",
       "default": "./wasm/battlerust.js"
     },
     "./wasm/battlerust_bg.wasm": "./wasm/battlerust_bg.wasm"
@@ -32,6 +32,7 @@
   },
   "files": [
     "dist",
-    "wasm"
+    "wasm",
+    "wasm-types"
   ]
 }
