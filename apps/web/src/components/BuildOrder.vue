@@ -409,6 +409,10 @@ function onDrop(i: number) {
             <span v-if="r.result.cost" class="muted">
               <template v-for="id in RESOURCES" :key="id"><span v-if="r.result.cost[id]" class="bo-cost">{{ short(r.result.cost[id]) }} {{ name(id) }}</span></template>
             </span>
+            <span v-if="r.result.full" class="warn bo-full" :title="t('buildOrder.fullTitle')">
+              <Icon name="warning" :size="13" />
+              <template v-for="id in RESOURCES" :key="id"><span v-if="r.result.full[id]" class="bo-cost">{{ t('buildOrder.full', { res: name(id), since: clock(r.result.full[id].since), lost: short(r.result.full[id].lost) }) }}</span></template>
+            </span>
           </div>
           <div v-else-if="r.result?.state === 'invalid'" class="small neg">{{ t(`buildOrder.never.${r.result.wait ?? 'requirements'}`) }}</div>
         </div>
@@ -436,7 +440,8 @@ button.active { border-color: var(--accent); color: var(--accent); }
 .bo-step .row { gap: 8px; flex-wrap: wrap; }
 .bo-grip { cursor: grab; }
 .bo-num { min-width: 2.2em; text-align: right; }
-.bo-times { margin-top: 4px; }
+.bo-times { margin-top: 4px; flex-wrap: wrap; }
+.bo-full { flex-basis: 100%; }
 .bo-cost + .bo-cost { margin-left: 8px; }
 .faded { opacity: 0.55; }
 .icon-btn.active { color: var(--accent); }

@@ -1921,6 +1921,8 @@ const en: typeof de = {
     importTitle: 'Import build order from pr0plan',
     pr0plan: 'Open pr0plan',
     pr0planTitle: 'Plan the build order in pr0plan and download it as JSON',
+    full: '{res} storage full from {since}, {lost} lost',
+    fullTitle: 'While the list waits for this step, the storage runs full: production beyond it is lost. A bigger storage (or spending the resources earlier) wins the time back. pr0plan has no storage limits and does not show this.',
     overflow: 'Storage too small, by transport:',
     overflowTitle: 'Production stops when the storage is full; what is missing beyond it has to come by transport (overflow is possible). The plan assumes the transport once the storage is full.',
     importHint: 'Download the build order in pr0plan (with or without settings) and choose the file here, drop it or paste its content.',

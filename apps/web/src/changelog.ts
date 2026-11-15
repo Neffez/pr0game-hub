@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-15',
     items: [
       {
+        kind: 'new',
+        de: 'Bauliste: Läuft ein Speicher voll, während ein Schritt auf Rohstoffe wartet, zeigt der Schritt seit wann und wie viel Produktion dabei verloren geht. So sieht man, wo ein größerer Speicher Zeit spart.',
+        en: 'Build order: when a storage runs full while a step waits for resources, the step shows since when and how much production is lost. This shows where a bigger storage saves time.',
+      },
+      {
         kind: 'fix',
         de: 'Ein Link auf ein Universum, das es nicht gibt (oder in dem du in keiner Allianz bist), zeigt jetzt eine klare Seite mit deinen Universen.',
         en: 'A link to a universe that does not exist (or where you are in no alliance) now shows a clear page with your universes.',

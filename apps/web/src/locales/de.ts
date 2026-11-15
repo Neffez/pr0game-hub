@@ -1923,6 +1923,8 @@ const de = {
     importTitle: 'Bauliste aus pr0plan importieren',
     pr0plan: 'pr0plan öffnen',
     pr0planTitle: 'Build Order in pr0plan planen und als JSON herunterladen',
+    full: '{res}-Speicher voll ab {since}, {lost} verloren',
+    fullTitle: 'Während die Liste auf diesen Schritt wartet, läuft der Speicher voll: Die Produktion darüber hinaus geht verloren. Ein größerer Speicher (oder die Rohstoffe früher ausgeben) holt die Zeit zurück. pr0plan rechnet ohne Speichergrenzen und zeigt das nicht.',
     overflow: 'Speicher zu klein, per Transport:',
     overflowTitle: 'Die Produktion stoppt bei vollem Speicher; was darüber hinaus fehlt, muss per Transport kommen (Überlauf ist möglich). Gerechnet ist mit dem Transport, sobald der Speicher voll ist.',
     importHint: 'In pr0plan die Build Order herunterladen (mit oder ohne Einstellungen) und die Datei hier wählen, hineinziehen oder den Inhalt einfügen.',
