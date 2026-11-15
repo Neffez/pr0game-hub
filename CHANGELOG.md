@@ -4,6 +4,13 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-15
 
+- One source for unit shorts and the phalanx range (C-07, C-10e of the review).
+  - The web's `ABBR` keeps buildings and research only; ships, defense and missiles take their shorts from the unit
+    catalog.
+  - `phalanxRange(level, factor)` lives in `@pr0hub/flight` (with a test); the server's `domain/phalanx.ts` is gone
+    and the web's helper only adds the universe's factor.
+  - `MISSILE_TARGETS` of `@pr0hub/flight` drops the giant shield domes 409–411, which pr0game does not have and the
+    unit catalog leaves out.
 - `CODEREVIEW.md`: findings N-01 to N-11 of the 2026-11-15 review are fixed and listed as such; the verification
   table shows the runs with and without the WASM build.
 - Planned planets of a build order take their default start resources from `startResourcesOf` and their temperature

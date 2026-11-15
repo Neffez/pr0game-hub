@@ -4,3 +4,4 @@ export * from './retime.js';
 export * from './ships.js';
 export * from './missile.js';
 export * from './fleetsave.js';
+export * from './phalanx.js';

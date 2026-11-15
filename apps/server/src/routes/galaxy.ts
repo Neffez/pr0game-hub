@@ -2,7 +2,7 @@ import { CLASS_RESOURCES } from '@pr0hub/core/tech';
 import type { FastifyInstance } from 'fastify';
 import type { GroupContext } from '../context.js';
 import type { DB } from '../db.js';
-import { phalanxRange } from '../domain/phalanx.js';
+import { phalanxRange } from '@pr0hub/flight';
 import { colonizeSystems, freePositions } from '../repo/colonize.js';
 import { debrisFields } from '../repo/debris.js';
 import { ownCoords } from '../repo/empire.js';
