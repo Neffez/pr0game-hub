@@ -16,6 +16,16 @@ export interface ChangelogDay {
 
 export const CHANGELOG: ChangelogDay[] = [
   {
+    date: '2026-11-15',
+    items: [
+      {
+        kind: 'fix',
+        de: 'Ruhezeiten: zurückgehaltene Benachrichtigungen gehen nicht mehr verloren, wenn der Versand danach fehlschlägt, und landen nie bei einem anderen Mitglied, das denselben Browser nutzt.',
+        en: 'Quiet hours: held notifications are no longer lost when sending them fails afterwards, and never reach another member using the same browser.',
+      },
+    ],
+  },
+  {
     date: '2026-11-14',
     items: [
       {

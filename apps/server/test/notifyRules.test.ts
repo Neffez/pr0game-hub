@@ -164,6 +164,57 @@ describe('quiet hours', () => {
     expect(embeds(HOOK.carol).sort()).toEqual(['⚔ Angriff auf carol', '💬 dave zu [1:50:7]']);
     await call('POST', '/auth/discord', h.carol, { prefs: { quiet: null } });
   });
+
+  const held = () => db.prepare('SELECT COUNT(*) FROM notify_held').pluck().get();
+
+  it('keeps a held notification when its delivery fails and sends it on the next flush', async () => {
+    await call('PUT', '/push/subscriptions/quiet', h.carol, { endpoint: PHONE, quiet: { ...AROUND, except: [] } });
+    await call('POST', '/u8/comments', h.dave, { c: '1:50:7', type: 'planet', body: 'Retry push' });
+    await app.push.deliver(group, t);
+    expect(titles(PHONE)).toEqual([]);
+    pushSender.mockRejectedValueOnce(Object.assign(new Error('push service down'), { statusCode: 503 }));
+    await app.push.flushHeld(OVER);
+    expect(titles(PHONE)).toEqual([]);
+    expect(held()).toBe(1);
+    await app.push.flushHeld(OVER + 60);
+    expect(titles(PHONE)).toHaveLength(1);
+    expect(held()).toBe(0);
+
+    await call('POST', '/auth/discord', h.carol, { prefs: { quiet: { ...AROUND, except: [] } } });
+    await call('POST', '/u8/comments', h.dave, { c: '1:50:7', type: 'planet', body: 'Retry Discord' });
+    await app.discord.deliver(group, t);
+    discordSender.mockResolvedValueOnce({ status: 500 });
+    await app.discord.flushHeld(OVER);
+    expect(embeds(HOOK.carol)).toEqual([]);
+    expect(held()).toBe(1);
+    await app.discord.flushHeld(OVER + 60);
+    expect(embeds(HOOK.carol)).toEqual(['💬 dave zu [1:50:7]']);
+    expect(held()).toBe(0);
+    await call('POST', '/auth/discord', h.carol, { prefs: { quiet: null } });
+    await call('PUT', '/push/subscriptions/quiet', h.carol, { endpoint: PHONE, quiet: null });
+  });
+
+  it('drops the held notifications of a browser another user registers or that is unregistered', async () => {
+    const holdOne = async (body: string) => {
+      await call('PUT', '/push/subscriptions/quiet', h.carol, { endpoint: PHONE, quiet: { ...AROUND, except: [] } });
+      await call('POST', '/u8/comments', h.dave, { c: '1:50:7', type: 'planet', body });
+      await app.push.deliver(group, t);
+      expect(held()).toBe(1);
+    };
+    await holdOne('Shared browser');
+    // Dave registers Carol's phone: Carol's held comment must not reach him
+    expect((await subscribe('dave', PHONE)).json()).toEqual({ ok: true, quiet: null });
+    expect(held()).toBe(0);
+    await app.push.flushHeld(OVER);
+    expect(titles(PHONE)).toEqual([]);
+    await subscribe('carol', PHONE);
+
+    await holdOne('Unsubscribed');
+    expect((await call('DELETE', '/push/subscriptions', h.carol, { endpoint: PHONE })).json().removed).toBe(1);
+    expect(held()).toBe(0);
+    await subscribe('carol', PHONE);
+    expect(held()).toBe(0);
+  });
 });
 
 describe('rules per kind', () => {
