@@ -2,6 +2,14 @@
 
 Every commit adds its changes here, newest first, grouped by date.
 
+## 2026-11-16
+
+- The open API type cleanups cannot grow any more and are written down for every contributor: a ratchet test in the
+  web app counts the API calls that pass a hand-written answer type (102), one in the server counts the JSON answers
+  `openapi.yaml` leaves as a bare `type: object` (41); both fail when the number rises and are lowered as the
+  cleanup goes on. CLAUDE.md's new rule "API types" says how (generated types only, cleanup with any work in the
+  files concerned).
+
 ## 2026-11-15
 
 - Types of the HTTP API generated from `openapi.yaml` (step 2 of A-01): new package `@pr0hub/api-types`
