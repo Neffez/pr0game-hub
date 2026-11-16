@@ -44,7 +44,7 @@ describe('colonization (C-5)', () => {
     expect(settingsError({ planetsPerTech: -1 })?.code).toBe('setting_invalid');
     expect(settingsError({ metalStart: 10000, crystalStart: null })).toBeNull();
     expect(settingsError({ metalStart: 1.5 })?.code).toBe('setting_invalid');
-    expect(startResourcesOf({})).toEqual({ 901: 5000, 902: 1500, 903: 0 });
+    expect(startResourcesOf({})).toEqual({ 901: 500, 902: 500, 903: 0 });
     expect(startResourcesOf({ metalStart: 500, crystalStart: 500 })).toEqual({ 901: 500, 902: 500, 903: 0 });
   });
 });

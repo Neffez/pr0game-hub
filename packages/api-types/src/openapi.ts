@@ -4035,9 +4035,9 @@ export type components = {
             noobFactor?: number | null;
             /** @description Game config noob_inactives (default false) */
             noobInactives?: boolean | null;
-            /** @description Game config metal_start (default 5000): metal of a new planet; build orders planned before the start or for planets without coordinates begin with it */
+            /** @description Game config metal_start (default 500): metal of a new planet; build orders planned before the start or for planets without coordinates begin with it */
             metalStart?: number | null;
-            /** @description Game config crystal_start (default 1500) */
+            /** @description Game config crystal_start (default 500) */
             crystalStart?: number | null;
             /** @description Game config deuterium_start (default 0) */
             deuteriumStart?: number | null;

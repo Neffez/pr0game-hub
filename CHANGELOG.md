@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-16
 
+- Start resources of a new planet default to 500 metal and 500 crystal, the game's own defaults of `metal_start` and
+  `crystal_start` (the hub assumed 5000 and 1500). The game gives every new planet these, home planet and colony
+  alike. Universes without the setting now plan colonies and pre-start build orders with 500/500; a universe that
+  starts with more sets it in its settings.
 - Fix ships and defense vanishing once they are built: `buildingsState` dropped the shipyard queue of the empire page
   when a newer overview showed the shipyard idle, but left the count as the empire page had it (from before they were
   finished). Until the next empire sync the units were neither built nor queued, so a build order step for them was

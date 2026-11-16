@@ -129,8 +129,8 @@ export const OPTIONAL_DEFAULTS = {
   defenseDebrisPercent: 0,
   bigShields: false,
   planetSizeFactor: 1,
-  metalStart: 5000,
-  crystalStart: 1500,
+  metalStart: 500,
+  crystalStart: 500,
   deuteriumStart: 0,
   // game defaults, for validation and the admin form's placeholders only (see `planetLimit`)
   maxInitialPlanets: 1,
