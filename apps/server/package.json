@@ -13,7 +13,7 @@
   "dependencies": {
     "@fastify/compress": "^9.3.0",
     "@fastify/cookie": "^11.1.5",
-    "@fastify/static": "^10.1.10",
+    "@fastify/static": "^10.1.11",
     "@pr0hub/battle": "workspace:*",
     "@pr0hub/core": "workspace:*",
     "@pr0hub/flight": "workspace:*",
