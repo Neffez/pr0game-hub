@@ -178,6 +178,26 @@ describe('buildings page', () => {
     db.prepare('DELETE FROM overview_snapshots WHERE user_id = ?').run(ids.carol);
   });
 
+  it('counts the units of the shipyard queue as built once a newer overview shows the shipyard idle', async () => {
+    // live: one missile launcher in the queue of the empire page (count still 0), then the overview without a
+    // shipyard queue - the hub dropped the queue and knew of no launcher at all, so the build order's step for it
+    // was open again and a second one was ordered
+    const queued = empire({ 1: 10, 2: 5, 401: 0, 402: 3 });
+    Object.assign(queued.planets[0], { shipyard: { 401: 1, 402: 2 } });
+    const snapshot = db.prepare('INSERT INTO empire_snapshots (group_id, user_id, created_at, data) VALUES (?, ?, ?, ?)').run(group, ids.carol, t - 20, JSON.stringify(queued)).lastInsertRowid;
+    const overview = (queues: object[]) => ({ kind: 'overview', pageTime: null, current: null, catchUp: null, queues });
+    const insert = db.prepare('INSERT INTO overview_snapshots (group_id, user_id, page_time, data) VALUES (?, ?, ?, ?)');
+    const planet = async () => (await call('GET', '/u8/buildings', h.carol)).json().planets[0].planet;
+    // still building: the queue stays, the count is the empire page's
+    insert.run(group, ids.carol, t - 10, JSON.stringify(overview([{ kind: 'shipyard', coords: { g: 1, s: 1, p: 1 }, type: 'planet', id: 401, level: 1, destroy: false, seconds: 60 }])));
+    expect(await planet()).toMatchObject({ values: { 401: 0, 402: 3 }, shipyard: { 401: 1, 402: 2 } });
+    // the shipyard is idle: everything of the queue is built
+    insert.run(group, ids.carol, t - 5, JSON.stringify(overview([])));
+    expect(await planet()).toMatchObject({ values: { 401: 1, 402: 5 }, shipyard: {} });
+    db.prepare('DELETE FROM overview_snapshots WHERE user_id = ?').run(ids.carol);
+    db.prepare('DELETE FROM empire_snapshots WHERE id = ?').run(snapshot);
+  });
+
   it('stores a synced buildings page and takes its levels, costs and resources when newer', async () => {
     const html = readFileSync(new URL('../../../packages/parser/test/fixtures/buildings.html', import.meta.url), 'utf8');
     const res = await call('POST', '/u8/ingest', h.dave, { html });

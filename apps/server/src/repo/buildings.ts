@@ -205,8 +205,13 @@ export function buildingsState(db: DB, ctx: GroupContext, userId: number, t = ct
     if (overview) {
       const q = overview.rec.queues.some((x) => x.kind === 'shipyard' && same(x.coords, bp.coords) && x.type === bp.type);
       shipyard.push({ time: overview.time, busy: q ? { until: null } : null });
-      // a newer overview without a shipyard queue: the units of the empire page's queue are built by now
-      if (!q && (!empire || overview.time > empire.time)) bp.planet.shipyard = {};
+      // a newer overview without a shipyard queue: the units of the empire page's queue are built by now. They
+      // count as built, not as gone - the empire page's own count is from before they were finished, and a step
+      // of a build order that the queue had reached would be open again (and ordered a second time).
+      if (!q && (!empire || overview.time > empire.time)) {
+        for (const [id, n] of Object.entries(bp.planet.shipyard ?? {})) bp.planet.values[Number(id)] = (bp.planet.values[Number(id)] ?? 0) + n;
+        bp.planet.shipyard = {};
+      }
     }
     for (const page of pages) {
       if (!same(page.rec.coords, bp.coords) || page.rec.type !== bp.type) continue;

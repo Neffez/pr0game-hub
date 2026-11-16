@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-16',
     items: [
       {
+        kind: 'fix',
+        de: 'Schiffe und Verteidigung aus der Werft-Warteschlange zählen nach dem Fertigbau sofort als gebaut. Bisher fehlten sie bis zum nächsten Imperium-Sync, und der Bauschritt dafür galt wieder als offen.',
+        en: 'Ships and defense from the shipyard queue count as built as soon as they are finished. Until now they were missing until the next empire sync, and their build order step counted as open again.',
+      },
+      {
         kind: 'new',
         de: 'Bauliste: Planeten, die es noch nicht gibt (z. B. die nächste Kolonie), lassen sich von Hand anlegen und vorplanen. Mit Koordinaten wird die Liste von selbst zugeordnet, sobald der Planet synchronisiert ist.',
         en: 'Build order: planets that do not exist yet (e.g. the next colony) can be added by hand and planned ahead. With coordinates the list is assigned by itself once the planet is synced.',

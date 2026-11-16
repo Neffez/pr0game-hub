@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-16
 
+- Fix ships and defense vanishing once they are built: `buildingsState` dropped the shipyard queue of the empire page
+  when a newer overview showed the shipyard idle, but left the count as the empire page had it (from before they were
+  finished). Until the next empire sync the units were neither built nor queued, so a build order step for them was
+  open again. The queued units now count as built.
 - Build order: planets that do not exist yet, transports with ships, and writing by API token.
   - Planned planets can be added by hand in the build order tab (name, the coordinates they will have, max
     temperature), edited and removed, not only imported from pr0plan. With coordinates a planned planet is assigned

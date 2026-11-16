@@ -12,9 +12,6 @@ Guidance for Claude Code in this repository. See `README.md` for features, setup
   fix), it also adds a short, non-technical entry to `apps/web/src/changelog.ts` (the "What's new" page under
   Account): at the top of today's day (create it if missing), `kind` `new` or `fix`, text in German and English
   (`de`/`en`), no file names, endpoints or migrations. Developer-only changes (refactors, tests, docs, CI) get none.
-- **Sync is copy and paste only.** pr0game's rules forbid automation: never add code that runs on game pages
-  (userscripts, bookmarklets, extensions) or endpoints meant for automated submission. Improvements to syncing stay
-  inside the hub (paste, clipboard, file upload).
 - **No deployment details.** Server setup, hosts and SSH belong to the private deployment repository. This repository
   only builds the Docker images, publishes them to `ghcr.io/neffez/pr0game-hub` and `ghcr.io/neffez/pr0game-tools`
   (public, `latest` and the commit) and sends the `repository_dispatch` from CI; the deployment pulls the images.
