@@ -30,7 +30,7 @@ export type TransportMission = 'transport' | 'deploy' | 'colonize';
 export interface TransportSettings {
   /** hub planet key of the target, null: the resources just leave */
   target: string | null;
-  /** 901-903; ignored with `all` */
+  /** 901-903; the resources in `all` are ignored */
   resources: Record<string, number>;
   /** flight time in seconds when it cannot be calculated */
   flight: number;
@@ -40,12 +40,26 @@ export interface TransportSettings {
   ships?: Record<string, number>;
   /** speed in percent (10 … 100 in steps of 10), default 100 */
   speed?: number;
-  /** load everything that is on the planet at the departure (metal, crystal, deuterium in this order) up to the cargo space */
-  all?: boolean;
+  /**
+   * Load everything of these resources that is on the planet at the departure, like the game's "max" links: after the
+   * fixed amounts of the others, in the order metal, crystal, deuterium, up to the cargo space. `true`: all three.
+   */
+  all?: boolean | number[];
   /** earliest departure (epoch seconds) */
   notBefore?: number;
   /** wanted arrival (epoch seconds): the fleet leaves a flight time before it, later when the resources are missing */
   arriveAt?: number;
+}
+
+/** The resources a transport loads completely (`all`), in the order metal, crystal, deuterium. */
+export const allOf = (tr: Pick<TransportSettings, 'all'>): number[] =>
+  tr.all === true ? [901, 902, 903] : Array.isArray(tr.all) ? [901, 902, 903].filter((r) => (tr.all as number[]).includes(r)) : [];
+/** The fixed amounts of a transport: its resources that are not loaded completely. */
+export function fixedOf(tr: Pick<TransportSettings, 'all' | 'resources'>): Record<number, number> {
+  const all = allOf(tr);
+  const out: Record<number, number> = {};
+  for (const r of [901, 902, 903]) if (!all.includes(r) && (tr.resources[r] ?? 0) > 0) out[r] = tr.resources[r];
+  return out;
 }
 
 /** A planet planned by hand or from a pr0plan file that the hub has not synced yet (key `0:0:<n>:planet`). */

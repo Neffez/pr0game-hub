@@ -4,6 +4,21 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-16
 
+- Build order: a transport's `all` can name resources (`[901, 903]`; `true` stays all three, all three are stored as
+  `true`). The planner loads the fixed amounts of the others first, then the named ones up to the cargo space left,
+  metal, crystal, deuterium - like the game's per-resource "max" links (`allOf`/`fixedOf` in the planner;
+  `detectDone` compares only the fixed amounts). The form has one checkbox per resource; the long texts of the
+  build order (planned planets, adding steps, planned planet form, transport) moved into `Hint` tooltips.
+
+- Build order: ship, defense and transport steps can be edited in place (type and amount; a transport's target,
+  mission, ships, cargo, speed and time). The transport fields are one component (`BuildOrderTransportFields.vue`,
+  draft helpers in `buildOrderTransport.ts`) for adding and editing. A transport imported from pr0plan without ships
+  keeps its flight time (editable while it has no ships) and may keep no target.
+
+- Build order: planned steps show the planet's resources at their start before and after paying
+  ("Rohstoffe davor/danach"). The planner returns them as `before`/`after` in `StepResult` (whole units; a
+  transport's cost is its cargo plus fuel; with an overflow `before` is what was really there, without the transport).
+
 - Statistics pasted as plain text rename a player. A line that belongs to a player known by id by its rank and
   points in the snapshot now also gives them its name when they neither have it nor had it at that time
   (`Players.seenAs`): the old name stays as a former name, seen until the last sync with it. Before, the player kept

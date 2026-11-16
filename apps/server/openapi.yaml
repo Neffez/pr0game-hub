@@ -489,7 +489,14 @@ components:
                 at the arrival (it waits for a running astrophysics research)
             ships: { type: object, description: 'Ship id -> amount, e.g. `{"202": 3}`', additionalProperties: { type: integer, minimum: 1 } }
             speed: { type: integer, minimum: 10, maximum: 100, multipleOf: 10, description: 'Speed in percent, default 100' }
-            all: { type: boolean, description: 'Loads what is on the planet at the departure (metal, crystal, deuterium in this order) up to the cargo space' }
+            all:
+              oneOf:
+                - { type: boolean }
+                - { type: array, items: { type: integer, enum: [901, 902, 903] } }
+              description: >-
+                Loads everything of these resources that is on the planet at the departure, like the game's "max"
+                links: after the fixed amounts of the others, in the order metal, crystal, deuterium, up to the cargo
+                space. `true`: all three
             notBefore: { type: integer, description: Earliest departure (Unix seconds) }
             arriveAt: { type: integer, description: 'Wanted arrival (Unix seconds); later when the resources are missing at the departure' }
         deactivated: { type: boolean }
@@ -551,6 +558,8 @@ components:
         transport: { type: [object, 'null'], description: Resources beyond the storage that have to come by transport }
         full: { type: [object, 'null'], description: 'Storages that ran full while the list waited: resource id -> `since`, `lost`' }
         fuel: { type: number, description: 'Deuterium of the flight, part of `cost` (transports with ships)' }
+        before: { type: object, description: 'Planned steps: resource id -> amount on the planet at the start, before paying' }
+        after: { type: object, description: 'Planned steps: resource id -> amount on the planet at the start, after paying' }
     StoredBuildOrder:
       type: [object, 'null']
       required: [order, meta, createdAt, updatedAt]

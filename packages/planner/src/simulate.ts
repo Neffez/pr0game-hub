@@ -9,7 +9,7 @@ import { ASTROPHYSICS, planetLimit, type UniverseSettings } from '@pr0hub/core/u
 import { distance, drivesFromResearch, fleetCapacity, fleetConsumption, flightDuration, slowestShip, type Coords } from '@pr0hub/flight';
 import { doneStateOf, targetsOf, type DoneState, type HubState } from './hub.js';
 import { isPlannedKey } from './planned.js';
-import type { BuildOrder, Step, TransportSettings } from './types.js';
+import { allOf, fixedOf, type BuildOrder, type Step, type TransportSettings } from './types.js';
 
 /**
  * Timeline of a build order from the hub's state now, like pr0plan's `GameReducer`: every planet works through its
@@ -55,6 +55,9 @@ export interface StepResult {
   full: Record<number, { since: number; lost: number }> | null;
   /** deuterium of the flight, part of `cost` (transports with ships) */
   fuel?: number;
+  /** planned steps: resources on the planet at the start, right before paying and after (whole units) */
+  before?: Record<number, number>;
+  after?: Record<number, number>;
 }
 
 export interface Simulation {
@@ -330,12 +333,15 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
     const fuel = fleetConsumption(u, ships, duration, dist, drives, 1, catalog.drives);
     return { flight: Math.floor(duration), fuel, capacity: capacity - fuel };
   };
-  /** What a transport loads: its amounts, or with `all` what is on the planet (after the fuel) up to the cargo space. */
+  /**
+   * What a transport loads: its fixed amounts, then of the resources in `all` what is on the planet (after the fuel
+   * and the fixed amounts) up to the cargo space left, in the order metal, crystal, deuterium (the game's "max" links).
+   */
   const loadOf = (p: Planet, tr: TransportSettings, f: { fuel: number; capacity: number | null }): Record<number, number> => {
-    if (!tr.all) return { 901: tr.resources[901] ?? 0, 902: tr.resources[902] ?? 0, 903: tr.resources[903] ?? 0 };
-    let space = f.capacity ?? Infinity;
-    const out: Record<number, number> = {};
-    for (const r of RES) {
+    const fixed = fixedOf(tr);
+    const out: Record<number, number> = { 901: fixed[901] ?? 0, 902: fixed[902] ?? 0, 903: fixed[903] ?? 0 };
+    let space = (f.capacity ?? Infinity) - RES.reduce((n, r) => n + out[r], 0);
+    for (const r of allOf(tr)) {
       const there = Math.max(0, Math.floor(p.res[r] - (r === 903 ? f.fuel : 0)));
       out[r] = Math.max(0, Math.min(there, space));
       space -= out[r];
@@ -408,7 +414,7 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
       case 'transport': {
         const tr = s.transport!;
         const f = flightOf(p, tr);
-        if (f.capacity != null && (f.capacity < 0 || (!tr.all && RES.reduce((n, r) => n + (tr.resources[r] ?? 0), 0) > f.capacity))) return { ok: false, wait: 'cargo', never: true };
+        if (f.capacity != null && (f.capacity < 0 || Object.values(fixedOf(tr)).reduce((n, v) => n + v, 0) > f.capacity)) return { ok: false, wait: 'cargo', never: true };
         const departure = Math.max(tr.notBefore ?? 0, tr.arriveAt != null ? tr.arriveAt - f.flight : 0);
         if (departure > t) return { ok: false, wait: 'time', readyAt: departure };
         const target = tr.target ? byKey.get(tr.target) : undefined;
@@ -488,6 +494,8 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
         break;
       }
     }
+    const snapshot = () => Object.fromEntries(RES.map((r) => [r, Math.floor(p.res[r] + 1e-9)])) as Record<number, number>;
+    const before = snapshot();
     // beyond the storage: the rest comes by transport (overflow)
     const transport: Record<number, number> = {};
     for (const r of RES) {
@@ -501,6 +509,7 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
     record(p, s, {
       target, state: 'planned', start: t, end, cost: Object.keys(cost).length ? cost : null, wait: p.wait,
       transport: Object.keys(transport).length ? transport : null, full: fullOf(p), ...(fuel ? { fuel } : {}),
+      before, after: snapshot(),
     });
     p.wait = null;
     p.head++;

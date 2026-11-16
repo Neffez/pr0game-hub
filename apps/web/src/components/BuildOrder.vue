@@ -12,10 +12,9 @@ export interface StoredBuildOrder {
 
 <script setup lang="ts">
 import {
-  baseFromHub, compareSettings, freePlannedKey, insertSteps, isPlannedKey, plannedNumber, simulate, targetsOf, withPlanned, type HubState, type NewStep,
-  type PlannedPlanet, type Pr0planImport, type Step, type StepResult, type TransportMission, type TransportSettings,
+  allOf, baseFromHub, compareSettings, freePlannedKey, insertSteps, isPlannedKey, plannedNumber, simulate, targetsOf, withPlanned, type HubState, type NewStep,
+  type PlannedPlanet, type Pr0planImport, type Step, type StepResult, type TransportSettings,
 } from '@pr0hub/planner';
-import { SPEED_PERCENTS } from '@pr0hub/flight';
 import { buildingsFor, RESEARCH } from '@pr0hub/core/buildings';
 import { RESOURCES } from '@pr0hub/core/tech';
 import { startResourcesOf } from '@pr0hub/core/universe';
@@ -26,7 +25,10 @@ import { useClock } from '../clock';
 import { useLoader, useStored, useUni } from '../composables';
 import { dateTime, fmt, name, short } from '../format';
 import { tables, useLiveReload } from '../live';
+import { draftOf, draftValid, transportOf, type TransportDraft } from '../buildOrderTransport';
 import BuildOrderImport from './BuildOrderImport.vue';
+import BuildOrderTransportFields from './BuildOrderTransportFields.vue';
+import Hint from './Hint.vue';
 import Icon from './Icon.vue';
 import Ticker from './Ticker.vue';
 import { units } from '../units';
@@ -168,7 +170,8 @@ function stepTitle(s: Step, r: StepResult | undefined): string {
 function transportInfo(tr: TransportSettings): string {
   const parts = Object.entries(tr.ships ?? {}).map(([id, n]) => `${fmt(n)}× ${name(Number(id))}`);
   if (tr.speed && tr.speed !== 100) parts.push(`${tr.speed} %`);
-  if (tr.all) parts.push(t('buildOrder.trAllShort'));
+  const all = allOf(tr);
+  if (all.length) parts.push(t('buildOrder.trAllShort', { res: all.map((r) => name(r)).join(', ') }));
   if (tr.notBefore) parts.push(t('buildOrder.trNotBefore', { time: clock(tr.notBefore) }));
   if (tr.arriveAt) parts.push(t('buildOrder.trArriveAt', { time: clock(tr.arriveAt) }));
   return parts.join(' · ');
@@ -260,50 +263,48 @@ const addValid = computed(() =>
 );
 
 // transport steps
-const MISSIONS: TransportMission[] = ['transport', 'deploy', 'colonize'];
-const COLONY_SHIP = 208;
-const SMALL_CARGO = 202;
-const trTarget = ref<string | null>(null);
-const trMission = ref<TransportMission>('transport');
-const trShips = ref<{ id: number; count: number }[]>([{ id: SMALL_CARGO, count: 1 }]);
-const trSpeed = ref(100);
-const trAll = ref(false);
-const trRes = ref<Record<number, number>>({ 901: 0, 902: 0, 903: 0 });
-const trTimeMode = ref<'none' | 'notBefore' | 'arriveAt'>('none');
-/** value of the datetime-local input (the viewer's local time) */
-const trTime = ref('');
+const trDraft = ref<TransportDraft>(draftOf());
 /** planets a transport can fly to: the other ones of the build order and the hub, planned ones included */
 const trTargets = computed(() => hubAll.value.planets.map((p) => p.key).filter((k) => k !== planetKey.value));
 watch([trTargets, addKind], () => {
-  if (!trTargets.value.includes(trTarget.value ?? '')) trTarget.value = trTargets.value[0] ?? null;
+  if (!trTargets.value.includes(trDraft.value.target ?? '')) trDraft.value.target = trTargets.value[0] ?? null;
 }, { immediate: true });
-// a colonization flies with a colony ship, to a planned planet when there is one
-watch(trMission, (m) => {
-  if (m !== 'colonize') return;
-  if (units.value.ships.includes(COLONY_SHIP) && !trShips.value.some((s) => s.id === COLONY_SHIP)) trShips.value = [{ id: COLONY_SHIP, count: 1 }];
-  const planned = trTargets.value.find(isPlannedKey);
-  if (planned && !isPlannedKey(trTarget.value ?? '')) trTarget.value = planned;
+const trValid = computed(() => draftValid(trDraft.value));
+const transportStep = (id: string): Step => ({ id, kind: 'transport', transport: transportOf(trDraft.value) });
+
+// ------------------------------------------------------------------ editing a step
+/** id of the step being edited: ships and defense (type, amount), transports (everything) */
+const editId = ref<string | null>(null);
+const editElement = ref<number | null>(null);
+const editCount = ref(1);
+const editDraft = ref<TransportDraft>(draftOf());
+/** what the edited transport was: one without ships or target may stay so */
+const editOriginal = ref<TransportSettings | null>(null);
+const editable = (s: Step) => s.kind === 'ship' || s.kind === 'defense' || s.kind === 'transport';
+function openEdit(s: Step) {
+  if (editId.value === s.id) return void (editId.value = null);
+  editId.value = s.id;
+  if (s.kind === 'transport') {
+    editOriginal.value = s.transport!;
+    editDraft.value = draftOf(s.transport!);
+  } else {
+    editElement.value = s.element ?? null;
+    editCount.value = s.count ?? 1;
+  }
+}
+// the step vanished (removed, other planet, reloaded without it): close the form
+watch(steps, (list) => {
+  if (editId.value && !list.some((s) => s.id === editId.value)) editId.value = null;
 });
-const trEpoch = computed(() => {
-  const ms = trTimeMode.value === 'none' || !trTime.value ? NaN : new Date(trTime.value).getTime();
-  return Number.isFinite(ms) ? Math.floor(ms / 1000) : null;
-});
-const amount = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? Math.floor(v) : 0);
-const trValid = computed(() =>
-  !!trTarget.value && trShips.value.length > 0 && trShips.value.every((s) => Number.isInteger(s.count) && s.count >= 1) &&
-  (trAll.value || trMission.value === 'colonize' || RESOURCES.some((r) => amount(trRes.value[r]) > 0)) && (trTimeMode.value === 'none' || trEpoch.value != null),
-);
-function transportStep(id: string): Step {
-  const ships: Record<string, number> = {};
-  for (const s of trShips.value) ships[s.id] = (ships[s.id] ?? 0) + s.count;
-  const resources: Record<string, number> = {};
-  if (!trAll.value) for (const r of RESOURCES) if (amount(trRes.value[r])) resources[r] = amount(trRes.value[r]);
-  const tr: TransportSettings = { target: trTarget.value, resources, flight: 0, ships };
-  if (trMission.value !== 'transport') tr.mission = trMission.value;
-  if (trSpeed.value !== 100) tr.speed = trSpeed.value;
-  if (trAll.value) tr.all = true;
-  if (trTimeMode.value !== 'none' && trEpoch.value != null) tr[trTimeMode.value] = trEpoch.value;
-  return { id, kind: 'transport', transport: tr };
+function editValid(s: Step): boolean {
+  if (s.kind === 'transport') return draftValid(editDraft.value, editOriginal.value?.target == null);
+  return editElement.value != null && Number.isInteger(editCount.value) && editCount.value >= 1 && editCount.value <= 1e7;
+}
+function saveEdit(i: number) {
+  const s = steps.value[i];
+  if (!s || !editValid(s)) return;
+  update(i, s.kind === 'transport' ? { transport: transportOf(editDraft.value) } : { element: editElement.value!, count: editCount.value });
+  editId.value = null;
 }
 
 const newId = () =>
@@ -447,12 +448,12 @@ function onDrop(i: number) {
       <span class="muted">{{ t('buildOrder.hubWins') }}</span>
     </div>
     <div v-if="plannedKeys.length" class="small bo-planned" data-tour="build-order-planned">
-      <p class="muted" style="margin: 0">{{ assignable.length ? t('buildOrder.plannedAssignHint') : t('buildOrder.plannedHint', { m: fmt(startResources[901]), k: fmt(startResources[902]), d: fmt(startResources[903]) }) }}</p>
       <div class="row bo-planned-row">
         <button v-if="props.planetKey" class="small" :class="{ primary: planetKey === props.planetKey }" @click="picked = null">{{ planetLabel(props.planetKey) }}</button>
         <button v-for="k in plannedKeys" :key="k" class="small" :class="{ primary: k === planetKey }" @click="picked = k">
           {{ planetLabel(k) }} ({{ t('buildOrder.open', { n: openOf(stored!.order.planets[k]) }) }})
         </button>
+        <Hint>{{ assignable.length ? t('buildOrder.plannedAssignHint') : t('buildOrder.plannedHint', { m: fmt(startResources[901]), k: fmt(startResources[902]), d: fmt(startResources[903]) }) }}</Hint>
         <template v-if="isPlannedKey(planetKey)">
           <button class="small icon-btn" :class="{ active: planetOpen && planetEdit === planetKey }" :title="t('buildOrder.editPlanet')" :aria-label="t('buildOrder.editPlanet')" @click="openPlanet(planetKey)">
             <Icon name="edit" :size="14" />
@@ -471,7 +472,6 @@ function onDrop(i: number) {
       </div>
     </div>
     <form v-if="planetOpen" class="bo-add small" @submit.prevent="savePlanet">
-      <p class="muted" style="margin: 0">{{ t('buildOrder.planetHint', { m: fmt(startResources[901]), k: fmt(startResources[902]), d: fmt(startResources[903]) }) }}</p>
       <div class="row bo-add-row">
         <label>{{ t('buildOrder.planetName') }} <input v-model="pName" type="text" maxlength="40" class="bo-name-input" /></label>
         <label class="bo-coords">{{ t('buildOrder.planetCoords') }}
@@ -481,10 +481,11 @@ function onDrop(i: number) {
         </label>
         <label>{{ t('buildOrder.planetTemp') }} <input v-model.number="pTemp" type="number" step="1" class="bo-num-input" /></label>
         <button type="submit" class="primary small" :disabled="!planetValid || saving">{{ t(planetEdit ? 'buildOrder.planetSave' : 'buildOrder.planetCreate') }}</button>
+        <Hint>{{ t('buildOrder.planetHint', { m: fmt(startResources[901]), k: fmt(startResources[902]), d: fmt(startResources[903]) }) }}</Hint>
       </div>
     </form>
     <form v-if="addOpen && planetKey" class="bo-add small" @submit.prevent="addSteps">
-      <p class="muted" style="margin: 0">{{ t('buildOrder.addHint', { planet: planetLabel(planetKey) }) }}</p>
+      <p class="muted" style="margin: 0">{{ t('buildOrder.addTitle', { planet: planetLabel(planetKey) }) }} <Hint>{{ t('buildOrder.addHint') }}</Hint></p>
       <div class="row bo-add-row">
         <select v-model="addKind" :aria-label="t('buildOrder.addKind')">
           <option v-for="k in ADD_KINDS" :key="k" :value="k">{{ t(`buildOrder.kind.${k}`) }}</option>
@@ -497,57 +498,13 @@ function onDrop(i: number) {
             <input v-model.number="addCount" type="number" min="1" :max="countMax" step="1" class="bo-num-input" />
           </label>
         </template>
-        <template v-else>
-          <select v-model="trMission" :aria-label="t('buildOrder.trMission')">
-            <option v-for="m in MISSIONS" :key="m" :value="m">{{ t(`buildOrder.mission.${m}`) }}</option>
-          </select>
-          <label>{{ t('buildOrder.trTarget') }}
-            <select v-model="trTarget">
-              <option v-for="k in trTargets" :key="k" :value="k">{{ planetLabel(k) }}</option>
-            </select>
-          </label>
-          <label>{{ t('buildOrder.trSpeed') }}
-            <select v-model.number="trSpeed">
-              <option v-for="p in SPEED_PERCENTS" :key="p" :value="p">{{ p }} %</option>
-            </select>
-          </label>
-        </template>
         <label>{{ t('buildOrder.addAt') }}
           <input v-model.number="addAt" type="number" min="1" :max="steps.length + 1" step="1" class="bo-num-input" />
         </label>
         <span v-if="addPreview" class="muted">→ {{ isUnit ? t('buildOrder.addPreviewUnits', { n: fmt(addCount), total: fmt(addPreview.to) }) : addPreview.from === addPreview.to ? t('buildOrder.addPreviewLevel', { level: addPreview.to }) : t('buildOrder.addPreviewLevels', { from: addPreview.from, to: addPreview.to }) }}</span>
         <button type="submit" class="primary small" :disabled="!addValid || saving">{{ t('buildOrder.addButton') }}</button>
       </div>
-      <template v-if="isTransport">
-        <div class="row bo-add-row">
-          <span class="muted">{{ t('buildOrder.trShips') }}</span>
-          <span v-for="(s, i) in trShips" :key="i" class="bo-ship">
-            <input v-model.number="s.count" type="number" min="1" step="1" class="bo-num-input" :aria-label="t('buildOrder.addUnits')" />
-            <select v-model.number="s.id" :aria-label="t('buildOrder.trShip')">
-              <option v-for="id in units.ships" :key="id" :value="id">{{ name(id) }}</option>
-            </select>
-            <button v-if="trShips.length > 1" type="button" class="small icon-btn" :title="t('buildOrder.trRemoveShip')" :aria-label="t('buildOrder.trRemoveShip')" @click="trShips.splice(i, 1)"><Icon name="close" :size="12" /></button>
-          </span>
-          <button type="button" class="small" @click="trShips.push({ id: units.ships[0] ?? SMALL_CARGO, count: 1 })"><Icon name="plus" :size="12" /> {{ t('buildOrder.trAddShip') }}</button>
-        </div>
-        <div class="row bo-add-row">
-          <label><input v-model="trAll" type="checkbox" /> {{ t('buildOrder.trAll') }}</label>
-          <template v-if="!trAll">
-            <label v-for="r in RESOURCES" :key="r">{{ name(r) }} <input v-model.number="trRes[r]" type="number" min="0" step="1" class="bo-res-input" /></label>
-          </template>
-        </div>
-        <div class="row bo-add-row">
-          <label>{{ t('buildOrder.trTime') }}
-            <select v-model="trTimeMode">
-              <option value="none">{{ t('buildOrder.trTimeMode.none') }}</option>
-              <option value="notBefore">{{ t('buildOrder.trTimeMode.notBefore') }}</option>
-              <option value="arriveAt">{{ t('buildOrder.trTimeMode.arriveAt') }}</option>
-            </select>
-          </label>
-          <input v-if="trTimeMode !== 'none'" v-model="trTime" type="datetime-local" :aria-label="t(`buildOrder.trTimeMode.${trTimeMode}`)" />
-        </div>
-        <p class="faint" style="margin: 0">{{ t(trMission === 'colonize' ? 'buildOrder.trColonizeHint' : 'buildOrder.trHint') }}</p>
-      </template>
+      <BuildOrderTransportFields v-if="isTransport" v-model="trDraft" :targets="trTargets" :label="planetLabel" />
       <p v-if="!stored" class="faint" style="margin: 0">{{ t('buildOrder.addStarts') }}</p>
     </form>
     <p v-if="missingPlanets.length" class="warn small" style="margin: 8px 0 0">{{ t('buildOrder.missingPlanets', { list: missingPlanets.join(', ') }) }}</p>
@@ -570,7 +527,7 @@ function onDrop(i: number) {
           :key="r.step.id"
           class="card bo-step"
           :class="{ next: r.step.id === nextId, faded: r.result?.state === 'deactivated' || isDone(r), over: dragOver === r.index && dragFrom !== r.index }"
-          :draggable="!mobile"
+          :draggable="!mobile && editId !== r.step.id"
           @dragstart="dragFrom = r.index"
           @dragend="dragFrom = null; dragOver = null"
           @dragover.prevent="dragOver = r.index"
@@ -584,6 +541,10 @@ function onDrop(i: number) {
             <span v-if="r.step.id === nextId" class="badge">{{ t('buildOrder.next') }}</span>
             <span class="small" :class="stateClass(r)">{{ t(`buildOrder.state.${r.result?.state ?? 'invalid'}`) }}</span>
             <span class="bo-actions">
+            <button
+              v-if="editable(r.step)" class="small icon-btn" :class="{ active: editId === r.step.id }" :title="t('buildOrder.edit')" :aria-label="t('buildOrder.edit')"
+              @click="openEdit(r.step)"
+            ><Icon name="edit" :size="14" /></button>
             <button class="small icon-btn" :disabled="r.index === 0" :title="t('buildOrder.up')" :aria-label="t('buildOrder.up')" @click="move(r.index, r.index - 1)">
               <Icon name="arrowUp" :size="14" />
             </button>
@@ -621,9 +582,31 @@ function onDrop(i: number) {
               <Icon name="warning" :size="13" />
               <template v-for="id in RESOURCES" :key="id"><span v-if="r.result.full[id]" class="bo-cost">{{ t('buildOrder.full', { res: name(id), since: clock(r.result.full[id].since), lost: short(r.result.full[id].lost) }) }}</span></template>
             </span>
+            <span v-if="r.result.before && r.result.after" class="faint bo-full" :title="t('buildOrder.balanceTitle')">
+              {{ t('buildOrder.balance') }}
+              <template v-for="id in RESOURCES" :key="id"><span class="bo-cost"><span class="mono">{{ short(r.result.before[id] ?? 0) }} → {{ short(r.result.after[id] ?? 0) }}</span> {{ name(id) }}</span></template>
+            </span>
           </div>
           <div v-else-if="r.result?.state === 'invalid'" class="small neg">{{ t(`buildOrder.never.${r.result.wait ?? 'requirements'}`) }}</div>
           <div v-if="r.step.kind === 'transport' && transportInfo(r.step.transport!)" class="small faint bo-times">{{ transportInfo(r.step.transport!) }}</div>
+          <form v-if="editId === r.step.id" class="bo-add small" @submit.prevent="saveEdit(r.index)">
+            <BuildOrderTransportFields
+              v-if="r.step.kind === 'transport'" v-model="editDraft" :targets="trTargets" :label="planetLabel"
+              :no-ships="!editOriginal?.ships" :no-target="editOriginal?.target == null"
+            />
+            <div v-else class="row bo-add-row">
+              <select v-model="editElement" :aria-label="t('buildOrder.addElement')">
+                <option v-for="id in elementsOf(r.step.kind as AddKind)" :key="id" :value="id">{{ name(id) }}</option>
+              </select>
+              <label>{{ t('buildOrder.addUnits') }}
+                <input v-model.number="editCount" type="number" min="1" max="10000000" step="1" class="bo-num-input" />
+              </label>
+            </div>
+            <div class="row bo-add-row">
+              <button type="submit" class="primary small" :disabled="!editValid(r.step) || saving">{{ t('buildOrder.editSave') }}</button>
+              <button type="button" class="small" @click="editId = null">{{ t('buildOrder.editCancel') }}</button>
+            </div>
+          </form>
         </div>
       </div>
     </template>
@@ -645,7 +628,6 @@ function onDrop(i: number) {
 .bo-res-input { width: 8em; margin-left: 4px; }
 .bo-name-input { width: 12em; margin-left: 4px; }
 .bo-coord-input { width: 4.5em; margin: 0 2px; }
-.bo-ship { display: inline-flex; align-items: center; gap: 4px; }
 button.active { border-color: var(--accent); color: var(--accent); }
 .bo-step { margin-bottom: 6px; padding: 8px 12px; }
 .bo-step.next { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }

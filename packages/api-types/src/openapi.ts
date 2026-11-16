@@ -3128,8 +3128,8 @@ export type components = {
                 };
                 /** @description Speed in percent, default 100 */
                 speed?: number;
-                /** @description Loads what is on the planet at the departure (metal, crystal, deuterium in this order) up to the cargo space */
-                all?: boolean;
+                /** @description Loads everything of these resources that is on the planet at the departure, like the game's "max" links: after the fixed amounts of the others, in the order metal, crystal, deuterium, up to the cargo space. `true`: all three */
+                all?: boolean | (901 | 902 | 903)[];
                 /** @description Earliest departure (Unix seconds) */
                 notBefore?: number;
                 /** @description Wanted arrival (Unix seconds); later when the resources are missing at the departure */
@@ -3191,6 +3191,10 @@ export type components = {
             full: Record<string, never> | null;
             /** @description Deuterium of the flight, part of `cost` (transports with ships) */
             fuel?: number;
+            /** @description Planned steps: resource id -> amount on the planet at the start, before paying */
+            before?: Record<string, never>;
+            /** @description Planned steps: resource id -> amount on the planet at the start, after paying */
+            after?: Record<string, never>;
         };
         StoredBuildOrder: {
             order: components["schemas"]["BuildOrder"];

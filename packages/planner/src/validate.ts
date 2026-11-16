@@ -151,7 +151,14 @@ function validateStep(raw: unknown): Step | null {
         if (typeof tr.speed !== 'number' || !Number.isInteger(tr.speed / 10) || tr.speed < 10 || tr.speed > 100) return null;
         if (tr.speed !== 100) out.speed = tr.speed;
       }
+      // `true` or some of 901-903 (all three is stored as `true`, none as nothing)
       if (tr.all === true) out.all = true;
+      else if (Array.isArray(tr.all)) {
+        if (!tr.all.every((r) => r === 901 || r === 902 || r === 903)) return null;
+        const all = [901, 902, 903].filter((r) => (tr.all as unknown[]).includes(r));
+        if (all.length === 3) out.all = true;
+        else if (all.length) out.all = all;
+      }
       for (const k of ['notBefore', 'arriveAt'] as const) {
         if (tr[k] == null) continue;
         if (!count(tr[k], 1e11)) return null;

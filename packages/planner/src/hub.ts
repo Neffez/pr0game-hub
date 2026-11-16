@@ -1,6 +1,6 @@
 import { levelAfter, type Arrival, type BuildPlanet } from '@pr0hub/core/buildings';
 import type { Pr0planImport } from './pr0plan.js';
-import type { Base, BuildOrder, Step } from './types.js';
+import { fixedOf, type Base, type BuildOrder, type Step } from './types.js';
 
 /**
  * The hub state a build order is checked and simulated against: the shape of `GET /api/{uni}/buildings` (server:
@@ -151,7 +151,7 @@ export function detectDone(order: BuildOrder, hub: HubState, fleets: OwnFleet[],
         const fleet = fleets.find(
           (f) =>
             !used.has(f) && f.from === key && f.to === to && missions.includes(f.mission ?? 0) && f.arrival > since &&
-            (t.all || Object.entries(t.resources).every(([r, v]) => !v || (f.resources[r] ?? 0) >= v * TRANSPORT_SHARE)),
+            Object.entries(fixedOf(t)).every(([r, v]) => (f.resources[r] ?? 0) >= v * TRANSPORT_SHARE),
         );
         if (!fleet) break;
         used.add(fleet);

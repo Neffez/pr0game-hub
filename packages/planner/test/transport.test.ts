@@ -72,6 +72,14 @@ describe('transports with ships', () => {
     expect(sim.steps[0].cost).toEqual({ 901: 3000, 902: 5000 - f.fuel - 3000, 903: f.fuel });
   });
 
+  it('loads some resources completely after the fixed amounts of the others', () => {
+    const order: BuildOrder = { base: { planets: {}, research: {} }, planets: { [HOME]: [transport('some', { ships: { 202: 1 }, all: [902], resources: { 901: 1000, 902: 7 } })] } };
+    const f = flight({ 202: 1 }, {}, [1, 120, 4]);
+    const sim = run(order, hubOf([planet(HOME, {}, { 901: 3000, 902: 9000, 903: 500 }), planet(COLONY)]));
+    // 1000 metal fixed (the 7 crystal are ignored), crystal into what is left after the fuel, no deuterium cargo
+    expect(sim.steps[0].cost).toEqual({ 901: 1000, 902: 5000 - f.fuel - 1000, 903: f.fuel });
+  });
+
   it('keeps the fixed flight time without ships', () => {
     const sim = run({ base: { planets: {}, research: {} }, planets: { [HOME]: [transport('p', { flight: 1234, resources: { 901: 10 } })] } }, hubOf([planet(HOME), planet(COLONY)]));
     expect(sim.steps[0]).toMatchObject({ start: NOW, end: NOW + 1234, cost: { 901: 10 } });
@@ -159,11 +167,21 @@ describe('validation', () => {
 
   it('refuses wrong options', () => {
     const base = { target: COLONY, resources: {}, flight: 0 };
-    for (const bad of [{ mission: 'attack' }, { ships: { 401: 1 } }, { ships: { 999: 1 } }, { speed: 55 }, { speed: 0 }, { notBefore: -1 }])
+    for (const bad of [{ mission: 'attack' }, { ships: { 401: 1 } }, { ships: { 999: 1 } }, { speed: 55 }, { speed: 0 }, { notBefore: -1 }, { all: [904] }])
       expect(valid({ ...base, ...bad }), JSON.stringify(bad)).toHaveProperty('error');
     expect(valid(base, { [HOME]: {} })).toHaveProperty('error');
     expect(valid(base, { [plannedKey(2)]: {} })).toHaveProperty('error');
     expect(valid(base, { [PLANNED]: { coords: { g: 0, s: 1, p: 1 } } })).toHaveProperty('error');
+  });
+
+  it('stores `all` as true for all three resources and some of them sorted', () => {
+    const all = (v: unknown) => {
+      const res = valid({ target: COLONY, resources: {}, flight: 0, all: v });
+      return 'order' in res ? res.order.planets[HOME][0].transport!.all : 'error';
+    };
+    expect(all([903, 901])).toEqual([901, 903]);
+    expect(all([901, 902, 903])).toBe(true);
+    expect(all([])).toBeUndefined();
   });
 });
 

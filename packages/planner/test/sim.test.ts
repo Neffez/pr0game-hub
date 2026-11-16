@@ -156,6 +156,15 @@ describe('simulate', () => {
     expect(at(sim, 7)).toMatchObject({ start: 2000, wait: 'slot', target: 3 });
   });
 
+  it('reports the resources on the planet before and after a step pays', () => {
+    const steps: Step[] = [{ id: 'a', kind: 'building', element: 1 }];
+    const order: BuildOrder = { base: { planets: {}, research: {} }, planets: { [HOME]: steps } };
+    const s = simulate(order, hubOf([planet(HOME)]), { now: 0 }).steps[0];
+    const cost = buildingCost(1, 1);
+    expect(s).toMatchObject({ state: 'planned', start: 0, before: { 901: 5000, 902: 1500, 903: 0 } });
+    expect(s.after).toEqual({ 901: 5000 - cost[901], 902: 1500 - cost[902], 903: 0 });
+  });
+
   it('counts landing fleets and transports of the build order', () => {
     const steps: Step[] = [{ id: 'a', kind: 'building', element: 22 }];
     const order: BuildOrder = { base: { planets: {}, research: {} }, planets: { [HOME]: steps } };

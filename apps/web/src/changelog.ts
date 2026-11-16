@@ -19,6 +19,21 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-16',
     items: [
       {
+        kind: 'new',
+        de: 'Bauliste: Beim Transport wählst du je Rohstoff, ob die Flotte alles mitnimmt, was beim Abflug da ist (Metall, Kristall, Deuterium einzeln). Die übrigen Rohstoffe haben feste Mengen. Lange Erklärungen stehen jetzt im (i)-Tooltip.',
+        en: 'Build order: for transports you choose per resource whether the fleet takes everything that is there at the departure (metal, crystal, deuterium separately). The other resources have fixed amounts. Long explanations are now in the (i) tooltip.',
+      },
+      {
+        kind: 'new',
+        de: 'Bauliste: Schritte für Schiffe, Verteidigung und Transporte lassen sich bearbeiten (Stift-Symbol am Schritt): Typ und Anzahl, beim Transport Ziel, Auftrag, Schiffe, Rohstoffe, Tempo und Zeitpunkt.',
+        en: 'Build order: ship, defense and transport steps can be edited (pencil icon on the step): type and amount, for transports target, mission, ships, resources, speed and time.',
+      },
+      {
+        kind: 'new',
+        de: 'Bauliste: Unter jedem geplanten Schritt steht, wie viele Rohstoffe beim Start auf dem Planeten sind – davor und danach. Bei Transporten zählt die Ladung samt Treibstoff.',
+        en: 'Build order: every planned step shows the resources on the planet when it starts, before and after. For transports, cargo and fuel count.',
+      },
+      {
         kind: 'fix',
         de: 'Statistik: Hat sich ein Spieler umbenannt, übernimmt der Hub den neuen Namen jetzt auch aus einer als Text eingefügten Statistik. Bisher blieb der alte Name stehen, bis jemand synchronisierte.',
         en: 'Statistics: when a player renamed, the hub now takes the new name from statistics pasted as text, too. Until now the old name stayed until someone synced.',
