@@ -558,6 +558,7 @@ components:
         transport: { type: [object, 'null'], description: Resources beyond the storage that have to come by transport }
         full: { type: [object, 'null'], description: 'Storages that ran full while the list waited: resource id -> `since`, `lost`' }
         fuel: { type: number, description: 'Deuterium of the flight, part of `cost` (transports with ships)' }
+        speed: { type: integer, description: 'Colonizations: speed in percent to fly at so the ship lands after the astrophysics further down the list (only when below the step''s own speed)' }
         before: { type: object, description: 'Planned steps: resource id -> amount on the planet at the start, before paying' }
         after: { type: object, description: 'Planned steps: resource id -> amount on the planet at the start, after paying' }
     StoredBuildOrder:

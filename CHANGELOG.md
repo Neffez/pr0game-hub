@@ -4,6 +4,13 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-16
 
+- Build order: a colonization before the astrophysics that allows the planet no longer ends as "not possible"
+  when that research comes later in a list (it deadlocked the list before). The ship leaves without blocking the
+  list; once the astrophysics starts, the planner picks the fastest speed step that lands it `ASTRO_MARGIN` seconds
+  after the research (or a later departure at 10 %), refunds the deuterium saved and returns the speed as `speed` in
+  `StepResult` (OpenAPI `BuildOrderStepResult`). The step shows "fly at X %". If the astrophysics never starts, the
+  colonization is invalid as before.
+
 - Build order: a transport's `all` can name resources (`[901, 903]`; `true` stays all three, all three are stored as
   `true`). The planner loads the fixed amounts of the others first, then the named ones up to the cargo space left,
   metal, crystal, deuterium - like the game's per-resource "max" links (`allOf`/`fixedOf` in the planner;

@@ -6,7 +6,7 @@ import { activeUnits, withUnits, type UnitCatalog } from '@pr0hub/core/units';
 import { calibrate, productionOf } from '@pr0hub/core/production';
 import { STORAGE, storageCapacity } from '@pr0hub/core/tech';
 import { ASTROPHYSICS, planetLimit, type UniverseSettings } from '@pr0hub/core/universe';
-import { distance, drivesFromResearch, fleetCapacity, fleetConsumption, flightDuration, slowestShip, type Coords } from '@pr0hub/flight';
+import { distance, drivesFromResearch, fleetCapacity, fleetConsumption, flightDuration, slowestShip, SPEED_PERCENTS, type Coords } from '@pr0hub/flight';
 import { doneStateOf, targetsOf, type DoneState, type HubState } from './hub.js';
 import { isPlannedKey } from './planned.js';
 import { allOf, fixedOf, type BuildOrder, type Step, type TransportSettings } from './types.js';
@@ -22,7 +22,9 @@ import { allOf, fixedOf, type BuildOrder, type Step, type TransportSettings } fr
  * Transports with ships fly as long as the game's flight formula says (coordinates, the drives researched at the
  * departure, the universe's settings), pay the deuterium of the flight and carry at most their cargo space. A planned
  * planet that a colonization of the build order flies to is founded at its arrival (start resources plus the cargo);
- * the colonization waits until the astrophysics research that allows the planet is done at the arrival.
+ * the colonization waits until the astrophysics research that allows the planet is done at the arrival. When that
+ * research is only further down a list, the ship leaves without blocking the list and its arrival is set once the
+ * research starts: a lower speed (or a later departure) lets it land right after the research is done.
  */
 
 export type StepState = 'done' | 'queued' | 'deactivated' | 'planned' | 'invalid';
@@ -55,6 +57,8 @@ export interface StepResult {
   full: Record<number, { since: number; lost: number }> | null;
   /** deuterium of the flight, part of `cost` (transports with ships) */
   fuel?: number;
+  /** colonizations: the speed (percent) to fly at so the ship lands after the astrophysics, when below the step's own */
+  speed?: number;
   /** planned steps: resources on the planet at the start, right before paying and after (whole units) */
   before?: Record<number, number>;
   after?: Record<number, number>;
@@ -115,6 +119,8 @@ interface Planet {
   head: number;
   /** a production step lets the list wait until then */
   waitUntil: number;
+  /** a deferred colonization flies here, its arrival is not set yet */
+  founding: boolean;
   /** last wait reason of the head step */
   wait: WaitReason | null;
   /** storages full while the head step waits: since when, production lost beyond the capacity */
@@ -128,6 +134,8 @@ interface Check {
   never?: boolean;
   /** when the resources are there, only when they are all that is missing */
   readyAt?: number;
+  /** a colonization that starts now and gets its arrival once the astrophysics further down a list starts */
+  defer?: boolean;
 }
 
 export function simulate(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
@@ -187,7 +195,7 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
       syncedCap: { level: Object.fromEntries(RES.map((r) => [r, levels[STORAGE[r]] ?? 0])), cap: { ...cap } },
       temp: hp.temp ?? 0, factors: { ...(hp.factors ?? {}) }, calibration: { 901: 1, 902: 1, 903: 1 }, build, shipyard,
       arrivals: hp.arrivals.filter((a) => a.at > o.now).map((a) => ({ at: a.at, resources: a.resources })),
-      steps: order.planets[hp.key] ?? [], head: 0, waitUntil: o.now, wait: null, full: {},
+      steps: order.planets[hp.key] ?? [], head: 0, waitUntil: o.now, founding: false, wait: null, full: {},
     });
   }
   for (const q of hub.researchQueue) {
@@ -349,8 +357,53 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
     return out;
   };
   const astroAt = (t: number) => researchQueue.reduce((l, q) => (q.id === ASTROPHYSICS && q.end <= t ? Math.max(l, q.level) : l), research[ASTROPHYSICS] ?? 0);
-  /** planets the account has or is founding */
-  const planetCount = () => planets.filter((x) => x.type === 'planet' && (x.active || x.arrivals.some((a) => a.found))).length;
+  /** planets the account has or is founding (`pending`: with the deferred colonizations) */
+  const planetCount = (pending = true) =>
+    planets.filter((x) => x.type === 'planet' && (x.active || x.arrivals.some((a) => a.found) || (pending && x.founding))).length;
+  /** whether the astrophysics running and still ahead in the lists (after `p`'s head) allow more than `count` planets */
+  const astroAhead = (p: Planet, count: number) => {
+    let level = researchLevelOf(ASTROPHYSICS);
+    for (const x of planets)
+      for (const s of x.steps.slice(x === p ? x.head + 1 : x.head))
+        if (s.kind === 'research' && s.element === ASTROPHYSICS && !s.deactivated && doneStateOf(s, targets.get(s.id) ?? undefined, x.key, hub) === 'open') level++;
+    return (planetLimit(o.universe!, level) ?? Infinity) > count;
+  };
+  /** colonizations that left before the astrophysics allowing their planet started, in order */
+  const deferred: {
+    from: Planet; target: Planet; at: number; load: Record<number, number>; fuel: number;
+    /** flight at each speed up to the step's own, fastest first */
+    options: { speed: number; flight: number; fuel: number }[];
+    result: StepResult | null;
+  }[] = [];
+  /** sets the arrival of the deferred colonizations whose astrophysics is now running: right after it is done */
+  const resolveDeferred = () => {
+    while (deferred.length) {
+      const d = deferred[0];
+      const count = planetCount(false);
+      const q = researchQueue.find((x) => x.id === ASTROPHYSICS && (planetLimit(o.universe!, x.level) ?? 0) > count);
+      if (!q) return;
+      deferred.shift();
+      const want = q.end + ASTRO_MARGIN;
+      const fastest = d.options[0];
+      const pick = d.options.find((x) => d.at + x.flight >= want) ?? d.options[d.options.length - 1];
+      const departure = Math.max(d.at, want - pick.flight);
+      const arrival = departure + pick.flight;
+      d.target.arrivals.push({ at: arrival, resources: d.load, found: true });
+      d.target.founding = false;
+      const r = d.result!;
+      r.start = departure;
+      r.end = arrival;
+      if (pick.flight !== fastest.flight) r.speed = pick.speed;
+      // a slower flight burns less deuterium: what is left stays on the planet
+      const saved = d.fuel - pick.fuel;
+      if (saved > 0) {
+        d.from.res[903] += saved;
+        r.fuel = pick.fuel;
+        if (r.cost) r.cost[903] = (r.cost[903] ?? 0) - saved;
+        if (r.after) r.after[903] = (r.after[903] ?? 0) + saved;
+      }
+    }
+  };
 
   const stepCost = (p: Planet, s: Step): Record<number, number> => {
     if (s.kind === 'building') return buildingCost(s.element!, levelOf(p, s.element!) + 1, catchUp);
@@ -425,7 +478,11 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
           const allowed = limit(astroAt(t + f.flight));
           if (allowed != null && count >= allowed) {
             const q = researchQueue.find((x) => x.id === ASTROPHYSICS && (limit(x.level) ?? 0) > count);
-            return q ? { ok: false, wait: 'astro', readyAt: Math.max(t + 1, q.end + ASTRO_MARGIN - f.flight) } : { ok: false, wait: 'astro' };
+            if (q) return { ok: false, wait: 'astro', readyAt: Math.max(t + 1, q.end + ASTRO_MARGIN - f.flight) };
+            if (!astroAhead(p, count)) return { ok: false, wait: 'astro' };
+            // the astrophysics comes later in a list: leave without blocking it, the arrival follows the research
+            const c = ready(p, stepCost(p, s), t);
+            return c.ok ? { ok: true, wait: 'astro', defer: true } : c;
           }
         }
         break;
@@ -438,7 +495,7 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
     for (const r of RES) p.res[r] = Math.max(0, p.res[r] - (cost[r] ?? 0));
   };
 
-  const start = (p: Planet, s: Step, t: number) => {
+  const start = (p: Planet, s: Step, t: number, defer = false) => {
     const target = targets.get(s.id) ?? null;
     const cost = stepCost(p, s);
     const id = s.element!;
@@ -490,7 +547,12 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
         const load: Record<number, number> = {};
         for (const r of RES) load[r] = Math.max(0, (cost[r] ?? 0) - (r === 903 ? fuel : 0));
         const target = tr.target ? byKey.get(tr.target) : undefined;
-        if (target) target.arrivals.push({ at: end, resources: load, ...(tr.mission === 'colonize' && !target.active ? { found: true } : {}) });
+        if (target && defer) {
+          target.founding = true;
+          const base = tr.speed ?? 100;
+          const options = SPEED_PERCENTS.filter((v) => v <= base).map((speed) => ({ speed, ...flightOf(p, { ...tr, speed }) }));
+          deferred.push({ from: p, target, at: t, load, fuel, options, result: null });
+        } else if (target) target.arrivals.push({ at: end, resources: load, ...(tr.mission === 'colonize' && !target.active ? { found: true } : {}) });
         break;
       }
     }
@@ -511,6 +573,8 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
       transport: Object.keys(transport).length ? transport : null, full: fullOf(p), ...(fuel ? { fuel } : {}),
       before, after: snapshot(),
     });
+    if (defer) deferred[deferred.length - 1].result = resultById.get(s.id)!;
+    if (s.kind === 'research' && id === ASTROPHYSICS) resolveDeferred();
     p.wait = null;
     p.head++;
     skip(p);
@@ -613,7 +677,7 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
         const c = check(p, p.steps[p.head], t);
         if (c.ok) {
           if (c.wait) p.wait = c.wait;
-          start(p, p.steps[p.head], t);
+          start(p, p.steps[p.head], t, c.defer);
           started = true;
         } else if (c.never) {
           invalid(p, c.wait ?? 'requirements');
@@ -651,6 +715,14 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
   }
   // the event cap stopped the loop: the steps left are not a planet-type problem
   for (const p of planets) while (p.head < p.steps.length) invalid(p, 'aborted');
+  // colonizations whose astrophysics never started cannot found their planet
+  for (const d of deferred) {
+    const r = d.result!;
+    Object.assign(r, { state: 'invalid', start: null, end: null, cost: null, wait: 'astro', transport: null, full: null });
+    delete r.before;
+    delete r.after;
+    delete r.fuel;
+  }
 
   // steps in list order per planet
   const steps: StepResult[] = [];

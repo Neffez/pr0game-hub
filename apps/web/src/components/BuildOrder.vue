@@ -568,7 +568,8 @@ function onDrop(i: number) {
               <span v-else>{{ t('buildOrder.startIn') }} <span class="mono">{{ countdown(r.result.start! - n) }}</span> <span class="faint">({{ clock(r.result.start!) }})</span></span>
             </Ticker>
             <span v-if="r.result.end! > r.result.start!" class="muted">{{ t(r.step.kind === 'transport' ? 'buildOrder.arrival' : 'buildOrder.until', { time: clock(r.result.end!) }) }}</span>
-            <span v-if="r.result.wait && !r.result.transport" class="faint">{{ t(`buildOrder.wait.${r.result.wait}`) }}</span>
+            <span v-if="r.result.speed" class="warn" :title="t('buildOrder.astroSpeedTitle')">{{ t('buildOrder.astroSpeed', { speed: r.result.speed }) }}</span>
+            <span v-else-if="r.result.wait && !r.result.transport" class="faint">{{ t(`buildOrder.wait.${r.result.wait}`) }}</span>
             <span v-if="r.result.transport" class="warn" :title="t('buildOrder.overflowTitle')">
               {{ t('buildOrder.overflow') }}
               <template v-for="id in RESOURCES" :key="id"><span v-if="r.result.transport[id]" class="bo-cost">{{ short(r.result.transport[id]) }} {{ name(id) }}</span></template>

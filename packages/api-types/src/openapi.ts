@@ -3191,6 +3191,8 @@ export type components = {
             full: Record<string, never> | null;
             /** @description Deuterium of the flight, part of `cost` (transports with ships) */
             fuel?: number;
+            /** @description Colonizations: speed in percent to fly at so the ship lands after the astrophysics further down the list (only when below the step's own speed) */
+            speed?: number;
             /** @description Planned steps: resource id -> amount on the planet at the start, before paying */
             before?: Record<string, never>;
             /** @description Planned steps: resource id -> amount on the planet at the start, after paying */

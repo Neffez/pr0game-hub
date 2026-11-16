@@ -110,6 +110,34 @@ describe('planned planets', () => {
     expect(sim.steps.find((s) => s.id === 'col')).toMatchObject({ state: 'planned', start: NOW + 20000 + ASTRO_MARGIN - f.seconds, end: NOW + 20000 + ASTRO_MARGIN, wait: 'astro' });
   });
 
+  it('astrophysics further down the list: the ship leaves now, slower, and lands after the research', () => {
+    const hub = hubOf([planet(HOME, { 31: 3 })], { research: { 117: 3, 113: 3, 106: 3 }, researchSpeed: 2500 });
+    // a planet in the same system: the flight at full speed is shorter than the research
+    const o = order([colonize(), { id: 'astro', kind: 'research', element: 124 }]);
+    o.planned![PLANNED].coords = { g: 1, s: 100, p: 4 };
+    const sim = run(o, hub);
+    const astro = sim.steps.find((s) => s.id === 'astro')!;
+    const col = sim.steps.find((s) => s.id === 'col')!;
+    expect(astro).toMatchObject({ state: 'planned', start: NOW });
+    expect(col).toMatchObject({ state: 'planned', start: NOW, wait: 'astro' });
+    expect(col.end!).toBeGreaterThanOrEqual(astro.end! + ASTRO_MARGIN);
+    expect(col.speed).toBeLessThan(100);
+    const f = flight({ 208: 1 }, { 117: 3 }, [1, 100, 4], col.speed);
+    expect(col.end! - col.start!).toBe(f.seconds);
+    expect(col.fuel).toBe(f.fuel);
+    // one speed step faster would land before the research is done
+    expect(col.start! + flight({ 208: 1 }, { 117: 3 }, [1, 100, 4], col.speed! + 10).seconds).toBeLessThan(astro.end! + ASTRO_MARGIN);
+    expect(sim.steps.find((s) => s.id === 'mine')).toMatchObject({ state: 'planned', start: col.end, wait: 'colony' });
+  });
+
+  it('astrophysics that never starts: the colonization is not possible', () => {
+    const hub = hubOf([planet(HOME)], { research: { 117: 3 } });
+    // no research lab: the astrophysics step can never start
+    const sim = run(order([colonize(), { id: 'astro', kind: 'research', element: 124 }]), hub);
+    expect(sim.steps.find((s) => s.id === 'col')).toMatchObject({ state: 'invalid', wait: 'astro', start: null });
+    expect(sim.steps.find((s) => s.id === 'mine')).toMatchObject({ state: 'invalid' });
+  });
+
   it('never start without astrophysics or a colonization', () => {
     const none = run(order([colonize()]), hubOf([planet(HOME)], { research: { 117: 3 } }));
     expect(none.steps.find((s) => s.id === 'col')).toMatchObject({ state: 'invalid', wait: 'astro' });

@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-16',
     items: [
       {
+        kind: 'fix',
+        de: 'Bauliste: Kolonisieren vor der nötigen Astrophysik ist kein Fehler mehr, wenn die Astrophysik später in der Liste folgt. Das Kolonieschiff fliegt dann langsamer los (Tempo steht am Schritt) und landet kurz nach der Forschung.',
+        en: 'Build order: colonizing before the needed astrophysics is no longer an error when the astrophysics follows later in the list. The colony ship then flies slower (speed shown on the step) and lands shortly after the research.',
+      },
+      {
         kind: 'new',
         de: 'Bauliste: Beim Transport wählst du je Rohstoff, ob die Flotte alles mitnimmt, was beim Abflug da ist (Metall, Kristall, Deuterium einzeln). Die übrigen Rohstoffe haben feste Mengen. Lange Erklärungen stehen jetzt im (i)-Tooltip.',
         en: 'Build order: for transports you choose per resource whether the fleet takes everything that is there at the departure (metal, crystal, deuterium separately). The other resources have fixed amounts. Long explanations are now in the (i) tooltip.',
