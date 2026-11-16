@@ -33,7 +33,7 @@ import { DISPLAY } from './repo/sql.js';
 import type { IngestLog, IngestSummary, IngestTarget } from './ingest.js';
 import { fleetActivity, galaxyMark } from './repo/activity.js';
 import { FLEET_HISTORY } from './repo/fleets.js';
-import { Players } from './repo/players.js';
+import { Players, scoreKey } from './repo/players.js';
 
 /** Empire pages are kept a week (besides the newest), see `empire()`. */
 const EMPIRE_KEEP = 7 * 86400;
@@ -138,6 +138,7 @@ export class Store {
       .pluck()
       .get(this.t.groupId, r.who, r.type, statTime) as number;
 
+    let inSnapshot: Map<string, number | null> | undefined;
     for (const row of r.rows) {
       if (r.who === 'alliance') {
         const allyId = this.players.alliance(row.ingameId, row.name);
@@ -147,7 +148,9 @@ export class Store {
         this.count('alliance_scores', res.changes > 0);
         continue;
       }
-      const playerId = this.players.player(row.ingameId, row.name, statTime);
+      // a line without an id (plain text): the player known by id who already has this rank and points in the snapshot
+      const known = row.ingameId == null ? (inSnapshot ??= this.players.snapshotPlayers(snapshotId)).get(scoreKey(row.rank, row.points)) : null;
+      const playerId = known ?? this.players.player(row.ingameId, row.name, statTime);
       const allyId = this.players.alliance(row.allyId, row.allyName);
       db.prepare('UPDATE players SET alliance_id = ? WHERE id = ? AND last_seen <= ?').run(allyId, playerId, statTime);
       this.players.playerStatus(playerId, row.status, statTime);
@@ -160,6 +163,8 @@ export class Store {
       this.count('player_scores', !exists);
       if (!exists && (r.type === 1 || r.type === 2)) this.scoreEvents(playerId, r.type, statTime, row.points, row.status);
     }
+    // lines with ids tell who is who: doubles a plain-text paste created for a renamed player go into the real one
+    if (r.who === 'player' && r.rows.some((row) => row.ingameId != null)) this.players.mergeDoubles(snapshotId);
   }
 
   private spy(r: SpyReportRecord) {

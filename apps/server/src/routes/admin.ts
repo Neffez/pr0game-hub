@@ -15,6 +15,7 @@ import { aboutRecords, backfillActivity, parseRaw, reparse, type RawIngest } fro
 import { systemInfo, vacuum } from '../monitor.js';
 import { undoIngest } from '../repo/cleanup.js';
 import { followUniverse } from '../repo/plans.js';
+import { mergePlayers } from '../repo/players.js';
 import { memberFleetAttacks, removeStoredAttack } from '../repo/hostile.js';
 import { publishIdentity } from './auth.js';
 import { DISPLAY } from './util.js';
@@ -542,25 +543,9 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
     const groupId = Number(req.params.id);
     requireAdmin(req);
     const { from, into } = req.body ?? ({} as never);
-    const both = db.prepare('SELECT id, name, ingame_id, first_seen, last_seen FROM players WHERE group_id = ? AND id IN (?, ?)').all(groupId, from, into) as {
-      id: number;
-      name: string;
-      ingame_id: number | null;
-      first_seen: number;
-      last_seen: number;
-    }[];
-    if (!Number.isInteger(from) || !Number.isInteger(into) || both.length !== 2 || from === into) throw new HttpError(400, 'players_invalid', 'Invalid players');
-    const src = both.find((p) => p.id === from)!;
-    db.transaction(() => {
-      // Every table that references players (scores, spies, plans, comments, …). Conflicts keep the target's row.
-      for (const { table, column } of playerReferences(db)) {
-        db.prepare(`UPDATE OR IGNORE ${table} SET ${column} = ? WHERE ${column} = ?`).run(into, from);
-      }
-      db.prepare('INSERT OR REPLACE INTO player_aliases (player_id, name, seen_until) VALUES (?, ?, ?)').run(into, src.name, src.last_seen);
-      if (src.ingame_id) db.prepare('UPDATE players SET ingame_id = NULL WHERE id = ?').run(from);
-      db.prepare('UPDATE players SET ingame_id = COALESCE(ingame_id, ?), first_seen = MIN(first_seen, ?) WHERE id = ?').run(src.ingame_id, src.first_seen, into);
-      db.prepare('DELETE FROM players WHERE id = ?').run(from);
-    })();
+    if (!Number.isInteger(from) || !Number.isInteger(into) || !mergePlayers(db, groupId, from, into)) {
+      throw new HttpError(400, 'players_invalid', 'Invalid players');
+    }
     events.publish(groupId, { type: 'data', tables: ['players', 'comments'] });
     return { ok: true };
   });
@@ -731,15 +716,6 @@ export function adminRoutes(app: FastifyInstance, db: DB) {
 function validateSettings(settings: object | undefined) {
   const err = settingsError(settings);
   if (err) throw new HttpError(400, err.code, err.message);
-}
-
-function playerReferences(db: DB): { table: string; column: string }[] {
-  const tables = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'").pluck().all() as string[];
-  return tables.flatMap((t) =>
-    (db.pragma(`foreign_key_list(${JSON.stringify(t)})`) as { table: string; from: string }[])
-      .filter((fk) => fk.table === 'players')
-      .map((fk) => ({ table: t, column: fk.from })),
-  );
 }
 
 function validateDeck(deck: unknown) {

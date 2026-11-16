@@ -4,6 +4,17 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-16
 
+- Fix a renamed player showing up twice in the statistics. Statistics pasted as plain text carry no in-game ids, so
+  a line with a name the hub had not seen yet (renamed, not synced with its id since) created a second, name-only
+  player; once the real player was synced under the new name both stood in the same snapshot with the same rank and
+  points.
+  - A plain-text line now goes to the player known by id who already holds its rank with its points in the snapshot
+    (`Players.snapshotPlayers`), instead of creating a player.
+  - After statistics with ids, name-only doubles of the players in that snapshot are merged into them
+    (`Players.mergeDoubles`), which also cleans up the doubles stored so far. The same name alone is never enough
+    (an abandoned name is taken over by others): both must hold the same rank with the same points in one snapshot.
+  - The merge itself is `mergePlayers` in `repo/players.ts`, shared with the admin's player merge; it no longer keeps
+    a former name equal to the target's current name.
 - Start resources of a new planet default to 500 metal and 500 crystal, the game's own defaults of `metal_start` and
   `crystal_start` (the hub assumed 5000 and 1500). The game gives every new planet these, home planet and colony
   alike. Universes without the setting now plan colonies and pre-start build orders with 500/500; a universe that

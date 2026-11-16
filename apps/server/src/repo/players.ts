@@ -114,6 +114,50 @@ export class Players {
   }
 
   /**
+   * Players known by id in a statistics snapshot, by `scoreKey`: a line without an id (plain text) with the same rank
+   * and points is that player, whatever its name says (a rename the hub has not seen yet would otherwise create a
+   * second player). A rank held twice with the same points decides nothing.
+   */
+  snapshotPlayers(snapshotId: number): Map<string, number | null> {
+    const rows = this.db
+      .prepare(
+        `SELECT s.rank, s.points, s.player_id FROM player_scores s JOIN players p ON p.id = s.player_id
+         WHERE s.snapshot_id = ? AND p.ingame_id IS NOT NULL`,
+      )
+      .all(snapshotId) as { rank: number; points: number; player_id: number }[];
+    const known = new Map<string, number | null>();
+    for (const r of rows) {
+      const key = scoreKey(r.rank, r.points);
+      known.set(key, known.has(key) ? null : r.player_id);
+    }
+    return known;
+  }
+
+  /**
+   * Merges name-only doubles into the players of a statistics snapshot that are known by id: a plain-text line named
+   * a player the hub knew by another name (renamed, not yet synced with its id) and created a second one. The same
+   * name alone proves nothing (an abandoned name is taken over by others); a double is merged only when both hold
+   * the same rank with the same points in one snapshot (which is of one type and time).
+   */
+  mergeDoubles(snapshotId: number): number {
+    const pairs = this.db
+      .prepare(
+        `SELECT DISTINCT d.id AS ghost, p.id AS player
+         FROM player_scores cur
+         JOIN players p ON p.id = cur.player_id AND p.ingame_id IS NOT NULL
+         JOIN players d ON d.group_id = p.group_id AND d.name = p.name COLLATE NOCASE AND d.ingame_id IS NULL
+         WHERE cur.snapshot_id = ? AND p.group_id = ?
+           AND EXISTS (SELECT 1 FROM player_scores a JOIN player_scores b
+                         ON b.snapshot_id = a.snapshot_id AND b.rank = a.rank AND b.points = a.points
+                       WHERE a.player_id = d.id AND b.player_id = p.id)`,
+      )
+      .all(snapshotId, this.groupId) as { ghost: number; player: number }[];
+    let merged = 0;
+    for (const { ghost, player } of pairs) if (mergePlayers(this.db, this.groupId, ghost, player)) merged++;
+    return merged;
+  }
+
+  /**
    * Player who had `name` as a former name at time `at`: the alias was still seen then (`seen_until` is the time of
    * the first data with the new name). The earliest such alias wins (the era `at` falls into).
    */
@@ -151,6 +195,44 @@ export class Players {
         .get(this.groupId, name) as number | undefined) ?? null
     );
   }
+}
+
+/** Key of a line in a statistics snapshot, see `Players.snapshotPlayers`. */
+export const scoreKey = (rank: number, points: number) => `${rank}:${points}`;
+
+/** Every column that references `players` (scores, spy reports, plans, comments, …). */
+function playerReferences(db: DB): { table: string; column: string }[] {
+  const tables = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'").pluck().all() as string[];
+  return tables.flatMap((t) =>
+    (db.pragma(`foreign_key_list(${JSON.stringify(t)})`) as { table: string; from: string }[])
+      .filter((fk) => fk.table === 'players')
+      .map((fk) => ({ table: t, column: fk.from })),
+  );
+}
+
+/**
+ * Merges player `from` into `into` (both of the group): everything that points at `from` moves over, where both
+ * have a row (e.g. a score in the same snapshot) the target's is kept. A different name of `from` stays as a former
+ * name. False when the two are not different players of the group.
+ */
+export function mergePlayers(db: DB, groupId: number, from: number, into: number): boolean {
+  type Row = { id: number; name: string; ingame_id: number | null; first_seen: number; last_seen: number };
+  const both = db.prepare('SELECT id, name, ingame_id, first_seen, last_seen FROM players WHERE group_id = ? AND id IN (?, ?)').all(groupId, from, into) as Row[];
+  if (from === into || both.length !== 2) return false;
+  const src = both.find((p) => p.id === from)!;
+  const target = both.find((p) => p.id === into)!;
+  db.transaction(() => {
+    for (const { table, column } of playerReferences(db)) {
+      db.prepare(`UPDATE OR IGNORE ${table} SET ${column} = ? WHERE ${column} = ?`).run(into, from);
+    }
+    if (src.name.toLowerCase() !== target.name.toLowerCase()) {
+      db.prepare('INSERT OR REPLACE INTO player_aliases (player_id, name, seen_until) VALUES (?, ?, ?)').run(into, src.name, src.last_seen);
+    }
+    if (src.ingame_id) db.prepare('UPDATE players SET ingame_id = NULL WHERE id = ?').run(from);
+    db.prepare('UPDATE players SET ingame_id = COALESCE(ingame_id, ?), first_seen = MIN(first_seen, ?) WHERE id = ?').run(src.ingame_id, src.first_seen, into);
+    db.prepare('DELETE FROM players WHERE id = ?').run(from);
+  })();
+  return true;
 }
 
 /**

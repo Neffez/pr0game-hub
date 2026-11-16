@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Statistik: Ein umbenannter Spieler steht nicht mehr doppelt in der Liste, wenn die Statistik als Text eingefügt wurde. Bereits entstandene Doppelte verschwinden mit dem nächsten Statistik-Sync von selbst.',
+        en: 'Statistics: a renamed player is no longer listed twice when the statistics were pasted as text. Doubles that already exist disappear by themselves with the next statistics sync.',
+      },
+      {
+        kind: 'fix',
         de: 'Bauliste: Geplante Planeten starten jetzt mit 500 Metall und 500 Kristall wie im Spiel, nicht mehr mit 5.000 und 1.500. Universen mit anderen Startwerten tragen sie in ihren Einstellungen ein.',
         en: 'Build order: planned planets now start with 500 metal and 500 crystal as in the game, no longer with 5,000 and 1,500. Universes with other start values set them in their settings.',
       },
