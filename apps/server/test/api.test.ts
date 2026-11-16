@@ -108,6 +108,17 @@ describe('api', () => {
     expect(planet.spy).toMatchObject({ res: { 901: 1234567 }, fleet: 60, defense: 0 });
   });
 
+  it('reparses a stored sync and reports the crawler state to hub admins', async () => {
+    const raw = db.prepare('SELECT MAX(id) FROM raw_ingests WHERE group_id = ?').pluck().get(groupA) as number;
+    const res = await app.inject({ method: 'POST', url: `/hub/api/admin/ingests/${raw}/reparse`, headers: admin, payload: {} });
+    expect(res.statusCode).toBe(200);
+    // the records are there already: reparsing finds them again
+    expect(Object.values(res.json().counts as Record<string, { new: number }>).every((c) => c.new === 0)).toBe(true);
+    const crawler = (await app.inject({ method: 'GET', url: '/hub/api/admin/crawler', headers: admin })).json();
+    expect(crawler).toMatchObject({ enabled: expect.any(Boolean), universes: [] });
+    expect((await app.inject({ method: 'POST', url: '/hub/api/admin/crawler/retry', headers: admin, payload: {} })).json()).toEqual({ reset: 0 });
+  });
+
   it('imports universe.json without overwriting fresher views', async () => {
     const headers = { ...admin, 'x-hub-group': String(groupA) };
     const text = fixture('universe.json');

@@ -26,6 +26,7 @@ COPY packages/flight/package.json packages/flight/
 COPY packages/loot/package.json packages/loot/
 COPY packages/battle/package.json packages/battle/
 COPY packages/planner/package.json packages/planner/
+COPY packages/api-types/package.json packages/api-types/
 COPY apps/server/package.json apps/server/
 COPY apps/web/package.json apps/web/
 COPY apps/tools/package.json apps/tools/

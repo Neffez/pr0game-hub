@@ -117,7 +117,7 @@ Evidence re-checked against this tree; sizes updated. Only what is still open is
 
 | ID | Finding | Evidence now | Impact | Risk | Effort | Fix |
 |---|---|---|---|---|---|---|
-| A-01 | OpenAPI is hand-written; no typed client | Since 2026-11-15 the server tests validate every 2xx JSON answer against the spec (`test/contract.ts`, 171 of 185 operations called) and the token-facing GETs are described in full; 51 answers, mostly admin and write endpoints, are still `type: object`; web client is `api<T = any>` | High | Low | Medium | Fill the remaining schemas when an endpoint is touched; generate types from the YAML for the web and replace `apiTypes.ts` (C-02) |
+| A-01 | OpenAPI is hand-written | The server tests validate every 2xx JSON answer against the spec (`test/contract.ts`); the web app's types are generated from it (`@pr0hub/api-types`, a test keeps them current); 41 answers, mostly admin and write endpoints, are still `type: object` and generate as `Record<string, never>` (ratchet `MAX_UNDESCRIBED` in `test/specSchemas.test.ts`, rule in CLAUDE.md) | High | Low | Low–Medium | Fill the remaining schemas when an endpoint is touched |
 | A-03 | Group isolation is a convention plus a grep test, not an API | `test/groupScope.test.ts` enforces `group_id` or a key per statement (all week's statements pass); no `GroupDb` | High | Medium | High | A `GroupDb` that injects `group_id`; ban raw `db.prepare` in `routes/` except admin. Do when touching a repo anyway |
 | A-05 | Route / repo / domain split is uneven | `store.ts` 995 lines, `routes/plans.ts` 823, `routes/admin.ts` 740; plan writes and catch-up live in the route; the repos no longer import `routes/` (N-05 fixed) | Medium | Medium | High (incremental) | Move plan writes next to `repo/plans.ts`; routes = auth + `groupContext` + HTTP mapping |
 | A-06 | One synchronous SQLite connection; `universe.json` parses on the event loop | Pluck cache fixed; no worker for the 16 MB ingest; crawler, hall poller, SSE and push share the loop | Medium | Medium | High | Parse/store `universe.json` in a worker with its own connection, or chunk the transaction. Keep the in-memory bus |
@@ -129,7 +129,7 @@ Evidence re-checked against this tree; sizes updated. Only what is still open is
 | ID | Finding | Evidence now | Impact | Risk | Effort | Fix |
 |---|---|---|---|---|---|---|
 | C-01 | God files | `store.ts` 995, `routes/plans.ts` 823, `routes/admin.ts` 740, `AdminView.vue` 1041, `OverviewView.vue` 916, `locales/de.ts` 3189 (each), `flight-calculator/main.js` 1351, `test/api.test.ts` 1987 | High (velocity) | Medium | High (split when touching) | `store/*.ts` by ingest kind, `routes/plans` → CRUD / fleets / enemy, AdminView → Universes / Groups / Ingests / System, locales by namespace with the same `typeof de` check |
-| C-02 | API client defaults to `any` | `api<T = any>` in `api.ts`; no `useLoader<any>` is left (the last four typed in `apiTypes.ts`, 2026-11-15), but most `uniApi` calls still pass no type | High | High | Medium | Make `T` required; generate the types from `openapi.yaml` (A-01) instead of `apiTypes.ts` by hand |
+| C-02 | API client types | `api<T>` defaults to `unknown` (2026-11-15), answers are named from the generated types in `apiTypes.ts`; 102 call sites still pass a hand-written type instead of `Schema<…>` / `ApiResponse<…>` (ratchet `MAX_HAND_WRITTEN` in `apps/web/test/api-types-ratchet.test.ts`, rule in CLAUDE.md) | Medium | Low | Low | Replace the inline types when a view is touched |
 | C-03 | SQL rows and JSON columns are untyped blobs | `SELECT *` + `as any[]` on reports/galaxy; most `JSON.parse` undefended (unknown universe setting keys are refused since 2026-11-15) | High | High | Medium | Typed row interfaces per table; one `parseJson<T>` |
 | C-04 | Mixed `user_id` / `userId`, snake / camel in one payload | `/raids` aggregates `userId`, raw rows `user_id`; plan types snake_case on the web, others camelCase | Medium | Medium | Medium | CamelCase at the HTTP boundary; map in the route; update OpenAPI and web types together |
 | C-05 | Three text pipelines, two compact-number formats | `CHANGELOG.md` + `changelog.ts`, `push.ts` strings, locales, tools `i18n.js`; `push.ts` `short()` (Intl compact) vs hub Mio/Mrd | Medium | Low–Medium | Medium | Share compact numbers and mission labels from core; keep push strings server-side |
@@ -188,7 +188,7 @@ C-08 query parameters and errors, C-10e, I-03 checks, I-05, N-T2 index) are fixe
 
 | Order | ID | What | Effort |
 |---|---|---|---|
-| 1 | A-01 / C-02 | Generated types for the web from the checked spec; remaining schemas | Medium |
+| 1 | A-01 / C-02 | Remaining schemas; generated types instead of inline ones in the views | Low |
 | 2 | A-05 / C-01 | Split `store.ts`, `plans.ts`, AdminView, locales | High |
 | 3 | A-03 | `GroupDb` | High |
 | 4 | A-06 | `universe.json` off the event loop | High |

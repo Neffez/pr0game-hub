@@ -2,7 +2,28 @@
 
 Every commit adds its changes here, newest first, grouped by date.
 
+## 2026-11-16
+
+- The open API type cleanups cannot grow any more and are written down for every contributor: a ratchet test in the
+  web app counts the API calls that pass a hand-written answer type (102), one in the server counts the JSON answers
+  `openapi.yaml` leaves as a bare `type: object` (41); both fail when the number rises and are lowered as the
+  cleanup goes on. CLAUDE.md's new rule "API types" says how (generated types only, cleanup with any work in the
+  files concerned).
+
 ## 2026-11-15
+
+- Types of the HTTP API generated from `openapi.yaml` (step 2 of A-01): new package `@pr0hub/api-types`
+  (openapi-typescript, `src/openapi.ts` checked in, `pnpm --filter @pr0hub/api-types gen`; a test fails while the
+  file does not match the spec, type tests cover the helpers `Schema<'Name'>` and `ApiResponse<'/api/…', method>`).
+  - The web app's `apiTypes.ts` names the generated types instead of hand-written ones; `api<T>` and `uniApi<T>`
+    default to `unknown` instead of `any`, so every answer that is used has a type (the 18 places that relied on
+    `any` now take theirs from the spec).
+  - Spec fixes the switch found (each checked by the contract test): the inactivity `reasons` are a union per
+    `code`; `PointsStall`, the overview (players, planets with spy and own points, coverage), the Discord channel
+    settings and the vacuum answer list their always-present fields as required; the overview's `player_id`,
+    `min_rank` and `max_rank` can be null (the overview now skips planets without a known owner explicitly).
+  - Schemas for the ingest summary (`POST /api/{uni}/ingest`, reparse), the crawler status and retry, the activity
+    backfill and the creating POSTs (`Created`); a test now calls the reparse and the crawler endpoints.
 
 - Battle simulator: the extra runs of a refined simulation no longer fill the memory (a kept run costs about 17 kB,
   its unit records are keyed by element id). `@pr0hub/battle` sums runs up one by one (`SimTally`); `summarize`

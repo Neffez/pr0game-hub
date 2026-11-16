@@ -168,6 +168,8 @@ packages/parser   @pr0hub/core – page parsers, deck calculation, element data 
 packages/flight   @pr0hub/flight – flight times, recall and fuel like the game's FleetFunctions
 packages/loot     @pr0hub/loot – ACS loot settlement: loot shares, covering losses, profit split, transfers
 packages/battle   @pr0hub/battle – battle simulation on the game's Rust engine (Battlerust as WebAssembly)
+packages/planner  @pr0hub/planner – build orders: pr0plan import, timeline from the hub's state
+packages/api-types @pr0hub/api-types – types of the HTTP API generated from apps/server/openapi.yaml
 apps/server       Fastify + SQLite: auth, ingest, data APIs, battle report crawler; serves the SPA
 apps/web          Vue 3 SPA (base path /hub/)
 apps/tools        static pr0game tools next to the hub: tools index, flight, ACS loot and IPM calculator, battle simulator

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { Schema } from '../apiTypes';
 import BackLink from '../components/BackLink.vue';
 import { onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -194,10 +195,10 @@ function formatTokenTime(sec: number | null) {
 onMounted(async () => {
   try {
     const [fleetShare, messages, online, activity, syncs, prefs, discordSettings, display] = await Promise.all([
-      api('/auth/fleet-share'),
-      api('/auth/message-share'),
-      api('/auth/show-online'),
-      api<{ enabled: boolean }>('/auth/share-activity'),
+      api<Schema<'FleetShare'>>('/auth/fleet-share'),
+      api<Schema<'Enabled'>>('/auth/message-share'),
+      api<Schema<'Enabled'>>('/auth/show-online'),
+      api<Schema<'Enabled'>>('/auth/share-activity'),
       api<{ enabled: boolean }>('/auth/share-syncs'),
       api<PushPrefs>('/auth/push-settings'),
       api<DiscordSettings>('/auth/discord'),

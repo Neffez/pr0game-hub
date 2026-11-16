@@ -28,6 +28,14 @@ Guidance for Claude Code in this repository. See `README.md` for features, setup
   accurate (paths, `operationId`s, security, and schemas for affected operations; descriptions in English). The server
   tests check every 2xx JSON answer against it (`test/contract.ts`): describe new answers with `required` fields and
   `type: [X, 'null']` (OpenAPI 3.1, no `nullable`), and give new endpoints a test that calls them.
+- **API types.** The web app takes the types of API answers from `@pr0hub/api-types` (generated from
+  `openapi.yaml`): `Schema<'Name'>`, `ApiResponse<'/api/…', method>` or a name in `apps/web/src/apiTypes.ts`, never a
+  hand-written shape at `api<…>` / `uniApi<…>`. Two cleanups are still open and go with any work in the files
+  concerned: replace the hand-written answer types of the views and components you touch, and describe the answers
+  in `openapi.yaml` that are still a bare `type: object` (describe one before typing its call in the web; run
+  `pnpm --filter @pr0hub/api-types gen`). Two ratchet tests count what is left and fail when it grows:
+  `MAX_HAND_WRITTEN` in `apps/web/test/api-types-ratchet.test.ts` and `MAX_UNDESCRIBED` in
+  `apps/server/test/specSchemas.test.ts`; lower the number when you reduce it.
 - **A tour for every page and tab.** Each new page (menu item) and each new tab gets tour steps in
   `apps/web/src/tours.ts` with texts `tours.<id>.<key>` in `de.ts` and `en.ts`: a page its own tour, started with
   `useAutoTour`; a tab a `head` step on its button plus steps for its content with `tabs: ['<tab>']`, the open tab
@@ -71,6 +79,10 @@ pnpm build
   steps and the settings check against the hub (`hub.ts`), the timeline from the hub's state (`simulate.ts`, like
   pr0plan's `GameReducer` with storage, synced fleets and production from `@pr0hub/core/production`); used by the
   web app and the server's notifications.
+- `packages/api-types` (`@pr0hub/api-types`): types of the HTTP API generated from `apps/server/openapi.yaml`
+  (`src/openapi.ts`, checked in; `pnpm --filter @pr0hub/api-types gen` after changing the spec, a test fails while
+  it is stale), helpers `Schema<'Name'>` and `ApiResponse<'/api/…', method>`. The web app names its answers in
+  `apiTypes.ts` from them; `api<T>` / `uniApi<T>` default to `unknown`, so a used answer needs its type.
 - `apps/server`: Fastify + SQLite; migrations in `migrations/` (numbered SQL files); every game-data query goes through `groupContext` so data stays within its group (`test/groupScope.test.ts` fails on SQL on a group table without `group_id` or a key); OpenAPI spec in `openapi.yaml`. The battle simulator API (`src/battle.ts`, `src/routes/battle.ts`) runs `battle-worker.mjs` (plain JS next to `src/` and `dist/`) in a worker thread; it is the only POST allowed with read-only tokens (route config `allowToken`).
 - `apps/tools`: static tools (Vite, no framework): `index.html`, `flight-calculator/` (UI in `main.js`, calculation
   in `src/core.ts` on top of `@pr0hub/flight`), `acs-loot/` (glue in `src/loot.ts` on top of `@pr0hub/loot`) and

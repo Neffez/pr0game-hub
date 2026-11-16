@@ -104,7 +104,7 @@ function onUnauthorized(path: string) {
 }
 
 /** `keepalive`: the request outlives the page (sent while the tab closes). */
-export async function api<T = any>(path: string, opts: { method?: string; body?: unknown; uni?: string; keepalive?: boolean } = {}): Promise<T> {
+export async function api<T = unknown>(path: string, opts: { method?: string; body?: unknown; uni?: string; keepalive?: boolean } = {}): Promise<T> {
   const headers: Record<string, string> = {};
   if (opts.body !== undefined) headers['content-type'] = 'application/json';
   if (opts.uni) {
@@ -139,7 +139,7 @@ export async function api<T = any>(path: string, opts: { method?: string; body?:
 }
 
 /** Shorthand for universe scoped endpoints: uniApi('u8', '/overview') -> /api/u8/overview */
-export const uniApi = <T = any>(uni: string, path: string, opts: { method?: string; body?: unknown; keepalive?: boolean } = {}) =>
+export const uniApi = <T = unknown>(uni: string, path: string, opts: { method?: string; body?: unknown; keepalive?: boolean } = {}) =>
   api<T>(`/${uni}${path}`, { ...opts, uni });
 
 export async function loadMe() {
