@@ -3,7 +3,7 @@ import { DEFAULT_UNITS } from '@pr0hub/core/units';
 import { distance, drivesFromResearch, fleetConsumption, flightDuration, slowestShip } from '@pr0hub/flight';
 import { describe, expect, it } from 'vitest';
 import {
-  assignPlanet, assignSynced, detectDone, freePlannedKey, plannedKey, simulate, validateBuildOrder, withPlanned, type BuildOrder, type HubPlanet, type HubState, type Step,
+  ASTRO_MARGIN, assignPlanet, assignSynced, detectDone, freePlannedKey, plannedKey, simulate, validateBuildOrder, withPlanned, type BuildOrder, type HubPlanet, type HubState, type Step,
 } from '../src/index.js';
 
 const HOME = '1:100:8:planet';
@@ -103,11 +103,11 @@ describe('planned planets', () => {
     expect(sim.steps.find((s) => s.id === 'mine')).toMatchObject({ state: 'planned', start: NOW + f.seconds, wait: 'colony' });
   });
 
-  it('wait for astrophysics: the ship leaves so that it arrives a second after the research is done', () => {
+  it('wait for astrophysics: the ship leaves so that it arrives ASTRO_MARGIN seconds after the research is done', () => {
     const hub = hubOf([planet(HOME)], { research: { 117: 3 }, researchQueue: [{ id: 124, level: 1, end: NOW + 20000 }] });
     const f = flight({ 208: 1 }, { 117: 3 }, [1, 120, 4]);
     const sim = run(order([colonize()]), hub);
-    expect(sim.steps.find((s) => s.id === 'col')).toMatchObject({ state: 'planned', start: NOW + 20001 - f.seconds, end: NOW + 20001, wait: 'astro' });
+    expect(sim.steps.find((s) => s.id === 'col')).toMatchObject({ state: 'planned', start: NOW + 20000 + ASTRO_MARGIN - f.seconds, end: NOW + 20000 + ASTRO_MARGIN, wait: 'astro' });
   });
 
   it('never start without astrophysics or a colonization', () => {

@@ -85,7 +85,7 @@ const MAX_EVENTS = 200_000;
 /** batches of the shipyard become units in up to this many parts (satellites change the energy on the way) */
 const SHIP_PARTS = 10;
 /** a colonization lands this many seconds after the astrophysics that allows its planet is done, not in the same second */
-const ASTRO_MARGIN = 10;
+export const ASTRO_MARGIN = 10;
 
 interface Planet {
   key: string;

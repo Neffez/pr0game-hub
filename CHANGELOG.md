@@ -19,6 +19,8 @@ Every commit adds its changes here, newest first, grouped by date.
   ("Rohstoffe davor/danach"). The planner returns them as `before`/`after` in `StepResult` (whole units; a
   transport's cost is its cargo plus fuel; with an overflow `before` is what was really there, without the transport).
 
+- Build order: the planner exports `ASTRO_MARGIN`; its transport test takes the expected arrival from it, so the
+  test no longer fails when the margin is tuned (raised from 1 to 10 seconds).
 - Statistics pasted as plain text rename a player. A line that belongs to a player known by id by its rank and
   points in the snapshot now also gives them its name when they neither have it nor had it at that time
   (`Players.seenAs`): the old name stays as a former name, seen until the last sync with it. Before, the player kept
@@ -34,7 +36,7 @@ Every commit adds its changes here, newest first, grouped by date.
     the one running now), it counts as done and its level is raised, like the units of the shipyard queue. Before,
     the queue was dropped and the level stayed the old one until the next research or empire page. Entries queued
     behind the running research are kept.
-- Build order: a colonization that waits for astrophysics is planned to land one second after the research is done
+- Build order: a colonization that waits for astrophysics is planned to land ten seconds after the research is done
   (`ASTRO_MARGIN` in the planner), not in the same second.
 - Sync: the shipyard and the defense page are read (`page=shipyard`, `mode` fleet or defense; page type and record
   kind `shipyard`). Ships and defense no longer wait for the next empire page.
