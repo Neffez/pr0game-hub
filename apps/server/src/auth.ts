@@ -54,6 +54,8 @@ declare module 'fastify' {
   interface FastifyRequest {
     user: SessionUser | null;
     authSource: AuthSource;
+    /** the Bearer token was created with write access (false for sessions and read-only tokens) */
+    tokenWrite: boolean;
   }
 }
 
@@ -199,7 +201,7 @@ export function loadSessionUser(db: DB, req: FastifyRequest): SessionUser | null
   return row ? sessionUser(row) : null;
 }
 
-function loadBearerUser(db: DB, req: FastifyRequest): SessionUser | null {
+function loadBearerUser(db: DB, req: FastifyRequest): { user: SessionUser; write: boolean } | null {
   const header = req.headers.authorization;
   if (!header?.startsWith('Bearer ')) return null;
   const token = header.slice(7).trim();
@@ -207,10 +209,10 @@ function loadBearerUser(db: DB, req: FastifyRequest): SessionUser | null {
   const hash = sha256(token);
   const row = db
     .prepare(
-      `SELECT u.id, u.username, u.is_admin, u.lang, u.date_format, u.tours, t.id AS token_id FROM api_tokens t JOIN users u ON u.id = t.user_id
+      `SELECT u.id, u.username, u.is_admin, u.lang, u.date_format, u.tours, t.id AS token_id, t.can_write FROM api_tokens t JOIN users u ON u.id = t.user_id
        WHERE t.token_hash = ?`,
     )
-    .get(hash) as (UserRow & { token_id: number }) | undefined;
+    .get(hash) as (UserRow & { token_id: number; can_write: number }) | undefined;
   if (!row) return null;
   const t = now();
   const last = tokenLastUsed.get(hash) ?? 0;
@@ -221,15 +223,15 @@ function loadBearerUser(db: DB, req: FastifyRequest): SessionUser | null {
       for (const [k, v] of tokenLastUsed) if (t - v > 3600) tokenLastUsed.delete(k);
     }
   }
-  return sessionUser(row);
+  return { user: sessionUser(row), write: row.can_write === 1 };
 }
 
 /** Resolves the hub user from a Bearer API token or the session cookie. */
-export function loadRequestUser(db: DB, req: FastifyRequest): { user: SessionUser | null; authSource: AuthSource } {
+export function loadRequestUser(db: DB, req: FastifyRequest): { user: SessionUser | null; authSource: AuthSource; tokenWrite: boolean } {
   const bearer = loadBearerUser(db, req);
-  if (bearer) return { user: bearer, authSource: 'token' };
+  if (bearer) return { user: bearer.user, authSource: 'token', tokenWrite: bearer.write };
   const cookie = loadSessionUser(db, req);
-  return { user: cookie, authSource: cookie ? 'cookie' : null };
+  return { user: cookie, authSource: cookie ? 'cookie' : null, tokenWrite: false };
 }
 
 /** Token management and other browser-only actions need a session cookie, not a Bearer token. */
@@ -239,7 +241,12 @@ export function requireCookieSession(req: FastifyRequest): SessionUser {
   return user;
 }
 
-export function createApiToken(db: DB, userId: number, name: string): { id: number; name: string; prefix: string; token: string; createdAt: number } {
+export function createApiToken(
+  db: DB,
+  userId: number,
+  name: string,
+  write = false,
+): { id: number; name: string; prefix: string; write: boolean; token: string; createdAt: number; lastUsedAt: null } {
   const trimmed = name.trim();
   if (trimmed.length < 1 || trimmed.length > 64) throw new HttpError(400, 'token_name_invalid', 'Token name: 1–64 characters');
   const count = db.prepare('SELECT COUNT(*) FROM api_tokens WHERE user_id = ?').pluck().get(userId) as number;
@@ -248,10 +255,12 @@ export function createApiToken(db: DB, userId: number, name: string): { id: numb
   const prefix = token.slice(0, API_TOKEN_PREFIX.length + 8);
   const createdAt = now();
   const id = Number(
-    db.prepare('INSERT INTO api_tokens (user_id, name, token_hash, prefix, created_at) VALUES (?, ?, ?, ?, ?)').run(userId, trimmed, sha256(token), prefix, createdAt)
+    db
+      .prepare('INSERT INTO api_tokens (user_id, name, token_hash, prefix, can_write, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(userId, trimmed, sha256(token), prefix, write ? 1 : 0, createdAt)
       .lastInsertRowid,
   );
-  return { id, name: trimmed, prefix, token, createdAt };
+  return { id, name: trimmed, prefix, write, token, createdAt, lastUsedAt: null };
 }
 
 /**

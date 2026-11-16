@@ -4,6 +4,12 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-16
 
+- API tokens are read-only or read/write, chosen when a token is created under Account. Only read/write tokens may
+  write the owner's build order (the routes with `tokenWrite`); tokens created before are read-only.
+  - Migration `091_api_token_write.sql` adds `api_tokens.can_write` (default 0); `POST /api/auth/tokens` takes
+    `write` (default false), token lists and the created token answer `write`; the request carries `tokenWrite`.
+  - The Account page replaces its hand-written token types with `ApiTokenMeta` / `ApiTokenCreated`.
+
 - Fix a renamed player showing up twice in the statistics. Statistics pasted as plain text carry no in-game ids, so
   a line with a name the hub had not seen yet (renamed, not synced with its id since) created a second, name-only
   player; once the real player was synced under the new name both stood in the same snapshot with the same rank and

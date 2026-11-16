@@ -71,13 +71,18 @@ export function authRoutes(app: FastifyInstance, db: DB) {
   app.get('/api/auth/tokens', async (req) => {
     const user = requireCookieSession(req);
     return db
-      .prepare('SELECT id, name, prefix, created_at AS createdAt, last_used_at AS lastUsedAt FROM api_tokens WHERE user_id = ? ORDER BY created_at DESC')
-      .all(user.id);
+      .prepare('SELECT id, name, prefix, can_write, created_at AS createdAt, last_used_at AS lastUsedAt FROM api_tokens WHERE user_id = ? ORDER BY created_at DESC')
+      .all(user.id)
+      .map((r) => {
+        const { can_write, ...row } = r as { can_write: number } & Record<string, unknown>;
+        return { ...row, write: can_write === 1 };
+      });
   });
 
-  app.post<{ Body: { name?: string } }>('/api/auth/tokens', async (req) => {
+  app.post<{ Body: { name?: string; write?: boolean } }>('/api/auth/tokens', async (req) => {
     const user = requireCookieSession(req);
-    return createApiToken(db, user.id, String(req.body?.name ?? 'API'));
+    // read-only unless write access is asked for explicitly
+    return createApiToken(db, user.id, String(req.body?.name ?? 'API'), req.body?.write === true);
   });
 
   app.delete<{ Params: { id: string } }>('/api/auth/tokens/:id', async (req) => {

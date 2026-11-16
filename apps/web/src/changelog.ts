@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-16',
     items: [
       {
+        kind: 'new',
+        de: 'API-Tokens: Beim Erstellen wählst du jetzt „Lesen“ oder „Lesen + Schreiben“. Nur Tokens mit Schreibrecht dürfen deine Bauliste ändern; bestehende Tokens sind nur zum Lesen.',
+        en: 'API tokens: when creating one you now choose "Read" or "Read + write". Only tokens with write access may change your build order; existing tokens are read-only.',
+      },
+      {
         kind: 'fix',
         de: 'Statistik: Ein umbenannter Spieler steht nicht mehr doppelt in der Liste, wenn die Statistik als Text eingefügt wurde. Bereits entstandene Doppelte verschwinden mit dem nächsten Statistik-Sync von selbst.',
         en: 'Statistics: a renamed player is no longer listed twice when the statistics were pasted as text. Doubles that already exist disappear by themselves with the next statistics sync.',

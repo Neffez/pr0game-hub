@@ -162,8 +162,18 @@ describe('build order', () => {
   it('lets an API token plan: planned planets, transports with ships, the timeline', async () => {
     const P1 = '0:0:1:planet';
     const COLONY = '1:5:4:planet';
-    const { token } = (await call('POST', '/auth/tokens', h.dave, { name: 'planner' })).json();
-    const bearer = { authorization: `Bearer ${token}`, 'x-hub-group': String(group) };
+    // a read-only token (the default, and every token created before the choice) may not write the build order
+    const readOnly = (await call('POST', '/auth/tokens', h.dave, { name: 'reader' })).json();
+    expect(readOnly.write).toBe(false);
+    const reader = { authorization: `Bearer ${readOnly.token}`, 'x-hub-group': String(group) };
+    expect((await call('PUT', '/u8/build-order', reader, { order: { base: { planets: {}, research: {} }, planets: {} } })).json().code).toBe('read_only_token');
+    expect((await call('DELETE', '/u8/build-order', reader)).json().code).toBe('read_only_token');
+
+    const created = (await call('POST', '/auth/tokens', h.dave, { name: 'planner', write: true })).json();
+    expect(created.write).toBe(true);
+    const listed = (await call('GET', '/auth/tokens', h.dave)).json();
+    expect(listed.map((r: { name: string; write: boolean }) => [r.name, r.write]).sort()).toEqual([['planner', true], ['reader', false]]);
+    const bearer = { authorization: `Bearer ${created.token}`, 'x-hub-group': String(group) };
     db.prepare('INSERT INTO empire_snapshots (group_id, user_id, created_at, data) VALUES (?, ?, ?, ?)').run(
       group, ids.dave, T0 + 60, JSON.stringify({ ...empire, research: { 117: 3, 124: 1 }, planets: [{ ...empire.planets[0], resources: { 901: 9000, 902: 9000, 903: 9000 } }] }),
     );

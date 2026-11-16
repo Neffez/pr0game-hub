@@ -849,7 +849,7 @@ const en: typeof de = {
       discord: { title: 'Discord', text: 'Your notifications also in a Discord channel of your choice, with their own settings. With your Discord user ID the hub mentions you in your alliance\'s channel.' },
       sharing: { title: 'Sharing', text: 'Whether the alliance sees your fleets and your player messages. Single fleets and messages can be shared differently in the empire or under in-game messages.' },
       login: { title: 'Login', text: 'Change username and password.' },
-      tokens: { title: 'API tokens', text: 'Read access to the alliance data you see in the hub, e.g. for your own analyses. A token can write only your own build order.' },
+      tokens: { title: 'API tokens', text: 'Read access to the alliance data you see in the hub, e.g. for your own analyses. When creating one you choose "Read" or "Read + write"; a token can write only your own build order.' },
     },
     changelog: {
       intro: {
@@ -1006,7 +1006,7 @@ const en: typeof de = {
     messageShareEnabled: 'Share my in-game messages with the alliance',
     messageShareHint: 'Off: only you see your synced player messages. On: all members of your alliances in the hub see them. Applies at once, also to messages already synced. You always see the messages of others who share theirs. Single messages can be shared differently on the in-game messages page.',
     apiTokens: 'API tokens',
-    apiTokensHint: 'Read access to the alliance data you see in the web app. A token can write only your own build order (e.g. for scripts or AI assistants that plan for you), nothing else.',
+    apiTokensHint: 'Read access to the alliance data you see in the web app. A token with write access can also change your own build order (e.g. for scripts or AI assistants that plan for you), nothing else. Older tokens are read-only.',
     apiOpenApi: 'OpenAPI description (JSON)',
     apiTokenName: 'Name',
     apiTokenDefaultName: 'Analysis',
@@ -1024,6 +1024,10 @@ const en: typeof de = {
     apiTokenCreatedAt: 'Created',
     apiTokenLastUsed: 'Last used',
     apiTokenNone: 'No tokens yet.',
+    apiTokenAccess: 'Access',
+    apiTokenRead: 'Read',
+    apiTokenReadWrite: 'Read + write',
+    apiTokenWriteHint: 'Write access only allows changes to your own build order.',
     apiCurlHint:
       'Example:\ncurl -H "Authorization: Bearer YOUR_TOKEN" -H "X-Hub-Group: {group}" "{url}/u8/overview"',
   },
@@ -3143,7 +3147,7 @@ const en: typeof de = {
     owner_protected: 'The hub owner cannot be removed or demoted',
     manual_event_not_found: 'Manual event not found',
     cross_origin: 'Request from another site refused',
-    read_only_token: 'API tokens are read-only',
+    read_only_token: 'This API token may not write here',
     session_required: 'Use the web app to manage account settings',
     token_name_invalid: 'Token name: 1–64 characters',
     token_limit: 'At most 10 API tokens per account',

@@ -1183,14 +1183,14 @@ export type paths = {
         };
         /** @description The caller's build order in the group (imported from pr0plan, shown under build & research), null when none. Steps the synced pages show as done are returned checked off; this read writes nothing (they are stored as done when a page is pasted). The next step of each planet notifies (`buildorder`, see `/api/{uni}/notifications`) once it can start. */
         get: operations["getBuildOrder"];
-        /** @description Imports a build order, replacing the caller's one in the group (also used to start one by hand, `meta.source` `hub`). The client maps the file's planets onto hub planets and sets the base. Planets without coordinates yet (before the start, or a colony still to come) use the planned key `0:0:<n>:planet` (n: pr0plan planet id, or any free number) and are later moved with `/api/{uni}/build-order/assign`, or by themselves when `planned` names their coordinates. Allowed with an API token. A step is "+1 level": its level is the base (`base.planets[key][element]`, `base.research[element]`) plus the steps of the same element before it, so set the base to the current levels (see `/api/{uni}/buildings`). Check the result with `/api/{uni}/build-order/timeline`. */
+        /** @description Imports a build order, replacing the caller's one in the group (also used to start one by hand, `meta.source` `hub`). The client maps the file's planets onto hub planets and sets the base. Planets without coordinates yet (before the start, or a colony still to come) use the planned key `0:0:<n>:planet` (n: pr0plan planet id, or any free number) and are later moved with `/api/{uni}/build-order/assign`, or by themselves when `planned` names their coordinates. Allowed with a read/write API token. A step is "+1 level": its level is the base (`base.planets[key][element]`, `base.research[element]`) plus the steps of the same element before it, so set the base to the current levels (see `/api/{uni}/buildings`). Check the result with `/api/{uni}/build-order/timeline`. */
         put: operations["putBuildOrder"];
         post?: never;
-        /** @description Deletes the caller's build order in the group. Allowed with an API token. */
+        /** @description Deletes the caller's build order in the group. Allowed with a read/write API token. */
         delete: operations["deleteBuildOrder"];
         options?: never;
         head?: never;
-        /** @description Replaces the steps of all planets (new order, done and deactivated flags, removed or added steps, planets added or left out). The base is replaced only when `base` is sent (the client sets the start levels of elements added by hand), the planned planets' details only when `planned` is sent (those of planets left out are dropped); meta stays. Allowed with an API token. */
+        /** @description Replaces the steps of all planets (new order, done and deactivated flags, removed or added steps, planets added or left out). The base is replaced only when `base` is sent (the client sets the start levels of elements added by hand), the planned planets' details only when `planned` is sent (those of planets left out are dropped); meta stays. Allowed with a read/write API token. */
         patch: operations["patchBuildOrder"];
         trace?: never;
     };
@@ -1220,7 +1220,7 @@ export type paths = {
         };
         get?: never;
         put?: never;
-        /** @description Assigns a planned planet of the caller's build order (key `0:0:<n>:planet`) to a planet: its steps and base and the transports to it move to `to` (a colonization to it is checked off); the import's planet mapping in `meta` follows. A planned planet with coordinates is assigned by itself when a page with a planet at them is pasted. Allowed with an API token. */
+        /** @description Assigns a planned planet of the caller's build order (key `0:0:<n>:planet`) to a planet: its steps and base and the transports to it move to `to` (a colonization to it is checked off); the import's planet mapping in `meta` follows. A planned planet with coordinates is assigned by itself when a page with a planet at them is pasted. Allowed with a read/write API token. */
         post: operations["assignBuildOrderPlanet"];
         delete?: never;
         options?: never;
@@ -1593,7 +1593,7 @@ export type paths = {
         };
         get?: never;
         put?: never;
-        /** @description Applies stored overview pastes to the group's raid plans: fleets that joined a running ACS, a moved arrival, recalled fleets withdrawn, hold and retime times following the impact, and fleets seen in flight marked launched. GET /plans is a pure read; the raid planner calls this when it opens so the list is current without a new paste. Session cookie only (API tokens are read-only). */
+        /** @description Applies stored overview pastes to the group's raid plans: fleets that joined a running ACS, a moved arrival, recalled fleets withdrawn, hold and retime times following the impact, and fleets seen in flight marked launched. GET /plans is a pure read; the raid planner calls this when it opens so the list is current without a new paste. Session cookie only (API tokens cannot write it). */
         post: operations["syncPlans"];
         delete?: never;
         options?: never;
@@ -3859,12 +3859,14 @@ export type components = {
             defaultUniverse?: string | null;
         };
         ApiTokenMeta: {
-            id?: number;
-            name?: string;
-            prefix?: string;
+            id: number;
+            name: string;
+            prefix: string;
+            /** @description Write access (the owner's build order); false: read-only */
+            write: boolean;
             /** @description Unix seconds */
-            createdAt?: number;
-            lastUsedAt?: number | null;
+            createdAt: number;
+            lastUsedAt: number | null;
         };
         ApiTokenCreated: components["schemas"]["ApiTokenMeta"] & {
             /** @description Shown once; store securely */
@@ -6488,6 +6490,11 @@ export interface operations {
             content: {
                 "application/json": {
                     name?: string;
+                    /**
+                     * @description Write access (the owner's build order); read-only when left out
+                     * @default false
+                     */
+                    write?: boolean;
                 };
             };
         };

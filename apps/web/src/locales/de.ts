@@ -850,7 +850,7 @@ const de = {
       discord: { title: 'Discord', text: 'Deine Benachrichtigungen zusätzlich in einem Discord-Kanal deiner Wahl, mit eigenen Einstellungen. Mit deiner Discord-User-ID erwähnt dich der Hub im Kanal deiner Allianz.' },
       sharing: { title: 'Freigaben', text: 'Ob die Allianz deine Flotten und deine Spielernachrichten sieht. Einzelne Flotten und Nachrichten gibst du im Imperium bzw. unter Ingame-Nachrichten abweichend frei.' },
       login: { title: 'Anmeldung', text: 'Benutzernamen und Passwort ändern.' },
-      tokens: { title: 'API-Token', text: 'Lesezugriff auf die Allianz-Daten, die du im Hub siehst, z. B. für eigene Auswertungen. Schreiben kann ein Token nur deine eigene Bauliste.' },
+      tokens: { title: 'API-Token', text: 'Lesezugriff auf die Allianz-Daten, die du im Hub siehst, z. B. für eigene Auswertungen. Beim Erstellen wählst du „Lesen“ oder „Lesen + Schreiben“; schreiben kann ein Token nur deine eigene Bauliste.' },
     },
     changelog: {
       intro: {
@@ -1007,7 +1007,7 @@ const de = {
     messageShareEnabled: 'Meine Ingame-Nachrichten mit der Allianz teilen',
     messageShareHint: 'Aus: Deine synchronisierten Spielernachrichten siehst nur du. An: Alle Mitglieder deiner Allianzen im Hub sehen sie. Gilt sofort, auch für bereits synchronisierte Nachrichten. Nachrichten anderer, die teilen, siehst du immer. Einzelne Nachrichten kannst du unter Ingame-Nachrichten abweichend freigeben.',
     apiTokens: 'API-Tokens',
-    apiTokensHint: 'Lesezugriff auf die Allianz-Daten, die du in der Oberfläche siehst. Schreiben kann ein Token nur deine eigene Bauliste (z. B. für Skripte oder KI-Assistenten, die für dich planen), sonst nichts.',
+    apiTokensHint: 'Lesezugriff auf die Allianz-Daten, die du in der Oberfläche siehst. Ein Token mit Schreibrecht kann zusätzlich deine eigene Bauliste ändern (z. B. für Skripte oder KI-Assistenten, die für dich planen), sonst nichts. Ältere Tokens sind nur zum Lesen.',
     apiOpenApi: 'OpenAPI-Beschreibung (JSON)',
     apiTokenName: 'Name',
     apiTokenDefaultName: 'Auswertung',
@@ -1025,6 +1025,10 @@ const de = {
     apiTokenCreatedAt: 'Erstellt',
     apiTokenLastUsed: 'Zuletzt genutzt',
     apiTokenNone: 'Noch keine Tokens.',
+    apiTokenAccess: 'Rechte',
+    apiTokenRead: 'Lesen',
+    apiTokenReadWrite: 'Lesen + Schreiben',
+    apiTokenWriteHint: 'Schreiben erlaubt nur Änderungen an deiner eigenen Bauliste.',
     apiCurlHint:
       'Beispiel:\ncurl -H "Authorization: Bearer DEIN_TOKEN" -H "X-Hub-Group: {group}" "{url}/u8/overview"',
   },
@@ -3146,7 +3150,7 @@ const de = {
     owner_protected: 'Der Hub-Inhaber kann nicht entfernt oder herabgestuft werden',
     manual_event_not_found: 'Manuelles Ereignis nicht gefunden',
     cross_origin: 'Anfrage von einer fremden Seite abgelehnt',
-    read_only_token: 'API-Tokens sind nur zum Lesen',
+    read_only_token: 'Dieser API-Token darf hier nicht schreiben',
     session_required: 'Kontoeinstellungen nur in der Web-App',
     token_name_invalid: 'Token-Name: 1–64 Zeichen',
     token_limit: 'Maximal 10 API-Tokens pro Konto',

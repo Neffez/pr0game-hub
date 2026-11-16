@@ -47,8 +47,9 @@ describe('api tokens', () => {
       payload: { name: 'test' },
     });
     expect(create.statusCode).toBe(200);
-    const { token, id } = create.json();
+    const { token, id, write: canWrite } = create.json();
     expect(token).toMatch(/^hubpat_/);
+    expect(canWrite).toBe(false);
 
     const bearer = { authorization: `Bearer ${token}` };
     const me = await app.inject({ method: 'GET', url: '/hub/api/auth/me', headers: bearer });
@@ -100,7 +101,7 @@ describe('api tokens', () => {
     const list = await app.inject({ method: 'GET', url: '/hub/api/auth/tokens', headers: admin });
     expect(list.statusCode).toBe(200);
     const rows = list.json();
-    expect(rows.some((r: { name: string; token?: string }) => r.name === 'listed' && r.token === undefined)).toBe(true);
+    expect(rows.some((r: { name: string; token?: string; write: boolean }) => r.name === 'listed' && r.token === undefined && r.write === false)).toBe(true);
     await app.inject({ method: 'DELETE', url: `/hub/api/auth/tokens/${created.json().id}`, headers: admin });
   });
 

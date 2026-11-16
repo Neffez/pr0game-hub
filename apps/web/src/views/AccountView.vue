@@ -143,28 +143,26 @@ const sendTestDiscord = () => run(() => api('/auth/discord/test', { method: 'POS
 const apiBase = import.meta.env.BASE_URL.replace(/\/$/, '') + '/api';
 const openapiUrl = `${apiBase}/openapi.json`;
 const apiOrigin = typeof window !== 'undefined' ? window.location.origin : '';
-interface ApiTokenRow {
-  id: number;
-  name: string;
-  prefix: string;
-  createdAt: number;
-  lastUsedAt: number | null;
-}
 /** JSON export of one alliance (group) of the user: the link names the group, so it does not depend on the selected one. */
 const groupExportUrl = (g: { id: number; universe: string }) => `${import.meta.env.BASE_URL}api/${g.universe}/export?group=${g.id}`;
-const apiTokens = ref<ApiTokenRow[]>([]);
+const apiTokens = ref<Schema<'ApiTokenMeta'>[]>([]);
 const newTokenName = ref('');
+/** new tokens are read-only unless write access (the own build order) is ticked */
+const newTokenWrite = ref(false);
 const revealedToken = ref<string | null>(null);
 
 async function loadApiTokens() {
-  apiTokens.value = await api<ApiTokenRow[]>('/auth/tokens');
+  apiTokens.value = await api<Schema<'ApiTokenMeta'>[]>('/auth/tokens');
 }
 
 async function createApiToken() {
   await run(async () => {
-    const created = await api<{ token: string }>('/auth/tokens', { body: { name: newTokenName.value || t('account.apiTokenDefaultName') } });
+    const created = await api<Schema<'ApiTokenCreated'>>('/auth/tokens', {
+      body: { name: newTokenName.value || t('account.apiTokenDefaultName'), write: newTokenWrite.value },
+    });
     revealedToken.value = created.token;
     newTokenName.value = '';
+    newTokenWrite.value = false;
     await loadApiTokens();
   }, () => t('account.apiTokenCreatedMsg'));
 }
@@ -447,6 +445,12 @@ useAutoTour('account', loaded);
         </div>
         <form class="stack token-create" @submit.prevent="createApiToken">
           <label>{{ t('account.apiTokenName') }} <input v-model="newTokenName" maxlength="64" :placeholder="t('account.apiTokenDefaultName')" /></label>
+          <fieldset class="token-access">
+            <legend>{{ t('account.apiTokenAccess') }}</legend>
+            <label class="check"><input v-model="newTokenWrite" type="radio" :value="false" /> {{ t('account.apiTokenRead') }}</label>
+            <label class="check"><input v-model="newTokenWrite" type="radio" :value="true" /> {{ t('account.apiTokenReadWrite') }}</label>
+            <span class="muted small">{{ t('account.apiTokenWriteHint') }}</span>
+          </fieldset>
           <button class="primary">{{ t('account.apiTokenCreate') }}</button>
         </form>
         <div v-if="apiTokens.length" class="table-wrap flat token-wrap">
@@ -455,6 +459,7 @@ useAutoTour('account', loaded);
               <tr>
                 <th>{{ t('account.apiTokenName') }}</th>
                 <th>{{ t('account.apiTokenPrefix') }}</th>
+                <th>{{ t('account.apiTokenAccess') }}</th>
                 <th>{{ t('account.apiTokenCreatedAt') }}</th>
                 <th>{{ t('account.apiTokenLastUsed') }}</th>
                 <th></th>
@@ -464,6 +469,7 @@ useAutoTour('account', loaded);
               <tr v-for="tok in apiTokens" :key="tok.id">
                 <td>{{ tok.name }}</td>
                 <td><code>{{ tok.prefix }}…</code></td>
+                <td>{{ tok.write ? t('account.apiTokenReadWrite') : t('account.apiTokenRead') }}</td>
                 <td>{{ formatTokenTime(tok.createdAt) }}</td>
                 <td>{{ formatTokenTime(tok.lastUsedAt) }}</td>
                 <td><button type="button" class="danger" @click="revokeApiToken(tok.id, tok.name)">{{ t('account.apiTokenRevoke') }}</button></td>
@@ -508,6 +514,10 @@ useAutoTour('account', loaded);
 .token-value { display: block; word-break: break-all; margin: 8px 0; font-family: var(--mono); }
 .token-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .token-wrap { margin-top: 12px; }
+.token-access { display: flex; flex-direction: column; gap: 4px; border: 0; margin: 0; padding: 0; }
+.token-access legend { padding: 0; margin-bottom: 4px; }
+.stack .token-access label { flex-direction: row; width: auto; }
+.stack .token-access input { width: auto; }
 .curl-hint {
   margin-top: 14px;
   padding: 10px;

@@ -50,7 +50,7 @@ declare module 'fastify' {
     allowEnded?: boolean;
     /** writes only the member's own planning (build order): also allowed before the start, not after the end */
     allowBeforeStart?: boolean;
-    /** writes only the member's own planning (build order): API tokens may call it; the universe's start and end count as with a session */
+    /** writes only the member's own planning (build order): API tokens with write access may call it; the universe's start and end count as with a session */
     tokenWrite?: boolean;
   }
   interface FastifyInstance {
@@ -127,6 +127,7 @@ export function buildApp(db: DB, opts: { logger?: boolean; push?: PushOptions; d
   });
   app.decorateRequest('user', null);
   app.decorateRequest('authSource', null);
+  app.decorateRequest('tokenWrite', false);
 
   app.setErrorHandler((err, req, reply) => {
     if (err instanceof HttpError) return reply.code(err.statusCode).send({ error: err.message, code: err.code });
@@ -143,14 +144,18 @@ export function buildApp(db: DB, opts: { logger?: boolean; push?: PushOptions; d
         const auth = loadRequestUser(db, req);
         req.user = auth.user;
         req.authSource = auth.authSource;
+        req.tokenWrite = auth.tokenWrite;
       });
       scope.addHook('preHandler', async (req) => {
         const m = req.method;
         if (m === 'GET' || m === 'HEAD' || m === 'OPTIONS') return;
         if (crossOrigin(req)) throw new HttpError(403, 'cross_origin', 'Cross-origin requests are not allowed');
-        // routes that write nothing (the battle simulator) may be called with a read-only token
+        // routes that write nothing (the battle simulator) may be called with a read-only token, the member's own
+        // planning (`tokenWrite`) with a token created with write access
         const allowToken = req.routeOptions.config?.allowToken;
-        if (req.authSource === 'token' && !allowToken && !req.routeOptions.config?.tokenWrite) throw new HttpError(403, 'read_only_token', 'API tokens are read-only');
+        if (req.authSource === 'token' && !allowToken && !(req.routeOptions.config?.tokenWrite && req.tokenWrite)) {
+          throw new HttpError(403, 'read_only_token', 'This API token is read-only');
+        }
         // a universe before its start or after its end is read-only: only routes that write no game data
         // (`allowToken`, `allowEnded`) go on
         const uni = (req.params as { uni?: unknown } | undefined)?.uni;

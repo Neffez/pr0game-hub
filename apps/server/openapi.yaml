@@ -5,10 +5,12 @@ info:
   description: |
     JSON API for alliance data synced into the hub. Personal access tokens (`hubpat_…`) use the same
     endpoints as the web app for GET requests. Create tokens under **Account** in the hub (session cookie required).
-    Tokens read everything their owner sees and write one thing: the owner's own build order
-    (`PUT`, `PATCH`, `DELETE /api/{uni}/build-order` and `POST /api/{uni}/build-order/assign`), so scripts and
-    assistants can plan for them. Every other write answers 403 (`read_only_token`). The battle simulator
-    (`POST /api/{uni}/battle/simulate`) writes nothing and is allowed too.
+    Tokens read everything their owner sees. A token is read-only or read/write, chosen when it is created
+    (tokens created before the choice existed are read-only). A read/write token writes one thing: the owner's own
+    build order (`PUT`, `PATCH`, `DELETE /api/{uni}/build-order` and `POST /api/{uni}/build-order/assign`), so
+    scripts and assistants can plan for them. Every other write, and these with a read-only token, answers 403
+    (`read_only_token`). The battle simulator (`POST /api/{uni}/battle/simulate`) writes nothing and is allowed with
+    any token.
 
     **Browser writes:** Requests other than GET/HEAD/OPTIONS that carry an `Origin` header from another origin than
     the hub's are refused with 403 (`cross_origin`).
@@ -45,7 +47,7 @@ components:
     bearerAuth:
       type: http
       scheme: bearer
-      description: Personal token from Account → API tokens (reads; writes only the owner's build order)
+      description: Personal token from Account → API tokens (reads; a read/write token also writes the owner's build order)
     sessionCookie:
       type: apiKey
       in: cookie
@@ -1141,10 +1143,12 @@ components:
         defaultUniverse: { type: [string, 'null'], description: Slug of the universe the start page forwards to (set by a hub admin); null when none is set }
     ApiTokenMeta:
       type: object
+      required: [id, name, prefix, write, createdAt, lastUsedAt]
       properties:
         id: { type: integer }
         name: { type: string }
         prefix: { type: string }
+        write: { type: boolean, description: 'Write access (the owner''s build order); false: read-only' }
         createdAt: { type: integer, description: Unix seconds }
         lastUsedAt: { type: [integer, 'null'] }
     ApiTokenCreated:
@@ -3337,6 +3341,7 @@ paths:
               type: object
               properties:
                 name: { type: string, minLength: 1, maxLength: 64 }
+                write: { type: boolean, default: false, description: 'Write access (the owner''s build order); read-only when left out' }
       responses:
         '200':
           description: Token created (secret shown once)
@@ -4597,8 +4602,8 @@ paths:
         Imports a build order, replacing the caller's one in the group (also used to start one by hand, `meta.source`
         `hub`). The client maps the file's planets onto hub planets and sets the base. Planets without coordinates yet (before the start, or a colony still to come) use the
         planned key `0:0:<n>:planet` (n: pr0plan planet id, or any free number) and are later moved with
-        `/api/{uni}/build-order/assign`, or by themselves when `planned` names their coordinates. Allowed with an API
-        token. A step is "+1 level": its level is the base (`base.planets[key][element]`, `base.research[element]`)
+        `/api/{uni}/build-order/assign`, or by themselves when `planned` names their coordinates. Allowed with a
+        read/write API token. A step is "+1 level": its level is the base (`base.planets[key][element]`, `base.research[element]`)
         plus the steps of the same element before it, so set the base to the current levels (see `/api/{uni}/buildings`).
         Check the result with `/api/{uni}/build-order/timeline`.
       parameters:
@@ -4631,7 +4636,7 @@ paths:
         Replaces the steps of all planets (new order, done and deactivated flags, removed or added steps, planets
         added or left out). The base is replaced only when `base` is sent (the client sets the start levels of
         elements added by hand), the planned planets' details only when `planned` is sent (those of planets left out
-        are dropped); meta stays. Allowed with an API token.
+        are dropped); meta stays. Allowed with a read/write API token.
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
@@ -4665,7 +4670,7 @@ paths:
     delete:
       tags: [Universe]
       operationId: deleteBuildOrder
-      description: Deletes the caller's build order in the group. Allowed with an API token.
+      description: Deletes the caller's build order in the group. Allowed with a read/write API token.
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
@@ -4710,7 +4715,7 @@ paths:
         Assigns a planned planet of the caller's build order (key `0:0:<n>:planet`) to a planet: its steps and base and
         the transports to it move to `to` (a colonization to it is checked off); the import's planet mapping in `meta`
         follows. A planned planet with coordinates is assigned by itself when a page with a planet at them is pasted.
-        Allowed with an API token.
+        Allowed with a read/write API token.
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
@@ -5395,7 +5400,7 @@ paths:
         Applies stored overview pastes to the group's raid plans: fleets that joined a running ACS, a moved arrival,
         recalled fleets withdrawn, hold and retime times following the impact, and fleets seen in flight marked
         launched. GET /plans is a pure read; the raid planner calls this when it opens so the list is current without
-        a new paste. Session cookie only (API tokens are read-only).
+        a new paste. Session cookie only (API tokens cannot write it).
       security: [{ sessionCookie: [] }]
       parameters:
         - { $ref: '#/components/parameters/Uni' }
