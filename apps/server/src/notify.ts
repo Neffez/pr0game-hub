@@ -18,7 +18,7 @@ export const TICK_MS = 30_000;
 /** Ticks look at plans landing within this time. */
 export const TICK_AHEAD = 48 * 3600;
 /** Data events that may bring a notification (spy reports: a hostile phalanx in reach). */
-const TABLES = ['spy_reports', 'fleets', 'attack_plans', 'comments', 'group_members', 'empire', 'overview', 'buildings', 'research', 'building_alerts', 'fleet_alerts', 'build_orders'];
+const TABLES = ['spy_reports', 'fleets', 'attack_plans', 'comments', 'group_members', 'empire', 'overview', 'buildings', 'research', 'shipyard', 'building_alerts', 'fleet_alerts', 'build_orders'];
 
 /** Building and fleet alerts of a group are looked at again at least this often by the ticks (data events deliver anyway). */
 export const ALERT_RECHECK = 15 * 60;

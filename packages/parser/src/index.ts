@@ -1,5 +1,6 @@
 import * as cheerio from 'cheerio';
 import { isBuildingsHtml, isResearchHtml, parseBuildingsHtml, parseResearchHtml } from './parsers/buildings.js';
+import { isShipyardHtml, parseShipyardHtml } from './parsers/shipyard.js';
 import { isEmpireHtml, isEmpireText, parseEmpireHtml, parseEmpireText } from './parsers/empire.js';
 import { isGalaxyHtml, isGalaxyText, parseGalaxyHtml, parseGalaxyText, parseSystem } from './parsers/galaxy.js';
 import { looksLikeUniverseJson, parseUniverseJson } from './parsers/universeJson.js';
@@ -28,6 +29,7 @@ export { looksLikeUniverseJson, UNIVERSE_JSON_STATUS } from './parsers/universeJ
 export { isPhalanxText, parseFleetsText, phalanxPosition } from './parsers/fleets.js';
 export { estimateMarketRate } from './parsers/marketplace.js';
 export { parseUnitPage, type ParsedUnit, type UnitPage, type UnitPageKind } from './parsers/units.js';
+export { parseShipyardPage } from './parsers/shipyard.js';
 
 export interface ParseInput {
   /** text/html from the clipboard, a saved page or the page source */
@@ -131,6 +133,10 @@ function parseHtml($: cheerio.CheerioAPI, htmlText: string, input: ParseInput, w
   if (page === 'buildings' || isBuildingsHtml($)) {
     const r = parseBuildingsHtml($);
     if (r) return { pageType: 'buildings', records: [r] };
+  }
+  if (page === 'shipyard' || isShipyardHtml($)) {
+    const r = parseShipyardHtml($);
+    if (r) return { pageType: 'shipyard', records: [r] };
   }
   // The ranking form (who/type selects) only exists on the statistics page; alliance rankings have no player links.
   const statsForm = $('select#who').length > 0 && $('select#type').length > 0;

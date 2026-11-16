@@ -95,11 +95,11 @@ describe('planned planets', () => {
     expect(sim.steps.find((s) => s.id === 'mine')).toMatchObject({ state: 'planned', start: NOW + f.seconds, wait: 'colony' });
   });
 
-  it('wait for astrophysics: the ship leaves so that it arrives when the research is done', () => {
+  it('wait for astrophysics: the ship leaves so that it arrives a second after the research is done', () => {
     const hub = hubOf([planet(HOME)], { research: { 117: 3 }, researchQueue: [{ id: 124, level: 1, end: NOW + 20000 }] });
     const f = flight({ 208: 1 }, { 117: 3 }, [1, 120, 4]);
     const sim = run(order([colonize()]), hub);
-    expect(sim.steps.find((s) => s.id === 'col')).toMatchObject({ state: 'planned', start: NOW + 20000 - f.seconds, end: NOW + 20000, wait: 'astro' });
+    expect(sim.steps.find((s) => s.id === 'col')).toMatchObject({ state: 'planned', start: NOW + 20001 - f.seconds, end: NOW + 20001, wait: 'astro' });
   });
 
   it('never start without astrophysics or a colonization', () => {
@@ -164,5 +164,22 @@ describe('validation', () => {
     expect(valid(base, { [HOME]: {} })).toHaveProperty('error');
     expect(valid(base, { [plannedKey(2)]: {} })).toHaveProperty('error');
     expect(valid(base, { [PLANNED]: { coords: { g: 0, s: 1, p: 1 } } })).toHaveProperty('error');
+  });
+});
+
+describe('steps that stay done', () => {
+  it('returns built units and finished research, so a ship that flew away is not built again', () => {
+    const order: BuildOrder = {
+      base: { planets: {}, research: {} },
+      planets: { [HOME]: [{ id: 'ship', kind: 'ship', element: 208, count: 1 }, { id: 'astro', kind: 'research', element: 124 }, { id: 'mine', kind: 'building', element: 1 }] },
+    };
+    // built and researched: both are returned, the building (it can be torn down) is not
+    expect(detectDone(order, hubOf([planet(HOME, { 208: 1, 1: 1 })], { research: { 124: 1 } }), [], NOW)).toEqual(['ship', 'astro']);
+    // only in the queue: not yet
+    expect(detectDone(order, hubOf([planet(HOME)], { researchQueue: [{ id: 124, level: 1, end: NOW + 5 }] }), [], NOW)).toEqual([]);
+    // checked off: the ship is gone with the colonization, the step stays done in the timeline
+    const kept: BuildOrder = { ...order, planets: { [HOME]: order.planets[HOME].map((s) => (s.id === 'mine' ? s : { ...s, done: true })) } };
+    const sim = run(kept, hubOf([planet(HOME)]));
+    expect(sim.steps.map((s) => s.state)).toEqual(['done', 'done', 'planned']);
   });
 });

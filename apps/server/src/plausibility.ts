@@ -55,6 +55,7 @@ export function foreignRecords(db: DB, target: PlausibilityTarget, records: HubR
         break;
       case 'buildings':
       case 'research':
+      case 'shipyard':
         ctx.own(r.coords);
         break;
       case 'fleets':

@@ -106,6 +106,8 @@ export interface OwnFleet {
   arrival: number;
 }
 
+/** Step kinds that stay checked off once the hub saw them done, whatever its levels say later. */
+const KEPT_DONE: Step['kind'][] = ['ship', 'defense', 'research'];
 /** game mission id of a colonization */
 const MISSION_COLONIZE = 7;
 /** Transports must bring at least this share of each resource of the step. */
@@ -116,7 +118,8 @@ const FACTOR_TOLERANCE = 0.05;
 /**
  * Production and transport steps the synced pages show as done: the empire page's production setting of the mines
  * equals the step's, an own transport or deployment from the planet to the step's target with (about) its resources
- * arrived or is on its way, after `since` (the import). Only steps whose earlier steps on the planet are all done,
+ * arrived or is on its way, after `since` (the import). Ship, defense and research steps the hub's levels reach are
+ * returned too, so they stay done. Only steps whose earlier steps on the planet are all done,
  * queued or skipped count, in list order; each fleet counts once. Returns the ids to check off.
  */
 export function detectDone(order: BuildOrder, hub: HubState, fleets: OwnFleet[], since: number): string[] {
@@ -127,7 +130,11 @@ export function detectDone(order: BuildOrder, hub: HubState, fleets: OwnFleet[],
     const planet = hub.planets.find((p) => p.key === key);
     if (!planet) continue;
     for (const s of steps) {
-      if (s.deactivated || doneStateOf(s, targets.get(s.id), key, hub) !== 'open') continue;
+      const state = doneStateOf(s, targets.get(s.id), key, hub);
+      // built units and finished research are kept: ships that fly away (the colony ship of a colonization) lower
+      // the count again, and a hub that falls behind on the research level would offer the step a second time
+      if (!s.deactivated && !s.done && state === 'done' && KEPT_DONE.includes(s.kind)) out.push(s.id);
+      if (s.deactivated || state !== 'open') continue;
       if (s.kind === 'prod') {
         const f = planet.factors;
         const match = !!f && Object.entries(s.prod!.factors).every(([id, v]) => !['1', '2', '3'].includes(id) || Math.abs((f[id] ?? 1) - v) <= FACTOR_TOLERANCE);

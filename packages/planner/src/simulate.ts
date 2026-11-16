@@ -81,6 +81,8 @@ const RES = [901, 902, 903] as const;
 const MAX_EVENTS = 200_000;
 /** batches of the shipyard become units in up to this many parts (satellites change the energy on the way) */
 const SHIP_PARTS = 10;
+/** a colonization lands this many seconds after the astrophysics that allows its planet is done, not in the same second */
+const ASTRO_MARGIN = 1;
 
 interface Planet {
   key: string;
@@ -417,7 +419,7 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
           const allowed = limit(astroAt(t + f.flight));
           if (allowed != null && count >= allowed) {
             const q = researchQueue.find((x) => x.id === ASTROPHYSICS && (limit(x.level) ?? 0) > count);
-            return q ? { ok: false, wait: 'astro', readyAt: Math.max(t + 1, q.end - f.flight) } : { ok: false, wait: 'astro' };
+            return q ? { ok: false, wait: 'astro', readyAt: Math.max(t + 1, q.end + ASTRO_MARGIN - f.flight) } : { ok: false, wait: 'astro' };
           }
         }
         break;

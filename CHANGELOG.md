@@ -4,6 +4,31 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-16
 
+- Build order: steps no longer open a second time when the hub's levels fall back.
+  - Ship, defense and research steps the hub saw done stay checked off (`detectDone` returns them, stored after a
+    paste like production and transport steps): a colony ship that left with its colonization lowered the count and
+    the step was offered again.
+  - Research: when a newer overview no longer shows a research that an older page had running (or queued ahead of
+    the one running now), it counts as done and its level is raised, like the units of the shipyard queue. Before,
+    the queue was dropped and the level stayed the old one until the next research or empire page. Entries queued
+    behind the running research are kept.
+- Build order: a colonization that waits for astrophysics is planned to land one second after the research is done
+  (`ASTRO_MARGIN` in the planner), not in the same second.
+- Sync: the shipyard and the defense page are read (`page=shipyard`, `mode` fleet or defense; page type and record
+  kind `shipyard`). Ships and defense no longer wait for the next empire page.
+  - `parseShipyardHtml` / `parseShipyardPage` (`@pr0hub/core`): the selected planet, the unit counts of the list
+    (every unit shown, 0 included), the resource bar and the planet's shipyard queue. The queue is only in the page
+    script (`data = {"Queue": …}`); a page saved from a running tab already shows raised counts, so its queue is the
+    cancel list the script keeps (the same moment). A copy without scripts has `queue: null`. Read from HTML only:
+    a text copy stays `unsupported_page`.
+  - Migration `092_shipyard_snapshots.sql`: the newest page per planet and list. Not stored when synced for another
+    member, like the other build pages.
+  - `buildingsState` (`GET /api/{uni}/buildings`): shipyard pages newer than the empire page set the counts of their
+    list and the planet's queue; units of the other list that left the queue count as built; the resource bar when
+    it is the newest page (`source` `shipyard`). An overview without a shipyard queue clears the queue only when it is
+    newer than the page the queue is from. New `unitsTime` per planet (`fleet`, `defense`): when those counts were
+    synced.
+  - Build order, alerts and the build view are caught up after a shipyard page (data event table `shipyard`).
 - API tokens are read-only or read/write, chosen when a token is created under Account. Only read/write tokens may
   write the owner's build order (the routes with `tokenWrite`); tokens created before are read-only.
   - Migration `091_api_token_write.sql` adds `api_tokens.can_write` (default 0); `POST /api/auth/tokens` takes

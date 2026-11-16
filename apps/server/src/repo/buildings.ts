@@ -1,4 +1,4 @@
-import type { BuildingsRecord, EmpireRecord, OverviewRecord, ResearchRecord } from '@pr0hub/core';
+import type { BuildingsRecord, EmpireRecord, OverviewRecord, ResearchRecord, ShipyardRecord } from '@pr0hub/core';
 import {
   buildingsOf, capacityOf, catchUpBonus, catchUpFromCosts, deriveBuildingSpeed, deriveResearchSpeed, labLevels, levelAfter, LOCKED_BY, NANITE_FACTORY,
   RESEARCH_LAB, RESEARCH_NETWORK, researchOf, resourceAt, resourceReadyAt, ROBOT_FACTORY, shipsOf, TECHNO_DOME, type Arrival, type BuildingInfo, type BuildPlanet,
@@ -17,8 +17,8 @@ import { CATCH_UP_WEIGHTS, catchUpLeader, latestScores } from './stats.js';
 /**
  * The member's planets and moons as the build & research page needs them: the newest empire page, a buildings or
  * research page of the planet when it is newer (they also show the exact costs and times), the build queue of the
- * newest page that has one (overview, buildings page or empire marker), the account's research levels and queue, and
- * the resources of fleets landing on the planet.
+ * newest page that has one (overview, buildings page or empire marker), the account's research levels and queue, the
+ * unit counts and the shipyard queue of newer shipyard pages, and the resources of fleets landing on the planet.
  */
 
 type Coords = { g: number; s: number; p: number };
@@ -29,8 +29,13 @@ export interface BuildingPlanet {
   coords: Coords;
   type: 'planet' | 'moon';
   /** where levels and resources come from, and when it was synced */
-  source: 'empire' | 'buildings' | 'research';
+  source: 'empire' | 'buildings' | 'research' | 'shipyard';
   planet: BuildPlanet;
+  /**
+   * when the counts of the ships and of the defense (with missiles) in `planet.values` were synced: the empire page
+   * or a newer shipyard page of that list; null when never
+   */
+  unitsTime: { fleet: number | null; defense: number | null };
   /** next level cost and build time as the buildings page showed them */
   shown: Record<string, { next: number; cost: Record<number, number>; time: number | null }> | null;
   /** next level cost and research time as the research page of this planet showed them */
@@ -108,6 +113,12 @@ export function buildingsState(db: DB, ctx: GroupContext, userId: number, t = ct
       .prepare('SELECT page_time AS time, data FROM research_snapshots WHERE group_id = ? AND user_id = ? ORDER BY page_time DESC, id DESC')
       .all(ctx.groupId, userId) as { time: number; data: string }[]
   ).map((r) => ({ time: r.time, rec: JSON.parse(r.data) as ResearchRecord }));
+  // oldest first: each one is a step on from the one before
+  const shipyardPages = (
+    db
+      .prepare('SELECT page_time AS time, data FROM shipyard_snapshots WHERE group_id = ? AND user_id = ? ORDER BY page_time, id')
+      .all(ctx.groupId, userId) as { time: number; data: string }[]
+  ).map((r) => ({ time: r.time, rec: JSON.parse(r.data) as ShipyardRecord }));
   const fleets = sharedFleets(db, ctx.groupId, userId, userId);
   const settings = ctx.universe.settings;
 
@@ -117,6 +128,7 @@ export function buildingsState(db: DB, ctx: GroupContext, userId: number, t = ct
     const key = keyOf(p.coords, p.type);
     planets.set(key, {
       key, name: p.name, coords: p.coords, type: p.type, source: 'empire', shown: null, shownResearch: null, arrivals: [], temp: p.temp ?? null,
+      unitsTime: { fleet: empire!.time, defense: empire!.time },
       factors: p.production ? { 1: (p.production[901] ?? 100) / 100, 2: (p.production[902] ?? 100) / 100, 3: (p.production[903] ?? 100) / 100 } : null,
       planet: {
         type: p.type, values: { ...p.values }, resources: { ...(p.resources ?? {}) }, perHour: { ...(p.perHour ?? {}) }, time: empire!.time,
@@ -131,7 +143,7 @@ export function buildingsState(db: DB, ctx: GroupContext, userId: number, t = ct
     const newer = !bp || page.time >= bp.planet.time;
     if (!bp) {
       bp = {
-        key, name: '', coords: r.coords, type: r.type, source: 'buildings', shown: null, shownResearch: null, arrivals: [], temp: null, factors: null,
+        key, name: '', coords: r.coords, type: r.type, source: 'buildings', shown: null, shownResearch: null, arrivals: [], temp: null, factors: null, unitsTime: { fleet: null, defense: null },
         planet: { type: r.type, values: {}, resources: {}, perHour: {}, time: page.time, queue: [] },
       };
       planets.set(key, bp);
@@ -160,7 +172,7 @@ export function buildingsState(db: DB, ctx: GroupContext, userId: number, t = ct
     let bp = planets.get(key);
     if (!bp) {
       bp = {
-        key, name: '', coords: r.coords, type: r.type, source: 'research', shown: null, shownResearch: null, arrivals: [], temp: null, factors: null,
+        key, name: '', coords: r.coords, type: r.type, source: 'research', shown: null, shownResearch: null, arrivals: [], temp: null, factors: null, unitsTime: { fleet: null, defense: null },
         planet: { type: r.type, values: {}, resources: {}, perHour: {}, time: page.time, queue: [] },
       };
       planets.set(key, bp);
@@ -194,6 +206,33 @@ export function buildingsState(db: DB, ctx: GroupContext, userId: number, t = ct
       bp.planet.queue = q ? [{ id: q.id, level: q.level, destroy: q.destroy, end: overview.time + q.seconds }, ...rest] : [];
     }
   }
+  // shipyard pages newer than the empire page: the unit counts of their list, the planet's shipyard queue, and the
+  // resource bar when it is the newest. `queueSeen`: when the shipyard queue of a planet was last read.
+  const queueSeen = new Map<string, number>();
+  if (empire) for (const p of empire.rec.planets) queueSeen.set(keyOf(p.coords, p.type), empire.time);
+  for (const page of shipyardPages) {
+    const r = page.rec;
+    const key = keyOf(r.coords, r.type);
+    let bp = planets.get(key);
+    if (!bp) {
+      bp = {
+        key, name: '', coords: r.coords, type: r.type, source: 'shipyard', shown: null, shownResearch: null, arrivals: [], temp: null, factors: null, unitsTime: { fleet: null, defense: null },
+        planet: { type: r.type, values: {}, resources: {}, perHour: {}, time: page.time, queue: [] },
+      };
+      planets.set(key, bp);
+    }
+    // the empire page has every count and the queue: an older shipyard page tells nothing new
+    if (page.time < (bp.unitsTime[r.mode] ?? 0)) continue;
+    applyShipyardPage(bp.planet, r);
+    bp.unitsTime[r.mode] = page.time;
+    if (r.queue) queueSeen.set(key, page.time);
+    if (page.time < bp.planet.time) continue;
+    bp.source = 'shipyard';
+    bp.planet.resources = { ...bp.planet.resources, ...r.resources };
+    if (Object.keys(r.storage).length) bp.planet.storage = { ...r.storage };
+    if (Object.keys(r.perHour).length) bp.planet.perHour = { ...bp.planet.perHour, ...r.perHour };
+    bp.planet.time = page.time;
+  }
   // research levels and queue of the account; queue entries done by now raise the levels
   const { levels, queue: researchQueue } = researchState(empire, overview, researchPages, t);
   // facilities in use, from the newest page that tells: research account wide, the shipyard per planet
@@ -205,13 +244,16 @@ export function buildingsState(db: DB, ctx: GroupContext, userId: number, t = ct
     if (overview) {
       const q = overview.rec.queues.some((x) => x.kind === 'shipyard' && same(x.coords, bp.coords) && x.type === bp.type);
       shipyard.push({ time: overview.time, busy: q ? { until: null } : null });
-      // a newer overview without a shipyard queue: the units of the empire page's queue are built by now. They
-      // count as built, not as gone - the empire page's own count is from before they were finished, and a step
-      // of a build order that the queue had reached would be open again (and ordered a second time).
-      if (!q && (!empire || overview.time > empire.time)) {
+      // an overview without a shipyard queue, newer than the page the queue is from (empire or shipyard page): its
+      // units are built by now. They count as built, not as gone - the count is from before they were finished, and
+      // a step of a build order that the queue had reached would be open again (and ordered a second time).
+      if (!q && overview.time > (queueSeen.get(bp.key) ?? 0)) {
         for (const [id, n] of Object.entries(bp.planet.shipyard ?? {})) bp.planet.values[Number(id)] = (bp.planet.values[Number(id)] ?? 0) + n;
         bp.planet.shipyard = {};
       }
+    }
+    for (const page of shipyardPages) {
+      if (page.rec.queue && same(page.rec.coords, bp.coords) && page.rec.type === bp.type) shipyard.push({ time: page.time, busy: page.rec.queue.length ? { until: null } : null });
     }
     for (const page of pages) {
       if (!same(page.rec.coords, bp.coords) || page.rec.type !== bp.type) continue;
@@ -265,6 +307,34 @@ export function buildingsState(db: DB, ctx: GroupContext, userId: number, t = ct
 }
 
 /**
+ * Takes a shipyard page into a planet that is as of an older page: the counts of the page's list as it shows them, and
+ * the planet's queue. Units of the other list that left the queue since are built (their own count is still the older
+ * one). A copy without the queue: what its list has more than before came out of the queue.
+ */
+function applyShipyardPage(planet: BuildPlanet, r: ShipyardRecord): void {
+  const before = planet.shipyard ?? {};
+  if (r.queue) {
+    const queue: Record<string, number> = {};
+    for (const q of r.queue) queue[q.id] = (queue[q.id] ?? 0) + q.count;
+    for (const [id, n] of Object.entries(before)) {
+      const built = n - (queue[id] ?? 0);
+      if (built > 0 && r.units[Number(id)] == null) planet.values[id] = (planet.values[id] ?? 0) + built;
+    }
+    planet.shipyard = queue;
+  } else {
+    const queue = { ...before };
+    for (const [id, n] of Object.entries(r.units)) {
+      const built = n - (planet.values[id] ?? 0);
+      if (built <= 0 || !queue[id]) continue;
+      if (queue[id] > built) queue[id] -= built;
+      else delete queue[id];
+    }
+    planet.shipyard = queue;
+  }
+  for (const [id, n] of Object.entries(r.units)) planet.values[id] = n;
+}
+
+/**
  * The catch-up bonus the game applies now (it lowers costs and with them build times). The game takes it from its
  * latest statistics; its pages show it rounded to two decimals. Newest source wins: a buildings page (the exact value
  * behind its costs, else its rounded one), the overview (rounded), or the synced statistics when they are newer than
@@ -306,7 +376,8 @@ type ResearchQueue = { id: number; level: number; end: number | null }[];
 /**
  * Research levels and queue of the account from the newest source: a research page (levels and the whole queue with
  * its ends), the overview (the running research with its end) or the empire page (levels and the running research,
- * no end; the overview's end applies when it shows the same). Entries done by `t` raise the levels.
+ * no end; the overview's end applies when it shows the same). Entries done by `t` raise the levels, so do entries
+ * of an older page that a newer overview no longer shows.
  */
 function researchState(
   empire: { time: number; rec: EmpireRecord } | null, overview: { time: number; rec: OverviewRecord } | null,
@@ -325,9 +396,21 @@ function researchState(
     const m = empire.rec.researchQueue;
     sources.push({ time: empire.time, queue: m ? [{ id: m.id, level: m.level, end: null }] : [] });
   }
-  if (overview) sources.push({ time: overview.time, queue: running ? [{ id: running.id, level: running.level, end: overview.time + running.seconds }] : [] });
+  const seen = overview ? { time: overview.time, queue: running ? [{ id: running.id, level: running.level, end: overview.time + running.seconds }] : [] } : null;
+  if (seen) sources.push(seen);
   if (page) sources.push({ time: page.time, queue: page.rec.queue.map((q) => ({ ...q })) });
-  const queue = [...sources].sort((a, b) => b.time - a.time)[0]?.queue.map((q) => ({ ...q })) ?? [];
+  const sorted = [...sources].sort((a, b) => b.time - a.time);
+  let queue = sorted[0]?.queue.map((q) => ({ ...q })) ?? [];
+  // The overview is the newest look and shows only the running research. What the page before it had queued ahead of
+  // that one (everything, when the overview shows another research or none) is researched by now: it counts as
+  // done, not as gone - the levels are from before it finished, and a step of a build order that the queue had
+  // reached would be open again (and researched a second time). What was queued behind the running one stays.
+  if (seen && sorted[0] === seen && sorted[1]) {
+    const before = sorted[1].queue;
+    const at = running ? before.findIndex((q) => q.id === running.id && q.level === running.level) : -1;
+    for (const q of at >= 0 ? before.slice(0, at) : before) levels[q.id] = Math.max(levels[q.id] ?? 0, q.level);
+    if (at >= 0) queue = [...queue, ...before.slice(at + 1).map((q) => ({ ...q }))];
+  }
   if (running && queue[0] && queue[0].end == null && queue[0].id === running.id && queue[0].level === running.level) {
     queue[0].end = overview!.time + running.seconds;
   }

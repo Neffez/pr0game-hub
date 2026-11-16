@@ -703,18 +703,28 @@ components:
           type: array
           items:
             type: object
-            required: [key, name, coords, type, source, planet, shown, arrivals, temp]
+            required: [key, name, coords, type, source, planet, unitsTime, shown, arrivals, temp]
             properties:
               key: { type: string, description: '`g:s:p:type`' }
               name: { type: string }
               coords: { type: object, properties: { g: { type: integer }, s: { type: integer }, p: { type: integer } } }
               type: { type: string, enum: [planet, moon] }
-              source: { type: string, enum: [empire, buildings, research], description: Page the levels and resources come from }
+              source: { type: string, enum: [empire, buildings, research, shipyard], description: Page the levels and resources come from }
+              unitsTime:
+                type: object
+                description: >-
+                  When the counts of the ships (`fleet`) and of the defense with missiles (`defense`) in `planet.values`
+                  were synced (Unix seconds): the empire page or a newer shipyard page of that list; null when never
+                required: [fleet, defense]
+                properties:
+                  fleet: { type: [integer, 'null'] }
+                  defense: { type: [integer, 'null'] }
               planet:
                 type: object
                 description: >-
-                  levels (`values`, with the counts of ships, defense and missiles from the empire page), `shipyard` (units in
-                  the shipyard queue, element id -> count), `resources` at `time` (Unix seconds), `perHour`, `storage` (when shown), `fields`,
+                  levels (`values`, with the counts of ships, defense and missiles from the empire page or a newer shipyard
+                  page), `shipyard` (units in the shipyard queue, element id -> count; units that left it count as built),
+                  `resources` at `time` (Unix seconds), `perHour`, `storage` (when shown), `fields`,
                   `queue` (target levels, `end` when known) and `busy`: research (account wide, locks research lab and
                   TechnoDome), the planet's shipyard (locks nanite factory and shipyard) and `lab` (a research lab or
                   TechnoDome in any build queue, locks research) in use, each `{ until }` (Unix seconds, null when

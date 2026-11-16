@@ -7,6 +7,7 @@ import {
   type BattleRecord,
   type BuildingsRecord,
   type ResearchRecord,
+  type ShipyardRecord,
   type CombatReportRecord,
   type EmpireRecord,
   type ExpeditionRecord,
@@ -73,7 +74,7 @@ export class Store {
 
   record(r: HubRecord) {
     // a paste for another member never replaces their empire, overview, fleets or build pages
-    if (this.t.syncedBy != null && (r.kind === 'empire' || r.kind === 'overview' || r.kind === 'fleets' || r.kind === 'buildings' || r.kind === 'research')) {
+    if (this.t.syncedBy != null && (r.kind === 'empire' || r.kind === 'overview' || r.kind === 'fleets' || r.kind === 'buildings' || r.kind === 'research' || r.kind === 'shipyard')) {
       return;
     }
     switch (r.kind) {
@@ -97,6 +98,8 @@ export class Store {
         return this.buildings(r);
       case 'research':
         return this.research(r);
+      case 'shipyard':
+        return this.shipyard(r);
       case 'fleets':
         return this.fleets(r);
       case 'recycle':
@@ -888,6 +891,23 @@ export class Store {
   private research(r: ResearchRecord) {
     this.planetPage('research_snapshots', r);
     this.count('research', true);
+  }
+
+  /** Shipyard or defense page of one planet/moon: only the newest of each list per planet is ever read. */
+  private shipyard(r: ShipyardRecord) {
+    const { g, s, p } = r.coords;
+    const key = [this.t.groupId, this.t.userId, g, s, p, r.type, r.mode];
+    this.db
+      .prepare('INSERT INTO shipyard_snapshots (group_id, user_id, g, s, p, planet_type, mode, page_time, data) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(...key, this.epoch(r.pageTime) ?? now(), JSON.stringify(r));
+    this.db
+      .prepare(
+        `DELETE FROM shipyard_snapshots WHERE group_id = ? AND user_id = ? AND g = ? AND s = ? AND p = ? AND planet_type = ? AND mode = ?
+         AND id <> (SELECT id FROM shipyard_snapshots WHERE group_id = ? AND user_id = ? AND g = ? AND s = ? AND p = ? AND planet_type = ? AND mode = ?
+                    ORDER BY page_time DESC, id DESC LIMIT 1)`,
+      )
+      .run(...key, ...key);
+    this.count('shipyard', true);
   }
 
   /** Stores a page of one planet and keeps only the newest of that planet. */

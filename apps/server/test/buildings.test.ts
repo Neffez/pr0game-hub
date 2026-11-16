@@ -198,6 +198,86 @@ describe('buildings page', () => {
     db.prepare('DELETE FROM empire_snapshots WHERE id = ?').run(snapshot);
   });
 
+  it('counts a research as done once a newer overview no longer shows it', async () => {
+    // live: astrophysics 1 running on the empire page (level still 0, no end), then an overview after it finished -
+    // the hub dropped the queue and said level 0 again, so the build order's step was open a second time
+    const queued = empire({ 1: 10, 2: 5 });
+    Object.assign(queued, { research: { 124: 0, 113: 2 }, researchQueue: { id: 124, level: 1, coords: { g: 1, s: 1, p: 1 } } });
+    const snapshot = db.prepare('INSERT INTO empire_snapshots (group_id, user_id, created_at, data) VALUES (?, ?, ?, ?)').run(group, ids.carol, t - 20, JSON.stringify(queued)).lastInsertRowid;
+    // the row id may be the one of a snapshot deleted above: forget what was parsed for it
+    (await import('../src/repo/empire.js')).clearEmpireCache();
+    const overview = (queues: object[]) => ({ kind: 'overview', pageTime: null, current: null, catchUp: null, queues });
+    const insert = db.prepare('INSERT INTO overview_snapshots (group_id, user_id, page_time, data) VALUES (?, ?, ?, ?)');
+    const research = { kind: 'research', coords: { g: 1, s: 1, p: 1 }, type: 'planet', destroy: false, seconds: 600 };
+    const state = async () => (await call('GET', '/u8/buildings', h.carol)).json();
+    // still running: queued with the overview's end, the level is the empire page's
+    insert.run(group, ids.carol, t - 10, JSON.stringify(overview([{ ...research, id: 124, level: 1 }])));
+    expect(await state()).toMatchObject({ research: { 124: 0 }, researchQueue: [{ id: 124, level: 1, end: t + 590 }] });
+    // another research runs: the one before it is done
+    insert.run(group, ids.carol, t - 6, JSON.stringify(overview([{ ...research, id: 113, level: 3 }])));
+    expect(await state()).toMatchObject({ research: { 124: 1, 113: 2 }, researchQueue: [{ id: 113, level: 3, end: t + 594 }] });
+    // nothing runs: done as well
+    db.prepare('DELETE FROM overview_snapshots WHERE user_id = ?').run(ids.carol);
+    insert.run(group, ids.carol, t - 5, JSON.stringify(overview([])));
+    expect(await state()).toMatchObject({ research: { 124: 1 }, researchQueue: [] });
+    db.prepare('DELETE FROM overview_snapshots WHERE user_id = ?').run(ids.carol);
+    db.prepare('DELETE FROM empire_snapshots WHERE id = ?').run(snapshot);
+  });
+
+  it('takes the unit counts and the shipyard queue of shipyard pages newer than the empire page', async () => {
+    // empire page: 3 small cargos and 5 more in the shipyard, no launcher
+    const base = empire({ 1: 10, 2: 5, 202: 3, 401: 0 });
+    Object.assign(base.planets[0], { shipyard: { 202: 5 } });
+    const snapshot = db.prepare('INSERT INTO empire_snapshots (group_id, user_id, created_at, data) VALUES (?, ?, ?, ?)').run(group, ids.carol, t - 20, JSON.stringify(base)).lastInsertRowid;
+    // the row id of the snapshot the test before deleted is used again: not its parsed page
+    (await import('../src/repo/empire.js')).clearEmpireCache();
+    const page = (mode: 'fleet' | 'defense', units: Record<number, number>, queue: { id: number; count: number }[] | null, resources = {}) => ({
+      kind: 'shipyard', coords: { g: 1, s: 1, p: 1 }, type: 'planet', pageTime: null, mode, resources, storage: {}, perHour: {}, units, queue,
+    });
+    const insert = db.prepare("INSERT INTO shipyard_snapshots (group_id, user_id, g, s, p, planet_type, mode, page_time, data) VALUES (?, ?, 1, 1, 1, 'planet', ?, ?, ?)");
+    const home = async () => (await call('GET', '/u8/buildings', h.carol)).json().planets[0];
+    // a page from before the empire page tells nothing new
+    insert.run(group, ids.carol, 'fleet', t - 100, JSON.stringify(page('fleet', { 202: 99 }, [])));
+    expect(await home()).toMatchObject({ source: 'empire', unitsTime: { fleet: t - 20, defense: t - 20 }, planet: { values: { 202: 3, 401: 0 }, shipyard: { 202: 5 } } });
+    // the defense page after ordering a launcher: its own counts, the queue of the planet (3 of the cargos have left
+    // it, so they are built - the ship count is still the empire page's), the resources after paying
+    insert.run(group, ids.carol, 'defense', t - 15, JSON.stringify(page('defense', { 401: 0, 402: 0 }, [{ id: 202, count: 2 }, { id: 401, count: 1 }], { 901: 77 })));
+    expect(await home()).toMatchObject({
+      source: 'shipyard', unitsTime: { fleet: t - 20, defense: t - 15 },
+      planet: { time: t - 15, resources: { 901: 77 }, values: { 202: 6, 401: 0, 402: 0 }, shipyard: { 202: 2, 401: 1 }, busy: { shipyard: { until: null } } },
+    });
+    // a copy of the ship page without its scripts has no queue: the cargo it shows more came out of the queue
+    insert.run(group, ids.carol, 'fleet', t - 12, JSON.stringify(page('fleet', { 202: 7 }, null)));
+    expect(await home()).toMatchObject({ unitsTime: { fleet: t - 12, defense: t - 15 }, planet: { values: { 202: 7, 401: 0 }, shipyard: { 202: 1, 401: 1 } } });
+    // an overview older than the page the queue is from does not clear it, a newer one without a shipyard queue does
+    const overviews = db.prepare('INSERT INTO overview_snapshots (group_id, user_id, page_time, data) VALUES (?, ?, ?, ?)');
+    const idle = JSON.stringify({ kind: 'overview', pageTime: null, current: null, catchUp: null, queues: [] });
+    overviews.run(group, ids.carol, t - 17, idle);
+    expect((await home()).planet).toMatchObject({ values: { 202: 7, 401: 0 }, shipyard: { 202: 1, 401: 1 } });
+    overviews.run(group, ids.carol, t - 5, idle);
+    expect((await home()).planet).toMatchObject({ values: { 202: 8, 401: 1 }, shipyard: {}, busy: { shipyard: null } });
+    for (const table of ['overview_snapshots', 'shipyard_snapshots']) db.prepare(`DELETE FROM ${table} WHERE user_id = ?`).run(ids.carol);
+    db.prepare('DELETE FROM empire_snapshots WHERE id = ?').run(snapshot);
+  });
+
+  it('stores a synced shipyard page, the newest per planet and list', async () => {
+    const html = readFileSync(new URL('../../../packages/parser/test/fixtures/defense-queue.html', import.meta.url), 'utf8');
+    const res = await call('POST', '/u8/ingest', h.dave, { html, url: 'https://pr0game.com/uni8/game.php?page=shipyard&mode=defense' });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toMatchObject({
+      pageType: 'shipyard', counts: { shipyard: { new: 1 } },
+      preview: [{ kind: 'shipyard', coords: '[1:194:11]', moon: false, mode: 'defense', units: 4, queue: 7 }],
+    });
+    await call('POST', '/u8/ingest', h.dave, { html });
+    expect(db.prepare('SELECT mode FROM shipyard_snapshots WHERE user_id = ?').pluck().all(ids.dave)).toEqual(['defense']);
+    const state = (await call('GET', '/u8/buildings', h.dave)).json();
+    expect(state.planets.find((p: { key: string }) => p.key === '1:194:11:planet')).toMatchObject({
+      source: 'shipyard', unitsTime: { fleet: null },
+      planet: { values: { 401: 3, 402: 0, 407: 1 }, shipyard: { 202: 5, 401: 2 }, resources: { 901: 1200 }, perHour: { 901: 600.5 } },
+    });
+    db.prepare('DELETE FROM shipyard_snapshots WHERE user_id = ?').run(ids.dave);
+  });
+
   it('stores a synced buildings page and takes its levels, costs and resources when newer', async () => {
     const html = readFileSync(new URL('../../../packages/parser/test/fixtures/buildings.html', import.meta.url), 'utf8');
     const res = await call('POST', '/u8/ingest', h.dave, { html });

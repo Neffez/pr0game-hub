@@ -81,7 +81,7 @@ const router = useRouter();
 const mobile = useMobile();
 const { data, error, load } = useLoader(() => uniApi<Data>(uni.value, '/buildings'));
 onMounted(load);
-useLiveReload(load, tables('empire', 'overview', 'buildings', 'research', 'fleets', 'building_alerts'));
+useLiveReload(load, tables('empire', 'overview', 'buildings', 'research', 'shipyard', 'fleets', 'building_alerts'));
 
 type Tab = 'buildings' | 'research' | 'ships' | 'order' | 'advisor' | 'defense';
 const TABS: Tab[] = ['buildings', 'research', 'ships', 'order', 'advisor', 'defense'];

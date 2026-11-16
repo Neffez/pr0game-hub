@@ -17,8 +17,8 @@ async function login(username: string, password: string) {
   return `hub_session=${res.cookies.find((c) => c.name === 'hub_session')!.value}`;
 }
 
-const SHIPYARD = `<html lang="de"><head><script>var token="abc";</script></head><body id="shipyard">
-  <a href="game.php?page=shipyard&session=s3cr3t">Schiffswerft</a> CarolInGame baut <input name="fmenge[202]" value="25"> Kleine Transporter
+const RESOURCES = `<html lang="de"><head><script>var token="abc";</script></head><body id="resources">
+  <a href="game.php?page=resources&session=s3cr3t">Rohstoffe</a> CarolInGame baut <input name="fmenge[202]" value="25"> Kleine Transporter
   carol@example.org</body></html>`;
 
 beforeAll(async () => {
@@ -35,24 +35,24 @@ beforeAll(async () => {
 
 describe('explained pastes and parser samples (E-4)', () => {
   it('explains a page without data in the preview', async () => {
-    const res = (await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers: carol, payload: { html: SHIPYARD, dryRun: true } })).json();
+    const res = (await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers: carol, payload: { html: RESOURCES, dryRun: true } })).json();
     expect(res.pageType).toBe('unknown');
-    expect(res.explain).toEqual({ code: 'unsupported_page', page: 'shipyard' });
+    expect(res.explain).toEqual({ code: 'unsupported_page', page: 'resources' });
     const text = (await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers: carol, payload: { text: 'kein Spiel hier, nur ein ganz normaler Satz über nichts', dryRun: true } })).json();
     expect(text.explain).toEqual({ code: 'not_game' });
   });
 
   it('stores an anonymized sample that only hub admins see', async () => {
-    const sent = await app.inject({ method: 'POST', url: '/hub/api/u8/ingest/sample', headers: carol, payload: { html: SHIPYARD, note: 'Werft' } });
+    const sent = await app.inject({ method: 'POST', url: '/hub/api/u8/ingest/sample', headers: carol, payload: { html: RESOURCES, note: 'Werft' } });
     expect(sent.statusCode).toBe(200);
     expect(sent.json().explain.code).toBe('unsupported_page');
     expect((await app.inject({ method: 'GET', url: '/hub/api/admin/parser-samples', headers: carol })).statusCode).toBe(403);
     const list = (await app.inject({ method: 'GET', url: '/hub/api/admin/parser-samples', headers: admin })).json();
-    expect(list).toEqual([expect.objectContaining({ username: 'carol', code: 'unsupported_page', page: 'shipyard', note: 'Werft', universe: 'u8' })]);
+    expect(list).toEqual([expect.objectContaining({ username: 'carol', code: 'unsupported_page', page: 'resources', note: 'Werft', universe: 'u8' })]);
     const page = (await app.inject({ method: 'GET', url: `/hub/api/admin/parser-samples/${list[0].id}`, headers: admin })).body;
     expect(page).not.toMatch(/s3cr3t|token="abc"|CarolInGame|carol@example|value="25"/);
     expect(page).toContain('Sender baut');
-    expect(page).toContain('<body id="shipyard">');
+    expect(page).toContain('<body id="resources">');
     await app.inject({ method: 'DELETE', url: `/hub/api/admin/parser-samples/${list[0].id}`, headers: admin });
     expect((await app.inject({ method: 'GET', url: '/hub/api/admin/parser-samples', headers: admin })).json()).toEqual([]);
   });

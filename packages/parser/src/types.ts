@@ -338,6 +338,28 @@ export interface ResearchRecord {
   known?: Record<number, number>;
 }
 
+/**
+ * Game shipyard page (page=shipyard) of the selected planet/moon, either of its lists: ships (`mode` fleet) or
+ * defense and missiles (`mode` defense).
+ */
+export interface ShipyardRecord {
+  kind: 'shipyard';
+  coords: Coords;
+  type: PlanetType;
+  pageTime: string | null;
+  mode: 'fleet' | 'defense';
+  resources: Record<number, number>;
+  storage: Record<number, number>;
+  perHour: Record<number, number>;
+  /** units of this list on the planet: every unit the page shows, also with 0 */
+  units: Record<number, number>;
+  /**
+   * the planet's shipyard queue in its order, ships and defense alike (the first entry is being built); null when the
+   * copy has no page scripts (the queue is only in them), so nothing is known about it
+   */
+  queue: { id: number; count: number }[] | null;
+}
+
 export interface OverviewQueue {
   kind: 'building' | 'research' | 'shipyard';
   coords: Coords;
@@ -538,13 +560,14 @@ export type HubRecord =
   | OverviewRecord
   | BuildingsRecord
   | ResearchRecord
+  | ShipyardRecord
   | FleetsRecord
   | BattleHallRecord
   | CombatReportRecord
   | MarketplaceRecord
   | PlayerCardRecord;
 
-export type PageType = 'stats' | 'messages' | 'galaxy' | 'empire' | 'overview' | 'buildings' | 'research' | 'fleets' | 'phalanx' | 'battleHall' | 'combatReport' | 'marketplace' | 'playerCard' | 'unknown';
+export type PageType = 'stats' | 'messages' | 'galaxy' | 'empire' | 'overview' | 'buildings' | 'research' | 'shipyard' | 'fleets' | 'phalanx' | 'battleHall' | 'combatReport' | 'marketplace' | 'playerCard' | 'unknown';
 
 export interface ParseResult {
   pageType: PageType;

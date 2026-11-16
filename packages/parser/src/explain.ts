@@ -28,11 +28,14 @@ export interface Explanation {
 
 /** Game pages the hub reads (`page=` ids), see `parsePage`. */
 export const SUPPORTED_PAGES = new Set([
-  'overview', 'empire', 'imperium', 'galaxy', 'messages', 'statistics', 'buildings', 'research', 'marketplace', 'battlehall', 'raport',
+  'overview', 'empire', 'imperium', 'galaxy', 'messages', 'statistics', 'buildings', 'research', 'shipyard', 'marketplace', 'battlehall', 'raport',
   'fleettable', 'phalanx', 'playercard',
 ]);
 
-/** Pages the hub does not read with the titles of their menu entries (German, English) in the game's language files. */
+/**
+ * Pages the hub does not read with the titles of their menu entries (German, English) in the game's language files.
+ * Shipyard and defense are read from their HTML only: a text copy has neither the unit ids nor the queue.
+ */
 const UNSUPPORTED: { page: string; titles: string[] }[] = [
   { page: 'shipyard', titles: ['Schiffswerft', 'Hangar'] },
   { page: 'defense', titles: ['Verteidigung', 'Defenses'] },

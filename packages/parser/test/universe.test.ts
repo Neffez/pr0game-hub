@@ -31,7 +31,8 @@ describe('universe settings', () => {
   });
 
   it('knows every key of UniverseSettings', () => {
-    const src = readFileSync(new URL('../src/universe.ts', import.meta.url), 'utf8');
+    // a checkout with CRLF line ends (Windows) reads the same
+    const src = readFileSync(new URL('../src/universe.ts', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
     const start = src.indexOf('export interface UniverseSettings {');
     const body = src.slice(start, src.indexOf('\n}\n', start));
     const keys = [...body.matchAll(/^  (\w+)\??:/gm)].map((m) => m[1]);

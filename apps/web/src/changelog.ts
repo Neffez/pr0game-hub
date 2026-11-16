@@ -19,6 +19,16 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-16',
     items: [
       {
+        kind: 'fix',
+        de: 'Bauliste: Schritte für Schiffe, Verteidigung und Forschung bleiben erledigt, auch wenn die Schiffe wegfliegen oder der Hub die Forschungsstufe kurz nicht kennt. Sie wurden sonst ein zweites Mal angeboten.',
+        en: 'Build order: steps for ships, defense and research stay done, even when the ships fly away or the hub briefly does not know the research level. They were offered a second time otherwise.',
+      },
+      {
+        kind: 'new',
+        de: 'Sync: Die Seiten Schiffswerft und Verteidigung werden jetzt gelesen. Stückzahlen und die Werft-Warteschlange eines Planeten sind damit sofort aktuell, nicht erst nach dem nächsten Imperium.',
+        en: 'Sync: the shipyard and defense pages are now read. Unit counts and the shipyard queue of a planet are up to date right away, not only after the next empire page.',
+      },
+      {
         kind: 'new',
         de: 'API-Tokens: Beim Erstellen wählst du jetzt „Lesen“ oder „Lesen + Schreiben“. Nur Tokens mit Schreibrecht dürfen deine Bauliste ändern; bestehende Tokens sind nur zum Lesen.',
         en: 'API tokens: when creating one you now choose "Read" or "Read + write". Only tokens with write access may change your build order; existing tokens are read-only.',

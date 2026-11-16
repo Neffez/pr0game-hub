@@ -92,7 +92,7 @@ export function settlementsFor(db: DB, target: IngestTarget, records: HubRecord[
 export type PreviewItem = { kind: HubRecord['kind'] } & Record<string, string | number | boolean | null>;
 
 /** Pages that change a member's buildings, research, queues or fleets: build order and alerts are caught up after them. */
-const BUILD_PAGES = new Set<ParseResult['pageType']>(['empire', 'overview', 'buildings', 'research', 'fleets', 'messages']);
+const BUILD_PAGES = new Set<ParseResult['pageType']>(['empire', 'overview', 'buildings', 'research', 'shipyard', 'fleets', 'messages']);
 
 /** Pages another member may paste for you: reports they sent, not your empire, overview or fleets. */
 export const FOR_USER_PAGES = new Set<ParseResult['pageType']>(['messages', 'combatReport']);
@@ -391,6 +391,7 @@ export function aboutRecords(records: HubRecord[]): About[] {
         break;
       case 'buildings':
       case 'research':
+      case 'shipyard':
         add(c(r.coords));
         break;
       case 'battle':
@@ -453,6 +454,11 @@ function describe(r: HubRecord): PreviewItem {
       return { kind: r.kind, coords: c(r.coords), moon: r.type === 'moon', buildings: r.buildings.length };
     case 'research':
       return { kind: r.kind, coords: c(r.coords), research: r.research.length, queue: r.queue.length };
+    case 'shipyard':
+      return {
+        kind: r.kind, coords: c(r.coords), moon: r.type === 'moon', mode: r.mode,
+        units: Object.values(r.units).reduce((sum, n) => sum + n, 0), queue: r.queue?.reduce((sum, q) => sum + q.count, 0) ?? 0,
+      };
     case 'fleets':
       return { kind: r.kind, fleets: r.fleets.length, hostile: r.fleets.filter((f) => f.owner === 'hostile').length };
     case 'combatReport':

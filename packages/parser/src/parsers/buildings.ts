@@ -39,7 +39,7 @@ const BUSY = /^(Beschäftigt|Busy)$/i;
 const DESTROY = /\s+(?:Abreißen|Demolish|Dismantle)\s*$/i;
 
 /** Planet selected in the header ("Name (Mond) [g:s:p]"). */
-function selected($: CheerioAPI): { coords: Coords; type: PlanetType } | null {
+export function selected($: CheerioAPI): { coords: Coords; type: PlanetType } | null {
   const opt = $('#planetSelector option[selected]').first();
   const coords = parseCoords(opt.text());
   return coords ? { coords, type: /\((Mond|Moon|Insel)\)/.test(opt.text()) ? 'moon' : 'planet' } : null;
@@ -89,7 +89,7 @@ function queue($: CheerioAPI): { id: number; level: number; destroy: boolean; en
 }
 
 /** Resource bar: amounts, storage capacity and production per hour (from the page's `resourceTicker` calls). */
-function resourceBar($: CheerioAPI) {
+export function resourceBar($: CheerioAPI) {
   const resources: Record<number, number> = {};
   const storage: Record<number, number> = {};
   const perHour: Record<number, number> = {};

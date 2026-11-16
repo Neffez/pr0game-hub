@@ -3354,8 +3354,13 @@ export type components = {
                  * @description Page the levels and resources come from
                  * @enum {string}
                  */
-                source: "empire" | "buildings" | "research";
-                /** @description levels (`values`, with the counts of ships, defense and missiles from the empire page), `shipyard` (units in the shipyard queue, element id -> count), `resources` at `time` (Unix seconds), `perHour`, `storage` (when shown), `fields`, `queue` (target levels, `end` when known) and `busy`: research (account wide, locks research lab and TechnoDome), the planet's shipyard (locks nanite factory and shipyard) and `lab` (a research lab or TechnoDome in any build queue, locks research) in use, each `{ until }` (Unix seconds, null when unknown) or null when free */
+                source: "empire" | "buildings" | "research" | "shipyard";
+                /** @description When the counts of the ships (`fleet`) and of the defense with missiles (`defense`) in `planet.values` were synced (Unix seconds): the empire page or a newer shipyard page of that list; null when never */
+                unitsTime: {
+                    fleet: number | null;
+                    defense: number | null;
+                };
+                /** @description levels (`values`, with the counts of ships, defense and missiles from the empire page or a newer shipyard page), `shipyard` (units in the shipyard queue, element id -> count; units that left it count as built), `resources` at `time` (Unix seconds), `perHour`, `storage` (when shown), `fields`, `queue` (target levels, `end` when known) and `busy`: research (account wide, locks research lab and TechnoDome), the planet's shipyard (locks nanite factory and shipyard) and `lab` (a research lab or TechnoDome in any build queue, locks research) in use, each `{ until }` (Unix seconds, null when unknown) or null when free */
                 planet: Record<string, never>;
                 /** @description building id -> `{ next, cost, time }` as the buildings page showed them */
                 shown: Record<string, never> | null;
