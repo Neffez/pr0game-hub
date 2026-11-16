@@ -172,6 +172,30 @@ export const startResourcesOf = (s: Pick<UniverseSettings, 'metalStart' | 'cryst
   903: s.deuteriumStart ?? OPTIONAL_DEFAULTS.deuteriumStart,
 });
 
+const START_RES = [901, 902, 903] as const;
+
+/** The universe has any of `metalStart`, `crystalStart`, `deuteriumStart` set (hub admin or stored JSON). */
+export const hasPlanetStartSettings = (s: Pick<UniverseSettings, 'metalStart' | 'crystalStart' | 'deuteriumStart'> | null | undefined) =>
+  s != null && (s.metalStart != null || s.crystalStart != null || s.deuteriumStart != null);
+
+/**
+ * Start resources for a planned or newly founded planet in build orders: the universe's configured values first
+ * (`metalStart` and friends, as in the game's `metal_start`), else the synced home planet when its resources differ
+ * from the game defaults (custom universe start before spending), else {@link startResourcesOf}.
+ */
+export function planetStartResources(
+  settings: Pick<UniverseSettings, 'metalStart' | 'crystalStart' | 'deuteriumStart'> | null | undefined,
+  home?: { resources: Partial<Record<number, number>> } | null,
+): Record<number, number> {
+  if (hasPlanetStartSettings(settings)) return startResourcesOf(settings ?? {});
+  const base = startResourcesOf({});
+  const r = home?.resources;
+  if (r && START_RES.some((k) => (r[k] ?? 0) !== base[k])) {
+    return { 901: r[901] ?? base[901], 902: r[902] ?? base[902], 903: r[903] ?? base[903] };
+  }
+  return startResourcesOf(settings ?? {});
+}
+
 /** Astrophysics: its level raises the planet limit. */
 export const ASTROPHYSICS = 124;
 

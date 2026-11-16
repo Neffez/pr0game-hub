@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Bauliste: Geplante Planeten und Kolonien starten mit den Start-Rohstoffen aus den Universumseinstellungen (oder vom Heimatplaneten, solange der noch die Startwerte zeigt) – nicht mehr pauschal mit 500/500.',
+        en: 'Build order: planned planets and colonies now begin with the start resources from the universe settings (or from the homeworld while it still shows those values), not always with 500/500.',
+      },
+      {
+        kind: 'fix',
         de: 'Bauliste: Kolonisieren vor der nötigen Astrophysik ist kein Fehler mehr, wenn die Astrophysik später in der Liste folgt. Das Kolonieschiff fliegt dann langsamer los (Tempo steht am Schritt) und landet kurz nach der Forschung.',
         en: 'Build order: colonizing before the needed astrophysics is no longer an error when the astrophysics follows later in the list. The colony ship then flies slower (speed shown on the step) and lands shortly after the research.',
       },

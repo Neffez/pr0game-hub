@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-16
 
+- Build order: planned and newly founded planets take their start resources from the universe's `metalStart`
+  settings, or from the synced homeworld when it still shows a custom start (e.g. 5000/1500) instead of always
+  assuming 500/500. Colonizations that found the planet at arrival now add those start resources, not zero.
+  (`planetStartResources` in `@pr0hub/core/universe`.)
+
 - Build order: a colonization before the astrophysics that allows the planet no longer ends as "not possible"
   when that research comes later in a list (it deadlocked the list before). The ship leaves without blocking the
   list; once the astrophysics starts, the planner picks the fastest speed step that lands it `ASTRO_MARGIN` seconds

@@ -17,7 +17,7 @@ import {
 } from '@pr0hub/planner';
 import { buildingsFor, RESEARCH } from '@pr0hub/core/buildings';
 import { RESOURCES } from '@pr0hub/core/tech';
-import { startResourcesOf } from '@pr0hub/core/universe';
+import { planetStartResources } from '@pr0hub/core/universe';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { readError, uniApi } from '../api';
@@ -70,14 +70,28 @@ const plannedName = (key: string) => {
   const n = plannedNumber(key);
   return stored.value?.order.planned?.[key]?.name || stored.value?.meta.names?.[String(n)] || t('buildOrder.plannedPlanet', { n });
 };
-/** resources of a new planet in this universe (admin setting) */
-const startResources = computed(() => startResourcesOf(ctx.value?.universe.settings ?? {}));
+/** synced homeworld (pr0plan planet 1 mapping, else first planet with coordinates) */
+const homePlanet = computed(() => {
+  const mapping = stored.value?.meta.mapping as Record<string, string | null> | undefined;
+  const homeKey = mapping?.['1'];
+  if (homeKey) return props.hub.planets.find((p) => p.key === homeKey);
+  return props.hub.planets.find((p) => p.type === 'planet' && p.coords.g > 0);
+});
+/** resources of a new planet: universe config (`metalStart` …) or the homeworld when it shows a custom start */
+const startResources = computed(() => planetStartResources(ctx.value?.universe.settings, homePlanet.value?.planet));
 /** the hub's planets plus the planned ones as new planets (start resources, the file's temperature) */
 const hubAll = computed<HubState>(() => {
   const s = stored.value;
   if (!s || !plannedKeys.value.length) return props.hub;
   const settings = s.meta.settings as Pr0planImport['settings'] | undefined;
-  return withPlanned(s.order, props.hub, minute.value, { resources: startResources.value, name: plannedName, temp: (k) => settings?.planets[String(plannedNumber(k))]?.temp });
+  const u = ctx.value?.universe.settings;
+  return withPlanned(s.order, props.hub, minute.value, {
+    resources: startResources.value,
+    universe: u,
+    home: homePlanet.value?.planet,
+    name: plannedName,
+    temp: (k) => settings?.planets[String(plannedNumber(k))]?.temp,
+  });
 });
 /** a planned planet picked to look at; a planet chosen on the page shows that one again */
 const picked = ref<string | null>(null);

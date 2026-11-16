@@ -1,5 +1,5 @@
 import { INITIAL_TEMP } from '@pr0hub/core/production';
-import { startResourcesOf } from '@pr0hub/core/universe';
+import { planetStartResources, type UniverseSettings } from '@pr0hub/core/universe';
 import type { HubPlanet, HubState } from './hub.js';
 import type { BuildOrder, Step } from './types.js';
 
@@ -26,7 +26,16 @@ export const isPlannedKey = (key: string) => PLANNED.test(key);
  * (the formula is used), resources counted from `time` on (the universe's start, or now).
  */
 export function plannedPlanet(
-  order: BuildOrder, key: string, time: number, opts: { name?: string | null; temp?: number | null; resources?: Record<number, number> } = {},
+  order: BuildOrder,
+  key: string,
+  time: number,
+  opts: {
+    name?: string | null;
+    temp?: number | null;
+    resources?: Record<number, number>;
+    universe?: Pick<UniverseSettings, 'metalStart' | 'crystalStart' | 'deuteriumStart'>;
+    home?: { resources: Partial<Record<number, number>> } | null;
+  } = {},
 ): HubPlanet {
   const n = plannedNumber(key) ?? 0;
   const details = order.planned?.[key];
@@ -37,7 +46,14 @@ export function plannedPlanet(
     type: 'planet',
     temp: details?.temp ?? opts.temp ?? INITIAL_TEMP,
     arrivals: [],
-    planet: { type: 'planet', values: { ...(order.base.planets[key] ?? {}) }, resources: opts.resources ? { ...opts.resources } : startResourcesOf({}), perHour: {}, time, queue: [] },
+    planet: {
+      type: 'planet',
+      values: { ...(order.base.planets[key] ?? {}) },
+      resources: opts.resources ? { ...opts.resources } : planetStartResources(opts.universe, opts.home),
+      perHour: {},
+      time,
+      queue: [],
+    },
   };
 }
 
@@ -67,11 +83,23 @@ export function assignPlanet(order: BuildOrder, from: string, to: string): Build
 
 /** The hub's planets plus the planned ones of the build order as new planets (see `plannedPlanet`). */
 export function withPlanned(
-  order: BuildOrder, hub: HubState, time: number, opts: { resources?: Record<number, number>; name?: (key: string) => string | null | undefined; temp?: (key: string) => number | null | undefined } = {},
+  order: BuildOrder,
+  hub: HubState,
+  time: number,
+  opts: {
+    resources?: Record<number, number>;
+    universe?: Pick<UniverseSettings, 'metalStart' | 'crystalStart' | 'deuteriumStart'>;
+    home?: { resources: Partial<Record<number, number>> } | null;
+    name?: (key: string) => string | null | undefined;
+    temp?: (key: string) => number | null | undefined;
+  } = {},
 ): HubState {
   const keys = Object.keys(order.planets).filter((k) => isPlannedKey(k) && !hub.planets.some((p) => p.key === k));
   if (!keys.length) return hub;
-  const planned = keys.map((k) => plannedPlanet(order, k, time, { name: opts.name?.(k), temp: opts.temp?.(k), resources: opts.resources }));
+  const fallback = opts.resources ?? planetStartResources(opts.universe, opts.home);
+  const planned = keys.map((k) =>
+    plannedPlanet(order, k, time, { name: opts.name?.(k), temp: opts.temp?.(k), resources: fallback, universe: opts.universe, home: opts.home }),
+  );
   return { ...hub, planets: [...hub.planets, ...planned] };
 }
 

@@ -8,6 +8,7 @@ import { STORAGE, storageCapacity } from '@pr0hub/core/tech';
 import { ASTROPHYSICS, planetLimit, type UniverseSettings } from '@pr0hub/core/universe';
 import { distance, drivesFromResearch, fleetCapacity, fleetConsumption, flightDuration, slowestShip, SPEED_PERCENTS, type Coords } from '@pr0hub/flight';
 import { doneStateOf, targetsOf, type DoneState, type HubState } from './hub.js';
+import { planetStartResources } from '@pr0hub/core/universe';
 import { isPlannedKey } from './planned.js';
 import { allOf, fixedOf, type BuildOrder, type Step, type TransportSettings } from './types.js';
 
@@ -154,6 +155,8 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
   const researchSpeed = hub.researchSpeed ?? 2500;
   const shipyardSpeed = hub.shipyardSpeed ?? buildingSpeed;
   const catchUp = hub.catchUp ?? 0;
+  const homePlanet = hub.planets.find((p) => p.type === 'planet' && p.coords.g > 0)?.planet ?? null;
+  const newPlanetResources = planetStartResources(o.universe, homePlanet);
 
   // ------------------------------------------------------------------ state from the hub
   const colonized = new Set<string>();
@@ -189,9 +192,10 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
     const at = order.planned?.[hp.key]?.coords ?? (hp.coords.g > 0 ? hp.coords : null);
     // a planned planet with a colonization still to fly is founded by it
     const active = !(isPlannedKey(hp.key) && colonized.has(hp.key));
+    const founded = active ? {} : newPlanetResources;
     planets.push({
       key: hp.key, type: hp.type, levels, res: active ? res : { 901: 0, 902: 0, 903: 0 }, rate: { 901: 0, 902: 0, 903: 0 }, cap,
-      coords: at ? [at.g, at.s, at.p] : null, active, founded: active ? {} : res,
+      coords: at ? [at.g, at.s, at.p] : null, active, founded,
       syncedCap: { level: Object.fromEntries(RES.map((r) => [r, levels[STORAGE[r]] ?? 0])), cap: { ...cap } },
       temp: hp.temp ?? 0, factors: { ...(hp.factors ?? {}) }, calibration: { 901: 1, 902: 1, 903: 1 }, build, shipyard,
       arrivals: hp.arrivals.filter((a) => a.at > o.now).map((a) => ({ at: a.at, resources: a.resources })),

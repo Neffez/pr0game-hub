@@ -1,5 +1,5 @@
 import { assignSynced, detectDone, simulate, withPlanned, type BuildOrder, type OwnFleet, type Simulation, type Step, type StepResult } from '@pr0hub/planner';
-import { startResourcesOf, type UniverseSettings } from '@pr0hub/core/universe';
+import { planetStartResources, type UniverseSettings } from '@pr0hub/core/universe';
 import type { GroupContext } from '../context.js';
 import type { DB } from '../db.js';
 import { buildingsState, pruneAlerts, type BuildingPlanet, type BuildingsState } from './buildings.js';
@@ -63,7 +63,9 @@ export interface NextStep {
  * universe's settings transports with ships fly by the flight formula and colonizations wait for astrophysics.
  */
 export function buildOrderTimeline(order: BuildOrder, state: BuildingsState, t: number, universe?: UniverseSettings): Simulation {
-  const hub = withPlanned(order, state, t, { resources: startResourcesOf(universe ?? {}) });
+  const home = state.planets.find((p) => p.type === 'planet');
+  const resources = planetStartResources(universe, home?.planet);
+  const hub = withPlanned(order, state, t, { resources, universe, home: home?.planet });
   return simulate(order, hub, { now: t, units: state.units, universe });
 }
 
