@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Bauliste: Fügst du ein Gebäude oder eine Forschung hinzu, die du inzwischen ohne Bauliste ausgebaut hast, kommt die nächste Stufe laut Imperium dazu statt einer schon erledigten.',
+        en: 'Build order: adding a building or research you have since upgraded without the build order adds the next level by the empire instead of one that is already done.',
+      },
+      {
+        kind: 'fix',
         de: 'Bauliste: Geplante Planeten und Kolonien starten mit den Start-Rohstoffen aus den Universumseinstellungen (oder vom Heimatplaneten, solange der noch die Startwerte zeigt) – nicht mehr pauschal mit 500/500.',
         en: 'Build order: planned planets and colonies now begin with the start resources from the universe settings (or from the homeworld while it still shows those values), not always with 500/500.',
       },

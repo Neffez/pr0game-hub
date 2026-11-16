@@ -28,22 +28,35 @@ describe('insertSteps', () => {
     expect('order' in validateBuildOrder(out)).toBe(true);
   });
 
-  it('keeps the base of elements with steps and inserts at the position', () => {
+  it('keeps the base of elements with steps ahead of the hub and inserts at the position', () => {
     const order: BuildOrder = {
-      base: { planets: { [HOME]: { 1: 5 } }, research: { 113: 0 } },
+      base: { planets: { [HOME]: { 1: 15 } }, research: { 113: 6 } },
       planets: {
         [HOME]: [{ id: 'a', kind: 'building', element: 1 }, { id: 'b', kind: 'building', element: 2 }],
         [COLONY]: [{ id: 'r', kind: 'research', element: 113 }],
       },
     };
     const out = insertSteps(order, HOME, [{ kind: 'building', element: 1 }, { kind: 'research', element: 113 }], 1, hub, id);
-    expect(out.base.planets[HOME]).toEqual({ 1: 5 });
-    expect(out.base.research).toEqual({ 113: 0 });
+    expect(out.base.planets[HOME]).toEqual({ 1: 15 });
+    expect(out.base.research).toEqual({ 113: 6 });
     expect(out.planets[HOME].map((s) => s.id)).toEqual(['a', expect.any(String), expect.any(String), 'b']);
     const targets = targetsOf(out);
-    expect(out.planets[HOME].slice(0, 2).map((s) => targets.get(s.id))).toEqual([6, 7]);
+    expect(out.planets[HOME].slice(0, 2).map((s) => targets.get(s.id))).toEqual([16, 17]);
     // the original is unchanged
     expect(order.planets[HOME]).toHaveLength(2);
+  });
+
+  it('levels reached without the build order: the new step is the next level by the hub', () => {
+    // energy technology 1 and metal mine 6 in the list, the hub has researched 4 (queue) and built 11 (queue)
+    const order: BuildOrder = {
+      base: { planets: { [HOME]: { 1: 5 } }, research: { 113: 0 } },
+      planets: { [HOME]: [{ id: 'a', kind: 'building', element: 1 }, { id: 'r', kind: 'research', element: 113 }] },
+    };
+    const before = structuredClone(order);
+    const out = insertSteps(order, HOME, [{ kind: 'research', element: 113 }, { kind: 'research', element: 113 }, { kind: 'building', element: 1 }], 99, hub, id);
+    const targets = targetsOf(out);
+    expect(out.planets[HOME].map((s) => targets.get(s.id))).toEqual([11, 4, 5, 6, 12]);
+    expect(order).toEqual(before);
   });
 
   it('appends past the end and leaves planned planets on their base', () => {

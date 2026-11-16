@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-16
 
+- Build order: adding a building or research step whose level the hub already reaches (built or researched without
+  the build order) adds the next level by the hub instead of a done step. `insertSteps` raises the element's base
+  so the first new step is the hub's level (queue included) + 1; the element's other steps move up with it.
+
 - Build order: planned and newly founded planets take their start resources from the universe's `metalStart`
   settings, or from the synced homeworld when it still shows a custom start (e.g. 5000/1500) instead of always
   assuming 500/500. Colonizations that found the planet at arrival now add those start resources, not zero.
