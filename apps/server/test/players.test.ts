@@ -70,16 +70,51 @@ describe('statistics without ids (plain text) and renamed players', () => {
     expect(g.scores(other.id)).toBe(2);
   });
 
-  it('creates no double for a plain-text line whose rank and points a player with an id already has', () => {
+  it('gives a plain-text line to the player with an id who has its rank and points, and takes its name as the new one', () => {
     const g = group();
+    const aliases = (playerId: number) => db.prepare('SELECT name, seen_until FROM player_aliases WHERE player_id = ?').all(playerId);
     g.sync(T1, [[1003746, 'Seelenschnitter', 89, 1000]]);
+    const t1 = db.prepare('SELECT stat_time FROM stat_snapshots WHERE group_id = ?').pluck().get(g.id) as number;
     // renamed after the sync with ids, then the same statistics as plain text
     g.sync(T1, [[null, 'auto', 89, 1000]]);
-    expect(g.all()).toHaveLength(1);
-    expect(g.scores(g.all()[0].id)).toBe(1);
+    const [player, ...rest] = g.all();
+    expect(rest).toEqual([]);
+    expect(player).toMatchObject({ name: 'auto', ingame_id: 1003746 });
+    expect(aliases(player.id)).toEqual([{ name: 'Seelenschnitter', seen_until: t1 }]);
+    expect(g.scores(player.id)).toBe(1);
+    // a page copied before the rename and pasted now: the former name does not come back
+    g.sync(T1, [[null, 'Seelenschnitter', 89, 1000]]);
+    expect(g.all()).toEqual([player]);
+    // the next statistics as plain text find the player by the new name
+    g.sync(T2, [[null, 'auto', 88, 1100]]);
+    expect(g.all()).toEqual([player]);
+    expect(g.scores(player.id)).toBe(2);
     // other points on that rank are someone the snapshot does not know
-    g.sync(T1, [[null, 'auto', 89, 999]]);
+    g.sync(T1, [[null, 'Fremd', 89, 999]]);
     expect(g.all()).toHaveLength(2);
+  });
+
+  it('keeps the old name as seen until the last sync with it', () => {
+    const g = group();
+    g.sync(T1, [[1003746, 'Seelenschnitter', 89, 1000]]);
+    const id = g.all()[0].id;
+    // seen under the old name after the statistics (e.g. in the galaxy)
+    const later = (db.prepare('SELECT last_seen FROM players WHERE id = ?').pluck().get(id) as number) + 3600;
+    new Players(db, g.id).player(1003746, 'Seelenschnitter', later);
+    g.sync(T1, [[null, 'auto', 89, 1000]]);
+    expect(g.all()).toEqual([{ id, name: 'auto', ingame_id: 1003746 }]);
+    expect(db.prepare('SELECT seen_until FROM player_aliases WHERE player_id = ?').pluck().get(id)).toBe(later);
+    expect(db.prepare('SELECT last_seen FROM players WHERE id = ?').pluck().get(id)).toBe(later);
+  });
+
+  it('merges a double with the new name when a plain-text line names the player', () => {
+    const g = group();
+    g.sync(T1, [[1003746, 'Seelenschnitter', 89, 1000]]);
+    const snapshot = db.prepare('SELECT id FROM stat_snapshots WHERE group_id = ?').pluck().get(g.id) as number;
+    const double = Number(db.prepare("INSERT INTO players (group_id, name, first_seen, last_seen) VALUES (?, 'auto', 1, 1)").run(g.id).lastInsertRowid);
+    db.prepare('INSERT INTO player_scores (snapshot_id, player_id, rank, points) VALUES (?, ?, 89, 1000)').run(snapshot, double);
+    g.sync(T1, [[null, 'auto', 89, 1000]]);
+    expect(g.all()).toEqual([{ id: expect.any(Number), name: 'auto', ingame_id: 1003746 }]);
   });
 
   it('merges doubles of earlier syncs with the next statistics with ids', () => {

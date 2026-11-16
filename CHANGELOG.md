@@ -4,6 +4,13 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-16
 
+- Statistics pasted as plain text rename a player. A line that belongs to a player known by id by its rank and
+  points in the snapshot now also gives them its name when they neither have it nor had it at that time
+  (`Players.seenAs`): the old name stays as a former name, seen until the last sync with it. Before, the player kept
+  the old name until a sync with ids, and plain-text statistics of a later time created a name-only double again,
+  which stayed when no statistics with ids followed for that time. A name-only double with the new name is merged
+  right away (same rank and points in one snapshot, as before). A page copied before the rename and pasted after the
+  sync with ids can rename back wrongly; the next sync with ids corrects it.
 - Build order: steps no longer open a second time when the hub's levels fall back.
   - Ship, defense and research steps the hub saw done stay checked off (`detectDone` returns them, stored after a
     paste like production and transport steps): a colony ship that left with its colonization lowered the count and

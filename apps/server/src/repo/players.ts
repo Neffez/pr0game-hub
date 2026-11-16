@@ -75,11 +75,8 @@ export class Players {
         db.prepare('DELETE FROM player_aliases WHERE player_id = ? AND name = ?').run(row.id, name);
       } else if (ingameId && row.name !== name) {
         if (seenAt >= row.last_seen) {
-          // newer data: renamed, keep the old name as alias
-          db.prepare('INSERT OR REPLACE INTO player_aliases (player_id, name, seen_until) VALUES (?, ?, ?)').run(row.id, row.name, seenAt);
-          db.prepare('UPDATE players SET name = ? WHERE id = ?').run(name, row.id);
-          // the current name is no former name (renamed back)
-          db.prepare('DELETE FROM player_aliases WHERE player_id = ? AND name = ?').run(row.id, name);
+          // newer data: renamed
+          this.rename(row.id, row.name, name, seenAt);
         } else {
           // older data (e.g. an old universe.json): the given name is a former name
           db.prepare(
@@ -96,6 +93,34 @@ export class Players {
         .prepare('INSERT INTO players (group_id, ingame_id, name, first_seen, last_seen) VALUES (?, ?, ?, ?, ?)')
         .run(g, ingameId, name, seenAt, seenAt).lastInsertRowid,
     );
+  }
+
+  /** Gives a player their new name; the old one stays as a former name, seen until `until`. */
+  private rename(playerId: number, old: string, name: string, until: number) {
+    const db = this.db;
+    db.prepare('INSERT OR REPLACE INTO player_aliases (player_id, name, seen_until) VALUES (?, ?, ?)').run(playerId, old, until);
+    db.prepare('UPDATE players SET name = ? WHERE id = ?').run(name, playerId);
+    // the current name is no former name (renamed back)
+    db.prepare('DELETE FROM player_aliases WHERE player_id = ? AND name = ?').run(playerId, name);
+  }
+
+  /**
+   * A statistics line without an id that belongs to a player by its rank and points (`snapshotPlayers`) names them:
+   * a name the player neither has nor had at that time is their new one. The line with the id was synced before
+   * this paste and a page shows the names of the moment it is opened, so the paste is the newer look (a page copied
+   * before the rename and pasted after that sync is the exception; the next sync with ids corrects it).
+   */
+  seenAs(playerId: number, name: string, seenAt: number) {
+    const db = this.db;
+    const row = db.prepare('SELECT name, ingame_id, last_seen FROM players WHERE id = ?').get(playerId) as { name: string; ingame_id: number | null; last_seen: number };
+    if (row.name.toLowerCase() === name.toLowerCase()) return;
+    const until = db.prepare('SELECT seen_until FROM player_aliases WHERE player_id = ? AND name = ? COLLATE NOCASE').pluck().get(playerId, name) as number | undefined;
+    // a former name the player still had then: the page was copied before the rename
+    if (until != null && until >= seenAt) return;
+    if (row.ingame_id && row.name === placeholderPlayer(row.ingame_id)) db.prepare('UPDATE players SET name = ? WHERE id = ?').run(name, playerId);
+    // the old name was seen with every sync so far
+    else this.rename(playerId, row.name, name, Math.max(seenAt, row.last_seen));
+    db.prepare('UPDATE players SET last_seen = MAX(last_seen, ?) WHERE id = ?').run(seenAt, playerId);
   }
 
   /** Player known only by id (universe.json without name): existing player, otherwise a placeholder name. */
@@ -116,7 +141,7 @@ export class Players {
   /**
    * Players known by id in a statistics snapshot, by `scoreKey`: a line without an id (plain text) with the same rank
    * and points is that player, whatever its name says (a rename the hub has not seen yet would otherwise create a
-   * second player). A rank held twice with the same points decides nothing.
+   * second player; `seenAs` takes the name over). A rank held twice with the same points decides nothing.
    */
   snapshotPlayers(snapshotId: number): Map<string, number | null> {
     const rows = this.db

@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Statistik: Hat sich ein Spieler umbenannt, übernimmt der Hub den neuen Namen jetzt auch aus einer als Text eingefügten Statistik. Bisher blieb der alte Name stehen, bis jemand synchronisierte.',
+        en: 'Statistics: when a player renamed, the hub now takes the new name from statistics pasted as text, too. Until now the old name stayed until someone synced.',
+      },
+      {
+        kind: 'fix',
         de: 'Bauliste: Schritte für Schiffe, Verteidigung und Forschung bleiben erledigt, auch wenn die Schiffe wegfliegen oder der Hub die Forschungsstufe kurz nicht kennt. Sie wurden sonst ein zweites Mal angeboten.',
         en: 'Build order: steps for ships, defense and research stay done, even when the ships fly away or the hub briefly does not know the research level. They were offered a second time otherwise.',
       },
