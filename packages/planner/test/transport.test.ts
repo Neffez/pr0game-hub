@@ -110,7 +110,7 @@ describe('planned planets', () => {
     expect(sim.steps.find((s) => s.id === 'col')).toMatchObject({ state: 'planned', start: NOW + 20000 + ASTRO_MARGIN - f.seconds, end: NOW + 20000 + ASTRO_MARGIN, wait: 'astro' });
   });
 
-  it('astrophysics further down the list: the ship leaves now, slower, and lands after the research', () => {
+  it('astrophysics further down the list: the slowest speed that makes it, landing right after the research', () => {
     const hub = hubOf([planet(HOME, { 31: 3 })], { research: { 117: 3, 113: 3, 106: 3 }, researchSpeed: 2500 });
     // a planet in the same system: the flight at full speed is shorter than the research
     const o = order([colonize(), { id: 'astro', kind: 'research', element: 124 }]);
@@ -119,15 +119,23 @@ describe('planned planets', () => {
     const astro = sim.steps.find((s) => s.id === 'astro')!;
     const col = sim.steps.find((s) => s.id === 'col')!;
     expect(astro).toMatchObject({ state: 'planned', start: NOW });
-    expect(col).toMatchObject({ state: 'planned', start: NOW, wait: 'astro' });
-    expect(col.end!).toBeGreaterThanOrEqual(astro.end! + ASTRO_MARGIN);
+    expect(col).toMatchObject({ state: 'planned', end: astro.end! + ASTRO_MARGIN, wait: 'astro' });
     expect(col.speed).toBeLessThan(100);
     const f = flight({ 208: 1 }, { 117: 3 }, [1, 100, 4], col.speed);
     expect(col.end! - col.start!).toBe(f.seconds);
+    expect(col.start!).toBeGreaterThanOrEqual(NOW);
     expect(col.fuel).toBe(f.fuel);
-    // one speed step faster would land before the research is done
-    expect(col.start! + flight({ 208: 1 }, { 117: 3 }, [1, 100, 4], col.speed! + 10).seconds).toBeLessThan(astro.end! + ASTRO_MARGIN);
+    // one speed step slower would land after the research even leaving now
+    expect(NOW + flight({ 208: 1 }, { 117: 3 }, [1, 100, 4], col.speed! - 10).seconds).toBeGreaterThan(astro.end! + ASTRO_MARGIN);
     expect(sim.steps.find((s) => s.id === 'mine')).toMatchObject({ state: 'planned', start: col.end, wait: 'colony' });
+  });
+
+  it('waits for its ships from the shipyard', () => {
+    const hub = hubOf([planet(HOME, { 21: 4 })], { research: { 117: 3, 124: 1 } });
+    const sim = run(order([{ id: 'ship', kind: 'ship', element: 208, count: 1 }, colonize()]), hub);
+    const ship = sim.steps.find((s) => s.id === 'ship')!;
+    expect(ship.end!).toBeGreaterThan(NOW);
+    expect(sim.steps.find((s) => s.id === 'col')).toMatchObject({ state: 'planned', start: ship.end, wait: 'shipyard' });
   });
 
   it('astrophysics that never starts: the colonization is not possible', () => {

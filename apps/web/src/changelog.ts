@@ -29,6 +29,11 @@ export const CHANGELOG: ChangelogDay[] = [
         en: 'Build order: colonizing before the needed astrophysics is no longer an error when the astrophysics follows later in the list. The colony ship then flies slower (speed shown on the step) and lands shortly after the research.',
       },
       {
+        kind: 'fix',
+        de: 'Bauliste: Transporte und Kolonisierungen fliegen erst los, wenn die Werft ihre Schiffe fertig gebaut hat.',
+        en: 'Build order: transports and colonizations only leave once the shipyard has finished building their ships.',
+      },
+      {
         kind: 'new',
         de: 'Bauliste: Beim Transport wählst du je Rohstoff, ob die Flotte alles mitnimmt, was beim Abflug da ist (Metall, Kristall, Deuterium einzeln). Die übrigen Rohstoffe haben feste Mengen. Lange Erklärungen stehen jetzt im (i)-Tooltip.',
         en: 'Build order: for transports you choose per resource whether the fleet takes everything that is there at the departure (metal, crystal, deuterium separately). The other resources have fixed amounts. Long explanations are now in the (i) tooltip.',

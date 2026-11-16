@@ -360,6 +360,26 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
     }
     return out;
   };
+  /**
+   * When the planet's shipyard has built the transport's ships it lacks (0: nothing to wait for). Ships it lacks
+   * without any in the shipyard are not checked (they may come by fleet).
+   */
+  const shipsReady = (p: Planet, tr: TransportSettings) => {
+    let at = 0;
+    for (const [id, n] of Object.entries(tr.ships ?? {})) {
+      let have = p.levels[id] ?? 0;
+      if (have >= n) continue;
+      for (const q of p.shipyard) {
+        if (String(q.id) !== id) continue;
+        have += q.count;
+        if (have >= n) {
+          at = Math.max(at, q.end);
+          break;
+        }
+      }
+    }
+    return at;
+  };
   const astroAt = (t: number) => researchQueue.reduce((l, q) => (q.id === ASTROPHYSICS && q.end <= t ? Math.max(l, q.level) : l), research[ASTROPHYSICS] ?? 0);
   /** planets the account has or is founding (`pending`: with the deferred colonizations) */
   const planetCount = (pending = true) =>
@@ -389,7 +409,9 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
       deferred.shift();
       const want = q.end + ASTRO_MARGIN;
       const fastest = d.options[0];
-      const pick = d.options.find((x) => d.at + x.flight >= want) ?? d.options[d.options.length - 1];
+      // the slowest speed that still makes it, leaving so late that it lands right after the research
+      // (speeds come in steps of 10 %: the next slower one would land well after it); too far: full speed now
+      const pick = [...d.options].reverse().find((x) => d.at + x.flight <= want) ?? fastest;
       const departure = Math.max(d.at, want - pick.flight);
       const arrival = departure + pick.flight;
       d.target.arrivals.push({ at: arrival, resources: d.load, found: true });
@@ -474,6 +496,8 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
         if (f.capacity != null && (f.capacity < 0 || Object.values(fixedOf(tr)).reduce((n, v) => n + v, 0) > f.capacity)) return { ok: false, wait: 'cargo', never: true };
         const departure = Math.max(tr.notBefore ?? 0, tr.arriveAt != null ? tr.arriveAt - f.flight : 0);
         if (departure > t) return { ok: false, wait: 'time', readyAt: departure };
+        const ships = shipsReady(p, tr);
+        if (ships > t) return { ok: false, wait: 'shipyard', readyAt: ships };
         const target = tr.target ? byKey.get(tr.target) : undefined;
         if (tr.mission === 'colonize' && target && !target.active && o.universe) {
           // the planet is only founded when astrophysics allows one more at the arrival

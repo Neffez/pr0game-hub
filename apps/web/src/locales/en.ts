@@ -2028,7 +2028,7 @@ const en: typeof de = {
     trTimeMode: { none: 'when it is its turn', notBefore: 'departure not before', arriveAt: 'arrival at' },
     trNotBefore: 'departure not before {time}',
     trArriveAt: 'arrival {time}',
-    trHint: 'The hub calculates flight time, fuel and cargo space like the flight calculator: with the coordinates of both planets, the drives at the departure and the universe\'s settings. The resources land on the target at the arrival, and its build order counts on them. Whether the ships are there is not checked.',
+    trHint: 'The hub calculates flight time, fuel and cargo space like the flight calculator: with the coordinates of both planets, the drives at the departure and the universe\'s settings. The resources land on the target at the arrival, and its build order counts on them. If the planet\'s shipyard is still building the ships, the transport waits for them; otherwise it is not checked whether they are there.',
     trColonizeHint: 'A planned planet comes into being when the colony ship arrives: start resources plus the cargo, its build order begins then. The ship only lands once the astrophysics for the planet is done; if it comes later in the build order, the ship flies slower.',
     addPlanet: 'Add planet',
     addPlanetTitle: 'Plan a planet that does not exist yet (e.g. the next colony)',

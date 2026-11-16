@@ -2030,7 +2030,7 @@ const de = {
     trTimeMode: { none: 'sobald er dran ist', notBefore: 'Abflug nicht vor', arriveAt: 'Ankunft um' },
     trNotBefore: 'Abflug nicht vor {time}',
     trArriveAt: 'Ankunft {time}',
-    trHint: 'Flugzeit, Treibstoff und Laderaum rechnet der Hub wie der Flugrechner: mit den Koordinaten beider Planeten, den Antrieben zum Abflug und den Einstellungen des Universums. Die Rohstoffe landen bei der Ankunft auf dem Ziel, dessen Bauliste rechnet damit. Ob die Schiffe gerade da sind, wird nicht geprüft.',
+    trHint: 'Flugzeit, Treibstoff und Laderaum rechnet der Hub wie der Flugrechner: mit den Koordinaten beider Planeten, den Antrieben zum Abflug und den Einstellungen des Universums. Die Rohstoffe landen bei der Ankunft auf dem Ziel, dessen Bauliste rechnet damit. Baut die Werft des Planeten noch an den Schiffen, wartet der Transport darauf; sonst wird nicht geprüft, ob sie da sind.',
     trColonizeHint: 'Ein geplanter Planet entsteht mit der Ankunft des Kolonieschiffs: Startrohstoffe plus Ladung, seine Bauliste beginnt dann. Das Schiff landet erst, wenn die Astrophysik für den Planeten fertig ist; steht sie später in der Bauliste, fliegt es langsamer.',
     addPlanet: 'Planet anlegen',
     addPlanetTitle: 'Einen Planeten planen, den es noch nicht gibt (z. B. die nächste Kolonie)',
