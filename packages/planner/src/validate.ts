@@ -1,6 +1,7 @@
 import { BUILDINGS, RESEARCH } from '@pr0hub/core/buildings';
 import { activeUnits } from '@pr0hub/core/units';
-import type { Base, BuildOrder, Step, StepKind } from './types.js';
+import { isPlannedKey } from './planned.js';
+import type { Base, BuildOrder, PlannedPlanet, Step, StepKind, TransportSettings } from './types.js';
 
 /** Limits of a stored build order. */
 export const MAX_STEPS = 3000;
@@ -34,7 +35,36 @@ export function validateBuildOrder(raw: unknown): { order: BuildOrder } | { erro
     }
     planets[key] = steps;
   }
-  return { order: { base, planets } };
+  if (raw.planned == null) return { order: { base, planets } };
+  const planned = validatePlanned(raw.planned, planets);
+  if (!planned) return { error: 'Invalid planned planets' };
+  return { order: Object.keys(planned).length ? { base, planets, planned } : { base, planets } };
+}
+
+/** Details of planned planets: only for planned keys that have a list (an empty one counts). */
+function validatePlanned(raw: unknown, planets: Record<string, Step[]>): Record<string, PlannedPlanet> | null {
+  if (!isObject(raw)) return null;
+  const out: Record<string, PlannedPlanet> = {};
+  const int = (v: unknown, min: number, max: number) => typeof v === 'number' && Number.isInteger(v) && v >= min && v <= max;
+  for (const [key, v] of Object.entries(raw)) {
+    if (!isPlannedKey(key) || !planets[key] || !isObject(v)) return null;
+    const p: PlannedPlanet = {};
+    if (v.name != null) {
+      if (typeof v.name !== 'string' || v.name.length > 40) return null;
+      if (v.name.trim()) p.name = v.name.trim();
+    }
+    if (v.coords != null) {
+      const c = v.coords;
+      if (!isObject(c) || !int(c.g, 1, 99) || !int(c.s, 1, 9999) || !int(c.p, 1, 99)) return null;
+      p.coords = { g: c.g as number, s: c.s as number, p: c.p as number };
+    }
+    if (v.temp != null) {
+      if (!int(v.temp, -300, 400)) return null;
+      p.temp = v.temp as number;
+    }
+    out[key] = p;
+  }
+  return out;
 }
 
 function levels(raw: unknown): Record<string, number> | null {
@@ -102,7 +132,32 @@ function validateStep(raw: unknown): Step | null {
         if (!['901', '902', '903'].includes(k) || !count(v, 1e13)) return null;
         resources[k] = v as number;
       }
-      step.transport = { target: tr.target as string | null, resources, flight: Math.floor(tr.flight as number) };
+      const out: TransportSettings = { target: tr.target as string | null, resources, flight: Math.floor(tr.flight as number) };
+      if (tr.mission != null) {
+        if (tr.mission !== 'transport' && tr.mission !== 'deploy' && tr.mission !== 'colonize') return null;
+        if (tr.mission !== 'transport') out.mission = tr.mission;
+      }
+      if (tr.ships != null) {
+        if (!isObject(tr.ships)) return null;
+        const ships: Record<string, number> = {};
+        for (const [k, v] of Object.entries(tr.ships)) {
+          const unit = activeUnits().units[k];
+          if (!unit || unit.id >= 400 || !count(v, 1e7)) return null;
+          if (Math.floor(v as number) > 0) ships[k] = Math.floor(v as number);
+        }
+        if (Object.keys(ships).length) out.ships = ships;
+      }
+      if (tr.speed != null) {
+        if (typeof tr.speed !== 'number' || !Number.isInteger(tr.speed / 10) || tr.speed < 10 || tr.speed > 100) return null;
+        if (tr.speed !== 100) out.speed = tr.speed;
+      }
+      if (tr.all === true) out.all = true;
+      for (const k of ['notBefore', 'arriveAt'] as const) {
+        if (tr[k] == null) continue;
+        if (!count(tr[k], 1e11)) return null;
+        out[k] = Math.floor(tr[k] as number);
+      }
+      step.transport = out;
       return step;
     }
   }

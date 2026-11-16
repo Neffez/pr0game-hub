@@ -18,7 +18,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
-    "@pr0hub/core": "workspace:*"
+    "@pr0hub/core": "workspace:*",
+    "@pr0hub/flight": "workspace:*"
   },
   "devDependencies": {
     "typescript": "^6.0.3",

@@ -476,7 +476,7 @@ function buildOrder(db: DB, ctx: GroupContext, t: number, own: () => BuildingsSt
   if (!state.planets.length) return [];
   const stored = syncBuildOrder(db, ctx, ctx.user.id, found, state, persist);
   const name = displayNameOf(db, ctx.user.id)!;
-  return nextSteps(stored.order, state, t)
+  return nextSteps(stored.order, state, t, ctx.universe.settings)
     .filter((n) => n.result.state === 'planned' && n.result.start != null && n.result.start <= t)
     .map(({ planet, step, result }) => ({
       id: `buildorder:${planet.key}:${step.id}`, kind: 'buildorder' as const, userId: ctx.user.id, member: name, time: t,
@@ -500,7 +500,7 @@ export function nextBuildOrderStep(db: DB, universe: Universe, groupId: number, 
     const state = buildingsState(db, ctx, u.id, t);
     if (!found || !state.planets.length) continue;
     const stored = syncBuildOrder(db, ctx, u.id, found, state);
-    for (const n of nextSteps(stored.order, state, t)) {
+    for (const n of nextSteps(stored.order, state, t, ctx.universe.settings)) {
       const at = n.result.start;
       if (n.result.state !== 'planned' || at == null || at <= t) continue;
       next = next == null ? at : Math.min(next, at);

@@ -5,18 +5,22 @@ import { withUnits } from '@pr0hub/core/units';
 import { catalogOf, type GroupContext } from '../context.js';
 import { now, type DB } from '../db.js';
 import { events } from '../events.js';
-import { buildOrderOf, syncBuildOrder } from '../repo/buildOrders.js';
+import { buildOrderOf, buildOrderTimeline, syncBuildOrder } from '../repo/buildOrders.js';
 import { buildingsState } from '../repo/buildings.js';
 import { contextOf } from './util.js';
 
 /** Meta data of an import (file settings, mapping) is kept as sent, up to this size. */
 const META_MAX = 64 * 1024;
-/** the build order is the member's own planning: it can be set up before the universe starts */
-const beforeStart = { config: { allowBeforeStart: true } };
+/**
+ * the build order is the member's own planning: it can be set up before the universe starts, and API tokens may write
+ * it (scripts and assistants that plan for the member)
+ */
+const beforeStart = { config: { allowBeforeStart: true, tokenWrite: true } };
 
 /**
  * The viewer's build order (imported from pr0plan or started by hand, shown under build & research): read, import or
  * replace, change the steps (order, done, deactivated, removed, added), delete. The next step of each planet notifies once it can start.
+ * The timeline (when each step starts and ends by the hub's state) can be read to check a plan.
  */
 export function buildOrderRoutes(app: FastifyInstance, db: DB) {
   const ctxOf = contextOf(db);
@@ -32,6 +36,20 @@ export function buildOrderRoutes(app: FastifyInstance, db: DB) {
     const stored = buildOrderOf(db, ctx, ctx.user.id);
     if (!stored) return { buildOrder: null };
     return { buildOrder: syncBuildOrder(db, ctx, ctx.user.id, stored, buildingsState(db, ctx, ctx.user.id), false) };
+  });
+
+  /**
+   * The timeline of the build order from the hub's state now: per step its state, start and end, cost and what it
+   * waits for; planned planets are simulated as new planets.
+   */
+  app.get<{ Params: { uni: string } }>('/api/:uni/build-order/timeline', async (req) => {
+    const ctx = ctxOf(req);
+    const t = now();
+    const found = buildOrderOf(db, ctx, ctx.user.id);
+    if (!found) throw new HttpError(404, 'build_order_not_found', 'No build order');
+    const state = buildingsState(db, ctx, ctx.user.id);
+    const stored = syncBuildOrder(db, ctx, ctx.user.id, found, state, false);
+    return { now: t, ...buildOrderTimeline(stored.order, state, t, ctx.universe.settings) };
   });
 
   /** Imports a build order (or starts one by hand): replaces the viewer's one in this group. */
@@ -53,14 +71,18 @@ export function buildOrderRoutes(app: FastifyInstance, db: DB) {
 
   /**
    * Replaces the steps (new order, done and deactivated flags, removed or added steps); the base only when sent (start
-   * levels of elements added by hand), meta stays.
+   * levels of elements added by hand), so the details of the planned planets (those of removed planets are dropped);
+   * meta stays.
    */
-  app.patch<{ Params: { uni: string }; Body: { planets?: unknown; base?: unknown } }>('/api/:uni/build-order', beforeStart, async (req) => {
+  app.patch<{ Params: { uni: string }; Body: { planets?: unknown; base?: unknown; planned?: unknown } }>('/api/:uni/build-order', beforeStart, async (req) => {
     const ctx = ctxOf(req);
     const stored = buildOrderOf(db, ctx, ctx.user.id);
     if (!stored) throw new HttpError(404, 'build_order_not_found', 'No build order');
     const base = req.body?.base ?? stored.order.base;
-    const res = withUnits(catalogOf(ctx.universe), () => validateBuildOrder({ base, planets: req.body?.planets }));
+    const lists = req.body?.planets;
+    const kept = Object.entries(stored.order.planned ?? {}).filter(([k]) => typeof lists === 'object' && lists !== null && k in lists);
+    const planned = req.body?.planned ?? Object.fromEntries(kept);
+    const res = withUnits(catalogOf(ctx.universe), () => validateBuildOrder({ base, planets: lists, planned }));
     if ('error' in res) throw new HttpError(400, 'build_order_invalid', res.error);
     db.prepare('UPDATE build_orders SET data = ?, updated_at = ? WHERE group_id = ? AND user_id = ?').run(JSON.stringify(res.order), now(), ctx.groupId, ctx.user.id);
     changed(ctx);

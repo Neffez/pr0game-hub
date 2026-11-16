@@ -159,6 +159,64 @@ describe('build order', () => {
     db.prepare('DELETE FROM empire_snapshots WHERE user_id = ?').run(ids.dave);
   });
 
+  it('lets an API token plan: planned planets, transports with ships, the timeline', async () => {
+    const P1 = '0:0:1:planet';
+    const COLONY = '1:5:4:planet';
+    const { token } = (await call('POST', '/auth/tokens', h.dave, { name: 'planner' })).json();
+    const bearer = { authorization: `Bearer ${token}`, 'x-hub-group': String(group) };
+    db.prepare('INSERT INTO empire_snapshots (group_id, user_id, created_at, data) VALUES (?, ?, ?, ?)').run(
+      group, ids.dave, T0 + 60, JSON.stringify({ ...empire, research: { 117: 3, 124: 1 }, planets: [{ ...empire.planets[0], resources: { 901: 9000, 902: 9000, 903: 9000 } }] }),
+    );
+    // the snapshot deleted above may have had the same row id: forget what was parsed for it
+    (await import('../src/repo/empire.js')).clearEmpireCache();
+    const steps = [
+      { id: 'col', kind: 'transport', transport: { target: P1, resources: { 901: 500 }, flight: 0, mission: 'colonize', ships: { 208: 1 } } },
+      { id: 'tr', kind: 'transport', transport: { target: P1, resources: {}, flight: 0, ships: { 202: 1 }, all: true, notBefore: t + 86400 } },
+    ];
+    const planned = { [P1]: { name: 'Colony', coords: { g: 1, s: 5, p: 4 }, temp: 30 } };
+    const plan = { base: { planets: {}, research: {} }, planets: { [HOME]: steps, [P1]: [{ id: 'm', kind: 'building', element: 1 }] }, planned };
+    expect((await call('GET', '/u8/build-order/timeline', bearer)).statusCode).toBe(404);
+    const put = await call('PUT', '/u8/build-order', bearer, { order: plan, meta: { source: 'agent' } });
+    expect(put.statusCode).toBe(200);
+    expect(put.json().buildOrder.order).toEqual(plan);
+    // every other write stays refused with a token
+    expect((await call('PUT', '/u8/storage-alerts', bearer, {})).json().code).toBe('read_only_token');
+
+    const timeline = (await call('GET', '/u8/build-order/timeline', bearer)).json();
+    const by = (id: string) => timeline.steps.find((s: { id: string }) => s.id === id);
+    expect(timeline.next[HOME]).toBe('col');
+    expect(by('col')).toMatchObject({ planet: HOME, state: 'planned', cost: { 901: 500 } });
+    expect(by('col').end).toBeGreaterThan(by('col').start);
+    expect(by('col').fuel).toBeGreaterThan(0);
+    // the colony is founded when the ship lands; the transporter leaves at its set time
+    expect(by('m')).toMatchObject({ planet: P1, state: 'planned', start: by('col').end, wait: 'colony' });
+    expect(by('tr')).toMatchObject({ state: 'planned', start: t + 86400, wait: 'time' });
+
+    // PATCH keeps the planned details, and drops those of a planet left out
+    const patched = (await call('PATCH', '/u8/build-order', bearer, { planets: plan.planets })).json().buildOrder.order;
+    expect(patched.planned).toEqual(planned);
+    expect((await call('PATCH', '/u8/build-order', bearer, { planets: plan.planets, planned: { '0:0:2:planet': {} } })).statusCode).toBe(400);
+    expect((await call('PATCH', '/u8/build-order', bearer, { planets: { [HOME]: [] } })).json().buildOrder.order.planned).toBeUndefined();
+    await call('PATCH', '/u8/build-order', bearer, { planets: plan.planets, planned });
+
+    // the colony is synced at the planned coordinates: assigned by the catch-up after a paste
+    const colony = { ...empire.planets[0], name: 'Colony', coords: { g: 1, s: 5, p: 4 }, values: {} };
+    db.prepare('INSERT INTO empire_snapshots (group_id, user_id, created_at, data) VALUES (?, ?, ?, ?)').run(
+      group, ids.dave, t, JSON.stringify({ ...empire, research: { 117: 3, 124: 1 }, planets: [empire.planets[0], colony] }),
+    );
+    const { catchUpBuildState } = await import('../src/repo/buildOrders.js');
+    const { resolveGroup, getUniverse } = await import('../src/context.js');
+    catchUpBuildState(db, resolveGroup(db, { id: ids.dave, username: 'dave', isAdmin: false } as never, getUniverse(db, 'u8'), group));
+    const after = (await call('GET', '/u8/build-order', bearer)).json().buildOrder.order;
+    expect(after.planned).toBeUndefined();
+    expect(Object.keys(after.planets)).toEqual([HOME, COLONY]);
+    expect(after.planets[HOME]).toMatchObject([{ id: 'col', done: true, transport: { target: COLONY } }, { id: 'tr', transport: { target: COLONY } }]);
+
+    expect((await call('DELETE', '/u8/build-order', bearer)).json()).toEqual({ buildOrder: null });
+    db.prepare('DELETE FROM empire_snapshots WHERE user_id = ?').run(ids.dave);
+    db.prepare('DELETE FROM api_tokens WHERE user_id = ?').run(ids.dave);
+  });
+
   it('respects the setting and deletes', async () => {
     expect((await call('POST', '/auth/push-settings', h.carol, { buildOrder: false })).json()).toMatchObject({ buildOrder: false });
     await call('PATCH', '/u8/build-order', h.carol, { planets: { [HOME]: [{ id: 'c', kind: 'building', element: 22 }] } });

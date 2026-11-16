@@ -5,8 +5,11 @@ import {
 import { activeUnits, withUnits, type UnitCatalog } from '@pr0hub/core/units';
 import { calibrate, productionOf } from '@pr0hub/core/production';
 import { STORAGE, storageCapacity } from '@pr0hub/core/tech';
+import { ASTROPHYSICS, planetLimit, type UniverseSettings } from '@pr0hub/core/universe';
+import { distance, drivesFromResearch, fleetCapacity, fleetConsumption, flightDuration, slowestShip, type Coords } from '@pr0hub/flight';
 import { doneStateOf, targetsOf, type DoneState, type HubState } from './hub.js';
-import type { BuildOrder, Step } from './types.js';
+import { isPlannedKey } from './planned.js';
+import type { BuildOrder, Step, TransportSettings } from './types.js';
 
 /**
  * Timeline of a build order from the hub's state now, like pr0plan's `GameReducer`: every planet works through its
@@ -15,11 +18,21 @@ import type { BuildOrder, Step } from './types.js';
  * started. Research runs in parallel to the planet's buildings. Resources grow with the production of the planned
  * levels (the game's formulas, calibrated against the synced production) up to the storage, plus the synced fleets
  * landing and the transports of the build order. Steps the hub's levels already reach are skipped.
+ *
+ * Transports with ships fly as long as the game's flight formula says (coordinates, the drives researched at the
+ * departure, the universe's settings), pay the deuterium of the flight and carry at most their cargo space. A planned
+ * planet that a colonization of the build order flies to is founded at its arrival (start resources plus the cargo);
+ * the colonization waits until the astrophysics research that allows the planet is done at the arrival.
  */
 
 export type StepState = 'done' | 'queued' | 'deactivated' | 'planned' | 'invalid';
 /** What a step waited for last before it started, or why it can never start. */
-export type WaitReason = 'resources' | 'slot' | 'research' | 'lab' | 'shipyard' | 'requirements' | 'storage' | 'max' | 'planet' | 'nolab' | 'horizon' | 'aborted';
+export type WaitReason =
+  | 'resources' | 'slot' | 'research' | 'lab' | 'shipyard' | 'requirements' | 'storage' | 'max' | 'planet' | 'nolab' | 'horizon' | 'aborted'
+  /** transports: the set departure or arrival time, more cargo than the ships hold, astrophysics for the colony */
+  | 'time' | 'cargo' | 'astro'
+  /** a planned planet that is not colonized yet */
+  | 'colony';
 
 export interface StepResult {
   id: string;
@@ -40,6 +53,8 @@ export interface StepResult {
    * production was lost beyond the capacity until the step started; null when none ran full
    */
   full: Record<number, { since: number; lost: number }> | null;
+  /** deuterium of the flight, part of `cost` (transports with ships) */
+  fuel?: number;
 }
 
 export interface Simulation {
@@ -58,6 +73,8 @@ export interface SimulateOptions {
   units?: UnitCatalog;
   /** safety cap of the event loop (default 200 000); steps left when it hits are invalid with wait 'aborted' */
   maxEvents?: number;
+  /** the universe's settings: flight times of transports with ships, the planet limit of colonizations */
+  universe?: UniverseSettings;
 }
 
 const RES = [901, 902, 903] as const;
@@ -81,7 +98,14 @@ interface Planet {
   build: { id: number; level: number; end: number }[];
   /** shipyard parts: units done at `end` */
   shipyard: { id: number; count: number; end: number }[];
-  arrivals: { at: number; resources: Record<number, number> }[];
+  /** `found`: a colonization, the planet exists from then on */
+  arrivals: { at: number; resources: Record<number, number>; found?: boolean }[];
+  /** where it is (flights), null when unknown */
+  coords: Coords | null;
+  /** false: a planned planet before its colonization arrives (no production, no steps) */
+  active: boolean;
+  /** resources it is founded with */
+  founded: Record<number, number>;
   steps: Step[];
   head: number;
   /** a production step lets the list wait until then */
@@ -119,6 +143,9 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
   const catchUp = hub.catchUp ?? 0;
 
   // ------------------------------------------------------------------ state from the hub
+  const colonized = new Set<string>();
+  for (const list of Object.values(order.planets))
+    for (const s of list) if (s.transport?.mission === 'colonize' && s.transport.target && !s.done && !s.deactivated) colonized.add(s.transport.target);
   const planets: Planet[] = [];
   for (const hp of hub.planets) {
     const bp = hp.planet;
@@ -146,8 +173,12 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
       yard += unit * n;
       shipyard.push({ id: Number(id), count: n, end: yard });
     }
+    const at = order.planned?.[hp.key]?.coords ?? (hp.coords.g > 0 ? hp.coords : null);
+    // a planned planet with a colonization still to fly is founded by it
+    const active = !(isPlannedKey(hp.key) && colonized.has(hp.key));
     planets.push({
-      key: hp.key, type: hp.type, levels, res, rate: { 901: 0, 902: 0, 903: 0 }, cap,
+      key: hp.key, type: hp.type, levels, res: active ? res : { 901: 0, 902: 0, 903: 0 }, rate: { 901: 0, 902: 0, 903: 0 }, cap,
+      coords: at ? [at.g, at.s, at.p] : null, active, founded: active ? {} : res,
       syncedCap: { level: Object.fromEntries(RES.map((r) => [r, levels[STORAGE[r]] ?? 0])), cap: { ...cap } },
       temp: hp.temp ?? 0, factors: { ...(hp.factors ?? {}) }, calibration: { 901: 1, 902: 1, 903: 1 }, build, shipyard,
       arrivals: hp.arrivals.filter((a) => a.at > o.now).map((a) => ({ at: a.at, resources: a.resources })),
@@ -163,7 +194,7 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
   // calibration: synced production against the formula for the synced levels
   const formulaSpeed = resourceSpeed || 1;
   const production = (p: Planet) =>
-    p.type === 'moon'
+    p.type === 'moon' || !p.active
       ? { 901: 0, 902: 0, 903: 0, energy: 0, energyUsed: 0 }
       : productionOf({ levels: p.levels, research, temp: p.temp, factors: p.factors, resourceSpeed: formulaSpeed });
   const known: Record<number, number[]> = { 901: [], 902: [], 903: [] };
@@ -271,6 +302,48 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
   };
   const labBuilding = () => planets.some((x) => x.build.some((q) => q.id === RESEARCH_LAB || q.id === TECHNO_DOME));
 
+  /** Where a planet key lies: the simulated planet's coordinates, else the key's own (a planet of somebody else). */
+  const coordsOf = (key: string): Coords | null => {
+    const known = byKey.get(key);
+    if (known) return known.coords;
+    const [g, s, pos] = key.split(':').map(Number);
+    return g > 0 ? [g, s, pos] : null;
+  };
+  /**
+   * Flight of a transport leaving now: seconds, deuterium and the cargo space left for resources (null: unknown,
+   * no ships named). Without ships, coordinates or universe settings the step's own flight time counts.
+   */
+  const flightOf = (p: Planet, tr: TransportSettings): { flight: number; fuel: number; capacity: number | null } => {
+    const ships = tr.ships;
+    if (!ships) return { flight: tr.flight, fuel: 0, capacity: null };
+    const catalog = activeUnits();
+    const capacity = fleetCapacity(ships, false, catalog.capacity);
+    const to = tr.target ? coordsOf(tr.target) : null;
+    const u = o.universe;
+    const drives = drivesFromResearch(research);
+    const slowest = slowestShip(ships, drives, catalog.drives);
+    if (!u || !p.coords || !to || !slowest) return { flight: tr.flight, fuel: 0, capacity };
+    const dist = distance(u, p.coords, to);
+    const duration = flightDuration(u, dist, slowest.speed, tr.speed ?? 100);
+    const fuel = fleetConsumption(u, ships, duration, dist, drives, 1, catalog.drives);
+    return { flight: Math.floor(duration), fuel, capacity: capacity - fuel };
+  };
+  /** What a transport loads: its amounts, or with `all` what is on the planet (after the fuel) up to the cargo space. */
+  const loadOf = (p: Planet, tr: TransportSettings, f: { fuel: number; capacity: number | null }): Record<number, number> => {
+    if (!tr.all) return { 901: tr.resources[901] ?? 0, 902: tr.resources[902] ?? 0, 903: tr.resources[903] ?? 0 };
+    let space = f.capacity ?? Infinity;
+    const out: Record<number, number> = {};
+    for (const r of RES) {
+      const there = Math.max(0, Math.floor(p.res[r] - (r === 903 ? f.fuel : 0)));
+      out[r] = Math.max(0, Math.min(there, space));
+      space -= out[r];
+    }
+    return out;
+  };
+  const astroAt = (t: number) => researchQueue.reduce((l, q) => (q.id === ASTROPHYSICS && q.end <= t ? Math.max(l, q.level) : l), research[ASTROPHYSICS] ?? 0);
+  /** planets the account has or is founding */
+  const planetCount = () => planets.filter((x) => x.type === 'planet' && (x.active || x.arrivals.some((a) => a.found))).length;
+
   const stepCost = (p: Planet, s: Step): Record<number, number> => {
     if (s.kind === 'building') return buildingCost(s.element!, levelOf(p, s.element!) + 1, catchUp);
     if (s.kind === 'research') return buildingCost(s.element!, researchLevelOf(s.element!) + 1, catchUp);
@@ -278,11 +351,21 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
       const unit = buildingCost(s.element!, 1);
       return Object.fromEntries(Object.entries(unit).map(([r, v]) => [r, v * (s.count ?? 1)]));
     }
-    if (s.kind === 'transport') return { ...s.transport!.resources };
+    if (s.kind === 'transport') {
+      const f = flightOf(p, s.transport!);
+      const load = loadOf(p, s.transport!, f);
+      const cost: Record<number, number> = {};
+      for (const r of RES) {
+        const v = load[r] + (r === 903 ? f.fuel : 0);
+        if (v > 0) cost[r] = v;
+      }
+      return cost;
+    }
     return {};
   };
 
   const check = (p: Planet, s: Step, t: number): Check => {
+    if (!p.active) return { ok: false, wait: 'colony' };
     if (p.waitUntil > t) return { ok: false, wait: 'slot' };
     const id = s.element!;
     switch (s.kind) {
@@ -320,8 +403,25 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
         if (w.awaitShipyard && p.shipyard.length) return { ok: false, wait: 'shipyard' };
         return { ok: true };
       }
-      case 'transport':
+      case 'transport': {
+        const tr = s.transport!;
+        const f = flightOf(p, tr);
+        if (f.capacity != null && (f.capacity < 0 || (!tr.all && RES.reduce((n, r) => n + (tr.resources[r] ?? 0), 0) > f.capacity))) return { ok: false, wait: 'cargo', never: true };
+        const departure = Math.max(tr.notBefore ?? 0, tr.arriveAt != null ? tr.arriveAt - f.flight : 0);
+        if (departure > t) return { ok: false, wait: 'time', readyAt: departure };
+        const target = tr.target ? byKey.get(tr.target) : undefined;
+        if (tr.mission === 'colonize' && target && !target.active && o.universe) {
+          // the planet is only founded when astrophysics allows one more at the arrival
+          const count = planetCount();
+          const limit = (astro: number) => planetLimit(o.universe!, astro);
+          const allowed = limit(astroAt(t + f.flight));
+          if (allowed != null && count >= allowed) {
+            const q = researchQueue.find((x) => x.id === ASTROPHYSICS && (limit(x.level) ?? 0) > count);
+            return q ? { ok: false, wait: 'astro', readyAt: Math.max(t + 1, q.end - f.flight) } : { ok: false, wait: 'astro' };
+          }
+        }
         break;
+      }
     }
     return ready(p, stepCost(p, s), t);
   };
@@ -335,6 +435,7 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
     const cost = stepCost(p, s);
     const id = s.element!;
     let end = t;
+    let fuel = 0;
     switch (s.kind) {
       case 'building': {
         const robot = levelOf(p, ROBOT_FACTORY);
@@ -374,9 +475,14 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
         break;
       }
       case 'transport': {
-        end = t + s.transport!.flight;
-        const target = s.transport!.target ? byKey.get(s.transport!.target) : undefined;
-        if (target) target.arrivals.push({ at: end, resources: { ...s.transport!.resources } });
+        const tr = s.transport!;
+        const f = flightOf(p, tr);
+        fuel = f.fuel;
+        end = t + f.flight;
+        const load: Record<number, number> = {};
+        for (const r of RES) load[r] = Math.max(0, (cost[r] ?? 0) - (r === 903 ? fuel : 0));
+        const target = tr.target ? byKey.get(tr.target) : undefined;
+        if (target) target.arrivals.push({ at: end, resources: load, ...(tr.mission === 'colonize' && !target.active ? { found: true } : {}) });
         break;
       }
     }
@@ -392,7 +498,7 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
     pay(p, cost);
     record(p, s, {
       target, state: 'planned', start: t, end, cost: Object.keys(cost).length ? cost : null, wait: p.wait,
-      transport: Object.keys(transport).length ? transport : null, full: fullOf(p),
+      transport: Object.keys(transport).length ? transport : null, full: fullOf(p), ...(fuel ? { fuel } : {}),
     });
     p.wait = null;
     p.head++;
@@ -462,8 +568,15 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
       }
       for (let i = p.arrivals.length - 1; i >= 0; i--) {
         if (p.arrivals[i].at > t) continue;
-        for (const r of RES) p.res[r] += p.arrivals[i].resources[r] ?? 0;
+        const a = p.arrivals[i];
         p.arrivals.splice(i, 1);
+        if (a.found && !p.active) {
+          p.active = true;
+          for (const r of RES) p.res[r] += p.founded[r] ?? 0;
+          updateRate(p);
+          rates = true;
+        }
+        for (const r of RES) p.res[r] += a.resources[r] ?? 0;
       }
     }
     while (researchQueue[0] && researchQueue[0].end <= t) {

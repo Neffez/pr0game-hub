@@ -3,9 +3,12 @@ info:
   title: pr0game Hub API
   version: 1.0.0
   description: |
-    JSON API for alliance data synced into the hub. Read-only personal access tokens (`hubpat_…`) use the same
+    JSON API for alliance data synced into the hub. Personal access tokens (`hubpat_…`) use the same
     endpoints as the web app for GET requests. Create tokens under **Account** in the hub (session cookie required).
-    The one POST a token may call is the battle simulator (`POST /api/{uni}/battle/simulate`), which writes nothing.
+    Tokens read everything their owner sees and write one thing: the owner's own build order
+    (`PUT`, `PATCH`, `DELETE /api/{uni}/build-order` and `POST /api/{uni}/build-order/assign`), so scripts and
+    assistants can plan for them. Every other write answers 403 (`read_only_token`). The battle simulator
+    (`POST /api/{uni}/battle/simulate`) writes nothing and is allowed too.
 
     **Browser writes:** Requests other than GET/HEAD/OPTIONS that carry an `Origin` header from another origin than
     the hub's are refused with 403 (`cross_origin`).
@@ -42,7 +45,7 @@ components:
     bearerAuth:
       type: http
       scheme: bearer
-      description: Personal read-only token from Account → API tokens
+      description: Personal token from Account → API tokens (reads; writes only the owner's build order)
     sessionCookie:
       type: apiKey
       in: cookie
@@ -463,11 +466,30 @@ components:
             wait: { type: integer }
         transport:
           type: object
-          description: 'Resources (901-903) leaving the planet, landing on `target` (hub planet key, null: none) after `flight` seconds'
+          required: [target, resources, flight]
+          description: >-
+            Resources (901-903) leaving the planet and landing on `target` (hub planet key, a planned planet's key, null:
+            none). With `ships` the flight time, the deuterium of the flight and the cargo space come from the game's
+            flight formula (coordinates of both planets, the drives researched at the departure, the universe's
+            settings); without ships or coordinates `flight` counts. The step leaves when it is its turn in the list and
+            the resources are there, not before `notBefore` and not before `arriveAt` minus the flight time. The ships
+            are not tracked (whether they exist or are away is not checked).
           properties:
             target: { type: [string, 'null'] }
-            resources: { type: object }
-            flight: { type: integer }
+            resources: { type: object, description: 'Resource id (901, 902, 903) -> amount; ignored with `all`' }
+            flight: { type: integer, description: Flight time in seconds when it cannot be calculated (0 with ships) }
+            mission:
+              type: string
+              enum: [transport, deploy, colonize]
+              description: >-
+                Default `transport`. `colonize` to a planned planet founds it at the arrival: its steps start then, with
+                the universe's start resources plus the cargo. It leaves only when astrophysics allows one more planet
+                at the arrival (it waits for a running astrophysics research)
+            ships: { type: object, description: 'Ship id -> amount, e.g. `{"202": 3}`', additionalProperties: { type: integer, minimum: 1 } }
+            speed: { type: integer, minimum: 10, maximum: 100, multipleOf: 10, description: 'Speed in percent, default 100' }
+            all: { type: boolean, description: 'Loads what is on the planet at the departure (metal, crystal, deuterium in this order) up to the cargo space' }
+            notBefore: { type: integer, description: Earliest departure (Unix seconds) }
+            arriveAt: { type: integer, description: 'Wanted arrival (Unix seconds); later when the resources are missing at the departure' }
         deactivated: { type: boolean }
         done: { type: boolean, description: Checked off by hand }
     BuildOrder:
@@ -482,8 +504,51 @@ components:
             research: { type: object }
         planets:
           type: object
-          description: Hub planet key -> steps in order
+          description: >-
+            Hub planet key -> steps in order. A planet the hub has not synced yet (a colony to come) uses a planned key
+            `0:0:<n>:planet` (n 1-99, an empty list is fine) and is simulated as a new planet
           additionalProperties: { type: array, items: { $ref: '#/components/schemas/BuildOrderStep' } }
+        planned:
+          type: object
+          description: >-
+            Details of the planned planets, by their key in `planets`. With `coords` flights to and from the planet
+            are calculated, and it is assigned by itself once the member syncs a planet at these coordinates
+          additionalProperties:
+            type: object
+            properties:
+              name: { type: string, maxLength: 40 }
+              coords:
+                type: object
+                required: [g, s, p]
+                properties:
+                  g: { type: integer }
+                  s: { type: integer }
+                  p: { type: integer }
+              temp: { type: integer, description: Max temperature (deuterium and satellite production) }
+    BuildOrderStepResult:
+      type: object
+      required: [id, planet, target, state, start, end, cost, wait, transport, full]
+      properties:
+        id: { type: string }
+        planet: { type: string, description: Hub planet key of the list the step is in }
+        target: { type: [integer, 'null'], description: 'Target level or unit count (building, research, ship, defense)' }
+        state:
+          type: string
+          enum: [done, queued, deactivated, planned, invalid]
+          description: '`planned`: will start at `start`; `invalid`: can never start in this order (`wait` says why)'
+        start: { type: [integer, 'null'], description: 'Unix seconds the step starts (a transport: its departure); at or before `now`: it can start now' }
+        end: { type: [integer, 'null'], description: 'Unix seconds it is finished (a transport: its arrival)' }
+        cost: { type: [object, 'null'], description: 'Resource id -> amount paid at the start (a transport: its cargo plus the fuel)' }
+        wait:
+          type: [string, 'null']
+          enum: [resources, slot, research, lab, shipyard, requirements, storage, max, planet, nolab, horizon, aborted, time, cargo, astro, colony, null]
+          description: >-
+            What the step waited for last, or why it never starts. `time`: the transport's set departure or arrival;
+            `cargo`: more than the ships hold; `astro`: astrophysics for the colony; `colony`: the planned planet is not
+            colonized yet
+        transport: { type: [object, 'null'], description: Resources beyond the storage that have to come by transport }
+        full: { type: [object, 'null'], description: 'Storages that ran full while the list waited: resource id -> `since`, `lost`' }
+        fuel: { type: number, description: 'Deuterium of the flight, part of `cost` (transports with ships)' }
     StoredBuildOrder:
       type: [object, 'null']
       required: [order, meta, createdAt, updatedAt]
@@ -4531,7 +4596,11 @@ paths:
       description: >-
         Imports a build order, replacing the caller's one in the group (also used to start one by hand, `meta.source`
         `hub`). The client maps the file's planets onto hub planets and sets the base. Planets without coordinates yet (before the start, or a colony still to come) use the
-        planned key `0:0:<n>:planet` (n: pr0plan planet id) and are later moved with `/api/{uni}/build-order/assign`.
+        planned key `0:0:<n>:planet` (n: pr0plan planet id, or any free number) and are later moved with
+        `/api/{uni}/build-order/assign`, or by themselves when `planned` names their coordinates. Allowed with an API
+        token. A step is "+1 level": its level is the base (`base.planets[key][element]`, `base.research[element]`)
+        plus the steps of the same element before it, so set the base to the current levels (see `/api/{uni}/buildings`).
+        Check the result with `/api/{uni}/build-order/timeline`.
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
@@ -4559,8 +4628,10 @@ paths:
       tags: [Universe]
       operationId: patchBuildOrder
       description: >-
-        Replaces the steps (new order, done and deactivated flags, removed or added steps). The base is replaced only
-        when `base` is sent (the client sets the start levels of elements added by hand); meta stays.
+        Replaces the steps of all planets (new order, done and deactivated flags, removed or added steps, planets
+        added or left out). The base is replaced only when `base` is sent (the client sets the start levels of
+        elements added by hand), the planned planets' details only when `planned` is sent (those of planets left out
+        are dropped); meta stays. Allowed with an API token.
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
@@ -4580,6 +4651,7 @@ paths:
                   properties:
                     planets: { type: object }
                     research: { type: object }
+                planned: { type: object, description: 'Optional new details of the planned planets, as `BuildOrder.planned`; omitted keeps the stored ones' }
       responses:
         '200':
           content:
@@ -4593,7 +4665,7 @@ paths:
     delete:
       tags: [Universe]
       operationId: deleteBuildOrder
-      description: Deletes the caller's build order in the group.
+      description: Deletes the caller's build order in the group. Allowed with an API token.
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
@@ -4606,13 +4678,39 @@ paths:
                 type: object
                 properties:
                   buildOrder: { $ref: '#/components/schemas/StoredBuildOrder' }
+  /api/{uni}/build-order/timeline:
+    get:
+      tags: [Universe]
+      operationId: getBuildOrderTimeline
+      description: >-
+        The timeline of the caller's build order from the hub's state now, as the build order tab shows it: every
+        planet works through its list in order, a step starts once its slot is free, its requirements are met and the
+        resources are there. Planned planets are simulated as new planets. Use it to check a plan after writing it.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [now, steps, next]
+                properties:
+                  now: { type: integer, description: Unix seconds the timeline starts from }
+                  steps: { type: array, description: 'All steps, per planet in list order', items: { $ref: '#/components/schemas/BuildOrderStepResult' } }
+                  next: { type: object, description: 'Hub planet key -> id of its next open step, null when the list is through', additionalProperties: { type: [string, 'null'] } }
+        '404': { description: 'The caller has no build order in the group (`build_order_not_found`)' }
   /api/{uni}/build-order/assign:
     post:
       tags: [Universe]
       operationId: assignBuildOrderPlanet
       description: >-
         Assigns a planned planet of the caller's build order (key `0:0:<n>:planet`) to a planet: its steps and base and
-        the transports to it move to `to`; the import's planet mapping in `meta` follows.
+        the transports to it move to `to` (a colonization to it is checked off); the import's planet mapping in `meta`
+        follows. A planned planet with coordinates is assigned by itself when a page with a planet at them is pasted.
+        Allowed with an API token.
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }

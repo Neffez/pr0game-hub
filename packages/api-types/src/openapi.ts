@@ -1183,15 +1183,32 @@ export type paths = {
         };
         /** @description The caller's build order in the group (imported from pr0plan, shown under build & research), null when none. Steps the synced pages show as done are returned checked off; this read writes nothing (they are stored as done when a page is pasted). The next step of each planet notifies (`buildorder`, see `/api/{uni}/notifications`) once it can start. */
         get: operations["getBuildOrder"];
-        /** @description Imports a build order, replacing the caller's one in the group (also used to start one by hand, `meta.source` `hub`). The client maps the file's planets onto hub planets and sets the base. Planets without coordinates yet (before the start, or a colony still to come) use the planned key `0:0:<n>:planet` (n: pr0plan planet id) and are later moved with `/api/{uni}/build-order/assign`. */
+        /** @description Imports a build order, replacing the caller's one in the group (also used to start one by hand, `meta.source` `hub`). The client maps the file's planets onto hub planets and sets the base. Planets without coordinates yet (before the start, or a colony still to come) use the planned key `0:0:<n>:planet` (n: pr0plan planet id, or any free number) and are later moved with `/api/{uni}/build-order/assign`, or by themselves when `planned` names their coordinates. Allowed with an API token. A step is "+1 level": its level is the base (`base.planets[key][element]`, `base.research[element]`) plus the steps of the same element before it, so set the base to the current levels (see `/api/{uni}/buildings`). Check the result with `/api/{uni}/build-order/timeline`. */
         put: operations["putBuildOrder"];
         post?: never;
-        /** @description Deletes the caller's build order in the group. */
+        /** @description Deletes the caller's build order in the group. Allowed with an API token. */
         delete: operations["deleteBuildOrder"];
         options?: never;
         head?: never;
-        /** @description Replaces the steps (new order, done and deactivated flags, removed or added steps). The base is replaced only when `base` is sent (the client sets the start levels of elements added by hand); meta stays. */
+        /** @description Replaces the steps of all planets (new order, done and deactivated flags, removed or added steps, planets added or left out). The base is replaced only when `base` is sent (the client sets the start levels of elements added by hand), the planned planets' details only when `planned` is sent (those of planets left out are dropped); meta stays. Allowed with an API token. */
         patch: operations["patchBuildOrder"];
+        trace?: never;
+    };
+    "/api/{uni}/build-order/timeline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The timeline of the caller's build order from the hub's state now, as the build order tab shows it: every planet works through its list in order, a step starts once its slot is free, its requirements are met and the resources are there. Planned planets are simulated as new planets. Use it to check a plan after writing it. */
+        get: operations["getBuildOrderTimeline"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/{uni}/build-order/assign": {
@@ -1203,7 +1220,7 @@ export type paths = {
         };
         get?: never;
         put?: never;
-        /** @description Assigns a planned planet of the caller's build order (key `0:0:<n>:planet`) to a planet: its steps and base and the transports to it move to `to`; the import's planet mapping in `meta` follows. */
+        /** @description Assigns a planned planet of the caller's build order (key `0:0:<n>:planet`) to a planet: its steps and base and the transports to it move to `to` (a colonization to it is checked off); the import's planet mapping in `meta` follows. A planned planet with coordinates is assigned by itself when a page with a planet at them is pasted. Allowed with an API token. */
         post: operations["assignBuildOrderPlanet"];
         delete?: never;
         options?: never;
@@ -3093,11 +3110,30 @@ export type components = {
                 awaitShipyard?: boolean;
                 wait?: number;
             };
-            /** @description Resources (901-903) leaving the planet, landing on `target` (hub planet key, null: none) after `flight` seconds */
+            /** @description Resources (901-903) leaving the planet and landing on `target` (hub planet key, a planned planet's key, null: none). With `ships` the flight time, the deuterium of the flight and the cargo space come from the game's flight formula (coordinates of both planets, the drives researched at the departure, the universe's settings); without ships or coordinates `flight` counts. The step leaves when it is its turn in the list and the resources are there, not before `notBefore` and not before `arriveAt` minus the flight time. The ships are not tracked (whether they exist or are away is not checked). */
             transport?: {
-                target?: string | null;
-                resources?: Record<string, never>;
-                flight?: number;
+                target: string | null;
+                /** @description Resource id (901, 902, 903) -> amount; ignored with `all` */
+                resources: Record<string, never>;
+                /** @description Flight time in seconds when it cannot be calculated (0 with ships) */
+                flight: number;
+                /**
+                 * @description Default `transport`. `colonize` to a planned planet founds it at the arrival: its steps start then, with the universe's start resources plus the cargo. It leaves only when astrophysics allows one more planet at the arrival (it waits for a running astrophysics research)
+                 * @enum {string}
+                 */
+                mission?: "transport" | "deploy" | "colonize";
+                /** @description Ship id -> amount, e.g. `{"202": 3}` */
+                ships?: {
+                    [key: string]: number;
+                };
+                /** @description Speed in percent, default 100 */
+                speed?: number;
+                /** @description Loads what is on the planet at the departure (metal, crystal, deuterium in this order) up to the cargo space */
+                all?: boolean;
+                /** @description Earliest departure (Unix seconds) */
+                notBefore?: number;
+                /** @description Wanted arrival (Unix seconds); later when the resources are missing at the departure */
+                arriveAt?: number;
             };
             deactivated?: boolean;
             /** @description Checked off by hand */
@@ -3109,10 +3145,52 @@ export type components = {
                 planets?: Record<string, never>;
                 research?: Record<string, never>;
             };
-            /** @description Hub planet key -> steps in order */
+            /** @description Hub planet key -> steps in order. A planet the hub has not synced yet (a colony to come) uses a planned key `0:0:<n>:planet` (n 1-99, an empty list is fine) and is simulated as a new planet */
             planets: {
                 [key: string]: components["schemas"]["BuildOrderStep"][];
             };
+            /** @description Details of the planned planets, by their key in `planets`. With `coords` flights to and from the planet are calculated, and it is assigned by itself once the member syncs a planet at these coordinates */
+            planned?: {
+                [key: string]: {
+                    name?: string;
+                    coords?: {
+                        g: number;
+                        s: number;
+                        p: number;
+                    };
+                    /** @description Max temperature (deuterium and satellite production) */
+                    temp?: number;
+                };
+            };
+        };
+        BuildOrderStepResult: {
+            id: string;
+            /** @description Hub planet key of the list the step is in */
+            planet: string;
+            /** @description Target level or unit count (building, research, ship, defense) */
+            target: number | null;
+            /**
+             * @description `planned`: will start at `start`; `invalid`: can never start in this order (`wait` says why)
+             * @enum {string}
+             */
+            state: "done" | "queued" | "deactivated" | "planned" | "invalid";
+            /** @description Unix seconds the step starts (a transport: its departure); at or before `now`: it can start now */
+            start: number | null;
+            /** @description Unix seconds it is finished (a transport: its arrival) */
+            end: number | null;
+            /** @description Resource id -> amount paid at the start (a transport: its cargo plus the fuel) */
+            cost: Record<string, never> | null;
+            /**
+             * @description What the step waited for last, or why it never starts. `time`: the transport's set departure or arrival; `cargo`: more than the ships hold; `astro`: astrophysics for the colony; `colony`: the planned planet is not colonized yet
+             * @enum {string|null}
+             */
+            wait: "resources" | "slot" | "research" | "lab" | "shipyard" | "requirements" | "storage" | "max" | "planet" | "nolab" | "horizon" | "aborted" | "time" | "cargo" | "astro" | "colony" | null;
+            /** @description Resources beyond the storage that have to come by transport */
+            transport: Record<string, never> | null;
+            /** @description Storages that ran full while the list waited: resource id -> `since`, `lost` */
+            full: Record<string, never> | null;
+            /** @description Deuterium of the flight, part of `cost` (transports with ships) */
+            fuel?: number;
         };
         StoredBuildOrder: {
             order: components["schemas"]["BuildOrder"];
@@ -8255,6 +8333,8 @@ export interface operations {
                         planets?: Record<string, never>;
                         research?: Record<string, never>;
                     };
+                    /** @description Optional new details of the planned planets, as `BuildOrder.planned`; omitted keeps the stored ones */
+                    planned?: Record<string, never>;
                 };
             };
         };
@@ -8275,6 +8355,50 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description The caller has no build order in the group (`build_order_not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getBuildOrderTimeline: {
+        parameters: {
+            query?: {
+                /** @description Alliance group id (alternative to `X-Hub-Group`, required for SSE) */
+                group?: components["parameters"]["HubGroupQuery"];
+            };
+            header?: {
+                /** @description Alliance group id (see `GET /api/auth/me`) */
+                "X-Hub-Group"?: components["parameters"]["HubGroupHeader"];
+            };
+            path: {
+                /** @description Universe slug (e.g. `u8`) */
+                uni: components["parameters"]["Uni"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description Unix seconds the timeline starts from */
+                        now: number;
+                        /** @description All steps, per planet in list order */
+                        steps: components["schemas"]["BuildOrderStepResult"][];
+                        /** @description Hub planet key -> id of its next open step, null when the list is through */
+                        next: {
+                            [key: string]: string | null;
+                        };
+                    };
+                };
             };
             /** @description The caller has no build order in the group (`build_order_not_found`) */
             404: {

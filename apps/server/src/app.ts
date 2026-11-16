@@ -50,6 +50,8 @@ declare module 'fastify' {
     allowEnded?: boolean;
     /** writes only the member's own planning (build order): also allowed before the start, not after the end */
     allowBeforeStart?: boolean;
+    /** writes only the member's own planning (build order): API tokens may call it; the universe's start and end count as with a session */
+    tokenWrite?: boolean;
   }
   interface FastifyInstance {
     /** web push of the notifications (main.ts starts its launch reminders) */
@@ -148,7 +150,7 @@ export function buildApp(db: DB, opts: { logger?: boolean; push?: PushOptions; d
         if (crossOrigin(req)) throw new HttpError(403, 'cross_origin', 'Cross-origin requests are not allowed');
         // routes that write nothing (the battle simulator) may be called with a read-only token
         const allowToken = req.routeOptions.config?.allowToken;
-        if (req.authSource === 'token' && !allowToken) throw new HttpError(403, 'read_only_token', 'API tokens are read-only');
+        if (req.authSource === 'token' && !allowToken && !req.routeOptions.config?.tokenWrite) throw new HttpError(403, 'read_only_token', 'API tokens are read-only');
         // a universe before its start or after its end is read-only: only routes that write no game data
         // (`allowToken`, `allowEnded`) go on
         const uni = (req.params as { uni?: unknown } | undefined)?.uni;

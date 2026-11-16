@@ -4,6 +4,22 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-16
 
+- Build order: planets that do not exist yet, transports with ships, and writing by API token.
+  - Planned planets can be added by hand in the build order tab (name, the coordinates they will have, max
+    temperature), edited and removed, not only imported from pr0plan. With coordinates a planned planet is assigned
+    by itself once a planet at them is synced (`assignSynced` in the catch-up after a paste); the manual assignment
+    stays. Their details are `BuildOrder.planned`.
+  - Transport steps can be added by hand: transport, deployment or colonization to a planet of the hub or a planned
+    one, with ships, speed, fixed amounts or everything that is there, and an optional earliest departure or wanted
+    arrival. With ships the simulation takes flight time, fuel and cargo space from `@pr0hub/flight` (coordinates,
+    the drives researched at the departure, the universe's settings); the cargo lands on the target at the arrival.
+    A colonization founds its planned planet at the arrival (start resources plus cargo, its list starts then) and
+    waits until astrophysics allows the planet. New wait reasons `time`, `cargo`, `astro`, `colony`; `StepResult`
+    has `fuel`. The ships themselves are not tracked.
+  - API tokens may write their owner's build order (`PUT`, `PATCH`, `DELETE /api/{uni}/build-order`,
+    `POST …/assign`; route option `tokenWrite`); every other write stays refused. `PATCH` takes `planned`.
+    New `GET /api/{uni}/build-order/timeline` returns the simulated timeline (state, start, end, cost, wait reason
+    per step), so a script or assistant can check the plan it wrote.
 - The open API type cleanups cannot grow any more and are written down for every contributor: a ratchet test in the
   web app counts the API calls that pass a hand-written answer type (102), one in the server counts the JSON answers
   `openapi.yaml` leaves as a bare `type: object` (41); both fail when the number rises and are lowered as the

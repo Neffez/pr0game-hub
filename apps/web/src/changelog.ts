@@ -16,6 +16,26 @@ export interface ChangelogDay {
 
 export const CHANGELOG: ChangelogDay[] = [
   {
+    date: '2026-11-16',
+    items: [
+      {
+        kind: 'new',
+        de: 'Bauliste: Planeten, die es noch nicht gibt (z. B. die nächste Kolonie), lassen sich von Hand anlegen und vorplanen. Mit Koordinaten wird die Liste von selbst zugeordnet, sobald der Planet synchronisiert ist.',
+        en: 'Build order: planets that do not exist yet (e.g. the next colony) can be added by hand and planned ahead. With coordinates the list is assigned by itself once the planet is synced.',
+      },
+      {
+        kind: 'new',
+        de: 'Bauliste: Transporte als Schritt (Transport, Stationieren, Kolonisieren) mit Schiffen, Tempo, Menge und optionalem Abflug oder Ankunft. Flugzeit, Treibstoff und Laderaum werden berechnet, die Rohstoffe landen zur Ankunft auf dem Ziel; eine Kolonie beginnt mit der Ankunft des Kolonieschiffs.',
+        en: 'Build order: transports as a step (transport, deploy, colonize) with ships, speed, amount and an optional departure or arrival. Flight time, fuel and cargo space are calculated, the resources land on the target at the arrival; a colony begins when the colony ship arrives.',
+      },
+      {
+        kind: 'new',
+        de: 'API-Token dürfen jetzt die eigene Bauliste schreiben, damit Skripte oder KI-Assistenten für dich planen können. Alles andere bleibt nur lesbar.',
+        en: 'API tokens may now write your own build order, so scripts or AI assistants can plan for you. Everything else stays read-only.',
+      },
+    ],
+  },
+  {
     date: '2026-11-15',
     items: [
       {

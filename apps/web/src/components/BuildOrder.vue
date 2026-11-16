@@ -12,9 +12,10 @@ export interface StoredBuildOrder {
 
 <script setup lang="ts">
 import {
-  baseFromHub, compareSettings, insertSteps, isPlannedKey, plannedNumber, plannedPlanet, simulate, targetsOf, type HubState, type NewStep,
-  type Pr0planImport, type Step, type StepResult,
+  baseFromHub, compareSettings, freePlannedKey, insertSteps, isPlannedKey, plannedNumber, simulate, targetsOf, withPlanned, type HubState, type NewStep,
+  type PlannedPlanet, type Pr0planImport, type Step, type StepResult, type TransportMission, type TransportSettings,
 } from '@pr0hub/planner';
+import { SPEED_PERCENTS } from '@pr0hub/flight';
 import { buildingsFor, RESEARCH } from '@pr0hub/core/buildings';
 import { RESOURCES } from '@pr0hub/core/tech';
 import { startResourcesOf } from '@pr0hub/core/universe';
@@ -38,6 +39,9 @@ import { units } from '../units';
  * the hub's.
  * Planned planets (no coordinates yet: before the start, or a colony to come) are simulated as new planets from the
  * universe's start and are assigned to a synced planet later. `planetKey` null: no synced planet (yet).
+ * Planned planets can also be added by hand (name, the coordinates they will have, temperature); one that a
+ * colonization of the build order flies to starts when that arrives. Transports (transport, deployment, colonization)
+ * are steps with ships: flight time, fuel and cargo space come from the flight formula.
  */
 const props = defineProps<{ hub: HubState; planetKey: string | null; mobile: boolean }>();
 const { t, locale } = useI18n();
@@ -62,7 +66,7 @@ const plannedKeys = computed(() =>
 );
 const plannedName = (key: string) => {
   const n = plannedNumber(key);
-  return stored.value?.meta.names?.[String(n)] || t('buildOrder.plannedPlanet', { n });
+  return stored.value?.order.planned?.[key]?.name || stored.value?.meta.names?.[String(n)] || t('buildOrder.plannedPlanet', { n });
 };
 /** resources of a new planet in this universe (admin setting) */
 const startResources = computed(() => startResourcesOf(ctx.value?.universe.settings ?? {}));
@@ -71,15 +75,14 @@ const hubAll = computed<HubState>(() => {
   const s = stored.value;
   if (!s || !plannedKeys.value.length) return props.hub;
   const settings = s.meta.settings as Pr0planImport['settings'] | undefined;
-  const planned = plannedKeys.value.map((k) => plannedPlanet(s.order, k, minute.value, { name: plannedName(k), temp: settings?.planets[String(plannedNumber(k))]?.temp, resources: startResources.value }));
-  return { ...props.hub, planets: [...props.hub.planets, ...planned] };
+  return withPlanned(s.order, props.hub, minute.value, { resources: startResources.value, name: plannedName, temp: (k) => settings?.planets[String(plannedNumber(k))]?.temp });
 });
 /** a planned planet picked to look at; a planet chosen on the page shows that one again */
 const picked = ref<string | null>(null);
 watch(() => props.planetKey, () => (picked.value = null));
 const planetKey = computed(() => (picked.value && plannedKeys.value.includes(picked.value) ? picked.value : (props.planetKey ?? plannedKeys.value[0] ?? '')));
 
-const sim = computed(() => (stored.value ? simulate(stored.value.order, hubAll.value, { now: minute.value }) : null));
+const sim = computed(() => (stored.value ? simulate(stored.value.order, hubAll.value, { now: minute.value, universe: ctx.value?.universe.settings }) : null));
 const resultOf = computed(() => new Map((sim.value?.steps ?? []).map((r) => [r.id, r])));
 const steps = computed<Step[]>(() => stored.value?.order.planets[planetKey.value] ?? []);
 const nextId = computed(() => sim.value?.next[planetKey.value] ?? null);
@@ -104,7 +107,10 @@ const otherPlanets = computed(() =>
     .map(([k, list]) => ({ key: k, open: openOf(list) })),
 );
 const planetLabel = (key: string) => {
-  if (isPlannedKey(key)) return plannedName(key);
+  if (isPlannedKey(key)) {
+    const c = stored.value?.order.planned?.[key]?.coords;
+    return c ? `${plannedName(key)} [${c.g}:${c.s}:${c.p}]` : plannedName(key);
+  }
   const p = props.hub.planets.find((x) => x.key === key);
   return p ? `${p.name ? p.name + ' ' : ''}[${p.coords.g}:${p.coords.s}:${p.coords.p}]` : key;
 };
@@ -113,9 +119,14 @@ const planetLabel = (key: string) => {
 const assignable = computed(() => props.hub.planets.filter((p) => p.type === 'planet' && !stored.value?.order.planets[p.key]?.length));
 const assignTo = ref<Record<string, string | null>>({});
 watch([plannedKeys, assignable], () => {
-  // suggested by order: pr0plan's planet 1 is the home planet, the first one of the empire
+  // suggested by the planned coordinates, else by order: pr0plan's planet 1 is the home planet, the first one of the empire
   const free = assignable.value.map((p) => p.key);
-  assignTo.value = Object.fromEntries(plannedKeys.value.map((k) => [k, free.includes(assignTo.value[k] ?? '') ? assignTo.value[k] : (free[plannedNumber(k)! - 1] ?? null)]));
+  const at = (k: string) => {
+    const c = stored.value?.order.planned?.[k]?.coords;
+    const key = c ? `${c.g}:${c.s}:${c.p}:planet` : '';
+    return free.includes(key) ? key : null;
+  };
+  assignTo.value = Object.fromEntries(plannedKeys.value.map((k) => [k, free.includes(assignTo.value[k] ?? '') ? assignTo.value[k] : (at(k) ?? free[plannedNumber(k)! - 1] ?? null)]));
 }, { immediate: true });
 async function assign(from: string) {
   const to = assignTo.value[from];
@@ -150,8 +161,17 @@ function stepTitle(s: Step, r: StepResult | undefined): string {
       return t('buildOrder.prodTitle', { m: Math.round((f[1] ?? 1) * 100), c: Math.round((f[2] ?? 1) * 100), d: Math.round((f[3] ?? 1) * 100) });
     }
     case 'transport':
-      return t('buildOrder.transportTitle', { to: s.transport!.target ? planetLabel(s.transport!.target) : '–' });
+      return t(`buildOrder.missionTitle.${s.transport!.mission ?? 'transport'}`, { to: s.transport!.target ? planetLabel(s.transport!.target) : '–' });
   }
+}
+/** what a transport flies with and when: "3× Kleiner Transporter · 70 % · alles · Ankunft Mo 12:00" */
+function transportInfo(tr: TransportSettings): string {
+  const parts = Object.entries(tr.ships ?? {}).map(([id, n]) => `${fmt(n)}× ${name(Number(id))}`);
+  if (tr.speed && tr.speed !== 100) parts.push(`${tr.speed} %`);
+  if (tr.all) parts.push(t('buildOrder.trAllShort'));
+  if (tr.notBefore) parts.push(t('buildOrder.trNotBefore', { time: clock(tr.notBefore) }));
+  if (tr.arriveAt) parts.push(t('buildOrder.trArriveAt', { time: clock(tr.arriveAt) }));
+  return parts.join(' · ');
 }
 const kindIcon = (s: Step) => ({ building: 'buildings', research: 'research', ship: 'fleet', defense: 'target', prod: 'bolt', transport: 'cargo' })[s.kind];
 const clock = (epoch: number) =>
@@ -211,8 +231,8 @@ async function removeAll() {
 }
 
 // ------------------------------------------------------------------ adding steps
-type AddKind = NewStep['kind'];
-const ADD_KINDS: AddKind[] = ['building', 'research', 'ship', 'defense'];
+type AddKind = NewStep['kind'] | 'transport';
+const ADD_KINDS: AddKind[] = ['building', 'research', 'ship', 'defense', 'transport'];
 const addOpen = ref(false);
 const addKind = ref<AddKind>('building');
 const addElement = ref<number | null>(null);
@@ -222,7 +242,8 @@ const addCount = ref(1);
 const addAt = ref(1);
 const planetType = computed(() => props.hub.planets.find((p) => p.key === planetKey.value)?.type ?? 'planet');
 const elementsOf = (kind: AddKind): number[] =>
-  kind === 'building' ? buildingsFor(planetType.value) : kind === 'research' ? Object.keys(RESEARCH).map(Number) : [...(kind === 'ship' ? units.value.ships : units.value.defense)];
+  kind === 'transport' ? [] : kind === 'building' ? buildingsFor(planetType.value) : kind === 'research' ? Object.keys(RESEARCH).map(Number) : [...(kind === 'ship' ? units.value.ships : units.value.defense)];
+const isTransport = computed(() => addKind.value === 'transport');
 const addElements = computed(() => elementsOf(addKind.value));
 const isUnit = computed(() => addKind.value === 'ship' || addKind.value === 'defense');
 watch([addKind, addElements], () => {
@@ -232,7 +253,58 @@ watch(isUnit, () => (addCount.value = 1));
 /** appends by default; the position follows the list while the form is open */
 watch([() => steps.value.length, planetKey, addOpen], () => (addAt.value = steps.value.length + 1), { immediate: true });
 const countMax = computed(() => (isUnit.value ? 1e7 : 50));
-const addValid = computed(() => !!planetKey.value && addElement.value != null && Number.isInteger(addCount.value) && addCount.value >= 1 && addCount.value <= countMax.value);
+const addValid = computed(() =>
+  isTransport.value
+    ? !!planetKey.value && trValid.value
+    : !!planetKey.value && addElement.value != null && Number.isInteger(addCount.value) && addCount.value >= 1 && addCount.value <= countMax.value,
+);
+
+// transport steps
+const MISSIONS: TransportMission[] = ['transport', 'deploy', 'colonize'];
+const COLONY_SHIP = 208;
+const SMALL_CARGO = 202;
+const trTarget = ref<string | null>(null);
+const trMission = ref<TransportMission>('transport');
+const trShips = ref<{ id: number; count: number }[]>([{ id: SMALL_CARGO, count: 1 }]);
+const trSpeed = ref(100);
+const trAll = ref(false);
+const trRes = ref<Record<number, number>>({ 901: 0, 902: 0, 903: 0 });
+const trTimeMode = ref<'none' | 'notBefore' | 'arriveAt'>('none');
+/** value of the datetime-local input (the viewer's local time) */
+const trTime = ref('');
+/** planets a transport can fly to: the other ones of the build order and the hub, planned ones included */
+const trTargets = computed(() => hubAll.value.planets.map((p) => p.key).filter((k) => k !== planetKey.value));
+watch([trTargets, addKind], () => {
+  if (!trTargets.value.includes(trTarget.value ?? '')) trTarget.value = trTargets.value[0] ?? null;
+}, { immediate: true });
+// a colonization flies with a colony ship, to a planned planet when there is one
+watch(trMission, (m) => {
+  if (m !== 'colonize') return;
+  if (units.value.ships.includes(COLONY_SHIP) && !trShips.value.some((s) => s.id === COLONY_SHIP)) trShips.value = [{ id: COLONY_SHIP, count: 1 }];
+  const planned = trTargets.value.find(isPlannedKey);
+  if (planned && !isPlannedKey(trTarget.value ?? '')) trTarget.value = planned;
+});
+const trEpoch = computed(() => {
+  const ms = trTimeMode.value === 'none' || !trTime.value ? NaN : new Date(trTime.value).getTime();
+  return Number.isFinite(ms) ? Math.floor(ms / 1000) : null;
+});
+const amount = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? Math.floor(v) : 0);
+const trValid = computed(() =>
+  !!trTarget.value && trShips.value.length > 0 && trShips.value.every((s) => Number.isInteger(s.count) && s.count >= 1) &&
+  (trAll.value || trMission.value === 'colonize' || RESOURCES.some((r) => amount(trRes.value[r]) > 0)) && (trTimeMode.value === 'none' || trEpoch.value != null),
+);
+function transportStep(id: string): Step {
+  const ships: Record<string, number> = {};
+  for (const s of trShips.value) ships[s.id] = (ships[s.id] ?? 0) + s.count;
+  const resources: Record<string, number> = {};
+  if (!trAll.value) for (const r of RESOURCES) if (amount(trRes.value[r])) resources[r] = amount(trRes.value[r]);
+  const tr: TransportSettings = { target: trTarget.value, resources, flight: 0, ships };
+  if (trMission.value !== 'transport') tr.mission = trMission.value;
+  if (trSpeed.value !== 100) tr.speed = trSpeed.value;
+  if (trAll.value) tr.all = true;
+  if (trTimeMode.value !== 'none' && trEpoch.value != null) tr[trTimeMode.value] = trEpoch.value;
+  return { id, kind: 'transport', transport: tr };
+}
 
 const newId = () =>
   typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
@@ -240,12 +312,20 @@ const emptyOrder = (): Order => ({ base: baseFromHub(hubAll.value, []), planets:
 /** the build order with the new steps (ids prefixed `new-` for the preview) */
 function withAdded(id: () => string): Order | null {
   if (!addValid.value) return null;
+  const kind = addKind.value;
+  if (kind === 'transport') {
+    const order = stored.value?.order ?? emptyOrder();
+    const list = [...(order.planets[planetKey.value] ?? [])];
+    list.splice(Math.max(0, Math.min(addAt.value - 1, list.length)), 0, transportStep(id()));
+    return { ...order, planets: { ...order.planets, [planetKey.value]: list } };
+  }
   const el = addElement.value!;
-  const add: NewStep[] = isUnit.value ? [{ kind: addKind.value, element: el, count: addCount.value }] : Array.from({ length: addCount.value }, () => ({ kind: addKind.value, element: el }));
+  const add: NewStep[] = isUnit.value ? [{ kind, element: el, count: addCount.value }] : Array.from({ length: addCount.value }, () => ({ kind, element: el }));
   return insertSteps(stored.value?.order ?? emptyOrder(), planetKey.value, add, addAt.value - 1, hubAll.value, id);
 }
 /** what the new steps reach: "Metallmine 12–14", "5× Leichter Jäger (8)" */
 const addPreview = computed(() => {
+  if (isTransport.value) return null;
   let n = 0;
   const order = withAdded(() => `new-${n++}`);
   if (!order) return null;
@@ -255,18 +335,78 @@ const addPreview = computed(() => {
   const last = levels[levels.length - 1];
   return { from: first, to: last };
 });
-async function addSteps() {
-  const order = withAdded(newId);
-  if (!order) return;
+/** stores the whole build order: changes the stored one, or starts one by hand */
+async function write(order: Order): Promise<boolean> {
   saving.value = true;
   try {
     data.value = stored.value
-      ? await uniApi<{ buildOrder: StoredBuildOrder | null }>(uni.value, '/build-order', { method: 'PATCH', body: { planets: order.planets, base: order.base } })
+      ? await uniApi<{ buildOrder: StoredBuildOrder | null }>(uni.value, '/build-order', { method: 'PATCH', body: { planets: order.planets, base: order.base, planned: order.planned ?? {} } })
       : await uniApi<{ buildOrder: StoredBuildOrder | null }>(uni.value, '/build-order', { method: 'PUT', body: { order, meta: { source: 'hub' } } });
+    return true;
   } catch (e) {
     error.value = readError(e);
+    return false;
   } finally {
     saving.value = false;
+  }
+}
+async function addSteps() {
+  const order = withAdded(newId);
+  if (order) await write(order);
+}
+
+// ------------------------------------------------------------------ planned planets by hand
+const planetOpen = ref(false);
+/** key of the planned planet being edited, null: a new one */
+const planetEdit = ref<string | null>(null);
+const pName = ref('');
+const pCoords = ref<{ g: number | ''; s: number | ''; p: number | '' }>({ g: '', s: '', p: '' });
+const pTemp = ref<number | ''>('');
+function openPlanet(key: string | null) {
+  if (planetOpen.value && planetEdit.value === key) return void (planetOpen.value = false);
+  const d = key ? stored.value?.order.planned?.[key] : undefined;
+  planetEdit.value = key;
+  pName.value = d?.name ?? (key ? (stored.value?.meta.names?.[String(plannedNumber(key))] ?? '') : '');
+  pCoords.value = { g: d?.coords?.g ?? '', s: d?.coords?.s ?? '', p: d?.coords?.p ?? '' };
+  pTemp.value = d?.temp ?? '';
+  planetOpen.value = true;
+}
+const pCoordsSet = computed(() => Object.values(pCoords.value).some((v) => v !== ''));
+const planetValid = computed(() => {
+  const c = pCoords.value;
+  const u = ctx.value?.universe.settings;
+  const within = (v: number | '', max: number) => typeof v === 'number' && Number.isInteger(v) && v >= 1 && v <= max;
+  const coordsOk = !pCoordsSet.value || (within(c.g, u?.galaxies ?? 99) && within(c.s, u?.systems ?? 9999) && within(c.p, u?.positions ?? 99));
+  return coordsOk && (pTemp.value === '' || (Number.isInteger(pTemp.value) && Math.abs(pTemp.value) <= 300));
+});
+async function savePlanet() {
+  if (!planetValid.value) return;
+  const order = stored.value?.order ?? emptyOrder();
+  const key = planetEdit.value ?? freePlannedKey(order);
+  if (!key) return;
+  const details: PlannedPlanet = {};
+  if (pName.value.trim()) details.name = pName.value.trim();
+  if (pCoordsSet.value) details.coords = { g: Number(pCoords.value.g), s: Number(pCoords.value.s), p: Number(pCoords.value.p) };
+  if (pTemp.value !== '') details.temp = pTemp.value;
+  const ok = await write({ ...order, planets: { ...order.planets, [key]: order.planets[key] ?? [] }, planned: { ...(order.planned ?? {}), [key]: details } });
+  if (!ok) return;
+  picked.value = key;
+  planetOpen.value = false;
+}
+/** removes a planned planet with its steps; transports to it lose their target */
+async function removePlanet(key: string) {
+  const order = stored.value?.order;
+  if (!order || !confirm(t('buildOrder.removePlanetConfirm', { planet: plannedName(key), n: order.planets[key]?.length ?? 0 }))) return;
+  const planets = Object.fromEntries(
+    Object.entries(order.planets)
+      .filter(([k]) => k !== key)
+      .map(([k, list]) => [k, list.map((s) => (s.transport?.target === key ? { ...s, transport: { ...s.transport, target: null } } : s))]),
+  );
+  const planned = Object.fromEntries(Object.entries(order.planned ?? {}).filter(([k]) => k !== key));
+  const basePlanets = Object.fromEntries(Object.entries(order.base.planets).filter(([k]) => k !== key));
+  if (await write({ base: { ...order.base, planets: basePlanets }, planets, planned })) {
+    picked.value = null;
+    planetOpen.value = false;
   }
 }
 
@@ -294,6 +434,7 @@ function onDrop(i: number) {
       <a v-if="pr0planUrl" :href="pr0planUrl" target="_blank" rel="noopener" class="small" :title="t('buildOrder.pr0planTitle')">
         {{ t('buildOrder.pr0plan') }} <Icon name="external" :size="12" />
       </a>
+      <button class="small" :class="{ active: planetOpen && !planetEdit }" :title="t('buildOrder.addPlanetTitle')" @click="openPlanet(null)"><Icon name="planets" :size="14" /> {{ t('buildOrder.addPlanet') }}</button>
       <button v-if="planetKey" class="small" :class="{ active: addOpen }" data-tour="build-order-add" @click="addOpen = !addOpen"><Icon name="plus" :size="14" /> {{ t('buildOrder.add') }}</button>
       <button class="primary small" @click="importOpen = true"><Icon name="plus" :size="14" /> {{ t('buildOrder.import') }}</button>
       <button v-if="stored" class="small" @click="removeAll">{{ t('buildOrder.delete') }}</button>
@@ -310,8 +451,14 @@ function onDrop(i: number) {
       <div class="row bo-planned-row">
         <button v-if="props.planetKey" class="small" :class="{ primary: planetKey === props.planetKey }" @click="picked = null">{{ planetLabel(props.planetKey) }}</button>
         <button v-for="k in plannedKeys" :key="k" class="small" :class="{ primary: k === planetKey }" @click="picked = k">
-          {{ plannedName(k) }} ({{ t('buildOrder.open', { n: openOf(stored!.order.planets[k]) }) }})
+          {{ planetLabel(k) }} ({{ t('buildOrder.open', { n: openOf(stored!.order.planets[k]) }) }})
         </button>
+        <template v-if="isPlannedKey(planetKey)">
+          <button class="small icon-btn" :class="{ active: planetOpen && planetEdit === planetKey }" :title="t('buildOrder.editPlanet')" :aria-label="t('buildOrder.editPlanet')" @click="openPlanet(planetKey)">
+            <Icon name="edit" :size="14" />
+          </button>
+          <button class="small icon-btn" :title="t('buildOrder.removePlanet')" :aria-label="t('buildOrder.removePlanet')" :disabled="saving" @click="removePlanet(planetKey)"><Icon name="trash" :size="14" /></button>
+        </template>
       </div>
       <div v-for="k in assignable.length ? plannedKeys : []" :key="`a-${k}`" class="row bo-planned-row">
         <span>{{ plannedName(k) }}</span>
@@ -323,24 +470,84 @@ function onDrop(i: number) {
         <button class="small" :disabled="!assignTo[k] || saving" @click="assign(k)">{{ t('buildOrder.assign') }}</button>
       </div>
     </div>
+    <form v-if="planetOpen" class="bo-add small" @submit.prevent="savePlanet">
+      <p class="muted" style="margin: 0">{{ t('buildOrder.planetHint', { m: fmt(startResources[901]), k: fmt(startResources[902]), d: fmt(startResources[903]) }) }}</p>
+      <div class="row bo-add-row">
+        <label>{{ t('buildOrder.planetName') }} <input v-model="pName" type="text" maxlength="40" class="bo-name-input" /></label>
+        <label class="bo-coords">{{ t('buildOrder.planetCoords') }}
+          <input v-model.number="pCoords.g" type="number" min="1" step="1" class="bo-coord-input" :aria-label="t('buildOrder.planetGalaxy')" />:<input
+            v-model.number="pCoords.s" type="number" min="1" step="1" class="bo-coord-input" :aria-label="t('buildOrder.planetSystem')" />:<input
+            v-model.number="pCoords.p" type="number" min="1" step="1" class="bo-coord-input" :aria-label="t('buildOrder.planetPosition')" />
+        </label>
+        <label>{{ t('buildOrder.planetTemp') }} <input v-model.number="pTemp" type="number" step="1" class="bo-num-input" /></label>
+        <button type="submit" class="primary small" :disabled="!planetValid || saving">{{ t(planetEdit ? 'buildOrder.planetSave' : 'buildOrder.planetCreate') }}</button>
+      </div>
+    </form>
     <form v-if="addOpen && planetKey" class="bo-add small" @submit.prevent="addSteps">
       <p class="muted" style="margin: 0">{{ t('buildOrder.addHint', { planet: planetLabel(planetKey) }) }}</p>
       <div class="row bo-add-row">
         <select v-model="addKind" :aria-label="t('buildOrder.addKind')">
           <option v-for="k in ADD_KINDS" :key="k" :value="k">{{ t(`buildOrder.kind.${k}`) }}</option>
         </select>
-        <select v-model="addElement" :aria-label="t('buildOrder.addElement')">
-          <option v-for="id in addElements" :key="id" :value="id">{{ name(id) }}</option>
-        </select>
-        <label>{{ isUnit ? t('buildOrder.addUnits') : t('buildOrder.addLevels') }}
-          <input v-model.number="addCount" type="number" min="1" :max="countMax" step="1" class="bo-num-input" />
-        </label>
+        <template v-if="!isTransport">
+          <select v-model="addElement" :aria-label="t('buildOrder.addElement')">
+            <option v-for="id in addElements" :key="id" :value="id">{{ name(id) }}</option>
+          </select>
+          <label>{{ isUnit ? t('buildOrder.addUnits') : t('buildOrder.addLevels') }}
+            <input v-model.number="addCount" type="number" min="1" :max="countMax" step="1" class="bo-num-input" />
+          </label>
+        </template>
+        <template v-else>
+          <select v-model="trMission" :aria-label="t('buildOrder.trMission')">
+            <option v-for="m in MISSIONS" :key="m" :value="m">{{ t(`buildOrder.mission.${m}`) }}</option>
+          </select>
+          <label>{{ t('buildOrder.trTarget') }}
+            <select v-model="trTarget">
+              <option v-for="k in trTargets" :key="k" :value="k">{{ planetLabel(k) }}</option>
+            </select>
+          </label>
+          <label>{{ t('buildOrder.trSpeed') }}
+            <select v-model.number="trSpeed">
+              <option v-for="p in SPEED_PERCENTS" :key="p" :value="p">{{ p }} %</option>
+            </select>
+          </label>
+        </template>
         <label>{{ t('buildOrder.addAt') }}
           <input v-model.number="addAt" type="number" min="1" :max="steps.length + 1" step="1" class="bo-num-input" />
         </label>
         <span v-if="addPreview" class="muted">→ {{ isUnit ? t('buildOrder.addPreviewUnits', { n: fmt(addCount), total: fmt(addPreview.to) }) : addPreview.from === addPreview.to ? t('buildOrder.addPreviewLevel', { level: addPreview.to }) : t('buildOrder.addPreviewLevels', { from: addPreview.from, to: addPreview.to }) }}</span>
         <button type="submit" class="primary small" :disabled="!addValid || saving">{{ t('buildOrder.addButton') }}</button>
       </div>
+      <template v-if="isTransport">
+        <div class="row bo-add-row">
+          <span class="muted">{{ t('buildOrder.trShips') }}</span>
+          <span v-for="(s, i) in trShips" :key="i" class="bo-ship">
+            <input v-model.number="s.count" type="number" min="1" step="1" class="bo-num-input" :aria-label="t('buildOrder.addUnits')" />
+            <select v-model.number="s.id" :aria-label="t('buildOrder.trShip')">
+              <option v-for="id in units.ships" :key="id" :value="id">{{ name(id) }}</option>
+            </select>
+            <button v-if="trShips.length > 1" type="button" class="small icon-btn" :title="t('buildOrder.trRemoveShip')" :aria-label="t('buildOrder.trRemoveShip')" @click="trShips.splice(i, 1)"><Icon name="close" :size="12" /></button>
+          </span>
+          <button type="button" class="small" @click="trShips.push({ id: units.ships[0] ?? SMALL_CARGO, count: 1 })"><Icon name="plus" :size="12" /> {{ t('buildOrder.trAddShip') }}</button>
+        </div>
+        <div class="row bo-add-row">
+          <label><input v-model="trAll" type="checkbox" /> {{ t('buildOrder.trAll') }}</label>
+          <template v-if="!trAll">
+            <label v-for="r in RESOURCES" :key="r">{{ name(r) }} <input v-model.number="trRes[r]" type="number" min="0" step="1" class="bo-res-input" /></label>
+          </template>
+        </div>
+        <div class="row bo-add-row">
+          <label>{{ t('buildOrder.trTime') }}
+            <select v-model="trTimeMode">
+              <option value="none">{{ t('buildOrder.trTimeMode.none') }}</option>
+              <option value="notBefore">{{ t('buildOrder.trTimeMode.notBefore') }}</option>
+              <option value="arriveAt">{{ t('buildOrder.trTimeMode.arriveAt') }}</option>
+            </select>
+          </label>
+          <input v-if="trTimeMode !== 'none'" v-model="trTime" type="datetime-local" :aria-label="t(`buildOrder.trTimeMode.${trTimeMode}`)" />
+        </div>
+        <p class="faint" style="margin: 0">{{ t(trMission === 'colonize' ? 'buildOrder.trColonizeHint' : 'buildOrder.trHint') }}</p>
+      </template>
       <p v-if="!stored" class="faint" style="margin: 0">{{ t('buildOrder.addStarts') }}</p>
     </form>
     <p v-if="missingPlanets.length" class="warn small" style="margin: 8px 0 0">{{ t('buildOrder.missingPlanets', { list: missingPlanets.join(', ') }) }}</p>
@@ -399,7 +606,7 @@ function onDrop(i: number) {
               <span v-if="r.result.start! <= n" class="pos">{{ r.step.id === nextId ? t('buildOrder.startNow') : t('buildOrder.started') }}</span>
               <span v-else>{{ t('buildOrder.startIn') }} <span class="mono">{{ countdown(r.result.start! - n) }}</span> <span class="faint">({{ clock(r.result.start!) }})</span></span>
             </Ticker>
-            <span v-if="r.result.end! > r.result.start!" class="muted">{{ t('buildOrder.until', { time: clock(r.result.end!) }) }}</span>
+            <span v-if="r.result.end! > r.result.start!" class="muted">{{ t(r.step.kind === 'transport' ? 'buildOrder.arrival' : 'buildOrder.until', { time: clock(r.result.end!) }) }}</span>
             <span v-if="r.result.wait && !r.result.transport" class="faint">{{ t(`buildOrder.wait.${r.result.wait}`) }}</span>
             <span v-if="r.result.transport" class="warn" :title="t('buildOrder.overflowTitle')">
               {{ t('buildOrder.overflow') }}
@@ -408,6 +615,7 @@ function onDrop(i: number) {
             <span class="grow" />
             <span v-if="r.result.cost" class="muted">
               <template v-for="id in RESOURCES" :key="id"><span v-if="r.result.cost[id]" class="bo-cost">{{ short(r.result.cost[id]) }} {{ name(id) }}</span></template>
+              <span v-if="r.result.fuel" class="bo-cost faint">{{ t('buildOrder.fuel', { n: fmt(r.result.fuel) }) }}</span>
             </span>
             <span v-if="r.result.full" class="warn bo-full" :title="t('buildOrder.fullTitle')">
               <Icon name="warning" :size="13" />
@@ -415,6 +623,7 @@ function onDrop(i: number) {
             </span>
           </div>
           <div v-else-if="r.result?.state === 'invalid'" class="small neg">{{ t(`buildOrder.never.${r.result.wait ?? 'requirements'}`) }}</div>
+          <div v-if="r.step.kind === 'transport' && transportInfo(r.step.transport!)" class="small faint bo-times">{{ transportInfo(r.step.transport!) }}</div>
         </div>
       </div>
     </template>
@@ -433,6 +642,10 @@ function onDrop(i: number) {
 .bo-add { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border: 1px solid var(--border, #444); border-radius: 8px; }
 .bo-add-row { gap: 6px 10px; flex-wrap: wrap; }
 .bo-num-input { width: 6em; margin-left: 4px; }
+.bo-res-input { width: 8em; margin-left: 4px; }
+.bo-name-input { width: 12em; margin-left: 4px; }
+.bo-coord-input { width: 4.5em; margin: 0 2px; }
+.bo-ship { display: inline-flex; align-items: center; gap: 4px; }
 button.active { border-color: var(--accent); color: var(--accent); }
 .bo-step { margin-bottom: 6px; padding: 8px 12px; }
 .bo-step.next { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }

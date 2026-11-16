@@ -30,5 +30,5 @@ export function insertSteps(order: BuildOrder, key: string, add: NewStep[], at: 
     if (s.kind === 'research') base.research[s.element] = researchAfterQueue(hub)[s.element] ?? 0;
     else if (planet) base.planets[key] = { ...base.planets[key], [s.element]: levelsAfterQueue(planet.planet)[s.element] ?? 0 };
   }
-  return { base, planets: { ...order.planets, [key]: [...list.slice(0, pos), ...steps, ...list.slice(pos)] } };
+  return { ...order, base, planets: { ...order.planets, [key]: [...list.slice(0, pos), ...steps, ...list.slice(pos)] } };
 }

@@ -18,14 +18,43 @@ export interface ProdSettings {
   wait: number;
 }
 
-/** Transport step (pr0plan `TRANSPORT`): resources leave the planet and land on the target after the flight. */
+/** What a transport step does at the target: unload and fly home, stay, or found the planned planet. */
+export type TransportMission = 'transport' | 'deploy' | 'colonize';
+
+/**
+ * Transport step (pr0plan `TRANSPORT`, or added in the hub): resources leave the planet and land on the target after
+ * the flight. With `ships` the flight time, the deuterium for the flight and the cargo space are calculated from the
+ * coordinates, the drives researched at the departure and the universe's settings; without them (or without
+ * coordinates of both planets) `flight` counts. The ships themselves are not tracked.
+ */
 export interface TransportSettings {
   /** hub planet key of the target, null: the resources just leave */
   target: string | null;
-  /** 901-903 */
+  /** 901-903; ignored with `all` */
   resources: Record<string, number>;
-  /** flight time in seconds */
+  /** flight time in seconds when it cannot be calculated */
   flight: number;
+  /** default `transport`; `colonize` to a planned planet founds it at the arrival */
+  mission?: TransportMission;
+  /** ship id -> amount flying */
+  ships?: Record<string, number>;
+  /** speed in percent (10 … 100 in steps of 10), default 100 */
+  speed?: number;
+  /** load everything that is on the planet at the departure (metal, crystal, deuterium in this order) up to the cargo space */
+  all?: boolean;
+  /** earliest departure (epoch seconds) */
+  notBefore?: number;
+  /** wanted arrival (epoch seconds): the fleet leaves a flight time before it, later when the resources are missing */
+  arriveAt?: number;
+}
+
+/** A planet planned by hand or from a pr0plan file that the hub has not synced yet (key `0:0:<n>:planet`). */
+export interface PlannedPlanet {
+  name?: string;
+  /** where it will be: flight times to and from it, and the synced planet it is assigned to once that exists */
+  coords?: { g: number; s: number; p: number };
+  /** max temperature (production of deuterium and satellites) */
+  temp?: number;
 }
 
 export interface Step {
@@ -54,4 +83,6 @@ export interface BuildOrder {
   base: Base;
   /** hub planet key -> steps in order */
   planets: Record<string, Step[]>;
+  /** details of the planned planets (keys `0:0:<n>:planet` of `planets`) */
+  planned?: Record<string, PlannedPlanet>;
 }

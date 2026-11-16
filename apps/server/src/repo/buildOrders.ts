@@ -1,4 +1,5 @@
-import { detectDone, simulate, type BuildOrder, type OwnFleet, type Simulation, type Step, type StepResult } from '@pr0hub/planner';
+import { assignSynced, detectDone, simulate, withPlanned, type BuildOrder, type OwnFleet, type Simulation, type Step, type StepResult } from '@pr0hub/planner';
+import { startResourcesOf, type UniverseSettings } from '@pr0hub/core/universe';
 import type { GroupContext } from '../context.js';
 import type { DB } from '../db.js';
 import { buildingsState, pruneAlerts, type BuildingPlanet, type BuildingsState } from './buildings.js';
@@ -57,14 +58,18 @@ export interface NextStep {
   result: StepResult;
 }
 
-/** The timeline of the build order from the member's hub state at `t`. */
-export function buildOrderTimeline(order: BuildOrder, state: BuildingsState, t: number): Simulation {
-  return simulate(order, state, { now: t, units: state.units });
+/**
+ * The timeline of the build order from the member's hub state at `t`; planned planets count as new planets. With the
+ * universe's settings transports with ships fly by the flight formula and colonizations wait for astrophysics.
+ */
+export function buildOrderTimeline(order: BuildOrder, state: BuildingsState, t: number, universe?: UniverseSettings): Simulation {
+  const hub = withPlanned(order, state, t, { resources: startResourcesOf(universe ?? {}) });
+  return simulate(order, hub, { now: t, units: state.units, universe });
 }
 
 /** The next open step of every planet of the build order that is still a synced planet. */
-export function nextSteps(order: BuildOrder, state: BuildingsState, t: number): NextStep[] {
-  const sim = buildOrderTimeline(order, state, t);
+export function nextSteps(order: BuildOrder, state: BuildingsState, t: number, universe?: UniverseSettings): NextStep[] {
+  const sim = buildOrderTimeline(order, state, t, universe);
   const out: NextStep[] = [];
   for (const [key, id] of Object.entries(sim.next)) {
     const planet = state.planets.find((p) => p.key === key);
@@ -82,6 +87,13 @@ export function nextSteps(order: BuildOrder, state: BuildingsState, t: number): 
 export function catchUpBuildState(db: DB, ctx: GroupContext): void {
   const state = buildingsState(db, ctx, ctx.user.id);
   pruneAlerts(db, ctx, state);
-  const stored = buildOrderOf(db, ctx, ctx.user.id);
-  if (stored && state.planets.length) syncBuildOrder(db, ctx, ctx.user.id, stored, state);
+  const found = buildOrderOf(db, ctx, ctx.user.id);
+  if (!found || !state.planets.length) return;
+  const stored = syncBuildOrder(db, ctx, ctx.user.id, found, state);
+  // a planned planet whose coordinates are synced now (the colony was founded) moves there
+  const assigned = assignSynced(stored.order, state.planets.filter((p) => p.type === 'planet').map((p) => p.key));
+  if (!assigned) return;
+  const meta = stored.meta as { mapping?: Record<string, string | null> };
+  if (meta.mapping) meta.mapping = Object.fromEntries(Object.entries(meta.mapping).map(([id, k]) => [id, (k && assigned.moved[k]) || k]));
+  db.prepare('UPDATE build_orders SET data = ?, meta = ? WHERE group_id = ? AND user_id = ?').run(JSON.stringify(assigned.order), JSON.stringify(meta), ctx.groupId, ctx.user.id);
 }

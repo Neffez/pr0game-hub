@@ -1,6 +1,6 @@
 import { INITIAL_TEMP } from '@pr0hub/core/production';
 import { startResourcesOf } from '@pr0hub/core/universe';
-import type { HubPlanet } from './hub.js';
+import type { HubPlanet, HubState } from './hub.js';
 import type { BuildOrder, Step } from './types.js';
 
 /**
@@ -29,12 +29,13 @@ export function plannedPlanet(
   order: BuildOrder, key: string, time: number, opts: { name?: string | null; temp?: number | null; resources?: Record<number, number> } = {},
 ): HubPlanet {
   const n = plannedNumber(key) ?? 0;
+  const details = order.planned?.[key];
   return {
     key,
-    name: opts.name ?? '',
+    name: opts.name ?? details?.name ?? '',
     coords: { g: 0, s: 0, p: n },
     type: 'planet',
-    temp: opts.temp ?? INITIAL_TEMP,
+    temp: details?.temp ?? opts.temp ?? INITIAL_TEMP,
     arrivals: [],
     planet: { type: 'planet', values: { ...(order.base.planets[key] ?? {}) }, resources: opts.resources ? { ...opts.resources } : startResourcesOf({}), perHour: {}, time, queue: [] },
   };
@@ -50,8 +51,51 @@ export function assignPlanet(order: BuildOrder, from: string, to: string): Build
   const planets: Record<string, Step[]> = {};
   for (const [key, steps] of Object.entries(order.planets)) {
     if (key === to) continue;
-    planets[rename(key)] = steps.map((s) => (s.transport?.target === from ? { ...s, transport: { ...s.transport, target: to } } : s));
+    planets[rename(key)] = steps.map((s): Step => {
+      if (s.transport?.target !== from) return s;
+      // the planet is there: the colonization that founds it is done
+      const moved: Step = { ...s, transport: { ...s.transport, target: to } };
+      return s.transport.mission === 'colonize' ? { ...moved, done: true } : moved;
+    });
   }
   const basePlanets = Object.fromEntries(Object.entries(order.base.planets).filter(([k]) => k !== to).map(([k, v]) => [rename(k), v]));
-  return { base: { ...order.base, planets: basePlanets }, planets };
+  const planned = Object.fromEntries(Object.entries(order.planned ?? {}).filter(([k]) => k !== from));
+  const out: BuildOrder = { base: { ...order.base, planets: basePlanets }, planets };
+  if (Object.keys(planned).length) out.planned = planned;
+  return out;
+}
+
+/** The hub's planets plus the planned ones of the build order as new planets (see `plannedPlanet`). */
+export function withPlanned(
+  order: BuildOrder, hub: HubState, time: number, opts: { resources?: Record<number, number>; name?: (key: string) => string | null | undefined; temp?: (key: string) => number | null | undefined } = {},
+): HubState {
+  const keys = Object.keys(order.planets).filter((k) => isPlannedKey(k) && !hub.planets.some((p) => p.key === k));
+  if (!keys.length) return hub;
+  const planned = keys.map((k) => plannedPlanet(order, k, time, { name: opts.name?.(k), temp: opts.temp?.(k), resources: opts.resources }));
+  return { ...hub, planets: [...hub.planets, ...planned] };
+}
+
+/** Key of the next planned planet to add: the lowest free number. */
+export function freePlannedKey(order: Pick<BuildOrder, 'planets'>): string | null {
+  for (let n = 1; n <= 99; n++) if (!order.planets[plannedKey(n)]) return plannedKey(n);
+  return null;
+}
+
+/**
+ * Planned planets whose coordinates are now a synced planet (`keys`: the hub's planet keys) without steps of its own:
+ * each is assigned to it. Returns the new build order and the moves made (`from` -> `to`), or null when none.
+ */
+export function assignSynced(order: BuildOrder, keys: string[]): { order: BuildOrder; moved: Record<string, string> } | null {
+  let out = order;
+  const moved: Record<string, string> = {};
+  for (const [from, details] of Object.entries(order.planned ?? {})) {
+    const c = details.coords;
+    const to = c ? `${c.g}:${c.s}:${c.p}:planet` : null;
+    if (!to || !keys.includes(to)) continue;
+    const next = assignPlanet(out, from, to);
+    if (!next) continue;
+    out = next;
+    moved[from] = to;
+  }
+  return Object.keys(moved).length ? { order: out, moved } : null;
 }

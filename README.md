@@ -218,11 +218,11 @@ committed (`packages/battle/wasm-types/`, update them with the pinned engine), a
 
 First start: log in with the bootstrap admin and create a universe (e.g. `u8`) and a group under **Admin**, then add members (claim links appear in the members table).
 
-## API (read-only tokens)
+## API (tokens)
 
-The hub exposes the same JSON the web app uses under `{BASE_PATH}/api` (default `/hub/api`). Under **Account** you can create personal **read-only** API tokens (`hubpat_…`). Send `Authorization: Bearer …` and, for universe routes, the alliance group id as `X-Hub-Group` (or `group` query parameter).
+The hub exposes the same JSON the web app uses under `{BASE_PATH}/api` (default `/hub/api`). Under **Account** you can create personal API tokens (`hubpat_…`): they read what you see and can write one thing, your own build order (so a script or an AI assistant can plan for you; check the result with `GET /api/{uni}/build-order/timeline`). Send `Authorization: Bearer …` and, for universe routes, the alliance group id as `X-Hub-Group` (or `group` query parameter).
 
-OpenAPI 3.1: `GET /hub/api/openapi.json` (also `.yaml`). Token management requires a browser session cookie; data endpoints accept Bearer tokens for GET requests only.
+OpenAPI 3.1: `GET /hub/api/openapi.json` (also `.yaml`). Token management requires a browser session cookie; data endpoints accept Bearer tokens for GET requests, the build order routes and the battle simulator only.
 
 The one exception is the battle simulator for scripts and AI agents, `POST /hub/api/{uni}/battle/simulate`: it fights a
 battle many times on the game's engine (in a worker thread with a time limit) and returns win chances, losses, debris,

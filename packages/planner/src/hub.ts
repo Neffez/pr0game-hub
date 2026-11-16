@@ -106,6 +106,8 @@ export interface OwnFleet {
   arrival: number;
 }
 
+/** game mission id of a colonization */
+const MISSION_COLONIZE = 7;
 /** Transports must bring at least this share of each resource of the step. */
 const TRANSPORT_SHARE = 0.9;
 /** Production settings match within this (the game has steps of 10 %). */
@@ -135,10 +137,14 @@ export function detectDone(order: BuildOrder, hub: HubState, fleets: OwnFleet[],
       }
       if (s.kind === 'transport' && s.transport!.target) {
         const t = s.transport!;
+        // a colonization flies to the coordinates the planned planet will have
+        const c = order.planned?.[t.target!]?.coords;
+        const to = c ? `${c.g}:${c.s}:${c.p}:planet` : t.target;
+        const missions = t.mission === 'colonize' ? [MISSION_COLONIZE] : [3, 4];
         const fleet = fleets.find(
           (f) =>
-            !used.has(f) && f.from === key && f.to === t.target && (f.mission === 3 || f.mission === 4) && f.arrival > since &&
-            Object.entries(t.resources).every(([r, v]) => !v || (f.resources[r] ?? 0) >= v * TRANSPORT_SHARE),
+            !used.has(f) && f.from === key && f.to === to && missions.includes(f.mission ?? 0) && f.arrival > since &&
+            (t.all || Object.entries(t.resources).every(([r, v]) => !v || (f.resources[r] ?? 0) >= v * TRANSPORT_SHARE)),
         );
         if (!fleet) break;
         used.add(fleet);
