@@ -103,6 +103,12 @@ describe('planned planets', () => {
     expect(sim.steps.find((s) => s.id === 'mine')).toMatchObject({ state: 'planned', start: NOW + f.seconds, wait: 'colony' });
   });
 
+  it('are founded with the start resources, not with those of the home planet', () => {
+    const hub = hubOf([planet(HOME, { 1: 20, 2: 18 }, { 901: 2e6, 902: 8e5, 903: 3e5 })], { research: { 117: 3, 124: 1 } });
+    const sim = run(order([colonize()]), hub);
+    expect(sim.steps.find((s) => s.id === 'mine')!.before).toEqual({ 901: 500 + 2000, 902: 500, 903: 0 });
+  });
+
   it('wait for astrophysics: the ship leaves so that it arrives ASTRO_MARGIN seconds after the research is done', () => {
     const hub = hubOf([planet(HOME)], { research: { 117: 3 }, researchQueue: [{ id: 124, level: 1, end: NOW + 20000 }] });
     const f = flight({ 208: 1 }, { 117: 3 }, [1, 120, 4]);

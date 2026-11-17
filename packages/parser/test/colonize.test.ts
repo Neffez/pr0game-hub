@@ -50,5 +50,8 @@ describe('colonization (C-5)', () => {
     expect(planetStartResources({}, { resources: { 901: 5000, 902: 1500, 903: 0 } })).toEqual({ 901: 5000, 902: 1500, 903: 0 });
     expect(planetStartResources({}, { resources: { 901: 500, 902: 500, 903: 0 } })).toEqual({ 901: 500, 902: 500, 903: 0 });
     expect(planetStartResources({ metalStart: 5000 }, { resources: { 901: 2000 } })).toEqual({ 901: 5000, 902: 500, 903: 0 });
+    // a home planet in the middle of the game: its resources are not the start
+    expect(planetStartResources({}, { resources: { 901: 2e6, 902: 8e5, 903: 3e5 }, values: { 1: 20, 2: 18 } })).toEqual({ 901: 500, 902: 500, 903: 0 });
+    expect(planetStartResources({}, { resources: { 901: 5000, 902: 1500, 903: 0 }, values: { 1: 0 } })).toEqual({ 901: 5000, 902: 1500, 903: 0 });
   });
 });

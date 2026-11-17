@@ -180,16 +180,18 @@ export const hasPlanetStartSettings = (s: Pick<UniverseSettings, 'metalStart' | 
 
 /**
  * Start resources for a planned or newly founded planet in build orders: the universe's configured values first
- * (`metalStart` and friends, as in the game's `metal_start`), else the synced home planet when its resources differ
- * from the game defaults (custom universe start before spending), else {@link startResourcesOf}.
+ * (`metalStart` and friends, as in the game's `metal_start`), else the synced home planet when it has no buildings
+ * yet and its resources differ from the game defaults (custom universe start before spending), else
+ * {@link startResourcesOf}. A home planet with buildings says nothing about the start: its resources are the game's.
  */
 export function planetStartResources(
   settings: Pick<UniverseSettings, 'metalStart' | 'crystalStart' | 'deuteriumStart'> | null | undefined,
-  home?: { resources: Partial<Record<number, number>> } | null,
+  home?: { resources: Partial<Record<number, number>>; values?: Record<string, number> } | null,
 ): Record<number, number> {
   if (hasPlanetStartSettings(settings)) return startResourcesOf(settings ?? {});
   const base = startResourcesOf({});
-  const r = home?.resources;
+  const fresh = !Object.values(home?.values ?? {}).some((v) => v > 0);
+  const r = fresh ? home?.resources : undefined;
   if (r && START_RES.some((k) => (r[k] ?? 0) !== base[k])) {
     return { 901: r[901] ?? base[901], 902: r[902] ?? base[902], 903: r[903] ?? base[903] };
   }

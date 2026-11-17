@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Bauliste: Eine geplante Kolonie startet wieder mit den Startrohstoffen des Universums statt mit den Rohstoffen des Hauptplaneten. Dadurch stimmen auch ihre Rohstoffe davor/danach.',
+        en: 'Build order: a planned colony starts with the universe’s start resources again instead of the home planet’s resources, so its resources before/after are right too.',
+      },
+      {
+        kind: 'fix',
         de: 'Bauliste: Ein Transport zu einer neuen Kolonie startet erst, wenn die Kolonisierung gelandet ist, statt schon vorher wie im Spiel unmöglich.',
         en: 'Build order: a transport to a new colony now leaves only once the colonization has landed, instead of earlier, which the game does not allow.',
       },

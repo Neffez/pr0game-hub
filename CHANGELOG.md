@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-17
 
+- Build order: a colony founded by a colonization (and planned planets in general) starts with the universe's start
+  resources again instead of the home planet's current resources. `planetStartResources` takes the synced home
+  planet's resources as a custom universe start only while it has no buildings yet.
 - Build order: a transport or deployment to a planned planet that a colonization of the build order founds no longer
   leaves before the colony exists. It waits (`colony`) until the colonization has landed, also when that arrival is
   only set once a later astrophysics starts; without a colonization that lands it is not possible.
