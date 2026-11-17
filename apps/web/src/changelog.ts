@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Schritte in der Bauliste lassen sich wieder verschieben; sie sprangen nach dem Verschieben an ihren alten Platz zurück.',
+        en: 'Steps of the build order can be moved again; they jumped back to their old place after a move.',
+      },
+      {
+        kind: 'fix',
         de: 'Geplante Kolonien ohne Kolonisierung zählen in der Bauliste nicht mehr als vorhandene Planeten und blockieren keine Kolonisierung mehr. Solche Planeten sind mit „noch nicht kolonisiert“ markiert; leere Platzhalter werden nicht mehr mitgerechnet.',
         en: 'Planned colonies without a colonization no longer count as existing planets in the build order and no longer block a colonization. Such planets are marked "not colonized yet"; empty placeholders are no longer counted.',
       },

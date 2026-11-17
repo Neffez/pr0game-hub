@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { session } from '../src/api';
 import type { StoredBuildOrder } from '../src/apiTypes';
 import { addToBuildOrder } from '../src/buildOrderAdd';
-import { BuildOrderChanged, changeBuildOrder } from '../src/buildOrderApi';
+import { BuildOrderChanged, changeBuildOrder, stepsWrite } from '../src/buildOrderApi';
+import type { Step } from '@pr0hub/planner';
 
 const HOME = '1:1:1:planet';
 const stored = (revision: number, steps: { id: string; done?: boolean }[]): StoredBuildOrder => ({
@@ -89,6 +90,26 @@ describe('build order writes', () => {
     expect(err.message).toBeTruthy();
     // nothing was overwritten
     expect(srv.current?.order.planets[HOME].map((x) => x.id)).toEqual(['z']);
+  });
+
+  it('move a step once, based on the build order before the change', async () => {
+    const shown = stored(4, [{ id: 'a' }, { id: 'b' }, { id: 'c' }]);
+    const srv = server(shown);
+    // b to a's place, by ids like `move` of the build order view
+    const up = (list: Step[]) => {
+      const i = list.findIndex((x) => x.id === 'b');
+      const j = list.findIndex((x) => x.id === 'a');
+      const out = [...list];
+      const [s] = out.splice(i, 1);
+      out.splice(j, 0, s);
+      return out;
+    };
+    await changeBuildOrder('u8', shown, stepsWrite(HOME, up));
+    expect(srv.current!.order.planets[HOME].map((x) => x.id)).toEqual(['b', 'a', 'c']);
+    // based on the copy the page already shows moved, the same move swaps the steps back: the base must be the
+    // build order before the change
+    const moved = { ...shown, order: { ...shown.order, planets: { [HOME]: up(shown.order.planets[HOME]) } } };
+    expect((stepsWrite(HOME, up)(moved)!.body as { planets: Record<string, Step[]> }).planets[HOME].map((x) => x.id)).toEqual(['a', 'b', 'c']);
   });
 
   it('add steps to the build order as it is at the time of the write', async () => {

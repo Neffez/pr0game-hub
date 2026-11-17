@@ -10,7 +10,7 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { readError, uniApi } from '../api';
 import type { BuildOrderAnswer, StoredBuildOrder } from '../apiTypes';
-import { BuildOrderChanged, changeBuildOrder, type BuildOrderWrite } from '../buildOrderApi';
+import { BuildOrderChanged, changeBuildOrder, stepsWrite, type BuildOrderWrite } from '../buildOrderApi';
 import { toast } from '../toast';
 import { useClock } from '../clock';
 import { useLoader, useStored, useUni } from '../composables';
@@ -49,12 +49,13 @@ useLiveReload(load, tables('build_orders'));
 
 const stored = computed(() => data.value?.buildOrder ?? null);
 /**
- * Writes a change based on the build order shown; changed elsewhere in between, `change` runs again on the current
- * one (see `changeBuildOrder`). A change that no longer applies shows the current build order and says so.
+ * Writes a change based on `base` (the build order shown before the change); changed elsewhere in between, `change`
+ * runs again on the current one (see `changeBuildOrder`). A change that no longer applies shows the current build
+ * order and says so.
  */
-async function send(change: (from: StoredBuildOrder | null) => BuildOrderWrite | null): Promise<boolean> {
+async function send(change: (from: StoredBuildOrder | null) => BuildOrderWrite | null, base = stored.value): Promise<boolean> {
   try {
-    data.value = await changeBuildOrder(uni.value, stored.value, change);
+    data.value = await changeBuildOrder(uni.value, base, change);
     return true;
   } catch (e) {
     if (e instanceof BuildOrderChanged) {
@@ -228,10 +229,9 @@ async function save(edit: (list: Step[]) => Step[] | null) {
   // right away on the page, then on the server
   data.value = { buildOrder: { ...s, order: { ...s.order, planets: { ...s.order.planets, [key]: list } } } };
   saving.value = true;
-  await send((from) => {
-    const next = from?.order.planets[key] && edit(from.order.planets[key]);
-    return next ? { method: 'PATCH', body: { planets: { ...from!.order.planets, [key]: next } } } : null;
-  });
+  // based on the build order before the change: the page already shows it applied, applying it again there would
+  // move a step back
+  await send(stepsWrite(key, edit), s);
   saving.value = false;
 }
 /** moves a step to the place of another one (by their ids, so it applies to a changed list as well) */

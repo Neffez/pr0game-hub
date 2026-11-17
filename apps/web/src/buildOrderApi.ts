@@ -1,3 +1,4 @@
+import type { Step } from '@pr0hub/planner';
 import { ApiError, uniApi } from './api';
 import type { BuildOrderAnswer, StoredBuildOrder } from './apiTypes';
 import { t } from './i18n';
@@ -18,6 +19,18 @@ export class BuildOrderChanged extends Error {
     super(t('buildOrder.changedElsewhere'));
   }
 }
+
+/**
+ * A change of one planet's steps as a write: `edit` makes the new list from the list of the build order the write is
+ * based on (null: the change no longer applies). It must run on that build order, never on a copy the change was
+ * already applied to (shown right away on the page): a move applied twice moves the step back.
+ */
+export const stepsWrite =
+  (key: string, edit: (list: Step[]) => Step[] | null) =>
+  (from: StoredBuildOrder | null): BuildOrderWrite | null => {
+    const next = from?.order.planets[key] && edit(from.order.planets[key]);
+    return next ? { method: 'PATCH', body: { planets: { ...from!.order.planets, [key]: next } } } : null;
+  };
 
 /** The current build order of a 412 answer (the write was based on an older revision), else null. */
 export function conflictOf(e: unknown): BuildOrderAnswer | null {

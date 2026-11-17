@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-17
 
+- Build order view: moving steps works again. Since the If-Match change the move was applied to the copy the page
+  already showed moved, so the write sent the old order back; changes of a planet's steps are now based on the build
+  order before the change (`stepsWrite` in `apps/web/src/buildOrderApi.ts`).
+
 - Auto plan: an optimizer for build orders in `@pr0hub/planner` (`optimize`), ported from the auto plan of pr0plan
   with the permission of its author, and an API to run it as a job.
   - It searches the build order that reaches target levels and unit counts of one planet fastest: the targets with
