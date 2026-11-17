@@ -4,6 +4,8 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-17
 
+- Tests: the raid risk test of players without a known fleet runs after the caching test, so it no longer fills
+  the cache first when the battle engine is built (CI).
 - Raid risk and defense advisor: a player who spied on, attacked or flies at the member but appears in no spy report
   gets a fleet rebuilt from their battle reports of the last 14 days anywhere (battle hall, members' messages, either
   side): the most of each ship type they fought with, spy probes and solar satellites left out (fleet source

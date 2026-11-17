@@ -142,11 +142,6 @@ describe('defense advisor', () => {
     expect((await get('/defense-advice?planet=x&sim=0')).statusCode).toBe(400);
   });
 
-  it('lists the players who came for the viewer without a known fleet in the raid risk', async () => {
-    const r = (await get('/defense-risk')).json();
-    expect(r.unknown).toEqual([{ key: expect.stringMatching(/^p\d+$/), player: expect.objectContaining({ name: 'Ghost' }), reasons: [{ kind: 'spied', count: 2, last: t - 1600 }] }]);
-  });
-
   it.skipIf(!wasm)('finds the defense that makes the chosen attacks unprofitable', async () => {
     const a = (await get(`/defense-advice?planet=${HOME}&sim=0`)).json();
     const raiderKey = a.threats.find((x: any) => x.player.name === 'Raider').key;
@@ -179,5 +174,11 @@ describe('defense advisor', () => {
     const again = (await get('/defense-risk')).json();
     expect(again.cached).toBe(true);
     expect(again.planets[0].worst.profit).toBe(home.worst.profit);
+  });
+
+  // after the cache test: this call may run the battles (and fill the cache) when the engine is built
+  it('lists the players who came for the viewer without a known fleet in the raid risk', async () => {
+    const r = (await get('/defense-risk')).json();
+    expect(r.unknown).toEqual([{ key: expect.stringMatching(/^p\d+$/), player: expect.objectContaining({ name: 'Ghost' }), reasons: [{ kind: 'spied', count: 2, last: t - 1600 }] }]);
   });
 });
