@@ -336,4 +336,15 @@ describe('detectDone', () => {
     expect(full).toBe(2000);
     expect(half).toBeLessThan(1100);
   });
+
+  it('reports the production and energy before and after a production step', () => {
+    // metal mine 5 and deuterium synthesizer 5 on solar plant 3: energy is short
+    const hub = hubOf([{ ...planet(HOME, { 1: 5, 3: 5, 4: 3 }), factors: null }]);
+    const order: BuildOrder = { base: { planets: {}, research: {} }, planets: { [HOME]: [prod('p', 0)] } };
+    const r = simulate(order, hub, { now: 0 }).steps[0].production!;
+    expect(r.before.energy).toBeLessThan(r.after.energy);
+    // metal mine off: only the basic income is left, the synthesizer gets more energy
+    expect(r.after[901]).toBeLessThan(r.before[901]);
+    expect(r.after[903]).toBeGreaterThan(r.before[903]);
+  });
 });

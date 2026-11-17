@@ -631,6 +631,19 @@ function onDrop(i: number) {
               <template v-for="id in RESOURCES" :key="id"><span class="bo-cost"><span class="mono">{{ short(r.result.before[id] ?? 0) }} → {{ short(r.result.after[id] ?? 0) }}</span> {{ name(id) }}</span></template>
             </span>
           </div>
+          <div v-if="r.result?.state === 'planned' && r.result.production" class="row small bo-times" :title="t('buildOrder.prodRatesTitle')">
+            <span class="muted">{{ t('buildOrder.prodRates') }}</span>
+            <span v-for="id in RESOURCES" :key="id" class="bo-cost" :class="{ faint: r.result.production.before[id] === r.result.production.after[id] }">
+              {{ name(id) }} <span class="mono">{{ short(r.result.production.before[id]) }} → {{ short(r.result.production.after[id]) }}</span>
+            </span>
+            <span class="bo-cost">
+              {{ t('buildOrder.prodEnergy') }}
+              <span class="mono">
+                <span :class="{ neg: r.result.production.before.energy < 0 }">{{ fmt(r.result.production.before.energy) }}</span> →
+                <span :class="{ neg: r.result.production.after.energy < 0 }">{{ fmt(r.result.production.after.energy) }}</span>
+              </span>
+            </span>
+          </div>
           <div v-else-if="r.result?.state === 'invalid'" class="small neg">{{ t(`buildOrder.never.${r.result.wait ?? 'requirements'}`) }}</div>
           <div v-if="r.step.kind === 'transport' && transportInfo(r.step.transport!)" class="small faint bo-times">{{ transportInfo(r.step.transport!) }}</div>
           <form v-if="editId === r.step.id" class="bo-add small" @submit.prevent="saveEdit(r.index)">

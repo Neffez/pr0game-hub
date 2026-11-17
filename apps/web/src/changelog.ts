@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Bauliste: Ein Energie/Produktion-Schritt zeigt, wie viel Metall, Kristall und Deuterium der Planet davor und danach pro Stunde produziert und wie viel Energie übrig bleibt.',
+        en: 'Build order: an energy/production step shows how much metal, crystal and deuterium the planet produces per hour before and after it, and how much energy is left over.',
+      },
+      {
+        kind: 'new',
         de: 'Bauliste: Neuer Schritt „Energie/Produktion“. Damit stellst du Metall, Kristall und Deuterium auf 100 % bis 0 %, z. B. Metall herunter, wenn nach einem Ausbau die Energie nicht reicht. Ab diesem Schritt rechnet die Bauliste mit der neuen Produktion.',
         en: 'Build order: new step "Energy/production". It sets metal, crystal and deuterium to 100 % down to 0 %, e.g. metal turned down when the energy is short after an upgrade. From that step on the build order counts with the new production.',
       },

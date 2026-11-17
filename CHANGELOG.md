@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-17
 
+- Build order: a planned production step shows the planet's production per hour of metal, crystal and deuterium and
+  the energy left over right before and after it. The simulation records them on the step's result (`production`,
+  calibrated like the timeline's rates; energy balance from the formula).
 - Build order: production settings can be added and edited by hand as a step ("Energy/production"): metal, crystal
   and deuterium at 100 % to 0 % in steps of 10, starting from the planet's synced factors. The simulation already
   counted such steps from pr0plan imports; from that step on it uses the new production and energy use. A new step

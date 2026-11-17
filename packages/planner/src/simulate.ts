@@ -64,6 +64,16 @@ export interface StepResult {
   /** planned steps: resources on the planet at the start, right before paying and after (whole units) */
   before?: Record<number, number>;
   after?: Record<number, number>;
+  /** production steps: production per hour (901-903, calibrated like the timeline) and energy balance before and after */
+  production?: { before: ProductionRates; after: ProductionRates };
+}
+
+/** metal, crystal, deuterium per hour and the energy left over (negative: short), rounded */
+export interface ProductionRates {
+  901: number;
+  902: number;
+  903: number;
+  energy: number;
 }
 
 export interface Simulation {
@@ -228,6 +238,10 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
     // no synced production: the others' factor (speed unknown), else the formula
     for (const r of RES) p.calibration[r] = !resourceSpeed && known[r].length ? median(known[r]) : 1;
   });
+  const ratesOf = (p: Planet): ProductionRates => {
+    const prod = production(p);
+    return { 901: Math.round(p.rate[901]), 902: Math.round(p.rate[902]), 903: Math.round(p.rate[903]), energy: Math.round(prod.energy - prod.energyUsed) };
+  };
   const updateRate = (p: Planet) => {
     const prod = production(p);
     for (const r of RES) p.rate[r] = prod[r] * p.calibration[r];
@@ -530,6 +544,7 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
     const id = s.element!;
     let end = t;
     let fuel = 0;
+    let rates: StepResult['production'];
     switch (s.kind) {
       case 'building': {
         const robot = levelOf(p, ROBOT_FACTORY);
@@ -562,8 +577,10 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
         break;
       }
       case 'prod': {
+        const was = ratesOf(p);
         p.factors = { ...p.factors, ...s.prod!.factors };
         updateRate(p);
+        rates = { before: was, after: ratesOf(p) };
         end = t + s.prod!.wait;
         p.waitUntil = end;
         break;
@@ -599,7 +616,7 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
     pay(p, cost);
     record(p, s, {
       target, state: 'planned', start: t, end, cost: Object.keys(cost).length ? cost : null, wait: p.wait,
-      transport: Object.keys(transport).length ? transport : null, full: fullOf(p), ...(fuel ? { fuel } : {}),
+      transport: Object.keys(transport).length ? transport : null, full: fullOf(p), ...(fuel ? { fuel } : {}), ...(rates ? { production: rates } : {}),
       before, after: snapshot(),
     });
     if (defer) deferred[deferred.length - 1].result = resultById.get(s.id)!;
