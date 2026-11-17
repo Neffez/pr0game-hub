@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-17',
     items: [
       {
+        kind: 'new',
+        de: 'Bauliste: Beim Kolonisieren lässt sich das Tempo jetzt selbst wählen. „Automatisch“ nimmt wie bisher das langsamste Tempo, mit dem das Schiff pünktlich zur Astrophysik ankommt; mit einem festen Tempo fliegt es später los und landet trotzdem kurz nach der Forschung.',
+        en: 'Build order: you can now choose the speed of a colonization. "Automatic" still picks the slowest speed that arrives in time for astrophysics; with a fixed speed the ship leaves later and still lands right after the research.',
+      },
+      {
         kind: 'fix',
         de: 'Aktivitätsmuster: Bei Spielern, die sehr oft synchronisieren, zeigt das Diagramm nur noch eine Sync-Markierung pro halbe Stunde, statt die ganze Achse zu füllen.',
         en: 'Activity pattern: for players who sync very often, the chart now shows only one sync mark per half hour instead of filling the whole axis.',

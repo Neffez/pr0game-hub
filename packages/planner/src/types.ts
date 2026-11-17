@@ -38,7 +38,10 @@ export interface TransportSettings {
   mission?: TransportMission;
   /** ship id -> amount flying */
   ships?: Record<string, number>;
-  /** speed in percent (10 … 100 in steps of 10), default 100 */
+  /**
+   * speed in percent (10 … 100 in steps of 10), default 100. A colonization without one whose astrophysics comes later
+   * in a list flies at the slowest speed that still lands right after the research (automatic).
+   */
   speed?: number;
   /**
    * Load everything of these resources that is on the planet at the departure, like the game's "max" links: after the

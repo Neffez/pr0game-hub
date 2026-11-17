@@ -149,7 +149,8 @@ function validateStep(raw: unknown): Step | null {
       }
       if (tr.speed != null) {
         if (typeof tr.speed !== 'number' || !Number.isInteger(tr.speed / 10) || tr.speed < 10 || tr.speed > 100) return null;
-        if (tr.speed !== 100) out.speed = tr.speed;
+        // a colonization keeps 100 %: without a speed it picks one itself
+        if (tr.speed !== 100 || out.mission === 'colonize') out.speed = tr.speed;
       }
       // `true` or some of 901-903 (all three is stored as `true`, none as nothing)
       if (tr.all === true) out.all = true;

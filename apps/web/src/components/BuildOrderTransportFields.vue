@@ -13,15 +13,21 @@ import Icon from './Icon.vue';
 /**
  * Fields of a transport step of the build order (mission, target, speed, ships, cargo, time), for adding one and for
  * editing one. `noShips`: the step may fly without ships (imported from pr0plan with a flight time); `noTarget`: it may
- * keep no target.
+ * keep no target; `autoSpeed`: the speed the automatic one of a colonization flies at (percent, below 100).
  */
-const props = defineProps<{ targets: string[]; label: (key: string) => string; noShips?: boolean; noTarget?: boolean }>();
+const props = defineProps<{ targets: string[]; label: (key: string) => string; noShips?: boolean; noTarget?: boolean; autoSpeed?: number | null }>();
 const d = defineModel<TransportDraft>({ required: true });
 const { t } = useI18n();
 
 // a colonization flies with a colony ship, to a planned planet when there is one
-watch(() => d.value.mission, (m) => {
-  if (m !== 'colonize') return;
+watch([() => d.value, () => d.value.mission], ([draft, m], [before, old]) => {
+  // only colonizations pick their speed themselves
+  if (m !== 'colonize') {
+    if (!d.value.speed) d.value.speed = 100;
+    return;
+  }
+  // switched to a colonization in this form (not another step's draft): automatic speed
+  if (draft === before && old !== 'colonize' && d.value.speed === 100) d.value.speed = 0;
   if (units.value.ships.includes(COLONY_SHIP) && !d.value.ships.some((s) => s.id === COLONY_SHIP)) d.value.ships = [{ id: COLONY_SHIP, count: 1 }];
   const planned = props.targets.find(isPlannedKey);
   if (planned && !isPlannedKey(d.value.target ?? '')) d.value.target = planned;
@@ -41,6 +47,7 @@ watch(() => d.value.mission, (m) => {
     </label>
     <label>{{ t('buildOrder.trSpeed') }}
       <select v-model.number="d.speed">
+        <option v-if="d.mission === 'colonize'" :value="0">{{ autoSpeed ? t('buildOrder.trSpeedAutoAt', { speed: autoSpeed }) : t('buildOrder.trSpeedAuto') }}</option>
         <option v-for="p in SPEED_PERCENTS" :key="p" :value="p">{{ p }} %</option>
       </select>
     </label>

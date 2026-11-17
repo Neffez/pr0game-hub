@@ -130,6 +130,21 @@ describe('planned planets', () => {
     expect(sim.steps.find((s) => s.id === 'mine')).toMatchObject({ state: 'planned', start: col.end, wait: 'colony' });
   });
 
+  it('astrophysics further down the list with a speed of its own: leaves as late as it can at that speed', () => {
+    const hub = hubOf([planet(HOME, { 31: 3 })], { research: { 117: 3, 113: 3, 106: 3 }, researchSpeed: 2500 });
+    const o = order([colonize({ speed: 100 }), { id: 'astro', kind: 'research', element: 124 }]);
+    o.planned![PLANNED].coords = { g: 1, s: 100, p: 4 };
+    const sim = run(o, hub);
+    const astro = sim.steps.find((s) => s.id === 'astro')!;
+    const col = sim.steps.find((s) => s.id === 'col')!;
+    const f = flight({ 208: 1 }, { 117: 3 }, [1, 100, 4]);
+    expect(col).toMatchObject({ state: 'planned', start: astro.end! + ASTRO_MARGIN - f.seconds, end: astro.end! + ASTRO_MARGIN, fuel: f.fuel, wait: 'astro' });
+    expect(col.speed).toBeUndefined();
+    // a colonization keeps its 100 % (without it, it would pick its speed itself)
+    const valid = validateBuildOrder(o);
+    expect('order' in valid && valid.order.planets[HOME][0].transport!.speed).toBe(100);
+  });
+
   it('waits for its ships from the shipyard', () => {
     const hub = hubOf([planet(HOME, { 21: 4 })], { research: { 117: 3, 124: 1 } });
     const sim = run(order([{ id: 'ship', kind: 'ship', element: 208, count: 1 }, colonize()]), hub);

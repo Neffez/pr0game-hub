@@ -488,7 +488,7 @@ components:
                 the universe's start resources plus the cargo. It leaves only when astrophysics allows one more planet
                 at the arrival (it waits for a running astrophysics research)
             ships: { type: object, description: 'Ship id -> amount, e.g. `{"202": 3}`', additionalProperties: { type: integer, minimum: 1 } }
-            speed: { type: integer, minimum: 10, maximum: 100, multipleOf: 10, description: 'Speed in percent, default 100' }
+            speed: { type: integer, minimum: 10, maximum: 100, multipleOf: 10, description: 'Speed in percent, default 100. A colonization without a speed whose astrophysics comes later in a list picks the slowest speed that lands right after the research; with one it leaves as late as it can at that speed' }
             all:
               oneOf:
                 - { type: boolean }
@@ -558,7 +558,7 @@ components:
         transport: { type: [object, 'null'], description: Resources beyond the storage that have to come by transport }
         full: { type: [object, 'null'], description: 'Storages that ran full while the list waited: resource id -> `since`, `lost`' }
         fuel: { type: number, description: 'Deuterium of the flight, part of `cost` (transports with ships)' }
-        speed: { type: integer, description: 'Colonizations: speed in percent to fly at so the ship lands after the astrophysics further down the list (only when below the step''s own speed)' }
+        speed: { type: integer, description: 'Colonizations without their own speed: speed in percent to fly at so the ship lands after the astrophysics further down the list (only when below 100)' }
         before: { type: object, description: 'Planned steps: resource id -> amount on the planet at the start, before paying' }
         after: { type: object, description: 'Planned steps: resource id -> amount on the planet at the start, after paying' }
     StoredBuildOrder:

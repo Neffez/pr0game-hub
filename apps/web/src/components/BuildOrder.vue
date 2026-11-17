@@ -183,7 +183,7 @@ function stepTitle(s: Step, r: StepResult | undefined): string {
 /** what a transport flies with and when: "3× Kleiner Transporter · 70 % · alles · Ankunft Mo 12:00" */
 function transportInfo(tr: TransportSettings): string {
   const parts = Object.entries(tr.ships ?? {}).map(([id, n]) => `${fmt(n)}× ${name(Number(id))}`);
-  if (tr.speed && tr.speed !== 100) parts.push(`${tr.speed} %`);
+  if (tr.speed && (tr.speed !== 100 || tr.mission === 'colonize')) parts.push(`${tr.speed} %`);
   const all = allOf(tr);
   if (all.length) parts.push(t('buildOrder.trAllShort', { res: all.map((r) => name(r)).join(', ') }));
   if (tr.notBefore) parts.push(t('buildOrder.trNotBefore', { time: clock(tr.notBefore) }));
@@ -607,7 +607,7 @@ function onDrop(i: number) {
           <form v-if="editId === r.step.id" class="bo-add small" @submit.prevent="saveEdit(r.index)">
             <BuildOrderTransportFields
               v-if="r.step.kind === 'transport'" v-model="editDraft" :targets="trTargets" :label="planetLabel"
-              :no-ships="!editOriginal?.ships" :no-target="editOriginal?.target == null"
+              :no-ships="!editOriginal?.ships" :no-target="editOriginal?.target == null" :auto-speed="r.result?.speed"
             />
             <div v-else class="row bo-add-row">
               <select v-model="editElement" :aria-label="t('buildOrder.addElement')">

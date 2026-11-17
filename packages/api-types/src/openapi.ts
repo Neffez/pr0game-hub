@@ -3126,7 +3126,7 @@ export type components = {
                 ships?: {
                     [key: string]: number;
                 };
-                /** @description Speed in percent, default 100 */
+                /** @description Speed in percent, default 100. A colonization without a speed whose astrophysics comes later in a list picks the slowest speed that lands right after the research; with one it leaves as late as it can at that speed */
                 speed?: number;
                 /** @description Loads everything of these resources that is on the planet at the departure, like the game's "max" links: after the fixed amounts of the others, in the order metal, crystal, deuterium, up to the cargo space. `true`: all three */
                 all?: boolean | (901 | 902 | 903)[];
@@ -3191,7 +3191,7 @@ export type components = {
             full: Record<string, never> | null;
             /** @description Deuterium of the flight, part of `cost` (transports with ships) */
             fuel?: number;
-            /** @description Colonizations: speed in percent to fly at so the ship lands after the astrophysics further down the list (only when below the step's own speed) */
+            /** @description Colonizations without their own speed: speed in percent to fly at so the ship lands after the astrophysics further down the list (only when below 100) */
             speed?: number;
             /** @description Planned steps: resource id -> amount on the planet at the start, before paying */
             before?: Record<string, never>;

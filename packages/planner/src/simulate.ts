@@ -25,7 +25,8 @@ import { allOf, fixedOf, type BuildOrder, type Step, type TransportSettings } fr
  * planet that a colonization of the build order flies to is founded at its arrival (start resources plus the cargo);
  * the colonization waits until the astrophysics research that allows the planet is done at the arrival. When that
  * research is only further down a list, the ship leaves without blocking the list and its arrival is set once the
- * research starts: a lower speed (or a later departure) lets it land right after the research is done.
+ * research starts: it lands right after the research is done, at the slowest speed that makes it (automatic, the
+ * step has no speed) or at the step's own speed, leaving as late as it can.
  */
 
 export type StepState = 'done' | 'queued' | 'deactivated' | 'planned' | 'invalid';
@@ -58,7 +59,7 @@ export interface StepResult {
   full: Record<number, { since: number; lost: number }> | null;
   /** deuterium of the flight, part of `cost` (transports with ships) */
   fuel?: number;
-  /** colonizations: the speed (percent) to fly at so the ship lands after the astrophysics, when below the step's own */
+  /** colonizations without their own speed: the speed (percent) to fly at so the ship lands after the astrophysics, when below 100 */
   speed?: number;
   /** planned steps: resources on the planet at the start, right before paying and after (whole units) */
   before?: Record<number, number>;
@@ -395,7 +396,7 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
   /** colonizations that left before the astrophysics allowing their planet started, in order */
   const deferred: {
     from: Planet; target: Planet; at: number; load: Record<number, number>; fuel: number;
-    /** flight at each speed up to the step's own, fastest first */
+    /** flight at each speed (only the step's own when it has one), fastest first */
     options: { speed: number; flight: number; fuel: number }[];
     result: StepResult | null;
   }[] = [];
@@ -577,8 +578,8 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
         const target = tr.target ? byKey.get(tr.target) : undefined;
         if (target && defer) {
           target.founding = true;
-          const base = tr.speed ?? 100;
-          const options = SPEED_PERCENTS.filter((v) => v <= base).map((speed) => ({ speed, ...flightOf(p, { ...tr, speed }) }));
+          // no speed of its own: automatic, the slowest that still lands right after the astrophysics
+          const options = (tr.speed != null ? [tr.speed] : SPEED_PERCENTS).map((speed) => ({ speed, ...flightOf(p, { ...tr, speed }) }));
           deferred.push({ from: p, target, at: t, load, fuel, options, result: null });
         } else if (target) target.arrivals.push({ at: end, resources: load, ...(tr.mission === 'colonize' && !target.active ? { found: true } : {}) });
         break;

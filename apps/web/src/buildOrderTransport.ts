@@ -14,6 +14,7 @@ export interface TransportDraft {
   mission: TransportMission;
   target: string | null;
   ships: { id: number; count: number }[];
+  /** percent; 0: automatic (colonizations) */
   speed: number;
   /** resources loaded completely (the game's "max" links), the others with their amounts */
   all: number[];
@@ -34,7 +35,7 @@ export function draftOf(tr?: TransportSettings): TransportDraft {
     mission: tr.mission ?? 'transport',
     target: tr.target,
     ships: Object.entries(tr.ships ?? {}).map(([id, count]) => ({ id: Number(id), count })),
-    speed: tr.speed ?? 100,
+    speed: tr.speed ?? (tr.mission === 'colonize' ? 0 : 100),
     all: allOf(tr),
     res: { 901: tr.resources[901] ?? 0, 902: tr.resources[902] ?? 0, 903: tr.resources[903] ?? 0 },
     timeMode,
@@ -61,7 +62,8 @@ export function transportOf(d: TransportDraft): TransportSettings {
   const tr: TransportSettings = { target: d.target, resources, flight: amount(d.flight) * 60 };
   if (d.ships.length) tr.ships = ships;
   if (d.mission !== 'transport') tr.mission = d.mission;
-  if (d.speed !== 100) tr.speed = d.speed;
+  // a colonization stores 100 % too: without a speed it picks one itself
+  if (d.speed > 0 && (d.speed !== 100 || d.mission === 'colonize')) tr.speed = d.speed;
   const all = [901, 902, 903].filter((r) => d.all.includes(r));
   if (all.length) tr.all = all.length === 3 ? true : all;
   const at = epochOf(d);

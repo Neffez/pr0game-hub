@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-17
 
+- Build order: the speed of a colonization can be set. "Automatic" (no speed stored, the default) keeps picking the
+  slowest speed that lands right after an astrophysics further down the list; a fixed speed (100 % is stored for
+  colonizations too) now flies at exactly that speed and leaves as late as it can, instead of only capping the
+  automatic pick. The edit form shows the automatic speed the simulation chose.
 - Activity pattern: sync ticks below the curve are thinned to the newest one per half hour of the day (over all days
   shown, `tickEvents` in the web's `activity.ts`), so a member who syncs all the time no longer fills the axis. The
   curve and the server's 15-minute sync buckets are unchanged.
