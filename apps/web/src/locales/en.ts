@@ -1437,7 +1437,7 @@ const en: typeof de = {
     freshness: 'Last sync per member',
     hint: "From the latest empire page of every alliance member in the hub. Every member pastes their own empire page for this. Without an empire page (or for players of the in-game alliance who are not in the hub) the values come from the spy reports: per planet/moon each section from the newest report showing it (marked \"spy\").",
     hint_planets: 'One row per planet/moon with building levels. Points = building points of the planet.',
-    hint_fleet: 'Fleet movements: fleets in flight from the synced overview. Ships or defense: summed over all planets and moons from the empire page.',
+    hint_fleet: 'Fleet movements: fleets in flight from the synced overview. Ships or defense: summed over all planets and moons from the empire page, ships including those in flight when it was pasted.',
     fleetsHint: 'Fleets in flight of all members from their latest synced overview (or the pasted event lines), next arrival first. Behind it: when each member last synced their fleets.',
     hint_research: 'Research levels per member. Points = research points.',
     hintColumns: 'Column headers are abbreviated, the full name is in the tooltip. Colours: red = low, green = column maximum.',

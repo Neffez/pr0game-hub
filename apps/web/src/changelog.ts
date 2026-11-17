@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-17',
     items: [
       {
+        kind: 'fix',
+        de: 'Allianz-Flotte: Unter „Schiffe“ zählen jetzt auch die Schiffe, die beim Einfügen der Imperium-Seite gerade unterwegs waren, nicht nur die auf Planeten und Monden.',
+        en: 'Alliance fleet: "Ships" now also counts the ships that were in flight when the empire page was pasted, not only those on planets and moons.',
+      },
+      {
         kind: 'new',
         de: 'Bauliste: Bei „Rohstoffe davor/danach“ steht jetzt auch die Energie: wie viel beim Start des Schritts übrig ist und wie viel, wenn er fertig ist. Fehlt Energie, ist der Wert rot.',
         en: 'Build order: "Resources before/after" now also shows the energy: how much is left when the step starts and once it is finished. Missing energy is shown in red.',

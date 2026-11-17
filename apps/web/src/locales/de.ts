@@ -1438,7 +1438,7 @@ const de = {
     freshness: 'Stand je Mitglied',
     hint: 'Aus der zuletzt eingefügten Imperium-Seite jedes Allianz-Mitglieds im Hub. Jedes Mitglied fügt dafür seine eigene Imperium-Seite ein. Ohne Imperium-Seite (oder für Spieler der Ingame-Allianz, die nicht im Hub sind) stammen die Werte aus den Spionageberichten: je Planet/Mond jeder Bereich aus dem neuesten Bericht, der ihn zeigt (markiert mit „Spionage“).',
     hint_planets: 'Eine Zeile pro Planet/Mond mit Gebäudestufen. Punkte = Gebäudepunkte des Planeten.',
-    hint_fleet: 'Flottenbewegungen: Flotten im Flug aus der synchronisierten Übersicht. Schiffe bzw. Verteidigung: summiert über alle Planeten und Monde aus dem Imperium.',
+    hint_fleet: 'Flottenbewegungen: Flotten im Flug aus der synchronisierten Übersicht. Schiffe bzw. Verteidigung: summiert über alle Planeten und Monde aus dem Imperium, Schiffe samt denen, die beim Einfügen gerade im Flug waren.',
     fleetsHint: 'Flotten im Flug aller Mitglieder aus ihrer zuletzt synchronisierten Übersicht (oder den eingefügten Ereignis-Zeilen), nächste Ankunft zuerst. Dahinter: wann jedes Mitglied seine Flotten zuletzt synchronisiert hat.',
     hint_research: 'Forschungsstufen je Mitglied. Punkte = Forschungspunkte.',
     hintColumns: 'Spaltenköpfe sind abgekürzt, der volle Name steht im Tooltip. Farben: rot = niedrig, grün = Höchstwert der Spalte.',

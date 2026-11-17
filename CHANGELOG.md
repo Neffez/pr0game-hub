@@ -4,6 +4,8 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-17
 
+- Alliance fleet: the ships tab counts the ships that were on fleets in flight when a member pasted their empire
+  page (its Σ column, `flyingShips`), not only the ships stationed on planets and moons.
 - Build order: "Resources before/after" of a planned step also shows the planet's energy left over at the start and
   once the step is finished (with everything queued on the planet and the research queued until then), negative in
   red. The simulation records it on the step's result (`energy`); production steps no longer repeat it in their

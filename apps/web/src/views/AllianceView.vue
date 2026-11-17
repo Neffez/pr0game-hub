@@ -35,6 +35,8 @@ interface Member {
     research: Record<string, number>;
     researchTime?: number | null;
     planets: { name: string; coords: { g: number; s: number; p: number }; type: 'planet' | 'moon'; values: Record<string, number>; time?: number }[];
+    /** ships on fleets in flight (the empire page's Σ column), not part of any planet's values */
+    flyingShips?: Record<string, number>;
   } | null;
   /** fleet movements of the member's latest synced overview */
   fleets: { time: number; data: Fleet[] } | null;
@@ -140,10 +142,14 @@ const rows = computed<Row[]>(() => {
         spy: m.source === 'spy' ? m.data!.researchTime : null,
       }));
   }
-  // fleet/defense: summed over all planets and moons of a member
+  // fleet/defense: summed over all planets and moons of a member, plus the ships on fleets in flight
   return withData.value.map((m) => {
     const values: Record<number, number> = {};
-    for (const p of m.data!.planets) for (const [id, n] of Object.entries(p.values)) values[Number(id)] = (values[Number(id)] ?? 0) + n;
+    const add = (v: Record<string, number>) => {
+      for (const [id, n] of Object.entries(v)) values[Number(id)] = (values[Number(id)] ?? 0) + n;
+    };
+    for (const p of m.data!.planets) add(p.values);
+    add(m.data!.flyingShips ?? {});
     return { key: m.key, member: m, label: memberName(m), values, points: points(values), spy: m.source === 'spy' ? m.created_at : null };
   });
 });
