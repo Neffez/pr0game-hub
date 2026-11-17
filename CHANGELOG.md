@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-17
 
+- API: the answer of `GET /api/{uni}/alliance` is described in full in the OpenAPI spec: all member fields required,
+  `data` as `AllianceEmpire` (planets with their values, research, spy report times, `flyingShips`) and the fleet
+  movements of `fleets` (`SharedFleets`) and `fleetHistory` as `FleetMovement`. The alliance pages of the web app take
+  the member type from the generated API types instead of a hand-written one.
 - Alliance fleet: the ships tab counts the ships that were on fleets in flight when a member pasted their empire
   page (its Σ column, `flyingShips`), not only the ships stationed on planets and moons.
 - Build order: "Resources before/after" of a planned step also shows the planet's energy left over at the start and

@@ -2309,10 +2309,65 @@ components:
       required: [time, data, private]
       properties:
         time: { type: integer, description: Unix seconds of the synced page }
-        data: { type: array, items: { type: object }, description: Fleets (own, friendly, hostile) the caller may see }
+        data: { type: array, items: { $ref: '#/components/schemas/FleetMovement' }, description: Fleets (own, friendly, hostile) the caller may see }
         private: { type: boolean, description: 'The member shares no fleets by default (`fleetShare` off); single fleets may still be shared' }
+    FleetBody:
+      type: object
+      required: [coords, type, name]
+      properties:
+        coords: { type: object, required: [g, s, p], properties: { g: { type: integer }, s: { type: integer }, p: { type: integer } } }
+        type: { type: [string, 'null'], enum: [planet, moon, debris, null] }
+        name: { type: [string, 'null'] }
+    FleetMovement:
+      type: object
+      description: One movement of a member's synced fleet list (the game overview's events)
+      required: [owner, player, mission, missionName, phase, from, to, ships, resources, arrival]
+      properties:
+        owner: { type: string, enum: [own, hostile, foreign], description: Own fleet, hostile fleet heading for an own planet, or another fleet }
+        player: { type: [string, 'null'], description: Owner of a foreign fleet when the game names it }
+        mission: { type: [integer, 'null'], description: Game mission id, null if unknown }
+        missionName: { type: string, description: Mission as shown in the game }
+        phase: { type: string, enum: [out, return, hold] }
+        from: { $ref: '#/components/schemas/FleetBody' }
+        to: { oneOf: [{ $ref: '#/components/schemas/FleetBody' }, { type: 'null' }] }
+        ships: { type: object, additionalProperties: { type: integer }, description: Element id -> amount (empty when the game does not show them) }
+        resources: { type: [object, 'null'], additionalProperties: { type: number }, description: Cargo 901-903 when shown }
+        arrival: { type: integer, description: Unix seconds }
+        acs: { type: [integer, 'null'], description: Fleets of one ACS share the number (the first is the lead) }
+        fromPlayer:
+          type: [object, 'null']
+          description: Owner of the start of a foreign or hostile fleet by the galaxy data
+          required: [id, name]
+          properties:
+            id: { type: integer }
+            name: { type: string }
+        shared: { type: boolean, description: "In the caller's own list: whether the other members see this own fleet" }
+    AllianceEmpirePlanet:
+      type: object
+      required: [name, coords, type, values]
+      properties:
+        name: { type: string }
+        coords: { type: object, required: [g, s, p], properties: { g: { type: integer }, s: { type: integer }, p: { type: integer } } }
+        type: { type: string, enum: [planet, moon] }
+        values: { type: object, additionalProperties: { type: number }, description: Element id -> level or amount on this planet/moon }
+        time: { type: integer, description: 'Spy data only: Unix seconds of the newest report this planet/moon is put together from' }
+    AllianceEmpire:
+      type: [object, 'null']
+      description: >-
+        The member's newest empire page (`source` empire, further fields of the parsed page may follow), or the empire
+        put together from spy reports (`source` spy); null without either.
+      required: [planets, research]
+      properties:
+        planets: { type: array, items: { $ref: '#/components/schemas/AllianceEmpirePlanet' } }
+        research: { type: object, additionalProperties: { type: number }, description: Research id -> level }
+        researchTime: { type: [integer, 'null'], description: 'Spy data only: Unix seconds of the newest report showing research, null without one' }
+        flyingShips:
+          type: object
+          additionalProperties: { type: integer }
+          description: 'Empire page only: ships on fleets in flight (the page''s total column), not part of any planet''s values'
     AllianceMember:
       type: object
+      required: [key, user_id, username, display_name, ingame_name, player_id, source, created_at, data, fleets, fleetHistory]
       properties:
         key: { type: string }
         user_id: { type: [integer, 'null'] }
@@ -2322,9 +2377,9 @@ components:
         player_id: { type: [integer, 'null'] }
         source: { type: [string, 'null'], enum: [empire, spy, null] }
         created_at: { type: [integer, 'null'] }
-        data: { type: [object, 'null'] }
+        data: { $ref: '#/components/schemas/AllianceEmpire' }
         fleets: { $ref: '#/components/schemas/SharedFleets' }
-        fleetHistory: { type: array, items: { type: object } }
+        fleetHistory: { type: array, items: { $ref: '#/components/schemas/FleetMovement' }, description: Fleets of the member's older lists that arrived in the last 12 hours, as far as they share them }
 paths:
   /api/health:
     get:

@@ -15,7 +15,10 @@ describe('contract check', () => {
   });
 
   it('reads `type: [X, null]` and component references', () => {
-    const member = { key: 'u1', username: 'a', source: null, fleets: null, fleetHistory: [] };
+    const member = {
+      key: 'u1', user_id: 1, username: 'a', display_name: null, ingame_name: null, player_id: null, source: null, created_at: null, data: null,
+      fleets: null, fleetHistory: [],
+    };
     expect(checkResponse('GET', '/api/:uni/alliance', 200, [member])).toBeNull();
     expect(checkResponse('GET', '/api/:uni/alliance', 200, [{ ...member, source: 'other' }])).not.toBeNull();
     expect(checkResponse('GET', '/api/:uni/alliance', 200, [{ ...member, fleets: [] }])).not.toBeNull();

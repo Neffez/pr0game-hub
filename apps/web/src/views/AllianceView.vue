@@ -10,8 +10,9 @@ import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import { uniApi } from '../api';
+import type { AllianceMember } from '../apiTypes';
 import { past, upcoming, useClock } from '../clock';
-import FleetList, { FLEET_HISTORY, type Fleet } from '../components/FleetList.vue';
+import FleetList, { FLEET_HISTORY } from '../components/FleetList.vue';
 import ColonizePlanner from '../components/ColonizePlanner.vue';
 import Hint from '../components/Hint.vue';
 import { useLoader, useMobile, useSort, useStored, useUni } from '../composables';
@@ -21,28 +22,8 @@ import { abbr, ago, dateTime, fmt, name, scaleColor } from '../format';
 /** Alliance pages from the members' empire pages: planets (buildings), fleets and research, like FF-Hub. */
 type Page = 'planets' | 'fleet' | 'research';
 
-interface Member {
-  key: string;
-  /** null for players of the in-game alliance who are not in the hub */
-  user_id: number | null;
-  username: string;
-  display_name: string | null;
-  ingame_name: string | null;
-  /** empire page of the member or put together from spy reports (planets and research then have their own report time) */
-  source: 'empire' | 'spy' | null;
-  created_at: number | null;
-  data: {
-    research: Record<string, number>;
-    researchTime?: number | null;
-    planets: { name: string; coords: { g: number; s: number; p: number }; type: 'planet' | 'moon'; values: Record<string, number>; time?: number }[];
-    /** ships on fleets in flight (the empire page's Σ column), not part of any planet's values */
-    flyingShips?: Record<string, number>;
-  } | null;
-  /** fleet movements of the member's latest synced overview */
-  fleets: { time: number; data: Fleet[] } | null;
-  /** fleets of the member's older lists that arrived in the last 12 hours, as far as they share them */
-  fleetHistory?: Fleet[];
-}
+type Member = AllianceMember;
+
 interface Row {
   key: string;
   member: Member;
@@ -60,7 +41,7 @@ const route = useRoute();
 const page = computed(() => route.meta.page as Page);
 const { uni } = useUni();
 const mobile = useMobile();
-const { data, error, load } = useLoader(() => uniApi(uni.value, '/alliance') as Promise<Member[]>);
+const { data, error, load } = useLoader(() => uniApi<AllianceMember[]>(uni.value, '/alliance'));
 const members = computed(() => data.value ?? []);
 const fleetTab = ref<'movements' | 'ships' | 'defense'>('movements');
 /** planets page: the members' planets, or the colonization planner (backlog C-5); from the link (`?tab=colonize`), else the last one */

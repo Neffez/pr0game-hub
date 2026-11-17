@@ -22,3 +22,5 @@ export type Deck = Schema<'Deck'>;
 export type PlayerDetails = Schema<'PlayerDetails'>;
 export type PlayerScore = PlayerDetails['history'][number];
 export type PlayerPlanet = PlayerDetails['planets'][number];
+
+export type AllianceMember = Schema<'AllianceMember'>;

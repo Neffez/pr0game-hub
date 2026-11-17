@@ -4994,24 +4994,102 @@ export type components = {
             /** @description Unix seconds of the synced page */
             time: number;
             /** @description Fleets (own */
-            data: Record<string, never>[];
+            data: components["schemas"]["FleetMovement"][];
             /** @description The member shares no fleets by default (`fleetShare` off); single fleets may still be shared */
             private: boolean;
         } | null;
-        AllianceMember: {
-            key?: string;
-            user_id?: number | null;
-            username?: string;
-            /** @description Hub display name; null when unset or for spy-only players */
-            display_name?: string | null;
-            ingame_name?: string | null;
-            player_id?: number | null;
+        FleetBody: {
+            coords: {
+                g: number;
+                s: number;
+                p: number;
+            };
             /** @enum {string|null} */
-            source?: "empire" | "spy" | null;
-            created_at?: number | null;
-            data?: Record<string, never> | null;
-            fleets?: components["schemas"]["SharedFleets"];
-            fleetHistory?: Record<string, never>[];
+            type: "planet" | "moon" | "debris" | null;
+            name: string | null;
+        };
+        /** @description One movement of a member's synced fleet list (the game overview's events) */
+        FleetMovement: {
+            /**
+             * @description Own fleet
+             * @enum {string}
+             */
+            owner: "own" | "hostile" | "foreign";
+            /** @description Owner of a foreign fleet when the game names it */
+            player: string | null;
+            /** @description Game mission id */
+            mission: number | null;
+            /** @description Mission as shown in the game */
+            missionName: string;
+            /** @enum {string} */
+            phase: "out" | "return" | "hold";
+            from: components["schemas"]["FleetBody"];
+            to: components["schemas"]["FleetBody"] | null;
+            /** @description Element id -> amount (empty when the game does not show them) */
+            ships: {
+                [key: string]: number;
+            };
+            /** @description Cargo 901-903 when shown */
+            resources: {
+                [key: string]: number;
+            } | null;
+            /** @description Unix seconds */
+            arrival: number;
+            /** @description Fleets of one ACS share the number (the first is the lead) */
+            acs?: number | null;
+            /** @description Owner of the start of a foreign or hostile fleet by the galaxy data */
+            fromPlayer?: {
+                id: number;
+                name: string;
+            } | null;
+            /** @description In the caller's own list: whether the other members see this own fleet */
+            shared?: boolean;
+        };
+        AllianceEmpirePlanet: {
+            name: string;
+            coords: {
+                g: number;
+                s: number;
+                p: number;
+            };
+            /** @enum {string} */
+            type: "planet" | "moon";
+            /** @description Element id -> level or amount on this planet/moon */
+            values: {
+                [key: string]: number;
+            };
+            /** @description Spy data only: Unix seconds of the newest report this planet/moon is put together from */
+            time?: number;
+        };
+        /** @description The member's newest empire page (`source` empire, further fields of the parsed page may follow), or the empire put together from spy reports (`source` spy); null without either. */
+        AllianceEmpire: {
+            planets: components["schemas"]["AllianceEmpirePlanet"][];
+            /** @description Research id -> level */
+            research: {
+                [key: string]: number;
+            };
+            /** @description Spy data only: Unix seconds of the newest report showing research, null without one */
+            researchTime?: number | null;
+            /** @description Empire page only: ships on fleets in flight (the page's total column), not part of any planet's values */
+            flyingShips?: {
+                [key: string]: number;
+            };
+        } | null;
+        AllianceMember: {
+            key: string;
+            user_id: number | null;
+            username: string;
+            /** @description Hub display name; null when unset or for spy-only players */
+            display_name: string | null;
+            ingame_name: string | null;
+            player_id: number | null;
+            /** @enum {string|null} */
+            source: "empire" | "spy" | null;
+            created_at: number | null;
+            data: components["schemas"]["AllianceEmpire"];
+            fleets: components["schemas"]["SharedFleets"];
+            /** @description Fleets of the member's older lists that arrived in the last 12 hours */
+            fleetHistory: components["schemas"]["FleetMovement"][];
         };
     };
     responses: never;
