@@ -8,10 +8,13 @@ import { latestScores } from './stats.js';
 export interface ColonySystem {
   g: number;
   s: number;
-  /** free positions by the galaxy view (no planet, not destroyed) */
+  /**
+   * free positions by the galaxy view (no planet, not destroyed); for a system never seen in the galaxy the positions
+   * without a known planet (from player profiles, spy reports, empire pages), which may be taken in truth
+   */
   free: number[];
-  /** when the system was seen */
-  seen: number;
+  /** when the galaxy showed the system, null when it never did (only known from planets of its players) */
+  seen: number | null;
   /**
    * Coverage gain: by how much a planet here shortens the mean distance (game formula, system centres) from every
    * system of the universe to the viewer's nearest planet, as a share of the mean now (0 … 1; 1 without own planets)
@@ -30,7 +33,8 @@ export interface ColonySystem {
 }
 
 /**
- * Colonization planner (backlog C-5): every system with free positions by the group's galaxy data, with what a colony
+ * Colonization planner (backlog C-5): every system with free positions by the group's galaxy data (and the systems
+ * only known from planets of their players, `seen` null), with what a colony
  * there adds: coverage of the universe from the viewer's planets, other members nearby (competition for targets) and
  * the players and points nearby (targets) within `range` systems. What the position itself is like (astrophysics,
  * fields, temperature, bonus) and the weighting per profile are the web app's (`@pr0hub/core/colonize`).
@@ -79,7 +83,17 @@ export function colonizeSystems(db: DB, ctx: GroupContext, range: number) {
   // occupied positions per system; systems seen in the galaxy
   const occupied = new Map<string, Set<number>>();
   for (const p of planets) if (p.player_id != null || p.destroyed) (occupied.get(`${p.g}:${p.s}`) ?? occupied.set(`${p.g}:${p.s}`, new Set()).get(`${p.g}:${p.s}`)!).add(p.p);
-  const seen = db.prepare('SELECT g, s, seen_at FROM galaxy_views WHERE group_id = ? AND g <= ? AND s <= ?').all(g, G, S) as { g: number; s: number; seen_at: number }[];
+  const seen = db.prepare('SELECT g, s, seen_at FROM galaxy_views WHERE group_id = ? AND g <= ? AND s <= ?').all(g, G, S) as { g: number; s: number; seen_at: number | null }[];
+  // early in a round most systems were never pasted, but the home planets of many players are known from their
+  // profiles: their systems are candidates too, with the positions not known to be taken
+  const viewed = new Set(seen.map((v) => `${v.g}:${v.s}`));
+  const candidates = [...seen];
+  for (const p of planets) {
+    const key = `${p.g}:${p.s}`;
+    if (p.player_id == null || p.g > G || p.s > S || viewed.has(key)) continue;
+    viewed.add(key);
+    candidates.push({ g: p.g, s: p.s, seen_at: null });
+  }
 
   // coverage: mean distance from every system to the nearest own planet, before and with a planet in the candidate
   const before = new Float64Array(G * S);
@@ -99,7 +113,7 @@ export function colonizeSystems(db: DB, ctx: GroupContext, range: number) {
   for (const p of targets) (byGalaxy.get(p.g) ?? byGalaxy.set(p.g, []).get(p.g)!).push(p);
 
   const systems: ColonySystem[] = [];
-  for (const v of seen) {
+  for (const v of candidates) {
     const taken = occupied.get(`${v.g}:${v.s}`) ?? new Set<number>();
     const free: number[] = [];
     for (let p = 1; p <= positions; p++) if (!taken.has(p)) free.push(p);

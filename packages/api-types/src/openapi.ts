@@ -873,7 +873,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** @description Colonization planner: every system seen in the group's galaxy data with free positions (no planet, not destroyed) and what a colony there adds for the viewer. `coverage`: by how much a planet there shortens the mean distance (game formula between system centres) from every system of the universe to the viewer's nearest planet, as a share of the mean now (1 without own planets); `nearest`: distance to the viewer's nearest planet; within `range` systems of the same galaxy: `members` (planets of other members and in-game alliance mates), `targets` (planets of other players), `inactive` (of them flagged by the game), `targetPoints` (total points of those players, each once) and `systemPoints` (of the players in the system). The position itself (astrophysics, fields, temperature, bonus) comes from `@pr0hub/core/colonize` with the universe settings. */
+        /** @description Colonization planner: every system seen in the group's galaxy data with free positions (no planet, not destroyed), and every system never seen there but with a known planet (player profiles, spy reports, empire pages; `seen` null, `free` then lists the positions without a known planet, which may be taken), and what a colony there adds for the viewer. `coverage`: by how much a planet there shortens the mean distance (game formula between system centres) from every system of the universe to the viewer's nearest planet, as a share of the mean now (1 without own planets); `nearest`: distance to the viewer's nearest planet; within `range` systems of the same galaxy: `members` (planets of other members and in-game alliance mates), `targets` (planets of other players), `inactive` (of them flagged by the game), `targetPoints` (total points of those players, each once) and `systemPoints` (of the players in the system). The position itself (astrophysics, fields, temperature, bonus) comes from `@pr0hub/core/colonize` with the universe settings. */
         get: operations["getColonizeSystems"];
         put?: never;
         post?: never;
@@ -7344,7 +7344,8 @@ export interface operations {
                             g: number;
                             s: number;
                             free: number[];
-                            seen: number;
+                            /** @description When the galaxy showed the system (Unix seconds), null when it never did */
+                            seen: number | null;
                             coverage: number;
                             nearest: number | null;
                             members: number;

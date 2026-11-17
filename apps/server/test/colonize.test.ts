@@ -46,6 +46,7 @@ beforeAll(async () => {
   view.run(group, 3, 200, t);
   planet.run(group, 3, 200, 9, big, 0);
   view.run(group, 2, 52, t);
+  planet.run(group, 3, 300, 5, big, 0); // home planet from the player profile, system never pasted
   db.prepare("INSERT INTO stat_snapshots (group_id, who, type, stat_time) VALUES (?, 'player', 1, ?)").run(group, t);
   const snap = db.prepare('SELECT id FROM stat_snapshots WHERE group_id = ?').pluck().get(group);
   db.prepare('INSERT INTO player_scores (snapshot_id, player_id, type, stat_time, points, rank) VALUES (?, ?, 1, ?, ?, 1), (?, ?, 1, ?, ?, 2)').run(snap, foe, t, 500, snap, big, t, 90000);
@@ -65,6 +66,16 @@ describe('colonization planner (C-5)', () => {
     expect(by['3:200'].coverage).toBeGreaterThan(by['1:110'].coverage);
     expect(by['3:200']).toMatchObject({ systemPoints: 90000 });
     expect(by['1:110'].nearest).toBeLessThan(by['3:200'].nearest);
+  });
+
+  it('lists systems only known from planets of their players, without a galaxy view', async () => {
+    const res = await call();
+    expect(res.seenSystems).toBe(4);
+    const sys = res.systems.find((x: any) => x.g === 3 && x.s === 300);
+    expect(sys).toMatchObject({ seen: null, systemPoints: 90000 });
+    expect(sys.free).not.toContain(5);
+    expect(sys.free).toHaveLength(14);
+    expect(res.systems.find((x: any) => x.g === 1 && x.s === 110).seen).toBe(t);
   });
 
   it('counts within the chosen range only', async () => {

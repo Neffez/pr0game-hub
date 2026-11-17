@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Kolonisieren: Auch Systeme, die noch niemand in der Galaxie eingefügt hat, werden vorgeschlagen, sobald dort ein Planet bekannt ist (z. B. Heimatplaneten aus der Spielerinfo). Sie sind als „ungesehen“ markiert, weil ihre freien Plätze nicht sicher sind. Das Profil Fleeter bevorzugt jetzt deutlich punktestarke Systeme.',
+        en: 'Colonize: systems nobody has pasted from the galaxy yet are suggested too as soon as a planet there is known (e.g. home planets from the player info). They are marked "unseen" as their free slots are not certain. The fleeter profile now clearly prefers systems with many points.',
+      },
+      {
+        kind: 'new',
         de: 'Kolonisieren: Den Umkreis kannst du jetzt frei in Systemen eingeben statt aus festen Werten zu wählen. Neu ist der Filter „Abstand zu meinen Planeten“ (von–bis Systeme), z. B. 61 bis 71, um Kolonien in etwa 66 Systemen Abstand zu finden; der Abstand steht auch als Spalte in der Liste.',
         en: 'Colonize: you can now type any range in systems instead of picking fixed values. The new filter "distance to my planets" (from–to systems), e.g. 61 to 71, finds colonies about 66 systems apart; the distance is also a column in the list.',
       },

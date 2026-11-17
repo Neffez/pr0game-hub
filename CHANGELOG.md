@@ -4,6 +4,14 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-17
 
+- Colonization planner: systems never pasted from the galaxy but with a known planet (home planets from player
+  profiles, spy reports, empire pages) are candidates too, early in a round most of the universe. Their free
+  positions are the ones without a known planet, marked "unseen" (`seen` null in `GET /api/{uni}/colonize`), and a
+  filter keeps only systems seen in the galaxy.
+  - The fleeter profile prefers systems with many points: the targets part weighs 50 % instead of 30 %, half of it
+    the points in the system itself (before 30 %), coverage 25 % instead of 40 %.
+  - The range field reads "count targets within" and explains that it only rates, while the distance filter
+    selects the positions.
 - Colonization planner: the range is a free number of systems (1–200) instead of the fixed choice ±10/25/50/100,
   and a new filter "distance to my planets" keeps only positions from–to this many systems away from the nearest
   own planet in the same galaxy (e.g. 61–71 for planets about 66 systems apart, across the edge where systems wrap
