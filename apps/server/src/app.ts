@@ -31,6 +31,7 @@ import { deckRoutes } from './routes/deck.js';
 import { eventRoutes } from './routes/events.js';
 import { galaxyRoutes } from './routes/galaxy.js';
 import { buildOrderRoutes } from './routes/buildOrders.js';
+import { optimizeRoutes } from './routes/optimize.js';
 import { buildingsRoutes } from './routes/buildings.js';
 import { marketRoutes } from './routes/market.js';
 import { imperiumRoutes } from './routes/imperium.js';
@@ -177,6 +178,7 @@ export function buildApp(db: DB, opts: { logger?: boolean; push?: PushOptions; d
       claimsRoutes(scope, db);
       plansRoutes(scope, db);
       battleRoutes(scope, db);
+      optimizeRoutes(scope, db);
       attackAssistRoutes(scope, db);
       defenseRoutes(scope, db);
       exportRoutes(scope, db);

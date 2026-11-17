@@ -1,4 +1,4 @@
-import { assignSynced, detectDone, simulate, withPlanned, type BuildOrder, type OwnFleet, type Simulation, type Step, type StepResult } from '@pr0hub/planner';
+import { assignSynced, detectDone, simulate, withPlanned, type BuildOrder, type HubState, type OwnFleet, type Simulation, type Step, type StepResult } from '@pr0hub/planner';
 import { planetStartResources, type UniverseSettings } from '@pr0hub/core/universe';
 import type { GroupContext } from '../context.js';
 import type { DB } from '../db.js';
@@ -75,10 +75,14 @@ export interface NextStep {
  * fly by the flight formula and colonizations wait for astrophysics.
  */
 export function buildOrderTimeline(order: BuildOrder, state: BuildingsState, t: number, universe?: UniverseSettings): Simulation {
+  return simulate(order, timelineHub(order, state, t, universe), { now: t, units: state.units, universe });
+}
+
+/** The hub state the timeline simulates: the member's state plus the build order's planned planets as new planets. */
+export function timelineHub(order: BuildOrder, state: BuildingsState, t: number, universe?: UniverseSettings): HubState {
   const home = state.planets.find((p) => p.type === 'planet');
   const resources = planetStartResources(universe, home?.planet);
-  const hub = withPlanned(order, state, t, { resources, universe, home: home?.planet });
-  return simulate(order, hub, { now: t, units: state.units, universe });
+  return withPlanned(order, state, t, { resources, universe, home: home?.planet });
 }
 
 /** The next open step of every planet of the build order that is still a synced planet. */

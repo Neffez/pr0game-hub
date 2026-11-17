@@ -9,8 +9,8 @@ info:
     (tokens created before the choice existed are read-only). A read/write token writes one thing: the owner's own
     build order (`PUT`, `PATCH`, `DELETE /api/{uni}/build-order` and `POST /api/{uni}/build-order/assign`), so
     scripts and assistants can plan for them. Every other write, and these with a read-only token, answers 403
-    (`read_only_token`). The battle simulator (`POST /api/{uni}/battle/simulate`) writes nothing and is allowed with
-    any token.
+    (`read_only_token`). The battle simulator (`POST /api/{uni}/battle/simulate`) and the build order search
+    (`/api/{uni}/build-order/optimize`) write nothing and are allowed with any token.
 
     **Build order revisions:** The build order carries a `revision` (also the `ETag` of its GET and of the answers of
     its writes). Several clients change it (the web app, scripts, assistants): send the revision you based your change
@@ -585,6 +585,90 @@ components:
                   s: { type: integer }
                   p: { type: integer }
               temp: { type: integer, description: Max temperature (deuterium and satellite production) }
+    BuildOrderOptimizeRequest:
+      type: object
+      required: [planet, targets]
+      properties:
+        planet: { type: string, description: 'Hub planet key `g:s:p:type` (a synced planet) or a planned planet of the build order (`0:0:<n>:planet`)', example: '1:100:8:planet' }
+        targets:
+          type: object
+          description: 'Element id -> target level (buildings, research) or unit count on the planet (ships, defense); requirements are added'
+          properties:
+            buildings: { type: object, additionalProperties: { type: integer, minimum: 0 }, example: { '21': 4 } }
+            research: { type: object, additionalProperties: { type: integer, minimum: 0 }, example: { '115': 4 } }
+            ships: { type: object, additionalProperties: { type: integer, minimum: 0 }, example: { '202': 10 } }
+            defense: { type: object, additionalProperties: { type: integer, minimum: 0 } }
+        keep: { type: array, items: { type: string }, description: 'Ids of steps of the planet''s open tail that stay in their order; default: transports, production steps, astrophysics a colonization waits for' }
+        budgetSeconds: { type: integer, minimum: 5, maximum: 300, default: 60, description: Search time after the greedy plan }
+        seed: { type: integer, minimum: 0, description: 'Seed of the random moves (a search by time also depends on the machine''s speed)' }
+        options:
+          type: object
+          properties:
+            economy: { type: boolean, default: true, description: 'Insert mines, solar and fusion plants and storages' }
+            throttle: { type: boolean, default: true, description: Try production settings of the mines (25 % steps) }
+            forbid: { type: array, items: { type: integer }, description: 'Element ids never to insert (e.g. 12 fusion reactor); a target of them is still built' }
+            includeExisting: { type: boolean, default: true, description: 'The open steps of the list that are not kept count as targets, so none get lost' }
+            mineRatio:
+              type: object
+              description: 'Soft penalty when crystal is more than `crystalBelowMetal` + `tolerance` levels below metal, or deuterium more than `deutBelowCrystal` + `tolerance` below crystal'
+              properties:
+                crystalBelowMetal: { type: integer, default: 2 }
+                deutBelowCrystal: { type: integer, default: 2 }
+                tolerance: { type: integer, default: 1 }
+                weight: { type: number, default: 3600, description: Seconds of penalty per level too far apart after each step }
+            quietHours:
+              type: object
+              required: [from, to]
+              description: 'Soft penalty for steps that start in this window (local hours of the universe''s time zone, over midnight when `to` < `from`): the wait until it ends'
+              properties:
+                from: { type: number, minimum: 0, maximum: 24 }
+                to: { type: number, minimum: 0, maximum: 24 }
+                weight: { type: number, default: 1 }
+    BuildOrderOptimizeJob:
+      type: object
+      required: [job, status, planet, revision, phase, iteration, evaluations, startedAt, endedAt, budgetSeconds, error, best]
+      properties:
+        job: { type: string }
+        status: { type: string, enum: [running, done, failed, cancelled] }
+        planet: { type: string }
+        revision: { type: [integer, 'null'], description: 'Revision of the build order the search started from (send it as `If-Match` with the `PATCH`), null without one' }
+        phase: { type: string, enum: [greedy, anneal, throttle], description: 'Greedy plan, annealing of the order and economy, then of production settings' }
+        iteration: { type: integer }
+        evaluations: { type: integer, description: Simulations of the whole build order so far }
+        startedAt: { type: integer, description: Unix seconds }
+        endedAt: { type: [integer, 'null'], description: Unix seconds }
+        budgetSeconds: { type: integer }
+        error: { type: [string, 'null'], description: Why it failed }
+        best:
+          description: The best plan so far, null before the greedy plan
+          oneOf:
+            - { type: 'null' }
+            - { $ref: '#/components/schemas/BuildOrderOptimizeResult' }
+    BuildOrderOptimizeResult:
+      type: object
+      required: [finishAt, baselineFinishAt, greedyFinishAt, steps, base, timeline]
+      properties:
+        finishAt: { type: integer, description: Unix seconds all targets are reached }
+        baselineFinishAt: { type: integer, description: 'The same with only the required steps in the plain order (no economy)' }
+        greedyFinishAt: { type: integer, description: The greedy plan before the search }
+        steps: { type: array, description: 'The planet''s whole list: the steps before the open tail as they are, then the optimized tail (new ids)', items: { $ref: '#/components/schemas/BuildOrderStep' } }
+        base:
+          type: object
+          description: 'The build order''s base, raised where the hub already has more than the steps say: send it as `base` with the `PATCH`'
+          required: [planets, research]
+          properties:
+            planets: { type: object, additionalProperties: { type: object, additionalProperties: { type: integer } } }
+            research: { type: object, additionalProperties: { type: integer } }
+        timeline:
+          type: array
+          description: Start and end of each step of the optimized tail
+          items:
+            type: object
+            required: [id, start, end]
+            properties:
+              id: { type: string }
+              start: { type: [integer, 'null'] }
+              end: { type: [integer, 'null'] }
     BuildOrderStepResult:
       type: object
       required: [id, planet, target, state, start, end, cost, wait, transport, full]
@@ -4975,6 +5059,114 @@ paths:
         '409': { description: '`from` is not in the build order or `to` already has steps (`build_order_planet_taken`)' }
         '412': { $ref: '#/components/responses/BuildOrderConflict' }
         '428': { $ref: '#/components/responses/BuildOrderRevisionRequired' }
+  /api/{uni}/build-order/optimize:
+    post:
+      tags: [Universe]
+      operationId: startBuildOrderOptimization
+      summary: Search the fastest build order of one planet (auto plan)
+      description: >-
+        Starts a search for the build order that reaches target levels (buildings, research) and unit counts (ships,
+        defense) of one planet fastest: the targets with all their requirements, a greedy plan, then simulated annealing
+        against the timeline's simulation (`/api/{uni}/build-order/timeline`) for `budgetSeconds`. Ported from the
+        auto plan of pr0plan. The search owns the open tail of the planet's list: done and queued steps stay, the steps
+        in `keep` keep their order (default: transports, production steps and astrophysics a colonization waits for),
+        the other open steps count as targets too (`options.includeExisting`). The other planets' lists, their
+        transports and colonizations are simulated as they are. It writes nothing: poll the job with
+        `GET …/optimize/{job}` and put `best.steps` into the planet's list with `PATCH /api/{uni}/build-order` (with
+        `best.base` as `base`). Allowed with a read-only API token. One running search per member, a few per server;
+        jobs and results are kept for an hour after they end.
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BuildOrderOptimizeRequest' }
+      responses:
+        '202':
+          description: The search runs
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [job, status]
+                properties:
+                  job: { type: string, description: Job id }
+                  status: { type: string, enum: [running] }
+        '400':
+          description: 'Invalid body, unknown elements or kept steps, targets above the maximum level, already reached or not reachable on the planet (`optimize_invalid`)'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '404':
+          description: 'The planet is neither a synced planet of the caller nor a planet of their build order (`optimize_planet_not_found`)'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '409':
+          description: 'The caller already has a search running (`optimize_job_running`)'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '429':
+          description: 'The server runs as many searches as it can (`optimize_busy`)'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /api/{uni}/build-order/optimize/{job}:
+    get:
+      tags: [Universe]
+      operationId: getBuildOrderOptimization
+      description: >-
+        State of a search of the caller and its best plan so far (updated about every second while it runs). Only the
+        member and group that started it can read it. Allowed with a read-only API token.
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+        - { name: job, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BuildOrderOptimizeJob' }
+        '404':
+          description: 'No such job of the caller in the group, or it ended more than an hour ago (`optimize_job_not_found`)'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+    delete:
+      tags: [Universe]
+      operationId: cancelBuildOrderOptimization
+      description: >-
+        Cancels a running search of the caller (`status` becomes `cancelled`, the best plan so far stays); an ended job
+        is returned as it is. Allowed with a read-only API token.
+      security:
+        - bearerAuth: []
+        - sessionCookie: []
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+        - { name: job, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/BuildOrderOptimizeJob' }
+        '404':
+          description: 'No such job of the caller in the group (`optimize_job_not_found`)'
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
   /api/{uni}/market:
     get:
       tags: [Universe]

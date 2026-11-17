@@ -5,3 +5,4 @@ export * from './simulate.js';
 export * from './validate.js';
 export * from './planned.js';
 export * from './edit.js';
+export * from './optimize/index.js';

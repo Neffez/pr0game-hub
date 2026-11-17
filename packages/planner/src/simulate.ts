@@ -55,7 +55,7 @@ export interface StepResult {
   /** epoch seconds the step starts and is finished (planned steps) */
   start: number | null;
   end: number | null;
-  /** cost paid at the start */
+  /** cost paid at the start (not with the option `lean`) */
   cost: Record<number, number> | null;
   wait: WaitReason | null;
   /** resources beyond the storage that have to come by transport (overflow), null when none */
@@ -98,6 +98,33 @@ export interface Simulation {
    * order: their steps are simulated from now on but they do not count as planets (empty ones are not simulated)
    */
   unscheduled: string[];
+  /** the state where the loop ended (option `state`) */
+  final?: SimState;
+}
+
+/** The simulation's state at one moment (searches that continue from a planned prefix, see `optimize`). */
+export interface SimState {
+  t: number;
+  /** research levels finished and the research queue */
+  research: Record<string, number>;
+  researchQueue: { id: number; level: number; end: number }[];
+  resourceSpeed: number;
+  planets: Record<string, SimPlanetState>;
+}
+
+export interface SimPlanetState {
+  type: 'planet' | 'moon';
+  active: boolean;
+  levels: Record<string, number>;
+  build: { id: number; level: number; end: number }[];
+  shipyard: { id: number; count: number; end: number }[];
+  res: Record<number, number>;
+  /** production per hour now (calibrated) */
+  rate: Record<number, number>;
+  cap: Record<number, number>;
+  temp: number;
+  factors: Record<string, number>;
+  calibration: Record<number, number>;
 }
 
 export interface SimulateOptions {
@@ -112,9 +139,19 @@ export interface SimulateOptions {
   maxEvents?: number;
   /** the universe's settings: flight times of transports with ships, the planet limit of colonizations */
   universe?: UniverseSettings;
+  /**
+   * Stop once these steps all started (`at: 'start'`) or, with `at: 'end'`, also the time reached their ends; steps
+   * not simulated by then are left out of `steps` (searches that only need some steps, see `optimize`)
+   */
+  stop?: { ids: string[]; at: 'start' | 'end' };
+  /** leave out what only the timeline's display needs: energy, resources before and after, full storages, production rates */
+  lean?: boolean;
+  /** return the state where the loop ended as `final` */
+  state?: boolean;
 }
 
 const RES = [901, 902, 903] as const;
+const STORAGE_IDS = new Set(Object.values(STORAGE));
 const MAX_EVENTS = 200_000;
 /** batches of the shipyard become units in up to this many parts (satellites change the energy on the way) */
 const SHIP_PARTS = 10;
@@ -305,8 +342,15 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
   });
 
   // ------------------------------------------------------------------ steps
+  const stopIds = o.stop ? new Set(o.stop.ids) : null;
+  let stopLeft = stopIds?.size ?? 0;
+  let stopEnd = -Infinity;
   const record = (p: Planet, s: Step, r: Omit<StepResult, 'id' | 'planet'>) => {
     const out = { id: s.id, planet: p.key, ...r };
+    if (stopIds?.has(s.id) && !resultById.has(s.id)) {
+      stopLeft--;
+      if (r.end != null) stopEnd = Math.max(stopEnd, r.end);
+    }
     resultById.set(s.id, out);
     results.push(out);
   };
@@ -493,11 +537,21 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
     }
   };
 
+  /** costs of building and research levels (the same few are asked for at every event) */
+  const costs = new Map<number, Record<number, number>>();
+  const unitCosts = new Map<number, Record<number, number>>();
+  const levelCost = (id: number, level: number) => {
+    const key = id * 1000 + level;
+    let c = costs.get(key);
+    if (!c) costs.set(key, (c = buildingCost(id, level, catchUp)));
+    return c;
+  };
   const stepCost = (p: Planet, s: Step): Record<number, number> => {
-    if (s.kind === 'building') return buildingCost(s.element!, levelOf(p, s.element!) + 1, catchUp);
-    if (s.kind === 'research') return buildingCost(s.element!, researchLevelOf(s.element!) + 1, catchUp);
+    if (s.kind === 'building') return levelCost(s.element!, levelOf(p, s.element!) + 1);
+    if (s.kind === 'research') return levelCost(s.element!, researchLevelOf(s.element!) + 1);
     if (s.kind === 'ship' || s.kind === 'defense') {
-      const unit = buildingCost(s.element!, 1);
+      let unit = unitCosts.get(s.element!);
+      if (!unit) unitCosts.set(s.element!, (unit = buildingCost(s.element!, 1)));
       return Object.fromEntries(Object.entries(unit).map(([r, v]) => [r, v * (s.count ?? 1)]));
     }
     if (s.kind === 'transport') {
@@ -597,7 +651,8 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
     let end = t;
     let fuel = 0;
     let rates: StepResult['production'];
-    const energyBefore = energyOf(p);
+    const lean = o.lean === true;
+    const energyBefore = lean ? null : energyOf(p);
     switch (s.kind) {
       case 'building': {
         const robot = levelOf(p, ROBOT_FACTORY);
@@ -630,10 +685,10 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
         break;
       }
       case 'prod': {
-        const was = ratesOf(p);
+        const was = lean ? null : ratesOf(p);
         p.factors = { ...p.factors, ...s.prod!.factors };
         updateRate(p);
-        rates = { before: was, after: ratesOf(p) };
+        if (was) rates = { before: was, after: ratesOf(p) };
         end = t + s.prod!.wait;
         p.waitUntil = end;
         break;
@@ -656,7 +711,7 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
       }
     }
     const snapshot = () => Object.fromEntries(RES.map((r) => [r, Math.floor(p.res[r] + 1e-9)])) as Record<number, number>;
-    const before = snapshot();
+    const before = lean ? null : snapshot();
     // beyond the storage: the rest comes by transport (overflow)
     const transport: Record<number, number> = {};
     for (const r of RES) {
@@ -667,12 +722,23 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
       }
     }
     pay(p, cost);
-    record(p, s, {
-      target, state: 'planned', start: t, end, cost: Object.keys(cost).length ? cost : null, wait: p.wait,
-      transport: Object.keys(transport).length ? transport : null, full: fullOf(p), ...(fuel ? { fuel } : {}), ...(rates ? { production: rates } : {}),
-      ...(energyBefore != null ? { energy: { before: energyBefore, after: energyOf(p, true)! } } : {}),
-      before, after: snapshot(),
-    });
+    // copied per resource: spreading or for…in over these objects with numeric keys was the most expensive part of a
+    // search's evaluation
+    let costCopy: Record<number, number> | null = null;
+    let shortOf: Record<number, number> | null = null;
+    for (const r of RES) {
+      if (cost[r] != null && !lean) (costCopy ??= {})[r] = cost[r];
+      if (transport[r] != null) (shortOf ??= {})[r] = transport[r];
+    }
+    const r: Omit<StepResult, 'id' | 'planet'> = { target, state: 'planned', start: t, end, cost: costCopy, wait: p.wait, transport: shortOf, full: lean ? null : fullOf(p) };
+    if (fuel) r.fuel = fuel;
+    if (rates) r.production = rates;
+    if (energyBefore != null) r.energy = { before: energyBefore, after: energyOf(p, true)! };
+    if (before) {
+      r.before = before;
+      r.after = snapshot();
+    }
+    record(p, s, r);
     if (defer) deferred[deferred.length - 1].result = resultById.get(s.id)!;
     if (s.kind === 'research' && id === ASTROPHYSICS) resolveDeferred();
     p.wait = null;
@@ -711,7 +777,7 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
           continue;
         }
         const grown = p.res[r] + (p.rate[r] * dt) / 3600;
-        if (grown > p.cap[r] && p.rate[r] > 0 && waiting) {
+        if (grown > p.cap[r] && p.rate[r] > 0 && waiting && !o.lean) {
           // the storage runs full (or is full): what is produced beyond it is lost
           const since = p.res[r] < p.cap[r] ? t + ((p.cap[r] - p.res[r]) / p.rate[r]) * 3600 : t;
           const lost = grown - Math.max(p.res[r], p.cap[r]);
@@ -733,7 +799,7 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
         // later entries of a synced queue without a known end start now
         if (p.build[0] && p.build[0].end < t) p.build[0].end = t;
         rates = true;
-        if (Object.values(STORAGE).includes(q.id)) updateCap(p);
+        if (STORAGE_IDS.has(q.id)) updateCap(p);
         updateRate(p);
       }
       while (p.shipyard[0] && p.shipyard[0].end <= t) {
@@ -765,16 +831,20 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
 
   let t = o.now;
   let events = 0;
+  let stopped = false;
   complete(t);
   const maxEvents = o.maxEvents ?? MAX_EVENTS;
   while (events++ < maxEvents) {
     // start every head that can start now (one start may block or free another)
     let started = true;
+    // the checks of the last pass (nothing started in it, so they hold for the next event)
+    const checks = new Map<Planet, Check>();
     while (started) {
       started = false;
       for (const p of planets) {
         if (p.head >= p.steps.length) continue;
         const c = check(p, p.steps[p.head], t);
+        checks.set(p, c);
         if (c.ok) {
           if (c.wait) p.wait = c.wait;
           start(p, p.steps[p.head], t, c.defer);
@@ -784,6 +854,10 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
           started = true;
         } else p.wait = c.wait ?? null;
       }
+    }
+    if (stopIds && stopLeft <= 0 && (o.stop!.at === 'start' || t >= stopEnd)) {
+      stopped = true;
+      break;
     }
     const open = planets.filter((p) => p.head < p.steps.length);
     if (!open.length) break;
@@ -797,7 +871,7 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
     }
     if (researchQueue[0]) next = Math.min(next, researchQueue[0].end);
     for (const p of open) {
-      const c = check(p, p.steps[p.head], t);
+      const c = checks.get(p) ?? check(p, p.steps[p.head], t);
       if (c.readyAt != null) next = Math.min(next, c.readyAt);
     }
     if (next === Infinity) {
@@ -813,10 +887,19 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
     t = next;
     complete(t);
   }
+  const final: SimState | undefined = o.state
+    ? {
+        t, research: { ...research }, researchQueue: researchQueue.map((q) => ({ id: q.id, level: q.level, end: q.end })), resourceSpeed: formulaSpeed,
+        planets: Object.fromEntries(planets.map((p) => [p.key, {
+          type: p.type, active: p.active, levels: { ...p.levels }, build: p.build.map((q) => ({ ...q })), shipyard: p.shipyard.map((q) => ({ ...q })),
+          res: { ...p.res }, rate: { ...p.rate }, cap: { ...p.cap }, temp: p.temp, factors: { ...p.factors }, calibration: { ...p.calibration },
+        }])),
+      }
+    : undefined;
   // the event cap stopped the loop: the steps left are not a planet-type problem
-  for (const p of planets) while (p.head < p.steps.length) invalid(p, 'aborted');
+  if (!stopped) for (const p of planets) while (p.head < p.steps.length) invalid(p, 'aborted');
   // colonizations whose astrophysics never started cannot found their planet
-  for (const d of deferred) {
+  for (const d of stopped ? [] : deferred) {
     const r = d.result!;
     Object.assign(r, { state: 'invalid', start: null, end: null, cost: null, wait: 'astro', transport: null, full: null });
     delete r.before;
@@ -830,6 +913,7 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
   for (const [key, list] of Object.entries(order.planets)) {
     nextOf[key] = null;
     for (const s of list) {
+      if (stopped && !resultById.has(s.id)) continue;
       const r = resultById.get(s.id) ?? {
         id: s.id, planet: key, target: targets.get(s.id) ?? null, state: 'invalid' as const, start: null, end: null, cost: null, wait: 'planet' as const, transport: null, full: null,
       };
@@ -837,7 +921,7 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
       if (nextOf[key] == null && (r.state === 'planned' || r.state === 'invalid')) nextOf[key] = s.id;
     }
   }
-  return { steps, next: nextOf, unscheduled };
+  return { steps, next: nextOf, unscheduled, ...(final ? { final } : {}) };
 }
 
 /**

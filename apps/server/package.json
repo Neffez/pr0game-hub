@@ -36,6 +36,7 @@
   },
   "files": [
     "battle-worker.mjs",
+    "optimize-worker.mjs",
     "dist",
     "migrations",
     "openapi.yaml"

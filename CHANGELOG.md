@@ -4,6 +4,25 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-17
 
+- Auto plan: an optimizer for build orders in `@pr0hub/planner` (`optimize`), ported from the auto plan of pr0plan
+  with the permission of its author, and an API to run it as a job.
+  - It searches the build order that reaches target levels and unit counts of one planet fastest: the targets with
+    their requirements, a greedy plan, then simulated annealing (swap, move, remove, insert economy, then a pass of
+    production settings, reheating) with the hub's `simulate` as fitness, so the universe's settings, the other
+    planets' lists, transports, fleets and the shared research slot count as in the timeline. Done and queued steps
+    stay, kept steps (default: transports, production steps, astrophysics a colonization waits for) keep their order;
+    options for economy, production settings, forbidden elements, a mine ratio and quiet hours (soft penalties).
+  - Deviations from pr0plan, measured: greedy candidates scored by a rollout of the real simulation, economy levels
+    count towards targets of the same element, storages where costs need them; see the header of
+    `packages/planner/src/optimize/index.ts`.
+  - `simulate` has options for searches: `stop` (end once given steps started or ended), `lean` (no display data) and
+    `state` (the state at the end); evaluations take a third of the time they took before (cached costs and checks).
+  - `POST /api/{uni}/build-order/optimize` starts a search of 5–300 s in a worker thread (`optimize-worker.mjs`) and
+    answers 202 with a job id; `GET …/optimize/{job}` shows progress and the best plan so far (the planet's whole
+    list as build order steps with new ids, the base to send along, start and end of each step); `DELETE` cancels.
+    One running search per member, at most CPU count − 1 per server (409 / 429), jobs kept an hour, readable only by
+    the member and group that started them; allowed with read-only API tokens since it writes nothing.
+
 - Build order simulation (`@pr0hub/planner` `simulate`): planned planets without a colonization no longer count
   against the astrophysics planet limit, so empty placeholders for later colonies no longer make a real colonization
   (and all steps of its colony) invalid.

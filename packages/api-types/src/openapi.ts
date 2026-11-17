@@ -1228,6 +1228,44 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/{uni}/build-order/optimize": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Search the fastest build order of one planet (auto plan)
+         * @description Starts a search for the build order that reaches target levels (buildings, research) and unit counts (ships, defense) of one planet fastest: the targets with all their requirements, a greedy plan, then simulated annealing against the timeline's simulation (`/api/{uni}/build-order/timeline`) for `budgetSeconds`. Ported from the auto plan of pr0plan. The search owns the open tail of the planet's list: done and queued steps stay, the steps in `keep` keep their order (default: transports, production steps and astrophysics a colonization waits for), the other open steps count as targets too (`options.includeExisting`). The other planets' lists, their transports and colonizations are simulated as they are. It writes nothing: poll the job with `GET …/optimize/{job}` and put `best.steps` into the planet's list with `PATCH /api/{uni}/build-order` (with `best.base` as `base`). Allowed with a read-only API token. One running search per member, a few per server; jobs and results are kept for an hour after they end.
+         */
+        post: operations["startBuildOrderOptimization"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/{uni}/build-order/optimize/{job}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description State of a search of the caller and its best plan so far (updated about every second while it runs). Only the member and group that started it can read it. Allowed with a read-only API token. */
+        get: operations["getBuildOrderOptimization"];
+        put?: never;
+        post?: never;
+        /** @description Cancels a running search of the caller (`status` becomes `cancelled`, the best plan so far stays); an ended job is returned as it is. Allowed with a read-only API token. */
+        delete: operations["cancelBuildOrderOptimization"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/{uni}/market": {
         parameters: {
             query?: never;
@@ -3172,6 +3210,144 @@ export type components = {
                     temp?: number;
                 };
             };
+        };
+        BuildOrderOptimizeRequest: {
+            /**
+             * @description Hub planet key `g:s:p:type` (a synced planet) or a planned planet of the build order (`0:0:<n>:planet`)
+             * @example 1:100:8:planet
+             */
+            planet: string;
+            /** @description Element id -> target level (buildings, research) or unit count on the planet (ships, defense); requirements are added */
+            targets: {
+                /**
+                 * @example {
+                 *       "21": 4
+                 *     }
+                 */
+                buildings?: {
+                    [key: string]: number;
+                };
+                /**
+                 * @example {
+                 *       "115": 4
+                 *     }
+                 */
+                research?: {
+                    [key: string]: number;
+                };
+                /**
+                 * @example {
+                 *       "202": 10
+                 *     }
+                 */
+                ships?: {
+                    [key: string]: number;
+                };
+                defense?: {
+                    [key: string]: number;
+                };
+            };
+            /** @description Ids of steps of the planet's open tail that stay in their order; default: transports, production steps, astrophysics a colonization waits for */
+            keep?: string[];
+            /**
+             * @description Search time after the greedy plan
+             * @default 60
+             */
+            budgetSeconds: number;
+            /** @description Seed of the random moves (a search by time also depends on the machine's speed) */
+            seed?: number;
+            options?: {
+                /**
+                 * @description Insert mines, solar and fusion plants and storages
+                 * @default true
+                 */
+                economy: boolean;
+                /**
+                 * @description Try production settings of the mines (25 % steps)
+                 * @default true
+                 */
+                throttle: boolean;
+                /** @description Element ids never to insert (e.g. 12 fusion reactor); a target of them is still built */
+                forbid?: number[];
+                /**
+                 * @description The open steps of the list that are not kept count as targets, so none get lost
+                 * @default true
+                 */
+                includeExisting: boolean;
+                /** @description Soft penalty when crystal is more than `crystalBelowMetal` + `tolerance` levels below metal, or deuterium more than `deutBelowCrystal` + `tolerance` below crystal */
+                mineRatio?: {
+                    /** @default 2 */
+                    crystalBelowMetal: number;
+                    /** @default 2 */
+                    deutBelowCrystal: number;
+                    /** @default 1 */
+                    tolerance: number;
+                    /**
+                     * @description Seconds of penalty per level too far apart after each step
+                     * @default 3600
+                     */
+                    weight: number;
+                };
+                /** @description Soft penalty for steps that start in this window (local hours of the universe's time zone, over midnight when `to` < `from`): the wait until it ends */
+                quietHours?: {
+                    from: number;
+                    to: number;
+                    /** @default 1 */
+                    weight: number;
+                };
+            };
+        };
+        BuildOrderOptimizeJob: {
+            job: string;
+            /** @enum {string} */
+            status: "running" | "done" | "failed" | "cancelled";
+            planet: string;
+            /** @description Revision of the build order the search started from (send it as `If-Match` with the `PATCH`), null without one */
+            revision: number | null;
+            /**
+             * @description Greedy plan, annealing of the order and economy, then of production settings
+             * @enum {string}
+             */
+            phase: "greedy" | "anneal" | "throttle";
+            iteration: number;
+            /** @description Simulations of the whole build order so far */
+            evaluations: number;
+            /** @description Unix seconds */
+            startedAt: number;
+            /** @description Unix seconds */
+            endedAt: number | null;
+            budgetSeconds: number;
+            /** @description Why it failed */
+            error: string | null;
+            /** @description The best plan so far, null before the greedy plan */
+            best: null | components["schemas"]["BuildOrderOptimizeResult"];
+        };
+        BuildOrderOptimizeResult: {
+            /** @description Unix seconds all targets are reached */
+            finishAt: number;
+            /** @description The same with only the required steps in the plain order (no economy) */
+            baselineFinishAt: number;
+            /** @description The greedy plan before the search */
+            greedyFinishAt: number;
+            /** @description The planet's whole list: the steps before the open tail as they are, then the optimized tail (new ids) */
+            steps: components["schemas"]["BuildOrderStep"][];
+            /** @description The build order's base, raised where the hub already has more than the steps say: send it as `base` with the `PATCH` */
+            base: {
+                planets: {
+                    [key: string]: {
+                        [key: string]: number;
+                    };
+                };
+                research: {
+                    [key: string]: number;
+                };
+            };
+            /** @description Start and end of each step of the optimized tail */
+            timeline: {
+                id: string;
+                start: number | null;
+                end: number | null;
+            }[];
         };
         BuildOrderStepResult: {
             id: string;
@@ -8693,6 +8869,156 @@ export interface operations {
             };
             412: components["responses"]["BuildOrderConflict"];
             428: components["responses"]["BuildOrderRevisionRequired"];
+        };
+    };
+    startBuildOrderOptimization: {
+        parameters: {
+            query?: {
+                /** @description Alliance group id (alternative to `X-Hub-Group`, required for SSE) */
+                group?: components["parameters"]["HubGroupQuery"];
+            };
+            header?: {
+                /** @description Alliance group id (see `GET /api/auth/me`) */
+                "X-Hub-Group"?: components["parameters"]["HubGroupHeader"];
+            };
+            path: {
+                /** @description Universe slug (e.g. `u8`) */
+                uni: components["parameters"]["Uni"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BuildOrderOptimizeRequest"];
+            };
+        };
+        responses: {
+            /** @description The search runs */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description Job id */
+                        job: string;
+                        /** @enum {string} */
+                        status: "running";
+                    };
+                };
+            };
+            /** @description Invalid body, unknown elements or kept steps, targets above the maximum level, already reached or not reachable on the planet (`optimize_invalid`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The planet is neither a synced planet of the caller nor a planet of their build order (`optimize_planet_not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The caller already has a search running (`optimize_job_running`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The server runs as many searches as it can (`optimize_busy`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getBuildOrderOptimization: {
+        parameters: {
+            query?: {
+                /** @description Alliance group id (alternative to `X-Hub-Group`, required for SSE) */
+                group?: components["parameters"]["HubGroupQuery"];
+            };
+            header?: {
+                /** @description Alliance group id (see `GET /api/auth/me`) */
+                "X-Hub-Group"?: components["parameters"]["HubGroupHeader"];
+            };
+            path: {
+                /** @description Universe slug (e.g. `u8`) */
+                uni: components["parameters"]["Uni"];
+                job: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BuildOrderOptimizeJob"];
+                };
+            };
+            /** @description No such job of the caller in the group, or it ended more than an hour ago (`optimize_job_not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    cancelBuildOrderOptimization: {
+        parameters: {
+            query?: {
+                /** @description Alliance group id (alternative to `X-Hub-Group`, required for SSE) */
+                group?: components["parameters"]["HubGroupQuery"];
+            };
+            header?: {
+                /** @description Alliance group id (see `GET /api/auth/me`) */
+                "X-Hub-Group"?: components["parameters"]["HubGroupHeader"];
+            };
+            path: {
+                /** @description Universe slug (e.g. `u8`) */
+                uni: components["parameters"]["Uni"];
+                job: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BuildOrderOptimizeJob"];
+                };
+            };
+            /** @description No such job of the caller in the group (`optimize_job_not_found`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
         };
     };
     getMarket: {
