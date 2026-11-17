@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-17',
     items: [
       {
+        kind: 'new',
+        de: 'Bauliste: Bei „Rohstoffe davor/danach“ steht jetzt auch die Energie: wie viel beim Start des Schritts übrig ist und wie viel, wenn er fertig ist. Fehlt Energie, ist der Wert rot.',
+        en: 'Build order: "Resources before/after" now also shows the energy: how much is left when the step starts and once it is finished. Missing energy is shown in red.',
+      },
+      {
         kind: 'fix',
         de: 'Bauliste: Eine geplante Kolonie startet wieder mit den Startrohstoffen des Universums statt mit den Rohstoffen des Hauptplaneten. Dadurch stimmen auch ihre Rohstoffe davor/danach.',
         en: 'Build order: a planned colony starts with the universe’s start resources again instead of the home planet’s resources, so its resources before/after are right too.',

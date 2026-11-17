@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-17
 
+- Build order: "Resources before/after" of a planned step also shows the planet's energy left over at the start and
+  once the step is finished (with everything queued on the planet and the research queued until then), negative in
+  red. The simulation records it on the step's result (`energy`); production steps no longer repeat it in their
+  production line.
 - Build order: a colony founded by a colonization (and planned planets in general) starts with the universe's start
   resources again instead of the home planet's current resources. `planetStartResources` takes the synced home
   planet's resources as a custom universe start only while it has no buildings yet.

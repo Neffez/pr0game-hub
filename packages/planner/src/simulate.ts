@@ -3,7 +3,7 @@ import {
   researchTime, resourceAt, ROBOT_FACTORY, SHIPYARD, shipyardTime, TECHNO_DOME,
 } from '@pr0hub/core/buildings';
 import { activeUnits, withUnits, type UnitCatalog } from '@pr0hub/core/units';
-import { calibrate, productionOf } from '@pr0hub/core/production';
+import { calibrate, productionOf, SOLAR_SATELLITE } from '@pr0hub/core/production';
 import { STORAGE, storageCapacity } from '@pr0hub/core/tech';
 import { ASTROPHYSICS, planetLimit, type UniverseSettings } from '@pr0hub/core/universe';
 import { distance, drivesFromResearch, fleetCapacity, fleetConsumption, flightDuration, slowestShip, SPEED_PERCENTS, type Coords } from '@pr0hub/flight';
@@ -65,6 +65,11 @@ export interface StepResult {
   /** planned steps: resources on the planet at the start, right before paying and after (whole units) */
   before?: Record<number, number>;
   after?: Record<number, number>;
+  /**
+   * planned steps on a planet with production: energy left over (negative: short) at the start and once what is
+   * queued on the planet up to this step is finished (buildings, solar satellites, research such as energy technology)
+   */
+  energy?: { before: number; after: number };
   /** production steps: production per hour (901-903, calibrated like the timeline) and energy balance before and after */
   production?: { before: ProductionRates; after: ProductionRates };
 }
@@ -242,6 +247,21 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
   const ratesOf = (p: Planet): ProductionRates => {
     const prod = production(p);
     return { 901: Math.round(p.rate[901]), 902: Math.round(p.rate[902]), 903: Math.round(p.rate[903]), energy: Math.round(prod.energy - prod.energyUsed) };
+  };
+  /** energy left over of a planet, with its queued buildings and satellites and the queued research when `queued` */
+  const energyOf = (p: Planet, queued = false): number | null => {
+    if (p.type === 'moon' || !p.active) return null;
+    let levels = p.levels;
+    let res = research;
+    if (queued) {
+      levels = { ...p.levels };
+      for (const q of p.build) levels[q.id] = q.level;
+      for (const q of p.shipyard) if (q.id === SOLAR_SATELLITE) levels[q.id] = (levels[q.id] ?? 0) + q.count;
+      res = { ...research };
+      for (const q of researchQueue) res[q.id] = q.level;
+    }
+    const prod = productionOf({ levels, research: res, temp: p.temp, factors: p.factors, resourceSpeed: formulaSpeed });
+    return Math.round(prod.energy - prod.energyUsed);
   };
   const updateRate = (p: Planet) => {
     const prod = production(p);
@@ -551,6 +571,7 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
     let end = t;
     let fuel = 0;
     let rates: StepResult['production'];
+    const energyBefore = energyOf(p);
     switch (s.kind) {
       case 'building': {
         const robot = levelOf(p, ROBOT_FACTORY);
@@ -623,6 +644,7 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
     record(p, s, {
       target, state: 'planned', start: t, end, cost: Object.keys(cost).length ? cost : null, wait: p.wait,
       transport: Object.keys(transport).length ? transport : null, full: fullOf(p), ...(fuel ? { fuel } : {}), ...(rates ? { production: rates } : {}),
+      ...(energyBefore != null ? { energy: { before: energyBefore, after: energyOf(p, true)! } } : {}),
       before, after: snapshot(),
     });
     if (defer) deferred[deferred.length - 1].result = resultById.get(s.id)!;
@@ -691,7 +713,7 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
       while (p.shipyard[0] && p.shipyard[0].end <= t) {
         const q = p.shipyard.shift()!;
         p.levels[q.id] = (p.levels[q.id] ?? 0) + q.count;
-        if (q.id === 212) updateRate(p);
+        if (q.id === SOLAR_SATELLITE) updateRate(p);
       }
       for (let i = p.arrivals.length - 1; i >= 0; i--) {
         if (p.arrivals[i].at > t) continue;

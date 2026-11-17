@@ -337,6 +337,19 @@ describe('detectDone', () => {
     expect(half).toBeLessThan(1100);
   });
 
+  it('reports the energy left over at the start of a step and once it is finished', () => {
+    const hub = hubOf([{ ...planet(HOME, { 1: 5, 3: 5, 4: 5 }, { resources: { 901: 1e6, 902: 1e6, 903: 1e6 } }), factors: null }]);
+    const order: BuildOrder = { base: { planets: { [HOME]: { 1: 5, 3: 5, 4: 5 } }, research: {} }, planets: { [HOME]: [{ id: 'd', kind: 'building', element: 3 }, prod('p', 0), { id: 's', kind: 'building', element: 4 }] } };
+    const [d, p, s] = simulate(order, hub, { now: 0 }).steps;
+    // the synthesizer uses more energy once it is done
+    expect(d.energy!.after).toBeLessThan(d.energy!.before);
+    // the production step starts while it is built: from its energy on, the metal mine turned off frees some
+    expect(p.energy!.before).toBe(d.energy!.before);
+    expect(p.energy!.after).toBeGreaterThan(d.energy!.after);
+    // the solar plant adds energy
+    expect(s.energy!.after).toBeGreaterThan(s.energy!.before);
+  });
+
   it('reports the production and energy before and after a production step', () => {
     // metal mine 5 and deuterium synthesizer 5 on solar plant 3: energy is short
     const hub = hubOf([{ ...planet(HOME, { 1: 5, 3: 5, 4: 3 }), factors: null }]);
