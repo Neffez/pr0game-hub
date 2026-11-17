@@ -3984,11 +3984,13 @@ paths:
             application/json:
               schema:
                 type: object
+                required: [systems, own, seenSystems, totalSystems, range]
                 properties:
                   systems:
                     type: array
                     items:
                       type: object
+                      required: [g, s, free, seen, coverage, nearest, members, targets, inactive, targetPoints, systemPoints]
                       properties:
                         g: { type: integer }
                         s: { type: integer }

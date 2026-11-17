@@ -28,4 +28,7 @@ export type AllianceMember = Schema<'AllianceMember'>;
 export type Threat = Schema<'Threat'>;
 export type Threats = ApiResponse<'/api/{uni}/threats'>;
 export type DefenseRisk = ApiResponse<'/api/{uni}/defense-risk'>;
+
+export type Colonize = ApiResponse<'/api/{uni}/colonize'>;
+export type ColonySystem = Colonize['systems'][number];
 export type RiskBody = DefenseRisk['planets'][number];

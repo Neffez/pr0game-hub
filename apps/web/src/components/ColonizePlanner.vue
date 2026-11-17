@@ -10,17 +10,14 @@ import { uniApi } from '../api';
 import { useLoader, useMobile, useProgressive, useSort, useStored, useUni } from '../composables';
 import { tables, useLiveReload } from '../live';
 import { ago, coords, fmt, short } from '../format';
+import type { Colonize, ColonySystem } from '../apiTypes';
 
 /**
  * Colonization planner (backlog C-5), a tab of the alliance's planets page: free positions of the known galaxy ranked by profile. A fleeter wants coverage
  * of the universe and targets with many points nearby, a miner fields, temperature and the position bonus; both avoid
  * positions where many members compete for the same targets. Server: repo/colonize.ts, positions: @pr0hub/core/colonize.
  */
-interface System {
-  g: number; s: number; free: number[]; seen: number; coverage: number; nearest: number | null;
-  members: number; targets: number; inactive: number; targetPoints: number; systemPoints: number;
-}
-interface ColonizeResponse { systems: System[]; own: number; seenSystems: number; totalSystems: number; range: number }
+type System = ColonySystem;
 type Profile = 'fleeter' | 'miner';
 interface Row {
   key: string;
@@ -30,25 +27,36 @@ interface Row {
   locked: boolean;
   parts: { coverage: number; targets: number; competition: number; position: number };
   score: number;
+  /** systems to the viewer's nearest planet in the same galaxy, null without one there */
+  dist: number | null;
 }
 
 const { t } = useI18n();
 const { ctx, uni } = useUni();
 const mobile = useMobile();
 
-const RANGES = [10, 25, 50, 100];
+/** The server's limits of the range (`GET /colonize?range=`). */
+const RANGE_MIN = 1;
+const RANGE_MAX = 200;
 /** Weights per profile: coverage, targets (points nearby), competition (fewer members nearby), the position itself. */
 const WEIGHTS: Record<Profile, Row['parts']> = {
   fleeter: { coverage: 0.4, targets: 0.3, competition: 0.15, position: 0.15 },
   miner: { coverage: 0.1, targets: 0.1, competition: 0.15, position: 0.65 },
 };
-const FILTER_DEFAULTS = { profile: 'fleeter' as Profile, range: 25, galaxy: null as number | null, onlyNow: false, maxMembers: null as number | null };
+const FILTER_DEFAULTS = {
+  profile: 'fleeter' as Profile, range: 25, galaxy: null as number | null, onlyNow: false, maxMembers: null as number | null,
+  distMin: null as number | null, distMax: null as number | null,
+};
 const filter = useStored('colonize.filter', { ...FILTER_DEFAULTS });
 filter.value = { ...FILTER_DEFAULTS, ...filter.value };
 
-const { data, error, load } = useLoader(() => uniApi<ColonizeResponse>(uni.value, `/colonize?range=${filter.value.range}`));
+/** A number field as a whole number >= 0; an emptied field (`''` from `v-model.number`) is no value. */
+const count = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? Math.floor(v) : null);
+/** The range as typed, within the server's limits (25 while the field is empty). */
+const range = computed(() => Math.min(RANGE_MAX, Math.max(RANGE_MIN, count(filter.value.range) || FILTER_DEFAULTS.range)));
+const { data, error, load } = useLoader(() => uniApi<Colonize>(uni.value, `/colonize?range=${range.value}`));
 onMounted(load);
-watch(() => filter.value.range, () => load());
+watch(range, () => load());
 useLiveReload(load, tables('galaxy_systems', 'empire', 'player_scores'));
 
 const settings = computed(() => ctx.value!.universe.settings);
@@ -58,6 +66,21 @@ const infos = computed(() => {
   for (let p = 1; p <= settings.value.positions; p++) out[p] = positionInfo(p, settings.value);
   return out;
 });
+/** Own planets by galaxy (systems), from the latest empire page. */
+const ownSystems = computed(() => {
+  const out = new Map<number, number[]>();
+  for (const p of ctx.value?.own?.planets ?? []) if (p.type === 'planet') (out.get(p.coords.g) ?? out.set(p.coords.g, []).get(p.coords.g)!).push(p.coords.s);
+  return out;
+});
+/** Systems between two systems of a galaxy, across the edge where the universe's systems wrap around. */
+const sysDiff = (a: number, b: number) => {
+  const d = Math.abs(a - b);
+  return settings.value.circularSystems ? Math.min(d, settings.value.systems - d) : d;
+};
+const distOf = (g: number, s: number) => {
+  const own = ownSystems.value.get(g);
+  return own?.length ? Math.min(...own.map((o) => sysDiff(o, s))) : null;
+};
 const hasBonus = computed(() => Object.values(infos.value).some((i) => i.bonus[901] || i.bonus[902] || i.bonus[903]));
 
 const rows = computed<Row[]>(() => {
@@ -76,6 +99,7 @@ const rows = computed<Row[]>(() => {
   const w = WEIGHTS[filter.value.profile];
   const out: Row[] = [];
   for (const sys of list) {
+    const dist = distOf(sys.g, sys.s);
     const coverage = sys.coverage / maxCov;
     const targets = 0.7 * (Math.sqrt(sys.targetPoints) / maxPts) + 0.3 * (Math.sqrt(sys.systemPoints) / maxSys);
     const competition = 1 - sys.members / maxMembers;
@@ -87,7 +111,7 @@ const rows = computed<Row[]>(() => {
       const position = hasBonus.value ? 0.5 * (info.fields.avg / maxFields) + 0.2 * deut + 0.3 * bonus : 0.7 * (info.fields.avg / maxFields) + 0.3 * deut;
       const parts = { coverage, targets, competition, position };
       const score = 100 * (w.coverage * coverage + w.targets * targets + w.competition * competition + w.position * position);
-      out.push({ key: `${sys.g}:${sys.s}:${p}`, sys, p, info, locked: info.astro > Math.max(1, astro.value), parts, score });
+      out.push({ key: `${sys.g}:${sys.s}:${p}`, sys, p, info, locked: info.astro > Math.max(1, astro.value), parts, score, dist });
     }
   }
   return out;
@@ -96,17 +120,24 @@ const rows = computed<Row[]>(() => {
 const galaxies = computed(() => settings.value.galaxies ?? 1);
 // the filter is stored for all universes: a galaxy this universe does not have is no filter
 watch(galaxies, (n) => filter.value.galaxy != null && filter.value.galaxy > n && (filter.value.galaxy = null), { immediate: true });
-/** "At most members" as a number; an emptied field (`''` from `v-model.number`) is no filter. */
-const memberLimit = computed(() => {
-  const v: unknown = filter.value.maxMembers;
-  return typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : null;
-});
+/** "At most members" as a number; an emptied field is no filter. */
+const memberLimit = computed(() => count(filter.value.maxMembers));
+/** Distance to my planets from–to (systems); either end may be open. */
+const distMin = computed(() => count(filter.value.distMin));
+const distMax = computed(() => count(filter.value.distMax));
+const distFilter = computed(() => distMin.value != null || distMax.value != null);
 const filtered = computed(() =>
   rows.value.filter((r) => {
     const f = filter.value;
     if (f.galaxy && r.sys.g !== f.galaxy) return false;
     if (f.onlyNow && r.locked) return false;
     if (memberLimit.value != null && r.sys.members > memberLimit.value) return false;
+    if (distFilter.value) {
+      // without an own planet in the galaxy there is no distance to keep
+      if (r.dist == null) return false;
+      if (distMin.value != null && r.dist < distMin.value) return false;
+      if (distMax.value != null && r.dist > distMax.value) return false;
+    }
     return true;
   }),
 );
@@ -119,6 +150,7 @@ const sortValue = (r: Row, key: string): unknown => {
     case 'members': return -r.sys.members;
     case 'fields': return r.info.fields.avg;
     case 'temp': return r.info.temp.avg;
+    case 'dist': return r.dist == null ? null : -r.dist;
     case 'coords': return -(r.sys.g * 1e6 + r.sys.s * 100 + r.p);
   }
   return null;
@@ -130,6 +162,7 @@ const sortOptions = computed(() => [
   { key: 'points', label: t('colonize.points') },
   { key: 'members', label: t('colonize.members') },
   { key: 'fields', label: t('colonize.fields') },
+  { key: 'dist', label: t('colonize.dist') },
 ]);
 const { shown, more, sentinel } = useProgressive(sort.sorted, 80);
 
@@ -140,6 +173,13 @@ const chips = computed<FilterChip[]>(() => {
   if (f.galaxy) add('galaxy', `${t('nav.galaxy')} ${f.galaxy}`);
   if (f.onlyNow) add('onlyNow', t('colonize.onlyNow'));
   if (memberLimit.value != null) add('maxMembers', t('colonize.maxMembersChip', { n: memberLimit.value }));
+  if (distFilter.value) {
+    out.push({
+      key: 'dist',
+      label: t('colonize.distChip', { min: distMin.value ?? 0, max: distMax.value ?? '∞' }),
+      clear: () => (filter.value = { ...filter.value, distMin: null, distMax: null }),
+    });
+  }
   return out;
 });
 const resetFilters = () => (filter.value = { ...FILTER_DEFAULTS, profile: filter.value.profile, range: filter.value.range });
@@ -177,11 +217,10 @@ const nearTitle = (r: Row) => t('colonize.nearTitle', { range: data.value?.range
         <button :class="{ active: filter.profile === 'fleeter' }" @click="filter.profile = 'fleeter'">{{ t('colonize.profiles.fleeter') }}</button>
         <button :class="{ active: filter.profile === 'miner' }" @click="filter.profile = 'miner'">{{ t('colonize.profiles.miner') }}</button>
       </div>
-      <label class="field-inline">
-        {{ t('colonize.range') }}
-        <select v-model.number="filter.range">
-          <option v-for="r in RANGES" :key="r" :value="r">{{ t('colonize.systemsOption', { n: r }) }}</option>
-        </select>
+      <label class="field-inline" :title="t('colonize.rangeTitle')">
+        {{ t('colonize.range') }} ±
+        <input v-model.lazy.number="filter.range" class="range-input" type="number" :min="RANGE_MIN" :max="RANGE_MAX" step="1" />
+        {{ t('colonize.systems') }}
       </label>
     </template>
     <div class="filter-group">
@@ -190,6 +229,14 @@ const nearTitle = (r: Row) => t('colonize.nearTitle', { range: data.value?.range
       <div class="field">
         <span class="lbl">{{ t('colonize.maxMembers') }}</span>
         <input v-model.number="filter.maxMembers" type="number" min="0" step="1" />
+      </div>
+      <div class="field" :title="t('colonize.distTitle')">
+        <span class="lbl">{{ t('colonize.distFilter') }}</span>
+        <span class="dist-range">
+          <input v-model.number="filter.distMin" type="number" min="0" step="1" :placeholder="t('colonize.from')" />
+          –
+          <input v-model.number="filter.distMax" type="number" min="0" step="1" :placeholder="t('colonize.to')" />
+        </span>
       </div>
       <div v-if="galaxies > 1" class="field">
         <span class="lbl">{{ t('nav.galaxy') }}</span>
@@ -231,6 +278,7 @@ const nearTitle = (r: Row) => t('colonize.nearTitle', { range: data.value?.range
             <span class="muted">{{ t('colonize.coverage') }}</span><span>{{ pct(r.sys.coverage) }} %</span>
             <span class="muted">{{ t('colonize.points') }}</span><span :title="nearTitle(r)">{{ short(r.sys.targetPoints) }}</span>
             <span class="muted">{{ t('colonize.members') }}</span><span>{{ r.sys.members }}</span>
+            <span class="muted">{{ t('colonize.dist') }}</span><span>{{ r.dist ?? '–' }}</span>
           </div>
         </div>
         <div v-if="more" ref="sentinel" />
@@ -250,6 +298,7 @@ const nearTitle = (r: Row) => t('colonize.nearTitle', { range: data.value?.range
             <th class="sortable num" @click="sort.sortBy('points')">{{ t('colonize.points') }}<SortMark :dir="sort.direction('points')" /></th>
             <th class="num">{{ t('colonize.targets') }}</th>
             <th class="sortable num" data-tour="colonize-members" :title="t('colonize.membersTitle')" @click="sort.sortBy('members')">{{ t('colonize.members') }}<SortMark :dir="sort.direction('members')" /></th>
+            <th class="sortable num" :title="t('colonize.distTitle')" @click="sort.sortBy('dist')">{{ t('colonize.dist') }}<SortMark :dir="sort.direction('dist')" /></th>
             <th class="num">{{ t('colonize.seen') }}</th>
             <th class="sortable num" data-tour="colonize-score" @click="sort.sortBy('score')">{{ t('colonize.score') }}<SortMark :dir="sort.direction('score')" /></th>
           </tr>
@@ -267,6 +316,7 @@ const nearTitle = (r: Row) => t('colonize.nearTitle', { range: data.value?.range
             <td class="num" :title="nearTitle(r)">{{ short(r.sys.targetPoints) }}</td>
             <td class="num" :title="nearTitle(r)">{{ r.sys.targets }}<span v-if="r.sys.inactive" class="muted small"> ({{ t('colonize.inactiveShort', { n: r.sys.inactive }) }})</span></td>
             <td class="num">{{ r.sys.members }}</td>
+            <td class="num">{{ r.dist ?? '–' }}</td>
             <td class="num small muted">{{ ago(r.sys.seen) }}</td>
             <td class="num" :title="scoreTitle(r)"><b>{{ Math.round(r.score) }}</b></td>
           </tr>
@@ -280,6 +330,9 @@ const nearTitle = (r: Row) => t('colonize.nearTitle', { range: data.value?.range
 <style scoped>
 .field-inline { display: inline-flex; align-items: center; gap: 6px; }
 .nowrap { white-space: nowrap; }
+.range-input { width: 4.5em; }
+.dist-range { display: inline-flex; align-items: center; gap: 4px; }
+.dist-range input { width: 5em; }
 .colo-cards { display: flex; flex-direction: column; gap: 8px; }
 .colo-card { padding: 10px 12px; }
 .colo-head { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }

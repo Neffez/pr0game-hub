@@ -4,6 +4,12 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-17
 
+- Colonization planner: the range is a free number of systems (1–200) instead of the fixed choice ±10/25/50/100,
+  and a new filter "distance to my planets" keeps only positions from–to this many systems away from the nearest
+  own planet in the same galaxy (e.g. 61–71 for planets about 66 systems apart, across the edge where systems wrap
+  around). The distance is a new sortable column.
+  - API: the answer of `GET /api/{uni}/colonize` lists its required fields; the planner takes its type from the
+    generated API types instead of a hand-written one.
 - Tests: the raid risk test of players without a known fleet runs after the caching test, so it no longer fills
   the cache first when the battle engine is built (CI).
 - Raid risk and defense advisor: a player who spied on, attacked or flies at the member but appears in no spy report

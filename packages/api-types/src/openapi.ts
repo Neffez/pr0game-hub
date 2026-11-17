@@ -7340,24 +7340,24 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        systems?: {
-                            g?: number;
-                            s?: number;
-                            free?: number[];
-                            seen?: number;
-                            coverage?: number;
-                            nearest?: number | null;
-                            members?: number;
-                            targets?: number;
-                            inactive?: number;
-                            targetPoints?: number;
-                            systemPoints?: number;
+                        systems: {
+                            g: number;
+                            s: number;
+                            free: number[];
+                            seen: number;
+                            coverage: number;
+                            nearest: number | null;
+                            members: number;
+                            targets: number;
+                            inactive: number;
+                            targetPoints: number;
+                            systemPoints: number;
                         }[];
                         /** @description The viewer's planets (newest empire page) */
-                        own?: number;
-                        seenSystems?: number;
-                        totalSystems?: number;
-                        range?: number;
+                        own: number;
+                        seenSystems: number;
+                        totalSystems: number;
+                        range: number;
                     };
                 };
             };
