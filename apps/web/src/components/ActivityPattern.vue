@@ -8,7 +8,7 @@ import { Chart, type ChartDataset } from '../chart';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { readError, uniApi } from '../api';
-import { activityCurve, minuteOfDay, pointsRate, type ActivityEvent, type ActivitySource } from '../activity';
+import { activityCurve, minuteOfDay, pointsRate, tickEvents, type ActivityEvent, type ActivitySource } from '../activity';
 import { useLoader, useStored, useUni } from '../composables';
 import { tables, useLiveReload } from '../live';
 import { dateTime } from '../format';
@@ -53,6 +53,7 @@ function draw() {
   const curve = activityCurve(shown.value, nowSec(), days.value);
   const step = 24 / 288;
   const present = [...new Set(shown.value.map((e) => e.source))];
+  const ticks = tickEvents(shown.value);
   const datasets: ChartDataset<'scatter', { x: number; y: number | null; e?: ActivityEvent }[]>[] = [];
   if (rate.value.length) {
     datasets.push({
@@ -85,13 +86,13 @@ function draw() {
     });
   }
   datasets.push(
-    // one tick per event below the curve; galaxy marks (also set by others' actions) paler and shorter
+    // one tick per event below the curve (syncs thinned out); galaxy marks (also set by others' actions) paler and shorter
     ...present.map((source) => {
       const weak = source === 'galaxy';
       const color = weak ? `${COLORS[source]}88` : COLORS[source];
       return {
         label: sourceLabel(source),
-        data: shown.value.filter((e) => e.source === source).map((e) => ({ x: minuteOfDay(e.time) / 60, y: -0.06, e })),
+        data: ticks.filter((e) => e.source === source).map((e) => ({ x: minuteOfDay(e.time) / 60, y: -0.06, e })),
         borderColor: color,
         backgroundColor: color,
         pointStyle: 'line' as const,

@@ -2,6 +2,12 @@
 
 Every commit adds its changes here, newest first, grouped by date.
 
+## 2026-11-17
+
+- Activity pattern: sync ticks below the curve are thinned to the newest one per half hour of the day (over all days
+  shown, `tickEvents` in the web's `activity.ts`), so a member who syncs all the time no longer fills the axis. The
+  curve and the server's 15-minute sync buckets are unchanged.
+
 ## 2026-11-16
 
 - Build order: adding a building or research step whose level the hub already reaches (built or researched without

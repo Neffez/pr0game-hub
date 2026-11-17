@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { activityCurve, pointsRate, type ActivityEvent } from '../src/activity';
+import { activityCurve, pointsRate, tickEvents, type ActivityEvent } from '../src/activity';
 
 const at = (h: number, m = 0, daysAgo = 0) => new Date(2026, 9, 27 - daysAgo, h, m).getTime() / 1000;
 const now = at(23, 59);
@@ -51,6 +51,18 @@ describe('activity curve', () => {
     const events = [ev(at(9, 0, 3))];
     expect(activityCurve(events, now, 1)).toEqual([]);
     expect(activityCurve(events, now, 7)).toHaveLength(288);
+  });
+});
+
+describe('tick events', () => {
+  it('keeps the newest sync per half hour of the day and every other event', () => {
+    const events = [
+      ev(at(14, 2), 'sync'), ev(at(14, 20), 'sync'), ev(at(14, 25, 1), 'sync'), ev(at(14, 40), 'sync'),
+      ev(at(14, 5), 'spy'), ev(at(14, 6), 'spy'),
+    ];
+    const ticks = tickEvents(events);
+    expect(ticks.filter((e) => e.source === 'spy')).toHaveLength(2);
+    expect(ticks.filter((e) => e.source === 'sync').map((e) => e.time).sort()).toEqual([at(14, 20), at(14, 40)]);
   });
 });
 

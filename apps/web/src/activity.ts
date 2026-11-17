@@ -71,6 +71,28 @@ export function activityCurve(events: ActivityEvent[], now: number, days: number
   return peak > 0 ? out.map((v) => v / peak) : out;
 }
 
+/** Sync ticks are thinned to one per this many minutes of the day. */
+export const SYNC_TICK_SLOT = 30;
+
+/**
+ * The events drawn as ticks below the curve: a member who syncs all the time would fill the axis with sync ticks, so
+ * those keep only the newest per `SYNC_TICK_SLOT` of the day (over all days shown). The curve still takes every event.
+ */
+export function tickEvents(events: ActivityEvent[]): ActivityEvent[] {
+  const newest = new Map<number, ActivityEvent>();
+  const out: ActivityEvent[] = [];
+  for (const e of events) {
+    if (e.source !== 'sync') {
+      out.push(e);
+      continue;
+    }
+    const slot = Math.floor(minuteOfDay(e.time) / SYNC_TICK_SLOT);
+    const kept = newest.get(slot);
+    if (!kept || e.time > kept.time) newest.set(slot, e);
+  }
+  return [...out, ...newest.values()];
+}
+
 /** Stat windows longer than this (missing statistics syncs) are left out. */
 export const MAX_SCORE_WINDOW = 12 * 3600;
 
