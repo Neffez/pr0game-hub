@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-17
 
+- Build order: production settings can be added and edited by hand as a step ("Energy/production"): metal, crystal
+  and deuterium at 100 % to 0 % in steps of 10, starting from the planet's synced factors. The simulation already
+  counted such steps from pr0plan imports; from that step on it uses the new production and energy use. A new step
+  waits for the planet's build slot by default (the building before it, e.g. the mine that makes energy short, is
+  finished); editing an imported step keeps its other wait settings and off-grid values.
 - Build order: the speed of a colonization can be set. "Automatic" (no speed stored, the default) keeps picking the
   slowest speed that lands right after an astrophysics further down the list; a fixed speed (100 % is stored for
   colonizations too) now flies at exactly that speed and leaves as late as it can, instead of only capping the

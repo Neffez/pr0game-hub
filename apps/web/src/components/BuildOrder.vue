@@ -13,7 +13,7 @@ export interface StoredBuildOrder {
 <script setup lang="ts">
 import {
   allOf, baseFromHub, compareSettings, freePlannedKey, insertSteps, isPlannedKey, plannedNumber, simulate, targetsOf, withPlanned, type HubState, type NewStep,
-  type PlannedPlanet, type Pr0planImport, type Step, type StepResult, type TransportSettings,
+  type PlannedPlanet, type Pr0planImport, type ProdSettings, type Step, type StepResult, type TransportSettings,
 } from '@pr0hub/planner';
 import { buildingsFor, RESEARCH } from '@pr0hub/core/buildings';
 import { RESOURCES } from '@pr0hub/core/tech';
@@ -26,7 +26,9 @@ import { useLoader, useStored, useUni } from '../composables';
 import { dateTime, fmt, name, short } from '../format';
 import { tables, useLiveReload } from '../live';
 import { draftOf, draftValid, transportOf, type TransportDraft } from '../buildOrderTransport';
+import { prodDraftOf, prodDraftValid, prodOf, type ProdDraft } from '../buildOrderProd';
 import BuildOrderImport from './BuildOrderImport.vue';
+import BuildOrderProdFields from './BuildOrderProdFields.vue';
 import BuildOrderTransportFields from './BuildOrderTransportFields.vue';
 import Hint from './Hint.vue';
 import Icon from './Icon.vue';
@@ -36,7 +38,7 @@ import { units } from '../units';
 /**
  * Build order tab of build & research: the steps of the chosen planet in order with their timeline from the hub's
  * state (start, end, what they wait for), the next one highlighted; reorder by dragging (desktop) or the arrows,
- * check off, deactivate, remove, add buildings, research, ships and defense by hand (also without an import: that
+ * check off, deactivate, remove, add buildings, research, ships, defense, transports and production settings by hand (also without an import: that
  * starts a build order from the hub's levels). Import from pr0plan in a dialog; the file's settings are compared with
  * the hub's.
  * Planned planets (no coordinates yet: before the start, or a colony to come) are simulated as new planets from the
@@ -248,8 +250,8 @@ async function removeAll() {
 }
 
 // ------------------------------------------------------------------ adding steps
-type AddKind = NewStep['kind'] | 'transport';
-const ADD_KINDS: AddKind[] = ['building', 'research', 'ship', 'defense', 'transport'];
+type AddKind = NewStep['kind'] | 'transport' | 'prod';
+const ADD_KINDS: AddKind[] = ['building', 'research', 'ship', 'defense', 'transport', 'prod'];
 const addOpen = ref(false);
 const addKind = ref<AddKind>('building');
 const addElement = ref<number | null>(null);
@@ -259,8 +261,11 @@ const addCount = ref(1);
 const addAt = ref(1);
 const planetType = computed(() => props.hub.planets.find((p) => p.key === planetKey.value)?.type ?? 'planet');
 const elementsOf = (kind: AddKind): number[] =>
-  kind === 'transport' ? [] : kind === 'building' ? buildingsFor(planetType.value) : kind === 'research' ? Object.keys(RESEARCH).map(Number) : [...(kind === 'ship' ? units.value.ships : units.value.defense)];
+  kind === 'transport' || kind === 'prod' ? [] : kind === 'building' ? buildingsFor(planetType.value) : kind === 'research' ? Object.keys(RESEARCH).map(Number) : [...(kind === 'ship' ? units.value.ships : units.value.defense)];
 const isTransport = computed(() => addKind.value === 'transport');
+const isProd = computed(() => addKind.value === 'prod');
+/** transports and production steps have their own fields instead of an element and a count */
+const isSpecial = computed(() => isTransport.value || isProd.value);
 const addElements = computed(() => elementsOf(addKind.value));
 const isUnit = computed(() => addKind.value === 'ship' || addKind.value === 'defense');
 watch([addKind, addElements], () => {
@@ -273,6 +278,8 @@ const countMax = computed(() => (isUnit.value ? 1e7 : 50));
 const addValid = computed(() =>
   isTransport.value
     ? !!planetKey.value && trValid.value
+    : isProd.value
+    ? !!planetKey.value && prodDraftValid(prodDraft.value)
     : !!planetKey.value && addElement.value != null && Number.isInteger(addCount.value) && addCount.value >= 1 && addCount.value <= countMax.value,
 );
 
@@ -286,21 +293,33 @@ watch([trTargets, addKind], () => {
 const trValid = computed(() => draftValid(trDraft.value));
 const transportStep = (id: string): Step => ({ id, kind: 'transport', transport: transportOf(trDraft.value) });
 
+// production steps: start from the planet's synced factors
+const syncedFactors = computed(() => props.hub.planets.find((p) => p.key === planetKey.value)?.factors);
+const prodDraft = ref<ProdDraft>(prodDraftOf());
+watch([planetKey, addKind], () => {
+  if (isProd.value) prodDraft.value = prodDraftOf(undefined, syncedFactors.value);
+}, { immediate: true });
+
 // ------------------------------------------------------------------ editing a step
-/** id of the step being edited: ships and defense (type, amount), transports (everything) */
+/** id of the step being edited: ships and defense (type, amount), transports and production steps (everything) */
 const editId = ref<string | null>(null);
 const editElement = ref<number | null>(null);
 const editCount = ref(1);
 const editDraft = ref<TransportDraft>(draftOf());
 /** what the edited transport was: one without ships or target may stay so */
 const editOriginal = ref<TransportSettings | null>(null);
-const editable = (s: Step) => s.kind === 'ship' || s.kind === 'defense' || s.kind === 'transport';
+const editProd = ref<ProdDraft>(prodDraftOf());
+const editProdOriginal = ref<ProdSettings | undefined>();
+const editable = (s: Step) => s.kind === 'ship' || s.kind === 'defense' || s.kind === 'transport' || s.kind === 'prod';
 function openEdit(s: Step) {
   if (editId.value === s.id) return void (editId.value = null);
   editId.value = s.id;
   if (s.kind === 'transport') {
     editOriginal.value = s.transport!;
     editDraft.value = draftOf(s.transport!);
+  } else if (s.kind === 'prod') {
+    editProdOriginal.value = s.prod;
+    editProd.value = prodDraftOf(s.prod);
   } else {
     editElement.value = s.element ?? null;
     editCount.value = s.count ?? 1;
@@ -312,12 +331,20 @@ watch(steps, (list) => {
 });
 function editValid(s: Step): boolean {
   if (s.kind === 'transport') return draftValid(editDraft.value, editOriginal.value?.target == null);
+  if (s.kind === 'prod') return prodDraftValid(editProd.value);
   return editElement.value != null && Number.isInteger(editCount.value) && editCount.value >= 1 && editCount.value <= 1e7;
 }
 function saveEdit(i: number) {
   const s = steps.value[i];
   if (!s || !editValid(s)) return;
-  update(i, s.kind === 'transport' ? { transport: transportOf(editDraft.value) } : { element: editElement.value!, count: editCount.value });
+  update(
+    i,
+    s.kind === 'transport'
+      ? { transport: transportOf(editDraft.value) }
+      : s.kind === 'prod'
+        ? { prod: prodOf(editProd.value, editProdOriginal.value) }
+        : { element: editElement.value!, count: editCount.value },
+  );
   editId.value = null;
 }
 
@@ -328,10 +355,11 @@ const emptyOrder = (): Order => ({ base: baseFromHub(hubAll.value, []), planets:
 function withAdded(id: () => string): Order | null {
   if (!addValid.value) return null;
   const kind = addKind.value;
-  if (kind === 'transport') {
+  if (kind === 'transport' || kind === 'prod') {
     const order = stored.value?.order ?? emptyOrder();
     const list = [...(order.planets[planetKey.value] ?? [])];
-    list.splice(Math.max(0, Math.min(addAt.value - 1, list.length)), 0, transportStep(id()));
+    const step: Step = kind === 'prod' ? { id: id(), kind: 'prod', prod: prodOf(prodDraft.value) } : transportStep(id());
+    list.splice(Math.max(0, Math.min(addAt.value - 1, list.length)), 0, step);
     return { ...order, planets: { ...order.planets, [planetKey.value]: list } };
   }
   const el = addElement.value!;
@@ -340,7 +368,7 @@ function withAdded(id: () => string): Order | null {
 }
 /** what the new steps reach: "Metallmine 12–14", "5× Leichter Jäger (8)" */
 const addPreview = computed(() => {
-  if (isTransport.value) return null;
+  if (isSpecial.value) return null;
   let n = 0;
   const order = withAdded(() => `new-${n++}`);
   if (!order) return null;
@@ -504,7 +532,7 @@ function onDrop(i: number) {
         <select v-model="addKind" :aria-label="t('buildOrder.addKind')">
           <option v-for="k in ADD_KINDS" :key="k" :value="k">{{ t(`buildOrder.kind.${k}`) }}</option>
         </select>
-        <template v-if="!isTransport">
+        <template v-if="!isSpecial">
           <select v-model="addElement" :aria-label="t('buildOrder.addElement')">
             <option v-for="id in addElements" :key="id" :value="id">{{ name(id) }}</option>
           </select>
@@ -519,6 +547,7 @@ function onDrop(i: number) {
         <button type="submit" class="primary small" :disabled="!addValid || saving">{{ t('buildOrder.addButton') }}</button>
       </div>
       <BuildOrderTransportFields v-if="isTransport" v-model="trDraft" :targets="trTargets" :label="planetLabel" />
+      <BuildOrderProdFields v-if="isProd" v-model="prodDraft" />
       <p v-if="!stored" class="faint" style="margin: 0">{{ t('buildOrder.addStarts') }}</p>
     </form>
     <p v-if="missingPlanets.length" class="warn small" style="margin: 8px 0 0">{{ t('buildOrder.missingPlanets', { list: missingPlanets.join(', ') }) }}</p>
@@ -609,6 +638,7 @@ function onDrop(i: number) {
               v-if="r.step.kind === 'transport'" v-model="editDraft" :targets="trTargets" :label="planetLabel"
               :no-ships="!editOriginal?.ships" :no-target="editOriginal?.target == null" :auto-speed="r.result?.speed"
             />
+            <BuildOrderProdFields v-else-if="r.step.kind === 'prod'" v-model="editProd" />
             <div v-else class="row bo-add-row">
               <select v-model="editElement" :aria-label="t('buildOrder.addElement')">
                 <option v-for="id in elementsOf(r.step.kind as AddKind)" :key="id" :value="id">{{ name(id) }}</option>

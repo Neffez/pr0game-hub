@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Bauliste: Neuer Schritt „Energie/Produktion“. Damit stellst du Metall, Kristall und Deuterium auf 100 % bis 0 %, z. B. Metall herunter, wenn nach einem Ausbau die Energie nicht reicht. Ab diesem Schritt rechnet die Bauliste mit der neuen Produktion.',
+        en: 'Build order: new step "Energy/production". It sets metal, crystal and deuterium to 100 % down to 0 %, e.g. metal turned down when the energy is short after an upgrade. From that step on the build order counts with the new production.',
+      },
+      {
+        kind: 'new',
         de: 'Bauliste: Beim Kolonisieren lässt sich das Tempo jetzt selbst wählen. „Automatisch“ nimmt wie bisher das langsamste Tempo, mit dem das Schiff pünktlich zur Astrophysik ankommt; mit einem festen Tempo fliegt es später los und landet trotzdem kurz nach der Forschung.',
         en: 'Build order: you can now choose the speed of a colonization. "Automatic" still picks the slowest speed that arrives in time for astrophysics; with a fixed speed the ship leaves later and still lands right after the research.',
       },
