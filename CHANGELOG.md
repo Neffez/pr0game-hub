@@ -2,6 +2,11 @@
 
 Every commit adds its changes here, newest first, grouped by date.
 
+## 2026-11-17
+
+- Dependencies: the lockfile matches the npm-minor-patch group update again (`@fastify/static`, `vite`, `driver.js`,
+  `vue-i18n`, `vue-router`, `@vitejs/plugin-vue`), so `pnpm install --frozen-lockfile` and the CI build pass.
+
 ## 2026-11-16
 
 - Build order: adding a building or research step whose level the hub already reaches (built or researched without
