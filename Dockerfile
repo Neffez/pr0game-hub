@@ -1,6 +1,6 @@
 # Battle engine: Battlerust (Rust) built to WebAssembly at a pinned commit, with our Cargo.lock (Battlerust keeps
 # none). `pnpm build:battle` exports it locally (`--target battle-wasm-out`).
-FROM rust:1.99.1-slim-trixie AS battle-wasm
+FROM rust:1.100.0-slim-trixie AS battle-wasm
 ARG BATTLERUST_REPO=https://github.com/Tsaranoga/Battlerust.git
 ARG BATTLERUST_REF=4aba5885a0b6a262f04c7f934cbf6dea6b0db2e7
 RUN apt-get update && apt-get install -y --no-install-recommends git ca-certificates && rm -rf /var/lib/apt/lists/* \
