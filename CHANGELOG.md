@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-17
 
+- API: the `fleet` of a fleet alert (`FleetAlert`, in `GET /api/{uni}/imperium` and the alert endpoints) is described
+  as a `FleetMovement`. The web app's fleet list takes `Fleet`, `FleetBody` and `FleetAlert` from the generated API
+  types instead of hand-written ones.
 - API: the answer of `GET /api/{uni}/alliance` is described in full in the OpenAPI spec: all member fields required,
   `data` as `AllianceEmpire` (planets with their values, research, spy report times, `flyingShips`) and the fleet
   movements of `fleets` (`SharedFleets`) and `fleetHistory` as `FleetMovement`. The alliance pages of the web app take

@@ -1,41 +1,15 @@
 <script lang="ts">
+import type { Schema } from '../apiTypes';
+
 /** How long the server keeps past fleet movements (seconds), the history below the fleets in flight. */
 export const FLEET_HISTORY = 12 * 3600;
 
 /** Fleet movements of the game overview, next arrival first (empire view, alliance fleets). */
-export interface FleetBody {
-  coords: { g: number; s: number; p: number };
-  type: 'planet' | 'moon' | 'debris' | null;
-  name: string | null;
-}
+export type FleetBody = Schema<'FleetBody'>;
 /** fleet of the overview's event list (server: FleetMovement plus the arrival) */
-export interface Fleet {
-  owner: 'own' | 'hostile' | 'foreign';
-  player: string | null;
-  mission: number | null;
-  missionName: string;
-  phase: 'out' | 'return' | 'hold';
-  from: FleetBody;
-  to: FleetBody | null;
-  ships: Record<string, number>;
-  resources: Record<string, number> | null;
-  arrival: number;
-  /** fleets of one ACS share the number (the first is the lead) */
-  acs?: number | null;
-  /** owner of the start by the galaxy data (the game names none on attacks) */
-  fromPlayer?: { id: number; name: string } | null;
-  /** in the viewer's own list: whether the other members see this own fleet */
-  shared?: boolean;
-}
-
+export type Fleet = Schema<'FleetMovement'>;
 /** A notification for the arrival of an own fleet, `lead` minutes before it (server: repo/fleetAlerts.ts). */
-export interface FleetAlert {
-  id: number;
-  arrival: number;
-  lead: number;
-  fleet: Fleet;
-  created_at: number;
-}
+export type FleetAlert = Schema<'FleetAlert'>;
 /** Lead times offered for a fleet alert (minutes, 0: at the arrival). */
 export const FLEET_LEADS = [0, 1, 2, 5, 10];
 

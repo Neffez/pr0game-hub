@@ -3341,7 +3341,7 @@ export type components = {
             /** @description Minutes before the arrival to notify (0 at the arrival) */
             lead: number;
             /** @description The fleet movement as last seen in the caller's fleet list */
-            fleet: Record<string, never>;
+            fleet: components["schemas"]["FleetMovement"];
             created_at: number;
         };
         Buildings: {
