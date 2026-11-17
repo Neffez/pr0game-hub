@@ -1941,6 +1941,7 @@ const de = {
     busyUntil: { building: 'Werft oder Nanitenfabrik im Bau bis {time}', research: 'Forschung läuft bis {time}', shipyard: 'Werft arbeitet bis {time}', lab: 'Labor oder TechnoDome im Bau bis {time}' },
   },
   buildOrder: {
+    changedElsewhere: 'Die Bauliste wurde inzwischen woanders geändert (anderer Tab, Skript) und neu geladen: bitte prüfen und die Änderung bei Bedarf wiederholen.',
     importTitle: 'Bauliste aus pr0plan importieren',
     pr0plan: 'pr0plan öffnen',
     pr0planTitle: 'Build Order in pr0plan planen und als JSON herunterladen',
@@ -3139,6 +3140,8 @@ const de = {
     display_name_invalid: "Anzeigename: 1–32 Zeichen (Buchstaben, Zahlen, Leerzeichen, . _ -), kein {'@'}",
     username_taken: 'Benutzername vergeben',
     username_of_placeholder: 'Der Benutzername gehört einem anderen Mitglied ohne Konto: die Anfrage diesem Mitglied zuordnen',
+    build_order_conflict: 'Die Bauliste wurde inzwischen woanders geändert',
+    build_order_revision_required: 'Die Änderung muss die Version der Bauliste angeben, auf der sie beruht',
     build_order_target_invalid: 'Das Ziel ist keiner deiner synchronisierten Planeten',
     universe_not_found: 'Universum nicht gefunden',
     no_group: 'Keine Allianz in diesem Universum',

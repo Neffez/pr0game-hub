@@ -4,6 +4,22 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-17
 
+- Build order API: optimistic concurrency, so clients writing from a stale copy (web app, autobuild script, API
+  tokens) no longer overwrite each other's changes. Each build order has a `revision` (new column, migration 093),
+  returned in the body and as `ETag` by `GET /api/{uni}/build-order` and by the answers of `PUT`, `PATCH` and
+  `POST …/assign`. These writes and `DELETE` check an `If-Match` revision (`*`: any existing order;
+  `If-None-Match: *` on `PUT`: only start a new one) and answer 412 `build_order_conflict` with the current build
+  order to merge onto; compare and write run in one transaction with a conditional `UPDATE`.
+  - API tokens must send `If-Match` (or `If-None-Match: *`), otherwise 428 `build_order_revision_required`; session
+    requests without it write as before.
+  - The revision rises with every client write and with the automatic assignment of a planned planet, not when a
+    page sync only stores steps seen done.
+  - The web app sends the revision on every write; on a conflict it re-applies the change (add, move, check off,
+    deactivate, remove steps, planned planets, assign) onto the current build order, and where that no longer
+    applies (delete, replacing import) shows the current one with a message.
+  - `HttpError` can carry extra fields in its error answer; the web's `ApiError` keeps the error body and `api()`
+    takes extra request headers. The build order answers and their `meta` are described in `openapi.yaml`, and
+    the web takes their types from the generated API types.
 - Colonization planner: systems never pasted from the galaxy but with a known planet (home planets from player
   profiles, spy reports, empire pages) are candidates too, early in a round most of the universe. Their free
   positions are the ones without a known planet, marked "unseen" (`seen` null in `GET /api/{uni}/colonize`), and a

@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-17',
     items: [
       {
+        kind: 'fix',
+        de: 'Änderungen an der Bauliste von mehreren Stellen (Browser, Skripte) überschreiben sich nicht mehr gegenseitig. Wurde die Bauliste inzwischen woanders geändert, wird deine Änderung auf den neuen Stand angewendet oder die Bauliste mit einem Hinweis neu geladen.',
+        en: 'Changes to the build order from several places (browser, scripts) no longer overwrite each other. If the build order was changed elsewhere in the meantime, your change is applied to the new state, or the build order is reloaded with a note.',
+      },
+      {
         kind: 'new',
         de: 'Kolonisieren: Auch Systeme, die noch niemand in der Galaxie eingefügt hat, werden vorgeschlagen, sobald dort ein Planet bekannt ist (z. B. Heimatplaneten aus der Spielerinfo). Sie sind als „ungesehen“ markiert, weil ihre freien Plätze nicht sicher sind. Das Profil Fleeter bevorzugt jetzt deutlich punktestarke Systeme.',
         en: 'Colonize: systems nobody has pasted from the galaxy yet are suggested too as soon as a planet there is known (e.g. home planets from the player info). They are marked "unseen" as their free slots are not certain. The fleeter profile now clearly prefers systems with many points.',

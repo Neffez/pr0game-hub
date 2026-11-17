@@ -130,7 +130,7 @@ export function buildApp(db: DB, opts: { logger?: boolean; push?: PushOptions; d
   app.decorateRequest('tokenWrite', false);
 
   app.setErrorHandler((err, req, reply) => {
-    if (err instanceof HttpError) return reply.code(err.statusCode).send({ error: err.message, code: err.code });
+    if (err instanceof HttpError) return reply.code(err.statusCode).send({ ...err.extra, error: err.message, code: err.code });
     const status = (err as { statusCode?: number }).statusCode;
     if (status && status < 500) return reply.code(status).send({ error: (err as Error).message });
     req.log.error(err);

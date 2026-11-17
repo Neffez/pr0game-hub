@@ -4,10 +4,11 @@ import {
 } from '@pr0hub/planner';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { readError, uniApi } from '../api';
+import { readError } from '../api';
+import type { BuildOrderAnswer, StoredBuildOrder } from '../apiTypes';
+import { BuildOrderChanged, changeBuildOrder } from '../buildOrderApi';
 import { useUni } from '../composables';
 import Sheet from './Sheet.vue';
-import type { StoredBuildOrder } from './BuildOrder.vue';
 
 /**
  * Import of a pr0plan build order (its JSON download, with or without settings): file or pasted text, each pr0plan
@@ -16,8 +17,9 @@ import type { StoredBuildOrder } from './BuildOrder.vue';
  * to come) is imported as a planned planet and assigned to a synced one later.
  */
 type HubPlanetLike = HubState['planets'][number];
-const props = defineProps<{ hub: HubState; replaces: boolean }>();
-const emit = defineEmits<{ imported: [StoredBuildOrder] }>();
+/** `stored`: the build order shown, which the import replaces */
+const props = defineProps<{ hub: HubState; stored: StoredBuildOrder | null }>();
+const emit = defineEmits<{ imported: [BuildOrderAnswer] }>();
 const open = defineModel<boolean>({ required: true });
 const { t } = useI18n();
 const { uni } = useUni();
@@ -81,7 +83,7 @@ const newId = () =>
 async function submit() {
   const i = imp.value;
   if (!i || !stepCount.value || mappedTwice.value) return;
-  if (props.replaces && !confirm(t('buildOrder.replaceConfirm'))) return;
+  if (props.stored && !confirm(t('buildOrder.replaceConfirm'))) return;
   const keys = Object.values(mapping.value).filter((k): k is string => !!k);
   const base: Base = basis.value === 'file' ? baseFromFile(i, mapping.value) : basis.value === 'hub' ? baseFromHub(props.hub, keys) : { planets: {}, research: {} };
   const order = toBuildOrder(i, mapping.value, base, newId);
@@ -92,11 +94,15 @@ async function submit() {
   busy.value = true;
   error.value = null;
   try {
-    const res = await uniApi<{ buildOrder: StoredBuildOrder }>(uni.value, '/build-order', { method: 'PUT', body: { order, meta } });
-    emit('imported', res.buildOrder);
+    // replaces only the build order the member saw: changed elsewhere since, the current one is shown and the
+    // dialog stays open to import again
+    const revision = props.stored?.revision ?? null;
+    const res = await changeBuildOrder(uni.value, props.stored, (s) => ((s?.revision ?? null) === revision ? { method: 'PUT', body: { order, meta } } : null));
+    emit('imported', res);
     text.value = '';
     open.value = false;
   } catch (e) {
+    if (e instanceof BuildOrderChanged) emit('imported', e.current);
     error.value = readError(e);
   } finally {
     busy.value = false;

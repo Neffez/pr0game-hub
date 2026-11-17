@@ -267,8 +267,9 @@ export function createApiToken(
  * Answered as `{ error, code }`: `code` is a stable key the web app translates,
  * `message` the English fallback (also what ends up in logs).
  */
+/** An error answer `{ error, code }`; `extra` adds fields to it (e.g. the current state on a conflict). */
 export class HttpError extends Error {
-  constructor(public statusCode: number, public code: string, message: string) {
+  constructor(public statusCode: number, public code: string, message: string, public extra?: Record<string, unknown>) {
     super(message);
   }
 }

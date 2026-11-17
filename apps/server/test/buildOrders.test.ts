@@ -186,8 +186,12 @@ describe('build order', () => {
     const planned = { [P1]: { name: 'Colony', coords: { g: 1, s: 5, p: 4 }, temp: 30 } };
     const plan = { base: { planets: {}, research: {} }, planets: { [HOME]: steps, [P1]: [{ id: 'm', kind: 'building', element: 1 }] }, planned };
     expect((await call('GET', '/u8/build-order/timeline', bearer)).statusCode).toBe(404);
-    const put = await call('PUT', '/u8/build-order', bearer, { order: plan, meta: { source: 'agent' } });
+    // a token must say what its change is based on: none yet (If-None-Match: *), later the revision it read
+    expect((await call('PUT', '/u8/build-order', bearer, { order: plan, meta: { source: 'agent' } })).json().code).toBe('build_order_revision_required');
+    const put = await call('PUT', '/u8/build-order', { ...bearer, 'if-none-match': '*' }, { order: plan, meta: { source: 'agent' } });
     expect(put.statusCode).toBe(200);
+    let etag = put.headers.etag as string;
+    const based = () => ({ ...bearer, 'if-match': etag });
     expect(put.json().buildOrder.order).toEqual(plan);
     // every other write stays refused with a token
     expect((await call('PUT', '/u8/storage-alerts', bearer, {})).json().code).toBe('read_only_token');
@@ -203,11 +207,17 @@ describe('build order', () => {
     expect(by('tr')).toMatchObject({ state: 'planned', start: t + 86400, wait: 'time' });
 
     // PATCH keeps the planned details, and drops those of a planet left out
-    const patched = (await call('PATCH', '/u8/build-order', bearer, { planets: plan.planets })).json().buildOrder.order;
+    expect((await call('PATCH', '/u8/build-order', bearer, { planets: plan.planets })).statusCode).toBe(428);
+    const patch = async (body: object) => {
+      const res = await call('PATCH', '/u8/build-order', based(), body);
+      if (res.statusCode === 200) etag = res.headers.etag as string;
+      return res;
+    };
+    const patched = (await patch({ planets: plan.planets })).json().buildOrder.order;
     expect(patched.planned).toEqual(planned);
-    expect((await call('PATCH', '/u8/build-order', bearer, { planets: plan.planets, planned: { '0:0:2:planet': {} } })).statusCode).toBe(400);
-    expect((await call('PATCH', '/u8/build-order', bearer, { planets: { [HOME]: [] } })).json().buildOrder.order.planned).toBeUndefined();
-    await call('PATCH', '/u8/build-order', bearer, { planets: plan.planets, planned });
+    expect((await patch({ planets: plan.planets, planned: { '0:0:2:planet': {} } })).statusCode).toBe(400);
+    expect((await patch({ planets: { [HOME]: [] } })).json().buildOrder.order.planned).toBeUndefined();
+    await patch({ planets: plan.planets, planned });
 
     // the colony is synced at the planned coordinates: assigned by the catch-up after a paste
     const colony = { ...empire.planets[0], name: 'Colony', coords: { g: 1, s: 5, p: 4 }, values: {} };
@@ -222,9 +232,79 @@ describe('build order', () => {
     expect(Object.keys(after.planets)).toEqual([HOME, COLONY]);
     expect(after.planets[HOME]).toMatchObject([{ id: 'col', done: true, transport: { target: COLONY } }, { id: 'tr', transport: { target: COLONY } }]);
 
-    expect((await call('DELETE', '/u8/build-order', bearer)).json()).toEqual({ buildOrder: null });
+    expect((await call('DELETE', '/u8/build-order', bearer)).statusCode).toBe(428);
+    expect((await call('DELETE', '/u8/build-order', { ...bearer, 'if-match': '*' })).json()).toEqual({ buildOrder: null });
     db.prepare('DELETE FROM empire_snapshots WHERE user_id = ?').run(ids.dave);
     db.prepare('DELETE FROM api_tokens WHERE user_id = ?').run(ids.dave);
+  });
+
+  it('rejects writes based on a stale revision (ETag / If-Match)', async () => {
+    const P1 = '0:0:1:planet';
+    const revision = () => db.prepare('SELECT revision FROM build_orders WHERE user_id = ?').pluck().get(ids.dave) as number | undefined;
+    const row = () => db.prepare('SELECT data, meta, revision, updated_at FROM build_orders WHERE user_id = ?').get(ids.dave) as { data: string } | undefined;
+    // a session write without If-Match works as before; a new build order starts at revision 1
+    const put = await call('PUT', '/u8/build-order', h.dave, { order, meta: { mapping: { 1: P1 } } });
+    expect(put.headers.etag).toBe('"1"');
+    expect(put.json().buildOrder.revision).toBe(1);
+    const get = await call('GET', '/u8/build-order', h.dave);
+    expect(get.headers.etag).toBe('"1"');
+    expect(get.json().buildOrder.revision).toBe(1);
+
+    // two writers based on revision 1: the first wins, the second gets the current build order to merge onto
+    const first = await call('PATCH', '/u8/build-order', { ...h.dave, 'if-match': '"1"' }, { planets: { [HOME]: [order.planets[HOME][0]] } });
+    expect(first.statusCode).toBe(200);
+    expect(first.headers.etag).toBe('"2"');
+    expect(first.json().buildOrder.revision).toBe(2);
+    const before = row();
+    const second = await call('PATCH', '/u8/build-order', { ...h.dave, 'if-match': '"1"' }, { planets: { [HOME]: [] } });
+    expect(second.statusCode).toBe(412);
+    expect(second.json()).toMatchObject({ code: 'build_order_conflict', buildOrder: { revision: 2, order: { planets: { [HOME]: [order.planets[HOME][0]] } } } });
+    expect(row()).toEqual(before);
+
+    // PUT, assign and DELETE check it as well and change nothing on a mismatch
+    const stale = { ...h.dave, 'if-match': '"1"' };
+    expect((await call('PUT', '/u8/build-order', stale, { order })).statusCode).toBe(412);
+    expect((await call('PUT', '/u8/build-order', { ...h.dave, 'if-none-match': '*' }, { order })).json().code).toBe('build_order_conflict');
+    expect((await call('POST', '/u8/build-order/assign', stale, { from: P1, to: HOME })).json().code).toBe('build_order_conflict');
+    const del = await call('DELETE', '/u8/build-order', stale);
+    expect(del.statusCode).toBe(412);
+    expect(del.json().buildOrder.revision).toBe(2);
+    expect(row()).toEqual(before);
+    // `*` matches any existing build order, a weak or unquoted tag the same revision
+    expect((await call('PATCH', '/u8/build-order', { ...h.dave, 'if-match': '*' }, { planets: order.planets })).json().buildOrder.revision).toBe(3);
+    expect((await call('PATCH', '/u8/build-order', { ...h.dave, 'if-match': '3' }, { planets: order.planets })).json().buildOrder.revision).toBe(4);
+    expect((await call('PUT', '/u8/build-order', { ...h.dave, 'if-match': 'W/"4"' }, { order })).json().buildOrder.revision).toBe(5);
+
+    // a sync that only stores steps seen done keeps the revision; the automatic assignment of a planned planet raises it
+    const { catchUpBuildState } = await import('../src/repo/buildOrders.js');
+    const { resolveGroup, getUniverse } = await import('../src/context.js');
+    const daveCtx = () => resolveGroup(db, { id: ids.dave, username: 'dave', isAdmin: false } as never, getUniverse(db, 'u8'), group);
+    db.prepare('INSERT INTO empire_snapshots (group_id, user_id, created_at, data) VALUES (?, ?, ?, ?)').run(group, ids.dave, T0, JSON.stringify({ ...empire, research: { 113: 1 } }));
+    (await import('../src/repo/empire.js')).clearEmpireCache();
+    // energy technology 1 is researched: the step is done
+    const noBase = { planets: {}, research: {} };
+    await call('PATCH', '/u8/build-order', h.dave, { planets: { [HOME]: [{ id: 's', kind: 'research', element: 113 }] }, base: noBase });
+    expect(revision()).toBe(6);
+    catchUpBuildState(db, daveCtx());
+    expect(JSON.parse(row()!.data).planets[HOME][0].done).toBe(true);
+    expect(revision()).toBe(6);
+    await call('PATCH', '/u8/build-order', h.dave, { planets: { [P1]: [] }, base: noBase, planned: { [P1]: { name: 'Colony', coords: { g: 1, s: 1, p: 1 } } } });
+    expect(revision()).toBe(7);
+    catchUpBuildState(db, daveCtx());
+    expect(Object.keys(JSON.parse(row()!.data).planets)).toEqual([HOME]);
+    expect(revision()).toBe(8);
+
+    // a revision for a build order that is gone is a conflict; the matching one deletes
+    expect((await call('DELETE', '/u8/build-order', { ...h.dave, 'if-match': '"8"' })).json()).toEqual({ buildOrder: null });
+    expect(revision()).toBeUndefined();
+    const gone = await call('PATCH', '/u8/build-order', { ...h.dave, 'if-match': '"8"' }, { planets: order.planets });
+    expect(gone.statusCode).toBe(412);
+    expect(gone.json()).toMatchObject({ code: 'build_order_conflict', buildOrder: null });
+    expect(gone.headers.etag).toBeUndefined();
+    expect((await call('PATCH', '/u8/build-order', h.dave, { planets: order.planets })).statusCode).toBe(404);
+    expect((await call('DELETE', '/u8/build-order', h.dave)).statusCode).toBe(200);
+    db.prepare('DELETE FROM empire_snapshots WHERE user_id = ?').run(ids.dave);
+    (await import('../src/repo/empire.js')).clearEmpireCache();
   });
 
   it('respects the setting and deletes', async () => {

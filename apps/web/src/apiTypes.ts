@@ -4,6 +4,7 @@
  * the shape by hand; `ApiResponse<'/api/{uni}/…'>` gives the answer of any operation.
  */
 import type { ApiResponse, Schema } from '@pr0hub/api-types';
+import type { BuildOrder } from '@pr0hub/planner';
 
 export type { ApiResponse, Schema } from '@pr0hub/api-types';
 
@@ -32,3 +33,11 @@ export type DefenseRisk = ApiResponse<'/api/{uni}/defense-risk'>;
 export type Colonize = ApiResponse<'/api/{uni}/colonize'>;
 export type ColonySystem = Colonize['systems'][number];
 export type RiskBody = DefenseRisk['planets'][number];
+
+/**
+ * The stored build order with its revision. `order` takes the planner's type: the spec's step and base maps are looser
+ * than what the planner validates and simulates.
+ */
+export type StoredBuildOrder = Omit<NonNullable<Schema<'StoredBuildOrder'>>, 'order'> & { order: BuildOrder };
+/** The answer of the build order's GET and writes (`buildOrder` with the planner's order type). */
+export type BuildOrderAnswer = Omit<Schema<'BuildOrderAnswer'>, 'buildOrder'> & { buildOrder: StoredBuildOrder | null };

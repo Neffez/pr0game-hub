@@ -1181,16 +1181,16 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** @description The caller's build order in the group (imported from pr0plan, shown under build & research), null when none. Steps the synced pages show as done are returned checked off; this read writes nothing (they are stored as done when a page is pasted). The next step of each planet notifies (`buildorder`, see `/api/{uni}/notifications`) once it can start. */
+        /** @description The caller's build order in the group (imported from pr0plan, shown under build & research), null when none. Steps the synced pages show as done are returned checked off; this read writes nothing (they are stored as done when a page is pasted). The next step of each planet notifies (`buildorder`, see `/api/{uni}/notifications`) once it can start. Its `revision` (also the `ETag` header, none when there is no build order) is what a later write sends as `If-Match`. */
         get: operations["getBuildOrder"];
-        /** @description Imports a build order, replacing the caller's one in the group (also used to start one by hand, `meta.source` `hub`). The client maps the file's planets onto hub planets and sets the base. Planets without coordinates yet (before the start, or a colony still to come) use the planned key `0:0:<n>:planet` (n: pr0plan planet id, or any free number) and are later moved with `/api/{uni}/build-order/assign`, or by themselves when `planned` names their coordinates. Allowed with a read/write API token. A step is "+1 level": its level is the base (`base.planets[key][element]`, `base.research[element]`) plus the steps of the same element before it, so set the base to the current levels (see `/api/{uni}/buildings`). Check the result with `/api/{uni}/build-order/timeline`. */
+        /** @description Imports a build order, replacing the caller's one in the group (also used to start one by hand, `meta.source` `hub`). The client maps the file's planets onto hub planets and sets the base. Planets without coordinates yet (before the start, or a colony still to come) use the planned key `0:0:<n>:planet` (n: pr0plan planet id, or any free number) and are later moved with `/api/{uni}/build-order/assign`, or by themselves when `planned` names their coordinates. Allowed with a read/write API token. A step is "+1 level": its level is the base (`base.planets[key][element]`, `base.research[element]`) plus the steps of the same element before it, so set the base to the current levels (see `/api/{uni}/buildings`). Check the result with `/api/{uni}/build-order/timeline`. Send the revision you based your change on as `If-Match`; on 412 merge your change onto the returned build order and retry with its revision. The answer carries the new revision (body and `ETag`). A token starting a new build order sends `If-None-Match: *` instead. */
         put: operations["putBuildOrder"];
         post?: never;
-        /** @description Deletes the caller's build order in the group. Allowed with a read/write API token. */
+        /** @description Deletes the caller's build order in the group. Allowed with a read/write API token. Send the revision you based the decision on as `If-Match` (`*`: whatever it is now); on 412 look at the returned build order first. */
         delete: operations["deleteBuildOrder"];
         options?: never;
         head?: never;
-        /** @description Replaces the steps of all planets (new order, done and deactivated flags, removed or added steps, planets added or left out). The base is replaced only when `base` is sent (the client sets the start levels of elements added by hand), the planned planets' details only when `planned` is sent (those of planets left out are dropped); meta stays. Allowed with a read/write API token. */
+        /** @description Replaces the steps of all planets (new order, done and deactivated flags, removed or added steps, planets added or left out). The base is replaced only when `base` is sent (the client sets the start levels of elements added by hand), the planned planets' details only when `planned` is sent (those of planets left out are dropped); meta stays. Allowed with a read/write API token. Send the revision you based your change on as `If-Match`; on 412 merge your change onto the returned build order and retry with its revision. The answer carries the new revision (body and `ETag`). */
         patch: operations["patchBuildOrder"];
         trace?: never;
     };
@@ -1220,7 +1220,7 @@ export type paths = {
         };
         get?: never;
         put?: never;
-        /** @description Assigns a planned planet of the caller's build order (key `0:0:<n>:planet`) to a planet: its steps and base and the transports to it move to `to` (a colonization to it is checked off); the import's planet mapping in `meta` follows. A planned planet with coordinates is assigned by itself when a page with a planet at them is pasted. Allowed with a read/write API token. */
+        /** @description Assigns a planned planet of the caller's build order (key `0:0:<n>:planet`) to a planet: its steps and base and the transports to it move to `to` (a colonization to it is checked off); the import's planet mapping in `meta` follows. A planned planet with coordinates is assigned by itself when a page with a planet at them is pasted. Allowed with a read/write API token. Send the revision you based your change on as `If-Match`; on 412 merge your change onto the returned build order and retry with its revision. The answer carries the new revision (body and `ETag`). */
         post: operations["assignBuildOrderPlanet"];
         delete?: never;
         options?: never;
@@ -2713,6 +2713,16 @@ export type paths = {
 export type webhooks = Record<string, never>;
 export type components = {
     schemas: {
+        BuildOrderConflict: {
+            /** @description English message */
+            error: string;
+            /** @enum {string} */
+            code: "build_order_conflict";
+            buildOrder: components["schemas"]["StoredBuildOrder"];
+        };
+        BuildOrderAnswer: {
+            buildOrder: components["schemas"]["StoredBuildOrder"];
+        };
         FalseAlarmSummary: {
             /** @description Days sampled */
             days?: number;
@@ -3200,12 +3210,31 @@ export type components = {
         };
         StoredBuildOrder: {
             order: components["schemas"]["BuildOrder"];
-            /** @description Where it came from, as the import sent it (e.g. the pr0plan settings and planet mapping) */
-            meta: Record<string, never>;
+            /** @description Where it came from, as the import sent it (e.g. the pr0plan settings and planet mapping); other keys are kept as sent */
+            meta: {
+                /** @description Who started it: `pr0plan` (import), `hub` (by hand), or a client's own name */
+                source?: string;
+                /** @description pr0plan import: where the start levels came from (`file`, `hub`, `none`) */
+                basis?: string;
+                /** @description pr0plan import: the file's settings, compared with the hub's */
+                settings?: unknown;
+                /** @description pr0plan planet id -> hub planet key (null: left out) */
+                mapping?: {
+                    [key: string]: string | null;
+                };
+                /** @description pr0plan import: actions left out */
+                skipped?: string[];
+                /** @description pr0plan planet id -> its name in the file */
+                names?: {
+                    [key: string]: string | null;
+                };
+            };
             /** @description Unix seconds of the import */
             createdAt: number;
             /** @description Unix seconds of the last change */
             updatedAt: number;
+            /** @description Raised by every write and when a planned planet is assigned by itself (not when a sync only checks off steps the game shows done). Send it as `If-Match` with the next write; also the `ETag` header. */
+            revision: number;
         } | null;
         DiscordSettings: {
             /** @description Start of the caller's webhook URL (the URL itself is never returned), null when none is set */
@@ -5100,7 +5129,26 @@ export type components = {
             fleetHistory: components["schemas"]["FleetMovement"][];
         };
     };
-    responses: never;
+    responses: {
+        /** @description `If-Match` does not match the stored revision, `If-None-Match: *` found a build order, or a revision was sent for a build order that is gone (`build_order_conflict`). Nothing was changed; `buildOrder` is the current one (as the GET returns it, null when none): merge your change onto it and retry with its `revision`. */
+        BuildOrderConflict: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["BuildOrderConflict"];
+            };
+        };
+        /** @description An API token wrote without `If-Match` (or `If-None-Match: *`) (`build_order_revision_required`) */
+        BuildOrderRevisionRequired: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["Error"];
+            };
+        };
+    };
     parameters: {
         /** @description Universe slug (e.g. `u8`) */
         Uni: string;
@@ -5108,11 +5156,21 @@ export type components = {
         HubGroupHeader: number;
         /** @description Alliance group id (alternative to `X-Hub-Group`, required for SSE) */
         HubGroupQuery: number;
+        /**
+         * @description The build order revision your change is based on (the `ETag` of `GET /api/{uni}/build-order`, quoted or plain), `*` for any existing build order. On a mismatch the write answers 412 with the current build order. Required with an API token (428 without it, unless `If-None-Match: *`); optional with a session.
+         * @example "7"
+         */
+        BuildOrderIfMatch: string;
+        /** @description `*`: only start a new build order, 412 when one exists (the precondition of a token's first `PUT`) */
+        BuildOrderIfNoneMatch: "*";
         /** @description Attack plan id */
         PlanId: number;
     };
     requestBodies: never;
-    headers: never;
+    headers: {
+        /** @description The build order's revision as a strong ETag (`"7"`), to send as `If-Match` with the next write */
+        BuildOrderETag: string;
+    };
     pathItems: never;
 };
 export type $defs = Record<string, never>;
@@ -8356,12 +8414,11 @@ export interface operations {
         responses: {
             200: {
                 headers: {
+                    ETag: components["headers"]["BuildOrderETag"];
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        buildOrder?: components["schemas"]["StoredBuildOrder"];
-                    };
+                    "application/json": components["schemas"]["BuildOrderAnswer"];
                 };
             };
         };
@@ -8375,6 +8432,13 @@ export interface operations {
             header?: {
                 /** @description Alliance group id (see `GET /api/auth/me`) */
                 "X-Hub-Group"?: components["parameters"]["HubGroupHeader"];
+                /**
+                 * @description The build order revision your change is based on (the `ETag` of `GET /api/{uni}/build-order`, quoted or plain), `*` for any existing build order. On a mismatch the write answers 412 with the current build order. Required with an API token (428 without it, unless `If-None-Match: *`); optional with a session.
+                 * @example "7"
+                 */
+                "If-Match"?: components["parameters"]["BuildOrderIfMatch"];
+                /** @description `*`: only start a new build order, 412 when one exists (the precondition of a token's first `PUT`) */
+                "If-None-Match"?: components["parameters"]["BuildOrderIfNoneMatch"];
             };
             path: {
                 /** @description Universe slug (e.g. `u8`) */
@@ -8394,12 +8458,11 @@ export interface operations {
         responses: {
             200: {
                 headers: {
+                    ETag: components["headers"]["BuildOrderETag"];
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        buildOrder?: components["schemas"]["StoredBuildOrder"];
-                    };
+                    "application/json": components["schemas"]["BuildOrderAnswer"];
                 };
             };
             /** @description Not a valid build order: unknown elements, duplicate step ids, bad planet keys, too many steps (`build_order_invalid`) */
@@ -8409,6 +8472,8 @@ export interface operations {
                 };
                 content?: never;
             };
+            412: components["responses"]["BuildOrderConflict"];
+            428: components["responses"]["BuildOrderRevisionRequired"];
         };
     };
     deleteBuildOrder: {
@@ -8420,6 +8485,11 @@ export interface operations {
             header?: {
                 /** @description Alliance group id (see `GET /api/auth/me`) */
                 "X-Hub-Group"?: components["parameters"]["HubGroupHeader"];
+                /**
+                 * @description The build order revision your change is based on (the `ETag` of `GET /api/{uni}/build-order`, quoted or plain), `*` for any existing build order. On a mismatch the write answers 412 with the current build order. Required with an API token (428 without it, unless `If-None-Match: *`); optional with a session.
+                 * @example "7"
+                 */
+                "If-Match"?: components["parameters"]["BuildOrderIfMatch"];
             };
             path: {
                 /** @description Universe slug (e.g. `u8`) */
@@ -8434,11 +8504,11 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        buildOrder?: components["schemas"]["StoredBuildOrder"];
-                    };
+                    "application/json": components["schemas"]["BuildOrderAnswer"];
                 };
             };
+            412: components["responses"]["BuildOrderConflict"];
+            428: components["responses"]["BuildOrderRevisionRequired"];
         };
     };
     patchBuildOrder: {
@@ -8450,6 +8520,11 @@ export interface operations {
             header?: {
                 /** @description Alliance group id (see `GET /api/auth/me`) */
                 "X-Hub-Group"?: components["parameters"]["HubGroupHeader"];
+                /**
+                 * @description The build order revision your change is based on (the `ETag` of `GET /api/{uni}/build-order`, quoted or plain), `*` for any existing build order. On a mismatch the write answers 412 with the current build order. Required with an API token (428 without it, unless `If-None-Match: *`); optional with a session.
+                 * @example "7"
+                 */
+                "If-Match"?: components["parameters"]["BuildOrderIfMatch"];
             };
             path: {
                 /** @description Universe slug (e.g. `u8`) */
@@ -8477,12 +8552,11 @@ export interface operations {
         responses: {
             200: {
                 headers: {
+                    ETag: components["headers"]["BuildOrderETag"];
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        buildOrder?: components["schemas"]["StoredBuildOrder"];
-                    };
+                    "application/json": components["schemas"]["BuildOrderAnswer"];
                 };
             };
             /** @description Not valid steps (`build_order_invalid`) */
@@ -8499,6 +8573,8 @@ export interface operations {
                 };
                 content?: never;
             };
+            412: components["responses"]["BuildOrderConflict"];
+            428: components["responses"]["BuildOrderRevisionRequired"];
         };
     };
     getBuildOrderTimeline: {
@@ -8554,6 +8630,11 @@ export interface operations {
             header?: {
                 /** @description Alliance group id (see `GET /api/auth/me`) */
                 "X-Hub-Group"?: components["parameters"]["HubGroupHeader"];
+                /**
+                 * @description The build order revision your change is based on (the `ETag` of `GET /api/{uni}/build-order`, quoted or plain), `*` for any existing build order. On a mismatch the write answers 412 with the current build order. Required with an API token (428 without it, unless `If-None-Match: *`); optional with a session.
+                 * @example "7"
+                 */
+                "If-Match"?: components["parameters"]["BuildOrderIfMatch"];
             };
             path: {
                 /** @description Universe slug (e.g. `u8`) */
@@ -8580,12 +8661,11 @@ export interface operations {
         responses: {
             200: {
                 headers: {
+                    ETag: components["headers"]["BuildOrderETag"];
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        buildOrder?: components["schemas"]["StoredBuildOrder"];
-                    };
+                    "application/json": components["schemas"]["BuildOrderAnswer"];
                 };
             };
             /** @description No planned planet as `from` (`build_order_invalid`), or `to` is not one of the caller's synced planets (moons and planned planets included, `build_order_target_invalid`) */
@@ -8609,6 +8689,8 @@ export interface operations {
                 };
                 content?: never;
             };
+            412: components["responses"]["BuildOrderConflict"];
+            428: components["responses"]["BuildOrderRevisionRequired"];
         };
     };
     getMarket: {

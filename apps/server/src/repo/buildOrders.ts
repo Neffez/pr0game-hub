@@ -14,14 +14,22 @@ export interface StoredBuildOrder {
   meta: Record<string, unknown>;
   createdAt: number;
   updatedAt: number;
+  /**
+   * Raised on every client write and on the automatic assignment of a planned planet (not when a sync only stores
+   * steps seen done): the version clients base their changes on (ETag / If-Match).
+   */
+  revision: number;
 }
 
 export function buildOrderOf(db: DB, ctx: Pick<GroupContext, 'groupId'>, userId: number): StoredBuildOrder | null {
-  const row = db.prepare('SELECT data, meta, created_at, updated_at FROM build_orders WHERE group_id = ? AND user_id = ?').get(ctx.groupId, userId) as
-    | { data: string; meta: string; created_at: number; updated_at: number }
+  const row = db.prepare('SELECT data, meta, created_at, updated_at, revision FROM build_orders WHERE group_id = ? AND user_id = ?').get(ctx.groupId, userId) as
+    | { data: string; meta: string; created_at: number; updated_at: number; revision: number }
     | undefined;
   if (!row) return null;
-  return { order: JSON.parse(row.data) as BuildOrder, meta: JSON.parse(row.meta) as Record<string, unknown>, createdAt: row.created_at, updatedAt: row.updated_at };
+  return {
+    order: JSON.parse(row.data) as BuildOrder, meta: JSON.parse(row.meta) as Record<string, unknown>, createdAt: row.created_at, updatedAt: row.updated_at,
+    revision: row.revision,
+  };
 }
 
 /** The member's own fleet movements (newest list and history since `since`), planets by hub key. */
@@ -47,6 +55,8 @@ export function syncBuildOrder(
     Object.entries(stored.order.planets).map(([key, steps]) => [key, steps.map((s): Step => (ids.has(s.id) ? { ...s, done: true } : s))]),
   );
   const order = { ...stored.order, planets };
+  // the revision stays: storing what the game shows done must not invalidate the clients' copies (a step sent back
+  // as not done is checked off again by the next sync)
   if (persist) db.prepare('UPDATE build_orders SET data = ? WHERE group_id = ? AND user_id = ?').run(JSON.stringify(order), ctx.groupId, userId);
   return { ...stored, order };
 }
@@ -97,5 +107,8 @@ export function catchUpBuildState(db: DB, ctx: GroupContext): void {
   if (!assigned) return;
   const meta = stored.meta as { mapping?: Record<string, string | null> };
   if (meta.mapping) meta.mapping = Object.fromEntries(Object.entries(meta.mapping).map(([id, k]) => [id, (k && assigned.moved[k]) || k]));
-  db.prepare('UPDATE build_orders SET data = ?, meta = ? WHERE group_id = ? AND user_id = ?').run(JSON.stringify(assigned.order), JSON.stringify(meta), ctx.groupId, ctx.user.id);
+  // steps move to new keys: a client's copy is stale now
+  db.prepare('UPDATE build_orders SET data = ?, meta = ?, revision = revision + 1 WHERE group_id = ? AND user_id = ?').run(
+    JSON.stringify(assigned.order), JSON.stringify(meta), ctx.groupId, ctx.user.id,
+  );
 }

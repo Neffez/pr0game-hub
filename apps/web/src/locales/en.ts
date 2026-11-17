@@ -1939,6 +1939,7 @@ const en: typeof de = {
     busyUntil: { building: 'Shipyard or nanite factory being built until {time}', research: 'Research running until {time}', shipyard: 'Shipyard working until {time}', lab: 'Lab or TechnoDome being built until {time}' },
   },
   buildOrder: {
+    changedElsewhere: 'The build order was changed elsewhere in the meantime (another tab, a script) and has been reloaded: please check it and repeat your change if needed.',
     importTitle: 'Import build order from pr0plan',
     pr0plan: 'Open pr0plan',
     pr0planTitle: 'Plan the build order in pr0plan and download it as JSON',
@@ -3136,6 +3137,8 @@ const en: typeof de = {
     display_name_invalid: "Display name: 1–32 characters (letters, digits, spaces, . _ -), no {'@'}",
     username_taken: 'Username already taken',
     username_of_placeholder: 'The username belongs to another member without an account: assign the request to that member',
+    build_order_conflict: 'The build order was changed elsewhere in the meantime',
+    build_order_revision_required: 'The change must name the build order version it is based on',
     build_order_target_invalid: 'The target is not one of your synced planets',
     universe_not_found: 'Universe not found',
     no_group: 'No alliance in this universe',

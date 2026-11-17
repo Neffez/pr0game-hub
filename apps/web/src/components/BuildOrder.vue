@@ -1,19 +1,7 @@
-<script lang="ts">
-import type { BuildOrder as Order } from '@pr0hub/planner';
-
-/** The viewer's stored build order (`GET /api/{uni}/build-order`). */
-export interface StoredBuildOrder {
-  order: Order;
-  meta: { source?: string; basis?: string; settings?: unknown; mapping?: Record<string, string | null>; skipped?: string[]; names?: Record<string, string | null> };
-  createdAt: number;
-  updatedAt: number;
-}
-</script>
-
 <script setup lang="ts">
 import {
   allOf, baseFromHub, compareSettings, freePlannedKey, insertSteps, isPlannedKey, plannedNumber, simulate, targetsOf, withPlanned, type HubState, type NewStep,
-  type PlannedPlanet, type Pr0planImport, type ProdSettings, type Step, type StepResult, type TransportSettings,
+  type BuildOrder as Order, type PlannedPlanet, type Pr0planImport, type ProdSettings, type Step, type StepResult, type TransportSettings,
 } from '@pr0hub/planner';
 import { buildingsFor, RESEARCH } from '@pr0hub/core/buildings';
 import { RESOURCES } from '@pr0hub/core/tech';
@@ -21,6 +9,9 @@ import { planetStartResources } from '@pr0hub/core/universe';
 import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { readError, uniApi } from '../api';
+import type { BuildOrderAnswer, StoredBuildOrder } from '../apiTypes';
+import { BuildOrderChanged, changeBuildOrder, type BuildOrderWrite } from '../buildOrderApi';
+import { toast } from '../toast';
 import { useClock } from '../clock';
 import { useLoader, useStored, useUni } from '../composables';
 import { dateTime, fmt, name, short } from '../format';
@@ -52,11 +43,30 @@ const { t, locale } = useI18n();
 const { ctx, uni } = useUni();
 /** pr0plan as the universe settings link it (empty: none) */
 const pr0planUrl = computed(() => ctx.value?.universe.settings.pr0planUrl || '');
-const { data, error, load } = useLoader(() => uniApi<{ buildOrder: StoredBuildOrder | null }>(uni.value, '/build-order'));
+const { data, error, load } = useLoader(() => uniApi<BuildOrderAnswer>(uni.value, '/build-order'));
 onMounted(load);
 useLiveReload(load, tables('build_orders'));
 
 const stored = computed(() => data.value?.buildOrder ?? null);
+/**
+ * Writes a change based on the build order shown; changed elsewhere in between, `change` runs again on the current
+ * one (see `changeBuildOrder`). A change that no longer applies shows the current build order and says so.
+ */
+async function send(change: (from: StoredBuildOrder | null) => BuildOrderWrite | null): Promise<boolean> {
+  try {
+    data.value = await changeBuildOrder(uni.value, stored.value, change);
+    return true;
+  } catch (e) {
+    if (e instanceof BuildOrderChanged) {
+      data.value = e.current;
+      toast(e.message, 'warn');
+    } else {
+      error.value = readError(e);
+      load();
+    }
+    return false;
+  }
+}
 const importOpen = ref(false);
 const showDone = useStored('buildOrder.showDone', false);
 
@@ -150,14 +160,10 @@ async function assign(from: string) {
   const to = assignTo.value[from];
   if (!to) return;
   saving.value = true;
-  try {
-    data.value = await uniApi<{ buildOrder: StoredBuildOrder | null }>(uni.value, '/build-order/assign', { method: 'POST', body: { from, to } });
-    picked.value = null;
-  } catch (e) {
-    error.value = readError(e);
-  } finally {
-    saving.value = false;
-  }
+  // changed elsewhere: assigned again while the planned planet is still there and the target still free
+  const ok = await send((s) => (s?.order.planets[from] && !s.order.planets[to]?.length ? { method: 'POST', path: '/assign', body: { from, to } } : null));
+  saving.value = false;
+  if (ok) picked.value = null;
 }
 const diffs = computed(() => {
   const s = stored.value;
@@ -208,31 +214,48 @@ const stateClass = (r: Row) =>
 
 // ------------------------------------------------------------------ changes
 const saving = ref(false);
-async function save(list: Step[]) {
+/**
+ * Changes the steps of the planet shown: `edit` makes the new list from a list (null: it no longer applies). It works
+ * by step ids, so a build order changed elsewhere gets the same change.
+ */
+async function save(edit: (list: Step[]) => Step[] | null) {
   const s = stored.value;
-  if (!s) return;
-  const planets = { ...s.order.planets, [planetKey.value]: list };
+  const key = planetKey.value;
+  const list = s && edit(s.order.planets[key] ?? []);
+  if (!s || !list) return;
   // right away on the page, then on the server
-  data.value = { buildOrder: { ...s, order: { ...s.order, planets } } };
+  data.value = { buildOrder: { ...s, order: { ...s.order, planets: { ...s.order.planets, [key]: list } } } };
   saving.value = true;
-  try {
-    data.value = await uniApi<{ buildOrder: StoredBuildOrder | null }>(uni.value, '/build-order', { method: 'PATCH', body: { planets } });
-  } catch (e) {
-    error.value = readError(e);
-    load();
-  } finally {
-    saving.value = false;
-  }
+  await send((from) => {
+    const next = from?.order.planets[key] && edit(from.order.planets[key]);
+    return next ? { method: 'PATCH', body: { planets: { ...from!.order.planets, [key]: next } } } : null;
+  });
+  saving.value = false;
 }
+/** moves a step to the place of another one (by their ids, so it applies to a changed list as well) */
 function move(from: number, to: number) {
   if (to < 0 || to >= steps.value.length || from === to) return;
-  const list = [...steps.value];
-  const [s] = list.splice(from, 1);
-  list.splice(to, 0, s);
-  save(list);
+  const id = steps.value[from].id;
+  const target = steps.value[to].id;
+  save((list) => {
+    const i = list.findIndex((s) => s.id === id);
+    const j = list.findIndex((s) => s.id === target);
+    if (i < 0 || j < 0) return null;
+    const out = [...list];
+    const [s] = out.splice(i, 1);
+    out.splice(j, 0, s);
+    return out;
+  });
 }
-const update = (i: number, change: Partial<Step>) => save(steps.value.map((s, n) => (n === i ? clean({ ...s, ...change }) : s)));
-const remove = (i: number) => save(steps.value.filter((_, n) => n !== i));
+function update(i: number, change: Partial<Step>) {
+  const id = steps.value[i]?.id;
+  save((list) => (list.some((s) => s.id === id) ? list.map((s) => (s.id === id ? clean({ ...s, ...change }) : s)) : null));
+}
+function remove(i: number) {
+  const id = steps.value[i]?.id;
+  // already gone elsewhere: nothing left to do
+  save((list) => list.filter((s) => s.id !== id));
+}
 /** flags that are off are left out */
 function clean(s: Step): Step {
   const out = { ...s };
@@ -242,11 +265,9 @@ function clean(s: Step): Step {
 }
 async function removeAll() {
   if (!confirm(t('buildOrder.deleteConfirm'))) return;
-  try {
-    data.value = await uniApi<{ buildOrder: null }>(uni.value, '/build-order', { method: 'DELETE' });
-  } catch (e) {
-    error.value = readError(e);
-  }
+  // changed elsewhere since: not deleted unseen, the current one is shown
+  const revision = stored.value?.revision;
+  await send((s) => (s?.revision === revision ? { method: 'DELETE' } : null));
 }
 
 // ------------------------------------------------------------------ adding steps
@@ -351,12 +372,12 @@ function saveEdit(i: number) {
 const newId = () =>
   typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 const emptyOrder = (): Order => ({ base: baseFromHub(hubAll.value, []), planets: {} });
-/** the build order with the new steps (ids prefixed `new-` for the preview) */
-function withAdded(id: () => string): Order | null {
+/** the build order `from` (default: the one shown) with the new steps (ids prefixed `new-` for the preview) */
+function withAdded(id: () => string, from: Order | undefined = stored.value?.order): Order | null {
   if (!addValid.value) return null;
   const kind = addKind.value;
   if (kind === 'transport' || kind === 'prod') {
-    const order = stored.value?.order ?? emptyOrder();
+    const order = from ?? emptyOrder();
     const list = [...(order.planets[planetKey.value] ?? [])];
     const step: Step = kind === 'prod' ? { id: id(), kind: 'prod', prod: prodOf(prodDraft.value) } : transportStep(id());
     list.splice(Math.max(0, Math.min(addAt.value - 1, list.length)), 0, step);
@@ -364,7 +385,7 @@ function withAdded(id: () => string): Order | null {
   }
   const el = addElement.value!;
   const add: NewStep[] = isUnit.value ? [{ kind, element: el, count: addCount.value }] : Array.from({ length: addCount.value }, () => ({ kind, element: el }));
-  return insertSteps(stored.value?.order ?? emptyOrder(), planetKey.value, add, addAt.value - 1, hubAll.value, id);
+  return insertSteps(from ?? emptyOrder(), planetKey.value, add, addAt.value - 1, hubAll.value, id);
 }
 /** what the new steps reach: "Metallmine 12–14", "5× Leichter Jäger (8)" */
 const addPreview = computed(() => {
@@ -378,24 +399,30 @@ const addPreview = computed(() => {
   const last = levels[levels.length - 1];
   return { from: first, to: last };
 });
-/** stores the whole build order: changes the stored one, or starts one by hand */
-async function write(order: Order): Promise<boolean> {
+/**
+ * Stores the whole build order `build` makes from the stored one (undefined: none yet): changes the stored one, or
+ * starts one by hand. Changed elsewhere in between, `build` runs again on the current one.
+ */
+async function write(build: (from: Order | undefined) => Order | null): Promise<boolean> {
   saving.value = true;
-  try {
-    data.value = stored.value
-      ? await uniApi<{ buildOrder: StoredBuildOrder | null }>(uni.value, '/build-order', { method: 'PATCH', body: { planets: order.planets, base: order.base, planned: order.planned ?? {} } })
-      : await uniApi<{ buildOrder: StoredBuildOrder | null }>(uni.value, '/build-order', { method: 'PUT', body: { order, meta: { source: 'hub' } } });
-    return true;
-  } catch (e) {
-    error.value = readError(e);
-    return false;
-  } finally {
-    saving.value = false;
-  }
+  const ok = await send((s) => {
+    const order = build(s?.order);
+    if (!order) return null;
+    return s
+      ? { method: 'PATCH', body: { planets: order.planets, base: order.base, planned: order.planned ?? {} } }
+      : { method: 'PUT', body: { order, meta: { source: 'hub' } } };
+  });
+  saving.value = false;
+  return ok;
 }
 async function addSteps() {
-  const order = withAdded(newId);
-  if (order) await write(order);
+  // the ids stay the same when the steps go into a build order changed elsewhere
+  const ids: string[] = [];
+  const sameIds = () => {
+    let n = 0;
+    return () => (ids[n++] ??= newId());
+  };
+  if (withAdded(sameIds())) await write((from) => withAdded(sameIds(), from));
 }
 
 // ------------------------------------------------------------------ planned planets by hand
@@ -424,30 +451,40 @@ const planetValid = computed(() => {
 });
 async function savePlanet() {
   if (!planetValid.value) return;
-  const order = stored.value?.order ?? emptyOrder();
-  const key = planetEdit.value ?? freePlannedKey(order);
-  if (!key) return;
   const details: PlannedPlanet = {};
   if (pName.value.trim()) details.name = pName.value.trim();
   if (pCoordsSet.value) details.coords = { g: Number(pCoords.value.g), s: Number(pCoords.value.s), p: Number(pCoords.value.p) };
   if (pTemp.value !== '') details.temp = pTemp.value;
-  const ok = await write({ ...order, planets: { ...order.planets, [key]: order.planets[key] ?? [] }, planned: { ...(order.planned ?? {}), [key]: details } });
+  const edit = planetEdit.value;
+  let key: string | null = null;
+  const ok = await write((from) => {
+    const order = from ?? emptyOrder();
+    // a planet being edited that is gone (assigned or removed elsewhere) is not brought back
+    if (edit && !order.planets[edit]) return null;
+    key = edit ?? freePlannedKey(order);
+    if (!key) return null;
+    return { ...order, planets: { ...order.planets, [key]: order.planets[key] ?? [] }, planned: { ...(order.planned ?? {}), [key]: details } };
+  });
   if (!ok) return;
   picked.value = key;
   planetOpen.value = false;
 }
 /** removes a planned planet with its steps; transports to it lose their target */
 async function removePlanet(key: string) {
-  const order = stored.value?.order;
-  if (!order || !confirm(t('buildOrder.removePlanetConfirm', { planet: plannedName(key), n: order.planets[key]?.length ?? 0 }))) return;
-  const planets = Object.fromEntries(
-    Object.entries(order.planets)
-      .filter(([k]) => k !== key)
-      .map(([k, list]) => [k, list.map((s) => (s.transport?.target === key ? { ...s, transport: { ...s.transport, target: null } } : s))]),
-  );
-  const planned = Object.fromEntries(Object.entries(order.planned ?? {}).filter(([k]) => k !== key));
-  const basePlanets = Object.fromEntries(Object.entries(order.base.planets).filter(([k]) => k !== key));
-  if (await write({ base: { ...order.base, planets: basePlanets }, planets, planned })) {
+  const shown = stored.value?.order;
+  if (!shown || !confirm(t('buildOrder.removePlanetConfirm', { planet: plannedName(key), n: shown.planets[key]?.length ?? 0 }))) return;
+  const removed = (order: Order | undefined): Order | null => {
+    if (!order) return null;
+    const planets = Object.fromEntries(
+      Object.entries(order.planets)
+        .filter(([k]) => k !== key)
+        .map(([k, list]) => [k, list.map((s) => (s.transport?.target === key ? { ...s, transport: { ...s.transport, target: null } } : s))]),
+    );
+    const planned = Object.fromEntries(Object.entries(order.planned ?? {}).filter(([k]) => k !== key));
+    const basePlanets = Object.fromEntries(Object.entries(order.base.planets).filter(([k]) => k !== key));
+    return { base: { ...order.base, planets: basePlanets }, planets, planned };
+  };
+  if (await write(removed)) {
     picked.value = null;
     planetOpen.value = false;
   }
@@ -667,7 +704,7 @@ function onDrop(i: number) {
     </template>
   </template>
 
-  <BuildOrderImport v-model="importOpen" :hub="hub" :replaces="!!stored" @imported="(b) => (data = { buildOrder: b })" />
+  <BuildOrderImport v-model="importOpen" :hub="hub" :stored="stored" @imported="(b) => (data = b)" />
 </template>
 
 <style scoped>

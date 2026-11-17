@@ -55,8 +55,9 @@ export function selectGroup(uni: string, id: number) {
   }
 }
 
+/** An error answer of the server; `data` is its whole JSON body (some errors carry more, e.g. the current state on a conflict). */
 export class ApiError extends Error {
-  constructor(public status: number, message: string, public code?: string) {
+  constructor(public status: number, message: string, public code?: string, public data?: unknown) {
     super(message);
   }
 }
@@ -103,9 +104,17 @@ function onUnauthorized(path: string) {
   }).catch(() => {});
 }
 
-/** `keepalive`: the request outlives the page (sent while the tab closes). */
-export async function api<T = unknown>(path: string, opts: { method?: string; body?: unknown; uni?: string; keepalive?: boolean } = {}): Promise<T> {
-  const headers: Record<string, string> = {};
+/** Options of an API request; `keepalive`: the request outlives the page (sent while the tab closes). */
+export interface ApiOptions {
+  method?: string;
+  body?: unknown;
+  keepalive?: boolean;
+  /** extra request headers (e.g. `if-match`) */
+  headers?: Record<string, string>;
+}
+
+export async function api<T = unknown>(path: string, opts: ApiOptions & { uni?: string } = {}): Promise<T> {
+  const headers: Record<string, string> = { ...opts.headers };
   if (opts.body !== undefined) headers['content-type'] = 'application/json';
   if (opts.uni) {
     const g = selectedGroup(opts.uni);
@@ -134,12 +143,12 @@ export async function api<T = unknown>(path: string, opts: { method?: string; bo
   }
   if (res.status === 401) onUnauthorized(path);
   if (res.ok) sessionEnded = false;
-  if (!res.ok) throw new ApiError(res.status, errorMessage(data, res.statusText), data?.code);
+  if (!res.ok) throw new ApiError(res.status, errorMessage(data, res.statusText), data?.code, data ?? undefined);
   return data as T;
 }
 
 /** Shorthand for universe scoped endpoints: uniApi('u8', '/overview') -> /api/u8/overview */
-export const uniApi = <T = unknown>(uni: string, path: string, opts: { method?: string; body?: unknown; keepalive?: boolean } = {}) =>
+export const uniApi = <T = unknown>(uni: string, path: string, opts: ApiOptions = {}) =>
   api<T>(`/${uni}${path}`, { ...opts, uni });
 
 export async function loadMe() {
