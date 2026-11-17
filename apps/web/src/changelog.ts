@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-17',
     items: [
       {
+        kind: 'fix',
+        de: 'Bauliste: Ein Transport zu einer neuen Kolonie startet erst, wenn die Kolonisierung gelandet ist, statt schon vorher wie im Spiel unmöglich.',
+        en: 'Build order: a transport to a new colony now leaves only once the colonization has landed, instead of earlier, which the game does not allow.',
+      },
+      {
         kind: 'new',
         de: 'Bauliste: Ein Energie/Produktion-Schritt zeigt, wie viel Metall, Kristall und Deuterium der Planet davor und danach pro Stunde produziert und wie viel Energie übrig bleibt.',
         en: 'Build order: an energy/production step shows how much metal, crystal and deuterium the planet produces per hour before and after it, and how much energy is left over.',

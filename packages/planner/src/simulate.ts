@@ -26,7 +26,8 @@ import { allOf, fixedOf, type BuildOrder, type Step, type TransportSettings } fr
  * the colonization waits until the astrophysics research that allows the planet is done at the arrival. When that
  * research is only further down a list, the ship leaves without blocking the list and its arrival is set once the
  * research starts: it lands right after the research is done, at the slowest speed that makes it (automatic, the
- * step has no speed) or at the step's own speed, leaving as late as it can.
+ * step has no speed) or at the step's own speed, leaving as late as it can. Transports and deployments to such a
+ * planet leave only once it is founded.
  */
 
 export type StepState = 'done' | 'queued' | 'deactivated' | 'planned' | 'invalid';
@@ -514,6 +515,11 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
         const ships = shipsReady(p, tr);
         if (ships > t) return { ok: false, wait: 'shipyard', readyAt: ships };
         const target = tr.target ? byKey.get(tr.target) : undefined;
+        if (target && !target.active && tr.mission !== 'colonize') {
+          // a transport or deployment needs the planet to exist: it leaves once the colonization has landed
+          const found = target.arrivals.find((a) => a.found);
+          return { ok: false, wait: 'colony', ...(found ? { readyAt: Math.max(t + 1, found.at) } : {}) };
+        }
         if (tr.mission === 'colonize' && target && !target.active && o.universe) {
           // the planet is only founded when astrophysics allows one more at the arrival
           const count = planetCount();

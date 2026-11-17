@@ -145,6 +145,27 @@ describe('planned planets', () => {
     expect('order' in valid && valid.order.planets[HOME][0].transport!.speed).toBe(100);
   });
 
+  it('transports to the new colony leave once it is founded, not before', () => {
+    const hub = hubOf([planet(HOME, { 31: 3 })], { research: { 117: 3, 113: 3, 106: 3 }, researchSpeed: 2500 });
+    const supply = transport('supply', { target: PLANNED, ships: { 202: 1 }, resources: { 901: 1000 } });
+    // astrophysics further down the list: the colonization's arrival is only set when the research starts
+    const o = order([colonize(), { id: 'astro', kind: 'research', element: 124 }, supply]);
+    o.planned![PLANNED].coords = { g: 1, s: 100, p: 4 };
+    const sim = run(o, hub);
+    const col = sim.steps.find((s) => s.id === 'col')!;
+    expect(sim.steps.find((s) => s.id === 'supply')).toMatchObject({ state: 'planned', start: col.end, wait: 'colony' });
+    // astrophysics already running
+    const queued = hubOf([planet(HOME)], { research: { 117: 3 }, researchQueue: [{ id: 124, level: 1, end: NOW + 20000 }] });
+    const sim2 = run(order([colonize(), { ...supply, transport: { ...supply.transport!, flight: 600, ships: undefined } }]), queued);
+    expect(sim2.steps.find((s) => s.id === 'supply')).toMatchObject({ state: 'planned', start: sim2.steps.find((s) => s.id === 'col')!.end, wait: 'colony' });
+  });
+
+  it('transports to a planned planet whose colonization never starts are not possible', () => {
+    const hub = hubOf([planet(HOME)], { research: { 117: 3 } });
+    const sim = run(order([colonize(), transport('supply', { target: PLANNED, resources: { 901: 1000 } })]), hub);
+    expect(sim.steps.find((s) => s.id === 'supply')).toMatchObject({ state: 'invalid' });
+  });
+
   it('waits for its ships from the shipyard', () => {
     const hub = hubOf([planet(HOME, { 21: 4 })], { research: { 117: 3, 124: 1 } });
     const sim = run(order([{ id: 'ship', kind: 'ship', element: 208, count: 1 }, colonize()]), hub);

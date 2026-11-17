@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-17
 
+- Build order: a transport or deployment to a planned planet that a colonization of the build order founds no longer
+  leaves before the colony exists. It waits (`colony`) until the colonization has landed, also when that arrival is
+  only set once a later astrophysics starts; without a colonization that lands it is not possible.
 - Build order: a planned production step shows the planet's production per hour of metal, crystal and deuterium and
   the energy left over right before and after it. The simulation records them on the step's result (`production`,
   calibrated like the timeline's rates; energy balance from the formula).
