@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Geplante Kolonien ohne Kolonisierung zählen in der Bauliste nicht mehr als vorhandene Planeten und blockieren keine Kolonisierung mehr. Solche Planeten sind mit „noch nicht kolonisiert“ markiert; leere Platzhalter werden nicht mehr mitgerechnet.',
+        en: 'Planned colonies without a colonization no longer count as existing planets in the build order and no longer block a colonization. Such planets are marked "not colonized yet"; empty placeholders are no longer counted.',
+      },
+      {
+        kind: 'fix',
         de: 'Änderungen an der Bauliste von mehreren Stellen (Browser, Skripte) überschreiben sich nicht mehr gegenseitig. Wurde die Bauliste inzwischen woanders geändert, wird deine Änderung auf den neuen Stand angewendet oder die Bauliste mit einem Hinweis neu geladen.',
         en: 'Changes to the build order from several places (browser, scripts) no longer overwrite each other. If the build order was changed elsewhere in the meantime, your change is applied to the new state, or the build order is reloaded with a note.',
       },

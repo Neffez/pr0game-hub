@@ -199,6 +199,8 @@ describe('build order', () => {
     const timeline = (await call('GET', '/u8/build-order/timeline', bearer)).json();
     const by = (id: string) => timeline.steps.find((s: { id: string }) => s.id === id);
     expect(timeline.next[HOME]).toBe('col');
+    // the colony has its colonization: it is not unscheduled
+    expect(timeline.unscheduled).toEqual([]);
     expect(by('col')).toMatchObject({ planet: HOME, state: 'planned', cost: { 901: 500 } });
     expect(by('col').end).toBeGreaterThan(by('col').start);
     expect(by('col').fuel).toBeGreaterThan(0);

@@ -69,8 +69,10 @@ export interface NextStep {
 }
 
 /**
- * The timeline of the build order from the member's hub state at `t`; planned planets count as new planets. With the
- * universe's settings transports with ships fly by the flight formula and colonizations wait for astrophysics.
+ * The timeline of the build order from the member's hub state at `t`; planned planets are simulated as new planets
+ * (start planets before the first sync, colonies once their colonization lands, colonies without one from now on
+ * without counting against the planet limit, see `simulate`). With the universe's settings transports with ships
+ * fly by the flight formula and colonizations wait for astrophysics.
  */
 export function buildOrderTimeline(order: BuildOrder, state: BuildingsState, t: number, universe?: UniverseSettings): Simulation {
   const home = state.planets.find((p) => p.type === 'planet');

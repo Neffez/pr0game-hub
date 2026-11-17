@@ -114,6 +114,8 @@ const sim = computed(() => (stored.value ? simulate(stored.value.order, hubAll.v
 const resultOf = computed(() => new Map((sim.value?.steps ?? []).map((r) => [r.id, r])));
 const steps = computed<Step[]>(() => stored.value?.order.planets[planetKey.value] ?? []);
 const nextId = computed(() => sim.value?.next[planetKey.value] ?? null);
+/** the shown planet is a planned colony without a colonization in the build order (not founded, not counted) */
+const unscheduled = computed(() => sim.value?.unscheduled.includes(planetKey.value) ?? false);
 interface Row {
   step: Step;
   result: StepResult | undefined;
@@ -549,6 +551,7 @@ function onDrop(i: number) {
         </select>
         <button class="small" :disabled="!assignTo[k] || saving" @click="assign(k)">{{ t('buildOrder.assign') }}</button>
       </div>
+      <p v-if="unscheduled" class="muted bo-unscheduled">{{ t('buildOrder.notColonized') }}</p>
     </div>
     <form v-if="planetOpen" class="bo-add small" @submit.prevent="savePlanet">
       <div class="row bo-add-row">
@@ -713,6 +716,7 @@ function onDrop(i: number) {
 .bo-other { margin-left: 8px; white-space: nowrap; }
 .bo-planned { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
 .bo-planned-row { gap: 6px; flex-wrap: wrap; }
+.bo-unscheduled { margin: 0; }
 .bo-filters { margin: 0 0 8px; }
 .bo-add { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border: 1px solid var(--border, #444); border-radius: 8px; }
 .bo-add-row { gap: 6px 10px; flex-wrap: wrap; }

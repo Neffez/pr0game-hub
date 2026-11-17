@@ -192,9 +192,92 @@ describe('planned planets', () => {
     const none = run(order([colonize()]), hubOf([planet(HOME)], { research: { 117: 3 } }));
     expect(none.steps.find((s) => s.id === 'col')).toMatchObject({ state: 'invalid', wait: 'astro' });
     expect(none.steps.find((s) => s.id === 'mine')).toMatchObject({ state: 'invalid', wait: 'colony' });
-    // without a colonization in the build order the planned planet counts from now on (as before)
+    // without a colonization the planned colony is unscheduled: its steps still run from now on (an imported plan
+    // shows its timeline), but it is not a planet the account has
     const free = run(order([]), hubOf([planet(HOME)]));
     expect(free.steps.find((s) => s.id === 'mine')).toMatchObject({ state: 'planned', start: NOW });
+    expect(free.unscheduled).toEqual([PLANNED]);
+  });
+
+  describe('without a colonization', () => {
+    const P2 = plannedKey(2);
+    const astro = (id: string): Step => ({ id, kind: 'research', element: 124 });
+    const colonize2 = transport('col', { target: P2, mission: 'colonize', ships: { 208: 1 }, resources: { 901: 2000 } });
+    const colonySteps = Array.from({ length: 25 }, (_, i): Step => ({ id: `c${i}`, kind: 'building', element: 1 + (i % 2) }));
+    const research = { 106: 3, 117: 3, 113: 3, 124: 1 };
+
+    it('empty placeholders are not simulated and do not use up the astrophysics limit of a colonization', () => {
+      // synced home and colony, astrophysics 2 and 3 in the list, then a colonization of planned planet 2
+      const o: BuildOrder = {
+        base: { planets: {}, research: { 124: 1 } },
+        planets: { [HOME]: [astro('a2'), astro('a3'), colonize2], [P2]: colonySteps, [plannedKey(3)]: [], [plannedKey(4)]: [], [plannedKey(5)]: [] },
+        planned: { [P2]: { name: 'Two', coords: { g: 1, s: 100, p: 4 } }, [plannedKey(3)]: { name: 'Three' }, [plannedKey(4)]: { name: 'Four' }, [plannedKey(5)]: { name: 'Five' } },
+      };
+      const hub = hubOf([planet(HOME, { 31: 3 }), planet(COLONY)], { research });
+      const sim = run(o, hub);
+      expect(sim.steps.find((s) => s.id === 'col')).toMatchObject({ state: 'planned' });
+      for (const s of colonySteps) expect(sim.steps.find((r) => r.id === s.id)!.state).toBe('planned');
+      // the placeholders have no steps: no results, but they are marked as not colonized
+      expect(sim.steps.filter((s) => s.planet !== HOME && s.planet !== P2)).toEqual([]);
+      expect(sim.unscheduled).toEqual([plannedKey(3), plannedKey(4), plannedKey(5)]);
+      expect(sim.next[plannedKey(3)]).toBeNull();
+    });
+
+    it('a planned colony whose colonization is already flown still counts', () => {
+      // planet 1 is colonized (the step is done) but not synced yet: home, it and planet 2 need astrophysics 3
+      const o: BuildOrder = {
+        base: { planets: {}, research: { 124: 1 } },
+        planets: { [HOME]: [{ ...transport('col1', { target: PLANNED, mission: 'colonize', ships: { 208: 1 } }), done: true }, astro('a2'), colonize2], [PLANNED]: [], [P2]: [] },
+        planned: { [PLANNED]: { name: 'One', coords: { g: 1, s: 120, p: 4 } }, [P2]: { name: 'Two', coords: { g: 1, s: 100, p: 4 } } },
+      };
+      const sim = run(o, hubOf([planet(HOME, { 31: 3 })], { research }));
+      // astrophysics 2 allows 2 planets: home and planet 1, the colonization of planet 2 never founds it
+      expect(sim.steps.find((s) => s.id === 'a2')).toMatchObject({ state: 'planned', target: 2 });
+      expect(sim.steps.find((s) => s.id === 'col')).toMatchObject({ state: 'invalid', wait: 'astro' });
+      expect(sim.unscheduled).toEqual([]);
+    });
+
+    it('a planned colony with steps keeps its timeline but does not count against the limit', () => {
+      // astrophysics 1 allows 2 planets: home and planet 2 by its colonization; planet 1 has steps, no colonization
+      const o: BuildOrder = {
+        base: { planets: {}, research: {} },
+        planets: { [HOME]: [colonize2], [PLANNED]: [{ id: 'mine', kind: 'building', element: 1 }], [P2]: [{ id: 'mine2', kind: 'building', element: 1 }] },
+        planned: { [P2]: { name: 'Two', coords: { g: 1, s: 100, p: 4 } } },
+      };
+      const sim = run(o, hubOf([planet(HOME)], { research }));
+      expect(sim.steps.find((s) => s.id === 'mine')).toMatchObject({ state: 'planned', start: NOW });
+      const col = sim.steps.find((s) => s.id === 'col')!;
+      expect(col).toMatchObject({ state: 'planned', start: NOW });
+      expect(sim.steps.find((s) => s.id === 'mine2')).toMatchObject({ state: 'planned', start: col.end, wait: 'colony' });
+      expect(sim.unscheduled).toEqual([PLANNED]);
+    });
+
+    it('before the start the first planned planets up to maxInitialPlanets are start planets that count', () => {
+      // no synced planet: planet 1 is the start planet, planet 2 (steps, no colonization) a colony to come
+      const o: BuildOrder = {
+        base: { planets: { [PLANNED]: { 31: 3 } }, research },
+        planets: {
+          [PLANNED]: [transport('col', { target: plannedKey(3), mission: 'colonize', resources: {} }), { id: 'mine1', kind: 'building', element: 1 }],
+          [P2]: [{ id: 'mine2', kind: 'building', element: 1 }],
+          [plannedKey(3)]: [{ id: 'mine3', kind: 'building', element: 1 }],
+        },
+      };
+      const empty = hubOf([], { research });
+      const hub = withPlanned(o, empty, NOW, { resources: { 901: 500, 902: 500, 903: 0 } });
+      const sim = simulate(o, hub, { now: NOW, universe: UNI });
+      expect(sim.unscheduled).toEqual([P2]);
+      expect(sim.steps.find((s) => s.id === 'mine1')).toMatchObject({ state: 'planned', start: NOW });
+      expect(sim.steps.find((s) => s.id === 'mine2')).toMatchObject({ state: 'planned', start: NOW });
+      // astrophysics 1 allows 2 planets: the start planet and planet 3; planet 2 does not take the place
+      expect(sim.steps.find((s) => s.id === 'col')).toMatchObject({ state: 'planned', start: NOW, end: NOW + 600 });
+      expect(sim.steps.find((s) => s.id === 'mine3')).toMatchObject({ state: 'planned', start: NOW + 600 });
+      // with astrophysics 0 only the start planet: the colonization waits for astrophysics that never comes
+      const none = simulate(o, withPlanned(o, hubOf([], { research: { ...research, 124: 0 } }), NOW, { resources: { 901: 500, 902: 500, 903: 0 } }), { now: NOW, universe: UNI });
+      expect(none.steps.find((s) => s.id === 'col')).toMatchObject({ state: 'invalid', wait: 'astro' });
+      // two start planets by the universe: planet 2 is one too
+      const two = simulate(o, hub, { now: NOW, universe: { ...UNI, maxInitialPlanets: 2 } });
+      expect(two.unscheduled).toEqual([]);
+    });
   });
 
   it('are assigned once their coordinates are synced; the colonization is done then', () => {

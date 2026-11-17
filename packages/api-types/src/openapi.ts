@@ -1201,7 +1201,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** @description The timeline of the caller's build order from the hub's state now, as the build order tab shows it: every planet works through its list in order, a step starts once its slot is free, its requirements are met and the resources are there. Planned planets are simulated as new planets. Use it to check a plan after writing it. */
+        /** @description The timeline of the caller's build order from the hub's state now, as the build order tab shows it: every planet works through its list in order, a step starts once its slot is free, its requirements are met and the resources are there. Planned planets are simulated as new planets: a colony to come is founded by its colonization, one without a colonization is listed in `unscheduled`. Use it to check a plan after writing it. */
         get: operations["getBuildOrderTimeline"];
         put?: never;
         post?: never;
@@ -8609,6 +8609,8 @@ export interface operations {
                         next: {
                             [key: string]: string | null;
                         };
+                        /** @description Planned planets (`0:0:<n>:planet`) that are neither a start planet (before the first sync, the first `maxInitialPlanets` by number) nor founded by a colonization of the build order. Their steps are simulated from now on, but they do not count against the astrophysics planet limit; one without steps and without transports to it is not simulated at all. */
+                        unscheduled: string[];
                     };
                 };
             };

@@ -4,6 +4,17 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-17
 
+- Build order simulation (`@pr0hub/planner` `simulate`): planned planets without a colonization no longer count
+  against the astrophysics planet limit, so empty placeholders for later colonies no longer make a real colonization
+  (and all steps of its colony) invalid.
+  - Planned planets are start planets or colonies to come: while the hub has no synced planet, the first
+    `maxInitialPlanets` planned planets without a colonization (by number) are start planets and exist from the start;
+    a planned planet with a checked-off colonization keeps counting.
+  - A colony without a colonization still works through its steps from now on (pr0plan imports keep their timeline)
+    but does not count; one without steps and without transports to it is not simulated at all.
+  - The simulation and `GET /api/{uni}/build-order/timeline` list these planets in the new field `unscheduled`; the
+    build order view shows a hint "not colonized yet – no colonization planned" at them.
+
 - Build order API: optimistic concurrency, so clients writing from a stale copy (web app, autobuild script, API
   tokens) no longer overwrite each other's changes. Each build order has a `revision` (new column, migration 093),
   returned in the body and as `ETag` by `GET /api/{uni}/build-order` and by the answers of `PUT`, `PATCH` and

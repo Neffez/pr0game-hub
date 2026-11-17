@@ -2002,6 +2002,7 @@ const de = {
     otherPlanets: 'Weitere Planeten der Bauliste:',
     open: '{n} offen',
     emptyPlanet: 'Für diesen Planeten hat die Bauliste keine Schritte.',
+    notColonized: 'Noch nicht kolonisiert – keine Kolonisierung geplant. Die Schritte werden ab jetzt simuliert, der Planet zählt aber nicht für das Planetenlimit der Astrophysik. Plane eine Kolonisierung (Transport mit Auftrag Kolonisieren) zu ihm, damit er gegründet wird.',
     showDone: 'Erledigte zeigen ({n})',
     invalidCount: '{n} Schritte nicht möglich',
     drag: 'Ziehen zum Umsortieren',

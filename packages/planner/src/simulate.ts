@@ -9,7 +9,7 @@ import { ASTROPHYSICS, planetLimit, type UniverseSettings } from '@pr0hub/core/u
 import { distance, drivesFromResearch, fleetCapacity, fleetConsumption, flightDuration, slowestShip, SPEED_PERCENTS, type Coords } from '@pr0hub/flight';
 import { doneStateOf, targetsOf, type DoneState, type HubState } from './hub.js';
 import { planetStartResources } from '@pr0hub/core/universe';
-import { isPlannedKey } from './planned.js';
+import { isPlannedKey, plannedNumber } from './planned.js';
 import { allOf, fixedOf, type BuildOrder, type Step, type TransportSettings } from './types.js';
 
 /**
@@ -28,6 +28,13 @@ import { allOf, fixedOf, type BuildOrder, type Step, type TransportSettings } fr
  * research starts: it lands right after the research is done, at the slowest speed that makes it (automatic, the
  * step has no speed) or at the step's own speed, leaving as late as it can. Transports and deployments to such a
  * planet leave only once it is founded.
+ *
+ * Planned planets are start planets or colonies to come. While the hub has no synced planet of the member, the first
+ * `maxInitialPlanets` planned planets without a colonization (by number; pr0plan's planet 1 is the home planet) are
+ * the start planets: they exist from the start. A colony to come with an open colonization exists once it lands. One
+ * without a colonization (`unscheduled`) still works through its list from now on, so an imported plan shows its
+ * timeline, but it never counts against the astrophysics planet limit; one without steps and without transports to
+ * it (an empty placeholder) is not simulated at all.
  */
 
 export type StepState = 'done' | 'queued' | 'deactivated' | 'planned' | 'invalid';
@@ -86,6 +93,11 @@ export interface Simulation {
   steps: StepResult[];
   /** hub planet key -> id of its next open step (planned or invalid), null when the list is through */
   next: Record<string, string | null>;
+  /**
+   * planned planets of the build order that are neither a start planet nor founded by a colonization of the build
+   * order: their steps are simulated from now on but they do not count as planets (empty ones are not simulated)
+   */
+  unscheduled: string[];
 }
 
 export interface SimulateOptions {
@@ -131,6 +143,8 @@ interface Planet {
   coords: Coords | null;
   /** false: a planned planet before its colonization arrives (no production, no steps) */
   active: boolean;
+  /** counts against the astrophysics planet limit once active (false: a planned colony without a colonization) */
+  counts: boolean;
   /** resources it is founded with */
   founded: Record<number, number>;
   steps: Step[];
@@ -177,10 +191,21 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
 
   // ------------------------------------------------------------------ state from the hub
   const colonized = new Set<string>();
+  /** planned planets whose colonization is checked off: flown, the planet exists (not synced yet) */
+  const flown = new Set<string>();
+  const targeted = new Set<string>();
   for (const list of Object.values(order.planets))
-    for (const s of list) if (s.transport?.mission === 'colonize' && s.transport.target && !s.done && !s.deactivated) colonized.add(s.transport.target);
+    for (const s of list) {
+      const target = s.transport?.target;
+      if (!target || s.deactivated) continue;
+      targeted.add(target);
+      if (s.transport!.mission === 'colonize') (s.done ? flown : colonized).add(target);
+    }
+  const { unscheduled } = plannedRoles(order, hub, new Set([...colonized, ...flown]), o.universe);
+  // empty placeholders (no steps, no transports to them) are not simulated
+  const hubPlanets = hub.planets.filter((hp) => !unscheduled.includes(hp.key) || (order.planets[hp.key]?.length ?? 0) > 0 || targeted.has(hp.key));
   const planets: Planet[] = [];
-  for (const hp of hub.planets) {
+  for (const hp of hubPlanets) {
     const bp = hp.planet;
     const t = Math.max(bp.time, 0);
     const levels: Record<string, number> = { ...bp.values };
@@ -207,12 +232,13 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
       shipyard.push({ id: Number(id), count: n, end: yard });
     }
     const at = order.planned?.[hp.key]?.coords ?? (hp.coords.g > 0 ? hp.coords : null);
-    // a planned planet with a colonization still to fly is founded by it
+    // a planned planet with a colonization still to fly is founded by it; start planets and unscheduled colonies
+    // work from now on (the latter without counting as a planet)
     const active = !(isPlannedKey(hp.key) && colonized.has(hp.key));
     const founded = active ? {} : newPlanetResources;
     planets.push({
       key: hp.key, type: hp.type, levels, res: active ? res : { 901: 0, 902: 0, 903: 0 }, rate: { 901: 0, 902: 0, 903: 0 }, cap,
-      coords: at ? [at.g, at.s, at.p] : null, active, founded,
+      coords: at ? [at.g, at.s, at.p] : null, active, founded, counts: !unscheduled.includes(hp.key),
       syncedCap: { level: Object.fromEntries(RES.map((r) => [r, levels[STORAGE[r]] ?? 0])), cap: { ...cap } },
       temp: hp.temp ?? 0, factors: { ...(hp.factors ?? {}) }, calibration: { 901: 1, 902: 1, 903: 1 }, build, shipyard,
       arrivals: hp.arrivals.filter((a) => a.at > o.now).map((a) => ({ at: a.at, resources: a.resources })),
@@ -232,13 +258,13 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
       ? { 901: 0, 902: 0, 903: 0, energy: 0, energyUsed: 0 }
       : productionOf({ levels: p.levels, research, temp: p.temp, factors: p.factors, resourceSpeed: formulaSpeed });
   const known: Record<number, number[]> = { 901: [], 902: [], 903: [] };
-  hub.planets.forEach((hp, i) => {
+  hubPlanets.forEach((hp, i) => {
     const p = planets[i];
     if (p.type === 'moon' || !Object.keys(hp.planet.perHour).length) return;
     p.calibration = calibrate(hp.planet.perHour, production(p));
     for (const r of RES) if (hp.planet.perHour[r] != null && p.calibration[r] !== 1) known[r].push(p.calibration[r]);
   });
-  hub.planets.forEach((hp, i) => {
+  hubPlanets.forEach((hp, i) => {
     const p = planets[i];
     if (p.type === 'moon' || Object.keys(hp.planet.perHour).length) return;
     // no synced production: the others' factor (speed unknown), else the formula
@@ -419,7 +445,7 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
   const astroAt = (t: number) => researchQueue.reduce((l, q) => (q.id === ASTROPHYSICS && q.end <= t ? Math.max(l, q.level) : l), research[ASTROPHYSICS] ?? 0);
   /** planets the account has or is founding (`pending`: with the deferred colonizations) */
   const planetCount = (pending = true) =>
-    planets.filter((x) => x.type === 'planet' && (x.active || x.arrivals.some((a) => a.found) || (pending && x.founding))).length;
+    planets.filter((x) => x.type === 'planet' && x.counts && (x.active || x.arrivals.some((a) => a.found) || (pending && x.founding))).length;
   /** whether the astrophysics running and still ahead in the lists (after `p`'s head) allow more than `count` planets */
   const astroAhead = (p: Planet, count: number) => {
     let level = researchLevelOf(ASTROPHYSICS);
@@ -811,7 +837,23 @@ function run(order: BuildOrder, hub: HubState, o: SimulateOptions): Simulation {
       if (nextOf[key] == null && (r.state === 'planned' || r.state === 'invalid')) nextOf[key] = s.id;
     }
   }
-  return { steps, next: nextOf };
+  return { steps, next: nextOf, unscheduled };
+}
+
+/**
+ * The planned planets of the build order that are start planets (exist from the start: only while the hub has no
+ * synced planet, the first `maxInitialPlanets` without a colonization by number) and those that are unscheduled
+ * colonies (no start planet, no colonization; `colonized`: the planned planets a colonization flies or flew to).
+ */
+export function plannedRoles(
+  order: BuildOrder, hub: HubState, colonized: Set<string>, universe?: Pick<UniverseSettings, 'maxInitialPlanets'>,
+): { start: string[]; unscheduled: string[] } {
+  const keys = Object.keys(order.planets)
+    .filter((k) => isPlannedKey(k) && !colonized.has(k))
+    .sort((a, b) => plannedNumber(a)! - plannedNumber(b)!);
+  const synced = hub.planets.some((p) => p.type === 'planet' && !isPlannedKey(p.key));
+  const start = synced ? [] : keys.slice(0, Math.max(1, universe?.maxInitialPlanets ?? 1));
+  return { start, unscheduled: keys.filter((k) => !start.includes(k)) };
 }
 
 const levelOfQueue = (q: { level: number; destroy: boolean }) => (q.destroy ? q.level - 1 : q.level);

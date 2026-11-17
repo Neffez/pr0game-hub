@@ -2000,6 +2000,7 @@ const en: typeof de = {
     otherPlanets: 'Other planets of the build order:',
     open: '{n} open',
     emptyPlanet: 'The build order has no steps for this planet.',
+    notColonized: 'Not colonized yet – no colonization planned. Its steps are simulated from now on, but the planet does not count towards the astrophysics planet limit. Plan a colonization (transport with the mission colonize) to it so it gets founded.',
     showDone: 'Show done ({n})',
     invalidCount: '{n} steps not possible',
     drag: 'Drag to reorder',
