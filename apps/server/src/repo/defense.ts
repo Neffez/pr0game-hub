@@ -12,6 +12,7 @@ import type { DB } from '../db.js';
 import { buildingsState, planetShips, type BuildingPlanet, type BuildingsState } from './buildings.js';
 import { spyEmpire } from './empire.js';
 import { hostileAttacks } from './hostile.js';
+import { battleFleet } from './threats.js';
 import { latestMarketRate } from './market.js';
 import { alliance, memberPlayer } from './members.js';
 import { Players } from './players.js';
@@ -19,8 +20,9 @@ import { latestScores } from './stats.js';
 
 /**
  * Defense advisor (A-4): for one of the viewer's planets the attackers the hub knows — players who spied on or attacked
- * the viewer, fleets on their way, strong fleets nearby — with their newest known fleet, research and the deuterium of
- * the flight, and in the battle worker the defense that makes their attacks cost more than they bring in.
+ * the viewer, fleets on their way, strong fleets nearby — with their newest known fleet (spy reports, battles at the
+ * viewer's bodies, fleets on their way, or rebuilt from their other battle reports), research and the deuterium of the
+ * flight, and in the battle worker the defense that makes their attacks cost more than they bring in.
  */
 
 /** How far back spying, battles and fleets count. */
@@ -44,7 +46,8 @@ export interface DefenseThreatInfo {
   key: string;
   player: { id: number | null; name: string; status: string[]; allyTag: string | null };
   reasons: { kind: Reason; count: number; last: number | null }[];
-  fleet: { units: Record<string, number>; points: number; source: 'spy' | 'combat' | 'incoming'; time: number; from: Coords | null };
+  /** `battles`: rebuilt from the player's battle reports anywhere (the most of each ship type they fought with) */
+  fleet: { units: Record<string, number>; points: number; source: 'spy' | 'combat' | 'incoming' | 'battles'; time: number; from: Coords | null };
   /** newest fleet points of the statistics, to compare with the fleet known */
   fleetPoints: { points: number; time: number } | null;
   /** research of the newest spy report; unknown: the viewer's own levels stand in */
@@ -56,9 +59,21 @@ export interface DefenseThreatInfo {
 
 type Flight = { from: Coords; distance: number; duration: number; fuel: number };
 
-/** Memo of one request over several planets (raid risk): spy empires by player. */
-export type ThreatMemo = { spy: Map<string, ReturnType<typeof spyEmpire>> };
-export const threatMemo = (): ThreatMemo => ({ spy: new Map() });
+/** A player who spied on, attacked or flies at the viewer, but with no fleet the hub knows: listed, not simulated. */
+export interface UnknownThreat {
+  key: string;
+  player: DefenseThreatInfo['player'];
+  reasons: DefenseThreatInfo['reasons'];
+}
+
+export interface DefenseThreats {
+  threats: DefenseThreatInfo[];
+  unknown: UnknownThreat[];
+}
+
+/** Memo of one request over several planets (raid risk): spy empires and fleets rebuilt from battle reports by player. */
+export type ThreatMemo = { spy: Map<string, ReturnType<typeof spyEmpire>>; battles: Map<string, ReturnType<typeof battleFleet>> };
+export const threatMemo = (): ThreatMemo => ({ spy: new Map(), battles: new Map() });
 
 const fleetPoints = (units: Record<string, number>) => Math.round(Object.entries(units).reduce((s, [id, n]) => s + elementPoints(id, n), 0));
 const attacking = (units: Record<string, number>) => Object.fromEntries(Object.entries(units).filter(([id, n]) => n > 0 && !NOT_ATTACKING.has(id)));
@@ -73,11 +88,12 @@ function planetOfKey(db: DB, ctx: GroupContext, key: string) {
 
 /**
  * The attackers of a planet: candidates by name (spying on the viewer, battles at the viewer's bodies, attacks on the
- * way, players with a known fleet in the same galaxy), each with the strongest fleet known within `THREAT_DAYS`.
+ * way, players with a known fleet in the same galaxy), each with the strongest fleet known within `THREAT_DAYS`. The
+ * ones who came for the viewer but whose fleet nobody knows are `unknown`.
  */
 export function defenseThreats(
   db: DB, ctx: GroupContext, bp: BuildingPlanet, own: { coords: Coords[]; research: Record<string, number> }, memo: ThreatMemo = threatMemo(),
-): DefenseThreatInfo[] {
+): DefenseThreats {
   const units = catalogOf(ctx.universe);
   const u = ctx.universe.settings;
   const since = ctx.now - THREAT_DAYS * 86400;
@@ -167,12 +183,22 @@ export function defenseThreats(
     };
     const spies = new Map<Cand, ReturnType<typeof spyEmpire>>();
     for (const c of [...cands.values(), ...nearby]) spies.set(c, withSpy(c));
+
+    // battle reports anywhere (battle hall, members' messages): the fleet rebuilt from them
+    for (const c of cands.values()) {
+      const lower = c.name.toLowerCase();
+      if (!memo.battles.has(lower)) memo.battles.set(lower, battleFleet(db, ctx, c.name, since));
+      const rebuilt = memo.battles.get(lower);
+      if (rebuilt) c.fleets.push({ units: rebuilt.units, points: fleetPoints(rebuilt.units), source: 'battles', time: rebuilt.time, from: null });
+    }
+
     const strongest = (c: Cand) => c.fleets.reduce<DefenseThreatInfo['fleet'] | null>((best, f) => (!best || f.points > best.points ? f : best), null);
     const chosen = [...cands.values(), ...nearby.filter((c) => c.fleets.length).sort((a, b) => strongest(b)!.points - strongest(a)!.points).slice(0, NEARBY)].filter(
       (c) => c.fleets.length,
     );
+    const blind = [...cands.values()].filter((c) => !c.fleets.length);
 
-    const ids = chosen.map((c) => c.id).filter((id): id is number => id != null);
+    const ids = [...chosen, ...blind].map((c) => c.id).filter((id): id is number => id != null);
     const scores = latestScores(db, ctx.groupId, ids, [2]);
     const info = new Map(
       (db
@@ -181,6 +207,14 @@ export function defenseThreats(
     );
     const planetsOf = db.prepare('SELECT g, s, p FROM planets WHERE group_id = ? AND player_id = ? AND destroyed = 0');
     const target: [number, number, number] = [bp.coords.g, bp.coords.s, bp.coords.p];
+    const head = (c: Cand): UnknownThreat => {
+      const row = c.id != null ? info.get(c.id) : undefined;
+      return {
+        key: c.id != null ? `p${c.id}` : `n:${c.name.toLowerCase()}`,
+        player: { id: c.id, name: c.name, status: row ? (JSON.parse(row.status || '[]') as string[]) : [], allyTag: row?.tag ?? null },
+        reasons: [...c.reasons].map(([kind, r]) => ({ kind, ...r })),
+      };
+    };
 
     const out = chosen.map((c): DefenseThreatInfo => {
       const fleet = strongest(c)!;
@@ -207,12 +241,9 @@ export function defenseThreats(
         Object.keys(heavyUnits).length && Object.keys(heavyUnits).length < Object.keys(fleet.units).length
           ? { units: heavyUnits, points: fleetPoints(heavyUnits), flight: flightOf(heavyUnits) }
           : null;
-      const row = c.id != null ? info.get(c.id) : undefined;
       const fp = c.id != null ? scores.get(c.id)?.[2] : undefined;
       return {
-        key: c.id != null ? `p${c.id}` : `n:${c.name.toLowerCase()}`,
-        player: { id: c.id, name: c.name, status: row ? (JSON.parse(row.status || '[]') as string[]) : [], allyTag: row?.tag ?? null },
-        reasons: [...c.reasons].map(([kind, r]) => ({ kind, ...r })),
+        ...head(c),
         fleet,
         fleetPoints: fp ? { points: fp.points, time: fp.time } : null,
         research: { values: research, known, time: spy?.researchTime ?? null },
@@ -221,8 +252,12 @@ export function defenseThreats(
       };
     });
     const order: Reason[] = ['incoming', 'attacked', 'spied', 'nearby'];
-    const rank = (t: DefenseThreatInfo) => Math.min(...t.reasons.map((r) => order.indexOf(r.kind)));
-    return out.sort((a, b) => rank(a) - rank(b) || b.fleet.points - a.fleet.points).slice(0, MAX_THREATS);
+    const rank = (t: UnknownThreat) => Math.min(...t.reasons.map((r) => order.indexOf(r.kind)));
+    const count = (t: UnknownThreat) => t.reasons.reduce((s, r) => s + r.count, 0);
+    return {
+      threats: out.sort((a, b) => rank(a) - rank(b) || b.fleet.points - a.fleet.points).slice(0, MAX_THREATS),
+      unknown: blind.map(head).sort((a, b) => rank(a) - rank(b) || count(b) - count(a)),
+    };
   });
 }
 
@@ -294,7 +329,7 @@ export function defenseInput(db: DB, ctx: GroupContext, o: DefenseOptions) {
   const { state, bp } = planetOfKey(db, ctx, o.key);
   return withUnits(catalog, () => {
     const { ids, units, combat, resources, candidates } = planetSetup(state, bp, o, ctx.now, catalog);
-    const threats = defenseThreats(db, ctx, bp, { coords: state.planets.map((x) => x.coords), research: state.research });
+    const { threats } = defenseThreats(db, ctx, bp, { coords: state.planets.map((x) => x.coords), research: state.research });
     const rate = rateOf(db, ctx);
     const chosen = threats.filter((x) => (o.threats ? o.threats.includes(x.key) : true));
     const search: DefenseSearch = {
@@ -341,10 +376,13 @@ export function raidRiskInput(db: DB, ctx: GroupContext, o: Options) {
     const memo = threatMemo();
     const own = { coords: state.planets.map((x) => x.coords), research: state.research };
     const rate = rateOf(db, ctx);
+    // players without a known fleet are the same for every body (they came for the viewer, not for one planet)
+    let unknown: UnknownThreat[] = [];
     const bodies = state.planets.map((bp) => {
       const { units, combat, resources } = planetSetup(state, bp, o, ctx.now, catalog);
-      const threats = defenseThreats(db, ctx, bp, own, memo);
-      return { bp, units, combat, resources, threats };
+      const found = defenseThreats(db, ctx, bp, own, memo);
+      unknown = found.unknown;
+      return { bp, units, combat, resources, threats: found.threats };
     });
     const input = {
       planets: bodies.map((b) => ({ key: b.bp.key, planet: { units: b.units, research: b.combat }, resources: b.resources, threats: b.threats.flatMap(variantsOf) })),
@@ -356,7 +394,7 @@ export function raidRiskInput(db: DB, ctx: GroupContext, o: Options) {
     // resources grow every second: the hash takes them in steps of about 2 % (enough for a score)
     const rounded = input.planets.map((p) => ({ ...p, resources: Object.fromEntries(Object.entries(p.resources).map(([k, v]) => [k, Math.round(Math.log10(v + 1) * 100)])) }));
     const hash = createHash('sha256').update(JSON.stringify([ctx.groupId, ctx.user.id, rounded, input.rate, input.debris, ctx.universe.settings, ctx.universe.units])).digest('hex');
-    return { bodies, input, hash };
+    return { bodies, unknown, input, hash };
   });
 }
 

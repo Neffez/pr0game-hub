@@ -3,7 +3,7 @@
  * (`@pr0hub/api-types`; the server tests check every answer against that spec). Add a name here instead of writing
  * the shape by hand; `ApiResponse<'/api/{uni}/…'>` gives the answer of any operation.
  */
-import type { Schema } from '@pr0hub/api-types';
+import type { ApiResponse, Schema } from '@pr0hub/api-types';
 
 export type { ApiResponse, Schema } from '@pr0hub/api-types';
 
@@ -24,3 +24,8 @@ export type PlayerScore = PlayerDetails['history'][number];
 export type PlayerPlanet = PlayerDetails['planets'][number];
 
 export type AllianceMember = Schema<'AllianceMember'>;
+
+export type Threat = Schema<'Threat'>;
+export type Threats = ApiResponse<'/api/{uni}/threats'>;
+export type DefenseRisk = ApiResponse<'/api/{uni}/defense-risk'>;
+export type RiskBody = DefenseRisk['planets'][number];

@@ -1,6 +1,8 @@
+import { elementPoints } from '@pr0hub/core/tech';
 import { distance, drivesFromResearch, flightDuration, slowestShip } from '@pr0hub/flight';
 import { catalogOf, type GroupContext } from '../context.js';
 import type { DB } from '../db.js';
+import { buildingsState } from './buildings.js';
 import { spyEmpire } from './empire.js';
 import { hostileAttacks } from './hostile.js';
 import { alliance, memberPlayer } from './members.js';
@@ -15,6 +17,37 @@ import { latestScores } from './stats.js';
  * the viewer's bodies and the attacks on their way.
  */
 
+/** Battle reports up to this old rebuild a player's fleet (`battleFleet`). */
+export const FLEET_DAYS = 14;
+/** Ships that don't join a raid: spy probes and solar satellites. */
+const NOT_RAIDING = new Set(['210', '212']);
+
+/**
+ * A player's fleet rebuilt from their battle reports since `since` (battle hall and members' messages, on either
+ * side): per battle the ships they fought with, the most of each type over all battles; spy probes and solar
+ * satellites left out. At least that much (ships lost meanwhile aside); `time` of the newest battle. Null without one.
+ */
+export function battleFleet(db: DB, ctx: GroupContext, name: string, since: number): { units: Record<string, number>; time: number } | null {
+  const lower = name.toLowerCase();
+  const rows = db
+    .prepare('SELECT time, fleets FROM combat_reports WHERE group_id = ? AND time >= ? AND fleets LIKE ?')
+    .all(ctx.groupId, since, `%${JSON.stringify(name)}%`) as { time: number; fleets: string }[];
+  const units: Record<string, number> = {};
+  let time = 0;
+  for (const r of rows) {
+    const sum: Record<string, number> = {};
+    for (const [, who, list] of JSON.parse(r.fleets) as [number, string, [number, number, number][]][]) {
+      if (who?.toLowerCase() !== lower) continue;
+      for (const [id, before] of list) if (id >= 200 && id < 300 && before > 0 && !NOT_RAIDING.has(String(id))) sum[id] = (sum[id] ?? 0) + before;
+    }
+    if (!Object.keys(sum).length) continue;
+    for (const [id, n] of Object.entries(sum)) units[id] = Math.max(units[id] ?? 0, n);
+    time = Math.max(time, r.time);
+  }
+  return Object.keys(units).length ? { units, time } : null;
+}
+
+
 type Coords = { g: number; s: number; p: number };
 
 /** Weight of one event in the ranking; it halves every `HALF_LIFE` days. */
@@ -25,8 +58,13 @@ const PATTERN_MIN = 5;
 const PEAK_HOURS = 4;
 /** Statistics category of the fleet points. */
 const FLEET_POINTS = 2;
-/** Flight time by this ship while no fleet of the player is known: the battleship. */
+/**
+ * Flight time by this ship while no fleet of the player is known: the battleship once the fleet points reach
+ * `REFERENCE_FLEET` battleships, else the small cargo (early raids: light fighters and small cargos).
+ */
 const REFERENCE_SHIP = 207;
+const EARLY_SHIP = 202;
+const REFERENCE_FLEET = 10;
 /** Ships that don't fly an attack: solar satellites. */
 const NOT_FLYING = new Set(['212']);
 
@@ -42,7 +80,8 @@ export interface Threat {
   /** fleet points of the statistics now and at the start of the period (else the oldest update within it) */
   fleetPoints: { points: number; time: number; before: { points: number; time: number } | null } | null;
   /** the player's known planet nearest to one of the viewer's: one-way flight at 100 % */
-  reach: { from: Coords; to: Coords; duration: number; ship: number; shipKnown: boolean; researchKnown: boolean } | null;
+  /** `fleet`: where the ships come from (spy reports, rebuilt from battle reports, null: guessed by the fleet points) */
+  reach: { from: Coords; to: Coords; duration: number; ship: number; shipKnown: boolean; fleet: 'spy' | 'battles' | null; researchKnown: boolean } | null;
   /** known planets of the player (galaxy data) */
   planets: number;
   /** events per hour of the day (0–23) in the universe's time zone */
@@ -155,29 +194,39 @@ export function threatsOf(db: DB, ctx: GroupContext, days: number): Threats {
   );
   const oldest = db.prepare(`SELECT points, stat_time AS time FROM player_scores WHERE player_id = ? AND type = ${FLEET_POINTS} AND stat_time > ? ORDER BY stat_time LIMIT 1`);
   const planetsOf = db.prepare('SELECT g, s, p FROM planets WHERE group_id = ? AND player_id = ? AND destroyed = 0');
+  // drives of a player without a spy report showing research: the viewer's own levels stand in (as in the defense advisor)
+  let ownResearch: Record<string, number> | null = null;
+  const ownDrives = () => (ownResearch ??= own.length ? buildingsState(db, ctx, ctx.user.id).research : {});
 
   const threats = list.map((c): Threat => {
     const now = c.id != null ? scores.get(c.id)?.[FLEET_POINTS] : undefined;
     const past = now && c.id != null ? ((before.get(c.id, since) ?? oldest.get(c.id, since)) as { points: number; time: number } | undefined) : undefined;
     const homes = c.id != null ? (planetsOf.all(ctx.groupId, c.id) as Coords[]) : [];
     const spy = homes.length && own.length ? spyEmpire(db, ctx, c.id ?? -1, c.name) : null;
-    // the slowest ship of the largest fleet seen on one of their planets decides the flight time
+    // the slowest ship of the largest fleet seen on one of their planets decides the flight time, else the fleet
+    // rebuilt from their battle reports, else a reference ship by their fleet points
     let ships: Record<string, number> | null = null;
+    let fleet: 'spy' | 'battles' | null = null;
     let size = 0;
     for (const pl of spy?.planets ?? []) {
-      const fleet = Object.fromEntries(Object.entries(pl.values).filter(([id, n]) => Number(id) >= 200 && Number(id) < 300 && n > 0 && !NOT_FLYING.has(id)));
-      const n = Object.values(fleet).reduce((a, b) => a + b, 0);
-      if (n > size) [ships, size] = [fleet, n];
+      const seen = Object.fromEntries(Object.entries(pl.values).filter(([id, n]) => Number(id) >= 200 && Number(id) < 300 && n > 0 && !NOT_FLYING.has(id)));
+      const n = Object.values(seen).reduce((a, b) => a + b, 0);
+      if (n > size) [ships, size, fleet] = [seen, n, 'spy'];
     }
-    const drives = drivesFromResearch(spy?.research ?? {});
-    const slowest = slowestShip(ships ?? { [REFERENCE_SHIP]: 1 }, drives, units.drives);
+    if (!ships && homes.length && own.length) {
+      const rebuilt = battleFleet(db, ctx, c.name, t - FLEET_DAYS * 86400);
+      if (rebuilt) [ships, fleet] = [rebuilt.units, 'battles'];
+    }
+    const reference = now && now.points < elementPoints(String(REFERENCE_SHIP), REFERENCE_FLEET) ? EARLY_SHIP : REFERENCE_SHIP;
+    const drives = drivesFromResearch(spy?.researchTime ? spy.research : homes.length ? ownDrives() : {});
+    const slowest = slowestShip(ships ?? { [reference]: 1 }, drives, units.drives);
     let reach: Threat['reach'] = null;
     if (slowest && slowest.speed > 0) {
       for (const from of homes) {
         for (const to of own) {
           const duration = Math.floor(flightDuration(u, distance(u, [from.g, from.s, from.p], [to.g, to.s, to.p]), slowest.speed, 100));
           if (!reach || duration < reach.duration) {
-            reach = { from, to: { g: to.g, s: to.s, p: to.p }, duration, ship: Number(slowest.id), shipKnown: !!ships, researchKnown: !!spy?.researchTime };
+            reach = { from, to: { g: to.g, s: to.s, p: to.p }, duration, ship: Number(slowest.id), shipKnown: !!ships, fleet, researchKnown: !!spy?.researchTime };
           }
         }
       }

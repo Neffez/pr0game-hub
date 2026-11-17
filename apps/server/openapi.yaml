@@ -594,34 +594,45 @@ components:
         leadMinutes: { type: integer, enum: [1, 2, 5, 10, 15, 30], description: Launch reminder this many minutes ahead (default 5) }
         lang: { type: string, enum: [de, en], description: Language of the channel's messages (default de) }
         spying: { type: boolean, description: 'Hostile espionage (mission 6) counts for `attacks` (default on)' }
+    ThreatPlayer:
+      type: object
+      required: [id, name, status, allyTag]
+      properties:
+        id: { type: [integer, 'null'], description: Null when the hub only knows the name }
+        name: { type: string }
+        status: { type: array, items: { type: string } }
+        allyTag: { type: [string, 'null'] }
+    RiskResources:
+      type: object
+      required: [metal, crystal, deuterium]
+      properties:
+        metal: { type: number }
+        crystal: { type: number }
+        deuterium: { type: number }
     Threat:
       type: object
       required: [key, player, score, spied, attacked, incoming, fleetPoints, reach, planets, hours, peak, targets]
       properties:
         key: { type: string }
-        player:
-          type: object
-          required: [id, name, status, allyTag]
-          properties:
-            id: { type: [integer, 'null'], description: Null when the hub only knows the name }
-            name: { type: string }
-            status: { type: array, items: { type: string } }
-            allyTag: { type: [string, 'null'] }
+        player: { $ref: '#/components/schemas/ThreatPlayer' }
         score: { type: number }
         spied:
           type: object
+          required: [count, last]
           properties:
             count: { type: integer }
             last: { type: [integer, 'null'] }
         attacked:
           type: object
           description: Battle reports at the caller's bodies with the player among the attackers
+          required: [count, last]
           properties:
             count: { type: integer }
             last: { type: [integer, 'null'] }
         incoming:
           type: object
           description: Attacks on their way to the caller now
+          required: [count, next, key]
           properties:
             count: { type: integer }
             next: { type: [integer, 'null'], description: The first arrival }
@@ -629,11 +640,13 @@ components:
         fleetPoints:
           type: [object, 'null']
           description: Fleet points of the newest statistics; `before` at the start of the period (else the oldest update within it), null without an older update
+          required: [points, time, before]
           properties:
             points: { type: integer }
             time: { type: integer }
             before:
               type: [object, 'null']
+              required: [points, time]
               properties:
                 points: { type: integer }
                 time: { type: integer }
@@ -641,20 +654,25 @@ components:
           type: [object, 'null']
           description: >-
             The player's known planet nearest to one of the caller's planets with the one-way flight time at 100 %: by
-            the slowest ship of the largest fleet seen in spy reports (`shipKnown`), else a battleship; drives from the
-            newest spy report with research (`researchKnown`), else none
+            the slowest ship of the largest fleet seen in spy reports (`fleet` `spy`), else of the fleet rebuilt from
+            their battle reports of the last 14 days (`battles`: the most of each ship type), else (`fleet` null) a
+            battleship once their fleet points reach 10 battleships, below a small cargo; `shipKnown` with a fleet.
+            Drives from the newest spy report with research (`researchKnown`), else the caller's own levels
+          required: [from, to, duration, ship, shipKnown, fleet, researchKnown]
           properties:
-            from: { type: object, properties: { g: { type: integer }, s: { type: integer }, p: { type: integer } } }
-            to: { type: object, properties: { g: { type: integer }, s: { type: integer }, p: { type: integer } } }
+            from: { type: object, required: [g, s, p], properties: { g: { type: integer }, s: { type: integer }, p: { type: integer } } }
+            to: { type: object, required: [g, s, p], properties: { g: { type: integer }, s: { type: integer }, p: { type: integer } } }
             duration: { type: integer, description: Seconds }
             ship: { type: integer }
             shipKnown: { type: boolean }
+            fleet: { type: [string, 'null'], enum: [spy, battles, null] }
             researchKnown: { type: boolean }
         planets: { type: integer, description: Known planets of the player }
         hours: { type: array, minItems: 24, maxItems: 24, items: { type: integer }, description: 'Espionage and battles per hour of the day (0 to 23) in the universe''s time zone' }
         peak:
           type: [object, 'null']
           description: The 4 hours with the most events (from 5 events on); `to` is exclusive and may lie past midnight
+          required: [from, to, share]
           properties:
             from: { type: integer }
             to: { type: integer }
@@ -664,6 +682,7 @@ components:
           description: The caller's bodies the player came for, the most often first
           items:
             type: object
+            required: [g, s, p, count]
             properties:
               g: { type: integer }
               s: { type: integer }
@@ -4261,7 +4280,9 @@ paths:
         8): players who spied on the caller or attacked one of the caller's bodies in the last 14 days, hostile fleets
         on their way to the caller, and the 5 strongest players with a fleet in a spy report of the planet's galaxy;
         members and the own alliance are left out. Each comes with the strongest fleet known (spy report, battle
-        report or fleet movement; spy probes and solar satellites left out), the newest fleet points of the
+        report at the caller's bodies, fleet movement, or rebuilt from the player's battle reports of the last 14 days
+        anywhere: the most of each ship type they fought with; spy probes and solar satellites left out), the newest
+        fleet points of the
         statistics, the research of the newest spy report (else the caller's levels as an estimate) and the flight
         (one way at full speed from where the fleet was seen, else the owner's nearest planet) with its deuterium, and
         `heavy`: only the fleet's heavy ships (hull of a battleship and up), as raiders send against defense and solar
@@ -4313,7 +4334,7 @@ paths:
                               kind: { type: string, enum: [spied, attacked, incoming, nearby] }
                               count: { type: integer }
                               last: { type: [integer, 'null'] }
-                        fleet: { type: object, description: '`units`, `points`, `source` (`spy`, `combat`, `incoming`), `time`, `from` (null when unknown)' }
+                        fleet: { type: object, description: '`units`, `points`, `source` (`spy`, `combat`: battle at the caller''s body, `incoming`, `battles`: rebuilt from battle reports elsewhere), `time`, `from` (null when unknown)' }
                         fleetPoints: { type: [object, 'null'], description: '`points` and `time` of the newest fleet statistics' }
                         research: { type: object, description: '`values`, `known` (from a spy report), `time`' }
                         flight: { type: [object, 'null'], description: '`from`, `distance`, `duration` (seconds), `fuel` (deuterium)' }
@@ -4367,8 +4388,10 @@ paths:
       description: >-
         Raid risk of all the caller's planets and moons: per body the known threats of `/api/{uni}/defense-advice`
         (full fleet and heavy ships only) against the body as it is, a few runs each within an engine budget; the most
-        profitable attack is the body's risk. Runs in the battle worker (one simulation of the simulator's rate limit);
-        the result is kept for 30 minutes while the input stays the same (`cached`).
+        profitable attack is the body's risk. Players who spied on, attacked or fly at the caller without any fleet the
+        hub knows (no spy report, no battle report) are listed in `unknown`, not simulated. Runs in the battle worker
+        (one simulation of the simulator's rate limit); the result is kept for 30 minutes while the input stays the
+        same (`cached`).
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
@@ -4382,26 +4405,68 @@ paths:
             application/json:
               schema:
                 type: object
+                required: [planets, unknown, runs, battles, cached, error, rate, now]
                 properties:
                   planets:
                     type: array
                     items:
                       type: object
+                      required: [key, name, coords, type, threats, skipped, worst]
                       properties:
                         key: { type: string }
                         name: { type: string }
-                        coords: { type: object }
+                        coords: { type: object, required: [g, s, p], properties: { g: { type: integer }, s: { type: integer }, p: { type: integer } } }
                         type: { type: string, enum: [planet, moon] }
                         threats: { type: integer, description: Known threats of the body }
                         skipped: { type: integer, description: Attacks left out for the engine budget }
                         worst:
                           type: [object, 'null']
                           description: 'The most profitable attack: threat `key`, `player`, `heavy` (heavy ships only), `profit` in deuterium, `wins` share, average `loot`, `debris`, `lost`, `fuel`'
+                          required: [key, player, heavy, profit, wins, loot, debris, lost, fuel]
+                          properties:
+                            key: { type: string }
+                            player: { $ref: '#/components/schemas/ThreatPlayer' }
+                            heavy: { type: boolean }
+                            profit: { type: integer }
+                            wins: { type: number }
+                            loot: { $ref: '#/components/schemas/RiskResources' }
+                            debris:
+                              type: object
+                              required: [metal, crystal]
+                              properties:
+                                metal: { type: number }
+                                crystal: { type: number }
+                            lost: { $ref: '#/components/schemas/RiskResources' }
+                            fuel: { type: number }
+                  unknown:
+                    type: array
+                    description: 'Players who spied on, attacked or fly at the caller, but with no fleet the hub knows (not simulated); the closest reason first'
+                    items:
+                      type: object
+                      required: [key, player, reasons]
+                      properties:
+                        key: { type: string }
+                        player: { $ref: '#/components/schemas/ThreatPlayer' }
+                        reasons:
+                          type: array
+                          items:
+                            type: object
+                            required: [kind, count, last]
+                            properties:
+                              kind: { type: string, enum: [spied, attacked, incoming, nearby] }
+                              count: { type: integer }
+                              last: { type: [integer, 'null'] }
                   runs: { type: [integer, 'null'], description: Runs per attack }
                   battles: { type: [integer, 'null'] }
                   cached: { type: boolean }
                   error: { type: [string, 'null'], description: 'Simulator busy or missing (`battle_busy`, `battle_rate_limit`, …)' }
-                  rate: { type: object, description: '`m`, `k`: metal and crystal per deuterium' }
+                  rate:
+                    type: object
+                    description: '`m`, `k`: metal and crystal per deuterium'
+                    required: [m, k]
+                    properties:
+                      m: { type: number }
+                      k: { type: number }
                   now: { type: integer }
   /api/{uni}/fleets/alerts:
     put:

@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { readError, uniApi } from '../api';
+import type { DefenseRisk } from '../apiTypes';
 import { useUni } from '../composables';
 import { fmt, short } from '../format';
 import { lastRisk, riskLevel, type RiskBody } from '../raidRisk';
@@ -10,15 +11,15 @@ import PlayerLink from './PlayerLink.vue';
 /**
  * Raid risk (server: `GET /defense-risk`): per own planet and moon the most profitable known attack on it as it is,
  * full fleet or heavy ships only. A row opens the defense advisor for the body. `auto` loads at once (defense tab);
- * otherwise a button starts it (empire page), since the first calculation runs many battles.
+ * otherwise a button starts it (empire page), since the first calculation runs many battles. Players who came for the
+ * viewer without a known fleet are listed below, not calculated.
  */
 type Body = RiskBody;
-interface Risk { planets: Body[]; runs: number | null; battles: number | null; cached: boolean; error: string | null }
 
 const props = defineProps<{ auto?: boolean; ships?: boolean; debris?: boolean; loot?: 'now' | 'full'; current?: string | null }>();
 const { t } = useI18n();
 const { uni, ctx } = useUni();
-const data = ref<Risk | null>(null);
+const data = ref<DefenseRisk | null>(null);
 const error = ref<string | null>(null);
 const loading = ref(false);
 
@@ -27,7 +28,7 @@ async function load() {
   error.value = null;
   try {
     const q = new URLSearchParams({ ships: props.ships === false ? '0' : '1', debris: props.debris === false ? '0' : '1', loot: props.loot ?? 'now' });
-    data.value = await uniApi<Risk>(uni.value, `/defense-risk?${q}`);
+    data.value = await uniApi<DefenseRisk>(uni.value, `/defense-risk?${q}`);
     // the empire's planet table marks the bodies at risk from this
     if (!data.value.error) lastRisk.value = { scope: `${uni.value}:${ctx.value?.group.id}`, bodies: data.value.planets };
   } catch (e) {
@@ -74,6 +75,13 @@ const link = (b: Body) => ({ path: `/${uni.value}/build`, query: { tab: 'defense
           <span class="risk-level">{{ t(`risk.level.${level(b)}`) }}</span>
         </RouterLink>
       </div>
+      <p v-if="data.unknown.length" class="small m-0 risk-unknown" :title="t('risk.unknownHint')">
+        <span class="muted">{{ t('risk.unknown') }}</span>
+        <template v-for="(u, i) in data.unknown" :key="u.key">
+          {{ i ? ', ' : ' ' }}<PlayerLink v-if="u.player.id" :id="u.player.id" :name="u.player.name" /><template v-else>{{ u.player.name }}</template>
+          <span class="faint"> ({{ u.reasons.map((r) => t(`defense.reason.${r.kind}`, { n: r.count })).join(', ') }})</span>
+        </template>
+      </p>
       <p class="faint small m-0 risk-foot">
         {{ t('risk.basis', { battles: fmt(data.battles ?? 0), runs: data.runs ?? 0 }) }}<template v-if="data.cached"> · {{ t('risk.cached') }}</template>
         · <button class="link small" :disabled="loading" @click="load">{{ t('risk.reload') }}</button>
@@ -91,7 +99,7 @@ const link = (b: Body) => ({ path: `/${uni.value}/build`, query: { tab: 'defense
 .risk-row.medium { border-left-color: var(--warn, #f5a524); }
 .risk-row.low { border-left-color: var(--pos, #46a758); }
 .risk-level { font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.8; }
-.risk-foot { margin-top: 6px; }
+.risk-foot, .risk-unknown { margin-top: 6px; }
 @media (max-width: 799px) {
   .risk-row { grid-template-columns: 1fr auto; }
   .risk-score { grid-column: 1 / -1; grid-row: 2; }

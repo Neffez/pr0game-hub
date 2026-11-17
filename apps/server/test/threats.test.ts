@@ -105,7 +105,8 @@ describe('who threatens me', () => {
     expect(raider.fleetPoints).toEqual({ points: 5000, time: t - 3600, before: { points: 1000, time: t - 40 * DAY } });
     // no update before the period and only one within it: no trend
     expect(snoop.fleetPoints).toEqual({ points: 800, time: t - 2 * DAY, before: null });
-    expect(raider.reach).toMatchObject({ from: { g: 1, s: 110, p: 4 }, to: { g: 1, s: 100, p: 5 }, ship: 207, shipKnown: false, researchKnown: false });
+    // no spy report: the fleet rebuilt from the battle report (10 light fighters)
+    expect(raider.reach).toMatchObject({ from: { g: 1, s: 110, p: 4 }, to: { g: 1, s: 100, p: 5 }, ship: 204, shipKnown: true, fleet: 'battles', researchKnown: false });
     expect(raider.reach.duration).toBeGreaterThan(0);
     expect(raider.peak).toBeNull();
     expect(snoop.hours.reduce((a: number, b: number) => a + b, 0)).toBe(6);

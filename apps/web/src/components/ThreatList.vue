@@ -6,6 +6,7 @@
 import { computed, onMounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
+import type { Threat, Threats } from '../apiTypes';
 import { useLoader, useUni, vStack } from '../composables';
 import { ago, coords, duration, fmt, fmtSigned, name as techName, short } from '../format';
 import { tables, useLiveReload } from '../live';
@@ -14,27 +15,6 @@ import PlayerLink from './PlayerLink.vue';
 import StatusBadges from './StatusBadges.vue';
 
 type C = { g: number; s: number; p: number };
-export interface Threat {
-  key: string;
-  player: { id: number | null; name: string; status: string[]; allyTag: string | null };
-  score: number;
-  spied: { count: number; last: number | null };
-  attacked: { count: number; last: number | null };
-  incoming: { count: number; next: number | null; key: string | null };
-  fleetPoints: { points: number; time: number; before: { points: number; time: number } | null } | null;
-  reach: { from: C; to: C; duration: number; ship: number; shipKnown: boolean; researchKnown: boolean } | null;
-  planets: number;
-  hours: number[];
-  peak: { from: number; to: number; share: number } | null;
-  targets: (C & { count: number })[];
-}
-interface Threats {
-  days: number;
-  timezone: string;
-  ownPlanets: number;
-  threats: Threat[];
-  now: number;
-}
 
 const props = defineProps<{ days: number }>();
 const { t } = useI18n();
@@ -55,6 +35,9 @@ const bars = (hours: number[]) => {
 /** The attack assistant for the attack on its way, the defense advisor for one of the own planets they came for. */
 const assist = (x: Threat) => ({ path: `/${uni.value}/attack`, query: { key: x.incoming.key ?? '', arrival: x.incoming.next ?? 0 } });
 const advisor = (c: C) => ({ path: `/${uni.value}/build`, query: { tab: 'defense', c: `${c.g}:${c.s}:${c.p}`, type: 'planet' } });
+/** Where the flight time comes from: the fleet (spy reports, battle reports, guessed) and the drives. */
+const reachTitle = (r: NonNullable<Threat['reach']>) =>
+  `${t(`threats.reachFleet.${r.fleet ?? 'guess'}`)} · ${t(r.researchKnown ? 'threats.reachDrives' : 'threats.reachDrivesOwn')}`;
 const trend = (x: Threat) => (x.fleetPoints?.before ? x.fleetPoints.points - x.fleetPoints.before.points : null);
 </script>
 
@@ -107,7 +90,7 @@ const trend = (x: Threat) => (x.fleetPoints?.before ? x.fleetPoints.points - x.f
             <td>
               <template v-if="x.reach">
                 <span class="mono">{{ coords(x.reach.from.g, x.reach.from.s, x.reach.from.p) }} → {{ coords(x.reach.to.g, x.reach.to.s, x.reach.to.p) }}</span>
-                <div class="small" :title="t(x.reach.researchKnown ? 'threats.reachKnown' : 'threats.reachGuess')">
+                <div class="small" :title="reachTitle(x.reach)">
                   {{ duration(x.reach.duration) }}
                   <span class="muted">{{ techName(x.reach.ship) }}{{ x.reach.shipKnown && x.reach.researchKnown ? '' : ' ≈' }}</span>
                 </div>

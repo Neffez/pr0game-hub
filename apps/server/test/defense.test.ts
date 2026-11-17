@@ -54,6 +54,24 @@ beforeAll(async () => {
     `INSERT INTO combat_reports (group_id, report_id, time, winner, rounds, lost_attacker, lost_defender, debris_metal, debris_crystal, fleets, g, s, p, planet_type)
      VALUES (?, 'r1', ?, 'attacker', 2, 0, 0, 0, 0, ?, 1, 100, 8, 'planet')`,
   ).run(group, t - 86400, JSON.stringify([[0, 'Basher', [[204, 500, 480], [202, 50, 50]]], [1, 'Carol', [[401, 10, 0]]]]));
+  // Hitter spied on Carol, no spy report shows his fleet, but battle reports elsewhere do (battle hall: no coordinates);
+  // Ghost spied on Carol and nobody knows his fleet
+  player('Hitter', [1, 101, 3]);
+  player('Ghost', [1, 102, 3]);
+  const spied = db.prepare(
+    `INSERT INTO hostile_spying (group_id, user_id, dedupe_key, time, from_player, from_g, from_s, from_p, from_type, target_g, target_s, target_p, target_type)
+     VALUES (?, ?, ?, ?, ?, 1, 101, 3, 'planet', 1, 100, 8, 'planet')`,
+  );
+  spied.run(group, carolId, 'spy-2', t - 1800, 'Hitter');
+  spied.run(group, carolId, 'spy-3', t - 1700, 'Ghost');
+  spied.run(group, carolId, 'spy-4', t - 1600, 'Ghost');
+  const hall = db.prepare(
+    `INSERT INTO combat_reports (group_id, report_id, time, winner, rounds, lost_attacker, lost_defender, debris_metal, debris_crystal, fleets)
+     VALUES (?, ?, ?, 'attacker', 1, 0, 0, 0, 0, ?)`,
+  );
+  hall.run(group, 'h1', t - 2 * 86400, JSON.stringify([[0, 'Hitter', [[204, 30, 28], [210, 1, 1]]], [1, 'Someone', [[401, 3, 0]]]]));
+  hall.run(group, 'h2', t - 86400, JSON.stringify([[0, 'Hitter', [[202, 5, 5], [204, 20, 20]]], [1, 'Other', [[401, 1, 0]]]]));
+  hall.run(group, 'h3', t - 30 * 86400, JSON.stringify([[0, 'Hitter', [[207, 99, 99]]], [1, 'Other', [[401, 1, 0]]]]));
   // Farmer is nearby with a fleet; Far in another galaxy; Dave is a member (no threat); an old report doesn't count
   const farmer = player('Farmer', [1, 90, 5]);
   spy.run(group, 1, 90, 5, farmer, 'Farmer', t - 600, JSON.stringify({ 200: { 207: 50, 203: 100 } }));
@@ -86,8 +104,11 @@ describe('defense advisor', () => {
     expect(a.planet.resources).toEqual({ metal: 2_000_000, crystal: 1_000_000, deuterium: 500_000 });
     expect(a.rate.source).toBe('default');
     // the threats by reason (attacked, spied, nearby); members, other galaxies and old reports are left out
-    expect(a.threats.map((x: any) => x.player.name)).toEqual(['Basher', 'Raider', 'Farmer']);
-    const [basher, raider, farmer] = a.threats;
+    expect(a.threats.map((x: any) => x.player.name)).toEqual(['Basher', 'Raider', 'Hitter', 'Farmer']);
+    const [basher, raider, hitter, farmer] = a.threats;
+    // rebuilt from his battle reports: the most of each ship type over the recent ones, probes left out
+    expect(hitter.fleet).toMatchObject({ units: { 202: 5, 204: 30 }, source: 'battles', time: t - 86400, from: null });
+    expect(hitter.flight.from).toEqual({ g: 1, s: 101, p: 3 });
     expect(basher.reasons).toEqual([{ kind: 'attacked', count: 1, last: t - 86400 }]);
     expect(basher.fleet).toMatchObject({ units: { 202: 50, 204: 500 }, source: 'combat' });
     // without a spy report showing research, the viewer's levels stand in
@@ -121,6 +142,11 @@ describe('defense advisor', () => {
     expect((await get('/defense-advice?planet=x&sim=0')).statusCode).toBe(400);
   });
 
+  it('lists the players who came for the viewer without a known fleet in the raid risk', async () => {
+    const r = (await get('/defense-risk')).json();
+    expect(r.unknown).toEqual([{ key: expect.stringMatching(/^p\d+$/), player: expect.objectContaining({ name: 'Ghost' }), reasons: [{ kind: 'spied', count: 2, last: t - 1600 }] }]);
+  });
+
   it.skipIf(!wasm)('finds the defense that makes the chosen attacks unprofitable', async () => {
     const a = (await get(`/defense-advice?planet=${HOME}&sim=0`)).json();
     const raiderKey = a.threats.find((x: any) => x.player.name === 'Raider').key;
@@ -145,10 +171,10 @@ describe('defense advisor', () => {
     expect(r.cached).toBe(false);
     expect(r.planets.map((p: any) => p.key)).toEqual([HOME, '1:140:6:planet']);
     const home = r.planets[0];
-    expect(home.threats).toBe(3);
+    expect(home.threats).toBe(4);
     // 2 million metal and more lying around: someone profits
     expect(home.worst.profit).toBeGreaterThan(0);
-    expect(['Basher', 'Raider', 'Farmer']).toContain(home.worst.player.name);
+    expect(['Basher', 'Raider', 'Hitter', 'Farmer']).toContain(home.worst.player.name);
     expect(r.battles).toBeGreaterThan(0);
     const again = (await get('/defense-risk')).json();
     expect(again.cached).toBe(true);

@@ -19,6 +19,16 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-17',
     items: [
       {
+        kind: 'new',
+        de: 'Raid-Risiko: Spieler, die dich ausspioniert oder angegriffen haben, ohne dass ein Spionagebericht ihre Flotte zeigt, werden jetzt mit der Flotte aus ihren Kampfberichten berechnet. Wer gar keine bekannte Flotte hat, steht als „nicht berechnet“ darunter, statt einfach zu fehlen.',
+        en: 'Raid risk: players who spied on or attacked you without a spy report of their fleet are now calculated with the fleet from their battle reports. Those with no known fleet at all are listed as "not calculated" instead of missing.',
+      },
+      {
+        kind: 'fix',
+        de: 'Wer bedroht mich: Die Flugzeit nutzt ohne Spionagebericht die Flotte aus Kampfberichten und sonst je nach Flottenpunkten einen Kleinen Transporter statt immer ein Schlachtschiff; unbekannte Antriebe werden mit deinen geschätzt.',
+        en: 'Who threatens me: without a spy report the flight time uses the fleet from battle reports, else a small cargo or battleship depending on fleet points instead of always a battleship; unknown drives are estimated with yours.',
+      },
+      {
         kind: 'fix',
         de: 'Allianz-Flotte: Unter „Schiffe“ zählen jetzt auch die Schiffe, die beim Einfügen der Imperium-Seite gerade unterwegs waren, nicht nur die auf Planeten und Monden.',
         en: 'Alliance fleet: "Ships" now also counts the ships that were in flight when the empire page was pasted, not only those on planets and moons.',

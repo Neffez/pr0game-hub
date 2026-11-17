@@ -42,7 +42,7 @@ describe('defense advisor: outdated answers and attacks on their way', () => {
     localStorage.clear();
     vi.stubGlobal('fetch', async (url: string) => {
       const json = (body: unknown) => new Response(JSON.stringify(body), { headers: { 'content-type': 'application/json' } });
-      if (url.includes('/defense-risk')) return json({ planets: [], runs: 4, battles: 0, cached: false, error: null });
+      if (url.includes('/defense-risk')) return json({ planets: [], unknown: [], runs: 4, battles: 0, cached: false, error: null });
       const key = new URL(url, 'http://x').searchParams.get('planet')!;
       if (url.includes('sim=0')) return json(answer(key, key === A ? 'Xerxes' : 'Basher'));
       // the calculation answers when the test lets it

@@ -4,6 +4,16 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-17
 
+- Raid risk and defense advisor: a player who spied on, attacked or flies at the member but appears in no spy report
+  gets a fleet rebuilt from their battle reports of the last 14 days anywhere (battle hall, members' messages, either
+  side): the most of each ship type they fought with, spy probes and solar satellites left out (fleet source
+  `battles`). Players without any known fleet are listed in the raid risk (`unknown` in `GET /api/{uni}/defense-risk`)
+  instead of disappearing silently.
+  - Who threatens me: the flight time to the nearest planet takes the fleet rebuilt from battle reports when no spy
+    report shows one (`reach.fleet`: `spy`, `battles` or null), else a small cargo below 10 battleships of fleet
+    points instead of always a battleship; unknown drives take the member's own levels instead of none.
+  - API: the answer of `GET /api/{uni}/defense-risk` and the `Threat` schema are described in full (required fields,
+    `ThreatPlayer`, `RiskResources`); the raid risk and the threat list take their types from the generated API types.
 - API: the `fleet` of a fleet alert (`FleetAlert`, in `GET /api/{uni}/imperium` and the alert endpoints) is described
   as a `FleetMovement`. The web app's fleet list takes `Fleet`, `FleetBody` and `FleetAlert` from the generated API
   types instead of hand-written ones.

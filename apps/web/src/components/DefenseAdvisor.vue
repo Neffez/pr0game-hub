@@ -24,7 +24,7 @@ interface Threat {
   key: string;
   player: { id: number | null; name: string; status: string[]; allyTag: string | null };
   reasons: { kind: Reason; count: number; last: number | null }[];
-  fleet: { units: Record<string, number>; points: number; source: 'spy' | 'combat' | 'incoming'; time: number; from: C3 | null };
+  fleet: { units: Record<string, number>; points: number; source: 'spy' | 'combat' | 'incoming' | 'battles'; time: number; from: C3 | null };
   fleetPoints: { points: number; time: number } | null;
   research: { values: Record<string, number>; known: boolean; time: number | null };
   flight: Flight | null;

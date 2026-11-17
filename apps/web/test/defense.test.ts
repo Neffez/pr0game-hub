@@ -45,7 +45,8 @@ describe('defense advisor', () => {
         ? { planets: [
             { key: KEY, name: 'Home', coords: { g: 1, s: 100, p: 8 }, type: 'planet', threats: 2, skipped: 0, worst: { key: 'p2', player: { id: 2, name: 'Basher' }, heavy: true, profit: 812_000, wins: 1 } },
             { key: '1:140:6:planet', name: 'Colony', coords: { g: 1, s: 140, p: 6 }, type: 'planet', threats: 0, skipped: 0, worst: null },
-          ], runs: 4, battles: 16, cached: false, error: null }
+          ], unknown: [{ key: 'p7', player: { id: 7, name: 'Ghost', status: [], allyTag: null }, reasons: [{ kind: 'spied', count: 3, last: 1 }] }],
+          runs: 4, battles: 16, cached: false, error: null }
         : url.includes('/defense-advice')
         ? { ...base, ...(url.includes('sim=0') ? {} : { simulated: ['p2'], advice }) }
         : url.endsWith('/build-order') && method === 'GET' ? { buildOrder: null } : { buildOrder: {} };
@@ -68,6 +69,8 @@ describe('defense advisor', () => {
     expect(rows[0].textContent).toContain('(schwer)');
     expect(rows[0].getAttribute('href')).toContain('tab=defense');
     expect(rows[1].textContent).toContain('keine bekannten Angreifer');
+    // a player who came without a known fleet: listed, not calculated
+    expect(root.querySelector('.risk-unknown')!.textContent).toMatch(/Ohne bekannte Flotte.*Ghost.*3× spioniert/s);
   });
 
   it('lists the attackers without simulating', () => {

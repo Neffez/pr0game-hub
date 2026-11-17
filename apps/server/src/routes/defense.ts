@@ -54,6 +54,7 @@ export function defenseRoutes(app: FastifyInstance, db: DB) {
             : null,
         };
       }),
+      unknown: input.unknown,
       runs: result?.runs ?? null,
       battles: result?.battles ?? null,
       cached: run && 'result' in run ? run.cached : false,

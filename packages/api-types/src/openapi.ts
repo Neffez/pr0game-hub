@@ -992,7 +992,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** @description Defense advisor for one of the caller's planets or moons (from the buildings page state: levels, units and resources of the newest empire, buildings or overview page). Lists the attackers the hub knows for it (at most 8): players who spied on the caller or attacked one of the caller's bodies in the last 14 days, hostile fleets on their way to the caller, and the 5 strongest players with a fleet in a spy report of the planet's galaxy; members and the own alliance are left out. Each comes with the strongest fleet known (spy report, battle report or fleet movement; spy probes and solar satellites left out), the newest fleet points of the statistics, the research of the newest spy report (else the caller's levels as an estimate) and the flight (one way at full speed from where the fleet was seen, else the owner's nearest planet) with its deuterium, and `heavy`: only the fleet's heavy ships (hull of a battleship and up), as raiders send against defense and solar satellites; each threat is searched in both variants (search key `<key>:heavy` for the heavy one). `advice` runs the search in the battle worker (counts as one simulation of the simulator's rate limit): the attacker's profit of one attack is loot + debris field (with `debris`) − ships lost − fuel in deuterium by the group's market rate (default 3 : 2 : 1); the defense types that cut the worst attacker's profit most per resource are mixed and scaled until no chosen attacker profits (status `found`), `safe` when none profits already, `limit` when no buildable defense does it for up to 20 times the profit, `budget` when the battles are too large for the engine budget. Shield domes are added once when they help; the shipyard queue counts as built. Null with `sim=0` or without threats; `{ error }` when the simulator is busy or missing. */
+        /** @description Defense advisor for one of the caller's planets or moons (from the buildings page state: levels, units and resources of the newest empire, buildings or overview page). Lists the attackers the hub knows for it (at most 8): players who spied on the caller or attacked one of the caller's bodies in the last 14 days, hostile fleets on their way to the caller, and the 5 strongest players with a fleet in a spy report of the planet's galaxy; members and the own alliance are left out. Each comes with the strongest fleet known (spy report, battle report at the caller's bodies, fleet movement, or rebuilt from the player's battle reports of the last 14 days anywhere: the most of each ship type they fought with; spy probes and solar satellites left out), the newest fleet points of the statistics, the research of the newest spy report (else the caller's levels as an estimate) and the flight (one way at full speed from where the fleet was seen, else the owner's nearest planet) with its deuterium, and `heavy`: only the fleet's heavy ships (hull of a battleship and up), as raiders send against defense and solar satellites; each threat is searched in both variants (search key `<key>:heavy` for the heavy one). `advice` runs the search in the battle worker (counts as one simulation of the simulator's rate limit): the attacker's profit of one attack is loot + debris field (with `debris`) − ships lost − fuel in deuterium by the group's market rate (default 3 : 2 : 1); the defense types that cut the worst attacker's profit most per resource are mixed and scaled until no chosen attacker profits (status `found`), `safe` when none profits already, `limit` when no buildable defense does it for up to 20 times the profit, `budget` when the battles are too large for the engine budget. Shield domes are added once when they help; the shipyard queue counts as built. Null with `sim=0` or without threats; `{ error }` when the simulator is busy or missing. */
         get: operations["getDefenseAdvice"];
         put?: never;
         post?: never;
@@ -1026,7 +1026,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** @description Raid risk of all the caller's planets and moons: per body the known threats of `/api/{uni}/defense-advice` (full fleet and heavy ships only) against the body as it is, a few runs each within an engine budget; the most profitable attack is the body's risk. Runs in the battle worker (one simulation of the simulator's rate limit); the result is kept for 30 minutes while the input stays the same (`cached`). */
+        /** @description Raid risk of all the caller's planets and moons: per body the known threats of `/api/{uni}/defense-advice` (full fleet and heavy ships only) against the body as it is, a few runs each within an engine budget; the most profitable attack is the body's risk. Players who spied on, attacked or fly at the caller without any fleet the hub knows (no spy report, no battle report) are listed in `unknown`, not simulated. Runs in the battle worker (one simulation of the simulator's rate limit); the result is kept for 30 minutes while the input stays the same (`cached`). */
         get: operations["getDefenseRisk"];
         put?: never;
         post?: never;
@@ -3240,59 +3240,67 @@ export type components = {
             /** @description Hostile espionage (mission 6) counts for `attacks` (default on) */
             spying?: boolean;
         };
+        ThreatPlayer: {
+            /** @description Null when the hub only knows the name */
+            id: number | null;
+            name: string;
+            status: string[];
+            allyTag: string | null;
+        };
+        RiskResources: {
+            metal: number;
+            crystal: number;
+            deuterium: number;
+        };
         Threat: {
             key: string;
-            player: {
-                /** @description Null when the hub only knows the name */
-                id: number | null;
-                name: string;
-                status: string[];
-                allyTag: string | null;
-            };
+            player: components["schemas"]["ThreatPlayer"];
             score: number;
             spied: {
-                count?: number;
-                last?: number | null;
+                count: number;
+                last: number | null;
             };
             /** @description Battle reports at the caller's bodies with the player among the attackers */
             attacked: {
-                count?: number;
-                last?: number | null;
+                count: number;
+                last: number | null;
             };
             /** @description Attacks on their way to the caller now */
             incoming: {
-                count?: number;
+                count: number;
                 /** @description The first arrival */
-                next?: number | null;
+                next: number | null;
                 /** @description Key of that attack for `/api/{uni}/attack-assist` */
-                key?: string | null;
+                key: string | null;
             };
             /** @description Fleet points of the newest statistics; `before` at the start of the period (else the oldest update within it), null without an older update */
             fleetPoints: {
-                points?: number;
-                time?: number;
-                before?: {
-                    points?: number;
-                    time?: number;
+                points: number;
+                time: number;
+                before: {
+                    points: number;
+                    time: number;
                 } | null;
             } | null;
-            /** @description The player's known planet nearest to one of the caller's planets with the one-way flight time at 100 %: by the slowest ship of the largest fleet seen in spy reports (`shipKnown`), else a battleship; drives from the newest spy report with research (`researchKnown`), else none */
+            /** @description The player's known planet nearest to one of the caller's planets with the one-way flight time at 100 %: by the slowest ship of the largest fleet seen in spy reports (`fleet` `spy`), else of the fleet rebuilt from their battle reports of the last 14 days (`battles`: the most of each ship type), else (`fleet` null) a battleship once their fleet points reach 10 battleships, below a small cargo; `shipKnown` with a fleet. Drives from the newest spy report with research (`researchKnown`), else the caller's own levels */
             reach: {
-                from?: {
-                    g?: number;
-                    s?: number;
-                    p?: number;
+                from: {
+                    g: number;
+                    s: number;
+                    p: number;
                 };
-                to?: {
-                    g?: number;
-                    s?: number;
-                    p?: number;
+                to: {
+                    g: number;
+                    s: number;
+                    p: number;
                 };
                 /** @description Seconds */
-                duration?: number;
-                ship?: number;
-                shipKnown?: boolean;
-                researchKnown?: boolean;
+                duration: number;
+                ship: number;
+                shipKnown: boolean;
+                /** @enum {string|null} */
+                fleet: "spy" | "battles" | null;
+                researchKnown: boolean;
             } | null;
             /** @description Known planets of the player */
             planets: number;
@@ -3300,17 +3308,17 @@ export type components = {
             hours: number[];
             /** @description The 4 hours with the most events (from 5 events on); `to` is exclusive and may lie past midnight */
             peak: {
-                from?: number;
-                to?: number;
+                from: number;
+                to: number;
                 /** @description Share of the events in these hours (0 to 1) */
-                share?: number;
+                share: number;
             } | null;
             /** @description The caller's bodies the player came for, the most often first */
             targets: {
-                g?: number;
-                s?: number;
-                p?: number;
-                count?: number;
+                g: number;
+                s: number;
+                p: number;
+                count: number;
             }[];
         };
         StorageAlerts: {
@@ -7763,7 +7771,7 @@ export interface operations {
                                 count?: number;
                                 last?: number | null;
                             }[];
-                            /** @description `units`, `points`, `source` (`spy`, `combat`, `incoming`), `time`, `from` (null when unknown) */
+                            /** @description `units`, `points`, `source` (`spy`, `combat`: battle at the caller's body, `incoming`, `battles`: rebuilt from battle reports elsewhere), `time`, `from` (null when unknown) */
                             fleet?: Record<string, never>;
                             /** @description `points` and `time` of the newest fleet statistics */
                             fleetPoints?: Record<string, never> | null;
@@ -7867,28 +7875,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        planets?: {
-                            key?: string;
-                            name?: string;
-                            coords?: Record<string, never>;
+                        planets: {
+                            key: string;
+                            name: string;
+                            coords: {
+                                g: number;
+                                s: number;
+                                p: number;
+                            };
                             /** @enum {string} */
-                            type?: "planet" | "moon";
+                            type: "planet" | "moon";
                             /** @description Known threats of the body */
-                            threats?: number;
+                            threats: number;
                             /** @description Attacks left out for the engine budget */
-                            skipped?: number;
+                            skipped: number;
                             /** @description The most profitable attack: threat `key`, `player`, `heavy` (heavy ships only), `profit` in deuterium, `wins` share, average `loot`, `debris`, `lost`, `fuel` */
-                            worst?: Record<string, never> | null;
+                            worst: {
+                                key: string;
+                                player: components["schemas"]["ThreatPlayer"];
+                                heavy: boolean;
+                                profit: number;
+                                wins: number;
+                                loot: components["schemas"]["RiskResources"];
+                                debris: {
+                                    metal: number;
+                                    crystal: number;
+                                };
+                                lost: components["schemas"]["RiskResources"];
+                                fuel: number;
+                            } | null;
+                        }[];
+                        /** @description Players who spied on, attacked or fly at the caller, but with no fleet the hub knows (not simulated); the closest reason first */
+                        unknown: {
+                            key: string;
+                            player: components["schemas"]["ThreatPlayer"];
+                            reasons: {
+                                /** @enum {string} */
+                                kind: "spied" | "attacked" | "incoming" | "nearby";
+                                count: number;
+                                last: number | null;
+                            }[];
                         }[];
                         /** @description Runs per attack */
-                        runs?: number | null;
-                        battles?: number | null;
-                        cached?: boolean;
+                        runs: number | null;
+                        battles: number | null;
+                        cached: boolean;
                         /** @description Simulator busy or missing (`battle_busy`, `battle_rate_limit`, …) */
-                        error?: string | null;
+                        error: string | null;
                         /** @description `m`, `k`: metal and crystal per deuterium */
-                        rate?: Record<string, never>;
-                        now?: number;
+                        rate: {
+                            m: number;
+                            k: number;
+                        };
+                        now: number;
                     };
                 };
             };
