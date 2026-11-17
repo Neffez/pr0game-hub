@@ -117,6 +117,31 @@ describe('build order search', () => {
     expect(reached(2)).toBeGreaterThanOrEqual(8);
   });
 
+  it('takes targets with deadlines and reports every goal', async () => {
+    const post = (payload: object) => call('POST', '/u8/build-order/optimize', h.carol, payload);
+    expect((await post({ planet: HOME, targets: [{ element: 21 }], budgetSeconds: 1 })).json().code).toBe('optimize_invalid');
+    expect((await post({ planet: HOME, targets: [{ element: 21, level: 2, weight: -1 }], budgetSeconds: 1 })).statusCode).toBe(400);
+    expect((await post({ planet: HOME, targets: { buildings: { 21: 2 } }, options: { noLaterWeight: 'x' }, budgetSeconds: 1 })).statusCode).toBe(400);
+    const by = t + 30 * 86400;
+    const res = await post({
+      planet: HOME, targets: [{ element: 21, level: 2, by, weight: 3 }, { element: 202, count: 2 }], budgetSeconds: 1, seed: 2,
+      options: { noLater: true, noLaterWeight: 5 },
+    });
+    expect(res.statusCode).toBe(202);
+    const job = await finished(res.json().job, h.carol);
+    expect(job.status).toBe('done');
+    const best = job.best;
+    expect(best.targetsFinishAt).toBeLessThanOrEqual(best.finishAt);
+    expect(best.currentFinishAt === null || typeof best.currentFinishAt === 'number').toBe(true);
+    const shipyard = best.goals.find((g: { source: string; element: number }) => g.source === 'target' && g.element === 21);
+    expect(shipyard).toMatchObject({ level: 2, by, weight: 3, step: null });
+    expect(shipyard.currentEnd === null || typeof shipyard.currentEnd === 'number').toBe(true);
+    expect(shipyard.end).toBeLessThanOrEqual(by);
+    expect(best.goals.find((g: { element: number }) => g.element === 202)).toMatchObject({ level: 2, source: 'target', weight: 1 });
+    // the small cargos stay one step of 2
+    expect(best.steps.filter((s: { element?: number }) => s.element === 202).map((s: { count: number }) => s.count)).toEqual([2]);
+  });
+
   it('allows one running search per member, only for that member; cancels', async () => {
     const res = await call('POST', '/u8/build-order/optimize', h.carol, { planet: HOME, targets: { buildings: { 21: 3 } }, budgetSeconds: 300 });
     expect(res.statusCode).toBe(202);

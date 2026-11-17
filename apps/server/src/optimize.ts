@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { availableParallelism } from 'node:os';
 import { Worker } from 'node:worker_threads';
-import type { OptimizeInput, OptimizeOptions, OptimizeResult, OptimizeTargets } from '@pr0hub/planner';
+import type { OptimizeInput, OptimizeOptions, OptimizeResult, OptimizeTargets, TargetEntry } from '@pr0hub/planner';
 import type { UnitOverrides } from '@pr0hub/core/units';
 import { HttpError } from './auth.js';
 
@@ -24,7 +24,7 @@ export const OPTIMIZE_LIMITS = {
 
 export interface OptimizeRequest {
   planet: string;
-  targets: OptimizeTargets;
+  targets: OptimizeTargets | TargetEntry[];
   keep: string[] | undefined;
   budgetSeconds: number;
   seed: number | undefined;
@@ -51,22 +51,45 @@ function bool(v: unknown, what: string): boolean | undefined {
   return v;
 }
 
-/** Checks and normalizes the request body (the targets' ids and levels are checked against the game data later). */
-export function parseOptimizeRequest(body: unknown): OptimizeRequest {
-  if (!isObject(body)) throw bad('JSON object expected');
-  if (typeof body.planet !== 'string' || !KEY.test(body.planet)) throw bad('planet: hub planet key "g:s:p:planet", "g:s:p:moon" or a planned planet "0:0:<n>:planet"');
-  if (!isObject(body.targets)) throw bad('targets: { buildings, research, ships, defense }');
+/** The map form of the targets: element id -> level or count per group. */
+function parseTargetMap(raw: Record<string, unknown>): OptimizeTargets {
   const targets: OptimizeTargets = {};
   for (const group of ['buildings', 'research', 'ships', 'defense'] as const) {
-    const raw = body.targets[group];
-    if (raw == null) continue;
-    if (!isObject(raw)) throw bad(`targets.${group}: element id -> level or count`);
+    const map = raw[group];
+    if (map == null) continue;
+    if (!isObject(map)) throw bad(`targets.${group}: element id -> level or count`);
     const out: Record<string, number> = {};
-    for (const [id, v] of Object.entries(raw)) {
+    for (const [id, v] of Object.entries(map)) {
       if (!/^\d{1,3}$/.test(id)) throw bad(`targets.${group}: ${id} is not an element id`);
       out[id] = int(v, `targets.${group}.${id}`, 0, group === 'ships' || group === 'defense' ? 1e7 : 255);
     }
     targets[group] = out;
+  }
+  return targets;
+}
+
+/** Checks and normalizes the request body (the targets' ids and levels are checked against the game data later). */
+export function parseOptimizeRequest(body: unknown): OptimizeRequest {
+  if (!isObject(body)) throw bad('JSON object expected');
+  if (typeof body.planet !== 'string' || !KEY.test(body.planet)) throw bad('planet: hub planet key "g:s:p:planet", "g:s:p:moon" or a planned planet "0:0:<n>:planet"');
+  let targets: OptimizeTargets | TargetEntry[];
+  if (Array.isArray(body.targets)) {
+    if (body.targets.length > 500) throw bad('targets: at most 500 entries');
+    targets = body.targets.map((t, i) => {
+      const what = `targets[${i}]`;
+      if (!isObject(t)) throw bad(`${what}: { element, level | count, by, weight }`);
+      const element = int(t.element, `${what}.element`, 1, 999);
+      const unit = element >= 200;
+      const raw = unit ? (t.count ?? t.level) : (t.level ?? t.count);
+      const entry: TargetEntry = { element };
+      entry[unit ? 'count' : 'level'] = int(raw, `${what}.${unit ? 'count' : 'level'}`, 0, unit ? 1e7 : 255);
+      if (t.by != null) entry.by = int(t.by, `${what}.by`, 0, 1e11);
+      if (t.weight != null) entry.weight = num(t.weight, `${what}.weight`, 0, 1e4);
+      return entry;
+    });
+  } else {
+    if (!isObject(body.targets)) throw bad('targets: { buildings, research, ships, defense } or [{ element, level | count, by, weight }]');
+    targets = parseTargetMap(body.targets);
   }
   let keep: string[] | undefined;
   if (body.keep != null) {
@@ -83,6 +106,8 @@ export function parseOptimizeRequest(body: unknown): OptimizeRequest {
     options.economy = bool(o.economy, 'options.economy');
     options.throttle = bool(o.throttle, 'options.throttle');
     options.includeExisting = bool(o.includeExisting, 'options.includeExisting');
+    options.noLater = bool(o.noLater, 'options.noLater');
+    if (o.noLaterWeight != null) options.noLaterWeight = num(o.noLaterWeight, 'options.noLaterWeight', 0, 1e4);
     if (o.forbid != null) {
       if (!Array.isArray(o.forbid) || o.forbid.length > 100) throw bad('options.forbid: element ids');
       options.forbid = o.forbid.map((id, i) => int(id, `options.forbid[${i}]`, 1, 999));
@@ -248,11 +273,14 @@ export function jobView(job: OptimizeJob) {
     best: job.best
       ? {
           finishAt: job.best.finishAt,
+          targetsFinishAt: job.best.targetsFinishAt,
+          currentFinishAt: job.best.currentFinishAt,
           baselineFinishAt: job.best.baselineFinishAt,
           greedyFinishAt: job.best.greedyFinishAt,
           steps: job.best.steps,
           base: job.best.base,
           timeline: job.best.timeline,
+          goals: job.best.goals,
         }
       : null,
   };

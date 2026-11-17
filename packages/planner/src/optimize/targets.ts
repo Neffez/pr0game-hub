@@ -16,7 +16,52 @@ export interface OptimizeTargets {
   defense?: Record<string, number>;
 }
 
+/**
+ * One target with a priority: a level (buildings, research) or a unit count on the planet (ships, defense), wanted by
+ * `by` (epoch seconds, soft: `weight` seconds of penalty per second late, default 1).
+ */
+export interface TargetEntry {
+  element: number;
+  /** level of a building or research */
+  level?: number;
+  /** units of a ship or defense on the planet */
+  count?: number;
+  by?: number | null;
+  weight?: number;
+}
+
 export type ElementKind = 'building' | 'research' | 'ship' | 'defense';
+
+/** The targets as entries (the map form without deadlines, weight 1); entries with level or count 0 are dropped. */
+export function targetEntries(targets: OptimizeTargets | TargetEntry[]): TargetEntry[] {
+  if (Array.isArray(targets)) {
+    for (const t of targets) {
+      const v = t.level ?? t.count;
+      if (!Number.isInteger(t.element) || typeof v !== 'number' || !Number.isInteger(v) || v < 0) throw new OptimizeError('targets: entries need an element and a whole level or count >= 0');
+      if (t.weight != null && !(t.weight >= 0)) throw new OptimizeError('targets: weight must be >= 0');
+    }
+    return targets.filter((t) => (t.level ?? t.count)! > 0);
+  }
+  const out: TargetEntry[] = [];
+  for (const group of ['buildings', 'research', 'ships', 'defense'] as const) {
+    for (const [id, v] of Object.entries(targets[group] ?? {})) {
+      if (!(v > 0)) continue;
+      out.push(group === 'ships' || group === 'defense' ? { element: Number(id), count: v } : { element: Number(id), level: v });
+    }
+  }
+  return out;
+}
+
+/** The entries as the map form (the highest level or count per element), for `expandTargets`. */
+export function targetMap(entries: TargetEntry[]): OptimizeTargets {
+  const out: Required<OptimizeTargets> = { buildings: {}, research: {}, ships: {}, defense: {} };
+  for (const t of entries) {
+    const kind = kindOf(t.element);
+    const group = kind === 'building' ? out.buildings : kind === 'research' ? out.research : kind === 'ship' ? out.ships : out.defense;
+    group[t.element] = Math.max(group[t.element] ?? 0, (t.level ?? t.count)!);
+  }
+  return out;
+}
 
 export class OptimizeError extends Error {}
 

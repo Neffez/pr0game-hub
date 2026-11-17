@@ -2,6 +2,23 @@
 
 Every commit adds its changes here, newest first, grouped by date.
 
+## 2026-11-18
+
+- Auto plan (build order optimizer) usable for fleet players: priorities, the ships of transports, kept steps.
+  - Targets can be entries `{ element, level | count, by, weight }` besides the map form: a target finished after
+    `by` costs `weight` seconds of penalty per second late. The objective is the finish plus that lateness plus a
+    small weighted sum of all completion times, so earlier is still better.
+  - With `includeExisting` each ship and defense step of the list stays a step of its own with its count (two steps
+    of 2 cruisers no longer become one of 4). `options.noLater` (default with `includeExisting`) gives every open
+    ship, defense and research step, kept or not, a soft deadline at its end in the current timeline
+    (`noLaterWeight`, default 2), so ships no longer all move behind the economy.
+  - A transport with ships comes after the ship steps that build them (the colonization no longer leaves before
+    its colony ship is built), and every step after its requirements: checked before each simulation as a hard
+    constraint. The greedy plan builds what a kept step needs before it, so keeping ship steps works.
+  - `finishAt` includes the kept steps (a colonization landing); new `targetsFinishAt`, `currentFinishAt` (the
+    current list as a start of the search, storages added where it counted on transports, so the result is never
+    worse) and `goals` (each target and step with its end now and in the result) in the job's answer.
+
 ## 2026-11-17
 
 - Build order view: moving steps works again. Since the If-Match change the move was applied to the copy the page

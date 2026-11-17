@@ -1,14 +1,15 @@
-import { RESEARCH } from '@pr0hub/core/buildings';
+import { RESEARCH, RESEARCH_LAB } from '@pr0hub/core/buildings';
 import type { UnitCatalog } from '@pr0hub/core/units';
 import { ASTROPHYSICS, type UniverseSettings } from '@pr0hub/core/universe';
 import { doneStateOf, levelsAfterQueue, researchAfterQueue, targetsOf, type HubState } from '../hub.js';
 import { simulate, type Simulation } from '../simulate.js';
 import type { Base, BuildOrder, Step } from '../types.js';
-import { expandTargets, kindOf, OptimizeError, type OptimizeTargets } from './targets.js';
+import { expandTargets, kindOf, OptimizeError, requirementsOfElement, targetEntries, targetMap, type OptimizeTargets, type TargetEntry } from './targets.js';
 
 /**
  * The optimization problem of one planet: which part of its list the optimizer owns (the open tail), which steps stay
- * (`keep`), the required steps that follow from the targets and the levels the tail starts from.
+ * (`keep`), the goals the objective measures, the required steps that follow from them and the levels the tail starts
+ * from.
  */
 
 export interface MineRatio {
@@ -42,8 +43,18 @@ export interface OptimizeOptions {
   mineRatio?: MineRatio | null;
   /** soft penalty for steps that start in a quiet window (a person or script starts them) */
   quietHours?: QuietHours | null;
-  /** the open steps of the planet's list that are not kept count as targets too, so none get lost (default true) */
+  /**
+   * the open steps of the planet's list that are not kept count as targets too, so none get lost (default true); a
+   * ship or defense step stays a step of its own with its count, a research step a target of its own
+   */
   includeExisting?: boolean;
+  /**
+   * every open ship, defense and research step of the list (kept or not) should end no later than in the current
+   * timeline: a soft deadline at its end there (default: on with `includeExisting`)
+   */
+  noLater?: boolean;
+  /** seconds of penalty per second such a step ends later (default 2) */
+  noLaterWeight?: number;
 }
 
 export interface OptimizeInput {
@@ -52,7 +63,8 @@ export interface OptimizeInput {
   hub: HubState;
   /** hub planet key whose list is optimized */
   planet: string;
-  targets: OptimizeTargets;
+  /** levels and counts per element, or entries with deadlines and weights */
+  targets: OptimizeTargets | TargetEntry[];
   /** ids of steps of the planet's open tail that stay in their order (default: transports, production steps, astrophysics a colonization waits for) */
   keep?: string[];
   now: number;
@@ -73,6 +85,30 @@ export const ECONOMY = [1, 2, 3, 4, 12, 22, 23, 24];
 export const PRODUCERS = [1, 2, 3, 4, 12];
 export const MINES = [1, 2, 3];
 
+/**
+ * What the objective measures: a level or count of an element to reach (the end of the step whose cumulative level in
+ * the list reaches it), or the end of a kept step (`level` null), each with an optional soft deadline.
+ */
+export interface Goal {
+  element: number;
+  /** level or count to reach; null: the end of the kept step `step` */
+  level: number | null;
+  /** soft deadline (epoch seconds) */
+  by: number | null;
+  /** seconds of penalty per second late (and the goal's share of the small sum of completion times) */
+  weight: number;
+  /** `target`: asked for; `existing`: an open step of the list; `kept`: a kept step */
+  source: 'target' | 'existing' | 'kept';
+  /** the step of the list the goal stems from */
+  step: string | null;
+  /** end in the current build order (null: not reached there) */
+  current: number | null;
+}
+
+export const isUnitStep = (s: Step) => s.kind === 'ship' || s.kind === 'defense';
+/** levels (1) or units a step adds */
+export const amountOf = (s: Step) => (isUnitStep(s) ? (s.count ?? 1) : 1);
+
 export interface Problem {
   input: OptimizeInput;
   /** the order with the base raised where new steps would otherwise count as built (see `fixBase`) */
@@ -82,16 +118,29 @@ export interface Problem {
   planetType: 'planet' | 'moon';
   /** steps before the open tail: stay as they are */
   prefix: Step[];
+  /** the open tail as it is now */
+  tail: Step[];
   /** kept steps of the tail in order */
   kept: Item[];
+  /** ids of the kept steps that are open (done, queued and deactivated ones change no level) */
+  keptOpen: Set<string>;
   /** expanded targets (element -> level or count) */
   targets: Record<number, number>;
-  /** levels the tail starts from: buildings and units of the planet after its queues and kept steps, research of the account with the research queue and the open research steps of the other lists */
+  /** what the objective measures */
+  goals: Goal[];
+  /** element -> indices of its goals with a level, by level */
+  levelGoals: Map<number, number[]>;
+  /** levels the tail starts from: buildings and units of the planet after its queues, research of the account with the research queue and the open research steps of the other lists */
   start: Record<number, number>;
   /** required steps: element -> number of steps (buildings, research) */
   need: Map<number, number>;
-  /** required unit steps: element -> count */
-  units: Map<number, number>;
+  /** required unit steps: element -> counts of its steps in order (an existing step keeps its count) */
+  units: Map<number, number[]>;
+  /** unit steps of the list among `units` (the first ones of each element) */
+  existingUnits: Map<number, number>;
+  /** transports of the tail whose ships the list builds: they must come after enough of them (step id -> ships) */
+  transportShips: Map<string, { ship: number; count: number }[]>;
+  includeExisting: boolean;
   economy: number[];
   throttle: boolean;
   mineRatio: Required<MineRatio> | null;
@@ -134,58 +183,136 @@ export function setupProblem(input: OptimizeInput): Problem {
   // steps of the tail that are not open (done, queued, deactivated) stay too
   const kept: Item[] = tail.filter((s) => keepIds.has(s.id) || !isOpen(s)).map((step) => ({ step, kept: true }));
   const keptSet = new Set(kept.map((k) => k.step.id));
+  const keptOpen = new Set(kept.filter((k) => isOpen(k.step)).map((k) => k.step.id));
 
-  // levels the tail starts from
-  const levels = levelsAfterQueue(hp.planet);
-  const research = researchAfterQueue(hub);
+  // levels the tail starts from (kept steps count where they are in the list)
   const start: Record<number, number> = {};
-  for (const [id, v] of Object.entries(levels)) start[Number(id)] = v;
-  for (const [id, v] of Object.entries(research)) start[Number(id)] = v;
-  const addStep = (s: Step) => {
-    if (s.element == null || s.deactivated) return;
-    start[s.element] = (start[s.element] ?? 0) + (s.kind === 'ship' || s.kind === 'defense' ? (s.count ?? 1) : 1);
-  };
+  for (const [id, v] of Object.entries(levelsAfterQueue(hp.planet))) start[Number(id)] = v;
+  for (const [id, v] of Object.entries(researchAfterQueue(hub))) start[Number(id)] = v;
   const elsewhere: Problem['elsewhere'] = [];
   for (const [key, l] of Object.entries(order.planets)) {
     if (key === planet) continue;
     for (const s of l) {
       if (s.kind !== 'research' || s.deactivated || doneStateOf(s, targetsNow.get(s.id), key, hub) !== 'open') continue;
-      addStep(s);
+      start[s.element!] = (start[s.element!] ?? 0) + 1;
       elsewhere.push({ id: s.id, element: s.element! });
     }
   }
-  for (const k of kept) if (isOpen(k.step)) addStep(k.step);
-
-  // targets: given, the open steps not kept (so none get lost), requirements
-  const wanted: OptimizeTargets = {
-    buildings: { ...input.targets.buildings }, research: { ...input.targets.research }, ships: { ...input.targets.ships }, defense: { ...input.targets.defense },
+  const baseline = simulate(order, hub, { now: input.now, units: input.units, universe: input.universe, lean: true });
+  const baselineById = new Map(baseline.steps.map((r) => [r.id, r]));
+  const baselineEnd = (id: string) => {
+    const r = baselineById.get(id);
+    return r?.state === 'planned' ? r.end : null;
   };
-  if (o.includeExisting !== false) {
-    const reach: Record<number, number> = { ...start };
-    for (const s of tail) if (!keptSet.has(s.id) && s.element != null) reach[s.element] = (reach[s.element] ?? 0) + (s.kind === 'ship' || s.kind === 'defense' ? (s.count ?? 1) : 1);
-    for (const s of tail) {
-      if (keptSet.has(s.id) || s.element == null) continue;
-      const group = s.kind === 'building' ? wanted.buildings! : s.kind === 'research' ? wanted.research! : s.kind === 'ship' ? wanted.ships! : wanted.defense!;
-      group[s.element] = Math.max(group[s.element] ?? 0, reach[s.element]);
+
+  // goals: the open steps of the list (each ship, defense and research step its own, with a deadline at its end now
+  // under `noLater`), the highest level of each building, then the targets asked for
+  const includeExisting = o.includeExisting !== false;
+  const noLater = o.noLater ?? includeExisting;
+  const noLaterWeight = o.noLaterWeight ?? 2;
+  const goals: Goal[] = [];
+  const keptCount: Record<number, number> = {};
+  const existingChunks = new Map<number, number[]>();
+  const buildingMax = new Map<number, { level: number; step: string }>();
+  const reach: Record<number, number> = { ...start };
+  for (const s of tail) {
+    if (s.element == null || !isOpen(s)) continue;
+    reach[s.element] = (reach[s.element] ?? 0) + amountOf(s);
+    const timed = s.kind !== 'building';
+    if (keptSet.has(s.id)) {
+      keptCount[s.element] = (keptCount[s.element] ?? 0) + amountOf(s);
+      if (noLater && timed) goals.push({ element: s.element, level: null, by: baselineEnd(s.id), weight: noLaterWeight, source: 'kept', step: s.id, current: baselineEnd(s.id) });
+      continue;
     }
+    if (!includeExisting) continue;
+    if (!timed) {
+      buildingMax.set(s.element, { level: reach[s.element], step: s.id });
+      continue;
+    }
+    if (isUnitStep(s)) existingChunks.set(s.element, [...(existingChunks.get(s.element) ?? []), amountOf(s)]);
+    goals.push({
+      element: s.element, level: reach[s.element], by: noLater ? baselineEnd(s.id) : null, weight: noLater ? noLaterWeight : 1, source: 'existing', step: s.id,
+      current: baselineEnd(s.id),
+    });
+  }
+  for (const [element, b] of buildingMax) goals.push({ element, level: b.level, by: null, weight: 1, source: 'existing', step: b.step, current: baselineEnd(b.step) });
+  for (const t of targetEntries(input.targets)) {
+    goals.push({ element: t.element, level: (t.level ?? t.count)!, by: t.by ?? null, weight: t.weight ?? 1, source: 'target', step: null, current: null });
+  }
+  // the current end of the targets asked for: where the list reaches them now
+  const cum: Record<number, number> = { ...start };
+  for (const g of goals) if (g.source === 'target' && g.level! <= (start[g.element] ?? 0)) g.current = input.now;
+  for (const s of tail) {
+    if (s.element == null || !isOpen(s)) continue;
+    cum[s.element] = (cum[s.element] ?? 0) + amountOf(s);
+    for (const g of goals) if (g.source === 'target' && g.current == null && g.element === s.element && g.level! <= cum[s.element]) g.current = baselineEnd(s.id);
+  }
+
+  // the levels needed: the goals, the requirements of the kept steps, all their requirements
+  const wanted = targetMap(goals.filter((g) => g.level != null).map((g) => ({ element: g.element, level: g.level! })));
+  const raise = (el: number, level: number) => {
+    const kind = kindOf(el);
+    const group = (kind === 'building' ? wanted.buildings : kind === 'research' ? wanted.research : kind === 'ship' ? wanted.ships : wanted.defense)!;
+    group[el] = Math.max(group[el] ?? 0, level);
+  };
+  for (const k of kept) {
+    if (!keptOpen.has(k.step.id) || k.step.element == null) continue;
+    for (const [r, lv] of Object.entries(requirementsOfElement(k.step.element))) raise(Number(r), lv);
+    if (k.step.kind === 'research') raise(RESEARCH_LAB, 1);
   }
   const targets = expandTargets(wanted, hp.type);
   const need = new Map<number, number>();
-  const units = new Map<number, number>();
+  const units = new Map<number, number[]>();
+  const existingUnits = new Map<number, number>();
   for (const [key, level] of Object.entries(targets)) {
     const id = Number(key);
-    const missing = level - (start[id] ?? 0);
-    if (missing <= 0) continue;
     const kind = kindOf(id);
+    const have = (start[id] ?? 0) + (keptCount[id] ?? 0);
+    if (kind === 'ship' || kind === 'defense') {
+      const chunks = [...(existingChunks.get(id) ?? [])];
+      existingUnits.set(id, chunks.length);
+      const rest = level - have - chunks.reduce((a, b) => a + b, 0);
+      if (rest > 0) chunks.push(rest);
+      if (chunks.length) units.set(id, chunks);
+      continue;
+    }
+    if (level - have <= 0) continue;
     if (kind === 'research' && hp.type !== 'planet') throw new OptimizeError(`targets: research ${id} cannot run on a moon, plan it on a planet`);
-    if (kind === 'ship' || kind === 'defense') units.set(id, missing);
-    else need.set(id, missing);
+    need.set(id, level - have);
   }
   if (!need.size && !units.size) throw new OptimizeError('targets: all targets are reached already');
-  for (const [id, n] of need) if (kindOf(id) === 'research' && (start[id] ?? 0) + n > RESEARCH[String(id)].max) throw new OptimizeError(`targets: research ${id} goes up to level ${RESEARCH[String(id)].max}`);
+  for (const [id, n] of need) {
+    const max = RESEARCH[String(id)]?.max;
+    if (kindOf(id) === 'research' && (start[id] ?? 0) + (keptCount[id] ?? 0) + n > max) throw new OptimizeError(`targets: research ${id} goes up to level ${max}`);
+  }
+  const levelGoals = new Map<number, number[]>();
+  goals.forEach((g, i) => {
+    if (g.level != null) levelGoals.set(g.element, [...(levelGoals.get(g.element) ?? []), i]);
+  });
+  for (const l of levelGoals.values()) l.sort((a, b) => goals[a].level! - goals[b].level!);
+
+  // transports whose ships the list builds: enforced where enough of them can come before it (else as before: the
+  // ships may come by fleet, the simulation does not track them)
+  const transportShips = new Map<string, { ship: number; count: number }[]>();
+  const keptBefore: Record<number, number> = {};
+  for (const k of kept) {
+    const s = k.step;
+    if (!keptOpen.has(s.id)) continue;
+    if (s.kind === 'transport' && s.transport?.ships) {
+      const ships: { ship: number; count: number }[] = [];
+      for (const [id, n] of Object.entries(s.transport.ships)) {
+        const ship = Number(id);
+        const have = start[ship] ?? 0;
+        const builds = (units.get(ship) ?? []).reduce((a, b) => a + b, 0) + (keptBefore[ship] ?? 0);
+        if (have < n && builds > 0 && have + builds >= n) ships.push({ ship, count: n });
+      }
+      if (ships.length) transportShips.set(s.id, ships);
+    }
+    if (s.element != null && isUnitStep(s)) keptBefore[s.element] = (keptBefore[s.element] ?? 0) + amountOf(s);
+  }
 
   const forbid = new Set(o.forbid ?? []);
-  const economy = o.economy === false ? [] : ECONOMY.filter((id) => !forbid.has(id) && (hp.type === 'planet'));
+  const economy = o.economy === false ? [] : ECONOMY.filter((id) => !forbid.has(id) && hp.type === 'planet');
   const fixed = fixBase(order, hub, planet, prefix, [...need.keys(), ...units.keys(), ...economy]);
   const used = new Set(Object.values(order.planets).flatMap((l) => l.map((s) => s.id)));
   let n = 0;
@@ -195,13 +322,13 @@ export function setupProblem(input: OptimizeInput): Problem {
     while (used.has(id));
     return id;
   };
-  const baseline = simulate(order, hub, { now: input.now, units: input.units, universe: input.universe, lean: true });
   const baselineInvalid = new Set(baseline.steps.filter((s) => s.state === 'invalid').map((s) => s.id));
   const keptStart = new Map(baseline.steps.filter((s) => keptSet.has(s.id)).map((s) => [s.id, s.start ?? Infinity]));
   const mr = o.mineRatio;
   const qh = o.quietHours;
   return {
-    input, order: fixed, hub, planet, planetType: hp.type, prefix, kept, targets, start, need, units, economy,
+    input, order: fixed, hub, planet, planetType: hp.type, prefix, tail, kept, keptOpen, targets, goals, levelGoals, start, need, units, existingUnits,
+    transportShips, includeExisting, economy,
     throttle: o.throttle !== false && hp.type === 'planet',
     mineRatio: mr ? { crystalBelowMetal: mr.crystalBelowMetal ?? 2, deutBelowCrystal: mr.deutBelowCrystal ?? 2, tolerance: mr.tolerance ?? 1, weight: mr.weight ?? 3600 } : null,
     quietHours: qh ? { from: qh.from, to: qh.to, weight: qh.weight ?? 1 } : null,
@@ -220,7 +347,7 @@ function fixBase(order: BuildOrder, hub: HubState, planet: string, prefix: Step[
   const research = researchAfterQueue(hub);
   const base: Base = { planets: { ...order.base.planets, [planet]: { ...(order.base.planets[planet] ?? {}) } }, research: { ...order.base.research } };
   const counted = (steps: Step[], id: number, kind: 'research' | 'other') =>
-    steps.reduce((n, s) => (s.element === id && (kind === 'research') === (s.kind === 'research') ? n + (s.kind === 'ship' || s.kind === 'defense' ? (s.count ?? 1) : 1) : n), 0);
+    steps.reduce((n, s) => (s.element === id && (kind === 'research') === (s.kind === 'research') ? n + amountOf(s) : n), 0);
   for (const id of new Set(elements)) {
     if (kindOf(id) === 'research') {
       let before = 0;

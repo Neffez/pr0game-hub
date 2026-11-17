@@ -591,13 +591,21 @@ components:
       properties:
         planet: { type: string, description: 'Hub planet key `g:s:p:type` (a synced planet) or a planned planet of the build order (`0:0:<n>:planet`)', example: '1:100:8:planet' }
         targets:
-          type: object
-          description: 'Element id -> target level (buildings, research) or unit count on the planet (ships, defense); requirements are added'
-          properties:
-            buildings: { type: object, additionalProperties: { type: integer, minimum: 0 }, example: { '21': 4 } }
-            research: { type: object, additionalProperties: { type: integer, minimum: 0 }, example: { '115': 4 } }
-            ships: { type: object, additionalProperties: { type: integer, minimum: 0 }, example: { '202': 10 } }
-            defense: { type: object, additionalProperties: { type: integer, minimum: 0 } }
+          description: >-
+            What to reach on the planet; requirements are added. Either per group element id -> target level
+            (buildings, research) or unit count on the planet (ships, defense), or entries with a soft deadline: a
+            target finished after `by` costs `weight` seconds of penalty per second late. `{}` or `[]`: only the open
+            steps of the list (`options.includeExisting`)
+          oneOf:
+            - type: object
+              properties:
+                buildings: { type: object, additionalProperties: { type: integer, minimum: 0 }, example: { '21': 4 } }
+                research: { type: object, additionalProperties: { type: integer, minimum: 0 }, example: { '115': 4 } }
+                ships: { type: object, additionalProperties: { type: integer, minimum: 0 }, example: { '202': 10 } }
+                defense: { type: object, additionalProperties: { type: integer, minimum: 0 } }
+            - type: array
+              maxItems: 500
+              items: { $ref: '#/components/schemas/BuildOrderOptimizeTarget' }
         keep: { type: array, items: { type: string }, description: 'Ids of steps of the planet''s open tail that stay in their order; default: transports, production steps, astrophysics a colonization waits for' }
         budgetSeconds: { type: integer, minimum: 5, maximum: 300, default: 60, description: Search time after the greedy plan }
         seed: { type: integer, minimum: 0, description: 'Seed of the random moves (a search by time also depends on the machine''s speed)' }
@@ -607,7 +615,9 @@ components:
             economy: { type: boolean, default: true, description: 'Insert mines, solar and fusion plants and storages' }
             throttle: { type: boolean, default: true, description: Try production settings of the mines (25 % steps) }
             forbid: { type: array, items: { type: integer }, description: 'Element ids never to insert (e.g. 12 fusion reactor); a target of them is still built' }
-            includeExisting: { type: boolean, default: true, description: 'The open steps of the list that are not kept count as targets, so none get lost' }
+            includeExisting: { type: boolean, default: true, description: 'The open steps of the list that are not kept count as targets, so none get lost; a ship or defense step stays a step of its own with its count' }
+            noLater: { type: boolean, description: 'Every open ship, defense and research step of the list (kept or not) gets a soft deadline at its end in the current timeline: earlier is free, later costs `noLaterWeight`. Default: on with `includeExisting`' }
+            noLaterWeight: { type: number, minimum: 0, default: 2, description: Seconds of penalty per second such a step ends later }
             mineRatio:
               type: object
               description: 'Soft penalty when crystal is more than `crystalBelowMetal` + `tolerance` levels below metal, or deuterium more than `deutBelowCrystal` + `tolerance` below crystal'
@@ -644,11 +654,22 @@ components:
           oneOf:
             - { type: 'null' }
             - { $ref: '#/components/schemas/BuildOrderOptimizeResult' }
+    BuildOrderOptimizeTarget:
+      type: object
+      required: [element]
+      properties:
+        element: { type: integer, description: Game element id }
+        level: { type: integer, minimum: 0, description: Level of a building or research }
+        count: { type: integer, minimum: 0, description: Units of a ship or defense on the planet }
+        by: { type: integer, description: 'Soft deadline (Unix seconds)' }
+        weight: { type: number, minimum: 0, default: 1, description: Seconds of penalty per second late }
     BuildOrderOptimizeResult:
       type: object
-      required: [finishAt, baselineFinishAt, greedyFinishAt, steps, base, timeline]
+      required: [finishAt, targetsFinishAt, currentFinishAt, baselineFinishAt, greedyFinishAt, steps, base, timeline, goals]
       properties:
-        finishAt: { type: integer, description: Unix seconds all targets are reached }
+        finishAt: { type: integer, description: 'Unix seconds everything is done: all targets reached and all kept steps finished (e.g. a colonization landed)' }
+        targetsFinishAt: { type: integer, description: 'Unix seconds the targets and the open steps of the list are reached' }
+        currentFinishAt: { type: [integer, 'null'], description: '`finishAt` of the current list (its open steps as they are, storages added where costs need them, plus what the targets need), null when it is not a valid start' }
         baselineFinishAt: { type: integer, description: 'The same with only the required steps in the plain order (no economy)' }
         greedyFinishAt: { type: integer, description: The greedy plan before the search }
         steps: { type: array, description: 'The planet''s whole list: the steps before the open tail as they are, then the optimized tail (new ids)', items: { $ref: '#/components/schemas/BuildOrderStep' } }
@@ -659,6 +680,21 @@ components:
           properties:
             planets: { type: object, additionalProperties: { type: object, additionalProperties: { type: integer } } }
             research: { type: object, additionalProperties: { type: integer } }
+        goals:
+          type: array
+          description: 'What the objective measured: each target, each open step of the list and (with `noLater`) each kept ship, defense or research step, with its end now and in the result'
+          items:
+            type: object
+            required: [element, level, by, weight, source, step, currentEnd, end]
+            properties:
+              element: { type: integer }
+              level: { type: [integer, 'null'], description: 'Level or count reached; null: the end of the kept step `step`' }
+              by: { type: [integer, 'null'], description: Soft deadline (Unix seconds) }
+              weight: { type: number }
+              source: { type: string, enum: [target, existing, kept], description: 'Asked for, an open step of the list, a kept step' }
+              step: { type: [string, 'null'], description: 'Id of the step of the result that reaches it, null for a target asked for' }
+              currentEnd: { type: [integer, 'null'], description: 'End in the current build order, null when not reached there' }
+              end: { type: integer, description: End in the result }
         timeline:
           type: array
           description: Start and end of each step of the optimized tail
@@ -5070,8 +5106,10 @@ paths:
         against the timeline's simulation (`/api/{uni}/build-order/timeline`) for `budgetSeconds`. Ported from the
         auto plan of pr0plan. The search owns the open tail of the planet's list: done and queued steps stay, the steps
         in `keep` keep their order (default: transports, production steps and astrophysics a colonization waits for),
-        the other open steps count as targets too (`options.includeExisting`). The other planets' lists, their
-        transports and colonizations are simulated as they are. It writes nothing: poll the job with
+        the other open steps count as targets too (`options.includeExisting`), each ship, defense and research step
+        with a soft deadline at its end now (`options.noLater`). Every step comes after its requirements, and a
+        transport after the ship steps that build the ships it carries. The other planets' lists, their transports and
+        colonizations are simulated as they are. It writes nothing: poll the job with
         `GET …/optimize/{job}` and put `best.steps` into the planet's list with `PATCH /api/{uni}/build-order` (with
         `best.base` as `base`). Allowed with a read-only API token. One running search per member, a few per server;
         jobs and results are kept for an hour after they end.

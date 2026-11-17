@@ -1,40 +1,58 @@
+import { RESEARCH_LAB } from '@pr0hub/core/buildings';
 import { simulate, type Simulation, type SimState } from '../simulate.js';
 import type { BuildOrder } from '../types.js';
-import { MINES, type Item, type Problem } from './problem.js';
+import { amountOf, MINES, type Item, type Problem } from './problem.js';
+import { requirementsOfElement } from './targets.js';
 
 /**
  * Fitness of a tail: the real simulation (`simulate`) of the whole build order with the planet's list replaced, the
- * other planets' lists as they are. Invalid when a step of the tail can never start or a step elsewhere that the
- * current build order plans becomes invalid. The objective is the end of the last required step (all targets
- * reached), plus the soft penalties; a tie goes to more resources and production at that time.
+ * other planets' lists as they are. Invalid when the tail breaks its structure (a step before its requirements, a
+ * transport before the ships it carries), a step of the tail can never start, or a step elsewhere that the current
+ * build order plans becomes invalid. The objective is the finish (all goals and kept steps done), plus the weighted
+ * lateness of the goals with a deadline, plus a small weighted sum of the goals' completion times (earlier is still
+ * better), plus the soft penalties; a tie goes to more resources and production at the finish.
  */
 
 export interface Fitness {
   valid: boolean;
-  /** epoch seconds all targets are reached */
+  /** epoch seconds all goals are reached and all kept steps are done */
   finish: number;
+  /** epoch seconds all goals with a level (targets, the list's steps) are reached */
+  targetsFinish: number;
   /** finish + penalties - tie-breaker (lower is better) */
   value: number;
   /** resources plus a day of production at the finish (tie-breaker) */
   wealth: number;
-  /** index of the last required step in the tail (steps after it are dead: they change nothing) */
+  /** completion of each goal (`problem.goals`) */
+  ends: number[];
+  /** index of the last required or kept step in the tail (the optimizer's steps after it are dead: they change nothing) */
   last: number;
 }
 
-export const INVALID: Fitness = { valid: false, finish: Infinity, value: Infinity, wealth: 0, last: -1 };
+export const INVALID: Fitness = { valid: false, finish: Infinity, targetsFinish: Infinity, value: Infinity, wealth: 0, ends: [], last: -1 };
+
+/** share of the goals' completion times in the objective, spread over all goals */
+const SPREAD = 0.1;
 
 export function orderWith(problem: Problem, items: Item[]): BuildOrder {
   return { ...problem.order, planets: { ...problem.order.planets, [problem.planet]: [...problem.prefix, ...items.map((i) => i.step)] } };
 }
 
-/** Positions of the required steps: the first `need` steps of each element (later ones of an economy building are extra levels). */
+/**
+ * Positions of the required steps: the first `need` steps of each building and research (later ones of an economy
+ * building are extra levels) and every unit step of the optimizer.
+ */
 export function requiredIndices(problem: Problem, items: Item[]): number[] {
   const seen = new Map<number, number>();
   const out: number[] = [];
   items.forEach((it, i) => {
     const s = it.step;
     if (it.kept || s.element == null) return;
-    const n = problem.need.get(s.element) ?? (problem.units.has(s.element) ? 1 : 0);
+    if (problem.units.has(s.element)) {
+      out.push(i);
+      return;
+    }
+    const n = problem.need.get(s.element) ?? 0;
     const k = seen.get(s.element) ?? 0;
     if (k < n) out.push(i);
     seen.set(s.element, k + 1);
@@ -42,18 +60,75 @@ export function requiredIndices(problem: Problem, items: Item[]): number[] {
   return out;
 }
 
-export interface Evaluation {
-  fitness: Fitness;
-  sim: Simulation;
+/** whether an item changes levels (the optimizer's steps and the kept steps that are open) */
+const counts = (problem: Problem, it: Item) => it.step.element != null && !it.step.deactivated && (!it.kept || problem.keptOpen.has(it.step.id));
+
+/**
+ * The tail's structure, without simulating: every step after its requirements (levels the tail starts from plus the
+ * steps before it; research also needs a lab), every transport whose ships the list builds after enough of them.
+ * Returns why not, null when it holds.
+ */
+export function structureError(problem: Problem, items: Item[]): string | null {
+  const lv: Record<number, number> = { ...problem.start };
+  for (const it of items) {
+    const s = it.step;
+    const open = counts(problem, it);
+    if (open) {
+      for (const [r, need] of Object.entries(requirementsOfElement(s.element!))) {
+        if ((lv[Number(r)] ?? 0) < need) return `${s.kind} ${s.element} (${s.id}) needs ${r} level ${need} before it`;
+      }
+      if (s.kind === 'research' && (lv[RESEARCH_LAB] ?? 0) < 1) return `research ${s.element} (${s.id}) needs a research lab before it`;
+    }
+    for (const { ship, count } of problem.transportShips.get(s.id) ?? []) {
+      if ((lv[ship] ?? 0) < count) return `transport ${s.id} needs ${count} of ship ${ship} built before it`;
+    }
+    if (open) lv[s.element!] = (lv[s.element!] ?? 0) + amountOf(s);
+  }
+  return null;
 }
 
-export function evaluate(problem: Problem, items: Item[], full = false): Evaluation | null {
+/** When each goal is reached: the end of the step whose cumulative level reaches it, of its kept step; null: not reached. */
+export function goalEnds(problem: Problem, items: Item[], endOf: (id: string) => number | null): (number | null)[] {
+  return goalAt(problem, items, endOf, problem.input.now);
+}
+
+/** `at` of the step that reaches each goal (`atStart` when the levels the tail starts from reach it already). */
+export function goalAt<T>(problem: Problem, items: Item[], endOf: (id: string) => T | null, atStart: T | null): (T | null)[] {
+  const ends: (T | null)[] = problem.goals.map((g) => (g.level != null && g.level <= (problem.start[g.element] ?? 0) ? atStart : null));
+  const cum: Record<number, number> = {};
+  const next = new Map<number, number>();
+  for (const it of items) {
+    if (!counts(problem, it)) continue;
+    const el = it.step.element!;
+    const goals = problem.levelGoals.get(el);
+    cum[el] = (cum[el] ?? problem.start[el] ?? 0) + amountOf(it.step);
+    if (!goals) continue;
+    let k = next.get(el) ?? 0;
+    while (k < goals.length && problem.goals[goals[k]].level! <= cum[el]) {
+      if (ends[goals[k]] == null) ends[goals[k]] = endOf(it.step.id);
+      k++;
+    }
+    next.set(el, k);
+  }
+  problem.goals.forEach((g, i) => {
+    if (g.level == null) ends[i] = endOf(g.step!);
+  });
+  return ends;
+}
+
+export interface Evaluation {
+  fitness: Fitness;
+  sim: Simulation | null;
+}
+
+export function evaluate(problem: Problem, items: Item[]): Evaluation {
   problem.stats.evaluations++;
+  if (structureError(problem, items)) return { fitness: INVALID, sim: null };
   const required = requiredIndices(problem, items);
-  const ids = required.map((i) => items[i].step.id);
+  const ids = [...required.map((i) => items[i].step.id), ...items.filter((it) => it.kept).map((it) => it.step.id)];
   const { input } = problem;
   const sim = simulate(orderWith(problem, items), problem.hub, {
-    now: input.now, units: input.units, universe: input.universe, lean: !full, state: true, ...(full ? {} : { stop: { ids, at: 'end' as const } }),
+    now: input.now, units: input.units, universe: input.universe, lean: true, state: true, stop: { ids, at: 'end' },
   });
   return { sim, fitness: fitnessOf(problem, items, sim, required) };
 }
@@ -64,19 +139,49 @@ export function fitnessOf(problem: Problem, items: Item[], sim: Simulation, requ
   // the optimizer's steps must fit into the storages: the timeline assumes what does not fit comes by transport
   for (const it of items) if (!it.kept && byId.get(it.step.id)?.transport) return INVALID;
   // every required step must have been simulated and planned
-  let finish = problem.input.now;
   for (const i of required) {
     const r = byId.get(items[i].step.id);
     if (!r || r.state !== 'planned' || r.end == null) return INVALID;
-    finish = Math.max(finish, r.end);
   }
-  const last = required.length ? required[required.length - 1] : -1;
-  let penalty = 0;
+  const endOf = (id: string) => {
+    const r = byId.get(id);
+    return r?.state === 'planned' ? r.end : null;
+  };
+  const now = problem.input.now;
+  const found = goalEnds(problem, items, endOf);
+  const ends: number[] = [];
+  let targetsFinish = now;
+  let lateness = 0;
+  let spread = 0;
+  for (const [i, g] of problem.goals.entries()) {
+    const end = found[i];
+    if (end == null) {
+      if (g.level == null) {
+        // a kept step without an end (its colonization waits for astrophysics elsewhere): not measured
+        ends.push(now);
+        continue;
+      }
+      return INVALID;
+    }
+    ends.push(end);
+    if (g.level != null) targetsFinish = Math.max(targetsFinish, end);
+    if (g.by != null && end > g.by) lateness += g.weight * (end - g.by);
+    spread += g.weight * (end - now);
+  }
+  let finish = targetsFinish;
+  let last = required.length ? required[required.length - 1] : -1;
+  items.forEach((it, i) => {
+    if (!it.kept) return;
+    last = Math.max(last, i);
+    const end = endOf(it.step.id);
+    if (end != null) finish = Math.max(finish, end);
+  });
+  let penalty = lateness + (problem.goals.length ? (SPREAD / problem.goals.length) * spread : 0);
   if (problem.mineRatio) penalty += mineRatioPenalty(problem, items, last);
   if (problem.quietHours) penalty += quietPenalty(problem, items, last, byId);
   const wealth = wealthOf(problem, sim.final);
   // squashed below one second: only decides between equal finish times
-  return { valid: true, finish, value: finish + penalty - 0.5 * (wealth / (wealth + 1e7)), wealth, last };
+  return { valid: true, finish, targetsFinish, value: finish + penalty - 0.5 * (wealth / (wealth + 1e7)), wealth, ends, last };
 }
 
 function wealthOf(problem: Problem, state: SimState | undefined): number {

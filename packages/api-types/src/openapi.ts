@@ -1239,7 +1239,7 @@ export type paths = {
         put?: never;
         /**
          * Search the fastest build order of one planet (auto plan)
-         * @description Starts a search for the build order that reaches target levels (buildings, research) and unit counts (ships, defense) of one planet fastest: the targets with all their requirements, a greedy plan, then simulated annealing against the timeline's simulation (`/api/{uni}/build-order/timeline`) for `budgetSeconds`. Ported from the auto plan of pr0plan. The search owns the open tail of the planet's list: done and queued steps stay, the steps in `keep` keep their order (default: transports, production steps and astrophysics a colonization waits for), the other open steps count as targets too (`options.includeExisting`). The other planets' lists, their transports and colonizations are simulated as they are. It writes nothing: poll the job with `GET …/optimize/{job}` and put `best.steps` into the planet's list with `PATCH /api/{uni}/build-order` (with `best.base` as `base`). Allowed with a read-only API token. One running search per member, a few per server; jobs and results are kept for an hour after they end.
+         * @description Starts a search for the build order that reaches target levels (buildings, research) and unit counts (ships, defense) of one planet fastest: the targets with all their requirements, a greedy plan, then simulated annealing against the timeline's simulation (`/api/{uni}/build-order/timeline`) for `budgetSeconds`. Ported from the auto plan of pr0plan. The search owns the open tail of the planet's list: done and queued steps stay, the steps in `keep` keep their order (default: transports, production steps and astrophysics a colonization waits for), the other open steps count as targets too (`options.includeExisting`), each ship, defense and research step with a soft deadline at its end now (`options.noLater`). Every step comes after its requirements, and a transport after the ship steps that build the ships it carries. The other planets' lists, their transports and colonizations are simulated as they are. It writes nothing: poll the job with `GET …/optimize/{job}` and put `best.steps` into the planet's list with `PATCH /api/{uni}/build-order` (with `best.base` as `base`). Allowed with a read-only API token. One running search per member, a few per server; jobs and results are kept for an hour after they end.
          */
         post: operations["startBuildOrderOptimization"];
         delete?: never;
@@ -3217,7 +3217,7 @@ export type components = {
              * @example 1:100:8:planet
              */
             planet: string;
-            /** @description Element id -> target level (buildings, research) or unit count on the planet (ships, defense); requirements are added */
+            /** @description What to reach on the planet; requirements are added. Either per group element id -> target level (buildings, research) or unit count on the planet (ships, defense), or entries with a soft deadline: a target finished after `by` costs `weight` seconds of penalty per second late. `{}` or `[]`: only the open steps of the list (`options.includeExisting`) */
             targets: {
                 /**
                  * @example {
@@ -3246,7 +3246,7 @@ export type components = {
                 defense?: {
                     [key: string]: number;
                 };
-            };
+            } | components["schemas"]["BuildOrderOptimizeTarget"][];
             /** @description Ids of steps of the planet's open tail that stay in their order; default: transports, production steps, astrophysics a colonization waits for */
             keep?: string[];
             /**
@@ -3270,10 +3270,17 @@ export type components = {
                 /** @description Element ids never to insert (e.g. 12 fusion reactor); a target of them is still built */
                 forbid?: number[];
                 /**
-                 * @description The open steps of the list that are not kept count as targets, so none get lost
+                 * @description The open steps of the list that are not kept count as targets, so none get lost; a ship or defense step stays a step of its own with its count
                  * @default true
                  */
                 includeExisting: boolean;
+                /** @description Every open ship, defense and research step of the list (kept or not) gets a soft deadline at its end in the current timeline: earlier is free, later costs `noLaterWeight`. Default: on with `includeExisting` */
+                noLater?: boolean;
+                /**
+                 * @description Seconds of penalty per second such a step ends later
+                 * @default 2
+                 */
+                noLaterWeight: number;
                 /** @description Soft penalty when crystal is more than `crystalBelowMetal` + `tolerance` levels below metal, or deuterium more than `deutBelowCrystal` + `tolerance` below crystal */
                 mineRatio?: {
                     /** @default 2 */
@@ -3322,9 +3329,28 @@ export type components = {
             /** @description The best plan so far, null before the greedy plan */
             best: null | components["schemas"]["BuildOrderOptimizeResult"];
         };
+        BuildOrderOptimizeTarget: {
+            /** @description Game element id */
+            element: number;
+            /** @description Level of a building or research */
+            level?: number;
+            /** @description Units of a ship or defense on the planet */
+            count?: number;
+            /** @description Soft deadline (Unix seconds) */
+            by?: number;
+            /**
+             * @description Seconds of penalty per second late
+             * @default 1
+             */
+            weight: number;
+        };
         BuildOrderOptimizeResult: {
-            /** @description Unix seconds all targets are reached */
+            /** @description Unix seconds everything is done: all targets reached and all kept steps finished (e.g. a colonization landed) */
             finishAt: number;
+            /** @description Unix seconds the targets and the open steps of the list are reached */
+            targetsFinishAt: number;
+            /** @description `finishAt` of the current list (its open steps as they are, storages added where costs need them, plus what the targets need), null when it is not a valid start */
+            currentFinishAt: number | null;
             /** @description The same with only the required steps in the plain order (no economy) */
             baselineFinishAt: number;
             /** @description The greedy plan before the search */
@@ -3342,6 +3368,26 @@ export type components = {
                     [key: string]: number;
                 };
             };
+            /** @description What the objective measured: each target, each open step of the list and (with `noLater`) each kept ship, defense or research step, with its end now and in the result */
+            goals: {
+                element: number;
+                /** @description Level or count reached; null: the end of the kept step `step` */
+                level: number | null;
+                /** @description Soft deadline (Unix seconds) */
+                by: number | null;
+                weight: number;
+                /**
+                 * @description Asked for, an open step of the list, a kept step
+                 * @enum {string}
+                 */
+                source: "target" | "existing" | "kept";
+                /** @description Id of the step of the result that reaches it, null for a target asked for */
+                step: string | null;
+                /** @description End in the current build order, null when not reached there */
+                currentEnd: number | null;
+                /** @description End in the result */
+                end: number;
+            }[];
             /** @description Start and end of each step of the optimized tail */
             timeline: {
                 id: string;

@@ -24,6 +24,16 @@
  *   metal and crystal after 300 iterations);
  * - evaluations stop the simulation once the targets are reached and skip the timeline's display data (`simulate`
  *   options `stop`, `lean`): 1.3 ms instead of 3.9 ms per evaluation.
+ * - priorities (not in pr0plan, whose only objective is the finish): the objective is the finish of everything (kept
+ *   steps included, e.g. a colonization landing), plus the weighted lateness of goals with a deadline (targets with
+ *   `by`, and under `noLater` every open ship, defense and research step of the list at its end now), plus 0.1 × the
+ *   mean weighted completion time; existing unit steps keep their counts as steps of their own. Over 8 seeds this
+ *   changed nothing for the finish of plain targets (COL1 21.69 / 21.69 h, mines 320.2 / 320.9 h, impulse 29.95 /
+ *   29.94 h before / after at 4 000 simulations);
+ * - structure as a hard constraint checked before simulating: every step after its requirements, a transport after
+ *   the ship steps that build the ships it carries (the simulation does not track ships); the greedy builds a kept
+ *   step's requirements and ships before it; the current list (storages added where it counted on transports) is a
+ *   start of the search, so the result is never worse by the objective.
  * Tried and not kept (no better at equal simulations): a single pass with the production moves mixed in (COL1 23.8 h
  * instead of 21.4 h), a local shift move, start temperatures of 600 and 1800 s instead of pr0plan's 2 h.
  */
@@ -31,14 +41,14 @@ import { withUnits } from '@pr0hub/core/units';
 import { simulate } from '../simulate.js';
 import type { Base, Step } from '../types.js';
 import { anneal, adjustThrottleMove, insertEconomyMove, insertThrottleMove, moveMove, removeMove, swapMove, type Move } from './anneal.js';
-import { evaluate, orderWith, requiredIndices, type Fitness } from './evaluate.js';
-import { greedyPlan } from './greedy.js';
-import { setupProblem, type Item, type OptimizeInput, type Problem } from './problem.js';
+import { evaluate, goalAt, orderWith, requiredIndices, type Fitness } from './evaluate.js';
+import { currentPlan, greedyPlan } from './greedy.js';
+import { setupProblem, type Goal, type Item, type OptimizeInput, type Problem } from './problem.js';
 import { createRng } from './rng.js';
 
-export { expandTargets, OptimizeError, type OptimizeTargets } from './targets.js';
+export { expandTargets, OptimizeError, type OptimizeTargets, type TargetEntry } from './targets.js';
 export { quietWait } from './evaluate.js';
-export type { MineRatio, OptimizeInput, OptimizeOptions, QuietHours } from './problem.js';
+export type { Goal, MineRatio, OptimizeInput, OptimizeOptions, QuietHours } from './problem.js';
 
 export interface OptimizeRun {
   /** wall time of the search after the greedy plan (default 10 s, unless `iterations` is given) */
@@ -80,6 +90,21 @@ export interface OptimizeStepTime {
   end: number | null;
 }
 
+/** A goal of the objective with its end in the current build order and in the result. */
+export interface OptimizeGoalResult {
+  element: number;
+  /** level or count reached; null: the end of the kept step `step` */
+  level: number | null;
+  by: number | null;
+  weight: number;
+  source: Goal['source'];
+  /** id of the step it stems from in the result (a new id for an existing step that moved), null for a target */
+  step: string | null;
+  /** end in the current build order (null: not reached there) */
+  currentEnd: number | null;
+  end: number;
+}
+
 export interface OptimizeResult {
   /** the planet's whole list: the steps before the open tail as they are, then the optimized tail */
   steps: Step[];
@@ -87,12 +112,18 @@ export interface OptimizeResult {
   base: Base;
   /** start and end of each step of the optimized tail */
   timeline: OptimizeStepTime[];
-  /** epoch seconds all targets are reached */
+  /** epoch seconds everything is done: all goals reached and all kept steps finished (a colonization landed) */
   finishAt: number;
+  /** epoch seconds the goals with a level (targets, the list's steps) are reached */
+  targetsFinishAt: number;
+  /** `finishAt` of the current list (its open steps as they are, plus what the targets need), null without one */
+  currentFinishAt: number | null;
   /** the same with only the required steps, in the greedy order without economy (the plain order) */
   baselineFinishAt: number;
   /** the greedy plan before the search */
   greedyFinishAt: number;
+  /** each goal: element, level, deadline, its end now and in the result */
+  goals: OptimizeGoalResult[];
   iterations: number;
   evaluations: number;
 }
@@ -108,7 +139,7 @@ export function optimize(input: OptimizeInput, run: OptimizeRun = {}): OptimizeR
 export function checkOptimizeInput(input: OptimizeInput): { required: number } {
   return withUnits(input.units, () => {
     const p = setupProblem(input);
-    return { required: [...p.need.values()].reduce((a, b) => a + b, 0) + p.units.size };
+    return { required: [...p.need.values()].reduce((a, b) => a + b, 0) + [...p.units.values()].reduce((a, b) => a + b.length, 0) };
   });
 }
 
@@ -116,7 +147,7 @@ function search(input: OptimizeInput, run: OptimizeRun): OptimizeResult {
   const problem = setupProblem(input);
   const rng = createRng(run.seed ?? 12345);
   let iterations = 0;
-  const fit = (items: Item[]): Fitness => evaluate(problem, items)!.fitness;
+  const fit = (items: Item[]): Fitness => evaluate(problem, items).fitness;
 
   const plain = greedyPlan(problem, 'plain');
   const plainFit = fit(plain);
@@ -131,19 +162,27 @@ function search(input: OptimizeInput, run: OptimizeRun): OptimizeResult {
       bestFit = greedyFit;
     }
   }
+  // the current list is a start too: with deadlines at its own ends it is hard to beat, and the result is never worse
+  const current = currentPlan(problem);
+  const currentFit = current ? fit(current) : null;
+  if (current && currentFit?.valid && currentFit.value < bestFit.value) {
+    best = current;
+    bestFit = currentFit;
+  }
   if (!bestFit.valid) {
     // the plain order is checked by the simulation the greedy steps stem from; invalid here means a kept or other step broke
     throw new Error('optimize: no valid plan found');
   }
   const baselineFinishAt = plainFit.finish;
   const greedyFinishAt = greedyFit.valid ? greedyFit.finish : plainFit.finish;
+  const currentFinishAt = currentFit?.valid ? currentFit.finish : null;
   let lastBest = 0;
   const report = (force: boolean) => {
     if (!run.onBest) return;
     const t = Date.now();
     if (!force && t - lastBest < (run.bestEveryMs ?? 1000)) return;
     lastBest = t;
-    run.onBest(resultOf(problem, best, { baselineFinishAt, greedyFinishAt, iterations, evaluations: problem.stats.evaluations }, run.newId));
+    run.onBest(resultOf(problem, best, { baselineFinishAt, greedyFinishAt, currentFinishAt, iterations, evaluations: problem.stats.evaluations }, run.newId));
   };
   run.onProgress?.({ phase: 'greedy', iteration: 0, evaluations: problem.stats.evaluations, finishAt: bestFit.finish });
   report(true);
@@ -185,19 +224,23 @@ function search(input: OptimizeInput, run: OptimizeRun): OptimizeResult {
     report(true);
     if (run.shouldStop?.()) break;
   }
-  return resultOf(problem, best, { baselineFinishAt, greedyFinishAt, iterations, evaluations: problem.stats.evaluations }, run.newId);
+  return resultOf(problem, best, { baselineFinishAt, greedyFinishAt, currentFinishAt, iterations, evaluations: problem.stats.evaluations }, run.newId);
 }
 
 let idCount = 0;
 const defaultId = () => `opt-${Date.now().toString(36)}-${(idCount++).toString(36)}`;
 
-/** The proposal of a tail: dead steps dropped, ids given, the timeline from the full simulation. */
+/** The proposal of a tail: dead steps dropped, ids given, the timeline, the goals' ends. */
 function resultOf(
-  problem: Problem, items: Item[], stats: Pick<OptimizeResult, 'baselineFinishAt' | 'greedyFinishAt' | 'iterations' | 'evaluations'>, newId = defaultId,
+  problem: Problem, items: Item[], stats: Pick<OptimizeResult, 'baselineFinishAt' | 'greedyFinishAt' | 'currentFinishAt' | 'iterations' | 'evaluations'>,
+  newId = defaultId,
 ): OptimizeResult {
-  // the optimizer's steps after the last required one change nothing
+  // the optimizer's steps after the last required or kept one change nothing
   const req = requiredIndices(problem, items);
-  const last = req.length ? req[req.length - 1] : -1;
+  let last = req.length ? req[req.length - 1] : -1;
+  items.forEach((it, i) => {
+    if (it.kept) last = Math.max(last, i);
+  });
   const tail = items.filter((it, i) => it.kept || i <= last);
   const ids = new Map<string, string>();
   const steps = tail.map((it) => {
@@ -207,8 +250,10 @@ function resultOf(
     return { ...it.step, id };
   });
   const sim = simulate(orderWith(problem, tail), problem.hub, { now: problem.input.now, units: problem.input.units, universe: problem.input.universe, lean: true });
-  const fitness = evaluate(problem, tail)!.fitness;
+  const fitness = evaluate(problem, tail).fitness;
   const byId = new Map(sim.steps.map((s) => [s.id, s]));
+  // an existing step's goal names the step of the result that reaches it
+  const reached = goalSteps(problem, tail);
   return {
     steps: [...problem.prefix, ...steps],
     base: problem.order.base,
@@ -217,6 +262,17 @@ function resultOf(
       return { id: ids.get(it.step.id) ?? it.step.id, start: r?.start ?? null, end: r?.end ?? null };
     }),
     finishAt: fitness.finish,
+    targetsFinishAt: fitness.targetsFinish,
+    goals: problem.goals.map((g, i) => ({
+      element: g.element, level: g.level, by: g.by, weight: g.weight, source: g.source,
+      step: g.source === 'target' ? null : g.level == null ? g.step : (ids.get(reached[i] ?? '') ?? reached[i] ?? null),
+      currentEnd: g.current, end: fitness.ends[i],
+    })),
     ...stats,
   };
+}
+
+/** The step of the tail whose cumulative level reaches each goal (kept goals: their step). */
+function goalSteps(problem: Problem, items: Item[]): (string | null)[] {
+  return goalAt<string>(problem, items, (id) => id, null);
 }
