@@ -70,7 +70,7 @@ export type BadgeKey =
 /** Levels of each badge: the counts that reach them. */
 export const BADGES: Record<BadgeKey, number[]> = {
   imperator: [10, 20, 30, 50, 100, 200],
-  cartographer: [400, 2000, 10000, 40000, 100000],
+  cartographer: [40, 400, 4000, 8000, 12000],
   scout: [100, 200, 500, 1000, 2500, 5000, 10000],
   fleeter: [10, 100, 200, 500, 1000],
   expeditioner: [10, 100, 500, 1000, 2000, 5000],
@@ -102,7 +102,7 @@ export interface Badge {
 /** A freshness score from this one counts as a "fresh" day. */
 export const FRESH_SCORE = 90;
 /** A build order planning this far ahead earns the miner badge. */
-export const MINER_AHEAD = 7 * 86400;
+export const MINER_AHEAD = 5 * 86400;
 
 function badge(key: BadgeKey, count: number): Badge {
   const levels = BADGES[key];

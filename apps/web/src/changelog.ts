@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-18',
     items: [
       {
+        kind: 'fix',
+        de: 'Abzeichen: Miner gibt es schon, wenn die Bauliste 5 Tage vorausplant; die Stufen des Kartographen sind niedriger (40 / 400 / 4000 / 8000 / 12000), damit sie in der Laufzeit eines Universums erreichbar sind.',
+        en: 'Badges: Miner now needs a build order planning 5 days ahead; the Cartographer levels are lower (40 / 400 / 4000 / 8000 / 12000), so they can be reached within the lifetime of a universe.',
+      },
+      {
         kind: 'new',
         de: 'Serien, Abzeichen und Rangliste: Die Allianz-Gesundheit hat jetzt Tabs. Unter „Serien & Abzeichen“ siehst du, wer wie viele Tage in Folge synchronisiert und welche der 14 Abzeichen (z. B. Imperator, Kartograph, Späher, Fleeter) in welcher Stufe erreicht sind; die „Rangliste“ zeigt die Punkte der Woche für nützliche Syncs. Die drei höchsten Abzeichen stehen auch neben dem Namen in der Online-Liste.',
         en: 'Streaks, badges and ranking: the alliance health now has tabs. "Streaks & badges" shows who syncs how many days in a row and which of the 14 badges (e.g. Imperator, Cartographer, Scout, Fleeter) they reached at which level; the "Ranking" shows the points of the week for useful syncs. The top three badges also show next to the name in the online list.',

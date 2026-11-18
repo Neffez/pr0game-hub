@@ -90,7 +90,7 @@ describe('badges and ranking', () => {
     const badge = (k: string) => me.badges.find((b: any) => b.key === k);
     expect(badge('fleeter')).toEqual({ key: 'fleeter', count: 12, level: 1, levels: 5, next: 100, steps: [10, 100, 200, 500, 1000] });
     expect(badge('imperator')).toMatchObject({ count: 10, level: 1, next: 20 });
-    expect(badge('cartographer')).toMatchObject({ count: 1, level: 0, next: 400 });
+    expect(badge('cartographer')).toMatchObject({ count: 1, level: 0, next: 40 });
     // battle reports today: today counts for the streak
     expect(me.streak).toMatchObject({ today: true });
     expect(members.find((m: any) => m.userId === daveId).badges.every((b: any) => b.level === 0)).toBe(true);

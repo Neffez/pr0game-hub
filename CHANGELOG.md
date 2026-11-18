@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-18
 
+- Badges: the miner badge needs a build order planning 5 days ahead (was 7); the cartographer levels are 40 / 400 /
+  4000 / 8000 / 12000 system days (were 400 / 2000 / 10000 / 40000 / 100000), reachable within a universe's
+  lifetime.
+
 - Streaks, badges and ranking (sync incentives), as tabs of the alliance health ("Members", "Streaks & badges",
   "Ranking"):
   - Syncs write credits per member and day in the universe's time zone (`sync_credits`, migration `095`): galaxy

@@ -1657,7 +1657,7 @@ const de = {
     raider: { name: 'Raider', what: '{n} geplante Raids', how: 'Raids im Raid-Planer planen' },
     collector: { name: 'Geldeintreiber', what: '{n} AKS-Abrechnungen', how: 'AKS-Beuteabrechnungen abschließen' },
     forist: { name: 'Forist', what: '{n} Kommentare', how: 'Kommentare in Spielerprofilen schreiben' },
-    miner: { name: 'Miner', what: 'Bauliste plant 7 Tage voraus', how: 'Mit der Bauliste mindestens 7 Tage im Voraus planen' },
+    miner: { name: 'Miner', what: 'Bauliste plant 5 Tage voraus', how: 'Mit der Bauliste mindestens 5 Tage im Voraus planen' },
   },
   ranking: {
     period: { week: 'Diese Woche', lastWeek: 'Vorwoche', days30: '30 Tage' },

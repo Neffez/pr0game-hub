@@ -1656,7 +1656,7 @@ const en: typeof de = {
     raider: { name: 'Raider', what: '{n} planned raids', how: 'Plan raids in the raid planner' },
     collector: { name: 'Debt collector', what: '{n} ACS settlements', how: 'Finalize ACS loot settlements' },
     forist: { name: 'Forist', what: '{n} comments', how: 'Write comments in player profiles' },
-    miner: { name: 'Miner', what: 'Build order plans 7 days ahead', how: 'Plan at least 7 days ahead with the build order' },
+    miner: { name: 'Miner', what: 'Build order plans 5 days ahead', how: 'Plan at least 5 days ahead with the build order' },
   },
   ranking: {
     period: { week: 'This week', lastWeek: 'Last week', days30: '30 days' },

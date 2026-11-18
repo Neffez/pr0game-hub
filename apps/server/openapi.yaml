@@ -3984,7 +3984,7 @@ paths:
         `fleeter` battle reports, `expeditioner` expeditions, `trader` days with a marketplace page, `socializer`
         player messages, `chronicler` statistics updates pasted first, `fresh` days with a freshness of 90 or more,
         `streak` the longest streak, `raider` planned raids, `collector` finalized loot settlements, `forist` comments
-        on players, `miner` a build order planning 7 days ahead. The streak counts days in the universe's time zone
+        on players, `miner` a build order planning 5 days ahead. The streak counts days in the universe's time zone
         with a sync only the member can make (own empire, overview, buildings or research page, own reports and
         messages); a day in vacation mode pauses it.
       parameters:
