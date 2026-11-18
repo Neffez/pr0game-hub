@@ -2,12 +2,12 @@ import { ref } from 'vue';
 import { uniApi } from './api';
 import type { Achievements, Badge, MemberAchievements } from './apiTypes';
 
-/** Badges and streaks of the members (server: repo/achievements.ts), shared by the health page and the online list. */
+/** Badges and streaks of the members (server: repo/achievements.ts), shared by the alliance progress page and the online list. */
 export const achievements = ref<MemberAchievements[] | null>(null);
 let loadedFor = '';
 let loadedAt = 0;
 let pending: Promise<void> | null = null;
-/** The online list reloads at most this often (ms); the health page forces a reload. */
+/** The online list reloads at most this often (ms); the alliance progress page forces a reload. */
 const FRESH_MS = 5 * 60_000;
 
 export function loadAchievements(uni: string, force = false): Promise<void> {

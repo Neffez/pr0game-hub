@@ -97,6 +97,8 @@ const ICONS: Record<string, string[]> = {
   sleep: ['M4 10h7l-7 9h7', 'M14 4h6l-6 7h6'],
   // triangle with exclamation mark
   warning: ['M12 3.5 21.5 20h-19z', 'M12 10v4.5', 'M12 17.2v.01'],
+  // medal on a ribbon (achievements, alliance progress)
+  medal: ['M7 2.5h10', 'M7 2.5l3.4 7.2', 'M17 2.5l-3.4 7.2', 'M12 21a5.6 5.6 0 1 0 0-11.2a5.6 5.6 0 1 0 0 11.2', 'M12 12.6l.85 1.75 1.9.27-1.38 1.33.33 1.9-1.7-.9-1.7.9.33-1.9-1.38-1.33 1.9-.27z'],
   // pencil
   edit: ['M4 20h4L19 9l-4-4L4 16z', 'M13 7l4 4'],
   // bin

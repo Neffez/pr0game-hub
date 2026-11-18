@@ -30,8 +30,8 @@ export const CHANGELOG: ChangelogDay[] = [
       },
       {
         kind: 'new',
-        de: 'Serien, Abzeichen und Rangliste: Die Allianz-Gesundheit hat jetzt Tabs. Unter „Serien & Abzeichen“ siehst du, wer wie viele Tage in Folge synchronisiert und welche der 14 Abzeichen (z. B. Imperator, Kartograph, Späher, Fleeter) in welcher Stufe erreicht sind; die „Rangliste“ zeigt die Punkte der Woche für nützliche Syncs. Die drei höchsten Abzeichen stehen auch neben dem Namen in der Online-Liste.',
-        en: 'Streaks, badges and ranking: the alliance health now has tabs. "Streaks & badges" shows who syncs how many days in a row and which of the 14 badges (e.g. Imperator, Cartographer, Scout, Fleeter) they reached at which level; the "Ranking" shows the points of the week for useful syncs. The top three badges also show next to the name in the online list.',
+        de: 'Serien, Abzeichen und Rangliste: Die Allianz-Gesundheit heißt jetzt Allianz-Fortschritt (Medaillen-Symbol im Menü) und hat Tabs. Unter „Serien & Abzeichen“ siehst du, wer wie viele Tage in Folge synchronisiert und welche der 14 Abzeichen (z. B. Imperator, Kartograph, Späher, Fleeter) in welcher Stufe erreicht sind; die „Rangliste“ zeigt die Punkte der Woche für nützliche Syncs. Die drei höchsten Abzeichen stehen auch neben dem Namen in der Online-Liste.',
+        en: 'Streaks, badges and ranking: the alliance health is now called alliance progress (medal icon in the menu) and has tabs. "Streaks & badges" shows who syncs how many days in a row and which of the 14 badges (e.g. Imperator, Cartographer, Scout, Fleeter) they reached at which level; the "Ranking" shows the points of the week for useful syncs. The top three badges also show next to the name in the online list.',
       },
       {
         kind: 'new',
@@ -40,8 +40,8 @@ export const CHANGELOG: ChangelogDay[] = [
       },
       {
         kind: 'new',
-        de: 'Frische-Wert: Zeigt von 0 bis 100, wie aktuell deine eigenen Seiten im Hub sind – bei den Sync-Hinweisen und für alle Mitglieder auf der Gesundheitsseite. Dazu gibt es Allianz-Ziele auf Übersicht und Gesundheit (Galaxie-Abdeckung, vollständige Statistik, Frische der Mitglieder, aktuelle Spionageberichte); Allianz-Admins passen die Zielwerte in der Verwaltung an.',
-        en: 'Freshness score: shows from 0 to 100 how up to date your own pages are in the hub – with the sync hints and for all members on the health page. Plus alliance goals on the overview and the health page (galaxy coverage, complete statistics, member freshness, recent spy reports); alliance admins change the targets under administration.',
+        de: 'Frische-Wert: Zeigt von 0 bis 100, wie aktuell deine eigenen Seiten im Hub sind – bei den Sync-Hinweisen und für alle Mitglieder unter Allianz-Fortschritt. Dazu gibt es Allianz-Ziele auf der Übersicht und unter Allianz-Fortschritt (Galaxie-Abdeckung, vollständige Statistik, Frische der Mitglieder, aktuelle Spionageberichte); Allianz-Admins passen die Zielwerte in der Verwaltung an.',
+        en: 'Freshness score: shows from 0 to 100 how up to date your own pages are in the hub – with the sync hints and for all members under alliance progress. Plus alliance goals on the overview and under alliance progress (galaxy coverage, complete statistics, member freshness, recent spy reports); alliance admins change the targets under administration.',
       },
       {
         kind: 'new',

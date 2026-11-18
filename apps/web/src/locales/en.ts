@@ -140,7 +140,7 @@ const en: typeof de = {
   },
   health: {
     tab: { members: 'Members', badges: 'Streaks & badges', ranking: 'Ranking' },
-    title: 'Alliance health',
+    title: 'Alliance progress',
     hint1: 'For everyone in the alliance: per member the points and their growth over the last 7 days against the alliance median, when they were last in the hub and which pages they pasted when, battles and expeditions of the week and open deliveries of loot settlements.',
     hint2: 'Flagged: falls behind (less than half the median growth), no empire page for 3 days, no statistics in the hub, not in the hub for 3 days. The last visit of members who hide their online status (Account) is shown to admins only.',
     hidden: 'Online status hidden',
@@ -496,7 +496,7 @@ const en: typeof de = {
     raids: 'Raids',
     farm: 'Farm finder',
     fleetsave: 'Fleet save',
-    health: 'Health',
+    health: 'Progress',
     battleHall: 'Hall of Fame',
     expeditions: 'Expeditions',
     account: 'Account',
@@ -600,7 +600,7 @@ const en: typeof de = {
         i1: 'One market rate for everyone – loot, simulators, internal calculations',
         i2: 'Comments and mentions on the player/planet instead of lost chats',
         i3: '“Who threatens me?” and hostile espionage at a glance',
-        i4: 'Alliance health: who is growing, who falls behind – act early instead of surprise inactivity',
+        i4: 'Alliance progress: who is growing, who falls behind – act early instead of surprise inactivity',
       },
       expo: {
         title: 'Expeditions & moons',
@@ -796,7 +796,7 @@ const en: typeof de = {
       list: { title: 'Battles', text: 'Green = winner, red = loser. "Game" opens the report in the game, "local" the report archived in the hub, even after the game has deleted it.' },
     },
     health: {
-      intro: { title: 'Alliance health', text: 'Who grows, who falls behind, who still syncs – the whole alliance on one page.' },
+      intro: { title: 'Alliance progress', text: 'Who grows, who falls behind, who still syncs, plus alliance goals, streaks, badges and the ranking – the whole alliance on one page.' },
       members: { title: 'Members', text: 'Who grows, who still syncs, how fresh the data is – per member, with the alliance goals above.' },
       badges: { title: 'Streaks & badges', text: 'Sync streaks and badges of all members: who keeps at it and who shines at what.' },
       ranking: { title: 'Ranking', text: 'Who pasted the most useful data this week, plus last week and the last 30 days.' },
@@ -893,7 +893,7 @@ const en: typeof de = {
       groups: { title: 'Alliances', text: 'Choose the alliance to manage and change its name and tag. The tag shows e.g. in the online list in the menu.' },
       members: { title: 'Members', text: 'Add players (also without a hub account; they then show in the alliance and the raid planner) or assign an existing account. Per member: role, display name, in-game name and a claim link to create the account, or a password link if someone forgot their password.' },
       discord: { title: 'Discord channel', text: 'The hub posts attacks on members, new raid plans and launch times to a Discord channel of the alliance, best one only members can see.' },
-      goals: { title: 'Alliance goals', text: 'Set the targets of the shared goals or switch single goals off. The members see the progress on the overview and the health page.' },
+      goals: { title: 'Alliance goals', text: 'Set the targets of the shared goals or switch single goals off. The members see the progress on the overview and under alliance progress.' },
       fleetAttacks: { title: 'Fleet movements', text: 'Attacks from the members\' overview syncs. Remove a wrongly detected entry, and it disappears from empire, raid planner and notifications.' },
       inactivity: { title: 'Check the inactivity score', text: 'Measures on your own data how early the score would have caught players the game flagged inactive, and how often it was wrong.' },
       crawler: { title: 'Battle report archive', text: 'Archives the battle hall reports in the background. If the game can\'t be reached, it pauses; "Retry" starts it again.' },
@@ -1598,7 +1598,7 @@ const en: typeof de = {
     edit: 'Change goals',
     target: 'Target: {n} %',
     saved: 'Goals saved',
-    adminHint: 'Shared goals for syncing, shown to all members on the overview and the health page. Changes are saved right away.',
+    adminHint: 'Shared goals for syncing, shown to all members on the overview and under alliance progress. Changes are saved right away.',
     targetLabel: 'Target',
     daysLabel: 'Days',
     galaxy: {

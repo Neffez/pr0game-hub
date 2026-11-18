@@ -141,7 +141,7 @@ const de = {
   },
   health: {
     tab: { members: 'Mitglieder', badges: 'Serien & Abzeichen', ranking: 'Rangliste' },
-    title: 'Allianz-Gesundheit',
+    title: 'Allianz-Fortschritt',
     hint1: 'Für alle in der Allianz: je Mitglied Punkte und Wachstum der letzten 7 Tage gegen den Median der Allianz, wann es zuletzt im Hub war und welche Seiten es wann eingefügt hat, Kämpfe und Expeditionen der Woche und offene Lieferungen aus Beuteabrechnungen.',
     hint2: 'Markiert wird: fällt zurück (weniger als die Hälfte des Median-Wachstums), seit 3 Tagen kein Imperium, keine Statistik im Hub, seit 3 Tagen nicht im Hub. Wer seinen Online-Status ausblendet (Konto), dessen letzten Besuch sehen nur Admins.',
     hidden: 'Online-Status ausgeblendet',
@@ -497,7 +497,7 @@ const de = {
     raids: 'Raids',
     farm: 'Farm-Finder',
     fleetsave: 'Fleetsave',
-    health: 'Gesundheit',
+    health: 'Fortschritt',
     battleHall: 'Battle Hall',
     expeditions: 'Expeditionen',
     account: 'Konto',
@@ -601,7 +601,7 @@ const de = {
         i1: 'Marktkurs für alle gleich – Beute, Simulator, interne Kalkulationen',
         i2: 'Kommentare und Erwähnungen direkt am Spieler/Planeten statt verlorene Chats',
         i3: '„Wer bedroht mich?“ und feindliche Spionage im Überblick',
-        i4: 'Allianzgesundheit: wer brummt, wer hinkt nach – früh eingreifen statt überraschend inaktiv',
+        i4: 'Allianz-Fortschritt: wer brummt, wer hinkt nach – früh eingreifen statt überraschend inaktiv',
       },
       expo: {
         title: 'Expedition & Monde',
@@ -797,7 +797,7 @@ const de = {
       list: { title: 'Kämpfe', text: 'Grün = Gewinner, rot = Verlierer. „Spiel“ öffnet den Bericht im Spiel, „lokal“ den im Hub archivierten Bericht, auch wenn das Spiel ihn gelöscht hat.' },
     },
     health: {
-      intro: { title: 'Allianz-Gesundheit', text: 'Wer wächst, wer fällt zurück, wer synchronisiert noch – die ganze Allianz auf einer Seite.' },
+      intro: { title: 'Allianz-Fortschritt', text: 'Wer wächst, wer fällt zurück, wer synchronisiert noch, dazu Allianz-Ziele, Serien, Abzeichen und die Rangliste – die ganze Allianz auf einer Seite.' },
       members: { title: 'Mitglieder', text: 'Wer wächst, wer synchronisiert noch, wie frisch sind die Daten – je Mitglied, mit den Allianz-Zielen darüber.' },
       badges: { title: 'Serien & Abzeichen', text: 'Sync-Serien und Abzeichen aller Mitglieder: wer am Ball bleibt und wer womit glänzt.' },
       ranking: { title: 'Rangliste', text: 'Wer diese Woche am meisten Nützliches eingefügt hat, dazu die Vorwoche und die letzten 30 Tage.' },
@@ -894,7 +894,7 @@ const de = {
       groups: { title: 'Allianzen', text: 'Die Allianz wählen, die du verwalten willst, und Name und Kürzel ändern. Das Kürzel erscheint z. B. in der Online-Anzeige im Menü.' },
       members: { title: 'Mitglieder', text: 'Spieler hinzufügen (auch ohne Hub-Konto, sie erscheinen dann in Allianz und Raidplaner) oder ein vorhandenes Konto zuordnen. Je Mitglied: Rolle, Anzeigename, Ingame-Name und ein Claim-Link zum Anlegen des Kontos bzw. ein Passwort-Link, wenn jemand sein Passwort vergessen hat.' },
       discord: { title: 'Discord-Kanal', text: 'Der Hub postet Angriffe auf Mitglieder, neue Raid-Pläne und Starttermine in einen Discord-Kanal der Allianz, am besten einen, den nur Mitglieder sehen.' },
-      goals: { title: 'Allianz-Ziele', text: 'Zielwerte für die gemeinsamen Ziele festlegen oder einzelne Ziele ausschalten. Die Mitglieder sehen den Fortschritt auf Übersicht und Gesundheit.' },
+      goals: { title: 'Allianz-Ziele', text: 'Zielwerte für die gemeinsamen Ziele festlegen oder einzelne Ziele ausschalten. Die Mitglieder sehen den Fortschritt auf der Übersicht und unter Allianz-Fortschritt.' },
       fleetAttacks: { title: 'Flottenbewegungen', text: 'Angriffe aus den Übersichts-Syncs der Mitglieder. Einen falsch erkannten Eintrag entfernen, dann verschwindet er aus Imperium, Raidplaner und Benachrichtigungen.' },
       inactivity: { title: 'Inaktivitäts-Score prüfen', text: 'Misst an euren eigenen Daten, wie früh der Score vom Spiel markierte Inaktive erkannt hätte und wie oft er falsch lag.' },
       crawler: { title: 'Kampfbericht-Archiv', text: 'Archiviert die Berichte der Battle Hall im Hintergrund. Ist das Spiel nicht erreichbar, pausiert er; „Erneut versuchen“ startet ihn wieder.' },
@@ -1599,7 +1599,7 @@ const de = {
     edit: 'Ziele anpassen',
     target: 'Ziel: {n} %',
     saved: 'Ziele gespeichert',
-    adminHint: 'Gemeinsame Ziele fürs Synchronisieren, für alle Mitglieder auf Übersicht und Gesundheit sichtbar. Änderungen werden sofort gespeichert.',
+    adminHint: 'Gemeinsame Ziele fürs Synchronisieren, für alle Mitglieder auf der Übersicht und unter Allianz-Fortschritt sichtbar. Änderungen werden sofort gespeichert.',
     targetLabel: 'Ziel',
     daysLabel: 'Tage',
     galaxy: {

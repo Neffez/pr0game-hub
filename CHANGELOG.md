@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-18
 
+- The alliance health is called "alliance progress" (menu "Progress", DE "Fortschritt"), as it now holds goals,
+  streaks, badges and the ranking too; its menu icon is a new medal. The address `/health` stays.
+
 - Player profile: a member's reached badges show next to the name and alliance, highest level first (at most 8, on
   a phone 3, the rest as "+n" with the names in the tooltip). `/api/{uni}/achievements` answers each member's
   `playerId`; the online list sorts its badges the same way.
