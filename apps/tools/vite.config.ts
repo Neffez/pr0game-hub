@@ -16,6 +16,7 @@ export default defineConfig({
         ipmCalculator: resolve(import.meta.dirname, 'ipm-calculator/index.html'),
         battleSimulator: resolve(import.meta.dirname, 'battle-simulator/index.html'),
         moonDestruction: resolve(import.meta.dirname, 'moon-destruction/index.html'),
+        autoPlan: resolve(import.meta.dirname, 'auto-plan/index.html'),
       },
     },
   },

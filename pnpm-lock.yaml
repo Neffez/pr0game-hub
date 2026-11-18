@@ -86,6 +86,9 @@ importers:
       '@pr0hub/loot':
         specifier: workspace:*
         version: link:../../packages/loot
+      '@pr0hub/planner':
+        specifier: workspace:*
+        version: link:../../packages/planner
     devDependencies:
       '@types/node':
         specifier: ^24.19.2

@@ -2,6 +2,19 @@
 
 Every commit adds its changes here, newest first, grouped by date.
 
+## 2026-11-19
+
+- Auto plan as a public pr0game tool (`/auto-plan/`, card on the tools index): targets of one planet (buildings,
+  research, ships, defense), a new planet from 0 or levels typed in or taken from the pasted buildings and research
+  pages, start resources, temperature and start time; the search of `@pr0hub/planner` (`standaloneInput`,
+  `startOptimizePool`) runs in several Web Workers with budget, economy, production settings, forbidden buildings,
+  mine ratio and quiet hours; the result shows the finish against the plain order and the steps with their times,
+  copyable as text. Share links carry planet, targets, settings and the universe's economy values.
+  - The tools' universe dialog has an "Economy" group (building, research and shipyard speed, production and storage
+    factor, TechnoDome factor), stored with the other universe values.
+  - `@pr0hub/core/planetPages`: levels (queue counted as built) and resources of a pasted buildings or research page
+    on `cheerio/slim`, loaded by the tool only when a page is pasted.
+
 ## 2026-11-18
 
 - The alliance health is called "alliance progress" (menu "Progress", DE "Fortschritt"), as it now holds goals,

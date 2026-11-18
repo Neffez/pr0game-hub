@@ -42,6 +42,10 @@
       "types": "./dist/parsers/units.d.ts",
       "default": "./dist/parsers/units.js"
     },
+    "./planetPages": {
+      "types": "./dist/parsers/planetPages.d.ts",
+      "default": "./dist/parsers/planetPages.js"
+    },
     "./universe": {
       "types": "./dist/universe.d.ts",
       "default": "./dist/universe.js"

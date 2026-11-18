@@ -1,4 +1,4 @@
-/* Universe settings shared by the tools with a settings dialog (flight calculator, battle simulator): fields, hash
+/* Universe settings shared by the tools with a settings dialog (flight calculator, battle simulator, auto plan): fields, hash
    keys, texts and the dialog's fields. All tools store them under one key, so a universe set up once fits them all;
    each tool keeps the keys of the others. */
 import { TOOL_HASH } from '@pr0hub/core/universe';
@@ -28,7 +28,13 @@ export var UNI_FIELDS = [
   {group: 'groupBattle', key: 'max_moon_chance', label: 'uMaxMoon', step: 1, min: 0, max: 100, hint: 'uMaxMoonHint'},
   {group: 'groupBattle', key: 'big_shields', label: 'uBigShields', type: 'toggle', hint: 'uBigShieldsHint'},
   {group: 'groupBattle', key: 'rate_metal', label: 'uRateMetal', step: 'any', min: 0.01, hint: 'uRateHint'},
-  {group: 'groupBattle', key: 'rate_crystal', label: 'uRateCrystal', step: 'any', min: 0.01, hint: 'uRateHint'}
+  {group: 'groupBattle', key: 'rate_crystal', label: 'uRateCrystal', step: 'any', min: 0.01, hint: 'uRateHint'},
+  {group: 'groupEconomy', key: 'building_speed', label: 'uBuildSpeed', step: 'any', min: 0.01, hint: 'uSpeedHint'},
+  {group: 'groupEconomy', key: 'research_speed', label: 'uResearchSpeed', step: 'any', min: 0.01, hint: 'uSpeedHint'},
+  {group: 'groupEconomy', key: 'shipyard_speed', label: 'uShipyardSpeed', step: 'any', min: 0.01, hint: 'uSpeedHint'},
+  {group: 'groupEconomy', key: 'resource_multiplier', label: 'uResourceSpeed', step: 'any', min: 0.01, hint: 'uResourceSpeedHint'},
+  {group: 'groupEconomy', key: 'storage_multiplier', label: 'uStorage', step: 'any', min: 0.01, hint: 'uStorageHint'},
+  {group: 'groupEconomy', key: 'factor_university', label: 'uUniversity', step: 'any', min: 0, hint: 'uUniversityHint'}
 ];
 export var SHAPES = [[0, 'shapeLinear'], [1, 'shapeRing'], [2, 'shapeSphere']];
 var TOGGLE = [[0, 'toggleOff'], [1, 'toggleOn']];
@@ -56,7 +62,12 @@ export var UNI_TEXTS = {
     uniSummary: 'Speed ×{speed} · {gal} Gal{shape}',
     shapeRingShort: ' · Ring',
     shapeSphereShort: ' · Kugel',
-    groupSpeed: 'Geschwindigkeit', groupLayout: 'Aufbau', groupDistances: 'Entfernungen', groupClock: 'Uhr', groupBattle: 'Kampf',
+    groupSpeed: 'Geschwindigkeit', groupLayout: 'Aufbau', groupDistances: 'Entfernungen', groupClock: 'Uhr', groupBattle: 'Kampf', groupEconomy: 'Wirtschaft',
+    uBuildSpeed: 'Baugeschwindigkeit', uResearchSpeed: 'Forschungsgeschwindigkeit', uShipyardSpeed: 'Werftgeschwindigkeit',
+    uSpeedHint: '1 = normal, 2 = doppelt so schnell. Das Spiel speichert 2500 für 1×.',
+    uResourceSpeed: 'Produktionsfaktor', uResourceSpeedHint: 'Faktor auf die Produktion der Minen, 1 = normal (im Spiel 2500 für 1×).',
+    uStorage: 'Speicherfaktor', uStorageHint: 'Faktor auf die Kapazität der Speicher, 1 = normal.',
+    uUniversity: 'TechnoDome-Faktor (%)', uUniversityHint: 'So viel Prozent kürzer forscht man je Stufe des TechnoDomes, Standard 8.',
     uGameSpeed: 'Flottengeschwindigkeit', uGameSpeedHint: '1 = normal, 2 = doppelt so schnell (Flugzeit und Deuterium)',
     uExpoHold: 'Expeditions-Haltefaktor', uExpoHoldHint: 'Teilt die Haltezeit der Expedition',
     uHonor: 'Deuterium-Faktor', uHonorHint: 'Ehren-Boost auf den Verbrauch',
@@ -91,7 +102,12 @@ export var UNI_TEXTS = {
     uniSummary: 'Speed ×{speed} · {gal} gal{shape}',
     shapeRingShort: ' · ring',
     shapeSphereShort: ' · sphere',
-    groupSpeed: 'Speed', groupLayout: 'Layout', groupDistances: 'Distances', groupClock: 'Clock', groupBattle: 'Battle',
+    groupSpeed: 'Speed', groupLayout: 'Layout', groupDistances: 'Distances', groupClock: 'Clock', groupBattle: 'Battle', groupEconomy: 'Economy',
+    uBuildSpeed: 'Building speed', uResearchSpeed: 'Research speed', uShipyardSpeed: 'Shipyard speed',
+    uSpeedHint: '1 = normal, 2 = twice as fast. The game stores 2500 for 1×.',
+    uResourceSpeed: 'Production factor', uResourceSpeedHint: 'Factor on the production of the mines, 1 = normal (2500 for 1× in the game).',
+    uStorage: 'Storage factor', uStorageHint: 'Factor on the capacity of the storages, 1 = normal.',
+    uUniversity: 'TechnoDome factor (%)', uUniversityHint: 'Research gets this many percent faster per level of the TechnoDome, default 8.',
     uGameSpeed: 'Fleet speed', uGameSpeedHint: '1 = normal, 2 = twice as fast (flight time and deuterium)',
     uExpoHold: 'Expedition hold factor', uExpoHoldHint: 'Divides the expedition hold time',
     uHonor: 'Deuterium factor', uHonorHint: 'Honor boost applied to consumption',

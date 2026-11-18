@@ -146,6 +146,11 @@ German and English, keep their input locally in the browser and put it into shar
 - **Moon destruction calculator** (`/moon-destruction/`): chance to destroy a moon with Death Stars and to lose them,
   per wave and in total over several waves (formulas of the game), and the fewest Death Stars per wave for a wanted
   total chance; the diameter is typed in or taken from the pasted moon tooltip of the galaxy view.
+- **Auto plan** (`/auto-plan/`): the build order that reaches target levels of buildings, research, ships and defense
+  on one planet fastest, with all requirements and the mines, power plants and storages that make it faster (the
+  hub's auto plan, `@pr0hub/planner`, searched in several Web Workers). A new planet starts at 0; the pasted buildings
+  and research pages fill in an existing one. Building, research, shipyard and production speed are universe
+  settings; optional production settings, forbidden buildings, a mine ratio and quiet hours.
 
 The hub links into the tools with prefilled values (e.g. from spy reports and the raid planner), but every tool can
 be used on its own.
@@ -193,7 +198,7 @@ pnpm --filter @pr0hub/web dev
 
 # tools (flight calculator), no server needed
 pnpm --filter @pr0hub/tools dev
-# -> http://localhost:5174/flight-calculator/, /acs-loot/, /ipm-calculator/, /battle-simulator/ and /moon-destruction/
+# -> http://localhost:5174/flight-calculator/, /acs-loot/, /ipm-calculator/, /battle-simulator/, /moon-destruction/ and /auto-plan/
 ```
 
 ```bash
@@ -305,8 +310,8 @@ Docker image (`Dockerfile`, port 3000, volume `/data`), configured with the envi
 The static tools are a second target of the same Dockerfile: `docker build --target tools .` gives an nginx image
 with the tools index at `/`, the flight calculator at `/flight-calculator/` (the hub links there), the ACS loot calculator at
 `/acs-loot/`, the interplanetary missile calculator at `/ipm-calculator/` (the hub links there from spy reports), the
-battle simulator at `/battle-simulator/` and the moon destruction calculator at `/moon-destruction/` (the hub links
-there from moons).
+battle simulator at `/battle-simulator/`, the moon destruction calculator at `/moon-destruction/` (the hub links
+there from moons) and the auto plan at `/auto-plan/`.
 
 Push notifications need outbound HTTPS from the hub to the browsers' push services (Google, Mozilla, Apple, Microsoft),
 Discord notifications to `discord.com`.
