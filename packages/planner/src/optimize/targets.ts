@@ -73,10 +73,11 @@ export function requirementsOfElement(id: number): Record<string, number> {
 }
 
 /**
- * The flat targets (element id -> level or count) with all requirements merged in (the higher level wins). Throws
- * `OptimizeError` for unknown elements, wrong kinds and levels above the game's maximum.
+ * The flat targets (element id -> level or count) with all requirements merged in (the higher level wins). Levels in
+ * `have` (reached already) add no requirements. Throws `OptimizeError` for unknown elements, wrong kinds and levels
+ * above the game's maximum.
  */
-export function expandTargets(targets: OptimizeTargets, planetType: 'planet' | 'moon' = 'planet'): Record<number, number> {
+export function expandTargets(targets: OptimizeTargets, planetType: 'planet' | 'moon' = 'planet', have: Record<number, number> = {}): Record<number, number> {
   const out: Record<number, number> = {};
   const add = (kind: ElementKind, raw: Record<string, number> | undefined) => {
     for (const [key, value] of Object.entries(raw ?? {})) {
@@ -97,8 +98,9 @@ export function expandTargets(targets: OptimizeTargets, planetType: 'planet' | '
   for (let round = 0; round < 200; round++) {
     let changed = false;
     for (const [key, level] of Object.entries(out)) {
-      if (level <= 0) continue;
       const id = Number(key);
+      // a level reached already needs nothing more (its requirements were met when it was built)
+      if (level <= 0 || level <= (have[id] ?? 0)) continue;
       const req: Record<string, number> = { ...requirementsOfElement(id) };
       // research needs a lab on the planet it runs on
       if (kindOf(id) === 'research') req[RESEARCH_LAB] = Math.max(req[RESEARCH_LAB] ?? 0, 1);

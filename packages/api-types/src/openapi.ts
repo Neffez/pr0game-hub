@@ -3281,6 +3281,11 @@ export type components = {
                  * @default 2
                  */
                 noLaterWeight: number;
+                /**
+                 * @description Seconds of penalty per second a kept transport with a time (`notBefore`, `arriveAt`) leaves later than in the current timeline (the planets it feeds plan with that time)
+                 * @default 100
+                 */
+                keepTimeWeight: number;
                 /** @description Soft penalty when crystal is more than `crystalBelowMetal` + `tolerance` levels below metal, or deuterium more than `deutBelowCrystal` + `tolerance` below crystal */
                 mineRatio?: {
                     /** @default 2 */
@@ -3349,8 +3354,12 @@ export type components = {
             finishAt: number;
             /** @description Unix seconds the targets and the open steps of the list are reached */
             targetsFinishAt: number;
-            /** @description `finishAt` of the current list (its open steps as they are, storages added where costs need them, plus what the targets need), null when it is not a valid start */
+            /** @description `finishAt` of the current list (its open steps as they are, storages added where costs need them, plus what the targets need), null when it is not a valid start (`currentError` says why) */
             currentFinishAt: number | null;
+            /** @description Why `currentFinishAt` is null */
+            currentError: string | null;
+            /** @description When the build order as it is now is through by its timeline (the goals' `currentEnd` and the kept steps' ends, storages it lacks counted as resources by transport): the comparison when `currentFinishAt` is null; null when a target is not reached there */
+            asIsFinishAt: number | null;
             /** @description The same with only the required steps in the plain order (no economy) */
             baselineFinishAt: number;
             /** @description The greedy plan before the search */
@@ -3368,24 +3377,32 @@ export type components = {
                     [key: string]: number;
                 };
             };
-            /** @description What the objective measured: each target, each open step of the list and (with `noLater`) each kept ship, defense or research step, with its end now and in the result */
+            /** @description What the objective measured: each target, each open step of the list, (with `noLater`) each kept ship, defense or research step and each open ship, defense or research step of the planets the list's transports feed, and the departure of each kept transport with a time; with its end (start) now and in the result */
             goals: {
+                /** @description Element of the step, 0 for a transport */
                 element: number;
-                /** @description Level or count reached; null: the end of the kept step `step` */
+                /** @description Level or count reached; null: the end (`measure`) of the step `step` */
                 level: number | null;
                 /** @description Soft deadline (Unix seconds) */
                 by: number | null;
                 weight: number;
                 /**
-                 * @description Asked for, an open step of the list, a kept step
+                 * @description Asked for, an open step of the list, a kept step, a step of another planet the list feeds
                  * @enum {string}
                  */
-                source: "target" | "existing" | "kept";
-                /** @description Id of the step of the result that reaches it, null for a target asked for */
+                source: "target" | "existing" | "kept" | "other";
+                /** @description Id of the step that reaches it (of the result, or of the other planet's list), null for a target asked for */
                 step: string | null;
-                /** @description End in the current build order, null when not reached there */
+                /** @description Hub planet key of the list the goal belongs to */
+                planet: string;
+                /**
+                 * @description What counts: the step's end, or its start (the departure of a kept transport with a time)
+                 * @enum {string}
+                 */
+                measure: "end" | "start";
+                /** @description End (start) in the current build order, null when not reached there */
                 currentEnd: number | null;
-                /** @description End in the result */
+                /** @description End (start) in the result */
                 end: number;
             }[];
             /** @description Start and end of each step of the optimized tail */

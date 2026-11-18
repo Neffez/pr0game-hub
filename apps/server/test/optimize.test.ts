@@ -122,10 +122,11 @@ describe('build order search', () => {
     expect((await post({ planet: HOME, targets: [{ element: 21 }], budgetSeconds: 1 })).json().code).toBe('optimize_invalid');
     expect((await post({ planet: HOME, targets: [{ element: 21, level: 2, weight: -1 }], budgetSeconds: 1 })).statusCode).toBe(400);
     expect((await post({ planet: HOME, targets: { buildings: { 21: 2 } }, options: { noLaterWeight: 'x' }, budgetSeconds: 1 })).statusCode).toBe(400);
+    expect((await post({ planet: HOME, targets: { buildings: { 21: 2 } }, options: { keepTimeWeight: -1 }, budgetSeconds: 1 })).statusCode).toBe(400);
     const by = t + 30 * 86400;
     const res = await post({
       planet: HOME, targets: [{ element: 21, level: 2, by, weight: 3 }, { element: 202, count: 2 }], budgetSeconds: 1, seed: 2,
-      options: { noLater: true, noLaterWeight: 5 },
+      options: { noLater: true, noLaterWeight: 5, keepTimeWeight: 50 },
     });
     expect(res.statusCode).toBe(202);
     const job = await finished(res.json().job, h.carol);
@@ -133,6 +134,11 @@ describe('build order search', () => {
     const best = job.best;
     expect(best.targetsFinishAt).toBeLessThanOrEqual(best.finishAt);
     expect(best.currentFinishAt === null || typeof best.currentFinishAt === 'number').toBe(true);
+    // without a current finish the answer says why, and the build order as it is gives a comparison
+    if (best.currentFinishAt === null) expect(best.currentError).toEqual(expect.any(String));
+    else expect(best.currentError).toBeNull();
+    expect(best.asIsFinishAt === null || typeof best.asIsFinishAt === 'number').toBe(true);
+    expect(best.goals.every((g: { planet: string; measure: string }) => g.planet === HOME && ['end', 'start'].includes(g.measure))).toBe(true);
     const shipyard = best.goals.find((g: { source: string; element: number }) => g.source === 'target' && g.element === 21);
     expect(shipyard).toMatchObject({ level: 2, by, weight: 3, step: null });
     expect(shipyard.currentEnd === null || typeof shipyard.currentEnd === 'number').toBe(true);

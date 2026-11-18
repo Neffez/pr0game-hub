@@ -4,6 +4,19 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-18
 
+- Auto plan: kept transports keep their time, and the planets they feed count.
+  - A kept transport with a time (`notBefore`, `arriveAt`) keeps its departure from the current timeline: a heavy
+    soft deadline on its start (`options.keepTimeWeight`, default 100 seconds per second late), and the greedy plan
+    lets it go before a step that would hold it back. Before, all transports of a colony could move to the end of
+    its list and leave a week later.
+  - With `noLater`, the open ship, defense and research steps of the planets the list's transports feed are goals
+    too (deadline at their current end), so a plan that helps the colony by delaying the home planet loses. `goals`
+    names each goal's `planet` and `measure` (`end`, or `start` for a departure; source `other` for another planet).
+  - `currentError` says why `currentFinishAt` is null; `asIsFinishAt` is the finish of the build order as it is now
+    (from the goals' current ends) as a comparison.
+  - Target expansion no longer adds the requirements of levels already reached (a research a ship needs that is
+    done made the plan build a research lab on a colony without one).
+
 - Auto plan (build order optimizer) usable for fleet players: priorities, the ships of transports, kept steps.
   - Targets can be entries `{ element, level | count, by, weight }` besides the map form: a target finished after
     `by` costs `weight` seconds of penalty per second late. The objective is the finish plus that lateness plus a

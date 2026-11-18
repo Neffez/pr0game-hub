@@ -34,6 +34,9 @@
  *   the ship steps that build the ships it carries (the simulation does not track ships); the greedy builds a kept
  *   step's requirements and ships before it; the current list (storages added where it counted on transports) is a
  *   start of the search, so the result is never worse by the objective.
+ * - kept transports with a time keep their departure (a goal on the step's start, weight 100) and the planets the
+ *   list's transports feed have their open ship, defense and research steps as goals (`noLater`): their planets
+ *   live on those transports;
  * Tried and not kept (no better at equal simulations): a single pass with the production moves mixed in (COL1 23.8 h
  * instead of 21.4 h), a local shift move, start temperatures of 600 and 1800 s instead of pr0plan's 2 h.
  */
@@ -100,7 +103,11 @@ export interface OptimizeGoalResult {
   source: Goal['source'];
   /** id of the step it stems from in the result (a new id for an existing step that moved), null for a target */
   step: string | null;
-  /** end in the current build order (null: not reached there) */
+  /** hub planet key of the list it belongs to (another planet: a step its transports feed) */
+  planet: string;
+  /** what counts: the step's end, or its start (a kept transport with a time: its departure) */
+  measure: Goal['measure'];
+  /** end (start) in the current build order (null: not reached there) */
   currentEnd: number | null;
   end: number;
 }
@@ -118,6 +125,14 @@ export interface OptimizeResult {
   targetsFinishAt: number;
   /** `finishAt` of the current list (its open steps as they are, plus what the targets need), null without one */
   currentFinishAt: number | null;
+  /** why `currentFinishAt` is null (the current list is not a valid start of the search) */
+  currentError: string | null;
+  /**
+   * when the build order as it is now is through, by its timeline (every goal's `currentEnd` and the kept steps' ends;
+   * storages it lacks count as resources by transport): the comparison when `currentFinishAt` is null; null when a
+   * goal is not reached there
+   */
+  asIsFinishAt: number | null;
   /** the same with only the required steps, in the greedy order without economy (the plain order) */
   baselineFinishAt: number;
   /** the greedy plan before the search */
@@ -163,8 +178,10 @@ function search(input: OptimizeInput, run: OptimizeRun): OptimizeResult {
     }
   }
   // the current list is a start too: with deadlines at its own ends it is hard to beat, and the result is never worse
-  const current = currentPlan(problem);
+  const plan = currentPlan(problem);
+  const current = plan.items;
   const currentFit = current ? fit(current) : null;
+  const currentError = plan.error ?? (currentFit && !currentFit.valid ? (currentFit.reason ?? 'not valid') : null);
   if (current && currentFit?.valid && currentFit.value < bestFit.value) {
     best = current;
     bestFit = currentFit;
@@ -182,7 +199,7 @@ function search(input: OptimizeInput, run: OptimizeRun): OptimizeResult {
     const t = Date.now();
     if (!force && t - lastBest < (run.bestEveryMs ?? 1000)) return;
     lastBest = t;
-    run.onBest(resultOf(problem, best, { baselineFinishAt, greedyFinishAt, currentFinishAt, iterations, evaluations: problem.stats.evaluations }, run.newId));
+    run.onBest(resultOf(problem, best, { baselineFinishAt, greedyFinishAt, currentFinishAt, currentError, iterations, evaluations: problem.stats.evaluations }, run.newId));
   };
   run.onProgress?.({ phase: 'greedy', iteration: 0, evaluations: problem.stats.evaluations, finishAt: bestFit.finish });
   report(true);
@@ -224,7 +241,7 @@ function search(input: OptimizeInput, run: OptimizeRun): OptimizeResult {
     report(true);
     if (run.shouldStop?.()) break;
   }
-  return resultOf(problem, best, { baselineFinishAt, greedyFinishAt, currentFinishAt, iterations, evaluations: problem.stats.evaluations }, run.newId);
+  return resultOf(problem, best, { baselineFinishAt, greedyFinishAt, currentFinishAt, currentError, iterations, evaluations: problem.stats.evaluations }, run.newId);
 }
 
 let idCount = 0;
@@ -232,7 +249,7 @@ const defaultId = () => `opt-${Date.now().toString(36)}-${(idCount++).toString(3
 
 /** The proposal of a tail: dead steps dropped, ids given, the timeline, the goals' ends. */
 function resultOf(
-  problem: Problem, items: Item[], stats: Pick<OptimizeResult, 'baselineFinishAt' | 'greedyFinishAt' | 'currentFinishAt' | 'iterations' | 'evaluations'>,
+  problem: Problem, items: Item[], stats: Pick<OptimizeResult, 'baselineFinishAt' | 'greedyFinishAt' | 'currentFinishAt' | 'currentError' | 'iterations' | 'evaluations'>,
   newId = defaultId,
 ): OptimizeResult {
   // the optimizer's steps after the last required or kept one change nothing
@@ -263,13 +280,27 @@ function resultOf(
     }),
     finishAt: fitness.finish,
     targetsFinishAt: fitness.targetsFinish,
+    asIsFinishAt: asIsFinish(problem),
     goals: problem.goals.map((g, i) => ({
-      element: g.element, level: g.level, by: g.by, weight: g.weight, source: g.source,
+      element: g.element, level: g.level, by: g.by, weight: g.weight, source: g.source, planet: g.planet, measure: g.measure,
       step: g.source === 'target' ? null : g.level == null ? g.step : (ids.get(reached[i] ?? '') ?? reached[i] ?? null),
       currentEnd: g.current, end: fitness.ends[i],
     })),
     ...stats,
   };
+}
+
+/** `finishAt` of the build order as it is now: its goals' current ends and the kept steps' ends there. */
+function asIsFinish(problem: Problem): number | null {
+  let at = problem.input.now;
+  for (const g of problem.goals) {
+    if (g.planet !== problem.planet || g.measure !== 'end') continue;
+    if (g.current == null) return null;
+    at = Math.max(at, g.current);
+  }
+  const ends = new Map(problem.baseline.steps.map((r) => [r.id, r.end]));
+  for (const k of problem.kept) at = Math.max(at, ends.get(k.step.id) ?? at);
+  return at;
 }
 
 /** The step of the tail whose cumulative level reaches each goal (kept goals: their step). */

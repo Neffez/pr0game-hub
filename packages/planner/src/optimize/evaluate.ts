@@ -1,7 +1,7 @@
 import { RESEARCH_LAB } from '@pr0hub/core/buildings';
 import { simulate, type Simulation, type SimState } from '../simulate.js';
 import type { BuildOrder } from '../types.js';
-import { amountOf, MINES, type Item, type Problem } from './problem.js';
+import { amountOf, MINES, type Goal, type Item, type Problem } from './problem.js';
 import { requirementsOfElement } from './targets.js';
 
 /**
@@ -27,9 +27,12 @@ export interface Fitness {
   ends: number[];
   /** index of the last required or kept step in the tail (the optimizer's steps after it are dead: they change nothing) */
   last: number;
+  /** why it is not valid */
+  reason?: string;
 }
 
 export const INVALID: Fitness = { valid: false, finish: Infinity, targetsFinish: Infinity, value: Infinity, wealth: 0, ends: [], last: -1 };
+const invalid = (reason: string): Fitness => ({ ...INVALID, reason });
 
 /** share of the goals' completion times in the objective, spread over all goals */
 const SPREAD = 0.1;
@@ -88,12 +91,12 @@ export function structureError(problem: Problem, items: Item[]): string | null {
 }
 
 /** When each goal is reached: the end of the step whose cumulative level reaches it, of its kept step; null: not reached. */
-export function goalEnds(problem: Problem, items: Item[], endOf: (id: string) => number | null): (number | null)[] {
+export function goalEnds(problem: Problem, items: Item[], endOf: (id: string, measure: Goal['measure']) => number | null): (number | null)[] {
   return goalAt(problem, items, endOf, problem.input.now);
 }
 
 /** `at` of the step that reaches each goal (`atStart` when the levels the tail starts from reach it already). */
-export function goalAt<T>(problem: Problem, items: Item[], endOf: (id: string) => T | null, atStart: T | null): (T | null)[] {
+export function goalAt<T>(problem: Problem, items: Item[], endOf: (id: string, measure: Goal['measure']) => T | null, atStart: T | null): (T | null)[] {
   const ends: (T | null)[] = problem.goals.map((g) => (g.level != null && g.level <= (problem.start[g.element] ?? 0) ? atStart : null));
   const cum: Record<number, number> = {};
   const next = new Map<number, number>();
@@ -105,13 +108,13 @@ export function goalAt<T>(problem: Problem, items: Item[], endOf: (id: string) =
     if (!goals) continue;
     let k = next.get(el) ?? 0;
     while (k < goals.length && problem.goals[goals[k]].level! <= cum[el]) {
-      if (ends[goals[k]] == null) ends[goals[k]] = endOf(it.step.id);
+      if (ends[goals[k]] == null) ends[goals[k]] = endOf(it.step.id, 'end');
       k++;
     }
     next.set(el, k);
   }
   problem.goals.forEach((g, i) => {
-    if (g.level == null) ends[i] = endOf(g.step!);
+    if (g.level == null) ends[i] = endOf(g.step!, g.measure);
   });
   return ends;
 }
@@ -123,9 +126,10 @@ export interface Evaluation {
 
 export function evaluate(problem: Problem, items: Item[]): Evaluation {
   problem.stats.evaluations++;
-  if (structureError(problem, items)) return { fitness: INVALID, sim: null };
+  const broken = structureError(problem, items);
+  if (broken) return { fitness: invalid(broken), sim: null };
   const required = requiredIndices(problem, items);
-  const ids = [...required.map((i) => items[i].step.id), ...items.filter((it) => it.kept).map((it) => it.step.id)];
+  const ids = [...required.map((i) => items[i].step.id), ...items.filter((it) => it.kept).map((it) => it.step.id), ...problem.watch];
   const { input } = problem;
   const sim = simulate(orderWith(problem, items), problem.hub, {
     now: input.now, units: input.units, universe: input.universe, lean: true, state: true, stop: { ids, at: 'end' },
@@ -135,17 +139,17 @@ export function evaluate(problem: Problem, items: Item[]): Evaluation {
 
 export function fitnessOf(problem: Problem, items: Item[], sim: Simulation, required = requiredIndices(problem, items)): Fitness {
   const byId = new Map(sim.steps.map((s) => [s.id, s]));
-  for (const s of sim.steps) if (s.state === 'invalid' && !problem.baselineInvalid.has(s.id)) return INVALID;
+  for (const s of sim.steps) if (s.state === 'invalid' && !problem.baselineInvalid.has(s.id)) return invalid(`step ${s.id} of ${s.planet} can never start (${s.wait})`);
   // the optimizer's steps must fit into the storages: the timeline assumes what does not fit comes by transport
-  for (const it of items) if (!it.kept && byId.get(it.step.id)?.transport) return INVALID;
+  for (const it of items) if (!it.kept && byId.get(it.step.id)?.transport) return invalid(`step ${it.step.id} needs more than the storages hold`);
   // every required step must have been simulated and planned
   for (const i of required) {
     const r = byId.get(items[i].step.id);
-    if (!r || r.state !== 'planned' || r.end == null) return INVALID;
+    if (!r || r.state !== 'planned' || r.end == null) return invalid(`step ${items[i].step.id} is not planned`);
   }
-  const endOf = (id: string) => {
+  const endOf = (id: string, measure: Goal['measure']) => {
     const r = byId.get(id);
-    return r?.state === 'planned' ? r.end : null;
+    return r?.state === 'planned' ? (measure === 'start' ? r.start : r.end) : null;
   };
   const now = problem.input.now;
   const found = goalEnds(problem, items, endOf);
@@ -157,23 +161,25 @@ export function fitnessOf(problem: Problem, items: Item[], sim: Simulation, requ
     const end = found[i];
     if (end == null) {
       if (g.level == null) {
-        // a kept step without an end (its colonization waits for astrophysics elsewhere): not measured
+        // a kept step without an end (its colonization waits for astrophysics elsewhere), a step of another planet
+        // after the simulation stopped: not measured
         ends.push(now);
         continue;
       }
-      return INVALID;
+      return invalid(`goal ${g.element} level ${g.level} is not reached`);
     }
     ends.push(end);
     if (g.level != null) targetsFinish = Math.max(targetsFinish, end);
     if (g.by != null && end > g.by) lateness += g.weight * (end - g.by);
-    spread += g.weight * (end - now);
+    // a departure is kept, not hurried: only its lateness counts
+    if (g.measure === 'end') spread += g.weight * (end - now);
   }
   let finish = targetsFinish;
   let last = required.length ? required[required.length - 1] : -1;
   items.forEach((it, i) => {
     if (!it.kept) return;
     last = Math.max(last, i);
-    const end = endOf(it.step.id);
+    const end = endOf(it.step.id, 'end');
     if (end != null) finish = Math.max(finish, end);
   });
   let penalty = lateness + (problem.goals.length ? (SPREAD / problem.goals.length) * spread : 0);

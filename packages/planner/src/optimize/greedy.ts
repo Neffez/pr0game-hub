@@ -100,7 +100,13 @@ export function greedyPlan(problem: Problem, mode: GreedyMode = 'score'): Item[]
     // a cost above the planned storage needs the storage first (the timeline would assume the rest comes by transport)
     const storage = storageFor(m, v, costOf(m, v, chosen, has(left, chosen) ? countOf(left, chosen) : 1));
     if (storage != null) chosen = storage;
-    items.push({ step: stepOf(problem, chosen, has(left, chosen) ? countOf(left, chosen) : 1), kept: false });
+    const item: Item = { step: stepOf(problem, chosen, has(left, chosen) ? countOf(left, chosen) : 1), kept: false };
+    // the list runs in order: a step that would hold back a kept transport past its time waits until it left
+    if (kept.length && !restricted && heldBack(problem, items, item, kept[0]) && !missingFor(problem, v, kept[0].step, left).length) {
+      items.push(kept.shift()!);
+      continue;
+    }
+    items.push(item);
     // deviation from pr0plan: an economy level of an element that is also a target counts as one of its required
     // levels (pr0plan only counts the required candidate, so its greedy plans overshoot such targets by the number of
     // economy levels taken; measured: HOME mines fixture 24/20/14 ended at metal 27 and crystal 23)
@@ -111,6 +117,20 @@ export function greedyPlan(problem: Problem, mode: GreedyMode = 'score'): Item[]
   if (broken) throw new OptimizeError(`greedy: ${broken}`);
   return out;
 }
+
+/** Whether `item` before the kept step `next` makes it leave later than its departure goal (a kept transport with a time). */
+function heldBack(problem: Problem, items: Item[], item: Item, next: Item): boolean {
+  const goal = problem.goals.find((g) => g.measure === 'start' && g.step === next.step.id);
+  if (!goal) return false;
+  const sim = simulate(orderWith(problem, [...items, item, next]), problem.hub, {
+    now: problem.input.now, units: problem.input.units, universe: problem.input.universe, lean: true, stop: { ids: [next.step.id], at: 'start' },
+  });
+  const start = sim.steps.find((r) => r.id === next.step.id)?.start;
+  return start == null || start > goal.by! + HELD_BACK_SLACK;
+}
+
+/** seconds a kept transport may leave later before the greedy lets it go first */
+const HELD_BACK_SLACK = 60;
 
 /** A new step of the optimizer for an element (`count` units for ships and defense). */
 export function stepOf(problem: Problem, element: number, count = 1): Step {
@@ -220,10 +240,10 @@ function plainRest(problem: Problem, m: Model, view: View, left: Left): Item[] {
 
 /**
  * The current list as a start of the search (with `includeExisting`): its open steps as they are, then what the
- * targets need beyond them in the plain order. Null when that is not a valid tail.
+ * targets need beyond them in the plain order; `error` says why it is not a valid tail.
  */
-export function currentPlan(problem: Problem): Item[] | null {
-  if (!problem.includeExisting) return null;
+export function currentPlan(problem: Problem): { items: Item[] | null; error: string | null } {
+  if (!problem.includeExisting) return { items: null, error: 'without includeExisting the current list does not reach the same goals' };
   const keptIds = new Set(problem.kept.map((k) => k.step.id));
   const items: Item[] = [];
   const left = leftOf(problem);
@@ -246,16 +266,17 @@ export function currentPlan(problem: Problem): Item[] | null {
     items.push(...plainRest(problem, modelOf(problem, sim.final!), v, left));
   }
   const repaired = withStorages(problem, items);
-  return structureError(problem, repaired) ? null : repaired;
+  const broken = structureError(problem, repaired);
+  return broken ? { items: null, error: broken } : { items: repaired, error: null };
 }
 
 /**
  * A storage level before each of the optimizer's steps that does not fit into the storages (a list written by hand
- * often counts on resources coming by transport; the search does not), at most 30.
+ * often counts on resources coming by transport; the search does not), at most 60.
  */
 function withStorages(problem: Problem, items: Item[]): Item[] {
   let out = items;
-  for (let guard = 0; guard < 30; guard++) {
+  for (let guard = 0; guard < 60; guard++) {
     const sim = simulate(orderWith(problem, out), problem.hub, { now: problem.input.now, units: problem.input.units, universe: problem.input.universe, lean: true });
     const byId = new Map(sim.steps.map((r) => [r.id, r]));
     const i = out.findIndex((it) => !it.kept && byId.get(it.step.id)?.transport);

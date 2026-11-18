@@ -108,6 +108,7 @@ export function parseOptimizeRequest(body: unknown): OptimizeRequest {
     options.includeExisting = bool(o.includeExisting, 'options.includeExisting');
     options.noLater = bool(o.noLater, 'options.noLater');
     if (o.noLaterWeight != null) options.noLaterWeight = num(o.noLaterWeight, 'options.noLaterWeight', 0, 1e4);
+    if (o.keepTimeWeight != null) options.keepTimeWeight = num(o.keepTimeWeight, 'options.keepTimeWeight', 0, 1e5);
     if (o.forbid != null) {
       if (!Array.isArray(o.forbid) || o.forbid.length > 100) throw bad('options.forbid: element ids');
       options.forbid = o.forbid.map((id, i) => int(id, `options.forbid[${i}]`, 1, 999));
@@ -275,6 +276,8 @@ export function jobView(job: OptimizeJob) {
           finishAt: job.best.finishAt,
           targetsFinishAt: job.best.targetsFinishAt,
           currentFinishAt: job.best.currentFinishAt,
+          currentError: job.best.currentError,
+          asIsFinishAt: job.best.asIsFinishAt,
           baselineFinishAt: job.best.baselineFinishAt,
           greedyFinishAt: job.best.greedyFinishAt,
           steps: job.best.steps,

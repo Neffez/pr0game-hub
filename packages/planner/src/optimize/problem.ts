@@ -55,6 +55,11 @@ export interface OptimizeOptions {
   noLater?: boolean;
   /** seconds of penalty per second such a step ends later (default 2) */
   noLaterWeight?: number;
+  /**
+   * seconds of penalty per second a kept transport with a time (`notBefore`, `arriveAt`) leaves later than in the
+   * current timeline (default 100: the planets it feeds plan with that time)
+   */
+  keepTimeWeight?: number;
 }
 
 export interface OptimizeInput {
@@ -87,21 +92,27 @@ export const MINES = [1, 2, 3];
 
 /**
  * What the objective measures: a level or count of an element to reach (the end of the step whose cumulative level in
- * the list reaches it), or the end of a kept step (`level` null), each with an optional soft deadline.
+ * the list reaches it), or the end or start of one step (`level` null: a kept step, a step of another planet's list),
+ * each with an optional soft deadline.
  */
 export interface Goal {
+  /** element of the step (0 for a transport) */
   element: number;
-  /** level or count to reach; null: the end of the kept step `step` */
+  /** level or count to reach; null: the end (`measure`) of the step `step` */
   level: number | null;
   /** soft deadline (epoch seconds) */
   by: number | null;
   /** seconds of penalty per second late (and the goal's share of the small sum of completion times) */
   weight: number;
-  /** `target`: asked for; `existing`: an open step of the list; `kept`: a kept step */
-  source: 'target' | 'existing' | 'kept';
+  /** `target`: asked for; `existing`: an open step of the list; `kept`: a kept step; `other`: a step of another planet the list feeds */
+  source: 'target' | 'existing' | 'kept' | 'other';
   /** the step of the list the goal stems from */
   step: string | null;
-  /** end in the current build order (null: not reached there) */
+  /** hub planet key of the list the goal belongs to */
+  planet: string;
+  /** what counts: the step's end, or its start (a kept transport with a time: its departure) */
+  measure: 'end' | 'start';
+  /** end (start) in the current build order (null: not reached there) */
   current: number | null;
 }
 
@@ -138,6 +149,8 @@ export interface Problem {
   units: Map<number, number[]>;
   /** unit steps of the list among `units` (the first ones of each element) */
   existingUnits: Map<number, number>;
+  /** steps of other planets' lists that are goals: the simulation runs until they are done */
+  watch: string[];
   /** transports of the tail whose ships the list builds: they must come after enough of them (step id -> ships) */
   transportShips: Map<string, { ship: number; count: number }[]>;
   includeExisting: boolean;
@@ -204,6 +217,10 @@ export function setupProblem(input: OptimizeInput): Problem {
     const r = baselineById.get(id);
     return r?.state === 'planned' ? r.end : null;
   };
+  const baselineStart = (id: string) => {
+    const r = baselineById.get(id);
+    return r?.state === 'planned' ? r.start : null;
+  };
 
   // goals: the open steps of the list (each ship, defense and research step its own, with a deadline at its end now
   // under `noLater`), the highest level of each building, then the targets asked for
@@ -221,7 +238,7 @@ export function setupProblem(input: OptimizeInput): Problem {
     const timed = s.kind !== 'building';
     if (keptSet.has(s.id)) {
       keptCount[s.element] = (keptCount[s.element] ?? 0) + amountOf(s);
-      if (noLater && timed) goals.push({ element: s.element, level: null, by: baselineEnd(s.id), weight: noLaterWeight, source: 'kept', step: s.id, current: baselineEnd(s.id) });
+      if (noLater && timed) goals.push({ element: s.element, level: null, by: baselineEnd(s.id), weight: noLaterWeight, source: 'kept', step: s.id, planet, measure: 'end', current: baselineEnd(s.id) });
       continue;
     }
     if (!includeExisting) continue;
@@ -232,12 +249,35 @@ export function setupProblem(input: OptimizeInput): Problem {
     if (isUnitStep(s)) existingChunks.set(s.element, [...(existingChunks.get(s.element) ?? []), amountOf(s)]);
     goals.push({
       element: s.element, level: reach[s.element], by: noLater ? baselineEnd(s.id) : null, weight: noLater ? noLaterWeight : 1, source: 'existing', step: s.id,
-      current: baselineEnd(s.id),
+      planet, measure: 'end', current: baselineEnd(s.id),
     });
   }
-  for (const [element, b] of buildingMax) goals.push({ element, level: b.level, by: null, weight: 1, source: 'existing', step: b.step, current: baselineEnd(b.step) });
+  for (const [element, b] of buildingMax) goals.push({ element, level: b.level, by: null, weight: 1, source: 'existing', step: b.step, planet, measure: 'end', current: baselineEnd(b.step) });
   for (const t of targetEntries(input.targets)) {
-    goals.push({ element: t.element, level: (t.level ?? t.count)!, by: t.by ?? null, weight: t.weight ?? 1, source: 'target', step: null, current: null });
+    goals.push({ element: t.element, level: (t.level ?? t.count)!, by: t.by ?? null, weight: t.weight ?? 1, source: 'target', step: null, planet, measure: 'end', current: null });
+  }
+  // kept transports with a time keep their departure: the planets they feed plan with it
+  const keepTimeWeight = o.keepTimeWeight ?? 100;
+  for (const k of kept) {
+    const tr = k.step.transport;
+    if (!tr || !keptOpen.has(k.step.id) || (tr.notBefore == null && tr.arriveAt == null)) continue;
+    const at = baselineStart(k.step.id);
+    if (at != null) goals.push({ element: 0, level: null, by: at, weight: keepTimeWeight, source: 'kept', step: k.step.id, planet, measure: 'start', current: at });
+  }
+  // the planets the list's transports feed: their open ship, defense and research steps should not end later either
+  const watch: string[] = [];
+  if (noLater) {
+    const fed = new Set(tail.filter((s) => isOpen(s) && s.transport?.target).map((s) => s.transport!.target!));
+    for (const key of fed) {
+      if (key === planet) continue;
+      for (const s of order.planets[key] ?? []) {
+        if (s.deactivated || s.element == null || s.kind === 'building' || doneStateOf(s, targetsNow.get(s.id), key, hub) !== 'open') continue;
+        const end = baselineEnd(s.id);
+        if (end == null) continue;
+        goals.push({ element: s.element, level: null, by: end, weight: noLaterWeight, source: 'other', step: s.id, planet: key, measure: 'end', current: end });
+        watch.push(s.id);
+      }
+    }
   }
   // the current end of the targets asked for: where the list reaches them now
   const cum: Record<number, number> = { ...start };
@@ -260,7 +300,7 @@ export function setupProblem(input: OptimizeInput): Problem {
     for (const [r, lv] of Object.entries(requirementsOfElement(k.step.element))) raise(Number(r), lv);
     if (k.step.kind === 'research') raise(RESEARCH_LAB, 1);
   }
-  const targets = expandTargets(wanted, hp.type);
+  const targets = expandTargets(wanted, hp.type, start);
   const need = new Map<number, number>();
   const units = new Map<number, number[]>();
   const existingUnits = new Map<number, number>();
@@ -328,7 +368,7 @@ export function setupProblem(input: OptimizeInput): Problem {
   const qh = o.quietHours;
   return {
     input, order: fixed, hub, planet, planetType: hp.type, prefix, tail, kept, keptOpen, targets, goals, levelGoals, start, need, units, existingUnits,
-    transportShips, includeExisting, economy,
+    watch, transportShips, includeExisting, economy,
     throttle: o.throttle !== false && hp.type === 'planet',
     mineRatio: mr ? { crystalBelowMetal: mr.crystalBelowMetal ?? 2, deutBelowCrystal: mr.deutBelowCrystal ?? 2, tolerance: mr.tolerance ?? 1, weight: mr.weight ?? 3600 } : null,
     quietHours: qh ? { from: qh.from, to: qh.to, weight: qh.weight ?? 1 } : null,
