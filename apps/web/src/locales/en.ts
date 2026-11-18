@@ -1778,6 +1778,7 @@ const en: typeof de = {
     },
   },
   stats: {
+    homeMissing: 'Home planet unknown: in the game click the player name, select the table in the "Player information" popup, copy it and paste it here.',
     hint1: 'The latest synced statistics from the game – per category the newest pasted statistics page, as the game showed it. Several pages of the same update (ranks 1–100, 101–200 …) are merged.',
     hint2: 'Bar below the categories: one block per 100 ranks, green = included in the latest update, red = missing.',
     hint3: "±: rise and fall according to the game (since the game's last statistics update). Grey = calculated from the previous synced update when the game provides no value (text paste). Δ: points since the previous synced update.",

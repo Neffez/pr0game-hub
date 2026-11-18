@@ -1780,6 +1780,7 @@ const de = {
     },
   },
   stats: {
+    homeMissing: 'Heimatplanet unbekannt: Im Spiel auf den Spielernamen klicken, im Popup „Spielerinformationen“ die Tabelle markieren, kopieren und hier einfügen.',
     hint1: 'Der zuletzt synchronisierte Stand der Statistik aus dem Spiel – je Kategorie die neueste eingefügte Statistikseite, so wie das Spiel sie gezeigt hat. Mehrere Seiten desselben Stands (Plätze 1–100, 101–200 …) werden zusammengeführt.',
     hint2: 'Leiste unter den Kategorien: je Block 100 Plätze, grün = im neuesten Stand enthalten, rot = fehlt.',
     hint3: '±: Auf- und Abstieg laut Spiel (seit der letzten Statistik-Aktualisierung im Spiel). Grau = selbst berechnet aus dem vorherigen synchronisierten Stand, wenn das Spiel keinen Wert liefert (Text-Einfügen). Δ: Punkte seit dem vorherigen synchronisierten Stand.',

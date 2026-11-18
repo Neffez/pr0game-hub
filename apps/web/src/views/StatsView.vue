@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { Stats } from '../apiTypes';
+import { quickSyncAvailable, quickSyncOpen } from '../quickSync';
 import Contributors from '../components/Contributors.vue';
 import { useAutoTour } from '../tours';
 import CsvButton from '../components/CsvButton.vue';
@@ -14,42 +16,9 @@ import { uniApi } from '../api';
 import PageHeader from '../components/PageHeader.vue';
 import { useLoader, useMobile, useStored, useUni, vStack } from '../composables';
 import { tables, useLiveReload } from '../live';
-import { dateTime, fmt, fmtSigned, short, STATS_CATEGORIES, STATS_CATEGORY_ORDER, STATS_TYPES, type PointsStall as PointsStallInfo } from '../format';
+import { dateTime, fmt, fmtSigned, short, STATS_CATEGORIES, STATS_CATEGORY_ORDER, STATS_TYPES } from '../format';
 
-interface Category { who: string; type: number; stat_time: number; pages: number[] }
-interface Row {
-  rank: number;
-  rank_change: number | null;
-  prev_rank: number | null;
-  points: number;
-  delta: number | null;
-  id: number;
-  name: string;
-  // players
-  title?: string | null;
-  status?: string[];
-  /** no points since this stat update */
-  points_stall?: PointsStallInfo | null;
-  ally_id?: number | null;
-  ally_name?: string | null;
-  ally_tag?: string | null;
-  member?: number;
-  ownAlly?: boolean;
-  planet_count?: number;
-  first_planet?: string | null;
-  scores?: Record<number, number>;
-  // alliances
-  tag?: string | null;
-  members?: number | null;
-  own?: boolean;
-}
-interface Stats {
-  statTime: number | null;
-  prevTime: number | null;
-  categories: Category[];
-  me: { id: number; allyId: number | null; points: Record<number, number> } | null;
-  rows: Row[];
-}
+type Row = Stats['rows'][number];
 
 const { t } = useI18n();
 const { uni } = useUni();
@@ -213,6 +182,7 @@ useAutoTour('stats', () => !!data.value);
           <td class="num small" :class="r.delta ? (r.delta > 0 ? 'pos' : 'neg') : 'faint'">{{ r.delta == null ? '' : r.delta ? fmtSigned(r.delta) : '±0' }}</td>
           <td class="mono small">
             <template v-if="r.first_planet">{{ r.first_planet }}<span v-if="(r.planet_count ?? 0) > 1" class="faint"> +{{ r.planet_count! - 1 }}</span></template>
+            <button v-else-if="quickSyncAvailable" class="link small" :title="t('stats.homeMissing')" @click="quickSyncOpen = true">{{ t('stale.sync') }}</button>
             <span v-else class="faint">–</span>
           </td>
           <td

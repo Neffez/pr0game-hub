@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-18
 
+- Statistics: a player without a known home planet (player information not synced yet) shows "Paste now" instead of
+  a dash; it opens the quick sync, its tooltip says how to copy the player information in the game. The view takes
+  its answer type from the generated API types.
+
 - "You use data that 6 other members pasted": a line under the farm finder (spy reports of its window; debris tab:
   galaxy), the galaxy browser and the statistics names how many members of the alliance synced the data the page
   shows; the names of those who show their syncs are in its tooltip, the others are only counted. New endpoint

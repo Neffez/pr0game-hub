@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Statistik: Fehlt bei einem Spieler der Heimatplanet, steht dort „Jetzt einfügen“ statt eines Strichs. Ein Klick öffnet den Schnell-Sync, der Tooltip erklärt, wie du die Spielerinformationen im Spiel kopierst.',
+        en: 'Statistics: where a player's home planet is missing, "Paste now" replaces the dash. A click opens the quick sync, the tooltip explains how to copy the player information in the game.',
+      },
+      {
+        kind: 'new',
         de: 'Farm-Finder, Galaxie und Statistik zeigen, von wie vielen Allianzmitgliedern ihre Daten stammen („Du nutzt Daten, die 6 andere Mitglieder eingefügt haben“). Die Namen stehen im Tooltip – nur von denen, die in ihrem Konto zeigen, wer synchronisiert hat.',
         en: 'The farm finder, the galaxy and the statistics show how many alliance members their data comes from ("You use data that 6 other members pasted"). The names are in the tooltip – only of those who show in their account who synced.',
       },
