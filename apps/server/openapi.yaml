@@ -3894,11 +3894,13 @@ paths:
             application/json:
               schema:
                 type: object
+                required: [steps, done, total]
                 properties:
                   steps:
                     type: array
                     items:
                       type: object
+                      required: [key, time]
                       properties:
                         key: { type: string, enum: [empire, stats, overview, research, galaxy, messages, buildings] }
                         time: { type: [integer, 'null'] }

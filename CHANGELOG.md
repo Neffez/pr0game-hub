@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-18
 
+- Overview: first steps, "what to paste next" and the alliance goals sit in one section "Sync & goals", folded by
+  default; its row sums them up quietly (open first steps, freshness, important or outdated hints, goals reached).
+  Goals and onboarding are shared stores in the web app, the onboarding answer is described in the OpenAPI spec.
+
 - Freshness score and alliance goals (sync incentives):
   - Freshness (0–100) of a member's own pages: empire 30, overview/fleets 20, galaxy around the own planets 20,
     buildings pages 15, messages 10, research 5, each fully fresh for a while and worth nothing after days (linear in

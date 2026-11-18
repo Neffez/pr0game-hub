@@ -54,3 +54,4 @@ export type HealthMember = AllianceHealth['members'][number];
 export type Goals = ApiResponse<'/api/{uni}/goals'>;
 export type Goal = Goals['goals'][number];
 export type GoalSettings = Schema<'GoalSettings'>;
+export type Onboarding = ApiResponse<'/api/{uni}/onboarding'>;

@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
  * (`Schema<…>`, `ApiResponse<…>` or a name exported by `src/apiTypes.ts`). Calls that still pass a hand-written type
  * may only become fewer: when you replace some, lower `MAX_HAND_WRITTEN` to the new count (CLAUDE.md, "API types").
  */
-const MAX_HAND_WRITTEN = 85;
+const MAX_HAND_WRITTEN = 84;
 
 const SRC = join(import.meta.dirname, '../src');
 const files = (dir: string): string[] =>

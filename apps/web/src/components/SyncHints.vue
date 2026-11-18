@@ -15,7 +15,7 @@ import FreshnessScore from './FreshnessScore.vue';
  * at most three lines and a link to the sync page; nothing at all when everything is fine. The brief list folds
  * away (remembered per device under `storeKey`); on mobile it starts folded, showing only the title and the count.
  */
-const props = defineProps<{ brief?: boolean; storeKey?: string }>();
+const props = defineProps<{ brief?: boolean; storeKey?: string; flat?: boolean }>();
 const { t } = useI18n();
 const { uni } = useUni();
 const mobile = useMobile();
@@ -66,6 +66,7 @@ function title(h: SyncHint): string {
   <Section
     v-if="brief && shown.length"
     class="sync-hints brief"
+    :card="!flat"
     :title="t('syncHints.title')"
     :store-key="storeKey ?? 'syncHints'"
     :default-open-mobile="false"

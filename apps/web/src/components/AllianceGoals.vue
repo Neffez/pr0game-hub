@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import Icon from './Icon.vue';
 import Section from './Section.vue';
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { uniApi } from '../api';
-import type { Goal, Goals } from '../apiTypes';
+import type { Goal } from '../apiTypes';
+import { goals, loadGoals, reachedGoals } from '../goals';
 import { useUni } from '../composables';
 import { fmt } from '../format';
 import { tables, useLiveReload } from '../live';
@@ -13,23 +13,16 @@ import { tables, useLiveReload } from '../live';
  * Alliance goals (server: repo/goals.ts): a bar per goal with its target mark and what is counted. Nothing when the
  * admins switched all goals off; the admins get a link to change them.
  */
-defineProps<{ storeKey: string }>();
+defineProps<{ storeKey: string; flat?: boolean }>();
 const { t } = useI18n();
 const { uni, ctx } = useUni();
-const goals = ref<Goal[] | null>(null);
 
-async function load() {
-  try {
-    goals.value = (await uniApi<Goals>(uni.value, '/goals')).goals;
-  } catch {
-    goals.value = null; // a card only
-  }
-}
-onMounted(load);
+const load = () => loadGoals(uni.value, true);
+onMounted(() => loadGoals(uni.value));
 useLiveReload(load, tables('galaxy_systems', 'player_scores', 'spy_reports', 'empire', 'overview', 'fleets', 'buildings', 'research'), 5000);
 
 const isAdmin = computed(() => ctx.value?.group.role === 'admin' || ctx.value?.me.isAdmin);
-const reached = computed(() => (goals.value ?? []).filter((g) => g.value != null && g.value >= g.target).length);
+const reached = computed(() => reachedGoals(goals.value ?? []));
 
 function detail(g: Goal): string {
   if (g.value == null) return t(`goals.${g.key}.unknown`);
@@ -38,7 +31,7 @@ function detail(g: Goal): string {
 </script>
 
 <template>
-  <Section v-if="goals?.length" class="alliance-goals" :title="t('goals.title')" :store-key="storeKey">
+  <Section v-if="goals?.length" class="alliance-goals" :card="!flat" :title="t('goals.title')" :store-key="storeKey">
     <template #hint>
       <span class="badge" :class="reached === goals.length ? 'goal-done' : 'muted'">{{ t('goals.reached', { n: reached, total: goals.length }) }}</span>
     </template>

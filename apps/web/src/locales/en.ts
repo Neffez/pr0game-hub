@@ -622,6 +622,7 @@ const en: typeof de = {
     overview: {
       intro: { title: 'Overview', text: 'All players and planets of the universe your alliance has synced: points, growth, status and activity at a glance. The data comes from the statistics, galaxy, espionage reports and player profiles of all members.' },
       goals: { title: 'Alliance goals', text: 'Shared goals for syncing: galaxy coverage, complete statistics, the freshness of the members and recent spy reports. The mark in the bar is the target your admins set.' },
+      sync: { title: 'Sync & goals', text: 'First steps, what to paste next and the alliance goals – folded so the overview stays clear. The row shows your freshness, important hints and how many goals are reached at a glance; a click unfolds it all.' },
       syncHints: { title: 'What to paste?', text: 'When an important page of yours is missing or old (empire, statistics, overview), it shows up here. Tap the title to fold it in or out (on phones it starts folded); the link leads to all hints on the sync page.' },
       planets: { title: 'Planets', text: 'One row per known planet or moon (from galaxy views, espionage reports and the home planet of a player profile), with the player\'s points and the building, fleet and defense points on that planet.' },
       players: { title: 'Players', text: 'One row per player with all point categories and their change in the chosen period, e.g. to spot growing fleets.' },
@@ -1615,6 +1616,13 @@ const en: typeof de = {
       unknown: 'No farm targets: no likely inactive players with a report of the last 7 days',
       what: 'Share of the farm targets (likely inactive) with a report under 24 h',
     },
+  },
+  overviewSync: {
+    title: 'Sync & goals',
+    steps: 'First steps {done}/{total}',
+    important: '{n} important hint | {n} important hints',
+    outdated: '{n} page outdated | {n} pages outdated',
+    goals: 'Goals {n}/{total}',
   },
   contributors: {
     others: 'You use data that {n} other member pasted | You use data that {n} other members pasted',

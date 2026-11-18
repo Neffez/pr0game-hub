@@ -7289,13 +7289,13 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        steps?: {
+                        steps: {
                             /** @enum {string} */
-                            key?: "empire" | "stats" | "overview" | "research" | "galaxy" | "messages" | "buildings";
-                            time?: number | null;
+                            key: "empire" | "stats" | "overview" | "research" | "galaxy" | "messages" | "buildings";
+                            time: number | null;
                         }[];
-                        done?: number;
-                        total?: number;
+                        done: number;
+                        total: number;
                     };
                 };
             };

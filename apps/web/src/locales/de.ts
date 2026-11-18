@@ -623,6 +623,7 @@ const de = {
     overview: {
       intro: { title: 'Übersicht', text: 'Alle Spieler und Planeten des Universums, die deine Allianz synchronisiert hat: Punkte, Wachstum, Status und Aktivität auf einen Blick. Die Daten kommen aus Statistik, Galaxie, Spionageberichten und Spielerinformationen aller Mitglieder.' },
       goals: { title: 'Allianz-Ziele', text: 'Gemeinsame Ziele fürs Synchronisieren: Galaxie-Abdeckung, vollständige Statistik, Frische der Mitglieder und aktuelle Spionageberichte. Der Strich im Balken ist das Ziel, das eure Admins festlegen.' },
+      sync: { title: 'Sync & Ziele', text: 'Erste Schritte, was du als Nächstes einfügen solltest, und die Allianz-Ziele – eingeklappt, damit die Übersicht übersichtlich bleibt. Die Zeile zeigt auf einen Blick deine Frische, wichtige Hinweise und wie viele Ziele erreicht sind; ein Klick klappt alles aus.' },
       syncHints: { title: 'Was soll ich einfügen?', text: 'Fehlt dir eine wichtige Seite oder ist sie alt (Imperium, Statistik, Übersicht), steht das hier. Ein Tipp auf den Titel klappt es ein oder aus (auf dem Handy startet es eingeklappt), der Link führt zu allen Hinweisen auf der Sync-Seite.' },
       planets: { title: 'Planeten', text: 'Eine Zeile pro bekanntem Planet oder Mond (aus Galaxie-Ansichten, Spionageberichten und dem Heimatplaneten der Spielerinfo), mit den Punkten des Spielers und Gebäude-, Flotten- und Verteidigungspunkten auf diesem Planeten.' },
       players: { title: 'Spieler', text: 'Eine Zeile pro Spieler mit allen Punktekategorien und ihrer Veränderung im gewählten Zeitraum, z. B. um wachsende Flotten zu erkennen.' },
@@ -1616,6 +1617,13 @@ const de = {
       unknown: 'Keine Farm-Ziele: keine wahrscheinlich Inaktiven mit Bericht der letzten 7 Tage',
       what: 'Anteil der Farm-Ziele (wahrscheinlich inaktiv) mit Bericht unter 24 h',
     },
+  },
+  overviewSync: {
+    title: 'Sync & Ziele',
+    steps: 'Erste Schritte {done}/{total}',
+    important: '{n} wichtiger Hinweis | {n} wichtige Hinweise',
+    outdated: '{n} Seite veraltet | {n} Seiten veraltet',
+    goals: 'Ziele {n}/{total}',
   },
   contributors: {
     others: 'Du nutzt Daten, die {n} anderes Mitglied eingefügt hat | Du nutzt Daten, die {n} andere Mitglieder eingefügt haben',

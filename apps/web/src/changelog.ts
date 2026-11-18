@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Übersicht aufgeräumt: Erste Schritte, „Was soll ich als Nächstes einfügen?“ und die Allianz-Ziele stecken in einem eingeklappten Bereich „Sync & Ziele“. Seine Zeile zeigt auf einen Blick deine Frische, wichtige Hinweise und die erreichten Ziele.',
+        en: 'Tidier overview: first steps, "What should I paste next?" and the alliance goals sit in one folded section "Sync & goals". Its row shows your freshness, important hints and the goals reached at a glance.',
+      },
+      {
+        kind: 'new',
         de: 'Frische-Wert: Zeigt von 0 bis 100, wie aktuell deine eigenen Seiten im Hub sind – bei den Sync-Hinweisen und für alle Mitglieder auf der Gesundheitsseite. Dazu gibt es Allianz-Ziele auf Übersicht und Gesundheit (Galaxie-Abdeckung, vollständige Statistik, Frische der Mitglieder, aktuelle Spionageberichte); Allianz-Admins passen die Zielwerte in der Verwaltung an.',
         en: 'Freshness score: shows from 0 to 100 how up to date your own pages are in the hub – with the sync hints and for all members on the health page. Plus alliance goals on the overview and the health page (galaxy coverage, complete statistics, member freshness, recent spy reports); alliance admins change the targets under administration.',
       },

@@ -31,6 +31,7 @@ export const TOURS = {
   overview: {
     steps: [
       { key: 'intro' },
+      { key: 'sync', el: 'overview-sync', side: 'bottom' },
       { key: 'syncHints', el: 'overview-sync-hints', side: 'bottom' },
       { key: 'goals', el: 'overview-goals', side: 'bottom' },
       { key: 'planets', el: 'overview-planets', side: 'bottom' },

@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import Icon from './Icon.vue';
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { uniApi } from '../api';
-import { useStored, useUni } from '../composables';
+import { useUni } from '../composables';
+import { loadOnboarding, onboarding, onboardingHidden } from '../onboarding';
 import { tables, useLiveReload } from '../live';
 import { dateTime } from '../format';
 
@@ -13,25 +13,16 @@ import { dateTime } from '../format';
  * (per device); the sync page then offers a link that shows it again while steps are open. `brief` (overview):
  * progress and the next open step with a link to the sync page.
  */
-type Step = 'empire' | 'stats' | 'overview' | 'research' | 'galaxy' | 'messages' | 'buildings';
-interface Onboarding { steps: { key: Step; time: number | null }[]; done: number; total: number }
-
-const props = defineProps<{ brief?: boolean }>();
+const props = defineProps<{ brief?: boolean; flat?: boolean }>();
 const { t } = useI18n();
 const { uni } = useUni();
 
-const data = ref<Onboarding | null>(null);
-const load = async () => {
-  try {
-    data.value = await uniApi<Onboarding>(uni.value, '/onboarding');
-  } catch {
-    /* the card simply stays away */
-  }
-};
+const data = onboarding;
+const load = () => loadOnboarding(uni.value);
 onMounted(load);
 useLiveReload(load, tables('empire', 'player_scores', 'overview', 'fleets', 'research', 'galaxy_systems', 'spy_reports', 'battle_reports', 'expeditions', 'buildings'), 1500);
 
-const hidden = useStored<boolean>(`onboarding.hidden.${uni.value}`, false);
+const hidden = onboardingHidden(uni.value);
 const open = computed(() => !!data.value && data.value.done < data.value.total);
 const show = computed(() => open.value && !hidden.value);
 const next = computed(() => data.value?.steps.find((s) => s.time == null) ?? null);
@@ -39,7 +30,7 @@ const percent = computed(() => (data.value ? Math.round((100 * data.value.done) 
 </script>
 
 <template>
-  <div v-if="show && data" class="card onboarding">
+  <div v-if="show && data" class="onboarding" :class="flat ? 'flat' : 'card'">
     <div class="row onb-head">
       <h3 class="mt-0 grow">{{ t('onboarding.title', { done: data.done, total: data.total }) }}</h3>
       <button class="onb-hide" :title="t('onboarding.hide')" :aria-label="t('onboarding.hide')" @click="hidden = true"><Icon name="close" :size="14" /></button>
@@ -75,7 +66,8 @@ const percent = computed(() => (data.value ? Math.round((100 * data.value.done) 
 </template>
 
 <style scoped>
-.onboarding { border-color: var(--accent); }
+.onboarding.card { border-color: var(--accent); }
+.onboarding.flat { padding: 4px 0 10px; border-bottom: 1px solid var(--border); margin-bottom: 10px; }
 .onb-head { align-items: center; }
 .onb-hide { padding: 2px 6px; }
 .onb-bar { height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; margin: 4px 0 8px; }
