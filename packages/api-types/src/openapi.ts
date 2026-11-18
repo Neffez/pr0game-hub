@@ -3281,6 +3281,8 @@ export type components = {
                  * @default 2
                  */
                 noLaterWeight: number;
+                /** @description Seconds of penalty per second an open ship, defense or research step of a planet the list's transports feed ends later than in the current timeline (with `noLater`). Default: `noLaterWeight`; 0: those planets are not measured */
+                otherPlanetsWeight?: number;
                 /**
                  * @description Seconds of penalty per second a kept transport with a time (`notBefore`, `arriveAt`) leaves later than in the current timeline (the planets it feeds plan with that time)
                  * @default 100

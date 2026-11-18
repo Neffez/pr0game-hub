@@ -34,7 +34,11 @@ describe('auto plan of a colony with timed transports', () => {
   it('does not delay the home planet it feeds', () => {
     const home = r.goals.filter((g) => g.planet === HOME);
     expect(home.map((g) => g.step)).toEqual(['h-lf', 'h-imp', 'h-hf', 'h-sc', 'h-imp2']);
-    expect(home.every((g) => g.source === 'other' && g.by === g.currentEnd)).toBe(true);
+    expect(home.every((g) => g.source === 'other' && g.by === g.currentEnd && g.weight === 2)).toBe(true);
+    // their weight is an option of its own: default noLaterWeight, 0 leaves those planets out
+    expect(run({ noLaterWeight: 3 }, 10).goals.filter((g) => g.planet === HOME).every((g) => g.weight === 3)).toBe(true);
+    expect(run({ otherPlanetsWeight: 7 }, 10).goals.filter((g) => g.planet === HOME).every((g) => g.weight === 7)).toBe(true);
+    expect(run({ otherPlanetsWeight: 0 }, 10).goals.some((g) => g.planet === HOME)).toBe(false);
     for (const g of home) expect(g.end).toBeLessThanOrEqual(g.currentEnd! + SLACK);
     // checked against the timeline of the whole build order with the result
     const sim = simulate({ ...order, base: r.base, planets: { ...order.planets, [COLONY]: r.steps } }, hub, { now: NOW });

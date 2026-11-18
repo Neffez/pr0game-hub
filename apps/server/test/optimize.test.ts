@@ -123,10 +123,11 @@ describe('build order search', () => {
     expect((await post({ planet: HOME, targets: [{ element: 21, level: 2, weight: -1 }], budgetSeconds: 1 })).statusCode).toBe(400);
     expect((await post({ planet: HOME, targets: { buildings: { 21: 2 } }, options: { noLaterWeight: 'x' }, budgetSeconds: 1 })).statusCode).toBe(400);
     expect((await post({ planet: HOME, targets: { buildings: { 21: 2 } }, options: { keepTimeWeight: -1 }, budgetSeconds: 1 })).statusCode).toBe(400);
+    expect((await post({ planet: HOME, targets: { buildings: { 21: 2 } }, options: { otherPlanetsWeight: -1 }, budgetSeconds: 1 })).statusCode).toBe(400);
     const by = t + 30 * 86400;
     const res = await post({
       planet: HOME, targets: [{ element: 21, level: 2, by, weight: 3 }, { element: 202, count: 2 }], budgetSeconds: 1, seed: 2,
-      options: { noLater: true, noLaterWeight: 5, keepTimeWeight: 50 },
+      options: { noLater: true, noLaterWeight: 5, keepTimeWeight: 50, otherPlanetsWeight: 1 },
     });
     expect(res.statusCode).toBe(202);
     const job = await finished(res.json().job, h.carol);

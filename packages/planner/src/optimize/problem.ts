@@ -60,6 +60,11 @@ export interface OptimizeOptions {
    * current timeline (default 100: the planets it feeds plan with that time)
    */
   keepTimeWeight?: number;
+  /**
+   * seconds of penalty per second an open ship, defense or research step of a planet the list's transports feed ends
+   * later than in the current timeline (default `noLaterWeight`; 0: those planets are not measured)
+   */
+  otherPlanetsWeight?: number;
 }
 
 export interface OptimizeInput {
@@ -266,7 +271,8 @@ export function setupProblem(input: OptimizeInput): Problem {
   }
   // the planets the list's transports feed: their open ship, defense and research steps should not end later either
   const watch: string[] = [];
-  if (noLater) {
+  const otherPlanetsWeight = o.otherPlanetsWeight ?? noLaterWeight;
+  if (noLater && otherPlanetsWeight > 0) {
     const fed = new Set(tail.filter((s) => isOpen(s) && s.transport?.target).map((s) => s.transport!.target!));
     for (const key of fed) {
       if (key === planet) continue;
@@ -274,7 +280,7 @@ export function setupProblem(input: OptimizeInput): Problem {
         if (s.deactivated || s.element == null || s.kind === 'building' || doneStateOf(s, targetsNow.get(s.id), key, hub) !== 'open') continue;
         const end = baselineEnd(s.id);
         if (end == null) continue;
-        goals.push({ element: s.element, level: null, by: end, weight: noLaterWeight, source: 'other', step: s.id, planet: key, measure: 'end', current: end });
+        goals.push({ element: s.element, level: null, by: end, weight: otherPlanetsWeight, source: 'other', step: s.id, planet: key, measure: 'end', current: end });
         watch.push(s.id);
       }
     }

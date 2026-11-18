@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-18
 
+- Auto plan: `options.otherPlanetsWeight` sets the weight of the goals of the planets the list's transports feed
+  (default `noLaterWeight`; 0 leaves those planets out of the objective).
+
 - Auto plan: kept transports keep their time, and the planets they feed count.
   - A kept transport with a time (`notBefore`, `arriveAt`) keeps its departure from the current timeline: a heavy
     soft deadline on its start (`options.keepTimeWeight`, default 100 seconds per second late), and the greedy plan
