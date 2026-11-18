@@ -45,3 +45,4 @@ export type BuildOrderAnswer = Omit<Schema<'BuildOrderAnswer'>, 'buildOrder'> & 
 export type SyncHints = ApiResponse<'/api/{uni}/sync-hints'>;
 export type SyncHint = Schema<'SyncHint'>;
 export type OwnSyncTimes = SyncHints['times'];
+export type IngestSummary = Schema<'IngestSummary'>;

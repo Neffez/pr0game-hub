@@ -2483,9 +2483,71 @@ components:
             type: object
             required: [new, duplicate]
             properties: { new: { type: integer }, duplicate: { type: integer } }
-        preview: { type: array, items: { type: object }, description: Short description per record for the preview }
-        settlements: { type: array, items: { type: object }, description: Loot settlements (raid plans) the messages count for }
+        preview:
+          type: array
+          description: Short description per record for the preview (its kind and the values the web app shows)
+          items: { type: object, required: [kind], properties: { kind: { type: string } }, additionalProperties: true }
+        settlements:
+          type: array
+          description: Loot settlements (raid plans) the messages count for
+          items:
+            type: object
+            required: [id, mission, g, s, p, planet_type, target_time, kinds]
+            properties:
+              id: { type: integer }
+              mission: { type: string }
+              g: { type: integer }
+              s: { type: integer }
+              p: { type: integer }
+              planet_type: { type: string }
+              target_time: { type: integer }
+              kinds: { type: array, items: { type: string }, description: Record kinds that count for it }
         explain: { $ref: '#/components/schemas/Explanation' }
+        impact: { $ref: '#/components/schemas/SyncImpact' }
+    SyncImpact:
+      type: object
+      description: >-
+        What a saved sync changed for the group (not with `dryRun`); parts without news are left out. Ages are seconds.
+      properties:
+        galaxy:
+          type: object
+          description: Galaxy systems with a newer view than before
+          required: [systems, first, age]
+          properties:
+            systems: { type: integer }
+            first: { type: integer, description: Systems the group had never seen }
+            age: { type: [integer, 'null'], description: Average age of the replaced views }
+        spy:
+          type: object
+          description: Spy reports per target
+          required: [first, replaced, age]
+          properties:
+            first: { type: integer, description: Targets the group had no report of }
+            replaced: { type: integer, description: Targets whose newest report was older }
+            age: { type: [integer, 'null'], description: Average age of the replaced reports }
+        stats:
+          type: array
+          description: Player statistics updates the sync added categories to
+          items:
+            type: object
+            required: [update, first, types]
+            properties:
+              update: { type: integer, description: Unix seconds of the update }
+              first: { type: boolean, description: No category of this update was synced before }
+              types: { type: array, items: { type: integer }, description: 'Categories added (1 total … 5 defense)' }
+        own:
+          type: array
+          description: Own pages newer than before (an own page synced again within the hour is left out)
+          items:
+            type: object
+            required: [page, before]
+            properties:
+              page: { type: string, enum: [empire, overview, buildings, research] }
+              before: { type: [integer, 'null'], description: Unix seconds of the previous page, null for the first one }
+        hintsDone:
+          type: array
+          description: Sync hints of the member that are done now (own syncs only)
+          items: { type: string, enum: [empire, stats, overview, galaxy, buildings, research, messages, market] }
     Created:
       type: object
       required: [id]

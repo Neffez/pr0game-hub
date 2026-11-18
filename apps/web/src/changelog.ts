@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Nach dem Speichern zeigt der Sync, was er gebracht hat: z. B. „14 Galaxie-Systeme aktualisiert, vorher im Schnitt 5 d alt“, „3 Ziele erstmals ausspioniert“, „Als Erstes eingefügt: Statistik-Update von 18:00“ oder „Imperium war 2 d alt, jetzt aktuell“.',
+        en: 'After saving, a sync shows what it brought: e.g. "14 galaxy systems updated, 5 d old on average before", "3 targets spied for the first time", "Pasted first: statistics update of 18:00" or "Empire was 2 d old, up to date now".',
+      },
+      {
+        kind: 'new',
         de: 'Farm-Finder, Angriffs-Assistent, Fleetsave und Bauen weisen darauf hin, wenn sie mit alten Daten von dir rechnen (z. B. „Imperium ist 2 d alt“). Ein Klick auf „Jetzt einfügen“ öffnet den Schnell-Sync direkt über der Seite – jetzt auch am Computer.',
         en: 'The farm finder, the attack assistant, the fleetsave planner and Build point out when they calculate with old data of yours (e.g. "Empire is 2 d old"). "Paste now" opens the quick sync right over the page – now also on the computer.',
       },

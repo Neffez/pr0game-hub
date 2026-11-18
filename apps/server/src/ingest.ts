@@ -14,6 +14,7 @@ import { catchUpPlans } from './repo/plans.js';
 import { Players } from './repo/players.js';
 import { shareSyncsEnabled } from './repo/presence.js';
 import { Store } from './store.js';
+import { probeImpact, type SyncImpact } from './syncImpact.js';
 
 export interface IngestTarget {
   groupId: number;
@@ -37,6 +38,8 @@ export interface IngestSummary {
   settlements?: SettlementHit[];
   /** why nothing was found (no records), see `explainNoData` */
   explain?: Explanation;
+  /** what the saved sync changed (not with `dryRun`), see `probeImpact` */
+  impact?: SyncImpact;
 }
 
 export interface SettlementHit {
@@ -151,6 +154,7 @@ function ingestWith(db: DB, target: IngestTarget, input: ParseInput & { source: 
   }
 
   const store = new Store(db, target, summary, opts.log);
+  const impact = probeImpact(db, target, parsed, store, opts.ctx);
   // universe.json (several MB) isn't kept: a download builds it again from the hub's data
   const keep = parsed.source !== 'json';
   db.transaction(() => {
@@ -173,6 +177,7 @@ function ingestWith(db: DB, target: IngestTarget, input: ParseInput & { source: 
       JSON.stringify({ counts: summary.counts, warnings: summary.warnings, about: aboutRecords(parsed.records) }),
     );
   })();
+  summary.impact = impact();
   if (opts.ctx && isRunning(opts.ctx.universe)) {
     // as the member the data counts for
     const syncCtx = opts.ctx.user.id === target.userId ? opts.ctx : { ...opts.ctx, user: { ...opts.ctx.user, id: target.userId } };

@@ -92,6 +92,11 @@ export function ago(epoch: number | null | undefined): string {
   if (!epoch) return '–';
   const s = nowSec() - epoch;
   if (s < 0) return t('time.soon');
+  return span(s);
+}
+
+/** A length of time in the coarse units of `ago` ("12 min", "5 h", "3 d"). */
+export function span(s: number): string {
   if (s < 3600) return `${Math.max(1, Math.floor(s / 60))} min`;
   if (s < 86400 * 2) return `${Math.floor(s / 3600)} h`;
   return `${Math.floor(s / 86400)} d`;

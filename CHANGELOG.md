@@ -4,6 +4,13 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-18
 
+- Feedback after saving a sync: what it changed for the group, in plain lines on the saved card and per page of a
+  collection: galaxy systems updated (how many for the first time, their average age before), targets spied for the
+  first time and older spy reports replaced, a statistics update pasted first or categories added to it, own pages
+  newer than before (empire, overview, buildings, research; their age before) and the sync hints done now. The
+  ingest answer carries it as `impact` (`SyncImpact` in the OpenAPI spec, which now also describes the preview lines
+  and the settlements of `IngestSummary`).
+
 - "Data outdated" note on the farm finder, the incoming attack assistant (own attacks), the fleetsave planner and
   Build & research: when the member's own page a page calculates with is too old for it (messages older than a day;
   empire older than 6 h; empire or overview older than 12 h), a note names its age and opens the quick sync over the

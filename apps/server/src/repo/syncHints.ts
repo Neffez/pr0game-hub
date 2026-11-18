@@ -38,7 +38,7 @@ const MARKET_STALE = 3 * DAY;
 const LEVELS = { high: 0, medium: 1, low: 2 };
 
 /** Updates within this many seconds are one (several pages of the same update, page times a few minutes off). */
-const SAME_UPDATE = 15 * 60;
+export const SAME_UPDATE = 15 * 60;
 /** Gaps shorter than this are no schedule (pages of one update pasted separately). */
 const MIN_INTERVAL = 30 * 60;
 /** Without a known interval, statistics older than this count as outdated. */
@@ -63,7 +63,7 @@ export function statInterval(updates: number[]): number | null {
 }
 
 /** Newest overview or fleet page of the member (build queues, fleet movements). */
-function overviewTime(db: DB, ctx: GroupContext): number | null {
+export function overviewTime(db: DB, groupId: number, userId: number): number | null {
   return (
     (db
       .prepare(
@@ -71,7 +71,7 @@ function overviewTime(db: DB, ctx: GroupContext): number | null {
            UNION ALL SELECT MAX(page_time) FROM fleet_snapshots WHERE group_id = ? AND user_id = ?)`,
       )
       .pluck()
-      .get(ctx.groupId, ctx.user.id, ctx.groupId, ctx.user.id) as number | null) ?? null
+      .get(groupId, userId, groupId, userId) as number | null) ?? null
   );
 }
 
@@ -87,7 +87,7 @@ function messagesTime(db: DB, ctx: GroupContext): number | null {
 
 /** Times of the member's own pages the hub's pages calculate with (null: never synced); the web app warns with them. */
 export function ownSyncTimes(db: DB, ctx: GroupContext): { empire: number | null; overview: number | null; messages: number | null } {
-  return { empire: latestEmpire(db, ctx, ctx.user.id)?.time ?? null, overview: overviewTime(db, ctx), messages: messagesTime(db, ctx) };
+  return { empire: latestEmpire(db, ctx, ctx.user.id)?.time ?? null, overview: overviewTime(db, ctx.groupId, ctx.user.id), messages: messagesTime(db, ctx) };
 }
 
 /**
@@ -139,7 +139,7 @@ export function syncHints(db: DB, ctx: GroupContext): SyncHint[] {
   }
 
   // overview or fleet page: build queues and fleet movements (raid planner, attack warnings)
-  const overview = overviewTime(db, ctx);
+  const overview = overviewTime(db, g, me);
   if (overview == null || t - overview > DAY) hints.push({ key: 'overview', level: 'medium', scope: 'me', time: overview });
   else if (t - overview > 12 * HOUR) hints.push({ key: 'overview', level: 'low', scope: 'me', time: overview });
 

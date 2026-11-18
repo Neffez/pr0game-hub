@@ -1,25 +1,16 @@
 <script setup lang="ts">
 import Icon from './Icon.vue';
+import SyncImpact from './SyncImpact.vue';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { readError, uniApi } from '../api';
 import { useUni } from '../composables';
 import { refreshSyncHints } from '../syncHints';
+import type { IngestSummary } from '../apiTypes';
 import { cardLabel, coords, dateTime, DEPLETION_LABEL, fmt, rateText, STATS_CATEGORIES, STATS_CATEGORY_ORDER } from '../format';
 
-interface Summary {
-  pageType: string;
-  source: string;
-  lang: string;
-  /** codes, see warningText */
-  warnings: string[];
-  counts: Record<string, { new: number; duplicate: number }>;
-  preview: ({ kind: string } & Record<string, any>)[];
-  /** loot settlements the messages count for */
-  settlements?: { id: number; mission: string; g: number; s: number; p: number; planet_type: string; target_time: number; kinds: string[] }[];
-  /** why nothing was recognized (pages of type unknown) */
-  explain?: { code: string; page?: string; lang?: string };
-}
+/** One preview line as the server sends it: its kind and the values to show. */
+type PreviewItem = { kind: string } & Record<string, any>;
 
 /** Paste a game page and save it (sync page; `compact` = quick sync sheet on mobile, with clipboard button and series mode). */
 defineProps<{ compact?: boolean }>();
@@ -38,8 +29,8 @@ const text = ref('');
 const statsType = ref<number | null>(null);
 /** "g:s" for a copied galaxy view (the copy has no galaxy/system); kept and counted up after saving */
 const system = ref('');
-const preview = ref<Summary | null>(null);
-const saved = ref<Summary | null>(null);
+const preview = ref<IngestSummary | null>(null);
+const saved = ref<IngestSummary | null>(null);
 const error = ref('');
 const busy = ref(false);
 
@@ -54,8 +45,8 @@ interface BatchItem {
   text: string;
   statsType: number | null;
   system: string;
-  preview: Summary | null;
-  saved: Summary | null;
+  preview: IngestSummary | null;
+  saved: IngestSummary | null;
   error: string;
   busy: boolean;
 }
@@ -88,7 +79,7 @@ async function runItem(b: BatchItem, dryRun: boolean) {
   b.busy = true;
   b.error = '';
   try {
-    const res = await uniApi<Summary>(uni.value, '/ingest', { body: bodyOf(b, dryRun) });
+    const res = await uniApi<IngestSummary>(uni.value, '/ingest', { body: bodyOf(b, dryRun) });
     if (dryRun) b.preview = res;
     else b.saved = res;
   } catch (e) {
@@ -172,7 +163,7 @@ const savedCount = (b: BatchItem) => Object.values(b.saved?.counts ?? {}).reduce
 const label = (group: string, key: string) => (te(`${group}.${key}`) ? t(`${group}.${key}`) : key);
 
 /** One preview line per record (server sends the kind and its values). */
-function previewText(p: Summary['preview'][number]) {
+function previewText(p: PreviewItem) {
   const unknown = '?';
   switch (p.kind) {
     case 'stats':
@@ -213,7 +204,7 @@ function previewText(p: Summary['preview'][number]) {
 }
 
 /** Plain words for a page without data (backlog E-4). */
-function explainText(x: NonNullable<Summary['explain']>) {
+function explainText(x: NonNullable<IngestSummary['explain']>) {
   const page = x.page ? (te(`paste.pages.${x.page}`) ? t(`paste.pages.${x.page}`) : x.page) : '';
   return t(`paste.explain.${x.code}`, { page, lang: x.lang ?? '' });
 }
@@ -329,7 +320,7 @@ async function run(dryRun: boolean) {
       forUser: forUser.value,
       dryRun,
     };
-    const res = await uniApi<Summary>(uni.value, '/ingest', { body });
+    const res = await uniApi<IngestSummary>(uni.value, '/ingest', { body });
     if (current !== runs) return;
     if (dryRun) {
       preview.value = res;
@@ -436,6 +427,7 @@ function next() {
         <span v-else-if="b.saved" class="ok small"><Icon name="check" :size="12" /> {{ t('paste.batch.saved', { n: savedCount(b) }) }}</span>
         <button v-if="!b.saved" class="small-btn" :aria-label="t('paste.batch.remove')" :title="t('paste.batch.remove')" @click="removeItem(b)"><Icon name="close" :size="12" /></button>
       </div>
+      <SyncImpact v-if="b.saved" :impact="b.saved.impact" compact />
       <div v-if="b.error" class="error small">{{ b.error }}</div>
       <template v-else-if="b.preview && !b.saved">
         <p v-for="w in b.preview.warnings" :key="w" class="warn small"><Icon name="warning" :size="12" /> {{ label('paste.warnings', w) }}</p>
@@ -494,6 +486,7 @@ function next() {
   <div v-if="saved" class="card">
     <h2 class="ok mt-0">{{ savedFor ? t('paste.savedFor', { name: savedFor }) : t('deck.saved') }}</h2>
     <p v-for="w in saved.warnings" :key="w" class="warn"><Icon name="warning" :size="14" /> {{ label('paste.warnings', w) }}</p>
+    <SyncImpact :impact="saved.impact" />
     <table class="data" style="width: auto">
       <tr><th>{{ t('paste.data') }}</th><th class="num">{{ t('paste.new') }}</th><th class="num">{{ t('paste.known') }}</th></tr>
       <tr v-for="(c, k) in saved.counts" :key="k">

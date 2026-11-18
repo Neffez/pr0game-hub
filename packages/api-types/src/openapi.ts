@@ -5241,11 +5241,64 @@ export type components = {
                     duplicate: number;
                 };
             };
-            /** @description Short description per record for the preview */
-            preview: Record<string, never>[];
+            /** @description Short description per record for the preview (its kind and the values the web app shows) */
+            preview: ({
+                kind: string;
+            } & {
+                [key: string]: unknown;
+            })[];
             /** @description Loot settlements (raid plans) the messages count for */
-            settlements?: Record<string, never>[];
+            settlements?: {
+                id: number;
+                mission: string;
+                g: number;
+                s: number;
+                p: number;
+                planet_type: string;
+                target_time: number;
+                /** @description Record kinds that count for it */
+                kinds: string[];
+            }[];
             explain?: components["schemas"]["Explanation"];
+            impact?: components["schemas"]["SyncImpact"];
+        };
+        /** @description What a saved sync changed for the group (not with `dryRun`); parts without news are left out. Ages are seconds. */
+        SyncImpact: {
+            /** @description Galaxy systems with a newer view than before */
+            galaxy?: {
+                systems: number;
+                /** @description Systems the group had never seen */
+                first: number;
+                /** @description Average age of the replaced views */
+                age: number | null;
+            };
+            /** @description Spy reports per target */
+            spy?: {
+                /** @description Targets the group had no report of */
+                first: number;
+                /** @description Targets whose newest report was older */
+                replaced: number;
+                /** @description Average age of the replaced reports */
+                age: number | null;
+            };
+            /** @description Player statistics updates the sync added categories to */
+            stats?: {
+                /** @description Unix seconds of the update */
+                update: number;
+                /** @description No category of this update was synced before */
+                first: boolean;
+                /** @description Categories added (1 total … 5 defense) */
+                types: number[];
+            }[];
+            /** @description Own pages newer than before (an own page synced again within the hour is left out) */
+            own?: {
+                /** @enum {string} */
+                page: "empire" | "overview" | "buildings" | "research";
+                /** @description Unix seconds of the previous page */
+                before: number | null;
+            }[];
+            /** @description Sync hints of the member that are done now (own syncs only) */
+            hintsDone?: ("empire" | "stats" | "overview" | "galaxy" | "buildings" | "research" | "messages" | "market")[];
         };
         Created: {
             id: number;
