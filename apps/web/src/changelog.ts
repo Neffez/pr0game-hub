@@ -21,7 +21,7 @@ export const CHANGELOG: ChangelogDay[] = [
       {
         kind: 'new',
         de: 'Statistik: Fehlt bei einem Spieler der Heimatplanet, steht dort „Jetzt einfügen“ statt eines Strichs. Ein Klick öffnet den Schnell-Sync, der Tooltip erklärt, wie du die Spielerinformationen im Spiel kopierst.',
-        en: 'Statistics: where a player's home planet is missing, "Paste now" replaces the dash. A click opens the quick sync, the tooltip explains how to copy the player information in the game.',
+        en: 'Statistics: where the home planet of a player is missing, "Paste now" replaces the dash. A click opens the quick sync, the tooltip explains how to copy the player information in the game.',
       },
       {
         kind: 'new',
