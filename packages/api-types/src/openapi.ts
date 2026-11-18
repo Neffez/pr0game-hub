@@ -7456,6 +7456,8 @@ export interface operations {
                         members: {
                             userId: number;
                             name: string;
+                            /** @description The member's player in the game, null while unknown */
+                            playerId: number | null;
                             streak: {
                                 /** @description Days in a row up to today */
                                 current: number;

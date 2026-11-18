@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-18
 
+- Player profile: a member's reached badges show next to the name and alliance, highest level first (at most 8, on
+  a phone 3, the rest as "+n" with the names in the tooltip). `/api/{uni}/achievements` answers each member's
+  `playerId`; the online list sorts its badges the same way.
+
 - Badges: the miner badge needs a build order planning 5 days ahead (was 7); the cartographer levels are 40 / 400 /
   4000 / 8000 / 12000 system days (were 400 / 2000 / 10000 / 40000 / 100000), reachable within a universe's
   lifetime.

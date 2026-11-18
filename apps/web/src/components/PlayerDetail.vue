@@ -6,13 +6,15 @@ import Icon from './Icon.vue';
 import ActivityPattern from './ActivityPattern.vue';
 import CommentThread from './CommentThread.vue';
 import PresenceBadge from './PresenceBadge.vue';
+import BadgeIcon from './BadgeIcon.vue';
+import { achievements, loadAchievements, topBadges } from '../achievements';
 import { Chart } from '../chart';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { readError, uniApi } from '../api';
 import PlanetActions from '../components/PlanetActions.vue';
 import StatusBadges from '../components/StatusBadges.vue';
-import { useLoader, useUni, vStack } from '../composables';
+import { useLoader, useMobile, useUni, vStack } from '../composables';
 import { tables, useLiveReload } from '../live';
 import { ago, coords, dateTime, fmt, freshnessColor, name, numDate, phalanxRange, STATS_TYPES } from '../format';
 import PointsStall from './PointsStall.vue';
@@ -21,6 +23,17 @@ import InactivityBadge from './InactivityBadge.vue';
 
 const { t, locale } = useI18n();
 const { uni, ctx } = useUni();
+const mobile = useMobile();
+
+/** A member's badges next to the name: reached ones by level, at most a few on a phone (the rest as "+n"). */
+onMounted(() => loadAchievements(uni.value));
+const badges = computed(() => {
+  const id = data.value?.player.id;
+  const member = id != null ? achievements.value?.find((m) => m.playerId === id) : undefined;
+  return member ? topBadges(member.badges, 14) : [];
+});
+const badgeLimit = computed(() => (mobile.value ? 3 : 8));
+const moreBadges = computed(() => badges.value.slice(badgeLimit.value));
 /** Player details (chart, note, planets, status history): page and dialog. */
 /** `titleId`: id of the heading (a dialog's `aria-labelledby`) */
 const props = defineProps<{ id: number; titleId?: string }>();
@@ -154,6 +167,10 @@ onBeforeUnmount(() => chart?.destroy());
       <StatusBadges :status="data.player.status" :points="latest[1]?.points ?? null" />
       <span v-if="data.player.ally_name" class="muted"> [{{ data.player.ally_tag ?? data.player.ally_name }}]</span>
       <PresenceBadge :player="data.player.id" />
+      <span v-if="badges.length" class="pd-badges">
+        <BadgeIcon v-for="b in badges.slice(0, badgeLimit)" :key="b.key" :badge="b" :size="16" />
+        <span v-if="moreBadges.length" class="muted small" :title="moreBadges.map((b) => t(`badges.${b.key}.name`)).join(', ')">+{{ moreBadges.length }}</span>
+      </span>
     </h1>
     <p class="muted small">
       <template v-if="data.player.ingame_id">ID {{ data.player.ingame_id }} · </template>
@@ -254,6 +271,7 @@ onBeforeUnmount(() => chart?.destroy());
 </template>
 
 <style scoped>
+.pd-badges { display: inline-flex; align-items: center; gap: 5px; margin-left: 8px; vertical-align: middle; white-space: nowrap; font-size: 13px; font-weight: 400; }
 .research { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px 24px; }
 .research-line { display: flex; justify-content: space-between; padding: 2px 0; border-bottom: 1px solid var(--border); }
 </style>

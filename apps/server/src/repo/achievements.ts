@@ -150,6 +150,8 @@ export function streakOf(syncDays: Set<string>, vacation: (day: string) => boole
 export interface MemberAchievements {
   userId: number;
   name: string;
+  /** the member's player in the game (from the empire and galaxy data), null while unknown */
+  playerId: number | null;
   streak: Streak;
   badges: Badge[];
 }
@@ -225,7 +227,7 @@ export function achievements(db: DB, ctx: GroupContext): MemberAchievements[] {
   return members.map((m) => {
     const streak = streakOf(syncDays.get(m.user_id) ?? new Set(), vacationOf(m.user_id), today);
     counts.streak.set(m.user_id, streak.best);
-    return { userId: m.user_id, name: m.name, streak, badges: BADGE_KEYS.map((k) => badge(k, counts[k].get(m.user_id) ?? 0)) };
+    return { userId: m.user_id, name: m.name, playerId: players.get(m.user_id) ?? null, streak, badges: BADGE_KEYS.map((k) => badge(k, counts[k].get(m.user_id) ?? 0)) };
   });
 }
 

@@ -4003,10 +4003,11 @@ paths:
                     type: array
                     items:
                       type: object
-                      required: [userId, name, streak, badges]
+                      required: [userId, name, playerId, streak, badges]
                       properties:
                         userId: { type: integer }
                         name: { type: string }
+                        playerId: { type: [integer, 'null'], description: "The member's player in the game, null while unknown" }
                         streak:
                           type: object
                           required: [current, best, today]

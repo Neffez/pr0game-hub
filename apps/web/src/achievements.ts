@@ -30,11 +30,11 @@ export function loadAchievements(uni: string, force = false): Promise<void> {
   return run;
 }
 
-/** The badges a member shows next to the name: the highest levels first, then the nearest next level. */
+/** The reached badges by value: the highest level (its colour) first, then the larger share of the levels, then the nearest next level. */
 export function topBadges(badges: Badge[], n = 3): Badge[] {
   const progress = (b: Badge) => (b.next ? b.count / b.next : 1);
   return badges
     .filter((b) => b.level > 0)
-    .sort((a, b) => b.level / b.levels - a.level / a.levels || b.level - a.level || progress(b) - progress(a))
+    .sort((a, b) => b.level - a.level || b.level / b.levels - a.level / a.levels || progress(b) - progress(a))
     .slice(0, n);
 }

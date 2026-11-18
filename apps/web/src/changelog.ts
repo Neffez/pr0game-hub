@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-18',
     items: [
       {
+        kind: 'new',
+        de: 'Spielerprofil: Bei Allianzmitgliedern stehen die erreichten Abzeichen neben Name und Allianz, die höchsten zuerst.',
+        en: 'Player profile: for alliance members the reached badges show next to name and alliance, the highest first.',
+      },
+      {
         kind: 'fix',
         de: 'Abzeichen: Miner gibt es schon, wenn die Bauliste 5 Tage vorausplant; die Stufen des Kartographen sind niedriger (40 / 400 / 4000 / 8000 / 12000), damit sie in der Laufzeit eines Universums erreichbar sind.',
         en: 'Badges: Miner now needs a build order planning 5 days ahead; the Cartographer levels are lower (40 / 400 / 4000 / 8000 / 12000), so they can be reached within the lifetime of a universe.',
