@@ -2504,6 +2504,41 @@ components:
               kinds: { type: array, items: { type: string }, description: Record kinds that count for it }
         explain: { $ref: '#/components/schemas/Explanation' }
         impact: { $ref: '#/components/schemas/SyncImpact' }
+    Freshness:
+      type: object
+      description: >-
+        How fresh a member's own pages are, 0–100: each page has a weight and loses its share with its age (fully fresh
+        up to a few hours or a day, worth nothing after days); galaxy (systems ±2 around the own planets) and
+        buildings (per own planet or moon) are averaged.
+      required: [score, parts]
+      properties:
+        score: { type: integer }
+        parts:
+          type: array
+          items:
+            type: object
+            required: [key, weight, value, time]
+            properties:
+              key: { type: string, enum: [empire, overview, galaxy, buildings, messages, research] }
+              weight: { type: integer, description: Share of the score, all weights add up to 100 }
+              value: { type: number, description: '0–1' }
+              time: { type: [integer, 'null'], description: 'Newest sync; galaxy and buildings: the oldest of their systems or planets (null: one never synced)' }
+    GoalSettings:
+      type: object
+      description: The alliance's goals; missing values take the defaults
+      required: [galaxy, stats, freshness, spy]
+      properties:
+        galaxy: { $ref: '#/components/schemas/GoalSetting' }
+        stats: { $ref: '#/components/schemas/GoalSetting' }
+        freshness: { $ref: '#/components/schemas/GoalSetting' }
+        spy: { $ref: '#/components/schemas/GoalSetting' }
+    GoalSetting:
+      type: object
+      required: [on, target]
+      properties:
+        on: { type: boolean }
+        target: { type: integer, minimum: 1, maximum: 100, description: Percent }
+        days: { type: integer, minimum: 1, maximum: 30, description: 'galaxy: systems synced within this many days count' }
     SyncImpact:
       type: object
       description: >-
@@ -3190,6 +3225,58 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
+  /api/admin/groups/{id}/goals:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer }, description: Alliance group id }
+    get:
+      tags: [Admin]
+      operationId: getGroupGoals
+      description: The alliance's goals (on/off, targets); alliance admins.
+      security: [{ sessionCookie: [] }]
+      responses:
+        '200':
+          description: Current settings
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GoalSettings' }
+        '403':
+          description: Not an admin of the alliance (`group_admin_only`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+    put:
+      tags: [Admin]
+      operationId: setGroupGoals
+      description: Changes the alliance's goals; alliance admins. Goals and fields left out stay as they are.
+      security: [{ sessionCookie: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties:
+                type: object
+                properties:
+                  on: { type: boolean }
+                  target: { type: integer, minimum: 1, maximum: 100 }
+                  days: { type: integer, minimum: 1, maximum: 30 }
+      responses:
+        '200':
+          description: The settings now
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/GoalSettings' }
+        '400':
+          description: Unknown goal or value out of range (`goals_invalid`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '403':
+          description: Not an admin of the alliance (`group_admin_only`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
   /api/admin/groups/{id}/discord:
     parameters:
       - { name: id, in: path, required: true, schema: { type: integer }, description: Alliance group id }
@@ -3766,6 +3853,7 @@ paths:
         rate). `messagesDays`: how many days a messages page counts (raw pages are kept that
         long). `times`: when the member last synced the own pages other pages calculate with (empire; overview or
         fleet page; messages), null when never; the web app warns on a page when its data is too old for it.
+        `freshness`: how fresh the member's own pages are (0–100).
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
@@ -3776,7 +3864,7 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [hints, times, messagesDays]
+                required: [hints, times, freshness, messagesDays]
                 properties:
                   hints: { type: array, items: { $ref: '#/components/schemas/SyncHint' } }
                   times:
@@ -3786,6 +3874,7 @@ paths:
                       empire: { type: [integer, 'null'], description: Unix seconds of the newest empire page }
                       overview: { type: [integer, 'null'], description: Unix seconds of the newest overview or fleet page }
                       messages: { type: [integer, 'null'], description: Unix seconds of the newest synced messages page }
+                  freshness: { $ref: '#/components/schemas/Freshness' }
                   messagesDays: { type: integer }
   /api/{uni}/onboarding:
     get:
@@ -3849,6 +3938,40 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
+  /api/{uni}/goals:
+    get:
+      tags: [Universe]
+      operationId: getGoals
+      description: >-
+        The alliance goals switched on by its admins, each with its target and progress in percent: `galaxy` systems
+        synced within `days` of all systems, `stats` statistics updates of the last week with every category synced
+        of those the learned interval expects (null while no interval is known), `freshness` the members' average
+        freshness (`done`: members at the target), `spy` farm targets (likely inactive, report of the last week) with
+        a report younger than a day.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [goals]
+                properties:
+                  goals:
+                    type: array
+                    items:
+                      type: object
+                      required: [key, target, value, done, total]
+                      properties:
+                        key: { type: string, enum: [galaxy, stats, freshness, spy] }
+                        target: { type: integer, description: Percent }
+                        value: { type: [integer, 'null'], description: Progress in percent }
+                        done: { type: [integer, 'null'] }
+                        total: { type: [integer, 'null'] }
+                        days: { type: integer, description: 'galaxy: the time window' }
   /api/{uni}/farm:
     get:
       tags: [Universe]
@@ -4397,6 +4520,7 @@ paths:
             application/json:
               schema:
                 type: object
+                required: [medianGrowth, window, members]
                 properties:
                   medianGrowth: { type: [number, 'null'] }
                   window: { type: integer, description: Seconds the growth and activity cover }
@@ -4404,6 +4528,7 @@ paths:
                     type: array
                     items:
                       type: object
+                      required: [userId, name, ingameName, role, lastSeen, onlineHidden, player, points, rank, growth, partial, syncs, battles, loot, expeditions, openDeliveries, freshness, flags]
                       properties:
                         userId: { type: integer }
                         name: { type: string, description: Hub display name, or the username when none is set }
@@ -4411,16 +4536,23 @@ paths:
                         role: { type: string }
                         lastSeen: { type: [integer, 'null'] }
                         onlineHidden: { type: boolean, description: The member hides their online status from the caller }
-                        player: { type: [object, 'null'] }
+                        player:
+                          type: [object, 'null']
+                          required: [id, name]
+                          properties: { id: { type: integer }, name: { type: string } }
                         points: { type: [integer, 'null'] }
                         rank: { type: [integer, 'null'] }
                         growth: { type: [integer, 'null'] }
                         partial: { type: boolean }
-                        syncs: { type: object, description: 'Page type (empire, overview, fleets, buildings, research, galaxy, stats, messages, …) → Unix seconds' }
+                        syncs:
+                          type: object
+                          additionalProperties: { type: integer }
+                          description: 'Page type (empire, overview, fleets, buildings, research, galaxy, stats, messages, …) → Unix seconds'
                         battles: { type: integer }
                         loot: { type: integer }
                         expeditions: { type: integer }
                         openDeliveries: { type: integer }
+                        freshness: { $ref: '#/components/schemas/Freshness' }
                         flags: { type: array, items: { type: string, enum: [behind, noEmpire, staleEmpire, noStats, away] } }
   /api/{uni}/export:
     get:

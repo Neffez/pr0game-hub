@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { ApiResponse, Schema } from '../apiTypes';
+import type { ApiResponse, Schema, GoalSettings } from '../apiTypes';
 import { startTour, useAutoTour } from '../tours';
 import Section from '../components/Section.vue';
 import Sheet from '../components/Sheet.vue';
@@ -237,9 +237,10 @@ async function loadGroup() {
     api<ApiResponse<'/api/admin/groups/{id}/discord'>>(`/admin/groups/${groupId.value}/discord`),
     isAdmin.value ? api<FleetAttackRow[]>(`/admin/groups/${groupId.value}/fleet-attacks`) : [],
     api<Candidate[]>(`/admin/groups/${groupId.value}/candidates`),
+    api<GoalSettings>(`/admin/groups/${groupId.value}/goals`),
   ]);
   if (id !== groupLoad) return;
-  [members.value, ingests.value, discord.value, fleetAttacks.value, candidates.value] = res;
+  [members.value, ingests.value, discord.value, fleetAttacks.value, candidates.value, goals.value] = res;
   members.value = members.value.map((m: { display_name: string | null }) => ({ ...m, display_name: m.display_name ?? '' }));
   if (!candidates.value.some((c) => c.id === assignUserId.value)) assignUserId.value = null;
   discordWebhook.value = '';
@@ -345,6 +346,13 @@ const saveDiscord = (body: Record<string, unknown>, ok: string) =>
     discord.value = await api(`/admin/groups/${groupId.value}/discord`, { method: 'PUT', body });
     discordWebhook.value = '';
   }, ok);
+/** Alliance goals (server: repo/goals.ts): on/off and target per goal, saved on change. */
+const goals = ref<GoalSettings | null>(null);
+const GOAL_KEYS = ['galaxy', 'stats', 'freshness', 'spy'] as const;
+const saveGoals = () =>
+  run(async () => {
+    goals.value = await api<GoalSettings>(`/admin/groups/${groupId.value}/goals`, { method: 'PUT', body: goals.value });
+  }, 'goals.saved');
 const sendTestDiscord = () => run(() => api(`/admin/groups/${groupId.value}/discord/test`, { method: 'POST' }), 'account.discordTestSent');
 
 const memberSort = useSort(
@@ -744,6 +752,21 @@ const doMerge = () => run(async () => {
         </template>
         <p class="muted small">{{ t('admin.discordMentions') }}</p>
       </Section>
+      <Section v-if="goals" data-tour="admin-goals" :title="t('goals.title')" :default-open="false" store-key="admin.goals">
+        <template #hint><Hint>{{ t('goals.adminHint') }}</Hint></template>
+        <div v-for="k in GOAL_KEYS" :key="k" class="row goal-setting">
+          <label class="check"><input v-model="goals[k].on" type="checkbox" @change="saveGoals" /> {{ t(`goals.${k}.title`) }}</label>
+          <label :class="{ off: !goals[k].on }">
+            {{ t('goals.targetLabel') }}
+            <input v-model.number="goals[k].target" type="number" min="1" max="100" size="4" :disabled="!goals[k].on" @change="saveGoals" /> %
+          </label>
+          <label v-if="k === 'galaxy'" :class="{ off: !goals[k].on }">
+            {{ t('goals.daysLabel') }}
+            <input v-model.number="goals[k].days" type="number" min="1" max="30" size="3" :disabled="!goals[k].on" @change="saveGoals" />
+          </label>
+          <span class="muted small">{{ t(`goals.${k}.what`) }}</span>
+        </div>
+      </Section>
       <Section v-if="isAdmin" data-tour="admin-fleet-attacks" :title="t('admin.fleetAttacks')" :count="fleetAttacks.length" :default-open="false" store-key="admin.fleetAttacks">
         <template #hint><Hint>{{ t('admin.fleetAttacksHint') }}</Hint></template>
         <p v-if="!fleetAttacks.length" class="muted small">{{ t('admin.fleetAttacksNone') }}</p>
@@ -993,6 +1016,10 @@ const doMerge = () => run(async () => {
 .crawler-warn { margin-top: 8px; }
 .discord .check { display: flex; gap: 8px; align-items: center; margin: 6px 0; }
 .discord .off { opacity: 0.5; }
+.goal-setting { align-items: center; gap: 10px; margin-bottom: 6px; }
+.goal-setting .off { opacity: 0.5; }
+.goal-setting > .check:first-child { min-width: 190px; }
+.goal-setting input[type=number] { width: 64px; }
 .discord label + label { margin-left: 12px; }
 :deep(td.invite-col), :deep(th.invite-col) { white-space: normal; width: 280px; max-width: 360px; }
 .invite-row { display: flex; align-items: stretch; gap: 4px; }

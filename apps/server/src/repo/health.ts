@@ -1,6 +1,7 @@
 import type { GroupContext } from '../context.js';
 import type { DB } from '../db.js';
 import { DISPLAY } from './sql.js';
+import { freshnessOf, type Freshness } from './freshness.js';
 import { memberPlayers } from './members.js';
 import { finalizedSettlements, memberKey } from './settlements.js';
 import { latestScores } from './stats.js';
@@ -45,6 +46,8 @@ export interface MemberHealth {
   expeditions: number;
   /** deliveries of finalized loot settlements the member still has to send */
   openDeliveries: number;
+  /** freshness of the member's own pages (see `freshnessOf`) */
+  freshness: Freshness;
   flags: HealthFlag[];
 }
 
@@ -105,6 +108,7 @@ export function allianceHealth(db: DB, ctx: GroupContext): { members: MemberHeal
     }
   }
 
+  const fresh = freshnessOf(db, ctx, rows.map((r) => r.user_id));
   const members: MemberHealth[] = rows.map((r) => {
     const playerId = players.get(r.user_id) ?? null;
     const score = playerId != null ? scores.get(playerId)?.[1] : undefined;
@@ -122,7 +126,7 @@ export function allianceHealth(db: DB, ctx: GroupContext): { members: MemberHeal
       points: score?.points ?? null, rank: score?.rank ?? null, growth, partial,
       syncs: syncs.get(r.user_id) ?? {},
       battles: battles.get(r.user_id)?.n ?? 0, loot: battles.get(r.user_id)?.loot ?? 0, expeditions: expeditions.get(r.user_id)?.n ?? 0,
-      openDeliveries: open.get(r.user_id) ?? 0, flags: [],
+      openDeliveries: open.get(r.user_id) ?? 0, freshness: fresh.get(r.user_id)!, flags: [],
     };
   });
   const growths = members.map((m) => m.growth).filter((g): g is number => g != null).sort((a, b) => a - b);

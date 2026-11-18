@@ -12,6 +12,7 @@ import { pointsStalls, stallSince } from '../repo/stats.js';
 import { memberPlayer, memberPlayers } from '../repo/members.js';
 import { latestScores } from '../repo/stats.js';
 import { ownSyncTimes, syncHints } from '../repo/syncHints.js';
+import { myFreshness } from '../repo/freshness.js';
 import { farmTargets } from '../repo/farm.js';
 import { contributors, CONTRIBUTOR_SCOPES, type ContributorScope } from '../repo/contributors.js';
 import { HttpError } from '../auth.js';
@@ -56,7 +57,7 @@ export function overviewRoutes(app: FastifyInstance, db: DB) {
   /** What the member should paste next: own pages that are missing or old, the group's statistics and market rate. */
   app.get<{ Params: { uni: string } }>('/api/:uni/sync-hints', async (req) => {
     const ctx = ctxOf(req);
-    return { hints: syncHints(db, ctx), times: ownSyncTimes(db, ctx), messagesDays: config.rawRetentionDays };
+    return { hints: syncHints(db, ctx), times: ownSyncTimes(db, ctx), freshness: myFreshness(db, ctx), messagesDays: config.rawRetentionDays };
   });
 
   /** Who of the group synced the data of a page (farm finder, galaxy, statistics), see `contributors`. */

@@ -32,6 +32,7 @@ export const TOURS = {
     steps: [
       { key: 'intro' },
       { key: 'syncHints', el: 'overview-sync-hints', side: 'bottom' },
+      { key: 'goals', el: 'overview-goals', side: 'bottom' },
       { key: 'planets', el: 'overview-planets', side: 'bottom' },
       { key: 'players', el: 'overview-players', side: 'bottom' },
       { key: 'search', el: 'overview-search', side: 'bottom' },
@@ -49,6 +50,7 @@ export const TOURS = {
       { key: 'pages', el: 'paste-sync', side: 'bottom' },
       { key: 'source', el: 'paste-sync', side: 'bottom' },
       { key: 'hints', el: 'paste-hints', side: 'top' },
+      { key: 'freshness', el: 'paste-freshness', side: 'left' },
       { key: 'json', el: 'paste-json', side: 'top' },
       { key: 'outro' },
     ],
@@ -237,7 +239,9 @@ export const TOURS = {
   health: {
     steps: [
       { key: 'intro' },
+      { key: 'goals', el: 'health-goals', side: 'bottom' },
       { key: 'summary', el: 'health-summary', side: 'bottom' },
+      { key: 'freshness', el: 'health-freshness', side: 'bottom' },
       { key: 'list', el: 'health-list', side: 'top' },
     ],
   },
@@ -325,6 +329,7 @@ export const TOURS = {
       { key: 'groups', el: 'admin-groups', side: 'top' },
       { key: 'members', el: 'admin-members', side: 'top' },
       { key: 'discord', el: 'admin-discord', side: 'top' },
+      { key: 'goals', el: 'admin-goals', side: 'top' },
       { key: 'fleetAttacks', el: 'admin-fleet-attacks', side: 'top' },
       { key: 'inactivity', el: 'admin-inactivity', side: 'top' },
       { key: 'crawler', el: 'admin-crawler', side: 'top' },

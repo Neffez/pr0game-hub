@@ -38,6 +38,7 @@ import { imperiumRoutes } from './routes/imperium.js';
 import { ingestRoutes } from './routes/ingest.js';
 import { messageRoutes } from './routes/messages.js';
 import { overviewRoutes } from './routes/overview.js';
+import { goalRoutes } from './routes/goals.js';
 import { playersRoutes } from './routes/players.js';
 import { reportsRoutes } from './routes/reports.js';
 import { spyRoutes } from './routes/spy.js';
@@ -187,7 +188,7 @@ export function buildApp(db: DB, opts: { logger?: boolean; push?: PushOptions; d
       notificationRoutes(scope, db);
       pushRoutes(scope, db, push);
       discordRoutes(scope, db, discord);
-      for (const routes of [overviewRoutes, playersRoutes, spyRoutes, galaxyRoutes, reportsRoutes, deckRoutes, imperiumRoutes, buildingsRoutes, buildOrderRoutes, messageRoutes, marketRoutes]) routes(scope, db);
+      for (const routes of [overviewRoutes, goalRoutes, playersRoutes, spyRoutes, galaxyRoutes, reportsRoutes, deckRoutes, imperiumRoutes, buildingsRoutes, buildOrderRoutes, messageRoutes, marketRoutes]) routes(scope, db);
     },
     { prefix: config.basePath },
   );

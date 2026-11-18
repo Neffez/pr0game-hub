@@ -6,7 +6,8 @@ import { useI18n } from 'vue-i18n';
 import { useMobile, useUni } from '../composables';
 import { tables, useLiveReload } from '../live';
 import { ago, dateTime, STATS_CATEGORIES } from '../format';
-import { loadSyncHints, messagesDays, refreshSyncHints, syncHints, type SyncHint } from '../syncHints';
+import { freshness, loadSyncHints, messagesDays, refreshSyncHints, syncHints, type SyncHint } from '../syncHints';
+import FreshnessScore from './FreshnessScore.vue';
 
 /**
  * "What should I paste next?": the member's missing or old pages and the group's statistics and market rate, each
@@ -70,6 +71,7 @@ function title(h: SyncHint): string {
     :default-open-mobile="false"
   >
     <template #hint>
+      <span v-if="freshness" class="small muted sync-fresh">{{ t('ownFresh.short') }} <FreshnessScore :freshness="freshness" /></span>
       <span class="badge sync-hints-mark" :class="`badge-${worst}`" :title="markTitle" :aria-label="markTitle">
         <Icon name="warning" :size="12" /> {{ shown.length }}
       </span>
@@ -90,7 +92,10 @@ function title(h: SyncHint): string {
     <RouterLink v-if="mobile" :to="`/${uni}/paste`" class="small sync-hints-more">{{ more ? t('syncHints.more', { n: more }, more) : t('syncHints.open') }}</RouterLink>
   </Section>
   <div v-else-if="!brief" class="card sync-hints">
-    <h3 class="mt-0 sync-hints-head"><Icon name="sync" :size="16" /> {{ t('syncHints.title') }}</h3>
+    <h3 class="mt-0 sync-hints-head">
+      <Icon name="sync" :size="16" /> <span class="grow">{{ t('syncHints.title') }}</span>
+      <span v-if="freshness" class="small muted sync-fresh" data-tour="paste-freshness">{{ t('ownFresh.label') }} <FreshnessScore :freshness="freshness" ring /></span>
+    </h3>
     <p v-if="syncHints && !all.length" class="ok" style="margin: 0">{{ t('syncHints.allSet') }}</p>
     <ul v-else class="sync-hint-list">
       <li v-for="h in shown" :key="h.key" :class="`level-${h.level}`">
@@ -111,6 +116,7 @@ function title(h: SyncHint): string {
 
 <style scoped>
 .sync-hints-head { display: flex; align-items: center; gap: 6px; }
+.sync-fresh { display: inline-flex; align-items: center; gap: 6px; font-weight: 400; }
 .sync-hint-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 10px; }
 .sync-hint-list li { display: flex; gap: 8px; align-items: flex-start; padding-left: 8px; border-left: 3px solid var(--border); }
 .sync-hint-list li.level-high { border-left-color: var(--neg); }

@@ -320,6 +320,27 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/groups/{id}/goals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Alliance group id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        /** @description The alliance's goals (on/off, targets); alliance admins. */
+        get: operations["getGroupGoals"];
+        /** @description Changes the alliance's goals; alliance admins. Goals and fields left out stay as they are. */
+        put: operations["setGroupGoals"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/groups/{id}/discord": {
         parameters: {
             query?: never;
@@ -653,7 +674,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** @description What the member should paste next, most important first (an empty list: the hub is up to date). Own pages that are missing or old (empire, overview or fleet page, the galaxy systems around the own planets, buildings pages per planet, a research page, messages) and the group's shared data (statistics: categories missing in the newest synced update, or a newer update due after the interval learned from the synced ones; the market rate). `messagesDays`: how many days a messages page counts (raw pages are kept that long). `times`: when the member last synced the own pages other pages calculate with (empire; overview or fleet page; messages), null when never; the web app warns on a page when its data is too old for it. */
+        /** @description What the member should paste next, most important first (an empty list: the hub is up to date). Own pages that are missing or old (empire, overview or fleet page, the galaxy systems around the own planets, buildings pages per planet, a research page, messages) and the group's shared data (statistics: categories missing in the newest synced update, or a newer update due after the interval learned from the synced ones; the market rate). `messagesDays`: how many days a messages page counts (raw pages are kept that long). `times`: when the member last synced the own pages other pages calculate with (empire; overview or fleet page; messages), null when never; the web app warns on a page when its data is too old for it. `freshness`: how fresh the member's own pages are (0–100). */
         get: operations["getSyncHints"];
         put?: never;
         post?: never;
@@ -689,6 +710,23 @@ export type paths = {
         };
         /** @description Who of the group synced the data a page calculates with: `farm` the spy reports of the last `days` (farm finder), `galaxy` the galaxy views the hub shows now, `stats` the statistics pages of the last `days`. Other members are named only when they show their syncs (account setting), the rest is counted in `hidden`; former members are left out. */
         get: operations["getContributors"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/{uni}/goals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The alliance goals switched on by its admins, each with its target and progress in percent: `galaxy` systems synced within `days` of all systems, `stats` statistics updates of the last week with every category synced of those the learned interval expects (null while no interval is known), `freshness` the members' average freshness (`done`: members at the target), `spy` farm targets (likely inactive, report of the last week) with a report younger than a day. */
+        get: operations["getGoals"];
         put?: never;
         post?: never;
         delete?: never;
@@ -5279,6 +5317,34 @@ export type components = {
             explain?: components["schemas"]["Explanation"];
             impact?: components["schemas"]["SyncImpact"];
         };
+        /** @description How fresh a member's own pages are, 0–100: each page has a weight and loses its share with its age (fully fresh up to a few hours or a day, worth nothing after days); galaxy (systems ±2 around the own planets) and buildings (per own planet or moon) are averaged. */
+        Freshness: {
+            score: number;
+            parts: {
+                /** @enum {string} */
+                key: "empire" | "overview" | "galaxy" | "buildings" | "messages" | "research";
+                /** @description Share of the score */
+                weight: number;
+                /** @description 0–1 */
+                value: number;
+                /** @description Newest sync; galaxy and buildings: the oldest of their systems or planets (null: one never synced) */
+                time: number | null;
+            }[];
+        };
+        /** @description The alliance's goals; missing values take the defaults */
+        GoalSettings: {
+            galaxy: components["schemas"]["GoalSetting"];
+            stats: components["schemas"]["GoalSetting"];
+            freshness: components["schemas"]["GoalSetting"];
+            spy: components["schemas"]["GoalSetting"];
+        };
+        GoalSetting: {
+            on: boolean;
+            /** @description Percent */
+            target: number;
+            /** @description galaxy: systems synced within this many days count */
+            days?: number;
+        };
         /** @description What a saved sync changed for the group (not with `dryRun`); parts without news are left out. Ages are seconds. */
         SyncImpact: {
             /** @description Galaxy systems with a newer view than before */
@@ -6247,6 +6313,89 @@ export interface operations {
             };
         };
     };
+    getGroupGoals: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Alliance group id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current settings */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoalSettings"];
+                };
+            };
+            /** @description Not an admin of the alliance (`group_admin_only`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    setGroupGoals: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Alliance group id */
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    [key: string]: {
+                        on?: boolean;
+                        target?: number;
+                        days?: number;
+                    };
+                };
+            };
+        };
+        responses: {
+            /** @description The settings now */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GoalSettings"];
+                };
+            };
+            /** @description Unknown goal or value out of range (`goals_invalid`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Not an admin of the alliance (`group_admin_only`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
     getGroupDiscord: {
         parameters: {
             query?: never;
@@ -7109,6 +7258,7 @@ export interface operations {
                             /** @description Unix seconds of the newest synced messages page */
                             messages: number | null;
                         };
+                        freshness: components["schemas"]["Freshness"];
                         messagesDays: number;
                     };
                 };
@@ -7200,6 +7350,47 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getGoals: {
+        parameters: {
+            query?: {
+                /** @description Alliance group id (alternative to `X-Hub-Group`, required for SSE) */
+                group?: components["parameters"]["HubGroupQuery"];
+            };
+            header?: {
+                /** @description Alliance group id (see `GET /api/auth/me`) */
+                "X-Hub-Group"?: components["parameters"]["HubGroupHeader"];
+            };
+            path: {
+                /** @description Universe slug (e.g. `u8`) */
+                uni: components["parameters"]["Uni"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        goals: {
+                            /** @enum {string} */
+                            key: "galaxy" | "stats" | "freshness" | "spy";
+                            /** @description Percent */
+                            target: number;
+                            /** @description Progress in percent */
+                            value: number | null;
+                            done: number | null;
+                            total: number | null;
+                            /** @description galaxy: the time window */
+                            days?: number;
+                        }[];
+                    };
                 };
             };
         };
@@ -7902,31 +8093,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        medianGrowth?: number | null;
+                        medianGrowth: number | null;
                         /** @description Seconds the growth and activity cover */
-                        window?: number;
-                        members?: {
-                            userId?: number;
+                        window: number;
+                        members: {
+                            userId: number;
                             /** @description Hub display name */
-                            name?: string;
+                            name: string;
                             /** @description In-game name when it differs from `name` */
-                            ingameName?: string | null;
-                            role?: string;
-                            lastSeen?: number | null;
+                            ingameName: string | null;
+                            role: string;
+                            lastSeen: number | null;
                             /** @description The member hides their online status from the caller */
-                            onlineHidden?: boolean;
-                            player?: Record<string, never> | null;
-                            points?: number | null;
-                            rank?: number | null;
-                            growth?: number | null;
-                            partial?: boolean;
+                            onlineHidden: boolean;
+                            player: {
+                                id: number;
+                                name: string;
+                            } | null;
+                            points: number | null;
+                            rank: number | null;
+                            growth: number | null;
+                            partial: boolean;
                             /** @description Page type (empire, overview, fleets, buildings, research, galaxy, stats, messages, …) → Unix seconds */
-                            syncs?: Record<string, never>;
-                            battles?: number;
-                            loot?: number;
-                            expeditions?: number;
-                            openDeliveries?: number;
-                            flags?: ("behind" | "noEmpire" | "staleEmpire" | "noStats" | "away")[];
+                            syncs: {
+                                [key: string]: number;
+                            };
+                            battles: number;
+                            loot: number;
+                            expeditions: number;
+                            openDeliveries: number;
+                            freshness: components["schemas"]["Freshness"];
+                            flags: ("behind" | "noEmpire" | "staleEmpire" | "noStats" | "away")[];
                         }[];
                     };
                 };

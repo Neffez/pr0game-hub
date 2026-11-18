@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Frische-Wert: Zeigt von 0 bis 100, wie aktuell deine eigenen Seiten im Hub sind – bei den Sync-Hinweisen und für alle Mitglieder auf der Gesundheitsseite. Dazu gibt es Allianz-Ziele auf Übersicht und Gesundheit (Galaxie-Abdeckung, vollständige Statistik, Frische der Mitglieder, aktuelle Spionageberichte); Allianz-Admins passen die Zielwerte in der Verwaltung an.',
+        en: 'Freshness score: shows from 0 to 100 how up to date your own pages are in the hub – with the sync hints and for all members on the health page. Plus alliance goals on the overview and the health page (galaxy coverage, complete statistics, member freshness, recent spy reports); alliance admins change the targets under administration.',
+      },
+      {
+        kind: 'new',
         de: 'Statistik: Fehlt bei einem Spieler der Heimatplanet, steht dort „Jetzt einfügen“ statt eines Strichs. Ein Klick öffnet den Schnell-Sync, der Tooltip erklärt, wie du die Spielerinformationen im Spiel kopierst.',
         en: 'Statistics: where the home planet of a player is missing, "Paste now" replaces the dash. A click opens the quick sync, the tooltip explains how to copy the player information in the game.',
       },

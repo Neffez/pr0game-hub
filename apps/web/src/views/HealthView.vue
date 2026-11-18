@@ -2,10 +2,13 @@
 import { computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { uniApi } from '../api';
+import type { AllianceHealth, HealthMember } from '../apiTypes';
 import Hint from '../components/Hint.vue';
 import Loading from '../components/Loading.vue';
 import PageHeader from '../components/PageHeader.vue';
 import PlayerLink from '../components/PlayerLink.vue';
+import FreshnessScore from '../components/FreshnessScore.vue';
+import AllianceGoals from '../components/AllianceGoals.vue';
 import { useClock } from '../clock';
 import { useLoader, useMobile, useStored, useUni } from '../composables';
 import { ago, dateTime, fmt, fmtSigned, freshnessColor, short } from '../format';
@@ -16,38 +19,13 @@ import { useAutoTour } from '../tours';
  * Alliance health for every member (server: repo/health.ts): who grows, who falls behind, who still syncs and
  * visits the hub, raids and expeditions of the week and open loot deliveries.
  */
-type Flag = 'behind' | 'noEmpire' | 'staleEmpire' | 'noStats' | 'away';
-interface Member {
-  userId: number;
-  name: string;
-  /** in-game name when it differs from the display name */
-  ingameName: string | null;
-  role: string;
-  lastSeen: number | null;
-  /** hides the online status from the viewer */
-  onlineHidden: boolean;
-  player: { id: number; name: string } | null;
-  points: number | null;
-  rank: number | null;
-  growth: number | null;
-  partial: boolean;
-  syncs: Record<string, number>;
-  battles: number;
-  loot: number;
-  expeditions: number;
-  openDeliveries: number;
-  flags: Flag[];
-}
-interface Data {
-  members: Member[];
-  medianGrowth: number | null;
-}
+type Member = HealthMember;
 
 const { t } = useI18n();
 const { uni } = useUni();
 const mobile = useMobile();
 const now = useClock();
-const { data, error, load } = useLoader(() => uniApi<Data>(uni.value, '/alliance-health'));
+const { data, error, load } = useLoader(() => uniApi<AllianceHealth>(uni.value, '/alliance-health'));
 onMounted(load);
 useLiveReload(load, tables('empire', 'player_scores', 'overview', 'fleets', 'galaxy_systems'));
 useAutoTour('health', () => !!data.value);
@@ -85,6 +63,7 @@ const flagged = computed(() => (data.value?.members ?? []).filter((m) => m.flags
     </template>
   </PageHeader>
 
+  <AllianceGoals data-tour="health-goals" store-key="goals.health" />
   <div v-if="error" class="error">{{ error }}</div>
   <Loading v-else-if="!data" :lines="6" />
   <template v-else-if="data">
@@ -101,6 +80,8 @@ const flagged = computed(() => (data.value?.members ?? []).filter((m) => m.flags
         <div class="row">
           <b>{{ m.name }}</b>
           <span v-if="m.ingameName" class="muted small">{{ m.ingameName }}</span>
+          <span class="grow" />
+          <FreshnessScore :freshness="m.freshness" />
           <span v-for="f in m.flags" :key="f" class="badge" :class="f === 'behind' ? 'neg' : 'warn'">{{ t(`health.flag.${f}`) }}</span>
         </div>
         <div>
@@ -128,6 +109,7 @@ const flagged = computed(() => (data.value?.members ?? []).filter((m) => m.flags
             <th class="num">{{ t('health.points') }}</th>
             <th class="num" :title="t('health.growthTitle')">{{ t('health.growth') }}</th>
             <th>{{ t('health.hub') }}</th>
+            <th class="num" :title="t('ownFresh.columnTitle')" data-tour="health-freshness">{{ t('ownFresh.label') }}</th>
             <th v-for="c in COLUMNS" :key="c.key">{{ t(`health.col.${c.key}`) }}</th>
             <th class="num" :title="t('health.battlesTitle')">{{ t('health.battles') }}</th>
             <th class="num">{{ t('health.expeditions') }}</th>
@@ -150,6 +132,7 @@ const flagged = computed(() => (data.value?.members ?? []).filter((m) => m.flags
               {{ m.growth != null ? fmtSigned(m.growth) : '–' }}<span v-if="m.partial" class="faint">*</span>
             </td>
             <td class="small" :style="age(m.lastSeen) ? { color: age(m.lastSeen)!.color } : undefined" :title="m.onlineHidden ? t('health.hidden') : age(m.lastSeen)?.title">{{ age(m.lastSeen)?.text ?? '–' }}</td>
+            <td class="num"><FreshnessScore :freshness="m.freshness" /></td>
             <td v-for="c in COLUMNS" :key="c.key" class="small" :title="age(syncOf(m, c.types))?.title">
               <span v-if="age(syncOf(m, c.types))" :style="{ color: age(syncOf(m, c.types))!.color }">{{ age(syncOf(m, c.types))!.text }}</span>
               <span v-else class="faint">–</span>

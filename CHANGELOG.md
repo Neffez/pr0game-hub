@@ -4,6 +4,19 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-18
 
+- Freshness score and alliance goals (sync incentives):
+  - Freshness (0–100) of a member's own pages: empire 30, overview/fleets 20, galaxy around the own planets 20,
+    buildings pages 15, messages 10, research 5, each fully fresh for a while and worth nothing after days (linear in
+    between). Shown in the sync hints (overview, sync page, quick sync; tooltip per page) and as a column of the
+    alliance health. `/api/{uni}/sync-hints` answers `freshness`, `/api/{uni}/alliance-health` each member's.
+  - Alliance goals with a progress bar and target mark on the overview and the health page: galaxy coverage (systems
+    synced within N days), complete statistics (updates of the week with all categories, against the learned
+    interval), member freshness (average) and spy reports up to date (likely inactive farm targets with a report
+    under 24 h). Defaults 50 % / 7 days, 90 %, 75 %, 50 %; alliance admins switch goals off or change targets under
+    administration. `GET /api/{uni}/goals`, `GET`/`PUT /api/admin/groups/{id}/goals`, migration `094_group_goals`.
+  - Tour steps for the new parts; the alliance health answer is fully described in the OpenAPI spec and typed from it
+    in the web app.
+
 - Statistics: a player without a known home planet (player information not synced yet) shows "Paste now" instead of
   a dash; it opens the quick sync, its tooltip says how to copy the player information in the game. The view takes
   its answer type from the generated API types.
