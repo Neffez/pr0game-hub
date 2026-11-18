@@ -613,7 +613,7 @@ components:
           type: object
           properties:
             economy: { type: boolean, default: true, description: 'Insert mines, solar and fusion plants and storages' }
-            throttle: { type: boolean, default: true, description: Try production settings of the mines (25 % steps) }
+            throttle: { type: boolean, default: true, description: "Try production settings of the mines (the game's 10 % steps)" }
             forbid: { type: array, items: { type: integer }, description: 'Element ids never to insert (e.g. 12 fusion reactor); a target of them is still built' }
             includeExisting: { type: boolean, default: true, description: 'The open steps of the list that are not kept count as targets, so none get lost; a ship or defense step stays a step of its own with its count' }
             noLater: { type: boolean, description: 'Every open ship, defense and research step of the list (kept or not) gets a soft deadline at its end in the current timeline: earlier is free, later costs `noLaterWeight`. Default: on with `includeExisting`' }

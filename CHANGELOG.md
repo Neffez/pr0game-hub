@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-18
 
+- Auto plan: production throttling tries the game's settings, 0 to 100 % in steps of 10, instead of pr0plan's 25 %
+  steps (0, 25, 50, 75, 100 % are not all choices of the game: 25 and 75 % cannot be set). Half of the adjustments
+  move one factor by 10 %, the others to any level.
+
 - Auto plan in the web app: a dialog next to the pr0plan import searches the fastest build order in the browser.
   - Planet: a synced one (its synced levels and the open steps of its list count), a planned one of the build order,
     or a new planet that starts at 0 (start resources of the universe, the account's research) and is created as a

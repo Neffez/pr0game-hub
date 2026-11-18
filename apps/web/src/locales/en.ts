@@ -1967,7 +1967,7 @@ const en: typeof de = {
     economyTitle: 'The auto plan may slot in mines, solar and fusion plants and storages where they reach the targets sooner.',
     advanced: 'Advanced',
     throttle: 'Throttle production',
-    throttleTitle: 'Tries production settings of the mines in 25 % steps (e.g. when energy is short).',
+    throttleTitle: 'Tries production settings of the mines from 0 to 100 % in 10 % steps like the game (e.g. when energy is short).',
     includeExisting: 'Open steps as targets',
     includeExistingTitle: 'The open steps of the current list are not lost: they count as targets too.',
     noLater: 'No later than now',

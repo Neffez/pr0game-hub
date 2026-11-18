@@ -3,6 +3,9 @@ import {
   betterResult, OptimizeError, plannedKey, runOptimizeJob, standaloneInput, startOptimizePool, workerSeed, type OptimizeJobMessage, type OptimizeJobRequest,
   type OptimizeResult, type WorkerLike,
 } from '../src/index.js';
+import { adjustThrottleMove, insertThrottleMove } from '../src/optimize/anneal.js';
+import { setupProblem, type Item } from '../src/optimize/problem.js';
+import { createRng } from '../src/optimize/rng.js';
 import { HOME, hubOf, NOW, planetOf } from './optimizeFixture.js';
 
 /** A worker that runs the job in this thread (after a tick, like a real one). */
@@ -68,6 +71,20 @@ describe('auto plan job and pool', () => {
     const stopped = startOptimizePool({ request: { input: { order, hub, planet: HOME, targets: { research: { 115: 2 } }, now: NOW }, iterations: 10 }, createWorker: () => inlineWorker() });
     stopped.stop();
     expect(await stopped.done).toBeNull();
+  });
+
+  it('throttles the mines in the game\'s 10 % steps', () => {
+    const { hub, order } = single();
+    const problem = setupProblem({ order, hub, planet: HOME, targets: { research: { 115: 3 } }, now: NOW });
+    const rng = createRng(3);
+    const seen = new Set<number>();
+    let items: Item[] = [];
+    for (let i = 0; i < 400; i++) {
+      items = (i % 2 ? adjustThrottleMove : insertThrottleMove)(items, problem, rng) ?? items;
+      for (const it of items) for (const f of Object.values(it.step.prod?.factors ?? {})) seen.add(Math.round(f * 1000) / 1000);
+    }
+    // every level of the game's choice 0 %, 10 % … 100 %, and nothing else
+    expect([...seen].sort((a, b) => a - b)).toEqual(Array.from({ length: 11 }, (_, i) => i / 10));
   });
 
   it('compares results by the objective, then the finish', () => {

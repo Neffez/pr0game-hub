@@ -3263,7 +3263,7 @@ export type components = {
                  */
                 economy: boolean;
                 /**
-                 * @description Try production settings of the mines (25 % steps)
+                 * @description Try production settings of the mines (the game's 10 % steps)
                  * @default true
                  */
                 throttle: boolean;

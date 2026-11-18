@@ -64,9 +64,10 @@ export const insertEconomyMove: Move = (items, problem, rng) => {
   return out;
 };
 
-const LEVELS = [0, 0.25, 0.5, 0.75, 1];
+/** the game's production settings: 0 … 100 % in steps of 10 (pr0plan tried 25 % steps) */
+const LEVELS = Array.from({ length: 11 }, (_, i) => i / 10);
 
-/** insert a production step with random factors of the mines (25 % steps) */
+/** insert a production step with random factors of the mines (10 % steps) */
 export const insertThrottleMove: Move = (items, problem, rng) => {
   const factors: Record<string, number> = {};
   for (const id of MINES) factors[id] = LEVELS[pick(rng, LEVELS.length)];
@@ -78,14 +79,18 @@ export const insertThrottleMove: Move = (items, problem, rng) => {
   return out;
 };
 
-/** change one factor of one of the optimizer's production steps */
+/** change one factor of one of the optimizer's production steps: half the time by 10 %, else to any level */
 export const adjustThrottleMove: Move = (items, _p, rng) => {
   const idx = items.reduce<number[]>((out, it, i) => (!it.kept && it.step.kind === 'prod' ? (out.push(i), out) : out), []);
   if (!idx.length) return null;
   const i = idx[pick(rng, idx.length)];
   const s = items[i].step;
+  const mine = MINES[pick(rng, MINES.length)];
+  const now = Math.round((s.prod!.factors[mine] ?? 1) * 10);
+  const level = rng() < 0.5 ? Math.min(10, Math.max(0, now + (rng() < 0.5 ? -1 : 1))) : pick(rng, LEVELS.length);
+  if (level === now) return null;
   const out = [...items];
-  out[i] = { ...items[i], step: { ...s, prod: { ...s.prod!, factors: { ...s.prod!.factors, [MINES[pick(rng, MINES.length)]]: LEVELS[pick(rng, LEVELS.length)] } } } };
+  out[i] = { ...items[i], step: { ...s, prod: { ...s.prod!, factors: { ...s.prod!.factors, [mine]: LEVELS[level] } } } };
   return out;
 };
 

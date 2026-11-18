@@ -35,7 +35,7 @@ export interface QuietHours {
 export interface OptimizeOptions {
   /** insert mines, solar and fusion plants (default true) */
   economy?: boolean;
-  /** try production settings of the mines in 25 % steps (default true) */
+  /** try production settings of the mines in the game's 10 % steps (default true) */
   throttle?: boolean;
   /** element ids never to insert (e.g. 12 fusion reactor); a target of them is still built */
   forbid?: number[];

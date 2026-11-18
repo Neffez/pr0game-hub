@@ -1969,7 +1969,7 @@ const de = {
     economyTitle: 'Der Auto-Plan darf Minen, Solar- und Fusionskraftwerk sowie Speicher einschieben, wenn sie die Ziele früher erreichen.',
     advanced: 'Erweitert',
     throttle: 'Produktion drosseln',
-    throttleTitle: 'Probiert Produktionseinstellungen der Minen in 25-%-Schritten (z. B. bei Energiemangel).',
+    throttleTitle: 'Probiert Produktionseinstellungen der Minen von 0 bis 100 % in 10-%-Schritten wie im Spiel (z. B. bei Energiemangel).',
     includeExisting: 'Offene Schritte als Ziele',
     includeExistingTitle: 'Die offenen Schritte der bisherigen Liste gehen nicht verloren: Sie zählen als Ziele mit.',
     noLater: 'Nicht später als bisher',
