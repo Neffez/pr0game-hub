@@ -7,6 +7,7 @@ import { now, type DB } from '../db.js';
 import { events } from '../events.js';
 import { buildOrderOf, buildOrderTimeline, syncBuildOrder, type StoredBuildOrder } from '../repo/buildOrders.js';
 import { buildingsState } from '../repo/buildings.js';
+import { addCredits, dayOf, MINER_AHEAD } from '../repo/achievements.js';
 import { contextOf } from './util.js';
 
 /** Meta data of an import (file settings, mapping) is kept as sent, up to this size. */
@@ -57,7 +58,26 @@ function checkPrecondition(req: FastifyRequest, stored: StoredBuildOrder | null,
  */
 export function buildOrderRoutes(app: FastifyInstance, db: DB) {
   const ctxOf = contextOf(db);
-  const changed = (ctx: GroupContext) => events.publish(ctx.groupId, { type: 'data', tables: ['build_orders'], userId: ctx.user.id });
+  /** The miner badge: a build order whose timeline reaches at least `MINER_AHEAD` into the future (once per member). */
+  const creditMiner = (ctx: GroupContext, ends?: (number | null)[]) => {
+    try {
+      if (db.prepare("SELECT 1 FROM sync_credits WHERE group_id = ? AND user_id = ? AND kind = 'miner'").get(ctx.groupId, ctx.user.id)) return;
+      const t = now();
+      if (!ends) {
+        const found = buildOrderOf(db, ctx, ctx.user.id);
+        if (!found) return;
+        const state = buildingsState(db, ctx, ctx.user.id);
+        ends = buildOrderTimeline(syncBuildOrder(db, ctx, ctx.user.id, found, state, false).order, state, t, ctx.universe.settings).steps.map((x) => x.end);
+      }
+      if (Math.max(0, ...ends.map((e) => e ?? 0)) >= t + MINER_AHEAD) addCredits(db, ctx.groupId, ctx.user.id, dayOf(t, ctx.universe.settings.timezone), [{ kind: 'miner' }]);
+    } catch {
+      /* a badge only */
+    }
+  };
+  const changed = (ctx: GroupContext) => {
+    events.publish(ctx.groupId, { type: 'data', tables: ['build_orders'], userId: ctx.user.id });
+    creditMiner(ctx);
+  };
   /** The build order as the GET shows it (steps the synced pages show as done checked off), with its ETag. */
   const current = (ctx: GroupContext, reply?: FastifyReply) => {
     const stored = buildOrderOf(db, ctx, ctx.user.id);
@@ -111,7 +131,9 @@ export function buildOrderRoutes(app: FastifyInstance, db: DB) {
     if (!found) throw new HttpError(404, 'build_order_not_found', 'No build order');
     const state = buildingsState(db, ctx, ctx.user.id);
     const stored = syncBuildOrder(db, ctx, ctx.user.id, found, state, false);
-    return { now: t, ...buildOrderTimeline(stored.order, state, t, ctx.universe.settings) };
+    const timeline = buildOrderTimeline(stored.order, state, t, ctx.universe.settings);
+    creditMiner(ctx, timeline.steps.map((x) => x.end));
+    return { now: t, ...timeline };
   });
 
   /** Imports a build order (or starts one by hand): replaces the viewer's one in this group. */

@@ -735,6 +735,40 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/{uni}/achievements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Badges and sync streak of every member of the group. Each badge has levels reached by a count: `imperator` days with a newer empire page, `cartographer` galaxy systems updated (each once a day), `scout` spy reports, `fleeter` battle reports, `expeditioner` expeditions, `trader` days with a marketplace page, `socializer` player messages, `chronicler` statistics updates pasted first, `fresh` days with a freshness of 90 or more, `streak` the longest streak, `raider` planned raids, `collector` finalized loot settlements, `forist` comments on players, `miner` a build order planning 7 days ahead. The streak counts days in the universe's time zone with a sync only the member can make (own empire, overview, buildings or research page, own reports and messages); a day in vacation mode pauses it. */
+        get: operations["getAchievements"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/{uni}/ranking": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Sync points of every member over a period (days in the universe's time zone): `week` this calendar week from Monday, `lastWeek`, `days30` the last 30 days. Points per unit: galaxy system 3 (each once a day), spy report 3, empire 10 and overview 5 (once a day), foreign espionage 3, battle report 3, buildings or research page 2 (per planet and day), marketplace 2 (once a day), expedition 1, player message 1, statistics category added 1 (pasted first +2). `parts`: the points per kind. */
+        get: operations["getRanking"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/{uni}/farm": {
         parameters: {
             query?: never;
@@ -7391,6 +7425,112 @@ export interface operations {
                             days?: number;
                         }[];
                     };
+                };
+            };
+        };
+    };
+    getAchievements: {
+        parameters: {
+            query?: {
+                /** @description Alliance group id (alternative to `X-Hub-Group`, required for SSE) */
+                group?: components["parameters"]["HubGroupQuery"];
+            };
+            header?: {
+                /** @description Alliance group id (see `GET /api/auth/me`) */
+                "X-Hub-Group"?: components["parameters"]["HubGroupHeader"];
+            };
+            path: {
+                /** @description Universe slug (e.g. `u8`) */
+                uni: components["parameters"]["Uni"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        members: {
+                            userId: number;
+                            name: string;
+                            streak: {
+                                /** @description Days in a row up to today */
+                                current: number;
+                                best: number;
+                                /** @description Today already counts */
+                                today: boolean;
+                            };
+                            badges: {
+                                /** @enum {string} */
+                                key: "imperator" | "cartographer" | "scout" | "fleeter" | "expeditioner" | "trader" | "socializer" | "chronicler" | "fresh" | "streak" | "raider" | "collector" | "forist" | "miner";
+                                count: number;
+                                /** @description Reached level, 0: not yet */
+                                level: number;
+                                levels: number;
+                                /** @description Count of the next level */
+                                next: number | null;
+                                /** @description The counts of all levels */
+                                steps: number[];
+                            }[];
+                        }[];
+                    };
+                };
+            };
+        };
+    };
+    getRanking: {
+        parameters: {
+            query?: {
+                /** @description Alliance group id (alternative to `X-Hub-Group`, required for SSE) */
+                group?: components["parameters"]["HubGroupQuery"];
+                period?: "week" | "lastWeek" | "days30";
+            };
+            header?: {
+                /** @description Alliance group id (see `GET /api/auth/me`) */
+                "X-Hub-Group"?: components["parameters"]["HubGroupHeader"];
+            };
+            path: {
+                /** @description Universe slug (e.g. `u8`) */
+                uni: components["parameters"]["Uni"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        period: "week" | "lastWeek" | "days30";
+                        /** @description First day (YYYY-MM-DD) */
+                        from: string;
+                        /** @description Last day (YYYY-MM-DD) */
+                        to: string;
+                        rows: {
+                            userId: number;
+                            name: string;
+                            points: number;
+                            /** @description Points per kind (galaxy */
+                            parts: {
+                                [key: string]: number;
+                            };
+                        }[];
+                    };
+                };
+            };
+            /** @description Unknown period (`invalid_period`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
                 };
             };
         };

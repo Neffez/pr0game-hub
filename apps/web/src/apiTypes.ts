@@ -55,3 +55,7 @@ export type Goals = ApiResponse<'/api/{uni}/goals'>;
 export type Goal = Goals['goals'][number];
 export type GoalSettings = Schema<'GoalSettings'>;
 export type Onboarding = ApiResponse<'/api/{uni}/onboarding'>;
+export type Achievements = ApiResponse<'/api/{uni}/achievements'>;
+export type MemberAchievements = Achievements['members'][number];
+export type Badge = MemberAchievements['badges'][number];
+export type Ranking = ApiResponse<'/api/{uni}/ranking'>;

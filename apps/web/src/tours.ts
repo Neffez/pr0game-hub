@@ -240,10 +240,18 @@ export const TOURS = {
   health: {
     steps: [
       { key: 'intro' },
-      { key: 'goals', el: 'health-goals', side: 'bottom' },
-      { key: 'summary', el: 'health-summary', side: 'bottom' },
-      { key: 'freshness', el: 'health-freshness', side: 'bottom' },
-      { key: 'list', el: 'health-list', side: 'top' },
+      { key: 'members', el: 'health-tab-members', side: 'bottom', head: 'members' },
+      { key: 'badges', el: 'health-tab-badges', side: 'bottom', head: 'badges' },
+      { key: 'ranking', el: 'health-tab-ranking', side: 'bottom', head: 'ranking' },
+      { key: 'goals', el: 'health-goals', side: 'bottom', tabs: ['members'] },
+      { key: 'summary', el: 'health-summary', side: 'bottom', tabs: ['members'] },
+      { key: 'freshness', el: 'health-freshness', side: 'bottom', tabs: ['members'] },
+      { key: 'list', el: 'health-list', side: 'top', tabs: ['members'] },
+      { key: 'streak', el: 'health-badges-streak', side: 'bottom', tabs: ['badges'] },
+      { key: 'badgesList', el: 'health-badges-list', side: 'top', tabs: ['badges'] },
+      { key: 'legend', el: 'health-badges-legend', side: 'top', tabs: ['badges'] },
+      { key: 'period', el: 'health-ranking-period', side: 'bottom', tabs: ['ranking'] },
+      { key: 'rankingList', el: 'health-ranking-list', side: 'top', tabs: ['ranking'] },
     ],
   },
   attack: {

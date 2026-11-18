@@ -3,7 +3,9 @@ import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n';
 import { useUni } from '../composables';
 import { ago } from '../format';
-import { presence, type PresenceMember } from '../live';
+import { presence, tables, useLiveReload, type PresenceMember } from '../live';
+import { achievements, loadAchievements, topBadges } from '../achievements';
+import BadgeIcon from './BadgeIcon.vue';
 
 /** Sidebar: alliance members with the hub open (where they are, linked) and when the others were last online. */
 const props = defineProps<{ pageLabel: (page: string | null) => string }>();
@@ -48,6 +50,11 @@ onMounted(() => {
   document.fonts?.ready.then(measure);
 });
 onBeforeUnmount(() => observer?.disconnect());
+
+// up to three badges next to each name (reloaded after syncs, at most every few minutes)
+onMounted(() => loadAchievements(uni.value));
+useLiveReload(() => loadAchievements(uni.value), tables('empire', 'galaxy_systems', 'spy_reports', 'battle_reports', 'expeditions', 'player_scores'), 10000);
+const badgesOf = computed(() => new Map((achievements.value ?? []).map((m) => [m.userId, topBadges(m.badges)])));
 watch(onlineTitle, () => nextTick(measure));
 const offline = computed(() => {
   const ids = new Set(presence.value.map((p) => p.userId));
@@ -86,6 +93,7 @@ function where(p: PresenceMember) {
     <div v-for="m in online" :key="m.id" class="member">
       <span class="dot" :class="{ away: !m.at.active }" :title="m.at.active ? t('presence.active') : t('presence.away')" />
       <span class="name" :class="roleClass(m)" :title="nameTitle(m)">{{ m.name }}<span v-if="m.me" class="muted"> ({{ t('presence.you') }})</span></span>
+      <span v-if="badgesOf.get(m.id)?.length" class="badges"><BadgeIcon v-for="b in badgesOf.get(m.id)" :key="b.key" :badge="b" :size="11" /></span>
       <RouterLink v-if="!m.me && where(m.at)" class="where" :to="where(m.at)!.to" @click="emit('navigate')">{{ where(m.at)!.text }}</RouterLink>
     </div>
     <details v-if="offline.length" class="offline">
@@ -93,6 +101,7 @@ function where(p: PresenceMember) {
       <div v-for="m in offline" :key="m.id" class="member muted">
         <span class="dot off" />
         <span class="name" :class="roleClass(m)" :title="nameTitle(m)">{{ m.name }}</span>
+        <span v-if="badgesOf.get(m.id)?.length" class="badges"><BadgeIcon v-for="b in badgesOf.get(m.id)" :key="b.key" :badge="b" :size="11" /></span>
         <span class="where">{{ m.last_seen_at ? t('presence.lastSeen', { ago: ago(m.last_seen_at) }) : '' }}</span>
       </div>
     </details>
@@ -109,6 +118,7 @@ function where(p: PresenceMember) {
 .name.global-admin { color: var(--info); }
 .where { margin-left: auto; color: var(--muted); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 a.where:hover { color: var(--accent); }
+.badges { display: inline-flex; gap: 2px; flex-shrink: 0; }
 .dot { flex-shrink: 0; width: 7px; height: 7px; border-radius: 50%; background: var(--pos); }
 .dot.away { background: var(--warn); }
 .dot.off { background: var(--faint); }

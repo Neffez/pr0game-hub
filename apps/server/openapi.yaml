@@ -3974,6 +3974,99 @@ paths:
                         done: { type: [integer, 'null'] }
                         total: { type: [integer, 'null'] }
                         days: { type: integer, description: 'galaxy: the time window' }
+  /api/{uni}/achievements:
+    get:
+      tags: [Universe]
+      operationId: getAchievements
+      description: >-
+        Badges and sync streak of every member of the group. Each badge has levels reached by a count: `imperator`
+        days with a newer empire page, `cartographer` galaxy systems updated (each once a day), `scout` spy reports,
+        `fleeter` battle reports, `expeditioner` expeditions, `trader` days with a marketplace page, `socializer`
+        player messages, `chronicler` statistics updates pasted first, `fresh` days with a freshness of 90 or more,
+        `streak` the longest streak, `raider` planned raids, `collector` finalized loot settlements, `forist` comments
+        on players, `miner` a build order planning 7 days ahead. The streak counts days in the universe's time zone
+        with a sync only the member can make (own empire, overview, buildings or research page, own reports and
+        messages); a day in vacation mode pauses it.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [members]
+                properties:
+                  members:
+                    type: array
+                    items:
+                      type: object
+                      required: [userId, name, streak, badges]
+                      properties:
+                        userId: { type: integer }
+                        name: { type: string }
+                        streak:
+                          type: object
+                          required: [current, best, today]
+                          properties:
+                            current: { type: integer, description: Days in a row up to today }
+                            best: { type: integer }
+                            today: { type: boolean, description: Today already counts }
+                        badges:
+                          type: array
+                          items:
+                            type: object
+                            required: [key, count, level, levels, next, steps]
+                            properties:
+                              key: { type: string, enum: [imperator, cartographer, scout, fleeter, expeditioner, trader, socializer, chronicler, fresh, streak, raider, collector, forist, miner] }
+                              count: { type: integer }
+                              level: { type: integer, description: 'Reached level, 0: not yet' }
+                              levels: { type: integer }
+                              next: { type: [integer, 'null'], description: Count of the next level, null at the top }
+                              steps: { type: array, items: { type: integer }, description: The counts of all levels }
+  /api/{uni}/ranking:
+    get:
+      tags: [Universe]
+      operationId: getRanking
+      description: >-
+        Sync points of every member over a period (days in the universe's time zone): `week` this calendar week from
+        Monday, `lastWeek`, `days30` the last 30 days. Points per unit: galaxy system 3 (each once a day), spy report
+        3, empire 10 and overview 5 (once a day), foreign espionage 3, battle report 3, buildings or research page 2
+        (per planet and day), marketplace 2 (once a day), expedition 1, player message 1, statistics category added 1
+        (pasted first +2). `parts`: the points per kind.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+        - { name: period, in: query, schema: { type: string, enum: [week, lastWeek, days30], default: week } }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [period, from, to, rows]
+                properties:
+                  period: { type: string, enum: [week, lastWeek, days30] }
+                  from: { type: string, description: First day (YYYY-MM-DD) }
+                  to: { type: string, description: Last day (YYYY-MM-DD) }
+                  rows:
+                    type: array
+                    items:
+                      type: object
+                      required: [userId, name, points, parts]
+                      properties:
+                        userId: { type: integer }
+                        name: { type: string }
+                        points: { type: integer }
+                        parts: { type: object, additionalProperties: { type: integer }, description: Points per kind (galaxy, spy, empire, …) }
+        '400':
+          description: Unknown period (`invalid_period`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
   /api/{uni}/farm:
     get:
       tags: [Universe]

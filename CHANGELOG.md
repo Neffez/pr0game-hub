@@ -4,6 +4,23 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-18
 
+- Streaks, badges and ranking (sync incentives), as tabs of the alliance health ("Members", "Streaks & badges",
+  "Ranking"):
+  - Syncs write credits per member and day in the universe's time zone (`sync_credits`, migration `095`): galaxy
+    systems updated (each once a day), a newer empire or overview page (once a day), buildings and research pages
+    (per planet and day), the marketplace (once a day), statistics categories added and updates pasted first, a
+    freshness of 90 or more after a sync, a build order planning 7 days ahead.
+  - 14 badges with levels (bronze, silver, gold and above): imperator, cartographer, scout, fleeter, expeditioner,
+    trader, socializer, chronicler, always fresh, streak, raider, debt collector, forist, miner. Counts the group's
+    tables hold (reports, expeditions, messages, raids, settlements, comments) include the time before.
+  - Sync streak: days with a sync only the member can make (own empire, overview, buildings or research page, own
+    reports and messages); a missed day breaks it, vacation mode pauses it.
+  - Weekly ranking (Monday to Sunday, last week, 30 days) with points by usefulness: galaxy system 3, spy report 3,
+    empire 10, overview 5, foreign espionage 3, battle report 3, buildings/research page 2, marketplace 2, expedition
+    1, player message 1, statistics category 1 (first +2).
+  - The three highest badges show next to each name in the online list. `GET /api/{uni}/achievements`,
+    `GET /api/{uni}/ranking`; tour steps for the new tabs.
+
 - Overview: first steps, "what to paste next" and the alliance goals sit in one section "Sync & goals", folded by
   default; its row sums them up quietly (open first steps, freshness, important or outdated hints, goals reached).
   Goals and onboarding are shared stores in the web app, the onboarding answer is described in the OpenAPI spec.

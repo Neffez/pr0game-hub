@@ -15,6 +15,8 @@ import { Players } from './repo/players.js';
 import { shareSyncsEnabled } from './repo/presence.js';
 import { Store } from './store.js';
 import { probeImpact, type SyncImpact } from './syncImpact.js';
+import { addCredits, dayOf, FRESH_SCORE, type Credit } from './repo/achievements.js';
+import { freshnessOf } from './repo/freshness.js';
 
 export interface IngestTarget {
   groupId: number;
@@ -155,7 +157,7 @@ function ingestWith(db: DB, target: IngestTarget, input: ParseInput & { source: 
 
   const store = new Store(db, target, summary, opts.log);
   // the feedback is optional: it never fails a sync
-  let impact: (() => SyncImpact) | null = null;
+  let impact: (() => { impact: SyncImpact; credits: Credit[] }) | null = null;
   try {
     impact = probeImpact(db, target, parsed, store, opts.ctx);
   } catch (err) {
@@ -184,7 +186,17 @@ function ingestWith(db: DB, target: IngestTarget, input: ParseInput & { source: 
     );
   })();
   try {
-    if (impact) summary.impact = impact();
+    if (impact) {
+      const res = impact();
+      summary.impact = res.impact;
+      const day = dayOf(now(), target.timezone);
+      const credits = [...res.credits];
+      // a "fresh" day for the member whose own pages are fresh enough after this sync
+      if (opts.ctx && target.syncedBy == null && (freshnessOf(db, { ...opts.ctx }, [target.userId]).get(target.userId)?.score ?? 0) >= FRESH_SCORE) {
+        credits.push({ kind: 'fresh' });
+      }
+      if (credits.length) addCredits(db, target.groupId, target.userId, day, credits);
+    }
   } catch (err) {
     opts.log?.warn({ err, groupId: target.groupId }, 'sync_impact');
   }

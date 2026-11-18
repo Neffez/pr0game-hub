@@ -3,6 +3,7 @@ import type { GroupContext } from './context.js';
 import { now, type DB } from './db.js';
 import type { IngestTarget } from './ingest.js';
 import { overviewTime, SAME_UPDATE, syncHints, type SyncHintKey } from './repo/syncHints.js';
+import type { Credit } from './repo/achievements.js';
 import type { Store } from './store.js';
 
 /**
@@ -31,7 +32,7 @@ const OWN_FRESH = 3600;
  * Takes the group's state the records are about before they are stored and returns the function that tells the
  * impact after storing them. The sync hints are counted for the member who pasted their own pages only.
  */
-export function probeImpact(db: DB, target: IngestTarget, parsed: ParseResult, store: Store, ctx?: GroupContext): () => SyncImpact {
+export function probeImpact(db: DB, target: IngestTarget, parsed: ParseResult, store: Store, ctx?: GroupContext): () => { impact: SyncImpact; credits: Credit[] } {
   const g = target.groupId;
   const epoch = (local: string | null) => (local ? localToEpoch(local, target.timezone, now()) : null);
   const records = parsed.records;
@@ -83,7 +84,7 @@ export function probeImpact(db: DB, target: IngestTarget, parsed: ParseResult, s
   );
 
   // own pages: their previous time and the time of the pasted page, when the member synced them for themselves
-  const own: { page: OwnPage; before: number | null; time: number }[] = [];
+  const own: { page: OwnPage; before: number | null; time: number; keys?: string[] }[] = [];
   const pageTime = (local: string | null | undefined) => epoch(local ?? null) ?? now();
   const newest = (times: number[]) => Math.max(...times);
   if (target.syncedBy == null) {
@@ -107,7 +108,10 @@ export function probeImpact(db: DB, target: IngestTarget, parsed: ParseResult, s
       const times = list.map((r) =>
         maxOf(`SELECT MAX(page_time) FROM ${table} WHERE group_id = ? AND user_id = ? AND g = ? AND s = ? AND p = ? AND planet_type = ?`, g, target.userId, r.coords.g, r.coords.s, r.coords.p, r.type),
       );
-      own.push({ page, before: times.includes(null) ? null : Math.min(...(times as number[])), time: newest(list.map((r) => pageTime(r.pageTime))) });
+      own.push({
+        page, before: times.includes(null) ? null : Math.min(...(times as number[])), time: newest(list.map((r) => pageTime(r.pageTime))),
+        keys: list.map((r) => `${r.coords.g}:${r.coords.s}:${r.coords.p}:${r.type}`),
+      });
     }
   }
 
@@ -125,6 +129,8 @@ export function probeImpact(db: DB, target: IngestTarget, parsed: ParseResult, s
 
   return () => {
     const impact: SyncImpact = {};
+    // credits for badges, streak and ranking (see repo/achievements.ts): the same news, unit by unit
+    const credits: Credit[] = [];
 
     const ages: number[] = [];
     let systems = 0;
@@ -133,6 +139,7 @@ export function probeImpact(db: DB, target: IngestTarget, parsed: ParseResult, s
       const before = seenBefore.get(k);
       if (before != null && before >= seenAt) continue;
       systems++;
+      credits.push({ kind: 'galaxy', key: k });
       if (before == null) first++;
       else ages.push(seenAt - before);
     }
@@ -154,16 +161,22 @@ export function probeImpact(db: DB, target: IngestTarget, parsed: ParseResult, s
       })
       .filter((x) => x.types.length);
     if (stats.length) impact.stats = stats;
+    for (const x of stats) {
+      for (const type of x.types) credits.push({ kind: 'stats', key: `${x.update}:${type}` });
+      if (x.first) credits.push({ kind: 'statsFirst', key: String(x.update) });
+    }
 
-    const newer = own.filter((x) => x.before == null || x.time - x.before > OWN_FRESH).map(({ page, before }) => ({ page, before }));
-    if (newer.length) impact.own = newer;
+    const newerOwn = own.filter((x) => x.before == null || x.time - x.before > OWN_FRESH);
+    if (newerOwn.length) impact.own = newerOwn.map(({ page, before }) => ({ page, before }));
+    for (const x of newerOwn) for (const key of x.keys ?? ['']) credits.push({ kind: x.page, key });
+    if (target.syncedBy == null && of('marketplace').length) credits.push({ kind: 'market' });
 
     const hintsAfter = hintsBefore && tryHints();
     if (hintsBefore && hintsAfter) {
       const done = hintsBefore.filter((k) => !hintsAfter.includes(k));
       if (done.length) impact.hintsDone = done;
     }
-    return impact;
+    return { impact, credits };
   };
 }
 

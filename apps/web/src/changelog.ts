@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Serien, Abzeichen und Rangliste: Die Allianz-Gesundheit hat jetzt Tabs. Unter „Serien & Abzeichen“ siehst du, wer wie viele Tage in Folge synchronisiert und welche der 14 Abzeichen (z. B. Imperator, Kartograph, Späher, Fleeter) in welcher Stufe erreicht sind; die „Rangliste“ zeigt die Punkte der Woche für nützliche Syncs. Die drei höchsten Abzeichen stehen auch neben dem Namen in der Online-Liste.',
+        en: 'Streaks, badges and ranking: the alliance health now has tabs. "Streaks & badges" shows who syncs how many days in a row and which of the 14 badges (e.g. Imperator, Cartographer, Scout, Fleeter) they reached at which level; the "Ranking" shows the points of the week for useful syncs. The top three badges also show next to the name in the online list.',
+      },
+      {
+        kind: 'new',
         de: 'Übersicht aufgeräumt: Erste Schritte, „Was soll ich als Nächstes einfügen?“ und die Allianz-Ziele stecken in einem eingeklappten Bereich „Sync & Ziele“. Seine Zeile zeigt auf einen Blick deine Frische, wichtige Hinweise und die erreichten Ziele.',
         en: 'Tidier overview: first steps, "What should I paste next?" and the alliance goals sit in one folded section "Sync & goals". Its row shows your freshness, important hints and the goals reached at a glance.',
       },
