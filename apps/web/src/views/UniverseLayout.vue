@@ -16,6 +16,7 @@ import { provideUni, useLoader, useScrollLock, type UniContext } from '../compos
 import { applyUnits } from '../units';
 import { clearClaims, loadClaims } from '../claims';
 import { clearSyncHints } from '../syncHints';
+import { quickSyncAvailable, quickSyncOpen } from '../quickSync';
 import { dateTime, setMarketRate, setToolsUrl, toolsIndexUrl } from '../format';
 import { freezeClock, useClock } from '../clock';
 import Countdown from '../components/Countdown.vue';
@@ -207,7 +208,10 @@ const pageLabel = (page: string | null) => {
 const navOpen = ref(false);
 /** Shortcut of the search as the platform writes it. */
 const shortcut = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent) ? '⌘K' : 'Ctrl K';
-const syncOpen = ref(false);
+const syncOpen = quickSyncOpen;
+// pages open the quick sync from their "data outdated" note while the universe is running
+watch(running, (v) => (quickSyncAvailable.value = v), { immediate: true });
+onBeforeUnmount(() => (quickSyncAvailable.value = false));
 useScrollLock(navOpen);
 watch(() => route.path, () => {
   navOpen.value = false;

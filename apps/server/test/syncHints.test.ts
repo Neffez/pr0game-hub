@@ -59,6 +59,8 @@ describe('statInterval', () => {
 
 describe('sync hints', () => {
   it('asks a new member for the empire and the statistics first', async () => {
+    const res = (await app.inject({ method: 'GET', url: '/hub/api/u8/sync-hints', headers: carol })).json();
+    expect(res.times).toEqual({ empire: null, overview: null, messages: null });
     const list = await hints();
     expect(list.slice(0, 2).map((h) => [h.key, h.level])).toEqual([
       ['empire', 'high'],
@@ -87,6 +89,9 @@ describe('sync hints', () => {
     expect(list.find((h) => h.key === 'galaxy')).toMatchObject({ level: 'low', count: 2, total: 5 });
     expect(list.find((h) => h.key === 'buildings')).toMatchObject({ count: 1, total: 2 });
     expect(list.find((h) => h.key === 'overview')).toMatchObject({ level: 'low', time: t - 13 * 3600 });
+    // the times of the own pages other pages warn with
+    const res = (await app.inject({ method: 'GET', url: '/hub/api/u8/sync-hints', headers: carol })).json();
+    expect(res.times).toEqual({ empire: t - 60, overview: t - 13 * 3600, messages: null });
   });
 
   it('names the categories missing in the newest synced update, and expects a newer one only after the learned interval', async () => {

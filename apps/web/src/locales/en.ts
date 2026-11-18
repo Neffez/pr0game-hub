@@ -1569,6 +1569,10 @@ const en: typeof de = {
       buildings: 'Buildings',
     },
   },
+  stale: {
+    title: 'This page calculates with outdated data:',
+    sync: 'Paste now',
+  },
   syncHints: {
     title: 'What should I paste next?',
     open: 'All hints',

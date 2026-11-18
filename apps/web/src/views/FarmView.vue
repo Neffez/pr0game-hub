@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import PageHeader from '../components/PageHeader.vue';
+import StaleData from '../components/StaleData.vue';
 import Hint from '../components/Hint.vue';
 import Icon from '../components/Icon.vue';
 import Loading from '../components/Loading.vue';
@@ -299,6 +300,7 @@ const claimText = (r: Row) => {
       <button data-tour="farm-tab-debris" :class="{ active: tab === 'debris' }" @click="tab = 'debris'">{{ t('farm.tabDebris') }}</button>
     </div>
   </PageHeader>
+  <StaleData v-if="tab !== 'debris'" :checks="[{ key: 'messages', maxAge: 86400 }]" />
 
   <DebrisFinder v-if="tab === 'debris'" />
   <template v-else>

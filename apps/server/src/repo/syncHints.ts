@@ -62,6 +62,34 @@ export function statInterval(updates: number[]): number | null {
   return null;
 }
 
+/** Newest overview or fleet page of the member (build queues, fleet movements). */
+function overviewTime(db: DB, ctx: GroupContext): number | null {
+  return (
+    (db
+      .prepare(
+        `SELECT MAX(t) FROM (SELECT MAX(page_time) AS t FROM overview_snapshots WHERE group_id = ? AND user_id = ?
+           UNION ALL SELECT MAX(page_time) FROM fleet_snapshots WHERE group_id = ? AND user_id = ?)`,
+      )
+      .pluck()
+      .get(ctx.groupId, ctx.user.id, ctx.groupId, ctx.user.id) as number | null) ?? null
+  );
+}
+
+/** Newest messages page of the member (spy, battle, expedition and transport reports). */
+function messagesTime(db: DB, ctx: GroupContext): number | null {
+  return (
+    (db
+      .prepare("SELECT MAX(created_at) FROM raw_ingests WHERE group_id = ? AND user_id = ? AND page_type = 'messages'")
+      .pluck()
+      .get(ctx.groupId, ctx.user.id) as number | null) ?? null
+  );
+}
+
+/** Times of the member's own pages the hub's pages calculate with (null: never synced); the web app warns with them. */
+export function ownSyncTimes(db: DB, ctx: GroupContext): { empire: number | null; overview: number | null; messages: number | null } {
+  return { empire: latestEmpire(db, ctx, ctx.user.id)?.time ?? null, overview: overviewTime(db, ctx), messages: messagesTime(db, ctx) };
+}
+
 /**
  * What the member should paste next: own pages that are missing or old, and the group's statistics and market rate.
  * Most important first; an empty list means the hub is up to date.
@@ -111,14 +139,7 @@ export function syncHints(db: DB, ctx: GroupContext): SyncHint[] {
   }
 
   // overview or fleet page: build queues and fleet movements (raid planner, attack warnings)
-  const overview = max(
-    `SELECT MAX(t) FROM (SELECT MAX(page_time) AS t FROM overview_snapshots WHERE group_id = ? AND user_id = ?
-       UNION ALL SELECT MAX(page_time) FROM fleet_snapshots WHERE group_id = ? AND user_id = ?)`,
-    g,
-    me,
-    g,
-    me,
-  );
+  const overview = overviewTime(db, ctx);
   if (overview == null || t - overview > DAY) hints.push({ key: 'overview', level: 'medium', scope: 'me', time: overview });
   else if (t - overview > 12 * HOUR) hints.push({ key: 'overview', level: 'low', scope: 'me', time: overview });
 
@@ -173,7 +194,7 @@ export function syncHints(db: DB, ctx: GroupContext): SyncHint[] {
   if (research == null) hints.push({ key: 'research', level: 'low', scope: 'me', time: null });
 
   // messages: spy, battle, expedition and transport reports (the raw pages are kept for a limited time only)
-  const messages = max("SELECT MAX(created_at) FROM raw_ingests WHERE group_id = ? AND user_id = ? AND page_type = 'messages'", g, me);
+  const messages = messagesTime(db, ctx);
   if (messages == null || t - messages > DAY) hints.push({ key: 'messages', level: 'low', scope: 'me', time: messages });
 
   // market rate of the group: values in the loot settlement, the build order and the payback of upgrades

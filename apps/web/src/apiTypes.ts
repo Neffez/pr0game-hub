@@ -41,3 +41,7 @@ export type RiskBody = DefenseRisk['planets'][number];
 export type StoredBuildOrder = Omit<NonNullable<Schema<'StoredBuildOrder'>>, 'order'> & { order: BuildOrder };
 /** The answer of the build order's GET and writes (`buildOrder` with the planner's order type). */
 export type BuildOrderAnswer = Omit<Schema<'BuildOrderAnswer'>, 'buildOrder'> & { buildOrder: StoredBuildOrder | null };
+
+export type SyncHints = ApiResponse<'/api/{uni}/sync-hints'>;
+export type SyncHint = Schema<'SyncHint'>;
+export type OwnSyncTimes = SyncHints['times'];

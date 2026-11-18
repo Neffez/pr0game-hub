@@ -12,6 +12,7 @@ import { readError, uniApi } from '../api';
 import { useClock } from '../clock';
 import Hint from '../components/Hint.vue';
 import PageHeader from '../components/PageHeader.vue';
+import StaleData from '../components/StaleData.vue';
 import Ticker from '../components/Ticker.vue';
 import BuildOrder from '../components/BuildOrder.vue';
 import UpgradeAdvisor from '../components/UpgradeAdvisor.vue';
@@ -281,6 +282,7 @@ const costClass = (b: { missing: Record<number, number> }, res: number) => (b.mi
       <button v-if="started" data-tour="build-tab-defense" :class="{ active: tab === 'defense' }" @click="tab = 'defense'">{{ t('buildings.tabDefense') }}</button>
     </div>
   </PageHeader>
+  <StaleData :checks="[{ key: 'empire', maxAge: 12 * 3600 }, { key: 'overview', maxAge: 12 * 3600 }]" />
 
   <div v-if="error" class="error">{{ error }}</div>
   <div v-else-if="data && !planets.length && tab !== 'order'" class="card muted">{{ t('buildings.empty') }}</div>

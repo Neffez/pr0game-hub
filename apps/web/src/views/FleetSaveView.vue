@@ -9,6 +9,7 @@ import Hint from '../components/Hint.vue';
 import Icon from '../components/Icon.vue';
 import Loading from '../components/Loading.vue';
 import PageHeader from '../components/PageHeader.vue';
+import StaleData from '../components/StaleData.vue';
 import { useLoader, useStored, useUni } from '../composables';
 import { abbr, dateTime, duration, fmt, name } from '../format';
 import { tables, useLiveReload } from '../live';
@@ -210,6 +211,7 @@ const kindList = computed(() => (['deploy', 'transport', 'harvest', 'colonize'] 
       </Hint>
     </template>
   </PageHeader>
+  <StaleData :checks="[{ key: 'empire', maxAge: 6 * 3600 }]" />
 
   <div class="card fs-window" data-tour="fleetsave-window">
     <label class="field-inline">{{ t('fleetsave.offlineFrom') }} <input v-model="win.from" type="time" /></label>

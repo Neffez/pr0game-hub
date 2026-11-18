@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-18',
     items: [
       {
+        kind: 'new',
+        de: 'Farm-Finder, Angriffs-Assistent, Fleetsave und Bauen weisen darauf hin, wenn sie mit alten Daten von dir rechnen (z. B. „Imperium ist 2 d alt“). Ein Klick auf „Jetzt einfügen“ öffnet den Schnell-Sync direkt über der Seite – jetzt auch am Computer.',
+        en: 'The farm finder, the attack assistant, the fleetsave planner and Build point out when they calculate with old data of yours (e.g. "Empire is 2 d old"). "Paste now" opens the quick sync right over the page – now also on the computer.',
+      },
+      {
         kind: 'fix',
         de: 'Auto-Plan: „Produktion drosseln“ probiert die Einstellungen des Spiels (0 bis 100 % in 10-%-Schritten) statt 25-%-Schritten, die sich im Spiel teils gar nicht einstellen lassen.',
         en: 'Auto plan: "Throttle production" tries the settings of the game (0 to 100 % in 10 % steps) instead of 25 % steps, some of which cannot be set in the game.',

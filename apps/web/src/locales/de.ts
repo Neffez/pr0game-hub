@@ -1570,6 +1570,10 @@ const de = {
       buildings: 'Gebäude',
     },
   },
+  stale: {
+    title: 'Diese Seite rechnet mit veralteten Daten:',
+    sync: 'Jetzt einfügen',
+  },
   syncHints: {
     title: 'Was soll ich als Nächstes einfügen?',
     open: 'Alle Hinweise',

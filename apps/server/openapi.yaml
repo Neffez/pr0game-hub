@@ -3702,7 +3702,8 @@ paths:
         pages per planet, a research page, messages) and the group's shared data (statistics: categories missing in
         the newest synced update, or a newer update due after the interval learned from the synced ones; the market
         rate). `messagesDays`: how many days a messages page counts (raw pages are kept that
-        long).
+        long). `times`: when the member last synced the own pages other pages calculate with (empire; overview or
+        fleet page; messages), null when never; the web app warns on a page when its data is too old for it.
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
@@ -3713,9 +3714,16 @@ paths:
             application/json:
               schema:
                 type: object
-                required: [hints, messagesDays]
+                required: [hints, times, messagesDays]
                 properties:
                   hints: { type: array, items: { $ref: '#/components/schemas/SyncHint' } }
+                  times:
+                    type: object
+                    required: [empire, overview, messages]
+                    properties:
+                      empire: { type: [integer, 'null'], description: Unix seconds of the newest empire page }
+                      overview: { type: [integer, 'null'], description: Unix seconds of the newest overview or fleet page }
+                      messages: { type: [integer, 'null'], description: Unix seconds of the newest synced messages page }
                   messagesDays: { type: integer }
   /api/{uni}/onboarding:
     get:

@@ -12,6 +12,7 @@ import Hint from '../components/Hint.vue';
 import Icon from '../components/Icon.vue';
 import Loading from '../components/Loading.vue';
 import PageHeader from '../components/PageHeader.vue';
+import StaleData from '../components/StaleData.vue';
 import PlayerLink from '../components/PlayerLink.vue';
 import Section from '../components/Section.vue';
 import { useLoader, useMobile, useUni } from '../composables';
@@ -173,6 +174,7 @@ const openHelpers = computed(() => (data.value?.helpers ?? []).filter((h) => h.l
   <div v-if="error" class="error">{{ error }}</div>
   <Loading v-else-if="!data" :lines="6" />
   <template v-else-if="data && a">
+    <StaleData v-if="data.member?.id === ctx?.me.id" :checks="[{ key: 'empire', maxAge: 6 * 3600 }]" />
     <div class="card at-head" :class="{ arrived }" data-tour="attack-head">
       <div class="at-count">
         <Icon name="attack" :size="22" class="neg" />

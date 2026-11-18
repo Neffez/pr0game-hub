@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-18
 
+- "Data outdated" note on the farm finder, the incoming attack assistant (own attacks), the fleetsave planner and
+  Build & research: when the member's own page a page calculates with is too old for it (messages older than a day;
+  empire older than 6 h; empire or overview older than 12 h), a note names its age and opens the quick sync over the
+  page, now also as a dialog on desktop. `/api/{uni}/sync-hints` answers the times of the own pages in `times`.
+
 - Auto plan: production throttling tries the game's settings, 0 to 100 % in steps of 10, instead of pr0plan's 25 %
   steps (0, 25, 50, 75, 100 % are not all choices of the game: 25 and 75 % cannot be set). Half of the adjustments
   move one factor by 10 %, the others to any level.

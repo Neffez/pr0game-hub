@@ -1,35 +1,29 @@
 import { ref } from 'vue';
 import { uniApi } from './api';
+import type { OwnSyncTimes, SyncHint, SyncHints } from './apiTypes';
 
-/** What the member should paste next (server: repo/syncHints.ts), most important first. */
-export interface SyncHint {
-  key: 'empire' | 'stats' | 'overview' | 'galaxy' | 'buildings' | 'research' | 'messages' | 'market';
-  level: 'high' | 'medium' | 'low';
-  scope: 'me' | 'group';
-  time: number | null;
-  count?: number;
-  total?: number;
-  update?: number;
-  /** stats: `update` is expected after the interval learned from the synced updates, not synced yet */
-  estimated?: boolean;
-  interval?: number;
-  types?: number[];
-}
+export type { OwnSyncTimes, SyncHint } from './apiTypes';
 
-/** Shared by the sync page, the quick sync sheet and the overview: one request, reloaded after a sync. */
+/** Shared by the sync page, the quick sync sheet, the overview and the "data outdated" notes: one request, reloaded after a sync. */
 export const syncHints = ref<SyncHint[] | null>(null);
+/** When the member last synced the own pages other pages calculate with (server: `ownSyncTimes`). */
+export const syncTimes = ref<OwnSyncTimes | null>(null);
 export const messagesDays = ref(14);
 let loadedFor = '';
 let pending: Promise<void> | null = null;
 
 export function loadSyncHints(uni: string, force = false): Promise<void> {
   if (!force && loadedFor === uni && (pending || syncHints.value)) return pending ?? Promise.resolve();
-  if (loadedFor !== uni) syncHints.value = null;
+  if (loadedFor !== uni) {
+    syncHints.value = null;
+    syncTimes.value = null;
+  }
   loadedFor = uni;
-  const run = uniApi<{ hints: SyncHint[]; messagesDays: number }>(uni, '/sync-hints')
+  const run = uniApi<SyncHints>(uni, '/sync-hints')
     .then((res) => {
       if (loadedFor !== uni) return;
       syncHints.value = res.hints;
+      syncTimes.value = res.times;
       messagesDays.value = res.messagesDays;
     })
     .catch(() => {
@@ -47,4 +41,5 @@ export const refreshSyncHints = (uni: string) => loadSyncHints(uni, true);
 export function clearSyncHints() {
   loadedFor = '';
   syncHints.value = null;
+  syncTimes.value = null;
 }

@@ -653,7 +653,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** @description What the member should paste next, most important first (an empty list: the hub is up to date). Own pages that are missing or old (empire, overview or fleet page, the galaxy systems around the own planets, buildings pages per planet, a research page, messages) and the group's shared data (statistics: categories missing in the newest synced update, or a newer update due after the interval learned from the synced ones; the market rate). `messagesDays`: how many days a messages page counts (raw pages are kept that long). */
+        /** @description What the member should paste next, most important first (an empty list: the hub is up to date). Own pages that are missing or old (empire, overview or fleet page, the galaxy systems around the own planets, buildings pages per planet, a research page, messages) and the group's shared data (statistics: categories missing in the newest synced update, or a newer update due after the interval learned from the synced ones; the market rate). `messagesDays`: how many days a messages page counts (raw pages are kept that long). `times`: when the member last synced the own pages other pages calculate with (empire; overview or fleet page; messages), null when never; the web app warns on a page when its data is too old for it. */
         get: operations["getSyncHints"];
         put?: never;
         post?: never;
@@ -7031,6 +7031,14 @@ export interface operations {
                 content: {
                     "application/json": {
                         hints: components["schemas"]["SyncHint"][];
+                        times: {
+                            /** @description Unix seconds of the newest empire page */
+                            empire: number | null;
+                            /** @description Unix seconds of the newest overview or fleet page */
+                            overview: number | null;
+                            /** @description Unix seconds of the newest synced messages page */
+                            messages: number | null;
+                        };
                         messagesDays: number;
                     };
                 };
