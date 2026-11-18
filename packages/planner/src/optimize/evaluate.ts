@@ -72,7 +72,8 @@ const counts = (problem: Problem, it: Item) => it.step.element != null && !it.st
  * Returns why not, null when it holds.
  */
 export function structureError(problem: Problem, items: Item[]): string | null {
-  const lv: Record<number, number> = { ...problem.start };
+  // ships count from the planet's stock for transports (ships are no requirements, so this changes nothing else)
+  const lv: Record<number, number> = { ...problem.start, ...problem.shipStock };
   for (const it of items) {
     const s = it.step;
     const open = counts(problem, it);

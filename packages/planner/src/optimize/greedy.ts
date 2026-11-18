@@ -175,7 +175,9 @@ function missingFor(problem: Problem, v: View, step: Step, left: Left): number[]
   };
   if (step.element != null && problem.keptOpen.has(step.id)) reqs(step.element);
   for (const { ship, count } of problem.transportShips.get(step.id) ?? []) {
-    if ((v.levels[ship] ?? 0) < count && left.units.has(ship)) {
+    // the view counts the ships on the planet; the stock adds those away on a flight
+    const have = (v.levels[ship] ?? 0) + Math.max(0, (problem.shipStock[ship] ?? 0) - (problem.start[ship] ?? 0));
+    if (have < count && left.units.has(ship)) {
       out.add(ship);
       reqs(ship);
     }

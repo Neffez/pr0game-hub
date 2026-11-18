@@ -4,6 +4,13 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-18
 
+- Auto plan: `currentFinishAt` is filled again for a planet whose transports fly with ships that are away. The
+  rule "a transport after the ships it carries" counted only the ships on the planet, so a colony whose first
+  transports use cargos away on a flight (its own cargo step comes later) made the current list invalid
+  (`currentError`: "transport … needs 3 of ship 202 built before it") and pushed the cargo step before the first
+  transport. Ships the current list sends before it builds them now count as the planet's stock; transports that
+  need the ships the list builds still come after them.
+
 - Auto plan: `options.otherPlanetsWeight` sets the weight of the goals of the planets the list's transports feed
   (default `noLaterWeight`; 0 leaves those planets out of the objective).
 

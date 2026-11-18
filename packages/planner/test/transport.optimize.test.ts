@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { optimize, simulate, type OptimizeResult } from '../src/index.js';
+import { setupProblem } from '../src/optimize/problem.js';
 import { NOW } from './optimizeFixture.js';
 import { COLONY, DEPARTURES, HOME, transportHub, transportOrder } from './transportFixture.js';
 
@@ -59,6 +60,25 @@ describe('auto plan of a colony with timed transports', () => {
     const free = run({ keepTimeWeight: 0, noLater: false }, 50);
     expect(free.goals.some((g) => g.planet === HOME)).toBe(false);
     expect(free.goals.filter((g) => g.measure === 'start').every((g) => g.weight === 0)).toBe(true);
+  });
+
+  it('counts the ships the list sends before it builds them as there (away on a flight)', () => {
+    // no small cargo on the colony now, its own step builds 5 after the third transport: the first three transports
+    // fly with the 3 that are away; the current list is a valid start, only t4-t6 wait for the 5 built
+    const away = transportHub(0);
+    const list = transportOrder(away, 5);
+    const input = { order: list, hub: away, planet: COLONY, targets, now: NOW, options: { forbid: [12, 212] } };
+    const problem = setupProblem(input);
+    expect(problem.shipStock[202]).toBe(3);
+    expect([...problem.transportShips.keys()]).toEqual(['t4', 't5', 't6']);
+    const res = optimize(input, { iterations: 200, seed: 1 });
+    expect(res.currentError).toBeNull();
+    expect(res.currentFinishAt).toEqual(expect.any(Number));
+    const ids = res.steps.map((s) => s.id);
+    const cargos = res.steps.findIndex((s) => s.element === 202);
+    expect(cargos).toBeLessThan(ids.indexOf('t4'));
+    const times = new Map(res.timeline.map((t) => [t.id, t]));
+    DEPARTURES.forEach((at, i) => expect(times.get(`t${i + 1}`)!.start!).toBeLessThanOrEqual(at + SLACK));
   });
 
   it('fills currentFinishAt and the comparison as it is', () => {

@@ -158,6 +158,11 @@ export interface Problem {
   watch: string[];
   /** transports of the tail whose ships the list builds: they must come after enough of them (step id -> ships) */
   transportShips: Map<string, { ship: number; count: number }[]>;
+  /**
+   * ships the planet has for its transports where that is more than the hub's level: as many as the current list sends
+   * before it builds them (they are away on a flight)
+   */
+  shipStock: Record<number, number>;
   includeExisting: boolean;
   economy: number[];
   throttle: boolean;
@@ -337,6 +342,18 @@ export function setupProblem(input: OptimizeInput): Problem {
   });
   for (const l of levelGoals.values()) l.sort((a, b) => goals[a].level! - goals[b].level!);
 
+  // ships the planet has for its transports: on the planet now, or as many as the current list sends before it builds
+  // them (they exist, away on a flight; the hub's levels count only the ships on the planet)
+  const shipStock: Record<number, number> = {};
+  const builtNow: Record<number, number> = {};
+  for (const s of tail) {
+    if (!isOpen(s)) continue;
+    for (const [id, n] of Object.entries(s.transport?.ships ?? {})) {
+      const ship = Number(id);
+      shipStock[ship] = Math.max(shipStock[ship] ?? start[ship] ?? 0, n - (builtNow[ship] ?? 0));
+    }
+    if (s.element != null && isUnitStep(s)) builtNow[s.element] = (builtNow[s.element] ?? 0) + amountOf(s);
+  }
   // transports whose ships the list builds: enforced where enough of them can come before it (else as before: the
   // ships may come by fleet, the simulation does not track them)
   const transportShips = new Map<string, { ship: number; count: number }[]>();
@@ -348,7 +365,7 @@ export function setupProblem(input: OptimizeInput): Problem {
       const ships: { ship: number; count: number }[] = [];
       for (const [id, n] of Object.entries(s.transport.ships)) {
         const ship = Number(id);
-        const have = start[ship] ?? 0;
+        const have = shipStock[ship] ?? start[ship] ?? 0;
         const builds = (units.get(ship) ?? []).reduce((a, b) => a + b, 0) + (keptBefore[ship] ?? 0);
         if (have < n && builds > 0 && have + builds >= n) ships.push({ ship, count: n });
       }
@@ -374,7 +391,7 @@ export function setupProblem(input: OptimizeInput): Problem {
   const qh = o.quietHours;
   return {
     input, order: fixed, hub, planet, planetType: hp.type, prefix, tail, kept, keptOpen, targets, goals, levelGoals, start, need, units, existingUnits,
-    watch, transportShips, includeExisting, economy,
+    watch, transportShips, shipStock, includeExisting, economy,
     throttle: o.throttle !== false && hp.type === 'planet',
     mineRatio: mr ? { crystalBelowMetal: mr.crystalBelowMetal ?? 2, deutBelowCrystal: mr.deutBelowCrystal ?? 2, tolerance: mr.tolerance ?? 1, weight: mr.weight ?? 3600 } : null,
     quietHours: qh ? { from: qh.from, to: qh.to, weight: qh.weight ?? 1 } : null,
