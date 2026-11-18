@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Contributors from '../components/Contributors.vue';
 import { useAutoTour } from '../tours';
 import { nowSec } from '../clock';
 import PageHeader from '../components/PageHeader.vue';
@@ -479,6 +480,7 @@ useAutoTour('browse', () => !!system.value);
   </Section>
 
   <GalaxyFreshness :current="{ g, s }" @select="showSystem" />
+  <Contributors scope="galaxy" />
 
   <template v-if="mobile">
     <div class="stepper-space" />

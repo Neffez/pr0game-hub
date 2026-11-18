@@ -46,3 +46,4 @@ export type SyncHints = ApiResponse<'/api/{uni}/sync-hints'>;
 export type SyncHint = Schema<'SyncHint'>;
 export type OwnSyncTimes = SyncHints['times'];
 export type IngestSummary = Schema<'IngestSummary'>;
+export type Contributors = ApiResponse<'/api/{uni}/contributors'>;

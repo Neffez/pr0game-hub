@@ -83,3 +83,28 @@ describe('impact of a sync', () => {
     expect(old.own[0].before).toBeLessThan(Date.now() / 1000 - 3 * DAY + 60);
   });
 });
+
+describe('contributors of a page', () => {
+  const get = async (query: string) => app.inject({ method: 'GET', url: `/hub/api/u8/contributors?${query}`, headers: carol });
+
+  it('counts the members who synced the data, names those who show their syncs', async () => {
+    // carol synced the galaxy, spy reports and statistics above
+    expect((await get('scope=stats')).json()).toEqual({ scope: 'stats', days: 7, members: 1, me: true, names: [], hidden: 0 });
+    const user = (name: string, share: number) =>
+      Number(db.prepare('INSERT INTO users (username, password_hash, share_syncs) VALUES (?, ?, ?)').run(name, 'x', share).lastInsertRowid);
+    const bob = user('bob', 1);
+    const dave = user('dave', 0);
+    const eve = user('eve', 1);
+    for (const id of [bob, dave]) db.prepare('INSERT INTO group_members (group_id, user_id) VALUES (?, ?)').run(group, id);
+    // eve left the group: her view is not counted
+    for (const [s, id] of [[1, bob], [2, dave], [3, eve]]) db.prepare('INSERT INTO galaxy_views (group_id, g, s, seen_at, user_id) VALUES (?, 9, ?, 1, ?)').run(group, s, id);
+    expect((await get('scope=galaxy')).json()).toEqual({ scope: 'galaxy', days: null, members: 3, me: true, names: ['bob'], hidden: 1 });
+    // spy reports of the window only
+    db.prepare("UPDATE spy_reports SET report_time = report_time - ? WHERE group_id = ?").run(400 * DAY, group);
+    expect((await get('scope=farm&days=3')).json()).toMatchObject({ days: 3, members: 0, me: false });
+  });
+
+  it('refuses an unknown scope', async () => {
+    expect((await get('scope=nope')).statusCode).toBe(400);
+  });
+});

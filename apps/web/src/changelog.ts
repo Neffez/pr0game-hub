@@ -20,8 +20,13 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
-        de: 'Nach dem Speichern zeigt der Sync, was er gebracht hat: z. B. „14 Galaxie-Systeme aktualisiert, vorher im Schnitt 5 d alt“, „3 Ziele erstmals ausspioniert“, „Als Erstes eingefügt: Statistik-Update von 18:00“ oder „Imperium war 2 d alt, jetzt aktuell“.',
-        en: 'After saving, a sync shows what it brought: e.g. "14 galaxy systems updated, 5 d old on average before", "3 targets spied for the first time", "Pasted first: statistics update of 18:00" or "Empire was 2 d old, up to date now".',
+        de: 'Farm-Finder, Galaxie und Statistik zeigen, von wie vielen Allianzmitgliedern ihre Daten stammen („Du nutzt Daten, die 6 andere Mitglieder eingefügt haben“). Die Namen stehen im Tooltip – nur von denen, die in ihrem Konto zeigen, wer synchronisiert hat.',
+        en: 'The farm finder, the galaxy and the statistics show how many alliance members their data comes from ("You use data that 6 other members pasted"). The names are in the tooltip – only of those who show in their account who synced.',
+      },
+      {
+        kind: 'new',
+        de: 'Nach dem Speichern zeigt der Sync, was er gebracht hat: z. B. „14 Galaxie-Systeme aktualisiert, vorher im Schnitt 5 d alt“, „3 Ziele erstmals ausspioniert“, „Als Erstes eingefügt: Statistik-Update von 18:00“ oder „Imperium aktualisiert, vorher 2 d alt“.',
+        en: 'After saving, a sync shows what it brought: e.g. "14 galaxy systems updated, 5 d old on average before", "3 targets spied for the first time", "Pasted first: statistics update of 18:00" or "Empire updated, 2 d old before".',
       },
       {
         kind: 'new',

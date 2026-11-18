@@ -13,6 +13,8 @@ import { memberPlayer, memberPlayers } from '../repo/members.js';
 import { latestScores } from '../repo/stats.js';
 import { ownSyncTimes, syncHints } from '../repo/syncHints.js';
 import { farmTargets } from '../repo/farm.js';
+import { contributors, CONTRIBUTOR_SCOPES, type ContributorScope } from '../repo/contributors.js';
+import { HttpError } from '../auth.js';
 import { myOnboarding } from '../repo/onboarding.js';
 import { inactivities } from '../repo/inactivity.js';
 import { clampInt, contextOf, DISPLAY, groupBy, type Q } from './util.js';
@@ -55,6 +57,14 @@ export function overviewRoutes(app: FastifyInstance, db: DB) {
   app.get<{ Params: { uni: string } }>('/api/:uni/sync-hints', async (req) => {
     const ctx = ctxOf(req);
     return { hints: syncHints(db, ctx), times: ownSyncTimes(db, ctx), messagesDays: config.rawRetentionDays };
+  });
+
+  /** Who of the group synced the data of a page (farm finder, galaxy, statistics), see `contributors`. */
+  app.get<{ Params: { uni: string }; Querystring: Q }>('/api/:uni/contributors', async (req) => {
+    const ctx = ctxOf(req);
+    const scope = req.query.scope as ContributorScope;
+    if (!CONTRIBUTOR_SCOPES.includes(scope)) throw new HttpError(400, 'invalid_scope', 'Unknown scope');
+    return contributors(db, ctx, scope, clampInt(req.query.days, 7, 1, 30));
   });
 
   /** Onboarding checklist of the viewer (first syncs, see `myOnboarding`). */

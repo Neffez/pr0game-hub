@@ -4,6 +4,14 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-18
 
+- "You use data that 6 other members pasted": a line under the farm finder (spy reports of its window; debris tab:
+  galaxy), the galaxy browser and the statistics names how many members of the alliance synced the data the page
+  shows; the names of those who show their syncs are in its tooltip, the others are only counted. New endpoint
+  `GET /api/{uni}/contributors?scope=farm|galaxy|stats&days=`.
+- Sync feedback: an own page counts as updated only when the pasted page is newer than the stored one (pasting the
+  same or an old saved page again no longer claims it), worded "updated, 3 d old before"; a failure while working out
+  the feedback never fails the sync.
+
 - Feedback after saving a sync: what it changed for the group, in plain lines on the saved card and per page of a
   collection: galaxy systems updated (how many for the first time, their average age before), targets spied for the
   first time and older spy reports replaced, a statistics update pasted first or categories added to it, own pages

@@ -1570,6 +1570,13 @@ const de = {
       buildings: 'Gebäude',
     },
   },
+  contributors: {
+    others: 'Du nutzt Daten, die {n} anderes Mitglied eingefügt hat | Du nutzt Daten, die {n} andere Mitglieder eingefügt haben',
+    andMe: ' – und deine eigenen',
+    onlyMe: 'Diese Daten stammen bisher nur von dir',
+    days: 'letzter Tag | letzte {n} Tage',
+    more: '{n} weiteres | {n} weitere',
+  },
   impact: {
     galaxy: '{n} Galaxie-System aktualisiert | {n} Galaxie-Systeme aktualisiert',
     galaxyFirst: '{n} davon zum ersten Mal',
@@ -1580,7 +1587,7 @@ const de = {
     statsFirst: 'Als Erstes eingefügt: Statistik-Update von {time} ({categories})',
     statsAdded: 'Statistik-Update von {time} ergänzt: {categories}',
     ownFirst: '{page} zum ersten Mal im Hub',
-    ownOld: '{page} war {age} alt, jetzt aktuell',
+    ownOld: '{page} aktualisiert, vorher {age} alt',
     hintsDone: '{n} Sync-Hinweis erledigt: {list} | {n} Sync-Hinweise erledigt: {list}',
     names: { empire: 'Imperium', stats: 'Statistik', overview: 'Übersicht', galaxy: 'Galaxie', buildings: 'Gebäudeseite', research: 'Forschungsseite', messages: 'Nachrichten', market: 'Marktkurs' },
   },

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Contributors from '../components/Contributors.vue';
 import PageHeader from '../components/PageHeader.vue';
 import StaleData from '../components/StaleData.vue';
 import Hint from '../components/Hint.vue';
@@ -514,6 +515,8 @@ const claimText = (r: Row) => {
     </div>
   </template>
   </template>
+  <Contributors v-if="tab === 'debris'" scope="galaxy" />
+  <Contributors v-else scope="farm" :days="days" />
 </template>
 
 <style scoped>

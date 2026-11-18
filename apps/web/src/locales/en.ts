@@ -1569,6 +1569,13 @@ const en: typeof de = {
       buildings: 'Buildings',
     },
   },
+  contributors: {
+    others: 'You use data that {n} other member pasted | You use data that {n} other members pasted',
+    andMe: ' – and your own',
+    onlyMe: 'So far this data comes from you alone',
+    days: 'last day | last {n} days',
+    more: '{n} more | {n} more',
+  },
   impact: {
     galaxy: '{n} galaxy system updated | {n} galaxy systems updated',
     galaxyFirst: '{n} of them for the first time',
@@ -1579,7 +1586,7 @@ const en: typeof de = {
     statsFirst: 'Pasted first: statistics update of {time} ({categories})',
     statsAdded: 'Statistics update of {time} completed: {categories}',
     ownFirst: '{page} in the hub for the first time',
-    ownOld: '{page} was {age} old, up to date now',
+    ownOld: '{page} updated, {age} old before',
     hintsDone: '{n} sync hint done: {list} | {n} sync hints done: {list}',
     names: { empire: 'Empire', stats: 'Statistics', overview: 'Overview', galaxy: 'Galaxy', buildings: 'Buildings page', research: 'Research page', messages: 'Messages', market: 'Market rate' },
   },

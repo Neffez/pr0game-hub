@@ -154,7 +154,13 @@ function ingestWith(db: DB, target: IngestTarget, input: ParseInput & { source: 
   }
 
   const store = new Store(db, target, summary, opts.log);
-  const impact = probeImpact(db, target, parsed, store, opts.ctx);
+  // the feedback is optional: it never fails a sync
+  let impact: (() => SyncImpact) | null = null;
+  try {
+    impact = probeImpact(db, target, parsed, store, opts.ctx);
+  } catch (err) {
+    opts.log?.warn({ err, groupId: target.groupId }, 'sync_impact');
+  }
   // universe.json (several MB) isn't kept: a download builds it again from the hub's data
   const keep = parsed.source !== 'json';
   db.transaction(() => {
@@ -177,7 +183,11 @@ function ingestWith(db: DB, target: IngestTarget, input: ParseInput & { source: 
       JSON.stringify({ counts: summary.counts, warnings: summary.warnings, about: aboutRecords(parsed.records) }),
     );
   })();
-  summary.impact = impact();
+  try {
+    if (impact) summary.impact = impact();
+  } catch (err) {
+    opts.log?.warn({ err, groupId: target.groupId }, 'sync_impact');
+  }
   if (opts.ctx && isRunning(opts.ctx.universe)) {
     // as the member the data counts for
     const syncCtx = opts.ctx.user.id === target.userId ? opts.ctx : { ...opts.ctx, user: { ...opts.ctx.user, id: target.userId } };

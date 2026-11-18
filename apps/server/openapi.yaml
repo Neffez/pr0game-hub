@@ -3815,6 +3815,40 @@ paths:
                         time: { type: [integer, 'null'] }
                   done: { type: integer }
                   total: { type: integer }
+  /api/{uni}/contributors:
+    get:
+      tags: [Universe]
+      operationId: getContributors
+      description: >-
+        Who of the group synced the data a page calculates with: `farm` the spy reports of the last `days` (farm
+        finder), `galaxy` the galaxy views the hub shows now, `stats` the statistics pages of the last `days`. Other
+        members are named only when they show their syncs (account setting), the rest is counted in `hidden`; former
+        members are left out.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+        - { name: scope, in: query, required: true, schema: { type: string, enum: [farm, galaxy, stats] } }
+        - { name: days, in: query, schema: { type: integer, minimum: 1, maximum: 30, default: 7 }, description: Time window of `farm` and `stats` }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [scope, days, members, me, names, hidden]
+                properties:
+                  scope: { type: string, enum: [farm, galaxy, stats] }
+                  days: { type: [integer, 'null'], description: 'The time window, null for `galaxy` (the views shown now)' }
+                  members: { type: integer, description: Members who synced the data, the caller included }
+                  me: { type: boolean, description: The caller is one of them }
+                  names: { type: array, items: { type: string }, description: The other members who show their syncs }
+                  hidden: { type: integer, description: The other members who keep their syncs hidden }
+        '400':
+          description: Unknown scope (`invalid_scope`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
   /api/{uni}/farm:
     get:
       tags: [Universe]

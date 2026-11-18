@@ -24,7 +24,7 @@ export interface SyncImpact {
 
 type OwnPage = 'empire' | 'overview' | 'buildings' | 'research';
 
-/** An own page synced again within this time is no news. */
+/** An own page at most this much newer than the stored one is no news (the same page pasted again). */
 const OWN_FRESH = 3600;
 
 /**
@@ -82,14 +82,22 @@ export function probeImpact(db: DB, target: IngestTarget, parsed: ParseResult, s
     ]),
   );
 
-  // own pages: their previous time, when the member synced them for themselves
-  const own: { page: OwnPage; before: number | null }[] = [];
+  // own pages: their previous time and the time of the pasted page, when the member synced them for themselves
+  const own: { page: OwnPage; before: number | null; time: number }[] = [];
+  const pageTime = (local: string | null | undefined) => epoch(local ?? null) ?? now();
+  const newest = (times: number[]) => Math.max(...times);
   if (target.syncedBy == null) {
     const maxOf = (sql: string, ...args: unknown[]) => (db.prepare(sql).pluck().get(...args) as number | null) ?? null;
-    if (of('empire').length) own.push({ page: 'empire', before: maxOf('SELECT MAX(created_at) FROM empire_snapshots WHERE group_id = ? AND user_id = ?', g, target.userId) });
-    if (of('overview').length || of('fleets').length) {
-      own.push({ page: 'overview', before: overviewTime(db, g, target.userId) });
+    const empires = of('empire');
+    if (empires.length) {
+      own.push({
+        page: 'empire',
+        before: maxOf('SELECT MAX(created_at) FROM empire_snapshots WHERE group_id = ? AND user_id = ?', g, target.userId),
+        time: newest(empires.map((r) => pageTime(r.pageTime))),
+      });
     }
+    const overviews = [...of('overview'), ...of('fleets')];
+    if (overviews.length) own.push({ page: 'overview', before: overviewTime(db, g, target.userId), time: newest(overviews.map((r) => pageTime(r.pageTime))) });
     for (const [page, table, list] of [
       ['buildings', 'building_snapshots', of('buildings')],
       ['research', 'research_snapshots', of('research')],
@@ -99,13 +107,21 @@ export function probeImpact(db: DB, target: IngestTarget, parsed: ParseResult, s
       const times = list.map((r) =>
         maxOf(`SELECT MAX(page_time) FROM ${table} WHERE group_id = ? AND user_id = ? AND g = ? AND s = ? AND p = ? AND planet_type = ?`, g, target.userId, r.coords.g, r.coords.s, r.coords.p, r.type),
       );
-      own.push({ page, before: times.includes(null) ? null : Math.min(...(times as number[])) });
+      own.push({ page, before: times.includes(null) ? null : Math.min(...(times as number[])), time: newest(list.map((r) => pageTime(r.pageTime))) });
     }
   }
 
-  // the member's sync hints (a copy of the context: its cached empire must not outlive the sync)
+  // the member's sync hints (a copy of the context: its cached empire must not outlive the sync); unreadable data
+  // leaves them out
   const hintsOf = ctx && ctx.user.id === target.userId && target.syncedBy == null ? () => syncHints(db, { ...ctx }).map((h) => h.key) : null;
-  const hintsBefore = hintsOf?.() ?? [];
+  const tryHints = () => {
+    try {
+      return hintsOf?.() ?? null;
+    } catch {
+      return null;
+    }
+  };
+  const hintsBefore = tryHints();
 
   return () => {
     const impact: SyncImpact = {};
@@ -139,13 +155,12 @@ export function probeImpact(db: DB, target: IngestTarget, parsed: ParseResult, s
       .filter((x) => x.types.length);
     if (stats.length) impact.stats = stats;
 
-    const t = now();
-    const newer = own.filter((x) => x.before == null || t - x.before > OWN_FRESH);
+    const newer = own.filter((x) => x.before == null || x.time - x.before > OWN_FRESH).map(({ page, before }) => ({ page, before }));
     if (newer.length) impact.own = newer;
 
-    if (hintsOf) {
-      const after = new Set(hintsOf());
-      const done = hintsBefore.filter((k) => !after.has(k));
+    const hintsAfter = hintsBefore && tryHints();
+    if (hintsBefore && hintsAfter) {
+      const done = hintsBefore.filter((k) => !hintsAfter.includes(k));
       if (done.length) impact.hintsDone = done;
     }
     return impact;

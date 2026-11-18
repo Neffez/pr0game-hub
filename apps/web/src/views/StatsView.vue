@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import Contributors from '../components/Contributors.vue';
 import { useAutoTour } from '../tours';
 import CsvButton from '../components/CsvButton.vue';
 import Loading from '../components/Loading.vue';
@@ -261,6 +262,7 @@ useAutoTour('stats', () => !!data.value);
       </tbody>
     </table>
   </div>
+  <Contributors scope="stats" />
 </template>
 
 <style scoped>

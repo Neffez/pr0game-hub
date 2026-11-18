@@ -680,6 +680,23 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/{uni}/contributors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Who of the group synced the data a page calculates with: `farm` the spy reports of the last `days` (farm finder), `galaxy` the galaxy views the hub shows now, `stats` the statistics pages of the last `days`. Other members are named only when they show their syncs (account setting), the rest is counted in `hidden`; former members are left out. */
+        get: operations["getContributors"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/{uni}/farm": {
         parameters: {
             query?: never;
@@ -7130,6 +7147,59 @@ export interface operations {
                         done?: number;
                         total?: number;
                     };
+                };
+            };
+        };
+    };
+    getContributors: {
+        parameters: {
+            query: {
+                /** @description Alliance group id (alternative to `X-Hub-Group`, required for SSE) */
+                group?: components["parameters"]["HubGroupQuery"];
+                scope: "farm" | "galaxy" | "stats";
+                /** @description Time window of `farm` and `stats` */
+                days?: number;
+            };
+            header?: {
+                /** @description Alliance group id (see `GET /api/auth/me`) */
+                "X-Hub-Group"?: components["parameters"]["HubGroupHeader"];
+            };
+            path: {
+                /** @description Universe slug (e.g. `u8`) */
+                uni: components["parameters"]["Uni"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        scope: "farm" | "galaxy" | "stats";
+                        /** @description The time window, null for `galaxy` (the views shown now) */
+                        days: number | null;
+                        /** @description Members who synced the data */
+                        members: number;
+                        /** @description The caller is one of them */
+                        me: boolean;
+                        /** @description The other members who show their syncs */
+                        names: string[];
+                        /** @description The other members who keep their syncs hidden */
+                        hidden: number;
+                    };
+                };
+            };
+            /** @description Unknown scope (`invalid_scope`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
                 };
             };
         };
