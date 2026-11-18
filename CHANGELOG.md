@@ -4,6 +4,24 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-18
 
+- Auto plan in the web app: a dialog next to the pr0plan import searches the fastest build order in the browser.
+  - Planet: a synced one (its synced levels and the open steps of its list count), a planned one of the build order,
+    or a new planet that starts at 0 (start resources of the universe, the account's research) and is created as a
+    planned planet when the plan is taken over. Targets per element with level or count, optional soft deadline and
+    weight; search time, economy; under "Advanced" throttling, forbidden buildings, mine ratio, quiet hours, open
+    steps as targets, "no later than now", kept steps and the number of parallel searches.
+  - The search runs in Web Workers (several at once with other seeds, the best plan wins), shows progress, the
+    finish against the current list and every goal's end now and in the plan; "Take over" replaces the planet's
+    list (refused when the list changed meanwhile) and writes the raised base.
+  - `@pr0hub/planner` runs without the hub: `runOptimizeJob` (one search as a worker job, plain data in, messages
+    out; the server's optimize worker uses it too), `startOptimizePool` (several workers, best by the new
+    `objective` of `OptimizeResult`) and `standaloneInput` / `emptyHub` (one planet from given levels, for a tool
+    without hub access).
+  - Fix: a planet with no income of a resource a required step needs (a new planet: no deuterium and no synthesizer,
+    but the robotics factory costs 200) failed with "can never start (resources)". The greedy plans build that
+    mine first (and the solar plant where it would have no energy); when the required steps alone cannot be built,
+    the greedy plan with economy is the start and `baselineFinishAt`.
+
 - Auto plan: `currentFinishAt` is filled again for a planet whose transports fly with ships that are away. The
   rule "a transport after the ships it carries" counted only the ships on the planet, so a colony whose first
   transports use cargos away on a flight (its own cargo step comes later) made the current list invalid

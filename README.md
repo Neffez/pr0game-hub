@@ -25,7 +25,9 @@ External analysis tool for [pr0game](https://codeberg.org/pr0game/pr0game) based
   resources of landing fleets), build and research time (catch-up bonus, robot/nanite factories, labs with the research
   network, TechnoDome), locks like the game; a bell per element notifies (hub bell, push, Discord) once the next level is
   possible; the **upgrade advisor** ranks the next mine, energy and production research levels by payback time (market
-  rate, energy that has to come along) and puts a step into the build order in one click; the **defense advisor**
+  rate, energy that has to come along) and puts a step into the build order in one click; the **auto plan** of the build
+  order searches in the browser the fastest order to target levels of a planet (also a new one from 0) with mines,
+  power plants and storages slotted in, compares it with the current list and takes it over on request; the **defense advisor**
   lists the attackers the hub knows for a planet (spying, battle reports, fleets on their way, strong fleets nearby)
   (full fleet and heavy ships only) and finds by battle simulation the defense that makes their attacks cost more
   than they bring in, with a raid risk per planet and moon (also in the own empire view)
@@ -168,7 +170,7 @@ packages/parser   @pr0hub/core – page parsers, deck calculation, element data 
 packages/flight   @pr0hub/flight – flight times, recall and fuel like the game's FleetFunctions
 packages/loot     @pr0hub/loot – ACS loot settlement: loot shares, covering losses, profit split, transfers
 packages/battle   @pr0hub/battle – battle simulation on the game's Rust engine (Battlerust as WebAssembly)
-packages/planner  @pr0hub/planner – build orders: pr0plan import, timeline from the hub's state
+packages/planner  @pr0hub/planner – build orders: pr0plan import, timeline from the hub's state, auto plan (also without the hub)
 packages/api-types @pr0hub/api-types – types of the HTTP API generated from apps/server/openapi.yaml
 apps/server       Fastify + SQLite: auth, ingest, data APIs, battle report crawler; serves the SPA
 apps/web          Vue 3 SPA (base path /hub/)

@@ -4,7 +4,7 @@ import { simulate } from '../simulate.js';
 import type { Step } from '../types.js';
 import { evaluate, orderWith, structureError } from './evaluate.js';
 import { PRODUCERS, type Item, type Problem } from './problem.js';
-import { bestEconomy, costOf, durationOf, levelIn, modelOf, project, ratioFirst, requirementsMet, scoreOf, storageFor, viewOf, type Model, type View } from './score.js';
+import { bestEconomy, costOf, durationOf, incomeFirst, levelIn, modelOf, project, ratioFirst, requirementsMet, scoreOf, storageFor, viewOf, type Model, type View } from './score.js';
 import { kindOf, OptimizeError, requirementsOfElement } from './targets.js';
 
 /**
@@ -97,6 +97,8 @@ export function greedyPlan(problem: Problem, mode: GreedyMode = 'score'): Item[]
     }
     // a mine ratio: the mine that keeps it first
     chosen = ratioFirst(m, v, chosen);
+    // a resource without income: its mine (and the energy for it) first
+    if (economy) chosen = incomeFirst(m, v, chosen, costOf(m, v, chosen, has(left, chosen) ? countOf(left, chosen) : 1));
     // a cost above the planned storage needs the storage first (the timeline would assume the rest comes by transport)
     const storage = storageFor(m, v, costOf(m, v, chosen, has(left, chosen) ? countOf(left, chosen) : 1));
     if (storage != null) chosen = storage;
@@ -213,8 +215,13 @@ function byRollout(problem: Problem, items: Item[], kept: Item[], m: Model, v: V
 /** Steps for `id` (`n` units) with the storage it needs first; updates the view's levels. */
 function placed(problem: Problem, m: Model, view: View, id: number, n: number): Item[] {
   const out: Item[] = [];
-  const first = ratioFirst(m, view, id);
-  if (first !== id) out.push(...placed(problem, m, view, first, 1));
+  // the mine a ratio or a resource without income needs first (each placed step changes the view: at most a few)
+  for (let guard = 0; guard < 4; guard++) {
+    let first = ratioFirst(m, view, id);
+    if (first === id) first = incomeFirst(m, view, id, costOf(m, view, id, n));
+    if (first === id) break;
+    out.push(...placed(problem, m, view, first, 1));
+  }
   for (let guard = 0; guard < 30; guard++) {
     const storage = storageFor(m, view, costOf(m, view, id, n));
     if (storage == null) break;

@@ -18,6 +18,7 @@ import { dateTime, fmt, name, short } from '../format';
 import { tables, useLiveReload } from '../live';
 import { draftOf, draftValid, transportOf, type TransportDraft } from '../buildOrderTransport';
 import { prodDraftOf, prodDraftValid, prodOf, type ProdDraft } from '../buildOrderProd';
+import BuildOrderAutoPlan from './BuildOrderAutoPlan.vue';
 import BuildOrderImport from './BuildOrderImport.vue';
 import BuildOrderProdFields from './BuildOrderProdFields.vue';
 import BuildOrderTransportFields from './BuildOrderTransportFields.vue';
@@ -32,6 +33,7 @@ import { units } from '../units';
  * check off, deactivate, remove, add buildings, research, ships, defense, transports and production settings by hand (also without an import: that
  * starts a build order from the hub's levels). Import from pr0plan in a dialog; the file's settings are compared with
  * the hub's.
+ * Auto plan (the fastest order to targets, searched in the browser) in a dialog of its own.
  * Planned planets (no coordinates yet: before the start, or a colony to come) are simulated as new planets from the
  * universe's start and are assigned to a synced planet later. `planetKey` null: no synced planet (yet).
  * Planned planets can also be added by hand (name, the coordinates they will have, temperature); one that a
@@ -69,6 +71,12 @@ async function send(change: (from: StoredBuildOrder | null) => BuildOrderWrite |
   }
 }
 const importOpen = ref(false);
+const autoOpen = ref(false);
+/** after the auto plan was taken over: the build order it wrote, the planet shown is the one it planned */
+function autoApplied(answer: BuildOrderAnswer, key: string) {
+  data.value = answer;
+  picked.value = isPlannedKey(key) ? key : null;
+}
 const showDone = useStored('buildOrder.showDone', false);
 
 const now = useClock();
@@ -92,20 +100,19 @@ const homePlanet = computed(() => {
 });
 /** resources of a new planet: universe config (`metalStart` …) or the homeworld when it shows a custom start */
 const startResources = computed(() => planetStartResources(ctx.value?.universe.settings, homePlanet.value?.planet));
-/** the hub's planets plus the planned ones as new planets (start resources, the file's temperature) */
-const hubAll = computed<HubState>(() => {
-  const s = stored.value;
-  if (!s || !plannedKeys.value.length) return props.hub;
-  const settings = s.meta.settings as Pr0planImport['settings'] | undefined;
-  const u = ctx.value?.universe.settings;
-  return withPlanned(s.order, props.hub, minute.value, {
+/** the hub's planets plus the planned ones of `order` as new planets (start resources, the file's temperature) */
+function hubWith(order: Order | undefined): HubState {
+  if (!order || !Object.keys(order.planets).some(isPlannedKey)) return props.hub;
+  const settings = stored.value?.meta.settings as Pr0planImport['settings'] | undefined;
+  return withPlanned(order, props.hub, minute.value, {
     resources: startResources.value,
-    universe: u,
+    universe: ctx.value?.universe.settings,
     home: homePlanet.value?.planet,
-    name: plannedName,
+    name: (k) => order.planned?.[k]?.name || stored.value?.meta.names?.[String(plannedNumber(k))] || t('buildOrder.plannedPlanet', { n: plannedNumber(k) }),
     temp: (k) => settings?.planets[String(plannedNumber(k))]?.temp,
   });
-});
+}
+const hubAll = computed<HubState>(() => hubWith(stored.value?.order));
 /** a planned planet picked to look at; a planet chosen on the page shows that one again */
 const picked = ref<string | null>(null);
 watch(() => props.planetKey, () => (picked.value = null));
@@ -518,6 +525,7 @@ function onDrop(i: number) {
       </a>
       <button class="small" :class="{ active: planetOpen && !planetEdit }" :title="t('buildOrder.addPlanetTitle')" @click="openPlanet(null)"><Icon name="planets" :size="14" /> {{ t('buildOrder.addPlanet') }}</button>
       <button v-if="planetKey" class="small" :class="{ active: addOpen }" data-tour="build-order-add" @click="addOpen = !addOpen"><Icon name="plus" :size="14" /> {{ t('buildOrder.add') }}</button>
+      <button class="small" data-tour="build-order-auto" :title="t('autoPlan.buttonTitle')" @click="autoOpen = true"><Icon name="bolt" :size="14" /> {{ t('autoPlan.button') }}</button>
       <button class="primary small" @click="importOpen = true"><Icon name="plus" :size="14" /> {{ t('buildOrder.import') }}</button>
       <button v-if="stored" class="small" @click="removeAll">{{ t('buildOrder.delete') }}</button>
     </div>
@@ -708,6 +716,10 @@ function onDrop(i: number) {
   </template>
 
   <BuildOrderImport v-model="importOpen" :hub="hub" :stored="stored" @imported="(b) => (data = b)" />
+  <BuildOrderAutoPlan
+    v-model="autoOpen" :hub="hub" :stored="stored" :planet-key="planetKey || null" :now="minute" :hub-with="hubWith" :label="planetLabel"
+    @applied="autoApplied" @changed="(b) => (data = b)"
+  />
 </template>
 
 <style scoped>

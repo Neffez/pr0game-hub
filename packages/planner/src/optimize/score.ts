@@ -180,6 +180,27 @@ export function ratioFirst(m: Model, v: View, id: number): number {
   return pick;
 }
 
+const MINE_OF: Record<number, number> = { 901: 1, 902: 2, 903: 3 };
+
+/**
+ * Deviation from pr0plan (whose planets always have every resource): a step that needs a resource the planet has too
+ * little of and no income of (a new planet: no deuterium, no synthesizer, but the robotics factory costs 200) can never
+ * start. Then its mine comes first, and the solar plant first where the mine would have no energy. Returns the element
+ * to build before `id` (its `cost`), else `id`.
+ */
+export function incomeFirst(m: Model, v: View, id: number, cost: Record<number, number>): number {
+  if (m.problem.planetType === 'moon') return id;
+  const rate = rateOf(m, v);
+  for (const r of RES) {
+    if ((cost[r] ?? 0) <= (v.res[r] ?? 0) || rate[r] > 0) continue;
+    const mine = MINE_OF[r];
+    if (!m.problem.economy.includes(mine) || !requirementsMet(v, mine)) continue;
+    if ((v.levels[mine] ?? 0) > 0 && energyOf(m, v) < 0 && m.problem.economy.includes(SOLAR_PLANT)) return SOLAR_PLANT;
+    if ((v.levels[mine] ?? 0) === 0) return mine;
+  }
+  return id;
+}
+
 /** Whether the requirements of `id` are met by the planned levels. */
 export function requirementsMet(v: View, id: number): boolean {
   return Object.entries(requirementsOfElement(id)).every(([r, need]) => levelIn(v, Number(r)) + (v.pending?.[Number(r)] ?? 0) >= need);

@@ -16,6 +16,16 @@ export interface ChangelogDay {
 
 export const CHANGELOG: ChangelogDay[] = [
   {
+    date: '2026-11-18',
+    items: [
+      {
+        kind: 'new',
+        de: 'Auto-Plan in der Bauliste: Gib Ziele für einen Planeten an – auch für einen neuen, der bei 0 startet – und der Hub berechnet in deinem Browser die schnellste Reihenfolge samt Minen, Kraftwerken und Speichern. Du siehst, wie viel schneller der Plan ist und wann jedes Ziel fertig wird, und übernimmst ihn mit einem Klick.',
+        en: 'Auto plan in the build order: set targets for a planet – even a new one that starts at 0 – and the hub works out the fastest order in your browser, mines, power plants and storages included. You see how much faster the plan is and when each target is reached, and take it over in one click.',
+      },
+    ],
+  },
+  {
     date: '2026-11-17',
     items: [
       {

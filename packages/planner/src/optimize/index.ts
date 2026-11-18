@@ -44,14 +44,18 @@ import { withUnits } from '@pr0hub/core/units';
 import { simulate } from '../simulate.js';
 import type { Base, Step } from '../types.js';
 import { anneal, adjustThrottleMove, insertEconomyMove, insertThrottleMove, moveMove, removeMove, swapMove, type Move } from './anneal.js';
-import { evaluate, goalAt, orderWith, requiredIndices, type Fitness } from './evaluate.js';
+import { evaluate, goalAt, INVALID, orderWith, requiredIndices, type Fitness } from './evaluate.js';
 import { currentPlan, greedyPlan } from './greedy.js';
 import { setupProblem, type Goal, type Item, type OptimizeInput, type Problem } from './problem.js';
 import { createRng } from './rng.js';
+import { OptimizeError } from './targets.js';
 
 export { expandTargets, OptimizeError, type OptimizeTargets, type TargetEntry } from './targets.js';
 export { quietWait } from './evaluate.js';
 export type { Goal, MineRatio, OptimizeInput, OptimizeOptions, QuietHours } from './problem.js';
+export * from './job.js';
+export * from './pool.js';
+export * from './standalone.js';
 
 export interface OptimizeRun {
   /** wall time of the search after the greedy plan (default 10 s, unless `iterations` is given) */
@@ -133,12 +137,17 @@ export interface OptimizeResult {
    * goal is not reached there
    */
   asIsFinishAt: number | null;
-  /** the same with only the required steps, in the greedy order without economy (the plain order) */
+  /**
+   * the same with only the required steps, in the greedy order without economy (the plain order); the greedy plan's
+   * when they cannot be built alone (a resource they need has no income without a mine)
+   */
   baselineFinishAt: number;
   /** the greedy plan before the search */
   greedyFinishAt: number;
   /** each goal: element, level, deadline, its end now and in the result */
   goals: OptimizeGoalResult[];
+  /** value of the objective (seconds, lower is better): compares results of runs with other seeds */
+  objective: number;
   iterations: number;
   evaluations: number;
 }
@@ -164,9 +173,16 @@ function search(input: OptimizeInput, run: OptimizeRun): OptimizeResult {
   let iterations = 0;
   const fit = (items: Item[]): Fitness => evaluate(problem, items).fitness;
 
-  const plain = greedyPlan(problem, 'plain');
-  const plainFit = fit(plain);
-  let best = plain;
+  // the required steps alone can be impossible: a new planet has no deuterium and no synthesizer for the robotics
+  // factory; then the greedy plan with economy is the start (and the baseline)
+  let plain: Item[] | null = null;
+  try {
+    plain = greedyPlan(problem, 'plain');
+  } catch (err) {
+    if (!(err instanceof OptimizeError) || !problem.economy.length) throw err;
+  }
+  const plainFit = plain ? fit(plain) : INVALID;
+  let best: Item[] = plain ?? [];
   let bestFit = plainFit;
   let greedyFit = plainFit;
   if (problem.economy.length) {
@@ -190,8 +206,8 @@ function search(input: OptimizeInput, run: OptimizeRun): OptimizeResult {
     // the plain order is checked by the simulation the greedy steps stem from; invalid here means a kept or other step broke
     throw new Error('optimize: no valid plan found');
   }
-  const baselineFinishAt = plainFit.finish;
   const greedyFinishAt = greedyFit.valid ? greedyFit.finish : plainFit.finish;
+  const baselineFinishAt = plainFit.valid ? plainFit.finish : greedyFinishAt;
   const currentFinishAt = currentFit?.valid ? currentFit.finish : null;
   let lastBest = 0;
   const report = (force: boolean) => {
@@ -279,6 +295,7 @@ function resultOf(
       return { id: ids.get(it.step.id) ?? it.step.id, start: r?.start ?? null, end: r?.end ?? null };
     }),
     finishAt: fitness.finish,
+    objective: fitness.value,
     targetsFinishAt: fitness.targetsFinish,
     asIsFinishAt: asIsFinish(problem),
     goals: problem.goals.map((g, i) => ({
