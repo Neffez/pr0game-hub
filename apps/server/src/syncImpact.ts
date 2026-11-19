@@ -132,6 +132,9 @@ export function probeImpact(db: DB, target: IngestTarget, parsed: ParseResult, s
     // credits for badges, streak and ranking (see repo/achievements.ts): the same news, unit by unit
     const credits: Credit[] = [];
 
+    // a universe.json brings the whole universe at once: news for the group, but no galaxy credits (one upload
+    // would outweigh weeks of pasted systems in the ranking and the cartographer badge)
+    const creditGalaxy = parsed.source !== 'json';
     const ages: number[] = [];
     let systems = 0;
     let first = 0;
@@ -139,7 +142,7 @@ export function probeImpact(db: DB, target: IngestTarget, parsed: ParseResult, s
       const before = seenBefore.get(k);
       if (before != null && before >= seenAt) continue;
       systems++;
-      credits.push({ kind: 'galaxy', key: k });
+      if (creditGalaxy) credits.push({ kind: 'galaxy', key: k });
       if (before == null) first++;
       else ages.push(seenAt - before);
     }

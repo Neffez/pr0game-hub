@@ -108,3 +108,14 @@ describe('contributors of a page', () => {
     expect((await get('scope=nope')).statusCode).toBe(400);
   });
 });
+
+describe('universe.json upload', () => {
+  it('tells the systems it refreshed but gives no galaxy credits', async () => {
+    const galaxyCredits = () => db.prepare("SELECT COUNT(*) FROM sync_credits WHERE group_id = ? AND kind = 'galaxy'").pluck().get(group) as number;
+    const before = galaxyCredits();
+    const res = await app.inject({ method: 'POST', url: '/hub/api/u8/universe-json', headers: carol, payload: { text: fixture('universe.json') } });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().impact.galaxy.systems).toBeGreaterThan(0);
+    expect(galaxyCredits()).toBe(before);
+  });
+});

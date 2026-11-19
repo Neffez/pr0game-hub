@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Rangliste: Ein universe.json-Upload zählt nicht mehr als Galaxie-Sync für Punkte und das Kartograph-Abzeichen.',
+        en: 'Ranking: a universe.json upload no longer counts as galaxy syncs for points and the cartographer badge.',
+      },
+      {
+        kind: 'fix',
         de: 'Statistik: Spieler mit einer Notiz zeigen wie in der Übersicht das Stift-Symbol neben dem Namen, die Notiz steht im Tooltip.',
         en: 'Statistics: players with a note show the pencil icon next to their name like on the overview, with the note as tooltip.',
       },

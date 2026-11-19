@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-19
 
+- Sync credits: a universe.json upload no longer earns galaxy credits for the systems it refreshes (one upload
+  outweighed weeks of pasted galaxy views in the ranking and the cartographer badge); its sync feedback still shows
+  the systems (review R-01).
+
 - Statistics: players with an alliance note show the pencil icon next to their name (note as tooltip), like on
   the overview; `GET /api/{uni}/stats` returns `note` for player rows.
 
