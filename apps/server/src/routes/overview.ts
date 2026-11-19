@@ -13,7 +13,7 @@ import { memberPlayer, memberPlayers } from '../repo/members.js';
 import { latestScores } from '../repo/stats.js';
 import { ownSyncTimes, syncHints } from '../repo/syncHints.js';
 import { myFreshness } from '../repo/freshness.js';
-import { farmTargets } from '../repo/farm.js';
+import { farmSimulation, farmTargets, parseFarmSim } from '../repo/farm.js';
 import { contributors, CONTRIBUTOR_SCOPES, type ContributorScope } from '../repo/contributors.js';
 import { HttpError } from '../auth.js';
 import { myOnboarding } from '../repo/onboarding.js';
@@ -76,6 +76,12 @@ export function overviewRoutes(app: FastifyInstance, db: DB) {
     const ctx = ctxOf(req);
     const days = clampInt(req.query.days, 7, 1, 30);
     return { ...farmTargets(db, ctx, days), days, now: ctx.now };
+  });
+
+  /** Farm finder: the own fleet of the newest empire page against the first targets of the list (see `farmSimulation`). */
+  app.post<{ Params: { uni: string } }>('/api/:uni/farm/simulate', async (req) => {
+    const ctx = ctxOf(req);
+    return farmSimulation(db, ctx, parseFarmSim(req.body, ctx.universe.settings.positions));
   });
 
   app.get<{ Params: { uni: string } }>('/api/:uni/overview', async (req) => {

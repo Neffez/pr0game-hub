@@ -288,6 +288,7 @@ export const TOURS = {
       { key: 'rank', el: 'farm-rank', side: 'bottom', tabs: ['targets'] },
       { key: 'inactivity', el: 'farm-inactivity', side: 'bottom', tabs: ['targets'] },
       { key: 'risk', el: 'farm-risk', side: 'left', tabs: ['targets'] },
+      { key: 'sim', el: 'farm-sim', side: 'bottom', tabs: ['targets'] },
       { key: 'list', el: 'farm-list', side: 'top', tabs: ['targets'] },
       { key: 'spyWhy', el: 'farm-spy-why', side: 'bottom', tabs: ['spy'] },
       { key: 'spyProbes', el: 'farm-spy-probes', side: 'bottom', tabs: ['spy'] },

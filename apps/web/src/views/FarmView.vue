@@ -14,10 +14,11 @@ import StatusBadges from '../components/StatusBadges.vue';
 import InactivityBadge, { type Inactivity } from '../components/InactivityBadge.vue';
 import DebrisFinder from '../components/DebrisFinder.vue';
 import { distance, drivesFromResearch, fleetConsumption, flightDuration, shipSpeed } from '@pr0hub/flight';
-import { computed, onMounted, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
-import { uniApi } from '../api';
+import { readError, uniApi } from '../api';
+import type { FarmSimulation, FarmTarget, FarmTargets } from '../apiTypes';
 import { claimOf, remaining } from '../claims';
 import { useLoader, useMobile, useProgressive, useSort, useStored, useUni } from '../composables';
 import { tables, useLiveReload } from '../live';
@@ -25,33 +26,11 @@ import { abbr, ago, coords, dateTime, duration, fmt, name, short } from '../form
 import { useAutoTour } from '../tours';
 import { units } from '../units';
 import { spyPriority, type SpyReason } from '../spyPriority';
+import { beatableValue, debrisValue, DEFENSE_WEIGHT, recommendedValue, riskTier, shareOf, standingFleet, STANDING_FLEET_HOURS, strengthOf, WEAK_SHARE, type RiskTier, type SimOutcome } from '../farmRank';
 import { spyProbes } from '@pr0hub/core/spy';
 
 /** Farm finder (backlog B-1): spied targets ranked by what they are worth now (server: repo/farm.ts). */
-interface Section { time: number; points: number | null; units: number }
-interface Target {
-  g: number;
-  s: number;
-  p: number;
-  type: 'planet' | 'moon';
-  name: string | null;
-  player: { id: number; name: string; status: string[]; ally_tag: string | null; points: number | null };
-  report: { time: number; resources: Record<number, number>; count: number };
-  levels: { time: number; values: Record<string, number> } | null;
-  projected: Record<number, number>;
-  perHour: Record<number, number>;
-  full: Record<number, boolean>;
-  loot: Record<number, number>;
-  fleet: Section | null;
-  defense: Section | null;
-  lastBattle: number | null;
-  inactivity: Inactivity | null;
-  changes: Record<1 | 2 | 5, number | null>;
-  espionage: number | null;
-  moonDiameter?: number | null;
-}
-interface FarmResponse { targets: Target[]; resourceSpeed: number; speedSource: 'settings' | 'empire' | 'default'; storageFactor: number; days: number; now: number }
-interface Row extends Target {
+interface Row extends FarmTarget {
   key: string;
   lootSum: number;
   from: { label: string; c: [number, number, number] } | null;
@@ -63,6 +42,12 @@ interface Row extends Target {
   /** loot per hour of the round trip */
   perFlightHour: number | null;
   risk: 'none' | 'defense' | 'fleet' | 'both' | 'unknown';
+  /** fleet plus weighted defense and its share of the own fleet points (null: own fleet unknown) */
+  strength: FarmTarget['strength'] & { points: number; known: boolean; estimated: boolean; share: number | null };
+  tier: RiskTier;
+  /** a fleet stands on the planet of a player inactive for at least 12 hours */
+  standing: boolean;
+  sim: SimOutcome | null;
   /** spy priority (B-2): loot now times the need for a new report */
   spy: { score: number; reasons: SpyReason[]; probes: number | null };
 }
@@ -87,7 +72,10 @@ const FILTER_DEFAULTS = {
   hideClaimed: true,
   minLoot: null as number | null,
   galaxy: null as number | null,
+  /** most strength as a share of the own fleet points (null: any) */
+  maxShare: null as number | null,
 };
+const SHARES = [0.3, 0.6, 1];
 const filter = useStored('farm.filter', { ...FILTER_DEFAULTS });
 filter.value = { ...FILTER_DEFAULTS, ...filter.value };
 
@@ -111,11 +99,43 @@ const SPY_DAYS = 30;
 const days = computed(() => (tab.value === 'spy' ? SPY_DAYS : filter.value.days));
 
 // the debris tab has its own data: the targets load when one of their tabs is shown
-const { data, error, load } = useLoader<FarmResponse | null>((): Promise<FarmResponse | null> =>
-  tab.value === 'debris' ? Promise.resolve(data.value) : uniApi<FarmResponse>(uni.value, `/farm?days=${days.value}`),
+const { data, error, load } = useLoader<FarmTargets | null>((): Promise<FarmTargets | null> =>
+  tab.value === 'debris' ? Promise.resolve(data.value) : uniApi<FarmTargets>(uni.value, `/farm?days=${days.value}`),
 );
 onMounted(load);
 watch(days, () => load());
+const ownPoints = computed(() => data.value?.own?.points ?? null);
+
+/** Simulations of the own fleet against targets (point 5): by target, for the report they were run with. */
+const sims = ref(new Map<string, { reportTime: number; outcome: SimOutcome | null; reason: string | null }>());
+const simFleet = ref<FarmSimulation['fleet'] | null>(null);
+const simRuns = ref(0);
+const simBusy = ref(false);
+const simError = ref('');
+const SIM_COUNT = 20;
+/** The first targets of the list as shown (sorted and filtered) against the own fleet of the newest empire page. */
+async function simulateTop() {
+  const list = sort.sorted.value.slice(0, SIM_COUNT);
+  if (!list.length) return;
+  simBusy.value = true;
+  simError.value = '';
+  try {
+    const res = await uniApi<FarmSimulation>(uni.value, '/farm/simulate', {
+      body: {
+        targets: list.map((r) => ({ g: r.g, s: r.s, p: r.p, type: r.type, resources: { metal: r.projected[901] ?? 0, crystal: r.projected[902] ?? 0, deuterium: r.projected[903] ?? 0 } })),
+      },
+    });
+    const next = new Map(sims.value);
+    res.results.forEach((x, i) => next.set(`${x.g}:${x.s}:${x.p}:${x.type}`, { reportTime: list[i].report.time, outcome: x.outcome, reason: x.reason }));
+    sims.value = next;
+    simFleet.value = res.fleet;
+    simRuns.value = res.runs;
+  } catch (e) {
+    simError.value = readError(e);
+  } finally {
+    simBusy.value = false;
+  }
+}
 // coming back from the debris tab the data may be the one of the other tab's period (spy: 30 days)
 watch(tab, (v) => v !== 'debris' && (!data.value || data.value.days !== days.value) && load());
 useLiveReload(load, tables('spy_reports', 'player_scores', 'battle_reports', 'galaxy_systems'));
@@ -159,9 +179,16 @@ const rows = computed<Row[]>(() =>
     const fleet = x.fleet ? x.fleet.units > 0 : null;
     const risk: Row['risk'] =
       defended == null || fleet == null ? (defended || fleet ? (defended ? 'defense' : 'fleet') : 'unknown') : defended && fleet ? 'both' : defended ? 'defense' : fleet ? 'fleet' : 'none';
+    const key = `${x.g}:${x.s}:${x.p}:${x.type}`;
+    const simmed = sims.value.get(key);
+    const sim = simmed && simmed.reportTime === x.report.time ? simmed.outcome : null;
     return {
       ...x,
-      key: `${x.g}:${x.s}:${x.p}:${x.type}`,
+      key,
+      strength: { ...x.strength, ...strengthOf(x.strength), share: shareOf(x.strength, ownPoints.value) },
+      tier: riskTier(x.strength, ownPoints.value, sim),
+      standing: standingFleet(x.strength, x.inactivity, data.value!.now),
+      sim,
       lootSum,
       from: start ? { label: start.label, c: start.c } : null,
       dist: start?.d ?? null,
@@ -198,12 +225,19 @@ const filtered = computed(() => {
       if (c && c.user_id !== ctx.value?.me.id) return false;
     }
     if (f.minLoot != null && f.minLoot > 0 && r.lootSum < f.minLoot) return false;
+    // targets of unknown strength stay (spy them first)
+    if (f.maxShare != null && r.strength.share != null && r.strength.share > f.maxShare && r.tier !== 'safe' && r.tier !== 'weak') return false;
     return true;
   });
 });
 
 const sortValue = (r: Row, key: string): unknown => {
   switch (key) {
+    case 'recommended': return recommendedValue(r.inactivity, r.tier, r.perFlightHour);
+    case 'beatable': return beatableValue(r.tier, r.perFlightHour);
+    // weakest first when descending; unknown strength last
+    case 'strength': return r.strength.known || r.strength.points > 0 ? -r.strength.points : null;
+    case 'debris': return debrisValue(r.fleetDebris, r.standing);
     case 'perFlightHour': return r.perFlightHour;
     case 'loot': return r.lootSum;
     case 'flight': return r.flight == null ? null : -r.flight;
@@ -214,18 +248,25 @@ const sortValue = (r: Row, key: string): unknown => {
   }
   return null;
 };
-const sort = useSort(filtered, sortValue, 'perFlightHour');
+const sort = useSort(filtered, sortValue, 'recommended');
 // each tab starts with its own ranking
 watch(
   tab,
   (v) => {
-    sort.key.value = v === 'spy' ? 'spy' : 'perFlightHour';
+    sort.key.value = v === 'spy' ? 'spy' : 'recommended';
     sort.descending.value = true;
   },
   { immediate: true },
 );
 const sortOptions = computed(() => [
-  ...(tab.value === 'spy' ? [{ key: 'spy', label: t('farm.spy.priority') }] : []),
+  ...(tab.value === 'spy'
+    ? [{ key: 'spy', label: t('farm.spy.priority') }]
+    : [
+        { key: 'recommended', label: t('farm.sort.recommended') },
+        { key: 'beatable', label: t('farm.sort.beatable') },
+        { key: 'strength', label: t('farm.sort.strength') },
+        { key: 'debris', label: t('farm.sort.debris') },
+      ]),
   { key: 'perFlightHour', label: t('farm.perFlightHour') },
   { key: 'loot', label: t('farm.loot') },
   { key: 'flight', label: t('farm.flight') },
@@ -245,6 +286,7 @@ const chips = computed<FilterChip[]>(() => {
   if (!f.hideClaimed) add('hideClaimed', t('farm.showClaimed'));
   if (f.minLoot) add('minLoot', `${t('farm.minLoot')} ${short(f.minLoot)}`);
   if (f.galaxy) add('galaxy', `${t('nav.galaxy')} ${f.galaxy}`);
+  if (f.maxShare != null) add('maxShare', t('farm.maxShareChip', { n: Math.round(f.maxShare * 100) }));
   return out;
 });
 const resetFilters = () => (filter.value = { ...FILTER_DEFAULTS, days: filter.value.days, ship: filter.value.ship, speed: filter.value.speed, from: filter.value.from });
@@ -257,11 +299,54 @@ const resTitle = (r: Row) =>
   ].join('\n');
 const reportTitle = (r: Row) =>
   [t('farm.reportTitle', { time: dateTime(r.report.time), n: r.report.count }), r.levels ? t('farm.levelsFrom', { time: dateTime(r.levels.time) }) : ''].filter(Boolean).join('\n');
-const riskTitle = (r: Row) =>
-  [
-    r.defense ? t('farm.defenseTitle', { n: fmt(r.defense.units), points: fmt(r.defense.points ?? 0), time: dateTime(r.defense.time) }) : t('farm.defenseUnknown'),
-    r.fleet ? t('farm.fleetTitle', { n: fmt(r.fleet.units), points: fmt(r.fleet.points ?? 0), time: dateTime(r.fleet.time) }) : t('farm.fleetUnknown'),
-  ].join('\n');
+const ownTitle = computed(() => {
+  const o = data.value?.own;
+  if (!o || o.points == null) return t('farm.own.unknown');
+  return t(o.from === 'empire' ? 'farm.own.empire' : 'farm.own.stats', { points: fmt(Math.round(o.points)), time: o.time ? dateTime(o.time) : '?' });
+});
+const sideTitle = (r: Row, side: 'fleet' | 'defense') => {
+  const from = r.strength[side === 'fleet' ? 'fleetFrom' : 'defenseFrom'];
+  const points = r.strength[side];
+  const sec = r[side];
+  if (from === 'report' && sec) return t(`farm.${side}Title`, { n: fmt(sec.units), points: fmt(Math.round(points ?? 0)), time: dateTime(sec.time) });
+  if (from === 'stats') return t(`farm.${side}Stats`, { points: fmt(Math.round(points ?? 0)) });
+  return t(`farm.${side}Unknown`);
+};
+const pct = (share: number) => `${Math.round(share * 100)} %`;
+const simText = (o: SimOutcome) => {
+  const lost = o.lost.metal + o.lost.crystal + o.lost.deuterium;
+  return t('farm.sim.short', { wins: Math.round(o.wins * 100), lost: short(lost) });
+};
+const riskTitle = (r: Row) => {
+  const simmed = sims.value.get(r.key);
+  const lines = [
+    sideTitle(r, 'fleet'),
+    sideTitle(r, 'defense'),
+    ...(r.strength.grown ? [t('farm.grown')] : []),
+    r.strength.share != null
+      ? t('farm.strengthTitle', { points: fmt(Math.round(r.strength.points)), weight: DEFENSE_WEIGHT, share: pct(r.strength.share), weak: pct(WEAK_SHARE) })
+      : t('farm.strengthNoShare', { points: fmt(Math.round(r.strength.points)), weight: DEFENSE_WEIGHT }),
+    ownTitle.value,
+  ];
+  if (r.sim) {
+    const lost = r.sim.lost.metal + r.sim.lost.crystal + r.sim.lost.deuterium;
+    const loot = r.sim.loot.metal + r.sim.loot.crystal + r.sim.loot.deuterium;
+    lines.push(
+      t('farm.sim.title', {
+        time: simFleet.value ? dateTime(simFleet.value.time) : '?',
+        runs: simRuns.value,
+        wins: Math.round(r.sim.wins * 100),
+        loot: fmt(Math.round(loot)),
+        lost: fmt(Math.round(lost)),
+        debris: fmt(Math.round(r.sim.debris.metal + r.sim.debris.crystal)),
+        profit: fmt(r.sim.profit),
+      }),
+    );
+  } else if (simmed?.reason) lines.push(t(`farm.sim.${simmed.reason === 'budget' ? 'budget' : 'noReport'}`));
+  return lines.join('\n');
+};
+const standingTitle = (r: Row) =>
+  t('farm.standingTitle', { h: STANDING_FLEET_HOURS, m: fmt(r.fleetDebris?.[901] ?? 0), k: fmt(r.fleetDebris?.[902] ?? 0) });
 const flightTitle = (r: Row) =>
   r.from ? t('farm.flightTitle', { from: r.from.label, ship: name(filter.value.ship), speed: filter.value.speed }) : t('farm.noStart');
 const spyTitle = (r: Row) =>
@@ -340,6 +425,13 @@ const claimText = (r: Row) => {
       <label class="check"><input v-model="filter.hideFleet" type="checkbox" /> {{ t('farm.hideFleet') }}</label>
       <label class="check"><input v-model="filter.hideVacation" type="checkbox" /> {{ t('farm.hideVacation') }}</label>
       <label class="check"><input v-model="filter.hideClaimed" type="checkbox" /> {{ t('farm.hideClaimed') }}</label>
+      <div v-if="tab === 'targets'" class="field">
+        <span class="lbl">{{ t('farm.maxShare') }}</span>
+        <select v-model="filter.maxShare">
+          <option :value="null">{{ t('common.all') }}</option>
+          <option v-for="x in SHARES" :key="x" :value="x">{{ t('farm.maxShareOption', { n: Math.round(x * 100) }) }}</option>
+        </select>
+      </div>
     </div>
     <div class="filter-group">
       <span class="filter-title">{{ t('farm.loot') }}</span>
@@ -368,6 +460,13 @@ const claimText = (r: Row) => {
   </div>
   <template v-else>
     <p v-if="!ownPlanets.length" class="warn small">{{ t('farm.noEmpire') }}</p>
+    <div v-if="tab === 'targets'" class="farm-sim small" data-tour="farm-sim">
+      <button class="secondary" :disabled="simBusy || !ctx?.own || !filtered.length" :title="ctx?.own ? t('farm.sim.hint', { n: SIM_COUNT }) : t('farm.sim.noEmpire')" @click="simulateTop">
+        <Icon name="attack" :size="14" /> {{ simBusy ? t('farm.sim.running') : t('farm.sim.run', { n: Math.min(SIM_COUNT, filtered.length) }) }}
+      </button>
+      <span class="muted">{{ ownTitle }}</span>
+      <span v-if="simError" class="error">{{ simError }}</span>
+    </div>
 
     <template v-if="mobile && tab === 'spy'">
       <SortBar :sort-key="sort.key.value" :options="sortOptions" v-model:desc="sort.descending.value" @sort="sort.sortBy" />
@@ -451,6 +550,7 @@ const claimText = (r: Row) => {
             <span v-if="r.player.ally_tag" class="muted small">[{{ r.player.ally_tag }}]</span>
             <StatusBadges :status="r.player.status" :points="r.player.points" />
             <InactivityBadge :value="r.inactivity" chip hide-flagged />
+            <span v-if="r.standing" class="badge standing" :title="standingTitle(r)">{{ t('farm.standing') }}</span>
             <span class="grow" />
             <PlanetActions :g="r.g" :s="r.s" :p="r.p" :type="r.type" :from="r.from?.c ?? null" :diameter="r.moonDiameter ?? null" />
           </div>
@@ -460,7 +560,11 @@ const claimText = (r: Row) => {
             <span class="muted">{{ t('farm.flight') }}</span><span :title="flightTitle(r)">{{ r.flight == null ? '–' : duration(Math.floor(r.flight)) }}</span>
             <span class="muted">{{ t('farm.ships') }}</span><span>{{ r.ships == null ? '–' : `${fmt(r.ships)} · ${fmt(r.fuel)} ${name(903)}` }}</span>
             <span class="muted">{{ t('farm.report') }}</span><span :title="reportTitle(r)">{{ ago(r.report.time) }}<span v-if="!r.levels" class="warn"> · {{ t('farm.noLevelsShort') }}</span></span>
-            <span class="muted">{{ t('farm.risk') }}</span><span :class="`risk-${r.risk}`" :title="riskTitle(r)">{{ t(`farm.riskLevel.${r.risk}`) }}</span>
+            <span class="muted">{{ t('farm.risk') }}</span>
+            <span :class="`risk-${r.tier}`" :title="riskTitle(r)">
+              {{ t(`farm.riskTier.${r.tier}`) }}<span v-if="r.strength.share != null" class="faint"> · {{ r.strength.estimated ? '≤ ' : '' }}{{ pct(r.strength.share) }}</span>
+              <span v-if="r.sim" class="faint"> · {{ simText(r.sim) }}</span>
+            </span>
           </div>
           <div v-if="claimText(r)" class="small warn">{{ claimText(r) }}</div>
         </div>
@@ -480,7 +584,7 @@ const claimText = (r: Row) => {
             <th class="sortable num" @click="sort.sortBy('flight')">{{ t('farm.flight') }}<SortMark :dir="sort.direction('flight')" /></th>
             <th class="num" :title="t('farm.shipsTitle')">{{ t('farm.ships') }}</th>
             <th class="sortable num" data-tour="farm-rank" @click="sort.sortBy('perFlightHour')">{{ t('farm.perFlightHour') }}<SortMark :dir="sort.direction('perFlightHour')" /></th>
-            <th data-tour="farm-risk">{{ t('farm.risk') }}</th>
+            <th class="sortable" data-tour="farm-risk" @click="sort.sortBy('strength')">{{ t('farm.risk') }}<SortMark :dir="sort.direction('strength')" /></th>
             <th></th>
           </tr>
         </thead>
@@ -506,7 +610,11 @@ const claimText = (r: Row) => {
               {{ r.ships == null ? '–' : fmt(r.ships) }}<span v-if="r.fuel != null" class="faint"> · {{ short(r.fuel) }} {{ abbr(903) }}</span>
             </td>
             <td class="num"><b>{{ r.perFlightHour == null ? '–' : short(r.perFlightHour) }}</b></td>
-            <td :class="`risk-${r.risk}`" :title="riskTitle(r)">{{ t(`farm.riskLevel.${r.risk}`) }}</td>
+            <td :class="`risk-${r.tier}`" :title="riskTitle(r)">
+              <span class="nowrap">{{ t(`farm.riskTier.${r.tier}`) }}<span v-if="r.strength.share != null" class="faint"> · {{ r.strength.estimated ? '≤ ' : '' }}{{ pct(r.strength.share) }}</span></span>
+              <span v-if="r.standing" class="badge standing" :title="standingTitle(r)">{{ t('farm.standing') }}</span>
+              <div v-if="r.sim" class="small faint nowrap">{{ simText(r.sim) }}</div>
+            </td>
             <td><PlanetActions :g="r.g" :s="r.s" :p="r.p" :type="r.type" :from="r.from?.c ?? null" :diameter="r.moonDiameter ?? null" /></td>
           </tr>
         </tbody>
@@ -525,10 +633,11 @@ const claimText = (r: Row) => {
 /* long names must not push risk and actions out of view (full name as title) */
 .farm-player { display: inline-block; max-width: 16ch; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
 .full-mark { margin-left: 3px; vertical-align: -1px; }
-.risk-none { color: var(--pos); }
-.risk-defense, .risk-both { color: var(--neg); }
-.risk-fleet { color: var(--warn); }
+.risk-safe, .risk-weak { color: var(--pos); }
+.risk-strong { color: var(--neg); }
 .risk-unknown { color: var(--muted); }
+.standing { color: var(--warn); margin-left: 4px; }
+.farm-sim { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 8px; }
 .farm-cards { display: flex; flex-direction: column; gap: 8px; }
 .farm-card { padding: 10px 12px; }
 .farm-card-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-bottom: 6px; }

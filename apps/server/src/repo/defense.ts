@@ -317,7 +317,7 @@ function planetSetup(state: BuildingsState, bp: BuildingPlanet, o: Options, t: n
   return { ids, units, combat, resources, candidates };
 }
 
-function rateOf(db: DB, ctx: GroupContext) {
+export function rateOf(db: DB, ctx: GroupContext) {
   const rate = latestMarketRate(db, ctx.groupId);
   const value = rate && rate.m > 0 && rate.k > 0 ? { m: rate.m, k: rate.k } : DEFAULT_RATE;
   return { value, source: rate ? ('market' as const) : ('default' as const) };

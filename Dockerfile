@@ -8,9 +8,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends git ca-certific
 WORKDIR /src
 RUN git init -q . && git fetch -q --depth 1 "$BATTLERUST_REPO" "$BATTLERUST_REF" && git checkout -q FETCH_HEAD
 COPY packages/battle/engine/Cargo.lock ./
-# the CLI must match the wasm-bindgen crate of the lockfile
+# the CLI must match the wasm-bindgen crate of the lockfile (CRLF stripped: a Windows checkout has them)
 RUN cargo install wasm-bindgen-cli --locked \
-    --version "$(awk '/^name = "wasm-bindgen"$/ { getline; gsub(/version = |"/, ""); print; exit }' Cargo.lock)"
+    --version "$(tr -d '\r' < Cargo.lock | awk '/^name = "wasm-bindgen"$/ { getline; gsub(/version = |"/, ""); print; exit }')"
 RUN cargo build --locked --release --lib --target wasm32-unknown-unknown --no-default-features --features wasm \
  && wasm-bindgen --target web --out-dir /out --out-name battlerust target/wasm32-unknown-unknown/release/battlerustlib.wasm
 

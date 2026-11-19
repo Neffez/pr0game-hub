@@ -776,10 +776,27 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** @description Farm finder: every spied planet or moon of players outside the own alliance (members and the in-game alliance of the viewer's player) with a spy report showing resources within `days`, with the expected resources now. The production since the report comes from the mine, power plant and storage levels of the newest report with buildings (formulas of the game's `ResourceUpdate`), the position's default temperature, the mining research of the player's newest report with research and the resource multiplier (`resourceSpeed` as a factor; `speedSource`: `settings` from the universe, `empire` derived from the members' synced production, `default` 1 when neither tells). Positions that changed owner or were destroyed since the report are left out. Sorting and flight math are up to the client. */
+        /** @description Farm finder: every spied planet or moon of players outside the own alliance (members and the in-game alliance of the viewer's player) with a spy report showing resources within `days`, with the expected resources now. The production since the report comes from the mine, power plant and storage levels of the newest report with buildings (formulas of the game's `ResourceUpdate`), the position's default temperature, the mining research of the player's newest report with research and the resource multiplier (`resourceSpeed` as a factor; `speedSource`: `settings` from the universe, `empire` derived from the members' synced production, `default` 1 when neither tells). Positions that changed owner or were destroyed since the report are left out. Each target has its combat strength (`strength`) and the debris field of its fleet; `own` is the caller's fleet to compare with. Sorting and flight math are up to the client. */
         get: operations["getFarmTargets"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/{uni}/farm/simulate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Farm finder: the caller's fleet (combat ships and the cargos of the newest own empire page, in flight included, with its weapons, shields and armour) against up to 25 targets, each as the group's newest reports show it (fleet, defense, the player's combat research from the newest report with research). A few runs per battle on Battlerust, as many as the engine budget allows for all targets together. Resources per target from the request (the client's projection), else the newest report's. Counts as one simulation of the battle rate limit. Writes nothing; session cookie only (no API tokens). */
+        post: operations["simulateFarmTargets"];
         delete?: never;
         options?: never;
         head?: never;
@@ -2967,61 +2984,125 @@ export type components = {
             })[];
         } | null;
         FarmTarget: {
-            g?: number;
-            s?: number;
-            p?: number;
+            g: number;
+            s: number;
+            p: number;
             /** @enum {string} */
-            type?: "planet" | "moon";
-            name?: string | null;
-            player?: {
-                id?: number;
-                name?: string;
-                status?: string[];
-                ally_tag?: string | null;
-                points?: number | null;
+            type: "planet" | "moon";
+            name: string | null;
+            player: {
+                id: number;
+                name: string;
+                status: string[];
+                ally_tag: string | null;
+                points: number | null;
             };
             /** @description Newest spy report with resources (901 metal, 902 crystal, 903 deuterium) and the number of reports */
-            report?: {
-                time?: number;
-                resources?: {
+            report: {
+                time: number;
+                resources: {
                     [key: string]: number;
                 };
-                count?: number;
+                count: number;
             };
             /** @description Building levels of the newest report with buildings (plus solar satellites, 212); null for moons and when no report showed them */
-            levels?: {
-                time?: number;
-                values?: {
+            levels: {
+                time: number;
+                values: {
                     [key: string]: number;
                 };
             } | null;
             /** @description Expected resources now (production since the report */
-            projected?: {
+            projected: {
                 [key: string]: number;
             };
-            perHour?: {
+            perHour: {
                 [key: string]: number;
             };
             /** @description Storage full per resource */
-            full?: {
+            full: {
                 [key: string]: boolean;
             };
             /** @description Loot of a won attack: half of each projected resource */
-            loot?: {
+            loot: {
                 [key: string]: number;
             };
-            fleet?: components["schemas"]["FarmSection"];
-            defense?: components["schemas"]["FarmSection"];
-            lastBattle?: number | null;
-            inactivity?: components["schemas"]["Inactivity"];
+            fleet: components["schemas"]["FarmSection"];
+            defense: components["schemas"]["FarmSection"];
+            lastBattle: number | null;
+            inactivity: components["schemas"]["Inactivity"];
             /** @description Points gained per statistics category since the report (keys 1 total, 2 fleet, 5 defense): newest score minus the score of the last update before the report; null when no update after the report or none before it is synced. Used by the spy priority list. */
-            changes?: {
-                [key: string]: number | null;
+            changes: {
+                1: number | null;
+                2: number | null;
+                5: number | null;
             };
             /** @description Espionage level of the player from the newest report with research */
-            espionage?: number | null;
+            espionage: number | null;
             /** @description Moons only: the diameter from the galaxy view (moon destruction calculator) */
             moonDiameter?: number | null;
+            /** @description Combat strength (points of the units that fight: civil ships, solar satellites, probes and missiles left out). Fleet and defense from the newest report that shows them plus the points the player's statistics gained in that category since (`grown`); without such a report the player's fleet or defense statistics (`stats`, all planets together: an upper bound, 0 means none anywhere); null when neither is known. */
+            strength: {
+                fleet: number | null;
+                /** @enum {string|null} */
+                fleetFrom: "report" | "stats" | null;
+                defense: number | null;
+                /** @enum {string|null} */
+                defenseFrom: "report" | "stats" | null;
+                grown: boolean;
+            };
+            /** @description Debris field (901 metal, 902 crystal) of the ships in the newest report with a fleet, with the universe's fleet debris share; null without such a report */
+            fleetDebris: {
+                901: number;
+                902: number;
+            } | null;
+        };
+        /** @description The caller's combat fleet points (the farm finder compares targets with them): the ships of the newest own empire page, in flight included (`empire`), else the newest fleet statistics of the caller's player (`stats`); null when neither is known. */
+        FarmOwnFleet: {
+            points: number | null;
+            /** @enum {string|null} */
+            from: "empire" | "stats" | null;
+            time: number | null;
+        };
+        /** @description The caller's fleet against each requested target (`POST /api/{uni}/farm/simulate`) */
+        FarmSimulation: {
+            /** @description The attacking fleet (combat ships and cargos of the newest own empire page) and its combat research */
+            fleet: {
+                units: {
+                    [key: string]: number;
+                };
+                research: {
+                    [key: string]: number;
+                };
+                time: number;
+            };
+            /** @description Runs per battle (fewer when the battles are large) */
+            runs: number;
+            results: {
+                g: number;
+                s: number;
+                p: number;
+                /** @enum {string} */
+                type: "planet" | "moon";
+                /**
+                 * @description Why there is no outcome: no report shows the target's fleet or defense, or left out for the engine budget
+                 * @enum {string|null}
+                 */
+                reason: "no_report" | "budget" | null;
+                outcome: {
+                    /** @description Share of the runs (0-1) the attacker won */
+                    wins: number;
+                    /** @description Expected profit in deuterium value with the market rate: loot + debris − ships lost */
+                    profit: number;
+                    loot: components["schemas"]["RiskResources"];
+                    debris: {
+                        metal: number;
+                        crystal: number;
+                    };
+                    lost: components["schemas"]["RiskResources"];
+                    defenderLost: components["schemas"]["RiskResources"];
+                } | null;
+            }[];
         };
         /** @description Why a pasted page gave no data (`explainNoData` of `@pr0hub/core`) */
         Explanation: {
@@ -3034,10 +3115,10 @@ export type components = {
         };
         /** @description Newest spy report section (null when no report showed it) */
         FarmSection: {
-            time?: number;
-            points?: number | null;
+            time: number;
+            points: number | null;
             /** @description Units that fight (solar satellites */
-            units?: number;
+            units: number;
         } | null;
         /** @description Market rate as metal (`m`) and crystal (`k`) per 1 deuterium */
         MarketRate: {
@@ -7563,15 +7644,101 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        targets?: components["schemas"]["FarmTarget"][];
-                        resourceSpeed?: number;
+                        targets: components["schemas"]["FarmTarget"][];
+                        resourceSpeed: number;
                         /** @enum {string} */
-                        speedSource?: "settings" | "empire" | "default";
-                        storageFactor?: number;
-                        days?: number;
+                        speedSource: "settings" | "empire" | "default";
+                        storageFactor: number;
+                        own: components["schemas"]["FarmOwnFleet"];
+                        days: number;
                         /** @description Time of the universe the projection is for (Unix seconds) */
-                        now?: number;
+                        now: number;
                     };
+                };
+            };
+        };
+    };
+    simulateFarmTargets: {
+        parameters: {
+            query?: {
+                /** @description Alliance group id (alternative to `X-Hub-Group`, required for SSE) */
+                group?: components["parameters"]["HubGroupQuery"];
+            };
+            header?: {
+                /** @description Alliance group id (see `GET /api/auth/me`) */
+                "X-Hub-Group"?: components["parameters"]["HubGroupHeader"];
+            };
+            path: {
+                /** @description Universe slug (e.g. `u8`) */
+                uni: components["parameters"]["Uni"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    targets: {
+                        g: number;
+                        s: number;
+                        p: number;
+                        /**
+                         * @default planet
+                         * @enum {string}
+                         */
+                        type?: "planet" | "moon";
+                        resources?: {
+                            metal: number;
+                            crystal: number;
+                            deuterium: number;
+                        } | null;
+                    }[];
+                };
+            };
+        };
+        responses: {
+            /** @description Outcome per target, in the order of the request */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FarmSimulation"];
+                };
+            };
+            /** @description Invalid request (`farm_sim_invalid`, the message names the field) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description No ships in the caller's newest empire page (`no_fleet`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The battle rate limit is reached (`battle_rate_limit`) or the simulator is busy (`battle_busy`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description The simulation took too long (`battle_timeout`) */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
                 };
             };
         };

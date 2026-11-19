@@ -1,6 +1,7 @@
+import { existsSync } from 'node:fs';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { positionTemp, productionOf } from '@pr0hub/core/production';
-import { storageCapacity } from '@pr0hub/core/tech';
+import { sectionPoints, storageCapacity } from '@pr0hub/core/tech';
 
 process.env.WEB_DIR = '/nonexistent';
 
@@ -19,6 +20,8 @@ async function login(username: string, password: string) {
   const res = await app.inject({ method: 'POST', url: '/hub/api/auth/login', payload: { username, password } });
   return `hub_session=${res.cookies.find((c) => c.name === 'hub_session')!.value}`;
 }
+/** The farm simulation runs the Battlerust engine, built by `pnpm build:battle` (Docker). */
+const wasm = existsSync(new URL('../../../packages/battle/wasm/battlerust_bg.wasm', import.meta.url));
 const farm = async (query = '') => (await app.inject({ method: 'GET', url: `/hub/api/u8/farm${query}`, headers: carol })).json();
 
 const player = (name: string, allianceId: number | null = null, status: string[] = []) =>
@@ -120,5 +123,53 @@ describe('farm finder', () => {
 
   it('looks further back on request', async () => {
     expect((await farm('?days=30')).targets).toHaveLength(4);
+  });
+
+  it('tells the combat strength from the reports, the points gained since and the statistics', async () => {
+    const res = await farm();
+    const target = res.targets.find((x: any) => x.s === 100 && x.type === 'planet');
+    // three small cargos and no solar satellites: nothing that fights
+    expect(target.strength).toEqual({ fleet: 0, fleetFrom: 'report', defense: 0, defenseFrom: 'report', grown: false });
+    expect(target.fleetDebris).toEqual({ 901: Math.floor(3 * 2000 * 0.4), 902: Math.floor(3 * 2000 * 0.4) });
+    // rocket launchers without the missiles, plus the 15 defense points gained since the report; no fleet known
+    const sleepy = res.targets.find((x: any) => x.s === 101);
+    expect(sleepy.strength).toEqual({ fleet: null, fleetFrom: null, defense: sectionPoints({ 401: 10 })! + 15, defenseFrom: 'report', grown: true });
+    expect(sleepy.fleetDebris).toBeNull();
+    // the moon has no report of fleet or defense: the player's statistics (none synced for the fleet)
+    const moon = res.targets.find((x: any) => x.type === 'moon');
+    expect(moon.strength).toMatchObject({ fleet: null, defense: null });
+    expect(res.own).toEqual({ points: null, from: null, time: null });
+  });
+
+  it('refuses the simulation without own ships and checks the request', async () => {
+    const post = (payload: unknown) => app.inject({ method: 'POST', url: '/hub/api/u8/farm/simulate', headers: carol, payload: payload as object });
+    const none = await post({ targets: [{ g: 1, s: 101, p: 4 }] });
+    expect(none.statusCode).toBe(409);
+    expect(none.json().code).toBe('no_fleet');
+    expect((await post({ targets: [] })).statusCode).toBe(400);
+    expect((await post({ targets: [{ g: 1, s: 101, p: 99 }] })).statusCode).toBe(400);
+  });
+
+  it('compares with the own fleet of the empire page and simulates it against the targets', async () => {
+    const carolId = db.prepare("SELECT id FROM users WHERE username = 'carol'").pluck().get();
+    const empire = { kind: 'empire', planets: [{ name: 'Home', coords: { g: 1, s: 99, p: 8 }, type: 'planet', values: { 204: 200, 202: 20, 210: 5 } }], research: { 109: 5, 110: 5, 111: 5 }, flyingShips: { 206: 10 } };
+    db.prepare('INSERT INTO empire_snapshots (group_id, user_id, created_at, data) VALUES (?, ?, ?, ?)').run(group, carolId, t - 60, JSON.stringify(empire));
+    const res = await farm();
+    expect(res.own).toEqual({ points: sectionPoints({ 204: 200, 206: 10 }), from: 'empire', time: t - 60 });
+    if (!wasm) return;
+    const sim = await app.inject({
+      method: 'POST',
+      url: '/hub/api/u8/farm/simulate',
+      headers: carol,
+      payload: { targets: [{ g: 1, s: 101, p: 4, resources: { metal: 100_000, crystal: 0, deuterium: 0 } }, { g: 1, s: 100, p: 8, type: 'moon' }] },
+    });
+    expect(sim.statusCode).toBe(200);
+    const body = sim.json();
+    expect(body.fleet.units).toEqual({ 202: 20, 204: 200, 206: 10 });
+    expect(body.results[0]).toMatchObject({ g: 1, s: 101, p: 4, type: 'planet', reason: null });
+    // 210 ships against ten rocket launchers: won, with loot
+    expect(body.results[0].outcome.wins).toBe(1);
+    expect(body.results[0].outcome.loot.metal).toBeGreaterThan(0);
+    expect(body.results[1]).toMatchObject({ type: 'moon', reason: 'no_report', outcome: null });
   });
 });

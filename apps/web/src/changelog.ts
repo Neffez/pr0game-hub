@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Farm-Finder: Die Ziele stehen jetzt standardmäßig nach Inaktivität und Risiko sortiert, erst dann nach Beute – starke aktive Spieler rutschen nach unten. Das Risiko vergleicht Flotte und Verteidigung des Ziels (Verteidigung zählt doppelt) mit deiner eigenen Flotte; bis 30 % gilt als schwach. Neu sind die Sortierungen „Schaffbar“, „Schwächste zuerst“ und „Trümmerfeld der Flotte“, ein Filter für die Stärke, ein Hinweis „Flotte steht“ bei lange Inaktiven mit Flotte und ein Knopf, der deine Flotte gegen die ersten 20 Ziele simuliert.',
+        en: 'Farm finder: targets are now sorted by inactivity and risk first, loot second – strong active players move down. The risk compares the target's fleet and defense (defense counts twice) with your own fleet; up to 30 % counts as weak. New: the orders "Beatable", "Weakest first" and "Debris of the fleet", a strength filter, a "Fleet standing" note for long inactive players with a fleet, and a button that simulates your fleet against the first 20 targets.',
+      },
+      {
+        kind: 'new',
         de: 'Auf vielen Seiten (z. B. Imperium, Marktplatz, Statistik, Spionage) öffnet ein Sync-Knopf oben rechts direkt das Schnell-Synchronisieren; in der Galaxie steckt er im „…“-Menü.',
         en: 'Many pages (e.g. empire, market, statistics, espionage) have a sync button at the top right that opens the quick sync right away; in the galaxy it sits in the "…" menu.',
       },

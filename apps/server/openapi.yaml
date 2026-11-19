@@ -256,6 +256,7 @@ components:
                   code: { const: losses }
     FarmTarget:
       type: object
+      required: [g, s, p, type, name, player, report, levels, projected, perHour, full, loot, fleet, defense, lastBattle, inactivity, changes, espionage, strength, fleetDebris]
       properties:
         g: { type: integer }
         s: { type: integer }
@@ -264,6 +265,7 @@ components:
         name: { type: [string, 'null'] }
         player:
           type: object
+          required: [id, name, status, ally_tag, points]
           properties:
             id: { type: integer }
             name: { type: string }
@@ -273,6 +275,7 @@ components:
         report:
           type: object
           description: Newest spy report with resources (901 metal, 902 crystal, 903 deuterium) and the number of reports
+          required: [time, resources, count]
           properties:
             time: { type: integer }
             resources: { type: object, additionalProperties: { type: number } }
@@ -280,6 +283,7 @@ components:
         levels:
           type: [object, 'null']
           description: Building levels of the newest report with buildings (plus solar satellites, 212); null for moons and when no report showed them
+          required: [time, values]
           properties:
             time: { type: integer }
             values: { type: object, additionalProperties: { type: number } }
@@ -297,9 +301,88 @@ components:
             Points gained per statistics category since the report (keys 1 total, 2 fleet, 5 defense): newest score
             minus the score of the last update before the report; null when no update after the report or none before
             it is synced. Used by the spy priority list.
-          additionalProperties: { type: [number, 'null'] }
+          required: ['1', '2', '5']
+          properties:
+            '1': { type: [number, 'null'] }
+            '2': { type: [number, 'null'] }
+            '5': { type: [number, 'null'] }
         espionage: { type: [integer, 'null'], description: "Espionage level of the player from the newest report with research" }
         moonDiameter: { type: [integer, 'null'], description: 'Moons only: the diameter from the galaxy view (moon destruction calculator)' }
+        strength:
+          type: object
+          description: >-
+            Combat strength (points of the units that fight: civil ships, solar satellites, probes and missiles left
+            out). Fleet and defense from the newest report that shows them plus the points the player's statistics
+            gained in that category since (`grown`); without such a report the player's fleet or defense statistics
+            (`stats`, all planets together: an upper bound, 0 means none anywhere); null when neither is known.
+          required: [fleet, fleetFrom, defense, defenseFrom, grown]
+          properties:
+            fleet: { type: [number, 'null'] }
+            fleetFrom: { type: [string, 'null'], enum: [report, stats, null] }
+            defense: { type: [number, 'null'] }
+            defenseFrom: { type: [string, 'null'], enum: [report, stats, null] }
+            grown: { type: boolean }
+        fleetDebris:
+          type: [object, 'null']
+          description: Debris field (901 metal, 902 crystal) of the ships in the newest report with a fleet, with the universe's fleet debris share; null without such a report
+          required: ['901', '902']
+          properties:
+            '901': { type: number }
+            '902': { type: number }
+    FarmOwnFleet:
+      type: object
+      description: >-
+        The caller's combat fleet points (the farm finder compares targets with them): the ships of the newest own
+        empire page, in flight included (`empire`), else the newest fleet statistics of the caller's player (`stats`);
+        null when neither is known.
+      required: [points, from, time]
+      properties:
+        points: { type: [number, 'null'] }
+        from: { type: [string, 'null'], enum: [empire, stats, null] }
+        time: { type: [integer, 'null'] }
+    FarmSimulation:
+      type: object
+      description: The caller's fleet against each requested target (`POST /api/{uni}/farm/simulate`)
+      required: [fleet, runs, results]
+      properties:
+        fleet:
+          type: object
+          description: The attacking fleet (combat ships and cargos of the newest own empire page) and its combat research
+          required: [units, research, time]
+          properties:
+            units: { type: object, additionalProperties: { type: integer } }
+            research: { type: object, additionalProperties: { type: integer } }
+            time: { type: integer }
+        runs: { type: integer, description: Runs per battle (fewer when the battles are large) }
+        results:
+          type: array
+          items:
+            type: object
+            required: [g, s, p, type, reason, outcome]
+            properties:
+              g: { type: integer }
+              s: { type: integer }
+              p: { type: integer }
+              type: { type: string, enum: [planet, moon] }
+              reason:
+                type: [string, 'null']
+                enum: [no_report, budget, null]
+                description: 'Why there is no outcome: no report shows the target''s fleet or defense, or left out for the engine budget'
+              outcome:
+                type: [object, 'null']
+                required: [wins, profit, loot, debris, lost, defenderLost]
+                properties:
+                  wins: { type: number, description: Share of the runs (0-1) the attacker won }
+                  profit: { type: number, description: 'Expected profit in deuterium value with the market rate: loot + debris − ships lost' }
+                  loot: { $ref: '#/components/schemas/RiskResources' }
+                  debris:
+                    type: object
+                    required: [metal, crystal]
+                    properties:
+                      metal: { type: number }
+                      crystal: { type: number }
+                  lost: { $ref: '#/components/schemas/RiskResources' }
+                  defenderLost: { $ref: '#/components/schemas/RiskResources' }
     Explanation:
       type: object
       description: Why a pasted page gave no data (`explainNoData` of `@pr0hub/core`)
@@ -310,6 +393,7 @@ components:
     FarmSection:
       type: [object, 'null']
       description: Newest spy report section (null when no report showed it)
+      required: [time, points, units]
       properties:
         time: { type: integer }
         points: { type: [number, 'null'] }
@@ -4079,8 +4163,9 @@ paths:
         buildings (formulas of the game's `ResourceUpdate`), the position's default temperature, the mining research
         of the player's newest report with research and the resource multiplier (`resourceSpeed` as a factor;
         `speedSource`: `settings` from the universe, `empire` derived from the members' synced production, `default`
-        1 when neither tells). Positions that changed owner or were destroyed since the report are left out. Sorting
-        and flight math are up to the client.
+        1 when neither tells). Positions that changed owner or were destroyed since the report are left out. Each
+        target has its combat strength (`strength`) and the debris field of its fleet; `own` is the caller's fleet to
+        compare with. Sorting and flight math are up to the client.
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
@@ -4095,13 +4180,83 @@ paths:
             application/json:
               schema:
                 type: object
+                required: [targets, resourceSpeed, speedSource, storageFactor, own, days, now]
                 properties:
                   targets: { type: array, items: { $ref: '#/components/schemas/FarmTarget' } }
                   resourceSpeed: { type: number }
                   speedSource: { type: string, enum: [settings, empire, default] }
                   storageFactor: { type: number }
+                  own: { $ref: '#/components/schemas/FarmOwnFleet' }
                   days: { type: integer }
                   now: { type: integer, description: Time of the universe the projection is for (Unix seconds) }
+  /api/{uni}/farm/simulate:
+    post:
+      tags: [Universe]
+      operationId: simulateFarmTargets
+      description: >-
+        Farm finder: the caller's fleet (combat ships and the cargos of the newest own empire page, in flight
+        included, with its weapons, shields and armour) against up to 25 targets, each as the group's newest reports
+        show it (fleet, defense, the player's combat research from the newest report with research). A few runs per
+        battle on Battlerust, as many as the engine budget allows for all targets together. Resources per target from
+        the request (the client's projection), else the newest report's. Counts as one simulation of the battle rate
+        limit. Writes nothing; session cookie only (no API tokens).
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [targets]
+              properties:
+                targets:
+                  type: array
+                  minItems: 1
+                  maxItems: 25
+                  items:
+                    type: object
+                    required: [g, s, p]
+                    properties:
+                      g: { type: integer }
+                      s: { type: integer }
+                      p: { type: integer }
+                      type: { type: string, enum: [planet, moon], default: planet }
+                      resources:
+                        type: [object, 'null']
+                        required: [metal, crystal, deuterium]
+                        properties:
+                          metal: { type: integer, minimum: 0 }
+                          crystal: { type: integer, minimum: 0 }
+                          deuterium: { type: integer, minimum: 0 }
+      responses:
+        '200':
+          description: Outcome per target, in the order of the request
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/FarmSimulation' }
+        '400':
+          description: Invalid request (`farm_sim_invalid`, the message names the field)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '409':
+          description: No ships in the caller's newest empire page (`no_fleet`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '429':
+          description: The battle rate limit is reached (`battle_rate_limit`) or the simulator is busy (`battle_busy`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '503':
+          description: The simulation took too long (`battle_timeout`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
   /api/{uni}/overview:
     get:
       tags: [Universe]

@@ -36,7 +36,7 @@ describe('farm finder tabs (B-2 of the review)', () => {
       const farm = /\/farm\?days=(\d+)/.exec(url);
       if (farm) {
         farmCalls.push(Number(farm[1]));
-        return json({ targets: [], resourceSpeed: 1, speedSource: 'settings', storageFactor: 1, days: Number(farm[1]), now });
+        return json({ targets: [], resourceSpeed: 1, speedSource: 'settings', storageFactor: 1, own: { points: null, from: null, time: null }, days: Number(farm[1]), now });
       }
       if (url.includes('/debris')) return json({ fields: [], recyclers: [], capacity: null, days: 7, now });
       return json([]);

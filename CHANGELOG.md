@@ -4,6 +4,26 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-19
 
+- Farm finder ranks by inactivity and risk instead of loot alone, so strong top players no longer lead the list:
+  - Each target has a combat strength (`strength`, `GET /api/{uni}/farm`): combat points of fleet and defense (civil
+    ships, satellites, probes and missiles left out) from the newest report showing them plus the points the
+    statistics gained since, else the player's fleet/defense statistics as an upper bound; `own` is the viewer's
+    combat fleet (newest empire page incl. ships in flight, else the fleet statistics); `fleetDebris` the debris
+    field of the reported fleet.
+  - Defense counts twice: battle simulations on Battlerust (four fleet mixes against early/mid/late defense, 20k and
+    200k points, same research) showed a fleet beats as defense about 15 % (10-31 %) of its points with the losses
+    it takes against a fleet of 30 %.
+  - Risk tiers safe / weak (≤ 30 % of the own fleet) / unknown / strong; default sort "Recommended" (inactivity tier,
+    risk tier, loot per flight hour), plus "Beatable", "Weakest first" (also a click on the risk column) and "Debris
+    of the fleet"; filter "Strength up to" 30/60/100 % of the own fleet; badge "Fleet standing" for a reported fleet
+    of a player inactive for 12 hours or more.
+  - "Simulate first 20": `POST /api/{uni}/farm/simulate` runs the own fleet (combat ships and cargos of the newest
+    empire page) against up to 25 targets in the battle worker (raid risk job, one simulation of the rate limit);
+    the outcome then decides the target's risk tier.
+  - The farm answer and `FarmTarget` are fully described in the OpenAPI spec; the farm finder uses the generated types.
+- Dockerfile: the wasm-bindgen version is read from `Cargo.lock` with CRs stripped, so `pnpm build:battle` works on a
+  Windows checkout.
+
 - "Sync now" in the page header (desktop; on a phone the tab bar has it): a sync icon button next to the page's
   actions opens the quick sync on overview, empire, build, market, statistics, activity, battle hall, espionage,
   planets/fleet/research, farm, fleet save, expeditions, hostile and messages; the galaxy has it in its "…" menu.
