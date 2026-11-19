@@ -126,6 +126,10 @@ describe('recap', () => {
     await call('PUT', `/admin/groups/${group}/discord`, h.carol, { webhook: HOOK });
     expect((await call('POST', '/u8/recap/discord', h.dave, {})).statusCode).toBe(403);
     expect((await call('POST', '/u8/recap/discord', h.carol, { image: Buffer.from('GIF89a').toString('base64') })).json().code).toBe('recap_image_invalid');
+    // a body above the server's general limit, within what an image of the allowed size takes as base64
+    const big = await call('POST', '/u8/recap/discord', h.carol, { image: 'A'.repeat(9 * 1024 * 1024) });
+    expect(big.statusCode).toBe(400);
+    expect(big.json().code).toBe('recap_image_invalid');
     const res = await call('POST', '/u8/recap/discord', h.carol, { period: 'week', image: `data:image/png;base64,${PNG.toString('base64')}` });
     expect(res.json()).toEqual({ ok: true });
     expect(sent).toHaveLength(1);

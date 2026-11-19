@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-19
 
+- Recap to Discord: the route takes a body large enough for the documented 8 MB PNG as base64 (the general body
+  limit cut it at about 6 MB with a 413); larger or non-PNG images get `recap_image_invalid` (review R-08).
+
 - Threats: the fleet rebuilt from battle reports escapes LIKE wildcards in the player's name (`_` is common) and
   "who threatens me" looks each name up once per request (review R-07).
 

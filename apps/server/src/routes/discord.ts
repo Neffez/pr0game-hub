@@ -29,6 +29,8 @@ function webhookOf(v: unknown): string | null | undefined {
 
 /** A recap image may be this large (Discord takes up to 10 MB per message). */
 const MAX_IMAGE = 8 * 1024 * 1024;
+/** The body of a recap post: the image as base64 (4/3 of its size) and the period. */
+const RECAP_BODY = Math.ceil((MAX_IMAGE * 4) / 3) + 64 * 1024;
 const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
 /** A PNG from a request body (base64, optionally as a data URL); undefined without one. */
@@ -109,7 +111,7 @@ export function discordRoutes(app: FastifyInstance, db: DB, discord: DiscordServ
 
   /** The recap of a period to the alliance's channel, optionally with a PNG of it; alliance admins. */
   const ctxOf = contextOf(db);
-  app.post<{ Params: { uni: string }; Body: { period?: unknown; image?: unknown } }>('/api/:uni/recap/discord', async (req) => {
+  app.post<{ Params: { uni: string }; Body: { period?: unknown; image?: unknown } }>('/api/:uni/recap/discord', { bodyLimit: RECAP_BODY }, async (req) => {
     const ctx = ctxOf(req);
     requireGroupAdminOf(db, req, ctx.groupId);
     const period = recapPeriodOf(req.body?.period === undefined ? undefined : String(req.body.period));
