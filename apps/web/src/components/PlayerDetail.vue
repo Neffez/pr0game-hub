@@ -167,10 +167,10 @@ onBeforeUnmount(() => chart?.destroy());
       <StatusBadges :status="data.player.status" :points="latest[1]?.points ?? null" />
       <span v-if="data.player.ally_name" class="muted"> [{{ data.player.ally_tag ?? data.player.ally_name }}]</span>
       <PresenceBadge :player="data.player.id" />
-      <span v-if="badges.length" class="pd-badges">
+      <RouterLink v-if="badges.length" class="pd-badges" :to="{ path: `/${uni}/health`, query: { tab: 'badges' } }">
         <BadgeIcon v-for="b in badges.slice(0, badgeLimit)" :key="b.key" :badge="b" :size="16" />
         <span v-if="moreBadges.length" class="muted small" :title="moreBadges.map((b) => t(`badges.${b.key}.name`)).join(', ')">+{{ moreBadges.length }}</span>
-      </span>
+      </RouterLink>
     </h1>
     <p class="muted small">
       <template v-if="data.player.ingame_id">ID {{ data.player.ingame_id }} · </template>
@@ -271,7 +271,7 @@ onBeforeUnmount(() => chart?.destroy());
 </template>
 
 <style scoped>
-.pd-badges { display: inline-flex; align-items: center; gap: 5px; margin-left: 8px; vertical-align: middle; white-space: nowrap; font-size: 13px; font-weight: 400; }
+.pd-badges { color: inherit; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; margin-left: 8px; vertical-align: middle; white-space: nowrap; font-size: 13px; font-weight: 400; }
 .research { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px 24px; }
 .research-line { display: flex; justify-content: space-between; padding: 2px 0; border-bottom: 1px solid var(--border); }
 </style>

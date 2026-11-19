@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Spielerprofil: Ein Klick auf die Abzeichen öffnet den Fortschritt mit dem Tab „Serien & Abzeichen“.',
+        en: 'Player profile: clicking the badges opens the progress page on the "Streaks & badges" tab.',
+      },
+      {
+        kind: 'new',
         de: 'Den Autoplan gibt es jetzt auch als öffentliches pr0game-Tool ohne Login: Ziele eintragen, Gebäude- und Forschungsseite einfügen (oder einen neuen Planeten planen) und die schnellste Bauliste im Browser suchen lassen, als Link teilbar.',
         en: 'The auto plan is now also a public pr0game tool without login: enter targets, paste the buildings and research page (or plan a new planet) and let the browser find the fastest build order, shareable as a link.',
       },
