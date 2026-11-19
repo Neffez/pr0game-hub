@@ -4,6 +4,22 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-19
 
+- Fixes from the full code review (`CODEREVIEW.md`, F-01 to F-06):
+  - Push and Discord: removing a member who had a building alert or a build order in the group no longer stops every
+    notification of that group (the scheduler planned for the former member and failed). A trigger drops the
+    member's building alerts, fleet alerts and full-storage state when a membership ends, existing orphans are
+    removed (migration 097), the schedulers only look at members (build orders stay for a member added back), and
+    the 30-second ticks deliver each group in its own `try`, so one failing group no longer holds up the others.
+  - Live events: a stream opened with an API token is no longer closed at the first heartbeat (it checked only the
+    session cookie); a revoked token or session still ends it.
+  - Undoing a statistics sync removes only the score rows of its own lines (same rank and points, same in-game id
+    when known) and their score events; the snapshot goes only when no rows are left, so other pages and other
+    members' syncs of the same update stay.
+  - Galaxy: a cut-off plain-text copy no longer logs the debris fields after its end as cleared.
+  - Accepting the invitation of a placeholder member moves their participant key in the loot settlements (data,
+    corrections, delivery ticks) to the account, so corrections and open deliveries keep working.
+  - `backup.js` rejects a `keep` that is not a whole number of at least 1 and never deletes the backup it just wrote.
+
 - Performance (server):
   - New indexes on spy reports by time, pasted pages by age and player activity by time (migration 096, analyzed
     right away): the farm finder, the recent and paged spy report lists and the sync credits no longer sort all of a

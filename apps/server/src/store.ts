@@ -491,8 +491,9 @@ export class Store {
       }
       this.debrisEvent(c, seenAt, playerId, prev?.debris ?? null, row.debris, known == null);
     }
-    // debris fields that disappeared
+    // debris fields that disappeared (not those after the end of a cut-off text copy: unknown there, kept above)
     for (const [p, prev] of before) {
+      if (r.lastPosition != null && p > r.lastPosition) continue;
       if (prev.debris && !r.rows.some((row) => row.position === p && row.debris)) {
         this.debrisEvent({ g: r.g, s: r.s, p }, seenAt, prev.player_id, prev.debris, null, false);
       }

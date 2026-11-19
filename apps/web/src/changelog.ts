@@ -20,6 +20,26 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Push und Discord: Wird ein Mitglied mit Gebäude-Erinnerung oder Bauauftrag aus der Allianz entfernt, kommen die Benachrichtigungen der übrigen Mitglieder wieder an.',
+        en: 'Push and Discord: removing a member with a building alert or build order no longer stops the notifications of the other members.',
+      },
+      {
+        kind: 'fix',
+        de: 'Beuteabrechnung: Nimmt ein Platzhalter-Mitglied seine Einladung an, bleiben seine Korrekturen und offenen Lieferungen erhalten.',
+        en: 'Loot settlement: when a placeholder member accepts their invitation, their corrections and open deliveries are kept.',
+      },
+      {
+        kind: 'fix',
+        de: 'Galaxie: Eine abgeschnittene Textkopie meldet Trümmerfelder nach dem Schnitt nicht mehr als geräumt.',
+        en: 'Galaxy: a cut-off text copy no longer reports the debris fields after the cut as cleared.',
+      },
+      {
+        kind: 'fix',
+        de: 'Admin: Das Zurücknehmen eines Statistik-Syncs löscht nur noch dessen eigene Zeilen, nicht die übrigen Seiten desselben Updates.',
+        en: 'Admin: taking back a statistics sync removes only its own lines, not the other pages of the same update.',
+      },
+      {
+        kind: 'fix',
         de: 'Galaxieansicht, Farmliste und Spionageberichte laden schneller.',
         en: 'Galaxy view, farm finder and spy reports load faster.',
       },

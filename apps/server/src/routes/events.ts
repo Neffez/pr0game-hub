@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { HttpError, loadSessionUser } from '../auth.js';
+import { HttpError, loadRequestUser } from '../auth.js';
 import { groupContext, isRunning, resolveGroup } from '../context.js';
 import { now, type DB } from '../db.js';
 import { events, type Whereabouts } from '../events.js';
@@ -43,9 +43,10 @@ export function eventRoutes(app: FastifyInstance, db: DB) {
       { userId: ctx.user.id, isAdmin: ctx.user.isAdmin, send: (event) => res.write(`data: ${JSON.stringify(event)}\n\n`) },
       () => db.prepare('UPDATE group_members SET last_seen_at = ? WHERE group_id = ? AND user_id = ?').run(now(), ctx.groupId, ctx.user.id),
     );
-    // logged out or removed from the group while the tab stays open: the stream ends
+    // logged out, token revoked or removed from the group while the tab stays open: the stream ends (the session
+    // cookie or Bearer token the stream was opened with, see groupContext)
     const timer = setInterval(() => {
-      const user = loadSessionUser(db, req);
+      const { user } = loadRequestUser(db, req);
       try {
         if (user?.id !== ctx.user.id) return end();
         resolveGroup(db, user, ctx.universe, ctx.groupId);

@@ -614,7 +614,12 @@ describe('api', () => {
     const ingest = (text: string) => app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { text, system: '1:3' } });
     const full = fixture('galaxy.txt');
     expect((await ingest(full)).statusCode).toBe(200);
+    // a debris field after the cut: unknown in the cut-off copy, not cleared
+    const debris = JSON.stringify({ metal: '1.000', crystal: '500' });
+    db.prepare('UPDATE planets SET debris = ? WHERE group_id = ? AND g = 1 AND s = 3 AND p = 13').run(debris, groupT);
     expect((await ingest(full.slice(0, full.indexOf('Hauptplanet') - 1))).statusCode).toBe(200);
+    expect(db.prepare('SELECT debris FROM planets WHERE group_id = ? AND g = 1 AND s = 3 AND p = 13').pluck().get(groupT)).toBe(debris);
+    expect(db.prepare("SELECT COUNT(*) FROM activity_log WHERE group_id = ? AND kind = 'debris_cleared'").pluck().get(groupT)).toBe(0);
     const positions = db.prepare('SELECT p FROM planets WHERE group_id = ? AND g = 1 AND s = 3 ORDER BY p').pluck().all(groupT);
     expect(positions).toEqual([1, 2, 4, 5, 6, 7, 8, 9, 11, 12, 13]);
     expect(db.prepare("SELECT COUNT(*) FROM activity_log WHERE group_id = ? AND kind = 'planet_destroyed'").pluck().get(groupT)).toBe(0);
@@ -1672,7 +1677,11 @@ describe('admin: taking a sync back', () => {
     for (const f of ['stats-player.html', 'empire-real-source.html', 'overview.html']) {
       expect((await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { html: fixture(f) } })).statusCode).toBe(200);
     }
-    const before = players();
+    // another sync of the same statistics update (the next page): its row stays, and with it the snapshot
+    const snap = db.prepare('SELECT id, type, stat_time FROM stat_snapshots WHERE group_id = ?').get(groupC) as { id: number; type: number; stat_time: number };
+    const zeta = Number(db.prepare('INSERT INTO players (group_id, name) VALUES (?, ?)').run(groupC, 'Zeta').lastInsertRowid);
+    db.prepare('INSERT INTO player_scores (snapshot_id, player_id, rank, points, type, stat_time) VALUES (?, ?, 101, 5, ?, ?)').run(snap.id, zeta, snap.type, snap.stat_time);
+    const before = players().filter((n) => n !== 'Zeta');
     expect(before.length).toBeGreaterThan(1);
     expect(counts()).toEqual([1, 1, 1, 3]);
 
@@ -1681,13 +1690,19 @@ describe('admin: taking a sync back', () => {
     const undo = (raw: number, dryRun = false) => app.inject({ method: 'POST', url: `/hub/api/admin/ingests/${raw}/delete`, headers: admin, payload: { dryRun } });
 
     const preview = (await undo(id('stats'), true)).json();
-    expect(preview).toMatchObject({ snapshots: 1, scores: before.length, kept: ['Alpha'], empires: 0, skipped: [] });
+    expect(preview).toMatchObject({ snapshots: 0, scores: before.length, kept: ['Alpha'], empires: 0, skipped: [] });
     expect(preview.players.sort()).toEqual(before.filter((n) => n !== 'Alpha'));
-    expect(players()).toEqual(before);
+    expect(players()).toEqual([...before, 'Zeta'].sort());
     expect(counts()).toEqual([1, 1, 1, 3]);
 
     expect((await undo(id('stats'))).json()).toEqual(preview);
-    expect(players()).toEqual(['Alpha']);
+    expect(players()).toEqual(['Alpha', 'Zeta']);
+    expect(db.prepare('SELECT player_id FROM player_scores WHERE snapshot_id = ?').pluck().all(snap.id)).toEqual([zeta]);
+    // pasted again without the other page: the undo takes the snapshot along
+    db.prepare('DELETE FROM players WHERE id = ?').run(zeta);
+    await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers, payload: { html: fixture('stats-player.html') } });
+    const again = (await app.inject({ method: 'GET', url: `/hub/api/admin/groups/${groupC}/ingests`, headers: admin })).json()[0];
+    expect((await undo(again.id)).json()).toMatchObject({ snapshots: 1, scores: before.length });
     // alliances stay only as long as a remaining player belongs to them
     expect(
       db.prepare('SELECT COUNT(*) FROM alliances a WHERE group_id = ? AND NOT EXISTS (SELECT 1 FROM players p WHERE p.alliance_id = a.id)').pluck().get(groupC),

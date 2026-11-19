@@ -1,12 +1,13 @@
 import { readFileSync } from 'node:fs';
 import type { AddressInfo } from 'node:net';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
 process.env.WEB_DIR = '/nonexistent';
 
 const { buildApp } = await import('../src/app.js');
 const { openDb } = await import('../src/db.js');
-const { hashPassword } = await import('../src/auth.js');
+const { createApiToken, hashPassword } = await import('../src/auth.js');
+const { HEARTBEAT_MS } = await import('../src/routes/events.js');
 const { EventBus, TAB_TTL_MS } = await import('../src/events.js');
 
 const fixture = (name: string) =>
@@ -99,6 +100,37 @@ describe('live events', () => {
     expect((await fetch(`${base}/hub/api/u8/events?group=${groupA}`)).status).toBe(401);
     const bus = new EventBus();
     expect(bus.connections(groupA, 1)).toBe(0);
+  });
+
+  it('keeps a stream opened with an API token past the heartbeat, ends it once the token is revoked', async () => {
+    const userId = db.prepare("SELECT id FROM users WHERE username = 'admin'").pluck().get() as number;
+    const { id, token } = createApiToken(db, userId, 'events');
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval'] });
+    try {
+      const ctrl = new AbortController();
+      const res = await fetch(`${base}/hub/api/u8/events?group=${groupA}`, { headers: { authorization: `Bearer ${token}` }, signal: ctrl.signal });
+      expect(res.status).toBe(200);
+      let text = '';
+      let ended = false;
+      const reading = (async () => {
+        for await (const chunk of res.body!) text += new TextDecoder().decode(chunk as Uint8Array);
+        ended = true;
+      })().catch(() => {});
+      const settle = () => new Promise((r) => setTimeout(r, 100));
+      await settle();
+      vi.advanceTimersByTime(HEARTBEAT_MS);
+      await settle();
+      expect(ended).toBe(false);
+      expect(text).toContain(': ping');
+      db.prepare('DELETE FROM api_tokens WHERE id = ?').run(id);
+      vi.advanceTimersByTime(HEARTBEAT_MS);
+      await settle();
+      expect(ended).toBe(true);
+      ctrl.abort();
+      await reading;
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('pushes new data to the open streams of the group only', async () => {

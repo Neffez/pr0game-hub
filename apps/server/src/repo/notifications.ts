@@ -445,7 +445,7 @@ export function nextBuildingAlert(db: DB, universe: Universe, groupId: number, t
   const users = db
     .prepare(
       `SELECT DISTINCT u.id, u.username, u.is_admin, u.lang, u.date_format FROM building_alerts b JOIN users u ON u.id = b.user_id
-       WHERE b.group_id = ?`,
+       JOIN group_members m ON m.group_id = b.group_id AND m.user_id = b.user_id WHERE b.group_id = ?`,
     )
     .all(groupId) as { id: number; username: string; is_admin: number; lang: string; date_format: string }[];
   let next: number | null = null;
@@ -509,7 +509,8 @@ function buildOrder(db: DB, ctx: GroupContext, t: number, own: () => BuildingsSt
  */
 export function nextBuildOrderStep(db: DB, universe: Universe, groupId: number, t: number): number | null {
   const users = db
-    .prepare('SELECT u.id, u.username, u.is_admin, u.lang, u.date_format FROM build_orders b JOIN users u ON u.id = b.user_id WHERE b.group_id = ?')
+    .prepare(`SELECT u.id, u.username, u.is_admin, u.lang, u.date_format FROM build_orders b JOIN users u ON u.id = b.user_id
+       JOIN group_members m ON m.group_id = b.group_id AND m.user_id = b.user_id WHERE b.group_id = ?`)
     .all(groupId) as { id: number; username: string; is_admin: number; lang: string; date_format: string }[];
   let next: number | null = null;
   for (const u of users) {

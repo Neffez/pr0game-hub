@@ -186,7 +186,14 @@ export class DiscordService {
       .pluck()
       .all() as number[];
     for (const g of alerts) if (!groups.includes(g) && this.alerts.due(g, t)) groups.push(g);
-    for (const g of groups) await this.deliver(g, t);
+    // one group per try: a group that fails must not keep the groups after it from their reminders
+    for (const g of groups) {
+      try {
+        await this.deliver(g, t);
+      } catch (err) {
+        this.log?.warn({ err, groupId: g }, 'discord delivery failed');
+      }
+    }
   }
 
   close() {

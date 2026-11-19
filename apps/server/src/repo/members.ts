@@ -2,6 +2,7 @@ import type { GroupContext } from '../context.js';
 import type { DB } from '../db.js';
 import { latestEmpires } from './empire.js';
 import { Players } from './players.js';
+import { memberKey } from './settlements.js';
 
 const cache = new WeakMap<GroupContext, Map<number, number | null>>();
 
@@ -68,10 +69,52 @@ function userReferences(db: DB): { table: string; column: string }[] {
   );
 }
 
+/**
+ * `value` with the settlement member key `from` replaced by `into`: string values equal to it, object keys (an entry
+ * `into` has already stays) and delivery keys `a>b`.
+ */
+function renameMemberKey(value: unknown, from: string, into: string): unknown {
+  const name = (s: string) => (s === from ? into : s.includes('>') ? s.split('>').map((x) => (x === from ? into : x)).join('>') : s);
+  if (typeof value === 'string') return name(value);
+  if (Array.isArray(value)) return value.map((v) => renameMemberKey(v, from, into));
+  if (value && typeof value === 'object') {
+    const entries = Object.entries(value);
+    const kept = new Set(entries.map(([k]) => k).filter((k) => name(k) === k));
+    const out: Record<string, unknown> = {};
+    for (const [k, v] of entries) {
+      const key = name(k);
+      if (key !== k && kept.has(key)) continue;
+      out[key] = renameMemberKey(v, from, into);
+    }
+    return out;
+  }
+  return value;
+}
+
+/**
+ * Rewrites the member key of `from` (`u<id>`, inside JSON, no foreign key) in the loot settlements of their groups to
+ * `into`'s. Runs before the memberships move.
+ */
+function mergeSettlementKeys(db: DB, from: number, into: number) {
+  const [a, b] = [memberKey(from), memberKey(into)];
+  const needle = `"${a}`;
+  const rows = db
+    .prepare(
+      `SELECT plan_id, data, overrides, done, done_before FROM raid_settlements
+       WHERE group_id IN (SELECT group_id FROM group_members WHERE user_id = ?)
+         AND (instr(data, ?) OR instr(COALESCE(overrides, ''), ?) OR instr(done, ?) OR instr(COALESCE(done_before, ''), ?))`,
+    )
+    .all(from, needle, needle, needle, needle) as { plan_id: number; data: string; overrides: string | null; done: string; done_before: string | null }[];
+  const update = db.prepare('UPDATE raid_settlements SET data = ?, overrides = ?, done = ?, done_before = ? WHERE plan_id = ?');
+  const rename = (json: string | null) => (json == null ? null : JSON.stringify(renameMemberKey(JSON.parse(json), a, b)));
+  for (const r of rows) update.run(rename(r.data), rename(r.overrides), rename(r.done), rename(r.done_before), r.plan_id);
+}
+
 /** Moves all rows referencing `from` to `into`, then deletes the placeholder user. */
 export function mergeUser(db: DB, from: number, into: number) {
   if (from === into) return;
   db.transaction(() => {
+    mergeSettlementKeys(db, from, into);
     for (const { table, column } of userReferences(db)) {
       db.prepare(`UPDATE OR IGNORE ${table} SET ${column} = ? WHERE ${column} = ?`).run(into, from);
     }

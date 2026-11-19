@@ -1,28 +1,24 @@
 # Code Review: pr0game-hub
 
-**Date:** 2026-11-19
-**Scope:** The changes since the last review (`a0a3e30..bdbaf37`, 2026-11-16 to 2026-11-19, 75 commits: build order
-by hand with transports, ships, planned colonies, production steps and ETag / If-Match; write tokens; the auto plan
-optimizer in `@pr0hub/planner` with the optimize job API, the hub UI and the public tool; shipyard pages; sync
-feedback (impact, contributors, stale data notes); freshness score, alliance goals, sync credits, badges, streaks,
-ranking and the recap with its Discord post; farm finder risk and simulation; raid risk from battle reports;
-colonization candidates from player planets; fleet and expedition slots with the expedition notification; player
-renames and vacation in the activity log), plus the findings of the earlier reviews that are still open.
-**Method:** Diff review of every server, parser and planner change and of the new tool, with the surrounding code
-where the diff touches a contract (auth and tokens, tenancy, notifications, migrations, the ingest path); the web
-app only where it talks to a new contract (build order conflicts, recap image). Findings are evidence-based;
-theoretical items are marked as such.
+**Date:** 2026-11-19 (second pass of the day)
+**Scope:** The whole repository at `707c9b4`, with the focus on bugs: the server (auth and tokens, ingest and `Store`,
+notifications and their schedulers, push / Discord delivery, the event stream, build order and settlement routes,
+member management, housekeeping and backup), the parser's time and galaxy code, `@pr0hub/flight` (flight and missile
+math), and the web app's API client, live events and time helpers. Also the two commits after the morning review
+(`a2d7e6d` weekly universe.json credit, `707c9b4` time indexes and `synchronous = NORMAL`): no findings.
+**Method:** Source review of the modules above. Suspected bugs were checked against the schema and the callers, and
+F-01 was reproduced with a throw-away test against an in-memory database. Each finding says how it was found
+(**Reproduced** / **Code**). Theoretical items are listed separately.
 
-**Closed findings are not listed.** N-01 to N-11 and N-T2 of the 2026-11-15 review and the parts of C-02, C-03, C-07,
-C-08, C-10e, I-03 and I-05 fixed that day are out of this file; the history is in git (`git log -- CODEREVIEW.md`).
+**Closed findings are not listed.** R-01 to R-09 of this morning's review (fixed the same day) and the earlier closed
+ones are out of this file; the history is in git (`git log -- CODEREVIEW.md`).
 
-**Verification run (this tree, `bdbaf37`, Battlerust WASM present):** `pnpm install`, `pnpm --filter "./packages/*"
-build`, `pnpm typecheck`, `pnpm test`.
+**Verification run (this tree, `707c9b4`):** `pnpm --filter "./packages/*" build`, `pnpm typecheck`, `pnpm test`.
 
 | Check | Result |
 |---|---|
 | `pnpm typecheck` | passes |
-| `apps/server` tests | 403 passed (59 files) |
+| `apps/server` tests | 412 passed (59 files) |
 | `apps/web` tests | 141 passed (31 files) |
 | `packages/flight`, `parser`, `loot`, `battle`, `api-types` | 50 / 170 / 52 / 24 / 3 passed |
 | `packages/planner` | 86 passed, 4 skipped (the optimizer benchmark) |
@@ -42,65 +38,69 @@ Severity of a finding is **Impact × Risk**, not Impact alone.
 
 ## Executive summary
 
-The four days added a lot of surface (about 19k lines, 5 migrations, some 20 endpoints) and kept to the hub's rules:
-every new endpoint is in `openapi.yaml` and answers are checked against it, the new tables carry `group_id` (the
-group-scope test passes), each new server module has its own suite (`optimize`, `goals`, `achievements`, `recap`,
-`syncImpact`, `expeditionSlots`, `buildOrders`, `players`), and the hand-written API types went down from 102 to 82.
-Write access for tokens is opt-in per token and limited to the build order by an explicit route flag, and those writes
-need a revision (`If-Match`), so scripts cannot overwrite a newer copy without noticing.
+The tests are green and the code keeps to its own rules (group scope, OpenAPI contract, token write flags). The bugs
+found are in paths the tests do not combine: cleanup when a member leaves, an API token on the event stream, and the
+admin's undo of a sync.
 
-The new findings are mostly about the sync incentives and cost. One is a fairness bug: a universe.json upload gives
-the uploader a galaxy credit for every system it refreshes, so one upload is worth more than weeks of galaxy pastes
-(R-01). Optimize jobs stay in memory without a cap per member (R-02). Every sync now computes the freshness of the
-whole group to read one member (R-03), and the progress page computes the whole farm finder and the badge history
-twice per request (R-04). The rest is small. All of them were fixed the same day.
+One finding was urgent. **F-01:** when a member was removed from a group while they still had a building alert or a
+build order there, every push and Discord delivery of that group failed, attack warnings included, and the tick that
+sends launch reminders stopped at that group. The rest was medium or low: an event stream opened with an API token was
+cut off after 25 seconds (F-02), undoing a statistics sync deleted the whole snapshot (F-03), a cut-off galaxy copy
+logged debris after the cut as cleared (F-04), merging a placeholder lost their settlement corrections and delivery
+ticks (F-05), and the backup script deleted every backup when `keep` was not a positive number (F-06).
 
----
-
-## What is in good shape (this week)
-
-- **Token writes:** `can_write` defaults to 0 (old tokens stay read-only), the web asks for write access explicitly,
-  and only routes with `tokenWrite` (the build order) accept such a token; token management still needs a session.
-- **Optimistic concurrency of the build order:** the revision goes up on client writes and when a planned planet is
-  assigned, not when a sync stores steps seen done; writes are conditional (`WHERE revision = ?`) inside a
-  transaction; the 412 answer carries the current build order and the web client rebuilds the change on it
-  (`changeBuildOrder`, with a test for a move applied twice).
-- **Optimize jobs** run in a worker thread with a budget, a hard stop after it, one running job per member and at
-  most cores−1 at once; the input is checked before a worker starts (`checkOptimizeInput`); jobs belong to member
-  and group.
-- **Sync feedback never fails a sync:** `probeImpact` and the credits run in `try/catch` outside the ingest
-  transaction.
-- **Player renames from plain-text statistics** match by rank and points within one snapshot, ties decide nothing,
-  and doubles are merged only when both held the same rank and points in one snapshot; `mergePlayers` is now one
-  function for the admin route and the store.
-- **Shipyard parser** reads the queue from the page script and reconciles it with the cancel list of a running tab;
-  a copy without scripts says "queue unknown" (`null`) instead of "empty".
-- **Expedition slots** follow the game's `FleetFunctions` (missiles take no slot, `⌊√astrophysics⌋`), and expedition
-  reports correct black holes and fast/slow returns.
-- **The auto plan tool** escapes everything it puts into `innerHTML` (`esc()` in `kpi()` and the tables).
+**Status:** F-01 to F-06 are fixed (same day). Open from this pass are only the theoretical items F-T1 to F-T5.
 
 ---
 
-## 1. New findings (changes of 2026-11-16 to 2026-11-19)
+## What is in good shape
 
-### Fixed since this review (2026-11-19)
+- **Auth:** scrypt runs off the event loop. Unknown users and placeholder accounts pay the same dummy hash. Login
+  attempts count from their start (concurrent tries cannot slip past the limit). Token management needs a session.
+  A password change or account recovery revokes the API tokens.
+- **Write guard:** the API `preHandler` rejects cross-origin writes, read-only tokens and writes to a universe that
+  has not started or has ended, all in one place. Routes opt out explicitly (`allowToken`, `allowEnded`,
+  `allowBeforeStart`, `tokenWrite`).
+- **Every column that references a user has a foreign key** (checked over the migrated schema; only
+  `users.discord_user_id` has none, and it is not a hub user id). So `mergeUser` and user deletion reach all rows
+  except JSON-embedded keys (the settlement keys, now rewritten by `mergeUser`, F-05).
+- **Ingest:** a sync for another member cannot replace their empire, overview, fleets or build pages (`Store.record`
+  and `FOR_USER_PAGES`). An older galaxy view or spy report never overwrites a newer state (`newestAt`, the
+  `seen_at` check). Sync feedback and credits run outside the transaction and never fail a sync.
+- **Time handling:** `localToEpoch` resolves the repeated autumn hour against "now" and the skipped spring hour
+  against the offset before the switch. `nearestClock` checks both offsets. The game's statistics times come from
+  synced data, as the project rules ask.
+- **Build order writes** check the revision inside the transaction and update only `WHERE revision = ?`.
+
+---
+
+## 1. New findings (full review, 2026-11-19)
+
+All six were fixed the same day, with a test each (details in `CHANGELOG.md`, 2026-11-19). The theoretical items below
+are still open.
 
 | ID | Finding | Fix |
 |---|---|---|
-| R-01 | A universe.json upload credited every refreshed system to the uploader | `probeImpact` gives no galaxy credits for `source === 'json'`; the sync feedback still shows the systems; test |
-| R-02 | Optimize jobs were kept an hour without a cap per member | `OPTIMIZE_LIMITS.keptPerMember` (3): a new search drops the member's older ended ones; spec says so; test |
-| R-03 | Each sync computed the freshness of the whole group | `freshnessOf(…, userIds)` reads only those members' snapshots and the galaxy systems around their planets; a universe.json skips freshness and sync hints; test that one member's score equals the group's |
-| R-04 | Goals and recap recomputed expensive data per request | The spy goal counts with `spiedTargets` (shared with `farmTargets`) and `inactivities`; the recap gets the badges of both days from one pass (`achievementsAt`: sync days and vacation history read once); test |
-| R-05 | The spy goal depended on who looks | It leaves out the group's alliance (the in-game alliances of all members' players); test |
-| R-06 | The miner badge check simulated the build order on every write | Writes check at most every 10 minutes per member; `GET /timeline` checks every time; test |
-| R-07 | Battle-report fleet lookup scanned per candidate with unescaped LIKE | `likeTerm` + `ESCAPE`; `threatsOf` looks each name up once per request; test with `_` and quotes in names |
-| R-08 | Recap image limit and body limit disagreed | Route `bodyLimit` fits the documented 8 MB as base64; test |
-| R-09 | A missed Monday skipped the weekly recap | Sent later in the week when Monday was missed; a round that ended during last week gets its last week once; spec; test |
+| F-01 | A removed member's building alert or build order broke push and Discord delivery for the whole group, and the tick stopped at that group | Trigger on `group_members` drops building alerts, fleet alerts and full-storage state when a membership ends (migration 097, also removes existing orphans); `nextBuildingAlert` / `nextBuildOrderStep` join `group_members`; one `try/catch` per group in both ticks (`test/memberRemoval.test.ts`) |
+| F-02 | An event stream opened with an API token was closed after 25 s | Heartbeat checks `loadRequestUser` (token or cookie); a revoked token still ends the stream (`test/events.test.ts`) |
+| F-03 | Undoing a statistics sync deleted the whole snapshot, including rows from other syncs | `removeScores` deletes only the rows matching the record's lines (rank, points, in-game id when known) and their score events; a snapshot goes only once empty (`test/api.test.ts`, "taking a sync back") |
+| F-04 | A cut-off galaxy text copy logged the debris after the cut as cleared | The debris loop skips positions after `lastPosition` (`test/api.test.ts`, cut-off galaxy copy) |
+| F-05 | `mergeUser` left the settlement member keys (`u<id>`) of the placeholder behind | `mergeSettlementKeys` rewrites the key on the parsed JSON of `data`, `overrides`, `done`, `done_before` in the placeholder's groups (`test/mergeUser.test.ts`) |
+| F-06 | `backup.js` deleted every backup when `keep` was 0 or not a number | `keep` must be an integer ≥ 1 (exit 2 otherwise); the file just written is never deleted |
 
-### Theoretical (this week)
+One limit of the F-03 fix: the score rows do not record which sync brought them, so rows that another sync brought with
+the very same lines (the same page pasted twice) go too. They are identical rows; pasting that page again restores
+them.
+
+### Theoretical (this pass)
 
 | ID | Issue | Why theoretical |
 |---|---|---|
+| F-T1 | `undoIngest` converts page times without `near`, `Store` with `near = now()`: in the repeated autumn hour the undo looks for the other instant and finds nothing to delete | One hour a year, and the undo reports the counts, so a miss is visible |
+| F-T2 | `DELETE …/settlement/finalize` on a settlement that is not finalized overwrites `done_before` with `[]`, which loses the ticks kept from an earlier reopen | The web app offers "reopen" only on a finalized settlement |
+| F-T3 | `storeCombatReport` takes over a `text-…` report with the same time and losses without comparing coordinates | Two battles in the same group within ±5 s with identical losses on both sides |
+| F-T4 | Fleet save (`FleetSaveView.vue` `at()`) moves a time of day to the next day with `+ 86400`: on the night of a daylight saving switch the window is one hour off | Two nights a year, and only windows that span the switch |
+| F-T5 | `INGEST_LIMITS.universeJsonConcurrent` counts uploads around a synchronous handler, so the counter never sees two at once | The handler is synchronous, so uploads cannot overlap anyway; the counter is only dead code |
 | R-T1 | A galaxy copy without a page time is stored as seen now (`Store.galaxySeenAt`): pasting the same old text again makes the system look fresh and earns galaxy credits each day | The seen time was like this before; the credits only reward it. Members of one alliance; the page time is in the HTML copies |
 | R-T2 | `researchState` counts the queue of an older page as done when a newer overview shows no research: a cancelled research raises the level until the next research or empire page | Documented in the code; cancelling is rare and the next page corrects it |
 | R-T3 | A sync stores steps seen done without raising the revision; a client PATCH from an older copy with the same revision sends them as not done | The next sync checks them off again (documented in `syncBuildOrder`) |
@@ -172,15 +172,18 @@ escapes every value. `t()` still does not escape interpolations (C-09).
 
 ## Areas not verified
 
+- **Read only in samples in this pass:** most web views and components, the tools' `main.js` and `shared/*.js`, the
+  page parsers other than galaxy and spy/battle messages, `@pr0hub/loot`, `@pr0hub/battle` and `@pr0hub/planner`
+  (beyond their tests), and the server repos for farm, inactivity, threats, defense and colonization.
+- **Ports of game code:** whether `@pr0hub/flight` (distance, speed, duration, consumption, missiles) and the battle
+  input are still second-exact with the game was not checked against the game's source; the code matches its own
+  comments and the tests pass.
 - Browser flows (source-only review): the auto plan in the hub and the tool with several workers, the recap image
   on phones, the build order conflict dialog, the farm simulation.
-- Runtime of a sync with impact and credits, `/goals` and `/recap` on a group with a full round of data (R-03, R-04);
-  the optimizer's memory on the server under several jobs (R-02).
-- Delivery of the expedition notification and the weekly recap to real push services and Discord (fake senders in
-  the tests).
-- The planner's simulation changes (transports with flights, colonizations, production steps) beyond their tests:
-  second-exactness with the game was not re-checked here.
-- Deployment, hosts, backup schedule: out of this repository by design.
+- Runtime of a sync with impact and credits, `/goals` and `/recap` on a group with a full round of data; the
+  optimizer's memory on the server under several jobs.
+- Delivery of the notifications and the weekly recap to real push services and Discord (fake senders in the tests).
+- Deployment, hosts, backup schedule: out of this repository by design (F-06 is only about the script).
 
 ---
 
@@ -188,7 +191,7 @@ escapes every value. `t()` still does not escape interpolations (C-09).
 
 ### Now
 
-Nothing: R-01 to R-09 are fixed (2026-11-19).
+Nothing open from this pass: F-01 to F-06 are fixed. The theoretical items (F-T1 to F-T5) go with work in their files.
 
 ### When the files are touched (Wave 3 of the 2026-11-04 review)
 

@@ -1,4 +1,4 @@
-import { localToEpoch, type HubRecord } from '@pr0hub/core';
+import { localToEpoch, type HubRecord, type StatsRecord } from '@pr0hub/core';
 import { HttpError } from '../auth.js';
 import { UNIVERSE_DEFAULTS } from '../config.js';
 import type { DB } from '../db.js';
@@ -6,8 +6,9 @@ import { catalogOfGroup } from '../context.js';
 import { parseRaw, type RawIngest } from '../ingest.js';
 
 export interface UndoResult {
-  /** statistics snapshots with their score rows and score events */
+  /** statistics snapshots left without score rows, removed */
   snapshots: number;
+  /** score rows the sync brought */
   scores: number;
   activity: number;
   /** players/alliances only the snapshots brought in */
@@ -69,12 +70,10 @@ export function undoIngest(db: DB, rawId: number, dryRun: boolean): UndoResult {
   const rollback = new Error('dry run');
   try {
     db.transaction(() => {
-      const snapshotIds: number[] = [];
-      const snapshot = db.prepare('SELECT id FROM stat_snapshots WHERE group_id = ? AND who = ? AND stat_time = ? AND (? IS NULL OR type = ?)').pluck();
+      const stats: StatsRecord[] = [];
       for (const r of records) {
         if (r.kind === 'stats') {
-          const time = epoch(r.statTime);
-          if (time) snapshotIds.push(...(snapshot.all(g, r.who, time, r.type, r.type) as number[]));
+          stats.push(r);
         } else if (r.kind === 'empire') {
           result.empires += db
             .prepare('DELETE FROM empire_snapshots WHERE group_id = ? AND user_id IS ? AND (data = ? OR created_at = ?)')
@@ -93,7 +92,7 @@ export function undoIngest(db: DB, rawId: number, dryRun: boolean): UndoResult {
             .run(g, r.coords.g, r.coords.s, r.coords.p, r.planetType, epoch(r.reportTime)).changes;
         }
       }
-      if (snapshotIds.length) removeSnapshots(db, g, [...new Set(snapshotIds)], result);
+      if (stats.length) removeScores(db, g, stats, epoch, result);
       db.prepare('DELETE FROM raw_ingests WHERE id = ?').run(rawId);
       if (dryRun) throw rollback;
     })();
@@ -103,21 +102,56 @@ export function undoIngest(db: DB, rawId: number, dryRun: boolean): UndoResult {
   return result;
 }
 
-function removeSnapshots(db: DB, groupId: number, ids: number[], result: UndoResult) {
-  const own = JSON.stringify(ids);
-  const snaps = db.prepare('SELECT id, stat_time FROM stat_snapshots WHERE id IN (SELECT value FROM json_each(?))').all(own) as { id: number; stat_time: number }[];
-  const playerIds = db.prepare('SELECT DISTINCT player_id FROM player_scores WHERE snapshot_id IN (SELECT value FROM json_each(?))').pluck().all(own) as number[];
-  result.scores =
-    (db.prepare('SELECT COUNT(*) FROM player_scores WHERE snapshot_id IN (SELECT value FROM json_each(?))').pluck().get(own) as number) +
-    (db.prepare('SELECT COUNT(*) FROM alliance_scores WHERE snapshot_id IN (SELECT value FROM json_each(?))').pluck().get(own) as number);
-
-  // score events computed from these snapshots
+/**
+ * Removes the score rows the statistics records brought: a snapshot is shared by every paste of one statistics update
+ * (other pages, other members), so only the rows matching a line of the records go (same rank and points, the same
+ * in-game id when the line has one), and a snapshot only once no rows are left. Rows the same lines of another sync
+ * brought are the same rows and go too. Then the score events of the removed rows and the players and alliances
+ * nothing refers to any more.
+ */
+function removeScores(db: DB, groupId: number, records: StatsRecord[], epoch: (local: string | null) => number | null, result: UndoResult) {
+  const snapshotsOf = db.prepare('SELECT id, stat_time FROM stat_snapshots WHERE group_id = ? AND who = ? AND stat_time = ? AND (? IS NULL OR type = ?)');
+  const playerRow = db.prepare(
+    `SELECT s.player_id FROM player_scores s JOIN players p ON p.id = s.player_id
+     WHERE s.snapshot_id = ? AND s.rank = ? AND s.points = ? AND (? IS NULL OR p.ingame_id IS NULL OR p.ingame_id = ?)`,
+  ).pluck();
+  const allyRow = db.prepare(
+    `SELECT s.alliance_id FROM alliance_scores s JOIN alliances a ON a.id = s.alliance_id
+     WHERE s.snapshot_id = ? AND s.rank = ? AND s.points = ? AND (? IS NULL OR a.ingame_id IS NULL OR a.ingame_id = ?)`,
+  ).pluck();
+  const dropPlayer = db.prepare('DELETE FROM player_scores WHERE snapshot_id = ? AND player_id = ?');
+  const dropAlly = db.prepare('DELETE FROM alliance_scores WHERE snapshot_id = ? AND alliance_id = ?');
+  // score events computed from the removed rows
   const events = db.prepare(
-    `DELETE FROM activity_log WHERE group_id = ? AND time = ? AND kind IN (SELECT value FROM json_each(?))
-       AND player_id IN (SELECT value FROM json_each(?))`,
+    `DELETE FROM activity_log WHERE group_id = ? AND time = ? AND player_id = ? AND kind IN (SELECT value FROM json_each(?))`,
   );
-  for (const s of snaps) result.activity += events.run(groupId, s.stat_time, JSON.stringify(SCORE_KINDS), JSON.stringify(playerIds)).changes;
-  result.snapshots = db.prepare('DELETE FROM stat_snapshots WHERE id IN (SELECT value FROM json_each(?))').run(own).changes;
+  const playerIds = new Set<number>();
+  const touched = new Set<number>();
+  for (const r of records) {
+    const time = epoch(r.statTime);
+    if (!time) continue;
+    for (const snap of snapshotsOf.all(groupId, r.who, time, r.type, r.type) as { id: number; stat_time: number }[]) {
+      touched.add(snap.id);
+      for (const row of r.rows) {
+        if (r.who === 'alliance') {
+          for (const id of allyRow.all(snap.id, row.rank, row.points, row.ingameId, row.ingameId) as number[]) {
+            result.scores += dropAlly.run(snap.id, id).changes;
+          }
+          continue;
+        }
+        for (const id of playerRow.all(snap.id, row.rank, row.points, row.ingameId, row.ingameId) as number[]) {
+          result.scores += dropPlayer.run(snap.id, id).changes;
+          result.activity += events.run(groupId, snap.stat_time, id, JSON.stringify(SCORE_KINDS)).changes;
+          playerIds.add(id);
+        }
+      }
+    }
+  }
+  const empty = db.prepare(
+    `DELETE FROM stat_snapshots WHERE id = ? AND NOT EXISTS (SELECT 1 FROM player_scores WHERE snapshot_id = ?)
+       AND NOT EXISTS (SELECT 1 FROM alliance_scores WHERE snapshot_id = ?)`,
+  );
+  for (const id of touched) result.snapshots += empty.run(id, id, id).changes;
 
   const referenced = (refs: { table: string; column: string }[], id: number) =>
     refs.some((r) => !OWNED.has(r.table) && db.prepare(`SELECT 1 FROM "${r.table}" WHERE "${r.column}" = ? LIMIT 1`).get(id));
