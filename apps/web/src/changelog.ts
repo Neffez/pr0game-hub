@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Aktivitätslog: Zeigt jetzt an, wenn sich ein Spieler umbenannt hat (alter und neuer Name) und wenn ein Spieler neu im Urlaubsmodus ist.',
+        en: 'Activity log: now shows when a player renamed themselves (old and new name) and when a player is newly in vacation mode.',
+      },
+      {
+        kind: 'new',
         de: 'Farm-Finder: Neue Checkbox, um Spieler mit Noobschutz (n) aus den Zielen auszublenden.',
         en: 'Farm finder: new checkbox to hide players under noob protection (N) from the targets.',
       },

@@ -6234,7 +6234,8 @@ paths:
           description: >-
             Comma-separated kinds: `phalanx_new`, `phalanx_up`, `planet_new`, `planet_destroyed`, `moon_new`, `moon_destroyed`, `debris_new`, `debris_grown`,
             `debris_shrunk`, `debris_cleared`, `points_loss`, `fleet_loss`, `no_growth`, `market_offer` (a new offer of a
-            synced marketplace; `data` has `give`, `want`, `ratio`, `endsAt`, `ally`)
+            synced marketplace; `data` has `give`, `want`, `ratio`, `endsAt`, `ally`), `player_renamed` (`data` has the
+            former name `before` and the new `name`), `vacation_start` (the player newly in vacation mode)
           schema: { type: string }
       responses:
         '200':
@@ -6242,14 +6243,38 @@ paths:
             application/json:
               schema:
                 type: object
+                required: [counts, entries]
                 properties:
-                  counts: { type: object, description: Entries per kind in the period }
+                  counts:
+                    type: object
+                    description: Entries per kind in the period
+                    additionalProperties: { type: integer }
                   entries:
                     type: array
                     description: >-
                       Newest 1000 entries with the player (`player_id`, `player_name`, `status`, alliance) and the
                       player's newest synced total `points` (null if unknown)
-                    items: { type: object }
+                    items:
+                      type: object
+                      required: [id, time, kind, g, s, p, planet_type, data, player_id, player_name, status, points, ally_tag, ally_name]
+                      properties:
+                        id: { type: integer }
+                        time: { type: integer, description: When it happened in the game }
+                        kind: { type: string, description: 'Kind of entry, see the `kinds` parameter' }
+                        g: { type: [integer, 'null'] }
+                        s: { type: [integer, 'null'] }
+                        p: { type: [integer, 'null'] }
+                        planet_type: { type: [string, 'null'] }
+                        data:
+                          type: object
+                          description: Details, depending on the kind
+                          additionalProperties: true
+                        player_id: { type: [integer, 'null'] }
+                        player_name: { type: [string, 'null'], description: Current name of the player }
+                        status: { type: array, items: { type: string } }
+                        points: { type: [number, 'null'], description: Newest synced total points of the player }
+                        ally_tag: { type: [string, 'null'] }
+                        ally_name: { type: [string, 'null'] }
   /api/{uni}/hostile:
     get:
       tags: [Intelligence]

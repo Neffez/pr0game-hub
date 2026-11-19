@@ -102,6 +102,15 @@ export class Players {
     db.prepare('UPDATE players SET name = ? WHERE id = ?').run(name, playerId);
     // the current name is no former name (renamed back)
     db.prepare('DELETE FROM player_aliases WHERE player_id = ? AND name = ?').run(playerId, name);
+    // only a real change of name (not just upper/lower case) is news
+    if (old.toLowerCase() !== name.toLowerCase()) this.log('player_renamed', until, playerId, { before: old, name }, `player_renamed:${playerId}:${name}:${until}`);
+  }
+
+  /** Entry in the activity log about a player (no coordinates). */
+  private log(kind: string, time: number, playerId: number, data: Record<string, unknown>, key: string) {
+    this.db
+      .prepare('INSERT OR IGNORE INTO activity_log (group_id, time, kind, player_id, data, dedupe_key) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(this.groupId, time, kind, playerId, JSON.stringify(data), key);
   }
 
   /**
@@ -131,11 +140,17 @@ export class Players {
 
   playerStatus(playerId: number, status: string[], seenAt: number) {
     const json = JSON.stringify([...status].sort());
-    const cur = this.db.prepare('SELECT status, last_seen FROM players WHERE id = ?').get(playerId) as { status: string; last_seen: number };
+    const cur = this.db.prepare('SELECT status, first_seen, last_seen FROM players WHERE id = ?').get(playerId) as {
+      status: string; first_seen: number; last_seen: number;
+    };
     // Older data pasted later must not overwrite the current status.
     if (cur.status === json || cur.last_seen > seenAt) return;
     this.db.prepare('UPDATE players SET status = ? WHERE id = ?').run(json, playerId);
     this.db.prepare('INSERT INTO player_status_log (player_id, status, seen_at) VALUES (?, ?, ?)').run(playerId, json, seenAt);
+    // newly in vacation mode; a player seen for the first time now had no known status before
+    if (status.includes('vacation') && !(JSON.parse(cur.status) as string[]).includes('vacation') && cur.first_seen < seenAt) {
+      this.log('vacation_start', seenAt, playerId, {}, `vacation_start:${playerId}:${seenAt}`);
+    }
   }
 
   /**

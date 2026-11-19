@@ -778,7 +778,7 @@ const en: typeof de = {
       history: { title: 'History', text: 'Every single espionage with time, origin, target and affected member.' },
     },
     activity: {
-      intro: { title: 'Activity log', text: 'What stands out while syncing, by time in the game: new phalanxes, new or destroyed planets and moons, debris fields, point and fleet losses, players without growth and new market offers.' },
+      intro: { title: 'Activity log', text: 'What stands out while syncing, by time in the game: new phalanxes, new or destroyed planets and moons, debris fields, point and fleet losses, players without growth, new market offers, renames and players newly in vacation mode.' },
       range: { title: 'Period', text: 'How far back, and after how many hours without point growth a player is reported.' },
       kinds: { title: 'Kinds', text: 'Show or hide kinds, the number counts the entries. The choice is yours only and is remembered.' },
       days: { title: 'Days', text: 'One section per day, the newest open. Player names open the player profile.' },
@@ -1282,6 +1282,8 @@ const en: typeof de = {
     hintNoGrowthText: 'active players whose points have not grown for 6/12/18/24 h.',
     hintMarket: 'Market offers:',
     hintMarketText: 'new open offers from the synced marketplace (once per offer, time = first sync).',
+    hintPlayer: 'Players:',
+    hintPlayerText: 'renames and newly in vacation mode, from statistics and galaxy views (only players known before).',
     hintFilter: 'The filters only apply to you and are remembered.',
     noGrowthFrom: 'No growth from',
     show: 'show',
@@ -1303,6 +1305,8 @@ const en: typeof de = {
       fleet_loss: 'Fleet loss',
       no_growth: 'No points growth',
       market_offer: 'Market offer',
+      player_renamed: 'Renamed',
+      vacation_start: 'Vacation mode',
     },
     text: {
       phalanxBuilt: 'Phalanx built: level {level}',
@@ -1323,6 +1327,8 @@ const en: typeof de = {
       fleetLoss: '{delta} fleet points ({before} → {points})',
       noGrowth: 'no points growth for {hours} h ({points} points since {since})',
       marketOffer: '{give} → {want} · rate {ratio} · ends {end}',
+      renamed: 'Renamed: {before} → {name}',
+      vacationStart: 'Newly in vacation mode',
     },
   },
   battleHall: {

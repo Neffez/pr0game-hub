@@ -144,3 +144,34 @@ describe('statistics without ids (plain text) and renamed players', () => {
     expect(g.scores(nameOnly)).toBe(1);
   });
 });
+
+describe('activity log entries about players', () => {
+  const gid = Number(db.prepare("INSERT INTO groups (universe_id, name) VALUES (?, 'Log')").run(universe).lastInsertRowid);
+  const p = new Players(db, gid);
+  const logged = (kind: string) =>
+    (db.prepare('SELECT time, player_id, data FROM activity_log WHERE group_id = ? AND kind = ? ORDER BY time').all(gid, kind) as {
+      time: number; player_id: number; data: string;
+    }[]).map((r) => ({ ...r, data: JSON.parse(r.data) }));
+
+  it('logs a rename with the former and the new name, not older data or a change of case', () => {
+    const id = p.player(10, 'Alpha', 1000);
+    p.player(10, 'Beta', 2000);
+    // older data with the former name, and the same name in other case
+    p.player(10, 'Alpha', 1500);
+    p.player(10, 'beta', 2500);
+    expect(logged('player_renamed')).toEqual([{ time: 2000, player_id: id, data: { before: 'Alpha', name: 'Beta' } }]);
+  });
+
+  it('logs vacation mode once when a known player enters it', () => {
+    const id = p.player(20, 'Gamma', 1000);
+    p.playerStatus(id, [], 1000);
+    p.player(20, 'Gamma', 2000);
+    p.playerStatus(id, ['vacation'], 2000);
+    p.player(20, 'Gamma', 3000);
+    p.playerStatus(id, ['vacation', 'inactive'], 3000);
+    // a player seen for the first time already in vacation mode is no news
+    const fresh = p.player(21, 'Delta', 4000);
+    p.playerStatus(fresh, ['vacation'], 4000);
+    expect(logged('vacation_start')).toEqual([{ time: 2000, player_id: id, data: {} }]);
+  });
+});

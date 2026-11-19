@@ -95,6 +95,8 @@ const ICONS: Record<string, string[]> = {
   external: ['M14 4h6v6', 'M20 4l-9 9', 'M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5'],
   // "Zz": asleep (no points any more, inactive soon)
   sleep: ['M4 10h7l-7 9h7', 'M14 4h6l-6 7h6'],
+  // sun (vacation mode)
+  sun: ['M12 16a4 4 0 1 0 0-8a4 4 0 1 0 0 8', 'M12 2.5v2', 'M12 19.5v2', 'M2.5 12h2', 'M19.5 12h2', 'M5.3 5.3l1.4 1.4', 'M17.3 17.3l1.4 1.4', 'M5.3 18.7l1.4-1.4', 'M17.3 6.7l1.4-1.4'],
   // triangle with exclamation mark
   warning: ['M12 3.5 21.5 20h-19z', 'M12 10v4.5', 'M12 17.2v.01'],
   // medal on a ribbon (achievements, alliance progress)

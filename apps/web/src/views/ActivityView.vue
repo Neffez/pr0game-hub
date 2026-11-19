@@ -15,25 +15,10 @@ import { useLoader, useStored, useUni } from '../composables';
 import { tables, useLiveReload } from '../live';
 import { coords, dateTime, fmt, fmtSigned, name, numDate, short, weekday } from '../format';
 import { intlLocale } from '../i18n';
+import type { Activity } from '../apiTypes';
 
 /** Noteworthy changes detected while syncing, newest first, filterable by kind. */
-interface Entry {
-  id: number;
-  time: number;
-  kind: string;
-  g: number | null;
-  s: number | null;
-  p: number | null;
-  planet_type: string | null;
-  data: Record<string, any>;
-  player_id: number | null;
-  player_name: string | null;
-  status: string[];
-  /** newest total points of the player */
-  points: number | null;
-  ally_tag: string | null;
-  ally_name: string | null;
-}
+type Entry = Activity['entries'][number];
 
 /** label: activity.kinds.<kind>; icon: name in Icon.vue */
 const KINDS: { kind: string; icon: string; color: string }[] = [
@@ -51,6 +36,8 @@ const KINDS: { kind: string; icon: string; color: string }[] = [
   { kind: 'fleet_loss', icon: 'rankDown', color: 'var(--neg)' },
   { kind: 'no_growth', icon: 'pause', color: 'var(--muted)' },
   { kind: 'market_offer', icon: 'market', color: 'var(--info)' },
+  { kind: 'player_renamed', icon: 'edit', color: 'var(--info)' },
+  { kind: 'vacation_start', icon: 'sun', color: 'var(--warn)' },
 ];
 const META = Object.fromEntries(KINDS.map((k) => [k.kind, k]));
 
@@ -62,10 +49,10 @@ const days = useStored('activity.days', 3);
 const hidden = useStored<string[]>('activity.hidden', []);
 const minHours = useStored('activity.minHours', 6);
 const { data, error, load } = useLoader(() =>
-  uniApi<{ counts: Record<string, number>; entries: Entry[] }>(uni.value, `/activity?from=${nowSec() - days.value * 86400}`),
+  uniApi<Activity>(uni.value, `/activity?from=${nowSec() - days.value * 86400}`),
 );
 onMounted(load);
-useLiveReload(load, tables('activity_log', 'player_scores', 'spy_reports', 'galaxy_systems', 'market_offers'));
+useLiveReload(load, tables('activity_log', 'players', 'player_scores', 'spy_reports', 'galaxy_systems', 'market_offers'));
 watch(days, load);
 
 function toggle(kind: string) {
@@ -73,7 +60,7 @@ function toggle(kind: string) {
 }
 
 const entries = computed(() =>
-  (data.value?.entries ?? []).filter((e) => !hidden.value.includes(e.kind) && (e.kind !== 'no_growth' || e.data.hours >= minHours.value)),
+  (data.value?.entries ?? []).filter((e) => !hidden.value.includes(e.kind) && (e.kind !== 'no_growth' || (e.data.hours as number) >= minHours.value)),
 );
 
 /** Entries grouped by day for the timeline. */
@@ -95,7 +82,7 @@ const MARKET_RES: Record<string, number> = { m: 901, k: 902, d: 903 };
 const res = (d: Record<string, any>) => `${name(901)} ${short(d.metal)} · ${name(902)} ${short(d.crystal)}`;
 
 function text(e: Entry) {
-  const d = e.data;
+  const d = e.data as Record<string, any>;
   switch (e.kind) {
     case 'phalanx_new':
       return t(d.known ? 'activity.text.phalanxBuilt' : 'activity.text.phalanxFound', { level: d.level });
@@ -138,6 +125,10 @@ function text(e: Entry) {
           end: dateTime(d.endsAt),
         }) + (d.ally ? ` · ${t('market.ally')}` : '')
       );
+    case 'player_renamed':
+      return t('activity.text.renamed', { before: d.before, name: d.name });
+    case 'vacation_start':
+      return t('activity.text.vacationStart');
   }
   return e.kind;
 }
@@ -156,6 +147,7 @@ useAutoTour('activity', () => !!data.value);
           <b>{{ t('activity.hintPoints') }}</b> {{ t('activity.hintPointsText') }}
           <b>{{ t('activity.hintNoGrowth') }}</b> {{ t('activity.hintNoGrowthText') }}
           <b>{{ t('activity.hintMarket') }}</b> {{ t('activity.hintMarketText') }}
+          <b>{{ t('activity.hintPlayer') }}</b> {{ t('activity.hintPlayerText') }}
         </p>
         <p>{{ t('activity.hintFilter') }}</p>
       </Hint>

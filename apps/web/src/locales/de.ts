@@ -779,7 +779,7 @@ const de = {
       history: { title: 'Verlauf', text: 'Jede einzelne Spionage mit Zeit, Herkunft, Ziel und betroffenem Mitglied.' },
     },
     activity: {
-      intro: { title: 'Aktivitätslog', text: 'Was beim Synchronisieren auffällt, nach dem Zeitpunkt im Spiel: neue Phalanxen, neue oder zerstörte Planeten und Monde, Trümmerfelder, Punkte- und Flottenverluste, Spieler ohne Zuwachs und neue Marktangebote.' },
+      intro: { title: 'Aktivitätslog', text: 'Was beim Synchronisieren auffällt, nach dem Zeitpunkt im Spiel: neue Phalanxen, neue oder zerstörte Planeten und Monde, Trümmerfelder, Punkte- und Flottenverluste, Spieler ohne Zuwachs, neue Marktangebote, Umbenennungen und neu im Urlaubsmodus.' },
       range: { title: 'Zeitraum', text: 'Wie weit zurück, und ab wie vielen Stunden ohne Punktezuwachs ein Spieler gemeldet wird.' },
       kinds: { title: 'Arten', text: 'Arten ein- und ausblenden, die Zahl zeigt die Einträge. Die Auswahl gilt nur für dich und bleibt gespeichert.' },
       days: { title: 'Tage', text: 'Ein Abschnitt je Tag, der neueste ist offen. Spielernamen öffnen das Spielerprofil.' },
@@ -1283,6 +1283,8 @@ const de = {
     hintNoGrowthText: 'aktive Spieler, deren Punkte seit 6/12/18/24 h nicht gestiegen sind.',
     hintMarket: 'Marktangebote:',
     hintMarketText: 'neue offene Angebote aus dem synchronisierten Marktplatz (einmal je Angebot, Zeitpunkt = erster Sync).',
+    hintPlayer: 'Spieler:',
+    hintPlayerText: 'Umbenennungen und neu im Urlaubsmodus, aus Statistik und Galaxieansichten (nur Spieler, die vorher schon bekannt waren).',
     hintFilter: 'Die Filter gelten nur für dich und bleiben gespeichert.',
     noGrowthFrom: 'Kein Zuwachs ab',
     show: 'einblenden',
@@ -1304,6 +1306,8 @@ const de = {
       fleet_loss: 'Flottenverlust',
       no_growth: 'Kein Punktezuwachs',
       market_offer: 'Marktangebot',
+      player_renamed: 'Umbenannt',
+      vacation_start: 'Urlaubsmodus',
     },
     text: {
       phalanxBuilt: 'Phalanx gebaut: Stufe {level}',
@@ -1324,6 +1328,8 @@ const de = {
       fleetLoss: '{delta} Flottenpunkte ({before} → {points})',
       noGrowth: 'seit {hours} h kein Punktezuwachs ({points} Punkte seit {since})',
       marketOffer: '{give} → {want} · Kurs {ratio} · endet {end}',
+      renamed: 'Umbenannt: {before} → {name}',
+      vacationStart: 'Neu im Urlaubsmodus',
     },
   },
   battleHall: {

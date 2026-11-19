@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-19
 
+- Activity log: two new kinds, `player_renamed` (a player known by id shows up with another name; `data` has the
+  former name `before` and the new `name`) and `vacation_start` (a player known before is newly in vacation mode),
+  logged while syncing statistics and galaxy views; each has a filter chip. The answer of `GET /api/{uni}/activity`
+  is now described in the OpenAPI spec and typed in the web app from it.
+
 - Farm finder: new target filter "Hide noob protection" that drops players with the noob status (n), next to the
   vacation mode filter; off by default and shown as a chip when on.
 

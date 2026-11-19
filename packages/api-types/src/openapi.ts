@@ -10454,7 +10454,7 @@ export interface operations {
                 group?: components["parameters"]["HubGroupQuery"];
                 from?: number;
                 to?: number;
-                /** @description Comma-separated kinds: `phalanx_new`, `phalanx_up`, `planet_new`, `planet_destroyed`, `moon_new`, `moon_destroyed`, `debris_new`, `debris_grown`, `debris_shrunk`, `debris_cleared`, `points_loss`, `fleet_loss`, `no_growth`, `market_offer` (a new offer of a synced marketplace; `data` has `give`, `want`, `ratio`, `endsAt`, `ally`) */
+                /** @description Comma-separated kinds: `phalanx_new`, `phalanx_up`, `planet_new`, `planet_destroyed`, `moon_new`, `moon_destroyed`, `debris_new`, `debris_grown`, `debris_shrunk`, `debris_cleared`, `points_loss`, `fleet_loss`, `no_growth`, `market_offer` (a new offer of a synced marketplace; `data` has `give`, `want`, `ratio`, `endsAt`, `ally`), `player_renamed` (`data` has the former name `before` and the new `name`), `vacation_start` (the player newly in vacation mode) */
                 kinds?: string;
             };
             header?: {
@@ -10476,9 +10476,33 @@ export interface operations {
                 content: {
                     "application/json": {
                         /** @description Entries per kind in the period */
-                        counts?: Record<string, never>;
+                        counts: {
+                            [key: string]: number;
+                        };
                         /** @description Newest 1000 entries with the player (`player_id`, `player_name`, `status`, alliance) and the player's newest synced total `points` (null if unknown) */
-                        entries?: Record<string, never>[];
+                        entries: {
+                            id: number;
+                            /** @description When it happened in the game */
+                            time: number;
+                            /** @description Kind of entry, see the `kinds` parameter */
+                            kind: string;
+                            g: number | null;
+                            s: number | null;
+                            p: number | null;
+                            planet_type: string | null;
+                            /** @description Details, depending on the kind */
+                            data: {
+                                [key: string]: unknown;
+                            };
+                            player_id: number | null;
+                            /** @description Current name of the player */
+                            player_name: string | null;
+                            status: string[];
+                            /** @description Newest synced total points of the player */
+                            points: number | null;
+                            ally_tag: string | null;
+                            ally_name: string | null;
+                        }[];
                     };
                 };
             };
