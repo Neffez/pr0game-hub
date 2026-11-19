@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-19',
     items: [
       {
+        kind: 'new',
+        de: 'Rangliste: Eine aktuelle universe.json bringt einmal pro Woche 100 Punkte.',
+        en: 'Ranking: an up-to-date universe.json earns 100 points once a week.',
+      },
+      {
         kind: 'fix',
         de: 'Discord-Wochenrückblick: Fällt der Montag aus, kommt der Rückblick später in der Woche; nach dem Ende einer Runde gibt es noch einen letzten Rückblick.',
         en: 'Weekly recap on Discord: if Monday is missed, the recap comes later that week; after a round ends there is one last recap.',

@@ -14,7 +14,7 @@ import { DISPLAY } from './sql.js';
 // ---------------------------------------------------------------- credits
 
 /** Kinds written to `sync_credits`. */
-export type CreditKind = 'galaxy' | 'empire' | 'overview' | 'buildings' | 'research' | 'market' | 'stats' | 'statsFirst' | 'fresh' | 'miner';
+export type CreditKind = 'galaxy' | 'empire' | 'overview' | 'buildings' | 'research' | 'market' | 'stats' | 'statsFirst' | 'universe' | 'fresh' | 'miner';
 export interface Credit {
   kind: CreditKind;
   /** unit counted once a day ('' for once-a-day kinds) */
@@ -36,6 +36,8 @@ export const POINTS = {
   messages: 1,
   stats: 1,
   statsFirst: 2,
+  /** an up-to-date universe.json, once a week (Monday to Sunday) */
+  universe: 100,
 } as const;
 export type PointKind = keyof typeof POINTS;
 
@@ -65,10 +67,18 @@ export function countSync(db: DB, groupId: number, userId: number, day: string, 
   ).run(groupId, userId, day, pageType);
 }
 
-/** Stores the credits of one sync for the member (a unit already credited that day stays as it is). */
+/** Kinds credited at most once a week (Monday to Sunday, like the ranking) instead of once a day. */
+const WEEKLY: ReadonlySet<CreditKind> = new Set(['universe']);
+
+/** Stores the credits of one sync for the member (a unit already credited that day, or that week for a weekly kind, stays as it is). */
 export function addCredits(db: DB, groupId: number, userId: number, day: string, credits: Credit[]) {
   const put = db.prepare('INSERT OR IGNORE INTO sync_credits (group_id, user_id, day, kind, key) VALUES (?, ?, ?, ?, ?)');
-  for (const c of credits) put.run(groupId, userId, day, c.kind, c.key ?? '');
+  const inWeek = db.prepare('SELECT 1 FROM sync_credits WHERE group_id = ? AND user_id = ? AND kind = ? AND day BETWEEN ? AND ?');
+  const { from } = periodDays('week', day);
+  for (const c of credits) {
+    if (WEEKLY.has(c.kind) && inWeek.get(groupId, userId, c.kind, from, day)) continue;
+    put.run(groupId, userId, day, c.kind, c.key ?? '');
+  }
 }
 
 // ---------------------------------------------------------------- badges

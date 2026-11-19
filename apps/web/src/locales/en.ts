@@ -1753,12 +1753,13 @@ const en: typeof de = {
     none: 'No points yet',
     kinds: {
       galaxy: 'Galaxy', spy: 'Spy reports', empire: 'Empire', overview: 'Overview/fleets', hostile: 'Foreign espionage', battle: 'Battle reports',
-      buildings: 'Buildings pages', research: 'Research', market: 'Marketplace', expedition: 'Expeditions', messages: 'In-game messages', stats: 'Statistics', statsFirst: 'Statistics first',
+      buildings: 'Buildings pages', research: 'Research', market: 'Marketplace', expedition: 'Expeditions', messages: 'In-game messages', stats: 'Statistics', statsFirst: 'Statistics first', universe: 'universe.json',
     },
     points: {
       galaxy: 'Galaxy system 3 (each system once a day)', spy: 'Spy report 3', empire: 'Empire 10 (once a day)', overview: 'Overview 5 (once a day)',
       hostile: 'Foreign espionage 3', battle: 'Battle report 3', buildings: 'Buildings page 2 (per planet and day)', research: 'Research 2', market: 'Marketplace 2 (once a day)',
       expedition: 'Expedition 1', messages: 'In-game message 1', stats: 'Statistics category 1', statsFirst: 'first +2',
+      universe: 'up-to-date universe.json 100 (once a week)',
     },
   },
   contributors: {

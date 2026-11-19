@@ -3790,7 +3790,7 @@ export type components = {
             /** @description Per kind with points (in the period or before), most points first */
             kinds: {
                 /** @enum {string} */
-                kind: "galaxy" | "spy" | "empire" | "overview" | "hostile" | "battle" | "buildings" | "research" | "market" | "expedition" | "messages" | "stats" | "statsFirst";
+                kind: "galaxy" | "spy" | "empire" | "overview" | "hostile" | "battle" | "buildings" | "research" | "market" | "expedition" | "messages" | "stats" | "statsFirst" | "universe";
                 /** @description Units in the period (systems, reports, days, …) */
                 units: number;
                 points: number;

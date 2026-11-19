@@ -908,7 +908,7 @@ components:
             type: object
             required: [kind, units, points, before]
             properties:
-              kind: { type: string, enum: [galaxy, spy, empire, overview, hostile, battle, buildings, research, market, expedition, messages, stats, statsFirst] }
+              kind: { type: string, enum: [galaxy, spy, empire, overview, hostile, battle, buildings, research, market, expedition, messages, stats, statsFirst, universe] }
               units: { type: integer, description: 'Units in the period (systems, reports, days, …)' }
               points: { type: integer }
               before: { type: integer, description: Points in the span before }

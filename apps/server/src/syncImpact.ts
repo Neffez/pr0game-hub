@@ -133,7 +133,8 @@ export function probeImpact(db: DB, target: IngestTarget, parsed: ParseResult, s
     const credits: Credit[] = [];
 
     // a universe.json brings the whole universe at once: news for the group, but no galaxy credits (one upload
-    // would outweigh weeks of pasted systems in the ranking and the cartographer badge)
+    // would outweigh weeks of pasted systems in the ranking and the cartographer badge); one that refreshed systems
+    // earns the weekly universe credit instead
     const creditGalaxy = parsed.source !== 'json';
     const ages: number[] = [];
     let systems = 0;
@@ -147,6 +148,7 @@ export function probeImpact(db: DB, target: IngestTarget, parsed: ParseResult, s
       else ages.push(seenAt - before);
     }
     if (systems) impact.galaxy = { systems, first, age: average(ages) };
+    if (systems && !creditGalaxy) credits.push({ kind: 'universe' });
 
     const replacedAges: number[] = [];
     let spiedFirst = 0;

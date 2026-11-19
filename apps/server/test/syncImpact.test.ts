@@ -118,4 +118,23 @@ describe('universe.json upload', () => {
     expect(res.json().impact.galaxy.systems).toBeGreaterThan(0);
     expect(galaxyCredits()).toBe(before);
   });
+
+  it('earns the universe credit once a week, only when it refreshed systems', async () => {
+    const universeCredits = () => db.prepare("SELECT day FROM sync_credits WHERE group_id = ? AND kind = 'universe'").pluck().all(group) as string[];
+    // the upload above earned it; the same file again refreshes nothing and the week has it already
+    expect(universeCredits()).toHaveLength(1);
+    const res = await app.inject({ method: 'POST', url: '/hub/api/u8/universe-json', headers: carol, payload: { text: fixture('universe.json') } });
+    expect(res.statusCode).toBe(200);
+    expect(universeCredits()).toHaveLength(1);
+    const ranking = await app.inject({ method: 'GET', url: '/hub/api/u8/ranking?period=week', headers: carol });
+    expect(ranking.json().rows.find((r: any) => r.userId === carolId).parts.universe).toBe(100);
+    // a day of this week already credited holds back another one; a day of the next week does not
+    const { addCredits, addDays } = await import('../src/repo/achievements.js');
+    const [day] = universeCredits();
+    const monday = addDays(day, -((new Date(`${day}T12:00:00Z`).getUTCDay() + 6) % 7));
+    addCredits(db, group, carolId, addDays(monday, 6), [{ kind: 'universe' }]);
+    expect(universeCredits()).toHaveLength(1);
+    addCredits(db, group, carolId, addDays(monday, 7), [{ kind: 'universe' }]);
+    expect(universeCredits()).toHaveLength(2);
+  });
 });

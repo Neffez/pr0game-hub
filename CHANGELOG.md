@@ -4,6 +4,8 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-19
 
+- Ranking: a universe.json upload that refreshes systems earns 100 points once a week (Monday to Sunday) per member,
+  as its own kind `universe` in the ranking and the recap, instead of no points at all.
 - Recap: the badges at the end of the period and the day before it come from one pass (`achievementsAt` reads the
   members' sync days and vacation history once) instead of two full badge computations per recap; the review
   (`CODEREVIEW.md`) lists R-01 to R-09 as fixed (review R-04).
