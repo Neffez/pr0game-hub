@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-19
 
+- Build order writes simulate the timeline for the miner badge at most every ten minutes per member (moving steps
+  one by one ran a second simulation on every move); reading the timeline still checks it every time (review R-06).
+
 - Alliance goals: the spy goal counts its farm targets with one light query (`spiedTargets`, shared with the farm
   finder) instead of computing the whole farm finder on every `/goals`, `/recap` and Discord recap, and it leaves
   out the group's alliance (the in-game alliances of all members' players) instead of the viewer's, so every member

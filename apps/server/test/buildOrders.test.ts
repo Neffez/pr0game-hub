@@ -309,6 +309,25 @@ describe('build order', () => {
     (await import('../src/repo/empire.js')).clearEmpireCache();
   });
 
+  it('gives the miner badge for a plan five days ahead, checked by writes at most every ten minutes', async () => {
+    const eve = Number(db.prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)').run('eve', hashPassword('evepass')).lastInsertRowid);
+    db.prepare("INSERT INTO group_members (group_id, user_id, ingame_name) VALUES (?, ?, 'Eve')").run(group, eve);
+    const he = { cookie: await login('eve'), 'x-hub-group': String(group) };
+    db.prepare('INSERT INTO empire_snapshots (group_id, user_id, created_at, data) VALUES (?, ?, ?, ?)').run(group, eve, T0, JSON.stringify(empire));
+    const miner = () => !!db.prepare("SELECT 1 FROM sync_credits WHERE group_id = ? AND user_id = ? AND kind = 'miner'").get(group, eve);
+    const steps = (n: number) => Array.from({ length: n }, (_, i) => ({ id: `m${i}`, kind: 'building', element: 1 }));
+    // one step is no plan ahead
+    expect((await call('PUT', '/u8/build-order', he, { order: { ...order, planets: { [HOME]: steps(1) } } })).statusCode).toBe(200);
+    expect(miner()).toBe(false);
+    // metal mine up to 20 takes days of crystal; the write right after is not simulated again
+    expect((await call('PATCH', '/u8/build-order', he, { planets: { [HOME]: steps(10) } })).statusCode).toBe(200);
+    expect(miner()).toBe(false);
+    // reading the timeline checks it
+    expect((await call('GET', '/u8/build-order/timeline', he)).statusCode).toBe(200);
+    expect(miner()).toBe(true);
+    await call('DELETE', '/u8/build-order', he);
+  });
+
   it('respects the setting and deletes', async () => {
     expect((await call('POST', '/auth/push-settings', h.carol, { buildOrder: false })).json()).toMatchObject({ buildOrder: false });
     await call('PATCH', '/u8/build-order', h.carol, { planets: { [HOME]: [{ id: 'c', kind: 'building', element: 22 }] } });

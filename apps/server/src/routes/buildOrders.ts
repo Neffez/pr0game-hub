@@ -12,6 +12,8 @@ import { contextOf } from './util.js';
 
 /** Meta data of an import (file settings, mapping) is kept as sent, up to this size. */
 const META_MAX = 64 * 1024;
+/** Writes look at the miner badge at most this often per member (seconds). */
+const MINER_RECHECK = 600;
 /**
  * the build order is the member's own planning: it can be set up before the universe starts, and API tokens may write
  * it (scripts and assistants that plan for the member)
@@ -59,11 +61,19 @@ function checkPrecondition(req: FastifyRequest, stored: StoredBuildOrder | null,
 export function buildOrderRoutes(app: FastifyInstance, db: DB) {
   const ctxOf = contextOf(db);
   /** The miner badge: a build order whose timeline reaches at least `MINER_AHEAD` into the future (once per member). */
+  /** when a write last simulated the member's build order for the badge (group:user -> epoch seconds) */
+  const minerChecked = new Map<string, number>();
   const creditMiner = (ctx: GroupContext, ends?: (number | null)[]) => {
     try {
       if (db.prepare("SELECT 1 FROM sync_credits WHERE group_id = ? AND user_id = ? AND kind = 'miner'").get(ctx.groupId, ctx.user.id)) return;
       const t = now();
       if (!ends) {
+        // a write simulates the build order at most every `MINER_RECHECK` (moving steps one by one would simulate
+        // it on every move); the timeline a client reads is checked every time
+        const key = `${ctx.groupId}:${ctx.user.id}`;
+        if (t - (minerChecked.get(key) ?? 0) < MINER_RECHECK) return;
+        minerChecked.set(key, t);
+        if (minerChecked.size > 10_000) minerChecked.clear();
         const found = buildOrderOf(db, ctx, ctx.user.id);
         if (!found) return;
         const state = buildingsState(db, ctx, ctx.user.id);
