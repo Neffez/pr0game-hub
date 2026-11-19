@@ -306,6 +306,7 @@ const en: typeof de = {
     hideFleet: 'Without fleet',
     hideVacation: 'Hide vacation mode',
     showVacation: 'with vacation mode',
+    hideNoob: 'Hide noob protection (N)',
     hideClaimed: 'Hide targets claimed by others',
     showClaimed: 'with claimed',
     minLoot: 'Loot from',

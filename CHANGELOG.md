@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-19
 
+- Farm finder: new target filter "Hide noob protection" that drops players with the noob status (n), next to the
+  vacation mode filter; off by default and shown as a chip when on.
+
 - Recap: a sync counts only when it brought something new (a record of its summary new or changed); pasting the same
   messages again no longer adds to the syncs. The counts are rebuilt from the raw syncs for the whole days they
   still cover (`js:sync_counts_new_only`, replaces `js:sync_counts_from_raw_ingests_2`).

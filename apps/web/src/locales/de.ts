@@ -307,6 +307,7 @@ const de = {
     hideFleet: 'Ohne Flotte',
     hideVacation: 'Urlaubsmodus ausblenden',
     showVacation: 'mit Urlaubsmodus',
+    hideNoob: 'Noobschutz (n) ausblenden',
     hideClaimed: 'Von anderen reservierte ausblenden',
     showClaimed: 'mit reservierten',
     minLoot: 'Beute ab',

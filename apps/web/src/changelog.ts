@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-19',
     items: [
       {
+        kind: 'new',
+        de: 'Farm-Finder: Neue Checkbox, um Spieler mit Noobschutz (n) aus den Zielen auszublenden.',
+        en: 'Farm finder: new checkbox to hide players under noob protection (N) from the targets.',
+      },
+      {
         kind: 'fix',
         de: 'Recap: Es zählen nur noch Syncs, die etwas Neues gebracht haben – wer dieselben Nachrichten nochmal einfügt, bekommt keinen weiteren Sync.',
         en: 'Recap: only syncs that brought something new count now – pasting the same messages again adds no further sync.',

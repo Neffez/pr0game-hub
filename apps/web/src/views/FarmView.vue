@@ -69,6 +69,7 @@ const FILTER_DEFAULTS = {
   hideDefense: false,
   hideFleet: false,
   hideVacation: true,
+  hideNoob: false,
   hideClaimed: true,
   minLoot: null as number | null,
   galaxy: null as number | null,
@@ -220,6 +221,7 @@ const filtered = computed(() => {
     if (f.hideDefense && (r.risk === 'defense' || r.risk === 'both')) return false;
     if (f.hideFleet && (r.risk === 'fleet' || r.risk === 'both')) return false;
     if (f.hideVacation && r.player.status.includes('vacation')) return false;
+    if (f.hideNoob && r.player.status.includes('noob')) return false;
     if (f.hideClaimed) {
       const c = claimOf(r.g, r.s, r.p, r.type);
       if (c && c.user_id !== ctx.value?.me.id) return false;
@@ -283,6 +285,7 @@ const chips = computed<FilterChip[]>(() => {
   if (f.hideDefense) add('hideDefense', t('farm.hideDefense'));
   if (f.hideFleet) add('hideFleet', t('farm.hideFleet'));
   if (!f.hideVacation) add('hideVacation', t('farm.showVacation'));
+  if (f.hideNoob) add('hideNoob', t('farm.hideNoob'));
   if (!f.hideClaimed) add('hideClaimed', t('farm.showClaimed'));
   if (f.minLoot) add('minLoot', `${t('farm.minLoot')} ${short(f.minLoot)}`);
   if (f.galaxy) add('galaxy', `${t('nav.galaxy')} ${f.galaxy}`);
@@ -425,6 +428,7 @@ const claimText = (r: Row) => {
       <label class="check"><input v-model="filter.hideDefense" type="checkbox" /> {{ t('farm.hideDefense') }}</label>
       <label class="check"><input v-model="filter.hideFleet" type="checkbox" /> {{ t('farm.hideFleet') }}</label>
       <label class="check"><input v-model="filter.hideVacation" type="checkbox" /> {{ t('farm.hideVacation') }}</label>
+      <label class="check"><input v-model="filter.hideNoob" type="checkbox" /> {{ t('farm.hideNoob') }}</label>
       <label class="check"><input v-model="filter.hideClaimed" type="checkbox" /> {{ t('farm.hideClaimed') }}</label>
       <div v-if="tab === 'targets'" class="field">
         <span class="lbl">{{ t('farm.maxShare') }}</span>
