@@ -5493,6 +5493,8 @@ export type components = {
                 delta: number | null;
                 title?: string | null;
                 status?: string[];
+                /** @description Players only: the alliance's note on the player */
+                note?: string | null;
                 ally_id?: number | null;
                 ally_name?: string | null;
                 ally_tag?: string | null;

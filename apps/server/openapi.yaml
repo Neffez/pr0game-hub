@@ -2589,6 +2589,7 @@ components:
               delta: { type: [number, 'null'], description: Points since the stand before }
               title: { type: [string, 'null'] }
               status: { type: array, items: { type: string } }
+              note: { type: [string, 'null'], description: "Players only: the alliance's note on the player" }
               ally_id: { type: [integer, 'null'] }
               ally_name: { type: [string, 'null'] }
               ally_tag: { type: [string, 'null'] }

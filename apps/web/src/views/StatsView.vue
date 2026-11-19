@@ -171,6 +171,7 @@ useAutoTour('stats', () => !!data.value);
           <td>
             <span v-if="r.title" class="honor">{{ r.title }}</span>
             <span :class="['pname', nameClass(r)]"><PlayerLink :id="r.id" :name="r.name" /></span>
+            <Icon v-if="r.note" name="edit" :size="12" class="faint" :label="r.note" />
             <StatusBadges :status="r.status ?? []" :points="r.scores?.[1] ?? null" />
             <PointsStall :stall="r.points_stall" :status="r.status" icon />
           </td>

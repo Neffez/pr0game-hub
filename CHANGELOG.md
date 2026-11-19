@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-19
 
+- Statistics: players with an alliance note show the pencil icon next to their name (note as tooltip), like on
+  the overview; `GET /api/{uni}/stats` returns `note` for player rows.
+
 - Fleet and expedition slots like the game (`1 + computer technology` fleet slots for every own fleet but missile
   attacks, `⌊√astrophysics⌋` expedition slots, each held until the fleet is home), taken from the newest fleet list
   and the research; synced expedition reports correct it (a black hole frees the slot at the end of the stay, fast

@@ -86,7 +86,7 @@ export function playersRoutes(app: FastifyInstance, db: DB) {
 
     const rows = db
       .prepare(
-        `SELECT ps.rank, ps.rank_change, ps.points, ps.title, p.id, p.name, p.status, a.id AS ally_id, a.name AS ally_name, a.tag AS ally_tag,
+        `SELECT ps.rank, ps.rank_change, ps.points, ps.title, p.id, p.name, p.status, p.note, a.id AS ally_id, a.name AS ally_name, a.tag AS ally_tag,
            (SELECT COUNT(*) FROM planets pl WHERE pl.player_id = p.id AND pl.destroyed = 0) AS planet_count,
            (SELECT pl.g || ':' || pl.s || ':' || pl.p FROM planets pl WHERE pl.player_id = p.id AND pl.destroyed = 0 ORDER BY pl.id LIMIT 1) AS first_planet
          FROM player_scores ps JOIN players p ON p.id = ps.player_id LEFT JOIN alliances a ON a.id = p.alliance_id

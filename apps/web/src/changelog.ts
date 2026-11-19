@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-19',
     items: [
       {
+        kind: 'fix',
+        de: 'Statistik: Spieler mit einer Notiz zeigen wie in der Übersicht das Stift-Symbol neben dem Namen, die Notiz steht im Tooltip.',
+        en: 'Statistics: players with a note show the pencil icon next to their name like on the overview, with the note as tooltip.',
+      },
+      {
         kind: 'new',
         de: 'Flotten- und Expeditionsslots: Im Imperium über den Flottenbewegungen und auf der Expeditionsseite siehst du, wie viele Slots belegt und frei sind und wann der nächste frei wird. Auf Wunsch meldet dich der Hub, wenn eine Expedition zurück ist oder verloren ging und ihr Slot frei wird (Konto → Benachrichtigungen).',
         en: 'Fleet and expedition slots: the Imperium (above the fleet movements) and the Expeditions page show how many slots are taken and free and when the next one becomes free. If you like, the hub tells you when an expedition is back or was lost and its slot is free (Account → Notifications).',
