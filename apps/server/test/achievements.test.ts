@@ -6,7 +6,8 @@ process.env.WEB_DIR = '/nonexistent';
 const { buildApp } = await import('../src/app.js');
 const { openDb, now } = await import('../src/db.js');
 const { hashPassword } = await import('../src/auth.js');
-const { addDays, dayOf, periodDays, streakOf } = await import('../src/repo/achievements.js');
+const { achievements, achievementsAt, addDays, dayOf, periodDays, streakOf } = await import('../src/repo/achievements.js');
+const { resolveGroup, getUniverse } = await import('../src/context.js');
 
 const db = openDb(':memory:');
 const app = buildApp(db, { logger: false });
@@ -94,6 +95,18 @@ describe('badges and ranking', () => {
     // battle reports today: today counts for the streak
     expect(me.streak).toMatchObject({ today: true });
     expect(members.find((m: any) => m.userId === daveId).badges.every((b: any) => b.level === 0)).toBe(true);
+  });
+
+  it('gives several days in one pass what each day gives alone', () => {
+    const ctx = resolveGroup(db, { id: carolId, username: 'carol', isAdmin: false } as never, getUniverse(db, 'u8'), group);
+    const today = dayOf(now(), TZ);
+    const days = [today, addDays(today, -1), '2026-01-05'];
+    const at = achievementsAt(db, ctx, days);
+    for (const day of days) expect(at.get(day)).toEqual(achievements(db, ctx, day));
+    // the January credits count up to their day only
+    const imperator = (day: string) => at.get(day)!.find((m) => m.userId === carolId)!.badges.find((b) => b.key === 'imperator')!.count;
+    expect(imperator('2026-01-05')).toBe(5);
+    expect(imperator(today)).toBe(10);
   });
 
   it('ranks the members by the points of the period', async () => {

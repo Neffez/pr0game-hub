@@ -53,7 +53,7 @@ The new findings are mostly about the sync incentives and cost. One is a fairnes
 the uploader a galaxy credit for every system it refreshes, so one upload is worth more than weeks of galaxy pastes
 (R-01). Optimize jobs stay in memory without a cap per member (R-02). Every sync now computes the freshness of the
 whole group to read one member (R-03), and the progress page computes the whole farm finder and the badge history
-twice per request (R-04). The rest is small.
+twice per request (R-04). The rest is small. All of them were fixed the same day.
 
 ---
 
@@ -83,17 +83,19 @@ twice per request (R-04). The rest is small.
 
 ## 1. New findings (changes of 2026-11-16 to 2026-11-19)
 
-| ID | Finding | Evidence | Impact | Risk | Effort | Fix |
-|---|---|---|---|---|---|---|
-| R-01 | A universe.json upload credits every refreshed system to the uploader | `routes/ingest.ts` (`/universe-json`, any member) → `ingest` → `probeImpact` (`syncImpact.ts`): each system with a newer `seenAt` (the file's `timepoint`) becomes a `{ kind: 'galaxy', key: 'g:s' }` credit. A file with fresh timepoints gives thousands of credits in one go: 3 ranking points each (`POINTS.galaxy`), and the cartographer badge (top level 12 000 credits) in a few days of uploads. Nothing in `syncImpact` or `addCredits` looks at `parsed.source` | Medium (ranking and badges lose their meaning) | Medium (any member, one click) | Low | Give no galaxy credits for `parsed.source === 'json'` (or one credit of its own kind); keep the impact feedback. Test with the universe.json fixture |
-| R-02 | Optimize jobs are kept an hour without a cap per member | `optimize.ts` `OptimizeJobs`: only *running* jobs are limited (one per member, cores−1 in all); ended jobs stay in the `Map` for `keepMs` (1 h) with their full result (`best.steps`, `timeline`, `goals`). With `minBudget` 5 s one member (also with a read-only token, `allowToken`) can leave about 700 results an hour in the server's memory | Medium (memory of the one process) | Low (members and their tokens only) | Low | Keep the last few ended jobs per member (e.g. 3) and drop older ones on `start`; or drop the timeline from a stored result and recompute it on GET |
-| R-03 | Each sync computes the freshness of the whole group to credit one member | `ingest.ts` after the transaction: `freshnessOf(db, ctx, [target.userId])` for the `fresh` credit. `freshnessOf` (`repo/freshness.ts`) loads every galaxy view of the group, parses the newest empire page of *every* member (`latestEmpires`), and groups all building and research snapshots and the raw message syncs of the group, then reads one member. `probeImpact` also runs `syncHints` twice (before and after). This is on every paste, including the universe.json upload | Medium (latency of every sync grows with the group) | Medium | Low | Scope the queries to `userIds` when given (`WHERE user_id IN …`, `latestEmpire` per member); skip freshness and hints for `source === 'json'`. Measure with the u8 test data |
-| R-04 | Goals and recap recompute expensive data per request | `allianceGoals` (`/goals`, `/recap`, `/recap/text`, the weekly Discord recap) runs the full `farmTargets` (all spy reports of 7 days, projections, strengths, own fleet) for the spy goal's count; `recap` runs `achievements` twice (400 days of report hours, the status log per member) and `allianceGoals` again. The progress page loads several of them at once | Low–Medium | Medium (grows with group and round) | Low–Medium | A small count query for the spy goal (targets with a fresh report and an inactivity level) instead of `farmTargets`; cache the recap per group and period for a minute |
-| R-05 | The spy goal depends on who looks | `farmTargets` leaves out the viewer's in-game alliance. The Discord recap uses `channelContext` with user id 0 (no player), so members of the in-game alliance who are not in the hub can count as farm targets there but not on the page; "goals reached" in the post can differ from the page | Low | Low | Low | Exclude the group's alliance (its members' players' alliances) in the goal, not the viewer's |
-| R-06 | The miner badge check simulates the build order on every write | `routes/buildOrders.ts` `changed()` → `creditMiner()`: until a member has the badge, every PUT/PATCH/assign (each step moved in the UI) runs `buildOrderTimeline` (with flights of transports) a second time, synchronously | Low | Low–Medium (members who never plan 5 days ahead pay it forever) | Low | Credit from the timeline the client already asks for (`GET /timeline` does it), or only on PUT and assign |
-| R-07 | Battle-report fleet lookup scans per candidate | `repo/threats.ts` `battleFleet`: `fleets LIKE '%"name"%'` over 14 days of `combat_reports` and a `JSON.parse` of each hit, per candidate; `threatsOf` calls it for every listed player with planets and no spy report, without the memo `defenseThreats` has. `_` and `%` in names are LIKE wildcards (more rows, filtered after; correct but slower) | Low | Low–Medium (battle hall imports make the table large) | Low | Memo in `threatsOf` as in `defenseThreats`; `ESCAPE` for the LIKE pattern; one query for all candidates |
-| R-08 | Recap image limit and body limit disagree | `routes/discord.ts`: `MAX_IMAGE` 8 MB decoded, but the base64 JSON body is capped by `bodyLimit` (8 MB, `config.ts`), so the real limit is about 6 MB and a larger image gets Fastify's 413 instead of `recap_image_invalid` | Low | Low (canvas PNGs are small) | Low | Route `bodyLimit` of 12 MB, or `MAX_IMAGE` of 5 MB with the same error |
-| R-09 | Weekly recap is skipped on a missed Monday | `discord.ts` `weeklyRecaps`: sends only on Mondays from 9:00 and only while the universe runs. A server down all Monday, or a round that ended on the weekend, gets no recap for that week | Low | Low | Low | Send "last week" on any day of the week until it was sent (`discord_sent` already dedupes); allow a final recap within a week after the end |
+### Fixed since this review (2026-11-19)
+
+| ID | Finding | Fix |
+|---|---|---|
+| R-01 | A universe.json upload credited every refreshed system to the uploader | `probeImpact` gives no galaxy credits for `source === 'json'`; the sync feedback still shows the systems; test |
+| R-02 | Optimize jobs were kept an hour without a cap per member | `OPTIMIZE_LIMITS.keptPerMember` (3): a new search drops the member's older ended ones; spec says so; test |
+| R-03 | Each sync computed the freshness of the whole group | `freshnessOf(…, userIds)` reads only those members' snapshots and the galaxy systems around their planets; a universe.json skips freshness and sync hints; test that one member's score equals the group's |
+| R-04 | Goals and recap recomputed expensive data per request | The spy goal counts with `spiedTargets` (shared with `farmTargets`) and `inactivities`; the recap gets the badges of both days from one pass (`achievementsAt`: sync days and vacation history read once); test |
+| R-05 | The spy goal depended on who looks | It leaves out the group's alliance (the in-game alliances of all members' players); test |
+| R-06 | The miner badge check simulated the build order on every write | Writes check at most every 10 minutes per member; `GET /timeline` checks every time; test |
+| R-07 | Battle-report fleet lookup scanned per candidate with unescaped LIKE | `likeTerm` + `ESCAPE`; `threatsOf` looks each name up once per request; test with `_` and quotes in names |
+| R-08 | Recap image limit and body limit disagreed | Route `bodyLimit` fits the documented 8 MB as base64; test |
+| R-09 | A missed Monday skipped the weekly recap | Sent later in the week when Monday was missed; a round that ended during last week gets its last week once; spec; test |
 
 ### Theoretical (this week)
 
@@ -186,19 +188,7 @@ escapes every value. `t()` still does not escape interpolations (C-09).
 
 ### Now
 
-| Order | ID | What | Effort |
-|---|---|---|---|
-| 1 | R-01 | No galaxy credits from universe.json uploads | Low |
-| 2 | R-02 | Cap the ended optimize jobs per member | Low |
-| 3 | R-03 | Freshness and hints of one member scoped to that member; skip them for universe.json | Low |
-
-### Soon
-
-| Order | ID | What | Effort |
-|---|---|---|---|
-| 4 | R-04 / R-05 | Light spy goal query for the group's alliance; recap cache | Low–Medium |
-| 5 | R-06 / R-07 | Miner credit off the write path; `battleFleet` memo and escaped LIKE | Low |
-| 6 | R-08 / R-09 | Recap image limit; weekly recap catch-up | Low |
+Nothing: R-01 to R-09 are fixed (2026-11-19).
 
 ### When the files are touched (Wave 3 of the 2026-11-04 review)
 

@@ -1,7 +1,7 @@
 import type { GroupContext } from '../context.js';
 import type { DB } from '../db.js';
 import {
-  achievements, addDays, dayOf, periodDays, pointUnits, POINTS, rankRows, type BadgeKey, type PointKind, type RankingPeriod,
+  achievementsAt, addDays, dayOf, periodDays, pointUnits, POINTS, rankRows, type BadgeKey, type PointKind, type RankingPeriod,
 } from './achievements.js';
 import { allianceGoals, GOAL_DEFAULTS, goalSettings } from './goals.js';
 
@@ -110,8 +110,9 @@ export function recap(db: DB, ctx: GroupContext, period: RecapPeriod): Recap {
   const sum = <T>(list: T[], f: (x: T) => number) => list.reduce((n, x) => n + f(x), 0);
 
   // badges: the levels at the end of the period against the end of the day before it
-  const end = new Map(achievements(db, ctx, to).map((m) => [m.userId, m]));
-  const start = new Map(achievements(db, ctx, addDays(from, -1)).map((m) => [m.userId, m]));
+  const at = achievementsAt(db, ctx, [to, addDays(from, -1)]);
+  const end = new Map(at.get(to)!.map((m) => [m.userId, m]));
+  const start = new Map(at.get(addDays(from, -1))!.map((m) => [m.userId, m]));
   const badges: Recap['badges'] = [];
   for (const m of end.values()) {
     const was = new Map((start.get(m.userId)?.badges ?? []).map((b) => [b.key, b.level]));

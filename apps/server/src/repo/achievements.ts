@@ -171,36 +171,51 @@ export interface MemberAchievements {
  * (counts and streak from the data up to then), else today.
  */
 export function achievements(db: DB, ctx: GroupContext, asOf?: string): MemberAchievements[] {
+  const day = asOf ?? dayOf(ctx.now, ctx.universe.settings.timezone);
+  return achievementsAt(db, ctx, [day]).get(day)!;
+}
+
+/**
+ * Badges and streak of every member as they were at the end of each of `days` (YYYY-MM-DD), in one pass: the days
+ * with an own sync and the vacation history are read once for all of them (the recap compares two days).
+ */
+export function achievementsAt(db: DB, ctx: GroupContext, days: string[]): Map<string, MemberAchievements[]> {
   const g = ctx.groupId;
   const tz = ctx.universe.settings.timezone;
-  const today = asOf ?? dayOf(ctx.now, tz);
-  const end = dayStart(addDays(today, 1), tz);
-  const since = dayStart(today, tz) - HISTORY_DAYS * 86400;
+  const sorted = [...new Set(days)].sort();
+  const last = sorted[sorted.length - 1];
+  const lastEnd = dayStart(addDays(last, 1), tz);
+  const since = dayStart(sorted[0], tz) - HISTORY_DAYS * 86400;
   const members = db
     .prepare(`SELECT m.user_id, ${DISPLAY} AS name FROM group_members m JOIN users u ON u.id = m.user_id WHERE m.group_id = ? ORDER BY name COLLATE NOCASE`)
     .all(g) as { user_id: number; name: string }[];
 
   const byUser = (sql: string, ...args: unknown[]) =>
     new Map((db.prepare(sql).all(g, ...args) as { user_id: number; n: number }[]).map((r) => [r.user_id, r.n]));
-  const credits = (kind: CreditKind) => byUser('SELECT user_id, COUNT(*) AS n FROM sync_credits WHERE group_id = ? AND kind = ? AND day <= ? GROUP BY user_id', kind, today);
-  const counts: Record<BadgeKey, Map<number, number>> = {
-    imperator: credits('empire'),
-    cartographer: credits('galaxy'),
-    scout: byUser('SELECT user_id, COUNT(*) AS n FROM spy_reports WHERE group_id = ? AND user_id IS NOT NULL AND created_at < ? GROUP BY user_id', end),
-    fleeter: byUser('SELECT user_id, COUNT(*) AS n FROM battle_reports WHERE group_id = ? AND user_id IS NOT NULL AND created_at < ? GROUP BY user_id', end),
-    expeditioner: byUser('SELECT user_id, COUNT(*) AS n FROM expeditions WHERE group_id = ? AND created_at < ? GROUP BY user_id', end),
-    trader: credits('market'),
-    socializer: byUser('SELECT user_id, COUNT(*) AS n FROM player_messages WHERE group_id = ? AND created_at < ? GROUP BY user_id', end),
-    chronicler: credits('statsFirst'),
-    fresh: credits('fresh'),
-    streak: new Map(),
-    raider: byUser("SELECT user_id, COUNT(*) AS n FROM attack_plans WHERE group_id = ? AND mission = 'attack' AND status <> 'cancelled' AND created_at < ? GROUP BY user_id", end),
-    collector: byUser('SELECT finalized_by AS user_id, COUNT(*) AS n FROM raid_settlements WHERE group_id = ? AND finalized_by IS NOT NULL AND finalized_at < ? GROUP BY finalized_by', end),
-    forist: byUser('SELECT user_id, COUNT(*) AS n FROM comments WHERE group_id = ? AND player_id IS NOT NULL AND user_id IS NOT NULL AND created_at < ? GROUP BY user_id', end),
-    miner: credits('miner'),
+  /** the badge counts at the end of `today` */
+  const countsAt = (today: string): Record<BadgeKey, Map<number, number>> => {
+    const end = dayStart(addDays(today, 1), tz);
+    const credits = (kind: CreditKind) => byUser('SELECT user_id, COUNT(*) AS n FROM sync_credits WHERE group_id = ? AND kind = ? AND day <= ? GROUP BY user_id', kind, today);
+    return {
+      imperator: credits('empire'),
+      cartographer: credits('galaxy'),
+      scout: byUser('SELECT user_id, COUNT(*) AS n FROM spy_reports WHERE group_id = ? AND user_id IS NOT NULL AND created_at < ? GROUP BY user_id', end),
+      fleeter: byUser('SELECT user_id, COUNT(*) AS n FROM battle_reports WHERE group_id = ? AND user_id IS NOT NULL AND created_at < ? GROUP BY user_id', end),
+      expeditioner: byUser('SELECT user_id, COUNT(*) AS n FROM expeditions WHERE group_id = ? AND created_at < ? GROUP BY user_id', end),
+      trader: credits('market'),
+      socializer: byUser('SELECT user_id, COUNT(*) AS n FROM player_messages WHERE group_id = ? AND created_at < ? GROUP BY user_id', end),
+      chronicler: credits('statsFirst'),
+      fresh: credits('fresh'),
+      streak: new Map(),
+      raider: byUser("SELECT user_id, COUNT(*) AS n FROM attack_plans WHERE group_id = ? AND mission = 'attack' AND status <> 'cancelled' AND created_at < ? GROUP BY user_id", end),
+      collector: byUser('SELECT finalized_by AS user_id, COUNT(*) AS n FROM raid_settlements WHERE group_id = ? AND finalized_by IS NOT NULL AND finalized_at < ? GROUP BY finalized_by', end),
+      forist: byUser('SELECT user_id, COUNT(*) AS n FROM comments WHERE group_id = ? AND player_id IS NOT NULL AND user_id IS NOT NULL AND created_at < ? GROUP BY user_id', end),
+      miner: credits('miner'),
+    };
   };
 
-  // days with an own sync: credited own pages, and the hours of the member's reports (converted to days below)
+  // days with an own sync: credited own pages, and the hours of the member's reports (converted to days below); a
+  // streak only looks at the days up to its own end
   const syncDays = new Map<number, Set<string>>();
   const addDay = (userId: number, day: string) => {
     let s = syncDays.get(userId);
@@ -209,9 +224,9 @@ export function achievements(db: DB, ctx: GroupContext, asOf?: string): MemberAc
   };
   for (const r of db
     .prepare("SELECT DISTINCT user_id, day FROM sync_credits WHERE group_id = ? AND kind IN ('empire', 'overview', 'buildings', 'research') AND day >= ? AND day <= ?")
-    .all(g, dayOf(since, tz), today) as { user_id: number; day: string }[]) addDay(r.user_id, r.day);
+    .all(g, dayOf(since, tz), last) as { user_id: number; day: string }[]) addDay(r.user_id, r.day);
   const hours = (sql: string) => {
-    for (const r of db.prepare(sql).all(g, since, end) as { user_id: number; h: number }[]) addDay(r.user_id, dayOf(r.h * 3600, tz));
+    for (const r of db.prepare(sql).all(g, since, lastEnd) as { user_id: number; h: number }[]) addDay(r.user_id, dayOf(r.h * 3600, tz));
   };
   hours('SELECT DISTINCT user_id, created_at / 3600 AS h FROM spy_reports WHERE group_id = ? AND created_at >= ? AND created_at < ? AND user_id IS NOT NULL');
   hours('SELECT DISTINCT user_id, created_at / 3600 AS h FROM battle_reports WHERE group_id = ? AND created_at >= ? AND created_at < ? AND user_id IS NOT NULL');
@@ -238,11 +253,20 @@ export function achievements(db: DB, ctx: GroupContext, asOf?: string): MemberAc
     };
   };
 
-  return members.map((m) => {
-    const streak = streakOf(syncDays.get(m.user_id) ?? new Set(), vacationOf(m.user_id), today);
-    counts.streak.set(m.user_id, streak.best);
-    return { userId: m.user_id, name: m.name, playerId: players.get(m.user_id) ?? null, streak, badges: BADGE_KEYS.map((k) => badge(k, counts[k].get(m.user_id) ?? 0)) };
-  });
+  const vacations = new Map(members.map((m) => [m.user_id, vacationOf(m.user_id)]));
+
+  return new Map(
+    sorted.map((today) => {
+      const counts = countsAt(today);
+      const list = members.map((m) => {
+        const upTo = new Set([...(syncDays.get(m.user_id) ?? [])].filter((d) => d <= today));
+        const streak = streakOf(upTo, vacations.get(m.user_id)!, today);
+        counts.streak.set(m.user_id, streak.best);
+        return { userId: m.user_id, name: m.name, playerId: players.get(m.user_id) ?? null, streak, badges: BADGE_KEYS.map((k) => badge(k, counts[k].get(m.user_id) ?? 0)) };
+      });
+      return [today, list] as const;
+    }),
+  );
 }
 
 // ---------------------------------------------------------------- ranking
