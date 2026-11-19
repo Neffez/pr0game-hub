@@ -56,24 +56,46 @@ export function freshnessOf(db: DB, ctx: GroupContext, userIds?: number[]): Map<
     userIds ?? (db.prepare('SELECT user_id FROM group_members WHERE group_id = ?').pluck().all(g) as number[]);
   const empires = new Map(latestEmpires(db, ctx).map((e) => [e.userId, e]));
   const { systems } = ctx.universe.settings;
+  // only the asked members' rows (a sync asks for one member of a large group)
+  const mine = userIds ? ' AND user_id IN (SELECT value FROM json_each(?))' : '';
+  const mineArgs = userIds ? [JSON.stringify(ids)] : [];
+  // galaxy: the systems around the members' planets
+  const aroundOf = new Map<number, string[]>();
+  for (const id of ids) {
+    const around = new Set<string>();
+    for (const p of empires.get(id)?.rec.planets ?? []) {
+      if (p.type !== 'planet') continue;
+      for (let s = p.coords.s - GALAXY_AROUND; s <= p.coords.s + GALAXY_AROUND; s++) if (s >= 1 && s <= systems) around.add(`${p.coords.g}:${s}`);
+    }
+    aroundOf.set(id, [...around]);
+  }
+  const wanted = [...new Set([...aroundOf.values()].flat())];
   const seen = new Map(
-    (db.prepare("SELECT g || ':' || s AS k, seen_at FROM galaxy_views WHERE group_id = ?").all(g) as { k: string; seen_at: number }[]).map((r) => [r.k, r.seen_at]),
+    wanted.length
+      ? (db
+          .prepare("SELECT g || ':' || s AS k, seen_at FROM galaxy_views WHERE group_id = ? AND g || ':' || s IN (SELECT value FROM json_each(?))")
+          .all(g, JSON.stringify(wanted)) as { k: string; seen_at: number }[]).map((r) => [r.k, r.seen_at])
+      : [],
   );
   const pages = (table: string) => {
     const out = new Map<string, number>();
-    for (const r of db.prepare(`SELECT user_id, g, s, p, planet_type, MAX(page_time) AS time FROM ${table} WHERE group_id = ? GROUP BY user_id, g, s, p, planet_type`).all(g) as {
+    for (const r of db
+      .prepare(`SELECT user_id, g, s, p, planet_type, MAX(page_time) AS time FROM ${table} WHERE group_id = ?${mine} GROUP BY user_id, g, s, p, planet_type`)
+      .all(g, ...mineArgs) as {
       user_id: number; g: number; s: number; p: number; planet_type: string; time: number;
     }[]) out.set(`${r.user_id}:${r.g}:${r.s}:${r.p}:${r.planet_type}`, r.time);
     return out;
   };
   const buildings = pages('building_snapshots');
   const research = new Map(
-    (db.prepare('SELECT user_id, MAX(page_time) AS time FROM research_snapshots WHERE group_id = ? GROUP BY user_id').all(g) as { user_id: number; time: number }[]).map((r) => [r.user_id, r.time]),
+    (db.prepare(`SELECT user_id, MAX(page_time) AS time FROM research_snapshots WHERE group_id = ?${mine} GROUP BY user_id`).all(g, ...mineArgs) as {
+      user_id: number; time: number;
+    }[]).map((r) => [r.user_id, r.time]),
   );
   const messages = new Map(
     (db
-      .prepare("SELECT user_id, MAX(created_at) AS time FROM raw_ingests WHERE group_id = ? AND page_type = 'messages' AND user_id IS NOT NULL GROUP BY user_id")
-      .all(g) as { user_id: number; time: number }[]).map((r) => [r.user_id, r.time]),
+      .prepare(`SELECT user_id, MAX(created_at) AS time FROM raw_ingests WHERE group_id = ? AND page_type = 'messages' AND user_id IS NOT NULL${mine} GROUP BY user_id`)
+      .all(g, ...mineArgs) as { user_id: number; time: number }[]).map((r) => [r.user_id, r.time]),
   );
 
   const age = (time: number | null) => (time == null ? null : Math.max(0, t - time));
@@ -93,15 +115,10 @@ export function freshnessOf(db: DB, ctx: GroupContext, userIds?: number[]): Map<
   for (const id of ids) {
     const empire = empires.get(id);
     const bodies = empire?.rec.planets ?? [];
-    const around = new Set<string>();
-    for (const p of bodies) {
-      if (p.type !== 'planet') continue;
-      for (let s = p.coords.s - GALAXY_AROUND; s <= p.coords.s + GALAXY_AROUND; s++) if (s >= 1 && s <= systems) around.add(`${p.coords.g}:${s}`);
-    }
     const parts = [
       part('empire', empire?.time ?? null),
       part('overview', overviewTime(db, g, id)),
-      averaged('galaxy', [...around].map((k) => seen.get(k) ?? null)),
+      averaged('galaxy', (aroundOf.get(id) ?? []).map((k) => seen.get(k) ?? null)),
       averaged('buildings', bodies.map((p) => buildings.get(`${id}:${p.coords.g}:${p.coords.s}:${p.coords.p}:${p.type}`) ?? null)),
       part('messages', messages.get(id) ?? null),
       part('research', research.get(id) ?? null),

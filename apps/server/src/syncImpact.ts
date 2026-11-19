@@ -116,8 +116,8 @@ export function probeImpact(db: DB, target: IngestTarget, parsed: ParseResult, s
   }
 
   // the member's sync hints (a copy of the context: its cached empire must not outlive the sync); unreadable data
-  // leaves them out
-  const hintsOf = ctx && ctx.user.id === target.userId && target.syncedBy == null ? () => syncHints(db, { ...ctx }).map((h) => h.key) : null;
+  // leaves them out; a universe.json changes none of the member's own pages
+  const hintsOf = ctx && ctx.user.id === target.userId && target.syncedBy == null && parsed.source !== 'json' ? () => syncHints(db, { ...ctx }).map((h) => h.key) : null;
   const tryHints = () => {
     try {
       return hintsOf?.() ?? null;

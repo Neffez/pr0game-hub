@@ -197,8 +197,8 @@ function ingestWith(db: DB, target: IngestTarget, input: ParseInput & { source: 
       summary.impact = res.impact;
       const day = dayOf(now(), target.timezone);
       const credits = [...res.credits];
-      // a "fresh" day for the member whose own pages are fresh enough after this sync
-      if (opts.ctx && target.syncedBy == null && (freshnessOf(db, { ...opts.ctx }, [target.userId]).get(target.userId)?.score ?? 0) >= FRESH_SCORE) {
+      // a "fresh" day for the member whose own pages are fresh enough after this sync (a universe.json has none of them)
+      if (opts.ctx && target.syncedBy == null && parsed.source !== 'json' && (freshnessOf(db, { ...opts.ctx }, [target.userId]).get(target.userId)?.score ?? 0) >= FRESH_SCORE) {
         credits.push({ kind: 'fresh' });
       }
       if (credits.length) addCredits(db, target.groupId, target.userId, day, credits);

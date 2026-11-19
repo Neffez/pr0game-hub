@@ -73,6 +73,18 @@ describe('freshness', () => {
     const health = await getJson('u8/alliance-health', admin);
     expect(health.members.find((m: any) => m.userId === carolId).freshness.score).toBeGreaterThan(0);
   });
+
+  it('gives one member the same freshness as the whole group does', async () => {
+    // another member's pages at the same place must not count for carol
+    const dave = Number(db.prepare("INSERT INTO users (username, password_hash) VALUES ('dave', 'x')").run().lastInsertRowid);
+    db.prepare('INSERT INTO group_members (group_id, user_id) VALUES (?, ?)').run(group, dave);
+    db.prepare("INSERT INTO building_snapshots (group_id, user_id, g, s, p, planet_type, page_time, data) VALUES (?, ?, 1, 100, 4, 'planet', ?, '{}')").run(group, dave, now());
+    db.prepare("INSERT INTO research_snapshots (group_id, user_id, g, s, p, planet_type, page_time, data) VALUES (?, ?, 1, 100, 4, 'planet', ?, '{}')").run(group, dave, now());
+    const own = (await getJson('u8/sync-hints')).freshness;
+    const all = (await getJson('u8/alliance-health', admin)).members.find((m: any) => m.userId === carolId).freshness;
+    expect(own).toEqual(all);
+    expect(own.parts.find((p: any) => p.key === 'buildings').value).toBe(0);
+  });
 });
 
 describe('alliance goals', () => {

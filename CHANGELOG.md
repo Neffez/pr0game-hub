@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-19
 
+- Syncs do less work: the freshness of one member (the "fresh day" credit after each sync, the sync hints' score)
+  reads only that member's pages and the galaxy systems around their planets instead of the whole group's, and a
+  universe.json upload skips the member's freshness and sync hints, which it cannot change (review R-03).
+
 - Auto plan API: the server keeps at most the three most recently started ended searches of a member (a new search
   drops older ones), so short searches one after another no longer pile up results in memory for an hour; documented
   in `openapi.yaml` (review R-02).
