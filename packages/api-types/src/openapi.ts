@@ -769,6 +769,57 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/{uni}/recap": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Recap of a period for the alliance (periods as in the ranking): syncs, active members, points and their kinds, badge levels reached in the period, highlights and what is still open, each with the same span before. */
+        get: operations["getRecap"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/{uni}/recap/text": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The recap as Markdown to copy (the text of the Discord post), with a link to the hub's page. */
+        get: operations["getRecapText"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/{uni}/recap/discord": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Posts the recap of a period to the alliance's Discord channel, optionally with a PNG of it; alliance admins. */
+        post: operations["sendRecapDiscord"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/{uni}/farm": {
         parameters: {
             query?: never;
@@ -3662,7 +3713,7 @@ export type components = {
             /** @description Start of the channel's webhook URL (the URL itself is never returned), null when none is set */
             webhook: string | null;
             /** @description All settings, the defaults filled in */
-            prefs: WithRequired<components["schemas"]["DiscordChannelPrefs"], "attacks" | "plans" | "launch" | "leadMinutes" | "lang" | "spying">;
+            prefs: WithRequired<components["schemas"]["DiscordChannelPrefs"], "attacks" | "plans" | "launch" | "leadMinutes" | "lang" | "spying" | "recap">;
         };
         DiscordChannelPrefs: {
             /** @description Hostile fleets heading for members (default on) */
@@ -3683,6 +3734,105 @@ export type components = {
             lang?: "de" | "en";
             /** @description Hostile espionage (mission 6) counts for `attacks` (default on) */
             spying?: boolean;
+            /** @description Last week's recap every Monday from 9 o'clock in the universe's time zone (default off) */
+            recap?: boolean;
+        };
+        RecapCompare: {
+            /** @description Value in the period */
+            now: number;
+            /** @description Value in the span before */
+            before: number;
+        };
+        Recap: {
+            /** @enum {string} */
+            period: "week" | "lastWeek" | "days30";
+            /** @description First day (YYYY-MM-DD) */
+            from: string;
+            /** @description Last day (YYYY-MM-DD) */
+            to: string;
+            /** @description The span compared with (the same days a week earlier, for days30 30 days earlier) */
+            previous: {
+                from: string;
+                to: string;
+            };
+            /** @description Members of the alliance */
+            members: number;
+            /** @description Syncs of pages with data */
+            syncs: components["schemas"]["RecapCompare"];
+            /** @description Members with points or syncs */
+            active: components["schemas"]["RecapCompare"];
+            /** @description Sync points of all members */
+            points: components["schemas"]["RecapCompare"];
+            /** @description Badges a member reached a new level of in the period */
+            newBadges: number;
+            /** @description Per kind with points (in the period or before), most points first */
+            kinds: {
+                /** @enum {string} */
+                kind: "galaxy" | "spy" | "empire" | "overview" | "hostile" | "battle" | "buildings" | "research" | "market" | "expedition" | "messages" | "stats" | "statsFirst";
+                /** @description Units in the period (systems, reports, days, …) */
+                units: number;
+                points: number;
+                /** @description Points in the span before */
+                before: number;
+            }[];
+            /** @description Every day of the period */
+            days: {
+                day: string;
+                syncs: number;
+                points: number;
+            }[];
+            /** @description The best member of each highlight that has one: `top` most points, `riser` largest gain of points against the span before, `cartographer` most galaxy systems, `scout` most spy reports, `streak` longest streak at the end of the period (from 2 days), `badges` most badge levels reached */
+            highlights: {
+                /** @enum {string} */
+                key: "top" | "riser" | "cartographer" | "scout" | "streak" | "badges";
+                userId: number;
+                name: string;
+                value: number;
+            }[];
+            /** @description Badge levels reached in the period, the highest per member and badge, highest level first */
+            badges: {
+                userId: number;
+                name: string;
+                /** @enum {string} */
+                key: "imperator" | "cartographer" | "scout" | "fleeter" | "expeditioner" | "trader" | "socializer" | "chronicler" | "fresh" | "streak" | "raider" | "collector" | "forist" | "miner";
+                level: number;
+            }[];
+            /** @description Every member, most points first */
+            rows: {
+                userId: number;
+                name: string;
+                points: number;
+                /** @description Points in the span before */
+                before: number;
+                syncs: number;
+                /** @description Streak at the end of the period */
+                streak: number;
+                /** @description Badge levels reached in the period */
+                badges: number;
+            }[];
+            /** @description What is open now (also for a past period) */
+            open: {
+                galaxy: {
+                    /** @description Systems seen within `days` (the galaxy goal's window) */
+                    fresh: number;
+                    total: number;
+                    days: number;
+                    /** @description The galaxy with the fewest fresh systems */
+                    weakest: {
+                        g: number;
+                        fresh: number;
+                        total: number;
+                    } | null;
+                };
+                /** @description Members without points in the period */
+                idle: number;
+                /** @description Members without an empire page in the period */
+                noEmpire: number;
+                goals: {
+                    reached: number;
+                    total: number;
+                };
+            };
         };
         ThreatPlayer: {
             /** @description Null when the hub only knows the name */
@@ -7613,6 +7763,165 @@ export interface operations {
             };
             /** @description Unknown period (`invalid_period`) */
             400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getRecap: {
+        parameters: {
+            query?: {
+                /** @description Alliance group id (alternative to `X-Hub-Group`, required for SSE) */
+                group?: components["parameters"]["HubGroupQuery"];
+                period?: "week" | "lastWeek" | "days30";
+            };
+            header?: {
+                /** @description Alliance group id (see `GET /api/auth/me`) */
+                "X-Hub-Group"?: components["parameters"]["HubGroupHeader"];
+            };
+            path: {
+                /** @description Universe slug (e.g. `u8`) */
+                uni: components["parameters"]["Uni"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Recap"];
+                };
+            };
+            /** @description Unknown period (`invalid_period`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    getRecapText: {
+        parameters: {
+            query?: {
+                /** @description Alliance group id (alternative to `X-Hub-Group`, required for SSE) */
+                group?: components["parameters"]["HubGroupQuery"];
+                period?: "week" | "lastWeek" | "days30";
+                /** @description Language (default: the caller's) */
+                lang?: "de" | "en";
+            };
+            header?: {
+                /** @description Alliance group id (see `GET /api/auth/me`) */
+                "X-Hub-Group"?: components["parameters"]["HubGroupHeader"];
+            };
+            path: {
+                /** @description Universe slug (e.g. `u8`) */
+                uni: components["parameters"]["Uni"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        text: string;
+                    };
+                };
+            };
+            /** @description Unknown period (`invalid_period`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+        };
+    };
+    sendRecapDiscord: {
+        parameters: {
+            query?: {
+                /** @description Alliance group id (alternative to `X-Hub-Group`, required for SSE) */
+                group?: components["parameters"]["HubGroupQuery"];
+            };
+            header?: {
+                /** @description Alliance group id (see `GET /api/auth/me`) */
+                "X-Hub-Group"?: components["parameters"]["HubGroupHeader"];
+            };
+            path: {
+                /** @description Universe slug (e.g. `u8`) */
+                uni: components["parameters"]["Uni"];
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    /**
+                     * @default week
+                     * @enum {string}
+                     */
+                    period?: "week" | "lastWeek" | "days30";
+                    /** @description PNG as base64 (or a data URL), at most 8 MB */
+                    image?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Discord took the message */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        ok: boolean;
+                    };
+                };
+            };
+            /** @description Unknown period or not a PNG (`invalid_period`, `recap_image_invalid`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Not an admin of the alliance (`group_admin_only`) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description No channel webhook set (`discord_not_configured`) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Error"];
+                };
+            };
+            /** @description Discord did not take the message (`discord_send_failed`) */
+            502: {
                 headers: {
                     [name: string]: unknown;
                 };

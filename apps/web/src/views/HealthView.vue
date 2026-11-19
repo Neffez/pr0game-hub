@@ -12,6 +12,7 @@ import FreshnessScore from '../components/FreshnessScore.vue';
 import AllianceGoals from '../components/AllianceGoals.vue';
 import HealthBadges from '../components/HealthBadges.vue';
 import HealthRanking from '../components/HealthRanking.vue';
+import HealthRecap from '../components/HealthRecap.vue';
 import { loadAchievements } from '../achievements';
 import { useClock } from '../clock';
 import { useLoader, useMobile, useStored, useUni } from '../composables';
@@ -32,9 +33,9 @@ const now = useClock();
 const { data, error, load } = useLoader(() => uniApi<AllianceHealth>(uni.value, '/alliance-health'));
 onMounted(load);
 useLiveReload(load, tables('empire', 'player_scores', 'overview', 'fleets', 'galaxy_systems'));
-/** Tabs: the members' health, streaks & badges, the ranking; from the link (`?tab=`), else the last one. */
-type Tab = 'members' | 'badges' | 'ranking';
-const TABS: Tab[] = ['members', 'badges', 'ranking'];
+/** Tabs: the members' health, streaks & badges, the ranking, the recap; from the link (`?tab=`), else the last one. */
+type Tab = 'members' | 'badges' | 'ranking' | 'recap';
+const TABS: Tab[] = ['members', 'badges', 'ranking', 'recap'];
 const route = useRoute();
 const router = useRouter();
 const storedTab = useStored<Tab>('health.tab', 'members');
@@ -86,6 +87,7 @@ const flagged = computed(() => (data.value?.members ?? []).filter((m) => m.flags
 
   <HealthBadges v-if="tab === 'badges'" />
   <HealthRanking v-else-if="tab === 'ranking'" />
+  <HealthRecap v-else-if="tab === 'recap'" />
   <template v-else>
     <AllianceGoals data-tour="health-goals" store-key="goals.health" />
     <div v-if="error" class="error">{{ error }}</div>

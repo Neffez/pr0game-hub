@@ -82,7 +82,7 @@ describe('discord settings', () => {
     expect((await call('PUT', `/admin/groups/${groupA}/discord`, h.carol, { webhook: 'https://x.org' })).statusCode).toBe(400);
     expect((await call('PUT', `/admin/groups/${groupA}/discord`, h.carol, { prefs: { lang: 'fr' } })).statusCode).toBe(400);
     const res = await call('PUT', `/admin/groups/${groupA}/discord`, h.carol, { webhook: HOOK.groupA });
-    expect(res.json()).toEqual({ webhook: 'discord.com/api/webhooks/100000…', prefs: { attacks: true, plans: true, launch: true, leadMinutes: 5, lang: 'de', spying: true } });
+    expect(res.json()).toEqual({ webhook: 'discord.com/api/webhooks/100000…', prefs: { attacks: true, plans: true, launch: true, leadMinutes: 5, lang: 'de', spying: true, recap: false } });
     await call('PUT', `/admin/groups/${groupB}/discord`, h.admin, { webhook: HOOK.groupB });
   });
 

@@ -71,7 +71,7 @@ describe('badges and ranking', () => {
     // newer again the same day: still one system-day
     await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers: carol, payload: { html: fixture('galaxy.html') } });
     await app.inject({ method: 'POST', url: '/hub/api/u8/ingest', headers: carol, payload: { html: fixture('empire.html') } });
-    const credits = db.prepare('SELECT kind, key FROM sync_credits WHERE group_id = ? AND user_id = ? ORDER BY kind').all(group, carolId);
+    const credits = db.prepare("SELECT kind, key FROM sync_credits WHERE group_id = ? AND user_id = ? AND kind <> 'sync' ORDER BY kind").all(group, carolId);
     expect(credits).toEqual([
       { kind: 'empire', key: '' },
       { kind: 'galaxy', key: expect.stringMatching(/^\d+:\d+$/) },

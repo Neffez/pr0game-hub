@@ -4,6 +4,8 @@ import type { DB } from '../db.js';
 import { channelPrefs, DISCORD_ID, isWebhook, parseChannelPrefs, webhookHint, type DiscordService } from '../discord.js';
 import { parsePushPrefs, pushPrefs } from '../push.js';
 import { requireGroupAdminOf } from './admin.js';
+import { periodOf } from './goals.js';
+import { contextOf } from './util.js';
 
 interface PersonalBody {
   webhook?: unknown;
@@ -23,6 +25,19 @@ function webhookOf(v: unknown): string | null | undefined {
   const url = String(v).trim();
   if (!isWebhook(url)) throw new HttpError(400, 'discord_webhook_invalid', 'Not a Discord webhook URL');
   return url;
+}
+
+/** A recap image may be this large (Discord takes up to 10 MB per message). */
+const MAX_IMAGE = 8 * 1024 * 1024;
+const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+
+/** A PNG from a request body (base64, optionally as a data URL); undefined without one. */
+function pngOf(v: unknown): Buffer | undefined {
+  if (v === undefined || v === null || v === '') return undefined;
+  if (typeof v !== 'string') throw new HttpError(400, 'recap_image_invalid', 'Not a PNG image');
+  const data = Buffer.from(v.replace(/^data:image\/png;base64,/, ''), 'base64');
+  if (data.length > MAX_IMAGE || !data.subarray(0, 8).equals(PNG)) throw new HttpError(400, 'recap_image_invalid', 'Not a PNG image');
+  return data;
 }
 
 const sendResult = (ok: boolean | null) => {
@@ -90,6 +105,15 @@ export function discordRoutes(app: FastifyInstance, db: DB, discord: DiscordServ
       if (prefs) db.prepare('UPDATE groups SET discord_prefs = ? WHERE id = ?').run(JSON.stringify(prefs), groupId);
     })();
     return channel(groupId);
+  });
+
+  /** The recap of a period to the alliance's channel, optionally with a PNG of it; alliance admins. */
+  const ctxOf = contextOf(db);
+  app.post<{ Params: { uni: string }; Body: { period?: unknown; image?: unknown } }>('/api/:uni/recap/discord', async (req) => {
+    const ctx = ctxOf(req);
+    requireGroupAdminOf(db, req, ctx.groupId);
+    const period = periodOf(req.body?.period === undefined ? undefined : String(req.body.period));
+    return sendResult(await discord.sendRecap(ctx, period, pngOf(req.body?.image)));
   });
 
   /** A test message to the group's channel. */

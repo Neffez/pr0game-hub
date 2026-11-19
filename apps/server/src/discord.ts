@@ -1,7 +1,7 @@
 import type { FastifyBaseLogger } from 'fastify';
 import type { SessionUser } from './auth.js';
 import { config } from './config.js';
-import { isRunning, resolveGroup } from './context.js';
+import { isRunning, resolveGroup, universeNow, type GroupContext, type Universe } from './context.js';
 import { now, type DB } from './db.js';
 import type { EventBus } from './events.js';
 import { AlertSchedule, GroupDebounce, groupUniverse, dropHeld, dueHeld, heldBy, heldTargets, hold, quietBreakOf, sentHeld, SENT_KEEP, storageMuted, TICK_AHEAD, TICK_MS } from './notify.js';
@@ -9,6 +9,9 @@ import {
   accessRequestAdmins, accessRequestPayload, LEAD_MINUTES, payloadOf, pushPrefs, samplePayload, SPY_MISSION, testPayload, wanted, type ParserSample, type PushLang, type PushPayload,
 } from './push.js';
 import { channelNotificationsFor, notificationsFor, type ChannelNotification, type Notification } from './repo/notifications.js';
+import { addDays, dayOf } from './repo/achievements.js';
+import { recap, type Recap } from './repo/recap.js';
+import { recapMessage } from './recapText.js';
 
 /**
  * Discord: the bell's notifications sent to a user's own webhook (settings like push, see push.ts), and attacks on
@@ -27,10 +30,12 @@ export interface ChannelPrefs {
   lang: PushLang;
   /** hostile espionage counts as an attack */
   spying: boolean;
+  /** the recap of last week every Monday morning */
+  recap: boolean;
 }
 
-export const CHANNEL_DEFAULTS: ChannelPrefs = { attacks: true, plans: true, launch: true, leadMinutes: 5, lang: 'de', spying: true };
-const CHANNEL_FLAGS = ['attacks', 'plans', 'launch', 'spying'] as const;
+export const CHANNEL_DEFAULTS: ChannelPrefs = { attacks: true, plans: true, launch: true, leadMinutes: 5, lang: 'de', spying: true, recap: false };
+const CHANNEL_FLAGS = ['attacks', 'plans', 'launch', 'spying', 'recap'] as const;
 
 export function channelPrefs(db: DB, groupId: number): ChannelPrefs {
   const raw = db.prepare('SELECT discord_prefs FROM groups WHERE id = ?').pluck().get(groupId) as string | null | undefined;
@@ -69,6 +74,8 @@ export interface DiscordEmbed {
   description: string;
   url?: string;
   color: number;
+  /** `attachment://<name>` for a file sent with the message */
+  image?: { url: string };
 }
 
 export interface DiscordMessage {
@@ -77,15 +84,28 @@ export interface DiscordMessage {
   allowed_mentions: { parse: []; users: string[] };
 }
 
-/** Posts one message to a webhook; resolves with the HTTP status (`retryAfter` in seconds for 429). */
-export type DiscordSender = (url: string, message: DiscordMessage) => Promise<{ status: number; retryAfter?: number }>;
+/** A file posted with a message (a PNG image). */
+export interface DiscordFile {
+  name: string;
+  data: Buffer;
+}
 
-const fetchSender: DiscordSender = async (url, message) => {
+/** Posts one message to a webhook; resolves with the HTTP status (`retryAfter` in seconds for 429). */
+export type DiscordSender = (url: string, message: DiscordMessage, files?: DiscordFile[]) => Promise<{ status: number; retryAfter?: number }>;
+
+const fetchSender: DiscordSender = async (url, message, files) => {
+  let payload: string | FormData = JSON.stringify(message);
+  if (files?.length) {
+    const form = new FormData();
+    form.set('payload_json', payload);
+    files.forEach((f, i) => form.set(`files[${i}]`, new Blob([new Uint8Array(f.data)], { type: 'image/png' }), f.name));
+    payload = form;
+  }
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(message),
-    signal: AbortSignal.timeout(10_000),
+    ...(typeof payload === 'string' ? { headers: { 'content-type': 'application/json' } } : {}),
+    body: payload,
+    signal: AbortSignal.timeout(files?.length ? 30_000 : 10_000),
   });
   if (res.status !== 429) return { status: res.status };
   const body = (await res.json().catch(() => ({}))) as { retry_after?: number };
@@ -96,6 +116,10 @@ const fetchSender: DiscordSender = async (url, message) => {
 const EMBEDS_PER_MESSAGE = 10;
 /** A rate limit is waited for once if it ends within this many seconds. */
 const MAX_RETRY_AFTER = 10;
+/** Colour of the recap's embed: the hub's accent. */
+const RECAP_COLOR = 0xf2683c;
+/** The weekly recap goes out on Mondays from this hour on (universe's time zone). */
+export const RECAP_HOUR = 9;
 const COLORS: Record<ChannelNotification['kind'] | Notification['kind'] | 'access', number> = {
   attack: 0xe74c3c, launch: 0xf39c12, invite: 0x3498db, plan: 0x3498db, comment: 0x95a5a6, building: 0x2ecc71, fleet: 0x6e8eea, storage: 0xe67e22, settlement: 0xf1c40f, buildorder: 0x27ae60, phalanx: 0x9b59b6, access: 0x1abc9c,
 };
@@ -145,6 +169,7 @@ export class DiscordService {
 
   async tick(t = now()) {
     await this.flushHeld(t);
+    await this.weeklyRecaps(t);
     const groups = this.db
       .prepare(
         `SELECT DISTINCT a.group_id FROM attack_plans a JOIN attack_plan_fleets f ON f.plan_id = a.id JOIN groups g ON g.id = a.group_id
@@ -287,6 +312,47 @@ export class DiscordService {
     return this.send(this.groupTarget(groupId, url), [{ kind: 'plan', payload: testPayload(channelPrefs(this.db, groupId).lang, 'discordTest') }]);
   }
 
+  /**
+   * The group's recap of `period` to its channel (title and text as an embed, with `image` a PNG of it attached);
+   * null without a webhook, false when Discord refused it.
+   */
+  async sendRecap(ctx: GroupContext, period: Recap['period'], image?: Buffer): Promise<boolean | null> {
+    const url = this.db.prepare('SELECT discord_webhook FROM groups WHERE id = ?').pluck().get(ctx.groupId) as string | null;
+    if (!url) return null;
+    return this.postRecap(this.groupTarget(ctx.groupId, url), ctx, period, image);
+  }
+
+  /** Mondays from `RECAP_HOUR` on: last week's recap to the channels that want it, once per group and week. */
+  async weeklyRecaps(t = now()) {
+    const rows = this.db.prepare('SELECT id, discord_webhook, discord_prefs FROM groups WHERE discord_webhook IS NOT NULL').all() as { id: number; discord_webhook: string; discord_prefs: string | null }[];
+    for (const row of rows) {
+      if (!channelPrefs(this.db, row.id).recap) continue;
+      const universe = groupUniverse(this.db, row.id);
+      if (!universe || !isRunning(universe, t)) continue;
+      const tz = universe.settings.timezone;
+      const today = dayOf(t, tz);
+      const hour = Number(new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', hourCycle: 'h23' }).format(new Date(t * 1000)));
+      if (new Date(`${today}T12:00:00Z`).getUTCDay() !== 1 || hour < RECAP_HOUR) continue;
+      const key = `recap:${addDays(today, -7)}`;
+      if (this.db.prepare('SELECT 1 FROM discord_sent WHERE target = ? AND key = ?').get(`g:${row.id}`, key)) continue;
+      // marked first: a failing webhook is not tried again every tick
+      this.db.prepare('INSERT OR IGNORE INTO discord_sent (target, key, sent_at) VALUES (?, ?, ?)').run(`g:${row.id}`, key, t);
+      const ctx = channelContext(this.db, universe, row.id, t);
+      await this.postRecap(this.groupTarget(row.id, row.discord_webhook), ctx, 'lastWeek');
+    }
+  }
+
+  private async postRecap(target: Target, ctx: GroupContext, period: Recap['period'], image?: Buffer): Promise<boolean> {
+    const data = recap(this.db, ctx, period);
+    const { title, body } = recapMessage(data, channelPrefs(this.db, ctx.groupId).lang);
+    const link = config.publicUrl ? `${config.publicUrl}${config.basePath}/${ctx.universe.slug}/health?tab=recap&group=${ctx.groupId}` : undefined;
+    const message: DiscordMessage = {
+      embeds: [{ title: title.slice(0, 256), description: body.slice(0, 4096), color: RECAP_COLOR, ...(link ? { url: link } : {}), ...(image ? { image: { url: 'attachment://recap.png' } } : {}) }],
+      allowed_mentions: { parse: [], users: [] },
+    };
+    return (await this.post(target, message, image ? [{ name: 'recap.png', data: image }] : undefined)) ?? false;
+  }
+
   private userTarget(userId: number, url: string): Target {
     return { key: `user ${userId}`, url, clear: () => this.db.prepare('UPDATE users SET discord_webhook = NULL WHERE id = ? AND discord_webhook = ?').run(userId, url) };
   }
@@ -311,28 +377,43 @@ export class DiscordService {
         })),
         allowed_mentions: { parse: [], users: mentions },
       };
-      try {
-        let res = await this.sender(target.url, message);
-        if (res.status === 429 && (res.retryAfter ?? 0) <= MAX_RETRY_AFTER) {
-          await new Promise((r) => setTimeout(r, Math.ceil((res.retryAfter ?? 1) * 1000)));
-          res = await this.sender(target.url, message);
-        }
-        if (res.status === 401 || res.status === 404) {
-          target.clear();
-          this.log?.info({ target: target.key }, 'discord webhook gone, removed');
-          return false;
-        }
-        if (res.status < 200 || res.status >= 300) {
-          ok = false;
-          this.log?.warn({ target: target.key, status: res.status }, 'discord send failed');
-        }
-      } catch (err) {
-        ok = false;
-        this.log?.warn({ target: target.key, err: (err as Error).message }, 'discord send failed');
-      }
+      const res = await this.post(target, message);
+      if (res === null) return false;
+      if (!res) ok = false;
     }
     return ok;
   }
+
+  /** Posts one message (one retry after a short rate limit); null when the webhook is gone (it is removed then). */
+  private async post(target: Target, message: DiscordMessage, files?: DiscordFile[]): Promise<boolean | null> {
+    try {
+      let res = await this.sender(target.url, message, files);
+      if (res.status === 429 && (res.retryAfter ?? 0) <= MAX_RETRY_AFTER) {
+        await new Promise((r) => setTimeout(r, Math.ceil((res.retryAfter ?? 1) * 1000)));
+        res = await this.sender(target.url, message, files);
+      }
+      if (res.status === 401 || res.status === 404) {
+        target.clear();
+        this.log?.info({ target: target.key }, 'discord webhook gone, removed');
+        return null;
+      }
+      if (res.status < 200 || res.status >= 300) {
+        this.log?.warn({ target: target.key, status: res.status }, 'discord send failed');
+        return false;
+      }
+      return true;
+    } catch (err) {
+      this.log?.warn({ target: target.key, err: (err as Error).message }, 'discord send failed');
+      return false;
+    }
+  }
+}
+
+/** A group's context without a member (for what goes to its channel). */
+function channelContext(db: DB, universe: Universe, groupId: number, t: number): GroupContext {
+  const g = db.prepare('SELECT name, tag FROM groups WHERE id = ?').get(groupId) as { name: string; tag: string | null };
+  const user: SessionUser = { id: 0, username: '', isAdmin: false, lang: 'de', dateFormat: 'de' };
+  return { user, universe, groupId, groupName: g.name, groupTag: g.tag, role: 'member', now: universeNow(universe, t) };
 }
 
 /** Whether the group's channel wants this notification now (launch reminders from its lead time on). */

@@ -192,15 +192,8 @@ const groupTag = ref('');
 watch(group, (g) => { groupName.value = g?.name ?? ''; groupTag.value = g?.tag ?? ''; }, { immediate: true });
 
 /** The alliance's Discord channel (server: discord.ts): only the webhook's start comes back. */
-interface ChannelPrefs {
-  attacks: boolean;
-  plans: boolean;
-  launch: boolean;
-  leadMinutes: number;
-  lang: 'de' | 'en';
-  spying: boolean;
-}
-const CHANNEL_KINDS = ['attacks', 'plans', 'launch'] as const;
+type ChannelPrefs = ApiResponse<'/api/admin/groups/{id}/discord'>['prefs'];
+const CHANNEL_KINDS = ['attacks', 'plans', 'launch', 'recap'] as const;
 const LEAD_MINUTES = [1, 2, 5, 10, 15, 30];
 const discord = ref<{ webhook: string | null; prefs: ChannelPrefs } | null>(null);
 const discordWebhook = ref('');

@@ -59,6 +59,8 @@ export type Achievements = ApiResponse<'/api/{uni}/achievements'>;
 export type MemberAchievements = Achievements['members'][number];
 export type Badge = MemberAchievements['badges'][number];
 export type Ranking = ApiResponse<'/api/{uni}/ranking'>;
+export type Recap = Schema<'Recap'>;
+export type RecapText = ApiResponse<'/api/{uni}/recap/text'>;
 
 export type FarmTargets = ApiResponse<'/api/{uni}/farm'>;
 export type FarmTarget = Schema<'FarmTarget'>;

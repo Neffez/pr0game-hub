@@ -55,6 +55,16 @@ export function addDays(day: string, n: number): string {
 /** Start of a day in the universe's time zone, Unix seconds. */
 const dayStart = (day: string, timeZone: string) => localToEpoch(`${day} 00:00:00`, timeZone);
 
+/**
+ * Counts one sync of a page with data for the member who pasted it (kind `sync`, key: the page type, `count` adds up);
+ * the recap's number of syncs. Not part of the points.
+ */
+export function countSync(db: DB, groupId: number, userId: number, day: string, pageType: string) {
+  db.prepare(
+    "INSERT INTO sync_credits (group_id, user_id, day, kind, key, count) VALUES (?, ?, ?, 'sync', ?, 1) ON CONFLICT (group_id, user_id, day, kind, key) DO UPDATE SET count = count + 1",
+  ).run(groupId, userId, day, pageType);
+}
+
 /** Stores the credits of one sync for the member (a unit already credited that day stays as it is). */
 export function addCredits(db: DB, groupId: number, userId: number, day: string, credits: Credit[]) {
   const put = db.prepare('INSERT OR IGNORE INTO sync_credits (group_id, user_id, day, kind, key) VALUES (?, ?, ?, ?, ?)');
@@ -156,33 +166,37 @@ export interface MemberAchievements {
   badges: Badge[];
 }
 
-/** Badges and streak of every member of the group. */
-export function achievements(db: DB, ctx: GroupContext): MemberAchievements[] {
+/**
+ * Badges and streak of every member of the group; with `asOf` (YYYY-MM-DD) as they were at the end of that day
+ * (counts and streak from the data up to then), else today.
+ */
+export function achievements(db: DB, ctx: GroupContext, asOf?: string): MemberAchievements[] {
   const g = ctx.groupId;
   const tz = ctx.universe.settings.timezone;
-  const today = dayOf(ctx.now, tz);
-  const since = ctx.now - HISTORY_DAYS * 86400;
+  const today = asOf ?? dayOf(ctx.now, tz);
+  const end = dayStart(addDays(today, 1), tz);
+  const since = dayStart(today, tz) - HISTORY_DAYS * 86400;
   const members = db
     .prepare(`SELECT m.user_id, ${DISPLAY} AS name FROM group_members m JOIN users u ON u.id = m.user_id WHERE m.group_id = ? ORDER BY name COLLATE NOCASE`)
     .all(g) as { user_id: number; name: string }[];
 
   const byUser = (sql: string, ...args: unknown[]) =>
     new Map((db.prepare(sql).all(g, ...args) as { user_id: number; n: number }[]).map((r) => [r.user_id, r.n]));
-  const credits = (kind: CreditKind) => byUser('SELECT user_id, COUNT(*) AS n FROM sync_credits WHERE group_id = ? AND kind = ? GROUP BY user_id', kind);
+  const credits = (kind: CreditKind) => byUser('SELECT user_id, COUNT(*) AS n FROM sync_credits WHERE group_id = ? AND kind = ? AND day <= ? GROUP BY user_id', kind, today);
   const counts: Record<BadgeKey, Map<number, number>> = {
     imperator: credits('empire'),
     cartographer: credits('galaxy'),
-    scout: byUser('SELECT user_id, COUNT(*) AS n FROM spy_reports WHERE group_id = ? AND user_id IS NOT NULL GROUP BY user_id'),
-    fleeter: byUser('SELECT user_id, COUNT(*) AS n FROM battle_reports WHERE group_id = ? AND user_id IS NOT NULL GROUP BY user_id'),
-    expeditioner: byUser('SELECT user_id, COUNT(*) AS n FROM expeditions WHERE group_id = ? GROUP BY user_id'),
+    scout: byUser('SELECT user_id, COUNT(*) AS n FROM spy_reports WHERE group_id = ? AND user_id IS NOT NULL AND created_at < ? GROUP BY user_id', end),
+    fleeter: byUser('SELECT user_id, COUNT(*) AS n FROM battle_reports WHERE group_id = ? AND user_id IS NOT NULL AND created_at < ? GROUP BY user_id', end),
+    expeditioner: byUser('SELECT user_id, COUNT(*) AS n FROM expeditions WHERE group_id = ? AND created_at < ? GROUP BY user_id', end),
     trader: credits('market'),
-    socializer: byUser('SELECT user_id, COUNT(*) AS n FROM player_messages WHERE group_id = ? GROUP BY user_id'),
+    socializer: byUser('SELECT user_id, COUNT(*) AS n FROM player_messages WHERE group_id = ? AND created_at < ? GROUP BY user_id', end),
     chronicler: credits('statsFirst'),
     fresh: credits('fresh'),
     streak: new Map(),
-    raider: byUser("SELECT user_id, COUNT(*) AS n FROM attack_plans WHERE group_id = ? AND mission = 'attack' AND status <> 'cancelled' GROUP BY user_id"),
-    collector: byUser('SELECT finalized_by AS user_id, COUNT(*) AS n FROM raid_settlements WHERE group_id = ? AND finalized_by IS NOT NULL GROUP BY finalized_by'),
-    forist: byUser('SELECT user_id, COUNT(*) AS n FROM comments WHERE group_id = ? AND player_id IS NOT NULL AND user_id IS NOT NULL GROUP BY user_id'),
+    raider: byUser("SELECT user_id, COUNT(*) AS n FROM attack_plans WHERE group_id = ? AND mission = 'attack' AND status <> 'cancelled' AND created_at < ? GROUP BY user_id", end),
+    collector: byUser('SELECT finalized_by AS user_id, COUNT(*) AS n FROM raid_settlements WHERE group_id = ? AND finalized_by IS NOT NULL AND finalized_at < ? GROUP BY finalized_by', end),
+    forist: byUser('SELECT user_id, COUNT(*) AS n FROM comments WHERE group_id = ? AND player_id IS NOT NULL AND user_id IS NOT NULL AND created_at < ? GROUP BY user_id', end),
     miner: credits('miner'),
   };
 
@@ -194,16 +208,16 @@ export function achievements(db: DB, ctx: GroupContext): MemberAchievements[] {
     s.add(day);
   };
   for (const r of db
-    .prepare("SELECT DISTINCT user_id, day FROM sync_credits WHERE group_id = ? AND kind IN ('empire', 'overview', 'buildings', 'research') AND day >= ?")
-    .all(g, dayOf(since, tz)) as { user_id: number; day: string }[]) addDay(r.user_id, r.day);
+    .prepare("SELECT DISTINCT user_id, day FROM sync_credits WHERE group_id = ? AND kind IN ('empire', 'overview', 'buildings', 'research') AND day >= ? AND day <= ?")
+    .all(g, dayOf(since, tz), today) as { user_id: number; day: string }[]) addDay(r.user_id, r.day);
   const hours = (sql: string) => {
-    for (const r of db.prepare(sql).all(g, since) as { user_id: number; h: number }[]) addDay(r.user_id, dayOf(r.h * 3600, tz));
+    for (const r of db.prepare(sql).all(g, since, end) as { user_id: number; h: number }[]) addDay(r.user_id, dayOf(r.h * 3600, tz));
   };
-  hours('SELECT DISTINCT user_id, created_at / 3600 AS h FROM spy_reports WHERE group_id = ? AND created_at >= ? AND user_id IS NOT NULL');
-  hours('SELECT DISTINCT user_id, created_at / 3600 AS h FROM battle_reports WHERE group_id = ? AND created_at >= ? AND user_id IS NOT NULL');
-  hours('SELECT DISTINCT user_id, created_at / 3600 AS h FROM expeditions WHERE group_id = ? AND created_at >= ?');
-  hours('SELECT DISTINCT user_id, created_at / 3600 AS h FROM player_messages WHERE group_id = ? AND created_at >= ?');
-  hours('SELECT DISTINCT user_id, time / 3600 AS h FROM hostile_spying WHERE group_id = ? AND time >= ? AND user_id IS NOT NULL');
+  hours('SELECT DISTINCT user_id, created_at / 3600 AS h FROM spy_reports WHERE group_id = ? AND created_at >= ? AND created_at < ? AND user_id IS NOT NULL');
+  hours('SELECT DISTINCT user_id, created_at / 3600 AS h FROM battle_reports WHERE group_id = ? AND created_at >= ? AND created_at < ? AND user_id IS NOT NULL');
+  hours('SELECT DISTINCT user_id, created_at / 3600 AS h FROM expeditions WHERE group_id = ? AND created_at >= ? AND created_at < ?');
+  hours('SELECT DISTINCT user_id, created_at / 3600 AS h FROM player_messages WHERE group_id = ? AND created_at >= ? AND created_at < ?');
+  hours('SELECT DISTINCT user_id, time / 3600 AS h FROM hostile_spying WHERE group_id = ? AND time >= ? AND time < ? AND user_id IS NOT NULL');
 
   // vacation mode of the members' players over time (status log: the status from each entry on)
   const players = memberPlayers(db, ctx);
@@ -253,34 +267,60 @@ export function periodDays(period: RankingPeriod, today: string): { from: string
   return { from: addDays(today, -29), to: today };
 }
 
-/** Points of every member over a period, best first. */
-export function ranking(db: DB, ctx: GroupContext, period: RankingPeriod): { from: string; to: string; rows: RankingRow[] } {
+/** Units that earn points: per member, day (universe's time zone) and kind, how many. */
+export interface PointUnit {
+  userId: number;
+  day: string;
+  kind: PointKind;
+  n: number;
+}
+
+/** The point units of the group's members from day `from` to day `to` (both included). */
+export function pointUnits(db: DB, ctx: GroupContext, from: string, to: string): PointUnit[] {
   const g = ctx.groupId;
   const tz = ctx.universe.settings.timezone;
-  const { from, to } = periodDays(period, dayOf(ctx.now, tz));
   const start = dayStart(from, tz);
   const end = dayStart(addDays(to, 1), tz);
-  const members = db
-    .prepare(`SELECT m.user_id, ${DISPLAY} AS name FROM group_members m JOIN users u ON u.id = m.user_id WHERE m.group_id = ?`)
-    .all(g) as { user_id: number; name: string }[];
-  const rows = new Map<number, RankingRow>(members.map((m) => [m.user_id, { userId: m.user_id, name: m.name, points: 0, parts: {} }]));
-  const add = (userId: number, kind: PointKind, n: number) => {
-    const row = rows.get(userId);
-    if (!row || !n) return;
-    const p = n * POINTS[kind];
-    row.parts[kind] = (row.parts[kind] ?? 0) + p;
-    row.points += p;
+  const units = new Map<string, PointUnit>();
+  const add = (userId: number, day: string, kind: PointKind, n: number) => {
+    const k = `${userId}|${day}|${kind}`;
+    const u = units.get(k);
+    if (u) u.n += n;
+    else units.set(k, { userId, day, kind, n });
   };
   for (const r of db
-    .prepare("SELECT user_id, kind, SUM(count) AS n FROM sync_credits WHERE group_id = ? AND day BETWEEN ? AND ? AND kind NOT IN ('fresh', 'miner') GROUP BY user_id, kind")
-    .all(g, from, to) as { user_id: number; kind: PointKind; n: number }[]) add(r.user_id, r.kind, r.n);
+    .prepare("SELECT user_id, day, kind, SUM(count) AS n FROM sync_credits WHERE group_id = ? AND day BETWEEN ? AND ? AND kind NOT IN ('fresh', 'miner', 'sync') GROUP BY user_id, day, kind")
+    .all(g, from, to) as { user_id: number; day: string; kind: PointKind; n: number }[]) add(r.user_id, r.day, r.kind, r.n);
+  // reports by the hour they were stored, the hour's day in the universe's time zone
   const counted = (kind: PointKind, sql: string) => {
-    for (const r of db.prepare(sql).all(g, start, end) as { user_id: number; n: number }[]) add(r.user_id, kind, r.n);
+    for (const r of db.prepare(sql).all(g, start, end) as { user_id: number; h: number; n: number }[]) add(r.user_id, dayOf(r.h * 3600, tz), kind, r.n);
   };
-  counted('spy', 'SELECT user_id, COUNT(*) AS n FROM spy_reports WHERE group_id = ? AND created_at >= ? AND created_at < ? AND user_id IS NOT NULL GROUP BY user_id');
-  counted('battle', 'SELECT user_id, COUNT(*) AS n FROM battle_reports WHERE group_id = ? AND created_at >= ? AND created_at < ? AND user_id IS NOT NULL GROUP BY user_id');
-  counted('expedition', 'SELECT user_id, COUNT(*) AS n FROM expeditions WHERE group_id = ? AND created_at >= ? AND created_at < ? GROUP BY user_id');
-  counted('messages', 'SELECT user_id, COUNT(*) AS n FROM player_messages WHERE group_id = ? AND created_at >= ? AND created_at < ? GROUP BY user_id');
-  counted('hostile', 'SELECT user_id, COUNT(*) AS n FROM hostile_spying WHERE group_id = ? AND time >= ? AND time < ? AND user_id IS NOT NULL GROUP BY user_id');
-  return { from, to, rows: [...rows.values()].sort((a, b) => b.points - a.points || a.name.localeCompare(b.name)) };
+  counted('spy', 'SELECT user_id, created_at / 3600 AS h, COUNT(*) AS n FROM spy_reports WHERE group_id = ? AND created_at >= ? AND created_at < ? AND user_id IS NOT NULL GROUP BY user_id, h');
+  counted('battle', 'SELECT user_id, created_at / 3600 AS h, COUNT(*) AS n FROM battle_reports WHERE group_id = ? AND created_at >= ? AND created_at < ? AND user_id IS NOT NULL GROUP BY user_id, h');
+  counted('expedition', 'SELECT user_id, created_at / 3600 AS h, COUNT(*) AS n FROM expeditions WHERE group_id = ? AND created_at >= ? AND created_at < ? GROUP BY user_id, h');
+  counted('messages', 'SELECT user_id, created_at / 3600 AS h, COUNT(*) AS n FROM player_messages WHERE group_id = ? AND created_at >= ? AND created_at < ? GROUP BY user_id, h');
+  counted('hostile', 'SELECT user_id, time / 3600 AS h, COUNT(*) AS n FROM hostile_spying WHERE group_id = ? AND time >= ? AND time < ? AND user_id IS NOT NULL GROUP BY user_id, h');
+  return [...units.values()];
+}
+
+/** Points of every member over a period, best first. */
+export function ranking(db: DB, ctx: GroupContext, period: RankingPeriod): { from: string; to: string; rows: RankingRow[] } {
+  const { from, to } = periodDays(period, dayOf(ctx.now, ctx.universe.settings.timezone));
+  return { from, to, rows: rankRows(db, ctx, pointUnits(db, ctx, from, to)) };
+}
+
+/** Every member with the points of the units, best first. */
+export function rankRows(db: DB, ctx: GroupContext, units: PointUnit[]): RankingRow[] {
+  const members = db
+    .prepare(`SELECT m.user_id, ${DISPLAY} AS name FROM group_members m JOIN users u ON u.id = m.user_id WHERE m.group_id = ?`)
+    .all(ctx.groupId) as { user_id: number; name: string }[];
+  const rows = new Map<number, RankingRow>(members.map((m) => [m.user_id, { userId: m.user_id, name: m.name, points: 0, parts: {} }]));
+  for (const u of units) {
+    const row = rows.get(u.userId);
+    if (!row || !u.n) continue;
+    const p = u.n * POINTS[u.kind];
+    row.parts[u.kind] = (row.parts[u.kind] ?? 0) + p;
+    row.points += p;
+  }
+  return [...rows.values()].sort((a, b) => b.points - a.points || a.name.localeCompare(b.name));
 }

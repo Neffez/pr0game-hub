@@ -864,7 +864,7 @@ components:
         prefs:
           description: All settings, the defaults filled in
           allOf: [{ $ref: '#/components/schemas/DiscordChannelPrefs' }]
-          required: [attacks, plans, launch, leadMinutes, lang, spying]
+          required: [attacks, plans, launch, leadMinutes, lang, spying, recap]
     DiscordChannelPrefs:
       type: object
       properties:
@@ -874,6 +874,120 @@ components:
         leadMinutes: { type: integer, enum: [1, 2, 5, 10, 15, 30], description: Launch reminder this many minutes ahead (default 5) }
         lang: { type: string, enum: [de, en], description: Language of the channel's messages (default de) }
         spying: { type: boolean, description: 'Hostile espionage (mission 6) counts for `attacks` (default on)' }
+        recap: { type: boolean, description: Last week's recap every Monday from 9 o'clock in the universe's time zone (default off) }
+    RecapCompare:
+      type: object
+      required: [now, before]
+      properties:
+        now: { type: integer, description: Value in the period }
+        before: { type: integer, description: Value in the span before }
+    Recap:
+      type: object
+      required: [period, from, to, previous, members, syncs, active, points, newBadges, kinds, days, highlights, badges, rows, open]
+      properties:
+        period: { type: string, enum: [week, lastWeek, days30] }
+        from: { type: string, description: First day (YYYY-MM-DD) }
+        to: { type: string, description: Last day (YYYY-MM-DD) }
+        previous:
+          type: object
+          description: The span compared with (the same days a week earlier, for days30 30 days earlier)
+          required: [from, to]
+          properties:
+            from: { type: string }
+            to: { type: string }
+        members: { type: integer, description: Members of the alliance }
+        syncs: { $ref: '#/components/schemas/RecapCompare', description: Syncs of pages with data }
+        active: { $ref: '#/components/schemas/RecapCompare', description: Members with points or syncs }
+        points: { $ref: '#/components/schemas/RecapCompare', description: Sync points of all members }
+        newBadges: { type: integer, description: Badges a member reached a new level of in the period }
+        kinds:
+          type: array
+          description: Per kind with points (in the period or before), most points first
+          items:
+            type: object
+            required: [kind, units, points, before]
+            properties:
+              kind: { type: string, enum: [galaxy, spy, empire, overview, hostile, battle, buildings, research, market, expedition, messages, stats, statsFirst] }
+              units: { type: integer, description: 'Units in the period (systems, reports, days, …)' }
+              points: { type: integer }
+              before: { type: integer, description: Points in the span before }
+        days:
+          type: array
+          description: Every day of the period
+          items:
+            type: object
+            required: [day, syncs, points]
+            properties:
+              day: { type: string }
+              syncs: { type: integer }
+              points: { type: integer }
+        highlights:
+          type: array
+          description: >-
+            The best member of each highlight that has one: `top` most points, `riser` largest gain of points against
+            the span before, `cartographer` most galaxy systems, `scout` most spy reports, `streak` longest streak at the
+            end of the period (from 2 days), `badges` most badge levels reached
+          items:
+            type: object
+            required: [key, userId, name, value]
+            properties:
+              key: { type: string, enum: [top, riser, cartographer, scout, streak, badges] }
+              userId: { type: integer }
+              name: { type: string }
+              value: { type: integer }
+        badges:
+          type: array
+          description: Badge levels reached in the period, the highest per member and badge, highest level first
+          items:
+            type: object
+            required: [userId, name, key, level]
+            properties:
+              userId: { type: integer }
+              name: { type: string }
+              key: { type: string, enum: [imperator, cartographer, scout, fleeter, expeditioner, trader, socializer, chronicler, fresh, streak, raider, collector, forist, miner] }
+              level: { type: integer }
+        rows:
+          type: array
+          description: Every member, most points first
+          items:
+            type: object
+            required: [userId, name, points, before, syncs, streak, badges]
+            properties:
+              userId: { type: integer }
+              name: { type: string }
+              points: { type: integer }
+              before: { type: integer, description: Points in the span before }
+              syncs: { type: integer }
+              streak: { type: integer, description: Streak at the end of the period }
+              badges: { type: integer, description: Badge levels reached in the period }
+        open:
+          type: object
+          description: What is open now (also for a past period)
+          required: [galaxy, idle, noEmpire, goals]
+          properties:
+            galaxy:
+              type: object
+              required: [fresh, total, days, weakest]
+              properties:
+                fresh: { type: integer, description: 'Systems seen within `days` (the galaxy goal''s window)' }
+                total: { type: integer }
+                days: { type: integer }
+                weakest:
+                  type: [object, 'null']
+                  description: The galaxy with the fewest fresh systems
+                  required: [g, fresh, total]
+                  properties:
+                    g: { type: integer }
+                    fresh: { type: integer }
+                    total: { type: integer }
+            idle: { type: integer, description: Members without points in the period }
+            noEmpire: { type: integer, description: Members without an empire page in the period }
+            goals:
+              type: object
+              required: [reached, total]
+              properties:
+                reached: { type: integer }
+                total: { type: integer }
     ThreatPlayer:
       type: object
       required: [id, name, status, allyTag]
@@ -4151,6 +4265,101 @@ paths:
                         parts: { type: object, additionalProperties: { type: integer }, description: Points per kind (galaxy, spy, empire, …) }
         '400':
           description: Unknown period (`invalid_period`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /api/{uni}/recap:
+    get:
+      tags: [Universe]
+      operationId: getRecap
+      description: >-
+        Recap of a period for the alliance (periods as in the ranking): syncs, active members, points and their kinds,
+        badge levels reached in the period, highlights and what is still open, each with the same span before.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+        - { name: period, in: query, schema: { type: string, enum: [week, lastWeek, days30], default: week } }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Recap' }
+        '400':
+          description: Unknown period (`invalid_period`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /api/{uni}/recap/text:
+    get:
+      tags: [Universe]
+      operationId: getRecapText
+      description: The recap as Markdown to copy (the text of the Discord post), with a link to the hub's page.
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+        - { name: period, in: query, schema: { type: string, enum: [week, lastWeek, days30], default: week } }
+        - { name: lang, in: query, schema: { type: string, enum: [de, en] }, description: "Language (default: the caller's)" }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [text]
+                properties:
+                  text: { type: string }
+        '400':
+          description: Unknown period (`invalid_period`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+  /api/{uni}/recap/discord:
+    post:
+      tags: [Universe]
+      operationId: sendRecapDiscord
+      description: Posts the recap of a period to the alliance's Discord channel, optionally with a PNG of it; alliance admins.
+      security: [{ sessionCookie: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                period: { type: string, enum: [week, lastWeek, days30], default: week }
+                image: { type: string, description: 'PNG as base64 (or a data URL), at most 8 MB' }
+      responses:
+        '200':
+          description: Discord took the message
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok: { type: boolean }
+        '400':
+          description: Unknown period or not a PNG (`invalid_period`, `recap_image_invalid`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '403':
+          description: Not an admin of the alliance (`group_admin_only`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '409':
+          description: No channel webhook set (`discord_not_configured`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '502':
+          description: Discord did not take the message (`discord_send_failed`)
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }

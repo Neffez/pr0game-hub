@@ -15,7 +15,7 @@ import { Players } from './repo/players.js';
 import { shareSyncsEnabled } from './repo/presence.js';
 import { Store } from './store.js';
 import { probeImpact, type SyncImpact } from './syncImpact.js';
-import { addCredits, dayOf, FRESH_SCORE, type Credit } from './repo/achievements.js';
+import { addCredits, countSync, dayOf, FRESH_SCORE, type Credit } from './repo/achievements.js';
 import { freshnessOf } from './repo/freshness.js';
 
 export interface IngestTarget {
@@ -168,7 +168,11 @@ function ingestWith(db: DB, target: IngestTarget, input: ParseInput & { source: 
   db.transaction(() => {
     for (const rec of parsed.records) store.record(rec);
     // onboarding: the member who synced it did this kind of page
-    if (parsed.records.length) recordOnboarding(db, target.groupId, target.syncedBy ?? target.userId, parsed.pageType, now());
+    if (parsed.records.length) {
+      recordOnboarding(db, target.groupId, target.syncedBy ?? target.userId, parsed.pageType, now());
+      // the recap's number of syncs: for the member who pasted it
+      countSync(db, target.groupId, target.syncedBy ?? target.userId, dayOf(now(), target.timezone), parsed.pageType);
+    }
     db.prepare('DELETE FROM raw_ingests WHERE group_id = ? AND created_at < ?').run(target.groupId, now() - config.rawRetentionDays * 86400);
     db.prepare(
       `INSERT INTO raw_ingests (group_id, user_id, synced_by, source, page_type, url, html_gz, text_gz, summary)

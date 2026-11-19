@@ -122,6 +122,38 @@ const DATA_MIGRATIONS: Record<string, (db: DB) => void> = {
       if (Object.keys(kept).length !== Object.keys(stored).length) set.run(JSON.stringify(kept), u.id);
     }
   },
+  // the recap counts syncs from now on (sync_credits kind 'sync'); the raw syncs still kept give the days before
+  'js:sync_counts_from_raw_ingests': (db) => {
+    const zones = new Map<number, Intl.DateTimeFormat>();
+    const dayOf = (groupId: number, settings: string, epoch: number) => {
+      let f = zones.get(groupId);
+      if (!f) {
+        const tz = (JSON.parse(settings) as { timezone?: string }).timezone || 'Europe/Berlin';
+        zones.set(groupId, (f = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' })));
+      }
+      return f.format(new Date(epoch * 1000));
+    };
+    const rows = db
+      .prepare(
+        `SELECT r.group_id, COALESCE(r.synced_by, r.user_id) AS user_id, r.page_type, r.summary, r.created_at, u.settings
+         FROM raw_ingests r JOIN groups g ON g.id = r.group_id JOIN universes u ON u.id = g.universe_id
+         WHERE COALESCE(r.synced_by, r.user_id) IS NOT NULL AND r.page_type <> 'unknown'`,
+      )
+      .all() as { group_id: number; user_id: number; page_type: string; summary: string | null; created_at: number; settings: string }[];
+    const put = db.prepare(
+      "INSERT INTO sync_credits (group_id, user_id, day, kind, key, count) VALUES (?, ?, ?, 'sync', ?, 1) ON CONFLICT (group_id, user_id, day, kind, key) DO UPDATE SET count = count + 1",
+    );
+    for (const r of rows) {
+      let counts: Record<string, number> = {};
+      try {
+        counts = (JSON.parse(r.summary ?? '{}') as { counts?: Record<string, number> }).counts ?? {};
+      } catch {
+        /* no summary */
+      }
+      if (!Object.values(counts).some((n) => n > 0)) continue;
+      put.run(r.group_id, r.user_id, dayOf(r.group_id, r.settings, r.created_at), r.page_type);
+    }
+  },
 };
 
 export const now = () => Math.floor(Date.now() / 1000);

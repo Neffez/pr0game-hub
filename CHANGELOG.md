@@ -4,6 +4,19 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-19
 
+- Recap: a new tab on the alliance progress page looks back on this week, last week or the last 30 days, each number
+  against the same days before: syncs, active members, points by kind and per day, badge levels reached in the
+  period, highlights (most points, biggest jump, cartographer, scout, longest streak, badge hunter), what is still open
+  (galaxy coverage and its oldest galaxy, members without points or empire sync, alliance goals) and a table per
+  member. To share it: download a PNG card drawn in the browser, copy the text as Markdown, or (alliance admins) post
+  it to the alliance's Discord channel with the card attached; the channel can also get last week's recap every
+  Monday from 9 o'clock (new channel setting `recap`, off by default).
+  - `GET /api/{uni}/recap`, `GET /api/{uni}/recap/text` and `POST /api/{uni}/recap/discord` (schema `Recap`).
+  - Syncs with data are counted per member, day and page (`sync_credits` kind `sync`, for whoever pasted it; not part
+    of the points); a data migration fills them in from the raw syncs still kept.
+  - Badges can be worked out as of the end of a day (`achievements(…, asOf)`), which gives the levels reached in a
+    period; the ranking now sums points per day (`pointUnits`), shared with the recap.
+
 - Farm finder risk tiers by the losses of the own fleet: a simulated attack has to be won in every run with a profit;
   then losses up to 10 % of the fleet's costs are weak, up to 30 % acceptable, up to 50 % risky, more strong
   (`lostShare` per outcome and `fleet.cost` in `POST /api/{uni}/farm/simulate`). Without a simulation targets up to

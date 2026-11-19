@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Recap: Unter Allianz-Fortschritt gibt es einen neuen Tab mit dem Rückblick der Allianz auf die Woche, die Vorwoche oder 30 Tage – Syncs, aktive Mitglieder, Punkte, neue Abzeichen, Highlights und wo noch was geht, jeweils im Vergleich zu vorher. Zum Teilen als Bild herunterladen oder als Text kopieren; Admins posten ihn direkt in den Discord-Kanal der Allianz und können ihn dort jeden Montag automatisch erscheinen lassen.',
+        en: 'Recap: the alliance progress page has a new tab looking back on the week, last week or 30 days – syncs, active members, points, new badges, highlights and room to grow, each compared with before. Download it as an image or copy it as text to share it; admins post it straight to the alliance’s Discord channel and can have it appear there every Monday.',
+      },
+      {
+        kind: 'new',
         de: 'Farm-Finder: Das Risiko hat jetzt die Stufen „vertretbar“ und „riskant“. Nach der Simulation zählt, wie viel deiner Flotte draufgeht: nur bei Sieg in allen Durchläufen bis 10 % schwach, bis 30 % vertretbar, bis 50 % riskant, sonst stark.',
         en: 'Farm finder: the risk now has the levels "acceptable" and "risky". After the simulation it counts how much of your fleet you lose: only for a win in every run, up to 10 % weak, up to 30 % acceptable, up to 50 % risky, else strong.',
       },

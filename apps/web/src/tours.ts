@@ -243,6 +243,7 @@ export const TOURS = {
       { key: 'members', el: 'health-tab-members', side: 'bottom', head: 'members' },
       { key: 'badges', el: 'health-tab-badges', side: 'bottom', head: 'badges' },
       { key: 'ranking', el: 'health-tab-ranking', side: 'bottom', head: 'ranking' },
+      { key: 'recap', el: 'health-tab-recap', side: 'bottom', head: 'recap' },
       { key: 'goals', el: 'health-goals', side: 'bottom', tabs: ['members'] },
       { key: 'summary', el: 'health-summary', side: 'bottom', tabs: ['members'] },
       { key: 'freshness', el: 'health-freshness', side: 'bottom', tabs: ['members'] },
@@ -252,6 +253,10 @@ export const TOURS = {
       { key: 'legend', el: 'health-badges-legend', side: 'top', tabs: ['badges'] },
       { key: 'period', el: 'health-ranking-period', side: 'bottom', tabs: ['ranking'] },
       { key: 'rankingList', el: 'health-ranking-list', side: 'top', tabs: ['ranking'] },
+      { key: 'recapActions', el: 'health-recap-actions', side: 'bottom', tabs: ['recap'] },
+      { key: 'recapKpis', el: 'health-recap-kpis', side: 'bottom', tabs: ['recap'] },
+      { key: 'recapHighlights', el: 'health-recap-highlights', side: 'top', tabs: ['recap'] },
+      { key: 'recapOpen', el: 'health-recap-open', side: 'top', tabs: ['recap'] },
     ],
   },
   attack: {

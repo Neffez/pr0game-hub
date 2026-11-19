@@ -2,6 +2,21 @@ import { ref } from 'vue';
 import { uniApi } from './api';
 import type { Achievements, Badge, MemberAchievements } from './apiTypes';
 
+/** The icon of each badge (Icon.vue). */
+export const BADGE_ICONS: Record<Badge['key'], string> = {
+  imperator: 'imperium', cartographer: 'galaxy', scout: 'spy', fleeter: 'attack', expeditioner: 'expeditions', trader: 'market',
+  socializer: 'messages', chronicler: 'stats', fresh: 'freshness', streak: 'bolt', raider: 'raids', collector: 'cargo', forist: 'comment', miner: 'buildings',
+};
+/** Colours of the levels: bronze, silver, gold, then platinum, sapphire, amethyst, ruby. */
+const LEVEL_COLORS = ['#b87333', '#a9b4bf', '#d4af37', '#5fc9c4', '#4f8ff7', '#b36bf0', '#e5484d'];
+/** The colour of a reached level, null for none. */
+export const levelColor = (level: number): string | null => (level ? LEVEL_COLORS[Math.min(level, LEVEL_COLORS.length) - 1] : null);
+
+/** A badge at a level, from the levels' counts (`steps`): for the icon and its tooltip where only key and level are known. */
+export function badgeAt(key: Badge['key'], level: number, steps: number[]): Badge {
+  return { key, count: steps[level - 1] ?? 0, level, levels: steps.length || level, next: steps[level] ?? null, steps };
+}
+
 /** Badges and streaks of the members (server: repo/achievements.ts), shared by the alliance progress page and the online list. */
 export const achievements = ref<MemberAchievements[] | null>(null);
 let loadedFor = '';
