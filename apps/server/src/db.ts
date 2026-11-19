@@ -122,8 +122,12 @@ const DATA_MIGRATIONS: Record<string, (db: DB) => void> = {
       if (Object.keys(kept).length !== Object.keys(stored).length) set.run(JSON.stringify(kept), u.id);
     }
   },
-  // the recap counts syncs from now on (sync_credits kind 'sync'); the raw syncs still kept give the days before
-  'js:sync_counts_from_raw_ingests': (db) => {
+  // superseded by the next one (it read the summary's counts as numbers and so filled in nothing)
+  'js:sync_counts_from_raw_ingests': () => {},
+  // the recap counts syncs from the release of the recap on (sync_credits kind 'sync'); the raw syncs still kept from
+  // before it give the days before (a sync with data: a record of the summary new or already known)
+  'js:sync_counts_from_raw_ingests_2': (db) => {
+    const released = (db.prepare("SELECT applied_at FROM schema_migrations WHERE name = 'js:sync_counts_from_raw_ingests'").pluck().get() as number | undefined) ?? now();
     const zones = new Map<number, Intl.DateTimeFormat>();
     const dayOf = (groupId: number, settings: string, epoch: number) => {
       let f = zones.get(groupId);
@@ -137,20 +141,20 @@ const DATA_MIGRATIONS: Record<string, (db: DB) => void> = {
       .prepare(
         `SELECT r.group_id, COALESCE(r.synced_by, r.user_id) AS user_id, r.page_type, r.summary, r.created_at, u.settings
          FROM raw_ingests r JOIN groups g ON g.id = r.group_id JOIN universes u ON u.id = g.universe_id
-         WHERE COALESCE(r.synced_by, r.user_id) IS NOT NULL AND r.page_type <> 'unknown'`,
+         WHERE COALESCE(r.synced_by, r.user_id) IS NOT NULL AND r.page_type <> 'unknown' AND r.created_at < ?`,
       )
-      .all() as { group_id: number; user_id: number; page_type: string; summary: string | null; created_at: number; settings: string }[];
+      .all(released) as { group_id: number; user_id: number; page_type: string; summary: string | null; created_at: number; settings: string }[];
     const put = db.prepare(
       "INSERT INTO sync_credits (group_id, user_id, day, kind, key, count) VALUES (?, ?, ?, 'sync', ?, 1) ON CONFLICT (group_id, user_id, day, kind, key) DO UPDATE SET count = count + 1",
     );
     for (const r of rows) {
-      let counts: Record<string, number> = {};
+      let counts: Record<string, { new?: number; duplicate?: number }> = {};
       try {
-        counts = (JSON.parse(r.summary ?? '{}') as { counts?: Record<string, number> }).counts ?? {};
+        counts = (JSON.parse(r.summary ?? '{}') as { counts?: typeof counts }).counts ?? {};
       } catch {
         /* no summary */
       }
-      if (!Object.values(counts).some((n) => n > 0)) continue;
+      if (!Object.values(counts).some((c) => (c?.new ?? 0) + (c?.duplicate ?? 0) > 0)) continue;
       put.run(r.group_id, r.user_id, dayOf(r.group_id, r.settings, r.created_at), r.page_type);
     }
   },

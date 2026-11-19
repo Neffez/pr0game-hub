@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-19',
     items: [
       {
+        kind: 'fix',
+        de: 'Recap: Die Syncs der letzten zwei Wochen vor dem Start des Recaps zählen jetzt mit – bisher standen dort nur die Syncs seit heute.',
+        en: 'Recap: the syncs of the two weeks before the recap started now count too – so far it only showed the syncs since today.',
+      },
+      {
         kind: 'new',
         de: 'Recap: Unter Allianz-Fortschritt gibt es einen neuen Tab mit dem Rückblick der Allianz auf die Woche, die Vorwoche oder 30 Tage – Syncs, aktive Mitglieder, Punkte, neue Abzeichen, Highlights und wo noch was geht, jeweils im Vergleich zu vorher. Zum Teilen als Bild herunterladen oder als Text kopieren; Admins posten ihn direkt in den Discord-Kanal der Allianz und können ihn dort jeden Montag automatisch erscheinen lassen.',
         en: 'Recap: the alliance progress page has a new tab looking back on the week, last week or 30 days – syncs, active members, points, new badges, highlights and room to grow, each compared with before. Download it as an image or copy it as text to share it; admins post it straight to the alliance’s Discord channel and can have it appear there every Monday.',

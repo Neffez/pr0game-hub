@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-19
 
+- Recap: the syncs before the release are filled in from the raw syncs still kept; the first data migration read the
+  summary's counts as numbers (they are `{ new, duplicate }`) and filled in nothing, so the recap only counted syncs
+  since the release (`js:sync_counts_from_raw_ingests_2`, only raw syncs from before the first one ran).
+
 - Recap: a new tab on the alliance progress page looks back on this week, last week or the last 30 days, each number
   against the same days before: syncs, active members, points by kind and per day, badge levels reached in the
   period, highlights (most points, biggest jump, cartographer, scout, longest streak, badge hunter), what is still open
