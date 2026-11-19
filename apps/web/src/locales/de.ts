@@ -3463,7 +3463,6 @@ const de = {
     push_endpoint_invalid: 'Ungültiges Push-Abo',
     ingest_rate_limit: 'Zu viele Syncs, bitte gleich nochmal versuchen',
     ingest_for_user_page: 'Für ein anderes Mitglied nur Nachrichten und Berichte, nicht Übersicht, Imperium oder Flotten',
-    ingest_busy: 'Ein universe.json wird gerade hochgeladen',
     battle_worker_exit: 'Der Simulator ist abgebrochen, bitte nochmal versuchen',
     push_keys_invalid: 'Ungültiges Push-Abo',
     push_settings_invalid: 'Ungültige Einstellungen',

@@ -58,7 +58,8 @@ export function undoIngest(db: DB, rawId: number, dryRun: boolean): UndoResult {
   if (!row) throw new HttpError(404, 'not_found', 'Not found');
   if (!row.html_gz && !row.text_gz) throw new HttpError(400, 'ingest_no_content', 'The page of this sync is not stored');
   const timezone = JSON.parse(row.settings).timezone ?? UNIVERSE_DEFAULTS.timezone;
-  const epoch = (local: string | null) => (local ? localToEpoch(local, timezone) : null);
+  // the repeated autumn hour resolved like the sync did (Store takes the instant already past when it stored it)
+  const epoch = (local: string | null) => (local ? localToEpoch(local, timezone, row.created_at) : null);
   const g = row.group_id;
   const user = row.user_id;
   const result: UndoResult = {

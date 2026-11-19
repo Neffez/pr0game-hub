@@ -4,6 +4,16 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-19
 
+- The theoretical findings of the same review (F-T1 to F-T5):
+  - Undoing a sync converts its page times like the sync did (the repeated autumn hour resolves to the same instant).
+  - Reopening a loot settlement that is open already does nothing, so a second click no longer forgets the delivery
+    ticks kept for finalizing it again.
+  - A battle report with its game id takes over a report pasted as text only at the same target (when it shows one).
+  - Fleet save: a time window ending the next day counts the next calendar day, so it stays right across a daylight
+    saving switch.
+  - The never-reached concurrency limit of universe.json uploads (and its `ingest_busy` error) is removed: the
+    handler is synchronous.
+
 - Fixes from the full code review (`CODEREVIEW.md`, F-01 to F-06):
   - Push and Discord: removing a member who had a building alert or a build order in the group no longer stops every
     notification of that group (the scheduler planned for the former member and failed). A trigger drops the

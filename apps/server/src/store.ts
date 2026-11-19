@@ -965,7 +965,8 @@ export const REPORT_SLACK = 5;
 /**
  * Stores a battle report compactly. An archived report gets what it lacked (the target hidden on the public page, the
  * loot of reports archived before it was read); returns false when it was already archived with nothing to add.
- * A report with its game id takes over the same battle pasted as text earlier (local id, same time and losses).
+ * A report with its game id takes over the same battle pasted as text earlier (local id, same time and losses, the
+ * same target when the report shows it).
  */
 export function storeCombatReport(db: DB, groupId: number, r: CombatReportRecord, time: number | null): boolean {
   let renamed = false;
@@ -976,10 +977,15 @@ export function storeCombatReport(db: DB, groupId: number, r: CombatReportRecord
       : (db
           .prepare(
             `SELECT report_id FROM combat_reports WHERE group_id = ? AND report_id LIKE 'text-%' AND time BETWEEN ? AND ?
-               AND lost_attacker = ? AND lost_defender = ? ORDER BY ABS(time - ?) LIMIT 1`,
+               AND lost_attacker = ? AND lost_defender = ? AND (? IS NULL OR (g = ? AND s = ? AND p = ? AND planet_type = ?))
+             ORDER BY ABS(time - ?) LIMIT 1`,
           )
           .pluck()
-          .get(groupId, time - REPORT_SLACK, time + REPORT_SLACK, r.lost.attacker, r.lost.defender, time) as string | undefined);
+          .get(
+            groupId, time - REPORT_SLACK, time + REPORT_SLACK, r.lost.attacker, r.lost.defender,
+            // the target when the report shows it (the public page hides it): a battle elsewhere is not this one
+            r.target?.coords.g ?? null, r.target?.coords.g ?? null, r.target?.coords.s ?? null, r.target?.coords.p ?? null, r.target?.type ?? null, time,
+          ) as string | undefined);
     if (local) {
       db.prepare('UPDATE combat_reports SET report_id = ? WHERE group_id = ? AND report_id = ?').run(r.reportId, groupId, local);
       renamed = true;

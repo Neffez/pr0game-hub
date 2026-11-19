@@ -3460,7 +3460,6 @@ const en: typeof de = {
     push_endpoint_invalid: 'Invalid push subscription',
     ingest_rate_limit: 'Too many syncs, try again in a moment',
     ingest_for_user_page: 'For another member only messages and reports, not overview, empire or fleets',
-    ingest_busy: 'A universe.json upload is already running',
     battle_worker_exit: 'The simulator stopped, try again',
     push_keys_invalid: 'Invalid push subscription',
     push_settings_invalid: 'Invalid settings',

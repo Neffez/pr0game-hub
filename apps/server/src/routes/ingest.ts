@@ -8,10 +8,9 @@ import { buildUniverseJson } from '../universeJson.js';
 import { SAMPLE_MAX, saveSample } from '../repo/samples.js';
 
 /** Caps paste/upload cost: parse + gzip + a transaction of an 8–16 MiB body. */
-export const INGEST_LIMITS = { perUserPerMinute: 120, perGroupPerMinute: 200, universeJsonConcurrent: 1 };
+export const INGEST_LIMITS = { perUserPerMinute: 120, perGroupPerMinute: 200 };
 
 const ingestHits = new Map<string, number[]>();
-let universeJsonRunning = 0;
 
 function takeHits(key: string, limit: number, at: number) {
   const list = (ingestHits.get(key) ?? []).filter((t) => at - t < 60_000);
@@ -90,22 +89,15 @@ export function ingestRoutes(app: FastifyInstance, db: DB) {
     async (req) => {
       const ctx = groupContext(db, req, req.params.uni);
       takeIngestSlot(ctx.user.id, ctx.groupId);
-      if (universeJsonRunning >= INGEST_LIMITS.universeJsonConcurrent) {
-        throw new HttpError(429, 'ingest_busy', 'A universe.json upload is already running');
-      }
-      universeJsonRunning++;
-      try {
-        const text = req.body?.text;
-        if (!text || !looksLikeUniverseJson(text)) throw new HttpError(400, 'universe_json_invalid', 'Not a valid universe.json');
-        return ingest(
-          db,
-          { groupId: ctx.groupId, userId: ctx.user.id, timezone: ctx.universe.settings.timezone },
-          { text, source: 'upload' },
-          { ctx, log: req.log },
-        );
-      } finally {
-        universeJsonRunning--;
-      }
+      // parsing and storing are synchronous: two uploads never run at the same time, no counter needed
+      const text = req.body?.text;
+      if (!text || !looksLikeUniverseJson(text)) throw new HttpError(400, 'universe_json_invalid', 'Not a valid universe.json');
+      return ingest(
+        db,
+        { groupId: ctx.groupId, userId: ctx.user.id, timezone: ctx.universe.settings.timezone },
+        { text, source: 'upload' },
+        { ctx, log: req.log },
+      );
     },
   );
 

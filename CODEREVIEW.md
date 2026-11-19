@@ -49,7 +49,8 @@ cut off after 25 seconds (F-02), undoing a statistics sync deleted the whole sna
 logged debris after the cut as cleared (F-04), merging a placeholder lost their settlement corrections and delivery
 ticks (F-05), and the backup script deleted every backup when `keep` was not a positive number (F-06).
 
-**Status:** F-01 to F-06 are fixed (same day). Open from this pass are only the theoretical items F-T1 to F-T5.
+**Status:** F-01 to F-06 and the theoretical items F-T1 to F-T5 are fixed (same day). Still open are the theoretical
+items of earlier passes (R-T, N-T) and the carried-over items of section 2.
 
 ---
 
@@ -76,8 +77,8 @@ ticks (F-05), and the backup script deleted every backup when `keep` was not a p
 
 ## 1. New findings (full review, 2026-11-19)
 
-All six were fixed the same day, with a test each (details in `CHANGELOG.md`, 2026-11-19). The theoretical items below
-are still open.
+All six were fixed the same day, with a test each (details in `CHANGELOG.md`, 2026-11-19), and so were the theoretical
+items below.
 
 | ID | Finding | Fix |
 |---|---|---|
@@ -92,15 +93,20 @@ One limit of the F-03 fix: the score rows do not record which sync brought them,
 the very same lines (the same page pasted twice) go too. They are identical rows; pasting that page again restores
 them.
 
-### Theoretical (this pass)
+### Theoretical (this pass), fixed the same day
+
+| ID | Issue | Fix |
+|---|---|---|
+| F-T1 | `undoIngest` converted page times without `near`: in the repeated autumn hour the undo looked for the other instant | Converts with `near` = the sync's `created_at`, like `Store` did when it stored it |
+| F-T2 | Reopening a settlement that is not finalized overwrote `done_before` with `[]` | Reopening an open settlement does nothing (`test/settlements.test.ts`) |
+| F-T3 | `storeCombatReport` took over a `text-…` report without comparing coordinates | Compares the target when the report shows it (`test/settlements.test.ts`) |
+| F-T4 | Fleet save moved a time of day to the next day with `+ 86400` (one hour off across a daylight saving switch) | Next calendar day with `setDate` |
+| F-T5 | `INGEST_LIMITS.universeJsonConcurrent` was dead code around a synchronous handler | Removed with its `ingest_busy` error |
+
+### Theoretical (earlier passes, still open)
 
 | ID | Issue | Why theoretical |
 |---|---|---|
-| F-T1 | `undoIngest` converts page times without `near`, `Store` with `near = now()`: in the repeated autumn hour the undo looks for the other instant and finds nothing to delete | One hour a year, and the undo reports the counts, so a miss is visible |
-| F-T2 | `DELETE …/settlement/finalize` on a settlement that is not finalized overwrites `done_before` with `[]`, which loses the ticks kept from an earlier reopen | The web app offers "reopen" only on a finalized settlement |
-| F-T3 | `storeCombatReport` takes over a `text-…` report with the same time and losses without comparing coordinates | Two battles in the same group within ±5 s with identical losses on both sides |
-| F-T4 | Fleet save (`FleetSaveView.vue` `at()`) moves a time of day to the next day with `+ 86400`: on the night of a daylight saving switch the window is one hour off | Two nights a year, and only windows that span the switch |
-| F-T5 | `INGEST_LIMITS.universeJsonConcurrent` counts uploads around a synchronous handler, so the counter never sees two at once | The handler is synchronous, so uploads cannot overlap anyway; the counter is only dead code |
 | R-T1 | A galaxy copy without a page time is stored as seen now (`Store.galaxySeenAt`): pasting the same old text again makes the system look fresh and earns galaxy credits each day | The seen time was like this before; the credits only reward it. Members of one alliance; the page time is in the HTML copies |
 | R-T2 | `researchState` counts the queue of an older page as done when a newer overview shows no research: a cancelled research raises the level until the next research or empire page | Documented in the code; cancelling is rare and the next page corrects it |
 | R-T3 | A sync stores steps seen done without raising the revision; a client PATCH from an older copy with the same revision sends them as not done | The next sync checks them off again (documented in `syncBuildOrder`) |
@@ -191,7 +197,7 @@ escapes every value. `t()` still does not escape interpolations (C-09).
 
 ### Now
 
-Nothing open from this pass: F-01 to F-06 are fixed. The theoretical items (F-T1 to F-T5) go with work in their files.
+Nothing open from this pass: F-01 to F-06 and F-T1 to F-T5 are fixed.
 
 ### When the files are touched (Wave 3 of the 2026-11-04 review)
 

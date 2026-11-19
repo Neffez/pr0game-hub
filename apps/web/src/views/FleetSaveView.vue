@@ -144,9 +144,12 @@ function at(hhmm: string, after: number) {
   const [h, m] = hhmm.split(':').map(Number);
   const d = new Date(after * 1000);
   d.setHours(h || 0, m || 0, 0, 0);
-  let epoch = Math.floor(d.getTime() / 1000);
-  if (epoch < after) epoch += 86400;
-  return epoch;
+  // the next calendar day, not 24 hours later: a night with a daylight saving switch has 23 or 25
+  if (d.getTime() < after * 1000) {
+    d.setDate(d.getDate() + 1);
+    d.setHours(h || 0, m || 0, 0, 0);
+  }
+  return Math.floor(d.getTime() / 1000);
 }
 /** Offline from (the latest departure; now when the window already started) until back. */
 const offline = computed(() => {

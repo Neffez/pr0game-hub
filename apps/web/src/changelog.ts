@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Fleetsave: In der Nacht der Zeitumstellung stimmt das Zeitfenster wieder; Beuteabrechnung: doppeltes Wieder-Öffnen vergisst keine erledigten Lieferungen mehr.',
+        en: 'Fleet save: the time window is right again on the night of a daylight saving switch; loot settlement: reopening twice no longer forgets finished deliveries.',
+      },
+      {
+        kind: 'fix',
         de: 'Push und Discord: Wird ein Mitglied mit Gebäude-Erinnerung oder Bauauftrag aus der Allianz entfernt, kommen die Benachrichtigungen der übrigen Mitglieder wieder an.',
         en: 'Push and Discord: removing a member with a building alert or build order no longer stops the notifications of the other members.',
       },

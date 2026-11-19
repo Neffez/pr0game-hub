@@ -262,6 +262,8 @@ export function settlementRoutes(app: FastifyInstance, db: DB) {
     editable(ctx, plan);
     const stored = storedSettlement(db, ctx, plan.id);
     if (!stored) throw new HttpError(404, 'settlement_not_found', 'Settlement not saved');
+    // open already (a second click, another tab): nothing to do, the ticks kept from the last reopen stay
+    if (stored.finalizedAt == null) return view(ctx, plan);
     const overrides = correctionsOf(stored, settlementDraft(db, ctx, plan).state) ?? {};
     // what was done (by hand or by transport) with its amounts: kept when it is finalized again with the same amounts
     const doneBefore = (finalizedSettlements(db, ctx).get(plan.id)?.deliveries ?? []).filter((x) => x.done).map((x) => ({ key: x.key, res: x.res }));

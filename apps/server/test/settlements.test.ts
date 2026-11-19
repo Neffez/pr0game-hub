@@ -284,8 +284,10 @@ describe('raid settlements', () => {
     send('t2', at + 200);
     expect(await autoOf(other)).toEqual([`${x.from}>${x.to}`]);
 
-    // reopened and finalized again with the same amounts: the delivery stays done
+    // reopened (twice: a second click must not forget the ticks) and finalized again with the same amounts: the
+    // delivery stays done
     await call('DELETE', `${url}/finalize`, as.dave);
+    expect((await call('DELETE', `${url}/finalize`, as.dave)).statusCode).toBe(200);
     let again = (await call('POST', `${url}/finalize`, as.dave, {})).json();
     expect(again.done).toEqual([`${x.from}>${x.to}`]);
     // reopened, the loot changed, finalized again: the delivery is open again
@@ -337,6 +339,11 @@ describe('raid settlements', () => {
       lost: { attacker: 11114000, defender: 411433000 }, debris: { metal: 142823000, crystal: 68450500 },
       loot: { metal: 0, crystal: loot, deuterium: 0 }, target: null, fleets: [],
     });
+    // a battle elsewhere with the same time and losses (its report shows the target): not the pasted one
+    const elsewhere = { ...report(1343846), reportId: 'pub9', target: { coords: { g: 1, s: 1, p: 1 }, type: 'planet' as const } };
+    expect(storeCombatReport(db, groupB, elsewhere, time + 1)).toBe(true);
+    expect(db.prepare("SELECT COUNT(*) FROM combat_reports WHERE group_id = ? AND report_id LIKE 'text-%'").pluck().get(groupB)).toBe(1);
+    db.prepare("DELETE FROM combat_reports WHERE group_id = ? AND report_id = 'pub9'").run(groupB);
     expect(storeCombatReport(db, groupB, report(1343846), time + 1)).toBe(true);
     // one report under the game id, keeping target and loot of the text
     expect(db.prepare('SELECT report_id, g, s, p, loot_crystal, loot_deuterium FROM combat_reports WHERE group_id = ?').all(groupB)).toEqual([
