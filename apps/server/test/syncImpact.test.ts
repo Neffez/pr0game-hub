@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 process.env.WEB_DIR = '/nonexistent';
 
@@ -42,14 +42,18 @@ describe('impact of a sync', () => {
   });
 
   it('counts galaxy systems seen for the first time and the age of the views they replace', async () => {
-    expect((await sync({ html: fixture('galaxy.html') })).impact.galaxy).toEqual({ systems: 1, first: 1, age: null });
-    // the same view again is no news
-    expect((await sync({ html: fixture('galaxy.html') })).impact.galaxy).toBeUndefined();
-    db.prepare('UPDATE galaxy_views SET seen_at = seen_at - ? WHERE group_id = ?').run(2 * DAY, group);
-    const galaxy = (await sync({ html: fixture('galaxy.html') })).impact.galaxy;
-    expect(galaxy).toMatchObject({ systems: 1, first: 0 });
-    expect(galaxy.age).toBeGreaterThanOrEqual(2 * DAY);
-    expect(galaxy.age).toBeLessThan(2 * DAY + 60);
+    // the fixture has no page time, so a view counts as seen when it is synced: the clock stands still, or the same
+    // view synced a second later would be a newer one
+    vi.useFakeTimers({ toFake: ['Date'], now: Date.now() });
+    try {
+      expect((await sync({ html: fixture('galaxy.html') })).impact.galaxy).toEqual({ systems: 1, first: 1, age: null });
+      // the same view again is no news
+      expect((await sync({ html: fixture('galaxy.html') })).impact.galaxy).toBeUndefined();
+      db.prepare('UPDATE galaxy_views SET seen_at = seen_at - ? WHERE group_id = ?').run(2 * DAY, group);
+      expect((await sync({ html: fixture('galaxy.html') })).impact.galaxy).toEqual({ systems: 1, first: 0, age: 2 * DAY });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('counts targets spied for the first time and older reports replaced', async () => {

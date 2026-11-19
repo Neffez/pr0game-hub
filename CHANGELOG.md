@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-19
 
+- Tests: the sync impact test of galaxy views no longer fails now and then under load. The fixture has no page time,
+  so a view counts as seen when synced, and a second sync of the same view a second later was a newer one; the test
+  stops the clock (`Date` only) and checks the exact age.
+
 - The theoretical findings of the same review (F-T1 to F-T5):
   - Undoing a sync converts its page times like the sync did (the repeated autumn hour resolves to the same instant).
   - Reopening a loot settlement that is open already does nothing, so a second click no longer forgets the delivery
