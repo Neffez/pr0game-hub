@@ -10,6 +10,7 @@ import type { HighlightKey, Recap, RecapCompare } from './repo/recap.js';
 const de = {
   title: 'Recap {from} – {to}',
   titleWeek: 'Recap KW {week} · {from} – {to}',
+  titleStart: 'Recap seit Start · {from} – {to}',
   syncs: 'Syncs',
   active: 'aktiv',
   points: 'Punkte',
@@ -48,6 +49,7 @@ const de = {
 const en: typeof de = {
   title: 'Recap {from} – {to}',
   titleWeek: 'Recap week {week} · {from} – {to}',
+  titleStart: 'Recap since the start · {from} – {to}',
   syncs: 'syncs',
   active: 'active',
   points: 'points',
@@ -113,7 +115,7 @@ export function recapMessage(recap: Recap, lang: PushLang): { title: string; bod
     const p = Math.round((100 * (c.now - c.before)) / c.before);
     return p ? ` (${p > 0 ? '▲' : '▼'} ${Math.abs(p)} %)` : '';
   };
-  const title = fill(recap.period === 'days30' ? t.title : t.titleWeek, { week: isoWeek(recap.from), from: date(recap.from), to: date(recap.to) });
+  const title = fill(recap.period === 'days30' ? t.title : recap.period === 'start' ? t.titleStart : t.titleWeek, { week: isoWeek(recap.from), from: date(recap.from), to: date(recap.to) });
 
   const lines: string[] = [];
   lines.push(

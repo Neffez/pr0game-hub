@@ -29,15 +29,19 @@ export interface RecapRow {
   badges: number;
 }
 
+/** The ranking's periods and `start`: from the universe's start (its scheduled start, else its creation) to today. */
+export type RecapPeriod = RankingPeriod | 'start';
+export const RECAP_PERIODS: RecapPeriod[] = ['week', 'lastWeek', 'days30', 'start'];
+
 export type HighlightKey = 'top' | 'riser' | 'cartographer' | 'scout' | 'streak' | 'badges';
 export const HIGHLIGHT_KEYS: HighlightKey[] = ['top', 'riser', 'cartographer', 'scout', 'streak', 'badges'];
 
 export interface Recap {
-  period: RankingPeriod;
+  period: RecapPeriod;
   from: string;
   to: string;
-  /** the span compared with */
-  previous: { from: string; to: string };
+  /** the span compared with, null for `start` (nothing before it) */
+  previous: { from: string; to: string } | null;
   /** members of the group */
   members: number;
   /** syncs of pages with data */
@@ -78,21 +82,30 @@ export function previousSpan(period: RankingPeriod, from: string, to: string) {
   return { from: addDays(from, -back), to: addDays(to, -back) };
 }
 
-export function recap(db: DB, ctx: GroupContext, period: RankingPeriod): Recap {
+/** The first day of the universe in its time zone: its scheduled start, else the day it was created. */
+export function startDay(db: DB, ctx: GroupContext): string {
+  const start = ctx.universe.startsAt ?? (db.prepare('SELECT created_at FROM universes WHERE id = ?').pluck().get(ctx.universe.id) as number);
+  return dayOf(start, ctx.universe.settings.timezone);
+}
+
+export function recap(db: DB, ctx: GroupContext, period: RecapPeriod): Recap {
   const g = ctx.groupId;
   const tz = ctx.universe.settings.timezone;
-  const { from, to } = periodDays(period, dayOf(ctx.now, tz));
-  const previous = previousSpan(period, from, to);
+  const today = dayOf(ctx.now, tz);
+  const { from, to } = period === 'start' ? { from: [startDay(db, ctx), today].sort()[0], to: today } : periodDays(period, today);
+  const previous = period === 'start' ? null : previousSpan(period, from, to);
+  // without a span before, an empty one ends the day before the period
+  const span = previous ?? { from, to: addDays(from, -1) };
 
-  const units = pointUnits(db, ctx, previous.from, to);
+  const units = pointUnits(db, ctx, span.from, to);
   const inPeriod = units.filter((u) => u.day >= from);
-  const before = units.filter((u) => u.day <= previous.to);
+  const before = units.filter((u) => u.day <= span.to);
   const rowsNow = rankRows(db, ctx, inPeriod);
   const rowsBefore = new Map(rankRows(db, ctx, before).map((r) => [r.userId, r]));
 
   const syncRows = db
     .prepare("SELECT user_id, day, SUM(count) AS n FROM sync_credits WHERE group_id = ? AND kind = 'sync' AND day BETWEEN ? AND ? GROUP BY user_id, day")
-    .all(g, previous.from, to) as { user_id: number; day: string; n: number }[];
+    .all(g, span.from, to) as { user_id: number; day: string; n: number }[];
   const syncsOf = (userId: number, a: string, b: string) => syncRows.filter((r) => r.user_id === userId && r.day >= a && r.day <= b).reduce((n, r) => n + r.n, 0);
   const sum = <T>(list: T[], f: (x: T) => number) => list.reduce((n, x) => n + f(x), 0);
 
@@ -120,7 +133,7 @@ export function recap(db: DB, ctx: GroupContext, period: RankingPeriod): Recap {
     badges: levelsGained(r.userId),
   }));
   const activeNow = rows.filter((r) => r.points > 0 || r.syncs > 0).length;
-  const activeBefore = rows.filter((r) => r.before > 0 || syncsOf(r.userId, previous.from, previous.to) > 0).length;
+  const activeBefore = rows.filter((r) => r.before > 0 || syncsOf(r.userId, span.from, span.to) > 0).length;
 
   const kinds = (Object.keys(POINTS) as PointKind[])
     .map((kind) => ({
@@ -153,7 +166,8 @@ export function recap(db: DB, ctx: GroupContext, period: RankingPeriod): Recap {
     return (r: RecapRow) => m.get(r.userId) ?? 0;
   };
   best('top', (r) => r.points);
-  best('riser', (r) => r.points - r.before);
+  // a jump needs a span before
+  if (previous) best('riser', (r) => r.points - r.before);
   best('cartographer', unitsOf('galaxy'));
   best('scout', unitsOf('spy'));
   best('streak', (r) => r.streak, 2);
@@ -186,7 +200,7 @@ export function recap(db: DB, ctx: GroupContext, period: RankingPeriod): Recap {
     to,
     previous,
     members: rows.length,
-    syncs: { now: sum(syncRows.filter((r) => r.day >= from), (r) => r.n), before: sum(syncRows.filter((r) => r.day <= previous.to), (r) => r.n) },
+    syncs: { now: sum(syncRows.filter((r) => r.day >= from), (r) => r.n), before: sum(syncRows.filter((r) => r.day <= span.to), (r) => r.n) },
     active: { now: activeNow, before: activeBefore },
     points: { now: sum(rows, (r) => r.points), before: sum(rows, (r) => r.before) },
     newBadges: badges.length,

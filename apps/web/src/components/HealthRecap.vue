@@ -22,7 +22,8 @@ import { toast } from '../toast';
  */
 type Period = Recap['period'];
 type HighlightKey = Recap['highlights'][number]['key'];
-const PERIODS: Period[] = ['week', 'lastWeek', 'days30'];
+const PERIODS: Period[] = ['week', 'lastWeek', 'days30', 'start'];
+const periodLabel = (p: Period) => (p === 'start' ? t('recap.since') : t(`ranking.period.${p}`));
 const HIGHLIGHT_ICONS: Record<HighlightKey, string> = { top: 'medal', riser: 'rankUp', cartographer: 'galaxy', scout: 'spy', streak: 'bolt', badges: 'sparkle' };
 
 const { t, locale } = useI18n();
@@ -82,10 +83,12 @@ function change(now: number, before: number): { text: string; up: boolean } | nu
 const kpis = computed(() => {
   const r = data.value;
   if (!r) return [];
+  // since the start: nothing to compare with
+  const cmp = (now: number, before: number, text: string) => (r.previous ? { before: text, change: change(now, before) } : { before: null, change: null });
   return [
-    { key: 'syncs', value: fmt(r.syncs.now), before: fmt(r.syncs.before), change: change(r.syncs.now, r.syncs.before) },
-    { key: 'active', value: `${r.active.now} / ${r.members}`, before: String(r.active.before), change: change(r.active.now, r.active.before) },
-    { key: 'points', value: fmt(r.points.now), before: fmt(r.points.before), change: change(r.points.now, r.points.before) },
+    { key: 'syncs', value: fmt(r.syncs.now), ...cmp(r.syncs.now, r.syncs.before, fmt(r.syncs.before)) },
+    { key: 'active', value: `${r.active.now} / ${r.members}`, ...cmp(r.active.now, r.active.before, String(r.active.before)) },
+    { key: 'points', value: fmt(r.points.now), ...cmp(r.points.now, r.points.before, fmt(r.points.before)) },
     { key: 'badges', value: fmt(r.newBadges), before: null, change: null },
   ];
 });
@@ -129,14 +132,16 @@ function isoWeek(d: string): number {
 const cardTitle = computed(() => {
   const r = data.value;
   if (!r) return '';
-  return r.period === 'days30' ? range.value : `${locale.value === 'en' ? 'Week' : 'KW'} ${isoWeek(r.from)} · ${range.value}`;
+  if (r.period === 'days30') return range.value;
+  if (r.period === 'start') return `${t('recap.since')} · ${range.value}`;
+  return `${locale.value === 'en' ? 'Week' : 'KW'} ${isoWeek(r.from)} · ${range.value}`;
 });
 
 function imageTexts(r: Recap): RecapImageTexts {
   const group = ctx.value?.group;
   const MAX_BADGES = 12;
   return {
-    label: `Recap · ${t(`ranking.period.${r.period}`)}`,
+    label: `Recap · ${periodLabel(r.period)}`,
     title: cardTitle.value,
     alliance: group ? `${group.tag ? `[${group.tag}] ` : ''}${group.name}` : '',
     kpis: kpis.value.map((k) => ({ value: k.value, label: t(`recap.kpi.${k.key}`), change: k.change })),
@@ -208,11 +213,11 @@ async function sendDiscord() {
 <template>
   <div class="card row" data-tour="health-recap-actions">
     <div class="seg">
-      <button v-for="p in PERIODS" :key="p" :class="{ active: period === p }" @click="period = p">{{ t(`ranking.period.${p}`) }}</button>
+      <button v-for="p in PERIODS" :key="p" :class="{ active: period === p }" @click="period = p">{{ periodLabel(p) }}</button>
     </div>
     <span v-if="data" class="small">
       <b>{{ range }}</b>
-      <span class="muted"> · {{ t('recap.compared', { from: day(data.previous.from), to: day(data.previous.to) }) }}</span>
+      <span v-if="data.previous" class="muted"> · {{ t('recap.compared', { from: day(data.previous.from), to: day(data.previous.to) }) }}</span>
     </span>
     <span class="grow" />
     <button type="button" :disabled="!data || !!busy" @click="downloadImage"><Icon name="download" :size="14" /> {{ t('recap.image') }}</button>
@@ -264,7 +269,7 @@ async function sendDiscord() {
       <section class="card">
         <h3>{{ t('recap.kinds') }}</h3>
         <ul class="rc-kinds">
-          <li v-for="k in kinds" :key="k.kind" :title="`${fmt(k.points)} ${t('recap.kpi.points')} · ${t('recap.before', { n: fmt(k.before) })}`">
+          <li v-for="k in kinds" :key="k.kind" :title="`${fmt(k.points)} ${t('recap.kpi.points')}${data.previous ? ` · ${t('recap.before', { n: fmt(k.before) })}` : ''}`">
             <span>{{ t(`ranking.kinds.${k.kind}`) }}</span>
             <span class="mono muted">{{ fmt(k.units) }}</span>
             <span class="rc-bar"><span :style="{ width: `${(100 * k.points) / topKind}%` }" /></span>
@@ -311,7 +316,7 @@ async function sendDiscord() {
             <tr>
               <th>{{ t('recap.col.name') }}</th>
               <th class="num">{{ t('recap.col.points') }}</th>
-              <th class="num">{{ t('recap.col.change') }}</th>
+              <th v-if="data.previous" class="num">{{ t('recap.col.change') }}</th>
               <th class="num">{{ t('recap.col.syncs') }}</th>
               <th class="num">{{ t('recap.col.streak') }}</th>
               <th class="num">{{ t('recap.col.badges') }}</th>
@@ -321,7 +326,7 @@ async function sendDiscord() {
             <tr v-for="r in rows" :key="r.userId" :class="{ dim: !r.points && !r.syncs }">
               <td :class="{ 'rc-me': r.userId === ctx?.me.id }">{{ r.name }}</td>
               <td class="num">{{ fmt(r.points) }}</td>
-              <td class="num" :class="r.points > r.before ? 'pos' : r.points < r.before ? 'neg' : 'muted'">{{ r.points === r.before ? '–' : fmtSigned(r.points - r.before) }}</td>
+              <td v-if="data.previous" class="num" :class="r.points > r.before ? 'pos' : r.points < r.before ? 'neg' : 'muted'">{{ r.points === r.before ? '–' : fmtSigned(r.points - r.before) }}</td>
               <td class="num">{{ fmt(r.syncs) }}</td>
               <td class="num">{{ r.streak || '–' }}</td>
               <td class="num">{{ r.badges ? `+${r.badges}` : '–' }}</td>

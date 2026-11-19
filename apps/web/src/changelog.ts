@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-19',
     items: [
       {
+        kind: 'new',
+        de: 'Recap: Neben Woche, Vorwoche und 30 Tagen gibt es jetzt „Seit Start“ – der Rückblick auf das ganze Universum seit seinem ersten Tag.',
+        en: 'Recap: besides the week, last week and 30 days there is now "Since the start" – the look back on the whole universe since its first day.',
+      },
+      {
         kind: 'fix',
         de: 'Recap: Die Syncs der letzten zwei Wochen vor dem Start des Recaps zählen jetzt mit – bisher standen dort nur die Syncs seit heute.',
         en: 'Recap: the syncs of the two weeks before the recap started now count too – so far it only showed the syncs since today.',

@@ -885,12 +885,12 @@ components:
       type: object
       required: [period, from, to, previous, members, syncs, active, points, newBadges, kinds, days, highlights, badges, rows, open]
       properties:
-        period: { type: string, enum: [week, lastWeek, days30] }
+        period: { type: string, enum: [week, lastWeek, days30, start] }
         from: { type: string, description: First day (YYYY-MM-DD) }
         to: { type: string, description: Last day (YYYY-MM-DD) }
         previous:
-          type: object
-          description: The span compared with (the same days a week earlier, for days30 30 days earlier)
+          type: [object, 'null']
+          description: The span compared with (the same days a week earlier, for days30 30 days earlier); null for start
           required: [from, to]
           properties:
             from: { type: string }
@@ -4273,13 +4273,13 @@ paths:
       tags: [Universe]
       operationId: getRecap
       description: >-
-        Recap of a period for the alliance (periods as in the ranking): syncs, active members, points and their kinds,
+        Recap of a period for the alliance (periods as in the ranking, and `start`: from the universe's start, its scheduled start or else its creation, to today; without a span before): syncs, active members, points and their kinds,
         badge levels reached in the period, highlights and what is still open, each with the same span before.
       parameters:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
         - { $ref: '#/components/parameters/HubGroupQuery' }
-        - { name: period, in: query, schema: { type: string, enum: [week, lastWeek, days30], default: week } }
+        - { name: period, in: query, schema: { type: string, enum: [week, lastWeek, days30, start], default: week } }
       responses:
         '200':
           content:
@@ -4299,7 +4299,7 @@ paths:
         - { $ref: '#/components/parameters/Uni' }
         - { $ref: '#/components/parameters/HubGroupHeader' }
         - { $ref: '#/components/parameters/HubGroupQuery' }
-        - { name: period, in: query, schema: { type: string, enum: [week, lastWeek, days30], default: week } }
+        - { name: period, in: query, schema: { type: string, enum: [week, lastWeek, days30, start], default: week } }
         - { name: lang, in: query, schema: { type: string, enum: [de, en] }, description: "Language (default: the caller's)" }
       responses:
         '200':
@@ -4331,7 +4331,7 @@ paths:
             schema:
               type: object
               properties:
-                period: { type: string, enum: [week, lastWeek, days30], default: week }
+                period: { type: string, enum: [week, lastWeek, days30, start], default: week }
                 image: { type: string, description: 'PNG as base64 (or a data URL), at most 8 MB' }
       responses:
         '200':

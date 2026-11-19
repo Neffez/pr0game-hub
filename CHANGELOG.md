@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-19
 
+- Recap: new period "Since the start" from the universe's first day (its scheduled start, else the day it was
+  created) to today, without a comparison (`period=start` for the recap endpoints, `previous` is null then).
+
 - Recap: the syncs before the release are filled in from the raw syncs still kept; the first data migration read the
   summary's counts as numbers (they are `{ new, duplicate }`) and filled in nothing, so the recap only counted syncs
   since the release (`js:sync_counts_from_raw_ingests_2`, only raw syncs from before the first one ran).

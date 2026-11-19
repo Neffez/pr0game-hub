@@ -4,7 +4,7 @@ import type { DB } from '../db.js';
 import { channelPrefs, DISCORD_ID, isWebhook, parseChannelPrefs, webhookHint, type DiscordService } from '../discord.js';
 import { parsePushPrefs, pushPrefs } from '../push.js';
 import { requireGroupAdminOf } from './admin.js';
-import { periodOf } from './goals.js';
+import { recapPeriodOf } from './goals.js';
 import { contextOf } from './util.js';
 
 interface PersonalBody {
@@ -112,7 +112,7 @@ export function discordRoutes(app: FastifyInstance, db: DB, discord: DiscordServ
   app.post<{ Params: { uni: string }; Body: { period?: unknown; image?: unknown } }>('/api/:uni/recap/discord', async (req) => {
     const ctx = ctxOf(req);
     requireGroupAdminOf(db, req, ctx.groupId);
-    const period = periodOf(req.body?.period === undefined ? undefined : String(req.body.period));
+    const period = recapPeriodOf(req.body?.period === undefined ? undefined : String(req.body.period));
     return sendResult(await discord.sendRecap(ctx, period, pngOf(req.body?.image)));
   });
 

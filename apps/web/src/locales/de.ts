@@ -834,7 +834,7 @@ const de = {
       period: { title: 'Zeitraum', text: 'Diese Woche (ab Montag), die Vorwoche oder die letzten 30 Tage. Das Info-Symbol zeigt, wofür es wie viele Punkte gibt.' },
       rankingList: { title: 'Punkte', text: 'Die Mitglieder nach Punkten; der Tooltip einer Zeile zeigt, woher die Punkte kommen.' },
       recap: { title: 'Recap', text: 'Der Rückblick der Allianz auf die Woche oder 30 Tage – zum Teilen gedacht, etwa im Discord der Allianz.' },
-      recapActions: { title: 'Teilen', text: 'Zeitraum wählen, dann als Bild herunterladen oder als Text kopieren. Admins posten den Recap direkt in den Discord-Kanal der Allianz.' },
+      recapActions: { title: 'Teilen', text: 'Zeitraum wählen (diese Woche, Vorwoche, 30 Tage oder seit Start des Universums), dann als Bild herunterladen oder als Text kopieren. Admins posten den Recap direkt in den Discord-Kanal der Allianz.' },
       recapKpis: { title: 'Kennzahlen', text: 'Syncs, aktive Mitglieder, Punkte und neue Abzeichen – mit dem Vergleich zu denselben Tagen davor.' },
       recapHighlights: { title: 'Highlights & Abzeichen', text: 'Wer am meisten beigetragen hat und welche Abzeichen im Zeitraum dazugekommen sind.' },
       recapOpen: { title: 'Da geht noch was', text: 'Wo die Allianz noch Lücken hat: veraltete Galaxie-Bereiche, Mitglieder ohne Punkte, offene Allianz-Ziele. Nur Anzahlen, keine Namen.' },
@@ -1693,6 +1693,7 @@ const de = {
     miner: { name: 'Miner', what: 'Bauliste plant 5 Tage voraus', how: 'Mit der Bauliste mindestens 5 Tage im Voraus planen' },
   },
   recap: {
+    since: 'Seit Start',
     hint: 'Der Rückblick der Allianz auf einen Zeitraum: wie viel synchronisiert wurde, wer geglänzt hat, welche Abzeichen dazukamen und wo noch Lücken sind. Jede Zahl im Vergleich zu denselben Tagen davor. Als Bild herunterladen oder als Text kopieren, um es in Discord oder anderswo zu teilen; Admins posten es direkt in den Discord-Kanal der Allianz.',
     compared: 'verglichen mit {from} – {to}',
     kpi: { syncs: 'Syncs', active: 'Aktive Mitglieder', points: 'Punkte', badges: 'Neue Abzeichen' },

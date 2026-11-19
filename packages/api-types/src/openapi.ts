@@ -776,7 +776,7 @@ export type paths = {
             path?: never;
             cookie?: never;
         };
-        /** @description Recap of a period for the alliance (periods as in the ranking): syncs, active members, points and their kinds, badge levels reached in the period, highlights and what is still open, each with the same span before. */
+        /** @description Recap of a period for the alliance (periods as in the ranking, and `start`: from the universe's start, its scheduled start or else its creation, to today; without a span before): syncs, active members, points and their kinds, badge levels reached in the period, highlights and what is still open, each with the same span before. */
         get: operations["getRecap"];
         put?: never;
         post?: never;
@@ -3745,16 +3745,16 @@ export type components = {
         };
         Recap: {
             /** @enum {string} */
-            period: "week" | "lastWeek" | "days30";
+            period: "week" | "lastWeek" | "days30" | "start";
             /** @description First day (YYYY-MM-DD) */
             from: string;
             /** @description Last day (YYYY-MM-DD) */
             to: string;
-            /** @description The span compared with (the same days a week earlier, for days30 30 days earlier) */
+            /** @description The span compared with (the same days a week earlier, for days30 30 days earlier); null for start */
             previous: {
                 from: string;
                 to: string;
-            };
+            } | null;
             /** @description Members of the alliance */
             members: number;
             /** @description Syncs of pages with data */
@@ -7777,7 +7777,7 @@ export interface operations {
             query?: {
                 /** @description Alliance group id (alternative to `X-Hub-Group`, required for SSE) */
                 group?: components["parameters"]["HubGroupQuery"];
-                period?: "week" | "lastWeek" | "days30";
+                period?: "week" | "lastWeek" | "days30" | "start";
             };
             header?: {
                 /** @description Alliance group id (see `GET /api/auth/me`) */
@@ -7815,7 +7815,7 @@ export interface operations {
             query?: {
                 /** @description Alliance group id (alternative to `X-Hub-Group`, required for SSE) */
                 group?: components["parameters"]["HubGroupQuery"];
-                period?: "week" | "lastWeek" | "days30";
+                period?: "week" | "lastWeek" | "days30" | "start";
                 /** @description Language (default: the caller's) */
                 lang?: "de" | "en";
             };
@@ -7875,7 +7875,7 @@ export interface operations {
                      * @default week
                      * @enum {string}
                      */
-                    period?: "week" | "lastWeek" | "days30";
+                    period?: "week" | "lastWeek" | "days30" | "start";
                     /** @description PNG as base64 (or a data URL), at most 8 MB */
                     image?: string;
                 };

@@ -150,4 +150,18 @@ describe('recap', () => {
     expect(sent[0].message.embeds[0].title).toContain(`KW ${isoWeek(addDays(monday, -7))}`);
     expect(sent[0].files).toBeUndefined();
   });
+
+  it('looks back from the start of the universe, without a span before', async () => {
+    const start = now() - 3 * 86400;
+    db.prepare("UPDATE universes SET starts_at = ? WHERE slug = 'u8'").run(start);
+    const r = await getJson('/u8/recap?period=start');
+    expect(r).toMatchObject({ period: 'start', from: dayOf(start, TZ), to: dayOf(now(), TZ), previous: null });
+    expect(r.days).toHaveLength(4);
+    // the empire days of January lie before the start: the imperator badge is reached within it
+    expect(r.badges).toEqual([{ userId: ids.carol, name: 'carol', key: 'imperator', level: 1 }]);
+    expect(r.syncs.before).toBe(0);
+    expect(r.highlights.map((x: { key: string }) => x.key)).not.toContain('riser');
+    expect((await getJson('/u8/recap/text?period=start')).text).toMatch(/^## Recap seit Start · /);
+    db.prepare("UPDATE universes SET starts_at = NULL WHERE slug = 'u8'").run();
+  });
 });

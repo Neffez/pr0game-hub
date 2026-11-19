@@ -833,7 +833,7 @@ const en: typeof de = {
       period: { title: 'Period', text: 'This week (from Monday), last week or the last 30 days. The info icon shows how many points each kind gives.' },
       rankingList: { title: 'Points', text: 'The members by points; the tooltip of a row shows where the points come from.' },
       recap: { title: 'Recap', text: 'The alliance\'s look back on the week or 30 days – made for sharing, e.g. on the alliance\'s Discord.' },
-      recapActions: { title: 'Share', text: 'Pick a period, then download it as an image or copy it as text. Admins post the recap straight to the alliance\'s Discord channel.' },
+      recapActions: { title: 'Share', text: 'Pick a period (this week, last week, 30 days or since the universe started), then download it as an image or copy it as text. Admins post the recap straight to the alliance\'s Discord channel.' },
       recapKpis: { title: 'Key figures', text: 'Syncs, active members, points and new badges – compared with the same days before.' },
       recapHighlights: { title: 'Highlights & badges', text: 'Who contributed the most and which badges were reached in the period.' },
       recapOpen: { title: 'Room to grow', text: 'Where the alliance still has gaps: stale parts of the galaxy, members without points, open alliance goals. Counts only, no names.' },
@@ -1692,6 +1692,7 @@ const en: typeof de = {
     miner: { name: 'Miner', what: 'Build order plans 5 days ahead', how: 'Plan at least 5 days ahead with the build order' },
   },
   recap: {
+    since: 'Since the start',
     hint: 'The alliance\'s look back on a period: how much was synced, who stood out, which badges were reached and where gaps remain. Every number against the same days before. Download it as an image or copy it as text to share it on Discord or elsewhere; admins post it straight to the alliance\'s Discord channel.',
     compared: 'compared with {from} – {to}',
     kpi: { syncs: 'Syncs', active: 'Active members', points: 'Points', badges: 'New badges' },
