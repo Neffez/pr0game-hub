@@ -281,7 +281,7 @@ const claimText = (r: Row) => {
 </script>
 
 <template>
-  <PageHeader :title="t('nav.farm')" tour="farm">
+  <PageHeader :title="t('nav.farm')" tour="farm" sync>
     <template #hint>
       <Hint v-if="tab === 'debris'">
         <p>{{ t('debris.hint1') }}</p>

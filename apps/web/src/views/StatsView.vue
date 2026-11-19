@@ -84,7 +84,7 @@ useAutoTour('stats', () => !!data.value);
 </script>
 
 <template>
-  <PageHeader :title="t('nav.stats')" tour="stats">
+  <PageHeader :title="t('nav.stats')" tour="stats" sync>
     <template #hint>
       <Hint>
         <p>{{ t('stats.hint1') }}</p>

@@ -485,7 +485,7 @@ const history = computed(() => {
 </script>
 
 <template>
-  <PageHeader :title="t('nav.overview')" tour="overview">
+  <PageHeader :title="t('nav.overview')" tour="overview" sync>
     <template #hint>
       <Hint>
         <template v-if="mode === 'planets'">

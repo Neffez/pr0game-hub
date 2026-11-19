@@ -379,7 +379,7 @@ useAutoTour('imperium', () => !!data.value);
 </script>
 
 <template>
-  <PageHeader :title="t('imperium.title')" tour="imperium">
+  <PageHeader :title="t('imperium.title')" tour="imperium" sync>
     <template #hint>
       <Hint>
         <p>{{ t('imperium.hint1') }}</p>

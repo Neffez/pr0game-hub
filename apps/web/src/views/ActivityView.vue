@@ -145,7 +145,7 @@ useAutoTour('activity', () => !!data.value);
 </script>
 
 <template>
-  <PageHeader :title="t('activity.title')" tour="activity">
+  <PageHeader :title="t('activity.title')" tour="activity" sync>
     <template #hint>
       <Hint>
         <p>{{ t('activity.hint1') }}</p>

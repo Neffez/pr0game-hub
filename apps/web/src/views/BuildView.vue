@@ -260,7 +260,7 @@ const costClass = (b: { missing: Record<number, number> }, res: number) => (b.mi
 </script>
 
 <template>
-  <PageHeader :title="t('buildings.title')" tour="build">
+  <PageHeader :title="t('buildings.title')" tour="build" sync>
     <template #hint>
       <Hint>
         <p v-if="tab === 'buildings'">{{ t('buildings.hint1') }}</p>

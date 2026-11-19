@@ -191,7 +191,7 @@ useAutoTour(page, () => members.value.length > 0 || colonize.value, () => (page.
 </script>
 
 <template>
-  <PageHeader :title="t(`nav.${page}`)" :tour="page">
+  <PageHeader :title="t(`nav.${page}`)" :tour="page" sync>
     <template #hint>
       <Hint v-if="colonize">
         <p>{{ t('colonize.hint1') }}</p>

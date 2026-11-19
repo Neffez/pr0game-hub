@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-19
 
+- "Sync now" in the page header (desktop; on a phone the tab bar has it): a sync icon button next to the page's
+  actions opens the quick sync on overview, empire, build, market, statistics, activity, battle hall, espionage,
+  planets/fleet/research, farm, fleet save, expeditions, hostile and messages; the galaxy has it in its "…" menu.
+  `PageHeader` takes `sync`, pages with an overflow menu add `useQuickSyncItem()` to it.
+
 - Player profile and online list: the badges next to a name link to the alliance progress, tab "Streaks & badges".
 
 - Auto plan as a public pr0game tool (`/auto-plan/`, card on the tools index): targets of one planet (buildings,

@@ -514,6 +514,7 @@ const de = {
     toolsLink: 'Zu den pr0game-Tools',
     universeInGame: 'Universum im Spiel öffnen',
     quickSync: 'Schnell synchronisieren',
+    syncNow: 'Jetzt synchronisieren',
     openSyncPage: 'Zur Sync-Seite',
     close: 'Schließen',
   },
@@ -731,7 +732,7 @@ const de = {
       stripMode: { title: 'Planeten oder Punkte', text: 'Umschalten, was die Höhe der Balken zeigt: die Anzahl der Planeten im System oder die Summe der Gesamtpunkte der Spieler dort.' },
       system: { title: 'System', text: 'Spieler, Allianz, Punkte, Mond, Trümmerfeld und der letzte Spionagebericht je Position. Ein Klick auf Planet oder Mond öffnet das Aktionsmenü: spionieren, angreifen, Flugzeit, Ziel reservieren.' },
       phalanx: { title: 'Phalanx-Sicht', text: 'Monde mit Sensorphalanx, deren Reichweite dieses System erreicht: Wer hier angreift, kann von dort gesehen werden.' },
-      json: { title: 'Download', text: 'Lädt die Galaxie als universe.json herunter.' },
+      json: { title: 'Weitere Aktionen', text: 'Lädt die Galaxie als universe.json herunter oder öffnet die Schnell-Synchronisierung, um eine Galaxieansicht einzufügen, ohne die Seite zu verlassen.' },
     },
     spy: {
       intro: { title: 'Spionageberichte', text: 'Alle Spionageberichte der Allianz an einem Ort: Jeder synchronisierte Bericht eines Mitglieds landet hier.' },

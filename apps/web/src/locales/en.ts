@@ -513,6 +513,7 @@ const en: typeof de = {
     toolsLink: 'Go to the pr0game tools',
     universeInGame: 'Open the universe in the game',
     quickSync: 'Quick sync',
+    syncNow: 'Sync now',
     openSyncPage: 'Open sync page',
     close: 'Close',
   },
@@ -730,7 +731,7 @@ const en: typeof de = {
       stripMode: { title: 'Planets or points', text: 'Switch what the bar height shows: the number of planets in the system or the summed total points of the players there.' },
       system: { title: 'System', text: 'Player, alliance, points, moon, debris field and the latest espionage report per position. Clicking a planet or moon opens the action menu: spy, attack, flight time, claim the target.' },
       phalanx: { title: 'Phalanx view', text: 'Moons with a sensor phalanx whose range reaches this system: an attack here can be seen from there.' },
-      json: { title: 'Download', text: 'Downloads the galaxy as universe.json.' },
+      json: { title: 'More actions', text: 'Downloads the galaxy as universe.json or opens the quick sync to paste a galaxy view without leaving the page.' },
     },
     spy: {
       intro: { title: 'Espionage reports', text: 'All espionage reports of the alliance in one place: every report a member syncs ends up here.' },

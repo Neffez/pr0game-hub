@@ -118,7 +118,7 @@ useAutoTour('spy', () => recentDone.value || recent.value.length > 0);
 </script>
 
 <template>
-  <PageHeader :title="t('actions.spyHistory')" tour="spy">
+  <PageHeader :title="t('actions.spyHistory')" tour="spy" sync>
     <template #hint><Hint>{{ t('spy.hint') }}</Hint></template>
     <CsvButton dataset="spy-reports" />
   </PageHeader>

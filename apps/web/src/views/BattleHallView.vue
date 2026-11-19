@@ -58,7 +58,7 @@ useAutoTour('battlehall', () => !!data.value);
 </script>
 
 <template>
-  <PageHeader :title="t('nav.battleHall')" tour="battlehall">
+  <PageHeader :title="t('nav.battleHall')" tour="battlehall" sync>
     <template #hint>
       <Hint>
         <p>{{ t('battleHall.hint1') }}</p>

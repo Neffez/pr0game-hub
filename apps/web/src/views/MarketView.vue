@@ -97,7 +97,7 @@ useAutoTour('market', () => !!data.value);
 </script>
 
 <template>
-  <PageHeader :title="t('nav.market')" tour="market">
+  <PageHeader :title="t('nav.market')" tour="market" sync>
     <template #hint>
       <Hint>
         <p>{{ t('market.hint1') }}</p>

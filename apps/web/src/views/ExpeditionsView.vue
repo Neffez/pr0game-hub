@@ -32,7 +32,7 @@ const tab = computed<ExpoTab>({
 </script>
 
 <template>
-  <PageHeader :title="t('nav.expeditions')" tour="expeditions">
+  <PageHeader :title="t('nav.expeditions')" tour="expeditions" sync>
     <template #hint>
       <Hint v-if="tab === 'deck'">
         <p>{{ t('deck.hint1', { n: ctx!.universe.deck.reduce((s, c) => s + c.count, 0) || 1000 }) }}</p>

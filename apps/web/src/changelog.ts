@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
+        de: 'Auf vielen Seiten (z. B. Imperium, Marktplatz, Statistik, Spionage) öffnet ein Sync-Knopf oben rechts direkt das Schnell-Synchronisieren; in der Galaxie steckt er im „…“-Menü.',
+        en: 'Many pages (e.g. empire, market, statistics, espionage) have a sync button at the top right that opens the quick sync right away; in the galaxy it sits in the "…" menu.',
+      },
+      {
+        kind: 'new',
         de: 'Spielerprofil und Online-Liste: Ein Klick auf die Abzeichen öffnet den Fortschritt mit dem Tab „Serien & Abzeichen“.',
         en: 'Player profile and online list: clicking the badges opens the progress page on the "Streaks & badges" tab.',
       },

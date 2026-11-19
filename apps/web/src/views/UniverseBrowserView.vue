@@ -20,6 +20,7 @@ import { useLoader, useMobile, useStored, useUni } from '../composables';
 import { tables, useLiveReload, type DataEvent } from '../live';
 import { STATUS_LABEL, STATUS_TITLE, ago, dateTime, fmt, freshnessColor, name, short, timeWithAge } from '../format';
 import GalaxyFreshness from '../components/GalaxyFreshness.vue';
+import { useQuickSyncItem } from '../quickSync';
 
 /** Galaxy view like in the game, from the synced galaxy data (no activity, no deuterium). */
 /** Last spy report of a planet/moon: time and the resources it showed. */
@@ -259,6 +260,7 @@ function onStripUp() {
   if (scrub.value != null) s.value = scrub.value;
   scrub.value = null;
 }
+const syncItem = useQuickSyncItem();
 useAutoTour('browse', () => !!system.value);
 </script>
 
@@ -273,7 +275,7 @@ useAutoTour('browse', () => !!system.value);
     </template>
     <span data-tour="browse-json">
       <ActionMenu
-        :items="[{ label: t('browse.downloadJson'), icon: 'download', hint: t('universeJson.hintDownload'), onClick: () => downloadUniverseJson(uni) }]"
+        :items="[{ label: t('browse.downloadJson'), icon: 'download', hint: t('universeJson.hintDownload'), onClick: () => downloadUniverseJson(uni) }, syncItem]"
       />
     </span>
   </PageHeader>

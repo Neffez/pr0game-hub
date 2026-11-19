@@ -154,7 +154,7 @@ useAutoTour('messages', () => !!data.value);
 </script>
 
 <template>
-  <PageHeader :title="t('nav.messages')" tour="messages">
+  <PageHeader :title="t('nav.messages')" tour="messages" sync>
     <template #hint>
       <Hint>{{ t('messages.hint') }}</Hint>
     </template>

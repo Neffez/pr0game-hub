@@ -202,7 +202,7 @@ const kindList = computed(() => (['deploy', 'transport', 'harvest', 'colonize'] 
 </script>
 
 <template>
-  <PageHeader :title="t('fleetsave.title')" tour="fleetsave">
+  <PageHeader :title="t('fleetsave.title')" tour="fleetsave" sync>
     <template #hint>
       <Hint>
         <p>{{ t('fleetsave.hint1') }}</p>

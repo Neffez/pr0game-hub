@@ -86,7 +86,7 @@ useAutoTour('hostile', () => (tab.value === 'me' ? !!threats.value?.ready : !!da
 </script>
 
 <template>
-  <PageHeader :title="t('nav.hostile')" tour="hostile">
+  <PageHeader :title="t('nav.hostile')" tour="hostile" sync>
     <template #hint>
       <Hint>{{ t(tab === 'me' ? 'threats.hint' : 'hostile.hint') }}</Hint>
     </template>
