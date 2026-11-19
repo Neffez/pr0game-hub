@@ -20,8 +20,8 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'new',
-        de: 'Spielerprofil: Ein Klick auf die Abzeichen öffnet den Fortschritt mit dem Tab „Serien & Abzeichen“.',
-        en: 'Player profile: clicking the badges opens the progress page on the "Streaks & badges" tab.',
+        de: 'Spielerprofil und Online-Liste: Ein Klick auf die Abzeichen öffnet den Fortschritt mit dem Tab „Serien & Abzeichen“.',
+        en: 'Player profile and online list: clicking the badges opens the progress page on the "Streaks & badges" tab.',
       },
       {
         kind: 'new',

@@ -4,7 +4,7 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-19
 
-- Player profile: the badges next to the name link to the alliance progress, tab "Streaks & badges".
+- Player profile and online list: the badges next to a name link to the alliance progress, tab "Streaks & badges".
 
 - Auto plan as a public pr0game tool (`/auto-plan/`, card on the tools index): targets of one planet (buildings,
   research, ships, defense), a new planet from 0 or levels typed in or taken from the pasted buildings and research

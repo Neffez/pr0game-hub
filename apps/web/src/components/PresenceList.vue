@@ -54,6 +54,7 @@ onBeforeUnmount(() => observer?.disconnect());
 // up to three badges next to each name (reloaded after syncs, at most every few minutes)
 onMounted(() => loadAchievements(uni.value));
 useLiveReload(() => loadAchievements(uni.value), tables('empire', 'galaxy_systems', 'spy_reports', 'battle_reports', 'expeditions', 'player_scores'), 10000);
+const badgesLink = computed(() => ({ path: `/${uni.value}/health`, query: { tab: 'badges' } }));
 const badgesOf = computed(() => new Map((achievements.value ?? []).map((m) => [m.userId, topBadges(m.badges)])));
 watch(onlineTitle, () => nextTick(measure));
 const offline = computed(() => {
@@ -93,7 +94,7 @@ function where(p: PresenceMember) {
     <div v-for="m in online" :key="m.id" class="member">
       <span class="dot" :class="{ away: !m.at.active }" :title="m.at.active ? t('presence.active') : t('presence.away')" />
       <span class="name" :class="roleClass(m)" :title="nameTitle(m)">{{ m.name }}<span v-if="m.me" class="muted"> ({{ t('presence.you') }})</span></span>
-      <span v-if="badgesOf.get(m.id)?.length" class="badges"><BadgeIcon v-for="b in badgesOf.get(m.id)" :key="b.key" :badge="b" :size="11" /></span>
+      <RouterLink v-if="badgesOf.get(m.id)?.length" class="badges" :to="badgesLink" @click="emit('navigate')"><BadgeIcon v-for="b in badgesOf.get(m.id)" :key="b.key" :badge="b" :size="11" /></RouterLink>
       <RouterLink v-if="!m.me && where(m.at)" class="where" :to="where(m.at)!.to" @click="emit('navigate')">{{ where(m.at)!.text }}</RouterLink>
     </div>
     <details v-if="offline.length" class="offline">
@@ -101,7 +102,7 @@ function where(p: PresenceMember) {
       <div v-for="m in offline" :key="m.id" class="member muted">
         <span class="dot off" />
         <span class="name" :class="roleClass(m)" :title="nameTitle(m)">{{ m.name }}</span>
-        <span v-if="badgesOf.get(m.id)?.length" class="badges"><BadgeIcon v-for="b in badgesOf.get(m.id)" :key="b.key" :badge="b" :size="11" /></span>
+        <RouterLink v-if="badgesOf.get(m.id)?.length" class="badges" :to="badgesLink" @click="emit('navigate')"><BadgeIcon v-for="b in badgesOf.get(m.id)" :key="b.key" :badge="b" :size="11" /></RouterLink>
         <span class="where">{{ m.last_seen_at ? t('presence.lastSeen', { ago: ago(m.last_seen_at) }) : '' }}</span>
       </div>
     </details>
@@ -118,7 +119,7 @@ function where(p: PresenceMember) {
 .name.global-admin { color: var(--info); }
 .where { margin-left: auto; color: var(--muted); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 a.where:hover { color: var(--accent); }
-.badges { display: inline-flex; gap: 2px; flex-shrink: 0; }
+.badges { color: inherit; text-decoration: none; display: inline-flex; gap: 2px; flex-shrink: 0; }
 .dot { flex-shrink: 0; width: 7px; height: 7px; border-radius: 50%; background: var(--pos); }
 .dot.away { background: var(--warn); }
 .dot.off { background: var(--faint); }
