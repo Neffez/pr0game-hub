@@ -109,6 +109,27 @@ describe('alliance goals', () => {
     expect(stats).toMatchObject({ done: 2, total: 28, value: 7 });
   });
 
+  it('counts inactive farm targets outside the alliance of the group with a fresh spy report', async () => {
+    const t = now();
+    const ally = Number(db.prepare("INSERT INTO alliances (group_id, name, tag) VALUES (?, 'Wir', 'WIR')").run(group).lastInsertRowid);
+    const player = (name: string, allianceId: number | null, status: string) =>
+      Number(db.prepare('INSERT INTO players (group_id, name, alliance_id, status, first_seen, last_seen) VALUES (?, ?, ?, ?, 0, 0)').run(group, name, allianceId, status).lastInsertRowid);
+    // carol's player is in the alliance: an inactive player of it is no target, whoever looks
+    player('Carol', ally, '[]');
+    const friend = player('Friend', ally, '["inactive"]');
+    const fresh = player('Fresh', null, '["inactive"]');
+    const old = player('Old', null, '["inactive"]');
+    const busy = player('Busy', null, '[]');
+    const report = (playerId: number, s: number, time: number) =>
+      db.prepare("INSERT INTO spy_reports (group_id, g, s, p, planet_type, report_time, sections, player_id) VALUES (?, 2, ?, 5, 'planet', ?, '{\"900\":{\"901\":1}}', ?)").run(group, s, time, playerId);
+    report(friend, 1, t - H);
+    report(fresh, 2, t - H);
+    report(old, 3, t - 3 * DAY);
+    report(busy, 4, t - H);
+    const spy = (await getJson('u8/goals')).goals.find((x: any) => x.key === 'spy');
+    expect(spy).toMatchObject({ done: 1, total: 2, value: 50 });
+  });
+
   it('lets the alliance admins change the goals, not the members', async () => {
     const url = `/hub/api/admin/groups/${group}/goals`;
     expect((await app.inject({ method: 'GET', url, headers: carol })).statusCode).toBe(403);

@@ -117,6 +117,52 @@ export function ownFleet(db: DB, ctx: GroupContext, catalog: UnitCatalog): OwnFl
 }
 
 /**
+ * The newest spy report with resources (since `since`) of every spied planet or moon, with its owner now: the
+ * galaxy's, else the report's; positions destroyed or with a different owner since are left out. `players`: those
+ * owners (name, status, alliance).
+ */
+export function spiedTargets(db: DB, ctx: GroupContext, since: number) {
+  const g = ctx.groupId;
+  const newest = db
+    .prepare(
+      `SELECT g, s, p, planet_type, planet_name, player_id, player_name, MAX(report_time) AS report_time, json_extract(sections, ?) AS res, COUNT(*) AS count
+       FROM spy_reports WHERE group_id = ? AND report_time >= ? AND p <= ? AND json_extract(sections, ?) IS NOT NULL GROUP BY g, s, p, planet_type`,
+    )
+    .all(`$."${CLASS_RESOURCES}"`, g, since, ctx.universe.settings.positions, `$."${CLASS_RESOURCES}"`) as {
+    g: number; s: number; p: number; planet_type: 'planet' | 'moon'; planet_name: string | null; player_id: number | null; player_name: string | null;
+    report_time: number; res: string; count: number;
+  }[];
+  const positions = new Map(
+    (newest.length
+      ? (db.prepare('SELECT g, s, p, player_id, destroyed, has_moon, moon_diameter FROM planets WHERE group_id = ?').all(g) as {
+          g: number; s: number; p: number; player_id: number | null; destroyed: number; has_moon: number; moon_diameter: number | null;
+        }[])
+      : []
+    ).map((r) => [`${r.g}:${r.s}:${r.p}`, r]),
+  );
+  const owned = newest.flatMap((r) => {
+    const pos = positions.get(`${r.g}:${r.s}:${r.p}`);
+    if (pos && (pos.destroyed || (r.planet_type === 'moon' && !pos.has_moon))) return [];
+    const playerId = pos?.player_id ?? r.player_id;
+    if (playerId == null || (r.player_id != null && playerId !== r.player_id)) return [];
+    return [{ ...r, playerId }];
+  });
+  const ids = [...new Set(owned.map((r) => r.playerId))];
+  const players = new Map(
+    (ids.length
+      ? (db
+          .prepare(
+            `SELECT p.id, p.name, p.status, p.alliance_id, a.tag AS ally_tag FROM json_each(?) id
+             JOIN players p ON p.id = id.value AND p.group_id = ? LEFT JOIN alliances a ON a.id = p.alliance_id`,
+          )
+          .all(JSON.stringify(ids), g) as { id: number; name: string; status: string; alliance_id: number | null; ally_tag: string | null }[])
+      : []
+    ).map((p) => [p.id, p]),
+  );
+  return { newest, positions, owned, players };
+}
+
+/**
  * Farm finder: every spied planet or moon of players outside the own alliance with what it is worth now, from the
  * newest spy report with resources (within `days`) plus the production since then. Positions that changed owner or
  * were destroyed since the report are left out. Sorting and the flight math are the web app's.
@@ -136,15 +182,7 @@ export function farmTargets(db: DB, ctx: GroupContext, days: number) {
   const mine = memberPlayer(db, ctx, ctx.user.id);
   const ownAlly = mine != null ? ((db.prepare('SELECT alliance_id FROM players WHERE id = ? AND group_id = ?').pluck().get(mine, g) as number | null) ?? null) : null;
 
-  const newest = db
-    .prepare(
-      `SELECT g, s, p, planet_type, planet_name, player_id, player_name, MAX(report_time) AS report_time, json_extract(sections, ?) AS res, COUNT(*) AS count
-       FROM spy_reports WHERE group_id = ? AND report_time >= ? AND p <= ? AND json_extract(sections, ?) IS NOT NULL GROUP BY g, s, p, planet_type`,
-    )
-    .all(`$."${CLASS_RESOURCES}"`, g, since, settings.positions, `$."${CLASS_RESOURCES}"`) as {
-    g: number; s: number; p: number; planet_type: 'planet' | 'moon'; planet_name: string | null; player_id: number | null; player_name: string | null;
-    report_time: number; res: string; count: number;
-  }[];
+  const { newest, positions, owned, players } = spiedTargets(db, ctx, since);
   if (!newest.length) return { targets: [] as FarmTarget[], resourceSpeed, speedSource, storageFactor, own };
 
   const key = (r: { g: number; s: number; p: number; planet_type: string }) => `${r.g}:${r.s}:${r.p}:${r.planet_type}`;
@@ -172,34 +210,13 @@ export function farmTargets(db: DB, ctx: GroupContext, days: number) {
       )
       .all(`$."${CLASS_RESEARCH}"`, g, `$."${CLASS_RESEARCH}"`) as { player_id: number; v: string }[]).map((r) => [r.player_id, JSON.parse(r.v) as Record<string, number>]),
   );
-  const positions = new Map(
-    (db.prepare('SELECT g, s, p, player_id, destroyed, has_moon, moon_diameter FROM planets WHERE group_id = ?').all(g) as {
-      g: number; s: number; p: number; player_id: number | null; destroyed: number; has_moon: number; moon_diameter: number | null;
-    }[]).map((r) => [`${r.g}:${r.s}:${r.p}`, r]),
-  );
   const battles = new Map(
     (db
       .prepare('SELECT g, s, p, planet_type, MAX(COALESCE(time, created_at)) AS last FROM battle_reports WHERE group_id = ? GROUP BY g, s, p, planet_type')
       .all(g) as { g: number; s: number; p: number; planet_type: string; last: number }[]).map((r) => [key(r), r.last]),
   );
 
-  // the target's owner now: the galaxy's, else the report's
-  const owned = newest.flatMap((r) => {
-    const pos = positions.get(`${r.g}:${r.s}:${r.p}`);
-    if (pos && (pos.destroyed || (r.planet_type === 'moon' && !pos.has_moon))) return [];
-    const playerId = pos?.player_id ?? r.player_id;
-    if (playerId == null || (r.player_id != null && playerId !== r.player_id)) return [];
-    return [{ ...r, playerId }];
-  });
-  const ids = [...new Set(owned.map((r) => r.playerId))];
-  const players = new Map(
-    (db
-      .prepare(
-        `SELECT p.id, p.name, p.status, p.alliance_id, a.tag AS ally_tag FROM json_each(?) id
-         JOIN players p ON p.id = id.value AND p.group_id = ? LEFT JOIN alliances a ON a.id = p.alliance_id`,
-      )
-      .all(JSON.stringify(ids), g) as { id: number; name: string; status: string; alliance_id: number | null; ally_tag: string | null }[]).map((p) => [p.id, p]),
-  );
+  const ids = [...players.keys()];
   const scores = latestScores(db, g, ids, [1, 2, 5]);
   // the score of a category at the last statistics update before a report (index player_scores_history)
   const scoreAt = db.prepare(

@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Allianzziele: Das Spionage-Ziel zählt für alle Mitglieder und im Discord-Rückblick gleich und lässt die ganze eigene Allianz aus; die Fortschrittsseite lädt schneller.',
+        en: 'Alliance goals: the spy goal counts the same for every member and in the Discord recap and leaves out the whole own alliance; the progress page loads faster.',
+      },
+      {
+        kind: 'fix',
         de: 'Rangliste: Ein universe.json-Upload zählt nicht mehr als Galaxie-Sync für Punkte und das Kartograph-Abzeichen.',
         en: 'Ranking: a universe.json upload no longer counts as galaxy syncs for points and the cartographer badge.',
       },

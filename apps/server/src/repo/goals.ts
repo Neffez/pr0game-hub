@@ -1,7 +1,9 @@
 import type { GroupContext } from '../context.js';
 import type { DB } from '../db.js';
 import { TYPES } from '../domain/stats.js';
-import { farmTargets } from './farm.js';
+import { spiedTargets } from './farm.js';
+import { inactivities } from './inactivity.js';
+import { memberPlayers } from './members.js';
 import { freshnessOf } from './freshness.js';
 import { SAME_UPDATE, statInterval } from './syncHints.js';
 
@@ -125,10 +127,32 @@ export function allianceGoals(db: DB, ctx: GroupContext): Goal[] {
   }
 
   if (settings.spy.on) {
-    // farm targets: likely inactive players with a report with resources of the last week
-    const targets = farmTargets(db, ctx, 7).targets.filter((x) => x.inactivity?.level === 'inactive' || x.inactivity?.level === 'likely');
-    const done = targets.filter((x) => x.report.time >= t - SPY_FRESH).length;
+    const targets = spyGoalTargets(db, ctx, t - WEEK);
+    const done = targets.filter((time) => time >= t - SPY_FRESH).length;
     goals.push({ key: 'spy', target: settings.spy.target, value: percent(done, targets.length), done, total: targets.length });
   }
   return goals;
+}
+
+/**
+ * The spy goal's farm targets: planets and moons of likely inactive players with a spy report with resources since
+ * `since` (the farm finder's list), outside the alliance; the time of each newest report. The alliance is the group's
+ * (its members' players and their in-game alliances), not the viewer's, so every member and the Discord recap count
+ * the same.
+ */
+function spyGoalTargets(db: DB, ctx: GroupContext, since: number): number[] {
+  const { owned, players } = spiedTargets(db, ctx, since);
+  const members = new Set([...memberPlayers(db, ctx).values()].filter((id): id is number => id != null));
+  const allies = new Set(
+    [...members].map((id) => db.prepare('SELECT alliance_id FROM players WHERE id = ? AND group_id = ?').pluck().get(id, ctx.groupId) as number | null).filter((a) => a != null),
+  );
+  const inactive = inactivities(db, ctx, [...players.keys()]);
+  return owned
+    .filter((r) => {
+      const player = players.get(r.playerId);
+      if (!player || members.has(player.id) || (player.alliance_id != null && allies.has(player.alliance_id))) return false;
+      const level = inactive.get(player.id)?.level;
+      return level === 'inactive' || level === 'likely';
+    })
+    .map((r) => r.report_time);
 }

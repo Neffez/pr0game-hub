@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-19
 
+- Alliance goals: the spy goal counts its farm targets with one light query (`spiedTargets`, shared with the farm
+  finder) instead of computing the whole farm finder on every `/goals`, `/recap` and Discord recap, and it leaves
+  out the group's alliance (the in-game alliances of all members' players) instead of the viewer's, so every member
+  and the Discord recap see the same numbers (review R-04, R-05).
+
 - Syncs do less work: the freshness of one member (the "fresh day" credit after each sync, the sync hints' score)
   reads only that member's pages and the galaxy systems around their planets instead of the whole group's, and a
   universe.json upload skips the member's freshness and sync hints, which it cannot change (review R-03).
