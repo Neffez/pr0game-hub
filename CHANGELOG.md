@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-19
 
+- Farm simulation: a target only counts as weak when the attack is won in at least 95 % of the runs and brings a
+  clear gain (ships lost cost at most a quarter of loot plus debris); a barely positive profit counts as strong.
+  Also fixes an unescaped apostrophe in the English "What's new" entry of the farm finder that broke the web build.
+
 - Farm finder ranks by inactivity and risk instead of loot alone, so strong top players no longer lead the list:
   - Each target has a combat strength (`strength`, `GET /api/{uni}/farm`): combat points of fleet and defense (civil
     ships, satellites, probes and missiles left out) from the newest report showing them plus the points the

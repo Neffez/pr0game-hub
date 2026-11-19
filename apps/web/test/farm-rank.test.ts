@@ -11,8 +11,8 @@ const strength = (fleet: number | null, defense: number | null, from: 'report' |
 const inactive = (level: NonNullable<Inactivity>['level'], hours: number | null, status: 'inactive' | null = null): Inactivity => ({
   score: 0, level, since: hours == null ? null : now - hours * 3600, atLeast: false, status, stall: null, lastActive: null, reasons: [],
 });
-const sim = (wins: number, profit: number): SimOutcome => ({
-  wins, profit, loot: { metal: 0, crystal: 0, deuterium: 0 }, debris: { metal: 0, crystal: 0 }, lost: { metal: 0, crystal: 0, deuterium: 0 }, defenderLost: { metal: 0, crystal: 0, deuterium: 0 },
+const sim = (wins: number, profit: number, lost = 0, loot = 10_000): SimOutcome => ({
+  wins, profit, loot: { metal: loot, crystal: 0, deuterium: 0 }, debris: { metal: 0, crystal: 0 }, lost: { metal: lost, crystal: 0, deuterium: 0 }, defenderLost: { metal: 0, crystal: 0, deuterium: 0 },
 });
 
 describe('farm ranking', () => {
@@ -39,6 +39,9 @@ describe('farm ranking', () => {
     expect(riskTier(strength(0, 0), 1000, sim(1, 5000))).toBe('safe');
     expect(riskTier(strength(10, 0), 1000, sim(0.5, 5000))).toBe('strong');
     expect(riskTier(strength(10, 0), 1000, sim(1, -100))).toBe('strong');
+    // won and barely profitable, but the losses eat most of the loot: no clear gain
+    expect(riskTier(strength(10, 0), 1000, sim(1, 500, 9_000, 10_000))).toBe('strong');
+    expect(riskTier(strength(10, 0), 1000, sim(1, 7_500, 2_500, 10_000))).toBe('weak');
   });
 
   it('ranks inactive players first, then the risk, then the loot per flight hour', () => {

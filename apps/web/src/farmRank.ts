@@ -12,7 +12,8 @@ export type SimOutcome = NonNullable<Schema<'FarmSimulation'>['results'][number]
  * Defense points count twice. Simulations on the game's engine (same research on both sides; cruisers and
  * battleships, battleships and battlecruisers, light fighters, bombers against early, mid and late defense mixes, at
  * 20k and 200k points) gave: what a fleet beats with the losses of a fleet of 30 % of its points, it beats as defense
- * at 10-31 % of its points, median 15 %. Above that the battle ends in a draw (no loot) rather than in losses.
+ * at 10-31 % of its points, median 15 %. Above that the attacker loses a quarter of the fleet or more and still
+ * does not win: losses without loot.
  */
 export const DEFENSE_WEIGHT = 2;
 /** Rule of thumb: a target up to 30 % of the own fleet points is won with hardly any losses and pays best. */
@@ -21,6 +22,11 @@ export const WEAK_SHARE = 0.3;
 export const STANDING_FLEET_HOURS = 12;
 /** A simulation counts as won when the attacker wins at least this share of the runs. */
 export const SIM_WIN = 0.95;
+/**
+ * An attack is only worth it with a clear gain: the ships lost may cost at most this share of what comes in (loot and
+ * debris field), otherwise the target counts as strong even when the profit is barely positive.
+ */
+export const SIM_MAX_LOSS = 0.25;
 
 export type RiskTier = 'safe' | 'weak' | 'unknown' | 'strong';
 /** Higher is better in the default order. */
@@ -40,13 +46,21 @@ export function shareOf(s: Strength, own: number | null): number | null {
   return own && own > 0 ? strengthOf(s).points / own : null;
 }
 
+/** The simulated attack is won for sure and brings a clear gain (losses at most a quarter of loot plus debris). */
+export function clearGain(sim: SimOutcome): boolean {
+  const lost = sim.lost.metal + sim.lost.crystal + sim.lost.deuterium;
+  const gain = sim.loot.metal + sim.loot.crystal + sim.loot.deuterium + sim.debris.metal + sim.debris.crystal;
+  return sim.wins >= SIM_WIN && sim.profit > 0 && lost <= SIM_MAX_LOSS * gain;
+}
+
 /**
  * Risk of a target: `safe` nothing that fights, `weak` up to 30 % of the own fleet, `strong` above, `unknown` when a
- * side or the own fleet is unknown. A simulation of the own fleet against it decides when there is one.
+ * side or the own fleet is unknown. A simulation of the own fleet against it decides when there is one: only a sure
+ * win with a clear gain is `weak` (or `safe`), anything else `strong`.
  */
 export function riskTier(s: Strength, own: number | null, sim?: SimOutcome | null): RiskTier {
   const { points, known } = strengthOf(s);
-  if (sim) return sim.wins < SIM_WIN || sim.profit <= 0 ? 'strong' : known && points === 0 ? 'safe' : 'weak';
+  if (sim) return !clearGain(sim) ? 'strong' : known && points === 0 ? 'safe' : 'weak';
   if (known && points === 0) return 'safe';
   const share = shareOf(s, own);
   if (share == null) return 'unknown';

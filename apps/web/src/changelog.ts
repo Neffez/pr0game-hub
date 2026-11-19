@@ -19,9 +19,14 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-19',
     items: [
       {
+        kind: 'fix',
+        de: 'Farm-Finder: Nach der Simulation gilt ein Ziel nur noch als schwach, wenn der Angriff sicher gewonnen wird und klar Gewinn bringt – frisst der Verlust die Beute größtenteils auf, steht es als stark da.',
+        en: 'Farm finder: after the simulation a target only counts as weak when the attack is won for sure and clearly pays off – if the losses eat up most of the loot, it shows as strong.',
+      },
+      {
         kind: 'new',
         de: 'Farm-Finder: Die Ziele stehen jetzt standardmäßig nach Inaktivität und Risiko sortiert, erst dann nach Beute – starke aktive Spieler rutschen nach unten. Das Risiko vergleicht Flotte und Verteidigung des Ziels (Verteidigung zählt doppelt) mit deiner eigenen Flotte; bis 30 % gilt als schwach. Neu sind die Sortierungen „Schaffbar“, „Schwächste zuerst“ und „Trümmerfeld der Flotte“, ein Filter für die Stärke, ein Hinweis „Flotte steht“ bei lange Inaktiven mit Flotte und ein Knopf, der deine Flotte gegen die ersten 20 Ziele simuliert.',
-        en: 'Farm finder: targets are now sorted by inactivity and risk first, loot second – strong active players move down. The risk compares the target's fleet and defense (defense counts twice) with your own fleet; up to 30 % counts as weak. New: the orders "Beatable", "Weakest first" and "Debris of the fleet", a strength filter, a "Fleet standing" note for long inactive players with a fleet, and a button that simulates your fleet against the first 20 targets.',
+        en: 'Farm finder: targets are now sorted by inactivity and risk first, loot second – strong active players move down. The risk compares the target’s fleet and defense (defense counts twice) with your own fleet; up to 30 % counts as weak. New: the orders "Beatable", "Weakest first" and "Debris of the fleet", a strength filter, a "Fleet standing" note for long inactive players with a fleet, and a button that simulates your fleet against the first 20 targets.',
       },
       {
         kind: 'new',
