@@ -1153,7 +1153,8 @@ const de = {
     research: 'Forschung',
     researchGroups: { combat: 'Kampf', drives: 'Antriebe', other: 'Sonstige' },
     researchUnknown: 'Unbekannt – noch kein Spionagebericht mit sichtbarer Forschung.',
-    note: 'Notiz (für die Allianz sichtbar)',
+    note: 'Notiz',
+    noteSaved: 'Notiz gespeichert',
     planets: 'Planeten',
     phalanx: 'Phalanx',
     lastSpy: 'Letzter Spio',
@@ -2902,7 +2903,7 @@ const de = {
   },
   comments: {
     confirmDelete: 'Kommentar löschen?',
-    title: 'Kommentare der Allianz',
+    title: 'Kommentare',
     none: 'Noch keine Kommentare.',
     edited: 'bearbeitet',
     placeholder: "Kommentar schreiben … ({'@'}Name erwähnt ein Mitglied)",

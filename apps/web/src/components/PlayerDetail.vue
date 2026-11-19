@@ -12,6 +12,7 @@ import { Chart } from '../chart';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { readError, uniApi } from '../api';
+import { toast } from '../toast';
 import PlanetActions from '../components/PlanetActions.vue';
 import StatusBadges from '../components/StatusBadges.vue';
 import { useLoader, useMobile, useUni, vStack } from '../composables';
@@ -39,8 +40,9 @@ const moreBadges = computed(() => badges.value.slice(badgeLimit.value));
 const props = defineProps<{ id: number; titleId?: string }>();
 const note = ref('');
 /** note as stored: a field still showing it takes over changes of other members */
-let savedNote = '';
+const savedNote = ref('');
 const noteError = ref('');
+const savingNote = ref(false);
 const canvas = ref<HTMLCanvasElement | null>(null);
 let chart: Chart | null = null;
 
@@ -58,7 +60,7 @@ const { data, error, load: fetchPlayer } = useLoader<PlayerDetails>(() => uniApi
 async function load() {
   const d = await fetchPlayer();
   if (!d) return;
-  note.value = savedNote = d.player.note ?? '';
+  note.value = savedNote.value = d.player.note ?? '';
   await nextTick();
   draw();
 }
@@ -120,12 +122,18 @@ function draw() {
 }
 
 async function saveNote() {
+  if (savingNote.value || note.value === savedNote.value) return;
   noteError.value = '';
+  savingNote.value = true;
+  const text = note.value;
   try {
-    await uniApi(uni.value, `/players/${props.id}/note`, { method: 'PUT', body: { note: note.value } });
-    savedNote = note.value;
+    await uniApi(uni.value, `/players/${props.id}/note`, { method: 'PUT', body: { note: text } });
+    savedNote.value = text;
+    toast(t('player.noteSaved'));
   } catch (e) {
     noteError.value = readError(e);
+  } finally {
+    savingNote.value = false;
   }
 }
 
@@ -150,7 +158,7 @@ watch(() => props.id, load);
 useLiveReload(async () => {
   const d = await fetchPlayer();
   if (!d) return;
-  if (note.value === savedNote) note.value = savedNote = d.player.note ?? '';
+  if (note.value === savedNote.value) note.value = savedNote.value = d.player.note ?? '';
   await nextTick();
   draw();
 }, tables('player_scores', 'spy_reports', 'galaxy_systems', 'battle_reports', 'players'));
@@ -215,8 +223,8 @@ onBeforeUnmount(() => chart?.destroy());
     <div class="card">
       <h3 class="mt-0">{{ t('player.note') }}</h3>
       <div class="row">
-        <input v-model="note" class="grow" :aria-label="t('player.note')" />
-        <button class="primary" @click="saveNote">{{ t('common.save') }}</button>
+        <input v-model="note" class="grow" :aria-label="t('player.note')" @keydown.enter="saveNote" />
+        <button class="primary" :disabled="savingNote || note === savedNote" @click="saveNote">{{ t('common.save') }}</button>
       </div>
       <div v-if="noteError" class="error">{{ noteError }}</div>
     </div>

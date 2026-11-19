@@ -1152,7 +1152,8 @@ const en: typeof de = {
     research: 'Research',
     researchGroups: { combat: 'Combat', drives: 'Drives', other: 'Other' },
     researchUnknown: 'Unknown – no spy report with visible research yet.',
-    note: 'Note (visible to the alliance)',
+    note: 'Note',
+    noteSaved: 'Note saved',
     planets: 'Planets',
     phalanx: 'Phalanx',
     lastSpy: 'Last spy',
@@ -2900,7 +2901,7 @@ const en: typeof de = {
   },
   comments: {
     confirmDelete: 'Delete this comment?',
-    title: 'Alliance comments',
+    title: 'Comments',
     none: 'No comments yet.',
     edited: 'edited',
     placeholder: "Write a comment … ({'@'}name mentions a member)",

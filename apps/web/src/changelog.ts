@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-19',
     items: [
       {
+        kind: 'fix',
+        de: 'Spielerprofil: Beim Speichern der Notiz erscheint jetzt eine Bestätigung, Enter speichert ebenfalls. Die Überschriften heißen kurz „Notiz“ und „Kommentare“.',
+        en: 'Player profile: saving the note now shows a confirmation, Enter saves as well. The headings are simply "Note" and "Comments".',
+      },
+      {
         kind: 'new',
         de: 'Aktivitätslog: Zeigt jetzt an, wenn sich ein Spieler umbenannt hat (alter und neuer Name) und wenn ein Spieler neu im Urlaubsmodus ist.',
         en: 'Activity log: now shows when a player renamed themselves (old and new name) and when a player is newly in vacation mode.',

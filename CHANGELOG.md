@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-19
 
+- Player page: saving the note gives feedback (a "Note saved" toast, the button is disabled while saving and while
+  the note is unchanged, Enter saves); the headings read just "Note" and "Comments" (also for spy reports and loot
+  settlements).
+
 - Activity log: two new kinds, `player_renamed` (a player known by id shows up with another name; `data` has the
   former name `before` and the new `name`) and `vacation_start` (a player known before is newly in vacation mode),
   logged while syncing statistics and galaxy views; each has a filter chip. The answer of `GET /api/{uni}/activity`
