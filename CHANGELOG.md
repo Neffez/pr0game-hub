@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-19
 
+- Auto plan API: the server keeps at most the three most recently started ended searches of a member (a new search
+  drops older ones), so short searches one after another no longer pile up results in memory for an hour; documented
+  in `openapi.yaml` (review R-02).
+
 - Sync credits: a universe.json upload no longer earns galaxy credits for the systems it refreshes (one upload
   outweighed weeks of pasted galaxy views in the ranking and the cartographer badge); its sync feedback still shows
   the systems (review R-01).

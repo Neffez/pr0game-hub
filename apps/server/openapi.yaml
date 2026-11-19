@@ -5869,7 +5869,8 @@ paths:
         colonizations are simulated as they are. It writes nothing: poll the job with
         `GET …/optimize/{job}` and put `best.steps` into the planet's list with `PATCH /api/{uni}/build-order` (with
         `best.base` as `base`). Allowed with a read-only API token. One running search per member, a few per server;
-        jobs and results are kept for an hour after they end.
+        jobs and results are kept for an hour after they end, at most the three most recently started of a member
+        (a new search drops older ones).
       security:
         - bearerAuth: []
         - sessionCookie: []
@@ -5934,7 +5935,7 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/BuildOrderOptimizeJob' }
         '404':
-          description: 'No such job of the caller in the group, or it ended more than an hour ago (`optimize_job_not_found`)'
+          description: 'No such job of the caller in the group, it ended more than an hour ago, or newer searches of the caller replaced it (`optimize_job_not_found`)'
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }

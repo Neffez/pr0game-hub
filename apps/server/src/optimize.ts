@@ -16,6 +16,8 @@ export const OPTIMIZE_LIMITS = {
   defaultBudget: 60,
   /** jobs and results are dropped this long after they ended (ms) */
   keepMs: 3_600_000,
+  /** ended jobs kept per member (with their results): a new search drops the oldest beyond it */
+  keptPerMember: 3,
   /** the worker is stopped this long after its budget, whatever it does (greedy plans of huge lists) */
   graceMs: 60_000,
   /** concurrent searches on the server: one core stays free */
@@ -172,6 +174,13 @@ export class OptimizeJobs {
     for (const [id, job] of this.jobs) if (job.endedAt != null && now - job.endedAt * 1000 > OPTIMIZE_LIMITS.keepMs) this.jobs.delete(id);
   }
 
+  /** Keeps the member's `keep` most recently started ended jobs (a running one is never dropped). */
+  private trim(userId: number, keep: number) {
+    // the map keeps the order the jobs were started in
+    const ended = [...this.jobs.values()].filter((j) => j.userId === userId && j.status !== 'running');
+    for (const job of ended.slice(0, Math.max(0, ended.length - keep))) this.jobs.delete(job.id);
+  }
+
   private running() {
     return [...this.jobs.values()].filter((j) => j.status === 'running');
   }
@@ -187,6 +196,8 @@ export class OptimizeJobs {
       throw new HttpError(409, 'optimize_job_running', 'You already have a search running: wait for it or cancel it (DELETE)');
     }
     if (this.running().length >= OPTIMIZE_LIMITS.concurrent) throw new HttpError(429, 'optimize_busy', 'The server runs as many searches as it can, try again in a moment');
+    // short searches one after the other must not pile up results in memory: the new one counts against the limit
+    this.trim(owner.userId, OPTIMIZE_LIMITS.keptPerMember - 1);
     const job: OptimizeJob = {
       id: randomUUID(), groupId: owner.groupId, userId: owner.userId, planet: req.planet, revision, status: 'running', phase: 'greedy', iteration: 0,
       evaluations: 0, startedAt: Math.floor(Date.now() / 1000), endedAt: null, budgetSeconds: req.budgetSeconds, best: null, error: null, worker: null, timer: null,

@@ -187,6 +187,19 @@ describe('build order search', () => {
     }
   });
 
+  it('keeps only the newest ended searches of a member', async () => {
+    const body = { planet: HOME, targets: { buildings: { 21: 3 } }, budgetSeconds: 300 };
+    const jobs: string[] = [];
+    for (let i = 0; i < OPTIMIZE_LIMITS.keptPerMember + 2; i++) {
+      const res = await call('POST', '/u8/build-order/optimize', h.dave, body);
+      expect(res.statusCode).toBe(202);
+      jobs.push(res.json().job);
+      await call('DELETE', `/u8/build-order/optimize/${res.json().job}`, h.dave);
+    }
+    const status = await Promise.all(jobs.map(async (job) => (await call('GET', `/u8/build-order/optimize/${job}`, h.dave)).statusCode));
+    expect(status).toEqual([...jobs.map((_, i) => (i < jobs.length - OPTIMIZE_LIMITS.keptPerMember ? 404 : 200))]);
+  });
+
   it('works with a read-only API token', async () => {
     const token = (await call('POST', '/auth/tokens', { cookie: h.carol.cookie }, { name: 'agent' })).json().token;
     const bearer = { authorization: `Bearer ${token}`, 'x-hub-group': String(group) };

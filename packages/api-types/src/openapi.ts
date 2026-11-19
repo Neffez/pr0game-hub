@@ -1413,7 +1413,7 @@ export type paths = {
         put?: never;
         /**
          * Search the fastest build order of one planet (auto plan)
-         * @description Starts a search for the build order that reaches target levels (buildings, research) and unit counts (ships, defense) of one planet fastest: the targets with all their requirements, a greedy plan, then simulated annealing against the timeline's simulation (`/api/{uni}/build-order/timeline`) for `budgetSeconds`. Ported from the auto plan of pr0plan. The search owns the open tail of the planet's list: done and queued steps stay, the steps in `keep` keep their order (default: transports, production steps and astrophysics a colonization waits for), the other open steps count as targets too (`options.includeExisting`), each ship, defense and research step with a soft deadline at its end now (`options.noLater`). Every step comes after its requirements, and a transport after the ship steps that build the ships it carries. The other planets' lists, their transports and colonizations are simulated as they are. It writes nothing: poll the job with `GET …/optimize/{job}` and put `best.steps` into the planet's list with `PATCH /api/{uni}/build-order` (with `best.base` as `base`). Allowed with a read-only API token. One running search per member, a few per server; jobs and results are kept for an hour after they end.
+         * @description Starts a search for the build order that reaches target levels (buildings, research) and unit counts (ships, defense) of one planet fastest: the targets with all their requirements, a greedy plan, then simulated annealing against the timeline's simulation (`/api/{uni}/build-order/timeline`) for `budgetSeconds`. Ported from the auto plan of pr0plan. The search owns the open tail of the planet's list: done and queued steps stay, the steps in `keep` keep their order (default: transports, production steps and astrophysics a colonization waits for), the other open steps count as targets too (`options.includeExisting`), each ship, defense and research step with a soft deadline at its end now (`options.noLater`). Every step comes after its requirements, and a transport after the ship steps that build the ships it carries. The other planets' lists, their transports and colonizations are simulated as they are. It writes nothing: poll the job with `GET …/optimize/{job}` and put `best.steps` into the planet's list with `PATCH /api/{uni}/build-order` (with `best.base` as `base`). Allowed with a read-only API token. One running search per member, a few per server; jobs and results are kept for an hour after they end, at most the three most recently started of a member (a new search drops older ones).
          */
         post: operations["startBuildOrderOptimization"];
         delete?: never;
@@ -10065,7 +10065,7 @@ export interface operations {
                     "application/json": components["schemas"]["BuildOrderOptimizeJob"];
                 };
             };
-            /** @description No such job of the caller in the group, or it ended more than an hour ago (`optimize_job_not_found`) */
+            /** @description No such job of the caller in the group, it ended more than an hour ago, or newer searches of the caller replaced it (`optimize_job_not_found`) */
             404: {
                 headers: {
                     [name: string]: unknown;
