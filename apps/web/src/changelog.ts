@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-19',
     items: [
       {
+        kind: 'fix',
+        de: 'Galaxieansicht, Farmliste und Spionageberichte laden schneller.',
+        en: 'Galaxy view, farm finder and spy reports load faster.',
+      },
+      {
         kind: 'new',
         de: 'Rangliste: Eine aktuelle universe.json bringt einmal pro Woche 100 Punkte.',
         en: 'Ranking: an up-to-date universe.json earns 100 points once a week.',

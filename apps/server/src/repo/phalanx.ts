@@ -34,13 +34,17 @@ type Pos = { player_id: number | null; destroyed: number; has_moon: number };
  */
 export function phalanxMoons(db: DB, ctx: GroupContext, g?: number): PhalanxMoon[] {
   const moons = new Map<string, PhalanxMoon>();
+  // `g = ?` written out only with a galaxy: `(? IS NULL OR g = ?)` keeps SQLite from the coordinates index, and the
+  // galaxy browser then read every spy report of the group on each system it shows. `+report_time`: sorting by the
+  // time index instead would walk all of the group's reports again.
+  const inGalaxy = g == null ? '' : 'AND g = ?';
   const reports = db
     .prepare(
       `SELECT g, s, p, report_time, created_at, json_extract(sections, '$."${CLASS_BUILDINGS}"') AS buildings, player_id, player_name FROM spy_reports
-       WHERE group_id = ? AND planet_type = 'moon' AND (? IS NULL OR g = ?) AND json_extract(sections, '$."${CLASS_BUILDINGS}"') IS NOT NULL
-       ORDER BY report_time DESC`,
+       WHERE group_id = ? ${inGalaxy} AND planet_type = 'moon' AND json_extract(sections, '$."${CLASS_BUILDINGS}"') IS NOT NULL
+       ORDER BY +report_time DESC`,
     )
-    .all(ctx.groupId, g ?? null, g ?? null) as {
+    .all(ctx.groupId, ...(g == null ? [] : [g])) as {
     g: number; s: number; p: number; report_time: number; created_at: number; buildings: string; player_id: number | null; player_name: string | null;
   }[];
   for (const r of reports) {
@@ -71,7 +75,7 @@ export function phalanxMoons(db: DB, ctx: GroupContext, g?: number): PhalanxMoon
   }
 
   const positions = new Map(
-    (db.prepare('SELECT g, s, p, player_id, destroyed, has_moon FROM planets WHERE group_id = ? AND (? IS NULL OR g = ?)').all(ctx.groupId, g ?? null, g ?? null) as
+    (db.prepare(`SELECT g, s, p, player_id, destroyed, has_moon FROM planets WHERE group_id = ? ${inGalaxy}`).all(ctx.groupId, ...(g == null ? [] : [g])) as
       (Pos & { g: number; s: number; p: number })[]).map((r) => [`${r.g}:${r.s}:${r.p}`, r]),
   );
   return [...moons.values()].filter((m) => {

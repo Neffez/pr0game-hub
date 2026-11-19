@@ -16,6 +16,9 @@ export function openDb(file: string): DB {
   if (file !== ':memory:') mkdirSync(dirname(file), { recursive: true });
   const db = new Database(file);
   db.pragma('journal_mode = WAL');
+  // With WAL, NORMAL syncs at checkpoints instead of every commit and keeps the database consistent; a power loss can
+  // only drop the last commits. Every sync is a transaction, so FULL paid an fsync per pasted page.
+  db.pragma('synchronous = NORMAL');
   db.pragma('foreign_keys = ON');
   db.pragma('busy_timeout = 5000');
   // A big transaction (universe.json, migrations) grows the WAL file; without a limit it keeps that size for good.

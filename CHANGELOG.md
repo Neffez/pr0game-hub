@@ -4,6 +4,16 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-19
 
+- Performance (server):
+  - New indexes on spy reports by time, pasted pages by age and player activity by time (migration 096, analyzed
+    right away): the farm finder, the recent and paged spy report lists and the sync credits no longer sort all of a
+    group's spy reports, and the hourly housekeeping no longer scans `raw_ingests` and `player_activity` in full.
+  - Galaxy view: the phalanx coverage reads only the moon reports of the shown galaxy (the optional galaxy filter
+    `(? IS NULL OR g = ?)` kept SQLite from the coordinates index, so every system read all moon reports of the
+    group), and the system's spy history hands only the resources section to JavaScript instead of every report's
+    sections.
+  - SQLite runs with `synchronous = NORMAL` (safe with WAL): no fsync per sync transaction any more.
+
 - Ranking: a universe.json upload that refreshes systems earns 100 points once a week (Monday to Sunday) per member,
   as its own kind `universe` in the ranking and the recap, instead of no points at all.
 - Recap: the badges at the end of the period and the day before it come from one pass (`achievementsAt` reads the

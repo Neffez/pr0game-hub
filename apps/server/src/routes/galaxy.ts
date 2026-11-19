@@ -148,16 +148,17 @@ export function galaxyRoutes(app: FastifyInstance, db: DB) {
 
     // Last spy report per position and type: time plus the resources it showed (like FF-Hub).
     const spy = new Map<string, { time: number; res: Record<string, number> | null; resTime: number | null }>();
+    // only the resources section leaves SQLite: the system's whole report history is read on every view
     const reports = db
-      .prepare('SELECT p, planet_type, report_time, sections FROM spy_reports WHERE group_id = ? AND g = ? AND s = ? ORDER BY report_time DESC')
-      .all(ctx.groupId, g, s) as { p: number; planet_type: string; report_time: number; sections: string }[];
+      .prepare(
+        `SELECT p, planet_type, report_time, json_extract(sections, '$."${CLASS_RESOURCES}"') AS res
+         FROM spy_reports WHERE group_id = ? AND g = ? AND s = ? ORDER BY report_time DESC`,
+      )
+      .all(ctx.groupId, g, s) as { p: number; planet_type: string; report_time: number; res: string | null }[];
     for (const rep of reports) {
       const key = `${rep.p}:${rep.planet_type}`;
       const cur = spy.get(key) ?? { time: rep.report_time, res: null, resTime: null };
-      if (!cur.res) {
-        const res = (JSON.parse(rep.sections) as Record<string, Record<string, number>>)[CLASS_RESOURCES];
-        if (res) Object.assign(cur, { res, resTime: rep.report_time });
-      }
+      if (!cur.res && rep.res) Object.assign(cur, { res: JSON.parse(rep.res) as Record<string, number>, resTime: rep.report_time });
       spy.set(key, cur);
     }
     return {
