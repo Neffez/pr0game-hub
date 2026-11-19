@@ -170,7 +170,9 @@ function ingestWith(db: DB, target: IngestTarget, input: ParseInput & { source: 
     // onboarding: the member who synced it did this kind of page
     if (parsed.records.length) {
       recordOnboarding(db, target.groupId, target.syncedBy ?? target.userId, parsed.pageType, now());
-      // the recap's number of syncs: for the member who pasted it
+    }
+    // the recap's number of syncs: those that brought something new, for the member who pasted them
+    if (Object.values(summary.counts).some((c) => c.new > 0)) {
       countSync(db, target.groupId, target.syncedBy ?? target.userId, dayOf(now(), target.timezone), parsed.pageType);
     }
     db.prepare('DELETE FROM raw_ingests WHERE group_id = ? AND created_at < ?').run(target.groupId, now() - config.rawRetentionDays * 86400);

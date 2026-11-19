@@ -164,4 +164,13 @@ describe('recap', () => {
     expect((await getJson('/u8/recap/text?period=start')).text).toMatch(/^## Recap seit Start · /);
     db.prepare("UPDATE universes SET starts_at = NULL WHERE slug = 'u8'").run();
   });
+
+  it('counts only the syncs that brought something new', async () => {
+    const count = () => db.prepare("SELECT count FROM sync_credits WHERE group_id = ? AND kind = 'sync' AND user_id = ? AND key = 'messages'").pluck().get(group, ids.dave);
+    await call('POST', '/u8/ingest', h.dave, { html: fixture('messages.html') });
+    expect(count()).toBe(1);
+    // the same messages again: nothing new
+    await call('POST', '/u8/ingest', h.dave, { html: fixture('messages.html') });
+    expect(count()).toBe(1);
+  });
 });

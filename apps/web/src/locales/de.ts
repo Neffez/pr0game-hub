@@ -1694,7 +1694,7 @@ const de = {
   },
   recap: {
     since: 'Seit Start',
-    hint: 'Der Rückblick der Allianz auf einen Zeitraum: wie viel synchronisiert wurde, wer geglänzt hat, welche Abzeichen dazukamen und wo noch Lücken sind. Jede Zahl im Vergleich zu denselben Tagen davor. Als Bild herunterladen oder als Text kopieren, um es in Discord oder anderswo zu teilen; Admins posten es direkt in den Discord-Kanal der Allianz.',
+    hint: 'Der Rückblick der Allianz auf einen Zeitraum: wie viel synchronisiert wurde (nur Syncs, die etwas Neues gebracht haben), wer geglänzt hat, welche Abzeichen dazukamen und wo noch Lücken sind. Jede Zahl im Vergleich zu denselben Tagen davor. Als Bild herunterladen oder als Text kopieren, um es in Discord oder anderswo zu teilen; Admins posten es direkt in den Discord-Kanal der Allianz.',
     compared: 'verglichen mit {from} – {to}',
     kpi: { syncs: 'Syncs', active: 'Aktive Mitglieder', points: 'Punkte', badges: 'Neue Abzeichen' },
     before: 'vorher {n}',

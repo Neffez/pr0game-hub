@@ -124,10 +124,11 @@ const DATA_MIGRATIONS: Record<string, (db: DB) => void> = {
   },
   // superseded by the next one (it read the summary's counts as numbers and so filled in nothing)
   'js:sync_counts_from_raw_ingests': () => {},
-  // the recap counts syncs from the release of the recap on (sync_credits kind 'sync'); the raw syncs still kept from
-  // before it give the days before (a sync with data: a record of the summary new or already known)
-  'js:sync_counts_from_raw_ingests_2': (db) => {
-    const released = (db.prepare("SELECT applied_at FROM schema_migrations WHERE name = 'js:sync_counts_from_raw_ingests'").pluck().get() as number | undefined) ?? now();
+  // superseded by the next one (it also counted syncs that brought nothing new)
+  'js:sync_counts_from_raw_ingests_2': () => {},
+  // the recap counts syncs that brought something new (sync_credits kind 'sync'): rebuilt from the raw syncs for the
+  // whole days they still cover (a record of the summary new or changed), the days before them stay as they are
+  'js:sync_counts_new_only': (db) => {
     const zones = new Map<number, Intl.DateTimeFormat>();
     const dayOf = (groupId: number, settings: string, epoch: number) => {
       let f = zones.get(groupId);
@@ -141,21 +142,33 @@ const DATA_MIGRATIONS: Record<string, (db: DB) => void> = {
       .prepare(
         `SELECT r.group_id, COALESCE(r.synced_by, r.user_id) AS user_id, r.page_type, r.summary, r.created_at, u.settings
          FROM raw_ingests r JOIN groups g ON g.id = r.group_id JOIN universes u ON u.id = g.universe_id
-         WHERE COALESCE(r.synced_by, r.user_id) IS NOT NULL AND r.page_type <> 'unknown' AND r.created_at < ?`,
+         ORDER BY r.created_at`,
       )
-      .all(released) as { group_id: number; user_id: number; page_type: string; summary: string | null; created_at: number; settings: string }[];
+      .all() as { group_id: number; user_id: number | null; page_type: string; summary: string | null; created_at: number; settings: string }[];
+    // per group the first day the raw syncs cover whole: the day after their earliest one (older ones are deleted)
+    const firstDay = new Map<number, string>();
+    for (const r of rows) {
+      if (firstDay.has(r.group_id)) continue;
+      const d = new Date(`${dayOf(r.group_id, r.settings, r.created_at)}T00:00:00Z`);
+      d.setUTCDate(d.getUTCDate() + 1);
+      firstDay.set(r.group_id, d.toISOString().slice(0, 10));
+    }
+    const clear = db.prepare("DELETE FROM sync_credits WHERE group_id = ? AND kind = 'sync' AND day >= ?");
+    for (const [group, day] of firstDay) clear.run(group, day);
     const put = db.prepare(
       "INSERT INTO sync_credits (group_id, user_id, day, kind, key, count) VALUES (?, ?, ?, 'sync', ?, 1) ON CONFLICT (group_id, user_id, day, kind, key) DO UPDATE SET count = count + 1",
     );
     for (const r of rows) {
-      let counts: Record<string, { new?: number; duplicate?: number }> = {};
+      if (r.user_id == null || r.page_type === 'unknown') continue;
+      const day = dayOf(r.group_id, r.settings, r.created_at);
+      if (day < firstDay.get(r.group_id)!) continue;
+      let counts: Record<string, { new?: number }> = {};
       try {
         counts = (JSON.parse(r.summary ?? '{}') as { counts?: typeof counts }).counts ?? {};
       } catch {
         /* no summary */
       }
-      if (!Object.values(counts).some((c) => (c?.new ?? 0) + (c?.duplicate ?? 0) > 0)) continue;
-      put.run(r.group_id, r.user_id, dayOf(r.group_id, r.settings, r.created_at), r.page_type);
+      if (Object.values(counts).some((c) => (c?.new ?? 0) > 0)) put.run(r.group_id, r.user_id, day, r.page_type);
     }
   },
 };

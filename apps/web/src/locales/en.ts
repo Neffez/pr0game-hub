@@ -1693,7 +1693,7 @@ const en: typeof de = {
   },
   recap: {
     since: 'Since the start',
-    hint: 'The alliance\'s look back on a period: how much was synced, who stood out, which badges were reached and where gaps remain. Every number against the same days before. Download it as an image or copy it as text to share it on Discord or elsewhere; admins post it straight to the alliance\'s Discord channel.',
+    hint: 'The alliance\'s look back on a period: how much was synced (only syncs that brought something new), who stood out, which badges were reached and where gaps remain. Every number against the same days before. Download it as an image or copy it as text to share it on Discord or elsewhere; admins post it straight to the alliance\'s Discord channel.',
     compared: 'compared with {from} – {to}',
     kpi: { syncs: 'Syncs', active: 'Active members', points: 'Points', badges: 'New badges' },
     before: 'before {n}',

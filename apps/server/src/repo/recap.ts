@@ -44,7 +44,7 @@ export interface Recap {
   previous: { from: string; to: string } | null;
   /** members of the group */
   members: number;
-  /** syncs of pages with data */
+  /** syncs that brought something new */
   syncs: RecapCompare;
   /** members with points or syncs */
   active: RecapCompare;
