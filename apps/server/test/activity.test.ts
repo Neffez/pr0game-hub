@@ -79,8 +79,9 @@ describe('player activity', () => {
     expect(store.galaxySeenAt(view(local(t - 1800)), t)).toBe(t - 1800);
     // a page clock a few seconds ahead of the hub
     expect(store.galaxySeenAt(view(local(t + 90)), t)).toBe(t + 90);
-    // implausible (older than a day, far ahead) or missing: the paste time
-    expect(store.galaxySeenAt(view(local(t - 2 * 86400)), t)).toBe(t);
+    // an old copy pasted again days later stays as old as it is
+    expect(store.galaxySeenAt(view(local(t - 2 * 86400)), t)).toBe(t - 2 * 86400);
+    // implausible (far ahead) or missing: the paste time
     expect(store.galaxySeenAt(view(local(t + 3600)), t)).toBe(t);
     expect(store.galaxySeenAt(view(null), t)).toBe(t);
   });

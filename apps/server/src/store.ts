@@ -409,12 +409,14 @@ export class Store {
 
   /**
    * When a galaxy view was seen: the server time of the page (game time, like the reports its activity marks are
-   * checked against) when it fits the paste (at most a day before, a few minutes after), else the paste time.
-   * `pasted`: `seenAt` of the record (universe.json, reparse: time of the raw sync), else now.
+   * checked against) unless it lies ahead of the paste (more than a few minutes: a wrong clock), else the paste time.
+   * An old copy keeps its old time however old it is: pasted again later it is no newer view (no fresher system, no
+   * credits), and it never replaces a newer one. `pasted`: `seenAt` of the record (universe.json, reparse: time of the
+   * raw sync), else now.
    */
   galaxySeenAt(r: GalaxyRecord, pasted = r.seenAt ?? now()): number {
     const page = this.epoch(r.pageTime ?? null);
-    return page != null && page >= pasted - 86400 && page <= pasted + 300 ? page : pasted;
+    return page != null && page <= pasted + 300 ? page : pasted;
   }
 
   private galaxy(r: GalaxyRecord) {

@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Galaxie: Eine alte, erneut eingefügte Galaxie-Kopie zählt nicht mehr als frische Ansicht und bringt keine Punkte mehr.',
+        en: 'Galaxy: an old galaxy copy pasted again no longer counts as a fresh view and earns no points.',
+      },
+      {
+        kind: 'fix',
         de: 'Fleetsave: In der Nacht der Zeitumstellung stimmt das Zeitfenster wieder; Beuteabrechnung: doppeltes Wieder-Öffnen vergisst keine erledigten Lieferungen mehr.',
         en: 'Fleet save: the time window is right again on the night of a daylight saving switch; loot settlement: reopening twice no longer forgets finished deliveries.',
       },

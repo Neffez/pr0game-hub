@@ -56,6 +56,23 @@ describe('impact of a sync', () => {
     }
   });
 
+  it('dates an old copied galaxy page by its server clock: pasted again later it is no news', async () => {
+    // the copy's header clock three days ago (no year, German month), in the universe's time zone
+    const at = new Date(Date.now() - 3 * DAY * 1000);
+    const parts = Object.fromEntries(
+      new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Berlin', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' })
+        .formatToParts(at)
+        .map((p) => [p.type, p.value]),
+    );
+    const month = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'][Number(parts.month) - 1];
+    const text = fixture('galaxy.txt').replace(/Serverzeit : .*/, `Serverzeit : ${month} Mo ${Number(parts.day)} ${parts.hour}:${parts.minute}:${parts.second}`);
+    const paste = async () => (await sync({ text, system: '2:7' })).impact.galaxy;
+    expect(await paste()).toMatchObject({ systems: 1, first: 1 });
+    const seen = db.prepare('SELECT seen_at FROM galaxy_views WHERE group_id = ? AND g = 2 AND s = 7').pluck().get(group) as number;
+    expect(Math.abs(seen - Math.floor(at.getTime() / 1000))).toBeLessThanOrEqual(1);
+    expect(await paste()).toBeUndefined();
+  });
+
   it('counts targets spied for the first time and older reports replaced', async () => {
     const first = (await sync({ text: fixture('messages.txt') })).impact.spy;
     expect(first.first).toBeGreaterThan(0);

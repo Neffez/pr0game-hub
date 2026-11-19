@@ -107,7 +107,7 @@ them.
 
 | ID | Issue | Why theoretical |
 |---|---|---|
-| R-T1 | A galaxy copy without a page time is stored as seen now (`Store.galaxySeenAt`): pasting the same old text again makes the system look fresh and earns galaxy credits each day | The seen time was like this before; the credits only reward it. Members of one alliance; the page time is in the HTML copies |
+| R-T1 | A galaxy copy without any page time (an HTML page without its script, a text copy without the "Serverzeit" header) is stored as seen at the paste: the same copy pasted again later looks fresh and earns galaxy credits. Copies with the header clock keep their own time however old they are (fixed 2026-11-19, `galaxySeenAt`) | A copy of the whole page has the clock; members of one alliance |
 | R-T2 | `researchState` counts the queue of an older page as done when a newer overview shows no research: a cancelled research raises the level until the next research or empire page | Documented in the code; cancelling is rare and the next page corrects it |
 | R-T3 | A sync stores steps seen done without raising the revision; a client PATCH from an older copy with the same revision sends them as not done | The next sync checks them off again (documented in `syncBuildOrder`) |
 | R-T4 | A write token can change the build order in every group of its user | Tokens are personal and opt-in; scoping tokens to a group is a feature, not a fix |

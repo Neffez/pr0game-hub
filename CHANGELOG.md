@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-19
 
+- Galaxy: a copied galaxy page is dated by its server clock however old it is (before, a page clock more than a day
+  before the paste fell back to the paste time). An old copy pasted again no longer makes the system look freshly
+  viewed and earns no galaxy credits; it still never replaces a newer view (review R-T1, for copies with a clock).
+
 - Tests: the sync impact test of galaxy views no longer fails now and then under load. The fixture has no page time,
   so a view counts as seen when synced, and a second sync of the same view a second later was a newer one; the test
   stops the clock (`Date` only) and checks the exact age.
