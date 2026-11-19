@@ -4,6 +4,11 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-19
 
+- Farm finder risk tiers by the losses of the own fleet: a simulated attack has to be won in every run with a profit;
+  then losses up to 10 % of the fleet's costs are weak, up to 30 % acceptable, up to 50 % risky, more strong
+  (`lostShare` per outcome and `fleet.cost` in `POST /api/{uni}/farm/simulate`). Without a simulation targets up to
+  50 % of the own fleet points are acceptable; "Beatable" ranks safe and weak before acceptable targets.
+
 - Farm simulation: a target only counts as weak when the attack is won in at least 95 % of the runs and brings a
   clear gain (ships lost cost at most a quarter of loot plus debris); a barely positive profit counts as strong.
   Also fixes an unescaped apostrophe in the English "What's new" entry of the farm finder that broke the web build.

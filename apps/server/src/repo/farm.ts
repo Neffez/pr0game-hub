@@ -348,6 +348,11 @@ export async function farmSimulation(db: DB, ctx: GroupContext, list: FarmSimTar
   const units = empire ? Object.fromEntries(Object.entries(empire.ships).filter(([id]) => !NON_COMBAT.has(Number(id)) || SIM_CARGO.has(Number(id)))) : {};
   if (!empire || !Object.keys(units).length) throw new HttpError(409, 'no_fleet', 'No ships in the newest own empire page');
   const research = Object.fromEntries(COMBAT_TECHS.map((id) => [id, empire.research[id] ?? 0]));
+  // costs of the attacking fleet: the losses as a share of it
+  const cost = Object.entries(units).reduce((sum, [id, n]) => {
+    const c = unitCost(id, catalog);
+    return sum + (c ? (c[0] + c[1] + c[2]) * n : 0);
+  }, 0);
 
   const g = ctx.groupId;
   const newestSection = db.prepare(
@@ -394,7 +399,7 @@ export async function farmSimulation(db: DB, ctx: GroupContext, list: FarmSimTar
   }
   const outcomes = new Map((result?.planets ?? []).map((p) => [p.key, p]));
   return {
-    fleet: { units, research, time: empire.time },
+    fleet: { units, research, time: empire.time, cost },
     runs: result?.runs ?? 0,
     results: list.map((t) => {
       const o = outcomes.get(keyOf(t));
@@ -405,7 +410,17 @@ export async function farmSimulation(db: DB, ctx: GroupContext, list: FarmSimTar
         p: t.p,
         type: t.type,
         reason: !o ? ('no_report' as const) : !w ? ('budget' as const) : null,
-        outcome: w ? { wins: w.wins, profit: Math.round(w.profit), loot: w.loot, debris: w.debris, lost: w.lost, defenderLost: w.defenderLost } : null,
+        outcome: w
+          ? {
+              wins: w.wins,
+              profit: Math.round(w.profit),
+              loot: w.loot,
+              debris: w.debris,
+              lost: w.lost,
+              lostShare: cost > 0 ? (w.lost.metal + w.lost.crystal + w.lost.deuterium) / cost : 0,
+              defenderLost: w.defenderLost,
+            }
+          : null,
       };
     }),
   };

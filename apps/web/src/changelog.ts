@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-19',
     items: [
       {
+        kind: 'new',
+        de: 'Farm-Finder: Das Risiko hat jetzt die Stufen „vertretbar“ und „riskant“. Nach der Simulation zählt, wie viel deiner Flotte draufgeht: nur bei Sieg in allen Durchläufen bis 10 % schwach, bis 30 % vertretbar, bis 50 % riskant, sonst stark.',
+        en: 'Farm finder: the risk now has the levels "acceptable" and "risky". After the simulation it counts how much of your fleet you lose: only for a win in every run, up to 10 % weak, up to 30 % acceptable, up to 50 % risky, else strong.',
+      },
+      {
         kind: 'fix',
         de: 'Farm-Finder: Nach der Simulation gilt ein Ziel nur noch als schwach, wenn der Angriff sicher gewonnen wird und klar Gewinn bringt – frisst der Verlust die Beute größtenteils auf, steht es als stark da.',
         en: 'Farm finder: after the simulation a target only counts as weak when the attack is won for sure and clearly pays off – if the losses eat up most of the loot, it shows as strong.',

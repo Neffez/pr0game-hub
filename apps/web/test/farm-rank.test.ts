@@ -11,8 +11,8 @@ const strength = (fleet: number | null, defense: number | null, from: 'report' |
 const inactive = (level: NonNullable<Inactivity>['level'], hours: number | null, status: 'inactive' | null = null): Inactivity => ({
   score: 0, level, since: hours == null ? null : now - hours * 3600, atLeast: false, status, stall: null, lastActive: null, reasons: [],
 });
-const sim = (wins: number, profit: number, lost = 0, loot = 10_000): SimOutcome => ({
-  wins, profit, loot: { metal: loot, crystal: 0, deuterium: 0 }, debris: { metal: 0, crystal: 0 }, lost: { metal: lost, crystal: 0, deuterium: 0 }, defenderLost: { metal: 0, crystal: 0, deuterium: 0 },
+const sim = (wins: number, profit: number, lostShare = 0): SimOutcome => ({
+  wins, profit, loot: { metal: 10_000, crystal: 0, deuterium: 0 }, debris: { metal: 0, crystal: 0 }, lost: { metal: lostShare * 100_000, crystal: 0, deuterium: 0 }, lostShare, defenderLost: { metal: 0, crystal: 0, deuterium: 0 },
 });
 
 describe('farm ranking', () => {
@@ -26,10 +26,11 @@ describe('farm ranking', () => {
   it('tells safe, weak, strong and unknown targets apart', () => {
     expect(riskTier(strength(0, 0), null)).toBe('safe');
     expect(riskTier(strength(100, 100), 1000)).toBe('weak');
-    // 100 fleet + 2 × 150 defense = 40 % of the own fleet
-    expect(riskTier(strength(100, 150), 1000)).toBe('strong');
+    // 100 fleet + 2 × 150 defense = 40 % of the own fleet: acceptable, above 50 % strong
+    expect(riskTier(strength(100, 150), 1000)).toBe('acceptable');
+    expect(riskTier(strength(100, 250), 1000)).toBe('strong');
     // defense unknown: too strong already by the fleet, otherwise unknown
-    expect(riskTier(strength(500, null), 1000)).toBe('strong');
+    expect(riskTier(strength(600, null), 1000)).toBe('strong');
     expect(riskTier(strength(100, null), 1000)).toBe('unknown');
     expect(riskTier(strength(100, 0), null)).toBe('unknown');
   });
@@ -37,11 +38,14 @@ describe('farm ranking', () => {
   it('lets a simulation decide the risk', () => {
     expect(riskTier(strength(900, 900), 1000, sim(1, 5000))).toBe('weak');
     expect(riskTier(strength(0, 0), 1000, sim(1, 5000))).toBe('safe');
-    expect(riskTier(strength(10, 0), 1000, sim(0.5, 5000))).toBe('strong');
+    // by the share of the own fleet lost: up to 10 % weak, 30 % acceptable, 50 % risky
+    expect(riskTier(strength(10, 0), 1000, sim(1, 5000, 0.1))).toBe('weak');
+    expect(riskTier(strength(10, 0), 1000, sim(1, 5000, 0.2))).toBe('acceptable');
+    expect(riskTier(strength(10, 0), 1000, sim(1, 5000, 0.45))).toBe('risky');
+    expect(riskTier(strength(10, 0), 1000, sim(1, 5000, 0.6))).toBe('strong');
+    // not won in every run, or no profit: strong
+    expect(riskTier(strength(10, 0), 1000, sim(0.95, 5000))).toBe('strong');
     expect(riskTier(strength(10, 0), 1000, sim(1, -100))).toBe('strong');
-    // won and barely profitable, but the losses eat most of the loot: no clear gain
-    expect(riskTier(strength(10, 0), 1000, sim(1, 500, 9_000, 10_000))).toBe('strong');
-    expect(riskTier(strength(10, 0), 1000, sim(1, 7_500, 2_500, 10_000))).toBe('weak');
   });
 
   it('ranks inactive players first, then the risk, then the loot per flight hour', () => {
@@ -53,7 +57,9 @@ describe('farm ranking', () => {
     const sleepyWeak = recommendedValue(inactive('likely', 30), 'weak', 10);
     const sleepyWeakRich = recommendedValue(inactive('likely', 30), 'weak', 20);
     expect([topPlayer, sleepyStrong, sleepyWeak, sleepyWeakRich].sort((a, b) => b - a)).toEqual([sleepyWeakRich, sleepyWeak, sleepyStrong, topPlayer]);
-    expect(beatableValue('weak', 1)).toBeGreaterThan(beatableValue('strong', 1e9));
+    expect(beatableValue('weak', 1)).toBeGreaterThan(beatableValue('acceptable', 1e9));
+    expect(beatableValue('acceptable', 1)).toBeGreaterThan(beatableValue('strong', 1e9));
+    expect(recommendedValue(inactive('likely', 30), 'risky', 1e9)).toBeGreaterThan(recommendedValue(inactive('possible', 30), 'safe', 1e9));
   });
 
   it('marks a fleet standing at a player inactive for 12 hours and more', () => {

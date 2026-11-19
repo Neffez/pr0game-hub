@@ -26,7 +26,7 @@ import { abbr, ago, coords, dateTime, duration, fmt, name, short } from '../form
 import { useAutoTour } from '../tours';
 import { units } from '../units';
 import { spyPriority, type SpyReason } from '../spyPriority';
-import { beatableValue, debrisValue, DEFENSE_WEIGHT, recommendedValue, riskTier, shareOf, standingFleet, STANDING_FLEET_HOURS, strengthOf, WEAK_SHARE, type RiskTier, type SimOutcome } from '../farmRank';
+import { beatable, beatableValue, debrisValue, DEFENSE_WEIGHT, recommendedValue, riskTier, shareOf, standingFleet, STANDING_FLEET_HOURS, strengthOf, WEAK_SHARE, type RiskTier, type SimOutcome } from '../farmRank';
 import { spyProbes } from '@pr0hub/core/spy';
 
 /** Farm finder (backlog B-1): spied targets ranked by what they are worth now (server: repo/farm.ts). */
@@ -226,7 +226,7 @@ const filtered = computed(() => {
     }
     if (f.minLoot != null && f.minLoot > 0 && r.lootSum < f.minLoot) return false;
     // targets of unknown strength stay (spy them first)
-    if (f.maxShare != null && r.strength.share != null && r.strength.share > f.maxShare && r.tier !== 'safe' && r.tier !== 'weak') return false;
+    if (f.maxShare != null && r.strength.share != null && r.strength.share > f.maxShare && !beatable(r.tier)) return false;
     return true;
   });
 });
@@ -315,7 +315,7 @@ const sideTitle = (r: Row, side: 'fleet' | 'defense') => {
 const pct = (share: number) => `${Math.round(share * 100)} %`;
 const simText = (o: SimOutcome) => {
   const lost = o.lost.metal + o.lost.crystal + o.lost.deuterium;
-  return t('farm.sim.short', { wins: Math.round(o.wins * 100), lost: short(lost) });
+  return t('farm.sim.short', { wins: Math.round(o.wins * 100), lost: short(lost), share: pct(o.lostShare) });
 };
 const riskTitle = (r: Row) => {
   const simmed = sims.value.get(r.key);
@@ -338,6 +338,7 @@ const riskTitle = (r: Row) => {
         wins: Math.round(r.sim.wins * 100),
         loot: fmt(Math.round(loot)),
         lost: fmt(Math.round(lost)),
+        share: pct(r.sim.lostShare),
         debris: fmt(Math.round(r.sim.debris.metal + r.sim.debris.crystal)),
         profit: fmt(r.sim.profit),
       }),
@@ -634,7 +635,8 @@ const claimText = (r: Row) => {
 .farm-player { display: inline-block; max-width: 16ch; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
 .full-mark { margin-left: 3px; vertical-align: -1px; }
 .risk-safe, .risk-weak { color: var(--pos); }
-.risk-strong { color: var(--neg); }
+.risk-acceptable { color: var(--warn); }
+.risk-risky, .risk-strong { color: var(--neg); }
 .risk-unknown { color: var(--muted); }
 .standing { color: var(--warn); margin-left: 4px; }
 .farm-sim { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 8px; }

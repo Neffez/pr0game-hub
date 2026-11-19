@@ -348,11 +348,12 @@ components:
         fleet:
           type: object
           description: The attacking fleet (combat ships and cargos of the newest own empire page) and its combat research
-          required: [units, research, time]
+          required: [units, research, time, cost]
           properties:
             units: { type: object, additionalProperties: { type: integer } }
             research: { type: object, additionalProperties: { type: integer } }
             time: { type: integer }
+            cost: { type: number, description: 'Costs of the fleet (metal + crystal + deuterium)' }
         runs: { type: integer, description: Runs per battle (fewer when the battles are large) }
         results:
           type: array
@@ -370,7 +371,7 @@ components:
                 description: 'Why there is no outcome: no report shows the target''s fleet or defense, or left out for the engine budget'
               outcome:
                 type: [object, 'null']
-                required: [wins, profit, loot, debris, lost, defenderLost]
+                required: [wins, profit, loot, debris, lost, lostShare, defenderLost]
                 properties:
                   wins: { type: number, description: Share of the runs (0-1) the attacker won }
                   profit: { type: number, description: 'Expected profit in deuterium value with the market rate: loot + debris − ships lost' }
@@ -382,6 +383,7 @@ components:
                       metal: { type: number }
                       crystal: { type: number }
                   lost: { $ref: '#/components/schemas/RiskResources' }
+                  lostShare: { type: number, description: 'Costs of the ships lost as a share (0-1) of the costs of the fleet' }
                   defenderLost: { $ref: '#/components/schemas/RiskResources' }
     Explanation:
       type: object

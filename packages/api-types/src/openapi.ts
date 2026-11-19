@@ -3075,6 +3075,8 @@ export type components = {
                     [key: string]: number;
                 };
                 time: number;
+                /** @description Costs of the fleet (metal + crystal + deuterium) */
+                cost: number;
             };
             /** @description Runs per battle (fewer when the battles are large) */
             runs: number;
@@ -3100,6 +3102,8 @@ export type components = {
                         crystal: number;
                     };
                     lost: components["schemas"]["RiskResources"];
+                    /** @description Costs of the ships lost as a share (0-1) of the costs of the fleet */
+                    lostShare: number;
                     defenderLost: components["schemas"]["RiskResources"];
                 } | null;
             }[];

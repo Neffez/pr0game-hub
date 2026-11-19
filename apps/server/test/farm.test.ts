@@ -170,6 +170,10 @@ describe('farm finder', () => {
     // 210 ships against ten rocket launchers: won, with loot
     expect(body.results[0].outcome.wins).toBe(1);
     expect(body.results[0].outcome.loot.metal).toBeGreaterThan(0);
+    // 20 small cargos, 200 light fighters, 10 cruisers
+    expect(body.fleet.cost).toBe(20 * 4000 + 200 * 4000 + 10 * 29_000);
+    expect(body.results[0].outcome.lostShare).toBeGreaterThanOrEqual(0);
+    expect(body.results[0].outcome.lostShare).toBeLessThan(0.1);
     expect(body.results[1]).toMatchObject({ type: 'moon', reason: 'no_report', outcome: null });
   });
 });
