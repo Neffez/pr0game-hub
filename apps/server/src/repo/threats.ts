@@ -9,6 +9,7 @@ import { alliance, memberPlayer } from './members.js';
 import { memberPlanets } from './phalanx.js';
 import { Players } from './players.js';
 import { latestScores } from './stats.js';
+import { likeTerm } from './sql.js';
 
 /**
  * Who threatens me (A-5): the players outside the own alliance who spied on or attacked the viewer, ranked by how
@@ -30,8 +31,9 @@ const NOT_RAIDING = new Set(['210', '212']);
 export function battleFleet(db: DB, ctx: GroupContext, name: string, since: number): { units: Record<string, number>; time: number } | null {
   const lower = name.toLowerCase();
   const rows = db
-    .prepare('SELECT time, fleets FROM combat_reports WHERE group_id = ? AND time >= ? AND fleets LIKE ?')
-    .all(ctx.groupId, since, `%${JSON.stringify(name)}%`) as { time: number; fleets: string }[];
+    // the name as it stands in the JSON, its LIKE wildcards (`_` is common in names) escaped
+    .prepare("SELECT time, fleets FROM combat_reports WHERE group_id = ? AND time >= ? AND fleets LIKE ? ESCAPE '\\'")
+    .all(ctx.groupId, since, likeTerm(JSON.stringify(name))) as { time: number; fleets: string }[];
   const units: Record<string, number> = {};
   let time = 0;
   for (const r of rows) {
@@ -196,6 +198,8 @@ export function threatsOf(db: DB, ctx: GroupContext, days: number): Threats {
   const planetsOf = db.prepare('SELECT g, s, p FROM planets WHERE group_id = ? AND player_id = ? AND destroyed = 0');
   // drives of a player without a spy report showing research: the viewer's own levels stand in (as in the defense advisor)
   let ownResearch: Record<string, number> | null = null;
+  // fleets rebuilt from battle reports by player name (a name can stand for several candidates)
+  const rebuiltFleets = new Map<string, ReturnType<typeof battleFleet>>();
   const ownDrives = () => (ownResearch ??= own.length ? buildingsState(db, ctx, ctx.user.id).research : {});
 
   const threats = list.map((c): Threat => {
@@ -214,7 +218,9 @@ export function threatsOf(db: DB, ctx: GroupContext, days: number): Threats {
       if (n > size) [ships, size, fleet] = [seen, n, 'spy'];
     }
     if (!ships && homes.length && own.length) {
-      const rebuilt = battleFleet(db, ctx, c.name, t - FLEET_DAYS * 86400);
+      const lower = c.name.toLowerCase();
+      if (!rebuiltFleets.has(lower)) rebuiltFleets.set(lower, battleFleet(db, ctx, c.name, t - FLEET_DAYS * 86400));
+      const rebuilt = rebuiltFleets.get(lower);
       if (rebuilt) [ships, fleet] = [rebuilt.units, 'battles'];
     }
     const reference = now && now.points < elementPoints(String(REFERENCE_SHIP), REFERENCE_FLEET) ? EARLY_SHIP : REFERENCE_SHIP;

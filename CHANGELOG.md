@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-19
 
+- Threats: the fleet rebuilt from battle reports escapes LIKE wildcards in the player's name (`_` is common) and
+  "who threatens me" looks each name up once per request (review R-07).
+
 - Build order writes simulate the timeline for the miner badge at most every ten minutes per member (moving steps
   one by one ran a second simulation on every move); reading the timeline still checks it every time (review R-06).
 

@@ -5,7 +5,7 @@ process.env.WEB_DIR = '/nonexistent';
 const { buildApp } = await import('../src/app.js');
 const { openDb } = await import('../src/db.js');
 const { hashPassword } = await import('../src/auth.js');
-const { peakOf } = await import('../src/repo/threats.js');
+const { battleFleet, peakOf } = await import('../src/repo/threats.js');
 
 /** Who threatens me (A-5): ranking of the players who spied on or attacked the viewer. */
 const db = openDb(':memory:');
@@ -128,6 +128,15 @@ describe('who threatens me', () => {
     expect((await call('/u8/threats?days=99999', h.carol)).json().days).toBe(3650);
     expect((await call('/u8/threats?days=', h.carol)).json().days).toBe(30);
     expect((await call('/u8/threats?days=x', h.carol)).json().days).toBe(30);
+  });
+
+  it('rebuilds a fleet from battle reports by the exact name, LIKE wildcards and quotes included', () => {
+    battle(other, t - DAY, [5, 5, 5], ['Ra_d', 'RaXd']);
+    battle(other, t - DAY, [5, 5, 6], ['Ro"z']);
+    const ctx = { groupId: other } as never;
+    expect(battleFleet(db, ctx, 'Ra_d', t - 2 * DAY)).toEqual({ units: { 204: 10 }, time: t - DAY });
+    expect(battleFleet(db, ctx, 'Ra%d', t - 2 * DAY)).toBeNull();
+    expect(battleFleet(db, ctx, 'Ro"z', t - 2 * DAY)?.units).toEqual({ 204: 10 });
   });
 
   it('finds the densest hours of the day, also over midnight', () => {
