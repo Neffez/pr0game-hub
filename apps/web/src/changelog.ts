@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Discord-Wochenrückblick: Fällt der Montag aus, kommt der Rückblick später in der Woche; nach dem Ende einer Runde gibt es noch einen letzten Rückblick.',
+        en: 'Weekly recap on Discord: if Monday is missed, the recap comes later that week; after a round ends there is one last recap.',
+      },
+      {
+        kind: 'fix',
         de: 'Allianzziele: Das Spionage-Ziel zählt für alle Mitglieder und im Discord-Rückblick gleich und lässt die ganze eigene Allianz aus; die Fortschrittsseite lädt schneller.',
         en: 'Alliance goals: the spy goal counts the same for every member and in the Discord recap and leaves out the whole own alliance; the progress page loads faster.',
       },

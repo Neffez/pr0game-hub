@@ -155,6 +155,32 @@ describe('recap', () => {
     expect(sent[0].files).toBeUndefined();
   });
 
+  it('catches up a missed Monday later in the week and posts the last week of an ended round once', async () => {
+    let monday = dayOf(now(), TZ);
+    while (new Date(`${monday}T12:00:00Z`).getUTCDay() !== 1) monday = addDays(monday, -1);
+    const next = addDays(monday, 7);
+    const at = (day: string, time: string) => localToEpoch(`${day} ${time}`, TZ);
+    sent.length = 0;
+    // the server was down on next Monday: Wednesday sends it, once
+    await app.discord.weeklyRecaps(at(addDays(next, 2), '07:00:00'));
+    await app.discord.weeklyRecaps(at(addDays(next, 3), '07:00:00'));
+    expect(sent).toHaveLength(1);
+    expect(sent[0].message.embeds[0].title).toContain(`KW ${isoWeek(monday)}`);
+    // the round ends on Thursday of the week after: the Monday after it gets that week up to the end, then nothing
+    const end = at(addDays(next, 10), '18:00:00');
+    db.prepare("UPDATE universes SET ended_at = ? WHERE slug = 'u8'").run(end);
+    try {
+      sent.length = 0;
+      await app.discord.weeklyRecaps(at(addDays(next, 14), '10:00:00'));
+      expect(sent).toHaveLength(1);
+      expect(sent[0].message.embeds[0].title).toContain(`KW ${isoWeek(addDays(next, 7))}`);
+      await app.discord.weeklyRecaps(at(addDays(next, 21), '10:00:00'));
+      expect(sent).toHaveLength(1);
+    } finally {
+      db.prepare("UPDATE universes SET ended_at = NULL WHERE slug = 'u8'").run();
+    }
+  });
+
   it('looks back from the start of the universe, without a span before', async () => {
     const start = now() - 3 * 86400;
     db.prepare("UPDATE universes SET starts_at = ? WHERE slug = 'u8'").run(start);

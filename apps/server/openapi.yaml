@@ -875,7 +875,7 @@ components:
         leadMinutes: { type: integer, enum: [1, 2, 5, 10, 15, 30], description: Launch reminder this many minutes ahead (default 5) }
         lang: { type: string, enum: [de, en], description: Language of the channel's messages (default de) }
         spying: { type: boolean, description: 'Hostile espionage (mission 6) counts for `attacks` (default on)' }
-        recap: { type: boolean, description: Last week's recap every Monday from 9 o'clock in the universe's time zone (default off) }
+        recap: { type: boolean, description: "Last week's recap every Monday from 9 o'clock in the universe's time zone, later in the week when Monday was missed; the last week of a round that ended once more (default off)" }
     RecapCompare:
       type: object
       required: [now, before]

@@ -1,5 +1,6 @@
 import type { FastifyBaseLogger } from 'fastify';
 import type { SessionUser } from './auth.js';
+import { localToEpoch } from '@pr0hub/core';
 import { config } from './config.js';
 import { isRunning, resolveGroup, universeNow, type GroupContext, type Universe } from './context.js';
 import { now, type DB } from './db.js';
@@ -322,23 +323,36 @@ export class DiscordService {
     return this.postRecap(this.groupTarget(ctx.groupId, url), ctx, period, image);
   }
 
-  /** Mondays from `RECAP_HOUR` on: last week's recap to the channels that want it, once per group and week. */
+  /**
+   * Last week's recap to the channels that want it, once per group and week: from Monday `RECAP_HOUR` on, or later in
+   * the week when the server missed Monday. A universe that ended during last week gets its final recap (its last
+   * week up to the end); one that ended before or had not started gets none.
+   */
   async weeklyRecaps(t = now()) {
     const rows = this.db.prepare('SELECT id, discord_webhook, discord_prefs FROM groups WHERE discord_webhook IS NOT NULL').all() as { id: number; discord_webhook: string; discord_prefs: string | null }[];
     for (const row of rows) {
       if (!channelPrefs(this.db, row.id).recap) continue;
       const universe = groupUniverse(this.db, row.id);
-      if (!universe || !isRunning(universe, t)) continue;
+      if (!universe) continue;
       const tz = universe.settings.timezone;
       const today = dayOf(t, tz);
+      const weekday = (new Date(`${today}T12:00:00Z`).getUTCDay() + 6) % 7; // Monday 0
       const hour = Number(new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', hourCycle: 'h23' }).format(new Date(t * 1000)));
-      if (new Date(`${today}T12:00:00Z`).getUTCDay() !== 1 || hour < RECAP_HOUR) continue;
-      const key = `recap:${addDays(today, -7)}`;
+      if (weekday === 0 && hour < RECAP_HOUR) continue;
+      const monday = addDays(today, -weekday);
+      const lastMonday = addDays(monday, -7);
+      // the universe ran during last week
+      const weekStart = localToEpoch(`${monday} 00:00:00`, tz);
+      if (universe.startsAt != null && universe.startsAt >= weekStart) continue;
+      if (universe.endedAt != null && universe.endedAt < localToEpoch(`${lastMonday} 00:00:00`, tz)) continue;
+      const key = `recap:${lastMonday}`;
       if (this.db.prepare('SELECT 1 FROM discord_sent WHERE target = ? AND key = ?').get(`g:${row.id}`, key)) continue;
       // marked first: a failing webhook is not tried again every tick
       this.db.prepare('INSERT OR IGNORE INTO discord_sent (target, key, sent_at) VALUES (?, ?, ?)').run(`g:${row.id}`, key, t);
       const ctx = channelContext(this.db, universe, row.id, t);
-      await this.postRecap(this.groupTarget(row.id, row.discord_webhook), ctx, 'lastWeek');
+      // the context of an ended universe stands at its end: an end during last week makes that week its "this week"
+      const endedLastWeek = universe.endedAt != null && universe.endedAt < weekStart;
+      await this.postRecap(this.groupTarget(row.id, row.discord_webhook), ctx, endedLastWeek ? 'week' : 'lastWeek');
     }
   }
 

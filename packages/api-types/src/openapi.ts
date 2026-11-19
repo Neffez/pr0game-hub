@@ -3756,7 +3756,7 @@ export type components = {
             lang?: "de" | "en";
             /** @description Hostile espionage (mission 6) counts for `attacks` (default on) */
             spying?: boolean;
-            /** @description Last week's recap every Monday from 9 o'clock in the universe's time zone (default off) */
+            /** @description Last week's recap every Monday from 9 o'clock in the universe's time zone, later in the week when Monday was missed; the last week of a round that ended once more (default off) */
             recap?: boolean;
         };
         RecapCompare: {

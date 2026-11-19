@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-19
 
+- Weekly recap to Discord: a Monday the server missed is caught up later that week (still once per week), and a round
+  that ended gets the recap of its last week up to the end once; documented in `openapi.yaml` (review R-09).
+
 - Recap to Discord: the route takes a body large enough for the documented 8 MB PNG as base64 (the general body
   limit cut it at about 6 MB with a 413); larger or non-PNG images get `recap_image_invalid` (review R-08).
 
