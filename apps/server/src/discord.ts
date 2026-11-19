@@ -121,7 +121,7 @@ const RECAP_COLOR = 0xf2683c;
 /** The weekly recap goes out on Mondays from this hour on (universe's time zone). */
 export const RECAP_HOUR = 9;
 const COLORS: Record<ChannelNotification['kind'] | Notification['kind'] | 'access', number> = {
-  attack: 0xe74c3c, launch: 0xf39c12, invite: 0x3498db, plan: 0x3498db, comment: 0x95a5a6, building: 0x2ecc71, fleet: 0x6e8eea, storage: 0xe67e22, settlement: 0xf1c40f, buildorder: 0x27ae60, phalanx: 0x9b59b6, access: 0x1abc9c,
+  attack: 0xe74c3c, launch: 0xf39c12, invite: 0x3498db, plan: 0x3498db, comment: 0x95a5a6, building: 0x2ecc71, fleet: 0x6e8eea, storage: 0xe67e22, settlement: 0xf1c40f, buildorder: 0x27ae60, phalanx: 0x9b59b6, expedition: 0x6e8eea, access: 0x1abc9c,
 };
 
 type Item = { kind: keyof typeof COLORS; payload: PushPayload; mention?: string | null };

@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-19',
     items: [
       {
+        kind: 'new',
+        de: 'Flotten- und Expeditionsslots: Im Imperium über den Flottenbewegungen und auf der Expeditionsseite siehst du, wie viele Slots belegt und frei sind und wann der nächste frei wird. Auf Wunsch meldet dich der Hub, wenn eine Expedition zurück ist oder verloren ging und ihr Slot frei wird (Konto → Benachrichtigungen).',
+        en: 'Fleet and expedition slots: the Imperium (above the fleet movements) and the Expeditions page show how many slots are taken and free and when the next one becomes free. If you like, the hub tells you when an expedition is back or was lost and its slot is free (Account → Notifications).',
+      },
+      {
         kind: 'fix',
         de: 'Spielerprofil: Beim Speichern der Notiz erscheint jetzt eine Bestätigung, Enter speichert ebenfalls. Die Überschriften heißen kurz „Notiz“ und „Kommentare“.',
         en: 'Player profile: saving the note now shows a confirmation, Enter saves as well. The headings are simply "Note" and "Comments".',

@@ -1193,6 +1193,23 @@ export type paths = {
         patch?: never;
         trace?: never;
     };
+    "/api/{uni}/fleets/slots": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The caller's fleet and expedition slots by their newest synced fleet list and research (see `FleetSlots`). */
+        get: operations["getFleetSlots"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/{uni}/fleets/alerts": {
         parameters: {
             query?: never;
@@ -2066,7 +2083,10 @@ export type paths = {
          *     `target` level or count, `time` now; one per planet) and `phalanx` (a sensor phalanx of a moon outside the own
          *     alliance reaches planets of the caller, by a spy report of the moon that reached the hub within 24 hours; one per
          *     moon; `moon`, `level`, `range`, `since` the game time of that report, `player` the moon's owner, `planets` the
-         *     caller's planets in reach, `time` when the report reached the hub). Push notifications send
+         *     caller's planets in reach, `time` when the report reached the hub) and `expedition` (an expedition of the caller's
+         *     newest fleet list is back home, or a black hole swallowed it by its synced report, so its expedition slot is
+         *     free, listed 6 hours or until a newer fleet list; `fleet` the last line of the flight, `lost`, `slots` the
+         *     expedition slots taken after it and their number by astrophysics, `time` when the slot became free). Push notifications send
          *     the same entries (see `/api/push/subscriptions`).
          */
         get: operations["getNotifications"];
@@ -3342,6 +3362,8 @@ export type components = {
             buildOrder?: boolean;
             /** @description A sensor phalanx outside the own alliance is newly known to reach one of the caller's planets (default on) */
             phalanx?: boolean;
+            /** @description An expedition of the caller is back home or was lost to a black hole */
+            expeditions?: boolean;
             /**
              * @description Launch reminder this many minutes ahead (default 5)
              * @enum {integer}
@@ -4789,6 +4811,8 @@ export type components = {
             overview?: Record<string, never> | null;
             fleets?: components["schemas"]["SharedFleets"];
             fleetHistory?: Record<string, never>[];
+            /** @description Fleet and expedition slots the member's fleets take (for another member by the fleets they share); null without a synced fleet list */
+            slots?: components["schemas"]["FleetSlots"] | null;
             /** @description The caller's fleet alerts, only when the member is the caller (null otherwise). Alerts whose fleet is missing from a newer fleet list before its arrival (recalled) and alerts arrived more than 10 minutes ago are removed. */
             fleetAlerts?: components["schemas"]["FleetAlert"][] | null;
             player?: Record<string, never> | null;
@@ -5671,6 +5695,27 @@ export type components = {
             lost?: number | null;
             pending?: number | null;
             failed?: number | null;
+        };
+        SlotCount: {
+            /** @description Flights holding a slot now */
+            used: number;
+            /** @description Slots by the research; null when the level is unknown */
+            max: number | null;
+            /** @description Unix seconds when the next of them frees its slot; null when none is taken */
+            next: number | null;
+            /** @description Unix seconds when each of them frees its slot, earliest first */
+            ends: number[];
+        };
+        /** @description Slots like the game: every own fleet except missile attacks takes one of `1 + computer technology` fleet slots, an expedition also one of `⌊√astrophysics⌋` expedition slots, until it is back home. Taken from the newest synced fleet list (fleets sent after `time` are missing); a black hole frees an expedition's slot at the end of its stay, a fast or slow expedition moves its return, both by the expedition reports synced after the list. */
+        FleetSlots: {
+            /** @description Unix seconds of the synced fleet list */
+            time: number;
+            /** @description The caller's own slots; false: another member's by the fleets they share */
+            own: boolean;
+            /** @description Unix seconds the counts are for (now) */
+            at: number;
+            fleets: components["schemas"]["SlotCount"];
+            expeditions: components["schemas"]["SlotCount"];
         };
         /** @description The member's newest synced fleet movements as far as they share them with the caller; null without a synced fleet list. */
         SharedFleets: {
@@ -9183,6 +9228,37 @@ export interface operations {
             };
         };
     };
+    getFleetSlots: {
+        parameters: {
+            query?: {
+                /** @description Alliance group id (alternative to `X-Hub-Group`, required for SSE) */
+                group?: components["parameters"]["HubGroupQuery"];
+            };
+            header?: {
+                /** @description Alliance group id (see `GET /api/auth/me`) */
+                "X-Hub-Group"?: components["parameters"]["HubGroupHeader"];
+            };
+            path: {
+                /** @description Universe slug (e.g. `u8`) */
+                uni: components["parameters"]["Uni"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description Null without a synced fleet list */
+                        slots: components["schemas"]["FleetSlots"] | null;
+                    };
+                };
+            };
+        };
+    };
     putFleetAlert: {
         parameters: {
             query?: {
@@ -11772,8 +11848,8 @@ export interface operations {
                         /** @description Stable while the event lasts */
                         id: string;
                         /** @enum {string} */
-                        kind: "attack" | "invite" | "comment" | "launch" | "building" | "fleet" | "storage" | "settlement" | "buildorder" | "phalanx";
-                        /** @description attack: the attacked member; invite: who invited; comment: the newest author; launch, building, fleet, storage, buildorder and phalanx: the caller; settlement: who finalized it */
+                        kind: "attack" | "invite" | "comment" | "launch" | "building" | "fleet" | "storage" | "settlement" | "buildorder" | "phalanx" | "expedition";
+                        /** @description attack: the attacked member; invite: who invited; comment: the newest author; launch, building, fleet, storage, buildorder, phalanx and expedition: the caller; settlement: who finalized it */
                         userId: number;
                         member: string;
                         /** @description Unix seconds (arrival */
@@ -11809,8 +11885,15 @@ export interface operations {
                          * @enum {integer}
                          */
                         resource?: 901 | 902 | 903;
-                        /** @description attack: the fleet (for an ACS the lead fleet with all ships); fleet: the own fleet of the alert */
+                        /** @description attack: the fleet (for an ACS the lead fleet with all ships); fleet: the own fleet of the alert; expedition: the last line of the flight (the return, for a lost one the stay) */
                         fleet?: Record<string, never>;
+                        /** @description expedition only: swallowed by a black hole at the end of its stay */
+                        lost?: boolean;
+                        /** @description expedition only: expedition slots taken after it was back, and their number by astrophysics (null when unknown) */
+                        slots?: {
+                            used: number;
+                            max: number | null;
+                        };
                         /** @description attack only: number of fleets of an ACS */
                         fleets?: number;
                         /** @description invite, launch and settlement (launch: `time_precision` is always exact and missing; `target_time` instead; settlement: target and mission only) */

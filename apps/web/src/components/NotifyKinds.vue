@@ -19,6 +19,7 @@ export interface NotifyPrefs {
   storage: boolean;
   buildOrder: boolean;
   phalanx: boolean;
+  expeditions: boolean;
   settlements: boolean;
   accessRequests: boolean;
   parserSamples: boolean;
@@ -32,7 +33,7 @@ defineProps<{ prefs: NotifyPrefs }>();
 const emit = defineEmits<{ change: [] }>();
 const { t } = useI18n();
 
-const ALL_KINDS = ['attackSelf', 'attackOthers', 'invites', 'comments', 'buildings', 'buildOrder', 'storage', 'phalanx', 'fleets', 'launch', 'settlements', 'accessRequests', 'parserSamples'] as const;
+const ALL_KINDS = ['attackSelf', 'attackOthers', 'invites', 'comments', 'buildings', 'buildOrder', 'storage', 'phalanx', 'fleets', 'expeditions', 'launch', 'settlements', 'accessRequests', 'parserSamples'] as const;
 /** access requests and parser samples only concern global admins */
 const kinds = computed(() => ALL_KINDS.filter((k) => (k !== 'accessRequests' && k !== 'parserSamples') || session.me?.user?.isAdmin));
 const LEAD_MINUTES = [1, 2, 5, 10, 15, 30];

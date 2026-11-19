@@ -8,11 +8,11 @@ import { useStored } from './composables';
  * Something the members should notice (server: repo/notifications.ts): hostile fleets on a member, raid planner
  * invitations, new comments in the viewer's threads, the launch of the viewer's plan fleets, the next level of a
  * building the viewer waits for being affordable, the arrival of an own fleet with an alert, a full storage on one of
- * the viewer's planets, a hostile sensor phalanx newly known to reach the viewer's planets.
+ * the viewer's planets, a hostile sensor phalanx newly known to reach the viewer's planets, a free expedition slot.
  */
 export type Notification =
   | AttackNotification | InviteNotification | CommentNotification | LaunchNotification | BuildingNotification | FleetNotification | StorageNotification
-  | SettlementNotification | BuildOrderNotification | PhalanxNotification;
+  | SettlementNotification | BuildOrderNotification | PhalanxNotification | ExpeditionNotification;
 
 interface Base {
   id: string;
@@ -107,14 +107,26 @@ export interface PhalanxNotification extends Base {
   planets: { g: number; s: number; p: number; name: string | null }[];
 }
 
+/** An expedition of the viewer is back (or lost to a black hole, `lost`) at `time`: its slot is free. */
+export interface ExpeditionNotification extends Base {
+  kind: 'expedition';
+  /** the last line of the flight (the return, for a lost one the stay) */
+  fleet: Fleet;
+  lost: boolean;
+  /** expedition slots taken after it, their number by astrophysics */
+  slots: { used: number; max: number | null };
+}
+
 /**
  * An invitation lasts until the end of the plan's day or hour, new comments two days, affordable buildings one day,
- * full storages and new hostile phalanxes one day, arrived fleets with an alert ten minutes.
+ * full storages and new hostile phalanxes one day, arrived fleets with an alert ten minutes, free expedition slots six
+ * hours (the server drops them earlier with a newer fleet list).
  */
 const SPAN = { day: 86400, hour: 3600, exact: 0 };
 const COMMENT_SPAN = 48 * 3600;
 const BUILDING_SPAN = 24 * 3600;
 const FLEET_SPAN = 10 * 60;
+const EXPEDITION_SPAN = 6 * 3600;
 const until = (n: Notification) => {
   switch (n.kind) {
     case 'invite':
@@ -128,6 +140,8 @@ const until = (n: Notification) => {
       return n.time + BUILDING_SPAN;
     case 'fleet':
       return n.time + FLEET_SPAN;
+    case 'expedition':
+      return n.time + EXPEDITION_SPAN;
     case 'settlement':
       return n.time + 2 * 86400;
     default:

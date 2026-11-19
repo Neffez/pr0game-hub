@@ -4,6 +4,16 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-19
 
+- Fleet and expedition slots like the game (`1 + computer technology` fleet slots for every own fleet but missile
+  attacks, `⌊√astrophysics⌋` expedition slots, each held until the fleet is home), taken from the newest fleet list
+  and the research; synced expedition reports correct it (a black hole frees the slot at the end of the stay, fast
+  and slow expeditions move the return):
+  - Shown above the fleet movements in the Imperium (fleet and expedition slots, free ones, countdown to the next
+    one; for other members by the fleets they share) and on the Expeditions page (own expedition slots).
+  - New notification `expedition` when an expedition is back or lost and its slot is free (bell, push and Discord;
+    setting `expeditions`, off by default), listed six hours or until a newer fleet list.
+  - API: new `GET /api/{uni}/fleets/slots`, `slots` in `GET /api/{uni}/imperium` (schemas `FleetSlots`, `SlotCount`).
+
 - Player page: saving the note gives feedback (a "Note saved" toast, the button is disabled while saving and while
   the note is unchanged, Enter saves); the headings read just "Note" and "Comments" (also for spy reports and loot
   settlements).

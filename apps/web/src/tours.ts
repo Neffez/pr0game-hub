@@ -135,6 +135,7 @@ export const TOURS = {
       { key: 'points', el: 'imperium-points', side: 'bottom' },
       { key: 'phalanx', el: 'imperium-phalanx', side: 'top' },
       { key: 'fleets', el: 'imperium-fleets', side: 'top' },
+      { key: 'slots', el: 'fleet-slots', side: 'bottom' },
       { key: 'planets', el: 'imperium-planets', side: 'top' },
     ],
   },

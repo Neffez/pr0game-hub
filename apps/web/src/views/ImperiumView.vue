@@ -13,6 +13,8 @@ import { useI18n } from 'vue-i18n';
 import { readError, uniApi } from '../api';
 import { past, upcoming, useClock } from '../clock';
 import FleetList, { alertFor, FLEET_HISTORY, type Fleet, type FleetAlert } from '../components/FleetList.vue';
+import FleetSlots from '../components/FleetSlots.vue';
+import type { Schema } from '../apiTypes';
 import Hint from '../components/Hint.vue';
 import PlayerLink from '../components/PlayerLink.vue';
 import Ticker from '../components/Ticker.vue';
@@ -82,6 +84,8 @@ interface Data {
   fleetHistory: Fleet[];
   /** the viewer's alerts for their own fleets (null for other members) */
   fleetAlerts: FleetAlert[] | null;
+  /** fleet and expedition slots taken by the listed fleets */
+  slots: Schema<'FleetSlots'> | null;
   /** the member's player with the latest synced statistics per category (1 total … 5 defense) */
   player: { id: number; name: string; stats: Record<number, { points: number; rank: number; time: number }> } | null;
   /**
@@ -109,7 +113,7 @@ const now = useClock();
 
 onMounted(load);
 watch(userId, load);
-useLiveReload(load, tables('empire', 'overview', 'fleets', 'player_scores', 'fleet_alerts'));
+useLiveReload(load, tables('empire', 'overview', 'fleets', 'player_scores', 'fleet_alerts', 'research', 'expeditions'));
 
 const empire = computed(() => data.value?.empire ?? null);
 const overview = computed(() => data.value?.overview ?? null);
@@ -529,6 +533,7 @@ useAutoTour('imperium', () => !!data.value);
       <Hint><p>{{ t('imperium.fleetsHint') }}</p></Hint>
       <span v-if="arrived" class="muted small">{{ t('imperium.fleetsArrived', { n: arrived }) }}</span>
     </template>
+    <FleetSlots v-if="data?.slots" :slots="data.slots" />
     <p v-if="!flights.length" class="muted small m-0">{{ t('imperium.fleetsNone') }}</p>
     <p v-if="alertError" class="error small">{{ alertError }}</p>
     <FleetList v-if="flights.length" :fleets="flights" :alerts="data?.fleetAlerts ?? undefined" :busy="alertBusy" :sharing="mine" :share-busy="shareBusy" @alert="setAlert" @share="setShare" />

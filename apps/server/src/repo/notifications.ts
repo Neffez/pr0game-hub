@@ -12,6 +12,7 @@ import { alliance } from './members.js';
 import { finalizedSettlements, memberKey } from './settlements.js';
 import { memberPlanets, phalanxExposure, type MemberPlanet, type PhalanxOwner } from './phalanx.js';
 import { Players } from './players.js';
+import { EXPEDITION_MISSION, memberFlights, slotsAt } from './slots.js';
 import { latestScores } from './stats.js';
 import { enemiesOf, followEnemies, launchedOf, planDrives, type LaunchFleet, type LaunchPlan, type PlanRow } from './plans.js';
 
@@ -20,13 +21,13 @@ import { enemiesOf, followEnemies, launchedOf, planDrives, type LaunchFleet, typ
  * alliance, the viewer's open invitations to a raid planner plan, new comments in threads the viewer wrote in, and the
  * launch of the viewer's own plan fleets, the next level of a building the viewer is waiting for being affordable, and
  * the arrival of own fleets the viewer set an alert for, full storages on the viewer's planets, and the next step of
- * the viewer's build order on a planet that can start, and a hostile sensor phalanx newly known to reach the viewer's
- * planets.
+ * the viewer's build order on a planet that can start, a hostile sensor phalanx newly known to reach the viewer's
+ * planets, and an expedition of the viewer that is back (or lost) and frees its expedition slot.
  * The bell lists them; push notifications send them (push.ts).
  */
 export type Notification =
   | AttackNotification | InviteNotification | CommentNotification | LaunchNotification | BuildingNotification | FleetNotification | StorageNotification
-  | SettlementNotification | BuildOrderNotification | PhalanxNotification;
+  | SettlementNotification | BuildOrderNotification | PhalanxNotification | ExpeditionNotification;
 
 interface Base {
   /** stable while the event lasts (the web app remembers which ones were seen, push sends each once) */
@@ -151,6 +152,20 @@ export interface PhalanxNotification extends Base {
   planets: MemberPlanet[];
 }
 
+/**
+ * An expedition of the viewer by their newest fleet list is back home, or a black hole swallowed it at the end of its
+ * stay (`lost`, by its synced report): its expedition slot is free (`time`: then, listed `EXPEDITION_KEEP`; gone with
+ * a newer fleet list, which no longer shows it). `slots`: the expedition slots taken after it and their number by
+ * astrophysics (null when unknown).
+ */
+export interface ExpeditionNotification extends Base {
+  kind: 'expedition';
+  /** the last line of the flight in the fleet list (the return, for a lost one the stay) */
+  fleet: StoredFleet;
+  lost: boolean;
+  slots: { used: number; max: number | null };
+}
+
 /** A member created a plan (channel only, not on the bell; `userId`/`member`: the creator, `time`: its creation). */
 export interface PlanNotification extends Base {
   kind: 'plan';
@@ -176,6 +191,8 @@ export const STORAGE_KEEP = 24 * 3600;
 export const SETTLEMENT_KEEP = 2 * 86400;
 /** A hostile phalanx newly known to reach the viewer's planets is listed this long. */
 export const PHALANX_NOTIFY_KEEP = 24 * 3600;
+/** A free expedition slot is listed this long. */
+export const EXPEDITION_KEEP = 6 * 3600;
 /** New plans are posted to the channel this long after their creation. */
 export const PLAN_KEEP = 3600;
 const EXCERPT = 80;
@@ -198,6 +215,7 @@ export function notificationsFor(db: DB, ctx: GroupContext, t: number, persist =
   return [
     ...attacks(db, ctx, t), ...invites(db, ctx, t), ...comments(db, ctx, t), ...launches(db, ctx, t), ...buildings(db, ctx, t, own), ...fleets(db, ctx, t),
     ...storages(db, ctx, t, own, persist), ...settlements(db, ctx, t), ...buildOrder(db, ctx, t, own, persist), ...phalanxes(db, ctx, t),
+    ...expeditions(db, ctx, t, own),
   ].sort((a, b) => a.time - b.time);
 }
 
@@ -562,6 +580,42 @@ export function nextStorageFull(db: DB, universe: Universe, groupId: number, use
     for (const bp of state.planets) {
       for (const x of storagesOf(state, bp, t)) if (x.at != null && x.at > t) next = next == null ? x.at : Math.min(next, x.at);
     }
+  }
+  return next;
+}
+
+/**
+ * The viewer's expeditions of their newest fleet list that freed their slot within `EXPEDITION_KEEP` (see
+ * `ExpeditionNotification`).
+ */
+function expeditions(db: DB, ctx: GroupContext, t: number, own: () => BuildingsState): ExpeditionNotification[] {
+  const flights = memberFlights(db, ctx.groupId, ctx.user.id, sharedFleets(db, ctx.groupId, ctx.user.id, ctx.user.id));
+  const done = flights?.flights.filter((f) => f.mission === EXPEDITION_MISSION && f.end <= t && f.end + EXPEDITION_KEEP > t) ?? [];
+  if (!done.length) return [];
+  const name = displayNameOf(db, ctx.user.id)!;
+  return done.map((f) => {
+    const last = f.lost ? f.lines.find((l) => l.phase === 'hold')! : f.lines[f.lines.length - 1];
+    const { shared: _, ...fleet } = last;
+    const slots = slotsAt(flights!, own().research, f.end).expeditions;
+    // the last line as listed names the flight; it only moves by a second between fleet lists synced before the end
+    const at = f.lines[f.lines.length - 1];
+    const pos = at.from.coords;
+    return {
+      id: `expedition:${at.arrival}:${pos.g}:${pos.s}:${pos.p}`, kind: 'expedition' as const, userId: ctx.user.id, member: name, time: f.end, fleet, lost: f.lost,
+      slots: { used: slots.used, max: slots.max },
+    };
+  });
+}
+
+/**
+ * The earliest time after `t` an expedition of one of `userIds` frees its slot (newest fleet lists), null when none
+ * is out.
+ */
+export function nextExpeditionFree(db: DB, groupId: number, userIds: number[], t: number): number | null {
+  let next: number | null = null;
+  for (const id of userIds) {
+    const flights = memberFlights(db, groupId, id, sharedFleets(db, groupId, id, id));
+    for (const f of flights?.flights ?? []) if (f.mission === EXPEDITION_MISSION && f.end > t) next = next == null ? f.end : Math.min(next, f.end);
   }
   return next;
 }

@@ -2,7 +2,7 @@ import { toUniverse, type Universe } from './context.js';
 import type { DB } from './db.js';
 import type { EventBus } from './events.js';
 import { nextFleetAlert } from './repo/fleetAlerts.js';
-import { nextBuildingAlert, nextBuildOrderStep, nextStorageFull, type ChannelNotification, type Notification } from './repo/notifications.js';
+import { nextBuildingAlert, nextBuildOrderStep, nextExpeditionFree, nextStorageFull, type ChannelNotification, type Notification } from './repo/notifications.js';
 
 /**
  * What web push (push.ts) and Discord (discord.ts) share: delivery after data events of a group (bundled) and on a
@@ -17,8 +17,8 @@ const DEBOUNCE_MS = 2000;
 export const TICK_MS = 30_000;
 /** Ticks look at plans landing within this time. */
 export const TICK_AHEAD = 48 * 3600;
-/** Data events that may bring a notification (spy reports: a hostile phalanx in reach). */
-const TABLES = ['spy_reports', 'fleets', 'attack_plans', 'comments', 'group_members', 'empire', 'overview', 'buildings', 'research', 'shipyard', 'building_alerts', 'fleet_alerts', 'build_orders'];
+/** Data events that may bring a notification (spy reports: a hostile phalanx in reach; expedition reports: a lost expedition). */
+const TABLES = ['spy_reports', 'expeditions', 'fleets', 'attack_plans', 'comments', 'group_members', 'empire', 'overview', 'buildings', 'research', 'shipyard', 'building_alerts', 'fleet_alerts', 'build_orders'];
 
 /** Building and fleet alerts of a group are looked at again at least this often by the ticks (data events deliver anyway). */
 export const ALERT_RECHECK = 15 * 60;
@@ -60,7 +60,8 @@ export class AlertSchedule {
     const buildings = !!this.db.prepare('SELECT 1 FROM building_alerts WHERE group_id = ?').get(groupId);
     const orders = !!this.db.prepare('SELECT 1 FROM build_orders WHERE group_id = ?').get(groupId);
     const alerts = buildings || orders || !!this.db.prepare('SELECT 1 FROM fleet_alerts WHERE group_id = ?').get(groupId);
-    const storage = nextStorageFull(this.db, universe, groupId, storageWatchers(this.db, groupId), t) ?? Infinity;
+    const watchers = storageWatchers(this.db, groupId);
+    const storage = Math.min(nextStorageFull(this.db, universe, groupId, watchers, t) ?? Infinity, nextExpeditionFree(this.db, groupId, watchers, t) ?? Infinity);
     if (!alerts) {
       this.next.set(groupId, storage);
       return;

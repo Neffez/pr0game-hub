@@ -11,6 +11,7 @@ import { openFleetAlerts } from '../repo/fleetAlerts.js';
 import { chooseFleetShare, FLEET_HISTORY, fleetHistory, flightLines, sameFleet, sharedFleets, type StoredFleet } from '../repo/fleets.js';
 import { memberPlayer, memberPlayers } from '../repo/members.js';
 import { memberPlanets, phalanxExposure } from '../repo/phalanx.js';
+import { memberSlots } from '../repo/slots.js';
 import { catchUpLeader, latestScores } from '../repo/stats.js';
 import { contextOf, type Q } from './util.js';
 
@@ -101,12 +102,20 @@ export function imperiumRoutes(app: FastifyInstance, db: DB) {
       // the viewer's own alerts for their fleets
       fleetAlerts: userId === ctx.user.id ? openFleetAlerts(db, ctx, userId, ctx.now) : null,
       fleetHistory: fleetHistory(db, ctx.groupId, userId, ctx.user.id, ctx.now - FLEET_HISTORY),
+      // fleet and expedition slots taken by the fleets listed
+      slots: memberSlots(db, ctx, userId, fleets),
       player: player ? { ...player, stats: Object.fromEntries(stats.map((s) => [s.type, s])) } : null,
       fleetBase: fleetBase && basePoints && anchorFleet != null ? { time: fleetBase.time, points: basePoints.fleet, stat: anchorFleet } : null,
       leader: leader ? { name: leader.name, buildings: leader.buildings, research: leader.research, fleet: leader.fleet, weighted: leader.weighted } : null,
       // the member's planets in reach of a known hostile phalanx
       phalanx: phalanxExposure(db, ctx, memberPlanets(db, ctx, userId)).filter((e) => e.threats.length),
     };
+  });
+
+  /** The caller's fleet and expedition slots by their newest fleet list and research (null without a fleet list). */
+  app.get<{ Params: { uni: string } }>('/api/:uni/fleets/slots', async (req) => {
+    const ctx = ctxOf(req);
+    return { slots: memberSlots(db, ctx, ctx.user.id, sharedFleets(db, ctx.groupId, ctx.user.id, ctx.user.id)) };
   });
 
   const alertsChanged = (groupId: number, userId: number) => events.publish(groupId, { type: 'data', tables: ['fleet_alerts'], userId });

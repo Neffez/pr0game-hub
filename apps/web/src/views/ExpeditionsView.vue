@@ -1,17 +1,21 @@
 <script setup lang="ts">
 import CsvButton from '../components/CsvButton.vue';
+import FleetSlots from '../components/FleetSlots.vue';
 import ExpeditionDeck from '../components/ExpeditionDeck.vue';
 import ExpeditionStats from '../components/ExpeditionStats.vue';
 import Hint from '../components/Hint.vue';
 import PageHeader from '../components/PageHeader.vue';
-import { computed } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
+import { uniApi } from '../api';
+import type { ApiResponse } from '../apiTypes';
 import { useStored, useUni } from '../composables';
+import { tables, useLiveReload } from '../live';
 
 /** Expeditions: the alliance's statistics and the own card-counting deck as tabs (link: ?tab=stats / deck). */
 const { t } = useI18n();
-const { ctx } = useUni();
+const { ctx, uni } = useUni();
 const route = useRoute();
 const router = useRouter();
 
@@ -29,6 +33,18 @@ const tab = computed<ExpoTab>({
     router.replace({ query: { ...route.query, tab: v } });
   },
 });
+
+/** The own expedition slots: taken, free and when the next one is free (by the newest fleet list). */
+const slots = ref<ApiResponse<'/api/{uni}/fleets/slots'>['slots']>(null);
+async function loadSlots() {
+  try {
+    slots.value = (await uniApi<ApiResponse<'/api/{uni}/fleets/slots'>>(uni.value, '/fleets/slots')).slots;
+  } catch {
+    /* kept until the next reload */
+  }
+}
+onMounted(loadSlots);
+useLiveReload(loadSlots, tables('fleets', 'expeditions', 'empire', 'research'));
 </script>
 
 <template>
@@ -46,6 +62,7 @@ const tab = computed<ExpoTab>({
     </template>
     <CsvButton v-if="tab !== 'deck'" dataset="expeditions" />
   </PageHeader>
+  <FleetSlots v-if="slots" :slots="slots" expeditions-only />
   <div class="seg tab-seg">
     <button :class="{ active: tab === 'stats' }" data-tour="expo-tab-stats" @click="tab = 'stats'">{{ t('expeditions.tabStats') }}</button>
     <button :class="{ active: tab === 'deck' }" data-tour="expo-tab-deck" @click="tab = 'deck'">{{ t('expeditions.tabDeck') }}</button>

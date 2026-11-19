@@ -562,6 +562,7 @@ components:
         settlements: { type: boolean, description: A loot settlement the caller takes part in was finalized and they have deliveries open (default on) }
         buildOrder: { type: boolean, description: The next step of the caller's build order on a planet can start (default on) }
         phalanx: { type: boolean, description: A sensor phalanx outside the own alliance is newly known to reach one of the caller's planets (default on) }
+        expeditions: { type: boolean, description: An expedition of the caller is back home or was lost to a black hole, its expedition slot is free (default off) }
         leadMinutes: { type: integer, enum: [1, 2, 5, 10, 15, 30], description: Launch reminder this many minutes ahead (default 5) }
         spying: { type: boolean, description: 'Hostile espionage (mission 6) counts for `attackSelf` and `attackOthers` (default on); off: only fleets that are not spying' }
         mentionsOnly: { type: boolean, description: '`comments` only when a comment mentions the caller (default off)' }
@@ -1876,6 +1877,9 @@ components:
         overview: { type: [object, 'null'] }
         fleets: { $ref: '#/components/schemas/SharedFleets' }
         fleetHistory: { type: array, items: { type: object } }
+        slots:
+          oneOf: [{ $ref: '#/components/schemas/FleetSlots' }, { type: 'null' }]
+          description: Fleet and expedition slots the member's fleets take (for another member by the fleets they share); null without a synced fleet list
         fleetAlerts:
           type: [array, 'null']
           items: { $ref: '#/components/schemas/FleetAlert' }
@@ -2811,6 +2815,31 @@ components:
         lost: { type: [integer, 'null'] }
         pending: { type: [integer, 'null'] }
         failed: { type: [integer, 'null'] }
+    SlotCount:
+      type: object
+      required: [used, max, next, ends]
+      properties:
+        used: { type: integer, description: Flights holding a slot now }
+        max: { type: [integer, 'null'], description: Slots by the research; null when the level is unknown }
+        next: { type: [integer, 'null'], description: Unix seconds when the next of them frees its slot; null when none is taken }
+        ends:
+          type: array
+          items: { type: integer }
+          description: Unix seconds when each of them frees its slot, earliest first
+    FleetSlots:
+      type: object
+      description: >-
+        Slots like the game: every own fleet except missile attacks takes one of `1 + computer technology` fleet slots,
+        an expedition also one of `⌊√astrophysics⌋` expedition slots, until it is back home. Taken from the newest synced
+        fleet list (fleets sent after `time` are missing); a black hole frees an expedition's slot at the end of its
+        stay, a fast or slow expedition moves its return, both by the expedition reports synced after the list.
+      required: [time, own, at, fleets, expeditions]
+      properties:
+        time: { type: integer, description: Unix seconds of the synced fleet list }
+        own: { type: boolean, description: 'The caller''s own slots; false: another member''s by the fleets they share' }
+        at: { type: integer, description: Unix seconds the counts are for (now) }
+        fleets: { $ref: '#/components/schemas/SlotCount' }
+        expeditions: { $ref: '#/components/schemas/SlotCount' }
     SharedFleets:
       type: [object, 'null']
       description: >-
@@ -5364,6 +5393,26 @@ paths:
                       m: { type: number }
                       k: { type: number }
                   now: { type: integer }
+  /api/{uni}/fleets/slots:
+    get:
+      tags: [Universe]
+      operationId: getFleetSlots
+      description: The caller's fleet and expedition slots by their newest synced fleet list and research (see `FleetSlots`).
+      parameters:
+        - { $ref: '#/components/parameters/Uni' }
+        - { $ref: '#/components/parameters/HubGroupHeader' }
+        - { $ref: '#/components/parameters/HubGroupQuery' }
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [slots]
+                properties:
+                  slots:
+                    oneOf: [{ $ref: '#/components/schemas/FleetSlots' }, { type: 'null' }]
+                    description: Null without a synced fleet list
   /api/{uni}/fleets/alerts:
     put:
       tags: [Universe]
@@ -7167,7 +7216,10 @@ paths:
         `target` level or count, `time` now; one per planet) and `phalanx` (a sensor phalanx of a moon outside the own
         alliance reaches planets of the caller, by a spy report of the moon that reached the hub within 24 hours; one per
         moon; `moon`, `level`, `range`, `since` the game time of that report, `player` the moon's owner, `planets` the
-        caller's planets in reach, `time` when the report reached the hub). Push notifications send
+        caller's planets in reach, `time` when the report reached the hub) and `expedition` (an expedition of the caller's
+        newest fleet list is back home, or a black hole swallowed it by its synced report, so its expedition slot is
+        free, listed 6 hours or until a newer fleet list; `fleet` the last line of the flight, `lost`, `slots` the
+        expedition slots taken after it and their number by astrophysics, `time` when the slot became free). Push notifications send
         the same entries (see `/api/push/subscriptions`).
       parameters:
         - { $ref: '#/components/parameters/Uni' }
@@ -7184,8 +7236,8 @@ paths:
                   required: [id, kind, userId, member, time]
                   properties:
                     id: { type: string, description: Stable while the event lasts }
-                    kind: { type: string, enum: [attack, invite, comment, launch, building, fleet, storage, settlement, buildorder, phalanx] }
-                    userId: { type: integer, description: 'attack: the attacked member; invite: who invited; comment: the newest author; launch, building, fleet, storage, buildorder and phalanx: the caller; settlement: who finalized it' }
+                    kind: { type: string, enum: [attack, invite, comment, launch, building, fleet, storage, settlement, buildorder, phalanx, expedition] }
+                    userId: { type: integer, description: 'attack: the attacked member; invite: who invited; comment: the newest author; launch, building, fleet, storage, buildorder, phalanx and expedition: the caller; settlement: who finalized it' }
                     member: { type: string }
                     time: { type: integer, description: Unix seconds (arrival, plan target time, newest comment, launch, since when a building level is affordable, arrival of an alerted fleet, since when a storage is full, or when a settlement was finalized) }
                     alert: { type: integer, description: 'building and fleet: id of the building or fleet alert' }
@@ -7210,7 +7262,15 @@ paths:
                       description: 'phalanx only: the caller''s planets in reach'
                       items: { $ref: '#/components/schemas/MemberPlanet' }
                     resource: { type: integer, enum: [901, 902, 903], description: 'storage only: the full storage''s resource (metal, crystal, deuterium)' }
-                    fleet: { type: object, description: 'attack: the fleet (for an ACS the lead fleet with all ships); fleet: the own fleet of the alert' }
+                    fleet: { type: object, description: 'attack: the fleet (for an ACS the lead fleet with all ships); fleet: the own fleet of the alert; expedition: the last line of the flight (the return, for a lost one the stay)' }
+                    lost: { type: boolean, description: 'expedition only: swallowed by a black hole at the end of its stay' }
+                    slots:
+                      type: object
+                      description: 'expedition only: expedition slots taken after it was back, and their number by astrophysics (null when unknown)'
+                      required: [used, max]
+                      properties:
+                        used: { type: integer }
+                        max: { type: [integer, 'null'] }
                     fleets: { type: integer, description: 'attack only: number of fleets of an ACS' }
                     plan:
                       type: object

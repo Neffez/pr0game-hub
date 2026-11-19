@@ -44,6 +44,7 @@ function target(n: Notification) {
       return { path: `/${uni.value}/raid-planner`, query: { plan: n.plan.id } };
     case 'fleet':
     case 'phalanx':
+    case 'expedition':
       return `/${uni.value}/imperium`;
     case 'settlement':
       return `/${uni.value}/raid-planner/${n.plan.id}/loot`;
@@ -191,6 +192,14 @@ function left(sec: number) {
               <Ticker v-slot="{ now }"><span class="mono muted"> ({{ left(Math.max(0, n.time - now)) }})</span></Ticker>
             </span>
             <span v-if="Object.keys(n.fleet.ships).length" class="small muted" :title="shipsTitle(n.fleet.ships)">{{ ships(n.fleet.ships) }}</span>
+          </button>
+          <button v-else-if="n.kind === 'expedition'" class="bell-item fleet" @click="show(n)">
+            <span class="bell-title"><Icon name="expeditions" :size="14" /><b>{{ t(n.lost ? 'notify.expeditionLost' : 'notify.expedition') }}</b></span>
+            <span class="small">
+              {{ at(n.fleet.from) }}<template v-if="n.fleet.to"> <Icon name="arrowRight" :size="12" class="faint" /> {{ at(n.fleet.to) }}</template> ·
+              <span class="mono">{{ since(n.time) }}</span>
+            </span>
+            <span v-if="n.slots.max != null" class="small muted">{{ t('notify.expeditionSlots', { used: n.slots.used, max: n.slots.max }) }}</span>
           </button>
           <button v-else-if="n.kind === 'comment'" class="bell-item comment" @click="show(n)">
             <span class="bell-title"><Icon name="comment" :size="14" /><b>{{ t(n.mention ? 'notify.mention' : 'notify.comment', { member: n.member, on: threadOf(n) }) }}</b><template v-if="n.count > 1"> · {{ t('notify.comments', { n: n.count }) }}</template></span>

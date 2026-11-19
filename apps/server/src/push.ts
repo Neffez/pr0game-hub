@@ -11,12 +11,12 @@ import {
   AlertSchedule, GroupDebounce, groupUniverse, dropHeld, dueHeld, heldBy, heldTargets, hold, parseQuiet, quietBreakOf, sentHeld, SENT_KEEP, storageMuted, storedQuiet, TICK_AHEAD, TICK_MS,
   type QuietBreak, type QuietHours,
 } from './notify.js';
-import { notificationsFor, type ChannelNotification, type Notification } from './repo/notifications.js';
+import { EXPEDITION_KEEP, notificationsFor, type ChannelNotification, type Notification } from './repo/notifications.js';
 
 /**
  * Web push: the notifications of the bell (repo/notifications.ts) sent to the members' browsers and phones, each once.
  * Data events of a group (a paste with fleet movements, a plan, a comment) deliver for that group, a ticker delivers
- * the launch reminders, affordable buildings and full storages. Every member gets what `notificationsFor` lists for them as the viewer (group context and fleet
+ * the launch reminders, affordable buildings, full storages and free expedition slots. Every member gets what `notificationsFor` lists for them as the viewer (group context and fleet
  * sharing apply), filtered by their settings. The push services only see the encrypted payload.
  */
 
@@ -39,6 +39,8 @@ export interface PushPrefs {
   buildOrder: boolean;
   /** a hostile sensor phalanx newly known to reach one of the user's planets */
   phalanx: boolean;
+  /** an expedition of the user is back (or lost) and its expedition slot free */
+  expeditions: boolean;
   /** a loot settlement the user takes part in was finalized and they have deliveries to send or get */
   settlements: boolean;
   /** someone requests access on the login page (global admins) */
@@ -56,12 +58,12 @@ export interface PushPrefs {
 }
 
 export const PUSH_DEFAULTS: PushPrefs = {
-  attackSelf: true, attackOthers: false, invites: true, comments: true, launch: true, buildings: true, fleets: true, storage: true, buildOrder: true, phalanx: true, settlements: true, accessRequests: true, parserSamples: true, leadMinutes: 5,
+  attackSelf: true, attackOthers: false, invites: true, comments: true, launch: true, buildings: true, fleets: true, storage: true, buildOrder: true, phalanx: true, expeditions: false, settlements: true, accessRequests: true, parserSamples: true, leadMinutes: 5,
   spying: true, mentionsOnly: false, quiet: null,
 };
 export const LEAD_MINUTES = [1, 2, 5, 10, 15, 30];
 const FLAGS = [
-  'attackSelf', 'attackOthers', 'invites', 'comments', 'launch', 'buildings', 'fleets', 'storage', 'buildOrder', 'phalanx', 'settlements', 'accessRequests', 'parserSamples', 'spying', 'mentionsOnly',
+  'attackSelf', 'attackOthers', 'invites', 'comments', 'launch', 'buildings', 'fleets', 'storage', 'buildOrder', 'phalanx', 'expeditions', 'settlements', 'accessRequests', 'parserSamples', 'spying', 'mentionsOnly',
 ] as const;
 
 /** The user's settings for push (`push_prefs`) or for their Discord webhook (`discord_prefs`). */
@@ -259,7 +261,7 @@ export class PushService {
         outbox.push({
           userId: user.id,
           payload: payloadOf(n, user.lang === 'en' ? 'en' : 'de', universe.slug, universe.settings.timezone, groupId, t),
-          ttl: Math.max(60, n.kind === 'comment' || n.kind === 'building' || n.kind === 'storage' || n.kind === 'settlement' || n.kind === 'phalanx' ? 86400 : n.time - t),
+          ttl: n.kind === 'expedition' ? Math.max(60, n.time + EXPEDITION_KEEP - t) : Math.max(60, n.kind === 'comment' || n.kind === 'building' || n.kind === 'storage' || n.kind === 'settlement' || n.kind === 'phalanx' ? 86400 : n.time - t),
           urgency: n.kind === 'attack' || n.kind === 'launch' || n.kind === 'fleet' ? 'high' : 'normal',
           quiet: { t, kind: n.kind, breaks: quietBreakOf(n, user.id) },
         });
@@ -352,6 +354,8 @@ export function wanted(n: Notification, prefs: PushPrefs, userId: number, t: num
       return prefs.buildOrder;
     case 'phalanx':
       return prefs.phalanx;
+    case 'expedition':
+      return prefs.expeditions;
   }
 }
 
@@ -401,6 +405,9 @@ const DE = {
   fleetArrived: (what: string) => `✈ ${what}: Flotte angekommen`,
   fleetBack: (what: string) => `↩ ${what}: Flotte zurück`,
   fleetSoon: (what: string, min: number) => `⏰ ${what}: Ankunft in ${min} Min`,
+  expedition: '🧭 Expeditionsslot frei',
+  expeditionLost: '🕳 Expedition verloren, Slot frei',
+  expeditionSlots: (used: number, max: number) => `${used}/${max} Expeditionen unterwegs`,
   missions: {
     1: 'Angreifen', 2: 'Verbandsangriff', 3: 'Transport', 4: 'Stationieren', 5: 'Halten', 6: 'Spionage', 7: 'Kolonisieren', 8: 'Abbau',
     9: 'Zerstören', 10: 'Raketenangriff', 15: 'Expedition', 16: 'Marktplatz', 17: 'Transfer',
@@ -449,6 +456,9 @@ const EN: typeof DE = {
   fleetArrived: (what: string) => `✈ ${what}: fleet arrived`,
   fleetBack: (what: string) => `↩ ${what}: fleet is back`,
   fleetSoon: (what: string, min: number) => `⏰ ${what}: arrival in ${min} min`,
+  expedition: '🧭 Expedition slot free',
+  expeditionLost: '🕳 Expedition lost, slot free',
+  expeditionSlots: (used: number, max: number) => `${used}/${max} expeditions out`,
   missions: {
     1: 'Attack', 2: 'ACS attack', 3: 'Transport', 4: 'Deploy', 5: 'Hold', 6: 'Espionage', 7: 'Colonize', 8: 'Harvest', 9: 'Destroy',
     10: 'Missile attack', 15: 'Expedition', 16: 'Marketplace', 17: 'Transfer',
@@ -587,6 +597,13 @@ export function payloadOf(n: Notification | ChannelNotification, lang: PushLang,
       const who = n.player ? `${n.player.name}${n.player.ally ? ` [${n.player.ally}]` : ''}` : '?';
       const planets = n.planets.map((p) => `${p.name ? p.name + ' ' : ''}${coords(p.g, p.s, p.p, false)}`).join(', ');
       return { ...base, title: L.phalanx(who), body: L.phalanxBody(coords(m.g, m.s, m.p, false), n.level, planets), url: link('imperium') };
+    }
+    case 'expedition': {
+      const f = n.fleet;
+      const body = (b: FleetBody) => `${b.name ? b.name + ' ' : ''}${coords(b.coords.g, b.coords.s, b.coords.p, b.type === 'moon')}`;
+      const ships = Object.entries(f.ships).map(([id, k]) => `${k.toLocaleString(lang)} ${techName(Number(id), lang)}`).join(', ');
+      const parts = [`${body(f.from)}${f.to ? ' → ' + body(f.to) : ''}`, clock(n.time), n.slots.max != null ? L.expeditionSlots(n.slots.used, n.slots.max) : '', ships];
+      return { ...base, title: n.lost ? L.expeditionLost : L.expedition, body: parts.filter(Boolean).join(' · '), url: link('imperium') };
     }
     case 'fleet': {
       const f = n.fleet;
