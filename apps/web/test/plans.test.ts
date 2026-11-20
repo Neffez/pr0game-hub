@@ -37,17 +37,32 @@ describe('attack plans in the web app', () => {
   });
 
   it('takes the return of a launched fleet from the arrival the overview shows', () => {
-    const seen = { ...fleet(1, 1, [1, 40, 5], { 204: 10 }), status: 'launched' as const, seen: { arrival: 2_000_000_000 - 55, time: 0, ships: { 204: 10 } } };
+    const seen = { ...fleet(1, 1, [1, 40, 5], { 204: 10 }), status: 'launched' as const, seen: { arrival: 2_000_000_000 - 55, time: 0, ships: { 204: 10 }, lead: null } };
     // the lead has not launched yet, the planned ACS arrival moves on with the clock
     const view = computePlan(u, plan([seen, fleet(2, 2, [2, 100, 3], { 207: 5 }, 50)]), 2_000_000_000);
     expect(view.fleets[0].plan!.home).toBe(Math.floor(2_000_000_000 - 55 + view.fleets[0].duration!));
   });
 
+  it('takes the lead of an ACS in flight from the overview, not from the planned launches', () => {
+    const flying = (id: number, userId: number, start: [number, number, number], ships: Record<string, number>, lead: boolean | null): PlanFleet => ({
+      ...fleet(id, userId, start, ships), status: 'launched', seen: { arrival: 2_000_000_000, time: 0, ships, lead },
+    });
+    // fleet 2 flies longer and would be the planned lead, but fleet 1 is listed first in the ACS
+    const real = computePlan(u, plan([flying(1, 1, [1, 40, 5], { 204: 10 }, true), flying(2, 2, [2, 100, 3], { 207: 5 }, false)]), 1_999_000_000);
+    expect(real.acs!.lead).toBe('1');
+    // the lead is none of the plan's fleets (a guest): no lead named
+    const guest = computePlan(u, plan([flying(1, 1, [1, 40, 5], { 204: 10 }, false), flying(2, 2, [2, 100, 3], { 207: 5 }, false)]), 1_999_000_000);
+    expect(guest.acs!.lead).toBeNull();
+    // not seen in an ACS: the planned lead
+    const planned = computePlan(u, plan([flying(1, 1, [1, 40, 5], { 204: 10 }, null), fleet(2, 2, [2, 100, 3], { 207: 5 }, 50)]), 1_999_000_000);
+    expect(planned.acs!.lead).toBe('2');
+  });
+
   it('notices when the overview shows other ships than planned', () => {
     const f = fleet(1, 1, [1, 40, 5], { 204: 10, 207: 0 });
     expect(seenShipsDiffer(f)).toBe(false);
-    expect(seenShipsDiffer({ ...f, seen: { arrival: 0, time: 0, ships: { 204: 10 } } })).toBe(false);
-    expect(seenShipsDiffer({ ...f, seen: { arrival: 0, time: 0, ships: { 204: 9, 222: 3 } } })).toBe(true);
+    expect(seenShipsDiffer({ ...f, seen: { arrival: 0, time: 0, ships: { 204: 10 }, lead: null } })).toBe(false);
+    expect(seenShipsDiffer({ ...f, seen: { arrival: 0, time: 0, ships: { 204: 9, 222: 3 }, lead: null } })).toBe(true);
   });
 
   it('has no flights without coordinates', () => {

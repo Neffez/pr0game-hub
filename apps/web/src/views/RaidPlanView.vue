@@ -194,7 +194,7 @@ const planMenu = computed<MenuItem[]>(() => {
           <dt><Icon name="warning" :size="12" /> {{ t('plans.arrival') }}</dt>
           <dd class="time"><b class="mono">{{ rp.clock(view.acs.arrival) }}</b> <span class="small">{{ t('plans.delayedBy', { t: duration(view.acs.delay) }) }}</span></dd>
         </div>
-        <div v-if="view?.acs && view.acs.fleets.length > 1">
+        <div v-if="view?.acs?.lead && view.acs.fleets.length > 1">
           <dt>{{ t('plans.leadShort') }}</dt>
           <dd>{{ rp.leadName(plan) }}</dd>
         </div>

@@ -33,9 +33,11 @@ export interface PlanFleet {
   updated_at: number;
   /** research for flight times and the simulator: the member's latest empire page, else spy reports; drives also by hand (the newest counts) */
   drives: { time: number; research: Record<string, number>; source: 'empire' | 'spy' | 'manual' } | null;
-  /** the member's newest overview shows this fleet in flight to the target: real arrival, time of that paste */
-  /** in flight per an overview: arrival and the ships flying */
-  seen: { arrival: number; time: number; ships: Record<string, number> } | null;
+  /**
+   * in flight per an overview: real arrival, time of that paste, the ships flying; `lead`: listed first in its ACS
+   * (the real lead), null when not in an ACS
+   */
+  seen: { arrival: number; time: number; ships: Record<string, number>; lead: boolean | null } | null;
 }
 
 /** Own attack of one or more members on one target at one time (server: routes/plans.ts). */
@@ -280,6 +282,16 @@ export interface PlanView {
   fleets: FleetFlight[];
 }
 
+/**
+ * Lead of an ACS in flight as the overviews show it (the fleet listed first), instead of the planned earliest launch:
+ * its id, '' when the lead is none of the plan's fleets (a guest or a fleet not matched), undefined while not seen.
+ */
+function seenLead(fleets: { fleet: PlanFleet }[]): string | undefined {
+  const lead = fleets.find((x) => x.fleet.seen?.lead);
+  if (lead) return String(lead.fleet.id);
+  return fleets.some((x) => x.fleet.seen?.lead === false) ? '' : undefined;
+}
+
 /** Flight times, launches, lead and delays of a plan at `now`. */
 export function computePlan(u: UniverseSettings, plan: AttackPlan, now: number): PlanView {
   const target: Coords | null = plan.g != null && plan.s != null && plan.p != null ? [plan.g, plan.s, plan.p] : null;
@@ -302,7 +314,7 @@ export function computePlan(u: UniverseSettings, plan: AttackPlan, now: number):
   }
   const flying = flights.filter((x): x is { fleet: PlanFleet; duration: number } => x.duration != null);
   const acs = flying.length
-    ? planAttack(plan.target_time, flying.map((x) => ({ id: String(x.fleet.id), player: String(x.fleet.user_id), duration: x.duration })), now)
+    ? planAttack(plan.target_time, flying.map((x) => ({ id: String(x.fleet.id), player: String(x.fleet.user_id), duration: x.duration })), now, { lead: seenLead(flying) })
     : null;
   return {
     acs,

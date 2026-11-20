@@ -333,6 +333,7 @@ describe('attack plans', () => {
     const plan = (await call('GET', '/plans', dave)).json().find((p: any) => p.id === id);
     expect(plan.fleets.map((f: any) => f.status)).toEqual(['launched', 'ready']);
     expect(Math.abs(plan.fleets[0].seen.arrival - (target - 60))).toBeLessThanOrEqual(2);
+    expect(plan.fleets[0].seen.lead).toBeNull();
     expect(plan.fleets[1].seen).toBeNull();
 
     // in one ACS: Carol's overview shows Dave's fleet as a foreign ACS fleet, Dave has not synced
@@ -346,6 +347,8 @@ describe('attack plans', () => {
     expect(both.fleets[1].seen.arrival).toBe(both.fleets[0].seen.arrival);
     expect(Math.abs(both.fleets[1].seen.arrival - (target - 120))).toBeLessThanOrEqual(2);
     expect(both.fleets[1].seen.ships).toEqual({ 207: 3 });
+    // Dave's fleet is listed first: the ACS lead, although Carol created the plan
+    expect(both.fleets.map((f: any) => f.seen.lead)).toEqual([false, true]);
 
     // the galaxy data says the start belongs to another player than Dave: not his fleet
     db.prepare("INSERT INTO players (group_id, ingame_id, name) VALUES (?, 4720, 'Dave')").run(groupA);

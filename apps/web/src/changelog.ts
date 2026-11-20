@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Raid-Planer: Bei einem fliegenden Verband ist der Anführer jetzt die oberste Flotte des Verbands aus der Übersicht, nicht mehr der nach Planung zuerst Startende (oft der Ersteller des Plans).',
+        en: 'Raid planner: for an ACS in flight the lead is now the fleet listed first in the overview, no longer the one planned to launch first (often whoever created the plan).',
+      },
+      {
+        kind: 'fix',
         de: 'Fremdspionage zählt nicht mehr als Angriff: keine Angriffsmeldung mehr dafür, und unter Flotte wird sie nicht mehr rot als feindlich angezeigt. Die Einstellung „Auch feindliche Spionage melden“ entfällt.',
         en: 'Hostile espionage no longer counts as an attack: no attack notification for it any more, and under Fleet it is no longer shown in red as hostile. The setting "Also report hostile espionage" is gone.',
       },

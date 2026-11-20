@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-20
 
+- Raid planner: the ACS lead of an attack in flight is the fleet the overview lists first in the ACS, no longer the
+  fleet with the earliest planned launch (often the plan's creator, e.g. after "plan this attack" with speeds
+  assumed at 100 %). A lead outside the plan (a guest) names no member. Plan fleets' `seen` in `GET /plans` gained
+  `lead` and is described in the OpenAPI spec.
 - Hostile espionage is no longer an attack: incoming spy probes bring no attack notification (bell, push, Discord,
   the attack count at "Fleet"), and the fleet list shows them as foreign instead of red as hostile. The setting
   "Also report hostile espionage" (push, member and alliance Discord) is gone, `spying` left the push and Discord
