@@ -218,15 +218,14 @@ describe('quiet hours', () => {
 });
 
 describe('rules per kind', () => {
-  it('leaves espionage out when the user does not count it as an attack', async () => {
-    await call('POST', '/auth/push-settings', h.dave, { spying: false });
+  it('never counts hostile espionage as an attack', async () => {
     fleets('dave', t, [hostile(6, t + 300, 'Spy', { g: 3, s: 1, p: 1 })]);
     await app.push.deliver(group, t);
     expect(titles(DAVE)).toEqual([]);
+    expect((await call('GET', '/u8/notifications', h.dave)).json().filter((n: any) => n.kind === 'attack' && n.userId === ids.dave)).toEqual([]);
     fleets('dave', t, [hostile(6, t + 300, 'Spy', { g: 3, s: 1, p: 1 }), hostile(1, t + 400, 'Spy', { g: 3, s: 1, p: 2 })]);
     await app.push.deliver(group, t);
     expect(titles(DAVE)).toEqual(['⚔ Angriff auf dave']);
-    await call('POST', '/auth/push-settings', h.dave, { spying: true });
   });
 
   it('carries the fleet points of the attacker with the attack, without filtering by them', async () => {
@@ -243,8 +242,8 @@ describe('rules per kind', () => {
     await call('POST', '/auth/push-settings', h.dave, { attackOthers: false });
   });
 
-  it('leaves espionage out of the alliance channel when it is switched off there', async () => {
-    expect((await call('PUT', `/admin/groups/${group}/discord`, h.carol, { webhook: HOOK.group, prefs: { spying: false } })).json().prefs).toMatchObject({ spying: false });
+  it('leaves espionage out of the alliance channel', async () => {
+    expect((await call('PUT', `/admin/groups/${group}/discord`, h.carol, { webhook: HOOK.group, prefs: {} })).json().prefs).not.toHaveProperty('spying');
     fleets('carol', t, [hostile(6, t + 6000, 'Big', { g: 5, s: 1, p: 1 }), hostile(1, t + 6001, 'Small', { g: 5, s: 1, p: 2 })]);
     await app.discord.deliver(group, t);
     expect(embeds(HOOK.group)).toEqual(['⚔ Angriff auf carol']);

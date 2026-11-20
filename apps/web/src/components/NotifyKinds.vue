@@ -24,7 +24,6 @@ export interface NotifyPrefs {
   accessRequests: boolean;
   parserSamples: boolean;
   leadMinutes: number;
-  spying: boolean;
   mentionsOnly: boolean;
   quiet: { from: string; to: string; tz: string; except: string[] } | null;
 }
@@ -43,9 +42,6 @@ const LEAD_MINUTES = [1, 2, 5, 10, 15, 30];
   <div class="kinds">
     <template v-for="k in kinds" :key="k">
       <label class="check"><input v-model="prefs[k]" type="checkbox" @change="emit('change')" /> {{ t(`account.pushKind.${k}`) }}</label>
-      <label v-if="k === 'attackOthers'" class="check rule" :class="{ off: !prefs.attackSelf && !prefs.attackOthers }">
-        <input v-model="prefs.spying" type="checkbox" :disabled="!prefs.attackSelf && !prefs.attackOthers" @change="emit('change')" /> {{ t('account.rules.spying') }}
-      </label>
       <label v-if="k === 'comments'" class="check rule" :class="{ off: !prefs.comments }">
         <input v-model="prefs.mentionsOnly" type="checkbox" :disabled="!prefs.comments" @change="emit('change')" /> {{ t('account.rules.mentionsOnly') }}
       </label>

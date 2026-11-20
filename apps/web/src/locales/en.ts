@@ -1017,7 +1017,6 @@ const en: typeof de = {
     },
     pushLead: 'Lead time',
     rules: {
-      spying: 'Also report hostile espionage',
       mentionsOnly: "Only when I am mentioned ({'@'}name)",
       storagePlanets: 'Report storages of',
       storagePlanetsHint: 'Planets of this alliance without a tick report a full storage neither by push nor through Discord. The bell in the hub still lists them.',

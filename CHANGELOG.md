@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-20
 
+- Hostile espionage is no longer an attack: incoming spy probes bring no attack notification (bell, push, Discord,
+  the attack count at "Fleet"), and the fleet list shows them as foreign instead of red as hostile. The setting
+  "Also report hostile espionage" (push, member and alliance Discord) is gone, `spying` left the push and Discord
+  settings of the API.
 - Build list: the line of incoming resources wraps on narrow screens instead of running past the edge (time and
   mission, and each resource amount, stay together).
 

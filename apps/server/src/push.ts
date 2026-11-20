@@ -49,8 +49,6 @@ export interface PushPrefs {
   parserSamples: boolean;
   /** launch reminder this many minutes before */
   leadMinutes: number;
-  /** hostile espionage counts as an attack (off: only fleets that are not spying) */
-  spying: boolean;
   /** comments only when they mention the user */
   mentionsOnly: boolean;
   /** quiet hours of the user's Discord webhook; push devices keep their own (`push_subscriptions.quiet`), always null there */
@@ -59,17 +57,19 @@ export interface PushPrefs {
 
 export const PUSH_DEFAULTS: PushPrefs = {
   attackSelf: true, attackOthers: false, invites: true, comments: true, launch: true, buildings: true, fleets: true, storage: true, buildOrder: true, phalanx: true, expeditions: false, settlements: true, accessRequests: true, parserSamples: true, leadMinutes: 5,
-  spying: true, mentionsOnly: false, quiet: null,
+  mentionsOnly: false, quiet: null,
 };
 export const LEAD_MINUTES = [1, 2, 5, 10, 15, 30];
 const FLAGS = [
-  'attackSelf', 'attackOthers', 'invites', 'comments', 'launch', 'buildings', 'fleets', 'storage', 'buildOrder', 'phalanx', 'expeditions', 'settlements', 'accessRequests', 'parserSamples', 'spying', 'mentionsOnly',
+  'attackSelf', 'attackOthers', 'invites', 'comments', 'launch', 'buildings', 'fleets', 'storage', 'buildOrder', 'phalanx', 'expeditions', 'settlements', 'accessRequests', 'parserSamples', 'mentionsOnly',
 ] as const;
 
 /** The user's settings for push (`push_prefs`) or for their Discord webhook (`discord_prefs`). */
 export function pushPrefs(db: DB, userId: number, column: 'push_prefs' | 'discord_prefs' = 'push_prefs'): PushPrefs {
   const raw = db.prepare(`SELECT ${column} FROM users WHERE id = ?`).pluck().get(userId) as string | null | undefined;
-  return { ...PUSH_DEFAULTS, ...(raw ? (JSON.parse(raw) as Partial<PushPrefs>) : {}) };
+  // `spying` (hostile espionage as an attack) is gone: spying never notifies
+  const { spying: _, ...stored } = raw ? (JSON.parse(raw) as Partial<PushPrefs> & { spying?: boolean }) : {};
+  return { ...PUSH_DEFAULTS, ...stored };
 }
 
 /**
@@ -340,7 +340,6 @@ type Quiet = { t: number; kind: string; breaks: QuietBreak | null };
 export function wanted(n: Notification, prefs: PushPrefs, userId: number, t: number, rules: { storageMuted?: Set<string> } = {}): boolean {
   switch (n.kind) {
     case 'attack':
-      if (!prefs.spying && n.fleet.mission === SPY_MISSION) return false;
       if (n.userId === userId) return prefs.attackSelf;
       return prefs.attackOthers;
     case 'invite':
@@ -365,9 +364,6 @@ export function wanted(n: Notification, prefs: PushPrefs, userId: number, t: num
       return prefs.expeditions;
   }
 }
-
-/** The game's espionage mission. */
-export const SPY_MISSION = 6;
 
 /** Amount in a short form (1,2 Mio. / 1.2M). */
 const short = (v: number, lang: string) => new Intl.NumberFormat(lang, { notation: 'compact', maximumFractionDigits: 1 }).format(v);

@@ -94,6 +94,11 @@ const eyeTitle = (f: Fleet) => t(f.shared ? 'imperium.fleetShared' : 'imperium.f
 const actions = computed(() => bells.value || !!props.sharing);
 const toggle = (key: string) => (open.has(key) ? open.delete(key) : open.add(key));
 const mission = (r: { fleet: Row; parts: Row[] }) => (r.parts.length > 1 ? t('notify.acs', { n: r.parts.length }) : r.fleet.missionName);
+/** The game's espionage mission: hostile spy probes are shown as foreign, not as an attack. */
+const ESPIONAGE = 6;
+const attack = (f: Fleet) => f.owner === 'hostile' && f.mission !== ESPIONAGE;
+/** owner shown: hostile only for attacks */
+const ownerKey = (f: Fleet) => (f.owner === 'hostile' && !attack(f) ? 'foreign' : f.owner);
 /** the named player, else the owner of the start from the galaxy data */
 const playerName = (f: Fleet) => f.player ?? f.fromPlayer?.name ?? null;
 
@@ -134,7 +139,7 @@ function clock(epoch: number) {
 <template>
   <!-- mobile: one block per fleet -->
   <div v-if="mobile" class="fl-cards">
-    <div v-for="r in rows" :key="r.key" class="fl-card" :class="{ hostile: r.fleet.owner === 'hostile' }" :style="{ '--mc': color(r.fleet) }">
+    <div v-for="r in rows" :key="r.key" class="fl-card" :class="{ hostile: attack(r.fleet) }" :style="{ '--mc': color(r.fleet) }">
       <template v-for="f in [r.fleet]" :key="r.key">
       <div class="fl-head">
         <span class="mono fl-clock">{{ clock(f.arrival) }}</span>
@@ -161,8 +166,8 @@ function clock(epoch: number) {
         <span class="fl-mission">{{ mission(r) }}</span>
         <button v-if="r.parts.length > 1" class="fl-toggle icon-btn small" :aria-expanded="open.has(r.key)" :aria-label="open.has(r.key) ? t('common.collapse') : t('common.expand')" @click="toggle(r.key)"><Icon :name="open.has(r.key) ? 'chevronDown' : 'chevronRight'" :size="14" /></button>
         <span v-if="f.phase !== 'out'" class="fl-phase"><Icon :name="f.phase === 'return' ? 'return' : 'pause'" :size="12" /> {{ t(`imperium.phase.${f.phase}`) }}</span>
-        <span v-if="f.owner !== 'own'" class="small" :class="f.owner === 'hostile' ? 'neg' : 'muted'">
-          {{ t(`imperium.${f.owner}`) }}<template v-if="f.fromPlayer && !f.player">: <PlayerLink :id="f.fromPlayer.id" :name="f.fromPlayer.name" /></template
+        <span v-if="f.owner !== 'own'" class="small" :class="attack(f) ? 'neg' : 'muted'">
+          {{ t(`imperium.${ownerKey(f)}`) }}<template v-if="f.fromPlayer && !f.player">: <PlayerLink :id="f.fromPlayer.id" :name="f.fromPlayer.name" /></template
               ><template v-else-if="playerName(f)">: {{ playerName(f) }}</template>
         </span>
       </div>
@@ -200,7 +205,7 @@ function clock(epoch: number) {
       </thead>
       <tbody>
         <template v-for="r in rows" :key="r.key">
-        <tr v-for="f in [r.fleet]" :key="r.key" :class="{ hostile: f.owner === 'hostile' }" :style="{ '--mc': color(f) }">
+        <tr v-for="f in [r.fleet]" :key="r.key" :class="{ hostile: attack(f) }" :style="{ '--mc': color(f) }">
           <td class="mono fl-clock">{{ clock(f.arrival) }}</td>
           <td class="mono muted"><Ticker v-slot="{ now }">{{ countdown(past ? now - f.arrival : f.arrival - now) }}</Ticker></td>
           <td v-if="fleets.some((x) => x.member)"><b class="fl-member">{{ f.member }}</b></td>
@@ -208,8 +213,8 @@ function clock(epoch: number) {
             <span class="fl-mission">{{ mission(r) }}</span>
             <button v-if="r.parts.length > 1" class="fl-toggle icon-btn small" :aria-expanded="open.has(r.key)" :aria-label="open.has(r.key) ? t('common.collapse') : t('common.expand')" @click="toggle(r.key)"><Icon :name="open.has(r.key) ? 'chevronDown' : 'chevronRight'" :size="14" /></button>
             <span v-if="f.phase !== 'out'" class="fl-phase"><Icon :name="f.phase === 'return' ? 'return' : 'pause'" :size="12" /> {{ t(`imperium.phase.${f.phase}`) }}</span>
-            <div v-if="f.owner !== 'own'" class="small" :class="f.owner === 'hostile' ? 'neg' : 'muted'">
-              {{ t(`imperium.${f.owner}`) }}<template v-if="f.fromPlayer && !f.player">: <PlayerLink :id="f.fromPlayer.id" :name="f.fromPlayer.name" /></template
+            <div v-if="f.owner !== 'own'" class="small" :class="attack(f) ? 'neg' : 'muted'">
+              {{ t(`imperium.${ownerKey(f)}`) }}<template v-if="f.fromPlayer && !f.player">: <PlayerLink :id="f.fromPlayer.id" :name="f.fromPlayer.name" /></template
               ><template v-else-if="playerName(f)">: {{ playerName(f) }}</template>
             </div>
           </td>

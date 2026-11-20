@@ -3336,9 +3336,9 @@ export type components = {
             transfers?: Record<string, never>[] | null;
         };
         PushSettings: {
-            /** @description Hostile fleets heading for the caller (default on) */
+            /** @description Hostile fleets heading for the caller */
             attackSelf?: boolean;
-            /** @description Hostile fleets heading for other members (default off) */
+            /** @description Hostile fleets heading for other members */
             attackOthers?: boolean;
             /** @description Invitations to raid planner plans (default on) */
             invites?: boolean;
@@ -3369,8 +3369,6 @@ export type components = {
              * @enum {integer}
              */
             leadMinutes?: 1 | 2 | 5 | 10 | 15 | 30;
-            /** @description Hostile espionage (mission 6) counts for `attackSelf` and `attackOthers` (default on); off: only fleets that are not spying */
-            spying?: boolean;
             /** @description `comments` only when a comment mentions the caller (default off) */
             mentionsOnly?: boolean;
             /** @description Quiet hours of the caller's Discord webhook (`/api/auth/discord`); always null in the push settings, where each device has its own (`/api/push/subscriptions/quiet`) */
@@ -3735,10 +3733,10 @@ export type components = {
             /** @description Start of the channel's webhook URL (the URL itself is never returned), null when none is set */
             webhook: string | null;
             /** @description All settings, the defaults filled in */
-            prefs: WithRequired<components["schemas"]["DiscordChannelPrefs"], "attacks" | "plans" | "launch" | "leadMinutes" | "lang" | "spying" | "recap">;
+            prefs: WithRequired<components["schemas"]["DiscordChannelPrefs"], "attacks" | "plans" | "launch" | "leadMinutes" | "lang" | "recap">;
         };
         DiscordChannelPrefs: {
-            /** @description Hostile fleets heading for members (default on) */
+            /** @description Hostile fleets heading for members */
             attacks?: boolean;
             /** @description New raid planner plans (default on) */
             plans?: boolean;
@@ -3754,8 +3752,6 @@ export type components = {
              * @enum {string}
              */
             lang?: "de" | "en";
-            /** @description Hostile espionage (mission 6) counts for `attacks` (default on) */
-            spying?: boolean;
             /** @description Last week's recap every Monday from 9 o'clock in the universe's time zone, later in the week when Monday was missed; the last week of a round that ended once more (default off) */
             recap?: boolean;
         };

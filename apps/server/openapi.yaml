@@ -549,8 +549,8 @@ components:
     PushSettings:
       type: object
       properties:
-        attackSelf: { type: boolean, description: Hostile fleets heading for the caller (default on) }
-        attackOthers: { type: boolean, description: Hostile fleets heading for other members (default off) }
+        attackSelf: { type: boolean, description: Hostile fleets heading for the caller, hostile espionage (mission 6) left out (default on) }
+        attackOthers: { type: boolean, description: Hostile fleets heading for other members, hostile espionage left out (default off) }
         invites: { type: boolean, description: Invitations to raid planner plans (default on) }
         comments: { type: boolean, description: New comments in threads the caller wrote in (default on) }
         launch: { type: boolean, description: Launch reminders of the caller's plan fleets (default on) }
@@ -564,7 +564,6 @@ components:
         phalanx: { type: boolean, description: A sensor phalanx outside the own alliance is newly known to reach one of the caller's planets (default on) }
         expeditions: { type: boolean, description: An expedition of the caller is back home or was lost to a black hole, its expedition slot is free (default off) }
         leadMinutes: { type: integer, enum: [1, 2, 5, 10, 15, 30], description: Launch reminder this many minutes ahead (default 5) }
-        spying: { type: boolean, description: 'Hostile espionage (mission 6) counts for `attackSelf` and `attackOthers` (default on); off: only fleets that are not spying' }
         mentionsOnly: { type: boolean, description: '`comments` only when a comment mentions the caller (default off)' }
         quiet:
           oneOf: [{ $ref: '#/components/schemas/QuietHours' }, { type: 'null' }]
@@ -865,16 +864,15 @@ components:
         prefs:
           description: All settings, the defaults filled in
           allOf: [{ $ref: '#/components/schemas/DiscordChannelPrefs' }]
-          required: [attacks, plans, launch, leadMinutes, lang, spying, recap]
+          required: [attacks, plans, launch, leadMinutes, lang, recap]
     DiscordChannelPrefs:
       type: object
       properties:
-        attacks: { type: boolean, description: Hostile fleets heading for members (default on) }
+        attacks: { type: boolean, description: Hostile fleets heading for members, hostile espionage (mission 6) left out (default on) }
         plans: { type: boolean, description: New raid planner plans (default on) }
         launch: { type: boolean, description: Launch reminders of the members' plan fleets (default on) }
         leadMinutes: { type: integer, enum: [1, 2, 5, 10, 15, 30], description: Launch reminder this many minutes ahead (default 5) }
         lang: { type: string, enum: [de, en], description: Language of the channel's messages (default de) }
-        spying: { type: boolean, description: 'Hostile espionage (mission 6) counts for `attacks` (default on)' }
         recap: { type: boolean, description: "Last week's recap every Monday from 9 o'clock in the universe's time zone, later in the week when Monday was missed; the last week of a round that ended once more (default off)" }
     RecapCompare:
       type: object

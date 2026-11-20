@@ -724,9 +724,6 @@ const doMerge = () => run(async () => {
           <label v-for="k in CHANNEL_KINDS" :key="k" class="check">
             <input v-model="discord.prefs[k]" type="checkbox" @change="saveDiscord({ prefs: discord.prefs }, 'account.pushSaved')" /> {{ t(`admin.discordKind.${k}`) }}
           </label>
-          <label class="check" :class="{ off: !discord.prefs.attacks }">
-            <input v-model="discord.prefs.spying" type="checkbox" :disabled="!discord.prefs.attacks" @change="saveDiscord({ prefs: discord.prefs }, 'account.pushSaved')" /> {{ t('account.rules.spying') }}
-          </label>
           <div class="row">
             <label :class="{ off: !discord.prefs.launch }">
               {{ t('account.pushLead') }}

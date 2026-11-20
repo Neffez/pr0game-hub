@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Fremdspionage zählt nicht mehr als Angriff: keine Angriffsmeldung mehr dafür, und unter Flotte wird sie nicht mehr rot als feindlich angezeigt. Die Einstellung „Auch feindliche Spionage melden“ entfällt.',
+        en: 'Hostile espionage no longer counts as an attack: no attack notification for it any more, and under Fleet it is no longer shown in red as hostile. The setting "Also report hostile espionage" is gone.',
+      },
+      {
+        kind: 'fix',
         de: 'Bauliste: Die Zeile mit ankommenden Rohstoffen bricht auf dem Handy um, statt über den Rand hinauszulaufen.',
         en: 'Build list: the line of incoming resources wraps on phones instead of running past the edge.',
       },

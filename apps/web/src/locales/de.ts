@@ -1018,7 +1018,6 @@ const de = {
     },
     pushLead: 'Vorlauf',
     rules: {
-      spying: 'Auch feindliche Spionage melden',
       mentionsOnly: "Nur wenn ich erwähnt werde ({'@'}Name)",
       storagePlanets: 'Lager melden für',
       storagePlanetsHint: 'Planeten dieser Allianz ohne Haken melden ein volles Lager weder per Push noch über Discord. Die Glocke im Hub zeigt sie weiterhin.',

@@ -39,6 +39,28 @@ describe('fleet list', () => {
     expect(root.querySelectorAll('tbody tr')).toHaveLength(4);
   });
 
+  it('shows hostile espionage as foreign, not as an attack', async () => {
+    setLocale('de');
+    const root = document.createElement('div');
+    const fleets = [fleet(6, { 210: 3 }, { acs: null, missionName: 'Spionage' }), fleet(1, { 206: 2500 }, { acs: null, arrival: 2_000_000_100 })];
+    const ctx = { universe: { slug: 'u7' }, members: [], me: { id: 1 }, group: { role: 'member' }, own: null } as unknown as UniContext;
+    const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/:p(.*)*', component: { render: () => null } }] });
+    const Shell = defineComponent({
+      setup() {
+        provideUni(ref(ctx));
+        return () => h(FleetList, { fleets });
+      },
+    });
+    createApp(Shell).use(router).use(i18n).mount(root);
+    await nextTick();
+    const rows = root.querySelectorAll('tbody tr');
+    expect(rows[0].classList.contains('hostile')).toBe(false);
+    expect(rows[0].querySelector('.neg')).toBeNull();
+    expect(rows[0].textContent).toContain('fremd');
+    expect(rows[1].classList.contains('hostile')).toBe(true);
+    expect(rows[1].textContent).toContain('feindlich');
+  });
+
   it('offers a bell with lead times on own fleets only, showing the set alert', async () => {
     setLocale('de');
     const root = document.createElement('div');

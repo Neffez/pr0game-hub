@@ -7,7 +7,7 @@ import { now, type DB } from './db.js';
 import type { EventBus } from './events.js';
 import { AlertSchedule, GroupDebounce, groupUniverse, dropHeld, dueHeld, heldBy, heldTargets, hold, quietBreakOf, sentHeld, SENT_KEEP, storageMuted, TICK_AHEAD, TICK_MS } from './notify.js';
 import {
-  accessRequestAdmins, accessRequestPayload, LEAD_MINUTES, payloadOf, pushPrefs, samplePayload, SPY_MISSION, testPayload, wanted, type ParserSample, type PushLang, type PushPayload,
+  accessRequestAdmins, accessRequestPayload, LEAD_MINUTES, payloadOf, pushPrefs, samplePayload, testPayload, wanted, type ParserSample, type PushLang, type PushPayload,
 } from './push.js';
 import { channelNotificationsFor, notificationsFor, type ChannelNotification, type Notification } from './repo/notifications.js';
 import { addDays, dayOf } from './repo/achievements.js';
@@ -29,18 +29,18 @@ export interface ChannelPrefs {
   /** launch reminder this many minutes before */
   leadMinutes: number;
   lang: PushLang;
-  /** hostile espionage counts as an attack */
-  spying: boolean;
   /** the recap of last week every Monday morning */
   recap: boolean;
 }
 
-export const CHANNEL_DEFAULTS: ChannelPrefs = { attacks: true, plans: true, launch: true, leadMinutes: 5, lang: 'de', spying: true, recap: false };
-const CHANNEL_FLAGS = ['attacks', 'plans', 'launch', 'spying', 'recap'] as const;
+export const CHANNEL_DEFAULTS: ChannelPrefs = { attacks: true, plans: true, launch: true, leadMinutes: 5, lang: 'de', recap: false };
+const CHANNEL_FLAGS = ['attacks', 'plans', 'launch', 'recap'] as const;
 
 export function channelPrefs(db: DB, groupId: number): ChannelPrefs {
   const raw = db.prepare('SELECT discord_prefs FROM groups WHERE id = ?').pluck().get(groupId) as string | null | undefined;
-  return { ...CHANNEL_DEFAULTS, ...(raw ? (JSON.parse(raw) as Partial<ChannelPrefs>) : {}) };
+  // `spying` (hostile espionage as an attack) is gone: spying never notifies
+  const { spying: _, ...stored } = raw ? (JSON.parse(raw) as Partial<ChannelPrefs> & { spying?: boolean }) : {};
+  return { ...CHANNEL_DEFAULTS, ...stored };
 }
 
 /** Settings from a request body: booleans, a lead time from `LEAD_MINUTES` and a language, the rest as before. */
@@ -441,7 +441,7 @@ function channelContext(db: DB, universe: Universe, groupId: number, t: number):
 function channelWants(n: ChannelNotification, prefs: ChannelPrefs, t: number): boolean {
   switch (n.kind) {
     case 'attack':
-      return prefs.attacks && (prefs.spying || n.fleet.mission !== SPY_MISSION);
+      return prefs.attacks;
     case 'plan':
       return prefs.plans;
     case 'launch':

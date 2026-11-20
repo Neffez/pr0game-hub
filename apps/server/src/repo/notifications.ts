@@ -17,7 +17,7 @@ import { latestScores } from './stats.js';
 import { enemiesOf, followEnemies, launchedOf, planDrives, type LaunchFleet, type LaunchPlan, type PlanRow } from './plans.js';
 
 /**
- * Something the members should notice: hostile fleets heading for a member (attack, spying, …) from outside the
+ * Something the members should notice: hostile fleets heading for a member (attacks, not spying) from outside the
  * alliance, the viewer's open invitations to a raid planner plan, new comments in threads the viewer wrote in, and the
  * launch of the viewer's own plan fleets, the next level of a building the viewer is waiting for being affordable, and
  * the arrival of own fleets the viewer set an alert for, full storages on the viewer's planets, and the next step of
@@ -177,6 +177,8 @@ export type ChannelNotification = AttackNotification | PlanNotification | Launch
 
 /** Statistics category of the fleet points. */
 const FLEET_POINTS = 2;
+/** The game's espionage mission: hostile spy probes are no attack. */
+const ESPIONAGE = 6;
 /** How long a plan's target time lasts by its precision. */
 const PRECISION_SPAN = { day: 86400, hour: 3600, exact: 0 };
 /** New comments are listed this long. */
@@ -321,7 +323,7 @@ function attacks(db: DB, ctx: GroupContext, t: number): AttackNotification[] {
     if (!fleets) continue;
     const acs = new Map<number, AttackNotification>();
     for (const f of fleets.data) {
-      if (f.owner !== 'hostile' || f.arrival <= t || friendly(f)) continue;
+      if (f.owner !== 'hostile' || f.mission === ESPIONAGE || f.arrival <= t || friendly(f)) continue;
       const lead = f.acs != null ? acs.get(f.acs) : undefined;
       if (lead) {
         lead.fleets++;

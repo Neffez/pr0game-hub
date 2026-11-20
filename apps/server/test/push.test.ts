@@ -84,11 +84,20 @@ describe('push subscriptions and settings', () => {
   it('keeps the settings per user with defaults and validates the lead time', async () => {
     expect((await call('GET', '/auth/push-settings', h.dave)).json()).toEqual({
       attackSelf: true, attackOthers: false, invites: true, comments: true, launch: true, buildings: true, fleets: true, storage: true, buildOrder: true, phalanx: true, expeditions: false, settlements: true, accessRequests: true, parserSamples: true, leadMinutes: 5,
-      spying: true, mentionsOnly: false, quiet: null,
+      mentionsOnly: false, quiet: null,
     });
     expect((await call('POST', '/auth/push-settings', h.dave, { leadMinutes: 7 })).statusCode).toBe(400);
     expect((await call('POST', '/auth/push-settings', h.dave, { leadMinutes: 10, invites: false })).json()).toMatchObject({ leadMinutes: 10, invites: false, comments: true });
     await call('POST', '/auth/push-settings', h.dave, { leadMinutes: 5, invites: true });
+  });
+
+  it('drops the former espionage setting from stored settings', async () => {
+    const before = db.prepare('SELECT push_prefs FROM users WHERE id = ?').pluck().get(ids.dave);
+    db.prepare('UPDATE users SET push_prefs = ? WHERE id = ?').run(JSON.stringify({ spying: false, invites: false }), ids.dave);
+    const prefs = (await call('GET', '/auth/push-settings', h.dave)).json();
+    expect(prefs).not.toHaveProperty('spying');
+    expect(prefs).toMatchObject({ invites: false });
+    db.prepare('UPDATE users SET push_prefs = ? WHERE id = ?').run(before, ids.dave);
   });
 
   it('sends a test to all devices of the user', async () => {
