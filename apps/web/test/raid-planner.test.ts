@@ -18,7 +18,7 @@ const plans = [
       { id: 1, user_id: 1, member: 'Carol', g: 1, s: 40, p: 5, planet_type: 'planet', ships: { 207: 1773, 215: 2 }, speed: 90, status: 'ready', updated_at: 0,
         drives: { time: Math.floor(Date.now() / 1000), research: { 115: 10, 117: 8, 118: 6, 134: 0 } }, seen: null },
       { id: 2, user_id: 2, member: 'Dave', g: 1, s: 42, p: 7, planet_type: 'planet', ships: { 204: 100 }, speed: 100, status: 'launched', updated_at: 0, drives: null,
-        seen: { arrival: target + 3, time: 0, ships: { 204: 90, 222: 5 } } },
+        seen: { arrival: target + 3, time: 0, ships: { 204: 90, 222: 5 }, lead: null } },
       { id: 3, user_id: 3, member: 'Erin', g: null, s: null, p: null, planet_type: null, ships: {}, speed: 100, status: 'invited', updated_at: 0, drives: null, seen: null },
     ],
   },

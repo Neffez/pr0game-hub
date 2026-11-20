@@ -4,6 +4,14 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-20
 
+- Raid planner: fleets already in flight no longer count as launching now. A fleet seen in the overview lands at
+  the arrival shown there (one marked launched by hand at the target time), so a running ACS is no longer shown as
+  delayed and its fleets as late; only an overview showing a later arrival moves it. `planAttack` of
+  `@pr0hub/flight` takes the known `arrival` of a fleet in flight.
+- Raid planner: the ACS lead of an attack in flight is the fleet the overview lists first in the ACS, no longer the
+  fleet with the earliest planned launch (often the plan's creator, e.g. after "plan this attack" with speeds
+  assumed at 100 %). A lead outside the plan (a guest) names no member. Plan fleets' `seen` in `GET /plans` gained
+  `lead` and is described in the OpenAPI spec.
 - Code review of 2026-11-20 in `CODEREVIEW.md` (replaces the one of 2026-11-19): performance, security, bugs and
   architecture with measurements on a synthetic universe (1,999 players, 720k score rows) and parser fuzzing. Urgent:
   two quadratic regular expressions let a member block the hub with one paste (S-01, S-02), the inactivity analysis is

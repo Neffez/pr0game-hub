@@ -5409,7 +5409,18 @@ export type components = {
             /** @description Combat research from a taken-over simulation where the member's is unknown */
             sim_research: Record<string, never> | null;
             /** @description The launch as seen in the member's newest fleet list */
-            seen: Record<string, never> | null;
+            seen: {
+                /** @description Real arrival (Unix seconds) */
+                arrival: number;
+                /** @description Page time of that fleet list */
+                time: number;
+                /** @description Ships flying */
+                ships: {
+                    [key: string]: number;
+                };
+                /** @description Listed first in its ACS, i.e. the ACS lead; null when not flying in an ACS */
+                lead: boolean | null;
+            } | null;
         };
         Plan: {
             id: number;

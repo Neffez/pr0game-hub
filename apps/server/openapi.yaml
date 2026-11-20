@@ -2505,7 +2505,15 @@ components:
         updated_at: { type: integer }
         drives: { type: [object, 'null'], description: Drive research of the member (synced or entered by hand) }
         sim_research: { type: [object, 'null'], description: Combat research from a taken-over simulation where the member's is unknown }
-        seen: { type: [object, 'null'], description: The launch as seen in the member's newest fleet list }
+        seen:
+          type: [object, 'null']
+          description: The launch as seen in the member's newest fleet list
+          required: [arrival, time, ships, lead]
+          properties:
+            arrival: { type: integer, description: Real arrival (Unix seconds) }
+            time: { type: integer, description: Page time of that fleet list }
+            ships: { type: object, additionalProperties: { type: integer }, description: Ships flying }
+            lead: { type: [boolean, 'null'], description: 'Listed first in its ACS, i.e. the ACS lead; null when not flying in an ACS' }
     Plan:
       type: object
       required: [id, user_id, creator, g, s, p, planet_type, target_time, time_precision, note, status, mission, guests, created_at, updated_at, claim_user_id, player_id, player_name, planet_name, sim, fleets, enemy, spy]

@@ -106,8 +106,11 @@ export type LaunchFleet = {
   /** JSON of the planned ships */
   ships: string;
 };
-/** A plan fleet in flight as an overview shows it. */
-export type LaunchSeen = { arrival: number; time: number; ships: Record<number, number> };
+/**
+ * A plan fleet in flight as an overview shows it; `lead`: the first fleet of its ACS there (the one that created it),
+ * null when it does not fly in an ACS.
+ */
+export type LaunchSeen = { arrival: number; time: number; ships: Record<number, number>; lead: boolean | null };
 
 /**
  * Plan fleets the member's newest overview shows in flight: an own attack (hold plans: hold) from the fleet's start to the plan's target,
@@ -154,7 +157,10 @@ export function launchedOf(db: DB, ctx: GroupContext, plans: LaunchPlan[], fleet
       });
       if (best < 0) return false;
       snap.used.add(best);
-      out.set(f.id, { arrival: snap.data[best].arrival, time: snap.time, ships: snap.data[best].ships });
+      const m = snap.data[best];
+      // the overview lists an ACS lead first, its other fleets below it
+      const lead = m.acs == null ? null : snap.data.findIndex((x) => x.acs === m.acs) === best;
+      out.set(f.id, { arrival: m.arrival, time: snap.time, ships: m.ships, lead });
       if (f.status === 'invited' || f.status === 'ready') {
         if (persist) db.prepare("UPDATE attack_plan_fleets SET status = 'launched' WHERE id = ?").run(f.id);
         f.status = 'launched';
