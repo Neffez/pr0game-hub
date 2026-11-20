@@ -12,6 +12,10 @@ Every commit adds its changes here, newest first, grouped by date.
   archived before needs to be pasted again. The flight time of a return flight in the overview makes the deuterium
   exact only with known drive levels now (with levels 0 it was far too high). `sources` of the settlement is described
   in the OpenAPI spec (`SettlementSources`).
+- Loot settlement, mobile: the participants list shows one line per field with the inputs in one column (the share
+  field now keeps a slot for the source mark like the others), and the share explanation is a tooltip at the
+  heading. Stacked tables no longer copy a header's tooltip text into the cell labels (also the position bonus in
+  the admin universe settings).
 - Loot calculator: the flight deuterium of the attack fleets is now taken from a pasted battle report even when
   nothing else was pasted. Drive levels are no longer needed for it: without them it is estimated at 100 % speed
   with fuel efficiency from a pasted empire page, else 0 %; with them the fleet return gives the exact flight time.
