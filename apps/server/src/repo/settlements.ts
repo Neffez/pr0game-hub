@@ -11,6 +11,7 @@ import { latestEmpires } from './empire.js';
 import { memberPlayers } from './members.js';
 import { DISPLAY, displayOf } from './sql.js';
 import { launchedOf, planDrives, type LaunchFleet, type PlanRow } from './plans.js';
+import { memberOfFleet } from './reportPlan.js';
 
 /** Battles count for a plan from an hour before its time until an hour after its (day/hour) window. */
 const BATTLE_SLACK = 3600;
@@ -58,7 +59,8 @@ const guestName = (g: Guest) => g.player?.name ?? g.name ?? null;
 const lower = (s: string) => s.trim().toLowerCase();
 
 /**
- * Settlement prefilled from the hub's data: participants from the plan's fleets (members first, then guest fleets),
+ * Settlement prefilled from the hub's data: participants from the plan's fleets (members first, then guest fleets, then
+ * the battle reports' fleets the plan does not know),
  * battles at the target around the plan's time (fleets and losses from the archived battle report, else the planned
  * ships), loot by cargo space like the game unless the members' fleet return messages tell what each fleet brought home, recycling
  * reports at the target within 24 hours (members outside the plan as helpers) and the deuterium of the attack flights.
@@ -213,6 +215,37 @@ function draftOf(db: DB, ctx: GroupContext, plan: PlanRow & { time_precision: st
       )
       .all(ctx.groupId, plan.g, plan.s, plan.p, plan.planet_type, since, until) as BattleRow[]),
   ].sort((a, b) => (a.time ?? 0) - (b.time ?? 0));
+  // fleets of the battle reports on the settling side the plan does not know (e.g. the plan existed before the report
+  // was pasted, or a member joined the ACS without a plan fleet): members by name or start planet, others as guests
+  {
+    const memberOf = memberOfFleet(db, ctx);
+    const member = db.prepare(
+      `SELECT ${DISPLAY} AS name, u.username, gm.ingame_name FROM users u LEFT JOIN group_members gm ON gm.group_id = ? AND gm.user_id = u.id WHERE u.id = ?`,
+    );
+    let guestNo = guests.length;
+    for (const b of battleRows) {
+      if (!b.fleets) continue;
+      for (const [side, name, , from] of JSON.parse(b.fleets) as [number, string, unknown, ReportFrom?][]) {
+        if (side !== (hold ? 1 : 0) || names.has(lower(name)) || state.participants.length >= MAX_PARTICIPANTS) continue;
+        const userId = memberOf({ name, from: from ? { coords: { g: from[0], s: from[1], p: from[2] } } : null });
+        if (userId != null && state.participants.some((p) => p.id === memberKey(userId))) {
+          names.set(lower(name), memberKey(userId));
+          continue;
+        }
+        if (userId != null) {
+          const m = member.get(ctx.groupId, userId) as { name: string; username: string; ingame_name: string | null } | undefined;
+          if (!m) continue;
+          const id = memberKey(userId);
+          state.participants.push({ id, name: m.name, flightDeut: 0, recDeut: 0, missiles: 0 });
+          for (const n of [name, m.name, m.username, m.ingame_name]) if (n) names.set(lower(n), id);
+        } else {
+          const id = `g${++guestNo}`;
+          state.participants.push({ id, name, flightDeut: 0, recDeut: 0, missiles: 0 });
+          names.set(lower(name), id);
+        }
+      }
+    }
+  }
   // one battle synced by several members: same report id, or the same time and loot
   const keys = new Set<string>();
   // per battle and participant: the ships each of their fleets in the report has left (each one flies home)

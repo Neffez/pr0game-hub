@@ -6916,7 +6916,8 @@ paths:
       operationId: getSettlement
       description: >-
         ACS loot settlement of an attack or hold plan. `draft` is prefilled from the hub's data: participants from the
-        plan's fleets (members as `u<user id>`, then guest fleets), battles at the target around the plan's time (fleets
+        plan's fleets (members as `u<user id>`, then guest fleets, then the fleets of the battle reports the plan does not
+        know: members by name or start planet, others as guests), battles at the target around the plan's time (fleets
         and losses from the archived battle report, else the planned ships; `key` the report id, else `t<time>`), loot
         by cargo space unless a member's fleet return messages (one per fleet in the report, the first after the battle)
         or else their flights home in the overview (first per fleet with its surviving ships) tell what each fleet

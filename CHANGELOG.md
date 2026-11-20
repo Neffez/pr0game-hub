@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-20
 
+- Raid settlements: members and other players who fought in the battle report without a fleet in the plan (e.g. the
+  plan existed before the report was pasted) now join the settlement: members by their name or start planet, others
+  as guests. Before, they were left out with their share and their losses.
 - Raid settlements: the flight deuterium now also comes from the battle report. Participants without a plan fleet with
   a start planet (e.g. the plan existed before the report was pasted, so `settlements/from-report` took it as it was)
   and guests got none; their flights are now computed from the start planets and ships in the report at 100 % speed

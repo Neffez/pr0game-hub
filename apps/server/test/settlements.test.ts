@@ -553,18 +553,24 @@ describe('raid settlements', () => {
     expect((await call('POST', '/settlements/from-report', as.dave, { text: attack })).json()).toEqual({ id, existing: true, mission: 'attack' });
 
     // a plan made before the report, its fleet without a start planet: the flight comes from the report's start planet
-    const later = report([['CVXII', '[2:10:3]', 'Schlachtschiff', 100, 99]], [['Opfer', '[2:90:8]', 'Kl. Transporter', 10, 0]]);
+    // Rudolf (a member) and a stranger flew along without a plan fleet: they join the settlement from the report
+    const later = report(
+      [['CVXII', '[2:10:3]', 'Schlachtschiff', 100, 99], ['Rudolf', '[2:20:4]', 'Schlachtschiff', 40, 40], ['Fremder', '[2:30:5]', 'Schlachtschiff', 20, 20]],
+      [['Opfer', '[2:90:8]', 'Kl. Transporter', 10, 0]],
+    );
     const time = Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate(), 8) / 1000; // 10:00 in Europe/Berlin (winter time)
     const own = (await call('POST', '/plans', as.carol, { g: 2, s: 90, p: 8, type: 'planet', target_time: time })).json().id;
     await call('POST', `/plans/${own}/fleets`, as.carol, { ships: { 207: 100 }, speed: 100 });
     expect((await call('GET', `/plans/${own}/settlement`, as.carol)).json().draft.state.participants[0].flightDeut).toBe(0);
     expect((await call('POST', '/settlements/from-report', as.carol, { text: later })).json()).toEqual({ id: own, existing: true, mission: 'attack' });
     const taken = (await call('GET', `/plans/${own}/settlement`, as.carol)).json().draft;
-    expect(taken.sources.flightDeutFrom).toEqual({ [`u${ids.carol}`]: 'report' });
-    expect(taken.state.participants[0].flightDeut).toBeGreaterThan(0);
+    expect(taken.state.participants.map((p: { id: string; name: string }) => [p.id, p.name])).toEqual([[`u${ids.carol}`, 'carol'], [`u${ids.dave}`, 'dave'], ['g1', 'Fremder']]);
+    expect(taken.state.battles[0].fleets.map((f: { participant: string }) => f.participant)).toEqual([`u${ids.carol}`, `u${ids.dave}`, 'g1']);
+    expect(taken.sources.flightDeutFrom).toEqual({ [`u${ids.carol}`]: 'report', [`u${ids.dave}`]: 'report', g1: 'report' });
+    for (const p of taken.state.participants) expect(p.flightDeut).toBeGreaterThan(0);
     // stored with the start planets
     const stored = db.prepare('SELECT fleets FROM combat_reports WHERE group_id = ? AND g = 2 AND s = 90').pluck().get(groupA) as string;
-    expect(JSON.parse(stored).map((f: unknown[]) => f[3] ?? null)).toEqual([[2, 10, 3, 0], [2, 90, 8, 0]]);
+    expect(JSON.parse(stored).map((f: unknown[]) => f[3] ?? null)).toEqual([[2, 10, 3, 0], [2, 20, 4, 0], [2, 30, 5, 0], [2, 90, 8, 0]]);
 
     // members defended: a hold, the first defender is the attacked member
     const hold = report([['Feind', '[6:1:1]', 'Schlachtschiff', 10, 10]], [['Hustensaftdealer', '[6:50:5]', 'Kl. Transporter', 5, 0], ['Rudolf', '[6:60:1]', 'Schlachtschiff', 3, 1]]);
