@@ -111,6 +111,7 @@ describe('pasted pages into a settlement', () => {
     const { state, sync } = settled();
     const d = deriveFromSync(state, sync, U, DEFAULT_UNITS);
     expect(d.missingDrives).toEqual([]);
+    expect(d.returnsWithoutDrives).toEqual([]);
     const zero = drivesFromResearch({});
     const estimate = (pid: string) =>
       sync.battles[state.battles[0].key!].fleets
@@ -125,7 +126,11 @@ describe('pasted pages into a settlement', () => {
     expect(d.flightDeut.p1.deut).toBeGreaterThan(0);
     // a fleet return without drive levels does not make it exact (the ship speeds are not known)
     applyPaste(state, sync, returns);
-    expect(deriveFromSync(state, sync, U, DEFAULT_UNITS).flightDeut.p2).toEqual({ deut: estimate('p2'), exact: false });
+    const withReturns = deriveFromSync(state, sync, U, DEFAULT_UNITS);
+    expect(withReturns.flightDeut.p2).toEqual({ deut: estimate('p2'), exact: false });
+    expect(withReturns.returnsWithoutDrives).toEqual(['p2']); // drive levels would make it exact
+    applyPaste(state, sync, empire);
+    expect(deriveFromSync(state, sync, U, DEFAULT_UNITS).returnsWithoutDrives).toEqual([]);
     const set = applyDerived(state, sync, d);
     expect(set.has(autoPath.person('p1', 'flightDeut'))).toBe(true);
     expect(state.participants[0].flightDeut).toBe(estimate('p1'));

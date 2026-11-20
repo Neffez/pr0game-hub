@@ -135,14 +135,18 @@ describe('loot calculator page', () => {
     }
     expect(document.querySelector('#results .notes')?.textContent).not.toContain('CVXII');
     paste(messages);
+    // Rudolf's fleet returns could time his flights, but his drive levels are missing
+    expect(document.querySelector('#results .notes')?.textContent).toContain('Drive levels missing for Rudolf');
+    expect(document.querySelector('[data-auto-mark="p2.flightDeut"] .auto-on')?.getAttribute('title')).toContain('fleet return');
     paste(empire);
     const flight = document.querySelector<HTMLInputElement>('[data-auto="p2.flightDeut"]')!;
     expect(Number(flight.value.replace(/,/g, ''))).toBeGreaterThan(0);
     expect(document.querySelector('[data-auto-mark="p2.flightDeut"]')?.textContent).toBe('auto');
     expect(document.querySelector<HTMLInputElement>('[data-auto="p2.missiles"]')!.value).toBe('25');
     expect(document.querySelector<HTMLInputElement>('[data-drives="p2"]')!.value).toBe('17/14/12');
-    // CVXII's flight stays an estimate (no drive levels, so its fleet returns cannot time it)
+    // CVXII stays an estimate without a note (no fleet return), Rudolf's note is gone with his empire
     expect(document.querySelector('[data-auto-mark="p1.flightDeut"]')?.textContent).toBe('auto ~');
+    expect(document.querySelector('#results .notes')?.textContent).not.toContain('Rudolf');
     // the tab is named after the target
     expect(document.querySelector('#calcTabs .ctab.active .ctab-name')?.textContent).toMatch(/^\[3:195:5\]/);
     // typed over: stays, ↺ brings back the computed value

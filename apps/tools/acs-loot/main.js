@@ -47,7 +47,7 @@ var U = Object.assign({}, DEFAULT_UNI);
 var LANG = 'de';
 var lastResult = null;
 /* values the pasted pages gave in the last computation (paths), and what was missing */
-var derived = {set: new Set(), missingDrives: [], exact: {}};
+var derived = {set: new Set(), missingDrives: [], returnsWithoutDrives: [], exact: {}};
 /* paste field of the active tab: text, side of a battle report, owner of messages, result of the last paste */
 var P = freshPaste();
 
@@ -560,7 +560,7 @@ function refreshDerived() {
   Object.keys(d.loot).forEach(function (k) { Object.keys(d.loot[k]).forEach(function (id) { avail[autoPath.loot(k, id)] = true; }); });
   var exact = {};
   Object.keys(d.flightDeut).forEach(function (id) { exact[id] = d.flightDeut[id].exact; });
-  derived = {set: r.set, avail: avail, missingDrives: d.missingDrives, exact: exact};
+  derived = {set: r.set, avail: avail, missingDrives: d.missingDrives, returnsWithoutDrives: d.returnsWithoutDrives, exact: exact};
   // inputs of computed values (unless being typed in)
   $$('input[data-auto]').forEach(function (el) {
     if (document.activeElement === el || !r.set.has(el.getAttribute('data-auto'))) return;
@@ -593,7 +593,8 @@ function renderAutoMarks() {
       html = '<button type="button" class="auto-reset" data-act="autoReset" data-path="' + esc(path) + '" title="' + esc(t('autoReset')) + '" aria-label="' +
         esc(t('autoReset')) + '">↺</button>';
     } else if (derived.set.has(path)) {
-      var title = field === 'flightDeut' ? t(derived.exact[id] ? 'autoExact' : 'autoEstimate') : t(field === 'loot' ? 'autoLoot' : 'autoFrom');
+      var title = field === 'flightDeut' ? t(derived.exact[id] ? 'autoExact' : derived.returnsWithoutDrives.indexOf(id) >= 0 ? 'autoEstimateReturn' : 'autoEstimate') :
+        t(field === 'loot' ? 'autoLoot' : 'autoFrom');
       html = '<span class="auto-on" title="' + esc(title) + '">' + esc(field === 'flightDeut' && !derived.exact[id] ? t('autoShortEstimate') : t('autoShort')) + '</span>';
     } else if (field === 'recDeut' && derived.missingDrives.indexOf(id) >= 0) {
       html = '<span class="auto-miss" title="' + esc(t('drivesMissing')) + '">' + esc(t('autoShortMissing')) + '</span>';
@@ -614,11 +615,15 @@ function render() {
   TABS.update();
 }
 
-/* Missing drive levels below the results. */
+/* Missing drive levels below the results: for the recycler deuterium, and for flights a fleet return could time. */
 function renderNotesSync() {
   var box = $('#results .notes');
-  if (!box || !derived.missingDrives.length) return;
-  box.insertAdjacentHTML('beforeend', '<div class="note warn">' + esc(t('drivesMissingNote', {names: derived.missingDrives.map(personName).join(', ')})) + '</div>');
+  if (!box) return;
+  var note = function (key, ids) {
+    if (ids.length) box.insertAdjacentHTML('beforeend', '<div class="note warn">' + esc(t(key, {names: ids.map(personName).join(', ')})) + '</div>');
+  };
+  note('drivesMissingNote', derived.missingDrives);
+  note('drivesFlightNote', derived.returnsWithoutDrives);
 }
 
 /* Debris field: how much was recycled, what is left, and what others took of an emptied field. */

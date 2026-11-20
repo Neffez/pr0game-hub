@@ -378,6 +378,8 @@ export interface Derived {
   loot: Record<string, Record<string, Res>>;
   /** people whose drive levels are missing for their recycler deuterium */
   missingDrives: string[];
+  /** people with a fleet return whose flight deuterium stays an estimate for lack of drive levels (with them: exact) */
+  returnsWithoutDrives: string[];
 }
 
 /**
@@ -390,7 +392,8 @@ export interface Derived {
  * needed for the cargo, the flight time from the report to the return).
  */
 export function deriveFromSync(state: LootState, sync: PasteSync, u: Universe, units: UnitCatalog, honorBoost = 1): Derived {
-  const out: Derived = { flightDeut: {}, recDeut: {}, missiles: {}, loot: {}, missingDrives: [] };
+  const out: Derived = { flightDeut: {}, recDeut: {}, missiles: {}, loot: {}, missingDrives: [], returnsWithoutDrives: [] };
+  const untimed = new Set<string>();
   const owners = planetOwners(sync);
   const known = new Set(people(state).map((p) => p.id));
   const missing = new Set<string>();
@@ -434,6 +437,7 @@ export function deriveFromSync(state: LootState, sync: PasteSync, u: Universe, u
       const levels = sync.drives[f.participant];
       const drives = levels ?? NO_DRIVES;
       const timed = !!back && !!levels;
+      if (back && !levels) untimed.add(f.participant);
       const dist = distance(u, coords(f.from), coords(sb.target));
       const slowest = slowestShip(f.ships, drives, units.drives);
       if (!slowest) continue;
@@ -480,6 +484,7 @@ export function deriveFromSync(state: LootState, sync: PasteSync, u: Universe, u
     out.recDeut[r.by] = (out.recDeut[r.by] ?? 0) + fleetConsumption(u, ships, back.time! - r.time, dist, drives, honorBoost, units.drives);
   }
   out.missingDrives = [...missing].filter((id) => known.has(id));
+  out.returnsWithoutDrives = [...untimed];
   return out;
 }
 
