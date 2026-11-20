@@ -2,6 +2,11 @@
 
 Every commit adds its changes here, newest first, grouped by date.
 
+## 2026-11-20
+
+- Build list: the line of incoming resources wraps on narrow screens instead of running past the edge (time and
+  mission, and each resource amount, stay together).
+
 ## 2026-11-19
 
 - Galaxy: a copied galaxy page is dated by its server clock however old it is (before, a page clock more than a day

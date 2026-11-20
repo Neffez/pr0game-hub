@@ -16,6 +16,16 @@ export interface ChangelogDay {
 
 export const CHANGELOG: ChangelogDay[] = [
   {
+    date: '2026-11-20',
+    items: [
+      {
+        kind: 'fix',
+        de: 'Bauliste: Die Zeile mit ankommenden Rohstoffen bricht auf dem Handy um, statt über den Rand hinauszulaufen.',
+        en: 'Build list: the line of incoming resources wraps on phones instead of running past the edge.',
+      },
+    ],
+  },
+  {
     date: '2026-11-19',
     items: [
       {

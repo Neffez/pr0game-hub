@@ -341,9 +341,9 @@ const costClass = (b: { missing: Record<number, number> }, res: number) => (b.mi
         </div>
         <div v-if="upcomingArrivals(current, n).length" class="small" style="margin-top: 6px">
           <span class="muted">{{ t('buildings.arrivals') }}:</span>
-          <span v-for="(a, i) in upcomingArrivals(current, n)" :key="i" class="bld-arrival">
-            {{ clock(a.at) }} · {{ a.missionName || t(`game.missions.${a.mission}`) }}<Icon v-if="a.back" name="return" :size="12" :label="t('imperium.phase.return')" />:
-            <template v-for="id in RESOURCES" :key="id"><span v-if="a.resources[id]"> +{{ short(a.resources[id]) }} {{ name(id) }}</span></template>
+          <span v-for="(a, i) in upcomingArrivals(current, n)" :key="i" class="bld-arrival wrap">
+            <span class="nowrap">{{ clock(a.at) }} · {{ a.missionName || t(`game.missions.${a.mission}`) }}<Icon v-if="a.back" name="return" :size="12" :label="t('imperium.phase.return')" />:</span>
+            <template v-for="id in RESOURCES" :key="id"><template v-if="a.resources[id]">{{ ' ' }}<span class="nowrap">+{{ short(a.resources[id]) }} {{ name(id) }}</span></template></template>
           </span>
         </div>
       </Ticker>
@@ -587,6 +587,8 @@ const costClass = (b: { missing: Record<number, number> }, res: number) => (b.mi
 .bld-res { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 10px; }
 .bld-res > div { display: flex; flex-direction: column; }
 .bld-arrival { margin-left: 8px; white-space: nowrap; }
+.bld-arrival.wrap { white-space: normal; }
+.bld-arrival .nowrap { white-space: nowrap; }
 .bld-reqs { display: flex; flex-wrap: wrap; gap: 0 8px; }
 .bld-req { white-space: nowrap; }
 .bld-costs { display: flex; gap: 12px; flex-wrap: wrap; margin: 6px 0; }
