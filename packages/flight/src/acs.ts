@@ -33,6 +33,8 @@ export interface PlannedFleet {
   player: string;
   /** one-way duration in seconds (float, `flightDuration`) */
   duration: number;
+  /** already in flight: its known landing (e.g. from the overview); it neither launches nor is late any more */
+  arrival?: number;
 }
 
 export interface FleetPlan {
@@ -71,12 +73,13 @@ export interface AcsPlan {
 /**
  * Plan for landing all fleets at `target` (unix seconds), seen at `now`. One fleet is a solo attack. The lead is the
  * fleet with the earliest launch unless `lead` names one. Fleets beyond the limits (in launch order) are marked
- * `outside` and do not count for the ACS arrival.
+ * `outside` and do not count for the ACS arrival. A fleet in flight (`arrival` given) lands at that arrival: it is
+ * never late, never delays the ACS by launching now and never launches before the lead.
  */
 export function planAttack(target: number, fleets: PlannedFleet[], now: number, opts: { lead?: string; limits?: AcsLimits } = {}): AcsPlan {
   const limits = opts.limits ?? ACS_LIMITS;
   const order = fleets
-    .map((f, i) => ({ f, i, launch: launchFor(target, f.duration) }))
+    .map((f, i) => ({ f, i, launch: launchFor(f.arrival ?? target, f.duration) }))
     .sort((a, b) => a.launch - b.launch || a.i - b.i);
   const leadId = opts.lead ?? order[0]?.f.id ?? null;
   const leadItem = order.find((o) => o.f.id === leadId);
@@ -99,21 +102,22 @@ export function planAttack(target: number, fleets: PlannedFleet[], now: number, 
     if (!known) players.push(o.f.player);
   }
 
-  const earliest = (f: PlannedFleet) => Math.max(target, arrivalOf(now, f.duration));
+  const earliest = (f: PlannedFleet) => f.arrival ?? Math.max(target, arrivalOf(now, f.duration));
   const inAcs = order.filter((o) => !outside.has(o.i));
   const arrival = Math.max(target, ...inAcs.map((o) => earliest(o.f)));
   const leadLaunch = leadItem ? Math.max(now, leadItem.launch) : null;
   const plans: FleetPlan[] = fleets.map((f, i) => {
-    const launch = launchFor(target, f.duration);
+    const flying = f.arrival != null;
+    const launch = launchFor(f.arrival ?? target, f.duration);
     const out = outside.has(i);
     const own = earliest(f);
     return {
       id: f.id,
       launch,
-      late: launch < now,
+      late: !flying && launch < now,
       earliest: own,
-      delays: !out && own > target && own === arrival,
-      beforeLead: leadLaunch != null && f.id !== leadId && Math.max(now, launch) < leadLaunch,
+      delays: !flying && !out && own > target && own === arrival,
+      beforeLead: !flying && leadLaunch != null && f.id !== leadId && Math.max(now, launch) < leadLaunch,
       outside: out,
       home: homeOf(out ? own : arrival, f.duration),
     };

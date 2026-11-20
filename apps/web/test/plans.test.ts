@@ -43,6 +43,19 @@ describe('attack plans in the web app', () => {
     expect(view.fleets[0].plan!.home).toBe(Math.floor(2_000_000_000 - 55 + view.fleets[0].duration!));
   });
 
+  it('does not delay an ACS whose fleets already fly as seen in the overview', () => {
+    const flying = (id: number, userId: number, start: [number, number, number], ships: Record<string, number>): PlanFleet => ({
+      ...fleet(id, userId, start, ships), status: 'launched', seen: { arrival: 2_000_000_000, time: 0, ships, lead: null },
+    });
+    // 30 min before the impact both long flights are on their way: no delay, nobody late
+    const view = computePlan(u, plan([flying(1, 1, [1, 40, 5], { 204: 10 }), flying(2, 2, [2, 100, 3], { 207: 5 })]), 2_000_000_000 - 1800);
+    expect(view.acs).toMatchObject({ arrival: 2_000_000_000, delay: 0 });
+    expect(view.fleets.map((x) => [x.plan!.late, x.plan!.delays])).toEqual([[false, false], [false, false]]);
+    // marked launched by hand without an overview: lands at the target time as well
+    const byHand = computePlan(u, plan([{ ...fleet(2, 2, [2, 100, 3], { 207: 5 }), status: 'launched' }]), 2_000_000_000 - 60);
+    expect(byHand.acs).toMatchObject({ delay: 0 });
+  });
+
   it('takes the lead of an ACS in flight from the overview, not from the planned launches', () => {
     const flying = (id: number, userId: number, start: [number, number, number], ships: Record<string, number>, lead: boolean | null): PlanFleet => ({
       ...fleet(id, userId, start, ships), status: 'launched', seen: { arrival: 2_000_000_000, time: 0, ships, lead },

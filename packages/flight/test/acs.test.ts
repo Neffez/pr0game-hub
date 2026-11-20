@@ -72,6 +72,17 @@ describe('attack plans', () => {
     expect(byPlayers.fleets.find((f) => f.outside)).toMatchObject({ launch: 9000, earliest: 10000, home: 11000, delays: false });
   });
 
+  it('lets fleets in flight land at their known arrival instead of launching now', () => {
+    // 30 min before the target, both fleets already fly: the long one does not push the ACS back
+    const plan = planAttack(10000, [{ ...fleet('a', 5100), arrival: 10000 }, { ...fleet('b', 2700), arrival: 10000 }], 8200);
+    expect(plan).toMatchObject({ arrival: 10000, delay: 0, lead: 'a' });
+    expect(plan.fleets.map((f) => [f.launch, f.late, f.delays, f.beforeLead])).toEqual([[4900, false, false, false], [7300, false, false, false]]);
+    // a fleet still to launch is late as before; an overview showing a later arrival moves the ACS
+    const mixed = planAttack(10000, [{ ...fleet('a', 5100), arrival: 10060 }, fleet('b', 2700)], 8200);
+    expect(mixed).toMatchObject({ arrival: 10900, delay: 900 });
+    expect(mixed.fleets.map((f) => [f.late, f.delays])).toEqual([[false, false], [true, true]]);
+  });
+
   it('matches the game for random plans, also with late fleets', () => {
     for (let n = 0; n < 2000; n++) {
       const target = 1_700_000_000 + Math.floor(Math.random() * 1e6);

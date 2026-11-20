@@ -302,19 +302,24 @@ export function computePlan(u: UniverseSettings, plan: AttackPlan, now: number):
     if (!slowest) return { fleet: f, duration: null };
     return { fleet: f, duration: flightDuration(u, distance(u, [f.g, f.s, f.p], target), slowest.speed, f.speed) };
   });
+  // a fleet in flight lands where the overview shows it; one marked launched by hand at the target time
+  const planned = (x: { fleet: PlanFleet; duration: number }) => ({
+    id: String(x.fleet.id), player: String(x.fleet.user_id), duration: x.duration,
+    arrival: x.fleet.seen?.arrival ?? (x.fleet.status === 'launched' ? plan.target_time : undefined),
+  });
   // holds cannot be delayed and form no ACS: every fleet lands on its own
   if (plan.mission === 'hold') {
     return {
       acs: null,
       fleets: flights.map((x) => ({
         ...x,
-        plan: x.duration == null ? null : { ...planAttack(plan.target_time, [{ id: String(x.fleet.id), player: String(x.fleet.user_id), duration: x.duration }], now).fleets[0], delays: false },
+        plan: x.duration == null ? null : { ...planAttack(plan.target_time, [planned({ fleet: x.fleet, duration: x.duration })], now).fleets[0], delays: false },
       })),
     };
   }
   const flying = flights.filter((x): x is { fleet: PlanFleet; duration: number } => x.duration != null);
   const acs = flying.length
-    ? planAttack(plan.target_time, flying.map((x) => ({ id: String(x.fleet.id), player: String(x.fleet.user_id), duration: x.duration })), now, { lead: seenLead(flying) })
+    ? planAttack(plan.target_time, flying.map(planned), now, { lead: seenLead(flying) })
     : null;
   return {
     acs,

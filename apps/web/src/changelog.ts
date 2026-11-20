@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Raid-Planer: Ein gestarteter Verband wird nicht mehr fälschlich als verzögert angezeigt. Flotten, die schon fliegen, landen mit der Ankunft aus der Übersicht, statt so gerechnet zu werden, als würden sie jetzt erst starten.',
+        en: 'Raid planner: an ACS in flight is no longer shown as delayed by mistake. Fleets already on their way land at the arrival from the overview instead of being counted as launching now.',
+      },
+      {
+        kind: 'fix',
         de: 'Raid-Planer: Bei einem fliegenden Verband ist der Anführer jetzt die oberste Flotte des Verbands aus der Übersicht, nicht mehr der nach Planung zuerst Startende (oft der Ersteller des Plans).',
         en: 'Raid planner: for an ACS in flight the lead is now the fleet listed first in the overview, no longer the one planned to launch first (often whoever created the plan).',
       },
