@@ -458,12 +458,12 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
         </Section>
 
         <div class="card" data-tour="loot-participants">
-          <h3>{{ t('loot.participants') }}</h3>
+          <h3>{{ t('loot.participants') }} <Hint v-if="mobile && byPercent">{{ t('loot.sharePct') }}: {{ t('loot.sharePctHint') }}</Hint></h3>
           <div class="table-wrap">
             <table v-stack class="data parts">
               <thead>
                 <tr><th>{{ t('common.name') }}</th><th class="num marked">{{ t('loot.flightDeut') }}</th><th class="num marked">{{ t('loot.recDeut') }}</th><th class="num marked">{{ t('loot.missiles') }}</th>
-                  <th v-if="byPercent" class="num">{{ t('loot.sharePct') }} <Hint>{{ t('loot.sharePctHint') }}</Hint></th></tr>
+                  <th v-if="byPercent" class="num marked">{{ t('loot.sharePct') }} <Hint>{{ t('loot.sharePctHint') }}</Hint></th></tr>
               </thead>
               <tbody>
                 <tr v-for="p in state.participants" :key="p.id">
@@ -486,6 +486,7 @@ const pct = (n: number) => `${Math.round(n * 1000) / 10} %`;
                       type="number" min="0" max="100" step="any" :value="p.sharePct ?? ''" :placeholder="pctText(percents[state.participants.indexOf(p)])"
                       :disabled="!editing" :aria-label="`${t('loot.sharePct')} ${p.name}`" @input="setPct(p, ($event.target as HTMLInputElement).value)"
                     />
+                    <span class="src" aria-hidden="true" />
                   </td>
                 </tr>
               </tbody>
@@ -794,6 +795,8 @@ textarea.report { width: 100%; min-height: 90px; font-family: var(--mono); font-
 .person-grid thead th { color: var(--muted); }
 @media (max-width: 800px) {
   .lbl { min-width: 0; flex-basis: 100%; }
+  /* one line per field: label left, inputs in one column on the right */
+  .parts.stack td:not(.m-head) { flex-basis: 100%; align-items: center; flex-wrap: nowrap; }
   .import input { min-width: 0; }
 }
 </style>

@@ -278,6 +278,7 @@ export const useMobile = () => useMediaQuery('(max-width: 800px)');
  * `v-stack` / `v-stack="n"` on a `table.data`: on mobile (style.css) every row becomes a card. The column
  * headers are copied into the cells as labels; the first n cells of a row (default 1) form its title line.
  * Cells with the class `m-hide` are left out on mobile, `m-wide` cells take a whole line (long values).
+ * A tooltip (`Hint`) in a header is not part of the label; on mobile it belongs next to the table's heading.
  */
 function stackLabels(table: HTMLTableElement, heads = 1) {
   table.classList.add('stack');
@@ -285,7 +286,9 @@ function stackLabels(table: HTMLTableElement, heads = 1) {
   const header = rows.find((r) => r.parentElement?.tagName !== 'TFOOT' && r.cells.length && [...r.cells].every((c) => c.tagName === 'TH'));
   const labels: string[] = [];
   for (const c of header?.cells ?? []) {
-    labels.push((c.textContent ?? '').trim());
+    const head = c.cloneNode(true) as HTMLElement;
+    head.querySelectorAll('.hint').forEach((h) => h.remove());
+    labels.push((head.textContent ?? '').trim());
     for (let i = 1; i < c.colSpan; i++) labels.push('');
   }
   header?.classList.add('m-header');
