@@ -595,7 +595,7 @@ function renderAutoMarks() {
     } else if (derived.set.has(path)) {
       var title = field === 'flightDeut' ? t(derived.exact[id] ? 'autoExact' : 'autoEstimate') : t(field === 'loot' ? 'autoLoot' : 'autoFrom');
       html = '<span class="auto-on" title="' + esc(title) + '">' + esc(field === 'flightDeut' && !derived.exact[id] ? t('autoShortEstimate') : t('autoShort')) + '</span>';
-    } else if ((field === 'flightDeut' || field === 'recDeut') && derived.missingDrives.indexOf(id) >= 0) {
+    } else if (field === 'recDeut' && derived.missingDrives.indexOf(id) >= 0) {
       html = '<span class="auto-miss" title="' + esc(t('drivesMissing')) + '">' + esc(t('autoShortMissing')) + '</span>';
     }
     el.innerHTML = html;

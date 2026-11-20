@@ -4,6 +4,10 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-20
 
+- Loot calculator: the flight deuterium of the attack fleets is now taken from a pasted battle report even when
+  nothing else was pasted. Drive levels are no longer needed for it: without them it is estimated at 100 % speed
+  with fuel efficiency from a pasted empire page, else 0 %; with them the fleet return gives the exact flight time.
+  The note about missing drive levels now only concerns recycler deuterium (`missingDrives` of `deriveFromSync`).
 - Raid planner: fleets already in flight no longer count as launching now. A fleet seen in the overview lands at
   the arrival shown there (one marked launched by hand at the target time), so a running ACS is no longer shown as
   delayed and its fleets as late; only an overview showing a later arrival moves it. `planAttack` of
