@@ -20,6 +20,11 @@ export const CHANGELOG: ChangelogDay[] = [
     items: [
       {
         kind: 'fix',
+        de: 'Beuteabrechnung: Das Deuterium für die Angriffsflüge wird jetzt auch aus dem Kampfbericht berechnet, wenn der Plan schon vorher bestand oder ein Gast mitgeflogen ist. Bei Kampfberichten von vorher den Bericht einmal neu einfügen.',
+        en: 'Loot settlement: the deuterium of the attack flights is now also computed from the battle report when the plan existed before or a guest flew along. For battle reports from before, paste the report once more.',
+      },
+      {
+        kind: 'fix',
         de: 'Loot-Rechner: Das Deuterium für die Angriffsflüge wird jetzt auch dann aus dem Kampfbericht berechnet, wenn sonst nichts eingefügt wurde. Antriebsstufen braucht es dafür nicht mehr; Treibstoffeffizienz wird aus dem Imperium übernommen, sonst mit 0 % gerechnet.',
         en: 'Loot calculator: the deuterium of the attack flights is now computed from the battle report even when nothing else was pasted. Drive levels are no longer needed for it; fuel efficiency is taken from the empire, else 0 % is assumed.',
       },

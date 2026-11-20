@@ -26,6 +26,12 @@ describe('battle participant names', () => {
       [0, 'Alice', [[202, 2, 1]]],
       [1, 'Bob', [[401, 5, 0]]],
     ]);
+    // start planets: from the new parse, else as stored (the public page hides them)
+    const withFrom = JSON.stringify([[0, 'Alice', [], [1, 2, 3, 0]], [1, 'Bob', []]]);
+    expect(mergeCombatFleets(withFrom, [[0, 'Alice', []], [1, 'Bob', [], [4, 5, 6, 1]]])).toEqual([
+      [0, 'Alice', [], [1, 2, 3, 0]],
+      [1, 'Bob', [], [4, 5, 6, 1]],
+    ]);
     // another number of fleets: the longer list
     expect(mergeCombatFleets(stored, [[0, 'Alicia', []]])).toEqual(JSON.parse(stored));
     expect(mergeCombatFleets(stored, [[0, 'A', []], [1, 'B', []], [1, 'C', []]])).toHaveLength(3);

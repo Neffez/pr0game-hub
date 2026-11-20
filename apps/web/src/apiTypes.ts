@@ -66,3 +66,6 @@ export type RecapText = ApiResponse<'/api/{uni}/recap/text'>;
 export type FarmTargets = ApiResponse<'/api/{uni}/farm'>;
 export type FarmTarget = Schema<'FarmTarget'>;
 export type FarmSimulation = Schema<'FarmSimulation'>;
+
+/** Where the hub took the values of a settlement draft from (`GET /plans/{id}/settlement` → `draft.sources`). */
+export type SettlementSources = Schema<'SettlementSources'>;

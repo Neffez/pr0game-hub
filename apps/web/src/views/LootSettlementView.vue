@@ -13,6 +13,7 @@ import {
   settle, type Battle, type Participant, type LootState, type Overrides, type Res, type SettlementResult, type StateChanges, type TransferInput,
 } from '@pr0hub/loot';
 import { readError, uniApi } from '../api';
+import type { SettlementSources } from '../apiTypes';
 import CommentThread from '../components/CommentThread.vue';
 import LootSankey from '../components/LootSankey.vue';
 import Hint from '../components/Hint.vue';
@@ -22,16 +23,7 @@ import { tables, useLiveReload } from '../live';
 import { useAutoTour } from '../tours';
 
 /** Where the hub took a value of the draft from (server `DraftSources`). */
-interface Sources {
-  battles: { key: string; reportId: string | null; time: number | null; fleets: 'report' | 'plan' }[];
-  returnLoot: Record<string, Record<number, Res>>;
-  returnSource?: Record<string, 'message' | 'overview'>;
-  flightDeut: Record<string, number>;
-  flightDeutFrom?: Record<string, 'fleet' | 'plan'>;
-  recDeut?: Record<string, number>;
-  missiles?: Record<string, number>;
-  recycling: { by: string; time: number | null }[];
-}
+type Sources = SettlementSources;
 /** `GET /plans/:id/settlement`: the draft from the hub's data, the corrections on top, or the finalized state. */
 interface Response {
   plan: { id: number; mission: 'attack' | 'hold'; g: number | null; s: number | null; p: number | null; planet_type: 'planet' | 'moon'; target_time: number; status: string };
@@ -306,7 +298,11 @@ const partly = (x: TransferInput) => (autoDone.value.has(keyOf(x)) ? null : (dat
 function sourceOf(id: string, f: 'flightDeut' | 'recDeut' | 'missiles'): string | null {
   const src = sources.value;
   if (!src) return null;
-  if (f === 'flightDeut') return src.flightDeut[id] == null ? null : src.flightDeutFrom?.[id] === 'fleet' ? t('loot.fromFleetTime') : t('loot.fromPlan');
+  if (f === 'flightDeut') {
+    if (src.flightDeut[id] == null) return null;
+    const from = src.flightDeutFrom?.[id];
+    return t(from === 'fleet' ? 'loot.fromFleetTime' : from === 'report' ? 'loot.fromReportFlight' : 'loot.fromPlan');
+  }
   if (f === 'recDeut') return src.recDeut?.[id] != null ? t('loot.fromRecycleReturn') : null;
   return src.missiles?.[id] != null ? t('loot.fromMissiles') : null;
 }

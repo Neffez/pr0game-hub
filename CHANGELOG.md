@@ -4,6 +4,14 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-20
 
+- Raid settlements: the flight deuterium now also comes from the battle report. Participants without a plan fleet with
+  a start planet (e.g. the plan existed before the report was pasted, so `settlements/from-report` took it as it was)
+  and guests got none; their flights are now computed from the start planets and ships in the report at 100 % speed
+  (`sources.flightDeutFrom` `report`). Archived battle reports keep each fleet's start planet (`combat_reports.fleets`
+  gained an optional fourth element; a report synced again from the public page keeps the stored ones), so a report
+  archived before needs to be pasted again. The flight time of a return flight in the overview makes the deuterium
+  exact only with known drive levels now (with levels 0 it was far too high). `sources` of the settlement is described
+  in the OpenAPI spec (`SettlementSources`).
 - Loot calculator: the flight deuterium of the attack fleets is now taken from a pasted battle report even when
   nothing else was pasted. Drive levels are no longer needed for it: without them it is estimated at 100 % speed
   with fuel efficiency from a pasted empire page, else 0 %; with them the fleet return gives the exact flight time.
