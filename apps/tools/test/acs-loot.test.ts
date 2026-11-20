@@ -128,14 +128,25 @@ describe('loot calculator page', () => {
     document.querySelector<HTMLButtonElement>('#addTab')!.click();
     paste(readFileSync(resolve(import.meta.dirname, '../../../packages/parser/test/fixtures/combat-report-de.txt'), 'utf8'));
     expect([...document.querySelectorAll<HTMLInputElement>('#participants input[data-type="text"]')].map((el) => el.value)).toEqual(['CVXII', 'Rudolf']);
+    // the battle report alone gives the flight deuterium (estimated at 100 % speed, no drive levels needed)
+    for (const id of ['p1', 'p2']) {
+      expect(Number(document.querySelector<HTMLInputElement>(`[data-auto="${id}.flightDeut"]`)!.value.replace(/,/g, ''))).toBeGreaterThan(0);
+      expect(document.querySelector(`[data-auto-mark="${id}.flightDeut"]`)?.textContent).toBe('auto ~');
+    }
+    expect(document.querySelector('#results .notes')?.textContent).not.toContain('CVXII');
     paste(messages);
+    // Rudolf's fleet returns could time his flights, but his drive levels are missing
+    expect(document.querySelector('#results .notes')?.textContent).toContain('Drive levels missing for Rudolf');
+    expect(document.querySelector('[data-auto-mark="p2.flightDeut"] .auto-on')?.getAttribute('title')).toContain('fleet return');
     paste(empire);
     const flight = document.querySelector<HTMLInputElement>('[data-auto="p2.flightDeut"]')!;
     expect(Number(flight.value.replace(/,/g, ''))).toBeGreaterThan(0);
     expect(document.querySelector('[data-auto-mark="p2.flightDeut"]')?.textContent).toBe('auto');
     expect(document.querySelector<HTMLInputElement>('[data-auto="p2.missiles"]')!.value).toBe('25');
     expect(document.querySelector<HTMLInputElement>('[data-drives="p2"]')!.value).toBe('17/14/12');
-    expect(document.querySelector('#results .notes')?.textContent).toContain('CVXII');
+    // CVXII stays an estimate without a note (no fleet return), Rudolf's note is gone with his empire
+    expect(document.querySelector('[data-auto-mark="p1.flightDeut"]')?.textContent).toBe('auto ~');
+    expect(document.querySelector('#results .notes')?.textContent).not.toContain('Rudolf');
     // the tab is named after the target
     expect(document.querySelector('#calcTabs .ctab.active .ctab-name')?.textContent).toMatch(/^\[3:195:5\]/);
     // typed over: stays, ↺ brings back the computed value

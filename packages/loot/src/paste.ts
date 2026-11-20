@@ -91,6 +91,8 @@ const MAX_ROWS = 200;
 const RETURN_WITHIN = 7 * 86400;
 const MISSILES_BEFORE = 86400;
 const SLACK = 3600;
+/** Drive levels of a person whose levels are not known: level 0, fuel efficiency 0 %. */
+const NO_DRIVES: Drives = drivesFromResearch({});
 
 const key = (c: { g: number; s: number; p: number }): CoordKey => `${c.g}:${c.s}:${c.p}`;
 const coords = (k: CoordKey): [number, number, number] => k.split(':').map(Number) as [number, number, number];
@@ -374,20 +376,24 @@ export interface Derived {
   missiles: Record<string, number>;
   /** battle key -> participant -> loot brought home */
   loot: Record<string, Record<string, Res>>;
-  /** people whose drive levels are missing for a computation */
+  /** people whose drive levels are missing for their recycler deuterium */
   missingDrives: string[];
+  /** people with a fleet return whose flight deuterium stays an estimate for lack of drive levels (with them: exact) */
+  returnsWithoutDrives: string[];
 }
 
 /**
  * The values the pasted pages give (like the hub's settlement draft): flight deuterium of the attack fleets (one way
- * as charged at launch; the flight time from the fleet's return message, else at 100 % speed), the loot each fleet
+ * as charged at launch; with drive levels the flight time from the fleet's return message, else at 100 % speed; fuel
+ * efficiency from a pasted empire page, else 0 %), the loot each fleet
  * brought home (dropped when they would be more than the battle's loot; returns count only with one battle at the
  * target, like the hub's draft), missiles fired on the target from a day
  * before the first until an hour after the last battle, and the deuterium of the recycler flights (the recyclers
  * needed for the cargo, the flight time from the report to the return).
  */
 export function deriveFromSync(state: LootState, sync: PasteSync, u: Universe, units: UnitCatalog, honorBoost = 1): Derived {
-  const out: Derived = { flightDeut: {}, recDeut: {}, missiles: {}, loot: {}, missingDrives: [] };
+  const out: Derived = { flightDeut: {}, recDeut: {}, missiles: {}, loot: {}, missingDrives: [], returnsWithoutDrives: [] };
+  const untimed = new Set<string>();
   const owners = planetOwners(sync);
   const known = new Set(people(state).map((p) => p.id));
   const missing = new Set<string>();
@@ -426,15 +432,19 @@ export function deriveFromSync(state: LootState, sync: PasteSync, u: Universe, u
         else cur.open++;
         perFleet.set(f.participant, cur);
       }
-      const drives = drivesOf(f.participant);
-      if (!drives) continue;
+      // drive levels are not needed: without them the flight is estimated at 100 % speed (fuel efficiency 0 %); a
+      // fleet's return time is only used with them, the ship speeds it needs depend on the drive levels
+      const levels = sync.drives[f.participant];
+      const drives = levels ?? NO_DRIVES;
+      const timed = !!back && !!levels;
+      if (back && !levels) untimed.add(f.participant);
       const dist = distance(u, coords(f.from), coords(sb.target));
       const slowest = slowestShip(f.ships, drives, units.drives);
       if (!slowest) continue;
-      const duration = back ? back.time! - b.time! : flightDuration(u, dist, slowest.speed, 100);
+      const duration = timed ? back!.time! - b.time! : flightDuration(u, dist, slowest.speed, 100);
       const deut = fleetConsumption(u, f.ships, duration, dist, drives, honorBoost, units.drives);
       const cur = out.flightDeut[f.participant] ?? { deut: 0, exact: true };
-      out.flightDeut[f.participant] = { deut: cur.deut + deut, exact: cur.exact && !!back };
+      out.flightDeut[f.participant] = { deut: cur.deut + deut, exact: cur.exact && timed };
     }
     // loot per fleet: only when every surviving fleet of the participant has its return
     const loot: Record<string, Res> = {};
@@ -474,6 +484,7 @@ export function deriveFromSync(state: LootState, sync: PasteSync, u: Universe, u
     out.recDeut[r.by] = (out.recDeut[r.by] ?? 0) + fleetConsumption(u, ships, back.time! - r.time, dist, drives, honorBoost, units.drives);
   }
   out.missingDrives = [...missing].filter((id) => known.has(id));
+  out.returnsWithoutDrives = [...untimed];
   return out;
 }
 

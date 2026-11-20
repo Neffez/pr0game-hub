@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { DEFAULT_UNITS } from '@pr0hub/core/units';
-import { distance, fleetConsumption, flightDuration, slowestShip, type Universe } from '@pr0hub/flight';
+import { distance, drivesFromResearch, fleetConsumption, flightDuration, slowestShip, type Universe } from '@pr0hub/flight';
 import { describe, expect, it } from 'vitest';
 import {
   applyDerived, applyPaste, autoPath, cleanSync, deriveFromSync, emptyState, emptySync, localEpoch, lootShares, pruneSync, setManual,
@@ -79,7 +79,7 @@ describe('pasted pages into a settlement', () => {
     const key = state.battles[0].key!;
     expect(d.loot[key]).toEqual({ p2: { m: 0, k: 603269, d: 309917 } });
     expect(d.missiles).toEqual({ p2: 25 }); // the one four days before does not count
-    expect(d.missingDrives).toEqual(['p1']);
+    expect(d.missingDrives).toEqual([]); // only recycler deuterium needs drive levels
     // the two fleets of Rudolf: flight time = return - battle, the earlier return for the first fleet
     const fleets = sync.battles[key].fleets.filter((f) => f.participant === 'p2');
     const drives = sync.drives.p2;
@@ -105,6 +105,35 @@ describe('pasted pages into a settlement', () => {
     const d = deriveFromSync(state, sync, U, DEFAULT_UNITS);
     expect(d.loot).toEqual({});
     expect(d.flightDeut.p2.exact).toBe(false);
+  });
+
+  it('estimates the flight deuterium from the battle report alone (100 % speed, fuel efficiency 0 %)', () => {
+    const { state, sync } = settled();
+    const d = deriveFromSync(state, sync, U, DEFAULT_UNITS);
+    expect(d.missingDrives).toEqual([]);
+    expect(d.returnsWithoutDrives).toEqual([]);
+    const zero = drivesFromResearch({});
+    const estimate = (pid: string) =>
+      sync.battles[state.battles[0].key!].fleets
+        .filter((f) => f.participant === pid)
+        .reduce((sum, f) => {
+          const dist = distance(U, f.from!.split(':').map(Number) as [number, number, number], [3, 195, 5]);
+          const slow = slowestShip(f.ships, zero, DEFAULT_UNITS.drives)!;
+          return sum + fleetConsumption(U, f.ships, flightDuration(U, dist, slow.speed, 100), dist, zero, 1, DEFAULT_UNITS.drives);
+        }, 0);
+    expect(d.flightDeut.p1).toEqual({ deut: estimate('p1'), exact: false });
+    expect(d.flightDeut.p2).toEqual({ deut: estimate('p2'), exact: false });
+    expect(d.flightDeut.p1.deut).toBeGreaterThan(0);
+    // a fleet return without drive levels does not make it exact (the ship speeds are not known)
+    applyPaste(state, sync, returns);
+    const withReturns = deriveFromSync(state, sync, U, DEFAULT_UNITS);
+    expect(withReturns.flightDeut.p2).toEqual({ deut: estimate('p2'), exact: false });
+    expect(withReturns.returnsWithoutDrives).toEqual(['p2']); // drive levels would make it exact
+    applyPaste(state, sync, empire);
+    expect(deriveFromSync(state, sync, U, DEFAULT_UNITS).returnsWithoutDrives).toEqual([]);
+    const set = applyDerived(state, sync, d);
+    expect(set.has(autoPath.person('p1', 'flightDeut'))).toBe(true);
+    expect(state.participants[0].flightDeut).toBe(estimate('p1'));
   });
 
   it('estimates the flight at 100 % speed without a return', () => {
