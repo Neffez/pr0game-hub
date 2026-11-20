@@ -12,6 +12,12 @@ Every commit adds its changes here, newest first, grouped by date.
   fleet with the earliest planned launch (often the plan's creator, e.g. after "plan this attack" with speeds
   assumed at 100 %). A lead outside the plan (a guest) names no member. Plan fleets' `seen` in `GET /plans` gained
   `lead` and is described in the OpenAPI spec.
+- Code review of 2026-11-20 in `CODEREVIEW.md` (replaces the one of 2026-11-19): performance, security, bugs and
+  architecture with measurements on a synthetic universe (1,999 players, 720k score rows) and parser fuzzing. Urgent:
+  two quadratic regular expressions let a member block the hub with one paste (S-01, S-02), the inactivity analysis is
+  recomputed for all players on every request (P-01), and web push can stall or drop notifications (B-01, B-02); plus
+  new architecture items, improvements and feature ideas from the game's source (rebuild protection, resource stash,
+  repair dock).
 - Hostile espionage is no longer an attack: incoming spy probes bring no attack notification (bell, push, Discord,
   the attack count at "Fleet"), and the fleet list shows them as foreign instead of red as hostile. The setting
   "Also report hostile espionage" (push, member and alliance Discord) is gone, `spying` left the push and Discord
