@@ -8,6 +8,7 @@ const { openDb, now } = await import('../src/db.js');
 const { hashPassword } = await import('../src/auth.js');
 const { addDays, dayOf, periodDays } = await import('../src/repo/achievements.js');
 const { previousSpan } = await import('../src/repo/recap.js');
+const { countSync } = await import('../src/repo/syncCount.js');
 const { isoWeek } = await import('../src/recapText.js');
 const { localToEpoch } = await import('@pr0hub/core');
 
@@ -202,5 +203,61 @@ describe('recap', () => {
     // the same messages again: nothing new
     await call('POST', '/u8/ingest', h.dave, { html: fixture('messages.html') });
     expect(count()).toBe(1);
+  });
+
+  it('counts each page type by its rule', () => {
+    const c = (day: string, page: string, at: number, unit?: string) => countSync(db, group, ids.admin, day, page, at, unit);
+    const d = '2030-01-01';
+    // reports count every time
+    expect([c(d, 'messages', 1000), c(d, 'messages', 1001)]).toEqual([true, true]);
+    // the overview every 15 minutes
+    expect([c(d, 'overview', 1000), c(d, 'overview', 1899), c(d, 'overview', 1900)]).toEqual([true, false, true]);
+    // Imperium, buildings, research, shipyard and fleets once an hour, each page type on its own
+    expect([c(d, 'empire', 1000), c(d, 'empire', 4599), c(d, 'buildings', 4599), c(d, 'empire', 4600)]).toEqual([true, false, true, true]);
+    // the marketplace once a day
+    expect([c(d, 'marketplace', 1000), c(d, 'marketplace', 80000), c('2030-01-02', 'marketplace', 90000)]).toEqual([true, false, true]);
+    // a player card once per player, on any day
+    expect([c(d, 'playerCard', 1000, '7'), c('2030-01-02', 'playerCard', 90000, '7'), c(d, 'playerCard', 1000, '8')]).toEqual([true, false, true]);
+    const rows = db.prepare("SELECT key, SUM(count) AS n FROM sync_credits WHERE group_id = ? AND user_id = ? AND kind = 'sync' GROUP BY key ORDER BY key").all(group, ids.admin);
+    expect(rows).toEqual([
+      { key: 'buildings', n: 1 },
+      { key: 'empire', n: 2 },
+      { key: 'marketplace', n: 2 },
+      { key: 'messages', n: 2 },
+      { key: 'overview', n: 2 },
+      { key: 'playerCard:7', n: 1 },
+      { key: 'playerCard:8', n: 1 },
+    ]);
+  });
+
+  it('counts a galaxy page only when a system is new or changed for the group', async () => {
+    const galaxy = (who: string) => db.prepare("SELECT SUM(count) FROM sync_credits WHERE group_id = ? AND kind = 'sync' AND user_id = ? AND key = 'galaxy'").pluck().get(group, ids[who]) as number | null;
+    // carol synced the system first (beforeAll); the same view again brings nothing new
+    const res = await call('POST', '/u8/ingest', h.dave, { html: fixture('galaxy.html') });
+    expect(res.statusCode).toBe(200);
+    expect(galaxy('dave')).toBeNull();
+    // once the system looks different, the next view counts
+    db.prepare("UPDATE galaxy_views SET fingerprint = 'old' WHERE group_id = ?").run(group);
+    await call('POST', '/u8/ingest', h.dave, { html: fixture('galaxy.html') });
+    expect(galaxy('dave')).toBe(1);
+  });
+
+  it('counts the Imperium at most once an hour, but stores every sync', async () => {
+    const count = () => db.prepare("SELECT SUM(count) FROM sync_credits WHERE group_id = ? AND kind = 'sync' AND user_id = ? AND key = 'empire'").pluck().get(group, ids.dave) as number;
+    const stored = () => db.prepare("SELECT COUNT(*) FROM raw_ingests WHERE group_id = ? AND user_id = ? AND page_type = 'empire'").pluck().get(group, ids.dave) as number;
+    const before = count();
+    // an empire page always brings a new snapshot
+    await call('POST', '/u8/ingest', h.dave, { html: fixture('empire.html') });
+    await call('POST', '/u8/ingest', h.dave, { html: fixture('empire.html') });
+    expect(count()).toBe(before + 1);
+    expect(stored()).toBe(2);
+    // 15 minutes later still within the hour, an hour later it counts again
+    db.prepare("UPDATE sync_credits SET last_at = last_at - 900 WHERE group_id = ? AND user_id = ? AND kind = 'sync' AND key = 'empire'").run(group, ids.dave);
+    await call('POST', '/u8/ingest', h.dave, { html: fixture('empire.html') });
+    expect(count()).toBe(before + 1);
+    db.prepare("UPDATE sync_credits SET last_at = last_at - 3600 WHERE group_id = ? AND user_id = ? AND kind = 'sync' AND key = 'empire'").run(group, ids.dave);
+    await call('POST', '/u8/ingest', h.dave, { html: fixture('empire.html') });
+    expect(count()).toBe(before + 2);
+    expect(stored()).toBe(4);
   });
 });

@@ -19,6 +19,11 @@ export const CHANGELOG: ChangelogDay[] = [
     date: '2026-11-21',
     items: [
       {
+        kind: 'fix',
+        de: 'Rückblick: Syncs zählen nicht mehr bei jedem Neuladen. Die eigene Übersicht zählt höchstens alle 15 Minuten, Imperium, Gebäude, Forschung, Werft und Flotten höchstens einmal pro Stunde, der Markt einmal am Tag, eine Spielerkarte einmal pro Spieler und die Galaxie nur, wenn sich im System etwas geändert hat. Neue Spionage-, Kampf- und Transportberichte zählen weiter jedes Mal; synchronisiert wird weiterhin alles.',
+        en: 'Recap: syncs no longer count on every reload. Your own overview counts at most every 15 minutes, Imperium, buildings, research, shipyard and fleets at most once an hour, the marketplace once a day, a player card once per player and the galaxy only when something in the system changed. New spy, battle and transport reports still count every time; everything is still synced.',
+      },
+      {
         kind: 'new',
         de: 'Neues Abzeichen „Lebende Legende“ mit Adler: Es wird nicht erspielt, sondern nur von den Hub-Admins für besondere Verdienste verliehen.',
         en: 'New badge "Living legend" with an eagle: it cannot be earned, the hub admins award it by hand for outstanding merit.',

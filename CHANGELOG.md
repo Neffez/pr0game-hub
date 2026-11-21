@@ -4,6 +4,17 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-21
 
+- Recap: the number of syncs follows a rule per page type, so a script or a busy tab that syncs the same pages many
+  times an hour no longer inflates it. Every sync is still stored and used as before; only the count skips it.
+  - The overview counts at most every 15 minutes, Imperium, buildings, research, shipyard and fleets at most once an
+    hour, the marketplace once a day, a player card once per player.
+  - A galaxy page counts only when a system is new or changed for the group (planets, owners, names, moons, debris,
+    destroyed planets, player status; not the activity marks): the group's last view of each system keeps a
+    fingerprint (`galaxy_views.fingerprint`).
+  - Messages with spy, battle, transport and other reports, statistics with a stand the hub did not have yet and the
+    battle hall with new entries count every time, as before.
+  - The counts of the days the stored raw syncs still cover are rebuilt with these rules, galaxy and player card
+    pages parsed again (migration `099_sync_credits_last_at`, data migration `js:sync_counts_throttled`).
 - New badge "Living legend" (eagle icon) that only global admins award or take back by hand, per alliance member, in
   the admin page's member list. It has one level, shows in gold next to the counted badges (online list, player
   profile, streaks & badges, recap) and is stored in `member_awards`; API `awardMemberBadge` / `revokeMemberBadge`,

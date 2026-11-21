@@ -3881,7 +3881,7 @@ export type components = {
             } | null;
             /** @description Members of the alliance */
             members: number;
-            /** @description Syncs of pages with data */
+            /** @description Syncs of pages with something new, by page type: the overview at most every 15 minutes, empire, buildings, research, shipyard and fleets every hour, the marketplace once a day, a player card once per player, galaxy only when a system changed; reports every time */
             syncs: components["schemas"]["RecapCompare"];
             /** @description Members with points or syncs */
             active: components["schemas"]["RecapCompare"];

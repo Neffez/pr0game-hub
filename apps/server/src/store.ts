@@ -35,6 +35,7 @@ import type { IngestLog, IngestSummary, IngestTarget } from './ingest.js';
 import { fleetActivity, galaxyMark } from './repo/activity.js';
 import { FLEET_HISTORY } from './repo/fleets.js';
 import { Players, scoreKey } from './repo/players.js';
+import { galaxyFingerprint } from './repo/syncCount.js';
 
 /** Empire pages are kept a week (besides the newest), see `empire()`. */
 const EMPIRE_KEEP = 7 * 86400;
@@ -42,6 +43,8 @@ const EMPIRE_KEEP = 7 * 86400;
 /** Writes parsed records of one sync into the group's tables (and the activity log). */
 export class Store {
   private players: Players;
+  /** a galaxy system of this sync was new or changed for the group (its fingerprint), see repo/syncCount.ts */
+  galaxyNews = false;
 
   constructor(
     private db: DB,
@@ -423,17 +426,20 @@ export class Store {
     const db = this.db;
     const seenAt = this.galaxySeenAt(r);
     // Never overwrite a fresher view with older data (e.g. an old universe.json).
-    const known = db.prepare('SELECT seen_at FROM galaxy_views WHERE group_id = ? AND g = ? AND s = ?').pluck().get(this.t.groupId, r.g, r.s) as
-      | number
+    const view = db.prepare('SELECT seen_at, fingerprint FROM galaxy_views WHERE group_id = ? AND g = ? AND s = ?').get(this.t.groupId, r.g, r.s) as
+      | { seen_at: number; fingerprint: string | null }
       | undefined;
+    const known = view?.seen_at;
     if (known != null && known > seenAt) {
       this.count('galaxy_systems', false);
       return;
     }
+    const fingerprint = galaxyFingerprint(r);
+    if (fingerprint !== view?.fingerprint) this.galaxyNews = true;
     db.prepare(
-      `INSERT INTO galaxy_views (group_id, g, s, seen_at, user_id) VALUES (?, ?, ?, ?, ?)
-       ON CONFLICT (group_id, g, s) DO UPDATE SET seen_at = excluded.seen_at, user_id = excluded.user_id`,
-    ).run(this.t.groupId, r.g, r.s, seenAt, this.t.userId);
+      `INSERT INTO galaxy_views (group_id, g, s, seen_at, user_id, fingerprint) VALUES (?, ?, ?, ?, ?, ?)
+       ON CONFLICT (group_id, g, s) DO UPDATE SET seen_at = excluded.seen_at, user_id = excluded.user_id, fingerprint = excluded.fingerprint`,
+    ).run(this.t.groupId, r.g, r.s, seenAt, this.t.userId, fingerprint);
 
     // Planets/moons are only news when the system was known before (a first sync would report everything).
     const before = new Map(

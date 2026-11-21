@@ -15,7 +15,8 @@ import { Players } from './repo/players.js';
 import { shareSyncsEnabled } from './repo/presence.js';
 import { Store } from './store.js';
 import { probeImpact, type SyncImpact } from './syncImpact.js';
-import { addCredits, countSync, dayOf, FRESH_SCORE, type Credit } from './repo/achievements.js';
+import { addCredits, dayOf, FRESH_SCORE, type Credit } from './repo/achievements.js';
+import { countSync } from './repo/syncCount.js';
 import { freshnessOf } from './repo/freshness.js';
 
 export interface IngestTarget {
@@ -171,9 +172,13 @@ function ingestWith(db: DB, target: IngestTarget, input: ParseInput & { source: 
     if (parsed.records.length) {
       recordOnboarding(db, target.groupId, target.syncedBy ?? target.userId, parsed.pageType, now());
     }
-    // the recap's number of syncs: those that brought something new, for the member who pasted them
-    if (Object.values(summary.counts).some((c) => c.new > 0)) {
-      countSync(db, target.groupId, target.syncedBy ?? target.userId, dayOf(now(), target.timezone), parsed.pageType);
+    // the recap's number of syncs: those that brought something new, for the member who pasted them, within the page
+    // type's rule (repo/syncCount.ts); a galaxy page only when a system was new or changed
+    const news = parsed.pageType === 'galaxy' ? store.galaxyNews : Object.values(summary.counts).some((c) => c.new > 0);
+    if (news) {
+      const card = parsed.records.find((r) => r.kind === 'playerCard');
+      const unit = card ? String(card.ingameId ?? card.name) : null;
+      countSync(db, target.groupId, target.syncedBy ?? target.userId, dayOf(now(), target.timezone), parsed.pageType, now(), unit);
     }
     db.prepare('DELETE FROM raw_ingests WHERE group_id = ? AND created_at < ?').run(target.groupId, now() - config.rawRetentionDays * 86400);
     db.prepare(

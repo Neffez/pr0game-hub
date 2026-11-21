@@ -57,16 +57,6 @@ export function addDays(day: string, n: number): string {
 /** Start of a day in the universe's time zone, Unix seconds. */
 const dayStart = (day: string, timeZone: string) => localToEpoch(`${day} 00:00:00`, timeZone);
 
-/**
- * Counts one sync of a page with data for the member who pasted it (kind `sync`, key: the page type, `count` adds up);
- * the recap's number of syncs. Not part of the points.
- */
-export function countSync(db: DB, groupId: number, userId: number, day: string, pageType: string) {
-  db.prepare(
-    "INSERT INTO sync_credits (group_id, user_id, day, kind, key, count) VALUES (?, ?, ?, 'sync', ?, 1) ON CONFLICT (group_id, user_id, day, kind, key) DO UPDATE SET count = count + 1",
-  ).run(groupId, userId, day, pageType);
-}
-
 /** Kinds credited at most once a week (Monday to Sunday, like the ranking) instead of once a day. */
 const WEEKLY: ReadonlySet<CreditKind> = new Set(['universe']);
 
