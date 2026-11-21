@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-21
 
+- Badges explain themselves on phones and tablets: a long press on a badge (online list, player profile, streaks &
+  badges, recap) shows its tooltip as a sheet above the tab bar, which closes with the next touch; the press no
+  longer opens the link around the badge or the browser's menu (`useLongPress` in `composables.ts`).
 - New badge "Living legend" (eagle icon) that only global admins award or take back by hand, per alliance member, in
   the admin page's member list. It has one level, shows in gold next to the counted badges (online list, player
   profile, streaks & badges, recap) and is stored in `member_awards`; API `awardMemberBadge` / `revokeMemberBadge`,

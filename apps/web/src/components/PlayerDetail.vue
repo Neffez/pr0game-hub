@@ -279,7 +279,7 @@ onBeforeUnmount(() => chart?.destroy());
 </template>
 
 <style scoped>
-.pd-badges { color: inherit; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; margin-left: 8px; vertical-align: middle; white-space: nowrap; font-size: 13px; font-weight: 400; }
+.pd-badges { color: inherit; text-decoration: none; display: inline-flex; align-items: center; gap: 5px; margin-left: 8px; vertical-align: middle; white-space: nowrap; font-size: 13px; font-weight: 400; -webkit-touch-callout: none; }
 .research { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px 24px; }
 .research-line { display: flex; justify-content: space-between; padding: 2px 0; border-bottom: 1px solid var(--border); }
 </style>
