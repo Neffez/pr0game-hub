@@ -7,7 +7,7 @@ Every commit adds its changes here, newest first, grouped by date.
 - Web API types, second part: the remaining views and components (admin, attack assistant, fleet save, Imperium,
   buildings, spy reports, galaxy browser, hostile spying, battle hall, debris and moon finders, search, inactivity
   check, defense advisor, plan fleets and targets, unit editor, claims) take their answer types from the OpenAPI spec;
-  only the loot settlement view is left (`MAX_HAND_WRITTEN` 5). The spec describes these answers completely now: new
+  only the loot settlement view was left (`MAX_HAND_WRITTEN` 5; 0 together with the settlement types). The spec describes these answers completely now: new
   schemas `AttackAssist` (its attack is the new `IncomingAttack`, `HostileAttack` adds the plans and hidden mark),
   `Imperium` with `EmpirePage` and `OverviewPage`, `BuildPlanet` and `ShownLevels` for the buildings page,
   `DefenseAdvice` with `DefenseThreat` and `ThreatOutcome`, `SpyHistoryReport` and `SpySections`, `PhalanxThreat`,
@@ -28,6 +28,11 @@ Every commit adds its changes here, newest first, grouped by date.
   message sharing) name their fields; plain confirmations share the new `Ok` schema, new plans `ClaimedPlan`. Also
   described: the invite info, the admin's alliance list and sync list, the undo summary of a sync, both directions of
   `universe.json` (the download in the game's export format). A test covers the alliance list.
+- API types: the settlement answers are described in full in the OpenAPI spec (`Settlement`, `LootState` with
+  `LootRes`, `LootDebris` and `LootShips`, the list of settlements, `from-report` and `done`, all with `required`
+  fields), and the loot settlement page and the settlement list take their types from `@pr0hub/api-types`
+  (`Settlement`, `SettlementEntry`, `SettlementFromReport`, `SettlementDone` in `apiTypes.ts`; the corrections stay
+  typed by `@pr0hub/loot`) instead of hand-written ones. `MAX_HAND_WRITTEN` goes from 82 to 76.
 
 ## 2026-11-20
 

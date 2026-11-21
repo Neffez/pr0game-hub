@@ -10,10 +10,10 @@ import { localToEpoch, parseCombatReportText, parseRecycleReportsText } from '@p
 import { units } from '../units';
 import {
   adoptKeys, battleFromReport, cleanState, debrisSummary, decodeShare, diffOverrides, lootShares, marketRates, MAX_HELPER_KEEP, overriddenPaths, profitPercents,
-  settle, type Battle, type Participant, type LootState, type Overrides, type Res, type SettlementResult, type StateChanges, type TransferInput,
+  settle, type Battle, type Participant, type LootState, type Res, type SettlementResult, type TransferInput,
 } from '@pr0hub/loot';
 import { readError, uniApi } from '../api';
-import type { SettlementSources } from '../apiTypes';
+import type { Settlement, SettlementDone, SettlementSources } from '../apiTypes';
 import CommentThread from '../components/CommentThread.vue';
 import LootSankey from '../components/LootSankey.vue';
 import Hint from '../components/Hint.vue';
@@ -25,22 +25,7 @@ import { useAutoTour } from '../tours';
 /** Where the hub took a value of the draft from (server `DraftSources`). */
 type Sources = SettlementSources;
 /** `GET /plans/:id/settlement`: the draft from the hub's data, the corrections on top, or the finalized state. */
-interface Response {
-  plan: { id: number; mission: 'attack' | 'hold'; g: number | null; s: number | null; p: number | null; planet_type: 'planet' | 'moon'; target_time: number; status: string };
-  can_edit: boolean;
-  me: string;
-  draft: { state: LootState; sources: Sources };
-  /** what the hub's data covers, what members still have to sync */
-  checks: { battle: 'report' | 'plan' | 'missing'; returns: Record<string, 'message' | 'overview' | 'missing'>; recycling: 'ok' | 'none' | 'gap' | 'n/a'; missing: number };
-  overrides: Overrides | null;
-  corrected: { updated_at: number; updated_by: string | null } | null;
-  finalized: { at: number; by: string | null; live: LootState; changes: StateChanges } | null;
-  state: LootState;
-  done: string[];
-  /** finalized: what the transport messages show delivered per delivery, and the deliveries delivered in full */
-  delivered: Record<string, Res>;
-  auto_done: string[];
-}
+type Response = Settlement;
 
 const RES: (keyof Res)[] = ['m', 'k', 'd'];
 const RES_IDS = { m: 901, k: 902, d: 903 } as const;
@@ -92,7 +77,7 @@ async function load(force = false) {
   }
   const id = ++latest;
   try {
-    const res = await uniApi<Response>(uni.value, `/plans/${planId.value}/settlement`);
+    const res = await uniApi<Settlement>(uni.value, `/plans/${planId.value}/settlement`);
     if (id !== latest) return;
     show(res);
     error.value = '';
@@ -176,7 +161,7 @@ const url = () => `/plans/${planId.value}/settlement`;
 /** Saves the corrections (only what differs from the hub's data is stored). */
 const save = () =>
   run(async () => {
-    show(await uniApi<Response>(uni.value, url(), { method: 'PUT', body: { state: state.value } }));
+    show(await uniApi<Settlement>(uni.value, url(), { method: 'PUT', body: { state: state.value } }));
     notice.value = t('loot.saved');
   });
 const discard = () => load(true);
@@ -185,12 +170,12 @@ const discard = () => load(true);
 const finalize = () =>
   confirm(t('loot.finalizeConfirm')) &&
   run(async () => {
-    show(await uniApi<Response>(uni.value, `${url()}/finalize`, { method: 'POST', body: dirty.value ? { state: state.value } : {} }));
+    show(await uniApi<Settlement>(uni.value, `${url()}/finalize`, { method: 'POST', body: dirty.value ? { state: state.value } : {} }));
   });
 const reopen = () =>
   confirm(t('loot.reopenConfirm')) &&
   run(async () => {
-    show(await uniApi<Response>(uni.value, `${url()}/finalize`, { method: 'DELETE' }));
+    show(await uniApi<Settlement>(uni.value, `${url()}/finalize`, { method: 'DELETE' }));
   });
 
 /** Drops all corrections (and a finalized state): the settlement follows the hub's data alone. */
@@ -313,7 +298,7 @@ const shipsFor = (r: Res) => {
 const mayTick = (x: TransferInput) => !!finalized.value && (canEdit.value || x.from === data.value?.me || x.to === data.value?.me);
 const tick = (x: TransferInput, checked: boolean) =>
   run(async () => {
-    const res = await uniApi<{ done: string[] }>(uni.value, `${url()}/done`, { method: 'PUT', body: { key: keyOf(x), done: checked } });
+    const res = await uniApi<SettlementDone>(uni.value, `${url()}/done`, { method: 'PUT', body: { key: keyOf(x), done: checked } });
     data.value!.done = res.done;
   });
 const transferText = computed(() =>
