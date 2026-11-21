@@ -287,3 +287,60 @@ export function useLimit<T>(list: Ref<T[]>, step = 20) {
   const hidden = computed(() => (all.value ? 0 : Math.max(0, list.value.length - step)));
   return { shown, hidden, total: computed(() => list.value.length), showAll: () => (all.value = true) };
 }
+
+/**
+ * Long press with a finger (touch pointers only; a mouse keeps the native `title` tooltip): `open` turns on after
+ * `ms` without moving and stays on until the next touch anywhere or a scroll. The click that follows a long press is
+ * swallowed, so a badge inside a link does not navigate, and the browser's own menu for the press stays shut. Bind
+ * `handlers` with `v-on`.
+ */
+export function useLongPress(ms = 450) {
+  const open = ref(false);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let start: { x: number; y: number } | null = null;
+  let fired = false;
+  const cancel = () => {
+    clearTimeout(timer);
+    timer = undefined;
+  };
+  const close = () => {
+    open.value = false;
+    document.removeEventListener('pointerdown', close, true);
+    window.removeEventListener('scroll', close, true);
+  };
+  const handlers = {
+    pointerdown(e: PointerEvent) {
+      if (e.pointerType !== 'touch') return;
+      fired = false;
+      start = { x: e.clientX, y: e.clientY };
+      cancel();
+      timer = setTimeout(() => {
+        timer = undefined;
+        fired = true;
+        open.value = true;
+        // the finger is still down: listen for the next touch only from now on
+        document.addEventListener('pointerdown', close, true);
+        window.addEventListener('scroll', close, true);
+      }, ms);
+    },
+    pointermove(e: PointerEvent) {
+      if (timer && start && Math.hypot(e.clientX - start.x, e.clientY - start.y) > 10) cancel();
+    },
+    pointerup: cancel,
+    pointercancel: cancel,
+    click(e: MouseEvent) {
+      if (!fired) return;
+      fired = false;
+      e.preventDefault();
+      e.stopPropagation();
+    },
+    contextmenu(e: Event) {
+      if (fired || timer) e.preventDefault();
+    },
+  };
+  onBeforeUnmount(() => {
+    cancel();
+    close();
+  });
+  return { open, handlers, close };
+}

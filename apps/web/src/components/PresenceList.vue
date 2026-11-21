@@ -119,7 +119,7 @@ function where(p: PresenceMember) {
 .name.global-admin { color: var(--info); }
 .where { margin-left: auto; color: var(--muted); font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 a.where:hover { color: var(--accent); }
-.badges { color: inherit; text-decoration: none; display: inline-flex; gap: 2px; flex-shrink: 0; }
+.badges { color: inherit; text-decoration: none; display: inline-flex; gap: 2px; flex-shrink: 0; -webkit-touch-callout: none; }
 .dot { flex-shrink: 0; width: 7px; height: 7px; border-radius: 50%; background: var(--pos); }
 .dot.away { background: var(--warn); }
 .dot.off { background: var(--faint); }

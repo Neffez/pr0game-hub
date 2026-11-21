@@ -4,6 +4,9 @@ Every commit adds its changes here, newest first, grouped by date.
 
 ## 2026-11-21
 
+- Badges explain themselves on phones and tablets: a long press on a badge (online list, player profile, streaks &
+  badges, recap) shows its tooltip as a sheet above the tab bar, which closes with the next touch; the press no
+  longer opens the link around the badge or the browser's menu (`useLongPress` in `composables.ts`).
 - Recap: the number of syncs follows a rule per page type, so a script or a busy tab that syncs the same pages many
   times an hour no longer inflates it. Every sync is still stored and used as before; only the count skips it.
   - The overview counts at most every 15 minutes, Imperium, buildings, research, shipyard and fleets at most once an
@@ -17,8 +20,8 @@ Every commit adds its changes here, newest first, grouped by date.
     pages parsed again (migration `099_sync_credits_last_at`, data migration `js:sync_counts_throttled`).
 - New badge "Living legend" (eagle icon) that only global admins award or take back by hand, per alliance member, in
   the admin page's member list. It has one level, shows in gold next to the counted badges (online list, player
-  profile, streaks & badges, recap) and is stored in `member_awards`; API `awardMemberBadge` / `revokeMemberBadge`,
-  the member list returns `awards`.
+  profile, streaks & badges, recap) with the plain description "Special achievement" and is stored in
+  `member_awards`; API `awardMemberBadge` / `revokeMemberBadge`, the member list returns `awards`.
 - Defense advisor: "Compare with research" weighs combat research against defense. The search runs once with the
   combat research after the research queue and once per next and second-next level of weapons, shielding and armour
   technology (requirements met, costs and research time on the planet with the fastest lab), and shows per option

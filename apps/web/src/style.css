@@ -256,6 +256,13 @@ table.data tr.moon td { background: color-mix(in srgb, var(--info) 7%, transpare
     overflow-y: auto; overscroll-behavior: contain;
   }
 }
+/* tooltip opened by a long press on touch devices (badges): a sheet above the tab bar */
+.touch-tip {
+  position: fixed; left: 12px; right: 12px; bottom: calc(var(--tabbar-h) + 12px + env(safe-area-inset-bottom)); z-index: 60;
+  max-width: 480px; margin: 0 auto; padding: 10px 12px;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: 0 6px 20px rgba(0, 0, 0, .35);
+  font: 400 13px/1.5 system-ui, sans-serif; color: var(--text);
+}
 .scroll-x { overflow-x: auto; }
 
 /* past fleet movements below the fleets in flight (empire, alliance) */
